@@ -20,10 +20,15 @@
         <div x-show="!isLoading" class="card-grid">
             <template x-for="card in paginatedCards" :key="card.id" @click="selectedIds = []">
                 <!-- ... (角色卡模板内容保持不变) ... -->
-                <div class="st-card group"
-                    :class="{'selected': selectedIds.includes(card.id)}"
+                <div class="st-card group" :class="{'selected': selectedIds.includes(card.id)}"
                     @click.stop="handleCardClick($event, card)" draggable="true" @dragstart="dragStart($event, card)">
 
+                    <button @click.stop="toggleCardFav(card)"
+                        class="absolute top-2 right-2 z-30 w-7 h-7 rounded-full flex items-center justify-center transition-all duration-200 shadow-sm backdrop-blur-md border"
+                        :class="card.is_favorite ? 'bg-yellow-400/20 border-yellow-400 text-yellow-400 opacity-100' : 'bg-black/30 border-white/20 text-white/50 opacity-0 group-hover:opacity-100 hover:bg-black/50 hover:text-yellow-200'">
+                        <span class="text-sm transform transition-transform active:scale-125"
+                            x-text="card.is_favorite ? '★' : '☆'"></span>
+                    </button>
                     <!-- 选择勾选框 -->
                     <div class="absolute top-2 left-2 z-30 cursor-pointer group-hover:opacity-100 transition-opacity"
                         :class="selectedIds.includes(card.id) ? 'opacity-100' : 'opacity-0'"

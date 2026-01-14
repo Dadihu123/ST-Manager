@@ -8,7 +8,8 @@ import {
     deleteCards, 
     findCardPage, 
     moveCard, 
-    uploadCards 
+    uploadCards,
+    toggleFavorite
 } from '../api/card.js';
 
 import { batchUpdateTags } from '../api/system.js';
@@ -56,6 +57,11 @@ export default function cardGrid() {
             // 监听排序设置变化
             this.$watch('$store.global.settingsForm.default_sort', () => { this.currentPage=1; this.fetchCards(); });
             this.$watch('$store.global.itemsPerPage', () => { this.currentPage=1; this.fetchCards(); });
+
+            // 监听收藏过滤变化
+            this.$watch('$store.global.viewState.filterFavorites', () => { this.currentPage=1; this.fetchCards(); });
+            // 监听设置中的收藏前置变化
+            this.$watch('$store.global.settingsForm.favorites_first', () => { this.fetchCards(); });
 
             // 2. 监听刷新事件 (来自 Header, Sidebar, Layout)
             window.addEventListener('refresh-card-list', () => {
@@ -229,7 +235,9 @@ export default function cardGrid() {
                 search: vs.searchQuery || '',
                 search_type: vs.searchType || 'mix',
                 sort: store.settingsForm.default_sort || 'date_desc',
-                recursive: vs.recursiveFilter
+                recursive: vs.recursiveFilter,
+                favorites_only: vs.filterFavorites,
+                favorites_first: store.settingsForm.favorites_first
             };
             
             listCards(params) // 调用 API 模块
@@ -261,6 +269,19 @@ export default function cardGrid() {
                     if (err && err.name !== 'AbortError') console.error(err);
                     store.isLoading = false;
                 });
+        },
+
+        toggleCardFav(card) {
+            // 乐观更新 UI
+            card.is_favorite = !card.is_favorite;
+            
+            toggleFavorite(card.id).then(res => {
+                if (!res.success) {
+                    // 如果失败，回滚状态
+                    card.is_favorite = !card.is_favorite;
+                    alert("操作失败: " + res.msg);
+                }
+            });
         },
 
         scheduleFetchCards(reason='') {

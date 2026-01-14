@@ -18,16 +18,14 @@
             <button type="button"
                 class="relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none"
                 :style="{ backgroundColor: recursiveFilter ? 'var(--accent-main)' : 'var(--bg-hover)' }"
-                @click="recursiveFilter = !recursiveFilter; fetchCards()" role="switch"
-                :aria-checked="recursiveFilter">
+                @click="recursiveFilter = !recursiveFilter; fetchCards()" role="switch" :aria-checked="recursiveFilter">
                 <span aria-hidden="true"
                     class="pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
                     :class="recursiveFilter ? 'translate-x-4' : 'translate-x-0'">
                 </span>
             </button>
         </div>
-        <div style="display: flex; gap: 0.5rem; overflow-x: auto; margin-left: 1rem; flex: 1;"
-            class="custom-scrollbar">
+        <div style="display: flex; gap: 0.5rem; overflow-x: auto; margin-left: 1rem; flex: 1;" class="custom-scrollbar">
             <template x-for="tag in filterTags" :key="tag">
                 <div class="filter-chip" @click="toggleFilterTag(tag)">
                     <span x-text="tag"></span><span style="opacity: 0.8;">✕</span>
@@ -51,6 +49,13 @@
             <button @click="selectedIds = []" class="text-xs hover:text-white cursor-pointer"
                 style="color: var(--text-sub);">取消</button>
         </div>
+        <button
+            @click="$store.global.viewState.filterFavorites = !$store.global.viewState.filterFavorites; fetchCards()"
+            :class="$store.global.viewState.filterFavorites ? 'text-yellow-400 bg-yellow-400/10 border-yellow-400/50' : 'text-gray-500 border-transparent hover:text-yellow-400'"
+            class="btn-secondary transition-all" style="padding: 0.5rem; margin-right: 0.5rem; border: 1px solid;"
+            title="只显示收藏">
+            ★
+        </button>
         <!-- 搜索组合框 -->
         <div class="search-container ml-auto mr-4">
             <select x-show="currentMode === 'cards'" x-model="searchType" class="search-select">
@@ -64,8 +69,7 @@
             <input x-show="currentMode === 'cards'" type="text" x-model.debounce.300ms="searchQuery"
                 placeholder="搜索角色卡..." class="search-input">
             <input x-show="currentMode === 'worldinfo'" type="text" x-model.debounce.300ms="wiSearchQuery"
-                placeholder="搜索世界书名称..."
-                class="search-input">
+                placeholder="搜索世界书名称..." class="search-input">
             <button x-show="searchQuery" @click="searchQuery=''"
                 style="background: transparent; color: var(--text-dim); border: none; padding: 0 0.5rem; cursor: pointer;">✕</button>
         </div>
@@ -83,8 +87,8 @@
             🌐
         </button>
         <!-- === 刷新页面 === -->
-        <button @click="currentMode === 'cards' ? fetchCards() : fetchWorldInfoList()" title="刷新"
-            class="btn-secondary" style="padding: 0.5rem;">
+        <button @click="currentMode === 'cards' ? fetchCards() : fetchWorldInfoList()" title="刷新" class="btn-secondary"
+            style="padding: 0.5rem;">
             ↻
         </button>
         <!-- 日月切换按钮 -->

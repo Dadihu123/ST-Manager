@@ -60,6 +60,9 @@ def api_list_cards():
     recursive_str = request.args.get('recursive', 'true')
     is_recursive = recursive_str.lower() == 'true'
 
+    filter_fav = request.args.get('favorites_only', 'false') == 'true'
+    fav_first = request.args.get('favorites_first', 'false') == 'true'
+
     # 1. 获取所有卡片, 浅拷贝
     with ctx.cache.lock:
         candidates = list(ctx.cache.cards)
@@ -96,6 +99,9 @@ def api_list_cards():
         for t in c['tags']:
             sidebar_tags_set.add(t)
     sidebar_tags = sorted(list(sidebar_tags_set))
+
+    if filter_fav:
+        candidates = [c for c in candidates if c.get('is_favorite')]
 
     # 3. 搜索过滤 (在已经(可能)被分类缩小范围的基础上继续过滤)
     if search:
@@ -134,12 +140,20 @@ def api_list_cards():
     # 5. 排序
     filtered_cards = candidates
     reverse = 'desc' in sort_mode
+    key_func = lambda x: x['last_modified'] # 默认
     if 'date' in sort_mode:
-        filtered_cards.sort(key=lambda x: x['last_modified'], reverse=reverse)
+        key_func = lambda x: x['last_modified']
     elif 'name' in sort_mode:
-        filtered_cards.sort(key=lambda x: x['char_name'].lower(), reverse=reverse)
+        key_func = lambda x: x['char_name'].lower()
     elif 'token' in sort_mode:
-        filtered_cards.sort(key=lambda x: x.get('token_count', 0), reverse=reverse)
+        key_func = lambda x: x.get('token_count', 0)
+
+    # 执行排序
+    if fav_first:
+        filtered_cards.sort(key=key_func, reverse=reverse)
+        filtered_cards.sort(key=lambda x: 0 if x.get('is_favorite') else 1)
+    else:
+        filtered_cards.sort(key=key_func, reverse=reverse)
 
     # 6. 分页
     total_count = len(filtered_cards)
@@ -161,6 +175,34 @@ def api_list_cards():
         "page": page,
         "page_size": page_size
     })
+
+# 切换收藏状态
+@bp.route('/api/toggle_favorite', methods=['POST'])
+def api_toggle_favorite():
+    try:
+        card_id = request.json.get('id')
+        if not card_id: return jsonify({"success": False, "msg": "Missing ID"})
+        
+        conn = get_db()
+        cursor = conn.cursor()
+        
+        # 获取当前状态并取反
+        cursor.execute("SELECT is_favorite FROM card_metadata WHERE id = ?", (card_id,))
+        row = cursor.fetchone()
+        if not row: return jsonify({"success": False, "msg": "Card not found in DB"})
+        
+        new_status = 0 if row['is_favorite'] else 1
+        
+        # 更新数据库
+        cursor.execute("UPDATE card_metadata SET is_favorite = ? WHERE id = ?", (new_status, card_id))
+        conn.commit()
+        
+        # 更新缓存
+        ctx.cache.toggle_favorite_update(card_id, bool(new_status))
+        
+        return jsonify({"success": True, "new_status": bool(new_status)})
+    except Exception as e:
+        return jsonify({"success": False, "msg": str(e)})
 
 @bp.route('/api/update_card', methods=['POST'])
 def api_update_card():

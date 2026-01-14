@@ -180,3 +180,12 @@ export async function setAsBundleCover(payload) {
     });
     return res.json();
 }
+// 切换收藏
+export async function toggleFavorite(cardId) {
+    const res = await fetch('/api/toggle_favorite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: cardId })
+    });
+    return res.json();
+}

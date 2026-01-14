@@ -86,7 +86,8 @@ export function initState() {
             card_width: 220, 
             bg_url: '', 
             bg_opacity: 0.95, 
-            bg_blur: 0 
+            bg_blur: 0,
+            favorites_first: false,
         },
 
         // === 集中管理的视图状态 ===
@@ -100,7 +101,8 @@ export function initState() {
             lastSelectedId: null,
             tagSearchQuery: '',
             draggedCards: [],   // 当前正在拖拽的卡片 ID 列表
-            draggedFolder: null // 当前正在拖拽的文件夹路径
+            draggedFolder: null, // 当前正在拖拽的文件夹路径
+            filterFavorites: false,// 是否只显示收藏
         },
 
         // === 文件夹模态框状态 ===

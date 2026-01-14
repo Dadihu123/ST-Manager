@@ -288,7 +288,7 @@ class GlobalMetadataCache:
             cursor = conn.cursor()
             cursor.execute("""
                 SELECT id, char_name, tags, category, creator, 
-                       char_version, last_modified, file_hash, token_count
+                       char_version, last_modified, file_hash, token_count, is_favorite
                 FROM card_metadata
             """)
             rows = cursor.fetchall()
@@ -324,7 +324,8 @@ class GlobalMetadataCache:
                         "token_count": row['token_count'] if 'token_count' in row.keys() else 0,
                         "dir_path": dir_path,
                         "is_bundle": False, 
-                        "versions": [] 
+                        "versions": [],
+                        "is_favorite": bool(row['is_favorite']),
                     }
                     raw_cards.append(card_data)
 
@@ -407,21 +408,6 @@ class GlobalMetadataCache:
                 self.bundle_map = new_bundle_map
                 self.global_tags = sorted(list(new_global_tags))
                 self.category_counts = new_cat_counts
-                
-                # 计算前端可见文件夹树——扫描磁盘 os.walk (慢，且与后台扫描器重复)
-                # physical_folders = set()
-                # for root, dirs, _ in os.walk(CARDS_FOLDER):
-                #     for d in dirs:
-                #         abs_path = os.path.join(root, d)
-                #         rel = os.path.relpath(abs_path, CARDS_FOLDER)
-                #         if rel == ".": continue
-                #         physical_folders.add(rel.replace('\\', '/'))
-                
-                # all_possible = set(new_cat_counts.keys()) | physical_folders
-                # self.visible_folders = [f for f in sorted(list(all_possible)) if f not in bundle_paths and f != ""]
-                # 新逻辑: 仅基于数据库中已有的路径生成。
-                #        如果用户手动创建了空文件夹，稍后后台扫描器启动后会补全它，
-                #        但启动时我们只显示有内容的文件夹，速度最快。
                 self.visible_folders = [f for f in sorted(list(derived_folders)) if f not in bundle_paths and f != ""]
                 
                 self.initialized = True
@@ -430,6 +416,14 @@ class GlobalMetadataCache:
             except Exception as e:
                 logger.error(f"Cache reload error: {e}")
                 # 保持旧数据，防止应用崩溃
+
+    def toggle_favorite_update(self, card_id, new_status):
+        """[增量更新] 更新卡片收藏状态"""
+        with self.lock:
+            if card_id in self.id_map:
+                self.id_map[card_id]['is_favorite'] = new_status
+                return True
+            return False
 
     def _enrich_card_ui(self, card, ui_data, is_bundle=False):
         """辅助函数：将 UI 数据合并到卡片对象中"""

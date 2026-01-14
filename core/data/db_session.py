@@ -156,6 +156,14 @@ def init_database():
         except Exception as e:
             logger.error(f"数据库升级失败 (token_count): {e}")
     
+    if 'is_favorite' not in columns:
+        print("正在升级数据库: 添加 is_favorite 列...")
+        try:
+            cursor.execute("ALTER TABLE card_metadata ADD COLUMN is_favorite INTEGER DEFAULT 0")
+            conn.commit()
+        except Exception as e:
+            logger.error(f"数据库升级失败 (is_favorite): {e}")
+
     if 'has_character_book' not in columns:
         print("正在升级数据库: 添加 has_character_book 列...")
         try:
