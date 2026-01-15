@@ -127,7 +127,7 @@ def _perform_scan_logic():
         
         # 1. 获取数据库当前状态 (用于比对)
         cursor.execute("""
-            SELECT id, last_modified, file_size, token_count, file_hash
+            SELECT id, last_modified, file_size, token_count, file_hash, is_favorite
             FROM card_metadata
         """)
         rows = cursor.fetchall()
@@ -138,7 +138,8 @@ def _perform_scan_logic():
                 'mtime': row[1] or 0,
                 'size': row[2] or 0,
                 'tokens': row[3] or 0,
-                'hash': row[4] or ""
+                'hash': row[4] or "",
+                'fav': row['is_favorite'] or 0
             }
             for row in rows
         }
@@ -216,6 +217,7 @@ def _perform_scan_logic():
                         if 'name' not in calc_data: calc_data['name'] = char_name
                         token_count = calculate_token_count(calc_data)
                         has_wi, wi_name = get_wi_meta(data_block)
+                        keep_fav = db_info['fav'] if db_info else 0
 
                         # 优化：仅在文件真正变更时重置 hash，否则保留旧 hash (避免昂贵的 hash 计算)
                         if file_changed:
@@ -225,8 +227,8 @@ def _perform_scan_logic():
 
                         cursor.execute('''
                                 INSERT OR REPLACE INTO card_metadata
-                                (id, char_name, description, first_mes, mes_example, tags, category, creator, char_version, last_modified, file_hash, file_size, token_count, has_character_book, character_book_name)
-                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                (id, char_name, description, first_mes, mes_example, tags, category, creator, char_version, last_modified, file_hash, file_size, token_count, has_character_book, character_book_name, is_favorite)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                             ''', (
                                 file_id, char_name,
                                 data_block.get('description', ''), 
@@ -236,7 +238,8 @@ def _perform_scan_logic():
                                 data_block.get('creator', ''), 
                                 data_block.get('character_version', ''),
                                 current_mtime, file_hash, current_size, 
-                                token_count, has_wi, wi_name
+                                token_count, has_wi, wi_name,
+                                keep_fav
                             ))
                         changes_detected = True
 

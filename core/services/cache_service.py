@@ -70,6 +70,11 @@ def update_card_cache(card_id, full_path, *, parsed_info=None, file_hash=None, f
     try:
         conn = get_db()
         cursor = conn.cursor()
+
+        # 获取收藏状态
+        cursor.execute("SELECT is_favorite FROM card_metadata WHERE id = ?", (card_id,))
+        row = cursor.fetchone()
+        current_fav = row['is_favorite'] if row else 0
         
         if file_hash is None or file_size is None:
             file_hash, file_size = get_file_hash_and_size(full_path)
@@ -104,8 +109,8 @@ def update_card_cache(card_id, full_path, *, parsed_info=None, file_hash=None, f
 
             cursor.execute('''
                 INSERT OR REPLACE INTO card_metadata 
-                (id, char_name, description, first_mes, mes_example, tags, category, creator, char_version, last_modified, file_hash, file_size, token_count, has_character_book, character_book_name)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (id, char_name, description, first_mes, mes_example, tags, category, creator, char_version, last_modified, file_hash, file_size, token_count, has_character_book, character_book_name, is_favorite)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?，?)
             ''', (
                 card_id,
                 char_name,
@@ -121,7 +126,8 @@ def update_card_cache(card_id, full_path, *, parsed_info=None, file_hash=None, f
                 file_size,
                 token_count,
                 has_wi,
-                wi_name
+                wi_name,
+                current_fav
             ))
             
             conn.commit()
