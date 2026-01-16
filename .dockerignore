@@ -1,0 +1,21 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.db
+.git/
+.gitignore
+.vscode/
+data/*
+config.json
+venv/
+env/
+dist/
+build/
+*.exe
+*.spec
+# 忽略打包环境产生的临时文件
+gui.log
+app.log
+
+cards_metadata.db*
