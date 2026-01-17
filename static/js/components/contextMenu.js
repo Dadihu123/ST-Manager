@@ -34,6 +34,8 @@ export default function contextMenu() {
                 this.target = target;
                 this.targetFolder = targetFolder;
                 this.visible = true;
+
+                window.dispatchEvent(new CustomEvent('load-rulesets-for-menu'));
             });
 
             // 监听隐藏事件
@@ -44,11 +46,6 @@ export default function contextMenu() {
             // 点击外部自动关闭
             window.addEventListener('click', () => {
                 this.visible = false;
-            });
-
-            window.addEventListener('show-context-menu', () => {
-                // 触发 header 加载规则集 (如果还没加载)
-                window.dispatchEvent(new CustomEvent('load-rulesets-for-menu'));
             });
         },
 
