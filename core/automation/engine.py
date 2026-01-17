@@ -137,12 +137,16 @@ class AutomationEngine:
             if operator == OP_CONTAINS:
                 if isinstance(value, list):
                     # 列表包含：只要列表中 有任意一项 包含目标字符串
-                    target_item = tgt_str
+                    tgt_str = str(target_value)
                     if not case_sensitive:
-                        # 模糊匹配：只要 list item 中包含 target
-                        return any(target_item == str(v).lower() for v in value)
-                    return any(str(target_value) == str(v) for v in value)
+                        # 模糊匹配：将列表项和目标值都转小写后判断包含关系
+                        tgt_str = tgt_str.lower()
+                        return any(tgt_str in str(v).lower() for v in value)
+                    
+                    # 精确大小写匹配
+                    return any(str(target_value) in str(v) for v in value)
                 else:
+                    # 字符串包含
                     return tgt_str in val_str
 
             if operator == OP_NOT_CONTAINS:
