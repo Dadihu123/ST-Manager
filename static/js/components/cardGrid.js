@@ -8,7 +8,6 @@ import {
     deleteCards,
     findCardPage,
     moveCard,
-    uploadCards,
     toggleFavorite
 } from '../api/card.js';
 
@@ -129,44 +128,23 @@ export default function cardGrid() {
                 const { cards, category } = e.detail;
                 if (!cards || cards.length === 0) return;
 
-                // 判断当前视图是否应该显示这些卡片
-                // 逻辑：如果当前就在该分类，或者在根目录且开启了递归
                 const currentViewCat = this.$store.global.viewState.filterCategory;
                 const isRecursive = this.$store.global.viewState.recursiveFilter;
                 
-                // 简单的可见性检查
+                // 可见性检查
                 let shouldShow = false;
                 if (currentViewCat === '') {
-                    // 根目录视图
+                    // 根目录视图：如果开启递归，或者是直接上传到根目录，则显示
                     shouldShow = (category === '') || isRecursive; 
                 } else {
-                    // 子目录视图
-                    shouldShow = (category === currentViewCat);
+                    // 子目录视图：必须匹配当前目录
+                    // 注意：如果上传到 currentViewCat/SubDir 且开启递归，也应该显示，这里做简化处理
+                    shouldShow = (category === currentViewCat) || (isRecursive && category.startsWith(currentViewCat + '/'));
                 }
 
                 if (shouldShow) {
                     cards.forEach(card => {
-                        // 检查是否已存在 (避免重复)
-                        const exists = this.cards.some(c => c.id === card.id);
-                        if (!exists) {
-                            this.insertCardSorted(card);
-                            this.totalItems++;
-                        } else {
-                            // 如果已存在 (覆盖模式)，更新数据
-                            const idx = this.cards.findIndex(c => c.id === card.id);
-                            if (idx !== -1) {
-                                this.cards[idx] = card;
-                            }
-                        }
-                        
-                        // 更新 Tag 池
-                        if (card.tags) {
-                            card.tags.forEach(t => {
-                                if (!this.$store.global.allTagsPool.includes(t)) {
-                                    this.$store.global.allTagsPool.push(t);
-                                }
-                            });
-                        }
+                        this.handleIncrementalUpdate(card);
                     });
                 }
             });
@@ -176,34 +154,19 @@ export default function cardGrid() {
                 const newCard = e.detail;
                 if (!newCard) return;
 
-                // 判断是否应该在当前视图显示 (逻辑同 handleFilesDrop)
-                let shouldShow = false;
-                // 获取当前的筛选分类 (直接读 store 或者 local prop)
                 const currentCat = this.$store.global.viewState.filterCategory;
                 const recursive = this.$store.global.viewState.recursiveFilter;
 
+                let shouldShow = false;
                 if (currentCat === '') {
-                    // 根目录视图：如果是递归，全显示；如果不递归，只显示根目录卡片
                     shouldShow = recursive || newCard.category === '';
                 } else {
-                    // 特定目录视图
                     shouldShow = newCard.category === currentCat ||
                         (recursive && newCard.category.startsWith(currentCat + '/'));
                 }
 
-                // 如果符合当前视图，插入列表
                 if (shouldShow) {
-                    this.insertCardSorted(newCard);
-                    this.totalItems++;
-                }
-
-                // 更新标签池
-                if (newCard.tags) {
-                    newCard.tags.forEach(t => {
-                        if (!this.$store.global.allTagsPool.includes(t)) {
-                            this.$store.global.allTagsPool.push(t);
-                        }
-                    });
+                    this.handleIncrementalUpdate(newCard);
                 }
             });
 
@@ -217,6 +180,30 @@ export default function cardGrid() {
                 const tagsToRemove = e.detail.tags;
                 this.handleBatchRemoveTagsFromView(tagsToRemove);
             });
+        },
+
+        // 统一处理增量更新 (插入/排序/去重)
+        handleIncrementalUpdate(card) {
+            // 1. 如果已存在，先移除 (确保可以重新插入到正确排序位置)
+            const idx = this.cards.findIndex(c => c.id === card.id);
+            if (idx !== -1) {
+                this.cards.splice(idx, 1);
+            } else {
+                // 如果是全新卡片，总数+1
+                this.totalItems++;
+            }
+
+            // 2. 按当前排序规则插入
+            this.insertCardSorted(card);
+
+            // 3. 更新 Tag 池
+            if (card.tags) {
+                card.tags.forEach(t => {
+                    if (!this.$store.global.allTagsPool.includes(t)) {
+                        this.$store.global.allTagsPool.push(t);
+                    }
+                });
+            }
         },
 
         handleBatchRemoveTagsFromView(tags) {
@@ -611,17 +598,21 @@ export default function cardGrid() {
             const sortMode = this.$store.global.settingsForm.default_sort || 'date_desc';
             let index = -1;
 
-            if (sortMode === 'date_desc') {
-                index = this.cards.findIndex(c => c.last_modified < newCard.last_modified);
-            } else if (sortMode === 'date_asc') {
-                index = this.cards.findIndex(c => c.last_modified > newCard.last_modified);
-            } else if (sortMode === 'name_asc') {
-                index = this.cards.findIndex(c => String(c.char_name).localeCompare(String(newCard.char_name), 'zh-CN') > 0);
-            } else if (sortMode === 'name_desc') {
-                index = this.cards.findIndex(c => String(newCard.char_name).localeCompare(String(c.char_name), 'zh-CN') > 0);
-            }
+            const compare = (a, b) => {
+                if (sortMode === 'date_desc') return b.last_modified - a.last_modified;
+                if (sortMode === 'date_asc') return a.last_modified - b.last_modified;
+                if (sortMode === 'name_asc') return String(a.char_name).localeCompare(String(b.char_name), 'zh-CN');
+                if (sortMode === 'name_desc') return String(b.char_name).localeCompare(String(a.char_name), 'zh-CN');
+                if (sortMode === 'token_desc') return (b.token_count || 0) - (a.token_count || 0);
+                if (sortMode === 'token_asc') return (a.token_count || 0) - (b.token_count || 0);
+                return 0;
+            };
+
+            // 寻找插入点：找到第一个"排序后应该在 newCard 后面"的元素
+            index = this.cards.findIndex(c => compare(newCard, c) < 0);
 
             if (index === -1) {
+                // 如果没找到比它"小"的，说明它最小（或最大），放在最后
                 this.cards.push(newCard);
             } else {
                 this.cards.splice(index, 0, newCard);

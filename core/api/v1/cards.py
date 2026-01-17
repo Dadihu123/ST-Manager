@@ -1219,6 +1219,8 @@ def api_import_from_url():
             "file_size": final_size,
             "is_bundle": False
         }
+        
+        ctx.cache.add_card_update(new_card)
 
         return jsonify({"success": True, "new_card": new_card})
 
@@ -2905,6 +2907,7 @@ def api_upload_commit():
                     "is_bundle": False
                 }
                 new_cards.append(card_obj)
+                ctx.cache.add_card_update(card_obj)
             
             success_count += 1
 
