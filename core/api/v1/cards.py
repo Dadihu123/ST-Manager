@@ -2941,8 +2941,24 @@ def api_upload_commit():
                     "file_size": final_size,
                     "is_bundle": False
                 }
-                new_cards.append(card_obj)
                 ctx.cache.add_card_update(card_obj)
+                
+                # === 触发自动化规则 ===
+                auto_res = auto_run_rules_on_card(card_obj['id'])
+                
+                if auto_res and auto_res.get('result'):
+                    final_id = auto_res['result'].get('final_id')
+                    if final_id and final_id != card_obj['id']:
+                        # ID 变了，更新返回给前端的数据，防止前端跳错位置
+                        card_obj['id'] = final_id
+                        card_obj['category'] = auto_res['result']['moved_to']
+                        # 更新 URL
+                        encoded_id = quote(final_id)
+                        ts = int(time.time())
+                        card_obj['image_url'] = f"/cards_file/{encoded_id}?t={ts}"
+                        card_obj['thumb_url'] = f"/api/thumbnail/{encoded_id}?t={ts}"
+
+                new_cards.append(card_obj)
             
             success_count += 1
 
