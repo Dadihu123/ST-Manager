@@ -2625,7 +2625,21 @@ def api_upload_stage():
             file.save(temp_path)
 
             # 解析新上传文件的元数据 (用于预览)
-            new_info_raw = extract_card_info(temp_path) or {}
+            new_info_raw = extract_card_info(temp_path)
+            
+            if not new_info_raw:
+                # 立即清理临时文件
+                try: os.remove(temp_path)
+                except: pass
+                
+                # 记录错误并跳过
+                report.append({
+                    "filename": safe_name,
+                    "status": "error",
+                    "msg": "无法读取卡片元数据 (非有效PNG/JSON)"
+                })
+                continue
+            
             new_data_block = new_info_raw.get('data', {}) if 'data' in new_info_raw else new_info_raw
             
             # 计算新卡片 Token

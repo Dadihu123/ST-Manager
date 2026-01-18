@@ -576,11 +576,23 @@ export default function cardGrid() {
                 .then(res => {
                     this.$store.global.isLoading = false;
                     if (res.success) {
+                        // 分离有效项和错误项
+                        const errors = res.report.filter(item => item.status === 'error');
+                        const validReport = res.report.filter(item => item.status !== 'error');
+                        // 如果有错误，弹窗提醒
+                        if (errors.length > 0) {
+                            const errorMsg = errors.map(e => `❌ ${e.filename}: ${e.msg || '格式无效'}`).join('\n');
+                            alert(`部分文件导入失败：\n\n${errorMsg}\n\n这些文件将被跳过。`);
+                        }
+                        // 如果没有有效文件了，终止流程
+                        if (validReport.length === 0) {
+                            return; // 不打开确认框
+                        }
                         // 打开批量导入确认弹窗
                         window.dispatchEvent(new CustomEvent('open-batch-import-modal', {
                             detail: {
                                 batchId: res.batch_id,
-                                report: res.report,
+                                report: validReport,
                                 category: targetCategory
                             }
                         }));
