@@ -2,60 +2,23 @@
 
 <div x-data="contextMenu" x-show="visible" @click.away="hideContextMenu"
     :style="{ top: y + 'px', left: x + 'px' }"
-    class="fixed z-context-menu shadow-xl rounded-lg py-1 w-56"
+    class="fixed z-context-menu shadow-xl rounded-lg py-1 w-56 overflow-hidden"
     style="background: var(--bg-panel); border: 1px solid var(--border-light); display:none;">
     <template x-if="type === 'folder'">
         <div>
-            <button x-show="target !== ''" @click="handleRename()"
+            <button x-show="target !== ''" @click="showRenameFolderModal(target)"
                 class="w-full text-left px-4 py-2 text-sm hover:bg-gray-700 transition-colors flex items-center gap-2"
                 style="color: var(--text-main);"><span>✏️</span> 重命名</button>
-            <button @click="handleCreateSub()"
+            <button @click="showCreateSubFolderModal(target)"
                 class="w-full text-left px-4 py-2 text-sm hover:bg-gray-700 transition-colors flex items-center gap-2"
                 style="color: var(--text-main);"><span>➕</span> 创建子分类</button>
             <hr x-show="target !== ''" class="border-gray-700 my-1">
-            <button x-show="target !== ''" @click="handleBundle()"
+            <button x-show="target !== ''" @click="toggleBundleMode(targetFolder)"
                 class="w-full text-left px-4 py-2 text-sm text-yellow-400 hover:bg-gray-700 transition-colors flex items-center gap-2"><span>📦</span>
                 切换"角色包"</button>
-            <button x-show="target !== ''" @click="handleDelete()"
+            <button x-show="target !== ''" @click="deleteFolder(target)"
                 class="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-gray-700 transition-colors flex items-center gap-2"><span>🗑️</span>
                 删除分类</button>
-            <hr class="border-gray-700 my-1">
-            <!-- 运行自动化 -->
-            <div x-data="{ showSub: false }"class="relative" 
-                 @mouseenter="showSub=true; $dispatch('load-rulesets-for-menu')" 
-                 @mouseleave="showSub=false">
-                <button class="w-full text-left px-4 py-2 text-sm hover:bg-gray-700 transition-colors flex items-center justify-between"
-                    style="color: var(--text-main);">
-                    <span class="flex items-center gap-2"><span>⚡</span> 运行自动化</span>
-                    <span class="text-xs">▶</span>
-                </button>
-                
-                <!-- 子菜单：选择规则集 -->
-                <div x-show="showSub" 
-                     x-transition:enter="transition ease-out duration-100"
-                     x-transition:enter-start="opacity-0 scale-95"
-                     x-transition:enter-end="opacity-100 scale-100"
-                     class="absolute left-full top-0 ml-1 w-48 bg-[var(--bg-panel)] border border-[var(--border-light)] rounded shadow-xl py-1 custom-scrollbar"
-                     style="max-height: 300px; overflow-y: auto;">
-                     
-                     <div class="px-3 py-1 text-[10px] text-[var(--text-dim)] border-b border-[var(--border-light)] bg-[var(--bg-sub)]">
-                        选择规则集:
-                     </div>
-                     
-                     <!-- 确保这里引用的 store 路径正确 -->
-                     <template x-for="rs in $store.global.availableRuleSets" :key="rs.id">
-                        <button @click.stop="handleRunAuto(rs.id)"
-                            class="w-full text-left px-3 py-2 text-xs hover:bg-[var(--bg-hover)] text-[var(--text-main)] truncate block">
-                            <span x-text="rs.meta.name"></span>
-                        </button>
-                     </template>
-                     
-                     <div x-show="!$store.global.availableRuleSets || $store.global.availableRuleSets.length===0" 
-                          class="px-3 py-2 text-xs text-[var(--text-dim)] text-center">
-                          (无规则集)
-                     </div>
-                </div>
-            </div>
         </div>
     </template>
 </div>

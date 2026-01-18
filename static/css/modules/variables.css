@@ -43,20 +43,6 @@
     --btn-sec-text: #9ca3af;
     --btn-sec-border: #374151;
 
-    /* === 语义化状态色 (Status Colors) === */
-    --color-primary: var(--accent-main);
-    --color-primary-rgb: var(--accent-main-rgb);
-    --color-danger: #ef4444;
-    --color-success: #10b981;
-    --color-warn: #f59e0b;
-    
-    --text-warn: var(--color-warn);
-    --border-warn: rgba(245, 158, 11, 0.3);
-    --text-success: var(--color-success);
-    
-    /* === 布局别名 === */
-    --bg-item: var(--bg-sub);
-
     /* 自定义样式变量 */
     --card-min-width: 200px;      /* 卡片最小宽度 (控制密度) */
     --card-height: 28rem;         /* 卡片高度 */

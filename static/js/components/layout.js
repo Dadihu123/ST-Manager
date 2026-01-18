@@ -15,13 +15,13 @@ export default function layout() {
         get isLoading() { return this.$store.global.isLoading; },
         get toastMessage() { return this.$store.global.toastMessage; },
         get showToastState() { return this.$store.global.showToastState; },
-
+        
         // 映射模式状态
         get currentMode() { return this.$store.global.currentMode; },
-
+        
         // 映射全屏遮罩状态 (如果不属于特定组件)
         get showSettingsModal() { return this.$store.global.showSettingsModal; },
-
+        
         // 映射全局操作 (Actions)
         toggleDarkMode() { this.$store.global.toggleDarkMode(); },
 
@@ -30,11 +30,11 @@ export default function layout() {
         get filterCategory() { return this.$store.global.viewState.filterCategory; },
         get selectedIds() { return this.$store.global.viewState.selectedIds; },
         set selectedIds(val) { this.$store.global.viewState.selectedIds = val; return true; },
-
+        
         // 拖拽状态也建议走 Store，特别是 draggedCards
         get draggedCards() { return this.$store.global.viewState.draggedCards; },
         set draggedCards(val) { this.$store.global.viewState.draggedCards = val; return true; },
-
+        
         get draggedFolder() { return this.$store.global.viewState.draggedFolder; },
         set draggedFolder(val) { this.$store.global.viewState.draggedFolder = val; return true; },
 
@@ -42,7 +42,6 @@ export default function layout() {
         dragCounter: 0,
         dragOverMain: false,      // 主视图拖拽遮罩
         dragOverCat: null,        // 侧边栏文件夹高亮
-
 
         // 初始化
         init() {
@@ -60,42 +59,21 @@ export default function layout() {
             window.addEventListener('global-drag-end', () => {
                 this.handleGlobalDragEnd();
             });
-
+            
             // 监听 Escape 取消拖拽
             window.addEventListener('keydown', (e) => {
                 if (e.key === 'Escape' && (this.draggedFolder || this.draggedCards.length > 0)) {
                     this.handleGlobalDragEnd();
                 }
             });
-
-            // 监听从世界书跳转的事件
-            window.addEventListener('jump-to-card-wi', (e) => {
-                const cardId = e.detail;
-                if (!cardId) return;
-
-                // 1. 切换到角色卡模式
-                this.switchMode('cards');
-
-                // 2. 稍作延迟，等待 cardGrid 组件挂载/显示
-                setTimeout(() => {
-                    // 派发定位事件，不传 category，让后端自动推导
-                    window.dispatchEvent(new CustomEvent('locate-card', {
-                        detail: {
-                            id: cardId,
-                            category: null,
-                            shouldOpenDetail: true
-                        }
-                    }));
-                }, 100);
-            });
         },
 
         handleBackgroundClick(e) {
             // 检查点击目标是否是卡片本身或按钮，如果不是，则清空
-            if (!e.target.closest('.st-card') &&
-                !e.target.closest('button') &&
+            if (!e.target.closest('.st-card') && 
+                !e.target.closest('button') && 
                 !e.target.closest('.clickable-area')) {
-
+                
                 this.selectedIds = []; // 清空 Store
             }
         },
@@ -104,7 +82,7 @@ export default function layout() {
         switchMode(mode) {
             this.$store.global.currentMode = mode;
             this.selectedIds = []; // 清空选中
-
+            
             // 触发数据加载 (通过事件通知 Grid 组件)
             if (mode === 'worldinfo') {
                 window.dispatchEvent(new CustomEvent('refresh-wi-list'));
@@ -121,13 +99,13 @@ export default function layout() {
             this.dragOverCat = null;
             this.dragOverMain = false;
             this.draggedCards = [];
-
+            
             // 清理 DOM 类名
             document.querySelectorAll('.drag-source').forEach(el => el.classList.remove('drag-source'));
             document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
-
+            
             if (window.dragImageElement) {
-                if (window.dragImageElement.parentNode) window.dragImageElement.parentNode.removeChild(window.dragImageElement);
+                if(window.dragImageElement.parentNode) window.dragImageElement.parentNode.removeChild(window.dragImageElement);
                 window.dragImageElement = null;
             }
         },
@@ -152,7 +130,7 @@ export default function layout() {
         handleDragOverRoot(e) {
             e.preventDefault();
             e.stopPropagation();
-
+            
             // 检查拖拽类型是否匹配
             const isCard = e.dataTransfer.types.includes('application/x-st-card');
             const isFolder = !!this.draggedFolder;
@@ -169,18 +147,18 @@ export default function layout() {
         handleDropOnRoot(e) {
             e.preventDefault();
             e.stopPropagation();
-
+            
             this.dragOverCat = null;
             this.dragOverMain = false;
-
+            
             // 1. 卡片拖拽 -> 根目录
             if (this.draggedCards.length > 0) {
                 const count = this.draggedCards.length;
-                if (confirm(`移动 ${count} 张卡片到根目录?`)) {
+                if(confirm(`移动 ${count} 张卡片到根目录?`)) {
                     moveCard({ card_ids: this.draggedCards, target_category: '' })
                         .then(res => {
-                            if (res.success) {
-                                if (res.category_counts) this.$store.global.categoryCounts = res.category_counts;
+                            if(res.success) {
+                                if(res.category_counts) this.$store.global.categoryCounts = res.category_counts;
                                 window.dispatchEvent(new CustomEvent('refresh-card-list'));
                             } else alert(res.msg);
                         });
@@ -190,23 +168,23 @@ export default function layout() {
             else if (this.draggedFolder) {
                 const sourceName = this.draggedFolder.split('/').pop();
                 if (confirm(`移动文件夹 "${sourceName}" 到根目录?`)) {
-                    moveFolder({
-                        source_path: this.draggedFolder,
-                        target_parent_path: '',
-                        merge_if_exists: false
+                    moveFolder({ 
+                        source_path: this.draggedFolder, 
+                        target_parent_path: '', 
+                        merge_if_exists: false 
                     }).then(res => {
-                        if (res.success) window.dispatchEvent(new CustomEvent('refresh-folder-list'));
+                        if(res.success) window.dispatchEvent(new CustomEvent('refresh-folder-list'));
                         else alert(res.msg);
                     });
                 }
             }
             // 3. 外部文件
             else if (e.dataTransfer.files.length > 0) {
-                window.dispatchEvent(new CustomEvent('handle-files-drop', {
-                    detail: { event: e, category: '' }
+                window.dispatchEvent(new CustomEvent('handle-files-drop', { 
+                    detail: { event: e, category: '' } 
                 }));
             }
-
+            
             this.handleGlobalDragEnd();
         },
 

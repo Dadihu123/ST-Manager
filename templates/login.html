@@ -1,0 +1,43 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm z-50">
+    <div class="bg-gray-800 text-white rounded-xl shadow-2xl p-8 w-full max-w-md border border-gray-700">
+        <div class="flex flex-col items-center mb-6">
+            <h1 class="text-3xl font-bold mb-2">ST Manager</h1>
+            <p class="text-gray-400">身份验证以继续访问</p>
+        </div>
+
+        <form method="POST" action="/login" class="space-y-4">
+            <div>
+                <label for="username" class="block text-sm font-medium text-gray-300 mb-1">用户名</label>
+                <input type="text" id="username" name="username" required autocomplete="off"
+                    class="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all placeholder-gray-500"
+                    placeholder="请输入用户名">
+            </div>
+            
+            <div>
+                <label for="password" class="block text-sm font-medium text-gray-300 mb-1">密码</label>
+                <input type="password" id="password" name="password" required autocomplete="off"
+                    class="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all placeholder-gray-500"
+                    placeholder="请输入密码">
+            </div>
+
+            {% if error %}
+            <div class="p-3 bg-red-900 bg-opacity-50 border border-red-500 text-red-200 text-sm rounded-lg">
+                {{ error }}
+            </div>
+            {% endif %}
+
+            <button type="submit"
+                class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 rounded-lg shadow-md transition-colors duration-200">
+                登录
+            </button>
+        </form>
+
+        <div class="mt-6 pt-6 border-t border-gray-700 text-center text-xs text-gray-500">
+            为了您的数据安全，请勿在公共设备上记住密码
+        </div>
+    </div>
+</div>
+{% endblock %}

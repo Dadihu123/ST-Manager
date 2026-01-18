@@ -5,43 +5,11 @@ import time
 import uuid
 import base64
 import logging
-import re
 from PIL import Image, PngImagePlugin
 from core.consts import SIDECAR_EXTENSIONS
 from core.utils.data import deterministic_sort, normalize_card_v3
 
 logger = logging.getLogger(__name__)
-
-def sanitize_filename(filename: str, replacement: str = '_') -> str:
-    """
-    清理文件名，移除不安全字符
-    模拟 sanitize-filename 库的行为
-    """
-    # Windows 和 Unix 系统的非法文件名字符
-    illegal_chars = r'[<>:"/\\|?*\x00-\x1f]'
-    
-    # 替换非法字符
-    sanitized = re.sub(illegal_chars, replacement, filename)
-    
-    # 移除文件名开头和结尾的空格和点
-    sanitized = sanitized.strip('. ')
-    
-    # Windows 保留名称
-    reserved_names = {
-        'CON', 'PRN', 'AUX', 'NUL',
-        'COM1', 'COM2', 'COM3', 'COM4', 'COM5', 'COM6', 'COM7', 'COM8', 'COM9',
-        'LPT1', 'LPT2', 'LPT3', 'LPT4', 'LPT5', 'LPT6', 'LPT7', 'LPT8', 'LPT9'
-    }
-    
-    name_upper = sanitized.upper()
-    if name_upper in reserved_names or name_upper.split('.')[0] in reserved_names:
-        sanitized = f"{replacement}{sanitized}"
-    
-    # 限制长度（255字节）
-    if len(sanitized.encode('utf-8')) > 255:
-        sanitized = sanitized[:200]  # 保守处理
-    
-    return sanitized or 'undefined'
 
 def save_json_atomic(path, data):
     """原子化保存 JSON，确保格式统一"""

@@ -61,7 +61,7 @@ def force_reload(reason: str = ""):
             ctx.reload_timer = None
     _do_reload_now()
 
-def update_card_cache(card_id, full_path, *, parsed_info=None, file_hash=None, file_size=None, mtime=None):
+def update_card_cache(card_id, full_path, *, parsed_info=None, file_hash=None, file_size=None, mtime=None, ctime=None, is_favorite=None):
     """
     [数据库写操作] 更新单个卡片的数据库记录。
     通常由 API 路由或扫描器调用。
@@ -70,12 +70,16 @@ def update_card_cache(card_id, full_path, *, parsed_info=None, file_hash=None, f
     try:
         conn = get_db()
         cursor = conn.cursor()
-
-        # 获取收藏状态
-        cursor.execute("SELECT is_favorite FROM card_metadata WHERE id = ?", (card_id,))
-        row = cursor.fetchone()
-        current_fav = row['is_favorite'] if row else 0
         
+        # 如果未显式提供收藏状态，尝试从数据库获取现有值，防止被覆盖重置
+        if is_favorite is None:
+            try:
+                cursor.execute("SELECT is_favorite FROM card_metadata WHERE id = ?", (card_id,))
+                row = cursor.fetchone()
+                is_favorite = row['is_favorite'] if row else 0
+            except:
+                is_favorite = 0
+
         if file_hash is None or file_size is None:
             file_hash, file_size = get_file_hash_and_size(full_path)
         
@@ -83,6 +87,10 @@ def update_card_cache(card_id, full_path, *, parsed_info=None, file_hash=None, f
             try: mtime = os.path.getmtime(full_path)
             except: mtime = 0
             
+        if ctime is None:
+            try: ctime = os.path.getctime(full_path)
+            except: ctime = 0
+
         info = parsed_info if parsed_info is not None else extract_card_info(full_path)
         
         if info:
@@ -109,8 +117,8 @@ def update_card_cache(card_id, full_path, *, parsed_info=None, file_hash=None, f
 
             cursor.execute('''
                 INSERT OR REPLACE INTO card_metadata 
-                (id, char_name, description, first_mes, mes_example, tags, category, creator, char_version, last_modified, file_hash, file_size, token_count, has_character_book, character_book_name, is_favorite)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (id, char_name, description, first_mes, mes_example, tags, category, creator, char_version, last_modified, created_at, file_hash, file_size, token_count, has_character_book, character_book_name, is_favorite)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 card_id,
                 char_name,
@@ -122,12 +130,13 @@ def update_card_cache(card_id, full_path, *, parsed_info=None, file_hash=None, f
                 data_block.get('creator', ''),
                 data_block.get('character_version', ''),
                 mtime,
+                ctime,
                 file_hash,
                 file_size,
                 token_count,
                 has_wi,
                 wi_name,
-                current_fav
+                is_favorite
             ))
             
             conn.commit()

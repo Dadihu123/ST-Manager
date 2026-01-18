@@ -11,6 +11,7 @@ export default function settingsModal() {
     return {
         // === 本地状态 ===
         activeSettingTab: 'general',
+        showDiscordHelper: false,
 
         get settingsForm() { return this.$store.global.settingsForm; },
         get showSettingsModal() { 
@@ -21,7 +22,7 @@ export default function settingsModal() {
         },
 
         updateCssVariable,
-        
+
         applyFont(type) {
             // 1. 更新全局状态 (这会让按钮的高亮 :class 重新计算)
             this.$store.global.settingsForm.font_style = type;

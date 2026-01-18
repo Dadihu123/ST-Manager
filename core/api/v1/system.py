@@ -19,7 +19,7 @@ from core.config import (
 )
 from core.context import ctx
 from core.data.ui_store import load_ui_data, save_ui_data, UI_DATA_FILE
-from core.consts import SIDECAR_EXTENSIONS, RESERVED_RESOURCE_NAMES
+from core.consts import SIDECAR_EXTENSIONS, RESERVED_RESOURCE_NAMES, APP_VERSION
 
 # === 核心服务 ===
 from core.services.scan_service import request_scan, suppress_fs_events
@@ -40,7 +40,9 @@ logger = logging.getLogger(__name__)
 
 @bp.route('/api/status')
 def api_status():
-    return jsonify(ctx.init_status)
+    status = ctx.init_status.copy()
+    status["is_docker"] = os.path.exists('/.dockerenv')
+    return jsonify(status)
 
 @bp.route('/api/scan_now', methods=['POST'])
 def api_scan_now():
@@ -85,12 +87,39 @@ def api_save_settings():
     except Exception as e:
         return jsonify({"success": False, "msg": str(e)})
 
+@bp.route('/api/save_discord_token', methods=['POST'])
+def api_save_discord_token():
+    """专门为一键同步提供的简易接口"""
+    try:
+        token = request.json.get('token')
+        if not token:
+            return jsonify({"success": False, "msg": "Token 不能为空"})
+        
+        # 强制转换为字符串，并去除空格/引号
+        if isinstance(token, dict):
+            token = token.get('token', '') or token.get('value', '') or str(token)
+        
+        token = str(token).strip().strip('"').strip("'")
+        
+        if not token:
+            return jsonify({"success": False, "msg": "无效的 Token 格式"})
+
+        cfg = load_config()
+        cfg['discord_token'] = token
+        save_config(cfg)
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"success": False, "msg": str(e)})
+
 @bp.route('/api/get_settings')
 def api_get_settings():
     cfg = load_config()
     # 确保有默认值，防止前端 undefined
     if 'default_sort' not in cfg:
         cfg['default_sort'] = 'date_desc'
+    
+    # 注入当前程序版本
+    cfg['app_version'] = APP_VERSION
     return jsonify(cfg)
 
 @bp.route('/api/system_action', methods=['POST'])
@@ -699,7 +728,7 @@ def api_set_resource_folder():
         if os.path.isabs(resource_path):
             # 绝对路径，直接使用
             final_path = resource_path
-            resource_folder_name = os.path.basename(resource_path)
+            resource_folder_name = resource_path  # 保存完整绝对路径
         else:
             # 相对路径，相对于resources目录
             final_path = os.path.join(resources_dir, resource_path)
@@ -777,17 +806,163 @@ def api_open_resource_folder():
             return jsonify({"success": False, "msg": f"资源目录不存在: {resource_path}"})
         
         # 打开目录
-        if platform.system() == "Windows":
-            os.startfile(resource_path)
-        elif platform.system() == "Darwin":
-            subprocess.Popen(["open", resource_path])
-        else:
-            subprocess.Popen(["xdg-open", resource_path])
-        
-        return jsonify({"success": True})
+        try:
+            if platform.system() == "Windows":
+                # 使用 normpath 确保路径格式正确
+                os.startfile(os.path.normpath(resource_path))
+            elif platform.system() == "Darwin":
+                subprocess.Popen(["open", resource_path])
+            else:
+                # 检查是否在 Docker 中 (docker 会在根目录创建 .dockerenv)
+                if os.path.exists('/.dockerenv'):
+                    return jsonify({"success": False, "msg": "程序运行在 Docker 环境下，无法直接在浏览器触发打开宿主机文件夹的操作。请手动在宿主机文件浏览器中查看挂载的资源目录。"})
+                subprocess.Popen(["xdg-open", resource_path])
+            
+            return jsonify({"success": True})
+        except Exception as e:
+            logger.error(f"Open resource folder failed: {e}")
+            return jsonify({"success": False, "msg": f"打开目录时出错: {str(e)}"})
     except Exception as e:
         logger.error(f"Open resource folder error: {e}")
         return jsonify({"success": False, "msg": str(e)})
+
+@bp.route('/api/list_resource_files', methods=['POST'])
+def api_list_resource_files():
+    """列出资源目录下的所有文件以及详细信息"""
+    try:
+        data = request.json
+        card_id = data.get('card_id')
+        if not card_id:
+            return jsonify({"success": False, "msg": "角色卡ID缺失"})
+
+        # 获取资源目录配置
+        config = load_config()
+        resources_dir_name = config.get('resources_dir', 'resources')
+        resources_dir = os.path.join(BASE_DIR, resources_dir_name)
+
+        # 获取角色卡资源目录
+        ui_data = load_ui_data()
+        key = resolve_ui_key(card_id)
+        resource_folder = ui_data.get(key, {}).get('resource_folder')
+
+        if not resource_folder and key != card_id:
+            resource_folder = ui_data.get(card_id, {}).get('resource_folder')
+
+        if not resource_folder:
+            return jsonify({"success": True, "files": []})
+
+        # 处理绝对路径和相对路径
+        if os.path.isabs(resource_folder):
+            resource_path = resource_folder
+        else:
+            resource_path = os.path.join(resources_dir, resource_folder)
+
+        if not os.path.exists(resource_path):
+            return jsonify({"success": True, "files": []})
+
+        files = []
+        for f in os.listdir(resource_path):
+            full_path = os.path.join(resource_path, f)
+            if os.path.isfile(full_path):
+                stat = os.stat(full_path)
+                files.append({
+                    "name": f,
+                    "size": stat.st_size,
+                    "mtime": stat.st_mtime,
+                    "url": f"/resources_file/{resource_folder}/{f}" if not os.path.isabs(resource_folder) else f"/api/raw_resource_file?path={base64.b64encode(full_path.encode()).decode()}"
+                })
+        
+        # 按修改时间倒序排列
+        files.sort(key=lambda x: x['mtime'], reverse=True)
+        return jsonify({"success": True, "files": files, "folder_name": resource_folder})
+    except Exception as e:
+        logger.error(f"List resource files error: {e}")
+        return jsonify({"success": False, "msg": str(e)})
+
+@bp.route('/api/delete_resource_file', methods=['POST'])
+def api_delete_resource_file():
+    try:
+        data = request.json
+        card_id = data.get('card_id')
+        filename = data.get('filename')
+        if not card_id or not filename:
+            return jsonify({"success": False, "msg": "参数缺失"})
+
+        config = load_config()
+        resources_dir_name = config.get('resources_dir', 'resources')
+        resources_dir = os.path.join(BASE_DIR, resources_dir_name)
+
+        ui_data = load_ui_data()
+        key = resolve_ui_key(card_id)
+        resource_folder = ui_data.get(key, {}).get('resource_folder') or ui_data.get(card_id, {}).get('resource_folder')
+
+        if not resource_folder:
+            return jsonify({"success": False, "msg": "未找到资源目录"})
+
+        # 防止目录穿越
+        if '..' in filename or '/' in filename or '\\' in filename:
+             return jsonify({"success": False, "msg": "非法文件名"})
+
+        if os.path.isabs(resource_folder):
+            resource_path = resource_folder
+        else:
+            resource_path = os.path.join(resources_dir, resource_folder)
+
+        file_path = os.path.join(resource_path, filename)
+        if os.path.exists(file_path):
+            os.remove(file_path)
+            return jsonify({"success": True})
+        else:
+            return jsonify({"success": False, "msg": "文件不存在"})
+    except Exception as e:
+        logger.error(f"Delete resource file error: {e}")
+        return jsonify({"success": False, "msg": str(e)})
+
+@bp.route('/api/upload_resource_file', methods=['POST'])
+def api_upload_resource_file():
+    try:
+        card_id = request.form.get('card_id')
+        file = request.files.get('file')
+        if not card_id or not file:
+            return jsonify({"success": False, "msg": "参数缺失"})
+
+        config = load_config()
+        resources_dir_name = config.get('resources_dir', 'resources')
+        resources_dir = os.path.join(BASE_DIR, resources_dir_name)
+
+        ui_data = load_ui_data()
+        key = resolve_ui_key(card_id)
+        resource_folder = ui_data.get(key, {}).get('resource_folder') or ui_data.get(card_id, {}).get('resource_folder')
+
+        if not resource_folder:
+            return jsonify({"success": False, "msg": "未设置资源目录"})
+
+        if os.path.isabs(resource_folder):
+            resource_path = resource_folder
+        else:
+            resource_path = os.path.join(resources_dir, resource_folder)
+
+        if not os.path.exists(resource_path):
+            os.makedirs(resource_path)
+
+        save_path = os.path.join(resource_path, file.filename)
+        file.save(save_path)
+        return jsonify({"success": True})
+    except Exception as e:
+        logger.error(f"Upload resource file error: {e}")
+        return jsonify({"success": False, "msg": str(e)})
+
+@bp.route('/api/raw_resource_file')
+def api_serve_raw_resource_file():
+    """提供物理路径文件的访问 (用于绝对路径挂载)"""
+    try:
+        path_b64 = request.args.get('path')
+        if not path_b64: return "Missing path", 400
+        real_path = base64.b64decode(path_b64).decode()
+        if not os.path.exists(real_path): return "Not found", 404
+        return send_from_directory(os.path.dirname(real_path), os.path.basename(real_path))
+    except:
+        return "Error", 500
 
 @bp.route('/api/send_to_st', methods=['POST'])
 def api_send_to_st():

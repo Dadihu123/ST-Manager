@@ -5,12 +5,9 @@
 
 import { getRandomCard } from '../api/card.js';
 import { batchUpdateTags } from '../api/system.js';
-import { listRuleSets, executeRules } from '../api/automation.js';
 
 export default function header() {
     return {
-        availableRuleSets: [],
-
         get searchQuery() { return this.$store.global.viewState.searchQuery; },
         set searchQuery(val) { this.$store.global.viewState.searchQuery = val; },
 
@@ -29,49 +26,9 @@ export default function header() {
         get selectedIds() { return this.$store.global.viewState.selectedIds; },
         set selectedIds(val) { this.$store.global.viewState.selectedIds = val; },
 
-        init() {
-            // 监听加载菜单请求
-            window.addEventListener('load-rulesets-for-menu', () => {
-                listRuleSets().then(res => {
-                    if (res.success) {
-                        this.availableRuleSets = res.items;
-                        // 同步到全局 store 供 contextMenu 使用
-                        this.$store.global.availableRuleSets = res.items;
-                    }
-                });
-            });
-        },
-
-        executeRuleSet(rulesetId) {
-            if (this.selectedIds.length === 0) return;
-
-            const count = this.selectedIds.length;
-            if (!confirm(`确定对选中的 ${count} 张卡片执行此规则集吗？`)) return;
-
-            this.$store.global.isLoading = true;
-            executeRules({
-                card_ids: this.selectedIds,
-                ruleset_id: rulesetId
-            }).then(res => {
-                this.$store.global.isLoading = false;
-                if (res.success) {
-                    let msg = `✅ 执行完成！\n已处理: ${res.processed}`;
-                    // 简报
-                    const moves = Object.keys(res.moves_plan || {}).length;
-                    const tags = Object.values(res.tags_plan?.add || {}).flat().length;
-                    if (moves > 0) msg += `\n移动: ${moves} 张`;
-                    if (tags > 0) msg += `\n打标: ${tags} 次`;
-
-                    alert(msg);
-                    window.dispatchEvent(new CustomEvent('refresh-card-list'));
-                } else {
-                    alert("执行失败: " + res.msg);
-                }
-            }).catch(e => {
-                this.$store.global.isLoading = false;
-                alert("Error: " + e);
-            });
-        },
+        isCheckingFavs: false,
+        favUpdateCount: 0,
+        favUpdates: [],
 
         fetchCards() {
             window.dispatchEvent(new CustomEvent('refresh-card-list'));
@@ -83,15 +40,15 @@ export default function header() {
 
         get showImportUrlModal() {
             // 这里返回什么不重要，因为弹窗状态由 importModal 组件自己管理
-            return false;
+            return false; 
         },
         set showImportUrlModal(val) {
             if (val) {
                 // 获取当前浏览的分类作为默认导入位置
                 const currentCat = this.$store.global.viewState.filterCategory;
                 // 触发 importModal 打开
-                window.dispatchEvent(new CustomEvent('open-import-url', {
-                    detail: { category: currentCat }
+                window.dispatchEvent(new CustomEvent('open-import-url', { 
+                    detail: { category: currentCat } 
                 }));
             }
         },
@@ -101,12 +58,49 @@ export default function header() {
             this.$store.global.showSettingsModal = true;
         },
 
+        async checkAllFavUpdates() {
+            if (this.isCheckingFavs) return;
+            
+            const { checkFavUpdates } = await import('../api/card.js');
+            
+            this.isCheckingFavs = true;
+            this.favUpdateCount = 0;
+            this.favUpdates = [];
+            
+            try {
+                const res = await checkFavUpdates();
+                if (res.success) {
+                    this.favUpdates = res.updates;
+                    this.favUpdateCount = res.updates.length;
+                    
+                    if (this.favUpdateCount === 0) {
+                        this.$store.global.showToast('✅ 收藏卡片目前均是最新版本');
+                    } else {
+                        const names = res.updates.map(u => u.name).join('、');
+                        if (confirm(`检测到 ${this.favUpdateCount} 张收藏卡片有更新：\n${names}\n\n是否打开详情逐个查看？(可点击详情中的来源链接手动前往下载)`)) {
+                            // 标记这些卡片
+                            this.$store.global.showToast(`✨ 发现 ${this.favUpdateCount} 条更新，已在列表标记`);
+                            // 这里可以触发一个全局事件，让 CardGrid 组件高亮这些卡片，或者直接过滤显示它们
+                            this.$store.global.viewState.searchQuery = names.split('、')[0]; // 简单引导
+                        }
+                    }
+                } else {
+                    alert('批量检测失败: ' + res.msg);
+                }
+            } catch (err) {
+                console.error(err);
+                alert('检测出错: ' + err);
+            } finally {
+                this.isCheckingFavs = false;
+            }
+        },
+
         openBatchTagModal() {
             if (this.selectedIds.length === 0) return;
-
+            
             // 派发事件，将 Store 中的 selectedIds 传给 Modal
-            window.dispatchEvent(new CustomEvent('open-batch-tag-modal', {
-                detail: { ids: [...this.selectedIds] }
+            window.dispatchEvent(new CustomEvent('open-batch-tag-modal', { 
+                detail: { ids: [...this.selectedIds] } 
             }));
         },
 
@@ -116,23 +110,23 @@ export default function header() {
                 alert('暂不支持世界书URL导入');
                 return;
             }
-
+            
             // 获取当前浏览的分类 (作为默认导入位置)
             const currentCat = this.$store.global.viewState.filterCategory;
-
-            window.dispatchEvent(new CustomEvent('open-import-url', {
-                detail: { category: currentCat }
+            
+            window.dispatchEvent(new CustomEvent('open-import-url', { 
+                detail: { category: currentCat } 
             }));
         },
 
         deleteSelectedCards() {
             const ids = this.selectedIds;
             if (ids.length === 0) return;
-
+            
             // 复用 CardGrid 的删除逻辑不太方便，建议直接调用 API
             import('../api/card.js').then(module => {
                 const { deleteCards } = module;
-
+                
                 if (!confirm(`确定将选中的 ${ids.length} 张卡片移至回收站吗？`)) return;
 
                 deleteCards(ids).then(res => {
@@ -168,7 +162,7 @@ export default function header() {
                     if (res.success && res.card) {
                         // 触发打开详情页事件
                         window.dispatchEvent(new CustomEvent('open-detail', { detail: res.card }));
-
+                        
                         // 高亮逻辑交给 Grid 监听
                         window.dispatchEvent(new CustomEvent('highlight-card', { detail: res.card.id }));
                     } else {
@@ -186,9 +180,9 @@ export default function header() {
             // 世界书列表在 State 中，可以直接取
             const list = this.$store.global.wiList || [];
             if (list.length === 0) return;
-
+            
             const item = list[Math.floor(Math.random() * list.length)];
-
+            
             if (item.type === 'embedded') {
                 // 触发跳转事件
                 window.dispatchEvent(new CustomEvent('jump-to-card-wi', { detail: item.card_id }));
@@ -204,9 +198,9 @@ export default function header() {
             if (this.filterTags.length === 0) {
                 return alert("请先选择要删除的标签");
             }
-
+            
             if (this.selectedIds.length === 0) {
-                return alert("请先全选或选中卡片，再执行批量删除标签操作。");
+                 return alert("请先全选或选中卡片，再执行批量删除标签操作。");
             }
 
             if (!confirm(`确定从选中的 ${this.selectedIds.length} 张卡片中移除标签: ${this.filterTags.join(', ')}?`)) return;

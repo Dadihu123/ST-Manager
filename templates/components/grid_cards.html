@@ -21,8 +21,7 @@
             <template x-for="card in paginatedCards" :key="card.id" @click="selectedIds = []">
                 <!-- ... (角色卡模板内容保持不变) ... -->
                 <div class="st-card group"
-                    :class="{'selected': selectedIds.includes(card.id), 'is-favorite': card.is_favorite, 'card-highlight-anim': highlightId === card.id}"
-                    x-effect="if(highlightId === card.id) $el.scrollIntoView({ behavior: 'smooth', block: 'center' })"
+                    :class="{'selected': selectedIds.includes(card.id), 'is-favorite': card.is_favorite}"
                     @click.stop="handleCardClick($event, card)" draggable="true" @dragstart="dragStart($event, card)">
 
                     <button @click.stop="toggleCardFav(card)"
@@ -54,8 +53,7 @@
                                 📦 v<span x-text="card.versions ? card.versions.length : 0"></span>
                             </div>
                             <div x-show="card.char_version && card.char_version.trim() !== ''"
-                                :title="card.char_version"
-                                style="background: rgba(15, 23, 42, 0.7); color: #bae6fd; border: 1px solid #38bdf8; border-radius: 4px; padding: 1px 5px; font-size: 10px; backdrop-filter: blur(2px); max-width: 80px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: auto;">
+                                style="background: rgba(15, 23, 42, 0.7); color: #bae6fd; border: 1px solid #38bdf8; border-radius: 4px; padding: 1px 5px; font-size: 10px; backdrop-filter: blur(2px);">
                                 <span x-text="card.char_version"></span>
                             </div>
                         </div>

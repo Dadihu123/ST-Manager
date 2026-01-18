@@ -8,6 +8,8 @@ import {
     updateCard, 
     updateCardFile, 
     updateCardFileFromUrl, 
+    checkCardUpdate,
+    fetchSourceMetadata,
     changeCardImage,
     getCardMetadata,
     sendToSillyTavern,
@@ -41,9 +43,6 @@ export default function detailModal() {
         showDetail: false,
         activeCard: {}, // 当前查看的卡片对象 (原始引用或副本)
         newTagInput: '',
-        tab: 'basic', 
-        lastTab: 'basic',
-        showFirstPreview: false,
         
         // 编辑器状态 (V3 规范扁平化数据)
         editingData: {
@@ -73,6 +72,9 @@ export default function detailModal() {
 
         // 界面控制
         isSaving: false,
+        isCheckingUpdate: false,
+        hasUpdate: false,
+        updateDownloadUrl: "",
         isCardFlipped: false,
         zoomLevel: 100,
         altIdx: 0,
@@ -93,17 +95,6 @@ export default function detailModal() {
         formatWiKeys,
         updateWiKeys,
         ...wiHelpers,
-
-        get hasPersonaFields() {
-            const d = this.editingData;
-            return !!(
-                (d.personality && d.personality.trim()) || 
-                (d.scenario && d.scenario.trim()) || 
-                (d.creator_notes && d.creator_notes.trim()) || 
-                (d.system_prompt && d.system_prompt.trim()) || 
-                (d.post_history_instructions && d.post_history_instructions.trim())
-            );
-        },
 
         // === 初始化 ===
         init() {
@@ -142,8 +133,7 @@ export default function detailModal() {
                 id: this.activeCard.id,
                 category: this.activeCard.category,
                 is_bundle: this.activeCard.is_bundle,
-                bundle_dir: this.activeCard.bundle_dir,
-                shouldOpenDetail: false
+                bundle_dir: this.activeCard.bundle_dir
             };
             // 派发事件，由 cardGrid.js 监听处理
             window.dispatchEvent(new CustomEvent('locate-card', { detail: locateTarget }));
@@ -208,9 +198,6 @@ export default function detailModal() {
             this.skinImages = [];
             this.currentSkinIndex = -1;
             this.isCardFlipped = false;
-            this.showFirstPreview = false;
-            this.lastTab = this.tab; 
-            this.tab = 'basic';
 
             // 深拷贝并清洗数据 (Flatten & Sanitize)
             let rawData = JSON.parse(JSON.stringify(c));
@@ -234,14 +221,9 @@ export default function detailModal() {
             // 4. 补全 UI 字段
             rawData.ui_summary = rawData.ui_summary || c.ui_summary || "";
             rawData.source_link = rawData.source_link || c.source_link || "";
+            rawData.source_title_sync = rawData.source_title_sync || c.source_title_sync || "";
             rawData.resource_folder = rawData.resource_folder || c.resource_folder || "";
             
-            // === 版本号字段映射 (DB: char_version -> V3: character_version) ===
-            // 如果传入的对象只有 char_version (列表数据)，则赋值给 character_version
-            if (!rawData.character_version && rawData.char_version) {
-                rawData.character_version = rawData.char_version;
-            }
-
             // 5. 确保文本字段不为 null
             ['description', 'first_mes', 'mes_example', 'creator_notes'].forEach(k => {
                 if (rawData[k] === null || rawData[k] === undefined) rawData[k] = "";
@@ -296,13 +278,9 @@ export default function detailModal() {
                     this.editingData.first_mes = safeCard.first_mes || "";
                     this.editingData.mes_example = safeCard.mes_example || "";
                     this.editingData.creator_notes = safeCard.creator_notes || "";
-
-                    this.editingData.personality = safeCard.personality || "";
-                    this.editingData.scenario = safeCard.scenario || "";
-                    this.editingData.system_prompt = safeCard.system_prompt || "";
-                    this.editingData.post_history_instructions = safeCard.post_history_instructions || "";
-
-                    this.editingData.character_version = safeCard.char_version || safeCard.character_version || "";
+                    this.editingData.ui_summary = safeCard.ui_summary || "";
+                    this.editingData.source_link = safeCard.source_link || "";
+                    this.editingData.source_title_sync = safeCard.source_title_sync || "";
                     
                     this.editingData.alternate_greetings = safeCard.alternate_greetings || [];
                     if (this.editingData.alternate_greetings.length === 0) this.editingData.alternate_greetings = [""];
@@ -322,10 +300,6 @@ export default function detailModal() {
                     }
 
                     if (res.card.image_url) this.activeCard.image_url = res.card.image_url;
-
-                    if (this.lastTab === 'persona' && this.hasPersonaFields) {
-                        this.tab = 'persona';
-                    }
 
                     // 启动自动保存
                     this.$nextTick(() => {
@@ -376,6 +350,7 @@ export default function detailModal() {
                 // UI 专用字段
                 ui_summary: this.editingData.ui_summary,
                 source_link: this.editingData.source_link,
+                source_title_sync: this.editingData.source_title_sync,
                 resource_folder: this.editingData.resource_folder,
                 
                 // Bundle 标记
@@ -505,6 +480,94 @@ export default function detailModal() {
                 }
             }).then(res => this.handleUpdateResponse(res))
               .catch(err => { this.isSaving = false; alert(err); });
+        },
+
+        async syncMetadata() {
+            if (!this.editingData.source_link) return;
+            this.isCheckingUpdate = true;
+            try {
+                const res = await fetchSourceMetadata({ source_link: this.editingData.source_link });
+                if (res.success) {
+                    // 如果本地名称为空或者用户确认，则更新本地名称
+                    const remoteName = res.name || '';
+                    const remoteVersion = res.version || '';
+                    
+                    if (remoteName) {
+                        this.editingData.source_title_sync = remoteName;
+                        this.$store.global.showToast(`✅ 已同步远程标题基准`);
+                    }
+                    
+                    if (remoteVersion) {
+                        this.editingData.char_version = remoteVersion;
+                        this.$store.global.showToast(`✅ 已同步版本号: ${remoteVersion}`);
+                    } else {
+                        this.$store.global.showToast(`✅ 已获取远程信息: ${remoteName}`);
+                    }
+                } else {
+                    alert("同步失败: " + res.msg);
+                }
+            } catch (err) {
+                alert("同步请求出错: " + err);
+            } finally {
+                this.isCheckingUpdate = false;
+            }
+        },
+
+        async checkUpdate() {
+            if (!this.editingData.source_link) {
+                alert("请先填写来源链接 (目前支持 Chub.ai 和 Discord)");
+                return;
+            }
+            this.isCheckingUpdate = true;
+            this.hasUpdate = false;
+            try {
+                const res = await checkCardUpdate({
+                    card_id: this.activeCard.id,
+                    source_link: this.editingData.source_link,
+                    source_title_sync: this.editingData.source_title_sync
+                });
+                if (res.success) {
+                    if (res.has_update) {
+                        this.hasUpdate = true;
+                        this.updateDownloadUrl = res.download_url;
+                        const reason = res.update_info.reason || '检测到新内容';
+                        alert(`✨ 检测到更新!\n原因: ${reason}\n远程版本: ${res.update_info.remote_version || '未知'}\n最后更新: ${res.update_info.remote_updated_at || '未知'}\n\n请点击来源链接旁边的按钮手动前往下载，然后在此处上传覆盖即可。`);
+                    } else {
+                        alert("目前已是最新版本");
+                    }
+                } else {
+                    alert("检测失败: " + res.msg);
+                }
+            } catch (err) {
+                alert("检测出错: " + err);
+            } finally {
+                this.isCheckingUpdate = false;
+            }
+        },
+
+        async downloadAndApplyUpdate() {
+            if (!this.updateDownloadUrl) return;
+            
+            this.isSaving = true;
+            try {
+                const res = await updateCardFileFromUrl({
+                    card_id: this.editingData.id,
+                    url: this.updateDownloadUrl,
+                    is_bundle_update: this.activeCard.is_bundle,
+                    keep_ui_data: {
+                        ui_summary: this.editingData.ui_summary,
+                        source_link: this.editingData.source_link,
+                        source_title_sync: this.editingData.source_title_sync,
+                        resource_folder: this.editingData.resource_folder,
+                        tags: this.editingData.tags
+                    }
+                });
+                this.handleUpdateResponse(res);
+                this.hasUpdate = false;
+            } catch (err) {
+                this.isSaving = false;
+                alert(err);
+            }
         },
 
         performUpdate(formData, url, inputElement) {
@@ -737,6 +800,17 @@ export default function detailModal() {
         // === 系统与工具 ===
 
         openResourceFolder() {
+            // 如果在 Docker 环境下，使用网页版文件管理器
+            if (this.$store.global.isDocker) {
+                window.dispatchEvent(new CustomEvent('open-resource-manager', {
+                    detail: {
+                        card_id: this.editingData.id,
+                        char_name: this.editingData.char_name
+                    }
+                }));
+                return;
+            }
+
             apiOpenResourceFolder({ card_id: this.editingData.id }).then(res => {
                 if(!res.success) alert(res.msg);
             });
@@ -856,22 +930,24 @@ export default function detailModal() {
         },
 
         addTag() {
-            const val = (this.newTagInput || "").trim();
-            
-            if (!val) return;
+            const val = this.newTagInput.trim();
+            if (val) {
+                if (!this.editingData.tags) this.editingData.tags = [];
+                if (!this.editingData.tags.includes(val)) {
+                    this.editingData.tags.push(val);
 
-            // 确保 tags 数组初始化
-            if (!this.editingData.tags) {
-                this.editingData.tags = [];
+                    // 同步添加到全局标签库
+                    const globalStore = Alpine.store('global');
+                    if (globalStore && globalStore.globalTagsPool) {
+                        if (!globalStore.globalTagsPool.includes(val)) {
+                            globalStore.globalTagsPool.push(val);
+                            // 保持字母序 (可选)
+                            globalStore.globalTagsPool.sort((a, b) => a.localeCompare(b));
+                        }
+                    }
+                }
+                this.newTagInput = '';
             }
-
-            // 查重并添加
-            if (!this.editingData.tags.includes(val)) {
-                this.editingData.tags.push(val);
-            }
-            
-            // 清空输入框
-            this.newTagInput = '';
         },
 
         prevAlt() {

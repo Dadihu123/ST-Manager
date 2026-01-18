@@ -6,8 +6,9 @@ __pycache__/
 .git/
 .gitignore
 .vscode/
-data/*
-config.json
+data/library/
+data/system/
+data/assets/
 venv/
 env/
 dist/
@@ -17,5 +18,3 @@ build/
 # 忽略打包环境产生的临时文件
 gui.log
 app.log
-
-cards_metadata.db*

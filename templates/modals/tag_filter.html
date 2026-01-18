@@ -18,7 +18,7 @@
                 style="color: var(--text-dim); font-size: 1.5rem; background: none; border: none; cursor: pointer;">✕</button>
         </div>
         <input type="text" x-model="tagSearchQuery" placeholder="搜索标签..." class="form-input"
-            style="margin-bottom: 1rem; padding: 0.75rem; font-size: 1rem;">
+            autocomplete="off" style="margin-bottom: 1rem; padding: 0.75rem; font-size: 1rem;">
         <div class="tag-cloud-container custom-scrollbar">
             <template x-for="tag in filteredTagsPool" :key="tag">
                 <button @click="isDeleteMode ? toggleTagSelectionForDeletion(tag) : toggleFilterTag(tag)"

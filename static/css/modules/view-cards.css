@@ -5,8 +5,6 @@
     display: grid;
     gap: 1.5rem;
     grid-template-columns: repeat(auto-fill, minmax(var(--card-min-width), 1fr));
-    position: relative;
-    z-index: 5;
 }
 
 /* 卡片内部的小标签 */
@@ -37,32 +35,6 @@
     animation: highlight-pulse 1.5s infinite;
     border-color: #fbbf24 !important;
     z-index: 10;
-}
-
-@keyframes highlightPulse {
-    0% {
-        box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.7); /* accent color */
-        transform: scale(1);
-        border-color: var(--accent-main);
-    }
-    50% {
-        box-shadow: 0 0 20px 10px rgba(37, 99, 235, 0);
-        transform: scale(1.05);
-        border-color: #fff;
-        z-index: 50;
-    }
-    100% {
-        box-shadow: 0 0 0 0 rgba(37, 99, 235, 0);
-        transform: scale(1);
-        border-color: var(--border-light);
-    }
-}
-
-.card-highlight-anim {
-    animation: highlightPulse 1.5s ease-in-out infinite;
-    border: 2px solid var(--accent-main) !important;
-    position: relative;
-    z-index: 40;
 }
 
 .st-card.selected {
@@ -121,6 +93,7 @@
     min-height: 0;
     white-space: pre-wrap;
     word-break: break-all;
+    vertical-align: top;
     border: 1px solid var(--border-light);
     background: var(--bg-sub);
     display: block;
@@ -316,5 +289,80 @@ html.light-mode .btn-note-preview:hover {
         opacity: 0;
     }
 
-    /* 停留一段时间 */
+
+/* =========================================
+   移动端视图调整
+   ========================================= */
+@media (max-width: 768px) {
+    .card-grid {
+        gap: 0.5rem; /* 减小间距 */
+        padding: 0.5rem;
+        /* 140px 允许在 iPhone SE (320px) 上显示两列 (320 - 16padding - 8gap = 296 / 2 = 148px > 140px) */
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    }
+    
+    .st-card {
+        border-radius: 0.5rem;
+        height: auto; 
+        min-height: 220px; /* 稍微减小最小高度 */
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1); /* 减轻阴影提升性能 */
+    }
+
+    .card-image-container {
+        height: 0;
+        padding-bottom: 120%; /* 使用 padding-bottom 保持纵横比，防止图片变形 */
+        min-height: auto;
+    }
+    .st-card img {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+    }
+
+    .st-card a[x-show="card.source_link"] {
+        padding: 8px; /* 增大点击区域 */
+    }
+    /* 增大本地预览按钮点击区域 */
+    .local-note-preview {
+         pointer-events: none; /* 预览文本不可点，穿透到卡片 */
+    }
+
+    .card-info {
+        padding: 0.5rem;
+        gap: 0.25rem;
+        display: flex;
+        flex-direction: column;
+        flex: 1; /* 确保填满剩余高度 */
+    }
+    
+    .card-tag {
+        display: none; /* 小屏通常隐藏标签，太乱 */
+    }
+    
+    .st-card button {
+        padding: 0.6rem; /* 更大的触摸目标 */
+    }
+
+    /* 卡片标题 */
+    .st-card h3 {
+        font-size: 0.85rem;
+        line-height: 1.25;
+        font-weight: 600;
+        margin-bottom: 0.1rem;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    /* 优化点击反馈 */
+    .st-card {
+        transition: transform 0.1s;
+    }
+    .st-card:active {
+        transform: scale(0.96);
+        background-color: var(--bg-hover);
+    }
 }

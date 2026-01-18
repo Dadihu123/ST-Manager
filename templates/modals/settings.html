@@ -29,6 +29,10 @@
                     :class="activeSettingTab==='connection' ? 'active' : ''">
                     <span>🔌</span> 连接与服务
                 </button>
+                <button @click="activeSettingTab='security'" class="settings-nav-item"
+                    :class="activeSettingTab==='security' ? 'active' : ''">
+                    <span>🛡️</span> 安全设置
+                </button>
                 <button @click="activeSettingTab='maintenance'" class="settings-nav-item"
                     :class="activeSettingTab==='maintenance' ? 'active' : ''">
                     <span>🛠️</span> 维护与高级
@@ -165,6 +169,8 @@
                         <select x-model="settingsForm.default_sort" class="form-input mt-1">
                             <option value="date_desc">修改日期 (新 ➜ 旧)</option>
                             <option value="date_asc">修改日期 (旧 ➜ 新)</option>
+                            <option value="create_desc">创建日期 (新 ➜ 旧)</option>
+                            <option value="create_asc">创建日期 (旧 ➜ 新)</option>
                             <option value="name_asc">名称 (A ➜ Z)</option>
                             <option value="name_desc">名称 (Z ➜ A)</option>
                             <option value="token_desc">Token 量 (大 ➜ 小)</option>
@@ -275,6 +281,91 @@
                             </div>
                         </div>
                         <div class="text-xs text-red-400 mt-2">⚠️ 修改 Host 或 Port 需要手动重启程序才能生效。</div>
+                    </div>
+
+                    <!-- 第三方服务设置 -->
+                    <div class="settings-group-title mt-8">第三方服务工具 (External Services)</div>
+                    <div class="settings-row p-4 rounded border border-[var(--border-light)] bg-[#5865F2]/10">
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="text-xl">💬</span>
+                            <label class="settings-label text-[#5865F2]">Discord 自动更新检测</label>
+                        </div>
+                        <div class="settings-desc mb-2">
+                            用于自动检测 Discord 帖子/频道中的卡片更新。支持 Bot Token 或 User Token。
+                            <a href="https://discord.com/developers/applications" target="_blank" class="text-accent underline ml-1">获取 Bot Token</a>
+                        </div>
+                        <div class="flex flex-col gap-1">
+                            <label class="text-xs text-[var(--text-dim)] uppercase">Discord Token</label>
+                            <div class="flex gap-2">
+                                <input type="password" x-model="settingsForm.discord_token" 
+                                    class="form-input flex-1" placeholder="MTIzNDU2... (Bot 或 User Token)">
+                                <button @click="showDiscordHelper = true" 
+                                    class="px-3 bg-[#5865F2] hover:bg-[#4752C4] text-white rounded transition flex items-center gap-1"
+                                    title="获取 Token 教程">
+                                    ❓ <span class="text-xs">同步</span>
+                                </button>
+                            </div>
+                            <!-- 魔法提示框 -->
+                            <div x-show="showDiscordHelper" class="mt-3 p-3 bg-black/40 border border-[#5865F2]/50 rounded text-xs leading-relaxed" x-transition>
+                                <div class="font-bold text-[#5865F2] mb-1 flex justify-between">
+                                    <span>❓ 如何获取 Discord Token</span>
+                                    <button @click="showDiscordHelper = false" class="text-gray-500 hover:text-white">✕</button>
+                                </div>
+                                <div class="space-y-3">
+                                    <ol class="list-decimal list-inside space-y-1.5 text-[var(--text-dim)]">
+                                        <li>在浏览器中打开 <a href="https://discord.com/app" target="_blank" class="text-accent underline">Discord 网页版</a> 并登录。</li>
+                                        <li>按下 <kbd class="px-1 bg-gray-700 rounded">F12</kbd> 打开开发者工具，切换到 <b>Network (网络)</b> 标签。</li>
+                                        <li>在 Discord 中随便点击一个频道或发送一条消息，触发网络活动。</li>
+                                        <li>在左侧列表中找到名为 <code class="text-white bg-gray-700 px-1 rounded">science</code> 或 <code class="text-white bg-gray-700 px-1 rounded">messages</code> 的请求。</li>
+                                        <li>点击该请求，在右侧 <b>Headers</b> 栏下找到 <code class="text-white bg-gray-700 px-1 rounded">authorization</code>。</li>
+                                        <li>复制那一串长字符串（不包含 "Bearer " 部分，如果有的话）并粘贴到上方输入框。</li>
+                                    </ol>
+                                    
+                                    <div class="p-2.5 bg-yellow-500/10 border border-yellow-500/30 rounded">
+                                        <div class="text-yellow-500 font-bold text-[11px] mb-1 uppercase flex items-center gap-1">
+                                            ⚠️ 密钥使用安全注意事项
+                                        </div>
+                                        <ul class="list-disc list-inside text-[10px] text-yellow-200/70 space-y-1 leading-normal">
+                                            <li><b>严格保密：</b>Token 相当于你的临时密码，获得它的人可以完全控制你的账号。</li>
+                                            <li><b>禁止分享：</b>绝对不要将此 Token 发送给任何人或截图发布到公共平台。</li>
+                                            <li><b>定期更新：</b>如果你怀疑 Token 泄露，请立即修改 Discord 密码，所有旧 Token 将失效。</li>
+                                            <li><b>本地存储：</b>ST Manager 仅将其保存在本地 <code class="bg-black/30 px-1">config.json</code> 中，不会上传至任何第三方服务器。</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="text-[10px] text-gray-500 mt-1 italic">
+                                * 注意：Token 严格保密，仅保存在你的本地 config.json 中。
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB: 安全设置 (Security) -->
+                <div x-show="activeSettingTab==='security'" x-transition:enter="transition ease-out duration-200"
+                    x-transition:enter-start="opacity-0 translate-x-2">
+                    <div class="settings-group-title">登录安全</div>
+
+                    <div class="settings-row flex justify-between items-center p-3 rounded border border-[var(--border-light)] bg-[var(--bg-sub)]">
+                        <div>
+                            <div class="settings-label">启用登录验证 (Login Auth)</div>
+                            <div class="settings-desc">开启后需要输入用户名密码才能访问</div>
+                        </div>
+                        <input type="checkbox" x-model="settingsForm.auth_enabled"
+                            class="w-5 h-5 accent-[var(--accent-main)]">
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                        <div>
+                            <label class="settings-label text-sm">用户名 (Username)</label>
+                            <input type="text" x-model="settingsForm.username" class="form-input mt-1"
+                                placeholder="admin">
+                        </div>
+                        <div>
+                            <label class="settings-label text-sm">密码 (Password)</label>
+                            <input type="text" x-model="settingsForm.password" class="form-input mt-1"
+                                placeholder="password">
+                        </div>
                     </div>
                 </div>
 

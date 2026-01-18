@@ -22,8 +22,15 @@
 /* 8. 模态框 - 设置 */
 @import "modules/modal-settings.css";
 
+/* 通用动画 */
+.animate-spin {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
 /* 9. 模态框 - 其他工具 */
 @import "modules/modal-tools.css";
-
-/* 10. 自动化规则管理器 */
-@import "modules/modal-automation.css";

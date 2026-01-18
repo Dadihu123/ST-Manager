@@ -136,7 +136,7 @@
             </section>
 
             <!-- 右侧：信息 + Tab -->
-            <section class="detail-right">
+            <section class="detail-right" x-data="{ tab: 'basic', showFirstPreview: false }">
 
                 <!-- 顶部栏：标题 / token / 快捷操作 -->
                 <header class="detail-topbar">
@@ -156,9 +156,39 @@
                         <div class="detail-subrow">
                             <span class="detail-link-icon">🔗</span>
                             <input type="text" x-model="editingData.source_link" placeholder="来源链接 (http://...)"
-                                class="detail-link-input">
+                                class="detail-link-input"
+                                @change="if(!editingData.char_name) syncMetadata()">
                             <a x-show="editingData.source_link" :href="editingData.source_link" target="_blank"
                                 class="detail-open-link" title="打开链接">↗ 打开</a>
+                            
+                            <!-- 抓取的标题预览 -->
+                            <div x-show="editingData.source_title_sync" 
+                                 class="ml-2 flex-1 min-w-0 flex flex-col justify-center">
+                                <div class="text-[10px] text-[var(--text-dim)] uppercase leading-none mb-1">
+                                    远程标题 (同步基准)
+                                </div>
+                                <div class="text-xs text-accent-light truncate font-mono bg-accent-main/5 px-1.5 py-0.5 rounded border border-accent-main/20" 
+                                     :title="editingData.source_title_sync"
+                                     x-text="editingData.source_title_sync">
+                                </div>
+                            </div>
+
+                            <!-- 同步按钮 -->
+                            <button x-show="editingData.source_link" @click="syncMetadata()"
+                                class="ml-1 px-2 py-0.5 text-xs bg-accent-main/20 hover:bg-accent-main/40 text-accent-light rounded transition-all"
+                                title="从链接同步名称和版本号">
+                                🪄 同步
+                            </button>
+                            
+                            <!-- 自动检测按钮 -->
+                            <button @click="checkUpdate()" 
+                                    class="ml-2 px-2 py-0.5 text-xs bg-white/10 hover:bg-white/20 rounded flex items-center transition-all"
+                                    :disabled="isCheckingUpdate"
+                                    title="支持 Chub.ai 和 Discord (仅检测)">
+                                <span x-show="!isCheckingUpdate">🔄 检测更新</span>
+                                <span x-show="isCheckingUpdate" class="animate-spin mr-1">⌛</span>
+                                <span x-show="isCheckingUpdate">检测中...</span>
+                            </button>
                         </div>
                     </div>
 
@@ -225,8 +255,6 @@
                 <nav class="detail-tabs">
                     <button class="detail-tab" :class="tab==='basic' ? 'active' : ''" @click="tab='basic'">📝
                         基础</button>
-                    <button x-show="hasPersonaFields" class="detail-tab" :class="tab==='persona' ? 'active' : ''" @click="tab='persona'">🧠
-                        设定</button>
                     <button class="detail-tab" :class="tab==='dialog' ? 'active' : ''" @click="tab='dialog'">💬
                         对话</button>
                     <button class="detail-tab" :class="tab==='tags' ? 'active' : ''" @click="tab='tags'">🏷️
@@ -264,81 +292,6 @@
                                 <textarea x-model="editingData.description" class="form-textarea"
                                     style="height: 10rem; resize:none;"></textarea>
                             </div>
-                        </div>
-                    </section>
-
-                    <section x-show="tab==='persona'" x-transition.opacity class="detail-section detail-section-fill">
-                        <div class="detail-tab-scroll custom-scrollbar">
-                            
-                            <!-- 1. 人格设定 (Personality) -->
-                            <template x-if="editingData.personality">
-                                <div class="detail-card" style="background: rgba(0,0,0,0.15); border-color: transparent;">
-                                    <div class="detail-card-head py-1 min-h-[2rem]">
-                                        <div class="detail-card-title text-xs text-gray-500 uppercase tracking-wider">人格设定 (Personality)</div>
-                                        <button class="expand-btn scale-90 opacity-50 hover:opacity-100 transition-opacity" 
-                                            @click="openLargeEditor('personality','人格设定')">⤢</button>
-                                    </div>
-                                    <textarea readonly x-model="editingData.personality" 
-                                        class="form-textarea text-xs bg-transparent text-[var(--text-dim)] focus:outline-none custom-scrollbar"
-                                        style="height: 8rem; resize:none; border:none; box-shadow: none;"></textarea>
-                                </div>
-                            </template>
-
-                            <!-- 2. 场景设定 (Scenario) -->
-                            <template x-if="editingData.scenario">
-                                <div class="detail-card" style="background: rgba(0,0,0,0.15); border-color: transparent;">
-                                    <div class="detail-card-head py-1 min-h-[2rem]">
-                                        <div class="detail-card-title text-xs text-gray-500 uppercase tracking-wider">场景设定 (Scenario)</div>
-                                        <button class="expand-btn scale-90 opacity-50 hover:opacity-100 transition-opacity" 
-                                            @click="openLargeEditor('scenario','场景设定')">⤢</button>
-                                    </div>
-                                    <textarea readonly x-model="editingData.scenario" 
-                                        class="form-textarea text-xs bg-transparent text-[var(--text-dim)] focus:outline-none custom-scrollbar"
-                                        style="height: 6rem; resize:none; border:none; box-shadow: none;"></textarea>
-                                </div>
-                            </template>
-
-                            <!-- 3. 作者注释 (Creator Notes) -->
-                            <template x-if="editingData.creator_notes">
-                                <div class="detail-card" style="background: rgba(0,0,0,0.15); border-color: transparent;">
-                                    <div class="detail-card-head py-1 min-h-[2rem]">
-                                        <div class="detail-card-title text-xs text-gray-500 uppercase tracking-wider">作者注释 (Creator Notes)</div>
-                                        <button class="expand-btn scale-90 opacity-50 hover:opacity-100 transition-opacity" 
-                                            @click="openLargeEditor('creator_notes','作者注释')">⤢</button>
-                                    </div>
-                                    <textarea readonly x-model="editingData.creator_notes" 
-                                        class="form-textarea text-xs bg-transparent text-[var(--text-dim)] focus:outline-none custom-scrollbar"
-                                        style="height: 6rem; resize:none; border:none; box-shadow: none;"></textarea>
-                                </div>
-                            </template>
-
-                            <!-- 4. 系统提示词 (System Prompt) -->
-                            <template x-if="editingData.system_prompt">
-                                <div class="detail-card" style="background: rgba(40, 20, 60, 0.15); border-color: transparent;">
-                                    <div class="detail-card-head py-1 min-h-[2rem]">
-                                        <div class="detail-card-title text-xs text-purple-400/70 uppercase tracking-wider">系统提示词 (System Prompt)</div>
-                                        <button class="expand-btn scale-90 opacity-50 hover:opacity-100 transition-opacity" 
-                                            @click="openLargeEditor('system_prompt','系统提示词')">⤢</button>
-                                    </div>
-                                    <textarea readonly x-model="editingData.system_prompt" 
-                                        class="form-textarea text-xs font-mono bg-transparent text-[var(--text-dim)] focus:outline-none custom-scrollbar"
-                                        style="height: 6rem; resize:none; border:none; box-shadow: none;"></textarea>
-                                </div>
-                            </template>
-
-                            <!-- 5. 历史指令 (Post History) -->
-                            <template x-if="editingData.post_history_instructions">
-                                <div class="detail-card" style="background: rgba(40, 20, 60, 0.15); border-color: transparent;">
-                                    <div class="detail-card-head py-1 min-h-[2rem]">
-                                        <div class="detail-card-title text-xs text-purple-400/70 uppercase tracking-wider">历史指令 (Post History)</div>
-                                        <button class="expand-btn scale-90 opacity-50 hover:opacity-100 transition-opacity" 
-                                            @click="openLargeEditor('post_history_instructions','历史指令')">⤢</button>
-                                    </div>
-                                    <textarea readonly x-model="editingData.post_history_instructions" 
-                                        class="form-textarea text-xs font-mono bg-transparent text-[var(--text-dim)] focus:outline-none custom-scrollbar"
-                                        style="height: 6rem; resize:none; border:none; box-shadow: none;"></textarea>
-                                </div>
-                            </template>
                         </div>
                     </section>
 

@@ -102,6 +102,7 @@ def init_database():
             creator TEXT,
             char_version TEXT,
             last_modified REAL,
+            created_at REAL DEFAULT 0,
             file_hash TEXT,
             file_size INTEGER,
             token_count INTEGER DEFAULT 0,
@@ -156,6 +157,36 @@ def init_database():
         except Exception as e:
             logger.error(f"数据库升级失败 (token_count): {e}")
     
+    if 'created_at' not in columns:
+        print("正在升级数据库: 添加 created_at 列...")
+        try:
+            cursor.execute("ALTER TABLE card_metadata ADD COLUMN created_at REAL DEFAULT 0")
+            conn.commit()
+
+            print("正在回填创建时间 (created_at)... 这可能需要几秒钟")
+            cursor.execute("SELECT id FROM card_metadata")
+            rows = cursor.fetchall()
+            BATCH_SIZE = 100
+            backfill_count = 0
+            
+            for row in rows:
+                card_id = row['id'] if hasattr(row, 'id') else row[0]
+                full_path = os.path.join(CARDS_FOLDER, card_id.replace('/', os.sep))
+                try:
+                    ctime = os.path.getctime(full_path)
+                    cursor.execute("UPDATE card_metadata SET created_at = ? WHERE id = ?", (ctime, card_id))
+                    backfill_count += 1
+                except:
+                    pass
+                
+                if backfill_count % BATCH_SIZE == 0:
+                    conn.commit()
+            conn.commit()
+            print(f"回填完成: 更新了 {backfill_count} 条记录")
+
+        except Exception as e:
+            logger.error(f"数据库升级失败 (created_at): {e}")
+
     if 'is_favorite' not in columns:
         print("正在升级数据库: 添加 is_favorite 列...")
         try:
@@ -266,6 +297,12 @@ def _migrate_existing_data(conn):
             except:
                 mtime = 0
             
+            # 获取创建时间
+            try:
+                ctime = os.path.getctime(full_path)
+            except:
+                ctime = 0
+
             # 计算 Token
             calc_data = data_block.copy()
             if 'name' not in calc_data:
@@ -279,13 +316,13 @@ def _migrate_existing_data(conn):
             try:
                 cursor.execute('''
                     INSERT OR REPLACE INTO card_metadata
-                    (id, char_name, description, first_mes, mes_example, tags, category, creator, char_version, last_modified, file_hash, file_size, token_count, has_character_book, character_book_name)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    (id, char_name, description, first_mes, mes_example, tags, category, creator, char_version, last_modified, created_at, file_hash, file_size, token_count, has_character_book, character_book_name)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (
                     file_id_path, char_name, data_block.get('description', ''),
                     data_block.get('first_mes', ''), data_block.get('mes_example', ''),
                     json.dumps(tags), category, data_block.get('creator', ''),
-                    data_block.get('character_version', ''), mtime, file_hash, file_size,
+                    data_block.get('character_version', ''), mtime, ctime, file_hash, file_size,
                     token_count, has_wi, wi_name
                 ))
                 card_count += 1

@@ -94,31 +94,123 @@ html.light-mode .detail-thumb-label{
 .detail-thumb.active-main{ border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59,130,246,0.25); }
 .detail-thumb.active-skin{ border-color: #22c55e; box-shadow: 0 0 0 2px rgba(34,197,94,0.25); }
 
-/* --- Right --- */
-.detail-right{
+/* ================================
+   Mobile Adaptation for Detail Modal
+   ================================ */
+@media (max-width: 768px) {
+    .detail-modal {
+        width: 100vw;
+        height: 100vh;
+        height: 100dvh; /* Full screen */
+        max-width: none;
+        max-height: none;
+        border-radius: 0;
+        border: none;
+        top: 0; left: 0;
+        transform: none; /* Reset centering if applied via transform */
+        margin: 0;
+    }
+
+    .detail-modal-inner {
+        display: flex;
+        flex-direction: column;
+        grid-template-columns: none; /* Disable grid columns */
+        border-radius: 0;
+        border: none;
+        overflow-y: auto; /* Allow scrolling entire modal */
+        -webkit-overflow-scrolling: touch; /* Smooth scroll on iOS */
+    }
+
+    /* Adjust Layout: Left (Image) and Right (Content) */
+    .detail-left {
+        width: 100%;
+        height: auto;
+        flex: none; /* Don't shrink/grow, take required space */
+        max-height: 40vh; /* Limit image height */
+        border-right: none;
+        border-bottom: 5px solid var(--border-main);
+        z-index: 10;
+        position: relative;
+    }
+    
+    .detail-left-bg {
+        /* Ensure background image covers properly */
+        position: absolute; inset: 0; filter: blur(20px) brightness(0.6);
+    }
+    
+    .detail-main-image-wrapper {
+        height: 40vh; /* Match container */
+    }
+    
+    .detail-main-image {
+        width: 100%;
+        height: 100%;
+        object-fit: contain; /* Contain image fully */
+    }
+
+    /* Boost specificity to override later base styles */
+    .detail-modal-inner .detail-right {
+        width: 100%;
+        flex: none; /* Allow growing naturally */
+        height: auto; /* Let content dictate height */
+        overflow: visible; /* No internal scrollbar, rely on parent */
+        overflow-x: hidden;
+    }
+
+    /* Hide Filmstrip on mobile for now as it complicates layout */
+    .detail-filmstrip-outside {
+        display: none;
+    }
+
+    /* Actions bar tweaks */
+    .detail-actions {
+        padding: 0.5rem;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+    
+    .detail-action-btn {
+        flex: 1;
+        min-width: 80px;
+        text-align: center;
+        justify-content: center;
+        padding: 0.5rem;
+    }
+
+    /* Chat preview bubbles width fix */
+    .chat-preview-bubble {
+        max-width: 90%;
+    }
+}
+
+.detail-right {
     display: flex;
     flex-direction: column;
+    height: 100%;
     min-height: 0;
     background: var(--bg-panel);
     color: var(--text-main);
 }
 
+
 .detail-topbar{
-    position: sticky;
-    top: 0;
+    position: relative; /* Ensure absolute children position correctly */
     z-index: 20;
-    background: color-mix(in srgb, var(--bg-panel), transparent 0%);
+    background: var(--bg-panel);
     border-bottom: 1px solid var(--border-light);
-    padding: 14px 14px 10px 14px;
-    padding-right: 56px;
+    padding: 12px 16px;
+    padding-right: 60px;
     display: flex;
-    gap: 12px;
-    align-items: stretch;
+    gap: 16px;
+    align-items: center;
+    flex-wrap: wrap;
+    min-height: 64px;
 }
 /* 关闭按钮：永远右上角 */
 .detail-close-floating{
     position: absolute;
-    top: 12px;
+    top: 50%;
+    transform: translateY(-50%);
     right: 12px;
     width: 36px;
     height: 36px;
@@ -183,10 +275,9 @@ html.light-mode .detail-thumb-label{
 
 .detail-top-actions{
     display: flex;
-    align-items: flex-end;
+    align-items: center;
     justify-content: flex-end;
     flex-shrink: 0;
-    min-width: 340px;
 }
 
 .detail-actions-row{
@@ -304,20 +395,31 @@ html.light-mode .detail-thumb-label{
     padding: 10px 14px;
     border-bottom: 1px solid var(--border-main);
     background: var(--bg-panel);
-    position: sticky;
-    top: 82px; /* 顶部栏高度大致 */
     z-index: 15;
+    /* Add horizontal scroll support */
+    overflow-x: auto;
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE 10+ */
 }
+.detail-tabs::-webkit-scrollbar { 
+    display: none; /* Chrome/Safari/Webkit */
+}
+
 .detail-tab{
+    flex-shrink: 0; /* Prevent shrinking */
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
     border: 1px solid var(--border-light);
     background: var(--bg-sub);
     color: var(--text-sub);
-    padding: 8px 10px;
+    padding: 8px 14px;
     border-radius: 12px;
     cursor: pointer;
     font-size: 13px;
     font-weight: 800;
     transition: all 0.15s;
+    white-space: nowrap;
 }
 .detail-tab:hover{
     background: var(--bg-hover);
@@ -556,8 +658,8 @@ html.light-mode .detail-thumb-label{
 
 /* 默认：每个卡片都可以伸展吃剩余空间 */
 .detail-section-fill .detail-tab-scroll > .detail-card{
-    flex: 1 1 0;
-    min-height: 0;
+    flex: 1 1 auto;
+    min-height: 200px;
     display: flex;
     flex-direction: column;
 }
@@ -565,14 +667,14 @@ html.light-mode .detail-thumb-label{
 /* 卡片内部 textarea 真正“贴底长大” */
 .detail-section-fill .detail-card .form-textarea{
     flex: 1;
-    min-height: 0;
+    min-height: 100px;
     height: auto !important; /* 覆盖你 HTML 里写死的 10rem */
     resize: none;
 }
 
 /* 给某些卡片更大权重（用于对话页：First Message 更重要） */
-.detail-card--lg{ flex: 2 1 0 !important; }
-.detail-card--sm{ flex: 0.8 1 0 !important; }
+.detail-card--lg{ flex: 2 1 auto !important; min-height: 300px !important; }
+.detail-card--sm{ flex: 0.8 1 auto !important; min-height: 140px !important; }
 
 /* Detail 内的 WI 容器改为可伸展布局，覆盖默认 max-height */
 .detail-section-fill .wi-container{
@@ -632,6 +734,10 @@ html.light-mode .detail-thumb-label{
     align-items: center;
     justify-content: center;
     gap: 8px;
+    padding: 0 16px; /* Add padding */
+    width: 100%;     /* Fill container */
+    white-space: nowrap; /* Prevent wrap */
+    overflow: hidden;
 }
 .toolbox-btn:hover{
     transform: translateY(-1px);
@@ -698,24 +804,30 @@ html.light-mode .toolbox-btn.purple{
 
 @media (max-width: 850px) {
     .detail-modal {
-        width: 98vw;
-        height: 96vh;
+        width: 100vw;
+        height: 100vh;
+        border-radius: 0;
     }
     .detail-modal-inner {
-        /* 小屏强制单列，左侧栏隐藏或变为顶部 */
+        /* 小屏强制单列，左侧栏顶置 */
         grid-template-columns: 1fr;
+        grid-template-rows: auto 1fr; 
     }
     .detail-left {
-        display: none; /* 或者改为其它显示方式 */
+        height: 300px; /* 给图片区固定高度 */
+        display: flex;
+        border-right: none;
+        border-bottom: 1px solid var(--border-main);
     }
     /* 移动端 Topbar 优化 */
     .detail-topbar {
-        padding-right: 14px; /* 移除给悬浮关闭按钮留的 padding */
+        padding-right: 14px; 
     }
     .detail-close-floating {
-        position: relative;
-        top: auto; right: auto;
-        margin-left: auto;
+        position: absolute;
+        top: 12px; 
+        right: 12px;
+        transform: none;
     }
 }
 /* --- Left --- */
@@ -1003,15 +1115,15 @@ html.light-mode .toolbox-btn.purple{
 .topbar-token {
     display: flex;
     flex-direction: column;
-    align-items: flex-end; /* 右对齐 */
+    align-items: flex-end;
     justify-content: center;
-    padding: 0 12px;
-    border-right: 1px solid var(--border-light);
-    height: 100%;
+    padding: 0 16px;
+    border-left: 1px solid var(--border-light);
+    height: 36px;
     flex-shrink: 0;
 }
 .topbar-token-label {
-    font-size: 9px;
+    font-size: 10px;
     color: var(--text-dim);
     text-transform: uppercase;
     font-weight: 800;
@@ -1020,7 +1132,7 @@ html.light-mode .toolbox-btn.purple{
 }
 .topbar-token-value {
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-    font-size: 15px;
+    font-size: 16px;
     font-weight: 900;
     line-height: 1;
 }

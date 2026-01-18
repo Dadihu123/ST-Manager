@@ -24,13 +24,31 @@ DB_FOLDER = os.path.join(SYSTEM_DIR, 'db')
 DEFAULT_DB_PATH = os.path.join(DB_FOLDER, 'cards_metadata.db')
 THUMB_FOLDER = os.path.join(SYSTEM_DIR, 'thumbnails')
 TRASH_FOLDER = os.path.join(SYSTEM_DIR, 'trash')
-TEMP_DIR = os.path.join(DATA_DIR, 'temp')
 
 # 确保核心系统目录存在
-for d in [DATA_DIR, SYSTEM_DIR, DB_FOLDER, THUMB_FOLDER, TRASH_FOLDER, TEMP_DIR]:
+for d in [DATA_DIR, SYSTEM_DIR, DB_FOLDER, THUMB_FOLDER, TRASH_FOLDER]:
     if not os.path.exists(d):
-        try: os.makedirs(d)
-        except: pass
+        try: 
+            os.makedirs(d)
+        except: 
+            pass
+
+def ensure_config_dirs(cfg):
+    """确保配置中指定的业务目录存在"""
+    dirs_to_check = [
+        cfg.get("cards_dir"),
+        cfg.get("world_info_dir"),
+        cfg.get("resources_dir")
+    ]
+    for d in dirs_to_check:
+        if d:
+            # 如果是相对路径，则相对于 BASE_DIR
+            full_path = os.path.isabs(d) and d or os.path.join(BASE_DIR, d)
+            if not os.path.exists(full_path):
+                try:
+                    os.makedirs(full_path, exist_ok=True)
+                except Exception as e:
+                    print(f"Failed to create directory {full_path}: {e}")
 
 # 默认配置
 DEFAULT_CONFIG = {
@@ -38,8 +56,8 @@ DEFAULT_CONFIG = {
     "world_info_dir": "data/library/lorebooks",
     "default_sort": "date_desc",
     "theme_accent": "blue",
-    "host": "127.0.0.1",
-    "port": 5000,
+    "host": os.environ.get("HOST", "127.0.0.1"),
+    "port": int(os.environ.get("PORT", 5000)),
     "resources_dir": "data/assets/card_assets",
     "st_url": "http://127.0.0.1:8000",
     "st_auth_type": "basic",  # 'basic' or 'web'
@@ -57,21 +75,52 @@ DEFAULT_CONFIG = {
     "auto_save_interval": 3,   # 默认 3 分钟
     "snapshot_limit_manual": 50, # 手动快照保留数量上限
     "snapshot_limit_auto": 5,    # 自动快照保留数量上限
+    "auth_enabled": False,       # 是否启用登录认证
+    "username": "admin",         # 认证用户名
+    "password": "password",      # 认证密码
+    "secret_key": "st-manager-secret-key" # 用于 Session 加密的密钥
 }
 
 def load_config():
-    if os.path.exists(CONFIG_FILE):
+    cfg = DEFAULT_CONFIG.copy()
+    if os.path.isfile(CONFIG_FILE):
         try:
             with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
-                return {**DEFAULT_CONFIG, **json.load(f)}
+                data = json.load(f)
+                if isinstance(data, dict):
+                    cfg.update(data)
+        except Exception as e:
+            print(f"Error loading config.json: {e}")
+    else:
+        # 如果配置文件不存在，或者是一个文件夹 (Docker Windows 常见错误)，则尝试处理
+        if os.path.isdir(CONFIG_FILE):
+            print(f"⚠️ 警告: {CONFIG_FILE} 是一个目录而不是文件。")
+            print("这通常是因为在 Docker 命令或 compose 中挂载了不存在的 config.json 文件，Docker 自动创建了同名文件夹。")
+            print("请删除该文件夹并在宿主机创建一个空的 config.json 文件后再运行。")
+        else:
+            # 如果完全不存在，自动创建一个默认的
+            save_config(cfg)
+            
+    # 环境变量优先级最高，确保 Docker 部署正常
+    if os.environ.get("HOST"):
+        cfg["host"] = os.environ.get("HOST")
+    if os.environ.get("PORT"):
+        try:
+            cfg["port"] = int(os.environ.get("PORT"))
         except:
-            return DEFAULT_CONFIG
-    return DEFAULT_CONFIG
+            pass
+            
+    # 确保业务目录存在
+    ensure_config_dirs(cfg)
+    
+    return cfg
 
 def save_config(cfg):
+    global current_config
     try:
         with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
             json.dump(cfg, f, ensure_ascii=False, indent=2)
+        current_config = cfg
         return True
     except:
         return False

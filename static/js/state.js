@@ -38,6 +38,7 @@ export function initState() {
         
         // 服务器状态
         serverStatus: { status: 'initializing', message: '', progress: 0, total: 0 },
+        isDocker: false,
         _bootstrapped: false,
 
         // 界面状态
@@ -47,6 +48,9 @@ export function initState() {
         showToastState: false,
         toastTimer: null,
         _resizeTimer: null,
+
+        // 移动端侧边栏状态
+        mobileSidebarOpen: false,
 
         // 数据池 (供 Sidebar 和 Grid 共享)
         allTagsPool: [],
@@ -65,8 +69,6 @@ export function initState() {
         wiCurrentPage: 1,
         wiTotalItems: 0,
         wiTotalPages: 1,
-
-        availableRuleSets: [], // 规则集列表
         
         // 设置表单
         settingsForm: { 
@@ -90,6 +92,7 @@ export function initState() {
             bg_opacity: 0.95, 
             bg_blur: 0,
             favorites_first: false,
+            discord_token: '',
         },
 
         // === 集中管理的视图状态 ===
@@ -151,6 +154,7 @@ export function initState() {
             getServerStatus()
                 .then(res => {
                     this.serverStatus = res;
+                    this.isDocker = !!res.is_docker;
                     if (res.status === 'ready') {
                         if (!this._bootstrapped) {
                             this._bootstrapped = true;

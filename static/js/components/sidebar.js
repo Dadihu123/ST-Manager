@@ -115,6 +115,9 @@ export default function sidebar() {
 
         // 设置当前分类
         setCategory(category) {
+            // Mobile: 选中后收起侧边栏
+            if (window.innerWidth <= 768) this.$store.global.mobileSidebarOpen = false;
+
             // 更新父级 layout 的状态
             this.filterCategory = category;
             this.selectedIds = []; // 清空选中
@@ -295,6 +298,9 @@ export default function sidebar() {
         // === 世界书侧边栏逻辑 ===
 
         setWiFilter(type) {
+            // Mobile: 选中后收起侧边栏
+            if (window.innerWidth <= 768) this.$store.global.mobileSidebarOpen = false;
+
             this.$store.global.wiFilterType = type;
         },
 

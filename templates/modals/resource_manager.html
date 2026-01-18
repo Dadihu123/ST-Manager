@@ -1,0 +1,83 @@
+<!-- templates/modals/resource_manager.html -->
+<div x-data="resourceManager()">
+    <div x-show="visible" x-cloak class="modal-overlay" style="z-index: 60;">
+        <div class="modal-content" style="width: 90%; max-width: 800px; max-height: 85vh; display: flex; flex-direction: column;">
+            <!-- 头部 -->
+            <div class="modal-header" style="padding: 1rem 1.5rem; border-bottom: 1px solid var(--border-light); display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h3 style="font-size: 1.25rem; font-weight: bold; color: var(--text-main);" x-text="'资源管理: ' + charName"></h3>
+                    <p style="font-size: 0.75rem; color: var(--text-dim); margin-top: 0.25rem;">目录: <span x-text="folderName || '未分配'"></span></p>
+                </div>
+                <button @click="visible = false" class="text-dim hover:text-main">
+                    <svg style="width: 1.5rem; height: 1.5rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- 工具栏 -->
+            <div style="padding: 0.75rem 1.5rem; background: var(--bg-item); border-bottom: 1px solid var(--border-light); display: flex; gap: 1rem; align-items: center;">
+                <button @click="triggerFileUpload()" class="btn-primary" style="padding: 0.4rem 1rem; font-size: 0.875rem;">
+                    📤 上传文件
+                </button>
+                <button @click="refresh()" class="btn-secondary" style="padding: 0.4rem 1rem; font-size: 0.875rem;">
+                    🔄 刷新
+                </button>
+                <input type="file" x-ref="fileInput" @change="handleFileUpload" style="display: none;">
+                
+                <div x-show="isLoading" style="font-size: 0.875rem; color: var(--accent-main); display: flex; align-items: center; gap: 0.5rem;">
+                    <span class="animate-spin">⌛</span> 处理中...
+                </div>
+            </div>
+
+            <!-- 内容区 (滚动容器) -->
+            <div style="flex: 1; overflow-y: auto; padding: 1rem;">
+                <template x-if="files.length === 0 && !isLoading">
+                    <div style="padding: 4rem 0; text-align: center; color: var(--text-dim);">
+                        <div style="font-size: 3rem; margin-bottom: 1rem;">📂</div>
+                        <p>该目录下暂无文件</p>
+                    </div>
+                </template>
+
+                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 1rem;">
+                    <template x-for="file in files" :key="file.name">
+                        <div class="card-item-bg" style="border: 1px solid var(--border-light); border-radius: 0.5rem; overflow: hidden; position: relative; group">
+                            <!-- 预览图/图标 -->
+                            <div style="aspect-ratio: 1/1; background: #000; display: flex; align-items: center; justify-content: center; overflow: hidden;">
+                                <template x-if="isImage(file.name)">
+                                    <img :src="file.url" style="width: 100%; height: 100%; object-fit: cover;">
+                                </template>
+                                <template x-if="!isImage(file.name)">
+                                    <div style="font-size: 2rem; color: var(--text-dim);" x-text="file.name.split('.').pop().toUpperCase()"></div>
+                                </template>
+                            </div>
+                            
+                            <!-- 文件信息 -->
+                            <div style="padding: 0.5rem;">
+                                <div style="font-size: 0.75rem; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-main);" :title="file.name" x-text="file.name"></div>
+                                <div style="font-size: 0.65rem; color: var(--text-dim); display: flex; justify-content: space-between; margin-top: 0.25rem;">
+                                    <span x-text="formatSize(file.size)"></span>
+                                    <button @click="handleDelete(file.name)" class="text-red-500 hover:text-red-700" title="删除">
+                                        🗑️
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- 悬浮操作栏 -->
+                            <div style="position: absolute; top: 0.25rem; right: 0.25rem; display: flex; gap: 0.25rem;">
+                                <a :href="file.url" target="_blank" class="bg-black/50 hover:bg-black/80 text-white rounded p-1" style="font-size: 0.75rem;" title="查看原图/下载">
+                                    👁️
+                                </a>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <!-- 底部 -->
+            <div class="modal-footer" style="padding: 1rem 1.5rem; border-top: 1px solid var(--border-light); text-align: right;">
+                <button @click="visible = false" class="btn-secondary">关闭</button>
+            </div>
+        </div>
+    </div>
+</div>

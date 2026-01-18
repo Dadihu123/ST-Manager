@@ -80,6 +80,18 @@ def update_card_content(card_id, temp_path, is_bundle_update, keep_ui_data, new_
 
     target_block = get_data_ref(final_info)
     source_block = get_data_ref(new_info_raw)
+    
+    # # 允许更新的核心字段白名单
+    # core_fields = [
+    #     'name', 'description', 'first_mes', 'mes_example', 'alternate_greetings',
+    #     'character_book', 'creator', 'character_version', 'creator_notes',
+    #     'personality', 'scenario', 'system_prompt', 'post_history_instructions',
+    #     'tags', 'spec', 'spec_version'
+    # ]
+    
+    # for key in core_fields:
+    #     if key in source_block:
+    #          target_block[key] = source_block[key]
 
     target_block.update(source_block)
     
@@ -179,21 +191,10 @@ def update_card_content(card_id, temp_path, is_bundle_update, keep_ui_data, new_
             del ui_data[card_id]
         
     if ui_key not in ui_data: ui_data[ui_key] = {}
-    
-    # UI Data 安全同步
-    target_fields = [
-        ('summary', 'ui_summary'), 
-        ('link', 'source_link'), 
-        ('resource_folder', 'resource_folder')
-    ]
-    
-    for db_field, input_field in target_fields:
-        new_val = keep_ui_data.get(input_field)
-        if new_val:
-            ui_data[ui_key][db_field] = str(new_val).strip()
-        elif not is_bundle_update:
-            if input_field in keep_ui_data:
-                ui_data[ui_key][db_field] = ""
+    ui_data[ui_key]['summary'] = keep_ui_data.get('ui_summary', '')
+    ui_data[ui_key]['link'] = keep_ui_data.get('source_link', '')
+    ui_data[ui_key]['source_title_sync'] = keep_ui_data.get('source_title_sync', '') # 抓取的远程标题
+    ui_data[ui_key]['resource_folder'] = keep_ui_data.get('resource_folder', '')
     save_ui_data(ui_data)
     
     # 2. 更新 mtime 和 清理缩略图
@@ -202,6 +203,10 @@ def update_card_content(card_id, temp_path, is_bundle_update, keep_ui_data, new_
     new_mtime = os.path.getmtime(target_save_path)
     clean_thumbnail_cache(final_rel_id, THUMB_FOLDER)
     
+    # === 获取旧的收藏状态 (用于 ID 变更时迁移或防止覆盖) ===
+    old_card_obj = ctx.cache.id_map.get(card_id)
+    is_favorite = 1 if (old_card_obj and old_card_obj.get('is_favorite')) else 0
+
     # 3. 数据库清理 (仅针对 ID 变更)
     if card_id != final_rel_id and not is_bundle_update:
         ctx.cache.delete_card_update(card_id)
@@ -216,7 +221,8 @@ def update_card_content(card_id, temp_path, is_bundle_update, keep_ui_data, new_
         parsed_info=final_info,
         file_hash=file_hash,
         file_size=file_size,
-        mtime=new_mtime
+        mtime=new_mtime,
+        is_favorite=is_favorite
     )
     
     # 5. 内存缓存更新
@@ -246,11 +252,10 @@ def update_card_content(card_id, temp_path, is_bundle_update, keep_ui_data, new_
             "tags": calc_data.get('tags', []),
             "token_count": token_count,
             "last_modified": new_mtime,
+            "is_favorite": bool(is_favorite),
             "ui_summary": keep_ui_data.get('ui_summary', ''),
             "source_link": keep_ui_data.get('source_link', ''),
-            "resource_folder": keep_ui_data.get('resource_folder', ''),
-            "char_version": calc_data.get('character_version', ''),
-            "creator": calc_data.get('creator', '')
+            "resource_folder": keep_ui_data.get('resource_folder', '')
         }
         
         if card_id != final_rel_id:
@@ -340,223 +345,3 @@ def rename_folder_in_ui(ui_data, old_path, new_path):
         del ui_data[key]
         changed = True
     return changed
-
-# 内部移动卡片逻辑
-def move_card_internal(card_id, target_category):
-    """
-    将卡片(文件)或聚合包(文件夹)移动到指定分类。
-    
-    Args:
-        card_id (str): 源 ID (相对路径，可能是 "Category/Char.png" 或 "Category/BundleDir")
-        target_category (str): 目标父分类 (例如 "NewCategory")
-    
-    Returns:
-        (bool, str, str): (success, new_id, message)
-    """
-    try:
-        # 1. 基础检查与路径准备
-        if not card_id: return False, None, "ID missing"
-        if target_category == "根目录": target_category = ""
-        
-        old_rel_path = card_id.replace('/', os.sep)
-        old_full_path = os.path.join(CARDS_FOLDER, old_rel_path)
-        
-        if not os.path.exists(old_full_path):
-            return False, None, "Source not found"
-
-        # 判断是文件还是文件夹 (Bundle)
-        is_directory = os.path.isdir(old_full_path)
-
-        # 准备目标基础目录
-        dst_base_dir = os.path.join(CARDS_FOLDER, target_category)
-        if not os.path.exists(dst_base_dir):
-            os.makedirs(dst_base_dir)
-            
-        # 如果源目录的父级就是目标目录，无需移动
-        if os.path.dirname(old_full_path) == os.path.abspath(dst_base_dir):
-            return True, card_id, "Target is same as source"
-
-        # 2. 冲突检测与自动重命名
-        basename = os.path.basename(old_full_path)
-        counter = 0
-        final_name = basename
-        
-        # 拆分文件名用于递增 (文件夹则不拆扩展名)
-        if is_directory:
-            name_part, ext_part = basename, ""
-        else:
-            name_part, ext_part = os.path.splitext(basename)
-        
-        while True:
-            if counter > 0:
-                final_name = f"{name_part}_{counter}{ext_part}"
-            
-            candidate_path = os.path.join(dst_base_dir, final_name)
-            
-            # 检查主路径冲突
-            if not os.path.exists(candidate_path):
-                # 如果是单文件 JSON，还需检查伴生图是否会冲突
-                if not is_directory and final_name.lower().endswith('.json'):
-                    # 预测伴生图名称 (假设伴生图肯定和主文件同名)
-                    # 实际上我们需要知道原文件是否有伴生图，如果有，就得检查目标是否有同名图
-                    sidecar_src = find_sidecar_image(old_full_path)
-                    if sidecar_src:
-                        side_ext = os.path.splitext(sidecar_src)[1]
-                        side_candidate = os.path.join(dst_base_dir, f"{name_part}_{counter}{side_ext}" if counter > 0 else f"{name_part}{side_ext}")
-                        if os.path.exists(side_candidate):
-                            counter += 1
-                            continue
-                break
-            counter += 1
-            
-        dst_full_path = os.path.join(dst_base_dir, final_name)
-
-        # 3. 获取旧分类信息 (用于缓存更新)
-        old_category = ""
-        if ctx.cache and card_id in ctx.cache.id_map:
-            old_category = ctx.cache.id_map[card_id].get('category', "")
-        elif '/' in card_id:
-            old_category = card_id.rsplit('/', 1)[0]
-
-        # 4. 执行物理移动
-        shutil.move(old_full_path, dst_full_path)
-        
-        # 如果是单文件且为 JSON，尝试移动伴生图
-        if not is_directory and basename.lower().endswith('.json'):
-            # 注意：old_full_path 已经移走了，不能再用 find_sidecar_image(old_full_path)
-            # 我们根据路径推断
-            from core.consts import SIDECAR_EXTENSIONS
-            old_dir = os.path.dirname(old_full_path)
-            new_dir = os.path.dirname(dst_full_path)
-            old_base_no_ext = os.path.splitext(basename)[0]
-            new_base_no_ext = os.path.splitext(final_name)[0]
-            
-            for ext in SIDECAR_EXTENSIONS:
-                s_src = os.path.join(old_dir, old_base_no_ext + ext)
-                if os.path.exists(s_src):
-                    s_dst = os.path.join(new_dir, new_base_no_ext + ext)
-                    shutil.move(s_src, s_dst)
-
-        # 5. 计算新 ID
-        new_id = f"{target_category}/{final_name}" if target_category else final_name
-        
-        # 6. 数据同步 (DB, UI, Cache)
-        conn = get_db()
-        ui_data = load_ui_data()
-        ui_changed = False
-
-        if is_directory:
-            # === Bundle 模式处理 ===
-            
-            # DB: 更新该文件夹下所有文件的 ID 和 Category
-            # 使用 SQL 字符串替换功能
-            escaped_old_id = card_id.replace('_', r'\_').replace('%', r'\%')
-            
-            # 查找所有子文件
-            cursor = conn.execute(f"SELECT id FROM card_metadata WHERE id LIKE ? || '/%' ESCAPE '\\'", (escaped_old_id,))
-            rows = cursor.fetchall()
-            
-            for row in rows:
-                sub_old_id = row[0]
-                # 替换前缀: old_id -> new_id
-                sub_new_id = sub_old_id.replace(card_id, new_id, 1)
-                
-                # Bundle 内的卡片，其 category 实际上就是 Bundle 的路径 (即 new_id)
-                # 所以 category 也要更新为新的 Bundle 路径 (new_id)
-                conn.execute("""
-                    UPDATE card_metadata 
-                    SET id = ?, category = ? 
-                    WHERE id = ?
-                """, (sub_new_id, new_id, sub_old_id))
-            
-            # UI Data: 迁移文件夹本身的 UI 数据
-            if card_id in ui_data:
-                ui_data[new_id] = ui_data[card_id]
-                del ui_data[card_id]
-                ui_changed = True
-
-            # Cache: 调用 move_bundle_update
-            if ctx.cache:
-                # 注意：参数4 new_category 传 new_id，因为 Bundle 内的卡片 category = bundle_path
-                ctx.cache.move_bundle_update(card_id, new_id, old_category, new_id)
-
-        else:
-            # === 单文件模式处理 ===
-            
-            # DB
-            conn.execute("UPDATE card_metadata SET id = ?, category = ? WHERE id = ?", (new_id, target_category, card_id))
-            
-            # UI Data
-            if card_id in ui_data:
-                ui_data[new_id] = ui_data[card_id]
-                del ui_data[card_id]
-                ui_changed = True
-            
-            # Cache
-            if ctx.cache:
-                ctx.cache.move_card_update(card_id, new_id, old_category, target_category, final_name, dst_full_path)
-
-        conn.commit()
-        if ui_changed: save_ui_data(ui_data)
-
-        return True, new_id, "Success"
-        
-    except Exception as e:
-        print(f"Move internal error: {e}") # 打印日志以便调试
-        return False, None, str(e)
-
-# 内部标签/收藏更新逻辑
-def modify_card_attributes_internal(card_id, add_tags=None, remove_tags=None, set_favorite=None):
-    """
-    修改卡片属性 (标签、收藏)
-    """
-    try:
-        full_path = os.path.join(CARDS_FOLDER, card_id.replace('/', os.sep))
-        if not os.path.exists(full_path): return False
-
-        info = extract_card_info(full_path)
-        if not info: return False
-        
-        changed = False
-        
-        # 1. 处理标签 (写入文件 + DB)
-        if add_tags or remove_tags:
-            data_block = info.get('data', {}) if 'data' in info else info
-            current_tags = data_block.get('tags', []) or []
-            
-            tags_set = set(current_tags)
-            if add_tags: tags_set.update(add_tags)
-            if remove_tags: tags_set.difference_update(remove_tags)
-            
-            new_tags = sorted(list(tags_set))
-            
-            if new_tags != sorted(current_tags):
-                data_block['tags'] = new_tags
-                if 'data' in info: info['data'] = data_block # V3 write back
-                else: info = data_block # V2 write back
-                
-                write_card_metadata(full_path, info)
-                
-                # Update DB
-                conn = get_db()
-                conn.execute("UPDATE card_metadata SET tags = ? WHERE id = ?", (json.dumps(new_tags), card_id))
-                conn.commit()
-                
-                # Update Cache
-                if ctx.cache: ctx.cache.update_tags_update(card_id, new_tags)
-                changed = True
-
-        # 2. 处理收藏 (仅 DB + Cache)
-        if set_favorite is not None:
-            new_status = 1 if set_favorite else 0
-            conn = get_db()
-            conn.execute("UPDATE card_metadata SET is_favorite = ? WHERE id = ?", (new_status, card_id))
-            conn.commit()
-            
-            if ctx.cache: ctx.cache.toggle_favorite_update(card_id, bool(new_status))
-            changed = True
-            
-        return True
-    except Exception as e:
-        logger.error(f"Modify attributes error: {e}")
-        return False

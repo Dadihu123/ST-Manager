@@ -139,7 +139,7 @@ def _perform_scan_logic():
                 'size': row[2] or 0,
                 'tokens': row[3] or 0,
                 'hash': row[4] or "",
-                'fav': row['is_favorite'] or 0
+                'is_favorite': row[5] or 0
             }
             for row in rows
         }
@@ -217,13 +217,15 @@ def _perform_scan_logic():
                         if 'name' not in calc_data: calc_data['name'] = char_name
                         token_count = calculate_token_count(calc_data)
                         has_wi, wi_name = get_wi_meta(data_block)
-                        keep_fav = db_info['fav'] if db_info else 0
 
                         # 优化：仅在文件真正变更时重置 hash，否则保留旧 hash (避免昂贵的 hash 计算)
                         if file_changed:
                             file_hash = "" # 下次读取或手动更新时再计算，此处保持为空以示脏数据
                         else:
                             file_hash = (db_info.get('hash', "") if db_info else "")
+                        
+                        # 保持收藏状态
+                        is_favorite = (db_info.get('is_favorite', 0) if db_info else 0)
 
                         cursor.execute('''
                                 INSERT OR REPLACE INTO card_metadata
@@ -239,7 +241,7 @@ def _perform_scan_logic():
                                 data_block.get('character_version', ''),
                                 current_mtime, file_hash, current_size, 
                                 token_count, has_wi, wi_name,
-                                keep_fav
+                                is_favorite
                             ))
                         changes_detected = True
 

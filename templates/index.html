@@ -6,6 +6,13 @@
     {% include "components/header.html" %}
 
     <div class="main-container">
+        <!-- 移动端侧边栏遮罩 -->
+        <div class="sidebar-overlay fixed inset-0 bg-black/50 z-30 md:hidden" 
+             style="backdrop-filter: blur(2px);"
+             x-show="$store.global.mobileSidebarOpen" 
+             x-transition.opacity 
+             @click="$store.global.mobileSidebarOpen = false"></div>
+
         <!-- 侧边栏 -->
         {% include "components/sidebar.html" %}
 
@@ -41,16 +48,13 @@
     {% include "modals/folder_operations.html" %}
     {% include "modals/import.html" %}
     
-    <!-- 自动化规则编辑器 -->
-    {% include "modals/automation.html" %}
-
     <!-- 预览与其他 -->
     <div x-data="largeEditor">
         {% include "modals/large_editor.html" %}
         {% include "modals/markdown_preview.html" %}
         {% include "modals/html_preview.html" %}
     </div>
-    {% include "modals/batch_import.html" %}
     {% include "components/context_menu.html" %}
+    {% include "modals/resource_manager.html" %}
 
 {% endblock %}

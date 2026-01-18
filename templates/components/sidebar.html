@@ -1,5 +1,13 @@
 <!-- 侧边栏 -->
-<aside class="sidebar" x-data="sidebar" id="sidebar-root">
+<aside class="sidebar" x-data="sidebar" id="sidebar-root" :class="{'mobile-open': $store.global.mobileSidebarOpen}">
+    <!-- 移动端侧边栏头部 (Fixed top of sidebar) -->
+    <div class="md:hidden flex items-center justify-between p-3 border-b border-[var(--border-main)] bg-[var(--bg-sub)] sticky top-0 z-20">
+        <span class="font-bold text-lg">📁 菜单</span>
+        <button @click="$store.global.mobileSidebarOpen = false" class="p-1 px-3 rounded bg-[var(--bg-panel)] border border-[var(--border-light)] text-[var(--text-sub)]">
+            ✕ 关闭
+        </button>
+    </div>
+
     <div class="flex border-b border-[var(--border-main)] bg-[var(--bg-sub)] relative z-10 shadow-sm">
         <button @click="switchMode('cards')" class="flex-1 py-3 text-sm font-bold transition-colors border-b-2"
             :class="currentMode === 'cards' ? 'border-[var(--accent-main)] text-[var(--text-main)] bg-[var(--bg-panel)]' : 'border-transparent text-[var(--text-dim)] hover:text-[var(--text-main)]'">
@@ -113,9 +121,15 @@
 
         <div class="mt-auto p-4 border-t border-[var(--border-main)]">
             <button @click="migrateLorebooks()"
-                class="w-full py-2 text-xs border border-dashed border-[var(--text-dim)] text-[var(--text-dim)] hover:border-[var(--accent-main)] hover:text-[var(--accent-main)] rounded transition-colors text-center">
+                class="w-full py-2 text-xs border border-dashed border-[var(--text-dim)] text-[var(--text-dim)] hover:border-[var(--accent-main)] hover:text-[var(--accent-main)] rounded transition-colors text-center mb-4">
                 🧹 整理资源目录文件
             </button>
+
+            <!-- 版本信息 -->
+            <div class="flex items-center justify-between px-1 opacity-40 hover:opacity-100 transition-opacity">
+                <span class="text-[10px] font-mono" x-text="$store.global.settingsForm.app_version || 'v1.0'"></span>
+                <a href="https://github.com/ggssst/ST-Manager" target="_blank" class="text-[10px] hover:underline">GitHub</a>
+            </div>
         </div>
     </div>
 </aside>

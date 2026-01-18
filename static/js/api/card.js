@@ -61,6 +61,37 @@ export async function updateCardFileFromUrl(payload) {
     return res.json();
 }
 
+// 获取来源链接的元数据 (标题、版本等)
+export async function fetchSourceMetadata(payload) {
+    // payload: { source_link }
+    const res = await fetch('/api/fetch_source_metadata', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    });
+    return res.json();
+}
+
+// 检查卡片在网络上的更新
+export async function checkCardUpdate(payload) {
+    // payload: { card_id, source_link }
+    const res = await fetch('/api/check_card_update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    });
+    return res.json();
+}
+
+// 批量检查收藏卡片更新
+export async function checkFavUpdates() {
+    const res = await fetch('/api/check_fav_updates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    });
+    return res.json();
+}
+
 // 删除角色卡
 export async function deleteCards(ids) {
     const res = await fetch('/api/delete_cards', {
@@ -99,6 +130,15 @@ export async function importCardFromUrl(payload) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
+    });
+    return res.json();
+}
+
+// 批量上传卡片 (FormData)
+export async function uploadCards(formData) {
+    const res = await fetch('/api/upload_cards', {
+        method: 'POST',
+        body: formData
     });
     return res.json();
 }

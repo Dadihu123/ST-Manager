@@ -1,6 +1,7 @@
 /* =========================================
    8. 标签选择器 (Tag Picker)
    ========================================= */
+.large-editor-textarea,
 .tag-modal-container { 
     width: 800px; max-width: 90vw; height: 70vh; 
     background: var(--bg-panel); 
@@ -46,6 +47,7 @@
 /* =========================================
    11. 高级编辑器重构 (Advanced Editor Refactor)
    ========================================= */
+
 
 /* 顶部 Tab 栏 */
 .adv-tab-bar {
@@ -591,3 +593,86 @@ html.light-mode .preview-toggle-inactive {
     display: flex; flex: 1; overflow: hidden; font-family: monospace; font-size: 12px;
 }
 .diff-col { flex: 1; overflow: auto; padding: 10px; }
+
+/* =========================================
+   Mobile Adaptation for Tools Modals
+   ========================================= */
+@media (max-width: 768px) {
+    /* 通用弹窗容器适配 */
+    .tag-modal-container,
+    .large-editor-textarea {
+        width: 100vw;
+        height: 100vh;
+        height: 100dvh;
+        max-width: none;
+        max-height: none;
+        border-radius: 0;
+        border: none;
+        padding: 0.5rem;
+        box-shadow: none;
+        margin: 0;
+    }
+
+    /* Advanced Editor Adapter */
+    .adv-split-view {
+        flex-direction: column !important;
+    }
+
+    .adv-list-pane {
+        width: 100% !important;
+        height: 180px; /* Take top part for list */
+        border-right: none !important;
+        border-bottom: 3px solid var(--border-light);
+        flex-shrink: 0;
+    }
+    
+    .adv-list-item {
+        padding: 0.5rem;
+    }
+
+    .adv-editor-pane {
+        width: 100% !important;
+        height: auto;
+        flex: 1;
+        padding: 0.5rem;
+    }
+
+    /* Tab bar scrolling */
+    .adv-tab-bar {
+        overflow-x: auto;
+        padding: 0 0.5rem;
+    }
+    
+    .adv-tab {
+        padding: 0.75rem 1rem;
+        white-space: nowrap;
+    }
+
+    /* Form Layouts to avoid horizontal scroll */
+    .adv-form-row {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 0.5rem;
+    }
+    
+    .adv-form-row label {
+        width: 100%;
+        margin-bottom: 0.25rem;
+    }
+    
+    .adv-form-row input, .adv-form-row select {
+        width: 100% !important;
+        max-width: 100%;
+    }
+
+    /* Tag Cloud */
+    .tag-cloud-container {
+        padding: 0.25rem;
+    }
+    
+    .tag-chip-btn {
+        padding: 0.3rem 0.5rem;
+        font-size: 0.75rem;
+        height: auto;
+    }
+}

@@ -1,15 +1,16 @@
+version: '3.8'
 services:
   st-manager:
-    build: .
+    image: ggssst/st-manager:latest
     container_name: st-manager
     ports:
       - "5000:5000"
+    volumes:
+      - st-manager-data:/app/data
     environment:
       - HOST=0.0.0.0
       - PORT=5000
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    volumes:
-      - ./data:/app/data
-      - ./config.json:/app/config.json
     restart: unless-stopped
+
+volumes:
+  st-manager-data:

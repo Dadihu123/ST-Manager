@@ -288,7 +288,7 @@ class GlobalMetadataCache:
             cursor = conn.cursor()
             cursor.execute("""
                 SELECT id, char_name, tags, category, creator, 
-                       char_version, last_modified, file_hash, token_count, is_favorite
+                       char_version, last_modified, created_at, file_hash, token_count, is_favorite
                 FROM card_metadata
             """)
             rows = cursor.fetchall()
@@ -297,27 +297,6 @@ class GlobalMetadataCache:
 
         with self.lock:
             try:
-                physical_folders = set()
-                try:
-                    for root, dirs, files in os.walk(CARDS_FOLDER):
-                        # 排除以 . 开头的隐藏目录 (如 .trash, .git)
-                        dirs[:] = [d for d in dirs if not d.startswith('.')]
-                        
-                        # 计算相对路径
-                        rel_path = os.path.relpath(root, CARDS_FOLDER)
-                        if rel_path == ".":
-                            # 根目录下的子文件夹
-                            for d in dirs:
-                                physical_folders.add(d)
-                        else:
-                            # 子目录下的子文件夹
-                            current_rel = rel_path.replace('\\', '/')
-                            physical_folders.add(current_rel)
-                            for d in dirs:
-                                physical_folders.add(f"{current_rel}/{d}")
-                except Exception as fs_e:
-                    logger.error(f"Scanning physical folders failed: {fs_e}")
-
                 # 1. 加载数据
                 ui_data = load_ui_data()
                 rows = execute_with_retry(_do_fetch_all, max_retries=5)
@@ -341,6 +320,7 @@ class GlobalMetadataCache:
                         "creator": row['creator'],
                         "char_version": row['char_version'],
                         "last_modified": row['last_modified'],
+                        "created_at": row['created_at'],
                         "file_hash": row['file_hash'],
                         "token_count": row['token_count'] if 'token_count' in row.keys() else 0,
                         "dir_path": dir_path,
@@ -429,17 +409,7 @@ class GlobalMetadataCache:
                 self.bundle_map = new_bundle_map
                 self.global_tags = sorted(list(new_global_tags))
                 self.category_counts = new_cat_counts
-                all_visible = derived_folders.union(physical_folders)
-                # 过滤掉 Bundle 文件夹本身 (Bundle 应该作为卡片显示，而不是文件夹)
-                self.visible_folders = [
-                    f for f in sorted(list(all_visible)) 
-                    if f not in bundle_paths and f != "" and f != "."
-                ]
-                
-                # 确保空文件夹也有计数条目 (0)
-                for f in self.visible_folders:
-                    if f not in new_cat_counts:
-                        new_cat_counts[f] = 0
+                self.visible_folders = [f for f in sorted(list(derived_folders)) if f not in bundle_paths and f != ""]
                 
                 self.initialized = True
                 logger.info(f"Cache reloaded: {len(self.cards)} items (including bundles).")
@@ -470,6 +440,7 @@ class GlobalMetadataCache:
             
         card['ui_summary'] = ui_info.get('summary', '')
         card['source_link'] = ui_info.get('link', '')
+        card['source_title_sync'] = ui_info.get('source_title_sync', '')
         card['resource_folder'] = ui_info.get('resource_folder', '')
         
         # 预计算 URL
