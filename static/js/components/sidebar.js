@@ -13,6 +13,24 @@ export default function sidebar() {
         expandedFolders: {},
         dragOverFolder: null,
 
+        // 设备类型和模式
+        get deviceType() {
+            return this.$store.global.deviceType;
+        },
+    
+        get currentMode() {
+            return this.$store.global.currentMode;
+        },
+    
+        get visibleSidebar() {
+            return this.$store.global.visibleSidebar;
+        },
+    
+        set visibleSidebar(val) {
+            this.$store.global.visibleSidebar = val;
+            return true;
+        },
+        
         get filterCategory() { return this.$store.global.viewState.filterCategory; },
         set filterCategory(val) { this.$store.global.viewState.filterCategory = val; return true; },
 
@@ -100,6 +118,23 @@ export default function sidebar() {
                     }
                 });
             });
+            // 初始化sidebar显示状态
+            if (this.$store.global.deviceType === "mobile") {
+                this.$store.global.visibleSidebar = false;
+            }
+        },
+      
+          // 切换侧边栏可见性
+        toggleSidebarVisible() {
+            this.$store.global.visibleSidebar = !this.$store.global.visibleSidebar;
+            // 移动端打开侧边栏时，阻止 body 滚动
+            if (this.$store.global.deviceType === "mobile") {
+                if (this.$store.global.visibleSidebar) {
+                    document.body.style.overflow = "hidden";
+                } else {
+                    document.body.style.overflow = "";
+                }
+            }
         },
 
         openTagFilter() {

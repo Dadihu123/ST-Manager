@@ -59,7 +59,7 @@
 
     /* 自定义样式变量 */
     --card-min-width: 200px;      /* 卡片最小宽度 (控制密度) */
-    --card-height: 28rem;         /* 卡片高度 */
+    --card-height: 24rem;         /* 卡片高度 */
     --app-font-family: ui-sans-serif, system-ui, sans-serif; /* 全局字体 */
 
     /* 增强质感的光影变量 */

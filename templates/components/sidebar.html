@@ -1,5 +1,43 @@
+<!-- 移动端：悬浮按钮 -->
+<button x-show="$store.global.deviceType === 'mobile' && !$store.global.visibleSidebar" 
+    @click="$store.global.visibleSidebar = true; document.body.style.overflow = 'hidden';" 
+    class="sidebar-toggle-button"
+    x-transition:enter="transition ease-out duration-200"
+    x-transition:enter-start="opacity-0 scale-90"
+    x-transition:enter-end="opacity-100 scale-100">
+    <span class="toggle-icon">☰</span>
+</button>
+
+<!-- 移动端：遮罩层 -->
+<div x-show="$store.global.deviceType === 'mobile' && $store.global.visibleSidebar"
+    @click="$store.global.visibleSidebar = false; document.body.style.overflow = '';"
+    x-transition:enter="transition ease-out duration-300"
+    x-transition:enter-start="opacity-0"
+    x-transition:enter-end="opacity-100"
+    x-transition:leave="transition ease-in duration-200"
+    x-transition:leave-start="opacity-100"
+    x-transition:leave-end="opacity-0"
+    class="sidebar-overlay"></div>
+
 <!-- 侧边栏 -->
-<aside class="sidebar" x-data="sidebar" id="sidebar-root">
+<aside class="sidebar" 
+    x-data="sidebar" 
+    id="sidebar-root" 
+    x-show="visibleSidebar"
+    :class="$store.global.deviceType === 'mobile' ? 'sidebar-mobile' : ''"
+    x-transition:enter="transition ease-out duration-300"
+    x-transition:enter-start="transform -translate-x-full"
+    x-transition:enter-end="transform translate-x-0"
+    x-transition:leave="transition ease-in duration-200"
+    x-transition:leave-start="transform translate-x-0"
+    x-transition:leave-end="transform -translate-x-full">
+    
+    <!-- 移动端：关闭按钮 -->
+    <button x-show="$store.global.deviceType === 'mobile'" 
+        @click="toggleSidebarVisible()"
+        class="sidebar-close-btn">
+        <span>✕</span>
+    </button>
     <div class="flex border-b border-[var(--border-main)] bg-[var(--bg-sub)] relative z-10 shadow-sm">
         <button @click="switchMode('cards')" class="flex-1 py-3 text-sm font-bold transition-colors border-b-2"
             :class="currentMode === 'cards' ? 'border-[var(--accent-main)] text-[var(--text-main)] bg-[var(--bg-panel)]' : 'border-transparent text-[var(--text-dim)] hover:text-[var(--text-main)]'">
@@ -12,7 +50,7 @@
         </button>
     </div>
     <!-- === 模式 1: 角色卡侧边栏 (Folder + Tags) === -->
-    <div x-show="currentMode === 'cards'" class="flex-1 flex flex-col overflow-hidden">
+    <div x-show="currentMode === 'cards' && visibleSidebar" class="flex-1 flex flex-col overflow-hidden">
         <div
             style="flex: 1; display: flex; flex-direction: column; overflow: hidden; border-bottom: 1px solid var(--border-main);">
             <div class="sidebar-section-header">
@@ -79,7 +117,7 @@
         </div>
     </div>
     <!-- === 模式 2: 世界书侧边栏 (Type Filters) === -->
-    <div x-show="currentMode === 'worldinfo'" class="flex-1 flex flex-col overflow-hidden bg-[var(--bg-panel)]">
+    <div x-show="currentMode === 'worldinfo' && visibleSidebar" class="flex-1 flex flex-col overflow-hidden bg-[var(--bg-panel)]">
         <div class="p-4 space-y-2">
             <div class="text-xs font-bold text-[var(--text-dim)] uppercase tracking-wider mb-2">来源筛选</div>
 

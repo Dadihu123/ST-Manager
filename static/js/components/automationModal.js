@@ -7,6 +7,7 @@ import { listRuleSets, getRuleSet, saveRuleSet, deleteRuleSet, setGlobalRuleset,
 
 export default function automationModal() {
     return {
+        showMobileSidebar: false,
         showAutomationModal: false,
         ruleSets: [],
         activeRuleSet: null,

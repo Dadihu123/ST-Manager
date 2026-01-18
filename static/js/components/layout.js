@@ -25,6 +25,9 @@ export default function layout() {
         // 映射全局操作 (Actions)
         toggleDarkMode() { this.$store.global.toggleDarkMode(); },
 
+        // 映射设备类型
+        get deviceType() { return this.$store.global.deviceType; },
+
         // 如果 HTML 直接引用了 searchType，这里提供代理
         get searchQuery() { return this.$store.global.viewState.searchQuery; },
         get filterCategory() { return this.$store.global.viewState.filterCategory; },
@@ -46,6 +49,8 @@ export default function layout() {
 
         // 初始化
         init() {
+            this.reDeviceType()
+
             // 监听全局快捷键或事件
             window.addEventListener('keydown', (e) => {
                 if (e.key === 'Escape' && (this.draggedFolder || this.draggedCards.length > 0)) {
@@ -88,6 +93,22 @@ export default function layout() {
                     }));
                 }, 100);
             });
+        },
+
+        // 重新设置设备类型
+        reDeviceType() {
+            const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+            let deviceType = 'desktop';
+            // 平板设备检测（iPad 或 Android 平板）
+            if (/iPad|Android/.test(userAgent) && !/Mobile/.test(userAgent)) {
+                deviceType = 'tablet';
+            }
+        
+            // 手机设备检测
+            if (/Android|webOS|iPhone|iPod|BlackBerry|IEMobile|Opera Mini/.test(userAgent)) {
+                deviceType = 'mobile';
+            }
+            this.$store.global.deviceType = deviceType;
         },
 
         handleBackgroundClick(e) {

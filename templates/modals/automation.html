@@ -3,8 +3,37 @@
     @click.self="closeModal()">
     <div class="modal-container automation-container" style="width: 1100px; height: 85vh;">
 
+        <!-- 移动端：侧边栏切换按钮 -->
+        <button x-show="$store.global.deviceType === 'mobile' && !showMobileSidebar" 
+            @click="showMobileSidebar = true"
+            class="fixed bottom-16 left-2 z-50 w-10 h-10 bg-[var(--bg-panel)] border border-[var(--border-light)] rounded-lg flex items-center justify-center text-[var(--text-main)] shadow-lg md:hidden">
+            <span>📋</span>
+        </button>
+
+        <!-- 移动端：侧边栏遮罩 -->
+        <div x-show="$store.global.deviceType === 'mobile' && showMobileSidebar"
+            @click="showMobileSidebar = false"
+            class="fixed inset-0 bg-black/50 z-40"
+            x-transition:enter="transition ease-out duration-300"
+            x-transition:enter-start="opacity-0"
+            x-transition:enter-end="opacity-100"
+            x-transition:leave="transition ease-in duration-200"
+            x-transition:leave-start="opacity-100"
+            x-transition:leave-end="opacity-0"></div>
+
         <!-- 左侧：规则集列表 -->
-        <aside class="automation-sidebar custom-scrollbar">
+        <aside class="automation-sidebar custom-scrollbar"
+            :class="{
+                'hidden md:flex': $store.global.deviceType !== 'mobile',
+                'fixed top-0 left-0 bottom-0 z-50 w-[280px] max-w-[85vw] shadow-2xl flex': $store.global.deviceType === 'mobile' && showMobileSidebar,
+                'hidden': $store.global.deviceType === 'mobile' && !showMobileSidebar
+            }"
+            x-transition:enter="transition ease-out duration-300"
+            x-transition:enter-start="transform -translate-x-full"
+            x-transition:enter-end="transform translate-x-0"
+            x-transition:leave="transition ease-in duration-200"
+            x-transition:leave-start="transform translate-x-0"
+            x-transition:leave-end="transform -translate-x-full">
             <!-- 头部保持不变 -->
             <div
                 class="p-3 border-b border-[var(--border-light)] flex justify-between items-center bg-[var(--bg-panel)]">
@@ -12,7 +41,12 @@
                 <div class="flex gap-1">
                     <button @click="$refs.importInput.click()" class="btn-secondary px-2 py-1 text-xs"
                         title="导入规则集">📥</button>
-                    <button @click="createNewRuleSet()" class="btn-secondary px-2 py-1 text-xs" title="新建">+ 新建</button>
+                    <button @click="createNewRuleSet(); if($store.global.deviceType === 'mobile') showMobileSidebar = false" 
+                        class="btn-secondary px-2 py-1 text-xs" title="新建">+ 新建</button>
+                    <!-- 移动端：关闭按钮 -->
+                    <button x-show="$store.global.deviceType === 'mobile'" 
+                        @click="showMobileSidebar = false"
+                        class="btn-secondary px-2 py-1 text-xs ml-1">✕</button>
                 </div>
                 <input type="file" x-ref="importInput" style="display:none" accept=".json"
                     @change="handleImportRuleSet">
@@ -34,7 +68,7 @@
             <div class="flex-1 overflow-y-auto">
                 <template x-for="rs in ruleSets" :key="rs.id">
                     <div class="ruleset-item" :class="activeRuleSet?.id === rs.id ? 'active' : ''"
-                        @click="selectRuleSet(rs.id)">
+                        @click="selectRuleSet(rs.id); if($store.global.deviceType === 'mobile') showMobileSidebar = false">
                         <div class="flex justify-between items-center">
                             <span class="font-bold text-sm truncate" x-text="rs.meta.name || '未命名规则集'"></span>
 
@@ -61,6 +95,13 @@
         <!-- 使用 x-if 确保 activeRuleSet 为空时不渲染内部 DOM，彻底避免报错 -->
         <template x-if="activeRuleSet">
             <main class="automation-content">
+                <!-- 关闭按钮 -->
+                <button @click="closeModal()" 
+                    class="absolute top-2 right-2 z-50 w-8 h-8 bg-[var(--bg-panel)] border border-[var(--border-light)] rounded-lg flex items-center justify-center text-[var(--text-main)] hover:bg-[var(--bg-hover)] hover:text-red-400 transition-colors shadow-lg"
+                    title="关闭">
+                    <span class="text-lg">✕</span>
+                </button>
+
                 <!-- 1. 顶部元数据栏 -->
                 <div class="auto-header flex-col items-stretch gap-2">
 
@@ -71,23 +112,23 @@
                             <span class="text-lg">⚡</span>
                             <span>当前状态：全局默认规则 (导入时自动运行)</span>
                         </div>
-                        <button @click="toggleGlobalActive(activeRuleSet?.id)"
+                        <button x-show="$store.global.deviceType !== 'mobile'" @click="toggleGlobalActive(activeRuleSet?.id)"
                             class="text-xs underline hover:text-yellow-500 cursor-pointer">
                             关闭全局状态
                         </button>
                     </div>
 
-                    <div class="flex justify-between items-center w-full">
-                        <div class="flex gap-4 items-center flex-1">
+                    <div class="flex justify-between items-center w-full automation-header-content">
+                        <div class="flex gap-4 items-center flex-1 automation-header-left">
                             <div class="flex flex-col gap-1 flex-1">
-                                <div class="flex items-center gap-2">
+                                <div class="flex items-center gap-2 automation-name-row">
                                     <input type="text" x-model="editingMeta.name"
                                         class="text-lg font-bold bg-transparent border-b border-transparent hover:border-[var(--border-light)] focus:border-[var(--accent-main)] outline-none transition-colors flex-1"
                                         placeholder="规则集名称">
 
                                     <!-- 修复点：增加 ?.id 安全访问 -->
                                     <button @click="toggleGlobalActive(activeRuleSet?.id)"
-                                        class="text-[10px] px-2 py-1 rounded border transition-colors whitespace-nowrap flex items-center gap-1"
+                                        class="text-[10px] px-2 py-1 rounded border transition-colors whitespace-nowrap flex items-center gap-1 automation-global-btn"
                                         :class="(activeRuleSet?.id && globalRulesetId === activeRuleSet?.id)
                                             ? 'bg-yellow-500 text-black border-yellow-600 font-bold shadow-sm' 
                                             : 'border-[var(--border-light)] text-[var(--text-dim)] hover:border-yellow-500 hover:text-yellow-500'"
@@ -101,14 +142,14 @@
                                     class="text-xs text-[var(--text-dim)] bg-transparent border-b border-transparent hover:border-[var(--border-light)] focus:border-[var(--accent-main)] outline-none w-full"
                                     placeholder="描述...">
                             </div>
-                            <div class="flex flex-col gap-1 w-24">
+                            <div class="flex flex-col gap-1 automation-meta-inputs">
                                 <input type="text" x-model="editingMeta.author" class="auto-input text-xs"
                                     placeholder="作者">
                                 <input type="text" x-model="editingMeta.version" class="auto-input text-xs"
                                     placeholder="版本">
                             </div>
                         </div>
-                        <div class="flex gap-2 ml-4">
+                        <div class="flex gap-2 automation-header-actions">
                             <button @click="exportCurrentRuleSet()" class="btn-secondary px-3" title="导出 JSON">
                                 📤
                             </button>
@@ -346,7 +387,13 @@
         </template>
 
         <!-- 空状态 -->
-        <div x-show="!activeRuleSet" class="flex-1 flex flex-col items-center justify-center text-[var(--text-dim)]">
+        <div x-show="!activeRuleSet" class="flex-1 flex flex-col items-center justify-center text-[var(--text-dim)] relative">
+            <!-- 关闭按钮（空状态时也显示） -->
+            <button @click="closeModal()" 
+                class="absolute top-2 right-2 z-50 w-8 h-8 bg-[var(--bg-panel)] border border-[var(--border-light)] rounded-lg flex items-center justify-center text-[var(--text-main)] hover:bg-[var(--bg-hover)] hover:text-red-400 transition-colors shadow-lg"
+                title="关闭">
+                <span class="text-lg">✕</span>
+            </button>
             <div class="text-6xl mb-4 opacity-20">⚡</div>
             <p>请从左侧选择一个规则集，或新建一个</p>
         </div>

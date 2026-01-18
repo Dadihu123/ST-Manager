@@ -32,9 +32,15 @@ export function initState() {
         isLoading: false,
         isSaving: false,
         showSettingsModal: false,
+
+        // 设备类型: 'desktop' | 'mobile'
+        deviceType: 'desktop',
         
         // 模式: 'cards' | 'worldinfo'
         currentMode: 'cards',
+        
+        // 侧边栏显示状态（移动端使用）
+        visibleSidebar: true,
         
         // 服务器状态
         serverStatus: { status: 'initializing', message: '', progress: 0, total: 0 },

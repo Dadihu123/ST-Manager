@@ -84,6 +84,36 @@
                             class="btn-secondary detail-icon-btn" title="更换图片">
                             📷
                         </button>
+
+                        <!-- 移动端：快照按钮（在图片区域右上角） -->
+                        <button x-show="$store.global.deviceType === 'mobile' && !isCardFlipped" @click="createSnapshot('card')"
+                            class="btn-secondary detail-icon-btn detail-close-mobile" title="快照">
+                            📸
+                        </button>
+                        <!-- 移动端：保存按钮（在图片区域右上角） -->
+                        <button x-show="$store.global.deviceType === 'mobile' && !isCardFlipped" @click="saveChanges()" :disabled="isSaving"
+                            class="btn-secondary detail-icon-btn detail-close-mobile" title="保存卡片">
+                            💾
+                        </button>
+                        <!-- 移动端：关闭按钮（在图片区域右上角） -->
+                        <button x-show="$store.global.deviceType === 'mobile' && !isCardFlipped" @click.stop="showDetail=false" 
+                            class="btn-secondary detail-icon-btn detail-close-mobile" title="关闭">
+                            ✕
+                        </button>
+                    </div>
+
+                    <!-- 移动端：Token 和时间悬浮显示（在图片区域底部） -->
+                    <div x-show="$store.global.deviceType === 'mobile' && !isCardFlipped" 
+                        class="detail-mobile-token-overlay">
+                        <div class="detail-mobile-token-item">
+                            <span class="detail-mobile-token-value text-neon"
+                                :class="totalTokenCount > 20000 ? 'text-red-300' : (totalTokenCount > 5000 ? 'text-yellow-300' : 'text-green-300')"
+                                x-text="'🪙' + totalTokenCount"></span>
+                        </div>
+                        <div class="detail-mobile-token-item">
+                            <span class="detail-mobile-token-value text-xs font-mono"
+                                x-text="formatDate(activeCard.last_modified)"></span>
+                        </div>
                     </div>
 
                     <!-- 缩放条（底部悬浮） -->
@@ -139,8 +169,8 @@
             <section class="detail-right">
 
                 <!-- 顶部栏：标题 / token / 快捷操作 -->
-                <header class="detail-topbar">
-                    <!-- 关闭按钮改为真正右上角 -->
+                <header class="detail-topbar" x-show="$store.global.deviceType !== 'mobile'">
+                    <!-- 桌面端：关闭按钮 -->
                     <button @click="showDetail=false" class="btn-secondary detail-close-floating" title="关闭">✕</button>
 
                     <div class="detail-title-block">
@@ -162,7 +192,7 @@
                         </div>
                     </div>
 
-                    <!-- Token 显示 (放在中间偏右) -->
+                    <!-- 桌面端：Token 显示 -->
                     <div class="topbar-token" title="预估 Token（含世界书）">
                         <span class="topbar-token-label">Tokens</span>
                         <span class="topbar-token-value text-neon"
@@ -170,7 +200,6 @@
                             x-text="totalTokenCount"></span>
                     </div>
 
-                    <!-- 修改时间显示 -->
                     <div class="topbar-token border-r-0 pl-3 ml-2 border-l border-[var(--border-light)]" title="最后修改时间">
                         <span class="topbar-token-label">Last Modified</span>
                         <span class="text-xs font-mono font-bold text-neon" style="color: var(--text-main);"
@@ -192,7 +221,7 @@
                 </header>
 
                 <!-- 二级：资源目录条（更清晰） -->
-                <div class="detail-resourcebar">
+                <div class="detail-resourcebar" x-show="$store.global.deviceType !== 'mobile'">
                     <div class="detail-resource-left">
                         <div class="detail-resource-title">📁 资源目录</div>
                         <div class="detail-resource-path">
@@ -223,21 +252,59 @@
 
                 <!-- Tab 栏 -->
                 <nav class="detail-tabs">
-                    <button class="detail-tab" :class="tab==='basic' ? 'active' : ''" @click="tab='basic'">📝
-                        基础</button>
-                    <button x-show="hasPersonaFields" class="detail-tab" :class="tab==='persona' ? 'active' : ''" @click="tab='persona'">🧠
-                        设定</button>
-                    <button class="detail-tab" :class="tab==='dialog' ? 'active' : ''" @click="tab='dialog'">💬
-                        对话</button>
-                    <button class="detail-tab" :class="tab==='tags' ? 'active' : ''" @click="tab='tags'">🏷️
-                        标签</button>
-                    <button class="detail-tab" :class="tab==='wi' ? 'active' : ''" @click="tab='wi'">🌎 世界书</button>
-                    <button class="detail-tab" :class="tab==='manage' ? 'active' : ''" @click="tab='manage'">🧰
-                        管理</button>
+                    <button x-show="$store.global.deviceType === 'mobile'" class="detail-tab" :class="tab==='info' ? 'active' : ''" @click="tab='info'">
+                        <span class="tab-icon">ℹ️</span>
+                        <span class="tab-text">信息</span>
+                    </button>
+                    <button class="detail-tab" :class="tab==='basic' ? 'active' : ''" @click="tab='basic'">
+                        <span class="tab-icon">📝</span>
+                        <span class="tab-text">基础</span>
+                    </button>
+                    <button x-show="hasPersonaFields" class="detail-tab" :class="tab==='persona' ? 'active' : ''" @click="tab='persona'">
+                        <span class="tab-icon">🧠</span>
+                        <span class="tab-text">设定</span>
+                    </button>
+                    <button class="detail-tab" :class="tab==='dialog' ? 'active' : ''" @click="tab='dialog'">
+                        <span class="tab-icon">💬</span>
+                        <span class="tab-text">对话</span>
+                    </button>
+                    <button class="detail-tab" :class="tab==='tags' ? 'active' : ''" @click="tab='tags'">
+                        <span class="tab-icon">🏷️</span>
+                        <span class="tab-text">标签</span>
+                    </button>
+                    <button class="detail-tab" :class="tab==='wi' ? 'active' : ''" @click="tab='wi'">
+                        <span class="tab-icon">🌎</span>
+                        <span class="tab-text">世界书</span>
+                    </button>
+                    <button class="detail-tab" :class="tab==='manage' ? 'active' : ''" @click="tab='manage'">
+                        <span class="tab-icon">🧰</span>
+                        <span class="tab-text">管理</span>
+                    </button>
                 </nav>
 
                 <!-- 内容区（滚动） -->
                 <div class="detail-content custom-scrollbar">
+                    <!-- 信息 -->
+                    <section x-show="tab==='info'">
+                        <div class="detail-title-block">
+                            <div class="detail-title-row">
+                                <div class="detail-title-label">角色名称</div>
+    
+                                <!-- 名称 -->
+                                <div class="detail-title-inline">
+                                    <input type="text" x-model="editingData.char_name" class="detail-title-input">
+                                </div>
+                            </div>
+    
+                            <div class="detail-subrow">
+                                <span class="detail-link-icon">🔗</span>
+                                <input type="text" x-model="editingData.source_link" placeholder="来源链接 (http://...)"
+                                    class="detail-link-input">
+                                <a x-show="editingData.source_link" :href="editingData.source_link" target="_blank"
+                                    class="detail-open-link" title="打开链接">↗ 打开</a>
+                            </div>
+                        </div>
+                    </section>
 
                     <!-- TAB: 基础 -->
                     <section x-show="tab==='basic'" x-transition.opacity class="detail-section detail-section-fill">
@@ -457,7 +524,7 @@
                                     <div class="flex items-center gap-2 mr-3 pointer-events-none">
                                         <span class="text-lg shadow-sm">🌎</span>
                                         <div class="flex flex-col leading-none">
-                                            <span
+                                            <span x-show="$store.global.deviceType !== 'mobile'"
                                                 class="text-orange-400 font-bold text-xs uppercase tracking-wider">World
                                                 Info</span>
                                             <span class="text-[10px] text-gray-500 font-mono mt-0.5">
@@ -466,7 +533,7 @@
                                         </div>
                                     </div>
 
-                                    <div class="flex-1 min-w-0 mx-2 relative group/input h-full flex items-center"
+                                    <div x-show="$store.global.deviceType !== 'mobile'" class="flex-1 min-w-0 mx-2 relative group/input h-full flex items-center"
                                         @click.stop>
                                         <div class="w-[1px] h-6 mr-3" style="background: var(--border-light);">
                                         </div>

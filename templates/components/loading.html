@@ -1,18 +1,18 @@
 <!-- Loading 遮罩 -->
-<div x-show="serverStatus.status !== 'ready'"
+<div x-show="serverStatus && serverStatus.status !== 'ready'"
     class="fixed inset-0 z-topmost flex flex-col items-center justify-center"
     style="background-color: var(--bg-body); color: var(--text-main);" x-transition.opacity>
     <div class="text-4xl mb-4 animate-bounce">🎴</div>
     <h2 class="text-2xl font-bold mb-2">正在初始化资源库...</h2>
-    <p class="mb-6" style="color: var(--text-dim);" x-text="serverStatus.message"></p>
+    <p class="mb-6" style="color: var(--text-dim);" x-text="serverStatus ? serverStatus.message : ''"></p>
     <!-- 进度条 -->
     <div class="w-96 h-4 rounded-full overflow-hidden border"
         style="background-color: var(--bg-sub); border-color: var(--border-light);">
         <div class="h-full transition-all duration-300" style="background-color: var(--accent-main); width: 5%"
-            :style="'width: ' + (serverStatus.total > 0 ? (serverStatus.progress / serverStatus.total * 100) : 5) + '%'">
+            :style="'width: ' + (serverStatus && serverStatus.total > 0 ? (serverStatus.progress / serverStatus.total * 100) : 5) + '%'">
         </div>
     </div>
     <div class="mt-2 text-sm font-mono text-accent">
-        <span x-text="serverStatus.progress"></span> / <span x-text="serverStatus.total || '?'"></span>
+        <span x-text="serverStatus ? serverStatus.progress : 0"></span> / <span x-text="serverStatus ? (serverStatus.total || '?') : '?'"></span>
     </div>
 </div>
