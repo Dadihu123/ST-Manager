@@ -19,19 +19,23 @@
             <aside class="settings-sidebar custom-scrollbar">
                 <button @click="activeSettingTab='general'" class="settings-nav-item"
                     :class="activeSettingTab==='general' ? 'active' : ''">
-                    <span>📂</span> 常规路径
+                    <span class="nav-icon">📂</span>
+                    <span class="nav-text">常规路径</span>
                 </button>
                 <button @click="activeSettingTab='appearance'" class="settings-nav-item"
                     :class="activeSettingTab==='appearance' ? 'active' : ''">
-                    <span>🎨</span> 外观显示
+                    <span class="nav-icon">🎨</span>
+                    <span class="nav-text">外观显示</span>
                 </button>
                 <button @click="activeSettingTab='connection'" class="settings-nav-item"
                     :class="activeSettingTab==='connection' ? 'active' : ''">
-                    <span>🔌</span> 连接与服务
+                    <span class="nav-icon">🔌</span>
+                    <span class="nav-text">连接与服务</span>
                 </button>
                 <button @click="activeSettingTab='maintenance'" class="settings-nav-item"
                     :class="activeSettingTab==='maintenance' ? 'active' : ''">
-                    <span>🛠️</span> 维护与高级
+                    <span class="nav-icon">🛠️</span>
+                    <span class="nav-text">维护与高级</span>
                 </button>
             </aside>
 
@@ -352,22 +356,15 @@
                                     class="form-input mt-1" min="1" max="50">
                             </div>
                         </div>
-                        <div class="flex justify-between items-start mb-2">
+                        <div class="flex justify-between items-center mb-2">
                             <div>
                                 <div class="settings-label">智能自动快照 (Smart Auto Snapshot)</div>
                                 <div class="settings-desc">定时检查变更并创建备份（仅当内容变化且历史备份中不存在时创建）</div>
                             </div>
                             <!-- 开关 -->
-                            <div
-                                class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
-                                <input type="checkbox" name="toggle" id="auto-save-toggle"
-                                    x-model="settingsForm.auto_save_enabled"
-                                    class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer transition-transform duration-200 ease-in-out"
-                                    :class="settingsForm.auto_save_enabled ? 'right-0 border-green-400' : 'left-0 border-gray-300'" />
-                                <label for="auto-save-toggle"
-                                    class="toggle-label block overflow-hidden h-5 rounded-full cursor-pointer transition-colors duration-200"
-                                    :class="settingsForm.auto_save_enabled ? 'bg-green-400' : 'bg-gray-300'"></label>
-                            </div>
+                            <input type="checkbox" name="toggle" id="auto-save-toggle"
+                                x-model="settingsForm.auto_save_enabled"
+                                class="w-5 h-5 accent-[var(--accent-main)]" />
                         </div>
 
                         <!-- 时间间隔滑块 (仅开启时显示) -->
