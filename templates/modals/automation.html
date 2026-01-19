@@ -94,7 +94,7 @@
         <!-- 右侧：编辑器 -->
         <!-- 使用 x-if 确保 activeRuleSet 为空时不渲染内部 DOM，彻底避免报错 -->
         <template x-if="activeRuleSet">
-            <main class="automation-content">
+            <main class="automation-content relative">
                 <!-- 关闭按钮 -->
                 <button @click="closeModal()" 
                     class="absolute top-2 right-2 z-50 w-8 h-8 bg-[var(--bg-panel)] border border-[var(--border-light)] rounded-lg flex items-center justify-center text-[var(--text-main)] hover:bg-[var(--bg-hover)] hover:text-red-400 transition-colors shadow-lg"
@@ -126,7 +126,7 @@
                                         class="text-lg font-bold bg-transparent border-b border-transparent hover:border-[var(--border-light)] focus:border-[var(--accent-main)] outline-none transition-colors flex-1"
                                         placeholder="规则集名称">
 
-                                    <!-- 修复点：增加 ?.id 安全访问 -->
+                                    <!-- ?.id 安全访问 -->
                                     <button @click="toggleGlobalActive(activeRuleSet?.id)"
                                         class="text-[10px] px-2 py-1 rounded border transition-colors whitespace-nowrap flex items-center gap-1 automation-global-btn"
                                         :class="(activeRuleSet?.id && globalRulesetId === activeRuleSet?.id)
@@ -136,6 +136,12 @@
                                         <span>⚡</span>
                                         <span
                                             x-text="(activeRuleSet?.id && globalRulesetId === activeRuleSet?.id) ? '已激活' : '设为全局'"></span>
+                                    </button>
+                                    <!-- 语法帮助按钮 -->
+                                    <button @click="showHelpModal = true"
+                                        class="w-6 h-6 flex items-center justify-center rounded-full border border-gray-500 text-gray-500 hover:border-blue-400 hover:text-blue-400 hover:bg-blue-400/10 transition-colors ml-2"
+                                        title="查看规则语法帮助">
+                                        <span class="text-xs font-bold">?</span>
                                     </button>
                                 </div>
                                 <input type="text" x-model="editingMeta.description"
@@ -382,6 +388,121 @@
                     </button>
 
                     <div class="h-10"></div> <!-- Bottom Spacer -->
+                </div>
+                <!-- 语法帮助模态框 (嵌套在 automation-content 内) -->
+                <div x-show="showHelpModal" x-cloak x-transition:enter="transition ease-out duration-200"
+                    x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
+                    x-transition:leave="transition ease-in duration-150"
+                    x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95"
+                    class="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-8"
+                    @click.self="showHelpModal = false">
+
+                    <div
+                        class="bg-[var(--bg-panel)] border border-[var(--border-light)] rounded-xl shadow-2xl w-full max-w-2xl flex flex-col overflow-hidden max-h-full">
+                        <!-- 弹窗标题 -->
+                        <div
+                            class="px-6 py-4 border-b border-[var(--border-light)] bg-[var(--bg-sub)] flex justify-between items-center">
+                            <h3 class="font-bold text-lg text-[var(--text-main)] flex items-center gap-2">
+                                <span>💡</span> 规则编写指南
+                            </h3>
+                            <button @click="showHelpModal = false"
+                                class="text-gray-500 hover:text-red-400 px-2 text-xl">✕</button>
+                        </div>
+
+                        <!-- 弹窗内容 -->
+                        <div class="p-6 overflow-y-auto custom-scrollbar text-sm text-[var(--text-main)] space-y-6">
+
+                            <!-- Section 1: 多值匹配 -->
+                            <div>
+                                <h4 class="font-bold text-[var(--accent-main)] mb-2 text-base">1. 多值匹配语法 (Multi-Value)
+                                </h4>
+                                <p class="text-[var(--text-dim)] mb-3">
+                                    在条件值中，你可以使用管道符 <code
+                                        class="bg-[var(--bg-code)] px-1.5 py-0.5 rounded text-yellow-500 font-mono">|</code>
+                                    来分隔多个目标值。这允许你在单行条件中实现“或”逻辑。
+                                </p>
+
+                                <div class="bg-[var(--bg-sub)] rounded border border-[var(--border-light)] p-3">
+                                    <div class="grid grid-cols-1 gap-3">
+                                        <div>
+                                            <div class="font-bold text-xs text-blue-400 mb-1">✅ 肯定类操作符 (包含 / 等于)</div>
+                                            <div class="text-xs text-[var(--text-dim)] mb-1">
+                                                只要命中列表中的 <span class="font-bold text-white">任意一个</span> 值，条件即为真 (OR 逻辑)。
+                                            </div>
+                                            <div class="bg-[var(--bg-code)] p-2 rounded text-xs font-mono">
+                                                <span class="text-purple-400">Tags</span> <span
+                                                    class="text-gray-500">contains</span> <span
+                                                    class="text-green-400">elf|orc|goblin</span>
+                                                <br>
+                                                <span class="text-gray-500 opacity-60">// 匹配包含 "elf" 或者 "orc" 或者
+                                                    "goblin" 的卡片</span>
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <div class="font-bold text-xs text-red-400 mb-1">🚫 否定类操作符 (不包含 / 不等于)</div>
+                                            <div class="text-xs text-[var(--text-dim)] mb-1">
+                                                必须 <span class="font-bold text-white">同时不匹配</span> 列表中的所有值，条件才为真 (NOR
+                                                逻辑)。
+                                            </div>
+                                            <div class="bg-[var(--bg-code)] p-2 rounded text-xs font-mono">
+                                                <span class="text-purple-400">Creator</span> <span
+                                                    class="text-gray-500">not_contains</span> <span
+                                                    class="text-green-400">UserA|UserB</span>
+                                                <br>
+                                                <span class="text-gray-500 opacity-60">// 排除 UserA 和 UserB 的作品
+                                                    (既不是A也不是B)</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Section 2: 书写规范 -->
+                            <div>
+                                <h4 class="font-bold text-[var(--text-sub)] mb-2 text-base">2. 书写规范</h4>
+                                <ul class="list-disc list-inside space-y-1 text-[var(--text-dim)] ml-2">
+                                    <li>无需使用引号包裹值（如 <code class="text-red-400 line-through">"elf"|"orc"</code> 是错误的，直接写
+                                        <code class="text-green-400">elf|orc</code>）。</li>
+                                    <li>管道符 <code class="font-mono">|</code> 前后的空格会被自动去除 (Trim)。</li>
+                                    <li>适用于所有文本和列表类型字段 (Name, Tags, Description 等)。</li>
+                                    <li><span class="text-yellow-500">注意：</span>此语法不适用于 "正则匹配 (Regex)" 操作符，因为正则本身就支持
+                                        <code class="font-mono">|</code> 且逻辑更复杂。</li>
+                                </ul>
+                            </div>
+
+                            <!-- Section 3: 常用字段说明 -->
+                            <div>
+                                <h4 class="font-bold text-[var(--text-sub)] mb-2 text-base">3. 常用字段说明</h4>
+                                <div class="grid grid-cols-2 gap-2 text-xs">
+                                    <div class="p-2 border border-[var(--border-light)] rounded">
+                                        <span class="font-bold text-blue-400">Tags (标签)</span>
+                                        <p class="text-[var(--text-dim)] mt-1">列表匹配。检查卡片的标签列表中是否包含目标。</p>
+                                    </div>
+                                    <div class="p-2 border border-[var(--border-light)] rounded">
+                                        <span class="font-bold text-blue-400">Raw Content (文本)</span>
+                                        <p class="text-[var(--text-dim)] mt-1">Description, First Mes 等。全文搜索匹配。</p>
+                                    </div>
+                                    <div class="p-2 border border-[var(--border-light)] rounded">
+                                        <span class="font-bold text-blue-400">WI Name/Content</span>
+                                        <p class="text-[var(--text-dim)] mt-1">高级匹配。会遍历所有世界书条目进行检查。</p>
+                                    </div>
+                                    <div class="p-2 border border-[var(--border-light)] rounded">
+                                        <span class="font-bold text-blue-400">Local Note (本地备注)</span>
+                                        <p class="text-[var(--text-dim)] mt-1">匹配你在 ST Manager 中填写的私有备注。</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+
+                        <!-- 底部 -->
+                        <div class="p-4 border-t border-[var(--border-light)] bg-[var(--bg-sub)] flex justify-end">
+                            <button @click="showHelpModal = false" class="btn-primary px-6 py-2 rounded shadow-md">
+                                明白了
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </main>
         </template>

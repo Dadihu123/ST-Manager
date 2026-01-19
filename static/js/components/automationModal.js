@@ -9,6 +9,7 @@ export default function automationModal() {
     return {
         showMobileSidebar: false,
         showAutomationModal: false,
+        showHelpModal: false,
         ruleSets: [],
         activeRuleSet: null,
         globalRulesetId: null,

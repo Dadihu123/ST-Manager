@@ -114,53 +114,91 @@ class AutomationEngine:
                 bool_val = str(value).lower() in ('true', '1', 'yes', 'on')
                 return bool_val is True if operator == OP_TRUE else bool_val is False
 
-            # 4. 字符串/列表比较
-            # 预处理大小写
-            val_str = str(value)
-            tgt_str = str(target_value)
+            # =========================================================
+            # 增强型字符串/列表比较 (支持 '|' 分割的 OR 逻辑)
+            # =========================================================
             
-            if not case_sensitive and operator != OP_REGEX:
-                val_str = val_str.lower()
-                tgt_str = tgt_str.lower()
+            # 预处理：是否启用多值匹配模式
+            # 条件：操作符不是正则，且 target_value 是字符串并包含 '|'
+            enable_multi_match = (
+                operator != OP_REGEX and 
+                isinstance(target_value, str) and 
+                '|' in target_value
+            )
 
-            if operator == OP_EQ:
-                # 如果是列表，EQ 意味着完全相等（顺序可能不敏感，视需求定，这里简单处理为转字符串）
-                if isinstance(value, list):
-                    target_list = [t.strip().lower() for t in target_value.split(',')] if ',' in target_value else [tgt_str]
-                    value_list = [str(v).lower() for v in value]
-                    return sorted(value_list) == sorted(target_list)
-                return val_str == tgt_str
+            # 获取待匹配的目标列表
+            targets = []
+            if enable_multi_match:
+                # 分割并去空
+                targets = [t.strip() for t in target_value.split('|') if t.strip()]
+            else:
+                targets = [str(target_value)]
 
-            if operator == OP_NEQ:
-                return val_str != tgt_str
+            # 辅助函数：单次比较逻辑 (复用原有的比较核心)
+            def single_check(val, op, tgt, ignore_case):
+                val_str = str(val)
+                tgt_str = str(tgt)
+                
+                if not ignore_case:
+                    val_str = val_str.lower()
+                    tgt_str = tgt_str.lower()
 
-            if operator == OP_CONTAINS:
-                if isinstance(value, list):
-                    # 列表包含：只要列表中 有任意一项 包含目标字符串
-                    tgt_str = str(target_value)
-                    if not case_sensitive:
-                        # 模糊匹配：将列表项和目标值都转小写后判断包含关系
-                        tgt_str = tgt_str.lower()
-                        return any(tgt_str in str(v).lower() for v in value)
-                    
-                    # 精确大小写匹配
-                    return any(str(target_value) in str(v) for v in value)
-                else:
-                    # 字符串包含
-                    return tgt_str in val_str
+                if op == OP_EQ:
+                    # 如果是列表，EQ 意味着集合相等
+                    if isinstance(val, list):
+                        target_list = [t.strip().lower() for t in tgt.split(',')] if ',' in tgt else [tgt_str]
+                        value_list = [str(v).lower() for v in val]
+                        return sorted(value_list) == sorted(target_list)
+                    return val_str == tgt_str
 
-            if operator == OP_NOT_CONTAINS:
-                if isinstance(value, list):
-                    target_item = tgt_str
-                    if not case_sensitive:
-                        return not any(str(v).lower() == target_item for v in value)
-                    return not any(str(v) == str(target_value) for v in value)
-                else:
-                    return tgt_str not in val_str
+                if op == OP_NEQ:
+                    return val_str != tgt_str
 
+                if op == OP_CONTAINS:
+                    if isinstance(val, list):
+                        # 列表包含：只要列表中有任意一项包含/等于目标
+                        if not ignore_case:
+                            return any(tgt_str in str(v).lower() for v in val)
+                        return any(str(tgt) in str(v) for v in val)
+                    else:
+                        # 字符串包含
+                        return tgt_str in val_str
+
+                if op == OP_NOT_CONTAINS:
+                    # CONTAINS 的反向
+                    if isinstance(val, list):
+                        if not ignore_case:
+                            return not any(tgt_str in str(v).lower() for v in val)
+                        return not any(str(tgt) in str(v) for v in val)
+                    else:
+                        return tgt_str not in val_str
+                
+                return False
+
+            # === 执行多值逻辑 ===
+            
+            # A. 正则模式 (Regex) - 原样保留，正则自带 | 支持
             if operator == OP_REGEX:
                 flags = 0 if case_sensitive else re.IGNORECASE
-                return bool(re.search(target_value, str(value), flags))
+                return bool(re.search(str(target_value), str(value), flags))
+
+            # B. 肯定类操作符 (EQ, CONTAINS) -> OR 逻辑
+            # 只要有一个目标匹配成功，则返回 True
+            if operator in [OP_EQ, OP_CONTAINS]:
+                for tgt in targets:
+                    if single_check(value, operator, tgt, not case_sensitive):
+                        return True
+                return False
+
+            # C. 否定类操作符 (NEQ, NOT_CONTAINS) -> AND 逻辑 (NOR)
+            # 必须所有目标都不匹配，才返回 True
+            if operator in [OP_NEQ, OP_NOT_CONTAINS]:
+                for tgt in targets:
+                    # 注意：这里我们调用 single_check 并期望它返回 True (即符合 NEQ/NOT_CONTAINS)
+                    # 如果有一个不符合（即实际上相等或包含了），则整体失败
+                    if not single_check(value, operator, tgt, not case_sensitive):
+                        return False
+                return True
 
             return False
         except Exception as e:

@@ -125,28 +125,37 @@ export default function cardGrid() {
 
             // 9. 监听批量导入完成事件 (实现追加模式下的即时显示)
             window.addEventListener('batch-cards-imported', (e) => {
-                const { cards, category } = e.detail;
+                const { cards } = e.detail;
                 if (!cards || cards.length === 0) return;
 
                 const currentViewCat = this.$store.global.viewState.filterCategory;
                 const isRecursive = this.$store.global.viewState.recursiveFilter;
 
-                // 可见性检查
-                let shouldShow = false;
-                if (currentViewCat === '') {
-                    // 根目录视图：如果开启递归，或者是直接上传到根目录，则显示
-                    shouldShow = (category === '') || isRecursive;
-                } else {
-                    // 子目录视图：必须匹配当前目录
-                    // 注意：如果上传到 currentViewCat/SubDir 且开启递归，也应该显示，这里做简化处理
-                    shouldShow = (category === currentViewCat) || (isRecursive && category.startsWith(currentViewCat + '/'));
-                }
+                // 逐张卡片判断可见性，因为自动化规则可能把它们分散到了不同目录
+                cards.forEach(card => {
+                    let shouldShow = false;
+                    
+                    // 1. 如果当前在根目录视图
+                    if (currentViewCat === '') {
+                        if (isRecursive) {
+                            shouldShow = true; // 递归模式下，根目录显示所有
+                        } else {
+                            shouldShow = (card.category === ''); // 非递归，只显示根目录卡片
+                        }
+                    } 
+                    // 2. 如果当前在子目录视图
+                    else {
+                        if (card.category === currentViewCat) {
+                            shouldShow = true; // 精确匹配
+                        } else if (isRecursive && card.category.startsWith(currentViewCat + '/')) {
+                            shouldShow = true; // 子目录匹配
+                        }
+                    }
 
-                if (shouldShow) {
-                    cards.forEach(card => {
+                    if (shouldShow) {
                         this.handleIncrementalUpdate(card);
-                    });
-                }
+                    }
+                });
             });
 
             // 监听 URL 导入的新卡片

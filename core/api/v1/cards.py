@@ -1131,7 +1131,11 @@ def api_import_from_url():
                 new_card['image_url'] = f"/cards_file/{encoded_id}?t={ts}"
                 new_card['thumb_url'] = f"/api/thumbnail/{encoded_id}?t={ts}"
 
-        return jsonify({"success": True, "new_card": new_card})
+        return jsonify({
+            "success": True, 
+            "new_card": new_card,
+            "category_counts": ctx.cache.category_counts
+        })
 
     except Exception as e:
         logger.error(f"Import URL error: {e}")
@@ -2918,7 +2922,8 @@ def api_upload_commit():
         return jsonify({
             "success": True,
             "count": success_count,
-            "new_cards": new_cards 
+            "new_cards": new_cards,
+            "category_counts": ctx.cache.category_counts
         })
 
     except Exception as e:

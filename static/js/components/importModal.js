@@ -87,8 +87,10 @@ export default function importModal() {
                         window.dispatchEvent(new CustomEvent('card-imported', { detail: res.new_card }));
                         window.dispatchEvent(new CustomEvent('highlight-card', { detail: res.new_card.id }));
                         
+                        if (res.category_counts) {
+                            this.$store.global.categoryCounts = res.category_counts;
+                        }
                         // 提示
-                        const target = this.importTargetCategory || '当前目录';
                         this.$store.global.showToast(`✅ 导入成功：${res.new_card.char_name}`, 3000);
                     }
                 } else if (res.status === 'conflict') {

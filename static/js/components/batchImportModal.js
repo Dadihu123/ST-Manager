@@ -87,10 +87,8 @@ export default function batchImportModal() {
                     if (res.new_cards && res.new_cards.length > 0) {
                         // 触发列表刷新
                         window.dispatchEvent(new CustomEvent('batch-cards-imported', { 
-                            detail: { cards: res.new_cards, category: this.targetCategory } 
+                            detail: { cards: res.new_cards }
                         }));
-
-                        window.dispatchEvent(new CustomEvent('refresh-card-list'));
                         
                         this.$store.global.showToast(`✅ 成功导入 ${res.new_cards.length} 张卡片`);
                     } else {

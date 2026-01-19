@@ -49,6 +49,10 @@ export default function contextMenu() {
             });
         },
 
+        hideContextMenu() {
+            this.visible = false;
+        },
+
         // === 菜单动作 ===
 
         // 运行自动化

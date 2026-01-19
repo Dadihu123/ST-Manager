@@ -139,7 +139,7 @@ def _perform_scan_logic():
                 'size': row[2] or 0,
                 'tokens': row[3] or 0,
                 'hash': row[4] or "",
-                'fav': row['is_favorite'] or 0
+                'fav': row[5] or 0
             }
             for row in rows
         }
