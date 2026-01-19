@@ -177,3 +177,242 @@
     margin-left: 29px; /* Align with label center */
     height: 10px;
 }
+
+/* =========================================
+   移动端适配 (Mobile Responsive)
+   ========================================= */
+@media (max-width: 768px) {
+    /* === 自动化规则管理器移动端适配 === */
+    .automation-container {
+        width: 100vw !important;
+        height: 100vh !important;
+        max-width: 100vw !important;
+        border-radius: 0;
+        flex-direction: column;
+    }
+
+    /* 左侧边栏：移动端改为抽屉 */
+    .automation-sidebar {
+        width: 280px !important;
+        max-width: 85vw !important;
+    }
+
+    /* 右侧内容区：全宽 */
+    .automation-content {
+        width: 100%;
+        flex: 1;
+        min-height: 0;
+        position: relative;
+    }
+
+    /* 关闭按钮移动端优化 */
+    .automation-content > button[title="关闭"],
+    .automation-container > div[class*="flex-1"] > button[title="关闭"] {
+        top: 0.5rem;
+        right: 0.5rem;
+        width: 2rem;
+        height: 2rem;
+        font-size: 1rem;
+    }
+
+    /* 顶部元数据栏移动端优化 */
+    .auto-header {
+        padding: 0.75rem;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .automation-header-content {
+        flex-direction: column;
+        gap: 0.75rem;
+        width: 100%;
+    }
+
+    .automation-header-left {
+        width: 100%;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .automation-name-row {
+        width: 100%;
+        flex-wrap: wrap;
+    }
+
+    .automation-global-btn {
+        flex-shrink: 0;
+    }
+
+    .automation-meta-inputs {
+        width: 100%;
+        flex-direction: row;
+        gap: 0.5rem;
+    }
+
+    .automation-meta-inputs > input {
+        flex: 1;
+    }
+
+    .automation-header-actions {
+        width: 100%;
+        gap: 0.5rem;
+    }
+
+    .automation-header-actions > button {
+        flex: 1;
+        justify-content: center;
+    }
+
+    /* 规则集列表项移动端优化 */
+    .ruleset-item {
+        padding: 0.75rem;
+    }
+
+    .ruleset-item > div:first-child {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+
+    .ruleset-item > div:first-child > button {
+        width: 100%;
+        justify-content: center;
+    }
+
+    /* 规则卡片移动端优化 */
+    .rule-card {
+        margin-bottom: 1rem;
+        border-radius: 8px;
+    }
+
+    .rule-header {
+        padding: 0.5rem 0.75rem;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.5rem;
+    }
+
+    .rule-header > div:first-child {
+        width: 100%;
+    }
+
+    .rule-header > div:first-child > input[type="text"] {
+        width: 100%;
+        max-width: 100%;
+    }
+
+    .rule-header > div:last-child {
+        width: 100%;
+        justify-content: space-between;
+        flex-wrap: wrap;
+    }
+
+    .rule-body {
+        padding: 0.75rem;
+        gap: 0.75rem;
+    }
+
+    /* IF/THEN 块移动端优化 */
+    .logic-block {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .logic-label {
+        width: 100%;
+        text-align: left;
+        padding-top: 0;
+        font-size: 0.875rem;
+        padding-bottom: 0.25rem;
+    }
+
+    .logic-content {
+        width: 100%;
+    }
+
+    /* 条件/动作行移动端优化 */
+    .logic-row {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.5rem;
+        padding: 0.5rem;
+    }
+
+    .logic-row > select,
+    .logic-row > div {
+        width: 100%;
+    }
+
+    .logic-row > select {
+        max-width: 100%;
+    }
+
+    /* 条件组移动端优化 */
+    .logic-content > div[class*="border"] {
+        padding: 0.75rem;
+    }
+
+    .logic-content > div[class*="border"] > div:first-child {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.5rem;
+        padding-bottom: 0.5rem;
+    }
+
+    .logic-content > div[class*="border"] > div:first-child > div:first-child {
+        width: 100%;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+
+    .logic-content > div[class*="border"] > div:first-child > button {
+        width: 100%;
+        text-align: center;
+    }
+
+    /* 规则逻辑选择器移动端优化 */
+    .logic-content > div:first-child {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.5rem;
+        padding: 0.75rem;
+    }
+
+    .logic-content > div:first-child > select {
+        width: 100%;
+    }
+
+    /* 输入框和选择框移动端优化 */
+    .auto-input,
+    .auto-select {
+        font-size: 0.8125rem;
+        padding: 0.5rem;
+        width: 100%;
+    }
+
+    /* 按钮移动端优化 */
+    .btn-icon-sm {
+        width: 32px;
+        height: 32px;
+        font-size: 0.875rem;
+    }
+
+    /* 主内容区域移动端优化 */
+    .auto-body {
+        padding: 0.75rem;
+    }
+
+    /* 全局状态提示条移动端优化 */
+    .auto-header > div:first-child {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.5rem;
+        padding: 0.75rem;
+    }
+
+    .auto-header > div:first-child > div:last-child {
+        width: 100%;
+        justify-content: flex-start;
+    }
+}

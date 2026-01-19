@@ -1,13 +1,14 @@
 <!-- 全屏世界书编辑器 (UI Refactored & Bug Fixed) -->
-<div x-show="showFullScreenWI" x-data="wiEditor" x-cloak class="fixed inset-0 z-modal-editor wi-editor-container"
+<div x-show="showFullScreenWI" x-data="wiEditor" x-cloak class="detail-wi-full-screen fixed inset-0 z-modal-editor wi-editor-container"
     @click.self="showFullScreenWI=false">
 
     <!-- 内部布局状态管理 -->
     <div class="flex flex-col h-full w-full overflow-hidden"
-        x-data="{ rightTab: 'settings', showLeftList: true, showRightPanel: true }">
+        x-data="{ rightTab: 'settings', showLeftList: $store.global.deviceType !== 'mobile', showRightPanel: $store.global.deviceType !== 'mobile' }">
 
         <!-- 1. 顶部导航栏 -->
-        <div class="h-12 border-b flex items-center justify-between px-4 shadow-sm flex-shrink-0 z-20"
+        <div class="h-12 border-b items-center justify-between px-4 shadow-sm flex-shrink-0 z-20"
+            :class="$store.global.deviceType === 'mobile' ? '' : 'flex'"
             style="background: var(--bg-panel); border-color: var(--border-main);">
 
             <div class="flex items-center gap-4 min-w-0">
@@ -44,7 +45,7 @@
             </div>
 
             <!-- 右侧按钮组 -->
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-2" :class="$store.global.deviceType === 'mobile' ? 'justify-end' : ''">
                 <!-- Token 统计 -->
                 <div class="hidden lg:flex flex-col items-end mr-4 px-3 border-r border-[var(--border-light)]"
                     title="预估总 Token">
@@ -88,11 +89,13 @@
                         <div class="flex items-center gap-2">
                             <button @click="saveWiFileChanges()"
                                 class="btn-primary px-4 py-1.5 rounded text-xs font-bold shadow-lg flex items-center gap-2 whitespace-nowrap transition-all hover:brightness-110">
-                                <span>💾 保存文件</span>
+                                <span>💾</span>
+                                <span x-show="$store.global.deviceType !== 'mobile'"> 保存文件</span>
                             </button>
                             <button @click="saveAsGlobalWi()"
                                 class="btn-secondary px-3 py-1.5 text-xs rounded whitespace-nowrap" title="另存为新文件">
-                                📤 另存为...
+                                <span>📤</span>
+                                <span x-show="$store.global.deviceType !== 'mobile'"> 另存为...</span>
                             </button>
                         </div>
                     </template>
@@ -103,11 +106,13 @@
                             <button @click="saveChanges()" :disabled="isSaving"
                                 class="btn-primary px-4 py-1.5 rounded text-xs font-bold shadow-lg flex items-center gap-2 whitespace-nowrap transition-all hover:brightness-110">
                                 <span x-show="isSaving" class="animate-spin">⏳</span>
-                                <span>💾 保存到卡片</span>
+                                <span>💾</span>
+                                <span x-show="$store.global.deviceType !== 'mobile'"> 保存到卡片</span>
                             </button>
                             <button @click="saveAsGlobalWi()"
                                 class="btn-secondary px-3 py-1.5 text-xs rounded whitespace-nowrap" title="提取为全局世界书">
-                                📤 另存为全局
+                                <span>📤</span>
+                                <span x-show="$store.global.deviceType !== 'mobile'"> 另存为全局</span>
                             </button>
                         </div>
                     </template>

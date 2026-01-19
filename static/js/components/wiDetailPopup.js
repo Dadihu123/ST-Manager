@@ -12,6 +12,7 @@ import { formatWiKeys, estimateTokens, getTotalWiTokens } from '../utils/format.
 export default function wiDetailPopup() {
     return {
         // === 本地状态 ===
+        showMobileSidebar: false,
         showWiDetailModal: false,
         activeWiDetail: null, // 当前查看的 WI 对象 (包含 id, name, type, path 等)
 

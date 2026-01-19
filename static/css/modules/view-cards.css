@@ -318,3 +318,18 @@ html.light-mode .btn-note-preview:hover {
 
     /* 停留一段时间 */
 }
+
+@media (max-width: 768px) {
+    .st-card {
+        height: 12rem;
+    }
+    .card-grid {
+        grid-template-columns: repeat(auto-fill, minmax(150, 1fr));
+    }
+    .card-image-container {
+        height: 10rem;
+    }
+    .card-info {
+        padding: 0.25rem;
+    }
+}

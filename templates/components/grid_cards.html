@@ -26,13 +26,19 @@
                     @click.stop="handleCardClick($event, card)" draggable="true" @dragstart="dragStart($event, card)">
 
                     <button @click.stop="toggleCardFav(card)"
-                        class="absolute top-2 right-2 z-30 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 shadow-sm backdrop-blur-md border opacity-0 group-hover:opacity-100 transform scale-90 group-hover:scale-100"
-                        :class="card.is_favorite ? 'bg-yellow-400 text-black border-yellow-200 shadow-[0_0_10px_rgba(251,191,36,0.5)]' : 'bg-black/40 border-white/20 text-white/50 hover:bg-black/60 hover:text-white'">
+                        class="absolute z-30 rounded-full flex items-center justify-center transition-all duration-200 shadow-sm backdrop-blur-md border transform scale-90 group-hover:scale-100"
+                        :class="[
+                            card.is_favorite ? 'bg-yellow-400 text-black border-yellow-200 shadow-[0_0_10px_rgba(251,191,36,0.5)]' : 'bg-black/40 border-white/20 text-white/50 hover:bg-black/60 hover:text-white',
+                            $store.global.deviceType === 'mobile' ? 'top-1 right-1 w-6 h-6 opacity-100' : 'top-2 right-2 w-8 h-8 opacity-0 group-hover:opacity-100'
+                        ]">
                         <span class="text-lg font-bold" x-text="card.is_favorite ? '★' : '☆'"></span>
                     </button>
                     <!-- 选择勾选框 -->
-                    <div class="absolute top-2 left-2 z-30 cursor-pointer group-hover:opacity-100 transition-opacity"
-                        :class="selectedIds.includes(card.id) ? 'opacity-100' : 'opacity-0'"
+                    <div class="absolute z-30 cursor-pointer transition-opacity"
+                        :class="[
+                            selectedIds.includes(card.id) ? 'opacity-100' : $store.global.deviceType === 'mobile' ? 'opacity-60' : 'opacity-0',
+                            $store.global.deviceType === 'mobile' ? 'top-1 left-1' : 'top-2 left-2 opacity-0 group-hover:opacity-100'
+                        ]"
                         @click.stop="toggleSelection(card)">
                         <div class="w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-200 shadow-md backdrop-blur-sm"
                             :class="selectedIds.includes(card.id) ? 'bg-blue-600 border-blue-500 text-white scale-110' : 'bg-black/40 border-gray-400/50 hover:bg-black/60 hover:border-white'">
@@ -67,7 +73,7 @@
                         <!-- Token 计数 -->
                         <div x-show="card.token_count > 0"
                             :class="card.token_count > 20000 ? 'text-red-300 border-red-500/50 bg-red-900/80' : (card.token_count > 5000 ? 'text-yellow-300 border-yellow-500/50 bg-yellow-900/80' : 'text-green-300 border-green-500/50 bg-green-900/80')"
-                            style="position: absolute; bottom: 2.5rem; left: 0.5rem; z-index: 10; border: 1px solid; border-radius: 4px; padding: 1px 6px; font-size: 10px; font-weight: bold; backdrop-filter: blur(2px); pointer-events: none;">
+                            style="position: absolute; bottom: 2rem; left: 0.5rem; z-index: 10; border: 1px solid; border-radius: 4px; padding: 1px 6px; font-size: 10px; font-weight: bold; backdrop-filter: blur(2px); pointer-events: none;">
                             🪙 <span class="text-neon" x-text="card.token_count"></span> T
                         </div>
                         <!-- 卡片名称渐变层 -->
@@ -88,10 +94,10 @@
                                 📄
                             </button>
                         </div>
-                        <div class="local-note-preview custom-scrollbar"
+                        <div x-show="$store.global.deviceType !== 'mobile'" class="local-note-preview custom-scrollbar"
                             :class="card.ui_summary ? 'note-text' : 'note-placeholder'" @click.stop title="本地备注"
                             x-text="card.ui_summary || '无本地备注...'"></div>
-                        <p style="font-size: 10px; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin: 0; flex-shrink: 0;"
+                        <p x-show="$store.global.deviceType !== 'mobile'" style="font-size: 10px; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin: 0; flex-shrink: 0;"
                             x-text="card.filename"></p>
                     </div>
                 </div>

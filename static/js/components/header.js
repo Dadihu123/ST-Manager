@@ -29,6 +29,14 @@ export default function header() {
         get selectedIds() { return this.$store.global.viewState.selectedIds; },
         set selectedIds(val) { this.$store.global.viewState.selectedIds = val; },
 
+        get currentMode() { return this.$store.global.currentMode; },
+        get isDarkMode() { return this.$store.global.isDarkMode; },
+        get deviceType() { return this.$store.global.deviceType; },
+        toggleDarkMode() { this.$store.global.toggleDarkMode(); },
+
+        // 移动端菜单状态
+        showMobileMenu: false,
+
         init() {
             // 监听加载菜单请求
             window.addEventListener('load-rulesets-for-menu', () => {
@@ -228,6 +236,27 @@ export default function header() {
         // 切换递归筛选
         toggleRecursiveFilter() {
             this.recursiveFilter = !this.recursiveFilter;
+        },
+
+        // 切换移动端菜单
+        toggleMobileMenu() {
+            this.showMobileMenu = !this.showMobileMenu;
+        },
+
+        // 关闭移动端菜单
+        closeMobileMenu() {
+            this.showMobileMenu = false;
+        },
+
+        // 切换筛选标签
+        toggleFilterTag(tag) {
+            const index = this.filterTags.indexOf(tag);
+            if (index > -1) {
+                this.filterTags.splice(index, 1);
+            } else {
+                this.filterTags.push(tag);
+            }
+            this.fetchCards();
         }
     }
 }

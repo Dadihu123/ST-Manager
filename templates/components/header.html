@@ -1,6 +1,45 @@
 <div class="header-bar" x-data="header">
-    <div style="display: flex; align-items: center; gap: 1rem; flex: 1;">
-        <div style="display: flex; align-items: center; gap: 0.5rem;">
+    <!-- 移动端：紧凑单行布局 -->
+    <div x-show="deviceType === 'mobile'" class="mobile-header-compact">
+        <!-- 左侧：Logo + 标题 -->
+        <div class="mobile-header-left">
+            <div class="app-icon-mobile">
+                <span>🎴</span>
+            </div>
+            <div class="mobile-title">STM</div>
+        </div>
+        
+        <!-- 中间：搜索框 -->
+        <div class="mobile-search-wrapper">
+            <input x-show="currentMode === 'cards'" type="text" x-model.debounce.300ms="searchQuery"
+                placeholder="搜索..." class="mobile-search-input">
+            <input x-show="currentMode === 'worldinfo'" type="text" x-model.debounce.300ms="wiSearchQuery"
+                placeholder="搜索..." class="mobile-search-input">
+        </div>
+        
+        <!-- 右侧：菜单按钮 -->
+        <button @click="toggleMobileMenu()" class="mobile-menu-btn-compact">
+            <span x-show="!showMobileMenu">☰</span>
+            <span x-show="showMobileMenu">✕</span>
+        </button>
+    </div>
+
+    <!-- 移动端：第二行 - 筛选标签（递归开关已移到菜单中） -->
+    <div x-show="deviceType === 'mobile' && currentMode === 'cards' && filterTags.length > 0" class="mobile-filter-bar">
+        <!-- 筛选标签 -->
+        <div class="mobile-tags-scroll">
+            <template x-for="tag in filterTags" :key="tag">
+                <div class="mobile-filter-chip" @click="toggleFilterTag(tag)">
+                    <span x-text="tag"></span>
+                    <span class="chip-close">×</span>
+                </div>
+            </template>
+        </div>
+    </div>
+
+    <!-- 桌面端：原有布局 -->
+    <div x-show="deviceType !== 'mobile'" class="desktop-header-row" style="display: flex; align-items: center; gap: 1rem; flex: 1; width: 100%;">
+        <div style="display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0;">
             <div class="app-icon"
                 style="background: linear-gradient(135deg, var(--accent-main), #7c3aed); border-radius: 8px; padding: 0.5rem;">
                 <span style="font-size: 1.5rem;">🎴</span>
@@ -12,7 +51,7 @@
             </div>
         </div>
 
-        <!-- 递归过滤开关 - 添加动画效果 -->
+        <!-- 桌面端：递归过滤开关 -->
         <div x-show="currentMode === 'cards'"
             class="filter-toggle flex items-center gap-2 ml-4 px-3 py-1.5 rounded-full border shadow-sm transition-all duration-300"
             :class="recursiveFilter ? 'bg-accent-faint border-accent-main' : 'bg-bg-sub border-border-light'"
@@ -31,7 +70,7 @@
             </button>
         </div>
 
-        <!-- 筛选标签云 - 添加悬停效果 -->
+        <!-- 桌面端：筛选标签云 -->
         <div style="display: flex; gap: 0.5rem; overflow-x: auto; margin-left: 1rem; flex: 1;" class="custom-scrollbar">
             <template x-for="tag in filterTags" :key="tag">
                 <div class="filter-chip hover:scale-105 transition-transform" @click="toggleFilterTag(tag)">
@@ -41,8 +80,8 @@
         </div>
     </div>
 
-    <!-- 顶部右侧 - 优化布局和视觉效果 -->
-    <div style="display: flex; align-items: center; gap: 0.5rem;">
+    <!-- 桌面端：右侧操作区 -->
+    <div x-show="deviceType !== 'mobile'" style="display: flex; align-items: center; gap: 0.5rem;">
         <!-- 选中状态栏 -->
         <div x-show="selectedIds.length > 0"
             class="selection-bar flex items-center gap-4 border px-3 py-1.5 rounded-lg mr-2 relative"
@@ -91,19 +130,18 @@
             </div>
         </div>
 
-        <!-- 收藏筛选按钮 - 添加动画 -->
+        <!-- 收藏筛选按钮 -->
         <button
             @click="$store.global.viewState.filterFavorites = !$store.global.viewState.filterFavorites; fetchCards()"
             :class="$store.global.viewState.filterFavorites ? 'text-yellow-400 bg-yellow-400/10 border-yellow-400/50 scale-110' : 'text-gray-500 border-transparent hover:text-yellow-400 hover:scale-105'"
             class="btn-secondary transition-all"
             style="padding: 0.5rem; margin-right: 0.5rem; border: 1px solid; position: relative;">
             <span>★</span>
-            <!-- 收藏激活时的光晕效果 -->
             <div x-show="$store.global.viewState.filterFavorites"
                 class="absolute inset-0 rounded-full bg-yellow-400/20 animate-ping"></div>
         </button>
 
-        <!-- 搜索组合框 - 优化样式 -->
+        <!-- 搜索组合框 -->
         <div class="search-container ml-auto mr-4">
             <select x-show="currentMode === 'cards'" x-model="searchType" class="search-select">
                 <option value="mix">✨ 智能混合</option>
@@ -121,45 +159,127 @@
                 style="background: transparent; color: var(--text-dim); border: none; padding: 0 0.5rem; cursor: pointer;">✕</button>
         </div>
 
-        <!-- 工具按钮组 - 添加悬停效果 -->
+        <!-- 工具按钮组 -->
         <div class="tool-buttons" style="display: flex; gap: 0.5rem; margin-left: 0.5rem;">
-            <!-- 随机抽卡按钮 -->
             <button @click="currentMode === 'cards' ? randomCard() : randomWorldInfo()"
                 :title="currentMode === 'cards' ? '🎲 手气不错，随机角色' : '🎲 手气不错，随机世界书'"
                 class="hover:scale-110 transition-transform active:rotate-180 duration-300"
                 style="padding: 0.5rem; background: linear-gradient(135deg, var(--accent-main), #7c3aed); border: 1px solid var(--accent-light); border-radius: 0.5rem; cursor: pointer; color: white; display: flex; align-items: center; justify-content: center;">
                 🎲
             </button>
-
-            <!-- 从url导入 -->
             <button @click="if(currentMode==='cards') showImportUrlModal=true; else alert('暂不支持世界书URL导入')"
                 :class="currentMode === 'cards' ? 'btn-secondary hover:scale-105' : 'opacity-50 cursor-not-allowed btn-secondary'"
                 title="导入 (仅角色卡可用)" class="btn-secondary transition-all">
                 🌐
             </button>
-
-            <!-- 刷新页面 -->
             <button @click="currentMode === 'cards' ? fetchCards() : fetchWorldInfoList()" title="刷新"
                 class="btn-secondary hover:scale-105 transition-transform">
                 ↻
             </button>
-
-            <!-- 日月切换按钮 -->
             <button @click="toggleDarkMode()" :title="isDarkMode ? '切换到浅色模式' : '切换到深色模式'"
                 class="btn-secondary hover:scale-105 transition-transform">
                 <span x-text="isDarkMode ? '🌙' : '☀️'"></span>
             </button>
-
-            <!-- 自动化规则入口 -->
             <button @click="$dispatch('open-automation-modal')" title="自动化规则管理"
                 class="btn-secondary hover:scale-105 transition-transform text-yellow-500">
                 ⚡
             </button>
-
-            <!-- 设置按钮 -->
             <button @click="openSettings()" title="系统设置" class="btn-secondary hover:scale-105 transition-transform">
                 ⚙️
             </button>
         </div>
+    </div>
+
+    <!-- 移动端：选中状态栏（独立显示） -->
+    <div x-show="deviceType === 'mobile' && selectedIds.length > 0"
+        class="mobile-selection-bar" style="margin-top: 0.5rem; padding: 0.5rem; background-color: var(--accent-faint); border-radius: 0.5rem; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+        <span class="text-xs" style="color: var(--text-main);">已选 <span x-text="selectedIds.length" class="font-bold"></span></span>
+        <button @click="openBatchTagModal()" class="text-xs px-2 py-1 rounded text-white" style="background-color: #7c3aed;">
+            标签
+        </button>
+        <button @click="deleteSelectedCards()" class="text-xs px-2 py-1 rounded text-white bg-red-800">
+            🗑️
+        </button>
+        <button @click="selectedIds = []" class="text-xs px-2 py-1 rounded" style="background-color: var(--bg-sub); color: var(--text-main);">
+            取消
+        </button>
+    </div>
+
+    <!-- 移动端：展开菜单 -->
+    <div x-show="deviceType === 'mobile' && showMobileMenu" 
+        @click.away="closeMobileMenu()"
+        x-transition:enter="transition ease-out duration-200"
+        x-transition:enter-start="opacity-0 -translate-y-2"
+        x-transition:enter-end="opacity-100 translate-y-0"
+        x-transition:leave="transition ease-in duration-150"
+        x-transition:leave-start="opacity-100 translate-y-0"
+        x-transition:leave-end="opacity-0 -translate-y-2"
+        class="mobile-menu">
+        <!-- 搜索类型选择（移动端） -->
+        <div x-show="currentMode === 'cards'" class="mobile-menu-section">
+            <label class="mobile-menu-label">搜索类型</label>
+            <select x-model="searchType" class="mobile-menu-select">
+                <option value="mix">✨ 智能混合</option>
+                <option value="global">🌍 全局关键字</option>
+                <option value="name">👤 角色名称</option>
+                <option value="filename">📄 文件名</option>
+                <option value="creator">🎨 创作者</option>
+                <option value="tags">🏷️ 标签</option>
+            </select>
+        </div>
+
+        <!-- 递归过滤开关（移动端） -->
+        <div x-show="currentMode === 'cards'" class="mobile-menu-section">
+            <div class="mobile-recursive-toggle" 
+                :class="recursiveFilter ? 'active' : ''"
+                @click="recursiveFilter = !recursiveFilter; fetchCards()">
+                <div class="toggle-content">
+                    <span class="toggle-label">包含子目录</span>
+                    <div class="toggle-switch-mobile" :class="recursiveFilter ? 'on' : ''">
+                        <span class="toggle-dot-mobile"></span>
+                    </div>
+                </div>
+                <div class="toggle-desc">搜索时包含子文件夹中的卡片</div>
+            </div>
+        </div>
+
+        <!-- 工具按钮（移动端） -->
+        <div class="mobile-menu-grid">
+            <button @click="currentMode === 'cards' ? randomCard() : randomWorldInfo(); closeMobileMenu()"
+                class="mobile-menu-btn-item">
+                <div class="menu-icon">🎲</div>
+                <div class="menu-label">随机</div>
+            </button>
+            <button @click="if(currentMode==='cards') showImportUrlModal=true; else alert('暂不支持世界书URL导入'); closeMobileMenu()"
+                :class="currentMode === 'cards' ? 'mobile-menu-btn-item' : 'mobile-menu-btn-item opacity-50'">
+                <div class="menu-icon">🌐</div>
+                <div class="menu-label">导入</div>
+            </button>
+            <button @click="currentMode === 'cards' ? fetchCards() : fetchWorldInfoList(); closeMobileMenu()"
+                class="mobile-menu-btn-item">
+                <div class="menu-icon">↻</div>
+                <div class="menu-label">刷新</div>
+            </button>
+            <button @click="toggleDarkMode(); closeMobileMenu()" class="mobile-menu-btn-item">
+                <div class="menu-icon" x-text="isDarkMode ? '🌙' : '☀️'"></div>
+                <div class="menu-label">主题</div>
+            </button>
+            <button @click="$dispatch('open-automation-modal'); closeMobileMenu()" 
+                class="mobile-menu-btn-item accent">
+                <div class="menu-icon">⚡</div>
+                <div class="menu-label">规则</div>
+            </button>
+            <button @click="openSettings(); closeMobileMenu()" class="mobile-menu-btn-item">
+                <div class="menu-icon">⚙️</div>
+                <div class="menu-label">设置</div>
+            </button>
+        </div>
+
+        <!-- 收藏筛选（移动端） -->
+        <button @click="$store.global.viewState.filterFavorites = !$store.global.viewState.filterFavorites; fetchCards(); closeMobileMenu()"
+            :class="$store.global.viewState.filterFavorites ? 'mobile-favorite-btn active' : 'mobile-favorite-btn'">
+            <span class="favorite-icon">★</span>
+            <span>收藏筛选</span>
+        </button>
     </div>
 </div>
