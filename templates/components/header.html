@@ -209,6 +209,9 @@
         <button x-show="selectedIds.length > 0" @click="openBatchTagModal()" class="text-xs px-2 py-1 rounded text-white" style="background-color: #7c3aed;">
             标签
         </button>
+        <button x-show="selectedIds.length > 0 && currentMode === 'cards'" @click="openMoveModal()" class="text-xs px-2 py-1 rounded text-white" style="background-color: #10b981;">
+            📂
+        </button>
         <button @click="deleteSelectedCards()" class="text-xs px-2 py-1 rounded text-white bg-red-800">
             🗑️
         </button>

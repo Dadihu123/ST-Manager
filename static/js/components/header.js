@@ -391,6 +391,15 @@ export default function header() {
                     this.isCurrentPageAllSelected = !allSelected;
                 }
             }, 100);
+        },
+
+        // 打开移动弹窗（触发事件）
+        openMoveModal() {
+            if (this.selectedIds.length === 0) return;
+            // 派发事件，将选中的卡片ID传给移动弹窗
+            window.dispatchEvent(new CustomEvent('open-move-cards-modal', {
+                detail: { ids: [...this.selectedIds] }
+            }));
         }
     }
 }
