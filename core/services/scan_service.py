@@ -6,7 +6,7 @@ import json
 import logging
 
 # === 基础设施 ===
-from core.config import CARDS_FOLDER, DEFAULT_DB_PATH
+from core.config import CARDS_FOLDER, DEFAULT_DB_PATH, current_config
 from core.context import ctx
 
 # === 业务逻辑引用 ===
@@ -255,12 +255,16 @@ def _perform_scan_logic():
             schedule_reload(reason="background_scanner")
 
 def start_background_scanner():
-    """启动后台扫描线程"""
+    """启动后台扫描线程与（可选的）文件系统监听"""
     if not ctx.scan_active:
         ctx.scan_active = True
         scanner_thread = threading.Thread(target=background_scanner, daemon=True)
         scanner_thread.start()
         logger.info("Background scanner thread started.")
         
-        # 同时启动文件监听
-        start_fs_watcher()
+        # 根据配置决定是否启动自动文件监听
+        enable_auto_scan = current_config.get("enable_auto_scan", True)
+        if enable_auto_scan:
+            start_fs_watcher()
+        else:
+            logger.info("Auto file system watcher is disabled by config (enable_auto_scan = false).")

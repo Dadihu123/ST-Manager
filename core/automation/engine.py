@@ -11,12 +11,16 @@ class AutomationEngine:
     def _get_field_value(self, card_data, field_key, specific_target=None):
         """从数据中提取值，支持复杂对象扁平化"""
         if not field_key: return None
+        if not isinstance(card_data, dict): return None
         
         # === 1. 正则脚本匹配 (Regex Scripts) ===
         if field_key == 'extensions.regex_scripts' or field_key == 'regex_scripts':
             # V2/V3 兼容读取
-            scripts = card_data.get('extensions', {}).get('regex_scripts')
+            ext = card_data.get('extensions') or {}
+            scripts = ext.get('regex_scripts')
             if not scripts: scripts = card_data.get('regex_scripts', [])
+            
+            scripts = scripts or []
             
             if isinstance(scripts, list):
                 if specific_target == 'regex_content':
@@ -29,9 +33,9 @@ class AutomationEngine:
 
         # === 2. 世界书匹配 (World Info) ===
         if field_key == 'character_book':
-            book = card_data.get('character_book', {})
+            book = card_data.get('character_book') or {}
             # 兼容 V2 数组 和 V3 字典/数组
-            entries = book.get('entries', [])
+            entries = book.get('entries') or []
             if isinstance(entries, dict):
                 entries = list(entries.values())
                 
@@ -53,7 +57,8 @@ class AutomationEngine:
         # === 3. ST Helper 脚本匹配 (Tavern Helper) ===
         if field_key == 'extensions.tavern_helper':
             # Tavern Helper 数据结构: [ ["scripts", [...]], ["variables", {...}] ]
-            helper_data = card_data.get('extensions', {}).get('tavern_helper', [])
+            ext = card_data.get('extensions') or {}
+            helper_data = ext.get('tavern_helper') or []
             if not isinstance(helper_data, list):
                 return []
 

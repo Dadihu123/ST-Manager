@@ -57,6 +57,10 @@ DEFAULT_CONFIG = {
     "auto_save_interval": 3,   # 默认 3 分钟
     "snapshot_limit_manual": 50, # 手动快照保留数量上限
     "snapshot_limit_auto": 5,    # 自动快照保留数量上限
+
+    # 是否启用自动文件系统监听（watchdog）以触发扫描
+    # 设为 False 时，仅保留后台扫描线程，手动触发的扫描任务仍然有效
+    "enable_auto_scan": True,
 }
 
 def load_config():

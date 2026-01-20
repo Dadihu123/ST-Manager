@@ -24,6 +24,8 @@ import {
 import { 
     listSkins,
     setSkinAsCover,
+    deleteResourceFile,
+    uploadCardResource,
     setResourceFolder as apiSetResourceFolder, 
     openResourceFolder as apiOpenResourceFolder, 
     createResourceFolder as apiCreateResourceFolder 
@@ -47,6 +49,9 @@ export default function detailModal() {
         showFirstPreview: false,
         updateImagePolicy: 'overwrite', // 默认策略
         saveOldCoverOnSwap: false,      // 皮肤换封时是否保留旧图
+        dragOverUpdate: false,
+        dragOverResource: false,
+        showHelpModal: false, 
         
         // 编辑器状态 (V3 规范扁平化数据)
         editingData: {
@@ -126,6 +131,89 @@ export default function detailModal() {
                     this.updateImagePolicy = 'overwrite';
                     this.saveOldCoverOnSwap = false;
                 }
+            });
+        },
+
+        // === 新增：处理资源 Tab 的文件拖拽 ===
+        handleResourceDrop(e) {
+            this.dragOverResource = false;
+            const files = e.dataTransfer.files;
+            if (!files || files.length === 0) return;
+
+            // 检查是否已设置资源目录
+            if (!this.editingData.resource_folder) {
+                alert("请先在'管理'页签或顶部栏创建/设置资源目录，才能上传资源文件。");
+                return;
+            }
+
+            // 逐个上传
+            Array.from(files).forEach(file => {
+                this.uploadSingleResource(file);
+            });
+        },
+
+        uploadSingleResource(file) {
+            const formData = new FormData();
+            formData.append('card_id', this.editingData.id);
+            formData.append('file', file);
+
+            // 显示简单的 Loading 状态
+            this.$store.global.showToast(`⏳ 正在上传: ${file.name}...`, 2000);
+
+            uploadCardResource(formData).then(res => {
+                if (res.success) {
+                    this.$store.global.showToast(`✅ ${file.name} 上传成功 (${res.msg})`);
+                    
+                    // 如果是图片，刷新皮肤列表
+                    const ext = file.name.split('.').pop().toLowerCase();
+                    if (['png', 'jpg', 'jpeg', 'webp', 'gif'].includes(ext)) {
+                        this.fetchSkins(this.editingData.resource_folder);
+                    }
+                    
+                    if (res.is_lorebook) {
+                        window.dispatchEvent(new CustomEvent('refresh-wi-list'));
+                    }
+                } else {
+                    alert(`上传 ${file.name} 失败: ${res.msg}`);
+                }
+            }).catch(e => {
+                alert(`网络错误: ${e}`);
+            });
+        },
+
+        // 删除当前选中的皮肤
+        deleteCurrentSkin() {
+            if (this.currentSkinIndex === -1) return;
+            const skinName = this.skinImages[this.currentSkinIndex];
+            
+            if (!confirm(`确定要删除皮肤文件 "${skinName}" 吗？\n文件将被移至回收站。`)) return;
+            
+            this.isSaving = true; // 借用 loading 状态
+            
+            deleteResourceFile({
+                card_id: this.activeCard.id,
+                filename: skinName
+            }).then(res => {
+                this.isSaving = false;
+                if (res.success) {
+                    this.$store.global.showToast("🗑️ 皮肤已删除");
+                    
+                    // 移除当前项
+                    this.skinImages.splice(this.currentSkinIndex, 1);
+                    
+                    // 重置选择
+                    this.currentSkinIndex = -1;
+                    
+                    // 如果删完了，刷新一下列表（可选）
+                    if (this.skinImages.length === 0) {
+                        this.fetchSkins(this.editingData.resource_folder);
+                    }
+                } else {
+                    alert("删除失败: " + res.msg);
+                }
+            }).catch(e => {
+                this.isSaving = false;
+                alert("请求错误: " + e);
             });
         },
 
@@ -454,20 +542,38 @@ export default function detailModal() {
             const file = e.target.files[0];
             if (!file) return;
             
+            this.processUpdateFile(file, e.target);
+        },
+
+        // 处理拖拽 Drop
+        handleUpdateDrop(e) {
+            this.dragOverUpdate = false;
+            const files = e.dataTransfer.files;
+            if (!files || files.length === 0) return;
+            
+            const file = files[0]; // 只处理第一个文件，防止用户导入多个文件
+            this.processUpdateFile(file, null);
+        },
+
+        processUpdateFile(file, inputElement) {
             if (!file.name.toLowerCase().endsWith('.png') && !file.name.toLowerCase().endsWith('.json')) {
                 alert("请上传 PNG 或 JSON 格式");
-                e.target.value = '';
+                if(inputElement) inputElement.value = '';
                 return;
             }
 
             let isBundleUpdate = false;
             let finalPolicy = this.updateImagePolicy; // 获取当前选中的策略
+            
             if (this.activeCard.is_bundle) {
-                const choice = confirm(`检测到这是聚合角色包。\n\n[确定] = 添加为新版本 (推荐)\n[取消] = 覆盖当前选中的版本文件`);
-                isBundleUpdate = choice;
+                if (confirm(`检测到这是聚合角色包。\n\n[确定] = 添加为新版本 (推荐)\n[取消] = 覆盖当前选中的版本文件`)) {
+                    isBundleUpdate = true;
+                } else {
+                    isBundleUpdate = false;
+                }
             } else {
                 if (!confirm(`确定要更新角色卡 "${this.activeCard.char_name}" 吗？\n当前策略: ${this.getPolicyName(finalPolicy)}`)) {
-                    e.target.value = '';
+                    if(inputElement) inputElement.value = '';
                     return;
                 }
             }
@@ -484,7 +590,7 @@ export default function detailModal() {
                 tags: this.editingData.tags
             }));
 
-            this.performUpdate(formData, '/api/update_card_file', e.target);
+            this.performUpdate(formData, '/api/update_card_file', inputElement);
         },
 
         // 辅助显示策略名称

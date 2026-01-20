@@ -80,30 +80,38 @@
                             ℹ️
                         </button>
 
+                        <!-- 移动端帮助按钮 -->
+                        <button x-show="!isCardFlipped" @click.stop="showHelpModal=true"
+                            class="btn-secondary detail-icon-btn" title="帮助">
+                            ?
+                        </button>
+
                         <button x-show="!isCardFlipped" @click.stop="triggerImageUpload()"
                             class="btn-secondary detail-icon-btn" title="更换图片">
                             📷
                         </button>
 
                         <!-- 移动端：快照按钮（在图片区域右上角） -->
-                        <button x-show="$store.global.deviceType === 'mobile' && !isCardFlipped" @click="createSnapshot('card')"
-                            class="btn-secondary detail-icon-btn detail-close-mobile" title="快照">
+                        <button x-show="$store.global.deviceType === 'mobile' && !isCardFlipped"
+                            @click="createSnapshot('card')" class="btn-secondary detail-icon-btn detail-close-mobile"
+                            title="快照">
                             📸
                         </button>
                         <!-- 移动端：保存按钮（在图片区域右上角） -->
-                        <button x-show="$store.global.deviceType === 'mobile' && !isCardFlipped" @click="saveChanges()" :disabled="isSaving"
-                            class="btn-secondary detail-icon-btn detail-close-mobile" title="保存卡片">
+                        <button x-show="$store.global.deviceType === 'mobile' && !isCardFlipped" @click="saveChanges()"
+                            :disabled="isSaving" class="btn-secondary detail-icon-btn detail-close-mobile" title="保存卡片">
                             💾
                         </button>
                         <!-- 移动端：关闭按钮（在图片区域右上角） -->
-                        <button x-show="$store.global.deviceType === 'mobile' && !isCardFlipped" @click.stop="showDetail=false" 
-                            class="btn-secondary detail-icon-btn detail-close-mobile" title="关闭">
+                        <button x-show="$store.global.deviceType === 'mobile' && !isCardFlipped"
+                            @click.stop="showDetail=false" class="btn-secondary detail-icon-btn detail-close-mobile"
+                            title="关闭">
                             ✕
                         </button>
                     </div>
 
                     <!-- 移动端：Token 和时间悬浮显示（在图片区域底部） -->
-                    <div x-show="$store.global.deviceType === 'mobile' && !isCardFlipped" 
+                    <div x-show="$store.global.deviceType === 'mobile' && !isCardFlipped"
                         class="detail-mobile-token-overlay">
                         <div class="detail-mobile-token-item">
                             <span class="detail-mobile-token-value text-neon"
@@ -172,6 +180,9 @@
                 <header class="detail-topbar" x-show="$store.global.deviceType !== 'mobile'">
                     <!-- 桌面端：关闭按钮 -->
                     <button @click="showDetail=false" class="btn-secondary detail-close-floating" title="关闭">✕</button>
+                    <!-- 桌面端：帮助按钮 (位于关闭按钮左侧) -->
+                    <button @click="showHelpModal=true" class="btn-secondary detail-help-floating"
+                        title="查看帮助指南">?</button>
 
                     <div class="detail-title-block">
                         <div class="detail-title-row">
@@ -252,7 +263,8 @@
 
                 <!-- Tab 栏 -->
                 <nav class="detail-tabs">
-                    <button x-show="$store.global.deviceType === 'mobile'" class="detail-tab" :class="tab==='info' ? 'active' : ''" @click="tab='info'">
+                    <button x-show="$store.global.deviceType === 'mobile'" class="detail-tab"
+                        :class="tab==='info' ? 'active' : ''" @click="tab='info'">
                         <span class="tab-icon">ℹ️</span>
                         <span class="tab-text">信息</span>
                     </button>
@@ -260,7 +272,8 @@
                         <span class="tab-icon">📝</span>
                         <span class="tab-text">基础</span>
                     </button>
-                    <button x-show="hasPersonaFields" class="detail-tab" :class="tab==='persona' ? 'active' : ''" @click="tab='persona'">
+                    <button x-show="hasPersonaFields" class="detail-tab" :class="tab==='persona' ? 'active' : ''"
+                        @click="tab='persona'">
                         <span class="tab-icon">🧠</span>
                         <span class="tab-text">设定</span>
                     </button>
@@ -280,6 +293,10 @@
                         <span class="tab-icon">🧰</span>
                         <span class="tab-text">管理</span>
                     </button>
+                    <button class="detail-tab" :class="tab==='resources' ? 'active' : ''" @click="tab='resources'">
+                        <span class="tab-icon">📦</span>
+                        <span class="tab-text">资源</span>
+                    </button>
                 </nav>
 
                 <!-- 内容区（滚动） -->
@@ -289,13 +306,13 @@
                         <div class="detail-title-block">
                             <div class="detail-title-row">
                                 <div class="detail-title-label">角色名称</div>
-    
+
                                 <!-- 名称 -->
                                 <div class="detail-title-inline">
                                     <input type="text" x-model="editingData.char_name" class="detail-title-input">
                                 </div>
                             </div>
-    
+
                             <div class="detail-subrow">
                                 <span class="detail-link-icon">🔗</span>
                                 <input type="text" x-model="editingData.source_link" placeholder="来源链接 (http://...)"
@@ -550,7 +567,8 @@
                                         </div>
                                     </div>
 
-                                    <div x-show="$store.global.deviceType !== 'mobile'" class="flex-1 min-w-0 mx-2 relative group/input h-full flex items-center"
+                                    <div x-show="$store.global.deviceType !== 'mobile'"
+                                        class="flex-1 min-w-0 mx-2 relative group/input h-full flex items-center"
                                         @click.stop>
                                         <div class="w-[1px] h-6 mr-3" style="background: var(--border-light);">
                                         </div>
@@ -862,15 +880,32 @@
                             </div>
 
                             <div class="detail-manage-grid">
-                                <div class="detail-manage-box">
-                                    <div class="detail-manage-label">文件覆盖</div>
-                                    <div class="detail-muted">上传 PNG/JSON 覆盖或添加新版本（Bundle）</div>
-                                    <div class="detail-manage-actions">
-                                        <button @click="triggerCardUpdate()" class="btn-update-card btn-update-file">📂
-                                            选择文件..</button>
-                                        <input type="file" x-ref="cardUpdateInput" @change="handleCardUpdate"
-                                            accept=".png,.json" style="display:none;">
+                                <!-- 1. 文件覆盖 / 升级 (集成拖拽功能) -->
+                                <div class="detail-manage-box relative transition-all duration-200 group"
+                                    :class="dragOverUpdate ? 'border-[var(--accent-main)] bg-[var(--accent-main)]/10' : 'border-dashed border-[var(--border-light)] hover:border-[var(--text-dim)] bg-[var(--bg-sub)]/30 hover:bg-[var(--bg-sub)]'"
+                                    style="border-width: 2px; cursor: pointer; justify-content: center; align-items: center; text-align: center; gap: 0.5rem; min-height: 8rem;"
+                                    @click="triggerCardUpdate()" @dragover.prevent="dragOverUpdate = true"
+                                    @dragleave.prevent="dragOverUpdate = false"
+                                    @drop.prevent="handleUpdateDrop($event)">
+
+                                    <div class="text-3xl transition-transform duration-200 mb-1"
+                                        :class="dragOverUpdate ? 'scale-110' : 'group-hover:scale-110'">
+                                        📂
                                     </div>
+
+                                    <div class="flex flex-col items-center">
+                                        <div class="detail-manage-label" style="margin:0; border:none; padding:0;">文件覆盖
+                                            / 升级</div>
+                                        <div class="text-[10px] text-[var(--text-dim)] mt-1 leading-tight opacity-80">
+                                            <span x-show="!dragOverUpdate">点击选择 或 拖拽文件</span>
+                                            <span x-show="dragOverUpdate"
+                                                class="text-[var(--accent-main)] font-bold">松开以更新</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- 隐藏的文件输入框 (复用原有引用) -->
+                                    <input type="file" x-ref="cardUpdateInput" @change="handleCardUpdate"
+                                        accept=".png,.json" style="display:none;">
                                 </div>
 
                                 <div class="detail-manage-box">
@@ -904,10 +939,20 @@
                                         </label>
 
                                         <!-- 按钮 -->
-                                        <button @click="setSkinAsCover(skinImages[currentSkinIndex])"
-                                            class="btn-secondary w-full justify-center font-bold text-[var(--accent-main)] border-[var(--accent-main)] hover:bg-[var(--accent-main)] hover:text-white transition-all shadow-sm">
-                                            ✨ 设为封面
-                                        </button>
+                                        <div class="flex gap-2">
+                                            <!-- 设为封面按钮 -->
+                                            <button @click="setSkinAsCover(skinImages[currentSkinIndex])"
+                                                class="btn-secondary flex-1 justify-center font-bold text-[var(--accent-main)] border-[var(--accent-main)] hover:bg-[var(--accent-main)] hover:text-white transition-all shadow-sm">
+                                                ✨ 设为封面
+                                            </button>
+
+                                            <!-- 删除皮肤按钮 (新增) -->
+                                            <button @click="deleteCurrentSkin()"
+                                                class="btn-secondary w-10 flex items-center justify-center text-red-400 border-red-400/50 hover:bg-red-500 hover:text-white hover:border-red-500 transition-all shadow-sm"
+                                                title="删除此皮肤文件">
+                                                🗑️
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
 
@@ -968,6 +1013,89 @@
                         <div style="height: 1rem; flex-shrink: 0;"></div>
                     </section>
 
+                    <!-- TAB: 资源 (Resources) -->
+                    <section x-show="tab==='resources'" x-transition.opacity class="detail-section detail-section-fill">
+                        <div class="detail-tab-scroll custom-scrollbar p-4">
+
+                            <!-- 资源目录状态检查 -->
+                            <template x-if="!editingData.resource_folder">
+                                <div
+                                    class="flex flex-col items-center justify-center h-64 text-[var(--text-dim)] border-2 border-dashed border-[var(--border-light)] rounded-xl bg-[var(--bg-sub)]">
+                                    <div class="text-4xl mb-2 opacity-50">📂</div>
+                                    <p class="text-sm font-bold">未设置资源目录</p>
+                                    <p class="text-xs mt-1 mb-4 opacity-70">需要先关联一个文件夹才能存放资源</p>
+                                    <button @click="createResourceFolder()"
+                                        class="btn-primary px-4 py-2 rounded shadow-lg">
+                                        ✨ 立即自动创建
+                                    </button>
+                                </div>
+                            </template>
+
+                            <template x-if="editingData.resource_folder">
+                                <div class="flex flex-col gap-4 h-full">
+                                    <!-- 拖拽上传区 -->
+                                    <div class="relative flex-shrink-0 group transition-all duration-300"
+                                        :class="dragOverResource ? 'bg-blue-500/10 border-blue-500' : 'bg-[var(--bg-sub)] border-[var(--border-light)] hover:border-[var(--accent-main)]'"
+                                        style="border-width: 2px; border-style: dashed; border-radius: 0.75rem; min-height: 12rem; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer;"
+                                        @dragover.prevent="dragOverResource = true"
+                                        @dragleave.prevent="dragOverResource = false"
+                                        @drop.prevent="handleResourceDrop($event)"
+                                        @click="$refs.resourceFileInput.click()">
+
+                                        <input type="file" x-ref="resourceFileInput" multiple style="display: none;"
+                                            @change="handleResourceDrop({dataTransfer: {files: $event.target.files}})">
+
+                                        <div class="text-4xl mb-3 transition-transform duration-300"
+                                            :class="dragOverResource ? 'scale-110' : 'grayscale opacity-50 group-hover:grayscale-0 group-hover:opacity-100'">
+                                            📥
+                                        </div>
+                                        <h4 class="font-bold text-lg"
+                                            :class="dragOverResource ? 'text-blue-400' : 'text-[var(--text-main)]'">
+                                            拖拽文件到这里上传
+                                        </h4>
+                                        <div class="text-xs text-[var(--text-dim)] mt-2 text-center leading-relaxed">
+                                            支持批量上传<br>
+                                            <span class="text-green-400">图片</span> ➔ 资源根目录 (可作皮肤)<br>
+                                            <span class="text-orange-400">世界书 (.json)</span> ➔ 自动归类到 lorebooks/
+                                        </div>
+                                    </div>
+
+                                    <!-- 现有资源概览 -->
+                                    <div class="flex-1 min-h-0 flex flex-col">
+                                        <div class="flex justify-between items-center mb-2">
+                                            <span class="text-xs font-bold text-[var(--text-dim)] uppercase">当前资源预览
+                                                (Skins)</span>
+                                            <button @click="openResourceFolder()"
+                                                class="text-xs text-blue-400 hover:underline">
+                                                📂 打开文件夹查看全部
+                                            </button>
+                                        </div>
+
+                                        <!-- 简单的皮肤网格预览 -->
+                                        <div class="grid grid-cols-4 gap-2 overflow-y-auto custom-scrollbar p-1">
+                                            <template x-for="(skin, idx) in skinImages" :key="skin">
+                                                <div class="relative group aspect-square rounded overflow-hidden border border-[var(--border-light)] bg-black/20 cursor-pointer"
+                                                    @click="currentSkinIndex = idx; isCardFlipped=false">
+                                                    <img :src="getSkinUrl(skin)"
+                                                        class="w-full h-full object-cover transition-transform group-hover:scale-110">
+                                                    <div
+                                                        class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                                        <span class="text-xs text-white font-bold">预览</span>
+                                                    </div>
+                                                    <div class="absolute bottom-0 left-0 right-0 bg-black/60 text-[9px] text-white px-1 truncate"
+                                                        x-text="skin"></div>
+                                                </div>
+                                            </template>
+                                            <div x-show="skinImages.length === 0"
+                                                class="col-span-4 text-center py-8 text-xs text-[var(--text-dim)] italic">
+                                                暂无图片资源
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </section>
                     <div style="height: 1rem;"></div>
                 </div>
 
@@ -987,6 +1115,239 @@
                     <button @click="setResourceFolder(); showSetResourceFolderModal = false;"
                         class="btn-primary flex-1 rounded">确定 (API保存)</button>
                 </div>
+            </div>
+        </div>
+    </div>
+    <!-- ================================================= -->
+    <!-- 字段说明帮助模态框 (Help Modal) -->
+    <!-- ================================================= -->
+    <div x-show="showHelpModal" x-cloak x-transition:enter="transition ease-out duration-200"
+        x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
+        x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 scale-100"
+        x-transition:leave-end="opacity-0 scale-95"
+        class="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 md:p-8"
+        @click.self="showHelpModal = false">
+
+        <div
+            class="bg-[var(--bg-panel)] border border-[var(--border-light)] rounded-xl shadow-2xl w-full max-w-4xl flex flex-col overflow-hidden max-h-[90vh]">
+
+            <!-- Header -->
+            <div
+                class="px-6 py-4 border-b border-[var(--border-light)] bg-[var(--bg-sub)] flex justify-between items-center flex-shrink-0">
+                <h3 class="font-bold text-lg text-[var(--text-main)] flex items-center gap-2">
+                    <span>📚</span> 角色卡字段说明指南
+                </h3>
+                <button @click="showHelpModal = false" class="text-gray-500 hover:text-red-400 px-2 text-xl">✕</button>
+            </div>
+
+            <!-- Content -->
+            <div class="p-6 overflow-y-auto custom-scrollbar text-sm text-[var(--text-main)] space-y-8">
+
+                <!-- 1. 核心设定 -->
+                <div>
+                    <h4 class="font-bold text-blue-400 mb-3 text-base border-b border-blue-500/30 pb-1 inline-block">1.
+                        核心设定 (Core Identity)</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="p-3 border border-[var(--border-light)] rounded bg-[var(--bg-body)]">
+                            <span class="font-bold text-[var(--accent-light)] block mb-1">简介 (Description)</span>
+                            <p class="text-[var(--text-dim)] text-xs leading-relaxed">
+                                角色的核心定义。包括外貌、性格、身世背景等。这是 AI 理解“我是谁”的最主要来源。
+                                <br><span class="opacity-60">*建议：使用精炼的陈述句或属性列表。</span>
+                            </p>
+                        </div>
+                        <div class="p-3 border border-[var(--border-light)] rounded bg-[var(--bg-body)]">
+                            <span class="font-bold text-[var(--accent-light)] block mb-1">开场白 (First Message)</span>
+                            <p class="text-[var(--text-dim)] text-xs leading-relaxed">
+                                对话开始时 AI 发送的第一条消息。它奠定了整个对话的语调、场景和格式（如是否使用动作描写）。
+                            </p>
+                        </div>
+                        <div class="p-3 border border-[var(--border-light)] rounded bg-[var(--bg-body)]">
+                            <span class="font-bold text-[var(--accent-light)] block mb-1">对话示例 (Mes Examples)</span>
+                            <p class="text-[var(--text-dim)] text-xs leading-relaxed">
+                                <span class="bg-gray-700 text-white px-1 rounded text-[10px]">&lt;START&gt;</span>
+                                标签分隔的对话样例。
+                                非常重要！它教 AI 如何说话（口癖、语气、动作描写的格式）。
+                                <br><span class="opacity-60">*注意：这里的设定仅作参考，不会直接出现在当前对话中。</span>
+                            </p>
+                        </div>
+                        <div class="p-3 border border-[var(--border-light)] rounded bg-[var(--bg-body)]">
+                            <span class="font-bold text-[var(--accent-light)] block mb-1">备用开场白 (Alt Greetings)</span>
+                            <p class="text-[var(--text-dim)] text-xs leading-relaxed">
+                                可以在开始新对话时随机替换默认开场白，用于提供不同的剧情切入点。
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. 深度扩展 -->
+                <div>
+                    <h4
+                        class="font-bold text-purple-400 mb-3 text-base border-b border-purple-500/30 pb-1 inline-block">
+                        2. 深度扩展 (Extended Persona)</h4>
+                    <p class="text-xs text-gray-500 mb-3">这些字段在 V2/V3 规范中用于细分设定，SillyTavern 会根据配置将它们组合发送给 AI。</p>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div class="p-3 border border-[var(--border-light)] rounded bg-[var(--bg-body)]">
+                            <span class="font-bold text-purple-300 block mb-1">人格设定 (Personality)</span>
+                            <p class="text-[var(--text-dim)] text-xs">
+                                专门描述性格特征（如：傲娇、冷酷、温柔）。有时会与“简介”合并发送。
+                            </p>
+                        </div>
+                        <div class="p-3 border border-[var(--border-light)] rounded bg-[var(--bg-body)]">
+                            <span class="font-bold text-purple-300 block mb-1">场景设定 (Scenario)</span>
+                            <p class="text-[var(--text-dim)] text-xs">
+                                当前对话发生的背景环境。例如：“在暴风雨的夜晚”、“在学校医务室”。
+                            </p>
+                        </div>
+                        <div class="p-3 border border-[var(--border-light)] rounded bg-[var(--bg-body)]">
+                            <span class="font-bold text-purple-300 block mb-1">作者注释 (Creator Notes)</span>
+                            <p class="text-[var(--text-dim)] text-xs">
+                                作者留给用户的说明（如：包含什么XP、如何使用）。通常不会发送给 AI，除非在 ST 中特殊配置。
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. 系统指令 -->
+                <div>
+                    <h4 class="font-bold text-red-400 mb-3 text-base border-b border-red-500/30 pb-1 inline-block">3.
+                        系统指令 (System & Instructions)</h4>
+                    <div class="bg-[var(--bg-sub)] rounded border border-[var(--border-light)] p-3 space-y-3">
+                        <div class="flex gap-3">
+                            <div class="min-w-[120px] font-bold text-red-300 text-sm">系统提示词<br><span
+                                    class="text-[10px] opacity-60">System Prompt</span></div>
+                            <div class="text-xs text-[var(--text-dim)]">
+                                强制覆盖全局的 Main Prompt。用于从底层改变 AI 的行为逻辑（如：“你是一个文字冒险游戏引擎”）。
+                                <br><span class="text-yellow-500">*警告：除非你知道自己在做什么，否则留空。</span>
+                            </div>
+                        </div>
+                        <hr class="border-[var(--border-light)] border-dashed">
+                        <div class="flex gap-3">
+                            <div class="min-w-[120px] font-bold text-red-300 text-sm">历史指令<br><span
+                                    class="text-[10px] opacity-60">Post-History</span></div>
+                            <div class="text-xs text-[var(--text-dim)]">
+                                被追加在聊天记录的末尾发送。由于位置靠后，权重极高。
+                                <br>常用于：“强制打破复读”、“强制保持某种语言风格”或“当前剧情的强制引导”。
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 4. 管理器特有功能 -->
+                <div>
+                    <h4 class="font-bold text-green-400 mb-3 text-base border-b border-green-500/30 pb-1 inline-block">
+                        4. 管理器特有功能 (Manager Only)</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div
+                            class="p-3 border border-[var(--border-light)] rounded bg-[var(--bg-body)] relative overflow-hidden">
+                            <div class="absolute right-0 top-0 p-1 opacity-10 text-4xl">📝</div>
+                            <span class="font-bold text-green-400 block mb-1">本地备注 (Local Note)</span>
+                            <p class="text-[var(--text-dim)] text-xs">
+                                仅存储在 ST Manager 本地数据库中的私有笔记。
+                                <br>• 支持 Markdown 和图片粘贴
+                                <br>• 不会写入角色卡文件，不会发送给 AI
+                                <br>• 适合记录个人攻略、剧情进度或待办事项
+                            </p>
+                        </div>
+                        <div
+                            class="p-3 border border-[var(--border-light)] rounded bg-[var(--bg-body)] relative overflow-hidden">
+                            <div class="absolute right-0 top-0 p-1 opacity-10 text-4xl">📂</div>
+                            <span class="font-bold text-green-400 block mb-1">资源目录 (Assets)</span>
+                            <p class="text-[var(--text-dim)] text-xs">
+                                关联一个物理文件夹来存放该角色的相关文件。
+                                <br>• <strong>Skins (皮肤):</strong> 放入图片即可在详情页左侧切换立绘
+                                <br>• <strong>Lorebooks:</strong> 放入 `lorebooks/` 子目录可自动识别
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 5. 高级功能详解 -->
+                <div>
+                    <h4
+                        class="font-bold text-orange-400 mb-3 text-base border-b border-orange-500/30 pb-1 inline-block">
+                        5. 高级功能 (Advanced)</h4>
+                    <div class="space-y-4">
+
+                        <!-- 资源链接与包模式 -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="p-3 border border-[var(--border-light)] rounded bg-[var(--bg-body)]">
+                                <span class="font-bold text-orange-300 block mb-1">🔗 来源链接 (Source Link)</span>
+                                <p class="text-[var(--text-dim)] text-xs">
+                                    记录角色卡的原始发布地址（如 类脑、chubai）。
+                                    <br>点击右上角的 <span class="inline-block border border-gray-600 px-1 rounded">↗
+                                        打开</span> 可快速跳转。
+                                </p>
+                            </div>
+                            <div class="p-3 border border-[var(--border-light)] rounded bg-[var(--bg-body)]">
+                                <span class="font-bold text-orange-300 block mb-1">📦 角色包模式 (Bundle)</span>
+                                <p class="text-[var(--text-dim)] text-xs">
+                                    将单张卡片转换为文件夹管理模式，支持多版本控制。
+                                    <br>• <strong>用途：</strong> 管理同一角色的不同服装差分、不同版本 (v1/v2)。
+                                    <br>• <strong>操作：</strong> 在"管理"页签点击 <span class="text-yellow-500">转为包</span>。
+                                    <br>• <strong>封面：</strong> 点击左侧版本条上的 <span class="text-yellow-500">★</span>
+                                    可切换当前主图和数据。
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- 备份系统 -->
+                        <div class="bg-[var(--bg-sub)] rounded border border-[var(--border-light)] p-3">
+                            <span class="font-bold text-orange-300 block mb-2">🛡️ 备份与时光机 (Backup System)</span>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+                                <div>
+                                    <span class="font-bold text-[var(--text-main)]">📸 快照 (Snapshot)</span>
+                                    <p class="text-[var(--text-dim)] mt-1">
+                                        手动创建的备份点。建议在进行大改前点击顶部 <span
+                                            class="inline-block border border-gray-600 px-1 rounded">📸</span> 按钮。
+                                    </p>
+                                </div>
+                                <div>
+                                    <span class="font-bold text-[var(--text-main)]">🏷️ 关键快照 (Key Snapshot)</span>
+                                    <p class="text-[var(--text-dim)] mt-1">
+                                        <span class="text-yellow-500">右键点击</span> 快照按钮可创建带标签的备份（如 "v1.0 发布版"），方便长期存档。
+                                    </p>
+                                </div>
+                                <div>
+                                    <span class="font-bold text-[var(--text-main)]">⏪ 时光机 (Rollback)</span>
+                                    <p class="text-[var(--text-dim)] mt-1">
+                                        可视化的版本回滚工具。支持左右分栏对比代码差异 (Diff)，一键恢复到任意历史时刻。
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="mt-2 pt-2 border-t border-[var(--border-light)] text-[10px] text-gray-500">
+                                * 提示：系统会在编辑时自动触发智能保存 (Smart Auto-save)，仅当内容发生实质变化时才会生成自动快照。
+                            </div>
+                        </div>
+
+                        <!-- 更新策略 -->
+                        <div class="bg-[var(--bg-sub)] rounded border border-[var(--border-light)] p-3">
+                            <span class="font-bold text-orange-300 block mb-2">🔄 更新与导入策略 (Update Logic)</span>
+                            <p class="text-xs text-[var(--text-dim)] mb-2">
+                                当您拖拽新图片覆盖旧卡片，或使用 URL 更新时，系统提供四种保护策略：
+                            </p>
+                            <ul class="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-[var(--text-dim)]">
+                                <li class="flex items-center gap-2"><span class="text-red-400">🔄
+                                        直接覆盖</span>：用新图和新数据完全替换旧卡（旧数据丢失）。</li>
+                                <li class="flex items-center gap-2"><span class="text-blue-400">🖼️
+                                        保留原图</span>：仅更新文本数据，卡片立绘保持不变。</li>
+                                <li class="flex items-center gap-2"><span class="text-yellow-400">📂
+                                        归档旧图</span>：更新卡片，并将旧立绘移入资源目录保存。</li>
+                                <li class="flex items-center gap-2"><span class="text-purple-400">✨
+                                        新图归档</span>：不改变当前卡片，将新图作为“皮肤”存入资源目录。</li>
+                            </ul>
+                        </div>
+
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Footer -->
+            <div class="p-4 border-t border-[var(--border-light)] bg-[var(--bg-sub)] flex justify-end">
+                <button @click="showHelpModal = false" class="btn-primary px-6 py-2 rounded shadow-md font-bold">
+                    明白了
+                </button>
             </div>
         </div>
     </div>

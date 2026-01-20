@@ -1,7 +1,6 @@
 import logging
 import json
 import os
-import sqlite3
 from io import BytesIO
 from flask import Blueprint, request, jsonify, send_file, make_response
 from core.automation.manager import rule_manager

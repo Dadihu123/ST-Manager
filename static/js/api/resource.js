@@ -75,3 +75,23 @@ export async function setSkinAsCover(payload) {
     });
     return res.json();
 }
+
+// 删除资源文件 (皮肤)
+export async function deleteResourceFile(payload) {
+    // payload: { card_id, filename }
+    const res = await fetch('/api/delete_resource_file', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    });
+    return res.json();
+}
+
+// 上传角色资源文件 (智能分流)
+export async function uploadCardResource(formData) {
+    const res = await fetch('/api/upload_card_resource', {
+        method: 'POST',
+        body: formData
+    });
+    return res.json();
+}

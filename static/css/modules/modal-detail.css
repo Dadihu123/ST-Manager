@@ -127,6 +127,26 @@ html.light-mode .detail-thumb-label{
     font-size: 16px;
     z-index: 30;
 }
+/* 帮助按钮：位于关闭按钮左侧 */
+.detail-help-floating {
+    position: absolute;
+    top: 12px;
+    right: 56px; /* 12px (right) + 36px (width) + 8px (gap) */
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    padding: 0;
+    font-size: 16px;
+    font-weight: bold;
+    z-index: 30;
+    color: var(--text-dim);
+    border: 1px solid var(--border-light);
+}
+.detail-help-floating:hover {
+    color: var(--accent-main);
+    border-color: var(--accent-main);
+    background-color: var(--bg-hover);
+}
 .detail-title-block{ flex: 1; min-width: 0; }
 .detail-title-row{ display:flex; flex-direction:column; gap:6px; }
 .detail-title-label{
