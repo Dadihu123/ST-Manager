@@ -86,6 +86,12 @@
         <div x-show="selectedIds.length > 0"
             class="selection-bar flex items-center gap-4 border px-3 py-1.5 rounded-lg mr-2 relative"
             style="background-color: var(--accent-faint); border-color: var(--accent-light); z-index: 50; overflow: visible;">
+            <button @click="toggleSelectAll()" class="text-xs px-2 py-1 rounded text-white transition-all"
+                :style="isCurrentPageAllSelected ? 'background-color: #ef4444;' : 'background-color: #10b981;'"
+                :title="isCurrentPageAllSelected ? '取消全选当前页' : '全选当前页'">
+                <span x-show="!isCurrentPageAllSelected">全选</span>
+                <span x-show="isCurrentPageAllSelected">取消全选</span>
+            </button>
             <button @click.stop="openBatchTagModal()" class="text-xs px-2 py-1 rounded text-white"
                 style="background-color: #7c3aed; transition: all 0.2s;">
                 批量标签
@@ -193,9 +199,21 @@
     <!-- 移动端：选中状态栏（独立显示） -->
     <div x-show="deviceType === 'mobile' && selectedIds.length > 0"
         class="mobile-selection-bar" style="margin-top: 0.5rem; padding: 0.5rem; background-color: var(--accent-faint); border-radius: 0.5rem; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
-        <span class="text-xs" style="color: var(--text-main);">已选 <span x-text="selectedIds.length" class="font-bold"></span></span>
-        <button @click="openBatchTagModal()" class="text-xs px-2 py-1 rounded text-white" style="background-color: #7c3aed;">
+        <span x-show="selectedIds.length > 0" class="text-xs" style="color: var(--text-main);">已选 <span x-text="selectedIds.length" class="font-bold"></span></span>
+        <button x-show="currentMode === 'cards'" @click="toggleSelectAll()" class="text-xs px-2 py-1 rounded text-white transition-all" 
+            :style="isCurrentPageAllSelected ? 'background-color: #ef4444;' : 'background-color: #10b981;'"
+            :title="isCurrentPageAllSelected ? '取消全选当前页' : '全选当前页'">
+            <span x-show="!isCurrentPageAllSelected">全选</span>
+            <span x-show="isCurrentPageAllSelected">取消全选</span>
+        </button>
+        <button x-show="selectedIds.length > 0" @click="openBatchTagModal()" class="text-xs px-2 py-1 rounded text-white" style="background-color: #7c3aed;">
             标签
+        </button>
+        <button x-show="selectedIds.length > 0 && currentMode === 'cards'" @click="openMoveModal()" class="text-xs px-2 py-1 rounded text-white" style="background-color: #10b981;">
+            📂
+        </button>
+        <button x-show="selectedIds.length > 0 && currentMode === 'cards'" @click="openExecuteRulesMobile()" class="text-xs px-2 py-1 rounded text-white" style="background-color: #f59e0b;">
+            ⚡
         </button>
         <button @click="deleteSelectedCards()" class="text-xs px-2 py-1 rounded text-white bg-red-800">
             🗑️

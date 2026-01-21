@@ -29,6 +29,9 @@ export default function header() {
         get selectedIds() { return this.$store.global.viewState.selectedIds; },
         set selectedIds(val) { this.$store.global.viewState.selectedIds = val; },
 
+        // 当前页是否全选（用于显示逻辑）
+        isCurrentPageAllSelected: false,
+
         get currentMode() { return this.$store.global.currentMode; },
         get isDarkMode() { return this.$store.global.isDarkMode; },
         get deviceType() { return this.$store.global.deviceType; },
@@ -48,6 +51,65 @@ export default function header() {
                     }
                 });
             });
+
+            // 监听选中状态变化，更新当前页全选状态
+            this.$watch('selectedIds', () => {
+                this.updateCurrentPageAllSelectedStatus();
+            });
+
+            // 监听页面变化，更新当前页全选状态
+            window.addEventListener('refresh-card-list', () => {
+                setTimeout(() => this.updateCurrentPageAllSelectedStatus(), 200);
+            });
+
+            // 监听分页切换事件，立即更新全选状态
+            window.addEventListener('card-page-changed', () => {
+                // 延迟一点，等待 DOM 更新完成
+                setTimeout(() => this.updateCurrentPageAllSelectedStatus(), 100);
+            });
+        },
+
+        // 更新当前页全选状态
+        updateCurrentPageAllSelectedStatus() {
+            if (this.currentMode !== 'cards') {
+                this.isCurrentPageAllSelected = false;
+                return;
+            }
+
+            let currentPageCardIds = [];
+            let responded = false;
+
+            const handler = (e) => {
+                currentPageCardIds = e.detail.ids || [];
+                responded = true;
+                window.removeEventListener('all-card-ids-response', handler);
+
+                if (currentPageCardIds.length === 0) {
+                    this.isCurrentPageAllSelected = false;
+                    return;
+                }
+
+                const currentSelected = new Set(this.selectedIds);
+                this.isCurrentPageAllSelected = currentPageCardIds.every(id => currentSelected.has(id));
+            };
+            window.addEventListener('all-card-ids-response', handler);
+            window.dispatchEvent(new CustomEvent('get-all-card-ids'));
+
+            setTimeout(() => {
+                if (!responded) {
+                    window.removeEventListener('all-card-ids-response', handler);
+                    const cardElements = document.querySelectorAll('[data-card-id]');
+                    currentPageCardIds = Array.from(cardElements).map(el => el.getAttribute('data-card-id')).filter(Boolean);
+
+                    if (currentPageCardIds.length === 0) {
+                        this.isCurrentPageAllSelected = false;
+                        return;
+                    }
+
+                    const currentSelected = new Set(this.selectedIds);
+                    this.isCurrentPageAllSelected = currentPageCardIds.every(id => currentSelected.has(id));
+                }
+            }, 100);
         },
 
         executeRuleSet(rulesetId) {
@@ -257,6 +319,96 @@ export default function header() {
                 this.filterTags.push(tag);
             }
             this.fetchCards();
+        },
+
+        // 全选/取消全选（仅针对当前页）
+        toggleSelectAll() {
+            if (this.currentMode !== 'cards') {
+                // 世界书模式暂不支持全选
+                return;
+            }
+
+            // 通过事件获取当前页的卡片 ID
+            let currentPageCardIds = [];
+            let responded = false;
+            
+            // 监听响应事件
+            const handler = (e) => {
+                currentPageCardIds = e.detail.ids || [];
+                responded = true;
+                window.removeEventListener('all-card-ids-response', handler);
+                
+                if (currentPageCardIds.length === 0) {
+                    return;
+                }
+
+                // 检查当前页是否已全选
+                const currentSelected = new Set(this.selectedIds);
+                const allSelected = currentPageCardIds.every(id => currentSelected.has(id));
+
+                if (allSelected) {
+                    // 取消全选：只移除当前页的卡片ID，保留其他页的选中
+                    const remainingIds = this.selectedIds.filter(id => !currentPageCardIds.includes(id));
+                    this.selectedIds = remainingIds;
+                } else {
+                    // 全选：合并当前选中和当前页的卡片 ID（去重）
+                    const merged = new Set([...this.selectedIds, ...currentPageCardIds]);
+                    this.selectedIds = Array.from(merged);
+                }
+                // 更新全选状态
+                this.isCurrentPageAllSelected = !allSelected;
+            };
+            window.addEventListener('all-card-ids-response', handler);
+            
+            // 派发请求事件
+            window.dispatchEvent(new CustomEvent('get-all-card-ids'));
+            
+            // 超时处理：如果 cardGrid 没有响应，尝试通过 DOM 获取
+            setTimeout(() => {
+                if (!responded) {
+                    window.removeEventListener('all-card-ids-response', handler);
+                    // 获取当前可见的卡片元素（当前页）
+                    const cardElements = document.querySelectorAll('[data-card-id]');
+                    currentPageCardIds = Array.from(cardElements).map(el => el.getAttribute('data-card-id')).filter(Boolean);
+                    
+                    if (currentPageCardIds.length === 0) {
+                        return;
+                    }
+
+                    const currentSelected = new Set(this.selectedIds);
+                    const allSelected = currentPageCardIds.every(id => currentSelected.has(id));
+
+                    if (allSelected) {
+                        // 取消全选：只移除当前页的卡片ID
+                        const remainingIds = this.selectedIds.filter(id => !currentPageCardIds.includes(id));
+                        this.selectedIds = remainingIds;
+                    } else {
+                        // 全选：合并当前选中和当前页的卡片 ID
+                        const merged = new Set([...this.selectedIds, ...currentPageCardIds]);
+                        this.selectedIds = Array.from(merged);
+                    }
+                    // 更新全选状态
+                    this.isCurrentPageAllSelected = !allSelected;
+                }
+            }, 100);
+        },
+
+        // 打开移动弹窗（触发事件）
+        openMoveModal() {
+            if (this.selectedIds.length === 0) return;
+            // 派发事件，将选中的卡片ID传给移动弹窗
+            window.dispatchEvent(new CustomEvent('open-move-cards-modal', {
+                detail: { ids: [...this.selectedIds] }
+            }));
+        },
+
+        // 打开移动端执行规则弹窗（触发事件）
+        openExecuteRulesMobile() {
+            if (this.selectedIds.length === 0) return;
+            // 派发事件，将选中的卡片ID传给执行规则弹窗
+            window.dispatchEvent(new CustomEvent('open-execute-rules-mobile-modal', {
+                detail: { ids: [...this.selectedIds] }
+            }));
         }
     }
 }

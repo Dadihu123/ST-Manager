@@ -21,7 +21,8 @@
             class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
             <template x-for="item in wiList" :key="item.id">
                 <div @click="openWiDetail(item)"
-                    class="wi-grid-card group relative border rounded-xl p-3 cursor-pointer transition-all duration-200 flex flex-col h-44"
+                    class="wi-grid-card group relative border rounded-xl p-3 cursor-pointer transition-all duration-200 flex flex-col"
+                    :class="$store.global.deviceType === 'mobile' ? '' : 'h-44'"
                     style="background: var(--bg-panel); border-color: var(--border-main);">
 
                     <!-- 来源标记：固定左上 -->
@@ -33,19 +34,19 @@
                     <div x-show="item.name_source === 'filename'" class="wi-badge file">FILE</div>
 
                     <!-- Hover 工具：编辑（保留原功能） -->
-                    <button @click.stop="openWorldInfoEditor(item)"
+                    <button x-show="$store.global.deviceType !== 'mobile'" @click.stop="openWorldInfoEditor(item)"
                         class="wi-grid-tool-btn absolute top-2 right-2 w-9 h-9 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200 z-20 shadow-md"
                         title="打开全屏编辑器">
                         ✏️
                     </button>
 
                     <!-- 封面区 -->
-                    <div class="wi-book-cover mt-6">
+                    <div x-show="$store.global.deviceType !== 'mobile'" class="wi-book-cover mt-6">
                         <div class="wi-book-icon">📖</div>
                     </div>
 
                     <!-- 标题区 -->
-                    <div class="wi-book-title">
+                    <div class="wi-book-title" :class="$store.global.deviceType === 'mobile' ? 'mt-4' : ''">
                         <h3 class="font-bold text-base leading-tight line-clamp-2"
                             :class="item.name_source === 'filename' ? 'wi-title-fallback' : ''"
                             style="color: var(--text-main);" x-text="item.name"></h3>

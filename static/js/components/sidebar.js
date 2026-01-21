@@ -297,7 +297,12 @@ export default function sidebar() {
                         if (res.success) {
                             // 更新计数
                             if (res.category_counts) this.$store.global.categoryCounts = res.category_counts;
+                            // 清空选中
+                            this.$store.global.viewState.selectedIds = [];
+                            // 刷新列表
                             window.dispatchEvent(new CustomEvent('refresh-card-list'));
+                            // 显示提示
+                            this.$store.global.showToast(`✅ 已移动 ${count} 张卡片`);
                         } else alert(res.msg);
                     });
                 }

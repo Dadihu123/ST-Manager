@@ -1,0 +1,42 @@
+<!-- 移动卡片弹窗 -->
+<div x-data="moveCardsModal" x-show="showMoveCardsModal" x-cloak class="modal-overlay z-modal-popover"
+    @click.self="showMoveCardsModal = false">
+    <div style="background: var(--bg-panel); padding: 0; border-radius: 1rem; width: 90vw; max-width: 400px; border: 1px solid var(--border-light); box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5); overflow: hidden; display: flex; flex-direction: column;">
+        <!-- Header -->
+        <div style="padding: 1rem 1.25rem; background: var(--bg-sub); border-bottom: 1px solid var(--border-light);">
+            <h3 style="font-weight: bold; color: var(--text-main); font-size: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                📂 移动到文件夹
+            </h3>
+        </div>
+        
+        <div style="padding: 1.25rem;">
+            <div style="display: flex; flex-direction: column; gap: 1rem;">
+                <div>
+                    <label style="font-weight: 500; margin-bottom: 0.5rem; display: block; font-size: 0.875rem; color: var(--text-main);">选择目标文件夹</label>
+                    <div class="relative">
+                        <select x-model="targetCategory" class="form-input" style="width: 100%; padding-left: 2.5rem; font-size: 0.875rem;">
+                            <option value="">📂 (当前浏览目录)</option>
+                            <option value="根目录">🏠 根目录</option>
+                            <template x-for="folder in allFoldersList" :key="folder.path">
+                                <option :value="folder.path" x-text="'📁 ' + folder.path"></option>
+                            </template>
+                        </select>
+                        <div style="position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); color: var(--text-dim); pointer-events: none;">📍</div>
+                    </div>
+                    <div style="font-size: 0.75rem; color: var(--text-dim); margin-top: 0.5rem;">
+                        将移动 <span x-text="cardIds.length" style="font-weight: bold;"></span> 张卡片
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 0.75rem; margin-top: 0.5rem;">
+                    <button @click="showMoveCardsModal = false" class="btn-secondary" style="flex:1; justify-content: center; font-size: 0.875rem; padding: 0.5rem;">
+                        取消
+                    </button>
+                    <button @click="executeMove()" class="btn-primary" style="flex:2; justify-content: center; font-size: 0.875rem; padding: 0.5rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+                        📂 移动
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

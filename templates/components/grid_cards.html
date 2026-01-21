@@ -21,6 +21,7 @@
             <template x-for="card in paginatedCards" :key="card.id" @click="selectedIds = []">
                 <!-- ... (角色卡模板内容保持不变) ... -->
                 <div class="st-card group"
+                    :data-card-id="card.id"
                     :class="{'selected': selectedIds.includes(card.id), 'is-favorite': card.is_favorite, 'card-highlight-anim': highlightId === card.id}"
                     x-effect="if(highlightId === card.id) $el.scrollIntoView({ behavior: 'smooth', block: 'center' })"
                     @click.stop="handleCardClick($event, card)" draggable="true" @dragstart="dragStart($event, card)">

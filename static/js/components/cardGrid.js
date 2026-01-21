@@ -96,7 +96,16 @@ export default function cardGrid() {
                 this.fetchCards();
             });
 
-            // 8. 监听单卡更新事件
+            // 8. 监听全选请求事件（返回当前页的卡片ID）
+            window.addEventListener('get-all-card-ids', () => {
+                // 返回当前页（paginatedCards）的卡片ID
+                const cardIds = this.paginatedCards.map(c => c.id);
+                window.dispatchEvent(new CustomEvent('all-card-ids-response', {
+                    detail: { ids: cardIds }
+                }));
+            });
+
+            // 9. 监听单卡更新事件
             window.addEventListener('card-updated', (e) => {
                 const updatedCard = e.detail;
                 if (!updatedCard || !updatedCard.id) return;
@@ -346,6 +355,8 @@ export default function cardGrid() {
                 this.currentPage = p;
                 const el = document.getElementById('main-scroll');
                 if (el) el.scrollTop = 0;
+                // 派发分页变化事件，通知 header 更新全选状态
+                window.dispatchEvent(new CustomEvent('card-page-changed', { detail: { page: p } }));
                 this.fetchCards();
             }
         },
