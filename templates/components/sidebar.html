@@ -1,6 +1,6 @@
 <!-- 移动端：悬浮竖排菜单（导入 + 切换） -->
-<div x-show="$store.global.deviceType === 'mobile' && !$store.global.visibleSidebar" 
-    class="sidebar-button-group"  x-data="sidebar">
+<div x-show="$store.global.deviceType === 'mobile' && !$store.global.visibleSidebar" class="sidebar-button-group"
+    x-data="sidebar">
     <!-- 隐藏的文件选择器：多选，仅 json/png -->
     <input type="file" x-ref="mobileImportInput" class="hidden" multiple accept=".json,.png,application/json,image/png"
         @change="handleMobileImportChange($event)" />
@@ -61,6 +61,7 @@
                     <span class="mr-2">📂</span>
                     <span style="flex: 1;">全部卡片</span>
                     <span class="text-xs opacity-60" x-text="libraryTotal"></span>
+                    <!-- 移动端：三个点操作按钮（根目录不显示） -->
                 </div>
                 <template x-for="folder in folderTree" :key="folder.path">
                     <div x-show="folder.visible">
@@ -81,6 +82,13 @@
                             <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"
                                 x-text="folder.name"></span>
                             <span class="text-xs opacity-50 ml-2" x-text="getCategoryCount(folder.path)"></span>
+                            <!-- 移动端：三个点操作按钮 -->
+                            <button x-show="$store.global.deviceType === 'mobile'"
+                                @click.stop="showFolderContextMenuFromButton($event, folder)"
+                                class="ml-2 w-6 h-6 flex items-center justify-center opacity-60 hover:opacity-100 transition-opacity"
+                                style="background:none; border:none; color:inherit; cursor:pointer; flex-shrink: 0;">
+                                <span style="font-size: 14px; font-weight: bold;">⋯</span>
+                            </button>
                         </div>
                     </div>
                 </template>
@@ -95,8 +103,7 @@
             <div class="sidebar-content custom-scrollbar">
                 <div class="sidebar-tag-cloud">
                     <template x-for="tag in allTagsPool.slice(0, 30)" :key="tag">
-                        <button @click="toggleFilterTag(tag)" class="sidebar-tag-chip"
-                            :class="{
+                        <button @click="toggleFilterTag(tag)" class="sidebar-tag-chip" :class="{
                                 'active': filterTags.includes(tag),
                                 'excluded': $store.global.viewState.excludedTags.includes(tag)
                             }">

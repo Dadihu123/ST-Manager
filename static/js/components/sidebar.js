@@ -183,6 +183,26 @@ export default function sidebar() {
             }));
         },
 
+        // 移动端：从三个点按钮触发右键菜单
+        showFolderContextMenuFromButton(e, folder) {
+            e.preventDefault();
+            e.stopPropagation();
+
+            // 获取按钮的位置
+            const buttonRect = e.target.closest('button').getBoundingClientRect();
+
+            // 创建模拟事件对象，使用按钮右下角位置（稍微偏移，避免遮挡按钮）
+            const mockEvent = {
+                clientX: buttonRect.right - 10,
+                clientY: buttonRect.bottom + 5,
+                preventDefault: () => { },
+                stopPropagation: () => { }
+            };
+
+            // 调用原有的右键菜单方法
+            this.showFolderContextMenu(mockEvent, folder);
+        },
+
         hideContextMenu() {
             window.dispatchEvent(new CustomEvent('hide-context-menu'));
         },
