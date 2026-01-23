@@ -744,6 +744,12 @@ html.light-mode .toolbox-btn.purple{
         top: auto; right: auto;
         margin-left: auto;
     }
+    .detail-help-floating {
+        position: relative;
+        top: auto; 
+        right: auto;
+        margin-right: 8px;
+    }
 }
 
 /* 移动端详细适配 (≤768px) */
@@ -932,6 +938,19 @@ html.light-mode .toolbox-btn.purple{
         width: 32px;
         height: 32px;
         font-size: 1.125rem;
+    }
+
+    .detail-help-floating {
+        position: absolute;
+        top: 0.5rem;
+        right: 3rem;
+        width: 32px;
+        height: 32px;
+        font-size: 1rem;
+        padding: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
 
     /* 资源目录条 */
