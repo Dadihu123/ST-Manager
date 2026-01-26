@@ -1915,3 +1915,18 @@ html.light-mode .note-textarea:focus {
         padding: 4px
     }
 }
+
+@media (max-width: 1480px) {
+    .detail-modal-inner {
+        grid-template-columns: 340px 1fr !important
+    }
+
+    .topbar-token:last-of-type {
+        display: none !important
+    }
+
+    .detail-top-actions {
+        min-width: 0 !important;
+        flex: 0 0 auto
+    }
+}
