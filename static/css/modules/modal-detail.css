@@ -1204,19 +1204,28 @@ html.light-mode .note-textarea:focus {
 
 @media (max-width: 980px) {
     .detail-modal {
-        margin: 0 auto !important;
+        margin: 1vh auto !important;
         grid-template-columns: 1fr;
-        height: 94vh;
-        width: 96vw !important;
+        height: 98vh !important;
+        width: 98vw !important;
         transform: none !important
     }
 
     .detail-left {
-        display: none
+        display: flex !important;
+        height: 35vh;
+        min-height: 250px;
+        width: 100%;
+        border-right: none;
+        border-bottom: 1px solid var(--border-light);
+        order: 1
     }
 
     .detail-modal-inner {
-        grid-template-columns: 1fr
+        grid-template-columns: none;
+        display: flex;
+        flex-direction: column;
+        grid-template-rows: none
     }
 
     .detail-tabs {
@@ -1230,6 +1239,45 @@ html.light-mode .note-textarea:focus {
 
     .detail-filmstrip-outside {
         display: none !important
+    }
+
+    .detail-image-area {
+        width: 100%;
+        height: 100%
+    }
+
+    .detail-left-toolbar {
+        top: 10px;
+        right: 10px;
+        flex-direction: row
+    }
+
+    .detail-right {
+        flex: 1;
+        min-height: 0;
+        width: 100%;
+        order: 2
+    }
+
+    .detail-topbar {
+        padding: 10px;
+        height: auto;
+        flex-wrap: wrap;
+        gap: 10px
+    }
+
+    .detail-top-actions {
+        margin-left: auto
+    }
+
+    .detail-close-floating,
+    .detail-help-floating {
+        position: relative;
+        top: auto;
+        right: auto;
+        width: 32px;
+        height: 32px;
+        margin-left: 0
     }
 }
 
@@ -1730,10 +1778,6 @@ html.light-mode .note-textarea:focus {
         padding: 0.375rem 0.5rem
     }
 
-    .detail-manage-actions button {
-        width: 100%
-    }
-
     .detail-topbar>.topbar-token {
         display: none;
         flex-direction: row;
@@ -1760,6 +1804,10 @@ html.light-mode .note-textarea:focus {
     .detail-content>* {
         flex-shrink: 0
     }
+
+    .detail-manage-actions button {
+        width: 100%
+    }
 }
 
 @media (max-width: 480px) {
@@ -1773,3 +1821,50 @@ html.light-mode .note-textarea:focus {
         justify-content: center
     }
 }
+
+@media (max-width: 1600px) {
+    .detail-modal-inner {
+        grid-template-columns: 420px 1fr
+    }
+}
+
+@media (max-width: 1280px) {
+    .detail-modal {
+        transform: none !important;
+        width: 95vw !important;
+        margin: 2vh auto !important;
+        height: 96vh
+    }
+
+    .detail-modal-inner {
+        grid-template-columns: 340px 1fr
+    }
+
+    .topbar-token:last-of-type {
+        display: none
+    }
+
+    .detail-title-input {
+        font-size: 18px
+    }
+}
+
+@media (min-width: 769px) and (max-width: 850px) {
+    .detail-title-block {
+        min-width: 150px
+    }
+
+    .detail-actions-row {
+        gap: 6px
+    }
+
+    .detail-action-btn {
+        padding: 0 8px;
+        font-size: 12px
+    }
+
+    .btn-text {
+        display: none
+    }
+}
+
