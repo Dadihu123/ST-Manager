@@ -1262,12 +1262,33 @@ html.light-mode .note-textarea:focus {
     .detail-topbar {
         padding: 10px;
         height: auto;
-        flex-wrap: wrap;
-        gap: 10px
+        flex-wrap: nowrap !important;
+        gap: 10px;
+        padding-right: 90px !important;
+        position: sticky;
+        top: 0
     }
 
     .detail-top-actions {
         margin-left: auto
+    }
+
+    .detail-close-floating {
+        position: absolute !important;
+        top: 10px !important;
+        right: 10px !important;
+        width: 32px;
+        height: 32px;
+        margin: 0 !important
+    }
+
+    .detail-help-floating {
+        position: absolute !important;
+        top: 10px !important;
+        right: 50px !important;
+        width: 32px;
+        height: 32px;
+        margin: 0 !important
     }
 
     .detail-close-floating,
@@ -1847,6 +1868,24 @@ html.light-mode .note-textarea:focus {
     .detail-title-input {
         font-size: 18px
     }
+
+    .detail-top-actions {
+        min-width: 0 !important;
+        flex: 0 0 auto
+    }
+
+    .detail-action-btn {
+        padding: 0 10px
+    }
+
+    .detail-title-block {
+        min-width: 0 !important;
+        flex: 1
+    }
+
+    .detail-action-btn .btn-text {
+        display: none
+    }
 }
 
 @media (min-width: 769px) and (max-width: 850px) {
@@ -1855,7 +1894,7 @@ html.light-mode .note-textarea:focus {
     }
 
     .detail-actions-row {
-        gap: 6px
+        gap: 4px
     }
 
     .detail-action-btn {
@@ -1866,5 +1905,13 @@ html.light-mode .note-textarea:focus {
     .btn-text {
         display: none
     }
-}
 
+    .detail-title-label {
+        display: none
+    }
+
+    .detail-title-input {
+        font-size: 16px;
+        padding: 4px
+    }
+}
