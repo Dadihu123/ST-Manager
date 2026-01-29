@@ -3,6 +3,7 @@ import shutil
 import logging
 import threading
 import traceback
+import mimetypes
 from flask import Flask
 
 # === 基础设施 ===
@@ -24,8 +25,9 @@ def create_app():
     Flask 应用工厂函数。
     负责初始化 Flask 实例、注册蓝图、配置数据库钩子。
     """
-    # 初始化 Flask
-    # 显式指定 static 和 template 目录，兼容 PyInstaller 打包环境
+    # 强制 MIME 类型映射，防止注册表异常
+    mimetypes.add_type('application/javascript', '.js')
+    mimetypes.add_type('text/css', '.css') 
     app = Flask(__name__, 
                 static_folder=os.path.join(INTERNAL_DIR, 'static'),
                 template_folder=os.path.join(INTERNAL_DIR, 'templates'))

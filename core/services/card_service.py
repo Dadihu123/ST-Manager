@@ -129,6 +129,22 @@ def update_card_content(card_id, temp_path, is_bundle_update, keep_ui_data, new_
     # A. 提取新文件元数据
     new_info_raw = extract_card_info(temp_path) or {}
     
+    # 如果上传的是 JSON 文件，必须包含角色卡的关键特征字段，防止误传其他 JSON 覆盖数据
+    if new_upload_ext == '.json':
+        is_valid_card = False
+        
+        # V2/V1 特征: 根节点有 name/description/first_mes 等
+        if 'name' in new_info_raw or 'description' in new_info_raw or 'first_mes' in new_info_raw:
+            is_valid_card = True
+            
+        # V3 特征: 有 spec='chara_card_v3' 或 data 节点
+        if 'spec' in new_info_raw or 'data' in new_info_raw:
+            is_valid_card = True
+            
+        if not is_valid_card:
+            logger.warning(f"Update rejected: Uploaded JSON does not look like a character card. Keys: {list(new_info_raw.keys())}")
+            return {"success": False, "msg": "上传的文件不是有效的角色卡格式 (缺少必要字段)"}
+    
     # B. 提取旧文件元数据 (作为底板)
     old_info_raw = {}
     if os.path.exists(original_full_path) and not is_bundle_update:

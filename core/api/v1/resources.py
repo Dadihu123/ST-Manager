@@ -3,7 +3,6 @@ import hashlib
 import logging
 from PIL import Image
 import json
-from werkzeug.utils import secure_filename
 from flask import Blueprint, request, jsonify, send_from_directory
 
 # === 基础设施 ===
@@ -17,7 +16,7 @@ from core.context import ctx
 from core.utils.image import (
     find_sidecar_image, get_default_card_image_path
 )
-from core.utils.filesystem import safe_move_to_trash
+from core.utils.filesystem import safe_move_to_trash, sanitize_filename
 
 from core.services.card_service import resolve_ui_key
 from core.data.ui_store import load_ui_data
@@ -225,7 +224,6 @@ def api_upload_card_resource():
         ui_key = resolve_ui_key(card_id)
         res_folder_name = ui_data.get(ui_key, {}).get('resource_folder')
         
-        # 如果未设置资源目录，尝试自动创建（可选，这里为了安全先报错，或者你可以调用 create logic）
         if not res_folder_name:
             return jsonify({"success": False, "msg": "该卡片尚未设置资源目录，请先在'管理'页创建。"})
 
@@ -242,7 +240,8 @@ def api_upload_card_resource():
             os.makedirs(target_base_dir)
 
         # 2. 分析文件类型并确定子目录
-        filename = secure_filename(file.filename)
+        raw_filename = file.filename
+        filename = sanitize_filename(raw_filename)
         ext = os.path.splitext(filename)[1].lower()
         sub_dir = "" # 默认根目录
         
