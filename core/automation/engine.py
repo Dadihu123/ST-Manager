@@ -58,18 +58,21 @@ class AutomationEngine:
         if field_key == 'extensions.tavern_helper':
             # Tavern Helper 数据结构: [ ["scripts", [...]], ["variables", {...}] ]
             ext = card_data.get('extensions') or {}
-            helper_data = ext.get('tavern_helper') or []
-            if not isinstance(helper_data, list):
-                return []
-
-            # 健壮性查找：不假设 "scripts" 一定在索引 0 或 1
+            helper_data = ext.get('tavern_helper')
+            
             scripts_list = []
-            for item in helper_data:
-                # item 应该是 ["scripts", [obj, obj...]]
-                if isinstance(item, list) and len(item) >= 2 and item[0] == 'scripts':
-                    if isinstance(item[1], list):
-                        scripts_list = item[1]
-                    break
+            
+            if isinstance(helper_data, dict):
+                # 新版字典结构
+                scripts_list = helper_data.get('scripts', [])
+            elif isinstance(helper_data, list):
+                # 旧版列表结构
+                for item in helper_data:
+                    # item 应该是 ["scripts", [obj, obj...]]
+                    if isinstance(item, list) and len(item) >= 2 and item[0] == 'scripts':
+                        if isinstance(item[1], list):
+                            scripts_list = item[1]
+                        break
             
             if not scripts_list:
                 return []

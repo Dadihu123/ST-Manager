@@ -507,6 +507,61 @@
                                     placeholder="描述此脚本的功能..."></textarea>
                             </div>
 
+                            <!-- B-2. 按钮配置 (Buttons) -->
+                            <div class="adv-section">
+                                <div class="adv-section-title flex justify-between items-center text-blue-400">
+                                    <span>🎮 快捷按钮 (Buttons)</span>
+                                    <button @click="addScriptButton(getTavernScripts()[activeScriptIndex])"
+                                        class="text-[10px] bg-blue-600 hover:bg-blue-500 text-white px-2 py-0.5 rounded transition">
+                                        + 添加按钮
+                                    </button>
+                                </div>
+
+                                <div class="flex flex-col gap-2">
+                                    <!-- 按钮列表 -->
+                                    <template
+                                        x-if="getTavernScripts()[activeScriptIndex].button && getTavernScripts()[activeScriptIndex].button.buttons">
+                                        <template
+                                            x-for="(btn, btnIdx) in getTavernScripts()[activeScriptIndex].button.buttons"
+                                            :key="btnIdx">
+                                            <div
+                                                class="flex items-center gap-2 bg-[var(--bg-panel)] p-1.5 rounded border border-[var(--border-light)]">
+                                                <span class="text-[var(--text-dim)] text-xs w-4 text-center"
+                                                    x-text="btnIdx + 1"></span>
+
+                                                <!-- 按钮名称 -->
+                                                <input type="text" x-model="btn.name"
+                                                    class="auto-input py-0.5 px-2 text-xs flex-1" placeholder="按钮名称">
+
+                                                <!-- 可见性开关 -->
+                                                <label
+                                                    class="flex items-center gap-1 cursor-pointer select-none px-2 border-l border-[var(--border-light)]"
+                                                    title="是否可见">
+                                                    <input type="checkbox" x-model="btn.visible"
+                                                        class="w-3.5 h-3.5 rounded accent-blue-500">
+                                                    <span class="text-[10px]"
+                                                        :class="btn.visible ? 'text-blue-400' : 'text-gray-500'"
+                                                        x-text="btn.visible ? '显示' : '隐藏'"></span>
+                                                </label>
+
+                                                <!-- 删除 -->
+                                                <button
+                                                    @click="removeScriptButton(getTavernScripts()[activeScriptIndex], btnIdx)"
+                                                    class="text-gray-500 hover:text-red-400 px-1">
+                                                    ✕
+                                                </button>
+                                            </div>
+                                        </template>
+                                    </template>
+
+                                    <!-- 空状态 -->
+                                    <div x-show="!getTavernScripts()[activeScriptIndex].button?.buttons?.length"
+                                        class="text-[10px] text-[var(--text-dim)] text-center py-2 italic">
+                                        暂无自定义按钮
+                                    </div>
+                                </div>
+                            </div>
+
                             <!-- C. 脚本内容 (JS Code) -->
                             <div class="adv-section flex flex-col h-64">
                                 <div class="adv-section-title text-yellow-500 flex justify-between">

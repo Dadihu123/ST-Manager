@@ -305,11 +305,23 @@ export default function advancedEditor() {
         getTavernScripts() {
             if (!this.editingData.extensions) return [];
             const helper = this.editingData.extensions.tavern_helper;
-            if (!Array.isArray(helper)) return [];
+            
+            if (!helper) return [];
 
-            // 查找 ["scripts", Array] 结构
-            const scriptBlock = helper.find(item => Array.isArray(item) && item[0] === "scripts");
-            return (scriptBlock && Array.isArray(scriptBlock[1])) ? scriptBlock[1] : [];
+            // 1. 新版：字典结构
+            if (!Array.isArray(helper) && typeof helper === 'object') {
+                if (!Array.isArray(helper.scripts)) helper.scripts = [];
+                return helper.scripts;
+            }
+
+            // 2. 旧版：数组结构
+            if (Array.isArray(helper)) {
+                // 查找 ["scripts", Array] 结构
+                const scriptBlock = helper.find(item => Array.isArray(item) && item[0] === "scripts");
+                return (scriptBlock && Array.isArray(scriptBlock[1])) ? scriptBlock[1] : [];
+            }
+
+            return [];
         },
 
         addTavernScript() {
@@ -328,47 +340,53 @@ export default function advancedEditor() {
             if (!this.editingData.extensions) this.editingData.extensions = {};
             let helper = this.editingData.extensions.tavern_helper;
             
-            if (!Array.isArray(helper)) {
-                helper = [];
+            // 如果不存在，初始化为【新版字典结构】
+            if (!helper) {
+                helper = {
+                    scripts: [],
+                    variables: {}
+                };
                 this.editingData.extensions.tavern_helper = helper;
             }
 
-            // 查找 scripts 块
-            let scriptBlock = helper.find(item => Array.isArray(item) && item[0] === "scripts");
+            // 获取引用并推入
+            let scriptsList = null;
 
-            // 如果没有，初始化标准结构
-            if (!scriptBlock) {
-                scriptBlock = ["scripts", []];
-                helper.push(scriptBlock);
-                // 补齐 variables 块保持规范
-                if (!helper.find(item => Array.isArray(item) && item[0] === "variables")) {
-                    helper.push(["variables", {}]);
+            if (Array.isArray(helper)) {
+                // 旧版兼容逻辑：如果已经是数组，保持数组结构
+                let scriptBlock = helper.find(item => Array.isArray(item) && item[0] === "scripts");
+                if (!scriptBlock) {
+                    scriptBlock = ["scripts", []];
+                    helper.push(scriptBlock);
+                    // 补齐 variables 块
+                    if (!helper.find(item => Array.isArray(item) && item[0] === "variables")) {
+                        helper.push(["variables", {}]);
+                    }
                 }
+                scriptsList = scriptBlock[1];
+            } else {
+                // 新版字典逻辑
+                if (!helper.scripts) helper.scripts = [];
+                scriptsList = helper.scripts;
             }
 
-            scriptBlock[1].push(newScript);
-            this.editingData.extensions.tavern_helper = [...helper];
+            scriptsList.push(newScript);
 
             // 自动选中新建的脚本
-            this.activeScriptIndex = scriptBlock[1].length - 1;
+            this.activeScriptIndex = scriptsList.length - 1;
         },
 
         removeTavernScript(scriptId) {
-            const helper = this.editingData.extensions.tavern_helper;
-            const scriptBlock = helper.find(item => Array.isArray(item) && item[0] === "scripts");
-            if (scriptBlock) {
-                scriptBlock[1] = scriptBlock[1].filter(s => s.id !== scriptId);
-                // 强制更新
-                this.editingData.extensions.tavern_helper = [...helper];
+            const list = this.getTavernScripts();
+            const index = list.findIndex(s => s.id === scriptId);
+            if (index > -1) {
+                list.splice(index, 1);
+                this.activeScriptIndex = -1;
             }
         },
 
         moveTavernScript(scriptId, dir) {
-            const helper = this.editingData.extensions.tavern_helper;
-            const scriptBlock = helper.find(item => Array.isArray(item) && item[0] === "scripts");
-            if (!scriptBlock || !Array.isArray(scriptBlock[1])) return;
-
-            const list = scriptBlock[1];
+            const list = this.getTavernScripts();
             const index = list.findIndex(s => s.id === scriptId);
             if (index === -1) return;
 
@@ -380,16 +398,30 @@ export default function advancedEditor() {
             list[index] = list[newIdx];
             list[newIdx] = temp;
 
-            // 如果移动的是当前正在编辑的项，索引需要跟随变化
+            // 同步选中索引
             if (this.activeScriptIndex === index) {
                 this.activeScriptIndex = newIdx;
             } else if (this.activeScriptIndex === newIdx) {
-                // 如果移动的项挤占了当前选中项的位置，选中项索引也要调整
                 this.activeScriptIndex = index;
             }
+        },
 
-            // 强制更新
-            this.editingData.extensions.tavern_helper = [...helper];
-        }
+        // === 按钮管理 (New) ===
+        
+        addScriptButton(script) {
+            if (!script.button) script.button = { enabled: true, buttons: [] };
+            if (!script.button.buttons) script.button.buttons = [];
+            
+            script.button.buttons.push({
+                name: "新按钮",
+                visible: true // 默认可见
+            });
+        },
+
+        removeScriptButton(script, btnIndex) {
+            if (script.button && script.button.buttons) {
+                script.button.buttons.splice(btnIndex, 1);
+            }
+        },
     }
 }
