@@ -1,0 +1,99 @@
+<!-- templates/components/grid_extensions.html -->
+<div x-show="$store.global.currentMode === 'regex' || $store.global.currentMode === 'scripts'" x-cloak
+    style="display: none;" x-data="extensionGrid"
+    class="flex-1 flex flex-col overflow-hidden w-full relative h-full bg-[var(--bg-body)]">
+
+    <!-- 顶部工具条 -->
+    <div
+        class="h-12 border-b border-[var(--border-light)] flex items-center justify-between px-4 bg-[var(--bg-panel)] flex-shrink-0">
+        <div class="flex items-center gap-4">
+            <!-- 标题显示当前筛选状态 -->
+            <div class="flex items-center gap-2 text-sm">
+                <span class="text-2xl" x-text="currentMode === 'regex' ? '🧩' : '📜'"></span>
+                <span class="font-bold text-[var(--text-main)]"
+                    x-text="currentMode === 'regex' ? 'Regex Scripts' : 'ST Scripts'"></span>
+                <span class="text-[var(--text-dim)]">/</span>
+                <span class="text-xs px-2 py-0.5 rounded border"
+                    :class="filterType === 'all' ? 'bg-gray-700 border-gray-600' : (filterType === 'global' ? 'bg-blue-900/30 border-blue-500/50 text-blue-400' : 'bg-green-900/30 border-green-500/50 text-green-400')"
+                    x-text="filterType === 'all' ? 'All' : (filterType === 'global' ? 'Global' : 'Resource')">
+                </span>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+            <span class="text-xs text-[var(--text-dim)] mr-2">
+                共 <span x-text="items.length" class="text-[var(--text-main)] font-bold"></span> 个文件
+            </span>
+            <button @click="fetchItems()" class="btn-secondary px-3 py-1 text-xs flex items-center gap-1">
+                <span>↻</span> 刷新
+            </button>
+        </div>
+    </div>
+
+    <!-- 拖拽上传遮罩 -->
+    <div class="flex-1 flex flex-col min-w-0 relative overflow-hidden" @dragover.prevent="dragOver = true"
+        @dragleave.prevent="dragOver = false" @drop.prevent="handleDrop($event)">
+
+        <div x-show="dragOver" x-transition.opacity
+            class="absolute inset-0 z-50 bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center border-4 border-dashed border-[var(--accent-main)] m-4 rounded-xl">
+            <div class="text-6xl mb-4">📥</div>
+            <div class="text-2xl font-bold text-white">松开上传脚本</div>
+            <div class="text-gray-300 mt-2">将存入全局配置目录</div>
+        </div>
+
+        <!-- 列表内容区 -->
+        <div class="flex-1 overflow-y-auto custom-scrollbar p-4">
+            <div x-show="isLoading" class="flex flex-col items-center justify-center h-64 text-[var(--text-dim)]">
+                <div class="text-4xl animate-bounce mb-2">⏳</div>
+                <div>加载中...</div>
+            </div>
+
+            <div x-show="!isLoading" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                <template x-for="item in items" :key="item.id">
+                    <div @click="openItem(item)"
+                        class="group border border-[var(--border-light)] bg-[var(--bg-panel)] p-3 rounded-lg cursor-pointer hover:border-[var(--accent-main)] hover:shadow-lg transition-all relative overflow-hidden flex flex-col">
+
+                        <!-- 来源角标 -->
+                        <div class="absolute top-0 right-0 px-2 py-1 text-[10px] font-bold text-white rounded-bl-lg shadow-sm"
+                            :class="item.type === 'global' ? 'bg-blue-600' : 'bg-green-600'">
+                            <span x-text="item.type === 'global' ? 'GLOBAL' : 'RES'"></span>
+                        </div>
+
+                        <div class="flex items-start gap-3 mb-2">
+                            <div class="text-2xl pt-1 opacity-80 select-none">📄</div>
+                            <div class="min-w-0 flex-1">
+                                <div class="font-bold text-sm truncate text-[var(--text-main)] mb-1" :title="item.name"
+                                    x-text="item.name"></div>
+                                <div class="text-[10px] font-mono text-[var(--text-dim)] truncate opacity-70"
+                                    :title="item.filename" x-text="item.filename"></div>
+                            </div>
+                        </div>
+
+                        <div
+                            class="mt-auto pt-2 border-t border-[var(--border-light)] flex justify-between items-center">
+                            <!-- 资源归属提示 -->
+                            <div class="min-w-0 flex-1 mr-2">
+                                <div x-show="item.source_folder"
+                                    class="text-[10px] text-green-400 flex items-center gap-1 truncate"
+                                    :title="item.source_folder">
+                                    <span>👤</span> <span x-text="item.source_folder"></span>
+                                </div>
+                                <div x-show="!item.source_folder" class="text-[10px] text-blue-400 opacity-60">Global
+                                    Library</div>
+                            </div>
+
+                            <span class="text-[10px] text-[var(--text-dim)] whitespace-nowrap"
+                                x-text="formatDate(item.mtime)"></span>
+                        </div>
+                    </div>
+                </template>
+            </div>
+
+            <div x-show="!isLoading && items.length === 0"
+                class="flex flex-col items-center justify-center h-64 text-[var(--text-dim)] opacity-60">
+                <div class="text-4xl mb-2 grayscale">📭</div>
+                <div>没有找到相关文件</div>
+            </div>
+        </div>
+    </div>
+</div>

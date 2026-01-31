@@ -33,15 +33,33 @@
     <button x-show="$store.global.deviceType === 'mobile'" @click="toggleSidebarVisible()" class="sidebar-close-btn">
         <span>✕</span>
     </button>
-    <div class="flex border-b border-[var(--border-main)] bg-[var(--bg-sub)] relative z-10 shadow-sm">
-        <button @click="switchMode('cards')" class="flex-1 py-3 text-sm font-bold transition-colors border-b-2"
-            :class="currentMode === 'cards' ? 'border-[var(--accent-main)] text-[var(--text-main)] bg-[var(--bg-panel)]' : 'border-transparent text-[var(--text-dim)] hover:text-[var(--text-main)]'">
-            🎴 角色
-        </button>
-        <button @click="switchMode('worldinfo')" class="flex-1 py-3 text-sm font-bold transition-colors border-b-2"
-            :class="currentMode === 'worldinfo' ? 'border-[var(--accent-main)] text-[var(--text-main)] bg-[var(--bg-panel)]' : 'border-transparent text-[var(--text-dim)] hover:text-[var(--text-main)]'">
-            🌎 世界书
-        </button>
+    <div class="flex flex-col border-b border-[var(--border-main)] bg-[var(--bg-sub)] relative z-10 shadow-sm">
+        <!-- 第一类：核心资产 -->
+        <div class="flex">
+            <button @click="switchMode('cards')" class="flex-1 py-3 text-sm font-bold transition-colors border-b-2"
+                :class="currentMode === 'cards' ? 'border-[var(--accent-main)] text-[var(--text-main)] bg-[var(--bg-panel)]' : 'border-transparent text-[var(--text-dim)] hover:text-[var(--text-main)]'">
+                🎴 角色卡
+            </button>
+            <button @click="switchMode('worldinfo')" class="flex-1 py-3 text-sm font-bold transition-colors border-b-2"
+                :class="currentMode === 'worldinfo' ? 'border-[var(--accent-main)] text-[var(--text-main)] bg-[var(--bg-panel)]' : 'border-transparent text-[var(--text-dim)] hover:text-[var(--text-main)]'">
+                🌎 世界书
+            </button>
+        </div>
+
+        <!-- 第二类：扩展工具 (折叠或小字排版) -->
+        <div
+            class="flex bg-[var(--bg-sub)] overflow-x-auto custom-scrollbar no-scrollbar border-t border-[var(--border-light)]">
+            <button @click="switchMode('regex')"
+                class="px-4 py-2 text-xs font-medium whitespace-nowrap transition-colors hover:bg-[var(--bg-hover)]"
+                :class="currentMode === 'regex' ? 'text-[var(--accent-light)] bg-[var(--bg-hover)]' : 'text-[var(--text-dim)]'">
+                🧩 正则脚本
+            </button>
+            <button @click="switchMode('scripts')"
+                class="px-4 py-2 text-xs font-medium whitespace-nowrap transition-colors hover:bg-[var(--bg-hover)]"
+                :class="currentMode === 'scripts' ? 'text-[var(--accent-light)] bg-[var(--bg-hover)]' : 'text-[var(--text-dim)]'">
+                📜 ST 脚本
+            </button>
+        </div>
     </div>
     <!-- === 模式 1: 角色卡侧边栏 (Folder + Tags) === -->
     <div x-show="currentMode === 'cards' && visibleSidebar" class="flex-1 flex flex-col overflow-hidden">
@@ -100,7 +118,8 @@
                 </template>
             </div>
         </div>
-        <div style="display: flex; flex-direction: column; overflow: hidden;" :style="tagsSectionExpanded ? 'flex: 1;' : ''">
+        <div style="display: flex; flex-direction: column; overflow: hidden;"
+            :style="tagsSectionExpanded ? 'flex: 1;' : ''">
             <div class="sidebar-section-header">
                 <div class="flex items-center gap-2" @click="tagsSectionExpanded = !tagsSectionExpanded">
                     <button
@@ -170,6 +189,44 @@
                 class="w-full py-2 text-xs border border-dashed border-[var(--text-dim)] text-[var(--text-dim)] hover:border-[var(--accent-main)] hover:text-[var(--accent-main)] rounded transition-colors text-center">
                 🧹 整理资源目录文件
             </button>
+        </div>
+    </div>
+
+    <!-- === 模式 3: 扩展脚本侧边栏 (Regex & Scripts) === -->
+    <div x-show="(currentMode === 'regex' || currentMode === 'scripts') && visibleSidebar"
+        class="flex-1 flex flex-col overflow-hidden bg-[var(--bg-panel)]" x-data>
+        <div class="p-4 space-y-2">
+            <!-- 来源筛选标题 -->
+            <div class="text-xs font-bold text-[var(--text-dim)] uppercase tracking-wider mb-2">来源筛选</div>
+
+            <!-- 全部显示 -->
+            <button @click="$store.global.extensionFilterType='all'"
+                class="w-full text-left px-3 py-2 rounded text-sm flex justify-between items-center transition-colors"
+                :class="$store.global.extensionFilterType === 'all' ? 'bg-[var(--accent-main)] text-white' : 'hover:bg-[var(--bg-hover)] text-[var(--text-main)]'">
+                <span>📚 全部显示</span>
+            </button>
+
+            <!-- 全局目录 -->
+            <button @click="$store.global.extensionFilterType='global'"
+                class="w-full text-left px-3 py-2 rounded text-sm flex justify-between items-center transition-colors"
+                :class="$store.global.extensionFilterType === 'global' ? 'bg-blue-600 text-white' : 'hover:bg-[var(--bg-hover)] text-[var(--text-main)]'">
+                <span>🌐 全局目录</span>
+                <!-- 动态显示目录名 -->
+                <span class="text-xs opacity-60"
+                    x-text="currentMode === 'regex' ? 'extensions/regex' : 'extensions/tavern_helper'"></span>
+            </button>
+
+            <!-- 资源绑定 -->
+            <button @click="$store.global.extensionFilterType='resource'"
+                class="w-full text-left px-3 py-2 rounded text-sm flex justify-between items-center transition-colors"
+                :class="$store.global.extensionFilterType === 'resource' ? 'bg-green-600 text-white' : 'hover:bg-[var(--bg-hover)] text-[var(--text-main)]'">
+                <span>📁 资源绑定</span>
+                <span class="text-xs opacity-60">res/.../extensions</span>
+            </button>
+        </div>
+
+        <div class="mt-auto p-4 border-t border-[var(--border-main)] text-xs text-[var(--text-dim)]">
+            提示: 拖拽 .json 文件到右侧网格区域即可上传到全局目录。
         </div>
     </div>
 </aside>

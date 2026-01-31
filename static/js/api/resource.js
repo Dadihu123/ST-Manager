@@ -95,3 +95,23 @@ export async function uploadCardResource(formData) {
     });
     return res.json();
 }
+
+// 保存独立脚本文件 (Regex / ST Script)
+export async function saveScriptFile(payload) {
+    const res = await fetch('/api/scripts/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    });
+    return res.json();
+}
+
+// 获取资源目录下的全量文件列表
+export async function listResourceFiles(folderName) {
+    const res = await fetch('/api/list_resource_files', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ folder_name: folderName })
+    });
+    return res.json();
+}

@@ -240,8 +240,30 @@ export function getCleanedV3Data(editingData) {
 
     // 4. 清洗扩展数据 (确保是数组)
     if (raw.extensions) {
-        if (!Array.isArray(raw.extensions.regex_scripts)) raw.extensions.regex_scripts = [];
-        if (!Array.isArray(raw.extensions.tavern_helper)) raw.extensions.tavern_helper = [];
+        if (!Array.isArray(raw.extensions.regex_scripts)) {
+            // 如果不存在或不是数组，初始化为空数组
+            raw.extensions.regex_scripts = raw.extensions.regex_scripts || []; 
+        }
+        
+        // 对 tavern_helper 进行智能判断
+        const th = raw.extensions.tavern_helper;
+        if (!th) {
+            // 不存在则初始化为空数组 (旧版兼容默认)
+            raw.extensions.tavern_helper = [];
+        } else {
+            // 如果存在，判断类型
+            if (Array.isArray(th)) {
+                // 是数组 (旧版)，保留
+            } else if (typeof th === 'object') {
+                // 是对象 (新版)，保留
+            } else {
+                // 异常数据，重置
+                raw.extensions.tavern_helper = [];
+            }
+        }
+    } else {
+        // 如果 extensions 根节点都不存在
+        raw.extensions = { regex_scripts: [], tavern_helper: [] };
     }
     
     // 5. 构建标准 V3 结构 (明确指定字段，丢弃多余的 UI 临时状态)

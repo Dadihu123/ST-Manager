@@ -18,7 +18,8 @@ import {
 
 import { 
     renameFolder, 
-    performSystemAction
+    performSystemAction,
+    readFileContent
 } from '../api/system.js';
 
 import { 
@@ -26,6 +27,7 @@ import {
     setSkinAsCover,
     deleteResourceFile,
     uploadCardResource,
+    listResourceFiles,
     setResourceFolder as apiSetResourceFolder, 
     openResourceFolder as apiOpenResourceFolder, 
     createResourceFolder as apiCreateResourceFolder 
@@ -85,7 +87,11 @@ export default function detailModal() {
         zoomLevel: 100,
         altIdx: 0,
         rawMetadataContent: 'Loading...',
-        
+
+        // 资源文件列表状态
+        resourceLorebooks: [],
+        resourceRegex: [],
+        resourceScripts: [],
         // 皮肤与版本
         skinImages: [],
         currentSkinIndex: -1,
@@ -157,19 +163,18 @@ export default function detailModal() {
             formData.append('card_id', this.editingData.id);
             formData.append('file', file);
 
-            // 显示简单的 Loading 状态
             this.$store.global.showToast(`⏳ 正在上传: ${file.name}...`, 2000);
 
             uploadCardResource(formData).then(res => {
                 if (res.success) {
-                    this.$store.global.showToast(`✅ ${file.name} 上传成功 (${res.msg})`);
+                    this.$store.global.showToast(`✅ ${file.name} 上传成功`);
                     
-                    // 如果是图片，刷新皮肤列表
-                    const ext = file.name.split('.').pop().toLowerCase();
-                    if (['png', 'jpg', 'jpeg', 'webp', 'gif'].includes(ext)) {
-                        this.fetchSkins(this.editingData.resource_folder);
+                    // 上传成功后，刷新整个资源列表
+                    if (this.editingData.resource_folder) {
+                        this.fetchResourceFiles(this.editingData.resource_folder);
                     }
                     
+                    // 如果是世界书，还需要刷新全局的世界书侧边栏缓存
                     if (res.is_lorebook) {
                         window.dispatchEvent(new CustomEvent('refresh-wi-list'));
                     }
@@ -178,6 +183,62 @@ export default function detailModal() {
                 }
             }).catch(e => {
                 alert(`网络错误: ${e}`);
+            });
+        },
+
+        // 获取资源目录下的所有文件
+        fetchResourceFiles(folderName) {
+            // 清空旧数据
+            this.skinImages = [];
+            this.resourceLorebooks = [];
+            this.resourceRegex = [];
+            this.resourceScripts = [];
+            this.currentSkinIndex = -1;
+
+            if (!folderName) return;
+
+            // 调用新 API
+            listResourceFiles(folderName).then(res => {
+                if (res.success && res.files) {
+                    this.skinImages = res.files.skins || [];
+                    this.resourceLorebooks = res.files.lorebooks || [];
+                    this.resourceRegex = res.files.regex || [];
+                    this.resourceScripts = res.files.scripts || [];
+                }
+            }).catch(err => {
+                console.error("Failed to load resources:", err);
+            });
+        },
+
+        // 打开资源脚本 (Regex / ST Script)
+        openResourceScript(fileItem, type) {
+            // fileItem 是 API 返回的对象: { name: "abc.json", path: "data/..." }
+            if (!fileItem || !fileItem.path) return;
+
+            this.$store.global.isLoading = true;
+
+            // 1. 读取文件内容
+            readFileContent({ path: fileItem.path }).then(res => {
+                this.$store.global.isLoading = false;
+                
+                if (res.success) {
+                    const fileContent = res.data;
+                    
+                    // 2. 触发事件打开 Advanced Editor
+                    // 传递 filePath 以便编辑器知道这是一个独立文件，保存时覆盖原文件
+                    window.dispatchEvent(new CustomEvent('open-script-file-editor', {
+                        detail: {
+                            fileData: fileContent, // JSON 对象
+                            filePath: fileItem.path, // 文件路径 (用于保存)
+                            type: type // 'regex' | 'script'
+                        }
+                    }));
+                } else {
+                    alert("无法读取文件内容: " + res.msg);
+                }
+            }).catch(err => {
+                this.$store.global.isLoading = false;
+                alert("读取请求失败: " + err);
             });
         },
 
@@ -394,7 +455,7 @@ export default function detailModal() {
                     this.editingData.scenario = safeCard.scenario || "";
                     this.editingData.system_prompt = safeCard.system_prompt || "";
                     this.editingData.post_history_instructions = safeCard.post_history_instructions || "";
-
+                    this.editingData.creator = safeCard.creator || "";
                     this.editingData.character_version = safeCard.char_version || safeCard.character_version || "";
                     
                     this.editingData.alternate_greetings = safeCard.alternate_greetings || [];
@@ -753,12 +814,7 @@ export default function detailModal() {
         },
 
         fetchSkins(folderName) {
-            this.skinImages = [];
-            this.currentSkinIndex = -1;
-            if (!folderName) return;
-            listSkins(folderName).then(res => {
-                if (res.success) this.skinImages = res.skins || [];
-            });
+            this.fetchResourceFiles(folderName);
         },
 
         nextSkin() {

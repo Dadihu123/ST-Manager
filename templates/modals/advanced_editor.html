@@ -1,7 +1,7 @@
 <!-- 高级功能编辑器 (Regex & Scripts) -->
 <div x-show="showAdvancedModal" x-data="advancedEditor" x-cloak class="modal-overlay z-modal-popover"
     @click.self="showAdvancedModal=false">
-    <div class="modal-container advanced-editor-container" x-data="{ activeTab: 'regex' }"
+    <div class="modal-container advanced-editor-container"
         style="width: 1200px; height: 90vh; flex-direction: column; background: var(--bg-panel); border: 1px solid var(--border-light);">
 
         <!-- 移动端：侧边栏切换按钮 -->
@@ -12,11 +12,11 @@
         </button>
 
         <!-- 移动端：侧边栏遮罩 -->
-        <div x-show="$store.global.deviceType === 'mobile' && showMobileSidebar" @click="showMobileSidebar = false"
-            class="fixed inset-0 bg-black/50 z-40" x-transition:enter="transition ease-out duration-300"
-            x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
-            x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100"
-            x-transition:leave-end="opacity-0"></div>
+        <button x-show="$store.global.deviceType === 'mobile' && !showMobileSidebar && activeTab === 'regex'"
+            @click="showMobileSidebar = true"
+            class="fixed bottom-20 left-2 z-50 w-10 h-10 bg-[var(--bg-panel)] border border-[var(--border-light)] rounded-lg flex items-center justify-center text-[var(--text-main)] shadow-lg md:hidden">
+            <span>📋</span>
+        </button>
 
         <!-- 1. 顶部 Header -->
         <div class="p-4 border-b flex justify-between items-center advanced-editor-header"
@@ -522,7 +522,7 @@
                                     <template
                                         x-if="getTavernScripts()[activeScriptIndex].button && getTavernScripts()[activeScriptIndex].button.buttons">
                                         <template
-                                            x-for="(btn, btnIdx) in getTavernScripts()[activeScriptIndex].button.buttons"
+                                            x-for="(btn, btnIdx) in (getTavernScripts()[activeScriptIndex]?.button?.buttons || [])"
                                             :key="btnIdx">
                                             <div
                                                 class="flex items-center gap-2 bg-[var(--bg-panel)] p-1.5 rounded border border-[var(--border-light)]">
@@ -618,7 +618,11 @@
             <div class="text-xs text-[var(--text-dim)]">
                 提示: 修改会自动暂存，需点击主界面的 <span class="font-bold text-accent-main">保存</span> 按钮才会写入文件。
             </div>
-            <button @click="showAdvancedModal=false"
+            <button x-show="isFileMode" @click="saveFileChanges()"
+                class="btn-primary px-6 py-2 rounded shadow-lg font-bold w-full md:w-auto">
+                💾 保存文件
+            </button>
+            <button x-show="!isFileMode" @click="showAdvancedModal=false"
                 class="btn-primary px-6 py-2 rounded shadow-lg font-bold w-full md:w-auto">
                 完成 (Done)
             </button>

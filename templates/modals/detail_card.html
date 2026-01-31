@@ -188,12 +188,23 @@
                             </div>
                         </div>
 
-                        <div class="detail-subrow">
-                            <span class="detail-link-icon">🔗</span>
-                            <input type="text" x-model="editingData.source_link" placeholder="来源链接 (http://...)"
-                                class="detail-link-input">
-                            <a x-show="editingData.source_link" :href="editingData.source_link" target="_blank"
-                                class="detail-open-link" title="打开链接">↗ 打开</a>
+                        <div class="detail-subrow flex-wrap gap-x-4 gap-y-2">
+
+                            <!-- 创作者 -->
+                            <div class="flex items-center gap-2 min-w-[120px] flex-shrink-0" title="创作者 (Creator)">
+                                <span class="text-xs opacity-60">🎨</span>
+                                <input type="text" x-model="editingData.creator" placeholder="未知创作者"
+                                    class="bg-transparent border-b border-dashed border-[var(--border-light)] text-xs text-[var(--text-sub)] focus:border-[var(--accent-main)] focus:text-[var(--text-main)] outline-none transition-colors w-full max-w-[150px] py-0.5">
+                            </div>
+
+                            <!-- 来源链接 -->
+                            <div class="flex items-center gap-2 flex-1 min-w-[180px]">
+                                <span class="detail-link-icon text-xs">🔗</span>
+                                <input type="text" x-model="editingData.source_link" placeholder="来源链接 (http://...)"
+                                    class="detail-link-input text-xs w-full">
+                                <a x-show="editingData.source_link" :href="editingData.source_link" target="_blank"
+                                    class="detail-open-link" title="打开链接">↗</a>
+                            </div>
                         </div>
                     </div>
 
@@ -311,12 +322,23 @@
                                 </div>
                             </div>
 
-                            <div class="detail-subrow">
-                                <span class="detail-link-icon">🔗</span>
-                                <input type="text" x-model="editingData.source_link" placeholder="来源链接 (http://...)"
-                                    class="detail-link-input">
-                                <a x-show="editingData.source_link" :href="editingData.source_link" target="_blank"
-                                    class="detail-open-link" title="打开链接">↗ 打开</a>
+                            <div class="detail-subrow flex-wrap gap-x-4 gap-y-2">
+
+                                <!-- 创作者 -->
+                                <div class="flex items-center gap-2 min-w-[120px] flex-shrink-0" title="创作者 (Creator)">
+                                    <span class="text-xs opacity-60">🎨</span>
+                                    <input type="text" x-model="editingData.creator" placeholder="未知创作者"
+                                        class="bg-transparent border-b border-dashed border-[var(--border-light)] text-xs text-[var(--text-sub)] focus:border-[var(--accent-main)] focus:text-[var(--text-main)] outline-none transition-colors w-full max-w-[150px] py-0.5">
+                                </div>
+
+                                <!-- 来源链接 -->
+                                <div class="flex items-center gap-2 flex-1 min-w-[180px]">
+                                    <span class="detail-link-icon text-xs">🔗</span>
+                                    <input type="text" x-model="editingData.source_link" placeholder="来源链接 (http://...)"
+                                        class="detail-link-input text-xs w-full">
+                                    <a x-show="editingData.source_link" :href="editingData.source_link" target="_blank"
+                                        class="detail-open-link" title="打开链接">↗</a>
+                                </div>
                             </div>
                         </div>
                     </section>
@@ -1016,7 +1038,7 @@
                     <section x-show="tab==='resources'" x-transition.opacity class="detail-section detail-section-fill">
                         <div class="detail-tab-scroll custom-scrollbar p-4">
 
-                            <!-- 资源目录状态检查 -->
+                            <!-- 状态 A: 未设置资源目录 -->
                             <template x-if="!editingData.resource_folder">
                                 <div
                                     class="flex flex-col items-center justify-center h-64 text-[var(--text-dim)] border-2 border-dashed border-[var(--border-light)] rounded-xl bg-[var(--bg-sub)]">
@@ -1030,12 +1052,14 @@
                                 </div>
                             </template>
 
+                            <!-- 状态 B: 已设置资源目录 -->
                             <template x-if="editingData.resource_folder">
                                 <div class="flex flex-col gap-4 h-full">
-                                    <!-- 拖拽上传区 -->
+
+                                    <!-- 1. 拖拽上传区 -->
                                     <div class="relative flex-shrink-0 group transition-all duration-300"
                                         :class="dragOverResource ? 'bg-blue-500/10 border-blue-500' : 'bg-[var(--bg-sub)] border-[var(--border-light)] hover:border-[var(--accent-main)]'"
-                                        style="border-width: 2px; border-style: dashed; border-radius: 0.75rem; min-height: 12rem; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer;"
+                                        style="border-width: 2px; border-style: dashed; border-radius: 0.75rem; min-height: 8rem; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer;"
                                         @dragover.prevent="dragOverResource = true"
                                         @dragleave.prevent="dragOverResource = false"
                                         @drop.prevent="handleResourceDrop($event)"
@@ -1044,51 +1068,161 @@
                                         <input type="file" x-ref="resourceFileInput" multiple style="display: none;"
                                             @change="handleResourceDrop({dataTransfer: {files: $event.target.files}})">
 
-                                        <div class="text-4xl mb-3 transition-transform duration-300"
-                                            :class="dragOverResource ? 'scale-110' : 'grayscale opacity-50 group-hover:grayscale-0 group-hover:opacity-100'">
-                                            📥
-                                        </div>
-                                        <h4 class="font-bold text-lg"
-                                            :class="dragOverResource ? 'text-blue-400' : 'text-[var(--text-main)]'">
-                                            拖拽文件到这里上传
-                                        </h4>
-                                        <div class="text-xs text-[var(--text-dim)] mt-2 text-center leading-relaxed">
-                                            支持批量上传<br>
-                                            <span class="text-green-400">图片</span> ➔ 资源根目录 (可作皮肤)<br>
-                                            <span class="text-orange-400">世界书 (.json)</span> ➔ 自动归类到 lorebooks/
+                                        <div class="flex items-center gap-3 pointer-events-none">
+                                            <div class="text-3xl transition-transform duration-300"
+                                                :class="dragOverResource ? 'scale-110' : 'grayscale opacity-50 group-hover:grayscale-0 group-hover:opacity-100'">
+                                                📥
+                                            </div>
+                                            <div class="text-left">
+                                                <h4 class="font-bold text-sm"
+                                                    :class="dragOverResource ? 'text-blue-400' : 'text-[var(--text-main)]'">
+                                                    点击或拖拽文件上传
+                                                </h4>
+                                                <div class="text-[10px] text-[var(--text-dim)] mt-0.5 leading-tight">
+                                                    <span class="text-green-400">图片</span>(Skins)
+                                                    <span class="text-orange-400">世界书</span>
+                                                    <span class="text-blue-400">正则</span>
+                                                    <span class="text-purple-400">脚本</span>
+                                                    <br>会自动归类到对应文件夹
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
 
-                                    <!-- 现有资源概览 -->
-                                    <div class="flex-1 min-h-0 flex flex-col">
-                                        <div class="flex justify-between items-center mb-2">
-                                            <span class="text-xs font-bold text-[var(--text-dim)] uppercase">当前资源预览
-                                                (Skins)</span>
-                                            <button @click="openResourceFolder()"
-                                                class="text-xs text-blue-400 hover:underline">
-                                                📂 打开文件夹查看全部
-                                            </button>
+                                    <!-- 2. 资源列表 (左右分栏) -->
+                                    <div class="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                                        <!-- 左栏：皮肤 (图片) -->
+                                        <div
+                                            class="flex flex-col min-h-0 border border-[var(--border-light)] rounded-lg bg-[var(--bg-sub)]/30">
+                                            <div
+                                                class="p-2 border-b border-[var(--border-light)] flex justify-between items-center bg-[var(--bg-sub)] rounded-t-lg">
+                                                <span
+                                                    class="text-xs font-bold text-[var(--text-dim)] uppercase flex items-center gap-1">
+                                                    <span>🖼️</span> 皮肤 (Skins)
+                                                </span>
+                                                <span class="text-[10px] text-[var(--text-dim)]"
+                                                    x-text="skinImages.length + ' items'"></span>
+                                            </div>
+
+                                            <div class="flex-1 overflow-y-auto custom-scrollbar p-2">
+                                                <div class="grid grid-cols-3 gap-2">
+                                                    <template x-for="(skin, idx) in skinImages" :key="skin">
+                                                        <div class="relative group aspect-square rounded overflow-hidden border border-[var(--border-light)] bg-black/20 cursor-pointer"
+                                                            @click="currentSkinIndex = idx; isCardFlipped=false">
+                                                            <img :src="getSkinUrl(skin)"
+                                                                class="w-full h-full object-cover transition-transform group-hover:scale-110">
+                                                            <!-- 选中标记 -->
+                                                            <div x-show="currentSkinIndex === idx"
+                                                                class="absolute inset-0 border-2 border-[var(--accent-main)] z-10 pointer-events-none">
+                                                            </div>
+                                                            <!-- 悬浮遮罩 -->
+                                                            <div
+                                                                class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                                                <span class="text-[10px] text-white font-bold">预览</span>
+                                                            </div>
+                                                            <div class="absolute bottom-0 left-0 right-0 bg-black/60 text-[9px] text-white px-1 truncate"
+                                                                x-text="skin"></div>
+                                                        </div>
+                                                    </template>
+                                                </div>
+                                                <div x-show="skinImages.length === 0"
+                                                    class="h-full flex items-center justify-center text-[var(--text-dim)] text-xs italic">
+                                                    暂无图片
+                                                </div>
+                                            </div>
                                         </div>
 
-                                        <!-- 简单的皮肤网格预览 -->
-                                        <div class="grid grid-cols-4 gap-2 overflow-y-auto custom-scrollbar p-1">
-                                            <template x-for="(skin, idx) in skinImages" :key="skin">
-                                                <div class="relative group aspect-square rounded overflow-hidden border border-[var(--border-light)] bg-black/20 cursor-pointer"
-                                                    @click="currentSkinIndex = idx; isCardFlipped=false">
-                                                    <img :src="getSkinUrl(skin)"
-                                                        class="w-full h-full object-cover transition-transform group-hover:scale-110">
-                                                    <div
-                                                        class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                                        <span class="text-xs text-white font-bold">预览</span>
-                                                    </div>
-                                                    <div class="absolute bottom-0 left-0 right-0 bg-black/60 text-[9px] text-white px-1 truncate"
-                                                        x-text="skin"></div>
+                                        <!-- 右栏：逻辑文件 (Lorebooks / Regex / Scripts) -->
+                                        <div class="flex flex-col min-h-0 gap-3 overflow-y-auto custom-scrollbar pr-1">
+
+                                            <!-- 世界书列表 -->
+                                            <div
+                                                class="border border-[var(--border-light)] rounded-lg bg-[var(--bg-sub)]/30 flex flex-col">
+                                                <div
+                                                    class="p-2 border-b border-[var(--border-light)] bg-[var(--bg-sub)] rounded-t-lg">
+                                                    <span
+                                                        class="text-xs font-bold text-orange-400 uppercase flex items-center gap-1">
+                                                        <span>🌎</span> 世界书 (Lorebooks)
+                                                    </span>
                                                 </div>
-                                            </template>
-                                            <div x-show="skinImages.length === 0"
-                                                class="col-span-4 text-center py-8 text-xs text-[var(--text-dim)] italic">
-                                                暂无图片资源
+                                                <div class="p-2 space-y-1">
+                                                    <template x-for="file in resourceLorebooks" :key="file.path">
+                                                        <div class="flex items-center justify-between p-2 rounded border border-transparent hover:border-[var(--border-light)] hover:bg-[var(--bg-hover)] cursor-pointer group transition-colors"
+                                                            @click="window.dispatchEvent(new CustomEvent('open-wi-file', { detail: { id: file.path, source_type: 'resource', file_path: file.path, name: file.name } }))">
+                                                            <div class="flex items-center gap-2 min-w-0">
+                                                                <span class="text-orange-400 text-sm">📘</span>
+                                                                <span class="text-xs text-[var(--text-main)] truncate"
+                                                                    x-text="file.name"></span>
+                                                            </div>
+                                                            <span
+                                                                class="text-[10px] text-[var(--text-dim)] opacity-0 group-hover:opacity-100">编辑</span>
+                                                        </div>
+                                                    </template>
+                                                    <div x-show="resourceLorebooks.length === 0"
+                                                        class="text-[10px] text-[var(--text-dim)] text-center py-2 italic">
+                                                        无文件</div>
+                                                </div>
                                             </div>
+
+                                            <!-- 正则脚本列表 -->
+                                            <div
+                                                class="border border-[var(--border-light)] rounded-lg bg-[var(--bg-sub)]/30 flex flex-col">
+                                                <div
+                                                    class="p-2 border-b border-[var(--border-light)] bg-[var(--bg-sub)] rounded-t-lg">
+                                                    <span
+                                                        class="text-xs font-bold text-blue-400 uppercase flex items-center gap-1">
+                                                        <span>🧩</span> 正则脚本 (Regex)
+                                                    </span>
+                                                </div>
+                                                <div class="p-2 space-y-1">
+                                                    <template x-for="file in resourceRegex" :key="file.path">
+                                                        <div class="flex items-center justify-between p-2 rounded border border-transparent hover:border-[var(--border-light)] hover:bg-[var(--bg-hover)] cursor-pointer group transition-colors"
+                                                            @click="openResourceScript(file, 'regex')">
+                                                            <div class="flex items-center gap-2 min-w-0">
+                                                                <span class="text-blue-400 text-sm">📄</span>
+                                                                <span class="text-xs text-[var(--text-main)] truncate"
+                                                                    x-text="file.name"></span>
+                                                            </div>
+                                                            <span
+                                                                class="text-[10px] text-[var(--text-dim)] opacity-0 group-hover:opacity-100">编辑</span>
+                                                        </div>
+                                                    </template>
+                                                    <div x-show="resourceRegex.length === 0"
+                                                        class="text-[10px] text-[var(--text-dim)] text-center py-2 italic">
+                                                        无文件</div>
+                                                </div>
+                                            </div>
+
+                                            <!-- 扩展脚本列表 -->
+                                            <div
+                                                class="border border-[var(--border-light)] rounded-lg bg-[var(--bg-sub)]/30 flex flex-col">
+                                                <div
+                                                    class="p-2 border-b border-[var(--border-light)] bg-[var(--bg-sub)] rounded-t-lg">
+                                                    <span
+                                                        class="text-xs font-bold text-purple-400 uppercase flex items-center gap-1">
+                                                        <span>📜</span> 扩展脚本 (Scripts)
+                                                    </span>
+                                                </div>
+                                                <div class="p-2 space-y-1">
+                                                    <template x-for="file in resourceScripts" :key="file.path">
+                                                        <div class="flex items-center justify-between p-2 rounded border border-transparent hover:border-[var(--border-light)] hover:bg-[var(--bg-hover)] cursor-pointer group transition-colors"
+                                                            @click="openResourceScript(file, 'script')">
+                                                            <div class="flex items-center gap-2 min-w-0">
+                                                                <span class="text-purple-400 text-sm">📜</span>
+                                                                <span class="text-xs text-[var(--text-main)] truncate"
+                                                                    x-text="file.name"></span>
+                                                            </div>
+                                                            <span
+                                                                class="text-[10px] text-[var(--text-dim)] opacity-0 group-hover:opacity-100">编辑</span>
+                                                        </div>
+                                                    </template>
+                                                    <div x-show="resourceScripts.length === 0"
+                                                        class="text-[10px] text-[var(--text-dim)] text-center py-2 italic">
+                                                        无文件</div>
+                                                </div>
+                                            </div>
+
                                         </div>
                                     </div>
                                 </div>

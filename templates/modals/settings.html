@@ -65,6 +65,20 @@
                     </div>
 
                     <div class="settings-row">
+                        <label class="settings-label text-purple-400">正则脚本路径 (Regex)</label>
+                        <div class="settings-desc">存放全局正则脚本 (.json) 的目录</div>
+                        <input type="text" x-model="settingsForm.regex_dir" class="form-input mt-2"
+                            placeholder="extensions/regex">
+                    </div>
+
+                    <div class="settings-row">
+                        <label class="settings-label text-indigo-400">ST 脚本路径 (Scripts)</label>
+                        <div class="settings-desc">存放全局 Tavern Helper 脚本 (.json) 的目录</div>
+                        <input type="text" x-model="settingsForm.scripts_dir" class="form-input mt-2"
+                            placeholder="extensions/tavern_helper">
+                    </div>
+
+                    <div class="settings-row">
                         <label class="settings-label text-green-400">资源文件夹路径 (Resources)</label>
                         <div class="settings-desc">存放角色附件、背景图、聊天记录备份的根目录</div>
                         <input type="text" x-model="settingsForm.resources_dir" class="form-input mt-2"
@@ -235,6 +249,16 @@
                             placeholder="http://127.0.0.1:8000">
                     </div>
 
+                    <div class="settings-row">
+                        <label class="settings-label text-gray-400">请求代理 (Proxy)</label>
+                        <div class="settings-desc">
+                            可选。若连接 ST 需经由代理，请在此填写 (如 http://127.0.0.1:7890)。<br>
+                            <span class="text-yellow-500 text-xs">留空则强制直连 (忽略系统代理)。</span>
+                        </div>
+                        <input type="text" x-model="settingsForm.st_proxy" class="form-input mt-1"
+                            placeholder="http://127.0.0.1:7890">
+                    </div>
+
                     <div class="settings-row p-4 rounded border border-[var(--border-light)] bg-[var(--bg-sub)]">
                         <label class="settings-label mb-2 block">认证方式</label>
                         <div class="flex gap-4 mb-4">
@@ -363,8 +387,7 @@
                             </div>
                             <!-- 开关 -->
                             <input type="checkbox" name="toggle" id="auto-save-toggle"
-                                x-model="settingsForm.auto_save_enabled"
-                                class="w-5 h-5 accent-[var(--accent-main)]" />
+                                x-model="settingsForm.auto_save_enabled" class="w-5 h-5 accent-[var(--accent-main)]" />
                         </div>
 
                         <!-- 时间间隔滑块 (仅开启时显示) -->

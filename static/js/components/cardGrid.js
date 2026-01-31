@@ -47,7 +47,10 @@ export default function cardGrid() {
         init() {
             // 1. 监听全局搜索/筛选变化 (Reactivity Fix)
             // 使用 debounce 防止输入时频繁请求
-            this.$watch('$store.global.viewState.searchQuery', () => this.scheduleFetchCards('search'));
+            this.$watch('$store.global.viewState.searchQuery', () => {
+                this.currentPage = 1;
+                this.scheduleFetchCards('search');
+            });
             this.$watch('$store.global.viewState.searchType', () => { this.currentPage = 1; this.scheduleFetchCards('type'); });
             this.$watch('$store.global.viewState.filterCategory', () => { this.currentPage = 1; this.fetchCards(); });
             this.$watch('$store.global.viewState.filterTags', () => { this.currentPage = 1; this.fetchCards(); });
@@ -599,31 +602,31 @@ export default function cardGrid() {
                                     decisions: decisions
                                 })
                             })
-                            .then(cRes => cRes.json())
-                            .then(cRes => {
-                                this.$store.global.isLoading = false;
-                                if (cRes.success) {
-                                    // 成功提示
-                                    const cardName = cRes.new_cards[0] ? cRes.new_cards[0].char_name : item.filename;
-                                    this.$store.global.showToast(`✅ 已导入: ${cardName}`);
-                                    
-                                    // 触发事件以更新 UI (复用 batchImportModal 的事件逻辑)
-                                    window.dispatchEvent(new CustomEvent('batch-cards-imported', { 
-                                        detail: { cards: cRes.new_cards }
-                                    }));
-                                    
-                                    if (cRes.category_counts) {
-                                        this.$store.global.categoryCounts = cRes.category_counts;
+                                .then(cRes => cRes.json())
+                                .then(cRes => {
+                                    this.$store.global.isLoading = false;
+                                    if (cRes.success) {
+                                        // 成功提示
+                                        const cardName = cRes.new_cards[0] ? cRes.new_cards[0].char_name : item.filename;
+                                        this.$store.global.showToast(`✅ 已导入: ${cardName}`);
+
+                                        // 触发事件以更新 UI (复用 batchImportModal 的事件逻辑)
+                                        window.dispatchEvent(new CustomEvent('batch-cards-imported', {
+                                            detail: { cards: cRes.new_cards }
+                                        }));
+
+                                        if (cRes.category_counts) {
+                                            this.$store.global.categoryCounts = cRes.category_counts;
+                                        }
+                                    } else {
+                                        alert("导入失败: " + cRes.msg);
                                     }
-                                } else {
-                                    alert("导入失败: " + cRes.msg);
-                                }
-                            })
-                            .catch(err => {
-                                this.$store.global.isLoading = false;
-                                alert("提交失败: " + err);
-                            });
-                            
+                                })
+                                .catch(err => {
+                                    this.$store.global.isLoading = false;
+                                    alert("提交失败: " + err);
+                                });
+
                             return;
                         }
 

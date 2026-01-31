@@ -810,6 +810,21 @@ def api_send_to_st():
         
         # 目标 API
         target_url = f"{st_base_url}/api/characters/import"
+        
+        # === 代理设置逻辑 ===
+        proxy_setting = cfg.get('st_proxy', '').strip()
+        proxies = {}
+        if proxy_setting:
+            proxies = {
+                'http': proxy_setting,
+                'https': proxy_setting
+            }
+        else:
+            # 强制禁用代理 (绕过系统环境变量)
+            proxies = {
+                'http': None,
+                'https': None
+            }
 
         # 2. 检查文件
         rel_path = card_id.replace('/', os.sep)
@@ -876,6 +891,7 @@ def api_send_to_st():
                 target_url, 
                 files=files, 
                 data=data, 
+                proxies=proxies,
                 timeout=10, 
                 headers=auth_headers
             )

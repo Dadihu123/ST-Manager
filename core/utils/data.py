@@ -137,9 +137,25 @@ def normalize_card_v3(card_data):
     # 5. 特殊字段处理：extensions
     # 同上，extensions 应该主要在 data 中
     if 'extensions' in card_data:
+        # 确保 extensions 是字典
+        if not isinstance(card_data['extensions'], dict):
+             card_data['extensions'] = {}
+             
         if 'extensions' not in data_block:
             data_block['extensions'] = card_data['extensions']
-        # 删除 Root 中的 (除非你需要极度向后兼容 V1，但 V2/V3 通常只读 data)
+        
+        # 检查 tavern_helper 结构
+        # 如果 data_block['extensions'] 中有 tavern_helper
+        th = data_block['extensions'].get('tavern_helper')
+        if th:
+            # 无论是列表(旧版)还是字典(新版)，都保留原样
+            # 之前的代码可能强制将其重置，这里确保只做基本的空值处理
+            pass
+        else:
+            # 如果没有，初始化为空列表 (旧版兼容性)
+            # data_block['extensions']['tavern_helper'] = [] 
+            pass 
+            
         del card_data['extensions']
 
     # 6. 保留 Root 层的兼容字段 (根据你的 test测试用.json 样本)

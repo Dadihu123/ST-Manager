@@ -72,6 +72,8 @@ export function initState() {
         wiTotalItems: 0,
         wiTotalPages: 1,
 
+        extensionFilterType: 'all', // 'all', 'global', 'resource'
+
         availableRuleSets: [], // 规则集列表
         
         // 设置表单
@@ -81,7 +83,8 @@ export function initState() {
             st_url: 'http://127.0.0.1:8000', 
             st_username: '',
             st_password: '',
-            st_auth_type: 'basic', 
+            st_auth_type: 'basic',
+            st_proxy: '', 
             host: '127.0.0.1',
             port: 5000,
             items_per_page: 0,
@@ -185,6 +188,7 @@ export function initState() {
                         ...settings,
                         default_sort: localSort || settings.default_sort || 'date_desc',
                         st_auth_type: settings.st_auth_type || 'basic',
+                        st_proxy: settings.st_proxy || '',
                         items_per_page: localPerPage ? parseInt(localPerPage) : (settings.items_per_page || 0),
                         items_per_page_wi: localPerPageWi ? parseInt(localPerPageWi) : (settings.items_per_page_wi || 0)
                     };

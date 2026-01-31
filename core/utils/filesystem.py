@@ -235,3 +235,26 @@ def write_snapshot_file(src_path, dst_path, data, is_png, compact=False):
         except:
             pass
         return False
+
+def save_json_atomic(path, data):
+    """原子化保存 JSON，确保格式统一"""
+    try:
+        # 写入临时文件
+        temp_path = path + ".tmp"
+        with open(temp_path, 'w', encoding='utf-8') as f:
+            # indent=4 保持可读性
+            json.dump(data, f, ensure_ascii=False, indent=4)
+            
+        # 替换原文件 (原子操作)
+        if os.path.exists(path):
+            os.replace(temp_path, path)
+        else:
+            os.rename(temp_path, path)
+        return True
+    except Exception as e:
+        logger.error(f"Save JSON error: {e}")
+        print(f"Save JSON error: {e}")
+        if os.path.exists(temp_path):
+            try: os.remove(temp_path)
+            except: pass
+        return False

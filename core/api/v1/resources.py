@@ -16,7 +16,7 @@ from core.context import ctx
 from core.utils.image import (
     find_sidecar_image, get_default_card_image_path
 )
-from core.utils.filesystem import safe_move_to_trash, sanitize_filename
+from core.utils.filesystem import safe_move_to_trash, sanitize_filename, save_json_atomic
 
 from core.services.card_service import resolve_ui_key
 from core.data.ui_store import load_ui_data
@@ -251,43 +251,183 @@ def api_upload_card_resource():
         if ext == '.json':
             try:
                 content = file.read()
-                file.seek(0) # 重置指针
-                data = json.loads(content)
-                # 简单的特征检测
-                if isinstance(data, dict) and ('entries' in data or 'keys' in data):
-                    is_lorebook = True
-                elif isinstance(data, list) and len(data) > 0 and 'keys' in data[0]:
-                    is_lorebook = True
-            except:
-                pass # 解析失败则视为普通文件
+                file.seek(0)
+                try:
+                    data = json.loads(content)
+                except:
+                    data = {} # 解析失败，视为普通文件放根目录
 
-        if is_lorebook:
-            sub_dir = "lorebooks"
-        
+                # A. 正则脚本特征: 包含 'findRegex'
+                if isinstance(data, dict) and ('findRegex' in data or 'regex' in data):
+                    sub_dir = "extensions/regex"
+                
+                # B. ST 脚本 (Tavern Helper)
+                # 兼容旧版 (list) 和 新版 (dict type='script')
+                elif (isinstance(data, dict) and (data.get('type') == 'script' or 'scripts' in data)) or \
+                     (isinstance(data, list) and len(data) > 0 and isinstance(data[0], str) and data[0] == 'scripts'):
+                    sub_dir = "extensions/tavern_helper"
+                
+                # C. 世界书
+                elif (isinstance(data, dict) and ('entries' in data)) or \
+                     (isinstance(data, list) and len(data) > 0 and ('keys' in data[0] or 'key' in data[0])):
+                    sub_dir = "lorebooks"
+                    is_lorebook = True
+                
+                # D. 兜底: 无法识别的 JSON 放在根目录，或者你可以指定一个 'misc' 目录
+                else:
+                    sub_dir = "" 
+            except Exception as e:
+                print(f"JSON detection failed: {e}")
+                sub_dir = "" 
+
         # 3. 构建最终路径
-        final_dir = os.path.join(target_base_dir, sub_dir)
+        final_dir = os.path.join(target_base_dir, sub_dir.replace('/', os.sep))
         if not os.path.exists(final_dir):
             os.makedirs(final_dir)
             
         save_path = os.path.join(final_dir, filename)
         
-        # 防重名 (Auto Increment)
+        # 4. 防重名 (Auto Increment)
         name_part, ext_part = os.path.splitext(filename)
         counter = 1
         while os.path.exists(save_path):
             save_path = os.path.join(final_dir, f"{name_part}_{counter}{ext_part}")
             counter += 1
             
-        # 4. 保存
+        # 5. 保存文件
         file.save(save_path)
         
         return jsonify({
             "success": True, 
-            "msg": f"已上传至 {sub_dir if sub_dir else '根目录'}",
+            "msg": f"已存入 {sub_dir if sub_dir else '根目录'}",
             "filename": os.path.basename(save_path),
-            "is_lorebook": is_lorebook
+            "is_lorebook": is_lorebook,
+            "category": sub_dir
         })
 
     except Exception as e:
-        logger.error(f"Resource upload error: {e}")
+        logger.error(f"Resource upload error: {e}") 
+        return jsonify({"success": False, "msg": str(e)})
+    
+@bp.route('/api/scripts/save', methods=['POST'])
+def api_save_script_file():
+    """
+    保存独立的 Regex 或 ST Helper 脚本文件 (.json)
+    """
+    try:
+        data = request.json
+        file_path = data.get('file_path')
+        content = data.get('content')
+
+        if not file_path or content is None:
+            return jsonify({"success": False, "msg": "参数缺失"})
+
+        # 1. 安全性检查：防止路径遍历
+        # 确保 file_path 是绝对路径或相对于 BASE_DIR
+        if not os.path.isabs(file_path):
+            abs_path = os.path.abspath(os.path.join(BASE_DIR, file_path))
+        else:
+            abs_path = os.path.abspath(file_path)
+
+        base_abs = os.path.abspath(BASE_DIR)
+        
+        # 检查目标路径是否在 BASE_DIR 范围内
+        if not abs_path.startswith(base_abs):
+            return jsonify({"success": False, "msg": "非法路径：禁止访问程序目录之外的文件"})
+
+        # 2. 检查文件扩展名
+        if not abs_path.lower().endswith('.json'):
+            return jsonify({"success": False, "msg": "非法文件类型：仅支持 .json"})
+
+        # 3. 检查目录是否存在
+        parent_dir = os.path.dirname(abs_path)
+        if not os.path.exists(parent_dir):
+            return jsonify({"success": False, "msg": f"目标目录不存在: {parent_dir}"})
+
+        # 4. 执行原子写入
+        # 使用 save_json_atomic 确保写入过程不会因为中断导致文件损坏
+        if save_json_atomic(abs_path, content):
+            return jsonify({"success": True, "path": abs_path})
+        else:
+            return jsonify({"success": False, "msg": "写入文件失败"})
+
+    except Exception as e:
+        logger.error(f"Save script error: {e}")
+        return jsonify({"success": False, "msg": str(e)})
+    
+@bp.route('/api/list_resource_files', methods=['POST'])
+def api_list_resource_files():
+    """
+    列出资源目录下的所有分类文件 (皮肤、世界书、正则、脚本)。
+    返回包含路径的分类列表。
+    """
+    try:
+        folder_name = request.json.get('folder_name')
+        if not folder_name:
+            return jsonify({"success": False, "msg": "folder_name is required"})
+
+        cfg = load_config()
+        # 资源根目录
+        res_root = os.path.join(BASE_DIR, cfg.get('resources_dir', 'data/assets/card_assets'))
+        
+        # 目标资源目录 (支持绝对路径或相对路径)
+        if os.path.isabs(folder_name):
+            target_dir = folder_name
+        else:
+            target_dir = os.path.join(res_root, folder_name)
+
+        if not os.path.exists(target_dir):
+            return jsonify({"success": True, "files": {"skins": [], "lorebooks": [], "regex": [], "scripts": []}})
+
+        result = {
+            "skins": [],
+            "lorebooks": [],
+            "regex": [],
+            "scripts": []
+        }
+
+        # 1. 扫描根目录获取皮肤 (Skins)
+        valid_img_exts = {'.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp'}
+        try:
+            for f in os.listdir(target_dir):
+                full_p = os.path.join(target_dir, f)
+                if os.path.isfile(full_p):
+                    ext = os.path.splitext(f)[1].lower()
+                    if ext in valid_img_exts:
+                        result["skins"].append(f) # 皮肤只存文件名，前端自己拼 URL
+        except: pass
+
+        # 2. 扫描子目录获取逻辑文件 (Lorebooks, Regex, Scripts)
+        # 定义子目录映射关系
+        sub_map = {
+            'lorebooks': 'lorebooks',
+            'regex': 'extensions/regex',
+            'scripts': 'extensions/tavern_helper'
+        }
+
+        for category, sub_name in sub_map.items():
+            sub_dir_path = os.path.join(target_dir, sub_name.replace('/', os.sep))
+            if os.path.exists(sub_dir_path):
+                try:
+                    for f in os.listdir(sub_dir_path):
+                        if f.lower().endswith('.json'):
+                            full_p = os.path.join(sub_dir_path, f)
+                            rel_path = os.path.relpath(full_p, BASE_DIR)
+                            
+                            result[category].append({
+                                "name": f,
+                                "path": rel_path, # data/assets/.../regex/abc.json
+                                "mtime": os.path.getmtime(full_p)
+                            })
+                except: pass
+        
+        # 排序
+        result["skins"].sort()
+        for key in ["lorebooks", "regex", "scripts"]:
+            result[key].sort(key=lambda x: x["name"])
+
+        return jsonify({"success": True, "files": result})
+
+    except Exception as e:
+        logger.error(f"List resource files error: {e}")
         return jsonify({"success": False, "msg": str(e)})

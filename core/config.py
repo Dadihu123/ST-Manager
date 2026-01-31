@@ -34,8 +34,10 @@ for d in [DATA_DIR, SYSTEM_DIR, DB_FOLDER, THUMB_FOLDER, TRASH_FOLDER, TEMP_DIR]
 
 # 默认配置
 DEFAULT_CONFIG = {
-    "cards_dir": "data/library/characters",  # 默认为相对路径 'cards'
+    "cards_dir": "data/library/characters",
     "world_info_dir": "data/library/lorebooks",
+    "regex_dir": "data/library/extensions/regex",
+    "scripts_dir": "data/library/extensions/tavern_helper",
     "default_sort": "date_desc",
     "theme_accent": "blue",
     "host": "127.0.0.1",
@@ -45,6 +47,7 @@ DEFAULT_CONFIG = {
     "st_auth_type": "basic",  # 'basic' or 'web'
     "st_username": "",
     "st_password": "",
+    "st_proxy": "",
     "items_per_page": 0,
     "items_per_page_wi": 0,
     "dark_mode": True,
