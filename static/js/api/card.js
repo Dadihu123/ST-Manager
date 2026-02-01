@@ -61,12 +61,22 @@ export async function updateCardFileFromUrl(payload) {
     return res.json();
 }
 
-// 删除角色卡
-export async function deleteCards(ids) {
-    const res = await fetch('/api/delete_cards', {
+// 检查角色卡是否有资源目录
+export async function checkResourceFolders(ids) {
+    const res = await fetch('/api/check_resource_folders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ card_ids: ids })
+    });
+    return res.json();
+}
+
+// 删除角色卡
+export async function deleteCards(ids, deleteResources = false) {
+    const res = await fetch('/api/delete_cards', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ card_ids: ids, delete_resources: deleteResources })
     });
     return res.json();
 }

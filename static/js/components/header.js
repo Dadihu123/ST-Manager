@@ -206,17 +206,35 @@ export default function header() {
             }));
         },
 
-        deleteSelectedCards() {
+        async deleteSelectedCards() {
             const ids = this.selectedIds;
             if (ids.length === 0) return;
 
             // 复用 CardGrid 的删除逻辑不太方便，建议直接调用 API
-            import('../api/card.js').then(module => {
-                const { deleteCards } = module;
+            import('../api/card.js').then(async module => {
+                const { deleteCards, checkResourceFolders } = module;
 
                 if (!confirm(`确定将选中的 ${ids.length} 张卡片移至回收站吗？`)) return;
 
-                deleteCards(ids).then(res => {
+                // 检查是否有资源目录需要确认
+                const checkRes = await checkResourceFolders(ids);
+                let deleteResources = false;
+                
+                if (checkRes.success && checkRes.has_resources) {
+                    const folders = checkRes.resource_folders;
+                    let resourceMsg = `⚠️ 检测到以下角色卡关联了资源目录：\n\n`;
+                    
+                    folders.forEach(item => {
+                        resourceMsg += `📁 ${item.card_name}\n   资源目录: ${item.resource_folder}\n\n`;
+                    });
+                    
+                    resourceMsg += `是否连带删除这些资源目录？\n`;
+                    resourceMsg += `（注意：如果资源目录包含重要文件，建议选择"取消"保留目录）`;
+                    
+                    deleteResources = confirm(resourceMsg);
+                }
+
+                deleteCards(ids, deleteResources).then(res => {
                     if (res.success) {
                         this.$store.global.showToast(`🗑️ 已删除 ${ids.length} 张卡片`);
                         this.selectedIds = []; // 清空 Store

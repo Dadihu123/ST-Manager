@@ -326,7 +326,7 @@ export default function detailModal() {
         },
 
         // 删除当前卡片
-        deleteCards(ids) {
+        async deleteCards(ids) {
             if (!ids || ids.length === 0) return;
             
             let confirmMsg = "";
@@ -338,8 +338,26 @@ export default function detailModal() {
                 
             if (!confirm(confirmMsg)) return;
 
-            import('../api/card.js').then(module => {
-                module.deleteCards(ids).then(res => {
+            import('../api/card.js').then(async module => {
+                // 检查是否有资源目录需要确认
+                const checkRes = await module.checkResourceFolders(ids);
+                let deleteResources = false;
+                
+                if (checkRes.success && checkRes.has_resources) {
+                    const folders = checkRes.resource_folders;
+                    let resourceMsg = `⚠️ 检测到以下角色卡关联了资源目录：\n\n`;
+                    
+                    folders.forEach(item => {
+                        resourceMsg += `📁 ${item.card_name}\n   资源目录: ${item.resource_folder}\n\n`;
+                    });
+                    
+                    resourceMsg += `是否连带删除这些资源目录？\n`;
+                    resourceMsg += `（注意：如果资源目录包含重要文件，建议选择"取消"保留目录）`;
+                    
+                    deleteResources = confirm(resourceMsg);
+                }
+                
+                module.deleteCards(ids, deleteResources).then(res => {
                     if (res.success) {
                         this.$store.global.showToast("🗑️ 已移至回收站");
                         this.showDetail = false;

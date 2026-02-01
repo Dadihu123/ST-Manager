@@ -822,12 +822,58 @@ def api_move_card():
     except Exception as e:
         return jsonify({"success": False, "msg": str(e)})
 
+@bp.route('/api/check_resource_folders', methods=['POST'])
+def api_check_resource_folders():
+    """
+    检查指定角色卡是否有关联的资源目录
+    返回需要确认的资源目录列表
+    """
+    try:
+        card_ids = request.json.get('card_ids', [])
+        if not card_ids:
+            return jsonify({"success": False, "msg": "未选择文件"})
+        
+        cfg = load_config()
+        resources_dir = os.path.join(BASE_DIR, cfg.get('resources_dir', 'data/assets/card_assets'))
+        ui_data = load_ui_data()
+        cache_map = ctx.cache.id_map
+        
+        resource_folders = []
+        
+        for cid in card_ids:
+            ui_key = resolve_ui_key(cid)
+            if ui_key in ui_data and 'resource_folder' in ui_data[ui_key]:
+                resource_folder_name = ui_data[ui_key]['resource_folder']
+                resource_folder_path = os.path.join(resources_dir, resource_folder_name)
+                if os.path.exists(resource_folder_path):
+                    # 获取资源目录信息
+                    card_info = cache_map.get(cid, {})
+                    resource_folders.append({
+                        'card_id': cid,
+                        'card_name': card_info.get('char_name', '未知角色'),
+                        'resource_folder': resource_folder_name,
+                        'resource_path': resource_folder_path
+                    })
+        
+        return jsonify({
+            "success": True,
+            "has_resources": len(resource_folders) > 0,
+            "resource_folders": resource_folders,
+            "total_cards": len(card_ids),
+            "cards_with_resources": len(resource_folders)
+        })
+    except Exception as e:
+        return jsonify({"success": False, "msg": str(e)})
+
+
 @bp.route('/api/delete_cards', methods=['POST'])
 def api_delete_cards():
     try:
         # 批量 move 到回收站 / 删除文件夹，抑制 watchdog
         suppress_fs_events(5.0)
         card_ids = request.json.get('card_ids', [])
+        delete_resources = request.json.get('delete_resources', False)
+        
         if not card_ids:
             return jsonify({"success": False, "msg": "未选择文件"})
 
@@ -840,6 +886,10 @@ def api_delete_cards():
         cursor = conn.cursor()
 
         cache_map = ctx.cache.id_map
+        
+        # 获取资源目录配置
+        cfg = load_config()
+        resources_dir = os.path.join(BASE_DIR, cfg.get('resources_dir', 'data/assets/card_assets'))
 
         for cid in card_ids:
             card_info = cache_map.get(cid)
@@ -853,6 +903,20 @@ def api_delete_cards():
                 bundle_dir = card_info.get('bundle_dir', '')
             
             is_deleted = False
+            
+            # 获取 UI key 以查找资源目录
+            ui_key = resolve_ui_key(cid)
+            
+            # 如果用户确认删除资源目录，先删除资源目录
+            if delete_resources:
+                if ui_key in ui_data and 'resource_folder' in ui_data[ui_key]:
+                    resource_folder_name = ui_data[ui_key]['resource_folder']
+                    resource_folder_path = os.path.join(resources_dir, resource_folder_name)
+                    if os.path.exists(resource_folder_path):
+                        if safe_move_to_trash(resource_folder_path, TRASH_FOLDER):
+                            print(f"Moved resource folder to trash: {resource_folder_path}")
+                        else:
+                            print(f"Failed to move resource folder to trash: {resource_folder_path}")
 
             if is_bundle:
                 # === 包模式：删除文件夹 ===
