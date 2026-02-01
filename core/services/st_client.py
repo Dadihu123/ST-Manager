@@ -106,9 +106,14 @@ class STClient:
         # 允许传入根目录 / data / default-user
         normalized = os.path.normpath(path)
         indicators = [
+            os.path.join(normalized, "data"),
             os.path.join(normalized, "data", "default-user"),
             os.path.join(normalized, "public"),
             os.path.join(normalized, "server.js"),
+            os.path.join(normalized, "start.sh"),
+            os.path.join(normalized, "Start.bat"),
+            os.path.join(normalized, "package.json"),
+            os.path.join(normalized, "config.yaml"),
             os.path.join(normalized, "settings.json"),
             os.path.join(normalized, "characters"),
             os.path.join(normalized, "worlds"),
@@ -122,6 +127,23 @@ class STClient:
                 return True
         except Exception:
             pass
+
+        # 允许传入 data 目录或安装根目录，但用户目录非 default-user
+        data_dir = normalized
+        if os.path.basename(normalized).lower() != "data":
+            data_dir = os.path.join(normalized, "data")
+        if os.path.exists(data_dir) and os.path.isdir(data_dir):
+            try:
+                for entry in os.listdir(data_dir):
+                    entry_path = os.path.join(data_dir, entry)
+                    if not os.path.isdir(entry_path):
+                        continue
+                    if os.path.exists(os.path.join(entry_path, "settings.json")):
+                        return True
+                    if os.path.exists(os.path.join(entry_path, "characters")) or os.path.exists(os.path.join(entry_path, "worlds")):
+                        return True
+            except Exception:
+                pass
         return False
 
     def _first_existing_path(self, candidates: List[str], want_dir: bool = True) -> Optional[str]:
@@ -149,10 +171,40 @@ class STClient:
         roots = []
         if self.st_data_dir:
             roots.append(self.st_data_dir)
-        detected = self.detect_st_path()
-        if detected:
-            roots.append(detected)
+        # 已手动指定路径时，不再触发自动探测以避免误报日志
+        if not self.st_data_dir:
+            detected = self.detect_st_path()
+            if detected:
+                roots.append(detected)
         return roots
+
+    def _find_user_dir_from_data_dir(self, data_dir: str) -> Optional[str]:
+        if not data_dir or not os.path.exists(data_dir) or not os.path.isdir(data_dir):
+            return None
+        try:
+            default_user = os.path.join(data_dir, "default-user")
+            if os.path.exists(default_user) and os.path.isdir(default_user):
+                return default_user
+            # 选择最可能的用户目录：优先 settings.json，其次资源子目录数量
+            candidates = []
+            for name in os.listdir(data_dir):
+                user_path = os.path.join(data_dir, name)
+                if not os.path.isdir(user_path):
+                    continue
+                score = 0
+                if os.path.exists(os.path.join(user_path, "settings.json")):
+                    score += 5
+                for sub in ["characters", "worlds", "OpenAI Settings", "presets", "regex", "QuickReplies", "scripts"]:
+                    if os.path.exists(os.path.join(user_path, sub)):
+                        score += 1
+                if score > 0:
+                    candidates.append((score, user_path))
+            if candidates:
+                candidates.sort(key=lambda x: (-x[0], x[1]))
+                return candidates[0][1]
+        except Exception:
+            return None
+        return None
 
     def _normalize_default_user_dir(self, path: str) -> Optional[str]:
         if not path:
@@ -166,9 +218,23 @@ class STClient:
             base = os.path.basename(normalized).lower()
             if base == "default-user":
                 return normalized
+            # 已是用户目录（自定义用户名）
+            if os.path.exists(os.path.join(normalized, "settings.json")):
+                return normalized
+            if os.path.exists(os.path.join(normalized, "characters")) or os.path.exists(os.path.join(normalized, "worlds")):
+                return normalized
             if base == "data":
-                return os.path.join(normalized, "default-user")
-            return os.path.join(normalized, "data", "default-user")
+                detected_user = self._find_user_dir_from_data_dir(normalized)
+                return detected_user or os.path.join(normalized, "default-user")
+            # 视为根目录
+            data_dir = os.path.join(normalized, "data")
+            if not os.path.exists(data_dir):
+                parent = os.path.dirname(normalized)
+                parent_data = os.path.join(parent, "data")
+                if os.path.exists(parent_data):
+                    data_dir = parent_data
+            detected_user = self._find_user_dir_from_data_dir(data_dir)
+            return detected_user or os.path.join(data_dir, "default-user")
         except Exception:
             return None
 
