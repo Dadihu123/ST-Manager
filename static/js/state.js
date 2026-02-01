@@ -77,6 +77,7 @@ export function initState() {
         // 预设筛选状态
         presetFilterType: 'all', // 'all', 'global', 'resource'
         presetSearch: '',
+        extensionSearch: '',
 
         availableRuleSets: [], // 规则集列表
         

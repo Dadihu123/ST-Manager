@@ -41,6 +41,7 @@ def list_extensions():
     """
     mode = request.args.get('mode', 'regex')
     filter_type = request.args.get('filter_type', 'all')
+    search = request.args.get('search', '').strip().lower()
     
     items = []
     regex_global_root, scripts_global_root, qr_global_root = _get_paths()
@@ -73,14 +74,19 @@ def list_extensions():
                                 # 旧版 ST 脚本可能是列表，通常没有顶层名字，用文件名
                                 name = f
                                 
-                            items.append({
+                            item = {
                                 "id": f"global::{f}",
                                 "name": name,
                                 "filename": f,
                                 "type": "global",
                                 "path": os.path.relpath(full_path, BASE_DIR),
                                 "mtime": os.path.getmtime(full_path)
-                            })
+                            }
+                            if search:
+                                haystack = f"{item.get('name','')} {item.get('filename','')}".lower()
+                                if search not in haystack:
+                                    continue
+                            items.append(item)
                     except: pass
 
     # 2. 扫描资源目录
@@ -105,7 +111,7 @@ def list_extensions():
                                         if isinstance(data, dict):
                                             name = data.get('scriptName') or data.get('name') or f
                                         
-                                        items.append({
+                                        item = {
                                             "id": f"resource::{folder}::{f}",
                                             "name": name,
                                             "filename": f,
@@ -113,7 +119,12 @@ def list_extensions():
                                             "source_folder": folder,
                                             "path": os.path.relpath(full_path, BASE_DIR),
                                             "mtime": os.path.getmtime(full_path)
-                                        })
+                                        }
+                                        if search:
+                                            haystack = f"{item.get('name','')} {item.get('filename','')} {item.get('source_folder','')}".lower()
+                                            if search not in haystack:
+                                                continue
+                                        items.append(item)
                                 except: pass
             except Exception as e:
                 logger.error(f"Error scanning resource extensions: {e}")

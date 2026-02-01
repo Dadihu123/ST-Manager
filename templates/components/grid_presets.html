@@ -198,14 +198,43 @@
                             <div class="text-sm text-[var(--text-main)]" x-text="selectedPreset.description"></div>
                         </div>
 
-                        <!-- Prompts 统计 -->
-                        <div x-show="selectedPreset.prompt_count > 0" class="bg-[var(--bg-sub)] p-4 rounded-lg">
-                            <div class="flex items-center justify-between mb-2">
+                        <!-- Prompts 列表 -->
+                        <div x-show="selectedPreset.prompts && selectedPreset.prompts.length > 0" class="bg-[var(--bg-sub)] p-4 rounded-lg">
+                            <div class="flex items-center justify-between mb-3">
                                 <div class="text-xs text-[var(--text-dim)] uppercase">Prompts</div>
                                 <span class="px-2 py-0.5 text-xs bg-purple-500/20 text-purple-300 rounded" 
                                     x-text="selectedPreset.prompt_count + ' 条'"></span>
                             </div>
-                            <div class="text-xs text-[var(--text-dim)]">此预设包含 prompt 配置，可在原始数据中查看详情。</div>
+                            <div class="space-y-3 max-h-[420px] overflow-y-auto custom-scrollbar pr-1">
+                                <template x-for="(prompt, idx) in normalizePrompts(selectedPreset.prompts)" :key="prompt.key">
+                                    <div class="bg-[var(--bg-panel)]/70 p-3 rounded-lg border border-[var(--border-light)]" x-data="{ open: false }">
+                                        <div class="flex items-center gap-2 mb-2 cursor-pointer" @click="open = !open">
+                                            <span class="text-purple-400">💬</span>
+                                            <span class="font-medium text-sm text-[var(--text-main)]" x-text="prompt.name"></span>
+                                            <span x-show="prompt.enabled === false" class="px-1.5 py-0.5 text-[10px] bg-red-500/20 text-red-300 rounded">禁用</span>
+                                            <span class="ml-auto text-xs text-[var(--text-dim)]" x-text="open ? '收起' : '展开'"></span>
+                                        </div>
+                                        <div x-show="open && prompt.meta && prompt.meta.length > 0" class="flex flex-wrap gap-2 mb-2">
+                                            <template x-for="(tag, tIdx) in prompt.meta" :key="tIdx">
+                                                <span class="px-2 py-0.5 text-[10px] bg-white/5 text-[var(--text-dim)] border border-[var(--border-light)] rounded"
+                                                    x-text="tag"></span>
+                                            </template>
+                                        </div>
+                                        <div x-show="open && prompt.content" class="font-mono text-xs bg-black/30 p-2 rounded whitespace-pre-wrap break-words max-h-64 overflow-y-auto">
+                                            <span x-text="prompt.content"></span>
+                                        </div>
+                                        <div x-show="open && !prompt.content" class="text-xs text-[var(--text-dim)]">
+                                            该条目未包含文本内容（可能仅保存顺序或引用）。
+                                        </div>
+                                        <div x-show="!open && prompt.content" class="text-xs text-[var(--text-dim)] line-clamp-2">
+                                            <span x-text="prompt.content"></span>
+                                        </div>
+                                        <div x-show="!open && !prompt.content" class="text-xs text-[var(--text-dim)]">
+                                            该条目未包含文本内容（可能仅保存顺序或引用）。
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
                         </div>
 
                         <!-- 绑定的正则 -->
@@ -217,17 +246,22 @@
                             </div>
                             <div class="space-y-2">
                                 <template x-for="(regex, idx) in selectedPreset.regexes" :key="idx">
-                                    <div class="bg-[var(--bg-sub)] p-3 rounded-lg border border-[var(--border-light)]">
-                                        <div class="flex items-center gap-2 mb-2">
+                                    <div class="bg-[var(--bg-sub)] p-3 rounded-lg border border-[var(--border-light)]" x-data="{ open: false }">
+                                        <div class="flex items-center gap-2 mb-2 cursor-pointer" @click="open = !open">
                                             <span class="text-green-400">🧩</span>
                                             <span class="font-medium text-sm text-[var(--text-main)]" x-text="regex.name"></span>
                                             <span x-show="!regex.enabled" class="px-1.5 py-0.5 text-[10px] bg-red-500/20 text-red-300 rounded">禁用</span>
+                                            <span class="ml-auto text-xs text-[var(--text-dim)]" x-text="open ? '收起' : '展开'"></span>
                                         </div>
-                                        <div x-show="regex.description" class="text-xs text-[var(--text-dim)] mb-2" x-text="regex.description"></div>
-                                        <div class="font-mono text-xs bg-black/30 p-2 rounded overflow-x-auto">
+                                        <div x-show="open && regex.description" class="text-xs text-[var(--text-dim)] mb-2" x-text="regex.description"></div>
+                                        <div class="font-mono text-xs bg-black/30 p-2 rounded overflow-x-auto"
+                                            :class="open ? 'whitespace-pre-wrap break-words' : 'truncate'">
                                             <span class="text-blue-400">/<span x-text="regex.pattern"></span>/</span><span class="text-yellow-400" x-text="regex.flags"></span>
                                         </div>
-                                        <div x-show="regex.replace" class="mt-1 font-mono text-xs text-green-400">
+                                        <div x-show="open && regex.replace" class="mt-1 font-mono text-xs text-green-400">
+                                            → <span x-text="regex.replace"></span>
+                                        </div>
+                                        <div x-show="!open && regex.replace" class="mt-1 font-mono text-xs text-[var(--text-dim)] truncate">
                                             → <span x-text="regex.replace"></span>
                                         </div>
                                     </div>

@@ -61,6 +61,47 @@ def _extract_regex_from_preset(data):
     """
     return extract_regex_from_preset_data(data)
 
+def _normalize_prompts(data):
+    prompts = data.get('prompts')
+    prompt_order = data.get('prompt_order')
+
+    if isinstance(prompts, list):
+        return prompts
+
+    if isinstance(prompts, dict):
+        if isinstance(prompt_order, list):
+            ordered = []
+            order_set = set()
+            for key in prompt_order:
+                order_set.add(key)
+                item = prompts.get(key)
+                if isinstance(item, dict):
+                    if 'name' not in item:
+                        item = {**item, 'name': key}
+                    ordered.append(item)
+                else:
+                    ordered.append({'name': str(key)})
+            for key, item in prompts.items():
+                if key in order_set:
+                    continue
+                if isinstance(item, dict):
+                    if 'name' not in item:
+                        item = {**item, 'name': key}
+                    ordered.append(item)
+                else:
+                    ordered.append({'name': str(key)})
+            return ordered
+
+        return [
+            ({**item, 'name': key} if isinstance(item, dict) and 'name' not in item else item)
+            for key, item in prompts.items()
+        ]
+
+    if isinstance(prompt_order, list):
+        return prompt_order
+
+    return []
+
 
 def _parse_preset_file(file_path, filename):
     """
@@ -85,7 +126,7 @@ def _parse_preset_file(file_path, filename):
         presence_penalty = data.get('presence_penalty') or data.get('pres_pen')
         
         # 提取 prompts
-        prompts = data.get('prompts') or data.get('prompt_order') or []
+        prompts = _normalize_prompts(data)
         prompt_count = len(prompts) if isinstance(prompts, list) else 0
         
         # 提取绑定的正则

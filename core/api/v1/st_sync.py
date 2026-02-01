@@ -62,36 +62,82 @@ def _export_global_regex(settings_path: str, target_dir: str) -> Dict[str, Any]:
 
     os.makedirs(target_dir, exist_ok=True)
 
-    # 清理旧的全局导出文件（仅删除标记为本程序导出的）
+    def _signature(payload: Dict[str, Any]) -> str:
+        sanitized = dict(payload)
+        sanitized.pop('__source', None)
+        try:
+            return json.dumps(sanitized, sort_keys=True, ensure_ascii=False)
+        except Exception:
+            return str(sanitized)
+
+    existing_exports = {}
+    existing_filenames = set()
     try:
         for f in os.listdir(target_dir):
             if not (f.startswith("global__") and f.lower().endswith('.json')):
                 continue
             file_path = os.path.join(target_dir, f)
+            existing_filenames.add(f)
             try:
                 with open(file_path, 'r', encoding='utf-8') as rf:
                     data = json.load(rf)
-                if isinstance(data, dict) and data.get('__source') == 'settings.json':
-                    os.remove(file_path)
+                if not (isinstance(data, dict) and data.get('__source') == 'settings.json'):
+                    continue
+                name = data.get('scriptName') or data.get('name')
+                if not name:
+                    base = os.path.splitext(f)[0]
+                    if base.startswith('global__'):
+                        base = base[len('global__'):]
+                    name = base.lstrip('_- ') or f
+                name = str(name).strip()
+                sig = _signature(data)
+                existing_exports.setdefault(name, []).append({
+                    "path": file_path,
+                    "filename": f,
+                    "signature": sig
+                })
             except Exception:
                 continue
     except Exception:
         pass
 
+    def _unique_filename(base_name: str) -> str:
+        safe_name = sanitize_filename(str(base_name)) or 'global'
+        candidate = f"global__{safe_name}.json"
+        if candidate not in existing_filenames and not os.path.exists(os.path.join(target_dir, candidate)):
+            existing_filenames.add(candidate)
+            return candidate
+        idx = 1
+        while True:
+            candidate = f"global__{safe_name}__{idx}.json"
+            if candidate not in existing_filenames and not os.path.exists(os.path.join(target_dir, candidate)):
+                existing_filenames.add(candidate)
+                return candidate
+            idx += 1
+
     for idx, item in enumerate(regex_items):
         try:
             name = item.get('scriptName') or item.get('name') or f"global_{idx + 1}"
-            safe_name = sanitize_filename(str(name))
-            filename = f"global__{idx + 1}_{safe_name}.json"
-            file_path = os.path.join(target_dir, filename)
             payload = dict(item)
             if not payload.get('scriptName'):
                 payload['scriptName'] = name
             payload.setdefault('__source', 'settings.json')
+            signature = _signature(payload)
+
+            file_path = None
+            for entry in existing_exports.get(str(name).strip(), []):
+                if entry.get('signature') == signature:
+                    file_path = entry.get('path')
+                    break
+
+            if not file_path:
+                filename = _unique_filename(name)
+                file_path = os.path.join(target_dir, filename)
+
             with open(file_path, 'w', encoding='utf-8') as f:
                 json.dump(payload, f, ensure_ascii=False, indent=2)
             result["success"] += 1
-            result["files"].append(filename)
+            result["files"].append(os.path.basename(file_path))
         except Exception as e:
             logger.warning(f"写入全局正则文件失败: {e}")
             result["failed"] += 1

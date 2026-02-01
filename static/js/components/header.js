@@ -17,6 +17,12 @@ export default function header() {
         get wiSearchQuery() { return this.$store.global.wiSearchQuery; },
         set wiSearchQuery(val) { this.$store.global.wiSearchQuery = val; },
 
+        get presetSearch() { return this.$store.global.presetSearch; },
+        set presetSearch(val) { this.$store.global.presetSearch = val; },
+
+        get extensionSearch() { return this.$store.global.extensionSearch; },
+        set extensionSearch(val) { this.$store.global.extensionSearch = val; },
+
         get searchType() { return this.$store.global.viewState.searchType; },
         set searchType(val) { this.$store.global.viewState.searchType = val; },
 

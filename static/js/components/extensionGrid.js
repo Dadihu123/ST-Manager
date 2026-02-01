@@ -23,6 +23,13 @@ export default function extensionGrid() {
             this.$watch('$store.global.extensionFilterType', () => {
                 this.fetchItems();
             });
+
+            // 监听搜索关键词变化
+            this.$watch('$store.global.extensionSearch', () => {
+                if (['regex', 'scripts', 'quick_replies'].includes(this.$store.global.currentMode)) {
+                    this.fetchItems();
+                }
+            });
             
             // 初始加载
             if (['regex', 'scripts', 'quick_replies'].includes(this.$store.global.currentMode)) {
@@ -34,7 +41,12 @@ export default function extensionGrid() {
         fetchItems() {
             this.isLoading = true;
             const filterType = this.$store.global.extensionFilterType || 'all';
-            fetch(`/api/extensions/list?mode=${this.currentMode}&filter_type=${filterType}`)
+            const search = this.$store.global.extensionSearch || '';
+            let url = `/api/extensions/list?mode=${this.currentMode}&filter_type=${filterType}`;
+            if (search) {
+                url += `&search=${encodeURIComponent(search)}`;
+            }
+            fetch(url)
                 .then(res => res.json())
                 .then(res => {
                     this.items = res.items || [];

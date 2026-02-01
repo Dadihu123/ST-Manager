@@ -26,6 +26,13 @@ export default function presetGrid() {
                     this.fetchItems();
                 }
             });
+
+            // 监听搜索关键词变化
+            this.$watch('$store.global.presetSearch', () => {
+                if (this.$store.global.currentMode === 'presets') {
+                    this.fetchItems();
+                }
+            });
             
             // 初始加载
             if (this.$store.global.currentMode === 'presets') {
@@ -169,6 +176,126 @@ export default function presetGrid() {
                 return Number.isInteger(val) ? val : val.toFixed(2);
             }
             return val;
+        },
+
+        formatPromptContent(val) {
+            if (val === null || val === undefined) return '';
+            if (typeof val === 'string') return val;
+            try {
+                return JSON.stringify(val, null, 2);
+            } catch (e) {
+                return String(val);
+            }
+        },
+
+        pickPromptContent(prompt) {
+            const candidates = [
+                'content', 'prompt', 'text', 'value', 'system_prompt', 'system',
+                'message', 'injection', 'body', 'template'
+            ];
+            for (const key of candidates) {
+                if (prompt && Object.prototype.hasOwnProperty.call(prompt, key)) {
+                    const val = prompt[key];
+                    if (val !== null && val !== undefined && val !== '') {
+                        return val;
+                    }
+                }
+            }
+            return '';
+        },
+
+        collectPromptMeta(prompt) {
+            const meta = [];
+            const pushMeta = (label, value) => {
+                if (value === null || value === undefined || value === '') return;
+                meta.push(`${label}: ${value}`);
+            };
+
+            if (!prompt || typeof prompt !== 'object') return meta;
+
+            pushMeta('role', prompt.role);
+            pushMeta('type', prompt.type || prompt.kind || prompt.mode);
+            pushMeta('position', prompt.position || prompt.insertion_position || prompt.insert_position);
+            pushMeta('depth', prompt.depth);
+            pushMeta('priority', prompt.priority);
+            pushMeta('order', prompt.order);
+
+            return meta;
+        },
+
+        normalizePrompts(list) {
+            if (!Array.isArray(list)) return [];
+
+            return list.map((prompt, idx) => {
+                const defaultName = `Prompt ${idx + 1}`;
+
+                if (prompt === null || prompt === undefined) {
+                    return {
+                        key: `prompt-${idx}`,
+                        name: defaultName,
+                        content: '',
+                        enabled: true,
+                        meta: [],
+                        isReference: true
+                    };
+                }
+
+                if (typeof prompt === 'string' || typeof prompt === 'number') {
+                    return {
+                        key: `prompt-${idx}-${prompt}`,
+                        name: String(prompt),
+                        content: '',
+                        enabled: true,
+                        meta: [],
+                        isReference: true
+                    };
+                }
+
+                if (typeof prompt !== 'object') {
+                    return {
+                        key: `prompt-${idx}`,
+                        name: String(prompt),
+                        content: '',
+                        enabled: true,
+                        meta: [],
+                        isReference: true
+                    };
+                }
+
+                const name = prompt.name || prompt.title || prompt.id || prompt.identifier || prompt.key || prompt.role || defaultName;
+                const contentRaw = this.pickPromptContent(prompt);
+                const content = this.formatPromptContent(contentRaw);
+                const toBool = (val) => {
+                    if (typeof val === 'boolean') return val;
+                    if (typeof val === 'number') return val !== 0;
+                    if (typeof val === 'string') {
+                        const lowered = val.toLowerCase();
+                        if (['false', '0', 'no', 'off', 'disabled'].includes(lowered)) return false;
+                        if (['true', '1', 'yes', 'on', 'enabled'].includes(lowered)) return true;
+                        return Boolean(val);
+                    }
+                    return Boolean(val);
+                };
+
+                const enabledRaw = prompt.enabled ?? prompt.isEnabled ?? prompt.active ?? prompt.isActive;
+                const disabledRaw = prompt.disabled ?? prompt.isDisabled;
+
+                let enabled = true;
+                if (disabledRaw !== undefined && disabledRaw !== null) {
+                    enabled = !toBool(disabledRaw);
+                } else if (enabledRaw !== undefined && enabledRaw !== null && !(typeof enabledRaw === 'string' && enabledRaw.trim() === '')) {
+                    enabled = toBool(enabledRaw);
+                }
+
+                return {
+                    key: prompt.id || prompt.identifier || prompt.name || `prompt-${idx}`,
+                    name,
+                    content,
+                    enabled,
+                    meta: this.collectPromptMeta(prompt),
+                    isReference: !content
+                };
+            });
         }
     }
 }

@@ -15,6 +15,12 @@
                 placeholder="搜索..." class="mobile-search-input">
             <input x-show="currentMode === 'worldinfo'" type="text" x-model.debounce.300ms="wiSearchQuery"
                 placeholder="搜索..." class="mobile-search-input">
+            <input x-show="currentMode === 'presets'" type="text" x-model.debounce.300ms="presetSearch"
+                placeholder="搜索预设..." class="mobile-search-input">
+            <input x-show="['regex','scripts','quick_replies'].includes(currentMode)" type="text"
+                x-model.debounce.300ms="extensionSearch"
+                :placeholder="currentMode === 'regex' ? '搜索正则...' : (currentMode === 'scripts' ? '搜索 ST 脚本...' : '搜索快速回复...')"
+                class="mobile-search-input">
         </div>
         
         <!-- 右侧：菜单按钮 -->
@@ -194,7 +200,17 @@
                 placeholder="搜索角色卡..." class="search-input">
             <input x-show="currentMode === 'worldinfo'" type="text" x-model.debounce.300ms="wiSearchQuery"
                 placeholder="搜索世界书名称..." class="search-input">
-            <button x-show="searchQuery" @click="searchQuery=''"
+            <input x-show="currentMode === 'presets'" type="text" x-model.debounce.300ms="presetSearch"
+                placeholder="搜索预设名称..." class="search-input">
+            <input x-show="['regex','scripts','quick_replies'].includes(currentMode)" type="text"
+                x-model.debounce.300ms="extensionSearch"
+                :placeholder="currentMode === 'regex' ? '搜索正则脚本...' : (currentMode === 'scripts' ? '搜索 ST 脚本...' : '搜索快速回复...')"
+                class="search-input">
+            <button x-show="currentMode === 'cards' && searchQuery" @click="searchQuery=''"
+                style="background: transparent; color: var(--text-dim); border: none; padding: 0 0.5rem; cursor: pointer;">✕</button>
+            <button x-show="currentMode === 'presets' && presetSearch" @click="presetSearch=''"
+                style="background: transparent; color: var(--text-dim); border: none; padding: 0 0.5rem; cursor: pointer;">✕</button>
+            <button x-show="['regex','scripts','quick_replies'].includes(currentMode) && extensionSearch" @click="extensionSearch=''"
                 style="background: transparent; color: var(--text-dim); border: none; padding: 0 0.5rem; cursor: pointer;">✕</button>
         </div>
 

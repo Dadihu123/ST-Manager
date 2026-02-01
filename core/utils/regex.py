@@ -2,6 +2,20 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+def _coerce_bool(value) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return value != 0
+    if isinstance(value, str):
+        lowered = value.strip().lower()
+        if lowered in ('true', '1', 'yes', 'on', 'enabled'):
+            return True
+        if lowered in ('false', '0', 'no', 'off', 'disabled', ''):
+            return False
+        return True
+    return bool(value)
+
 def _normalize_regex_item(item, name_hint: str = None):
     """
     将各种格式的正则条目标准化为统一结构。
@@ -50,7 +64,16 @@ def _normalize_regex_item(item, name_hint: str = None):
         ''
     )
     description = item.get('description') or item.get('comment') or ''
-    enabled = not bool(item.get('disabled', False))
+    if 'enabled' in item:
+        enabled_value = item.get('enabled')
+        if isinstance(enabled_value, str) and enabled_value.strip() == '':
+            enabled = True
+        else:
+            enabled = _coerce_bool(enabled_value)
+    elif 'disabled' in item:
+        enabled = not _coerce_bool(item.get('disabled'))
+    else:
+        enabled = True
     scope = item.get('placement') or item.get('scope') or []
 
     return {
@@ -135,7 +158,7 @@ def _extract_from_block(block):
                         'pattern': pattern,
                         'replace': value.get('replace') or '',
                         'flags': '',
-                        'enabled': not bool(value.get('disabled', False)),
+                        'enabled': not _coerce_bool(value.get('disabled')),
                         'scope': [],
                     })
             continue
