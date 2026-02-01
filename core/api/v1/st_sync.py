@@ -14,12 +14,57 @@ from typing import Dict, Any
 from flask import Blueprint, request, jsonify
 from core.config import load_config, BASE_DIR
 from core.services.st_client import get_st_client, refresh_st_client, STClient
+from core.services.scan_service import request_scan
+from core.services.cache_service import invalidate_wi_list_cache
 from core.utils.filesystem import sanitize_filename
 from core.utils.regex import extract_global_regex_from_settings
 
 logger = logging.getLogger(__name__)
 
 bp = Blueprint('st_sync', __name__, url_prefix='/api/st')
+LAST_VALID_ST_PATH = None
+
+def _normalize_input_path(path: str) -> str:
+    if not isinstance(path, str):
+        return ""
+    cleaned = path.strip().strip('"').strip("'")
+    return os.path.normpath(cleaned) if cleaned else ""
+
+def _normalize_st_root(path: str) -> str:
+    if not path:
+        return ""
+    normalized = os.path.normpath(path)
+    parts = normalized.split(os.sep)
+    lower_parts = [p.lower() for p in parts]
+
+    # public 目录视为安装根目录的子目录
+    if lower_parts and lower_parts[-1] == 'public':
+        root = os.sep.join(parts[:-1])
+        return root or normalized
+
+    # data/default-user 或 data/<user> -> 返回 data 的上一级
+    if 'data' in lower_parts:
+        try:
+            data_idx = len(lower_parts) - 1 - lower_parts[::-1].index('data')
+        except ValueError:
+            data_idx = -1
+        if data_idx >= 0:
+            base = os.sep.join(parts[:data_idx]) or normalized
+            # 仅当当前路径位于 data 目录内部时才回退
+            if len(parts) > data_idx + 1:
+                return base
+            # 当前路径就是 data 目录，直接回退到安装根目录
+            if len(parts) == data_idx + 1:
+                return base
+
+    # default-user 直接目录
+    if lower_parts and lower_parts[-1] == 'default-user':
+        parent = os.path.dirname(normalized)
+        if os.path.basename(parent).lower() == 'data':
+            return os.path.dirname(parent)
+        return parent or normalized
+
+    return normalized
 
 
 def _export_global_regex(settings_path: str, target_dir: str) -> Dict[str, Any]:
@@ -181,6 +226,9 @@ def detect_path():
         detected = client.detect_st_path()
         
         if detected:
+            global LAST_VALID_ST_PATH
+            detected = _normalize_st_root(detected)
+            LAST_VALID_ST_PATH = detected
             return jsonify({
                 "success": True,
                 "path": detected,
@@ -214,7 +262,7 @@ def validate_path():
     """
     try:
         data = request.get_json() or {}
-        path = data.get('path', '')
+        path = _normalize_input_path(data.get('path', ''))
         
         if not path:
             return jsonify({
@@ -222,11 +270,16 @@ def validate_path():
                 "error": "请提供路径"
             }), 400
             
-        client = STClient(st_data_dir=path) if 'STClient' in globals() else get_st_client()
+        client = STClient(st_data_dir=path)
         is_valid = client._validate_st_path(path)
+        normalized_path = _normalize_st_root(path) if is_valid else path
+        if normalized_path and not os.path.exists(normalized_path):
+            normalized_path = path
 
         resources = {}
         if is_valid:
+            global LAST_VALID_ST_PATH
+            LAST_VALID_ST_PATH = normalized_path
             # 检查各资源目录（兼容传入 data/default-user 或根目录）
             for res_type in ['characters', 'worlds', 'presets', 'regex', 'quick_replies']:
                 subdir = client.get_st_subdir(res_type)
@@ -261,6 +314,7 @@ def validate_path():
         return jsonify({
             "success": True,
             "valid": is_valid,
+            "normalized_path": normalized_path,
             "resources": resources
         })
     except Exception as e:
@@ -281,13 +335,19 @@ def list_resources(resource_type: str):
         
     Query Params:
         use_api: 是否使用 API 模式 (默认 false)
+        st_data_dir: SillyTavern 安装目录（可选）
         
     Returns:
         资源列表
     """
     try:
         use_api = request.args.get('use_api', 'false').lower() == 'true'
-        client = get_st_client()
+        st_data_dir = _normalize_input_path(request.args.get('st_data_dir', ''))
+        if not st_data_dir:
+            st_data_dir = LAST_VALID_ST_PATH
+        if st_data_dir:
+            st_data_dir = _normalize_st_root(st_data_dir)
+        client = STClient(st_data_dir=st_data_dir) if st_data_dir else get_st_client()
         
         if resource_type == 'characters':
             items = client.list_characters(use_api)
@@ -330,13 +390,19 @@ def get_resource(resource_type: str, resource_id: str):
         
     Query Params:
         use_api: 是否使用 API 模式
+        st_data_dir: SillyTavern 安装目录（可选）
         
     Returns:
         资源详情
     """
     try:
         use_api = request.args.get('use_api', 'false').lower() == 'true'
-        client = get_st_client()
+        st_data_dir = _normalize_input_path(request.args.get('st_data_dir', ''))
+        if not st_data_dir:
+            st_data_dir = LAST_VALID_ST_PATH
+        if st_data_dir:
+            st_data_dir = _normalize_st_root(st_data_dir)
+        client = STClient(st_data_dir=st_data_dir) if st_data_dir else get_st_client()
         
         if resource_type == 'characters':
             item = client.get_character(resource_id, use_api)
@@ -388,6 +454,10 @@ def sync_resources():
         resource_type = data.get('resource_type')
         resource_ids = data.get('resource_ids', [])
         use_api = data.get('use_api', False)
+        st_data_dir = _normalize_input_path(data.get('st_data_dir'))
+        if not st_data_dir:
+            st_data_dir = LAST_VALID_ST_PATH
+        st_data_dir = _normalize_st_root(st_data_dir)
         
         if not resource_type:
             return jsonify({
@@ -416,7 +486,8 @@ def sync_resources():
         if not os.path.isabs(target_dir):
             target_dir = os.path.join(BASE_DIR, target_dir)
             
-        client = get_st_client()
+        # 使用用户提供的路径创建客户端
+        client = STClient(st_data_dir=st_data_dir) if st_data_dir else get_st_client()
         
         if resource_ids:
             # 同步指定资源
@@ -448,6 +519,13 @@ def sync_resources():
                 result["success"] += global_result.get("success", 0)
             if global_result.get("failed"):
                 result["failed"] += global_result.get("failed", 0)
+
+        # 同步成功后触发扫描，将新文件导入数据库
+        if result.get("success", 0) > 0:
+            if resource_type == 'characters':
+                request_scan(reason="st_sync")
+            elif resource_type == 'worlds':
+                invalidate_wi_list_cache()
             
         return jsonify({
             "success": True,
@@ -489,11 +567,19 @@ def get_summary():
     """
     获取 SillyTavern 资源概览
     
+    Query Params:
+        st_data_dir: SillyTavern 安装目录（可选）
+    
     Returns:
         各类资源的数量统计
     """
     try:
-        client = get_st_client()
+        st_data_dir = _normalize_input_path(request.args.get('st_data_dir', ''))
+        if not st_data_dir:
+            st_data_dir = LAST_VALID_ST_PATH
+        if st_data_dir:
+            st_data_dir = _normalize_st_root(st_data_dir)
+        client = STClient(st_data_dir=st_data_dir) if st_data_dir else get_st_client()
         
         summary = {
             "st_path": client.st_data_dir or client.detect_st_path(),
@@ -547,11 +633,15 @@ def get_regex_aggregate():
     Query:
         presets_path: 自定义预设目录（可选）
         settings_path: 自定义 settings.json 路径（可选）
+        st_data_dir: SillyTavern 安装目录（可选）
     """
     try:
         presets_path = request.args.get('presets_path')
         settings_path = request.args.get('settings_path')
-        client = get_st_client()
+        st_data_dir = _normalize_input_path(request.args.get('st_data_dir', ''))
+        if not st_data_dir:
+            st_data_dir = LAST_VALID_ST_PATH
+        client = STClient(st_data_dir=st_data_dir) if st_data_dir else get_st_client()
         result = client.aggregate_regex(presets_path, settings_path)
         return jsonify({"success": True, **result})
     except Exception as e:

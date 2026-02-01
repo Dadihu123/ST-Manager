@@ -218,7 +218,12 @@ export default function settingsModal() {
                 const data = await resp.json();
                 
                 if (data.success && data.valid) {
-                    this.stPathStatus = '✓ 路径有效';
+                    if (data.normalized_path && data.normalized_path !== path) {
+                        this.$store.global.settingsForm.st_data_dir = data.normalized_path;
+                        this.stPathStatus = `✓ 路径有效，已转换为安装根目录：${data.normalized_path}`;
+                    } else {
+                        this.stPathStatus = '✓ 路径有效';
+                    }
                     this.stPathValid = true;
                     this.stResources = data.resources || {};
                 } else {
@@ -241,10 +246,15 @@ export default function settingsModal() {
             this.syncSuccess = false;
             
             try {
+                let stPath = (this.$store.global.settingsForm.st_data_dir || '').trim();
+                if (!stPath) {
+                    const input = document.querySelector('input[x-model="settingsForm.st_data_dir"]');
+                    if (input && input.value) stPath = input.value.trim();
+                }
                 const resp = await fetch('/api/st/sync', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ resource_type: resourceType })
+                    body: JSON.stringify({ resource_type: resourceType, st_data_dir: stPath })
                 });
                 const data = await resp.json();
                 
@@ -252,6 +262,19 @@ export default function settingsModal() {
                     const result = data.result;
                     this.syncStatus = `✓ 同步完成: ${result.success} 个成功, ${result.failed} 个失败`;
                     this.syncSuccess = result.failed === 0;
+                    
+                    // 同步成功后触发刷新
+                    if (result.success > 0) {
+                        if (resourceType === 'characters') {
+                            this.syncStatus += '，正在刷新列表...';
+                            // 等待后端扫描完成
+                            await new Promise(r => setTimeout(r, 1500));
+                            window.dispatchEvent(new CustomEvent('refresh-card-list'));
+                            this.syncStatus = `✓ 同步完成: ${result.success} 个成功, ${result.failed} 个失败`;
+                        } else if (resourceType === 'worlds') {
+                            window.dispatchEvent(new CustomEvent('refresh-wi-list'));
+                        }
+                    }
                 } else {
                     this.syncStatus = '✗ 同步失败: ' + (data.error || '未知错误');
                     this.syncSuccess = false;
@@ -270,9 +293,16 @@ export default function settingsModal() {
             const types = ['characters', 'worlds', 'presets', 'regex', 'quick_replies'];
             let totalSuccess = 0;
             let totalFailed = 0;
+            let hasCharacters = false;
+            let hasWorlds = false;
             
             this.syncing = true;
             
+            let stPath = (this.$store.global.settingsForm.st_data_dir || '').trim();
+            if (!stPath) {
+                const input = document.querySelector('input[x-model="settingsForm.st_data_dir"]');
+                if (input && input.value) stPath = input.value.trim();
+            }
             for (const type of types) {
                 this.syncStatus = `正在同步 ${this.getResourceLabel(type)}...`;
                 
@@ -280,13 +310,19 @@ export default function settingsModal() {
                     const resp = await fetch('/api/st/sync', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ resource_type: type })
+                        body: JSON.stringify({ resource_type: type, st_data_dir: stPath })
                     });
                     const data = await resp.json();
                     
                     if (data.success) {
                         totalSuccess += data.result.success;
                         totalFailed += data.result.failed;
+                        if (type === 'characters' && data.result.success > 0) {
+                            hasCharacters = true;
+                        }
+                        if (type === 'worlds' && data.result.success > 0) {
+                            hasWorlds = true;
+                        }
                     }
                 } catch (err) {
                     totalFailed++;
@@ -296,6 +332,15 @@ export default function settingsModal() {
             this.syncStatus = `✓ 全部同步完成: ${totalSuccess} 个成功, ${totalFailed} 个失败`;
             this.syncSuccess = totalFailed === 0;
             this.syncing = false;
+            
+            // 同步成功后触发刷新
+            if (hasCharacters) {
+                await new Promise(r => setTimeout(r, 1500));
+                window.dispatchEvent(new CustomEvent('refresh-card-list'));
+            }
+            if (hasWorlds) {
+                window.dispatchEvent(new CustomEvent('refresh-wi-list'));
+            }
         }
     }
 }
