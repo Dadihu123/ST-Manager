@@ -132,25 +132,10 @@ export default function presetGrid() {
 
         // 新三栏阅览界面方法
         async openPresetDetail(item) {
-            this.isLoading = true;
-            try {
-                const resp = await fetch(`/api/presets/detail/${encodeURIComponent(item.id)}`);
-                const res = await resp.json();
-
-                if (res.success) {
-                    this.activePresetDetail = res.preset;
-                    this.showPresetDetailModal = true;
-                    this.activePresetItem = null;
-                    this.activePresetItemType = null;
-                    this.uiPresetFilter = null;
-                } else {
-                    this.$store.global.showToast(res.msg || '获取详情失败', 'error');
-                }
-            } catch (e) {
-                this.$store.global.showToast('获取详情失败', 'error');
-            } finally {
-                this.isLoading = false;
-            }
+            // 触发全局预设阅读器事件
+            window.dispatchEvent(new CustomEvent('open-preset-reader', {
+                detail: item
+            }));
         },
 
         closePresetDetailModal() {
