@@ -117,7 +117,7 @@ def init_services():
         
         # 初始化完成
         ctx.set_status(status="ready", message="服务已就绪")
-        print("✅ 后台服务启动完成")
+        print("[完成] 后台服务启动完成")
         
     except Exception as e:
         logger.error(f"Service initialization failed: {e}")
