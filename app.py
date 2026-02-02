@@ -89,7 +89,7 @@ if __name__ == '__main__':
         if "Address already in use" in str(e):
             print(f"❌ 端口 {server_port} 被占用。")
         else:
-            print(f"❌ 服务器异常退出: {e}"))
+            print(f"❌ 服务器异常退出: {e}")
         
         if platform.system() == "Windows":
             os.system("pause")
