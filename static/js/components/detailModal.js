@@ -906,6 +906,14 @@ export default function detailModal() {
                     this.editingData.alternate_greetings = c.alternate_greetings || [""];
                     this.editingData.creator_notes = c.creator_notes;
                     this.editingData.character_book = c.character_book;
+                    this.editingData.creator = c.creator || "";
+                    this.editingData.personality = c.personality || "";
+                    this.editingData.scenario = c.scenario || "";
+                    this.editingData.system_prompt = c.system_prompt || "";
+                    this.editingData.post_history_instructions = c.post_history_instructions || "";
+                    this.editingData.tags = c.tags || [];
+                    this.editingData.character_version = c.char_version || "";
+                    this.editingData.extensions = c.extensions || { regex_scripts: [], tavern_helper: [] };
                     this.altIdx = 0;
 
                     this.editingData.ui_summary = c.ui_summary || "";

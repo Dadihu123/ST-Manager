@@ -697,10 +697,10 @@ def api_update_card():
                 if version_list:
                     # 重新排序
                     version_list.sort(key=lambda x: x['last_modified'], reverse=True)
-                    
+
                     new_leader_stub = version_list[0]
                     bundle_card = new_leader_stub.copy()
-                    
+
                     # 补全 Leader 信息
                     if bundle_card['id'] == final_rel_path_id:
                         bundle_card.update(update_payload)
@@ -727,23 +727,23 @@ def api_update_card():
                             ver_info['resource_folder'] = ver_remark.get('resource_folder', '')
                         bundle_card['versions'].append(ver_info)
 
-                    # UI Data - 显示封面版本（最新版本）的备注
                     ui_info = ui_data.get(bundle_dir, {})
-                    bundle_card['ui_summary'] = ui_info.get('summary', '')
-                    bundle_card['source_link'] = ui_info.get('link', '')
-                    bundle_card['resource_folder'] = ui_info.get('resource_folder', '')
 
-                    if version_list and version_list[0]['id'] in ctx.cache.id_map:
-                        cached = ctx.cache.id_map[version_list[0]['id']]
-                        cover_remark = get_version_remark(ui_data, bundle_dir, version_list[0]['id'])
+                    cover_id = version_list[0]['id']
+                    if cover_id == final_rel_path_id:
+                        bundle_card['ui_summary'] = ui_summary_val
+                        bundle_card['source_link'] = source_link_val
+                        bundle_card['resource_folder'] = res_folder_val
+                    else:
+                        cover_remark = get_version_remark(ui_data, bundle_dir, cover_id)
                         if cover_remark:
                             bundle_card['ui_summary'] = cover_remark.get('summary', '')
                             bundle_card['source_link'] = cover_remark.get('link', '')
                             bundle_card['resource_folder'] = cover_remark.get('resource_folder', '')
-                        elif cached:
-                            bundle_card['ui_summary'] = cached.get('ui_summary', '')
-                            bundle_card['source_link'] = cached.get('source_link', '')
-                            bundle_card['resource_folder'] = cached.get('resource_folder', '')
+                        else:
+                            bundle_card['ui_summary'] = ui_info.get('summary', '')
+                            bundle_card['source_link'] = ui_info.get('link', '')
+                            bundle_card['resource_folder'] = ui_info.get('resource_folder', '')
                     
                     # URL
                     encoded_id = quote(bundle_card['id'])
