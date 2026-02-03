@@ -636,7 +636,15 @@ def api_update_card():
         }
         
         # 更新单卡内存对象
-        updated_card_obj = ctx.cache.update_card_data(raw_id, update_payload)
+        # Bundle 模式下：只有保存主版本时才更新缓存，避免用非主版本的备注污染主版本
+        if data.get('save_ui_to_bundle') and data.get('bundle_dir'):
+            if raw_id == target_version_id:
+                updated_card_obj = ctx.cache.update_card_data(raw_id, update_payload)
+            else:
+                # 非主版本：不更新主版本缓存，后面的 Bundle 聚合逻辑会处理
+                updated_card_obj = ctx.cache.id_map.get(raw_id)
+        else:
+            updated_card_obj = ctx.cache.update_card_data(raw_id, update_payload)
         
         # ID 变更处理
         if raw_id != final_rel_path_id:
@@ -666,13 +674,14 @@ def api_update_card():
                     escaped_bundle_dir = bundle_dir.replace('_', r'\_').replace('%', r'\%')
 
                     cursor = conn.execute(
-                        "SELECT id, char_name, last_modified, char_version FROM card_metadata WHERE category = ?", 
+                        "SELECT id, char_name, last_modified, char_version FROM card_metadata WHERE category = ?",
                         (bundle_dir,)
                     )
                     rows = cursor.fetchall()
+
                     if not rows:
                         cursor = conn.execute(
-                            "SELECT id, char_name, last_modified, char_version FROM card_metadata WHERE id LIKE ? || '/%' ESCAPE '\\'", 
+                            "SELECT id, char_name, last_modified, char_version FROM card_metadata WHERE id LIKE ? || '/%' ESCAPE '\\'",
                             (escaped_bundle_dir,)
                         )
                         rows = cursor.fetchall()
@@ -687,11 +696,10 @@ def api_update_card():
                             "category": bundle_dir,
                             "bundle_dir": bundle_dir
                         }
-                        
-                        # 强制使用最新时间
+
                         if v_obj['id'] == final_rel_path_id:
                             v_obj['last_modified'] = current_mtime
-                            
+
                         version_list.append(v_obj)
 
                 if version_list:
@@ -702,7 +710,7 @@ def api_update_card():
                     bundle_card = new_leader_stub.copy()
 
                     # 补全 Leader 信息
-                    if bundle_card['id'] == final_rel_path_id:
+                    if bundle_card['id'] == target_version_id:
                         bundle_card.update(update_payload)
                     else:
                         if new_leader_stub['id'] in ctx.cache.id_map:
@@ -730,20 +738,16 @@ def api_update_card():
                     ui_info = ui_data.get(bundle_dir, {})
 
                     cover_id = version_list[0]['id']
-                    if cover_id == final_rel_path_id:
-                        bundle_card['ui_summary'] = ui_summary_val
-                        bundle_card['source_link'] = source_link_val
-                        bundle_card['resource_folder'] = res_folder_val
+                    # 总是重新获取 cover 的备注，不使用可能包含非主版本备注的 ui_summary_val
+                    cover_remark = get_version_remark(ui_data, bundle_dir, cover_id)
+                    if cover_remark:
+                        bundle_card['ui_summary'] = cover_remark.get('summary', '')
+                        bundle_card['source_link'] = cover_remark.get('link', '')
+                        bundle_card['resource_folder'] = cover_remark.get('resource_folder', '')
                     else:
-                        cover_remark = get_version_remark(ui_data, bundle_dir, cover_id)
-                        if cover_remark:
-                            bundle_card['ui_summary'] = cover_remark.get('summary', '')
-                            bundle_card['source_link'] = cover_remark.get('link', '')
-                            bundle_card['resource_folder'] = cover_remark.get('resource_folder', '')
-                        else:
-                            bundle_card['ui_summary'] = ui_info.get('summary', '')
-                            bundle_card['source_link'] = ui_info.get('link', '')
-                            bundle_card['resource_folder'] = ui_info.get('resource_folder', '')
+                        bundle_card['ui_summary'] = ui_info.get('summary', '')
+                        bundle_card['source_link'] = ui_info.get('link', '')
+                        bundle_card['resource_folder'] = ui_info.get('resource_folder', '')
                     
                     # URL
                     encoded_id = quote(bundle_card['id'])

@@ -26,6 +26,9 @@ def create_app():
     Flask 应用工厂函数。
     负责初始化 Flask 实例、注册蓝图、配置数据库钩子。
     """
+    # 配置日志
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    
     # 强制 MIME 类型映射，防止注册表异常
     mimetypes.add_type('application/javascript', '.js')
     mimetypes.add_type('text/css', '.css') 

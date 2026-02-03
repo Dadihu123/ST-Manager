@@ -114,7 +114,8 @@ def set_version_remark(ui_data, ui_key, version_id, remark_data):
     if old_remark == remark_data:
         return False
 
-    entry[VERSION_REMARKS_KEY][version_id] = remark_data
+    # 存储副本而不是引用，避免外部修改污染已存储的数据
+    entry[VERSION_REMARKS_KEY][version_id] = remark_data.copy()
     return True
 
 def migrate_version_remark_to_standalone(ui_data, bundle_dir, version_id):

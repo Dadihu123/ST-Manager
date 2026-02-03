@@ -531,13 +531,18 @@ export default function detailModal() {
 
                     if (res.card.image_url) this.activeCard.image_url = res.card.image_url;
 
+                    // 更新 UI 备注字段
+                    this.editingData.ui_summary = safeCard.ui_summary || "";
+                    this.editingData.source_link = safeCard.source_link || "";
+                    this.editingData.resource_folder = safeCard.resource_folder || "";
+
                     if (this.lastTab === 'persona' && this.hasPersonaFields) {
                         this.tab = 'persona';
                     }
 
                     // 启动自动保存
                     this.$nextTick(() => {
-                        // 1. 记录当前状态为“原始基准”
+                        // 1. 记录当前状态为"原始基准"
                         this.originalDataJson = JSON.stringify(this.editingData);
                         // 2. 启动计时器
                         this.startAutoSave();
@@ -613,21 +618,35 @@ export default function detailModal() {
 
                     // 通知列表更新 (通过事件总线)
                     if (res.updated_card) {
-                        // 补充 UI 数据到返回对象
-                        res.updated_card.ui_summary = this.editingData.ui_summary;
-                        
+                        // Bundle 模式下不覆盖主版本的备注信息，后端已返回正确的主版本备注
+                        // 非 Bundle 模式才需要补充 UI 数据
+                        if (!this.activeCard.is_bundle) {
+                            res.updated_card.ui_summary = this.editingData.ui_summary;
+                            res.updated_card.source_link = this.editingData.source_link;
+                            res.updated_card.resource_folder = this.editingData.resource_folder;
+                        }
+
                         // 强制刷新缩略图
                         if (res.file_modified) {
                             res.updated_card.thumb_url = `/api/thumbnail/${encodeURIComponent(res.updated_card.id)}?t=${ts}`;
                         }
                         
-                        // 发送更新事件给 cardGrid
+                        // 发送更新事件给 cardGrid (使用后端返回的完整 Bundle 数据)
                         window.dispatchEvent(new CustomEvent('card-updated', { 
                             detail: res.updated_card 
                         }));
                         
                         // 更新本地 activeCard
-                        Object.assign(this.activeCard, res.updated_card);
+                        // Bundle 模式下：后端返回的是主版本数据，不直接合并到当前编辑版本
+                        // 只更新必要的字段，保持当前版本的数据不变
+                        if (!this.activeCard.is_bundle) {
+                            Object.assign(this.activeCard, res.updated_card);
+                        } else {
+                            // Bundle 模式下只更新部分字段，避免覆盖当前版本的 UI 数据
+                            if (res.new_id) this.activeCard.id = res.new_id;
+                            if (res.new_filename) this.activeCard.filename = res.new_filename;
+                            if (res.new_image_url) this.activeCard.image_url = res.new_image_url;
+                        }
                     } else {
                         // 兜底刷新
                         window.dispatchEvent(new CustomEvent('refresh-card-list'));
@@ -906,6 +925,9 @@ export default function detailModal() {
                     this.editingData.alternate_greetings = c.alternate_greetings || [""];
                     this.editingData.creator_notes = c.creator_notes;
                     this.editingData.character_book = c.character_book;
+                    if (!this.editingData.character_book) {
+                        this.editingData.character_book = { name: "", entries: [] };
+                    }
                     this.editingData.creator = c.creator || "";
                     this.editingData.personality = c.personality || "";
                     this.editingData.scenario = c.scenario || "";
