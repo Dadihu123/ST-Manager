@@ -423,7 +423,7 @@
                             <div class="detail-card" x-show="isEditMode || editingData.description">
                                 <div class="detail-card-head">
                                     <div class="detail-card-title">原简介 (Description)</div>
-                                    <button x-show="isEditMode" class="expand-btn" @click="openLargeEditor('description','原简介')">⤢</button>
+                                    <button class="expand-btn" @click="openLargeEditor('description','原简介')">⤢</button>
                                 </div>
                                 <!-- 编辑模式：可编辑 -->
                                 <textarea x-show="isEditMode" x-model="editingData.description" class="form-textarea"
@@ -558,33 +558,36 @@
                     <!-- TAB: 对话 -->
                     <section x-show="tab==='dialog'" x-transition.opacity class="detail-section detail-section-fill">
                         <div class="detail-tab-scroll custom-scrollbar">
-                            <!-- First Message：编辑/预览 -->
+                            <!-- First Message：编辑/预览 或 阅览/预览 -->
                             <div class="detail-card detail-card--lg" x-show="isEditMode || editingData.first_mes">
                                 <div class="detail-card-head detail-card-head-row">
                                     <div class="detail-card-title">开场白 (First Message)</div>
                                     <div class="detail-card-actions">
-                                        <button x-show="isEditMode" class="expand-btn"
+                                        <!-- 编辑模式和阅览模式都显示放大按钮 -->
+                                        <button class="expand-btn"
                                             @click="openLargeEditor('first_mes','开场白')">⤢</button>
-                                        <div x-show="isEditMode" class="toggle-btn-group">
+                                        <!-- 切换按钮: 编辑模式显示"编辑/HTML预览", 阅览模式显示"阅览/HTML预览" -->
+                                        <div class="toggle-btn-group">
                                             <button class="toggle-btn" :class="!showFirstPreview ? 'active' : ''"
-                                                @click="showFirstPreview=false">编辑</button>
+                                                @click="showFirstPreview=false" x-text="isEditMode ? '编辑' : '阅览'"></button>
                                             <button class="toggle-btn" :class="showFirstPreview ? 'active' : ''"
                                                 @click="showFirstPreview=true">HTML预览</button>
                                         </div>
                                     </div>
                                 </div>
 
-                                <!-- 编辑模式 -->
+                                <!-- 编辑模式 - 编辑状态 -->
                                 <textarea x-show="isEditMode && !showFirstPreview" x-model="editingData.first_mes"
                                     class="form-textarea" style="height: 10rem; resize:none;"></textarea>
 
-                                <div x-show="isEditMode && showFirstPreview" class="form-textarea custom-scrollbar"
+                                <!-- 编辑模式或阅览模式 - HTML预览 -->
+                                <div x-show="showFirstPreview" class="form-textarea custom-scrollbar"
                                     style="height: 10rem; background: var(--bg-panel); border-color: var(--accent-main); padding: 0; overflow: auto;"
                                     x-effect="updateShadowContent($el, showFirstPreview ? editingData.first_mes : null)">
                                 </div>
                                 
-                                <!-- 阅览模式：只读显示 -->
-                                <textarea x-show="!isEditMode && editingData.first_mes" 
+                                <!-- 阅览模式 - 只读文本 -->
+                                <textarea x-show="!isEditMode && !showFirstPreview && editingData.first_mes" 
                                     readonly
                                     x-model="editingData.first_mes"
                                     class="form-textarea custom-scrollbar" 
@@ -595,7 +598,7 @@
                             <div class="detail-card" x-show="isEditMode || editingData.mes_example">
                                 <div class="detail-card-head">
                                     <div class="detail-card-title">对话示例 (Mes Example)</div>
-                                    <button x-show="isEditMode" class="expand-btn" @click="openLargeEditor('mes_example','对话示例')">⤢</button>
+                                    <button class="expand-btn" @click="openLargeEditor('mes_example','对话示例')">⤢</button>
                                 </div>
                                 <!-- 编辑模式 -->
                                 <textarea x-show="isEditMode" x-model="editingData.mes_example" class="form-textarea"
@@ -615,7 +618,8 @@
                                     <div class="detail-card-title">备用开场白 (Alternate Greetings)</div>
 
                                     <div class="detail-card-actions">
-                                        <button x-show="isEditMode" class="expand-btn" x-show="editingData.alternate_greetings.length > 0"
+                                        <!-- 编辑模式和阅览模式都显示放大按钮 -->
+                                        <button class="expand-btn" x-show="editingData.alternate_greetings.length > 0"
                                             @click="openLargeEditor('alternate_greetings','备用开场白 #' + (altIdx+1), true, altIdx)">⤢</button>
 
                                         <div class="detail-alt-nav" x-show="editingData.alternate_greetings.length > 1">
