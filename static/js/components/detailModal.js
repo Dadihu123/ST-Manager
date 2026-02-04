@@ -112,6 +112,10 @@ export default function detailModal() {
         ...wiHelpers,
 
         get hasPersonaFields() {
+            // 编辑模式下始终显示设定tab
+            if (this.isEditMode) return true;
+            
+            // 阅览模式下只有存在内容才显示
             const d = this.editingData;
             return !!(
                 (d.personality && d.personality.trim()) || 

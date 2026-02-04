@@ -429,10 +429,11 @@
                                 <textarea x-show="isEditMode" x-model="editingData.description" class="form-textarea"
                                     style="height: 10rem; resize:none;"></textarea>
                                 <!-- 阅览模式：只读显示 -->
-                                <div x-show="!isEditMode && editingData.description" 
+                                <textarea x-show="!isEditMode && editingData.description" 
+                                    readonly
+                                    x-model="editingData.description"
                                     class="form-textarea custom-scrollbar" 
-                                    style="height: 10rem; background: var(--bg-sub); border-color: var(--border-light); color: var(--text-dim); cursor: default;"
-                                    x-text="editingData.description"></div>
+                                    style="height: 10rem; resize:none; background: var(--bg-sub); border-color: var(--border-light); color: var(--text-dim); cursor: default;"></textarea>
                             </div>
                         </div>
                     </section>
@@ -583,10 +584,11 @@
                                 </div>
                                 
                                 <!-- 阅览模式：只读显示 -->
-                                <div x-show="!isEditMode && editingData.first_mes" 
+                                <textarea x-show="!isEditMode && editingData.first_mes" 
+                                    readonly
+                                    x-model="editingData.first_mes"
                                     class="form-textarea custom-scrollbar" 
-                                    style="height: 10rem; background: var(--bg-sub); border-color: var(--border-light); color: var(--text-dim); cursor: default; white-space: pre-wrap; word-wrap: break-word;"
-                                    x-text="editingData.first_mes"></div>
+                                    style="height: 10rem; resize:none; background: var(--bg-sub); border-color: var(--border-light); color: var(--text-dim); cursor: default;"></textarea>
                             </div>
 
                             <!-- Mes Example -->
@@ -599,10 +601,11 @@
                                 <textarea x-show="isEditMode" x-model="editingData.mes_example" class="form-textarea"
                                     style="height: 10rem; resize:none; font-family: monospace; font-size: 0.85rem;"></textarea>
                                 <!-- 阅览模式：只读显示 -->
-                                <div x-show="!isEditMode && editingData.mes_example" 
+                                <textarea x-show="!isEditMode && editingData.mes_example" 
+                                    readonly
+                                    x-model="editingData.mes_example"
                                     class="form-textarea custom-scrollbar" 
-                                    style="height: 10rem; background: var(--bg-sub); border-color: var(--border-light); color: var(--text-dim); cursor: default; white-space: pre-wrap; word-wrap: break-word; font-family: monospace; font-size: 0.85rem;"
-                                    x-text="editingData.mes_example"></div>
+                                    style="height: 10rem; resize:none; background: var(--bg-sub); border-color: var(--border-light); color: var(--text-dim); cursor: default; font-family: monospace; font-size: 0.85rem;"></textarea>
                             </div>
 
                             <!-- Alternate Greetings: 特殊处理数组判空 -->
@@ -637,9 +640,10 @@
                                 
                                 <!-- 阅览模式：只读显示 -->
                                 <template x-if="!isEditMode && editingData.alternate_greetings && editingData.alternate_greetings.length > 0">
-                                    <div class="form-textarea custom-scrollbar" 
-                                        style="height: 8rem; background: var(--bg-sub); border-color: var(--border-light); color: var(--text-dim); cursor: default; white-space: pre-wrap; word-wrap: break-word;"
-                                        x-text="editingData.alternate_greetings[altIdx] || ''"></div>
+                                    <textarea readonly
+                                        :value="editingData.alternate_greetings[altIdx] || ''"
+                                        class="form-textarea custom-scrollbar" 
+                                        style="height: 8rem; resize:none; background: var(--bg-sub); border-color: var(--border-light); color: var(--text-dim); cursor: default;"></textarea>
                                 </template>
                             </div>
                         </div>
