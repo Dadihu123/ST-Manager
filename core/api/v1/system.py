@@ -39,6 +39,85 @@ bp = Blueprint('system', __name__)
 
 logger = logging.getLogger(__name__)
 
+def _is_under_base(path: str, base: str) -> bool:
+    """检查路径是否在 base 目录内"""
+    try:
+        return os.path.commonpath([os.path.abspath(path), os.path.abspath(base)]) == os.path.abspath(base)
+    except Exception:
+        return False
+
+def _resolve_allowed_roots():
+    cfg = load_config()
+
+    raw_wi = cfg.get('world_info_dir', 'lorebooks')
+    wi_root = raw_wi if os.path.isabs(raw_wi) else os.path.join(BASE_DIR, raw_wi)
+
+    raw_res = cfg.get('resources_dir', 'resources')
+    res_root = raw_res if os.path.isabs(raw_res) else os.path.join(BASE_DIR, raw_res)
+
+    roots = [
+        str(CARDS_FOLDER),
+        DATA_DIR,
+        wi_root,
+        res_root,
+    ]
+
+    allowed_abs = cfg.get('allowed_abs_resource_roots', []) or []
+    for root in allowed_abs:
+        if isinstance(root, str) and os.path.isabs(root):
+            roots.append(root)
+
+    # 去重 + 归一化
+    dedup = []
+    for r in roots:
+        if not r:
+            continue
+        abs_r = os.path.abspath(r)
+        if abs_r not in dedup:
+            dedup.append(abs_r)
+    return dedup
+
+def _resolve_safe_path(path: str, relative_to_base: bool = False):
+    if not path:
+        return None
+
+    if relative_to_base:
+        abs_path = os.path.abspath(os.path.join(BASE_DIR, path))
+    else:
+        abs_path = os.path.abspath(path if os.path.isabs(path) else os.path.join(BASE_DIR, path))
+
+    for root in _resolve_allowed_roots():
+        if _is_under_base(abs_path, root):
+            return abs_path
+    return None
+
+def _is_safe_card_rel(card_id: str) -> bool:
+    if not card_id:
+        return False
+    safe = card_id.replace('\\', '/')
+    if safe.startswith('/') or safe.startswith('..') or '/..' in safe:
+        return False
+    return True
+
+def _is_valid_lorebook_path(path: str) -> bool:
+    if not path:
+        return False
+    cfg = load_config()
+    raw_wi = cfg.get('world_info_dir', 'lorebooks')
+    wi_root = raw_wi if os.path.isabs(raw_wi) else os.path.join(BASE_DIR, raw_wi)
+
+    raw_res = cfg.get('resources_dir', 'resources')
+    res_root = raw_res if os.path.isabs(raw_res) else os.path.join(BASE_DIR, raw_res)
+
+    if _is_under_base(path, wi_root):
+        return True
+
+    if _is_under_base(path, res_root):
+        rel_path = os.path.relpath(path, res_root).replace('\\', '/')
+        return '/lorebooks/' in f"/{rel_path}/"
+
+    return False
+
 @bp.route('/api/status')
 def api_status():
     return jsonify(ctx.init_status)
@@ -132,9 +211,14 @@ def api_system_action():
         elif action == 'open_card_dir':
             card_id = request.json.get('card_id')
             if not card_id: return jsonify({"success": False, "msg": "ID missing"})
-            
+
+            if not _is_safe_card_rel(card_id):
+                return jsonify({"success": False, "msg": "非法路径"})
+
             full_path = os.path.join(CARDS_FOLDER, card_id.replace('/', os.sep))
             full_path = os.path.abspath(full_path)
+            if not _is_under_base(full_path, str(CARDS_FOLDER)):
+                return jsonify({"success": False, "msg": "非法路径"})
             target_dir = os.path.dirname(full_path)
             
             if not os.path.exists(target_dir):
@@ -230,9 +314,20 @@ def api_create_snapshot():
                 src_path = target_id
                 backups_root = os.path.join(system_backups_dir, 'lorebooks')
         else:
+            if not _is_safe_card_rel(target_id):
+                return jsonify({"success": False, "msg": "非法路径"})
             rel_path = target_id.replace('/', os.sep)
             src_path = os.path.join(CARDS_FOLDER, rel_path)
             backups_root = os.path.join(system_backups_dir, 'cards')
+
+        if snapshot_type == 'lorebook':
+            src_path = os.path.normpath(src_path if os.path.isabs(src_path) else os.path.join(BASE_DIR, src_path))
+            if not _is_valid_lorebook_path(src_path):
+                return jsonify({"success": False, "msg": "非法路径"})
+        else:
+            src_path = os.path.abspath(src_path)
+            if not _is_under_base(src_path, str(CARDS_FOLDER)):
+                return jsonify({"success": False, "msg": "非法路径"})
 
         if not src_path or not os.path.exists(src_path):
             return jsonify({"success": False, "msg": f"源文件不存在: {src_path}"})
@@ -408,10 +503,18 @@ def api_smart_auto_snapshot():
         # 如果是 PNG，我们需要源文件作为底板
         src_path = ""
         if snapshot_type == 'card':
+             if not _is_safe_card_rel(target_id):
+                 return jsonify({"success": False, "msg": "非法路径"})
              # 重新构建源路径
              src_path = os.path.join(CARDS_FOLDER, target_id.replace('/', os.sep))
+             src_path = os.path.abspath(src_path)
+             if not _is_under_base(src_path, str(CARDS_FOLDER)):
+                 return jsonify({"success": False, "msg": "非法路径"})
         elif req_data.get('file_path'):
              src_path = req_data.get('file_path')
+             src_path = os.path.normpath(src_path if os.path.isabs(src_path) else os.path.join(BASE_DIR, src_path))
+             if not _is_valid_lorebook_path(src_path):
+                 return jsonify({"success": False, "msg": "非法路径"})
 
         if is_png and os.path.exists(src_path):
             write_snapshot_file(src_path, dst_path, content, True)
@@ -593,20 +696,17 @@ def api_restore_backup():
 def api_read_file_content():
     try:
         path = request.json.get('path')
-        
-        # 处理相对路径：如果是相对路径，基于 BASE_DIR 转换为绝对路径
-        if not os.path.isabs(path):
-            path = os.path.join(BASE_DIR, path)
-            path = os.path.normpath(path)
-        
-        if not os.path.exists(path): return jsonify({"success": False})
-        
+
+        safe_path = _resolve_safe_path(path, relative_to_base=False)
+        if not safe_path or not os.path.exists(safe_path):
+            return jsonify({"success": False, "msg": "文件不存在或非法路径"}), 400
+
         # 如果是图片，提取元数据；如果是JSON，直接读
-        if path.lower().endswith('.png'):
-            info = extract_card_info(path)
+        if safe_path.lower().endswith('.png'):
+            info = extract_card_info(safe_path)
             return jsonify({"success": True, "data": info})
         else:
-            with open(path, 'r', encoding='utf-8') as f:
+            with open(safe_path, 'r', encoding='utf-8') as f:
                 return jsonify({"success": True, "data": json.load(f)})
     except Exception as e:
         return jsonify({"success": False, "msg": str(e)})
@@ -962,16 +1062,13 @@ def api_open_path():
         
         if not path:
             return jsonify({"success": False, "msg": "Path missing"})
-            
-        # 如果是相对路径，尝试基于 BASE_DIR 解析 (视情况而定，这里假设传入的是绝对路径或已处理好的路径)
-        # 为了安全，也可以限制只能打开 CARDS_FOLDER 或 RESOURCES_FOLDER 下的路径
-        
-        target_open = path
-        if relative_to_base:
-            target_open = os.path.join(BASE_DIR, path)
 
-        if is_file and os.path.isfile(path):
-            target_open = os.path.dirname(path)
+        target_open = _resolve_safe_path(path, relative_to_base=relative_to_base)
+        if not target_open:
+            return jsonify({"success": False, "msg": "非法路径"}), 400
+
+        if os.path.isfile(target_open):
+            target_open = os.path.dirname(target_open)
             
         if not os.path.exists(target_open):
             return jsonify({"success": False, "msg": f"路径不存在: {target_open}"})

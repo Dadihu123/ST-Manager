@@ -114,6 +114,10 @@ export function initState() {
             auth_username: '',
             auth_password: '',
             auth_trusted_ips: [],
+            auth_max_attempts: 5,
+            auth_fail_window_seconds: 600,
+            auth_lockout_seconds: 900,
+            auth_hard_lock_threshold: 50,
             auto_rename_on_import: true,
         },
 

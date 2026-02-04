@@ -89,6 +89,20 @@ DEFAULT_CONFIG = {
     # 支持格式：单个 IP ("192.168.1.100")、CIDR ("192.168.1.0/24")、通配符 ("192.168.*.*")
     # 默认已包含 127.0.0.1 和 ::1 (本机)，无需手动添加
     "auth_trusted_ips": [],
+    # 受信任代理列表：仅当请求来自这些代理时才信任 X-Forwarded-For / X-Real-IP
+    # 建议仅包含反向代理/内网穿透服务的出口 IP
+    # 默认包含本机 127.0.0.1 / ::1（本地反向代理常见）
+    "auth_trusted_proxies": [],
+    # 登录失败限流/锁定
+    # max_attempts: 失败次数阈值
+    # fail_window_seconds: 统计窗口（秒）
+    # lockout_seconds: 锁定时长（秒）
+    "auth_max_attempts": 5,
+    "auth_fail_window_seconds": 600,
+    "auth_lockout_seconds": 900,
+    # 连续失败触发“锁定模式”（需要手动重启）
+    # hard_lock_threshold: 连续失败次数阈值
+    "auth_hard_lock_threshold": 50,
 
     # 导入文件时是否使用角色名自动重命名文件
     # 设为 False 则保留原始文件名（仅处理冲突时添加序号）

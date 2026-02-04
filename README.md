@@ -332,13 +332,26 @@ ST-Manager/
     "192.168.1.100",
     "192.168.1.0/24",
     "192.168.*.*"
-  ]
+  ],
+  "auth_trusted_proxies": [],
+  "auth_max_attempts": 5,
+  "auth_fail_window_seconds": 600,
+  "auth_lockout_seconds": 900,
+  "auth_hard_lock_threshold": 50
 }
 ```
 
 说明：
 - 仅当 `auth_username` 和 `auth_password` **都不为空**时才启用认证。
 - `auth_trusted_ips` 支持三种格式：单个 IP、CIDR 网段、通配符（如 `192.168.*.*`）。
+- `auth_trusted_proxies`：仅当请求来自这些代理 IP 时，才信任 `X-Forwarded-For / X-Real-IP`。
+- `auth_max_attempts` / `auth_fail_window_seconds` / `auth_lockout_seconds`：登录失败限流与锁定。
+- `auth_hard_lock_threshold`：连续失败达到阈值后进入锁定模式（需要后台手动重启）。
+
+### 登录失败限流与锁定模式
+
+- **限流锁定**：默认 10 分钟内失败 ≥ 5 次，锁定 15 分钟。
+- **硬锁模式**：连续失败达到阈值（默认 50 次）后，系统进入锁定模式，所有 API 返回 503，需要后台重启。
 
 ### 环境变量（适合 Docker/systemd）
 
@@ -374,6 +387,7 @@ python -m core.auth --add-ip 192.168.*.*
 
 - 如果你**直接把 Flask 端口暴露到公网**，请确保代理/网关会**覆盖或移除**客户端自带的这些 Header，避免被伪造。
 - 更推荐：在 Nginx/Caddy/Traefik 后面运行，并只允许代理访问后端端口。
+- 仅当请求来自 `auth_trusted_proxies` 中的代理地址时，才会信任 `X-Forwarded-For / X-Real-IP`。
 
 
 ---

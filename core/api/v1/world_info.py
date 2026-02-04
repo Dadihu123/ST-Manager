@@ -39,6 +39,21 @@ def _resolve_resources_dir(cfg: dict) -> str:
     raw_res_dir = cfg.get('resources_dir', 'resources')
     return raw_res_dir if os.path.isabs(raw_res_dir) else os.path.join(BASE_DIR, raw_res_dir)
 
+def _is_valid_wi_file(path: str, cfg: dict) -> bool:
+    if not path:
+        return False
+    global_dir = _resolve_wi_dir(cfg)
+    resources_dir = _resolve_resources_dir(cfg)
+
+    if _is_under_base(path, global_dir):
+        return True
+
+    if _is_under_base(path, resources_dir):
+        rel_path = os.path.relpath(path, resources_dir).replace('\\', '/')
+        return '/lorebooks/' in f"/{rel_path}/"
+
+    return False
+
 def _normalize_wi_entries(raw):
     if raw is None:
         return []
@@ -663,6 +678,13 @@ def api_save_world_info():
             if not target_path or not os.path.exists(target_path):
                 return jsonify({"success": False, "msg": "目标文件不存在，无法覆盖"})
             final_path = target_path
+            if not os.path.isabs(final_path):
+                final_path = os.path.normpath(os.path.join(BASE_DIR, final_path))
+            else:
+                final_path = os.path.normpath(final_path)
+            cfg = load_config()
+            if not _is_valid_wi_file(final_path, cfg):
+                return jsonify({"success": False, "msg": "非法路径"})
             
         elif save_mode == 'new_global':
             cfg = load_config()
@@ -997,8 +1019,17 @@ def api_delete_world_info():
     try:
         # 传入完整文件路径
         file_path = request.json.get('file_path')
-        
-        if not file_path or not os.path.exists(file_path):
+        if not file_path:
+            return jsonify({"success": False, "msg": "文件不存在或路径为空"})
+
+        file_path = file_path if os.path.isabs(file_path) else os.path.join(BASE_DIR, file_path)
+        file_path = os.path.normpath(file_path)
+
+        cfg = load_config()
+        if not _is_valid_wi_file(file_path, cfg):
+            return jsonify({"success": False, "msg": "非法路径"})
+
+        if not os.path.exists(file_path):
             return jsonify({"success": False, "msg": "文件不存在或路径为空"})
             
         # 简单的安全检查，防止删除系统关键文件

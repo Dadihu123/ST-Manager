@@ -14,6 +14,8 @@ import secrets
 import hashlib
 import logging
 import ipaddress
+import time
+import threading
 from functools import wraps
 from flask import request, session, redirect, url_for, render_template_string, jsonify
 
@@ -23,23 +25,267 @@ logger = logging.getLogger(__name__)
 
 # 默认白名单（仅本机）
 DEFAULT_TRUSTED_IPS = ['127.0.0.1', '::1']
+# 默认受信任代理（仅本机）
+DEFAULT_TRUSTED_PROXIES = ['127.0.0.1', '::1']
+
+# 登录失败限流（内存态）
+_RATE_LIMIT_LOCK = threading.Lock()
+_FAILED_LOGINS = {}
+_LOCKED_UNTIL = {}
+_HARD_LOCKED = False
+_HARD_LOCKED_AT = 0.0
+_GLOBAL_FAIL_COUNT = 0
+_GLOBAL_FAIL_LAST_TS = 0.0
+
+
+def _strip_port(ip):
+    """
+    去除 IP 中可能包含的端口信息
+    支持格式:
+    - "1.2.3.4:5678"
+    - "[::1]:5678"
+    """
+    if not ip:
+        return ''
+
+    ip = ip.strip()
+
+    # IPv6 with brackets: [::1]:1234
+    if ip.startswith('[') and ']' in ip:
+        return ip[1:ip.index(']')].strip()
+
+    # IPv4 with port: 1.2.3.4:5678
+    if ':' in ip and ip.count(':') == 1 and '.' in ip:
+        return ip.split(':', 1)[0].strip()
+
+    return ip
+
+
+def _normalize_host(host):
+    """
+    规范化 Host（去端口/去 IPv6 方括号）
+    """
+    if not host:
+        return ''
+
+    host = host.strip()
+
+    # IPv6 with brackets: [::1]:1234
+    if host.startswith('[') and ']' in host:
+        host = host[1:host.index(']')].strip()
+    else:
+        # IPv4/hostname with port
+        if ':' in host:
+            host = host.split(':', 1)[0].strip()
+
+    return host.lower()
+
+
+def _is_local_host(host):
+    """
+    判断 Host 是否为本机访问
+    """
+    normalized = _normalize_host(host)
+    return normalized in ('localhost', '127.0.0.1', '::1')
+
+
+
+
+def get_trusted_proxies():
+    """
+    获取受信任代理列表
+    仅当请求来自这些代理时，才会信任 X-Forwarded-For / X-Real-IP
+    """
+    cfg = load_config()
+    user_proxies = cfg.get('auth_trusted_proxies', [])
+    return DEFAULT_TRUSTED_PROXIES + list(user_proxies)
+
+
+def _get_rate_limit_config():
+    cfg = load_config()
+    try:
+        max_attempts = int(cfg.get('auth_max_attempts', 5))
+    except Exception:
+        max_attempts = 5
+    try:
+        window = int(cfg.get('auth_fail_window_seconds', 600))
+    except Exception:
+        window = 600
+    try:
+        lockout = int(cfg.get('auth_lockout_seconds', 900))
+    except Exception:
+        lockout = 900
+
+    # 合理范围限制
+    max_attempts = max(3, min(max_attempts, 20))
+    window = max(60, min(window, 3600))
+    lockout = max(60, min(lockout, 7200))
+
+    return max_attempts, window, lockout
+
+
+def _get_hard_lock_threshold():
+    cfg = load_config()
+    try:
+        threshold = int(cfg.get('auth_hard_lock_threshold', 50))
+    except Exception:
+        threshold = 50
+    # 20 ~ 500
+    threshold = max(20, min(threshold, 500))
+    return threshold
+
+
+def _get_rate_limit_key():
+    ip = get_real_ip() or request.remote_addr or ''
+    ip = _strip_port(ip)
+    if ip == 'localhost':
+        ip = '127.0.0.1'
+    return ip if ip else 'unknown'
+
+
+def _cleanup_rate_limit_state(now_ts, window_seconds):
+    # 清理过期记录，避免内存增长
+    stale_keys = []
+    for key, data in _FAILED_LOGINS.items():
+        if now_ts - data.get('last_ts', now_ts) > window_seconds:
+            stale_keys.append(key)
+    for key in stale_keys:
+        _FAILED_LOGINS.pop(key, None)
+
+    expired_locks = [k for k, v in _LOCKED_UNTIL.items() if v <= now_ts]
+    for key in expired_locks:
+        _LOCKED_UNTIL.pop(key, None)
+
+
+def _check_lockout(key, now_ts):
+    locked_until = _LOCKED_UNTIL.get(key)
+    if locked_until and locked_until > now_ts:
+        return True, max(1, int(locked_until - now_ts))
+    if locked_until and locked_until <= now_ts:
+        _LOCKED_UNTIL.pop(key, None)
+    return False, 0
+
+
+def _record_failed_login(key, now_ts, max_attempts, window_seconds, lockout_seconds):
+    data = _FAILED_LOGINS.get(key)
+    if not data or now_ts - data.get('first_ts', now_ts) > window_seconds:
+        data = {'count': 1, 'first_ts': now_ts, 'last_ts': now_ts}
+    else:
+        data['count'] = data.get('count', 0) + 1
+        data['last_ts'] = now_ts
+    _FAILED_LOGINS[key] = data
+
+    if data['count'] >= max_attempts:
+        _LOCKED_UNTIL[key] = now_ts + lockout_seconds
+        return True
+    return False
+
+
+def _reset_failed_logins(key):
+    _FAILED_LOGINS.pop(key, None)
+    _LOCKED_UNTIL.pop(key, None)
+
+
+def _reset_global_failures():
+    global _GLOBAL_FAIL_COUNT, _GLOBAL_FAIL_LAST_TS
+    _GLOBAL_FAIL_COUNT = 0
+    _GLOBAL_FAIL_LAST_TS = 0.0
+
+
+def _is_hard_locked():
+    return _HARD_LOCKED
+
+
+def _parse_x_forwarded_for(xff_value):
+    """
+    解析 X-Forwarded-For，返回合法 IP 列表（按顺序）
+    """
+    if not xff_value:
+        return []
+
+    parts = [p.strip() for p in xff_value.split(',') if p.strip()]
+    ips = []
+    for part in parts:
+        ip = _strip_port(part)
+        if ip == 'localhost':
+            ip = '127.0.0.1'
+        try:
+            ipaddress.ip_address(ip)
+            ips.append(ip)
+        except ValueError:
+            continue
+    return ips
+
+
+def _get_client_ip_from_xff(xff_value, trusted_proxies, remote_addr):
+    """
+    从 X-Forwarded-For 链中提取真实客户端 IP
+    逻辑:
+    - 解析 XFF 为列表
+    - 追加 remote_addr 作为最后一跳（如未包含）
+    - 从右向左跳过受信任代理，取第一个非代理 IP
+    """
+    xff_ips = _parse_x_forwarded_for(xff_value)
+
+    if remote_addr:
+        try:
+            ipaddress.ip_address(remote_addr)
+            if not xff_ips or xff_ips[-1] != remote_addr:
+                xff_ips.append(remote_addr)
+        except ValueError:
+            pass
+
+    # 从右向左跳过受信任代理
+    for ip in reversed(xff_ips):
+        if not is_ip_in_whitelist(ip, trusted_proxies):
+            return ip
+
+    # 全部都是代理，兜底返回最左边或 remote_addr
+    if xff_ips:
+        return xff_ips[0]
+    return remote_addr or ''
 
 
 def get_real_ip():
     """
     获取真实客户端 IP，考虑反向代理情况
+    仅当请求来自受信任代理时才信任 X-Forwarded-For / X-Real-IP
     """
-    # 常见的反向代理头
-    forwarded_for = request.headers.get('X-Forwarded-For')
-    if forwarded_for:
-        # X-Forwarded-For 可能包含多个 IP，取第一个（原始客户端）
-        return forwarded_for.split(',')[0].strip()
+    remote_addr = _strip_port(request.remote_addr or '')
+    if remote_addr == 'localhost':
+        remote_addr = '127.0.0.1'
 
-    real_ip = request.headers.get('X-Real-IP')
-    if real_ip:
-        return real_ip.strip()
+    trusted_proxies = get_trusted_proxies()
+    is_proxy = bool(remote_addr and is_ip_in_whitelist(remote_addr, trusted_proxies))
+    has_forwarded = bool(request.headers.get('X-Forwarded-For') or request.headers.get('X-Real-IP'))
+    local_host = _is_local_host(request.host)
 
-    return request.remote_addr or ''
+    if is_proxy:
+        # 仅在受信任代理下使用转发头
+        forwarded_for = request.headers.get('X-Forwarded-For')
+        if forwarded_for:
+            client_ip = _get_client_ip_from_xff(forwarded_for, trusted_proxies, remote_addr)
+            if client_ip:
+                # 反向代理场景下不信任 loopback 作为真实客户端（避免外网穿透绕过）
+                if is_ip_in_whitelist(client_ip, DEFAULT_TRUSTED_IPS):
+                    return ''
+                return client_ip
+
+        real_ip = request.headers.get('X-Real-IP')
+        if real_ip:
+            real_ip = _strip_port(real_ip.strip())
+            if real_ip:
+                if is_ip_in_whitelist(real_ip, DEFAULT_TRUSTED_IPS):
+                    return ''
+                return real_ip
+
+        # 代理请求但未携带转发头：
+        # - 若 Host 非本机，则视为外网，不允许回退到本机 IP
+        # - 若 Host 为本机，允许回退（本机访问）
+        if (has_forwarded or not is_ip_in_whitelist(remote_addr, DEFAULT_TRUSTED_IPS)) or not local_host:
+            return ''
+
+    return remote_addr or ''
 
 
 def get_trusted_ips():
@@ -382,7 +628,13 @@ def init_auth(app):
     # === 登录页面路由 ===
     @app.route('/auth/login', methods=['GET', 'POST'])
     def auth_login():
+        global _HARD_LOCKED, _HARD_LOCKED_AT, _GLOBAL_FAIL_COUNT, _GLOBAL_FAIL_LAST_TS
         client_ip = get_real_ip()
+
+        # 锁定模式：需要手动重启
+        if _is_hard_locked():
+            error = "系统已进入锁定模式，需要后台手动重启"
+            return render_template_string(LOGIN_PAGE_TEMPLATE, error=error, client_ip=client_ip)
 
         # 白名单内直接重定向到首页
         if is_trusted_request():
@@ -394,18 +646,54 @@ def init_auth(app):
 
         error = None
         if request.method == 'POST':
+            # 登录失败限流/锁定
+            now_ts = time.time()
+            key = _get_rate_limit_key()
+            with _RATE_LIMIT_LOCK:
+                max_attempts, window_seconds, lockout_seconds = _get_rate_limit_config()
+                hard_lock_threshold = _get_hard_lock_threshold()
+                _cleanup_rate_limit_state(now_ts, window_seconds)
+                locked, remaining = _check_lockout(key, now_ts)
+            if locked:
+                minutes = max(1, int((remaining + 59) / 60))
+                error = f"登录失败次数过多，请在 {minutes} 分钟后再试"
+                logger.warning(f"登录被锁定: {key} 剩余 {remaining}s")
+                return render_template_string(LOGIN_PAGE_TEMPLATE, error=error, client_ip=client_ip)
+
             username = request.form.get('username', '').strip()
             password = request.form.get('password', '')
 
             if verify_credentials(username, password):
                 login_user()
+                with _RATE_LIMIT_LOCK:
+                    _reset_failed_logins(key)
+                    _reset_global_failures()
                 logger.info(f"用户 '{username}' 从 {client_ip} 登录成功")
                 # 重定向到原始请求页面或首页
                 next_url = request.args.get('next', '/')
                 return redirect(next_url)
             else:
-                error = "用户名或密码错误"
-                logger.warning(f"登录失败: 用户 '{username}' 从 {client_ip}")
+                with _RATE_LIMIT_LOCK:
+                    is_locked = _record_failed_login(
+                        key, now_ts, max_attempts, window_seconds, lockout_seconds
+                    )
+                    # 全局连续失败计数（不区分 IP）
+                    _GLOBAL_FAIL_COUNT += 1
+                    _GLOBAL_FAIL_LAST_TS = now_ts
+                    if _GLOBAL_FAIL_COUNT >= hard_lock_threshold and not _HARD_LOCKED:
+                        _HARD_LOCKED = True
+                        _HARD_LOCKED_AT = now_ts
+                        logger.error(f"触发锁定模式: 全局连续失败 {_GLOBAL_FAIL_COUNT} 次")
+                        error = "系统已进入锁定模式，需要后台手动重启"
+                        return render_template_string(LOGIN_PAGE_TEMPLATE, error=error, client_ip=client_ip)
+                    locked, remaining = _check_lockout(key, now_ts)
+                if is_locked or locked:
+                    minutes = max(1, int((remaining + 59) / 60))
+                    error = f"登录失败次数过多，请在 {minutes} 分钟后再试"
+                    logger.warning(f"登录被锁定: {key} 剩余 {remaining}s")
+                else:
+                    error = "用户名或密码错误"
+                    logger.warning(f"登录失败: 用户 '{username}' 从 {client_ip}")
 
         return render_template_string(LOGIN_PAGE_TEMPLATE, error=error, client_ip=client_ip)
 
@@ -429,6 +717,16 @@ def init_auth(app):
         for excluded in excluded_paths:
             if path.startswith(excluded):
                 return None
+
+        # 锁定模式：需要手动重启
+        if _is_hard_locked():
+            if path.startswith('/api/'):
+                return jsonify({
+                    'success': False,
+                    'error': 'Locked',
+                    'message': '系统已进入锁定模式，需要后台手动重启'
+                }), 503
+            return redirect('/auth/login')
         
         # 检查认证
         if not check_auth():
@@ -501,6 +799,7 @@ def cli_show_status():
     from core.config import load_config
     cfg = load_config()
     trusted_ips = cfg.get('auth_trusted_ips', [])
+    trusted_proxies = cfg.get('auth_trusted_proxies', [])
 
     print("\n🔐 ST Manager 认证状态")
     print("=" * 40)
@@ -520,6 +819,14 @@ def cli_show_status():
     print(f"   固定: 127.0.0.1, ::1 (本机)")
     if trusted_ips:
         for ip in trusted_ips:
+            print(f"   自定义: {ip}")
+    else:
+        print(f"   自定义: (无)")
+
+    print(f"\n🧭 受信任代理:")
+    print(f"   固定: 127.0.0.1, ::1 (本机)")
+    if trusted_proxies:
+        for ip in trusted_proxies:
             print(f"   自定义: {ip}")
     else:
         print(f"   自定义: (无)")
