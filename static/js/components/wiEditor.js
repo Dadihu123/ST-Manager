@@ -55,6 +55,20 @@ export default function wiEditor() {
         entryHistoryVersions: [],
         entryHistorySelection: { left: null, right: null },
         entryHistoryDiff: { left: '', right: '' },
+        
+        // 查找与替换
+        showFindReplaceModal: false,
+        findReplaceQuery: '',
+        findReplaceReplacement: '',
+        findReplaceScope: 'current', // current | all
+        findReplaceCaseSensitive: false,
+        findReplaceExcludeText: '',
+        findReplaceLastHit: null,
+        findReplacePanelX: 0,
+        findReplacePanelY: 0,
+        findReplaceDragActive: false,
+        findReplaceDragOffsetX: 0,
+        findReplaceDragOffsetY: 0,
 
         // === 剪切板状态 ===
         showWiClipboard: false,
@@ -102,11 +116,30 @@ export default function wiEditor() {
                     this.currentWiIndex = 0;
                     this.initialSnapshotChecked = false;
                     this.initialSnapshotInitPromise = null;
+                    this.showFindReplaceModal = false;
+                    this.findReplaceLastHit = null;
+                    this._detachFindReplaceDragListeners();
                 }
             });
 
             window.addEventListener('keydown', (e) => {
-                if (this.showFullScreenWI && e.key === 'Escape') {
+                if (!this.showFullScreenWI) return;
+
+                // Ctrl/Cmd + H: 打开查找替换
+                if ((e.ctrlKey || e.metaKey) && String(e.key || '').toLowerCase() === 'h') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    this.openFindReplaceModal();
+                    return;
+                }
+
+                if (e.key === 'Escape' && this.showFindReplaceModal) {
+                    e.preventDefault();
+                    this.closeFindReplaceModal();
+                    return;
+                }
+
+                if (e.key === 'Escape') {
                     this.showFullScreenWI = false;
                 }
             });
@@ -114,6 +147,484 @@ export default function wiEditor() {
 
         openRollback() {
             this.handleOpenRollback(this.editingWiFile, this.editingData);
+        },
+
+        _getEditorRootEl() {
+            return document.querySelector('.detail-wi-full-screen');
+        },
+
+        _getContentTextareaEl() {
+            const root = this._getEditorRootEl();
+            if (!root) return null;
+            return root.querySelector('textarea[x-ref="wiContentTextarea"]');
+        },
+
+        _getFindInputEl() {
+            const root = this._getEditorRootEl();
+            if (!root) return null;
+            return root.querySelector('input[x-ref="findReplaceInput"]');
+        },
+
+        _getFindReplacePanelEl() {
+            const root = this._getEditorRootEl();
+            if (!root) return null;
+            return root.querySelector('[x-ref="findReplacePanel"]');
+        },
+
+        _clampFindReplacePos(x, y) {
+            const panel = this._getFindReplacePanelEl();
+            const panelW = panel ? panel.offsetWidth : 640;
+            const panelH = panel ? panel.offsetHeight : 340;
+            const maxX = Math.max(12, window.innerWidth - panelW - 12);
+            const maxY = Math.max(12, window.innerHeight - panelH - 12);
+            return {
+                x: Math.max(12, Math.min(Math.floor(x), maxX)),
+                y: Math.max(12, Math.min(Math.floor(y), maxY))
+            };
+        },
+
+        get findReplacePanelStyle() {
+            const clamped = this._clampFindReplacePos(this.findReplacePanelX || 0, this.findReplacePanelY || 0);
+            return `left:${clamped.x}px;top:${clamped.y}px;`;
+        },
+
+        _resetFindReplacePanelPos() {
+            const panelW = 640;
+            const panelH = 340;
+            const x = Math.max(12, Math.floor((window.innerWidth - panelW) / 2));
+            const y = Math.max(12, Math.floor((window.innerHeight - panelH) / 2));
+            const clamped = this._clampFindReplacePos(x, y);
+            this.findReplacePanelX = clamped.x;
+            this.findReplacePanelY = clamped.y;
+        },
+
+        _attachFindReplaceDragListeners() {
+            if (this._findReplaceMoveHandler || this._findReplaceUpHandler) return;
+            this._findReplaceMoveHandler = (evt) => this.onFindReplaceDragMove(evt);
+            this._findReplaceUpHandler = () => this.stopFindReplaceDrag();
+            window.addEventListener('mousemove', this._findReplaceMoveHandler);
+            window.addEventListener('mouseup', this._findReplaceUpHandler);
+        },
+
+        _detachFindReplaceDragListeners() {
+            if (this._findReplaceMoveHandler) {
+                window.removeEventListener('mousemove', this._findReplaceMoveHandler);
+                this._findReplaceMoveHandler = null;
+            }
+            if (this._findReplaceUpHandler) {
+                window.removeEventListener('mouseup', this._findReplaceUpHandler);
+                this._findReplaceUpHandler = null;
+            }
+            this.findReplaceDragActive = false;
+        },
+
+        startFindReplaceDrag(evt) {
+            const panel = this._getFindReplacePanelEl();
+            if (!panel) return;
+
+            const rect = panel.getBoundingClientRect();
+            this.findReplaceDragActive = true;
+            this.findReplaceDragOffsetX = (evt.clientX || 0) - rect.left;
+            this.findReplaceDragOffsetY = (evt.clientY || 0) - rect.top;
+            this._attachFindReplaceDragListeners();
+        },
+
+        onFindReplaceDragMove(evt) {
+            if (!this.findReplaceDragActive) return;
+            const x = (evt.clientX || 0) - this.findReplaceDragOffsetX;
+            const y = (evt.clientY || 0) - this.findReplaceDragOffsetY;
+            const clamped = this._clampFindReplacePos(x, y);
+            this.findReplacePanelX = clamped.x;
+            this.findReplacePanelY = clamped.y;
+        },
+
+        stopFindReplaceDrag() {
+            this.findReplaceDragActive = false;
+            this._detachFindReplaceDragListeners();
+        },
+
+        openFindReplaceModal() {
+            if (!this.activeEditorEntry && !this.getWIArrayRef().length) {
+                alert('当前没有可查找的条目。');
+                return;
+            }
+
+            if (!this.findReplacePanelX && !this.findReplacePanelY) {
+                this._resetFindReplacePanelPos();
+            }
+            this.showFindReplaceModal = true;
+            this.findReplaceLastHit = null;
+
+            // 若正文有选中文本，优先带入查找词
+            const ta = this._getContentTextareaEl();
+            if (ta && ta.selectionStart !== ta.selectionEnd) {
+                const selected = ta.value.slice(ta.selectionStart, ta.selectionEnd);
+                if (selected && !this.findReplaceQuery) {
+                    this.findReplaceQuery = selected;
+                }
+            }
+
+            this.$nextTick(() => {
+                const input = this._getFindInputEl();
+                if (input && typeof input.focus === 'function') {
+                    input.focus();
+                    if (typeof input.select === 'function') input.select();
+                }
+            });
+        },
+
+        closeFindReplaceModal() {
+            this.stopFindReplaceDrag();
+            this.showFindReplaceModal = false;
+        },
+
+        _getFindReplaceTargets() {
+            if (this.findReplaceScope === 'current') {
+                const current = this.activeEditorEntry;
+                if (!current || typeof current !== 'object') return [];
+                return [{
+                    entry: current,
+                    index: this.isEditingClipboard ? -1 : this.currentWiIndex
+                }];
+            }
+
+            const arr = this.getWIArrayRef();
+            if (!Array.isArray(arr) || !arr.length) return [];
+            return arr.map((entry, index) => ({ entry, index }));
+        },
+
+        _normalizeFindText(text) {
+            return String(text ?? '');
+        },
+
+        _parseFindReplaceExcludeTokens() {
+            const raw = String(this.findReplaceExcludeText || '');
+            if (!raw.trim()) return [];
+            const parts = raw
+                .split(/\r?\n|,/)
+                .map(s => String(s || '').trim())
+                .filter(Boolean);
+            const unique = Array.from(new Set(parts));
+            // 长词优先，减少短词遮挡误判
+            unique.sort((a, b) => b.length - a.length);
+            return unique;
+        },
+
+        _mergeRanges(ranges) {
+            if (!ranges.length) return [];
+            const sorted = [...ranges].sort((a, b) => a.start - b.start || a.end - b.end);
+            const merged = [sorted[0]];
+            for (let i = 1; i < sorted.length; i++) {
+                const cur = sorted[i];
+                const last = merged[merged.length - 1];
+                if (cur.start <= last.end) {
+                    last.end = Math.max(last.end, cur.end);
+                } else {
+                    merged.push({ start: cur.start, end: cur.end });
+                }
+            }
+            return merged;
+        },
+
+        _buildBlockedRanges(text, excludeTokens, caseSensitive = false) {
+            const src = this._normalizeFindText(text);
+            const tokens = Array.isArray(excludeTokens) ? excludeTokens.filter(Boolean) : [];
+            if (!tokens.length || !src) return [];
+
+            const ranges = [];
+            if (caseSensitive) {
+                tokens.forEach((token) => {
+                    let from = 0;
+                    while (from <= src.length - token.length) {
+                        const idx = src.indexOf(token, from);
+                        if (idx < 0) break;
+                        ranges.push({ start: idx, end: idx + token.length });
+                        from = idx + Math.max(1, token.length);
+                    }
+                });
+            } else {
+                const srcLower = src.toLowerCase();
+                tokens.forEach((token) => {
+                    const t = token.toLowerCase();
+                    let from = 0;
+                    while (from <= srcLower.length - t.length) {
+                        const idx = srcLower.indexOf(t, from);
+                        if (idx < 0) break;
+                        ranges.push({ start: idx, end: idx + t.length });
+                        from = idx + Math.max(1, t.length);
+                    }
+                });
+            }
+
+            return this._mergeRanges(ranges);
+        },
+
+        _isRangeBlocked(start, length, blockedRanges) {
+            const end = start + length;
+            for (const rg of blockedRanges) {
+                if (start < rg.end && end > rg.start) {
+                    return true;
+                }
+            }
+            return false;
+        },
+
+        _findInText(text, query, fromIndex = 0, caseSensitive = false, blockedRanges = []) {
+            const src = this._normalizeFindText(text);
+            const needle = this._normalizeFindText(query);
+            if (!needle) return -1;
+
+            const start = Math.max(0, Math.min(Number(fromIndex) || 0, src.length));
+            let pos = start;
+            while (pos <= src.length) {
+                let found = -1;
+                if (caseSensitive) {
+                    found = src.indexOf(needle, pos);
+                } else {
+                    found = src.toLowerCase().indexOf(needle.toLowerCase(), pos);
+                }
+                if (found < 0) return -1;
+                if (!this._isRangeBlocked(found, needle.length, blockedRanges)) return found;
+                pos = found + 1;
+            }
+            return -1;
+        },
+
+        _applyFindHit(hit) {
+            if (!hit || !hit.entry) return false;
+
+            // 全部条目模式下切换到命中条目
+            if (this.findReplaceScope === 'all' && typeof hit.index === 'number' && hit.index >= 0) {
+                this.isEditingClipboard = false;
+                this.currentClipboardIndex = -1;
+                this.currentWiIndex = hit.index;
+            }
+
+            this.findReplaceLastHit = {
+                query: this.findReplaceQuery,
+                scope: this.findReplaceScope,
+                caseSensitive: !!this.findReplaceCaseSensitive,
+                index: hit.index,
+                entryUid: String(hit.entry?.[this.entryUidField] || ''),
+                start: hit.start,
+                length: hit.length
+            };
+
+            this.$nextTick(() => {
+                const ta = this._getContentTextareaEl();
+                if (!ta) return;
+                if (typeof ta.focus === 'function') ta.focus();
+                if (typeof ta.setSelectionRange === 'function') {
+                    ta.setSelectionRange(hit.start, hit.start + hit.length);
+                }
+            });
+            return true;
+        },
+
+        findNextMatch() {
+            const query = this._normalizeFindText(this.findReplaceQuery).trim();
+            if (!query) {
+                alert('请输入查找内容。');
+                return false;
+            }
+
+            const targets = this._getFindReplaceTargets();
+            if (!targets.length) {
+                alert('当前范围没有可查找的条目。');
+                return false;
+            }
+
+            let startTargetIdx = 0;
+            let startOffset = 0;
+            const last = this.findReplaceLastHit;
+
+            if (this.findReplaceScope === 'current') {
+                const ta = this._getContentTextareaEl();
+                if (ta && typeof ta.selectionEnd === 'number') {
+                    startOffset = ta.selectionEnd;
+                }
+            } else if (
+                last &&
+                last.query === this.findReplaceQuery &&
+                last.scope === this.findReplaceScope &&
+                !!last.caseSensitive === !!this.findReplaceCaseSensitive
+            ) {
+                let idx = targets.findIndex((t) => {
+                    const uid = String(t.entry?.[this.entryUidField] || '');
+                    return uid && uid === String(last.entryUid || '');
+                });
+                if (idx < 0 && typeof last.index === 'number') idx = last.index;
+                if (idx >= 0 && idx < targets.length) {
+                    startTargetIdx = idx;
+                    startOffset = Number(last.start || 0) + Number(last.length || 0);
+                }
+            }
+
+            for (let pass = 0; pass < targets.length; pass++) {
+                const targetIdx = (startTargetIdx + pass) % targets.length;
+                const target = targets[targetIdx];
+                const content = this._normalizeFindText(target.entry?.content);
+                const excluded = this._parseFindReplaceExcludeTokens();
+                const blockedRanges = this._buildBlockedRanges(content, excluded, this.findReplaceCaseSensitive);
+                const from = pass === 0 ? startOffset : 0;
+                const pos = this._findInText(content, query, from, this.findReplaceCaseSensitive, blockedRanges);
+                if (pos >= 0) {
+                    const hit = {
+                        entry: target.entry,
+                        index: target.index,
+                        start: pos,
+                        length: query.length
+                    };
+                    this._applyFindHit(hit);
+                    return true;
+                }
+            }
+
+            // 回到起点条目开头，完成一整圈查找
+            if (startOffset > 0) {
+                const target = targets[startTargetIdx];
+                const content = this._normalizeFindText(target.entry?.content);
+                const excluded = this._parseFindReplaceExcludeTokens();
+                const blockedRanges = this._buildBlockedRanges(content, excluded, this.findReplaceCaseSensitive);
+                const pos = this._findInText(content, query, 0, this.findReplaceCaseSensitive, blockedRanges);
+                if (pos >= 0) {
+                    const hit = {
+                        entry: target.entry,
+                        index: target.index,
+                        start: pos,
+                        length: query.length
+                    };
+                    this._applyFindHit(hit);
+                    return true;
+                }
+            }
+
+            alert('未找到匹配内容。');
+            return false;
+        },
+
+        _resolveLastFindHitEntry() {
+            const last = this.findReplaceLastHit;
+            if (!last) return null;
+
+            const targets = this._getFindReplaceTargets();
+            if (!targets.length) return null;
+
+            let target = null;
+            if (last.entryUid) {
+                target = targets.find((t) => String(t.entry?.[this.entryUidField] || '') === String(last.entryUid));
+            }
+            if (!target && typeof last.index === 'number') {
+                target = targets.find((t) => t.index === last.index);
+            }
+            return target || null;
+        },
+
+        replaceCurrentMatch() {
+            const query = this._normalizeFindText(this.findReplaceQuery).trim();
+            if (!query) {
+                alert('请输入查找内容。');
+                return;
+            }
+
+            const replacement = this._normalizeFindText(this.findReplaceReplacement);
+            let last = this.findReplaceLastHit;
+            if (!last || last.query !== this.findReplaceQuery || last.scope !== this.findReplaceScope) {
+                const found = this.findNextMatch();
+                if (!found) return;
+                last = this.findReplaceLastHit;
+            }
+
+            const target = this._resolveLastFindHitEntry();
+            if (!target || !target.entry) {
+                const found = this.findNextMatch();
+                if (!found) return;
+            }
+
+            const resolved = this._resolveLastFindHitEntry();
+            if (!resolved || !resolved.entry) return;
+
+            const content = this._normalizeFindText(resolved.entry.content);
+            const start = Number(this.findReplaceLastHit.start || 0);
+            const length = Number(this.findReplaceLastHit.length || query.length);
+            const segment = content.slice(start, start + length);
+            const excluded = this._parseFindReplaceExcludeTokens();
+            const blockedRanges = this._buildBlockedRanges(content, excluded, this.findReplaceCaseSensitive);
+            const isEqual = this.findReplaceCaseSensitive
+                ? (segment === query)
+                : (segment.toLowerCase() === query.toLowerCase());
+            const isBlocked = this._isRangeBlocked(start, length, blockedRanges);
+
+            if (!isEqual || isBlocked) {
+                const found = this.findNextMatch();
+                if (!found) return;
+                return this.replaceCurrentMatch();
+            }
+
+            resolved.entry.content = content.slice(0, start) + replacement + content.slice(start + length);
+
+            this.findReplaceLastHit = {
+                ...this.findReplaceLastHit,
+                start,
+                length: replacement.length
+            };
+
+            this.$nextTick(() => {
+                const ta = this._getContentTextareaEl();
+                if (!ta) return;
+                if (typeof ta.focus === 'function') ta.focus();
+                if (typeof ta.setSelectionRange === 'function') {
+                    ta.setSelectionRange(start, start + replacement.length);
+                }
+            });
+            this.$store.global.showToast('已替换当前匹配', 1200);
+        },
+
+        replaceAllMatches() {
+            const query = this._normalizeFindText(this.findReplaceQuery).trim();
+            if (!query) {
+                alert('请输入查找内容。');
+                return;
+            }
+
+            const replacement = this._normalizeFindText(this.findReplaceReplacement);
+            const targets = this._getFindReplaceTargets();
+            if (!targets.length) {
+                alert('当前范围没有可替换的条目。');
+                return;
+            }
+
+            const excluded = this._parseFindReplaceExcludeTokens();
+            let replaceCount = 0;
+            let hitEntries = 0;
+            targets.forEach((target) => {
+                const content = this._normalizeFindText(target.entry?.content);
+                const blockedRanges = this._buildBlockedRanges(content, excluded, this.findReplaceCaseSensitive);
+
+                let from = 0;
+                let cnt = 0;
+                let out = '';
+                while (from <= content.length) {
+                    const pos = this._findInText(content, query, from, this.findReplaceCaseSensitive, blockedRanges);
+                    if (pos < 0) break;
+                    out += content.slice(from, pos) + replacement;
+                    from = pos + query.length;
+                    cnt += 1;
+                }
+                if (!cnt) return;
+
+                out += content.slice(from);
+                target.entry.content = out;
+                replaceCount += cnt;
+                hitEntries += 1;
+            });
+
+            this.findReplaceLastHit = null;
+            if (!replaceCount) {
+                this.$store.global.showToast('没有匹配内容可替换', 1500);
+                return;
+            }
+            this.$store.global.showToast(`已替换 ${replaceCount} 处（${hitEntries} 条目）`, 1800);
         },
 
         _normalizePathForCompare(path) {
