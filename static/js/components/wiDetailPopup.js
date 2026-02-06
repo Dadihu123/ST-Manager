@@ -256,8 +256,8 @@ export default function wiDetailPopup() {
                     const processedEntries = rawEntries.map((e, idx) => {
                         // 浅拷贝对象，避免修改原始引用
                         const newEntry = { ...e };
-                        // 覆盖 ID 为完全唯一的字符串
-                        newEntry.id = sessionPrefix + idx;
+                        // 使用索引号作为 id，确保 Alpine.js key 追踪稳定
+                        newEntry.id = idx;
                         return newEntry;
                     });
 
@@ -378,10 +378,10 @@ export default function wiDetailPopup() {
                     const book = normalizeWiBook(rawData, this.activeWiDetail.name);
                     this.wiData = book;
                     let rawEntries = Array.isArray(book.entries) ? book.entries : Object.values(book.entries || {});
-                    const sessionPrefix = 's' + Date.now() + '-';
                     const processedEntries = rawEntries.map((e, idx) => {
                         const newEntry = { ...e };
-                        newEntry.id = sessionPrefix + idx;
+                        // 使用索引号作为 id，确保 Alpine.js key 追踪稳定
+                        newEntry.id = idx;
                         return newEntry;
                     });
                     this.wiEntries = processedEntries;

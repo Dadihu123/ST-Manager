@@ -104,8 +104,9 @@ export function toStV3Worldbook(bookData, fallbackName = "World Info") {
         delete out.secondary_keys;
         delete out.insertion_order;
 
-        // 可选：你内部生成的 id 通常没必要写回 ST 文件（避免混淆）
+        // 清理前端内部使用的字段
         delete out.id;
+        delete out.st_manager_uid;
 
         stripStLoreEntryDefaults(out);
         exportEntries[String(idx)] = out;
@@ -120,7 +121,7 @@ export function toStV3Worldbook(bookData, fallbackName = "World Info") {
 }
 
 // 前端归一化 entry 字段
-export function normalizeWiEntry(entry) {
+export function normalizeWiEntry(entry, index = 0) {
     // === 辅助转换函数 ===
     const toNumber = (val, fieldName) => {
         if (val === true) return 1;
@@ -141,9 +142,9 @@ export function normalizeWiEntry(entry) {
 
     // 2. 计算核心规范化字段
     const normalizedFields = {
-        // ID: 优先用 id，其次 uid，最后生成随机数
-        // 注意：不要完全依赖 uid，因为不同世界书的 uid 都是从0开始，合并时会冲突
-        id: entry.id ?? (entry.uid ? Number(entry.uid) + Math.floor(Math.random() * 1000) : Math.floor(Math.random() * 1000000000)),
+        // ID: 使用索引号 (0,1,2,3...)，确保 Alpine.js key 追踪稳定
+        // id 越大条目越靠下显示
+        id: index,
         
         insertion_order: toNumber(entry.insertion_order ?? entry.order, 'order'),
         position: toNumber(entry.position, 'position'),
@@ -208,9 +209,9 @@ export function normalizeWiBook(bookData, fallbackName = "World Info") {
     }
     if (!entries) entries = [];
 
-    // 执行归一化
-    const fixedEntries = entries.map(e => normalizeWiEntry(e));
-    
+    // 执行归一化，并分配索引作为 id（0,1,2,3...）
+    const fixedEntries = entries.map((e, idx) => normalizeWiEntry(e, idx));
+
     return {
         ...book,
         name: book.name || fallbackName,
@@ -266,7 +267,17 @@ export function getCleanedV3Data(editingData) {
         raw.extensions = { regex_scripts: [], tavern_helper: [] };
     }
     
-    // 5. 构建标准 V3 结构 (明确指定字段，丢弃多余的 UI 临时状态)
+    // 5. 清理世界书条目的前端内部字段，并重新分配索引 id（0,1,2,3...）
+    if (raw.character_book && Array.isArray(raw.character_book.entries)) {
+        raw.character_book.entries.forEach((entry, idx) => {
+            if (entry) {
+                entry.id = idx;
+                delete entry.st_manager_uid;
+            }
+        });
+    }
+
+    // 6. 构建标准 V3 结构 (明确指定字段，丢弃多余的 UI 临时状态)
     return {
         name: raw.char_name,
         description: raw.description || "",

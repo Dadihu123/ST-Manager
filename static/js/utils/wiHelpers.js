@@ -54,9 +54,8 @@ export const wiHelpers = {
         const entryUid = (typeof this._generateEntryUid === 'function')
             ? this._generateEntryUid()
             : `wi-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
-        // 创建新条目
+        // 创建新条目（不预先设置 id，稍后统一分配）
         arr.push({
-            id: Math.floor(Math.random() * 1000000),
             st_manager_uid: entryUid,
             comment: "新条目",
             content: "",
@@ -78,6 +77,12 @@ export const wiHelpers = {
             probability: 100,
             useProbability: true
         });
+        
+        // 重新分配 id，确保 id 等于索引号
+        arr.forEach((entry, idx) => {
+            if (entry) entry.id = idx;
+        });
+        
         // 滚动并选中
         this.$nextTick(() => {
             const container = document.querySelector('.wi-list-container');
@@ -98,6 +103,11 @@ export const wiHelpers = {
         if (this.currentWiIndex >= arr.length) {
             this.currentWiIndex = Math.max(0, arr.length - 1);
         }
+        
+        // 重新分配 id，确保 id 等于索引号
+        arr.forEach((entry, idx) => {
+            if (entry) entry.id = idx;
+        });
     },
 
     moveWiEntry(index, direction) {
@@ -111,6 +121,11 @@ export const wiHelpers = {
         
         // 跟随选中
         if (this.currentWiIndex === index) this.currentWiIndex = newIndex;
+        
+        // 重新分配 id，确保 id 等于索引号
+        arr.forEach((entry, idx) => {
+            if (entry) entry.id = idx;
+        });
     },
 
     createSnapshot(forceType = null) {

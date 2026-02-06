@@ -322,14 +322,33 @@ export default function detailModal() {
 
         // 世界书全屏编辑
         openFullScreenWI() {
-            // 构造一个临时 item 对象，告诉编辑器这是“内嵌”模式
+            // 构造一个临时 item 对象，告诉编辑器这是"内嵌"模式
+            // 传递当前内存中的世界书数据，实现双向同步
             const item = {
                 type: 'embedded',
                 card_id: this.activeCard.id,
-                name: this.editingData.character_book?.name || "World Info"
+                name: this.editingData.character_book?.name || "World Info",
+                // 传递当前内存中的世界书数据，避免重新从服务器加载
+                character_book: JSON.parse(JSON.stringify(this.editingData.character_book)),
+                // 传递整个editingData以支持保存操作
+                editingData: JSON.parse(JSON.stringify(this.editingData))
             };
             // 派发事件，由 wiEditor.js 监听处理
             window.dispatchEvent(new CustomEvent('open-wi-editor', { detail: item }));
+
+            // 监听全屏编辑器关闭事件，同步数据回来
+            const handleEditorClosed = (e) => {
+                const { character_book } = e.detail || {};
+                if (character_book) {
+                    // 将全屏编辑器的修改同步回detailModal
+                    this.editingData.character_book = character_book;
+                    this.editingData.character_book_raw = JSON.stringify(character_book, null, 2);
+                    this.$store.global.showToast('世界书数据已同步', 1500);
+                }
+                // 移除监听，避免重复
+                window.removeEventListener('wi-editor-closed', handleEditorClosed);
+            };
+            window.addEventListener('wi-editor-closed', handleEditorClosed);
         },
 
         // 跳转定位

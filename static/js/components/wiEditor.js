@@ -110,6 +110,15 @@ export default function wiEditor() {
             // 监听关闭
             this.$watch('showFullScreenWI', (val) => {
                 if (!val) {
+                    // 如果是内嵌模式，触发关闭事件同步数据回父组件
+                    if (this.editingWiFile && this.editingWiFile.type === 'embedded' && this.editingData && this.editingData.character_book) {
+                        window.dispatchEvent(new CustomEvent('wi-editor-closed', {
+                            detail: {
+                                character_book: JSON.parse(JSON.stringify(this.editingData.character_book)),
+                                card_id: this.editingData.id || this.editingWiFile.card_id
+                            }
+                        }));
+                    }
                     this._cleanupInitBackupsOnExit();
                     autoSaver.stop();
                     this.isEditingClipboard = false;
@@ -681,13 +690,6 @@ export default function wiEditor() {
                     card.character_book = normalizeWiBook(card.character_book, card.char_name || "WI");
                 }
 
-                if (Array.isArray(card.character_book?.entries)) {
-                    const sessionTs = Date.now();
-                    card.character_book.entries.forEach((entry, idx) => {
-                        entry.id = `edit-${sessionTs}-${idx}`;
-                    });
-                }
-
                 this.editingData = card;
                 this._ensureEntryUids();
             } else {
@@ -703,13 +705,6 @@ export default function wiEditor() {
                 }
 
                 const book = normalizeWiBook(res.data, currentFile.name || "World Info");
-                if (Array.isArray(book.entries)) {
-                    const sessionTs = Date.now();
-                    book.entries.forEach((entry, idx) => {
-                        entry.id = `edit-${sessionTs}-${idx}`;
-                    });
-                }
-
                 this.editingData.character_book = book;
                 this._ensureEntryUids();
             }
@@ -1444,15 +1439,9 @@ export default function wiEditor() {
             const handleSuccess = (dataObj, source) => {
                 // === 强制执行归一化 ===
                 // 不管是 embedded 还是 global，统统过一遍清洗
+                // normalizeWiBook 会为每个条目分配索引 id（0,1,2,3...）
                 if (dataObj.character_book) {
                     dataObj.character_book = normalizeWiBook(dataObj.character_book, dataObj.char_name || "WI");
-                }
-
-                if (dataObj.character_book && Array.isArray(dataObj.character_book.entries)) {
-                    const sessionTs = Date.now();
-                    dataObj.character_book.entries.forEach((entry, idx) => {
-                        entry.id = `edit-${sessionTs}-${idx}`;
-                    });
                 }
 
                 // 赋值给响应式对象
@@ -1490,6 +1479,32 @@ export default function wiEditor() {
 
             // 1. 内嵌类型 (Embedded): 获取角色卡数据
             if (item.type === 'embedded') {
+                // 如果传递了character_book数据（从detailModal同步过来的），直接使用
+                if (item.character_book && item.editingData) {
+                    const cardData = JSON.parse(JSON.stringify(item.editingData));
+                    
+                    // 确保 character_book 存在
+                    if (!cardData.character_book) {
+                        cardData.character_book = { name: item.name || "World Info", entries: [] };
+                    } else if (Array.isArray(cardData.character_book)) {
+                        // 兼容 V2 数组
+                        cardData.character_book = {
+                            name: item.name || "World Info",
+                            entries: cardData.character_book
+                        };
+                    }
+
+                    this.editingData = cardData;
+                    this.editingWiFile = item;
+                    this.currentWiIndex = 0;
+                    this.isEditingClipboard = false;
+                    this.currentClipboardIndex = -1;
+
+                    handleSuccess(cardData, "Embedded");
+                    return;
+                }
+                
+                // 如果没有传递数据（兼容旧逻辑），从服务器加载
                 getCardDetail(item.card_id).then(res => {
                     if (res.success && res.card) {
                         // 这是一个角色卡对象，character_book 在其中
@@ -1565,15 +1580,8 @@ export default function wiEditor() {
             }).then(res => {
                 this.isLoading = false;
                 if (res.success) {
+                    // normalizeWiBook 会为每个条目分配索引 id（0,1,2,3...）
                     const book = normalizeWiBook(res.data, item.name || "World Info");
-                    
-                    if (Array.isArray(book.entries)) {
-                        const sessionTs = Date.now();
-                        book.entries.forEach((entry, idx) => {
-                            entry.id = `edit-${sessionTs}-${idx}`;
-                        });
-                    }
-                    
                     this.editingData.character_book = book;
                     this.editingWiFile = item;
                     this._ensureEntryUids();
@@ -1824,7 +1832,7 @@ export default function wiEditor() {
         addWiEntryFromClipboard(content) {
             const arr = this.getWIArrayRef();
             const newEntry = JSON.parse(JSON.stringify(content));
-            newEntry.id = Math.floor(Math.random() * 1000000);
+            // 不预先设置 id，在插入后统一重新分配
             newEntry[this.entryUidField] = this._generateEntryUid();
 
             let insertPos = this.currentWiIndex + 1;
@@ -1833,6 +1841,11 @@ export default function wiEditor() {
             arr.splice(insertPos, 0, newEntry);
             this.currentWiIndex = insertPos;
             this.isEditingClipboard = false;
+
+            // 重新分配 id，确保 id 等于索引号
+            arr.forEach((entry, idx) => {
+                if (entry) entry.id = idx;
+            });
 
             this.$nextTick(() => {
                 const item = document.querySelectorAll('.wi-list-item')[insertPos];
@@ -1932,12 +1945,17 @@ export default function wiEditor() {
                     const content = JSON.parse(clipData);
                     const arr = this.getWIArrayRef();
                     const newEntry = JSON.parse(JSON.stringify(content));
-                    newEntry.id = Math.floor(Math.random() * 1000000);
+                    // 不预先设置 id，在插入后统一重新分配
                     newEntry[this.entryUidField] = this._generateEntryUid();
 
                     arr.splice(targetIndex, 0, newEntry);
                     this.currentWiIndex = targetIndex;
                     this.isEditingClipboard = false;
+
+                    // 重新分配 id，确保 id 等于索引号
+                    arr.forEach((entry, idx) => {
+                        if (entry) entry.id = idx;
+                    });
                 } catch (err) { console.error(err); }
                 return;
             }
@@ -1984,6 +2002,11 @@ export default function wiEditor() {
             }
 
             this.currentWiIndex = newSelectedIndex;
+
+            // 重新分配 id，确保 id 等于索引号
+            arr.forEach((entry, idx) => {
+                if (entry) entry.id = idx;
+            });
         },
 
         // 2. 剪切板拖拽
