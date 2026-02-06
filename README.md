@@ -39,6 +39,8 @@ ST-Manager 是一款专为 SillyTavern AI 聊天程序设计的资源可视化�
 
 - 🎴 **角色卡管理** - 支持 PNG/JSON 格式角色卡的浏览、编辑、导入导出
 - 📚 **世界书管理** - 统一管理全局世界书、资源目录世界书和内嵌世界书
+- 🕰️ **版本时光机** - 世界书/角色卡支持版本快照、回滚与可视化对比
+- 🧩 **条目级历史** - 世界书每个条目独立记录历史版本，可单条回退
 - 📝 **预设管理** - 完整的生成参数预设管理，支持拖拽上传、三栏详情阅读器、Prompts 筛选
 - 🧩 **正则脚本管理** - 管理 SillyTavern 正则替换脚本，支持编辑和批量操作
 - 📜 **ST脚本管理** - 管理 Tavern Helper 脚本库，支持脚本解析和分类展示
@@ -139,6 +141,7 @@ ST-Manager/
 │   │   ├── scan_service.py   # 文件扫描服务
 │   │   ├── cache_service.py  # 缓存管理服务
 │   │   ├── card_service.py   # 卡片业务服务
+│   │   ├── wi_entry_history_service.py # 世界书条目历史服务
 │   │   └── automation_service.py # 自动化服务
 │   │
 │   ├── automation/            # 自动化引擎
@@ -288,7 +291,8 @@ ST-Manager/
   "auto_save_enabled": false,
   "auto_save_interval": 3,
   "snapshot_limit_manual": 50,
-  "snapshot_limit_auto": 5
+  "snapshot_limit_auto": 5,
+  "wi_entry_history_limit": 7
 }
 ```
 
@@ -300,7 +304,8 @@ ST-Manager/
   "png_deterministic_sort": false,
   "allowed_abs_resource_roots": [],
   "wi_preview_limit": 300,
-  "wi_preview_entry_max_chars": 2000
+  "wi_preview_entry_max_chars": 2000,
+  "wi_entry_history_limit": 7
 }
 ```
 
@@ -309,6 +314,7 @@ ST-Manager/
 - `allowed_abs_resource_roots`：允许访问的绝对资源目录白名单（用于资源文件列表接口）
 - `wi_preview_limit`：世界书详情预览最大条目数（0 表示不限制）
 - `wi_preview_entry_max_chars`：世界书单条内容预览最大字符数（0 表示不截断）
+- `wi_entry_history_limit`：世界书条目历史保留数（每条目独立，默认 7）
 
 ---
 
@@ -445,6 +451,14 @@ python -m core.auth --add-ip 192.168.*.*
 - 🔄 一键整理资源目录结构
 - ⚡ 大型世界书预览优化：详情弹窗默认预览前 300 条，避免卡死（可手动加载全部）
 - 🧹 全局列表去重：自动剔除与内嵌世界书内容重复的条目，避免混杂展示
+- 🕰️ 时光机：单条目/总版本历史版本列表、双栏对比、字段级差异高亮（绿新增/黄修改/红删除）
+
+#### 世界书版本说明
+
+- `保存条目`：保存当前编辑内容，不额外创建整本快照；条目级历史会照常记录。
+- `保存整本`：先创建整本回滚快照，再执行保存，适合关键节点存档。
+- `INIT` 快照：进入编辑器自动生成，用于回退到本次编辑起点；关闭编辑器后会清理旧 `INIT`，并保留最近 1 个。
+- 时光机对比：默认右侧为 Current，左侧优先选择最近且有差异的历史版本。
 
 ---
 
@@ -864,6 +878,21 @@ Content-Type: application/json
 }
 ```
 
+#### 获取条目历史
+
+```
+POST /api/world_info/entry_history/list
+Content-Type: application/json
+
+{
+  "source_type": "lorebook",
+  "source_id": "",
+  "file_path": "/path/to/file.json",
+  "entry_uid": "wi-xxxx",
+  "limit": 20
+}
+```
+
 ### 预设 API
 
 #### 获取预设列表
@@ -1146,6 +1175,20 @@ CREATE TABLE wi_clipboard (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     content_json TEXT NOT NULL,
     sort_order INTEGER DEFAULT 0,
+    created_at REAL DEFAULT (strftime('%s', 'now'))
+);
+```
+
+#### 世界书条目历史表（wi_entry_history）
+
+```sql
+CREATE TABLE wi_entry_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    source_type TEXT NOT NULL,      -- lorebook | embedded
+    source_id TEXT DEFAULT '',
+    file_path TEXT DEFAULT '',
+    entry_uid TEXT NOT NULL,
+    snapshot_json TEXT NOT NULL,
     created_at REAL DEFAULT (strftime('%s', 'now'))
 );
 ```

@@ -80,6 +80,7 @@ DEFAULT_CONFIG = {
     # preview_entry_max_chars: 单条内容最大字符数（0 表示不截断）
     "wi_preview_limit": 300,
     "wi_preview_entry_max_chars": 2000,
+    "wi_entry_history_limit": 7,
 
     # 外网访问身份验证（本地/局域网访问不受限制）
     # 仅当 auth_username 和 auth_password 都设置时才启用

@@ -33,6 +33,17 @@ export async function saveWorldInfo(payload) {
     return res.json();
 }
 
+// 获取世界书条目历史版本
+export async function listWiEntryHistory(payload) {
+    // payload: { source_type, source_id, file_path, entry_uid, limit? }
+    const res = await fetch('/api/world_info/entry_history/list', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    });
+    return res.json();
+}
+
 // 上传世界书文件 (FormData)
 export async function uploadWorldInfo(formData) {
     const res = await fetch('/api/upload_world_info', {

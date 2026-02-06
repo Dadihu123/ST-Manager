@@ -6,6 +6,7 @@
 import {
     getWorldInfoDetail,
     saveWorldInfo,
+    listWiEntryHistory,
     clipboardList,
     clipboardAdd,
     clipboardDelete,
@@ -13,6 +14,7 @@ import {
     clipboardReorder
 } from '../api/wi.js';
 import { getCardDetail, updateCard } from '../api/card.js';
+import { createSnapshot as apiCreateSnapshot, cleanupInitBackups as apiCleanupInitBackups } from '../api/system.js';
 import { normalizeWiBook, toStV3Worldbook, getCleanedV3Data, updateWiKeys } from '../utils/data.js';
 import { createAutoSaver } from '../utils/autoSave.js';
 import { wiHelpers } from '../utils/wiHelpers.js';
@@ -41,6 +43,32 @@ export default function wiEditor() {
 
         // 索引与视图控制
         currentWiIndex: 0,
+        entryUidField: 'st_manager_uid',
+        initialSnapshotChecked: false,
+        initialSnapshotInitPromise: null,
+
+        // 条目历史回滚
+        showEntryHistoryModal: false,
+        isEntryHistoryLoading: false,
+        entryHistoryItems: [],
+        entryHistoryTargetUid: '',
+        entryHistoryVersions: [],
+        entryHistorySelection: { left: null, right: null },
+        entryHistoryDiff: { left: '', right: '' },
+        
+        // 查找与替换
+        showFindReplaceModal: false,
+        findReplaceQuery: '',
+        findReplaceReplacement: '',
+        findReplaceScope: 'current', // current | all
+        findReplaceCaseSensitive: false,
+        findReplaceExcludeText: '',
+        findReplaceLastHit: null,
+        findReplacePanelX: 0,
+        findReplacePanelY: 0,
+        findReplaceDragActive: false,
+        findReplaceDragOffsetX: 0,
+        findReplaceDragOffsetY: 0,
 
         // === 剪切板状态 ===
         showWiClipboard: false,
@@ -74,17 +102,44 @@ export default function wiEditor() {
                 this.openWorldInfoFile(e.detail);
             });
 
+            // 监听时光机恢复，确保编辑器内存与磁盘恢复结果同步
+            window.addEventListener('wi-restore-applied', (e) => {
+                this._handleRestoreApplied(e?.detail || {});
+            });
+
             // 监听关闭
             this.$watch('showFullScreenWI', (val) => {
                 if (!val) {
+                    this._cleanupInitBackupsOnExit();
                     autoSaver.stop();
                     this.isEditingClipboard = false;
                     this.currentWiIndex = 0;
+                    this.initialSnapshotChecked = false;
+                    this.initialSnapshotInitPromise = null;
+                    this.showFindReplaceModal = false;
+                    this.findReplaceLastHit = null;
+                    this._detachFindReplaceDragListeners();
                 }
             });
 
             window.addEventListener('keydown', (e) => {
-                if (this.showFullScreenWI && e.key === 'Escape') {
+                if (!this.showFullScreenWI) return;
+
+                // Ctrl/Cmd + H: 打开查找替换
+                if ((e.ctrlKey || e.metaKey) && String(e.key || '').toLowerCase() === 'h') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    this.openFindReplaceModal();
+                    return;
+                }
+
+                if (e.key === 'Escape' && this.showFindReplaceModal) {
+                    e.preventDefault();
+                    this.closeFindReplaceModal();
+                    return;
+                }
+
+                if (e.key === 'Escape') {
                     this.showFullScreenWI = false;
                 }
             });
@@ -94,18 +149,1210 @@ export default function wiEditor() {
             this.handleOpenRollback(this.editingWiFile, this.editingData);
         },
 
+        _getEditorRootEl() {
+            return document.querySelector('.detail-wi-full-screen');
+        },
+
+        _getContentTextareaEl() {
+            const root = this._getEditorRootEl();
+            if (!root) return null;
+            return root.querySelector('textarea[x-ref="wiContentTextarea"]');
+        },
+
+        _getFindInputEl() {
+            const root = this._getEditorRootEl();
+            if (!root) return null;
+            return root.querySelector('input[x-ref="findReplaceInput"]');
+        },
+
+        _getFindReplacePanelEl() {
+            const root = this._getEditorRootEl();
+            if (!root) return null;
+            return root.querySelector('[x-ref="findReplacePanel"]');
+        },
+
+        _clampFindReplacePos(x, y) {
+            const panel = this._getFindReplacePanelEl();
+            const panelW = panel ? panel.offsetWidth : 640;
+            const panelH = panel ? panel.offsetHeight : 340;
+            const maxX = Math.max(12, window.innerWidth - panelW - 12);
+            const maxY = Math.max(12, window.innerHeight - panelH - 12);
+            return {
+                x: Math.max(12, Math.min(Math.floor(x), maxX)),
+                y: Math.max(12, Math.min(Math.floor(y), maxY))
+            };
+        },
+
+        get findReplacePanelStyle() {
+            const clamped = this._clampFindReplacePos(this.findReplacePanelX || 0, this.findReplacePanelY || 0);
+            return `left:${clamped.x}px;top:${clamped.y}px;`;
+        },
+
+        _resetFindReplacePanelPos() {
+            const panelW = 640;
+            const panelH = 340;
+            const x = Math.max(12, Math.floor((window.innerWidth - panelW) / 2));
+            const y = Math.max(12, Math.floor((window.innerHeight - panelH) / 2));
+            const clamped = this._clampFindReplacePos(x, y);
+            this.findReplacePanelX = clamped.x;
+            this.findReplacePanelY = clamped.y;
+        },
+
+        _attachFindReplaceDragListeners() {
+            if (this._findReplaceMoveHandler || this._findReplaceUpHandler) return;
+            this._findReplaceMoveHandler = (evt) => this.onFindReplaceDragMove(evt);
+            this._findReplaceUpHandler = () => this.stopFindReplaceDrag();
+            window.addEventListener('mousemove', this._findReplaceMoveHandler);
+            window.addEventListener('mouseup', this._findReplaceUpHandler);
+        },
+
+        _detachFindReplaceDragListeners() {
+            if (this._findReplaceMoveHandler) {
+                window.removeEventListener('mousemove', this._findReplaceMoveHandler);
+                this._findReplaceMoveHandler = null;
+            }
+            if (this._findReplaceUpHandler) {
+                window.removeEventListener('mouseup', this._findReplaceUpHandler);
+                this._findReplaceUpHandler = null;
+            }
+            this.findReplaceDragActive = false;
+        },
+
+        startFindReplaceDrag(evt) {
+            const panel = this._getFindReplacePanelEl();
+            if (!panel) return;
+
+            const rect = panel.getBoundingClientRect();
+            this.findReplaceDragActive = true;
+            this.findReplaceDragOffsetX = (evt.clientX || 0) - rect.left;
+            this.findReplaceDragOffsetY = (evt.clientY || 0) - rect.top;
+            this._attachFindReplaceDragListeners();
+        },
+
+        onFindReplaceDragMove(evt) {
+            if (!this.findReplaceDragActive) return;
+            const x = (evt.clientX || 0) - this.findReplaceDragOffsetX;
+            const y = (evt.clientY || 0) - this.findReplaceDragOffsetY;
+            const clamped = this._clampFindReplacePos(x, y);
+            this.findReplacePanelX = clamped.x;
+            this.findReplacePanelY = clamped.y;
+        },
+
+        stopFindReplaceDrag() {
+            this.findReplaceDragActive = false;
+            this._detachFindReplaceDragListeners();
+        },
+
+        openFindReplaceModal() {
+            if (!this.activeEditorEntry && !this.getWIArrayRef().length) {
+                alert('当前没有可查找的条目。');
+                return;
+            }
+
+            if (!this.findReplacePanelX && !this.findReplacePanelY) {
+                this._resetFindReplacePanelPos();
+            }
+            this.showFindReplaceModal = true;
+            this.findReplaceLastHit = null;
+
+            // 若正文有选中文本，优先带入查找词
+            const ta = this._getContentTextareaEl();
+            if (ta && ta.selectionStart !== ta.selectionEnd) {
+                const selected = ta.value.slice(ta.selectionStart, ta.selectionEnd);
+                if (selected && !this.findReplaceQuery) {
+                    this.findReplaceQuery = selected;
+                }
+            }
+
+            this.$nextTick(() => {
+                const input = this._getFindInputEl();
+                if (input && typeof input.focus === 'function') {
+                    input.focus();
+                    if (typeof input.select === 'function') input.select();
+                }
+            });
+        },
+
+        closeFindReplaceModal() {
+            this.stopFindReplaceDrag();
+            this.showFindReplaceModal = false;
+        },
+
+        _getFindReplaceTargets() {
+            if (this.findReplaceScope === 'current') {
+                const current = this.activeEditorEntry;
+                if (!current || typeof current !== 'object') return [];
+                return [{
+                    entry: current,
+                    index: this.isEditingClipboard ? -1 : this.currentWiIndex
+                }];
+            }
+
+            const arr = this.getWIArrayRef();
+            if (!Array.isArray(arr) || !arr.length) return [];
+            return arr.map((entry, index) => ({ entry, index }));
+        },
+
+        _normalizeFindText(text) {
+            return String(text ?? '');
+        },
+
+        _parseFindReplaceExcludeTokens() {
+            const raw = String(this.findReplaceExcludeText || '');
+            if (!raw.trim()) return [];
+            const parts = raw
+                .split(/\r?\n|,/)
+                .map(s => String(s || '').trim())
+                .filter(Boolean);
+            const unique = Array.from(new Set(parts));
+            // 长词优先，减少短词遮挡误判
+            unique.sort((a, b) => b.length - a.length);
+            return unique;
+        },
+
+        _mergeRanges(ranges) {
+            if (!ranges.length) return [];
+            const sorted = [...ranges].sort((a, b) => a.start - b.start || a.end - b.end);
+            const merged = [sorted[0]];
+            for (let i = 1; i < sorted.length; i++) {
+                const cur = sorted[i];
+                const last = merged[merged.length - 1];
+                if (cur.start <= last.end) {
+                    last.end = Math.max(last.end, cur.end);
+                } else {
+                    merged.push({ start: cur.start, end: cur.end });
+                }
+            }
+            return merged;
+        },
+
+        _buildBlockedRanges(text, excludeTokens, caseSensitive = false) {
+            const src = this._normalizeFindText(text);
+            const tokens = Array.isArray(excludeTokens) ? excludeTokens.filter(Boolean) : [];
+            if (!tokens.length || !src) return [];
+
+            const ranges = [];
+            if (caseSensitive) {
+                tokens.forEach((token) => {
+                    let from = 0;
+                    while (from <= src.length - token.length) {
+                        const idx = src.indexOf(token, from);
+                        if (idx < 0) break;
+                        ranges.push({ start: idx, end: idx + token.length });
+                        from = idx + Math.max(1, token.length);
+                    }
+                });
+            } else {
+                const srcLower = src.toLowerCase();
+                tokens.forEach((token) => {
+                    const t = token.toLowerCase();
+                    let from = 0;
+                    while (from <= srcLower.length - t.length) {
+                        const idx = srcLower.indexOf(t, from);
+                        if (idx < 0) break;
+                        ranges.push({ start: idx, end: idx + t.length });
+                        from = idx + Math.max(1, t.length);
+                    }
+                });
+            }
+
+            return this._mergeRanges(ranges);
+        },
+
+        _isRangeBlocked(start, length, blockedRanges) {
+            const end = start + length;
+            for (const rg of blockedRanges) {
+                if (start < rg.end && end > rg.start) {
+                    return true;
+                }
+            }
+            return false;
+        },
+
+        _findInText(text, query, fromIndex = 0, caseSensitive = false, blockedRanges = []) {
+            const src = this._normalizeFindText(text);
+            const needle = this._normalizeFindText(query);
+            if (!needle) return -1;
+
+            const start = Math.max(0, Math.min(Number(fromIndex) || 0, src.length));
+            let pos = start;
+            while (pos <= src.length) {
+                let found = -1;
+                if (caseSensitive) {
+                    found = src.indexOf(needle, pos);
+                } else {
+                    found = src.toLowerCase().indexOf(needle.toLowerCase(), pos);
+                }
+                if (found < 0) return -1;
+                if (!this._isRangeBlocked(found, needle.length, blockedRanges)) return found;
+                pos = found + 1;
+            }
+            return -1;
+        },
+
+        _applyFindHit(hit) {
+            if (!hit || !hit.entry) return false;
+
+            // 全部条目模式下切换到命中条目
+            if (this.findReplaceScope === 'all' && typeof hit.index === 'number' && hit.index >= 0) {
+                this.isEditingClipboard = false;
+                this.currentClipboardIndex = -1;
+                this.currentWiIndex = hit.index;
+            }
+
+            this.findReplaceLastHit = {
+                query: this.findReplaceQuery,
+                scope: this.findReplaceScope,
+                caseSensitive: !!this.findReplaceCaseSensitive,
+                index: hit.index,
+                entryUid: String(hit.entry?.[this.entryUidField] || ''),
+                start: hit.start,
+                length: hit.length
+            };
+
+            this.$nextTick(() => {
+                const ta = this._getContentTextareaEl();
+                if (!ta) return;
+                if (typeof ta.focus === 'function') ta.focus();
+                if (typeof ta.setSelectionRange === 'function') {
+                    ta.setSelectionRange(hit.start, hit.start + hit.length);
+                }
+            });
+            return true;
+        },
+
+        findNextMatch() {
+            const query = this._normalizeFindText(this.findReplaceQuery).trim();
+            if (!query) {
+                alert('请输入查找内容。');
+                return false;
+            }
+
+            const targets = this._getFindReplaceTargets();
+            if (!targets.length) {
+                alert('当前范围没有可查找的条目。');
+                return false;
+            }
+
+            let startTargetIdx = 0;
+            let startOffset = 0;
+            const last = this.findReplaceLastHit;
+
+            if (this.findReplaceScope === 'current') {
+                const ta = this._getContentTextareaEl();
+                if (ta && typeof ta.selectionEnd === 'number') {
+                    startOffset = ta.selectionEnd;
+                }
+            } else if (
+                last &&
+                last.query === this.findReplaceQuery &&
+                last.scope === this.findReplaceScope &&
+                !!last.caseSensitive === !!this.findReplaceCaseSensitive
+            ) {
+                let idx = targets.findIndex((t) => {
+                    const uid = String(t.entry?.[this.entryUidField] || '');
+                    return uid && uid === String(last.entryUid || '');
+                });
+                if (idx < 0 && typeof last.index === 'number') idx = last.index;
+                if (idx >= 0 && idx < targets.length) {
+                    startTargetIdx = idx;
+                    startOffset = Number(last.start || 0) + Number(last.length || 0);
+                }
+            }
+
+            for (let pass = 0; pass < targets.length; pass++) {
+                const targetIdx = (startTargetIdx + pass) % targets.length;
+                const target = targets[targetIdx];
+                const content = this._normalizeFindText(target.entry?.content);
+                const excluded = this._parseFindReplaceExcludeTokens();
+                const blockedRanges = this._buildBlockedRanges(content, excluded, this.findReplaceCaseSensitive);
+                const from = pass === 0 ? startOffset : 0;
+                const pos = this._findInText(content, query, from, this.findReplaceCaseSensitive, blockedRanges);
+                if (pos >= 0) {
+                    const hit = {
+                        entry: target.entry,
+                        index: target.index,
+                        start: pos,
+                        length: query.length
+                    };
+                    this._applyFindHit(hit);
+                    return true;
+                }
+            }
+
+            // 回到起点条目开头，完成一整圈查找
+            if (startOffset > 0) {
+                const target = targets[startTargetIdx];
+                const content = this._normalizeFindText(target.entry?.content);
+                const excluded = this._parseFindReplaceExcludeTokens();
+                const blockedRanges = this._buildBlockedRanges(content, excluded, this.findReplaceCaseSensitive);
+                const pos = this._findInText(content, query, 0, this.findReplaceCaseSensitive, blockedRanges);
+                if (pos >= 0) {
+                    const hit = {
+                        entry: target.entry,
+                        index: target.index,
+                        start: pos,
+                        length: query.length
+                    };
+                    this._applyFindHit(hit);
+                    return true;
+                }
+            }
+
+            alert('未找到匹配内容。');
+            return false;
+        },
+
+        _resolveLastFindHitEntry() {
+            const last = this.findReplaceLastHit;
+            if (!last) return null;
+
+            const targets = this._getFindReplaceTargets();
+            if (!targets.length) return null;
+
+            let target = null;
+            if (last.entryUid) {
+                target = targets.find((t) => String(t.entry?.[this.entryUidField] || '') === String(last.entryUid));
+            }
+            if (!target && typeof last.index === 'number') {
+                target = targets.find((t) => t.index === last.index);
+            }
+            return target || null;
+        },
+
+        replaceCurrentMatch() {
+            const query = this._normalizeFindText(this.findReplaceQuery).trim();
+            if (!query) {
+                alert('请输入查找内容。');
+                return;
+            }
+
+            const replacement = this._normalizeFindText(this.findReplaceReplacement);
+            let last = this.findReplaceLastHit;
+            if (!last || last.query !== this.findReplaceQuery || last.scope !== this.findReplaceScope) {
+                const found = this.findNextMatch();
+                if (!found) return;
+                last = this.findReplaceLastHit;
+            }
+
+            const target = this._resolveLastFindHitEntry();
+            if (!target || !target.entry) {
+                const found = this.findNextMatch();
+                if (!found) return;
+            }
+
+            const resolved = this._resolveLastFindHitEntry();
+            if (!resolved || !resolved.entry) return;
+
+            const content = this._normalizeFindText(resolved.entry.content);
+            const start = Number(this.findReplaceLastHit.start || 0);
+            const length = Number(this.findReplaceLastHit.length || query.length);
+            const segment = content.slice(start, start + length);
+            const excluded = this._parseFindReplaceExcludeTokens();
+            const blockedRanges = this._buildBlockedRanges(content, excluded, this.findReplaceCaseSensitive);
+            const isEqual = this.findReplaceCaseSensitive
+                ? (segment === query)
+                : (segment.toLowerCase() === query.toLowerCase());
+            const isBlocked = this._isRangeBlocked(start, length, blockedRanges);
+
+            if (!isEqual || isBlocked) {
+                const found = this.findNextMatch();
+                if (!found) return;
+                return this.replaceCurrentMatch();
+            }
+
+            resolved.entry.content = content.slice(0, start) + replacement + content.slice(start + length);
+
+            this.findReplaceLastHit = {
+                ...this.findReplaceLastHit,
+                start,
+                length: replacement.length
+            };
+
+            this.$nextTick(() => {
+                const ta = this._getContentTextareaEl();
+                if (!ta) return;
+                if (typeof ta.focus === 'function') ta.focus();
+                if (typeof ta.setSelectionRange === 'function') {
+                    ta.setSelectionRange(start, start + replacement.length);
+                }
+            });
+            this.$store.global.showToast('已替换当前匹配', 1200);
+        },
+
+        replaceAllMatches() {
+            const query = this._normalizeFindText(this.findReplaceQuery).trim();
+            if (!query) {
+                alert('请输入查找内容。');
+                return;
+            }
+
+            const replacement = this._normalizeFindText(this.findReplaceReplacement);
+            const targets = this._getFindReplaceTargets();
+            if (!targets.length) {
+                alert('当前范围没有可替换的条目。');
+                return;
+            }
+
+            const excluded = this._parseFindReplaceExcludeTokens();
+            let replaceCount = 0;
+            let hitEntries = 0;
+            targets.forEach((target) => {
+                const content = this._normalizeFindText(target.entry?.content);
+                const blockedRanges = this._buildBlockedRanges(content, excluded, this.findReplaceCaseSensitive);
+
+                let from = 0;
+                let cnt = 0;
+                let out = '';
+                while (from <= content.length) {
+                    const pos = this._findInText(content, query, from, this.findReplaceCaseSensitive, blockedRanges);
+                    if (pos < 0) break;
+                    out += content.slice(from, pos) + replacement;
+                    from = pos + query.length;
+                    cnt += 1;
+                }
+                if (!cnt) return;
+
+                out += content.slice(from);
+                target.entry.content = out;
+                replaceCount += cnt;
+                hitEntries += 1;
+            });
+
+            this.findReplaceLastHit = null;
+            if (!replaceCount) {
+                this.$store.global.showToast('没有匹配内容可替换', 1500);
+                return;
+            }
+            this.$store.global.showToast(`已替换 ${replaceCount} 处（${hitEntries} 条目）`, 1800);
+        },
+
+        _normalizePathForCompare(path) {
+            return String(path || '').replace(/\\/g, '/').toLowerCase();
+        },
+
+        _isRestoreForCurrentEditor(detail) {
+            if (!this.showFullScreenWI || !this.editingWiFile) return false;
+
+            const targetType = String(detail.targetType || '');
+            const targetId = String(detail.targetId || '');
+            const targetFilePath = this._normalizePathForCompare(detail.targetFilePath || '');
+            const currentFile = this.editingWiFile || {};
+
+            if (targetType === 'card') {
+                // 仅内嵌模式会直接编辑角色卡
+                const currentCardId = String(this.editingData?.id || currentFile.card_id || '');
+                const normalizedTargetCardId = targetId.startsWith('embedded::')
+                    ? targetId.replace('embedded::', '')
+                    : targetId;
+                return !!currentCardId && currentCardId === normalizedTargetCardId;
+            }
+
+            if (targetType === 'lorebook') {
+                // 内嵌世界书回滚会落到宿主卡片
+                if (targetId.startsWith('embedded::')) {
+                    const currentCardId = String(this.editingData?.id || currentFile.card_id || '');
+                    return !!currentCardId && currentCardId === targetId.replace('embedded::', '');
+                }
+
+                // 独立世界书按 file_path 精确匹配
+                const currentPath = this._normalizePathForCompare(currentFile.file_path || currentFile.path || '');
+                return !!currentPath && !!targetFilePath && currentPath === targetFilePath;
+            }
+
+            return false;
+        },
+
+        async _syncEditorStateAfterRestore() {
+            if (!this.editingWiFile) return false;
+
+            const keepIndex = this.currentWiIndex;
+            const currentFile = this.editingWiFile;
+
+            if (currentFile.type === 'embedded' || this.editingData?.id) {
+                const cardId = this.editingData?.id || currentFile.card_id;
+                const res = await getCardDetail(cardId);
+                if (!res || !res.success || !res.card) {
+                    return false;
+                }
+
+                const card = res.card;
+                if (card.character_book) {
+                    card.character_book = normalizeWiBook(card.character_book, card.char_name || "WI");
+                }
+
+                if (Array.isArray(card.character_book?.entries)) {
+                    const sessionTs = Date.now();
+                    card.character_book.entries.forEach((entry, idx) => {
+                        entry.id = `edit-${sessionTs}-${idx}`;
+                    });
+                }
+
+                this.editingData = card;
+                this._ensureEntryUids();
+            } else {
+                const res = await getWorldInfoDetail({
+                    id: currentFile.id,
+                    source_type: currentFile.source_type,
+                    file_path: currentFile.file_path || currentFile.path,
+                    force_full: true
+                });
+
+                if (!res || !res.success) {
+                    return false;
+                }
+
+                const book = normalizeWiBook(res.data, currentFile.name || "World Info");
+                if (Array.isArray(book.entries)) {
+                    const sessionTs = Date.now();
+                    book.entries.forEach((entry, idx) => {
+                        entry.id = `edit-${sessionTs}-${idx}`;
+                    });
+                }
+
+                this.editingData.character_book = book;
+                this._ensureEntryUids();
+            }
+
+            const entries = this.getWIArrayRef();
+            if (!entries.length) {
+                this.currentWiIndex = 0;
+            } else {
+                this.currentWiIndex = Math.max(0, Math.min(keepIndex, entries.length - 1));
+            }
+
+            if (autoSaver && typeof autoSaver.initBaseline === 'function') {
+                autoSaver.initBaseline(this.editingData);
+            }
+            return true;
+        },
+
+        async _handleRestoreApplied(detail) {
+            if (!this._isRestoreForCurrentEditor(detail)) return;
+
+            try {
+                const synced = await this._syncEditorStateAfterRestore();
+                if (synced) {
+                    this.$store.global.showToast('⏪ 已同步恢复版本到当前编辑器', 2200);
+                }
+            } catch (e) {
+                console.warn('Sync editor after restore failed:', e);
+            }
+        },
+
+        _generateEntryUid() {
+            return `wi-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+        },
+
+        _ensureEntryUids() {
+            const arr = this.getWIArrayRef();
+            const used = new Set();
+            arr.forEach((entry) => {
+                if (!entry || typeof entry !== 'object') return;
+                let uid = String(entry[this.entryUidField] || '').trim();
+                if (!uid || used.has(uid)) {
+                    uid = this._generateEntryUid();
+                    entry[this.entryUidField] = uid;
+                }
+                used.add(uid);
+            });
+        },
+
+        _getEntryHistoryContext() {
+            const file = this.editingWiFile || {};
+            if (file.type === 'embedded' || (!file.type && this.editingData?.id)) {
+                return {
+                    source_type: 'embedded',
+                    source_id: (this.editingData && this.editingData.id) ? this.editingData.id : (file.card_id || ''),
+                    file_path: ''
+                };
+            }
+            return {
+                source_type: 'lorebook',
+                source_id: file.id || '',
+                file_path: file.file_path || file.path || ''
+            };
+        },
+
+        formatEntryHistoryTime(ts) {
+            if (!ts) return '';
+            const d = new Date(ts * 1000);
+            if (Number.isNaN(d.getTime())) return '';
+            return d.toLocaleString();
+        },
+
+        _escapeEntryHistoryHtml(text) {
+            return String(text ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+        },
+
+        _toEntryHistoryArray(val) {
+            if (Array.isArray(val)) return val.map(v => String(v ?? '').trim()).filter(Boolean);
+            if (typeof val === 'string') return val.split(',').map(s => s.trim()).filter(Boolean);
+            return [];
+        },
+
+        _normalizeEntryHistorySnapshot(raw) {
+            if (!raw || typeof raw !== 'object') return null;
+            return {
+                comment: String(raw.comment ?? ''),
+                content: String(raw.content ?? ''),
+                keys: this._toEntryHistoryArray(raw.keys ?? raw.key),
+                secondary_keys: this._toEntryHistoryArray(raw.secondary_keys ?? raw.keysecondary)
+            };
+        },
+
+        _getEntryHistoryMeta(left, right) {
+            if (left && right) {
+                const changed = {
+                    comment: left.comment !== right.comment,
+                    keys: left.keys.join('|') !== right.keys.join('|') ||
+                        left.secondary_keys.join('|') !== right.secondary_keys.join('|'),
+                    content: left.content !== right.content
+                };
+                const status = (changed.comment || changed.keys || changed.content) ? 'changed' : 'same';
+                return { status, changed };
+            }
+            if (left && !right) {
+                return { status: 'removed', changed: { comment: true, keys: true, content: true } };
+            }
+            return { status: 'added', changed: { comment: true, keys: true, content: true } };
+        },
+
+        _entryHistoryFieldDiffClass(meta, side, fieldChanged) {
+            if (meta.status === 'added' && side === 'right') {
+                return 'bg-green-500/20 border border-green-500/40';
+            }
+            if (meta.status === 'removed' && side === 'left') {
+                return 'bg-red-500/20 border border-red-500/40';
+            }
+            if (meta.status === 'changed' && fieldChanged) {
+                return 'bg-yellow-500/20 border border-yellow-500/40';
+            }
+            return 'bg-black/10 border border-transparent';
+        },
+
+        _splitEntryHistoryLinesWithLimit(text, maxLines = 240, maxChars = 16000) {
+            const raw = String(text ?? '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+            let limited = raw;
+            let truncatedByChars = false;
+            if (limited.length > maxChars) {
+                limited = limited.slice(0, maxChars);
+                truncatedByChars = true;
+            }
+            let lines = limited.split('\n');
+            let truncatedByLines = false;
+            if (lines.length > maxLines) {
+                lines = lines.slice(0, maxLines);
+                truncatedByLines = true;
+            }
+            if (truncatedByChars || truncatedByLines) {
+                lines.push('...(内容过长，已截断显示)');
+            }
+            return lines;
+        },
+
+        _buildEntryHistoryLineOps(leftLines, rightLines, maxCells = 70000) {
+            const n = leftLines.length;
+            const m = rightLines.length;
+
+            if (n * m > maxCells) {
+                const approx = [];
+                const len = Math.max(n, m);
+                for (let i = 0; i < len; i++) {
+                    const l = i < n ? leftLines[i] : null;
+                    const r = i < m ? rightLines[i] : null;
+                    if (l !== null && r !== null) {
+                        approx.push({ t: l === r ? 'same' : 'changed', left: l, right: r });
+                    } else if (l !== null) {
+                        approx.push({ t: 'removed', left: l, right: null });
+                    } else {
+                        approx.push({ t: 'added', left: null, right: r });
+                    }
+                }
+                return approx;
+            }
+
+            const dp = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(0));
+            for (let i = n - 1; i >= 0; i--) {
+                for (let j = m - 1; j >= 0; j--) {
+                    if (leftLines[i] === rightLines[j]) {
+                        dp[i][j] = dp[i + 1][j + 1] + 1;
+                    } else {
+                        dp[i][j] = Math.max(dp[i + 1][j], dp[i][j + 1]);
+                    }
+                }
+            }
+
+            const rawOps = [];
+            let i = 0;
+            let j = 0;
+            while (i < n && j < m) {
+                if (leftLines[i] === rightLines[j]) {
+                    rawOps.push({ t: 'same', text: leftLines[i] });
+                    i += 1;
+                    j += 1;
+                } else if (dp[i + 1][j] >= dp[i][j + 1]) {
+                    rawOps.push({ t: 'remove', text: leftLines[i] });
+                    i += 1;
+                } else {
+                    rawOps.push({ t: 'add', text: rightLines[j] });
+                    j += 1;
+                }
+            }
+            while (i < n) {
+                rawOps.push({ t: 'remove', text: leftLines[i] });
+                i += 1;
+            }
+            while (j < m) {
+                rawOps.push({ t: 'add', text: rightLines[j] });
+                j += 1;
+            }
+
+            const aligned = [];
+            let k = 0;
+            while (k < rawOps.length) {
+                const op = rawOps[k];
+                if (op.t === 'same') {
+                    aligned.push({ t: 'same', left: op.text, right: op.text });
+                    k += 1;
+                    continue;
+                }
+
+                const removes = [];
+                const adds = [];
+                while (k < rawOps.length && rawOps[k].t !== 'same') {
+                    if (rawOps[k].t === 'remove') removes.push(rawOps[k].text);
+                    if (rawOps[k].t === 'add') adds.push(rawOps[k].text);
+                    k += 1;
+                }
+
+                const pairCount = Math.min(removes.length, adds.length);
+                for (let x = 0; x < pairCount; x++) {
+                    aligned.push({ t: 'changed', left: removes[x], right: adds[x] });
+                }
+                for (let x = pairCount; x < removes.length; x++) {
+                    aligned.push({ t: 'removed', left: removes[x], right: null });
+                }
+                for (let x = pairCount; x < adds.length; x++) {
+                    aligned.push({ t: 'added', left: null, right: adds[x] });
+                }
+            }
+            return aligned;
+        },
+
+        _entryHistoryLineClass(type, side) {
+            if (type === 'changed') return 'bg-yellow-500/20 border border-yellow-500/40';
+            if (type === 'added' && side === 'right') return 'bg-green-500/20 border border-green-500/40';
+            if (type === 'removed' && side === 'left') return 'bg-red-500/20 border border-red-500/40';
+            if (type === 'added' && side === 'left') return 'bg-green-500/10 border border-green-500/30';
+            if (type === 'removed' && side === 'right') return 'bg-red-500/10 border border-red-500/30';
+            return 'bg-black/10 border border-transparent';
+        },
+
+        _renderEntryHistoryLineDiffHtml(leftText, rightText, side) {
+            const leftLines = this._splitEntryHistoryLinesWithLimit(leftText);
+            const rightLines = this._splitEntryHistoryLinesWithLimit(rightText);
+            const rows = this._buildEntryHistoryLineOps(leftLines, rightLines);
+
+            let leftNo = 0;
+            let rightNo = 0;
+            let html = '';
+            rows.forEach((row) => {
+                const isLeft = side === 'left';
+                const text = isLeft ? row.left : row.right;
+                const cls = this._entryHistoryLineClass(row.t, side);
+
+                if (row.left !== null) leftNo += 1;
+                if (row.right !== null) rightNo += 1;
+                const lineNo = isLeft ? (row.left !== null ? leftNo : '') : (row.right !== null ? rightNo : '');
+                const lineText = text === null ? '∅' : this._escapeEntryHistoryHtml(text);
+                const lineTextClass = text === null ? 'text-[var(--text-dim)] italic' : 'text-[var(--text-main)]';
+
+                html += `
+                    <div class="px-2 py-0.5 rounded ${cls}">
+                        <span class="inline-block w-8 mr-2 text-[10px] text-[var(--text-dim)] text-right select-none">${lineNo || ' '}</span>
+                        <span class="text-[11px] whitespace-pre-wrap break-words ${lineTextClass}">${lineText || ' '}</span>
+                    </div>
+                `;
+            });
+            return html;
+        },
+
+        _renderEntryHistoryPane(entry, oppositeEntry, meta, side) {
+            if (!entry) {
+                return `
+                    <div class="m-2 p-3 rounded border border-dashed border-[var(--border-light)] text-[11px] text-[var(--text-dim)] opacity-70">
+                        <div>（此侧无对应条目）</div>
+                    </div>
+                `;
+            }
+
+            const isLeft = side === 'left';
+            const markClass = (isLeft && (meta.status === 'removed' || meta.status === 'changed'))
+                ? 'text-red-300'
+                : ((!isLeft && (meta.status === 'added' || meta.status === 'changed')) ? 'text-green-300' : 'text-[var(--text-main)]');
+
+            const comment = this._escapeEntryHistoryHtml(entry.comment || '(无备注)');
+            const keys = this._escapeEntryHistoryHtml(entry.keys.join(', ') || '(空)');
+            const sec = this._escapeEntryHistoryHtml(entry.secondary_keys.join(', ') || '(空)');
+
+            const commentCls = meta.changed.comment ? markClass : 'text-[var(--text-main)]';
+            const keyCls = meta.changed.keys ? markClass : 'text-[var(--text-main)]';
+            const contentCls = meta.changed.content ? markClass : 'text-[var(--text-main)]';
+
+            const commentBgCls = this._entryHistoryFieldDiffClass(meta, side, meta.changed.comment);
+            const keysBgCls = this._entryHistoryFieldDiffClass(meta, side, meta.changed.keys);
+            const leftContent = side === 'left' ? (entry.content || '') : (oppositeEntry?.content || '');
+            const rightContent = side === 'right' ? (entry.content || '') : (oppositeEntry?.content || '');
+            const lineDiffHtml = this._renderEntryHistoryLineDiffHtml(leftContent, rightContent, side);
+
+            return `
+                <div class="m-2 p-3 rounded border bg-[var(--bg-sub)] border-[var(--border-light)]">
+                    <div class="mt-1 p-1.5 rounded ${commentBgCls}">
+                        <div class="text-sm font-bold ${commentCls}">${comment}</div>
+                    </div>
+                    <div class="mt-2 p-1.5 rounded ${keysBgCls}">
+                        <div class="text-[11px] ${keyCls}">关键词: ${keys}</div>
+                        <div class="mt-1 text-[11px] ${keyCls}">次级词: ${sec}</div>
+                    </div>
+                    <div class="mt-2 p-1.5 rounded bg-black/5 border border-[var(--border-light)]">
+                        <div class="text-[11px] text-[var(--text-dim)]">内容预览</div>
+                        <div class="mt-1 p-2 rounded bg-black/10 max-h-72 overflow-auto">${lineDiffHtml}</div>
+                        <div class="mt-1 text-[10px] ${contentCls}">行级高亮：绿=新增，黄=修改，红=删除</div>
+                    </div>
+                </div>
+            `;
+        },
+
+        updateEntryHistoryDiff() {
+            const leftVer = this.entryHistorySelection.left;
+            const rightVer = this.entryHistorySelection.right;
+            if (!leftVer || !rightVer) {
+                this.entryHistoryDiff = {
+                    left: '<div class="p-6 text-center text-[var(--text-dim)] text-xs">请选择版本进行对比</div>',
+                    right: '<div class="p-6 text-center text-[var(--text-dim)] text-xs">请选择版本进行对比</div>'
+                };
+                return;
+            }
+
+            const left = this._normalizeEntryHistorySnapshot(leftVer.snapshot);
+            const right = this._normalizeEntryHistorySnapshot(rightVer.snapshot);
+            const meta = this._getEntryHistoryMeta(left, right);
+
+            this.entryHistoryDiff = {
+                left: this._renderEntryHistoryPane(left, right, meta, 'left'),
+                right: this._renderEntryHistoryPane(right, left, meta, 'right')
+            };
+        },
+
+        setEntryHistorySide(side, version) {
+            if (!version) return;
+            this.entryHistorySelection[side] = version;
+            this.updateEntryHistoryDiff();
+        },
+
+        openEntryHistoryModal() {
+            if (this.isEditingClipboard) {
+                alert('剪切板条目不支持历史版本。');
+                return;
+            }
+            if (!this.activeEditorEntry) return;
+
+            this._ensureEntryUids();
+            const uid = this.activeEditorEntry[this.entryUidField];
+            if (!uid) {
+                alert('当前条目缺少唯一标识，无法读取历史版本。');
+                return;
+            }
+
+            const context = this._getEntryHistoryContext();
+            this.entryHistoryTargetUid = uid;
+            this.entryHistoryItems = [];
+            this.entryHistoryVersions = [];
+            this.entryHistorySelection = { left: null, right: null };
+            this.entryHistoryDiff = { left: '', right: '' };
+            this.showEntryHistoryModal = true;
+            this.isEntryHistoryLoading = true;
+
+            listWiEntryHistory({
+                ...context,
+                entry_uid: uid
+            }).then(res => {
+                if (res.success) {
+                    const rawItems = Array.isArray(res.items) ? res.items : [];
+                    this.entryHistoryItems = rawItems.map((item, idx) => ({
+                        ...item,
+                        // 历史记录一律标记为非 current，避免类型混淆导致按钮误禁用
+                        is_current: false,
+                        id: item && item.id !== undefined ? item.id : (`h-${item?.created_at || Date.now()}-${idx}`)
+                    }));
+                    const currentVersion = {
+                        id: '__current__',
+                        is_current: true,
+                        created_at: Math.floor(Date.now() / 1000),
+                        snapshot: JSON.parse(JSON.stringify(this.activeEditorEntry || {}))
+                    };
+                    this.entryHistoryVersions = [currentVersion, ...this.entryHistoryItems];
+                    this.entryHistorySelection = {
+                        left: this.entryHistoryItems[0] || null,
+                        right: currentVersion
+                    };
+                    this.updateEntryHistoryDiff();
+                } else {
+                    alert('读取历史失败: ' + (res.msg || '未知错误'));
+                }
+            }).catch(e => {
+                alert('读取历史失败: ' + e);
+            }).finally(() => {
+                this.isEntryHistoryLoading = false;
+            });
+        },
+
+        canRestoreEntryFromSelection() {
+            const left = this.entryHistorySelection.left;
+            if (!left) return false;
+            if (left.is_current === true) return false;
+            return !!left.snapshot;
+        },
+
+        restoreEntryFromSelectedHistory() {
+            const target = this.entryHistorySelection.left;
+            if (!this.canRestoreEntryFromSelection()) {
+                alert('请在左侧选择一个历史版本再恢复。');
+                return;
+            }
+            this.restoreEntryFromHistory(target);
+        },
+
+        _resolveEntryRestoreTarget(uid) {
+            const targetUid = String(uid || this.entryHistoryTargetUid || '').trim();
+            const current = this.activeEditorEntry;
+            if (current && targetUid) {
+                const currentUid = String(current[this.entryUidField] || '').trim();
+                if (currentUid && currentUid === targetUid) {
+                    return { entry: current, index: this.currentWiIndex };
+                }
+            }
+
+            const arr = this.getWIArrayRef();
+            if (!Array.isArray(arr) || !arr.length || !targetUid) return { entry: current, index: this.currentWiIndex };
+            const idx = arr.findIndex((it) => String(it?.[this.entryUidField] || '').trim() === targetUid);
+            if (idx >= 0) return { entry: arr[idx], index: idx };
+            return { entry: current, index: this.currentWiIndex };
+        },
+
+        restoreEntryFromHistory(item) {
+            if (!item || !item.snapshot) return;
+            const keepUid = String(this.entryHistoryTargetUid || item.snapshot?.[this.entryUidField] || '').trim();
+            const resolved = this._resolveEntryRestoreTarget(keepUid);
+            const target = resolved.entry;
+            if (!target) {
+                alert('未找到可恢复的目标条目，请重新打开条目时光机后再试。');
+                return;
+            }
+            if (!confirm('确定回滚当前条目到该历史版本吗？')) return;
+            const keepId = target.id;
+            const keepRestoreUid = target[this.entryUidField] || keepUid;
+            const restored = JSON.parse(JSON.stringify(item.snapshot));
+
+            Object.keys(target).forEach((k) => delete target[k]);
+            Object.assign(target, restored);
+
+            if (keepId !== undefined) target.id = keepId;
+            if (keepRestoreUid) target[this.entryUidField] = keepRestoreUid;
+            if (typeof resolved.index === 'number' && resolved.index >= 0) {
+                this.currentWiIndex = resolved.index;
+            }
+
+            this.showEntryHistoryModal = false;
+            this.$store.global.showToast('⏪ 条目已回滚，请记得保存世界书', 2200);
+        },
+
         getTotalWiTokens() {
             // 必须传入当前的条目数组
             return getTotalWiTokens(this.getWIArrayRef());
         },
 
-        saveChanges() {
-            // 如果不是内嵌模式，但误调了此方法，转给文件保存逻辑
-            if (!this.editingWiFile || this.editingWiFile.type !== 'embedded') {
-                return this.saveWiFileChanges();
+        async _createWholeWorldbookSnapshot() {
+            const payload = this._getAutoSavePayload();
+            const isLorebook = payload.type === 'lorebook';
+            const res = await apiCreateSnapshot({
+                id: payload.id,
+                type: isLorebook ? 'lorebook' : 'card',
+                file_path: payload.file_path || '',
+                label: '',
+                // 整本保存前快照：备份磁盘上的“旧文件状态”，避免首版被覆盖
+                content: null,
+                compact: isLorebook
+            });
+            return res;
+        },
+
+        async _ensureInitialBaselineSnapshot() {
+            const payload = this._getAutoSavePayload();
+            const isLorebook = payload.type === 'lorebook';
+            const snapshotType = isLorebook ? 'lorebook' : 'card';
+
+            const snapshotRes = await apiCreateSnapshot({
+                id: payload.id,
+                type: snapshotType,
+                file_path: payload.file_path || '',
+                label: 'INIT',
+                content: null,
+                compact: isLorebook
+            });
+
+            if (!snapshotRes || !snapshotRes.success) {
+                throw new Error((snapshotRes && snapshotRes.msg) ? snapshotRes.msg : '创建初始快照失败');
+            }
+            return { created: true };
+        },
+
+        async _ensureInitialBaselineOnEnter() {
+            if (this.initialSnapshotChecked) return;
+            if (!this.initialSnapshotInitPromise) {
+                this.initialSnapshotInitPromise = this._ensureInitialBaselineSnapshot()
+                    .then((res) => {
+                        this.initialSnapshotChecked = true;
+                        if (res && res.created) this.$store.global.showToast('🧷 已记录本次编辑初始版本', 1800);
+                        return res;
+                    })
+                    .catch((e) => {
+                        this.initialSnapshotChecked = false;
+                        throw e;
+                    })
+                    .finally(() => {
+                        this.initialSnapshotInitPromise = null;
+                    });
+            }
+            return this.initialSnapshotInitPromise;
+        },
+
+        _nextTickPromise() {
+            return new Promise((resolve) => {
+                this.$nextTick(() => resolve());
+            });
+        },
+
+        async _flushPendingEditorInput() {
+            const active = document.activeElement;
+            if (!active || !this.$root || !this.$root.contains(active)) return;
+
+            const tag = active.tagName;
+            const isField = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+            if (!isField) return;
+
+            try {
+                active.dispatchEvent(new Event('input', { bubbles: true }));
+                active.dispatchEvent(new Event('change', { bubbles: true }));
+                if (typeof active.blur === 'function') active.blur();
+            } catch (e) {
+                console.warn('Flush editor input failed:', e);
             }
 
+            await this._nextTickPromise();
+        },
+
+        _getSnapshotContext() {
+            const file = this.editingWiFile || {};
+
+            if (file.type === 'embedded' || (!file.type && this.editingData?.id)) {
+                return {
+                    id: (this.editingData && this.editingData.id) ? this.editingData.id : (file.card_id || ''),
+                    type: 'card',
+                    file_path: ''
+                };
+            }
+
+            return {
+                id: file.id || file.path || file.file_path || '',
+                type: 'lorebook',
+                file_path: file.file_path || file.path || ''
+            };
+        },
+
+        async _cleanupInitBackupsOnExit() {
+            const pendingInit = this.initialSnapshotInitPromise;
+            if (pendingInit) {
+                try {
+                    await pendingInit;
+                } catch (e) {
+                    console.warn('Init snapshot promise rejected before cleanup:', e);
+                }
+            }
+
+            const ctx = this._getSnapshotContext();
+            if (!ctx.id) return;
+            try {
+                const res = await apiCleanupInitBackups({
+                    id: ctx.id,
+                    type: ctx.type,
+                    file_path: ctx.file_path,
+                    // 保留最近一个 INIT，避免“仅保存条目”后时光机无历史
+                    keep_latest: 1
+                });
+                if (!res || !res.success) {
+                    console.warn('Cleanup INIT backups failed:', res && res.msg ? res.msg : res);
+                }
+            } catch (e) {
+                console.warn('Cleanup INIT backups error:', e);
+            }
+        },
+
+        async _ensureInitSnapshotReadyForSave() {
+            if (this.initialSnapshotInitPromise) {
+                try {
+                    await this.initialSnapshotInitPromise;
+                } catch (e) {
+                    console.warn('Init snapshot on enter failed:', e);
+                }
+                return;
+            }
+
+            if (!this.initialSnapshotChecked) {
+                try {
+                    await this._ensureInitialBaselineOnEnter();
+                } catch (e) {
+                    console.warn('Init snapshot retry before save failed:', e);
+                }
+            }
+        },
+
+        saveWholeWorldbook() {
+            if (this.editingWiFile && this.editingWiFile.type === 'embedded') {
+                return this.saveChanges(true);
+            }
+            return this.saveWiFileChanges(true);
+        },
+
+        async saveChanges(withSnapshot = false) {
+            // 如果不是内嵌模式，但误调了此方法，转给文件保存逻辑
+            if (!this.editingWiFile || this.editingWiFile.type !== 'embedded') {
+                return this.saveWiFileChanges(withSnapshot);
+            }
+
+            await this._flushPendingEditorInput();
+            this._ensureEntryUids();
             this.isSaving = true;
+            await this._ensureInitSnapshotReadyForSave();
+
+            if (withSnapshot) {
+                try {
+                    const snapshotRes = await this._createWholeWorldbookSnapshot();
+                    if (!snapshotRes || !snapshotRes.success) {
+                        this.isSaving = false;
+                        alert("整本保存失败：无法创建版本快照" + (snapshotRes && snapshotRes.msg ? ` (${snapshotRes.msg})` : ""));
+                        return;
+                    }
+                } catch (e) {
+                    this.isSaving = false;
+                    alert("整本保存失败：创建版本快照异常 - " + e);
+                    return;
+                }
+            }
 
             // 1. 深拷贝当前编辑数据
             const cardData = JSON.parse(JSON.stringify(this.editingData));
@@ -138,7 +1385,11 @@ export default function wiEditor() {
             updateCard(payload).then(res => {
                 this.isSaving = false;
                 if (res.success) {
-                    this.$store.global.showToast("💾 角色内嵌世界书已保存", 2000);
+                    if (withSnapshot) {
+                        this.$store.global.showToast("💾 已保存整本并生成回滚版本", 2200);
+                    } else {
+                        this.$store.global.showToast("💾 条目修改已保存", 1800);
+                    }
 
                     // 通知外部 (如卡片列表或详情页) 刷新数据
                     window.dispatchEvent(new CustomEvent('card-updated', { detail: res.updated_card }));
@@ -187,6 +1438,8 @@ export default function wiEditor() {
         // 打开编辑器 (适配三种来源: global, resource, embedded)
         openWorldInfoEditor(item) {
             this.isLoading = true;
+            this.initialSnapshotChecked = false;
+            this.initialSnapshotInitPromise = null;
 
             const handleSuccess = (dataObj, source) => {
                 // === 强制执行归一化 ===
@@ -205,6 +1458,7 @@ export default function wiEditor() {
                 // 赋值给响应式对象
                 this.editingData = dataObj;
                 this.editingWiFile = item;
+                this._ensureEntryUids();
                 let targetIndex = 0;
                 if (typeof item.jumpToIndex === 'number' && item.jumpToIndex >= 0) {
                     targetIndex = item.jumpToIndex;
@@ -301,6 +1555,8 @@ export default function wiEditor() {
         // 打开独立文件 (兼容接口)
         openWorldInfoFile(item) {
             this.isLoading = true;
+            this.initialSnapshotChecked = false;
+            this.initialSnapshotInitPromise = null;
             getWorldInfoDetail({
                 id: item.id,
                 source_type: item.source_type,
@@ -320,8 +1576,16 @@ export default function wiEditor() {
                     
                     this.editingData.character_book = book;
                     this.editingWiFile = item;
+                    this._ensureEntryUids();
                     this.openFullScreenWI();
-                    this.$nextTick(() => {
+                    this.$nextTick(async () => {
+                        if (this.initialSnapshotInitPromise) {
+                            try {
+                                await this.initialSnapshotInitPromise;
+                            } catch (e) {
+                                console.warn('Init snapshot on enter failed before auto-save start:', e);
+                            }
+                        }
                         autoSaver.initBaseline(this.editingData);
                         autoSaver.start(() => this.editingData, () => this._getAutoSavePayload());
                     });
@@ -340,6 +1604,11 @@ export default function wiEditor() {
             }
             // 加载剪切板
             this.loadWiClipboard();
+
+            // 进入编辑器时自动生成“本次编辑起点”的 INIT 快照
+            this._ensureInitialBaselineOnEnter().catch((e) => {
+                console.warn('Auto init snapshot failed:', e);
+            });
         },
 
         // === 数据存取 ===
@@ -366,13 +1635,33 @@ export default function wiEditor() {
 
         // === 保存逻辑 ===
 
-        saveWiFileChanges() {
+        async saveWiFileChanges(withSnapshot = false) {
             if (!this.editingWiFile) return;
 
             // 如果是内嵌模式，实际上应该调用 UpdateCard
             if (this.editingWiFile.type === 'embedded') {
                 alert("内嵌世界书将随角色卡自动保存 (Auto-save) 或请关闭后点击角色保存。");
                 return;
+            }
+
+            await this._flushPendingEditorInput();
+            this._ensureEntryUids();
+            this.isSaving = true;
+            await this._ensureInitSnapshotReadyForSave();
+
+            if (withSnapshot) {
+                try {
+                    const snapshotRes = await this._createWholeWorldbookSnapshot();
+                    if (!snapshotRes || !snapshotRes.success) {
+                        this.isSaving = false;
+                        alert("整本保存失败：无法创建版本快照" + (snapshotRes && snapshotRes.msg ? ` (${snapshotRes.msg})` : ""));
+                        return;
+                    }
+                } catch (e) {
+                    this.isSaving = false;
+                    alert("整本保存失败：创建版本快照异常 - " + e);
+                    return;
+                }
             }
 
             // 独立文件保存
@@ -387,12 +1676,20 @@ export default function wiEditor() {
                 content: contentToSave,
                 compact: true
             }).then(res => {
+                this.isSaving = false;
                 if (res.success) {
-                    this.$store.global.showToast("💾 世界书已保存", 2000);
+                    if (withSnapshot) {
+                        this.$store.global.showToast("💾 已保存整本并生成回滚版本", 2200);
+                    } else {
+                        this.$store.global.showToast("💾 条目修改已保存", 1800);
+                    }
                     autoSaver.initBaseline(this.editingData);
                 } else {
                     alert("保存失败: " + res.msg);
                 }
+            }).catch(e => {
+                this.isSaving = false;
+                alert("请求错误: " + e);
             });
         },
 
@@ -400,6 +1697,7 @@ export default function wiEditor() {
             const name = prompt("请输入新世界书名称:", this.editingData.character_book.name || "New World Book");
             if (!name) return;
 
+            this._ensureEntryUids();
             const contentToSave = toStV3Worldbook(this.editingData.character_book, name);
             contentToSave.name = name; // 确保内部名一致
 
@@ -482,6 +1780,7 @@ export default function wiEditor() {
             // 注意：必须显式设置为 undefined 或 delete，防止后端复用 ID
             delete copy.id;
             delete copy.uid;
+            delete copy[this.entryUidField];
 
             // 4. 确保 content 字段存在
             if (copy.content === undefined || copy.content === null) copy.content = "";
@@ -526,6 +1825,7 @@ export default function wiEditor() {
             const arr = this.getWIArrayRef();
             const newEntry = JSON.parse(JSON.stringify(content));
             newEntry.id = Math.floor(Math.random() * 1000000);
+            newEntry[this.entryUidField] = this._generateEntryUid();
 
             let insertPos = this.currentWiIndex + 1;
             if (insertPos > arr.length) insertPos = arr.length;
@@ -633,6 +1933,7 @@ export default function wiEditor() {
                     const arr = this.getWIArrayRef();
                     const newEntry = JSON.parse(JSON.stringify(content));
                     newEntry.id = Math.floor(Math.random() * 1000000);
+                    newEntry[this.entryUidField] = this._generateEntryUid();
 
                     arr.splice(targetIndex, 0, newEntry);
                     this.currentWiIndex = targetIndex;

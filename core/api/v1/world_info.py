@@ -15,6 +15,13 @@ from core.context import ctx
 from core.data.db_session import get_db
 from core.data.ui_store import load_ui_data, UI_DATA_FILE
 from core.services.cache_service import invalidate_wi_list_cache
+from core.services.wi_entry_history_service import (
+    ensure_entry_uids,
+    collect_previous_versions,
+    append_entry_history_records,
+    list_entry_history_records,
+    get_history_limit
+)
 from core.utils.filesystem import safe_move_to_trash
 
 def _safe_mtime(path: str) -> float:
@@ -671,6 +678,8 @@ def api_save_world_info():
         target_path = request.json.get('file_path') # 如果是 overwrite
         name = request.json.get('name')
         content = request.json.get('content') # JSON 对象
+        old_content = None
+        history_records = []
         
         final_path = ""
         
@@ -685,6 +694,11 @@ def api_save_world_info():
             cfg = load_config()
             if not _is_valid_wi_file(final_path, cfg):
                 return jsonify({"success": False, "msg": "非法路径"})
+            try:
+                with open(final_path, 'r', encoding='utf-8') as f:
+                    old_content = json.load(f)
+            except Exception:
+                old_content = None
             
         elif save_mode == 'new_global':
             cfg = load_config()
@@ -710,6 +724,10 @@ def api_save_world_info():
             # 略，需要复用 get_resource_folder 逻辑
             pass 
 
+        if isinstance(content, (dict, list)):
+            ensure_entry_uids(content)
+            history_records = collect_previous_versions(old_content, content)
+
         # 写入
         compact = bool(request.json.get('compact', False))
         with open(final_path, 'w', encoding='utf-8') as f:
@@ -717,10 +735,45 @@ def api_save_world_info():
                 json.dump(content, f, ensure_ascii=False, separators=(',', ':'))
             else:
                 json.dump(content, f, ensure_ascii=False, indent=2)
+
+        if history_records:
+            append_entry_history_records(
+                source_type='lorebook',
+                source_id='',
+                file_path=final_path,
+                records=history_records
+            )
         
         invalidate_wi_list_cache()
         return jsonify({"success": True, "new_path": final_path})
     except Exception as e:
+        return jsonify({"success": False, "msg": str(e)})
+
+
+@bp.route('/api/world_info/entry_history/list', methods=['POST'])
+def api_list_wi_entry_history():
+    try:
+        source_type = request.json.get('source_type') or 'lorebook'
+        source_id = request.json.get('source_id') or ''
+        file_path = request.json.get('file_path') or ''
+        entry_uid = request.json.get('entry_uid') or ''
+        limit = request.json.get('limit')
+
+        records = list_entry_history_records(
+            source_type=source_type,
+            source_id=source_id,
+            file_path=file_path,
+            entry_uid=entry_uid,
+            limit=limit
+        )
+
+        return jsonify({
+            'success': True,
+            'items': records,
+            'limit': get_history_limit(limit)
+        })
+    except Exception as e:
+        logger.error(f"List WI entry history error: {e}")
         return jsonify({"success": False, "msg": str(e)})
 
 @bp.route('/api/tools/migrate_lorebooks', methods=['POST'])

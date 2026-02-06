@@ -342,7 +342,7 @@ def api_create_snapshot():
         target_dir = os.path.join(backups_root, safe_dir_name)
         if not os.path.exists(target_dir): os.makedirs(target_dir)
 
-        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S-%f")
         if label:
             safe_label = re.sub(r'[\\/:*?"<>|]', '-', label)
             backup_filename = f"{name_no_ext}_{timestamp}__KEY__{safe_label}{ext}"
@@ -493,7 +493,7 @@ def api_smart_auto_snapshot():
         elif target_id.endswith('.png'): ext = '.png'
         elif target_id.endswith('.json'): ext = '.json'
 
-        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S-%f")
         backup_filename = f"{name_no_ext}_{timestamp}__AUTO__{ext}"
         dst_path = os.path.join(target_dir, backup_filename)
         
@@ -615,6 +615,95 @@ def api_list_backups():
         logger.error(f"List backups error: {e}")
         return jsonify({"success": False, "msg": str(e)})
 
+
+@bp.route('/api/cleanup_init_backups', methods=['POST'])
+def api_cleanup_init_backups():
+    """
+    清理指定目标的 INIT 快照。
+    默认 keep_latest=0：关闭编辑器时清空 INIT，下次进入再生成新的 INIT。
+    """
+    try:
+        req = request.json or {}
+        target_id = req.get('id')
+        snapshot_type = req.get('type', 'card')
+        file_path_param = req.get('file_path')
+        keep_latest = int(req.get('keep_latest', 0) or 0)
+        keep_latest = max(0, min(keep_latest, 5))
+
+        system_backups_dir = os.path.join(DATA_DIR, 'system', 'backups')
+
+        backups_root = ""
+        filename = ""
+
+        if snapshot_type == 'lorebook':
+            if target_id and target_id.startswith('embedded::'):
+                real_card_id = target_id.replace('embedded::', '')
+                filename = os.path.basename(real_card_id)
+                backups_root = os.path.join(system_backups_dir, 'cards')
+            else:
+                if file_path_param:
+                    filename = os.path.basename(file_path_param)
+                elif target_id:
+                    filename = os.path.basename(target_id)
+                backups_root = os.path.join(system_backups_dir, 'lorebooks')
+        else:
+            filename = os.path.basename(target_id or '')
+            backups_root = os.path.join(system_backups_dir, 'cards')
+
+        name_no_ext = os.path.splitext(filename)[0]
+        safe_dir_name = re.sub(r'[\\/:*?"<>|]', '_', name_no_ext).strip()
+        target_dir = os.path.join(backups_root, safe_dir_name)
+
+        if not os.path.exists(target_dir):
+            return jsonify({"success": True, "removed": 0, "target_dir": target_dir})
+
+        init_files = []
+        for f in os.listdir(target_dir):
+            f_lower = f.lower()
+            if not (f_lower.endswith('.png') or f_lower.endswith('.json')):
+                continue
+            if name_no_ext and name_no_ext not in f:
+                continue
+            if "__KEY__" not in f:
+                continue
+
+            parts = f.split("__KEY__")
+            if len(parts) <= 1:
+                continue
+            label = os.path.splitext(parts[1])[0]
+            if label != 'INIT':
+                continue
+
+            full_p = os.path.join(target_dir, f)
+            init_files.append((full_p, os.path.getmtime(full_p)))
+
+        init_files.sort(key=lambda x: x[1], reverse=True)
+        to_remove = init_files[keep_latest:]
+        removed = 0
+
+        for f_path, _ in to_remove:
+            try:
+                if os.path.exists(f_path):
+                    os.remove(f_path)
+                    removed += 1
+
+                # 清理同名伴生备份
+                base_path = os.path.splitext(f_path)[0]
+                for ext in ['.png', '.json', '.webp', '.jpg', '.jpeg']:
+                    sidecar = base_path + ext
+                    if os.path.exists(sidecar) and sidecar != f_path:
+                        try:
+                            os.remove(sidecar)
+                        except Exception:
+                            pass
+            except Exception as e:
+                logger.warning(f"Cleanup INIT backup failed: {f_path}, err={e}")
+
+        return jsonify({"success": True, "removed": removed, "target_dir": target_dir})
+    except Exception as e:
+        logger.error(f"Cleanup INIT backups error: {e}")
+        return jsonify({"success": False, "msg": str(e)})
+
 # 回滚接口
 @bp.route('/api/restore_backup', methods=['POST'])
 def api_restore_backup():
@@ -644,26 +733,18 @@ def api_restore_backup():
         # 1. 物理覆盖 (恢复图片像素 或 JSON 内容)
         shutil.copy2(backup_path, target_path)
         
-        # 2. [关键修改] 标准化重写
-        # 读取刚刚恢复的文件，进行 deterministic_sort 后原地写回
-        # 这样能保证回滚后的文件格式与当前系统保存的格式完全一致 (Key排序、缩进等)
-        try:
-            # 提取刚刚恢复的文件信息
-            info = extract_card_info(target_path)
-            if info:
-                # data_block 提取逻辑，确保兼容 V2/V3
-                data_to_write = info
-                
-                # 如果是 V3 嵌套结构，extract_card_info 返回的可能是最外层
-                # write_card_metadata 会再次调用 deterministic_sort
-                # 所以我们只需要把读取到的 info 原样传进去，write_card_metadata 会负责清洗和排序
-                
-                # 执行标准化写入 (这会更新 last_modified，并统一 JSON 格式)
-                write_card_metadata(target_path, data_to_write)
-                
-                print(f"Normalized restored file: {target_path}")
-        except Exception as e:
-            logger.warning(f"Restored file normalization failed (non-fatal): {e}")
+        # 2. 卡片类型可选标准化重写
+        # 仅对卡片文件做标准化，避免把独立世界书 JSON 误判为角色卡并重写结构
+        is_embedded_lorebook = (type_ == 'lorebook' and target_id.startswith('embedded::'))
+        should_normalize = (type_ == 'card' or is_embedded_lorebook)
+        if should_normalize:
+            try:
+                info = extract_card_info(target_path)
+                if info:
+                    write_card_metadata(target_path, info)
+                    print(f"Normalized restored file: {target_path}")
+            except Exception as e:
+                logger.warning(f"Restored file normalization failed (non-fatal): {e}")
 
         # 3. 恢复伴生图 (针对 JSON 卡片)
         if target_path.lower().endswith('.json'):

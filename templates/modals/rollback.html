@@ -90,6 +90,10 @@
                             x-text="diffSelection.right ? (diffSelection.right.is_current ? 'Current' : new Date(diffSelection.right.mtime*1000).toLocaleString()) : '-'"></span>
                     </div>
                 </div>
+                <div class="px-3 py-1 text-[11px] border-b border-[var(--border-light)] bg-[var(--bg-sub)] text-[var(--text-dim)]">
+                    <span x-show="diffRenderMode === 'wi_entries'">当前视图: 按世界书条目对比（仅显示变更条目）</span>
+                    <span x-show="diffRenderMode !== 'wi_entries'">当前视图: 原始 JSON 文本对比</span>
+                </div>
 
                 <div class="diff-container" id="diff-scroll-container">
                     <div class="diff-pane custom-scrollbar" id="diff-left"

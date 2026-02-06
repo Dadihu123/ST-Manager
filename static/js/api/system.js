@@ -149,6 +149,16 @@ export async function createSnapshot(payload) {
     return res.json();
 }
 
+export async function cleanupInitBackups(payload) {
+    // payload: { id, type, file_path, keep_latest }
+    const res = await fetch('/api/cleanup_init_backups', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    });
+    return res.json();
+}
+
 export async function smartAutoSnapshot(payload) {
     // payload: { id, type, content, file_path }
     const res = await fetch('/api/smart_auto_snapshot', {

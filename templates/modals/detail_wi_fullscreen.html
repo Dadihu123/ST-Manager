@@ -79,6 +79,9 @@
 
                 <!-- 3. 打开备份文件夹 -->
                 <button @click="openBackupFolder('lorebook')" class="wi-action-btn" title="打开备份文件夹">📂</button>
+                
+                <!-- 3.5 查找替换 -->
+                <button @click="openFindReplaceModal()" class="wi-action-btn" title="查找与替换 (Ctrl+H)">🔎</button>
 
                 <div class="h-4 w-[1px] bg-[var(--border-light)] mx-1"></div>
 
@@ -87,10 +90,16 @@
                     <!-- 场景 A: 编辑独立文件 (显示保存文件 + 另存为) -->
                     <template x-if="editingWiFile && editingWiFile.type !== 'embedded'">
                         <div class="flex items-center gap-2">
-                            <button @click="saveWiFileChanges()"
+                            <button @click="saveWiFileChanges()" :disabled="isSaving"
                                 class="btn-primary px-4 py-1.5 rounded text-xs font-bold shadow-lg flex items-center gap-2 whitespace-nowrap transition-all hover:brightness-110">
+                                <span x-show="isSaving" class="animate-spin">⏳</span>
                                 <span>💾</span>
-                                <span x-show="$store.global.deviceType !== 'mobile'"> 保存文件</span>
+                                <span x-show="$store.global.deviceType !== 'mobile'"> 保存条目</span>
+                            </button>
+                            <button @click="saveWholeWorldbook()" :disabled="isSaving"
+                                class="btn-secondary px-3 py-1.5 text-xs rounded whitespace-nowrap" title="先创建整本回滚版本，再执行保存">
+                                <span>🗂️</span>
+                                <span x-show="$store.global.deviceType !== 'mobile'"> 保存整本</span>
                             </button>
                             <button @click="saveAsGlobalWi()"
                                 class="btn-secondary px-3 py-1.5 text-xs rounded whitespace-nowrap" title="另存为新文件">
@@ -107,7 +116,12 @@
                                 class="btn-primary px-4 py-1.5 rounded text-xs font-bold shadow-lg flex items-center gap-2 whitespace-nowrap transition-all hover:brightness-110">
                                 <span x-show="isSaving" class="animate-spin">⏳</span>
                                 <span>💾</span>
-                                <span x-show="$store.global.deviceType !== 'mobile'"> 保存到卡片</span>
+                                <span x-show="$store.global.deviceType !== 'mobile'"> 保存条目</span>
+                            </button>
+                            <button @click="saveWholeWorldbook()" :disabled="isSaving"
+                                class="btn-secondary px-3 py-1.5 text-xs rounded whitespace-nowrap" title="先创建整本回滚版本，再执行保存">
+                                <span>🗂️</span>
+                                <span x-show="$store.global.deviceType !== 'mobile'"> 保存整本</span>
                             </button>
                             <button @click="saveAsGlobalWi()"
                                 class="btn-secondary px-3 py-1.5 text-xs rounded whitespace-nowrap" title="提取为全局世界书">
@@ -253,6 +267,10 @@
                                 <!-- 场景 B: 普通模式 (显示删除/复制) -->
                                 <template x-if="!isEditingClipboard">
                                     <div class="flex gap-2">
+                                        <button @click.stop="openEntryHistoryModal()" title="条目历史回滚"
+                                            class="wi-action-btn hover:text-orange-400 hover:bg-orange-500/10">
+                                            🕰️
+                                        </button>
                                         <button @click.stop="removeWiEntry(currentWiIndex)" title="删除条目"
                                             class="wi-action-btn hover:text-red-400 hover:bg-red-500/10">
                                             🗑️
@@ -275,7 +293,7 @@
                                     x-text="typeof estimateTokens === 'function' ? ('(' + estimateTokens(activeEditorEntry.content) + ' T)') : ''"></span>
                             </label>
 
-                            <textarea x-model="activeEditorEntry.content" class="wi-main-textarea custom-scrollbar"
+                            <textarea x-model="activeEditorEntry.content" x-ref="wiContentTextarea" class="wi-main-textarea custom-scrollbar"
                                 :class="{'border-purple-500/30 focus:border-purple-500': isEditingClipboard}"
                                 placeholder="在此输入世界书内容..."></textarea>
                         </div>
@@ -579,6 +597,163 @@
 
             <div x-show="!showRightPanel" class="wi-toggle-btn-float right" @click="showRightPanel = true" title="展开面板">
                 ◀</div>
+            
+            <!-- 查找与替换悬浮面板（可拖动，不遮挡整页） -->
+            <div x-show="showFindReplaceModal" x-cloak class="fixed inset-0 z-[10000] pointer-events-none">
+                <div x-ref="findReplacePanel"
+                    class="absolute w-full max-w-xl rounded-xl border border-[var(--border-main)] bg-[var(--bg-panel)] shadow-2xl overflow-hidden pointer-events-auto"
+                    :style="findReplacePanelStyle">
+                    <div class="px-4 py-3 border-b border-[var(--border-light)] flex items-center justify-between cursor-move select-none"
+                        @mousedown.prevent="startFindReplaceDrag($event)">
+                        <div>
+                            <div class="text-sm font-bold text-[var(--text-main)]">查找与替换</div>
+                            <div class="text-[11px] text-[var(--text-dim)]">Ctrl+H 唤出，可拖动查看底层文本</div>
+                        </div>
+                        <div class="flex items-center gap-1">
+                            <button @mousedown.stop @click="showFindReplaceModal && _resetFindReplacePanelPos()"
+                                class="text-[11px] text-gray-300 hover:text-white px-2 py-1 rounded hover:bg-white/10"
+                                title="重置位置">↺</button>
+                            <button @mousedown.stop @click="closeFindReplaceModal()"
+                                class="text-gray-400 hover:text-red-400 px-2 py-1 rounded">✕</button>
+                        </div>
+                    </div>
+
+                    <div class="p-4 space-y-3">
+                        <div>
+                            <label class="block text-[11px] text-[var(--text-dim)] mb-1">查找内容</label>
+                            <input type="text" x-ref="findReplaceInput" x-model="findReplaceQuery"
+                                @keydown.enter.prevent="findNextMatch()"
+                                class="w-full px-3 py-2 rounded bg-[var(--bg-body)] border border-[var(--border-light)] text-sm focus:border-[var(--accent-main)] outline-none"
+                                placeholder="输入要查找的文本...">
+                        </div>
+
+                        <div>
+                            <label class="block text-[11px] text-[var(--text-dim)] mb-1">替换为</label>
+                            <input type="text" x-model="findReplaceReplacement"
+                                @keydown.enter.prevent="replaceCurrentMatch()"
+                                class="w-full px-3 py-2 rounded bg-[var(--bg-body)] border border-[var(--border-light)] text-sm focus:border-[var(--accent-main)] outline-none"
+                                placeholder="输入替换文本...">
+                        </div>
+
+                        <div>
+                            <label class="block text-[11px] text-[var(--text-dim)] mb-1">排除文本（逗号或换行分隔）</label>
+                            <textarea x-model="findReplaceExcludeText" rows="2"
+                                class="w-full px-3 py-2 rounded bg-[var(--bg-body)] border border-[var(--border-light)] text-xs focus:border-[var(--accent-main)] outline-none resize-y"
+                                placeholder="例如：{{user}}，<system>"></textarea>
+                            <div class="mt-1 text-[10px] text-[var(--text-dim)]">包含排除文本的命中区间会被跳过，不参与查找与替换。</div>
+                        </div>
+
+                        <div class="flex items-center gap-3">
+                            <label class="text-[12px] text-[var(--text-dim)]">范围</label>
+                            <select x-model="findReplaceScope"
+                                class="px-2 py-1 rounded bg-[var(--bg-body)] border border-[var(--border-light)] text-xs focus:border-[var(--accent-main)] outline-none">
+                                <option value="current">当前条目</option>
+                                <option value="all">全部条目</option>
+                            </select>
+
+                            <label class="ml-2 inline-flex items-center gap-1 text-[11px] text-[var(--text-dim)] cursor-pointer">
+                                <input type="checkbox" x-model="findReplaceCaseSensitive" class="accent-accent-main">
+                                区分大小写
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="px-4 py-3 border-t border-[var(--border-light)] flex items-center justify-end gap-2 bg-[var(--bg-sub)]">
+                        <button @click="findNextMatch()" class="btn-secondary px-3 py-1.5 text-xs rounded">查找下一个</button>
+                        <button @click="replaceCurrentMatch()" class="btn-secondary px-3 py-1.5 text-xs rounded">替换当前</button>
+                        <button @click="replaceAllMatches()" class="btn-primary px-3 py-1.5 text-xs rounded">全部替换</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 条目历史回滚弹窗 -->
+            <div x-show="showEntryHistoryModal" x-cloak class="fixed inset-0 z-[9999] bg-black/60 flex items-center justify-center p-4"
+                @click.self="showEntryHistoryModal = false">
+                <div class="w-full max-w-7xl h-[82vh] rounded-xl border border-[var(--border-main)] bg-[var(--bg-panel)] shadow-2xl flex flex-col overflow-hidden">
+                    <div class="px-4 py-3 border-b border-[var(--border-light)] flex items-center justify-between">
+                        <div>
+                            <div class="text-sm font-bold text-[var(--text-main)]">条目时光机</div>
+                            <div class="text-[11px] text-[var(--text-dim)]">左侧选择版本，右侧查看行级差异（绿=新增 / 黄=修改 / 红=删除）</div>
+                        </div>
+                        <button @click="showEntryHistoryModal = false"
+                            class="text-gray-400 hover:text-red-400 px-2 py-1 rounded">✕</button>
+                    </div>
+
+                    <div class="flex-1 min-h-0 flex overflow-hidden">
+                        <div class="w-[290px] border-r border-[var(--border-light)] bg-[var(--bg-sub)] flex flex-col">
+                            <div class="px-3 py-2 border-b border-[var(--border-light)] text-[11px] text-[var(--text-dim)]">
+                                版本列表（可分别指定 Left / Right）
+                            </div>
+                            <div class="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-2">
+                                <div x-show="isEntryHistoryLoading" class="text-center text-xs text-gray-400 py-8">
+                                    正在加载历史版本...
+                                </div>
+
+                                <template x-for="ver in entryHistoryVersions" :key="ver.id || ('v-' + ver.created_at)">
+                                    <div class="border rounded-lg p-2 bg-[var(--bg-panel)] border-[var(--border-light)]">
+                                        <div class="flex items-center justify-between gap-2">
+                                            <div class="min-w-0">
+                                                <div class="text-xs font-bold"
+                                                    :class="ver.is_current ? 'text-green-400' : 'text-orange-400'"
+                                                    x-text="ver.is_current ? '当前版本 (Current)' : formatEntryHistoryTime(ver.created_at)"></div>
+                                                <div class="text-[11px] text-[var(--text-dim)] truncate"
+                                                    x-text="(ver.snapshot && ver.snapshot.comment) ? ver.snapshot.comment : '无备注'"></div>
+                                            </div>
+                                            <div class="flex items-center gap-1">
+                                                <button @click="setEntryHistorySide('left', ver)"
+                                                    class="px-2 py-0.5 rounded text-[10px] border"
+                                                    :class="entryHistorySelection.left === ver ? 'bg-red-500/80 text-white border-red-400' : 'border-[var(--border-light)] text-[var(--text-dim)] hover:text-red-300'">
+                                                    L
+                                                </button>
+                                                <button @click="setEntryHistorySide('right', ver)"
+                                                    class="px-2 py-0.5 rounded text-[10px] border"
+                                                    :class="entryHistorySelection.right === ver ? 'bg-green-500/80 text-white border-green-400' : 'border-[var(--border-light)] text-[var(--text-dim)] hover:text-green-300'">
+                                                    R
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </template>
+
+                                <div x-show="!isEntryHistoryLoading && entryHistoryVersions.length <= 1"
+                                    class="text-center text-xs text-gray-500 py-8">
+                                    该条目暂无历史版本（仅当前版本）
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex-1 min-w-0 flex flex-col">
+                            <div class="px-3 py-2 border-b border-[var(--border-light)] flex items-center justify-between gap-3">
+                                <div class="text-[11px] text-[var(--text-dim)] truncate">
+                                    Left:
+                                    <span class="text-red-300"
+                                        x-text="entryHistorySelection.left ? (entryHistorySelection.left.is_current ? 'Current' : formatEntryHistoryTime(entryHistorySelection.left.created_at)) : '-'"></span>
+                                    <span class="mx-2">vs</span>
+                                    Right:
+                                    <span class="text-green-300"
+                                        x-text="entryHistorySelection.right ? (entryHistorySelection.right.is_current ? 'Current' : formatEntryHistoryTime(entryHistorySelection.right.created_at)) : '-'"></span>
+                                </div>
+                                <button @click="restoreEntryFromSelectedHistory()"
+                                    class="btn-primary px-3 py-1 text-xs rounded whitespace-nowrap"
+                                    :disabled="!canRestoreEntryFromSelection()">
+                                    恢复到 Left 版本
+                                </button>
+                            </div>
+
+                            <div class="flex-1 min-h-0 grid grid-cols-2 gap-0">
+                                <div class="min-h-0 border-r border-[var(--border-light)]">
+                                    <div class="px-3 py-2 text-xs font-bold text-red-300 border-b border-[var(--border-light)]">Left (Old)</div>
+                                    <div class="h-[calc(82vh-140px)] overflow-y-auto custom-scrollbar" x-html="entryHistoryDiff.left"></div>
+                                </div>
+                                <div class="min-h-0">
+                                    <div class="px-3 py-2 text-xs font-bold text-green-300 border-b border-[var(--border-light)]">Right (New)</div>
+                                    <div class="h-[calc(82vh-140px)] overflow-y-auto custom-scrollbar" x-html="entryHistoryDiff.right"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
         </div>
     </div>

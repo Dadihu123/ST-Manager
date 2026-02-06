@@ -25,6 +25,11 @@ from core.services.scan_service import suppress_fs_events
 from core.services.cache_service import schedule_reload, force_reload, update_card_cache
 from core.services.card_service import update_card_content, rename_folder_in_db, rename_folder_in_ui, resolve_ui_key, swap_skin_to_cover
 from core.services.automation_service import auto_run_rules_on_card
+from core.services.wi_entry_history_service import (
+    ensure_entry_uids,
+    collect_previous_versions,
+    append_entry_history_records
+)
 
 # === 工具函数 ===
 from core.utils.image import (
@@ -447,6 +452,7 @@ def api_update_card():
         # 读取原文件信息
         info = extract_card_info(old_full_path)
         file_content_modified = False
+        wi_entry_history_records = []
 
         # =========================================================
         # 1. 元数据写入逻辑 (如果是设为封面，完全跳过此步骤)
@@ -504,6 +510,9 @@ def api_update_card():
 
             new_book = data.get('character_book')
             old_book = target.get('character_book')
+            if isinstance(new_book, (dict, list)):
+                ensure_entry_uids(new_book)
+                wi_entry_history_records = collect_previous_versions(old_book, new_book)
             if clean_for_compare(new_book) != clean_for_compare(old_book):
                 target['character_book'] = new_book
                 file_content_modified = True
@@ -797,6 +806,14 @@ def api_update_card():
         # 确定返回给前端的 new_id
         # Bundle模式下：始终返回主版本ID，避免前端activeCard被切换
         # 非Bundle模式下：返回实际的文件ID
+        if wi_entry_history_records:
+            append_entry_history_records(
+                source_type='embedded',
+                source_id=final_rel_path_id,
+                file_path='',
+                records=wi_entry_history_records
+            )
+
         return_new_id = final_rel_path_id
         return_new_filename = new_filename
         current_version_id = None

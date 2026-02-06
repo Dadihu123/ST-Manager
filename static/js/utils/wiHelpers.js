@@ -51,9 +51,13 @@ export const wiHelpers = {
     // 基础 CRUD
     addWiEntry() {
         const arr = this.getWIArrayRef();
+        const entryUid = (typeof this._generateEntryUid === 'function')
+            ? this._generateEntryUid()
+            : `wi-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
         // 创建新条目
         arr.push({
             id: Math.floor(Math.random() * 1000000),
+            st_manager_uid: entryUid,
             comment: "新条目",
             content: "",
             keys: ["关键词"],
@@ -399,6 +403,7 @@ export const wiHelpers = {
                     const coreData = {
                         // ID: 优先用原有的，没有则生成
                         id: entry.id || entry.uid || Math.floor(Math.random() * 1000000),
+                        st_manager_uid: entry.st_manager_uid || `wi-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`,
 
                         // 键名映射 (ST use 'key', we use 'keys')
                         keys: Array.isArray(entry.keys) ? entry.keys : (Array.isArray(entry.key) ? entry.key : []),
