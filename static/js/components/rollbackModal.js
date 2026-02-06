@@ -319,6 +319,156 @@ export default function rollbackModal() {
             return `${raw.slice(0, maxLen)}\n...(已省略 ${raw.length - maxLen} 字)`;
         },
 
+        _splitLinesWithLimit(text, maxLines = 240, maxChars = 16000) {
+            const raw = String(text ?? '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+            let limited = raw;
+            let truncatedByChars = false;
+            if (limited.length > maxChars) {
+                limited = limited.slice(0, maxChars);
+                truncatedByChars = true;
+            }
+            let lines = limited.split('\n');
+            let truncatedByLines = false;
+            if (lines.length > maxLines) {
+                lines = lines.slice(0, maxLines);
+                truncatedByLines = true;
+            }
+            if (truncatedByChars || truncatedByLines) {
+                lines.push(`...(内容过长，已截断显示)`);
+            }
+            return lines;
+        },
+
+        _buildLineOps(leftLines, rightLines, maxCells = 70000) {
+            const n = leftLines.length;
+            const m = rightLines.length;
+
+            // 兜底：内容过大时使用按索引近似对齐，避免 O(n*m) 过重
+            if (n * m > maxCells) {
+                const approx = [];
+                const len = Math.max(n, m);
+                for (let i = 0; i < len; i++) {
+                    const l = i < n ? leftLines[i] : null;
+                    const r = i < m ? rightLines[i] : null;
+                    if (l !== null && r !== null) {
+                        approx.push({ t: l === r ? 'same' : 'changed', left: l, right: r });
+                    } else if (l !== null) {
+                        approx.push({ t: 'removed', left: l, right: null });
+                    } else {
+                        approx.push({ t: 'added', left: null, right: r });
+                    }
+                }
+                return approx;
+            }
+
+            const dp = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(0));
+            for (let i = n - 1; i >= 0; i--) {
+                for (let j = m - 1; j >= 0; j--) {
+                    if (leftLines[i] === rightLines[j]) {
+                        dp[i][j] = dp[i + 1][j + 1] + 1;
+                    } else {
+                        dp[i][j] = Math.max(dp[i + 1][j], dp[i][j + 1]);
+                    }
+                }
+            }
+
+            const rawOps = [];
+            let i = 0;
+            let j = 0;
+            while (i < n && j < m) {
+                if (leftLines[i] === rightLines[j]) {
+                    rawOps.push({ t: 'same', text: leftLines[i] });
+                    i += 1;
+                    j += 1;
+                } else if (dp[i + 1][j] >= dp[i][j + 1]) {
+                    rawOps.push({ t: 'remove', text: leftLines[i] });
+                    i += 1;
+                } else {
+                    rawOps.push({ t: 'add', text: rightLines[j] });
+                    j += 1;
+                }
+            }
+            while (i < n) {
+                rawOps.push({ t: 'remove', text: leftLines[i] });
+                i += 1;
+            }
+            while (j < m) {
+                rawOps.push({ t: 'add', text: rightLines[j] });
+                j += 1;
+            }
+
+            // 将连续 add/remove 片段折叠为 changed / added / removed 行
+            const aligned = [];
+            let k = 0;
+            while (k < rawOps.length) {
+                const op = rawOps[k];
+                if (op.t === 'same') {
+                    aligned.push({ t: 'same', left: op.text, right: op.text });
+                    k += 1;
+                    continue;
+                }
+
+                const removes = [];
+                const adds = [];
+                while (k < rawOps.length && rawOps[k].t !== 'same') {
+                    if (rawOps[k].t === 'remove') removes.push(rawOps[k].text);
+                    if (rawOps[k].t === 'add') adds.push(rawOps[k].text);
+                    k += 1;
+                }
+
+                const pairCount = Math.min(removes.length, adds.length);
+                for (let x = 0; x < pairCount; x++) {
+                    aligned.push({ t: 'changed', left: removes[x], right: adds[x] });
+                }
+                for (let x = pairCount; x < removes.length; x++) {
+                    aligned.push({ t: 'removed', left: removes[x], right: null });
+                }
+                for (let x = pairCount; x < adds.length; x++) {
+                    aligned.push({ t: 'added', left: null, right: adds[x] });
+                }
+            }
+
+            return aligned;
+        },
+
+        _lineClassByType(type, side) {
+            if (type === 'changed') return 'bg-yellow-500/20 border border-yellow-500/40';
+            if (type === 'added' && side === 'right') return 'bg-green-500/20 border border-green-500/40';
+            if (type === 'removed' && side === 'left') return 'bg-red-500/20 border border-red-500/40';
+            if (type === 'added' && side === 'left') return 'bg-green-500/10 border border-green-500/30';
+            if (type === 'removed' && side === 'right') return 'bg-red-500/10 border border-red-500/30';
+            return 'bg-black/10 border border-transparent';
+        },
+
+        _renderLineDiffHtml(leftText, rightText, side) {
+            const leftLines = this._splitLinesWithLimit(leftText);
+            const rightLines = this._splitLinesWithLimit(rightText);
+            const rows = this._buildLineOps(leftLines, rightLines);
+
+            let leftNo = 0;
+            let rightNo = 0;
+            let html = '';
+            rows.forEach((row) => {
+                const isLeft = side === 'left';
+                const text = isLeft ? row.left : row.right;
+                const cls = this._lineClassByType(row.t, side);
+
+                if (row.left !== null) leftNo += 1;
+                if (row.right !== null) rightNo += 1;
+                const lineNo = isLeft ? (row.left !== null ? leftNo : '') : (row.right !== null ? rightNo : '');
+                const lineText = text === null ? '∅' : this._escapeHtml(text);
+                const lineTextClass = text === null ? 'text-[var(--text-dim)] italic' : 'text-[var(--text-main)]';
+
+                html += `
+                    <div class="px-2 py-0.5 rounded ${cls}">
+                        <span class="inline-block w-8 mr-2 text-[10px] text-[var(--text-dim)] text-right select-none">${lineNo || ' '}</span>
+                        <span class="text-[11px] whitespace-pre-wrap break-words ${lineTextClass}">${lineText || ' '}</span>
+                    </div>
+                `;
+            });
+            return html;
+        },
+
         _fieldDiffClass(meta, side, fieldChanged) {
             const isLeft = side === 'left';
             const isRight = side === 'right';
@@ -338,7 +488,7 @@ export default function rollbackModal() {
             return 'bg-black/10 border border-transparent';
         },
 
-        _renderLorebookEntry(entry, meta, side, orderNo) {
+        _renderLorebookEntry(entry, oppositeEntry, meta, side, orderNo) {
             if (!entry) {
                 return `
                     <div class="m-2 p-3 rounded border border-dashed border-[var(--border-light)] text-[11px] text-[var(--text-dim)] opacity-70">
@@ -348,18 +498,12 @@ export default function rollbackModal() {
             }
 
             const isLeft = side === 'left';
-            const isHot = (isLeft && (meta.status === 'removed' || meta.status === 'changed')) ||
-                (!isLeft && (meta.status === 'added' || meta.status === 'changed'));
-
-            const boxClass = isHot
-                ? (isLeft ? 'bg-red-500/8 border-red-500/30' : 'bg-green-500/8 border-green-500/30')
-                : 'bg-[var(--bg-sub)] border-[var(--border-light)]';
-
-            const markClass = isHot ? (isLeft ? 'text-red-300' : 'text-green-300') : 'text-[var(--text-main)]';
+            const markClass = (isLeft && (meta.status === 'removed' || meta.status === 'changed'))
+                ? 'text-red-300'
+                : ((!isLeft && (meta.status === 'added' || meta.status === 'changed')) ? 'text-green-300' : 'text-[var(--text-main)]');
             const comment = this._escapeHtml(entry.title);
             const keys = this._escapeHtml(entry.keys.join(', ') || '(空)');
             const sec = this._escapeHtml(entry.secondaryKeys.join(', ') || '(空)');
-            const content = this._escapeHtml(this._previewContent(entry.content));
             const idx = entry.index + 1;
 
             const commentCls = meta.changed.comment ? markClass : 'text-[var(--text-main)]';
@@ -368,10 +512,12 @@ export default function rollbackModal() {
 
             const commentBgCls = this._fieldDiffClass(meta, side, meta.changed.comment);
             const keysBgCls = this._fieldDiffClass(meta, side, meta.changed.keys);
-            const contentBgCls = this._fieldDiffClass(meta, side, meta.changed.content);
+            const leftContent = side === 'left' ? (entry.content || '') : (oppositeEntry?.content || '');
+            const rightContent = side === 'right' ? (entry.content || '') : (oppositeEntry?.content || '');
+            const lineDiffHtml = this._renderLineDiffHtml(leftContent, rightContent, side);
 
             return `
-                <div class="m-2 p-3 rounded border ${boxClass}">
+                <div class="m-2 p-3 rounded border bg-[var(--bg-sub)] border-[var(--border-light)]">
                     <div class="text-[10px] uppercase tracking-wide text-[var(--text-dim)]">Entry ${orderNo} · Source #${idx}</div>
                     <div class="mt-1 p-1.5 rounded ${commentBgCls}">
                         <div class="text-sm font-bold ${commentCls}">${comment}</div>
@@ -380,9 +526,10 @@ export default function rollbackModal() {
                         <div class="text-[11px] ${keyCls}">关键词: ${keys}</div>
                         <div class="mt-1 text-[11px] ${keyCls}">次级词: ${sec}</div>
                     </div>
-                    <div class="mt-2 p-1.5 rounded ${contentBgCls}">
+                    <div class="mt-2 p-1.5 rounded bg-black/5 border border-[var(--border-light)]">
                         <div class="text-[11px] text-[var(--text-dim)]">内容预览</div>
-                        <div class="mt-1 p-2 rounded bg-black/10 text-[11px] whitespace-pre-wrap break-words max-h-56 overflow-auto ${contentCls}">${content}</div>
+                        <div class="mt-1 p-2 rounded bg-black/10 max-h-56 overflow-auto">${lineDiffHtml}</div>
+                        <div class="mt-1 text-[10px] ${contentCls}">行级高亮：绿=新增，黄=修改，红=删除</div>
                     </div>
                 </div>
             `;
@@ -407,7 +554,7 @@ export default function rollbackModal() {
                     <span class="text-red-400 mr-3">删除 ${counts.removed}</span>
                     <span class="text-orange-400 mr-3">修改 ${counts.changed}</span>
                     <span class="text-[var(--text-dim)]">未变化 ${counts.same}</span>
-                    <span class="ml-3 text-[var(--text-dim)]">字段底色: <span class="text-green-400">绿=新增</span> / <span class="text-yellow-300">黄=修改</span> / <span class="text-red-400">红=删除</span></span>
+                    <span class="ml-3 text-[var(--text-dim)]">行级底色: <span class="text-green-400">绿=新增</span> / <span class="text-yellow-300">黄=修改</span> / <span class="text-red-400">红=删除</span></span>
                     ${hiddenCount > 0 ? `<span class="ml-3 text-[var(--text-dim)]">（已隐藏 ${hiddenCount} 条未变化）</span>` : ''}
                 </div>
             `;
@@ -415,8 +562,8 @@ export default function rollbackModal() {
             let leftHtml = summary;
             let rightHtml = summary;
             displayList.forEach((item, idx) => {
-                leftHtml += this._renderLorebookEntry(item.pair.left, item.meta, 'left', idx + 1);
-                rightHtml += this._renderLorebookEntry(item.pair.right, item.meta, 'right', idx + 1);
+                leftHtml += this._renderLorebookEntry(item.pair.left, item.pair.right, item.meta, 'left', idx + 1);
+                rightHtml += this._renderLorebookEntry(item.pair.right, item.pair.left, item.meta, 'right', idx + 1);
             });
 
             if (displayList.length === 0) {
