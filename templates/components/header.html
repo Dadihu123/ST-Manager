@@ -216,6 +216,11 @@
 
         <!-- 工具按钮组 -->
         <div class="tool-buttons" style="display: flex; gap: 0.5rem; margin-left: 0.5rem;">
+            <button x-show="currentMode === 'worldinfo'" @click="createWorldInfoBook()"
+                title="新建世界书（SillyTavern 兼容）"
+                class="btn-secondary hover:scale-105 transition-transform">
+                ➕
+            </button>
             <button @click="currentMode === 'cards' ? randomCard() : randomWorldInfo()"
                 :title="currentMode === 'cards' ? '🎲 手气不错，随机角色' : '🎲 手气不错，随机世界书'"
                 class="hover:scale-110 transition-transform active:rotate-180 duration-300"
@@ -312,6 +317,11 @@
 
         <!-- 工具按钮（移动端） -->
         <div class="mobile-menu-grid">
+            <button x-show="currentMode === 'worldinfo'" @click="createWorldInfoBook(); closeMobileMenu()"
+                class="mobile-menu-btn-item">
+                <div class="menu-icon">➕</div>
+                <div class="menu-label">新建世界书</div>
+            </button>
             <button @click="currentMode === 'cards' ? randomCard() : randomWorldInfo(); closeMobileMenu()"
                 class="mobile-menu-btn-item">
                 <div class="menu-icon">🎲</div>

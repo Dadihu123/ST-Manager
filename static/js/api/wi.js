@@ -44,6 +44,17 @@ export async function listWiEntryHistory(payload) {
     return res.json();
 }
 
+// 新建全局世界书（ST 兼容格式）
+export async function createWorldInfo(payload) {
+    // payload: { name }
+    const res = await fetch('/api/world_info/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload || {})
+    });
+    return res.json();
+}
+
 // 上传世界书文件 (FormData)
 export async function uploadWorldInfo(formData) {
     const res = await fetch('/api/upload_world_info', {

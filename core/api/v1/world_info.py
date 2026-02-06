@@ -117,6 +117,18 @@ def _normalize_wi_entries(raw):
     normalized.sort(key=lambda x: (','.join(x.get('keys', [])), x.get('content', ''), x.get('comment', '')))
     return normalized
 
+
+def _build_st_compatible_worldbook_payload(name: str) -> dict:
+    """
+    构建与 SillyTavern 新建世界书兼容的最小结构。
+    使用最小字段可最大化跨版本兼容性：name + entries(dict)。
+    """
+    clean_name = str(name or '').strip() or 'World Info'
+    return {
+        "name": clean_name,
+        "entries": {}
+    }
+
 def _compute_wi_signature(raw):
     try:
         entries = _normalize_wi_entries(raw)
@@ -452,6 +464,62 @@ def api_list_world_infos():
         })
     except Exception as e:
         logger.error(f"List WI error: {e}")
+        return jsonify({"success": False, "msg": str(e)})
+
+
+@bp.route('/api/world_info/create', methods=['POST'])
+def api_create_world_info():
+    """
+    创建全局世界书（SillyTavern 兼容结构）。
+    仅创建到全局 world_info_dir，避免资源目录歧义。
+    """
+    try:
+        req = request.json or {}
+        raw_name = str(req.get('name') or '').strip()
+        if not raw_name:
+            return jsonify({"success": False, "msg": "世界书名称不能为空"})
+
+        safe_name = raw_name.replace('/', '_').replace('\\', '_').strip()
+        if not safe_name:
+            return jsonify({"success": False, "msg": "世界书名称不合法"})
+
+        cfg = load_config()
+        target_dir = _resolve_wi_dir(cfg)
+        if not os.path.exists(target_dir):
+            os.makedirs(target_dir)
+
+        final_path = os.path.join(target_dir, f"{safe_name}.json")
+        base, ext = os.path.splitext(final_path)
+        idx = 1
+        while os.path.exists(final_path):
+            final_path = f"{base}_{idx}{ext}"
+            idx += 1
+
+        payload = _build_st_compatible_worldbook_payload(raw_name)
+        with open(final_path, 'w', encoding='utf-8') as f:
+            json.dump(payload, f, ensure_ascii=False, separators=(',', ':'))
+
+        invalidate_wi_list_cache()
+
+        rel = os.path.relpath(final_path, target_dir).replace('\\', '/')
+        file_name = os.path.basename(final_path)
+        item = {
+            "id": f"global::{rel}",
+            "type": "global",
+            "name": payload.get('name') or os.path.splitext(file_name)[0],
+            "name_source": "meta",
+            "file_name": file_name,
+            "path": final_path,
+            "mtime": os.path.getmtime(final_path)
+        }
+        return jsonify({
+            "success": True,
+            "msg": "世界书已创建",
+            "path": final_path,
+            "item": item
+        })
+    except Exception as e:
+        logger.error(f"Create WI error: {e}")
         return jsonify({"success": False, "msg": str(e)})
 
 # 上传世界书

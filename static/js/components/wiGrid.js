@@ -3,7 +3,7 @@
  * 世界书网格组件
  */
 
-import { listWorldInfo, uploadWorldInfo } from '../api/wi.js';
+import { listWorldInfo, uploadWorldInfo, createWorldInfo } from '../api/wi.js';
 
 export default function wiGrid() {
     return {
@@ -54,6 +54,11 @@ export default function wiGrid() {
                 // 使用当前 wiGrid 实例来处理上传，保证行为与拖拽一致
                 this._uploadWorldInfoInternal(files);
             };
+
+            // 新建世界书（由 Header / Sidebar 触发）
+            window.addEventListener('create-worldinfo', () => {
+                this.createNewWorldInfo();
+            });
         },
 
         // === 数据加载 ===
@@ -105,6 +110,44 @@ export default function wiGrid() {
         // 打开编辑器 (全屏)
         openWorldInfoEditor(item) {
             window.dispatchEvent(new CustomEvent('open-wi-editor', { detail: item }));
+        },
+
+        // 新建全局世界书（使用 ST 兼容格式）
+        async createNewWorldInfo() {
+            const name = prompt('请输入新世界书名称:', 'New World Info');
+            if (name === null) return;
+
+            const finalName = String(name || '').trim();
+            if (!finalName) {
+                alert('世界书名称不能为空');
+                return;
+            }
+
+            this.$store.global.isLoading = true;
+            try {
+                const res = await createWorldInfo({ name: finalName });
+                this.$store.global.isLoading = false;
+                if (!res || !res.success) {
+                    alert(`创建失败: ${(res && res.msg) ? res.msg : '未知错误'}`);
+                    return;
+                }
+
+                if (this.$store?.global?.showToast) {
+                    this.$store.global.showToast('✅ 已创建世界书（ST 兼容格式）', 1800);
+                }
+
+                // 刷新列表并定位到新建条目
+                window.dispatchEvent(new CustomEvent('refresh-wi-list', { detail: { resetPage: true } }));
+                if (res.item) {
+                    // 稍作延迟，避免和列表刷新动画冲突
+                    setTimeout(() => {
+                        this.openWorldInfoEditor(res.item);
+                    }, 60);
+                }
+            } catch (err) {
+                this.$store.global.isLoading = false;
+                alert(`创建失败: ${err}`);
+            }
         },
 
         // 从详情页进入编辑器

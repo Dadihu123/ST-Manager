@@ -368,6 +368,10 @@ export default function sidebar() {
             this.$store.global.wiFilterType = type;
         },
 
+        createWorldInfoBook() {
+            window.dispatchEvent(new CustomEvent('create-worldinfo'));
+        },
+
         migrateLorebooks() {
             if (!confirm("这将扫描所有角色资源目录，并将散乱的 JSON 世界书移动到 'lorebooks' 子文件夹中。\n是否继续？")) return;
 

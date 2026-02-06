@@ -168,6 +168,11 @@ export default function header() {
             window.dispatchEvent(new CustomEvent('refresh-wi-list'));
         },
 
+        createWorldInfoBook() {
+            if (this.currentMode !== 'worldinfo') return;
+            window.dispatchEvent(new CustomEvent('create-worldinfo'));
+        },
+
         get showImportUrlModal() {
             // 这里返回什么不重要，因为弹窗状态由 importModal 组件自己管理
             return false;

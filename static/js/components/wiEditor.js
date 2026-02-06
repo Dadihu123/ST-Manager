@@ -70,6 +70,13 @@ export default function wiEditor() {
         findReplaceDragOffsetX: 0,
         findReplaceDragOffsetY: 0,
 
+        // JSONL 标签导入
+        showTaggedImportModal: false,
+        taggedImportDragOver: false,
+        taggedImportPendingFile: null,
+        taggedImportPendingFileName: '',
+        taggedImportIgnoreText: 'thinking\nrecap\ncontent\ndetails\nsummary',
+
         // === 剪切板状态 ===
         showWiClipboard: false,
         wiClipboardItems: [],
@@ -119,6 +126,10 @@ export default function wiEditor() {
                     this.showFindReplaceModal = false;
                     this.findReplaceLastHit = null;
                     this._detachFindReplaceDragListeners();
+                    this.showTaggedImportModal = false;
+                    this.taggedImportDragOver = false;
+                    this.taggedImportPendingFile = null;
+                    this.taggedImportPendingFileName = '';
                 }
             });
 
@@ -625,6 +636,250 @@ export default function wiEditor() {
                 return;
             }
             this.$store.global.showToast(`已替换 ${replaceCount} 处（${hitEntries} 条目）`, 1800);
+        },
+
+        openTaggedImportModal() {
+            this.showTaggedImportModal = true;
+            this.taggedImportDragOver = false;
+            this.taggedImportPendingFile = null;
+            this.taggedImportPendingFileName = '';
+        },
+
+        closeTaggedImportModal() {
+            this.showTaggedImportModal = false;
+            this.taggedImportDragOver = false;
+            this.taggedImportPendingFile = null;
+            this.taggedImportPendingFileName = '';
+            const root = this._getEditorRootEl();
+            const input = root?.querySelector('input[x-ref="taggedJsonlInput"]');
+            if (input) input.value = '';
+        },
+
+        triggerTaggedImportFilePick() {
+            const root = this._getEditorRootEl();
+            if (!root) return;
+            const input = root.querySelector('input[x-ref="taggedJsonlInput"]');
+            if (!input) return;
+            input.click();
+        },
+
+        _setTaggedImportPendingFile(file) {
+            if (!file) return;
+            this.taggedImportPendingFile = file;
+            this.taggedImportPendingFileName = String(file.name || '').trim() || '未命名文件';
+        },
+
+        handleTaggedImportFilePick(evt) {
+            const file = evt?.target?.files?.[0];
+            if (!file) return;
+            this._setTaggedImportPendingFile(file);
+        },
+
+        handleTaggedImportDrop(evt) {
+            this.taggedImportDragOver = false;
+            const file = evt?.dataTransfer?.files?.[0];
+            if (!file) return;
+            this._setTaggedImportPendingFile(file);
+        },
+
+        _collectTextFragmentsFromJsonNode(node, out, depth = 0) {
+            if (depth > 8 || node === null || node === undefined) return;
+
+            if (typeof node === 'string') {
+                const text = String(node).trim();
+                if (text) out.push(text);
+                return;
+            }
+            if (typeof node !== 'object') return;
+
+            if (Array.isArray(node)) {
+                node.forEach((item) => this._collectTextFragmentsFromJsonNode(item, out, depth + 1));
+                return;
+            }
+
+            const prioritizedKeys = ['mes', 'message', 'content', 'text', 'raw_message', 'swipes'];
+            prioritizedKeys.forEach((k) => {
+                if (Object.prototype.hasOwnProperty.call(node, k)) {
+                    this._collectTextFragmentsFromJsonNode(node[k], out, depth + 1);
+                }
+            });
+
+            Object.keys(node).forEach((k) => {
+                if (prioritizedKeys.includes(k)) return;
+                this._collectTextFragmentsFromJsonNode(node[k], out, depth + 1);
+            });
+        },
+
+        _parseTaggedImportIgnoredTags() {
+            const raw = String(this.taggedImportIgnoreText || '');
+            const items = raw
+                .split(/\r?\n|,/)
+                .map((s) => String(s || '').trim().toLowerCase())
+                .filter(Boolean);
+            return new Set(items);
+        },
+
+        _escapeRegExp(text) {
+            return String(text || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        },
+
+        _stripImportNoiseTags(text, ignoredTags = null) {
+            const raw = String(text || '');
+            if (!raw) return '';
+            const ignoreSet = ignoredTags || this._parseTaggedImportIgnoredTags();
+            let out = raw;
+            ignoreSet.forEach((tag) => {
+                const safe = this._escapeRegExp(tag);
+                if (!safe) return;
+                const rg = new RegExp(`<\\/?${safe}\\b[^>]*>`, 'gi');
+                out = out.replace(rg, '');
+            });
+            return out;
+        },
+
+        _isIgnoredImportTag(tagName, ignoredTags = null) {
+            const tag = String(tagName || '').trim().toLowerCase();
+            const ignoreSet = ignoredTags || this._parseTaggedImportIgnoredTags();
+            return ignoreSet.has(tag);
+        },
+
+        _extractTaggedBlocksFromText(text, depth = 0, ignoredTags = null) {
+            if (depth > 8) return [];
+            const ignoreSet = ignoredTags || this._parseTaggedImportIgnoredTags();
+            const raw = this._stripImportNoiseTags(text, ignoreSet);
+            if (!raw) return [];
+            const regex = /<([a-zA-Z][\w:-]{0,63})\b[^>]*>([\s\S]*?)<\/\1>/gi;
+            const found = [];
+            let m;
+            while ((m = regex.exec(raw)) !== null) {
+                const tag = String(m[1] || '').trim().toLowerCase();
+                const block = String(m[0] || '').trim();
+                const inner = String(m[2] || '');
+                if (!tag || !block) continue;
+
+                if (this._isIgnoredImportTag(tag, ignoreSet)) {
+                    // 对被忽略标签，继续从内部提取可用标签，避免包裹层吞掉内部内容
+                    const nested = this._extractTaggedBlocksFromText(inner, depth + 1, ignoreSet);
+                    if (nested.length) found.push(...nested);
+                    continue;
+                }
+
+                found.push({ tag, block });
+            }
+            return found;
+        },
+
+        _buildTaggedEntry(tagName, blockText) {
+            const tag = String(tagName || '').trim().toLowerCase() || 'tag';
+            return {
+                id: Math.floor(Math.random() * 1000000),
+                [this.entryUidField]: this._generateEntryUid(),
+                comment: tag,
+                content: String(blockText || ''),
+                keys: [tag],
+                secondary_keys: [],
+                enabled: true,
+                constant: false,
+                vectorized: false,
+                insertion_order: 100,
+                position: 1,
+                role: null,
+                depth: 4,
+                selective: true,
+                selectiveLogic: 0,
+                preventRecursion: false,
+                excludeRecursion: false,
+                delayUntilRecursion: 0,
+                ignoreBudget: false,
+                probability: 100,
+                useProbability: true
+            };
+        },
+
+        async importTaggedJsonlFromPending() {
+            const file = this.taggedImportPendingFile;
+            if (!file) return;
+
+            try {
+                const ignoreSet = this._parseTaggedImportIgnoredTags();
+                const raw = await file.text();
+                const lines = String(raw || '')
+                    .split(/\r?\n/)
+                    .map((s) => String(s || '').trim())
+                    .filter(Boolean);
+
+                if (!lines.length) {
+                    alert('文件为空，无法导入。');
+                    return;
+                }
+
+                const textPool = [];
+                lines.forEach((line) => {
+                    try {
+                        const obj = JSON.parse(line);
+                        this._collectTextFragmentsFromJsonNode(obj, textPool, 0);
+                    } catch {
+                        textPool.push(line);
+                    }
+                });
+
+                const blocks = [];
+                textPool.forEach((txt) => {
+                    const hit = this._extractTaggedBlocksFromText(txt, 0, ignoreSet);
+                    if (hit.length) blocks.push(...hit);
+                });
+
+                const uniqueMap = new Map();
+                blocks.forEach((it) => {
+                    const tag = String(it?.tag || '').trim().toLowerCase();
+                    const block = String(it?.block || '').trim();
+                    if (!tag || !block) return;
+                    const key = `${tag}|||${block}`;
+                    if (!uniqueMap.has(key)) uniqueMap.set(key, { tag, block });
+                });
+                const uniqueBlocks = Array.from(uniqueMap.values());
+                if (!uniqueBlocks.length) {
+                    alert('未找到 <tag>...</tag> 格式内容。');
+                    return;
+                }
+
+                const arr = this.getWIArrayRef();
+                const insertStart = arr.length;
+                uniqueBlocks.forEach((it) => {
+                    arr.push(this._buildTaggedEntry(it.tag, it.block));
+                });
+                this.currentWiIndex = insertStart;
+                this.isEditingClipboard = false;
+                this.currentClipboardIndex = -1;
+
+                this.$nextTick(() => {
+                    const el = document.getElementById(`wi-item-${insertStart}`);
+                    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                });
+
+                this.$store.global.showToast(`✅ 已导入 ${uniqueBlocks.length} 条标签条目`, 2200);
+                this.closeTaggedImportModal();
+            } catch (e) {
+                console.error('Import tagged blocks from JSONL failed:', e);
+                alert(`导入失败: ${e.message || e}`);
+            }
+        },
+
+        async handleTaggedJsonlImport(evt) {
+            const file = evt?.target?.files?.[0];
+            if (!file) return;
+            this._setTaggedImportPendingFile(file);
+            return this.importTaggedJsonlFromPending();
+        },
+
+        // 兼容旧模板调用名
+        triggerWorldviewJsonlImport() {
+            return this.openTaggedImportModal();
+        },
+
+        // 兼容旧模板调用名
+        handleWorldviewJsonlImport(evt) {
+            return this.handleTaggedJsonlImport(evt);
         },
 
         _normalizePathForCompare(path) {
