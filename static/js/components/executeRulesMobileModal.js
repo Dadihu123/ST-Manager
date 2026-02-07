@@ -54,13 +54,14 @@ export default function executeRulesMobileModal() {
         loadRuleSets() {
             listRuleSets().then(res => {
                 if (res.success) {
-                    this.availableRuleSets = res.items || [];
+                    // 更新全局 store 供所有组件使用
+                    this.$store.global.availableRuleSets = res.items || [];
                 } else {
-                    this.availableRuleSets = [];
+                    this.$store.global.availableRuleSets = [];
                     console.error("加载规则集失败:", res.msg);
                 }
             }).catch(err => {
-                this.availableRuleSets = [];
+                this.$store.global.availableRuleSets = [];
                 console.error("加载规则集错误:", err);
             });
         },

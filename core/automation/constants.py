@@ -49,3 +49,13 @@ ACT_MOVE = "move_folder"
 ACT_ADD_TAG = "add_tag"
 ACT_REMOVE_TAG = "remove_tag"
 ACT_SET_FAV = "set_favorite"
+
+# 论坛标签抓取动作
+ACT_FETCH_FORUM_TAGS = "fetch_forum_tags"
+
+# URL字段映射
+URL_FIELD_MAP = {
+    "source_url": "extensions.source_url",  # 来源URL字段
+    "character_version": "character_version",  # 版本字段(有时包含URL)
+    "creator_notes": "creator_notes",  # 创建者备注
+}

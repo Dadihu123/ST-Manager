@@ -129,7 +129,28 @@ export default function automationModal() {
                         if (!rule.logic) rule.logic = "OR"; // 默认规则间是 OR 关系 (满足任意一组即可)
                         
                         // 清理旧字段以免混淆
-                        delete rule.conditions; 
+                        delete rule.conditions;
+                        
+                        // 处理 fetch_forum_tags 动作的配置转换
+                        if (rule.actions) {
+                            rule.actions.forEach(action => {
+                                if (action.type === 'fetch_forum_tags' && action.value) {
+                                    const valueObj = action.value;
+                                    // 创建前端 config 对象
+                                    action.config = {
+                                        exclude_tags: Array.isArray(valueObj.exclude_tags) 
+                                            ? valueObj.exclude_tags.join(', ') 
+                                            : '',
+                                        replace_rules_text: valueObj.replace_rules 
+                                            ? Object.entries(valueObj.replace_rules)
+                                                .map(([from, to]) => `${from}→${to}`)
+                                                .join(', ')
+                                            : '',
+                                        merge_mode: valueObj.merge_mode || 'merge'
+                                    };
+                                }
+                            });
+                        }
                     });
                     
                     this.editingRules = rules;
@@ -142,10 +163,50 @@ export default function automationModal() {
         saveCurrentRuleSet() {
             if (!this.activeRuleSet) return;
 
+            // 深拷贝规则，避免修改原始数据
+            const rulesToSave = JSON.parse(JSON.stringify(this.editingRules));
+            
+            // 处理 fetch_forum_tags 动作的配置
+            rulesToSave.forEach(rule => {
+                if (rule.actions) {
+                    rule.actions.forEach(action => {
+                        if (action.type === 'fetch_forum_tags' && action.config) {
+                            // 构建 value 对象
+                            const config = action.config;
+                            const valueObj = {
+                                exclude_tags: config.exclude_tags ? config.exclude_tags.split(',').map(s => s.trim()).filter(s => s) : [],
+                                replace_rules: {},
+                                merge_mode: config.merge_mode || 'merge'
+                            };
+                            
+                            // 解析替换规则
+                            if (config.replace_rules_text) {
+                                const rules = config.replace_rules_text.split(',');
+                                rules.forEach(rule => {
+                                    const parts = rule.split('→');
+                                    if (parts.length === 2) {
+                                        const from = parts[0].trim();
+                                        const to = parts[1].trim();
+                                        if (from && to) {
+                                            valueObj.replace_rules[from] = to;
+                                        }
+                                    }
+                                });
+                            }
+                            
+                            // 替换 value 为配置对象
+                            action.value = valueObj;
+                            // 删除临时 config 对象
+                            delete action.config;
+                        }
+                    });
+                }
+            });
+
             const payload = {
                 id: this.activeRuleSet.id, // ID 不变
                 meta: this.editingMeta,
-                rules: this.editingRules
+                rules: rulesToSave
             };
 
             saveRuleSet(payload).then(res => {
@@ -254,13 +315,33 @@ export default function automationModal() {
 
         // Action Operations (Keep flat)
         addAction(ruleIdx) {
-            this.editingRules[ruleIdx].actions.push({
+            const newAction = {
                 type: "add_tag",
                 value: ""
-            });
+            };
+            this.editingRules[ruleIdx].actions.push(newAction);
         },
         removeAction(ruleIdx, actIdx) {
             this.editingRules[ruleIdx].actions.splice(actIdx, 1);
+        },
+
+        // Initialize action config (for fetch_forum_tags)
+        initActionConfig(action) {
+            if (action.type === 'fetch_forum_tags') {
+                // Initialize config object if not exists
+                if (!action.config) {
+                    action.config = {
+                        exclude_tags: '',
+                        replace_rules_text: '',
+                        merge_mode: 'merge'
+                    };
+                }
+            } else {
+                // For other action types, remove config if exists
+                if (action.config) {
+                    delete action.config;
+                }
+            }
         },
         
         // Utils

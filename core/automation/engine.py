@@ -213,9 +213,10 @@ class AutomationEngine:
             logger.error(f"Condition check error: {e}")
             return False
 
-    def evaluate(self, card_data, ruleset):
+    def evaluate(self, card_data, ruleset, match_if_no_conditions=False):
         """
         评估一张卡片，返回执行计划
+        match_if_no_conditions: 如果规则没有条件，是否视为匹配（用于手动执行）
         """
         plan = {
             "actions": []
@@ -243,8 +244,14 @@ class AutomationEngine:
                     "conditions": rule.get('conditions', [])
                 }]
             
-            # 如果完全没有条件，跳过还是视为匹配？通常跳过。
+            # 如果完全没有条件，根据 match_if_no_conditions 参数决定
             if not rule_groups:
+                if match_if_no_conditions:
+                    # 没有条件但视为匹配，直接收集动作
+                    for action in rule.get('actions', []):
+                        plan['actions'].append(action)
+                    if rule.get('stop_on_match'):
+                        break
                 continue
             
             # 规则级逻辑：组与组之间的关系
@@ -258,10 +265,12 @@ class AutomationEngine:
                 conditions = group.get('conditions', [])
                 group_logic = group.get('logic', 'AND').upper()
                 
-                # 如果组内无条件，视为 False 还是 True？
-                # 为了安全，无条件的组视为不匹配
+                # 如果组内无条件，根据 match_if_no_conditions 参数决定
                 if not conditions:
-                    group_results.append(False)
+                    if match_if_no_conditions:
+                        group_results.append(True)
+                    else:
+                        group_results.append(False)
                     continue
 
                 cond_results = []

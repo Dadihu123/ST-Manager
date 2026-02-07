@@ -6,7 +6,7 @@ from flask import Blueprint, request, jsonify, send_file, make_response
 from core.automation.manager import rule_manager
 from core.automation.engine import AutomationEngine
 from core.automation.executor import AutomationExecutor
-from core.automation.constants import FIELD_MAP
+from core.automation.constants import FIELD_MAP, ACT_FETCH_FORUM_TAGS
 from core.context import ctx
 from core.services.card_service import resolve_ui_key
 from core.data.ui_store import load_ui_data
@@ -204,8 +204,8 @@ def execute_rules():
             ui_info = ui_data.get(ui_key, {})
             context_data['ui_summary'] = ui_info.get('summary', '')
             
-            # 2. 评估
-            plan_raw = engine.evaluate(context_data, ruleset)
+            # 2. 评估（手动执行时，无条件的规则也视为匹配）
+            plan_raw = engine.evaluate(context_data, ruleset, match_if_no_conditions=True)
             
             # 3. 整理 Plan (engine 返回的是 actions 列表，需转换为 Executor 需要的格式)
             # Engine 返回: { 'actions': [ {'type':'move_folder', 'value':'...'}, ... ] }
@@ -217,23 +217,29 @@ def execute_rules():
                 'move': None,
                 'add_tags': set(),
                 'remove_tags': set(),
-                'favorite': None
+                'favorite': None,
+                'fetch_forum_tags': None
             }
             
             for act in plan_raw['actions']:
                 t = act['type']
                 v = act['value']
                 if t == 'move_folder': exec_plan['move'] = v
-                elif t == 'add_tag': 
+                elif t == 'add_tag':
                     tags = [tag.strip() for tag in str(v).split('|') if tag.strip()]
                     exec_plan['add_tags'].update(tags)
-                elif t == 'remove_tag': 
+                elif t == 'remove_tag':
                     tags = [tag.strip() for tag in str(v).split('|') if tag.strip()]
                     exec_plan['remove_tags'].update(tags)
                 elif t == 'set_favorite': exec_plan['favorite'] = (str(v).lower() == 'true')
+                elif t == 'fetch_forum_tags':
+                    if isinstance(v, dict):
+                        exec_plan['fetch_forum_tags'] = v
+                    else:
+                        exec_plan['fetch_forum_tags'] = {}
             
             # 4. 执行
-            res = executor.apply_plan(cid, exec_plan)
+            res = executor.apply_plan(cid, exec_plan, ui_data)
             
             processed_count += 1
             if res['moved_to']: summary['moves'] += 1

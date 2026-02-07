@@ -3,6 +3,7 @@ from core.config import load_config
 from core.automation.manager import rule_manager
 from core.automation.engine import AutomationEngine
 from core.automation.executor import AutomationExecutor
+from core.automation.constants import ACT_FETCH_FORUM_TAGS
 from core.context import ctx
 from core.data.ui_store import load_ui_data
 from core.services.card_service import resolve_ui_key
@@ -56,19 +57,33 @@ def auto_run_rules_on_card(card_id):
             'move': None,
             'add_tags': set(),
             'remove_tags': set(),
-            'favorite': None
+            'favorite': None,
+            'fetch_forum_tags': None
         }
         for act in plan_raw['actions']:
             t = act['type']
             v = act['value']
-            if t == 'move_folder': exec_plan['move'] = v
-            elif t == 'add_tag': exec_plan['add_tags'].add(v)
-            elif t == 'remove_tag': exec_plan['remove_tags'].add(v)
-            elif t == 'set_favorite': exec_plan['favorite'] = (str(v).lower() == 'true')
+            if t == 'move_folder':
+                exec_plan['move'] = v
+            elif t == 'add_tag':
+                exec_plan['add_tags'].add(v)
+            elif t == 'remove_tag':
+                exec_plan['remove_tags'].add(v)
+            elif t == 'set_favorite':
+                exec_plan['favorite'] = (str(v).lower() == 'true')
+            elif t == ACT_FETCH_FORUM_TAGS:
+                # 论坛标签抓取动作
+                # v 应该是包含配置的字典
+                if isinstance(v, dict):
+                    exec_plan['fetch_forum_tags'] = v
+                else:
+                    # 如果没有提供配置，使用默认空配置
+                    # URL将从ui_data.link自动获取
+                    exec_plan['fetch_forum_tags'] = {}
             
         # 执行
-        res = executor.apply_plan(card_id, exec_plan)
-        
+        res = executor.apply_plan(card_id, exec_plan, ui_data)
+
         logger.info(f"Auto-run applied on {card_id}: {res}")
         return {"run": True, "result": res}
         

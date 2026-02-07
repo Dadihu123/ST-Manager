@@ -347,9 +347,11 @@
                                                     <option value="add_tag">🏷️ 添加标签</option>
                                                     <option value="remove_tag">🗑️ 移除标签</option>
                                                     <option value="set_favorite">★ 设为收藏</option>
+                                                    <option value="fetch_forum_tags">🌐 抓取论坛标签</option>
                                                 </select>
 
                                                 <div class="flex-1">
+                                                    <!-- 设为收藏 -->
                                                     <template x-if="action.type === 'set_favorite'">
                                                         <select x-model="action.value" class="auto-select w-full">
                                                             <option value="true">是 (Favorite)</option>
@@ -357,7 +359,43 @@
                                                         </select>
                                                     </template>
 
-                                                    <template x-if="action.type !== 'set_favorite'">
+                                                     <!-- 抓取论坛标签配置 -->
+                                                     <template x-if="action.type === 'fetch_forum_tags'">
+                                                         <div x-data="{ cfg: null }"
+                                                              x-init="cfg = action.config || (action.config = { exclude_tags: '', replace_rules_text: '', merge_mode: 'merge' })"
+                                                              class="space-y-2 p-2 bg-[var(--bg-sub)] rounded border border-[var(--border-light)]">
+                                                             <!-- 排除标签 -->
+                                                             <div class="flex items-center gap-2">
+                                                                 <span class="text-xs text-[var(--text-dim)] w-16">排除标签:</span>
+                                                                 <input type="text" 
+                                                                     x-model="cfg.exclude_tags"
+                                                                     class="auto-input flex-1 text-xs"
+                                                                     placeholder="多个标签用逗号分隔，如：其他,待审核">
+                                                             </div>
+                                                             <!-- 标签替换 -->
+                                                             <div class="flex items-center gap-2">
+                                                                 <span class="text-xs text-[var(--text-dim)] w-16">标签替换:</span>
+                                                                 <input type="text" 
+                                                                     x-model="cfg.replace_rules_text"
+                                                                     class="auto-input flex-1 text-xs"
+                                                                     placeholder="格式：原标签→新标签, 如：其他→杂项">
+                                                             </div>
+                                                             <!-- 合并模式 -->
+                                                             <div class="flex items-center gap-2">
+                                                                 <span class="text-xs text-[var(--text-dim)] w-16">合并模式:</span>
+                                                                 <select x-model="cfg.merge_mode" class="auto-select flex-1 text-xs">
+                                                                     <option value="merge">合并（与现有标签合并）</option>
+                                                                     <option value="replace">替换（清空后添加）</option>
+                                                                 </select>
+                                                             </div>
+                                                             <div class="text-[10px] text-[var(--text-dim)] mt-1">
+                                                                 💡 从角色卡设置的来源链接抓取类脑论坛标签
+                                                             </div>
+                                                         </div>
+                                                     </template>
+
+                                                    <!-- 其他动作类型的值输入 -->
+                                                    <template x-if="action.type !== 'set_favorite' && action.type !== 'fetch_forum_tags'">
                                                         <input type="text" x-model="action.value"
                                                             class="auto-input w-full"
                                                             :placeholder="action.type==='move_folder' ? '文件夹路径 (e.g. Race/Elf)' : '标签名称'">
@@ -482,9 +520,31 @@
                                 </ul>
                             </div>
 
-                            <!-- Section 3: 常用字段说明 -->
+                        <!-- Section 3: 论坛标签抓取 -->
                             <div>
-                                <h4 class="font-bold text-[var(--text-sub)] mb-2 text-base">3. 常用字段说明</h4>
+                                <h4 class="font-bold text-[var(--accent-main)] mb-2 text-base">3. 论坛标签抓取 (Fetch Forum Tags)</h4>
+                                <p class="text-[var(--text-dim)] mb-3">
+                                    自动从类脑论坛帖子抓取标签并为角色卡打标。使用前需要在角色卡详情页设置"来源链接"。
+                                </p>
+                                <div class="bg-[var(--bg-sub)] rounded border border-[var(--border-light)] p-3">
+                                    <div class="font-bold text-xs text-green-400 mb-2">配置说明：</div>
+                                    <ul class="list-disc list-inside space-y-1 text-xs text-[var(--text-dim)]">
+                                        <li><strong>排除标签</strong>：填写不需要的标签，多个用逗号分隔</li>
+                                        <li><strong>标签替换</strong>：格式为"原标签→新标签"，多个用逗号分隔</li>
+                                        <li><strong>合并模式</strong>：选择"合并"保留现有标签，或"替换"清空后添加</li>
+                                    </ul>
+                                    <div class="bg-[var(--bg-code)] p-2 rounded text-xs font-mono mt-2">
+                                        <span class="text-purple-400">示例</span><br>
+                                        排除标签: 其他, 待审核<br>
+                                        标签替换: 其他→杂项, 调教→BDSM<br>
+                                        合并模式: 合并
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Section 4: 常用字段说明 -->
+                            <div>
+                                <h4 class="font-bold text-[var(--text-sub)] mb-2 text-base">4. 常用字段说明</h4>
                                 <div class="grid grid-cols-2 gap-2 text-xs">
                                     <div class="p-2 border border-[var(--border-light)] rounded">
                                         <span class="font-bold text-blue-400">Tags (标签)</span>

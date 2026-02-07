@@ -26,7 +26,7 @@
                     </div>
                     <!-- 规则集列表 -->
                     <div style="max-height: 300px; overflow-y: auto; border: 1px solid var(--border-light); border-radius: 0.5rem; background: var(--bg-sub);">
-                        <template x-for="rs in availableRuleSets" :key="rs.id">
+                        <template x-for="rs in $store.global.availableRuleSets" :key="rs.id">
                             <button @click="executeRuleSet(rs.id)"
                                 class="w-full text-left px-3 py-2 text-sm hover:bg-[var(--bg-hover)] text-[var(--text-main)] border-b border-[var(--border-light)] last:border-b-0 transition-colors"
                                 style="display: flex; justify-content: space-between; align-items: center;">
@@ -34,7 +34,7 @@
                                 <span style="font-size: 0.75rem; color: var(--text-dim);" x-text="rs.rule_count + ' rules'"></span>
                             </button>
                         </template>
-                        <div x-show="availableRuleSets.length === 0" class="px-3 py-4 text-center text-xs text-[var(--text-dim)]">
+                        <div x-show="!$store.global.availableRuleSets || $store.global.availableRuleSets.length === 0" class="px-3 py-4 text-center text-xs text-[var(--text-dim)]">
                             无规则集
                         </div>
                     </div>

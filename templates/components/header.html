@@ -134,7 +134,7 @@
                 style="color: var(--text-sub);">取消</button>
             <!-- 批量执行规则按钮 -->
             <div x-data="{ showRuleMenu: false }" class="relative">
-                <button @click="showRuleMenu = !showRuleMenu"
+                <button @click="showRuleMenu = !showRuleMenu; if(showRuleMenu) $dispatch('load-rulesets-for-menu')"
                     class="text-xs px-2 py-1 rounded text-white bg-yellow-600 hover:bg-yellow-500 transition-all flex items-center gap-1">
                     <span>⚡</span> 自动处理
                 </button>
@@ -143,17 +143,16 @@
                     x-transition:enter="transition ease-out duration-100" x-transition:enter-start="opacity-0 scale-95"
                     x-transition:enter-end="opacity-100 scale-100"
                     class="absolute top-full left-0 mt-2 w-56 bg-[var(--bg-panel)] border border-[var(--border-light)] rounded-lg shadow-2xl py-1 custom-scrollbar"
-                    style="z-index: 9999; max-height: 300px; overflow-y: auto;"
-                    x-init="$watch('showRuleMenu', val => { if(val) $dispatch('load-rulesets-for-menu') })">
+                    style="z-index: 9999; max-height: 300px; overflow-y: auto;">
 
-                    <!-- 这个列表由 header.js 管理 -->
-                    <template x-for="rs in availableRuleSets" :key="rs.id">
+                    <!-- 这个列表由全局 store 管理 -->
+                    <template x-for="rs in $store.global.availableRuleSets" :key="rs.id">
                         <button @click="executeRuleSet(rs.id); showRuleMenu=false"
                             class="w-full text-left px-3 py-2 text-xs hover:bg-[var(--bg-hover)] text-[var(--text-main)] truncate">
                             <span x-text="rs.meta.name"></span>
                         </button>
                     </template>
-                    <div x-show="availableRuleSets.length===0" class="px-3 py-2 text-xs text-[var(--text-dim)]">无规则集
+                    <div x-show="!$store.global.availableRuleSets || $store.global.availableRuleSets.length===0" class="px-3 py-2 text-xs text-[var(--text-dim)]">无规则集
                     </div>
                     <div class="border-t border-[var(--border-light)] mt-1 pt-1">
                         <button @click="$dispatch('open-automation-modal'); showRuleMenu=false"
