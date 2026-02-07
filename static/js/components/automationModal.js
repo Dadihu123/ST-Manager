@@ -138,13 +138,13 @@ export default function automationModal() {
                                     const valueObj = action.value;
                                     // 创建前端 config 对象
                                     action.config = {
-                                        exclude_tags: Array.isArray(valueObj.exclude_tags) 
-                                            ? valueObj.exclude_tags.join(', ') 
+                                        exclude_tags: Array.isArray(valueObj.exclude_tags)
+                                            ? valueObj.exclude_tags.join('|')
                                             : '',
-                                        replace_rules_text: valueObj.replace_rules 
+                                        replace_rules_text: valueObj.replace_rules
                                             ? Object.entries(valueObj.replace_rules)
                                                 .map(([from, to]) => `${from}→${to}`)
-                                                .join(', ')
+                                                .join('|')
                                             : '',
                                         merge_mode: valueObj.merge_mode || 'merge'
                                     };
@@ -174,14 +174,14 @@ export default function automationModal() {
                             // 构建 value 对象
                             const config = action.config;
                             const valueObj = {
-                                exclude_tags: config.exclude_tags ? config.exclude_tags.split(',').map(s => s.trim()).filter(s => s) : [],
+                                exclude_tags: config.exclude_tags ? config.exclude_tags.split(/[,|]/).map(s => s.trim()).filter(s => s) : [],
                                 replace_rules: {},
                                 merge_mode: config.merge_mode || 'merge'
                             };
-                            
-                            // 解析替换规则
+
+                            // 解析替换规则（支持逗号或管道符分隔）
                             if (config.replace_rules_text) {
-                                const rules = config.replace_rules_text.split(',');
+                                const rules = config.replace_rules_text.split(/[,|]/);
                                 rules.forEach(rule => {
                                     const parts = rule.split('→');
                                     if (parts.length === 2) {

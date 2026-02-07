@@ -24,7 +24,7 @@ from core.consts import SIDECAR_EXTENSIONS
 from core.services.scan_service import suppress_fs_events
 from core.services.cache_service import schedule_reload, force_reload, update_card_cache
 from core.services.card_service import update_card_content, rename_folder_in_db, rename_folder_in_ui, resolve_ui_key, swap_skin_to_cover
-from core.services.automation_service import auto_run_rules_on_card
+from core.services.automation_service import auto_run_rules_on_card, auto_run_forum_tags_on_link_update
 from core.services.wi_entry_history_service import (
     ensure_entry_uids,
     collect_previous_versions,
@@ -551,12 +551,21 @@ def api_update_card():
 
         if ui_key not in ui_data: ui_data[ui_key] = {}
         # 注意：如果是设为封面，前端发来的 ui_summary 可能是空的，保留原有值
+        # Track if link was changed for forum tag fetching (必须在更新ui_data之前检查)
+        link_changed = False
+
         if not force_set_cover:
             new_summary = data.get('ui_summary', '')
             new_link = str(data.get('source_link') or '').strip()
             new_resource_folder = data.get('resource_folder', '')
 
             if data.get('save_ui_to_bundle') and data.get('bundle_dir'):
+                # For bundle mode, link is stored in bundle global (not version remark)
+                # Check link change before updating
+                old_link = ui_data[ui_key].get('link', '')
+                if old_link != new_link:
+                    link_changed = True
+
                 remark_data = {
                     'summary': new_summary,
                     'link': new_link,
@@ -575,10 +584,14 @@ def api_update_card():
                 if set_version_remark(ui_data, ui_key, target_version_id, remark_data, cover_id):
                     ui_changed = True
             else:
+                # For normal mode, check link change BEFORE updating ui_data
+                if ui_data[ui_key].get('link', '') != new_link:
+                    link_changed = True
+
                 if ui_data[ui_key].get('summary', '') != new_summary:
                     ui_data[ui_key]['summary'] = new_summary
                     ui_changed = True
-                if ui_data[ui_key].get('link', '') != new_link:
+                if link_changed:  # Use the flag set before update
                     ui_data[ui_key]['link'] = new_link
                     ui_changed = True
                 if ui_data[ui_key].get('resource_folder', '') != new_resource_folder:
@@ -834,6 +847,24 @@ def api_update_card():
                 # 记录当前保存的版本ID，供前端刷新详情使用
                 current_version_id = target_version_id if target_version_id != final_return_obj['id'] else None
         
+        # 如果链接发生变化，触发论坛标签抓取（仅执行fetch_forum_tags动作）
+        forum_tags_result = None
+        if link_changed:
+            try:
+                forum_tags_result = auto_run_forum_tags_on_link_update(return_new_id)
+                # 如果抓取成功并添加了标签，更新返回的卡片数据
+                if (forum_tags_result and forum_tags_result.get('run') and 
+                    forum_tags_result.get('result', {}).get('tags_added')):
+                    # 更新返回给前端的卡片数据中的标签
+                    added_tags = forum_tags_result['result']['tags_added']
+                    if final_return_obj and 'tags' in final_return_obj:
+                        # 合并现有标签和新标签（去重）
+                        existing_tags = set(final_return_obj['tags'] or [])
+                        existing_tags.update(added_tags)
+                        final_return_obj['tags'] = list(existing_tags)
+            except Exception as e:
+                logger.warning(f"链接更新后自动抓取论坛标签失败: {e}")
+
         return jsonify({
             "success": True,
             "file_modified": should_touch_file,
@@ -841,7 +872,8 @@ def api_update_card():
             "new_filename": return_new_filename,
             "new_image_url": final_return_obj['image_url'] if final_return_obj else None,
             "updated_card": final_return_obj,
-            "current_version_id": current_version_id
+            "current_version_id": current_version_id,
+            "forum_tags_fetched": forum_tags_result.get('result') if forum_tags_result else None
         })
 
     except Exception as e:

@@ -103,10 +103,6 @@ class AutomationExecutor:
                 logger.warning(f"卡片 {card_id} (ui_key: {ui_key}) 未配置超链接")
                 return {'success': False, 'error': '未配置超链接，请在卡片详情中设置来源链接', 'tags': []}
 
-            # 调试：打印URL信息
-            logger.info(f"准备抓取标签 - 卡片: {card_id}, ui_key: {ui_key}, URL: '{url}'")
-            logger.info(f"URL长度: {len(url)}, URL类型: {type(url)}")
-
             # 抓取标签
             fetcher = get_tag_fetcher()
             fetch_result = fetcher.fetch_tags(url)
@@ -127,9 +123,6 @@ class AutomationExecutor:
             merge_mode = config.get('merge_mode', 'merge')
             existing_tags = card_data.get('tags', [])
             final_tags = processor.merge_tags(existing_tags, processed_tags, merge_mode)
-
-            logger.info(f"论坛标签处理完成: {card_id}, 抓取: {fetch_result['tags']}, "
-                       f"处理后: {processed_tags}, 最终: {final_tags}")
 
             return {
                 'success': True,

@@ -537,6 +537,9 @@ export default function detailModal() {
                     this.editingData.creator = safeCard.creator || "";
                     this.editingData.character_version = safeCard.char_version || safeCard.character_version || "";
                     
+                    // 更新标签（从后端重新加载，确保显示最新标签）
+                    this.editingData.tags = safeCard.tags || [];
+                    
                     this.editingData.alternate_greetings = safeCard.alternate_greetings || [];
                     if (this.editingData.alternate_greetings.length === 0) this.editingData.alternate_greetings = [""];
                     this.altIdx = 0;

@@ -41,29 +41,22 @@ class ForumTagFetcher:
     
     def is_valid_discord_url(self, url):
         """检查是否是有效的Discord论坛URL"""
-        logger.info(f"验证URL有效性: '{url}'")
         if not url:
-            logger.warning("URL为空")
             return False
         try:
             parsed = urlparse(url)
             domain = parsed.netloc.lower()
             path_parts = parsed.path.strip('/').split('/')
             
-            logger.info(f"解析结果 - 协议: {parsed.scheme}, 域名: '{domain}', 路径: {parsed.path}")
-            
             # 检查是否是Discord域名
             is_discord = any(domain.endswith(d) for d in self.DISCORD_DOMAINS)
             if not is_discord:
-                logger.info(f"域名验证结果: False (域名 '{domain}' 不是Discord域名)")
                 return False
             
             # 检查路径格式: /channels/{guild_id}/{channel_id}/threads/{thread_id}
             if len(path_parts) >= 5 and path_parts[0] == 'channels':
-                logger.info(f"Discord URL验证通过 - Guild: {path_parts[1]}, Channel: {path_parts[2]}, Thread: {path_parts[4]}")
                 return True
             
-            logger.info(f"路径格式不匹配，期望: /channels/{{guild_id}}/{{channel_id}}/threads/{{thread_id}}")
             return False
             
         except Exception as e:
@@ -96,9 +89,6 @@ class ForumTagFetcher:
             # Discord API端点
             api_url = f"https://discord.com/api/v10/channels/{thread_id}"
             
-            logger.info(f"调用Discord API: {api_url}")
-            logger.info(f"认证状态 - Token: {'已设置' if self.discord_token else '未设置'}, Cookie: {'已设置' if self.discord_cookie else '未设置'}")
-            
             # 构造请求头，模拟浏览器以减少 403 风险
             headers = {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -113,7 +103,6 @@ class ForumTagFetcher:
                 if token.startswith("Bearer "):
                     token = token.replace("Bearer ", "", 1).strip()
                 headers["Authorization"] = token if token.startswith("Bot ") else token
-                logger.info(f"使用Token认证，前缀: {'Bot ' if token.startswith('Bot ') else 'User'}")
             elif self.discord_cookie:
                 # 清理并设置Cookie
                 cleaned_cookie = self.discord_cookie.strip().replace('\n', ' ').replace('\r', ' ')
@@ -148,18 +137,8 @@ class ForumTagFetcher:
                 headers["sec-ch-ua"] = '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"'
                 headers["sec-ch-ua-mobile"] = "?0"
                 headers["sec-ch-ua-platform"] = '"Windows"'
-                
-                logger.info(f"使用Cookie认证，长度: {len(cleaned_cookie)} 字符")
-                logger.info(f"添加X-Super-Properties请求头")
-            
-            # 脱敏日志
-            safe_headers = {k: (v[:50] + '...' if k in ['Authorization', 'Cookie'] and len(str(v)) > 50 else v) 
-                           for k, v in headers.items()}
-            logger.info(f"请求头: {safe_headers}")
             
             response = requests.get(api_url, headers=headers, timeout=self.timeout)
-            
-            logger.info(f"Discord API响应状态码: {response.status_code}")
             
             if response.status_code == 401:
                 error_detail = ''
@@ -197,8 +176,6 @@ class ForumTagFetcher:
             # 提取标签ID列表
             applied_tags = data.get('applied_tags', [])
             
-            logger.info(f"Discord线程数据 - 标题: '{title}', 标签IDs: {applied_tags}")
-            
             if not applied_tags:
                 return [], title, None
             
@@ -216,7 +193,6 @@ class ForumTagFetcher:
                 # 将标签ID转换为名称
                 tag_names = [tag_map.get(tag_id, f"未知标签_{tag_id}") for tag_id in applied_tags]
                 
-                logger.info(f"标签映射结果: {tag_names}")
                 return tag_names, title, None
             else:
                 # 如果无法获取父频道信息，返回原始标签ID
@@ -241,8 +217,6 @@ class ForumTagFetcher:
             'title': str   # 帖子标题(可选)
         }
         """
-        logger.info(f"fetch_tags 被调用，传入URL: '{url}'")
-        
         if not self.is_valid_discord_url(url):
             logger.warning(f"URL验证失败: '{url}' 不是有效的Discord论坛URL")
             return {
@@ -273,8 +247,6 @@ class ForumTagFetcher:
                 'title': None
             }
         
-        logger.info(f"解析到Discord线程 - Guild: {guild_id}, Channel: {channel_id}, Thread: {thread_id}")
-        
         # 获取标签
         tags, title, error = self._fetch_discord_thread_tags(guild_id, channel_id, thread_id)
         
@@ -287,7 +259,6 @@ class ForumTagFetcher:
                 'title': title
             }
         
-        logger.info(f"成功抓取到 {len(tags)} 个标签: {tags}")
         return {
             'success': True,
             'tags': tags,
@@ -380,15 +351,8 @@ def get_tag_fetcher():
                     token = token.replace("Bearer ", "", 1).strip()
                 # Bot Token需要保留"Bot "前缀，User Token不需要
                 # 这里不做自动添加，由用户决定是否加"Bot "
-                logger.info(f"使用Discord Token认证，类型: {'Bot' if token.startswith('Bot ') else 'User'}")
-            else:
-                logger.warning("Discord Token未配置")
         elif auth_type == 'cookie':
             cookie = config['user_cookie']
-            if cookie:
-                logger.info(f"使用Discord Cookie认证，长度: {len(cookie)}")
-            else:
-                logger.warning("Discord Cookie未配置")
         
         _tag_fetcher = ForumTagFetcher(discord_token=token, discord_cookie=cookie)
     

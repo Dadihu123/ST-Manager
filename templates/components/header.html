@@ -136,7 +136,7 @@
             <div x-data="{ showRuleMenu: false }" class="relative">
                 <button @click="showRuleMenu = !showRuleMenu; if(showRuleMenu) $dispatch('load-rulesets-for-menu')"
                     class="text-xs px-2 py-1 rounded text-white bg-yellow-600 hover:bg-yellow-500 transition-all flex items-center gap-1">
-                    <span>⚡</span> 自动处理
+                    <span>🤖</span> 自动处理
                 </button>
                 <!-- 下拉菜单：列出可用规则集 -->
                 <div x-show="showRuleMenu" @click.away="showRuleMenu = false"
@@ -266,7 +266,7 @@
             📂
         </button>
         <button x-show="selectedIds.length > 0 && currentMode === 'cards'" @click="openExecuteRulesMobile()" class="text-xs px-2 py-1 rounded text-white" style="background-color: #f59e0b;">
-            ⚡
+            🤖
         </button>
         <button @click="deleteSelectedCards()" class="text-xs px-2 py-1 rounded text-white bg-red-800">
             🗑️

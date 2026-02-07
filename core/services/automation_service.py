@@ -72,21 +72,85 @@ def auto_run_rules_on_card(card_id):
             elif t == 'set_favorite':
                 exec_plan['favorite'] = (str(v).lower() == 'true')
             elif t == ACT_FETCH_FORUM_TAGS:
-                # 论坛标签抓取动作
-                # v 应该是包含配置的字典
-                if isinstance(v, dict):
-                    exec_plan['fetch_forum_tags'] = v
-                else:
-                    # 如果没有提供配置，使用默认空配置
-                    # URL将从ui_data.link自动获取
-                    exec_plan['fetch_forum_tags'] = {}
+                # 导入时跳过论坛标签抓取，因为此时 URL 为空
+                # 此动作仅在用户更新来源链接时触发
+                continue
             
         # 执行
         res = executor.apply_plan(card_id, exec_plan, ui_data)
 
         logger.info(f"Auto-run applied on {card_id}: {res}")
         return {"run": True, "result": res}
-        
+
     except Exception as e:
         logger.error(f"Auto-run error: {e}")
+        return None
+
+
+def auto_run_forum_tags_on_link_update(card_id):
+    """
+    当卡片超链接更新时，仅执行抓取论坛标签动作。
+    用于用户在卡片详情页更新来源链接后的钩子。
+    """
+    try:
+        cfg = load_config()
+        active_id = cfg.get('active_automation_ruleset')
+
+        if not active_id:
+            return None  # 未开启自动化
+
+        ruleset = rule_manager.get_ruleset(active_id)
+        if not ruleset:
+            return None
+
+        # 获取卡片数据
+        card_obj = ctx.cache.id_map.get(card_id)
+        if not card_obj:
+            logger.warning(f"Auto-run forum tags: Card {card_id} not found in cache.")
+            return None
+
+        # 准备数据
+        ui_data = load_ui_data()
+        context_data = dict(card_obj)
+        ui_key = resolve_ui_key(card_id)
+        ui_info = ui_data.get(ui_key, {})
+        context_data['ui_summary'] = ui_info.get('summary', '')
+
+        # 评估（自动执行时，无条件的规则也应执行）
+        plan_raw = engine.evaluate(context_data, ruleset, match_if_no_conditions=True)
+
+        if not plan_raw['actions']:
+            return {"run": True, "actions": 0}
+
+        # 只提取 fetch_forum_tags 动作
+        fetch_forum_tags_config = None
+        for act in plan_raw['actions']:
+            if act['type'] == ACT_FETCH_FORUM_TAGS:
+                v = act['value']
+                if isinstance(v, dict):
+                    fetch_forum_tags_config = v
+                else:
+                    fetch_forum_tags_config = {}
+                break  # 只执行第一个抓取论坛标签动作
+
+        if not fetch_forum_tags_config:
+            return {"run": True, "actions": 0, "reason": "no_fetch_forum_tags_action"}
+
+        # 构建只包含 fetch_forum_tags 的执行计划
+        exec_plan = {
+            'move': None,
+            'add_tags': set(),
+            'remove_tags': set(),
+            'favorite': None,
+            'fetch_forum_tags': fetch_forum_tags_config
+        }
+
+        # 执行
+        res = executor.apply_plan(card_id, exec_plan, ui_data)
+
+        logger.info(f"Auto-run forum tags on link update for {card_id}: {res}")
+        return {"run": True, "result": res}
+
+    except Exception as e:
+        logger.error(f"Auto-run forum tags error: {e}")
         return None

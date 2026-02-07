@@ -362,24 +362,24 @@
                                                      <!-- 抓取论坛标签配置 -->
                                                      <template x-if="action.type === 'fetch_forum_tags'">
                                                          <div x-data="{ cfg: null }"
-                                                              x-init="cfg = action.config || (action.config = { exclude_tags: '', replace_rules_text: '', merge_mode: 'merge' })"
-                                                              class="space-y-2 p-2 bg-[var(--bg-sub)] rounded border border-[var(--border-light)]">
-                                                             <!-- 排除标签 -->
-                                                             <div class="flex items-center gap-2">
-                                                                 <span class="text-xs text-[var(--text-dim)] w-16">排除标签:</span>
-                                                                 <input type="text" 
-                                                                     x-model="cfg.exclude_tags"
-                                                                     class="auto-input flex-1 text-xs"
-                                                                     placeholder="多个标签用逗号分隔，如：其他,待审核">
-                                                             </div>
-                                                             <!-- 标签替换 -->
-                                                             <div class="flex items-center gap-2">
-                                                                 <span class="text-xs text-[var(--text-dim)] w-16">标签替换:</span>
-                                                                 <input type="text" 
-                                                                     x-model="cfg.replace_rules_text"
-                                                                     class="auto-input flex-1 text-xs"
-                                                                     placeholder="格式：原标签→新标签, 如：其他→杂项">
-                                                             </div>
+                                                              x-init="cfg = action.config || (action.config = { exclude_tags: '', replace_rules_text: '', merge_mode: 'merge' }); $watch('action.type', value => { if (value === 'fetch_forum_tags' && !action.config) { action.config = { exclude_tags: '', replace_rules_text: '', merge_mode: 'merge' }; } })"
+                                                               class="space-y-2 p-2 bg-[var(--bg-sub)] rounded border border-[var(--border-light)]">
+                                                              <!-- 排除标签 -->
+                                                              <div class="flex items-center gap-2">
+                                                                  <span class="text-xs text-[var(--text-dim)] w-16">排除标签:</span>
+                                                                  <input type="text"
+                                                                      x-model="cfg.exclude_tags"
+                                                                      class="auto-input flex-1 text-xs"
+                                                                      placeholder="多个标签用|分隔，如：其他|待审核">
+                                                              </div>
+                                                              <!-- 标签替换 -->
+                                                              <div class="flex items-center gap-2">
+                                                                  <span class="text-xs text-[var(--text-dim)] w-16">标签替换:</span>
+                                                                  <input type="text"
+                                                                      x-model="cfg.replace_rules_text"
+                                                                      class="auto-input flex-1 text-xs"
+                                                                      placeholder="格式：原标签→新标签，多个用|分隔，如：其他→杂项|待审核→审核中">
+                                                              </div>
                                                              <!-- 合并模式 -->
                                                              <div class="flex items-center gap-2">
                                                                  <span class="text-xs text-[var(--text-dim)] w-16">合并模式:</span>
@@ -529,16 +529,26 @@
                                 <div class="bg-[var(--bg-sub)] rounded border border-[var(--border-light)] p-3">
                                     <div class="font-bold text-xs text-green-400 mb-2">配置说明：</div>
                                     <ul class="list-disc list-inside space-y-1 text-xs text-[var(--text-dim)]">
-                                        <li><strong>排除标签</strong>：填写不需要的标签，多个用逗号分隔</li>
-                                        <li><strong>标签替换</strong>：格式为"原标签→新标签"，多个用逗号分隔</li>
+                                        <li><strong>排除标签</strong>：填写不需要的标签，多个用管道符 <code class="font-mono text-yellow-500">|</code> 分隔</li>
+                                        <li><strong>标签替换</strong>：格式为"原标签→新标签"，多个规则用管道符 <code class="font-mono text-yellow-500">|</code> 分隔</li>
                                         <li><strong>合并模式</strong>：选择"合并"保留现有标签，或"替换"清空后添加</li>
                                     </ul>
                                     <div class="bg-[var(--bg-code)] p-2 rounded text-xs font-mono mt-2">
                                         <span class="text-purple-400">示例</span><br>
-                                        排除标签: 其他, 待审核<br>
-                                        标签替换: 其他→杂项, 调教→BDSM<br>
+                                        排除标签: 其他|待审核<br>
+                                        标签替换: 其他→杂项|调教→BDSM<br>
                                         合并模式: 合并
                                     </div>
+                                    <div class="mt-2 text-xs text-[var(--text-dim)]">
+                                        <span class="text-yellow-500">💡 提示：</span>支持管道符 <code class="font-mono">|</code> 语法，与条件匹配语法一致
+                                    </div>
+                                </div>
+                                <div class="mt-3 p-2 bg-blue-500/10 border border-blue-500/30 rounded">
+                                    <div class="font-bold text-xs text-blue-400 mb-1">触发时机：</div>
+                                    <ul class="list-disc list-inside space-y-1 text-xs text-[var(--text-dim)]">
+                                        <li><strong>导入时</strong>：全局规则集在导入角色卡时自动执行移动文件夹、添加/移除标签、设置收藏等动作（<span class="text-yellow-500">抓取论坛标签除外</span>）</li>
+                                        <li><strong>更新链接时</strong>：在卡片详情页修改"来源链接"并保存时，仅触发"抓取论坛标签"动作（<span class="text-yellow-500">其他动作不执行</span>）</li>
+                                    </ul>
                                 </div>
                             </div>
 
