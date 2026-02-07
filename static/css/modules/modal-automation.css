@@ -311,13 +311,6 @@
         padding: 0.75rem
     }
 
-    .auto-input,
-    .auto-select {
-        font-size: 0.8125rem;
-        padding: 0.5rem;
-        width: 100%
-    }
-
     .automation-meta-inputs>input {
         flex: 1
     }
@@ -391,11 +384,6 @@
         justify-content: flex-start
     }
 
-    .logic-row>select,
-    .logic-row>div {
-        width: 100%
-    }
-
     .logic-content>div[class*="border"]>div:first-child>div:first-child {
         width: 100%;
         flex-direction: column;
@@ -406,6 +394,18 @@
     .logic-content>div[class*="border"]>div:first-child>button {
         width: 100%;
         text-align: center
+    }
+
+    .auto-input,
+    .auto-select {
+        font-size: 0.8125rem;
+        padding: 0.5rem;
+        width: 100%
+    }
+
+    .logic-row>select,
+    .logic-row>div {
+        width: 100%
     }
 
     .automation-content>button[title="关闭"],

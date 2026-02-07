@@ -18,6 +18,23 @@
   }
 }
 
+@keyframes wiReaderEntryActive {
+  0% {
+    box-shadow: 0 0 0 0 var(--accent-faint), 0 0 0 rgba(var(--accent-main-rgb), 0);
+    transform: translateY(0) scale(1)
+  }
+
+  50% {
+    box-shadow: 0 0 0 4px var(--accent-faint), 0 8px 16px rgba(var(--accent-main-rgb), 0.15);
+    transform: translateY(-1px) scale(1.002)
+  }
+
+  100% {
+    box-shadow: 0 0 0 3px var(--accent-faint), 0 16px 32px rgba(var(--accent-main-rgb), 0.25);
+    transform: translateY(-2px) scale(1.005)
+  }
+}
+
 .wi-container {
   background: var(--bg-sub);
   border: 1px solid var(--border-light);
@@ -916,21 +933,6 @@ html.light-mode .wi-reader-entry:hover {
   animation: wiReaderEntryActive 0.3s ease-out
 }
 
-@keyframes wiReaderEntryActive {
-  0% {
-    box-shadow: 0 0 0 0 var(--accent-faint), 0 0 0 rgba(var(--accent-main-rgb), 0);
-    transform: translateY(0) scale(1)
-  }
-  50% {
-    box-shadow: 0 0 0 4px var(--accent-faint), 0 8px 16px rgba(var(--accent-main-rgb), 0.15);
-    transform: translateY(-1px) scale(1.002)
-  }
-  100% {
-    box-shadow: 0 0 0 3px var(--accent-faint), 0 16px 32px rgba(var(--accent-main-rgb), 0.25);
-    transform: translateY(-2px) scale(1.005)
-  }
-}
-
 .wi-reader-entry-status {
   width: 6px;
   flex-shrink: 0;
@@ -1133,13 +1135,12 @@ html.light-mode .wi-reader-detail .bg-\[var\(--bg-sub\)\] {
   background: var(--bg-sub) !important
 }
 
-/* 帮助指南模态框样式 */
 .wi-help-modal-content {
-  background: var(--bg-body);
+  background: var(--bg-body)
 }
 
 html.light-mode .wi-help-modal-content {
-  background: #f3f4f6 !important;
+  background: #f3f4f6 !important
 }
 
 .wi-reader-entry.toc-flash {
@@ -1453,39 +1454,9 @@ html.light-mode .wi-book-icon {
     font-size: 0.6875rem
   }
 
-  .wi-reader-topbar h3 {
-    font-size: 0.875rem !important
-  }
-
-  .wi-reader-topbar .text-2xl {
-    font-size: 1.25rem
-  }
-
-  .wi-reader-main .sticky {
-    padding: 0.5rem 0.75rem;
-    font-size: 0.625rem
-  }
-
-  .wi-center-pane input[type="text"] {
-    max-width: 100%;
-    margin: 0;
-    font-size: 0.875rem
-  }
-
   .wi-reader-topbar>div:first-child {
     flex: 1;
     min-width: 0
-  }
-
-  .wi-editor-container .btn-primary,
-  .wi-editor-container .btn-secondary {
-    padding: 0.375rem 0.75rem;
-    font-size: 0.75rem
-  }
-
-  .wi-inspector-panel[style*="width: 320px"],
-  .wi-inspector-panel[style*="opacity: 1"] {
-    transform: translateX(0) !important
   }
 
   .wi-editor-container>.flex>div:first-child {
@@ -1498,17 +1469,6 @@ html.light-mode .wi-book-icon {
 
   .wi-editor-container>.flex>div:last-child {
     flex-direction: column
-  }
-
-  .wi-reader-main .sticky>div>div:last-child {
-    display: none
-  }
-
-  .wi-inspector-panel input,
-  .wi-inspector-panel select,
-  .wi-inspector-panel textarea {
-    font-size: 0.8125rem;
-    padding: 0.5rem
   }
 
   .wi-editor-container>.flex>div:first-child>div:first-child {
@@ -1535,12 +1495,51 @@ html.light-mode .wi-book-icon {
     opacity: 1 !important
   }
 
+  .wi-editor-container>.flex>div:first-child>div:first-child>div:first-child {
+    font-size: 0.875rem
+  }
+
+  .wi-reader-topbar h3 {
+    font-size: 0.875rem !important
+  }
+
+  .wi-reader-topbar .text-2xl {
+    font-size: 1.25rem
+  }
+
+  .wi-reader-main .sticky {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.625rem
+  }
+
+  .wi-center-pane input[type="text"] {
+    max-width: 100%;
+    margin: 0;
+    font-size: 0.875rem
+  }
+
+  .wi-reader-main .sticky>div>div:last-child {
+    display: none
+  }
+
   .wi-editor-container>.flex>div:first-child>div:first-child .hidden {
     display: none !important
   }
 
-  .wi-editor-container>.flex>div:first-child>div:first-child>div:first-child {
-    font-size: 0.875rem
+  .wi-editor-container>.flex>div:first-child>div:last-child>div:first-child,
+  .wi-editor-container>.flex>div:first-child>div:last-child>div:nth-child(2) {
+    display: none !important
+  }
+
+  .wi-editor-container .btn-primary,
+  .wi-editor-container .btn-secondary {
+    padding: 0.375rem 0.75rem;
+    font-size: 0.75rem
+  }
+
+  .wi-inspector-panel[style*="width: 320px"],
+  .wi-inspector-panel[style*="opacity: 1"] {
+    transform: translateX(0) !important
   }
 
   .wi-editor-container>.flex>div:last-child>div:first-child[style*="width: 260px"],
@@ -1548,8 +1547,10 @@ html.light-mode .wi-book-icon {
     transform: translateX(0) !important
   }
 
-  .wi-editor-container>.flex>div:first-child>div:last-child>div:first-child,
-  .wi-editor-container>.flex>div:first-child>div:last-child>div:nth-child(2) {
-    display: none !important
+  .wi-inspector-panel input,
+  .wi-inspector-panel select,
+  .wi-inspector-panel textarea {
+    font-size: 0.8125rem;
+    padding: 0.5rem
   }
 }

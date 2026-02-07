@@ -976,6 +976,12 @@ html.light-mode .preview-toggle-inactive {
         padding: 2px 6px !important
     }
 
+    .adv-section>div:first-child.flex {
+        flex-direction: column !important;
+        gap: 0.75rem !important;
+        align-items: stretch !important
+    }
+
     .large-editor-title span:first-child {
         font-size: 1.1rem
     }
@@ -1027,18 +1033,12 @@ html.light-mode .preview-toggle-inactive {
         padding: 0.75rem !important
     }
 
-    .adv-section>div:first-child.flex {
-        flex-direction: column !important;
-        gap: 0.75rem !important;
-        align-items: stretch !important
+    .adv-section .flex.gap-4>div {
+        width: 100% !important
     }
 
     .adv-section .relative input.form-input {
         padding-left: 1.75rem !important;
         padding-right: 2.5rem !important
-    }
-
-    .adv-section .flex.gap-4>div {
-        width: 100% !important
     }
 }
