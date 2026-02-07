@@ -50,12 +50,52 @@
     --bg-blur: 0px;
     --z-base: 0;
     --z-floating: 100;
+    --z-card-highlight: 40;
+    --z-card-selected: 50;
+    --z-sticky: 100;
+    --z-dropdown: 500;
+    --z-sidebar-overlay: 999;
+    --z-sidebar-mobile: 1000;
     --z-modal-std: 1000;
     --z-modal-editor: 2000;
     --z-modal-popover: 3000;
+    --z-modal-detail: 3000;
     --z-context-menu: 9000;
     --z-toast: 9500;
-    --z-loading: 9999
+    --z-loading: 9999;
+    --z-topmost: 10000
+}
+
+.z-base {
+    z-index: var(--z-base) !important
+}
+
+.z-floating {
+    z-index: var(--z-floating) !important
+}
+
+.z-card-highlight {
+    z-index: var(--z-card-highlight) !important
+}
+
+.z-card-selected {
+    z-index: var(--z-card-selected) !important
+}
+
+.z-sticky {
+    z-index: var(--z-sticky) !important
+}
+
+.z-dropdown {
+    z-index: var(--z-dropdown) !important
+}
+
+.z-sidebar-overlay {
+    z-index: var(--z-sidebar-overlay) !important
+}
+
+.z-sidebar-mobile {
+    z-index: var(--z-sidebar-mobile) !important
 }
 
 .z-modal-std {
@@ -70,12 +110,24 @@
     z-index: var(--z-modal-popover) !important
 }
 
+.z-modal-detail {
+    z-index: var(--z-modal-detail) !important
+}
+
 .z-context-menu {
     z-index: var(--z-context-menu) !important
 }
 
-.z-topmost {
+.z-toast {
+    z-index: var(--z-toast) !important
+}
+
+.z-loading {
     z-index: var(--z-loading) !important
+}
+
+.z-topmost {
+    z-index: var(--z-topmost) !important
 }
 
 html.light-mode {

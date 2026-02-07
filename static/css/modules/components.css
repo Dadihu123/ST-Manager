@@ -198,7 +198,7 @@ input[type=range]::-webkit-slider-runnable-track {
 }
 
 .toast-notification {
-    z-index: 10000;
+    z-index: var(--z-toast);
     position: fixed;
     bottom: 2rem;
     left: 50%;
@@ -229,7 +229,7 @@ input[type=range]::-webkit-slider-runnable-track {
     height: 100%;
     background: rgba(0, 0, 0, 0.85);
     backdrop-filter: blur(5px);
-    z-index: 1000;
+    z-index: var(--z-modal-std);
     display: flex;
     justify-content: center;
     align-items: center

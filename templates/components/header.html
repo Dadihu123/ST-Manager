@@ -114,7 +114,7 @@
         <!-- 选中状态栏 -->
         <div x-show="selectedIds.length > 0"
             class="selection-bar flex items-center gap-4 border px-3 py-1.5 rounded-lg mr-2 relative"
-            style="background-color: var(--accent-faint); border-color: var(--accent-light); z-index: 50; overflow: visible;">
+            style="background-color: var(--accent-faint); border-color: var(--accent-light); z-index: var(--z-card-selected); overflow: visible;">
             <button @click="toggleSelectAll()" class="text-xs px-2 py-1 rounded text-white transition-all"
                 :style="isCurrentPageAllSelected ? 'background-color: #ef4444;' : 'background-color: #10b981;'"
                 :title="isCurrentPageAllSelected ? '取消全选当前页' : '全选当前页'">
@@ -143,7 +143,7 @@
                     x-transition:enter="transition ease-out duration-100" x-transition:enter-start="opacity-0 scale-95"
                     x-transition:enter-end="opacity-100 scale-100"
                     class="absolute top-full left-0 mt-2 w-56 bg-[var(--bg-panel)] border border-[var(--border-light)] rounded-lg shadow-2xl py-1"
-                    style="z-index: 9999;">
+                    style="z-index: var(--z-dropdown);">
 
                     <!-- 这个列表由全局 store 管理 -->
                     <template x-for="rs in $store.global.availableRuleSets" :key="rs.id">

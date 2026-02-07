@@ -186,7 +186,7 @@ html.light-mode .wi-status-constant {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   backdrop-filter: blur(4px);
-  z-index: 10
+  z-index: var(--z-floating)
 }
 
 .wi-badge.global {
@@ -394,7 +394,7 @@ html.light-mode .clipboard-item.editing {
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  z-index: 40;
+  z-index: var(--z-card-highlight);
   width: 24px;
   height: 60px;
   display: flex;
@@ -653,7 +653,7 @@ html.dark-mode .props-header {
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  z-index: 30;
+  z-index: var(--z-card-selected);
   width: 20px;
   height: 60px;
   display: flex;
@@ -689,7 +689,7 @@ html.dark-mode .props-header {
 .drag-over-main-overlay {
   position: absolute;
   inset: 0;
-  z-index: 50;
+  z-index: var(--z-card-selected);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -911,7 +911,7 @@ html.light-mode .wi-reader-entry:hover {
   border-color: var(--accent-main);
   box-shadow: 0 0 0 3px var(--accent-faint), 0 16px 32px rgba(var(--accent-main-rgb), 0.25);
   transform: translateY(-2px) scale(1.005);
-  z-index: 10;
+  z-index: var(--z-floating);
   background: color-mix(in srgb, var(--bg-panel), var(--accent-main) 3%);
   animation: wiReaderEntryActive 0.3s ease-out
 }
@@ -1364,7 +1364,7 @@ html.light-mode .wi-book-icon {
     left: 0 !important;
     width: 100vw !important;
     max-width: 100vw !important;
-    z-index: 100;
+    z-index: var(--z-sticky);
     box-shadow: none
   }
 
@@ -1383,7 +1383,7 @@ html.light-mode .wi-book-icon {
     position: fixed;
     top: 50%;
     left: 0;
-    z-index: 49;
+    z-index: calc(var(--z-card-selected) - 1);
     width: 24px;
     height: 48px;
     border-radius: 0 8px 8px 0
@@ -1413,7 +1413,7 @@ html.light-mode .wi-book-icon {
     bottom: 0 !important;
     width: 100vw !important;
     max-width: 100vw !important;
-    z-index: 50;
+    z-index: var(--z-card-selected);
     box-shadow: -4px 0 20px rgba(0, 0, 0, 0.3);
     transform: translateX(100%);
     transition: transform 0.3s ease;
@@ -1424,7 +1424,7 @@ html.light-mode .wi-book-icon {
     position: fixed;
     top: 50%;
     right: 0;
-    z-index: 49;
+    z-index: calc(var(--z-card-selected) - 1);
     width: 24px;
     height: 48px;
     border-radius: 8px 0 0 8px
@@ -1528,7 +1528,7 @@ html.light-mode .wi-book-icon {
     bottom: 0 !important;
     width: 280px !important;
     max-width: 85vw !important;
-    z-index: 50;
+    z-index: var(--z-card-selected);
     box-shadow: 4px 0 20px rgba(0, 0, 0, 0.3);
     transform: translateX(-100%);
     transition: transform 0.3s ease;

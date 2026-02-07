@@ -9,7 +9,7 @@
         box-shadow: 0 0 20px 10px rgba(37, 99, 235, 0);
         transform: scale(1.05);
         border-color: #fff;
-        z-index: 50
+        z-index: var(--z-card-selected)
     }
 
     100% {
@@ -61,7 +61,7 @@
     gap: 1.5rem;
     grid-template-columns: repeat(auto-fill, minmax(var(--card-min-width), 1fr));
     position: relative;
-    z-index: 5
+    z-index: var(--z-base)
 }
 
 .card-tag {
@@ -90,14 +90,14 @@
 .st-card.highlighted {
     animation: highlight-pulse 1.5s infinite;
     border-color: #fbbf24 !important;
-    z-index: 10
+    z-index: var(--z-floating)
 }
 
 .card-highlight-anim {
     animation: highlightPulse 1.5s ease-in-out infinite;
     border: 2px solid var(--accent-main) !important;
     position: relative;
-    z-index: 40
+    z-index: var(--z-card-highlight)
 }
 
 .st-card.selected {
@@ -164,7 +164,7 @@
 .drag-over-main-overlay {
     position: absolute;
     inset: 0;
-    z-index: 50;
+    z-index: var(--z-card-selected);
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -252,7 +252,7 @@ html.light-mode .btn-note-preview:hover {
     background: linear-gradient(115deg, transparent 30%, rgba(255, 0, 0, 0.1) 40%, rgba(0, 255, 0, 0.1) 45%, rgba(255, 255, 255, 0.5) 50%, rgba(0, 0, 255, 0.1) 55%, rgba(255, 0, 255, 0.1) 60%, transparent 70%);
     transform: skewX(-20deg);
     pointer-events: none;
-    z-index: 15;
+    z-index: var(--z-floating);
     animation: holo-sheen 6s infinite ease-in-out
 }
 
@@ -262,7 +262,7 @@ html.light-mode .btn-note-preview:hover {
     inset: 0;
     background: radial-gradient(circle at 50% 0%, rgba(251, 191, 36, 0.05), transparent 70%);
     pointer-events: none;
-    z-index: 14;
+    z-index: calc(var(--z-floating) - 1);
     mix-blend-mode: screen
 }
 
