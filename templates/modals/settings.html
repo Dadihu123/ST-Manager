@@ -8,8 +8,14 @@
                 <span class="text-2xl">⚙️</span>
                 <h3 class="font-bold text-xl">系统设置</h3>
             </div>
-            <button @click="showSettingsModal=false"
-                class="text-gray-400 hover:text-red-500 transition text-xl">✕</button>
+            <div class="flex items-center gap-2">
+                <!-- 帮助按钮 (无边框) -->
+                <button @click="showSettingsHelpModal=true" 
+                    class="text-gray-400 hover:text-blue-400 transition text-xl px-2 font-bold"
+                    title="查看帮助指南">?</button>
+                <button @click="showSettingsModal=false"
+                    class="text-gray-400 hover:text-red-500 transition text-xl">✕</button>
+            </div>
         </div>
 
         <!-- 2. 主体区域 -->
@@ -687,6 +693,154 @@
             <button @click="saveSettings()" class="btn-primary px-6 py-2 rounded-lg font-bold shadow-lg">
                 💾 保存并应用
             </button>
+        </div>
+
+        <!-- 设置帮助模态框 -->
+        <div x-show="showSettingsHelpModal" x-cloak x-transition:enter="transition ease-out duration-200"
+        x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
+        x-transition:leave="transition ease-in duration-150"
+        x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95"
+        class="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+        @click.self="showSettingsHelpModal = false">
+
+        <div
+            class="bg-[var(--bg-panel)] border border-[var(--border-light)] rounded-xl shadow-2xl w-full max-w-2xl flex flex-col overflow-hidden max-h-[85vh]">
+            <!-- 弹窗标题 -->
+            <div class="px-6 py-4 border-b border-[var(--border-light)] bg-[var(--bg-sub)] flex justify-between items-center">
+                <h3 class="font-bold text-lg text-[var(--text-main)] flex items-center gap-2">
+                    <span>📖</span>
+                    <span x-text="settingsHelpContent[activeSettingTab]?.title || '帮助指南'"></span>
+                </h3>
+                <button @click="showSettingsHelpModal = false"
+                    class="text-gray-500 hover:text-red-400 px-2 text-xl">✕</button>
+            </div>
+
+            <!-- 弹窗内容 -->
+            <div class="p-6 overflow-y-auto custom-scrollbar text-sm text-[var(--text-main)] space-y-6">
+                
+                <!-- 常规路径帮助 -->
+                <div x-show="activeSettingTab === 'general'" x-transition>
+                    <div class="space-y-4">
+                        <div class="bg-[var(--bg-sub)] rounded border border-[var(--border-light)] p-4">
+                            <h4 class="font-bold text-[var(--accent-main)] mb-2">📂 路径配置说明</h4>
+                            <p class="text-[var(--text-dim)] mb-3">
+                                各路径支持相对路径（相对于程序根目录）或绝对路径。
+                            </p>
+                            <ul class="list-disc list-inside space-y-2 text-[var(--text-dim)] text-xs">
+                                <li><strong>角色卡路径：</strong>存放PNG/JSON格式角色卡的目录</li>
+                                <li><strong>世界书路径：</strong>存放全局共享世界书的目录</li>
+                                <li><strong>预设路径：</strong>存放AI生成参数预设的目录</li>
+                                <li><strong>资源路径：</strong>存放角色附件、背景图等资源的根目录</li>
+                            </ul>
+                        </div>
+                        <div class="bg-blue-900/20 border border-blue-500/30 rounded p-3 text-xs text-blue-300">
+                            💡 提示：修改路径后，建议执行"同步扫描"以重新索引文件。
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 外观显示帮助 -->
+                <div x-show="activeSettingTab === 'appearance'" x-transition>
+                    <div class="space-y-4">
+                        <div class="bg-[var(--bg-sub)] rounded border border-[var(--border-light)] p-4">
+                            <h4 class="font-bold text-[var(--accent-main)] mb-2">🎨 外观设置说明</h4>
+                            <ul class="list-disc list-inside space-y-2 text-[var(--text-dim)] text-xs">
+                                <li><strong>深色模式：</strong>切换日间/夜间配色方案</li>
+                                <li><strong>主题强调色：</strong>界面主色调，影响按钮、选中状态等</li>
+                                <li><strong>字体风格：</strong>界面字体类型（无衬线/衬线/等宽）</li>
+                                <li><strong>卡片宽度：</strong>网格视图中卡片的基础宽度</li>
+                                <li><strong>每页数量：</strong>设置为0时自动根据屏幕尺寸计算</li>
+                            </ul>
+                        </div>
+                        <div class="bg-[var(--bg-sub)] rounded border border-[var(--border-light)] p-4">
+                            <h4 class="font-bold text-purple-400 mb-2">🖼️ 个性化壁纸</h4>
+                            <p class="text-[var(--text-dim)] text-xs">
+                                支持上传自定义背景图片，可调整遮罩浓度和模糊度以适应文字阅读。
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 连接与服务帮助 -->
+                <div x-show="activeSettingTab === 'connection'" x-transition>
+                    <div class="space-y-4">
+                        <div class="bg-[var(--bg-sub)] rounded border border-[var(--border-light)] p-4">
+                            <h4 class="font-bold text-[var(--accent-main)] mb-2">🔗 SillyTavern 集成</h4>
+                            <p class="text-[var(--text-dim)] text-xs mb-3">
+                                配置本地SillyTavern目录后，可同步角色卡、世界书、预设等资源。
+                            </p>
+                            <ul class="list-disc list-inside space-y-2 text-[var(--text-dim)] text-xs">
+                                <li>点击"自动探测路径"尝试自动查找安装目录</li>
+                                <li>支持Windows（D:/SillyTavern、E:/SillyTavern等）常见路径</li>
+                                <li>验证路径后显示各资源类型数量</li>
+                            </ul>
+                        </div>
+
+                        <!-- Discord认证帮助 -->
+                        <div class="bg-[var(--bg-sub)] rounded border border-[var(--border-light)] p-4">
+                            <h4 class="font-bold text-indigo-400 mb-2">🔌 Discord 论坛标签抓取</h4>
+                            <p class="text-[var(--text-dim)] text-xs mb-3">
+                                配置Discord认证后，自动化规则可从类脑论坛帖子抓取标签。
+                            </p>
+                            
+                            <div class="bg-[var(--bg-code)] rounded p-3 mb-3">
+                                <div class="font-bold text-xs text-green-400 mb-2">获取 Discord Token 的步骤：</div>
+                                <ol class="list-decimal list-inside space-y-1 text-[var(--text-dim)] text-xs">
+                                    <li>浏览器打开 Discord 网页版并登录</li>
+                                    <li>按 <code class="bg-[var(--bg-sub)] px-1 rounded">F12</code> 打开开发者工具</li>
+                                    <li>按 <code class="bg-[var(--bg-sub)] px-1 rounded">Ctrl + Shift + M</code> 启用移动设备模拟</li>
+                                    <li>切换到 <strong>Console（控制台）</strong> 标签</li>
+                                    <li class="text-yellow-400">⚠️ Chrome新版：如提示无法粘贴，输入 <code class="bg-[var(--bg-sub)] px-1 rounded">allow pasting</code> 解锁</li>
+                                    <li>粘贴以下代码并回车：
+                                        <pre class="bg-[var(--bg-sub)] p-2 rounded mt-1 overflow-x-auto text-[10px]">const iframe = document.createElement('iframe');
+console.log(
+  'Token: %c%s',
+  'font-size:16px;',
+  JSON.parse(document.body.appendChild(iframe).contentWindow.localStorage.token)
+);
+iframe.remove();</pre>
+                                    </li>
+                                    <li>控制台显示 <code class="text-green-400">Token: xxx</code>，复制该值</li>
+                                    <li>在下方 Discord Token 输入框中粘贴保存</li>
+                                </ol>
+                            </div>
+                            
+                            <div class="bg-yellow-900/20 border border-yellow-500/30 rounded p-3 text-xs">
+                                <div class="text-yellow-400 font-bold mb-1">⚠️ 注意事项：</div>
+                                <ul class="list-disc list-inside space-y-1 text-yellow-300/80">
+                                    <li>Token 有过期时间，通常几小时到几天不等</li>
+                                    <li>如遇 401 错误，请重新获取 Token</li>
+                                    <li>Token 仅保存在本地，不会上传到任何服务器</li>
+                                    <li>需要 Discord 账号已加入类脑服务器并有访问权限</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 维护与高级帮助 -->
+                <div x-show="activeSettingTab === 'maintenance'" x-transition>
+                    <div class="space-y-4">
+                        <div class="bg-[var(--bg-sub)] rounded border border-[var(--border-light)] p-4">
+                            <h4 class="font-bold text-[var(--accent-main)] mb-2">🛠️ 维护功能说明</h4>
+                            <ul class="list-disc list-inside space-y-2 text-[var(--text-dim)] text-xs">
+                                <li><strong>同步扫描：</strong>强制扫描所有目录并修复数据库索引</li>
+                                <li><strong>备份数据：</strong>备份 ui_data.json 到根目录</li>
+                                <li><strong>回收站：</strong>管理已删除的卡片，可恢复或彻底删除</li>
+                            </ul>
+                        </div>
+                        <div class="bg-[var(--bg-sub)] rounded border border-[var(--border-light)] p-4">
+                            <h4 class="font-bold text-orange-400 mb-2">⚙️ 高级选项</h4>
+                            <ul class="list-disc list-inside space-y-2 text-[var(--text-dim)] text-xs">
+                                <li><strong>智能自动快照：</strong>定时检查变更并创建备份</li>
+                                <li><strong>PNG确定性排序：</strong>避免改变外部工具的字节级行为</li>
+                                <li><strong>世界书预览限制：</strong>防止大型世界书卡死界面</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
         </div>
     </div>
 </div>

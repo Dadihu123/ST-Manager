@@ -16,6 +16,25 @@ export default function settingsModal() {
         // Discord 认证显示状态
         showDiscordToken: false,
         showDiscordCookie: false,
+        
+        // 帮助模态框状态
+        showSettingsHelpModal: false,
+        
+        // 帮助内容配置
+        settingsHelpContent: {
+            general: {
+                title: '常规路径设置帮助'
+            },
+            appearance: {
+                title: '外观显示设置帮助'
+            },
+            connection: {
+                title: '连接与服务设置帮助'
+            },
+            maintenance: {
+                title: '维护与高级设置帮助'
+            }
+        },
 
         get settingsForm() { return this.$store.global.settingsForm; },
         get showSettingsModal() { 

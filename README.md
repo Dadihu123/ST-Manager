@@ -346,7 +346,8 @@ ST-Manager/
 2. 按 `F12` 打开开发者工具
 3. 按 `Ctrl + Shift + M` 启用移动设备模拟
 4. 切换到 **Console（控制台）** 标签
-5. 粘贴以下代码并回车：
+5. **⚠️ Chrome浏览器新版限制**：如果提示"无法粘贴代码"，请在控制台手动输入 `allow pasting` 并回车，以解锁粘贴功能
+6. 粘贴以下代码并回车：
 ```javascript
 const iframe = document.createElement('iframe');
 console.log(
@@ -356,8 +357,8 @@ console.log(
 );
 iframe.remove();
 ```
-6. 控制台会显示 `Token: xxxxxxxxxxxx`，复制这个值
-7. 在ST-Manager设置中粘贴保存
+7. 控制台会显示 `Token: xxxxxxxxxxxx`，复制这个值
+8. 在ST-Manager设置中粘贴保存
 
 #### 注意事项
 
