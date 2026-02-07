@@ -3,9 +3,9 @@ core/auth.py
 外网访问身份验证模块
 
 功能:
-- 使用白名单机制（IP/域名）控制免登录访问
+- 使用 IP 白名单机制控制免登录访问
 - 默认仅允许 127.0.0.1 (本机) 免登录
-- 用户可自定义添加信任的 IP、IP 段或域名到白名单
+- 用户可自定义添加信任的 IP 或 IP 段到白名单
 - 不在白名单内的访问需要账号密码验证
 """
 
@@ -16,7 +16,6 @@ import logging
 import ipaddress
 import time
 import threading
-import socket
 from functools import wraps
 from flask import request, session, redirect, url_for, render_template_string, jsonify
 
@@ -28,10 +27,6 @@ logger = logging.getLogger(__name__)
 DEFAULT_TRUSTED_IPS = ['127.0.0.1', '::1']
 # 默认受信任代理（仅本机）
 DEFAULT_TRUSTED_PROXIES = ['127.0.0.1', '::1']
-
-# 域名解析缓存（用于白名单域名匹配）
-_DOMAIN_CACHE_LOCK = threading.Lock()
-_DOMAIN_IP_CACHE = {}
 
 # 登录失败限流（内存态）
 _RATE_LIMIT_LOCK = threading.Lock()
@@ -295,12 +290,11 @@ def get_real_ip():
 
 def get_trusted_ips():
     """
-    获取信任的白名单列表（IP/CIDR/通配符/域名）
+    获取信任的 IP 白名单列表
     格式支持：
     - 单个 IP: "192.168.1.100"
     - IP 段 (CIDR): "192.168.1.0/24"
     - 通配符: "192.168.1.*" (会转换为 CIDR)
-    - 域名: "your-ddns.example.com"
     """
     cfg = load_config()
     user_whitelist = cfg.get('auth_trusted_ips', [])
@@ -336,113 +330,6 @@ def normalize_ip_pattern(pattern):
     return pattern
 
 
-def _get_domain_cache_ttl_seconds():
-    """
-    获取域名解析缓存时间（秒）
-    """
-    cfg = load_config()
-    try:
-        ttl = int(cfg.get('auth_domain_cache_seconds', 60))
-    except Exception:
-        ttl = 60
-    return max(10, min(ttl, 3600))
-
-
-def _normalize_domain_pattern(pattern):
-    """
-    标准化白名单中的域名配置。
-    支持:
-    - domain.tld
-    - domain.tld:port
-    - http(s)://domain.tld[:port]/path
-    """
-    if not pattern or not isinstance(pattern, str):
-        return ''
-
-    candidate = pattern.strip()
-    if not candidate:
-        return ''
-
-    # 去掉 URL 的 scheme/path/query/fragment
-    if '://' in candidate:
-        candidate = candidate.split('://', 1)[1]
-    candidate = candidate.split('/', 1)[0].split('?', 1)[0].split('#', 1)[0]
-    candidate = _normalize_host(candidate).rstrip('.')
-    if not candidate:
-        return ''
-
-    # 本机别名，走既有逻辑
-    if candidate == 'localhost':
-        return 'localhost'
-
-    # 不支持域名通配符，避免歧义
-    if '*' in candidate:
-        return ''
-
-    # 排除纯数字/点（通常是 IP），域名必须包含至少一个字母
-    if '.' not in candidate or not any(ch.isalpha() for ch in candidate):
-        return ''
-
-    # 基础合法性检查（兼容 punycode）
-    allowed_chars = set('abcdefghijklmnopqrstuvwxyz0123456789-.')
-    if any(ch not in allowed_chars for ch in candidate):
-        return ''
-
-    labels = candidate.split('.')
-    if any(not label for label in labels):
-        return ''
-    if any(label.startswith('-') or label.endswith('-') for label in labels):
-        return ''
-
-    return candidate
-
-
-def _resolve_domain_ips(domain):
-    """
-    解析域名并返回 IP 集合（支持 IPv4/IPv6）。
-    结果会按 TTL 缓存，避免每次请求都进行 DNS 查询。
-    """
-    now_ts = time.time()
-    ttl_seconds = _get_domain_cache_ttl_seconds()
-
-    with _DOMAIN_CACHE_LOCK:
-        cached = _DOMAIN_IP_CACHE.get(domain)
-        if cached and cached.get('expires_at', 0) > now_ts:
-            return set(cached.get('ips', []))
-
-    resolved_ips = set()
-    try:
-        infos = socket.getaddrinfo(domain, None)
-        for info in infos:
-            sockaddr = info[4] if len(info) > 4 else None
-            if not sockaddr:
-                continue
-
-            ip = str(sockaddr[0]).strip()
-            ip = _strip_port(ip)
-            if ip == 'localhost':
-                ip = '127.0.0.1'
-
-            try:
-                resolved_ips.add(str(ipaddress.ip_address(ip)))
-            except ValueError:
-                continue
-    except (socket.gaierror, OSError) as e:
-        logger.warning(f"白名单域名解析失败: {domain} ({e})")
-
-    with _DOMAIN_CACHE_LOCK:
-        _DOMAIN_IP_CACHE[domain] = {
-            'ips': resolved_ips,
-            'expires_at': now_ts + ttl_seconds
-        }
-        # 顺便清理过期缓存，避免常驻增长
-        stale_domains = [k for k, v in _DOMAIN_IP_CACHE.items() if v.get('expires_at', 0) <= now_ts]
-        for stale in stale_domains:
-            _DOMAIN_IP_CACHE.pop(stale, None)
-
-    return resolved_ips
-
-
 def is_ip_in_whitelist(ip, whitelist):
     """
     检查 IP 是否在白名单中
@@ -461,42 +348,21 @@ def is_ip_in_whitelist(ip, whitelist):
         return False
 
     for pattern in whitelist:
-        if not isinstance(pattern, str):
-            continue
-
-        pattern = pattern.strip()
-        if not pattern:
-            continue
-
-        # 先按 IP/CIDR/通配符匹配（兼容旧行为）
-        normalized_ip_pattern = normalize_ip_pattern(pattern)
+        pattern = normalize_ip_pattern(pattern)
 
         try:
             # 尝试作为单个 IP 匹配
-            if '/' not in normalized_ip_pattern:
-                if client_ip == ipaddress.ip_address(normalized_ip_pattern):
+            if '/' not in pattern:
+                if client_ip == ipaddress.ip_address(pattern):
                     return True
             else:
                 # 作为网络段匹配
-                network = ipaddress.ip_network(normalized_ip_pattern, strict=False)
+                network = ipaddress.ip_network(pattern, strict=False)
                 if client_ip in network:
                     return True
         except ValueError:
-            # 非 IP/CIDR 格式，继续尝试按域名匹配
-            pass
-
-        # 域名匹配：将域名解析为 IP 列表后对比
-        domain = _normalize_domain_pattern(pattern)
-        if not domain:
+            # 无效的模式，跳过
             continue
-
-        if domain == 'localhost':
-            domain_ips = set(str(ipaddress.ip_address(v)) for v in DEFAULT_TRUSTED_IPS)
-        else:
-            domain_ips = _resolve_domain_ips(domain)
-
-        if str(client_ip) in domain_ips:
-            return True
 
     return False
 
@@ -903,7 +769,7 @@ def cli_set_auth(username, password):
 
 def cli_add_trusted_ip(ip):
     """
-    通过命令行添加信任地址（IP/网段/域名）
+    通过命令行添加信任 IP
     """
     from core.config import load_config, save_config
 
@@ -911,14 +777,14 @@ def cli_add_trusted_ip(ip):
     trusted_ips = cfg.get('auth_trusted_ips', [])
 
     if ip in trusted_ips:
-        print(f"⚠️ 地址 {ip} 已在白名单中")
+        print(f"⚠️ IP {ip} 已在白名单中")
         return False
 
     trusted_ips.append(ip)
     cfg['auth_trusted_ips'] = trusted_ips
 
     if save_config(cfg):
-        print(f"✅ 已添加信任地址: {ip}")
+        print(f"✅ 已添加信任 IP: {ip}")
         return True
     else:
         print("❌ 保存配置失败")
@@ -949,7 +815,7 @@ def cli_show_status():
         print("❌ 认证未启用")
         print("   (未设置用户名和密码)")
 
-    print(f"\n📋 白名单（IP/域名）:")
+    print(f"\n📋 IP 白名单:")
     print(f"   固定: 127.0.0.1, ::1 (本机)")
     if trusted_ips:
         for ip in trusted_ips:
@@ -967,7 +833,7 @@ def cli_show_status():
 
     print("\n💡 使用提示:")
     print("   设置账号: python -m core.auth --set-auth <用户名> <密码>")
-    print("   添加白名单: python -m core.auth --add-ip <IP/网段/域名>")
+    print("   添加白名单: python -m core.auth --add-ip <IP地址>")
     print("   环境变量: STM_AUTH_USER, STM_AUTH_PASS")
     print()
 
@@ -978,7 +844,7 @@ def main():
     用法:
         python -m core.auth                          # 显示状态
         python -m core.auth --set-auth <用户名> <密码>  # 设置账号密码
-        python -m core.auth --add-ip <地址>           # 添加白名单（IP/网段/域名）
+        python -m core.auth --add-ip <IP地址>         # 添加信任 IP
     """
     import sys
 
