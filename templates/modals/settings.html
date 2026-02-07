@@ -379,7 +379,7 @@
                     <div class="settings-row p-4 rounded border border-[var(--border-light)] bg-[var(--bg-sub)]">
                         <label class="settings-label text-red-400 mb-2 block">🔐 外网访问身份验证</label>
                         <div class="settings-desc mb-4">
-                            启用后，不在白名单内的 IP 访问时需要登录验证。<br>
+                            启用后，不在白名单内的来源访问时需要登录验证。<br>
                             <span class="text-yellow-400 text-xs">⚠️ 默认仅 127.0.0.1 (本机) 免登录，局域网 IP 也需要登录。</span>
                         </div>
                         <div class="grid grid-cols-2 gap-4">
@@ -395,13 +395,13 @@
                             </div>
                         </div>
 
-                        <!-- IP 白名单 -->
+                        <!-- IP/域名 白名单 -->
                         <div class="mt-4 pt-4 border-t border-[var(--border-light)]">
-                            <label class="text-xs text-[var(--text-dim)] uppercase mb-2 block">IP 白名单 (免登录)</label>
+                            <label class="text-xs text-[var(--text-dim)] uppercase mb-2 block">白名单 (IP/域名, 免登录)</label>
                             <div class="settings-desc mb-2">
-                                添加信任的 IP 地址，这些 IP 无需登录即可访问。<br>
+                                添加信任的 IP 或域名，这些来源无需登录即可访问。<br>
                                 <span class="text-xs opacity-70">
-                                    支持格式：单个 IP (192.168.1.100)、网段 (192.168.1.0/24)、通配符 (192.168.*.*)
+                                    支持格式：单个 IP (192.168.1.100)、网段 (192.168.1.0/24)、通配符 (192.168.*.*)、域名 (your-ddns.example.com)
                                 </span>
                             </div>
 
@@ -415,7 +415,7 @@
                                     <div class="flex items-center gap-2 px-2 py-1 rounded bg-[var(--bg-panel)]">
                                         <input type="text" x-model="settingsForm.auth_trusted_ips[index]"
                                             class="flex-1 bg-transparent border-none text-sm font-mono focus:outline-none"
-                                            placeholder="192.168.1.0/24">
+                                            placeholder="192.168.1.0/24 或 your-ddns.example.com">
                                         <button @click="settingsForm.auth_trusted_ips.splice(index, 1)"
                                             class="text-red-400 hover:text-red-300 text-sm px-2">✕</button>
                                     </div>
@@ -425,7 +425,7 @@
                             <!-- 添加按钮 -->
                             <button @click="if(!settingsForm.auth_trusted_ips) settingsForm.auth_trusted_ips = []; settingsForm.auth_trusted_ips.push('')"
                                 class="btn-secondary text-sm py-1 px-3">
-                                + 添加 IP
+                                + 添加条目
                             </button>
 
                             <!-- 快捷添加 -->
