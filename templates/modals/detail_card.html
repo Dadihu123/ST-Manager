@@ -661,7 +661,8 @@
 
                                 <div class="detail-card-actions">
                                     <button @click="openTagPicker()" class="btn-secondary detail-mini-btn">
-                                        📚 标签库
+                                        <span>📚</span>
+                                        <span x-show="$store.global.deviceType !== 'mobile'" class="ml-1">标签库</span>
                                     </button>
 
                                     <div class="detail-inline-input">

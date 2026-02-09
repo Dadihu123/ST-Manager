@@ -14,7 +14,7 @@
                     'scripts': '📜',
                     'quick_replies': '⚡'
                 }[currentMode]"></span>
-                <span class="font-bold text-[var(--text-main)]" x-text="{
+                <span x-show="$store.global.deviceType !== 'mobile'" class="font-bold text-[var(--text-main)]" x-text="{
                         'regex': 'Regex Scripts',
                         'scripts': 'ST Scripts',
                         'quick_replies': 'Quick Replies'

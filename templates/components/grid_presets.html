@@ -10,7 +10,7 @@
             <!-- 标题 -->
             <div class="flex items-center gap-2 text-sm">
                 <span class="text-2xl">📝</span>
-                <span class="font-bold text-[var(--text-main)]">预设 Presets</span>
+                <span x-show="$store.global.deviceType !== 'mobile'" class="font-bold text-[var(--text-main)]">预设 Presets</span>
                 <span class="text-[var(--text-dim)]">/</span>
                 <span class="text-xs opacity-60">AI 生成参数预设</span>
             </div>

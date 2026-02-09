@@ -203,7 +203,6 @@ html.light-mode .wi-status-constant {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   backdrop-filter: blur(4px);
-  z-index: var(--z-floating)
 }
 
 .wi-badge.global {
