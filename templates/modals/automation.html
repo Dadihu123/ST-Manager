@@ -43,10 +43,6 @@
                         title="导入规则集">📥</button>
                     <button @click="createNewRuleSet(); if($store.global.deviceType === 'mobile') showMobileSidebar = false" 
                         class="btn-secondary px-2 py-1 text-xs" title="新建">+ 新建</button>
-                    <!-- 移动端：关闭按钮 -->
-                    <button x-show="$store.global.deviceType === 'mobile'" 
-                        @click="showMobileSidebar = false"
-                        class="btn-secondary px-2 py-1 text-xs ml-1">✕</button>
                 </div>
                 <input type="file" x-ref="importInput" style="display:none" accept=".json"
                     @change="handleImportRuleSet">

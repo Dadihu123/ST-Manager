@@ -79,9 +79,8 @@
         <!-- 移动端：侧边栏切换按钮 -->
         <button x-show="$store.global.deviceType === 'mobile' && !showMobileSidebar"
             @click="showMobileSidebar = !showMobileSidebar"
-            class="fixed bottom-16 left-2 z-50 w-8 h-8 bg-[var(--bg-panel)] border border-[var(--border-light)] rounded-lg flex items-center justify-center text-[var(--text-main)] shadow-lg md:hidden">
-            <span x-show="!showMobileSidebar">☰</span>
-            <span x-show="showMobileSidebar">✕</span>
+            class="fixed bottom-20 left-2 z-50 w-10 h-10 bg-[var(--bg-panel)] border border-[var(--border-light)] rounded-lg flex items-center justify-center text-[var(--text-main)] shadow-lg md:hidden">
+            <span x-show="!showMobileSidebar">📋</span>
         </button>
 
         <!-- 主体：左信息 + 中阅读流 + 右详情（大屏固定，小屏抽屉） -->
@@ -98,7 +97,9 @@
             <aside class="wi-reader-sidebar w-full md:w-[280px] flex-shrink-0 bg-[var(--bg-sub)]
                     border-r border-[var(--border-main)] flex-col min-h-0" :class="{
                     'hidden md:flex': $store.global.deviceType !== 'mobile',
-                    'fixed top-14 left-0 bottom-0 z-40 w-[280px] max-w-[85vw] shadow-2xl flex': $store.global.deviceType === 'mobile' && showMobileSidebar,
+                    'top-14': $store.global.deviceType !== 'mobile',
+                    'top-0': $store.global.deviceType === 'mobile',
+                    'fixed left-0 bottom-0 z-40 w-[280px] max-w-[85vw] shadow-2xl flex': $store.global.deviceType === 'mobile' && showMobileSidebar,
                     'hidden': $store.global.deviceType === 'mobile' && !showMobileSidebar
                 }" x-transition:enter="transition ease-out duration-300"
                 x-transition:enter-start="transform -translate-x-full" x-transition:enter-end="transform translate-x-0"

@@ -4,20 +4,6 @@
     <div class="modal-container advanced-editor-container"
         style="width: 1200px; height: 90vh; flex-direction: column; background: var(--bg-panel); border: 1px solid var(--border-light);">
 
-        <!-- 移动端：侧边栏切换按钮 -->
-        <button x-show="$store.global.deviceType === 'mobile' && !showMobileSidebar && activeTab === 'regex'"
-            @click="showMobileSidebar = true"
-            class="fixed bottom-20 left-2 z-50 w-10 h-10 bg-[var(--bg-panel)] border border-[var(--border-light)] rounded-lg flex items-center justify-center text-[var(--text-main)] shadow-lg md:hidden">
-            <span>📋</span>
-        </button>
-
-        <!-- 移动端：侧边栏遮罩 -->
-        <button x-show="$store.global.deviceType === 'mobile' && !showMobileSidebar && activeTab === 'regex'"
-            @click="showMobileSidebar = true"
-            class="fixed bottom-20 left-2 z-50 w-10 h-10 bg-[var(--bg-panel)] border border-[var(--border-light)] rounded-lg flex items-center justify-center text-[var(--text-main)] shadow-lg md:hidden">
-            <span>📋</span>
-        </button>
-
         <!-- 1. 顶部 Header -->
         <div class="p-4 border-b flex justify-between items-center advanced-editor-header"
             style="background: var(--bg-sub); border-color: var(--border-light);">
@@ -62,7 +48,9 @@
                 <!-- 左侧：正则列表 -->
                 <div class="adv-list-pane custom-scrollbar overflow-y-auto" :class="{
                         'hidden md:flex': $store.global.deviceType !== 'mobile',
-                        'fixed top-14 left-0 bottom-0 z-50 w-[280px] max-w-[85vw] shadow-2xl flex flex-col': $store.global.deviceType === 'mobile' && showMobileSidebar,
+                        'top-14': $store.global.deviceType !== 'mobile',
+                        'top-0': $store.global.deviceType === 'mobile',
+                        'fixed left-0 bottom-0 z-50 w-[280px] max-w-[85vw] shadow-2xl flex flex-col': $store.global.deviceType === 'mobile' && showMobileSidebar,
                         'hidden': $store.global.deviceType === 'mobile' && !showMobileSidebar
                     }" x-transition:enter="transition ease-out duration-300"
                     x-transition:enter-start="transform -translate-x-full"
@@ -89,9 +77,6 @@
                                     </button>
                                 </div>
                             </template>
-                            <!-- 移动端：关闭按钮 -->
-                            <button x-show="$store.global.deviceType === 'mobile'" @click="showMobileSidebar = false"
-                                class="text-xs bg-gray-600 hover:bg-gray-500 text-white px-2 py-1 rounded transition">✕</button>
                         </div>
                     </div>
 
@@ -410,7 +395,9 @@
                 <!-- 左侧：脚本列表 -->
                 <div class="adv-list-pane custom-scrollbar overflow-y-auto" :class="{
                         'hidden md:flex': $store.global.deviceType !== 'mobile',
-                        'fixed top-14 left-0 bottom-0 z-50 w-[280px] max-w-[85vw] shadow-2xl flex flex-col': $store.global.deviceType === 'mobile' && showMobileSidebar,
+                        'top-14': $store.global.deviceType !== 'mobile',
+                        'top-0': $store.global.deviceType === 'mobile',
+                        'fixed left-0 bottom-0 z-50 w-[280px] max-w-[85vw] shadow-2xl flex flex-col': $store.global.deviceType === 'mobile' && showMobileSidebar,
                         'hidden': $store.global.deviceType === 'mobile' && !showMobileSidebar
                     }">
 
@@ -434,10 +421,6 @@
                                     </button>
                                 </div>
                             </template>
-
-                            <!-- 移动端关闭 -->
-                            <button x-show="$store.global.deviceType === 'mobile'" @click="showMobileSidebar = false"
-                                class="text-xs bg-gray-600 hover:bg-gray-500 text-white px-2 py-1 rounded transition">✕</button>
                         </div>
                     </div>
 
@@ -644,7 +627,13 @@
 
                 <!-- 左侧：回复列表 -->
                 <div class="adv-list-pane custom-scrollbar overflow-y-auto"
-                    :class="$store.global.deviceType === 'mobile' ? (showMobileSidebar ? 'fixed top-14 left-0 bottom-0 z-50 w-[280px] bg-[var(--bg-panel)]' : 'hidden') : 'flex'">
+                    :class="{
+                        'hidden md:flex': $store.global.deviceType !== 'mobile',
+                        'top-14': $store.global.deviceType !== 'mobile',
+                        'top-0': $store.global.deviceType === 'mobile',
+                        'fixed left-0 bottom-0 z-50 w-[280px] max-w-[85vw] shadow-2xl flex flex-col': $store.global.deviceType === 'mobile' && showMobileSidebar,
+                        'hidden': $store.global.deviceType === 'mobile' && !showMobileSidebar
+                    }">
                     <div
                         class="p-3 border-b border-[var(--border-light)] flex justify-between items-center bg-[var(--bg-sub)] sticky top-0 z-10">
                         <span class="text-xs font-bold text-[var(--text-sub)] uppercase">Reply List</span>
@@ -653,8 +642,6 @@
                                 class="text-xs bg-green-600 hover:bg-green-500 text-white px-2 py-1 rounded transition">
                                 + 新建
                             </button>
-                            <button x-show="$store.global.deviceType === 'mobile'" @click="showMobileSidebar=false"
-                                class="ml-2">✕</button>
                         </div>
                     </div>
 
@@ -838,5 +825,26 @@
                 完成 (Done)
             </button>
         </div>
+
+        
+        <!-- 移动端：侧边栏切换按钮 -->
+        <button x-show="$store.global.deviceType === 'mobile' && !showMobileSidebar"
+            @click="showMobileSidebar = true"
+            class="fixed bottom-20 left-2 z-50 w-10 h-10 bg-[var(--bg-panel)] border border-[var(--border-light)] rounded-lg flex items-center justify-center text-[var(--text-main)] shadow-lg md:hidden">
+            <span>📋</span>
+        </button>
+
+        <!-- 移动端：侧边栏遮罩 -->
+        <div x-show="$store.global.deviceType === 'mobile' && showMobileSidebar"
+            @click="showMobileSidebar = false"
+            class="fixed inset-0 bg-black/50 z-40"
+            x-transition:enter="transition ease-out duration-300"
+            x-transition:enter-start="opacity-0"
+            x-transition:enter-end="opacity-100"
+            x-transition:leave="transition ease-in duration-200"
+            x-transition:leave-start="opacity-100"
+            x-transition:leave-end="opacity-0"></div>
+        </div>
+
     </div>
 </div>
