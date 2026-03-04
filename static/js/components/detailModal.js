@@ -81,7 +81,7 @@ export default function detailModal() {
             creator: "",
             character_version: "",
             alternate_greetings: [],
-            extensions: { regex_scripts: [], tavern_helper: [] },
+            extensions: { regex_scripts: [], tavern_helper: {} },
             character_book: { name: "", entries: [] },
             // UI 字段
             filename: "",
@@ -124,6 +124,98 @@ export default function detailModal() {
         updateWiKeys,
         ...wiHelpers,
 
+        _convertLegacyTavernHelper(extensions) {
+            if (!extensions || typeof extensions !== 'object') return;
+            if (extensions.tavern_helper !== undefined) return;
+            if (!Array.isArray(extensions.TavernHelper_scripts)) return;
+
+            // 兼容更老格式: TavernHelper_scripts = [{ type:'script', value:{...} }, ...]
+            const scripts = [];
+            extensions.TavernHelper_scripts.forEach((item) => {
+                if (!item || typeof item !== 'object') return;
+                if (item.value && typeof item.value === 'object') {
+                    scripts.push(item.value);
+                    return;
+                }
+                scripts.push(item);
+            });
+
+            extensions.tavern_helper = { scripts };
+        },
+
+        _extractTavernScriptsFromExtensions(extensions) {
+            if (!extensions || typeof extensions !== 'object') return [];
+
+            const helper = extensions.tavern_helper;
+            if (helper && typeof helper === 'object') {
+                if (Array.isArray(helper)) {
+                    const scriptBlock = helper.find(item => Array.isArray(item) && item[0] === 'scripts');
+                    if (scriptBlock && Array.isArray(scriptBlock[1])) {
+                        return scriptBlock[1];
+                    }
+                } else if (Array.isArray(helper.scripts)) {
+                    return helper.scripts;
+                }
+            }
+
+            if (Array.isArray(extensions.TavernHelper_scripts)) {
+                return extensions.TavernHelper_scripts.map((item) => {
+                    if (item && typeof item === 'object' && item.value && typeof item.value === 'object') {
+                        return item.value;
+                    }
+                    return item;
+                }).filter(Boolean);
+            }
+
+            return [];
+        },
+
+        _normalizeTavernScriptsForSave(currentExtensions) {
+            const scripts = this._extractTavernScriptsFromExtensions(currentExtensions).map((script) => {
+                const src = (script && script.value && typeof script.value === 'object') ? script.value : script;
+                if (!src || typeof src !== 'object') return null;
+
+                const topButtons = Array.isArray(src.buttons) ? src.buttons : [];
+                const nestedButtons = src.button && Array.isArray(src.button.buttons) ? src.button.buttons : [];
+                const mergedButtons = (nestedButtons.length > 0 ? nestedButtons : topButtons)
+                    .filter(btn => btn && typeof btn === 'object')
+                    .map(btn => ({
+                        name: btn.name || '新按钮',
+                        visible: btn.visible !== false
+                    }));
+
+                return {
+                    name: src.name || src.scriptName || '未命名脚本',
+                    type: src.type || 'script',
+                    content: src.content || src.script || '',
+                    info: src.info || '',
+                    enabled: src.enabled !== false,
+                    id: src.id,
+                    button: {
+                        enabled: !!(src.button && src.button.enabled),
+                        buttons: mergedButtons
+                    },
+                    data: src.data && typeof src.data === 'object' ? src.data : {}
+                };
+            }).filter(Boolean);
+
+            const helperObj = (currentExtensions && currentExtensions.tavern_helper && typeof currentExtensions.tavern_helper === 'object' && !Array.isArray(currentExtensions.tavern_helper))
+                ? currentExtensions.tavern_helper
+                : {};
+
+            return {
+                scripts,
+                variables: helperObj.variables && typeof helperObj.variables === 'object' ? helperObj.variables : {}
+            };
+        },
+
+        _buildExtensionsForSave(cleanExtensions) {
+            const result = JSON.parse(JSON.stringify(cleanExtensions || {}));
+            result.tavern_helper = this._normalizeTavernScriptsForSave(result);
+            delete result.TavernHelper_scripts;
+            return result;
+        },
+
         _normalizeEditingDataShape(source = {}) {
             const normalized = {
                 id: null,
@@ -140,7 +232,7 @@ export default function detailModal() {
                 creator: "",
                 character_version: "",
                 alternate_greetings: [],
-                extensions: { regex_scripts: [], tavern_helper: [] },
+                extensions: { regex_scripts: [], tavern_helper: {} },
                 character_book: { name: "", entries: [] },
                 filename: "",
                 ui_summary: "",
@@ -158,8 +250,18 @@ export default function detailModal() {
             if (data.alternate_greetings.length === 0) data.alternate_greetings = [""];
 
             if (!data.extensions || typeof data.extensions !== 'object') data.extensions = {};
+            this._convertLegacyTavernHelper(data.extensions);
             if (!Array.isArray(data.extensions.regex_scripts)) data.extensions.regex_scripts = [];
-            if (!Array.isArray(data.extensions.tavern_helper)) data.extensions.tavern_helper = [];
+            const helper = data.extensions.tavern_helper;
+            if (helper === null || helper === undefined) {
+                data.extensions.tavern_helper = {};
+            } else if (Array.isArray(helper)) {
+                // 旧版列表结构，保留原样
+            } else if (typeof helper === 'object') {
+                // 新版对象结构，保留原样
+            } else {
+                data.extensions.tavern_helper = {};
+            }
 
             if (!data.character_book) {
                 data.character_book = { name: "World Info", entries: [] };
@@ -552,7 +654,17 @@ export default function detailModal() {
 
             // 2. 确保扩展字段存在
             if (!rawData.extensions || typeof rawData.extensions !== 'object') rawData.extensions = {};
-            if (!Array.isArray(rawData.extensions.tavern_helper)) rawData.extensions.tavern_helper = [];
+            this._convertLegacyTavernHelper(rawData.extensions);
+            const rawHelper = rawData.extensions.tavern_helper;
+            if (rawHelper === null || rawHelper === undefined) {
+                rawData.extensions.tavern_helper = {};
+            } else if (Array.isArray(rawHelper)) {
+                // 旧版，保留
+            } else if (typeof rawHelper === 'object') {
+                // 新版，保留
+            } else {
+                rawData.extensions.tavern_helper = {};
+            }
             if (!Array.isArray(rawData.extensions.regex_scripts)) rawData.extensions.regex_scripts = [];
 
             // 3. 确保备用开场白
@@ -637,8 +749,9 @@ export default function detailModal() {
 
                     if (safeCard.extensions) {
                         this.editingData.extensions = JSON.parse(JSON.stringify(safeCard.extensions));
+                        this._convertLegacyTavernHelper(this.editingData.extensions);
                         if (!this.editingData.extensions.regex_scripts) this.editingData.extensions.regex_scripts = [];
-                        if (!this.editingData.extensions.tavern_helper) this.editingData.extensions.tavern_helper = [];
+                        if (!this.editingData.extensions.tavern_helper) this.editingData.extensions.tavern_helper = {};
                     }
 
                     if (res.card.image_url) this.activeCard.image_url = res.card.image_url;
@@ -685,6 +798,7 @@ export default function detailModal() {
         _internalSaveCard(isBundleRenamed) {
             // 1. 获取清洗后的 V3 数据 (使用 Utils)
             const cleanData = getCleanedV3Data(this.editingData);
+            cleanData.extensions = this._buildExtensionsForSave(cleanData.extensions || {});
 
             // 2. 同步回 editingData (UI 反馈)
             if (this.editingData.alternate_greetings && cleanData.alternate_greetings) {
@@ -1067,7 +1181,7 @@ export default function detailModal() {
                     this.editingData.post_history_instructions = c.post_history_instructions || "";
                     this.editingData.tags = c.tags || [];
                     this.editingData.character_version = c.char_version || "";
-                    this.editingData.extensions = c.extensions || { regex_scripts: [], tavern_helper: [] };
+                    this.editingData.extensions = c.extensions || { regex_scripts: [], tavern_helper: {} };
                     this.altIdx = 0;
 
                     this.editingData.ui_summary = c.ui_summary || "";

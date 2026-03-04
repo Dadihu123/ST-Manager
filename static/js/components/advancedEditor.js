@@ -135,7 +135,25 @@ export default function advancedEditor() {
         // 数据标准化辅助函数
         _normalizeScript(script) {
             if (!script) return;
-            if (!script.button) script.button = { enabled: true, buttons: [] };
+            if (!script.button || typeof script.button !== 'object') {
+                script.button = { enabled: true, buttons: [] };
+            }
+            if (!Array.isArray(script.button.buttons)) script.button.buttons = [];
+
+            // 兼容更老格式: 脚本顶层直接使用 buttons: []
+            if (Array.isArray(script.buttons) && script.buttons.length > 0) {
+                const normalized_buttons = script.buttons
+                    .filter(btn => btn && typeof btn === 'object')
+                    .map(btn => ({
+                        name: btn.name || '新按钮',
+                        visible: btn.visible !== false
+                    }));
+
+                if (script.button.buttons.length === 0) {
+                    script.button.buttons = normalized_buttons;
+                }
+            }
+
             if (!script.data) script.data = {};
             if (script.enabled === undefined) script.enabled = true; // 默认启用
         },

@@ -56,11 +56,32 @@ class AutomationEngine:
 
         # === 3. ST Helper 脚本匹配 (Tavern Helper) ===
         if field_key == 'extensions.tavern_helper':
-            # Tavern Helper 数据结构: [ ["scripts", [...]], ["variables", {...}] ]
+            # 兼容多版本格式:
+            # 1) tavern_helper: { scripts: [...] }
+            # 2) tavern_helper: [["scripts", [...]], ["variables", {...}]]
+            # 3) TavernHelper_scripts: [...] (更老版本)
             ext = card_data.get('extensions') or {}
+            if not isinstance(ext, dict):
+                ext = {}
+
             helper_data = ext.get('tavern_helper')
+            if helper_data is None:
+                helper_data = ext.get('TavernHelper_scripts')
+            if helper_data is None:
+                helper_data = card_data.get('tavern_helper')
+            if helper_data is None:
+                helper_data = card_data.get('TavernHelper_scripts')
             
             scripts_list = []
+
+            def _unwrap_script_obj(obj):
+                if not isinstance(obj, dict):
+                    return None
+                # 更老格式: { type: 'script', value: { name/content/... } }
+                value_obj = obj.get('value')
+                if isinstance(value_obj, dict):
+                    return value_obj
+                return obj
             
             if isinstance(helper_data, dict):
                 # 新版字典结构
@@ -73,16 +94,30 @@ class AutomationEngine:
                         if isinstance(item[1], list):
                             scripts_list = item[1]
                         break
+
+                # 更老版本: 直接是脚本对象数组
+                if not scripts_list and all(isinstance(item, dict) for item in helper_data):
+                    scripts_list = helper_data
             
             if not scripts_list:
                 return []
 
             if specific_target == 'st_script_content':
                 # 脚本内容 (Usually 'content')
-                return [str(s.get('content', '')) for s in scripts_list if isinstance(s, dict)]
+                out = []
+                for s in scripts_list:
+                    script_obj = _unwrap_script_obj(s)
+                    if isinstance(script_obj, dict):
+                        out.append(str(script_obj.get('content') or script_obj.get('script') or ''))
+                return out
             else:
                 # 脚本名称 (Usually 'name')
-                return [str(s.get('name', '')) for s in scripts_list if isinstance(s, dict)]
+                out = []
+                for s in scripts_list:
+                    script_obj = _unwrap_script_obj(s)
+                    if isinstance(script_obj, dict):
+                        out.append(str(script_obj.get('name') or script_obj.get('scriptName') or ''))
+                return out
 
         # === 4. 通用嵌套取值 ===
         if '.' in field_key:
