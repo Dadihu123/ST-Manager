@@ -36,6 +36,10 @@ export default function cardGrid() {
         dragOverMain: false,
         dragCounter: 0,
         getCardGridTokenBadgeClass,
+        flippedCardIds: {},
+        imageZoomCardId: null,
+        _imageHoverTimers: {},
+        cornerPreviewCardId: null,
 
         get selectedIds() { return this.$store.global.viewState.selectedIds; },
         set selectedIds(val) { this.$store.global.viewState.selectedIds = val; return true; },
@@ -71,6 +75,13 @@ export default function cardGrid() {
             this.$watch('$store.global.viewState.favFilter', () => { this.currentPage = 1; this.fetchCards(); });
             // 监听设置中的收藏前置变化
             this.$watch('$store.global.settingsForm.favorites_first', () => { this.fetchCards(); });
+            this.$watch('$store.global.deviceType', (deviceType) => {
+                if (deviceType === 'mobile') {
+                    this.clearAllImageHoverTimers();
+                    this.imageZoomCardId = null;
+                    this.cornerPreviewCardId = null;
+                }
+            });
 
             // 2. 监听刷新事件 (来自 Header, Sidebar, Layout)
             window.addEventListener('refresh-card-list', () => {
@@ -140,6 +151,7 @@ export default function cardGrid() {
                 }
 
                 this.insertCardSorted(updatedCard);
+                this.syncCardUiState();
             });
 
             // 9. 监听批量导入完成事件 (实现追加模式下的即时显示)
@@ -229,6 +241,7 @@ export default function cardGrid() {
 
             // 2. 按当前排序规则插入
             this.insertCardSorted(card);
+            this.syncCardUiState();
 
             // 3. 更新 Tag 池
             if (card.tags) {
@@ -283,6 +296,121 @@ export default function cardGrid() {
             }));
         },
 
+        isCardFlipped(cardId) {
+            return !!this.flippedCardIds[String(cardId)];
+        },
+
+        isCornerPeelPreview(cardId) {
+            return String(this.cornerPreviewCardId) === String(cardId);
+        },
+
+        getVisibleTagLimit() {
+            return this.$store.global.deviceType === 'mobile' ? 4 : 14;
+        },
+
+        toggleCardFace(cardId) {
+            const key = String(cardId);
+            const next = { ...this.flippedCardIds };
+            next[key] = !next[key];
+            this.flippedCardIds = next;
+            this.cornerPreviewCardId = null;
+            this.handleImageHoverEnd(cardId);
+        },
+
+        isImageZoomed(cardId) {
+            return String(this.imageZoomCardId) === String(cardId);
+        },
+
+        handleImageHoverStart(cardId) {
+            if (this.$store.global.deviceType === 'mobile') return;
+            if (this.isCardFlipped(cardId)) return;
+
+            const key = String(cardId);
+            this.clearImageHoverTimer(key);
+            this._imageHoverTimers[key] = setTimeout(() => {
+                if (this.isCardFlipped(cardId)) return;
+                this.imageZoomCardId = cardId;
+                this.clearImageHoverTimer(key);
+            }, 500);
+        },
+
+        handleCardMouseMove(e, cardId) {
+            if (this.$store.global.deviceType === 'mobile') return;
+
+            if (this.isImageZoomed(cardId)) {
+                if (this.isCornerPeelPreview(cardId)) this.cornerPreviewCardId = null;
+                return;
+            }
+
+            const rect = e.currentTarget.getBoundingClientRect();
+            const dx = rect.right - e.clientX;
+            const dy = rect.bottom - e.clientY;
+            const threshold = 84;
+            const inCorner = dx >= 0 && dy >= 0 && dx <= threshold && dy <= threshold;
+
+            if (inCorner) {
+                if (!this.isCornerPeelPreview(cardId)) {
+                    this.cornerPreviewCardId = cardId;
+                    this.handleImageHoverEnd(cardId);
+                }
+            } else if (this.isCornerPeelPreview(cardId)) {
+                this.cornerPreviewCardId = null;
+            }
+        },
+
+        handleCardMouseLeave(cardId) {
+            this.handleImageHoverEnd(cardId);
+            if (this.isCornerPeelPreview(cardId)) {
+                this.cornerPreviewCardId = null;
+            }
+        },
+
+        handleImageHoverEnd(cardId) {
+            const key = String(cardId);
+            this.clearImageHoverTimer(key);
+            if (String(this.imageZoomCardId) === key) {
+                this.imageZoomCardId = null;
+            }
+        },
+
+        clearImageHoverTimer(cardKey) {
+            const timer = this._imageHoverTimers[cardKey];
+            if (!timer) return;
+
+            clearTimeout(timer);
+            delete this._imageHoverTimers[cardKey];
+        },
+
+        clearAllImageHoverTimers() {
+            Object.keys(this._imageHoverTimers).forEach(key => this.clearImageHoverTimer(key));
+        },
+
+        syncCardUiState() {
+            const activeIds = new Set(this.cards.map(c => String(c.id)));
+
+            const nextFlipped = {};
+            Object.keys(this.flippedCardIds).forEach(key => {
+                if (activeIds.has(key) && this.flippedCardIds[key]) {
+                    nextFlipped[key] = true;
+                }
+            });
+            this.flippedCardIds = nextFlipped;
+
+            Object.keys(this._imageHoverTimers).forEach(key => {
+                if (!activeIds.has(String(key))) {
+                    this.clearImageHoverTimer(key);
+                }
+            });
+
+            if (this.imageZoomCardId !== null && !activeIds.has(String(this.imageZoomCardId))) {
+                this.imageZoomCardId = null;
+            }
+
+            if (this.cornerPreviewCardId !== null && !activeIds.has(String(this.cornerPreviewCardId))) {
+                this.cornerPreviewCardId = null;
+            }
+        },
+
         // === 核心数据加载 ===
         fetchCards() {
             const store = Alpine.store('global');
@@ -319,6 +447,7 @@ export default function cardGrid() {
             listCards(params) // 调用 API 模块
                 .then(data => {
                     this.cards = data.cards || [];
+                    this.syncCardUiState();
 
                     // === 更新全局 Store (供 Sidebar 使用) ===
                     store.globalTagsPool = data.global_tags || [];
@@ -793,6 +922,7 @@ export default function cardGrid() {
 
                     const deletedCount = oldLength - this.cards.length;
                     this.totalItems -= deletedCount;
+                    this.syncCardUiState();
                     if (this.filterCategory === '' && !this.searchQuery) {
                         this.$store.global.libraryTotal -= deletedCount;
                     }

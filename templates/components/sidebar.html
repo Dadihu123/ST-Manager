@@ -145,10 +145,11 @@
             <div x-show="tagsSectionExpanded" class="sidebar-content custom-scrollbar" x-transition>
                 <div class="sidebar-tag-cloud">
                     <template x-for="tag in allTagsPool.slice(0, 30)" :key="tag">
-                        <button @click="toggleFilterTag(tag)" class="sidebar-tag-chip" :class="{
+                        <button @click="toggleFilterTag(tag, $event)" class="sidebar-tag-chip" :class="{
                                 'active': filterTags.includes(tag),
                                 'excluded': $store.global.viewState.excludedTags.includes(tag)
-                            }">
+                            }"
+                            :title="filterTags.includes(tag) ? `标签：${tag}（已包含，点击改为排除）` : ($store.global.viewState.excludedTags.includes(tag) ? `标签：${tag}（已排除，点击取消筛选）` : `标签：${tag}（点击加入筛选，Shift+点击可直接排除）`)">
                             <span x-text="tag"></span>
                         </button>
                     </template>

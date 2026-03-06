@@ -384,24 +384,36 @@ export function initState() {
                 .finally(() => { this.isLoading = false; });
         },
         // 全局标签切换逻辑 (三态：包含 -> 排除 -> 无)
-        toggleFilterTag(tag) {
+        // options.forceExclude=true 时可直接进入“排除”状态（用于 Shift+点击）
+        toggleFilterTag(tag, options = {}) {
             const vs = this.viewState;
             let includeTags = [...vs.filterTags];
             let excludeTags = [...vs.excludedTags];
+            const forceExclude = !!(options && options.forceExclude);
 
             const inInclude = includeTags.indexOf(tag);
             const inExclude = excludeTags.indexOf(tag);
 
-            if (inInclude > -1) {
-                // 当前是包含 -> 转为排除
-                includeTags.splice(inInclude, 1);
-                excludeTags.push(tag);
-            } else if (inExclude > -1) {
-                // 当前是排除 -> 转为无
-                excludeTags.splice(inExclude, 1);
+            if (forceExclude) {
+                // Shift+点击：直接进入排除（若已排除则保持不变）
+                if (inInclude > -1) {
+                    includeTags.splice(inInclude, 1);
+                }
+                if (inExclude === -1) {
+                    excludeTags.push(tag);
+                }
             } else {
-                // 当前是无 -> 转为包含
-                includeTags.push(tag);
+                if (inInclude > -1) {
+                    // 当前是包含 -> 转为排除
+                    includeTags.splice(inInclude, 1);
+                    excludeTags.push(tag);
+                } else if (inExclude > -1) {
+                    // 当前是排除 -> 转为无
+                    excludeTags.splice(inExclude, 1);
+                } else {
+                    // 当前是无 -> 转为包含
+                    includeTags.push(tag);
+                }
             }
 
             // 更新状态

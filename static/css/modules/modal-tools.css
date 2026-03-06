@@ -68,6 +68,16 @@
     border-color: var(--text-main)
 }
 
+.tag-chip-excluded {
+    background-color: rgba(220, 38, 38, 0.2);
+    color: #fca5a5;
+    border-color: #ef4444
+}
+
+.tag-chip-excluded .tag-chip-label {
+    text-decoration: line-through
+}
+
 .tag-chip-sortable {
     user-select: none;
     cursor: grab;
@@ -89,18 +99,7 @@
     transform: translateY(-1px);
 }
 
-.sidebar-tag-chip.excluded {
-    background-color: rgba(220, 38, 38, 0.2) !important;
-    color: #fca5a5 !important;
-    border-color: #ef4444 !important;
-    text-decoration: line-through
-}
 
-.tag-chip-excluded {
-    background-color: #dc2626;
-    color: white;
-    border-color: #ef4444
-}
 
 .adv-tab-bar {
     display: flex;

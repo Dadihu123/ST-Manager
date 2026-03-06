@@ -358,8 +358,10 @@ export default function sidebar() {
 
         // === 标签云 ===
 
-        toggleFilterTag(tag) {
-            this.$store.global.toggleFilterTag(tag);
+        toggleFilterTag(tag, event = null) {
+            this.$store.global.toggleFilterTag(tag, {
+                forceExclude: !!(event && event.shiftKey)
+            });
         },
 
         // === 世界书侧边栏逻辑 ===

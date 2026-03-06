@@ -22,12 +22,13 @@
                 <!-- ... (角色卡模板内容保持不变) ... -->
                 <div class="st-card group"
                     :data-card-id="card.id"
-                    :class="{'selected': selectedIds.includes(card.id), 'is-favorite': card.is_favorite, 'card-highlight-anim': highlightId === card.id}"
+                    :class="{'selected': selectedIds.includes(card.id), 'is-favorite': card.is_favorite, 'card-highlight-anim': highlightId === card.id, 'is-flipped': isCardFlipped(card.id), 'is-corner-peel': isCornerPeelPreview(card.id)}"
                     x-effect="if(highlightId === card.id) $el.scrollIntoView({ behavior: 'smooth', block: 'center' })"
-                    @click.stop="handleCardClick($event, card)" draggable="true" @dragstart="dragStart($event, card)">
+                    @click.stop="handleCardClick($event, card)" @mousemove="handleCardMouseMove($event, card.id)"
+                    @mouseleave="handleCardMouseLeave(card.id)" draggable="true" @dragstart="dragStart($event, card)">
 
-                    <button @click.stop="toggleCardFav(card)"
-                        class="absolute z-30 rounded-full flex items-center justify-center transition-all duration-200 shadow-sm backdrop-blur-md border transform scale-90 group-hover:scale-100"
+                    <button @click.stop="toggleCardFav(card)" @mouseenter="handleImageHoverEnd(card.id)"
+                        class="card-fav-btn absolute z-30 rounded-full flex items-center justify-center transition-all duration-200 shadow-sm backdrop-blur-md border transform scale-90 group-hover:scale-100"
                         :class="[
                             card.is_favorite ? 'bg-yellow-400 text-black border-yellow-200 shadow-[0_0_10px_rgba(251,191,36,0.5)]' : 'bg-black/40 border-white/20 text-white/50 hover:bg-black/60 hover:text-white',
                             $store.global.deviceType === 'mobile' ? 'top-1 right-1 w-6 h-6 opacity-100' : 'top-2 right-2 w-8 h-8 opacity-0 group-hover:opacity-100'
@@ -35,7 +36,7 @@
                         <span class="text-lg font-bold" x-text="card.is_favorite ? '★' : '☆'"></span>
                     </button>
                     <!-- 选择勾选框 -->
-                    <div class="absolute z-30 cursor-pointer transition-opacity"
+                    <div class="card-select-indicator absolute z-30 cursor-pointer transition-opacity"
                         :class="[
                             selectedIds.includes(card.id) ? 'opacity-100' : $store.global.deviceType === 'mobile' ? 'opacity-60' : 'opacity-0',
                             $store.global.deviceType === 'mobile' ? 'top-1 left-1' : 'top-2 left-2 opacity-0 group-hover:opacity-100'
@@ -47,60 +48,95 @@
                         </div>
                     </div>
                     <div x-show="card.is_favorite"
-                        class="absolute top-0 left-0 z-20 w-0 h-0 border-t-[32px] border-r-[32px] border-t-yellow-500 border-r-transparent opacity-90 pointer-events-none drop-shadow-md">
+                        class="card-favorite-ribbon absolute top-0 left-0 z-20 w-0 h-0 border-t-[32px] border-r-[32px] border-t-yellow-500 border-r-transparent opacity-90 pointer-events-none drop-shadow-md">
                         <span class="absolute -top-[30px] left-[2px] text-[10px]">★</span>
                     </div>
-                    <div class="card-image-container">
-                        <img :src="card.thumb_url" loading="lazy"
-                            onerror="this.onerror=null; this.src='/static/images/default_card.png';">
-                        <!-- 右上角徽章 -->
-                        <div
-                            style="position: absolute; top: 0.5rem; right: 2.5rem; z-index: 10; display: flex; flex-direction: column; align-items: flex-end; gap: 0.25rem; pointer-events: none;">
-                            <div x-show="card.is_bundle"
-                                style="background: rgba(0,0,0,0.75); color: #fbbf24; border: 1px solid #fbbf24; border-radius: 4px; padding: 2px 6px; font-size: 10px; font-weight: bold;">
-                                📦 v<span x-text="card.versions ? card.versions.length : 0"></span>
+                    <div class="card-flip-inner" :class="{'is-flipped': isCardFlipped(card.id)}">
+                        <div class="card-face card-front">
+                            <div class="card-image-container" @mouseenter="handleImageHoverStart(card.id)"
+                                @mouseleave="handleImageHoverEnd(card.id)" :class="{'is-expanded': isImageZoomed(card.id)}">
+                                <img class="card-image-media" :class="{'is-zoomed': isImageZoomed(card.id)}"
+                                    :src="card.thumb_url" loading="lazy"
+                                    onerror="this.onerror=null; this.src='/static/images/default_card.png';">
+                                <!-- 右上角徽章 -->
+                                <div
+                                    style="position: absolute; top: 0.5rem; right: 2.5rem; z-index: 10; display: flex; flex-direction: column; align-items: flex-end; gap: 0.25rem; pointer-events: none;">
+                                    <div x-show="card.is_bundle"
+                                        style="background: rgba(0,0,0,0.75); color: #fbbf24; border: 1px solid #fbbf24; border-radius: 4px; padding: 2px 6px; font-size: 10px; font-weight: bold;">
+                                        📦 v<span x-text="card.versions ? card.versions.length : 0"></span>
+                                    </div>
+                                    <div x-show="card.char_version && card.char_version.trim() !== ''"
+                                        :title="card.char_version"
+                                        style="background: rgba(15, 23, 42, 0.7); color: #bae6fd; border: 1px solid #38bdf8; border-radius: 4px; padding: 1px 5px; font-size: 10px; backdrop-filter: blur(2px); max-width: 80px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: auto;">
+                                        <span x-text="card.char_version"></span>
+                                    </div>
+                                </div>
+                                <!-- Link 标记 -->
+                                <a x-show="card.source_link" :href="card.source_link" target="_blank" @click.stop title="访问来源页面"
+                                    style="position: absolute; bottom: 2.5rem; right: 0.5rem; z-index: 10; background: rgba(37, 99, 235, 0.9); color: white; width: 1.5rem; height: 1.5rem; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.5);">
+                                    🌐
+                                </a>
+                                <!-- Token 计数 -->
+                                <div x-show="card.token_count > 0"
+                                    :class="getCardGridTokenBadgeClass(card.token_count)"
+                                    style="position: absolute; bottom: 2rem; left: 0.5rem; z-index: 10; border: 1px solid; border-radius: 4px; padding: 1px 6px; font-size: 10px; font-weight: bold; backdrop-filter: blur(2px); pointer-events: none;">
+                                    🪙 <span class="text-neon" x-text="card.token_count"></span> T
+                                </div>
+                                <!-- 卡片名称渐变层 -->
+                                <div class="card-name-overlay"
+                                    style="position: absolute; bottom: 0; left: 0; right: 0; padding: 0.5rem; background: linear-gradient(to top, #000, transparent);">
+                                    <h3 style="font-weight: bold; color: white; font-size: 0.875rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin: 0; text-shadow: 0 1px 2px black;"
+                                        x-text="card.char_name"></h3>
+                                </div>
                             </div>
-                            <div x-show="card.char_version && card.char_version.trim() !== ''"
-                                :title="card.char_version"
-                                style="background: rgba(15, 23, 42, 0.7); color: #bae6fd; border: 1px solid #38bdf8; border-radius: 4px; padding: 1px 5px; font-size: 10px; backdrop-filter: blur(2px); max-width: 80px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: auto;">
-                                <span x-text="card.char_version"></span>
+
+                            <div class="card-info card-front-info" :class="{'is-hidden': isImageZoomed(card.id)}">
+                                <div class="card-tags-wrap">
+                                    <div class="card-tags-row">
+                                        <template x-for="(tag, idx) in card.tags.slice(0, getVisibleTagLimit())" :key="`${card.id}-tag-${idx}-${tag}`">
+                                            <button type="button" class="card-tag card-tag-filter" @click.stop="$store.global.toggleFilterTag(tag, { forceExclude: !!$event.shiftKey })"
+                                                :class="{
+                                                    'is-included': $store.global.viewState.filterTags.includes(tag),
+                                                    'is-excluded': $store.global.viewState.excludedTags.includes(tag)
+                                                }"
+                                                :title="$store.global.viewState.filterTags.includes(tag) ? `标签：${tag}（已包含，点击改为排除）` : ($store.global.viewState.excludedTags.includes(tag) ? `标签：${tag}（已排除，点击取消筛选）` : `标签：${tag}（点击加入筛选，Shift+点击可直接排除）`)">
+                                                <span x-text="tag"></span>
+                                            </button>
+                                        </template>
+                                        <span x-show="card.tags.length === 0" class="card-tag card-tag-empty">无标签</span>
+                                    </div>
+                                    <div x-show="card.tags.length > getVisibleTagLimit()" class="card-tags-more">+<span
+                                            x-text="card.tags.length - getVisibleTagLimit()"></span> 个标签</div>
+                                </div>
                             </div>
                         </div>
-                        <!-- Link 标记 -->
-                        <a x-show="card.source_link" :href="card.source_link" target="_blank" @click.stop title="访问来源页面"
-                            style="position: absolute; bottom: 2.5rem; right: 0.5rem; z-index: 10; background: rgba(37, 99, 235, 0.9); color: white; width: 1.5rem; height: 1.5rem; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.5);">
-                            🌐
-                        </a>
-                        <!-- Token 计数 -->
-                        <div x-show="card.token_count > 0"
-                            :class="getCardGridTokenBadgeClass(card.token_count)"
-                            style="position: absolute; bottom: 2rem; left: 0.5rem; z-index: 10; border: 1px solid; border-radius: 4px; padding: 1px 6px; font-size: 10px; font-weight: bold; backdrop-filter: blur(2px); pointer-events: none;">
-                            🪙 <span class="text-neon" x-text="card.token_count"></span> T
-                        </div>
-                        <!-- 卡片名称渐变层 -->
-                        <div
-                            style="position: absolute; bottom: 0; left: 0; right: 0; padding: 0.5rem; background: linear-gradient(to top, #000, transparent);">
-                            <h3 style="font-weight: bold; color: white; font-size: 0.875rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin: 0; text-shadow: 0 1px 2px black;"
-                                x-text="card.char_name"></h3>
+
+                        <div class="card-face card-back">
+                            <div class="card-back-header">
+                                <p class="card-back-title">文件名</p>
+                                <p class="card-back-filename" :title="card.filename"
+                                    x-text="card.filename || '未知文件名'"></p>
+                            </div>
+                            <div class="card-info card-back-info">
+                                <div class="local-note-preview custom-scrollbar card-back-note" @click.stop
+                                    :class="card.ui_summary ? 'note-text' : 'note-placeholder'" title="本地备注"
+                                    x-text="card.ui_summary || '无本地备注...'"></div>
+                                <div class="card-back-actions">
+                                    <button x-show="card.ui_summary" @click.stop="openMarkdownView(card.ui_summary)"
+                                        title="查看 Markdown 备注" class="btn-note-preview card-back-note-btn">
+                                        查看Markdown
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="card-info">
-                        <div style="display: flex; gap: 0.25rem; overflow: hidden; height: 1.25rem; flex-shrink: 0;">
-                            <template x-for="tag in card.tags.slice(0,3)" :key="tag"><span class="card-tag"
-                                    x-text="tag"></span></template>
-                            <!-- 只有当有备注内容时才显示查看按钮 -->
-                            <button x-show="card.ui_summary" @click.stop="openMarkdownView(card.ui_summary)"
-                                title="查看 Markdown 备注" class="btn-note-preview">
-                                📄
-                            </button>
-                        </div>
-                        <div x-show="$store.global.deviceType !== 'mobile'" class="local-note-preview custom-scrollbar"
-                            :class="card.ui_summary ? 'note-text' : 'note-placeholder'" @click.stop title="本地备注"
-                            x-text="card.ui_summary || '无本地备注...'"></div>
-                        <p x-show="$store.global.deviceType !== 'mobile'" style="font-size: 10px; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin: 0; flex-shrink: 0;"
-                            x-text="card.filename"></p>
-                    </div>
+                    <button type="button" class="card-flip-corner"
+                        :class="[isCardFlipped(card.id) ? 'is-active' : '', isCornerPeelPreview(card.id) ? 'is-peel-preview' : '', $store.global.deviceType === 'mobile' ? 'is-mobile' : '']"
+                        @mouseenter="cornerPreviewCardId = card.id; handleImageHoverEnd(card.id)"
+                        @mouseleave="if (!isCardFlipped(card.id)) cornerPreviewCardId = null"
+                        @click.stop="toggleCardFace(card.id)" :title="isCardFlipped(card.id) ? '翻回正面' : '翻到背面'">
+                    </button>
                 </div>
             </template>
         </div>

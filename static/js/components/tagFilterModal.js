@@ -122,8 +122,10 @@ export default function tagFilterModal() {
             this._syncClosing = false;
         },
 
-        toggleFilterTag(tag) {
-            this.$store.global.toggleFilterTag(tag);
+        toggleFilterTag(tag, event = null) {
+            this.$store.global.toggleFilterTag(tag, {
+                forceExclude: !!(event && event.shiftKey)
+            });
         },
 
         toggleSortMode() {

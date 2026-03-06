@@ -31,13 +31,19 @@
     </div>
 
     <!-- 移动端：第二行 - 筛选标签（递归开关已移到菜单中） -->
-    <div x-show="deviceType === 'mobile' && currentMode === 'cards' && filterTags.length > 0" class="mobile-filter-bar">
+    <div x-show="deviceType === 'mobile' && currentMode === 'cards' && (filterTags.length > 0 || $store.global.viewState.excludedTags.length > 0)" class="mobile-filter-bar">
         <!-- 筛选标签 -->
         <div class="mobile-tags-scroll">
             <template x-for="tag in filterTags" :key="tag">
-                <div class="mobile-filter-chip" @click="toggleFilterTag(tag)">
-                    <span x-text="tag"></span>
-                    <span class="chip-close">×</span>
+                <div class="mobile-filter-chip" title="筛选标签">
+                    <span class="chip-label" x-text="tag"></span>
+                    <button type="button" class="chip-close-btn" @click.stop="removeFilterTag(tag)" title="删除此筛选">×</button>
+                </div>
+            </template>
+            <template x-for="tag in $store.global.viewState.excludedTags" :key="'mob-exc-'+tag">
+                <div class="mobile-filter-chip excluded" title="筛选标签（排除）">
+                    <span class="chip-label" x-text="tag"></span>
+                    <button type="button" class="chip-close-btn" @click.stop="removeFilterTag(tag)" title="删除此筛选">×</button>
                 </div>
             </template>
         </div>
@@ -80,30 +86,26 @@
         <div style="display: flex; gap: 0.5rem; overflow-x: auto; margin-left: 1rem; flex: 1;" class="custom-scrollbar">
             <!-- 排除目录的 Chips -->
             <template x-for="cat in $store.global.viewState.excludedCategories" :key="cat">
-                <div class="filter-chip hover:scale-105 transition-transform" 
+                <div class="filter-chip" 
                      style="background-color: #dc2626; border: 1px solid #ef4444;"
-                     @click="toggleExcludedCategory(cat)"
-                     title="点击取消排除">
-                    <span x-text="'🚫 ' + cat"></span>
-                    <span style="opacity: 0.8; margin-left: 4px;">✕</span>
+                     title="筛选目录（排除）">
+                    <span class="chip-label" x-text="'🚫 ' + cat"></span>
+                    <button type="button" class="chip-close-btn" @click.stop="toggleExcludedCategory(cat)" title="删除此筛选">×</button>
                 </div>
             </template>
             <!-- 包含的标签 (绿色/主题色) -->
             <template x-for="tag in filterTags" :key="'inc-'+tag">
-                <div class="filter-chip hover:scale-105 transition-transform" 
-                     @click="toggleFilterTag(tag)"
-                     title="点击切换为排除">
-                    <span x-text="tag"></span><span style="opacity: 0.8; margin-left:4px;">✓</span>
+                <div class="filter-chip" title="筛选标签">
+                    <span class="chip-label" x-text="tag"></span>
+                    <button type="button" class="chip-close-btn" @click.stop="removeFilterTag(tag)" title="删除此筛选">×</button>
                 </div>
             </template>
 
             <!-- 排除的标签 (红色) -->
             <template x-for="tag in $store.global.viewState.excludedTags" :key="'exc-'+tag">
-                <div class="filter-chip hover:scale-105 transition-transform" 
-                     style="background-color: #dc2626; border: 1px solid #ef4444;"
-                     @click="toggleFilterTag(tag)"
-                     title="点击取消筛选">
-                    <span x-text="tag"></span><span style="opacity: 0.8; margin-left:4px;">✕</span>
+                <div class="filter-chip excluded" title="筛选标签（排除）">
+                    <span class="chip-label" x-text="tag"></span>
+                    <button type="button" class="chip-close-btn" @click.stop="removeFilterTag(tag)" title="删除此筛选">×</button>
                 </div>
             </template>
         </div>

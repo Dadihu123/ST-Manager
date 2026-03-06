@@ -40,7 +40,7 @@
         <div class="tag-cloud-container custom-scrollbar">
             <template x-if="!isSortMode">
                 <template x-for="tag in filteredTagsPool" :key="tag">
-                    <button @click="isDeleteMode ? toggleTagSelectionForDeletion(tag) : toggleFilterTag(tag)"
+                    <button @click="isDeleteMode ? toggleTagSelectionForDeletion(tag) : toggleFilterTag(tag, $event)"
                         class="tag-chip-btn flex items-center" :class="{
                                 'tag-chip-selected': !isDeleteMode && filterTags.includes(tag),
                                 'tag-chip-excluded': !isDeleteMode && $store.global.viewState.excludedTags.includes(tag),
@@ -48,16 +48,12 @@
                                 
                                 'tag-chip-delete-selected': isDeleteMode && selectedTagsForDeletion.includes(tag),
                                 'tag-chip-delete-unselected': isDeleteMode && !selectedTagsForDeletion.includes(tag)
-                            }">
+                            }"
+                        :title="!isDeleteMode ? (filterTags.includes(tag) ? `标签：${tag}（已包含，点击改为排除）` : ($store.global.viewState.excludedTags.includes(tag) ? `标签：${tag}（已排除，点击取消筛选）` : `标签：${tag}（点击加入筛选，Shift+点击可直接排除）`)) : ''">
                         
                         <span x-show="isDeleteMode && selectedTagsForDeletion.includes(tag)" class="mr-1 font-bold">✓</span>
-                        <span x-text="tag" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"></span>
+                        <span class="tag-chip-label" x-text="tag" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"></span>
                         
-                        <!-- 状态图标 -->
-                        <span x-show="!isDeleteMode && filterTags.includes(tag)"
-                            style="margin-left: 0.4rem; font-size: 0.75rem;">✓</span>
-                        <span x-show="!isDeleteMode && $store.global.viewState.excludedTags.includes(tag)"
-                            style="margin-left: 0.4rem; font-size: 0.75rem;">✕</span>
                     </button>
                 </template>
             </template>
@@ -85,9 +81,9 @@
         <div
             style="margin-top: 1rem; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-light); padding-top: 1rem;">
             <div class="flex items-center gap-4">
-                <span class="text-sm" style="color: var(--text-dim);">已选 <span x-text="filterTags.length"
+                <span class="text-sm" style="color: var(--text-dim);">已选 <span x-text="filterTags.length + $store.global.viewState.excludedTags.length"
                         class="text-accent font-bold"></span> 个标签</span>
-                <button @click="deleteFilterTags()" x-show="filterTags.length > 0 && !isDeleteMode && !isSortMode"
+                <button @click="deleteFilterTags()" x-show="(filterTags.length > 0 || $store.global.viewState.excludedTags.length > 0) && !isDeleteMode && !isSortMode"
                     class="text-xs bg-red-600 hover:bg-red-500 px-2 py-1 rounded text-white">
                     从当前视图移除选中标签
                 </button>
@@ -101,7 +97,7 @@
                     class="text-xs bg-red-700 hover:bg-red-600 px-3 py-1 rounded text-white font-bold shadow-md">
                     永久删除选中标签
                 </button>
-                <button @click="filterTags=[]" x-show="!isSortMode"
+                <button @click="filterTags=[]; $store.global.viewState.excludedTags=[]" x-show="!isSortMode"
                     style="color: #f87171; background: none; border: none; cursor: pointer; font-size: 0.875rem;">清除所有选择</button>
             </div>
         </div>

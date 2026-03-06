@@ -264,6 +264,16 @@
     border-color: var(--accent-light) !important
 }
 
+.sidebar-tag-chip.excluded {
+    background-color: rgba(220, 38, 38, 0.2) !important;
+    color: #fca5a5 !important;
+    border-color: #ef4444 !important
+}
+
+.sidebar-tag-chip.excluded span {
+    text-decoration: line-through
+}
+
 .pagination-bar {
     background-color: color-mix(in srgb, var(--bg-panel), transparent 10%);
     backdrop-filter: blur(10px);
@@ -315,10 +325,43 @@
     gap: 0.25rem;
     background: var(--accent-main);
     color: white;
+    border: 1px solid var(--accent-light);
     padding: 0.1rem 0.5rem;
     border-radius: 9999px;
     font-size: 0.75rem;
-    cursor: pointer
+    cursor: default
+}
+
+.filter-chip.excluded {
+    background-color: rgba(220, 38, 38, 0.2);
+    color: #fca5a5;
+    border-color: #ef4444
+}
+
+.filter-chip.excluded .chip-label {
+    text-decoration: line-through
+}
+
+.chip-close-btn {
+    border: none;
+    background: transparent;
+    color: inherit;
+    font-size: 0.9rem;
+    line-height: 1;
+    padding: 0;
+    margin-left: 0.125rem;
+    cursor: pointer;
+    opacity: 0.9
+}
+
+.chip-close-btn:hover {
+    opacity: 1
+}
+
+.chip-close-btn:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--accent-light), #ffffff 20%);
+    outline-offset: 1px;
+    border-radius: 2px
 }
 
 .header-bar:hover {
@@ -764,24 +807,28 @@
         padding: 0.25rem 0.5rem;
         border-radius: 12px;
         background-color: var(--accent-main);
+        border: 1px solid var(--accent-light);
         color: white;
         font-size: 0.75rem;
         white-space: nowrap;
-        cursor: pointer;
+        cursor: default;
         transition: all 0.2s;
         flex-shrink: 0
+    }
+
+    .mobile-filter-chip.excluded {
+        background-color: rgba(220, 38, 38, 0.2);
+        color: #fca5a5;
+        border-color: #ef4444
+    }
+
+    .mobile-filter-chip.excluded .chip-label {
+        text-decoration: line-through
     }
 
     .mobile-filter-chip:active {
         transform: scale(0.95);
         opacity: 0.8
-    }
-
-    .chip-close {
-        font-size: 0.875rem;
-        line-height: 1;
-        opacity: 0.9;
-        margin-left: 0.125rem
     }
 
     .mobile-selection-bar {

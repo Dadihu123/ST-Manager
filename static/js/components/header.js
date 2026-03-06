@@ -385,6 +385,17 @@ export default function header() {
             this.$store.global.toggleFilterTag(tag);
         },
 
+        // 直接移除某个筛选标签（无论包含/排除）
+        removeFilterTag(tag) {
+            const vs = this.$store.global.viewState;
+            const includeTags = (vs.filterTags || []).filter(t => t !== tag);
+            const excludeTags = (vs.excludedTags || []).filter(t => t !== tag);
+
+            vs.filterTags = includeTags;
+            vs.excludedTags = excludeTags;
+            window.dispatchEvent(new CustomEvent('refresh-card-list'));
+        },
+
         // 收藏显示切换
         toggleFavFilter() {
             this.$store.global.toggleFavFilter();
