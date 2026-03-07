@@ -30,10 +30,6 @@ def _get_paths():
             try: os.makedirs(p, exist_ok=True)
             except: pass
 
-    logger.info(
-        f"[PathDebug] extensions roots regex={os.path.abspath(regex_root)} exists={os.path.exists(regex_root)} scripts={os.path.abspath(scripts_root)} exists={os.path.exists(scripts_root)} quick_replies={os.path.abspath(qr_root)} exists={os.path.exists(qr_root)}"
-    )
-             
     return regex_root, scripts_root, qr_root
 
 @bp.route('/api/extensions/list', methods=['GET'])

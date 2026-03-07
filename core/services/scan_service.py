@@ -6,7 +6,7 @@ import json
 import logging
 
 # === 基础设施 ===
-from core.config import CARDS_FOLDER, DEFAULT_DB_PATH, current_config, log_runtime_path_snapshot
+from core.config import CARDS_FOLDER, DEFAULT_DB_PATH, current_config
 from core.context import ctx
 
 # === 业务逻辑引用 ===
@@ -77,7 +77,6 @@ def start_fs_watcher():
 
     observer = Observer()
     watch_path = os.fspath(CARDS_FOLDER)
-    logger.info(f"[PathDebug] watchdog cards watch_path={os.path.abspath(watch_path)} exists={os.path.exists(watch_path)}")
     observer.schedule(Handler(), watch_path, recursive=True)
     observer.daemon = True
     observer.start()
@@ -118,7 +117,6 @@ def _perform_scan_logic():
     """执行具体的数据库同步逻辑"""
     db_path = DEFAULT_DB_PATH
     cards_root = os.path.abspath(os.fspath(CARDS_FOLDER))
-    logger.info(f"[PathDebug] background scan start cards_root={cards_root} exists={os.path.exists(cards_root)} db_path={os.path.abspath(db_path)}")
     
     # 使用上下文管理器手动连接，不使用 Flask g.db，因为这是后台线程
     with sqlite3.connect(db_path, timeout=60) as conn:
@@ -257,10 +255,6 @@ def _perform_scan_logic():
                 cursor.execute("DELETE FROM card_metadata WHERE id = ?", (db_id,))
                 changes_detected = True
 
-        logger.info(
-            f"[PathDebug] background scan summary cards_root={cards_root} scanned_dirs={scanned_dir_count} scanned_card_files={scanned_file_count} db_rows={len(db_files_map)} fs_found={len(fs_found_files)} changes_detected={changes_detected}"
-        )
-
         if changes_detected:
             conn.commit()
             logger.info("Background scan detected changes. Updating cache...")
@@ -269,7 +263,6 @@ def _perform_scan_logic():
 def start_background_scanner():
     """启动后台扫描线程与（可选的）文件系统监听"""
     if not ctx.scan_active:
-        log_runtime_path_snapshot(prefix='start_background_scanner', emit_print=True)
         ctx.scan_active = True
         scanner_thread = threading.Thread(target=background_scanner, daemon=True)
         scanner_thread.start()

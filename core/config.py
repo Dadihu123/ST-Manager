@@ -1,10 +1,6 @@
 import sys
 import os
 import json
-import logging
-
-
-logger = logging.getLogger(__name__)
 
 # --- 智能判断根目录 (兼容 PyInstaller) ---
 if getattr(sys, 'frozen', False):
@@ -188,81 +184,6 @@ def _resolve_dir(cfg: dict, key: str, default: str) -> str:
     if os.path.isabs(raw):
         return raw
     return os.path.join(BASE_DIR, raw)
-
-
-def get_runtime_path_snapshot(cfg=None) -> dict:
-    cfg = cfg or load_config()
-
-    def _resolve_raw(raw_value: str) -> str:
-        raw_value = str(raw_value or '').strip()
-        if not raw_value:
-            return ''
-        if os.path.isabs(raw_value):
-            return os.path.abspath(raw_value)
-        return os.path.abspath(os.path.join(BASE_DIR, raw_value))
-
-    path_items = {
-        'cards_dir': cfg.get('cards_dir', 'data/library/characters'),
-        'world_info_dir': cfg.get('world_info_dir', 'data/library/lorebooks'),
-        'chats_dir': cfg.get('chats_dir', 'data/library/chats'),
-        'presets_dir': cfg.get('presets_dir', 'data/library/presets'),
-        'regex_dir': cfg.get('regex_dir', 'data/library/extensions/regex'),
-        'scripts_dir': cfg.get('scripts_dir', 'data/library/extensions/tavern_helper'),
-        'quick_replies_dir': cfg.get('quick_replies_dir', 'data/library/extensions/quick-replies'),
-        'resources_dir': cfg.get('resources_dir', 'data/assets/card_assets'),
-        'st_data_dir': cfg.get('st_data_dir', ''),
-    }
-
-    snapshot = {
-        'cwd': os.path.abspath(os.getcwd()),
-        'base_dir': os.path.abspath(BASE_DIR),
-        'internal_dir': os.path.abspath(INTERNAL_DIR),
-        'config_file': os.path.abspath(CONFIG_FILE),
-        'data_dir': os.path.abspath(DATA_DIR),
-    }
-
-    for key, raw_value in path_items.items():
-        resolved = _resolve_raw(raw_value)
-        snapshot[f'{key}_raw'] = raw_value
-        snapshot[key] = resolved
-        snapshot[f'{key}_exists'] = bool(resolved) and os.path.exists(resolved)
-
-    return snapshot
-
-
-def log_runtime_path_snapshot(prefix: str = 'runtime', emit_print: bool = False) -> dict:
-    snapshot = get_runtime_path_snapshot()
-    lines = [
-        f'[PathDebug] {prefix}',
-        f'[PathDebug] cwd={snapshot["cwd"]}',
-        f'[PathDebug] base_dir={snapshot["base_dir"]}',
-        f'[PathDebug] internal_dir={snapshot["internal_dir"]}',
-        f'[PathDebug] config_file={snapshot["config_file"]} exists={os.path.exists(snapshot["config_file"])}',
-        f'[PathDebug] data_dir={snapshot["data_dir"]} exists={os.path.exists(snapshot["data_dir"])}',
-    ]
-
-    for key in [
-        'cards_dir',
-        'world_info_dir',
-        'chats_dir',
-        'presets_dir',
-        'regex_dir',
-        'scripts_dir',
-        'quick_replies_dir',
-        'resources_dir',
-        'st_data_dir',
-    ]:
-        lines.append(
-            f'[PathDebug] {key}: raw={snapshot[f"{key}_raw"]!r} resolved={snapshot[key]!r} exists={snapshot[f"{key}_exists"]}'
-        )
-
-    for line in lines:
-        logger.info(line)
-        if emit_print:
-            print(line)
-
-    return snapshot
-
 def get_cards_folder() -> str:
     cfg = load_config()
     return _ensure_dir(_resolve_dir(cfg, 'cards_dir', 'data/library/characters'))

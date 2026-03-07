@@ -179,10 +179,6 @@ def api_list_world_infos():
         cfg = load_config()
         current_wi_folder = _resolve_wi_dir(cfg)
         resources_root = _resolve_resources_dir(cfg)
-        logger.info(
-            f"[PathDebug] world_info list root={os.path.abspath(current_wi_folder)} exists={os.path.exists(current_wi_folder)} resources_root={os.path.abspath(resources_root)} resources_exists={os.path.exists(resources_root)} wi_type={wi_type} search={search!r}"
-        )
-            
         if not os.path.exists(current_wi_folder):
             try: os.makedirs(current_wi_folder, exist_ok=True)
             except: pass
@@ -376,8 +372,6 @@ def api_list_world_infos():
                         except Exception as e: 
                             print(f"Error reading WI {f}: {e}")
                             continue
-            logger.info(f"[PathDebug] world_info global scan root={os.path.abspath(current_wi_folder)} items_added={len(items) - global_count_before}")
-
         # 2. 资源目录 (Resource) - 基于 ui_data 查找自定义路径
         if wi_type in ['all', 'resource']:
             # 建立 card_id -> resource_path 的映射
@@ -426,10 +420,6 @@ def api_list_world_infos():
                                         "mtime": os.path.getmtime(full_path)
                                     })
                             except: continue
-            logger.info(
-                f"[PathDebug] world_info resource scan resources_root={os.path.abspath(default_res_dir)} target_dirs={len(resource_targets)} scanned_dirs={len(scanned_paths)} items_added={len(items) - resource_count_before}"
-            )
-
         # 3. 角色卡内嵌 (Embedded) - 查询数据库
         if wi_type in ['all', 'embedded']:
             conn = get_db()

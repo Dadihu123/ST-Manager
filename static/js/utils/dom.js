@@ -26,6 +26,16 @@ export function insertAtCursor(textarea, myValue) {
     }
 }
 
+
+function escapeHtml(text) {
+    return String(text || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 export function renderMarkdown(text) {
     if (!text) return '<span class="text-gray-500 italic">空内容</span>';
     let safeText = String(text);
@@ -41,14 +51,83 @@ export function renderMarkdown(text) {
     return safeText;
 }
 
+export function updateInlineRenderContent(el, content, options = {}) {
+    if (!el) return;
+
+    const rawContent = String(content || '');
+    const trimmed = rawContent.trim();
+    const mode = options.mode || 'markdown';
+    const isolated = Boolean(options.isolated);
+    const emptyHtml = options.emptyHtml || '<span class="text-gray-500 italic">空内容</span>';
+
+    if (!trimmed) {
+        if (el.shadowRoot) {
+            el.shadowRoot.innerHTML = `<div>${emptyHtml}</div>`;
+        } else {
+            el.innerHTML = emptyHtml;
+        }
+        return;
+    }
+
+    if (mode === 'html-component') {
+        if (!el.shadowRoot) {
+            el.attachShadow({ mode: 'open' });
+        }
+        updateShadowContent(el, rawContent, options);
+        return;
+    }
+
+    const rendered = mode === 'markdown'
+        ? renderMarkdown(rawContent)
+        : `<div>${escapeHtml(rawContent).replace(/\n/g, '<br>')}</div>`;
+
+    if (isolated && !el.shadowRoot) {
+        el.attachShadow({ mode: 'open' });
+    }
+
+    if (el.shadowRoot) {
+        el.shadowRoot.innerHTML = `
+            <style>
+                :host {
+                    display: block;
+                    color: inherit;
+                }
+                .inline-render {
+                    display: block;
+                    color: inherit;
+                    min-width: 0;
+                    overflow-wrap: anywhere;
+                    word-break: break-word;
+                }
+                .inline-render img {
+                    max-width: 100%;
+                    height: auto;
+                }
+                .inline-render pre {
+                    white-space: pre-wrap;
+                    word-break: break-word;
+                }
+            </style>
+            <div class="inline-render markdown-body">${rendered}</div>
+        `;
+        return;
+    }
+
+    el.innerHTML = rendered;
+}
+
 // === [核心修复] 智能渲染内容 ===
-export function updateShadowContent(el, content) {
+export function updateShadowContent(el, content, options = {}) {
     // 确保 Shadow Root 存在
     if (!el.shadowRoot) {
         el.attachShadow({ mode: 'open' });
     }
 
     const shadow = el.shadowRoot;
+    const minHeight = Number.parseInt(options.minHeight, 10);
+    const hostMinHeight = Number.isFinite(minHeight) ? `${Math.max(160, minHeight)}px` : '240px';
+    const maxHeight = Number.parseInt(options.maxHeight, 10);
+    const hostMaxHeight = Number.isFinite(maxHeight) ? `${Math.max(220, maxHeight)}px` : '560px';
 
     // 修复问题1：如果内容为空或为null（即关闭预览时），清空并返回
     if (content === null || content === undefined) {
@@ -128,15 +207,16 @@ export function updateShadowContent(el, content) {
                 :host {
                     display: block !important;
                     width: 100% !important;
-                    height: 100% !important;
-                    overflow: hidden !important; 
+                    min-height: ${hostMinHeight} !important;
+                    max-height: ${hostMaxHeight} !important;
+                    overflow: hidden !important;
                     background-color: var(--bg-body, #000);
                     border-radius: 6px;
                     position: relative;
                 }
                 iframe {
                     width: 100%;
-                    height: 100%;
+                    height: ${hostMaxHeight};
                     border: none;
                     display: block;
                     background-color: transparent; /* 让 iframe 透明以透出背景 */
@@ -246,9 +326,10 @@ export function updateShadowContent(el, content) {
                 <style>
                     :host {
                         display: block;
-                        height: 100%;
+                        min-height: ${hostMinHeight};
+                        max-height: ${hostMaxHeight};
                         width: 100%;
-                        overflow: hidden; 
+                        overflow: hidden;
                         background-color: transparent;
                         color: var(--text-main, #e5e7eb);
                         font-family: ui-sans-serif, system-ui, sans-serif;
@@ -256,7 +337,8 @@ export function updateShadowContent(el, content) {
                         line-height: 1.6;
                     }
                     .scroll-wrapper {
-                        height: 100%;
+                        min-height: ${hostMinHeight};
+                        max-height: ${hostMaxHeight};
                         width: 100%;
                         overflow-y: auto;
                         padding: 1rem;

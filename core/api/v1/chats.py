@@ -405,7 +405,6 @@ def _search_match(query: str, chat_item: dict) -> bool:
 def _iter_chat_files():
     root = _get_chats_root()
     if not os.path.exists(root):
-        logger.info(f"[PathDebug] chats root missing root={root}")
         return []
 
     items = []
@@ -418,7 +417,6 @@ def _iter_chat_files():
             if not _is_under_base(full_path, root):
                 continue
             items.append(full_path)
-    logger.info(f"[PathDebug] chats scan root={root} found_jsonl={len(items)}")
     return items
 
 

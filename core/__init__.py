@@ -7,7 +7,7 @@ import mimetypes
 from flask import Flask
 
 # === 基础设施 ===
-from core.config import INTERNAL_DIR, BASE_DIR, TEMP_DIR, log_runtime_path_snapshot
+from core.config import INTERNAL_DIR, BASE_DIR, TEMP_DIR
 from core.context import ctx
 from core.auth import init_auth
 
@@ -93,7 +93,6 @@ def init_services():
     """
     print("正在启动后台服务...")
     ctx.set_status(status="initializing", message="正在初始化数据库...")
-    log_runtime_path_snapshot(prefix='init_services startup', emit_print=True)
     
     # 0. 清理残留临时文件
     cleanup_temp_files()
@@ -119,7 +118,6 @@ def init_services():
         # 4. 启动文件系统扫描器
         # 负责监听文件变动并同步到数据库
         start_background_scanner()
-        log_runtime_path_snapshot(prefix='init_services after scanner start', emit_print=True)
         
         # 初始化完成
         ctx.set_status(status="ready", message="服务已就绪")

@@ -487,10 +487,6 @@ def api_list_cards():
     if not ctx.cache.initialized:
         ctx.cache.reload_from_db()
 
-    logger.info(
-        f"[PathDebug] cards list cache_size={len(ctx.cache.cards)} cards_root={os.path.abspath(os.fspath(CARDS_FOLDER))} exists={os.path.exists(os.fspath(CARDS_FOLDER))}"
-    )
-
     # 参数获取
     try:
         page = int(request.args.get('page', 1))

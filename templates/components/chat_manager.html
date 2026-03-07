@@ -3,6 +3,8 @@
     {% include "components/grid_chats.html" %}
 
     <template x-teleport="body">
-        {% include "modals/detail_chat_reader.html" %}
+        <div class="chat-reader-teleport-root">
+            {% include "modals/detail_chat_reader.html" %}
+        </div>
     </template>
 </div>

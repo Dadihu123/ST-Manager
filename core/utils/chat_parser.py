@@ -16,6 +16,14 @@ CHOICE_PATTERN = r'<choice>([\s\S]*?)</choice>'
 TIMEBAR_PATTERN = r'```([^`·]+·[^`]+)```'
 
 
+def _looks_like_chat_metadata(payload):
+    if not isinstance(payload, dict):
+        return False
+    if 'chat_metadata' in payload:
+        return True
+    return 'mes' not in payload and 'is_user' not in payload and 'name' not in payload
+
+
 def _compile(pattern, flags=0):
     try:
         return re.compile(pattern, flags)
@@ -212,7 +220,7 @@ def read_chat_jsonl(file_path):
                 logger.warning(f'聊天记录解析失败 {file_path}:{line_number}: {e}')
                 continue
 
-            if isinstance(payload, dict) and payload.get('chat_metadata') and metadata is None:
+            if metadata is None and _looks_like_chat_metadata(payload):
                 metadata = payload
                 continue
 
@@ -231,7 +239,7 @@ def write_chat_jsonl(file_path, metadata, raw_messages):
 
     try:
         with open(temp_path, 'w', encoding='utf-8', newline='\n') as f:
-            if isinstance(metadata, dict):
+            if isinstance(metadata, dict) and metadata:
                 f.write(json.dumps(metadata, ensure_ascii=False, separators=(',', ':')))
                 f.write('\n')
 

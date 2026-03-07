@@ -43,8 +43,6 @@ def _get_presets_path():
     cfg = load_config()
     raw_presets = cfg.get('presets_dir', 'data/library/presets')
     presets_root = raw_presets if os.path.isabs(raw_presets) else os.path.join(BASE_DIR, raw_presets)
-    logger.info(f"[PathDebug] presets root raw={raw_presets!r} resolved={os.path.abspath(presets_root)} exists={os.path.exists(presets_root)}")
-    
     # 确保目录存在
     if not os.path.exists(presets_root):
         try:
