@@ -113,20 +113,6 @@
                         </button>
                     </div>
 
-                    <!-- 移动端：Token 和时间悬浮显示（在图片区域底部） -->
-                    <div x-show="$store.global.deviceType === 'mobile' && !isCardFlipped"
-                        class="detail-mobile-token-overlay">
-                        <div class="detail-mobile-token-item">
-                            <span class="detail-mobile-token-value text-neon"
-                                :class="getDetailMobileTokenClass(totalTokenCount)"
-                                x-text="'🪙' + totalTokenCount"></span>
-                        </div>
-                        <div class="detail-mobile-token-item">
-                            <span class="detail-mobile-token-value text-xs font-mono"
-                                x-text="formatDate(activeCard.last_modified)"></span>
-                        </div>
-                    </div>
-
                     <!-- 缩放条（底部悬浮） -->
                     <div x-show="!isCardFlipped" class="detail-zoombar">
                         <button @click.stop="modifyZoom(-20)" class="detail-zoom-btn">−</button>
@@ -399,6 +385,20 @@
                                         class="detail-open-link" title="打开链接">↗</a>
                                 </div>
                             </div>
+
+                            <div x-show="$store.global.deviceType === 'mobile'" class="detail-mobile-info-meta">
+                                <div class="detail-mobile-info-meta-item" title="预估 Token（含世界书）">
+                                    <span class="detail-mobile-info-meta-label">Tokens</span>
+                                    <span class="detail-mobile-info-meta-value text-neon"
+                                        :class="getTopbarTokenLevelClass(totalTokenCount)"
+                                        x-text="totalTokenCount"></span>
+                                </div>
+                                <div class="detail-mobile-info-meta-item" title="最后修改时间">
+                                    <span class="detail-mobile-info-meta-label">Last Modified</span>
+                                    <span class="detail-mobile-info-meta-value font-mono"
+                                        x-text="formatDate(activeCard.last_modified)"></span>
+                                </div>
+                            </div>
                         </div>
                     </section>
 
@@ -654,7 +654,8 @@
                     </section>
 
                     <!-- TAB: 标签 -->
-                    <section x-show="tab==='tags'" x-transition.opacity class="detail-section detail-section-fill">
+                    <section x-show="tab==='tags'" x-transition.opacity
+                        class="detail-section detail-section-fill detail-section-tags">
                         <div class="detail-tab-scroll custom-scrollbar">
                             <div class="detail-card detail-tags-card">
                                 <div class="detail-card-head detail-card-head-row">
@@ -783,6 +784,7 @@
                                     </div>
                                 </div>
                             </div>
+
                         </div>
                     </section>
 

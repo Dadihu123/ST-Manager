@@ -244,6 +244,58 @@ html.light-mode .detail-thumb-label {
     flex-wrap: wrap
 }
 
+.detail-mobile-info-meta {
+    margin-top: 0.75rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem
+}
+
+.detail-mobile-info-meta-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    min-width: 180px;
+    flex: 1 1 180px;
+    border: 1px solid var(--border-light);
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--bg-sub), transparent 8%);
+    padding: 0.5rem 0.625rem
+}
+
+.detail-mobile-info-meta-label {
+    font-size: 0.6875rem;
+    line-height: 1;
+    text-transform: uppercase;
+    font-weight: 800;
+    color: var(--text-dim)
+}
+
+.detail-mobile-info-meta-value {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.875rem;
+    font-weight: 800;
+    color: var(--text-main)
+}
+
+.detail-mobile-info-meta-value.ok {
+    color: #22c55e
+}
+
+.detail-mobile-info-meta-value.warn {
+    color: #f59e0b
+}
+
+.detail-mobile-info-meta-value.danger {
+    color: #fdba74
+}
+
+.detail-mobile-info-meta-value.extreme {
+    color: #ef4444;
+    text-shadow: 0 0 10px rgba(239, 68, 68, 0.45)
+}
+
 .detail-link-icon {
     opacity: 0.7;
     flex-shrink: 0
@@ -790,6 +842,38 @@ html.light-mode .detail-thumb-label {
     flex-direction: row;
     flex-wrap: wrap;
     align-content: flex-start
+}
+
+.detail-section.detail-section-tags {
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden
+}
+
+.detail-section.detail-section-tags .detail-tab-scroll {
+    flex: 0 0 auto;
+    min-height: auto;
+    overflow: visible
+}
+
+.detail-section.detail-section-fill.detail-section-tags .detail-tab-scroll>.detail-card {
+    flex: 0 0 auto
+}
+
+.detail-section.detail-section-tags .detail-tags-card {
+    overflow: visible
+}
+
+.detail-section.detail-section-tags .detail-tag-library {
+    flex: 0 0 auto;
+    min-height: auto
+}
+
+.detail-section.detail-section-tags .detail-tag-library-cloud {
+    flex: 0 0 auto;
+    min-height: 0;
+    max-height: none;
+    overflow: visible
 }
 
 .detail-tag-mode-wrap {
@@ -1998,33 +2082,6 @@ html.light-mode .note-textarea:focus {
 
     .detail-close-mobile {
         order: 3
-    }
-
-    .detail-mobile-token-overlay {
-        position: absolute;
-        top: 10px;
-        left: 10px;
-        z-index: var(--z-card-selected);
-        padding: 0.1rem 0.25rem;
-        background: rgba(0, 0, 0, 0.205);
-        border: 1px solid rgba(255, 255, 255, 0.308);
-        border-radius: 6px;
-        backdrop-filter: blur(4px);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-        pointer-events: none
-    }
-
-    .detail-mobile-token-item {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 0.25rem
-    }
-
-    .detail-mobile-token-value {
-        font-size: 0.875rem;
-        font-weight: bold;
-        color: #fff
     }
 
     .detail-metadata-header {

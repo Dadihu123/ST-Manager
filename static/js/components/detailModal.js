@@ -40,7 +40,6 @@ import {
     getVersionName,
     estimateTokens,
     formatWiKeys,
-    getDetailMobileTokenClass,
     getTopbarTokenLevelClass
 } from '../utils/format.js';
 import { updateShadowContent } from '../utils/dom.js';
@@ -122,7 +121,6 @@ export default function detailModal() {
         estimateTokens,
         updateShadowContent,
         formatWiKeys,
-        getDetailMobileTokenClass,
         getTopbarTokenLevelClass,
         updateWiKeys,
         ...wiHelpers,
