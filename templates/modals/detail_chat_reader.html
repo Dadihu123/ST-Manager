@@ -21,6 +21,10 @@
                 <div class="chat-reader-header-tools">
                     <button class="chat-reader-toggle" :class="readerShowLeftPanel ? 'is-active' : ''" @click="toggleReaderPanel('left')">工具</button>
                     <button class="chat-reader-toggle" :class="readerShowRightPanel ? 'is-active' : ''" @click="toggleReaderPanel('right')">检索</button>
+                    <button class="chat-reader-toggle" :class="readerAppMode ? 'is-active' : ''"
+                        @click="readerAppMode ? deactivateChatAppStage() : activateChatAppStage()">
+                        整页实例
+                    </button>
                     <button class="chat-reader-toggle" x-show="$store.global.deviceType === 'mobile'" @click="hideReaderPanels()">阅读</button>
                 </div>
                 <div class="chat-reader-header-stats" x-show="activeChat">
@@ -122,6 +126,10 @@
                         <button class="chat-toolbar-btn" @click="readerViewSettingsOpen = true">显示策略</button>
                     </div>
                     <div class="chat-reader-replace-status" x-text="readerVisibleSummary"></div>
+                    <div class="chat-reader-replace-status" x-show="readerAppMode" x-text="activeAppMessage ? ('当前实例楼层 #' + activeAppMessage.floor) : '未检测到实例楼层'"></div>
+                    <div class="chat-reader-replace-status" x-text="readerAppDebug.status"></div>
+                    <div class="chat-reader-replace-status" x-show="readerAppDebug.matchedFloors && readerAppDebug.matchedFloors.length > 0"
+                        x-text="'命中楼层: ' + readerAppDebug.matchedFloors.join(', ')"></div>
                 </div>
 
                 <div class="chat-reader-panel" x-show="activeChat">
@@ -146,7 +154,20 @@
             <main class="chat-reader-center custom-scrollbar" @scroll.passive="handleReaderScroll()">
                 <div x-show="detailLoading" class="chat-reader-loading">正在读取聊天内容...</div>
 
-                <template x-if="activeChat && !detailLoading">
+                <template x-if="readerAppMode && activeAppMessage && !detailLoading">
+                    <div class="chat-reader-app-stage">
+                        <div class="chat-reader-app-stage-head">
+                            <div>
+                                <div class="chat-grid-kicker">App Stage</div>
+                                <div class="chat-reader-panel-title">整页实例渲染</div>
+                            </div>
+                            <div class="chat-reader-replace-status" x-text="'来源楼层 #' + activeAppMessage.floor"></div>
+                        </div>
+                        <div x-ref="chatAppStageHost" class="chat-reader-app-stage-host"></div>
+                    </div>
+                </template>
+
+                <template x-if="activeChat && !detailLoading && !readerAppMode">
                     <div class="chat-message-list">
                         <template x-for="message in visibleDetailMessages" :key="message.floor">
                             <article class="chat-message-card" :class="[messageBadgeClass(message), message.is_full_display ? '' : 'is-compact']" :data-chat-floor="message.floor">

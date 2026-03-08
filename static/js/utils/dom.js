@@ -3,6 +3,20 @@
  * DOM 操作与渲染工具 (修复版)
  */
 
+import { clearIsolatedHtml, renderIsolatedHtml } from '../runtime/renderRuntime.js';
+
+const htmlComponentRenderCache = new WeakMap();
+
+function buildHtmlComponentSignature(content, options = {}) {
+    return JSON.stringify({
+        content: String(content || ''),
+        minHeight: Number.parseInt(options.minHeight, 10) || 0,
+        maxHeight: Number.parseInt(options.maxHeight, 10) || 0,
+        mode: String(options.mode || 'html-component'),
+        assetBase: String(options.assetBase || ''),
+    });
+}
+
 export function updateCssVariable(name, value) {
     document.documentElement.style.setProperty(name, value);
 }
@@ -61,6 +75,8 @@ export function updateInlineRenderContent(el, content, options = {}) {
     const emptyHtml = options.emptyHtml || '<span class="text-gray-500 italic">空内容</span>';
 
     if (!trimmed) {
+        htmlComponentRenderCache.delete(el);
+        clearIsolatedHtml(el);
         if (el.shadowRoot) {
             el.shadowRoot.innerHTML = `<div>${emptyHtml}</div>`;
         } else {
@@ -70,12 +86,20 @@ export function updateInlineRenderContent(el, content, options = {}) {
     }
 
     if (mode === 'html-component') {
+        const signature = buildHtmlComponentSignature(rawContent, options);
+        if (htmlComponentRenderCache.get(el) === signature) {
+            return;
+        }
+        htmlComponentRenderCache.set(el, signature);
         if (!el.shadowRoot) {
             el.attachShadow({ mode: 'open' });
         }
         updateShadowContent(el, rawContent, options);
         return;
     }
+
+    htmlComponentRenderCache.delete(el);
+    clearIsolatedHtml(el);
 
     const rendered = mode === 'markdown'
         ? renderMarkdown(rawContent)
@@ -131,6 +155,8 @@ export function updateShadowContent(el, content, options = {}) {
 
     // 修复问题1：如果内容为空或为null（即关闭预览时），清空并返回
     if (content === null || content === undefined) {
+        htmlComponentRenderCache.delete(el);
+        clearIsolatedHtml(el);
         shadow.innerHTML = '';
         return;
     }
@@ -143,7 +169,7 @@ export function updateShadowContent(el, content, options = {}) {
     // ============================================================
     // 如果内容显然是一个 HTML 组件代码块（以 < 开头，且包含特定标签），
     // 强制绕过 Markdown 解析，防止 parser 将缩进的 <style> 识别为代码块。
-    const htmlFragmentRegex = /^\s*<(?:div|style|details|link|table|script|iframe)/i;
+    const htmlFragmentRegex = /^\s*<(?:div|style|details|section|article|main|link|table|script|iframe|svg|html|body|head|canvas)/i;
     let forceHtmlMode = false;
 
     // 如果是以 < 开头，并且不是 Markdown 的引用块 (>) 或 HTML 实体 (&)
@@ -199,127 +225,31 @@ export function updateShadowContent(el, content, options = {}) {
     // ============================================================
 
     const hasPayload = !!htmlPayload;
-    shadow.innerHTML = '';
-
-    // --- 2.1 注入宿主样式 ---
-    const hostStyle = document.createElement('style');
-    hostStyle.textContent = `
-                :host {
-                    display: block !important;
-                    width: 100% !important;
-                    min-height: ${hostMinHeight} !important;
-                    max-height: ${hostMaxHeight} !important;
-                    overflow: hidden !important;
-                    background-color: var(--bg-body, #000);
-                    border-radius: 6px;
-                    position: relative;
-                }
-                iframe {
-                    width: 100%;
-                    height: ${hostMaxHeight};
-                    border: none;
-                    display: block;
-                    background-color: transparent; /* 让 iframe 透明以透出背景 */
-                }
-            `;
-    shadow.appendChild(hostStyle);
 
     if (hasPayload) {
         // --- 2.2 准备 Markdown 内容 ---
         let renderedMd = "";
         if (markdownCommentary) {
-            if (typeof marked !== 'undefined') {
+            const looksLikeTrustedHtml = /^\s*<(?:[a-z][\w:-]*|!doctype|!--)/i.test(markdownCommentary);
+            if (looksLikeTrustedHtml) {
+                renderedMd = markdownCommentary;
+            } else if (typeof marked !== 'undefined') {
                 renderedMd = marked.parse(markdownCommentary, { breaks: true });
             } else {
                 renderedMd = `<p>${markdownCommentary.replace(/\n/g, "<br>")}</p>`;
             }
         }
-
-        // --- 2.3 构造注入 CSS (核心修复点：解决布局问题) ---
-        const injectionStyle = `
-                    <style>
-                        /* 强制重置 HTML/Body，覆盖用户卡片的 min-height: 100vh 或 overflow: hidden */
-                        html, body {
-                            height: auto !important;
-                            min-height: 100% !important;
-                            overflow-y: auto !important;
-                            overflow-x: hidden !important;
-                            margin: 0 !important;
-                            padding: 0 !important;
-                            width: 100% !important;
-                            /* 适配你的代码背景色，防止白底 */
-                            background-color: transparent !important;
-                            color: #e5e7eb;
-                            font-family: ui-sans-serif, system-ui, sans-serif;
-                        }
-
-                        body {
-                            display: flex !important;
-                            flex-direction: column !important;
-                            /*align-items: center !important;*/
-                            justify-content: flex-start !important;
-                            position: relative !important;
-                            padding-bottom: 20px !important;
-                        }
-
-                        /* Markdown 容器样式 */
-                        #st-manager-note-container {
-                            display: block !important;
-                            width: 100% !important; 
-                            box-sizing: border-box !important;
-                            padding: 16px 24px !important;
-                            flex-shrink: 0 !important;
-                            background: #1e293b; 
-                            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-                            color: #e2e8f0;
-                            font-size: 14px;
-                            line-height: 1.6;
-                            z-index: 99999;
-                            text-align: left;
-                            white-space: pre-wrap !important; 
-                        }
-                        
-                        /* 滚动条美化 (适配你的代码风格) */
-                        ::-webkit-scrollbar { width: 8px; height: 8px; }
-                        ::-webkit-scrollbar-track { background: transparent; }
-                        ::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 4px; }
-                        ::-webkit-scrollbar-thumb:hover { background: #6b7280; }
-                    </style>
-                `;
-
-        // --- 2.4 注入逻辑 ---
-        let finalHtml = htmlPayload;
-
-        // 如果有 Markdown 备注，将其包裹在一个 DIV 中插入
-        const noteBlock = renderedMd
-            ? `<div id="st-manager-note-container">${renderedMd}</div>`
-            : "";
-
-        const codeToInject = injectionStyle + noteBlock;
-
-        // 尝试插入到 body 最前面，如果没有 body 则包裹之
-        if (finalHtml.includes('<body')) {
-            finalHtml = finalHtml.replace(/(<body[^>]*>)/i, `$1\n${codeToInject}`);
-        } else if (finalHtml.includes('<html')) {
-            finalHtml = finalHtml.replace('<html', `<html\n${codeToInject}`);
-        } else {
-            // 片段模式：直接拼接
-            finalHtml = codeToInject + finalHtml;
-        }
-
-        // --- 2.5 Iframe 创建 ---
-        const iframe = document.createElement('iframe');
-        const blob = new Blob([finalHtml], { type: 'text/html' });
-        const blobUrl = URL.createObjectURL(blob);
-        iframe.src = blobUrl;
-
-        iframe.onload = () => {
-            URL.revokeObjectURL(blobUrl);
-        };
-
-        shadow.appendChild(iframe);
+        renderIsolatedHtml(el, {
+            htmlPayload,
+            noteHtml: renderedMd,
+            minHeight: Number.parseInt(options.minHeight, 10),
+            maxHeight: Number.parseInt(options.maxHeight, 10),
+            assetBase: options.assetBase || '',
+        });
         return;
     }
+
+    clearIsolatedHtml(el);
 
     // 3. 纯文本 Markdown 模式 (保持上下滚动)
     const style = `
@@ -353,8 +283,12 @@ export function updateShadowContent(el, content, options = {}) {
                 </style>
             `;
 
+    const looksLikeTrustedHtml = /^\s*<(?:[a-z][\w:-]*|!doctype|!--)/i.test(rawContent);
+
     let renderedHtml = rawContent;
-    if (typeof marked !== 'undefined') {
+    if (looksLikeTrustedHtml) {
+        renderedHtml = rawContent;
+    } else if (typeof marked !== 'undefined') {
         renderedHtml = marked.parse(rawContent || "", { breaks: true });
     } else {
         renderedHtml = (rawContent || "").replace(/\n/g, "<br>");

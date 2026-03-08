@@ -233,6 +233,10 @@ export default function header() {
             this.$store.global.showSettingsModal = true;
         },
 
+        openRuntimeInspector() {
+            window.dispatchEvent(new CustomEvent('open-runtime-inspector'));
+        },
+
         openBatchTagModal() {
             if (this.selectedIds.length === 0) return;
 

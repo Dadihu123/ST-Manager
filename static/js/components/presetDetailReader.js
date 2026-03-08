@@ -2,6 +2,8 @@
  * static/js/components/presetDetailReader.js
  * 预设详情阅读器组件 - 独立的弹窗组件
  */
+import { clearActiveRuntimeContext, setActiveRuntimeContext } from '../runtime/runtimeContext.js';
+
 export default function presetDetailReader() {
     return {
         // 弹窗状态
@@ -32,6 +34,14 @@ export default function presetDetailReader() {
                 if (res.success) {
                     this.activePresetDetail = res.preset;
                     this.sidebarTab = 'samplers';
+                    setActiveRuntimeContext({
+                        preset: {
+                            id: res.preset?.id || item.id || '',
+                            name: res.preset?.name || '',
+                            type: res.preset?.type || '',
+                            path: res.preset?.path || '',
+                        },
+                    });
                 } else {
                     this.$store.global.showToast(res.msg || '获取详情失败', 'error');
                     this.closeModal();
@@ -48,6 +58,7 @@ export default function presetDetailReader() {
         closeModal() {
             this.showModal = false;
             this.activePresetDetail = null;
+            clearActiveRuntimeContext('preset');
         },
         
         editRaw() {

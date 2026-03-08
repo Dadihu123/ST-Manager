@@ -45,6 +45,7 @@ import {
 import { updateShadowContent } from '../utils/dom.js';
 import { createAutoSaver } from '../utils/autoSave.js'; 
 import { wiHelpers } from '../utils/wiHelpers.js';
+import { clearActiveRuntimeContext, setActiveRuntimeContext } from '../runtime/runtimeContext.js';
 
 export default function detailModal() {
     const autoSaver = createAutoSaver();
@@ -468,6 +469,7 @@ export default function detailModal() {
             this.$watch('showDetail', (val) => {
                 if (!val) {
                     this.stopAutoSave();
+                    clearActiveRuntimeContext('card');
                     this.currentSkinIndex = -1;
                     this.zoomLevel = 100;
                     this.isCardFlipped = false;
@@ -962,6 +964,17 @@ export default function detailModal() {
             this.altIdx = 0;
             this.detailTagDragIndex = null;
             this.editingData.filename = c.filename || this.editingData.filename;
+            setActiveRuntimeContext({
+                card: {
+                    id: c.id || '',
+                    name: this.editingData.char_name || c.char_name || '',
+                    category: c.category || '',
+                    is_bundle: Boolean(c.is_bundle),
+                    bundle_dir: c.bundle_dir || '',
+                    filename: c.filename || '',
+                    resource_folder: this.editingData.resource_folder || c.resource_folder || '',
+                },
+            });
 
             // 显示模态框
             this.showDetail = true;
@@ -1038,6 +1051,17 @@ export default function detailModal() {
                     this.editingData.source_link = safeCard.source_link || "";
                     this.editingData.resource_folder = safeCard.resource_folder || "";
                     this.editingData = this._normalizeEditingDataShape(this.editingData);
+                    setActiveRuntimeContext({
+                        card: {
+                            id: safeCard.id || cardId,
+                            name: this.editingData.char_name || safeCard.char_name || '',
+                            category: safeCard.category || this.activeCard?.category || '',
+                            is_bundle: Boolean(safeCard.is_bundle || this.activeCard?.is_bundle),
+                            bundle_dir: safeCard.bundle_dir || this.activeCard?.bundle_dir || '',
+                            filename: safeCard.filename || this.activeCard?.filename || '',
+                            resource_folder: this.editingData.resource_folder || safeCard.resource_folder || '',
+                        },
+                    });
 
                     if (this.lastTab === 'persona' && this.hasPersonaFields) {
                         this.tab = 'persona';

@@ -32,6 +32,7 @@ import executeRulesMobileModal from './components/executeRulesMobileModal.js';
 import extensionGrid from './components/extensionGrid.js';
 import presetGrid from './components/presetGrid.js';
 import presetDetailReader from './components/presetDetailReader.js';
+import runtimeInspector from './components/runtimeInspector.js';
 
 // 3. 监听 Alpine 初始化事件
 const registerComponents = () => {
@@ -65,6 +66,7 @@ const registerComponents = () => {
     Alpine.data('extensionGrid', extensionGrid);
     Alpine.data('presetGrid', presetGrid);
     Alpine.data('presetDetailReader', presetDetailReader);
+    Alpine.data('runtimeInspector', runtimeInspector);
 
     console.log("✅ ST Manager Frontend: Modules Loaded & Alpine Initialized");
 };

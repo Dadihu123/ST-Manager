@@ -1,0 +1,153 @@
+<div x-data="runtimeInspector" x-show="showRuntimeInspector" x-cloak class="modal-overlay z-modal-std" @click.self="close()">
+    <div class="w-[min(1200px,96vw)] h-[min(88vh,820px)] bg-[var(--bg-panel)] border border-[var(--border-light)] rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+        <div class="px-5 py-4 border-b border-[var(--border-light)] flex items-center justify-between gap-4 bg-[var(--bg-sub)]">
+            <div>
+                <div class="flex items-center gap-2">
+                    <span class="text-2xl">🧪</span>
+                    <h3 class="text-lg font-bold">Runtime Inspector</h3>
+                </div>
+                <p class="text-xs text-[var(--text-dim)] mt-1">查看 render/script 运行时快照、状态和所有权信息</p>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="text-[10px] text-[var(--text-dim)] border border-[var(--border-light)] rounded px-2 py-1">快捷键 Ctrl/Cmd + Shift + R</span>
+                <button @click="close()" class="text-xl text-gray-400 hover:text-red-400 transition">✕</button>
+            </div>
+        </div>
+
+        <div class="px-5 py-3 border-b border-[var(--border-light)] grid grid-cols-1 lg:grid-cols-[1fr_auto_auto] gap-3 bg-[var(--bg-body)]">
+            <input x-model="runtimeSearch" type="text" class="form-input" placeholder="搜索 runtimeId / label / ownerId ...">
+            <select x-model="runtimeFilterKind" class="form-input min-w-[140px]">
+                <option value="all">全部类型</option>
+                <option value="render">render</option>
+                <option value="script">script</option>
+            </select>
+            <select x-model="runtimeFilterStatus" class="form-input min-w-[140px]">
+                <option value="all">全部状态</option>
+                <option value="idle">idle</option>
+                <option value="starting">starting</option>
+                <option value="running">running</option>
+                <option value="stopped">stopped</option>
+                <option value="error">error</option>
+            </select>
+        </div>
+
+        <div class="px-5 py-3 border-b border-[var(--border-light)] grid grid-cols-2 md:grid-cols-4 gap-3 bg-[var(--bg-sub)]">
+            <div class="rounded-xl border border-[var(--border-light)] bg-[var(--bg-panel)] px-3 py-2">
+                <div class="text-[10px] uppercase tracking-wider text-[var(--text-dim)]">总运行时</div>
+                <div class="text-xl font-bold" x-text="runtimeOverview.total || 0"></div>
+            </div>
+            <div class="rounded-xl border border-[var(--border-light)] bg-[var(--bg-panel)] px-3 py-2">
+                <div class="text-[10px] uppercase tracking-wider text-[var(--text-dim)]">Render</div>
+                <div class="text-xl font-bold text-cyan-300" x-text="runtimeOverview.byKind?.render || 0"></div>
+            </div>
+            <div class="rounded-xl border border-[var(--border-light)] bg-[var(--bg-panel)] px-3 py-2">
+                <div class="text-[10px] uppercase tracking-wider text-[var(--text-dim)]">Script</div>
+                <div class="text-xl font-bold text-emerald-300" x-text="runtimeOverview.byKind?.script || 0"></div>
+            </div>
+            <div class="rounded-xl border border-[var(--border-light)] bg-[var(--bg-panel)] px-3 py-2">
+                <div class="text-[10px] uppercase tracking-wider text-[var(--text-dim)]">Running</div>
+                <div class="text-xl font-bold text-amber-300" x-text="runtimeOverview.byStatus?.running || 0"></div>
+            </div>
+        </div>
+
+        <div class="flex-1 min-h-0 grid grid-cols-1 xl:grid-cols-[360px_minmax(0,1fr)]">
+            <div class="border-r border-[var(--border-light)] bg-[var(--bg-body)] min-h-0 overflow-auto custom-scrollbar">
+                <template x-if="filteredRuntimes().length === 0">
+                    <div class="p-6 text-sm text-[var(--text-dim)]">当前没有匹配的运行时。</div>
+                </template>
+
+                <template x-for="runtime in filteredRuntimes()" :key="runtime.runtimeId">
+                    <button @click="selectRuntime(runtime.runtimeId)"
+                        class="w-full text-left px-4 py-3 border-b border-[var(--border-light)] transition hover:bg-[var(--bg-hover)]"
+                        :class="selectedRuntimeId === runtime.runtimeId ? 'bg-[var(--bg-hover)]' : ''">
+                        <div class="flex items-center justify-between gap-2 mb-1">
+                            <span class="font-mono text-[11px] text-[var(--text-sub)] truncate" x-text="runtime.runtimeId"></span>
+                            <span class="text-[10px] px-2 py-0.5 rounded border"
+                                :class="runtime.kind === 'script' ? 'border-emerald-500/40 text-emerald-300' : 'border-cyan-500/40 text-cyan-300'"
+                                x-text="runtime.kind"></span>
+                        </div>
+                        <div class="font-bold text-sm truncate" x-text="runtime.label"></div>
+                        <div class="text-[11px] text-[var(--text-dim)] mt-1 truncate" x-text="'owner: ' + (runtime.ownerId || '-')"></div>
+                        <div class="flex items-center justify-between mt-2 text-[10px] text-[var(--text-dim)]">
+                            <span x-text="'status: ' + runtime.status"></span>
+                            <span x-text="formatTime(runtime.updatedAt)"></span>
+                        </div>
+                    </button>
+                </template>
+            </div>
+
+            <div class="min-h-0 flex flex-col bg-[var(--bg-panel)]">
+                <template x-if="selectedRuntime()">
+                    <div class="flex-1 min-h-0 flex flex-col">
+                        <div class="px-5 py-4 border-b border-[var(--border-light)] flex flex-wrap items-center justify-between gap-3 bg-[var(--bg-sub)]">
+                            <div>
+                            <div class="flex items-center gap-2">
+                                <h4 class="text-base font-bold" x-text="selectedRuntime().label"></h4>
+                                <span class="text-[10px] px-2 py-0.5 rounded border"
+                                    :class="selectedRuntime().kind === 'script' ? 'border-emerald-500/40 text-emerald-300' : 'border-cyan-500/40 text-cyan-300'"
+                                    x-text="selectedRuntime().kind"></span>
+                                </div>
+                                <div class="text-[11px] text-[var(--text-dim)] mt-1 font-mono" x-text="selectedRuntime().runtimeId"></div>
+                            </div>
+                            <div class="flex flex-wrap gap-2">
+                                <button @click="copyRuntimeJson()" class="btn-secondary text-xs px-3 py-1.5">复制快照</button>
+                                <button x-show="selectedRuntime().kind === 'script'" @click="dispatchRuntimeControl('reload')" class="btn-secondary text-xs px-3 py-1.5 text-sky-300">重载运行时</button>
+                                <button x-show="selectedRuntime().kind === 'script'" @click="dispatchRuntimeControl('stop')" class="btn-secondary text-xs px-3 py-1.5 text-rose-300">停止运行时</button>
+                                <button x-show="selectedRuntime().kind === 'script'" @click="openScriptFromRuntime()" class="btn-secondary text-xs px-3 py-1.5 text-emerald-300">定位脚本</button>
+                            </div>
+                        </div>
+
+                        <div x-show="runtimeActionStatus" class="px-5 py-2 text-[11px] text-cyan-300 border-b border-[var(--border-light)] bg-cyan-950/20" x-text="runtimeActionStatus"></div>
+
+                        <div class="px-5 py-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 border-b border-[var(--border-light)] bg-[var(--bg-body)]">
+                            <div class="rounded-xl border border-[var(--border-light)] px-3 py-2 bg-[var(--bg-panel)]">
+                                <div class="text-[10px] uppercase tracking-wider text-[var(--text-dim)]">状态</div>
+                                <div class="text-sm font-bold" x-text="selectedRuntime().status"></div>
+                            </div>
+                            <div class="rounded-xl border border-[var(--border-light)] px-3 py-2 bg-[var(--bg-panel)]">
+                                <div class="text-[10px] uppercase tracking-wider text-[var(--text-dim)]">Owner</div>
+                                <div class="text-sm font-mono truncate" x-text="selectedRuntime().ownerId || '-' "></div>
+                            </div>
+                            <div class="rounded-xl border border-[var(--border-light)] px-3 py-2 bg-[var(--bg-panel)]">
+                                <div class="text-[10px] uppercase tracking-wider text-[var(--text-dim)]">Started</div>
+                                <div class="text-sm" x-text="formatTime(selectedRuntime().startedAt)"></div>
+                            </div>
+                            <div class="rounded-xl border border-[var(--border-light)] px-3 py-2 bg-[var(--bg-panel)]">
+                                <div class="text-[10px] uppercase tracking-wider text-[var(--text-dim)]">Updated</div>
+                                <div class="text-sm" x-text="formatTime(selectedRuntime().updatedAt)"></div>
+                            </div>
+                        </div>
+
+                        <div class="flex-1 min-h-0 grid grid-cols-1 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+                            <div class="border-r border-[var(--border-light)] p-5 min-h-0 overflow-auto custom-scrollbar bg-[var(--bg-panel)]">
+                                <div class="text-xs font-bold text-[var(--text-sub)] uppercase tracking-wider mb-3">Metrics / Meta</div>
+                                <div class="space-y-3 text-sm">
+                                    <div class="rounded-xl border border-[var(--border-light)] p-3 bg-[var(--bg-body)]">
+                                        <div class="text-[11px] text-[var(--text-dim)] mb-1">Metrics</div>
+                                        <pre class="text-[11px] whitespace-pre-wrap break-words font-mono" x-text="JSON.stringify(selectedRuntime().metrics || {}, null, 2)"></pre>
+                                    </div>
+                                    <div class="rounded-xl border border-[var(--border-light)] p-3 bg-[var(--bg-body)]">
+                                        <div class="text-[11px] text-[var(--text-dim)] mb-1">Meta</div>
+                                        <pre class="text-[11px] whitespace-pre-wrap break-words font-mono" x-text="JSON.stringify(selectedRuntime().meta || {}, null, 2)"></pre>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="p-5 min-h-0 overflow-auto custom-scrollbar bg-[#020617]">
+                                <div class="flex items-center justify-between gap-2 mb-3">
+                                    <div class="text-xs font-bold text-slate-300 uppercase tracking-wider">完整快照</div>
+                                    <div class="text-[10px] text-slate-500">只读 JSON</div>
+                                </div>
+                                <pre class="text-[11px] whitespace-pre-wrap break-words font-mono text-slate-200 leading-5" x-text="runtimeDetailJson()"></pre>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+
+                <template x-if="!selectedRuntime()">
+                    <div class="flex-1 flex items-center justify-center text-[var(--text-dim)]">请选择左侧一个运行时</div>
+                </template>
+            </div>
+        </div>
+    </div>
+</div>

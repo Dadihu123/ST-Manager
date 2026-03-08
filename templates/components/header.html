@@ -273,6 +273,10 @@
                 class="btn-secondary hover:scale-105 transition-transform text-yellow-500">
                 🤖
             </button>
+            <button @click="openRuntimeInspector()" title="运行时检查器"
+                class="btn-secondary hover:scale-105 transition-transform text-cyan-400">
+                🧪
+            </button>
             <button @click="openSettings()" title="系统设置" class="btn-secondary hover:scale-105 transition-transform">
                 ⚙️
             </button>
@@ -404,6 +408,10 @@
                 class="mobile-menu-btn-item accent">
                 <div class="menu-icon">🤖</div>
                 <div class="menu-label">规则</div>
+            </button>
+            <button @click="openRuntimeInspector(); closeMobileMenu()" class="mobile-menu-btn-item accent">
+                <div class="menu-icon">🧪</div>
+                <div class="menu-label">运行时</div>
             </button>
             <button @click="openSettings(); closeMobileMenu()" class="mobile-menu-btn-item">
                 <div class="menu-icon">⚙️</div>

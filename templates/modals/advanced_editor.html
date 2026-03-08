@@ -485,6 +485,7 @@
                                 <div class="flex-1">
                                     <label class="form-label">脚本名称 (Name)</label>
                                     <input type="text" x-model="getTavernScripts()[activeScriptIndex].name"
+                                        @input="handleRuntimeMetaInput()"
                                         class="form-input font-bold text-lg">
                                 </div>
                                 <div class="flex gap-4 pb-2 items-center">
@@ -505,6 +506,7 @@
                                     <label class="flex items-center gap-2 cursor-pointer select-none" title="在快捷栏显示按钮">
                                         <input type="checkbox"
                                             x-model="getTavernScripts()[activeScriptIndex].button.enabled"
+                                            @change="syncRuntimeContext()"
                                             class="w-4 h-4 rounded accent-blue-500">
                                         <span class="text-sm text-[var(--text-main)]">显示按钮 (Button)</span>
                                     </label>
@@ -515,6 +517,7 @@
                             <div>
                                 <label class="form-label">作者/备注信息 (Info)</label>
                                 <textarea x-model="getTavernScripts()[activeScriptIndex].info"
+                                    @input="handleRuntimeMetaInput()"
                                     class="form-textarea text-xs h-16 resize-none custom-scrollbar"
                                     placeholder="描述此脚本的功能..."></textarea>
                             </div>
@@ -542,7 +545,7 @@
                                                     x-text="btnIdx + 1"></span>
 
                                                 <!-- 按钮名称 -->
-                                                <input type="text" x-model="btn.name"
+                                                <input type="text" x-model="btn.name" @input="syncRuntimeContext()"
                                                     class="auto-input py-0.5 px-2 text-xs flex-1" placeholder="按钮名称">
 
                                                 <!-- 可见性开关 -->
@@ -550,6 +553,7 @@
                                                     class="flex items-center gap-1 cursor-pointer select-none px-2 border-l border-[var(--border-light)]"
                                                     title="是否可见">
                                                     <input type="checkbox" x-model="btn.visible"
+                                                        @change="syncRuntimeContext()"
                                                         class="w-3.5 h-3.5 rounded accent-blue-500">
                                                     <span class="text-[10px]"
                                                         :class="btn.visible ? 'text-blue-400' : 'text-gray-500'"
@@ -582,8 +586,125 @@
                                 </div>
                                 <textarea x-model="getTavernScripts()[activeScriptIndex].content"
                                     class="form-textarea font-mono text-xs flex-1 resize-none custom-scrollbar"
-                                    style="background: var(--bg-code); color: #fde047; line-height: 1.5;"
-                                    spellcheck="false" placeholder="// write your code here..."></textarea>
+                                     style="background: var(--bg-code); color: #fde047; line-height: 1.5;"
+                                     spellcheck="false" placeholder="// write your code here..."></textarea>
+                             </div>
+
+                            <div class="adv-section">
+                                <div class="adv-section-title text-emerald-400 flex justify-between items-center">
+                                    <span>▶ 运行时 (Runtime)</span>
+                                    <div class="flex flex-wrap gap-2 text-[10px]">
+                                        <button @click="startScriptRuntime()"
+                                            class="bg-emerald-600 hover:bg-emerald-500 text-white px-2 py-0.5 rounded transition">
+                                            运行
+                                        </button>
+                                        <button @click="reloadScriptRuntime()"
+                                            class="bg-sky-600 hover:bg-sky-500 text-white px-2 py-0.5 rounded transition">
+                                            重载
+                                        </button>
+                                        <button @click="stopScriptRuntime()"
+                                            class="bg-rose-600 hover:bg-rose-500 text-white px-2 py-0.5 rounded transition">
+                                            停止
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div class="grid grid-cols-1 xl:grid-cols-[minmax(0,1.2fr)_minmax(280px,0.8fr)] gap-4">
+                                    <div class="flex flex-col gap-3">
+                                        <div class="flex flex-wrap items-center gap-2 text-xs">
+                                            <span class="px-2 py-0.5 rounded border border-[var(--border-light)] bg-[var(--bg-panel)]"
+                                                x-text="'状态: ' + scriptRuntimeState.status"></span>
+                                            <span class="text-[var(--text-dim)]" x-show="activeRuntimeScriptId"
+                                                x-text="'运行脚本 ID: ' + activeRuntimeScriptId"></span>
+                                            <span class="text-[var(--text-dim)]" x-show="scriptRuntimeState.height"
+                                                x-text="'运行区高度: ' + scriptRuntimeState.height + 'px'"></span>
+                                        </div>
+
+                                        <div class="text-[10px] text-[var(--text-dim)] leading-5 border border-[var(--border-light)] rounded px-3 py-2 bg-[var(--bg-panel)]">
+                                            <span class="font-bold text-emerald-300 mr-1">Safe Bridge:</span>
+                                            <span x-text="(scriptRuntimeState.bridgeCapabilities || []).join(' / ')"></span>
+                                        </div>
+
+                                        <div class="text-[10px] text-[var(--text-dim)] leading-5 border border-[var(--border-light)] rounded px-3 py-2 bg-[var(--bg-panel)]">
+                                            <span class="font-bold text-cyan-300 mr-1">Runtime Manager:</span>
+                                            <span x-text="'总计 ' + (runtimeManagerOverview.total || 0) + ' 个运行时'"></span>
+                                            <span class="ml-2" x-text="'render=' + (runtimeManagerOverview.byKind?.render || 0)"></span>
+                                            <span class="ml-2" x-text="'script=' + (runtimeManagerOverview.byKind?.script || 0)"></span>
+                                        </div>
+
+                                        <div x-show="scriptRuntimeState.lastError"
+                                            class="text-xs text-red-300 bg-red-950/40 border border-red-500/30 rounded p-2 whitespace-pre-wrap"
+                                            x-text="scriptRuntimeState.lastError"></div>
+
+                                        <div class="border border-[var(--border-light)] rounded bg-[var(--bg-body)] overflow-hidden">
+                                            <div class="px-3 py-2 text-[10px] uppercase tracking-wider text-[var(--text-dim)] border-b border-[var(--border-light)] bg-[var(--bg-sub)]">
+                                                隔离运行舞台
+                                            </div>
+                                            <div x-ref="scriptRuntimeHost" class="min-h-[220px]"></div>
+                                        </div>
+
+                                        <div class="border border-[var(--border-light)] rounded bg-[var(--bg-panel)] p-3">
+                                            <div class="flex items-center justify-between gap-2 mb-2">
+                                                <div class="text-xs font-bold text-blue-300">按钮触发器</div>
+                                                <label class="text-[10px] text-[var(--text-dim)] flex items-center gap-1">
+                                                    <input type="checkbox"
+                                                        x-model="scriptRuntimeState.buttonConfig.enabled"
+                                                        @change="syncRuntimeContext()"
+                                                        class="rounded">
+                                                    已启用
+                                                </label>
+                                            </div>
+
+                                            <div class="flex flex-wrap gap-2"
+                                                x-show="scriptRuntimeState.buttonConfig.buttons && scriptRuntimeState.buttonConfig.buttons.length > 0">
+                                                <template x-for="button in (scriptRuntimeState.buttonConfig.buttons || [])"
+                                                    :key="button.name + String(button.visible)">
+                                                    <button @click="triggerRuntimeButton(button.name)"
+                                                        :disabled="!isRuntimeActiveForCurrentScript() || !button.visible || !scriptRuntimeState.buttonConfig.enabled"
+                                                        class="px-3 py-1 rounded border text-xs transition"
+                                                        :class="button.visible ? 'border-blue-500/40 bg-blue-500/10 text-blue-200 hover:bg-blue-500/20' : 'border-gray-700 text-gray-500 cursor-not-allowed'"
+                                                        x-text="button.name"></button>
+                                                </template>
+                                            </div>
+
+                                            <div x-show="!scriptRuntimeState.buttonConfig.buttons || scriptRuntimeState.buttonConfig.buttons.length === 0"
+                                                class="text-[10px] text-[var(--text-dim)] italic">
+                                                当前脚本没有可触发按钮。
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="flex flex-col gap-3 min-h-0">
+                                        <div class="flex items-center justify-between gap-2">
+                                            <div class="text-xs font-bold text-purple-300">运行日志</div>
+                                            <button @click="clearRuntimeLogs()"
+                                                class="text-[10px] bg-[var(--bg-panel)] border border-[var(--border-light)] px-2 py-0.5 rounded hover:text-white transition">
+                                                清空日志
+                                            </button>
+                                        </div>
+
+                                        <div class="border border-[var(--border-light)] rounded bg-[#020617] min-h-[220px] max-h-[420px] overflow-auto p-2 custom-scrollbar">
+                                            <template x-if="scriptRuntimeState.logs.length === 0">
+                                                <div class="text-[10px] text-slate-400 italic">运行后这里会显示 console 输出。</div>
+                                            </template>
+
+                                            <template x-for="(entry, logIdx) in scriptRuntimeState.logs" :key="entry.timestamp + '-' + logIdx">
+                                                <div class="text-[11px] font-mono leading-5 border-b border-white/5 py-1 last:border-b-0"
+                                                    :class="{
+                                                        'text-slate-300': entry.level === 'log' || entry.level === 'info',
+                                                        'text-cyan-300': entry.level === 'debug',
+                                                        'text-amber-300': entry.level === 'warn',
+                                                        'text-rose-300': entry.level === 'error'
+                                                    }">
+                                                    <span class="opacity-60 mr-2"
+                                                        x-text="new Date(entry.timestamp).toLocaleTimeString()"></span>
+                                                    <span class="uppercase mr-2" x-text="entry.level"></span>
+                                                    <span class="whitespace-pre-wrap break-words" x-text="entry.message"></span>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
 
                             <!-- D. 变量数据 (Data - JSON) -->

@@ -15,11 +15,14 @@ import {
 import { getCardDetail, listCards } from '../api/card.js';
 import { openPath } from '../api/system.js';
 import { formatDate } from '../utils/format.js';
+import { ChatAppStage } from '../runtime/chatAppStage.js';
 import { renderMarkdown, updateInlineRenderContent } from '../utils/dom.js';
+import { clearActiveRuntimeContext, setActiveRuntimeContext } from '../runtime/runtimeContext.js';
 
 
 const CHAT_READER_REGEX_STORAGE_KEY = 'st_manager.chat_reader.regex_config.v1';
 const CHAT_READER_VIEW_SETTINGS_KEY = 'st_manager.chat_reader.view_settings.v1';
+const CHAT_READER_RENDER_PREFS_KEY = 'st_manager.chat_reader.render_prefs.v1';
 
 const DEFAULT_CHAT_READER_REGEX_CONFIG = {
     userInputPattern: '<本轮用户输入>\\s*([\\s\\S]*?)\\s*</本轮用户输入>',
@@ -68,17 +71,33 @@ const DEFAULT_CHAT_READER_VIEW_SETTINGS = {
     compactPreviewLength: 140,
 };
 
+const DEFAULT_CHAT_READER_RENDER_PREFS = {
+    renderMode: 'markdown',
+    componentMode: true,
+};
+
 
 function normalizeDisplayRule(rule, index = 0) {
     const source = rule && typeof rule === 'object' ? rule : {};
+    const normalizeNullableNumber = (value) => {
+        if (value === null || value === undefined || value === '') return null;
+        const numeric = Number(value);
+        return Number.isFinite(numeric) ? numeric : null;
+    };
+
     return {
         id: source.id || `display_rule_${Date.now()}_${index}`,
         scriptName: String(source.scriptName || source.name || `规则 ${index + 1}`).trim() || `规则 ${index + 1}`,
         findRegex: String(source.findRegex || '').trim(),
         replaceString: String(source.replaceString || ''),
+        substituteRegex: Number(source.substituteRegex || 0),
+        trimStrings: Array.isArray(source.trimStrings) ? source.trimStrings.map(item => String(item)) : [],
         disabled: Boolean(source.disabled),
         promptOnly: Boolean(source.promptOnly),
         markdownOnly: Boolean(source.markdownOnly),
+        runOnEdit: source.runOnEdit !== false,
+        minDepth: normalizeNullableNumber(source.minDepth),
+        maxDepth: normalizeNullableNumber(source.maxDepth),
         placement: Array.isArray(source.placement) ? source.placement : [],
         expanded: Boolean(source.expanded),
     };
@@ -117,9 +136,14 @@ function parseSillyTavernRegexRules(jsonData) {
             scriptName: String(item.scriptName || item.name || `规则 ${rules.length + 1}`).trim() || `规则 ${rules.length + 1}`,
             findRegex: String(item.findRegex || '').trim(),
             replaceString: String(item.replaceString || ''),
+            substituteRegex: Number(item.substituteRegex || 0),
+            trimStrings: Array.isArray(item.trimStrings) ? item.trimStrings.map(entry => String(entry)) : [],
             disabled: Boolean(item.disabled),
             promptOnly: Boolean(item.promptOnly),
             markdownOnly: Boolean(item.markdownOnly),
+            runOnEdit: item.runOnEdit !== false,
+            minDepth: item.minDepth ?? null,
+            maxDepth: item.maxDepth ?? null,
             placement: Array.isArray(item.placement) ? item.placement : [],
         };
         const duplicate = rules.some(existing => existing.scriptName === normalized.scriptName && existing.findRegex === normalized.findRegex);
@@ -208,7 +232,12 @@ function convertRulesToReaderConfig(rules, currentConfig, options = {}) {
             scriptName: rule.scriptName,
             findRegex: rule.findRegex,
             replaceString: rule.replaceString,
+            substituteRegex: rule.substituteRegex,
+            trimStrings: rule.trimStrings,
             disabled: rule.disabled,
+            runOnEdit: rule.runOnEdit,
+            minDepth: rule.minDepth,
+            maxDepth: rule.maxDepth,
             source: sourceTag,
         }, displayRules.length));
     });
@@ -385,6 +414,40 @@ function storeViewSettings(settings) {
 }
 
 
+function normalizeRenderPreferences(raw) {
+    const source = raw && typeof raw === 'object' ? raw : {};
+    const renderMode = source.renderMode === 'plain' ? 'plain' : 'markdown';
+
+    return {
+        renderMode,
+        componentMode: source.componentMode !== false,
+    };
+}
+
+
+function loadStoredRenderPreferences() {
+    try {
+        const raw = window.localStorage.getItem(CHAT_READER_RENDER_PREFS_KEY);
+        if (!raw) return normalizeRenderPreferences(DEFAULT_CHAT_READER_RENDER_PREFS);
+        return normalizeRenderPreferences(JSON.parse(raw));
+    } catch {
+        return normalizeRenderPreferences(DEFAULT_CHAT_READER_RENDER_PREFS);
+    }
+}
+
+
+function storeRenderPreferences(preferences) {
+    try {
+        window.localStorage.setItem(
+            CHAT_READER_RENDER_PREFS_KEY,
+            JSON.stringify(normalizeRenderPreferences(preferences)),
+        );
+    } catch {
+        // Ignore storage failures in the reader.
+    }
+}
+
+
 function loadStoredRegexConfig() {
     try {
         const raw = window.localStorage.getItem(CHAT_READER_REGEX_STORAGE_KEY);
@@ -434,16 +497,112 @@ function parseDisplayRuleRegex(findRegex) {
 }
 
 
+function sanitizeRegexMacroValue(value) {
+    return String(value ?? '').replaceAll(/[\n\r\t\v\f\0.^$*+?{}[\]\\/|()]/gs, (token) => {
+        switch (token) {
+            case '\n':
+                return '\\n';
+            case '\r':
+                return '\\r';
+            case '\t':
+                return '\\t';
+            case '\v':
+                return '\\v';
+            case '\f':
+                return '\\f';
+            case '\0':
+                return '\\0';
+            default:
+                return `\\${token}`;
+        }
+    });
+}
+
+
+function substituteDisplayRuleMacros(text, macroContext = {}, sanitizer = null) {
+    const source = String(text ?? '');
+    const context = macroContext && typeof macroContext === 'object' ? macroContext : {};
+
+    return source.replace(/\{\{\s*([^{}]+?)\s*\}\}/g, (match, rawKey) => {
+        const key = String(rawKey || '').trim().toLowerCase();
+        const value = Object.prototype.hasOwnProperty.call(context, key)
+            ? context[key]
+            : Object.prototype.hasOwnProperty.call(context, rawKey)
+                ? context[rawKey]
+                : match;
+        const normalized = String(value ?? '');
+        return typeof sanitizer === 'function' ? sanitizer(normalized) : normalized;
+    });
+}
+
+
+function getDisplayRuleRegexSource(rule, options = {}) {
+    const normalized = normalizeDisplayRule(rule);
+    switch (Number(normalized.substituteRegex || 0)) {
+        case 1:
+            return substituteDisplayRuleMacros(normalized.findRegex, options.macroContext);
+        case 2:
+            return substituteDisplayRuleMacros(normalized.findRegex, options.macroContext, sanitizeRegexMacroValue);
+        default:
+            return normalized.findRegex;
+    }
+}
+
+
 function applyDisplayRules(text, config) {
     let content = String(text || '');
     const rules = Array.isArray(config?.displayRules) ? config.displayRules : [];
+    const options = arguments[2] && typeof arguments[2] === 'object' ? arguments[2] : {};
+    const placement = Number(options.placement ?? 2);
+    const isMarkdown = options.isMarkdown !== false;
+    const isPrompt = options.isPrompt === true;
+    const isEdit = options.isEdit === true;
+    const macroContext = options.macroContext && typeof options.macroContext === 'object' ? options.macroContext : {};
+
+    const filterTrimStrings = (value, trimStrings = []) => {
+        let output = String(value ?? '');
+        for (const trimString of trimStrings) {
+            const needle = substituteDisplayRuleMacros(trimString || '', macroContext);
+            if (!needle) continue;
+            output = output.split(needle).join('');
+        }
+        return output;
+    };
 
     for (const rule of rules) {
         if (!rule || rule.disabled || !rule.findRegex) continue;
+        if (rule.promptOnly && !isPrompt) continue;
+        if (rule.markdownOnly && !isMarkdown) continue;
+        if (isEdit && rule.runOnEdit === false) continue;
+        if (Array.isArray(rule.placement) && rule.placement.length > 0 && !rule.placement.includes(placement)) continue;
         try {
-            const regex = parseDisplayRuleRegex(rule.findRegex);
+            const regex = parseDisplayRuleRegex(getDisplayRuleRegexSource(rule, { macroContext }));
             if (!regex) continue;
-            content = content.replace(regex, rule.replaceString || '');
+            content = content.replace(regex, (...args) => {
+                const replaceString = String(rule.replaceString || '').replace(/\{\{match\}\}/gi, '$0');
+                const lastArg = args[args.length - 1];
+                const groups = lastArg && typeof lastArg === 'object' ? lastArg : null;
+                const captureEndIndex = groups ? args.length - 3 : args.length - 2;
+                const captures = args.slice(0, captureEndIndex);
+
+                const replaceWithGroups = replaceString.replaceAll(/\$(\d+)|\$<([^>]+)>|\$0/g, (token, num, groupName) => {
+                    if (token === '$0') {
+                        return filterTrimStrings(captures[0] ?? '', rule.trimStrings);
+                    }
+
+                    if (num) {
+                        return filterTrimStrings(captures[Number(num)] ?? '', rule.trimStrings);
+                    }
+
+                    if (groupName) {
+                        return filterTrimStrings(groups?.[groupName] ?? '', rule.trimStrings);
+                    }
+
+                    return '';
+                });
+
+                return substituteDisplayRuleMacros(replaceWithGroups, macroContext);
+            });
         } catch {
             continue;
         }
@@ -453,7 +612,82 @@ function applyDisplayRules(text, config) {
 }
 
 
-function extractContentWithConfig(messageText, config) {
+function extractHtmlPayloadFromText(text) {
+    const raw = String(text || '').trim();
+    if (!raw) return '';
+
+    const codeBlockRegex = /```(?:html|xml|text|js|css|json)?\s*([\s\S]*?)```/gi;
+    let match;
+
+    while ((match = codeBlockRegex.exec(raw)) !== null) {
+        const block = stripCommonIndent(match[1] || '');
+        if (/<!DOCTYPE html/i.test(block) || /<html[\s>]/i.test(block) || /id=["']readingContent["']/i.test(block)) {
+            return block;
+        }
+    }
+
+    if (/<!DOCTYPE html/i.test(raw) || /<html[\s>]/i.test(raw)) {
+        return raw;
+    }
+
+    return '';
+}
+
+
+function buildFullPageAppHtml(messageText, config, macroContext = {}) {
+    const rawMessage = String(messageText || '');
+    if (!rawMessage.trim()) return '';
+
+    const transformedRaw = applyDisplayRules(rawMessage, config, { placement: 2, isMarkdown: true, macroContext });
+    const htmlFromRaw = extractHtmlPayloadFromText(transformedRaw);
+    if (htmlFromRaw) {
+        return htmlFromRaw;
+    }
+
+    const extractedContent = extractContentWithConfig(rawMessage, config, { placement: 2, isMarkdown: true, macroContext });
+    const htmlFromExtractedContent = extractHtmlPayloadFromText(extractedContent);
+    if (htmlFromExtractedContent) {
+        return htmlFromExtractedContent;
+    }
+
+    return '';
+}
+
+
+function extractStatDataFromMessage(message) {
+    const source = message && typeof message === 'object' ? message : {};
+
+    if (source.extra && typeof source.extra === 'object' && source.extra.stat_data) {
+        return cloneValue(source.extra.stat_data);
+    }
+
+    const variables = Array.isArray(source.variables) ? source.variables : [];
+    for (const entry of variables) {
+        if (entry && typeof entry === 'object' && entry.stat_data) {
+            return cloneValue(entry.stat_data);
+        }
+    }
+
+    return null;
+}
+
+
+function resolveLatestStatData(rawMessages, floor) {
+    const list = Array.isArray(rawMessages) ? rawMessages : [];
+    const startIndex = Math.min(list.length - 1, Math.max(0, Number(floor || 1) - 1));
+
+    for (let index = startIndex; index >= 0; index -= 1) {
+        const statData = extractStatDataFromMessage(list[index]);
+        if (statData) {
+            return statData;
+        }
+    }
+
+    return {};
+}
+
+
+function extractContentWithConfig(messageText, config, options = {}) {
     if (!messageText) return '';
 
     let content = String(messageText || '');
@@ -485,7 +719,7 @@ function extractContentWithConfig(messageText, config) {
     }
 
     content = content.replace(/以下是用户的本轮输入[\s\S]*?<\/本轮用户输入>/g, '');
-    return applyDisplayRules(stripCommonIndent(content), config);
+    return applyDisplayRules(stripCommonIndent(content), config, options);
 }
 
 
@@ -499,7 +733,7 @@ function extractSingleMatch(messageText, pattern) {
 }
 
 
-function parseChoicesWithConfig(messageText, config) {
+function parseChoicesWithConfig(messageText, config, options = {}) {
     const match = extractSingleMatch(messageText, config.choicePattern);
     if (!match) return [];
 
@@ -508,17 +742,18 @@ function parseChoicesWithConfig(messageText, config) {
         const itemMatch = line.match(/^\s*(.+?)\s*-\s*(.+?)\s*$/);
         if (!itemMatch) continue;
         choices.push({
-            text: applyDisplayRules(itemMatch[1].trim(), config),
-            desc: applyDisplayRules(itemMatch[2].trim(), config),
+            text: applyDisplayRules(itemMatch[1].trim(), config, { placement: 2, isMarkdown: true, macroContext: options.macroContext }),
+            desc: applyDisplayRules(itemMatch[2].trim(), config, { placement: 2, isMarkdown: true, macroContext: options.macroContext }),
         });
     }
     return choices;
 }
 
 
-function buildReaderParsedMessage(rawMessage, floor, config) {
+function buildReaderParsedMessage(rawMessage, floor, config, options = {}) {
     const source = rawMessage && typeof rawMessage === 'object' ? rawMessage : {};
     const messageText = String(source.mes || '');
+    const macroContext = options.macroContext && typeof options.macroContext === 'object' ? options.macroContext : {};
 
     return {
         floor: Number(floor || 0),
@@ -529,11 +764,11 @@ function buildReaderParsedMessage(rawMessage, floor, config) {
         mes: messageText,
         swipes: Array.isArray(source.swipes) ? source.swipes : [],
         extra: source.extra && typeof source.extra === 'object' ? source.extra : {},
-        content: extractContentWithConfig(messageText, config),
-        time_bar: applyDisplayRules(extractSingleMatch(messageText, config.timeBarPattern) || '', config) || null,
-        summary: applyDisplayRules(extractSingleMatch(messageText, config.summaryPattern) || '', config) || null,
-        thinking: applyDisplayRules(extractSingleMatch(messageText, config.thinkingPattern) || '', config) || null,
-        choices: parseChoicesWithConfig(messageText, config),
+        content: extractContentWithConfig(messageText, config, { placement: 2, isMarkdown: true, macroContext }),
+        time_bar: applyDisplayRules(extractSingleMatch(messageText, config.timeBarPattern) || '', config, { placement: 2, isMarkdown: true, macroContext }) || null,
+        summary: applyDisplayRules(extractSingleMatch(messageText, config.summaryPattern) || '', config, { placement: 2, isMarkdown: true, macroContext }) || null,
+        thinking: applyDisplayRules(extractSingleMatch(messageText, config.thinkingPattern) || '', config, { placement: 2, isMarkdown: true, macroContext }) || null,
+        choices: parseChoicesWithConfig(messageText, config, { macroContext }),
     };
 }
 
@@ -555,6 +790,57 @@ function buildCompactPreview(message, limit = DEFAULT_CHAT_READER_VIEW_SETTINGS.
     if (!compact) return '空内容';
     if (compact.length <= limit) return compact;
     return `${compact.slice(0, limit)}...`;
+}
+
+
+function looksLikeFullPageChatApp(messageText) {
+    return Boolean(extractHtmlPayloadFromText(messageText));
+}
+
+
+function buildChatAppCompatContext(rawMessages, floor, rawMessage, parsedMessage, activeChat) {
+    const source = rawMessage && typeof rawMessage === 'object' ? rawMessage : {};
+    const parsed = parsedMessage && typeof parsedMessage === 'object' ? parsedMessage : {};
+    const chat = activeChat && typeof activeChat === 'object' ? activeChat : {};
+    const statData = resolveLatestStatData(rawMessages, floor);
+
+    return {
+        latestMessageData: {
+            type: 'message',
+            stat_data: statData,
+            message_id: source.id || parsed.floor || 'latest',
+            message_name: parsed.name || source.name || '',
+            name: parsed.name || source.name || '',
+            mes: source.mes || '',
+            extra: cloneValue(source.extra || {}),
+            variables: cloneValue(source.variables || []),
+            is_user: Boolean(source.is_user),
+            is_system: Boolean(source.is_system),
+            chat_id: chat.id || '',
+        },
+        chat: {
+            id: chat.id || '',
+            title: chat.title || chat.chat_name || '',
+            bound_card_id: chat.bound_card_id || '',
+            bound_card_name: chat.bound_card_name || chat.character_name || '',
+        },
+    };
+}
+
+
+function cloneValue(value) {
+    if (typeof structuredClone === 'function') {
+        try {
+            return structuredClone(value);
+        } catch (error) {
+        }
+    }
+
+    try {
+        return JSON.parse(JSON.stringify(value));
+    } catch (error) {
+        return value;
+    }
 }
 
 
@@ -644,8 +930,8 @@ export default function chatGrid() {
         replaceUseRegex: false,
         replaceStatus: '',
 
-        readerRenderMode: 'plain',
-        readerComponentMode: true,
+        readerRenderMode: DEFAULT_CHAT_READER_RENDER_PREFS.renderMode,
+        readerComponentMode: DEFAULT_CHAT_READER_RENDER_PREFS.componentMode,
         regexConfigOpen: false,
         regexConfigTab: 'extract',
         regexConfigDraft: normalizeRegexConfig(DEFAULT_CHAT_READER_REGEX_CONFIG),
@@ -671,6 +957,16 @@ export default function chatGrid() {
         readerShowLeftPanel: true,
         readerShowRightPanel: true,
         readerRightTab: 'search',
+        readerAppMode: false,
+        readerAppFloor: 0,
+        readerAppSignature: '',
+        readerAppDebug: {
+            checkedCount: 0,
+            detectedFloor: 0,
+            matchedFloors: [],
+            status: '未检测',
+        },
+        chatAppStage: null,
 
         bindPickerOpen: false,
         bindPickerLoading: false,
@@ -734,6 +1030,43 @@ export default function chatGrid() {
             return chatTagged ? mergeRegexConfigs(mergedBase, chatTagged) : normalizeRegexConfig(mergedBase);
         },
 
+        get activeReaderAssetBase() {
+            const chat = this.activeChat || {};
+            const folder = chat.bound_card_resource_folder || chat.resource_folder || '';
+            if (!folder) {
+                return `${window.location.origin}/`;
+            }
+            return `${window.location.origin}/resources_file/${encodeURIComponent(folder)}/`;
+        },
+
+        get activeAppMessage() {
+            if (!this.activeChat || !Array.isArray(this.activeChat.messages) || !this.readerAppFloor) {
+                return null;
+            }
+            return this.activeChat.messages.find(item => Number(item.floor || 0) === Number(this.readerAppFloor || 0)) || null;
+        },
+
+        buildReaderRegexMacroContext(rawMessage = null, floor = 0) {
+            const source = rawMessage && typeof rawMessage === 'object' ? rawMessage : {};
+            const chat = this.activeChat || {};
+            const characterName = chat.bound_card_name || chat.character_name || '';
+            const userName = 'User';
+
+            return {
+                char: characterName,
+                character: characterName,
+                name: characterName,
+                user: userName,
+                persona: userName,
+                chat: chat.title || chat.chat_name || '',
+                chatname: chat.title || chat.chat_name || '',
+                chatid: chat.id || '',
+                floor: String(floor || ''),
+                messageid: source.id || String(floor || ''),
+                mes: String(source.mes || ''),
+            };
+        },
+
         get editingMessageTarget() {
             const targetFloor = Number(this.editingFloor || 0);
             if (!targetFloor || !this.activeChat || !Array.isArray(this.activeChat.messages)) return null;
@@ -742,7 +1075,12 @@ export default function chatGrid() {
 
         get editingMessageParsedPreview() {
             if (!this.editingMessageRawDraft) return '';
-            return extractContentWithConfig(this.editingMessageRawDraft, this.activeRegexConfig);
+            return extractContentWithConfig(this.editingMessageRawDraft, this.activeRegexConfig, {
+                placement: 2,
+                isMarkdown: true,
+                isEdit: true,
+                macroContext: this.buildReaderRegexMacroContext(this.editingMessageTarget || { mes: this.editingMessageRawDraft }, this.editingFloor),
+            });
         },
 
         get editingMessageSourcePreview() {
@@ -770,7 +1108,7 @@ export default function chatGrid() {
             return buildReaderParsedMessage({
                 mes: source,
                 name: 'Regex Test',
-            }, 1, normalizeRegexConfig(this.regexConfigDraft));
+            }, 1, normalizeRegexConfig(this.regexConfigDraft), { macroContext: this.buildReaderRegexMacroContext({ mes: source, name: 'Regex Test' }, 1) });
         },
 
         get hasChatRegexConfig() {
@@ -893,8 +1231,21 @@ export default function chatGrid() {
         },
 
         init() {
+            this.chatAppStage = new ChatAppStage({
+                onTriggerSlash: async (command) => {
+                    await this.executeAppStageSlash(command);
+                },
+                onAppError: (error) => {
+                    console.error('[ChatAppStage]', error);
+                    this.$store.global.showToast(`实例错误: ${error.message}`, 2600);
+                },
+            });
+
             this.regexConfigDraft = loadStoredRegexConfig();
             this.readerViewSettings = loadStoredViewSettings();
+            const renderPreferences = loadStoredRenderPreferences();
+            this.readerRenderMode = renderPreferences.renderMode;
+            this.readerComponentMode = renderPreferences.componentMode;
             this.activeCardRegexConfig = normalizeRegexConfig(EMPTY_CHAT_READER_REGEX_CONFIG, { fillDefaults: false });
 
             this.$watch('$store.global.chatSearchQuery', () => {
@@ -918,6 +1269,35 @@ export default function chatGrid() {
                 this.updateReaderLayoutMetrics();
             });
 
+            this.$watch('readerRenderMode', (value) => {
+                storeRenderPreferences({
+                    renderMode: value,
+                    componentMode: this.readerComponentMode,
+                });
+            });
+
+            this.$watch('readerComponentMode', (value) => {
+                storeRenderPreferences({
+                    renderMode: this.readerRenderMode,
+                    componentMode: value,
+                });
+            });
+
+            this.$watch('readerAppMode', (enabled) => {
+                if (!enabled) {
+                    this.readerAppSignature = '';
+                    if (this.chatAppStage) {
+                        this.chatAppStage.clear();
+                    }
+                    return;
+                }
+
+                this.$nextTick(() => {
+                    this.mountChatAppStage();
+                    this.syncChatAppStage();
+                });
+            });
+
             window.addEventListener('refresh-chat-list', () => {
                 this.fetchChats();
             });
@@ -925,6 +1305,13 @@ export default function chatGrid() {
             window.addEventListener('settings-loaded', () => {
                 if (this.$store.global.currentMode === 'chats') {
                     this.fetchChats();
+                }
+            });
+
+            window.addEventListener('beforeunload', () => {
+                if (this.chatAppStage) {
+                    this.chatAppStage.destroy();
+                    this.chatAppStage = null;
                 }
             });
 
@@ -1038,8 +1425,9 @@ export default function chatGrid() {
             this.replaceUseRegex = false;
             this.replaceStatus = '';
             this.readerRightTab = 'search';
-            this.readerRenderMode = 'plain';
-            this.readerComponentMode = true;
+            const renderPreferences = loadStoredRenderPreferences();
+            this.readerRenderMode = renderPreferences.renderMode;
+            this.readerComponentMode = renderPreferences.componentMode;
             this.regexConfigOpen = false;
             this.regexConfigTab = 'extract';
             this.regexConfigStatus = '';
@@ -1048,6 +1436,15 @@ export default function chatGrid() {
             this.activeCardRegexConfig = normalizeRegexConfig(EMPTY_CHAT_READER_REGEX_CONFIG, { fillDefaults: false });
             this.readerViewportFloor = 0;
             this.readerViewSettingsOpen = false;
+            this.readerAppMode = false;
+            this.readerAppFloor = 0;
+            this.readerAppSignature = '';
+            this.readerAppDebug = {
+                checkedCount: 0,
+                detectedFloor: 0,
+                matchedFloors: [],
+                status: '未检测',
+            };
             this.editingFloor = 0;
             this.editingMessageDraft = '';
             this.editingMessageRawDraft = '';
@@ -1069,12 +1466,27 @@ export default function chatGrid() {
                 this.activeChat = res.chat;
                 this.detailDraftName = res.chat.display_name || '';
                 this.detailDraftNotes = res.chat.notes || '';
+                setActiveRuntimeContext({
+                    chat: {
+                        id: res.chat?.id || item.id,
+                        title: res.chat?.title || res.chat?.chat_name || '',
+                        bound_card_id: res.chat?.bound_card_id || '',
+                        bound_card_name: res.chat?.bound_card_name || res.chat?.character_name || '',
+                        message_count: res.chat?.message_count || 0,
+                    },
+                });
                 await this.loadBoundCardRegexConfig(res.chat);
+                if (!this.activeChat.bound_card_resource_folder && this.activeChat.bound_card_id) {
+                    this.activeChat.bound_card_resource_folder = this.activeCardRegexConfig?.__meta?.resource_folder || '';
+                }
                 this.rebuildActiveChatMessages(this.activeRegexConfig);
+                this.detectChatAppMode();
                 this.regexConfigDraft = normalizeRegexConfig(this.activeRegexConfig);
                 this.regexConfigSourceLabel = this.describeRegexConfigSource(res.chat);
                 this.readerViewportFloor = Number(res.chat.last_view_floor || res.chat.messages?.length || 1);
                 this.$nextTick(() => {
+                    this.mountChatAppStage();
+                    this.syncChatAppStage();
                     this.updateReaderLayoutMetrics();
                     this.syncReaderViewportFloor();
                     this.scrollToFloor(res.chat.last_view_floor || 1, false);
@@ -1091,6 +1503,7 @@ export default function chatGrid() {
             this.detailOpen = false;
             this.detailLoading = false;
             this.activeChat = null;
+            clearActiveRuntimeContext('chat');
             this.detailSearchQuery = '';
             this.detailSearchResults = [];
             this.detailSearchIndex = -1;
@@ -1102,8 +1515,9 @@ export default function chatGrid() {
             this.replaceUseRegex = false;
             this.replaceStatus = '';
             this.readerRightTab = 'search';
-            this.readerRenderMode = 'plain';
-            this.readerComponentMode = true;
+            const renderPreferences = loadStoredRenderPreferences();
+            this.readerRenderMode = renderPreferences.renderMode;
+            this.readerComponentMode = renderPreferences.componentMode;
             this.regexConfigOpen = false;
             this.regexConfigTab = 'extract';
             this.regexConfigStatus = '';
@@ -1112,6 +1526,18 @@ export default function chatGrid() {
             this.activeCardRegexConfig = normalizeRegexConfig(EMPTY_CHAT_READER_REGEX_CONFIG, { fillDefaults: false });
             this.readerViewportFloor = 0;
             this.readerViewSettingsOpen = false;
+            this.readerAppMode = false;
+            this.readerAppFloor = 0;
+            this.readerAppSignature = '';
+            this.readerAppDebug = {
+                checkedCount: 0,
+                detectedFloor: 0,
+                matchedFloors: [],
+                status: '未检测',
+            };
+            if (this.chatAppStage) {
+                this.chatAppStage.clear();
+            }
             this.editingFloor = 0;
             this.editingMessageDraft = '';
             this.editingMessageRawDraft = '';
@@ -1176,6 +1602,12 @@ export default function chatGrid() {
         },
 
         toggleReaderPanel(side) {
+            if (this.readerAppMode && side === 'right') {
+                this.readerShowRightPanel = !this.readerShowRightPanel;
+                this.updateReaderLayoutMetrics();
+                return;
+            }
+
             const isMobile = this.$store.global.deviceType === 'mobile';
 
             if (side === 'left') {
@@ -1243,8 +1675,13 @@ export default function chatGrid() {
             this.detailDraftNotes = res.chat.notes || '';
             await this.loadBoundCardRegexConfig(res.chat);
             this.rebuildActiveChatMessages(this.activeRegexConfig);
+            this.detectChatAppMode();
             this.regexConfigDraft = normalizeRegexConfig(this.activeRegexConfig);
             this.regexConfigSourceLabel = this.describeRegexConfigSource(res.chat);
+            this.$nextTick(() => {
+                this.mountChatAppStage();
+                this.syncChatAppStage();
+            });
         },
 
         describeRegexConfigSource(chat = null) {
@@ -1259,6 +1696,9 @@ export default function chatGrid() {
             const target = chat || this.activeChat;
             if (!target?.bound_card_id) {
                 this.activeCardRegexConfig = normalizeRegexConfig(EMPTY_CHAT_READER_REGEX_CONFIG, { fillDefaults: false });
+                if (target && typeof target === 'object') {
+                    target.bound_card_resource_folder = '';
+                }
                 return;
             }
 
@@ -1266,11 +1706,235 @@ export default function chatGrid() {
                 const detail = await getCardDetail(target.bound_card_id, { preview_wi: false });
                 if (!detail?.success) {
                     this.activeCardRegexConfig = normalizeRegexConfig(EMPTY_CHAT_READER_REGEX_CONFIG, { fillDefaults: false });
+                    if (target && typeof target === 'object') {
+                        target.bound_card_resource_folder = '';
+                    }
                     return;
                 }
                 this.activeCardRegexConfig = deriveReaderConfigFromCard(detail);
+                if (target && typeof target === 'object') {
+                    target.bound_card_resource_folder = detail.card?.resource_folder || '';
+                }
             } catch {
                 this.activeCardRegexConfig = normalizeRegexConfig(EMPTY_CHAT_READER_REGEX_CONFIG, { fillDefaults: false });
+                if (target && typeof target === 'object') {
+                    target.bound_card_resource_folder = '';
+                }
+            }
+        },
+
+        detectChatAppMode() {
+            if (!this.activeChat || !Array.isArray(this.activeChat.raw_messages)) {
+                this.readerAppMode = false;
+                this.readerAppFloor = 0;
+                this.readerAppSignature = '';
+                this.readerAppDebug = {
+                    checkedCount: 0,
+                    detectedFloor: 0,
+                    matchedFloors: [],
+                    status: '当前聊天没有 raw_messages',
+                };
+                if (this.chatAppStage) {
+                    this.chatAppStage.clear();
+                }
+                return;
+            }
+
+            const matchedFloors = [];
+            const candidate = this.activeChat.raw_messages.find((message, index) => {
+                const floor = Number(message?.floor || index + 1 || 0);
+                const htmlPayload = buildFullPageAppHtml(message?.mes || '', this.activeRegexConfig, this.buildReaderRegexMacroContext(message, floor));
+                const matched = Boolean(htmlPayload && looksLikeFullPageChatApp(htmlPayload));
+                if (matched) {
+                    matchedFloors.push(floor);
+                }
+                return matched;
+            });
+
+            if (!candidate) {
+                this.readerAppMode = false;
+                this.readerAppFloor = 0;
+                this.readerAppSignature = '';
+                this.readerAppDebug = {
+                    checkedCount: this.activeChat.raw_messages.length,
+                    detectedFloor: 0,
+                    matchedFloors: [],
+                    status: `未检测到整页实例（已检查 ${this.activeChat.raw_messages.length} 条消息）`,
+                };
+                console.info('[ChatAppMode] no candidate detected', {
+                    chatId: this.activeChat.id,
+                    checkedCount: this.activeChat.raw_messages.length,
+                    regexConfig: this.activeRegexConfig,
+                });
+                if (this.chatAppStage) {
+                    this.chatAppStage.clear();
+                }
+                return;
+            }
+
+            this.readerAppFloor = Number(candidate.floor || this.activeChat.raw_messages.indexOf(candidate) + 1 || 0);
+            this.readerAppMode = this.readerAppFloor > 0;
+            this.readerAppDebug = {
+                checkedCount: this.activeChat.raw_messages.length,
+                detectedFloor: this.readerAppFloor,
+                matchedFloors,
+                status: `检测到整页实例，楼层 #${this.readerAppFloor}`,
+            };
+        },
+
+        mountChatAppStage() {
+            if (!this.chatAppStage || !this.$refs.chatAppStageHost) {
+                return;
+            }
+            this.chatAppStage.attachHost(this.$refs.chatAppStageHost);
+        },
+
+        buildChatAppStagePayload() {
+            if (!this.readerAppMode || !this.activeChat || !Array.isArray(this.activeChat.raw_messages)) {
+                return null;
+            }
+
+            const floor = Number(this.readerAppFloor || 0);
+            if (!floor) {
+                return null;
+            }
+
+            const rawMessage = this.activeChat.raw_messages[floor - 1];
+            const parsedMessage = Array.isArray(this.activeChat.messages)
+                ? this.activeChat.messages.find(item => Number(item.floor || 0) === floor)
+                : null;
+
+            const htmlPayload = buildFullPageAppHtml(rawMessage?.mes || '', this.activeRegexConfig, this.buildReaderRegexMacroContext(rawMessage, floor));
+            if (!htmlPayload) {
+                return null;
+            }
+
+            return {
+                floor,
+                htmlPayload,
+                assetBase: this.activeReaderAssetBase,
+                context: buildChatAppCompatContext(this.activeChat.raw_messages, floor, rawMessage, parsedMessage, this.activeChat),
+            };
+        },
+
+        syncChatAppStage() {
+            if (!this.chatAppStage || !this.readerAppMode) {
+                return;
+            }
+
+            const payload = this.buildChatAppStagePayload();
+            if (!payload) {
+                this.readerAppMode = false;
+                this.readerAppFloor = 0;
+                this.readerAppSignature = '';
+                this.chatAppStage.clear();
+                return;
+            }
+
+            const signature = JSON.stringify({
+                floor: payload.floor,
+                htmlPayload: payload.htmlPayload,
+                assetBase: payload.assetBase,
+            });
+
+            if (signature === this.readerAppSignature) {
+                return;
+            }
+
+            this.readerAppSignature = signature;
+            this.chatAppStage.update(payload);
+        },
+
+        activateChatAppStage() {
+            if (!this.activeChat) return;
+            this.detectChatAppMode();
+            if (!this.readerAppMode) {
+                this.$store.global.showToast(this.readerAppDebug.status || '当前聊天未检测到整页前端实例', 2200);
+                return;
+            }
+
+            const isMobile = this.$store.global.deviceType === 'mobile';
+            if (isMobile) {
+                this.readerShowLeftPanel = false;
+            }
+
+            this.$nextTick(() => {
+                this.mountChatAppStage();
+                this.syncChatAppStage();
+            });
+        },
+
+        deactivateChatAppStage() {
+            this.readerAppMode = false;
+            this.readerAppSignature = '';
+            if (this.chatAppStage) {
+                this.chatAppStage.clear();
+            }
+            this.$nextTick(() => this.updateReaderLayoutMetrics());
+        },
+
+        formatChatAppSendDate() {
+            const now = new Date();
+            const formatted = now.toLocaleString('en-US', {
+                month: 'long',
+                day: 'numeric',
+                year: 'numeric',
+                hour: 'numeric',
+                minute: '2-digit',
+                hour12: true,
+            });
+            return formatted.replace(', ', ' ').replace(' AM', 'am').replace(' PM', 'pm');
+        },
+
+        async appendChatAppUserMessage(text) {
+            if (!this.activeChat) return false;
+
+            const rawMessages = JSON.parse(JSON.stringify(this.activeChat.raw_messages || []));
+            rawMessages.push({
+                name: 'User',
+                is_user: true,
+                is_system: false,
+                mes: String(text || ''),
+                send_date: this.formatChatAppSendDate(),
+                extra: {},
+                force_avatar: this.activeChat.force_avatar || '',
+            });
+
+            const ok = await this.persistChatContent(rawMessages, '已追加实例交互消息');
+            if (ok) {
+                this.detectChatAppMode();
+                this.$nextTick(() => {
+                    this.mountChatAppStage();
+                    this.syncChatAppStage();
+                });
+            }
+            return ok;
+        },
+
+        async executeAppStageSlash(command) {
+            const source = String(command || '').trim();
+            if (!source) return;
+
+            const pipeline = source.split('|').map(item => item.trim()).filter(Boolean);
+            const sendSegment = pipeline.find(item => /^\/send\s+/i.test(item));
+            const triggerSegment = pipeline.find(item => /^\/trigger\b/i.test(item));
+
+            if (!sendSegment) {
+                this.$store.global.showToast(`实例请求执行命令: ${source}`, 2200);
+                return;
+            }
+
+            const message = sendSegment.replace(/^\/send\s+/i, '').trim();
+            if (!message) {
+                this.$store.global.showToast('实例发送内容为空，已忽略', 1800);
+                return;
+            }
+
+            const ok = await this.appendChatAppUserMessage(message);
+            if (!ok) return;
+
+            if (triggerSegment) {
+                this.$store.global.showToast('已追加用户消息，自动触发生成暂未接入', 2200);
             }
         },
 
@@ -1280,7 +1944,9 @@ export default function chatGrid() {
             const nextConfig = normalizeRegexConfig(config || this.activeRegexConfig);
             const rawMessages = Array.isArray(this.activeChat.raw_messages) ? this.activeChat.raw_messages : [];
 
-            this.activeChat.messages = rawMessages.map((item, index) => buildReaderParsedMessage(item, index + 1, nextConfig));
+            this.activeChat.messages = rawMessages.map((item, index) => buildReaderParsedMessage(item, index + 1, nextConfig, {
+                macroContext: this.buildReaderRegexMacroContext(item, index + 1),
+            }));
         },
 
         updateRegexDraftField(field, value) {
@@ -1560,11 +2226,13 @@ export default function chatGrid() {
             if (!el) return;
 
             const mode = this.detectRenderMode(text);
+
             if (mode === 'html-component') {
                 updateInlineRenderContent(el, String(text || ''), {
                     mode: 'html-component',
                     minHeight: 220,
                     maxHeight: 520,
+                    assetBase: this.activeReaderAssetBase,
                 });
                 return;
             }
@@ -1644,7 +2312,11 @@ export default function chatGrid() {
         },
 
         extractDisplayContent(messageText) {
-            return extractContentWithConfig(messageText, this.activeRegexConfig);
+            return extractContentWithConfig(messageText, this.activeRegexConfig, {
+                placement: 2,
+                isMarkdown: true,
+                macroContext: this.buildReaderRegexMacroContext(this.editingMessageTarget || { mes: messageText }, this.editingFloor),
+            });
         },
 
         async toggleFavorite(item) {
@@ -1951,6 +2623,14 @@ export default function chatGrid() {
         scrollToFloor(floor, persist = true) {
             const targetFloor = Number(floor || 0);
             if (!targetFloor || !this.activeChat) return;
+
+            if (this.readerAppMode) {
+                this.readerViewportFloor = targetFloor;
+                if (persist) {
+                    this.activeChat.last_view_floor = targetFloor;
+                }
+                return;
+            }
 
             this.jumpFloorInput = String(targetFloor);
             this.readerViewportFloor = targetFloor;
