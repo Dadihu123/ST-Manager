@@ -180,7 +180,7 @@
                             <span x-text="'当前从 #' + readerWindowStartFloor + ' 开始显示'"></span>
                         </div>
 
-                        <template x-for="message in visibleDetailMessages" :key="message.floor">
+                        <template x-for="message in visibleDetailMessages" :key="(activeChat?.id || 'chat') + ':' + message.floor">
                             <article class="chat-message-card" :class="[messageBadgeClass(message), message.is_full_display ? '' : 'is-compact']" :data-chat-floor="message.floor">
                                 <div class="chat-message-head">
                                     <div class="chat-message-floor-wrap">

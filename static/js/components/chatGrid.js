@@ -94,7 +94,7 @@ const READER_REGEX_PLACEMENT = {
     AI_OUTPUT: 2,
     SLASH_COMMAND: 3,
     WORLD_INFO: 5,
-    REASONING: 9,
+    REASONING: 6,
 };
 
 
@@ -192,20 +192,23 @@ function convertRulesToReaderConfig(rules, currentConfig, options = {}) {
     const displayCandidates = filterReaderDisplayRules(rules);
     const sourceTag = options.source || 'draft';
 
-    displayCandidates.forEach((rule) => {
-        displayRules.push(normalizeDisplayRule({
-            scriptName: rule.scriptName,
-            findRegex: rule.findRegex,
-            replaceString: rule.replaceString,
-            substituteRegex: rule.substituteRegex,
-            trimStrings: rule.trimStrings,
-            disabled: rule.disabled,
-            runOnEdit: rule.runOnEdit,
-            minDepth: rule.minDepth,
-            maxDepth: rule.maxDepth,
-            source: sourceTag,
-        }, displayRules.length));
-    });
+        displayCandidates.forEach((rule) => {
+            displayRules.push(normalizeDisplayRule({
+                scriptName: rule.scriptName,
+                findRegex: rule.findRegex,
+                replaceString: rule.replaceString,
+                substituteRegex: rule.substituteRegex,
+                trimStrings: rule.trimStrings,
+                disabled: rule.disabled,
+                promptOnly: rule.promptOnly,
+                markdownOnly: rule.markdownOnly,
+                runOnEdit: rule.runOnEdit,
+                minDepth: rule.minDepth,
+                maxDepth: rule.maxDepth,
+                placement: Array.isArray(rule.placement) ? [...rule.placement] : [],
+                source: sourceTag,
+            }, displayRules.length));
+        });
 
     nextConfig.displayRules = displayRules;
     return normalizeRegexConfig(nextConfig, { fillDefaults });
@@ -746,6 +749,12 @@ function getRenderedDisplayHtmlForMessage(message, renderedFloorHtmlCache = null
 }
 
 
+function buildReaderCacheScopeKey(activeChat, floor = 0, message = null) {
+    const chatId = resolveReaderMessageChatId(message, activeChat);
+    return `${chatId}:${Number(floor || 0)}`;
+}
+
+
 function getRuntimeScanCandidateFloors(activeChat, viewSettings = null) {
     const messages = Array.isArray(activeChat?.messages) ? activeChat.messages : [];
     if (!messages.length) return [];
@@ -851,7 +860,15 @@ function setRuntimeWrapperActive(host, active) {
 
 
 function getExecutableMessageFloors(activeChat, renderedFloorHtmlCache = null, viewSettings = null) {
+    if (!activeChat || typeof activeChat !== 'object') {
+        return [];
+    }
+
     const messages = Array.isArray(activeChat?.messages) ? activeChat.messages : [];
+    if (!messages.length) {
+        return [];
+    }
+
     const scanFloors = getRuntimeScanCandidateFloors(activeChat, viewSettings);
     const floorSet = new Set(scanFloors);
     const key = messages
@@ -882,6 +899,7 @@ function getExecutableMessageFloors(activeChat, renderedFloorHtmlCache = null, v
 function shouldExecuteMessageSegments(message, activeChat, viewSettings, renderedFloorHtmlCache = null) {
     const floor = Number(message?.floor || 0);
     if (!floor) return false;
+    if (!activeChat || typeof activeChat !== 'object') return false;
 
     const candidateFloors = getExecutableMessageFloors(activeChat, renderedFloorHtmlCache, viewSettings);
     if (!candidateFloors.length || !candidateFloors.includes(floor)) {
@@ -1148,8 +1166,10 @@ function buildReaderParsedMessage(rawMessage, floor, config, options = {}) {
     const source = rawMessage && typeof rawMessage === 'object' ? rawMessage : {};
     const messageText = normalizeReaderMessageSource(source);
     const treatedAsSystem = Boolean(source.is_system) && !isReaderRenderableSystemMessage(source);
+    const chatId = String(options.chatId || '');
 
     return {
+        chat_id: chatId,
         floor: Number(floor || 0),
         name: source.name || 'Unknown',
         is_user: Boolean(source.is_user),
@@ -1167,6 +1187,22 @@ function buildReaderParsedMessage(rawMessage, floor, config, options = {}) {
         choices: [],
         render_segments: [],
     };
+}
+
+
+function resolveReaderMessageChatId(message, activeChat = null) {
+    const directChatId = message && typeof message === 'object' && Object.prototype.hasOwnProperty.call(message, 'chat_id')
+        ? String(message.chat_id || '')
+        : '';
+    if (directChatId) {
+        return directChatId;
+    }
+
+    if (activeChat && typeof activeChat === 'object' && activeChat.id) {
+        return String(activeChat.id);
+    }
+
+    return 'chat-preview';
 }
 
 
@@ -1408,7 +1444,7 @@ export default function chatGrid() {
         },
         chatAppStage: null,
         readerSegmentRegistry: new WeakMap(),
-        readerPartStages: new WeakMap(),
+        readerPartStages: new Map(),
         readerScrollRaf: 0,
         readerScrollIdleTimer: 0,
 
@@ -1720,6 +1756,7 @@ export default function chatGrid() {
                 mes: source,
                 name: 'Regex Test',
             }, 1, normalizeRegexConfig(this.regexConfigDraft), {
+                chatId: this.activeChat?.id || 'regex-test',
                 macroContext: this.buildReaderRegexMacroContext({ mes: source, name: 'Regex Test' }, 1),
                 depth: 0,
             });
@@ -2044,6 +2081,10 @@ export default function chatGrid() {
             if (!item || !item.id) return;
 
             this.clearReaderViewportSync();
+            this.destroyAllReaderPartStages();
+            if (this.chatAppStage) {
+                this.chatAppStage.clear({ resetSession: true });
+            }
             this.detailOpen = true;
             this.detailLoading = true;
             this.activeChat = null;
@@ -2142,6 +2183,10 @@ export default function chatGrid() {
 
         closeChatDetail() {
             this.clearReaderViewportSync();
+            this.destroyAllReaderPartStages();
+            if (this.chatAppStage) {
+                this.chatAppStage.clear({ resetSession: true });
+            }
             this.detailOpen = false;
             this.detailLoading = false;
             this.activeChat = null;
@@ -2184,9 +2229,6 @@ export default function chatGrid() {
                 matchedFloors: [],
                 status: '未检测',
             };
-            if (this.chatAppStage) {
-                this.chatAppStage.clear();
-            }
             this.editingFloor = 0;
             this.editingMessageDraft = '';
             this.editingMessageRawDraft = '';
@@ -2213,6 +2255,29 @@ export default function chatGrid() {
                 window.clearTimeout(this.readerScrollIdleTimer);
                 this.readerScrollIdleTimer = 0;
             }
+        },
+
+        destroyAllReaderPartStages() {
+            if (!(this.readerPartStages instanceof Map) || this.readerPartStages.size === 0) {
+                this.readerPartStages = new Map();
+                return;
+            }
+
+            this.readerPartStages.forEach((stage, host) => {
+                try {
+                    if (stage && typeof stage.destroy === 'function') {
+                        stage.destroy();
+                    }
+                } catch (error) {
+                    console.warn('[ChatReader] destroy inline app stage failed', error);
+                }
+
+                if (host instanceof Element) {
+                    setRuntimeWrapperActive(host, false);
+                }
+            });
+
+            this.readerPartStages = new Map();
         },
 
         resolveReaderWindowBounds(floor = 1, mode = 'center') {
@@ -2744,7 +2809,7 @@ export default function chatGrid() {
             this.readerAppMode = false;
             this.readerAppSignature = '';
             if (this.chatAppStage) {
-                this.chatAppStage.clear();
+                this.chatAppStage.clear({ resetSession: true });
             }
             this.$nextTick(() => this.updateReaderLayoutMetrics());
         },
@@ -2821,6 +2886,7 @@ export default function chatGrid() {
             const rawMessages = Array.isArray(this.activeChat.raw_messages) ? this.activeChat.raw_messages : [];
 
             this.activeChat.messages = rawMessages.map((item, index) => buildReaderParsedMessage(item, index + 1, nextConfig, {
+                chatId: this.activeChat?.id || '',
                 macroContext: this.buildReaderRegexMacroContext(item, index + 1),
                 depth: resolveReaderMessageDepth(rawMessages, index + 1),
             }));
@@ -3120,6 +3186,7 @@ export default function chatGrid() {
             if (floor > 0) {
                 const previousHtml = String(this.renderedFloorHtmlCache.get(floor) || message?.rendered_display_html || '');
                 if (previousHtml !== html) {
+                    const cacheKey = buildReaderCacheScopeKey(this.activeChat, floor, message);
                     this.renderedFloorHtmlCache.set(floor, html);
                     if (message && typeof message === 'object') {
                         message.rendered_display_html = html;
@@ -3130,7 +3197,7 @@ export default function chatGrid() {
                             originalMessage.rendered_display_html = html;
                         }
                     }
-                    this.runtimeCandidateCache.floorMap.delete(floor);
+                    this.runtimeCandidateCache.floorMap.delete(cacheKey);
                     this.runtimeCandidateCache.executableFloorsKey = '';
                 }
             }
@@ -3148,12 +3215,15 @@ export default function chatGrid() {
 
         syncMessageDisplay(el, message, variant = 'full') {
             if (!(el instanceof Element) || !message) return;
+            if (!this.detailOpen || !this.activeChat) return;
 
             const floor = Number(message?.floor || 0);
+            const chatId = resolveReaderMessageChatId(message, this.activeChat);
             const html = variant === 'simple'
                 ? this.renderMessageSimpleHtml(message)
                 : this.renderMessageDisplayHtml(message);
             const signature = JSON.stringify({
+                chatId,
                 floor,
                 variant,
                 renderMode: this.readerRenderMode,
@@ -3184,10 +3254,11 @@ export default function chatGrid() {
             if (!message) return null;
 
             const floor = Number(message.floor || 0);
+            const scopedFloorKey = buildReaderCacheScopeKey(this.activeChat, floor, message);
             const cacheKey = floor > 0
                 ? `${floor}:${String(message.rendered_display_html || this.renderedFloorHtmlCache.get(floor) || '')}`
                 : `preview:${String(message.rendered_display_html || '')}`;
-            const cacheEntry = floor > 0 ? this.runtimeCandidateCache.floorMap.get(floor) : null;
+            const cacheEntry = floor > 0 ? this.runtimeCandidateCache.floorMap.get(scopedFloorKey) : null;
             if (cacheEntry && cacheEntry.key === cacheKey) {
                 return cacheEntry.part;
             }
@@ -3203,7 +3274,7 @@ export default function chatGrid() {
                 : null;
 
             if (floor > 0) {
-                this.runtimeCandidateCache.floorMap.set(floor, {
+                this.runtimeCandidateCache.floorMap.set(scopedFloorKey, {
                     key: cacheKey,
                     part,
                 });
@@ -3279,8 +3350,11 @@ export default function chatGrid() {
 
         mountMessageDisplayNow(el, message) {
             if (!el || !message) return;
+            if (!this.detailOpen || !this.activeChat) return;
+            if (resolveReaderMessageChatId(message, this.activeChat) !== String(this.activeChat?.id || '')) return;
 
             const floor = Number(message.floor || 0);
+            const chatId = resolveReaderMessageChatId(message, this.activeChat);
             const allowExecutableHtml = this.shouldRenderMessageAsApp(message);
             const wrappedHosts = this.wrapRenderedRuntimeHosts(el, message);
             const candidates = extractRuntimeCandidatesFromContainer(el);
@@ -3291,6 +3365,7 @@ export default function chatGrid() {
             const needsRuntimeAttach = allowExecutableHtml && wrappedHosts.some((host) => !(host instanceof Element) || !host.querySelector('iframe'));
             const needsPlaceholderRender = !allowExecutableHtml && wrappedHosts.some((host) => !(host instanceof Element) || !String(host.innerHTML || '').trim());
             const signature = JSON.stringify({
+                chatId,
                 floor,
                 displaySource: String(message.display_source || message.content || ''),
                 candidateSignature,

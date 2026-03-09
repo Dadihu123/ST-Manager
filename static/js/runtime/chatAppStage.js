@@ -653,6 +653,19 @@ export class ChatAppStage {
         }, { emitCurrent: false });
     }
 
+    resetSessionState() {
+        this.signature = '';
+        this.stageId = createStageId();
+        this.currentHtmlPayload = '';
+        this.currentAssetBase = '';
+        this.currentContext = {};
+        this.storageState = {
+            localStorage: {},
+            sessionStorage: {},
+        };
+        this.lastMeasuredHeight = 0;
+    }
+
     isViewportStage() {
         return Boolean(this.host && this.host.classList.contains('chat-reader-app-stage-host'));
     }
@@ -805,12 +818,20 @@ export class ChatAppStage {
         });
     }
 
-    clear() {
+    clear(options = {}) {
+        const resetSession = options.resetSession === true;
         this.signature = '';
         this.currentHtmlPayload = '';
         this.currentAssetBase = '';
         this.currentContext = {};
         this.lastMeasuredHeight = 0;
+        if (resetSession) {
+            this.stageId = createStageId();
+            this.storageState = {
+                localStorage: {},
+                sessionStorage: {},
+            };
+        }
         if (this.iframe) {
             this.applyMeasuredHeight(DEFAULT_STAGE_MIN_HEIGHT);
             this.iframe.srcdoc = '<!DOCTYPE html><html><body></body></html>';
@@ -818,7 +839,7 @@ export class ChatAppStage {
     }
 
     destroy() {
-        this.clear();
+        this.clear({ resetSession: true });
         window.removeEventListener('message', this.onWindowMessage);
         window.removeEventListener('resize', this.onWindowResize);
         if (typeof this.unsubscribeRuntimeContext === 'function') {
