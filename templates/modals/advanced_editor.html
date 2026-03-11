@@ -366,8 +366,7 @@
                                             placeholder="Result will appear here..."></textarea>
 
                                         <!-- HTML 渲染显示 (Shadow DOM) -->
-                                        <div x-show="regexPreviewMode==='html'" class="test-io-content"
-                                            style="padding: 0; min-height: 0; background: var(--bg-sub);"
+                                        <div x-show="regexPreviewMode==='html'" class="test-io-render-box"
                                             x-effect="updateMixedPreviewContent($el, regexPreviewMode==='html' ? regexTestResult : null, { runtimeOwner: 'regex-test-bench', runtimeLabel: 'Regex Test Bench Preview', scroll: true, minHeight: 200, maxHeight: 3200 })">
                                         </div>
                                     </div>
