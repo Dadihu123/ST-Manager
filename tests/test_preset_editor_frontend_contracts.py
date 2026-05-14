@@ -776,6 +776,14 @@ def test_grid_presets_template_leaves_manager_wallpaper_visible_at_root_surface(
     assert 'class="flex-1 flex flex-col overflow-hidden w-full relative h-full"' in source
 
 
+def test_grid_presets_template_uses_owner_link_without_extra_locate_button():
+    source = read_project_file('templates/components/grid_presets.html')
+
+    assert '定位所属角色卡' not in source
+    assert '@click.stop="locatePresetOwnerCard(item)"' in source
+    assert ':title="`所属角色卡：${getPresetOwnerName(item)}`"' in source
+
+
 def test_preset_grid_runtime_prefers_family_default_version_id_for_reader_open():
     run_preset_grid_runtime_check(
         """

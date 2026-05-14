@@ -1442,6 +1442,8 @@ export default function detailModal() {
                 this.$store.global.showToast("✅ 更新成功", 2000);
                 const updatedCard = res.updated_card;
                 if (updatedCard) {
+                    const responseRevision = updatedCard.source_revision || res.source_revision || "";
+                    if (responseRevision) updatedCard.source_revision = responseRevision;
                     const ts = new Date().getTime();
                     if (updatedCard.image_url) updatedCard.image_url += `?t=${ts}`;
                     
@@ -1742,7 +1744,11 @@ export default function detailModal() {
             changeCardImage(formData).then(res => {
                 this.isSaving = false;
                 if (res.success) {
-                    const ts = new Date().getTime();
+                    const updatedCard = res.updated_card || null;
+                    const refreshedRevision = res.updated_card?.source_revision || res.source_revision || "";
+                    if (updatedCard) {
+                        Object.assign(this.activeCard, updatedCard);
+                    }
                     // 处理 ID 变更 (JSON -> PNG)
                     if (res.new_id && res.new_id !== this.editingData.id) {
                         this.activeCard.id = res.new_id;
@@ -1750,12 +1756,24 @@ export default function detailModal() {
                         this.activeCard.filename = res.new_id.split('/').pop();
                         this.editingData.filename = this.activeCard.filename;
                     }
-                    this.activeCard.image_url = res.new_image_url;
+                    if (updatedCard?.filename) {
+                        this.activeCard.filename = updatedCard.filename;
+                        this.editingData.filename = updatedCard.filename;
+                    }
+                    if (res.new_image_url) this.activeCard.image_url = res.new_image_url;
                     if (res.import_time) {
                         this.activeCard.import_time = res.import_time;
                     }
+                    this.editingData.source_revision = refreshedRevision || this.editingData.source_revision || "";
+                    if (this.editingData.source_revision) {
+                        this.activeCard.source_revision = this.editingData.source_revision;
+                    }
                     
-                    window.dispatchEvent(new CustomEvent('refresh-card-list'));
+                    if (updatedCard) {
+                        window.dispatchEvent(new CustomEvent('card-updated', { detail: updatedCard }));
+                    } else {
+                        window.dispatchEvent(new CustomEvent('refresh-card-list'));
+                    }
                     e.target.value = '';
                 } else alert(res.msg);
             });

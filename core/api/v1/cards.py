@@ -2546,6 +2546,7 @@ def api_change_image():
             logger.warning(f"Failed to touch file: {e}")
             
         new_mtime = os.path.getmtime(target_save_path)
+        refreshed_source_revision = build_file_source_revision(target_save_path)
         
         # 2. 物理删除 WebP 缩略图缓存 (强制下次请求重新生成)
         clean_thumbnail_cache(final_id, THUMB_FOLDER)
@@ -2603,9 +2604,15 @@ def api_change_image():
             "last_modified": new_mtime,
             "import_time": import_time_val,
             "token_count": token_count,
-            "dir_path": os.path.dirname(final_id) if '/' in final_id else ""
+            "dir_path": os.path.dirname(final_id) if '/' in final_id else "",
+            "source_revision": refreshed_source_revision,
             # 注意：file_hash 在 update_card_cache 中计算了，内存中可以暂时不更，或者再算一次
         }
+
+        ts = int(new_mtime)
+        new_image_url = f"/cards_file/{quote(final_id)}?t={ts}"
+        new_thumb_url = f"/api/thumbnail/{quote(final_id)}?t={ts}"
+        updated_card_obj = None
         
         # 如果是格式转换，之前的对象已被 delete_card_update 删除，现在需要 add
         if is_format_conversion:
@@ -2617,20 +2624,25 @@ def api_change_image():
             updated_card_data['resource_folder'] = ui_info.get('resource_folder', '')
             
             # 生成 URL
-            encoded_id = quote(final_id)
-            updated_card_data['image_url'] = f"/cards_file/{encoded_id}?t={new_mtime}"
-            updated_card_data['thumb_url'] = f"/api/thumbnail/{encoded_id}?t={new_mtime}"
+            updated_card_data['image_url'] = new_image_url
+            updated_card_data['thumb_url'] = new_thumb_url
             
-            ctx.cache.add_card_update(updated_card_data)
+            updated_card_obj = ctx.cache.add_card_update(updated_card_data) or updated_card_data
         else:
             # 普通更新，调用 update_card_data (原地修改)
-            ctx.cache.update_card_data(final_id, {
-                "last_modified": new_mtime
+            updated_card_obj = ctx.cache.update_card_data(final_id, {
+                "last_modified": new_mtime,
+                "import_time": import_time_val,
+                "image_url": new_image_url,
+                "thumb_url": new_thumb_url,
+                "source_revision": refreshed_source_revision,
             })
-        
-        # 获取最终的 URL
-        ts = int(new_mtime)
-        new_image_url = f"/cards_file/{quote(final_id)}?t={ts}"
+            if not updated_card_obj:
+                updated_card_obj = {
+                    **updated_card_data,
+                    "image_url": new_image_url,
+                    "thumb_url": new_thumb_url,
+                }
         
         return jsonify({
             "success": True,
@@ -2638,7 +2650,9 @@ def api_change_image():
             "new_image_url": new_image_url,
             "is_converted": is_format_conversion,
             "last_modified": new_mtime,
-            "import_time": import_time_val
+            "import_time": import_time_val,
+            "source_revision": refreshed_source_revision,
+            "updated_card": updated_card_obj
         })
 
     except Exception as e:

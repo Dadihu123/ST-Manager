@@ -316,6 +316,55 @@ def test_update_card_content_archive_old_failure_aborts_overwrite(monkeypatch, t
     assert card_path.read_text(encoding='utf-8') == json.dumps({'data': {'name': 'Hero', 'tags': ['old']}}, ensure_ascii=False)
 
 
+def test_update_card_content_png_upload_json_keeps_existing_png_pixels(monkeypatch, tmp_path):
+    cards_root = _setup_update_card_content_test(monkeypatch, tmp_path)
+    card_path = cards_root / 'hero.png'
+    temp_path = tmp_path / 'upload.json'
+    card_path.write_bytes(b'old-png')
+    temp_path.write_text(
+        json.dumps({'data': {'name': 'Hero V2', 'tags': ['new']}}, ensure_ascii=False),
+        encoding='utf-8',
+    )
+
+    monkeypatch.setattr(
+        card_service,
+        'extract_card_info',
+        lambda path: {
+            'data': {
+                'name': 'Hero V2' if str(path).endswith('upload.json') else 'Hero',
+                'tags': ['new'] if str(path).endswith('upload.json') else ['old'],
+            }
+        },
+    )
+
+    opened_paths = []
+
+    class _TrackingImage:
+        def save(self, path, _fmt):
+            Path(path).write_bytes(b'png-data')
+
+    def _fake_open(path):
+        opened_paths.append(Path(path).name)
+        return _TrackingImage()
+
+    monkeypatch.setattr(card_service.Image, 'open', _fake_open)
+
+    result = card_service.update_card_content(
+        'hero.png',
+        str(temp_path),
+        is_bundle_update=False,
+        keep_ui_data={},
+        new_upload_ext='.json',
+        image_policy='overwrite',
+    )
+
+    assert result['success'] is True
+    assert result['new_id'] == 'hero.png'
+    assert result['updated_card']['char_name'] == 'Hero V2'
+    assert result['updated_card']['source_revision'] == result['source_revision']
+    assert opened_paths == ['hero.png']
+
+
 def test_update_card_content_overwrite_runs_card_update_automation(monkeypatch, tmp_path):
     cards_root = _setup_update_card_content_test(monkeypatch, tmp_path)
     card_path = cards_root / 'hero.png'

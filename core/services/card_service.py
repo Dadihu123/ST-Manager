@@ -37,6 +37,7 @@ from core.utils.image import (
 from core.utils.filesystem import save_json_atomic, sanitize_filename
 from core.utils.text import calculate_token_count
 from core.utils.hash import get_file_hash_and_size
+from core.utils.source_revision import build_file_source_revision
 
 logger = logging.getLogger(__name__)
 
@@ -264,6 +265,8 @@ def update_card_content(card_id, temp_path, is_bundle_update, keep_ui_data, new_
     
     # 标记：是否发生了格式转换 (JSON -> PNG)
     is_format_conversion = (not is_bundle_update) and (old_ext == '.json' and new_upload_ext == '.png')
+    # PNG 卡上传 JSON 时只更新元数据，图片像素继续使用现有 PNG。
+    is_json_metadata_update_on_png = (not is_bundle_update) and (old_ext == '.png' and new_upload_ext == '.json')
     
     # 如果发生了格式转换，必须计算新的路径
     if is_format_conversion:
@@ -316,7 +319,10 @@ def update_card_content(card_id, temp_path, is_bundle_update, keep_ui_data, new_
         source_img_path = temp_path 
         use_old_image = False
 
-        if image_policy == 'keep_image' or image_policy == 'archive_new':
+        if is_json_metadata_update_on_png:
+            source_img_path = original_full_path
+            use_old_image = True
+        elif image_policy == 'keep_image' or image_policy == 'archive_new':
             # 用户想保留原图。
             # 如果原文件是 PNG，可以直接用。
             if old_ext == '.png' and os.path.exists(original_full_path):
@@ -517,6 +523,11 @@ def update_card_content(card_id, temp_path, is_bundle_update, keep_ui_data, new_
         if '?t=' not in new_image_url:
             new_image_url += f"?t={int(new_mtime)}"
 
+    revision_path = os.path.join(CARDS_FOLDER, final_rel_id.replace('/', os.sep))
+    refreshed_source_revision = build_file_source_revision(revision_path)
+    if updated_card_obj is not None:
+        updated_card_obj['source_revision'] = refreshed_source_revision
+
     result = {
         "success": True,
         "file_modified": True,
@@ -524,6 +535,7 @@ def update_card_content(card_id, temp_path, is_bundle_update, keep_ui_data, new_
         "new_filename": new_filename,
         "new_image_url": new_image_url,
         "updated_card": updated_card_obj,
+        "source_revision": refreshed_source_revision,
         "import_time": get_import_time(load_ui_data(), final_rel_id, new_mtime)
     }
 
