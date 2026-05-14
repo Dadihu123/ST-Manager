@@ -19,6 +19,7 @@ from core.data.ui_store import (
     migrate_bundle_remarks_to_versions,
     save_ui_data,
 )
+from core.utils.filesystem import is_card_file
 
 logger = logging.getLogger(__name__)
 
@@ -396,6 +397,26 @@ class GlobalMetadataCache:
             cat = card['category']
             self._update_category_count(cat, 1)
 
+    def _collect_bundle_version_ids_from_fs(self, dir_path):
+        """Return card ids physically present in a bundle folder, or None if the folder cannot be inspected."""
+        if not dir_path:
+            return None
+
+        full_dir_path = os.path.join(CARDS_FOLDER, dir_path.replace('/', os.sep))
+        if not os.path.isdir(full_dir_path):
+            return None
+
+        try:
+            version_ids = set()
+            for filename in os.listdir(full_dir_path):
+                full_path = os.path.join(full_dir_path, filename)
+                if os.path.isfile(full_path) and is_card_file(filename):
+                    version_ids.add(f"{dir_path}/{filename}".replace('\\', '/'))
+            return version_ids
+        except OSError as exc:
+            logger.warning(f"Inspecting bundle folder failed for {dir_path}: {exc}")
+            return None
+
     def reload_from_db(self):
         """
         [全量加载] 从数据库和 UI Store 读取所有数据并重建内存缓存。
@@ -418,6 +439,7 @@ class GlobalMetadataCache:
         with self.lock:
             try:
                 physical_folders = set()
+                physical_bundle_dirs = set()
                 try:
                     for root, dirs, files in os.walk(CARDS_FOLDER):
                         # 排除以 . 开头的隐藏目录 (如 .trash, .git)
@@ -433,6 +455,8 @@ class GlobalMetadataCache:
                             # 子目录下的子文件夹
                             current_rel = rel_path.replace('\\', '/')
                             physical_folders.add(current_rel)
+                            if '.bundle' in files:
+                                physical_bundle_dirs.add(current_rel)
                             for d in dirs:
                                 physical_folders.add(f"{current_rel}/{d}")
                 except Exception as fs_e:
@@ -473,7 +497,7 @@ class GlobalMetadataCache:
                     raw_cards.append(card_data)
 
                 # 2. 处理 Bundle 聚合逻辑
-                bundle_dirs = set()
+                bundle_dirs = set(physical_bundle_dirs)
                 unique_dirs = set(c['dir_path'] for c in raw_cards)
                 
                 # 扫描文件系统确认 .bundle 标记 (这步可能略慢，但通常文件夹不多)
@@ -544,7 +568,15 @@ class GlobalMetadataCache:
                     new_bundle_map[dir_path] = bundle_card['id']
 
                     valid_version_ids = {v['id'] for v in bundle_card['versions']}
-                    if cleanup_stale_version_remarks(ui_data, dir_path, valid_version_ids):
+                    # ui_data.json is the durable UI store; only remove stale version notes
+                    # after checking the physical bundle folder, not DB rows alone.
+                    fs_version_ids = self._collect_bundle_version_ids_from_fs(dir_path)
+                    if fs_version_ids is not None:
+                        valid_version_ids = fs_version_ids
+                    if (
+                        fs_version_ids is not None
+                        and cleanup_stale_version_remarks(ui_data, dir_path, valid_version_ids)
+                    ):
                         ui_data_stale_cleaned = True
 
                 if ui_data_stale_cleaned:

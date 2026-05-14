@@ -58,6 +58,54 @@ def _open_row_db(db_path: Path):
     return conn
 
 
+def test_cache_reload_preserves_bundle_version_remarks_when_db_row_is_missing(monkeypatch, tmp_path):
+    db_path = tmp_path / 'cards_metadata.db'
+    ui_path = tmp_path / 'ui_data.json'
+    cards_dir = tmp_path / 'cards'
+    bundle_dir = cards_dir / 'pack'
+    bundle_dir.mkdir(parents=True)
+    (bundle_dir / '.bundle').write_text('1', encoding='utf-8')
+    (bundle_dir / 'cover.png').write_bytes(b'cover')
+    (bundle_dir / 'alt.png').write_bytes(b'alt')
+
+    ui_path.write_text(
+        json.dumps(
+            {
+                'pack': {
+                    'import_time': 100.0,
+                    ui_store_module.VERSION_REMARKS_KEY: {
+                        'pack/cover.png': {'summary': 'cover note'},
+                        'pack/alt.png': {'summary': 'alt note'},
+                    },
+                }
+            },
+            ensure_ascii=False,
+        ),
+        encoding='utf-8',
+    )
+
+    with _open_row_db(db_path) as conn:
+        _create_card_metadata_table(conn)
+        conn.execute(
+            'INSERT INTO card_metadata (id, char_name, tags, category, last_modified, token_count, is_favorite, has_character_book, character_book_name, description, first_mes, mes_example, creator, char_version, file_hash, file_size) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            ('pack/cover.png', 'Cover', json.dumps([]), 'pack', 20.0, 0, 0, 0, '', '', '', '', '', '', '', 1),
+        )
+        conn.commit()
+
+    monkeypatch.setattr(cache_module, 'DEFAULT_DB_PATH', str(db_path), raising=False)
+    monkeypatch.setattr(cache_module, 'CARDS_FOLDER', str(cards_dir), raising=False)
+    monkeypatch.setattr(ui_store_module, 'UI_DATA_FILE', str(ui_path))
+
+    cache = GlobalMetadataCache()
+    cache.reload_from_db()
+
+    ui_payload = json.loads(ui_path.read_text(encoding='utf-8'))
+    assert ui_payload['pack'][ui_store_module.VERSION_REMARKS_KEY] == {
+        'pack/cover.png': {'summary': 'cover note'},
+        'pack/alt.png': {'summary': 'alt note'},
+    }
+
+
 def _run_index_worker_once(monkeypatch, db_path: Path):
     rebuild_calls = []
     wait_calls = {'count': 0}
