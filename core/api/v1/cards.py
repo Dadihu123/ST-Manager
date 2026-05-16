@@ -1334,6 +1334,24 @@ def api_update_card():
         if os.path.abspath(old_full_path).lower() != os.path.abspath(new_full_path).lower():
             is_renamed = True
 
+        def _cached_import_time_for(card_id):
+            cache_entry = ctx.cache.id_map.get(card_id) if card_id else None
+            if cache_entry:
+                cached_it = cache_entry.get('import_time')
+                if isinstance(cached_it, (int, float)) and not isinstance(cached_it, bool) and cached_it > 0:
+                    return float(cached_it)
+            return None
+
+        import_fallback = _cached_import_time_for(raw_id)
+        if import_fallback is None and data.get('save_ui_to_bundle') and data.get('bundle_dir'):
+            bundle_main_id = ctx.cache.bundle_map.get(data.get('bundle_dir'))
+            import_fallback = _cached_import_time_for(bundle_main_id)
+        if import_fallback is None:
+            try:
+                import_fallback = os.path.getmtime(old_full_path)
+            except Exception:
+                import_fallback = None
+
         # --- 辅助函数：深度清洗数据 ---
         def clean_for_compare(obj):
             if isinstance(obj, dict):
@@ -1440,11 +1458,11 @@ def api_update_card():
             current_full_path = new_full_path
             file_content_modified = True 
 
-        import_fallback = None
-        try:
-            import_fallback = os.path.getmtime(current_full_path)
-        except Exception:
-            import_fallback = time.time()
+        if import_fallback is None:
+            try:
+                import_fallback = os.path.getmtime(current_full_path)
+            except Exception:
+                import_fallback = time.time()
 
         # 3. 始终更新 UI Data (Bundle模式下不影响文件内容)
         ui_data = load_ui_data()

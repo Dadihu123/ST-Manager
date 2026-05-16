@@ -138,7 +138,12 @@ def update_card_content(card_id, temp_path, is_bundle_update, keep_ui_data, new_
     original_full_path = os.path.join(CARDS_FOLDER, original_rel_path)
     keep_ui_data = keep_ui_data if isinstance(keep_ui_data, dict) else {}
     import_time_fallback = None
-    if os.path.exists(original_full_path):
+    cache_entry = ctx.cache.id_map.get(card_id)
+    if cache_entry:
+        _cached_it = cache_entry.get('import_time')
+        if isinstance(_cached_it, (int, float)) and not isinstance(_cached_it, bool) and _cached_it > 0:
+            import_time_fallback = float(_cached_it)
+    if import_time_fallback is None and os.path.exists(original_full_path):
         try:
             import_time_fallback = os.path.getmtime(original_full_path)
         except Exception:

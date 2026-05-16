@@ -2508,6 +2508,101 @@ def test_update_card_rename_moves_embedded_worldinfo_note_key(monkeypatch, tmp_p
     ]
 
 
+def test_update_card_import_time_fallback_uses_pre_write_mtime_when_cache_misses(monkeypatch, tmp_path):
+    cards_dir = tmp_path / 'cards'
+    cards_dir.mkdir()
+    card_path = cards_dir / 'hero.json'
+    card_path.write_text(
+        json.dumps({'data': {'name': 'Hero', 'description': 'old', 'tags': []}}, ensure_ascii=False),
+        encoding='utf-8',
+    )
+    old_mtime = 100.0
+    written_mtime = 5000.0
+    os.utime(card_path, (old_mtime, old_mtime))
+
+    ui_data = {}
+    import_time_calls = []
+
+    class _FakeCache:
+        def __init__(self):
+            self.id_map = {}
+            self.bundle_map = {}
+            self.category_counts = {}
+            self.lock = threading.Lock()
+
+        def update_card_data(self, card_id, payload):
+            updated = {
+                'id': card_id,
+                'image_url': f'/cards_file/{card_id}',
+                **payload,
+            }
+            self.id_map[card_id] = updated
+            return updated
+
+    def fake_write_card_metadata(path, _info):
+        os.utime(path, (written_mtime, written_mtime))
+        return True
+
+    def fake_ensure_import_time(payload, ui_key, fallback):
+        import_time_calls.append((ui_key, fallback))
+        payload.setdefault(ui_key, {})['import_time'] = fallback
+        return True, fallback
+
+    monkeypatch.setattr(cards_api, 'CARDS_FOLDER', str(cards_dir))
+    monkeypatch.setattr(cards_api, 'suppress_fs_events', lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(
+        cards_api,
+        'extract_card_info',
+        lambda _path: {'data': {'name': 'Hero', 'description': 'old', 'tags': []}},
+    )
+    monkeypatch.setattr(cards_api, 'write_card_metadata', fake_write_card_metadata)
+    monkeypatch.setattr(cards_api, 'load_ui_data', lambda: ui_data)
+    monkeypatch.setattr(cards_api, 'save_ui_data', lambda _payload: None)
+    monkeypatch.setattr(cards_api, 'ensure_import_time', fake_ensure_import_time)
+    monkeypatch.setattr(cards_api, 'get_import_time', lambda payload, ui_key, _fallback: payload[ui_key]['import_time'])
+    monkeypatch.setattr(cards_api, 'calculate_token_count', lambda _data: 0)
+    monkeypatch.setattr(cards_api, 'update_card_cache', lambda *_args, **_kwargs: {
+        'cache_updated': True,
+        'has_embedded_wi': False,
+        'previous_has_embedded_wi': False,
+    })
+    monkeypatch.setattr(cards_api, 'sync_card_index_jobs', lambda **_kwargs: {})
+    monkeypatch.setattr(cards_api, '_apply_card_index_increment_now', lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(cards_api, 'auto_run_forum_tags_on_link_update', lambda _card_id: None)
+    monkeypatch.setattr(cards_api, 'append_entry_history_records', lambda **_kwargs: None)
+    monkeypatch.setattr(cards_api.ctx, 'cache', _FakeCache())
+
+    client = _make_app().test_client()
+    res = client.post(
+        '/api/update_card',
+        json={
+            'id': 'hero.json',
+            'char_name': 'Hero',
+            'description': 'new',
+            'first_mes': '',
+            'mes_example': '',
+            'personality': '',
+            'scenario': '',
+            'creator_notes': '',
+            'system_prompt': '',
+            'post_history_instructions': '',
+            'creator': '',
+            'character_version': '',
+            'extensions': {},
+            'tags': [],
+            'alternate_greetings': [],
+            'character_book': None,
+            'ui_summary': '',
+            'source_link': '',
+            'resource_folder': '',
+        },
+    )
+
+    assert res.status_code == 200
+    assert res.get_json()['success'] is True
+    assert import_time_calls == [('hero.json', old_mtime)]
+
+
 def test_toggle_bundle_mode_enable_keeps_tags_consistent_between_file_db_cache_and_index(monkeypatch, tmp_path):
     db_path = tmp_path / 'cards_metadata.db'
     ui_path = tmp_path / 'ui_data.json'
