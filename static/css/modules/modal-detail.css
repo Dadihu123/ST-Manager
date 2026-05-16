@@ -1394,6 +1394,30 @@ html.light-mode .detail-thumb-label {
   min-height: 0 !important;
 }
 
+.detail-section-fill .detail-card .detail-local-note-editor {
+  flex: 1 1 0 !important;
+  min-height: 0 !important;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.detail-section-fill .detail-card .detail-local-note-editor > .form-textarea,
+.detail-section-fill .detail-card .detail-local-note-editor > .detail-local-note-preview-box {
+  flex: 1 1 0 !important;
+  min-height: 0 !important;
+  width: 100%;
+}
+
+.detail-section-fill .detail-card .detail-local-note-preview-box {
+  height: auto !important;
+  overflow: auto !important;
+  align-self: stretch;
+  max-width: 100%;
+  background: var(--bg-panel);
+  border-color: var(--accent-main);
+}
+
 .detail-section-fill .detail-card .detail-render-box.detail-dialog-grow-box {
   align-self: stretch;
   max-width: 100%;
@@ -2755,6 +2779,20 @@ html.light-mode .note-textarea:focus {
     flex: 0 0 auto;
     min-height: clamp(6rem, 18vh, 9rem);
     height: auto !important;
+  }
+  .detail-section-mobile-stack .detail-card .detail-local-note-editor {
+    flex: 0 0 auto !important;
+    min-height: clamp(6rem, 18vh, 9rem);
+  }
+  .detail-section-mobile-stack
+    .detail-card
+    .detail-local-note-editor
+    > .form-textarea,
+  .detail-section-mobile-stack
+    .detail-card
+    .detail-local-note-editor
+    > .detail-local-note-preview-box {
+    min-height: 0 !important;
   }
   .detail-section-mobile-stack .detail-card .detail-dialog-grow-box {
     flex: 0 0 auto !important;

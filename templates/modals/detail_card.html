@@ -694,7 +694,7 @@
           >
             <div class="detail-tab-scroll custom-scrollbar">
               <div class="detail-card">
-                <div class="detail-card-head">
+                <div class="detail-card-head detail-card-head-row">
                   <div
                     class="detail-card-title flex items-center gap-2"
                     style="color: var(--accent-light)"
@@ -702,20 +702,47 @@
                     <span class="note-label-icon">📌</span>
                     <span>本地备注 (Local Note)</span>
                   </div>
-                  <button
-                    class="expand-btn"
-                    @click="openLargeEditor('ui_summary','本地备注')"
-                  >
-                    ⤢
-                  </button>
+                  <div class="detail-card-actions">
+                    <button
+                      class="expand-btn"
+                      @click="openLargeEditor('ui_summary','本地备注')"
+                    >
+                      ⤢
+                    </button>
+                    <div class="toggle-btn-group">
+                      <button
+                        class="toggle-btn"
+                        :class="!showLocalNotePreview ? 'active' : ''"
+                        @click="showLocalNotePreview=false"
+                      >
+                        编辑
+                      </button>
+                      <button
+                        class="toggle-btn"
+                        :class="showLocalNotePreview ? 'active' : ''"
+                        @click="showLocalNotePreview=true"
+                      >
+                        Markdown预览
+                      </button>
+                    </div>
+                  </div>
                 </div>
-                <textarea
-                  x-model="editingData.ui_summary"
-                  class="form-textarea note-textarea"
-                  style="height: 10rem; resize: none"
-                  placeholder="这是仅存储在本地的私有备注，不会写入角色卡文件..."
-                >
-                </textarea>
+                <div class="detail-local-note-editor">
+                  <textarea
+                    x-show="!showLocalNotePreview"
+                    x-model="editingData.ui_summary"
+                    @paste="handleLocalNotePaste($event)"
+                    class="form-textarea note-textarea"
+                    style="resize: none"
+                    placeholder="这是仅存储在本地的私有备注，不会写入角色卡文件..."
+                  >
+                  </textarea>
+                  <div
+                    x-show="showLocalNotePreview"
+                    class="detail-render-box custom-scrollbar detail-local-note-preview-box"
+                    x-effect="renderUnifiedPreviewHost($el, showLocalNotePreview ? editingData.ui_summary : null, { runtimeOwner: 'card-local-note', runtimeLabel: 'Card Local Note Markdown Preview', scroll: true, minHeight: 0, maxHeight: 0, renderMode: 'markdown' })"
+                  ></div>
+                </div>
               </div>
 
               <!-- 原简介卡片：条件渲染 -->

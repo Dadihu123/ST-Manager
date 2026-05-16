@@ -120,6 +120,74 @@ def test_preview_entrypoints_continue_using_shared_dom_renderers_with_unified_pr
     assert 'config: buildPreviewRegexConfig()' in detail_preview_block
 
 
+def test_detail_local_note_supports_inline_markdown_preview_contract():
+    detail_card_template = read_project_file('templates/modals/detail_card.html')
+    detail_modal_source = read_project_file('static/js/components/detailModal.js')
+
+    assert 'showLocalNotePreview: false,' in detail_modal_source
+    open_detail_reset_block = detail_modal_source.split('openDetail(c) {', 1)[1].split(
+        '// 深拷贝并清洗数据',
+        1,
+    )[0]
+    assert 'this.showLocalNotePreview = false;' in open_detail_reset_block
+
+    local_note_block = detail_card_template.split('<span>本地备注 (Local Note)</span>', 1)[1]
+    local_note_block = local_note_block.split('<!-- 原简介卡片：条件渲染 -->', 1)[0]
+
+    assert ':class="!showLocalNotePreview ? \'active\' : \'\'"' in local_note_block
+    assert ':class="showLocalNotePreview ? \'active\' : \'\'"' in local_note_block
+    assert '@click="showLocalNotePreview=false"' in local_note_block
+    assert '@click="showLocalNotePreview=true"' in local_note_block
+    assert 'Markdown预览' in local_note_block
+    assert 'x-show="!showLocalNotePreview"' in local_note_block
+    assert 'x-show="showLocalNotePreview"' in local_note_block
+    assert (
+        'renderUnifiedPreviewHost($el, showLocalNotePreview ? editingData.ui_summary : null'
+        in local_note_block
+    )
+    assert "renderMode: 'markdown'" in local_note_block
+    assert 'applyDisplayRules' not in local_note_block
+    assert 'buildPreviewRegexConfig()' not in local_note_block
+
+
+def test_detail_local_note_preview_keeps_textarea_footprint_and_paste_contract():
+    detail_card_template = read_project_file('templates/modals/detail_card.html')
+    detail_css = read_project_file('static/css/modules/modal-detail.css')
+    detail_modal_source = read_project_file('static/js/components/detailModal.js')
+
+    local_note_block = detail_card_template.split('<span>本地备注 (Local Note)</span>', 1)[1]
+    local_note_block = local_note_block.split('<!-- 原简介卡片：条件渲染 -->', 1)[0]
+
+    assert '@paste="handleLocalNotePaste($event)"' in local_note_block
+    assert 'class="detail-local-note-editor"' in local_note_block
+    assert 'class="form-textarea note-textarea"' in local_note_block
+    assert 'class="detail-render-box custom-scrollbar detail-local-note-preview-box"' in local_note_block
+    assert 'height: 10rem;' not in local_note_block
+
+    editor_css_block = detail_css.split(
+        '.detail-section-fill .detail-card .detail-local-note-editor {',
+        1,
+    )[1].split('}', 1)[0]
+    assert 'flex: 1' in editor_css_block
+    assert 'min-height: 0' in editor_css_block
+    assert 'display: flex;' in editor_css_block
+    assert 'flex-direction: column;' in editor_css_block
+
+    assert '.detail-local-note-editor > .form-textarea,' in detail_css
+    assert '.detail-local-note-editor > .detail-local-note-preview-box {' in detail_css
+
+    preview_css_block = detail_css.split(
+        '.detail-section-fill .detail-card .detail-local-note-preview-box {',
+        1,
+    )[1].split('}', 1)[0]
+    assert 'height: auto !important;' in preview_css_block
+    assert 'overflow: auto !important;' in preview_css_block
+
+    assert 'uploadNoteImage,' in detail_modal_source
+    assert 'insertAtCursor,' in detail_modal_source
+    assert 'handleLocalNotePaste(e) {' in detail_modal_source
+
+
 def test_advanced_editor_footer_distinguishes_file_mode_from_buffered_apply_and_persist_actions():
     advanced_editor_template = read_project_file('templates/modals/advanced_editor.html')
 

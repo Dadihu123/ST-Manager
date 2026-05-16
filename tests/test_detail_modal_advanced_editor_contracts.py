@@ -37,6 +37,9 @@ def run_detail_modal_runtime_check(script_body):
         const setSkinAsCover = async () => ({{ success: true }});
         const deleteResourceFile = async () => ({{ success: true }});
         const uploadCardResource = async () => ({{ success: true }});
+        const uploadNoteImage = async (formData) => globalThis.__uploadNoteImage
+          ? globalThis.__uploadNoteImage(formData)
+          : ({{ success: true, url: '/uploads/default.png' }});
         const listResourceFiles = async () => ({{ success: true, files: [] }});
         const apiSetResourceFolder = async () => ({{ success: true }});
         const apiOpenResourceFolder = async () => ({{ success: true }});
@@ -50,6 +53,14 @@ def run_detail_modal_runtime_check(script_body):
         const formatWiKeys = (value) => value;
         const getTopbarTokenLevelClass = () => '';
         const updateShadowContent = () => {{}};
+        const insertAtCursor = (textarea, myValue) => {{
+          if (textarea.selectionStart || textarea.selectionStart == '0') {{
+            const startPos = textarea.selectionStart;
+            const endPos = textarea.selectionEnd;
+            return textarea.value.substring(0, startPos) + myValue + textarea.value.substring(endPos, textarea.value.length);
+          }}
+          return textarea.value + myValue;
+        }};
         const renderUnifiedPreviewHost = () => '';
         const updateMixedPreviewContent = () => '';
         const createAutoSaver = () => ({{ stop() {{}}, initBaseline() {{}}, start() {{}} }});
@@ -255,6 +266,69 @@ def test_detail_modal_runtime_advanced_editor_persist_awaits_save_and_only_close
         }
         if (closeEventCount !== 0) {
           throw new Error(`expected persist failure to avoid close event, got ${closeEventCount}`);
+        }
+      """
+    )
+
+
+def test_detail_modal_runtime_local_note_paste_uploads_image_and_replaces_placeholder():
+    run_detail_modal_runtime_check(
+        """
+        const appendedFiles = [];
+        globalThis.FormData = class FormData {
+          append(name, value) {
+            appendedFiles.push({ name, value });
+          }
+        };
+        const uploadedBlob = { type: 'image/png', name: 'clip.png' };
+        let uploadCalls = 0;
+        globalThis.__uploadNoteImage = async (formData) => {
+          uploadCalls += 1;
+          return { success: true, url: '/api/uploads/note-image.png' };
+        };
+        const event = {
+          clipboardData: {
+            items: [
+              {
+                type: 'image/png',
+                getAsFile() {
+                  return uploadedBlob;
+                },
+              },
+            ],
+          },
+          preventDefaultCalls: 0,
+          preventDefault() {
+            this.preventDefaultCalls += 1;
+          },
+          target: {
+            value: 'before after',
+            selectionStart: 6,
+            selectionEnd: 6,
+          },
+        };
+
+        modal.editingData = { ui_summary: 'before after' };
+
+        const pastePromise = modal.handleLocalNotePaste(event);
+
+        if (event.preventDefaultCalls !== 1) {
+          throw new Error(`expected paste to be prevented once, got ${event.preventDefaultCalls}`);
+        }
+        if (modal.editingData.ui_summary !== 'before\\n![Uploading image...]()\\n after') {
+          throw new Error(`expected upload placeholder at cursor, got ${JSON.stringify(modal.editingData.ui_summary)}`);
+        }
+
+        await pastePromise;
+
+        if (uploadCalls !== 1) {
+          throw new Error(`expected one upload call, got ${uploadCalls}`);
+        }
+        if (appendedFiles.length !== 1 || appendedFiles[0].name !== 'file' || appendedFiles[0].value !== uploadedBlob) {
+          throw new Error(`expected clipboard blob to be uploaded, got ${JSON.stringify(appendedFiles)}`);
+        }
+        if (modal.editingData.ui_summary !== 'before\\n![image](/api/uploads/note-image.png)\\n after') {
+          throw new Error(`expected uploaded image markdown, got ${JSON.stringify(modal.editingData.ui_summary)}`);
         }
       """
     )

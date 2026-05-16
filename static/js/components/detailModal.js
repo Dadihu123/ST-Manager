@@ -28,6 +28,7 @@ import {
     setSkinAsCover,
     deleteResourceFile,
     uploadCardResource,
+    uploadNoteImage,
     listResourceFiles,
     setResourceFolder as apiSetResourceFolder, 
     openResourceFolder as apiOpenResourceFolder, 
@@ -42,7 +43,7 @@ import {
     formatWiKeys,
     getTopbarTokenLevelClass
 } from '../utils/format.js';
-import { updateShadowContent, renderUnifiedPreviewHost, updateMixedPreviewContent } from '../utils/dom.js';
+import { insertAtCursor, updateShadowContent, renderUnifiedPreviewHost, updateMixedPreviewContent } from '../utils/dom.js';
 import { createAutoSaver } from '../utils/autoSave.js'; 
 import { wiHelpers } from '../utils/wiHelpers.js';
 import { clearActiveRuntimeContext, setActiveRuntimeContext } from '../runtime/runtimeContext.js';
@@ -60,6 +61,7 @@ export default function detailModal() {
         tab: 'basic', 
         lastTab: 'basic',
         showFirstPreview: false,
+        showLocalNotePreview: false,
         updateImagePolicy: 'overwrite', // 默认策略
         saveOldCoverOnSwap: false,      // 皮肤换封时是否保留旧图
         dragOverUpdate: false,
@@ -966,6 +968,7 @@ export default function detailModal() {
             this.currentSkinIndex = -1;
             this.isCardFlipped = false;
             this.showFirstPreview = false;
+            this.showLocalNotePreview = false;
             this.lastTab = this.tab; 
             this.tab = 'basic';
             this.showTagLibrary = true;
@@ -2027,6 +2030,52 @@ export default function detailModal() {
             window.dispatchEvent(new CustomEvent('open-markdown-view', {
                 detail: content
             }));
+        },
+
+        async handleLocalNotePaste(e) {
+            const clipboardData = e.clipboardData || e.originalEvent?.clipboardData;
+            const items = clipboardData?.items || [];
+            let blob = null;
+
+            for (let i = 0; i < items.length; i++) {
+                if (items[i].type.indexOf('image') === 0) {
+                    blob = items[i].getAsFile();
+                    break;
+                }
+            }
+
+            if (!blob) return;
+
+            e.preventDefault();
+
+            const placeholder = '\n![Uploading image...]()\n';
+            this.editingData.ui_summary = insertAtCursor(e.target, placeholder);
+
+            const formData = new FormData();
+            formData.append('file', blob);
+
+            try {
+                const res = await uploadNoteImage(formData);
+                if (res.success) {
+                    const realMarkdown = `\n![image](${res.url})\n`;
+                    this.editingData.ui_summary = this.editingData.ui_summary.replace(
+                        placeholder,
+                        realMarkdown
+                    );
+                } else {
+                    alert('图片上传失败: ' + res.msg);
+                    this.editingData.ui_summary = this.editingData.ui_summary.replace(
+                        placeholder,
+                        ''
+                    );
+                }
+            } catch (err) {
+                alert('网络错误: ' + err);
+                this.editingData.ui_summary = this.editingData.ui_summary.replace(
+                    placeholder,
+                    ''
+                );
+            }
         },
         // 导入函数
         handleWiImport(e) {
