@@ -2273,7 +2273,7 @@ def test_convert_to_bundle_updates_category_and_enqueues_incremental_sync(monkey
             'remove_entity_ids': ['group/hero.json'],
         }
     ]
-    assert saved_ui_payloads == [{'group/pack': {'summary': 'note'}}]
+    assert saved_ui_payloads == [{'group/pack': {'_version_remarks': {'group/pack/hero.json': {'summary': 'note'}}}}]
     assert force_reload_calls == [{'reason': 'convert_to_bundle'}]
 
 

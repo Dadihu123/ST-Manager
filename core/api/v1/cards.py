@@ -3084,7 +3084,11 @@ def api_toggle_bundle_mode():
                         pass  # set_version_remark 已经修改了 ui_data
             
             # 保存 bundle 的全局 UI 数据（包含 link 和 resource_folder）
-            ui_data[folder_path] = bundle_ui
+            # 使用 update 合并而非覆盖，以保留上方 set_version_remark 写入的 _version_remarks
+            if folder_path in ui_data:
+                ui_data[folder_path].update(bundle_ui)
+            else:
+                ui_data[folder_path] = bundle_ui
             
             # 3.4 可选：将合并后的标签写回最新那张卡片 (为了让搜索能搜到)
             # 或者，我们在 GlobalMetadataCache 处理聚合时已经处理了标签显示
@@ -3239,6 +3243,19 @@ def api_convert_to_bundle():
             ui_data[new_key] = ui_data[card_id]
             del ui_data[card_id]
             ui_changed = True
+
+            # 将根级别 summary 迁移到版本级别 _version_remarks，
+            # 避免后续新增版本时通过向后兼容逻辑错误继承旧备注
+            old_summary = ui_data[new_key].get('summary', '')
+            if old_summary:
+                from core.data.ui_store import set_version_remark
+                remark_data = {
+                    'summary': old_summary,
+                    'link': ui_data[new_key].get('link', ''),
+                    'resource_folder': ui_data[new_key].get('resource_folder', ''),
+                }
+                if set_version_remark(ui_data, new_key, new_id, remark_data, new_id):
+                    ui_changed = True
 
         # 转包后保持/补齐导入时间到 bundle key（即使原来无 ui_data 条目）
         import_fallback = 0
