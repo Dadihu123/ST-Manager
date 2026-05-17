@@ -235,12 +235,20 @@ export default function cardGrid() {
         }
 
         // 移除后重新排序插入
+        const existingCard = idx !== -1 ? this.cards[idx] : null;
+        const cardForSort = existingCard
+          ? { ...existingCard, ...updatedCard }
+          : updatedCard;
+        if (existingCard && !Number(cardForSort.import_time || 0)) {
+          cardForSort.import_time = existingCard.import_time;
+        }
+
         if (idx !== -1) {
           // 移除旧对象
           this.cards.splice(idx, 1);
         }
 
-        this.insertCardSorted(updatedCard);
+        this.insertCardSorted(cardForSort);
         this.syncCardUiState();
       });
 
