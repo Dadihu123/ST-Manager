@@ -35,7 +35,9 @@ def run_detail_modal_runtime_check(script_body):
         const performSystemAction = async () => ({{ success: true }});
         const readFileContent = async () => ({{ success: true }});
         const setSkinAsCover = async () => ({{ success: true }});
-        const deleteResourceFile = async () => ({{ success: true }});
+        const deleteResourceFile = async (payload) => globalThis.__deleteResourceFile
+          ? globalThis.__deleteResourceFile(payload)
+          : ({{ success: true }});
         const uploadCardResource = async () => ({{ success: true }});
         const uploadNoteImage = async (formData) => globalThis.__uploadNoteImage
           ? globalThis.__uploadNoteImage(formData)
@@ -146,6 +148,100 @@ def test_detail_modal_runtime_open_advanced_editor_uses_detached_extensions_snap
         }
         if (!listeners['advanced-editor-apply'] || !listeners['advanced-editor-persist']) {
           throw new Error('expected apply and persist listeners to be registered');
+        }
+      """
+    )
+
+
+def test_detail_modal_runtime_get_skin_url_encodes_nested_resource_segments():
+    run_detail_modal_runtime_check(
+        """
+        modal.activeCard = { resource_folder: 'hero folder' };
+        modal.editingData = { resource_folder: '' };
+
+        const url = modal.getSkinUrl('poses/happy face.png');
+
+        if (url !== '/resources_file/hero%20folder/poses/happy%20face.png') {
+          throw new Error(`expected nested path segments to remain routable, got ${url}`);
+        }
+      """
+    )
+
+
+def test_detail_modal_runtime_skin_directory_items_navigate_and_select_by_path():
+    run_detail_modal_runtime_check(
+        """
+        modal.activeCard = { resource_folder: 'hero' };
+        modal.editingData = { resource_folder: 'hero' };
+        modal.skinImages = ['1.png', '2/2.png', '2/deeper/3.png', 'alpha.png'];
+        modal.currentSkinDirectory = '';
+        modal.currentSkinIndex = -1;
+
+        const rootItems = modal.currentSkinItems.map((item) => `${item.type}:${item.name}:${item.path}`);
+        const expectedRoot = ['directory:2:2', 'image:1.png:1.png', 'image:alpha.png:alpha.png'];
+        if (JSON.stringify(rootItems) !== JSON.stringify(expectedRoot)) {
+          throw new Error(`expected root directory items ${JSON.stringify(expectedRoot)}, got ${JSON.stringify(rootItems)}`);
+        }
+
+        modal.enterSkinDirectory('2');
+        if (modal.currentSkinDirectory !== '2') {
+          throw new Error(`expected current directory to be 2, got ${modal.currentSkinDirectory}`);
+        }
+        if (modal.currentSkinIndex !== -1) {
+          throw new Error(`expected entering a directory to clear selection, got ${modal.currentSkinIndex}`);
+        }
+
+        const childItems = modal.currentSkinItems.map((item) => `${item.type}:${item.name}:${item.path}`);
+        const expectedChild = ['directory:deeper:2/deeper', 'image:2.png:2/2.png'];
+        if (JSON.stringify(childItems) !== JSON.stringify(expectedChild)) {
+          throw new Error(`expected child directory items ${JSON.stringify(expectedChild)}, got ${JSON.stringify(childItems)}`);
+        }
+
+        modal.selectSkinByPath('2/2.png');
+        if (modal.currentSkinIndex !== 1) {
+          throw new Error(`expected selected global skin index 1, got ${modal.currentSkinIndex}`);
+        }
+        if (modal.displayImageUrl !== '/resources_file/hero/2/2.png') {
+          throw new Error(`expected selected nested image URL, got ${modal.displayImageUrl}`);
+        }
+
+        modal.goToSkinParentDirectory();
+        if (modal.currentSkinDirectory !== '') {
+          throw new Error(`expected parent navigation to return to root, got ${modal.currentSkinDirectory}`);
+        }
+      """
+    )
+
+
+def test_detail_modal_runtime_delete_resource_item_uses_relative_path_and_refreshes():
+    run_detail_modal_runtime_check(
+        """
+        const calls = [];
+        globalThis.__deleteResourceFile = async (payload) => {
+          calls.push(payload);
+          return { success: true };
+        };
+        let refreshFolder = '';
+        modal.activeCard = { id: 'cards/hero.png', resource_folder: 'hero' };
+        modal.editingData = { resource_folder: 'hero' };
+        modal.$store = { global: { showToast() {} } };
+        modal.fetchResourceFiles = (folderName) => {
+          refreshFolder = folderName;
+        };
+
+        await modal.deleteResourceItem(
+          { name: 'book.json', relative_path: 'lorebooks/arc/book.json' },
+          '世界书',
+        );
+
+        if (calls.length !== 1) {
+          throw new Error(`expected one delete call, got ${calls.length}`);
+        }
+        if (calls[0].filename !== 'lorebooks/arc/book.json') {
+          throw new Error(`expected relative path delete, got ${JSON.stringify(calls[0])}`);
+        }
+        if (refreshFolder !== 'hero') {
+          throw new Error(`expected resource list refresh for hero, got ${refreshFolder}`);
         }
       """
     )

@@ -10,7 +10,7 @@
     <!-- 左侧外悬浮：SKINS（不遮挡图片） -->
     <div
       class="detail-filmstrip-outside custom-scrollbar"
-      x-show="showDetail && !isCardFlipped && skinImages.length > 0"
+      x-show="showDetail && !isCardFlipped && (currentSkinItems.length > 0 || currentSkinDirectory)"
       x-transition:enter="transition ease-out duration-300"
       x-transition:enter-start="opacity-0 -translate-x-4"
       x-transition:enter-end="opacity-100 translate-x-0"
@@ -28,28 +28,55 @@
         <span class="detail-thumb-label">Main</span>
       </button>
 
+      <button
+        type="button"
+        x-show="currentSkinDirectory"
+        @click="goToSkinParentDirectory()"
+        class="detail-thumb"
+        title="返回上一级"
+      >
+        <div class="flex h-full w-full items-center justify-center text-xl">↑</div>
+        <span class="detail-thumb-label">上一级</span>
+      </button>
+
       <!-- 皮肤列表 -->
-      <template x-for="(skin, idx) in skinImages" :key="skin">
-        <button
-          type="button"
-          @click="currentSkinIndex=idx"
-          class="detail-thumb"
-          :class="currentSkinIndex === idx ? 'active-skin' : ''"
-          :title="skin"
-        >
-          <!-- 使用 getSkinUrl 函数，并添加 x-show 确保 URL 有效才渲染 -->
-          <img
-            :src="getSkinUrl(skin)"
-            x-show="getSkinUrl(skin)"
-            loading="lazy"
-            alt="Skin"
-            onerror="this.style.display = 'none'"
-          />
-          <span
-            class="detail-thumb-label"
-            x-text="skin.length > 10 ? '...'+skin.slice(-8) : skin"
-          ></span>
-        </button>
+      <template x-for="item in currentSkinItems" :key="item.type + ':' + item.path">
+        <div style="display: contents">
+          <button
+            type="button"
+            x-show="item.type === 'directory'"
+            @dblclick.stop="enterSkinDirectory(item.path)"
+            class="detail-thumb"
+            :title="item.path"
+          >
+            <div class="flex h-full w-full items-center justify-center text-xl">📁</div>
+            <span
+              class="detail-thumb-label"
+              x-text="item.name.length > 10 ? '...'+item.name.slice(-8) : item.name"
+            ></span>
+          </button>
+          <button
+            type="button"
+            x-show="item.type === 'image'"
+            @click="selectSkinByPath(item.path)"
+            class="detail-thumb"
+            :class="isSkinPathSelected(item.path) ? 'active-skin' : ''"
+            :title="item.path"
+          >
+            <!-- 使用 getSkinUrl 函数，并添加 x-show 确保 URL 有效才渲染 -->
+            <img
+              :src="getSkinUrl(item.path)"
+              x-show="getSkinUrl(item.path)"
+              loading="lazy"
+              alt="Skin"
+              onerror="this.style.display = 'none'"
+            />
+            <span
+              class="detail-thumb-label"
+              x-text="item.name.length > 10 ? '...'+item.name.slice(-8) : item.name"
+            ></span>
+          </button>
+        </div>
       </template>
     </div>
 
@@ -2352,46 +2379,80 @@
                         </span>
                         <span
                           class="text-[10px] text-[var(--text-dim)]"
-                          x-text="skinImages.length + ' items'"
+                          x-text="currentSkinItems.length + ' items'"
                         ></span>
                       </div>
 
                       <div class="flex-1 overflow-y-auto custom-scrollbar p-2">
+                        <div class="mb-2 flex items-center gap-2 text-[11px] text-[var(--text-dim)]">
+                          <button
+                            type="button"
+                            x-show="currentSkinDirectory"
+                            @click="goToSkinParentDirectory()"
+                            class="px-2 py-1 rounded border border-[var(--border-light)] hover:text-[var(--text-main)]"
+                          >
+                            上一级
+                          </button>
+                          <button
+                            type="button"
+                            @click="goToSkinDirectory('')"
+                            class="px-2 py-1 rounded border border-[var(--border-light)] hover:text-[var(--text-main)]"
+                            :class="!currentSkinDirectory ? 'text-[var(--accent-main)] border-[var(--accent-main)]' : ''"
+                          >
+                            根目录
+                          </button>
+                          <span class="truncate" :title="currentSkinDirectory || '根目录'" x-text="currentSkinDirectory || '根目录'"></span>
+                        </div>
                         <div class="grid grid-cols-3 gap-2">
                           <template
-                            x-for="(skin, idx) in skinImages"
-                            :key="skin"
+                            x-for="item in currentSkinItems"
+                            :key="item.type + ':' + item.path"
                           >
-                            <div
-                              class="relative group aspect-square rounded overflow-hidden border border-[var(--border-light)] bg-black/20 cursor-pointer"
-                              @click="currentSkinIndex = idx; isCardFlipped=false"
-                            >
-                              <img
-                                :src="getSkinUrl(skin)"
-                                class="w-full h-full object-cover transition-transform group-hover:scale-110"
-                              />
-                              <!-- 选中标记 -->
+                            <div style="display: contents">
                               <div
-                                x-show="currentSkinIndex === idx"
-                                class="absolute inset-0 border-2 border-[var(--accent-main)] z-10 pointer-events-none"
-                              ></div>
-                              <!-- 悬浮遮罩 -->
-                              <div
-                                class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                                x-show="item.type === 'directory'"
+                                class="relative group aspect-square rounded overflow-hidden border border-[var(--border-light)] bg-[var(--bg-body)]/80 cursor-pointer flex flex-col items-center justify-center gap-2"
+                                @dblclick.stop="enterSkinDirectory(item.path)"
+                                :title="item.path"
                               >
-                                <span class="text-[10px] text-white font-bold"
-                                  >预览</span
-                                >
+                                <div class="text-3xl">📁</div>
+                                <div
+                                  class="absolute bottom-0 left-0 right-0 bg-black/60 text-[9px] text-white px-1 truncate"
+                                  x-text="item.name"
+                                ></div>
                               </div>
                               <div
-                                class="absolute bottom-0 left-0 right-0 bg-black/60 text-[9px] text-white px-1 truncate"
-                                x-text="skin"
-                              ></div>
+                                x-show="item.type === 'image'"
+                                class="relative group aspect-square rounded overflow-hidden border border-[var(--border-light)] bg-black/20 cursor-pointer"
+                                @click="selectSkinByPath(item.path)"
+                              >
+                                <img
+                                  :src="getSkinUrl(item.path)"
+                                  class="w-full h-full object-cover transition-transform group-hover:scale-110"
+                                />
+                                <!-- 选中标记 -->
+                                <div
+                                  x-show="isSkinPathSelected(item.path)"
+                                  class="absolute inset-0 border-2 border-[var(--accent-main)] z-10 pointer-events-none"
+                                ></div>
+                                <!-- 悬浮遮罩 -->
+                                <div
+                                  class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                                >
+                                  <span class="text-[10px] text-white font-bold"
+                                    >预览</span
+                                  >
+                                </div>
+                                <div
+                                  class="absolute bottom-0 left-0 right-0 bg-black/60 text-[9px] text-white px-1 truncate"
+                                  x-text="item.name"
+                                ></div>
+                              </div>
                             </div>
                           </template>
                         </div>
                         <div
-                          x-show="skinImages.length === 0"
+                          x-show="currentSkinItems.length === 0"
                           class="h-full flex items-center justify-center text-[var(--text-dim)] text-xs italic"
                         >
                           暂无图片
@@ -2420,12 +2481,12 @@
                           <template x-if="currentSkinIndex >= 0">
                             <div
                               class="truncate"
-                              :title="skinImages[currentSkinIndex]"
+                              :title="selectedSkinPath"
                             >
                               当前选中:
                               <span
                                 class="font-mono text-[var(--text-main)]"
-                                x-text="skinImages[currentSkinIndex]"
+                                x-text="selectedSkinPath"
                               ></span>
                             </div>
                           </template>
@@ -2458,7 +2519,7 @@
 
                         <div class="flex gap-2">
                           <button
-                            @click="setSkinAsCover(skinImages[currentSkinIndex])"
+                            @click="setSkinAsCover(selectedSkinPath)"
                             :disabled="currentSkinIndex === -1"
                             class="btn-secondary flex-1 justify-center font-bold text-[var(--accent-main)] border-[var(--accent-main)] hover:bg-[var(--accent-main)] hover:text-white transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-[var(--accent-main)]"
                           >
@@ -2472,6 +2533,51 @@
                           >
                             🗑️
                           </button>
+                        </div>
+                      </div>
+
+                      <!-- 未识别资源列表 -->
+                      <div
+                        class="border border-[var(--border-light)] rounded-lg bg-[var(--bg-sub)]/30 flex flex-col"
+                      >
+                        <div
+                          class="p-2 border-b border-[var(--border-light)] bg-[var(--bg-sub)] rounded-t-lg"
+                        >
+                          <span
+                            class="text-xs font-bold text-slate-400 uppercase flex items-center gap-1"
+                          >
+                            <span>📦</span> 其他资源 (Unknown)
+                          </span>
+                        </div>
+                        <div class="p-2 space-y-1">
+                          <template
+                            x-for="file in resourceUnknown"
+                            :key="file.relative_path || file.path"
+                          >
+                            <div
+                              class="flex items-center justify-between p-2 rounded border border-transparent hover:border-[var(--border-light)] hover:bg-[var(--bg-hover)] group transition-colors"
+                            >
+                              <div class="flex items-center gap-2 min-w-0">
+                                <span class="text-slate-400 text-sm">📄</span>
+                                <span
+                                  class="text-xs text-[var(--text-main)] truncate"
+                                  :title="file.relative_path || file.name"
+                                  x-text="file.relative_path || file.name"
+                                ></span>
+                              </div>
+                              <button
+                                @click.stop="deleteResourceItem(file, '未知资源')"
+                                class="text-[10px] text-red-400 hover:text-red-300 opacity-0 group-hover:opacity-100"
+                                title="删除未知资源"
+                              >删除</button>
+                            </div>
+                          </template>
+                          <div
+                            x-show="resourceUnknown.length === 0"
+                            class="text-[10px] text-[var(--text-dim)] text-center py-2 italic"
+                          >
+                            无文件
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -2506,8 +2612,13 @@
                                 <span class="text-orange-400 text-sm">📘</span>
                                 <span
                                   class="text-xs text-[var(--text-main)] truncate"
-                                  x-text="file.name"
+                                  x-text="file.relative_path || file.name"
                                 ></span>
+                                <button
+                                  @click.stop="deleteResourceItem(file, '世界书')"
+                                  class="text-[10px] text-red-400 hover:text-red-300"
+                                  title="删除世界书"
+                                >删除</button>
                               </div>
                               <span
                                 class="text-[10px] text-[var(--text-dim)] opacity-0 group-hover:opacity-100"
@@ -2550,8 +2661,13 @@
                                 <span class="text-blue-400 text-sm">📄</span>
                                 <span
                                   class="text-xs text-[var(--text-main)] truncate"
-                                  x-text="file.name"
+                                  x-text="file.relative_path || file.name"
                                 ></span>
+                                <button
+                                  @click.stop="deleteResourceItem(file, '正则脚本')"
+                                  class="text-[10px] text-red-400 hover:text-red-300"
+                                  title="删除正则脚本"
+                                >删除</button>
                               </div>
                               <span
                                 class="text-[10px] text-[var(--text-dim)] opacity-0 group-hover:opacity-100"
@@ -2594,8 +2710,13 @@
                                 <span class="text-purple-400 text-sm">📜</span>
                                 <span
                                   class="text-xs text-[var(--text-main)] truncate"
-                                  x-text="file.name"
+                                  x-text="file.relative_path || file.name"
                                 ></span>
+                                <button
+                                  @click.stop="deleteResourceItem(file, '扩展脚本')"
+                                  class="text-[10px] text-red-400 hover:text-red-300"
+                                  title="删除扩展脚本"
+                                >删除</button>
                               </div>
                               <span
                                 class="text-[10px] text-[var(--text-dim)] opacity-0 group-hover:opacity-100"
@@ -2638,8 +2759,13 @@
                                 <span class="text-yellow-500 text-sm">⚡</span>
                                 <span
                                   class="text-xs text-[var(--text-main)] truncate"
-                                  x-text="file.name"
+                                  x-text="file.relative_path || file.name"
                                 ></span>
+                                <button
+                                  @click.stop="deleteResourceItem(file, '快速回复')"
+                                  class="text-[10px] text-red-400 hover:text-red-300"
+                                  title="删除快速回复"
+                                >删除</button>
                               </div>
                               <span
                                 class="text-[10px] text-[var(--text-dim)] opacity-0 group-hover:opacity-100"
@@ -2682,8 +2808,13 @@
                                 <span class="text-cyan-400 text-sm">🎚️</span>
                                 <span
                                   class="text-xs text-[var(--text-main)] truncate"
-                                  x-text="file.name"
+                                  x-text="file.relative_path || file.name"
                                 ></span>
+                                <button
+                                  @click.stop="deleteResourceItem(file, '预设')"
+                                  class="text-[10px] text-red-400 hover:text-red-300"
+                                  title="删除预设"
+                                >删除</button>
                               </div>
                               <span
                                 class="text-[10px] text-[var(--text-dim)] opacity-0 group-hover:opacity-100"

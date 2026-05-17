@@ -115,11 +115,13 @@ export default function detailModal() {
         resourceScripts: [],
         resourceQuickReplies: [],
         resourcePresets: [],
+        resourceUnknown: [],
         cardChats: [],
         cardChatsLoading: false,
         // 皮肤与版本
         skinImages: [],
         currentSkinIndex: -1,
+        currentSkinDirectory: '',
 
         // 自动保存
         originalDataJson: '', // 基准快照
@@ -531,6 +533,7 @@ export default function detailModal() {
                     this._cleanupPendingAdvancedEditorHandlers();
                     clearActiveRuntimeContext('card');
                     this.currentSkinIndex = -1;
+                    this.currentSkinDirectory = '';
                     this.zoomLevel = 100;
                     this.isCardFlipped = false;
                     this.skinImages = [];
@@ -661,19 +664,24 @@ export default function detailModal() {
             this.resourceScripts = [];
             this.resourceQuickReplies = [];
             this.resourcePresets = [];
+            this.resourceUnknown = [];
             this.currentSkinIndex = -1;
+            this.currentSkinDirectory = '';
 
             if (!folderName) return;
 
             // 调用新 API
             listResourceFiles(folderName).then(res => {
                 if (res.success && res.files) {
-                    this.skinImages = res.files.skins || [];
+                    this.skinImages = (res.files.skins || [])
+                        .map(pathValue => this.normalizeResourcePath(pathValue))
+                        .filter(Boolean);
                     this.resourceLorebooks = res.files.lorebooks || [];
                     this.resourceRegex = res.files.regex || [];
                     this.resourceScripts = res.files.scripts || [];
                     this.resourceQuickReplies = res.files.quick_replies || [];
                     this.resourcePresets = res.files.presets || [];
+                    this.resourceUnknown = res.files.unknown || [];
                 }
             }).catch(err => {
                 console.error("Failed to load resources:", err);
@@ -742,10 +750,107 @@ export default function detailModal() {
             }
         },
 
+        // 资源文件工具方法
+        getResourceRelativePath(fileItem) {
+            if (!fileItem) return '';
+            if (typeof fileItem === 'string') return fileItem;
+            return fileItem.relative_path || fileItem.filename || fileItem.name || '';
+        },
+
+        getResourceDisplayName(fileItem) {
+            if (!fileItem) return '';
+            if (typeof fileItem === 'string') return fileItem;
+            return fileItem.name || fileItem.relative_path || fileItem.path || '';
+        },
+
+        encodeResourcePath(pathValue) {
+            return String(pathValue || '')
+                .replace(/\\/g, '/')
+                .split('/')
+                .filter(Boolean)
+                .map(part => encodeURIComponent(part))
+                .join('/');
+        },
+
+        normalizeResourcePath(pathValue) {
+            return String(pathValue || '')
+                .replace(/\\/g, '/')
+                .split('/')
+                .map(part => part.trim())
+                .filter(Boolean)
+                .join('/');
+        },
+
+        getResourcePathName(pathValue) {
+            const parts = this.normalizeResourcePath(pathValue).split('/').filter(Boolean);
+            return parts.length > 0 ? parts[parts.length - 1] : '';
+        },
+
+        getResourceParentPath(pathValue) {
+            const parts = this.normalizeResourcePath(pathValue).split('/').filter(Boolean);
+            parts.pop();
+            return parts.join('/');
+        },
+
+        enterSkinDirectory(pathValue = '') {
+            this.currentSkinDirectory = this.normalizeResourcePath(pathValue);
+            this.currentSkinIndex = -1;
+            this.isCardFlipped = false;
+        },
+
+        goToSkinDirectory(pathValue = '') {
+            this.enterSkinDirectory(pathValue);
+        },
+
+        goToSkinParentDirectory() {
+            this.enterSkinDirectory(this.getResourceParentPath(this.currentSkinDirectory));
+        },
+
+        selectSkinByPath(pathValue) {
+            const normalizedPath = this.normalizeResourcePath(pathValue);
+            const index = this.skinImages.findIndex(skin => this.normalizeResourcePath(skin) === normalizedPath);
+            if (index === -1) return;
+
+            this.currentSkinIndex = index;
+            this.currentSkinDirectory = this.getResourceParentPath(normalizedPath);
+            this.isCardFlipped = false;
+        },
+
+        isSkinPathSelected(pathValue) {
+            return this.selectedSkinPath === this.normalizeResourcePath(pathValue);
+        },
+
+        async deleteResourceItem(fileItem, label = '资源') {
+            const relativePath = this.getResourceRelativePath(fileItem);
+            if (!relativePath) return;
+
+            const displayName = this.getResourceDisplayName(fileItem) || relativePath;
+            if (!confirm(`确定要删除${label}文件 "${displayName}" 吗？\n文件将被移动到回收站。`)) return;
+
+            this.isSaving = true;
+            try {
+                const res = await deleteResourceFile({
+                    card_id: this.activeCard.id,
+                    filename: relativePath,
+                });
+                if (res.success) {
+                    this.$store.global.showToast(`🗑️ ${label}已删除`);
+                    this.fetchResourceFiles(this.editingData.resource_folder);
+                } else {
+                    alert("删除失败: " + res.msg);
+                }
+            } catch (e) {
+                alert("请求错误: " + e);
+            } finally {
+                this.isSaving = false;
+            }
+        },
+
         // 删除当前选中的皮肤
         deleteCurrentSkin() {
             if (this.currentSkinIndex === -1) return;
-            const skinName = this.skinImages[this.currentSkinIndex];
+            const skinName = this.selectedSkinPath;
+            if (!skinName) return;
             
             if (!confirm(`确定要删除皮肤文件 "${skinName}" 吗？\n文件将被移至回收站。`)) return;
             
@@ -966,6 +1071,7 @@ export default function detailModal() {
             this.activeCard = c;
             this.skinImages = [];
             this.currentSkinIndex = -1;
+            this.currentSkinDirectory = '';
             this.isCardFlipped = false;
             this.showFirstPreview = false;
             this.showLocalNotePreview = false;
@@ -1486,19 +1592,73 @@ export default function detailModal() {
             }
         },
 
-        get displayImageUrl() {
+        get currentSkinItems() {
+            const directory = this.normalizeResourcePath(this.currentSkinDirectory);
+            const prefix = directory ? `${directory}/` : '';
+            const directories = new Map();
+            const images = [];
+
+            (this.skinImages || []).forEach((skin, index) => {
+                const pathValue = this.normalizeResourcePath(skin);
+                if (!pathValue) return;
+                if (prefix && !pathValue.startsWith(prefix)) return;
+
+                const remainder = prefix ? pathValue.slice(prefix.length) : pathValue;
+                if (!remainder) return;
+
+                const parts = remainder.split('/').filter(Boolean);
+                if (parts.length === 0) return;
+
+                if (parts.length > 1) {
+                    const directoryPath = prefix ? `${prefix}${parts[0]}` : parts[0];
+                    if (!directories.has(directoryPath)) {
+                        directories.set(directoryPath, {
+                            type: 'directory',
+                            name: parts[0],
+                            path: directoryPath,
+                        });
+                    }
+                    return;
+                }
+
+                images.push({
+                    type: 'image',
+                    name: parts[0],
+                    path: pathValue,
+                    index,
+                });
+            });
+
+            const sortByName = (a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+            return [
+                ...Array.from(directories.values()).sort(sortByName),
+                ...images.sort(sortByName),
+            ];
+        },
+
+        get selectedSkinPath() {
             if (this.currentSkinIndex === -1 || this.skinImages.length === 0) {
+                return '';
+            }
+            return this.normalizeResourcePath(this.skinImages[this.currentSkinIndex]);
+        },
+
+        get selectedSkinName() {
+            return this.getResourcePathName(this.selectedSkinPath);
+        },
+
+        get displayImageUrl() {
+            if (!this.selectedSkinPath) {
                 return this.activeCard.image_url;
             }
             const folder = this.activeCard.resource_folder || this.editingData.resource_folder;
-            const file = this.skinImages[this.currentSkinIndex];
-            return `/resources_file/${encodeURIComponent(folder)}/${encodeURIComponent(file)}`;
+            return `/resources_file/${this.encodeResourcePath(folder)}/${this.encodeResourcePath(this.selectedSkinPath)}`;
         },
 
         getSkinUrl(skinName) {
             const folder = this.activeCard.resource_folder || this.editingData.resource_folder;
             if (!folder || !skinName) return '';
-            return `/resources_file/${encodeURIComponent(folder)}/${encodeURIComponent(skinName)}`;
+            return `/resources_file/${this.encodeResourcePath(folder)}/${this.encodeResourcePath(this.getResourceRelativePath(skinName))}`;
         },
 
         fetchSkins(folderName) {
@@ -1506,15 +1666,31 @@ export default function detailModal() {
         },
 
         nextSkin() {
-            if (this.skinImages.length === 0) return;
-            this.currentSkinIndex++;
-            if (this.currentSkinIndex >= this.skinImages.length) this.currentSkinIndex = -1;
+            const imageItems = this.currentSkinItems.filter(item => item.type === 'image');
+            if (imageItems.length === 0) return;
+
+            const currentItemIndex = imageItems.findIndex(item => item.index === this.currentSkinIndex);
+            const nextItemIndex = currentItemIndex + 1;
+            if (nextItemIndex >= imageItems.length) {
+                this.currentSkinIndex = -1;
+                return;
+            }
+
+            this.selectSkinByPath(imageItems[nextItemIndex].path);
         },
 
         prevSkin() {
-            if (this.skinImages.length === 0) return;
-            this.currentSkinIndex--;
-            if (this.currentSkinIndex < -1) this.currentSkinIndex = this.skinImages.length - 1;
+            const imageItems = this.currentSkinItems.filter(item => item.type === 'image');
+            if (imageItems.length === 0) return;
+
+            const currentItemIndex = imageItems.findIndex(item => item.index === this.currentSkinIndex);
+            const prevItemIndex = currentItemIndex === -1 ? imageItems.length - 1 : currentItemIndex - 1;
+            if (prevItemIndex < 0) {
+                this.currentSkinIndex = -1;
+                return;
+            }
+
+            this.selectSkinByPath(imageItems[prevItemIndex].path);
         },
 
         // === 版本与聚合包 ===
