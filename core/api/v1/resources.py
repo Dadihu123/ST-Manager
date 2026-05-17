@@ -547,7 +547,7 @@ def api_list_resource_files():
         if not os.path.exists(target_dir):
             return jsonify({"success": True, "files": result})
 
-        valid_img_exts = {'.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp'}
+        valid_img_exts = {'.png', '.jpg', '.jpeg', '.jfif', '.gif', '.webp', '.bmp'}
         sub_map = {
             'lorebooks': 'lorebooks',
             'regex': 'extensions/regex',

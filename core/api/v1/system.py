@@ -999,7 +999,7 @@ def api_cleanup_init_backups():
 
                 # 清理同名伴生备份
                 base_path = os.path.splitext(f_path)[0]
-                for ext in ['.png', '.json', '.webp', '.jpg', '.jpeg']:
+                for ext in ['.json', *SIDECAR_EXTENSIONS]:
                     sidecar = base_path + ext
                     if os.path.exists(sidecar) and sidecar != f_path:
                         try:
@@ -1498,7 +1498,7 @@ def api_list_resource_skins():
 
         skins = []
         # 支持的图片扩展名
-        valid_exts = {'.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp'}
+        valid_exts = {'.png', '.jpg', '.jpeg', '.jfif', '.gif', '.webp', '.bmp'}
         
         for f in os.listdir(target_dir):
             ext = os.path.splitext(f)[1].lower()
@@ -1559,7 +1559,7 @@ def api_upload_background():
             
         # 2. 生成安全的文件名 (使用时间戳防止重名)
         ext = os.path.splitext(file.filename)[1].lower()
-        if ext not in ['.jpg', '.jpeg', '.png', '.webp', '.gif']:
+        if ext not in ['.jpg', '.jpeg', '.jfif', '.png', '.webp', '.gif']:
              return jsonify({"success": False, "msg": "不支持的图片格式"})
              
         new_filename = f"bg_{int(time.time())}_{uuid.uuid4().hex[:6]}{ext}"

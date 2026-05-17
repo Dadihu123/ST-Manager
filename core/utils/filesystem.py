@@ -107,7 +107,7 @@ def safe_move_to_trash(src_path, trash_folder_path):
         # === 特殊处理：如果是 JSON 卡片，尝试移动所有伴生图片 ===
         if ext_part.lower() == '.json':
             # 查找同名图片 (去掉 break，遍历所有可能的后缀)
-            for img_ext in ['.png', '.webp', '.jpg', '.jpeg']:
+            for img_ext in SIDECAR_EXTENSIONS:
                 sidecar_src = os.path.join(os.path.dirname(src_path), name_part + img_ext)
                 if os.path.exists(sidecar_src):
                     # 使用相同的 unique_suffix
@@ -168,7 +168,7 @@ def cleanup_old_snapshots(target_dir, max_limit, prefix_filter=None):
                     print(f"Deleted old snapshot: {f_path}")
                     # 尝试清理同名伴生图
                     base_path = os.path.splitext(f_path)[0]
-                    for ext in ['.png', '.json', '.webp']:
+                    for ext in ['.json', *SIDECAR_EXTENSIONS]:
                         sidecar = base_path + ext
                         if os.path.exists(sidecar) and sidecar != f_path:
                             os.remove(sidecar)

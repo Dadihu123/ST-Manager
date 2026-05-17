@@ -32,10 +32,10 @@
         type="button"
         x-show="currentSkinDirectory"
         @click="goToSkinParentDirectory()"
-        class="detail-thumb"
+        class="detail-thumb detail-thumb--nav"
         title="返回上一级"
       >
-        <div class="flex h-full w-full items-center justify-center text-xl">↑</div>
+        <div class="detail-thumb-symbol">↑</div>
         <span class="detail-thumb-label">上一级</span>
       </button>
 
@@ -46,10 +46,10 @@
             type="button"
             x-show="item.type === 'directory'"
             @dblclick.stop="enterSkinDirectory(item.path)"
-            class="detail-thumb"
+            class="detail-thumb detail-thumb--folder"
             :title="item.path"
           >
-            <div class="flex h-full w-full items-center justify-center text-xl">📁</div>
+            <div class="detail-thumb-symbol">📁</div>
             <span
               class="detail-thumb-label"
               x-text="item.name.length > 10 ? '...'+item.name.slice(-8) : item.name"
@@ -2536,50 +2536,6 @@
                         </div>
                       </div>
 
-                      <!-- 未识别资源列表 -->
-                      <div
-                        class="border border-[var(--border-light)] rounded-lg bg-[var(--bg-sub)]/30 flex flex-col"
-                      >
-                        <div
-                          class="p-2 border-b border-[var(--border-light)] bg-[var(--bg-sub)] rounded-t-lg"
-                        >
-                          <span
-                            class="text-xs font-bold text-slate-400 uppercase flex items-center gap-1"
-                          >
-                            <span>📦</span> 其他资源 (Unknown)
-                          </span>
-                        </div>
-                        <div class="p-2 space-y-1">
-                          <template
-                            x-for="file in resourceUnknown"
-                            :key="file.relative_path || file.path"
-                          >
-                            <div
-                              class="flex items-center justify-between p-2 rounded border border-transparent hover:border-[var(--border-light)] hover:bg-[var(--bg-hover)] group transition-colors"
-                            >
-                              <div class="flex items-center gap-2 min-w-0">
-                                <span class="text-slate-400 text-sm">📄</span>
-                                <span
-                                  class="text-xs text-[var(--text-main)] truncate"
-                                  :title="file.relative_path || file.name"
-                                  x-text="file.relative_path || file.name"
-                                ></span>
-                              </div>
-                              <button
-                                @click.stop="deleteResourceItem(file, '未知资源')"
-                                class="text-[10px] text-red-400 hover:text-red-300 opacity-0 group-hover:opacity-100"
-                                title="删除未知资源"
-                              >删除</button>
-                            </div>
-                          </template>
-                          <div
-                            x-show="resourceUnknown.length === 0"
-                            class="text-[10px] text-[var(--text-dim)] text-center py-2 italic"
-                          >
-                            无文件
-                          </div>
-                        </div>
-                      </div>
                     </div>
 
                     <!-- 右栏：逻辑文件 (Lorebooks / Regex / Scripts) -->
@@ -2824,6 +2780,51 @@
                           </template>
                           <div
                             x-show="resourcePresets.length === 0"
+                            class="text-[10px] text-[var(--text-dim)] text-center py-2 italic"
+                          >
+                            无文件
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- 未识别资源列表 -->
+                      <div
+                        class="border border-[var(--border-light)] rounded-lg bg-[var(--bg-sub)]/30 flex flex-col"
+                      >
+                        <div
+                          class="p-2 border-b border-[var(--border-light)] bg-[var(--bg-sub)] rounded-t-lg"
+                        >
+                          <span
+                            class="text-xs font-bold text-slate-400 uppercase flex items-center gap-1"
+                          >
+                            <span>📦</span> 其他资源 (Unknown)
+                          </span>
+                        </div>
+                        <div class="p-2 space-y-1">
+                          <template
+                            x-for="file in resourceUnknown"
+                            :key="file.relative_path || file.path"
+                          >
+                            <div
+                              class="flex items-center justify-between p-2 rounded border border-transparent hover:border-[var(--border-light)] hover:bg-[var(--bg-hover)] group transition-colors"
+                            >
+                              <div class="flex items-center gap-2 min-w-0">
+                                <span class="text-slate-400 text-sm">📄</span>
+                                <span
+                                  class="text-xs text-[var(--text-main)] truncate"
+                                  :title="file.relative_path || file.name"
+                                  x-text="file.relative_path || file.name"
+                                ></span>
+                              </div>
+                              <button
+                                @click.stop="deleteResourceItem(file, '未知资源')"
+                                class="text-[10px] text-red-400 hover:text-red-300 opacity-0 group-hover:opacity-100"
+                                title="删除未知资源"
+                              >删除</button>
+                            </div>
+                          </template>
+                          <div
+                            x-show="resourceUnknown.length === 0"
                             class="text-[10px] text-[var(--text-dim)] text-center py-2 italic"
                           >
                             无文件

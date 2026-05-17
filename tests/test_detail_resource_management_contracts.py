@@ -14,6 +14,7 @@ def test_detail_template_exposes_unknown_resource_bucket_and_delete_actions():
     assert "deleteResourceItem(file, '快速回复')" in source
     assert "deleteResourceItem(file, '预设')" in source
     assert "deleteResourceItem(file, '未知资源')" in source
+    assert source.index('预设 (Presets)') < source.index('其他资源 (Unknown)')
 
 
 def test_detail_template_uses_directory_skin_items_in_filmstrip_and_resource_panel():
@@ -25,3 +26,5 @@ def test_detail_template_uses_directory_skin_items_in_filmstrip_and_resource_pan
     assert 'selectSkinByPath(item.path)' in source
     assert 'isSkinPathSelected(item.path)' in source
     assert '@dblclick.stop="enterSkinDirectory(item.path)"' in source
+    assert 'detail-thumb--nav' in source
+    assert 'detail-thumb--folder' in source

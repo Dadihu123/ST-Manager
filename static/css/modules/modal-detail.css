@@ -78,8 +78,48 @@
   display: block;
 }
 
+.detail-thumb--nav,
+.detail-thumb--folder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-color: rgba(148, 163, 184, 0.42);
+  background:
+    linear-gradient(180deg, rgba(30, 41, 59, 0.74), rgba(15, 23, 42, 0.7)),
+    rgba(15, 23, 42, 0.66);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.05),
+    0 4px 10px rgba(0, 0, 0, 0.35);
+}
+
+.detail-thumb-symbol {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  color: rgba(226, 232, 240, 0.9);
+  background: rgba(255, 255, 255, 0.08);
+  font-size: 22px;
+  line-height: 1;
+}
+
+.detail-thumb--nav .detail-thumb-symbol {
+  font-size: 24px;
+  font-weight: 800;
+}
+
 .detail-thumb:hover {
   transform: translateY(-1px);
+}
+
+.detail-thumb--nav:hover,
+.detail-thumb--folder:hover {
+  border-color: rgba(96, 165, 250, 0.72);
+  background:
+    linear-gradient(180deg, rgba(30, 64, 175, 0.44), rgba(15, 23, 42, 0.76)),
+    rgba(15, 23, 42, 0.72);
 }
 
 .detail-thumb-label {
@@ -104,6 +144,22 @@ html.light-mode .detail-filmstrip-outside {
 html.light-mode .detail-thumb {
   background: rgba(255, 255, 255, 0.55);
   box-shadow: 0 8px 18px rgba(0, 0, 0, 0.1);
+}
+
+html.light-mode .detail-thumb--nav,
+html.light-mode .detail-thumb--folder {
+  border-color: rgba(100, 116, 139, 0.36);
+  background:
+    linear-gradient(180deg, rgba(248, 250, 252, 0.92), rgba(226, 232, 240, 0.78)),
+    rgba(255, 255, 255, 0.78);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.72),
+    0 8px 18px rgba(15, 23, 42, 0.1);
+}
+
+html.light-mode .detail-thumb-symbol {
+  color: rgba(30, 41, 59, 0.82);
+  background: rgba(15, 23, 42, 0.06);
 }
 
 html.light-mode .detail-thumb-label {

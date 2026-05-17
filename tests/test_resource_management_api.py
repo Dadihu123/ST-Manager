@@ -47,6 +47,7 @@ def test_list_resource_files_includes_nested_images_and_unknown_resources(monkey
     resources_root = _configure_resource_api(monkeypatch, tmp_path)
     hero_dir = resources_root / 'hero'
     _write_file(hero_dir / 'root.webp')
+    _write_file(hero_dir / 'portrait.jfif')
     _write_file(hero_dir / 'poses' / 'happy.png')
     _write_file(hero_dir / 'lorebooks' / 'arc' / 'book.json', '{}')
     _write_file(hero_dir / 'lorebooks' / 'cover.png')
@@ -63,7 +64,7 @@ def test_list_resource_files_includes_nested_images_and_unknown_resources(monkey
     assert res.status_code == 200
     payload = res.get_json()
     assert payload['success'] is True
-    assert payload['files']['skins'] == ['poses/happy.png', 'root.webp']
+    assert payload['files']['skins'] == ['portrait.jfif', 'poses/happy.png', 'root.webp']
     assert {item['relative_path'] for item in payload['files']['lorebooks']} == {
         'lorebooks/arc/book.json'
     }
