@@ -293,6 +293,58 @@ def test_detail_modal_runtime_skin_directory_items_navigate_and_select_by_path()
     )
 
 
+def test_detail_modal_runtime_skin_gallery_opens_previews_and_handles_escape():
+    run_detail_modal_runtime_check(
+        """
+        modal.activeCard = { resource_folder: 'hero' };
+        modal.editingData = { resource_folder: 'hero' };
+        modal.skinImages = ['1.png', 'poses/happy.png'];
+        modal.currentSkinDirectory = '';
+        modal.currentSkinIndex = -1;
+
+        if (modal.showSkinGallery !== false) {
+          throw new Error(`expected skin gallery to start closed, got ${modal.showSkinGallery}`);
+        }
+        if (modal.skinGalleryPreviewPath !== '') {
+          throw new Error(`expected no starting preview path, got ${modal.skinGalleryPreviewPath}`);
+        }
+
+        modal.openSkinGallery();
+        if (modal.showSkinGallery !== true) {
+          throw new Error('expected opening gallery to show overlay');
+        }
+
+        modal.openSkinGalleryPreview('poses/happy.png');
+        if (modal.skinGalleryPreviewPath !== 'poses/happy.png') {
+          throw new Error(`expected preview path to track clicked image, got ${modal.skinGalleryPreviewPath}`);
+        }
+        if (modal.currentSkinIndex !== 1) {
+          throw new Error(`expected previewing image to select skin index 1, got ${modal.currentSkinIndex}`);
+        }
+        if (modal.skinGalleryPreviewUrl !== '/resources_file/hero/poses/happy.png') {
+          throw new Error(`expected preview URL to use existing resource image route, got ${modal.skinGalleryPreviewUrl}`);
+        }
+
+        let prevented = 0;
+        modal.handleSkinGalleryKeydown({ key: 'Escape', preventDefault() { prevented += 1; } });
+        if (modal.showSkinGallery !== true) {
+          throw new Error('expected first Escape to keep gallery open after closing preview');
+        }
+        if (modal.skinGalleryPreviewPath !== '') {
+          throw new Error(`expected first Escape to close image preview, got ${modal.skinGalleryPreviewPath}`);
+        }
+
+        modal.handleSkinGalleryKeydown({ key: 'Escape', preventDefault() { prevented += 1; } });
+        if (modal.showSkinGallery !== false) {
+          throw new Error('expected second Escape to close gallery overlay');
+        }
+        if (prevented !== 2) {
+          throw new Error(`expected Escape events to be prevented twice, got ${prevented}`);
+        }
+      """
+    )
+
+
 def test_detail_modal_runtime_delete_resource_item_uses_relative_path_and_refreshes():
     run_detail_modal_runtime_check(
         """

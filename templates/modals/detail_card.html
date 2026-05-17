@@ -2378,10 +2378,21 @@
                         >
                           <span>🖼️</span> 皮肤 (Skins)
                         </span>
-                        <span
-                          class="text-[10px] text-[var(--text-dim)]"
-                          x-text="currentSkinItems.length + ' items'"
-                        ></span>
+                        <div class="flex items-center gap-2">
+                          <span
+                            class="text-[10px] text-[var(--text-dim)]"
+                            x-text="currentSkinItems.length + ' items'"
+                          ></span>
+                          <button
+                            type="button"
+                            @click="openSkinGallery()"
+                            :disabled="currentSkinItems.length === 0"
+                            class="skin-gallery-open-btn"
+                            title="全屏浏览皮肤"
+                          >
+                            ⛶
+                          </button>
+                        </div>
                       </div>
 
                       <div class="flex-1 overflow-y-auto custom-scrollbar p-2">
@@ -2841,6 +2852,128 @@
           <div style="height: 1rem"></div>
         </div>
       </section>
+    </div>
+  </div>
+  <div
+    x-show="showSkinGallery"
+    x-cloak
+    class="skin-gallery-overlay"
+    @click.self="closeSkinGallery()"
+    @keydown.window="handleSkinGalleryKeydown($event)"
+  >
+    <div class="skin-gallery-shell" @click.stop>
+      <header class="skin-gallery-header">
+        <div class="min-w-0">
+          <div class="skin-gallery-kicker">SKINS GALLERY</div>
+          <div class="skin-gallery-title">
+            <span>皮肤浏览</span>
+            <span
+              class="skin-gallery-count"
+              x-text="skinGalleryImageItems.length + ' images'"
+            ></span>
+          </div>
+        </div>
+        <div class="skin-gallery-actions">
+          <button
+            type="button"
+            x-show="currentSkinDirectory"
+            @click="goToSkinParentDirectory(); closeSkinGalleryPreview()"
+            class="skin-gallery-control"
+          >
+            上一级
+          </button>
+          <button
+            type="button"
+            @click="goToSkinDirectory(''); closeSkinGalleryPreview()"
+            class="skin-gallery-control"
+            :class="!currentSkinDirectory ? 'active' : ''"
+          >
+            根目录
+          </button>
+          <button
+            type="button"
+            @click="closeSkinGallery()"
+            class="skin-gallery-close"
+            title="退出全屏浏览"
+          >
+            ×
+          </button>
+        </div>
+      </header>
+
+      <div class="skin-gallery-path">
+        <span class="truncate" :title="currentSkinDirectory || '根目录'" x-text="currentSkinDirectory || '根目录'"></span>
+      </div>
+
+      <div class="skin-gallery-grid custom-scrollbar">
+        <template
+          x-for="item in currentSkinItems"
+          :key="'gallery:' + item.type + ':' + item.path"
+        >
+          <div style="display: contents">
+            <button
+              type="button"
+              x-show="item.type === 'directory'"
+              class="skin-gallery-tile skin-gallery-tile--folder"
+              @click="enterSkinDirectory(item.path); closeSkinGalleryPreview()"
+              :title="item.path"
+            >
+              <span class="skin-gallery-folder-symbol">📁</span>
+              <span class="skin-gallery-tile-name" x-text="item.name"></span>
+            </button>
+            <button
+              type="button"
+              x-show="item.type === 'image'"
+              class="skin-gallery-tile"
+              :class="isSkinPathSelected(item.path) ? 'selected' : ''"
+              @click="openSkinGalleryPreview(item.path)"
+              :title="item.path"
+            >
+              <img
+                :src="getSkinUrl(item.path)"
+                loading="lazy"
+                alt="Skin"
+                onerror="this.style.display = 'none'"
+              />
+              <span class="skin-gallery-tile-name" x-text="item.name"></span>
+            </button>
+          </div>
+        </template>
+        <div
+          x-show="currentSkinItems.length === 0"
+          class="skin-gallery-empty"
+        >
+          当前目录暂无图片
+        </div>
+      </div>
+    </div>
+
+    <div
+      x-show="skinGalleryPreviewPath"
+      x-cloak
+      class="skin-gallery-preview"
+      @click.self="closeSkinGalleryPreview()"
+    >
+      <div class="skin-gallery-preview-toolbar">
+        <span
+          class="skin-gallery-preview-name"
+          :title="skinGalleryPreviewPath"
+          x-text="skinGalleryPreviewName"
+        ></span>
+        <button
+          type="button"
+          @click="closeSkinGalleryPreview()"
+          class="skin-gallery-close"
+          title="关闭图片预览"
+        >
+          ×
+        </button>
+      </div>
+      <img
+        :src="skinGalleryPreviewUrl"
+        class="skin-gallery-preview-image"
+        alt="Skin Preview"
+      />
     </div>
   </div>
   <div

@@ -122,6 +122,8 @@ export default function detailModal() {
         skinImages: [],
         currentSkinIndex: -1,
         currentSkinDirectory: '',
+        showSkinGallery: false,
+        skinGalleryPreviewPath: '',
 
         // 自动保存
         originalDataJson: '', // 基准快照
@@ -573,6 +575,8 @@ export default function detailModal() {
                     clearActiveRuntimeContext('card');
                     this.currentSkinIndex = -1;
                     this.currentSkinDirectory = '';
+                    this.showSkinGallery = false;
+                    this.skinGalleryPreviewPath = '';
                     this.zoomLevel = 100;
                     this.isCardFlipped = false;
                     this.skinImages = [];
@@ -706,6 +710,8 @@ export default function detailModal() {
             this.resourceUnknown = [];
             this.currentSkinIndex = -1;
             this.currentSkinDirectory = '';
+            this.showSkinGallery = false;
+            this.skinGalleryPreviewPath = '';
 
             if (!folderName) return;
 
@@ -1111,6 +1117,8 @@ export default function detailModal() {
             this.skinImages = [];
             this.currentSkinIndex = -1;
             this.currentSkinDirectory = '';
+            this.showSkinGallery = false;
+            this.skinGalleryPreviewPath = '';
             this.isCardFlipped = false;
             this.showFirstPreview = false;
             this.showLocalNotePreview = false;
@@ -1677,6 +1685,10 @@ export default function detailModal() {
             ];
         },
 
+        get skinGalleryImageItems() {
+            return this.currentSkinItems.filter(item => item.type === 'image');
+        },
+
         get selectedSkinPath() {
             if (this.currentSkinIndex === -1 || this.skinImages.length === 0) {
                 return '';
@@ -1686,6 +1698,14 @@ export default function detailModal() {
 
         get selectedSkinName() {
             return this.getResourcePathName(this.selectedSkinPath);
+        },
+
+        get skinGalleryPreviewName() {
+            return this.getResourcePathName(this.skinGalleryPreviewPath);
+        },
+
+        get skinGalleryPreviewUrl() {
+            return this.getSkinUrl(this.skinGalleryPreviewPath);
         },
 
         get displayImageUrl() {
@@ -1704,6 +1724,45 @@ export default function detailModal() {
 
         fetchSkins(folderName) {
             this.fetchResourceFiles(folderName);
+        },
+
+        openSkinGallery() {
+            if (!this.editingData.resource_folder && !this.activeCard.resource_folder) return;
+            this.showSkinGallery = true;
+            this.skinGalleryPreviewPath = '';
+            this.isCardFlipped = false;
+        },
+
+        closeSkinGallery() {
+            this.showSkinGallery = false;
+            this.skinGalleryPreviewPath = '';
+        },
+
+        openSkinGalleryPreview(pathValue) {
+            const normalizedPath = this.normalizeResourcePath(pathValue);
+            if (!normalizedPath) return;
+            this.selectSkinByPath(normalizedPath);
+            this.skinGalleryPreviewPath = this.selectedSkinPath || normalizedPath;
+        },
+
+        closeSkinGalleryPreview() {
+            this.skinGalleryPreviewPath = '';
+        },
+
+        handleSkinGalleryKeydown(event) {
+            if (!this.showSkinGallery || !event) return;
+            if (event.key !== 'Escape') return;
+
+            if (typeof event.preventDefault === 'function') {
+                event.preventDefault();
+            }
+
+            if (this.skinGalleryPreviewPath) {
+                this.closeSkinGalleryPreview();
+                return;
+            }
+
+            this.closeSkinGallery();
         },
 
         nextSkin() {

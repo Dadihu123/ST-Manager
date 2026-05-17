@@ -28,3 +28,17 @@ def test_detail_template_uses_directory_skin_items_in_filmstrip_and_resource_pan
     assert '@dblclick.stop="enterSkinDirectory(item.path)"' in source
     assert 'detail-thumb--nav' in source
     assert 'detail-thumb--folder' in source
+
+
+def test_detail_template_exposes_fullscreen_skin_gallery_controls():
+    source = (PROJECT_ROOT / 'templates/modals/detail_card.html').read_text(encoding='utf-8')
+
+    assert 'openSkinGallery()' in source
+    assert 'showSkinGallery' in source
+    assert 'skin-gallery-overlay' in source
+    assert 'skin-gallery-grid' in source
+    assert 'openSkinGalleryPreview(item.path)' in source
+    assert 'skinGalleryPreviewPath' in source
+    assert 'closeSkinGalleryPreview()' in source
+    assert 'closeSkinGallery()' in source
+    assert 'handleSkinGalleryKeydown($event)' in source
