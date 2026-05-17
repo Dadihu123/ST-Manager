@@ -1752,6 +1752,104 @@ def test_api_move_card_uses_shared_move_card_internal(monkeypatch):
     assert move_calls == [('src/demo.json', 'dst')]
 
 
+def test_api_move_card_reports_failure_when_no_cards_moved(monkeypatch):
+    monkeypatch.setattr(cards_api, 'suppress_fs_events', lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(cards_api, '_is_safe_rel_path', lambda _value, allow_empty=False: True)
+    monkeypatch.setattr(cards_api, 'move_card_internal', lambda card_id, target_category: (False, None, 'Source not found'))
+    monkeypatch.setattr(
+        cards_api.ctx,
+        'cache',
+        SimpleNamespace(id_map={}, category_counts={'src': 1}),
+        raising=False,
+    )
+
+    client = _make_app().test_client()
+    res = client.post('/api/move_card', json={'card_ids': ['src/missing.json'], 'target_category': 'dst'})
+
+    assert res.status_code == 200
+    assert res.get_json() == {
+        'success': False,
+        'count': 0,
+        'moved_details': [],
+        'failed_details': [
+            {
+                'old_id': 'src/missing.json',
+                'msg': 'Source not found',
+            }
+        ],
+        'msg': 'Source not found',
+        'category_counts': {'src': 1},
+    }
+
+
+def test_move_card_internal_resolves_bundle_display_card_to_directory(monkeypatch, tmp_path):
+    from core.services import card_service
+
+    cards_root = tmp_path / 'cards'
+    src_dir = cards_root / 'src' / 'bundle'
+    dst_dir = cards_root / 'dst'
+    src_dir.mkdir(parents=True, exist_ok=True)
+    dst_dir.mkdir(parents=True, exist_ok=True)
+    (src_dir / '.bundle').write_text('1', encoding='utf-8')
+    (src_dir / 'cover.json').write_text('{"spec":"chara_card_v2"}', encoding='utf-8')
+    (src_dir / 'alt.json').write_text('{"spec":"chara_card_v2"}', encoding='utf-8')
+
+    folder_sync_calls = []
+    exact_sync_calls = []
+
+    monkeypatch.setattr(card_service, 'CARDS_FOLDER', str(cards_root), raising=False)
+    monkeypatch.setattr(card_service, 'load_ui_data', lambda: {})
+    monkeypatch.setattr(card_service, 'get_db', lambda: object())
+    monkeypatch.setattr(
+        card_service,
+        'sync_folder_prefix_after_fs_move',
+        lambda **kwargs: folder_sync_calls.append(kwargs) or [
+            ('src/bundle/cover.json', 'dst/bundle/cover.json'),
+            ('src/bundle/alt.json', 'dst/bundle/alt.json'),
+        ],
+    )
+    monkeypatch.setattr(
+        card_service,
+        'sync_exact_card_after_fs_move',
+        lambda **kwargs: exact_sync_calls.append(kwargs),
+    )
+    monkeypatch.setattr(
+        card_service.ctx,
+        'cache',
+        SimpleNamespace(
+            id_map={
+                'src/bundle/cover.json': {
+                    'id': 'src/bundle/cover.json',
+                    'is_bundle': True,
+                    'bundle_dir': 'src/bundle',
+                    'category': 'src',
+                }
+            },
+            bundle_map={'src/bundle': 'src/bundle/cover.json'},
+        ),
+        raising=False,
+    )
+
+    ok, new_id, msg = card_service.move_card_internal('src/bundle/cover.json', 'dst')
+
+    assert ok is True
+    assert msg == 'Success'
+    assert new_id == 'dst/bundle'
+    assert (cards_root / 'src' / 'bundle').exists() is False
+    assert (cards_root / 'dst' / 'bundle' / '.bundle').exists() is True
+    assert (cards_root / 'dst' / 'bundle' / 'cover.json').exists() is True
+    assert (cards_root / 'dst' / 'bundle' / 'alt.json').exists() is True
+    assert folder_sync_calls == [
+        {
+            'conn': folder_sync_calls[0]['conn'],
+            'ui_data': {},
+            'old_path': 'src/bundle',
+            'new_path': 'dst/bundle',
+        }
+    ]
+    assert exact_sync_calls == []
+
+
 def test_move_card_internal_directory_migrates_prefixed_ui_data_and_nested_categories(monkeypatch, tmp_path):
     from core.services import card_service
 

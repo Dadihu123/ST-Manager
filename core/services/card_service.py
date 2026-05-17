@@ -1312,6 +1312,20 @@ def sync_card_names_internal(
         return False, card_id, str(e), details
 
 # 内部移动卡片逻辑
+def _resolve_move_card_source_id(card_id):
+    source_id = str(card_id or '').replace('\\', '/').strip('/')
+    cache = getattr(ctx, 'cache', None)
+    id_map = getattr(cache, 'id_map', {}) if cache else {}
+    cache_item = id_map.get(source_id) if isinstance(id_map, Mapping) else None
+
+    if isinstance(cache_item, Mapping) and cache_item.get('is_bundle'):
+        bundle_dir = str(cache_item.get('bundle_dir') or '').replace('\\', '/').strip('/')
+        if bundle_dir:
+            return bundle_dir
+
+    return source_id
+
+
 def move_card_internal(card_id, target_category):
     """
     将卡片(文件)或聚合包(文件夹)移动到指定分类。
@@ -1325,6 +1339,8 @@ def move_card_internal(card_id, target_category):
     """
     try:
         # 1. 基础检查与路径准备
+        if not card_id: return False, None, "ID missing"
+        card_id = _resolve_move_card_source_id(card_id)
         if not card_id: return False, None, "ID missing"
         if target_category == "根目录": target_category = ""
         

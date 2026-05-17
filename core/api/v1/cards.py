@@ -1939,12 +1939,17 @@ def api_move_card():
                 return jsonify({"success": False, "msg": "非法卡片路径"}), 400
         
         moved_details = []
+        failed_details = []
         
         for cid in card_ids:
             try:
                 success, new_id, msg = move_card_internal(cid, target_cat)
                 if not success:
                     logger.warning('Move card skipped for %s: %s', cid, msg)
+                    failed_details.append({
+                        "old_id": cid,
+                        "msg": msg or "Move failed",
+                    })
                     continue
 
                 new_filename = os.path.basename(new_id)
@@ -1960,15 +1965,33 @@ def api_move_card():
                     "new_image_url": new_image_url,
                 })
             except Exception as inner_e:
-                print(f"Error moving {cid}: {inner_e}")
+                logger.exception("Error moving %s", cid)
+                failed_details.append({
+                    "old_id": cid,
+                    "msg": str(inner_e),
+                })
                 continue
-        
-        return jsonify({
+
+        category_counts = ctx.cache.category_counts if ctx.cache else {}
+        if failed_details and not moved_details:
+            return jsonify({
+                "success": False,
+                "count": 0,
+                "moved_details": [],
+                "failed_details": failed_details,
+                "msg": failed_details[0].get("msg") or "Move failed",
+                "category_counts": category_counts,
+            })
+
+        response_payload = {
             "success": True, 
             "count": len(moved_details),
             "moved_details": moved_details,
-            "category_counts": ctx.cache.category_counts
-        })
+            "category_counts": category_counts
+        }
+        if failed_details:
+            response_payload["failed_details"] = failed_details
+        return jsonify(response_payload)
     except Exception as e:
         return jsonify({"success": False, "msg": str(e)})
 
