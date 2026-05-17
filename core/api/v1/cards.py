@@ -1374,6 +1374,11 @@ def api_update_card():
                 return obj
 
         # 读取原文件信息
+        def _text_field_value(value):
+            if value is None:
+                return ''
+            return str(value)
+
         info = extract_card_info(old_full_path)
         file_content_modified = False
         wi_entry_history_records = []
@@ -1402,15 +1407,15 @@ def api_update_card():
             }
             
             for k, v in core_fields.items():
-                old_val = target.get(k) or ''
-                new_val = v or ''
-                if str(old_val).strip() != str(new_val).strip():
-                    target[k] = v
+                old_val = _text_field_value(target.get(k))
+                new_val = _text_field_value(v)
+                if old_val != new_val:
+                    target[k] = new_val
                     file_content_modified = True
                     # 同步到 root (V2兼容)
                     if target is not info:
-                        if k in info: info[k] = v
-                        elif k == 'creator_notes' and 'creatorcomment' in info: info['creatorcomment'] = v
+                        if k in info: info[k] = new_val
+                        elif k == 'creator_notes' and 'creatorcomment' in info: info['creatorcomment'] = new_val
             
             if clean_for_compare(data.get('extensions')) != clean_for_compare(target.get('extensions')):
                 target['extensions'] = data.get('extensions')
@@ -1426,8 +1431,13 @@ def api_update_card():
                 if target is not info and 'tags' in info: info['tags'] = final_tags
                 
             new_alt = [x.strip() for x in (data.get('alternate_greetings') or []) if x and x.strip()]
-            old_alt = [x.strip() for x in (target.get('alternate_greetings') or []) if x and x.strip()]
-            if json.dumps(new_alt, sort_keys=True) != json.dumps(old_alt, sort_keys=True):
+            old_alt_source = target.get('alternate_greetings') or []
+            old_alt = [x.strip() for x in old_alt_source if x and x.strip()]
+            old_alt_has_only_blank_entries = bool(old_alt_source) and not old_alt
+            if (
+                json.dumps(new_alt, sort_keys=True) != json.dumps(old_alt, sort_keys=True)
+                or old_alt_has_only_blank_entries
+            ):
                 target['alternate_greetings'] = new_alt
                 file_content_modified = True
                 if target is not info and 'alternate_greetings' in info: info['alternate_greetings'] = new_alt

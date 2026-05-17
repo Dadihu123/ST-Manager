@@ -172,7 +172,7 @@
             <!-- 移动端：编辑模式开关按钮 -->
             <button
               x-show="$store.global.deviceType === 'mobile' && !isCardFlipped"
-              @click="isEditMode = !isEditMode"
+              @click="toggleEditMode()"
               class="btn-secondary detail-icon-btn detail-close-mobile"
               :class="isEditMode ? 'active' : ''"
               :title="isEditMode ? '切换到阅览模式' : '切换到编辑模式'"
@@ -309,7 +309,7 @@
           </button>
           <!-- 桌面端：编辑模式开关 (位于关闭按钮左侧) -->
           <button
-            @click="isEditMode = !isEditMode"
+            @click="toggleEditMode()"
             class="btn-secondary detail-edit-mode-floating"
             :class="isEditMode ? 'active' : ''"
             :title="isEditMode ? '切换到阅览模式' : '切换到编辑模式'"
@@ -543,6 +543,7 @@
             <span class="tab-text">设定</span>
           </button>
           <button
+            x-show="hasDialogFields"
             class="detail-tab"
             :class="tab==='dialog' ? 'active' : ''"
             @click="tab='dialog'"
@@ -775,7 +776,7 @@
               <!-- 原简介卡片：条件渲染 -->
               <div
                 class="detail-card"
-                x-show="isEditMode || editingData.description"
+                x-show="isEditMode || hasTextValue(editingData.description)"
               >
                 <div class="detail-card-head">
                   <div class="detail-card-title">原简介 (Description)</div>
@@ -795,7 +796,7 @@
                 ></textarea>
                 <!-- 阅览模式：只读显示 -->
                 <textarea
-                  x-show="!isEditMode && editingData.description"
+                  x-show="!isEditMode && hasTextValue(editingData.description)"
                   readonly
                   x-model="editingData.description"
                   class="form-textarea custom-scrollbar"
@@ -813,13 +814,13 @@
           </section>
 
           <section
-            x-show="tab==='persona'"
+            x-show="tab==='persona' && hasPersonaFields"
             x-transition.opacity
             class="detail-section detail-section-fill detail-section-mobile-stack"
           >
             <div class="detail-tab-scroll custom-scrollbar">
               <!-- 1. 人格设定 (Personality) -->
-              <template x-if="isEditMode || editingData.personality">
+              <template x-if="isEditMode || hasTextValue(editingData.personality)">
                 <div
                   class="detail-card"
                   style="
@@ -871,7 +872,7 @@
               </template>
 
               <!-- 2. 场景设定 (Scenario) -->
-              <template x-if="isEditMode || editingData.scenario">
+              <template x-if="isEditMode || hasTextValue(editingData.scenario)">
                 <div
                   class="detail-card"
                   style="
@@ -923,7 +924,7 @@
               </template>
 
               <!-- 3. 作者注释 (Creator Notes) -->
-              <template x-if="isEditMode || editingData.creator_notes">
+              <template x-if="isEditMode || hasTextValue(editingData.creator_notes)">
                 <div
                   class="detail-card"
                   style="
@@ -975,7 +976,7 @@
               </template>
 
               <!-- 4. 系统提示词 (System Prompt) -->
-              <template x-if="isEditMode || editingData.system_prompt">
+              <template x-if="isEditMode || hasTextValue(editingData.system_prompt)">
                 <div
                   class="detail-card"
                   style="
@@ -1028,7 +1029,7 @@
 
               <!-- 5. 历史指令 (Post History) -->
               <template
-                x-if="isEditMode || editingData.post_history_instructions"
+                x-if="isEditMode || hasTextValue(editingData.post_history_instructions)"
               >
                 <div
                   class="detail-card"
@@ -1084,7 +1085,7 @@
 
           <!-- TAB: 对话 -->
           <section
-            x-show="tab==='dialog'"
+            x-show="tab==='dialog' && hasDialogFields"
             x-transition.opacity
             class="detail-section detail-section-fill detail-section-mobile-stack"
           >
@@ -1092,7 +1093,7 @@
               <!-- First Message：编辑/预览 或 阅览/预览 -->
               <div
                 class="detail-card detail-card--lg"
-                x-show="isEditMode || editingData.first_mes"
+                x-show="isEditMode || hasTextValue(editingData.first_mes)"
               >
                 <div class="detail-card-head detail-card-head-row">
                   <div class="detail-card-title">开场白 (First Message)</div>
@@ -1146,7 +1147,7 @@
 
                 <!-- 阅览模式 - 只读文本 -->
                 <textarea
-                  x-show="!isEditMode && !showFirstPreview && editingData.first_mes"
+                  x-show="!isEditMode && !showFirstPreview && hasTextValue(editingData.first_mes)"
                   readonly
                   x-model="editingData.first_mes"
                   class="form-textarea custom-scrollbar detail-dialog-grow-box"
@@ -1163,7 +1164,7 @@
               <!-- Mes Example -->
               <div
                 class="detail-card"
-                x-show="isEditMode || editingData.mes_example"
+                x-show="isEditMode || hasTextValue(editingData.mes_example)"
               >
                 <div class="detail-card-head">
                   <div class="detail-card-title">对话示例 (Mes Example)</div>
@@ -1188,7 +1189,7 @@
                 ></textarea>
                 <!-- 阅览模式：只读显示 -->
                 <textarea
-                  x-show="!isEditMode && editingData.mes_example"
+                  x-show="!isEditMode && hasTextValue(editingData.mes_example)"
                   readonly
                   x-model="editingData.mes_example"
                   class="form-textarea custom-scrollbar"
@@ -1208,7 +1209,7 @@
               <!-- Alternate Greetings: 特殊处理数组判空 -->
               <div
                 class="detail-card detail-card--sm"
-                x-show="isEditMode || (editingData.alternate_greetings && editingData.alternate_greetings.filter(g => g && g.trim()).length > 0)"
+                x-show="isEditMode || hasAlternateGreetings"
               >
                 <div class="detail-card-head detail-card-head-row">
                   <div class="detail-card-title">
@@ -1275,7 +1276,7 @@
 
                 <!-- 阅览模式：只读显示 -->
                 <template
-                  x-if="!isEditMode && editingData.alternate_greetings && editingData.alternate_greetings.length > 0"
+                  x-if="!isEditMode && hasTextValue((editingData.alternate_greetings || [])[altIdx])"
                 >
                   <textarea
                     readonly

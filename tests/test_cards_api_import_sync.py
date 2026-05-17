@@ -2701,6 +2701,122 @@ def test_update_card_import_time_fallback_uses_pre_write_mtime_when_cache_misses
     assert import_time_calls == [('hero.json', old_mtime)]
 
 
+def test_update_card_clears_whitespace_only_text_fields(monkeypatch, tmp_path):
+    cards_dir = tmp_path / 'cards'
+    cards_dir.mkdir()
+    card_path = cards_dir / 'hero.json'
+    whitespace_data = {
+        'name': 'Hero',
+        'description': '\r\n',
+        'first_mes': '\n',
+        'mes_example': '   ',
+        'personality': '\t',
+        'scenario': '\r\n',
+        'creator_notes': '   ',
+        'system_prompt': '\n',
+        'post_history_instructions': '\t',
+        'tags': [],
+        'alternate_greetings': ['\n', '   '],
+    }
+    card_path.write_text(
+        json.dumps({'data': whitespace_data}, ensure_ascii=False),
+        encoding='utf-8',
+    )
+    old_mtime = 100.0
+    os.utime(card_path, (old_mtime, old_mtime))
+
+    card_info = {'data': dict(whitespace_data)}
+    written_infos = []
+    ui_data = {}
+
+    class _FakeCache:
+        def __init__(self):
+            self.id_map = {}
+            self.bundle_map = {}
+            self.category_counts = {}
+            self.lock = threading.Lock()
+
+        def update_card_data(self, card_id, payload):
+            updated = {
+                'id': card_id,
+                'image_url': f'/cards_file/{card_id}',
+                **payload,
+            }
+            self.id_map[card_id] = updated
+            return updated
+
+    def fake_write_card_metadata(_path, info):
+        written_infos.append(json.loads(json.dumps(info, ensure_ascii=False)))
+        return True
+
+    def fake_ensure_import_time(payload, ui_key, fallback):
+        payload.setdefault(ui_key, {}).setdefault('import_time', fallback)
+        return True, fallback
+
+    monkeypatch.setattr(cards_api, 'CARDS_FOLDER', str(cards_dir))
+    monkeypatch.setattr(cards_api, 'suppress_fs_events', lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(cards_api, 'extract_card_info', lambda _path: card_info)
+    monkeypatch.setattr(cards_api, 'write_card_metadata', fake_write_card_metadata)
+    monkeypatch.setattr(cards_api, 'load_ui_data', lambda: ui_data)
+    monkeypatch.setattr(cards_api, 'save_ui_data', lambda _payload: None)
+    monkeypatch.setattr(cards_api, 'ensure_import_time', fake_ensure_import_time)
+    monkeypatch.setattr(cards_api, 'get_import_time', lambda payload, ui_key, _fallback: payload[ui_key]['import_time'])
+    monkeypatch.setattr(cards_api, 'calculate_token_count', lambda _data: 0)
+    monkeypatch.setattr(cards_api, 'update_card_cache', lambda *_args, **_kwargs: {
+        'cache_updated': True,
+        'has_embedded_wi': False,
+        'previous_has_embedded_wi': False,
+    })
+    monkeypatch.setattr(cards_api, 'sync_card_index_jobs', lambda **_kwargs: {})
+    monkeypatch.setattr(cards_api, '_apply_card_index_increment_now', lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(cards_api, 'auto_run_forum_tags_on_link_update', lambda _card_id: None)
+    monkeypatch.setattr(cards_api, 'append_entry_history_records', lambda **_kwargs: None)
+    monkeypatch.setattr(cards_api.ctx, 'cache', _FakeCache())
+
+    client = _make_app().test_client()
+    res = client.post(
+        '/api/update_card',
+        json={
+            'id': 'hero.json',
+            'char_name': 'Hero',
+            'description': '',
+            'first_mes': '',
+            'mes_example': '',
+            'personality': '',
+            'scenario': '',
+            'creator_notes': '',
+            'system_prompt': '',
+            'post_history_instructions': '',
+            'creator': '',
+            'character_version': '',
+            'extensions': {},
+            'tags': [],
+            'alternate_greetings': [],
+            'character_book': None,
+            'ui_summary': '',
+            'source_link': '',
+            'resource_folder': '',
+        },
+    )
+
+    assert res.status_code == 200
+    response_payload = res.get_json()
+    assert response_payload['success'] is True
+    for field in (
+        'description',
+        'first_mes',
+        'mes_example',
+        'personality',
+        'scenario',
+        'creator_notes',
+        'system_prompt',
+        'post_history_instructions',
+    ):
+        assert written_infos[-1]['data'][field] == ''
+    assert written_infos[-1]['data']['alternate_greetings'] == []
+    assert response_payload['updated_card']['description'] == ''
+
+
 def test_toggle_bundle_mode_enable_keeps_tags_consistent_between_file_db_cache_and_index(monkeypatch, tmp_path):
     db_path = tmp_path / 'cards_metadata.db'
     ui_path = tmp_path / 'ui_data.json'

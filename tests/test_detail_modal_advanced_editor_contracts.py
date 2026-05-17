@@ -106,6 +106,86 @@ def run_detail_modal_runtime_check(script_body):
     assert result.returncode == 0, result.stderr or result.stdout
 
 
+def test_detail_modal_runtime_whitespace_only_fields_do_not_count_as_view_content():
+    run_detail_modal_runtime_check(
+        """
+        modal.isEditMode = false;
+        modal.tab = 'dialog';
+        modal.editingData = {
+          description: '\\r\\n',
+          first_mes: '\\r\\n',
+          mes_example: '   ',
+          personality: '\\n',
+          scenario: '   ',
+          creator_notes: '',
+          system_prompt: '\\t',
+          post_history_instructions: '',
+          alternate_greetings: ['\\n', '   ', ''],
+        };
+
+        if (typeof modal.hasTextValue !== 'function') {
+          throw new Error('expected hasTextValue helper');
+        }
+        if (modal.hasTextValue('\\r\\n') !== false) {
+          throw new Error('expected whitespace-only text to be empty');
+        }
+        if (modal.hasPersonaFields !== false) {
+          throw new Error('expected whitespace-only persona fields to hide the persona tab');
+        }
+        if (modal.hasDialogFields !== false) {
+          throw new Error('expected whitespace-only dialog fields to hide the dialog tab');
+        }
+
+        modal.toggleEditMode();
+        if (modal.isEditMode !== true) {
+          throw new Error('expected toggleEditMode to enter edit mode');
+        }
+        if (modal.hasPersonaFields !== true || modal.hasDialogFields !== true) {
+          throw new Error('expected edit mode to keep editable tabs visible');
+        }
+
+        modal.toggleEditMode();
+        if (modal.isEditMode !== false) {
+          throw new Error('expected toggleEditMode to return to view mode');
+        }
+        if (modal.tab !== 'basic') {
+          throw new Error(`expected empty active dialog tab to fall back to basic, got ${modal.tab}`);
+        }
+
+        modal.editingData.first_mes = 'Hello';
+        if (modal.hasDialogFields !== true) {
+          throw new Error('expected non-empty first_mes to show the dialog tab');
+        }
+        modal.editingData.first_mes = '';
+        modal.editingData.alternate_greetings = ['  Alternate  '];
+        if (modal.hasDialogFields !== true) {
+          throw new Error('expected non-empty alternate greeting to show the dialog tab');
+        }
+      """
+    )
+
+
+def test_detail_template_uses_trimmed_visibility_for_empty_readonly_text_cards():
+    template = (PROJECT_ROOT / 'templates/modals/detail_card.html').read_text(encoding='utf-8')
+
+    assert 'x-show="hasDialogFields"' in template
+    assert '@click="toggleEditMode()"' in template
+    assert 'x-show="tab===\'dialog\' && hasDialogFields"' in template
+    assert 'x-show="isEditMode || hasTextValue(editingData.description)"' in template
+    assert 'x-show="!isEditMode && hasTextValue(editingData.description)"' in template
+    assert 'x-if="isEditMode || hasTextValue(editingData.personality)"' in template
+    assert 'x-if="isEditMode || hasTextValue(editingData.scenario)"' in template
+    assert 'x-if="isEditMode || hasTextValue(editingData.creator_notes)"' in template
+    assert 'x-if="isEditMode || hasTextValue(editingData.system_prompt)"' in template
+    assert 'x-if="isEditMode || hasTextValue(editingData.post_history_instructions)"' in template
+    assert 'x-show="isEditMode || hasTextValue(editingData.first_mes)"' in template
+    assert 'x-show="!isEditMode && !showFirstPreview && hasTextValue(editingData.first_mes)"' in template
+    assert 'x-show="isEditMode || hasTextValue(editingData.mes_example)"' in template
+    assert 'x-show="!isEditMode && hasTextValue(editingData.mes_example)"' in template
+    assert 'x-show="isEditMode || hasAlternateGreetings"' in template
+    assert 'x-if="!isEditMode && hasTextValue((editingData.alternate_greetings || [])[altIdx])"' in template
+
+
 def test_detail_modal_runtime_open_advanced_editor_uses_detached_extensions_snapshot_and_buffered_mode_handlers():
     run_detail_modal_runtime_check(
         """

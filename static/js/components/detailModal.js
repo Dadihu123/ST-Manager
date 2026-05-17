@@ -336,6 +336,20 @@ export default function detailModal() {
             return data;
         },
 
+        hasTextValue(value) {
+            if (typeof value === 'string') {
+                return value.trim().length > 0;
+            }
+            return value !== null && value !== undefined && value !== false;
+        },
+
+        get hasAlternateGreetings() {
+            const greetings = Array.isArray(this.editingData?.alternate_greetings)
+                ? this.editingData.alternate_greetings
+                : [];
+            return greetings.some((g) => this.hasTextValue(g));
+        },
+
         get hasPersonaFields() {
             // 编辑模式下始终显示设定tab
             if (this.isEditMode) return true;
@@ -343,12 +357,37 @@ export default function detailModal() {
             // 阅览模式下只有存在内容才显示
             const d = this.editingData;
             return !!(
-                (d.personality && d.personality.trim()) || 
-                (d.scenario && d.scenario.trim()) || 
-                (d.creator_notes && d.creator_notes.trim()) || 
-                (d.system_prompt && d.system_prompt.trim()) || 
-                (d.post_history_instructions && d.post_history_instructions.trim())
+                this.hasTextValue(d.personality) ||
+                this.hasTextValue(d.scenario) ||
+                this.hasTextValue(d.creator_notes) ||
+                this.hasTextValue(d.system_prompt) ||
+                this.hasTextValue(d.post_history_instructions)
             );
+        },
+
+        get hasDialogFields() {
+            if (this.isEditMode) return true;
+            const d = this.editingData;
+            return !!(
+                this.hasTextValue(d.first_mes) ||
+                this.hasTextValue(d.mes_example) ||
+                this.hasAlternateGreetings
+            );
+        },
+
+        ensureVisibleDetailTab() {
+            if (this.isEditMode) return;
+            if (this.tab === 'persona' && !this.hasPersonaFields) {
+                this.tab = 'basic';
+            }
+            if (this.tab === 'dialog' && !this.hasDialogFields) {
+                this.tab = 'basic';
+            }
+        },
+
+        toggleEditMode() {
+            this.isEditMode = !this.isEditMode;
+            this.ensureVisibleDetailTab();
         },
 
         get filteredTagLibraryPool() {
@@ -1231,6 +1270,8 @@ export default function detailModal() {
                             resource_folder: this.editingData.resource_folder || safeCard.resource_folder || '',
                         },
                     });
+
+                    this.ensureVisibleDetailTab();
 
                     if (this.lastTab === 'persona' && this.hasPersonaFields) {
                         this.tab = 'persona';
