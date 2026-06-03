@@ -33,6 +33,7 @@
   --color-danger: #ef4444;
   --color-success: #10b981;
   --color-warn: #f59e0b;
+  --SmartThemeQuoteColor: #f49066;
   --text-warn: var(--color-warn);
   --border-warn: rgba(245, 158, 11, 0.3);
   --text-success: var(--color-success);

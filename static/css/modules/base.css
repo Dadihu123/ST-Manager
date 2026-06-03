@@ -135,6 +135,16 @@ body {
   text-decoration: underline;
 }
 
+.markdown-body q {
+  color: var(--SmartThemeQuoteColor);
+}
+.markdown-body q::before {
+  content: "";
+}
+.markdown-body q::after {
+  content: "";
+}
+
 body,
 button,
 input,
