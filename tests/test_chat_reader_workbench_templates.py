@@ -769,6 +769,18 @@ def test_chat_reader_template_keeps_all_nested_modal_entry_points():
         assert entry_point in reader_template
 
 
+def test_chat_reader_template_keeps_bind_picker_outside_floor_editor_overlay():
+    reader_template = read_project_file('templates/modals/detail_chat_reader.html')
+    before_bind_picker = reader_template.split('<div x-show="bindPickerOpen"', 1)[0]
+    floor_editor_start = before_bind_picker.rfind('<div x-show="editingFloor"')
+    floor_editor_block = before_bind_picker[floor_editor_start:]
+
+    assert floor_editor_block.count('<div') == floor_editor_block.count('</div>')
+    assert 'style="z-index: calc(var(--z-topmost) - 1);"' in reader_template.split(
+        '<div x-show="bindPickerOpen"', 1
+    )[1].split('>', 1)[0]
+
+
 def test_chat_reader_template_exposes_reader_status_and_accessibility_hooks():
     reader_template = read_project_file('templates/modals/detail_chat_reader.html')
 
@@ -1307,7 +1319,7 @@ def test_chat_grid_closes_mobile_navigation_chrome_before_showing_reader():
 def test_chat_grid_closes_mobile_navigation_chrome_before_opening_reader_nested_modals():
     chat_grid_source = read_project_file('static/js/components/chatGrid.js')
 
-    for signature in ('openRegexConfig() {', 'openRegexHelp() {', 'openFloorEditor(message) {'):
+    for signature in ('openRegexConfig() {', 'openRegexHelp() {', 'openFloorEditor(message) {', 'async openBindPicker(item) {'):
         block = extract_js_function_block(chat_grid_source, signature)
         assert js_contains(block, "if (this.$store.global.deviceType === 'mobile') {")
         assert 'this.$store.global.visibleSidebar = false;' in block

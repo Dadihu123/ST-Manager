@@ -1881,6 +1881,7 @@ select.form-input:focus-visible {
 }
 
 .chat-reader-nested-section--form {
+  overflow-y: auto;
   gap: 0.8rem;
 }
 
@@ -3610,7 +3611,6 @@ html.light-mode .chat-reader-danger-copy {
     padding: 0.55rem 0.65rem;
   }
   .chat-reader-nested-section--form {
-    overflow-y: auto;
     min-height: 0;
     padding-right: 0.15rem;
   }

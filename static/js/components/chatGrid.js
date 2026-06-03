@@ -5896,6 +5896,7 @@ export default function chatGrid() {
       this.editingMessageDraft = "";
       this.editingMessageRawDraft = "";
       this.editingMessagePreviewMode = "parsed";
+      this.closeBindPicker();
     },
 
     updateReaderLayoutMetrics() {
@@ -8968,6 +8969,12 @@ export default function chatGrid() {
     async openBindPicker(item) {
       const target = item || this.activeChat;
       if (!target || !target.id) return;
+
+      if (this.$store.global.deviceType === "mobile") {
+        this.$store.global.visibleSidebar = false;
+        document.body.style.overflow = "";
+        window.dispatchEvent(new CustomEvent("close-header-mobile-menu"));
+      }
 
       this.bindPickerOpen = true;
       this.bindPickerTargetChatId = target.id;

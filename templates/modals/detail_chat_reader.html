@@ -1221,12 +1221,13 @@
                 <div class="chat-reader-floor-diff">
                     <div class="chat-reader-panel-title">改动对比</div>
                     <div class="chat-diff-table" x-html="editingMessageDiffHtml"></div>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
-<div x-show="bindPickerOpen" x-cloak class="chat-reader-overlay" style="z-index: var(--z-modal-popover);" @click.self="closeBindPicker()" @keydown.escape.window.prevent="closeBindPicker()">
+<div x-show="bindPickerOpen" x-cloak class="chat-reader-overlay" style="z-index: calc(var(--z-topmost) - 1);" @click.self="closeBindPicker()" @keydown.escape.window.prevent="closeBindPicker()">
     <div class="chat-bind-modal chat-reader-nested-modal chat-reader-transition-surface" role="dialog" aria-modal="true" aria-label="角色卡绑定选择器">
         <div class="chat-bind-header chat-reader-nested-header">
             <div class="chat-reader-nested-heading">
