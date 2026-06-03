@@ -1559,6 +1559,10 @@ def test_chat_reader_css_mobile_regex_summary_becomes_inline_and_browser_keeps_s
     assert '.chat-reader-regex-mobile-layout {' in mobile_block
     assert 'display: flex;' in mobile_block
     assert 'overflow-y: auto;' in mobile_block
+    assert '.chat-reader-regex-mobile-toolbar {' in chat_reader_css
+    assert '.chat-reader-regex-mobile-savebar {' in chat_reader_css
+    assert '.chat-reader-regex-mobile-savebar {' in mobile_block
+    assert 'display: flex;' in mobile_block
     assert '.chat-reader-regex-mobile-tabs {' in mobile_block
     assert 'display: flex;' in mobile_block
     assert 'position: sticky;' in mobile_block
@@ -1596,11 +1600,12 @@ def test_chat_reader_template_adds_mobile_only_regex_sections_for_effective_rule
     assert 'chat-reader-regex-mobile-section--effective' in template_source
     assert 'chat-reader-regex-mobile-section--draft' in template_source
     assert 'chat-reader-regex-mobile-section--test' in template_source
+    assert 'chat-reader-regex-mobile-toolbar' in template_source
+    assert 'chat-reader-regex-mobile-savebar' in template_source
     assert "@click=\"regexConfigMobileTab = 'effective'\"" in template_source
     assert "@click=\"regexConfigMobileTab = 'draft'\"" in template_source
     assert "x-show=\"regexConfigMobileTab === 'effective'\"" in template_source
     assert "x-show=\"regexConfigMobileTab === 'draft'\"" in template_source
-    assert 'chat-reader-regex-mobile-savebar' not in template_source
     assert 'chat-reader-regex-header-actions' in template_source
     assert "x-show=\"readerResponsiveMode === 'mobile'\" class=\"chat-toolbar-btn chat-toolbar-btn--primary chat-reader-regex-save-pill\" @click=\"saveRegexConfig()\">保存</button>" in template_source
 

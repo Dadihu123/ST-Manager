@@ -2351,6 +2351,37 @@ select.form-input:focus-visible {
   gap: 0.65rem;
 }
 
+.chat-reader-regex-mobile-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.9rem;
+  border-radius: 18px;
+  border: 1px solid var(--border-light);
+  background: color-mix(in srgb, var(--bg-panel), transparent 2%);
+}
+
+.chat-reader-regex-mobile-toolbar-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.chat-reader-regex-mobile-toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.chat-reader-regex-mobile-savebar {
+  display: none;
+  flex-shrink: 0;
+  gap: 0.45rem;
+  padding: 0.75rem 0.85rem calc(0.75rem + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--border-light);
+  background: color-mix(in srgb, var(--bg-panel), transparent 2%);
+}
+
 .chat-reader-regex-header-actions {
   display: flex;
   align-items: center;
@@ -3577,7 +3608,15 @@ html.light-mode .chat-reader-danger-copy {
     display: flex;
     flex-direction: column;
     overflow-y: auto;
-    padding-bottom: 5.5rem;
+    padding-bottom: 0.25rem;
+  }
+  .chat-reader-regex-mobile-savebar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .chat-reader-regex-mobile-savebar .chat-toolbar-btn--primary {
+    flex: 1 1 8rem;
   }
   .chat-reader-regex-mobile-tabs {
     display: flex;

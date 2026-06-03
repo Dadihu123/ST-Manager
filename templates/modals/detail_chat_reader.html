@@ -687,6 +687,23 @@
                 <div class="chat-reader-regex-summary-feedback" x-show="regexConfigStatus" x-text="regexConfigStatus"></div>
             </div>
 
+            <div class="chat-reader-regex-mobile-toolbar">
+                <div class="chat-reader-panel-title">导入与操作</div>
+                <div class="chat-reader-regex-mobile-toolbar-group">
+                    <span class="chat-reader-regex-toolbar-label">导入</span>
+                    <div class="chat-reader-regex-mobile-toolbar-actions">
+                        <label class="chat-toolbar-btn chat-reader-file-btn" title="支持 ST 预设、Regex 和聊天阅读器导出 JSON">
+                            导入 JSON
+                            <input type="file" accept=".json" hidden @change="importRegexConfigFile($event)">
+                        </label>
+                        <button type="button" class="chat-toolbar-btn" @click="openRegexRulePicker()">选择绑定规则</button>
+                        <button type="button" class="chat-toolbar-btn" @click="openRegexPresetPicker()">选择预设</button>
+                        <button type="button" class="chat-toolbar-btn" @click="addRegexDisplayRule()">新增规则</button>
+                        <button type="button" class="chat-toolbar-btn" @click="clearRegexDraft()" :disabled="!canRestoreRegexInheritance">恢复继承</button>
+                    </div>
+                </div>
+            </div>
+
             <div class="chat-reader-regex-mobile-tabs">
                 <button class="chat-reader-toggle" :class="regexConfigMobileTab === 'effective' ? 'is-active' : ''" @click="regexConfigMobileTab = 'effective'">当前生效</button>
                 <button class="chat-reader-toggle" :class="regexConfigMobileTab === 'draft' ? 'is-active' : ''" @click="regexConfigMobileTab = 'draft'">聊天草稿</button>
@@ -819,6 +836,12 @@
                 </div>
             </div>
 
+        </div>
+
+        <div class="chat-reader-regex-mobile-savebar" x-show="readerResponsiveMode === 'mobile'">
+            <button type="button" class="chat-toolbar-btn" @click="exportEffectiveRegexConfig()">导出生效</button>
+            <button type="button" class="chat-toolbar-btn" @click="exportRegexConfigDraft()">导出草稿</button>
+            <button type="button" class="chat-toolbar-btn chat-toolbar-btn--primary" @click="saveRegexConfig()">保存到当前聊天</button>
         </div>
 
         <div class="chat-reader-editor-grid chat-reader-editor-grid--balanced custom-scrollbar">
