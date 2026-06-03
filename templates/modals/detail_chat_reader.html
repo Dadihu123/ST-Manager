@@ -630,6 +630,8 @@
                         导入 JSON（ST/阅读器）
                         <input type="file" accept=".json" hidden @change="importRegexConfigFile($event)">
                     </label>
+                    <button class="chat-toolbar-btn" @click="openRegexRulePicker()">选择绑定规则</button>
+                    <button class="chat-toolbar-btn" @click="openRegexPresetPicker()">选择预设</button>
                     <button class="chat-toolbar-btn" @click="addRegexDisplayRule()">新增手写规则</button>
                     <button class="chat-toolbar-btn" @click="clearRegexDraft()" :disabled="!canRestoreRegexInheritance">恢复角色卡继承</button>
                 </div>
@@ -1264,6 +1266,96 @@
                         </svg>
                     </span>
                     <span class="chat-bind-card-text" x-text="card.char_name || card.filename || card.id"></span>
+                </button>
+            </template>
+        </div>
+    </div>
+</div>
+
+<div x-show="regexRulePickerOpen" x-cloak class="chat-reader-overlay" style="z-index: calc(var(--z-topmost) - 1);" @click.self="closeRegexRulePicker()" @keydown.escape.window.prevent="closeRegexRulePicker()">
+    <div class="chat-bind-modal chat-reader-nested-modal chat-reader-transition-surface" role="dialog" aria-modal="true" aria-label="系统正则规则选择器">
+        <div class="chat-bind-header chat-reader-nested-header">
+            <div class="chat-reader-nested-heading">
+                <div class="chat-grid-kicker">System Regex</div>
+                <div class="chat-reader-title" style="font-size: 1.05rem;">选择绑定规则</div>
+                <div class="chat-reader-subtitle">从系统中已上传的正则规则里挑选，并合并进当前聊天草稿。</div>
+            </div>
+            <div class="chat-bind-actions chat-reader-nested-actions">
+                <button type="button" class="chat-reader-icon-button" @click="closeRegexRulePicker()" aria-label="关闭系统正则规则选择器" title="关闭系统正则规则选择器">
+                    <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                        <path d="M5.5 5.5l9 9m0-9l-9 9" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.8"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <div class="chat-inline-actions chat-reader-nested-toolbar">
+            <input type="text" x-model="regexRulePickerSearch" class="chat-inline-input chat-inline-input--wide" placeholder="搜索规则名称或文件名" @keydown.enter.prevent="fetchRegexRulePickerResults()">
+            <button class="chat-toolbar-btn" :class="regexRulePickerFilter === 'all' ? 'chat-toolbar-btn--primary' : ''" @click="regexRulePickerFilter = 'all'; fetchRegexRulePickerResults()">全部</button>
+            <button class="chat-toolbar-btn" :class="regexRulePickerFilter === 'global' ? 'chat-toolbar-btn--primary' : ''" @click="regexRulePickerFilter = 'global'; fetchRegexRulePickerResults()">全局库</button>
+            <button class="chat-toolbar-btn" :class="regexRulePickerFilter === 'resource' ? 'chat-toolbar-btn--primary' : ''" @click="regexRulePickerFilter = 'resource'; fetchRegexRulePickerResults()">资源库</button>
+            <button class="chat-toolbar-btn" @click="fetchRegexRulePickerResults()">搜索</button>
+        </div>
+
+        <div x-show="regexRulePickerLoading" class="chat-bind-empty chat-reader-nested-empty">正在加载系统规则...</div>
+
+        <div x-show="!regexRulePickerLoading && regexRulePickerResults.length === 0" class="chat-bind-empty chat-reader-nested-empty">没有找到匹配的正则规则。</div>
+
+        <div x-show="!regexRulePickerLoading && regexRulePickerResults.length > 0" class="chat-bind-results custom-scrollbar">
+            <template x-for="item in regexRulePickerResults" :key="item.id">
+                <button type="button" class="chat-bind-card-item" @click="pickRegexRuleExtension(item)">
+                    <span class="chat-bind-card-index" aria-hidden="true">
+                        <svg viewBox="0 0 20 20" focusable="false">
+                            <path d="M6.2 4.5h7.6a1.8 1.8 0 0 1 1.8 1.8v8.4a1.8 1.8 0 0 1-1.8 1.8H6.2a1.8 1.8 0 0 1-1.8-1.8V6.3a1.8 1.8 0 0 1 1.8-1.8Z" fill="none" stroke="currentColor" stroke-width="1.5"></path>
+                            <path d="M7.4 8.1h5.2M7.4 10.5h5.2M7.4 12.9h3.1" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.5"></path>
+                        </svg>
+                    </span>
+                    <span class="chat-bind-card-text" x-text="(item.name || item.filename || item.id) + ' · ' + describeRegexRulePickerItem(item)"></span>
+                </button>
+            </template>
+        </div>
+    </div>
+</div>
+
+<div x-show="regexPresetPickerOpen" x-cloak class="chat-reader-overlay" style="z-index: calc(var(--z-topmost) - 1);" @click.self="closeRegexPresetPicker()" @keydown.escape.window.prevent="closeRegexPresetPicker()">
+    <div class="chat-bind-modal chat-reader-nested-modal chat-reader-transition-surface" role="dialog" aria-modal="true" aria-label="系统预设选择器">
+        <div class="chat-bind-header chat-reader-nested-header">
+            <div class="chat-reader-nested-heading">
+                <div class="chat-grid-kicker">System Preset</div>
+                <div class="chat-reader-title" style="font-size: 1.05rem;">选择预设</div>
+                <div class="chat-reader-subtitle">从系统中已上传的预设里提取正则规则，并合并进当前聊天草稿。</div>
+            </div>
+            <div class="chat-bind-actions chat-reader-nested-actions">
+                <button type="button" class="chat-reader-icon-button" @click="closeRegexPresetPicker()" aria-label="关闭系统预设选择器" title="关闭系统预设选择器">
+                    <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                        <path d="M5.5 5.5l9 9m0-9l-9 9" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.8"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <div class="chat-inline-actions chat-reader-nested-toolbar">
+            <input type="text" x-model="regexPresetPickerSearch" class="chat-inline-input chat-inline-input--wide" placeholder="搜索预设名称" @keydown.enter.prevent="fetchRegexPresetPickerResults()">
+            <button class="chat-toolbar-btn" :class="regexPresetPickerFilter === 'all' ? 'chat-toolbar-btn--primary' : ''" @click="regexPresetPickerFilter = 'all'; fetchRegexPresetPickerResults()">全部</button>
+            <button class="chat-toolbar-btn" :class="regexPresetPickerFilter === 'global' ? 'chat-toolbar-btn--primary' : ''" @click="regexPresetPickerFilter = 'global'; fetchRegexPresetPickerResults()">全局库</button>
+            <button class="chat-toolbar-btn" :class="regexPresetPickerFilter === 'resource' ? 'chat-toolbar-btn--primary' : ''" @click="regexPresetPickerFilter = 'resource'; fetchRegexPresetPickerResults()">资源库</button>
+            <button class="chat-toolbar-btn" @click="fetchRegexPresetPickerResults()">搜索</button>
+        </div>
+
+        <div x-show="regexPresetPickerLoading" class="chat-bind-empty chat-reader-nested-empty">正在加载系统预设...</div>
+
+        <div x-show="!regexPresetPickerLoading && regexPresetPickerResults.length === 0" class="chat-bind-empty chat-reader-nested-empty">没有找到匹配的预设。</div>
+
+        <div x-show="!regexPresetPickerLoading && regexPresetPickerResults.length > 0" class="chat-bind-results custom-scrollbar">
+            <template x-for="item in regexPresetPickerResults" :key="item.id">
+                <button type="button" class="chat-bind-card-item" @click="pickRegexPreset(item)">
+                    <span class="chat-bind-card-index" aria-hidden="true">
+                        <svg viewBox="0 0 20 20" focusable="false">
+                            <path d="M5.8 4.8h8.4a1.6 1.6 0 0 1 1.6 1.6v7.2a1.6 1.6 0 0 1-1.6 1.6H5.8a1.6 1.6 0 0 1-1.6-1.6V6.4a1.6 1.6 0 0 1 1.6-1.6Z" fill="none" stroke="currentColor" stroke-width="1.5"></path>
+                            <path d="M7 8.2h6M7 10.6h4.8M7 13h3.2" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.5"></path>
+                        </svg>
+                    </span>
+                    <span class="chat-bind-card-text" x-text="(item.name || item.filename || item.id) + ' · ' + describeRegexPresetPickerItem(item)"></span>
                 </button>
             </template>
         </div>

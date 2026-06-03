@@ -763,6 +763,8 @@ def test_chat_reader_template_keeps_all_nested_modal_entry_points():
     for entry_point in (
         'readerViewSettingsOpen',
         'regexConfigOpen',
+        'regexRulePickerOpen',
+        'regexPresetPickerOpen',
         'editingFloor',
         'bindPickerOpen',
     ):
@@ -806,6 +808,12 @@ def test_chat_reader_template_exposes_reader_status_and_accessibility_hooks():
     assert '@keydown.escape.window.prevent="closeRegexConfig()"' in reader_template
     assert '@keydown.escape.window.prevent="closeFloorEditor()"' in reader_template
     assert '@keydown.escape.window.prevent="closeBindPicker()"' in reader_template
+    assert '@keydown.escape.window.prevent="closeRegexRulePicker()"' in reader_template
+    assert '@keydown.escape.window.prevent="closeRegexPresetPicker()"' in reader_template
+    assert '选择绑定规则' in reader_template
+    assert '选择预设' in reader_template
+    assert 'openRegexRulePicker()' in reader_template
+    assert 'openRegexPresetPicker()' in reader_template
 
 
 def test_chat_grid_resets_reader_feedback_tone_to_steady_state():
@@ -1319,7 +1327,14 @@ def test_chat_grid_closes_mobile_navigation_chrome_before_showing_reader():
 def test_chat_grid_closes_mobile_navigation_chrome_before_opening_reader_nested_modals():
     chat_grid_source = read_project_file('static/js/components/chatGrid.js')
 
-    for signature in ('openRegexConfig() {', 'openRegexHelp() {', 'openFloorEditor(message) {', 'async openBindPicker(item) {'):
+    for signature in (
+        'openRegexConfig() {',
+        'openRegexHelp() {',
+        'openFloorEditor(message) {',
+        'openRegexRulePicker() {',
+        'openRegexPresetPicker() {',
+        'async openBindPicker(item) {',
+    ):
         block = extract_js_function_block(chat_grid_source, signature)
         assert js_contains(block, "if (this.$store.global.deviceType === 'mobile') {")
         assert 'this.$store.global.visibleSidebar = false;' in block
