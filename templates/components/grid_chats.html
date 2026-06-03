@@ -12,7 +12,7 @@
             <div class="text-gray-300 mt-2 text-sm">支持 SillyTavern `.jsonl` 文件</div>
         </div>
 
-        <div x-show="isLoading" style="text-align: center; padding: 5rem; color: var(--accent-light);">
+        <div x-show="isLoading" class="chat-grid-loading">
             数据加载中...
         </div>
 
@@ -31,7 +31,7 @@
                         <button type="button" @click="clearLinkedCardFilter()">✕</button>
                     </div>
 
-                    <div class="chat-inline-actions" style="justify-content: flex-end;">
+                    <div class="chat-inline-actions chat-grid-toolbar-actions-row">
                         <button @click="triggerChatImport()" class="chat-toolbar-btn chat-toolbar-btn--primary">📥 导入聊天</button>
                         <button @click="fetchChats()" class="chat-toolbar-btn">↻ 刷新</button>
                     </div>
@@ -101,15 +101,12 @@
         </div>
     </div>
 
-    <div class="pagination-bar" x-show="chatList.length > 0 || chatCurrentPage > 1" style="flex-shrink: 0;">
-        <span style="font-size: 0.75rem; color: var(--text-dim);">共 <span x-text="chatTotalItems"></span> 条</span>
-        <div style="display: flex; align-items: center; gap: 0.5rem;">
-            <button @click="changeChatPage(chatCurrentPage - 1)" :disabled="chatCurrentPage===1" class="btn-secondary"
-                style="padding: 0.25rem 0.5rem;">上一页</button>
-            <span style="padding: 0.25rem 0.5rem; background: var(--bg-sub); border-radius: 0.25rem; color: var(--text-main); font-size: 0.75rem;"
-                x-text="chatCurrentPage + '/' + chatTotalPages"></span>
-            <button @click="changeChatPage(chatCurrentPage + 1)" :disabled="chatCurrentPage===chatTotalPages" class="btn-secondary"
-                style="padding: 0.25rem 0.5rem;">下一页</button>
+    <div class="pagination-bar chat-grid-pagination" x-show="chatList.length > 0 || chatCurrentPage > 1">
+        <span class="chat-grid-pagination-meta">共 <span x-text="chatTotalItems"></span> 条</span>
+        <div class="chat-grid-pagination-controls">
+            <button @click="changeChatPage(chatCurrentPage - 1)" :disabled="chatCurrentPage===1" class="btn-secondary">上一页</button>
+            <span class="chat-grid-pagination-indicator" x-text="chatCurrentPage + '/' + chatTotalPages"></span>
+            <button @click="changeChatPage(chatCurrentPage + 1)" :disabled="chatCurrentPage===chatTotalPages" class="btn-secondary">下一页</button>
         </div>
     </div>
 </div>

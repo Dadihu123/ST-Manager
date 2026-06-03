@@ -169,11 +169,11 @@
                 <div class="chat-reader-panel-group" x-show="activeChat">
                     <div class="chat-reader-panel chat-reader-panel--quiet">
                         <div class="chat-reader-panel-title">本地编辑模式</div>
-                        <div class="chat-inline-actions">
+                        <div class="chat-inline-actions chat-inline-actions--stack">
                             <input type="text" x-model="replaceQuery" class="chat-inline-input chat-inline-input--wide" placeholder="查找内容">
                             <input type="text" x-model="replaceReplacement" class="chat-inline-input chat-inline-input--wide" placeholder="替换为">
                         </div>
-                        <div class="chat-inline-actions">
+                        <div class="chat-inline-actions chat-inline-actions--controls">
                             <label class="chat-inline-checkbox">
                                 <input type="checkbox" x-model="replaceCaseSensitive">
                                 <span>区分大小写</span>
@@ -444,11 +444,11 @@
 
                     <div class="chat-reader-panel chat-reader-panel--quiet" x-show="activeChat">
                         <div class="chat-reader-panel-title">本地编辑模式</div>
-                        <div class="chat-inline-actions">
+                        <div class="chat-inline-actions chat-inline-actions--stack">
                             <input type="text" x-model="replaceQuery" class="chat-inline-input chat-inline-input--wide" placeholder="查找内容">
                             <input type="text" x-model="replaceReplacement" class="chat-inline-input chat-inline-input--wide" placeholder="替换为">
                         </div>
-                        <div class="chat-inline-actions">
+                        <div class="chat-inline-actions chat-inline-actions--controls">
                             <label class="chat-inline-checkbox">
                                 <input type="checkbox" x-model="replaceCaseSensitive">
                                 <span>区分大小写</span>

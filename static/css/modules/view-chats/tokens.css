@@ -1,0 +1,132 @@
+/* Chat module design tokens – flat, compact */
+:is(.chat-mode-shell, .chat-reader-teleport-root, .detail-chat-panel) {
+  --chat-radius-xs: 3px;
+  --chat-radius-sm: 4px;
+  --chat-radius-md: 6px;
+  --chat-radius-lg: 8px;
+  --chat-space-4: 0.25rem;
+  --chat-space-8: 0.5rem;
+  --chat-space-12: 0.75rem;
+  --chat-space-16: 1rem;
+  --chat-surface: var(--bg-panel);
+  --chat-surface-raised: color-mix(in srgb, var(--bg-sub), var(--bg-panel) 55%);
+  --chat-border: var(--border-light);
+  --chat-shadow: none;
+  --chat-overlay-bg: color-mix(in srgb, var(--bg-body), transparent 8%);
+  --chat-text-kicker: var(--text-dim);
+  --chat-btn-min-height: 30px;
+  --chat-control-gap: 0.5rem;
+}
+
+.chat-toolbar-btn,
+.chat-card-action,
+.chat-reader-toggle {
+  min-height: var(--chat-btn-min-height);
+  padding: 0.35rem 0.65rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  border-radius: var(--chat-radius-sm);
+  line-height: 1.2;
+}
+
+.chat-reader-header-tools .chat-inline-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--chat-radius-sm);
+  border: 1px solid var(--chat-border);
+  background: var(--chat-surface-raised);
+}
+
+.chat-reader-header-tools .chat-reader-toggle {
+  border: none;
+  border-radius: calc(var(--chat-radius-sm) - 2px);
+  background: transparent;
+}
+
+.chat-reader-header-tools .chat-reader-toggle.is-active {
+  background: var(--chat-surface);
+  box-shadow: 0 0 0 1px var(--chat-border);
+}
+
+.chat-grid-loading {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: var(--accent-light);
+}
+
+.chat-grid-pagination-meta {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+}
+
+.chat-grid-pagination {
+  gap: var(--chat-space-12);
+}
+
+.chat-grid-toolbar-actions-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--chat-space-8);
+  width: 100%;
+}
+
+.chat-grid-pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--chat-space-8);
+}
+
+.chat-reader-panel .chat-inline-actions {
+  gap: var(--chat-control-gap);
+}
+
+.chat-reader-panel .chat-inline-actions .chat-toolbar-btn,
+.chat-reader-panel .chat-inline-actions .chat-inline-checkbox {
+  flex: 0 1 auto;
+}
+
+.chat-reader-panel .chat-inline-actions--stack {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.chat-reader-panel .chat-inline-actions--controls {
+  flex-wrap: wrap;
+  gap: var(--chat-control-gap);
+}
+
+.chat-reader-panel .chat-inline-actions--stack .chat-inline-input,
+.chat-reader-panel .chat-inline-actions--stack .form-input,
+.chat-reader-panel .chat-inline-actions--stack .form-textarea {
+  width: 100%;
+}
+
+.chat-reader-replace-status,
+.chat-reader-search-meta,
+.chat-bookmark-empty,
+.chat-bind-empty {
+  font-size: 0.68rem;
+  line-height: 1.45;
+  color: var(--text-dim);
+}
+
+.chat-reader-panel .chat-inline-actions:has(.chat-inline-input--wide) {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.chat-reader-panel .chat-inline-actions:has(.chat-inline-input--wide) .chat-inline-input {
+  width: 100%;
+}
+
+.chat-grid-pagination-indicator {
+  padding: 0.2rem 0.45rem;
+  background: var(--chat-surface-raised);
+  border-radius: var(--chat-radius-sm);
+  color: var(--text-main);
+  font-size: 0.72rem;
+}
