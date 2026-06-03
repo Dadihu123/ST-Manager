@@ -1,6 +1,9 @@
 import os
 import json
 import logging
+import shutil
+import tempfile
+import threading
 import time
 from core.config import DB_FOLDER
 from core.consts import RESERVED_RESOURCE_NAMES
@@ -9,6 +12,8 @@ from core.consts import RESERVED_RESOURCE_NAMES
 UI_DATA_FILE = os.path.join(DB_FOLDER, 'ui_data.json')
 
 logger = logging.getLogger(__name__)
+
+_UI_DATA_LOCK = threading.RLock()
 
 VERSION_REMARKS_KEY = '_version_remarks'
 IMPORT_TIME_KEY = 'import_time'
@@ -1203,6 +1208,122 @@ def set_last_sent_to_st(ui_data, ui_key, timestamp=None):
 
     return changed, sent_ts
 
+
+def _backup_ui_data_file_path():
+    return f'{UI_DATA_FILE}.bak'
+
+
+def _corrupted_ui_data_file_path():
+    timestamp = time.strftime('%Y%m%d%H%M%S')
+    return f'{UI_DATA_FILE}.corrupted.{timestamp}.{os.getpid()}'
+
+
+def _read_json_file(path):
+    with open(path, 'r', encoding='utf-8') as f:
+        return json.load(f)
+
+
+def _copy_current_primary_to_backup_if_valid():
+    if not os.path.exists(UI_DATA_FILE):
+        return
+
+    try:
+        _read_json_file(UI_DATA_FILE)
+    except (OSError, json.JSONDecodeError) as exc:
+        logger.warning(f"当前 ui_data.json 无法作为备份源，跳过预写备份: {exc}")
+        return
+
+    shutil.copy2(UI_DATA_FILE, _backup_ui_data_file_path())
+
+
+def _copy_primary_to_backup():
+    if os.path.exists(UI_DATA_FILE):
+        shutil.copy2(UI_DATA_FILE, _backup_ui_data_file_path())
+
+
+def _snapshot_corrupted_ui_data():
+    if not os.path.exists(UI_DATA_FILE):
+        return ''
+
+    corrupted_path = _corrupted_ui_data_file_path()
+    shutil.copy2(UI_DATA_FILE, corrupted_path)
+    return corrupted_path
+
+
+def _write_ui_data_file_atomic(data):
+    parent_dir = os.path.dirname(UI_DATA_FILE)
+    if parent_dir:
+        os.makedirs(parent_dir, exist_ok=True)
+
+    fd = None
+    temp_path = ''
+    try:
+        fd, temp_path = tempfile.mkstemp(
+            prefix=f'.{os.path.basename(UI_DATA_FILE)}.',
+            suffix='.tmp',
+            dir=parent_dir or None,
+        )
+        with os.fdopen(fd, 'w', encoding='utf-8') as f:
+            fd = None
+            json.dump(data, f, ensure_ascii=False, indent=2)
+            f.flush()
+            os.fsync(f.fileno())
+
+        os.replace(temp_path, UI_DATA_FILE)
+        temp_path = ''
+    finally:
+        if fd is not None:
+            try:
+                os.close(fd)
+            except OSError:
+                pass
+        if temp_path and os.path.exists(temp_path):
+            try:
+                os.remove(temp_path)
+            except OSError:
+                logger.warning(f"清理 ui_data.json 临时文件失败: {temp_path}", exc_info=True)
+
+
+def _load_backup_ui_data():
+    backup_path = _backup_ui_data_file_path()
+    if not os.path.exists(backup_path):
+        return None
+
+    try:
+        data = _read_json_file(backup_path)
+    except (OSError, json.JSONDecodeError) as exc:
+        logger.error(f"加载 ui_data.json 备份失败: {exc}")
+        return None
+
+    if not isinstance(data, dict):
+        logger.error("ui_data.json 备份内容不是对象，无法恢复。")
+        return None
+
+    return data
+
+
+def _recover_corrupted_ui_data(error):
+    logger.error(f"ui_data.json 损坏: {error}")
+
+    try:
+        corrupted_path = _snapshot_corrupted_ui_data()
+        if corrupted_path:
+            logger.error(f"已备份损坏的 ui_data.json: {corrupted_path}")
+    except Exception as snapshot_error:
+        logger.error(f"备份损坏的 ui_data.json 失败: {snapshot_error}")
+
+    backup_data = _load_backup_ui_data()
+    if backup_data is None:
+        return {}
+
+    if save_ui_data(backup_data):
+        logger.warning("已从 ui_data.json.bak 恢复 ui_data.json。")
+    else:
+        logger.error("从 ui_data.json.bak 恢复 ui_data.json 失败，已返回备份数据。")
+
+    return backup_data
+
+
 def load_ui_data():
     """
     加载 UI 辅助数据 (JSON 格式)。
@@ -1211,11 +1332,20 @@ def load_ui_data():
     Returns:
         dict: UI 数据字典。如果文件不存在或解析失败，返回空字典。
     """
-    if os.path.exists(UI_DATA_FILE):
-        try:
-            with open(UI_DATA_FILE, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                
+    with _UI_DATA_LOCK:
+        if os.path.exists(UI_DATA_FILE):
+            try:
+                data = _read_json_file(UI_DATA_FILE)
+            except json.JSONDecodeError as e:
+                return _recover_corrupted_ui_data(e)
+            except Exception as e:
+                logger.error(f"加载 ui_data.json 失败: {e}")
+                return {}
+
+            if not isinstance(data, dict):
+                logger.error("加载 ui_data.json 失败: 根数据不是对象")
+                return {}
+
             # === 脏数据清理逻辑 ===
             # 检查 resource_folder 是否使用了系统保留名称 (如 'cards', 'thumbnails' 等)
             dirty = False
@@ -1250,16 +1380,14 @@ def load_ui_data():
                     elif info.get(LAST_SENT_TO_ST_KEY) != normalized_sent_ts:
                         info[LAST_SENT_TO_ST_KEY] = normalized_sent_ts
                         dirty = True
-            
+
             if dirty:
                 # 如果有清理操作，立即回写文件以修正
                 save_ui_data(data)
-                
+
             return data
-        except Exception as e:
-            logger.error(f"加载 ui_data.json 失败: {e}")
-            return {}
-    return {}
+        return {}
+
 
 def save_ui_data(data):
     """
@@ -1268,18 +1396,20 @@ def save_ui_data(data):
     Args:
         data (dict): 要保存的数据字典。
     """
-    try:
-        # 确保父目录存在
-        parent_dir = os.path.dirname(UI_DATA_FILE)
-        if not os.path.exists(parent_dir):
-            os.makedirs(parent_dir)
-            
-        with open(UI_DATA_FILE, 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-        return True
-    except Exception as e:
-        logger.error(f"保存 ui_data.json 失败: {e}")
-        return False
+    with _UI_DATA_LOCK:
+        try:
+            parent_dir = os.path.dirname(UI_DATA_FILE)
+            if parent_dir:
+                os.makedirs(parent_dir, exist_ok=True)
+
+            _copy_current_primary_to_backup_if_valid()
+            _write_ui_data_file_atomic(data)
+            _copy_primary_to_backup()
+            return True
+        except Exception as e:
+            logger.error(f"保存 ui_data.json 失败: {e}")
+            return False
+
 
 def get_version_remark(ui_data, ui_key, version_id, cover_id=None):
     """

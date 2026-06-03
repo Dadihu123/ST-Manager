@@ -235,12 +235,20 @@ export default function cardGrid() {
         }
 
         // 移除后重新排序插入
+        const existingCard = idx !== -1 ? this.cards[idx] : null;
+        const cardForSort = existingCard
+          ? { ...existingCard, ...updatedCard }
+          : updatedCard;
+        if (existingCard && !Number(cardForSort.import_time || 0)) {
+          cardForSort.import_time = existingCard.import_time;
+        }
+
         if (idx !== -1) {
           // 移除旧对象
           this.cards.splice(idx, 1);
         }
 
-        this.insertCardSorted(updatedCard);
+        this.insertCardSorted(cardForSort);
         this.syncCardUiState();
       });
 
@@ -737,6 +745,23 @@ export default function cardGrid() {
 
       listCards(params) // 调用 API 模块
         .then((data) => {
+          const nextTotalItems = data.total_count || 0;
+          const nextTotalPages = Math.ceil(nextTotalItems / pageSize) || 1;
+
+          if (page > nextTotalPages) {
+            this.totalItems = nextTotalItems;
+            this.totalPages = nextTotalPages;
+            this.currentPage = nextTotalPages;
+            window.dispatchEvent(
+              new CustomEvent("card-page-changed", { detail: { page: nextTotalPages } }),
+            );
+
+            if (nextTotalItems > 0) {
+              this.fetchCards();
+              return;
+            }
+          }
+
           this.cards = data.cards || [];
           this.syncCardUiState();
 
@@ -766,8 +791,8 @@ export default function cardGrid() {
           }));
 
           // 更新分页
-          this.totalItems = data.total_count || 0;
-          this.totalPages = Math.ceil(this.totalItems / pageSize) || 1;
+          this.totalItems = nextTotalItems;
+          this.totalPages = nextTotalPages;
 
           store.isLoading = false;
           this.$nextTick(() => {

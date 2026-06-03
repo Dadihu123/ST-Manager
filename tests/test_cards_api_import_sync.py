@@ -58,6 +58,54 @@ def _open_row_db(db_path: Path):
     return conn
 
 
+def test_cache_reload_preserves_bundle_version_remarks_when_db_row_is_missing(monkeypatch, tmp_path):
+    db_path = tmp_path / 'cards_metadata.db'
+    ui_path = tmp_path / 'ui_data.json'
+    cards_dir = tmp_path / 'cards'
+    bundle_dir = cards_dir / 'pack'
+    bundle_dir.mkdir(parents=True)
+    (bundle_dir / '.bundle').write_text('1', encoding='utf-8')
+    (bundle_dir / 'cover.png').write_bytes(b'cover')
+    (bundle_dir / 'alt.png').write_bytes(b'alt')
+
+    ui_path.write_text(
+        json.dumps(
+            {
+                'pack': {
+                    'import_time': 100.0,
+                    ui_store_module.VERSION_REMARKS_KEY: {
+                        'pack/cover.png': {'summary': 'cover note'},
+                        'pack/alt.png': {'summary': 'alt note'},
+                    },
+                }
+            },
+            ensure_ascii=False,
+        ),
+        encoding='utf-8',
+    )
+
+    with _open_row_db(db_path) as conn:
+        _create_card_metadata_table(conn)
+        conn.execute(
+            'INSERT INTO card_metadata (id, char_name, tags, category, last_modified, token_count, is_favorite, has_character_book, character_book_name, description, first_mes, mes_example, creator, char_version, file_hash, file_size) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            ('pack/cover.png', 'Cover', json.dumps([]), 'pack', 20.0, 0, 0, 0, '', '', '', '', '', '', '', 1),
+        )
+        conn.commit()
+
+    monkeypatch.setattr(cache_module, 'DEFAULT_DB_PATH', str(db_path), raising=False)
+    monkeypatch.setattr(cache_module, 'CARDS_FOLDER', str(cards_dir), raising=False)
+    monkeypatch.setattr(ui_store_module, 'UI_DATA_FILE', str(ui_path))
+
+    cache = GlobalMetadataCache()
+    cache.reload_from_db()
+
+    ui_payload = json.loads(ui_path.read_text(encoding='utf-8'))
+    assert ui_payload['pack'][ui_store_module.VERSION_REMARKS_KEY] == {
+        'pack/cover.png': {'summary': 'cover note'},
+        'pack/alt.png': {'summary': 'alt note'},
+    }
+
+
 def _run_index_worker_once(monkeypatch, db_path: Path):
     rebuild_calls = []
     wait_calls = {'count': 0}
@@ -266,6 +314,55 @@ def test_update_card_content_archive_old_failure_aborts_overwrite(monkeypatch, t
     assert result['success'] is False
     assert '归档' in result['msg'] or 'archive' in result['msg'].lower()
     assert card_path.read_text(encoding='utf-8') == json.dumps({'data': {'name': 'Hero', 'tags': ['old']}}, ensure_ascii=False)
+
+
+def test_update_card_content_png_upload_json_keeps_existing_png_pixels(monkeypatch, tmp_path):
+    cards_root = _setup_update_card_content_test(monkeypatch, tmp_path)
+    card_path = cards_root / 'hero.png'
+    temp_path = tmp_path / 'upload.json'
+    card_path.write_bytes(b'old-png')
+    temp_path.write_text(
+        json.dumps({'data': {'name': 'Hero V2', 'tags': ['new']}}, ensure_ascii=False),
+        encoding='utf-8',
+    )
+
+    monkeypatch.setattr(
+        card_service,
+        'extract_card_info',
+        lambda path: {
+            'data': {
+                'name': 'Hero V2' if str(path).endswith('upload.json') else 'Hero',
+                'tags': ['new'] if str(path).endswith('upload.json') else ['old'],
+            }
+        },
+    )
+
+    opened_paths = []
+
+    class _TrackingImage:
+        def save(self, path, _fmt):
+            Path(path).write_bytes(b'png-data')
+
+    def _fake_open(path):
+        opened_paths.append(Path(path).name)
+        return _TrackingImage()
+
+    monkeypatch.setattr(card_service.Image, 'open', _fake_open)
+
+    result = card_service.update_card_content(
+        'hero.png',
+        str(temp_path),
+        is_bundle_update=False,
+        keep_ui_data={},
+        new_upload_ext='.json',
+        image_policy='overwrite',
+    )
+
+    assert result['success'] is True
+    assert result['new_id'] == 'hero.png'
+    assert result['updated_card']['char_name'] == 'Hero V2'
+    assert result['updated_card']['source_revision'] == result['source_revision']
+    assert opened_paths == ['hero.png']
 
 
 def test_update_card_content_overwrite_runs_card_update_automation(monkeypatch, tmp_path):
@@ -1655,6 +1752,104 @@ def test_api_move_card_uses_shared_move_card_internal(monkeypatch):
     assert move_calls == [('src/demo.json', 'dst')]
 
 
+def test_api_move_card_reports_failure_when_no_cards_moved(monkeypatch):
+    monkeypatch.setattr(cards_api, 'suppress_fs_events', lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(cards_api, '_is_safe_rel_path', lambda _value, allow_empty=False: True)
+    monkeypatch.setattr(cards_api, 'move_card_internal', lambda card_id, target_category: (False, None, 'Source not found'))
+    monkeypatch.setattr(
+        cards_api.ctx,
+        'cache',
+        SimpleNamespace(id_map={}, category_counts={'src': 1}),
+        raising=False,
+    )
+
+    client = _make_app().test_client()
+    res = client.post('/api/move_card', json={'card_ids': ['src/missing.json'], 'target_category': 'dst'})
+
+    assert res.status_code == 200
+    assert res.get_json() == {
+        'success': False,
+        'count': 0,
+        'moved_details': [],
+        'failed_details': [
+            {
+                'old_id': 'src/missing.json',
+                'msg': 'Source not found',
+            }
+        ],
+        'msg': 'Source not found',
+        'category_counts': {'src': 1},
+    }
+
+
+def test_move_card_internal_resolves_bundle_display_card_to_directory(monkeypatch, tmp_path):
+    from core.services import card_service
+
+    cards_root = tmp_path / 'cards'
+    src_dir = cards_root / 'src' / 'bundle'
+    dst_dir = cards_root / 'dst'
+    src_dir.mkdir(parents=True, exist_ok=True)
+    dst_dir.mkdir(parents=True, exist_ok=True)
+    (src_dir / '.bundle').write_text('1', encoding='utf-8')
+    (src_dir / 'cover.json').write_text('{"spec":"chara_card_v2"}', encoding='utf-8')
+    (src_dir / 'alt.json').write_text('{"spec":"chara_card_v2"}', encoding='utf-8')
+
+    folder_sync_calls = []
+    exact_sync_calls = []
+
+    monkeypatch.setattr(card_service, 'CARDS_FOLDER', str(cards_root), raising=False)
+    monkeypatch.setattr(card_service, 'load_ui_data', lambda: {})
+    monkeypatch.setattr(card_service, 'get_db', lambda: object())
+    monkeypatch.setattr(
+        card_service,
+        'sync_folder_prefix_after_fs_move',
+        lambda **kwargs: folder_sync_calls.append(kwargs) or [
+            ('src/bundle/cover.json', 'dst/bundle/cover.json'),
+            ('src/bundle/alt.json', 'dst/bundle/alt.json'),
+        ],
+    )
+    monkeypatch.setattr(
+        card_service,
+        'sync_exact_card_after_fs_move',
+        lambda **kwargs: exact_sync_calls.append(kwargs),
+    )
+    monkeypatch.setattr(
+        card_service.ctx,
+        'cache',
+        SimpleNamespace(
+            id_map={
+                'src/bundle/cover.json': {
+                    'id': 'src/bundle/cover.json',
+                    'is_bundle': True,
+                    'bundle_dir': 'src/bundle',
+                    'category': 'src',
+                }
+            },
+            bundle_map={'src/bundle': 'src/bundle/cover.json'},
+        ),
+        raising=False,
+    )
+
+    ok, new_id, msg = card_service.move_card_internal('src/bundle/cover.json', 'dst')
+
+    assert ok is True
+    assert msg == 'Success'
+    assert new_id == 'dst/bundle'
+    assert (cards_root / 'src' / 'bundle').exists() is False
+    assert (cards_root / 'dst' / 'bundle' / '.bundle').exists() is True
+    assert (cards_root / 'dst' / 'bundle' / 'cover.json').exists() is True
+    assert (cards_root / 'dst' / 'bundle' / 'alt.json').exists() is True
+    assert folder_sync_calls == [
+        {
+            'conn': folder_sync_calls[0]['conn'],
+            'ui_data': {},
+            'old_path': 'src/bundle',
+            'new_path': 'dst/bundle',
+        }
+    ]
+    assert exact_sync_calls == []
+
+
 def test_move_card_internal_directory_migrates_prefixed_ui_data_and_nested_categories(monkeypatch, tmp_path):
     from core.services import card_service
 
@@ -2176,7 +2371,7 @@ def test_convert_to_bundle_updates_category_and_enqueues_incremental_sync(monkey
             'remove_entity_ids': ['group/hero.json'],
         }
     ]
-    assert saved_ui_payloads == [{'group/pack': {'summary': 'note'}}]
+    assert saved_ui_payloads == [{'group/pack': {'_version_remarks': {'group/pack/hero.json': {'summary': 'note'}}}}]
     assert force_reload_calls == [{'reason': 'convert_to_bundle'}]
 
 
@@ -2409,6 +2604,217 @@ def test_update_card_rename_moves_embedded_worldinfo_note_key(monkeypatch, tmp_p
             'remove_owner_ids': [old_id],
         }
     ]
+
+
+def test_update_card_import_time_fallback_uses_pre_write_mtime_when_cache_misses(monkeypatch, tmp_path):
+    cards_dir = tmp_path / 'cards'
+    cards_dir.mkdir()
+    card_path = cards_dir / 'hero.json'
+    card_path.write_text(
+        json.dumps({'data': {'name': 'Hero', 'description': 'old', 'tags': []}}, ensure_ascii=False),
+        encoding='utf-8',
+    )
+    old_mtime = 100.0
+    written_mtime = 5000.0
+    os.utime(card_path, (old_mtime, old_mtime))
+
+    ui_data = {}
+    import_time_calls = []
+
+    class _FakeCache:
+        def __init__(self):
+            self.id_map = {}
+            self.bundle_map = {}
+            self.category_counts = {}
+            self.lock = threading.Lock()
+
+        def update_card_data(self, card_id, payload):
+            updated = {
+                'id': card_id,
+                'image_url': f'/cards_file/{card_id}',
+                **payload,
+            }
+            self.id_map[card_id] = updated
+            return updated
+
+    def fake_write_card_metadata(path, _info):
+        os.utime(path, (written_mtime, written_mtime))
+        return True
+
+    def fake_ensure_import_time(payload, ui_key, fallback):
+        import_time_calls.append((ui_key, fallback))
+        payload.setdefault(ui_key, {})['import_time'] = fallback
+        return True, fallback
+
+    monkeypatch.setattr(cards_api, 'CARDS_FOLDER', str(cards_dir))
+    monkeypatch.setattr(cards_api, 'suppress_fs_events', lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(
+        cards_api,
+        'extract_card_info',
+        lambda _path: {'data': {'name': 'Hero', 'description': 'old', 'tags': []}},
+    )
+    monkeypatch.setattr(cards_api, 'write_card_metadata', fake_write_card_metadata)
+    monkeypatch.setattr(cards_api, 'load_ui_data', lambda: ui_data)
+    monkeypatch.setattr(cards_api, 'save_ui_data', lambda _payload: None)
+    monkeypatch.setattr(cards_api, 'ensure_import_time', fake_ensure_import_time)
+    monkeypatch.setattr(cards_api, 'get_import_time', lambda payload, ui_key, _fallback: payload[ui_key]['import_time'])
+    monkeypatch.setattr(cards_api, 'calculate_token_count', lambda _data: 0)
+    monkeypatch.setattr(cards_api, 'update_card_cache', lambda *_args, **_kwargs: {
+        'cache_updated': True,
+        'has_embedded_wi': False,
+        'previous_has_embedded_wi': False,
+    })
+    monkeypatch.setattr(cards_api, 'sync_card_index_jobs', lambda **_kwargs: {})
+    monkeypatch.setattr(cards_api, '_apply_card_index_increment_now', lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(cards_api, 'auto_run_forum_tags_on_link_update', lambda _card_id: None)
+    monkeypatch.setattr(cards_api, 'append_entry_history_records', lambda **_kwargs: None)
+    monkeypatch.setattr(cards_api.ctx, 'cache', _FakeCache())
+
+    client = _make_app().test_client()
+    res = client.post(
+        '/api/update_card',
+        json={
+            'id': 'hero.json',
+            'char_name': 'Hero',
+            'description': 'new',
+            'first_mes': '',
+            'mes_example': '',
+            'personality': '',
+            'scenario': '',
+            'creator_notes': '',
+            'system_prompt': '',
+            'post_history_instructions': '',
+            'creator': '',
+            'character_version': '',
+            'extensions': {},
+            'tags': [],
+            'alternate_greetings': [],
+            'character_book': None,
+            'ui_summary': '',
+            'source_link': '',
+            'resource_folder': '',
+        },
+    )
+
+    assert res.status_code == 200
+    assert res.get_json()['success'] is True
+    assert import_time_calls == [('hero.json', old_mtime)]
+
+
+def test_update_card_clears_whitespace_only_text_fields(monkeypatch, tmp_path):
+    cards_dir = tmp_path / 'cards'
+    cards_dir.mkdir()
+    card_path = cards_dir / 'hero.json'
+    whitespace_data = {
+        'name': 'Hero',
+        'description': '\r\n',
+        'first_mes': '\n',
+        'mes_example': '   ',
+        'personality': '\t',
+        'scenario': '\r\n',
+        'creator_notes': '   ',
+        'system_prompt': '\n',
+        'post_history_instructions': '\t',
+        'tags': [],
+        'alternate_greetings': ['\n', '   '],
+    }
+    card_path.write_text(
+        json.dumps({'data': whitespace_data}, ensure_ascii=False),
+        encoding='utf-8',
+    )
+    old_mtime = 100.0
+    os.utime(card_path, (old_mtime, old_mtime))
+
+    card_info = {'data': dict(whitespace_data)}
+    written_infos = []
+    ui_data = {}
+
+    class _FakeCache:
+        def __init__(self):
+            self.id_map = {}
+            self.bundle_map = {}
+            self.category_counts = {}
+            self.lock = threading.Lock()
+
+        def update_card_data(self, card_id, payload):
+            updated = {
+                'id': card_id,
+                'image_url': f'/cards_file/{card_id}',
+                **payload,
+            }
+            self.id_map[card_id] = updated
+            return updated
+
+    def fake_write_card_metadata(_path, info):
+        written_infos.append(json.loads(json.dumps(info, ensure_ascii=False)))
+        return True
+
+    def fake_ensure_import_time(payload, ui_key, fallback):
+        payload.setdefault(ui_key, {}).setdefault('import_time', fallback)
+        return True, fallback
+
+    monkeypatch.setattr(cards_api, 'CARDS_FOLDER', str(cards_dir))
+    monkeypatch.setattr(cards_api, 'suppress_fs_events', lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(cards_api, 'extract_card_info', lambda _path: card_info)
+    monkeypatch.setattr(cards_api, 'write_card_metadata', fake_write_card_metadata)
+    monkeypatch.setattr(cards_api, 'load_ui_data', lambda: ui_data)
+    monkeypatch.setattr(cards_api, 'save_ui_data', lambda _payload: None)
+    monkeypatch.setattr(cards_api, 'ensure_import_time', fake_ensure_import_time)
+    monkeypatch.setattr(cards_api, 'get_import_time', lambda payload, ui_key, _fallback: payload[ui_key]['import_time'])
+    monkeypatch.setattr(cards_api, 'calculate_token_count', lambda _data: 0)
+    monkeypatch.setattr(cards_api, 'update_card_cache', lambda *_args, **_kwargs: {
+        'cache_updated': True,
+        'has_embedded_wi': False,
+        'previous_has_embedded_wi': False,
+    })
+    monkeypatch.setattr(cards_api, 'sync_card_index_jobs', lambda **_kwargs: {})
+    monkeypatch.setattr(cards_api, '_apply_card_index_increment_now', lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(cards_api, 'auto_run_forum_tags_on_link_update', lambda _card_id: None)
+    monkeypatch.setattr(cards_api, 'append_entry_history_records', lambda **_kwargs: None)
+    monkeypatch.setattr(cards_api.ctx, 'cache', _FakeCache())
+
+    client = _make_app().test_client()
+    res = client.post(
+        '/api/update_card',
+        json={
+            'id': 'hero.json',
+            'char_name': 'Hero',
+            'description': '',
+            'first_mes': '',
+            'mes_example': '',
+            'personality': '',
+            'scenario': '',
+            'creator_notes': '',
+            'system_prompt': '',
+            'post_history_instructions': '',
+            'creator': '',
+            'character_version': '',
+            'extensions': {},
+            'tags': [],
+            'alternate_greetings': [],
+            'character_book': None,
+            'ui_summary': '',
+            'source_link': '',
+            'resource_folder': '',
+        },
+    )
+
+    assert res.status_code == 200
+    response_payload = res.get_json()
+    assert response_payload['success'] is True
+    for field in (
+        'description',
+        'first_mes',
+        'mes_example',
+        'personality',
+        'scenario',
+        'creator_notes',
+        'system_prompt',
+        'post_history_instructions',
+    ):
+        assert written_infos[-1]['data'][field] == ''
+    assert written_infos[-1]['data']['alternate_greetings'] == []
+    assert response_payload['updated_card']['description'] == ''
 
 
 def test_toggle_bundle_mode_enable_keeps_tags_consistent_between_file_db_cache_and_index(monkeypatch, tmp_path):

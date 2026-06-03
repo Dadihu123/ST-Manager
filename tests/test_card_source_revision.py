@@ -216,6 +216,8 @@ def test_change_image_json_to_png_enqueues_stale_cleanup_with_raw_id(monkeypatch
     payload = res.get_json()
     assert payload['success'] is True
     assert payload['new_id'] == 'hero.png'
+    assert payload['source_revision']
+    assert payload['updated_card']['source_revision'] == payload['source_revision']
     assert cache_calls == [
         (
             ('hero.png', str(cards_dir / 'hero.png')),

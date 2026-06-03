@@ -5,7 +5,7 @@ import sqlite3
 
 from core.config import BASE_DIR, CARDS_FOLDER, DEFAULT_DB_PATH, load_config
 from core.data.index_runtime_store import get_active_generation
-from core.data.ui_store import load_ui_data
+from core.data.ui_store import get_import_time, load_ui_data
 from core.utils.image import extract_card_info
 from core.utils.source_revision import build_file_source_revision
 
@@ -552,6 +552,8 @@ def apply_card_increment(conn, card_id: str, source_path: str = '', *, remove_en
     summary = str((ui_data.get(card_id) or {}).get('summary', ''))
     resolved_source_path = str(source_path or os.path.join(CARDS_FOLDER, card_id.replace('/', os.sep)))
     filename = str(card_id).split('/')[-1]
+    last_modified = float(row['last_modified'] or 0)
+    import_time = get_import_time(ui_data, card_id, last_modified)
     conn.execute(
         '''
         INSERT OR REPLACE INTO index_entities_v2(
@@ -573,11 +575,11 @@ def apply_card_increment(conn, card_id: str, source_path: str = '', *, remove_en
             'physical',
             int(row['is_favorite'] or 0),
             summary,
-            float(row['last_modified'] or 0),
-            0,
+            last_modified,
+            import_time,
             int(row['token_count'] or 0),
             str(row['char_name'] or '').lower(),
-            float(row['last_modified'] or 0),
+            last_modified,
             '',
             build_file_source_revision(resolved_source_path),
         ),
@@ -622,6 +624,8 @@ def build_cards_generation(conn, generation: int):
         tags = json.loads(row['tags'] or '[]') if row['tags'] else []
         summary = str((ui_data.get(row['id']) or {}).get('summary', ''))
         source_path = os.path.join(CARDS_FOLDER, row['id'].replace('/', os.sep))
+        last_modified = float(row['last_modified'] or 0)
+        import_time = get_import_time(ui_data, row['id'], last_modified)
         conn.execute(
             '''
             INSERT OR REPLACE INTO index_entities_v2(
@@ -643,11 +647,11 @@ def build_cards_generation(conn, generation: int):
                 'physical',
                 int(row['is_favorite'] or 0),
                 summary,
-                float(row['last_modified'] or 0),
-                0,
+                last_modified,
+                import_time,
                 int(row['token_count'] or 0),
                 str(row['char_name'] or '').lower(),
-                float(row['last_modified'] or 0),
+                last_modified,
                 '',
                 build_file_source_revision(source_path),
             ),

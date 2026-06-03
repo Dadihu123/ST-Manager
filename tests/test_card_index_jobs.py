@@ -84,6 +84,38 @@ def test_rebuild_cards_writes_projection_rows(monkeypatch, tmp_path):
     assert [tag[0] for tag in tags] == ['blue', 'fast']
 
 
+def test_build_cards_generation_preserves_durable_import_time(monkeypatch, tmp_path):
+    db_path = tmp_path / 'cards_metadata.db'
+
+    with sqlite3.connect(db_path) as conn:
+        ensure_index_runtime_schema(conn)
+        _create_card_metadata_table(conn)
+        conn.execute(
+            'INSERT INTO card_metadata (id, char_name, tags, category, last_modified, token_count, is_favorite, has_character_book, character_book_name, description, first_mes, mes_example, creator, char_version, file_hash, file_size) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            ('hero.png', 'Hero', json.dumps(['blue']), 'SciFi', 5000.0, 4567, 1, 0, '', '', '', '', '', '', '', 0),
+        )
+        conn.commit()
+
+    monkeypatch.setattr(
+        index_build_service,
+        'load_ui_data',
+        lambda: {'hero.png': {'summary': 'pilot note', 'import_time': 100.0}},
+        raising=False,
+    )
+
+    with sqlite3.connect(db_path) as conn:
+        conn.row_factory = sqlite3.Row
+        generation = allocate_build_generation(conn, 'cards')
+        index_build_service.build_cards_generation(conn, generation)
+
+        row = conn.execute(
+            "SELECT updated_at, import_time FROM index_entities_v2 WHERE generation = ? AND entity_id = 'card::hero.png'",
+            (generation,),
+        ).fetchone()
+
+    assert dict(row) == {'updated_at': 5000.0, 'import_time': 100.0}
+
+
 def test_rebuild_cards_populates_fulltext_search_index(monkeypatch, tmp_path):
     db_path = tmp_path / 'cards_metadata.db'
     cards_dir = tmp_path / 'cards'
@@ -848,6 +880,44 @@ def test_worker_loop_upserts_card_into_active_generation_without_cards_rebuild(m
     assert full_rows == [('Hero Updated hero.png SciFi fresh summary blue fast',)]
     assert job_row == ('done', '')
     assert calls == []
+
+
+def test_apply_card_increment_preserves_durable_import_time(monkeypatch, tmp_path):
+    db_path = tmp_path / 'cards_metadata.db'
+    cards_dir = tmp_path / 'cards'
+    card_path = cards_dir / 'hero.png'
+    cards_dir.mkdir()
+    card_path.write_bytes(b'hero')
+
+    _init_index_db(db_path)
+    monkeypatch.setattr(index_build_service, 'CARDS_FOLDER', str(cards_dir))
+
+    with sqlite3.connect(db_path) as conn:
+        conn.row_factory = sqlite3.Row
+        _create_card_metadata_table(conn)
+        conn.execute("UPDATE index_build_state SET active_generation = 2, state = 'ready', phase = 'ready' WHERE scope = 'cards'")
+        conn.execute(
+            'INSERT INTO card_metadata (id, char_name, tags, category, last_modified, token_count, is_favorite, has_character_book, character_book_name, description, first_mes, mes_example, creator, char_version, file_hash, file_size) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            ('hero.png', 'Hero Updated', json.dumps(['blue', 'fast']), 'SciFi', 5000.0, 987, 1, 0, '', '', '', '', '', '', '', 0),
+        )
+        conn.commit()
+
+    monkeypatch.setattr(
+        index_build_service,
+        'load_ui_data',
+        lambda: {'hero.png': {'summary': 'fresh summary', 'import_time': 100.0}},
+        raising=False,
+    )
+
+    with sqlite3.connect(db_path) as conn:
+        conn.row_factory = sqlite3.Row
+        assert index_build_service.apply_card_increment(conn, 'hero.png', str(card_path)) is True
+
+        row = conn.execute(
+            "SELECT updated_at, import_time FROM index_entities_v2 WHERE generation = 2 AND entity_id = 'card::hero.png'",
+        ).fetchone()
+
+    assert dict(row) == {'updated_at': 5000.0, 'import_time': 100.0}
 
 
 def test_worker_loop_upsert_card_removes_stale_old_id_rows_from_active_generation(monkeypatch, tmp_path):

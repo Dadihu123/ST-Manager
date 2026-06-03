@@ -1334,6 +1334,24 @@ def api_update_card():
         if os.path.abspath(old_full_path).lower() != os.path.abspath(new_full_path).lower():
             is_renamed = True
 
+        def _cached_import_time_for(card_id):
+            cache_entry = ctx.cache.id_map.get(card_id) if card_id else None
+            if cache_entry:
+                cached_it = cache_entry.get('import_time')
+                if isinstance(cached_it, (int, float)) and not isinstance(cached_it, bool) and cached_it > 0:
+                    return float(cached_it)
+            return None
+
+        import_fallback = _cached_import_time_for(raw_id)
+        if import_fallback is None and data.get('save_ui_to_bundle') and data.get('bundle_dir'):
+            bundle_main_id = ctx.cache.bundle_map.get(data.get('bundle_dir'))
+            import_fallback = _cached_import_time_for(bundle_main_id)
+        if import_fallback is None:
+            try:
+                import_fallback = os.path.getmtime(old_full_path)
+            except Exception:
+                import_fallback = None
+
         # --- 辅助函数：深度清洗数据 ---
         def clean_for_compare(obj):
             if isinstance(obj, dict):
@@ -1356,6 +1374,11 @@ def api_update_card():
                 return obj
 
         # 读取原文件信息
+        def _text_field_value(value):
+            if value is None:
+                return ''
+            return str(value)
+
         info = extract_card_info(old_full_path)
         file_content_modified = False
         wi_entry_history_records = []
@@ -1384,15 +1407,15 @@ def api_update_card():
             }
             
             for k, v in core_fields.items():
-                old_val = target.get(k) or ''
-                new_val = v or ''
-                if str(old_val).strip() != str(new_val).strip():
-                    target[k] = v
+                old_val = _text_field_value(target.get(k))
+                new_val = _text_field_value(v)
+                if old_val != new_val:
+                    target[k] = new_val
                     file_content_modified = True
                     # 同步到 root (V2兼容)
                     if target is not info:
-                        if k in info: info[k] = v
-                        elif k == 'creator_notes' and 'creatorcomment' in info: info['creatorcomment'] = v
+                        if k in info: info[k] = new_val
+                        elif k == 'creator_notes' and 'creatorcomment' in info: info['creatorcomment'] = new_val
             
             if clean_for_compare(data.get('extensions')) != clean_for_compare(target.get('extensions')):
                 target['extensions'] = data.get('extensions')
@@ -1408,8 +1431,13 @@ def api_update_card():
                 if target is not info and 'tags' in info: info['tags'] = final_tags
                 
             new_alt = [x.strip() for x in (data.get('alternate_greetings') or []) if x and x.strip()]
-            old_alt = [x.strip() for x in (target.get('alternate_greetings') or []) if x and x.strip()]
-            if json.dumps(new_alt, sort_keys=True) != json.dumps(old_alt, sort_keys=True):
+            old_alt_source = target.get('alternate_greetings') or []
+            old_alt = [x.strip() for x in old_alt_source if x and x.strip()]
+            old_alt_has_only_blank_entries = bool(old_alt_source) and not old_alt
+            if (
+                json.dumps(new_alt, sort_keys=True) != json.dumps(old_alt, sort_keys=True)
+                or old_alt_has_only_blank_entries
+            ):
                 target['alternate_greetings'] = new_alt
                 file_content_modified = True
                 if target is not info and 'alternate_greetings' in info: info['alternate_greetings'] = new_alt
@@ -1440,11 +1468,11 @@ def api_update_card():
             current_full_path = new_full_path
             file_content_modified = True 
 
-        import_fallback = None
-        try:
-            import_fallback = os.path.getmtime(current_full_path)
-        except Exception:
-            import_fallback = time.time()
+        if import_fallback is None:
+            try:
+                import_fallback = os.path.getmtime(current_full_path)
+            except Exception:
+                import_fallback = time.time()
 
         # 3. 始终更新 UI Data (Bundle模式下不影响文件内容)
         ui_data = load_ui_data()
@@ -1921,12 +1949,17 @@ def api_move_card():
                 return jsonify({"success": False, "msg": "非法卡片路径"}), 400
         
         moved_details = []
+        failed_details = []
         
         for cid in card_ids:
             try:
                 success, new_id, msg = move_card_internal(cid, target_cat)
                 if not success:
                     logger.warning('Move card skipped for %s: %s', cid, msg)
+                    failed_details.append({
+                        "old_id": cid,
+                        "msg": msg or "Move failed",
+                    })
                     continue
 
                 new_filename = os.path.basename(new_id)
@@ -1942,15 +1975,33 @@ def api_move_card():
                     "new_image_url": new_image_url,
                 })
             except Exception as inner_e:
-                print(f"Error moving {cid}: {inner_e}")
+                logger.exception("Error moving %s", cid)
+                failed_details.append({
+                    "old_id": cid,
+                    "msg": str(inner_e),
+                })
                 continue
-        
-        return jsonify({
+
+        category_counts = ctx.cache.category_counts if ctx.cache else {}
+        if failed_details and not moved_details:
+            return jsonify({
+                "success": False,
+                "count": 0,
+                "moved_details": [],
+                "failed_details": failed_details,
+                "msg": failed_details[0].get("msg") or "Move failed",
+                "category_counts": category_counts,
+            })
+
+        response_payload = {
             "success": True, 
             "count": len(moved_details),
             "moved_details": moved_details,
-            "category_counts": ctx.cache.category_counts
-        })
+            "category_counts": category_counts
+        }
+        if failed_details:
+            response_payload["failed_details"] = failed_details
+        return jsonify(response_payload)
     except Exception as e:
         return jsonify({"success": False, "msg": str(e)})
 
@@ -2546,6 +2597,7 @@ def api_change_image():
             logger.warning(f"Failed to touch file: {e}")
             
         new_mtime = os.path.getmtime(target_save_path)
+        refreshed_source_revision = build_file_source_revision(target_save_path)
         
         # 2. 物理删除 WebP 缩略图缓存 (强制下次请求重新生成)
         clean_thumbnail_cache(final_id, THUMB_FOLDER)
@@ -2603,9 +2655,15 @@ def api_change_image():
             "last_modified": new_mtime,
             "import_time": import_time_val,
             "token_count": token_count,
-            "dir_path": os.path.dirname(final_id) if '/' in final_id else ""
+            "dir_path": os.path.dirname(final_id) if '/' in final_id else "",
+            "source_revision": refreshed_source_revision,
             # 注意：file_hash 在 update_card_cache 中计算了，内存中可以暂时不更，或者再算一次
         }
+
+        ts = int(new_mtime)
+        new_image_url = f"/cards_file/{quote(final_id)}?t={ts}"
+        new_thumb_url = f"/api/thumbnail/{quote(final_id)}?t={ts}"
+        updated_card_obj = None
         
         # 如果是格式转换，之前的对象已被 delete_card_update 删除，现在需要 add
         if is_format_conversion:
@@ -2617,20 +2675,25 @@ def api_change_image():
             updated_card_data['resource_folder'] = ui_info.get('resource_folder', '')
             
             # 生成 URL
-            encoded_id = quote(final_id)
-            updated_card_data['image_url'] = f"/cards_file/{encoded_id}?t={new_mtime}"
-            updated_card_data['thumb_url'] = f"/api/thumbnail/{encoded_id}?t={new_mtime}"
+            updated_card_data['image_url'] = new_image_url
+            updated_card_data['thumb_url'] = new_thumb_url
             
-            ctx.cache.add_card_update(updated_card_data)
+            updated_card_obj = ctx.cache.add_card_update(updated_card_data) or updated_card_data
         else:
             # 普通更新，调用 update_card_data (原地修改)
-            ctx.cache.update_card_data(final_id, {
-                "last_modified": new_mtime
+            updated_card_obj = ctx.cache.update_card_data(final_id, {
+                "last_modified": new_mtime,
+                "import_time": import_time_val,
+                "image_url": new_image_url,
+                "thumb_url": new_thumb_url,
+                "source_revision": refreshed_source_revision,
             })
-        
-        # 获取最终的 URL
-        ts = int(new_mtime)
-        new_image_url = f"/cards_file/{quote(final_id)}?t={ts}"
+            if not updated_card_obj:
+                updated_card_obj = {
+                    **updated_card_data,
+                    "image_url": new_image_url,
+                    "thumb_url": new_thumb_url,
+                }
         
         return jsonify({
             "success": True,
@@ -2638,7 +2701,9 @@ def api_change_image():
             "new_image_url": new_image_url,
             "is_converted": is_format_conversion,
             "last_modified": new_mtime,
-            "import_time": import_time_val
+            "import_time": import_time_val,
+            "source_revision": refreshed_source_revision,
+            "updated_card": updated_card_obj
         })
 
     except Exception as e:
@@ -3070,7 +3135,11 @@ def api_toggle_bundle_mode():
                         pass  # set_version_remark 已经修改了 ui_data
             
             # 保存 bundle 的全局 UI 数据（包含 link 和 resource_folder）
-            ui_data[folder_path] = bundle_ui
+            # 使用 update 合并而非覆盖，以保留上方 set_version_remark 写入的 _version_remarks
+            if folder_path in ui_data:
+                ui_data[folder_path].update(bundle_ui)
+            else:
+                ui_data[folder_path] = bundle_ui
             
             # 3.4 可选：将合并后的标签写回最新那张卡片 (为了让搜索能搜到)
             # 或者，我们在 GlobalMetadataCache 处理聚合时已经处理了标签显示
@@ -3225,6 +3294,19 @@ def api_convert_to_bundle():
             ui_data[new_key] = ui_data[card_id]
             del ui_data[card_id]
             ui_changed = True
+
+            # 将根级别 summary 迁移到版本级别 _version_remarks，
+            # 避免后续新增版本时通过向后兼容逻辑错误继承旧备注
+            old_summary = ui_data[new_key].get('summary', '')
+            if old_summary:
+                from core.data.ui_store import set_version_remark
+                remark_data = {
+                    'summary': old_summary,
+                    'link': ui_data[new_key].get('link', ''),
+                    'resource_folder': ui_data[new_key].get('resource_folder', ''),
+                }
+                if set_version_remark(ui_data, new_key, new_id, remark_data, new_id):
+                    ui_changed = True
 
         # 转包后保持/补齐导入时间到 bundle key（即使原来无 ui_data 条目）
         import_fallback = 0

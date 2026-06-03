@@ -28,6 +28,7 @@ import {
     setSkinAsCover,
     deleteResourceFile,
     uploadCardResource,
+    uploadNoteImage,
     listResourceFiles,
     setResourceFolder as apiSetResourceFolder, 
     openResourceFolder as apiOpenResourceFolder, 
@@ -42,7 +43,7 @@ import {
     formatWiKeys,
     getTopbarTokenLevelClass
 } from '../utils/format.js';
-import { updateShadowContent, renderUnifiedPreviewHost, updateMixedPreviewContent } from '../utils/dom.js';
+import { insertAtCursor, updateShadowContent, renderUnifiedPreviewHost, updateMixedPreviewContent } from '../utils/dom.js';
 import { createAutoSaver } from '../utils/autoSave.js'; 
 import { wiHelpers } from '../utils/wiHelpers.js';
 import { clearActiveRuntimeContext, setActiveRuntimeContext } from '../runtime/runtimeContext.js';
@@ -60,6 +61,7 @@ export default function detailModal() {
         tab: 'basic', 
         lastTab: 'basic',
         showFirstPreview: false,
+        showLocalNotePreview: false,
         updateImagePolicy: 'overwrite', // 默认策略
         saveOldCoverOnSwap: false,      // 皮肤换封时是否保留旧图
         dragOverUpdate: false,
@@ -113,11 +115,15 @@ export default function detailModal() {
         resourceScripts: [],
         resourceQuickReplies: [],
         resourcePresets: [],
+        resourceUnknown: [],
         cardChats: [],
         cardChatsLoading: false,
         // 皮肤与版本
         skinImages: [],
         currentSkinIndex: -1,
+        currentSkinDirectory: '',
+        showSkinGallery: false,
+        skinGalleryPreviewPath: '',
 
         // 自动保存
         originalDataJson: '', // 基准快照
@@ -332,6 +338,20 @@ export default function detailModal() {
             return data;
         },
 
+        hasTextValue(value) {
+            if (typeof value === 'string') {
+                return value.trim().length > 0;
+            }
+            return value !== null && value !== undefined && value !== false;
+        },
+
+        get hasAlternateGreetings() {
+            const greetings = Array.isArray(this.editingData?.alternate_greetings)
+                ? this.editingData.alternate_greetings
+                : [];
+            return greetings.some((g) => this.hasTextValue(g));
+        },
+
         get hasPersonaFields() {
             // 编辑模式下始终显示设定tab
             if (this.isEditMode) return true;
@@ -339,12 +359,37 @@ export default function detailModal() {
             // 阅览模式下只有存在内容才显示
             const d = this.editingData;
             return !!(
-                (d.personality && d.personality.trim()) || 
-                (d.scenario && d.scenario.trim()) || 
-                (d.creator_notes && d.creator_notes.trim()) || 
-                (d.system_prompt && d.system_prompt.trim()) || 
-                (d.post_history_instructions && d.post_history_instructions.trim())
+                this.hasTextValue(d.personality) ||
+                this.hasTextValue(d.scenario) ||
+                this.hasTextValue(d.creator_notes) ||
+                this.hasTextValue(d.system_prompt) ||
+                this.hasTextValue(d.post_history_instructions)
             );
+        },
+
+        get hasDialogFields() {
+            if (this.isEditMode) return true;
+            const d = this.editingData;
+            return !!(
+                this.hasTextValue(d.first_mes) ||
+                this.hasTextValue(d.mes_example) ||
+                this.hasAlternateGreetings
+            );
+        },
+
+        ensureVisibleDetailTab() {
+            if (this.isEditMode) return;
+            if (this.tab === 'persona' && !this.hasPersonaFields) {
+                this.tab = 'basic';
+            }
+            if (this.tab === 'dialog' && !this.hasDialogFields) {
+                this.tab = 'basic';
+            }
+        },
+
+        toggleEditMode() {
+            this.isEditMode = !this.isEditMode;
+            this.ensureVisibleDetailTab();
         },
 
         get filteredTagLibraryPool() {
@@ -529,6 +574,9 @@ export default function detailModal() {
                     this._cleanupPendingAdvancedEditorHandlers();
                     clearActiveRuntimeContext('card');
                     this.currentSkinIndex = -1;
+                    this.currentSkinDirectory = '';
+                    this.showSkinGallery = false;
+                    this.skinGalleryPreviewPath = '';
                     this.zoomLevel = 100;
                     this.isCardFlipped = false;
                     this.skinImages = [];
@@ -659,19 +707,26 @@ export default function detailModal() {
             this.resourceScripts = [];
             this.resourceQuickReplies = [];
             this.resourcePresets = [];
+            this.resourceUnknown = [];
             this.currentSkinIndex = -1;
+            this.currentSkinDirectory = '';
+            this.showSkinGallery = false;
+            this.skinGalleryPreviewPath = '';
 
             if (!folderName) return;
 
             // 调用新 API
             listResourceFiles(folderName).then(res => {
                 if (res.success && res.files) {
-                    this.skinImages = res.files.skins || [];
+                    this.skinImages = (res.files.skins || [])
+                        .map(pathValue => this.normalizeResourcePath(pathValue))
+                        .filter(Boolean);
                     this.resourceLorebooks = res.files.lorebooks || [];
                     this.resourceRegex = res.files.regex || [];
                     this.resourceScripts = res.files.scripts || [];
                     this.resourceQuickReplies = res.files.quick_replies || [];
                     this.resourcePresets = res.files.presets || [];
+                    this.resourceUnknown = res.files.unknown || [];
                 }
             }).catch(err => {
                 console.error("Failed to load resources:", err);
@@ -740,10 +795,107 @@ export default function detailModal() {
             }
         },
 
+        // 资源文件工具方法
+        getResourceRelativePath(fileItem) {
+            if (!fileItem) return '';
+            if (typeof fileItem === 'string') return fileItem;
+            return fileItem.relative_path || fileItem.filename || fileItem.name || '';
+        },
+
+        getResourceDisplayName(fileItem) {
+            if (!fileItem) return '';
+            if (typeof fileItem === 'string') return fileItem;
+            return fileItem.name || fileItem.relative_path || fileItem.path || '';
+        },
+
+        encodeResourcePath(pathValue) {
+            return String(pathValue || '')
+                .replace(/\\/g, '/')
+                .split('/')
+                .filter(Boolean)
+                .map(part => encodeURIComponent(part))
+                .join('/');
+        },
+
+        normalizeResourcePath(pathValue) {
+            return String(pathValue || '')
+                .replace(/\\/g, '/')
+                .split('/')
+                .map(part => part.trim())
+                .filter(Boolean)
+                .join('/');
+        },
+
+        getResourcePathName(pathValue) {
+            const parts = this.normalizeResourcePath(pathValue).split('/').filter(Boolean);
+            return parts.length > 0 ? parts[parts.length - 1] : '';
+        },
+
+        getResourceParentPath(pathValue) {
+            const parts = this.normalizeResourcePath(pathValue).split('/').filter(Boolean);
+            parts.pop();
+            return parts.join('/');
+        },
+
+        enterSkinDirectory(pathValue = '') {
+            this.currentSkinDirectory = this.normalizeResourcePath(pathValue);
+            this.currentSkinIndex = -1;
+            this.isCardFlipped = false;
+        },
+
+        goToSkinDirectory(pathValue = '') {
+            this.enterSkinDirectory(pathValue);
+        },
+
+        goToSkinParentDirectory() {
+            this.enterSkinDirectory(this.getResourceParentPath(this.currentSkinDirectory));
+        },
+
+        selectSkinByPath(pathValue) {
+            const normalizedPath = this.normalizeResourcePath(pathValue);
+            const index = this.skinImages.findIndex(skin => this.normalizeResourcePath(skin) === normalizedPath);
+            if (index === -1) return;
+
+            this.currentSkinIndex = index;
+            this.currentSkinDirectory = this.getResourceParentPath(normalizedPath);
+            this.isCardFlipped = false;
+        },
+
+        isSkinPathSelected(pathValue) {
+            return this.selectedSkinPath === this.normalizeResourcePath(pathValue);
+        },
+
+        async deleteResourceItem(fileItem, label = '资源') {
+            const relativePath = this.getResourceRelativePath(fileItem);
+            if (!relativePath) return;
+
+            const displayName = this.getResourceDisplayName(fileItem) || relativePath;
+            if (!confirm(`确定要删除${label}文件 "${displayName}" 吗？\n文件将被移动到回收站。`)) return;
+
+            this.isSaving = true;
+            try {
+                const res = await deleteResourceFile({
+                    card_id: this.activeCard.id,
+                    filename: relativePath,
+                });
+                if (res.success) {
+                    this.$store.global.showToast(`🗑️ ${label}已删除`);
+                    this.fetchResourceFiles(this.editingData.resource_folder);
+                } else {
+                    alert("删除失败: " + res.msg);
+                }
+            } catch (e) {
+                alert("请求错误: " + e);
+            } finally {
+                this.isSaving = false;
+            }
+        },
+
         // 删除当前选中的皮肤
         deleteCurrentSkin() {
             if (this.currentSkinIndex === -1) return;
-            const skinName = this.skinImages[this.currentSkinIndex];
+            const skinName = this.selectedSkinPath;
+            if (!skinName) return;
             
             if (!confirm(`确定要删除皮肤文件 "${skinName}" 吗？\n文件将被移至回收站。`)) return;
             
@@ -964,8 +1116,12 @@ export default function detailModal() {
             this.activeCard = c;
             this.skinImages = [];
             this.currentSkinIndex = -1;
+            this.currentSkinDirectory = '';
+            this.showSkinGallery = false;
+            this.skinGalleryPreviewPath = '';
             this.isCardFlipped = false;
             this.showFirstPreview = false;
+            this.showLocalNotePreview = false;
             this.lastTab = this.tab; 
             this.tab = 'basic';
             this.showTagLibrary = true;
@@ -1122,6 +1278,8 @@ export default function detailModal() {
                             resource_folder: this.editingData.resource_folder || safeCard.resource_folder || '',
                         },
                     });
+
+                    this.ensureVisibleDetailTab();
 
                     if (this.lastTab === 'persona' && this.hasPersonaFields) {
                         this.tab = 'persona';
@@ -1442,6 +1600,8 @@ export default function detailModal() {
                 this.$store.global.showToast("✅ 更新成功", 2000);
                 const updatedCard = res.updated_card;
                 if (updatedCard) {
+                    const responseRevision = updatedCard.source_revision || res.source_revision || "";
+                    if (responseRevision) updatedCard.source_revision = responseRevision;
                     const ts = new Date().getTime();
                     if (updatedCard.image_url) updatedCard.image_url += `?t=${ts}`;
                     
@@ -1481,35 +1641,156 @@ export default function detailModal() {
             }
         },
 
-        get displayImageUrl() {
+        get currentSkinItems() {
+            const directory = this.normalizeResourcePath(this.currentSkinDirectory);
+            const prefix = directory ? `${directory}/` : '';
+            const directories = new Map();
+            const images = [];
+
+            (this.skinImages || []).forEach((skin, index) => {
+                const pathValue = this.normalizeResourcePath(skin);
+                if (!pathValue) return;
+                if (prefix && !pathValue.startsWith(prefix)) return;
+
+                const remainder = prefix ? pathValue.slice(prefix.length) : pathValue;
+                if (!remainder) return;
+
+                const parts = remainder.split('/').filter(Boolean);
+                if (parts.length === 0) return;
+
+                if (parts.length > 1) {
+                    const directoryPath = prefix ? `${prefix}${parts[0]}` : parts[0];
+                    if (!directories.has(directoryPath)) {
+                        directories.set(directoryPath, {
+                            type: 'directory',
+                            name: parts[0],
+                            path: directoryPath,
+                        });
+                    }
+                    return;
+                }
+
+                images.push({
+                    type: 'image',
+                    name: parts[0],
+                    path: pathValue,
+                    index,
+                });
+            });
+
+            const sortByName = (a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+            return [
+                ...Array.from(directories.values()).sort(sortByName),
+                ...images.sort(sortByName),
+            ];
+        },
+
+        get skinGalleryImageItems() {
+            return this.currentSkinItems.filter(item => item.type === 'image');
+        },
+
+        get selectedSkinPath() {
             if (this.currentSkinIndex === -1 || this.skinImages.length === 0) {
+                return '';
+            }
+            return this.normalizeResourcePath(this.skinImages[this.currentSkinIndex]);
+        },
+
+        get selectedSkinName() {
+            return this.getResourcePathName(this.selectedSkinPath);
+        },
+
+        get skinGalleryPreviewName() {
+            return this.getResourcePathName(this.skinGalleryPreviewPath);
+        },
+
+        get skinGalleryPreviewUrl() {
+            return this.getSkinUrl(this.skinGalleryPreviewPath);
+        },
+
+        get displayImageUrl() {
+            if (!this.selectedSkinPath) {
                 return this.activeCard.image_url;
             }
             const folder = this.activeCard.resource_folder || this.editingData.resource_folder;
-            const file = this.skinImages[this.currentSkinIndex];
-            return `/resources_file/${encodeURIComponent(folder)}/${encodeURIComponent(file)}`;
+            return `/resources_file/${this.encodeResourcePath(folder)}/${this.encodeResourcePath(this.selectedSkinPath)}`;
         },
 
         getSkinUrl(skinName) {
             const folder = this.activeCard.resource_folder || this.editingData.resource_folder;
             if (!folder || !skinName) return '';
-            return `/resources_file/${encodeURIComponent(folder)}/${encodeURIComponent(skinName)}`;
+            return `/resources_file/${this.encodeResourcePath(folder)}/${this.encodeResourcePath(this.getResourceRelativePath(skinName))}`;
         },
 
         fetchSkins(folderName) {
             this.fetchResourceFiles(folderName);
         },
 
+        openSkinGallery() {
+            if (!this.editingData.resource_folder && !this.activeCard.resource_folder) return;
+            this.showSkinGallery = true;
+            this.skinGalleryPreviewPath = '';
+            this.isCardFlipped = false;
+        },
+
+        closeSkinGallery() {
+            this.showSkinGallery = false;
+            this.skinGalleryPreviewPath = '';
+        },
+
+        openSkinGalleryPreview(pathValue) {
+            const normalizedPath = this.normalizeResourcePath(pathValue);
+            if (!normalizedPath) return;
+            this.selectSkinByPath(normalizedPath);
+            this.skinGalleryPreviewPath = this.selectedSkinPath || normalizedPath;
+        },
+
+        closeSkinGalleryPreview() {
+            this.skinGalleryPreviewPath = '';
+        },
+
+        handleSkinGalleryKeydown(event) {
+            if (!this.showSkinGallery || !event) return;
+            if (event.key !== 'Escape') return;
+
+            if (typeof event.preventDefault === 'function') {
+                event.preventDefault();
+            }
+
+            if (this.skinGalleryPreviewPath) {
+                this.closeSkinGalleryPreview();
+                return;
+            }
+
+            this.closeSkinGallery();
+        },
+
         nextSkin() {
-            if (this.skinImages.length === 0) return;
-            this.currentSkinIndex++;
-            if (this.currentSkinIndex >= this.skinImages.length) this.currentSkinIndex = -1;
+            const imageItems = this.currentSkinItems.filter(item => item.type === 'image');
+            if (imageItems.length === 0) return;
+
+            const currentItemIndex = imageItems.findIndex(item => item.index === this.currentSkinIndex);
+            const nextItemIndex = currentItemIndex + 1;
+            if (nextItemIndex >= imageItems.length) {
+                this.currentSkinIndex = -1;
+                return;
+            }
+
+            this.selectSkinByPath(imageItems[nextItemIndex].path);
         },
 
         prevSkin() {
-            if (this.skinImages.length === 0) return;
-            this.currentSkinIndex--;
-            if (this.currentSkinIndex < -1) this.currentSkinIndex = this.skinImages.length - 1;
+            const imageItems = this.currentSkinItems.filter(item => item.type === 'image');
+            if (imageItems.length === 0) return;
+
+            const currentItemIndex = imageItems.findIndex(item => item.index === this.currentSkinIndex);
+            const prevItemIndex = currentItemIndex === -1 ? imageItems.length - 1 : currentItemIndex - 1;
+            if (prevItemIndex < 0) {
+                this.currentSkinIndex = -1;
+                return;
+            }
+
+            this.selectSkinByPath(imageItems[prevItemIndex].path);
         },
 
         // === 版本与聚合包 ===
@@ -1742,7 +2023,11 @@ export default function detailModal() {
             changeCardImage(formData).then(res => {
                 this.isSaving = false;
                 if (res.success) {
-                    const ts = new Date().getTime();
+                    const updatedCard = res.updated_card || null;
+                    const refreshedRevision = res.updated_card?.source_revision || res.source_revision || "";
+                    if (updatedCard) {
+                        Object.assign(this.activeCard, updatedCard);
+                    }
                     // 处理 ID 变更 (JSON -> PNG)
                     if (res.new_id && res.new_id !== this.editingData.id) {
                         this.activeCard.id = res.new_id;
@@ -1750,12 +2035,24 @@ export default function detailModal() {
                         this.activeCard.filename = res.new_id.split('/').pop();
                         this.editingData.filename = this.activeCard.filename;
                     }
-                    this.activeCard.image_url = res.new_image_url;
+                    if (updatedCard?.filename) {
+                        this.activeCard.filename = updatedCard.filename;
+                        this.editingData.filename = updatedCard.filename;
+                    }
+                    if (res.new_image_url) this.activeCard.image_url = res.new_image_url;
                     if (res.import_time) {
                         this.activeCard.import_time = res.import_time;
                     }
+                    this.editingData.source_revision = refreshedRevision || this.editingData.source_revision || "";
+                    if (this.editingData.source_revision) {
+                        this.activeCard.source_revision = this.editingData.source_revision;
+                    }
                     
-                    window.dispatchEvent(new CustomEvent('refresh-card-list'));
+                    if (updatedCard) {
+                        window.dispatchEvent(new CustomEvent('card-updated', { detail: updatedCard }));
+                    } else {
+                        window.dispatchEvent(new CustomEvent('refresh-card-list'));
+                    }
                     e.target.value = '';
                 } else alert(res.msg);
             });
@@ -2009,6 +2306,52 @@ export default function detailModal() {
             window.dispatchEvent(new CustomEvent('open-markdown-view', {
                 detail: content
             }));
+        },
+
+        async handleLocalNotePaste(e) {
+            const clipboardData = e.clipboardData || e.originalEvent?.clipboardData;
+            const items = clipboardData?.items || [];
+            let blob = null;
+
+            for (let i = 0; i < items.length; i++) {
+                if (items[i].type.indexOf('image') === 0) {
+                    blob = items[i].getAsFile();
+                    break;
+                }
+            }
+
+            if (!blob) return;
+
+            e.preventDefault();
+
+            const placeholder = '\n![Uploading image...]()\n';
+            this.editingData.ui_summary = insertAtCursor(e.target, placeholder);
+
+            const formData = new FormData();
+            formData.append('file', blob);
+
+            try {
+                const res = await uploadNoteImage(formData);
+                if (res.success) {
+                    const realMarkdown = `\n![image](${res.url})\n`;
+                    this.editingData.ui_summary = this.editingData.ui_summary.replace(
+                        placeholder,
+                        realMarkdown
+                    );
+                } else {
+                    alert('图片上传失败: ' + res.msg);
+                    this.editingData.ui_summary = this.editingData.ui_summary.replace(
+                        placeholder,
+                        ''
+                    );
+                }
+            } catch (err) {
+                alert('网络错误: ' + err);
+                this.editingData.ui_summary = this.editingData.ui_summary.replace(
+                    placeholder,
+                    ''
+                );
+            }
         },
         // 导入函数
         handleWiImport(e) {

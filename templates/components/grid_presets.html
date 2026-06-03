@@ -134,15 +134,6 @@
               <span x-text="getPresetSourceHint(item)"></span>
             </div>
 
-            <button
-              x-show="getPresetOwnerId(item)"
-              @click.stop="locatePresetOwnerCard(item)"
-              class="absolute bottom-2 left-8 px-2 py-1 text-[10px] rounded bg-[var(--bg-sub)] text-[var(--text-dim)] hover:text-[var(--text-main)] z-20"
-              title="定位所属角色卡"
-            >
-              定位所属角色卡
-            </button>
-
             <div class="flex items-start gap-3 mb-3">
               <div class="text-3xl pt-1 opacity-80 select-none">📝</div>
               <div class="min-w-0 flex-1">
@@ -223,8 +214,13 @@
               <div class="min-w-0 flex-1 mr-2">
                 <div
                   x-show="getPresetOwnerName(item)"
-                  class="text-[10px] text-green-400 flex items-center gap-1 truncate"
-                  :title="getPresetOwnerName(item)"
+                  @click.stop="locatePresetOwnerCard(item)"
+                  @keydown.enter.stop.prevent="locatePresetOwnerCard(item)"
+                  @keydown.space.stop.prevent="locatePresetOwnerCard(item)"
+                  role="button"
+                  tabindex="0"
+                  class="text-[10px] text-green-400 hover:text-green-300 flex items-center gap-1 truncate cursor-pointer"
+                  :title="`所属角色卡：${getPresetOwnerName(item)}`"
                 >
                   <span>👤</span>
                   <span x-text="getPresetOwnerName(item)"></span>

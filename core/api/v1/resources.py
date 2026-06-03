@@ -26,6 +26,10 @@ logger = logging.getLogger(__name__)
 
 bp = Blueprint('resources', __name__)
 
+GENERIC_RESOURCE_SCAN_SKIP_ROOTS = {
+    name.lower() for name in RESERVED_RESOURCE_NAMES
+} | {'extensions', 'presets'}
+
 def _is_within_base(path: str, base: str) -> bool:
     """检查路径是否在 base 目录内"""
     try:
@@ -42,6 +46,58 @@ def _is_safe_filename(name: str) -> bool:
     if '..' in name.replace('\\', '/'):
         return False
     return True
+
+def _normalize_resource_relative_path(path_value: str):
+    if not path_value or os.path.isabs(str(path_value)):
+        return None
+
+    normalized = str(path_value).replace('\\', '/').strip('/')
+    if not normalized:
+        return None
+
+    parts = [part for part in normalized.split('/') if part]
+    if any(part in ('.', '..') for part in parts):
+        return None
+
+    return '/'.join(parts)
+
+def _safe_join_resource_file(base_dir: str, relative_path: str):
+    normalized = _normalize_resource_relative_path(relative_path)
+    if not normalized:
+        return None, None
+
+    target_path = os.path.abspath(os.path.join(base_dir, normalized.replace('/', os.sep)))
+    if not _is_within_base(target_path, base_dir):
+        return None, None
+
+    return target_path, normalized
+
+def _resource_api_path(full_path: str) -> str:
+    full_abs = os.path.abspath(full_path)
+    base_abs = os.path.abspath(BASE_DIR)
+    if _is_within_base(full_abs, base_abs):
+        return os.path.relpath(full_abs, base_abs).replace('\\', '/')
+    return full_abs
+
+def _build_resource_file_item(full_path: str, relative_path: str) -> dict:
+    ext = os.path.splitext(full_path)[1].lower()
+    try:
+        mtime = os.path.getmtime(full_path)
+    except OSError:
+        mtime = 0
+    try:
+        size = os.path.getsize(full_path)
+    except OSError:
+        size = 0
+
+    return {
+        "name": os.path.basename(full_path),
+        "relative_path": relative_path,
+        "path": _resource_api_path(full_path),
+        "mtime": mtime,
+        "size": size,
+        "extension": ext,
+    }
 
 def _get_resource_root() -> str:
     """返回资源根目录绝对路径。"""
@@ -236,14 +292,15 @@ def serve_note_assets(filename):
 @bp.route('/api/delete_resource_file', methods=['POST'])
 def api_delete_resource_file():
     try:
-        data = request.json
+        data = request.json or {}
         card_id = data.get('card_id')
         filename = data.get('filename')
         
         if not card_id or not filename:
             return jsonify({"success": False, "msg": "参数缺失"})
-        if not _is_safe_filename(filename):
-            return jsonify({"success": False, "msg": "非法文件名"})
+        normalized_filename = _normalize_resource_relative_path(filename)
+        if not normalized_filename:
+            return jsonify({"success": False, "msg": "非法路径"})
 
         # 1. 解析资源目录路径
         ui_data = load_ui_data()
@@ -257,13 +314,16 @@ def api_delete_resource_file():
         
         # 确定完整路径
         if os.path.isabs(res_folder_name):
-            target_file = os.path.join(res_folder_name, filename)
+            target_base_dir = res_folder_name
         else:
-            target_file = os.path.join(res_root, res_folder_name, filename)
+            target_base_dir = os.path.join(res_root, res_folder_name)
+            if not _is_within_base(target_base_dir, res_root):
+                return jsonify({"success": False, "msg": "非法路径"})
             
         # 安全检查：防止目录遍历
-        if not os.path.abspath(target_file).startswith(os.path.abspath(res_root)) and not os.path.isabs(res_folder_name):
-             return jsonify({"success": False, "msg": "非法路径"})
+        target_file, _relative_path = _safe_join_resource_file(target_base_dir, normalized_filename)
+        if not target_file:
+            return jsonify({"success": False, "msg": "非法路径"})
 
         if not os.path.exists(target_file):
             return jsonify({"success": False, "msg": "文件不存在"})
@@ -474,59 +534,80 @@ def api_list_resource_files():
             if not _is_within_base(target_dir, res_root):
                 return jsonify({"success": False, "msg": "非法路径"})
 
-        if not os.path.exists(target_dir):
-            return jsonify({"success": True, "files": {"skins": [], "lorebooks": [], "regex": [], "scripts": []}})
-
         result = {
             "skins": [],
             "lorebooks": [],
             "regex": [],
             "scripts": [],
             "quick_replies": [],
-            "presets": []
+            "presets": [],
+            "unknown": [],
         }
 
-        # 1. 扫描根目录获取皮肤 (Skins)
-        valid_img_exts = {'.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp'}
-        try:
-            for f in os.listdir(target_dir):
-                full_p = os.path.join(target_dir, f)
-                if os.path.isfile(full_p):
-                    ext = os.path.splitext(f)[1].lower()
-                    if ext in valid_img_exts:
-                        result["skins"].append(f) # 皮肤只存文件名，前端自己拼 URL
-        except: pass
+        if not os.path.exists(target_dir):
+            return jsonify({"success": True, "files": result})
 
-        # 2. 扫描子目录获取逻辑文件 (Lorebooks, Regex, Scripts, Presets)
-        # 定义子目录映射关系
+        valid_img_exts = {'.png', '.jpg', '.jpeg', '.jfif', '.gif', '.webp', '.bmp'}
         sub_map = {
             'lorebooks': 'lorebooks',
             'regex': 'extensions/regex',
             'scripts': 'extensions/tavern_helper',
             'quick_replies': 'extensions/quick-replies',
-            'presets': 'presets'
+            'presets': 'presets',
         }
+        sub_prefixes = [
+            (category, sub_name.replace('\\', '/').strip('/'))
+            for category, sub_name in sub_map.items()
+        ]
 
-        for category, sub_name in sub_map.items():
-            sub_dir_path = os.path.join(target_dir, sub_name.replace('/', os.sep))
-            if os.path.exists(sub_dir_path):
-                try:
-                    for f in os.listdir(sub_dir_path):
-                        if f.lower().endswith('.json'):
-                            full_p = os.path.join(sub_dir_path, f)
-                            rel_path = os.path.relpath(full_p, BASE_DIR)
-                            
-                            result[category].append({
-                                "name": f,
-                                "path": rel_path, # data/assets/.../regex/abc.json
-                                "mtime": os.path.getmtime(full_p)
-                            })
-                except: pass
-        
-        # 排序
-        result["skins"].sort()
-        for key in ["lorebooks", "regex", "scripts", "quick_replies", "presets"]:
-            result[key].sort(key=lambda x: x["name"])
+        try:
+            for root, _dirs, files in os.walk(target_dir):
+                for filename in files:
+                    full_path = os.path.join(root, filename)
+                    rel_path = os.path.relpath(full_path, target_dir).replace('\\', '/')
+                    ext = os.path.splitext(filename)[1].lower()
+
+                    category = None
+                    in_managed_resource_tree = False
+                    top_dir = rel_path.split('/', 1)[0].lower()
+
+                    for category_name, prefix in sub_prefixes:
+                        if rel_path.startswith(f'{prefix}/'):
+                            in_managed_resource_tree = True
+                            if ext == '.json':
+                                category = category_name
+                            break
+
+                    if in_managed_resource_tree:
+                        if category:
+                            item = _build_resource_file_item(full_path, rel_path)
+                            result[category].append(item)
+                        continue
+
+                    if top_dir in GENERIC_RESOURCE_SCAN_SKIP_ROOTS:
+                        continue
+
+                    if ext in valid_img_exts:
+                        result["skins"].append(rel_path)
+                        continue
+
+                    if ext == '.json':
+                        for category_name, prefix in sub_prefixes:
+                            if rel_path == prefix or rel_path.startswith(f'{prefix}/'):
+                                category = category_name
+                                break
+
+                    item = _build_resource_file_item(full_path, rel_path)
+                    if category:
+                        result[category].append(item)
+                    else:
+                        result["unknown"].append(item)
+        except OSError as e:
+            logger.warning(f"Failed to scan resource files in {target_dir}: {e}")
+
+        result["skins"].sort(key=lambda x: x.lower())
+        for key in ["lorebooks", "regex", "scripts", "quick_replies", "presets", "unknown"]:
+            result[key].sort(key=lambda x: x.get("relative_path", x.get("name", "")).lower())
 
         return jsonify({"success": True, "files": result})
 
