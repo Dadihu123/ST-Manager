@@ -3,6 +3,16 @@
  * 数据清洗、转换与归一化
  */
 
+/** 生成本地临时 ID；HTTP 等非安全上下文下 crypto.randomUUID 可能不可用。 */
+export function createLocalId() {
+  const cryptoRef = typeof globalThis !== 'undefined' ? globalThis.crypto : null;
+  if (cryptoRef && typeof cryptoRef.randomUUID === 'function') {
+    return cryptoRef.randomUUID();
+  }
+
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
 // 递归键排序函数 (解决 JSON 乱序导致的大量 Diff 问题)
 export function recursiveSort(obj) {
   // 如果是数组，递归处理每一项，但不改变数组本身的顺序

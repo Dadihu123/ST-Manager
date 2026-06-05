@@ -52,6 +52,22 @@ def test_automation_modal_defines_shared_tag_splitter_contract_for_slash_separat
     assert 'splitTagTokens(' in save_section
 
 
+def test_automation_modal_uses_local_id_helper_instead_of_crypto_random_uuid():
+    source = read_project_file('static/js/components/automationModal.js')
+
+    assert "import { createLocalId } from '../utils/data.js';" in source
+    assert 'createLocalId(' in source
+    assert 'crypto.randomUUID(' not in source
+
+
+def test_data_utils_exposes_create_local_id_with_random_uuid_fallback():
+    source = read_project_file('static/js/utils/data.js')
+
+    assert 'export function createLocalId()' in source
+    assert 'cryptoRef.randomUUID()' in source
+    assert 'Date.now().toString(36)' in source
+
+
 def test_automation_modal_trigger_contexts_contract_defaults_normalizes_and_persists():
     source = read_project_file('static/js/components/automationModal.js')
     select_section = extract_js_function_block(source, 'selectRuleSet(id) {')

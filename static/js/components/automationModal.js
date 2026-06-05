@@ -4,6 +4,7 @@
  */
 
 import { listRuleSets, getRuleSet, saveRuleSet, deleteRuleSet, setGlobalRuleset, getGlobalRuleset, importRuleSet, getExportRuleSetUrl } from '../api/automation.js';
+import { createLocalId } from '../utils/data.js';
 import { splitTagTokens } from '../state.js';
 
 const TEMPLATE_ACTION_TYPES = ['rename_file_by_template', 'split_category_to_tags'];
@@ -203,7 +204,7 @@ export default function automationModal() {
                         if (!rule.groups || rule.groups.length === 0) {
                             if (rule.conditions && rule.conditions.length > 0) {
                                 rule.groups = [{
-                                    id: crypto.randomUUID(),
+                                    id: createLocalId(),
                                     logic: "AND", // 旧版默认为 AND
                                     conditions: rule.conditions
                                 }];
@@ -464,7 +465,7 @@ export default function automationModal() {
 
         addRule() {
             this.editingRules.push({
-                id: crypto.randomUUID(),
+                id: createLocalId(),
                 name: "新规则",
                 enabled: true,
                 stop_on_match: false,
@@ -472,7 +473,7 @@ export default function automationModal() {
                 logic: "OR", // 规则内各组之间默认 OR
                 groups: [    // 默认带一个组
                     {
-                        id: crypto.randomUUID(),
+                        id: createLocalId(),
                         logic: "AND", // 组内条件默认 AND
                         conditions: []
                     }
@@ -511,7 +512,7 @@ export default function automationModal() {
         // Group Operations
         addGroup(ruleIdx) {
             this.editingRules[ruleIdx].groups.push({
-                id: crypto.randomUUID(),
+                id: createLocalId(),
                 logic: "AND",
                 conditions: []
             });
