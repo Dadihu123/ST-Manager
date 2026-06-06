@@ -3284,6 +3284,27 @@ def test_worldinfo_css_exposes_hover_visible_selection_overlay():
     assert '.wi-grid-card:hover .card-select-overlay' in wi_css
 
 
+def test_worldinfo_grid_badges_stay_in_header_flow():
+    wi_css = read_project_file('static/css/modules/view-wi.css')
+
+    grid_badge_block = re.search(
+        r'\.wi-grid-card \.wi-badge \{(?P<body>[\s\S]*?)\n\}',
+        wi_css,
+    )
+    assert grid_badge_block, 'worldinfo grid should scope badge layout separately'
+    assert 'position: static;' in grid_badge_block.group('body')
+    assert 'position: absolute;' not in grid_badge_block.group('body')
+
+    file_badge_block = re.search(
+        r'\.wi-grid-card \.wi-badge\.file \{(?P<body>[\s\S]*?)\n\}',
+        wi_css,
+    )
+    if file_badge_block:
+        assert 'right:' not in file_badge_block.group('body')
+        assert 'left:' not in file_badge_block.group('body')
+        assert 'top:' not in file_badge_block.group('body')
+
+
 def test_header_selection_bar_switches_to_worldinfo_specific_actions():
     header_template = read_project_file('templates/components/header.html')
     header_source = read_project_file('static/js/components/header.js')
