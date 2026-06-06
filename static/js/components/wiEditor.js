@@ -148,9 +148,9 @@ export default function wiEditor() {
     },
 
     getEditorPositionSelectValue(entry) {
-      const position = Number(entry?.position ?? 1);
+      const position = Number(entry?.position ?? 0);
       if (position !== 4) {
-        return String(Number.isFinite(position) ? position : 1);
+        return String(Number.isFinite(position) ? position : 0);
       }
 
       const role = Number(entry?.role);
@@ -180,7 +180,7 @@ export default function wiEditor() {
       }
 
       const position = Number(value);
-      entry.position = Number.isFinite(position) ? position : 1;
+      entry.position = Number.isFinite(position) ? position : 0;
       entry.role = null;
     },
 
@@ -2122,7 +2122,7 @@ export default function wiEditor() {
           ? this.editingData.bundle_dir
           : undefined,
         // 显式确保 character_book 被包含（虽然 getCleanedV3Data 也会包含，但双重保险）
-        character_book: this.editingData.character_book,
+        character_book: cleanData.character_book,
       };
 
       updateCard(payload)

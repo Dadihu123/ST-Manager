@@ -95,8 +95,8 @@ def test_wi_editor_runtime_preserves_non_depth_positions_and_defaults_invalid_po
 
         const entry = {{ position: 4, role: 2 }};
         component.updateEditorPositionFromSelect(entry, 'bad-value');
-        if (entry.position !== 1 || entry.role !== null) {{
-          throw new Error('expected invalid select value to fall back to position 1 and clear role');
+        if (entry.position !== 0 || entry.role !== null) {{
+          throw new Error('expected invalid select value to fall back to ST position 0 and clear role');
         }}
         '''
     )
@@ -881,6 +881,389 @@ def test_new_entries_do_not_force_character_filter_object_by_default():
 
         if (Object.prototype.hasOwnProperty.call(created, 'characterFilter')) {{
           throw new Error('expected new entry to omit characterFilter until user edits it');
+        }}
+        '''
+    )
+
+    run_js(script)
+
+
+def test_normalize_wi_entry_maps_sillytavern_character_book_extensions():
+    source = read_project_file('static/js/utils/data.js')
+    normalize_block = extract_js_function_block(
+        source,
+        'export function normalizeWiEntry(entry, index = 0) {',
+    ).replace('export ', '', 1)
+
+    script = textwrap.dedent(
+        f'''
+        {normalize_block}
+
+        const entry = normalizeWiEntry({{
+          id: 42,
+          keys: ['primary'],
+          secondary_keys: ['secondary'],
+          enabled: true,
+          insertion_order: 7,
+          position: 'after_char',
+          selective: true,
+          extensions: {{
+            position: 4,
+            role: 2,
+            depth: 9,
+            display_index: 12,
+            exclude_recursion: true,
+            prevent_recursion: true,
+            delay_until_recursion: 3,
+            ignore_budget: true,
+            vectorized: true,
+            probability: 35,
+            useProbability: false,
+            selectiveLogic: 3,
+            outlet_name: 'memory',
+            scan_depth: 6,
+            case_sensitive: false,
+            match_whole_words: true,
+            group: 'lore-group',
+            group_override: true,
+            group_weight: 77,
+            use_group_scoring: false,
+            automation_id: 'auto-1',
+            sticky: 2,
+            cooldown: 5,
+            delay: 8,
+            triggers: ['normal', 'quiet'],
+            match_persona_description: true,
+            match_character_description: true,
+            match_character_personality: true,
+            match_character_depth_prompt: true,
+            match_scenario: true,
+            match_creator_notes: true,
+          }},
+        }}, 0);
+
+        const expected = {{
+          st_source_id: 42,
+          keys: ['primary'],
+          secondary_keys: ['secondary'],
+          enabled: true,
+          insertion_order: 7,
+          position: 4,
+          role: 2,
+          depth: 9,
+          displayIndex: 12,
+          excludeRecursion: true,
+          preventRecursion: true,
+          delayUntilRecursion: 3,
+          ignoreBudget: true,
+          vectorized: true,
+          probability: 35,
+          useProbability: false,
+          selectiveLogic: 3,
+          outletName: 'memory',
+          scanDepth: 6,
+          caseSensitive: false,
+          matchWholeWords: true,
+          group: 'lore-group',
+          groupOverride: true,
+          groupWeight: 77,
+          useGroupScoring: false,
+          automationId: 'auto-1',
+          sticky: 2,
+          cooldown: 5,
+          delay: 8,
+          triggers: ['normal', 'quiet'],
+          matchPersonaDescription: true,
+          matchCharacterDescription: true,
+          matchCharacterPersonality: true,
+          matchCharacterDepthPrompt: true,
+          matchScenario: true,
+          matchCreatorNotes: true,
+        }};
+
+        for (const [key, value] of Object.entries(expected)) {{
+          if (JSON.stringify(entry[key]) !== JSON.stringify(value)) {{
+            throw new Error(`expected ${{key}}=${{JSON.stringify(value)}}, got ${{JSON.stringify(entry[key])}}`);
+          }}
+        }}
+        '''
+    )
+
+    run_js(script)
+
+
+def test_get_cleaned_v3_data_serializes_embedded_worldbook_fields_to_sillytavern_extensions():
+    source = read_project_file('static/js/utils/data.js').replace('export ', '')
+
+    script = textwrap.dedent(
+        f'''
+        {source}
+
+        const cleaned = getCleanedV3Data({{
+          char_name: 'Hero',
+          description: '',
+          first_mes: '',
+          mes_example: '',
+          personality: '',
+          scenario: '',
+          creator_notes: '',
+          system_prompt: '',
+          post_history_instructions: '',
+          tags: [],
+          creator: '',
+          character_version: '',
+          alternate_greetings: [],
+          extensions: {{}},
+          character_book: {{
+            name: 'Embedded Book',
+            entries: [{{
+              id: 0,
+              st_source_id: 42,
+              comment: 'Entry',
+              content: 'Content',
+              keys: ['primary'],
+              secondary_keys: ['secondary'],
+              enabled: true,
+              constant: true,
+              selective: true,
+              insertion_order: 7,
+              position: 4,
+              role: 2,
+              depth: 9,
+              displayIndex: 12,
+              excludeRecursion: true,
+              preventRecursion: true,
+              delayUntilRecursion: 3,
+              ignoreBudget: true,
+              vectorized: true,
+              probability: 35,
+              useProbability: false,
+              selectiveLogic: 3,
+              outletName: 'memory',
+              scanDepth: 6,
+              caseSensitive: false,
+              matchWholeWords: true,
+              group: 'lore-group',
+              groupOverride: true,
+              groupWeight: 77,
+              useGroupScoring: false,
+              automationId: 'auto-1',
+              sticky: 2,
+              cooldown: 5,
+              delay: 8,
+              triggers: ['normal', 'quiet'],
+              matchPersonaDescription: true,
+              matchCharacterDescription: true,
+              matchCharacterPersonality: true,
+              matchCharacterDepthPrompt: true,
+              matchScenario: true,
+              matchCreatorNotes: true,
+              use_regex: true,
+            }}],
+          }},
+        }});
+
+        const entry = cleaned.character_book.entries[0];
+        const ext = entry.extensions;
+
+        if (entry.id !== 42) throw new Error(`expected preserved character-book id 42, got ${{entry.id}}`);
+        if (entry.position !== 'after_char') throw new Error(`expected after_char position, got ${{entry.position}}`);
+        if (JSON.stringify(entry.keys) !== JSON.stringify(['primary'])) throw new Error('expected keys field');
+        if (JSON.stringify(entry.secondary_keys) !== JSON.stringify(['secondary'])) throw new Error('expected secondary_keys field');
+        if (entry.enabled !== true || entry.constant !== true || entry.selective !== true) {{
+          throw new Error('expected top-level character-book booleans to persist');
+        }}
+        if (entry.insertion_order !== 7) throw new Error(`expected insertion_order 7, got ${{entry.insertion_order}}`);
+        if (Object.prototype.hasOwnProperty.call(entry, 'excludeRecursion')) {{
+          throw new Error('expected internal camelCase recursion field to be removed');
+        }}
+        if (Object.prototype.hasOwnProperty.call(entry, 'use_regex')) {{
+          throw new Error('expected manager-only use_regex field to be removed');
+        }}
+
+        const expectedExt = {{
+          position: 4,
+          role: 2,
+          depth: 9,
+          display_index: 12,
+          exclude_recursion: true,
+          prevent_recursion: true,
+          delay_until_recursion: 3,
+          ignore_budget: true,
+          vectorized: true,
+          probability: 35,
+          useProbability: false,
+          selectiveLogic: 3,
+          outlet_name: 'memory',
+          scan_depth: 6,
+          case_sensitive: false,
+          match_whole_words: true,
+          group: 'lore-group',
+          group_override: true,
+          group_weight: 77,
+          use_group_scoring: false,
+          automation_id: 'auto-1',
+          sticky: 2,
+          cooldown: 5,
+          delay: 8,
+          triggers: ['normal', 'quiet'],
+          match_persona_description: true,
+          match_character_description: true,
+          match_character_personality: true,
+          match_character_depth_prompt: true,
+          match_scenario: true,
+          match_creator_notes: true,
+        }};
+
+        for (const [key, value] of Object.entries(expectedExt)) {{
+          if (JSON.stringify(ext[key]) !== JSON.stringify(value)) {{
+            throw new Error(`expected extension ${{key}}=${{JSON.stringify(value)}}, got ${{JSON.stringify(ext[key])}}`);
+          }}
+        }}
+        '''
+    )
+
+    run_js(script)
+
+
+def test_sillytavern_worldbook_defaults_and_explicit_tri_state_false_persist():
+    source = read_project_file('static/js/utils/data.js').replace('export ', '')
+    helpers_source = read_project_file('static/js/utils/wiHelpers.js')
+    add_block = extract_js_function_block(helpers_source, 'addWiEntry() {')
+
+    script = textwrap.dedent(
+        f'''
+        {source}
+
+        const defaultEntry = normalizeWiEntry({{}}, 0);
+        if (defaultEntry.position !== 0) {{
+          throw new Error(`expected ST default position 0, got ${{String(defaultEntry.position)}}`);
+        }}
+        if (defaultEntry.depth !== 4) {{
+          throw new Error(`expected ST default depth 4, got ${{String(defaultEntry.depth)}}`);
+        }}
+        if (defaultEntry.role !== 0) {{
+          throw new Error(`expected ST default role 0, got ${{String(defaultEntry.role)}}`);
+        }}
+
+        const exported = toStV3Worldbook({{
+          name: 'Book',
+          entries: [{{
+            uid: 99,
+            st_source_id: 88,
+            displayIndex: 12,
+            keys: ['primary'],
+            enabled: true,
+            caseSensitive: false,
+            matchWholeWords: false,
+            useGroupScoring: false,
+          }}],
+        }}, 'Book');
+        const exportedEntry = exported.entries['99'];
+        if (!exportedEntry) throw new Error('expected export to keep uid as entry key');
+        if (exportedEntry.uid !== 99 || exportedEntry.displayIndex !== 12) {{
+          throw new Error(`expected uid/displayIndex preservation, got ${{JSON.stringify(exportedEntry)}}`);
+        }}
+        if (Object.prototype.hasOwnProperty.call(exportedEntry, 'st_source_id')) {{
+          throw new Error('expected internal st_source_id to be removed from ST worldbook export');
+        }}
+        for (const key of ['caseSensitive', 'matchWholeWords', 'useGroupScoring']) {{
+          if (exportedEntry[key] !== false) {{
+            throw new Error(`expected explicit ${{key}} false to persist, got ${{String(exportedEntry[key])}}`);
+          }}
+        }}
+        '''
+    )
+
+    run_js(script)
+
+    script_new_entry = textwrap.dedent(
+        f'''
+        const helper = {{
+          entryUidField: 'st_manager_uid',
+          currentWiIndex: -1,
+          isEditingClipboard: false,
+          $nextTick(fn) {{ fn(); }},
+          _generateEntryUid() {{ return 'wi-test'; }},
+          getWIArrayRef() {{
+            if (!this._entries) this._entries = [];
+            return this._entries;
+          }},
+          {add_block}
+        }};
+
+        globalThis.document = {{
+          querySelector() {{ return null; }},
+        }};
+
+        helper.addWiEntry();
+        const created = helper.getWIArrayRef()[0];
+        if (created.position !== 0) {{
+          throw new Error(`expected new entry ST position 0, got ${{String(created.position)}}`);
+        }}
+        if (created.role !== 0) {{
+          throw new Error(`expected new entry ST role 0, got ${{String(created.role)}}`);
+        }}
+        if (created.depth !== 4) {{
+          throw new Error(`expected new entry ST depth 4, got ${{String(created.depth)}}`);
+        }}
+        '''
+    )
+
+    run_js(script_new_entry)
+
+
+def test_get_cleaned_v3_data_preserves_raw_sillytavern_character_book_extensions():
+    source = read_project_file('static/js/utils/data.js').replace('export ', '')
+
+    script = textwrap.dedent(
+        f'''
+        {source}
+
+        const cleaned = getCleanedV3Data({{
+          char_name: 'Hero',
+          extensions: {{}},
+          character_book: {{
+            name: 'Raw Embedded Book',
+            entries: [{{
+              id: 5,
+              keys: ['primary'],
+              secondary_keys: ['secondary'],
+              enabled: true,
+              insertion_order: 9,
+              position: 'after_char',
+              extensions: {{
+                position: 4,
+                role: 2,
+                depth: 7,
+                exclude_recursion: true,
+                prevent_recursion: true,
+                case_sensitive: false,
+                match_whole_words: true,
+                use_group_scoring: false,
+              }},
+            }}],
+          }},
+        }});
+
+        const entry = cleaned.character_book.entries[0];
+        if (entry.id !== 5) throw new Error(`expected raw id 5, got ${{entry.id}}`);
+        if (entry.position !== 'after_char') throw new Error(`expected raw position after_char, got ${{entry.position}}`);
+        const ext = entry.extensions;
+        const expected = {{
+          position: 4,
+          role: 2,
+          depth: 7,
+          exclude_recursion: true,
+          prevent_recursion: true,
+          case_sensitive: false,
+          match_whole_words: true,
+          use_group_scoring: false,
+        }};
+        for (const [key, value] of Object.entries(expected)) {{
+          if (JSON.stringify(ext[key]) !== JSON.stringify(value)) {{
+            throw new Error(`expected preserved extension ${{key}}=${{JSON.stringify(value)}}, got ${{JSON.stringify(ext[key])}}`);
+          }}
         }}
         '''
     )

@@ -42,6 +42,240 @@ export function updateWiKeys(entry, value) {
 }
 
 // 清洗 ST 世界书条目的默认值 (用于导出或保存)
+const ST_DEFAULT_DEPTH = 4;
+const ST_DEFAULT_GROUP_WEIGHT = 100;
+const ST_DEFAULT_ORDER = 100;
+const ST_DEFAULT_POSITION = 0;
+const ST_DEFAULT_ROLE = 0;
+
+const hasOwn = (obj, key) =>
+  !!obj && Object.prototype.hasOwnProperty.call(obj, key);
+
+const isPlainObject = (value) =>
+  value && typeof value === "object" && !Array.isArray(value);
+
+const cloneArray = (value) => (Array.isArray(value) ? [...value] : []);
+
+const toFiniteNumber = (value, fallback) => {
+  if (value === true) return 1;
+  if (value === false) return 0;
+  if (value === null || value === undefined || value === "") return fallback;
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) ? numberValue : fallback;
+};
+
+const setExtensionField = (extensions, key, value, defaultValue) => {
+  const existed = hasOwn(extensions, key);
+  if (value === undefined) return;
+
+  if (Array.isArray(value)) {
+    if (value.length > 0 || existed) extensions[key] = [...value];
+    else delete extensions[key];
+    return;
+  }
+
+  if (value === null) {
+    if (defaultValue !== null || existed) extensions[key] = null;
+    else delete extensions[key];
+    return;
+  }
+
+  if (value !== defaultValue || existed) extensions[key] = value;
+  else delete extensions[key];
+};
+
+const serializeEmbeddedWiEntry = (entry, index = 0) => {
+  const rawSource = isPlainObject(entry) ? entry : {};
+  const source = normalizeWiEntry(rawSource, index);
+  const extensions = isPlainObject(rawSource.extensions)
+    ? { ...rawSource.extensions }
+    : {};
+  const sourceId =
+    source.st_source_id ?? source.uid ?? source.id ?? source.displayIndex ?? index;
+  const numericPosition = toFiniteNumber(source.position, ST_DEFAULT_POSITION);
+
+  const out = { ...source };
+  out.id = sourceId;
+  out.keys = cloneArray(source.keys ?? source.key);
+  out.secondary_keys = cloneArray(source.secondary_keys ?? source.keysecondary);
+  out.comment = source.comment || "";
+  out.content = source.content || "";
+  out.constant = !!source.constant;
+  out.selective = source.selective !== undefined ? !!source.selective : false;
+  out.enabled =
+    source.enabled !== undefined ? !!source.enabled : !(source.disable === true);
+  out.insertion_order = toFiniteNumber(
+    source.insertion_order ?? source.order,
+    ST_DEFAULT_ORDER,
+  );
+  out.position =
+    numericPosition === ST_DEFAULT_POSITION ? "before_char" : "after_char";
+
+  setExtensionField(extensions, "position", numericPosition, ST_DEFAULT_POSITION);
+  setExtensionField(
+    extensions,
+    "role",
+    toFiniteNumber(source.role, ST_DEFAULT_ROLE),
+    ST_DEFAULT_ROLE,
+  );
+  setExtensionField(
+    extensions,
+    "depth",
+    toFiniteNumber(source.depth, ST_DEFAULT_DEPTH),
+    ST_DEFAULT_DEPTH,
+  );
+  setExtensionField(
+    extensions,
+    "display_index",
+    toFiniteNumber(source.displayIndex, index),
+    index,
+  );
+  setExtensionField(extensions, "exclude_recursion", !!source.excludeRecursion, false);
+  setExtensionField(extensions, "prevent_recursion", !!source.preventRecursion, false);
+  setExtensionField(
+    extensions,
+    "delay_until_recursion",
+    source.delayUntilRecursion ?? false,
+    false,
+  );
+  setExtensionField(extensions, "ignore_budget", !!source.ignoreBudget, false);
+  setExtensionField(extensions, "vectorized", !!source.vectorized, false);
+  setExtensionField(
+    extensions,
+    "probability",
+    toFiniteNumber(source.probability, 100),
+    100,
+  );
+  setExtensionField(
+    extensions,
+    "useProbability",
+    source.useProbability !== undefined ? !!source.useProbability : true,
+    true,
+  );
+  setExtensionField(
+    extensions,
+    "selectiveLogic",
+    toFiniteNumber(source.selectiveLogic, 0),
+    0,
+  );
+  setExtensionField(extensions, "outlet_name", source.outletName || "", "");
+  setExtensionField(extensions, "scan_depth", source.scanDepth ?? null, null);
+  setExtensionField(extensions, "case_sensitive", source.caseSensitive ?? null, null);
+  setExtensionField(extensions, "match_whole_words", source.matchWholeWords ?? null, null);
+  setExtensionField(extensions, "group", source.group || "", "");
+  setExtensionField(extensions, "group_override", !!source.groupOverride, false);
+  setExtensionField(
+    extensions,
+    "group_weight",
+    toFiniteNumber(source.groupWeight, ST_DEFAULT_GROUP_WEIGHT),
+    ST_DEFAULT_GROUP_WEIGHT,
+  );
+  setExtensionField(extensions, "use_group_scoring", source.useGroupScoring ?? null, null);
+  setExtensionField(extensions, "automation_id", source.automationId || "", "");
+  setExtensionField(extensions, "sticky", source.sticky ?? null, null);
+  setExtensionField(extensions, "cooldown", source.cooldown ?? null, null);
+  setExtensionField(extensions, "delay", source.delay ?? null, null);
+  setExtensionField(extensions, "triggers", cloneArray(source.triggers), []);
+  setExtensionField(
+    extensions,
+    "match_persona_description",
+    !!source.matchPersonaDescription,
+    false,
+  );
+  setExtensionField(
+    extensions,
+    "match_character_description",
+    !!source.matchCharacterDescription,
+    false,
+  );
+  setExtensionField(
+    extensions,
+    "match_character_personality",
+    !!source.matchCharacterPersonality,
+    false,
+  );
+  setExtensionField(
+    extensions,
+    "match_character_depth_prompt",
+    !!source.matchCharacterDepthPrompt,
+    false,
+  );
+  setExtensionField(extensions, "match_scenario", !!source.matchScenario, false);
+  setExtensionField(
+    extensions,
+    "match_creator_notes",
+    !!source.matchCreatorNotes,
+    false,
+  );
+
+  if (source.characterFilter) out.character_filter = source.characterFilter;
+  out.extensions = extensions;
+
+  [
+    "st_source_id",
+    "st_manager_uid",
+    "uid",
+    "key",
+    "keysecondary",
+    "disable",
+    "order",
+    "role",
+    "depth",
+    "displayIndex",
+    "excludeRecursion",
+    "preventRecursion",
+    "delayUntilRecursion",
+    "ignoreBudget",
+    "vectorized",
+    "probability",
+    "useProbability",
+    "selectiveLogic",
+    "outletName",
+    "scanDepth",
+    "caseSensitive",
+    "matchWholeWords",
+    "matchWholeWordsState",
+    "caseSensitiveState",
+    "group",
+    "groupOverride",
+    "groupWeight",
+    "useGroupScoring",
+    "useGroupScoringState",
+    "automationId",
+    "sticky",
+    "cooldown",
+    "delay",
+    "triggers",
+    "matchPersonaDescription",
+    "matchCharacterDescription",
+    "matchCharacterPersonality",
+    "matchCharacterDepthPrompt",
+    "matchScenario",
+    "matchCreatorNotes",
+    "use_regex",
+    "characterFilter",
+  ].forEach((key) => delete out[key]);
+
+  return out;
+};
+
+const serializeEmbeddedWorldbook = (bookData, fallbackName = "World Info") => {
+  if (!bookData) return null;
+  const book = Array.isArray(bookData)
+    ? { name: fallbackName, entries: bookData }
+    : bookData;
+  let entries = book.entries ?? [];
+  if (entries && !Array.isArray(entries)) entries = Object.values(entries);
+
+  return {
+    ...book,
+    name: book.name || fallbackName,
+    entries: (entries || []).map((entry, index) =>
+      serializeEmbeddedWiEntry(entry, index),
+    ),
+  };
+};
+
 export function stripStLoreEntryDefaults(entry) {
   const e = entry;
 
@@ -70,10 +304,7 @@ export function stripStLoreEntryDefaults(entry) {
     "ignoreBudget",
     "excludeRecursion",
     "preventRecursion",
-    "caseSensitive",
-    "matchWholeWords",
     "groupOverride",
-    "useGroupScoring",
     "matchPersonaDescription",
     "matchCharacterDescription",
     "matchCharacterPersonality",
@@ -132,8 +363,9 @@ export function toStV3Worldbook(bookData, fallbackName = "World Info") {
     out.order = Number.isFinite(order) ? order : 100;
 
     // ST 常用字段：uid/displayIndex（用 idx 统一）
-    out.uid = idx;
-    out.displayIndex = idx;
+    const uid = e.uid ?? e.st_source_id ?? e.id ?? idx;
+    out.uid = uid;
+    out.displayIndex = e.displayIndex ?? idx;
 
     // 清理内部字段（避免写回文件污染）
     delete out.enabled;
@@ -144,9 +376,10 @@ export function toStV3Worldbook(bookData, fallbackName = "World Info") {
     // 清理前端内部使用的字段
     delete out.id;
     delete out.st_manager_uid;
+    delete out.st_source_id;
 
     stripStLoreEntryDefaults(out);
-    exportEntries[String(idx)] = out;
+    exportEntries[String(uid)] = out;
   });
 
   // 保留世界书顶层其他字段（如果有），但覆盖 entries/name
@@ -160,6 +393,20 @@ export function toStV3Worldbook(bookData, fallbackName = "World Info") {
 // 前端归一化 entry 字段
 export function normalizeWiEntry(entry, index = 0) {
   // === 辅助转换函数 ===
+  const ST_DEFAULT_DEPTH = 4;
+  const ST_DEFAULT_GROUP_WEIGHT = 100;
+  const ST_DEFAULT_POSITION = 0;
+  const ST_DEFAULT_ROLE = 0;
+  const isPlainObject = (value) =>
+    value && typeof value === "object" && !Array.isArray(value);
+  const cloneArray = (value) => (Array.isArray(value) ? [...value] : []);
+  const toFiniteNumber = (val, fallback) => {
+    if (val === true) return 1;
+    if (val === false) return 0;
+    if (val === null || val === undefined || val === "") return fallback;
+    const n = Number(val);
+    return Number.isFinite(n) ? n : fallback;
+  };
   const toNumber = (val, fieldName) => {
     if (val === true) return 1;
     if (val === false) return 0;
@@ -202,19 +449,39 @@ export function normalizeWiEntry(entry, index = 0) {
       : [];
 
   // 2. 计算核心规范化字段
+  const ext = isPlainObject(entry.extensions) ? entry.extensions : {};
+  const sourceId = entry.st_source_id ?? entry.uid ?? entry.id;
+  const isCharacterBookEntry =
+    Array.isArray(entry.keys) || entry.enabled !== undefined || !!entry.extensions;
+  const rawPosition =
+    ext.position ??
+    (typeof entry.position === "string"
+      ? entry.position === "before_char"
+        ? 0
+        : 1
+      : entry.position);
+
   const normalizedFields = {
     // ID: 使用索引号 (0,1,2,3...)，确保 Alpine.js key 追踪稳定
     // id 越大条目越靠下显示
     id: index,
 
+    st_source_id: sourceId,
     insertion_order: toNumber(entry.insertion_order ?? entry.order, "order"),
-    position: toNumber(entry.position, "position"),
-    depth: toNumber(entry.depth, "depth"),
-    role: toNumber(entry.role, "role"),
-    probability: toNumber(entry.probability, "probability"),
-    selectiveLogic: toNumber(entry.selectiveLogic, "selectiveLogic"),
+    position: toFiniteNumber(rawPosition, ST_DEFAULT_POSITION),
+    depth: toFiniteNumber(ext.depth ?? entry.depth, ST_DEFAULT_DEPTH),
+    role: toFiniteNumber(ext.role ?? entry.role, ST_DEFAULT_ROLE),
+    displayIndex: toFiniteNumber(
+      ext.display_index ?? entry.displayIndex,
+      index,
+    ),
+    probability: toNumber(ext.probability ?? entry.probability, "probability"),
+    selectiveLogic: toNumber(
+      ext.selectiveLogic ?? entry.selectiveLogic,
+      "selectiveLogic",
+    ),
     delayUntilRecursion: normalizeDelayUntilRecursion(
-      entry.delayUntilRecursion,
+      ext.delay_until_recursion ?? entry.delayUntilRecursion,
     ),
 
     // 逻辑反转处理：统一使用enabled
@@ -222,16 +489,61 @@ export function normalizeWiEntry(entry, index = 0) {
       entry.enabled !== undefined ? !!entry.enabled : !(entry.disable === true),
 
     constant: !!entry.constant,
-    vectorized: !!entry.vectorized,
-    excludeRecursion: !!entry.excludeRecursion,
-    preventRecursion: !!entry.preventRecursion,
-    ignoreBudget: !!entry.ignoreBudget,
-    matchWholeWords: normalizeTriStateBoolean(entry.matchWholeWords),
-    caseSensitive: normalizeTriStateBoolean(entry.caseSensitive),
+    vectorized: !!(ext.vectorized ?? entry.vectorized),
+    excludeRecursion: !!(ext.exclude_recursion ?? entry.excludeRecursion),
+    preventRecursion: !!(ext.prevent_recursion ?? entry.preventRecursion),
+    ignoreBudget: !!(ext.ignore_budget ?? entry.ignoreBudget),
+    matchWholeWords: normalizeTriStateBoolean(
+      ext.match_whole_words ?? entry.matchWholeWords,
+    ),
+    caseSensitive: normalizeTriStateBoolean(
+      ext.case_sensitive ?? entry.caseSensitive,
+    ),
     use_regex: !!entry.use_regex,
-    selective: entry.selective !== undefined ? !!entry.selective : true,
+    selective:
+      entry.selective !== undefined ? !!entry.selective : !isCharacterBookEntry,
     useProbability:
-      entry.useProbability !== undefined ? !!entry.useProbability : true,
+      (ext.useProbability ?? entry.useProbability) !== undefined
+        ? !!(ext.useProbability ?? entry.useProbability)
+        : true,
+    outletName: ext.outlet_name ?? entry.outletName ?? "",
+    group: ext.group ?? entry.group ?? "",
+    groupOverride: !!(ext.group_override ?? entry.groupOverride),
+    groupWeight: toFiniteNumber(
+      ext.group_weight ?? entry.groupWeight,
+      ST_DEFAULT_GROUP_WEIGHT,
+    ),
+    scanDepth:
+      (ext.scan_depth ?? entry.scanDepth) === null ||
+      (ext.scan_depth ?? entry.scanDepth) === undefined ||
+      (ext.scan_depth ?? entry.scanDepth) === ""
+        ? null
+        : toFiniteNumber(ext.scan_depth ?? entry.scanDepth, null),
+    useGroupScoring: normalizeTriStateBoolean(
+      ext.use_group_scoring ?? entry.useGroupScoring,
+    ),
+    automationId: ext.automation_id ?? entry.automationId ?? "",
+    sticky: ext.sticky ?? entry.sticky ?? null,
+    cooldown: ext.cooldown ?? entry.cooldown ?? null,
+    delay: ext.delay ?? entry.delay ?? null,
+    triggers: cloneArray(ext.triggers ?? entry.triggers),
+    characterFilter: entry.characterFilter ?? entry.character_filter,
+    matchPersonaDescription: !!(
+      ext.match_persona_description ?? entry.matchPersonaDescription
+    ),
+    matchCharacterDescription: !!(
+      ext.match_character_description ?? entry.matchCharacterDescription
+    ),
+    matchCharacterPersonality: !!(
+      ext.match_character_personality ?? entry.matchCharacterPersonality
+    ),
+    matchCharacterDepthPrompt: !!(
+      ext.match_character_depth_prompt ?? entry.matchCharacterDepthPrompt
+    ),
+    matchScenario: !!(ext.match_scenario ?? entry.matchScenario),
+    matchCreatorNotes: !!(
+      ext.match_creator_notes ?? entry.matchCreatorNotes
+    ),
 
     // 数组拷贝
     keys: [...rawKeys],
@@ -258,6 +570,26 @@ export function normalizeWiEntry(entry, index = 0) {
     secondary_keys,
     content,
     comment,
+    st_source_id,
+    displayIndex,
+    outletName,
+    scanDepth,
+    group,
+    groupOverride,
+    groupWeight,
+    useGroupScoring,
+    automationId,
+    sticky,
+    cooldown,
+    delay,
+    triggers,
+    matchPersonaDescription,
+    matchCharacterDescription,
+    matchCharacterPersonality,
+    matchCharacterDepthPrompt,
+    matchScenario,
+    matchCreatorNotes,
+    character_filter,
     // 剩下的就是真正的 Unknown Fields
     ...others
   } = entry;
@@ -348,13 +680,11 @@ export function getCleanedV3Data(editingData) {
   }
 
   // 5. 清理世界书条目的前端内部字段，并重新分配索引 id（0,1,2,3...）
-  if (raw.character_book && Array.isArray(raw.character_book.entries)) {
-    raw.character_book.entries.forEach((entry, idx) => {
-      if (entry) {
-        entry.id = idx;
-        delete entry.st_manager_uid;
-      }
-    });
+  if (raw.character_book) {
+    raw.character_book = serializeEmbeddedWorldbook(
+      raw.character_book,
+      raw.char_name || "World Info",
+    );
   }
 
   // 6. 构建标准 V3 结构 (明确指定字段，丢弃多余的 UI 临时状态)
