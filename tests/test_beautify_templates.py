@@ -534,15 +534,16 @@ def test_beautify_grid_template_keeps_screenshot_entry_available_without_importe
 
 def test_beautify_layout_css_uses_shared_sidebar_flex_contract():
     css = read_project_file('static/css/modules/view-beautify.css')
-    layout_block = css.split('.beautify-layout {', 1)[1].split('}', 1)[0]
-    sidebar_block = css.split('.beautify-sidebar-panel {', 1)[1].split('}', 1)[0]
-    stage_block = css.split('.beautify-stage-pane {', 1)[1].split('}', 1)[0]
+    token_block = extract_css_block(css, r':is\(\.beautify-layout, \.beautify-sidebar-panel\)')
+    layout_block = extract_css_block_for_selector(css, '.beautify-layout')
+    sidebar_block = extract_css_block_for_selector(css, '.beautify-sidebar-panel')
+    stage_block = extract_css_block_for_selector(css, '.beautify-stage-pane')
 
-    assert '.beautify-layout {' in css
+    assert ':is(.beautify-layout, .beautify-sidebar-panel)' in css
+    assert '--beautify-control-gap:' in token_block
     assert 'display: flex;' in layout_block
     assert 'min-width: 0;' in layout_block
     assert 'grid-template-columns' not in layout_block
-    assert '.beautify-sidebar-panel {' in css
     assert 'display: flex;' in sidebar_block
     assert 'flex-direction: column;' in sidebar_block
     assert 'min-height: 0;' in sidebar_block
@@ -557,44 +558,49 @@ def test_beautify_layout_css_uses_shared_sidebar_flex_contract():
 
 def test_beautify_layout_css_replaces_dark_shell_colors_with_theme_driven_surfaces():
     css = read_project_file('static/css/modules/view-beautify.css')
-    layout_block = css.split('.beautify-layout {', 1)[1].split('}', 1)[0]
-    sidebar_block = css.split('.beautify-sidebar-panel {', 1)[1].split('}', 1)[0]
+    token_block = extract_css_block(css, r':is\(\.beautify-layout, \.beautify-sidebar-panel\)')
+    layout_block = extract_css_block_for_selector(css, '.beautify-layout')
+    sidebar_block = extract_css_block_for_selector(css, '.beautify-sidebar-panel')
     switcher_block = css.split('.beautify-workspace-switcher {', 1)[1].split('}', 1)[0]
     frame_shell_block = extract_css_block_for_selector(css, '.beautify-preview-frame-shell')
     control_block = extract_css_block_for_selector(css, '.beautify-primary-btn')
     primary_button_block = css.split('.beautify-primary-btn {', 1)[1].split('}', 1)[0]
 
-    assert '--beautify-shell-bg:' in layout_block
-    assert '--beautify-panel-bg:' in layout_block
-    assert '--beautify-panel-bg-strong:' in layout_block
-    assert '--beautify-control-bg:' in layout_block
-    assert '--beautify-control-bg-hover:' in layout_block
+    assert '--beautify-shell-bg:' in token_block
+    assert '--beautify-panel-bg:' in token_block
+    assert '--beautify-panel-bg-strong:' in token_block
+    assert '--beautify-control-bg:' in token_block
+    assert '--beautify-control-bg-hover:' in token_block
     assert_has_css_declaration(layout_block, 'background', 'var(--beautify-shell-bg)')
     assert_has_css_declaration(sidebar_block, 'background', 'var(--beautify-panel-bg)')
     assert_has_css_declaration(switcher_block, 'background', 'var(--beautify-panel-bg-strong)')
     assert_has_css_declaration(control_block, 'background', 'var(--beautify-control-bg)')
-    assert '--beautify-shell-frame-bg:' in layout_block
-    assert '--beautify-shell-frame-border:' in layout_block
+    assert '--beautify-shell-frame-bg:' in token_block
+    assert '--beautify-shell-frame-border:' in token_block
     # Token definitions may still contain dark fallback mixes, but the shell and controls should not hard-code them.
-    assert 'rgba(15, 23, 42' not in layout_block
+    assert 'rgba(15, 23, 42' not in token_block
     assert 'rgba(15, 23, 42' not in sidebar_block
     assert 'rgba(15, 23, 42' not in switcher_block
     assert 'rgba(15, 23, 42' not in control_block
     assert 'rgba(30, 41, 59' not in control_block
     assert_has_css_declaration(frame_shell_block, 'background', 'var(--beautify-shell-frame-bg)')
-    assert_has_css_declaration(frame_shell_block, 'border', 'var(--beautify-shell-frame-border)')
-    assert_has_css_declaration(primary_button_block, 'background', 'var(--accent-main)')
-    assert_has_css_declaration(primary_button_block, 'background', '#8b5cf6')
-    assert_has_css_declaration(primary_button_block, 'border-color', 'transparent')
+    assert 'border: 1px solid var(--beautify-shell-frame-border);' in frame_shell_block or has_css_declaration(
+        frame_shell_block,
+        'border',
+        'var(--beautify-shell-frame-border)',
+    )
+    assert 'color-mix(in srgb, var(--accent-main)' in primary_button_block
+    assert 'linear-gradient(135deg, var(--accent-main), #8b5cf6)' not in primary_button_block
 
 
 def test_beautify_layout_css_keeps_shell_root_transparent_while_stage_and_cards_stay_themed():
     css = read_project_file('static/css/modules/view-beautify.css')
+    token_block = extract_css_block(css, r':is\(\.beautify-layout, \.beautify-sidebar-panel\)')
     layout_block = extract_css_block_for_selector(css, '.beautify-layout')
     stage_block = extract_css_block_for_selector(css, '.beautify-stage-pane')
     detail_card_block = extract_css_block_for_selector(css, '.beautify-detail-card')
 
-    assert '--beautify-shell-bg: transparent;' in layout_block
+    assert '--beautify-shell-bg: transparent;' in token_block
     assert not has_css_declaration(layout_block, 'background', 'var(--bg-body)')
     assert_has_css_declaration(layout_block, 'background', 'var(--beautify-shell-bg)')
     assert_has_css_declaration(stage_block, 'background', 'var(--beautify-stage-surface)')
@@ -609,7 +615,7 @@ def test_beautify_layout_css_styles_isolated_preview_host_shell():
     mobile_shell_block = css.split('.beautify-preview-frame-shell.is-mobile {', 1)[1].split('}', 1)[0]
 
     assert '.beautify-preview-unloaded-card {' in css
-    assert 'min-height: 280px;' in unloaded_block
+    assert 'min-height: 220px;' in unloaded_block
     assert 'justify-content: center;' in unloaded_block
     assert '.beautify-preview-frame-shell {' in css
     assert 'block-size: clamp(' in frame_shell_block
@@ -643,7 +649,7 @@ def test_beautify_layout_css_styles_host_owned_scene_switcher_surface():
 
 def test_beautify_layout_css_uses_theme_driven_stage_cards_and_active_states():
     css = read_project_file('static/css/modules/view-beautify.css')
-    layout_block = css.split('.beautify-layout {', 1)[1].split('}', 1)[0]
+    token_block = extract_css_block(css, r':is\(\.beautify-layout, \.beautify-sidebar-panel\)')
     thumb_block = extract_css_block_for_selector(css, '.beautify-screenshot-thumb')
     stage_block = extract_css_block_for_selector(css, '.beautify-stage-pane')
     detail_card_block = extract_css_block_for_selector(css, '.beautify-detail-card')
@@ -651,15 +657,15 @@ def test_beautify_layout_css_uses_theme_driven_stage_cards_and_active_states():
     frame_shell_block = extract_css_block_for_selector(css, '.beautify-preview-frame-shell')
     active_state_block = extract_css_block_for_selector(css, '.beautify-package-card.is-active')
 
-    assert '--beautify-stage-surface:' in layout_block
-    assert '--beautify-card-surface:' in layout_block
-    assert '--beautify-muted-surface:' in layout_block
-    assert '--beautify-thumbnail-border:' in layout_block
-    assert '--beautify-shell-frame-bg:' in layout_block
-    assert '--beautify-shell-frame-border:' in layout_block
-    assert '--beautify-active-bg:' in layout_block
-    assert '--beautify-active-border:' in layout_block
-    assert '--beautify-active-shadow:' in layout_block
+    assert '--beautify-stage-surface:' in token_block
+    assert '--beautify-card-surface:' in token_block
+    assert '--beautify-muted-surface:' in token_block
+    assert '--beautify-thumbnail-border:' in token_block
+    assert '--beautify-shell-frame-bg:' in token_block
+    assert '--beautify-shell-frame-border:' in token_block
+    assert '--beautify-active-bg:' in token_block
+    assert '--beautify-active-border:' in token_block
+    assert '--beautify-active-shadow:' in token_block
     assert_has_css_declaration(thumb_block, 'border', 'var(--beautify-thumbnail-border)')
     assert_has_css_declaration(stage_block, 'background', 'var(--beautify-stage-surface)')
     assert_has_css_declaration(detail_card_block, 'background', 'var(--beautify-card-surface)')

@@ -125,6 +125,8 @@ mypy core
 - Use `core/data/db_session.py` for SQLite connection patterns and retry helpers
 - Background workers should be daemon threads
 - File-system-triggered rescans should go through scan/cache services, not ad hoc logic
+- Chat module styles live in `static/css/modules/view-chats.css` (entry) with partials under `static/css/modules/view-chats/` (`tokens.css`, `grid.css`, `reader-shell.css`, etc.)
+- Beautify module styles live in `static/css/modules/view-beautify.css` (flat tokens aligned with chat module)
 
 ## Build And Packaging
 

@@ -15,7 +15,8 @@ import {
   updateChatMeta,
 } from "../api/chat.js";
 import { getCardDetail, listCards } from "../api/card.js";
-import { openPath } from "../api/system.js";
+import { getPresetDetail } from "../api/presets.js";
+import { openPath, readFileContent } from "../api/system.js";
 import { formatDate } from "../utils/format.js";
 import { ChatAppStage } from "../runtime/chatAppStage.js";
 import {
@@ -2975,6 +2976,18 @@ export default function chatGrid() {
     bindPickerResults: [],
     bindPickerTargetChatId: "",
 
+    regexRulePickerOpen: false,
+    regexRulePickerLoading: false,
+    regexRulePickerSearch: "",
+    regexRulePickerFilter: "all",
+    regexRulePickerResults: [],
+
+    regexPresetPickerOpen: false,
+    regexPresetPickerLoading: false,
+    regexPresetPickerSearch: "",
+    regexPresetPickerFilter: "all",
+    regexPresetPickerResults: [],
+
     get chatList() {
       return this.$store.global.chatList;
     },
@@ -5535,6 +5548,14 @@ export default function chatGrid() {
 
       window.addEventListener("keydown", (e) => {
         if (e.key !== "Escape") return;
+        if (this.regexPresetPickerOpen) {
+          this.closeRegexPresetPicker();
+          return;
+        }
+        if (this.regexRulePickerOpen) {
+          this.closeRegexRulePicker();
+          return;
+        }
         if (this.bindPickerOpen) {
           this.closeBindPicker();
           return;
@@ -5896,6 +5917,7 @@ export default function chatGrid() {
       this.editingMessageDraft = "";
       this.editingMessageRawDraft = "";
       this.editingMessagePreviewMode = "parsed";
+      this.closeBindPicker();
     },
 
     updateReaderLayoutMetrics() {
@@ -7819,6 +7841,50 @@ export default function chatGrid() {
       this.regexConfigStatus = `已从当前合并结果移除规则“${normalizedTarget.scriptName}”，保存后生效。`;
     },
 
+    applyRegexConfigFromJsonData(data) {
+      const importedReaderConfig = extractReaderRegexConfig(data);
+      if (importedReaderConfig) {
+        const importedCount = Array.isArray(importedReaderConfig.displayRules)
+          ? importedReaderConfig.displayRules.length
+          : 0;
+        this.regexConfigDraft = importReaderRegexConfig(
+          this.regexConfigDraft,
+          importedReaderConfig,
+          {
+            fillDefaults: false,
+            source: "reader_import",
+            mode: "merge",
+          },
+        );
+        return importedCount > 0
+          ? `已从阅读器配置导入 ${importedCount} 条规则，保存后会并入当前聊天`
+          : "已识别到阅读器配置文件，但其中没有可导入的显示规则";
+      }
+
+      const rules = parseSillyTavernRegexRules(data);
+      if (!rules.length) {
+        throw new Error("未在该文件中识别到可用的聊天阅读器或 SillyTavern 正则规则");
+      }
+
+      const importableRules = filterReaderDisplayRules(rules);
+      if (!importableRules.length) {
+        throw new Error("已识别到 ST 规则，但其中没有适用于聊天阅读显示的规则");
+      }
+
+      const importSource = detectImportedRegexSource(data);
+      const importMeta = getRegexRuleSourceMeta(importSource);
+      this.regexConfigDraft = convertRulesToReaderConfig(
+        rules,
+        this.regexConfigDraft,
+        {
+          fillDefaults: false,
+          source: importSource,
+          mode: "merge",
+        },
+      );
+      return `已从${importMeta.label}导入 ${importableRules.length} 条聊天阅读规则，保存后会并入当前聊天`;
+    },
+
     importRegexConfigFile(event) {
       const file = event?.target?.files?.[0];
       if (!file) return;
@@ -7827,54 +7893,7 @@ export default function chatGrid() {
       reader.onload = () => {
         try {
           const data = JSON.parse(String(reader.result || "{}"));
-          const importedReaderConfig = extractReaderRegexConfig(data);
-          if (importedReaderConfig) {
-            const importedCount = Array.isArray(
-              importedReaderConfig.displayRules,
-            )
-              ? importedReaderConfig.displayRules.length
-              : 0;
-            this.regexConfigDraft = importReaderRegexConfig(
-              this.regexConfigDraft,
-              importedReaderConfig,
-              {
-                fillDefaults: false,
-                source: "reader_import",
-                mode: "merge",
-              },
-            );
-            this.regexConfigStatus =
-              importedCount > 0
-                ? `已从阅读器配置导入 ${importedCount} 条规则，保存后会并入当前聊天`
-                : "已识别到阅读器配置文件，但其中没有可导入的显示规则";
-            return;
-          }
-
-          const rules = parseSillyTavernRegexRules(data);
-          if (!rules.length) {
-            alert("未在该文件中识别到可用的聊天阅读器或 SillyTavern 正则规则");
-            return;
-          }
-
-          const importableRules = filterReaderDisplayRules(rules);
-          if (!importableRules.length) {
-            alert("已识别到 ST 规则，但其中没有适用于聊天阅读显示的规则");
-            return;
-          }
-
-          const importSource = detectImportedRegexSource(data);
-          const importMeta = getRegexRuleSourceMeta(importSource);
-          this.regexConfigDraft = convertRulesToReaderConfig(
-            rules,
-            this.regexConfigDraft,
-            {
-              fillDefaults: false,
-              source: importSource,
-              mode: "merge",
-            },
-          );
-          this.regexConfigStatus = `已从${importMeta.label}导入 ${importableRules.length} 条聊天阅读规则，保存后会并入当前聊天`;
-          return;
+          this.regexConfigStatus = this.applyRegexConfigFromJsonData(data);
         } catch (err) {
           alert(`导入规则失败: ${err.message || err}`);
         } finally {
@@ -7882,6 +7901,201 @@ export default function chatGrid() {
         }
       };
       reader.readAsText(file, "utf-8");
+    },
+
+    openRegexRulePicker() {
+      if (!this.regexConfigOpen) return;
+      if (this.$store.global.deviceType === "mobile") {
+        this.$store.global.visibleSidebar = false;
+        document.body.style.overflow = "";
+        window.dispatchEvent(new CustomEvent("close-header-mobile-menu"));
+      }
+      this.regexHelpOpen = false;
+      this.closeRegexPresetPicker();
+      this.regexRulePickerOpen = true;
+      this.regexRulePickerSearch = "";
+      this.regexRulePickerFilter = "all";
+      this.fetchRegexRulePickerResults();
+    },
+
+    closeRegexRulePicker() {
+      this.regexRulePickerOpen = false;
+      this.regexRulePickerLoading = false;
+      this.regexRulePickerSearch = "";
+      this.regexRulePickerFilter = "all";
+      this.regexRulePickerResults = [];
+    },
+
+    async fetchRegexRulePickerResults() {
+      this.regexRulePickerLoading = true;
+      try {
+        const params = new URLSearchParams({
+          mode: "regex",
+          filter_type: this.regexRulePickerFilter || "all",
+        });
+        const search = String(this.regexRulePickerSearch || "").trim();
+        if (search) {
+          params.set("search", search);
+        }
+        const res = await fetch(`/api/extensions/list?${params.toString()}`);
+        const payload = await res.json();
+        this.regexRulePickerResults = Array.isArray(payload.items)
+          ? payload.items
+          : [];
+      } catch {
+        this.regexRulePickerResults = [];
+      } finally {
+        this.regexRulePickerLoading = false;
+      }
+    },
+
+    resolvePresetPickerTarget(item) {
+      if (!item || typeof item !== "object") return null;
+      if (item.entry_type === "family") {
+        const versions = Array.isArray(item.versions) ? item.versions : [];
+        if (!versions.length) return null;
+        return (
+          versions.find(
+            (version) => version.id === item.default_version_id,
+          ) || versions[0]
+        );
+      }
+      return item;
+    },
+
+    openRegexPresetPicker() {
+      if (!this.regexConfigOpen) return;
+      if (this.$store.global.deviceType === "mobile") {
+        this.$store.global.visibleSidebar = false;
+        document.body.style.overflow = "";
+        window.dispatchEvent(new CustomEvent("close-header-mobile-menu"));
+      }
+      this.regexHelpOpen = false;
+      this.closeRegexRulePicker();
+      this.regexPresetPickerOpen = true;
+      this.regexPresetPickerSearch = "";
+      this.regexPresetPickerFilter = "all";
+      this.fetchRegexPresetPickerResults();
+    },
+
+    closeRegexPresetPicker() {
+      this.regexPresetPickerOpen = false;
+      this.regexPresetPickerLoading = false;
+      this.regexPresetPickerSearch = "";
+      this.regexPresetPickerFilter = "all";
+      this.regexPresetPickerResults = [];
+    },
+
+    async fetchRegexPresetPickerResults() {
+      this.regexPresetPickerLoading = true;
+      try {
+        const params = new URLSearchParams({
+          filter_type: this.regexPresetPickerFilter || "all",
+        });
+        const search = String(this.regexPresetPickerSearch || "").trim();
+        if (search) {
+          params.set("search", search);
+        }
+        const res = await fetch(`/api/presets/list?${params.toString()}`);
+        const payload = await res.json();
+        this.regexPresetPickerResults = Array.isArray(payload.items)
+          ? payload.items
+          : [];
+      } catch {
+        this.regexPresetPickerResults = [];
+      } finally {
+        this.regexPresetPickerLoading = false;
+      }
+    },
+
+    describeRegexPresetPickerItem(item) {
+      const target = this.resolvePresetPickerTarget(item) || item || {};
+      const sourceType = target.source_type || target.type || item?.source_type;
+      const typeLabel =
+        sourceType === "resource"
+          ? `资源库 · ${target.owner_card_name || target.source_folder || "未知"}`
+          : "全局库";
+      const regexCount = Number(target.regex_count || 0);
+      const regexHint =
+        regexCount > 0 ? `${regexCount} 条正则` : "未检测到正则";
+      if (item?.entry_type === "family") {
+        return `${typeLabel} · ${regexHint} · ${item.version_count || 1} 个版本`;
+      }
+      return `${typeLabel} · ${regexHint}`;
+    },
+
+    async loadPresetPickerRawData(item) {
+      const target = this.resolvePresetPickerTarget(item);
+      if (!target) {
+        throw new Error("无法识别所选预设");
+      }
+
+      if (target.path) {
+        const res = await readFileContent({ path: target.path });
+        if (!res.success) {
+          throw new Error(res.msg || "读取预设文件失败");
+        }
+        return res.data;
+      }
+
+      const presetId = target.id || item?.default_version_id || item?.id;
+      if (!presetId) {
+        throw new Error("无法识别所选预设");
+      }
+
+      const res = await getPresetDetail(presetId);
+      if (!res.success || !res.preset) {
+        throw new Error(res.msg || "读取预设详情失败");
+      }
+      return res.preset.raw_data || res.preset;
+    },
+
+    async pickRegexPreset(item) {
+      if (!item) return;
+
+      this.regexPresetPickerLoading = true;
+      try {
+        const data = await this.loadPresetPickerRawData(item);
+        const status = this.applyRegexConfigFromJsonData(data);
+        if (status) {
+          this.regexConfigStatus = status;
+          this.closeRegexPresetPicker();
+        }
+      } catch (err) {
+        alert(`导入预设规则失败: ${err.message || err}`);
+      } finally {
+        this.regexPresetPickerLoading = false;
+      }
+    },
+
+    describeRegexRulePickerItem(item) {
+      if (!item || typeof item !== "object") return "系统规则";
+      if (item.type === "resource") {
+        return `资源库 · ${item.source_folder || item.filename || "未知来源"}`;
+      }
+      return "全局库";
+    },
+
+    async pickRegexRuleExtension(item) {
+      if (!item?.path) return;
+
+      this.regexRulePickerLoading = true;
+      try {
+        const res = await readFileContent({ path: item.path });
+        if (!res.success) {
+          alert(res.msg || "读取规则文件失败");
+          return;
+        }
+        const status = this.applyRegexConfigFromJsonData(res.data);
+        if (status) {
+          this.regexConfigStatus = status;
+          this.closeRegexRulePicker();
+        }
+      } catch (err) {
+        alert(`导入规则失败: ${err.message || err}`);
+      } finally {
+        this.regexRulePickerLoading = false;
+      }
     },
 
     async clearRegexDraft() {
@@ -7983,6 +8197,8 @@ export default function chatGrid() {
     closeRegexConfig() {
       this.regexConfigOpen = false;
       this.regexHelpOpen = false;
+      this.closeRegexPresetPicker();
+      this.closeRegexRulePicker();
       this.regexConfigMobileHeaderHidden = false;
       this.regexConfigMobileTab = "effective";
       this.selectedActiveRegexRuleIndex = 0;
@@ -8968,6 +9184,12 @@ export default function chatGrid() {
     async openBindPicker(item) {
       const target = item || this.activeChat;
       if (!target || !target.id) return;
+
+      if (this.$store.global.deviceType === "mobile") {
+        this.$store.global.visibleSidebar = false;
+        document.body.style.overflow = "";
+        window.dispatchEvent(new CustomEvent("close-header-mobile-menu"));
+      }
 
       this.bindPickerOpen = true;
       this.bindPickerTargetChatId = target.id;
