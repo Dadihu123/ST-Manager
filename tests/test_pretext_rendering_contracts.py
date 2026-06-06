@@ -1,4 +1,6 @@
 from pathlib import Path
+import re
+from urllib.parse import unquote
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -6,6 +8,27 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 def read_project_file(relative_path: str) -> str:
     return (PROJECT_ROOT / relative_path).read_text(encoding='utf-8')
+
+
+def read_css_module_bundle(relative_path: str, seen=None) -> str:
+    seen = set() if seen is None else seen
+    source_path = (PROJECT_ROOT / relative_path).resolve()
+    if source_path in seen:
+        return ''
+    seen.add(source_path)
+
+    source = source_path.read_text(encoding='utf-8')
+
+    def replace_import(match):
+        import_path = unquote(match.group(1))
+        imported_relative = source_path.parent.joinpath(import_path).resolve().relative_to(PROJECT_ROOT)
+        return read_css_module_bundle(str(imported_relative).replace('\\', '/'), seen)
+
+    return re.sub(
+        r'@import\s+url\([\'"]([^\'"]+)[\'"]\)\s*;',
+        replace_import,
+        source,
+    )
 
 
 def test_pretext_vendor_module_exists_and_exports_prepare_and_layout_contracts():
@@ -203,7 +226,7 @@ def test_advanced_editor_footer_distinguishes_file_mode_from_buffered_apply_and_
 
 
 def test_chat_reader_css_enables_content_visibility_and_intrinsic_size_placeholder_strategy():
-    css_source = read_project_file('static/css/modules/view-chats.css')
+    css_source = read_css_module_bundle('static/css/modules/view-chats.css')
 
     assert '.chat-message-card {' in css_source
     assert 'content-visibility: auto;' in css_source

@@ -1,5 +1,6 @@
 from pathlib import Path
 import re
+from urllib.parse import unquote
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -7,6 +8,27 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 def read_project_file(relative_path):
     return (PROJECT_ROOT / relative_path).read_text(encoding='utf-8')
+
+
+def read_css_module_bundle(relative_path, seen=None):
+    seen = set() if seen is None else seen
+    source_path = (PROJECT_ROOT / relative_path).resolve()
+    if source_path in seen:
+        return ''
+    seen.add(source_path)
+
+    source = source_path.read_text(encoding='utf-8')
+
+    def replace_import(match):
+        import_path = unquote(match.group(1))
+        imported_relative = source_path.parent.joinpath(import_path).resolve().relative_to(PROJECT_ROOT)
+        return read_css_module_bundle(str(imported_relative).replace('\\', '/'), seen)
+
+    return re.sub(
+        r'@import\s+url\([\'"]([^\'"]+)[\'"]\)\s*;',
+        replace_import,
+        source,
+    )
 
 
 def project_file_exists(relative_path):
@@ -425,7 +447,7 @@ def test_long_code_collapse_contract_detects_long_rendered_pre_blocks_even_when_
 
 def test_runtime_wrapper_contract_collapses_long_inline_runtime_source_in_scroll_mode():
     chat_grid_source = read_project_file('static/js/components/chatGrid.js')
-    css_source = read_project_file('static/css/modules/view-chats.css')
+    css_source = read_css_module_bundle('static/css/modules/view-chats.css')
     wrap_block = extract_js_block(chat_grid_source, 'function wrapRuntimeHostsInContainer(container, floor)')
 
     assert 'chat-inline-runtime-disclosure' in wrap_block
@@ -499,7 +521,7 @@ def test_deferred_runtime_placeholder_contract_uses_separate_indicator_outside_r
 
 def test_active_runtime_contract_hides_source_disclosure_but_keeps_runtime_host_visible():
     chat_grid_source = read_project_file('static/js/components/chatGrid.js')
-    css_source = read_project_file('static/css/modules/view-chats.css')
+    css_source = read_css_module_bundle('static/css/modules/view-chats.css')
     active_block = extract_js_block(chat_grid_source, 'function setRuntimeWrapperActive(host, active)')
 
     assert_contains_either(active_block, [
