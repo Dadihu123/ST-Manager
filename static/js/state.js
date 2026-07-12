@@ -411,6 +411,8 @@ export function initState() {
       discord_auth_type: "token",
       discord_bot_token: "",
       discord_user_cookie: "",
+      // 类脑搜索站帖子预览 Cookie
+      shimmerday_forum_cookie: "",
 
       // 自动化标签分隔规则
       automation_slash_is_tag_separator: false,

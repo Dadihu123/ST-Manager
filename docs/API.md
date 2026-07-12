@@ -126,6 +126,29 @@
 | `POST` | `/api/normalize_card_data` | 规范化卡片数据 |
 | `POST` | `/api/update_card_from_url` | 根据来源链接重新抓取并更新 |
 
+### 2.2.1 类脑搜索站预览
+
+来源：`core/api/v1/forum.py`
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| `POST` | `/api/forum/thread_preview` | 从来源链接解析帖子 ID，转发查询类脑搜索站 |
+
+请求体（二选一或同时提供）：
+
+```json
+{
+  "source_link": "https://discord.com/channels/{guild}/{thread}",
+  "card_id": "角色/示例卡.png"
+}
+```
+
+说明：
+
+- URL 为两段 ID 时取最后一段；三段 ID 时取中间段作为帖子 ID
+- 使用配置项 `shimmerday_forum_cookie` 访问 `https://forum.shimmerday.top/v1/search/thread/{id}`
+- 成功时返回 `{ "success": true, "thread_id": "...", "data": { ...上游 JSON... } }`
+
 `/api/update_card` 支持大量字段，常见字段如下：
 
 ```json

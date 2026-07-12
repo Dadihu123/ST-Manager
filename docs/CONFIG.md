@@ -191,6 +191,19 @@ Docker 额外注意：
 - `cookie` 对应浏览器 Cookie 方案
 - Cookie 方案为备用方案，优先建议使用 Bot Token
 
+### 3.8 类脑搜索站预览
+
+| 配置项 | 默认值 | 说明 |
+| --- | --- | --- |
+| `shimmerday_forum_cookie` | `""` | 类脑搜索站会话 Cookie |
+
+说明：
+
+- 用于角色卡网格「类脑搜索」按钮的帖子只读预览
+- 与 Discord 标签抓取 Cookie（`discord_user_cookie`）相互独立
+- 角色卡需配置可解析的 Discord `channels` 来源链接后才会显示按钮
+- Cookie 获取：登录 [https://odysseia-forum-webpage.pages.dev/](https://odysseia-forum-webpage.pages.dev/)，在开发者工具 Network 面板复制请求 Cookie
+
 ---
 
 ## 4. 外网访问认证

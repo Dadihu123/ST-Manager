@@ -1059,6 +1059,38 @@ html.light-mode .preset-card-action-btn.is-export {
     box-shadow 0.2s ease;
 }
 
+.card-forum-search-btn {
+  appearance: none;
+  border: 1px solid color-mix(in srgb, var(--border-light), #ffffff 14%);
+  background: rgba(15, 23, 42, 0.45);
+  color: var(--text-sub);
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    color 0.2s ease,
+    border-color 0.2s ease,
+    background-color 0.2s ease,
+    transform 0.2s ease;
+}
+
+.card-forum-search-btn:hover {
+  color: #c4b5fd;
+  border-color: rgba(167, 139, 250, 0.65);
+  background: rgba(76, 29, 149, 0.35);
+  transform: translateY(-1px);
+}
+
+.card-forum-search-icon {
+  display: block;
+  flex-shrink: 0;
+}
+
 .card-send-st-btn.has-sent {
   color: #bfdbfe;
   border-color: rgba(96, 165, 250, 0.68);
@@ -1470,6 +1502,17 @@ html.light-mode .card-send-st-btn {
   background: rgba(255, 255, 255, 0.85);
 }
 
+html.light-mode .card-forum-search-btn {
+  background: rgba(255, 255, 255, 0.85);
+  color: #475569;
+}
+
+html.light-mode .card-forum-search-btn:hover {
+  color: #6d28d9;
+  border-color: rgba(167, 139, 250, 0.7);
+  background: rgba(237, 233, 254, 0.95);
+}
+
 html.light-mode .card-send-st-btn.has-sent {
   color: #1d4ed8;
   border-color: rgba(59, 130, 246, 0.5);
@@ -1855,6 +1898,10 @@ html.light-mode .btn-note-preview:hover {
     padding: 0.25rem 0.35rem;
   }
   .card-local-note-btn {
+    width: 1.45rem;
+    height: 1.45rem;
+  }
+  .card-forum-search-btn {
     width: 1.45rem;
     height: 1.45rem;
   }

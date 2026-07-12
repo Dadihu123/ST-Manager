@@ -16,6 +16,7 @@ import {
 import { batchUpdateTags } from "../api/system.js";
 import { formatDate, getCardGridTokenBadgeClass } from "../utils/format.js";
 import { buildWindowedGridState } from "../utils/windowing.js";
+import { canPreviewForumThread } from "../utils/discordUrl.js";
 
 export default function cardGrid() {
   return {
@@ -446,6 +447,24 @@ export default function cardGrid() {
     openCardLocalNote(card) {
       if (!this.cardHasLocalNote(card)) return;
       this.openMarkdownView(card.ui_summary);
+    },
+
+    /** 来源链接可解析为类脑帖子 ID 时才显示搜索按钮 */
+    canOpenForumPreview(card) {
+      return canPreviewForumThread(card?.source_link);
+    },
+
+    openForumThreadPreview(card) {
+      if (!this.canOpenForumPreview(card)) return;
+      window.dispatchEvent(
+        new CustomEvent("open-forum-thread-preview", {
+          detail: {
+            card_id: card.id,
+            source_link: card.source_link || "",
+            card,
+          },
+        }),
+      );
     },
 
     formatCardBackDate(ts) {

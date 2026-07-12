@@ -1,0 +1,143 @@
+<!-- 类脑搜索站帖子只读预览（紧凑布局，底部预留操作区） -->
+<div
+  x-data="forumThreadPreview"
+  x-show="visible"
+  x-cloak
+  class="modal-overlay z-modal-popover forum-preview-overlay"
+  :class="$store.global.deviceType === 'mobile' ? 'forum-preview-overlay--mobile' : ''"
+  @click.self="close()"
+>
+  <div
+    class="forum-preview-panel"
+    :class="$store.global.deviceType === 'mobile' ? 'is-mobile' : ''"
+    role="dialog"
+    aria-modal="true"
+    aria-label="类脑搜索站预览"
+    @click.stop
+  >
+    <!-- 顶栏：作者 + 关闭 -->
+    <header class="forum-preview-header">
+      <div class="forum-preview-author">
+        <img
+          x-show="authorAvatar()"
+          class="forum-preview-avatar"
+          :src="authorAvatar()"
+          alt=""
+          loading="lazy"
+          referrerpolicy="no-referrer"
+        />
+        <div
+          x-show="!authorAvatar()"
+          class="forum-preview-avatar forum-preview-avatar--placeholder"
+        ></div>
+        <div class="forum-preview-author-meta">
+          <div class="forum-preview-author-name" x-text="authorName()"></div>
+          <div
+            class="forum-preview-thread-id"
+            x-show="thread?.thread_id"
+            x-text="'#' + (thread?.thread_id || '')"
+          ></div>
+        </div>
+      </div>
+      <button type="button" class="forum-preview-close" @click="close()" title="关闭">
+        ✕
+      </button>
+    </header>
+
+    <div class="forum-preview-body custom-scrollbar">
+      <template x-if="loading">
+        <div class="forum-preview-state">加载中…</div>
+      </template>
+
+      <template x-if="!loading && error">
+        <div class="forum-preview-state forum-preview-state--error" x-text="error"></div>
+      </template>
+
+      <template x-if="!loading && !error && thread">
+        <div class="forum-preview-content">
+          <!-- 元信息行 -->
+          <div class="forum-preview-stats">
+            <span :title="'创建 ' + formatTime(thread.created_at)">
+              📅 <span x-text="formatTime(thread.created_at)"></span>
+            </span>
+            <span :title="'活跃 ' + formatTime(thread.last_active_at)">
+              ⏱ <span x-text="formatTime(thread.last_active_at)"></span>
+            </span>
+            <span title="回复">💬 <span x-text="thread.reply_count ?? 0"></span></span>
+            <span title="反应">👍 <span x-text="thread.reaction_count ?? 0"></span></span>
+            <span title="浏览">👁 <span x-text="thread.display_count ?? 0"></span></span>
+          </div>
+
+          <h2 class="forum-preview-title" x-text="thread.title || '无标题'"></h2>
+
+          <!-- 标签 -->
+          <div class="forum-preview-tags" x-show="(thread.tags || []).length || (thread.virtual_tags || []).length">
+            <template x-for="(tag, idx) in (thread.tags || [])" :key="'t-' + idx + '-' + tag">
+              <span class="forum-preview-tag" x-text="'# ' + tag"></span>
+            </template>
+            <template x-for="(tag, idx) in (thread.virtual_tags || [])" :key="'v-' + idx + '-' + tag">
+              <span class="forum-preview-tag forum-preview-tag--virtual" x-text="'# ' + tag"></span>
+            </template>
+          </div>
+
+          <!-- 封面：单图无控件；多图显示走马灯 -->
+          <div class="forum-preview-cover-wrap" x-show="coverUrls().length">
+            <img
+              class="forum-preview-cover"
+              :src="coverUrl()"
+              alt=""
+              loading="lazy"
+              referrerpolicy="no-referrer"
+            />
+            <template x-if="hasMultipleCovers()">
+              <div class="forum-preview-carousel-controls">
+                <button
+                  type="button"
+                  class="forum-preview-carousel-nav forum-preview-carousel-nav--prev"
+                  @click.stop="prevCover()"
+                  title="上一张"
+                  aria-label="上一张"
+                >
+                  ‹
+                </button>
+                <button
+                  type="button"
+                  class="forum-preview-carousel-nav forum-preview-carousel-nav--next"
+                  @click.stop="nextCover()"
+                  title="下一张"
+                  aria-label="下一张"
+                >
+                  ›
+                </button>
+                <div class="forum-preview-carousel-dots" role="tablist" aria-label="封面分页">
+                  <template x-for="(url, idx) in coverUrls()" :key="'cover-dot-' + idx">
+                    <button
+                      type="button"
+                      class="forum-preview-carousel-dot"
+                      :class="{ 'is-active': coverIndex === idx }"
+                      @click.stop="goCover(idx)"
+                      :aria-label="'第 ' + (idx + 1) + ' 张'"
+                      :aria-selected="coverIndex === idx"
+                    ></button>
+                  </template>
+                </div>
+              </div>
+            </template>
+          </div>
+
+          <!-- 简介 -->
+          <section class="forum-preview-excerpt-section">
+            <h3 class="forum-preview-excerpt-label">简介</h3>
+            <div
+              class="forum-preview-excerpt custom-scrollbar"
+              x-html="excerptHtml()"
+            ></div>
+          </section>
+        </div>
+      </template>
+    </div>
+
+    <!-- 预留操作区（后续加按钮） -->
+    <footer class="forum-preview-footer" aria-hidden="true"></footer>
+  </div>
+</div>

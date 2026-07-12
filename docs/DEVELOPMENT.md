@@ -134,6 +134,7 @@ API 主要集中在 `core/api/v1/`，按资源域拆分：
 - `st_sync.py`：SillyTavern 探测、校验、同步、概览
 - `beautify.py`：主题美化库、壁纸、头像、变体、发送到 ST
 - `resources.py`：缩略图、资源文件、背景图、资源上传与删除
+- `forum.py`：类脑搜索站预览转发（`forum.shimmerday.top`）
 
 ### 4.2 服务层
 
