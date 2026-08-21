@@ -91,6 +91,33 @@ def test_fetch_thread_preview_success(monkeypatch):
     assert captured['headers']['Cookie'] == 'session=abc'
 
 
+def test_resolve_source_link_uses_bundle_directory_key(monkeypatch):
+    class _Cache:
+        id_map = {
+            'bundle/variant.json': {
+                'id': 'bundle/variant.json',
+                'source_link': '',
+            },
+        }
+        bundle_map = {'bundle': 'bundle/cover.json'}
+
+    from core.services import card_service
+
+    monkeypatch.setattr(card_service, 'ctx', type('Context', (), {'cache': _Cache()})())
+    monkeypatch.setattr(
+        'core.data.ui_store.load_ui_data',
+        lambda: {
+            'bundle': {
+                'link': 'https://discord.com/channels/1/1525005842158714991',
+            },
+        },
+    )
+
+    assert shimmerday_forum_service._resolve_source_link(
+        card_id='bundle/variant.json'
+    ) == 'https://discord.com/channels/1/1525005842158714991'
+
+
 def test_api_forum_thread_preview_endpoint(monkeypatch):
     app = Flask(__name__)
     app.register_blueprint(forum_api.bp)

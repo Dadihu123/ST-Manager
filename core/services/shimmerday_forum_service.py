@@ -101,7 +101,11 @@ def fetch_thread_preview(source_link=None, card_id=None, timeout=DEFAULT_TIMEOUT
 
 
 def _resolve_source_link(source_link=None, card_id=None):
-    """优先用显式链接，否则从缓存 / ui_data 读取。"""
+    """优先用显式链接，否则从缓存 / ui_data 读取。
+
+    Bundle 的 link 保存在 bundle 目录键下，而不是每个版本的卡片 ID
+    下；因此按 card_id 回查时需要先解析对应的 UI key。
+    """
     link = str(source_link or '').strip()
     if link:
         return link
@@ -112,22 +116,41 @@ def _resolve_source_link(source_link=None, card_id=None):
 
     try:
         from core.context import ctx
+        from core.services.card_service import resolve_ui_key
 
         card = ctx.cache.id_map.get(cid) if ctx.cache else None
         if isinstance(card, dict):
             cached_link = str(card.get('source_link') or '').strip()
             if cached_link:
                 return cached_link
+
+        # Bundle 聚合卡和 Bundle 版本分别使用不同的 card_id，统一解析到
+        # bundle 目录键后再读取全局 link。
+        resolved_ui_key = resolve_ui_key(cid)
     except Exception as exc:
         logger.warning('读取卡片缓存来源链接失败: %s', exc)
+        resolved_ui_key = ''
 
     try:
         from core.data.ui_store import load_ui_data
 
         ui_data = load_ui_data()
-        entry = ui_data.get(cid) if isinstance(ui_data, dict) else None
-        if isinstance(entry, dict):
-            return str(entry.get('link') or '').strip()
+        if not isinstance(ui_data, dict):
+            return ''
+
+        # 保留 cid 作为回退，兼容普通卡片和历史数据。
+        candidate_keys = []
+        if resolved_ui_key:
+            candidate_keys.append(resolved_ui_key)
+        if cid not in candidate_keys:
+            candidate_keys.append(cid)
+
+        for key in candidate_keys:
+            entry = ui_data.get(key)
+            if isinstance(entry, dict):
+                link = str(entry.get('link') or '').strip()
+                if link:
+                    return link
     except Exception as exc:
         logger.warning('读取 ui_data 来源链接失败: %s', exc)
 
