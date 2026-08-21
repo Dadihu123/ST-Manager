@@ -656,7 +656,20 @@ def _serialize_all_folders(visible_folders):
     return [f['path'] for f in sorted([{'path': p} for p in safe_folders], key=lambda x: x['path'])]
 
 
-def _build_list_cards_tag_metadata(candidates, ui_data_for_order):
+def _build_isolated_exclusive_tags(isolated_paths):
+    """计算仅出现在隔离分类卡片上的标签集合（与可见卡片共享的标签保留）。"""
+    isolated_tags = set()
+    visible_tags = set()
+    for card in ctx.cache.cards:
+        card_tags = set(card.get('tags') or [])
+        if _should_hide_card_from_view(card.get('category', ''), '', isolated_paths):
+            isolated_tags |= card_tags
+        else:
+            visible_tags |= card_tags
+    return isolated_tags - visible_tags
+
+
+def _build_list_cards_tag_metadata(candidates, ui_data_for_order, isolated_paths=None):
     sidebar_tags_set = set()
     for card in candidates:
         for tag in card.get('tags', []):
@@ -665,12 +678,16 @@ def _build_list_cards_tag_metadata(candidates, ui_data_for_order):
     persisted_tag_order = _get_tag_order(ui_data_for_order)
     use_custom_tag_order = _is_tag_order_enabled(ui_data_for_order)
 
+    global_tag_set = set(ctx.cache.global_tags or [])
+    if isolated_paths:
+        global_tag_set -= _build_isolated_exclusive_tags(isolated_paths)
+
     if use_custom_tag_order:
         sidebar_tags = _apply_tag_order(list(sidebar_tags_set), persisted_tag_order)
-        global_tags = _apply_tag_order(ctx.cache.global_tags or [], persisted_tag_order)
+        global_tags = _apply_tag_order(list(global_tag_set), persisted_tag_order)
     else:
         sidebar_tags = sorted(list(sidebar_tags_set), key=lambda x: str(x).lower())
-        global_tags = sorted(list(ctx.cache.global_tags or []), key=lambda x: str(x).lower())
+        global_tags = sorted(list(global_tag_set), key=lambda x: str(x).lower())
 
     tag_taxonomy = get_tag_taxonomy(ui_data_for_order)
     sidebar_tag_groups = _build_tag_groups(sidebar_tags, tag_taxonomy)
@@ -916,7 +933,7 @@ def api_list_cards():
                 is_recursive,
                 isolated_paths,
             )
-            tag_metadata = _build_list_cards_tag_metadata(metadata_candidates, ui_data_for_order)
+            tag_metadata = _build_list_cards_tag_metadata(metadata_candidates, ui_data_for_order, isolated_paths)
             return jsonify({
                 'cards': indexed['cards'],
                 'global_tags': tag_metadata['global_tags'],
@@ -987,7 +1004,7 @@ def api_list_cards():
 
     # === 在应用“搜索”和“标签”过滤之前，先计算当前分类下的标签池 ===
     # 这样标签池就只受“文件夹/分类”影响，而不会被“选中的标签”把自己给过滤没了
-    tag_metadata = _build_list_cards_tag_metadata(candidates, ui_data_for_order)
+    tag_metadata = _build_list_cards_tag_metadata(candidates, ui_data_for_order, isolated_paths)
 
     if search_scope != 'full':
         if fav_filter == 'included':

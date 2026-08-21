@@ -1223,6 +1223,56 @@
               ⚠️ 认证信息仅保存在本地，不会上传到任何服务器。
             </div>
           </div>
+
+          <div class="settings-group-title mt-8">
+            类脑搜索站预览
+          </div>
+          <div
+            class="settings-row p-4 rounded border border-[var(--border-light)] bg-[var(--bg-sub)]"
+          >
+            <div class="settings-label text-indigo-400 mb-2 block">
+              🍪 类脑 Cookie
+            </div>
+            <div class="settings-desc mb-3">
+              用于卡片「类脑搜索」预览类脑搜索站帖子详情。与上方 Discord
+              标签抓取 Cookie 相互独立。
+            </div>
+            <label class="text-xs text-[var(--text-dim)] uppercase"
+              >shimmerday_forum_cookie</label
+            >
+            <div class="flex gap-2 mt-1">
+              <div class="flex-1 relative">
+                <textarea
+                  x-model="settingsForm.shimmerday_forum_cookie"
+                  class="form-input w-full pr-10"
+                  rows="3"
+                  :style="showShimmerdayCookie ? '' : '-webkit-text-security: disc;'"
+                  placeholder="粘贴类脑镜像站浏览器 Cookie"
+                ></textarea>
+                <button
+                  @click="showShimmerdayCookie = !showShimmerdayCookie"
+                  class="absolute right-2 top-2 text-gray-400 hover:text-gray-200"
+                  type="button"
+                >
+                  <span x-text="showShimmerdayCookie ? '🙈' : '👁️'"></span>
+                </button>
+              </div>
+            </div>
+            <div class="text-xs text-[var(--text-dim)] mt-2 space-y-1">
+              <p>
+                1. 浏览器打开并登录
+                <a
+                  href="https://odysseia-forum-webpage.pages.dev/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="text-blue-400 hover:underline"
+                  >https://odysseia-forum-webpage.pages.dev/</a
+                >
+              </p>
+              <p>2. F12 → Network，刷新页面，找到站点请求</p>
+              <p>3. 复制 Request Headers 中的完整 Cookie 字符串并粘贴到上方</p>
+            </div>
+          </div>
         </div>
 
         <!-- TAB 4: 维护与高级 (Maintenance) -->

@@ -36,6 +36,7 @@ export default function settingsModal() {
     // Discord 认证显示状态
     showDiscordToken: false,
     showDiscordCookie: false,
+    showShimmerdayCookie: false,
 
     // 帮助模态框状态
     showSettingsHelpModal: false,

@@ -30,6 +30,7 @@ import batchImportModal from "./components/batchImportModal.js";
 import automationModal from "./components/automationModal.js";
 import moveCardsModal from "./components/moveCardsModal.js";
 import executeRulesMobileModal from "./components/executeRulesMobileModal.js";
+import forumThreadPreview from "./components/forumThreadPreview.js";
 import extensionGrid from "./components/extensionGrid.js";
 import presetGrid from "./components/presetGrid.js";
 import presetDetailReader from "./components/presetDetailReader.js";
@@ -67,6 +68,7 @@ const registerComponents = () => {
   Alpine.data("automationModal", automationModal);
   Alpine.data("moveCardsModal", moveCardsModal);
   Alpine.data("executeRulesMobileModal", executeRulesMobileModal);
+  Alpine.data("forumThreadPreview", forumThreadPreview);
   Alpine.data("extensionGrid", extensionGrid);
   Alpine.data("presetGrid", presetGrid);
   Alpine.data("presetDetailReader", presetDetailReader);

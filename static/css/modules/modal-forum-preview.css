@@ -1,0 +1,316 @@
+/* 类脑搜索站帖子预览弹层 — 紧凑、贴合项目变量 */
+
+.forum-preview-overlay {
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.forum-preview-panel {
+  width: min(36rem, 100%);
+  max-height: min(88vh, 52rem);
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-light);
+  border-radius: 0.75rem;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+}
+
+.forum-preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.65rem 0.85rem;
+  background: var(--bg-item);
+  border-bottom: 1px solid var(--border-light);
+  flex-shrink: 0;
+}
+
+.forum-preview-author {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-width: 0;
+}
+
+.forum-preview-avatar {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: var(--bg-sub);
+  border: 1px solid var(--border-light);
+}
+
+.forum-preview-avatar--placeholder {
+  background: color-mix(in srgb, var(--accent-main), transparent 70%);
+}
+
+.forum-preview-author-meta {
+  min-width: 0;
+}
+
+.forum-preview-author-name {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.forum-preview-thread-id {
+  font-size: 0.68rem;
+  color: var(--text-dim);
+  margin-top: 0.05rem;
+}
+
+.forum-preview-close {
+  appearance: none;
+  border: 1px solid var(--border-light);
+  background: transparent;
+  color: var(--text-sub);
+  width: 1.7rem;
+  height: 1.7rem;
+  border-radius: 0.4rem;
+  cursor: pointer;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.forum-preview-close:hover {
+  color: var(--text-main);
+  background: var(--bg-sub);
+}
+
+.forum-preview-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 0.75rem 0.9rem 0.5rem;
+}
+
+.forum-preview-state {
+  padding: 2rem 1rem;
+  text-align: center;
+  color: var(--text-dim);
+  font-size: 0.85rem;
+}
+
+.forum-preview-state--error {
+  color: var(--text-warn, #fbbf24);
+}
+
+.forum-preview-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem 0.75rem;
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  margin-bottom: 0.55rem;
+}
+
+.forum-preview-title {
+  margin: 0 0 0.55rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--text-main);
+}
+
+.forum-preview-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-bottom: 0.65rem;
+}
+
+.forum-preview-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.12rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  background: var(--bg-sub);
+  color: var(--text-sub);
+  border: 1px solid var(--border-light);
+}
+
+.forum-preview-tag--virtual {
+  background: color-mix(in srgb, var(--accent-main), transparent 82%);
+  color: color-mix(in srgb, var(--accent-main), #ffffff 35%);
+  border-color: color-mix(in srgb, var(--accent-main), transparent 55%);
+}
+
+.forum-preview-cover-wrap {
+  position: relative;
+  margin-bottom: 0.65rem;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  border: 1px solid var(--border-light);
+  background: var(--bg-sub);
+}
+
+.forum-preview-cover {
+  display: block;
+  width: 100%;
+  max-height: 20rem;
+  object-fit: cover;
+}
+
+/* 多图走马灯：仅 hasMultipleCovers 时渲染 */
+.forum-preview-carousel-controls {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.forum-preview-carousel-nav {
+  pointer-events: auto;
+  appearance: none;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 1.85rem;
+  height: 1.85rem;
+  border-radius: 999px;
+  border: none;
+  background: rgba(15, 23, 42, 0.55);
+  color: #fff;
+  font-size: 1.25rem;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 1;
+}
+
+.forum-preview-carousel-nav:hover {
+  background: rgba(15, 23, 42, 0.78);
+}
+
+.forum-preview-carousel-nav--prev {
+  left: 0.45rem;
+}
+
+.forum-preview-carousel-nav--next {
+  right: 0.45rem;
+}
+
+.forum-preview-carousel-dots {
+  pointer-events: auto;
+  position: absolute;
+  left: 50%;
+  bottom: 0.45rem;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  z-index: 1;
+}
+
+.forum-preview-carousel-dot {
+  appearance: none;
+  border: none;
+  padding: 0;
+  width: 0.38rem;
+  height: 0.38rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.55);
+  cursor: pointer;
+  transition:
+    width 0.15s ease,
+    background-color 0.15s ease;
+}
+
+.forum-preview-carousel-dot.is-active {
+  width: 1rem;
+  background: var(--accent-main, #60a5fa);
+}
+
+.forum-preview-excerpt-label {
+  margin: 0 0 0.35rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.forum-preview-excerpt {
+  max-height: 16rem;
+  overflow: auto;
+  padding: 0.55rem 0.65rem;
+  border-radius: 0.45rem;
+  background: var(--bg-item);
+  border: 1px solid var(--border-light);
+  font-size: 0.78rem;
+  line-height: 1.55;
+  color: var(--text-sub);
+}
+
+.forum-preview-excerpt p {
+  margin: 0 0 0.55em;
+}
+
+.forum-preview-excerpt p:last-child {
+  margin-bottom: 0;
+}
+
+.forum-preview-excerpt-plain {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: inherit;
+  font-size: inherit;
+}
+
+.forum-preview-empty {
+  margin: 0;
+  color: var(--text-dim);
+}
+
+/* 预留操作区高度，后续加按钮不改布局跳动 */
+.forum-preview-footer {
+  flex-shrink: 0;
+  min-height: 2.4rem;
+  border-top: 1px solid var(--border-light);
+  background: var(--bg-item);
+}
+
+html.light-mode .forum-preview-panel {
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.12);
+}
+
+/* 移动端：与预设阅读器等弹窗一致，高度占满视口 */
+.forum-preview-overlay.forum-preview-overlay--mobile {
+  align-items: stretch;
+  justify-content: stretch;
+  padding: 0;
+}
+
+.forum-preview-panel.is-mobile {
+  width: 100%;
+  max-width: none;
+  height: 100vh;
+  height: 100dvh;
+  height: var(--app-viewport-height-safe, var(--app-viewport-height, 100dvh));
+  min-height: var(--app-viewport-height-safe, var(--app-viewport-height, 100dvh));
+  max-height: none;
+  border-radius: 0;
+  border-left: none;
+  border-right: none;
+  box-shadow: none;
+}
+
+.forum-preview-panel.is-mobile .forum-preview-cover {
+  max-height: 16rem;
+}
+
+.forum-preview-panel.is-mobile .forum-preview-excerpt {
+  /* 全屏时由 body 统一滚动，简介不再单独限高 */
+  max-height: none;
+}

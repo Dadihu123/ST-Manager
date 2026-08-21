@@ -24,13 +24,13 @@ def _write_ui_data(ui_path: Path, payload):
     ui_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding='utf-8')
 
 
-def _make_card(card_id, category, char_name):
+def _make_card(card_id, category, char_name, tags=None):
     return {
         'id': card_id,
         'category': category,
         'char_name': char_name,
         'filename': card_id.split('/')[-1],
-        'tags': [],
+        'tags': list(tags or []),
         'is_favorite': False,
         'ui_summary': '',
         'last_modified': 100.0,
@@ -221,3 +221,25 @@ def test_list_cards_self_view_restores_isolated_search_results(monkeypatch, tmp_
     payload = res.get_json()
     assert [item['id'] for item in payload['cards']] == ['base/iso/x.png']
     assert payload['isolated_categories']['paths'] == ['base/iso']
+
+
+def test_list_cards_global_tags_excludes_isolated_exclusive_tags(monkeypatch, tmp_path):
+    ui_path = tmp_path / 'ui_data.json'
+    _write_ui_data(ui_path, {'_isolated_categories_v1': {'paths': ['base/iso'], 'updated_at': 1}})
+    monkeypatch.setattr(ui_store_module, 'UI_DATA_FILE', str(ui_path))
+    fake_cache = _install_fake_cache(
+        monkeypatch,
+        [
+            _make_card('base/a.png', 'base', 'Base A', tags=['public', 'shared']),
+            _make_card('base/iso/x.png', 'base/iso', 'Iso X', tags=['secret', 'shared']),
+        ],
+    )
+    fake_cache.global_tags = {'public', 'shared', 'secret'}
+
+    client = _make_test_app().test_client()
+    res = client.get('/api/list_cards?page=1&page_size=20')
+
+    assert res.status_code == 200
+    payload = res.get_json()
+    assert set(payload['global_tags']) == {'public', 'shared'}
+    assert payload['global_tag_groups']
