@@ -66,6 +66,7 @@ export default function detailModal() {
         saveOldCoverOnSwap: false,      // 皮肤换封时是否保留旧图
         dragOverUpdate: false,
         dragOverResource: false,
+        dragOverCardChats: false,
         showHelpModal: false,
         mixedCategoryView: true,
         detailCategoryFilterInclude: [],
@@ -627,6 +628,41 @@ export default function detailModal() {
             }
         },
 
+        getCardChatImportPayload() {
+            const card = this.activeCard || {};
+            return {
+                cardId: card.is_bundle ? (card.bundle_dir || card.id) : card.id,
+                characterName: this.editingData.char_name || card.char_name || '',
+            };
+        },
+
+        uploadCardChatFiles(files) {
+            const fileList = Array.from(files || []);
+            if (fileList.length === 0) return;
+
+            if (typeof window.stUploadChatFiles !== 'function') {
+                alert('聊天网格尚未准备好，稍后再试一次。');
+                return;
+            }
+
+            window.stUploadChatFiles(fileList, this.getCardChatImportPayload());
+        },
+
+        handleCardChatDrop(e) {
+            this.dragOverCardChats = false;
+            this.uploadCardChatFiles(e?.dataTransfer?.files || []);
+        },
+
+        handleCardChatInputChange(e) {
+            const input = e?.target;
+
+            try {
+                this.uploadCardChatFiles(input?.files || []);
+            } finally {
+                if (input) input.value = '';
+            }
+        },
+
         async uploadSingleResource(file) {
             const formData = new FormData();
             formData.append('card_id', this.editingData.id);
@@ -1010,18 +1046,20 @@ export default function detailModal() {
         },
 
         triggerChatImportForCard() {
-            if (!window.stUploadChatFiles) {
+            if (typeof window.stUploadChatFiles !== 'function') {
                 alert('聊天网格尚未准备好，稍后再试一次。');
+                return;
+            }
+
+            if (this.$refs?.cardChatImportInput) {
+                this.$refs.cardChatImportInput.click();
                 return;
             }
 
             window.dispatchEvent(new CustomEvent('open-chat-file-picker', {
                 detail: {
                     mode: 'card',
-                    payload: {
-                        cardId: this.activeCard?.is_bundle ? (this.activeCard.bundle_dir || this.activeCard.id) : this.activeCard.id,
-                        characterName: this.editingData.char_name || this.activeCard.char_name || '',
-                    }
+                    payload: this.getCardChatImportPayload(),
                 }
             }));
         },

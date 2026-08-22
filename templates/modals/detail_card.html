@@ -1911,6 +1911,41 @@
                   </div>
                 </div>
 
+                <div
+                  class="detail-chat-dropzone"
+                  :class="dragOverCardChats ? 'is-drag-over' : ''"
+                  role="button"
+                  tabindex="0"
+                  aria-label="点击或拖拽批量导入聊天记录"
+                  @dragenter.prevent.stop="dragOverCardChats = true"
+                  @dragover.prevent.stop="dragOverCardChats = true"
+                  @dragleave.prevent.stop="dragOverCardChats = false"
+                  @drop.prevent.stop="handleCardChatDrop($event)"
+                  @click="triggerChatImportForCard()"
+                  @keydown.enter.prevent="triggerChatImportForCard()"
+                  @keydown.space.prevent="triggerChatImportForCard()"
+                >
+                  <input
+                    type="file"
+                    x-ref="cardChatImportInput"
+                    class="hidden"
+                    multiple
+                    accept=".jsonl"
+                    @click.stop
+                    @change="handleCardChatInputChange($event)"
+                  />
+                  <div class="detail-chat-dropzone-icon" aria-hidden="true">📥</div>
+                  <div class="detail-chat-dropzone-copy">
+                    <div
+                      class="detail-chat-dropzone-title"
+                      x-text="dragOverCardChats ? '松开鼠标导入聊天记录' : '点击或拖拽批量导入聊天'"
+                    ></div>
+                    <div class="detail-chat-dropzone-note">
+                      支持多个 SillyTavern <code>.jsonl</code> 文件，会自动绑定到当前角色卡
+                    </div>
+                  </div>
+                </div>
+
                 <div x-show="cardChatsLoading" class="detail-chat-loading">
                   正在加载聊天记录...
                 </div>
