@@ -3567,18 +3567,30 @@ def api_get_card_detail():
 @bp.route('/api/delete_tags', methods=['POST'])
 def api_delete_tags():
     try:
-        # 会写很多 PNG metadata
+        # 会写很多 PNG/JSON metadata
         suppress_fs_events(10.0)
 
-        tags_to_delete = request.json.get("tags", [])
-        target_category = request.json.get("category", "")
-        if not tags_to_delete:
-            return jsonify({"success": False, "msg": "未选择要删除的标签"})
+        payload = request.get_json(silent=True)
+        if payload is None:
+            payload = {}
+        if not isinstance(payload, dict):
+            return jsonify({"success": False, "msg": "请求体必须是 JSON 对象"}), 400
+        tags_to_delete = payload.get("tags", [])
+        target_category = str(payload.get("category", "") or "").strip()
+        if isinstance(tags_to_delete, str):
+            tags_to_delete = [tags_to_delete]
+        if not isinstance(tags_to_delete, (list, tuple, set)):
+            return jsonify({"success": False, "msg": "标签参数必须是列表"}), 400
 
-        tags_to_delete_set = set(str(t).strip() for t in tags_to_delete if str(t).strip())
+        tags_to_delete_set = set(_normalize_tag_list(tags_to_delete))
+        if not tags_to_delete_set:
+            return jsonify({"success": False, "msg": "未选择要删除的标签"})
 
         updated_cards = 0
         affected_tags = set()
+        changed_cards = []
+        failed_cards = []
+        cache_sync_errors = []
 
         conn = get_db()
         cursor = conn.cursor()
@@ -3597,47 +3609,36 @@ def api_delete_tags():
 
         for root, dirs, files in os.walk(scan_root):
             for file in files:
-                if not file.lower().endswith('.png'):
+                if not is_card_file(file):
                     continue
 
                 full_path = os.path.join(root, file)
-                info = extract_card_info(full_path)
+                rel_path = os.path.relpath(full_path, CARDS_FOLDER).replace('\\', '/')
+                card_id = rel_path
+                try:
+                    info = extract_card_info(full_path)
+                except Exception:
+                    logger.exception("读取角色卡元数据失败: %s", card_id)
+                    info = None
                 if not info or not isinstance(info, dict):
+                    failed_cards.append({
+                        "id": card_id,
+                        "reason": "角色卡元数据读取失败",
+                    })
                     continue
 
                 # card_id 用于更新 DB / cache（统一斜杠）
-                rel_path = os.path.relpath(full_path, CARDS_FOLDER).replace('\\', '/')
-                card_id = rel_path
-
                 # 兼容 V2/V3：确定写入的 data block
                 is_v3 = isinstance(info.get("data"), dict)
                 data_block = info["data"] if is_v3 else info
 
-                card_tags = data_block.get("tags") or []
-                if isinstance(card_tags, str):
-                    card_tags = [t.strip() for t in card_tags.split(',') if t.strip()]
-                elif card_tags is None:
-                    card_tags = []
+                card_tags = _normalize_tag_list(data_block.get("tags") or [])
 
-                # 保持原顺序删除 + 去重（可选，但建议）
-                seen = set()
-                new_tags = []
-                for t in card_tags:
-                    ts = str(t).strip()
-                    if not ts:
-                        continue
-                    if ts in tags_to_delete_set:
-                        continue
-                    if ts in seen:
-                        continue
-                    seen.add(ts)
-                    new_tags.append(ts)
+                # 保持原顺序删除并去重
+                new_tags = [tag for tag in card_tags if tag not in tags_to_delete_set]
 
                 if new_tags == card_tags:
                     continue
-
-                # 记录影响到的标签
-                affected_tags |= (set(str(t).strip() for t in card_tags if str(t).strip()) & tags_to_delete_set)
 
                 # === 关键：只写回 data_block，不污染顶层 ===
                 data_block["tags"] = new_tags
@@ -3646,6 +3647,10 @@ def api_delete_tags():
 
                 ok = write_card_metadata(full_path, info)
                 if not ok:
+                    failed_cards.append({
+                        "id": card_id,
+                        "reason": "角色卡元数据写入失败",
+                    })
                     continue
 
                 try:
@@ -3654,6 +3659,8 @@ def api_delete_tags():
                     pass
 
                 updated_cards += 1
+                affected_tags |= set(card_tags) & tags_to_delete_set
+                changed_cards.append((card_id, full_path))
 
                 # === 同步 DB（列表来自 DB，不同步就会“删了但列表不变”）===
                 cursor.execute(
@@ -3662,36 +3669,90 @@ def api_delete_tags():
                 )
 
                 # === 同步内存缓存（如果这张卡在轻量缓存里）===
-                ctx.cache.update_tags_update(card_id, new_tags)
+                cache = getattr(ctx, 'cache', None)
+                if cache is not None:
+                    try:
+                        update_tags = getattr(cache, 'update_tags_update', None)
+                        if callable(update_tags):
+                            update_tags(card_id, new_tags)
 
-                if card_id in ctx.cache.id_map:
-                    ctx.cache.id_map[card_id]['last_modified'] = current_time
-                    ctx.cache.id_map[card_id]['tags'] = new_tags
+                        id_map = getattr(cache, 'id_map', {})
+                        if card_id in id_map:
+                            id_map[card_id]['last_modified'] = current_time
+                            id_map[card_id]['tags'] = new_tags
+                    except Exception as exc:
+                        logger.exception("标签删除后同步缓存失败: %s", card_id)
+                        cache_sync_errors.append({
+                            "id": card_id,
+                            "reason": str(exc),
+                        })
 
         conn.commit()
 
-        # 清理持久化标签顺序中已删除项
+        # 同步卡片索引。标签删除只影响卡片实体，不需要重建嵌入世界书索引。
+        index_sync_errors = []
+        for card_id, full_path in changed_cards:
+            try:
+                sync_card_index_jobs(
+                    card_id=card_id,
+                    source_path=full_path,
+                    tags_changed=True,
+                )
+                _apply_card_index_increment_now(card_id, full_path)
+            except Exception as exc:
+                logger.exception("标签删除后同步索引失败: %s", card_id)
+                index_sync_errors.append({
+                    "id": card_id,
+                    "reason": str(exc),
+                })
+
+        # 先重载缓存，确保分类范围删除不会把仍存在于其他分类的标签从全局配置中移除。
+        try:
+            force_reload(reason="delete_tags")
+        except Exception:
+            logger.exception("标签删除后立即重载缓存失败")
+            schedule_reload(reason="delete_tags")
+
+        remaining_tags = set()
+        try:
+            rows = cursor.execute("SELECT tags FROM card_metadata").fetchall()
+            for row in rows:
+                raw_tags = row[0] if not hasattr(row, 'keys') else row['tags']
+                try:
+                    remaining_tags.update(_normalize_tag_list(json.loads(raw_tags or '[]')))
+                except (TypeError, ValueError, json.JSONDecodeError):
+                    continue
+        except Exception:
+            logger.warning("无法读取剩余标签，跳过全局标签配置清理", exc_info=True)
+
+        cache = getattr(ctx, 'cache', None)
+        remaining_tags.update(_normalize_tag_list(getattr(cache, 'global_tags', [])))
+        fully_removed_tags = tags_to_delete_set - remaining_tags
+
+        # 只清理全库已经不存在的标签，避免按分类删除时误删全局排序/分类配置。
         ui_data = load_ui_data()
         current_order = _get_tag_order(ui_data)
-        next_order = [t for t in current_order if t not in tags_to_delete_set]
+        next_order = [t for t in current_order if t not in fully_removed_tags]
         if next_order != current_order:
             _set_tag_order(ui_data, next_order)
 
-        remove_tags_from_tag_taxonomy(ui_data, tags_to_delete_set)
+        remove_tags_from_tag_taxonomy(ui_data, fully_removed_tags)
 
         # 如果你有 ui_data['all_tags'] 这种历史字段，可以保留原逻辑；没有也不会影响
         if isinstance(ui_data, dict) and 'all_tags' in ui_data and isinstance(ui_data['all_tags'], list):
-            ui_data['all_tags'] = [tag for tag in ui_data['all_tags'] if tag not in tags_to_delete_set]
+            ui_data['all_tags'] = [tag for tag in ui_data['all_tags'] if tag not in fully_removed_tags]
         save_ui_data(ui_data)
-
-        # 尤其有 bundle 聚合显示时），可以触发一次 reload
-        schedule_reload(reason="delete_tags")
 
         return jsonify({
             "success": True,
             "updated_cards": updated_cards,
             "deleted_tags": sorted(list(affected_tags)),
-            "total_tags_deleted": len(affected_tags)
+            "total_tags_deleted": len(affected_tags),
+            "changed_card_ids": [card_id for card_id, _ in changed_cards],
+            "failed_cards": failed_cards,
+            "cache_sync_errors": cache_sync_errors,
+            "index_sync_errors": index_sync_errors,
+            "partial_failure": bool(failed_cards or cache_sync_errors or index_sync_errors),
         })
 
     except Exception as e:

@@ -300,6 +300,215 @@ def test_build_tag_groups_applies_category_tag_order_within_each_group():
     ]
 
 
+def test_api_delete_tags_updates_png_and_json_cards_and_syncs_indexes(monkeypatch, tmp_path):
+    cards_dir = tmp_path / 'cards'
+    cards_dir.mkdir()
+    (cards_dir / 'hero.json').write_text('{}', encoding='utf-8')
+    (cards_dir / 'portrait.png').write_bytes(b'png-placeholder')
+
+    card_infos = {
+        'hero.json': {'data': {'tags': ['remove-me', 'keep-json']}},
+        'portrait.png': {'data': {'tags': ['remove-me', 'keep-png']}},
+    }
+    db_tags = {
+        'hero.json': ['remove-me', 'keep-json'],
+        'portrait.png': ['remove-me', 'keep-png'],
+    }
+    db_updates = []
+    cache_updates = []
+    index_sync_calls = []
+
+    class _FakeCursor:
+        def execute(self, sql, params=()):
+            if sql.startswith('UPDATE card_metadata SET tags = '):
+                tags_json, _mtime, card_id = params
+                db_tags[card_id] = json.loads(tags_json)
+                db_updates.append((card_id, db_tags[card_id]))
+            return self
+
+        def fetchall(self):
+            return [(json.dumps(tags),) for tags in db_tags.values()]
+
+    class _FakeConn:
+        def __init__(self):
+            self.cursor_obj = _FakeCursor()
+
+        def cursor(self):
+            return self.cursor_obj
+
+        def commit(self):
+            return None
+
+    class _FakeCache:
+        def __init__(self):
+            self.id_map = {
+                card_id: {'tags': list(tags), 'last_modified': 0}
+                for card_id, tags in db_tags.items()
+            }
+            self.global_tags = ['keep-json', 'keep-png', 'remove-me']
+
+        def update_tags_update(self, card_id, tags):
+            cache_updates.append((card_id, list(tags)))
+            self.id_map[card_id]['tags'] = list(tags)
+            self.global_tags = sorted({tag for item in self.id_map.values() for tag in item['tags']})
+
+    fake_cache = _FakeCache()
+
+    monkeypatch.setattr(cards_api, 'CARDS_FOLDER', str(cards_dir))
+    monkeypatch.setattr(cards_api, 'suppress_fs_events', lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(cards_api, 'get_db', lambda: _FakeConn())
+    monkeypatch.setattr(
+        cards_api,
+        'extract_card_info',
+        lambda path: card_infos[Path(path).name],
+    )
+    monkeypatch.setattr(cards_api, 'write_card_metadata', lambda *_args, **_kwargs: True)
+    monkeypatch.setattr(cards_api, 'load_ui_data', lambda: {})
+    monkeypatch.setattr(cards_api, 'save_ui_data', lambda _payload: None)
+    monkeypatch.setattr(cards_api, 'force_reload', lambda **_kwargs: None)
+    monkeypatch.setattr(cards_api, 'sync_card_index_jobs', lambda **kwargs: index_sync_calls.append(kwargs))
+    monkeypatch.setattr(cards_api, '_apply_card_index_increment_now', lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(cards_api.ctx, 'cache', fake_cache, raising=False)
+
+    client = _make_test_app().test_client()
+    response = client.post('/api/delete_tags', json={'tags': ['remove-me']})
+
+    assert response.status_code == 200
+    body = response.get_json()
+    assert body['success'] is True
+    assert body['updated_cards'] == 2
+    assert body['deleted_tags'] == ['remove-me']
+    assert body['changed_card_ids'] == ['hero.json', 'portrait.png']
+    assert body['failed_cards'] == []
+    assert body['cache_sync_errors'] == []
+    assert body['index_sync_errors'] == []
+    assert body['partial_failure'] is False
+    assert db_tags == {
+        'hero.json': ['keep-json'],
+        'portrait.png': ['keep-png'],
+    }
+    assert {card_id for card_id, _tags in cache_updates} == {'hero.json', 'portrait.png'}
+    assert [call['card_id'] for call in index_sync_calls] == ['hero.json', 'portrait.png']
+    assert all(call['tags_changed'] is True for call in index_sync_calls)
+
+
+def test_api_delete_tags_keeps_taxonomy_when_tag_remains_outside_category(monkeypatch, tmp_path):
+    cards_dir = tmp_path / 'cards'
+    nested_dir = cards_dir / 'nested'
+    nested_dir.mkdir(parents=True)
+    (cards_dir / 'root.json').write_text('{}', encoding='utf-8')
+    (nested_dir / 'nested.json').write_text('{}', encoding='utf-8')
+
+    card_infos = {
+        'root.json': {'data': {'tags': ['shared', 'root-only']}},
+        'nested.json': {'data': {'tags': ['shared', 'nested-only']}},
+    }
+    saved_ui = {}
+
+    class _FakeCursor:
+        def execute(self, _sql, _params=()):
+            return self
+
+        def fetchall(self):
+            return [(json.dumps(['shared']),), (json.dumps(['nested-only']),)]
+
+    class _FakeConn:
+        def cursor(self):
+            return _FakeCursor()
+
+        def commit(self):
+            return None
+
+    class _FakeCache:
+        id_map = {}
+        global_tags = ['nested-only', 'shared']
+
+        def update_tags_update(self, _card_id, _tags):
+            return None
+
+    ui_data = {
+        '_tag_order_v1': {'order': ['shared', 'root-only'], 'enabled': True},
+        '_tag_taxonomy_v1': {
+            'default_category': 'General',
+            'categories': {'General': {'color': '#123456', 'opacity': 20}},
+            'tag_to_category': {'shared': 'General', 'root-only': 'General'},
+        },
+    }
+
+    monkeypatch.setattr(cards_api, 'CARDS_FOLDER', str(cards_dir))
+    monkeypatch.setattr(cards_api, 'suppress_fs_events', lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(cards_api, 'get_db', lambda: _FakeConn())
+    monkeypatch.setattr(cards_api, 'extract_card_info', lambda path: card_infos[Path(path).name])
+    monkeypatch.setattr(cards_api, 'write_card_metadata', lambda *_args, **_kwargs: True)
+    monkeypatch.setattr(cards_api, 'load_ui_data', lambda: ui_data)
+    monkeypatch.setattr(cards_api, 'save_ui_data', lambda payload: saved_ui.update(payload))
+    monkeypatch.setattr(cards_api, 'force_reload', lambda **_kwargs: None)
+    monkeypatch.setattr(cards_api, 'sync_card_index_jobs', lambda **_kwargs: None)
+    monkeypatch.setattr(cards_api, '_apply_card_index_increment_now', lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(cards_api.ctx, 'cache', _FakeCache(), raising=False)
+
+    client = _make_test_app().test_client()
+    response = client.post(
+        '/api/delete_tags',
+        json={'tags': ['shared'], 'category': 'nested'},
+    )
+
+    assert response.status_code == 200
+    assert response.get_json()['updated_cards'] == 1
+    assert saved_ui['_tag_order_v1']['order'] == ['shared', 'root-only']
+    assert saved_ui['_tag_taxonomy_v1']['tag_to_category']['shared'] == 'General'
+
+
+def test_api_delete_tags_reports_metadata_write_failures_without_counting_them(monkeypatch, tmp_path):
+    cards_dir = tmp_path / 'cards'
+    cards_dir.mkdir()
+    card_path = cards_dir / 'broken.json'
+    card_path.write_text('{}', encoding='utf-8')
+
+    class _FakeCursor:
+        def execute(self, _sql, _params=()):
+            return self
+
+        def fetchall(self):
+            return []
+
+    class _FakeConn:
+        def cursor(self):
+            return _FakeCursor()
+
+        def commit(self):
+            return None
+
+    class _FakeCache:
+        id_map = {}
+        global_tags = ['remove-me']
+
+        def update_tags_update(self, *_args):
+            raise AssertionError('failed writes must not update cache')
+
+    monkeypatch.setattr(cards_api, 'CARDS_FOLDER', str(cards_dir))
+    monkeypatch.setattr(cards_api, 'suppress_fs_events', lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(cards_api, 'get_db', lambda: _FakeConn())
+    monkeypatch.setattr(cards_api, 'extract_card_info', lambda _path: {'data': {'tags': ['remove-me']}})
+    monkeypatch.setattr(cards_api, 'write_card_metadata', lambda *_args, **_kwargs: False)
+    monkeypatch.setattr(cards_api, 'load_ui_data', lambda: {})
+    monkeypatch.setattr(cards_api, 'save_ui_data', lambda _payload: None)
+    monkeypatch.setattr(cards_api, 'force_reload', lambda **_kwargs: None)
+    monkeypatch.setattr(cards_api.ctx, 'cache', _FakeCache(), raising=False)
+
+    client = _make_test_app().test_client()
+    response = client.post('/api/delete_tags', json={'tags': ['remove-me']})
+
+    assert response.status_code == 200
+    body = response.get_json()
+    assert body['updated_cards'] == 0
+    assert body['deleted_tags'] == []
+    assert body['failed_cards'] == [
+        {'id': 'broken.json', 'reason': '角色卡元数据写入失败'},
+    ]
+    assert body['partial_failure'] is True
+
+
 def test_api_batch_tags_skips_unknown_and_blacklisted_tags_with_structured_feedback(monkeypatch):
     client = _make_test_app().test_client()
     card_id = 'folder/demo.json'

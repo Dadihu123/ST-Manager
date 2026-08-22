@@ -1876,32 +1876,38 @@ export default function tagFilterModal() {
       })
         .then((res) => {
           if (res.success) {
-            alert(
-              `成功删除 ${res.total_tags_deleted} 个标签，更新了 ${res.updated_cards} 张卡片`,
+            const failedCards = Array.isArray(res.failed_cards)
+              ? res.failed_cards
+              : [];
+            const indexSyncErrors = Array.isArray(res.index_sync_errors)
+              ? res.index_sync_errors
+              : [];
+            const cacheSyncErrors = Array.isArray(res.cache_sync_errors)
+              ? res.cache_sync_errors
+              : [];
+            let message = `成功删除 ${res.total_tags_deleted} 个标签，更新了 ${res.updated_cards} 张卡片`;
+            const syncErrorCount =
+              failedCards.length + cacheSyncErrors.length + indexSyncErrors.length;
+            if (syncErrorCount) {
+              message += `\n部分同步失败：${syncErrorCount} 项`;
+            }
+            alert(message);
+
+            // 标签池以服务端重算结果为准，避免按分类删除时错误清空全局标签。
+            window.dispatchEvent(
+              new CustomEvent("tags-deleted", {
+                detail: {
+                  cardIds: Array.isArray(res.changed_card_ids)
+                    ? res.changed_card_ids
+                    : [],
+                },
+              }),
             );
 
-            // 1. 更新全局标签池
-            const globalPool = this.$store.global.globalTagsPool || [];
-            const sidebarPool = this.$store.global.sidebarTagsPool || [];
-
-            this.$store.global.globalTagsPool = globalPool.filter(
-              (t) => !this.selectedTagsForDeletion.includes(t),
-            );
-            this.$store.global.sidebarTagsPool = sidebarPool.filter(
-              (t) => !this.selectedTagsForDeletion.includes(t),
-            );
-            this.$store.global.allTagsPool = this.$store.global.sidebarTagsPool;
-            this.$store.global.rebuildTagGroups();
-
-            // 2. 更新 Layout 中的筛选标签 (如果正好删除了当前正在筛选的标签)
-            // 需要访问 Layout 状态，这里通过事件通知
-            // 其实 Layout 可以自己监听 refresh-card-list 并重新校验 tags，这里简单触发刷新即可
-
-            // 3. 清空选择
             this.selectedTagsForDeletion = [];
             this.isDeleteMode = false;
 
-            // 4. 刷新列表
+            // 刷新列表会重新加载 global_tags/sidebar_tags。
             window.dispatchEvent(new CustomEvent("refresh-card-list"));
           } else {
             alert("删除失败: " + res.msg);

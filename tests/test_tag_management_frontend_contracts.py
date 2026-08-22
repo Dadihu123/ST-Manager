@@ -418,6 +418,20 @@ def test_tag_filter_modal_desktop_sort_mode_supports_grouped_drag_sort_contract(
     assert '@dragstart="onSortDragStart($event, tag)"' in template
 
 
+def test_tag_delete_refreshes_server_tag_pools_and_open_detail_contract():
+    tag_source = read_project_file('static/js/components/tagFilterModal.js')
+    detail_source = read_project_file('static/js/components/detailModal.js')
+
+    assert 'res.changed_card_ids' in tag_source
+    assert 'new CustomEvent("tags-deleted"' in tag_source
+    assert 'window.dispatchEvent(new CustomEvent("refresh-card-list"))' in tag_source
+    assert 'globalTagsPool = globalPool.filter' not in tag_source
+    assert 'sidebarTagsPool = sidebarPool.filter' not in tag_source
+
+    assert "window.addEventListener('tags-deleted'" in detail_source
+    assert 'this.refreshActiveCardDetail(changedId);' in detail_source
+
+
 def test_batch_tag_modal_manual_inputs_use_shared_splitter_without_search_matching_contract():
     source = read_project_file('static/js/components/batchTagModal.js')
     add_section = extract_js_function_block(source, 'batchAddTag(tag) {')

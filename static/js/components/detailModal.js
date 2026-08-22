@@ -568,6 +568,19 @@ export default function detailModal() {
                 }
             });
 
+            window.addEventListener('tags-deleted', (event) => {
+                if (!this.showDetail || !this.activeCard || !this.activeCard.id) return;
+                const cardIds = Array.isArray(event?.detail?.cardIds)
+                    ? event.detail.cardIds
+                    : [];
+                const activeIds = [this.activeCard.id, this.editingData?.id]
+                    .filter(Boolean);
+                const changedId = activeIds.find(id => cardIds.includes(id));
+                if (changedId) {
+                    this.refreshActiveCardDetail(changedId);
+                }
+            });
+
             // 监听关闭信号
             this.$watch('showDetail', (val) => {
                 if (!val) {
