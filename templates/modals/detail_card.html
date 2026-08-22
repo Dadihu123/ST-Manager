@@ -816,270 +816,379 @@
           <section
             x-show="tab==='persona' && hasPersonaFields"
             x-transition.opacity
-            class="detail-section detail-section-fill detail-section-mobile-stack"
+            class="detail-section detail-section-fill detail-section-mobile-stack detail-persona-section"
           >
-            <div class="detail-tab-scroll custom-scrollbar">
-              <!-- 1. 人格设定 (Personality) -->
-              <template x-if="isEditMode || hasTextValue(editingData.personality)">
-                <div
-                  class="detail-card"
-                  style="
-                    background: rgba(0, 0, 0, 0.15);
-                    border-color: transparent;
-                  "
-                >
-                  <div class="detail-card-head py-1 min-h-[2rem]">
-                    <div
-                      class="detail-card-title text-xs text-gray-500 uppercase tracking-wider"
-                    >
-                      人格设定 (Personality)
-                    </div>
-                    <button
-                      x-show="isEditMode"
-                      class="expand-btn scale-90 opacity-50 hover:opacity-100 transition-opacity"
-                      @click="openLargeEditor('personality','人格设定')"
-                    >
-                      ⤢
-                    </button>
+            <div class="detail-tab-scroll custom-scrollbar detail-persona-scroll">
+              <div class="detail-persona-toolbar">
+                <div class="detail-persona-toolbar-copy">
+                  <div class="detail-persona-toolbar-title">设定字段 <span>Persona Fields</span></div>
+                  <div class="detail-persona-toolbar-summary">
+                    <span x-text="personaFilledFieldCount"></span> / 5 个字段有内容
                   </div>
-                  <!-- 编辑模式：可编辑 -->
-                  <textarea
-                    x-show="isEditMode"
-                    x-model="editingData.personality"
-                    class="form-textarea text-xs bg-transparent text-[var(--text-main)] custom-scrollbar"
-                    style="
-                      height: 8rem;
-                      resize: none;
-                      border: none;
-                      box-shadow: none;
-                    "
-                  ></textarea>
-                  <!-- 阅览模式：只读显示 -->
-                  <textarea
-                    x-show="!isEditMode"
-                    readonly
-                    x-model="editingData.personality"
-                    class="form-textarea text-xs bg-transparent text-[var(--text-dim)] focus:outline-none custom-scrollbar"
-                    style="
-                      height: 8rem;
-                      resize: none;
-                      border: none;
-                      box-shadow: none;
-                      cursor: default;
-                    "
-                  ></textarea>
                 </div>
-              </template>
+              </div>
 
-              <!-- 2. 场景设定 (Scenario) -->
-              <template x-if="isEditMode || hasTextValue(editingData.scenario)">
-                <div
-                  class="detail-card"
-                  style="
-                    background: rgba(0, 0, 0, 0.15);
-                    border-color: transparent;
-                  "
+              <div class="detail-persona-grid">
+                <!-- 1. 人格设定 (Personality) -->
+                <article
+                  class="detail-persona-card"
+                  :class="personaFieldCardClass('personality')"
+                  x-show="isEditMode || hasTextValue(editingData.personality)"
+                  tabindex="0"
+                  role="group"
+                  aria-label="人格设定 / Personality"
+                  @click="openPersonaPreview('personality', '人格设定', 'Personality')"
+                  @keydown.enter.prevent="openPersonaPreview('personality', '人格设定', 'Personality')"
+                  @keydown.space.prevent="openPersonaPreview('personality', '人格设定', 'Personality')"
                 >
-                  <div class="detail-card-head py-1 min-h-[2rem]">
-                    <div
-                      class="detail-card-title text-xs text-gray-500 uppercase tracking-wider"
-                    >
-                      场景设定 (Scenario)
+                  <div class="detail-persona-card-head">
+                    <div class="detail-persona-heading">
+                      <div class="detail-persona-title-wrap">
+                        <h3>人格设定</h3>
+                        <span>Personality</span>
+                      </div>
                     </div>
-                    <button
-                      x-show="isEditMode"
-                      class="expand-btn scale-90 opacity-50 hover:opacity-100 transition-opacity"
-                      @click="openLargeEditor('scenario','场景设定')"
-                    >
-                      ⤢
-                    </button>
+                    <div class="detail-persona-card-actions">
+                      <button
+                        type="button"
+                        class="detail-persona-icon-btn"
+                        @click.stop="openPersonaFieldAction('personality', '人格设定', 'Personality')"
+                        :aria-label="isEditMode ? '放大编辑人格设定' : '打开人格设定预览'"
+                        :title="isEditMode ? '放大编辑' : '打开预览'"
+                      >⤢</button>
+                      <button
+                        type="button"
+                        class="detail-persona-icon-btn detail-persona-visibility-btn"
+                        @click.stop="togglePersonaFieldVisibility('personality')"
+                        :disabled="!hasTextValue(editingData.personality)"
+                        :aria-pressed="isPersonaFieldHidden('personality')"
+                        :aria-label="isPersonaFieldHidden('personality') ? '显示人格设定内容' : '隐藏人格设定内容'"
+                        :title="isPersonaFieldHidden('personality') ? '显示内容' : '隐藏内容'"
+                      ><span aria-hidden="true" x-text="isPersonaFieldHidden('personality') ? '◌' : '◉'"></span></button>
+                    </div>
                   </div>
-                  <!-- 编辑模式：可编辑 -->
-                  <textarea
-                    x-show="isEditMode"
-                    x-model="editingData.scenario"
-                    class="form-textarea text-xs bg-transparent text-[var(--text-main)] custom-scrollbar"
-                    style="
-                      height: 6rem;
-                      resize: none;
-                      border: none;
-                      box-shadow: none;
-                    "
-                  ></textarea>
-                  <!-- 阅览模式：只读显示 -->
-                  <textarea
-                    x-show="!isEditMode"
-                    readonly
-                    x-model="editingData.scenario"
-                    class="form-textarea text-xs bg-transparent text-[var(--text-dim)] focus:outline-none custom-scrollbar"
-                    style="
-                      height: 6rem;
-                      resize: none;
-                      border: none;
-                      box-shadow: none;
-                      cursor: default;
-                    "
-                  ></textarea>
-                </div>
-              </template>
+                  <div class="detail-persona-card-meta">
+                    <span class="detail-persona-state" :class="personaFieldStatusClass('personality')" x-text="personaFieldStatusLabel('personality')"></span>
+                    <span class="detail-persona-count" x-text="getPersonaFieldLength('personality')"></span>
+                  </div>
+                  <div class="detail-persona-content" @click.stop>
+                    <textarea
+                      x-show="isEditMode"
+                      x-model="editingData.personality"
+                      class="detail-persona-editor"
+                      aria-label="编辑人格设定"
+                      placeholder="输入人格设定..."
+                    ></textarea>
+                    <div
+                      x-show="!isEditMode && !hasTextValue(editingData.personality)"
+                      class="detail-persona-empty"
+                    >
+                      <strong>还没有人格设定</strong>
+                      <span>编辑模式下可补充角色性格。</span>
+                    </div>
+                    <div
+                      x-show="!isEditMode && hasTextValue(editingData.personality) && isPersonaFieldHidden('personality')"
+                      class="detail-persona-hidden"
+                    >
+                      <span aria-hidden="true">◌</span>
+                      <span>内容已隐藏 · 点击眼睛按钮显示</span>
+                    </div>
+                    <div
+                      x-show="!isEditMode && hasTextValue(editingData.personality) && !isPersonaFieldHidden('personality')"
+                      class="detail-persona-preview"
+                      x-text="editingData.personality"
+                    ></div>
+                  </div>
+                </article>
 
-              <!-- 3. 作者注释 (Creator Notes) -->
-              <template x-if="isEditMode || hasTextValue(editingData.creator_notes)">
-                <div
-                  class="detail-card"
-                  style="
-                    background: rgba(0, 0, 0, 0.15);
-                    border-color: transparent;
-                  "
+                <!-- 2. 场景设定 (Scenario) -->
+                <article
+                  class="detail-persona-card detail-persona-card--scenario"
+                  :class="personaFieldCardClass('scenario')"
+                  x-show="isEditMode || hasTextValue(editingData.scenario)"
+                  tabindex="0"
+                  role="group"
+                  aria-label="场景设定 / Scenario"
+                  @click="openPersonaPreview('scenario', '场景设定', 'Scenario')"
+                  @keydown.enter.prevent="openPersonaPreview('scenario', '场景设定', 'Scenario')"
+                  @keydown.space.prevent="openPersonaPreview('scenario', '场景设定', 'Scenario')"
                 >
-                  <div class="detail-card-head py-1 min-h-[2rem]">
-                    <div
-                      class="detail-card-title text-xs text-gray-500 uppercase tracking-wider"
-                    >
-                      作者注释 (Creator Notes)
+                  <div class="detail-persona-card-head">
+                    <div class="detail-persona-heading">
+                      <div class="detail-persona-title-wrap">
+                        <h3>场景设定</h3>
+                        <span>Scenario</span>
+                      </div>
                     </div>
-                    <button
-                      x-show="isEditMode"
-                      class="expand-btn scale-90 opacity-50 hover:opacity-100 transition-opacity"
-                      @click="openLargeEditor('creator_notes','作者注释')"
-                    >
-                      ⤢
-                    </button>
+                    <div class="detail-persona-card-actions">
+                      <button
+                        type="button"
+                        class="detail-persona-icon-btn"
+                        @click.stop="openPersonaFieldAction('scenario', '场景设定', 'Scenario')"
+                        :aria-label="isEditMode ? '放大编辑场景设定' : '打开场景设定预览'"
+                        :title="isEditMode ? '放大编辑' : '打开预览'"
+                      >⤢</button>
+                      <button
+                        type="button"
+                        class="detail-persona-icon-btn detail-persona-visibility-btn"
+                        @click.stop="togglePersonaFieldVisibility('scenario')"
+                        :disabled="!hasTextValue(editingData.scenario)"
+                        :aria-pressed="isPersonaFieldHidden('scenario')"
+                        :aria-label="isPersonaFieldHidden('scenario') ? '显示场景设定内容' : '隐藏场景设定内容'"
+                        :title="isPersonaFieldHidden('scenario') ? '显示内容' : '隐藏内容'"
+                      ><span aria-hidden="true" x-text="isPersonaFieldHidden('scenario') ? '◌' : '◉'"></span></button>
+                    </div>
                   </div>
-                  <!-- 编辑模式：可编辑 -->
-                  <textarea
-                    x-show="isEditMode"
-                    x-model="editingData.creator_notes"
-                    class="form-textarea text-xs bg-transparent text-[var(--text-main)] custom-scrollbar"
-                    style="
-                      height: 6rem;
-                      resize: none;
-                      border: none;
-                      box-shadow: none;
-                    "
-                  ></textarea>
-                  <!-- 阅览模式：只读显示 -->
-                  <textarea
-                    x-show="!isEditMode"
-                    readonly
-                    x-model="editingData.creator_notes"
-                    class="form-textarea text-xs bg-transparent text-[var(--text-dim)] focus:outline-none custom-scrollbar"
-                    style="
-                      height: 6rem;
-                      resize: none;
-                      border: none;
-                      box-shadow: none;
-                      cursor: default;
-                    "
-                  ></textarea>
-                </div>
-              </template>
+                  <div class="detail-persona-card-meta">
+                    <span class="detail-persona-state" :class="personaFieldStatusClass('scenario')" x-text="personaFieldStatusLabel('scenario')"></span>
+                    <span class="detail-persona-count" x-text="getPersonaFieldLength('scenario')"></span>
+                  </div>
+                  <div class="detail-persona-content" @click.stop>
+                    <textarea
+                      x-show="isEditMode"
+                      x-model="editingData.scenario"
+                      class="detail-persona-editor"
+                      aria-label="编辑场景设定"
+                      placeholder="输入场景设定..."
+                    ></textarea>
+                    <div
+                      x-show="!isEditMode && !hasTextValue(editingData.scenario)"
+                      class="detail-persona-empty"
+                    >
+                      <strong>还没有场景设定</strong>
+                      <span>编辑模式下可补充故事发生的背景。</span>
+                    </div>
+                    <div
+                      x-show="!isEditMode && hasTextValue(editingData.scenario) && isPersonaFieldHidden('scenario')"
+                      class="detail-persona-hidden"
+                    >
+                      <span aria-hidden="true">◌</span>
+                      <span>内容已隐藏 · 点击眼睛按钮显示</span>
+                    </div>
+                    <div
+                      x-show="!isEditMode && hasTextValue(editingData.scenario) && !isPersonaFieldHidden('scenario')"
+                      class="detail-persona-preview"
+                      x-text="editingData.scenario"
+                    ></div>
+                  </div>
+                </article>
 
-              <!-- 4. 系统提示词 (System Prompt) -->
-              <template x-if="isEditMode || hasTextValue(editingData.system_prompt)">
-                <div
-                  class="detail-card"
-                  style="
-                    background: rgba(40, 20, 60, 0.15);
-                    border-color: transparent;
-                  "
+                <!-- 3. 作者注释 (Creator Notes) -->
+                <article
+                  class="detail-persona-card detail-persona-card--creator"
+                  :class="personaFieldCardClass('creator_notes')"
+                  x-show="isEditMode || hasTextValue(editingData.creator_notes)"
+                  tabindex="0"
+                  role="group"
+                  aria-label="作者注释 / Creator Notes"
+                  @click="openPersonaPreview('creator_notes', '作者注释', 'Creator Notes')"
+                  @keydown.enter.prevent="openPersonaPreview('creator_notes', '作者注释', 'Creator Notes')"
+                  @keydown.space.prevent="openPersonaPreview('creator_notes', '作者注释', 'Creator Notes')"
                 >
-                  <div class="detail-card-head py-1 min-h-[2rem]">
-                    <div
-                      class="detail-card-title text-xs text-purple-400/70 uppercase tracking-wider"
-                    >
-                      系统提示词 (System Prompt)
+                  <div class="detail-persona-card-head">
+                    <div class="detail-persona-heading">
+                      <div class="detail-persona-title-wrap">
+                        <h3>作者注释</h3>
+                        <span>Creator Notes</span>
+                      </div>
                     </div>
-                    <button
-                      x-show="isEditMode"
-                      class="expand-btn scale-90 opacity-50 hover:opacity-100 transition-opacity"
-                      @click="openLargeEditor('system_prompt','系统提示词')"
-                    >
-                      ⤢
-                    </button>
+                    <div class="detail-persona-card-actions">
+                      <button
+                        type="button"
+                        class="detail-persona-icon-btn"
+                        @click.stop="openPersonaFieldAction('creator_notes', '作者注释', 'Creator Notes')"
+                        :aria-label="isEditMode ? '放大编辑作者注释' : '打开作者注释预览'"
+                        :title="isEditMode ? '放大编辑' : '打开预览'"
+                      >⤢</button>
+                      <button
+                        type="button"
+                        class="detail-persona-icon-btn detail-persona-visibility-btn"
+                        @click.stop="togglePersonaFieldVisibility('creator_notes')"
+                        :disabled="!hasTextValue(editingData.creator_notes)"
+                        :aria-pressed="isPersonaFieldHidden('creator_notes')"
+                        :aria-label="isPersonaFieldHidden('creator_notes') ? '显示作者注释内容' : '隐藏作者注释内容'"
+                        :title="isPersonaFieldHidden('creator_notes') ? '显示内容' : '隐藏内容'"
+                      ><span aria-hidden="true" x-text="isPersonaFieldHidden('creator_notes') ? '◌' : '◉'"></span></button>
+                    </div>
                   </div>
-                  <!-- 编辑模式：可编辑 -->
-                  <textarea
-                    x-show="isEditMode"
-                    x-model="editingData.system_prompt"
-                    class="form-textarea text-xs font-mono bg-transparent text-[var(--text-main)] custom-scrollbar"
-                    style="
-                      height: 6rem;
-                      resize: none;
-                      border: none;
-                      box-shadow: none;
-                    "
-                  ></textarea>
-                  <!-- 阅览模式：只读显示 -->
-                  <textarea
-                    x-show="!isEditMode"
-                    readonly
-                    x-model="editingData.system_prompt"
-                    class="form-textarea text-xs font-mono bg-transparent text-[var(--text-dim)] focus:outline-none custom-scrollbar"
-                    style="
-                      height: 6rem;
-                      resize: none;
-                      border: none;
-                      box-shadow: none;
-                      cursor: default;
-                    "
-                  ></textarea>
-                </div>
-              </template>
+                  <div class="detail-persona-card-meta">
+                    <span class="detail-persona-state" :class="personaFieldStatusClass('creator_notes')" x-text="personaFieldStatusLabel('creator_notes')"></span>
+                    <span class="detail-persona-count" x-text="getPersonaFieldLength('creator_notes')"></span>
+                  </div>
+                  <div class="detail-persona-content" @click.stop>
+                    <textarea
+                      x-show="isEditMode"
+                      x-model="editingData.creator_notes"
+                      class="detail-persona-editor"
+                      aria-label="编辑作者注释"
+                      placeholder="输入作者注释..."
+                    ></textarea>
+                    <div
+                      x-show="!isEditMode && !hasTextValue(editingData.creator_notes)"
+                      class="detail-persona-empty"
+                    >
+                      <strong>还没有作者注释</strong>
+                      <span>编辑模式下可补充作者给使用者的说明。</span>
+                    </div>
+                    <div
+                      x-show="!isEditMode && hasTextValue(editingData.creator_notes) && isPersonaFieldHidden('creator_notes')"
+                      class="detail-persona-hidden"
+                    >
+                      <span aria-hidden="true">◌</span>
+                      <span>内容已隐藏 · 点击眼睛按钮显示</span>
+                    </div>
+                    <div
+                      x-show="!isEditMode && hasTextValue(editingData.creator_notes) && !isPersonaFieldHidden('creator_notes')"
+                      class="detail-persona-preview"
+                      x-text="editingData.creator_notes"
+                    ></div>
+                  </div>
+                </article>
 
-              <!-- 5. 历史指令 (Post History) -->
-              <template
-                x-if="isEditMode || hasTextValue(editingData.post_history_instructions)"
-              >
-                <div
-                  class="detail-card"
-                  style="
-                    background: rgba(40, 20, 60, 0.15);
-                    border-color: transparent;
-                  "
+                <!-- 4. 系统提示词 (System Prompt) -->
+                <article
+                  class="detail-persona-card detail-persona-card--system"
+                  :class="personaFieldCardClass('system_prompt')"
+                  x-show="isEditMode || hasTextValue(editingData.system_prompt)"
+                  tabindex="0"
+                  role="group"
+                  aria-label="系统提示词 / System Prompt"
+                  @click="openPersonaPreview('system_prompt', '系统提示词', 'System Prompt')"
+                  @keydown.enter.prevent="openPersonaPreview('system_prompt', '系统提示词', 'System Prompt')"
+                  @keydown.space.prevent="openPersonaPreview('system_prompt', '系统提示词', 'System Prompt')"
                 >
-                  <div class="detail-card-head py-1 min-h-[2rem]">
-                    <div
-                      class="detail-card-title text-xs text-purple-400/70 uppercase tracking-wider"
-                    >
-                      历史指令 (Post History)
+                  <div class="detail-persona-card-head">
+                    <div class="detail-persona-heading">
+                      <div class="detail-persona-title-wrap">
+                        <h3>系统提示词</h3>
+                        <span>System Prompt</span>
+                      </div>
                     </div>
-                    <button
-                      x-show="isEditMode"
-                      class="expand-btn scale-90 opacity-50 hover:opacity-100 transition-opacity"
-                      @click="openLargeEditor('post_history_instructions','历史指令')"
-                    >
-                      ⤢
-                    </button>
+                    <div class="detail-persona-card-actions">
+                      <button
+                        type="button"
+                        class="detail-persona-icon-btn"
+                        @click.stop="openPersonaFieldAction('system_prompt', '系统提示词', 'System Prompt')"
+                        :aria-label="isEditMode ? '放大编辑系统提示词' : '打开系统提示词预览'"
+                        :title="isEditMode ? '放大编辑' : '打开预览'"
+                      >⤢</button>
+                      <button
+                        type="button"
+                        class="detail-persona-icon-btn detail-persona-visibility-btn"
+                        @click.stop="togglePersonaFieldVisibility('system_prompt')"
+                        :disabled="!hasTextValue(editingData.system_prompt)"
+                        :aria-pressed="isPersonaFieldHidden('system_prompt')"
+                        :aria-label="isPersonaFieldHidden('system_prompt') ? '显示系统提示词内容' : '隐藏系统提示词内容'"
+                        :title="isPersonaFieldHidden('system_prompt') ? '显示内容' : '隐藏内容'"
+                      ><span aria-hidden="true" x-text="isPersonaFieldHidden('system_prompt') ? '◌' : '◉'"></span></button>
+                    </div>
                   </div>
-                  <!-- 编辑模式：可编辑 -->
-                  <textarea
-                    x-show="isEditMode"
-                    x-model="editingData.post_history_instructions"
-                    class="form-textarea text-xs font-mono bg-transparent text-[var(--text-main)] custom-scrollbar"
-                    style="
-                      height: 6rem;
-                      resize: none;
-                      border: none;
-                      box-shadow: none;
-                    "
-                  ></textarea>
-                  <!-- 阅览模式：只读显示 -->
-                  <textarea
-                    x-show="!isEditMode"
-                    readonly
-                    x-model="editingData.post_history_instructions"
-                    class="form-textarea text-xs font-mono bg-transparent text-[var(--text-dim)] focus:outline-none custom-scrollbar"
-                    style="
-                      height: 6rem;
-                      resize: none;
-                      border: none;
-                      box-shadow: none;
-                      cursor: default;
-                    "
-                  ></textarea>
-                </div>
-              </template>
+                  <div class="detail-persona-card-meta">
+                    <span class="detail-persona-state" :class="personaFieldStatusClass('system_prompt')" x-text="personaFieldStatusLabel('system_prompt')"></span>
+                    <span class="detail-persona-count" x-text="getPersonaFieldLength('system_prompt')"></span>
+                  </div>
+                  <div class="detail-persona-content" @click.stop>
+                    <textarea
+                      x-show="isEditMode"
+                      x-model="editingData.system_prompt"
+                      class="detail-persona-editor detail-persona-editor--code"
+                      aria-label="编辑系统提示词"
+                      placeholder="输入系统提示词..."
+                    ></textarea>
+                    <div
+                      x-show="!isEditMode && !hasTextValue(editingData.system_prompt)"
+                      class="detail-persona-empty"
+                    >
+                      <strong>还没有系统提示词</strong>
+                      <span>留空时使用全局系统提示词。</span>
+                    </div>
+                    <div
+                      x-show="!isEditMode && hasTextValue(editingData.system_prompt) && isPersonaFieldHidden('system_prompt')"
+                      class="detail-persona-hidden"
+                    >
+                      <span aria-hidden="true">◌</span>
+                      <span>内容已隐藏 · 点击眼睛按钮显示</span>
+                    </div>
+                    <div
+                      x-show="!isEditMode && hasTextValue(editingData.system_prompt) && !isPersonaFieldHidden('system_prompt')"
+                      class="detail-persona-preview detail-persona-preview--code"
+                      x-text="editingData.system_prompt"
+                    ></div>
+                  </div>
+                </article>
+
+                <!-- 5. 后历史指令 (Post History Instructions) -->
+                <article
+                  class="detail-persona-card detail-persona-card--post-history"
+                  :class="personaFieldCardClass('post_history_instructions')"
+                  x-show="isEditMode || hasTextValue(editingData.post_history_instructions)"
+                  tabindex="0"
+                  role="group"
+                  aria-label="后历史指令 / Post History Instructions"
+                  @click="openPersonaPreview('post_history_instructions', '后历史指令', 'Post History Instructions')"
+                  @keydown.enter.prevent="openPersonaPreview('post_history_instructions', '后历史指令', 'Post History Instructions')"
+                  @keydown.space.prevent="openPersonaPreview('post_history_instructions', '后历史指令', 'Post History Instructions')"
+                >
+                  <div class="detail-persona-card-head">
+                    <div class="detail-persona-heading">
+                      <div class="detail-persona-title-wrap">
+                        <h3>后历史指令</h3>
+                        <span>Post History Instructions</span>
+                      </div>
+                    </div>
+                    <div class="detail-persona-card-actions">
+                      <button
+                        type="button"
+                        class="detail-persona-icon-btn"
+                        @click.stop="openPersonaFieldAction('post_history_instructions', '后历史指令', 'Post History Instructions')"
+                        :aria-label="isEditMode ? '放大编辑后历史指令' : '打开后历史指令预览'"
+                        :title="isEditMode ? '放大编辑' : '打开预览'"
+                      >⤢</button>
+                      <button
+                        type="button"
+                        class="detail-persona-icon-btn detail-persona-visibility-btn"
+                        @click.stop="togglePersonaFieldVisibility('post_history_instructions')"
+                        :disabled="!hasTextValue(editingData.post_history_instructions)"
+                        :aria-pressed="isPersonaFieldHidden('post_history_instructions')"
+                        :aria-label="isPersonaFieldHidden('post_history_instructions') ? '显示后历史指令内容' : '隐藏后历史指令内容'"
+                        :title="isPersonaFieldHidden('post_history_instructions') ? '显示内容' : '隐藏内容'"
+                      ><span aria-hidden="true" x-text="isPersonaFieldHidden('post_history_instructions') ? '◌' : '◉'"></span></button>
+                    </div>
+                  </div>
+                  <div class="detail-persona-card-meta">
+                    <span class="detail-persona-state" :class="personaFieldStatusClass('post_history_instructions')" x-text="personaFieldStatusLabel('post_history_instructions')"></span>
+                    <span class="detail-persona-count" x-text="getPersonaFieldLength('post_history_instructions')"></span>
+                  </div>
+                  <div class="detail-persona-content" @click.stop>
+                    <textarea
+                      x-show="isEditMode"
+                      x-model="editingData.post_history_instructions"
+                      class="detail-persona-editor detail-persona-editor--code"
+                      aria-label="编辑后历史指令"
+                      placeholder="输入后历史指令..."
+                    ></textarea>
+                    <div
+                      x-show="!isEditMode && !hasTextValue(editingData.post_history_instructions)"
+                      class="detail-persona-empty"
+                    >
+                      <strong>还没有后历史指令</strong>
+                      <span>可在这里补充发送前的最后约束。</span>
+                    </div>
+                    <div
+                      x-show="!isEditMode && hasTextValue(editingData.post_history_instructions) && isPersonaFieldHidden('post_history_instructions')"
+                      class="detail-persona-hidden"
+                    >
+                      <span aria-hidden="true">◌</span>
+                      <span>内容已隐藏 · 点击眼睛按钮显示</span>
+                    </div>
+                    <div
+                      x-show="!isEditMode && hasTextValue(editingData.post_history_instructions) && !isPersonaFieldHidden('post_history_instructions')"
+                      class="detail-persona-preview detail-persona-preview--code"
+                      x-text="editingData.post_history_instructions"
+                    ></div>
+                  </div>
+                </article>
+              </div>
             </div>
           </section>
 
@@ -2954,6 +3063,79 @@
         </div>
       </section>
     </div>
+  </div>
+  <div
+    x-show="personaPreviewField"
+    x-cloak
+    class="detail-persona-preview-overlay"
+    role="presentation"
+    @click.self="closePersonaPreview()"
+    @keydown.escape.window="closePersonaPreview()"
+  >
+    <section
+      class="detail-persona-preview-dialog"
+      role="dialog"
+      aria-modal="true"
+      :aria-label="personaPreviewTitle || '设定字段预览'"
+      @click.stop
+    >
+      <header class="detail-persona-preview-head">
+        <div class="detail-persona-preview-heading">
+          <span class="detail-persona-preview-kicker">PERSONA FIELD</span>
+          <h2 x-text="personaPreviewTitle || '设定字段'"></h2>
+          <span x-show="personaPreviewEnglish" x-text="personaPreviewEnglish"></span>
+        </div>
+        <button
+          type="button"
+          x-ref="personaPreviewClose"
+          class="detail-persona-preview-close"
+          @click="closePersonaPreview()"
+          aria-label="关闭字段预览"
+          title="关闭"
+        >×</button>
+      </header>
+      <div class="detail-persona-preview-meta">
+        <span
+          class="detail-persona-state"
+          :class="personaFieldStatusClass(personaPreviewField)"
+          x-text="personaFieldStatusLabel(personaPreviewField)"
+        ></span>
+        <span class="detail-persona-count" x-text="getPersonaFieldLength(personaPreviewField)"></span>
+      </div>
+      <div class="detail-persona-preview-body custom-scrollbar">
+        <div
+          x-show="hasTextValue(personaPreviewContent)"
+          class="detail-persona-preview-text"
+          :class="['system_prompt', 'post_history_instructions'].includes(personaPreviewField) ? 'is-code' : ''"
+          x-text="personaPreviewContent"
+        ></div>
+        <div
+          x-show="!hasTextValue(personaPreviewContent)"
+          class="detail-persona-preview-empty"
+        >
+          <strong>这个字段目前为空</strong>
+          <span x-show="isEditMode">可从这里进入编辑器补充内容。</span>
+          <span x-show="!isEditMode">切换到编辑模式后可以补充内容。</span>
+        </div>
+      </div>
+      <footer class="detail-persona-preview-foot">
+        <span class="detail-persona-preview-foot-note" x-show="isEditMode">当前为编辑模式，内容变更会沿用自动保存。</span>
+        <span class="detail-persona-preview-foot-note" x-show="!isEditMode">阅览模式 · 只读预览</span>
+        <div class="detail-persona-preview-foot-actions">
+          <button
+            type="button"
+            class="detail-persona-preview-btn detail-persona-preview-btn--secondary"
+            x-show="isEditMode"
+            @click="editPersonaPreview()"
+          >编辑字段</button>
+          <button
+            type="button"
+            class="detail-persona-preview-btn detail-persona-preview-btn--primary"
+            @click="closePersonaPreview()"
+          >关闭</button>
+        </div>
+      </footer>
+    </section>
   </div>
   <div
     x-show="showSkinGallery"

@@ -112,6 +112,23 @@ export default function detailModal() {
         detailAltSuppressClick: false,
         rawMetadataContent: 'Loading...',
         isEditMode: false, // 编辑模式开关，默认为阅览模式
+        personaFieldKeys: [
+            'personality',
+            'scenario',
+            'creator_notes',
+            'system_prompt',
+            'post_history_instructions',
+        ],
+        personaHiddenFields: {
+            personality: false,
+            scenario: false,
+            creator_notes: false,
+            system_prompt: false,
+            post_history_instructions: false,
+        },
+        personaPreviewField: '',
+        personaPreviewTitle: '',
+        personaPreviewEnglish: '',
         detailTagDragIndex: null,
         pendingAdvancedEditorApplyHandler: null,
         pendingAdvancedEditorPersistHandler: null,
@@ -462,6 +479,93 @@ export default function detailModal() {
                 this.hasTextValue(d.system_prompt) ||
                 this.hasTextValue(d.post_history_instructions)
             );
+        },
+
+        resetPersonaFieldState() {
+            this.personaHiddenFields = this.personaFieldKeys.reduce((fields, field) => {
+                fields[field] = false;
+                return fields;
+            }, {});
+            this.personaPreviewField = '';
+            this.personaPreviewTitle = '';
+            this.personaPreviewEnglish = '';
+        },
+
+        get personaFilledFieldCount() {
+            return this.personaFieldKeys.filter((field) => this.personaFieldHasContent(field)).length;
+        },
+
+        personaFieldHasContent(field) {
+            return this.personaFieldKeys.includes(field)
+                && this.hasTextValue(this.editingData?.[field]);
+        },
+
+        isPersonaFieldHidden(field) {
+            return this.personaHiddenFields?.[field] === true;
+        },
+
+        togglePersonaFieldVisibility(field) {
+            if (!this.personaFieldHasContent(field)) return;
+            this.personaHiddenFields[field] = !this.isPersonaFieldHidden(field);
+        },
+
+        getPersonaFieldLength(field) {
+            const value = this.editingData?.[field];
+            return `${typeof value === 'string' ? value.length : 0} 字符`;
+        },
+
+        personaFieldStatusLabel(field) {
+            if (!this.personaFieldHasContent(field)) return '空字段';
+            return this.isPersonaFieldHidden(field) ? '内容已隐藏' : '已填写';
+        },
+
+        personaFieldStatusClass(field) {
+            if (!this.personaFieldHasContent(field)) return 'is-empty';
+            return this.isPersonaFieldHidden(field) ? 'is-hidden' : 'is-filled';
+        },
+
+        personaFieldCardClass(field) {
+            return {
+                'is-empty': !this.personaFieldHasContent(field),
+                'is-hidden': this.personaFieldHasContent(field) && this.isPersonaFieldHidden(field),
+                'is-editing': this.isEditMode,
+                'is-selected': this.personaPreviewField === field,
+            };
+        },
+
+        openPersonaPreview(field, title, english = '') {
+            if (!this.personaFieldKeys.includes(field)) return;
+            this.personaPreviewField = field;
+            this.personaPreviewTitle = title || field;
+            this.personaPreviewEnglish = english || '';
+            this.$nextTick(() => this.$refs.personaPreviewClose?.focus());
+        },
+
+        openPersonaFieldAction(field, title, english = '') {
+            if (this.isEditMode) {
+                this.openLargeEditor(field, title);
+                return;
+            }
+            this.openPersonaPreview(field, title, english);
+        },
+
+        closePersonaPreview() {
+            this.personaPreviewField = '';
+            this.personaPreviewTitle = '';
+            this.personaPreviewEnglish = '';
+        },
+
+        get personaPreviewContent() {
+            return this.personaPreviewField
+                ? (this.editingData?.[this.personaPreviewField] || '')
+                : '';
+        },
+
+        editPersonaPreview() {
+            const field = this.personaPreviewField;
+            const title = this.personaPreviewTitle;
+            this.closePersonaPreview();
+            if (field) this.openLargeEditor(field, title);
         },
 
         get hasDialogFields() {
@@ -1542,6 +1646,7 @@ export default function detailModal() {
             this.selectedGreetingKind = 'default';
             this.showGreetingPreview = true;
             this.isEditMode = false;
+            this.resetPersonaFieldState();
             this.altIdx = 0;
             this.detailAltDragIndex = null;
             this.detailAltDropIndex = null;
