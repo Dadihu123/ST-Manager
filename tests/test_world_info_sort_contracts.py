@@ -114,3 +114,7 @@ def test_world_info_templates_keep_sort_controls_out_of_fixed_card_detail_view()
     assert 'getDefaultSortedWIEntries()' in card
     assert 'wiSortMode' not in card
     assert '.wi-sort-menu' in css
+    assert '.wi-sort-control select option' in css
+    assert 'background-color: var(--bg-body)' in css
+    assert 'background-color: var(--bg-panel)' in css
+    assert 'color: var(--text-main)' in css

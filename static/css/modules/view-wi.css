@@ -959,12 +959,33 @@ input:focus {
 
 .wi-sort-control select {
   min-width: 6.4rem;
-  border: 0;
+  min-height: 1.6rem;
+  padding: 0.2rem 0.35rem;
+  border: 1px solid var(--border-light);
+  border-radius: 0.3rem;
   outline: 0;
-  background: transparent;
+  background-color: var(--bg-body);
   color: var(--text-main);
   font-size: 0.72rem;
   cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.wi-sort-control select:hover {
+  border-color: var(--text-sub);
+  background-color: var(--bg-panel);
+}
+
+.wi-sort-control select:focus-visible {
+  border-color: var(--accent-main);
+  box-shadow: 0 0 0 2px var(--accent-faint);
+}
+
+.wi-sort-control select option {
+  background-color: var(--bg-panel);
+  color: var(--text-main);
 }
 
 .wi-sort-control:focus-within {
