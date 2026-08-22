@@ -1032,6 +1032,303 @@ html.light-mode .skin-gallery-folder-symbol {
   color: var(--text-dim);
 }
 
+.detail-dialog-page-nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+}
+
+.detail-dialog-page-nav--inline {
+  margin-left: 0;
+}
+
+.detail-dialog-card-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+}
+
+.detail-dialog-card-head > :first-child {
+  grid-column: 1;
+  min-width: 0;
+}
+
+.detail-dialog-card-head > .detail-dialog-page-nav--inline {
+  grid-column: 2;
+  justify-self: center;
+}
+
+.detail-dialog-card-head > .detail-card-actions {
+  grid-column: 3;
+  justify-self: end;
+}
+
+.detail-dialog-page-nav-btn,
+.detail-dialog-page-status {
+  min-height: 30px;
+  border: 1px solid var(--border-light);
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--bg-sub), var(--bg-panel) 34%);
+  color: var(--text-sub);
+  cursor: pointer;
+  transition:
+    border-color 0.18s ease,
+    background-color 0.18s ease,
+    color 0.18s ease,
+    transform 0.18s ease;
+}
+
+.detail-dialog-page-nav-btn {
+  width: 30px;
+  padding: 0;
+  font-size: 18px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.detail-dialog-page-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 42px;
+  padding: 0 8px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.detail-dialog-page-count {
+  color: var(--text-dim);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.detail-dialog-page-nav-btn:hover,
+.detail-dialog-page-status:hover {
+  border-color: color-mix(in srgb, var(--accent-main), var(--border-light) 35%);
+  background: color-mix(in srgb, var(--accent-faint), var(--bg-panel) 28%);
+  color: var(--text-main);
+}
+
+.detail-dialog-page-nav-btn:active,
+.detail-dialog-page-status:active {
+  transform: scale(0.96);
+}
+
+.detail-dialog-page-nav-btn:focus-visible,
+.detail-dialog-page-status:focus-visible,
+.detail-greeting-card:focus-visible,
+.detail-greeting-manage-btn:focus-visible {
+  outline: 2px solid var(--accent-main);
+  outline-offset: 2px;
+}
+
+.detail-dialog-scroll {
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding-bottom: 12px;
+  scroll-padding-bottom: 12px;
+}
+
+.detail-section-fill .detail-tab-scroll > .detail-greeting-selector {
+  flex: 0 0 auto !important;
+}
+
+.detail-greeting-preview-card {
+  min-height: 0;
+}
+
+.detail-greeting-current-label {
+  margin-top: 3px;
+  color: var(--text-dim);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.detail-greeting-selector {
+  min-width: 0;
+}
+
+.detail-greeting-selector-head {
+  margin-bottom: 0;
+}
+
+.detail-greeting-selector-body {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+  min-width: 0;
+}
+
+.detail-greeting-selector-count {
+  color: var(--text-dim);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.detail-greeting-rail {
+  flex: 1 1 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 12px 4px 10px;
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+}
+
+.detail-greeting-rail > .detail-greeting-card,
+.detail-greeting-option {
+  flex: 0 0 clamp(160px, 18vw, 220px);
+  min-width: 160px;
+  scroll-snap-align: start;
+}
+
+.detail-greeting-option {
+  display: flex;
+  flex-direction: column;
+}
+
+.detail-greeting-option.is-dragging {
+  opacity: 0.58;
+}
+
+.detail-greeting-option.is-drop-target .detail-greeting-card {
+  border-color: var(--accent-main);
+  background: color-mix(in srgb, var(--accent-faint), var(--bg-panel) 28%);
+  box-shadow: inset 3px 0 0 var(--accent-main);
+}
+
+.detail-greeting-card {
+  width: 100%;
+  min-height: 104px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 7px;
+  padding: 11px;
+  border: 1px solid var(--border-light);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--bg-panel), var(--bg-sub) 36%);
+  color: var(--text-main);
+  cursor: pointer;
+  text-align: left;
+  touch-action: manipulation;
+  transition:
+    transform 0.2s ease-out,
+    border-color 0.18s ease,
+    background-color 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.detail-greeting-card:hover {
+  border-color: color-mix(in srgb, var(--accent-main), var(--border-light) 40%);
+  background: color-mix(in srgb, var(--accent-faint), var(--bg-panel) 45%);
+  transform: translateY(-2px);
+}
+
+.detail-greeting-card.is-draggable {
+  cursor: grab;
+}
+
+.detail-greeting-card.is-draggable:active,
+.detail-greeting-option.is-dragging .detail-greeting-card {
+  cursor: grabbing;
+}
+
+.detail-greeting-card.is-selected {
+  transform: translateY(-7px);
+  border-color: var(--accent-main);
+  background: color-mix(in srgb, var(--accent-faint), var(--bg-panel) 22%);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--accent-main), transparent 40%),
+    0 9px 16px rgba(0, 0, 0, 0.18);
+}
+
+.detail-greeting-card-label {
+  color: var(--text-main);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.detail-greeting-card-excerpt {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--text-dim);
+  font-size: 11px;
+  line-height: 1.45;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.detail-greeting-card-state {
+  margin-top: auto;
+  color: var(--accent-light);
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.detail-greeting-drag-handle {
+  align-self: flex-end;
+  color: var(--text-dim);
+  cursor: grab;
+  font-size: 16px;
+  font-weight: 900;
+  line-height: 1;
+  touch-action: none;
+  user-select: none;
+}
+
+.detail-greeting-manage-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.44;
+}
+
+.detail-greeting-manage {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.detail-greeting-manage--side {
+  flex: 0 0 88px;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  justify-content: center;
+  margin-top: 0;
+}
+
+.detail-greeting-manage-btn {
+  min-height: 32px;
+  padding: 0 11px;
+  border-radius: 9px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.detail-greeting-manage--side .detail-greeting-manage-btn {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 6px;
+  white-space: normal;
+}
+
+.detail-greeting-manage-btn--danger:not(:disabled) {
+  border-color: color-mix(in srgb, #f87171, var(--border-light) 35%);
+  color: #fca5a5;
+}
+
+.detail-greeting-manage-btn--danger:hover:not(:disabled) {
+  background: color-mix(in srgb, #ef4444, transparent 87%);
+  color: #fecaca;
+}
+
 .detail-taglist {
   display: flex;
   flex-wrap: wrap;
@@ -3336,5 +3633,70 @@ html.light-mode .note-textarea:focus {
   .detail-top-actions {
     min-width: 0 !important;
     flex: 0 0 auto;
+  }
+}
+
+@media (max-width: 768px) {
+  .detail-dialog-page-nav--inline {
+    gap: 6px;
+  }
+  .detail-dialog-page-nav--inline .detail-dialog-page-nav-btn {
+    width: 44px;
+    min-height: 44px;
+  }
+  .detail-dialog-page-nav--inline .detail-dialog-page-status {
+    min-width: 54px;
+    min-height: 44px;
+  }
+  .detail-dialog-card-head {
+    grid-template-columns: minmax(0, 1fr) auto;
+    row-gap: 8px;
+  }
+
+  .detail-dialog-card-head > :first-child,
+  .detail-dialog-card-head > .detail-dialog-page-nav--inline,
+  .detail-dialog-card-head > .detail-card-actions {
+    grid-column: 1 / -1;
+  }
+
+  .detail-dialog-card-head > .detail-dialog-page-nav--inline {
+    justify-self: center;
+  }
+
+  .detail-dialog-card-head > .detail-card-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .detail-greeting-rail {
+    gap: 10px;
+    padding: 14px 2px 12px;
+  }
+  .detail-greeting-selector-body {
+    gap: 8px;
+  }
+  .detail-greeting-rail > .detail-greeting-card,
+  .detail-greeting-option {
+    flex-basis: min(72vw, 220px);
+    min-width: min(72vw, 220px);
+  }
+  .detail-greeting-card {
+    min-height: 112px;
+  }
+  .detail-greeting-manage--side {
+    flex-basis: 88px;
+    min-width: 88px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .detail-dialog-page-nav-btn,
+  .detail-dialog-page-status,
+  .detail-greeting-card {
+    transition: none;
+  }
+
+  .detail-greeting-card:hover,
+  .detail-greeting-card.is-selected {
+    transform: none;
   }
 }

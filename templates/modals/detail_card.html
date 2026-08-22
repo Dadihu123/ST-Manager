@@ -546,7 +546,7 @@
             x-show="hasDialogFields"
             class="detail-tab"
             :class="tab==='dialog' ? 'active' : ''"
-            @click="tab='dialog'"
+            @click="syncDialogState(); tab='dialog'"
           >
             <span class="tab-icon">💬</span>
             <span class="tab-text">对话</span>
@@ -1089,52 +1089,90 @@
             x-transition.opacity
             class="detail-section detail-section-fill detail-section-mobile-stack"
           >
-            <div class="detail-tab-scroll custom-scrollbar">
-              <!-- First Message：编辑/预览 或 阅览/预览 -->
+            <div class="detail-tab-scroll custom-scrollbar detail-dialog-scroll">
               <div
-                class="detail-card detail-card--lg"
-                x-show="isEditMode || hasTextValue(editingData.first_mes)"
+                class="detail-card detail-card--lg detail-greeting-preview-card"
+                x-show="dialogPage === 'greeting' && hasGreetingPage"
               >
-                <div class="detail-card-head detail-card-head-row">
-                  <div class="detail-card-title">开场白 (First Message)</div>
-                  <div class="detail-card-actions">
-                    <!-- 编辑模式和阅览模式都显示放大按钮 -->
+                <div class="detail-card-head detail-card-head-row detail-dialog-card-head">
+                  <div class="min-w-0">
+                    <div class="detail-card-title">开场白预览</div>
+                    <div class="detail-greeting-current-label" x-text="selectedGreetingTitle"></div>
+                  </div>
+                  <div
+                    class="detail-dialog-page-nav detail-dialog-page-nav--inline"
+                    x-show="shouldShowDialogPageNav"
+                    aria-label="对话内容分页"
+                  >
                     <button
+                      type="button"
+                      class="detail-dialog-page-nav-btn"
+                      @click="moveDialogPage(-1)"
+                      aria-label="上一页"
+                      title="上一页"
+                    >
+                      ‹
+                    </button>
+                    <button
+                      type="button"
+                      class="detail-dialog-page-status"
+                      @click="selectDialogPage(dialogPage === 'greeting' ? 'example' : 'greeting')"
+                      :aria-label="'切换到' + (dialogPage === 'greeting' ? '对话示例' : '开场白预览')"
+                      :title="'切换到' + (dialogPage === 'greeting' ? '对话示例' : '开场白预览')"
+                      aria-live="polite"
+                    >
+                      <span class="detail-dialog-page-count" x-text="dialogPageIndex + '/' + dialogPageCount"></span>
+                    </button>
+                    <button
+                      type="button"
+                      class="detail-dialog-page-nav-btn"
+                      @click="moveDialogPage(1)"
+                      aria-label="下一页"
+                      title="下一页"
+                    >
+                      ›
+                    </button>
+                  </div>
+                  <div class="detail-card-actions">
+                    <button
+                      type="button"
                       class="expand-btn"
-                      @click="openLargeEditor('first_mes','开场白')"
+                      @click="openSelectedGreetingEditor()"
+                      :title="'放大编辑：' + selectedGreetingTitle"
                     >
                       ⤢
                     </button>
-                    <!-- 切换按钮: 编辑模式显示"编辑/HTML预览", 阅览模式显示"阅览/HTML预览" -->
                     <div class="toggle-btn-group">
                       <button
+                        type="button"
                         class="toggle-btn"
-                        :class="!showFirstPreview ? 'active' : ''"
-                        @click="showFirstPreview=false"
+                        :class="!showGreetingPreview ? 'active' : ''"
+                        @click="showGreetingPreview=false"
                         x-text="isEditMode ? '编辑' : '阅览'"
                       ></button>
                       <button
+                        type="button"
                         class="toggle-btn"
-                        :class="showFirstPreview ? 'active' : ''"
-                        @click="showFirstPreview=true"
+                        :class="showGreetingPreview ? 'active' : ''"
+                        @click="showGreetingPreview=true"
                       >
-                        HTML预览
+                        预览
                       </button>
                     </div>
                   </div>
                 </div>
 
-                <!-- 编辑模式 - 编辑状态 -->
                 <textarea
-                  x-show="isEditMode && !showFirstPreview"
-                  x-model="editingData.first_mes"
+                  x-show="isEditMode && !showGreetingPreview"
+                  :value="selectedGreetingContent"
+                  @input="setSelectedGreetingContent($event.target.value)"
                   class="form-textarea detail-dialog-grow-box detail-first-message-edit-box"
                   style="resize: none"
+                  :placeholder="selectedGreetingKind === 'alternate' ? '在此输入备用开场白...' : '在此输入默认开场白...'"
                 ></textarea>
 
-                <!-- 编辑模式或阅览模式 - HTML预览 -->
                 <div
-                  x-show="showFirstPreview"
+                  x-show="showGreetingPreview"
                   class="detail-render-box custom-scrollbar detail-dialog-grow-box detail-first-message-preview-box"
                   style="
                     background: var(--bg-panel);
@@ -1142,14 +1180,13 @@
                     padding: 0;
                     overflow: auto;
                   "
-                  x-effect="renderUnifiedPreviewHost($el, showFirstPreview ? editingData.first_mes : null, { runtimeOwner: 'card-first-message', runtimeLabel: 'Card First Message Preview', scroll: true, minHeight: 0, maxHeight: 0, fillStageHeight: true, renderMode: 'markdown', applyDisplayRules: true, config: buildPreviewRegexConfig() })"
+                  x-effect="renderUnifiedPreviewHost($el, dialogPage === 'greeting' && showGreetingPreview ? selectedGreetingContent : null, { runtimeOwner: 'card-greeting-preview', runtimeLabel: 'Card Greeting Preview', scroll: true, minHeight: 0, maxHeight: 0, fillStageHeight: true, renderMode: 'markdown', applyDisplayRules: true, config: buildPreviewRegexConfig() })"
                 ></div>
 
-                <!-- 阅览模式 - 只读文本 -->
                 <textarea
-                  x-show="!isEditMode && !showFirstPreview && hasTextValue(editingData.first_mes)"
+                  x-show="!isEditMode && !showGreetingPreview && hasTextValue(selectedGreetingContent)"
                   readonly
-                  x-model="editingData.first_mes"
+                  :value="selectedGreetingContent"
                   class="form-textarea custom-scrollbar detail-dialog-grow-box"
                   style="
                     resize: none;
@@ -1161,40 +1198,169 @@
                 ></textarea>
               </div>
 
-              <!-- Mes Example -->
               <div
-                class="detail-card"
-                x-show="isEditMode || hasTextValue(editingData.mes_example)"
+                class="detail-card detail-greeting-selector"
+                x-show="dialogPage === 'greeting' && (isEditMode || hasAlternateGreetings)"
               >
-                <div class="detail-card-head">
-                  <div class="detail-card-title">对话示例 (Mes Example)</div>
-                  <button
-                    class="expand-btn"
-                    @click="openLargeEditor('mes_example','对话示例')"
-                  >
-                    ⤢
-                  </button>
+                <div class="detail-card-head detail-greeting-selector-head">
+                  <div class="detail-card-title">开场白选择</div>
+                  <span
+                    class="detail-greeting-selector-count"
+                    x-show="hasAlternateGreetings"
+                    x-text="'备用 ' + displayedAlternateGreetingItems.filter(item => hasTextValue(item.value)).length + ' 条'"
+                  ></span>
                 </div>
-                <!-- 编辑模式 -->
+
+                <div class="detail-greeting-selector-body">
+                  <div class="detail-greeting-rail custom-scrollbar" role="list" aria-label="开场白选项">
+                    <button
+                      type="button"
+                      class="detail-greeting-card"
+                      x-show="isEditMode || hasDefaultGreeting"
+                      :class="selectedGreetingKind === 'default' ? 'is-selected' : ''"
+                      :aria-pressed="selectedGreetingKind === 'default' ? 'true' : 'false'"
+                      @click="selectGreeting('default')"
+                    >
+                      <span class="detail-greeting-card-label">默认开场白</span>
+                      <span class="detail-greeting-card-excerpt" x-text="getGreetingExcerpt(editingData.first_mes)"></span>
+                      <span
+                        class="detail-greeting-card-state"
+                        x-show="selectedGreetingKind === 'default'"
+                      >当前预览</span>
+                    </button>
+
+                  <template x-for="item in displayedAlternateGreetingItems" :key="item.index">
+                    <div
+                      class="detail-greeting-option"
+                      role="listitem"
+                      :data-alt-index="item.index"
+                      :class="{
+                        'is-dragging': detailAltDragIndex === item.index,
+                        'is-drop-target': detailAltDropIndex === item.index && detailAltDragIndex !== item.index
+                      }"
+                      @dragover="onAltDragOver($event, item.index)"
+                      @drop="onAltDrop($event, item.index)"
+                    >
+                      <button
+                        type="button"
+                        class="detail-greeting-card"
+                        :class="{
+                          'is-selected': selectedGreetingKind === 'alternate' && altIdx === item.index,
+                          'is-draggable': isEditMode
+                        }"
+                        :aria-pressed="selectedGreetingKind === 'alternate' && altIdx === item.index ? 'true' : 'false'"
+                        :aria-keyshortcuts="isEditMode ? 'ArrowLeft ArrowRight ArrowUp ArrowDown' : null"
+                        :draggable="isEditMode"
+                        @dragstart="onAltDragStart($event, item.index)"
+                        @dragend="onAltDragEnd()"
+                        @pointerdown="onAltPointerDown($event, item.index)"
+                        @pointermove="onAltPointerMove($event)"
+                        @pointerup="onAltPointerUp($event)"
+                        @pointercancel="onAltPointerCancel($event)"
+                        @keydown="onAltCardKeydown($event, item.index)"
+                        @click="handleAltCardClick($event, item.index)"
+                      >
+                        <span
+                          class="detail-greeting-drag-handle"
+                          x-show="isEditMode"
+                          aria-hidden="true"
+                          title="拖拽调整备用开场白顺序"
+                        >⋮⋮</span>
+                        <span class="detail-greeting-card-label" x-text="'备用开场白 #' + item.position"></span>
+                        <span class="detail-greeting-card-excerpt" x-text="getGreetingExcerpt(item.value)"></span>
+                        <span
+                          class="detail-greeting-card-state"
+                          x-show="selectedGreetingKind === 'alternate' && altIdx === item.index"
+                        >当前预览</span>
+                      </button>
+                    </div>
+                  </template>
+                  </div>
+
+                  <div class="detail-greeting-manage detail-greeting-manage--side" x-show="isEditMode">
+                    <button
+                      type="button"
+                      class="btn-primary detail-greeting-manage-btn"
+                      @click="addAlt()"
+                    >
+                      ＋ 新增备用
+                    </button>
+                    <button
+                      type="button"
+                      class="btn-secondary detail-greeting-manage-btn detail-greeting-manage-btn--danger"
+                      :disabled="!canRemoveSelectedAlternate"
+                      @click="removeSelectedAlternate()"
+                    >
+                      删除备用
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div
+                class="detail-card detail-card--lg detail-dialog-example-card"
+                x-show="dialogPage === 'example' && (isEditMode || hasTextValue(editingData.mes_example))"
+              >
+                <div class="detail-card-head detail-card-head-row detail-dialog-card-head">
+                  <div class="detail-card-title">对话示例 (Mes Example)</div>
+                  <div
+                    class="detail-dialog-page-nav detail-dialog-page-nav--inline"
+                    x-show="shouldShowDialogPageNav"
+                    aria-label="对话内容分页"
+                  >
+                    <button
+                      type="button"
+                      class="detail-dialog-page-nav-btn"
+                      @click="moveDialogPage(-1)"
+                      aria-label="上一页"
+                      title="上一页"
+                    >
+                      ‹
+                    </button>
+                    <button
+                      type="button"
+                      class="detail-dialog-page-status"
+                      @click="selectDialogPage(dialogPage === 'greeting' ? 'example' : 'greeting')"
+                      :aria-label="'切换到' + (dialogPage === 'greeting' ? '对话示例' : '开场白预览')"
+                      :title="'切换到' + (dialogPage === 'greeting' ? '对话示例' : '开场白预览')"
+                      aria-live="polite"
+                    >
+                      <span class="detail-dialog-page-count" x-text="dialogPageIndex + '/' + dialogPageCount"></span>
+                    </button>
+                    <button
+                      type="button"
+                      class="detail-dialog-page-nav-btn"
+                      @click="moveDialogPage(1)"
+                      aria-label="下一页"
+                      title="下一页"
+                    >
+                      ›
+                    </button>
+                  </div>
+                  <div class="detail-card-actions">
+                    <button
+                      type="button"
+                      class="expand-btn"
+                      @click="openLargeEditor('mes_example','对话示例')"
+                      title="放大编辑对话示例"
+                    >
+                      ⤢
+                    </button>
+                  </div>
+                </div>
                 <textarea
                   x-show="isEditMode"
                   x-model="editingData.mes_example"
-                  class="form-textarea"
-                  style="
-                    height: 10rem;
-                    resize: none;
-                    font-family: monospace;
-                    font-size: 0.85rem;
-                  "
+                  class="form-textarea detail-dialog-grow-box"
+                  style="resize: none; font-family: monospace; font-size: 0.85rem"
+                  placeholder="在此输入对话示例..."
                 ></textarea>
-                <!-- 阅览模式：只读显示 -->
                 <textarea
                   x-show="!isEditMode && hasTextValue(editingData.mes_example)"
                   readonly
                   x-model="editingData.mes_example"
-                  class="form-textarea custom-scrollbar"
+                  class="form-textarea custom-scrollbar detail-dialog-grow-box"
                   style="
-                    height: 10rem;
                     resize: none;
                     background: var(--bg-sub);
                     border-color: var(--border-light);
@@ -1204,94 +1370,6 @@
                     font-size: 0.85rem;
                   "
                 ></textarea>
-              </div>
-
-              <!-- Alternate Greetings: 特殊处理数组判空 -->
-              <div
-                class="detail-card detail-card--sm"
-                x-show="isEditMode || hasAlternateGreetings"
-              >
-                <div class="detail-card-head detail-card-head-row">
-                  <div class="detail-card-title">
-                    备用开场白 (Alternate Greetings)
-                  </div>
-
-                  <div class="detail-card-actions">
-                    <!-- 编辑模式和阅览模式都显示放大按钮 -->
-                    <button
-                      class="expand-btn"
-                      x-show="(editingData.alternate_greetings || []).length > 0"
-                      @click="openLargeEditor('alternate_greetings','备用开场白 #' + (altIdx+1), true, altIdx)"
-                    >
-                      ⤢
-                    </button>
-
-                    <div
-                      class="detail-alt-nav"
-                      x-show="(editingData.alternate_greetings || []).length > 1"
-                    >
-                      <button @click="prevAlt()" class="detail-alt-btn">
-                        ‹
-                      </button>
-                      <span
-                        class="detail-alt-count"
-                        x-text="(altIdx+1) + '/' + ((editingData.alternate_greetings || []).length)"
-                      ></span>
-                      <button @click="nextAlt()" class="detail-alt-btn">
-                        ›
-                      </button>
-                    </div>
-
-                    <button
-                      x-show="isEditMode"
-                      @click="removeAlt()"
-                      title="删除"
-                      class="btn-secondary detail-mini-btn"
-                      style="color: #f87171"
-                    >
-                      🗑️
-                    </button>
-                    <button
-                      x-show="isEditMode"
-                      @click="addAlt()"
-                      title="新增"
-                      class="btn-primary detail-mini-btn"
-                    >
-                      ＋
-                    </button>
-                  </div>
-                </div>
-
-                <!-- 编辑模式 -->
-                <template
-                  x-if="isEditMode && (editingData.alternate_greetings || []).length > 0"
-                >
-                  <textarea
-                    x-model="editingData.alternate_greetings[altIdx]"
-                    class="form-textarea"
-                    style="height: 8rem; resize: none"
-                    placeholder="在此输入备用开场白..."
-                  ></textarea>
-                </template>
-
-                <!-- 阅览模式：只读显示 -->
-                <template
-                  x-if="!isEditMode && hasTextValue((editingData.alternate_greetings || [])[altIdx])"
-                >
-                  <textarea
-                    readonly
-                    :value="editingData.alternate_greetings[altIdx] || ''"
-                    class="form-textarea custom-scrollbar"
-                    style="
-                      height: 8rem;
-                      resize: none;
-                      background: var(--bg-sub);
-                      border-color: var(--border-light);
-                      color: var(--text-dim);
-                      cursor: default;
-                    "
-                  ></textarea>
-                </template>
               </div>
             </div>
           </section>

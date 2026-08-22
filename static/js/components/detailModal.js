@@ -60,7 +60,9 @@ export default function detailModal() {
         tagLibrarySearch: '',
         tab: 'basic', 
         lastTab: 'basic',
-        showFirstPreview: false,
+        dialogPage: 'greeting',
+        selectedGreetingKind: 'default',
+        showGreetingPreview: true,
         showLocalNotePreview: false,
         updateImagePolicy: 'overwrite', // 默认策略
         saveOldCoverOnSwap: false,      // 皮肤换封时是否保留旧图
@@ -104,6 +106,10 @@ export default function detailModal() {
         isCardFlipped: false,
         zoomLevel: 100,
         altIdx: 0,
+        detailAltDragIndex: null,
+        detailAltDropIndex: null,
+        detailAltPointer: null,
+        detailAltSuppressClick: false,
         rawMetadataContent: 'Loading...',
         isEditMode: false, // 编辑模式开关，默认为阅览模式
         detailTagDragIndex: null,
@@ -353,6 +359,96 @@ export default function detailModal() {
             return greetings.some((g) => this.hasTextValue(g));
         },
 
+        get hasDefaultGreeting() {
+            return this.hasTextValue(this.editingData?.first_mes);
+        },
+
+        get firstAlternateGreetingIndex() {
+            const greetings = Array.isArray(this.editingData?.alternate_greetings)
+                ? this.editingData.alternate_greetings
+                : [];
+            return greetings.findIndex((greeting) => this.hasTextValue(greeting));
+        },
+
+        get hasGreetingPage() {
+            return this.isEditMode || this.hasDefaultGreeting || this.hasAlternateGreetings;
+        },
+
+        get dialogPages() {
+            const pages = [];
+            if (this.hasGreetingPage) pages.push('greeting');
+            if (this.isEditMode || this.hasTextValue(this.editingData?.mes_example)) {
+                pages.push('example');
+            }
+            return pages;
+        },
+
+        get dialogPageCount() {
+            return this.dialogPages.length;
+        },
+
+        get dialogPageIndex() {
+            const index = this.dialogPages.indexOf(this.dialogPage);
+            return index >= 0 ? index + 1 : 0;
+        },
+
+        get dialogPageLabel() {
+            return this.dialogPage === 'example' ? '对话示例' : '开场白预览';
+        },
+
+        get shouldShowDialogPageNav() {
+            return this.dialogPageCount > 1;
+        },
+
+        get displayedAlternateGreetingItems() {
+            const greetings = Array.isArray(this.editingData?.alternate_greetings)
+                ? this.editingData.alternate_greetings
+                : [];
+
+            return greetings
+                .map((value, index) => ({ index, value }))
+                .filter((item) => this.hasTextValue(item.value) || (
+                    this.isEditMode
+                    && this.selectedGreetingKind === 'alternate'
+                    && item.index === this.altIdx
+                ))
+                .map((item, position) => ({ ...item, position: position + 1 }));
+        },
+
+        get selectedAlternateGreetingOrdinal() {
+            const selected = this.displayedAlternateGreetingItems.find(
+                (item) => item.index === this.altIdx,
+            );
+            return selected?.position || this.altIdx + 1;
+        },
+
+        get selectedGreetingContent() {
+            if (this.selectedGreetingKind === 'alternate') {
+                const greetings = Array.isArray(this.editingData?.alternate_greetings)
+                    ? this.editingData.alternate_greetings
+                    : [];
+                return greetings[this.altIdx] || '';
+            }
+            return this.editingData?.first_mes || '';
+        },
+
+        get selectedGreetingTitle() {
+            if (this.selectedGreetingKind === 'alternate') {
+                return '备用开场白 #' + this.selectedAlternateGreetingOrdinal;
+            }
+            return '默认开场白';
+        },
+
+        get canRemoveSelectedAlternate() {
+            const greetings = Array.isArray(this.editingData?.alternate_greetings)
+                ? this.editingData.alternate_greetings
+                : [];
+            return this.isEditMode
+                && this.selectedGreetingKind === 'alternate'
+                && this.altIdx >= 0
+                && this.altIdx < greetings.length;
+        },
+
         get hasPersonaFields() {
             // 编辑模式下始终显示设定tab
             if (this.isEditMode) return true;
@@ -369,13 +465,281 @@ export default function detailModal() {
         },
 
         get hasDialogFields() {
-            if (this.isEditMode) return true;
-            const d = this.editingData;
-            return !!(
-                this.hasTextValue(d.first_mes) ||
-                this.hasTextValue(d.mes_example) ||
-                this.hasAlternateGreetings
+            return this.dialogPages.length > 0;
+        },
+
+        syncDialogState({ preferGreeting = false } = {}) {
+            const greetings = Array.isArray(this.editingData?.alternate_greetings)
+                ? this.editingData.alternate_greetings
+                : [];
+            const selectedAlternateIsAvailable = this.selectedGreetingKind === 'alternate'
+                && this.altIdx >= 0
+                && this.altIdx < greetings.length
+                && (this.isEditMode || this.hasTextValue(greetings[this.altIdx]));
+
+            if (!selectedAlternateIsAvailable) {
+                const firstAlternateIndex = this.firstAlternateGreetingIndex;
+                if (!this.hasDefaultGreeting && firstAlternateIndex >= 0) {
+                    this.selectedGreetingKind = 'alternate';
+                    this.altIdx = firstAlternateIndex;
+                } else {
+                    this.selectedGreetingKind = 'default';
+                    this.altIdx = 0;
+                }
+            }
+
+            const pages = this.dialogPages;
+            if (preferGreeting && pages.includes('greeting')) {
+                this.dialogPage = 'greeting';
+            } else if (!pages.includes(this.dialogPage)) {
+                this.dialogPage = pages[0] || 'greeting';
+            }
+        },
+
+        selectDialogPage(page) {
+            if (!this.dialogPages.includes(page)) return;
+            this.dialogPage = page;
+        },
+
+        moveDialogPage(direction) {
+            const pages = this.dialogPages;
+            if (pages.length < 2) return;
+            const currentIndex = pages.indexOf(this.dialogPage);
+            const nextIndex = (currentIndex + direction + pages.length) % pages.length;
+            this.dialogPage = pages[nextIndex];
+        },
+
+        selectGreeting(kind, index = 0) {
+            if (kind === 'default') {
+                this.selectedGreetingKind = 'default';
+                return;
+            }
+
+            const greetings = Array.isArray(this.editingData?.alternate_greetings)
+                ? this.editingData.alternate_greetings
+                : [];
+            if (index < 0 || index >= greetings.length) return;
+            if (!this.isEditMode && !this.hasTextValue(greetings[index])) return;
+
+            this.selectedGreetingKind = 'alternate';
+            this.altIdx = index;
+        },
+
+        setSelectedGreetingContent(value) {
+            if (this.selectedGreetingKind === 'alternate') {
+                if (!Array.isArray(this.editingData.alternate_greetings)) {
+                    this.editingData.alternate_greetings = [];
+                }
+                if (this.altIdx >= 0 && this.altIdx < this.editingData.alternate_greetings.length) {
+                    this.editingData.alternate_greetings[this.altIdx] = value;
+                    return;
+                }
+            }
+            this.editingData.first_mes = value;
+        },
+
+        getGreetingExcerpt(value) {
+            const text = typeof value === 'string' ? value.trim().replace(/\s+/g, ' ') : '';
+            if (!text) return '未填写';
+            return text.length > 56 ? `${text.slice(0, 56)}...` : text;
+        },
+
+        openSelectedGreetingEditor() {
+            if (this.selectedGreetingKind === 'alternate') {
+                this.openLargeEditor(
+                    'alternate_greetings',
+                    '备用开场白 #' + this.selectedAlternateGreetingOrdinal,
+                    true,
+                    this.altIdx,
+                );
+                return;
+            }
+            this.openLargeEditor('first_mes', '默认开场白');
+        },
+
+        addAlt() {
+            if (!Array.isArray(this.editingData.alternate_greetings)) {
+                this.editingData.alternate_greetings = [];
+            }
+
+            const greetings = this.editingData.alternate_greetings;
+            let nextIndex = greetings.findIndex((greeting) => !this.hasTextValue(greeting));
+            if (nextIndex < 0) {
+                greetings.push('');
+                nextIndex = greetings.length - 1;
+            }
+
+            this.selectedGreetingKind = 'alternate';
+            this.altIdx = nextIndex;
+            this.dialogPage = 'greeting';
+            this.showGreetingPreview = false;
+        },
+
+        removeSelectedAlternate() {
+            if (!this.canRemoveSelectedAlternate) return;
+            if (!confirm('确定删除' + this.selectedGreetingTitle + '吗？')) return;
+
+            this.editingData.alternate_greetings.splice(this.altIdx, 1);
+            if (this.editingData.alternate_greetings.length === 0) {
+                this.editingData.alternate_greetings = [''];
+            }
+
+            this.selectedGreetingKind = 'default';
+            this.altIdx = 0;
+            this.showGreetingPreview = false;
+        },
+
+        moveAlternateGreeting(index, direction) {
+            const targetIndex = index + direction;
+            const greetings = Array.isArray(this.editingData?.alternate_greetings)
+                ? [...this.editingData.alternate_greetings]
+                : [];
+            if (index < 0 || index >= greetings.length) return;
+            if (targetIndex < 0 || targetIndex >= greetings.length) return;
+
+            const [movedGreeting] = greetings.splice(index, 1);
+            greetings.splice(targetIndex, 0, movedGreeting);
+            this.editingData.alternate_greetings = greetings;
+            this.detailAltDropIndex = null;
+
+            if (this.selectedGreetingKind !== 'alternate') return;
+            if (this.altIdx === index) {
+                this.altIdx = targetIndex;
+            } else if (index < this.altIdx && this.altIdx <= targetIndex) {
+                this.altIdx -= 1;
+            } else if (targetIndex <= this.altIdx && this.altIdx < index) {
+                this.altIdx += 1;
+            }
+        },
+
+        onAltDragStart(event, index) {
+            if (!this.isEditMode) return;
+            this.detailAltDragIndex = index;
+            this.detailAltDropIndex = null;
+            this.detailAltSuppressClick = false;
+            if (!event.dataTransfer) return;
+            event.dataTransfer.effectAllowed = 'move';
+            event.dataTransfer.setData('text/plain', String(index));
+        },
+
+        onAltDragOver(event, index) {
+            if (!this.isEditMode || this.detailAltDragIndex === null || this.detailAltDragIndex === index) return;
+            event.preventDefault();
+            this.detailAltDropIndex = index;
+            if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+        },
+
+        onAltDrop(event, targetIndex) {
+            if (!this.isEditMode) return;
+            event.preventDefault();
+
+            const sourceRaw = event.dataTransfer?.getData('text/plain');
+            const sourceIndex = Number.isInteger(this.detailAltDragIndex)
+                ? this.detailAltDragIndex
+                : Number.parseInt(sourceRaw, 10);
+            if (!Number.isInteger(sourceIndex) || sourceIndex === targetIndex) {
+                this.detailAltDragIndex = null;
+                this.detailAltDropIndex = null;
+                return;
+            }
+
+            this.moveAlternateGreeting(sourceIndex, targetIndex - sourceIndex);
+            this.detailAltDragIndex = null;
+            this.detailAltDropIndex = null;
+            this.detailAltSuppressClick = true;
+        },
+
+        onAltDragEnd() {
+            this.detailAltDragIndex = null;
+            this.detailAltDropIndex = null;
+        },
+
+        handleAltCardClick(event, index) {
+            if (!this.consumeAltDragClick()) {
+                event.preventDefault();
+                event.stopPropagation();
+                return;
+            }
+            this.selectGreeting('alternate', index);
+        },
+
+        consumeAltDragClick() {
+            const suppressed = this.detailAltSuppressClick;
+            this.detailAltSuppressClick = false;
+            return !suppressed;
+        },
+
+        onAltPointerDown(event, index) {
+            if (!this.isEditMode || event.pointerType === 'mouse') return;
+            if (!event.target?.closest?.('.detail-greeting-drag-handle')) return;
+            this.detailAltPointer = {
+                index,
+                pointerId: event.pointerId,
+                startX: event.clientX,
+                startY: event.clientY,
+                active: false,
+            };
+            event.preventDefault();
+            event.currentTarget?.setPointerCapture?.(event.pointerId);
+        },
+
+        onAltPointerMove(event) {
+            const pointer = this.detailAltPointer;
+            if (!this.isEditMode || !pointer || pointer.pointerId !== event.pointerId) return;
+
+            const distance = Math.hypot(
+                event.clientX - pointer.startX,
+                event.clientY - pointer.startY,
             );
+            if (!pointer.active && distance < 8) return;
+
+            if (!pointer.active) {
+                pointer.active = true;
+                this.detailAltDragIndex = pointer.index;
+            }
+            event.preventDefault();
+
+            const target = document
+                .elementFromPoint(event.clientX, event.clientY)
+                ?.closest?.('[data-alt-index]');
+            const targetIndex = Number.parseInt(target?.dataset?.altIndex ?? '', 10);
+            if (Number.isInteger(targetIndex)) this.detailAltDropIndex = targetIndex;
+        },
+
+        onAltPointerUp(event) {
+            const pointer = this.detailAltPointer;
+            if (!pointer || pointer.pointerId !== event.pointerId) return;
+
+            if (pointer.active) {
+                const targetIndex = this.detailAltDropIndex;
+                if (Number.isInteger(targetIndex) && targetIndex !== pointer.index) {
+                    this.moveAlternateGreeting(pointer.index, targetIndex - pointer.index);
+                }
+                this.detailAltSuppressClick = true;
+            }
+            this.onAltPointerCancel(event);
+        },
+
+        onAltPointerCancel(event) {
+            const pointer = this.detailAltPointer;
+            if (pointer && event.pointerId !== undefined && pointer.pointerId !== event.pointerId) return;
+            this.detailAltPointer = null;
+            this.detailAltDragIndex = null;
+            this.detailAltDropIndex = null;
+        },
+
+        onAltCardKeydown(event, index) {
+            if (!this.isEditMode) return;
+            const direction = ['ArrowLeft', 'ArrowUp'].includes(event.key)
+                ? -1
+                : ['ArrowRight', 'ArrowDown'].includes(event.key)
+                    ? 1
+                    : 0;
+            if (!direction) return;
+
+            event.preventDefault();
+            this.selectGreeting('alternate', index);
+            this.moveAlternateGreeting(index, direction);
         },
 
         ensureVisibleDetailTab() {
@@ -389,7 +753,10 @@ export default function detailModal() {
         },
 
         toggleEditMode() {
-            this.isEditMode = !this.isEditMode;
+            const enteringEditMode = !this.isEditMode;
+            this.isEditMode = enteringEditMode;
+            this.showGreetingPreview = !enteringEditMode;
+            this.syncDialogState({ preferGreeting: enteringEditMode });
             this.ensureVisibleDetailTab();
         },
 
@@ -1171,7 +1538,15 @@ export default function detailModal() {
             this.showSkinGallery = false;
             this.skinGalleryPreviewPath = '';
             this.isCardFlipped = false;
-            this.showFirstPreview = false;
+            this.dialogPage = 'greeting';
+            this.selectedGreetingKind = 'default';
+            this.showGreetingPreview = true;
+            this.isEditMode = false;
+            this.altIdx = 0;
+            this.detailAltDragIndex = null;
+            this.detailAltDropIndex = null;
+            this.detailAltPointer = null;
+            this.detailAltSuppressClick = false;
             this.showLocalNotePreview = false;
             this.lastTab = this.tab; 
             this.tab = 'basic';
@@ -1226,7 +1601,7 @@ export default function detailModal() {
 
             // 赋值给编辑器（带结构兜底，避免模板读取 undefined）
             this.editingData = this._normalizeEditingDataShape(rawData);
-            this.altIdx = 0;
+            this.syncDialogState({ preferGreeting: true });
             this.detailTagDragIndex = null;
             this.editingData.filename = c.filename || this.editingData.filename;
             setActiveRuntimeContext({
@@ -1291,7 +1666,6 @@ export default function detailModal() {
                         ? safeCard.alternate_greetings
                         : [];
                     if (this.editingData.alternate_greetings.length === 0) this.editingData.alternate_greetings = [""];
-                    this.altIdx = 0;
 
                     if (safeCard.character_book) {
                         let book = safeCard.character_book;
@@ -1318,6 +1692,7 @@ export default function detailModal() {
                     this.editingData.resource_folder = safeCard.resource_folder || "";
                     this.editingData.source_revision = safeCard.source_revision || "";
                     this.editingData = this._normalizeEditingDataShape(this.editingData);
+                    this.syncDialogState();
                     setActiveRuntimeContext({
                         card: {
                             id: safeCard.id || cardId,
@@ -1356,6 +1731,7 @@ export default function detailModal() {
             if (this.editingData.alternate_greetings) {
                 this.editingData.alternate_greetings = this.editingData.alternate_greetings.filter(s => s && s.trim() !== "");
             }
+            this.syncDialogState();
             // 同步 Raw JSON 到对象 (如果用户修改了 Textarea)
             if (this.editingData.character_book) {
                 this.editingData.character_book_raw = JSON.stringify(this.editingData.character_book, null, 2);
@@ -1658,6 +2034,7 @@ export default function detailModal() {
                     
                     this.activeCard = updatedCard;
                     this.editingData = this._normalizeEditingDataShape(JSON.parse(JSON.stringify(updatedCard)));
+                    this.syncDialogState();
                     
                     window.dispatchEvent(new CustomEvent('card-updated', { detail: updatedCard }));
                     
@@ -1886,6 +2263,7 @@ export default function detailModal() {
                     this.editingData.resource_folder = c.resource_folder || "";
                     this.editingData.source_revision = c.source_revision || this.editingData.source_revision || "";
                     this.editingData = this._normalizeEditingDataShape(this.editingData);
+                    this.syncDialogState();
                 }
             });
         },
@@ -2228,29 +2606,6 @@ export default function detailModal() {
                         }
                     }
                 }).catch(() => {});
-            }
-        },
-
-        prevAlt() {
-            if (this.altIdx > 0) this.altIdx--;
-            else this.altIdx = this.editingData.alternate_greetings.length - 1;
-        },
-        nextAlt() {
-            if (this.altIdx < this.editingData.alternate_greetings.length - 1) this.altIdx++;
-            else this.altIdx = 0;
-        },
-        addAlt() {
-            this.editingData.alternate_greetings.push("");
-            this.altIdx = this.editingData.alternate_greetings.length - 1;
-        },
-        removeAlt() {
-            if (this.editingData.alternate_greetings.length <= 1) {
-                this.editingData.alternate_greetings = [""];
-            } else {
-                this.editingData.alternate_greetings.splice(this.altIdx, 1);
-                if (this.altIdx >= this.editingData.alternate_greetings.length) {
-                    this.altIdx = this.editingData.alternate_greetings.length - 1;
-                }
             }
         },
 

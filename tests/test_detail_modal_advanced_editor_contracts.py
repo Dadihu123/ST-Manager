@@ -178,12 +178,133 @@ def test_detail_template_uses_trimmed_visibility_for_empty_readonly_text_cards()
     assert 'x-if="isEditMode || hasTextValue(editingData.creator_notes)"' in template
     assert 'x-if="isEditMode || hasTextValue(editingData.system_prompt)"' in template
     assert 'x-if="isEditMode || hasTextValue(editingData.post_history_instructions)"' in template
-    assert 'x-show="isEditMode || hasTextValue(editingData.first_mes)"' in template
-    assert 'x-show="!isEditMode && !showFirstPreview && hasTextValue(editingData.first_mes)"' in template
-    assert 'x-show="isEditMode || hasTextValue(editingData.mes_example)"' in template
-    assert 'x-show="!isEditMode && hasTextValue(editingData.mes_example)"' in template
-    assert 'x-show="isEditMode || hasAlternateGreetings"' in template
-    assert 'x-if="!isEditMode && hasTextValue((editingData.alternate_greetings || [])[altIdx])"' in template
+    assert 'dialogPage === \'greeting\' && hasGreetingPage' in template
+    assert 'dialogPage === \'example\' && (isEditMode || hasTextValue(editingData.mes_example))' in template
+    assert 'x-show="shouldShowDialogPageNav"' in template
+    assert template.count('detail-dialog-page-nav--inline') == 2
+    assert template.count('detail-dialog-card-head') == 2
+    assert '@click="moveDialogPage(-1)"' in template
+    assert '@click="moveDialogPage(1)"' in template
+    assert 'class="detail-greeting-card"' in template
+    assert "@click=\"selectGreeting('default')\"" in template
+    assert '@click="handleAltCardClick($event, item.index)"' in template
+    assert '@click="addAlt()"' in template
+    assert '@click="removeSelectedAlternate()"' in template
+    assert 'detail-greeting-manage--side' in template
+    assert '@click="promoteSelectedAlternate()"' not in template
+    assert '@click="moveAlternateGreeting(item.index, -1)"' not in template
+    assert '@click="moveAlternateGreeting(item.index, 1)"' not in template
+    assert 'showFirstPreview' not in template
+
+
+def test_detail_modal_runtime_dialog_pages_and_greeting_management_are_semantic():
+    run_detail_modal_runtime_check(
+        """
+        modal.isEditMode = false;
+        modal.dialogPage = 'greeting';
+        modal.selectedGreetingKind = 'default';
+        modal.altIdx = 0;
+        modal.editingData = {
+          first_mes: '',
+          mes_example: '',
+          alternate_greetings: ['', '备用一', '备用二'],
+        };
+
+        modal.syncDialogState({ preferGreeting: true });
+        if (modal.dialogPages.length !== 1 || modal.dialogPages[0] !== 'greeting') {
+          throw new Error('expected alternate-only card to expose just the greeting page');
+        }
+        if (modal.selectedGreetingKind !== 'alternate' || modal.altIdx !== 1) {
+          throw new Error('expected first non-empty alternate greeting to become the read selection');
+        }
+        if (modal.selectedGreetingContent !== '备用一') {
+          throw new Error('expected selected alternate content to be previewed');
+        }
+        if (modal.shouldShowDialogPageNav) {
+          throw new Error('expected no page navigation without a message example');
+        }
+
+        modal.editingData.mes_example = '示例对话';
+        modal.syncDialogState();
+        if (modal.dialogPageCount !== 2 || !modal.shouldShowDialogPageNav) {
+          throw new Error('expected a second page when the message example exists');
+        }
+        modal.moveDialogPage(1);
+        if (modal.dialogPage !== 'example') {
+          throw new Error('expected page navigation to open the message example');
+        }
+
+        modal.isEditMode = true;
+        modal.editingData = {
+          first_mes: '默认开场白',
+          mes_example: '',
+          alternate_greetings: ['备用一', '备用二', '备用三'],
+        };
+        modal.selectedGreetingKind = 'alternate';
+        modal.altIdx = 1;
+        modal.moveAlternateGreeting(1, -1);
+        if (modal.editingData.alternate_greetings.join('|') !== '备用二|备用一|备用三') {
+          throw new Error('expected alternate ordering to persist in the backing array');
+        }
+        if (modal.altIdx !== 0 || modal.editingData.first_mes !== '默认开场白') {
+          throw new Error('expected sorting to keep the default greeting unchanged and selected alternate in sync');
+        }
+
+        modal.addAlt();
+        if (modal.selectedGreetingKind !== 'alternate' || modal.altIdx !== 3) {
+          throw new Error('expected add action to select a writable alternate greeting');
+        }
+        modal.setSelectedGreetingContent('备用四');
+        modal.moveAlternateGreeting(3, -2);
+        if (modal.editingData.alternate_greetings.join('|') !== '备用二|备用四|备用一|备用三') {
+          throw new Error('expected alternate drag ordering to persist in the backing array');
+        }
+        if (modal.altIdx !== 1 || modal.displayedAlternateGreetingItems.map(item => item.position).join('|') !== '1|2|3|4') {
+          throw new Error('expected alternate ordinals to follow the visible left-to-right order');
+        }
+
+        modal.isEditMode = false;
+        modal.editingData = {
+          first_mes: '',
+          mes_example: '只有示例',
+          alternate_greetings: [''],
+        };
+        modal.dialogPage = 'greeting';
+        modal.selectedGreetingKind = 'default';
+        modal.altIdx = 0;
+        modal.syncDialogState();
+        if (modal.dialogPage !== 'example' || modal.dialogPageCount !== 1 || modal.shouldShowDialogPageNav) {
+          throw new Error('expected example-only cards to open directly without page controls');
+        }
+      """
+    )
+
+
+def test_detail_dialog_template_exposes_drag_and_touch_sort_fallbacks():
+    template = (PROJECT_ROOT / 'templates/modals/detail_card.html').read_text(encoding='utf-8')
+    css = (PROJECT_ROOT / 'static/css/modules/modal-detail.css').read_text(encoding='utf-8')
+
+    assert '@dragstart="onAltDragStart($event, item.index)"' in template
+    assert '@drop="onAltDrop($event, item.index)"' in template
+    assert '@pointerdown="onAltPointerDown($event, item.index)"' in template
+    assert '@pointermove="onAltPointerMove($event)"' in template
+    assert '@pointerup="onAltPointerUp($event)"' in template
+    assert '@keydown="onAltCardKeydown($event, item.index)"' in template
+    assert 'detail-greeting-drag-handle' in template
+    assert 'detail-greeting-manage--side' in template
+    assert '@click="moveAlternateGreeting(item.index, -1)"' not in template
+    assert '@click="moveAlternateGreeting(item.index, 1)"' not in template
+    assert '@click="promoteSelectedAlternate()"' not in template
+    assert '.detail-greeting-card.is-selected' in css
+    assert '.detail-greeting-selector-body' in css
+    assert '.detail-greeting-manage--side' in css
+    assert '.detail-greeting-option.is-drop-target' in css
+    assert 'transform: translateY(-7px);' in css
+    assert '.detail-dialog-card-head' in css
+    assert '.detail-dialog-page-nav--inline' in css
+    assert 'overflow-y: auto' in css
+    assert 'overflow-x: auto' in css
+    assert '@media (prefers-reduced-motion: reduce)' in css
 
 
 def test_detail_modal_runtime_open_advanced_editor_uses_detached_extensions_snapshot_and_buffered_mode_handlers():

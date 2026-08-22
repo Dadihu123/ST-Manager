@@ -135,9 +135,9 @@ def test_preview_entrypoints_continue_using_shared_dom_renderers_with_unified_pr
     assert '...resolvePreviewOptions()' in preview_block
     assert "renderMode: 'markdown'" not in preview_block
     assert '...resolvePreviewOptions()' in preview_block
-    detail_preview_block = detail_card_template.split('x-show="showFirstPreview"', 1)[1]
+    detail_preview_block = detail_card_template.split('x-show="showGreetingPreview"', 1)[1]
     detail_preview_block = detail_preview_block.split('</div>', 1)[0]
-    assert "renderUnifiedPreviewHost($el, showFirstPreview ? editingData.first_mes : null" in detail_preview_block
+    assert "renderUnifiedPreviewHost($el, dialogPage === 'greeting' && showGreetingPreview ? selectedGreetingContent : null" in detail_preview_block
     assert "renderMode: 'markdown'" in detail_preview_block
     assert 'applyDisplayRules: true' in detail_preview_block
     assert 'config: buildPreviewRegexConfig()' in detail_preview_block
