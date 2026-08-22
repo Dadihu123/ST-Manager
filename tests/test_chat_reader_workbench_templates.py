@@ -2576,9 +2576,18 @@ def test_automation_modal_css_keeps_inline_sort_actions_compact_and_wrapping():
 def test_detail_modal_template_marks_multicard_mobile_tabs_for_stacked_layout():
     detail_template = read_project_file('templates/modals/detail_card.html')
 
-    for tab in ('basic', 'persona', 'dialog'):
-        assert f"x-show=\"tab==='{tab}'" in detail_template
-    assert detail_template.count('class="detail-section detail-section-fill detail-section-mobile-stack"') >= 3
+    stacked_tabs = set()
+    for section_opening in re.findall(r'<section\b[^>]*>', detail_template, flags=re.DOTALL):
+        tab_match = re.search(r'x-show="tab===\'(basic|persona|dialog)\'', section_opening)
+        class_match = re.search(r'class="([^"]*)"', section_opening)
+        if (
+            tab_match
+            and class_match
+            and 'detail-section-mobile-stack' in class_match.group(1).split()
+        ):
+            stacked_tabs.add(tab_match.group(1))
+
+    assert stacked_tabs == {'basic', 'persona', 'dialog'}
 
 
 def test_detail_modal_dialog_editors_allow_first_message_inner_box_to_shrink_with_card_height():
