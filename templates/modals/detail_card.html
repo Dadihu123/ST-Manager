@@ -1660,18 +1660,20 @@
                     <span class="text-xs text-gray-500"
                       >提示: 调整 Order 可改变触发顺序</span
                     >
-                    <button
-                      @click="addWiEntry()"
-                      class="text-xs bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded flex items-center gap-1 transition"
-                    >
-                      ➕ 新增条目
-                    </button>
+                    <div class="flex items-center gap-2">
+                      <button
+                        @click="addWiEntry()"
+                        class="text-xs bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded flex items-center gap-1 transition"
+                      >
+                        ➕ 新增条目
+                      </button>
+                    </div>
                   </div>
 
                   <div class="flex flex-col gap-2">
                     <template
-                      x-for="(entry, index) in getWIArrayRef()"
-                      :key="index"
+                      x-for="(entry, index) in getDefaultSortedWIEntries()"
+                      :key="getWiEntryIdentity(entry, index)"
                     >
                       <div
                         x-data="{ expanded: false }"
@@ -1725,22 +1727,8 @@
                           </div>
 
                           <div class="flex items-center gap-1" @click.stop>
-                            <div class="flex flex-col mr-2">
-                              <button
-                                @click="moveWiEntry(index, -1)"
-                                class="text-[10px] text-gray-500 hover:text-white leading-none mb-1"
-                              >
-                                ▲
-                              </button>
-                              <button
-                                @click="moveWiEntry(index, 1)"
-                                class="text-[10px] text-gray-500 hover:text-white leading-none"
-                              >
-                                ▼
-                              </button>
-                            </div>
                             <button
-                              @click="removeWiEntry(index)"
+                              @click="removeWiEntry(entry)"
                               class="text-gray-500 hover:text-red-400 p-1 rounded transition"
                             >
                               🗑️
@@ -1848,7 +1836,7 @@
                     </template>
 
                     <div
-                      x-show="getWIArrayRef().length === 0"
+                      x-show="getDefaultSortedWIEntries().length === 0"
                       class="text-center py-8 text-gray-600 border border-dashed border-gray-700 rounded-lg"
                     >
                       <p class="text-sm">暂无世界书条目</p>

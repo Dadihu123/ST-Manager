@@ -8,6 +8,15 @@ import {
   openPath,
 } from "../api/system.js";
 import { getCleanedV3Data, toStV3Worldbook } from "./data.js";
+import {
+  getWiEntryIdentity as buildWiEntryIdentity,
+  getNextWiDisplayIndex,
+  loadWiSortMode,
+  normalizeWiSortMode,
+  saveWiSortMode,
+  setWiCustomDisplayIndexes,
+  sortWiEntries,
+} from "./wiSort.js";
 
 export const wiHelpers = {
   // 获取 WI 数组引用 (兼容 V2/V3)
@@ -34,15 +43,99 @@ export const wiHelpers = {
       cb.entries = Object.values(cb.entries);
     }
     if (!cb.entries) cb.entries = [];
-    // 过滤掉 null 或 undefined 的条目，防止崩坏
-    cb.entries = cb.entries.filter(
+    // 过滤掉 null 或 undefined 的条目，防止崩坏。保持已干净数组的引用稳定，
+    // 否则排序视图和后续插入之间可能操作到不同的数组对象。
+    const validEntries = cb.entries.filter(
       (e) => e !== null && e !== undefined && typeof e === "object",
     );
+    if (validEntries.length !== cb.entries.length) cb.entries = validEntries;
     return cb.entries;
   },
 
   getWorldInfoCount() {
     return this.getWIArrayRef().length;
+  },
+
+  getWiEntryIdentity(entry, fallbackIndex = 0) {
+    return buildWiEntryIdentity(entry, fallbackIndex);
+  },
+
+  getSortedWIEntries() {
+    const entries = this.editingData
+      ? this.getWIArrayRef()
+      : Array.isArray(this.wiEntries)
+        ? this.wiEntries
+        : [];
+    return sortWiEntries(entries, this.wiSortMode || loadWiSortMode());
+  },
+
+  getDefaultSortedWIEntries() {
+    const entries = this.editingData
+      ? this.getWIArrayRef()
+      : Array.isArray(this.wiEntries)
+        ? this.wiEntries
+        : [];
+    return sortWiEntries(entries, "priority");
+  },
+
+  isCurrentWiEntry(entry, index = 0) {
+    if (this.currentWiEntryKey) {
+      return this.currentWiEntryKey === buildWiEntryIdentity(entry, index);
+    }
+    return this.currentWiIndex === index;
+  },
+
+  setWiSortMode(value) {
+    const current = this.activeEditorEntry || this.activeEntry || null;
+    if (current) {
+      this.currentWiEntryKey = buildWiEntryIdentity(current);
+    }
+    this.wiSortMode = saveWiSortMode(value);
+    this.showWiSortMenu = false;
+    return this.wiSortMode;
+  },
+
+  getWiSortMode() {
+    return normalizeWiSortMode(this.wiSortMode || loadWiSortMode());
+  },
+
+  _getWiSourceUidCandidate(entries) {
+    const used = new Set();
+    (entries || []).forEach((entry) => {
+      const sourceUid = entry?.st_source_id ?? entry?.uid;
+      if (sourceUid !== undefined && sourceUid !== null && sourceUid !== "") {
+        used.add(String(sourceUid));
+      }
+    });
+    let next = 0;
+    while (used.has(String(next))) next += 1;
+    return next;
+  },
+
+  _getWiNextDisplayIndex(entries) {
+    return getNextWiDisplayIndex(entries);
+  },
+
+  _resolveWiEntryIndex(entryOrIndex) {
+    const entries = this.getWIArrayRef();
+    if (typeof entryOrIndex === "number") {
+      return entryOrIndex >= 0 && entryOrIndex < entries.length
+        ? entryOrIndex
+        : -1;
+    }
+    if (!entryOrIndex || typeof entryOrIndex !== "object") return -1;
+    const directIndex = entries.indexOf(entryOrIndex);
+    if (directIndex >= 0) return directIndex;
+    const identity = buildWiEntryIdentity(entryOrIndex);
+    return entries.findIndex(
+      (entry, index) => buildWiEntryIdentity(entry, index) === identity,
+    );
+  },
+
+  _syncWiEntryIndexes(entries = this.getWIArrayRef()) {
+    entries.forEach((entry, index) => {
+      if (entry) entry.id = index;
+    });
   },
 
   getWiStatusClass(entry) {
@@ -59,9 +152,25 @@ export const wiHelpers = {
       typeof this._generateEntryUid === "function"
         ? this._generateEntryUid()
         : `wi-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+    const usedSourceIds = new Set(
+      arr
+        .map((entry) => entry?.st_source_id ?? entry?.uid)
+        .filter((value) => value !== undefined && value !== null && value !== "")
+        .map((value) => String(value)),
+    );
+    let nextSourceId = 0;
+    while (usedSourceIds.has(String(nextSourceId))) nextSourceId += 1;
     // 创建新条目（不预先设置 id，稍后统一分配）
     arr.push({
       st_manager_uid: entryUid,
+      st_source_id:
+        typeof this._getWiSourceUidCandidate === "function"
+          ? this._getWiSourceUidCandidate(arr)
+          : nextSourceId,
+      displayIndex:
+        typeof this._getWiNextDisplayIndex === "function"
+          ? this._getWiNextDisplayIndex(arr)
+          : arr.length,
       comment: "新条目",
       content: "",
       keys: ["关键词"],
@@ -98,54 +207,71 @@ export const wiHelpers = {
       useProbability: true,
     });
 
-    // 重新分配 id，确保 id 等于索引号
-    arr.forEach((entry, idx) => {
-      if (entry) entry.id = idx;
-    });
+    if (typeof this._syncWiEntryIndexes === "function") {
+      this._syncWiEntryIndexes(arr);
+    } else {
+      arr.forEach((entry, idx) => {
+        if (entry) entry.id = idx;
+      });
+    }
 
     // 滚动并选中
     this.$nextTick(() => {
       const container = document.querySelector(".wi-list-container");
       if (container) container.scrollTop = container.scrollHeight;
       this.currentWiIndex = arr.length - 1;
+      this.currentWiEntryKey =
+        typeof this.getWiEntryIdentity === "function"
+          ? this.getWiEntryIdentity(arr[this.currentWiIndex])
+          : "";
       this.isEditingClipboard = false;
     });
   },
 
-  removeWiEntry(index) {
-    if (index === undefined || index === null || index < 0) return;
+  removeWiEntry(entryOrIndex) {
+    const index = this._resolveWiEntryIndex(entryOrIndex);
+    if (index < 0) return;
     if (!confirm("确定要删除这条世界书内容吗？")) return;
 
     const arr = this.getWIArrayRef();
     arr.splice(index, 1);
 
-    // 防止溢出
-    if (this.currentWiIndex >= arr.length) {
-      this.currentWiIndex = Math.max(0, arr.length - 1);
-    }
-
-    // 重新分配 id，确保 id 等于索引号
-    arr.forEach((entry, idx) => {
-      if (entry) entry.id = idx;
-    });
+    this._syncWiEntryIndexes(arr);
+    this.currentWiIndex = Math.min(this.currentWiIndex, Math.max(0, arr.length - 1));
+    this.currentWiEntryKey = arr.length
+      ? buildWiEntryIdentity(arr[this.currentWiIndex])
+      : "";
   },
 
-  moveWiEntry(index, direction) {
+  moveWiEntry(entryOrIndex, direction) {
+    const sortMode =
+      typeof this.getWiSortMode === "function"
+        ? this.getWiSortMode()
+        : this.wiSortMode || loadWiSortMode();
+    if (sortMode !== "custom") return;
     const arr = this.getWIArrayRef();
-    const newIndex = index + direction;
-    if (newIndex < 0 || newIndex >= arr.length) return;
+    const index = this._resolveWiEntryIndex(entryOrIndex);
+    if (index < 0) return;
+    const selected = arr[index];
+    const ordered = sortWiEntries(arr, "custom");
+    const visibleIndex = ordered.findIndex(
+      (entry) => entry === selected || buildWiEntryIdentity(entry) === buildWiEntryIdentity(selected),
+    );
+    const newVisibleIndex = visibleIndex + direction;
+    if (visibleIndex < 0 || newVisibleIndex < 0 || newVisibleIndex >= ordered.length) return;
 
-    const temp = arr[index];
-    arr[index] = arr[newIndex];
-    arr[newIndex] = temp;
+    [ordered[visibleIndex], ordered[newVisibleIndex]] = [
+      ordered[newVisibleIndex],
+      ordered[visibleIndex],
+    ];
+    setWiCustomDisplayIndexes(ordered);
+    this._syncWiEntryIndexes(arr);
 
-    // 跟随选中
-    if (this.currentWiIndex === index) this.currentWiIndex = newIndex;
-
-    // 重新分配 id，确保 id 等于索引号
-    arr.forEach((entry, idx) => {
-      if (entry) entry.id = idx;
-    });
+    const newRawIndex = this._resolveWiEntryIndex(selected);
+    if (newRawIndex >= 0) {
+      this.currentWiIndex = newRawIndex;
+      this.currentWiEntryKey = buildWiEntryIdentity(selected, newRawIndex);
+    }
   },
 
   createSnapshot(forceType = null) {

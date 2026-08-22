@@ -33,6 +33,13 @@ import {
   getTotalWiTokens,
   getWiTokenClass,
 } from "../utils/format.js";
+import {
+  getNextWiDisplayIndex,
+  WI_SORT_OPTIONS,
+  getWiSortLabel,
+  loadWiSortMode,
+  setWiCustomDisplayIndexes,
+} from "../utils/wiSort.js";
 
 export default function wiEditor() {
   const autoSaver = createAutoSaver();
@@ -60,7 +67,11 @@ export default function wiEditor() {
 
     // 索引与视图控制
     currentWiIndex: 0,
+    currentWiEntryKey: "",
     entryUidField: "st_manager_uid",
+    wiSortMode: loadWiSortMode(),
+    wiSortOptions: WI_SORT_OPTIONS,
+    showWiSortMenu: false,
     initialSnapshotChecked: false,
     initialSnapshotInitPromise: null,
 
@@ -107,10 +118,12 @@ export default function wiEditor() {
 
     // 拖拽状态
     wiDraggingIndex: null,
+    wiDraggingEntryKey: "",
 
     formatWiKeys,
     estimateTokens,
     getWiTokenClass,
+    getWiSortLabel,
     updateWiKeys,
     ...wiHelpers,
 
@@ -405,6 +418,7 @@ export default function wiEditor() {
           autoSaver.stop();
           this.isEditingClipboard = false;
           this.currentWiIndex = 0;
+          this.currentWiEntryKey = "";
           this.initialSnapshotChecked = false;
           this.initialSnapshotInitPromise = null;
           this.showFindReplaceModal = false;
@@ -1396,6 +1410,13 @@ export default function wiEditor() {
     _ensureEntryUids() {
       const arr = this.getWIArrayRef();
       const used = new Set();
+      const usedSourceIds = new Set(
+        arr
+          .map((entry) => entry?.st_source_id ?? entry?.uid)
+          .filter((value) => value !== undefined && value !== null && value !== "")
+          .map((value) => String(value)),
+      );
+      let nextSourceId = 0;
       arr.forEach((entry) => {
         if (!entry || typeof entry !== "object") return;
         let uid = String(entry[this.entryUidField] || "").trim();
@@ -1404,6 +1425,17 @@ export default function wiEditor() {
           entry[this.entryUidField] = uid;
         }
         used.add(uid);
+
+        if (
+          entry.st_source_id === undefined ||
+          entry.st_source_id === null ||
+          entry.st_source_id === ""
+        ) {
+          while (usedSourceIds.has(String(nextSourceId))) nextSourceId += 1;
+          entry.st_source_id = nextSourceId;
+          usedSourceIds.add(String(nextSourceId));
+          nextSourceId += 1;
+        }
       });
     },
 
@@ -2228,6 +2260,10 @@ export default function wiEditor() {
           targetIndex = item.jumpToIndex;
         }
         this.currentWiIndex = targetIndex;
+        const targetEntry = this.getWIArrayRef()[targetIndex];
+        this.currentWiEntryKey = targetEntry
+          ? this.getWiEntryIdentity(targetEntry, targetIndex)
+          : "";
         this.isLoading = false;
 
         this.openFullScreenWI();
@@ -2239,6 +2275,10 @@ export default function wiEditor() {
             setTimeout(() => {
               // 再次强制设置一次 index
               this.currentWiIndex = targetIndex;
+              const targetEntry = this.getWIArrayRef()[targetIndex];
+              this.currentWiEntryKey = targetEntry
+                ? this.getWiEntryIdentity(targetEntry, targetIndex)
+                : "";
 
               const elId = `wi-item-${targetIndex}`;
               const el = document.getElementById(elId);
@@ -2444,8 +2484,16 @@ export default function wiEditor() {
       this.showFullScreenWI = true;
       // 确保选中第一项
       const entries = this.getWIArrayRef();
-      if (entries.length > 0) {
-        this.currentWiIndex = 0;
+      const hasSelectedEntry =
+        this.currentWiEntryKey &&
+        entries.some(
+          (entry, index) =>
+            this.getWiEntryIdentity(entry, index) === this.currentWiEntryKey,
+        );
+      const firstEntry = this.getSortedWIEntries()[0];
+      if (firstEntry && !hasSelectedEntry) {
+        this.currentWiIndex = this._resolveWiEntryIndex(firstEntry);
+        this.currentWiEntryKey = this.getWiEntryIdentity(firstEntry);
       }
       // 加载剪切板
       this.loadWiClipboard();
@@ -2474,7 +2522,17 @@ export default function wiEditor() {
         return null;
       } else {
         const arr = this.getWIArrayRef();
+        if (this.currentWiEntryKey) {
+          const selected = arr.find((entry, index) =>
+            this.getWiEntryIdentity(entry, index) === this.currentWiEntryKey,
+          );
+          if (selected) return selected;
+        }
         if (this.currentWiIndex >= 0 && this.currentWiIndex < arr.length) {
+          this.currentWiEntryKey = this.getWiEntryIdentity(
+            arr[this.currentWiIndex],
+            this.currentWiIndex,
+          );
           return arr[this.currentWiIndex];
         }
         return null;
@@ -2790,22 +2848,44 @@ export default function wiEditor() {
       const arr = this.getWIArrayRef();
       const newEntry = JSON.parse(JSON.stringify(content));
       // 不预先设置 id，在插入后统一重新分配
+      delete newEntry.uid;
+      delete newEntry.id;
       newEntry[this.entryUidField] = this._generateEntryUid();
+      newEntry.st_source_id = this._getWiSourceUidCandidate(arr);
+      newEntry.displayIndex = getNextWiDisplayIndex(arr);
 
-      let insertPos = this.currentWiIndex + 1;
-      if (insertPos > arr.length) insertPos = arr.length;
+      const sortMode = this.getWiSortMode();
+      let visibleInsertPos = null;
+      if (sortMode === "custom") {
+        const ordered = this.getSortedWIEntries();
+        const currentVisibleIndex = this.currentWiEntryKey
+          ? ordered.findIndex(
+              (entry, index) =>
+                this.getWiEntryIdentity(entry, index) === this.currentWiEntryKey,
+            )
+          : -1;
+        visibleInsertPos =
+          currentVisibleIndex >= 0 ? currentVisibleIndex + 1 : ordered.length;
+        arr.push(newEntry);
+        ordered.splice(visibleInsertPos, 0, newEntry);
+        setWiCustomDisplayIndexes(ordered);
+      } else {
+        let insertPos = this.currentWiIndex + 1;
+        if (insertPos < 0 || insertPos > arr.length) insertPos = arr.length;
+        arr.splice(insertPos, 0, newEntry);
+      }
 
-      arr.splice(insertPos, 0, newEntry);
-      this.currentWiIndex = insertPos;
+      this.currentWiIndex = this._resolveWiEntryIndex(newEntry);
+      this.currentWiEntryKey = this.getWiEntryIdentity(newEntry, this.currentWiIndex);
       this.isEditingClipboard = false;
 
-      // 重新分配 id，确保 id 等于索引号
-      arr.forEach((entry, idx) => {
-        if (entry) entry.id = idx;
-      });
+      this._syncWiEntryIndexes(arr);
 
       this.$nextTick(() => {
-        const item = document.querySelectorAll(".wi-list-item")[insertPos];
+        const visibleIndex = this.getSortedWIEntries().findIndex(
+          (entry) => entry === newEntry,
+        );
+        const item = document.querySelectorAll(".wi-list-item")[visibleIndex];
         if (item) item.scrollIntoView({ behavior: "smooth", block: "center" });
       });
     },
@@ -2820,10 +2900,14 @@ export default function wiEditor() {
       clipboardClear().then(() => this.loadWiClipboard());
     },
 
-    selectMainWiItem(index) {
+    selectMainWiItem(entryOrIndex, viewIndex = null) {
       this.isEditingClipboard = false;
       this.currentClipboardIndex = -1;
-      this.currentWiIndex = index;
+      const arr = this.getWIArrayRef();
+      const rawIndex = this._resolveWiEntryIndex(entryOrIndex);
+      if (rawIndex < 0) return;
+      this.currentWiIndex = rawIndex;
+      this.currentWiEntryKey = this.getWiEntryIdentity(arr[rawIndex], rawIndex);
     },
 
     selectClipboardItem(index) {
@@ -2855,11 +2939,16 @@ export default function wiEditor() {
     // 1. 主列表拖拽
     wiDragStart(e, index) {
       this.wiDraggingIndex = index;
+      const visibleEntries = this.getSortedWIEntries();
+      const item = visibleEntries[index];
+      this.wiDraggingEntryKey = item
+        ? this.getWiEntryIdentity(item, index)
+        : "";
       e.dataTransfer.effectAllowed = "copyMove";
-      e.dataTransfer.setData("application/x-wi-index", index.toString());
-
-      const arr = this.getWIArrayRef();
-      const item = arr[index];
+      e.dataTransfer.setData(
+        "application/x-wi-entry-key",
+        this.wiDraggingEntryKey,
+      );
 
       if (item) {
         const exportItem = JSON.parse(JSON.stringify(item));
@@ -2873,6 +2962,7 @@ export default function wiEditor() {
       const cleanup = () => {
         target.classList.remove("dragging");
         this.wiDraggingIndex = null;
+        this.wiDraggingEntryKey = "";
       };
       target.addEventListener("dragend", cleanup, { once: true });
     },
@@ -2906,75 +2996,72 @@ export default function wiEditor() {
           const arr = this.getWIArrayRef();
           const newEntry = JSON.parse(JSON.stringify(content));
           // 不预先设置 id，在插入后统一重新分配
+          delete newEntry.uid;
+          delete newEntry.id;
           newEntry[this.entryUidField] = this._generateEntryUid();
+          newEntry.st_source_id = this._getWiSourceUidCandidate(arr);
+          newEntry.displayIndex = getNextWiDisplayIndex(arr);
 
-          arr.splice(targetIndex, 0, newEntry);
-          this.currentWiIndex = targetIndex;
+          const sortMode = this.getWiSortMode();
+          if (sortMode === "custom") {
+            const ordered = this.getSortedWIEntries();
+            const insertIndex = Math.max(
+              0,
+              Math.min(Number(targetIndex) || 0, ordered.length),
+            );
+            arr.push(newEntry);
+            ordered.splice(insertIndex, 0, newEntry);
+            setWiCustomDisplayIndexes(ordered);
+          } else {
+            const visibleEntries = this.getSortedWIEntries();
+            const targetEntry = visibleEntries[targetIndex];
+            const rawTargetIndex = targetEntry
+              ? this._resolveWiEntryIndex(targetEntry)
+              : arr.length;
+            arr.splice(
+              rawTargetIndex < 0 ? arr.length : rawTargetIndex,
+              0,
+              newEntry,
+            );
+          }
+          this.currentWiIndex = this._resolveWiEntryIndex(newEntry);
+          this.currentWiEntryKey = this.getWiEntryIdentity(newEntry);
           this.isEditingClipboard = false;
 
-          // 重新分配 id，确保 id 等于索引号
-          arr.forEach((entry, idx) => {
-            if (entry) entry.id = idx;
-          });
+          this._syncWiEntryIndexes(arr);
         } catch (err) {
           console.error(err);
         }
         return;
       }
 
-      // B: 内部列表排序
-      let sourceIndexStr = e.dataTransfer.getData("application/x-wi-index");
+      // B: ST 的自定义排序只持久化 displayIndex；其他模式不改写条目顺序。
+      if (this.getWiSortMode() !== "custom") return;
 
-      if (!sourceIndexStr && this.wiDraggingIndex !== null) {
-        sourceIndexStr = this.wiDraggingIndex.toString();
+      const sourceKey =
+        e.dataTransfer.getData("application/x-wi-entry-key") ||
+        this.wiDraggingEntryKey;
+      if (!sourceKey) return;
+
+      const ordered = this.getSortedWIEntries();
+      const sourceIndex = ordered.findIndex(
+        (entry, index) => this.getWiEntryIdentity(entry, index) === sourceKey,
+      );
+      if (sourceIndex < 0 || sourceIndex === targetIndex) return;
+
+      const [itemToMove] = ordered.splice(sourceIndex, 1);
+      const insertIndex = Math.max(
+        0,
+        Math.min(targetIndex > sourceIndex ? targetIndex - 1 : targetIndex, ordered.length),
+      );
+      ordered.splice(insertIndex, 0, itemToMove);
+      setWiCustomDisplayIndexes(ordered);
+
+      const rawIndex = this._resolveWiEntryIndex(itemToMove);
+      if (rawIndex >= 0) {
+        this.currentWiIndex = rawIndex;
+        this.currentWiEntryKey = this.getWiEntryIdentity(itemToMove, rawIndex);
       }
-
-      if (!sourceIndexStr) return;
-
-      const sourceIndex = parseInt(sourceIndexStr);
-
-      if (isNaN(sourceIndex) || sourceIndex === targetIndex) return;
-
-      const arr = this.getWIArrayRef();
-      if (sourceIndex >= arr.length || targetIndex > arr.length) return;
-
-      const itemToMove = arr[sourceIndex];
-
-      let oldSelectedIndex = this.currentWiIndex;
-      let newSelectedIndex = oldSelectedIndex;
-
-      // 根据拖拽方向执行不同的 splice 操作
-      if (sourceIndex < targetIndex) {
-        arr.splice(sourceIndex, 1);
-        arr.splice(targetIndex - 1, 0, itemToMove);
-
-        if (oldSelectedIndex === sourceIndex) {
-          newSelectedIndex = targetIndex - 1;
-        } else if (
-          oldSelectedIndex > sourceIndex &&
-          oldSelectedIndex < targetIndex
-        ) {
-          newSelectedIndex = oldSelectedIndex - 1;
-        }
-      } else {
-        arr.splice(sourceIndex, 1);
-        arr.splice(targetIndex, 0, itemToMove);
-        if (oldSelectedIndex === sourceIndex) {
-          newSelectedIndex = targetIndex;
-        } else if (
-          oldSelectedIndex >= targetIndex &&
-          oldSelectedIndex < sourceIndex
-        ) {
-          newSelectedIndex = oldSelectedIndex + 1;
-        }
-      }
-
-      this.currentWiIndex = newSelectedIndex;
-
-      // 重新分配 id，确保 id 等于索引号
-      arr.forEach((entry, idx) => {
-        if (entry) entry.id = idx;
-      });
     },
 
     // 2. 剪切板拖拽
@@ -3017,9 +3104,12 @@ export default function wiEditor() {
         return;
       }
 
-      if (this.wiDraggingIndex !== null && this.wiDraggingIndex !== undefined) {
+      if (this.wiDraggingEntryKey) {
         const arr = this.getWIArrayRef();
-        const rawEntry = arr[this.wiDraggingIndex];
+        const rawEntry = arr.find(
+          (entry, index) =>
+            this.getWiEntryIdentity(entry, index) === this.wiDraggingEntryKey,
+        );
         if (rawEntry) {
           this.copyWiToClipboard(rawEntry);
         }
@@ -3055,11 +3145,13 @@ export default function wiEditor() {
       } else {
         // 从左侧主列表拖入 (复制)
         if (
-          this.wiDraggingIndex !== null &&
-          this.wiDraggingIndex !== undefined
+          this.wiDraggingEntryKey
         ) {
           const arr = this.getWIArrayRef();
-          const rawEntry = arr[this.wiDraggingIndex];
+          const rawEntry = arr.find(
+            (entry, index) =>
+              this.getWiEntryIdentity(entry, index) === this.wiDraggingEntryKey,
+          );
 
           if (rawEntry) {
             // 深拷贝

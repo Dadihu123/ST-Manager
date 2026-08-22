@@ -20,6 +20,12 @@ import {
   getTotalWiTokens,
   getWiTokenClass,
 } from "../utils/format.js";
+import {
+  WI_SORT_OPTIONS,
+  getWiSortLabel,
+  loadWiSortMode,
+  sortWiEntries,
+} from "../utils/wiSort.js";
 
 export default function wiDetailPopup() {
   return {
@@ -30,6 +36,9 @@ export default function wiDetailPopup() {
     activeWiNoteDraft: "",
     isSavingWorldInfoNote: false,
     isSendingWorldInfoToST: false,
+    wiSortMode: loadWiSortMode(),
+    wiSortOptions: WI_SORT_OPTIONS,
+    showWiSortMenu: false,
 
     // 阅览室数据
     isLoading: false,
@@ -61,6 +70,7 @@ export default function wiDetailPopup() {
     formatWiKeys,
     estimateTokens,
     getWiTokenClass,
+    getWiSortLabel,
     ...wiHelpers,
 
     init() {
@@ -145,6 +155,13 @@ export default function wiDetailPopup() {
       this.$watch("uiStrategy", () => {
         this.resetEntryRenderLimits();
       });
+
+      this.$watch("wiSortMode", () => {
+        this.resetEntryRenderLimits();
+        if (this.isTruncated && this.activeWiDetail) {
+          this.loadContent(this.activeWiDetail.id);
+        }
+      });
     },
 
     // === 计算属性 ===
@@ -169,7 +186,7 @@ export default function wiDetailPopup() {
       if (this.uiStrategy === "normal")
         arr = arr.filter((e) => !e.constant && !e.vectorized);
 
-      return arr;
+      return sortWiEntries(arr, this.wiSortMode);
     },
 
     get visibleTocEntries() {
@@ -293,6 +310,7 @@ export default function wiDetailPopup() {
             preview_wi: true,
             wi_preview_limit: previewLimit,
             wi_preview_entry_max_chars: entryContentLimit,
+            wi_sort_mode: this.wiSortMode,
           });
           if (res.success && res.card) {
             if (loadToken !== this.loadRequestToken) return;
@@ -333,6 +351,7 @@ export default function wiDetailPopup() {
             source_type: this.activeWiDetail.type,
             file_path: this.activeWiDetail.path,
             preview_limit: previewLimit,
+            sort_mode: this.wiSortMode,
           });
           if (res.success) {
             if (loadToken !== this.loadRequestToken) return;

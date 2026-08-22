@@ -265,7 +265,19 @@ const serializeEmbeddedWorldbook = (bookData, fallbackName = "World Info") => {
     ? { name: fallbackName, entries: bookData }
     : bookData;
   let entries = book.entries ?? [];
-  if (entries && !Array.isArray(entries)) entries = Object.values(entries);
+  if (entries && !Array.isArray(entries)) {
+    entries = Object.entries(entries).map(([entryKey, entry]) => {
+      if (!entry || typeof entry !== "object") return entry;
+      if (
+        entry.uid === undefined &&
+        entry.st_source_id === undefined &&
+        entry.id === undefined
+      ) {
+        return { ...entry, uid: entryKey };
+      }
+      return entry;
+    });
+  }
 
   return {
     ...book,
@@ -333,11 +345,32 @@ export function toStV3Worldbook(bookData, fallbackName = "World Info") {
   // entries: array / dict 都兼容
   let entries = book.entries ?? [];
   if (entries && !Array.isArray(entries)) {
-    entries = Object.values(entries);
+    entries = Object.entries(entries).map(([entryKey, entry]) => {
+      if (!entry || typeof entry !== "object") return entry;
+      if (
+        entry.uid === undefined &&
+        entry.st_source_id === undefined &&
+        entry.id === undefined
+      ) {
+        return { ...entry, uid: entryKey };
+      }
+      return entry;
+    });
   }
   entries = entries || [];
 
   const exportEntries = {};
+  const usedUids = new Set();
+  let nextUid = 0;
+
+  const allocateUid = () => {
+    while (usedUids.has(String(nextUid))) nextUid += 1;
+    const uid = nextUid;
+    usedUids.add(String(uid));
+    nextUid += 1;
+    return uid;
+  };
+
   entries.forEach((e, idx) => {
     const out = { ...e };
 
@@ -362,10 +395,15 @@ export function toStV3Worldbook(bookData, fallbackName = "World Info") {
           : 100;
     out.order = Number.isFinite(order) ? order : 100;
 
-    // ST 常用字段：uid/displayIndex（用 idx 统一）
-    const uid = e.uid ?? e.st_source_id ?? e.id ?? idx;
+    // Keep ST's stable UID and custom display index independent of the
+    // manager array index.  Allocate only when an entry has no usable UID.
+    let uid = e.uid ?? e.st_source_id;
+    if (uid === undefined || uid === null || uid === "") uid = e.id ?? idx;
+    if (usedUids.has(String(uid))) uid = allocateUid();
+    else usedUids.add(String(uid));
     out.uid = uid;
-    out.displayIndex = e.displayIndex ?? idx;
+    out.displayIndex =
+      e.displayIndex ?? e.extensions?.display_index ?? idx;
 
     // 清理内部字段（避免写回文件污染）
     delete out.enabled;
@@ -612,7 +650,17 @@ export function normalizeWiBook(bookData, fallbackName = "World Info") {
   let entries = book.entries;
   // 兼容 Dict entries
   if (entries && !Array.isArray(entries)) {
-    entries = Object.values(entries);
+    entries = Object.entries(entries).map(([entryKey, entry]) => {
+      if (!entry || typeof entry !== "object") return entry;
+      if (
+        entry.uid === undefined &&
+        entry.st_source_id === undefined &&
+        entry.id === undefined
+      ) {
+        return { ...entry, uid: entryKey };
+      }
+      return entry;
+    });
   }
   if (!entries) entries = [];
 

@@ -42,6 +42,11 @@ from core.data.ui_store import (
 )
 from core.data.cache import GlobalMetadataCache
 from core.consts import SIDECAR_EXTENSIONS
+from core.utils.world_info_sort import (
+    normalize_world_info_sort_mode,
+    sort_world_info_entries,
+    sort_world_info_mapping,
+)
 
 # === 核心服务 ===
 from core.services.scan_service import suppress_fs_events
@@ -754,7 +759,12 @@ def _sort_cards_inplace(cards_list, sort_mode: str):
     cards_list.sort(key=lambda x: float(x.get('last_modified') or 0), reverse=True)
     return 'date_desc'
 
-def _apply_wi_preview(book_data, preview_limit: int, content_limit: int) -> Dict[str, Any]:
+def _apply_wi_preview(
+    book_data,
+    preview_limit: int,
+    content_limit: int,
+    sort_mode='priority',
+) -> Dict[str, Any]:
     """
     对世界书数据做预览截断，避免超大条目导致前端卡死。
     返回 {data, truncated, total_entries, preview_limit, truncated_content, preview_entry_max_chars}
@@ -774,22 +784,24 @@ def _apply_wi_preview(book_data, preview_limit: int, content_limit: int) -> Dict
                 return len(entries.keys())
         return 0
 
+    normalized_sort_mode = normalize_world_info_sort_mode(sort_mode)
+
     def _slice_entries(raw, limit):
         if isinstance(raw, list):
-            return raw[:limit]
+            return sort_world_info_entries(raw, normalized_sort_mode)[:limit]
         if isinstance(raw, dict):
             entries = raw.get('entries')
             if isinstance(entries, list):
                 new_data = dict(raw)
-                new_data['entries'] = entries[:limit]
+                new_data['entries'] = sort_world_info_entries(
+                    entries,
+                    normalized_sort_mode,
+                )[:limit]
                 return new_data
             if isinstance(entries, dict):
-                keys = list(entries.keys())
-                try:
-                    keys.sort(key=lambda k: int(k))
-                except Exception:
-                    keys.sort()
-                trimmed = {k: entries[k] for k in keys[:limit]}
+                trimmed = dict(
+                    sort_world_info_mapping(entries, normalized_sort_mode)[:limit]
+                )
                 new_data = dict(raw)
                 new_data['entries'] = trimmed
                 return new_data
@@ -3470,6 +3482,7 @@ def api_get_card_detail():
         # 预览模式：嵌入式世界书可能过大，按需截断
         preview_wi = bool(request.json.get('preview_wi', False))
         force_full_wi = bool(request.json.get('force_full_wi', False))
+        wi_sort_mode = request.json.get('wi_sort_mode', 'priority')
         if not regex_only and preview_wi and not force_full_wi:
             cfg = load_config()
             raw_limit = request.json.get('wi_preview_limit')
@@ -3485,7 +3498,12 @@ def api_get_card_detail():
             except Exception:
                 content_limit = int(cfg.get('wi_preview_entry_max_chars', 2000))
 
-            preview_result = _apply_wi_preview(card_data.get('character_book'), preview_limit, content_limit)
+            preview_result = _apply_wi_preview(
+                card_data.get('character_book'),
+                preview_limit,
+                content_limit,
+                sort_mode=wi_sort_mode,
+            )
             card_data['character_book'] = preview_result.get('data')
             card_data['wi_preview'] = {
                 "truncated": preview_result.get('truncated', False),

@@ -47,6 +47,11 @@ from core.services.wi_entry_history_service import (
 from core.utils.filesystem import safe_move_to_trash
 from core.utils.filesystem import sanitize_filename
 from core.utils.source_revision import build_file_source_revision
+from core.utils.world_info_sort import (
+    normalize_world_info_sort_mode,
+    sort_world_info_entries,
+    sort_world_info_mapping,
+)
 
 def _safe_mtime(path: str) -> float:
     try:
@@ -187,15 +192,55 @@ def _build_export_worldbook_payload(book, fallback_name='World Info'):
         if isinstance(entries, list):
             entries_raw = entries
         elif isinstance(entries, dict):
-            entries_raw = list(entries.values())
+            entries_raw = []
+            for entry_key, entry in entries.items():
+                if (
+                    isinstance(entry, dict)
+                    and entry.get('uid') in (None, '')
+                    and entry.get('st_source_id') in (None, '')
+                    and entry.get('id') in (None, '')
+                ):
+                    entries_raw.append({**entry, 'uid': entry_key})
+                else:
+                    entries_raw.append(entry)
+
+    used_uids = set()
+    next_uid = 0
+
+    def _allocate_uid():
+        nonlocal next_uid
+        while str(next_uid) in used_uids:
+            next_uid += 1
+        uid = next_uid
+        used_uids.add(str(uid))
+        next_uid += 1
+        return uid
 
     for idx, entry in enumerate(entries_raw):
         if not isinstance(entry, dict):
             continue
 
         final_entry = entry.copy()
-        final_entry['uid'] = idx
-        final_entry['displayIndex'] = idx
+        uid = entry.get('uid')
+        if uid is None or uid == '':
+            uid = entry.get('st_source_id')
+        if uid is None or uid == '':
+            uid = entry.get('id', idx)
+        if str(uid) in used_uids:
+            uid = _allocate_uid()
+        else:
+            used_uids.add(str(uid))
+
+        display_index = entry.get('displayIndex')
+        if display_index is None:
+            extensions = entry.get('extensions')
+            if isinstance(extensions, dict):
+                display_index = extensions.get('display_index')
+        if display_index is None:
+            display_index = idx
+
+        final_entry['uid'] = uid
+        final_entry['displayIndex'] = display_index
 
         if 'keys' in entry:
             final_entry['key'] = entry['keys']
@@ -218,7 +263,7 @@ def _build_export_worldbook_payload(book, fallback_name='World Info'):
         final_entry.pop('secondary_keys', None)
         final_entry.pop('insertion_order', None)
 
-        export_entries[str(idx)] = final_entry
+        export_entries[str(uid)] = final_entry
 
     final_export = {
         'entries': export_entries,
@@ -821,7 +866,13 @@ def _select_preferred_resource_target(existing: dict, candidate: dict) -> dict:
     return candidate if candidate_key < existing_key else existing
 
 
-def _apply_world_info_preview(data, cfg: dict, preview_limit=None, force_full: bool = False) -> dict:
+def _apply_world_info_preview(
+    data,
+    cfg: dict,
+    preview_limit=None,
+    force_full: bool = False,
+    sort_mode='priority',
+) -> dict:
     truncated = False
     truncated_content = False
     total_entries = 0
@@ -839,22 +890,23 @@ def _apply_world_info_preview(data, cfg: dict, preview_limit=None, force_full: b
                 return len(entries.keys())
         return 0
 
+    normalized_sort_mode = normalize_world_info_sort_mode(sort_mode)
+
     def _slice_entries(raw, limit):
         if isinstance(raw, list):
-            return raw[:limit]
+            return sort_world_info_entries(raw, normalized_sort_mode)[:limit]
         if isinstance(raw, dict):
             entries = raw.get('entries')
             if isinstance(entries, list):
                 new_data = dict(raw)
-                new_data['entries'] = entries[:limit]
+                new_data['entries'] = sort_world_info_entries(
+                    entries,
+                    normalized_sort_mode,
+                )[:limit]
                 return new_data
             if isinstance(entries, dict):
-                keys = list(entries.keys())
-                try:
-                    keys.sort(key=lambda k: int(k))
-                except Exception:
-                    keys.sort()
-                trimmed = {k: entries[k] for k in keys[:limit]}
+                ordered_items = sort_world_info_mapping(entries, normalized_sort_mode)
+                trimmed = dict(ordered_items[:limit])
                 new_data = dict(raw)
                 new_data['entries'] = trimmed
                 return new_data
@@ -1843,6 +1895,7 @@ def api_get_world_info_detail():
         card_id = req.get('card_id')
         preview_limit = request.json.get('preview_limit')
         force_full = bool(request.json.get('force_full', False))
+        sort_mode = request.json.get('sort_mode', 'priority')
         ui_data = load_ui_data()
 
         if source_type == 'embedded' and wi_id and not file_path:
@@ -1868,7 +1921,13 @@ def api_get_world_info_detail():
                 return jsonify({"success": False, "msg": "未找到内嵌世界书"})
 
             cfg = load_config()
-            resp = _apply_world_info_preview(book, cfg, preview_limit=preview_limit, force_full=force_full)
+            resp = _apply_world_info_preview(
+                book,
+                cfg,
+                preview_limit=preview_limit,
+                force_full=force_full,
+                sort_mode=sort_mode,
+            )
             resp['ui_summary'] = _get_embedded_worldinfo_ui_summary(ui_data, card_id=card_id)
             resp['source_revision'] = build_file_source_revision(file_path)
             return jsonify(resp)
@@ -1908,7 +1967,13 @@ def api_get_world_info_detail():
         with open(file_path, 'r', encoding='utf-8') as f:
             data = json.load(f)
 
-        resp = _apply_world_info_preview(data, cfg, preview_limit=preview_limit, force_full=force_full)
+        resp = _apply_world_info_preview(
+            data,
+            cfg,
+            preview_limit=preview_limit,
+            force_full=force_full,
+            sort_mode=sort_mode,
+        )
         effective_source = source_type if source_type in ('global', 'resource') else ('resource' if _is_under_base(file_path, resources_dir) else 'global')
         resp['ui_summary'] = _get_worldinfo_ui_summary(ui_data, effective_source, file_path=file_path)
         if effective_source in ('global', 'resource'):

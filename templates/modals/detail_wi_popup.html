@@ -139,6 +139,55 @@
         </button>
       </div>
 
+      <label
+        class="wi-sort-control hidden md:flex"
+        x-show="$store.global.deviceType !== 'mobile'"
+      >
+        <span class="wi-sort-label">排序</span>
+        <select
+          x-model="wiSortMode"
+          @change="setWiSortMode($event.target.value)"
+          aria-label="世界书条目排序方式"
+        >
+          <template x-for="option in wiSortOptions" :key="option.value">
+            <option :value="option.value" x-text="option.label"></option>
+          </template>
+        </select>
+      </label>
+
+      <div
+        class="wi-sort-mobile"
+        x-show="$store.global.deviceType === 'mobile'"
+      >
+        <button
+          type="button"
+          class="wi-sort-button wi-action-btn"
+          @click="showWiSortMenu = !showWiSortMenu"
+          :aria-expanded="showWiSortMenu"
+          aria-label="设置世界书条目排序"
+          title="设置排序"
+        >
+          <span class="fa-solid fa-sort" aria-hidden="true"></span>
+        </button>
+        <div
+          x-show="showWiSortMenu"
+          x-cloak
+          class="wi-sort-menu wi-sort-menu-topbar"
+          @click.outside="showWiSortMenu = false"
+        >
+          <template x-for="option in wiSortOptions" :key="option.value">
+            <button
+              type="button"
+              role="menuitemradio"
+              :aria-checked="wiSortMode === option.value"
+              :class="wiSortMode === option.value ? 'active' : ''"
+              @click="setWiSortMode(option.value)"
+              x-text="option.label"
+            ></button>
+          </template>
+        </div>
+      </div>
+
       <!-- 关闭 -->
       <button
         @click="showWiDetailModal=false"

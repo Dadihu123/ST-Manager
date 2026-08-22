@@ -103,6 +103,55 @@
           ></span>
         </div>
 
+        <label
+          class="wi-sort-control hidden md:flex"
+          x-show="$store.global.deviceType !== 'mobile'"
+        >
+          <span class="wi-sort-label">排序</span>
+          <select
+            x-model="wiSortMode"
+            @change="setWiSortMode($event.target.value)"
+            aria-label="世界书条目排序方式"
+          >
+            <template x-for="option in wiSortOptions" :key="option.value">
+              <option :value="option.value" x-text="option.label"></option>
+            </template>
+          </select>
+        </label>
+
+        <div
+          class="wi-sort-mobile"
+          x-show="$store.global.deviceType === 'mobile'"
+        >
+          <button
+            type="button"
+            class="wi-sort-button wi-action-btn"
+            @click="showWiSortMenu = !showWiSortMenu"
+            :aria-expanded="showWiSortMenu"
+            aria-label="设置世界书条目排序"
+            title="设置排序"
+          >
+            <span class="fa-solid fa-sort" aria-hidden="true"></span>
+          </button>
+          <div
+            x-show="showWiSortMenu"
+            x-cloak
+            class="wi-sort-menu wi-sort-menu-topbar"
+            @click.outside="showWiSortMenu = false"
+          >
+            <template x-for="option in wiSortOptions" :key="option.value">
+              <button
+                type="button"
+                role="menuitemradio"
+                :aria-checked="wiSortMode === option.value"
+                :class="wiSortMode === option.value ? 'active' : ''"
+                @click="setWiSortMode(option.value)"
+                x-text="option.label"
+              ></button>
+            </template>
+          </div>
+        </div>
+
         <!-- 1. 时光机 -->
         <button
           @click="openRollback && openRollback()"
@@ -268,19 +317,19 @@
         <div class="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1">
           <!-- 使用 Optional Chain 风格的检查防止初始化空指针 -->
           <template
-            x-for="(entry, index) in (typeof getWIArrayRef === 'function' ? getWIArrayRef() : [])"
-            :key="entry.id || index"
+            x-for="(entry, index) in (typeof getSortedWIEntries === 'function' ? getSortedWIEntries() : [])"
+            :key="getWiEntryIdentity(entry, index)"
           >
             <div
               :id="'wi-item-' + index"
-              @click="selectMainWiItem(index)"
-              draggable="true"
+              @click="selectMainWiItem(entry, index)"
+              :draggable="wiSortMode === 'custom'"
               @dragstart="wiDragStart($event, index)"
               @drop="wiDrop($event, index)"
               @dragover="wiDragOver($event, index)"
               class="wi-list-item p-2 rounded cursor-pointer group relative text-xs select-none border border-transparent"
               :data-type="entry.constant ? 'const' : (entry.vectorized ? 'vector' : 'normal')"
-              :class="currentWiIndex === index ? 'active' : ''"
+              :class="isCurrentWiEntry(entry, index) ? 'active' : ''"
             >
               <div class="flex justify-between items-center mb-1">
                 <div class="flex items-center gap-2 overflow-hidden flex-1">
@@ -295,7 +344,7 @@
                   ></div>
                   <span
                     class="font-bold truncate"
-                    :class="currentWiIndex === index ? 'text-[var(--text-main)]' : 'text-[var(--text-sub)]'"
+                    :class="isCurrentWiEntry(entry, index) ? 'text-[var(--text-main)]' : 'text-[var(--text-sub)]'"
                     x-text="entry.comment || '无标题'"
                   ></span>
                 </div>
@@ -430,7 +479,7 @@
                       🕰️
                     </button>
                     <button
-                      @click.stop="removeWiEntry(currentWiIndex)"
+                      @click.stop="removeWiEntry(activeEditorEntry)"
                       title="删除条目"
                       class="wi-action-btn hover:text-red-400 hover:bg-red-500/10"
                     >
