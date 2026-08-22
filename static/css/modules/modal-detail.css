@@ -1248,7 +1248,21 @@ html.light-mode .skin-gallery-folder-symbol {
     0 9px 16px rgba(0, 0, 0, 0.18);
 }
 
+.detail-greeting-card-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  min-height: 20px;
+}
+
 .detail-greeting-card-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: var(--text-main);
   font-size: 12px;
   font-weight: 900;
@@ -1272,7 +1286,12 @@ html.light-mode .skin-gallery-folder-symbol {
 }
 
 .detail-greeting-drag-handle {
-  align-self: flex-end;
+  display: inline-flex;
+  width: 22px;
+  height: 20px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
   color: var(--text-dim);
   cursor: grab;
   font-size: 16px;

@@ -1330,7 +1330,9 @@
                       :aria-pressed="selectedGreetingKind === 'default' ? 'true' : 'false'"
                       @click="selectGreeting('default')"
                     >
-                      <span class="detail-greeting-card-label">默认开场白</span>
+                      <span class="detail-greeting-card-title-row">
+                        <span class="detail-greeting-card-label">默认开场白</span>
+                      </span>
                       <span class="detail-greeting-card-excerpt" x-text="getGreetingExcerpt(editingData.first_mes)"></span>
                       <span
                         class="detail-greeting-card-state"
@@ -1369,13 +1371,15 @@
                         @keydown="onAltCardKeydown($event, item.index)"
                         @click="handleAltCardClick($event, item.index)"
                       >
-                        <span
-                          class="detail-greeting-drag-handle"
-                          x-show="isEditMode"
-                          aria-hidden="true"
-                          title="拖拽调整备用开场白顺序"
-                        >⋮⋮</span>
-                        <span class="detail-greeting-card-label" x-text="'备用开场白 #' + item.position"></span>
+                        <span class="detail-greeting-card-title-row">
+                          <span class="detail-greeting-card-label" x-text="'备用开场白 #' + item.position"></span>
+                          <span
+                            class="detail-greeting-drag-handle"
+                            x-show="isEditMode"
+                            aria-hidden="true"
+                            title="拖拽调整备用开场白顺序"
+                          >⋮⋮</span>
+                        </span>
                         <span class="detail-greeting-card-excerpt" x-text="getGreetingExcerpt(item.value)"></span>
                         <span
                           class="detail-greeting-card-state"
