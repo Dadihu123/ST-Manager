@@ -206,6 +206,12 @@ def test_detail_local_note_preview_keeps_textarea_footprint_and_paste_contract()
     assert 'height: auto !important;' in preview_css_block
     assert 'overflow: auto !important;' in preview_css_block
 
+    mobile_note_editor_block = detail_css.split(
+        '.detail-section-mobile-stack .detail-card .detail-local-note-editor {',
+        1,
+    )[1].split('}', 1)[0]
+    assert 'min-height: clamp(6rem, 18vh, 9rem) !important;' in mobile_note_editor_block
+
     assert 'uploadNoteImage,' in detail_modal_source
     assert 'insertAtCursor,' in detail_modal_source
     assert 'handleLocalNotePaste(e) {' in detail_modal_source
