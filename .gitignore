@@ -28,6 +28,9 @@ build/
 gui.log
 app.log
 
+# Local forum update probe responses may contain private forum content
+artifacts/forum_update_probe/
+
 cards_metadata.db*
 
 # 测试和文档目录
