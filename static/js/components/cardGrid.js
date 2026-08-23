@@ -315,6 +315,10 @@ export default function cardGrid() {
         }
       });
 
+      window.stUploadCardFiles = (files) => {
+        this._uploadFilesInternal(files);
+      };
+
       window.addEventListener("locate-card", (e) => {
         const card = e.detail;
         this._locateCardLogic(card);

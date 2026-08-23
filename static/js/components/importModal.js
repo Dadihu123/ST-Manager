@@ -23,7 +23,7 @@ export default function importModal() {
             window.addEventListener('open-import-url', (e) => {
                 // 可以接收默认分类
                 this.importTargetCategory = e.detail && e.detail.category ? e.detail.category : '';
-                this.importUrlInput = '';
+                this.importUrlInput = e.detail && e.detail.url ? e.detail.url : '';
                 this.conflictData = null;
                 this.showImportUrlModal = true;
             });

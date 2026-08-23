@@ -41,6 +41,9 @@ export default function extensionGrid() {
             window.stUploadRegexFiles = (files) => { this._uploadExtensionsFiles(files, 'regex'); };
             window.stUploadScriptFiles = (files) => { this._uploadExtensionsFiles(files, 'scripts'); };
             window.stUploadQuickReplyFiles = (files) => { this._uploadExtensionsFiles(files, 'quick_replies'); };
+            window.stUploadExtensionFiles = (files, targetType) => {
+                this._uploadExtensionsFiles(files, targetType || this.currentMode);
+            };
         },
 
         async _uploadExtensionsFiles(files, targetType) {
