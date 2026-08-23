@@ -42,3 +42,20 @@ def test_detail_template_exposes_fullscreen_skin_gallery_controls():
     assert 'closeSkinGalleryPreview()' in source
     assert 'closeSkinGallery()' in source
     assert 'handleSkinGalleryKeydown($event)' in source
+
+
+def test_detail_source_update_metadata_stays_in_management_tab():
+    template = (PROJECT_ROOT / 'templates/modals/detail_card.html').read_text(encoding='utf-8')
+    script = (PROJECT_ROOT / 'static/js/components/detailModal.js').read_text(encoding='utf-8')
+
+    assert 'class="detail-source-title-preview"' not in template
+    assert 'class="detail-source-link-header' in template
+    assert template.count('x-show="isEditMode"') >= 2
+    assert '首帖上次编辑' in template
+    assert '上次更新检查时间' in template
+    assert 'x-text="formatSourceFirstMessageEditedAt()"' in template
+    assert 'x-text="formatSourceUpdateCheckedAt()"' in template
+    assert ':title="activeCard.source_title"' in template
+    assert ':aria-label="\'来源标题：\' + activeCard.source_title"' in template
+    assert 'formatSourceFirstMessageEditedAt()' in script
+    assert 'formatSourceUpdateCheckedAt()' in script

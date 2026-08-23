@@ -396,9 +396,13 @@
               </div>
 
               <!-- 来源链接 -->
-              <div class="flex items-center gap-2 flex-1 min-w-[180px]">
+              <div
+                class="detail-source-link-header flex items-center gap-2"
+                :class="isEditMode ? 'flex-1 min-w-[180px]' : 'flex-shrink-0'"
+              >
                 <span class="detail-link-icon text-xs">🔗</span>
                 <input
+                  x-show="isEditMode"
                   type="text"
                   x-model="editingData.source_link"
                   placeholder="来源链接 (http://...)"
@@ -409,15 +413,10 @@
                   :href="editingData.source_link"
                   target="_blank"
                   class="detail-open-link"
-                  title="打开链接"
+                  title="打开来源链接"
+                  aria-label="打开来源链接"
                   >↗</a
                 >
-                <span
-                  x-show="activeCard.source_title"
-                  class="detail-source-title-preview"
-                  :title="activeCard.source_title"
-                  x-text="activeCard.source_title"
-                ></span>
               </div>
             </div>
           </div>
@@ -673,9 +672,13 @@
                 </div>
 
                 <!-- 来源链接 -->
-                <div class="flex items-center gap-2 flex-1 min-w-[180px]">
+                <div
+                  class="detail-source-link-header flex items-center gap-2"
+                  :class="isEditMode ? 'flex-1 min-w-[180px]' : 'flex-shrink-0'"
+                >
                   <span class="detail-link-icon text-xs">🔗</span>
                   <input
+                    x-show="isEditMode"
                     type="text"
                     x-model="editingData.source_link"
                     placeholder="来源链接 (http://...)"
@@ -686,7 +689,8 @@
                     :href="editingData.source_link"
                     target="_blank"
                     class="detail-open-link"
-                    title="打开链接"
+                    title="打开来源链接"
+                    aria-label="打开来源链接"
                     >↗</a
                   >
                 </div>
@@ -2248,6 +2252,20 @@
                       ></span>
                     </div>
                     <div class="detail-manage-kv-row">
+                      <span class="detail-manage-kv-label">首帖上次编辑</span>
+                      <span
+                        class="detail-manage-kv-value"
+                        x-text="formatSourceFirstMessageEditedAt()"
+                      ></span>
+                    </div>
+                    <div class="detail-manage-kv-row">
+                      <span class="detail-manage-kv-label">上次更新检查时间</span>
+                      <span
+                        class="detail-manage-kv-value"
+                        x-text="formatSourceUpdateCheckedAt()"
+                      ></span>
+                    </div>
+                    <div class="detail-manage-kv-row">
                       <span class="detail-manage-kv-label">上次发送到 ST</span>
                       <span
                         class="detail-manage-kv-value"
@@ -2500,6 +2518,8 @@
                         <span
                           x-show="activeCard.source_title"
                           class="detail-source-update-title"
+                          :title="activeCard.source_title"
+                          :aria-label="'来源标题：' + activeCard.source_title"
                           x-text="activeCard.source_title"
                         ></span>
                       </div>

@@ -1774,15 +1774,6 @@ html.light-mode .skin-gallery-folder-symbol {
   accent-color: var(--accent-main);
 }
 
-.detail-source-title-preview {
-  max-width: min(42vw, 520px);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--text-dim);
-  font-size: 10px;
-}
-
 .detail-manage-file-row {
   display: grid;
   grid-template-columns: 68px minmax(0, 1fr) auto;
@@ -2010,6 +2001,8 @@ html.light-mode .skin-gallery-folder-symbol {
 }
 
 .detail-source-update-title {
+  min-width: 0;
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

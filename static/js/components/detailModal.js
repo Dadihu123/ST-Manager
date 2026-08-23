@@ -173,6 +173,22 @@ export default function detailModal() {
             return formatDate(ts, { includeYear: true });
         },
 
+        formatSourceFirstMessageEditedAt() {
+            const sourceUpdate = this.activeCard?.source_update;
+            if (sourceUpdate?.first_message_edited_at) {
+                return this.formatDateWithYear(sourceUpdate.first_message_edited_at);
+            }
+            if (sourceUpdate?.first_message_timestamp) {
+                return '未编辑过';
+            }
+            return '未取得';
+        },
+
+        formatSourceUpdateCheckedAt() {
+            const checkedAt = this.activeCard?.source_update?.last_checked_at;
+            return checkedAt ? this.formatDateWithYear(checkedAt) : '未检查';
+        },
+
         buildPreviewRegexConfig() {
             const regexScripts = Array.isArray(this.editingData?.extensions?.regex_scripts)
                 ? this.editingData.extensions.regex_scripts

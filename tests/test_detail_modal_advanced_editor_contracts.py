@@ -161,7 +161,42 @@ def test_detail_modal_runtime_whitespace_only_fields_do_not_count_as_view_conten
         if (modal.hasDialogFields !== true) {
           throw new Error('expected non-empty alternate greeting to show the dialog tab');
         }
-      """
+        """
+    )
+
+
+def test_detail_modal_formats_source_update_times_with_explicit_empty_states():
+    run_detail_modal_runtime_check(
+        """
+        modal.activeCard = {
+          source_update: {
+            first_message_edited_at: 1704067200,
+            first_message_timestamp: 1704067100,
+            last_checked_at: 1704067300,
+          },
+        };
+        if (modal.formatSourceFirstMessageEditedAt() !== 1704067200) {
+          throw new Error('expected the first message edit timestamp to be formatted');
+        }
+        if (modal.formatSourceUpdateCheckedAt() !== 1704067300) {
+          throw new Error('expected the source check timestamp to be formatted');
+        }
+
+        modal.activeCard.source_update = {
+          first_message_timestamp: 1704067100,
+        };
+        if (modal.formatSourceFirstMessageEditedAt() !== '未编辑过') {
+          throw new Error('expected an available but never-edited starter message to be labeled');
+        }
+        if (modal.formatSourceUpdateCheckedAt() !== '未检查') {
+          throw new Error('expected a missing check timestamp to be labeled');
+        }
+
+        modal.activeCard.source_update = {};
+        if (modal.formatSourceFirstMessageEditedAt() !== '未取得') {
+          throw new Error('expected a missing starter message timestamp to be labeled');
+        }
+        """
     )
 
 
