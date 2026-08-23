@@ -3,7 +3,8 @@
 The probe intentionally mirrors the two existing code paths used by ST-Manager:
 
 * ``ForumTagFetcher``: Discord thread metadata, followed by the parent forum
-  channel when applied tags are present.
+  channel when applied tags are present.  The probe additionally requests the
+  starter message so its real ``edited_timestamp`` can be inspected.
 * ``fetch_thread_preview``: one request to the Shimmerday thread search API.
 
 Credentials are read from environment variables or hidden prompts and are never
@@ -75,6 +76,9 @@ _CANDIDATE_KEYS = {
     'lastmessageid',
     'edit_timestamp',
     'edittimestamp',
+    'edited_timestamp',
+    'editedtimestamp',
+    'timestamp',
     'archive_timestamp',
     'archivetimestamp',
     'created_at',
@@ -377,34 +381,71 @@ def _probe_discord(
     # made when the thread has no applied tags.
     if not applied_tags:
         result['extracted']['parent_request'] = 'skipped_no_applied_tags'
-        result['success'] = bool(thread_record.get('ok'))
-        return result
+    else:
+        parent_url = f'{DISCORD_API_ROOT}/channels/{parent_id}'
+        parent_record, parent_payload = _capture_get(
+            request_get,
+            name='parent_forum',
+            url=parent_url,
+            headers=headers,
+            timeout=timeout,
+            output_prefix=output_dir / f'{prefix}_discord_parent',
+        )
+        result['requests'].append(parent_record)
+        result['extracted']['parent_candidates'] = _candidate_fields(parent_payload)
 
-    parent_url = f'{DISCORD_API_ROOT}/channels/{parent_id}'
-    parent_record, parent_payload = _capture_get(
+        available_tags = []
+        if isinstance(parent_payload, dict):
+            available_tags = parent_payload.get('available_tags') or []
+        tag_map = {
+            str(item.get('id')): item.get('name', '')
+            for item in available_tags
+            if isinstance(item, dict) and item.get('id') is not None
+        }
+        result['extracted']['available_tags'] = _redact_payload(available_tags)
+        result['extracted']['resolved_tag_names'] = [
+            tag_map.get(str(tag_id), f'未知标签_{tag_id}') for tag_id in applied_tags
+        ]
+
+    # The tag fetcher does not need this request.  It is intentionally added
+    # only by the probe so the actual first-message ``edited_timestamp`` can
+    # be inspected without confusing it with ``last_pin_timestamp`` or other
+    # thread activity fields.
+    starter_url = f'{DISCORD_API_ROOT}/channels/{thread_id}/messages/{thread_id}'
+    starter_record, starter_payload = _capture_get(
         request_get,
-        name='parent_forum',
-        url=parent_url,
+        name='starter_message',
+        url=starter_url,
         headers=headers,
         timeout=timeout,
-        output_prefix=output_dir / f'{prefix}_discord_parent',
+        output_prefix=output_dir / f'{prefix}_discord_starter_message',
     )
-    result['requests'].append(parent_record)
-    result['extracted']['parent_candidates'] = _candidate_fields(parent_payload)
+    result['requests'].append(starter_record)
+    result['extracted']['starter_message_candidates'] = _candidate_fields(starter_payload)
+    if isinstance(starter_payload, dict):
+        timestamp = starter_payload.get('timestamp')
+        edited_timestamp = starter_payload.get('edited_timestamp')
+        result['extracted'].update(
+            {
+                'first_message_id': starter_payload.get('id') or thread_id,
+                'first_message_timestamp': timestamp,
+                'first_message_edited_timestamp': edited_timestamp,
+                'first_message_revision_timestamp': edited_timestamp or timestamp,
+                'first_message_available': bool(timestamp),
+            }
+        )
+    else:
+        result['extracted']['first_message_available'] = False
 
-    available_tags = []
-    if isinstance(parent_payload, dict):
-        available_tags = parent_payload.get('available_tags') or []
-    tag_map = {
-        str(item.get('id')): item.get('name', '')
-        for item in available_tags
-        if isinstance(item, dict) and item.get('id') is not None
-    }
-    result['extracted']['available_tags'] = _redact_payload(available_tags)
-    result['extracted']['resolved_tag_names'] = [
-        tag_map.get(str(tag_id), f'未知标签_{tag_id}') for tag_id in applied_tags
-    ]
-    result['success'] = bool(thread_record.get('ok') and parent_record.get('ok'))
+    tag_fetch_success = bool(
+        thread_record.get('ok') and (not applied_tags or parent_record.get('ok'))
+    )
+    result['extracted']['tag_fetch_success'] = tag_fetch_success
+    result['extracted']['starter_message_success'] = bool(starter_record.get('ok'))
+    # Preserve the historical method status: the Discord tag path is healthy
+    # when its thread/parent requests succeed.  Starter-message availability
+    # is reported separately because it is an additional diagnostic request.
+    result['success'] = tag_fetch_success
     return result
 
 
@@ -630,6 +671,7 @@ def main(argv: list[str] | None = None) -> int:
     (output_dir / 'README.txt').write_text(
         '此目录由 tools/forum_update_probe.py 生成。\n'
         'manifest.json 包含请求顺序、耗时、响应大小和候选标题/时间字段。\n'
+        'Discord 额外的 starter_message 响应用于确认首帖 timestamp/edited_timestamp；生产标签抓取不发起该请求。\n'
         '响应文件已过滤请求认证头，并对敏感字段做了脱敏。\n',
         encoding='utf-8',
     )
@@ -643,7 +685,11 @@ def main(argv: list[str] | None = None) -> int:
                 statuses.append(f'{method}=skipped')
                 continue
             elapsed = sum(item.get('elapsed_ms', 0) for item in value.get('requests', []))
-            statuses.append(f'{method}={"ok" if value.get("success") else "failed"}/{elapsed:.0f}ms')
+            status_text = f'{method}={"ok" if value.get("success") else "failed"}/{elapsed:.0f}ms'
+            extracted = value.get('extracted') or {}
+            if method == 'discord_tag_fetch' and 'starter_message_success' in extracted:
+                status_text += f', starter_message={"ok" if extracted.get("starter_message_success") else "failed"}'
+            statuses.append(status_text)
         print(f'- {target["source_url"]}: {", ".join(statuses)}')
     return 0
 

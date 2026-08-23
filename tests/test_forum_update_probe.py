@@ -57,7 +57,7 @@ def test_probe_rejects_non_discord_source_urls():
     )
 
 
-def test_probe_discord_mirrors_two_requests_and_writes_safe_bodies(tmp_path):
+def test_probe_discord_captures_starter_message_without_saving_credentials(tmp_path):
     session = _Session(
         [
             _Response(
@@ -70,6 +70,14 @@ def test_probe_discord_mirrors_two_requests_and_writes_safe_bodies(tmp_path):
                 }
             ),
             _Response({'available_tags': [{'id': 'tag-1', 'name': '角色'}]}),
+            _Response(
+                {
+                    'id': '3',
+                    'timestamp': '2026-08-05T13:00:00.000Z',
+                    'edited_timestamp': '2026-08-05T13:00:17.961Z',
+                    'content': 'private body',
+                }
+            ),
         ]
     )
 
@@ -86,14 +94,21 @@ def test_probe_discord_mirrors_two_requests_and_writes_safe_bodies(tmp_path):
     assert result['success'] is True
     assert result['extracted']['title'] == 'Current title'
     assert result['extracted']['resolved_tag_names'] == ['角色']
-    assert len(session.calls) == 2
+    assert len(session.calls) == 3
     assert session.calls[0]['url'].endswith('/channels/3')
     assert session.calls[1]['url'].endswith('/channels/2')
+    assert session.calls[2]['url'].endswith('/channels/3/messages/3')
     assert session.calls[0]['headers']['Cookie'] == 'session=private'
     assert all('Cookie' not in item for item in result['requests'])
+    assert result['extracted']['first_message_timestamp'] == '2026-08-05T13:00:00.000Z'
+    assert result['extracted']['first_message_edited_timestamp'] == '2026-08-05T13:00:17.961Z'
+    assert result['extracted']['first_message_revision_timestamp'] == '2026-08-05T13:00:17.961Z'
+    assert result['extracted']['starter_message_success'] is True
     body = (tmp_path / '001_demo_discord_thread.json').read_text(encoding='utf-8')
     assert 'private' not in body
     assert 'Current title' in body
+    starter_body = (tmp_path / '001_demo_discord_starter_message.json').read_text(encoding='utf-8')
+    assert 'private body' in starter_body
     assert result['requests'][0]['content_headers']['X-Cache'] == 'HIT'
     assert 'Set-Cookie' not in result['requests'][0]['content_headers']
 
