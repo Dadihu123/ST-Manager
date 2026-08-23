@@ -413,6 +413,8 @@ export function initState() {
       discord_user_cookie: "",
       // 类脑搜索站帖子预览 Cookie
       shimmerday_forum_cookie: "",
+      // 更新角色卡时默认同步 Discord 来源贴标题
+      sync_source_title_on_update: true,
 
       // 自动化标签分隔规则
       automation_slash_is_tag_separator: false,
@@ -580,6 +582,7 @@ export function initState() {
             cards_list_use_index: !!settings.cards_list_use_index,
             fast_search_use_index: !!settings.fast_search_use_index,
             worldinfo_list_use_index: !!settings.worldinfo_list_use_index,
+            sync_source_title_on_update: settings.sync_source_title_on_update !== false,
           };
           this.sharedWallpapers = Array.isArray(settings.shared_wallpapers)
             ? settings.shared_wallpapers

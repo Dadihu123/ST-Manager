@@ -326,6 +326,26 @@
             </button>
             <button
               type="button"
+              class="card-source-update-btn"
+              x-show="canCheckSourceUpdate(card)"
+              :class="getSourceUpdateClass(card)"
+              :disabled="isCheckingSourceUpdate(card.id)"
+              :title="isCheckingSourceUpdate(card.id) ? '正在检查来源' : getSourceUpdateLabel(card)"
+              @click.stop="checkCardSource(card)"
+              aria-label="检查来源更新"
+            >
+              <span x-show="!isCheckingSourceUpdate(card.id)" aria-hidden="true">↻</span>
+              <span x-show="isCheckingSourceUpdate(card.id)" aria-hidden="true">⏳</span>
+            </button>
+            <span
+              class="card-source-update-status"
+              x-show="canCheckSourceUpdate(card) && card.source_update?.last_status && card.source_update.last_status !== 'never_checked'"
+              :class="getSourceUpdateClass(card)"
+              :title="getSourceUpdateLabel(card)"
+              x-text="['baseline_established', 'baseline_refreshed'].includes(card.source_update.last_status) ? '基线' : (card.source_update.last_status === 'title_synced' ? '标题已同步' : (getSourceUpdateClass(card) === 'is-updated' ? '有更新' : '已检查'))"
+            ></span>
+            <button
+              type="button"
               class="card-send-st-btn"
               :class="{ 'has-sent': cardHasBeenSentToST(card), 'is-sending': isSendingToST(card.id) }"
               :disabled="isSendingToST(card.id)"

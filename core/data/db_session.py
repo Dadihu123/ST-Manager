@@ -7,6 +7,7 @@ from flask import g
 
 # === 基础设施 ===
 from core.config import CARDS_FOLDER, DEFAULT_DB_PATH
+from core.data.discord_tag_store import ensure_discord_tag_mapping_schema
 from core.data.index_runtime_store import ensure_index_runtime_schema
 
 # === 工具函数 (用于数据迁移) ===
@@ -141,7 +142,10 @@ def init_database():
             created_at REAL
         )
     ''')
-    
+
+    # Discord 论坛标签定义缓存：线程只返回标签 ID，名称来自父论坛频道。
+    ensure_discord_tag_mapping_schema(conn)
+
     conn.commit()
     
     # === 2. 数据库结构升级 (Migrations) ===

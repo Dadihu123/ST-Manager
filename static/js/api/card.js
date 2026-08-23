@@ -46,6 +46,16 @@ export async function getCardDetail(id, options = {}) {
     return res.json();
 }
 
+// 检查 Discord 来源帖子是否更新
+export async function checkCardSourceUpdate(cardId) {
+    const res = await fetch('/api/cards/source_update/check', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ card_id: cardId })
+    });
+    return res.json();
+}
+
 // 更新角色卡 (Save)
 export async function updateCard(payload) {
     const res = await fetch('/api/update_card', {

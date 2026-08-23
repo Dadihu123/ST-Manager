@@ -3,6 +3,10 @@ import logging
 import requests
 from html.parser import HTMLParser
 from urllib.parse import urlparse
+from core.data.discord_tag_store import (
+    get_discord_tag_name_map,
+    save_discord_tag_mappings,
+)
 from core.utils.tag_parser import split_action_tags
 
 logger = logging.getLogger(__name__)
@@ -250,25 +254,48 @@ class ForumTagFetcher:
                 # 如果没有parent_id，可能是普通频道，尝试用channel_id
                 parent_id = channel_id
             
-            # 获取频道可用的标签定义
-            parent_api_url = f"https://discord.com/api/v10/channels/{parent_id}"
-            parent_response = requests.get(parent_api_url, headers=headers, timeout=self.timeout)
-            
-            if parent_response.status_code == 200:
+            tag_name_map = get_discord_tag_name_map(
+                parent_id,
+                applied_tags,
+                guild_id=guild_id,
+            )
+            missing_tag_ids = [
+                str(tag_id) for tag_id in applied_tags
+                if str(tag_id) not in tag_name_map
+            ]
+
+            if missing_tag_ids:
+                # Discord 线程响应只给 applied_tags 的 ID；名称定义属于父论坛频道。
+                parent_api_url = f"https://discord.com/api/v10/channels/{parent_id}"
+                parent_response = requests.get(parent_api_url, headers=headers, timeout=self.timeout)
+
+                if parent_response.status_code != 200:
+                    # 如果无法获取父频道信息，返回原始标签ID
+                    logger.warning(f"无法获取父频道标签定义，返回原始标签ID")
+                    return [f"标签_{tag_id}" for tag_id in applied_tags], title, None
+
                 parent_data = parent_response.json()
                 available_tags = parent_data.get('available_tags', [])
-                
-                # 构建标签ID到名称的映射
-                tag_map = {tag['id']: tag['name'] for tag in available_tags}
-                
-                # 将标签ID转换为名称
-                tag_names = [tag_map.get(tag_id, f"未知标签_{tag_id}") for tag_id in applied_tags]
-                
-                return tag_names, title, None
-            else:
-                # 如果无法获取父频道信息，返回原始标签ID
-                logger.warning(f"无法获取父频道标签定义，返回原始标签ID")
-                return [f"标签_{tag_id}" for tag_id in applied_tags], title, None
+                if not isinstance(available_tags, list):
+                    available_tags = []
+                save_discord_tag_mappings(
+                    parent_id,
+                    available_tags,
+                    guild_id=guild_id,
+                )
+                tag_name_map.update({
+                    str(tag.get('id')): str(tag.get('name') or '').strip()
+                    for tag in available_tags
+                    if isinstance(tag, dict) and tag.get('id') is not None and tag.get('name')
+                })
+
+            # 将标签ID转换为名称
+            tag_names = [
+                tag_name_map.get(str(tag_id), f"未知标签_{tag_id}")
+                for tag_id in applied_tags
+            ]
+
+            return tag_names, title, None
                 
         except requests.exceptions.RequestException as e:
             logger.error(f"Discord API请求失败: {e}")

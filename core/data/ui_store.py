@@ -25,6 +25,7 @@ RESOURCE_ITEM_CATEGORIES_KEY = '_resource_item_categories_v1'
 WORLDINFO_NOTES_KEY = '_worldinfo_notes_v1'
 BEAUTIFY_LIBRARY_KEY = '_beautify_library_v1'
 SHARED_WALLPAPER_LIBRARY_KEY = '_shared_wallpaper_library_v1'
+SOURCE_UPDATE_KEY = '_source_update_v1'
 
 DEFAULT_TAG_CATEGORY = '未分类'
 DEFAULT_TAG_CATEGORY_COLOR = '#64748b'
@@ -1183,6 +1184,118 @@ def get_last_sent_to_st(ui_data, ui_key):
 
     sent_ts = _normalize_timestamp(entry.get(LAST_SENT_TO_ST_KEY))
     return sent_ts if sent_ts is not None else 0.0
+
+
+def _normalize_source_update_state(raw):
+    """规范化来源帖子检查状态，兼容早期的 title 字段命名。"""
+    source = raw if isinstance(raw, dict) else {}
+
+    title = source.get('source_title', source.get('title', ''))
+    if title is None:
+        title = ''
+    title = str(title).strip()
+
+    source_url = source.get('source_url', '')
+    if source_url is None:
+        source_url = ''
+    source_url = str(source_url).strip()
+
+    edited_at = _normalize_timestamp(source.get('first_message_edited_at'))
+    message_at = _normalize_timestamp(source.get('first_message_timestamp'))
+    revision_at = _normalize_timestamp(source.get('first_message_revision_at'))
+    checked_at = _normalize_timestamp(source.get('last_checked_at'))
+    status = str(source.get('last_status') or 'never_checked').strip() or 'never_checked'
+    error = str(source.get('last_error') or '').strip()
+    baseline_raw = source.get('baseline_established', False)
+    if isinstance(baseline_raw, str):
+        baseline_established = baseline_raw.strip().lower() not in {'', '0', 'false', 'no', 'off'}
+    else:
+        baseline_established = bool(baseline_raw)
+
+    return {
+        'source_url': source_url,
+        'source_title': title,
+        'first_message_edited_at': edited_at,
+        'first_message_timestamp': message_at,
+        'first_message_revision_at': revision_at,
+        'baseline_established': baseline_established,
+        'last_checked_at': checked_at,
+        'last_status': status,
+        'last_error': error,
+    }
+
+
+def get_source_update_state(ui_data, ui_key):
+    """获取卡片/Bundle 的来源帖子检查状态。"""
+    if not isinstance(ui_data, dict) or not ui_key:
+        return _normalize_source_update_state({})
+
+    entry = ui_data.get(ui_key)
+    if not isinstance(entry, dict):
+        return _normalize_source_update_state({})
+    return _normalize_source_update_state(entry.get(SOURCE_UPDATE_KEY))
+
+
+def set_source_update_state(ui_data, ui_key, state):
+    """写入卡片/Bundle 的来源帖子检查状态，返回 (是否变化, 规范化状态)。"""
+    if not isinstance(ui_data, dict) or not ui_key:
+        return False, _normalize_source_update_state(state)
+
+    entry = ui_data.get(ui_key)
+    if not isinstance(entry, dict):
+        entry = {}
+        ui_data[ui_key] = entry
+
+    normalized = _normalize_source_update_state(state)
+    previous = _normalize_source_update_state(entry.get(SOURCE_UPDATE_KEY))
+    changed = previous != normalized or SOURCE_UPDATE_KEY not in entry
+    if changed:
+        entry[SOURCE_UPDATE_KEY] = normalized
+    return changed, normalized
+
+
+def reset_source_update_state(ui_data, ui_key, source_url='', status='never_checked', error=''):
+    """切换来源时清空旧标题和首帖时间基线。"""
+    next_state = {
+        'source_url': str(source_url or '').strip(),
+        'source_title': '',
+        'first_message_edited_at': None,
+        'first_message_timestamp': None,
+        'first_message_revision_at': None,
+        'baseline_established': False,
+        'last_checked_at': None,
+        'last_status': status,
+        'last_error': error,
+    }
+    return set_source_update_state(ui_data, ui_key, next_state)
+
+
+def save_source_title_state(ui_data, ui_key, title, source_url=None, reset_baseline=False):
+    """仅同步来源贴标题；链接变化时可同时清空旧来源的检查基线。"""
+    current = get_source_update_state(ui_data, ui_key)
+    normalized_url = str(source_url or '').strip() if source_url is not None else current['source_url']
+    url_changed = bool(
+        current['source_url'] != normalized_url
+        and (current['source_url'] or normalized_url)
+    )
+
+    next_state = dict(current)
+    next_state['source_url'] = normalized_url
+    next_state['source_title'] = str(title or '').strip()
+    if reset_baseline or url_changed:
+        next_state['first_message_edited_at'] = None
+        next_state['first_message_timestamp'] = None
+        next_state['first_message_revision_at'] = None
+        next_state['baseline_established'] = False
+        next_state['last_checked_at'] = None
+        next_state['last_status'] = 'title_synced'
+        next_state['last_error'] = ''
+    elif not current.get('baseline_established') and next_state['source_title'] != current.get('source_title', ''):
+        # 标题同步不等于完成时间基线；保留独立状态，避免前端误显示为“已检查”。
+        next_state['last_status'] = 'title_synced'
+        next_state['last_error'] = ''
+
+    return set_source_update_state(ui_data, ui_key, next_state)
 
 
 def set_last_sent_to_st(ui_data, ui_key, timestamp=None):

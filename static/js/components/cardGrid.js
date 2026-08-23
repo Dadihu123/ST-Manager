@@ -11,6 +11,7 @@ import {
   moveCard,
   toggleFavorite,
   sendToSillyTavern,
+  checkCardSourceUpdate,
 } from "../api/card.js";
 
 import { batchUpdateTags } from "../api/system.js";
@@ -48,6 +49,7 @@ export default function cardGrid() {
     getCardGridTokenBadgeClass,
     flippedCardIds: {},
     sendingToStIds: {},
+    checkingSourceUpdateIds: {},
     bulkBackMode: false,
     autoFlipBackDelayMs: 1800,
     _autoFlipBackTimers: {},
@@ -465,6 +467,66 @@ export default function cardGrid() {
           },
         }),
       );
+    },
+
+    canCheckSourceUpdate(card) {
+      return !!card?.id && canPreviewForumThread(card?.source_link);
+    },
+
+    isCheckingSourceUpdate(cardId) {
+      return !!this.checkingSourceUpdateIds[String(cardId)];
+    },
+
+    getSourceUpdateLabel(card) {
+      const status = card?.source_update?.last_status || 'never_checked';
+      return {
+        title_synced: '来源标题已同步，尚未建立检查基线',
+        baseline_established: '已建立基线，下一次才能判断',
+        baseline_refreshed: '角色卡更新后，来源标题和首帖基线已刷新',
+        first_check_updated: '首次检查：来源首帖晚于本地卡片，角色卡已更新',
+        updated: '检测到来源首帖已更新',
+        title_changed: '检测到来源标题已变化',
+        title_and_content_updated: '检测到来源标题和首帖都已变化',
+        unchanged: '来源未变化',
+        first_message_unavailable: '无法取得首帖编辑时间',
+        error: '上次检查失败',
+      }[status] || '尚未检查来源';
+    },
+
+    getSourceUpdateClass(card) {
+      const status = card?.source_update?.last_status || 'never_checked';
+      if (['updated', 'title_changed', 'title_and_content_updated', 'first_check_updated'].includes(status)) {
+        return 'is-updated';
+      }
+      if (['error', 'first_message_unavailable'].includes(status)) return 'is-warning';
+      if (['baseline_established', 'baseline_refreshed', 'title_synced'].includes(status)) return 'is-baseline';
+      return 'is-idle';
+    },
+
+    async checkCardSource(card) {
+      if (!this.canCheckSourceUpdate(card) || this.isCheckingSourceUpdate(card.id)) return;
+      const key = String(card.id);
+      this.checkingSourceUpdateIds = { ...this.checkingSourceUpdateIds, [key]: true };
+      try {
+        const result = await checkCardSourceUpdate(card.id);
+        if (result?.source_update) {
+          Object.assign(card, {
+            source_update: result.source_update,
+            source_title: result.source_update.source_title || '',
+          });
+        }
+        if (result?.success) {
+          this.$store.global.showToast(result.message || this.getSourceUpdateLabel(card), 3200);
+        } else {
+          this.$store.global.showToast(`❌ ${result?.error || result?.msg || '检查来源失败'}`, 3200);
+        }
+      } catch (error) {
+        this.$store.global.showToast(`❌ ${error?.message || '检查来源失败'}`, 3200);
+      } finally {
+        const next = { ...this.checkingSourceUpdateIds };
+        delete next[key];
+        this.checkingSourceUpdateIds = next;
+      }
     },
 
     formatCardBackDate(ts) {

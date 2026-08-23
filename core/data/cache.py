@@ -14,6 +14,7 @@ from core.data.ui_store import (
     get_version_remark,
     get_import_time,
     get_last_sent_to_st,
+    get_source_update_state,
     ensure_import_time,
     cleanup_stale_version_remarks,
     migrate_bundle_remarks_to_versions,
@@ -672,6 +673,8 @@ class GlobalMetadataCache:
         import_time_changed, import_ts = ensure_import_time(ui_data, key, card.get('last_modified', 0))
         card['import_time'] = import_ts
         card['last_sent_to_st'] = get_last_sent_to_st(ui_data, key)
+        card['source_update'] = get_source_update_state(ui_data, key)
+        card['source_title'] = card['source_update'].get('source_title', '')
 
         # 预计算 URL
         mtime = int(card.get('last_modified', 0))

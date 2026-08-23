@@ -1091,6 +1091,70 @@ html.light-mode .preset-card-action-btn.is-export {
   flex-shrink: 0;
 }
 
+.card-source-update-btn {
+  appearance: none;
+  border: 1px solid color-mix(in srgb, var(--border-light), #ffffff 14%);
+  background: rgba(15, 23, 42, 0.45);
+  color: var(--text-sub);
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  cursor: pointer;
+  transition: color 0.2s ease, border-color 0.2s ease, background-color 0.2s ease,
+    transform 0.2s ease;
+}
+
+.card-source-update-btn:hover:not(:disabled) {
+  color: #fef08a;
+  border-color: rgba(250, 204, 21, 0.72);
+  background: rgba(133, 77, 14, 0.32);
+  transform: translateY(-1px);
+}
+
+.card-source-update-btn.is-updated,
+.card-source-update-status.is-updated {
+  color: #fecaca;
+  border-color: rgba(248, 113, 113, 0.72);
+  background: rgba(127, 29, 29, 0.35);
+}
+
+.card-source-update-btn.is-warning,
+.card-source-update-status.is-warning {
+  color: #fde68a;
+  border-color: rgba(251, 191, 36, 0.62);
+  background: rgba(120, 53, 15, 0.3);
+}
+
+.card-source-update-btn.is-baseline,
+.card-source-update-status.is-baseline {
+  color: #bfdbfe;
+  border-color: rgba(96, 165, 250, 0.58);
+  background: rgba(30, 64, 175, 0.25);
+}
+
+.card-source-update-btn:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.card-source-update-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.2rem;
+  height: 1.35rem;
+  padding: 0 0.35rem;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: 9px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
 .card-send-st-btn.has-sent {
   color: #bfdbfe;
   border-color: rgba(96, 165, 250, 0.68);
@@ -1513,6 +1577,29 @@ html.light-mode .card-forum-search-btn:hover {
   background: rgba(237, 233, 254, 0.95);
 }
 
+html.light-mode .card-source-update-btn {
+  background: rgba(255, 255, 255, 0.85);
+  color: #475569;
+}
+
+html.light-mode .card-source-update-btn.is-updated,
+html.light-mode .card-source-update-status.is-updated {
+  color: #b91c1c;
+  background: rgba(254, 226, 226, 0.95);
+}
+
+html.light-mode .card-source-update-btn.is-warning,
+html.light-mode .card-source-update-status.is-warning {
+  color: #a16207;
+  background: rgba(254, 249, 195, 0.95);
+}
+
+html.light-mode .card-source-update-btn.is-baseline,
+html.light-mode .card-source-update-status.is-baseline {
+  color: #1d4ed8;
+  background: rgba(219, 234, 254, 0.9);
+}
+
 html.light-mode .card-send-st-btn.has-sent {
   color: #1d4ed8;
   border-color: rgba(59, 130, 246, 0.5);
@@ -1902,6 +1989,10 @@ html.light-mode .btn-note-preview:hover {
     height: 1.45rem;
   }
   .card-forum-search-btn {
+    width: 1.45rem;
+    height: 1.45rem;
+  }
+  .card-source-update-btn {
     width: 1.45rem;
     height: 1.45rem;
   }

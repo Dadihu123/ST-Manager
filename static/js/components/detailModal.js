@@ -12,11 +12,13 @@ import {
     changeCardImage,
     getCardMetadata,
     sendToSillyTavern,
+    checkCardSourceUpdate,
     setAsBundleCover as apiSetAsBundleCover,
     convertToBundle as apiConvertToBundle,
     toggleBundleMode as apiToggleBundleMode
 } from '../api/card.js';
 import { listChats } from '../api/chat.js';
+import { canPreviewForumThread } from '../utils/discordUrl.js';
 
 import { 
     renameFolder, 
@@ -65,6 +67,8 @@ export default function detailModal() {
         showGreetingPreview: true,
         showLocalNotePreview: false,
         updateImagePolicy: 'overwrite', // 默认策略
+        syncSourceTitleOnUpdate: true,
+        sourceUpdateChecking: false,
         saveOldCoverOnSwap: false,      // 皮肤换封时是否保留旧图
         dragOverUpdate: false,
         dragOverResource: false,
@@ -302,6 +306,8 @@ export default function detailModal() {
                 filename: "",
                 ui_summary: "",
                 source_link: "",
+                source_title: "",
+                source_update: null,
                 resource_folder: "",
                 source_revision: "",
                 character_book_raw: ""
@@ -1067,6 +1073,8 @@ export default function detailModal() {
                     this.skinImages = [];
                     this.cardChats = [];
                     this.updateImagePolicy = 'overwrite';
+                    this.syncSourceTitleOnUpdate = this.$store?.global?.settingsForm?.sync_source_title_on_update !== false;
+                    this.sourceUpdateChecking = false;
                     this.saveOldCoverOnSwap = false;
                     this.isEditMode = false; // 重置编辑模式
                     this.showTagLibrary = true;
@@ -1075,6 +1083,15 @@ export default function detailModal() {
                     this.detailCategoryFilterInclude = [];
                     this.detailCategoryFilterExclude = [];
                 }
+            });
+
+            // 标题同步开关是常驻偏好，沿用全局设置接口持久化。
+            this.$watch('syncSourceTitleOnUpdate', (value) => {
+                if (!this.showDetail || !this.$store?.global?.settingsForm) return;
+                const normalized = value !== false;
+                if (this.$store.global.settingsForm.sync_source_title_on_update === normalized) return;
+                this.$store.global.settingsForm.sync_source_title_on_update = normalized;
+                Promise.resolve(this.$store.global.saveSettings(false)).catch(() => {});
             });
 
         },
@@ -1636,6 +1653,8 @@ export default function detailModal() {
             this._cleanupPendingAdvancedEditorHandlers();
             this.originalDataJson = null;
             this.activeCard = c;
+            this.syncSourceTitleOnUpdate = this.$store?.global?.settingsForm?.sync_source_title_on_update !== false;
+            this.sourceUpdateChecking = false;
             this.skinImages = [];
             this.currentSkinIndex = -1;
             this.currentSkinDirectory = '';
@@ -1690,7 +1709,9 @@ export default function detailModal() {
 
             // 4. 补全 UI 字段
             rawData.ui_summary = rawData.ui_summary || c.ui_summary || "";
-            rawData.source_link = rawData.source_link || c.source_link || "";
+            rawData.source_link = rawData.source_link ?? c.source_link ?? "";
+            rawData.source_title = rawData.source_title ?? c.source_title ?? "";
+            rawData.source_update = rawData.source_update ?? c.source_update ?? null;
             rawData.resource_folder = rawData.resource_folder || c.resource_folder || "";
             
             // === 版本号字段映射 (DB: char_version -> V3: character_version) ===
@@ -1794,8 +1815,12 @@ export default function detailModal() {
                     // 更新 UI 备注字段
                     this.editingData.ui_summary = safeCard.ui_summary || "";
                     this.editingData.source_link = safeCard.source_link || "";
+                    this.editingData.source_title = safeCard.source_title ?? "";
+                    this.editingData.source_update = safeCard.source_update ?? null;
                     this.editingData.resource_folder = safeCard.resource_folder || "";
                     this.editingData.source_revision = safeCard.source_revision || "";
+                    this.activeCard.source_update = safeCard.source_update ?? this.activeCard.source_update ?? null;
+                    this.activeCard.source_title = safeCard.source_title ?? this.activeCard.source_title ?? "";
                     this.editingData = this._normalizeEditingDataShape(this.editingData);
                     this.syncDialogState();
                     setActiveRuntimeContext({
@@ -2015,6 +2040,7 @@ export default function detailModal() {
             formData.append('card_id', this.editingData.id);
             formData.append('is_bundle_update', isBundleUpdate);
             formData.append('image_policy', finalPolicy);
+            formData.append('sync_source_title', this.syncSourceTitleOnUpdate ? 'true' : 'false');
             // Bundle 新增版本时，不传递 ui_summary（新版本应该无备注）
             formData.append('keep_ui_data', JSON.stringify({
                 ui_summary: isBundleUpdate ? '' : this.editingData.ui_summary,
@@ -2100,6 +2126,7 @@ export default function detailModal() {
                 url: url,
                 is_bundle_update: isBundleUpdate,
                 image_policy: finalPolicy,
+                sync_source_title: this.syncSourceTitleOnUpdate,
                 keep_ui_data: {
                     ui_summary: isBundleUpdate ? '' : this.editingData.ui_summary,
                     source_link: this.editingData.source_link,
@@ -2817,6 +2844,50 @@ export default function detailModal() {
             window.dispatchEvent(new CustomEvent('open-markdown-view', {
                 detail: content
             }));
+        },
+
+        canCheckSourceUpdate() {
+            return canPreviewForumThread(this.editingData?.source_link || this.activeCard?.source_link || '');
+        },
+
+        getSourceUpdateLabel() {
+            const status = this.activeCard?.source_update?.last_status || 'never_checked';
+            return {
+                title_synced: '来源标题已同步，尚未建立检查基线',
+                baseline_established: '已建立基线，下一次才能判断',
+                baseline_refreshed: '角色卡更新后，来源标题和首帖基线已刷新',
+                first_check_updated: '首次检查：来源首帖晚于本地卡片，角色卡已更新',
+                updated: '检测到来源首帖已更新',
+                title_changed: '检测到来源标题已变化',
+                title_and_content_updated: '检测到来源标题和首帖都已变化',
+                unchanged: '来源未变化',
+                first_message_unavailable: '无法取得首帖编辑时间',
+                error: '上次检查失败',
+            }[status] || '尚未检查来源';
+        },
+
+        async checkSourceUpdate() {
+            if (!this.canCheckSourceUpdate() || this.sourceUpdateChecking) return;
+            this.sourceUpdateChecking = true;
+            try {
+                const result = await checkCardSourceUpdate(this.activeCard.id);
+                if (result?.source_update) {
+                    this.activeCard.source_update = result.source_update;
+                    this.activeCard.source_title = result.source_update.source_title || '';
+                    this.editingData.source_update = result.source_update;
+                    this.editingData.source_title = result.source_update.source_title || '';
+                    window.dispatchEvent(new CustomEvent('card-updated', { detail: this.activeCard }));
+                }
+                if (result?.success) {
+                    this.$store.global.showToast(result.message || this.getSourceUpdateLabel(), 3200);
+                } else {
+                    this.$store.global.showToast(`❌ ${result?.error || result?.msg || '检查来源失败'}`, 3200);
+                }
+            } catch (error) {
+                this.$store.global.showToast(`❌ ${error?.message || '检查来源失败'}`, 3200);
+            } finally {
+                this.sourceUpdateChecking = false;
+            }
         },
 
         async handleLocalNotePaste(e) {

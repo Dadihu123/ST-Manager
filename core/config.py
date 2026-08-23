@@ -140,6 +140,8 @@ DEFAULT_CONFIG = {
     "discord_user_cookie": "",     # 浏览器Cookie字符串
     # 类脑搜索站 forum.shimmerday.top 的会话 Cookie（帖子预览专用）
     "shimmerday_forum_cookie": "",
+    # 更新角色卡时，是否默认同步 Discord 来源贴标题
+    "sync_source_title_on_update": True,
 
     # 标签分隔规则
     # False: 仅将 | 视为自动化标签分隔符（保留 / 作为标签字符）

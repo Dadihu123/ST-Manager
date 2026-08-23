@@ -25,6 +25,7 @@ from core.data.ui_store import (
     set_version_remark,
     get_import_time,
     get_last_sent_to_st,
+    get_source_update_state,
     ensure_import_time,
     get_tag_taxonomy,
     set_tag_taxonomy,
@@ -68,6 +69,11 @@ from core.services.wi_entry_history_service import (
     ensure_entry_uids,
     collect_previous_versions,
     append_entry_history_records
+)
+from core.services.forum_update_service import (
+    check_card_source_update,
+    prepare_source_link_for_card,
+    refresh_card_source_baseline,
 )
 
 # === 工具函数 ===
@@ -482,6 +488,38 @@ def _coerce_request_bool(value) -> bool:
         if normalized in {'0', 'false', 'no', 'off', ''}:
             return False
     return bool(value)
+
+
+def _source_title_sync_enabled(payload=None):
+    """读取卡片实际更新后刷新来源信息的常驻开关，默认开启。"""
+    if isinstance(payload, dict) and 'sync_source_title' in payload:
+        return _coerce_request_bool(payload.get('sync_source_title'))
+    try:
+        return bool(load_config().get('sync_source_title_on_update', True))
+    except Exception:
+        return True
+
+
+def _refresh_source_after_update(card_id, payload=None, source_link=None, ui_data=None):
+    if not card_id or not _source_title_sync_enabled(payload):
+        return None
+    try:
+        return refresh_card_source_baseline(
+            card_id,
+            source_link=source_link,
+            ui_data=ui_data,
+        )
+    except Exception as exc:
+        logger.warning('刷新来源基线失败 (%s): %s', card_id, exc)
+        return {'success': False, 'status': 'error', 'error': str(exc)}
+
+
+def _safe_source_update_ui_key(card_id):
+    """在轻量测试缓存或索引路径中也能解析来源状态 key。"""
+    try:
+        return resolve_ui_key(card_id)
+    except (AttributeError, KeyError, TypeError):
+        return card_id
 
 
 def _build_move_folder_merge_actions(source_path, source_full_path, target_full_path, new_path_prefix):
@@ -938,6 +976,12 @@ def api_list_cards():
             'db_path': DEFAULT_DB_PATH,
         })
         if indexed.get('index_ready', True):
+            indexed_cards = indexed.get('cards') or []
+            for indexed_card in indexed_cards:
+                indexed_key = _safe_source_update_ui_key(indexed_card.get('id'))
+                indexed_state = get_source_update_state(ui_data_for_order, indexed_key)
+                indexed_card['source_update'] = indexed_state
+                indexed_card['source_title'] = indexed_state.get('source_title', '')
             metadata_candidates = _collect_list_cards_metadata_candidates(
                 getattr(ctx.cache, 'cards', []) or [],
                 category,
@@ -947,7 +991,7 @@ def api_list_cards():
             )
             tag_metadata = _build_list_cards_tag_metadata(metadata_candidates, ui_data_for_order, isolated_paths)
             return jsonify({
-                'cards': indexed['cards'],
+                'cards': indexed_cards,
                 'global_tags': tag_metadata['global_tags'],
                 'sidebar_tags': tag_metadata['sidebar_tags'],
                 'isolated_categories': isolated_categories,
@@ -1921,12 +1965,20 @@ def api_update_card():
         
         # 如果链接发生变化，触发论坛标签抓取（仅执行fetch_forum_tags动作）
         forum_tags_result = None
+        source_title_sync_result = None
         if link_changed:
+            # 保存链接本身不检查网络，只清空旧来源的标题和时间基线。
+            source_title_sync_result = prepare_source_link_for_card(
+                return_new_id,
+                source_link=source_link_val,
+                ui_data=ui_data,
+            )
             try:
                 forum_tags_result = auto_run_forum_tags_on_link_update(return_new_id)
                 if forum_tags_result and forum_tags_result.get('run'):
                     result_payload = forum_tags_result.get('result', {}) or {}
                     tag_merge_info = result_payload.get('tag_merge')
+                    source_title_sync_result = result_payload.get('source_title_synced') or source_title_sync_result
 
                     if final_return_obj and 'tags' in final_return_obj:
                         final_tags = result_payload.get('final_tags')
@@ -1938,6 +1990,28 @@ def api_update_card():
                             final_return_obj['tags'] = list(existing_tags)
             except Exception as e:
                 logger.warning(f"链接更新后自动抓取论坛标签失败: {e}")
+            if (
+                isinstance(final_return_obj, dict)
+                and isinstance(source_title_sync_result, dict)
+                and source_title_sync_result.get('source_update')
+            ):
+                final_return_obj['source_update'] = source_title_sync_result['source_update']
+                final_return_obj['source_title'] = source_title_sync_result['source_update'].get('source_title', '')
+
+        # 角色卡内容实际写入成功后，接受当前 Discord 来源为新的已同步基线。
+        # 仅保存 UI 链接或备注不会进入这里，因此不会隐式触发网络检查。
+        if file_content_modified:
+            refreshed_source = _refresh_source_after_update(
+                return_new_id,
+                data,
+                source_link=source_link_val,
+                ui_data=ui_data,
+            )
+            if refreshed_source is not None:
+                source_title_sync_result = refreshed_source
+                if isinstance(final_return_obj, dict) and refreshed_source.get('source_update'):
+                    final_return_obj['source_update'] = refreshed_source['source_update']
+                    final_return_obj['source_title'] = refreshed_source['source_update'].get('source_title', '')
 
         refreshed_source_revision = build_file_source_revision(current_full_path)
         if final_return_obj is not None:
@@ -1952,6 +2026,7 @@ def api_update_card():
             "updated_card": final_return_obj,
             "current_version_id": current_version_id,
             "forum_tags_fetched": forum_tags_result.get('result') if forum_tags_result else None,
+            "source_title_sync": source_title_sync_result,
             "tag_merge": tag_merge_info
         })
 
@@ -2892,6 +2967,7 @@ def api_update_card_from_url():
         is_bundle_update = data.get('is_bundle_update', False)
         keep_ui_data = data.get('keep_ui_data', {})
         image_policy = data.get('image_policy', 'overwrite')
+        sync_source_title = _source_title_sync_enabled(data)
         
         if not url: return jsonify({"success": False, "msg": "URL不能为空"})
         if not _is_safe_rel_path(card_id):
@@ -2935,6 +3011,19 @@ def api_update_card_from_url():
             updated_card = result.get('updated_card')
             if isinstance(updated_card, dict):
                 updated_card['import_time'] = result['import_time']
+            result['source_title_sync'] = _refresh_source_after_update(
+                result.get('new_id') or card_id,
+                {'sync_source_title': sync_source_title},
+                source_link=(keep_ui_data or {}).get('source_link'),
+                ui_data=load_ui_data(),
+            )
+            if (
+                isinstance(result.get('updated_card'), dict)
+                and isinstance(result.get('source_title_sync'), dict)
+                and result['source_title_sync'].get('source_update')
+            ):
+                result['updated_card']['source_update'] = result['source_title_sync']['source_update']
+                result['updated_card']['source_title'] = result['source_title_sync']['source_update'].get('source_title', '')
 
         if os.path.exists(temp_path): os.remove(temp_path)
         return jsonify(result)
@@ -3558,11 +3647,36 @@ def api_get_card_detail():
             card_data['resource_folder'] = ui_info.get('resource_folder', '')
 
         if not regex_only:
+            source_update = get_source_update_state(ui_data, ui_key)
+            card_data['source_update'] = source_update
+            card_data['source_title'] = source_update.get('source_title', '')
             card_data['tag_taxonomy'] = get_tag_taxonomy(ui_data)
 
         return jsonify({"success": True, "card": card_data})
     except Exception as e:
         return jsonify({"success": False, "msg": str(e)})
+
+
+@bp.route('/api/cards/source_update/check', methods=['POST'])
+@bp.route('/api/check_card_source_update', methods=['POST'])
+def api_check_card_source_update():
+    """检查单张卡片对应的 Discord 来源帖子。"""
+    try:
+        payload = request.get_json(silent=True) or {}
+        card_id = payload.get('card_id') or payload.get('id')
+        if not card_id:
+            return jsonify({'success': False, 'msg': 'Missing card_id'}), 400
+        if not _is_safe_rel_path(card_id):
+            return jsonify({'success': False, 'msg': '非法路径'}), 400
+
+        result = check_card_source_update(
+            card_id,
+            source_link=payload.get('source_link'),
+        )
+        return jsonify(result)
+    except Exception as exc:
+        logger.error('检查卡片来源更新失败: %s', exc)
+        return jsonify({'success': False, 'status': 'error', 'msg': '检查来源失败'}), 500
 
 @bp.route('/api/delete_tags', methods=['POST'])
 def api_delete_tags():
@@ -3901,6 +4015,9 @@ def api_update_card_file():
         new_card_file = request.files.get('new_card')
         is_bundle_update = request.form.get('is_bundle_update') == 'true'
         image_policy = request.form.get('image_policy', 'overwrite')
+        sync_source_title = _source_title_sync_enabled({
+            'sync_source_title': request.form.get('sync_source_title', None)
+        }) if request.form.get('sync_source_title') is not None else _source_title_sync_enabled()
         
         if not new_card_file: return jsonify({"success": False, "msg": "未提供文件"})
         if not _is_safe_rel_path(card_id):
@@ -3919,6 +4036,19 @@ def api_update_card_file():
             updated_card = result.get('updated_card')
             if isinstance(updated_card, dict):
                 updated_card['import_time'] = result['import_time']
+            result['source_title_sync'] = _refresh_source_after_update(
+                result.get('new_id') or card_id,
+                {'sync_source_title': sync_source_title},
+                source_link=(keep_ui_data or {}).get('source_link'),
+                ui_data=load_ui_data(),
+            )
+            if (
+                isinstance(result.get('updated_card'), dict)
+                and isinstance(result.get('source_title_sync'), dict)
+                and result['source_title_sync'].get('source_update')
+            ):
+                result['updated_card']['source_update'] = result['source_title_sync']['source_update']
+                result['updated_card']['source_title'] = result['source_title_sync']['source_update'].get('source_title', '')
         
         if os.path.exists(temp_path): os.remove(temp_path)
         return jsonify(result)
@@ -4807,6 +4937,12 @@ def api_upload_commit():
             import_time_changed, import_time_val = ensure_import_time(ui_data, rel_id, mtime)
             if import_time_changed:
                 save_ui_data(ui_data)
+
+            # 覆盖冲突时保留原卡片的来源链接与来源状态，后续可继续同步标题。
+            ui_key_for_import = _safe_source_update_ui_key(rel_id)
+            existing_ui_entry = ui_data.get(ui_key_for_import, {})
+            if not isinstance(existing_ui_entry, dict):
+                existing_ui_entry = {}
             
             cache_result = update_card_cache(rel_id, dst_path, parsed_info=info, file_hash=final_hash, file_size=final_size, mtime=mtime)
             sync_card_index_jobs(
@@ -4841,8 +4977,11 @@ def api_upload_commit():
                     "char_version": data_block.get('character_version', ''),
                     "character_book": data_block.get('character_book', None),
                     "extensions": data_block.get('extensions', {}),
-                    "ui_summary": "",
-                    "source_link": "",
+                    "ui_summary": existing_ui_entry.get('summary', ''),
+                    "source_link": existing_ui_entry.get('link', ''),
+                    "source_title": get_source_update_state(ui_data, ui_key_for_import).get('source_title', ''),
+                    "source_update": get_source_update_state(ui_data, ui_key_for_import),
+                    "resource_folder": existing_ui_entry.get('resource_folder', ''),
                     "is_favorite": False,
                     "token_count": calculate_token_count(calc_data),
                     "file_size": final_size,
@@ -4881,6 +5020,16 @@ def api_upload_commit():
                         card_obj['thumb_url'] = f"/api/thumbnail/{encoded_id}?t={ts}"
 
                 card_obj['import_time'] = get_import_time(load_ui_data(), card_obj['id'], card_obj.get('import_time', mtime))
+
+                source_title_sync = _refresh_source_after_update(
+                    card_obj['id'],
+                    {'sync_source_title': _source_title_sync_enabled()},
+                    source_link=card_obj.get('source_link'),
+                    ui_data=load_ui_data(),
+                )
+                if source_title_sync and source_title_sync.get('source_update'):
+                    card_obj['source_title'] = source_title_sync['source_update'].get('source_title', '')
+                    card_obj['source_update'] = source_title_sync['source_update']
 
                 new_cards.append(card_obj)
             
