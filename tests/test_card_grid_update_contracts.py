@@ -41,3 +41,14 @@ def test_card_grid_fetch_rewinds_overflow_page_before_applying_empty_page():
     assert card_grid_source.index('if (page > nextTotalPages) {') < card_grid_source.index(
         'this.cards = data.cards || [];'
     )
+
+
+def test_card_grid_places_send_to_st_before_source_update_check():
+    card_grid_template = read_project_file('templates/components/grid_cards.html')
+    toolbar = card_grid_template.split('<div class="card-bottom-toolbar"', 1)[1].split(
+        'class="card-flip-corner"', 1
+    )[0]
+
+    assert toolbar.index('class="card-send-st-btn"') < toolbar.index(
+        'class="card-source-update-btn"'
+    )

@@ -49,8 +49,10 @@ def test_detail_source_update_metadata_stays_in_management_tab():
     script = (PROJECT_ROOT / 'static/js/components/detailModal.js').read_text(encoding='utf-8')
 
     assert 'class="detail-source-title-preview"' not in template
-    assert 'class="detail-source-link-header' in template
-    assert template.count('x-show="isEditMode"') >= 2
+    assert 'detail-source-link-header' not in template
+    assert template.count('class="flex items-center gap-2 flex-1 min-w-[180px]"') == 2
+    assert template.count('x-model="editingData.source_link"') == 2
+    assert template.count('title="打开链接"') == 2
     assert '首帖上次编辑' in template
     assert '上次更新检查时间' in template
     assert 'x-text="formatSourceFirstMessageEditedAt()"' in template
