@@ -13,7 +13,6 @@ from core.services.tag_management_service import build_governance_feedback, buil
 from core.services.forum_update_service import (
     fetch_discord_source,
     refresh_card_source_baseline,
-    save_source_title_for_card,
 )
 
 logger = logging.getLogger(__name__)
@@ -46,7 +45,7 @@ class AutomationExecutor:
         
         current_id = card_id
         
-        # 0. 执行论坛标签抓取 (如果配置了)
+        # 0. 执行来源链接动作（论坛标签和/或更新基线）
         forum_tags_config = plan.get('fetch_forum_tags')
         baseline_config = plan.get('refresh_source_baseline')
         if forum_tags_config is not None or baseline_config is not None:
@@ -205,16 +204,6 @@ class AutomationExecutor:
                 logger.warning(f"抓取标签失败: {fetch_result['error']}")
                 return fetch_result
 
-            # 全局论坛标签抓取已经取得来源标题，直接复用结果写入专用来源状态，避免重复请求。
-            title_sync = None
-            if fetch_result.get('title'):
-                title_sync = save_source_title_for_card(
-                    card_id,
-                    fetch_result.get('title'),
-                    url,
-                    ui_data=ui_data,
-                )
-
             # 处理标签
             cfg = load_config()
             slash_as_separator = bool(cfg.get('automation_slash_is_tag_separator', False))
@@ -246,8 +235,6 @@ class AutomationExecutor:
                 'title': fetch_result.get('title'),
                 'merge_mode': merge_mode
             }
-            if title_sync:
-                result['source_title_synced'] = title_sync
             result.update(build_governance_feedback(governed))
             return result
 

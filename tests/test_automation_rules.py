@@ -2843,24 +2843,32 @@ def test_executor_fetch_forum_tags_preserves_processed_tags_and_exposes_governed
     monkeypatch.setattr(automation_executor, 'TagProcessor', _FakeProcessor)
     monkeypatch.setattr(automation_executor, 'load_config', lambda: {'automation_slash_is_tag_separator': False})
 
+    ui_data = {
+        'folder/demo.json': {
+            'link': 'https://discord.com/channels/1/2/threads/3',
+            '_source_update_v1': {
+                'source_url': 'https://discord.com/channels/1/2/threads/3',
+                'source_title': '已有标题',
+                'baseline_established': False,
+            },
+        },
+        '_tag_management_prefs_v1': {
+            'lock_tag_library': True,
+            'tag_blacklist': ['blocked-tag'],
+        },
+        '_tag_taxonomy_v1': {
+            'default_category': 'General',
+            'categories': {'General': {'color': '#123456', 'opacity': 30}},
+            'tag_to_category': {
+                'allowed-tag': 'General',
+                'existing': 'General',
+            },
+        },
+    }
     result = AutomationExecutor()._fetch_forum_tags(
         'folder/demo.json',
         {'merge_mode': 'merge'},
-        ui_data={
-            'folder/demo.json': {'link': 'https://example.test/thread'},
-            '_tag_management_prefs_v1': {
-                'lock_tag_library': True,
-                'tag_blacklist': ['blocked-tag'],
-            },
-            '_tag_taxonomy_v1': {
-                'default_category': 'General',
-                'categories': {'General': {'color': '#123456', 'opacity': 30}},
-                'tag_to_category': {
-                    'allowed-tag': 'General',
-                    'existing': 'General',
-                },
-            },
-        },
+        ui_data=ui_data,
     )
 
     assert result['success'] is True
@@ -2869,6 +2877,8 @@ def test_executor_fetch_forum_tags_preserves_processed_tags_and_exposes_governed
     assert result['skipped_blacklist'] == ['blocked-tag']
     assert result['skipped_unknown'] == []
     assert result['tags'] == ['existing', 'allowed-tag']
+    assert 'source_title_synced' not in result
+    assert ui_data['folder/demo.json']['_source_update_v1']['source_title'] == '已有标题'
 
 
 def test_executor_merges_forum_tag_and_source_baseline_requests(monkeypatch):

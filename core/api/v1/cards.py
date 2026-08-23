@@ -1980,7 +1980,6 @@ def api_update_card():
                     tag_merge_info = result_payload.get('tag_merge')
                     source_title_sync_result = (
                         result_payload.get('source_baseline_refreshed')
-                        or result_payload.get('source_title_synced')
                         or source_title_sync_result
                     )
 
