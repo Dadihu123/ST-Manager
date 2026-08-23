@@ -1963,7 +1963,7 @@ def api_update_card():
                 # 记录当前保存的版本ID，供前端刷新详情使用
                 current_version_id = target_version_id if target_version_id != final_return_obj['id'] else None
         
-        # 如果链接发生变化，触发论坛标签抓取（仅执行fetch_forum_tags动作）
+        # 如果链接发生变化，执行来源链接专用自动化动作。
         forum_tags_result = None
         source_title_sync_result = None
         if link_changed:
@@ -1978,7 +1978,11 @@ def api_update_card():
                 if forum_tags_result and forum_tags_result.get('run'):
                     result_payload = forum_tags_result.get('result', {}) or {}
                     tag_merge_info = result_payload.get('tag_merge')
-                    source_title_sync_result = result_payload.get('source_title_synced') or source_title_sync_result
+                    source_title_sync_result = (
+                        result_payload.get('source_baseline_refreshed')
+                        or result_payload.get('source_title_synced')
+                        or source_title_sync_result
+                    )
 
                     if final_return_obj and 'tags' in final_return_obj:
                         final_tags = result_payload.get('final_tags')
@@ -2000,7 +2004,16 @@ def api_update_card():
 
         # 角色卡内容实际写入成功后，接受当前 Discord 来源为新的已同步基线。
         # 仅保存 UI 链接或备注不会进入这里，因此不会隐式触发网络检查。
-        if file_content_modified:
+        link_rule_refreshed_source = bool(
+            isinstance(source_title_sync_result, dict)
+            and source_title_sync_result.get('success')
+            and source_title_sync_result.get('source_update')
+            and source_title_sync_result.get('status') in {
+                'baseline_refreshed',
+                'first_message_unavailable',
+            }
+        )
+        if file_content_modified and not link_rule_refreshed_source:
             refreshed_source = _refresh_source_after_update(
                 return_new_id,
                 data,

@@ -54,10 +54,12 @@ def _prepare(monkeypatch, *, last_modified=300.0, ui_data=None):
     return data, cache
 
 
-def _thread_payload(title):
+def _thread_payload(title, applied_tags=None, parent_id='2'):
     return {
         'id': '3',
         'name': title,
+        'applied_tags': list(applied_tags or []),
+        'parent_id': parent_id,
         'thread_metadata': {'create_timestamp': '2026-02-23T12:00:00.000Z'},
     }
 
@@ -84,6 +86,8 @@ def test_fetch_discord_source_reads_starter_message_not_pin_or_activity(monkeypa
 
     assert result['success'] is True
     assert result['source']['title'] == '标题 A'
+    assert result['source']['applied_tag_ids'] == []
+    assert result['source']['parent_id'] == '2'
     assert result['source']['first_message_edited_at_epoch'] is not None
     assert getter.urls == [
         'https://discord.com/api/v10/channels/3',

@@ -219,11 +219,20 @@ def fetch_discord_source(url, *, timeout=DEFAULT_TIMEOUT, http_get=None, config=
         }
 
     source_title = str(thread_payload.get('name') or '').strip()
+    applied_tags = thread_payload.get('applied_tags')
+    if not isinstance(applied_tags, list):
+        applied_tags = []
     source = {
         'title': source_title,
         'thread_id': thread_id,
         'guild_id': guild_id,
         'channel_id': channel_id,
+        # 标签抓取可直接复用这些字段，避免再次请求帖子详情。
+        'applied_tag_ids': [
+            str(tag_id) for tag_id in applied_tags
+            if tag_id is not None
+        ],
+        'parent_id': str(thread_payload.get('parent_id') or channel_id),
         'thread_created_at': thread_payload.get('thread_metadata', {}).get('create_timestamp')
         if isinstance(thread_payload.get('thread_metadata'), dict) else None,
         'first_message_available': False,
@@ -647,7 +656,8 @@ def check_card_source_update(card_id, source_link=None, *, ui_data=None, timeout
 
 
 def refresh_card_source_baseline(card_id, source_link=None, *, ui_data=None,
-                                 timeout=DEFAULT_TIMEOUT, http_get=None, now=None):
+                                 timeout=DEFAULT_TIMEOUT, http_get=None, now=None,
+                                 fetched=None):
     """在角色卡实际更新成功后，重新抓取标题和首帖时间并接受为新基线。"""
     card, ui_key, link, data = _resolve_card_and_source(card_id, source_link, ui_data)
     refreshed_at = float(now if now is not None else time.time())
@@ -674,11 +684,12 @@ def refresh_card_source_baseline(card_id, source_link=None, *, ui_data=None,
             'source_update': state,
         }
 
-    fetched = fetch_discord_source(
-        link,
-        timeout=timeout,
-        http_get=http_get,
-    )
+    if fetched is None:
+        fetched = fetch_discord_source(
+            link,
+            timeout=timeout,
+            http_get=http_get,
+        )
     if not fetched.get('success'):
         state = _state_for_card(data, ui_key)
         if state.get('source_url') != link:

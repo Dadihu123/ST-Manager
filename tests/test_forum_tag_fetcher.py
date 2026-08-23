@@ -66,3 +66,38 @@ def test_forum_tag_fetcher_uses_persisted_parent_tag_definitions(monkeypatch):
         'https://discord.com/api/v10/channels/2',
         'https://discord.com/api/v10/channels/4',
     ]
+
+
+def test_forum_tag_fetcher_uses_prefetched_thread_without_second_thread_request(monkeypatch):
+    calls = []
+
+    def fake_get(url, headers=None, timeout=None):
+        calls.append(url)
+        return _Response({'available_tags': [{'id': 'tag-1', 'name': '角色'}]})
+
+    monkeypatch.setattr(forum_tag_fetcher_module.requests, 'get', fake_get)
+    monkeypatch.setattr(
+        forum_tag_fetcher_module,
+        'get_discord_tag_name_map',
+        lambda parent_id, tag_ids, *, guild_id='': {},
+    )
+    monkeypatch.setattr(
+        forum_tag_fetcher_module,
+        'save_discord_tag_mappings',
+        lambda *args, **kwargs: 1,
+    )
+
+    fetcher = ForumTagFetcher(discord_cookie='session=private')
+    result = fetcher.fetch_tags(
+        'https://discord.com/channels/1/2/threads/3',
+        prefetched_source={
+            'title': 'Prefetched',
+            'parent_id': '2',
+            'applied_tag_ids': ['tag-1'],
+        },
+    )
+
+    assert result['success'] is True
+    assert result['title'] == 'Prefetched'
+    assert result['tags'] == ['角色']
+    assert calls == ['https://discord.com/api/v10/channels/2']

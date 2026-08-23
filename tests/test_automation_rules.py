@@ -17,6 +17,7 @@ from core.automation.engine import AutomationEngine
 from core.automation.constants import (
     ACT_ADD_TAG,
     ACT_FETCH_FORUM_TAGS,
+    ACT_REFRESH_SOURCE_BASELINE,
     ACT_MERGE_TAGS,
     ACT_MOVE,
     ACT_REMOVE_TAG,
@@ -381,6 +382,15 @@ def test_normalize_actions_for_link_update_only_keeps_fetch_forum_tags():
     normalized = normalize_actions_for_context(_sample_actions(), TRIGGER_CONTEXT_LINK_UPDATE)
 
     assert _action_types(normalized['actions']) == [ACT_FETCH_FORUM_TAGS]
+
+
+def test_normalize_actions_for_link_update_keeps_source_baseline_action():
+    normalized = normalize_actions_for_context(
+        [{'type': ACT_REFRESH_SOURCE_BASELINE}],
+        TRIGGER_CONTEXT_LINK_UPDATE,
+    )
+
+    assert _action_types(normalized['actions']) == [ACT_REFRESH_SOURCE_BASELINE]
 
 
 def test_auto_and_manual_paths_share_identical_snapshot_template_fields(monkeypatch):
@@ -2859,6 +2869,129 @@ def test_executor_fetch_forum_tags_preserves_processed_tags_and_exposes_governed
     assert result['skipped_blacklist'] == ['blocked-tag']
     assert result['skipped_unknown'] == []
     assert result['tags'] == ['existing', 'allowed-tag']
+
+
+def test_executor_merges_forum_tag_and_source_baseline_requests(monkeypatch):
+    from core.automation.executor import AutomationExecutor
+    from core.automation import executor as automation_executor
+
+    card_id = 'folder/demo.json'
+    fake_cache = SimpleNamespace(id_map={card_id: {'id': card_id, 'tags': []}})
+    source_fetches = []
+    baseline_calls = []
+    tag_calls = []
+    source_result = {
+        'success': True,
+        'supported': True,
+        'status': 'ok',
+        'source': {
+            'title': '来源标题',
+            'guild_id': '1',
+            'channel_id': '2',
+            'thread_id': '3',
+            'parent_id': '2',
+            'applied_tag_ids': ['tag-id'],
+            'first_message_available': True,
+            'first_message_revision_at_epoch': 123.0,
+        },
+    }
+
+    class _FakeFetcher:
+        def fetch_tags(self, url, prefetched_source=None):
+            tag_calls.append((url, prefetched_source))
+            return {'success': True, 'tags': [], 'title': '来源标题'}
+
+    class _FakeProcessor:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def process(self, tags):
+            return list(tags)
+
+        def merge_tags(self, existing_tags, new_tags, mode='merge'):
+            return list(existing_tags) + [tag for tag in new_tags if tag not in existing_tags]
+
+    monkeypatch.setattr(automation_executor, 'ctx', SimpleNamespace(cache=fake_cache), raising=False)
+    monkeypatch.setattr(
+        automation_executor,
+        'fetch_discord_source',
+        lambda url: source_fetches.append(url) or source_result,
+    )
+    monkeypatch.setattr(
+        automation_executor,
+        'refresh_card_source_baseline',
+        lambda card_id_arg, **kwargs: baseline_calls.append(kwargs) or {
+            'success': True,
+            'status': 'baseline_refreshed',
+        },
+    )
+    monkeypatch.setattr(automation_executor, 'resolve_ui_key', lambda card_id_arg: card_id_arg)
+    monkeypatch.setattr(automation_executor, 'get_tag_fetcher', lambda: _FakeFetcher())
+    monkeypatch.setattr(automation_executor, 'TagProcessor', _FakeProcessor)
+    monkeypatch.setattr(automation_executor, 'load_config', lambda: {'automation_slash_is_tag_separator': False})
+
+    result = AutomationExecutor().apply_plan(
+        card_id,
+        {
+            'fetch_forum_tags': {'merge_mode': 'merge'},
+            'refresh_source_baseline': {},
+        },
+        ui_data={card_id: {'link': 'https://discord.com/channels/1/2/threads/3'}},
+    )
+
+    assert source_fetches == ['https://discord.com/channels/1/2/threads/3']
+    assert len(baseline_calls) == 1
+    assert baseline_calls[0]['fetched'] is source_result
+    assert tag_calls == [
+        (
+            'https://discord.com/channels/1/2/threads/3',
+            source_result['source'],
+        )
+    ]
+    assert result['source_baseline_refreshed']['status'] == 'baseline_refreshed'
+    assert result['forum_tags_fetched']['success'] is True
+
+
+def test_auto_run_link_update_runs_source_baseline_without_forum_tag_action(monkeypatch):
+    card_id = 'folder/demo.json'
+    fake_cache = SimpleNamespace(
+        id_map={card_id: {'id': card_id, 'tags': ['existing']}},
+        bundle_map={},
+    )
+    captured = {}
+
+    monkeypatch.setattr(
+        automation_service,
+        'load_config',
+        lambda: {
+            'active_automation_ruleset': 'ruleset-1',
+            'automation_slash_is_tag_separator': False,
+        },
+    )
+    monkeypatch.setattr(automation_service.rule_manager, 'get_ruleset', lambda ruleset_id: {'rules': []})
+    monkeypatch.setattr(automation_service.ctx, 'cache', fake_cache, raising=False)
+    monkeypatch.setattr(automation_service, '_build_rule_context', lambda *args, **kwargs: ({'id': card_id}, {}))
+    monkeypatch.setattr(
+        automation_service.engine,
+        'evaluate',
+        lambda *args, **kwargs: {'actions': [{'type': ACT_REFRESH_SOURCE_BASELINE}]},
+    )
+    monkeypatch.setattr(
+        automation_service.executor,
+        'apply_plan',
+        lambda card_id_arg, plan, ui_data: captured.update(plan=plan) or {
+            'final_id': card_id_arg,
+            'forum_tags_fetched': None,
+            'source_baseline_refreshed': {'success': True, 'status': 'baseline_refreshed'},
+        },
+    )
+
+    result = automation_service.auto_run_forum_tags_on_link_update(card_id)
+
+    assert result['run'] is True
+    assert captured['plan']['fetch_forum_tags'] is None
+    assert captured['plan']['refresh_source_baseline'] == {}
+    assert result['result']['final_tags'] == ['existing']
 
 
 def test_executor_fetch_forum_tags_replace_mode_removes_stale_tags(monkeypatch):

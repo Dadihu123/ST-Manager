@@ -389,6 +389,7 @@
                                                     <option value="set_favorite">★ 设为收藏</option>
                                                     <option value="merge_tags">🔀 标签合并</option>
                                                     <option value="fetch_forum_tags">🌐 抓取论坛标签</option>
+                                                    <option value="refresh_source_baseline">🕒 刷新来源更新基线</option>
                                                     <option value="rename_file_by_template">🧩 模板重命名文件</option>
                                                     <option value="split_category_to_tags">📝 分类拆分为标签</option>
                                                     <option value="set_char_name_from_filename">📝 文件名→角色名</option>
@@ -516,8 +517,14 @@
                                                           </div>
                                                       </template>
 
+                                                     <template x-if="action.type === 'refresh_source_baseline'">
+                                                         <div class="text-xs text-[var(--text-dim)] px-2 py-1 bg-[var(--bg-sub)] border border-[var(--border-light)] rounded">
+                                                             更新来源链接时抓取标题和首帖编辑时间，并建立新的检查基线
+                                                         </div>
+                                                     </template>
+
                                                      <!-- 其他动作类型的值输入 -->
-                                                     <template x-if="action.type !== 'set_favorite' && action.type !== 'fetch_forum_tags' && action.type !== 'merge_tags' && action.type !== 'rename_file_by_template' && action.type !== 'split_category_to_tags' && action.type !== 'set_char_name_from_filename' && action.type !== 'set_wi_name_from_filename' && action.type !== 'set_filename_from_char_name' && action.type !== 'set_filename_from_wi_name'">
+                                                     <template x-if="action.type !== 'set_favorite' && action.type !== 'fetch_forum_tags' && action.type !== 'refresh_source_baseline' && action.type !== 'merge_tags' && action.type !== 'rename_file_by_template' && action.type !== 'split_category_to_tags' && action.type !== 'set_char_name_from_filename' && action.type !== 'set_wi_name_from_filename' && action.type !== 'set_filename_from_char_name' && action.type !== 'set_filename_from_wi_name'">
                                                          <input type="text" x-model="action.value"
                                                              class="auto-input w-full"
                                                              :placeholder="action.type==='move_folder' ? '文件夹路径 (e.g. Race/Elf)' : ((action.type==='add_tag' || action.type==='remove_tag') ? ($store.global.settingsForm.automation_slash_is_tag_separator ? '标签名称，多个可用 | 或 / 分隔' : '标签名称，多个可用 | 分隔') : '标签名称')"
@@ -691,6 +698,7 @@
                                             <div class="font-bold text-xs text-blue-400 mb-2">论坛标签与模板动作</div>
                                             <ul class="list-disc list-inside space-y-1 text-xs text-[var(--text-dim)]">
                                                 <li><strong>fetch_forum_tags</strong>：自动从来源链接抓取论坛标签，可配置排除标签、标签替换、合并模式。</li>
+                                                <li><strong>refresh_source_baseline</strong>：更新来源链接时同步帖子标题和首帖编辑时间，并将其保存为新的检查基线；与抓取论坛标签同时启用时会合并帖子请求。</li>
                                                 <li><strong>merge_tags</strong>：将多个旧标签统一替换为同一个目标标签，适合做同义词归并。</li>
                                                 <li><strong>rename_file_by_template</strong>：按模板重命名文件，适合把角色名、版本、导入日期或修改日期等字段拼成规范文件名。</li>
                                                 <li><strong>split_category_to_tags</strong>：把当前分类路径按 <code class="font-mono">/</code> 拆成多个标签，例如 <code class="font-mono">a/b/c</code> 会追加 <code class="font-mono">a</code>、<code class="font-mono">b</code>、<code class="font-mono">c</code>。</li>
@@ -733,7 +741,7 @@
                                             <ul class="list-disc list-inside space-y-1 text-xs text-[var(--text-dim)]">
                                                 <li><strong>导入时</strong>：会执行普通动作（移动文件夹、添加/移除标签、设置收藏、名称同步、rename_file_by_template、split_category_to_tags）；导入时会跳过抓取论坛标签与标签合并。</li>
                                                 <li><strong>更新角色卡后</strong>：仅在 upload-file 或 update-from-URL 用新角色卡内容覆盖已有角色卡时触发；普通保存详情、单独更换封面、修改本地备注、修改来源链接都不会触发。</li>
-                                                <li><strong>更新链接时</strong>：在卡片详情页修改"来源链接"并保存时，更新链接时只执行抓取论坛标签。</li>
+                                                <li>更新链接时只执行抓取论坛标签（未启用基线动作时）；在卡片详情页修改"来源链接"并保存后，启用刷新来源更新基线会同步标题和首帖编辑时间，两者同时启用时共用帖子请求。</li>
                                                 <li><strong>手动打标时</strong>：仅在"批量标签管理输入框"和"详情页自定义添加标签输入框"点击添加时触发；手动打标时只执行标签合并。</li>
                                             </ul>
                                     </div>

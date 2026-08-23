@@ -16,6 +16,7 @@ from core.automation.executor import AutomationExecutor
 from core.automation.constants import (
     FIELD_MAP,
     ACT_FETCH_FORUM_TAGS,
+    ACT_REFRESH_SOURCE_BASELINE,
     ACT_MERGE_TAGS,
     ACT_RENAME_FILE_BY_TEMPLATE,
     ACT_SET_CHAR_NAME_FROM_FILENAME,
@@ -161,7 +162,7 @@ def _normalize_rule_trigger_contexts(rule):
                 continue
 
             action_type = action.get('type')
-            if action_type == ACT_FETCH_FORUM_TAGS and TRIGGER_CONTEXT_LINK_UPDATE not in legacy_contexts:
+            if action_type in {ACT_FETCH_FORUM_TAGS, ACT_REFRESH_SOURCE_BASELINE} and TRIGGER_CONTEXT_LINK_UPDATE not in legacy_contexts:
                 legacy_contexts.append(TRIGGER_CONTEXT_LINK_UPDATE)
             elif action_type == ACT_MERGE_TAGS and TRIGGER_CONTEXT_TAG_EDIT not in legacy_contexts:
                 legacy_contexts.append(TRIGGER_CONTEXT_TAG_EDIT)
@@ -206,6 +207,7 @@ def _empty_exec_plan():
         'remove_tags': set(),
         'favorite': None,
         'fetch_forum_tags': None,
+        'refresh_source_baseline': None,
         'rename_file_by_template': None,
         'set_char_name_from_filename': False,
         'set_wi_name_from_filename': False,
@@ -248,6 +250,8 @@ def _build_exec_plan_from_actions(actions, slash_as_separator=False):
             exec_plan['rename_file_by_template'] = action_value
         elif action_type == ACT_FETCH_FORUM_TAGS:
             exec_plan['fetch_forum_tags'] = action_value if isinstance(action_value, dict) else {}
+        elif action_type == ACT_REFRESH_SOURCE_BASELINE:
+            exec_plan['refresh_source_baseline'] = action_value if isinstance(action_value, dict) else {}
 
     return exec_plan
 
@@ -402,7 +406,7 @@ def auto_run_rules_for_trigger(card_id, trigger_context):
 
 def auto_run_forum_tags_on_link_update(card_id):
     """
-    当卡片超链接更新时，仅执行抓取论坛标签动作。
+    当卡片超链接更新时，执行来源链接专用动作。
     用于用户在卡片详情页更新来源链接后的钩子。
     """
     try:
@@ -440,7 +444,9 @@ def auto_run_forum_tags_on_link_update(card_id):
 
         exec_plan = _build_exec_plan_from_actions(normalized_plan.get('actions', []))
 
-        if exec_plan.get('fetch_forum_tags') is None:
+        has_fetch_action = exec_plan.get('fetch_forum_tags') is not None
+        has_baseline_action = exec_plan.get('refresh_source_baseline') is not None
+        if not has_fetch_action and not has_baseline_action:
             return {"run": True, "actions": 0, "reason": "no_fetch_forum_tags_action"}
 
         # 执行
@@ -454,7 +460,7 @@ def auto_run_forum_tags_on_link_update(card_id):
         final_tags = list(fetched_tags if has_fetched_tags else ((current_card or {}).get('tags') or []))
         tag_merge = None
 
-        if final_tags:
+        if has_fetch_action and final_tags:
             merge_res = auto_run_tag_merge_on_tagging(card_id, final_tags, ui_data=ui_data, runtime={
                 'ruleset_id': active_id,
                 'ruleset': ruleset,

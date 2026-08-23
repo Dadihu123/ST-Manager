@@ -25,7 +25,7 @@ function deriveLegacyRuleTriggerContexts(rule) {
     actions.forEach(action => {
         if (!action || typeof action !== 'object') return;
 
-        if (action.type === 'fetch_forum_tags' && !normalized.includes('link_update')) {
+        if ((action.type === 'fetch_forum_tags' || action.type === 'refresh_source_baseline') && !normalized.includes('link_update')) {
             normalized.push('link_update');
         }
 

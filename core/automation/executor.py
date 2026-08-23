@@ -10,7 +10,11 @@ from core.data.ui_store import load_ui_data
 from core.context import ctx
 from core.config import load_config
 from core.services.tag_management_service import build_governance_feedback, build_known_tag_set, filter_governed_tags
-from core.services.forum_update_service import save_source_title_for_card
+from core.services.forum_update_service import (
+    fetch_discord_source,
+    refresh_card_source_baseline,
+    save_source_title_for_card,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -37,18 +41,45 @@ class AutomationExecutor:
             "tags_removed": [],
             "fav_changed": False,
             "name_sync": None,
-            "forum_tags_fetched": None  # 论坛标签抓取结果
+            "forum_tags_fetched": None,  # 论坛标签抓取结果
         }
         
         current_id = card_id
         
         # 0. 执行论坛标签抓取 (如果配置了)
         forum_tags_config = plan.get('fetch_forum_tags')
-        if forum_tags_config:
-            # 如果没有传入ui_data，则加载
+        baseline_config = plan.get('refresh_source_baseline')
+        if forum_tags_config is not None or baseline_config is not None:
             if ui_data is None:
                 ui_data = load_ui_data()
-            fetch_result = self._fetch_forum_tags(current_id, forum_tags_config, ui_data)
+
+            # 两个来源动作同时执行时，共享帖子详情和首帖请求。
+            prefetched_source = None
+            source_link = None
+            if forum_tags_config is not None and baseline_config is not None:
+                source_link = self._source_link_for_card(current_id, ui_data)
+                if source_link:
+                    prefetched_source = fetch_discord_source(source_link)
+
+            if baseline_config is not None:
+                result['source_baseline_refreshed'] = refresh_card_source_baseline(
+                    current_id,
+                    source_link=source_link,
+                    ui_data=ui_data,
+                    fetched=prefetched_source,
+                )
+
+            if forum_tags_config is None:
+                fetch_result = None
+            elif prefetched_source is None:
+                fetch_result = self._fetch_forum_tags(current_id, forum_tags_config, ui_data)
+            else:
+                fetch_result = self._fetch_forum_tags(
+                    current_id,
+                    forum_tags_config,
+                    ui_data,
+                    prefetched_source=prefetched_source,
+                )
             result["forum_tags_fetched"] = fetch_result
             # 如果成功抓取到标签，按 merge/replace 语义折叠为标签增删计划
             if fetch_result and fetch_result.get('success'):
@@ -118,7 +149,14 @@ class AutomationExecutor:
         result["final_id"] = current_id
         return result
     
-    def _fetch_forum_tags(self, card_id, config, ui_data=None):
+    def _source_link_for_card(self, card_id, ui_data=None):
+        if ui_data is None:
+            ui_data = load_ui_data()
+        ui_key = resolve_ui_key(card_id)
+        entry = ui_data.get(ui_key) if isinstance(ui_data, dict) else None
+        return str(entry.get('link') or '').strip() if isinstance(entry, dict) else ''
+
+    def _fetch_forum_tags(self, card_id, config, ui_data=None, prefetched_source=None):
         """
         从论坛URL抓取标签
         URL从ui_data.json中的link字段获取（用户在界面中设置的超链接）
@@ -140,17 +178,8 @@ class AutomationExecutor:
                 return {'success': False, 'error': '无法获取卡片数据', 'tags': []}
 
             # 从ui_data获取URL（用户设置的超链接）
-            if ui_data is None:
-                ui_data = load_ui_data()
-
-            # 获取ui_key（可能是card_id或bundle_dir）
             ui_key = resolve_ui_key(card_id)
-            url = None
-
-            if ui_key and ui_key in ui_data:
-                entry = ui_data[ui_key]
-                # 从ui_data entry中获取link字段
-                url = entry.get('link', '').strip()
+            url = self._source_link_for_card(card_id, ui_data)
 
             if not url:
                 logger.warning(f"卡片 {card_id} (ui_key: {ui_key}) 未配置超链接")
@@ -158,7 +187,19 @@ class AutomationExecutor:
 
             # 抓取标签
             fetcher = get_tag_fetcher()
-            fetch_result = fetcher.fetch_tags(url)
+            if prefetched_source is not None and not prefetched_source.get('success'):
+                return {
+                    'success': False,
+                    'error': prefetched_source.get('error') or '来源帖子请求失败',
+                    'tags': [],
+                }
+            if prefetched_source is None:
+                fetch_result = fetcher.fetch_tags(url)
+            else:
+                fetch_result = fetcher.fetch_tags(
+                    url,
+                    prefetched_source=prefetched_source.get('source') or {},
+                )
 
             if not fetch_result['success']:
                 logger.warning(f"抓取标签失败: {fetch_result['error']}")

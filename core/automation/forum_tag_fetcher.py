@@ -149,7 +149,7 @@ class ForumTagFetcher:
             logger.error(f"解析Discord URL失败: {e}")
             return None, None, None
     
-    def _fetch_discord_thread_tags(self, guild_id, channel_id, thread_id):
+    def _fetch_discord_thread_tags(self, guild_id, channel_id, thread_id, prefetched_source=None):
         """
         使用Discord API获取线程的标签信息
         需要Bot Token或User Token认证
@@ -207,37 +207,45 @@ class ForumTagFetcher:
                 headers["sec-ch-ua-mobile"] = "?0"
                 headers["sec-ch-ua-platform"] = '"Windows"'
             
-            response = requests.get(api_url, headers=headers, timeout=self.timeout)
-            
-            if response.status_code == 401:
-                error_detail = ''
-                try:
-                    error_data = response.json()
-                    error_detail = f" - {error_data.get('message', '')}"
-                    logger.error(f"401错误详情: {error_data}")
-                except:
-                    error_detail = f" - {response.text[:200]}"
-                logger.error(f"Discord认证失败 - 状态码: 401{error_detail}")
-                logger.error("可能原因: 1) Cookie已过期 2) Cookie格式错误 3) 缺少必要请求头")
-                return None, None, f'Discord认证失败{error_detail}，请检查Cookie是否有效且未过期'
-            elif response.status_code == 403:
-                error_detail = ''
-                try:
-                    error_data = response.json()
-                    error_detail = f" - {error_data.get('message', '')}"
-                    logger.error(f"403错误详情: {error_data}")
-                except:
-                    pass
-                logger.error(f"Discord API 403错误: 请检查Token/Cookie是否已加入服务器并有权限查看频道")
-                return None, None, f'Discord API 拒绝访问 (403): 请检查该 Token/Cookie 是否已加入对应的服务器，或是否有权限查看该频道{error_detail}'
-            elif response.status_code == 404:
-                return None, None, 'Discord线程不存在或已被删除'
-            elif response.status_code != 200:
-                error_text = response.text[:200]
-                logger.error(f"Discord API错误响应: {error_text}")
-                return None, None, f'Discord API返回错误: HTTP {response.status_code} - {error_text}'
-            
-            data = response.json()
+            data = None
+            if isinstance(prefetched_source, dict) and 'applied_tag_ids' in prefetched_source:
+                data = {
+                    'name': prefetched_source.get('title') or '',
+                    'applied_tags': prefetched_source.get('applied_tag_ids') or [],
+                    'parent_id': prefetched_source.get('parent_id') or channel_id,
+                }
+            else:
+                response = requests.get(api_url, headers=headers, timeout=self.timeout)
+
+                if response.status_code == 401:
+                    error_detail = ''
+                    try:
+                        error_data = response.json()
+                        error_detail = f" - {error_data.get('message', '')}"
+                        logger.error(f"401错误详情: {error_data}")
+                    except:
+                        error_detail = f" - {response.text[:200]}"
+                    logger.error(f"Discord认证失败 - 状态码: 401{error_detail}")
+                    logger.error("可能原因: 1) Cookie已过期 2) Cookie格式错误 3) 缺少必要请求头")
+                    return None, None, f'Discord认证失败{error_detail}，请检查Cookie是否有效且未过期'
+                elif response.status_code == 403:
+                    error_detail = ''
+                    try:
+                        error_data = response.json()
+                        error_detail = f" - {error_data.get('message', '')}"
+                        logger.error(f"403错误详情: {error_data}")
+                    except:
+                        pass
+                    logger.error(f"Discord API 403错误: 请检查Token/Cookie是否已加入服务器并有权限查看频道")
+                    return None, None, f'Discord API 拒绝访问 (403): 请检查该 Token/Cookie 是否已加入对应的服务器，或是否有权限查看该频道{error_detail}'
+                elif response.status_code == 404:
+                    return None, None, 'Discord线程不存在或已被删除'
+                elif response.status_code != 200:
+                    error_text = response.text[:200]
+                    logger.error(f"Discord API错误响应: {error_text}")
+                    return None, None, f'Discord API返回错误: HTTP {response.status_code} - {error_text}'
+
+                data = response.json()
             
             # 提取线程标题
             title = data.get('name', '')
@@ -304,7 +312,7 @@ class ForumTagFetcher:
             logger.error(f"获取Discord标签时出错: {e}")
             return None, None, str(e)
     
-    def fetch_tags(self, url):
+    def fetch_tags(self, url, prefetched_source=None):
         """
         从Discord URL抓取标签
         
@@ -346,7 +354,12 @@ class ForumTagFetcher:
             }
         
         # 获取标签
-        tags, title, error = self._fetch_discord_thread_tags(guild_id, channel_id, thread_id)
+        tags, title, error = self._fetch_discord_thread_tags(
+            guild_id,
+            channel_id,
+            thread_id,
+            prefetched_source=prefetched_source,
+        )
         
         if error:
             logger.warning(f"抓取Discord标签失败: {error}")
