@@ -134,6 +134,8 @@ mypy core
 - Compose file: `docker-compose.yaml`
 - Docker image runs `python app.py` and exposes port `5000`
 - Data/config are expected to be mounted into `/app/data` and `/app/config.json`
+- Desktop packaging workflow: `.github/workflows/build-desktop.yaml`
+- Desktop builds run on pushes to `main`, `v*` tags, or manual dispatch, and upload Windows, macOS arm64, and macOS x86_64 artifacts
 
 ## Imports
 
