@@ -70,14 +70,14 @@ def test_probe_discord_captures_starter_message_without_saving_credentials(tmp_p
                 }
             ),
             _Response({'available_tags': [{'id': 'tag-1', 'name': '角色'}]}),
-            _Response(
+            _Response([
                 {
                     'id': '3',
                     'timestamp': '2026-08-05T13:00:00.000Z',
                     'edited_timestamp': '2026-08-05T13:00:17.961Z',
                     'content': 'private body',
                 }
-            ),
+            ]),
         ]
     )
 
@@ -97,7 +97,7 @@ def test_probe_discord_captures_starter_message_without_saving_credentials(tmp_p
     assert len(session.calls) == 3
     assert session.calls[0]['url'].endswith('/channels/3')
     assert session.calls[1]['url'].endswith('/channels/2')
-    assert session.calls[2]['url'].endswith('/channels/3/messages/3')
+    assert session.calls[2]['url'].endswith('/channels/3/messages?around=3&limit=1')
     assert session.calls[0]['headers']['Cookie'] == 'session=private'
     assert all('Cookie' not in item for item in result['requests'])
     assert result['extracted']['first_message_timestamp'] == '2026-08-05T13:00:00.000Z'
@@ -107,8 +107,9 @@ def test_probe_discord_captures_starter_message_without_saving_credentials(tmp_p
     body = (tmp_path / '001_demo_discord_thread.json').read_text(encoding='utf-8')
     assert 'private' not in body
     assert 'Current title' in body
-    starter_body = (tmp_path / '001_demo_discord_starter_message.json').read_text(encoding='utf-8')
+    starter_body = (tmp_path / '001_demo_discord_starter_messages_around.json').read_text(encoding='utf-8')
     assert 'private body' in starter_body
+    assert result['extracted']['first_message_fetch_method'] == 'messages_around'
     assert result['requests'][0]['content_headers']['X-Cache'] == 'HIT'
     assert 'Set-Cookie' not in result['requests'][0]['content_headers']
 

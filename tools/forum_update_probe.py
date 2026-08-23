@@ -4,7 +4,8 @@ The probe intentionally mirrors the two existing code paths used by ST-Manager:
 
 * ``ForumTagFetcher``: Discord thread metadata, followed by the parent forum
   channel when applied tags are present.  The probe additionally requests the
-  starter message so its real ``edited_timestamp`` can be inspected.
+  starter message through the user-compatible message-list endpoint, with the
+  single-message endpoint retained as a fallback.
 * ``fetch_thread_preview``: one request to the Shimmerday thread search API.
 
 Credentials are read from environment variables or hidden prompts and are never
@@ -271,6 +272,17 @@ def _candidate_fields(value: Any, *, max_items: int = 100) -> dict[str, Any]:
     return found
 
 
+def _find_message_by_id(payload: Any, message_id: str) -> dict[str, Any] | None:
+    """从 Discord 消息列表响应中找到指定 ID 的消息。"""
+    if not isinstance(payload, list):
+        return None
+    expected_id = str(message_id or '').strip()
+    for item in payload:
+        if isinstance(item, dict) and str(item.get('id') or '').strip() == expected_id:
+            return item
+    return None
+
+
 def _discord_headers(auth_type: str, credential: str, guild_id: str, channel_id: str) -> dict[str, str]:
     headers = {
         'User-Agent': DEFAULT_USER_AGENT,
@@ -411,18 +423,39 @@ def _probe_discord(
     # only by the probe so the actual first-message ``edited_timestamp`` can
     # be inspected without confusing it with ``last_pin_timestamp`` or other
     # thread activity fields.
-    starter_url = f'{DISCORD_API_ROOT}/channels/{thread_id}/messages/{thread_id}'
-    starter_record, starter_payload = _capture_get(
+    around_url = f'{DISCORD_API_ROOT}/channels/{thread_id}/messages?around={thread_id}&limit=1'
+    around_record, around_payload = _capture_get(
         request_get,
-        name='starter_message',
-        url=starter_url,
+        name='starter_messages_around',
+        url=around_url,
         headers=headers,
         timeout=timeout,
-        output_prefix=output_dir / f'{prefix}_discord_starter_message',
+        output_prefix=output_dir / f'{prefix}_discord_starter_messages_around',
     )
-    result['requests'].append(starter_record)
-    result['extracted']['starter_message_candidates'] = _candidate_fields(starter_payload)
-    if isinstance(starter_payload, dict):
+    result['requests'].append(around_record)
+    result['extracted']['starter_messages_around_candidates'] = _candidate_fields(around_payload)
+    starter_payload = _find_message_by_id(around_payload, thread_id)
+    starter_record = around_record
+    starter_fetch_method = None
+
+    if starter_payload is not None:
+        starter_fetch_method = 'messages_around'
+    else:
+        starter_url = f'{DISCORD_API_ROOT}/channels/{thread_id}/messages/{thread_id}'
+        starter_record, starter_payload = _capture_get(
+            request_get,
+            name='starter_message',
+            url=starter_url,
+            headers=headers,
+            timeout=timeout,
+            output_prefix=output_dir / f'{prefix}_discord_starter_message',
+        )
+        result['requests'].append(starter_record)
+        result['extracted']['starter_message_candidates'] = _candidate_fields(starter_payload)
+        if isinstance(starter_payload, dict) and starter_record.get('ok'):
+            starter_fetch_method = 'single_message'
+
+    if isinstance(starter_payload, dict) and starter_record.get('ok'):
         timestamp = starter_payload.get('timestamp')
         edited_timestamp = starter_payload.get('edited_timestamp')
         result['extracted'].update(
@@ -434,6 +467,7 @@ def _probe_discord(
                 'first_message_available': bool(timestamp),
             }
         )
+        result['extracted']['first_message_fetch_method'] = starter_fetch_method
     else:
         result['extracted']['first_message_available'] = False
 
@@ -441,7 +475,9 @@ def _probe_discord(
         thread_record.get('ok') and (not applied_tags or parent_record.get('ok'))
     )
     result['extracted']['tag_fetch_success'] = tag_fetch_success
-    result['extracted']['starter_message_success'] = bool(starter_record.get('ok'))
+    result['extracted']['starter_message_success'] = bool(
+        starter_fetch_method and starter_record.get('ok')
+    )
     # Preserve the historical method status: the Discord tag path is healthy
     # when its thread/parent requests succeed.  Starter-message availability
     # is reported separately because it is an additional diagnostic request.
@@ -671,7 +707,7 @@ def main(argv: list[str] | None = None) -> int:
     (output_dir / 'README.txt').write_text(
         '此目录由 tools/forum_update_probe.py 生成。\n'
         'manifest.json 包含请求顺序、耗时、响应大小和候选标题/时间字段。\n'
-        'Discord 额外的 starter_message 响应用于确认首帖 timestamp/edited_timestamp；生产标签抓取不发起该请求。\n'
+        'Discord 额外的首帖消息响应（优先 messages?around，必要时回退 starter_message）用于确认 timestamp/edited_timestamp；生产标签抓取不发起该请求。\n'
         '响应文件已过滤请求认证头，并对敏感字段做了脱敏。\n',
         encoding='utf-8',
     )
