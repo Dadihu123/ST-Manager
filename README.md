@@ -16,9 +16,7 @@
 <p align="center">
   <img src="docs/screenshots/hero.png" alt="ST-Manager 主界面截图占位" width="900">
 </p>
-<p align="center">
-  <sub>图片占位：后续可直接替换 <code>docs/screenshots/hero.png</code></sub>
-</p>
+
 
 ---
 
@@ -40,15 +38,16 @@ ST-Manager 是一个本地优先的 SillyTavern 资源管理器。它通过 Flas
 
 | 模块 | 能力 |
 | --- | --- |
-| 角色卡管理 | 浏览 PNG / JSON 角色卡，查看详情，编辑元数据，替换头像，批量导入、删除、移动、收藏与标签处理 |
-| 聊天记录 | 导入 `.jsonl` 聊天，绑定角色，全文搜索，收藏楼层，分段读取，沉浸式阅读与保存 |
-| 世界书 | 管理全局、资源目录和角色内嵌世界书，支持分类、搜索、编辑、导出、发送到 ST 与条目历史 |
+| 角色卡管理 | 浏览 PNG / JSON 角色卡，查看详情，编辑元数据，替换头像，管理 Bundle 多版本、来源链接、本地备注和资源目录，支持批量导入、删除、移动、收藏与标签处理 |
+| 聊天记录 | 导入 `.jsonl` 聊天，绑定角色，全文搜索，收藏楼层，分段读取，沉浸式阅读与保存；支持楼层编辑、批量拖拽导入和正则 / 预设规则合并 |
+| 世界书 | 管理全局、资源目录和角色内嵌世界书，支持分类、搜索、编辑、导出、发送到 ST、条目历史，以及与 SillyTavern 对齐的排序和持久化 |
 | 预设 | 上传、分类、编辑、导出、发送预设到 ST，支持版本家族、默认版本和扩展字段维护 |
 | 扩展脚本 | 统一管理 Regex、Tavern Helper 脚本和 Quick Replies，支持全局目录与资源绑定目录 |
-| 自动化规则 | 通过规则集批量执行标签、重命名、分类、模板和论坛标签抓取等操作 |
+| 自动化规则 | 通过规则集批量执行标签、重命名、分类、模板、论坛标签抓取和来源更新基线刷新等操作 |
 | 美化库 | 管理 SillyTavern 主题 JSON、壁纸、头像、截图与变体，支持 PC / 移动端预览和发送到 ST |
 | ST 同步 | 检测 ST 连接和数据目录，列出角色、聊天、世界书、预设、Regex、Quick Replies 并同步到本地 |
-| 系统工具 | 自动扫描、手动重建索引、快照备份、回收站、共享壁纸、外网访问认证和路径安全检查 |
+| 来源联动 | 通过 Discord / 类脑来源链接查看帖子预览，检查来源标题和首帖编辑时间是否更新 |
+| 系统工具 | 自动扫描、手动重建索引、快照备份、回收站、共享壁纸、剪贴板分流导入、外网访问认证和路径安全检查 |
 
 ---
 
@@ -58,6 +57,7 @@ ST-Manager 是一个本地优先的 SillyTavern 资源管理器。它通过 Flas
 
 - 多资源类型共用一套浏览、搜索、分类与详情查看体验
 - 角色卡支持名称、文件名、标签、作者、Token、导入时间、修改时间等维度筛选
+- 角色资源目录支持子目录遍历、皮肤画廊、Regex / 预设 / 其他资源分类和资源删除
 - 世界书、预设、扩展脚本可区分全局目录、资源目录和内嵌来源
 - 缩略图、背景图、笔记图片和角色资源目录通过资源服务统一访问
 
@@ -68,6 +68,24 @@ ST-Manager 是一个本地优先的 SillyTavern 资源管理器。它通过 Flas
 - 可从 ST 侧列出并同步角色、聊天、世界书、预设、Regex 和 Quick Replies
 - 可把角色卡、世界书、预设和主题美化包发送回 SillyTavern
 - Docker 场景内置 `host.docker.internal`，便于容器访问宿主机 ST 服务
+
+### 类脑来源与更新检查
+
+- 角色卡填写可解析的 Discord `channels` 来源链接后，可从卡片操作区打开「类脑搜索」帖子只读预览
+- 预览展示帖子标题、作者、时间、标签、回复 / 反应 / 浏览统计、简介和多图轮播，不会直接修改本地卡片
+- 卡片列表和详情页都可以检查来源更新，对比来源标题与首帖编辑时间，并保存本地检查状态
+- 第一次检查会建立来源基线；如果来源首帖晚于本地卡片会直接提示首次更新，后续检查可区分标题变化、首帖内容更新、两者同时变化和未变化
+- 自动化规则支持论坛标签抓取与「刷新来源更新基线」，角色卡实际更新后也可同步刷新来源标题和基线
+
+类脑帖子预览使用独立的 `shimmerday_forum_cookie`；来源更新检查和论坛标签抓取使用 Discord Token 或 Cookie。凭据配置和来源链接要求见[配置速览](#配置速览)与 [docs/CONFIG.md](docs/CONFIG.md)。
+
+### 角色详情与聊天工作台
+
+- 角色详情页将人格设定、作者注释、系统提示词和后历史指令拆分为可编辑、可隐藏和可预览的字段
+- 默认开场白和备用开场白支持切换、编辑、Markdown 预览、增加、删除和拖拽排序，对话示例可单独查看
+- 本地备注支持 Markdown 预览和粘贴图片；角色资源可通过皮肤、Regex、预设和其他资源面板统一管理
+- 聊天阅读器支持楼层导航、收藏、编辑、批量查找替换、显示规则预览，以及从系统选择并合并 Regex / 预设规则
+- 在非编辑输入控件中粘贴文件或 URL 时，会自动识别并分流到角色卡、世界书、预设、聊天或扩展导入流程
 
 ### 高效索引与文件监听
 
@@ -81,7 +99,7 @@ ST-Manager 是一个本地优先的 SillyTavern 资源管理器。它通过 Flas
 - 批量上传使用暂存和提交两阶段流程，便于处理冲突
 - 支持批量打标签、删标签、标签合并预览和标签分类体系
 - 自动化规则集支持导入、导出、全局默认设置和手动执行
-- 可将文件命名、分类、标签拆分、论坛标签同步等流程固化为规则
+- 可将文件命名、分类、标签拆分、论坛标签同步、来源基线刷新等流程固化为规则
 
 ### 移动端可用
 
@@ -91,9 +109,7 @@ ST-Manager 是一个本地优先的 SillyTavern 资源管理器。它通过 Flas
 
 ---
 
-## 截图占位
-
-> 下面的路径已按 README 展示位预留。后续只需要替换同名图片文件，不必再改 README 结构。
+## 截图
 
 ### 主功能展示
 
@@ -118,6 +134,16 @@ ST-Manager 是一个本地优先的 SillyTavern 资源管理器。它通过 Flas
 | 移动端角色卡 | 移动端聊天 | 移动端设置 |
 | --- | --- | --- |
 | <img src="docs/screenshots/mobile-cards.png" alt="移动端角色卡截图占位" width="240"> | <img src="docs/screenshots/mobile-chat-reader.png" alt="移动端聊天截图占位" width="240"> | <img src="docs/screenshots/mobile-settings.png" alt="移动端设置截图占位" width="240"> |
+
+### 新增能力展示
+
+| 类脑帖子预览 | 来源更新检查 |
+| --- | --- |
+| <img src="docs/screenshots/feature-forum-preview.png" alt="类脑帖子预览截图占位" width="420"> | <img src="docs/screenshots/feature-source-update.png" alt="来源更新检查截图占位" width="420"> |
+
+| 角色详情编辑 | 世界书排序 |
+| --- | --- |
+| <img src="docs/screenshots/feature-card-editor.png" alt="角色详情编辑截图占位" width="420"> | <img src="docs/screenshots/feature-world-info-sort.png" alt="世界书排序截图占位" width="420"> |
 
 ---
 
@@ -208,6 +234,17 @@ Docker 首次生成配置时会把 `host` 设为 `0.0.0.0`，便于容器对外�
 
 ---
 
+## 桌面版构建
+
+仓库提供 GitHub Actions 桌面打包工作流，可构建以下交付件：
+
+- Windows 可执行文件
+- macOS `arm64` 和 `x86_64` 应用压缩包
+
+工作流会在推送到 `main`、推送 `v*` 标签或手动触发时运行，构建产物可在 GitHub Actions 对应运行记录的 Artifacts 中下载。
+
+---
+
 ## 配置速览
 
 主要配置文件：
@@ -233,10 +270,22 @@ config.json
 | `resources_dir` | `data/assets/card_assets` | 角色资源目录 |
 | `st_url` | `http://127.0.0.1:8000` | SillyTavern Web 地址 |
 | `st_data_dir` | `""` | SillyTavern 数据目录，留空时尝试自动探测 |
+| `discord_auth_type` | `token` | Discord 来源更新检查和论坛标签抓取的认证方式，可选 `token` / `cookie` |
+| `discord_bot_token` | `""` | Discord Token 凭据，使用 Token 认证时填写 |
+| `discord_user_cookie` | `""` | Discord 浏览器 Cookie，使用 Cookie 认证时填写 |
+| `shimmerday_forum_cookie` | `""` | 类脑搜索站帖子预览使用的会话 Cookie |
+| `sync_source_title_on_update` | `true` | 角色卡实际更新后是否同步来源标题并刷新首帖更新基线 |
 | `enable_auto_scan` | `true` | 是否启用文件系统监听 |
 | `auth_username` / `auth_password` | `""` | 设置后启用外网访问登录保护 |
 
 更完整的配置说明见 [docs/CONFIG.md](docs/CONFIG.md)。
+
+### 类脑与来源功能配置
+
+1. 在角色卡详情页填写 Discord `channels` 来源链接，类脑预览和来源更新按钮才会出现。
+2. 要使用类脑帖子预览，在设置中填写 `shimmerday_forum_cookie`。可登录类脑搜索站，在浏览器开发者工具的 Network 面板复制请求 Cookie。
+3. 要使用来源更新检查或论坛标签抓取，配置 `discord_auth_type` 对应的 Token 或 Cookie；凭据属于敏感信息，不要提交到版本库。
+4. 来源链接变更后会清除旧基线；首次成功检查通常建立基线，若来源首帖晚于本地卡片会直接提示首次更新，后续检查再判断来源是否变化。
 
 ---
 
@@ -258,6 +307,7 @@ config.json
 ```text
 ST-Manager/
 ├── app.py                    # 启动入口
+├── .github/workflows/        # Docker 与桌面版构建工作流
 ├── core/
 │   ├── __init__.py           # create_app + init_services
 │   ├── api/v1/               # REST API 蓝图
