@@ -92,6 +92,45 @@ def test_custom_clipboard_paste_uses_visible_order_and_keeps_source_uids_unique(
     )
 
 
+def test_find_next_all_scope_switches_the_active_editor_entry():
+    run_node_module(
+        '''
+        import wiEditor from './static/js/components/wiEditor.js';
+
+        globalThis.window = { localStorage: { getItem: () => null, setItem() {} } };
+        globalThis.document = { querySelector: () => null, querySelectorAll: () => [] };
+
+        const component = wiEditor();
+        component.editingData = { character_book: { entries: [
+          { st_manager_uid: 'a', comment: 'Zulu', content: 'needle in first entry' },
+          { st_manager_uid: 'b', comment: 'Alpha', content: 'needle in second entry' },
+        ] } };
+        component.wiSortMode = 'title_asc';
+        component.currentWiIndex = 0;
+        component.currentWiEntryKey = 'manager:a';
+        component.findReplaceQuery = 'needle';
+        component.findReplaceScope = 'all';
+        component.findReplaceLastHit = null;
+        component.$nextTick = (fn) => fn();
+        component._getContentTextareaEl = () => ({ focus() {}, setSelectionRange() {} });
+
+        if (!component.findNextMatch()) throw new Error('expected the first match');
+        if (component.activeEditorEntry?.st_manager_uid !== 'a') {
+          throw new Error('expected the first match to stay on the current entry');
+        }
+
+        if (!component.findNextMatch()) throw new Error('expected the next match');
+        if (component.currentWiIndex !== 1) throw new Error('expected raw entry index to advance');
+        if (component.currentWiEntryKey !== 'manager:b') {
+          throw new Error(`expected active entry key to advance, got ${component.currentWiEntryKey}`);
+        }
+        if (component.activeEditorEntry?.st_manager_uid !== 'b') {
+          throw new Error('expected the editor to switch to the matched entry');
+        }
+        '''
+    )
+
+
 def test_world_info_export_preserves_uid_and_display_index_contract():
     source = (ROOT / 'core/api/v1/world_info.py').read_text(encoding='utf-8')
     assert "uid = entry.get('uid')" in source

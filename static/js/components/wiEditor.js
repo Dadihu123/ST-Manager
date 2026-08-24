@@ -730,6 +730,7 @@ export default function wiEditor() {
         this.isEditingClipboard = false;
         this.currentClipboardIndex = -1;
         this.currentWiIndex = hit.index;
+        this.currentWiEntryKey = this.getWiEntryIdentity(hit.entry, hit.index);
       }
 
       this.findReplaceLastHit = {
