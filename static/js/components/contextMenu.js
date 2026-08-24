@@ -7,7 +7,11 @@ import { deleteFolder } from '../api/system.js';
 
 import { toggleBundleMode } from '../api/card.js';
 
-import { executeRules } from '../api/automation.js';
+import {
+    isBatchOperationRunning,
+    runAutomationBatch,
+    runSourceUpdateBatch,
+} from '../utils/batchOperations.js';
 
 export default function contextMenu() {
     return {
@@ -168,8 +172,12 @@ export default function contextMenu() {
         },
 
         // 运行自动化（桌面端）
-        handleRunAuto(rulesetId) {
+        async handleRunAuto(rulesetId) {
             if (this.target === null || this.target === undefined) return;
+            if (isBatchOperationRunning()) {
+                this.$store.global.showToast('已有批量操作正在进行', 2400);
+                return;
+            }
 
             const folderName = this.target === '' ? '根目录' : this.target;
             const msg = `确定对 "${folderName}" 下的所有卡片 (包括子文件夹) 执行此自动化规则吗？\n\n注意：这可能会移动大量文件。`;
@@ -178,26 +186,47 @@ export default function contextMenu() {
 
             // 关闭菜单
             this.visible = false;
-            this.$store.global.isLoading = true;
 
-            executeRules({
-                category: this.target, // 传路径给后端，后端解析所有 ID
-                recursive: true,
-                ruleset_id: rulesetId
-            }).then(res => {
-                this.$store.global.isLoading = false;
-                if (res.success) {
-                    alert(`✅ 执行完成！\n已处理: ${res.processed} 张卡片\n移动: ${res.summary.moves}\n变更: ${res.summary.tag_changes}`);
-                    // 刷新全部
+            try {
+                const result = await runAutomationBatch({
+                    rulesetId,
+                    targetPayload: { category: this.target, recursive: true },
+                    title: `自动处理分类：${folderName}`,
+                });
+                if (result?.selected) {
+                    alert(`✅ 执行完成！\n已处理: ${result.processed || 0} 张卡片\n移动: ${result.moves || 0}\n变更: ${result.tag_changes || 0}\n跳过: ${result.skipped || 0}\n失败: ${result.failed || 0}${result.cancelled ? "\n\n已停止后续处理。" : ""}`);
                     window.dispatchEvent(new CustomEvent('refresh-card-list'));
                     window.dispatchEvent(new CustomEvent('refresh-folder-list'));
-                } else {
-                    alert("执行失败: " + res.msg);
                 }
-            }).catch(e => {
-                this.$store.global.isLoading = false;
-                alert("Error: " + e);
-            });
+            } catch (error) {
+                this.$store.global.showToast(`❌ ${error?.message || '批量执行失败'}`, 3600);
+            }
+        },
+
+        async handleCheckSourceUpdates() {
+            if (this.type !== 'folder' || this.target === null || this.target === undefined) return;
+            if (isBatchOperationRunning()) {
+                this.$store.global.showToast('已有批量操作正在进行', 2400);
+                return;
+            }
+
+            const folderName = this.target === '' ? '根目录' : this.target;
+            const msg = `确定检查“${folderName}”下所有卡片（包括子文件夹）的来源更新吗？\n\n不支持的来源会跳过，网络失败会记录并继续。`;
+            if (!confirm(msg)) return;
+
+            this.visible = false;
+            try {
+                const result = await runSourceUpdateBatch({
+                    targetPayload: { category: this.target, recursive: true },
+                    title: `检查分类来源更新：${folderName}`,
+                });
+                if (result?.selected) {
+                    alert(`✅ 检查完成！\n已处理: ${result.checked || 0} 张\n有更新: ${result.updated || 0} 张\n未变化: ${result.unchanged || 0} 张\n跳过: ${result.skipped || 0} 张\n失败: ${result.failed || 0} 张${result.cancelled ? "\n\n已停止后续处理。" : ""}`);
+                    window.dispatchEvent(new CustomEvent('refresh-card-list'));
+                }
+            } catch (error) {
+                this.$store.global.showToast(`❌ ${error?.message || '批量检查失败'}`, 3600);
+            }
         },
 
         // 打开移动端执行规则弹窗（文件夹模式）

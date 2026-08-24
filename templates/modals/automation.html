@@ -165,6 +165,14 @@
                 <!-- 2. 规则列表构建器 -->
                 <div class="auto-body custom-scrollbar">
 
+                    <div x-show="editingUsesMetadata()" x-cloak class="automation-performance-notice" role="note">
+                        <span class="automation-performance-notice-icon" aria-hidden="true">ⓘ</span>
+                        <div>
+                            <strong>已使用元数据条件</strong>
+                            <div>元数据条件会逐张读取并解析角色卡原文件，批量执行时可能明显变慢。建议尽量缩小范围，避免对全库进行批量操作。</div>
+                        </div>
+                    </div>
+
                     <template x-for="(rule, rIdx) in editingRules" :key="rule.id">
                         <div class="rule-card">
                             <!-- 规则头 -->
@@ -325,7 +333,20 @@
                                                                     <option value="token_count">Token 数</option>
                                                                     <option value="file_size">文件大小</option>
                                                                 </optgroup>
+
+                                                                <optgroup label="元数据（可能较慢）">
+                                                                    <option value="metadata">原始元数据</option>
+                                                                </optgroup>
                                                             </select>
+
+                                                            <input
+                                                                x-show="cond.field === 'metadata'"
+                                                                x-model="cond.metadata_path"
+                                                                type="text"
+                                                                class="auto-input metadata-path-input"
+                                                                placeholder="元数据路径（可选，如 data.extensions.foo）"
+                                                                title="留空搜索完整元数据；支持点号路径和 [数组下标]"
+                                                            >
 
                                                             <!-- 操作符 -->
                                                             <select x-model="cond.operator" class="auto-select w-28">

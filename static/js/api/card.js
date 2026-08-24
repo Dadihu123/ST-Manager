@@ -56,6 +56,24 @@ export async function checkCardSourceUpdate(cardId) {
     return res.json();
 }
 
+export async function getSourceUpdateTargets(payload = {}) {
+    const res = await fetch('/api/cards/source_update/targets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    });
+    return res.json();
+}
+
+export async function checkCardsSourceUpdateBatch(payload = {}) {
+    const res = await fetch('/api/cards/source_update/check_batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    });
+    return res.json();
+}
+
 // 更新角色卡 (Save)
 export async function updateCard(payload) {
     const res = await fetch('/api/update_card', {

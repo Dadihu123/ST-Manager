@@ -82,6 +82,11 @@
 | `POST` | `/api/find_card_page` | 根据目标卡定位页码 |
 | `POST` | `/api/random_card` | 随机返回一张角色卡 |
 | `POST` | `/api/get_raw_metadata` | 读取原始卡片元数据 |
+| `POST` | `/api/cards/source_update/targets` | 解析并冻结批量来源检查目标 |
+| `POST` | `/api/cards/source_update/check` | 检查单张卡片来源更新 |
+| `POST` | `/api/cards/source_update/check_batch` | 顺序检查多张卡片来源更新，记录失败并继续 |
+
+`/api/cards/source_update/check_batch` 返回 `selected`、`checked`、`updated`、`unchanged`、`skipped`、`failed` 和 `details`。不支持的来源计入 `skipped`；网络或其他单卡异常计入 `failed`，不会阻止后续卡片检查。
 
 `/api/list_cards` 常用查询参数：
 
@@ -495,6 +500,7 @@
 | `POST` | `/api/automation/rulesets/import` | 导入规则集 |
 | `GET` | `/api/automation/global_setting` | 获取全局默认规则集 |
 | `POST` | `/api/automation/global_setting` | 设置全局默认规则集 |
+| `POST` | `/api/automation/targets` | 解析并冻结规则集批量执行目标 |
 | `POST` | `/api/automation/execute` | 手动执行规则集 |
 
 执行示例：
@@ -507,6 +513,8 @@
   "recursive": true
 }
 ```
+
+自动化条件中的 `metadata` 是独立的原始元数据条件，可通过可选的 `metadata_path`（例如 `data.extensions.foo` 或 `entries[0].comment`）定位嵌套值。该条件会逐张读取并解析原文件，批量执行时可能明显变慢，建议缩小范围使用。
 
 ---
 

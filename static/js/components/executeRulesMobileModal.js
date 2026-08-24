@@ -3,7 +3,11 @@
  * 移动端执行规则弹窗组件
  */
 
-import { listRuleSets, executeRules } from '../api/automation.js';
+import { listRuleSets } from '../api/automation.js';
+import {
+    isBatchOperationRunning,
+    runAutomationBatch,
+} from '../utils/batchOperations.js';
 
 export default function executeRulesMobileModal() {
     return {
@@ -66,17 +70,22 @@ export default function executeRulesMobileModal() {
         },
 
         // 执行规则集
-        executeRuleSet(rulesetId) {
+        async executeRuleSet(rulesetId) {
+            if (isBatchOperationRunning()) {
+                this.$store.global.showToast('已有批量操作正在进行', 2400);
+                return;
+            }
+
             let confirmMsg = '';
-            let payload = { ruleset_id: rulesetId };
+            let targetPayload = {};
 
             if (this.executeMode === 'folder') {
                 // 文件夹模式
                 const folderName = this.folderCategory === '' ? '根目录' : this.folderCategory;
                 confirmMsg = `确定对 "${folderName}" 下的所有卡片${this.folderRecursive ? ' (包括子文件夹)' : ''} 执行此自动化规则吗？\n\n注意：这可能会移动大量文件。`;
                 
-                payload.category = this.folderCategory;
-                payload.recursive = this.folderRecursive;
+                targetPayload.category = this.folderCategory;
+                targetPayload.recursive = this.folderRecursive;
             } else {
                 // 卡片模式
                 if (this.cardIds.length === 0) {
@@ -86,49 +95,35 @@ export default function executeRulesMobileModal() {
                 const count = this.cardIds.length;
                 confirmMsg = `确定对选中的 ${count} 张卡片执行此规则集吗？`;
                 
-                payload.card_ids = this.cardIds;
+                targetPayload.card_ids = [...this.cardIds];
             }
 
             if (!confirm(confirmMsg)) return;
 
-            this.$store.global.isLoading = true;
-            executeRules(payload).then(res => {
-                this.$store.global.isLoading = false;
-                if (res.success) {
-                    let msg = `✅ 执行完成！\n已处理: ${res.processed}`;
-                    // 简报（使用 summary 字段，如果没有则尝试 moves_plan/tags_plan）
-                    if (res.summary) {
-                        if (res.summary.moves > 0) msg += `\n移动: ${res.summary.moves} 张`;
-                        if (res.summary.tag_changes > 0) msg += `\n打标: ${res.summary.tag_changes} 次`;
-                    } else {
-                        // 兼容旧格式
-                        const moves = Object.keys(res.moves_plan || {}).length;
-                        const tags = Object.values(res.tags_plan?.add || {}).flat().length;
-                        if (moves > 0) msg += `\n移动: ${moves} 张`;
-                        if (tags > 0) msg += `\n打标: ${tags} 次`;
-                    }
-
+            this.showExecuteRulesModal = false;
+            try {
+                const result = await runAutomationBatch({
+                    rulesetId,
+                    targetPayload,
+                    title: this.executeMode === 'folder'
+                        ? `自动处理分类：${this.folderCategory || '根目录'}`
+                        : `自动处理 ${this.cardIds.length} 张卡片`,
+                });
+                if (result?.selected) {
+                    let msg = `✅ 执行完成！\n已处理: ${result.processed || 0}\n移动: ${result.moves || 0} 张\n打标: ${result.tag_changes || 0} 次\n跳过: ${result.skipped || 0} 张\n失败: ${result.failed || 0} 张`;
+                    if (result.cancelled) msg += '\n\n已停止后续处理。';
                     alert(msg);
-                    // 关闭弹窗
-                    this.showExecuteRulesModal = false;
-                    
-                    // 卡片模式：清空选中
                     if (this.executeMode === 'cards') {
                         this.$store.global.viewState.selectedIds = [];
                     }
-                    
-                    // 刷新列表
                     window.dispatchEvent(new CustomEvent('refresh-card-list'));
                     if (this.executeMode === 'folder') {
                         window.dispatchEvent(new CustomEvent('refresh-folder-list'));
                     }
-                } else {
-                    alert("执行失败: " + res.msg);
                 }
-            }).catch(e => {
-                this.$store.global.isLoading = false;
-                alert("Error: " + e);
-            });
+            } catch (error) {
+                this.$store.global.showToast(`❌ ${error?.message || '批量执行失败'}`, 3600);
+            }
         }
     }
 }

@@ -5,7 +5,12 @@
 
 import { getRandomCard } from "../api/card.js";
 import { batchUpdateTags, getIndexStatus } from "../api/system.js";
-import { listRuleSets, executeRules } from "../api/automation.js";
+import { listRuleSets } from "../api/automation.js";
+import {
+  isBatchOperationRunning,
+  runAutomationBatch,
+  runSourceUpdateBatch,
+} from "../utils/batchOperations.js";
 import { listChats } from "../api/chat.js";
 
 const MOBILE_HEADER_UPLOAD_MODES = [
@@ -405,37 +410,64 @@ export default function header() {
       }, 100);
     },
 
-    executeRuleSet(rulesetId) {
+    formatBatchResult(result, mode = "automation") {
+      if (!result) return "操作未返回结果";
+      if (mode === "source_update") {
+        return `✅ 检查完成！\n已处理: ${result.checked || 0} 张\n有更新: ${result.updated || 0} 张\n未变化: ${result.unchanged || 0} 张\n跳过: ${result.skipped || 0} 张\n失败: ${result.failed || 0} 张`;
+      }
+
+      return `✅ 执行完成！\n已处理: ${result.processed || 0} 张\n移动: ${result.moves || 0} 张\n标签变更: ${result.tag_changes || 0} 次\n跳过: ${result.skipped || 0} 张\n失败: ${result.failed || 0} 张`;
+    },
+
+    async executeRuleSet(rulesetId) {
       if (this.selectedIds.length === 0) return;
+      if (isBatchOperationRunning()) {
+        this.$store.global.showToast("已有批量操作正在进行", 2400);
+        return;
+      }
 
       const count = this.selectedIds.length;
       if (!confirm(`确定对选中的 ${count} 张卡片执行此规则集吗？`)) return;
 
-      this.$store.global.isLoading = true;
-      executeRules({
-        card_ids: this.selectedIds,
-        ruleset_id: rulesetId,
-      })
-        .then((res) => {
-          this.$store.global.isLoading = false;
-          if (res.success) {
-            let msg = `✅ 执行完成！\n已处理: ${res.processed}`;
-            // 简报
-            const moves = Object.keys(res.moves_plan || {}).length;
-            const tags = Object.values(res.tags_plan?.add || {}).flat().length;
-            if (moves > 0) msg += `\n移动: ${moves} 张`;
-            if (tags > 0) msg += `\n打标: ${tags} 次`;
-
-            alert(msg);
-            window.dispatchEvent(new CustomEvent("refresh-card-list"));
-          } else {
-            alert("执行失败: " + res.msg);
-          }
-        })
-        .catch((e) => {
-          this.$store.global.isLoading = false;
-          alert("Error: " + e);
+      const targetPayload = { card_ids: [...this.selectedIds] };
+      try {
+        const result = await runAutomationBatch({
+          rulesetId,
+          targetPayload,
+          title: `自动处理 ${count} 张卡片`,
         });
+        if (result?.selected) {
+          alert(`${this.formatBatchResult(result)}${result.cancelled ? "\n\n已停止后续处理。" : ""}`);
+          window.dispatchEvent(new CustomEvent("refresh-card-list"));
+          window.dispatchEvent(new CustomEvent("refresh-folder-list"));
+        }
+      } catch (error) {
+        this.$store.global.showToast(`❌ ${error?.message || "批量执行失败"}`, 3600);
+      }
+    },
+
+    async checkSelectedSourceUpdates() {
+      if (this.currentMode !== "cards" || this.selectedIds.length === 0) return;
+      if (isBatchOperationRunning()) {
+        this.$store.global.showToast("已有批量操作正在进行", 2400);
+        return;
+      }
+
+      const ids = [...this.selectedIds];
+      if (!confirm(`确定检查选中的 ${ids.length} 张卡片的来源更新吗？\n\n不支持的来源会跳过，网络失败会记录后继续。`)) return;
+
+      try {
+        const result = await runSourceUpdateBatch({
+          targetPayload: { card_ids: ids },
+          title: `检查 ${ids.length} 张卡片的来源更新`,
+        });
+        if (result?.selected) {
+          alert(`${this.formatBatchResult(result, "source_update")}${result.cancelled ? "\n\n已停止后续处理。" : ""}`);
+          window.dispatchEvent(new CustomEvent("refresh-card-list"));
+        }
+      } catch (error) {
+        this.$store.global.showToast(`❌ ${error?.message || "批量检查失败"}`, 3600);
+      }
     },
 
     fetchCards() {

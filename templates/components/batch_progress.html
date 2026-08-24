@@ -1,0 +1,100 @@
+<div
+  x-show="$store.global.batchProgress.visible"
+  x-cloak
+  class="batch-progress-host"
+  role="status"
+  aria-live="polite"
+>
+  <div class="batch-progress-card">
+    <div class="batch-progress-header">
+      <div class="batch-progress-title" x-text="$store.global.batchProgress.title || '批量处理'"></div>
+      <button
+        x-show="$store.global.batchProgress.status !== 'running'"
+        type="button"
+        class="batch-progress-close"
+        aria-label="关闭批量处理结果"
+        title="关闭"
+        @click="$store.global.dismissBatchProgress()"
+      >×</button>
+    </div>
+
+    <div class="batch-progress-meta">
+      <span x-text="$store.global.batchProgress.message || '准备开始...'">准备开始...</span>
+      <strong>
+        <span x-text="$store.global.batchProgress.current || 0">0</span>
+        /
+        <span x-text="$store.global.batchProgress.total || 0">0</span>
+      </strong>
+    </div>
+
+    <div
+      class="batch-progress-track"
+      role="progressbar"
+      aria-label="批量处理进度"
+      :aria-valuenow="$store.global.batchProgress.current || 0"
+      :aria-valuemin="0"
+      :aria-valuemax="$store.global.batchProgress.total || 0"
+    >
+      <div
+        class="batch-progress-fill"
+        :style="`width: ${$store.global.batchProgress.total > 0 ? Math.round(($store.global.batchProgress.current / $store.global.batchProgress.total) * 100) : 0}%`"
+      ></div>
+    </div>
+
+    <div
+      x-show="$store.global.batchProgress.status === 'completed' || $store.global.batchProgress.status === 'cancelled'"
+      class="batch-progress-summary"
+    >
+      <span x-show="$store.global.batchProgress.result?.updated !== undefined">
+        有更新 <b x-text="$store.global.batchProgress.result?.updated || 0"></b>
+      </span>
+      <span x-show="$store.global.batchProgress.result?.unchanged !== undefined">
+        未变化 <b x-text="$store.global.batchProgress.result?.unchanged || 0"></b>
+      </span>
+      <span x-show="$store.global.batchProgress.result?.skipped !== undefined">
+        跳过 <b x-text="$store.global.batchProgress.result?.skipped || 0"></b>
+      </span>
+      <span x-show="$store.global.batchProgress.result?.failed !== undefined" class="is-danger">
+        失败 <b x-text="$store.global.batchProgress.result?.failed || 0"></b>
+      </span>
+      <span x-show="$store.global.batchProgress.result?.moves !== undefined">
+        移动 <b x-text="$store.global.batchProgress.result?.moves || 0"></b>
+      </span>
+      <span x-show="$store.global.batchProgress.result?.tag_changes !== undefined">
+        标签 <b x-text="$store.global.batchProgress.result?.tag_changes || 0"></b>
+      </span>
+    </div>
+
+    <div
+      x-show="($store.global.batchProgress.result?.failed || 0) > 0"
+      class="batch-progress-errors"
+    >
+      <div class="batch-progress-errors-title">失败明细</div>
+      <template x-for="item in ($store.global.batchProgress.result?.items || [])" :key="item.card_id">
+        <div x-show="item.failed" class="batch-progress-error-item">
+          <span class="batch-progress-error-card" x-text="item.card_id"></span>
+          <span x-text="item.message || '执行失败'">执行失败</span>
+        </div>
+      </template>
+    </div>
+
+    <div class="batch-progress-actions">
+      <button
+        x-show="$store.global.batchProgress.status === 'running'"
+        type="button"
+        class="btn-secondary batch-progress-cancel"
+        @click="$store.global.requestBatchProgressCancel()"
+        :disabled="$store.global.batchProgress.cancelRequested"
+      >
+        <span x-text="$store.global.batchProgress.cancelRequested ? '停止中...' : '停止后续处理'"></span>
+      </button>
+      <button
+        x-show="$store.global.batchProgress.status !== 'running'"
+        type="button"
+        class="btn-primary batch-progress-close-action"
+        @click="$store.global.dismissBatchProgress()"
+      >关闭
+      </button>
+    </div>
+  </div>
+</div>

@@ -33,6 +33,86 @@ bp = Blueprint('automation', __name__)
 engine = AutomationEngine()
 executor = AutomationExecutor()
 
+
+def _is_safe_automation_path(value, allow_empty=False):
+    """校验批量目标使用的相对路径，避免把非法路径带入后续执行流程。"""
+    if value is None:
+        return False
+    raw = str(value).strip()
+    if not raw:
+        return allow_empty
+
+    normalized = raw.replace('\\', '/')
+    if os.path.isabs(raw) or os.path.splitdrive(raw)[0]:
+        return False
+    if normalized.startswith('/'):
+        return False
+
+    parts = normalized.split('/')
+    return all(part not in ('.', '..') for part in parts)
+
+
+def _resolve_automation_target_ids(payload):
+    """解析并冻结自动化执行目标，供预览和前端逐项执行共用。"""
+    raw_card_ids = payload.get('card_ids', [])
+    if raw_card_ids is None:
+        raw_card_ids = []
+    if isinstance(raw_card_ids, str):
+        raw_card_ids = [raw_card_ids]
+    if not isinstance(raw_card_ids, (list, tuple)):
+        raise ValueError('card_ids 必须是列表')
+
+    card_ids = []
+    for raw_id in raw_card_ids:
+        card_id = str(raw_id or '').strip().replace('\\', '/')
+        if card_id and not _is_safe_automation_path(card_id):
+            raise ValueError('非法路径')
+        if card_id and card_id not in card_ids:
+            card_ids.append(card_id)
+
+    category = payload.get('category', None)
+    if category is not None:
+        category = str(category or '').strip().replace('\\', '/').strip('/')
+        if category == '根目录':
+            category = ''
+        if not _is_safe_automation_path(category, allow_empty=True):
+            raise ValueError('非法分类路径')
+        conn = get_db()
+        cursor = conn.cursor()
+
+        if category == '':
+            if payload.get('recursive', True):
+                cursor.execute('SELECT id FROM card_metadata ORDER BY id')
+            else:
+                cursor.execute("SELECT id FROM card_metadata WHERE category = '' ORDER BY id")
+        elif payload.get('recursive', True):
+            safe_category = category.replace('_', r'\_').replace('%', r'\%')
+            cursor.execute(
+                "SELECT id FROM card_metadata WHERE category = ? OR id LIKE ? || '/%' ESCAPE '\\' ORDER BY id",
+                (category, safe_category),
+            )
+        else:
+            cursor.execute('SELECT id FROM card_metadata WHERE category = ? ORDER BY id', (category,))
+
+        for row in cursor.fetchall():
+            card_id = str(row[0] or '').strip().replace('\\', '/')
+            if card_id and _is_safe_automation_path(card_id) and card_id not in card_ids:
+                card_ids.append(card_id)
+
+    return card_ids
+
+
+@bp.route('/api/automation/targets', methods=['POST'])
+def get_automation_targets():
+    """返回分类/选中卡片对应的冻结目标 ID，不执行任何动作。"""
+    try:
+        payload = request.get_json(silent=True) or {}
+        card_ids = _resolve_automation_target_ids(payload)
+        return jsonify({'success': True, 'selected': len(card_ids), 'card_ids': card_ids})
+    except Exception as exc:
+        logger.error('Resolve automation targets error: %s', exc)
+        return jsonify({'success': False, 'msg': str(exc)}), 400
+
 @bp.route('/api/automation/rulesets', methods=['GET'])
 def list_rulesets():
     return jsonify({"success": True, "items": rule_manager.list_rulesets()})

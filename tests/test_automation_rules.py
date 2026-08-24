@@ -111,6 +111,51 @@ def test_automation_engine_contains_respects_case_when_case_sensitive_true():
     assert plan['actions'] == []
 
 
+def test_automation_engine_metadata_condition_reads_nested_path_and_array_index():
+    engine = AutomationEngine()
+    card_data = {
+        'metadata': {
+            'data': {
+                'extensions': {
+                    'creator_info': {
+                        'aliases': ['Alpha', 'Beta'],
+                    },
+                },
+            },
+        },
+    }
+    ruleset = {
+        'rules': [{
+            'enabled': True,
+            'groups': [{
+                'logic': 'AND',
+                'conditions': [{
+                    'field': 'metadata',
+                    'metadata_path': 'data.extensions.creator_info.aliases[1]',
+                    'operator': 'contains',
+                    'value': 'beta',
+                }],
+            }],
+            'actions': [{'type': 'add_tag', 'value': 'metadata-match'}],
+        }],
+    }
+
+    plan = engine.evaluate(card_data, ruleset, match_if_no_conditions=True)
+
+    assert plan['actions'] == [{'type': 'add_tag', 'value': 'metadata-match'}]
+
+
+def test_automation_engine_metadata_condition_can_search_complete_metadata():
+    engine = AutomationEngine()
+    plan = engine.evaluate(
+        {'metadata': {'custom_field': 'ValueFromMetadata'}},
+        _make_ruleset('metadata', 'valuefrommetadata'),
+        match_if_no_conditions=True,
+    )
+
+    assert plan['actions'] == [{'type': 'add_tag', 'value': 'matched'}]
+
+
 def test_automation_engine_wi_name_matches_title_only_entries():
     engine = AutomationEngine()
     card_data = {
@@ -200,6 +245,31 @@ def test_auto_run_rules_on_card_loads_deep_fields_from_card_file(tmp_path, monke
     assert result['run'] is True
     assert captured['card_id'] == 'folder/demo.json'
     assert captured['plan']['add_tags'] == {'matched'}
+
+
+def test_build_rule_context_loads_raw_metadata_for_metadata_conditions(tmp_path, monkeypatch):
+    cards_root = tmp_path / 'cards'
+    card_path = cards_root / 'demo.json'
+    card_path.parent.mkdir(parents=True, exist_ok=True)
+    card_path.write_text('{}', encoding='utf-8')
+
+    ruleset = _make_ruleset('metadata', 'custom')
+    raw_metadata = {
+        'data': {'name': 'Demo', 'extensions': {'custom': 'Value'}},
+        'spec': 'chara_card_v3',
+    }
+    fake_cache = SimpleNamespace(id_map={'demo.json': {'id': 'demo.json'}}, bundle_map={})
+
+    monkeypatch.setattr(automation_service, 'CARDS_FOLDER', str(cards_root), raising=False)
+    monkeypatch.setattr(automation_service, 'extract_card_info', lambda path: raw_metadata, raising=False)
+    monkeypatch.setattr(automation_service.ctx, 'cache', fake_cache, raising=False)
+    monkeypatch.setattr(automation_service, 'load_ui_data', lambda: {})
+    monkeypatch.setattr(automation_service, 'resolve_ui_key', lambda card_id: card_id)
+
+    context, _ = automation_service._build_rule_context('demo.json', fake_cache.id_map['demo.json'], ruleset)
+
+    assert context['metadata'] is raw_metadata
+    assert context['metadata']['data']['extensions']['custom'] == 'Value'
 
 
 def test_automation_engine_reads_st_helper_dict_structure():

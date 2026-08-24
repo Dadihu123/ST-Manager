@@ -192,6 +192,20 @@ export default function cardGrid() {
         if (!this._suppressAutoFetch) this.fetchCards();
       });
 
+      // 批量来源检查逐项回传结果时，先更新当前页卡片，完成后再统一刷新。
+      window.addEventListener("source-update-result", (event) => {
+        const detail = event.detail || {};
+        const cardId = detail.card_id;
+        const result = detail.result || {};
+        if (!cardId) return;
+
+        const card = this.cards.find((item) => String(item.id) === String(cardId));
+        if (!card || !result.source_update) return;
+
+        card.source_update = result.source_update;
+        card.source_title = result.source_update.source_title || "";
+      });
+
       // 3. 监听重置滚动 (切换分类时)
       window.addEventListener("reset-scroll", () => {
         const el = document.getElementById("main-scroll");

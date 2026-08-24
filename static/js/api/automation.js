@@ -39,6 +39,15 @@ export async function executeRules(payload) {
     return res.json();
 }
 
+export async function getAutomationTargets(payload = {}) {
+    const res = await fetch('/api/automation/targets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    });
+    return res.json();
+}
+
 export async function setGlobalRuleset(id) {
     const res = await fetch('/api/automation/global_setting', {
         method: 'POST',

@@ -46,7 +46,7 @@ DEEP_AUTOMATION_FIELDS = {
     'description', 'first_mes', 'mes_example', 'alternate_greetings',
     'personality', 'scenario', 'creator_notes',
     'system_prompt', 'post_history_instructions',
-    'char_version'
+    'char_version', 'metadata'
 }
 
 FILE_STAT_FIELDS = {'file_size'}
@@ -112,6 +112,10 @@ def _build_rule_context(card_id, card_obj, ruleset, ui_data=None, tags=None):
         data_block = info.get('data', info) if isinstance(info, dict) else {}
         if not isinstance(data_block, dict):
             return context_data, ui_data
+
+        # 元数据条件直接面向文件中的原始 JSON，保留 V2/V3 外层结构。
+        if _ruleset_uses_fields(ruleset, {'metadata'}):
+            context_data['metadata'] = info if isinstance(info, dict) else data_block
 
         fields_to_patch = [
             'character_book', 'extensions',

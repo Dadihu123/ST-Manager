@@ -421,6 +421,20 @@ export default function automationModal() {
             this.showHelpModal = true;
         },
 
+        conditionUsesMetadata(condition) {
+            return condition?.field === 'metadata';
+        },
+
+        ruleUsesMetadata(rule) {
+            return (rule?.groups || []).some(group =>
+                (group?.conditions || []).some(condition => this.conditionUsesMetadata(condition))
+            );
+        },
+
+        editingUsesMetadata() {
+            return this.editingRules.some(rule => this.ruleUsesMetadata(rule));
+        },
+
         // === 规则编辑器逻辑 ===
 
         normalizeRuleTriggerContexts(rule) {
@@ -538,6 +552,7 @@ export default function automationModal() {
                 field: "tags",
                 operator: "contains",
                 value: "",
+                metadata_path: "",
                 case_sensitive: false
             });
             this.editingRules = [...this.editingRules];

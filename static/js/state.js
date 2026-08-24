@@ -254,6 +254,17 @@ export function initState() {
     toastMessage: "",
     showToastState: false,
     toastTimer: null,
+    batchProgress: {
+      visible: false,
+      status: "idle",
+      title: "",
+      current: 0,
+      total: 0,
+      currentCardId: "",
+      message: "",
+      result: null,
+      cancelRequested: false,
+    },
     indexStatusPollTimer: null,
     _resizeTimer: null,
     _visualViewportResizeHandler: null,
@@ -1199,6 +1210,51 @@ export function initState() {
       this.toastTimer = setTimeout(() => {
         this.showToastState = false;
       }, duration);
+    },
+
+    startBatchProgress(title, total) {
+      this.batchProgress = {
+        visible: true,
+        status: "running",
+        title: String(title || "批量处理"),
+        current: 0,
+        total: Math.max(0, Number(total) || 0),
+        currentCardId: "",
+        message: "准备开始...",
+        result: null,
+        cancelRequested: false,
+      };
+    },
+
+    updateBatchProgress(patch = {}) {
+      this.batchProgress = {
+        ...(this.batchProgress || {}),
+        ...patch,
+      };
+    },
+
+    requestBatchProgressCancel() {
+      if (this.batchProgress?.status === "running") {
+        this.updateBatchProgress({
+          cancelRequested: true,
+          message: "将在当前卡片完成后停止...",
+        });
+      }
+    },
+
+    finishBatchProgress(result = {}) {
+      const cancelled = result.status === "cancelled" || !!result.cancelled;
+      this.updateBatchProgress({
+        status: cancelled ? "cancelled" : "completed",
+        currentCardId: "",
+        message: cancelled ? "已停止后续处理" : "全部处理完成",
+        result,
+        cancelRequested: false,
+      });
+    },
+
+    dismissBatchProgress() {
+      this.updateBatchProgress({ visible: false });
     },
 
     // 执行系统操作 (打开文件夹等)

@@ -51,6 +51,12 @@
                         :class="isMobile ? 'w-full text-left px-4 py-3 text-base text-red-400 hover:bg-[var(--bg-hover)] transition-colors flex items-center gap-2' : 'w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-gray-700 transition-colors flex items-center gap-2'"><span>🗑️</span>
                         删除分类</button>
                     <hr :class="isMobile ? 'border-[var(--border-light)] my-1' : 'border-gray-700 my-1'">
+                    <!-- 检查来源更新 -->
+                    <button x-show="targetMode === 'cards'" @click="handleCheckSourceUpdates()"
+                        :class="isMobile ? 'w-full text-left px-4 py-3 text-base hover:bg-[var(--bg-hover)] transition-colors flex items-center gap-2' : 'w-full text-left px-4 py-2 text-sm hover:bg-gray-700 transition-colors flex items-center gap-2'"
+                        style="color: var(--text-main);">
+                        <span aria-hidden="true">↻</span> 检查分类更新
+                    </button>
                     <!-- 运行自动化 -->
                     <!-- 桌面端：悬停显示子菜单 -->
                     <div x-show="targetMode === 'cards' && !isMobile" x-data="{ showSub: false }" class="relative"

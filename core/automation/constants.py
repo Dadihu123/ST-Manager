@@ -18,6 +18,9 @@ FIELD_MAP = {
     "is_favorite": "is_favorite", # Boolean
     "token_count": "token_count", # Int
     "file_size": "file_size", # Int (bytes)
+
+    # 原始卡片元数据（可选 metadata_path 读取嵌套字段）
+    "metadata": "metadata",
     
     # 高级/扩展
     "wi_name": "character_book",    # 匹配条目名称/备注 (Comment)

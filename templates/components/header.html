@@ -393,6 +393,14 @@
           </div>
         </div>
       </div>
+      <button
+        x-show="currentMode === 'cards'"
+        @click="checkSelectedSourceUpdates()"
+        class="text-xs px-2 py-1 rounded text-white bg-teal-700 hover:bg-teal-600 transition-all"
+        title="顺序检查选中卡片的来源更新；失败会记录并继续"
+      >
+        检查更新
+      </button>
     </div>
 
     <!-- 搜索与筛选区 -->
@@ -662,6 +670,15 @@
       style="background-color: #f59e0b"
     >
       🤖
+    </button>
+    <button
+      x-show="selectedIds.length > 0 && currentMode === 'cards'"
+      @click="checkSelectedSourceUpdates()"
+      class="text-xs px-2 py-1 rounded text-white"
+      style="background-color: #0f766e; min-height: 2.5rem"
+      title="检查选中卡片的来源更新"
+    >
+      更新
     </button>
     <button
       x-show="selectedIds.length > 0 && currentMode === 'presets' && canMovePresetSelection()"

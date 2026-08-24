@@ -8,10 +8,42 @@ class AutomationEngine:
     def __init__(self):
         pass
 
-    def _get_field_value(self, card_data, field_key, specific_target=None):
+    def _get_metadata_path_value(self, metadata, metadata_path):
+        """按点号/数组下标路径读取原始元数据。空路径返回完整元数据。"""
+        path = str(metadata_path or '').strip()
+        if path.startswith('$.'):
+            path = path[2:]
+        elif path == '$':
+            path = ''
+
+        if not path:
+            return metadata
+
+        # 支持 data.extensions.foo、entries[0].comment 这类常用 JSON 路径。
+        tokens = [token for token in re.split(r'\.|\[|\]', path) if token != '']
+        current = metadata
+        for token in tokens:
+            if isinstance(current, dict):
+                if token not in current:
+                    return None
+                current = current[token]
+            elif isinstance(current, (list, tuple)):
+                try:
+                    current = current[int(token)]
+                except (TypeError, ValueError, IndexError):
+                    return None
+            else:
+                return None
+        return current
+
+    def _get_field_value(self, card_data, field_key, specific_target=None, metadata_path=None):
         """从数据中提取值，支持复杂对象扁平化"""
         if not field_key: return None
         if not isinstance(card_data, dict): return None
+
+        if field_key == 'metadata':
+            metadata = card_data.get('metadata')
+            return self._get_metadata_path_value(metadata, metadata_path)
         
         # === 1. 正则脚本匹配 (Regex Scripts) ===
         if field_key == 'extensions.regex_scripts' or field_key == 'regex_scripts':
@@ -323,7 +355,7 @@ class AutomationEngine:
 
                 cond_results = []
                 for cond in conditions:
-                    raw_field = cond['field']
+                    raw_field = cond.get('field', '')
                     mapped_field = FIELD_MAP.get(raw_field, raw_field)
                     
                     op = cond['operator']
@@ -331,7 +363,12 @@ class AutomationEngine:
                     case = cond.get('case_sensitive', False)
                     
                     # 取值
-                    actual_val = self._get_field_value(card_data, mapped_field, specific_target=raw_field)
+                    actual_val = self._get_field_value(
+                        card_data,
+                        mapped_field,
+                        specific_target=raw_field,
+                        metadata_path=cond.get('metadata_path') if raw_field == 'metadata' else None,
+                    )
                     
                     # 判值
                     res = self._check_condition(actual_val, op, val, case)

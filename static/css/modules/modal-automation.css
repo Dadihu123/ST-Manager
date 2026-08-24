@@ -298,6 +298,36 @@
   color: var(--accent-main);
 }
 
+.automation-performance-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  margin: 0 0 1rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid color-mix(in srgb, var(--color-warn), transparent 45%);
+  border-radius: 0.65rem;
+  background: color-mix(in srgb, var(--color-warn), transparent 90%);
+  color: var(--text-main);
+  font-size: 0.78rem;
+  line-height: 1.55;
+}
+
+.automation-performance-notice strong {
+  color: var(--text-warn);
+}
+
+.automation-performance-notice-icon {
+  flex: 0 0 auto;
+  color: var(--text-warn);
+  font-size: 1rem;
+  line-height: 1.45;
+}
+
+.metadata-path-input {
+  min-width: 11rem;
+  flex: 1.25 1 12rem;
+}
+
 @media (max-width: 768px) {
   .automation-container {
     width: 100vw !important;
@@ -465,7 +495,8 @@
     justify-content: flex-start;
   }
   .logic-row > select,
-  .logic-row > div {
+  .logic-row > div,
+  .logic-row > input {
     width: 100%;
   }
   .logic-content > div[class*="border"] > div:first-child > div:first-child {
