@@ -1,0 +1,30 @@
+.marquee-selection-box {
+  position: absolute;
+  z-index: var(--z-marquee-selection);
+  box-sizing: border-box;
+  pointer-events: none;
+  border: 1px solid var(--accent-light);
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--accent-main), transparent 86%);
+  box-shadow: inset 0 0 0 1px
+    color-mix(in srgb, var(--accent-light), transparent 72%);
+}
+
+.is-marquee-selecting,
+.is-marquee-selecting * {
+  user-select: none !important;
+}
+
+.is-marquee-selecting {
+  cursor: crosshair !important;
+}
+
+.is-marquee-selecting * {
+  cursor: crosshair !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marquee-selection-box {
+    transition: none !important;
+  }
+}

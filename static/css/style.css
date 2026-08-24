@@ -6,6 +6,8 @@
 
 @import "modules/layout.css";
 
+@import "modules/selection.css";
+
 @import "modules/view-cards.css";
 
 @import "modules/view-wi.css";

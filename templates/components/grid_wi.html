@@ -8,6 +8,12 @@
   <div
     id="wi-scroll-area"
     class="scroll-container-y flex-1 min-h-0 p-4 custom-scrollbar relative"
+    @pointerdown="beginMarqueeSelection($event)"
+    @pointermove="updateMarqueeSelection($event)"
+    @pointerup="endMarqueeSelection($event)"
+    @pointercancel="cancelMarqueeSelection()"
+    @lostpointercapture="cancelMarqueeSelection()"
+    @click.capture="handleMarqueeClick($event)"
     @dragover.prevent="dragOverWi = true"
     @dragleave.prevent="dragOverWi = false"
     @drop.prevent="handleWiFilesDrop($event)"
@@ -24,6 +30,13 @@
       </div>
       <div class="text-gray-300 mt-2 text-sm" x-text="wiUploadHintText"></div>
     </div>
+
+    <div
+      x-show="marqueeSelection.active"
+      class="marquee-selection-box"
+      :style="marqueeSelectionStyle"
+      aria-hidden="true"
+    ></div>
 
     <div
       x-show="isLoading"

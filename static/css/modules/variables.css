@@ -54,6 +54,7 @@
   --z-base: 0;
   --z-floating: 100;
   --z-card-highlight: 40;
+  --z-marquee-selection: 45;
   --z-card-selected: 50;
   --z-sticky: 100;
   --z-dropdown: 500;

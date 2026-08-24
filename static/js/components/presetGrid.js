@@ -8,6 +8,7 @@ import {
   setPresetSendToStPending,
 } from "../api/presets.js";
 import { downloadFileFromApi } from "../utils/download.js";
+import { createMarqueeSelection } from "../utils/marqueeSelection.js";
 
 export default function presetGrid() {
   return {
@@ -15,6 +16,27 @@ export default function presetGrid() {
     isLoading: false,
     dragOver: false,
     sendingPresetToStIds: {},
+
+    ...createMarqueeSelection({
+      mode: "presets",
+      rootId: "preset-scroll-area",
+      itemSelector: ".preset-grid-card[data-preset-id]",
+      getId: (element, component) => {
+        const rawId = element.dataset.presetId;
+        const item = (component.items || []).find(
+          (currentItem) => String(currentItem.id) === rawId,
+        );
+        return item?.id ?? rawId;
+      },
+      canSelectElement: (element, component) => {
+        const rawId = element.dataset.presetId;
+        const item = (component.items || []).find(
+          (currentItem) => String(currentItem.id) === rawId,
+        );
+        return !!item && component.canSelectPresetItem(item);
+      },
+      isDisabled: (component) => component.dragOver,
+    }),
     get selectedIds() {
       return this.$store.global.viewState.selectedIds;
     },
@@ -331,6 +353,8 @@ export default function presetGrid() {
     },
 
     init() {
+      this.initMarqueeSelection();
+
       // 监听模式切换
       this.$watch("$store.global.currentMode", (val) => {
         if (val === "presets") {

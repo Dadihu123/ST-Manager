@@ -11,6 +11,7 @@ import {
   sendWorldInfoToSillyTavern,
 } from "../api/wi.js";
 import { downloadFileFromApi } from "../utils/download.js";
+import { createMarqueeSelection } from "../utils/marqueeSelection.js";
 import { buildWindowedGridState } from "../utils/windowing.js";
 
 export default function wiGrid() {
@@ -31,6 +32,27 @@ export default function wiGrid() {
     _fetchWorldInfoTimer: null,
     _syncWiWindowRangeHandler: null,
     sendingWorldInfoToStIds: {},
+
+    ...createMarqueeSelection({
+      mode: "worldinfo",
+      rootId: "wi-scroll-area",
+      itemSelector: ".wi-grid-card[data-wi-id]",
+      getId: (element, component) => {
+        const rawId = element.dataset.wiId;
+        const item = (component.wiList || []).find(
+          (currentItem) => String(currentItem.id) === rawId,
+        );
+        return item?.id ?? rawId;
+      },
+      canSelectElement: (element, component) => {
+        const rawId = element.dataset.wiId;
+        const item = (component.wiList || []).find(
+          (currentItem) => String(currentItem.id) === rawId,
+        );
+        return !!item && component.canSelectWorldInfoItem(item);
+      },
+      isDisabled: (component) => component.dragOverWi,
+    }),
 
     // === Store 代理 ===
     get wiList() {
@@ -668,6 +690,8 @@ export default function wiGrid() {
     },
 
     init() {
+      this.initMarqueeSelection();
+
       // === 监听 Store 变化自动刷新 ===
       this.$watch("$store.global.wiSearchQuery", () => {
         this.wiCurrentPage = 1;

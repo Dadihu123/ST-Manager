@@ -51,7 +51,12 @@
   <div
     class="card-scroll-area custom-scrollbar relative flex-1"
     id="main-scroll"
-    @click="selectedIds = []"
+    @pointerdown="beginMarqueeSelection($event)"
+    @pointermove="updateMarqueeSelection($event)"
+    @pointerup="endMarqueeSelection($event)"
+    @pointercancel="cancelMarqueeSelection()"
+    @lostpointercapture="cancelMarqueeSelection()"
+    @click.capture="handleMarqueeClick($event)"
     @dragenter.prevent="handleMainDragEnter($event)"
     @dragover.prevent="dragOverMain = true"
     @dragleave.prevent="handleMainDragLeave($event)"
@@ -69,6 +74,13 @@
       </div>
       <div class="text-gray-300 mt-2 text-sm">将添加到当前目录</div>
     </div>
+
+    <div
+      x-show="marqueeSelection.active"
+      class="marquee-selection-box"
+      :style="marqueeSelectionStyle"
+      aria-hidden="true"
+    ></div>
 
     <div
       x-show="isLoading"

@@ -197,6 +197,12 @@ export default function layout() {
 
       this.$store.global.currentMode = mode;
       this.selectedIds = []; // 清空选中
+      this.$store.global.viewState.lastSelectedId = null;
+      window.dispatchEvent(
+        new CustomEvent("cancel-marquee-selection", {
+          detail: { restoreSelection: false },
+        }),
+      );
 
       // 切换到非卡片模式时，清除过滤条件
       if (

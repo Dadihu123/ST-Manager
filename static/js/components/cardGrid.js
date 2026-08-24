@@ -16,6 +16,7 @@ import {
 
 import { batchUpdateTags } from "../api/system.js";
 import { formatDate, getCardGridTokenBadgeClass } from "../utils/format.js";
+import { createMarqueeSelection } from "../utils/marqueeSelection.js";
 import { buildWindowedGridState } from "../utils/windowing.js";
 import { canPreviewForumThread } from "../utils/discordUrl.js";
 
@@ -55,6 +56,20 @@ export default function cardGrid() {
     _autoFlipBackTimers: {},
     _syncCardWindowRangeHandler: null,
 
+    ...createMarqueeSelection({
+      mode: "cards",
+      rootId: "main-scroll",
+      itemSelector: ".st-card[data-card-id]",
+      getId: (element, component) => {
+        const rawId = element.dataset.cardId;
+        const card = (component.cards || []).find(
+          (item) => String(item.id) === rawId,
+        );
+        return card?.id ?? rawId;
+      },
+      isDisabled: (component) => component.dragOverMain,
+    }),
+
     get selectedIds() {
       return this.$store.global.viewState.selectedIds;
     },
@@ -81,6 +96,8 @@ export default function cardGrid() {
 
     // === 初始化 ===
     init() {
+      this.initMarqueeSelection();
+
       // 1. 监听全局搜索/筛选变化 (Reactivity Fix)
       // 使用 debounce 防止输入时频繁请求
       this.$watch("$store.global.viewState.searchQuery", () => {

@@ -60,7 +60,23 @@
     </div>
 
     <!-- 列表内容区 -->
-    <div class="flex-1 overflow-y-auto custom-scrollbar p-4">
+    <div
+      id="preset-scroll-area"
+      class="flex-1 overflow-y-auto custom-scrollbar p-4 relative"
+      @pointerdown="beginMarqueeSelection($event)"
+      @pointermove="updateMarqueeSelection($event)"
+      @pointerup="endMarqueeSelection($event)"
+      @pointercancel="cancelMarqueeSelection()"
+      @lostpointercapture="cancelMarqueeSelection()"
+      @click.capture="handleMarqueeClick($event)"
+    >
+      <div
+        x-show="marqueeSelection.active"
+        class="marquee-selection-box"
+        :style="marqueeSelectionStyle"
+        aria-hidden="true"
+      ></div>
+
       <div
         x-show="isLoading"
         class="flex flex-col items-center justify-center h-64 text-[var(--text-dim)]"
