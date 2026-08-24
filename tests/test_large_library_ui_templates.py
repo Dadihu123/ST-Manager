@@ -322,5 +322,7 @@ def test_worldinfo_detail_popup_loads_full_content_before_large_truncated_search
 def test_worldinfo_detail_popup_preserves_entry_id_zero_for_reader_dom_ids():
     template = read_project_file('templates/modals/detail_wi_popup.html')
 
+    assert template.count(':key="entry.id ?? idx"') == 2
+    assert ':key="entry.id || idx"' not in template
     assert ":id=\"'wi-reader-entry-' + (entry.id ?? ((entry.insertion_order ?? 'x') + '-' + idx))\"" in template
     assert ":class=\"{'active': activeEntry === entry,'toc-flash': highlightEntryKey !== null && highlightEntryKey !== undefined && (highlightEntryKey === (entry.id ?? ((entry.insertion_order ?? 'x') + '-' + idx)))}\"" in template
