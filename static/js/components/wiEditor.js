@@ -471,6 +471,185 @@ export default function wiEditor() {
       return root.querySelector('textarea[x-ref="wiContentTextarea"]');
     },
 
+    _scrollFindHitIntoView(textarea, start, length) {
+      if (
+        !textarea ||
+        typeof document === "undefined" ||
+        typeof window === "undefined" ||
+        typeof document.createElement !== "function" ||
+        typeof window.getComputedStyle !== "function"
+      ) {
+        return;
+      }
+
+      const host = document.body || document.documentElement;
+      if (!host || typeof host.appendChild !== "function") return;
+
+      const value = String(textarea.value ?? "");
+      const rawStart = Number(start);
+      const rawLength = Number(length);
+      const safeStart = Number.isFinite(rawStart)
+        ? Math.max(0, Math.min(Math.trunc(rawStart), value.length))
+        : 0;
+      const safeLength = Number.isFinite(rawLength)
+        ? Math.max(0, Math.trunc(rawLength))
+        : 0;
+      const safeEnd = Math.max(
+        safeStart,
+        Math.min(value.length, safeStart + safeLength),
+      );
+      if (safeEnd <= safeStart) return;
+
+      const visibleWidth = Number(textarea.clientWidth) || 0;
+      const visibleHeight = Number(textarea.clientHeight) || 0;
+      if (!visibleWidth || !visibleHeight) return;
+
+      const textareaStyle = window.getComputedStyle(textarea);
+      const mirror = document.createElement("div");
+      const marker = document.createElement("span");
+      const copiedStyleProperties = [
+        "fontFamily",
+        "fontSize",
+        "fontStretch",
+        "fontStyle",
+        "fontVariant",
+        "fontWeight",
+        "letterSpacing",
+        "lineHeight",
+        "tabSize",
+        "textAlign",
+        "textIndent",
+        "textRendering",
+        "textTransform",
+        "unicodeBidi",
+        "whiteSpace",
+        "wordBreak",
+        "wordSpacing",
+        "overflowWrap",
+        "writingMode",
+      ];
+
+      copiedStyleProperties.forEach((property) => {
+        const value = textareaStyle[property];
+        if (value) mirror.style[property] = value;
+      });
+
+      Object.assign(mirror.style, {
+        position: "fixed",
+        left: "-100000px",
+        top: "0",
+        width: `${visibleWidth}px`,
+        height: "auto",
+        minHeight: "0",
+        maxHeight: "none",
+        boxSizing: "border-box",
+        padding: textareaStyle.padding || "0",
+        border: "0",
+        margin: "0",
+        overflow: "visible",
+        visibility: "hidden",
+        pointerEvents: "none",
+        display: "block",
+      });
+
+      marker.textContent = value.slice(safeStart, safeEnd);
+      mirror.textContent = value.slice(0, safeStart);
+      mirror.appendChild(marker);
+
+      host.appendChild(mirror);
+      try {
+        const mirrorRect = mirror.getBoundingClientRect();
+        const markerRect = marker.getBoundingClientRect();
+        const lineHeight = Number.parseFloat(textareaStyle.lineHeight);
+        const markerHeight =
+          Number(markerRect.height) || (Number.isFinite(lineHeight) ? lineHeight : 1);
+        const markerTop = Number(markerRect.top) - Number(mirrorRect.top);
+        const markerLeft = Number(markerRect.left) - Number(mirrorRect.left);
+        const markerCenterY = markerTop + markerHeight / 2;
+        const markerCenterX =
+          markerLeft + (Number(markerRect.width) || 0) / 2;
+        const maxScrollTop = Math.max(
+          0,
+          Number(textarea.scrollHeight || 0) - visibleHeight,
+        );
+        const desiredScrollTop = Math.max(
+          0,
+          Math.min(maxScrollTop, markerCenterY - visibleHeight / 2),
+        );
+
+        textarea.scrollTop = desiredScrollTop;
+
+        const visibleScrollWidth = Number(textarea.scrollWidth || 0);
+        const maxScrollLeft = Math.max(0, visibleScrollWidth - visibleWidth);
+        if (maxScrollLeft > 0) {
+          textarea.scrollLeft = Math.max(
+            0,
+            Math.min(maxScrollLeft, markerCenterX - visibleWidth / 2),
+          );
+        }
+      } finally {
+        if (typeof mirror.remove === "function") mirror.remove();
+        else if (typeof host.removeChild === "function") host.removeChild(mirror);
+      }
+    },
+
+    _focusAndRevealFindHit(start, length) {
+      const reveal = () => {
+        const textarea = this._getContentTextareaEl();
+        if (!textarea) return;
+
+        const rawStart = Number(start);
+        const rawLength = Number(length);
+        const selectionStart = Number.isFinite(rawStart)
+          ? Math.max(0, Math.trunc(rawStart))
+          : 0;
+        const selectionLength = Number.isFinite(rawLength)
+          ? Math.max(0, Math.trunc(rawLength))
+          : 0;
+        const maxLength =
+          typeof textarea.value === "string"
+            ? textarea.value.length
+            : selectionStart + selectionLength;
+        const safeStart = Math.min(selectionStart, maxLength);
+        const safeEnd = Math.min(
+          maxLength,
+          safeStart + selectionLength,
+        );
+
+        if (typeof textarea.focus === "function") {
+          try {
+            textarea.focus({ preventScroll: true });
+          } catch (_error) {
+            textarea.focus();
+          }
+        }
+        if (typeof textarea.setSelectionRange === "function") {
+          textarea.setSelectionRange(safeStart, safeEnd);
+        }
+        this._scrollFindHitIntoView(
+          textarea,
+          safeStart,
+          Math.max(0, safeEnd - safeStart),
+        );
+      };
+
+      const scheduleFrame = (callback) => {
+        if (
+          typeof window !== "undefined" &&
+          typeof window.requestAnimationFrame === "function"
+        ) {
+          window.requestAnimationFrame(callback);
+        } else {
+          callback();
+        }
+      };
+
+      this.$nextTick(() => {
+        // 全部条目切换时 textarea 会被 x-if 重建，等待两帧确保尺寸和换行布局已稳定。
+        scheduleFrame(() => scheduleFrame(reveal));
+      });
+    },
+
     _getFindInputEl() {
       const root = this._getEditorRootEl();
       if (!root) return null;
@@ -743,14 +922,7 @@ export default function wiEditor() {
         length: hit.length,
       };
 
-      this.$nextTick(() => {
-        const ta = this._getContentTextareaEl();
-        if (!ta) return;
-        if (typeof ta.focus === "function") ta.focus();
-        if (typeof ta.setSelectionRange === "function") {
-          ta.setSelectionRange(hit.start, hit.start + hit.length);
-        }
-      });
+      this._focusAndRevealFindHit(hit.start, hit.length);
       return true;
     },
 
@@ -935,14 +1107,7 @@ export default function wiEditor() {
         length: replacement.length,
       };
 
-      this.$nextTick(() => {
-        const ta = this._getContentTextareaEl();
-        if (!ta) return;
-        if (typeof ta.focus === "function") ta.focus();
-        if (typeof ta.setSelectionRange === "function") {
-          ta.setSelectionRange(start, start + replacement.length);
-        }
-      });
+      this._focusAndRevealFindHit(start, replacement.length);
       this.$store.global.showToast("已替换当前匹配", 1200);
     },
 

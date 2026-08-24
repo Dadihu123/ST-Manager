@@ -742,6 +742,110 @@ def test_wi_editor_runtime_multi_select_helper_collects_selected_values():
     run_js(script)
 
 
+def test_find_hit_reveal_centers_the_match_inside_the_textarea():
+    source = read_project_file('static/js/components/wiEditor.js')
+    scroll_block = extract_js_function_block(
+        source,
+        '_scrollFindHitIntoView(textarea, start, length) {',
+    )
+    focus_block = extract_js_function_block(
+        source,
+        '_focusAndRevealFindHit(start, length) {',
+    )
+
+    script = textwrap.dedent(
+        f'''
+        let selectedStart = null;
+        let selectedEnd = null;
+        const body = {{
+          children: [],
+          appendChild(node) {{
+            this.children.push(node);
+            node.parentNode = this;
+          }},
+          removeChild(node) {{
+            const index = this.children.indexOf(node);
+            if (index >= 0) this.children.splice(index, 1);
+          }},
+        }};
+
+        const textarea = {{
+          value: 'prefix\\n'.repeat(80) + 'needle' + '\\ntrailing content',
+          clientWidth: 600,
+          clientHeight: 200,
+          scrollHeight: 1600,
+          scrollWidth: 1200,
+          scrollTop: 0,
+          scrollLeft: 0,
+          focus(options) {{
+            if (!options || options.preventScroll !== true) {{
+              throw new Error('expected focus to preserve the current scroll position');
+            }}
+          }},
+          setSelectionRange(start, end) {{
+            selectedStart = start;
+            selectedEnd = end;
+          }},
+        }};
+
+        globalThis.window = {{
+          getComputedStyle() {{
+            return {{
+              fontFamily: 'monospace',
+              fontSize: '14px',
+              lineHeight: '20px',
+              padding: '16px',
+              whiteSpace: 'pre-wrap',
+              overflowWrap: 'break-word',
+              wordBreak: 'normal',
+            }};
+          }},
+        }};
+        globalThis.document = {{
+          body,
+          documentElement: body,
+          createElement(tag) {{
+            const element = {{
+              style: {{}},
+              textContent: '',
+              appendChild(child) {{
+                this.child = child;
+                child.parentNode = this;
+              }},
+              getBoundingClientRect() {{
+                if (tag === 'div') return {{ top: 0, left: 0 }};
+                return {{ top: 720, left: 800, width: 100, height: 20 }};
+              }},
+              remove() {{ body.removeChild(this); }},
+            }};
+            return element;
+          }},
+        }};
+
+        const component = {{
+          {scroll_block},
+          {focus_block},
+          _getContentTextareaEl() {{ return textarea; }},
+          $nextTick(fn) {{ fn(); }},
+        }};
+
+        component._focusAndRevealFindHit(100, 6);
+        if (selectedStart !== 100 || selectedEnd !== 106) {{
+          throw new Error(`unexpected selection: ${{selectedStart}}-${{selectedEnd}}`);
+        }}
+        if (textarea.scrollTop !== 630) {{
+          throw new Error(`expected centered vertical scroll, got ${{textarea.scrollTop}}`);
+        }}
+        if (textarea.scrollLeft !== 550) {{
+          throw new Error(`expected centered horizontal scroll, got ${{textarea.scrollLeft}}`);
+        }}
+        if (body.children.length !== 0) throw new Error('mirror element was not removed');
+        '''
+    )
+
+    run_js(script)
+
+
 def test_new_entries_default_triggers_to_empty_array():
     helpers_source = read_project_file('static/js/utils/wiHelpers.js')
     add_block = extract_js_function_block(helpers_source, 'addWiEntry() {')
