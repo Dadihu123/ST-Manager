@@ -408,7 +408,7 @@
           :aria-expanded="showSourceUpdateMenu.toString()"
           title="检查更新或确认已有更新无需处理"
         >
-          来源更新 <span aria-hidden="true">▾</span>
+          <span aria-hidden="true">▾</span> 来源更新
         </button>
         <div
           x-show="showSourceUpdateMenu"
@@ -418,14 +418,14 @@
           x-transition:enter-start="opacity-0 scale-95"
           x-transition:enter-end="opacity-100 scale-100"
           role="menu"
-          class="absolute top-full right-0 mt-2 w-52 bg-[var(--bg-panel)] border border-[var(--border-light)] rounded-lg shadow-2xl py-1 overflow-hidden"
+          class="absolute top-full left-0 mt-2 w-56 bg-[var(--bg-panel)] border border-[var(--border-light)] rounded-lg shadow-2xl py-1 overflow-hidden"
           style="z-index: var(--z-dropdown)"
         >
           <button
             @click="checkSelectedSourceUpdates(); showSourceUpdateMenu = false"
             type="button"
             role="menuitem"
-            class="w-full text-left px-3 py-2 text-xs hover:bg-[var(--bg-hover)] text-[var(--text-main)] transition-colors"
+            class="w-full block text-left px-3 py-2 text-xs hover:bg-[var(--bg-hover)] text-[var(--text-main)] transition-colors"
           >
             检查更新
           </button>
@@ -433,7 +433,7 @@
             @click="acknowledgeSelectedSourceUpdates(); showSourceUpdateMenu = false"
             type="button"
             role="menuitem"
-            class="w-full text-left px-3 py-2 text-xs hover:bg-[var(--bg-hover)] text-[var(--text-main)] transition-colors"
+            class="w-full block text-left px-3 py-2 text-xs hover:bg-[var(--bg-hover)] text-[var(--text-main)] transition-colors"
           >
             确认无需更新
           </button>
@@ -725,7 +725,7 @@
         :aria-expanded="showSourceUpdateMenu.toString()"
         title="检查更新或确认已有更新无需处理"
       >
-        更新 <span aria-hidden="true">▾</span>
+        <span aria-hidden="true">▾</span> 更新
       </button>
       <div
         x-show="showSourceUpdateMenu"
@@ -739,7 +739,7 @@
           @click="checkSelectedSourceUpdates(); showSourceUpdateMenu = false"
           type="button"
           role="menuitem"
-          class="w-full min-h-11 text-left px-3 py-3 text-sm hover:bg-[var(--bg-hover)] text-[var(--text-main)]"
+          class="w-full block min-h-11 text-left px-3 py-3 text-sm hover:bg-[var(--bg-hover)] text-[var(--text-main)]"
         >
           检查更新
         </button>
@@ -747,7 +747,7 @@
           @click="acknowledgeSelectedSourceUpdates(); showSourceUpdateMenu = false"
           type="button"
           role="menuitem"
-          class="w-full min-h-11 text-left px-3 py-3 text-sm hover:bg-[var(--bg-hover)] text-[var(--text-main)]"
+          class="w-full block min-h-11 text-left px-3 py-3 text-sm hover:bg-[var(--bg-hover)] text-[var(--text-main)]"
         >
           确认无需更新
         </button>

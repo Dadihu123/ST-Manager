@@ -37,11 +37,24 @@ def test_selected_card_source_update_actions_use_accessible_dropdowns_on_both_la
     assert template.count('aria-haspopup="menu"') == 2
     assert template.count(':aria-expanded="showSourceUpdateMenu.toString()"') == 2
     assert template.count('role="menuitem"') == 4
+    assert template.count('class="w-full block') == 4
     assert template.count('acknowledgeSelectedSourceUpdates()') == 2
     assert 'async acknowledgeSelectedSourceUpdates() {' in script
     assert 'runSourceUpdateAcknowledgeBatch' in script
     assert 'pending_only: true' in batch_script
     assert 'emptyMessage: "选中的角色卡没有待处理更新"' in batch_script
+
+
+def test_source_update_dropdowns_match_automation_alignment_and_arrow_position():
+    template = read_project_file('templates/components/header.html')
+
+    assert '<span aria-hidden="true">▾</span> 来源更新' in template
+    assert '<span aria-hidden="true">▾</span> 更新' in template
+    assert (
+        'class="absolute top-full left-0 mt-2 w-56 '
+        'bg-[var(--bg-panel)] border border-[var(--border-light)] '
+        'rounded-lg shadow-2xl py-1 overflow-hidden"'
+    ) in template
 
 
 def test_card_grid_prioritizes_persistent_pending_state_over_last_check_result():
