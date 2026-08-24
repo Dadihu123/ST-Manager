@@ -159,6 +159,129 @@ def test_subsequent_check_detects_title_and_first_message_changes(monkeypatch):
     assert ui_data['cards/demo.png']['_source_update_v1']['source_title'] == '新标题'
 
 
+def test_repeated_unchanged_check_preserves_legacy_pending_update(monkeypatch):
+    ui_data = {
+        'cards/demo.png': {
+            'link': 'https://discord.com/channels/1/2/threads/3',
+            '_source_update_v1': {
+                'source_url': 'https://discord.com/channels/1/2/threads/3',
+                'source_title': '标题 A',
+                'first_message_revision_at': 100.0,
+                'first_message_timestamp': 100.0,
+                'baseline_established': True,
+                'last_checked_at': 450.0,
+                'last_status': 'updated',
+            },
+        }
+    }
+    _prepare(monkeypatch, last_modified=50.0, ui_data=ui_data)
+    getter = _Getter([
+        _Response(_thread_payload('标题 A')),
+        _Response([_message_payload('1970-01-01T00:01:40Z')]),
+    ])
+
+    result = service.check_card_source_update('cards/demo.png', http_get=getter, now=500.0)
+
+    assert result['status'] == 'unchanged'
+    assert result['changed'] is False
+    assert result['message'] == '来源暂无后续变化，仍有待处理更新'
+    assert result['source_update']['pending_update'] is True
+    assert result['source_update']['pending_status'] == 'updated'
+    assert result['source_update']['pending_since'] == 450.0
+
+
+def test_later_remote_change_keeps_pending_and_advances_observed_revision(monkeypatch):
+    ui_data = {
+        'cards/demo.png': {
+            'link': 'https://discord.com/channels/1/2/threads/3',
+            '_source_update_v1': {
+                'source_url': 'https://discord.com/channels/1/2/threads/3',
+                'source_title': '标题 A',
+                'first_message_revision_at': 100.0,
+                'first_message_timestamp': 100.0,
+                'baseline_established': True,
+                'pending_update': True,
+                'pending_status': 'updated',
+                'pending_since': 450.0,
+                'last_checked_at': 450.0,
+                'last_status': 'updated',
+            },
+        }
+    }
+    _prepare(monkeypatch, last_modified=50.0, ui_data=ui_data)
+    getter = _Getter([
+        _Response(_thread_payload('标题 A')),
+        _Response([_message_payload('1970-01-01T00:01:40Z', '1970-01-01T00:03:20Z')]),
+    ])
+
+    result = service.check_card_source_update('cards/demo.png', http_get=getter, now=600.0)
+
+    assert result['status'] == 'updated'
+    assert result['changed'] is True
+    assert result['source_update']['pending_update'] is True
+    assert result['source_update']['pending_since'] == 450.0
+    assert result['source_update']['first_message_revision_at'] == 200.0
+
+
+def test_failed_recheck_preserves_existing_pending_update(monkeypatch):
+    ui_data = {
+        'cards/demo.png': {
+            'link': 'https://discord.com/channels/1/2/threads/3',
+            '_source_update_v1': {
+                'source_url': 'https://discord.com/channels/1/2/threads/3',
+                'source_title': '标题 A',
+                'first_message_revision_at': 100.0,
+                'baseline_established': True,
+                'pending_update': True,
+                'pending_status': 'updated',
+                'pending_since': 450.0,
+                'last_status': 'updated',
+            },
+        }
+    }
+    _prepare(monkeypatch, ui_data=ui_data)
+    getter = _Getter([_Response({'message': 'Unauthorized'}, status_code=401)])
+
+    result = service.check_card_source_update('cards/demo.png', http_get=getter, now=600.0)
+
+    assert result['success'] is False
+    assert result['status'] == 'error'
+    assert result['source_update']['last_status'] == 'error'
+    assert result['source_update']['pending_update'] is True
+    assert result['source_update']['pending_status'] == 'updated'
+
+
+def test_acknowledge_only_clears_an_existing_pending_update(monkeypatch):
+    ui_data = {
+        'cards/demo.png': {
+            'link': 'https://discord.com/channels/1/2/threads/3',
+            '_source_update_v1': {
+                'source_url': 'https://discord.com/channels/1/2/threads/3',
+                'source_title': '标题 A',
+                'first_message_revision_at': 100.0,
+                'baseline_established': True,
+                'last_checked_at': 450.0,
+                'last_status': 'updated',
+            },
+        }
+    }
+    _prepare(monkeypatch, ui_data=ui_data)
+
+    result = service.acknowledge_card_source_update('cards/demo.png')
+
+    assert result['success'] is True
+    assert result['acknowledged'] is True
+    assert result['status'] == 'acknowledged'
+    assert result['source_update']['pending_update'] is False
+    assert result['source_update']['pending_status'] == ''
+    assert result['source_update']['first_message_revision_at'] == 100.0
+
+    repeated = service.acknowledge_card_source_update('cards/demo.png')
+    assert repeated['success'] is True
+    assert repeated['acknowledged'] is False
+    assert repeated['status'] == 'not_pending'
+
+
 def test_missing_starter_message_does_not_claim_complete_baseline(monkeypatch):
     data, _ = _prepare(monkeypatch, last_modified=100.0)
     getter = _Getter([
@@ -215,6 +338,8 @@ def test_check_without_source_clears_previous_source_state(monkeypatch):
                 'source_title': '旧标题',
                 'first_message_revision_at': 100.0,
                 'baseline_established': True,
+                'pending_update': True,
+                'pending_status': 'updated',
             },
         }
     }
@@ -225,6 +350,7 @@ def test_check_without_source_clears_previous_source_state(monkeypatch):
     assert result['status'] == 'no_source'
     assert result['source_update']['source_title'] == ''
     assert result['source_update']['baseline_established'] is False
+    assert result['source_update']['pending_update'] is False
 
 
 def test_title_sync_is_distinct_from_baseline_check(monkeypatch):
@@ -262,6 +388,8 @@ def test_source_link_removal_resets_baseline(monkeypatch):
                 'source_title': '旧标题',
                 'first_message_revision_at': 100.0,
                 'baseline_established': True,
+                'pending_update': True,
+                'pending_status': 'updated',
             },
         }
     }
@@ -277,6 +405,7 @@ def test_source_link_removal_resets_baseline(monkeypatch):
     assert changed is True
     assert state['baseline_established'] is False
     assert state['first_message_revision_at'] is None
+    assert state['pending_update'] is False
 
 
 def test_first_check_updated_message_is_explicit(monkeypatch):
@@ -288,7 +417,7 @@ def test_first_check_updated_message_is_explicit(monkeypatch):
 
     result = service.check_card_source_update('cards/demo.png', http_get=getter, now=500.0)
 
-    assert result['message'] == '首次检查发现来源首帖晚于本地卡片，角色卡已更新'
+    assert result['message'] == '首次检查发现来源首帖晚于本地角色卡，已标记为待处理更新'
 
 
 def test_prepare_source_link_does_not_make_network_request(monkeypatch):
@@ -312,6 +441,9 @@ def test_refresh_after_card_update_adopts_remote_revision_as_new_baseline(monkey
         'source_title': '旧标题',
         'first_message_revision_at': 100.0,
         'baseline_established': True,
+        'pending_update': True,
+        'pending_status': 'updated',
+        'pending_since': 450.0,
     }
     getter = _Getter([
         _Response(_thread_payload('新标题')),
@@ -331,4 +463,34 @@ def test_refresh_after_card_update_adopts_remote_revision_as_new_baseline(monkey
     assert result['source_update']['source_title'] == '新标题'
     assert result['source_update']['first_message_revision_at'] == 400.0
     assert result['source_update']['last_status'] == 'baseline_refreshed'
+    assert result['source_update']['pending_update'] is False
     assert cache.id_map['cards/demo.png']['source_title'] == '新标题'
+
+
+def test_refresh_after_card_update_keeps_pending_when_starter_message_is_unavailable(monkeypatch):
+    data, _ = _prepare(monkeypatch, last_modified=100.0)
+    data['cards/demo.png']['_source_update_v1'] = {
+        'source_url': 'https://discord.com/channels/1/2/threads/3',
+        'source_title': '旧标题',
+        'first_message_revision_at': 100.0,
+        'baseline_established': True,
+        'pending_update': True,
+        'pending_status': 'updated',
+        'pending_since': 450.0,
+    }
+    getter = _Getter([
+        _Response(_thread_payload('新标题')),
+        _Response({'message': 'Unknown Message'}, status_code=404),
+        _Response({'message': 'Unknown Message'}, status_code=404),
+    ])
+
+    result = service.refresh_card_source_baseline(
+        'cards/demo.png',
+        ui_data=data,
+        http_get=getter,
+        now=500.0,
+    )
+
+    assert result['status'] == 'first_message_unavailable'
+    assert result['source_update']['pending_update'] is True
+    assert result['source_update']['pending_status'] == 'updated'

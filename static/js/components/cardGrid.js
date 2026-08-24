@@ -512,24 +512,49 @@ export default function cardGrid() {
       return !!this.checkingSourceUpdateIds[String(cardId)];
     },
 
+    hasPendingSourceUpdate(card) {
+      const sourceUpdate = card?.source_update;
+      if (!sourceUpdate || typeof sourceUpdate !== "object") return false;
+      if (Object.prototype.hasOwnProperty.call(sourceUpdate, "pending_update")) {
+        return sourceUpdate.pending_update === true;
+      }
+      return ["updated", "title_changed", "title_and_content_updated", "first_check_updated"]
+        .includes(sourceUpdate.last_status);
+    },
+
     getSourceUpdateLabel(card) {
       const status = card?.source_update?.last_status || 'never_checked';
+      if (this.hasPendingSourceUpdate(card)) {
+        if (status === "error") return "有尚未处理的来源更新；上次检查失败";
+        if (status === "first_message_unavailable") {
+          return "有尚未处理的来源更新；无法取得首帖编辑时间";
+        }
+        if (status === "unchanged") return "有尚未处理的来源更新；来源暂无后续变化";
+        return {
+          first_check_updated: "首次检查发现来源首帖晚于本地卡片，尚未处理",
+          updated: "检测到来源首帖更新，尚未处理",
+          title_changed: "检测到来源标题变化，尚未处理",
+          title_and_content_updated: "检测到来源标题和首帖变化，尚未处理",
+        }[status] || "有尚未处理的来源更新";
+      }
       return {
         title_synced: '来源标题已同步，尚未建立检查基线',
         baseline_established: '已建立基线，下一次才能判断',
         baseline_refreshed: '角色卡更新后，来源标题和首帖基线已刷新',
-        first_check_updated: '首次检查：来源首帖晚于本地卡片，角色卡已更新',
+        first_check_updated: '首次检查发现来源首帖晚于本地角色卡，已标记为待处理更新',
         updated: '检测到来源首帖已更新',
         title_changed: '检测到来源标题已变化',
         title_and_content_updated: '检测到来源标题和首帖都已变化',
         unchanged: '来源未变化',
         first_message_unavailable: '无法取得首帖编辑时间',
+        acknowledged: '已确认当前来源更新无需处理',
         error: '上次检查失败',
       }[status] || '尚未检查来源';
     },
 
     getSourceUpdateClass(card) {
       const status = card?.source_update?.last_status || 'never_checked';
+      if (this.hasPendingSourceUpdate(card)) return 'is-updated';
       if (['updated', 'title_changed', 'title_and_content_updated', 'first_check_updated'].includes(status)) {
         return 'is-updated';
       }

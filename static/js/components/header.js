@@ -9,6 +9,7 @@ import { listRuleSets } from "../api/automation.js";
 import {
   isBatchOperationRunning,
   runAutomationBatch,
+  runSourceUpdateAcknowledgeBatch,
   runSourceUpdateBatch,
 } from "../utils/batchOperations.js";
 import { listChats } from "../api/chat.js";
@@ -413,7 +414,10 @@ export default function header() {
     formatBatchResult(result, mode = "automation") {
       if (!result) return "操作未返回结果";
       if (mode === "source_update") {
-        return `✅ 检查完成！\n已处理: ${result.checked || 0} 张\n有更新: ${result.updated || 0} 张\n未变化: ${result.unchanged || 0} 张\n跳过: ${result.skipped || 0} 张\n失败: ${result.failed || 0} 张`;
+        return `✅ 检查完成！\n已检查: ${result.checked || 0} 张\n本次发现变化: ${result.updated || 0} 张\n当前待处理: ${result.pending || 0} 张\n本次无新变化: ${result.unchanged || 0} 张\n跳过: ${result.skipped || 0} 张\n失败: ${result.failed || 0} 张`;
+      }
+      if (mode === "source_acknowledge") {
+        return `确认完成！\n已确认无需更新: ${result.acknowledged || 0} 张\n跳过: ${result.skipped || 0} 张\n失败: ${result.failed || 0} 张`;
       }
 
       return `✅ 执行完成！\n已处理: ${result.processed || 0} 张\n移动: ${result.moves || 0} 张\n标签变更: ${result.tag_changes || 0} 次\n跳过: ${result.skipped || 0} 张\n失败: ${result.failed || 0} 张`;
@@ -467,6 +471,32 @@ export default function header() {
         }
       } catch (error) {
         this.$store.global.showToast(`❌ ${error?.message || "批量检查失败"}`, 3600);
+      }
+    },
+
+    async acknowledgeSelectedSourceUpdates() {
+      if (this.currentMode !== "cards" || this.selectedIds.length === 0) return;
+      if (isBatchOperationRunning()) {
+        this.$store.global.showToast("已有批量操作正在进行", 2400);
+        return;
+      }
+
+      const ids = [...this.selectedIds];
+      if (!confirm(`确认将选中卡片中已有的待处理更新标记为“无需更新”吗？\n\n只处理已显示“有更新”的角色卡；不会修改任何角色卡文件。`)) {
+        return;
+      }
+
+      try {
+        const result = await runSourceUpdateAcknowledgeBatch({
+          targetPayload: { card_ids: ids },
+          title: "确认待处理更新无需处理",
+        });
+        if (result?.selected) {
+          alert(`${this.formatBatchResult(result, "source_acknowledge")}${result.cancelled ? "\n\n已停止后续处理。" : ""}`);
+          window.dispatchEvent(new CustomEvent("refresh-card-list"));
+        }
+      } catch (error) {
+        this.$store.global.showToast(`❌ ${error?.message || "批量确认失败"}`, 3600);
       }
     },
 

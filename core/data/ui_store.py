@@ -26,6 +26,12 @@ WORLDINFO_NOTES_KEY = '_worldinfo_notes_v1'
 BEAUTIFY_LIBRARY_KEY = '_beautify_library_v1'
 SHARED_WALLPAPER_LIBRARY_KEY = '_shared_wallpaper_library_v1'
 SOURCE_UPDATE_KEY = '_source_update_v1'
+SOURCE_UPDATE_PENDING_STATUSES = frozenset({
+    'first_check_updated',
+    'updated',
+    'title_changed',
+    'title_and_content_updated',
+})
 
 DEFAULT_TAG_CATEGORY = '未分类'
 DEFAULT_TAG_CATEGORY_COLOR = '#64748b'
@@ -1212,6 +1218,23 @@ def _normalize_source_update_state(raw):
     else:
         baseline_established = bool(baseline_raw)
 
+    # 兼容旧状态：升级前只有 last_status 表示“有更新”，首次读取时自动锁存为待处理。
+    pending_raw = source.get('pending_update', status in SOURCE_UPDATE_PENDING_STATUSES)
+    if isinstance(pending_raw, str):
+        pending_update = pending_raw.strip().lower() not in {'', '0', 'false', 'no', 'off'}
+    else:
+        pending_update = bool(pending_raw)
+
+    pending_status = str(source.get('pending_status') or '').strip()
+    if pending_status not in SOURCE_UPDATE_PENDING_STATUSES:
+        pending_status = status if pending_update and status in SOURCE_UPDATE_PENDING_STATUSES else ''
+    pending_since = _normalize_timestamp(source.get('pending_since'))
+    if pending_update and pending_since is None:
+        pending_since = checked_at
+    if not pending_update:
+        pending_status = ''
+        pending_since = None
+
     return {
         'source_url': source_url,
         'source_title': title,
@@ -1219,6 +1242,9 @@ def _normalize_source_update_state(raw):
         'first_message_timestamp': message_at,
         'first_message_revision_at': revision_at,
         'baseline_established': baseline_established,
+        'pending_update': pending_update,
+        'pending_status': pending_status,
+        'pending_since': pending_since,
         'last_checked_at': checked_at,
         'last_status': status,
         'last_error': error,
@@ -1263,6 +1289,9 @@ def reset_source_update_state(ui_data, ui_key, source_url='', status='never_chec
         'first_message_timestamp': None,
         'first_message_revision_at': None,
         'baseline_established': False,
+        'pending_update': False,
+        'pending_status': '',
+        'pending_since': None,
         'last_checked_at': None,
         'last_status': status,
         'last_error': error,
@@ -1287,6 +1316,9 @@ def save_source_title_state(ui_data, ui_key, title, source_url=None, reset_basel
         next_state['first_message_timestamp'] = None
         next_state['first_message_revision_at'] = None
         next_state['baseline_established'] = False
+        next_state['pending_update'] = False
+        next_state['pending_status'] = ''
+        next_state['pending_since'] = None
         next_state['last_checked_at'] = None
         next_state['last_status'] = 'title_synced'
         next_state['last_error'] = ''

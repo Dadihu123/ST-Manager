@@ -2443,15 +2443,20 @@
                         <div class="detail-manage-helper">
                           文件覆盖和 URL 更新会共用这个策略。
                         </div>
-                        <label class="detail-source-title-sync-toggle">
-                          <input
-                            type="checkbox"
-                            x-model="syncSourceTitleOnUpdate"
-                          />
-                           <span>更新后刷新来源标题与首帖基线</span>
-                        </label>
-                        <div class="detail-manage-helper">
-                           仅在实际文件、URL 更新或覆盖导入成功后执行；保存链接本身不会检查。不会修改角色卡名称。
+                        <div
+                          x-show="canCheckSourceUpdate()"
+                          class="detail-source-title-sync-options"
+                        >
+                          <label class="detail-source-title-sync-toggle">
+                            <input
+                              type="checkbox"
+                              x-model="syncSourceTitleOnUpdate"
+                            />
+                            <span>更新后刷新来源标题与首帖基线</span>
+                          </label>
+                          <div class="detail-manage-helper">
+                            仅在实际文件、URL 更新或覆盖导入成功后执行；保存链接本身不会检查。不会修改角色卡名称。
+                          </div>
                         </div>
                       </div>
 
@@ -2459,11 +2464,20 @@
                         <button
                           x-show="canCheckSourceUpdate()"
                           @click="checkSourceUpdate()"
-                          :disabled="sourceUpdateChecking"
+                          :disabled="sourceUpdateChecking || sourceUpdateAcknowledging"
                           class="btn-secondary detail-manage-action-btn detail-source-update-action"
                         >
                           <span x-show="!sourceUpdateChecking">↻ 检查来源更新</span>
                           <span x-show="sourceUpdateChecking">⏳ 检查中...</span>
+                        </button>
+                        <button
+                          x-show="hasPendingSourceUpdate()"
+                          @click="acknowledgeSourceUpdate()"
+                          :disabled="sourceUpdateChecking || sourceUpdateAcknowledging"
+                          class="btn-secondary detail-manage-action-btn detail-source-acknowledge-action"
+                        >
+                          <span x-show="!sourceUpdateAcknowledging">✓ 确认无需更新</span>
+                          <span x-show="sourceUpdateAcknowledging">处理中...</span>
                         </button>
                         <button
                           @click="triggerUrlUpdate()"
@@ -2500,9 +2514,9 @@
                         </button>
                       </div>
                       <div
-                        x-show="canCheckSourceUpdate() && activeCard.source_update?.last_status"
+                        x-show="canCheckSourceUpdate() && (activeCard.source_update?.last_status || hasPendingSourceUpdate())"
                         class="detail-source-update-state"
-                        :class="activeCard.source_update?.last_status"
+                        :class="getSourceUpdateStateClass()"
                       >
                         <span x-text="getSourceUpdateLabel()"></span>
                         <span

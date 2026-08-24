@@ -75,6 +75,7 @@ def test_source_update_batch_continues_after_failure_and_skips_unsupported(monke
                 'supported': True,
                 'status': 'updated',
                 'changed': True,
+                'source_update': {'pending_update': True},
                 'message': '有更新',
             }
         if card_id.endswith('/b.png'):
@@ -101,6 +102,7 @@ def test_source_update_batch_continues_after_failure_and_skips_unsupported(monke
     assert payload['selected'] == 3
     assert payload['checked'] == 1
     assert payload['updated'] == 1
+    assert payload['pending'] == 1
     assert payload['skipped'] == 1
     assert payload['failed'] == 1
     assert [item['card_id'] for item in payload['details']] == [
@@ -108,3 +110,58 @@ def test_source_update_batch_continues_after_failure_and_skips_unsupported(monke
         'folder/b.png',
         'folder/c.png',
     ]
+
+
+def test_source_update_targets_can_freeze_only_pending_cards(monkeypatch):
+    connection = _Connection([
+        ('folder/a.png',),
+        ('folder/b.png',),
+        ('folder/c.png',),
+    ])
+    monkeypatch.setattr(cards_api, 'get_db', lambda: connection)
+    monkeypatch.setattr(cards_api, 'load_ui_data', lambda: {'loaded': True})
+    monkeypatch.setattr(cards_api, '_safe_source_update_ui_key', lambda card_id: card_id)
+    monkeypatch.setattr(
+        cards_api,
+        'get_source_update_state',
+        lambda _data, card_id: {'pending_update': card_id in {'folder/a.png', 'folder/c.png'}},
+    )
+
+    app = Flask(__name__)
+    app.register_blueprint(cards_api.bp)
+    response = app.test_client().post(
+        '/api/cards/source_update/targets',
+        json={'category': 'folder', 'recursive': True, 'pending_only': True},
+    )
+
+    assert response.status_code == 200
+    assert response.get_json() == {
+        'success': True,
+        'selected': 2,
+        'card_ids': ['folder/a.png', 'folder/c.png'],
+    }
+
+
+def test_source_update_acknowledge_endpoint_returns_service_result(monkeypatch):
+    monkeypatch.setattr(
+        cards_api,
+        'acknowledge_card_source_update',
+        lambda card_id: {
+            'success': True,
+            'status': 'acknowledged',
+            'acknowledged': True,
+            'card_id': card_id,
+            'source_update': {'pending_update': False},
+        },
+    )
+
+    app = Flask(__name__)
+    app.register_blueprint(cards_api.bp)
+    response = app.test_client().post(
+        '/api/cards/source_update/acknowledge',
+        json={'card_id': 'folder/a.png'},
+    )
+
+    assert response.status_code == 200
+    assert response.get_json()['acknowledged'] is True
+    assert response.get_json()['source_update']['pending_update'] is False

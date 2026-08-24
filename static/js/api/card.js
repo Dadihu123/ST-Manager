@@ -56,6 +56,16 @@ export async function checkCardSourceUpdate(cardId) {
     return res.json();
 }
 
+// 确认当前已检测到的来源版本无需处理
+export async function acknowledgeCardSourceUpdate(cardId) {
+    const res = await fetch('/api/cards/source_update/acknowledge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ card_id: cardId })
+    });
+    return res.json();
+}
+
 export async function getSourceUpdateTargets(payload = {}) {
     const res = await fetch('/api/cards/source_update/targets', {
         method: 'POST',

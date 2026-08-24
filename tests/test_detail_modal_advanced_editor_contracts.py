@@ -200,6 +200,47 @@ def test_detail_modal_formats_source_update_times_with_explicit_empty_states():
     )
 
 
+def test_detail_modal_keeps_pending_update_primary_after_later_check_results():
+    run_detail_modal_runtime_check(
+        """
+        modal.activeCard = {
+          source_update: {
+            pending_update: true,
+            pending_status: 'updated',
+            last_status: 'unchanged',
+          },
+        };
+        if (modal.hasPendingSourceUpdate() !== true) {
+          throw new Error('expected pending update to stay latched');
+        }
+        if (modal.getSourceUpdateStateClass() !== 'pending_update') {
+          throw new Error('expected pending state to override the latest check class');
+        }
+        if (!modal.getSourceUpdateLabel().includes('仍有尚未处理') &&
+            !modal.getSourceUpdateLabel().includes('有尚未处理')) {
+          throw new Error(`unexpected pending label: ${modal.getSourceUpdateLabel()}`);
+        }
+
+        modal.activeCard.source_update = {
+          pending_update: true,
+          pending_status: 'updated',
+          last_status: 'error',
+        };
+        if (!modal.getSourceUpdateLabel().includes('检查失败')) {
+          throw new Error('expected the secondary check failure to be explained');
+        }
+
+        modal.activeCard.source_update = {
+          pending_update: false,
+          last_status: 'acknowledged',
+        };
+        if (modal.hasPendingSourceUpdate() !== false) {
+          throw new Error('expected acknowledged update to clear the pending state');
+        }
+        """
+    )
+
+
 def test_detail_template_uses_trimmed_visibility_for_empty_readonly_text_cards():
     template = (PROJECT_ROOT / 'templates/modals/detail_card.html').read_text(encoding='utf-8')
 

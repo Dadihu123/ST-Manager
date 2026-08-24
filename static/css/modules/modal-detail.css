@@ -1770,6 +1770,12 @@ html.light-mode .skin-gallery-folder-symbol {
   cursor: pointer;
 }
 
+.detail-source-title-sync-options {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
 .detail-source-title-sync-toggle input {
   accent-color: var(--accent-main);
 }
@@ -1964,6 +1970,11 @@ html.light-mode .skin-gallery-folder-symbol {
   color: #fde68a;
 }
 
+.detail-source-acknowledge-action {
+  border-color: color-mix(in srgb, var(--accent-main), transparent 48%);
+  color: var(--accent-main);
+}
+
 .detail-source-update-state {
   display: flex;
   flex-direction: column;
@@ -1978,7 +1989,8 @@ html.light-mode .skin-gallery-folder-symbol {
 .detail-source-update-state.first_check_updated,
 .detail-source-update-state.updated,
 .detail-source-update-state.title_changed,
-.detail-source-update-state.title_and_content_updated {
+.detail-source-update-state.title_and_content_updated,
+.detail-source-update-state.pending_update {
   border-left-color: #f87171;
   color: #fecaca;
 }
@@ -2021,6 +2033,12 @@ html.light-mode .skin-gallery-folder-symbol {
 
 .detail-manage-action-btn:hover {
   transform: translateY(-1px);
+}
+
+.detail-manage-action-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  transform: none;
 }
 
 .detail-manage-action-btn:active,

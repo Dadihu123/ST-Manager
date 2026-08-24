@@ -221,7 +221,7 @@ export default function contextMenu() {
                     title: `检查分类来源更新：${folderName}`,
                 });
                 if (result?.selected) {
-                    alert(`✅ 检查完成！\n已处理: ${result.checked || 0} 张\n有更新: ${result.updated || 0} 张\n未变化: ${result.unchanged || 0} 张\n跳过: ${result.skipped || 0} 张\n失败: ${result.failed || 0} 张${result.cancelled ? "\n\n已停止后续处理。" : ""}`);
+                    alert(`✅ 检查完成！\n已检查: ${result.checked || 0} 张\n本次发现变化: ${result.updated || 0} 张\n当前待处理: ${result.pending || 0} 张\n本次无新变化: ${result.unchanged || 0} 张\n跳过: ${result.skipped || 0} 张\n失败: ${result.failed || 0} 张${result.cancelled ? "\n\n已停止后续处理。" : ""}`);
                     window.dispatchEvent(new CustomEvent('refresh-card-list'));
                 }
             } catch (error) {

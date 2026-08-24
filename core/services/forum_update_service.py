@@ -13,6 +13,7 @@ import requests
 from core.config import CARDS_FOLDER, load_config
 from core.context import ctx
 from core.data.ui_store import (
+    SOURCE_UPDATE_PENDING_STATUSES,
     get_source_update_state,
     load_ui_data,
     reset_source_update_state,
@@ -407,12 +408,14 @@ def _status_message(status, detail=''):
         'baseline_established': '已建立基线，下一次才能判断',
         'title_synced': '来源标题已同步，尚未建立检查基线',
         'baseline_refreshed': '角色卡更新后，已刷新来源标题和首帖时间基线',
-        'first_check_updated': '首次检查发现来源首帖晚于本地卡片，角色卡已更新',
+        'first_check_updated': '首次检查发现来源首帖晚于本地角色卡，已标记为待处理更新',
         'updated': '检测到来源帖子已更新',
         'title_changed': '检测到来源标题已变化',
         'title_and_content_updated': '检测到来源标题和首帖编辑时间都已变化',
         'unchanged': '来源标题和首帖编辑时间均未变化',
         'first_message_unavailable': '无法取得首帖编辑时间，只能检查标题',
+        'acknowledged': '已确认当前来源更新无需处理',
+        'not_pending': '当前没有待处理的来源更新',
         'error': '检查来源失败',
     }.get(status, status)
     if status == 'first_message_unavailable' and detail:
@@ -628,6 +631,21 @@ def check_card_source_update(card_id, source_link=None, *, ui_data=None, timeout
         })
         warnings.append(next_state['last_error'])
 
+    detected_change = bool(remote_newer_than_local or title_changed or content_changed)
+    was_pending = bool(state.get('pending_update'))
+    next_state['pending_update'] = bool(was_pending or detected_change)
+    if detected_change:
+        next_state['pending_status'] = (
+            status if status in SOURCE_UPDATE_PENDING_STATUSES else state.get('pending_status', '')
+        )
+        next_state['pending_since'] = state.get('pending_since') if was_pending else checked_at
+    elif was_pending:
+        next_state['pending_status'] = state.get('pending_status', '')
+        next_state['pending_since'] = state.get('pending_since')
+    else:
+        next_state['pending_status'] = ''
+        next_state['pending_since'] = None
+
     changed, normalized_state = set_source_update_state(data, ui_key, next_state)
     if changed:
         save_ui_data(data)
@@ -635,13 +653,20 @@ def check_card_source_update(card_id, source_link=None, *, ui_data=None, timeout
         card['source_title'] = normalized_state['source_title']
         card['source_update'] = normalized_state
 
+    message = _status_message(status, warnings[0] if warnings else '')
+    if normalized_state['pending_update'] and not detected_change:
+        if status == 'unchanged':
+            message = '来源暂无后续变化，仍有待处理更新'
+        elif status == 'first_message_unavailable':
+            message = f'{message}；原有待处理更新已保留'
+
     return {
         'success': True,
         'supported': True,
         'status': status,
-        'message': _status_message(status, warnings[0] if warnings else ''),
+        'message': message,
         'card_id': card_id,
-        'changed': bool(remote_newer_than_local or title_changed or content_changed),
+        'changed': detected_change,
         'first_check': first_check,
         'baseline_established': normalized_state['baseline_established'],
         'title_changed': title_changed,
@@ -652,6 +677,59 @@ def check_card_source_update(card_id, source_link=None, *, ui_data=None, timeout
         'source_update': normalized_state,
         'warnings': warnings,
         'checked_at': checked_at,
+    }
+
+
+def acknowledge_card_source_update(card_id, *, ui_data=None):
+    """确认当前已检测到的来源版本无需处理，并保留它作为后续检查基线。"""
+    card, ui_key, link, data = _resolve_card_and_source(card_id, ui_data=ui_data)
+    if not card:
+        return {'success': False, 'status': 'error', 'error': '找不到角色卡', 'card_id': card_id}
+    if not ui_key:
+        return {'success': False, 'status': 'error', 'error': '无法定位卡片 UI 数据', 'card_id': card_id}
+
+    state = _state_for_card(data, ui_key)
+    if not state.get('pending_update'):
+        return {
+            'success': True,
+            'supported': bool(link and _parse_discord_parts(link)),
+            'status': 'not_pending',
+            'acknowledged': False,
+            'message': _status_message('not_pending'),
+            'card_id': card_id,
+            'source_update': state,
+        }
+
+    next_state = dict(state)
+    next_state.update({
+        'pending_update': False,
+        'pending_status': '',
+        'pending_since': None,
+        'last_status': 'acknowledged',
+        'last_error': '',
+    })
+    changed, normalized_state = set_source_update_state(data, ui_key, next_state)
+    if changed and not save_ui_data(data):
+        return {
+            'success': False,
+            'status': 'error',
+            'error': '保存来源更新状态失败',
+            'card_id': card_id,
+            'source_update': state,
+        }
+
+    if isinstance(card, dict):
+        card['source_update'] = normalized_state
+        card['source_title'] = normalized_state['source_title']
+
+    return {
+        'success': True,
+        'supported': bool(link and _parse_discord_parts(link)),
+        'status': 'acknowledged',
+        'acknowledged': True,
+        'message': _status_message('acknowledged'),
+        'card_id': card_id,
+        'source_update': normalized_state,
     }
 
 
@@ -749,6 +827,9 @@ def refresh_card_source_baseline(card_id, source_link=None, *, ui_data=None,
         'first_message_timestamp': source.get('first_message_timestamp_epoch'),
         'first_message_revision_at': current_revision,
         'baseline_established': True,
+        'pending_update': False,
+        'pending_status': '',
+        'pending_since': None,
         'last_checked_at': refreshed_at,
         'last_status': 'baseline_refreshed',
         'last_error': '',

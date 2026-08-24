@@ -71,6 +71,7 @@ from core.services.wi_entry_history_service import (
     append_entry_history_records
 )
 from core.services.forum_update_service import (
+    acknowledge_card_source_update,
     check_card_source_update,
     prepare_source_link_for_card,
     refresh_card_source_baseline,
@@ -3731,8 +3732,20 @@ def _source_update_batch_item(card_id, result):
         'supported': bool(result.get('supported')),
         'status': result.get('status', 'error'),
         'changed': bool(result.get('changed')),
+        'pending': bool((result.get('source_update') or {}).get('pending_update')),
         'message': result.get('message') or result.get('error') or result.get('msg', ''),
     }
+
+
+def _filter_pending_source_update_ids(card_ids, ui_data=None):
+    """仅保留存在待处理来源更新的卡片，顺序与冻结目标保持一致。"""
+    data = ui_data if isinstance(ui_data, dict) else load_ui_data()
+    pending_ids = []
+    for card_id in card_ids:
+        ui_key = _safe_source_update_ui_key(card_id)
+        if get_source_update_state(data, ui_key).get('pending_update'):
+            pending_ids.append(card_id)
+    return pending_ids
 
 
 @bp.route('/api/cards/source_update/targets', methods=['POST'])
@@ -3741,6 +3754,8 @@ def api_source_update_targets():
     try:
         payload = request.get_json(silent=True) or {}
         card_ids = _resolve_source_update_target_ids(payload)
+        if payload.get('pending_only') is True:
+            card_ids = _filter_pending_source_update_ids(card_ids)
         return jsonify({'success': True, 'selected': len(card_ids), 'card_ids': card_ids})
     except Exception as exc:
         logger.error('解析来源检查目标失败: %s', exc)
@@ -3757,6 +3772,7 @@ def api_check_cards_source_update():
         items = []
         checked = 0
         updated = 0
+        pending = 0
         unchanged = 0
         skipped = 0
         failed = 0
@@ -3783,6 +3799,8 @@ def api_check_cards_source_update():
 
             item = _source_update_batch_item(card_id, result)
             items.append(item)
+            if item['pending']:
+                pending += 1
             if not result.get('success'):
                 failed += 1
             elif not result.get('supported'):
@@ -3799,6 +3817,7 @@ def api_check_cards_source_update():
             'selected': len(card_ids),
             'checked': checked,
             'updated': updated,
+            'pending': pending,
             'unchanged': unchanged,
             'skipped': skipped,
             'failed': failed,
@@ -3829,6 +3848,24 @@ def api_check_card_source_update():
     except Exception as exc:
         logger.error('检查卡片来源更新失败: %s', exc)
         return jsonify({'success': False, 'status': 'error', 'msg': '检查来源失败'}), 500
+
+
+@bp.route('/api/cards/source_update/acknowledge', methods=['POST'])
+def api_acknowledge_card_source_update():
+    """确认一张角色卡当前已检测到的来源更新无需处理。"""
+    try:
+        payload = request.get_json(silent=True) or {}
+        card_id = payload.get('card_id') or payload.get('id')
+        if not card_id:
+            return jsonify({'success': False, 'msg': 'Missing card_id'}), 400
+        if not _is_safe_rel_path(card_id):
+            return jsonify({'success': False, 'msg': '非法路径'}), 400
+
+        return jsonify(acknowledge_card_source_update(card_id))
+    except Exception as exc:
+        logger.error('确认来源更新无需处理失败: %s', exc)
+        return jsonify({'success': False, 'status': 'error', 'msg': '保存来源更新状态失败'}), 500
+
 
 @bp.route('/api/delete_tags', methods=['POST'])
 def api_delete_tags():

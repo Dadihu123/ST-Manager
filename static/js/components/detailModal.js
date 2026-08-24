@@ -12,6 +12,7 @@ import {
     changeCardImage,
     getCardMetadata,
     sendToSillyTavern,
+    acknowledgeCardSourceUpdate,
     checkCardSourceUpdate,
     setAsBundleCover as apiSetAsBundleCover,
     convertToBundle as apiConvertToBundle,
@@ -69,6 +70,7 @@ export default function detailModal() {
         updateImagePolicy: 'overwrite', // 默认策略
         syncSourceTitleOnUpdate: true,
         sourceUpdateChecking: false,
+        sourceUpdateAcknowledging: false,
         saveOldCoverOnSwap: false,      // 皮肤换封时是否保留旧图
         dragOverUpdate: false,
         dragOverResource: false,
@@ -1091,6 +1093,7 @@ export default function detailModal() {
                     this.updateImagePolicy = 'overwrite';
                     this.syncSourceTitleOnUpdate = this.$store?.global?.settingsForm?.sync_source_title_on_update !== false;
                     this.sourceUpdateChecking = false;
+                    this.sourceUpdateAcknowledging = false;
                     this.saveOldCoverOnSwap = false;
                     this.isEditMode = false; // 重置编辑模式
                     this.showTagLibrary = true;
@@ -2863,37 +2866,69 @@ export default function detailModal() {
         },
 
         canCheckSourceUpdate() {
-            return canPreviewForumThread(this.editingData?.source_link || this.activeCard?.source_link || '');
+            return canPreviewForumThread(this.editingData?.source_link ?? this.activeCard?.source_link ?? '');
+        },
+
+        hasPendingSourceUpdate() {
+            const sourceUpdate = this.activeCard?.source_update;
+            if (!sourceUpdate || typeof sourceUpdate !== 'object') return false;
+            if (Object.prototype.hasOwnProperty.call(sourceUpdate, 'pending_update')) {
+                return sourceUpdate.pending_update === true;
+            }
+            return ['updated', 'title_changed', 'title_and_content_updated', 'first_check_updated']
+                .includes(sourceUpdate.last_status);
+        },
+
+        getSourceUpdateStateClass() {
+            if (this.hasPendingSourceUpdate()) return 'pending_update';
+            return this.activeCard?.source_update?.last_status || 'never_checked';
         },
 
         getSourceUpdateLabel() {
             const status = this.activeCard?.source_update?.last_status || 'never_checked';
+            if (this.hasPendingSourceUpdate()) {
+                if (status === 'error') return '有尚未处理的来源更新；上次检查失败';
+                if (status === 'first_message_unavailable') {
+                    return '有尚未处理的来源更新；无法取得首帖编辑时间';
+                }
+                if (status === 'unchanged') return '有尚未处理的来源更新；来源暂无后续变化';
+                return {
+                    first_check_updated: '首次检查发现来源首帖晚于本地卡片，尚未处理',
+                    updated: '检测到来源首帖更新，尚未处理',
+                    title_changed: '检测到来源标题变化，尚未处理',
+                    title_and_content_updated: '检测到来源标题和首帖变化，尚未处理',
+                }[status] || '有尚未处理的来源更新';
+            }
             return {
                 title_synced: '来源标题已同步，尚未建立检查基线',
                 baseline_established: '已建立基线，下一次才能判断',
                 baseline_refreshed: '角色卡更新后，来源标题和首帖基线已刷新',
-                first_check_updated: '首次检查：来源首帖晚于本地卡片，角色卡已更新',
+                first_check_updated: '首次检查发现来源首帖晚于本地角色卡，已标记为待处理更新',
                 updated: '检测到来源首帖已更新',
                 title_changed: '检测到来源标题已变化',
                 title_and_content_updated: '检测到来源标题和首帖都已变化',
                 unchanged: '来源未变化',
                 first_message_unavailable: '无法取得首帖编辑时间',
+                acknowledged: '已确认当前来源更新无需处理',
                 error: '上次检查失败',
             }[status] || '尚未检查来源';
         },
 
+        applySourceUpdateResult(result) {
+            if (!result?.source_update) return;
+            this.activeCard.source_update = result.source_update;
+            this.activeCard.source_title = result.source_update.source_title || '';
+            this.editingData.source_update = result.source_update;
+            this.editingData.source_title = result.source_update.source_title || '';
+            window.dispatchEvent(new CustomEvent('card-updated', { detail: this.activeCard }));
+        },
+
         async checkSourceUpdate() {
-            if (!this.canCheckSourceUpdate() || this.sourceUpdateChecking) return;
+            if (!this.canCheckSourceUpdate() || this.sourceUpdateChecking || this.sourceUpdateAcknowledging) return;
             this.sourceUpdateChecking = true;
             try {
                 const result = await checkCardSourceUpdate(this.activeCard.id);
-                if (result?.source_update) {
-                    this.activeCard.source_update = result.source_update;
-                    this.activeCard.source_title = result.source_update.source_title || '';
-                    this.editingData.source_update = result.source_update;
-                    this.editingData.source_title = result.source_update.source_title || '';
-                    window.dispatchEvent(new CustomEvent('card-updated', { detail: this.activeCard }));
-                }
+                this.applySourceUpdateResult(result);
                 if (result?.success) {
                     this.$store.global.showToast(result.message || this.getSourceUpdateLabel(), 3200);
                 } else {
@@ -2903,6 +2938,28 @@ export default function detailModal() {
                 this.$store.global.showToast(`❌ ${error?.message || '检查来源失败'}`, 3200);
             } finally {
                 this.sourceUpdateChecking = false;
+            }
+        },
+
+        async acknowledgeSourceUpdate() {
+            if (!this.hasPendingSourceUpdate() || this.sourceUpdateChecking || this.sourceUpdateAcknowledging) return;
+            if (!confirm('确认当前已检测到的来源更新无需处理吗？\n\n不会修改角色卡文件；以后只提示该版本之后的新变化。')) {
+                return;
+            }
+
+            this.sourceUpdateAcknowledging = true;
+            try {
+                const result = await acknowledgeCardSourceUpdate(this.activeCard.id);
+                this.applySourceUpdateResult(result);
+                if (result?.success) {
+                    this.$store.global.showToast(result.message || '已确认无需更新', 3200);
+                } else {
+                    this.$store.global.showToast(`❌ ${result?.error || result?.msg || '确认状态失败'}`, 3200);
+                }
+            } catch (error) {
+                this.$store.global.showToast(`❌ ${error?.message || '确认状态失败'}`, 3200);
+            } finally {
+                this.sourceUpdateAcknowledging = false;
             }
         },
 
