@@ -15,7 +15,12 @@ from core.data.chat_store import (
     save_chat_data,
 )
 from core.data.ui_store import load_ui_data, save_ui_data
+from core.services.card_binding_service import (
+    ensure_card_ui_uid,
+    reconcile_stale_card_bindings,
+)
 from core.services.card_service import resolve_ui_key
+from core.utils.card_identity import normalize_card_uid
 from core.utils.chat_parser import (
     build_chat_stats,
     build_chat_stats_from_index,
@@ -137,39 +142,76 @@ def _chat_special_ui_key(key: str) -> bool:
     return str(key or '').startswith('_')
 
 
+def _current_card_ui_keys():
+    identities = _current_card_ui_identities()
+    return None if identities is None else set(identities)
+
+
+def _current_card_ui_identities():
+    cache = ctx.cache
+    if cache is None or not getattr(cache, 'initialized', True):
+        return None
+
+    identities = {}
+    for card_id in getattr(cache, 'id_map', {}) or {}:
+        cache_item = cache.id_map.get(card_id) or {}
+        try:
+            ui_key = resolve_ui_key(card_id)
+        except Exception:
+            ui_key = card_id
+        if ui_key:
+            normalized_key = str(ui_key).replace('\\', '/').strip('/')
+            identities[normalized_key] = normalize_card_uid(cache_item.get('card_uid'))
+
+    for bundle_dir in getattr(cache, 'bundle_map', {}) or {}:
+        if bundle_dir:
+            normalized_key = str(bundle_dir).replace('\\', '/').strip('/')
+            if normalized_key not in identities:
+                real_card_id = cache.bundle_map.get(bundle_dir)
+                cache_item = cache.id_map.get(real_card_id) or {}
+                identities[normalized_key] = normalize_card_uid(cache_item.get('card_uid'))
+    return identities
+
+
 def _resolve_card_entry(card_id: str):
     if not card_id:
         return None
 
-    cache_item = ctx.cache.id_map.get(card_id)
+    cache = ctx.cache
+    if cache is None:
+        return None
+
+    cache_item = cache.id_map.get(card_id)
     if cache_item:
-        return {
+        resolved = {
             'ui_key': resolve_ui_key(card_id),
             'card_id': card_id,
             'card_name': cache_item.get('char_name') or os.path.basename(card_id),
             'category': cache_item.get('category', ''),
             'is_bundle': bool(cache_item.get('is_bundle')),
         }
+        card_uid = normalize_card_uid(cache_item.get('card_uid'))
+        if card_uid:
+            resolved['card_uid'] = card_uid
+        return resolved
 
-    if card_id in ctx.cache.bundle_map:
-        real_card_id = ctx.cache.bundle_map.get(card_id)
-        cache_item = ctx.cache.id_map.get(real_card_id)
+    if card_id in cache.bundle_map:
+        real_card_id = cache.bundle_map.get(card_id)
+        cache_item = cache.id_map.get(real_card_id)
         if cache_item:
-            return {
+            resolved = {
                 'ui_key': card_id,
                 'card_id': real_card_id,
                 'card_name': cache_item.get('char_name') or os.path.basename(real_card_id),
                 'category': cache_item.get('category', ''),
                 'is_bundle': bool(cache_item.get('is_bundle')),
             }
+            card_uid = normalize_card_uid(cache_item.get('card_uid'))
+            if card_uid:
+                resolved['card_uid'] = card_uid
+            return resolved
 
-    return {
-        'ui_key': resolve_ui_key(card_id),
-        'card_id': card_id,
-        'card_name': os.path.basename(card_id),
-        'category': '',
-        'is_bundle': False,
-    }
+    return None
 
 
 def _build_binding_info(ui_data: dict, chat_id: str):
@@ -217,6 +259,19 @@ def _remove_chat_from_bindings(ui_data: dict, chat_id: str, card_id: str = None)
         if _set_ui_chat_list(value, next_ids):
             changed = True
 
+    if not only_ui_key:
+        stale_store = ui_data.get('_stale_card_bindings_v1')
+        if isinstance(stale_store, dict):
+            for record in stale_store.values():
+                if not isinstance(record, dict):
+                    continue
+                current = [
+                    item for item in _ensure_ui_chat_list(record)
+                    if item != target
+                ]
+                if _set_ui_chat_list(record, current):
+                    changed = True
+
     return changed
 
 
@@ -236,10 +291,17 @@ def _bind_chat_to_card(ui_data: dict, chat_id: str, card_id: str):
         ui_data[ui_key] = {}
         changed = True
 
-    current = _ensure_ui_chat_list(ui_data[ui_key])
+    entry = ui_data[ui_key]
+    resolved_uid = normalize_card_uid(resolved.get('card_uid'))
+    previous_uid = normalize_card_uid(entry.get('card_uid'))
+    next_uid = ensure_card_ui_uid(entry, resolved_uid or previous_uid)
+    if previous_uid != next_uid:
+        changed = True
+
+    current = _ensure_ui_chat_list(entry)
     if target not in current:
         current.append(target)
-        if _set_ui_chat_list(ui_data[ui_key], current):
+        if _set_ui_chat_list(entry, current):
             changed = True
 
     return changed, _build_binding_info(ui_data, target)
@@ -325,6 +387,25 @@ def _rename_chat_in_bindings(ui_data: dict, old_chat_id: str, new_chat_id: str):
 
         if _set_ui_chat_list(value, next_ids):
             changed = True
+
+    stale_store = ui_data.get('_stale_card_bindings_v1')
+    if isinstance(stale_store, dict):
+        for record in stale_store.values():
+            if not isinstance(record, dict):
+                continue
+            current = _ensure_ui_chat_list(record)
+            if old_target not in current:
+                continue
+            next_ids = []
+            seen = set()
+            for item in current:
+                candidate = new_target if item == old_target else item
+                if not candidate or candidate in seen:
+                    continue
+                seen.add(candidate)
+                next_ids.append(candidate)
+            if _set_ui_chat_list(record, next_ids):
+                changed = True
 
     return changed
 
@@ -577,6 +658,15 @@ def api_list_chats():
 
         chat_data = load_chat_data()
         ui_data = load_ui_data()
+        card_identities = _current_card_ui_identities()
+        valid_card_ui_keys = None if card_identities is None else set(card_identities)
+        ui_changed = False
+        if valid_card_ui_keys is not None:
+            ui_changed = reconcile_stale_card_bindings(
+                ui_data,
+                valid_card_ui_keys,
+                card_uid_by_ui_key=card_identities,
+            )
 
         found_chat_ids = []
         items = []
@@ -613,8 +703,13 @@ def api_list_chats():
 
             items.append(item)
 
-        missing_chat_changed, ui_changed = _cleanup_missing_chats(chat_data, ui_data, found_chat_ids)
+        missing_chat_changed, missing_ui_changed = _cleanup_missing_chats(
+            chat_data,
+            ui_data,
+            found_chat_ids,
+        )
         chat_changed = chat_changed or missing_chat_changed
+        ui_changed = ui_changed or missing_ui_changed
 
         if chat_changed:
             save_chat_data(chat_data)

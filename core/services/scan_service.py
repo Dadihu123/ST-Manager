@@ -8,15 +8,19 @@ import logging
 # === 基础设施 ===
 from core.config import BASE_DIR, CARDS_FOLDER, DEFAULT_DB_PATH, current_config, load_config
 from core.context import ctx
+from core.data.ui_store import load_ui_data, save_ui_data
 
 # === 业务逻辑引用 ===
+from core.services.card_binding_service import rename_card_ui_references
 from core.services.cache_service import schedule_reload
 from core.services.index_build_service import classify_worldinfo_path, resolve_resource_worldinfo_owner_card_ids
 from core.services.index_job_worker import enqueue_index_job
+from core.utils.card_identity import new_card_uid, normalize_card_uid
 
 # === 工具函数 ===
 from core.utils.filesystem import is_card_file
 from core.utils.image import extract_card_info
+from core.utils.hash import get_file_hash_and_size
 from core.utils.text import calculate_token_count
 from core.utils.data import get_wi_meta, sanitize_for_utf8
 
@@ -111,7 +115,25 @@ def _normalize_card_tags(raw_tags):
     return list(dict.fromkeys([str(tag).strip() for tag in raw_tags if str(tag).strip()]))
 
 
-def _upsert_card_metadata_row(conn, card_id, full_path, *, fallback_favorite=0):
+def _find_full_scan_rename_candidate(db_files_map, fs_found_files, full_path, file_size):
+    """Find a unique missing DB row with the same content hash and size."""
+    try:
+        file_hash, actual_size = get_file_hash_and_size(full_path)
+    except Exception:
+        return None
+    if not file_hash or actual_size != file_size:
+        return None
+
+    candidates = []
+    for old_id, info in db_files_map.items():
+        if old_id in fs_found_files or info.get('size') != file_size:
+            continue
+        if info.get('hash') and info.get('hash') == file_hash:
+            candidates.append((old_id, info))
+    return candidates[0] if len(candidates) == 1 else None
+
+
+def _upsert_card_metadata_row(conn, card_id, full_path, *, fallback_favorite=0, card_uid=None):
     try:
         st = os.stat(full_path)
     except OSError:
@@ -132,31 +154,58 @@ def _upsert_card_metadata_row(conn, card_id, full_path, *, fallback_favorite=0):
     token_count = calculate_token_count(calc_data)
     has_wi, wi_name = get_wi_meta(data_block)
 
-    conn.execute(
-        '''
-            INSERT OR REPLACE INTO card_metadata
-            (id, char_name, description, first_mes, mes_example, tags, category, creator, char_version, last_modified, file_hash, file_size, token_count, has_character_book, character_book_name, is_favorite)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''',
-        (
-            card_id,
-            char_name,
-            data_block.get('description', ''),
-            data_block.get('first_mes', ''),
-            data_block.get('mes_example', ''),
-            json.dumps(tags),
-            category,
-            data_block.get('creator', ''),
-            data_block.get('character_version', ''),
-            st.st_mtime,
-            '',
-            st.st_size,
-            token_count,
-            has_wi,
-            wi_name,
-            int(fallback_favorite or 0),
-        ),
+    if not card_uid:
+        try:
+            row = conn.execute(
+                'SELECT card_uid FROM card_metadata WHERE id = ?',
+                (card_id,),
+            ).fetchone()
+            card_uid = row[0] if row else ''
+        except sqlite3.OperationalError as exc:
+            if 'no such column' not in str(exc).lower() and 'no column named' not in str(exc).lower():
+                raise
+            card_uid = ''
+    card_uid = normalize_card_uid(card_uid) or new_card_uid()
+
+    values = (
+        card_id,
+        char_name,
+        data_block.get('description', ''),
+        data_block.get('first_mes', ''),
+        data_block.get('mes_example', ''),
+        json.dumps(tags),
+        category,
+        data_block.get('creator', ''),
+        data_block.get('character_version', ''),
+        st.st_mtime,
+        '',
+        st.st_size,
+        token_count,
+        has_wi,
+        wi_name,
+        int(fallback_favorite or 0),
+        card_uid,
     )
+    try:
+        conn.execute(
+            '''
+                INSERT OR REPLACE INTO card_metadata
+                (id, char_name, description, first_mes, mes_example, tags, category, creator, char_version, last_modified, file_hash, file_size, token_count, has_character_book, character_book_name, is_favorite, card_uid)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''',
+            values,
+        )
+    except sqlite3.OperationalError as exc:
+        if 'no such column' not in str(exc).lower() and 'no column named' not in str(exc).lower():
+            raise
+        conn.execute(
+            '''
+                INSERT OR REPLACE INTO card_metadata
+                (id, char_name, description, first_mes, mes_example, tags, category, creator, char_version, last_modified, file_hash, file_size, token_count, has_character_book, character_book_name, is_favorite)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''',
+            values[:-1],
+        )
     conn.commit()
     return True
 
@@ -223,12 +272,47 @@ def _process_card_move_task(old_card_id, new_full_path):
         except Exception:
             pass
 
-        row = conn.execute('SELECT is_favorite FROM card_metadata WHERE id = ?', (old_card_id,)).fetchone()
+        try:
+            row = conn.execute(
+                'SELECT is_favorite, card_uid FROM card_metadata WHERE id = ?',
+                (old_card_id,),
+            ).fetchone()
+            stable_uid = row[1] if row else ''
+        except sqlite3.OperationalError as exc:
+            if 'no such column' not in str(exc).lower() and 'no column named' not in str(exc).lower():
+                raise
+            row = conn.execute(
+                'SELECT is_favorite FROM card_metadata WHERE id = ?',
+                (old_card_id,),
+            ).fetchone()
+            stable_uid = ''
         favorite = int(row[0] or 0) if row else 0
         conn.execute('DELETE FROM card_metadata WHERE id = ?', (old_card_id,))
         conn.commit()
-        if not _upsert_card_metadata_row(conn, new_card_id, new_full_path, fallback_favorite=favorite):
+        if not _upsert_card_metadata_row(
+            conn,
+            new_card_id,
+            new_full_path,
+            fallback_favorite=favorite,
+            card_uid=stable_uid,
+        ):
             return False
+
+    try:
+        ui_data = load_ui_data()
+        if rename_card_ui_references(ui_data, old_card_id, new_card_id):
+            if not save_ui_data(ui_data):
+                logger.warning(
+                    '文件监控移动卡片后保存 UI 绑定失败: %s -> %s',
+                    old_card_id,
+                    new_card_id,
+                )
+    except Exception:
+        logger.exception(
+            '文件监控移动卡片后迁移 UI 绑定失败: %s -> %s',
+            old_card_id,
+            new_card_id,
+        )
 
     _enqueue_card_reconcile_jobs(
         new_card_id,
@@ -439,10 +523,20 @@ def _perform_scan_logic():
         cursor = conn.cursor()
         
         # 1. 获取数据库当前状态 (用于比对)
-        cursor.execute("""
-            SELECT id, last_modified, file_size, token_count, file_hash, is_favorite
-            FROM card_metadata
-        """)
+        try:
+            cursor.execute("""
+                SELECT id, last_modified, file_size, token_count, file_hash, is_favorite, card_uid
+                FROM card_metadata
+            """)
+            rows_include_uid = True
+        except sqlite3.OperationalError as exc:
+            if 'no such column' not in str(exc).lower():
+                raise
+            cursor.execute("""
+                SELECT id, last_modified, file_size, token_count, file_hash, is_favorite
+                FROM card_metadata
+            """)
+            rows_include_uid = False
         rows = cursor.fetchall()
         
         # 构建内存映射: id -> info
@@ -452,7 +546,8 @@ def _perform_scan_logic():
                 'size': row[2] or 0,
                 'tokens': row[3] or 0,
                 'hash': row[4] or "",
-                'fav': row[5] or 0
+                'fav': row[5] or 0,
+                'card_uid': normalize_card_uid(row[6]) if rows_include_uid and len(row) > 6 else '',
             }
             for row in rows
         }
@@ -460,6 +555,8 @@ def _perform_scan_logic():
         changed_card_paths = {}
         deleted_card_ids = set()
         fs_found_files = set()
+        ui_data = load_ui_data()
+        ui_changed = False
     
         # 2. 遍历文件系统
         scanned_dir_count = 0
@@ -498,6 +595,18 @@ def _perform_scan_logic():
                     continue
                 
                 db_info = db_files_map.get(file_id)
+                renamed_from_id = ''
+                if not db_info:
+                    candidate = _find_full_scan_rename_candidate(
+                        db_files_map,
+                        fs_found_files,
+                        full_path,
+                        current_size,
+                    )
+                    if candidate:
+                        renamed_from_id, db_info = candidate
+                        if rename_card_ui_references(ui_data, renamed_from_id, file_id):
+                            ui_changed = True
                 
                 need_update = False
                 file_changed = False
@@ -515,6 +624,10 @@ def _perform_scan_logic():
                     # 文件未变，但 token_count 缺失 -> 仅补全 token
                     elif (db_info['tokens'] is None or db_info['tokens'] == 0) and current_size > 100:
                         need_update = True
+
+                if renamed_from_id:
+                    need_update = True
+                    file_changed = True
                 
                 if need_update:
                     # 解析文件
@@ -536,18 +649,16 @@ def _perform_scan_logic():
                         token_count = calculate_token_count(calc_data)
                         has_wi, wi_name = get_wi_meta(data_block)
                         keep_fav = db_info['fav'] if db_info else 0
+                        stable_uid = normalize_card_uid(db_info.get('card_uid')) if db_info else ''
+                        stable_uid = stable_uid or new_card_uid()
 
                         # 优化：仅在文件真正变更时重置 hash，否则保留旧 hash (避免昂贵的 hash 计算)
-                        if file_changed:
+                        if file_changed and not renamed_from_id:
                             file_hash = "" # 下次读取或手动更新时再计算，此处保持为空以示脏数据
                         else:
                             file_hash = (db_info.get('hash', "") if db_info else "")
 
-                        cursor.execute('''
-                                INSERT OR REPLACE INTO card_metadata
-                                (id, char_name, description, first_mes, mes_example, tags, category, creator, char_version, last_modified, file_hash, file_size, token_count, has_character_book, character_book_name, is_favorite)
-                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                            ''', (
+                        values = (
                                 file_id, char_name,
                                 data_block.get('description', ''), 
                                 data_block.get('first_mes', ''), 
@@ -557,8 +668,22 @@ def _perform_scan_logic():
                                 data_block.get('character_version', ''),
                                 current_mtime, file_hash, current_size, 
                                 token_count, has_wi, wi_name,
-                                keep_fav
-                            ))
+                                keep_fav, stable_uid,
+                            )
+                        try:
+                            cursor.execute('''
+                                    INSERT OR REPLACE INTO card_metadata
+                                    (id, char_name, description, first_mes, mes_example, tags, category, creator, char_version, last_modified, file_hash, file_size, token_count, has_character_book, character_book_name, is_favorite, card_uid)
+                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                ''', values)
+                        except sqlite3.OperationalError as exc:
+                            if 'no such column' not in str(exc).lower() and 'no column named' not in str(exc).lower():
+                                raise
+                            cursor.execute('''
+                                    INSERT OR REPLACE INTO card_metadata
+                                    (id, char_name, description, first_mes, mes_example, tags, category, creator, char_version, last_modified, file_hash, file_size, token_count, has_character_book, character_book_name, is_favorite)
+                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                ''', values[:-1])
                         changed_card_paths[file_id] = full_path
 
         # 3. 清理已删除文件
@@ -577,6 +702,10 @@ def _perform_scan_logic():
                 deleted_path = os.path.join(cards_root, card_id.replace('/', os.sep))
                 _enqueue_card_reconcile_jobs(card_id, deleted_path, remove_owner_ids=[card_id])
 
+        if ui_changed and not save_ui_data(ui_data):
+            logger.warning('全量扫描后保存角色卡聊天绑定失败')
+
+        if changed_card_paths or deleted_card_ids:
             logger.info("Background scan detected changes. Updating cache...")
             schedule_reload(reason="background_scanner")
 

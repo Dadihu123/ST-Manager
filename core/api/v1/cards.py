@@ -48,9 +48,11 @@ from core.utils.world_info_sort import (
     sort_world_info_entries,
     sort_world_info_mapping,
 )
+from core.utils.card_identity import normalize_card_uid
 
 # === 核心服务 ===
 from core.services.scan_service import suppress_fs_events
+from core.services.card_binding_service import rename_card_ui_references
 from core.services.cache_service import schedule_reload, force_reload, update_card_cache
 from core.services.index_service import enqueue_index_job
 from core.services.card_index_sync_service import sync_card_index_jobs
@@ -1580,9 +1582,11 @@ def api_update_card():
             target_version_id = data.get('version_id', final_rel_path_id)
         else:
             ui_key = final_rel_path_id
-            if raw_id != final_rel_path_id and raw_id in ui_data:
-                ui_data[final_rel_path_id] = ui_data[raw_id]
-                del ui_data[raw_id]
+            if raw_id != final_rel_path_id and rename_card_ui_references(
+                ui_data,
+                raw_id,
+                final_rel_path_id,
+            ):
                 ui_changed = True
 
         if ui_key not in ui_data: ui_data[ui_key] = {}
@@ -1742,19 +1746,12 @@ def api_update_card():
                 logger.error(f"Failed to delete old DB record for {raw_id}: {e}")
 
         if raw_id != final_rel_path_id:
-            rename_ui_changed = False
-            old_entry = ui_data.pop(raw_id, None)
-            if isinstance(old_entry, dict):
-                if final_rel_path_id not in ui_data or not isinstance(ui_data.get(final_rel_path_id), dict):
-                    ui_data[final_rel_path_id] = old_entry
-                    rename_ui_changed = True
-                else:
-                    target_entry = ui_data[final_rel_path_id]
-                    for k, v in old_entry.items():
-                        if k not in target_entry:
-                            target_entry[k] = v
-                            rename_ui_changed = True
-
+            rename_ui_changed = rename_card_ui_references(
+                ui_data,
+                raw_id,
+                final_rel_path_id,
+            )
+            if final_rel_path_id in ui_data and isinstance(ui_data.get(final_rel_path_id), dict):
                 import_time_changed_after_rename, _ = ensure_import_time(ui_data, final_rel_path_id, import_fallback)
                 if import_time_changed_after_rename:
                     rename_ui_changed = True
@@ -2635,6 +2632,7 @@ def api_change_image():
         final_id = raw_id
         is_format_conversion = False
         old_info = {}
+        stable_card_uid = ''
 
         # =========================================================
         # 分支 A: JSON 格式卡片 (转换为 PNG)
@@ -2681,10 +2679,15 @@ def api_change_image():
 
             # 5. 系统数据迁移 (UI Data)
             ui_data = load_ui_data()
-            had_old_ui_entry = raw_id in ui_data
-            if had_old_ui_entry:
-                ui_data[final_id] = ui_data[raw_id]
-                del ui_data[raw_id]
+            old_cache_item = ctx.cache.id_map.get(raw_id) if ctx.cache else None
+            stable_card_uid = normalize_card_uid(
+                (old_cache_item or {}).get('card_uid')
+            )
+            had_old_ui_entry = rename_card_ui_references(ui_data, raw_id, final_id)
+            if final_id in ui_data and isinstance(ui_data.get(final_id), dict):
+                stable_card_uid = stable_card_uid or normalize_card_uid(
+                    ui_data[final_id].get('card_uid')
+                )
             import_time_changed, import_time_val = ensure_import_time(ui_data, final_id, os.path.getmtime(target_save_path))
             if had_old_ui_entry or import_time_changed:
                 save_ui_data(ui_data)
@@ -2749,10 +2752,15 @@ def api_change_image():
             save_ui_data(ui_data_for_import_time)
         
         # 3. 更新数据库记录 (Upsert)
+        cache_kwargs = {
+            'remove_entity_ids': [raw_id] if is_format_conversion and raw_id != final_id else None,
+        }
+        if stable_card_uid:
+            cache_kwargs['card_uid'] = stable_card_uid
         cache_result = update_card_cache(
             final_id,
             target_save_path,
-            remove_entity_ids=[raw_id] if is_format_conversion and raw_id != final_id else None,
+            **cache_kwargs,
         )
         sync_card_index_jobs(
             card_id=final_id,
@@ -2798,6 +2806,7 @@ def api_change_image():
             "token_count": token_count,
             "dir_path": os.path.dirname(final_id) if '/' in final_id else "",
             "source_revision": refreshed_source_revision,
+            "card_uid": stable_card_uid,
             # 注意：file_hash 在 update_card_cache 中计算了，内存中可以暂时不更，或者再算一次
         }
 
@@ -3447,10 +3456,8 @@ def api_convert_to_bundle():
         ui_data = load_ui_data()
         ui_changed = False
         new_key = new_bundle_dir
-        if card_id in ui_data:
+        if rename_card_ui_references(ui_data, card_id, new_key):
             # Bundle 模式下，UI data key 通常是 bundle_dir
-            ui_data[new_key] = ui_data[card_id]
-            del ui_data[card_id]
             ui_changed = True
 
             # 将根级别 summary 迁移到版本级别 _version_remarks，

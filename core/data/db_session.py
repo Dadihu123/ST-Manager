@@ -17,6 +17,7 @@ from core.utils.data import get_wi_meta, sanitize_for_utf8
 from core.utils.text import calculate_token_count
 from core.utils.hash import get_file_hash_and_size
 from core.utils.filesystem import is_card_file
+from core.utils.card_identity import new_card_uid, normalize_card_uid
 
 logger = logging.getLogger(__name__)
 
@@ -109,7 +110,8 @@ def init_database():
             file_size INTEGER,
             token_count INTEGER DEFAULT 0,
             has_character_book INTEGER DEFAULT 0,
-            character_book_name TEXT DEFAULT ''
+            character_book_name TEXT DEFAULT '',
+            card_uid TEXT
         )
     ''')
     
@@ -185,6 +187,30 @@ def init_database():
             conn.commit()
         except Exception as e:
             logger.error(f"数据库升级失败 (character_book_name): {e}")
+
+    if 'card_uid' not in columns:
+        print('正在升级数据库: 添加 card_uid 列...')
+        try:
+            cursor.execute("ALTER TABLE card_metadata ADD COLUMN card_uid TEXT")
+            conn.commit()
+        except Exception as e:
+            logger.error(f"数据库升级失败 (card_uid): {e}")
+
+    try:
+        cursor.execute('SELECT id, card_uid FROM card_metadata')
+        missing_uids = [
+            (new_card_uid(), row_id)
+            for row_id, raw_uid in cursor.fetchall()
+            if not normalize_card_uid(raw_uid)
+        ]
+        if missing_uids:
+            cursor.executemany(
+                'UPDATE card_metadata SET card_uid = ? WHERE id = ?',
+                missing_uids,
+            )
+            conn.commit()
+    except Exception as e:
+        logger.warning(f'回填 card_uid 失败: {e}')
 
     if 'wi_metadata_scanned' not in columns:
         print('正在升级数据库: 添加 wi_metadata_scanned 列...')
@@ -303,14 +329,14 @@ def _migrate_existing_data(conn):
             try:
                 cursor.execute('''
                     INSERT OR REPLACE INTO card_metadata
-                    (id, char_name, description, first_mes, mes_example, tags, category, creator, char_version, last_modified, file_hash, file_size, token_count, has_character_book, character_book_name)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    (id, char_name, description, first_mes, mes_example, tags, category, creator, char_version, last_modified, file_hash, file_size, token_count, has_character_book, character_book_name, card_uid)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (
                     file_id_path, char_name, data_block.get('description', ''),
                     data_block.get('first_mes', ''), data_block.get('mes_example', ''),
                     json.dumps(tags), category, data_block.get('creator', ''),
                     data_block.get('character_version', ''), mtime, file_hash, file_size,
-                    token_count, has_wi, wi_name
+                    token_count, has_wi, wi_name, new_card_uid()
                 ))
                 card_count += 1
             except Exception as db_e:

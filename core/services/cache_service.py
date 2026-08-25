@@ -10,6 +10,7 @@ from core.config import CARDS_FOLDER, DEFAULT_DB_PATH
 from core.context import ctx
 from core.data.db_session import get_db, execute_with_retry
 from core.data.ui_store import load_ui_data
+from core.utils.card_identity import new_card_uid, normalize_card_uid
 
 # === 工具函数 ===
 from core.utils.hash import get_file_hash_and_size
@@ -25,6 +26,34 @@ logger = logging.getLogger(__name__)
 class CardCacheUpdateResult(dict):
     def __bool__(self):
         return bool(self.get('cache_updated'))
+
+
+def _row_value(row, key, default=None):
+    if row is None:
+        return default
+    if isinstance(row, dict):
+        return row.get(key, default)
+    try:
+        return row[key]
+    except (IndexError, KeyError, TypeError):
+        return default
+
+
+def _load_card_identity(cursor, card_id):
+    try:
+        cursor.execute(
+            'SELECT is_favorite, has_character_book, card_uid FROM card_metadata WHERE id = ?',
+            (card_id,),
+        )
+        return cursor.fetchone()
+    except sqlite3.OperationalError as exc:
+        if 'no such column' not in str(exc).lower():
+            raise
+        cursor.execute(
+            'SELECT is_favorite, has_character_book FROM card_metadata WHERE id = ?',
+            (card_id,),
+        )
+        return cursor.fetchone()
 
 def _do_reload_now():
     """Timer 回调：执行重载"""
@@ -65,7 +94,7 @@ def force_reload(reason: str = ""):
             ctx.reload_timer = None
     _do_reload_now()
 
-def update_card_cache(card_id, full_path, *, parsed_info=None, file_hash=None, file_size=None, mtime=None, remove_entity_ids=None):
+def update_card_cache(card_id, full_path, *, parsed_info=None, file_hash=None, file_size=None, mtime=None, remove_entity_ids=None, card_uid=None):
     """
     [数据库写操作] 更新单个卡片的数据库记录。
     通常由 API 路由或扫描器调用。
@@ -81,10 +110,17 @@ def update_card_cache(card_id, full_path, *, parsed_info=None, file_hash=None, f
         })
 
         # 获取收藏状态和历史 embedded worldinfo 状态，供调用方决定后续索引同步
-        cursor.execute("SELECT is_favorite, has_character_book FROM card_metadata WHERE id = ?", (card_id,))
-        row = cursor.fetchone()
-        current_fav = row['is_favorite'] if row else 0
-        previous_has_wi = bool(row['has_character_book']) if row else False
+        row = _load_card_identity(cursor, card_id)
+        current_fav = _row_value(row, 'is_favorite', 0) or 0
+        previous_has_wi = bool(_row_value(row, 'has_character_book', 0))
+        stable_uid = normalize_card_uid(card_uid) or normalize_card_uid(_row_value(row, 'card_uid'))
+        if not stable_uid:
+            for old_id in remove_entity_ids or []:
+                old_row = _load_card_identity(cursor, old_id)
+                stable_uid = normalize_card_uid(_row_value(old_row, 'card_uid'))
+                if stable_uid:
+                    break
+        stable_uid = stable_uid or new_card_uid()
         result['previous_has_embedded_wi'] = previous_has_wi
         
         if file_hash is None or file_size is None:
@@ -118,11 +154,7 @@ def update_card_cache(card_id, full_path, *, parsed_info=None, file_hash=None, f
             token_count = calculate_token_count(calc_data)
             has_wi, wi_name = get_wi_meta(data_block)
 
-            cursor.execute('''
-                INSERT OR REPLACE INTO card_metadata 
-                (id, char_name, description, first_mes, mes_example, tags, category, creator, char_version, last_modified, file_hash, file_size, token_count, has_character_book, character_book_name, is_favorite)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (
+            values = (
                 card_id,
                 char_name,
                 data_block.get('description', ''),
@@ -138,8 +170,23 @@ def update_card_cache(card_id, full_path, *, parsed_info=None, file_hash=None, f
                 token_count,
                 has_wi,
                 wi_name,
-                current_fav
-            ))
+                current_fav,
+                stable_uid,
+            )
+            try:
+                cursor.execute('''
+                    INSERT OR REPLACE INTO card_metadata
+                    (id, char_name, description, first_mes, mes_example, tags, category, creator, char_version, last_modified, file_hash, file_size, token_count, has_character_book, character_book_name, is_favorite, card_uid)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', values)
+            except sqlite3.OperationalError as exc:
+                if 'no such column' not in str(exc).lower() and 'no column named' not in str(exc).lower():
+                    raise
+                cursor.execute('''
+                    INSERT OR REPLACE INTO card_metadata
+                    (id, char_name, description, first_mes, mes_example, tags, category, creator, char_version, last_modified, file_hash, file_size, token_count, has_character_book, character_book_name, is_favorite)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', values[:-1])
             
             conn.commit()
             result['cache_updated'] = True

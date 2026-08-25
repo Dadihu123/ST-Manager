@@ -22,6 +22,7 @@ from core.data.ui_store import (
     rename_embedded_worldinfo_note_card_prefix,
 )
 from core.services.card_operation_lock import card_operation_locked
+from core.services.card_binding_service import ensure_card_ui_uid, rename_card_ui_references
 
 # === 服务依赖 ===
 from core.services.cache_service import update_card_cache
@@ -373,11 +374,20 @@ def update_card_content(card_id, temp_path, is_bundle_update, keep_ui_data, new_
     # 1. UI Data 同步
     ui_data = load_ui_data()
     ui_key = resolve_ui_key(final_rel_id)
+    stable_card_uid = ''
+    old_cache_item = ctx.cache.id_map.get(card_id) if ctx.cache else None
+    if old_cache_item:
+        stable_card_uid = str(old_cache_item.get('card_uid') or '').strip()
     # 如果 ID 变更，迁移旧数据
-    if card_id != final_rel_id and card_id in ui_data and not is_bundle_update:
-        if ui_key != card_id: # 避免覆盖
-            ui_data[ui_key] = ui_data[card_id]
-            del ui_data[card_id]
+    if card_id != final_rel_id and not is_bundle_update:
+        if rename_card_ui_references(ui_data, card_id, ui_key):
+            ui_key = resolve_ui_key(final_rel_id)
+
+    if not is_bundle_update and isinstance(ui_data.get(ui_key), dict):
+        previous_uid = ui_data[ui_key].get('card_uid')
+        stable_card_uid = stable_card_uid or str(previous_uid or '').strip()
+        if stable_card_uid:
+            ensure_card_ui_uid(ui_data[ui_key], stable_card_uid)
     
     if ui_key not in ui_data: ui_data[ui_key] = {}
 
@@ -434,6 +444,7 @@ def update_card_content(card_id, temp_path, is_bundle_update, keep_ui_data, new_
         file_size=file_size,
         mtime=new_mtime,
         remove_entity_ids=[card_id] if card_id != final_rel_id and not is_bundle_update else None,
+        card_uid=stable_card_uid or None,
     )
     sync_card_index_jobs(
         card_id=final_rel_id,
@@ -669,9 +680,7 @@ def swap_skin_to_cover(card_id, skin_filename, save_old_to_resource=False):
             # 5.6 更新 UI Data 中的 key
             ui_data = load_ui_data()
             ui_changed = False
-            if card_id in ui_data:
-                ui_data[new_card_id] = ui_data[card_id]
-                del ui_data[card_id]
+            if rename_card_ui_references(ui_data, card_id, new_card_id):
                 ui_changed = True
             if ui_changed:
                 save_ui_data(ui_data)
@@ -851,19 +860,12 @@ def rename_folder_in_ui(ui_data, old_path, new_path):
     """
     在 UI Data 中批量重命名 Key 前缀。
     """
-    keys_to_move = []
-    old_prefix = old_path + "/"
-    for key in ui_data.keys():
-        if key == old_path or key.startswith(old_prefix):
-            keys_to_move.append(key)
-    
-    changed = False
-    for key in keys_to_move:
-        if key == old_path: new_key = new_path
-        else: new_key = key.replace(old_path, new_path, 1)
-        ui_data[new_key] = ui_data[key]
-        del ui_data[key]
-        changed = True
+    changed = rename_card_ui_references(
+        ui_data,
+        old_path,
+        new_path,
+        recursive=True,
+    )
 
     if _rename_prefixed_version_remark_ids(ui_data, old_path, new_path):
         changed = True
@@ -889,9 +891,7 @@ def sync_exact_card_after_fs_move(
     )
 
     ui_changed = False
-    if old_card_id in ui_data:
-        ui_data[new_card_id] = ui_data[old_card_id]
-        del ui_data[old_card_id]
+    if rename_card_ui_references(ui_data, old_card_id, new_card_id):
         ui_changed = True
 
     if _rename_prefixed_version_remark_ids(ui_data, old_card_id, new_card_id):
@@ -1258,9 +1258,7 @@ def sync_card_names_internal(
             ui_data = load_ui_data()
             ui_changed = False
 
-            if old_id in ui_data:
-                ui_data[new_id] = ui_data[old_id]
-                del ui_data[old_id]
+            if rename_card_ui_references(ui_data, old_id, new_id):
                 ui_changed = True
 
             for key, entry in ui_data.items():

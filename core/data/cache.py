@@ -20,6 +20,12 @@ from core.data.ui_store import (
     migrate_bundle_remarks_to_versions,
     save_ui_data,
 )
+from core.services.card_binding_service import (
+    ensure_card_ui_uid,
+    migrate_legacy_card_bindings,
+    reconcile_stale_card_bindings,
+)
+from core.utils.card_identity import normalize_card_uid
 from core.utils.filesystem import is_card_file
 
 logger = logging.getLogger(__name__)
@@ -428,14 +434,25 @@ class GlobalMetadataCache:
             conn = sqlite3.connect(DEFAULT_DB_PATH, timeout=30)
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
-            cursor.execute("""
-                SELECT id, char_name, tags, category, creator, 
-                       char_version, last_modified, file_hash, token_count, is_favorite
-                FROM card_metadata
-            """)
+            try:
+                cursor.execute("""
+                    SELECT id, char_name, tags, category, creator,
+                           char_version, last_modified, file_hash, token_count, is_favorite, card_uid
+                    FROM card_metadata
+                """)
+                rows_include_uid = True
+            except sqlite3.OperationalError as exc:
+                if 'no such column' not in str(exc).lower():
+                    raise
+                cursor.execute("""
+                    SELECT id, char_name, tags, category, creator,
+                           char_version, last_modified, file_hash, token_count, is_favorite
+                    FROM card_metadata
+                """)
+                rows_include_uid = False
             rows = cursor.fetchall()
             conn.close()
-            return rows
+            return rows, rows_include_uid
 
         with self.lock:
             try:
@@ -466,7 +483,7 @@ class GlobalMetadataCache:
                 # 1. 加载数据
                 ui_data = load_ui_data()
                 ui_data_stale_cleaned = False
-                rows = execute_with_retry(_do_fetch_all, max_retries=5)
+                rows, rows_include_uid = execute_with_retry(_do_fetch_all, max_retries=5)
                 
                 raw_cards = []
                 for row in rows:
@@ -494,8 +511,17 @@ class GlobalMetadataCache:
                         "is_bundle": False, 
                         "versions": [],
                         "is_favorite": bool(row['is_favorite']),
+                        "card_uid": normalize_card_uid(row['card_uid']) if rows_include_uid else '',
                     }
                     raw_cards.append(card_data)
+
+                legacy_binding_map = {
+                    card['id']: card.get('card_uid')
+                    for card in raw_cards
+                    if card.get('card_uid')
+                }
+                if migrate_legacy_card_bindings(ui_data, legacy_binding_map):
+                    ui_data_stale_cleaned = True
 
                 # 2. 处理 Bundle 聚合逻辑
                 bundle_dirs = set(physical_bundle_dirs)
@@ -543,6 +569,20 @@ class GlobalMetadataCache:
                     bundle_card['is_bundle'] = True
                     bundle_card['bundle_dir'] = dir_path
 
+                    bundle_entry = ui_data.get(dir_path)
+                    if not isinstance(bundle_entry, dict):
+                        bundle_entry = {}
+                        ui_data[dir_path] = bundle_entry
+                        ui_data_stale_cleaned = True
+                    previous_bundle_uid = bundle_entry.get('card_uid')
+                    bundle_uid = ensure_card_ui_uid(
+                        bundle_entry,
+                        latest_card.get('card_uid'),
+                    )
+                    if previous_bundle_uid != bundle_uid:
+                        ui_data_stale_cleaned = True
+                    bundle_card['card_uid'] = bundle_uid
+
                     bundle_card['versions'] = []
                     cover_id = latest_card['id']
                     for v in version_list:
@@ -579,6 +619,18 @@ class GlobalMetadataCache:
                         and cleanup_stale_version_remarks(ui_data, dir_path, valid_version_ids)
                     ):
                         ui_data_stale_cleaned = True
+
+                card_ui_uids = {}
+                for card in final_cards:
+                    ui_key = card.get('bundle_dir') if card.get('is_bundle') else card.get('id')
+                    if ui_key and card.get('card_uid'):
+                        card_ui_uids[ui_key] = card.get('card_uid')
+                if reconcile_stale_card_bindings(
+                    ui_data,
+                    card_ui_uids.keys(),
+                    card_uid_by_ui_key=card_ui_uids,
+                ):
+                    ui_data_stale_cleaned = True
 
                 if ui_data_stale_cleaned:
                     save_ui_data(ui_data)
