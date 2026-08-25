@@ -1,0 +1,193 @@
+<div
+  x-data="sourceUpdateMonitor"
+  x-show="visible"
+  x-cloak
+  @click.self="close()"
+  @keydown.escape.window="if (visible) close()"
+  class="fixed inset-0 flex items-center justify-center p-3 sm:p-6"
+  style="z-index: var(--z-modal); background: rgba(2, 6, 23, 0.72)"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="source-monitor-title"
+>
+  <div
+    @click.stop
+    class="w-full max-w-5xl max-h-[92vh] overflow-hidden rounded-2xl border border-[var(--border-light)] bg-[var(--bg-panel)] text-[var(--text-main)] shadow-2xl flex flex-col"
+  >
+    <div class="flex items-start justify-between gap-3 border-b border-[var(--border-light)] px-4 py-3 sm:px-6">
+      <div>
+        <h2 id="source-monitor-title" class="text-lg font-bold">角色卡监控池</h2>
+        <p class="mt-1 text-xs text-[var(--text-sub)]">
+          应用运行期间按计划检查 Discord 来源；不会自动修改角色卡文件。
+        </p>
+      </div>
+      <button
+        x-ref="monitorCloseButton"
+        type="button"
+        class="min-h-11 min-w-11 rounded-lg text-xl text-[var(--text-sub)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-main)]"
+        aria-label="关闭角色卡监控池"
+        title="关闭"
+        @click="close()"
+      >×</button>
+    </div>
+
+    <div class="flex-1 overflow-y-auto px-4 py-4 sm:px-6">
+      <div class="grid grid-cols-2 gap-2 text-xs sm:grid-cols-5">
+        <div class="rounded-lg border border-[var(--border-light)] bg-[var(--bg-sub)] p-3">
+          <div class="text-[var(--text-sub)]">成员</div>
+          <strong x-text="status?.member_total || 0"></strong>
+        </div>
+        <div class="rounded-lg border border-[var(--border-light)] bg-[var(--bg-sub)] p-3">
+          <div class="text-[var(--text-sub)]">有效来源</div>
+          <strong x-text="status?.valid_members || 0"></strong>
+        </div>
+        <div class="rounded-lg border border-[var(--border-light)] bg-[var(--bg-sub)] p-3">
+          <div class="text-[var(--text-sub)]">无效/缺失</div>
+          <strong x-text="status?.invalid_members || 0"></strong>
+        </div>
+        <div class="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3">
+          <div class="text-[var(--text-sub)]">当前待处理</div>
+          <strong x-text="status?.pending_count || 0"></strong>
+        </div>
+        <div class="col-span-2 rounded-lg border border-[var(--border-light)] bg-[var(--bg-sub)] p-3 sm:col-span-1">
+          <div class="text-[var(--text-sub)]">下次检查</div>
+          <strong x-text="formatDateTime(status?.next_run_at)"></strong>
+        </div>
+      </div>
+
+      <div
+        x-show="currentRun"
+        class="mt-4 rounded-xl border border-teal-500/50 bg-teal-500/10 px-4 py-3 text-sm"
+        role="status"
+        aria-live="polite"
+      >
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <strong>监控池正在检查</strong>
+          <span x-text="currentRunProgress"></span>
+        </div>
+        <div class="mt-1 text-xs text-[var(--text-sub)]">
+          当前角色卡：<span x-text="currentRun?.current_card_id || '准备中'"></span>
+        </div>
+        <button
+          type="button"
+          class="mt-2 min-h-11 rounded-lg border border-[var(--border-light)] px-3 text-xs hover:bg-[var(--bg-hover)]"
+          @click="cancelCheck()"
+        >停止后续检查</button>
+      </div>
+
+      <div class="mt-4 flex flex-wrap items-center justify-between gap-2">
+        <h3 class="font-semibold">监控成员</h3>
+        <div class="flex flex-wrap gap-2">
+          <button
+            type="button"
+            class="btn-primary min-h-11 rounded-lg px-3 text-sm"
+            :disabled="loading || currentRun"
+            @click="startCheck()"
+          >
+            <span x-text="currentRun ? '检查中...' : '立即检查'"></span>
+          </button>
+          <button
+            type="button"
+            class="btn-secondary min-h-11 rounded-lg px-3 text-sm"
+            :disabled="loading"
+            @click="refresh()"
+          >刷新</button>
+        </div>
+      </div>
+
+      <div x-show="!entries.length" class="mt-4 rounded-xl border border-dashed border-[var(--border-light)] p-8 text-center text-sm text-[var(--text-sub)]">
+        暂无监控成员。请在角色卡列表中选择角色卡后，点击“加入监控池”。
+      </div>
+
+      <div x-show="entries.length" class="mt-3 space-y-3">
+        <template x-for="entry in entries" :key="entry.pool_id + ':' + entry.card_id">
+          <article class="rounded-xl border border-[var(--border-light)] bg-[var(--bg-sub)] p-3 sm:p-4">
+            <div class="flex flex-wrap items-start justify-between gap-3">
+              <div class="min-w-0">
+                <div class="flex flex-wrap items-center gap-2">
+                  <strong class="truncate" x-text="entry.char_name || entry.card_id"></strong>
+                  <span
+                    class="rounded-full border px-2 py-0.5 text-[11px]"
+                    :class="entry.pending_update ? 'border-amber-500/60 text-amber-300' : 'border-[var(--border-light)] text-[var(--text-sub)]'"
+                    x-text="entryStatusLabel(entry)"
+                  ></span>
+                  <span x-show="entry.is_checking" class="text-xs text-teal-300">处理中</span>
+                </div>
+                <div class="mt-1 break-all text-xs text-[var(--text-sub)]" x-text="entry.card_id"></div>
+              </div>
+              <div class="flex flex-wrap gap-2">
+                <button type="button" class="min-h-11 rounded-lg border border-[var(--border-light)] px-3 text-xs hover:bg-[var(--bg-hover)]" @click="toggleEntry(entry)" :aria-pressed="entry.enabled.toString()">
+                  <span x-text="entry.enabled ? '停用监控' : '启用监控'"></span>
+                </button>
+                <button type="button" class="min-h-11 rounded-lg border border-[var(--border-light)] px-3 text-xs hover:bg-[var(--bg-hover)]" @click="openCard(entry)">打开详情</button>
+                <button type="button" class="min-h-11 rounded-lg border border-red-500/50 px-3 text-xs text-red-300 hover:bg-red-500/10" @click="removeEntry(entry)">移出</button>
+              </div>
+            </div>
+
+            <div class="mt-3 grid gap-2 text-xs text-[var(--text-sub)] sm:grid-cols-2">
+              <div>来源标题：<span class="text-[var(--text-main)]" x-text="entry.source_title || '未同步标题'"></span></div>
+              <div>最近检查：<span class="text-[var(--text-main)]" x-text="formatDateTime(entry.last_run_at)"></span></div>
+              <div class="min-w-0 sm:col-span-2">
+                来源链接：
+                <a x-show="entry.source_url" :href="entry.source_url" target="_blank" rel="noopener noreferrer" class="break-all text-blue-300 underline" x-text="entry.source_url"></a>
+                <span x-show="!entry.source_url">未配置</span>
+              </div>
+              <div x-show="entry.source_url_changed" class="sm:col-span-2 text-amber-300">角色卡中的来源链接已变化，下次检查将跟随新链接并重新建立基线。</div>
+              <div x-show="entry.invalid_reason" class="sm:col-span-2 text-red-300" x-text="entry.invalid_reason"></div>
+              <div x-show="entry.last_error" class="sm:col-span-2 text-red-300">上次错误：<span x-text="entry.last_error"></span></div>
+            </div>
+
+            <div x-show="entry.pending_update" class="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs">
+              <span>检测到来源更新，角色卡文件尚未自动修改。</span>
+              <button type="button" class="min-h-11 rounded-lg border border-amber-400/60 px-3 text-amber-200 hover:bg-amber-400/10" @click="acknowledge(entry)">确认无需更新</button>
+            </div>
+          </article>
+        </template>
+      </div>
+
+      <section class="mt-6 rounded-xl border border-[var(--border-light)] bg-[var(--bg-sub)] p-4">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <h3 class="font-semibold">定期检查设置</h3>
+          <span class="text-xs text-[var(--text-sub)]" x-text="status?.enabled ? '已启用' : '未启用'"></span>
+        </div>
+        <div class="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <label class="flex min-h-11 items-center gap-2 text-sm">
+            <input type="checkbox" x-model="settingsDraft.enabled" />
+            启用定期检查
+          </label>
+          <label class="text-xs text-[var(--text-sub)]">调度模式
+            <select x-model="settingsDraft.schedule_mode" class="form-input mt-1 min-h-11 text-sm">
+              <option value="manual">仅手动检查</option>
+              <option value="daily">每天检查</option>
+            </select>
+          </label>
+          <label x-show="settingsDraft.schedule_mode === 'daily'" class="text-xs text-[var(--text-sub)]">每日时间
+            <input type="time" x-model="settingsDraft.daily_time" class="form-input mt-1 min-h-11 text-sm" />
+          </label>
+          <label x-show="settingsDraft.schedule_mode === 'daily'" class="text-xs text-[var(--text-sub)]">时区（如 Asia/Shanghai）
+            <input type="text" x-model="settingsDraft.timezone" placeholder="留空使用本地时区" class="form-input mt-1 min-h-11 text-sm" />
+          </label>
+        </div>
+        <div class="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-[var(--text-sub)]">
+          <span>下次检查：<span class="text-[var(--text-main)]" x-text="formatDateTime(status?.next_run_at)"></span></span>
+          <button type="button" class="btn-primary min-h-11 rounded-lg px-4 text-sm" :disabled="savingSettings" @click="saveSettings()" x-text="savingSettings ? '保存中...' : '保存设置'"></button>
+        </div>
+      </section>
+
+      <section x-show="status?.last_run" class="mt-4 rounded-xl border border-[var(--border-light)] p-4 text-xs text-[var(--text-sub)]">
+        <h3 class="font-semibold text-[var(--text-main)]">最近一次运行</h3>
+        <div class="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+          <span>状态：<b x-text="status?.last_run?.status"></b></span>
+          <span>总数：<b x-text="lastRunSummary.total || 0"></b></span>
+          <span>已检查：<b x-text="lastRunSummary.checked || 0"></b></span>
+          <span>发现变化：<b x-text="lastRunSummary.new_changes || lastRunSummary.updated || 0"></b></span>
+          <span>待处理：<b x-text="lastRunSummary.pending || 0"></b></span>
+          <span>无变化：<b x-text="lastRunSummary.unchanged || 0"></b></span>
+          <span>无效：<b x-text="lastRunSummary.invalid_source || 0"></b></span>
+          <span>缺失：<b x-text="lastRunSummary.missing || 0"></b></span>
+          <span>失败：<b x-text="lastRunSummary.failed || 0"></b></span>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>

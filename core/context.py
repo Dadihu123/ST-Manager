@@ -129,6 +129,10 @@ class AppContext:
         self.index_upgrade_active = False
         self.index_worker_started = False
 
+        # 角色卡级别锁：来源检查和文件写入只互相阻塞同一张卡。
+        self.card_locks = {}
+        self.card_locks_guard = threading.Lock()
+
     def _init_components(self):
         """
         初始化复杂组件。
@@ -155,6 +159,14 @@ class AppContext:
         """辅助方法：检查当前是否应该忽略文件系统事件"""
         with self.fs_ignore_lock:
             return time.time() < self.fs_ignore_until
+
+    def get_card_lock(self, card_id):
+        """获取指定角色卡的共享锁；锁对象按卡片 ID 惰性创建。"""
+        normalized = str(card_id or '').strip().replace('\\', '/')
+        if not normalized:
+            return None
+        with self.card_locks_guard:
+            return self.card_locks.setdefault(normalized, threading.RLock())
 
 # 全局单例实例
 ctx = AppContext()

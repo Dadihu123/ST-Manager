@@ -76,6 +76,26 @@ from core.services.forum_update_service import (
     prepare_source_link_for_card,
     refresh_card_source_baseline,
 )
+from core.services.source_update_monitor_service import (
+    add_monitor_entries,
+    cancel_monitor_run,
+    check_monitor_pool_sync,
+    complete_monitor_run,
+    create_monitor_run,
+    get_monitor_run,
+    get_monitor_status,
+    get_monitor_target_ids,
+    is_monitor_entry,
+    is_safe_monitor_card_id,
+    list_monitor_entries,
+    record_monitor_check_result,
+    record_monitor_run_item,
+    remove_monitor_entries,
+    set_monitor_entry_enabled,
+    update_monitor_settings,
+    check_monitored_card,
+)
+from core.services.card_operation_lock import request_card_locks
 
 # === 工具函数 ===
 from core.utils.image import (
@@ -1332,6 +1352,7 @@ def api_save_tag_management_prefs():
 
 # 切换收藏状态
 @bp.route('/api/toggle_favorite', methods=['POST'])
+@request_card_locks
 def api_toggle_favorite():
     try:
         card_id = request.json.get('id')
@@ -1371,6 +1392,7 @@ def api_toggle_favorite():
         return jsonify({"success": False, "msg": str(e)})
 
 @bp.route('/api/update_card', methods=['POST'])
+@request_card_locks
 def api_update_card():
     try:
         # 保存会写 PNG/JSON + utime + rename，抑制 watchdog
@@ -2049,6 +2071,7 @@ def api_update_card():
         return jsonify({"success": False, "msg": str(e)})
 
 @bp.route('/api/move_card', methods=['POST'])
+@request_card_locks
 def api_move_card():
     try:
         # 批量 move/rename 文件，抑制 watchdog
@@ -2171,6 +2194,7 @@ def api_check_resource_folders():
 
 
 @bp.route('/api/delete_cards', methods=['POST'])
+@request_card_locks
 def api_delete_cards():
     try:
         # 批量 move 到回收站 / 删除文件夹，抑制 watchdog
@@ -2971,6 +2995,7 @@ def api_normalize_card_data():
         return jsonify({"success": False, "msg": str(e)})
 
 @bp.route('/api/update_card_from_url', methods=['POST'])
+@request_card_locks
 def api_update_card_from_url():
     temp_path = None
     try:
@@ -3115,6 +3140,7 @@ def api_random_card():
         return jsonify({"success": False, "msg": str(e)})
 
 @bp.route('/api/toggle_bundle_mode', methods=['POST'])
+@request_card_locks
 def api_toggle_bundle_mode():
     try:
         # 会创建/删除 .bundle、写入 png metadata，抑制 watchdog
@@ -3324,6 +3350,7 @@ def api_toggle_bundle_mode():
 
 # --- 一键转包模式接口 ---
 @bp.route('/api/convert_to_bundle', methods=['POST'])
+@request_card_locks
 def api_convert_to_bundle():
     try:
         suppress_fs_events(3.0)
@@ -3672,6 +3699,9 @@ def api_get_card_detail():
 
 def _resolve_source_update_target_ids(payload):
     """解析并冻结来源检查目标，支持显式卡片和分类递归范围。"""
+    if payload.get('scope') == 'monitor_pool':
+        return get_monitor_target_ids()
+
     raw_card_ids = payload.get('card_ids', [])
     if raw_card_ids is None:
         raw_card_ids = []
@@ -3762,12 +3792,174 @@ def api_source_update_targets():
         return jsonify({'success': False, 'msg': str(exc)}), 400
 
 
+def _monitor_card_ids_from_payload(payload):
+    raw_ids = payload.get('card_ids')
+    if raw_ids is None and payload.get('card_id') is not None:
+        raw_ids = [payload.get('card_id')]
+    if raw_ids is None:
+        raw_ids = []
+    if isinstance(raw_ids, str):
+        raw_ids = [raw_ids]
+    if not isinstance(raw_ids, (list, tuple)):
+        raise ValueError('card_ids 必须是列表')
+    return list(raw_ids)
+
+
+@bp.route('/api/cards/source_update/monitor/status', methods=['GET'])
+def api_source_update_monitor_status():
+    try:
+        status = get_monitor_status()
+        return jsonify({'success': True, **status, 'pool': status})
+    except Exception as exc:
+        logger.error('读取来源监控池状态失败: %s', exc)
+        return jsonify({'success': False, 'msg': '读取监控池状态失败'}), 500
+
+
+@bp.route('/api/cards/source_update/monitor/entries', methods=['GET'])
+def api_source_update_monitor_entries():
+    try:
+        entries = list_monitor_entries()
+        return jsonify({
+            'success': True,
+            'pool_id': 'default',
+            'entries': entries,
+            'items': entries,
+        })
+    except Exception as exc:
+        logger.error('读取来源监控池成员失败: %s', exc)
+        return jsonify({'success': False, 'msg': '读取监控池成员失败'}), 500
+
+
+@bp.route('/api/cards/source_update/monitor/entries/add', methods=['POST'])
+def api_source_update_monitor_entries_add():
+    try:
+        payload = request.get_json(silent=True) or {}
+        result = add_monitor_entries(_monitor_card_ids_from_payload(payload))
+        return jsonify(result)
+    except Exception as exc:
+        logger.error('加入来源监控池失败: %s', exc)
+        return jsonify({'success': False, 'msg': '加入监控池失败'}), 400
+
+
+@bp.route('/api/cards/source_update/monitor/entries/remove', methods=['POST'])
+def api_source_update_monitor_entries_remove():
+    try:
+        payload = request.get_json(silent=True) or {}
+        result = remove_monitor_entries(_monitor_card_ids_from_payload(payload))
+        return jsonify(result)
+    except Exception as exc:
+        logger.error('移出来源监控池失败: %s', exc)
+        return jsonify({'success': False, 'msg': '移出监控池失败'}), 400
+
+
+@bp.route('/api/cards/source_update/monitor/entries/enabled', methods=['POST'])
+def api_source_update_monitor_entry_enabled():
+    try:
+        payload = request.get_json(silent=True) or {}
+        card_id = payload.get('card_id') or payload.get('id')
+        if not card_id:
+            return jsonify({'success': False, 'msg': 'Missing card_id'}), 400
+        return jsonify(set_monitor_entry_enabled(card_id, payload.get('enabled')))
+    except Exception as exc:
+        logger.error('切换来源监控项状态失败: %s', exc)
+        return jsonify({'success': False, 'msg': '切换监控状态失败'}), 400
+
+
+@bp.route('/api/cards/source_update/monitor/settings', methods=['PUT', 'POST'])
+def api_source_update_monitor_settings():
+    try:
+        payload = request.get_json(silent=True) or {}
+        return jsonify(update_monitor_settings(payload))
+    except Exception as exc:
+        logger.error('保存来源监控调度设置失败: %s', exc)
+        return jsonify({'success': False, 'msg': '保存监控设置失败'}), 400
+
+
+@bp.route('/api/cards/source_update/monitor/runs', methods=['POST'])
+@bp.route('/api/cards/source_update/monitor/runs/start', methods=['POST'])
+def api_source_update_monitor_run_start():
+    try:
+        payload = request.get_json(silent=True) or {}
+        card_ids = payload.get('card_ids')
+        if payload.get('scope') == 'monitor_pool' and card_ids is None:
+            card_ids = get_monitor_target_ids()
+        result = create_monitor_run(
+            trigger=payload.get('trigger', 'manual'),
+            card_ids=card_ids,
+            execute=_coerce_request_bool(payload.get('execute', False)),
+        )
+        status_code = 409 if result.get('status') == 'already_running' else 200
+        return jsonify(result), status_code
+    except Exception as exc:
+        logger.error('创建来源监控任务失败: %s', exc)
+        return jsonify({'success': False, 'msg': '创建监控任务失败'}), 400
+
+
+@bp.route('/api/cards/source_update/monitor/runs/<run_id>', methods=['GET'])
+def api_source_update_monitor_run(run_id):
+    try:
+        run = get_monitor_run(run_id)
+        if run is None:
+            return jsonify({'success': False, 'msg': '找不到监控任务'}), 404
+        return jsonify({'success': True, 'run': run, **run})
+    except Exception as exc:
+        logger.error('读取来源监控任务失败: %s', exc)
+        return jsonify({'success': False, 'msg': '读取监控任务失败'}), 500
+
+
+@bp.route('/api/cards/source_update/monitor/runs/<run_id>/progress', methods=['POST'])
+def api_source_update_monitor_run_progress(run_id):
+    try:
+        payload = request.get_json(silent=True) or {}
+        card_id = payload.get('card_id') or payload.get('id')
+        if not card_id or not is_safe_monitor_card_id(card_id):
+            return jsonify({'success': False, 'msg': '非法卡片路径'}), 400
+        result = payload.get('result')
+        if not isinstance(result, dict):
+            result = payload
+        return jsonify(record_monitor_run_item(
+            run_id,
+            card_id,
+            result,
+            completed=payload.get('completed'),
+        ))
+    except Exception as exc:
+        logger.error('记录来源监控任务进度失败: %s', exc)
+        return jsonify({'success': False, 'msg': '记录监控进度失败'}), 400
+
+
+@bp.route('/api/cards/source_update/monitor/runs/<run_id>/complete', methods=['POST'])
+def api_source_update_monitor_run_complete(run_id):
+    try:
+        payload = request.get_json(silent=True) or {}
+        return jsonify(complete_monitor_run(
+            run_id,
+            summary=payload.get('summary', payload),
+            status=payload.get('status', 'completed'),
+            error=payload.get('error', ''),
+        ))
+    except Exception as exc:
+        logger.error('完成来源监控任务失败: %s', exc)
+        return jsonify({'success': False, 'msg': '完成监控任务失败'}), 400
+
+
+@bp.route('/api/cards/source_update/monitor/runs/<run_id>/cancel', methods=['POST'])
+def api_source_update_monitor_run_cancel(run_id):
+    try:
+        return jsonify(cancel_monitor_run(run_id))
+    except Exception as exc:
+        logger.error('取消来源监控任务失败: %s', exc)
+        return jsonify({'success': False, 'msg': '取消监控任务失败'}), 400
+
+
 @bp.route('/api/cards/source_update/check_batch', methods=['POST'])
 def api_check_cards_source_update():
     """顺序检查多张卡片，单卡失败会记录并继续处理后续目标。"""
     try:
         payload = request.get_json(silent=True) or {}
         card_ids = _resolve_source_update_target_ids(payload)
+        if payload.get('scope') == 'monitor_pool':
+            return jsonify(check_monitor_pool_sync(card_ids=card_ids))
         ui_data = load_ui_data()
         items = []
         checked = 0
@@ -3779,7 +3971,11 @@ def api_check_cards_source_update():
 
         for card_id in card_ids:
             try:
-                result = check_card_source_update(card_id, ui_data=ui_data)
+                if is_monitor_entry(card_id):
+                    result = check_monitored_card(card_id)
+                else:
+                    result = check_card_source_update(card_id, ui_data=ui_data)
+                    record_monitor_check_result(card_id, result)
             except Exception as exc:
                 logger.warning('批量检查来源时跳过 %s: %s', card_id, exc)
                 result = {
@@ -3840,10 +4036,14 @@ def api_check_card_source_update():
         if not _is_safe_rel_path(card_id):
             return jsonify({'success': False, 'msg': '非法路径'}), 400
 
-        result = check_card_source_update(
-            card_id,
-            source_link=payload.get('source_link'),
-        )
+        if is_monitor_entry(card_id):
+            result = check_monitored_card(card_id)
+        else:
+            result = check_card_source_update(
+                card_id,
+                source_link=payload.get('source_link'),
+            )
+            record_monitor_check_result(card_id, result)
         return jsonify(result)
     except Exception as exc:
         logger.error('检查卡片来源更新失败: %s', exc)
@@ -4196,6 +4396,7 @@ def api_preview_merge_tags():
         return jsonify({'success': False, 'msg': str(e)})
 
 @bp.route('/api/update_card_file', methods=['POST'])
+@request_card_locks
 def api_update_card_file():
     temp_path = None
     try:
@@ -4252,6 +4453,7 @@ def api_update_card_file():
 
 # 皮肤设为封面路由
 @bp.route('/api/set_skin_cover', methods=['POST'])
+@request_card_locks
 def api_set_skin_cover():
     try:
         data = request.json
@@ -4305,6 +4507,7 @@ def api_create_folder():
         return jsonify({"success": False, "msg": str(e)})
 
 @bp.route('/api/rename_folder', methods=['POST'])
+@request_card_locks
 def api_rename_folder():
     try:
         # 文件夹 rename 会触发大量事件，抑制 watchdog
@@ -4372,6 +4575,7 @@ def api_rename_folder():
         return jsonify({"success": False, "msg": str(e)})
 
 @bp.route('/api/delete_folder', methods=['POST'])
+@request_card_locks
 def api_delete_folder():
     try:
         # 1. 抑制文件系统事件 (因为涉及大量移动)
@@ -4684,6 +4888,7 @@ def api_delete_folder():
         return jsonify({"success": False, "msg": str(e)})
 
 @bp.route('/api/move_folder', methods=['POST'])
+@request_card_locks
 def api_move_folder():
     try:
         # move/merge 文件夹会触发大量 fs events，抑制 watchdog（较长窗口）

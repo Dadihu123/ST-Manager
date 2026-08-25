@@ -14,6 +14,7 @@ from core.auth import init_auth
 from core.data.db_session import init_database, close_connection
 from core.services.index_upgrade_service import run_startup_upgrade_if_needed
 from core.services.scan_service import start_background_scanner
+from core.services.source_update_monitor_service import start_monitor_scheduler
 
 try:
     from core.services.index_job_worker import start_index_job_worker
@@ -130,6 +131,9 @@ def init_services():
 
         # 5. 启动索引工作线程
         start_index_job_worker()
+
+        # 6. 启动应用内来源监控调度器（自身幂等，且线程为 daemon）
+        start_monitor_scheduler()
 
         # 初始化完成
         ctx.set_status(status="ready", message="服务已就绪")

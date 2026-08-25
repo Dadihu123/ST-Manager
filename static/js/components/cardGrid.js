@@ -51,6 +51,7 @@ export default function cardGrid() {
     flippedCardIds: {},
     sendingToStIds: {},
     checkingSourceUpdateIds: {},
+    monitorCheckingCardIds: {},
     bulkBackMode: false,
     autoFlipBackDelayMs: 1800,
     _autoFlipBackTimers: {},
@@ -204,6 +205,11 @@ export default function cardGrid() {
 
         card.source_update = result.source_update;
         card.source_title = result.source_update.source_title || "";
+      });
+
+      window.addEventListener("source-monitor-progress", (event) => {
+        const cardId = String(event.detail?.currentCardId || "");
+        this.monitorCheckingCardIds = cardId ? { [cardId]: true } : {};
       });
 
       // 3. 监听重置滚动 (切换分类时)
@@ -509,7 +515,8 @@ export default function cardGrid() {
     },
 
     isCheckingSourceUpdate(cardId) {
-      return !!this.checkingSourceUpdateIds[String(cardId)];
+      const key = String(cardId);
+      return !!this.checkingSourceUpdateIds[key] || !!this.monitorCheckingCardIds[key];
     },
 
     hasPendingSourceUpdate(card) {

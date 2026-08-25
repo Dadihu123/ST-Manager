@@ -1,6 +1,7 @@
 """Discord 类脑帖子来源标题与首帖编辑时间检查。"""
 
 import base64
+from functools import wraps
 import json
 import logging
 import os
@@ -22,12 +23,40 @@ from core.data.ui_store import (
     set_source_update_state,
 )
 from core.services.card_service import resolve_ui_key
+from core.services.card_operation_lock import (
+    card_busy_result,
+    release_card_lock,
+    try_acquire_card_lock,
+)
 from core.utils.discord_url import extract_discord_thread_id
 
 logger = logging.getLogger(__name__)
 
 DISCORD_API_ROOT = 'https://discord.com/api/v10'
 DEFAULT_TIMEOUT = 30
+
+
+def _source_operation_locked(func):
+    """让来源状态读写遵循统一的卡片级非阻塞锁。"""
+    @wraps(func)
+    def wrapped(card_id, *args, **kwargs):
+        acquired, lock = try_acquire_card_lock(card_id, blocking=False)
+        if not acquired:
+            result = card_busy_result(card_id)
+            try:
+                data = load_ui_data()
+                ui_key = resolve_ui_key(card_id)
+                result['source_update'] = get_source_update_state(data, ui_key)
+            except (AttributeError, KeyError, TypeError):
+                pass
+            return result
+
+        try:
+            return func(card_id, *args, **kwargs)
+        finally:
+            release_card_lock(lock)
+
+    return wrapped
 
 
 def _parse_timestamp(value):
@@ -332,6 +361,16 @@ def _resolve_card_and_source(card_id, source_link=None, ui_data=None):
     return card, ui_key, link, data
 
 
+def resolve_card_source(card_id, source_link=None, *, ui_data=None):
+    """返回当前角色卡、UI key 和来源链接，不发起网络请求。"""
+    return _resolve_card_and_source(card_id, source_link, ui_data)
+
+
+def is_supported_source_url(source_url):
+    """复用现有 Discord 来源解析规则判断链接是否可检查。"""
+    return bool(_parse_discord_parts(str(source_url or '').strip()))
+
+
 def _local_last_modified(card_id, card):
     if isinstance(card, dict):
         try:
@@ -372,6 +411,7 @@ def _reset_state_if_source_changed(data, ui_key, source_url, status, error=''):
     return state
 
 
+@_source_operation_locked
 def prepare_source_link_for_card(card_id, source_link=None, *, ui_data=None):
     """记录链接变更并清空旧来源基线，不发起 Discord 请求。"""
     _card, ui_key, link, data = _resolve_card_and_source(card_id, source_link, ui_data)
@@ -423,6 +463,7 @@ def _status_message(status, detail=''):
     return message
 
 
+@_source_operation_locked
 def save_source_title_for_card(card_id, title, source_link=None, *, ui_data=None, reset_baseline=False):
     """保存来源贴标题，不改变角色卡名称或文件名。"""
     card, ui_key, link, data = _resolve_card_and_source(card_id, source_link, ui_data)
@@ -453,6 +494,7 @@ def save_source_title_for_card(card_id, title, source_link=None, *, ui_data=None
     }
 
 
+@_source_operation_locked
 def sync_source_title_for_card(card_id, source_link=None, *, title_hint=None, ui_data=None,
                                timeout=DEFAULT_TIMEOUT, http_get=None):
     """同步标题；优先复用标签抓取已经取得的 title，避免重复请求。"""
@@ -512,6 +554,7 @@ def sync_source_title_for_card(card_id, source_link=None, *, title_hint=None, ui
     )
 
 
+@_source_operation_locked
 def check_card_source_update(card_id, source_link=None, *, ui_data=None, timeout=DEFAULT_TIMEOUT,
                              http_get=None, now=None):
     """检查单张卡片来源是否更新，结果可直接供未来检查池复用。"""
@@ -570,6 +613,20 @@ def check_card_source_update(card_id, source_link=None, *, ui_data=None, timeout
     current_revision = source.get('first_message_revision_at_epoch')
     first_message_available = bool(source.get('first_message_available')) and current_revision is not None
     state = _state_for_card(data, ui_key)
+    source_changed = bool(
+        state.get('source_url') != link
+        and (state.get('source_url') or link)
+    )
+    if source_changed:
+        # 新来源不能继承旧来源的待处理标记；后续检查从新来源重新建立基线。
+        changed, state = reset_source_update_state(
+            data,
+            ui_key,
+            source_url=link,
+            status='never_checked',
+        )
+        if changed:
+            save_ui_data(data)
     first_check = not state.get('baseline_established') or state.get('source_url') != link
     previous_title = state.get('source_title', '')
     previous_revision = state.get('first_message_revision_at')
@@ -680,6 +737,7 @@ def check_card_source_update(card_id, source_link=None, *, ui_data=None, timeout
     }
 
 
+@_source_operation_locked
 def acknowledge_card_source_update(card_id, *, ui_data=None):
     """确认当前已检测到的来源版本无需处理，并保留它作为后续检查基线。"""
     card, ui_key, link, data = _resolve_card_and_source(card_id, ui_data=ui_data)
@@ -733,6 +791,7 @@ def acknowledge_card_source_update(card_id, *, ui_data=None):
     }
 
 
+@_source_operation_locked
 def refresh_card_source_baseline(card_id, source_link=None, *, ui_data=None,
                                  timeout=DEFAULT_TIMEOUT, http_get=None, now=None,
                                  fetched=None):

@@ -266,7 +266,7 @@
     <!-- 选中状态栏 -->
     <div
       x-show="selectedIds.length > 0"
-      class="selection-bar flex items-center gap-4 border px-3 py-1.5 rounded-lg mr-2 relative"
+      class="selection-bar flex items-center gap-2 border px-3 py-1.5 rounded-lg mr-2 relative"
       style="
         background-color: var(--accent-faint);
         border-color: var(--accent-light);
@@ -274,6 +274,9 @@
         overflow: visible;
       "
     >
+      <span class="text-sm text-accent"
+        >已选 <span x-text="selectedIds.length" class="font-bold"></span
+      ></span>
       <button
         x-show="currentMode === 'cards' || currentMode === 'worldinfo' || currentMode === 'presets'"
         @click="toggleSelectAll()"
@@ -336,16 +339,6 @@
         class="text-xs bg-red-800 hover:bg-red-700 px-2 py-1 rounded text-white border border-red-600/50 transition-all"
       >
         🗑️ 删除预设
-      </button>
-      <span class="text-sm text-accent"
-        >已选 <span x-text="selectedIds.length" class="font-bold"></span
-      ></span>
-      <button
-        @click="selectedIds = []"
-        class="text-xs hover:text-white cursor-pointer"
-        style="color: var(--text-sub)"
-      >
-        取消
       </button>
       <!-- 批量执行规则按钮 -->
       <div
@@ -437,8 +430,24 @@
           >
             确认无需更新
           </button>
+          <div class="my-1 border-t border-[var(--border-light)]" role="separator"></div>
+          <button
+            @click="addSelectedToSourceMonitorPool(); showSourceUpdateMenu = false"
+            type="button"
+            role="menuitem"
+            class="w-full block text-left px-3 py-2 text-xs hover:bg-[var(--bg-hover)] text-[var(--text-main)] transition-colors"
+          >
+            加入监控池（已选 <span x-text="selectedIds.length"></span> 张）
+          </button>
         </div>
       </div>
+      <button
+        @click="selectedIds = []"
+        class="text-xs hover:text-white cursor-pointer"
+        style="color: var(--text-sub)"
+      >
+        取消
+      </button>
     </div>
 
     <!-- 搜索与筛选区 -->
@@ -615,6 +624,15 @@
         🎲
       </button>
       <button
+        x-show="currentMode === 'cards'"
+        @click="openSourceMonitorPool()"
+        title="打开角色卡监控池"
+        aria-label="打开角色卡监控池"
+        class="btn-secondary hover:scale-105 transition-transform"
+      >
+        👁️
+      </button>
+      <button
         @click="openUrlImport()"
         :disabled="!canOpenUrlImport"
         :class="canOpenUrlImport ? 'btn-secondary hover:scale-105' : 'opacity-50 cursor-not-allowed btn-secondary'"
@@ -751,6 +769,15 @@
         >
           确认无需更新
         </button>
+        <div class="my-1 border-t border-[var(--border-light)]" role="separator"></div>
+        <button
+          @click="addSelectedToSourceMonitorPool(); showSourceUpdateMenu = false"
+          type="button"
+          role="menuitem"
+          class="w-full block min-h-11 text-left px-3 py-3 text-sm hover:bg-[var(--bg-hover)] text-[var(--text-main)]"
+        >
+          加入监控池（已选 <span x-text="selectedIds.length"></span> 张）
+        </button>
       </div>
     </div>
     <button
@@ -869,6 +896,14 @@
       >
         <div class="menu-icon">🌐</div>
         <div class="menu-label">URL导入</div>
+      </button>
+      <button
+        x-show="currentMode === 'cards'"
+        @click="openSourceMonitorPool(); closeMobileMenu()"
+        class="mobile-menu-btn-item accent"
+      >
+        <div class="menu-icon">👁️</div>
+        <div class="menu-label">监控池</div>
       </button>
       <button
         @click="currentMode === 'cards' ? fetchCards() : (currentMode === 'worldinfo' ? fetchWorldInfoList() : fetchChats()); closeMobileMenu()"

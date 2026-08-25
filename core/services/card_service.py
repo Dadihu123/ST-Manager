@@ -21,6 +21,7 @@ from core.data.ui_store import (
     get_import_time,
     rename_embedded_worldinfo_note_card_prefix,
 )
+from core.services.card_operation_lock import card_operation_locked
 
 # === 服务依赖 ===
 from core.services.cache_service import update_card_cache
@@ -110,6 +111,7 @@ def _ensure_resource_folder_exists(card_id, hint_name):
         
     return new_folder_name, full_path, True
 
+@card_operation_locked
 def update_card_content(card_id, temp_path, is_bundle_update, keep_ui_data, new_upload_ext, image_policy='overwrite'):
     """
     核心卡片更新逻辑。
@@ -550,6 +552,7 @@ def update_card_content(card_id, temp_path, is_bundle_update, keep_ui_data, new_
     return result
 
 # 皮肤换封服务
+@card_operation_locked
 def swap_skin_to_cover(card_id, skin_filename, save_old_to_resource=False):
     """
     将资源目录下的皮肤设为当前卡片封面。
@@ -1326,6 +1329,7 @@ def _resolve_move_card_source_id(card_id):
     return source_id
 
 
+@card_operation_locked
 def move_card_internal(card_id, target_category):
     """
     将卡片(文件)或聚合包(文件夹)移动到指定分类。
@@ -1456,6 +1460,7 @@ def move_card_internal(card_id, target_category):
         return False, None, str(e)
 
 # 内部标签/收藏更新逻辑
+@card_operation_locked
 def modify_card_attributes_internal(card_id, add_tags=None, remove_tags=None, set_favorite=None):
     """
     修改卡片属性 (标签、收藏)

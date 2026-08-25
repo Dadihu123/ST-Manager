@@ -84,6 +84,92 @@ export async function checkCardsSourceUpdateBatch(payload = {}) {
     return res.json();
 }
 
+export async function getSourceUpdateMonitorStatus() {
+    const res = await fetch('/api/cards/source_update/monitor/status');
+    return res.json();
+}
+
+export async function getSourceUpdateMonitorEntries() {
+    const res = await fetch('/api/cards/source_update/monitor/entries');
+    return res.json();
+}
+
+export async function addSourceUpdateMonitorEntries(cardIds) {
+    const res = await fetch('/api/cards/source_update/monitor/entries/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ card_ids: cardIds }),
+    });
+    return res.json();
+}
+
+export async function removeSourceUpdateMonitorEntries(cardIds) {
+    const res = await fetch('/api/cards/source_update/monitor/entries/remove', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ card_ids: cardIds }),
+    });
+    return res.json();
+}
+
+export async function setSourceUpdateMonitorEntryEnabled(cardId, enabled) {
+    const res = await fetch('/api/cards/source_update/monitor/entries/enabled', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ card_id: cardId, enabled }),
+    });
+    return res.json();
+}
+
+export async function saveSourceUpdateMonitorSettings(payload) {
+    const res = await fetch('/api/cards/source_update/monitor/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+    });
+    return res.json();
+}
+
+export async function startSourceUpdateMonitorRun(payload = {}) {
+    const res = await fetch('/api/cards/source_update/monitor/runs/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+    });
+    return res.json();
+}
+
+export async function getSourceUpdateMonitorRun(runId) {
+    const res = await fetch(`/api/cards/source_update/monitor/runs/${encodeURIComponent(runId)}`);
+    return res.json();
+}
+
+export async function reportSourceUpdateMonitorProgress(runId, payload) {
+    const res = await fetch(`/api/cards/source_update/monitor/runs/${encodeURIComponent(runId)}/progress`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+    });
+    return res.json();
+}
+
+export async function completeSourceUpdateMonitorRun(runId, payload = {}) {
+    const res = await fetch(`/api/cards/source_update/monitor/runs/${encodeURIComponent(runId)}/complete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+    });
+    return res.json();
+}
+
+export async function cancelSourceUpdateMonitorRun(runId) {
+    const res = await fetch(`/api/cards/source_update/monitor/runs/${encodeURIComponent(runId)}/cancel`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+    });
+    return res.json();
+}
+
 // 更新角色卡 (Save)
 export async function updateCard(payload) {
     const res = await fetch('/api/update_card', {

@@ -3,7 +3,10 @@
  * 顶部导航栏组件
  */
 
-import { getRandomCard } from "../api/card.js";
+import {
+  addSourceUpdateMonitorEntries,
+  getRandomCard,
+} from "../api/card.js";
 import { batchUpdateTags, getIndexStatus } from "../api/system.js";
 import { listRuleSets } from "../api/automation.js";
 import {
@@ -497,6 +500,32 @@ export default function header() {
         }
       } catch (error) {
         this.$store.global.showToast(`❌ ${error?.message || "批量确认失败"}`, 3600);
+      }
+    },
+
+    openSourceMonitorPool() {
+      window.dispatchEvent(new CustomEvent("open-source-monitor-pool"));
+    },
+
+    async addSelectedToSourceMonitorPool() {
+      if (this.currentMode !== "cards" || this.selectedIds.length === 0) return;
+      try {
+        const response = await addSourceUpdateMonitorEntries([...this.selectedIds]);
+        const results = response?.results || [];
+        const added = results.filter((item) => item.status === "added").length;
+        const failed = results.filter((item) => !item.success).length;
+        const reasons = results
+          .filter((item) => !item.success && item.reason)
+          .slice(0, 2)
+          .map((item) => `${item.card_id}：${item.reason}`)
+          .join("；");
+        this.$store.global.showToast(
+          `已加入监控池 ${added} 张${failed ? `；${failed} 项失败${reasons ? `：${reasons}` : ""}` : ""}`,
+          reasons ? 5200 : 3200,
+        );
+        this.openSourceMonitorPool();
+      } catch (error) {
+        this.$store.global.showToast(`❌ 加入监控池失败：${error?.message || "网络错误"}`, 3200);
       }
     },
 
