@@ -71,6 +71,14 @@ def test_context_menu_template_exposes_isolate_and_unisolate_actions():
     assert '取消隔离分类' in template_source
 
 
+def test_context_menu_uses_theme_aware_desktop_hover_colors():
+    template_source = read_project_file('templates/components/context_menu.html')
+
+    assert 'hover:bg-gray-700' not in template_source
+    assert 'border-gray-700' not in template_source
+    assert template_source.count('hover:bg-[var(--bg-hover)]') >= 8
+
+
 def test_settings_template_contains_isolated_category_management_section():
     template_source = read_project_file('templates/modals/settings.html')
 
