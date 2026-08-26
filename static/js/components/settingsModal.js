@@ -215,6 +215,19 @@ export default function settingsModal() {
         });
     },
 
+    // 数字设置步进控制
+    adjustNumberSetting(field, delta, min = null, max = null) {
+      const current = Number(this.settingsForm[field]);
+      const fallback = min === null ? 0 : Number(min);
+      let next = Number.isFinite(current) ? current : fallback;
+      next = Math.round(next + Number(delta));
+
+      if (min !== null) next = Math.max(Number(min), next);
+      if (max !== null) next = Math.min(Number(max), next);
+
+      this.settingsForm[field] = next;
+    },
+
     // 4. 系统操作 (systemAction: 打开文件夹、备份等)
     systemAction(action) {
       performSystemAction(action)

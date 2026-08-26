@@ -1377,3 +1377,34 @@ def test_settings_modal_clearing_st_path_invalidates_inflight_path_safety_refres
         }
         """
     )
+
+
+def test_settings_modal_number_stepper_clamps_and_increments_values():
+    run_settings_modal_runtime_check(
+        """
+        component.$store = {
+          global: {
+            settingsForm: {
+              snapshot_limit_manual: 200,
+              snapshot_limit_auto: 1,
+              wi_preview_limit: null,
+            },
+          },
+        };
+
+        component.adjustNumberSetting('snapshot_limit_manual', 1, 1, 200);
+        if (component.$store.global.settingsForm.snapshot_limit_manual !== 200) {
+          throw new Error('expected manual snapshot limit to clamp at its maximum');
+        }
+
+        component.adjustNumberSetting('snapshot_limit_auto', -1, 1, 50);
+        if (component.$store.global.settingsForm.snapshot_limit_auto !== 1) {
+          throw new Error('expected automatic snapshot limit to clamp at its minimum');
+        }
+
+        component.adjustNumberSetting('wi_preview_limit', 1, 0);
+        if (component.$store.global.settingsForm.wi_preview_limit !== 1) {
+          throw new Error('expected an empty preview limit to start from its minimum');
+        }
+        """
+    )

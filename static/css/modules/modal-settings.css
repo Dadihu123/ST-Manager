@@ -472,6 +472,31 @@ html.light-mode .settings-nav-item.active {
   height: 1.96875rem;
 }
 
+.settings-path-open-button {
+  border: 0;
+  background: transparent;
+}
+
+.settings-path-open-button:hover {
+  border-color: transparent;
+  background: var(--bg-hover);
+}
+
+.settings-path-open-button:focus-visible {
+  outline: 2px solid var(--accent-light);
+  outline-offset: 2px;
+}
+
+.settings-path-open-icon.ui-icon--sm {
+  width: 2.35rem;
+  height: 2.35rem;
+}
+
+.settings-trash-open-icon.ui-icon--sm {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
 .settings-content {
   padding: 1.5rem 1.75rem 2.25rem;
   background: color-mix(in srgb, var(--bg-panel), var(--bg-body) 10%);
@@ -644,6 +669,81 @@ html.light-mode .settings-nav-item.active {
 .settings-content .form-input {
   min-height: 2.65rem;
   border-radius: 0.65rem;
+}
+
+.settings-number-control {
+  position: relative;
+  width: 100%;
+}
+
+.settings-number-input {
+  padding-right: 2.65rem;
+  -moz-appearance: textfield;
+}
+
+.settings-number-input::-webkit-inner-spin-button,
+.settings-number-input::-webkit-outer-spin-button {
+  margin: 0;
+  -webkit-appearance: none;
+}
+
+.settings-number-stepper {
+  position: absolute;
+  top: 0.35rem;
+  right: 0.35rem;
+  bottom: 0.35rem;
+  display: flex;
+  flex-direction: column;
+  width: 1.55rem;
+  overflow: hidden;
+  border: 1px solid var(--border-light);
+  border-radius: 0.5rem;
+  background: color-mix(in srgb, var(--bg-panel), var(--bg-hover) 36%);
+}
+
+.settings-number-stepper-btn {
+  display: inline-flex;
+  flex: 1 1 50%;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  color: var(--text-dim);
+  background: transparent;
+  cursor: pointer;
+  transition: color 0.18s ease, background-color 0.18s ease;
+}
+
+.settings-number-stepper-btn + .settings-number-stepper-btn {
+  border-top: 1px solid var(--border-light);
+}
+
+.settings-number-stepper-btn:hover {
+  color: var(--text-main);
+  background: var(--bg-hover);
+}
+
+.settings-number-stepper-btn:active {
+  color: var(--accent-light);
+  background: var(--accent-faint);
+}
+
+.settings-number-stepper-btn:focus-visible {
+  z-index: 1;
+  outline: 2px solid var(--accent-light);
+  outline-offset: -2px;
+}
+
+.settings-number-stepper-icon.ui-icon--xs {
+  width: 0.7rem;
+  height: 0.7rem;
+}
+
+.settings-number-stepper-icon--up {
+  transform-box: fill-box;
+  transform-origin: center;
+  transform: rotate(180deg);
 }
 
 .settings-content input[type='checkbox'],

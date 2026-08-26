@@ -318,6 +318,11 @@ html.light-mode .card-bottom-toolbar {
   background: rgba(146, 64, 14, 0.28);
 }
 
+.card-meta-bundle .card-package-icon--150.ui-icon--xs {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
 .card-image-container {
   position: relative;
   overflow: hidden;

@@ -78,3 +78,13 @@ def test_light_mode_card_toolbar_actions_keep_icon_only_surfaces():
     assert 'border-color: transparent;' in light_toolbar_actions
     assert 'background: transparent;' in light_toolbar_actions
     assert 'box-shadow: none;' in light_toolbar_actions
+
+
+def test_card_bundle_icon_is_scaled_to_150_percent():
+    card_template = read_project_file('templates/components/grid_cards.html')
+    card_css = read_project_file('static/css/modules/view-cards.css')
+
+    assert "icon('card-package', 'ui-icon--xs card-package-icon--150')" in card_template
+    assert '.card-meta-bundle .card-package-icon--150.ui-icon--xs' in card_css
+    assert 'width: 1.125rem;' in card_css
+    assert 'height: 1.125rem;' in card_css

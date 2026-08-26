@@ -115,3 +115,27 @@ def test_settings_followup_icon_layout_and_theme_controls():
     assert '.settings-icon-button--field-centered:hover' in settings_css
     assert 'transform: translateY(-50%);' in settings_css
     assert '<h4 class="font-bold text-emerald-400 mb-2">' in source
+
+
+def test_settings_path_trash_and_number_controls_use_shared_visual_contract():
+    source = read_settings_template()
+    settings_css = (PROJECT_ROOT / 'static/css/modules/modal-settings.css').read_text(encoding='utf-8')
+    settings_js = (PROJECT_ROOT / 'static/js/components/settingsModal.js').read_text(encoding='utf-8')
+
+    assert 'settings-path-open-button' in source
+    assert 'settings-path-open-icon' in source
+    assert '.settings-path-open-button' in settings_css
+    assert 'border: 0;' in settings_css
+    assert 'height: 2.35rem;' in settings_css
+
+    assert 'settings-trash-open-icon' in source
+    assert 'height: 1.5rem;' in settings_css
+
+    assert source.count('class="settings-number-control') == 6
+    assert source.count('class="settings-number-stepper"') == 6
+    assert source.count('class="settings-number-stepper-btn"') == 12
+    assert source.count('class="form-input settings-number-input"') == 6
+    assert 'adjustNumberSetting(field, delta, min = null, max = null)' in settings_js
+    assert 'settings-number-input::-webkit-inner-spin-button' in settings_css
+    assert '.settings-number-stepper-btn:hover' in settings_css
+    assert '.settings-number-stepper-btn:focus-visible' in settings_css

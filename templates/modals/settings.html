@@ -143,9 +143,9 @@
                 @click="systemAction('open_folder')"
                 title="在资源管理器中打开"
                 aria-label="在资源管理器中打开角色卡目录"
-                class="btn-secondary px-3"
+                class="btn-secondary settings-path-open-button px-3"
               >
-                {{ icon('settings-resource-directory', 'ui-icon--sm settings-icon--150') }}
+                {{ icon('settings-resource-directory', 'ui-icon--sm settings-icon--150 settings-path-open-icon') }}
               </button>
             </div>
             <div x-show="getPathConflictMessage('cards_dir')" class="mt-2 text-sm text-yellow-300" x-text="getPathConflictMessage('cards_dir')"></div>
@@ -1033,12 +1033,35 @@
                   >端口 (Port)</label
                 >
                 <div class="settings-desc">重启生效</div>
-                <input
-                  type="number"
-                  x-model.number="settingsForm.port"
-                  class="form-input mt-1"
-                  placeholder="5000"
-                />
+                <div class="settings-number-control mt-1">
+                  <input
+                    type="number"
+                    x-model.number="settingsForm.port"
+                    min="0"
+                    max="65535"
+                    step="1"
+                    class="form-input settings-number-input"
+                    placeholder="5000"
+                  />
+                  <div class="settings-number-stepper" aria-label="调整端口">
+                    <button
+                      type="button"
+                      class="settings-number-stepper-btn"
+                      @click="adjustNumberSetting('port', 1, 0, 65535)"
+                      aria-label="增加端口"
+                    >
+                      {{ icon('chevron-down', 'ui-icon--xs settings-icon--150 settings-number-stepper-icon settings-number-stepper-icon--up') }}
+                    </button>
+                    <button
+                      type="button"
+                      class="settings-number-stepper-btn"
+                      @click="adjustNumberSetting('port', -1, 0, 65535)"
+                      aria-label="减少端口"
+                    >
+                      {{ icon('chevron-down', 'ui-icon--xs settings-icon--150 settings-number-stepper-icon') }}
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
             <div class="settings-status-note settings-status-note--warning mt-2">
@@ -1474,7 +1497,7 @@
                   @click="openTrashFolder()"
                   class="btn-secondary settings-inline-action flex-1 py-2"
                 >
-                  {{ icon('settings-resource-directory', 'ui-icon--sm settings-icon--150') }}<span>打开</span>
+                  {{ icon('settings-resource-directory', 'ui-icon--sm settings-icon--150 settings-trash-open-icon') }}<span>打开</span>
                 </button>
                 <button
                   @click="emptyTrash()"
@@ -1549,23 +1572,65 @@
                 <label class="text-xs text-[var(--text-dim)]"
                   >预览最大条目数</label
                 >
-                <input
-                  type="number"
-                  x-model.number="settingsForm.wi_preview_limit"
-                  class="form-input mt-1"
-                  min="0"
-                />
+                <div class="settings-number-control mt-1">
+                  <input
+                    type="number"
+                    x-model.number="settingsForm.wi_preview_limit"
+                    min="0"
+                    step="1"
+                    class="form-input settings-number-input"
+                  />
+                  <div class="settings-number-stepper" aria-label="调整预览条目数量">
+                    <button
+                      type="button"
+                      class="settings-number-stepper-btn"
+                      @click="adjustNumberSetting('wi_preview_limit', 1, 0)"
+                      aria-label="增加预览条目数量"
+                    >
+                      {{ icon('chevron-down', 'ui-icon--xs settings-icon--150 settings-number-stepper-icon settings-number-stepper-icon--up') }}
+                    </button>
+                    <button
+                      type="button"
+                      class="settings-number-stepper-btn"
+                      @click="adjustNumberSetting('wi_preview_limit', -1, 0)"
+                      aria-label="减少预览条目数量"
+                    >
+                      {{ icon('chevron-down', 'ui-icon--xs settings-icon--150 settings-number-stepper-icon') }}
+                    </button>
+                  </div>
+                </div>
               </div>
               <div>
                 <label class="text-xs text-[var(--text-dim)]"
                   >单条最大字符数</label
                 >
-                <input
-                  type="number"
-                  x-model.number="settingsForm.wi_preview_entry_max_chars"
-                  class="form-input mt-1"
-                  min="0"
-                />
+                <div class="settings-number-control mt-1">
+                  <input
+                    type="number"
+                    x-model.number="settingsForm.wi_preview_entry_max_chars"
+                    min="0"
+                    step="1"
+                    class="form-input settings-number-input"
+                  />
+                  <div class="settings-number-stepper" aria-label="调整预览条目字符数">
+                    <button
+                      type="button"
+                      class="settings-number-stepper-btn"
+                      @click="adjustNumberSetting('wi_preview_entry_max_chars', 1, 0)"
+                      aria-label="增加预览条目字符数"
+                    >
+                      {{ icon('chevron-down', 'ui-icon--xs settings-icon--150 settings-number-stepper-icon settings-number-stepper-icon--up') }}
+                    </button>
+                    <button
+                      type="button"
+                      class="settings-number-stepper-btn"
+                      @click="adjustNumberSetting('wi_preview_entry_max_chars', -1, 0)"
+                      aria-label="减少预览条目字符数"
+                    >
+                      {{ icon('chevron-down', 'ui-icon--xs settings-icon--150 settings-number-stepper-icon') }}
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -1596,38 +1661,101 @@
                 <label class="text-xs text-[var(--text-dim)]"
                   >手动快照 (Manual) (上限200)</label
                 >
-                <input
-                  type="number"
-                  x-model.number="settingsForm.snapshot_limit_manual"
-                  class="form-input mt-1"
-                  min="1"
-                  max="200"
-                />
+                <div class="settings-number-control mt-1">
+                  <input
+                    type="number"
+                    x-model.number="settingsForm.snapshot_limit_manual"
+                    min="1"
+                    max="200"
+                    step="1"
+                    class="form-input settings-number-input"
+                  />
+                  <div class="settings-number-stepper" aria-label="调整手动快照数量">
+                    <button
+                      type="button"
+                      class="settings-number-stepper-btn"
+                      @click="adjustNumberSetting('snapshot_limit_manual', 1, 1, 200)"
+                      aria-label="增加手动快照数量"
+                    >
+                      {{ icon('chevron-down', 'ui-icon--xs settings-icon--150 settings-number-stepper-icon settings-number-stepper-icon--up') }}
+                    </button>
+                    <button
+                      type="button"
+                      class="settings-number-stepper-btn"
+                      @click="adjustNumberSetting('snapshot_limit_manual', -1, 1, 200)"
+                      aria-label="减少手动快照数量"
+                    >
+                      {{ icon('chevron-down', 'ui-icon--xs settings-icon--150 settings-number-stepper-icon') }}
+                    </button>
+                  </div>
+                </div>
               </div>
               <div>
                 <label class="text-xs text-[var(--text-dim)]"
                   >自动快照 (Auto) (上限50)</label
                 >
-                <input
-                  type="number"
-                  x-model.number="settingsForm.snapshot_limit_auto"
-                  class="form-input mt-1"
-                  min="1"
-                  max="50"
-                />
+                <div class="settings-number-control mt-1">
+                  <input
+                    type="number"
+                    x-model.number="settingsForm.snapshot_limit_auto"
+                    min="1"
+                    max="50"
+                    step="1"
+                    class="form-input settings-number-input"
+                  />
+                  <div class="settings-number-stepper" aria-label="调整自动快照数量">
+                    <button
+                      type="button"
+                      class="settings-number-stepper-btn"
+                      @click="adjustNumberSetting('snapshot_limit_auto', 1, 1, 50)"
+                      aria-label="增加自动快照数量"
+                    >
+                      {{ icon('chevron-down', 'ui-icon--xs settings-icon--150 settings-number-stepper-icon settings-number-stepper-icon--up') }}
+                    </button>
+                    <button
+                      type="button"
+                      class="settings-number-stepper-btn"
+                      @click="adjustNumberSetting('snapshot_limit_auto', -1, 1, 50)"
+                      aria-label="减少自动快照数量"
+                    >
+                      {{ icon('chevron-down', 'ui-icon--xs settings-icon--150 settings-number-stepper-icon') }}
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
             <div class="mt-3">
               <label class="text-xs text-[var(--text-dim)]"
                 >世界书条目历史保留数 (每条目)</label
               >
-              <input
-                type="number"
-                x-model.number="settingsForm.wi_entry_history_limit"
-                class="form-input mt-1 max-w-[240px]"
-                min="1"
-                max="100"
-              />
+              <div class="settings-number-control mt-1 max-w-[240px]">
+                <input
+                  type="number"
+                  x-model.number="settingsForm.wi_entry_history_limit"
+                  min="1"
+                  max="100"
+                  step="1"
+                  class="form-input settings-number-input"
+                />
+                <div class="settings-number-stepper" aria-label="调整世界信息历史记录数量">
+                  <button
+                    type="button"
+                    class="settings-number-stepper-btn"
+                    @click="adjustNumberSetting('wi_entry_history_limit', 1, 1, 100)"
+                    aria-label="增加世界信息历史记录数量"
+                  >
+                    {{ icon('chevron-down', 'ui-icon--xs settings-icon--150 settings-number-stepper-icon settings-number-stepper-icon--up') }}
+                  </button>
+                  <button
+                    type="button"
+                    class="settings-number-stepper-btn"
+                    @click="adjustNumberSetting('wi_entry_history_limit', -1, 1, 100)"
+                    aria-label="减少世界信息历史记录数量"
+                  >
+                    {{ icon('chevron-down', 'ui-icon--xs settings-icon--150 settings-number-stepper-icon') }}
+                  </button>
+                </div>
+              </div>
               <div class="text-[11px] text-[var(--text-dim)] mt-1">
                 默认 7，保存时会自动清理更旧版本
               </div>
