@@ -66,6 +66,7 @@ from core.services.automation_service import (
     auto_run_forum_tags_on_link_update,
     auto_run_tag_merge_on_tagging,
     get_global_tag_merge_runtime,
+    has_global_source_baseline_action,
 )
 from core.services.wi_entry_history_service import (
     ensure_entry_uids,
@@ -525,6 +526,10 @@ def _source_title_sync_enabled(payload=None):
 
 def _refresh_source_after_update(card_id, payload=None, source_link=None, ui_data=None):
     if not card_id or not _source_title_sync_enabled(payload):
+        return None
+    # 只有全局规则实际配置了基线动作时，文件/URL 更新才允许自动访问来源。
+    # 否则保持无基线状态，避免网络失败被误记为“检查失败”。
+    if not has_global_source_baseline_action():
         return None
     try:
         return refresh_card_source_baseline(

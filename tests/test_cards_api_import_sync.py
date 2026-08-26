@@ -502,6 +502,71 @@ def test_update_card_content_automation_exception_returns_warning(monkeypatch, t
     assert '自动化' in result['warning']
 
 
+def test_update_card_from_url_skips_source_refresh_without_global_baseline_action(monkeypatch, tmp_path):
+    class _FakeResponse:
+        def raise_for_status(self):
+            return None
+
+        def iter_content(self, chunk_size=8192):
+            del chunk_size
+            yield b'fake-card'
+
+    refresh_calls = []
+
+    monkeypatch.setattr(cards_api, 'BASE_DIR', str(tmp_path))
+    monkeypatch.setattr(
+        cards_api,
+        'requests',
+        type('Requests', (), {'get': staticmethod(lambda *_args, **_kwargs: _FakeResponse())})(),
+    )
+    monkeypatch.setattr(cards_api, 'extract_card_info', lambda _path: {'data': {'name': 'Hero'}})
+    monkeypatch.setattr(cards_api, 'load_ui_data', lambda: {
+        'hero.png': {'link': 'https://discord.com/channels/1/2/threads/3'},
+    })
+    monkeypatch.setattr(cards_api, 'get_import_time', lambda *_args, **_kwargs: 123.0)
+    monkeypatch.setattr(
+        cards_api,
+        'update_card_content',
+        lambda *_args, **_kwargs: {
+            'success': True,
+            'new_id': 'hero.png',
+            'updated_card': {
+                'id': 'hero.png',
+                'image_url': '/cards_file/hero.png',
+            },
+        },
+    )
+    monkeypatch.setattr(
+        cards_api,
+        'refresh_card_source_baseline',
+        lambda *args, **kwargs: refresh_calls.append((args, kwargs))
+        or {'success': False, 'status': 'error'},
+    )
+    monkeypatch.setattr(
+        automation_service,
+        'load_config',
+        lambda: {'active_automation_ruleset': None},
+    )
+
+    response = _make_app().test_client().post(
+        '/api/update_card_from_url',
+        json={
+            'card_id': 'hero.png',
+            'url': 'https://example.com/hero.png',
+            'sync_source_title': True,
+            'keep_ui_data': {
+                'source_link': 'https://discord.com/channels/1/2/threads/3',
+            },
+        },
+    )
+
+    payload = response.get_json()
+    assert response.status_code == 200
+    assert payload['success'] is True
+    assert payload['source_title_sync'] is None
+    assert refresh_calls == []
+
+
 def test_import_from_url_enqueues_card_and_world_sync_jobs(monkeypatch, tmp_path):
     cards_dir = tmp_path / 'cards'
     temp_dir = tmp_path / 'temp'

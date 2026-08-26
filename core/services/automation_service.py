@@ -155,6 +155,36 @@ def _build_runtime_from_active_ruleset():
     }
 
 
+def has_global_automation_action(action_type):
+    """判断当前启用的全局规则集是否包含指定的启用动作。"""
+    try:
+        runtime = _build_runtime_from_active_ruleset()
+        ruleset = runtime.get('ruleset') if runtime else None
+        if not isinstance(ruleset, dict):
+            return False
+
+        for rule in ruleset.get('rules', []):
+            if not isinstance(rule, dict) or not rule.get('enabled', True):
+                continue
+            actions = rule.get('actions', [])
+            if not isinstance(actions, list):
+                continue
+            if any(
+                isinstance(action, dict) and action.get('type') == action_type
+                for action in actions
+            ):
+                return True
+        return False
+    except Exception as exc:
+        logger.warning('检查全局自动化动作失败: %s', exc)
+        return False
+
+
+def has_global_source_baseline_action():
+    """判断是否配置了启用的全局来源基线刷新动作。"""
+    return has_global_automation_action(ACT_REFRESH_SOURCE_BASELINE)
+
+
 def _normalize_rule_trigger_contexts(rule):
     trigger_contexts = rule.get('trigger_contexts') if isinstance(rule, dict) else None
     if not trigger_contexts:

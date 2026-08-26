@@ -723,6 +723,47 @@ def test_normalize_rule_trigger_contexts_derives_legacy_contexts_from_actions():
     ]
 
 
+def test_has_global_source_baseline_action_requires_enabled_active_action(monkeypatch):
+    monkeypatch.setattr(
+        automation_service,
+        'load_config',
+        lambda: {'active_automation_ruleset': 'ruleset-1'},
+    )
+    monkeypatch.setattr(
+        automation_service.rule_manager,
+        'get_ruleset',
+        lambda _ruleset_id: {
+            'rules': [
+                {
+                    'enabled': False,
+                    'actions': [{'type': ACT_REFRESH_SOURCE_BASELINE}],
+                },
+                {
+                    'enabled': True,
+                    'actions': [{'type': ACT_ADD_TAG, 'value': 'unrelated'}],
+                },
+            ]
+        },
+    )
+
+    assert automation_service.has_global_source_baseline_action() is False
+
+    monkeypatch.setattr(
+        automation_service.rule_manager,
+        'get_ruleset',
+        lambda _ruleset_id: {
+            'rules': [
+                {
+                    'enabled': True,
+                    'actions': [{'type': ACT_REFRESH_SOURCE_BASELINE}],
+                },
+            ]
+        },
+    )
+
+    assert automation_service.has_global_source_baseline_action() is True
+
+
 def test_auto_run_rules_for_trigger_only_evaluates_card_update_rules(monkeypatch):
     card_id = 'folder/demo.json'
     fake_cache = SimpleNamespace(
