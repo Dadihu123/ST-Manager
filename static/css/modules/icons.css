@@ -59,6 +59,47 @@
   height: 1.3125rem;
 }
 
+/* 筛选项的图标在当前侧边栏尺寸基础上再放大 150%，保持筛选层级更醒目。 */
+.sidebar .sidebar-filter-label .ui-icon--xs {
+  width: 1.6875rem;
+  height: 1.6875rem;
+}
+
+.sidebar .sidebar-filter-label .ui-icon--sm {
+  width: 1.96875rem;
+  height: 1.96875rem;
+}
+
+.sidebar .sidebar-filter-label .ui-icon--md {
+  width: 2.53125rem;
+  height: 2.53125rem;
+}
+
+.sidebar .sidebar-filter-label .ui-icon--lg {
+  width: 3.375rem;
+  height: 3.375rem;
+}
+
+.sidebar .sidebar-filter-label .sidebar-icon--unbound {
+  width: 3.6rem;
+  height: 1.96875rem;
+}
+
+/* 标签库入口与“更多标签”入口缩小图文间距，并将标签库图标再放大 50%。 */
+.sidebar .sidebar-tag-library-label {
+  gap: 0.25rem;
+}
+
+.sidebar .sidebar-tag-library-label .ui-icon--xs {
+  width: 1.6875rem;
+  height: 1.6875rem;
+}
+
+.sidebar .sidebar-tag-library-label .ui-icon--sm {
+  width: 1.96875rem;
+  height: 1.96875rem;
+}
+
 /* 右键菜单操作图标放大到基础小图标的 150%，展开箭头保留原尺寸。 */
 .context-menu-icon {
   width: 1.3125rem;

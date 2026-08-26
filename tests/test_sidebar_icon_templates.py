@@ -88,6 +88,14 @@ def test_sidebar_icon_layout_styles_cover_custom_aspect_ratio_and_labels():
     assert 'width: 1.6875rem;' in icons_css
     assert '.sidebar .sidebar-icon--unbound {' in icons_css
     assert 'width: 2.4rem;' in icons_css
+    assert '.sidebar .sidebar-filter-label .ui-icon--sm {' in icons_css
+    assert 'width: 1.96875rem;' in icons_css
+    assert '.sidebar .sidebar-filter-label .sidebar-icon--unbound {' in icons_css
+    assert 'width: 3.6rem;' in icons_css
+    assert '.sidebar .sidebar-tag-library-label {' in icons_css
+    assert 'gap: 0.25rem;' in icons_css
+    assert '.sidebar .sidebar-tag-library-label .ui-icon--xs {' in icons_css
+    assert '.sidebar .sidebar-tag-library-label .ui-icon--sm {' in icons_css
     assert '.sidebar-filter-label,' in layout_css
     assert '.sidebar-inline-label {' in layout_css
 

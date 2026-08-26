@@ -328,8 +328,8 @@
           class="text-xs text-accent cursor-pointer hover:underline"
           title="查看全部"
         >
-          <span class="sidebar-inline-label">
-            <span aria-hidden="true">{{ sidebar_icon('tag-library', 'ui-icon--sm') }}</span>
+          <span class="sidebar-inline-label sidebar-tag-library-label">
+            <span aria-hidden="true">{{ sidebar_icon('tag-library', 'ui-icon--sm sidebar-tag-library-icon') }}</span>
             <span>完整库</span>
           </span>
         </button>
@@ -394,8 +394,8 @@
             class="sidebar-tag-chip"
             style="border-style: dashed; opacity: 0.7"
           >
-            <span class="sidebar-inline-label">
-              <span aria-hidden="true">{{ sidebar_icon('tag-library', 'ui-icon--xs') }}</span>
+            <span class="sidebar-inline-label sidebar-tag-library-label">
+              <span aria-hidden="true">{{ sidebar_icon('tag-library', 'ui-icon--xs sidebar-tag-library-icon') }}</span>
               <span><span x-text="tagIndexVisibleTags.length - dynamicVisibleTagCount"></span> 更多...</span>
             </span>
           </button>
