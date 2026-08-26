@@ -1,0 +1,210 @@
+/* 项目自维护 SVG 图标基础样式 */
+.ui-icon {
+  display: block;
+  width: 1rem;
+  height: 1rem;
+  flex: 0 0 auto;
+  overflow: visible;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+.ui-icon--xs {
+  width: 0.75rem;
+  height: 0.75rem;
+}
+
+.ui-icon--sm {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+
+/* 右键菜单操作图标放大到基础小图标的 150%，展开箭头保留原尺寸。 */
+.context-menu-icon {
+  width: 1.3125rem;
+  height: 1.3125rem;
+}
+
+.ui-icon--md {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
+.ui-icon--lg {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+/* 头部与全局菜单图标统一放大到基础尺寸的 150%，不改变按钮点击区域。 */
+.header-icon--150.ui-icon--sm {
+  width: 1.3125rem;
+  height: 1.3125rem;
+}
+
+.header-icon--150.ui-icon--md {
+  width: 1.6875rem;
+  height: 1.6875rem;
+}
+
+.header-icon--150.ui-icon--lg {
+  width: 2.25rem;
+  height: 2.25rem;
+}
+
+/* 设置页及帮助信息图标统一放大到基础尺寸的 150%，不改变交互控件的点击区域。 */
+.settings-icon--150.ui-icon--xs {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
+.settings-icon--150.ui-icon--sm {
+  width: 1.3125rem;
+  height: 1.3125rem;
+}
+
+.settings-icon--150.ui-icon--md {
+  width: 1.6875rem;
+  height: 1.6875rem;
+}
+
+.ui-icon--xl {
+  width: 3rem;
+  height: 3rem;
+}
+
+/* 角色更新监控的大图案留给监控池标题，小图案用于高频入口按钮。 */
+.ui-icon--monitor-pool {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.ui-icon--monitor-pool-small {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.mobile-menu-btn-item .ui-icon--monitor-pool-small {
+  width: 1.65rem;
+  height: 1.65rem;
+}
+
+.mobile-menu-btn-item.accent .ui-icon--monitor-pool-small {
+  color: var(--accent-light);
+}
+
+.ui-icon--spin {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: ui-icon-spin 0.9s linear infinite;
+}
+
+/* 随机角色骰子使用内联 SVG，确保原图的悬浮动画在模板中可靠生效。 */
+.ui-dice-icon {
+  width: 1.5rem;
+  height: 1.5rem;
+  overflow: visible;
+  --ui-dice-face-side: #f8fafc;
+  --ui-dice-face-top: #ffffff;
+  --ui-dice-outline: #1e293b;
+  --ui-dice-pip: #1e293b;
+  --ui-dice-pip-accent: #ef4444;
+  --ui-dice-shadow: #0f172a;
+}
+
+/* 头部高频入口沿用角色卡网格的 150% 图标比例，按钮点击区域保持不变。 */
+.header-tool-btn--random .ui-dice-icon--header,
+.header-tool-btn--monitor .ui-icon--monitor-pool-small {
+  width: 2.25rem;
+  height: 2.25rem;
+}
+
+.ui-dice-face {
+  stroke: var(--ui-dice-outline);
+  stroke-width: 5;
+  stroke-linejoin: round;
+}
+
+.ui-dice-face--side {
+  fill: var(--ui-dice-face-side);
+}
+
+.ui-dice-face--top {
+  fill: var(--ui-dice-face-top);
+}
+
+.ui-dice-pip {
+  fill: var(--ui-dice-pip);
+  stroke: none;
+}
+
+.ui-dice-pip--accent {
+  fill: var(--ui-dice-pip-accent);
+}
+
+.ui-dice-shadow {
+  fill: var(--ui-dice-shadow);
+  opacity: 0.25;
+  stroke: none;
+  transform-origin: 128px 218px;
+  transition: transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.45s ease;
+}
+
+.ui-dice-group {
+  transform-origin: 128px 130px;
+  transition: transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.ui-dice-pip-center {
+  transform-origin: 0 0;
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.header-tool-btn--random:hover .ui-dice-group,
+.mobile-menu-btn-item:hover .ui-dice-group {
+  transform: translateY(-12px) rotate(-4deg);
+}
+
+.header-tool-btn--random:hover .ui-dice-shadow,
+.mobile-menu-btn-item:hover .ui-dice-shadow {
+  transform: scale(0.8);
+  opacity: 0.15;
+}
+
+.header-tool-btn--random:hover .ui-dice-pip-center,
+.mobile-menu-btn-item:hover .ui-dice-pip-center {
+  transform: scale(1.18);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-dice-group,
+  .ui-dice-shadow,
+  .ui-dice-pip-center {
+    transition: none;
+  }
+
+  .header-tool-btn--random:hover .ui-dice-group,
+  .mobile-menu-btn-item:hover .ui-dice-group,
+  .header-tool-btn--random:hover .ui-dice-shadow,
+  .mobile-menu-btn-item:hover .ui-dice-shadow,
+  .header-tool-btn--random:hover .ui-dice-pip-center,
+  .mobile-menu-btn-item:hover .ui-dice-pip-center {
+    transform: none;
+  }
+}
+
+@keyframes ui-icon-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-icon--spin {
+    animation: none;
+    opacity: 0.75;
+  }
+}

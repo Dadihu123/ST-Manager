@@ -1,3 +1,5 @@
+{% from "components/icon.html" import icon %}
+
 <!-- 设置模态框 (Refactored) -->
 <div
   x-show="showSettingsModal"
@@ -8,24 +10,34 @@
   <div class="settings-modal-container" @click.away="showSettingsModal=false">
     <!-- 1. 顶部栏 -->
     <div class="settings-header">
-      <div class="flex items-center gap-2">
-        <span class="text-2xl">⚙️</span>
-        <h3 class="font-bold text-xl">系统设置</h3>
+      <div class="settings-title-block">
+        <span class="settings-title-mark" aria-hidden="true">
+          {{ icon('header-settings', 'ui-icon--md settings-icon--150') }}
+        </span>
+        <div class="settings-title-copy">
+          <div class="settings-eyebrow">ST MANAGER / CONFIGURATION</div>
+          <h3>系统设置</h3>
+          <p>集中管理资源目录、界面体验与服务连接</p>
+        </div>
       </div>
-      <div class="flex items-center gap-2">
-        <!-- 帮助按钮 (无边框) -->
+      <div class="settings-header-actions">
         <button
+          type="button"
           @click="showSettingsHelpModal=true"
-          class="text-gray-400 hover:text-blue-400 transition text-xl px-2 font-bold"
+          class="settings-icon-button settings-icon-button--help"
           title="查看帮助指南"
+          aria-label="查看设置帮助"
         >
-          ?
+          {{ icon('settings-help-entry', 'ui-icon--md settings-icon--150') }}
         </button>
         <button
+          type="button"
           @click="showSettingsModal=false"
-          class="text-gray-400 hover:text-red-500 transition text-xl"
+          class="settings-icon-button settings-icon-button--close"
+          title="关闭设置"
+          aria-label="关闭设置"
         >
-          ✕
+          {{ icon('context-close', 'ui-icon--md settings-icon--150') }}
         </button>
       </div>
     </div>
@@ -35,41 +47,64 @@
       <!-- 左侧侧边栏导航 -->
       <aside class="settings-sidebar custom-scrollbar">
         <button
+          type="button"
           @click="activeSettingTab='general'"
           class="settings-nav-item"
           :class="activeSettingTab==='general' ? 'active' : ''"
+          :aria-selected="activeSettingTab==='general'"
         >
-          <span class="nav-icon">📂</span>
+          <span class="nav-icon" aria-hidden="true">{{ icon('settings-general-path', 'ui-icon--sm settings-icon--150') }}</span>
           <span class="nav-text">常规路径</span>
         </button>
         <button
+          type="button"
           @click="activeSettingTab='appearance'"
           class="settings-nav-item"
           :class="activeSettingTab==='appearance' ? 'active' : ''"
+          :aria-selected="activeSettingTab==='appearance'"
         >
-          <span class="nav-icon">🎨</span>
+          <span class="nav-icon" aria-hidden="true">{{ icon('settings-appearance-display', 'ui-icon--sm settings-icon--150') }}</span>
           <span class="nav-text">外观显示</span>
         </button>
         <button
+          type="button"
           @click="activeSettingTab='connection'"
           class="settings-nav-item"
           :class="activeSettingTab==='connection' ? 'active' : ''"
+          :aria-selected="activeSettingTab==='connection'"
         >
-          <span class="nav-icon">🔌</span>
+          <span class="nav-icon" aria-hidden="true">{{ icon('settings-connection-service', 'ui-icon--sm settings-icon--150') }}</span>
           <span class="nav-text">连接与服务</span>
         </button>
         <button
+          type="button"
           @click="activeSettingTab='maintenance'"
           class="settings-nav-item"
           :class="activeSettingTab==='maintenance' ? 'active' : ''"
+          :aria-selected="activeSettingTab==='maintenance'"
         >
-          <span class="nav-icon">🛠️</span>
+          <span class="nav-icon" aria-hidden="true">{{ icon('settings-maintenance-advanced', 'ui-icon--sm settings-icon--150') }}</span>
           <span class="nav-text">维护与高级</span>
         </button>
       </aside>
 
       <!-- 右侧内容滚动区 -->
       <main class="settings-content custom-scrollbar">
+        <div class="settings-content-intro">
+          <div
+            class="settings-content-kicker"
+            x-text="settingsHelpContent[activeSettingTab]?.kicker || 'SETTINGS'"
+          ></div>
+          <h4
+            class="settings-content-title"
+            x-text="settingsHelpContent[activeSettingTab]?.label || '系统设置'"
+          ></h4>
+          <p
+            class="settings-content-description"
+            x-text="settingsHelpContent[activeSettingTab]?.description || ''"
+          ></p>
+        </div>
+
         <!-- TAB 1: 常规路径 (General) -->
         <div
           x-show="activeSettingTab==='general'"
@@ -107,9 +142,10 @@
               <button
                 @click="systemAction('open_folder')"
                 title="在资源管理器中打开"
+                aria-label="在资源管理器中打开角色卡目录"
                 class="btn-secondary px-3"
               >
-                📂
+                {{ icon('settings-resource-directory', 'ui-icon--sm settings-icon--150') }}
               </button>
             </div>
             <div x-show="getPathConflictMessage('cards_dir')" class="mt-2 text-sm text-yellow-300" x-text="getPathConflictMessage('cards_dir')"></div>
@@ -251,11 +287,19 @@
             class="settings-row flex justify-between items-center p-3 rounded border border-[var(--border-light)] bg-[var(--bg-sub)]"
           >
             <div>
-              <div class="settings-label">深色模式 (Dark Mode)</div>
+              <div class="settings-label">深浅色模式 (Light / Dark Mode)</div>
               <div class="settings-desc">切换日间/夜间配色方案</div>
             </div>
-            <button @click="toggleDarkMode()" class="btn-secondary px-3 py-1">
-              <span x-text="isDarkMode ? '🌙 已开启' : '☀️ 已关闭'"></span>
+            <button
+              type="button"
+              @click="toggleDarkMode()"
+              class="settings-icon-button settings-theme-toggle"
+              :title="isDarkMode ? '切换到浅色模式' : '切换到深色模式'"
+              :aria-label="isDarkMode ? '切换到浅色模式' : '切换到深色模式'"
+            >
+              <span x-show="isDarkMode" aria-hidden="true">{{ icon('header-dark-mode', 'ui-icon--sm settings-icon--150') }}</span>
+              <span x-show="!isDarkMode" aria-hidden="true">{{ icon('header-light-mode', 'ui-icon--sm settings-icon--150') }}</span>
+              <span x-text="isDarkMode ? '深色模式' : '浅色模式'"></span>
             </button>
           </div>
 
@@ -364,7 +408,7 @@
                 x-model.number="settingsForm.items_per_page"
                 class="form-input mt-1"
               >
-                <option value="0">✨ 自动 (Auto)</option>
+                <option value="0">自动 (Auto)</option>
                 <option value="20">20 张</option>
                 <option value="40">40 张</option>
                 <option value="100">100 张</option>
@@ -377,7 +421,7 @@
                 x-model.number="settingsForm.items_per_page_wi"
                 class="form-input mt-1"
               >
-                <option value="0">✨ 自动 (Auto)</option>
+                <option value="0">自动 (Auto)</option>
                 <option value="20">20 本</option>
                 <option value="50">50 本</option>
                 <option value="100">100 本</option>
@@ -388,14 +432,14 @@
           <div class="settings-row mt-4">
             <label class="settings-label text-sm">默认排序方式</label>
             <select x-model="settingsForm.default_sort" class="form-input mt-1">
-              <option value="date_desc">修改日期 (新 ➜ 旧)</option>
-              <option value="date_asc">修改日期 (旧 ➜ 新)</option>
-              <option value="import_desc">导入日期 (新 ➜ 旧)</option>
-              <option value="import_asc">导入日期 (旧 ➜ 新)</option>
-              <option value="name_asc">名称 (A ➜ Z)</option>
-              <option value="name_desc">名称 (Z ➜ A)</option>
-              <option value="token_desc">Token 量 (大 ➜ 小)</option>
-              <option value="token_asc">Token 量 (小 ➜ 大)</option>
+              <option value="date_desc">修改日期（新到旧）</option>
+              <option value="date_asc">修改日期（旧到新）</option>
+              <option value="import_desc">导入日期（新到旧）</option>
+              <option value="import_asc">导入日期（旧到新）</option>
+              <option value="name_asc">名称（A 到 Z）</option>
+              <option value="name_desc">名称（Z 到 A）</option>
+              <option value="token_desc">Token 量（大到小）</option>
+              <option value="token_asc">Token 量（小到大）</option>
             </select>
             <div class="settings-desc mt-2">
               仅作为初始排序；主界面可临时切换，不会改写此默认值。
@@ -470,9 +514,12 @@
               />
               <button
                 @click="triggerBackgroundUpload()"
-                class="btn-secondary px-3 whitespace-nowrap"
+                class="settings-icon-button settings-icon-button--inline settings-background-upload-button"
+                title="上传背景"
+                aria-label="上传背景"
+                type="button"
               >
-                📂 上传
+                {{ icon('settings-background-upload', 'ui-icon--md settings-icon--150') }}
               </button>
               <input
                 type="file"
@@ -483,10 +530,12 @@
               />
               <button
                 @click="clearBackgroundSelection()"
-                class="btn-secondary px-3"
+                class="settings-icon-button settings-icon-button--inline settings-background-clear-button"
                 title="清除"
+                aria-label="清除背景选择"
+                type="button"
               >
-                ✕
+                {{ icon('context-close', 'ui-icon--sm settings-icon--150') }}
               </button>
             </div>
 
@@ -654,17 +703,21 @@
               />
               <button
                 @click="detectSTPath()"
-                class="btn-secondary px-3"
+                class="btn-secondary settings-icon-button settings-icon-button--inline"
                 title="自动探测"
+                aria-label="自动探测 SillyTavern 路径"
+                type="button"
               >
-                🔍
+                {{ icon('settings-path-auto-detect', 'ui-icon--sm settings-icon--150 settings-path-action-icon--150') }}
               </button>
               <button
                 @click="validateSTPath()"
-                class="btn-secondary px-3"
+                class="btn-secondary settings-icon-button settings-icon-button--inline"
                 title="验证路径"
+                aria-label="验证 SillyTavern 路径"
+                type="button"
               >
-                ✓
+                {{ icon('settings-path-validation', 'ui-icon--sm settings-icon--150 settings-path-action-icon--150') }}
               </button>
             </div>
             <div
@@ -681,7 +734,10 @@
             x-transition
             class="settings-row p-3 rounded border border-[var(--border-light)] bg-[var(--bg-sub)]"
           >
-            <div class="text-sm font-bold mb-2">📊 检测到的资源</div>
+            <div class="settings-subheading">
+              <span class="settings-subheading-icon" aria-hidden="true">{{ icon('settings-resource-directory', 'ui-icon--sm settings-icon--150') }}</span>
+              <span>检测到的资源</span>
+            </div>
             <div class="grid grid-cols-2 md:grid-cols-3 gap-2 text-xs">
               <template x-for="(info, type) in stResources" :key="type">
                 <div
@@ -695,7 +751,10 @@
           </div>
 
           <div class="settings-row">
-            <div class="text-sm font-bold mb-2">🔄 从 SillyTavern 同步资源</div>
+            <div class="settings-subheading">
+              <span class="settings-subheading-icon" aria-hidden="true">{{ icon('settings-resource-sync', 'ui-icon--sm settings-icon--150') }}</span>
+              <span>从 SillyTavern 同步资源</span>
+            </div>
             <div class="settings-desc mb-3">
               将 SillyTavern 中的资源复制到 ST-Manager 管理的目录
             </div>
@@ -703,52 +762,52 @@
             <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
               <button
                 @click="syncFromST('characters')"
-                class="btn-secondary py-2 text-sm"
+                class="btn-secondary settings-inline-action py-2 text-sm"
                 :disabled="isSyncActionBlocked('sync_characters') || syncing"
               >
-                🎴 同步角色卡
+                {{ icon('settings-sync-cards', 'ui-icon--sm settings-icon--150') }}<span>同步角色卡</span>
               </button>
               <button
                 @click="syncFromST('chats')"
                 class="btn-secondary py-2 text-sm"
                 :disabled="isSyncActionBlocked('sync_chats') || syncing"
               >
-                💬 同步聊天
+                {{ icon('settings-sync-chats', 'ui-icon--sm settings-icon--150') }}<span>同步聊天</span>
               </button>
               <button
                 @click="syncFromST('worlds')"
                 class="btn-secondary py-2 text-sm"
                 :disabled="isSyncActionBlocked('sync_worlds') || syncing"
               >
-                📚 同步世界书
+                {{ icon('settings-sync-worldbook', 'ui-icon--sm settings-icon--150') }}<span>同步世界书</span>
               </button>
               <button
                 @click="syncFromST('presets')"
                 class="btn-secondary py-2 text-sm"
                 :disabled="isSyncActionBlocked('sync_presets') || syncing"
               >
-                📝 同步预设
+                {{ icon('settings-sync-presets', 'ui-icon--sm settings-icon--150') }}<span>同步预设</span>
               </button>
               <button
                 @click="syncFromST('regex')"
                 class="btn-secondary py-2 text-sm"
                 :disabled="isSyncActionBlocked('sync_regex') || syncing"
               >
-                🔧 同步正则
+                {{ icon('settings-sync-regex', 'ui-icon--sm settings-icon--150') }}<span>同步正则</span>
               </button>
               <button
                 @click="syncFromST('quick_replies')"
                 class="btn-secondary py-2 text-sm"
                 :disabled="isSyncActionBlocked('sync_quick_replies') || syncing"
               >
-                💬 同步快速回复
+                {{ icon('settings-sync-quick-replies', 'ui-icon--sm settings-icon--150') }}<span>同步快速回复</span>
               </button>
               <button
                 @click="syncAllFromST()"
                 class="btn-primary py-2 text-sm"
                 :disabled="isSyncActionBlocked('sync_all') || syncing"
               >
-                ⚡ 全部同步
+                {{ icon('settings-resource-sync', 'ui-icon--sm settings-icon--150') }}<span>全部同步</span>
               </button>
             </div>
             <div
@@ -982,21 +1041,23 @@
                 />
               </div>
             </div>
-            <div class="text-xs text-red-400 mt-2">
-              ⚠️ 修改 Host 或 Port 需要手动重启程序才能生效。
+            <div class="settings-status-note settings-status-note--warning mt-2">
+              <span class="settings-status-icon" aria-hidden="true">{{ icon('settings-warning', 'ui-icon--xs settings-icon--150') }}</span>
+              <span>修改 Host 或 Port 需要手动重启程序才能生效。</span>
             </div>
           </div>
 
           <div
             class="settings-row p-4 rounded border border-[var(--border-light)] bg-[var(--bg-sub)]"
           >
-            <label class="settings-label text-red-400 mb-2 block"
-              >🔐 外网访问身份验证</label
-            >
+            <label class="settings-label settings-section-label-with-icon text-red-400 mb-2">
+              <span aria-hidden="true">{{ icon('settings-authentication', 'ui-icon--sm settings-icon--150') }}</span>
+              <span>外网访问身份验证</span>
+            </label>
             <div class="settings-desc mb-4">
               启用后，不在白名单内的来源访问时需要登录验证。<br />
-              <span class="text-yellow-400 text-xs"
-                >⚠️ 默认仅 127.0.0.1 (本机) 免登录，局域网 IP 也需要登录。</span
+              <span class="settings-status-note settings-status-note--warning text-xs"
+                ><span class="settings-status-icon" aria-hidden="true">{{ icon('settings-warning', 'ui-icon--xs settings-icon--150') }}</span><span>默认仅 127.0.0.1 (本机) 免登录，局域网 IP 也需要登录。</span></span
               >
             </div>
             <div class="grid grid-cols-2 gap-4">
@@ -1061,9 +1122,12 @@
                     />
                     <button
                       @click="settingsForm.auth_trusted_ips.splice(index, 1)"
-                      class="text-red-400 hover:text-red-300 text-sm px-2"
+                      class="settings-icon-button settings-icon-button--inline text-red-400 hover:text-red-300"
+                      type="button"
+                      title="移除白名单条目"
+                      aria-label="移除白名单条目"
                     >
-                      ✕
+                      {{ icon('context-close', 'ui-icon--sm settings-icon--150') }}
                     </button>
                   </div>
                 </template>
@@ -1072,9 +1136,10 @@
               <!-- 添加按钮 -->
               <button
                 @click="if(!settingsForm.auth_trusted_ips) settingsForm.auth_trusted_ips = []; settingsForm.auth_trusted_ips.push('')"
-                class="btn-secondary text-sm py-1 px-3"
+                class="btn-secondary settings-inline-action text-sm py-1 px-3"
+                type="button"
               >
-                + 添加条目
+                {{ icon('context-new', 'ui-icon--sm settings-icon--150') }}<span>添加条目</span>
               </button>
 
               <!-- 快捷添加 -->
@@ -1095,8 +1160,9 @@
               </div>
             </div>
 
-            <div class="text-xs text-yellow-400 mt-3">
-              ⚠️ 仅当用户名和密码都设置时才会启用认证。修改后保存即可生效。
+            <div class="settings-status-note settings-status-note--warning text-xs mt-3">
+              <span class="settings-status-icon" aria-hidden="true">{{ icon('settings-warning', 'ui-icon--xs settings-icon--150') }}</span>
+              <span>仅当用户名和密码都设置时才会启用认证。修改后保存即可生效。</span>
             </div>
           </div>
 
@@ -1106,8 +1172,9 @@
           <div
             class="settings-row p-4 rounded border border-[var(--border-light)] bg-[var(--bg-sub)]"
           >
-            <div class="settings-label text-indigo-400 mb-2 block">
-              🔌 Discord 认证
+            <div class="settings-label settings-section-label-with-icon text-indigo-400 mb-2">
+              <span aria-hidden="true">{{ icon('settings-connection-service', 'ui-icon--sm settings-icon--150') }}</span>
+              <span>Discord 认证</span>
             </div>
             <div class="settings-desc mb-4">
               配置Discord认证以抓取类脑论坛帖子的标签。<br />
@@ -1166,10 +1233,12 @@
                   />
                   <button
                     @click="showDiscordToken = !showDiscordToken"
-                    class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-200"
+                    class="settings-icon-button settings-icon-button--field settings-icon-button--field-centered absolute right-1 top-1/2 -translate-y-1/2"
                     type="button"
+                    :aria-label="showDiscordToken ? '隐藏 Discord Token' : '显示 Discord Token'"
                   >
-                    <span x-text="showDiscordToken ? '🙈' : '👁️'"></span>
+                    <span x-show="showDiscordToken" aria-hidden="true">{{ icon('settings-hide', 'ui-icon--sm settings-icon--150') }}</span>
+                    <span x-show="!showDiscordToken" aria-hidden="true">{{ icon('settings-show', 'ui-icon--sm settings-icon--150') }}</span>
                   </button>
                 </div>
               </div>
@@ -1207,10 +1276,12 @@
                   ></textarea>
                   <button
                     @click="showDiscordCookie = !showDiscordCookie"
-                    class="absolute right-2 top-2 text-gray-400 hover:text-gray-200"
+                    class="settings-icon-button settings-icon-button--field absolute right-1 top-1"
                     type="button"
+                    :aria-label="showDiscordCookie ? '隐藏 Discord Cookie' : '显示 Discord Cookie'"
                   >
-                    <span x-text="showDiscordCookie ? '🙈' : '👁️'"></span>
+                    <span x-show="showDiscordCookie" aria-hidden="true">{{ icon('settings-hide', 'ui-icon--sm settings-icon--150') }}</span>
+                    <span x-show="!showDiscordCookie" aria-hidden="true">{{ icon('settings-show', 'ui-icon--sm settings-icon--150') }}</span>
                   </button>
                 </div>
               </div>
@@ -1219,8 +1290,9 @@
               </div>
             </div>
 
-            <div class="text-xs text-yellow-400 mt-4">
-              ⚠️ 认证信息仅保存在本地，不会上传到任何服务器。
+            <div class="settings-status-note settings-status-note--warning text-xs mt-4">
+              <span class="settings-status-icon" aria-hidden="true">{{ icon('settings-security-status', 'ui-icon--xs settings-icon--150') }}</span>
+              <span>认证信息仅保存在本地，不会上传到任何服务器。</span>
             </div>
           </div>
 
@@ -1230,8 +1302,9 @@
           <div
             class="settings-row p-4 rounded border border-[var(--border-light)] bg-[var(--bg-sub)]"
           >
-            <div class="settings-label text-indigo-400 mb-2 block">
-              🍪 类脑 Cookie
+            <div class="settings-label settings-section-label-with-icon text-indigo-400 mb-2">
+              <span aria-hidden="true">{{ icon('settings-key', 'ui-icon--sm settings-icon--150') }}</span>
+              <span>类脑 Cookie</span>
             </div>
             <div class="settings-desc mb-3">
               用于卡片「类脑搜索」预览类脑搜索站帖子详情。与上方 Discord
@@ -1251,10 +1324,12 @@
                 ></textarea>
                 <button
                   @click="showShimmerdayCookie = !showShimmerdayCookie"
-                  class="absolute right-2 top-2 text-gray-400 hover:text-gray-200"
+                  class="settings-icon-button settings-icon-button--field absolute right-1 top-1"
                   type="button"
+                  :aria-label="showShimmerdayCookie ? '隐藏类脑 Cookie' : '显示类脑 Cookie'"
                 >
-                  <span x-text="showShimmerdayCookie ? '🙈' : '👁️'"></span>
+                  <span x-show="showShimmerdayCookie" aria-hidden="true">{{ icon('settings-hide', 'ui-icon--sm settings-icon--150') }}</span>
+                  <span x-show="!showShimmerdayCookie" aria-hidden="true">{{ icon('settings-show', 'ui-icon--sm settings-icon--150') }}</span>
                 </button>
               </div>
             </div>
@@ -1289,7 +1364,10 @@
               class="p-4 rounded border border-[var(--border-light)] bg-[var(--bg-sub)] flex flex-col justify-between"
             >
               <div>
-                <div class="font-bold mb-1">🔄 同步扫描</div>
+                <div class="settings-subheading">
+                  <span class="settings-subheading-icon" aria-hidden="true">{{ icon('settings-sync-scan', 'ui-icon--sm settings-icon--150') }}</span>
+                  <span>同步扫描</span>
+                </div>
                 <div class="text-xs text-[var(--text-dim)] mb-3">
                   强制扫描 cards
                   目录并修复数据库索引。如果手动修改了文件，请执行此操作。
@@ -1305,7 +1383,10 @@
               class="p-4 rounded border border-[var(--border-light)] bg-[var(--bg-sub)] flex flex-col justify-between"
             >
               <div>
-                <div class="font-bold mb-1">💾 备份数据</div>
+                <div class="settings-subheading">
+                  <span class="settings-subheading-icon" aria-hidden="true">{{ icon('settings-data-backup', 'ui-icon--sm settings-icon--150') }}</span>
+                  <span>备份数据</span>
+                </div>
                 <div class="text-xs text-[var(--text-dim)] mb-3">
                   备份 ui_data.json 到根目录。建议定期执行。
                 </div>
@@ -1323,7 +1404,10 @@
               class="p-4 rounded border border-[var(--border-light)] bg-[var(--bg-sub)] flex flex-col justify-between"
             >
               <div>
-                <div class="font-bold mb-1">📂 资源文件夹</div>
+                <div class="settings-subheading">
+                  <span class="settings-subheading-icon" aria-hidden="true">{{ icon('settings-resource-directory', 'ui-icon--sm settings-icon--150') }}</span>
+                  <span>资源文件夹</span>
+                </div>
                 <div class="text-xs text-[var(--text-dim)] mb-3">
                   打开存放图片、Markdown附件的目录。
                 </div>
@@ -1341,7 +1425,10 @@
               class="p-4 rounded border border-[var(--border-light)] bg-[var(--bg-sub)] flex flex-col justify-between"
             >
               <div>
-                <div class="font-bold mb-1">🗄️ 用户 DB 数据</div>
+                <div class="settings-subheading">
+                  <span class="settings-subheading-icon" aria-hidden="true">{{ icon('settings-user-database', 'ui-icon--sm settings-icon--150') }}</span>
+                  <span>用户 DB 数据</span>
+                </div>
                 <div class="text-xs text-[var(--text-dim)] mb-3">
                   备份或恢复仅保存在用户数据库中的状态，不影响 ui_data.json。
                 </div>
@@ -1374,7 +1461,10 @@
               class="p-4 rounded border border-[var(--border-light)] bg-[var(--bg-sub)] flex flex-col justify-between"
             >
               <div>
-                <div class="font-bold mb-1">🗑️ 文件回收站</div>
+                <div class="settings-subheading">
+                  <span class="settings-subheading-icon" aria-hidden="true">{{ icon('context-delete', 'ui-icon--sm settings-icon--150') }}</span>
+                  <span>文件回收站</span>
+                </div>
                 <div class="text-xs text-[var(--text-dim)] mb-3">
                   管理已删除的卡片。
                 </div>
@@ -1382,15 +1472,15 @@
               <div class="flex gap-2">
                 <button
                   @click="openTrashFolder()"
-                  class="btn-secondary flex-1 py-2"
+                  class="btn-secondary settings-inline-action flex-1 py-2"
                 >
-                  📂 打开
+                  {{ icon('settings-resource-directory', 'ui-icon--sm settings-icon--150') }}<span>打开</span>
                 </button>
                 <button
                   @click="emptyTrash()"
-                  class="btn-secondary flex-1 py-2 text-red-400 hover:text-red-500"
+                  class="btn-secondary settings-inline-action flex-1 py-2 text-red-400 hover:text-red-500"
                 >
-                  ⚠ 清空
+                  {{ icon('context-delete', 'ui-icon--sm settings-icon--150') }}<span>清空</span>
                 </button>
               </div>
             </div>
@@ -1601,11 +1691,15 @@
 
     <!-- 3. 底部操作栏 -->
     <div class="settings-footer">
+      <div class="settings-footer-note">
+        修改会在点击“保存并应用”后写入配置；部分服务设置需要重启生效。
+      </div>
       <button
         @click="saveSettings()"
-        class="btn-primary px-6 py-2 rounded-lg font-bold shadow-lg"
+        class="btn-primary settings-inline-action px-6 py-2 rounded-lg font-bold shadow-lg"
+        type="button"
       >
-        💾 保存并应用
+        {{ icon('settings-save', 'ui-icon--sm settings-icon--150') }}<span>保存并应用</span>
       </button>
     </div>
   </div>
@@ -1620,36 +1714,40 @@
     x-transition:leave="transition ease-in duration-150"
     x-transition:leave-start="opacity-100 scale-100"
     x-transition:leave-end="opacity-0 scale-95"
-    class="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+    class="settings-help-overlay fixed inset-0 z-[60] flex items-center justify-center p-4"
     @click.self="showSettingsHelpModal = false"
     @click.stop
   >
     <div
-      class="bg-[var(--bg-panel)] border border-[var(--border-light)] rounded-xl shadow-2xl w-full max-w-2xl flex flex-col overflow-hidden max-h-[85vh]"
+      class="settings-help-modal flex flex-col overflow-hidden"
     >
       <!-- 弹窗标题 -->
       <div
-        class="px-6 py-4 border-b border-[var(--border-light)] bg-[var(--bg-sub)] flex justify-between items-center"
+        class="settings-help-header"
       >
-        <h3
-          class="font-bold text-lg text-[var(--text-main)] flex items-center gap-2"
-        >
-          <span>📖</span>
-          <span
-            x-text="settingsHelpContent[activeSettingTab]?.title || '帮助指南'"
-          ></span>
-        </h3>
+        <div class="settings-help-title">
+          <span class="settings-help-title-mark" aria-hidden="true">
+            {{ icon('settings-help-entry', 'ui-icon--sm settings-icon--150 settings-help-title-icon--150') }}
+          </span>
+          <div class="settings-help-title-copy">
+            <h3 x-text="settingsHelpContent[activeSettingTab]?.title || '帮助指南'"></h3>
+            <p x-text="settingsHelpContent[activeSettingTab]?.description || '了解当前设置项的作用与使用方式。'"></p>
+          </div>
+        </div>
         <button
           @click.stop="showSettingsHelpModal = false"
-          class="text-gray-500 hover:text-red-400 px-2 text-xl"
+          class="settings-help-close"
+          type="button"
+          aria-label="关闭帮助"
+          title="关闭帮助"
         >
-          ✕
+          {{ icon('context-close', 'ui-icon--sm settings-icon--150') }}
         </button>
       </div>
 
       <!-- 弹窗内容 -->
       <div
-        class="p-6 overflow-y-auto custom-scrollbar text-sm text-[var(--text-main)] space-y-6"
+        class="settings-help-body custom-scrollbar"
       >
         <!-- 常规路径帮助 -->
         <div x-show="activeSettingTab === 'general'" x-transition>
@@ -1658,7 +1756,8 @@
               class="bg-[var(--bg-sub)] rounded border border-[var(--border-light)] p-4"
             >
               <h4 class="font-bold text-[var(--accent-main)] mb-2">
-                📂 路径配置说明
+                <span aria-hidden="true">{{ icon('settings-path', 'ui-icon--sm settings-icon--150') }}</span>
+                <span>路径配置说明</span>
               </h4>
               <p class="text-[var(--text-dim)] mb-3">
                 各路径支持相对路径（相对于程序根目录）或绝对路径。
@@ -1674,12 +1773,19 @@
                 <li>
                   <strong>资源路径：</strong>存放角色附件、背景图等资源的根目录
                 </li>
+                <li>
+                  <strong>聊天、正则、脚本与快速回复：</strong>分别对应全局扩展资源目录，便于统一浏览和维护
+                </li>
+                <li>
+                  <strong>ST Chat Completion 预设：</strong>可单独接入 SillyTavern 的 OpenAI 预设目录
+                </li>
               </ul>
             </div>
             <div
-              class="bg-[var(--accent-faint)] border border-[var(--accent-light)] rounded p-3 text-xs text-[var(--text-main)]"
+              class="settings-help-callout"
             >
-              💡 提示：修改路径后，建议执行"同步扫描"以重新索引文件。
+              <span aria-hidden="true">{{ icon('settings-tip', 'ui-icon--sm settings-icon--150') }}</span>
+              <span>修改路径后，建议执行“同步扫描”以重新索引文件。</span>
             </div>
           </div>
         </div>
@@ -1691,12 +1797,13 @@
               class="bg-[var(--bg-sub)] rounded border border-[var(--border-light)] p-4"
             >
               <h4 class="font-bold text-[var(--accent-main)] mb-2">
-                🎨 外观设置说明
+                <span aria-hidden="true">{{ icon('settings-appearance', 'ui-icon--sm settings-icon--150') }}</span>
+                <span>外观设置说明</span>
               </h4>
               <ul
                 class="list-disc list-inside space-y-2 text-[var(--text-dim)] text-xs"
               >
-                <li><strong>深色模式：</strong>切换日间/夜间配色方案</li>
+                <li><strong>深浅色模式：</strong>切换日间/夜间配色方案</li>
                 <li>
                   <strong>主题强调色：</strong>界面主色调，影响按钮、选中状态等
                 </li>
@@ -1707,12 +1814,21 @@
                 <li>
                   <strong>每页数量：</strong>设置为0时自动根据屏幕尺寸计算
                 </li>
+                <li>
+                  <strong>隔离分类：</strong>隐藏分类在上级目录和搜索结果中的出现，但不影响进入分类后浏览
+                </li>
+                <li>
+                  <strong>收藏卡片前置：</strong>开启后，收藏项会优先排列在角色卡列表顶部
+                </li>
               </ul>
             </div>
             <div
               class="bg-[var(--bg-sub)] rounded border border-[var(--border-light)] p-4"
             >
-              <h4 class="font-bold text-purple-400 mb-2">🖼️ 个性化壁纸</h4>
+              <h4 class="font-bold text-purple-400 mb-2">
+                <span aria-hidden="true">{{ icon('settings-wallpaper', 'ui-icon--sm settings-icon--150') }}</span>
+                <span>个性化壁纸</span>
+              </h4>
               <p class="text-[var(--text-dim)] text-xs">
                 支持上传自定义背景图片，可调整遮罩浓度和模糊度以适应文字阅读。
               </p>
@@ -1726,7 +1842,10 @@
             <div
               class="bg-[var(--bg-sub)] rounded border border-[var(--border-light)] p-4"
             >
-              <h4 class="font-bold text-emerald-400 mb-2">ST 认证模式排查</h4>
+              <h4 class="font-bold text-emerald-400 mb-2">
+                <span aria-hidden="true">{{ icon('settings-authentication', 'ui-icon--sm settings-icon--150') }}</span>
+                <span>ST 认证模式排查</span>
+              </h4>
               <div class="space-y-3 text-xs text-[var(--text-dim)]">
                 <p>
                   先打开 SillyTavern 根目录下的
@@ -1804,17 +1923,19 @@ basicAuthUser:
               class="bg-[var(--bg-sub)] rounded border border-[var(--border-light)] p-4"
             >
               <h4 class="font-bold text-[var(--accent-main)] mb-2">
-                🔗 SillyTavern 集成
+                <span aria-hidden="true">{{ icon('settings-integration', 'ui-icon--sm settings-icon--150') }}</span>
+                <span>SillyTavern 集成</span>
               </h4>
               <p class="text-[var(--text-dim)] text-xs mb-3">
-                配置本地SillyTavern目录后，可同步角色卡、世界书、预设等资源。
+                配置 SillyTavern 安装根目录后，可检测资源数量，并将资源复制到 ST-Manager 的管理目录。
               </p>
               <ul
                 class="list-disc list-inside space-y-2 text-[var(--text-dim)] text-xs"
               >
-                <li>点击"自动探测路径"尝试自动查找安装目录</li>
-                <li>支持Windows（D:/SillyTavern、E:/SillyTavern等）常见路径</li>
-                <li>验证路径后显示各资源类型数量</li>
+                <li>点击“自动探测路径”尝试自动查找安装目录，也可以手动填写绝对路径</li>
+                <li>路径应指向包含 <code class="font-mono">data/</code>、<code class="font-mono">public/</code> 与 <code class="font-mono">server.js</code> 的根目录</li>
+                <li>验证路径后会显示角色卡、世界书、预设等资源数量</li>
+                <li>同步前请确认目标目录，避免把同一资源目录配置为来源和目标</li>
               </ul>
             </div>
 
@@ -1823,7 +1944,8 @@ basicAuthUser:
               class="bg-[var(--bg-sub)] rounded border border-[var(--border-light)] p-4"
             >
               <h4 class="font-bold text-indigo-400 mb-2">
-                🔌 Discord 论坛标签抓取
+                <span aria-hidden="true">{{ icon('settings-connection-service', 'ui-icon--sm settings-icon--150') }}</span>
+                <span>Discord 论坛标签抓取</span>
               </h4>
               <p class="text-[var(--text-dim)] text-xs mb-3">
                 配置Discord认证后，自动化规则可从类脑论坛帖子抓取标签。
@@ -1851,7 +1973,7 @@ basicAuthUser:
                   </li>
                   <li>切换到 <strong>Console（控制台）</strong> 标签</li>
                   <li class="text-yellow-400">
-                    ⚠️ Chrome新版：如提示无法粘贴，输入
+                    Chrome 新版如提示无法粘贴，请先输入
                     <code class="bg-[var(--bg-sub)] px-1 rounded"
                       >allow pasting</code
                     >
@@ -1882,7 +2004,7 @@ iframe.remove();</pre
               <div
                 class="bg-amber-100 border border-amber-300 rounded p-3 text-xs"
               >
-                <div class="text-amber-800 font-bold mb-1">⚠️ 注意事项：</div>
+                <div class="text-amber-800 font-bold mb-1">注意事项：</div>
                 <ul class="list-disc list-inside space-y-1 text-amber-700">
                   <li>Token 有过期时间，通常几小时到几天不等</li>
                   <li>如遇 401 错误，请重新获取 Token</li>
@@ -1894,6 +2016,26 @@ iframe.remove();</pre
           </div>
         </div>
 
+        <!-- 类脑搜索预览帮助 -->
+        <div x-show="activeSettingTab === 'connection'" x-transition>
+          <div class="space-y-4">
+            <div class="settings-help-card">
+              <h4 class="font-bold text-violet-400 mb-2">
+                <span aria-hidden="true">{{ icon('settings-key', 'ui-icon--sm settings-icon--150') }}</span>
+                <span>类脑搜索预览</span>
+              </h4>
+              <p class="text-[var(--text-dim)] text-xs mb-3">
+                类脑 Cookie 只用于打开卡片中的帖子详情预览，与 Discord 标签抓取使用的认证信息相互独立。
+              </p>
+              <ul class="list-disc list-inside space-y-2 text-[var(--text-dim)] text-xs">
+                <li>登录类脑镜像站后，从浏览器开发者工具的 Network 请求中复制完整 Cookie</li>
+                <li>优先复制包含 <code class="font-mono">session=</code> 的整段值，并粘贴到“类脑 Cookie”输入框</li>
+                <li>Cookie 只保存在本机；预览失败时先重新登录并更新 Cookie</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
         <!-- 维护与高级帮助 -->
         <div x-show="activeSettingTab === 'maintenance'" x-transition>
           <div class="space-y-4">
@@ -1901,7 +2043,8 @@ iframe.remove();</pre
               class="bg-[var(--bg-sub)] rounded border border-[var(--border-light)] p-4"
             >
               <h4 class="font-bold text-[var(--accent-main)] mb-2">
-                🛠️ 维护功能说明
+                <span aria-hidden="true">{{ icon('settings-maintenance', 'ui-icon--sm settings-icon--150') }}</span>
+                <span>维护功能说明</span>
               </h4>
               <ul
                 class="list-disc list-inside space-y-2 text-[var(--text-dim)] text-xs"
@@ -1913,12 +2056,18 @@ iframe.remove();</pre
                 <li>
                   <strong>回收站：</strong>管理已删除的卡片，可恢复或彻底删除
                 </li>
+                <li>
+                  <strong>用户数据库备份：</strong>备份或恢复收藏、标签、隔离分类等用户状态，不影响资源文件
+                </li>
               </ul>
             </div>
             <div
               class="bg-[var(--bg-sub)] rounded border border-[var(--border-light)] p-4"
             >
-              <h4 class="font-bold text-orange-400 mb-2">⚙️ 高级选项</h4>
+              <h4 class="font-bold text-orange-400 mb-2">
+                <span aria-hidden="true">{{ icon('settings-advanced-settings', 'ui-icon--sm settings-icon--150') }}</span>
+                <span>高级选项</span>
+              </h4>
               <ul
                 class="list-disc list-inside space-y-2 text-[var(--text-dim)] text-xs"
               >
@@ -1927,6 +2076,7 @@ iframe.remove();</pre
                   <code class="font-mono">/</code> 作为标签分隔符
                 </li>
                 <li><strong>智能自动快照：</strong>定时检查变更并创建备份</li>
+                <li><strong>快照保留数量：</strong>分别限制手动快照和自动快照的保留上限，超出后优先删除最旧记录</li>
                 <li>
                   <strong>PNG确定性排序：</strong>避免改变外部工具的字节级行为
                 </li>

@@ -27,6 +27,20 @@ def test_state_defines_isolated_category_store_and_actions():
     assert 'removeIsolatedCategory(path) {' in source
 
 
+def test_legacy_excluded_category_filter_state_and_request_are_removed():
+    state_source = read_project_file('static/js/state.js')
+    header_source = read_project_file('templates/components/header.html')
+    header_js_source = read_project_file('static/js/components/header.js')
+    card_grid_source = read_project_file('static/js/components/cardGrid.js')
+    cards_api_source = read_project_file('core/api/v1/cards.py')
+
+    assert 'excludedCategories' not in state_source
+    assert '排除目录的 Chips' not in header_source
+    assert 'toggleExcludedCategory' not in header_js_source
+    assert 'excluded_cats' not in card_grid_source
+    assert 'excluded_cats' not in cards_api_source
+
+
 def test_state_bootstrap_loads_isolated_categories():
     source = read_project_file('static/js/state.js')
 

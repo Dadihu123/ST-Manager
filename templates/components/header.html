@@ -1,3 +1,6 @@
+{% from "components/dice_icon.html" import dice_icon %}
+{% from "components/icon.html" import icon %}
+
 <div class="header-bar" x-data="header">
   <!-- 移动端：紧凑单行布局 -->
   <div x-show="deviceType === 'mobile'" class="mobile-header-compact">
@@ -9,7 +12,7 @@
       :class="{ 'is-active': $store.global.visibleSidebar }"
       :aria-pressed="$store.global.visibleSidebar ? 'true' : 'false'"
     >
-      <div class="app-icon-mobile">
+      <div class="app-icon-mobile" aria-hidden="true">
         <span>🎴</span>
       </div>
       <div class="mobile-title">STM</div>
@@ -71,8 +74,9 @@
             type="button"
             class="mobile-upload-btn"
             @click="triggerMobileUpload()"
+            aria-label="导入文件"
           >
-            <span>📥</span>
+            {{ icon('header-import', 'ui-icon--md header-icon--150') }}
           </button>
         </div>
 
@@ -97,9 +101,13 @@
         </div>
 
         <!-- 右侧：菜单按钮 -->
-        <button @click="toggleMobileMenu()" class="mobile-menu-btn-compact">
-          <span x-show="!showMobileMenu">☰</span>
-          <span x-show="showMobileMenu">✕</span>
+        <button
+          @click="toggleMobileMenu()"
+          class="mobile-menu-btn-compact"
+          :aria-label="showMobileMenu ? '关闭菜单' : '打开菜单'"
+        >
+          <span x-show="!showMobileMenu" aria-hidden="true">{{ icon('header-menu', 'ui-icon--md header-icon--150') }}</span>
+          <span x-show="showMobileMenu" aria-hidden="true">{{ icon('context-close', 'ui-icon--md header-icon--150') }}</span>
         </button>
       </div>
     </div>
@@ -120,8 +128,9 @@
             class="chip-close-btn"
             @click.stop="removeFilterTag(tag)"
             title="删除此筛选"
+            :aria-label="'删除筛选标签：' + tag"
           >
-            ×
+            {{ icon('x', 'ui-icon--xs') }}
           </button>
         </div>
       </template>
@@ -136,8 +145,9 @@
             class="chip-close-btn"
             @click.stop="removeFilterTag(tag)"
             title="删除此筛选"
+            :aria-label="'删除筛选标签：' + tag"
           >
-            ×
+            {{ icon('x', 'ui-icon--xs') }}
           </button>
         </div>
       </template>
@@ -160,6 +170,7 @@
           border-radius: 8px;
           padding: 0.5rem;
         "
+        aria-hidden="true"
       >
         <span style="font-size: 1.5rem">🎴</span>
       </div>
@@ -202,27 +213,6 @@
       "
       class="custom-scrollbar"
     >
-      <!-- 排除目录的 Chips -->
-      <template
-        x-for="cat in $store.global.viewState.excludedCategories"
-        :key="cat"
-      >
-        <div
-          class="filter-chip"
-          style="background-color: #dc2626; border: 1px solid #ef4444"
-          title="筛选目录（排除）"
-        >
-          <span class="chip-label" x-text="'🚫 ' + cat"></span>
-          <button
-            type="button"
-            class="chip-close-btn"
-            @click.stop="toggleExcludedCategory(cat)"
-            title="删除此筛选"
-          >
-            ×
-          </button>
-        </div>
-      </template>
       <!-- 包含的标签 (绿色/主题色) -->
       <template x-for="tag in filterTags" :key="'inc-'+tag">
         <div class="filter-chip" title="筛选标签">
@@ -232,8 +222,9 @@
             class="chip-close-btn"
             @click.stop="removeFilterTag(tag)"
             title="删除此筛选"
+            :aria-label="'删除筛选标签：' + tag"
           >
-            ×
+            {{ icon('x', 'ui-icon--xs') }}
           </button>
         </div>
       </template>
@@ -250,8 +241,9 @@
             class="chip-close-btn"
             @click.stop="removeFilterTag(tag)"
             title="删除此筛选"
+            :aria-label="'删除筛选标签：' + tag"
           >
-            ×
+            {{ icon('x', 'ui-icon--xs') }}
           </button>
         </div>
       </template>
@@ -298,23 +290,23 @@
       <button
         x-show="currentMode === 'cards'"
         @click="deleteSelectedCards()"
-        class="text-xs bg-red-800 hover:bg-red-700 px-2 py-1 rounded text-white border border-red-600/50 transition-all"
+        class="text-xs bg-red-800 hover:bg-red-700 px-2 py-1 rounded text-white border border-red-600/50 transition-all flex items-center gap-1"
       >
-        🗑️ 移至回收站
+        <span aria-hidden="true">{{ icon('context-delete', 'ui-icon--sm header-icon--150') }}</span>移至回收站
       </button>
       <button
         x-show="currentMode === 'worldinfo' && canMoveWorldInfoSelection()"
         @click="moveSelectedWorldInfo()"
-        class="text-xs px-2 py-1 rounded text-white bg-blue-700 hover:bg-blue-600 transition-all"
+        class="text-xs px-2 py-1 rounded text-white bg-blue-700 hover:bg-blue-600 transition-all flex items-center gap-1"
       >
-        📂 移动分类
+        <span aria-hidden="true">{{ icon('card-folder', 'ui-icon--sm header-icon--150') }}</span>移动分类
       </button>
       <button
         x-show="currentMode === 'worldinfo' && canDeleteWorldInfoSelection()"
         @click="deleteSelectedWorldInfo()"
-        class="text-xs bg-red-800 hover:bg-red-700 px-2 py-1 rounded text-white border border-red-600/50 transition-all"
+        class="text-xs bg-red-800 hover:bg-red-700 px-2 py-1 rounded text-white border border-red-600/50 transition-all flex items-center gap-1"
       >
-        🗑️ 删除世界书
+        <span aria-hidden="true">{{ icon('context-delete', 'ui-icon--sm header-icon--150') }}</span>删除世界书
       </button>
       <button
         x-show="selectedIds.length > 1 && currentMode === 'presets'"
@@ -329,16 +321,16 @@
       <button
         x-show="currentMode === 'presets' && canMovePresetSelection()"
         @click="moveSelectedPresets()"
-        class="text-xs px-2 py-1 rounded text-white bg-blue-700 hover:bg-blue-600 transition-all"
+        class="text-xs px-2 py-1 rounded text-white bg-blue-700 hover:bg-blue-600 transition-all flex items-center gap-1"
       >
-        📂 移动分类
+        <span aria-hidden="true">{{ icon('card-folder', 'ui-icon--sm header-icon--150') }}</span>移动分类
       </button>
       <button
         x-show="currentMode === 'presets' && canDeletePresetSelection()"
         @click="deleteSelectedPresets()"
-        class="text-xs bg-red-800 hover:bg-red-700 px-2 py-1 rounded text-white border border-red-600/50 transition-all"
+        class="text-xs bg-red-800 hover:bg-red-700 px-2 py-1 rounded text-white border border-red-600/50 transition-all flex items-center gap-1"
       >
-        🗑️ 删除预设
+        <span aria-hidden="true">{{ icon('context-delete', 'ui-icon--sm header-icon--150') }}</span>删除预设
       </button>
       <!-- 批量执行规则按钮 -->
       <div
@@ -350,7 +342,7 @@
           @click="showRuleMenu = !showRuleMenu; if(showRuleMenu) $dispatch('load-rulesets-for-menu')"
           class="text-xs px-2 py-1 rounded text-white bg-yellow-600 hover:bg-yellow-500 transition-all flex items-center gap-1"
         >
-          <span>🤖</span> 自动处理
+          <span aria-hidden="true">{{ icon('context-automation', 'ui-icon--sm header-icon--150') }}</span>自动处理
         </button>
         <!-- 下拉菜单：列出可用规则集 -->
         <div
@@ -379,9 +371,9 @@
           <div class="border-t border-[var(--border-light)] mt-1 pt-1">
             <button
               @click="$dispatch('open-automation-modal'); showRuleMenu=false"
-              class="w-full text-left px-3 py-2 text-xs text-blue-400 hover:bg-[var(--bg-hover)]"
+              class="w-full text-left px-3 py-2 text-xs text-blue-400 hover:bg-[var(--bg-hover)] flex items-center gap-1"
             >
-              ⚙️ 管理规则...
+              <span aria-hidden="true">{{ icon('settings', 'ui-icon--sm') }}</span> 管理规则...
             </button>
           </div>
         </div>
@@ -401,7 +393,7 @@
           :aria-expanded="showSourceUpdateMenu.toString()"
           title="检查更新或确认已有更新无需处理"
         >
-          <span aria-hidden="true">▾</span> 来源更新
+          <span aria-hidden="true">{{ icon('chevron-down', 'ui-icon--xs') }}</span> 来源更新
         </button>
         <div
           x-show="showSourceUpdateMenu"
@@ -521,29 +513,33 @@
           x-show="currentMode === 'cards' && searchQuery"
           @click="searchQuery=''"
           class="search-clear-btn"
+          aria-label="清除角色卡搜索"
         >
-          ✕
+          {{ icon('x', 'ui-icon--sm') }}
         </button>
         <button
           x-show="currentMode === 'presets' && presetSearch"
           @click="presetSearch=''"
           class="search-clear-btn"
+          aria-label="清除预设搜索"
         >
-          ✕
+          {{ icon('x', 'ui-icon--sm') }}
         </button>
         <button
           x-show="['regex','scripts','quick_replies'].includes(currentMode) && extensionSearch"
           @click="extensionSearch=''"
           class="search-clear-btn"
+          aria-label="清除扩展搜索"
         >
-          ✕
+          {{ icon('x', 'ui-icon--sm') }}
         </button>
         <button
           x-show="currentMode === 'beautify' && beautifySearch"
           @click="beautifySearch=''"
           class="search-clear-btn"
+          aria-label="清除美化包搜索"
         >
-          ✕
+          {{ icon('x', 'ui-icon--sm') }}
         </button>
       </div>
 
@@ -575,7 +571,9 @@
         @click="openCardAdvancedFilter()"
         :title="cardAdvancedFilterCount > 0 ? `已启用 ${cardAdvancedFilterCount} 个筛选条件` : '打开高级筛选'"
       >
-        <span class="header-advanced-filter-icon">⚲</span>
+        <span class="header-advanced-filter-icon" aria-hidden="true">
+          {{ icon('header-advanced-filter', 'ui-icon--md header-icon--150') }}
+        </span>
         <span class="header-advanced-filter-btn-meta">
           <span class="header-advanced-filter-label">筛选工作台</span>
           <span class="header-advanced-filter-status">
@@ -594,80 +592,76 @@
 
     <!-- 工具按钮组 -->
     <div
-      class="tool-buttons"
-      style="display: flex; gap: 0.5rem; margin-left: 0.5rem"
+      class="tool-buttons header-tool-buttons"
     >
       <button
         x-show="currentMode === 'worldinfo'"
         @click="createWorldInfoBook()"
         title="新建世界书（SillyTavern 兼容）"
-        class="btn-secondary hover:scale-105 transition-transform"
+        aria-label="新建世界书"
+        class="btn-secondary header-tool-btn"
       >
-        ➕
+        {{ icon('context-new', 'ui-icon--md header-icon--150') }}
       </button>
       <button
         @click="randomByMode()"
-        :title="currentMode === 'cards' ? '🎲 手气不错，随机角色' : (currentMode === 'worldinfo' ? '🎲 手气不错，随机世界书' : '🎲 手气不错，随机聊天')"
-        class="hover:scale-110 transition-transform active:rotate-180 duration-300"
-        style="
-          padding: 0.5rem;
-          background: linear-gradient(135deg, var(--accent-main), #7c3aed);
-          border: 1px solid var(--accent-light);
-          border-radius: 0.5rem;
-          cursor: pointer;
-          color: white;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        "
+        :title="currentMode === 'cards' ? '手气不错，随机角色' : (currentMode === 'worldinfo' ? '手气不错，随机世界书' : '手气不错，随机聊天')"
+        :aria-label="currentMode === 'cards' ? '随机角色' : (currentMode === 'worldinfo' ? '随机世界书' : '随机聊天')"
+        class="header-tool-btn header-tool-btn--random"
       >
-        🎲
+        {{ dice_icon('ui-dice-icon--header') }}
       </button>
       <button
         x-show="currentMode === 'cards'"
         @click="openSourceMonitorPool()"
         title="打开角色卡监控池"
         aria-label="打开角色卡监控池"
-        class="btn-secondary hover:scale-105 transition-transform"
+        class="btn-secondary header-tool-btn header-tool-btn--monitor"
       >
-        👁️
+        {{ icon('monitor-pool-small', 'ui-icon--monitor-pool-small') }}
       </button>
       <button
         @click="openUrlImport()"
         :disabled="!canOpenUrlImport"
-        :class="canOpenUrlImport ? 'btn-secondary hover:scale-105' : 'opacity-50 cursor-not-allowed btn-secondary'"
+        :class="canOpenUrlImport ? '' : 'opacity-50 cursor-not-allowed'"
         :title="urlImportTitle"
-        class="btn-secondary transition-all"
+        aria-label="从 URL 导入"
+        class="btn-secondary header-tool-btn"
       >
-        🌐
+        {{ icon('header-url-import', 'ui-icon--md header-icon--150') }}
       </button>
       <button
         @click="currentMode === 'cards' ? fetchCards() : (currentMode === 'worldinfo' ? fetchWorldInfoList() : fetchChats())"
         title="刷新"
-        class="btn-secondary hover:scale-105 transition-transform"
+        aria-label="刷新当前列表"
+        class="btn-secondary header-tool-btn"
       >
-        ↻
+        {{ icon('header-refresh', 'ui-icon--md header-icon--150') }}
       </button>
       <button
         @click="toggleDarkMode()"
         :title="isDarkMode ? '切换到浅色模式' : '切换到深色模式'"
-        class="btn-secondary hover:scale-105 transition-transform"
+        :aria-label="isDarkMode ? '切换到浅色模式' : '切换到深色模式'"
+        class="btn-secondary header-tool-btn"
       >
-        <span x-text="isDarkMode ? '🌙' : '☀️'"></span>
+        <span x-show="isDarkMode" aria-hidden="true">{{ icon('header-dark-mode', 'ui-icon--md header-icon--150') }}</span>
+        <span x-show="!isDarkMode" aria-hidden="true">{{ icon('header-light-mode', 'ui-icon--md header-icon--150') }}</span>
       </button>
       <button
         @click="$dispatch('open-automation-modal')"
         title="自动化规则管理"
-        class="btn-secondary hover:scale-105 transition-transform text-yellow-500"
+        aria-label="自动化规则管理"
+        class="btn-secondary header-tool-btn text-yellow-500"
       >
-        🤖
+        {{ icon('context-automation', 'ui-icon--md header-icon--150') }}
       </button>
       <button
         @click="openSettings()"
         title="系统设置"
-        class="btn-secondary hover:scale-105 transition-transform"
+        aria-label="系统设置"
+        class="btn-secondary header-tool-btn"
       >
-        ⚙️
+        {{ icon('header-settings', 'ui-icon--md header-icon--150') }}
       </button>
     </div>
   </div>
@@ -714,18 +708,22 @@
     <button
       x-show="selectedIds.length > 0 && currentMode === 'cards'"
       @click="openMoveModal()"
-      class="text-xs px-2 py-1 rounded text-white"
+      class="text-xs px-2 py-1 rounded text-white flex items-center justify-center"
       style="background-color: #10b981"
+      title="移动选中角色卡"
+      aria-label="移动选中角色卡"
     >
-      📂
+      {{ icon('card-folder', 'ui-icon--sm header-icon--150') }}
     </button>
     <button
       x-show="selectedIds.length > 0 && currentMode === 'cards'"
       @click="openExecuteRulesMobile()"
-      class="text-xs px-2 py-1 rounded text-white"
+      class="text-xs px-2 py-1 rounded text-white flex items-center justify-center"
       style="background-color: #f59e0b"
+      title="运行自动化规则"
+      aria-label="运行自动化规则"
     >
-      🤖
+      {{ icon('context-automation', 'ui-icon--sm header-icon--150') }}
     </button>
     <div
       x-show="selectedIds.length > 0 && currentMode === 'cards'"
@@ -737,13 +735,13 @@
         x-ref="sourceUpdateMenuButton"
         @click="showSourceUpdateMenu = !showSourceUpdateMenu"
         type="button"
-        class="text-xs px-2 py-1 rounded text-white"
+        class="text-xs px-2 py-1 rounded text-white flex items-center justify-center gap-1"
         style="background-color: #0f766e; min-height: 2.75rem"
         aria-haspopup="menu"
         :aria-expanded="showSourceUpdateMenu.toString()"
         title="检查更新或确认已有更新无需处理"
       >
-        <span aria-hidden="true">▾</span> 更新
+        <span aria-hidden="true">{{ icon('chevron-down', 'ui-icon--xs') }}</span> 更新
       </button>
       <div
         x-show="showSourceUpdateMenu"
@@ -783,24 +781,30 @@
     <button
       x-show="selectedIds.length > 0 && currentMode === 'presets' && canMovePresetSelection()"
       @click="moveSelectedPresets()"
-      class="text-xs px-2 py-1 rounded text-white"
+      class="text-xs px-2 py-1 rounded text-white flex items-center justify-center"
       style="background-color: #10b981"
+      title="移动选中预设"
+      aria-label="移动选中预设"
     >
-      📂
+      {{ icon('card-folder', 'ui-icon--sm header-icon--150') }}
     </button>
     <button
       x-show="selectedIds.length > 0 && currentMode === 'presets' && canDeletePresetSelection()"
       @click="deleteSelectedPresets()"
-      class="text-xs px-2 py-1 rounded text-white bg-red-800"
+      class="text-xs px-2 py-1 rounded text-white bg-red-800 flex items-center justify-center"
+      title="删除选中预设"
+      aria-label="删除选中预设"
     >
-      🗑️
+      {{ icon('context-delete', 'ui-icon--sm header-icon--150') }}
     </button>
     <button
       x-show="currentMode === 'cards'"
       @click="deleteSelectedCards()"
-      class="text-xs px-2 py-1 rounded text-white bg-red-800"
+      class="text-xs px-2 py-1 rounded text-white bg-red-800 flex items-center justify-center"
+      title="删除选中角色卡"
+      aria-label="删除选中角色卡"
     >
-      🗑️
+      {{ icon('context-delete', 'ui-icon--sm header-icon--150') }}
     </button>
     <button
       @click="selectedIds = []"
@@ -827,12 +831,12 @@
     <div x-show="currentMode === 'cards'" class="mobile-menu-section">
       <label class="mobile-menu-label">搜索类型</label>
       <select x-model="searchType" class="mobile-menu-select">
-        <option value="mix">✨ 智能混合</option>
-        <option value="global">🌍 全局关键字</option>
-        <option value="name">👤 角色名称</option>
-        <option value="filename">📄 文件名</option>
-        <option value="creator">🎨 创作者</option>
-        <option value="tags">🏷️ 标签</option>
+        <option value="mix">智能混合</option>
+        <option value="global">全局关键字</option>
+        <option value="name">角色名称</option>
+        <option value="filename">文件名</option>
+        <option value="creator">创作者</option>
+        <option value="tags">标签</option>
       </select>
     </div>
 
@@ -843,7 +847,9 @@
         @click="openCardAdvancedFilter(); closeMobileMenu()"
       >
         <div class="mobile-advanced-filter-entry-main">
-          <div class="mobile-advanced-filter-entry-icon">⚗️</div>
+          <div class="mobile-advanced-filter-entry-icon" aria-hidden="true">
+            {{ icon('header-advanced-filter', 'ui-icon--md header-icon--150') }}
+          </div>
           <div>
             <div class="mobile-advanced-filter-entry-title">高级筛选</div>
             <div class="mobile-advanced-filter-entry-status">
@@ -871,7 +877,7 @@
         @click="createWorldInfoBook(); closeMobileMenu()"
         class="mobile-menu-btn-item"
       >
-        <div class="menu-icon">➕</div>
+        <div class="menu-icon" aria-hidden="true">{{ icon('context-new', 'ui-icon--lg header-icon--150') }}</div>
         <div class="menu-label">新建世界书</div>
       </button>
       <button
@@ -879,14 +885,14 @@
         @click="triggerChatImport(); closeMobileMenu()"
         class="mobile-menu-btn-item"
       >
-        <div class="menu-icon">📥</div>
+        <div class="menu-icon" aria-hidden="true">{{ icon('header-import', 'ui-icon--lg header-icon--150') }}</div>
         <div class="menu-label">导入聊天</div>
       </button>
       <button
         @click="randomByMode(); closeMobileMenu()"
         class="mobile-menu-btn-item"
       >
-        <div class="menu-icon">🎲</div>
+        <div class="menu-icon" aria-hidden="true">{{ dice_icon('ui-dice-icon--mobile') }}</div>
         <div class="menu-label">随机</div>
       </button>
       <button
@@ -894,7 +900,7 @@
         :disabled="!canOpenUrlImport"
         :class="canOpenUrlImport ? 'mobile-menu-btn-item' : 'mobile-menu-btn-item opacity-50'"
       >
-        <div class="menu-icon">🌐</div>
+        <div class="menu-icon" aria-hidden="true">{{ icon('header-url-import', 'ui-icon--lg header-icon--150') }}</div>
         <div class="menu-label">URL导入</div>
       </button>
       <button
@@ -902,35 +908,38 @@
         @click="openSourceMonitorPool(); closeMobileMenu()"
         class="mobile-menu-btn-item accent"
       >
-        <div class="menu-icon">👁️</div>
+        <div class="menu-icon" aria-hidden="true">{{ icon('monitor-pool-small', 'ui-icon--monitor-pool-small') }}</div>
         <div class="menu-label">监控池</div>
       </button>
       <button
         @click="currentMode === 'cards' ? fetchCards() : (currentMode === 'worldinfo' ? fetchWorldInfoList() : fetchChats()); closeMobileMenu()"
         class="mobile-menu-btn-item"
       >
-        <div class="menu-icon">↻</div>
+        <div class="menu-icon" aria-hidden="true">{{ icon('header-refresh', 'ui-icon--lg header-icon--150') }}</div>
         <div class="menu-label">刷新</div>
       </button>
       <button
         @click="toggleDarkMode(); closeMobileMenu()"
         class="mobile-menu-btn-item"
       >
-        <div class="menu-icon" x-text="isDarkMode ? '🌙' : '☀️'"></div>
+        <div class="menu-icon" aria-hidden="true">
+          <span x-show="isDarkMode">{{ icon('header-dark-mode', 'ui-icon--lg header-icon--150') }}</span>
+          <span x-show="!isDarkMode">{{ icon('header-light-mode', 'ui-icon--lg header-icon--150') }}</span>
+        </div>
         <div class="menu-label">主题</div>
       </button>
       <button
         @click="$dispatch('open-automation-modal'); closeMobileMenu()"
         class="mobile-menu-btn-item accent"
       >
-        <div class="menu-icon">🤖</div>
+        <div class="menu-icon" aria-hidden="true">{{ icon('context-automation', 'ui-icon--lg header-icon--150') }}</div>
         <div class="menu-label">规则</div>
       </button>
       <button
         @click="openSettings(); closeMobileMenu()"
         class="mobile-menu-btn-item"
       >
-        <div class="menu-icon">⚙️</div>
+        <div class="menu-icon" aria-hidden="true">{{ icon('header-settings', 'ui-icon--lg header-icon--150') }}</div>
         <div class="menu-label">设置</div>
       </button>
     </div>
@@ -944,6 +953,7 @@
                 'active': activeFavFilter === 'included',
                 'excluded': activeFavFilter === 'excluded'
             }"
+      :aria-label="'收藏筛选：' + favoriteFilterLabel"
     >
       <span class="favorite-icon">♥</span>
 

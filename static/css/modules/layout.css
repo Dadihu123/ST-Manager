@@ -101,6 +101,9 @@
 }
 
 .header-advanced-filter-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
   font-size: 0.95rem;
   line-height: 1;
@@ -1151,10 +1154,19 @@ html.light-mode .pagination-bar {
   text-decoration: line-through;
 }
 
+.chip-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+
 .chip-close-btn {
   border: none;
   background: transparent;
   color: inherit;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   font-size: 0.9rem;
   line-height: 1;
   padding: 0;
@@ -1208,13 +1220,88 @@ html.light-mode .pagination-bar {
   overflow-y: auto;
 }
 
-.tool-buttons button {
-  transition: all 0.2s ease;
+.header-tool-buttons {
+  gap: 0.2rem;
+  margin-left: 0.35rem;
+  padding: 0.2rem;
+  border-radius: 0.85rem;
+  background: color-mix(in srgb, var(--bg-sub), transparent 46%);
 }
 
-.tool-buttons button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px var(--shadow-color);
+.header-tool-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  min-width: 2.25rem;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 0.65rem;
+  background: transparent;
+  color: var(--text-dim);
+  transition:
+    background-color 0.18s ease,
+    color 0.18s ease,
+    box-shadow 0.18s ease,
+    transform 0.18s ease;
+}
+
+.header-tool-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: transparent;
+  background: color-mix(in srgb, var(--bg-hover), transparent 18%);
+  color: var(--text-main);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--shadow-color), transparent 56%);
+}
+
+.header-tool-btn:active:not(:disabled) {
+  transform: translateY(0) scale(0.94);
+}
+
+.header-tool-btn:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent-light), #ffffff 18%);
+  outline-offset: 2px;
+}
+
+.header-tool-btn--random {
+  position: relative;
+  isolation: isolate;
+  color: var(--accent-light);
+  background: transparent;
+}
+
+/* 放大的头部图标使用独立状态层，向按钮外延伸但不参与横条排版高度。 */
+.header-tool-btn--random::before {
+  position: absolute;
+  inset: -0.14rem;
+  z-index: 0;
+  border-radius: 0.79rem;
+  content: '';
+  pointer-events: none;
+  transition: background-color 0.18s ease;
+}
+
+.header-tool-btn--random::before {
+  background-color: color-mix(in srgb, var(--accent-main), transparent 86%);
+}
+
+.header-tool-btn--random > .ui-icon {
+  position: relative;
+  z-index: 1;
+}
+
+.header-tool-btn--random:hover:not(:disabled) {
+  color: #ffffff;
+  background: transparent;
+}
+
+.header-tool-btn--random:hover:not(:disabled)::before {
+  background-color: color-mix(in srgb, var(--accent-main), transparent 68%);
+}
+
+html.light-mode .header-tool-buttons {
+  background: color-mix(in srgb, var(--bg-sub), transparent 20%);
 }
 
 .search-container {
@@ -1507,6 +1594,9 @@ html.light-mode .header-favorite-btn.is-excluded .header-favorite-icon::after {
   background: transparent;
   color: var(--text-dim);
   border: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: 0 0.6rem;
   cursor: pointer;
   font-size: 0.9rem;
@@ -1939,6 +2029,9 @@ html.light-mode .header-favorite-btn.is-excluded .header-favorite-icon::after {
     color: var(--accent-main);
   }
   .menu-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
     font-size: 1.5rem;
     line-height: 1;
     margin-bottom: 0.25rem;
@@ -2064,6 +2157,17 @@ html.light-mode .header-favorite-btn.is-excluded .header-favorite-icon::after {
   }
   .tool-buttons {
     gap: 0.25rem;
+  }
+
+  .header-tool-buttons {
+    gap: 0.15rem;
+    padding: 0.15rem;
+  }
+
+  .header-tool-btn {
+    width: 2rem;
+    height: 2rem;
+    min-width: 2rem;
   }
   .search-container {
     width: 100%;
@@ -2241,10 +2345,6 @@ html.light-mode .header-favorite-btn.is-excluded .header-favorite-icon::after {
   }
   .toggle-switch-mobile.on .toggle-dot-mobile {
     transform: translateX(20px);
-  }
-  .tool-buttons button {
-    padding: 0.375rem;
-    font-size: 0.875rem;
   }
   html.light-mode .mobile-favorite-btn.excluded .favorite-icon::after {
     box-shadow:

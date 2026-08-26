@@ -1,0 +1,54 @@
+/* 监控池标题把完整图案作为识别标记，避免在小按钮中承载过多细节。 */
+.source-monitor-heading {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.875rem;
+}
+
+.source-monitor-heading__icon {
+  display: inline-flex;
+  width: 4rem;
+  height: 4rem;
+  flex: 0 0 4rem;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-main);
+}
+
+.source-monitor-heading__icon .ui-icon--source-monitor {
+  width: 3.75rem;
+  height: 3.75rem;
+}
+
+.source-monitor-heading__copy {
+  min-width: 0;
+}
+
+.source-monitor-heading__copy h2 {
+  line-height: 1.25;
+}
+
+.source-monitor-heading__copy p {
+  max-width: 60rem;
+  line-height: 1.5;
+}
+
+@media (max-width: 640px) {
+  .source-monitor-heading {
+    align-items: flex-start;
+    gap: 0.625rem;
+  }
+
+  .source-monitor-heading__icon {
+    width: 3rem;
+    height: 3rem;
+    flex-basis: 3rem;
+    margin-top: 0.1rem;
+  }
+
+  .source-monitor-heading__icon .ui-icon--source-monitor {
+    width: 2.8rem;
+    height: 2.8rem;
+  }
+}

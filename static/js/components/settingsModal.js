@@ -48,15 +48,27 @@ export default function settingsModal() {
     settingsHelpContent: {
       general: {
         title: "常规路径设置帮助",
+        label: "常规路径",
+        kicker: "PATHS & STORAGE",
+        description: "管理 ST-Manager 与 SillyTavern 资源的存储位置。",
       },
       appearance: {
         title: "外观显示设置帮助",
+        label: "外观显示",
+        kicker: "APPEARANCE & LAYOUT",
+        description: "调整主题、字体、卡片密度与背景体验。",
       },
       connection: {
         title: "连接与服务设置帮助",
+        label: "连接与服务",
+        kicker: "CONNECTIONS & SERVICES",
+        description: "配置 SillyTavern、类脑搜索与 ST-Manager 服务连接。",
       },
       maintenance: {
         title: "维护与高级设置帮助",
+        label: "维护与高级",
+        kicker: "MAINTENANCE & ADVANCED",
+        description: "执行扫描、备份、同步与高级数据保留策略。",
       },
     },
 

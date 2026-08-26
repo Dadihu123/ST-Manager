@@ -22,6 +22,7 @@ venv/
 env/
 dist/
 build/
+tmp/
 *.exe
 *.spec
 # 忽略打包环境产生的临时文件

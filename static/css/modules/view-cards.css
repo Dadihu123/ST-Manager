@@ -932,6 +932,8 @@ html.light-mode .preset-card-action-btn.is-export {
 }
 
 .card-back-category-icon {
+  display: inline-flex;
+  align-items: center;
   flex: 0 0 auto;
   opacity: 0.82;
 }
@@ -1089,6 +1091,12 @@ html.light-mode .preset-card-action-btn.is-export {
 .card-forum-search-icon {
   display: block;
   flex-shrink: 0;
+}
+
+.card-select-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .card-source-update-btn {
@@ -2025,5 +2033,113 @@ html.light-mode .btn-note-preview:hover {
   }
   .card-tags-row .card-tag:nth-child(n + 4) {
     display: none;
+  }
+}
+
+/* 角色卡网格底部动作使用无框图标，让新设计直接成为视觉主体。 */
+.card-bottom-toolbar
+  > .card-local-note-btn,
+.card-bottom-toolbar
+  > .card-forum-search-btn,
+.card-bottom-toolbar
+  > .card-send-st-btn,
+.card-bottom-toolbar
+  > .card-source-update-btn {
+  width: 1.8rem;
+  height: 1.8rem;
+  min-width: 1.8rem;
+  min-height: 1.8rem;
+  flex: 0 0 1.8rem;
+  padding: 0;
+  border: 0;
+  border-radius: 0.45rem;
+  background: transparent;
+  box-shadow: none;
+}
+
+.card-bottom-toolbar
+  > .card-local-note-btn:focus-visible,
+.card-bottom-toolbar
+  > .card-forum-search-btn:focus-visible,
+.card-bottom-toolbar
+  > .card-send-st-btn:focus-visible,
+.card-bottom-toolbar
+  > .card-source-update-btn:focus-visible {
+  outline: 2px solid var(--accent-light);
+  outline-offset: 2px;
+}
+
+.card-bottom-toolbar
+  > .card-local-note-btn:hover:not(:disabled),
+.card-bottom-toolbar
+  > .card-forum-search-btn:hover:not(:disabled),
+.card-bottom-toolbar
+  > .card-send-st-btn:hover:not(:disabled),
+.card-bottom-toolbar
+  > .card-source-update-btn:hover:not(:disabled) {
+  background: transparent;
+  border-color: transparent;
+  transform: translateY(-1px) scale(1.04);
+}
+
+.card-bottom-toolbar > .card-local-note-btn.has-note,
+.card-bottom-toolbar > .card-send-st-btn.has-sent,
+.card-bottom-toolbar > .card-send-st-btn.is-sending,
+.card-bottom-toolbar > .card-source-update-btn.is-updated,
+.card-bottom-toolbar > .card-source-update-btn.is-warning,
+.card-bottom-toolbar > .card-source-update-btn.is-baseline {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+.card-bottom-toolbar > .card-local-note-btn.has-note {
+  filter: drop-shadow(0 0 4px rgba(250, 204, 21, 0.28));
+}
+
+.card-bottom-toolbar > .card-send-st-btn.is-sending,
+.card-bottom-toolbar > .card-source-update-btn:disabled {
+  cursor: wait;
+}
+
+/* 浅色模式不能沿用深色背景下的浅色悬浮色，避免发送图标失去对比度。 */
+html.light-mode .card-bottom-toolbar > .card-send-st-btn:hover:not(:disabled) {
+  color: #1d4ed8;
+}
+
+.card-bottom-toolbar > .card-local-note-btn .ui-icon,
+.card-bottom-toolbar > .card-forum-search-btn .ui-icon,
+.card-bottom-toolbar > .card-send-st-btn .ui-icon,
+.card-bottom-toolbar > .card-source-update-btn .ui-icon {
+  width: 1.725rem;
+  height: 1.725rem;
+}
+
+.card-bottom-toolbar .ui-icon--spin {
+  animation-duration: 0.82s;
+}
+
+@media (max-width: 640px) {
+  .card-bottom-toolbar
+    > .card-local-note-btn,
+  .card-bottom-toolbar
+    > .card-forum-search-btn,
+  .card-bottom-toolbar
+    > .card-send-st-btn,
+  .card-bottom-toolbar
+    > .card-source-update-btn {
+    width: 1.6rem;
+    height: 1.6rem;
+    min-width: 1.6rem;
+    min-height: 1.6rem;
+    flex-basis: 1.6rem;
+  }
+
+  .card-bottom-toolbar > .card-local-note-btn .ui-icon,
+  .card-bottom-toolbar > .card-forum-search-btn .ui-icon,
+  .card-bottom-toolbar > .card-send-st-btn .ui-icon,
+  .card-bottom-toolbar > .card-source-update-btn .ui-icon {
+    width: 1.575rem;
+    height: 1.575rem;
   }
 }

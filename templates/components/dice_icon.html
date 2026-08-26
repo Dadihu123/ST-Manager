@@ -1,0 +1,29 @@
+{% macro dice_icon(class_name='') -%}
+<svg
+  class="ui-icon ui-dice-icon{% if class_name %} {{ class_name }}{% endif %}"
+  viewBox="36 42 184 198"
+  aria-hidden="true"
+  focusable="false"
+>
+  <ellipse class="ui-dice-shadow" cx="128" cy="218" rx="54" ry="12" />
+  <g class="ui-dice-group">
+    <g transform="matrix(0.866025, 0.5, 0, 1, 95.1, 144)">
+      <rect class="ui-dice-face ui-dice-face--side" x="-38" y="-38" width="76" height="76" rx="12" />
+      <circle class="ui-dice-pip" cx="-18" cy="-18" r="6" />
+      <circle class="ui-dice-pip" cx="18" cy="18" r="6" />
+    </g>
+    <g transform="matrix(0.866025, -0.5, 0, 1, 160.9, 144)">
+      <rect class="ui-dice-face ui-dice-face--side" x="-38" y="-38" width="76" height="76" rx="12" />
+      <circle class="ui-dice-pip" cx="-19" cy="-19" r="6" />
+      <circle class="ui-dice-pip" cx="0" cy="0" r="6" />
+      <circle class="ui-dice-pip" cx="19" cy="19" r="6" />
+    </g>
+    <g transform="matrix(0.866025, 0.5, -0.866025, 0.5, 128, 88)">
+      <rect class="ui-dice-face ui-dice-face--top" x="-38" y="-38" width="76" height="76" rx="12" />
+      <g class="ui-dice-pip-center">
+        <circle class="ui-dice-pip ui-dice-pip--accent" cx="0" cy="0" r="11" />
+      </g>
+    </g>
+  </g>
+</svg>
+{%- endmacro %}

@@ -125,11 +125,6 @@ export default function cardGrid() {
         this.currentPage = 1;
         this.scheduleFetchCards("filters");
       });
-      // 监听排除列表变化，触发刷新
-      this.$watch("$store.global.viewState.excludedCategories", () => {
-        this.currentPage = 1;
-        this.scheduleFetchCards("filters");
-      });
       this.$watch("$store.global.viewState.recursiveFilter", () => {
         this.currentPage = 1;
         this.scheduleFetchCards("filters");
@@ -873,7 +868,6 @@ export default function cardGrid() {
         category: vs.filterCategory || "",
         tags: (vs.filterTags || []).join("|||"),
         excluded_tags: (vs.excludedTags || []).join("|||"),
-        excluded_cats: (vs.excludedCategories || []).join("|||"),
         search: vs.searchQuery || "",
         search_type: vs.searchType || "mix",
         search_scope: vs.searchScope || "current",

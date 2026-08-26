@@ -439,7 +439,6 @@ export function initState() {
       filterCategory: "",
       filterTags: [],
       excludedTags: [],
-      excludedCategories: [],
       recursiveFilter: true,
       selectedIds: [],
       lastSelectedId: null,

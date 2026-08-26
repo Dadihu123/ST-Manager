@@ -680,7 +680,6 @@ def _can_use_indexed_list_cards(
     search_type,
     sort_mode,
     is_recursive,
-    excluded_cats_param,
     fav_first,
     import_date_from,
     import_date_to,
@@ -703,7 +702,7 @@ def _can_use_indexed_list_cards(
     if sort_mode != 'date_desc':
         return False
 
-    if excluded_cats_param or fav_first:
+    if fav_first:
         return False
 
     if any(value is not None for value in (
@@ -940,8 +939,6 @@ def api_list_cards():
     if search_scope not in ('current', 'all_dirs', 'full'):
         search_scope = 'current'
     sort_mode = _normalize_sort_mode(request.args.get('sort', current_config.get('default_sort', 'date_desc')))
-    excluded_cats_param = request.args.get('excluded_cats', '')
-    
     # --- 获取是否递归显示的参数 (默认 true) ---
     recursive_str = request.args.get('recursive', 'true')
     is_recursive = recursive_str.lower() == 'true'
@@ -976,7 +973,6 @@ def api_list_cards():
         search_type=search_type,
         sort_mode=sort_mode,
         is_recursive=is_recursive,
-        excluded_cats_param=excluded_cats_param,
         fav_first=fav_first,
         import_date_from=import_date_from,
         import_date_to=import_date_to,
@@ -1034,20 +1030,6 @@ def api_list_cards():
         candidates = list(ctx.cache.cards)
     library_total = len(candidates)
     
-    # --- 全局目录排除逻辑 ---
-    # full 模式下忽略所有筛选条件（只保留关键词搜索）
-    if search_scope != 'full' and excluded_cats_param:
-        ex_list = [e.strip().lower() for e in excluded_cats_param.split('|||') if e.strip()]
-        if ex_list:
-            # 排除条件：分类完全匹配 OR 是其子分类 (以 "name/" 开头)
-            candidates = [
-                c for c in candidates
-                if not any(
-                    c['category'].lower() == ex or c['category'].lower().startswith(ex + '/') 
-                    for ex in ex_list
-                )
-            ]
-
     # 2. 分类过滤 (支持递归子分类)
     # current: 使用当前目录过滤
     # all_dirs/full: 不按分类缩小范围

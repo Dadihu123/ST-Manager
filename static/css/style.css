@@ -2,6 +2,8 @@
 
 @import "modules/base.css";
 
+@import "modules/icons.css";
+
 @import "modules/components.css";
 
 @import "modules/layout.css";
@@ -24,3 +26,4 @@
 
 @import "modules/modal-automation.css";
 @import "modules/modal-forum-preview.css";
+@import "modules/modal-source-update-monitor.css";

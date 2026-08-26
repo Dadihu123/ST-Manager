@@ -320,17 +320,6 @@ export default function header() {
       });
     },
 
-    // 切换排除目录 (用于 Header 点击 Chip)
-    toggleExcludedCategory(cat) {
-      let list = [...this.$store.global.viewState.excludedCategories];
-      if (list.includes(cat)) {
-        list = list.filter((t) => t !== cat);
-      } else {
-        list.push(cat);
-      }
-      this.$store.global.viewState.excludedCategories = list;
-    },
-
     // 更新当前页全选状态
     updateCurrentPageAllSelectedStatus() {
       if (this.currentMode === "worldinfo") {

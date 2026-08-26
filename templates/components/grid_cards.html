@@ -1,3 +1,5 @@
+{% from "components/icon.html" import icon %}
+
 <!-- === 模式 1: 角色卡网格 === -->
 <div
   x-show="currentMode === 'cards'"
@@ -68,7 +70,9 @@
       x-transition.opacity
       class="drag-over-main-overlay"
     >
-      <div class="text-6xl mb-4">📂</div>
+      <div class="mb-4" aria-hidden="true">
+        {{ icon('card-upload', 'ui-icon--xl') }}
+      </div>
       <div class="text-2xl font-bold text-white tracking-wider">
         松开鼠标上传卡片
       </div>
@@ -143,7 +147,7 @@
                     class="card-meta-chip card-meta-bundle"
                     :title="`包模式版本数：${card.versions ? card.versions.length : 0}`"
                   >
-                    📦 v<span
+                    {{ icon('card-package', 'ui-icon--xs') }} v<span
                       x-text="card.versions ? card.versions.length : 0"
                     ></span>
                   </div>
@@ -158,9 +162,10 @@
                   :class="{
                                         'is-selected': selectedIds.includes(card.id),
                                         'is-mobile': $store.global.deviceType === 'mobile'
-                                    }"
+                  }"
                   @click.stop="toggleSelection(card)"
                   title="选择角色卡"
+                  :aria-label="selectedIds.includes(card.id) ? '取消选择角色卡' : '选择角色卡'"
                 >
                   <div
                     class="w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-200 shadow-sm"
@@ -168,8 +173,8 @@
                   >
                     <span
                       x-show="selectedIds.includes(card.id)"
-                      class="text-xs font-bold"
-                      >✓</span
+                      class="card-select-icon"
+                      >{{ icon('card-check', 'ui-icon--sm') }}</span
                     >
                   </div>
                 </button>
@@ -181,8 +186,9 @@
                   :class="{
                                         'is-active': card.is_favorite,
                                         'is-mobile': $store.global.deviceType === 'mobile'
-                                    }"
+                  }"
                   :title="card.is_favorite ? '取消收藏' : '加入收藏'"
+                  :aria-label="card.is_favorite ? '取消收藏' : '加入收藏'"
                 >
                   <span class="card-fav-icon">♥</span>
                 </button>
@@ -205,10 +211,11 @@
                       target="_blank"
                       @click.stop
                       title="访问来源页面"
+                      aria-label="访问来源页面"
                       class="card-source-link-fab"
                       rel="noopener noreferrer"
                     >
-                      🌐
+                      {{ icon('card-external-link', 'ui-icon--sm') }}
                     </a>
                   </div>
 
@@ -261,7 +268,9 @@
                   class="card-back-category"
                   :title="`分类：${(card.category && card.category.trim()) ? card.category : '根目录'}`"
                 >
-                  <span class="card-back-category-icon">📁</span>
+                  <span class="card-back-category-icon" aria-hidden="true">
+                    {{ icon('card-folder', 'ui-icon--sm') }}
+                  </span>
                   <span
                     class="card-back-category-text"
                     x-text="formatCategoryLabel(card.category)"
@@ -309,32 +318,20 @@
               :class="cardHasLocalNote(card) ? 'has-note' : 'no-note'"
               :disabled="!cardHasLocalNote(card)"
               :title="cardHasLocalNote(card) ? '查看本地备注预览' : '暂无本地备注'"
+              :aria-label="cardHasLocalNote(card) ? '查看本地备注预览' : '暂无本地备注'"
               @click.stop="openCardLocalNote(card)"
             >
-              📝
+              {{ icon('card-sticky-note', 'ui-icon--sm') }}
             </button>
             <button
               type="button"
               class="card-forum-search-btn"
               x-show="canOpenForumPreview(card)"
               title="类脑搜索"
+              aria-label="打开类脑搜索预览"
               @click.stop="openForumThreadPreview(card)"
             >
-              <svg
-                class="card-forum-search-icon"
-                viewBox="0 0 24 24"
-                width="14"
-                height="14"
-                aria-hidden="true"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <circle cx="11" cy="11" r="7"></circle>
-                <line x1="16.5" y1="16.5" x2="21" y2="21"></line>
-              </svg>
+              {{ icon('card-search', 'card-forum-search-icon') }}
             </button>
             <button
               type="button"
@@ -342,10 +339,15 @@
               :class="{ 'has-sent': cardHasBeenSentToST(card), 'is-sending': isSendingToST(card.id) }"
               :disabled="isSendingToST(card.id)"
               :title="getCardSendToSTTitle(card)"
+              :aria-label="getCardSendToSTTitle(card)"
               @click.stop="sendCardToST(card)"
             >
-              <span x-show="!isSendingToST(card.id)">🚀</span>
-              <span x-show="isSendingToST(card.id)">⏳</span>
+              <span x-show="!isSendingToST(card.id)" aria-hidden="true">
+                {{ icon('card-send', 'ui-icon--sm') }}
+              </span>
+              <span x-show="isSendingToST(card.id)" aria-hidden="true">
+                {{ icon('card-loader', 'ui-icon--sm ui-icon--spin') }}
+              </span>
             </button>
             <button
               type="button"
@@ -357,8 +359,12 @@
               @click.stop="checkCardSource(card)"
               aria-label="检查来源更新"
             >
-              <span x-show="!isCheckingSourceUpdate(card.id)" aria-hidden="true">↻</span>
-              <span x-show="isCheckingSourceUpdate(card.id)" aria-hidden="true">⏳</span>
+              <span x-show="!isCheckingSourceUpdate(card.id)" aria-hidden="true">
+                {{ icon('card-refresh', 'ui-icon--sm') }}
+              </span>
+              <span x-show="isCheckingSourceUpdate(card.id)" aria-hidden="true">
+                {{ icon('card-loader', 'ui-icon--sm ui-icon--spin') }}
+              </span>
             </button>
             <span
               class="card-source-update-status"

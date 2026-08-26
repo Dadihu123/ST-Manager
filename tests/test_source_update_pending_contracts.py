@@ -36,8 +36,8 @@ def test_selected_card_source_update_actions_use_accessible_dropdowns_on_both_la
     assert template.count('x-data="{ showSourceUpdateMenu: false }"') == 2
     assert template.count('aria-haspopup="menu"') == 2
     assert template.count(':aria-expanded="showSourceUpdateMenu.toString()"') == 2
-    assert template.count('role="menuitem"') == 4
-    assert template.count('class="w-full block') == 4
+    assert template.count('role="menuitem"') == 6
+    assert template.count('class="w-full block') == 6
     assert template.count('acknowledgeSelectedSourceUpdates()') == 2
     assert 'async acknowledgeSelectedSourceUpdates() {' in script
     assert 'runSourceUpdateAcknowledgeBatch' in script
@@ -48,8 +48,8 @@ def test_selected_card_source_update_actions_use_accessible_dropdowns_on_both_la
 def test_source_update_dropdowns_match_automation_alignment_and_arrow_position():
     template = read_project_file('templates/components/header.html')
 
-    assert '<span aria-hidden="true">▾</span> 来源更新' in template
-    assert '<span aria-hidden="true">▾</span> 更新' in template
+    assert "<span aria-hidden=\"true\">{{ icon('chevron-down', 'ui-icon--xs') }}</span> 来源更新" in template
+    assert "<span aria-hidden=\"true\">{{ icon('chevron-down', 'ui-icon--xs') }}</span> 更新" in template
     assert (
         'class="absolute top-full left-0 mt-2 w-56 '
         'bg-[var(--bg-panel)] border border-[var(--border-light)] '
