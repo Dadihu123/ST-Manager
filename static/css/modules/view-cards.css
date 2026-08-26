@@ -2107,6 +2107,19 @@ html.light-mode .card-bottom-toolbar > .card-send-st-btn:hover:not(:disabled) {
   color: #1d4ed8;
 }
 
+html.light-mode .card-bottom-toolbar
+  > .card-local-note-btn,
+html.light-mode .card-bottom-toolbar
+  > .card-forum-search-btn,
+html.light-mode .card-bottom-toolbar
+  > .card-send-st-btn,
+html.light-mode .card-bottom-toolbar
+  > .card-source-update-btn {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
 .card-bottom-toolbar > .card-local-note-btn .ui-icon,
 .card-bottom-toolbar > .card-forum-search-btn .ui-icon,
 .card-bottom-toolbar > .card-send-st-btn .ui-icon,

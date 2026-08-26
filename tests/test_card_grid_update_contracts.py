@@ -64,3 +64,17 @@ def test_bulk_flip_buttons_keep_white_text_in_both_themes_and_layouts():
     assert 'var(--text-main)' not in bulk_flip_button
     assert 'card-flip-all-btn' in card_template
     assert 'card-flip-all-btn' in world_info_template
+
+
+def test_light_mode_card_toolbar_actions_keep_icon_only_surfaces():
+    card_css = read_project_file('static/css/modules/view-cards.css')
+    light_toolbar_actions = card_css.split(
+        'html.light-mode .card-bottom-toolbar\n  > .card-local-note-btn,', 1
+    )[1].split('}', 1)[0]
+
+    assert '> .card-forum-search-btn,' in light_toolbar_actions
+    assert '> .card-send-st-btn,' in light_toolbar_actions
+    assert '> .card-source-update-btn {' in light_toolbar_actions
+    assert 'border-color: transparent;' in light_toolbar_actions
+    assert 'background: transparent;' in light_toolbar_actions
+    assert 'box-shadow: none;' in light_toolbar_actions
