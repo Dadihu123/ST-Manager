@@ -677,6 +677,12 @@
   flex-shrink: 0;
 }
 
+.sidebar-tag-library-button:hover .sidebar-tag-library-text,
+.sidebar-tag-library-button:focus-visible .sidebar-tag-library-text {
+  text-decoration-line: underline;
+  text-underline-offset: 0.15em;
+}
+
 .sidebar-mobile {
   position: fixed;
   top: 0;

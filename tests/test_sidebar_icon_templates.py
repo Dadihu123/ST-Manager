@@ -12,6 +12,7 @@ SIDEBAR_ICON_NAMES = {
     'global-directory',
     'folder',
     'all-cards-categories',
+    'category-expanded',
     'embedded',
     'bound',
     'unbound',
@@ -74,7 +75,29 @@ def test_sidebar_sprite_symbols_are_valid_and_background_free():
     assert 'M0,0 L947,0 L947,518 L0,518 Z' not in sprite_source
 
 
+def test_unbound_sidebar_icon_uses_theme_color_from_the_updated_asset():
+    sprite_path = PROJECT_ROOT / 'static/icons/sidebar.svg'
+    root = ET.parse(sprite_path).getroot()
+    symbol = next(
+        element
+        for element in root
+        if element.get('id') == 'icon-sidebar-unbound'
+    )
+    paths = [
+        element
+        for element in symbol
+        if element.tag.rsplit('}', 1)[-1] == 'path'
+    ]
+
+    assert symbol.get('viewBox') == '0 0 2392 1760'
+    assert len(paths) == 7
+    assert all(path.get('fill') == 'currentColor' for path in paths)
+    assert all(path.get('stroke') == 'none' for path in paths)
+    assert all('style' not in path.attrib for path in paths)
+
+
 def test_sidebar_icon_layout_styles_cover_custom_aspect_ratio_and_labels():
+    source = read_sidebar_template()
     icons_css = (PROJECT_ROOT / 'static/css/modules/icons.css').read_text(encoding='utf-8')
     layout_css = (PROJECT_ROOT / 'static/css/modules/layout.css').read_text(encoding='utf-8')
 
@@ -87,17 +110,42 @@ def test_sidebar_icon_layout_styles_cover_custom_aspect_ratio_and_labels():
     assert '.sidebar .ui-icon--md {' in icons_css
     assert 'width: 1.6875rem;' in icons_css
     assert '.sidebar .sidebar-icon--unbound {' in icons_css
-    assert 'width: 2.4rem;' in icons_css
+    assert (
+        '.sidebar .sidebar-icon--unbound {\n'
+        '  width: 1.3125rem;\n'
+        '  height: 1.3125rem;\n'
+        '}'
+    ) in icons_css
     assert '.sidebar .sidebar-filter-label .ui-icon--sm {' in icons_css
     assert 'width: 1.96875rem;' in icons_css
     assert '.sidebar .sidebar-filter-label .sidebar-icon--unbound {' in icons_css
-    assert 'width: 3.6rem;' in icons_css
+    assert (
+        '.sidebar .sidebar-filter-label .sidebar-icon--unbound {\n'
+        '  width: 1.96875rem;\n'
+        '  height: 1.96875rem;\n'
+        '}'
+    ) in icons_css
+    assert '.sidebar .sidebar-category-root-icon.ui-icon--sm {' in icons_css
+    assert 'sidebar-category-root-icon' in source
     assert '.sidebar .sidebar-tag-library-label {' in icons_css
     assert 'gap: 0.25rem;' in icons_css
     assert '.sidebar .sidebar-tag-library-label .ui-icon--xs {' in icons_css
     assert '.sidebar .sidebar-tag-library-label .ui-icon--sm {' in icons_css
+    assert 'width: 1.265625rem;' in icons_css
+    assert 'width: 1.4765625rem;' in icons_css
     assert '.sidebar-filter-label,' in layout_css
     assert '.sidebar-inline-label {' in layout_css
+    assert 'sidebar-tag-library-button' in source
+    assert 'sidebar-tag-library-text' in source
+    assert '.sidebar-tag-library-button:hover .sidebar-tag-library-text' in layout_css
+    assert 'text-decoration-line: underline;' in layout_css
+
+
+def test_sidebar_category_rows_switch_to_the_expanded_folder_icon():
+    source = read_sidebar_template()
+
+    assert source.count("sidebar_icon('category-expanded'") == 3
+    assert source.count("sidebar_icon('folder'") >= 6
 
 
 def test_sidebar_icon_macro_references_the_sidebar_sprite_namespace():

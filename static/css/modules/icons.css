@@ -23,13 +23,13 @@
   height: 0.875rem;
 }
 
-/* 侧边栏图标沿用所在控件的前景色；未绑定图标保留设计稿的横向比例。 */
+/* 侧边栏图标沿用所在控件的前景色；未绑定图标与 ui-icon--sm 使用相同外框。 */
 .sidebar-icon {
   color: inherit;
 }
 
 .sidebar-icon--unbound {
-  width: 1.6rem;
+  width: 0.875rem;
   height: 0.875rem;
 }
 
@@ -55,8 +55,13 @@
 }
 
 .sidebar .sidebar-icon--unbound {
-  width: 2.4rem;
+  width: 1.3125rem;
   height: 1.3125rem;
+}
+
+.sidebar .sidebar-category-root-icon.ui-icon--sm {
+  width: 1.96875rem;
+  height: 1.96875rem;
 }
 
 /* 筛选项的图标在当前侧边栏尺寸基础上再放大 150%，保持筛选层级更醒目。 */
@@ -81,7 +86,7 @@
 }
 
 .sidebar .sidebar-filter-label .sidebar-icon--unbound {
-  width: 3.6rem;
+  width: 1.96875rem;
   height: 1.96875rem;
 }
 
@@ -91,13 +96,13 @@
 }
 
 .sidebar .sidebar-tag-library-label .ui-icon--xs {
-  width: 1.6875rem;
-  height: 1.6875rem;
+  width: 1.265625rem;
+  height: 1.265625rem;
 }
 
 .sidebar .sidebar-tag-library-label .ui-icon--sm {
-  width: 1.96875rem;
-  height: 1.96875rem;
+  width: 1.4765625rem;
+  height: 1.4765625rem;
 }
 
 /* 右键菜单操作图标放大到基础小图标的 150%，展开箭头保留原尺寸。 */

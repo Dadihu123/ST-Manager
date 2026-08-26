@@ -481,9 +481,7 @@ html.light-mode .preset-card-action-btn.is-export {
   align-items: center;
   justify-content: center;
   line-height: 1;
-  text-shadow:
-    0 2px 6px rgba(2, 6, 23, 0.7),
-    0 0 1px rgba(2, 6, 23, 0.8);
+  filter: drop-shadow(0 1px 3px rgba(2, 6, 23, 0.32));
   opacity: 0;
   transform: scale(0.86);
   transition:
@@ -500,16 +498,21 @@ html.light-mode .preset-card-action-btn.is-export {
 }
 
 .card-fav-overlay .card-fav-icon {
-  font-size: 1.42rem;
-  font-weight: 700;
-  line-height: 1;
+  width: 1.42rem;
+  height: 1.42rem;
+  fill: currentColor;
+  stroke: none;
+  stroke-width: 0;
+  overflow: visible;
 }
 
 .card-fav-overlay.is-active {
   opacity: 1;
   transform: scale(1.02);
   color: #fb7185;
-  filter: drop-shadow(0 0 4px rgba(251, 113, 133, 0.55));
+  filter:
+    drop-shadow(0 1px 3px rgba(2, 6, 23, 0.24))
+    drop-shadow(0 0 4px rgba(251, 113, 133, 0.55));
 }
 
 .st-card:hover .card-fav-overlay,
@@ -2027,7 +2030,8 @@ html.light-mode .btn-note-preview:hover {
     height: 6.4rem;
   }
   .card-fav-overlay .card-fav-icon {
-    font-size: 1.26rem;
+    width: 1.26rem;
+    height: 1.26rem;
   }
   .card-image-tags-wrap .card-tags-row {
     min-height: 1.45rem;

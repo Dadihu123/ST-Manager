@@ -1,4 +1,5 @@
 import re
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 
@@ -88,3 +89,37 @@ def test_card_bundle_icon_is_scaled_to_150_percent():
     assert '.card-meta-bundle .card-package-icon--150.ui-icon--xs' in card_css
     assert 'width: 1.125rem;' in card_css
     assert 'height: 1.125rem;' in card_css
+
+
+def test_card_favorite_uses_solid_theme_aware_svg_with_existing_state_colors():
+    card_template = read_project_file('templates/components/grid_cards.html')
+    card_css = read_project_file('static/css/modules/view-cards.css')
+    ui_root = ET.parse(PROJECT_ROOT / 'static/icons/ui.svg').getroot()
+    favorite_symbol = next(
+        element
+        for element in ui_root
+        if element.get('id') == 'icon-card-favorite'
+    )
+    paths = [
+        element
+        for element in favorite_symbol
+        if element.tag.rsplit('}', 1)[-1] == 'path'
+    ]
+    favorite_button = card_template.split(
+        'class="card-fav-btn card-fav-overlay"', 1
+    )[1].split('</button>', 1)[0]
+
+    assert "icon('card-favorite', 'card-fav-icon')" in favorite_button
+    assert '♥' not in favorite_button
+    assert favorite_symbol.get('viewBox') == '0 0 848 677'
+    assert len(paths) == 1
+    assert paths[0].get('fill') == 'currentColor'
+    assert paths[0].get('stroke') == 'none'
+    assert 'style' not in paths[0].attrib
+    assert '.card-fav-overlay .card-fav-icon {' in card_css
+    assert 'fill: currentColor;' in card_css
+    assert 'stroke: none;' in card_css
+    assert 'color: rgba(241, 245, 249, 0.9);' in card_css
+    assert 'color: #ffe4e6;' in card_css
+    assert 'color: #fb7185;' in card_css
+    assert 'drop-shadow(0 1px 3px rgba(2, 6, 23, 0.32))' in card_css

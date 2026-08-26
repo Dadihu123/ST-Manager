@@ -174,7 +174,7 @@
           :class="[filterCategory==='' ? 'active' : '', dragOverCat==='根目录' ? 'drag-over' : '']"
           class="folder-item flex items-center px-3 py-2 rounded-lg cursor-pointer text-sm mb-1"
         >
-          <span class="mr-2" aria-hidden="true">{{ sidebar_icon('all-cards-categories', 'ui-icon--sm') }}</span>
+          <span class="mr-2" aria-hidden="true">{{ sidebar_icon('all-cards-categories', 'ui-icon--sm sidebar-category-root-icon') }}</span>
           <span style="flex: 1">全部卡片</span>
           <span class="text-xs opacity-60" x-text="libraryTotal"></span>
           <!-- 移动端：三个点操作按钮 -->
@@ -229,8 +229,10 @@
               <span
                 class="mr-2 text-yellow-500 opacity-80 group-hover:opacity-100"
                 aria-hidden="true"
-                >{{ sidebar_icon('folder', 'ui-icon--sm') }}</span
               >
+                <span x-show="folder.expanded">{{ sidebar_icon('category-expanded', 'ui-icon--sm') }}</span>
+                <span x-show="!folder.expanded">{{ sidebar_icon('folder', 'ui-icon--sm') }}</span>
+              </span>
               <span
                 style="
                   flex: 1;
@@ -325,12 +327,12 @@
         <button
           x-show="$store.global.deviceType !== 'mobile' || tagsSectionExpanded"
           @click="openTagFilter()"
-          class="text-xs text-accent cursor-pointer hover:underline"
+          class="text-xs text-accent cursor-pointer hover:underline sidebar-tag-library-button"
           title="查看全部"
         >
           <span class="sidebar-inline-label sidebar-tag-library-label">
             <span aria-hidden="true">{{ sidebar_icon('tag-library', 'ui-icon--sm sidebar-tag-library-icon') }}</span>
-            <span>完整库</span>
+            <span class="sidebar-tag-library-text">完整库</span>
           </span>
         </button>
       </div>
@@ -505,7 +507,7 @@
             class="w-full text-left px-3 py-2 rounded text-sm flex justify-between items-center transition-colors cursor-pointer mb-1"
           >
             <span class="sidebar-filter-label">
-              <span aria-hidden="true">{{ sidebar_icon('all-cards-categories', 'ui-icon--sm') }}</span>
+              <span aria-hidden="true">{{ sidebar_icon('all-cards-categories', 'ui-icon--sm sidebar-category-root-icon') }}</span>
               <span>全部分类</span>
             </span>
             <span
@@ -541,7 +543,10 @@
                     <span x-show="!folder.expanded">{{ icon('chevron-right', 'ui-icon--xs sidebar-chevron') }}</span>
                   </span>
                 </button>
-                <span class="mr-2 opacity-80 group-hover:opacity-100" aria-hidden="true">{{ sidebar_icon('folder', 'ui-icon--sm') }}</span>
+                <span class="mr-2 opacity-80 group-hover:opacity-100" aria-hidden="true">
+                  <span x-show="folder.expanded">{{ sidebar_icon('category-expanded', 'ui-icon--sm') }}</span>
+                  <span x-show="!folder.expanded">{{ sidebar_icon('folder', 'ui-icon--sm') }}</span>
+                </span>
                 <span
                   class="flex-1 overflow-hidden text-ellipsis whitespace-nowrap"
                   x-text="folder.name"
@@ -729,7 +734,7 @@
             class="w-full text-left px-3 py-2 rounded text-sm flex justify-between items-center transition-colors cursor-pointer mb-1"
           >
             <span class="sidebar-filter-label">
-              <span aria-hidden="true">{{ sidebar_icon('all-cards-categories', 'ui-icon--sm') }}</span>
+              <span aria-hidden="true">{{ sidebar_icon('all-cards-categories', 'ui-icon--sm sidebar-category-root-icon') }}</span>
               <span>全部分类</span>
             </span>
             <span
@@ -768,7 +773,10 @@
                     <span x-show="!folder.expanded">{{ icon('chevron-right', 'ui-icon--xs sidebar-chevron') }}</span>
                   </span>
                 </button>
-                <span class="mr-2 opacity-80 group-hover:opacity-100" aria-hidden="true">{{ sidebar_icon('folder', 'ui-icon--sm') }}</span>
+                <span class="mr-2 opacity-80 group-hover:opacity-100" aria-hidden="true">
+                  <span x-show="folder.expanded">{{ sidebar_icon('category-expanded', 'ui-icon--sm') }}</span>
+                  <span x-show="!folder.expanded">{{ sidebar_icon('folder', 'ui-icon--sm') }}</span>
+                </span>
                 <span
                   class="flex-1 overflow-hidden text-ellipsis whitespace-nowrap"
                   x-text="folder.name"

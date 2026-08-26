@@ -190,7 +190,7 @@
                   :title="card.is_favorite ? '取消收藏' : '加入收藏'"
                   :aria-label="card.is_favorite ? '取消收藏' : '加入收藏'"
                 >
-                  <span class="card-fav-icon">♥</span>
+                  {{ icon('card-favorite', 'card-fav-icon') }}
                 </button>
 
                 <img
