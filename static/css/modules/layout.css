@@ -662,6 +662,21 @@
   position: relative;
 }
 
+.sidebar-filter-label,
+.sidebar-inline-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.sidebar-filter-label > span[aria-hidden='true'],
+.sidebar-inline-label > span[aria-hidden='true'] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
 .sidebar-mobile {
   position: fixed;
   top: 0;

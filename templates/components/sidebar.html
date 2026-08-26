@@ -1,3 +1,5 @@
+{% from "components/icon.html" import icon, sidebar_icon %}
+
 <!-- 移动端：遮罩层 -->
 <div
   x-show="$store.global.deviceType === 'mobile' && $store.global.visibleSidebar"
@@ -39,8 +41,10 @@
     x-show="$store.global.deviceType === 'mobile'"
     @click="toggleSidebarVisible()"
     class="sidebar-close-btn"
+    aria-label="关闭侧边栏"
+    title="关闭侧边栏"
   >
-    <span>✕</span>
+    {{ icon('context-close', 'ui-icon--sm sidebar-action-icon') }}
   </button>
   <div
     class="flex flex-col border-b border-[var(--border-main)] bg-[var(--bg-sub)] relative z-10 shadow-sm"
@@ -49,24 +53,27 @@
     <div class="flex">
       <button
         @click="switchMode('cards')"
-        class="flex-1 py-3 text-sm font-bold transition-colors border-b-2"
+        class="flex-1 py-3 text-sm font-bold transition-colors border-b-2 inline-flex items-center justify-center gap-1.5"
         :class="currentMode === 'cards' ? 'border-[var(--accent-main)] text-[var(--text-main)] bg-[var(--bg-panel)]' : 'border-transparent text-[var(--text-dim)] hover:text-[var(--text-main)]'"
       >
-        🎴 角色卡
+        <span aria-hidden="true">{{ sidebar_icon('cards', 'ui-icon--md') }}</span>
+        <span>角色卡</span>
       </button>
       <button
         @click="switchMode('worldinfo')"
-        class="flex-1 py-3 text-sm font-bold transition-colors border-b-2"
+        class="flex-1 py-3 text-sm font-bold transition-colors border-b-2 inline-flex items-center justify-center gap-1.5"
         :class="currentMode === 'worldinfo' ? 'border-[var(--accent-main)] text-[var(--text-main)] bg-[var(--bg-panel)]' : 'border-transparent text-[var(--text-dim)] hover:text-[var(--text-main)]'"
       >
-        🌎 世界书
+        <span aria-hidden="true">{{ sidebar_icon('worldbook', 'ui-icon--md') }}</span>
+        <span>世界书</span>
       </button>
       <button
         @click="switchMode('chats')"
-        class="flex-1 py-3 text-sm font-bold transition-colors border-b-2"
+        class="flex-1 py-3 text-sm font-bold transition-colors border-b-2 inline-flex items-center justify-center gap-1.5"
         :class="currentMode === 'chats' ? 'border-[var(--accent-main)] text-[var(--text-main)] bg-[var(--bg-panel)]' : 'border-transparent text-[var(--text-dim)] hover:text-[var(--text-main)]'"
       >
-        💬 聊天
+        <span aria-hidden="true">{{ sidebar_icon('chats', 'ui-icon--md') }}</span>
+        <span>聊天</span>
       </button>
     </div>
 
@@ -76,39 +83,44 @@
     >
       <button
         @click="switchMode('presets')"
-        class="px-4 py-2 text-xs font-medium whitespace-nowrap transition-colors hover:bg-[var(--bg-hover)]"
+        class="px-4 py-2 text-xs font-medium whitespace-nowrap transition-colors hover:bg-[var(--bg-hover)] inline-flex items-center justify-center gap-1"
         :class="currentMode === 'presets' ? 'text-[var(--accent-light)] bg-[var(--bg-hover)]' : 'text-[var(--text-dim)]'"
       >
-        📝 预设
+        <span aria-hidden="true">{{ sidebar_icon('presets', 'ui-icon--sm') }}</span>
+        <span>预设</span>
       </button>
       <button
         @click="switchMode('regex')"
-        class="px-4 py-2 text-xs font-medium whitespace-nowrap transition-colors hover:bg-[var(--bg-hover)]"
+        class="px-4 py-2 text-xs font-medium whitespace-nowrap transition-colors hover:bg-[var(--bg-hover)] inline-flex items-center justify-center gap-1"
         :class="currentMode === 'regex' ? 'text-[var(--accent-light)] bg-[var(--bg-hover)]' : 'text-[var(--text-dim)]'"
       >
-        🧩 正则脚本
+        <span aria-hidden="true">{{ sidebar_icon('regex', 'ui-icon--sm') }}</span>
+        <span>正则脚本</span>
       </button>
       <button
         @click="switchMode('scripts')"
-        class="px-4 py-2 text-xs font-medium whitespace-nowrap transition-colors hover:bg-[var(--bg-hover)]"
+        class="px-4 py-2 text-xs font-medium whitespace-nowrap transition-colors hover:bg-[var(--bg-hover)] inline-flex items-center justify-center gap-1"
         :class="currentMode === 'scripts' ? 'text-[var(--accent-light)] bg-[var(--bg-hover)]' : 'text-[var(--text-dim)]'"
       >
-        📜 ST 脚本
+        <span aria-hidden="true">{{ sidebar_icon('scripts', 'ui-icon--sm') }}</span>
+        <span>ST 脚本</span>
       </button>
       <button
         @click="switchMode('quick_replies')"
-        class="px-3 py-2 text-xs font-medium whitespace-nowrap transition-colors hover:bg-[var(--bg-hover)]"
+        class="px-3 py-2 text-xs font-medium whitespace-nowrap transition-colors hover:bg-[var(--bg-hover)] inline-flex items-center justify-center gap-1"
         :class="currentMode === 'quick_replies' ? 'text-[var(--accent-light)] bg-[var(--bg-hover)]' : 'text-[var(--text-dim)]'"
       >
-        ⚡ 快速回复
+        <span aria-hidden="true">{{ sidebar_icon('quick-replies', 'ui-icon--sm') }}</span>
+        <span>快速回复</span>
       </button>
       <button
         @click="switchMode('beautify')"
         title="美化"
-        class="px-3 py-2 text-xs font-medium whitespace-nowrap transition-colors hover:bg-[var(--bg-hover)]"
+        class="px-3 py-2 text-xs font-medium whitespace-nowrap transition-colors hover:bg-[var(--bg-hover)] inline-flex items-center justify-center gap-1"
         :class="currentMode === 'beautify' ? 'text-[var(--accent-light)] bg-[var(--bg-hover)]' : 'text-[var(--text-dim)]'"
       >
-        🎨 美化
+        <span aria-hidden="true">{{ sidebar_icon('beautify', 'ui-icon--sm') }}</span>
+        <span>美化</span>
       </button>
     </div>
   </div>
@@ -126,9 +138,12 @@
         >
         <button
           @click="$store.global.folderModals.createRoot.visible = true"
-          class="text-xs text-accent cursor-pointer hover:underline"
+          class="text-xs text-accent cursor-pointer hover:underline inline-flex items-center justify-center"
         >
-          + 新建
+          <span class="sidebar-inline-label">
+            <span aria-hidden="true">{{ icon('context-new', 'ui-icon--sm') }}</span>
+            <span>新建</span>
+          </span>
         </button>
       </div>
       <div class="sidebar-content custom-scrollbar p-2">
@@ -159,7 +174,7 @@
           :class="[filterCategory==='' ? 'active' : '', dragOverCat==='根目录' ? 'drag-over' : '']"
           class="folder-item flex items-center px-3 py-2 rounded-lg cursor-pointer text-sm mb-1"
         >
-          <span class="mr-2">📂</span>
+          <span class="mr-2" aria-hidden="true">{{ sidebar_icon('all-cards-categories', 'ui-icon--sm') }}</span>
           <span style="flex: 1">全部卡片</span>
           <span class="text-xs opacity-60" x-text="libraryTotal"></span>
           <!-- 移动端：三个点操作按钮 -->
@@ -167,6 +182,8 @@
             x-show="$store.global.deviceType === 'mobile'"
             @click.stop="showFolderContextMenuFromButton($event, {path: '', name: '根目录'})"
             class="ml-2 w-6 h-6 flex items-center justify-center opacity-60 hover:opacity-100 transition-opacity"
+            aria-label="打开分类操作菜单"
+            title="分类操作菜单"
             style="
               background: none;
               border: none;
@@ -175,7 +192,7 @@
               flex-shrink: 0;
             "
           >
-            <span style="font-size: 14px; font-weight: bold">⋯</span>
+            {{ sidebar_icon('category-menu', 'ui-icon--sm') }}
           </button>
         </div>
         <template x-for="folder in folderTree" :key="folder.path">
@@ -195,6 +212,8 @@
               <button
                 @click.stop="toggleFolder(folder.path)"
                 class="w-6 h-6 flex items-center justify-center opacity-70 hover:opacity-100"
+                :aria-label="folder.expanded ? '收起分类' : '展开分类'"
+                :title="folder.expanded ? '收起分类' : '展开分类'"
                 style="
                   background: none;
                   border: none;
@@ -202,14 +221,15 @@
                   cursor: pointer;
                 "
               >
-                <span
-                  x-text="folder.expanded ? '▼' : '▶'"
-                  style="font-size: 10px"
-                ></span>
+                <span aria-hidden="true">
+                  <span x-show="folder.expanded">{{ icon('chevron-down', 'ui-icon--xs sidebar-chevron') }}</span>
+                  <span x-show="!folder.expanded">{{ icon('chevron-right', 'ui-icon--xs sidebar-chevron') }}</span>
+                </span>
               </button>
               <span
                 class="mr-2 text-yellow-500 opacity-80 group-hover:opacity-100"
-                >📁</span
+                aria-hidden="true"
+                >{{ sidebar_icon('folder', 'ui-icon--sm') }}</span
               >
               <span
                 style="
@@ -236,6 +256,8 @@
                 x-show="$store.global.deviceType === 'mobile'"
                 @click.stop="showFolderContextMenuFromButton($event, folder)"
                 class="ml-2 w-6 h-6 flex items-center justify-center opacity-60 hover:opacity-100 transition-opacity"
+                aria-label="打开分类操作菜单"
+                title="分类操作菜单"
                 style="
                   background: none;
                   border: none;
@@ -244,7 +266,7 @@
                   flex-shrink: 0;
                 "
               >
-                <span style="font-size: 14px; font-weight: bold">⋯</span>
+                {{ sidebar_icon('category-menu', 'ui-icon--sm') }}
               </button>
             </div>
           </div>
@@ -277,9 +299,11 @@
           class="flex items-center gap-2"
           @click="tagsSectionExpanded = !tagsSectionExpanded"
         >
-          <button
-            class="w-5 h-5 flex items-center justify-center opacity-70 hover:opacity-100 transition-opacity"
-            style="
+            <button
+              class="w-5 h-5 flex items-center justify-center opacity-70 hover:opacity-100 transition-opacity"
+              :aria-label="tagsSectionExpanded ? '收起标签索引' : '展开标签索引'"
+              :title="tagsSectionExpanded ? '收起标签索引' : '展开标签索引'"
+              style="
               background: none;
               border: none;
               color: inherit;
@@ -287,10 +311,10 @@
               flex-shrink: 0;
             "
           >
-            <span
-              x-text="tagsSectionExpanded ? '▼' : '▶'"
-              style="font-size: 10px"
-            ></span>
+            <span aria-hidden="true">
+              <span x-show="tagsSectionExpanded">{{ icon('chevron-down', 'ui-icon--xs sidebar-chevron') }}</span>
+              <span x-show="!tagsSectionExpanded">{{ icon('chevron-right', 'ui-icon--xs sidebar-chevron') }}</span>
+            </span>
           </button>
           <span
             class="font-bold text-xs uppercase"
@@ -304,7 +328,10 @@
           class="text-xs text-accent cursor-pointer hover:underline"
           title="查看全部"
         >
-          📚 完整库
+          <span class="sidebar-inline-label">
+            <span aria-hidden="true">{{ sidebar_icon('tag-library', 'ui-icon--sm') }}</span>
+            <span>完整库</span>
+          </span>
         </button>
       </div>
       <div
@@ -367,7 +394,10 @@
             class="sidebar-tag-chip"
             style="border-style: dashed; opacity: 0.7"
           >
-            + <span x-text="tagIndexVisibleTags.length - dynamicVisibleTagCount"></span> 更多...
+            <span class="sidebar-inline-label">
+              <span aria-hidden="true">{{ sidebar_icon('tag-library', 'ui-icon--xs') }}</span>
+              <span><span x-text="tagIndexVisibleTags.length - dynamicVisibleTagCount"></span> 更多...</span>
+            </span>
           </button>
         </div>
       </div>
@@ -396,7 +426,10 @@
         class="w-full text-left px-3 py-2 rounded text-sm flex justify-between items-center transition-colors"
         :class="wiFilterType === 'all' ? 'bg-[var(--accent-main)] text-white' : 'hover:bg-[var(--bg-hover)] text-[var(--text-main)]'"
       >
-        <span>📚 全部显示</span>
+        <span class="sidebar-filter-label">
+          <span aria-hidden="true">{{ sidebar_icon('all-content', 'ui-icon--sm') }}</span>
+          <span>全部显示</span>
+        </span>
       </button>
 
       <button
@@ -404,7 +437,10 @@
         class="w-full text-left px-3 py-2 rounded text-sm flex justify-between items-center transition-colors"
         :class="wiFilterType === 'global' ? 'bg-blue-600 text-white' : 'hover:bg-[var(--bg-hover)] text-[var(--text-main)]'"
       >
-        <span>🌐 全局目录</span>
+        <span class="sidebar-filter-label">
+          <span aria-hidden="true">{{ sidebar_icon('global-directory', 'ui-icon--sm') }}</span>
+          <span>全局目录</span>
+        </span>
         <span class="text-xs opacity-60">lorebooks/</span>
       </button>
 
@@ -413,7 +449,10 @@
         class="w-full text-left px-3 py-2 rounded text-sm flex justify-between items-center transition-colors"
         :class="wiFilterType === 'resource' ? 'bg-green-600 text-white' : 'hover:bg-[var(--bg-hover)] text-[var(--text-main)]'"
       >
-        <span>📁 资源目录</span>
+        <span class="sidebar-filter-label">
+          <span aria-hidden="true">{{ sidebar_icon('folder', 'ui-icon--sm') }}</span>
+          <span>资源目录</span>
+        </span>
         <span class="text-xs opacity-60">res/.../lorebooks</span>
       </button>
 
@@ -422,7 +461,10 @@
         class="w-full text-left px-3 py-2 rounded text-sm flex justify-between items-center transition-colors"
         :class="wiFilterType === 'embedded' ? 'bg-purple-600 text-white' : 'hover:bg-[var(--bg-hover)] text-[var(--text-main)]'"
       >
-        <span>🎴 角色内嵌</span>
+        <span class="sidebar-filter-label">
+          <span aria-hidden="true">{{ sidebar_icon('embedded', 'ui-icon--sm') }}</span>
+          <span>角色内嵌</span>
+        </span>
         <span class="text-xs opacity-60">Embedded</span>
       </button>
 
@@ -462,7 +504,10 @@
             :class="wiFilterCategory === '' ? 'bg-[var(--accent-main)] text-white' : 'hover:bg-[var(--bg-hover)] text-[var(--text-main)]'"
             class="w-full text-left px-3 py-2 rounded text-sm flex justify-between items-center transition-colors cursor-pointer mb-1"
           >
-            <span>📂 全部分类</span>
+            <span class="sidebar-filter-label">
+              <span aria-hidden="true">{{ sidebar_icon('all-cards-categories', 'ui-icon--sm') }}</span>
+              <span>全部分类</span>
+            </span>
             <span
               class="text-xs opacity-70"
               x-text="getWiCategoryCount('')"
@@ -482,6 +527,8 @@
                 <button
                   @click.stop="toggleFolder(folder.path)"
                   class="w-6 h-6 flex items-center justify-center opacity-70 hover:opacity-100"
+                  :aria-label="folder.expanded ? '收起分类' : '展开分类'"
+                  :title="folder.expanded ? '收起分类' : '展开分类'"
                   style="
                     background: none;
                     border: none;
@@ -489,12 +536,12 @@
                     cursor: pointer;
                   "
                 >
-                  <span
-                    x-text="folder.expanded ? '▼' : '▶'"
-                    style="font-size: 10px"
-                  ></span>
+                  <span aria-hidden="true">
+                    <span x-show="folder.expanded">{{ icon('chevron-down', 'ui-icon--xs sidebar-chevron') }}</span>
+                    <span x-show="!folder.expanded">{{ icon('chevron-right', 'ui-icon--xs sidebar-chevron') }}</span>
+                  </span>
                 </button>
-                <span class="mr-2 opacity-80 group-hover:opacity-100">📁</span>
+                <span class="mr-2 opacity-80 group-hover:opacity-100" aria-hidden="true">{{ sidebar_icon('folder', 'ui-icon--sm') }}</span>
                 <span
                   class="flex-1 overflow-hidden text-ellipsis whitespace-nowrap"
                   x-text="folder.name"
@@ -521,13 +568,19 @@
         @click="createWorldInfoBook()"
         class="w-full py-2 text-xs border border-[var(--accent-main)] text-[var(--accent-main)] hover:bg-[var(--accent-main)]/10 rounded transition-colors text-center"
       >
-        ➕ 新建全局世界书
+        <span class="sidebar-inline-label">
+          <span aria-hidden="true">{{ icon('context-new', 'ui-icon--sm') }}</span>
+          <span>新建全局世界书</span>
+        </span>
       </button>
       <button
         @click="migrateLorebooks()"
         class="w-full py-2 text-xs border border-dashed border-[var(--text-dim)] text-[var(--text-dim)] hover:border-[var(--accent-main)] hover:text-[var(--accent-main)] rounded transition-colors text-center"
       >
-        🧹 整理资源目录文件
+        <span class="sidebar-inline-label">
+          <span aria-hidden="true">{{ sidebar_icon('organize', 'ui-icon--sm') }}</span>
+          <span>整理资源目录文件</span>
+        </span>
       </button>
     </div>
   </div>
@@ -548,7 +601,10 @@
         class="w-full text-left px-3 py-2 rounded text-sm flex justify-between items-center transition-colors"
         :class="$store.global.chatFilterType === 'all' ? 'bg-[var(--accent-main)] text-white' : 'hover:bg-[var(--bg-hover)] text-[var(--text-main)]'"
       >
-        <span>📚 全部显示</span>
+        <span class="sidebar-filter-label">
+          <span aria-hidden="true">{{ sidebar_icon('all-content', 'ui-icon--sm') }}</span>
+          <span>全部显示</span>
+        </span>
       </button>
 
       <button
@@ -556,7 +612,10 @@
         class="w-full text-left px-3 py-2 rounded text-sm flex justify-between items-center transition-colors"
         :class="$store.global.chatFilterType === 'bound' ? 'bg-green-600 text-white' : 'hover:bg-[var(--bg-hover)] text-[var(--text-main)]'"
       >
-        <span>🔗 已绑定角色</span>
+        <span class="sidebar-filter-label">
+          <span aria-hidden="true">{{ sidebar_icon('bound', 'ui-icon--sm') }}</span>
+          <span>已绑定角色</span>
+        </span>
       </button>
 
       <button
@@ -564,7 +623,10 @@
         class="w-full text-left px-3 py-2 rounded text-sm flex justify-between items-center transition-colors"
         :class="$store.global.chatFilterType === 'unbound' ? 'bg-orange-600 text-white' : 'hover:bg-[var(--bg-hover)] text-[var(--text-main)]'"
       >
-        <span>📂 未绑定</span>
+        <span class="sidebar-filter-label">
+          <span aria-hidden="true">{{ sidebar_icon('unbound', 'ui-icon--sm sidebar-icon--unbound') }}</span>
+          <span>未绑定</span>
+        </span>
       </button>
     </div>
 
@@ -598,7 +660,10 @@
         class="w-full text-left px-3 py-2 rounded text-sm flex justify-between items-center transition-colors"
         :class="$store.global.presetFilterType === 'all' ? 'bg-[var(--accent-main)] text-white' : 'hover:bg-[var(--bg-hover)] text-[var(--text-main)]'"
       >
-        <span>📚 全部显示</span>
+        <span class="sidebar-filter-label">
+          <span aria-hidden="true">{{ sidebar_icon('all-content', 'ui-icon--sm') }}</span>
+          <span>全部显示</span>
+        </span>
       </button>
 
       <!-- 全局目录 -->
@@ -607,7 +672,10 @@
         class="w-full text-left px-3 py-2 rounded text-sm flex justify-between items-center transition-colors"
         :class="$store.global.presetFilterType === 'global' ? 'bg-blue-600 text-white' : 'hover:bg-[var(--bg-hover)] text-[var(--text-main)]'"
       >
-        <span>🌐 全局目录</span>
+        <span class="sidebar-filter-label">
+          <span aria-hidden="true">{{ sidebar_icon('global-directory', 'ui-icon--sm') }}</span>
+          <span>全局目录</span>
+        </span>
         <span class="text-xs opacity-60">presets/</span>
       </button>
 
@@ -617,7 +685,10 @@
         class="w-full text-left px-3 py-2 rounded text-sm flex justify-between items-center transition-colors"
         :class="$store.global.presetFilterType === 'resource' ? 'bg-green-600 text-white' : 'hover:bg-[var(--bg-hover)] text-[var(--text-main)]'"
       >
-        <span>📁 资源绑定</span>
+        <span class="sidebar-filter-label">
+          <span aria-hidden="true">{{ sidebar_icon('folder', 'ui-icon--sm') }}</span>
+          <span>资源绑定</span>
+        </span>
         <span class="text-xs opacity-60">res/.../presets</span>
       </button>
 
@@ -657,7 +728,10 @@
             :class="[presetFilterCategory === '' ? 'bg-[var(--accent-main)] text-white' : 'hover:bg-[var(--bg-hover)] text-[var(--text-main)]', dragOverFolder === '根目录' ? 'drag-over' : '']"
             class="w-full text-left px-3 py-2 rounded text-sm flex justify-between items-center transition-colors cursor-pointer mb-1"
           >
-            <span>📂 全部分类</span>
+            <span class="sidebar-filter-label">
+              <span aria-hidden="true">{{ sidebar_icon('all-cards-categories', 'ui-icon--sm') }}</span>
+              <span>全部分类</span>
+            </span>
             <span
               class="text-xs opacity-70"
               x-text="getPresetCategoryCount('')"
@@ -680,6 +754,8 @@
                 <button
                   @click.stop="toggleFolder(folder.path)"
                   class="w-6 h-6 flex items-center justify-center opacity-70 hover:opacity-100"
+                  :aria-label="folder.expanded ? '收起分类' : '展开分类'"
+                  :title="folder.expanded ? '收起分类' : '展开分类'"
                   style="
                     background: none;
                     border: none;
@@ -687,12 +763,12 @@
                     cursor: pointer;
                   "
                 >
-                  <span
-                    x-text="folder.expanded ? '▼' : '▶'"
-                    style="font-size: 10px"
-                  ></span>
+                  <span aria-hidden="true">
+                    <span x-show="folder.expanded">{{ icon('chevron-down', 'ui-icon--xs sidebar-chevron') }}</span>
+                    <span x-show="!folder.expanded">{{ icon('chevron-right', 'ui-icon--xs sidebar-chevron') }}</span>
+                  </span>
                 </button>
-                <span class="mr-2 opacity-80 group-hover:opacity-100">📁</span>
+                <span class="mr-2 opacity-80 group-hover:opacity-100" aria-hidden="true">{{ sidebar_icon('folder', 'ui-icon--sm') }}</span>
                 <span
                   class="flex-1 overflow-hidden text-ellipsis whitespace-nowrap"
                   x-text="folder.name"
@@ -741,7 +817,10 @@
         class="w-full text-left px-3 py-2 rounded text-sm flex justify-between items-center transition-colors"
         :class="$store.global.extensionFilterType === 'all' ? 'bg-[var(--accent-main)] text-white' : 'hover:bg-[var(--bg-hover)] text-[var(--text-main)]'"
       >
-        <span>📚 全部显示</span>
+        <span class="sidebar-filter-label">
+          <span aria-hidden="true">{{ sidebar_icon('all-content', 'ui-icon--sm') }}</span>
+          <span>全部显示</span>
+        </span>
       </button>
 
       <!-- 全局目录 -->
@@ -750,7 +829,10 @@
         class="w-full text-left px-3 py-2 rounded text-sm flex justify-between items-center transition-colors"
         :class="$store.global.extensionFilterType === 'global' ? 'bg-blue-600 text-white' : 'hover:bg-[var(--bg-hover)] text-[var(--text-main)]'"
       >
-        <span>🌐 全局目录</span>
+        <span class="sidebar-filter-label">
+          <span aria-hidden="true">{{ sidebar_icon('global-directory', 'ui-icon--sm') }}</span>
+          <span>全局目录</span>
+        </span>
         <!-- 动态显示目录名 -->
         <span
           class="text-xs opacity-60"
@@ -768,7 +850,10 @@
         class="w-full text-left px-3 py-2 rounded text-sm flex justify-between items-center transition-colors"
         :class="$store.global.extensionFilterType === 'resource' ? 'bg-green-600 text-white' : 'hover:bg-[var(--bg-hover)] text-[var(--text-main)]'"
       >
-        <span>📁 资源绑定</span>
+        <span class="sidebar-filter-label">
+          <span aria-hidden="true">{{ sidebar_icon('folder', 'ui-icon--sm') }}</span>
+          <span>资源绑定</span>
+        </span>
         <span class="text-xs opacity-60">res/.../extensions</span>
       </button>
     </div>
@@ -787,14 +872,17 @@
     <div class="beautify-toolbar">
       <div class="beautify-toolbar-row">
         <div class="beautify-toolbar-title">
-          <span class="beautify-title-icon">🎨</span>
+          <span class="beautify-title-icon" aria-hidden="true">
+            {{ sidebar_icon('beautify', 'ui-icon--md') }}
+          </span>
           <div>
             <div class="beautify-title-main">美化</div>
             <div class="beautify-title-sub">Theme JSON + 壁纸管理</div>
           </div>
         </div>
-        <button class="btn-secondary text-xs" @click="fetchPackages()">
-          ↻ 刷新
+        <button class="btn-secondary text-xs inline-flex items-center justify-center gap-1" @click="fetchPackages()">
+          <span aria-hidden="true">{{ icon('header-refresh', 'ui-icon--sm') }}</span>
+          <span>刷新</span>
         </button>
       </div>
 
