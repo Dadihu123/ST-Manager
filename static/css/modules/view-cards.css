@@ -579,7 +579,7 @@ html.light-mode .preset-card-action-btn.is-export {
   background: var(--tag-cat-bg, rgba(2, 6, 23, 0.96));
   color: var(--tag-cat-text, #ffffff);
   border-color: var(--tag-cat-border, rgba(241, 245, 249, 0.82));
-  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.6);
+  text-shadow: none;
   box-shadow: var(--tag-chip-shadow);
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
@@ -589,7 +589,7 @@ html.light-mode .preset-card-action-btn.is-export {
   background: var(--tag-cat-bg, rgba(2, 6, 23, 0.96)) !important;
   color: var(--tag-cat-text, #ffffff) !important;
   border-color: var(--tag-cat-border, rgba(241, 245, 249, 0.82)) !important;
-  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.6);
+  text-shadow: none;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
 }
@@ -613,7 +613,7 @@ html.light-mode .preset-card-action-btn.is-export {
 
 .card-image-tags-wrap .card-tags-more {
   color: rgba(241, 245, 249, 0.95);
-  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.5);
+  text-shadow: none;
 }
 
 .card-image-char-name {
@@ -1529,6 +1529,7 @@ html.light-mode
     #0f172a 24%
   ) !important;
   border-color: var(--tag-cat-border, rgba(71, 85, 105, 0.62)) !important;
+  text-shadow: none;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
 }
@@ -1554,6 +1555,7 @@ html.light-mode
 
 html.light-mode .card-image-tags-wrap .card-tags-more {
   color: rgba(248, 250, 252, 0.94);
+  text-shadow: none;
 }
 
 html.light-mode .card-local-note-btn {

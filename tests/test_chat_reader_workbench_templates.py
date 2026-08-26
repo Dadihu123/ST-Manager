@@ -2698,6 +2698,14 @@ def test_card_hover_clarity_css_removes_backdrop_blur_from_tag_text_surfaces():
         cards_css,
         'html.light-mode\n  .card-image-tags-wrap\n  .card-tag-filter:not(.is-included):not(.is-excluded)',
     )
+    more_tag_block = extract_exact_css_block(
+        cards_css,
+        '.card-image-tags-wrap .card-tags-more',
+    )
+    light_more_tag_block = extract_exact_css_block(
+        cards_css,
+        'html.light-mode .card-image-tags-wrap .card-tags-more',
+    )
 
     assert 'backdrop-filter: var(--tag-chip-backdrop);' not in tag_block
     assert '-webkit-backdrop-filter: var(--tag-chip-backdrop);' not in tag_block
@@ -2711,6 +2719,12 @@ def test_card_hover_clarity_css_removes_backdrop_blur_from_tag_text_surfaces():
     assert '-webkit-backdrop-filter: none;' in light_tag_block
     assert 'backdrop-filter: none;' in light_neutral_tag_block
     assert '-webkit-backdrop-filter: none;' in light_neutral_tag_block
+    assert 'text-shadow: none;' in tag_block
+    assert 'text-shadow: none;' in neutral_tag_block
+    assert 'text-shadow: none;' in light_tag_block
+    assert 'text-shadow: none;' in light_neutral_tag_block
+    assert 'text-shadow: none;' in more_tag_block
+    assert 'text-shadow: none;' in light_more_tag_block
 
 
 def test_card_hover_clarity_css_keeps_back_note_surface_sharp_without_losing_hover_feedback():
