@@ -52,3 +52,15 @@ def test_card_grid_places_send_to_st_before_source_update_check():
     assert toolbar.index('class="card-send-st-btn"') < toolbar.index(
         'class="card-source-update-btn"'
     )
+
+
+def test_bulk_flip_buttons_keep_white_text_in_both_themes_and_layouts():
+    card_css = read_project_file('static/css/modules/view-cards.css')
+    bulk_flip_button = card_css.split('.card-flip-all-btn {', 1)[1].split('}', 1)[0]
+    card_template = read_project_file('templates/components/grid_cards.html')
+    world_info_template = read_project_file('templates/components/grid_wi.html')
+
+    assert 'color: var(--text-on-accent);' in bulk_flip_button
+    assert 'var(--text-main)' not in bulk_flip_button
+    assert 'card-flip-all-btn' in card_template
+    assert 'card-flip-all-btn' in world_info_template
