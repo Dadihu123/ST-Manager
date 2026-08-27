@@ -45,12 +45,18 @@
 }
 
 .btn-danger-xs {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
   font-size: 0.65rem;
+  line-height: 1.25;
   padding: 0.25rem 0.5rem;
   border-radius: 0.25rem;
   border: 1px solid;
   cursor: pointer;
   margin-top: 0.5rem;
+  white-space: nowrap;
   background-color: rgba(127, 29, 29, 0.3);
   border-color: rgba(220, 38, 38, 0.5);
   color: #fca5a5;
@@ -63,7 +69,8 @@
 
 html.light-mode .btn-danger-xs {
   background-color: #fee2e2;
-  color: #b91c1c;
+  border-color: #fca5a5;
+  color: #991b1b;
 }
 
 html.light-mode .btn-danger-xs:hover {

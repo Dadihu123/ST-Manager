@@ -298,21 +298,31 @@
           </template>
         </div>
 
-        <!-- 帮助按钮 -->
-        <button
-          @click="showHelpModal=true"
-          class="btn-secondary wi-icon-only-action px-3 py-1.5 text-xs rounded hover:bg-blue-500/20 hover:text-blue-400"
-          title="查看帮助指南"
-        >
-          {{ icon('settings-help-entry', 'ui-icon--sm') }}
-        </button>
+        <div class="wi-editor-final-actions flex items-center gap-0">
+          <div
+            class="h-4 w-[1px] bg-[var(--border-light)] mx-1"
+            aria-hidden="true"
+          ></div>
 
-        <button
-          @click="showFullScreenWI=false"
-          class="btn-secondary wi-icon-only-action wi-editor-close-action px-3 py-1.5 text-xs rounded hover:bg-red-500/20 hover:text-red-400"
-        >
-          {{ icon('context-close', 'ui-icon--sm') }}
-        </button>
+          <!-- 帮助按钮 -->
+          <button
+            @click="showHelpModal=true"
+            class="btn-secondary wi-icon-only-action px-3 py-1.5 text-xs rounded hover:bg-blue-500/20 hover:text-blue-400"
+            title="查看帮助指南"
+            aria-label="查看帮助指南"
+          >
+            {{ icon('settings-help-entry', 'ui-icon--sm') }}
+          </button>
+
+          <button
+            @click="showFullScreenWI=false"
+            class="btn-secondary wi-icon-only-action wi-editor-close-action px-3 py-1.5 text-xs rounded hover:bg-red-500/20 hover:text-red-400"
+            title="关闭全屏世界书编辑器"
+            aria-label="关闭全屏世界书编辑器"
+          >
+            {{ icon('context-close', 'ui-icon--sm') }}
+          </button>
+        </div>
       </div>
     </div>
 
@@ -472,7 +482,18 @@
               </div>
 
               <!-- 按钮组：根据模式切换 -->
-              <div class="flex gap-2">
+              <div class="flex items-center gap-2">
+                <span
+                  class="wi-content-token-label"
+                  :class="isEditingClipboard ? 'wi-content-token-label--clipboard' : ''"
+                  title="当前内容 Token 数量"
+                >
+                  CONTENT
+                  <span
+                    x-text="typeof estimateTokens === 'function' ? ('(' + estimateTokens(activeEditorEntry.content) + ' T)') : ''"
+                  ></span>
+                </span>
+
                 <!-- 场景 A: 剪切板模式 (显示保存/返回) -->
                 <template x-if="isEditingClipboard">
                   <div class="flex gap-2">
@@ -525,19 +546,9 @@
             </div>
 
             <div
-              class="wi-content-wrapper relative"
+              class="wi-content-wrapper"
               :class="{'bg-purple-900/5': isEditingClipboard}"
             >
-              <label
-                class="text-neon absolute top-2 right-6 z-10 text-[10px] px-2 py-0.5 rounded border pointer-events-none opacity-80"
-                :class="isEditingClipboard ? 'text-purple-400 bg-purple-900/20 border-purple-500/30' : 'text-gray-500 bg-[var(--bg-panel)] border-[var(--border-light)]'"
-              >
-                CONTENT
-                <span
-                  x-text="typeof estimateTokens === 'function' ? ('(' + estimateTokens(activeEditorEntry.content) + ' T)') : ''"
-                ></span>
-              </label>
-
               <textarea
                 x-model="activeEditorEntry.content"
                 x-ref="wiContentTextarea"
