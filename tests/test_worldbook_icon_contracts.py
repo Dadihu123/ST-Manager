@@ -140,7 +140,7 @@ def test_worldbook_templates_use_shared_icons_for_functional_controls():
     assert "icon('settings-advanced-settings'" in fullscreen_controls
     assert "icon('settings-show'" in fullscreen_controls
     assert "icon('header-import'" in detail_card_worldbook
-    assert "icon('worldbook-save-as'" in detail_card_worldbook
+    assert "icon('card-upload'" in detail_card_worldbook
     assert "icon('header-import'" in grid_source
     assert "icon('worldbook-closed'" in grid_source
     assert "icon('worldbook-save-as'" not in grid_source

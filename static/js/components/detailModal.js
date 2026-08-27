@@ -2563,7 +2563,8 @@ export default function detailModal() {
 
         sendToST() {
             const btn = document.getElementById('btn-send-st');
-            if (btn) btn.innerText = '🚀 发送中...';
+            const label = btn?.querySelector('.detail-send-st-label');
+            if (label) label.textContent = '发送中...';
             
             sendToSillyTavern(this.activeCard.id)
                 .then(res => {
@@ -2574,7 +2575,7 @@ export default function detailModal() {
                     else alert("❌ 发送失败: " + res.msg);
                 })
                 .finally(() => {
-                    if (btn) btn.innerText = '🚀 发送到 ST';
+                    if (label) label.textContent = '发送到 ST';
                 });
         },
 

@@ -724,6 +724,25 @@ html.dark-mode .props-header {
   height: 4.5rem;
 }
 
+/* 详情页世界书导入/导出按钮按主题使用纯黑或纯白，提升图标对比度。 */
+.wi-worldbook-icon-scope .wi-detail-worldbook-transfer-btn {
+  color: #fff;
+  background: transparent;
+}
+
+html.light-mode .wi-worldbook-icon-scope .wi-detail-worldbook-transfer-btn {
+  color: #000;
+}
+
+.wi-worldbook-icon-scope .wi-detail-worldbook-transfer-btn:hover {
+  background: var(--bg-hover);
+}
+
+.wi-worldbook-icon-scope .wi-detail-worldbook-transfer-btn:focus-visible {
+  outline: 2px solid var(--accent-main);
+  outline-offset: 1px;
+}
+
 /* 备份图标的设计稿留白较多，补偿视觉绘制范围但不扩大按钮布局。 */
 .wi-worldbook-icon-scope .wi-worldbook-backup-icon.ui-icon--md {
   transform: scale(1.34);

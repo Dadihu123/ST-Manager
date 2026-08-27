@@ -50,6 +50,11 @@
   transition: transform 0.18s ease, opacity 0.18s ease;
 }
 
+.detail-chat-dropzone-icon .ui-icon {
+  width: 1.8rem;
+  height: 1.8rem;
+}
+
 .detail-chat-dropzone:hover .detail-chat-dropzone-icon,
 .detail-chat-dropzone:focus-visible .detail-chat-dropzone-icon,
 .detail-chat-dropzone.is-drag-over .detail-chat-dropzone-icon {

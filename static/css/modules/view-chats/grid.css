@@ -549,6 +549,20 @@
   margin-bottom: 0.75rem;
 }
 
+.chat-empty-icon,
+.detail-chat-empty-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.chat-empty-icon .ui-icon,
+.detail-chat-empty-icon .ui-icon {
+  width: 3.75rem;
+  height: 3.75rem;
+}
+
 .chat-empty-title,
 .detail-chat-empty-title {
   font-size: 1.1rem;

@@ -1,5 +1,5 @@
 {% from "components/dice_icon.html" import dice_icon %}
-{% from "components/icon.html" import icon %}
+{% from "components/icon.html" import detail_icon, icon %}
 
 <div class="header-bar" x-data="header">
   <!-- 移动端：紧凑单行布局 -->
@@ -13,7 +13,7 @@
       :aria-pressed="$store.global.visibleSidebar ? 'true' : 'false'"
     >
       <div class="app-icon-mobile" aria-hidden="true">
-        <span>🎴</span>
+        {{ detail_icon('brand', 'ui-icon--md') }}
       </div>
       <div class="mobile-title">STM</div>
     </button>
@@ -165,14 +165,9 @@
     >
       <div
         class="app-icon"
-        style="
-          background: linear-gradient(135deg, var(--accent-main), #7c3aed);
-          border-radius: 8px;
-          padding: 0.5rem;
-        "
         aria-hidden="true"
       >
-        <span style="font-size: 1.5rem">🎴</span>
+        {{ detail_icon('brand', 'ui-icon--lg') }}
       </div>
       <div>
         <span

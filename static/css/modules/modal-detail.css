@@ -110,6 +110,11 @@
   font-weight: 800;
 }
 
+.detail-thumb-symbol .ui-icon {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
 .detail-thumb:hover {
   transform: translateY(-1px);
 }
@@ -392,6 +397,11 @@ html.light-mode .detail-thumb-label {
   font-size: 34px;
 }
 
+.skin-gallery-folder-symbol .ui-icon {
+  width: 2.25rem;
+  height: 2.25rem;
+}
+
 .skin-gallery-empty {
   grid-column: 1 / -1;
   align-self: center;
@@ -592,6 +602,21 @@ html.light-mode .skin-gallery-folder-symbol {
   background-color: var(--bg-hover);
 }
 
+/* 角色详情中的阅读/编辑、帮助与关闭按钮只保留图标，不显示按钮外框。 */
+.detail-icon-btn--borderless,
+.detail-icon-btn--borderless:hover,
+.detail-icon-btn--borderless:active,
+.detail-icon-btn--borderless:focus-visible {
+  border-color: transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.detail-icon-btn--borderless:focus-visible {
+  outline: 2px solid var(--accent-main);
+  outline-offset: 2px;
+}
+
 .detail-title-block {
   flex: 1;
   min-width: 200px;
@@ -689,6 +714,9 @@ html.light-mode .skin-gallery-folder-symbol {
 }
 
 .detail-link-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   opacity: 0.7;
   flex-shrink: 0;
 }
@@ -710,8 +738,12 @@ html.light-mode .skin-gallery-folder-symbol {
 }
 
 .detail-open-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
   font-size: 12px;
+  line-height: 1;
   text-decoration: none;
   border: 1px solid var(--accent-main);
   color: var(--accent-light);
@@ -892,6 +924,10 @@ html.light-mode .skin-gallery-folder-symbol {
   cursor: pointer;
   font-size: 13px;
   font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  line-height: 1.2;
   transition: all 0.15s;
 }
 
@@ -904,6 +940,13 @@ html.light-mode .skin-gallery-folder-symbol {
   background: var(--accent-main);
   color: var(--text-on-accent);
   border-color: var(--accent-light);
+}
+
+.detail-tab .tab-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
 }
 
 .detail-content {
@@ -1690,6 +1733,9 @@ html.light-mode .skin-gallery-folder-symbol {
 }
 
 .detail-manage-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
   font-size: 13px;
   font-weight: 900;
   color: var(--text-main);
@@ -1698,6 +1744,7 @@ html.light-mode .skin-gallery-folder-symbol {
 }
 
 .detail-manage-panel-title--center {
+  justify-content: center;
   text-align: center;
   margin-bottom: 16px;
 }
@@ -1754,6 +1801,27 @@ html.light-mode .skin-gallery-folder-symbol {
   background: var(--bg-sub);
 }
 
+.detail-policy-select-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.detail-policy-select-row .detail-manage-select {
+  flex: 1;
+  min-width: 0;
+}
+
+.detail-policy-select-icon {
+  display: inline-flex;
+  width: 1.25rem;
+  min-width: 1.25rem;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent-light);
+}
+
 .detail-manage-helper {
   font-size: 11px;
   line-height: 1.45;
@@ -1793,6 +1861,9 @@ html.light-mode .skin-gallery-folder-symbol {
 }
 
 .detail-manage-file-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
   font-size: 11px;
   font-weight: 800;
   color: var(--text-dim);
@@ -1922,7 +1993,10 @@ html.light-mode .skin-gallery-folder-symbol {
 }
 
 .detail-update-dropzone-icon {
-  font-size: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.25rem;
   line-height: 1;
   opacity: 0.85;
   transition:
@@ -2364,6 +2438,11 @@ html.light-mode .toolbox-btn.purple {
   box-shadow: 0 0 12px rgba(251, 191, 36, 0.3);
 }
 
+.detail-icon-btn--borderless .ui-icon {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
 .detail-zoombar {
   position: absolute;
   left: 50%;
@@ -2384,14 +2463,24 @@ html.light-mode .toolbox-btn.purple {
   width: 26px;
   height: 26px;
   border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background: rgba(0, 0, 0, 0.2);
+  border: none;
+  background: transparent;
   color: #fff;
   cursor: pointer;
 }
 
+.detail-zoom-btn .ui-icon {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+
 .detail-zoom-btn:hover {
-  border-color: rgba(255, 255, 255, 0.35);
+  background: transparent;
+}
+
+.detail-zoom-btn:focus-visible {
+  outline: 2px solid var(--accent-main);
+  outline-offset: 2px;
 }
 
 .detail-zoom-range {
@@ -2402,8 +2491,10 @@ html.light-mode .toolbox-btn.purple {
   font-size: 12px;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   color: rgba(255, 255, 255, 0.85);
-  width: 48px;
-  text-align: right;
+  width: 4ch;
+  min-width: 4ch;
+  text-align: left;
+  white-space: nowrap;
 }
 
 .detail-zoom-reset {
@@ -2416,6 +2507,11 @@ html.light-mode .toolbox-btn.purple {
 
 .detail-zoom-reset:hover {
   color: #fff;
+}
+
+.detail-zoom-reset .ui-icon {
+  width: 1rem;
+  height: 1rem;
 }
 
 .detail-metadata {
@@ -3336,7 +3432,9 @@ html.light-mode .note-textarea:focus {
   }
   .detail-zoom-text {
     font-size: 0.75rem;
-    width: 36px;
+    width: 4ch;
+    min-width: 4ch;
+    text-align: left;
   }
   .detail-left-toolbar {
     top: calc(env(safe-area-inset-top, 0px) + 0.5rem);
@@ -4166,6 +4264,11 @@ html.light-mode .note-textarea:focus {
   line-height: 1;
 }
 
+.detail-persona-hidden span:first-child .ui-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
 .detail-persona-preview-overlay {
   position: fixed;
   inset: 0;
@@ -4449,4 +4552,105 @@ html.light-mode .note-textarea:focus {
   .detail-persona-card:hover {
     transform: none;
   }
+}
+
+/* 角色详情内的 SVG 图标统一按现有尺寸放大 150%，不改变按钮点击区域。 */
+.detail-icon-scope .ui-icon {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.detail-icon-scope .ui-icon--xs {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
+.detail-icon-scope .ui-icon--sm {
+  width: 1.3125rem;
+  height: 1.3125rem;
+}
+
+.detail-icon-scope .ui-icon--md {
+  width: 1.6875rem;
+  height: 1.6875rem;
+}
+
+.detail-icon-scope .ui-icon--lg {
+  width: 2.25rem;
+  height: 2.25rem;
+}
+
+.detail-icon-scope .ui-icon--xl {
+  width: 4.5rem;
+  height: 4.5rem;
+}
+
+.detail-icon-scope .detail-thumb-symbol .ui-icon {
+  width: 2.25rem;
+  height: 2.25rem;
+}
+
+.detail-icon-scope .skin-gallery-folder-symbol .ui-icon {
+  width: 3.375rem;
+  height: 3.375rem;
+}
+
+.detail-icon-scope .detail-icon-btn--borderless .ui-icon {
+  width: 1.6875rem;
+  height: 1.6875rem;
+}
+
+.detail-icon-scope .detail-zoom-btn .ui-icon {
+  width: 1.3125rem;
+  height: 1.3125rem;
+}
+
+.detail-icon-scope .detail-zoom-reset .ui-icon {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.detail-icon-scope .detail-persona-hidden span:first-child .ui-icon {
+  width: 1.875rem;
+  height: 1.875rem;
+}
+
+.detail-icon-scope .detail-chat-dropzone-icon .ui-icon {
+  width: 2.7rem;
+  height: 2.7rem;
+}
+
+.detail-resource-upload-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+/* 帮助指南中的重点图标与来源链接保持一致的视觉尺寸。 */
+.detail-icon-scope .detail-icon--prominent.ui-icon--xs {
+  width: 1.6875rem;
+  height: 1.6875rem;
+}
+
+.detail-icon-scope .detail-icon--prominent.ui-icon--sm {
+  width: 1.96875rem;
+  height: 1.96875rem;
+}
+
+.detail-icon-scope .detail-icon--prominent.ui-icon--md {
+  width: 2.53125rem;
+  height: 2.53125rem;
+}
+
+/* 备份目录按钮沿用世界书套件的放大比例，保留原有点击区域。 */
+.detail-icon-scope .wi-worldbook-backup-icon.ui-icon--md {
+  transform: scale(1.34);
+  transform-origin: center;
+}
+
+/* 空状态图标替换为 SVG 后保留原有空状态的视觉层级。 */
+.detail-icon-scope .detail-chat-empty-icon .ui-icon {
+  width: 3.75rem;
+  height: 3.75rem;
 }

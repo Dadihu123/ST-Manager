@@ -13,6 +13,12 @@
   pointer-events: none;
 }
 
+/* 新版角色详情图标是实心图形，沿用控件前景色并保持透明画布。 */
+.detail-icon {
+  fill: currentColor;
+  stroke: none;
+}
+
 .ui-icon--xs {
   width: 0.75rem;
   height: 0.75rem;
@@ -156,6 +162,12 @@
 .ui-icon--xl {
   width: 3rem;
   height: 3rem;
+}
+
+/* 初始化页品牌图标按头部图标比例放大，保持原有布局间距。 */
+.loading-brand-icon {
+  width: 4.5rem;
+  height: 4.5rem;
 }
 
 /* 角色更新监控的大图案留给监控池标题，小图案用于高频入口按钮。 */

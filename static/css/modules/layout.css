@@ -1211,10 +1211,17 @@ html.light-mode .pagination-bar {
 }
 
 .app-icon {
+  width: 2.5rem;
+  height: 2.5rem;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: transform 0.3s ease;
+}
+
+.app-icon .ui-icon {
+  width: 2.25rem;
+  height: 2.25rem;
 }
 
 .app-icon:hover {
@@ -1818,10 +1825,14 @@ html.light-mode .header-favorite-btn.is-excluded .header-favorite-icon::after {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(135deg, var(--accent-main), #7c3aed);
+    background: transparent;
     border-radius: 6px;
-    font-size: 1.125rem;
     flex-shrink: 0;
+  }
+
+  .app-icon-mobile .ui-icon {
+    width: 1.6875rem;
+    height: 1.6875rem;
   }
   .mobile-title {
     font-weight: 600;

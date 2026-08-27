@@ -1,3 +1,5 @@
+{% from "components/icon.html" import detail_icon %}
+
 <input type="file" x-ref="chatImportInput" class="hidden" multiple accept=".jsonl"
     @change="handleChatInputChange($event)">
 
@@ -94,7 +96,9 @@
             </div>
 
             <div x-show="chatList.length === 0" class="chat-empty-state">
-                <div class="chat-empty-icon">🫧</div>
+                <div class="chat-empty-icon" aria-hidden="true">
+                    {{ detail_icon('chat-empty', 'ui-icon--xl') }}
+                </div>
                 <div class="chat-empty-title">还没有可管理的聊天记录</div>
                 <div class="chat-empty-desc">把 SillyTavern 的 `.jsonl` 聊天拖进来，或使用上方导入按钮。</div>
             </div>
