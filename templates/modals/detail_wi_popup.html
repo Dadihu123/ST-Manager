@@ -1,3 +1,5 @@
+{% from "components/icon.html" import icon, sidebar_icon %}
+
 <!-- 世界书阅览室 (Reader Modal) -->
 <div
   x-data="wiDetailPopup"
@@ -6,7 +8,7 @@
   class="modal-overlay z-modal-std flex items-center justify-center p-4"
 >
   <div
-    class="wi-reader-modal bg-[var(--bg-panel)] border border-[var(--border-light)] rounded-xl shadow-2xl flex flex-col w-full max-w-7xl h-[88vh] overflow-hidden relative animate-scale-in"
+    class="wi-reader-modal wi-worldbook-icon-scope bg-[var(--bg-panel)] border border-[var(--border-light)] rounded-xl shadow-2xl flex flex-col w-full max-w-7xl h-[88vh] overflow-hidden relative animate-scale-in"
     @click.self="activeEntry = null"
   >
     <!-- 顶部工具栏：阅读优先 -->
@@ -16,9 +18,10 @@
       <div class="flex items-center gap-3 min-w-0 flex-1">
         <div
           x-show="$store.global.deviceType !== 'mobile'"
-          class="text-2xl select-none opacity-90"
+          class="wi-reader-title-icon select-none opacity-90"
+          aria-hidden="true"
         >
-          📖
+          {{ sidebar_icon('worldbook', 'ui-icon--lg') }}
         </div>
         <div class="min-w-0">
           <div class="flex items-center overflow-hidden gap-2 min-w-0">
@@ -41,10 +44,16 @@
           </div>
 
           <div
-            class="mt-1 flex items-center gap-3 text-[10px] text-gray-500 font-mono opacity-80"
+            class="wi-reader-date-meta mt-1 flex items-center gap-3 text-[10px] text-gray-500 font-mono opacity-80"
           >
-            <span x-show="$store.global.deviceType !== 'mobile'">📅 </span
-            ><span x-text="formatDate(activeWiDetail?.mtime)"></span>
+            <span
+              x-show="$store.global.deviceType !== 'mobile'"
+              class="wi-reader-calendar-icon inline-flex items-center"
+              aria-hidden="true"
+            >
+              {{ icon('worldbook-calendar', 'ui-icon--xs') }}
+            </span>
+            <span x-text="formatDate(activeWiDetail?.mtime)"></span>
             <span class="opacity-40">|</span>
             <span
               >Entries:
@@ -95,9 +104,11 @@
             class="wi-reader-search flex-1 max-w-md relative"
           >
             <span
-              class="absolute left-3 top-1/2 -translate-y-1/2 opacity-50 text-sm"
-              >🔍</span
+              class="absolute left-3 top-1/2 -translate-y-1/2 opacity-50"
+              aria-hidden="true"
             >
+              {{ icon('worldbook-search', 'ui-icon--sm') }}
+            </span>
             <input
               type="text"
               x-model="searchTerm"
@@ -109,7 +120,7 @@
               @click="searchTerm=''"
               class="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-200 p-0.5 rounded-full"
             >
-              ✕
+              {{ icon('context-close', 'ui-icon--sm') }}
             </button>
           </div>
         </div>
@@ -121,9 +132,11 @@
         class="wi-reader-search flex-1 max-w-md relative"
       >
         <span
-          class="absolute left-3 top-1/2 -translate-y-1/2 opacity-50 text-sm"
-          >🔍</span
+          class="absolute left-3 top-1/2 -translate-y-1/2 opacity-50"
+          aria-hidden="true"
         >
+          {{ icon('worldbook-search', 'ui-icon--sm') }}
+        </span>
         <input
           type="text"
           x-model="searchTerm"
@@ -135,7 +148,7 @@
           @click="searchTerm=''"
           class="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-200 p-0.5 rounded-full"
         >
-          ✕
+          {{ icon('context-close', 'ui-icon--sm') }}
         </button>
       </div>
 
@@ -167,7 +180,7 @@
           aria-label="设置世界书条目排序"
           title="设置排序"
         >
-          <span class="fa-solid fa-sort" aria-hidden="true"></span>
+          {{ icon('worldbook-sort', 'ui-icon--md') }}
         </button>
         <div
           x-show="showWiSortMenu"
@@ -195,20 +208,7 @@
         :class="$store.global.deviceType === 'mobile' ? '' : 'p-2'"
         title="关闭 (Esc)"
       >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          class="h-6 w-6"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          stroke-width="2"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            d="M6 18L18 6M6 6l12 12"
-          />
-        </svg>
+        {{ icon('context-close', 'ui-icon--lg wi-reader-close-icon') }}
       </button>
     </div>
 
@@ -218,7 +218,9 @@
       @click="showMobileSidebar = !showMobileSidebar"
       class="fixed bottom-20 left-2 z-50 w-10 h-10 bg-[var(--bg-panel)] border border-[var(--border-light)] rounded-lg flex items-center justify-center text-[var(--text-main)] shadow-lg md:hidden"
     >
-      <span x-show="!showMobileSidebar">📋</span>
+      <span x-show="!showMobileSidebar" aria-hidden="true">
+        {{ icon('header-menu', 'ui-icon--md') }}
+      </span>
     </button>
 
     <!-- 主体：左信息 + 中阅读流 + 右详情（大屏固定，小屏抽屉） -->
@@ -271,8 +273,13 @@
             <summary
               class="cursor-pointer select-none text-[10px] uppercase font-bold text-gray-500"
             >
-              Path <span class="opacity-60 group-open:hidden">▶</span
-              ><span class="opacity-60 hidden group-open:inline">▼</span>
+              Path
+              <span class="opacity-60 group-open:hidden" aria-hidden="true">
+                {{ icon('chevron-right', 'ui-icon--xs') }}
+              </span>
+              <span class="opacity-60 hidden group-open:inline" aria-hidden="true">
+                {{ icon('chevron-down', 'ui-icon--xs') }}
+              </span>
             </summary>
             <div
               class="mt-1 text-[10px] text-gray-500 font-mono break-all leading-tight opacity-70"
@@ -445,7 +452,8 @@
             @click="enterWiEditorFromDetail()"
             class="w-full btn-primary py-2.5 rounded-lg flex items-center justify-center gap-2 font-bold shadow-md transform transition hover:translate-y-[-1px]"
           >
-            <span>✏️</span> 进入全屏编辑器
+            {{ icon('context-rename', 'ui-icon--md') }}
+            <span>进入全屏编辑器</span>
           </button>
 
           <div class="grid grid-cols-3 gap-1.5">
@@ -456,40 +464,40 @@
               :title="getActiveWorldInfoSendToSTTitle()"
               :disabled="isSendingWorldInfoToST"
             >
-              <span class="text-base">🚀</span
-              ><span class="scale-90">发送到 ST</span>
+              {{ icon('card-send', 'ui-icon--md') }}
+              <span class="scale-90">发送到 ST</span>
             </button>
             <button
               @click="exportActiveWorldInfo()"
               class="btn-secondary py-1.5 text-xs flex flex-col items-center justify-center gap-0.5"
               title="导出 JSON"
             >
-              <span class="text-base">📤</span
-              ><span class="scale-90">导出</span>
+              {{ icon('worldbook-save-as', 'ui-icon--md') }}
+              <span class="scale-90">导出</span>
             </button>
             <button
               @click="createSnapshot('lorebook')"
               class="btn-secondary py-1.5 text-xs flex flex-col items-center justify-center gap-0.5"
               title="快速备份"
             >
-              <span class="text-base">📸</span
-              ><span class="scale-90">快照</span>
+              {{ icon('worldbook-snapshot', 'ui-icon--md') }}
+              <span class="scale-90">快照</span>
             </button>
             <button
               @click="openRollback()"
               class="btn-secondary py-1.5 text-xs flex flex-col items-center justify-center gap-0.5"
               title="查看历史版本"
             >
-              <span class="text-base">⏪</span
-              ><span class="scale-90">回滚</span>
+              {{ icon('worldbook-rollback', 'ui-icon--md') }}
+              <span class="scale-90">回滚</span>
             </button>
             <button
               @click="openBackupFolder('lorebook')"
               class="btn-secondary py-1.5 text-xs flex flex-col items-center justify-center gap-0.5"
               title="打开备份文件夹"
             >
-              <span class="text-base">📂</span
-              ><span class="scale-90">目录</span>
+              {{ icon('worldbook-backup', 'ui-icon--md wi-worldbook-backup-icon') }}
+              <span class="scale-90">目录</span>
             </button>
           </div>
 
@@ -498,7 +506,8 @@
               @click="deleteCurrentWi()"
               class="w-full py-1 text-[10px] text-red-400 hover:text-red-500 hover:bg-red-500/10 rounded transition-colors flex items-center justify-center gap-1"
             >
-              🗑️ 删除此文件
+              {{ icon('context-delete', 'ui-icon--sm') }}
+              <span>删除此文件</span>
             </button>
           </template>
 
@@ -543,7 +552,9 @@
             x-show="isLoading"
             class="h-full flex flex-col items-center justify-center text-gray-500 gap-4"
           >
-            <div class="text-4xl animate-bounce">⏳</div>
+            <div class="wi-reader-loading-icon" aria-hidden="true">
+              {{ icon('card-loader', 'ui-icon--spin') }}
+            </div>
             <p class="text-sm">正在读取卷宗...</p>
           </div>
 
@@ -677,7 +688,7 @@
             @click="activeEntry = null"
             class="text-gray-500 hover:text-[var(--text-main)] px-2"
           >
-            ✕
+            {{ icon('context-close', 'ui-icon--md') }}
           </button>
         </div>
 
@@ -809,7 +820,8 @@
             @click="enterWiEditorFromDetail(activeEntry)"
             class="w-full btn-secondary py-2 text-xs flex items-center justify-center gap-2 font-bold hover:bg-accent-main hover:text-white transition-colors"
           >
-            <span>🛠️</span> 去编辑器修改此条目
+            {{ icon('context-rename', 'ui-icon--md') }}
+            <span>去编辑器修改此条目</span>
           </button>
         </div>
       </aside>

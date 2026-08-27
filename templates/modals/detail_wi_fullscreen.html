@@ -1,9 +1,11 @@
+{% from "components/icon.html" import icon, sidebar_icon %}
+
 <!-- 全屏世界书编辑器 (UI Refactored & Bug Fixed) -->
 <div
   x-show="showFullScreenWI"
   x-data="wiEditor"
   x-cloak
-  class="detail-wi-full-screen fixed inset-0 z-modal-editor wi-editor-container"
+  class="detail-wi-full-screen wi-worldbook-icon-scope fixed inset-0 z-modal-editor wi-editor-container"
   @click.self="showFullScreenWI=false"
 >
   <!-- 内部布局状态管理 -->
@@ -22,7 +24,8 @@
         <div
           class="flex items-center gap-2 text-orange-400 font-bold select-none cursor-default"
         >
-          <span>🌎</span> <span class="hidden md:inline">编辑器</span>
+          <span aria-hidden="true">{{ sidebar_icon('worldbook', 'ui-icon--md') }}</span>
+          <span class="hidden md:inline">编辑器</span>
         </div>
 
         <!-- 来源标记 (Badge) - 使用 template x-if 防止初始化报错 -->
@@ -62,7 +65,7 @@
 
       <!-- 右侧按钮组 -->
       <div
-        class="flex items-center gap-2"
+        class="wi-editor-top-actions flex items-center gap-2"
         :class="$store.global.deviceType === 'mobile' ? 'justify-end' : ''"
       >
         <!-- Token 统计 -->
@@ -131,7 +134,7 @@
             aria-label="设置世界书条目排序"
             title="设置排序"
           >
-            <span class="fa-solid fa-sort" aria-hidden="true"></span>
+            {{ icon('worldbook-sort', 'ui-icon--md') }}
           </button>
           <div
             x-show="showWiSortMenu"
@@ -158,7 +161,7 @@
           class="wi-action-btn"
           title="时光机：查看历史版本与回滚"
         >
-          ⏪
+          {{ icon('worldbook-rollback', 'ui-icon--md') }}
         </button>
 
         <!-- 2. 快照 -->
@@ -168,25 +171,25 @@
           class="wi-action-btn"
           :title="(!editingWiFile || editingWiFile.type === 'embedded') ? '备份当前角色 (左键: 普通 | 右键: 关键节点)' : '备份当前世界书 (左键: 普通 | 右键: 关键节点)'"
         >
-          📸
+          {{ icon('worldbook-snapshot', 'ui-icon--md') }}
         </button>
 
         <!-- 3. 打开备份文件夹 -->
         <button
           @click="openBackupFolder('lorebook')"
-          class="wi-action-btn"
+          class="wi-action-btn wi-action-btn--bright"
           title="打开备份文件夹"
         >
-          📂
+          {{ icon('worldbook-backup', 'ui-icon--md wi-worldbook-backup-icon') }}
         </button>
 
         <!-- 3.3 从酒馆 JSONL 导入标签条目 -->
         <button
           @click="openTaggedImportModal()"
-          class="wi-action-btn"
+          class="wi-action-btn wi-action-btn--bright"
           title="从酒馆 JSONL 导入 <tag>...</tag> 条目"
         >
-          📥
+          {{ icon('header-import', 'ui-icon--md') }}
         </button>
 
         <!-- 3.5 查找替换 -->
@@ -195,7 +198,7 @@
           class="wi-action-btn"
           title="查找与替换 (Ctrl+H)"
         >
-          🔎
+          {{ icon('worldbook-search', 'ui-icon--md') }}
         </button>
 
         <div class="h-4 w-[1px] bg-[var(--border-light)] mx-1"></div>
@@ -210,8 +213,12 @@
                 :disabled="isSaving"
                 class="btn-primary px-4 py-1.5 rounded text-xs font-bold shadow-lg flex items-center gap-2 whitespace-nowrap transition-all hover:brightness-110"
               >
-                <span x-show="isSaving" class="animate-spin">⏳</span>
-                <span>💾</span>
+                <span x-show="isSaving" aria-hidden="true">
+                  {{ icon('card-loader', 'ui-icon--sm ui-icon--spin') }}
+                </span>
+                <span x-show="!isSaving" aria-hidden="true">
+                  {{ icon('settings-save', 'ui-icon--sm') }}
+                </span>
                 <span x-show="$store.global.deviceType !== 'mobile'">
                   保存条目</span
                 >
@@ -222,7 +229,9 @@
                 class="btn-secondary px-3 py-1.5 text-xs rounded whitespace-nowrap"
                 title="先创建整本回滚版本，再执行保存"
               >
-                <span>🗂️</span>
+                <span aria-hidden="true">
+                  {{ icon('worldbook-save-all', 'ui-icon--sm') }}
+                </span>
                 <span x-show="$store.global.deviceType !== 'mobile'">
                   保存整本</span
                 >
@@ -232,7 +241,9 @@
                 class="btn-secondary px-3 py-1.5 text-xs rounded whitespace-nowrap"
                 title="另存为新文件"
               >
-                <span>📤</span>
+                <span aria-hidden="true">
+                  {{ icon('worldbook-save-as', 'ui-icon--sm') }}
+                </span>
                 <span x-show="$store.global.deviceType !== 'mobile'">
                   另存为...</span
                 >
@@ -248,8 +259,12 @@
                 :disabled="isSaving"
                 class="btn-primary px-4 py-1.5 rounded text-xs font-bold shadow-lg flex items-center gap-2 whitespace-nowrap transition-all hover:brightness-110"
               >
-                <span x-show="isSaving" class="animate-spin">⏳</span>
-                <span>💾</span>
+                <span x-show="isSaving" aria-hidden="true">
+                  {{ icon('card-loader', 'ui-icon--sm ui-icon--spin') }}
+                </span>
+                <span x-show="!isSaving" aria-hidden="true">
+                  {{ icon('settings-save', 'ui-icon--sm') }}
+                </span>
                 <span x-show="$store.global.deviceType !== 'mobile'">
                   保存条目</span
                 >
@@ -260,7 +275,9 @@
                 class="btn-secondary px-3 py-1.5 text-xs rounded whitespace-nowrap"
                 title="先创建整本回滚版本，再执行保存"
               >
-                <span>🗂️</span>
+                <span aria-hidden="true">
+                  {{ icon('worldbook-save-all', 'ui-icon--sm') }}
+                </span>
                 <span x-show="$store.global.deviceType !== 'mobile'">
                   保存整本</span
                 >
@@ -270,7 +287,9 @@
                 class="btn-secondary px-3 py-1.5 text-xs rounded whitespace-nowrap"
                 title="提取为全局世界书"
               >
-                <span>📤</span>
+                <span aria-hidden="true">
+                  {{ icon('worldbook-save-as', 'ui-icon--sm') }}
+                </span>
                 <span x-show="$store.global.deviceType !== 'mobile'">
                   另存为全局</span
                 >
@@ -282,17 +301,17 @@
         <!-- 帮助按钮 -->
         <button
           @click="showHelpModal=true"
-          class="btn-secondary px-3 py-1.5 text-xs rounded hover:bg-blue-500/20 hover:text-blue-400 ml-2"
+          class="btn-secondary wi-icon-only-action px-3 py-1.5 text-xs rounded hover:bg-blue-500/20 hover:text-blue-400"
           title="查看帮助指南"
         >
-          ?
+          {{ icon('settings-help-entry', 'ui-icon--sm') }}
         </button>
 
         <button
           @click="showFullScreenWI=false"
-          class="btn-secondary px-3 py-1.5 text-xs rounded hover:bg-red-500/20 hover:text-red-400 ml-2"
+          class="btn-secondary wi-icon-only-action wi-editor-close-action px-3 py-1.5 text-xs rounded hover:bg-red-500/20 hover:text-red-400"
         >
-          ✕
+          {{ icon('context-close', 'ui-icon--sm') }}
         </button>
       </div>
     </div>
@@ -310,7 +329,8 @@
             @click="addWiEntry()"
             class="w-full bg-green-600/10 text-green-500 border border-green-600/30 py-1.5 rounded text-xs hover:bg-green-600/20 font-bold transition-all flex items-center justify-center gap-1"
           >
-            <span>+</span> 新增条目
+            {{ icon('context-new', 'ui-icon--sm') }}
+            <span>新增条目</span>
           </button>
         </div>
 
@@ -387,9 +407,10 @@
         >
           <button
             @click="showLeftList = false"
-            class="text-[10px] text-gray-500 hover:text-[var(--text-main)] w-full"
+            class="text-[10px] text-gray-500 hover:text-[var(--text-main)] w-full inline-flex items-center justify-center gap-1"
           >
-            ◀ 收起列表
+            {{ icon('chevron-right', 'ui-icon--xs rotate-180') }}
+            <span>收起列表</span>
           </button>
         </div>
       </div>
@@ -401,7 +422,7 @@
         @click="showLeftList = true"
         title="展开列表"
       >
-        ▶
+        {{ icon('chevron-right', 'ui-icon--sm') }}
       </div>
 
       <!-- === 中间：沉浸式编辑区 === -->
@@ -420,9 +441,14 @@
                     class="text-[10px] uppercase font-bold tracking-wider block"
                     :class="isEditingClipboard ? 'text-purple-400' : 'text-gray-500'"
                   >
-                    <span
-                      x-text="isEditingClipboard ? '📋 正在编辑剪切板条目 (Clipboard Item)' : '备注 (Comment)'"
-                    ></span>
+                    <span class="inline-flex items-center gap-1">
+                      <span x-show="isEditingClipboard" aria-hidden="true">
+                        {{ icon('worldbook-clipboard', 'ui-icon--sm') }}
+                      </span>
+                      <span
+                        x-text="isEditingClipboard ? '正在编辑剪切板条目 (Clipboard Item)' : '备注 (Comment)'"
+                      ></span>
+                    </span>
                   </label>
 
                   <!-- 剪切板模式徽章 -->
@@ -455,14 +481,15 @@
                       class="wi-action-btn w-auto px-3 gap-1 hover:bg-gray-500/20 text-gray-500 border border-transparent hover:border-gray-500/30"
                       title="取消编辑并返回"
                     >
-                      <span>↩</span> <span class="text-xs font-bold">返回</span>
+                      {{ icon('worldbook-back', 'ui-icon--sm') }}
+                      <span class="text-xs font-bold">返回</span>
                     </button>
                     <button
                       @click="saveClipboardItem()"
                       class="wi-action-btn w-auto px-3 gap-1 bg-purple-600 hover:bg-purple-500 text-white shadow-sm hover:shadow-purple-500/20"
                       title="保存对剪切板条目的修改"
                     >
-                      <span>💾</span>
+                      {{ icon('settings-save', 'ui-icon--sm') }}
                       <span class="text-xs font-bold">保存</span>
                     </button>
                   </div>
@@ -476,21 +503,21 @@
                       title="条目历史回滚"
                       class="wi-action-btn hover:text-orange-400 hover:bg-orange-500/10"
                     >
-                      🕰️
+                      {{ icon('worldbook-entry-rollback', 'ui-icon--md') }}
                     </button>
                     <button
                       @click.stop="removeWiEntry(activeEditorEntry)"
                       title="删除条目"
                       class="wi-action-btn hover:text-red-400 hover:bg-red-500/10"
                     >
-                      🗑️
+                      {{ icon('context-delete', 'ui-icon--md') }}
                     </button>
                     <button
                       @click.stop="copyWiToClipboard(activeEditorEntry)"
                       title="复制到剪切板"
                       class="wi-action-btn hover:text-purple-400 hover:bg-purple-500/10"
                     >
-                      📋
+                      {{ icon('worldbook-clipboard', 'ui-icon--md') }}
                     </button>
                   </div>
                 </template>
@@ -526,7 +553,9 @@
           <div
             class="flex-1 flex flex-col items-center justify-center text-gray-600 gap-4 select-none"
           >
-            <div class="text-6xl opacity-20">📝</div>
+            <div class="opacity-20">
+              {{ icon('card-sticky-note', 'ui-icon--xl') }}
+            </div>
             <p>请从左侧选择一个条目开始编辑</p>
           </div>
         </template>
@@ -543,20 +572,22 @@
             :class="rightTab==='settings' && 'active'"
             @click="rightTab='settings'"
           >
-            ⚙️ 属性设置
+            {{ icon('settings-advanced-settings', 'ui-icon--md') }}
+            <span>属性设置</span>
           </div>
           <div
             class="wi-tab-btn"
             :class="rightTab==='clipboard' && 'active'"
             @click="rightTab='clipboard'"
           >
-            📋 剪切板
+            {{ icon('worldbook-clipboard', 'ui-icon--md') }}
+            <span>剪切板</span>
           </div>
           <button
             @click="showRightPanel = false"
             class="px-3 text-gray-500 hover:text-red-400 border-l border-[var(--border-light)]"
           >
-            ✕
+            {{ icon('context-close', 'ui-icon--sm') }}
           </button>
         </div>
 
@@ -579,7 +610,9 @@
                       @change="if(activeEditorEntry.constant) activeEditorEntry.vectorized = false"
                       class="hidden"
                     />
-                    <span class="text-lg">🔵</span>
+                    <span aria-hidden="true">
+                      {{ icon('worldbook-constant', 'ui-icon--md') }}
+                    </span>
                     <span class="text-[10px] mt-1 font-bold"
                       >常驻 (Constant)</span
                     >
@@ -594,7 +627,9 @@
                       @change="if(activeEditorEntry.vectorized) activeEditorEntry.constant = false"
                       class="hidden"
                     />
-                    <span class="text-lg">📎</span>
+                    <span aria-hidden="true">
+                        {{ icon('worldbook-vectorize', 'ui-icon--md wi-vectorize-icon') }}
+                    </span>
                     <span class="text-[10px] mt-1 font-bold"
                       >向量化 (Vector)</span
                     >
@@ -790,13 +825,13 @@
                       class="expand-btn"
                       @click="openLargeEditor('ui_summary', editingWiFile?.type === 'embedded' ? '角色卡备注' : '本地备注', false, 0, editingData)"
                     >
-                      ⤢
+                      {{ icon('context-rename', 'ui-icon--sm') }}
                     </button>
                     <button
                       class="expand-btn"
                       @click="openEditingWorldInfoNotePreview()"
                     >
-                      👁
+                      {{ icon('settings-show', 'ui-icon--sm') }}
                     </button>
                   </div>
                 </div>
@@ -821,7 +856,12 @@
                 @click="expanded = !expanded"
               >
                 <span class="text-purple-400">高级逻辑 (Logic)</span>
-                <span x-text="expanded ? '▼' : '▶'" class="text-[10px]"></span>
+                <span x-show="expanded" aria-hidden="true">
+                  {{ icon('chevron-down', 'ui-icon--xs') }}
+                </span>
+                <span x-show="!expanded" aria-hidden="true">
+                  {{ icon('chevron-right', 'ui-icon--xs') }}
+                </span>
               </div>
               <div class="props-body space-y-3" x-show="expanded">
                 <div class="flex items-center justify-between gap-2">
@@ -912,9 +952,23 @@
                         >触发概率 (Probability)</span
                       >
                       <span
-                        class="text-[9px] text-gray-600"
-                        x-text="activeEditorEntry.useProbability ? '✅ 已启用' : '🚫 不生效'"
-                      ></span>
+                        class="text-[9px] text-gray-600 inline-flex items-center gap-1"
+                      >
+                        <span
+                          x-show="activeEditorEntry.useProbability"
+                          class="inline-flex items-center gap-1"
+                        >
+                          {{ icon('card-check', 'ui-icon--xs') }}
+                          <span>已启用</span>
+                        </span>
+                        <span
+                          x-show="!activeEditorEntry.useProbability"
+                          class="inline-flex items-center gap-1"
+                        >
+                          {{ icon('ban', 'ui-icon--xs') }}
+                          <span>不生效</span>
+                        </span>
+                      </span>
                     </div>
 
                     <div class="flex items-center gap-2">
@@ -1279,7 +1333,10 @@
             x-transition
           >
             <p class="text-[10px] text-yellow-500 font-bold mb-1">
-              ⚠️ 剪切板已满
+              <span class="inline-flex items-center gap-1">
+                {{ icon('settings-warning', 'ui-icon--xs') }}
+                <span>剪切板已满</span>
+              </span>
             </p>
             <p class="text-[10px] opacity-70 mb-1">点击下方条目以覆盖保存</p>
             <button
@@ -1326,14 +1383,14 @@
                       class="text-green-500 hover:bg-green-500/10 p-1 rounded"
                       title="添加"
                     >
-                      ➕
+                      {{ icon('context-new', 'ui-icon--sm') }}
                     </button>
                     <button
                       @click.stop="deleteWiClipboardItem(item.db_id)"
                       class="text-red-500 hover:bg-red-500/10 p-1 rounded"
                       title="删除"
                     >
-                      ✕
+                      {{ icon('context-close', 'ui-icon--sm') }}
                     </button>
                   </div>
                 </div>
@@ -1368,7 +1425,7 @@
         @click="showRightPanel = true"
         title="展开面板"
       >
-        ◀
+        {{ icon('chevron-right', 'ui-icon--sm rotate-180') }}
       </div>
 
       <!-- 查找与替换悬浮面板（可拖动，不遮挡整页） -->
@@ -1401,14 +1458,14 @@
                 class="text-[11px] text-gray-300 hover:text-white px-2 py-1 rounded hover:bg-white/10"
                 title="重置位置"
               >
-                ↺
+                {{ icon('header-refresh', 'ui-icon--sm') }}
               </button>
               <button
                 @mousedown.stop
                 @click="closeFindReplaceModal()"
                 class="text-gray-400 hover:text-red-400 px-2 py-1 rounded"
               >
-                ✕
+                {{ icon('context-close', 'ui-icon--sm') }}
               </button>
             </div>
           </div>
@@ -1529,7 +1586,7 @@
               @click="closeTaggedImportModal()"
               class="text-gray-400 hover:text-red-400 px-2 py-1 rounded"
             >
-              ✕
+              {{ icon('context-close', 'ui-icon--sm') }}
             </button>
           </div>
 
@@ -1550,7 +1607,9 @@
               @dragleave.prevent="taggedImportDragOver = false"
               @drop.prevent="handleTaggedImportDrop($event)"
             >
-              <div class="text-3xl mb-2">📥</div>
+              <div class="mb-2">
+                {{ icon('header-import', 'ui-icon--xl') }}
+              </div>
               <div class="text-sm font-bold text-[var(--text-main)]">
                 将文件拖动至此或点击上传
               </div>
@@ -1625,7 +1684,7 @@
               @click="showEntryHistoryModal = false"
               class="text-gray-400 hover:text-red-400 px-2 py-1 rounded"
             >
-              ✕
+              {{ icon('context-close', 'ui-icon--sm') }}
             </button>
           </div>
 
@@ -1768,7 +1827,7 @@
         class="px-5 py-4 border-b border-[var(--border-light)] flex items-center justify-between bg-[var(--bg-sub)]"
       >
         <div class="flex items-center gap-3">
-          <span class="text-2xl">📖</span>
+          <span>{{ sidebar_icon('worldbook', 'ui-icon--lg') }}</span>
           <div>
             <div class="text-lg font-bold text-[var(--text-main)]">
               全屏世界书编辑器帮助指南
@@ -1782,7 +1841,7 @@
           @click="showHelpModal=false"
           class="text-gray-400 hover:text-red-400 px-2 py-1 rounded text-xl"
         >
-          ✕
+          {{ icon('context-close', 'ui-icon--lg') }}
         </button>
       </div>
 

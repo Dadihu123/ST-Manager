@@ -1,8 +1,10 @@
+{% from "components/icon.html" import icon %}
+
 <!-- === 模式 2: 世界书网格 (包含滚动、拖拽、分页) === -->
 <div
   x-show="currentMode === 'worldinfo'"
   x-data="wiGrid"
-  class="flex-1 min-h-0 flex flex-col overflow-hidden w-full relative"
+  class="wi-worldbook-icon-scope wi-worldbook-grid flex-1 min-h-0 flex flex-col overflow-hidden w-full relative"
 >
   <!-- 滚动区域 -->
   <div
@@ -24,7 +26,9 @@
       x-transition.opacity
       class="drag-over-main-overlay"
     >
-      <div class="text-6xl mb-4">🌎</div>
+      <div class="mb-4" aria-hidden="true">
+        {{ icon('card-upload', 'ui-icon--xl') }}
+      </div>
       <div class="text-2xl font-bold text-white tracking-wider">
         松开鼠标上传世界书
       </div>
@@ -95,7 +99,7 @@
                     class="wi-grid-tool-btn rounded-full flex items-center justify-center transition-all duration-200 shadow-md"
                     title="导出世界书 JSON"
                   >
-                    📤
+                    {{ icon('header-import', 'ui-icon--md') }}
                   </button>
 
                   <button
@@ -104,7 +108,7 @@
                     class="wi-grid-tool-btn wi-card-edit-btn rounded-full flex items-center justify-center transition-all duration-200 shadow-md"
                     title="打开全屏编辑器"
                   >
-                    ✏️
+                    {{ icon('context-rename', 'ui-icon--md') }}
                   </button>
 
                   <button
@@ -119,11 +123,9 @@
                       class="w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-200 shadow-sm"
                       :class="selectedIds.includes(item.id) ? 'bg-blue-600 border-blue-500 text-white scale-105' : 'bg-black/25 border-gray-400/60 hover:bg-black/50 hover:border-white/80 text-white/80'"
                     >
-                      <span
-                        x-show="selectedIds.includes(item.id)"
-                        class="text-xs font-bold"
-                        >✓</span
-                      >
+                      <span x-show="selectedIds.includes(item.id)" aria-hidden="true">
+                        {{ icon('card-check', 'ui-icon--xs') }}
+                      </span>
                     </div>
                   </button>
                 </div>
@@ -131,7 +133,9 @@
 
               <div class="wi-card-primary">
                 <div class="wi-card-title-row">
-                  <div class="wi-card-bookmark" aria-hidden="true"></div>
+                  <div class="wi-card-bookmark" aria-hidden="true">
+                    {{ icon('worldbook-closed', 'ui-icon--lg wi-card-bookmark-icon') }}
+                  </div>
                   <div class="wi-card-title-group">
                     <div class="wi-card-title-wrap">
                       <h3
@@ -182,7 +186,9 @@
                     class="wi-card-meta-chip wi-card-category-chip"
                     :title="formatCategoryLabel(getWorldInfoDisplayCategory(item))"
                   >
-                    <span class="wi-card-meta-icon">📁</span>
+                    <span class="wi-card-meta-icon" aria-hidden="true">
+                      {{ icon('card-folder', 'ui-icon--sm') }}
+                    </span>
                     <span
                       class="wi-card-meta-text"
                       x-text="formatCategoryLabel(getWorldInfoDisplayCategory(item))"
@@ -205,7 +211,7 @@
                       :title="getWorldInfoNotePreviewTitle(item)"
                       @click.stop="openWorldInfoLocalNote(item)"
                     >
-                      📝
+                      {{ icon('card-sticky-note', 'ui-icon--md') }}
                     </button>
                   </div>
                   <div class="wi-card-footer-tools-right">
@@ -218,8 +224,12 @@
                       :title="getWorldInfoSendToSTTitle(item)"
                       @click.stop="sendWorldInfoToST(item)"
                     >
-                      <span x-show="!isSendingWorldInfoToST(item.id)">🚀</span>
-                      <span x-show="isSendingWorldInfoToST(item.id)">⏳</span>
+                      <span x-show="!isSendingWorldInfoToST(item.id)" aria-hidden="true">
+                        {{ icon('card-send', 'ui-icon--md') }}
+                      </span>
+                      <span x-show="isSendingWorldInfoToST(item.id)" aria-hidden="true">
+                        {{ icon('card-loader', 'ui-icon--md ui-icon--spin') }}
+                      </span>
                     </button>
                   </div>
                 </div>
@@ -240,7 +250,9 @@
                       class="card-back-category"
                       :title="formatCategoryLabel(getWorldInfoDisplayCategory(item))"
                     >
-                      <span class="card-back-category-icon">📁</span>
+                      <span class="card-back-category-icon" aria-hidden="true">
+                        {{ icon('card-folder', 'ui-icon--sm') }}
+                      </span>
                       <span
                         class="card-back-category-text"
                         x-text="formatCategoryLabel(getWorldInfoDisplayCategory(item))"

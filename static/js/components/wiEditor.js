@@ -2983,7 +2983,12 @@ export default function wiEditor() {
         activeEl.tagName === "BUTTON" &&
         !activeEl.classList.contains("wi-list-item");
       const originalHtml = isSafeButton ? activeEl.innerHTML : "";
-      if (isSafeButton && !overwriteId) activeEl.innerHTML = "⏳...";
+      if (isSafeButton && !overwriteId) {
+        activeEl.innerHTML =
+          '<svg class="ui-icon ui-icon--sm ui-icon--spin" viewBox="0 0 24 24" aria-hidden="true" focusable="false">' +
+          '<use href="/static/icons/ui.svg#icon-card-loader"></use>' +
+          "</svg>";
+      }
 
       clipboardAdd(entry, overwriteId)
         .then((res) => {

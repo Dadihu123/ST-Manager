@@ -587,6 +587,10 @@ html.light-mode .clipboard-item.editing {
 
 .wi-tab-btn {
   flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
   padding: 0.75rem 0.5rem;
   font-size: 0.75rem;
   font-weight: bold;
@@ -694,6 +698,172 @@ html.dark-mode .props-header {
   transform: translateY(-1px);
 }
 
+/* 世界书套件沿用第一阶段图标的无框视觉，尺寸放大不改变按钮点击区域。 */
+.wi-worldbook-icon-scope .ui-icon--xs {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
+.wi-worldbook-icon-scope .ui-icon--sm {
+  width: 1.3125rem;
+  height: 1.3125rem;
+}
+
+.wi-worldbook-icon-scope .ui-icon--md {
+  width: 1.6875rem;
+  height: 1.6875rem;
+}
+
+.wi-worldbook-icon-scope .ui-icon--lg {
+  width: 2.25rem;
+  height: 2.25rem;
+}
+
+.wi-worldbook-icon-scope .ui-icon--xl {
+  width: 4.5rem;
+  height: 4.5rem;
+}
+
+/* 备份图标的设计稿留白较多，补偿视觉绘制范围但不扩大按钮布局。 */
+.wi-worldbook-icon-scope .wi-worldbook-backup-icon.ui-icon--md {
+  transform: scale(1.34);
+  transform-origin: center;
+}
+
+/* 阅览模式标题图标进一步突出，使用变换保留原有标题栏高度。 */
+.wi-reader-title-icon .ui-icon--lg {
+  transform: scale(1.5);
+  transform-origin: center;
+}
+
+/* 阅览模式关闭按钮略微收回，保留原有按钮的点击范围。 */
+.wi-reader-close-icon {
+  transform: scale(0.8);
+  transform-origin: center;
+}
+
+.wi-reader-date-meta .wi-reader-calendar-icon {
+  margin-right: -0.25rem;
+}
+
+.wi-worldbook-grid .wi-grid-tool-btn,
+.wi-worldbook-grid .card-local-note-btn,
+.wi-worldbook-grid .card-send-st-btn {
+  border-color: transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.wi-worldbook-grid .wi-grid-tool-btn:hover,
+.wi-worldbook-grid .card-local-note-btn:hover:not(:disabled),
+.wi-worldbook-grid .card-send-st-btn:hover:not(:disabled) {
+  border-color: transparent !important;
+  background: transparent !important;
+}
+
+.wi-worldbook-grid .card-local-note-btn.has-note,
+.wi-worldbook-grid .card-send-st-btn.has-sent,
+.wi-worldbook-grid .card-send-st-btn.is-sending {
+  border-color: transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.wi-worldbook-grid .card-local-note-btn.has-note {
+  filter: drop-shadow(0 0 4px rgba(250, 204, 21, 0.28));
+}
+
+.wi-worldbook-grid .card-local-note-btn .ui-icon,
+.wi-worldbook-grid .card-send-st-btn .ui-icon {
+  width: 1.725rem;
+  height: 1.725rem;
+}
+
+.wi-editor-container .wi-action-btn--bright {
+  color: var(--text-sub);
+}
+
+.wi-editor-container .wi-action-btn--bright:hover {
+  color: var(--text-main);
+}
+
+.wi-editor-container .wi-icon-only-action {
+  border-color: transparent !important;
+  background: transparent !important;
+  box-shadow: none;
+  margin-left: 0 !important;
+}
+
+.wi-editor-container .wi-icon-only-action:hover {
+  border-color: transparent !important;
+  background: transparent !important;
+}
+
+.wi-editor-container .wi-editor-top-actions .wi-editor-close-action {
+  margin-left: -0.25rem !important;
+}
+
+.wi-editor-container .wi-icon-only-action .ui-icon {
+  transform: scale(1.5);
+  transform-origin: center;
+}
+
+.wi-editor-container .wi-vectorize-icon {
+  transform: scale(1.8);
+  transform-origin: center;
+}
+
+.wi-worldbook-grid .wi-card-bookmark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent-main);
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  border-radius: 0;
+}
+
+.wi-worldbook-grid .wi-card-title-row::before {
+  display: none;
+  content: none;
+}
+
+.wi-worldbook-grid .wi-card-bookmark::before,
+.wi-worldbook-grid .wi-card-bookmark::after {
+  display: none;
+}
+
+.wi-worldbook-grid .wi-card-bookmark .wi-card-bookmark-icon {
+  width: 3rem;
+  height: 3rem;
+  flex: 0 0 auto;
+}
+
+.wi-worldbook-tab-icon .ui-icon--sm {
+  width: 1.3125rem;
+  height: 1.3125rem;
+}
+
+@media (max-width: 640px) {
+  .wi-worldbook-grid .card-local-note-btn .ui-icon,
+  .wi-worldbook-grid .card-send-st-btn .ui-icon {
+    width: 1.575rem;
+    height: 1.575rem;
+  }
+}
+
+.wi-reader-loading-icon {
+  width: 2.25rem;
+  height: 2.25rem;
+  color: var(--accent-light);
+}
+
+.wi-reader-loading-icon .ui-icon {
+  width: 2.25rem;
+  height: 2.25rem;
+}
+
 .wi-toggle-btn-float {
   position: absolute;
   top: 50%;
@@ -778,13 +948,15 @@ input[type="checkbox"]:checked {
 }
 
 input[type="checkbox"]:checked::after {
-  content: "✔";
+  content: "";
   position: absolute;
-  color: white;
-  font-size: 10px;
+  width: 0.35rem;
+  height: 0.65rem;
+  border: solid var(--text-on-accent);
+  border-width: 0 2px 2px 0;
   top: 50%;
   left: 50%;
-  transform: translate(-50%, -50%);
+  transform: translate(-50%, -60%) rotate(45deg);
 }
 
 .custom-scrollbar::-webkit-scrollbar {
