@@ -4649,6 +4649,76 @@ html.light-mode .note-textarea:focus {
   transform-origin: center;
 }
 
+/* 工具箱图标统一外框尺寸，再按各 SVG 的实际绘制范围补偿视觉高度。 */
+.detail-icon-scope .detail-manage-tool-btn .ui-icon {
+  width: 1.6875rem;
+  height: 1.6875rem;
+  transform-origin: center;
+}
+
+/* 各图标的 viewBox 留白不同，按实际绘制高度匹配备份目录图标。 */
+.detail-icon-scope .detail-manage-tool-icon--jump-locate {
+  transform: scale(1.21);
+}
+
+.detail-icon-scope .detail-manage-tool-icon--folder,
+.detail-icon-scope .detail-manage-action-icon--folder {
+  transform: scale(1.1);
+}
+
+.detail-icon-scope .detail-manage-tool-icon--rollback {
+  transform: scale(0.97);
+}
+
+.detail-icon-scope .detail-manage-tool-btn .wi-worldbook-backup-icon {
+  transform: scale(1.34);
+}
+
+/* 更新与高级操作按钮沿用备份目录的可视高度；独立 scale 不会覆盖加载图标的旋转动画。 */
+.detail-icon-scope .detail-manage-action-btn .ui-icon,
+.detail-icon-scope .detail-manage-advanced-btn .ui-icon,
+.detail-icon-scope .detail-update-dropzone-icon .ui-icon {
+  width: 1.6875rem;
+  height: 1.6875rem;
+  transform-origin: center;
+}
+
+.detail-icon-scope .detail-manage-action-icon--card-refresh {
+  scale: 1.13;
+}
+
+.detail-icon-scope .detail-manage-action-icon--card-loader {
+  scale: 1.06;
+}
+
+.detail-icon-scope .detail-manage-action-icon--card-check {
+  scale: 1.55;
+}
+
+.detail-icon-scope .detail-manage-action-icon--header-url-import {
+  scale: 1.18;
+}
+
+.detail-icon-scope .detail-manage-action-icon--card-send {
+  scale: 1.09;
+}
+
+.detail-icon-scope .detail-manage-action-icon--card-package {
+  scale: 1.14;
+}
+
+.detail-icon-scope .detail-manage-action-icon--heart-broken {
+  scale: 1.28;
+}
+
+.detail-icon-scope .detail-manage-action-icon--context-delete {
+  scale: 1.08;
+}
+
+.detail-icon-scope .detail-manage-action-icon--advanced-editor {
+  scale: 1.02;
+}
+
 /* 空状态图标替换为 SVG 后保留原有空状态的视觉层级。 */
 .detail-icon-scope .detail-chat-empty-icon .ui-icon {
   width: 3.75rem;

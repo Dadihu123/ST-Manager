@@ -2394,14 +2394,14 @@
                           @click="locateCard()"
                           class="toolbox-btn detail-manage-tool-btn"
                         >
-                          {{ detail_icon('jump-locate', 'ui-icon--sm') }}
+                          {{ detail_icon('jump-locate', 'ui-icon--md detail-manage-tool-icon--jump-locate') }}
                           <span>跳转定位</span>
                         </button>
                         <button
                           @click="openCardLocation()"
                           class="toolbox-btn detail-manage-tool-btn"
                         >
-                          {{ sidebar_icon('category-expanded', 'ui-icon--sm') }}
+                          {{ sidebar_icon('category-expanded', 'ui-icon--md detail-manage-tool-icon--folder') }}
                           <span>打开所在文件夹</span>
                         </button>
                       </div>
@@ -2417,7 +2417,7 @@
                           @click="openRollback('card')"
                           class="toolbox-btn detail-manage-tool-btn warn"
                         >
-                          {{ icon('worldbook-rollback', 'ui-icon--sm') }}
+                          {{ icon('worldbook-rollback', 'ui-icon--md detail-manage-tool-icon--rollback') }}
                           <span>时光机</span>
                         </button>
                         <button
@@ -2454,7 +2454,7 @@
                         class="detail-update-dropzone-icon"
                         :class="dragOverUpdate ? 'drag-over' : ''"
                       >
-                        {{ sidebar_icon('category-expanded', 'ui-icon--lg') }}
+                        {{ sidebar_icon('category-expanded', 'ui-icon--md detail-manage-action-icon--folder') }}
                       </div>
                       <div class="detail-update-dropzone-title">
                         文件覆盖升级
@@ -2536,11 +2536,11 @@
                           class="btn-secondary detail-manage-action-btn detail-source-update-action"
                         >
                           <span x-show="!sourceUpdateChecking" class="inline-flex items-center gap-1">
-                            {{ icon('card-refresh', 'ui-icon--sm') }}
+                            {{ icon('card-refresh', 'ui-icon--md detail-manage-action-icon--card-refresh') }}
                             <span>检查来源更新</span>
                           </span>
                           <span x-show="sourceUpdateChecking" class="inline-flex items-center gap-1">
-                            {{ icon('card-loader', 'ui-icon--sm ui-icon--spin') }}
+                            {{ icon('card-loader', 'ui-icon--md ui-icon--spin detail-manage-action-icon--card-loader') }}
                             <span>检查中...</span>
                           </span>
                         </button>
@@ -2551,11 +2551,11 @@
                           class="btn-secondary detail-manage-action-btn detail-source-acknowledge-action"
                         >
                           <span x-show="!sourceUpdateAcknowledging" class="inline-flex items-center gap-1">
-                            {{ icon('card-check', 'ui-icon--sm') }}
+                            {{ icon('card-check', 'ui-icon--md detail-manage-action-icon--card-check') }}
                             <span>确认无需更新</span>
                           </span>
                           <span x-show="sourceUpdateAcknowledging" class="inline-flex items-center gap-1">
-                            {{ icon('card-loader', 'ui-icon--sm ui-icon--spin') }}
+                            {{ icon('card-loader', 'ui-icon--md ui-icon--spin detail-manage-action-icon--card-loader') }}
                             <span>处理中...</span>
                           </span>
                         </button>
@@ -2563,7 +2563,7 @@
                           @click="triggerUrlUpdate()"
                           class="btn-update-card btn-update-url detail-manage-action-btn"
                         >
-                          {{ icon('header-url-import', 'ui-icon--sm') }}
+                          {{ icon('header-url-import', 'ui-icon--md detail-manage-action-icon--header-url-import') }}
                           <span>URL 更新</span>
                         </button>
                         <button
@@ -2571,7 +2571,7 @@
                           @click="sendToST()"
                           class="btn-update-card detail-manage-action-btn detail-manage-action-btn--st"
                         >
-                          {{ icon('card-send', 'ui-icon--sm') }}
+                          {{ icon('card-send', 'ui-icon--md detail-manage-action-icon--card-send') }}
                           <span class="detail-send-st-label">发送到 ST</span>
                         </button>
                         <button
@@ -2579,7 +2579,7 @@
                           @click="convertToBundle()"
                           class="btn-secondary detail-manage-action-btn detail-manage-action-btn--warn"
                         >
-                          {{ icon('card-package', 'ui-icon--sm') }}
+                          {{ icon('card-package', 'ui-icon--md detail-manage-action-icon--card-package') }}
                           <span>转为包模式</span>
                         </button>
                         <button
@@ -2587,14 +2587,14 @@
                           @click="unbundleCard()"
                           class="btn-secondary detail-manage-action-btn detail-manage-action-btn--warn"
                         >
-                          {{ detail_icon('heart-broken', 'ui-icon--sm') }}
+                          {{ detail_icon('heart-broken', 'ui-icon--md detail-manage-action-icon--heart-broken') }}
                           <span>取消聚合</span>
                         </button>
                         <button
                           @click="deleteCards([activeCard.id])"
                           class="btn-secondary detail-manage-action-btn detail-manage-action-btn--danger"
                         >
-                          {{ icon('context-delete', 'ui-icon--sm') }}
+                          {{ icon('context-delete', 'ui-icon--md detail-manage-action-icon--context-delete') }}
                           <span>移至回收站</span>
                         </button>
                       </div>
@@ -2638,7 +2638,7 @@
                     @click="openAdvancedEditor()"
                     class="toolbox-btn detail-manage-advanced-btn inline-flex items-center gap-2"
                   >
-                    {{ detail_icon('advanced-editor', 'ui-icon--sm') }}
+                    {{ detail_icon('advanced-editor', 'ui-icon--md detail-manage-action-icon--advanced-editor') }}
                     <span>打开高级编辑器</span>
                   </button>
                 </div>
