@@ -1418,8 +1418,9 @@ export default function wiEditor() {
         });
 
         this.$store.global.showToast(
-          `✅ 已导入 ${uniqueBlocks.length} 条标签条目`,
+          `已导入 ${uniqueBlocks.length} 条标签条目`,
           2200,
+          'card-check',
         );
         this.closeTaggedImportModal();
       } catch (e) {

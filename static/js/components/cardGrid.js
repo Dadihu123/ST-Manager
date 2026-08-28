@@ -1249,7 +1249,7 @@ export default function cardGrid() {
                     const cardName = cRes.new_cards[0]
                       ? cRes.new_cards[0].char_name
                       : item.filename;
-                    this.$store.global.showToast(`✅ 已导入: ${cardName}`);
+                    this.$store.global.showToast(`已导入: ${cardName}`, 3000, 'card-check');
 
                     // 触发事件以更新 UI (复用 batchImportModal 的事件逻辑)
                     window.dispatchEvent(

@@ -3031,7 +3031,7 @@ export default function detailModal() {
                     inputEl.value = ''; // 清空 input，允许重复导入同名文件
                     
                     // 4. 反馈
-                    this.$store.global.showToast(`✅ 成功导入: "${importedData.name}"`);
+                    this.$store.global.showToast(`成功导入: "${importedData.name}"`, 3000, 'card-check');
 
                 },
                 

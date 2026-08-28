@@ -91,7 +91,7 @@ export default function importModal() {
                             this.$store.global.categoryCounts = res.category_counts;
                         }
                         // 提示
-                        this.$store.global.showToast(`✅ 导入成功：${res.new_card.char_name}`, 3000);
+                        this.$store.global.showToast(`导入成功：${res.new_card.char_name}`, 3000, 'card-check');
                     }
                 } else if (res.status === 'conflict') {
                     // 进入冲突解决流程

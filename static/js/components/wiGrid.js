@@ -661,7 +661,7 @@ export default function wiGrid() {
         }
       }
 
-      this.$store.global.showToast(`✅ 已移动 ${count} 本世界书`);
+      this.$store.global.showToast(`已移动 ${count} 本世界书`, 3000, 'card-check');
       this.selectedIds = [];
       this.fetchWorldInfoList();
     },

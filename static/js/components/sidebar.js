@@ -883,7 +883,7 @@ export default function sidebar() {
                 detail: { resetPage: false },
               }),
             );
-            this.$store.global.showToast(`✅ 已移动 ${count} 本世界书`);
+            this.$store.global.showToast(`已移动 ${count} 本世界书`, 3000, 'card-check');
           })
           .catch((err) => alert(err.message || err));
 
@@ -953,7 +953,7 @@ export default function sidebar() {
               // 刷新列表
               window.dispatchEvent(new CustomEvent("refresh-card-list"));
               // 显示提示
-              this.$store.global.showToast(`✅ 已移动 ${count} 张卡片`);
+              this.$store.global.showToast(`已移动 ${count} 张卡片`, 3000, 'card-check');
             } else alert(res.msg);
           });
         }

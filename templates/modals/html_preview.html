@@ -1,3 +1,5 @@
+{% from "components/icon.html" import detail_icon, icon %}
+
 <!-- HTML 大屏预览模态框 -->
 <div
   x-show="showLargePreview"
@@ -26,13 +28,15 @@
         class="font-bold text-lg flex items-center gap-2"
         style="color: var(--text-main)"
       >
-        <span>👁️</span> 渲染结果预览 (HTML Preview)
+        <span aria-hidden="true">{{ detail_icon('read-mode', 'ui-icon--md') }}</span>
+        <span>渲染结果预览 (HTML Preview)</span>
       </h3>
       <button
         @click="showLargePreview=false"
+        aria-label="关闭 HTML 预览"
         class="text-gray-400 hover:text-white text-xl px-2"
       >
-        ✕
+        {{ icon('context-close', 'ui-icon--md') }}
       </button>
     </div>
 

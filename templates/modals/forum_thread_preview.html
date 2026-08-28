@@ -39,8 +39,8 @@
           ></div>
         </div>
       </div>
-      <button type="button" class="forum-preview-close" @click="close()" title="关闭">
-        ✕
+      <button type="button" class="forum-preview-close" @click="close()" title="关闭" aria-label="关闭">
+        <span class="forum-preview-raw-icon forum-preview-raw-icon--close" aria-hidden="true"></span>
       </button>
     </header>
 
@@ -58,14 +58,25 @@
           <!-- 元信息行 -->
           <div class="forum-preview-stats">
             <span :title="'创建 ' + formatTime(thread.created_at)">
-              📅 <span x-text="formatTime(thread.created_at)"></span>
+              <span class="forum-preview-raw-icon forum-preview-raw-icon--date" aria-hidden="true"></span>
+              <span x-text="formatTime(thread.created_at)"></span>
             </span>
             <span :title="'活跃 ' + formatTime(thread.last_active_at)">
-              ⏱ <span x-text="formatTime(thread.last_active_at)"></span>
+              <span class="forum-preview-raw-icon forum-preview-raw-icon--time" aria-hidden="true"></span>
+              <span x-text="formatTime(thread.last_active_at)"></span>
             </span>
-            <span title="回复">💬 <span x-text="thread.reply_count ?? 0"></span></span>
-            <span title="反应">👍 <span x-text="thread.reaction_count ?? 0"></span></span>
-            <span title="浏览">👁 <span x-text="thread.display_count ?? 0"></span></span>
+            <span title="回复">
+              <span class="forum-preview-raw-icon forum-preview-raw-icon--reply" aria-hidden="true"></span>
+              <span x-text="thread.reply_count ?? 0"></span>
+            </span>
+            <span title="反应">
+              <span class="forum-preview-raw-icon forum-preview-raw-icon--reaction" aria-hidden="true"></span>
+              <span x-text="thread.reaction_count ?? 0"></span>
+            </span>
+            <span title="浏览">
+              <span class="forum-preview-raw-icon forum-preview-raw-icon--view" aria-hidden="true"></span>
+              <span x-text="thread.display_count ?? 0"></span>
+            </span>
           </div>
 
           <h2 class="forum-preview-title" x-text="thread.title || '无标题'"></h2>

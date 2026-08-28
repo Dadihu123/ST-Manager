@@ -1,3 +1,5 @@
+{% from "components/icon.html" import icon %}
+
 <!-- 大编辑器 -->
 <div
   x-show="showLargeEditor"
@@ -16,7 +18,8 @@
       <!-- 第一行：标题和操作按钮 -->
       <div class="large-editor-topbar-row">
         <h3 class="large-editor-title">
-          <span>📝</span> <span x-text="largeEditorTitle"></span>
+          <span aria-hidden="true">{{ icon('modal-document-edit', 'ui-icon--md large-editor-title-icon') }}</span>
+          <span x-text="largeEditorTitle"></span>
         </h3>
         <div class="large-editor-actions">
           <button
@@ -42,8 +45,9 @@
             @click="prevLargeEditorItem()"
             class="large-editor-nav-btn"
             title="上一个 (自动保存)"
+            aria-label="上一个 (自动保存)"
           >
-            ◀
+            {{ icon('chevron-right', 'ui-icon--sm large-editor-nav-icon--reverse') }}
           </button>
           <!-- 显示索引进度 -->
           <span class="large-editor-nav-info">
@@ -56,8 +60,9 @@
             @click="nextLargeEditorItem()"
             class="large-editor-nav-btn"
             title="下一个 (自动保存)"
+            aria-label="下一个 (自动保存)"
           >
-            ▶
+            {{ icon('chevron-right', 'ui-icon--sm') }}
           </button>
         </div>
         <!-- 模式切换按钮组 -->
@@ -132,7 +137,8 @@
           x-show="['ui_summary', 'first_mes', 'mes_example', 'description'].includes(largeEditorField) && !markdownPreview"
           class="large-editor-hint"
         >
-          💡 支持 Markdown/HTML 渲染
+          <span class="large-editor-hint-icon" aria-hidden="true">{{ icon('worldbook-tip', 'ui-icon--xs') }}</span>
+          <span>支持 Markdown/HTML 渲染</span>
         </span>
       </div>
     </div>

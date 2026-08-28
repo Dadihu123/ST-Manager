@@ -1,3 +1,5 @@
+{% from "components/icon.html" import detail_icon, icon, sidebar_icon %}
+
 <!-- 移动卡片弹窗 -->
 <div x-data="moveCardsModal" x-show="showMoveCardsModal" x-cloak class="modal-overlay z-modal-popover"
     @click.self="showMoveCardsModal = false">
@@ -5,23 +7,31 @@
         <!-- Header -->
         <div style="padding: 1rem 1.25rem; background: var(--bg-sub); border-bottom: 1px solid var(--border-light);">
             <h3 style="font-weight: bold; color: var(--text-main); font-size: 1rem; display: flex; align-items: center; gap: 0.5rem;">
-                📂 移动到文件夹
+                <span aria-hidden="true">{{ sidebar_icon('category-expanded', 'ui-icon--md') }}</span>
+                <span>移动到文件夹</span>
             </h3>
         </div>
         
         <div style="padding: 1.25rem;">
             <div style="display: flex; flex-direction: column; gap: 1rem;">
                 <div>
-                    <label style="font-weight: 500; margin-bottom: 0.5rem; display: block; font-size: 0.875rem; color: var(--text-main);">选择目标文件夹</label>
+                    <label style="font-weight: 500; margin-bottom: 0.5rem; display: inline-flex; align-items: center; gap: 0.25rem; font-size: 0.875rem; color: var(--text-main);">
+                        <span aria-hidden="true">{{ detail_icon('locate', 'ui-icon--sm') }}</span>
+                        <span>选择目标文件夹</span>
+                    </label>
                     <div class="relative">
+                        <div class="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-dim)] pointer-events-none" aria-hidden="true">
+                            <span x-show="targetCategory === ''" x-cloak>{{ sidebar_icon('category-expanded', 'ui-icon--sm') }}</span>
+                            <span x-show="targetCategory === '根目录'" x-cloak>{{ icon('modal-root-directory', 'ui-icon--sm') }}</span>
+                            <span x-show="targetCategory !== '' && targetCategory !== '根目录'" x-cloak>{{ sidebar_icon('folder', 'ui-icon--sm') }}</span>
+                        </div>
                         <select x-model="targetCategory" class="form-input" style="width: 100%; padding-left: 2.5rem; font-size: 0.875rem;">
-                            <option value="">📂 (当前浏览目录)</option>
-                            <option value="根目录">🏠 根目录</option>
+                            <option value="">(当前浏览目录)</option>
+                            <option value="根目录">根目录</option>
                             <template x-for="folder in allFoldersList" :key="folder.path">
-                                <option :value="folder.path" x-text="'📁 ' + folder.path"></option>
+                                <option :value="folder.path" x-text="folder.path"></option>
                             </template>
                         </select>
-                        <div style="position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); color: var(--text-dim); pointer-events: none;">📍</div>
                     </div>
                     <div style="font-size: 0.75rem; color: var(--text-dim); margin-top: 0.5rem;">
                         将移动 <span x-text="cardIds.length" style="font-weight: bold;"></span> 张卡片
@@ -33,7 +43,8 @@
                         取消
                     </button>
                     <button @click="executeMove()" class="btn-primary" style="flex:2; justify-content: center; font-size: 0.875rem; padding: 0.5rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
-                        📂 移动
+                        <span aria-hidden="true">{{ sidebar_icon('category-expanded', 'ui-icon--sm') }}</span>
+                        <span>移动</span>
                     </button>
                 </div>
             </div>

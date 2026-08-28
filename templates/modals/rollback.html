@@ -1,3 +1,5 @@
+{% from "components/icon.html" import icon %}
+
 <!-- 回滚/时光机模态框 -->
 <div x-show="showRollbackModal" x-data="rollbackModal" x-cloak class="modal-overlay z-modal-popover" @click.self="showRollbackModal=false">
     <div class="rollback-modal-container">
@@ -5,13 +7,15 @@
         <!-- 1. Header -->
         <div class="rb-header">
             <div class="flex items-center gap-3">
-                <span class="text-2xl">⏪</span>
+                <span aria-hidden="true">{{ icon('worldbook-rollback', 'ui-icon--lg') }}</span>
                 <div>
                     <h3 class="font-bold text-lg">时光机 (Time Machine)</h3>
                     <p class="text-xs text-[var(--text-dim)]">选择两个版本进行比对，或恢复历史版本</p>
                 </div>
             </div>
-            <button @click="showRollbackModal=false" class="text-gray-400 hover:text-white px-2 py-1 text-xl">✕</button>
+            <button @click="showRollbackModal=false" class="text-gray-400 hover:text-white px-2 py-1 text-xl" aria-label="关闭回滚弹窗">
+                {{ icon('context-close', 'ui-icon--md') }}
+            </button>
         </div>
 
         <!-- 2. Body Grid -->
@@ -70,7 +74,10 @@
                         <button x-show="!ver.is_current"
                             @click.stop="selectedBackup=ver; diffSelection.left=ver; performRestore()"
                             class="px-2 py-1 text-xs border border-[var(--border-light)] rounded hover:bg-red-900/30 text-[var(--text-sub)] hover:text-red-400 transition ml-2">
-                            ⏪ 恢复
+                            <span class="inline-flex items-center gap-1">
+                                <span aria-hidden="true">{{ icon('worldbook-rollback', 'ui-icon--sm') }}</span>
+                                <span>恢复</span>
+                            </span>
                         </button>
                     </div>
                 </template>
@@ -80,12 +87,18 @@
             <div class="rb-diff-area relative">
                 <div class="diff-header">
                     <div class="diff-header-item text-red-400 flex items-center justify-center gap-2">
-                        <span>🛑 Left (Old)</span>
+                        <span class="inline-flex items-center gap-1">
+                            <span class="inline-block h-2.5 w-2.5 rounded-full bg-red-500" aria-hidden="true"></span>
+                            <span>Left (Old)</span>
+                        </span>
                         <span class="text-xs text-[var(--text-dim)]"
                             x-text="diffSelection.left ? (diffSelection.left.is_current ? 'Current' : new Date(diffSelection.left.mtime*1000).toLocaleString()) : '-'"></span>
                     </div>
                     <div class="diff-header-item text-green-400 flex items-center justify-center gap-2">
-                        <span>🟢 Right (New)</span>
+                        <span class="inline-flex items-center gap-1">
+                            <span class="inline-block h-2.5 w-2.5 rounded-full bg-green-500" aria-hidden="true"></span>
+                            <span>Right (New)</span>
+                        </span>
                         <span class="text-xs text-[var(--text-dim)]"
                             x-text="diffSelection.right ? (diffSelection.right.is_current ? 'Current' : new Date(diffSelection.right.mtime*1000).toLocaleString()) : '-'"></span>
                     </div>
@@ -111,7 +124,7 @@
                     class="absolute inset-0 z-10 flex items-center justify-center backdrop-blur-sm bg-black/10 dark:bg-white/5">
                     <div
                         class="bg-[var(--bg-panel)] border border-[var(--border-light)] px-4 py-2 rounded-full shadow-lg flex items-center gap-2">
-                        <span class="animate-spin text-xl">⏳</span>
+                        <span aria-hidden="true">{{ icon('card-loader', 'ui-icon--sm ui-icon--spin') }}</span>
                         <span class="text-sm font-bold">正在比对差异...</span>
                     </div>
                 </div>

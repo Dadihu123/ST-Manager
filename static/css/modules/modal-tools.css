@@ -2004,6 +2004,12 @@ html.light-mode .diff-removed {
   color: var(--accent-main);
 }
 
+.large-editor-nav-icon--reverse {
+  transform-box: fill-box;
+  transform-origin: center;
+  transform: scaleX(-1);
+}
+
 .large-editor-nav-info {
   font-size: 12px;
   font-family: monospace;
@@ -2157,6 +2163,9 @@ html.light-mode .diff-removed {
 .large-editor-hint {
   margin-left: 0.5rem;
   color: #60a5fa;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
 }
 
 .json-view-content {
@@ -2529,7 +2538,7 @@ html.light-mode .preview-toggle-inactive {
     text-align: left;
   }
   .large-editor-hint {
-    display: block;
+    display: inline-flex;
     margin-left: 0;
     margin-top: 0.25rem;
     font-size: 0.6875rem;

@@ -80,11 +80,70 @@
   cursor: pointer;
   flex-shrink: 0;
   line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .forum-preview-close:hover {
   color: var(--text-main);
   background: var(--bg-sub);
+}
+
+/* 原站帖子元信息图标单独保留为静态 SVG，通过 mask 继承当前主题色。 */
+.forum-preview-raw-icon {
+  display: inline-block;
+  flex: 0 0 auto;
+  width: 0.875rem;
+  height: 0.875rem;
+  background-color: currentColor;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  -webkit-mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+  mask-size: contain;
+}
+
+.forum-preview-raw-icon--date {
+  -webkit-mask-image: url('/static/icons/forum-preview/date.svg');
+  mask-image: url('/static/icons/forum-preview/date.svg');
+}
+
+.forum-preview-raw-icon--time {
+  -webkit-mask-image: url('/static/icons/forum-preview/time.svg');
+  mask-image: url('/static/icons/forum-preview/time.svg');
+}
+
+.forum-preview-raw-icon--reply {
+  -webkit-mask-image: url('/static/icons/forum-preview/reply.svg');
+  mask-image: url('/static/icons/forum-preview/reply.svg');
+}
+
+.forum-preview-raw-icon--reaction {
+  -webkit-mask-image: url('/static/icons/forum-preview/reaction.svg');
+  mask-image: url('/static/icons/forum-preview/reaction.svg');
+}
+
+.forum-preview-raw-icon--view {
+  -webkit-mask-image: url('/static/icons/forum-preview/view.svg');
+  mask-image: url('/static/icons/forum-preview/view.svg');
+}
+
+.forum-preview-raw-icon--close {
+  width: 1rem;
+  height: 1rem;
+  -webkit-mask-image: url('/static/icons/forum-preview/close.svg');
+  mask-image: url('/static/icons/forum-preview/close.svg');
+}
+
+.forum-preview-stats > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
 }
 
 .forum-preview-body {
