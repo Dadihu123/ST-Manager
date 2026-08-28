@@ -1216,12 +1216,14 @@ html.light-mode .pagination-bar {
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: visible;
   transition: transform 0.3s ease;
 }
 
 .app-icon .ui-icon {
-  width: 2.25rem;
-  height: 2.25rem;
+  /* 放大 SVG 本体，保留固定占位，避免顶部栏被品牌图标撑高。 */
+  width: 3rem;
+  height: 3rem;
 }
 
 .app-icon:hover {
@@ -1828,11 +1830,13 @@ html.light-mode .header-favorite-btn.is-excluded .header-favorite-icon::after {
     background: transparent;
     border-radius: 6px;
     flex-shrink: 0;
+    overflow: visible;
   }
 
   .app-icon-mobile .ui-icon {
-    width: 1.6875rem;
-    height: 1.6875rem;
+    /* 移动端同样保持 32px 占位，只放大视觉本体。 */
+    width: 2.25rem;
+    height: 2.25rem;
   }
   .mobile-title {
     font-weight: 600;
