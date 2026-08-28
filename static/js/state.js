@@ -62,6 +62,12 @@ const DEFAULT_TAG_CATEGORY = "未分类";
 const DEFAULT_TAG_CATEGORY_COLOR = "#64748b";
 const DEFAULT_TAG_CATEGORY_OPACITY = 16;
 const TAG_VIEW_PREFS_STORAGE_KEY = "st_manager_tag_view_prefs";
+const TOAST_ICON_NAMES = new Set([
+  "card-send",
+  "context-close",
+  "context-delete",
+  "card-check",
+]);
 
 function buildDefaultTagViewPrefs() {
   return {
@@ -252,6 +258,7 @@ export function initState() {
     isDarkMode: true,
     windowWidth: window.innerWidth,
     toastMessage: "",
+    toastIcon: "",
     showToastState: false,
     toastTimer: null,
     batchProgress: {
@@ -1199,15 +1206,20 @@ export function initState() {
     },
 
     // 显示 Toast 通知
-    showToast(msg, duration = 3000) {
+    showToast(msg, duration = 3000, iconName = "") {
       if (typeof duration === "string") {
         duration = 3000;
       }
       this.toastMessage = msg;
+      const normalizedIconName = String(iconName || "").trim();
+      this.toastIcon = TOAST_ICON_NAMES.has(normalizedIconName)
+        ? normalizedIconName
+        : "";
       this.showToastState = true;
       if (this.toastTimer) clearTimeout(this.toastTimer);
       this.toastTimer = setTimeout(() => {
         this.showToastState = false;
+        this.toastIcon = "";
       }, duration);
     },
 

@@ -40,7 +40,18 @@
     <div
       class="toast-notification"
       :class="{'show': showToastState}"
-      x-text="toastMessage"
-    ></div>
+    >
+      <span x-show="toastIcon" aria-hidden="true">
+        <svg
+          class="ui-icon ui-icon--sm"
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+          focusable="false"
+        >
+          <use :href="'{{ url_for('static', filename='icons/ui.svg') }}#icon-' + toastIcon"></use>
+        </svg>
+      </span>
+      <span x-text="toastMessage"></span>
+    </div>
   </body>
 </html>

@@ -22,6 +22,9 @@ export default function layout() {
     get toastMessage() {
       return this.$store.global.toastMessage;
     },
+    get toastIcon() {
+      return this.$store.global.toastIcon;
+    },
     get showToastState() {
       return this.$store.global.showToastState;
     },

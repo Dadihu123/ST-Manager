@@ -30,3 +30,14 @@
   <use href="{{ url_for('static', filename='icons/detail.svg') }}#icon-detail-{{ name }}"></use>
 </svg>
 {%- endmacro %}
+
+{% macro preset_icon(name, class_name='') -%}
+<svg
+  class="ui-icon preset-icon{% if class_name %} {{ class_name }}{% endif %}"
+  viewBox="0 0 24 24"
+  aria-hidden="true"
+  focusable="false"
+>
+  <use href="{{ url_for('static', filename='icons/preset.svg') }}#icon-preset-{{ name }}"></use>
+</svg>
+{%- endmacro %}

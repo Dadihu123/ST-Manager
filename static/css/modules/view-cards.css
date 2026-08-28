@@ -331,6 +331,68 @@ html.light-mode .card-bottom-toolbar {
   min-height: 0;
 }
 
+/* 预设列表图标保持与角色卡网格相同的线性尺度，但由对应 sprite 提供图形。 */
+.preset-list-title-icon,
+.preset-list-entry-icon,
+.preset-list-dropzone-icon,
+.preset-list-loading-icon,
+.preset-card-stat-icon,
+.preset-card-owner-icon,
+.preset-list-empty-icon,
+.preset-marker-icon-frame {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+
+.preset-list-title-icon .ui-icon {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.preset-list-entry-icon .ui-icon {
+  width: 2rem;
+  height: 2rem;
+}
+
+.preset-list-dropzone-icon .ui-icon {
+  width: 3.75rem;
+  height: 3.75rem;
+}
+
+.preset-list-loading-icon .ui-icon {
+  width: 2.25rem;
+  height: 2.25rem;
+}
+
+.preset-card-stat-icon .ui-icon,
+.preset-card-owner-icon .ui-icon {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+
+.preset-marker-icon-frame {
+  width: 3rem;
+  height: 3rem;
+  color: inherit;
+}
+
+.preset-marker-icon-frame .preset-marker-icon {
+  width: 2.75rem;
+  height: 2.75rem;
+}
+
+.preset-marker-icon-frame--compact {
+  width: 1.75rem;
+  height: 1.75rem;
+}
+
+.preset-marker-icon-frame--compact .preset-marker-icon {
+  width: 1.625rem;
+  height: 1.625rem;
+}
+
 .card-select-overlay {
   position: absolute;
   top: 0.45rem;
@@ -402,19 +464,28 @@ html.light-mode .card-bottom-toolbar {
 .preset-card-action-btn {
   min-width: 1.75rem;
   min-height: 1.75rem;
+  padding: 0;
+  border: 0;
   border-radius: 0.5rem;
-  background: color-mix(in srgb, var(--bg-panel), #000000 10%);
+  background: transparent;
   color: var(--text-main);
-  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.18);
-  backdrop-filter: blur(6px);
+  box-shadow: none;
   transition:
     background-color 0.2s ease,
     color 0.2s ease,
     transform 0.2s ease;
 }
 
+.preset-card-action-btn .ui-icon {
+  width: 1.725rem;
+  height: 1.725rem;
+}
+
 .preset-card-action-btn:hover {
-  transform: translateY(-1px);
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  transform: translateY(-1px) scale(1.04);
 }
 
 .preset-card-action-btn.is-danger {
@@ -434,9 +505,9 @@ html.light-mode .card-bottom-toolbar {
 }
 
 html.light-mode .preset-card-action-btn {
-  background: color-mix(in srgb, var(--bg-panel), #ffffff 24%);
+  background: transparent;
   color: color-mix(in srgb, var(--text-main), #0f172a 12%);
-  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.12);
+  box-shadow: none;
 }
 
 html.light-mode .preset-card-action-btn.is-danger {
@@ -1639,6 +1710,55 @@ html.light-mode .card-send-st-btn.is-sending {
     rgba(204, 251, 241, 0.92),
     rgba(240, 253, 250, 0.6)
   );
+}
+
+/* 预设列表发送按钮复用角色卡网格的无框动作样式，避免浅色模式悬浮时失去对比度。 */
+.preset-grid-card .card-send-st-btn {
+  width: 1.8rem;
+  height: 1.8rem;
+  min-width: 1.8rem;
+  min-height: 1.8rem;
+  flex: 0 0 1.8rem;
+  padding: 0;
+  border: 0;
+  border-radius: 0.45rem;
+  background: transparent;
+  box-shadow: none;
+}
+
+.preset-grid-card .card-send-st-btn .ui-icon {
+  width: 1.725rem;
+  height: 1.725rem;
+}
+
+.preset-grid-card .card-send-st-btn:hover:not(:disabled) {
+  color: #e0f2fe;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  transform: translateY(-1px) scale(1.04);
+}
+
+.preset-grid-card .card-send-st-btn.has-sent,
+.preset-grid-card .card-send-st-btn.is-sending {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+html.light-mode .preset-grid-card .card-send-st-btn {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+html.light-mode .preset-grid-card .card-send-st-btn:hover:not(:disabled),
+html.light-mode .preset-grid-card .card-send-st-btn.has-sent {
+  color: #1d4ed8;
+}
+
+html.light-mode .preset-grid-card .card-send-st-btn.is-sending {
+  color: #0f766e;
 }
 
 html.light-mode .card-meta-category {

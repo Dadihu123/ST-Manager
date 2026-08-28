@@ -1,4 +1,5 @@
 <!-- templates/components/grid_presets.html -->
+{% from "components/icon.html" import icon, detail_icon, preset_icon %}
 <div
   x-show="$store.global.currentMode === 'presets'"
   x-cloak
@@ -13,7 +14,9 @@
     <div class="flex items-center gap-4">
       <!-- 标题 -->
       <div class="flex items-center gap-2 text-sm">
-        <span class="text-2xl">📝</span>
+        <span class="preset-list-title-icon" aria-hidden="true"
+          >{{ detail_icon('preset', 'ui-icon--md') }}</span
+        >
         <span
           x-show="$store.global.deviceType !== 'mobile'"
           class="font-bold text-[var(--text-main)]"
@@ -37,7 +40,8 @@
         @click="fetchItems()"
         class="btn-secondary px-3 py-1 text-xs flex items-center gap-1"
       >
-        <span>↻</span> 刷新
+        <span aria-hidden="true">{{ icon('header-refresh', 'ui-icon--sm') }}</span>
+        刷新
       </button>
     </div>
   </div>
@@ -54,7 +58,9 @@
       x-transition.opacity
       class="absolute inset-0 z-50 bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center border-4 border-dashed border-[var(--accent-main)] m-4 rounded-xl"
     >
-      <div class="text-6xl mb-4">📥</div>
+      <div class="preset-list-dropzone-icon mb-4" aria-hidden="true">
+        {{ icon('header-import', 'ui-icon--xl') }}
+      </div>
       <div class="text-2xl font-bold text-white">松开上传预设</div>
       <div class="text-gray-300 mt-2" x-text="presetUploadHintText"></div>
     </div>
@@ -81,7 +87,9 @@
         x-show="isLoading"
         class="flex flex-col items-center justify-center h-64 text-[var(--text-dim)]"
       >
-        <div class="text-4xl animate-bounce mb-2">⏳</div>
+        <div class="preset-list-loading-icon mb-2" aria-hidden="true">
+          {{ icon('card-loader', 'ui-icon--xl ui-icon--spin') }}
+        </div>
         <div>加载中...</div>
       </div>
 
@@ -107,6 +115,7 @@
                 :class="{ 'is-selected': selectedIds.includes(item.id), 'is-mobile': $store.global.deviceType === 'mobile' }"
                 @click.stop="toggleSelection(item)"
                 title="选择预设"
+                :aria-label="selectedIds.includes(item.id) ? '取消选择预设' : '选择预设'"
               >
                 <div
                   class="preset-select-shell w-6 h-6 rounded-full border flex items-center justify-center transition-all duration-200"
@@ -114,8 +123,9 @@
                 >
                   <span
                     x-show="selectedIds.includes(item.id)"
-                    class="text-xs font-bold"
-                    >✓</span
+                    class="flex items-center justify-center"
+                    aria-hidden="true"
+                    >{{ icon('card-check', 'ui-icon--sm') }}</span
                   >
                 </div>
               </button>
@@ -128,16 +138,18 @@
                   @click="deletePreset(item, $event)"
                   class="preset-card-action-btn is-danger flex h-7 w-7 items-center justify-center"
                   title="删除预设"
+                  aria-label="删除预设"
                 >
-                  ✕
+                  {{ icon('context-delete', 'ui-icon--sm') }}
                 </button>
 
                 <button
                   @click.stop="exportPresetItem(item, $event)"
                   class="preset-card-action-btn is-export flex h-7 w-7 items-center justify-center"
                   title="导出预设 JSON"
+                  aria-label="导出预设 JSON"
                 >
-                  ⇩
+                  {{ icon('card-upload', 'ui-icon--sm') }}
                 </button>
               </div>
             </div>
@@ -151,7 +163,9 @@
             </div>
 
             <div class="flex items-start gap-3 mb-3">
-              <div class="text-3xl pt-1 opacity-80 select-none">📝</div>
+              <div class="preset-list-entry-icon pt-1 opacity-80 select-none" aria-hidden="true">
+                {{ detail_icon('preset', 'ui-icon--lg') }}
+              </div>
               <div class="min-w-0 flex-1">
                 <div
                   class="font-bold text-sm truncate text-[var(--text-main)] mb-1"
@@ -188,30 +202,34 @@
                 x-if="item.temperature !== null && item.temperature !== undefined"
               >
                 <span
-                  class="px-2 py-0.5 text-[10px] bg-orange-500/20 text-orange-300 rounded"
+                  class="preset-card-stat-icon px-2 py-0.5 text-[10px] bg-orange-500/20 text-orange-300 rounded inline-flex items-center gap-1"
                 >
-                  🌡️ <span x-text="item.temperature"></span>
+                  {{ preset_icon('temperature', 'ui-icon--sm') }}
+                  <span x-text="item.temperature"></span>
                 </span>
               </template>
               <template x-if="item.max_tokens">
                 <span
-                  class="px-2 py-0.5 text-[10px] bg-blue-500/20 text-blue-300 rounded"
+                  class="preset-card-stat-icon px-2 py-0.5 text-[10px] bg-blue-500/20 text-blue-300 rounded inline-flex items-center gap-1"
                 >
-                  📊 <span x-text="item.max_tokens"></span>
+                  {{ preset_icon('token-count', 'ui-icon--sm') }}
+                  <span x-text="item.max_tokens"></span>
                 </span>
               </template>
               <template x-if="item.prompt_count > 0">
                 <span
-                  class="px-2 py-0.5 text-[10px] bg-purple-500/20 text-purple-300 rounded"
+                  class="preset-card-stat-icon px-2 py-0.5 text-[10px] bg-purple-500/20 text-purple-300 rounded inline-flex items-center gap-1"
                 >
-                  💬 <span x-text="item.prompt_count"></span> prompts
+                  {{ preset_icon('prompt-count', 'ui-icon--sm') }}
+                  <span x-text="item.prompt_count"></span> prompts
                 </span>
               </template>
               <template x-if="item.regex_count > 0">
                 <span
-                  class="px-2 py-0.5 text-[10px] bg-green-500/20 text-green-300 rounded"
+                  class="preset-card-stat-icon px-2 py-0.5 text-[10px] bg-green-500/20 text-green-300 rounded inline-flex items-center gap-1"
                 >
-                  🧩 <span x-text="item.regex_count"></span> regex
+                  {{ detail_icon('regex', 'ui-icon--sm') }}
+                  <span x-text="item.regex_count"></span> regex
                 </span>
               </template>
             </div>
@@ -238,7 +256,9 @@
                   class="text-[10px] text-green-400 hover:text-green-300 flex items-center gap-1 truncate cursor-pointer"
                   :title="`所属角色卡：${getPresetOwnerName(item)}`"
                 >
-                  <span>👤</span>
+                  <span class="preset-card-owner-icon" aria-hidden="true">
+                    {{ preset_icon('owner', 'ui-icon--sm') }}
+                  </span>
                   <span x-text="getPresetOwnerName(item)"></span>
                 </div>
                 <div
@@ -256,9 +276,19 @@
                 :class="{ 'has-sent': Number(item.last_sent_to_st || 0) > 0, 'is-sending': isSendingPresetToST(getPresetActionTargetId(item)) }"
                 :disabled="isSendingPresetToST(getPresetActionTargetId(item))"
                 :title="getPresetSendToSTTitle(item)"
+                :aria-label="getPresetSendToSTTitle(item)"
                 @click.stop="sendPresetToST(item, $event)"
               >
-                🚀
+                <span
+                  x-show="!isSendingPresetToST(getPresetActionTargetId(item))"
+                  aria-hidden="true"
+                  >{{ icon('card-send', 'ui-icon--sm') }}</span
+                >
+                <span
+                  x-show="isSendingPresetToST(getPresetActionTargetId(item))"
+                  aria-hidden="true"
+                  >{{ icon('card-loader', 'ui-icon--sm ui-icon--spin') }}</span
+                >
               </button>
 
               <span
@@ -274,7 +304,9 @@
         x-show="!isLoading && items.length === 0"
         class="flex flex-col items-center justify-center h-64 text-[var(--text-dim)] opacity-60"
       >
-        <div class="text-4xl mb-2 grayscale">📭</div>
+        <div class="preset-list-empty-icon mb-2" aria-hidden="true">
+          {{ preset_icon('empty-state', 'ui-icon--xl') }}
+        </div>
         <div>没有找到预设文件</div>
         <div class="text-xs mt-2">拖拽 .json 预设文件到此处上传</div>
       </div>

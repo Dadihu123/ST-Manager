@@ -233,6 +233,9 @@ input[type="range"]::-webkit-slider-runnable-track {
   position: fixed;
   bottom: 2rem;
   left: 50%;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   transform: translate(-50%, 20px);
   background-color: rgba(0, 0, 0, 0.8);
   color: white;

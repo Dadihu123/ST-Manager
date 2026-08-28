@@ -838,7 +838,7 @@ export default function sidebar() {
                 detail: { resetPage: false },
               }),
             );
-            this.$store.global.showToast(`✅ 已移动 ${count} 个预设`);
+            this.$store.global.showToast(`已移动 ${count} 个预设`, 3000, "card-check");
           })
           .catch((err) => alert(err.message || err));
 

@@ -2656,7 +2656,8 @@ def test_preset_detail_reader_template_renders_marker_icons_switches_and_inner_s
     assert 'class="flex-1 min-h-0"' in source
     assert 'class="flex-1 min-h-0 p-4"' not in source
     assert 'class="h-full min-h-0 overflow-y-auto custom-scrollbar p-4 space-y-3"' in source
-    assert 'class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl border border-sky-400/30 bg-sky-500/10 text-sky-200"' in source
+    assert 'class="preset-marker-icon-frame flex-shrink-0 text-sky-200"' in source
+    assert 'rounded-2xl border border-sky-400/30 bg-sky-500/10' not in source
     assert 'class="relative h-5 w-9 rounded-full transition-colors"' in source
     assert source.count('aria-hidden="true"') >= 4
 
