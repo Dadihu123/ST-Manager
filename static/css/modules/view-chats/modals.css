@@ -1083,9 +1083,10 @@
   height: 1.35rem;
 }
 
-.chat-bind-card-index svg {
+.chat-bind-card-index .chat-bind-nav-icon {
   width: 1.1rem;
   height: 1.1rem;
+  flex: 0 0 1.1rem;
 }
 
 .chat-bind-results {

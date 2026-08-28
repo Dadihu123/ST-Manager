@@ -1,4 +1,4 @@
-{% from "components/icon.html" import icon %}
+{% from "components/icon.html" import icon, detail_icon %}
 
 <script src="https://cdn.bootcdn.net/ajax/libs/jquery/3.7.1/jquery.js"></script>
 
@@ -1269,10 +1269,7 @@
             <template x-for="card in bindPickerResults" :key="card.id">
                 <button type="button" class="chat-bind-card-item" @click="bindCardPick(card)">
                     <span class="chat-bind-card-index" aria-hidden="true">
-                        <svg viewBox="0 0 20 20" focusable="false">
-                            <rect x="4" y="3.5" width="12" height="13" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.5"></rect>
-                            <path d="M7 7.2h6M7 10h6M7 12.8h3.6" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.5"></path>
-                        </svg>
+                        <span class="chat-bind-nav-icon sidebar-module-image-icon sidebar-module-image-icon--cards"></span>
                     </span>
                     <span class="chat-bind-card-text" x-text="card.char_name || card.filename || card.id"></span>
                 </button>
@@ -1312,10 +1309,7 @@
             <template x-for="item in regexRulePickerResults" :key="item.id">
                 <button type="button" class="chat-bind-card-item" @click="pickRegexRuleExtension(item)">
                     <span class="chat-bind-card-index" aria-hidden="true">
-                        <svg viewBox="0 0 20 20" focusable="false">
-                            <path d="M6.2 4.5h7.6a1.8 1.8 0 0 1 1.8 1.8v8.4a1.8 1.8 0 0 1-1.8 1.8H6.2a1.8 1.8 0 0 1-1.8-1.8V6.3a1.8 1.8 0 0 1 1.8-1.8Z" fill="none" stroke="currentColor" stroke-width="1.5"></path>
-                            <path d="M7.4 8.1h5.2M7.4 10.5h5.2M7.4 12.9h3.1" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.5"></path>
-                        </svg>
+                        {{ detail_icon('regex', 'chat-bind-nav-icon') }}
                     </span>
                     <span class="chat-bind-card-text" x-text="(item.name || item.filename || item.id) + ' · ' + describeRegexRulePickerItem(item)"></span>
                 </button>
@@ -1355,10 +1349,7 @@
             <template x-for="item in regexPresetPickerResults" :key="item.id">
                 <button type="button" class="chat-bind-card-item" @click="pickRegexPreset(item)">
                     <span class="chat-bind-card-index" aria-hidden="true">
-                        <svg viewBox="0 0 20 20" focusable="false">
-                            <path d="M5.8 4.8h8.4a1.6 1.6 0 0 1 1.6 1.6v7.2a1.6 1.6 0 0 1-1.6 1.6H5.8a1.6 1.6 0 0 1-1.6-1.6V6.4a1.6 1.6 0 0 1 1.6-1.6Z" fill="none" stroke="currentColor" stroke-width="1.5"></path>
-                            <path d="M7 8.2h6M7 10.6h4.8M7 13h3.2" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.5"></path>
-                        </svg>
+                        {{ detail_icon('preset', 'chat-bind-nav-icon') }}
                     </span>
                     <span class="chat-bind-card-text" x-text="(item.name || item.filename || item.id) + ' · ' + describeRegexPresetPickerItem(item)"></span>
                 </button>
