@@ -29,6 +29,13 @@
   line-height: 1.2;
 }
 
+.chat-toolbar-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+}
+
 .chat-reader-header-tools .chat-inline-actions {
   display: inline-flex;
   flex-wrap: wrap;
