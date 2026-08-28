@@ -25,36 +25,42 @@ const THEME_PRESETS = {
     hover: "#1d4ed8",
     light: "#60a5fa",
     faint: "rgba(37, 99, 235, 0.3)",
+    rgb: "37, 99, 235",
   },
   purple: {
     main: "#7c3aed",
     hover: "#6d28d9",
     light: "#a78bfa",
     faint: "rgba(124, 58, 237, 0.3)",
+    rgb: "124, 58, 237",
   },
   green: {
     main: "#059669",
     hover: "#047857",
     light: "#34d399",
     faint: "rgba(5, 150, 105, 0.3)",
+    rgb: "5, 150, 105",
   },
   red: {
     main: "#dc2626",
     hover: "#b91c1c",
     light: "#f87171",
     faint: "rgba(220, 38, 38, 0.3)",
+    rgb: "220, 38, 38",
   },
   orange: {
     main: "#ea580c",
     hover: "#c2410c",
     light: "#fb923c",
     faint: "rgba(234, 88, 12, 0.3)",
+    rgb: "234, 88, 12",
   },
   pink: {
     main: "#db2777",
     hover: "#be185d",
     light: "#f472b6",
     faint: "rgba(219, 39, 119, 0.3)",
+    rgb: "219, 39, 119",
   },
 };
 
@@ -834,6 +840,7 @@ export function initState() {
       updateCssVariable("--accent-hover", t.hover);
       updateCssVariable("--accent-light", t.light);
       updateCssVariable("--accent-faint", t.faint);
+      updateCssVariable("--accent-main-rgb", t.rgb);
       this.settingsForm.theme_accent = colorName;
     },
 

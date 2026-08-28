@@ -6,7 +6,7 @@ import xml.etree.ElementTree as ET
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
-SIDEBAR_ICON_NAMES = {
+SIDEBAR_CONTENT_ICON_NAMES = {
     'all-content',
     'tag-library',
     'global-directory',
@@ -18,14 +18,15 @@ SIDEBAR_ICON_NAMES = {
     'unbound',
     'organize',
     'category-menu',
-    'cards',
+}
+
+MODULE_DETAIL_ICON_NAMES = {
     'worldbook',
-    'chats',
-    'presets',
+    'chat',
+    'preset',
     'regex',
     'scripts',
     'quick-replies',
-    'beautify',
 }
 
 
@@ -33,10 +34,10 @@ def read_sidebar_template():
     return (PROJECT_ROOT / 'templates/components/sidebar.html').read_text(encoding='utf-8')
 
 
-def test_sidebar_uses_the_new_asset_set_for_all_sidebar_specific_icons():
+def test_sidebar_uses_the_sidebar_sprite_for_content_specific_icons():
     source = read_sidebar_template()
 
-    for name in SIDEBAR_ICON_NAMES:
+    for name in SIDEBAR_CONTENT_ICON_NAMES:
         assert f"sidebar_icon('{name}'" in source, name
 
     assert not re.search(r'[\u2600-\u27bf\U0001f000-\U0001faff]', source)
@@ -44,12 +45,53 @@ def test_sidebar_uses_the_new_asset_set_for_all_sidebar_specific_icons():
     assert '+ <span x-text="tagIndexVisibleTags.length - dynamicVisibleTagCount"' not in source
 
 
+def test_module_navigation_reuses_detail_and_custom_icon_assets():
+    source = read_sidebar_template()
+    icons_css = (PROJECT_ROOT / 'static/css/modules/icons.css').read_text(encoding='utf-8')
+    navigation_source = source.split('<!-- === 模式 1', 1)[0]
+
+    assert 'detail_icon' in source
+    for name in MODULE_DETAIL_ICON_NAMES:
+        assert source.count(f"detail_icon('{name}'") == 2, name
+
+    assert source.count('sidebar-module-image-icon--cards') == 2
+    assert source.count('sidebar-module-image-icon--beautify') == 3
+    assert "sidebar_icon('cards'" not in navigation_source
+    assert "sidebar_icon('beautify'" not in navigation_source
+
+    for class_name in (
+        '.sidebar-module-image-icon--cards',
+        '.sidebar-module-image-icon--beautify',
+    ):
+        assert class_name in icons_css
+        assert 'mask-image: url(' in icons_css
+
+
+def test_beautify_icon_uses_a_cropped_canvas_at_the_shared_navigation_size():
+    asset_source = (
+        PROJECT_ROOT / 'static/icons/sidebar-nav/美化-简.svg'
+    ).read_text(encoding='utf-8')
+    beautify_css = (
+        PROJECT_ROOT / 'static/css/modules/view-beautify.css'
+    ).read_text(encoding='utf-8')
+
+    assert 'viewBox="800 200 1150 1150"' in asset_source
+    assert 'background: rgb(255, 255, 255)' not in asset_source
+    assert (
+        '.beautify-title-icon .sidebar-module-image-icon {\n'
+        '  width: 30px;\n'
+        '  height: 30px;\n'
+        '  flex-basis: 30px;\n'
+        '}'
+    ) in beautify_css
+
+
 def test_sidebar_reuses_existing_shared_icons_for_common_actions():
     source = read_sidebar_template()
 
     expected_counts = {
         "icon('context-close'": 1,
-        "icon('chevron-down'": 4,
+        "icon('chevron-down'": 5,
         "icon('chevron-right'": 4,
         "icon('context-new'": 2,
         "icon('header-refresh'": 1,
@@ -81,7 +123,17 @@ def test_sidebar_sprite_symbols_are_valid_and_background_free():
         if element.tag.rsplit('}', 1)[-1] == 'symbol'
     }
 
-    assert symbols == {f'icon-sidebar-{name}' for name in SIDEBAR_ICON_NAMES}
+    all_sidebar_icon_names = SIDEBAR_CONTENT_ICON_NAMES | {
+        'cards',
+        'worldbook',
+        'chats',
+        'presets',
+        'regex',
+        'scripts',
+        'quick-replies',
+        'beautify',
+    }
+    assert symbols == {f'icon-sidebar-{name}' for name in all_sidebar_icon_names}
 
     sprite_source = sprite_path.read_text(encoding='utf-8')
     assert 'background: rgb(255, 255, 255)' not in sprite_source
@@ -117,25 +169,18 @@ def test_sidebar_icon_layout_styles_cover_custom_aspect_ratio_and_labels():
     assert '.sidebar-icon {' in icons_css
     assert '.sidebar-icon--unbound {' in icons_css
     assert '.sidebar .ui-icon--xs {' in icons_css
-    assert 'width: 1.125rem;' in icons_css
+    assert 'width: 16px;' in icons_css
     assert '.sidebar .ui-icon--sm {' in icons_css
-    assert 'width: 1.3125rem;' in icons_css
+    assert 'width: 20px;' in icons_css
     assert '.sidebar .ui-icon--md {' in icons_css
-    assert 'width: 1.6875rem;' in icons_css
-    assert '.sidebar .sidebar-icon--unbound {' in icons_css
-    assert (
-        '.sidebar .sidebar-icon--unbound {\n'
-        '  width: 1.3125rem;\n'
-        '  height: 1.3125rem;\n'
-        '}'
-    ) in icons_css
+    assert 'width: 24px;' in icons_css
     assert '.sidebar .sidebar-filter-label .ui-icon--sm {' in icons_css
-    assert 'width: 1.96875rem;' in icons_css
+    assert 'width: 24px;' in icons_css
     assert '.sidebar .sidebar-filter-label .sidebar-icon--unbound {' in icons_css
     assert (
         '.sidebar .sidebar-filter-label .sidebar-icon--unbound {\n'
-        '  width: 1.96875rem;\n'
-        '  height: 1.96875rem;\n'
+        '  width: 24px;\n'
+        '  height: 24px;\n'
         '}'
     ) in icons_css
     assert '.sidebar .sidebar-category-root-icon.ui-icon--sm {' in icons_css
@@ -144,14 +189,17 @@ def test_sidebar_icon_layout_styles_cover_custom_aspect_ratio_and_labels():
     assert 'gap: 0.25rem;' in icons_css
     assert '.sidebar .sidebar-tag-library-label .ui-icon--xs {' in icons_css
     assert '.sidebar .sidebar-tag-library-label .ui-icon--sm {' in icons_css
-    assert 'width: 1.265625rem;' in icons_css
-    assert 'width: 1.4765625rem;' in icons_css
+    assert 'width: 16px;' in icons_css
+    assert 'width: 20px;' in icons_css
     assert '.sidebar-filter-label,' in layout_css
     assert '.sidebar-inline-label {' in layout_css
     assert 'sidebar-tag-library-button' in source
     assert 'sidebar-tag-library-text' in source
     assert '.sidebar-tag-library-button:hover .sidebar-tag-library-text' in layout_css
     assert 'text-decoration-line: underline;' in layout_css
+    assert '.sidebar-module-menu-item > span:last-child' in layout_css
+    assert 'justify-content: flex-start;' in layout_css
+    assert 'text-align: left;' in layout_css
 
 
 def test_sidebar_category_rows_switch_to_the_expanded_folder_icon():

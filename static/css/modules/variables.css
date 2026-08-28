@@ -19,6 +19,31 @@
   --text-sub: #9ca3af;
   --text-dim: #6b7280;
   --text-on-accent: #ffffff;
+  --sidebar-surface: #111827;
+  --sidebar-nav-surface: #1f2937;
+  --sidebar-label: #e5e7eb;
+  --sidebar-label-muted: #9ca3af;
+  --sidebar-icon: #cbd5e1;
+  --sidebar-icon-muted: #94a3b8;
+  --sidebar-divider: #2b3648;
+  --sidebar-hover-surface: #273449;
+  --sidebar-active-surface: color-mix(
+    in srgb,
+    var(--accent-main) 18%,
+    var(--sidebar-surface)
+  );
+  --sidebar-active-border: var(--accent-light);
+  --sidebar-accent-hover-surface: color-mix(
+    in srgb,
+    var(--accent-main) 8%,
+    var(--sidebar-nav-surface)
+  );
+  --sidebar-source-all: var(--accent-light);
+  --sidebar-source-global: var(--accent-light);
+  --sidebar-source-resource: #6ee7b7;
+  --sidebar-source-embedded: #d8b4fe;
+  --sidebar-source-bound: #6ee7b7;
+  --sidebar-source-unbound: #fdba74;
   --text-code: #a5f3fc;
   --fallback-fonts:
     "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
@@ -47,7 +72,7 @@
   --shadow-elevation:
     0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.15);
   --shadow-inset: inset 0 2px 4px 0 rgba(0, 0, 0, 0.15);
-  --accent-main-rgb: 99, 102, 241;
+  --accent-main-rgb: 37, 99, 235;
   --bg-image-url: none;
   --bg-overlay-opacity: 0.95;
   --bg-blur: 0px;
@@ -159,6 +184,31 @@ html.light-mode {
   --text-sub: #4b5563;
   --text-dim: #9ca3af;
   --text-code: #0f172a;
+  --sidebar-surface: #ffffff;
+  --sidebar-nav-surface: #f8fafc;
+  --sidebar-label: #111827;
+  --sidebar-label-muted: #475569;
+  --sidebar-icon: #334155;
+  --sidebar-icon-muted: #475569;
+  --sidebar-divider: #e2e8f0;
+  --sidebar-hover-surface: #f1f5f9;
+  --sidebar-active-surface: color-mix(
+    in srgb,
+    var(--accent-main) 11%,
+    var(--sidebar-surface)
+  );
+  --sidebar-active-border: var(--accent-hover);
+  --sidebar-accent-hover-surface: color-mix(
+    in srgb,
+    var(--accent-main) 6%,
+    var(--sidebar-nav-surface)
+  );
+  --sidebar-source-all: var(--accent-hover);
+  --sidebar-source-global: var(--accent-hover);
+  --sidebar-source-resource: #047857;
+  --sidebar-source-embedded: #7e22ce;
+  --sidebar-source-bound: #047857;
+  --sidebar-source-unbound: #c2410c;
   --shadow-color: rgba(0, 0, 0, 0.1);
   --scrollbar-track: #f3f4f6;
   --scrollbar-thumb: #d1d5db;

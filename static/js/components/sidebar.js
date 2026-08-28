@@ -15,6 +15,16 @@ const MIN_CARD_CATEGORY_PANE_HEIGHT = 220;
 const MAX_CARD_TAG_PANE_RATIO = 0.6;
 const ESTIMATED_TAG_ROW_HEIGHT = 34;
 const ESTIMATED_TAG_CHIP_WIDTH = 96;
+const MODULE_LABELS = Object.freeze({
+  cards: "角色卡",
+  worldinfo: "世界书",
+  chats: "聊天",
+  presets: "预设",
+  regex: "正则脚本",
+  scripts: "ST 脚本",
+  quick_replies: "快速回复",
+  beautify: "美化",
+});
 
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
@@ -168,6 +178,7 @@ export default function sidebar() {
     _syncTagPaneLayoutHandler: null,
     _handleTagPaneResizeMove: null,
     _handleTagPaneResizeEnd: null,
+    moduleMenuOpen: false,
 
     // 设备类型和模式
     get deviceType() {
@@ -176,6 +187,65 @@ export default function sidebar() {
 
     get currentMode() {
       return this.$store.global.currentMode;
+    },
+
+    get currentModeLabel() {
+      return MODULE_LABELS[this.currentMode] || "管理模块";
+    },
+
+    openModuleMenu() {
+      this.moduleMenuOpen = true;
+      this.$nextTick(() => {
+        const activeItem = this.$refs.moduleMenu?.querySelector(
+          '[aria-current="page"]',
+        );
+        const firstItem = this.$refs.moduleMenu?.querySelector("button");
+        (activeItem || firstItem)?.focus();
+      });
+    },
+
+    closeModuleMenu(restoreFocus = false) {
+      this.moduleMenuOpen = false;
+      if (restoreFocus) {
+        this.$nextTick(() => this.$refs.moduleSwitcher?.focus());
+      }
+    },
+
+    handleModuleMenuKeydown(event) {
+      const items = Array.from(
+        this.$refs.moduleMenu?.querySelectorAll("button") || [],
+      );
+      if (!items.length) return;
+
+      if (event.key === "Escape") {
+        event.preventDefault();
+        this.closeModuleMenu(true);
+        return;
+      }
+
+      if (event.key === "Home" || event.key === "End") {
+        event.preventDefault();
+        (event.key === "Home" ? items[0] : items[items.length - 1])?.focus();
+        return;
+      }
+
+      const offset =
+        event.key === "ArrowDown"
+          ? 2
+          : event.key === "ArrowUp"
+            ? -2
+            : event.key === "ArrowRight"
+              ? 1
+              : event.key === "ArrowLeft"
+                ? -1
+                : 0;
+      if (!offset) return;
+
+      event.preventDefault();
+      const currentIndex = Math.max(items.indexOf(event.target), 0);
+      const nextIndex =
+        (currentIndex + offset + items.length) % items.length;
+      items[nextIndex]?.focus();
     },
 
     get shouldShowCardTagSplitter() {

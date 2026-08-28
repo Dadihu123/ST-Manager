@@ -3355,7 +3355,7 @@ def test_sidebar_template_uses_scrollable_worldinfo_and_preset_category_sections
     assert 'preset-sidebar-tree' in sidebar_template
     assert "currentMode === 'worldinfo' && visibleSidebar" in sidebar_template
     assert "currentMode === 'presets' && visibleSidebar" in sidebar_template
-    assert "class=\"p-4 space-y-2 flex-1 min-h-0 flex flex-col\"" in sidebar_template
+    assert 'sidebar-mode-content sidebar-mode-content--with-tree' in sidebar_template
     assert '@dragover.prevent="handleDragOverRoot($event)"' in sidebar_template
     assert '@drop.prevent="handleDropOnRoot($event)"' in sidebar_template
     assert '@dragover.prevent="presetRootDragOver($event)"' in sidebar_template

@@ -169,8 +169,9 @@
 }
 
 .beautify-title-icon {
-  width: 1.65rem;
-  height: 1.65rem;
+  width: 2rem;
+  height: 2rem;
+  flex: 0 0 2rem;
   border-radius: var(--beautify-radius-sm);
   display: inline-flex;
   align-items: center;
@@ -178,6 +179,12 @@
   background: color-mix(in srgb, var(--accent-main), transparent 88%);
   color: var(--accent-light);
   font-size: 0.95rem;
+}
+
+.beautify-title-icon .sidebar-module-image-icon {
+  width: 30px;
+  height: 30px;
+  flex-basis: 30px;
 }
 
 .beautify-title-main,

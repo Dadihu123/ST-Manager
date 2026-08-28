@@ -1,4 +1,4 @@
-{% from "components/icon.html" import icon, sidebar_icon %}
+{% from "components/icon.html" import icon, sidebar_icon, detail_icon %}
 
 <!-- 移动端：遮罩层 -->
 <div
@@ -17,6 +17,7 @@
 <aside
   class="sidebar"
   x-data="sidebar"
+  x-effect="if (!visibleSidebar) moduleMenuOpen = false"
   id="sidebar-root"
   x-show="visibleSidebar"
   :class="$store.global.deviceType === 'mobile' ? 'sidebar-mobile' : ''"
@@ -46,82 +47,144 @@
   >
     {{ icon('context-close', 'ui-icon--sm sidebar-action-icon') }}
   </button>
-  <div
-    class="flex flex-col border-b border-[var(--border-main)] bg-[var(--bg-sub)] relative z-10 shadow-sm"
-  >
-    <!-- 第一类：核心资产 -->
-    <div class="flex">
+  <div class="sidebar-navigation-shell sidebar-navigation-shell--compact">
+    <div class="sidebar-module-switcher-wrap">
       <button
-        @click="switchMode('cards')"
-        class="flex-1 py-3 text-sm font-bold transition-colors border-b-2 inline-flex items-center justify-center gap-1.5"
-        :class="currentMode === 'cards' ? 'border-[var(--accent-main)] text-[var(--text-main)] bg-[var(--bg-panel)]' : 'border-transparent text-[var(--text-dim)] hover:text-[var(--text-main)]'"
+        type="button"
+        x-ref="moduleSwitcher"
+        @click="moduleMenuOpen ? closeModuleMenu() : openModuleMenu()"
+        @keydown.escape.stop.prevent="closeModuleMenu(true)"
+        class="sidebar-module-switcher"
+        aria-label="切换管理模块"
+        aria-haspopup="menu"
+        aria-controls="sidebar-module-menu"
+        :aria-expanded="moduleMenuOpen ? 'true' : 'false'"
       >
-        <span aria-hidden="true">{{ sidebar_icon('cards', 'ui-icon--md') }}</span>
-        <span>角色卡</span>
+        <span class="sidebar-module-switcher-icon" aria-hidden="true">
+          <span x-cloak x-show="currentMode === 'cards'" class="sidebar-module-image-icon sidebar-module-image-icon--cards"></span>
+          <span x-cloak x-show="currentMode === 'worldinfo'">{{ detail_icon('worldbook', 'ui-icon--md') }}</span>
+          <span x-cloak x-show="currentMode === 'chats'">{{ detail_icon('chat', 'ui-icon--md') }}</span>
+          <span x-cloak x-show="currentMode === 'presets'">{{ detail_icon('preset', 'ui-icon--md') }}</span>
+          <span x-cloak x-show="currentMode === 'regex'">{{ detail_icon('regex', 'ui-icon--md') }}</span>
+          <span x-cloak x-show="currentMode === 'scripts'">{{ detail_icon('scripts', 'ui-icon--md') }}</span>
+          <span x-cloak x-show="currentMode === 'quick_replies'">{{ detail_icon('quick-replies', 'ui-icon--md') }}</span>
+          <span x-cloak x-show="currentMode === 'beautify'" class="sidebar-module-image-icon sidebar-module-image-icon--beautify"></span>
+        </span>
+        <span class="sidebar-module-switcher-copy">
+          <span class="sidebar-module-switcher-kicker">当前模块</span>
+          <span class="sidebar-module-switcher-name" x-text="currentModeLabel"></span>
+        </span>
+        <span class="sidebar-module-switcher-chevron" aria-hidden="true">
+          {{ icon('chevron-down', 'ui-icon--xs') }}
+        </span>
       </button>
-      <button
-        @click="switchMode('worldinfo')"
-        class="flex-1 py-3 text-sm font-bold transition-colors border-b-2 inline-flex items-center justify-center gap-1.5"
-        :class="currentMode === 'worldinfo' ? 'border-[var(--accent-main)] text-[var(--text-main)] bg-[var(--bg-panel)]' : 'border-transparent text-[var(--text-dim)] hover:text-[var(--text-main)]'"
-      >
-        <span aria-hidden="true">{{ sidebar_icon('worldbook', 'ui-icon--md') }}</span>
-        <span>世界书</span>
-      </button>
-      <button
-        @click="switchMode('chats')"
-        class="flex-1 py-3 text-sm font-bold transition-colors border-b-2 inline-flex items-center justify-center gap-1.5"
-        :class="currentMode === 'chats' ? 'border-[var(--accent-main)] text-[var(--text-main)] bg-[var(--bg-panel)]' : 'border-transparent text-[var(--text-dim)] hover:text-[var(--text-main)]'"
-      >
-        <span aria-hidden="true">{{ sidebar_icon('chats', 'ui-icon--md') }}</span>
-        <span>聊天</span>
-      </button>
-    </div>
 
-    <!-- 第二类：扩展工具 (折叠或小字排版) -->
-    <div
-      class="flex bg-[var(--bg-sub)] overflow-x-auto custom-scrollbar no-scrollbar border-t border-[var(--border-light)]"
-    >
-      <button
-        @click="switchMode('presets')"
-        class="px-4 py-2 text-xs font-medium whitespace-nowrap transition-colors hover:bg-[var(--bg-hover)] inline-flex items-center justify-center gap-1"
-        :class="currentMode === 'presets' ? 'text-[var(--accent-light)] bg-[var(--bg-hover)]' : 'text-[var(--text-dim)]'"
+      <div
+        id="sidebar-module-menu"
+        x-ref="moduleMenu"
+        x-show="moduleMenuOpen"
+        x-cloak
+        x-transition:enter="transition ease-out duration-150"
+        x-transition:enter-start="opacity-0 transform -translate-y-1"
+        x-transition:enter-end="opacity-100 transform translate-y-0"
+        x-transition:leave="transition ease-in duration-100"
+        x-transition:leave-start="opacity-100 transform translate-y-0"
+        x-transition:leave-end="opacity-0 transform -translate-y-1"
+        @click.outside="closeModuleMenu()"
+        @keydown="handleModuleMenuKeydown($event)"
+        class="sidebar-module-menu"
+        role="menu"
+        aria-label="管理模块"
       >
-        <span aria-hidden="true">{{ sidebar_icon('presets', 'ui-icon--sm') }}</span>
-        <span>预设</span>
-      </button>
-      <button
-        @click="switchMode('regex')"
-        class="px-4 py-2 text-xs font-medium whitespace-nowrap transition-colors hover:bg-[var(--bg-hover)] inline-flex items-center justify-center gap-1"
-        :class="currentMode === 'regex' ? 'text-[var(--accent-light)] bg-[var(--bg-hover)]' : 'text-[var(--text-dim)]'"
-      >
-        <span aria-hidden="true">{{ sidebar_icon('regex', 'ui-icon--sm') }}</span>
-        <span>正则脚本</span>
-      </button>
-      <button
-        @click="switchMode('scripts')"
-        class="px-4 py-2 text-xs font-medium whitespace-nowrap transition-colors hover:bg-[var(--bg-hover)] inline-flex items-center justify-center gap-1"
-        :class="currentMode === 'scripts' ? 'text-[var(--accent-light)] bg-[var(--bg-hover)]' : 'text-[var(--text-dim)]'"
-      >
-        <span aria-hidden="true">{{ sidebar_icon('scripts', 'ui-icon--sm') }}</span>
-        <span>ST 脚本</span>
-      </button>
-      <button
-        @click="switchMode('quick_replies')"
-        class="px-3 py-2 text-xs font-medium whitespace-nowrap transition-colors hover:bg-[var(--bg-hover)] inline-flex items-center justify-center gap-1"
-        :class="currentMode === 'quick_replies' ? 'text-[var(--accent-light)] bg-[var(--bg-hover)]' : 'text-[var(--text-dim)]'"
-      >
-        <span aria-hidden="true">{{ sidebar_icon('quick-replies', 'ui-icon--sm') }}</span>
-        <span>快速回复</span>
-      </button>
-      <button
-        @click="switchMode('beautify')"
-        title="美化"
-        class="px-3 py-2 text-xs font-medium whitespace-nowrap transition-colors hover:bg-[var(--bg-hover)] inline-flex items-center justify-center gap-1"
-        :class="currentMode === 'beautify' ? 'text-[var(--accent-light)] bg-[var(--bg-hover)]' : 'text-[var(--text-dim)]'"
-      >
-        <span aria-hidden="true">{{ sidebar_icon('beautify', 'ui-icon--sm') }}</span>
-        <span>美化</span>
-      </button>
+        <button
+          type="button"
+          role="menuitem"
+          @click="switchMode('cards'); closeModuleMenu()"
+          class="sidebar-module-menu-item"
+          :class="currentMode === 'cards' ? 'is-active' : ''"
+          :aria-current="currentMode === 'cards' ? 'page' : null"
+        >
+          <span class="sidebar-module-menu-icon sidebar-module-image-icon sidebar-module-image-icon--cards" aria-hidden="true"></span>
+          <span>角色卡</span>
+        </button>
+        <button
+          type="button"
+          role="menuitem"
+          @click="switchMode('worldinfo'); closeModuleMenu()"
+          class="sidebar-module-menu-item"
+          :class="currentMode === 'worldinfo' ? 'is-active' : ''"
+          :aria-current="currentMode === 'worldinfo' ? 'page' : null"
+        >
+          <span class="sidebar-module-menu-icon" aria-hidden="true">{{ detail_icon('worldbook', 'ui-icon--md') }}</span>
+          <span>世界书</span>
+        </button>
+        <button
+          type="button"
+          role="menuitem"
+          @click="switchMode('chats'); closeModuleMenu()"
+          class="sidebar-module-menu-item"
+          :class="currentMode === 'chats' ? 'is-active' : ''"
+          :aria-current="currentMode === 'chats' ? 'page' : null"
+        >
+          <span class="sidebar-module-menu-icon" aria-hidden="true">{{ detail_icon('chat', 'ui-icon--md') }}</span>
+          <span>聊天</span>
+        </button>
+        <button
+          type="button"
+          role="menuitem"
+          @click="switchMode('presets'); closeModuleMenu()"
+          class="sidebar-module-menu-item"
+          :class="currentMode === 'presets' ? 'is-active' : ''"
+          :aria-current="currentMode === 'presets' ? 'page' : null"
+        >
+          <span class="sidebar-module-menu-icon" aria-hidden="true">{{ detail_icon('preset', 'ui-icon--md') }}</span>
+          <span>预设</span>
+        </button>
+        <button
+          type="button"
+          role="menuitem"
+          @click="switchMode('regex'); closeModuleMenu()"
+          class="sidebar-module-menu-item"
+          :class="currentMode === 'regex' ? 'is-active' : ''"
+          :aria-current="currentMode === 'regex' ? 'page' : null"
+        >
+          <span class="sidebar-module-menu-icon" aria-hidden="true">{{ detail_icon('regex', 'ui-icon--md') }}</span>
+          <span>正则脚本</span>
+        </button>
+        <button
+          type="button"
+          role="menuitem"
+          @click="switchMode('scripts'); closeModuleMenu()"
+          class="sidebar-module-menu-item"
+          :class="currentMode === 'scripts' ? 'is-active' : ''"
+          :aria-current="currentMode === 'scripts' ? 'page' : null"
+        >
+          <span class="sidebar-module-menu-icon" aria-hidden="true">{{ detail_icon('scripts', 'ui-icon--md') }}</span>
+          <span>ST 脚本</span>
+        </button>
+        <button
+          type="button"
+          role="menuitem"
+          @click="switchMode('quick_replies'); closeModuleMenu()"
+          class="sidebar-module-menu-item"
+          :class="currentMode === 'quick_replies' ? 'is-active' : ''"
+          :aria-current="currentMode === 'quick_replies' ? 'page' : null"
+        >
+          <span class="sidebar-module-menu-icon" aria-hidden="true">{{ detail_icon('quick-replies', 'ui-icon--md') }}</span>
+          <span>快速回复</span>
+        </button>
+        <button
+          type="button"
+          role="menuitem"
+          @click="switchMode('beautify'); closeModuleMenu()"
+          class="sidebar-module-menu-item"
+          :class="currentMode === 'beautify' ? 'is-active' : ''"
+          :aria-current="currentMode === 'beautify' ? 'page' : null"
+        >
+          <span class="sidebar-module-menu-icon sidebar-module-image-icon sidebar-module-image-icon--beautify" aria-hidden="true"></span>
+          <span>美化</span>
+        </button>
+      </div>
     </div>
   </div>
   <!-- === 模式 1: 角色卡侧边栏 (Folder + Tags) === -->
@@ -414,19 +477,17 @@
   <!-- === 模式 2: 世界书侧边栏 (Type Filters) === -->
   <div
     x-show="currentMode === 'worldinfo' && visibleSidebar"
-    class="flex-1 flex flex-col overflow-hidden bg-[var(--bg-panel)]"
+    class="flex-1 flex flex-col overflow-hidden bg-[var(--bg-panel)] sidebar-mode-panel sidebar-mode-panel--worldinfo"
   >
-    <div class="p-4 space-y-2 flex-1 min-h-0 flex flex-col">
-      <div
-        class="text-xs font-bold text-[var(--text-dim)] uppercase tracking-wider mb-2"
-      >
+    <div class="sidebar-mode-content sidebar-mode-content--with-tree">
+      <div class="sidebar-section-label">
         来源筛选
       </div>
 
       <button
         @click="setWiFilter('all')"
-        class="w-full text-left px-3 py-2 rounded text-sm flex justify-between items-center transition-colors"
-        :class="wiFilterType === 'all' ? 'bg-[var(--accent-main)] text-white' : 'hover:bg-[var(--bg-hover)] text-[var(--text-main)]'"
+        class="sidebar-filter-option sidebar-filter-option--all"
+        :class="wiFilterType === 'all' ? 'is-active' : ''"
       >
         <span class="sidebar-filter-label">
           <span aria-hidden="true">{{ sidebar_icon('all-content', 'ui-icon--sm') }}</span>
@@ -436,8 +497,8 @@
 
       <button
         @click="setWiFilter('global')"
-        class="w-full text-left px-3 py-2 rounded text-sm flex justify-between items-center transition-colors"
-        :class="wiFilterType === 'global' ? 'bg-blue-600 text-white' : 'hover:bg-[var(--bg-hover)] text-[var(--text-main)]'"
+        class="sidebar-filter-option sidebar-filter-option--global"
+        :class="wiFilterType === 'global' ? 'is-active' : ''"
       >
         <span class="sidebar-filter-label">
           <span aria-hidden="true">{{ sidebar_icon('global-directory', 'ui-icon--sm') }}</span>
@@ -448,8 +509,8 @@
 
       <button
         @click="setWiFilter('resource')"
-        class="w-full text-left px-3 py-2 rounded text-sm flex justify-between items-center transition-colors"
-        :class="wiFilterType === 'resource' ? 'bg-green-600 text-white' : 'hover:bg-[var(--bg-hover)] text-[var(--text-main)]'"
+        class="sidebar-filter-option sidebar-filter-option--resource"
+        :class="wiFilterType === 'resource' ? 'is-active' : ''"
       >
         <span class="sidebar-filter-label">
           <span aria-hidden="true">{{ sidebar_icon('folder', 'ui-icon--sm') }}</span>
@@ -460,8 +521,8 @@
 
       <button
         @click="setWiFilter('embedded')"
-        class="w-full text-left px-3 py-2 rounded text-sm flex justify-between items-center transition-colors"
-        :class="wiFilterType === 'embedded' ? 'bg-purple-600 text-white' : 'hover:bg-[var(--bg-hover)] text-[var(--text-main)]'"
+        class="sidebar-filter-option sidebar-filter-option--embedded"
+        :class="wiFilterType === 'embedded' ? 'is-active' : ''"
       >
         <span class="sidebar-filter-label">
           <span aria-hidden="true">{{ sidebar_icon('embedded', 'ui-icon--sm') }}</span>
@@ -471,11 +532,9 @@
       </button>
 
       <div
-        class="pt-3 mt-3 border-t border-[var(--border-main)] flex-1 min-h-0 flex flex-col"
+        class="sidebar-category-section"
       >
-        <div
-          class="text-xs font-bold text-[var(--text-dim)] uppercase tracking-wider mb-2"
-        >
+        <div class="sidebar-section-label">
           世界书分类
         </div>
         <div class="sidebar-category-search-wrap">
@@ -503,8 +562,8 @@
             @dragleave="handleDragLeaveRoot($event)"
             @drop.prevent="handleDropOnRoot($event)"
             @contextmenu.prevent="getFolderCapabilities('', 'worldinfo').can_create_child_folder ? showFolderContextMenu($event, { path: '', name: '根目录', mode: 'worldinfo' }) : null"
-            :class="wiFilterCategory === '' ? 'bg-[var(--accent-main)] text-white' : 'hover:bg-[var(--bg-hover)] text-[var(--text-main)]'"
-            class="w-full text-left px-3 py-2 rounded text-sm flex justify-between items-center transition-colors cursor-pointer mb-1"
+            :class="wiFilterCategory === '' ? 'is-active' : ''"
+            class="sidebar-category-root sidebar-category-option"
           >
             <span class="sidebar-filter-label">
               <span aria-hidden="true">{{ sidebar_icon('all-cards-categories', 'ui-icon--sm sidebar-category-root-icon') }}</span>
@@ -523,8 +582,8 @@
                 @dragleave="folderDragLeave($event, { ...folder, mode: 'worldinfo' })"
                 @drop.prevent="folderDrop($event, { ...folder, mode: 'worldinfo' })"
                 @contextmenu.prevent="showFolderContextMenu($event, { ...folder, mode: 'worldinfo' })"
-                :class="['pl-level-' + Math.min(folder.level, 3), wiFilterCategory === folder.path ? 'active bg-[var(--accent-main)] text-white' : 'hover:bg-[var(--bg-hover)] text-[var(--text-main)]', dragOverFolder === folder.path ? 'drag-over' : '']"
-                class="folder-item flex items-center py-1.5 pr-2 rounded-lg cursor-pointer text-sm mb-0.5 group"
+                :class="['pl-level-' + Math.min(folder.level, 3), wiFilterCategory === folder.path ? 'active is-active' : '', dragOverFolder === folder.path ? 'drag-over' : '']"
+                class="folder-item sidebar-category-option flex items-center py-1.5 pr-2 rounded-lg cursor-pointer text-sm mb-0.5 group"
               >
                 <button
                   @click.stop="toggleFolder(folder.path)"
@@ -568,10 +627,10 @@
       </div>
     </div>
 
-    <div class="mt-auto p-4 border-t border-[var(--border-main)] space-y-2">
+    <div class="sidebar-mode-actions">
       <button
         @click="createWorldInfoBook()"
-        class="w-full py-2 text-xs border border-[var(--accent-main)] text-[var(--accent-main)] hover:bg-[var(--accent-main)]/10 rounded transition-colors text-center"
+        class="sidebar-action-button sidebar-action-button--primary"
       >
         <span class="sidebar-inline-label">
           <span aria-hidden="true">{{ icon('context-new', 'ui-icon--sm') }}</span>
@@ -580,7 +639,7 @@
       </button>
       <button
         @click="migrateLorebooks()"
-        class="w-full py-2 text-xs border border-dashed border-[var(--text-dim)] text-[var(--text-dim)] hover:border-[var(--accent-main)] hover:text-[var(--accent-main)] rounded transition-colors text-center"
+        class="sidebar-action-button sidebar-action-button--secondary"
       >
         <span class="sidebar-inline-label">
           <span aria-hidden="true">{{ sidebar_icon('organize', 'ui-icon--sm') }}</span>
@@ -592,19 +651,17 @@
 
   <div
     x-show="currentMode === 'chats' && visibleSidebar"
-    class="flex-1 flex flex-col overflow-hidden bg-[var(--bg-panel)]"
+    class="flex-1 flex flex-col overflow-hidden bg-[var(--bg-panel)] sidebar-mode-panel sidebar-mode-panel--chats"
   >
-    <div class="p-4 space-y-2 flex-1 min-h-0 flex flex-col">
-      <div
-        class="text-xs font-bold text-[var(--text-dim)] uppercase tracking-wider mb-2"
-      >
+    <div class="sidebar-mode-content sidebar-mode-content--compact">
+      <div class="sidebar-section-label">
         聊天筛选
       </div>
 
       <button
         @click="$store.global.chatFilterType='all'"
-        class="w-full text-left px-3 py-2 rounded text-sm flex justify-between items-center transition-colors"
-        :class="$store.global.chatFilterType === 'all' ? 'bg-[var(--accent-main)] text-white' : 'hover:bg-[var(--bg-hover)] text-[var(--text-main)]'"
+        class="sidebar-filter-option sidebar-filter-option--all"
+        :class="$store.global.chatFilterType === 'all' ? 'is-active' : ''"
       >
         <span class="sidebar-filter-label">
           <span aria-hidden="true">{{ sidebar_icon('all-content', 'ui-icon--sm') }}</span>
@@ -614,8 +671,8 @@
 
       <button
         @click="$store.global.chatFilterType='bound'"
-        class="w-full text-left px-3 py-2 rounded text-sm flex justify-between items-center transition-colors"
-        :class="$store.global.chatFilterType === 'bound' ? 'bg-green-600 text-white' : 'hover:bg-[var(--bg-hover)] text-[var(--text-main)]'"
+        class="sidebar-filter-option sidebar-filter-option--bound"
+        :class="$store.global.chatFilterType === 'bound' ? 'is-active' : ''"
       >
         <span class="sidebar-filter-label">
           <span aria-hidden="true">{{ sidebar_icon('bound', 'ui-icon--sm') }}</span>
@@ -625,8 +682,8 @@
 
       <button
         @click="$store.global.chatFilterType='unbound'"
-        class="w-full text-left px-3 py-2 rounded text-sm flex justify-between items-center transition-colors"
-        :class="$store.global.chatFilterType === 'unbound' ? 'bg-orange-600 text-white' : 'hover:bg-[var(--bg-hover)] text-[var(--text-main)]'"
+        class="sidebar-filter-option sidebar-filter-option--unbound"
+        :class="$store.global.chatFilterType === 'unbound' ? 'is-active' : ''"
       >
         <span class="sidebar-filter-label">
           <span aria-hidden="true">{{ sidebar_icon('unbound', 'ui-icon--sm sidebar-icon--unbound') }}</span>
@@ -635,9 +692,7 @@
       </button>
     </div>
 
-    <div
-      class="mt-auto p-4 border-t border-[var(--border-main)] text-xs text-[var(--text-dim)] space-y-2"
-    >
+    <div class="sidebar-mode-note">
       <p>
         提示: 可从这里统一查看、搜索、收藏并绑定 SillyTavern 的本地聊天记录。
       </p>
@@ -648,22 +703,20 @@
   <!-- === 模式 3: 预设侧边栏 === -->
   <div
     x-show="currentMode === 'presets' && visibleSidebar"
-    class="flex-1 flex flex-col overflow-hidden bg-[var(--bg-panel)]"
+    class="flex-1 flex flex-col overflow-hidden bg-[var(--bg-panel)] sidebar-mode-panel sidebar-mode-panel--presets"
     x-data
   >
-    <div class="p-4 space-y-2">
+    <div class="sidebar-mode-content sidebar-mode-content--with-tree">
       <!-- 来源筛选标题 -->
-      <div
-        class="text-xs font-bold text-[var(--text-dim)] uppercase tracking-wider mb-2"
-      >
+      <div class="sidebar-section-label">
         来源筛选
       </div>
 
       <!-- 全部显示 -->
       <button
         @click="$store.global.presetFilterType='all'"
-        class="w-full text-left px-3 py-2 rounded text-sm flex justify-between items-center transition-colors"
-        :class="$store.global.presetFilterType === 'all' ? 'bg-[var(--accent-main)] text-white' : 'hover:bg-[var(--bg-hover)] text-[var(--text-main)]'"
+        class="sidebar-filter-option sidebar-filter-option--all"
+        :class="$store.global.presetFilterType === 'all' ? 'is-active' : ''"
       >
         <span class="sidebar-filter-label">
           <span aria-hidden="true">{{ sidebar_icon('all-content', 'ui-icon--sm') }}</span>
@@ -674,8 +727,8 @@
       <!-- 全局目录 -->
       <button
         @click="$store.global.presetFilterType='global'"
-        class="w-full text-left px-3 py-2 rounded text-sm flex justify-between items-center transition-colors"
-        :class="$store.global.presetFilterType === 'global' ? 'bg-blue-600 text-white' : 'hover:bg-[var(--bg-hover)] text-[var(--text-main)]'"
+        class="sidebar-filter-option sidebar-filter-option--global"
+        :class="$store.global.presetFilterType === 'global' ? 'is-active' : ''"
       >
         <span class="sidebar-filter-label">
           <span aria-hidden="true">{{ sidebar_icon('global-directory', 'ui-icon--sm') }}</span>
@@ -687,8 +740,8 @@
       <!-- 资源绑定 -->
       <button
         @click="$store.global.presetFilterType='resource'"
-        class="w-full text-left px-3 py-2 rounded text-sm flex justify-between items-center transition-colors"
-        :class="$store.global.presetFilterType === 'resource' ? 'bg-green-600 text-white' : 'hover:bg-[var(--bg-hover)] text-[var(--text-main)]'"
+        class="sidebar-filter-option sidebar-filter-option--resource"
+        :class="$store.global.presetFilterType === 'resource' ? 'is-active' : ''"
       >
         <span class="sidebar-filter-label">
           <span aria-hidden="true">{{ sidebar_icon('folder', 'ui-icon--sm') }}</span>
@@ -698,11 +751,9 @@
       </button>
 
       <div
-        class="pt-3 mt-3 border-t border-[var(--border-main)] flex-1 min-h-0 flex flex-col"
+        class="sidebar-category-section"
       >
-        <div
-          class="text-xs font-bold text-[var(--text-dim)] uppercase tracking-wider mb-2"
-        >
+        <div class="sidebar-section-label">
           预设分类
         </div>
         <div class="sidebar-category-search-wrap">
@@ -730,8 +781,8 @@
             @dragleave="presetRootDragLeave($event)"
             @drop.prevent="presetRootDrop($event)"
             @contextmenu.prevent="getFolderCapabilities('', 'presets').can_create_child_folder ? showFolderContextMenu($event, { path: '', name: '根目录', mode: 'presets' }) : null"
-            :class="[presetFilterCategory === '' ? 'bg-[var(--accent-main)] text-white' : 'hover:bg-[var(--bg-hover)] text-[var(--text-main)]', dragOverFolder === '根目录' ? 'drag-over' : '']"
-            class="w-full text-left px-3 py-2 rounded text-sm flex justify-between items-center transition-colors cursor-pointer mb-1"
+            :class="[presetFilterCategory === '' ? 'is-active' : '', dragOverFolder === '根目录' ? 'drag-over' : '']"
+            class="sidebar-category-root sidebar-category-option"
           >
             <span class="sidebar-filter-label">
               <span aria-hidden="true">{{ sidebar_icon('all-cards-categories', 'ui-icon--sm sidebar-category-root-icon') }}</span>
@@ -753,8 +804,8 @@
                 @dragleave="folderDragLeave($event, { ...folder, mode: 'presets' })"
                 @drop.prevent="folderDrop($event, { ...folder, mode: 'presets' })"
                 @contextmenu.prevent="showFolderContextMenu($event, { ...folder, mode: 'presets' })"
-                :class="['pl-level-' + Math.min(folder.level, 3), presetFilterCategory === folder.path ? 'active bg-[var(--accent-main)] text-white' : 'hover:bg-[var(--bg-hover)] text-[var(--text-main)]', dragOverFolder === folder.path ? 'drag-over' : '']"
-                class="folder-item flex items-center py-1.5 pr-2 rounded-lg cursor-pointer text-sm mb-0.5 group"
+                :class="['pl-level-' + Math.min(folder.level, 3), presetFilterCategory === folder.path ? 'active is-active' : '', dragOverFolder === folder.path ? 'drag-over' : '']"
+                class="folder-item sidebar-category-option flex items-center py-1.5 pr-2 rounded-lg cursor-pointer text-sm mb-0.5 group"
               >
                 <button
                   @click.stop="toggleFolder(folder.path)"
@@ -798,9 +849,7 @@
       </div>
     </div>
 
-    <div
-      class="mt-auto p-4 border-t border-[var(--border-main)] text-xs text-[var(--text-dim)]"
-    >
+    <div class="sidebar-mode-note">
       提示: 拖拽 .json 预设文件到右侧网格区域即可上传到全局目录。
     </div>
   </div>
@@ -808,22 +857,20 @@
   <!-- === 模式 4: 扩展脚本侧边栏 (Regex & Scripts & Quick Replies) === -->
   <div
     x-show="['regex', 'scripts', 'quick_replies'].includes(currentMode) && visibleSidebar"
-    class="flex-1 flex flex-col overflow-hidden bg-[var(--bg-panel)]"
+    class="flex-1 flex flex-col overflow-hidden bg-[var(--bg-panel)] sidebar-mode-panel sidebar-mode-panel--extensions"
     x-data
   >
-    <div class="p-4 space-y-2">
+    <div class="sidebar-mode-content sidebar-mode-content--compact">
       <!-- 来源筛选标题 -->
-      <div
-        class="text-xs font-bold text-[var(--text-dim)] uppercase tracking-wider mb-2"
-      >
+      <div class="sidebar-section-label">
         来源筛选
       </div>
 
       <!-- 全部显示 -->
       <button
         @click="$store.global.extensionFilterType='all'"
-        class="w-full text-left px-3 py-2 rounded text-sm flex justify-between items-center transition-colors"
-        :class="$store.global.extensionFilterType === 'all' ? 'bg-[var(--accent-main)] text-white' : 'hover:bg-[var(--bg-hover)] text-[var(--text-main)]'"
+        class="sidebar-filter-option sidebar-filter-option--all"
+        :class="$store.global.extensionFilterType === 'all' ? 'is-active' : ''"
       >
         <span class="sidebar-filter-label">
           <span aria-hidden="true">{{ sidebar_icon('all-content', 'ui-icon--sm') }}</span>
@@ -834,8 +881,8 @@
       <!-- 全局目录 -->
       <button
         @click="$store.global.extensionFilterType='global'"
-        class="w-full text-left px-3 py-2 rounded text-sm flex justify-between items-center transition-colors"
-        :class="$store.global.extensionFilterType === 'global' ? 'bg-blue-600 text-white' : 'hover:bg-[var(--bg-hover)] text-[var(--text-main)]'"
+        class="sidebar-filter-option sidebar-filter-option--global"
+        :class="$store.global.extensionFilterType === 'global' ? 'is-active' : ''"
       >
         <span class="sidebar-filter-label">
           <span aria-hidden="true">{{ sidebar_icon('global-directory', 'ui-icon--sm') }}</span>
@@ -855,8 +902,8 @@
       <!-- 资源绑定 -->
       <button
         @click="$store.global.extensionFilterType='resource'"
-        class="w-full text-left px-3 py-2 rounded text-sm flex justify-between items-center transition-colors"
-        :class="$store.global.extensionFilterType === 'resource' ? 'bg-green-600 text-white' : 'hover:bg-[var(--bg-hover)] text-[var(--text-main)]'"
+        class="sidebar-filter-option sidebar-filter-option--resource"
+        :class="$store.global.extensionFilterType === 'resource' ? 'is-active' : ''"
       >
         <span class="sidebar-filter-label">
           <span aria-hidden="true">{{ sidebar_icon('folder', 'ui-icon--sm') }}</span>
@@ -866,9 +913,7 @@
       </button>
     </div>
 
-    <div
-      class="mt-auto p-4 border-t border-[var(--border-main)] text-xs text-[var(--text-dim)]"
-    >
+    <div class="sidebar-mode-note">
       提示: 拖拽 .json 文件到右侧网格区域即可上传到全局目录。
     </div>
   </div>
@@ -881,7 +926,7 @@
       <div class="beautify-toolbar-row">
         <div class="beautify-toolbar-title">
           <span class="beautify-title-icon" aria-hidden="true">
-            {{ sidebar_icon('beautify', 'ui-icon--md') }}
+            <span class="sidebar-module-image-icon sidebar-module-image-icon--beautify"></span>
           </span>
           <div>
             <div class="beautify-title-main">美化</div>

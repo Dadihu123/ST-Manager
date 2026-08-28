@@ -61,7 +61,7 @@ def test_beautify_css_helpers_match_shared_selector_blocks_independent_of_select
     assert has_css_declaration(block, 'background', 'var(--bg-sub)')
 
 
-def test_sidebar_template_places_beautify_last_in_second_resource_row():
+def test_sidebar_template_places_beautify_last_in_module_menu():
     template = read_project_file('templates/components/sidebar.html')
 
     presets_index = template.index("switchMode('presets')")
@@ -71,7 +71,7 @@ def test_sidebar_template_places_beautify_last_in_second_resource_row():
     beautify_index = template.index("switchMode('beautify')")
 
     assert presets_index < regex_index < scripts_index < quick_replies_index < beautify_index
-    assert '美化' in template[beautify_index: beautify_index + 120]
+    assert '<span>美化</span>' in template[beautify_index: beautify_index + 500]
 
 
 def test_sidebar_template_keeps_live_beautify_sidebar_panel_hook():
