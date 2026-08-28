@@ -1863,7 +1863,10 @@
           <h3
             class="text-base font-bold text-orange-400 mb-3 flex items-center gap-2"
           >
-            <span>🖥️</span> 界面布局
+            <span aria-hidden="true">
+              {{ icon('worldbook-layout', 'ui-icon--sm') }}
+            </span>
+            <span>界面布局</span>
           </h3>
           <div class="text-sm text-[var(--text-sub)] space-y-2 leading-relaxed">
             <p>全屏世界书编辑器采用三栏布局：</p>
@@ -1881,8 +1884,13 @@
                 属性设置与剪切板管理
               </li>
             </ul>
-            <p class="text-xs text-[var(--text-dim)] mt-2">
-              💡 提示：在移动端可收起左右面板以扩大编辑区域
+            <p
+              class="text-xs text-[var(--text-dim)] mt-2 flex items-start gap-1"
+            >
+              <span aria-hidden="true">
+                {{ icon('worldbook-tip', 'ui-icon--xs') }}
+              </span>
+              <span>提示：在移动端可收起左右面板以扩大编辑区域</span>
             </p>
           </div>
         </div>
@@ -1892,14 +1900,22 @@
           <h3
             class="text-base font-bold text-green-400 mb-3 flex items-center gap-2"
           >
-            <span>💾</span> 保存方式
+            <span aria-hidden="true">
+              {{ icon('settings-save', 'ui-icon--sm') }}
+            </span>
+            <span>保存方式</span>
           </h3>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div
               class="bg-[var(--bg-sub)] p-3 rounded-lg border border-[var(--border-light)]"
             >
-              <div class="font-bold text-[var(--text-main)] mb-1">
-                💾 保存条目
+              <div
+                class="font-bold text-[var(--text-main)] mb-1 flex items-center gap-1"
+              >
+                <span aria-hidden="true">
+                  {{ icon('settings-save', 'ui-icon--xs') }}
+                </span>
+                <span>保存条目</span>
               </div>
               <p class="text-xs text-[var(--text-sub)]">
                 保存当前条目的修改。如果是独立世界书文件，直接保存到文件；如果是内嵌世界书，保存到角色卡。
@@ -1908,8 +1924,13 @@
             <div
               class="bg-[var(--bg-sub)] p-3 rounded-lg border border-[var(--border-light)]"
             >
-              <div class="font-bold text-[var(--text-main)] mb-1">
-                🗂️ 保存整本
+              <div
+                class="font-bold text-[var(--text-main)] mb-1 flex items-center gap-1"
+              >
+                <span aria-hidden="true">
+                  {{ icon('worldbook-save-all', 'ui-icon--xs') }}
+                </span>
+                <span>保存整本</span>
               </div>
               <p class="text-xs text-[var(--text-sub)]">
                 先创建整本回滚版本（备份旧状态），再执行保存。适合大改前使用，可随时回滚整本。
@@ -1918,8 +1939,13 @@
             <div
               class="bg-[var(--bg-sub)] p-3 rounded-lg border border-[var(--border-light)]"
             >
-              <div class="font-bold text-[var(--text-main)] mb-1">
-                📤 另存为...
+              <div
+                class="font-bold text-[var(--text-main)] mb-1 flex items-center gap-1"
+              >
+                <span aria-hidden="true">
+                  {{ icon('worldbook-save-as', 'ui-icon--xs') }}
+                </span>
+                <span>另存为...</span>
               </div>
               <p class="text-xs text-[var(--text-sub)]">
                 将当前世界书保存为新文件。内嵌世界书可提取为独立的全局世界书文件。
@@ -1933,7 +1959,10 @@
           <h3
             class="text-base font-bold text-blue-400 mb-3 flex items-center gap-2"
           >
-            <span>⏪</span> 备份、快照与时光机
+            <span aria-hidden="true">
+              {{ icon('worldbook-rollback', 'ui-icon--sm') }}
+            </span>
+            <span>备份、快照与时光机</span>
           </h3>
           <div class="space-y-3 text-sm text-[var(--text-sub)]">
             <div class="flex items-start gap-3">
@@ -1949,7 +1978,9 @@
               </div>
             </div>
             <div class="flex items-start gap-3">
-              <span class="text-lg">⏪</span>
+              <span aria-hidden="true">
+                {{ icon('worldbook-rollback', 'ui-icon--md') }}
+              </span>
               <div>
                 <strong class="text-[var(--text-main)]"
                   >时光机（整本回滚）</strong
@@ -1960,17 +1991,27 @@
               </div>
             </div>
             <div class="flex items-start gap-3">
-              <span class="text-lg">🕰️</span>
+              <span aria-hidden="true">
+                {{ icon('worldbook-entry-rollback', 'ui-icon--md') }}
+              </span>
               <div>
                 <strong class="text-[var(--text-main)]">条目历史回滚</strong>
                 <p class="text-xs mt-1">
-                  点击条目右侧的 🕰️
+                  点击条目右侧的
+                  <span
+                    class="inline-flex items-center align-middle"
+                    aria-hidden="true"
+                  >
+                    {{ icon('worldbook-entry-rollback', 'ui-icon--xs') }}
+                  </span>
                   按钮，可查看该条目的所有历史版本，支持行级差异对比和单条目回滚。
                 </p>
               </div>
             </div>
             <div class="flex items-start gap-3">
-              <span class="text-lg">📂</span>
+              <span aria-hidden="true">
+                {{ icon('worldbook-backup', 'ui-icon--md wi-worldbook-backup-icon') }}
+              </span>
               <div>
                 <strong class="text-[var(--text-main)]">打开备份文件夹</strong>
                 <p class="text-xs mt-1">
@@ -1986,18 +2027,35 @@
           <h3
             class="text-base font-bold text-purple-400 mb-3 flex items-center gap-2"
           >
-            <span>📋</span> 剪切板系统
+            <span aria-hidden="true">
+              {{ icon('worldbook-clipboard', 'ui-icon--sm') }}
+            </span>
+            <span>剪切板系统</span>
           </h3>
           <div class="text-sm text-[var(--text-sub)] space-y-2">
             <p>剪切板是一个全局存储空间，可跨条目、跨世界书复制粘贴内容：</p>
             <ul class="list-disc list-inside space-y-1 ml-2 text-xs">
               <li>
                 <strong class="text-[var(--text-main)]">复制到剪切板</strong> -
-                点击条目的 📋 按钮
+                点击条目的
+                <span
+                  class="inline-flex items-center align-middle"
+                  aria-hidden="true"
+                >
+                  {{ icon('worldbook-clipboard', 'ui-icon--xs') }}
+                </span>
+                按钮
               </li>
               <li>
                 <strong class="text-[var(--text-main)]">从剪切板添加</strong> -
-                在剪切板面板点击 ➕ 按钮
+                在剪切板面板点击
+                <span
+                  class="inline-flex items-center align-middle"
+                  aria-hidden="true"
+                >
+                  {{ icon('context-new', 'ui-icon--xs') }}
+                </span>
+                按钮
               </li>
               <li>
                 <strong class="text-[var(--text-main)]">编辑剪切板</strong> -
@@ -2009,7 +2067,12 @@
               </li>
             </ul>
             <p class="text-xs text-yellow-500/80 mt-2">
-              ⚠️ 注意：剪切板内容存储在数据库中，重启后仍然保留。
+              <span class="inline-flex items-center gap-1">
+                <span aria-hidden="true">
+                  {{ icon('settings-warning', 'ui-icon--xs') }}
+                </span>
+                <span>注意：剪切板内容存储在数据库中，重启后仍然保留。</span>
+              </span>
             </p>
           </div>
         </div>
@@ -2019,7 +2082,10 @@
           <h3
             class="text-base font-bold text-cyan-400 mb-3 flex items-center gap-2"
           >
-            <span>⚙️</span> 条目属性详解
+            <span aria-hidden="true">
+              {{ icon('settings-advanced-settings', 'ui-icon--sm') }}
+            </span>
+            <span>条目属性详解</span>
           </h3>
 
           <!-- 5.1 触发策略 -->
@@ -2029,9 +2095,14 @@
               <div
                 class="bg-[var(--bg-sub)] p-2 rounded border-l-2 border-blue-500"
               >
-                <strong class="text-[var(--text-main)]"
-                  >🔵 常驻 (Constant)</strong
+                <strong
+                  class="text-[var(--text-main)] inline-flex items-center gap-1"
                 >
+                  <span aria-hidden="true">
+                    {{ icon('worldbook-constant', 'ui-icon--xs') }}
+                  </span>
+                  <span>常驻 (Constant)</span>
+                </strong>
                 <p class="text-[var(--text-dim)] mt-1">
                   始终激活，不依赖关键词触发。适合世界观、背景设定等必须始终存在的内容。
                 </p>
@@ -2039,9 +2110,14 @@
               <div
                 class="bg-[var(--bg-sub)] p-2 rounded border-l-2 border-purple-500"
               >
-                <strong class="text-[var(--text-main)]"
-                  >📎 向量化 (Vectorized)</strong
+                <strong
+                  class="text-[var(--text-main)] inline-flex items-center gap-1"
                 >
+                  <span aria-hidden="true">
+                    {{ icon('worldbook-vectorize', 'ui-icon--xs') }}
+                  </span>
+                  <span>向量化 (Vectorized)</span>
+                </strong>
                 <p class="text-[var(--text-dim)] mt-1">
                   使用向量匹配而非关键词，适合语义相似的场景。与常驻互斥。
                 </p>
@@ -2049,9 +2125,14 @@
               <div
                 class="bg-[var(--bg-sub)] p-2 rounded border-l-2 border-green-500"
               >
-                <strong class="text-[var(--text-main)]"
-                  >🟢 关键词触发 (Normal)</strong
+                <strong
+                  class="text-[var(--text-main)] inline-flex items-center gap-1"
                 >
+                  <span aria-hidden="true">
+                    {{ icon('worldbook-keyword-trigger', 'ui-icon--xs') }}
+                  </span>
+                  <span>关键词触发 (Normal)</span>
+                </strong>
                 <p class="text-[var(--text-dim)] mt-1">
                   默认模式，需要匹配关键词才会激活。主触发词和次要/过滤词配合使用。
                 </p>
@@ -2168,7 +2249,10 @@
           <h3
             class="text-base font-bold text-yellow-400 mb-3 flex items-center gap-2"
           >
-            <span>🔎</span> 查找与替换
+            <span aria-hidden="true">
+              {{ icon('worldbook-search', 'ui-icon--sm') }}
+            </span>
+            <span>查找与替换</span>
           </h3>
           <div class="text-sm text-[var(--text-sub)] space-y-2">
             <p>支持在当前条目或全部条目中进行查找替换：</p>
@@ -2203,7 +2287,10 @@
           <h3
             class="text-base font-bold text-gray-400 mb-3 flex items-center gap-2"
           >
-            <span>📋</span> 列表显示说明
+            <span aria-hidden="true">
+              {{ icon('worldbook-list', 'ui-icon--sm') }}
+            </span>
+            <span>列表显示说明</span>
           </h3>
           <div class="text-sm text-[var(--text-sub)] space-y-2">
             <p>左侧条目列表中的彩色标记含义：</p>
@@ -2236,7 +2323,10 @@
           <h3
             class="text-base font-bold text-red-400 mb-3 flex items-center gap-2"
           >
-            <span>⌨️</span> 快捷键
+            <span class="wi-help-shortcut-icon" aria-hidden="true">
+              {{ icon('worldbook-shortcut', 'ui-icon--sm') }}
+            </span>
+            <span>快捷键</span>
           </h3>
           <div class="grid grid-cols-2 gap-2 text-xs">
             <div class="bg-[var(--bg-sub)] p-2 rounded flex justify-between">

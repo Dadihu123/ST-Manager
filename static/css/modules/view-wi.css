@@ -856,7 +856,13 @@ html.light-mode .wi-worldbook-icon-scope .wi-detail-worldbook-transfer-btn {
 }
 
 .wi-editor-container .wi-vectorize-icon {
-  transform: scale(1.8);
+  transform: scale(1);
+  transform-origin: center;
+}
+
+/* 快捷键图标横向留白较多，补偿其视觉高度但不改变帮助标题布局。 */
+.wi-help-modal-content .wi-help-shortcut-icon {
+  transform: scale(1.5);
   transform-origin: center;
 }
 

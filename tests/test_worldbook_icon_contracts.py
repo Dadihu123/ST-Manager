@@ -17,6 +17,11 @@ WORLD_BOOK_SYMBOLS = (
     'worldbook-search',
     'worldbook-constant',
     'worldbook-vectorize',
+    'worldbook-layout',
+    'worldbook-tip',
+    'worldbook-keyword-trigger',
+    'worldbook-list',
+    'worldbook-shortcut',
     'worldbook-closed',
 )
 
@@ -69,6 +74,16 @@ def test_worldbook_design_symbols_are_theme_safe():
     for name in WORLD_BOOK_SYMBOLS:
         assert f'id="icon-{name}"' in design_block
 
+    for name, view_box in (
+        ('worldbook-constant', '0 0 596 727'),
+        ('worldbook-vectorize', '0 0 689 735'),
+        ('worldbook-layout', '0 0 666 715'),
+        ('worldbook-tip', '0 0 648 747'),
+        ('worldbook-keyword-trigger', '0 0 729 897'),
+        ('worldbook-list', '0 0 660 544'),
+        ('worldbook-shortcut', '0 0 709 607'),
+    ):
+        assert f'<symbol id="icon-{name}" viewBox="{view_box}">' in design_block
     assert design_block.count('fill="currentColor"') >= len(WORLD_BOOK_SYMBOLS)
 
 
@@ -149,6 +164,54 @@ def test_worldbook_templates_use_shared_icons_for_functional_controls():
     assert "icon('context-delete'" in detail_card_worldbook
 
 
+def test_worldbook_help_reuses_shared_icons_without_functional_glyphs():
+    source = _read('templates/modals/detail_wi_fullscreen.html')
+    help_source = source.split('<!-- 帮助指南模态框 -->', 1)[1]
+
+    for name in (
+        'settings-save',
+        'worldbook-save-all',
+        'worldbook-save-as',
+        'worldbook-rollback',
+        'worldbook-entry-rollback',
+        'worldbook-backup',
+        'worldbook-clipboard',
+        'context-new',
+        'settings-warning',
+        'settings-advanced-settings',
+        'worldbook-constant',
+        'worldbook-vectorize',
+        'worldbook-layout',
+        'worldbook-tip',
+        'worldbook-keyword-trigger',
+        'worldbook-list',
+        'worldbook-shortcut',
+        'worldbook-search',
+    ):
+        assert f"icon('{name}'" in help_source
+
+    for glyph in (
+        '🖥️',
+        '💡',
+        '🟢',
+        '📋',
+        '⌨️',
+        '💾',
+        '🗂️',
+        '📤',
+        '⏪',
+        '🕰️',
+        '📂',
+        '➕',
+        '⚠️',
+        '⚙️',
+        '🔵',
+        '📎',
+        '🔎',
+    ):
+        assert glyph not in help_source
+
+
 def test_worldbook_clipboard_loading_uses_svg_sprite():
     source = _read('static/js/components/wiEditor.js')
     request_block = source.split('_addWiClipboardRequest', 1)[1].split(
@@ -201,8 +264,19 @@ def test_worldbook_icons_use_phase_one_scale_and_borderless_actions():
     assert 'margin-right: -0.25rem' in css
     assert '.wi-editor-container .wi-icon-only-action .ui-icon' in css
     assert '.wi-editor-container .wi-editor-top-actions .wi-editor-close-action' in css
-    assert 'transform: scale(1.8)' in css
+    assert '.wi-editor-container .wi-vectorize-icon' in css
+    vectorize_css = css.split('.wi-editor-container .wi-vectorize-icon', 1)[1].split(
+        '}', 1
+    )[0]
+    assert 'transform: scale(1)' in vectorize_css
     assert 'wi-vectorize-icon' in fullscreen_source
+    assert 'wi-help-shortcut-icon' in fullscreen_source
+    help_source = fullscreen_source.split('<!-- 帮助指南模态框 -->', 1)[1]
+    assert "icon('worldbook-vectorize', 'ui-icon--xs wi-vectorize-icon')" not in help_source
+    shortcut_css = css.split('.wi-help-modal-content .wi-help-shortcut-icon', 1)[1].split(
+        '}', 1
+    )[0]
+    assert 'transform: scale(1.5)' in shortcut_css
     assert 'wi-card-bookmark' in grid_source
     assert '.wi-worldbook-grid .wi-card-title-row::before' in css
     assert 'display: none;' in css.split(
