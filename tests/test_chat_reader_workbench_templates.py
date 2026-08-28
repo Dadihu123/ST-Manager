@@ -2341,11 +2341,15 @@ def test_mobile_tool_and_custom_modal_variants_prefer_dynamic_viewport_height():
 
 def test_automation_modal_template_exposes_new_action_options_and_structured_inputs():
     automation_template = read_project_file('templates/modals/automation.html')
-    rename_block = automation_template.split("action.type === 'rename_file_by_template'", 1)[1].split('</template>', 1)[0]
-    split_block = automation_template.split("action.type === 'split_category_to_tags'", 1)[1].split('</template>', 1)[0]
+    rename_block = automation_template.split(
+        '<template x-if="action.type === \'rename_file_by_template\'">', 1
+    )[1].split('</template>', 1)[0]
+    split_block = automation_template.split(
+        '<template x-if="action.type === \'split_category_to_tags\'">', 1
+    )[1].split('</template>', 1)[0]
 
-    assert '<option value="rename_file_by_template">🧩 模板重命名文件</option>' in automation_template
-    assert '<option value="split_category_to_tags">📝 分类拆分为标签</option>' in automation_template
+    assert '<option value="rename_file_by_template">模板重命名文件</option>' in automation_template
+    assert '<option value="split_category_to_tags">分类拆分为标签</option>' in automation_template
     assert "action.type === 'rename_file_by_template'" in automation_template
     assert "action.type === 'split_category_to_tags'" in automation_template
     assert 'x-model="cfg.template"' in rename_block

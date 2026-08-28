@@ -69,10 +69,12 @@ const DEFAULT_TAG_CATEGORY_COLOR = "#64748b";
 const DEFAULT_TAG_CATEGORY_OPACITY = 16;
 const TAG_VIEW_PREFS_STORAGE_KEY = "st_manager_tag_view_prefs";
 const TOAST_ICON_NAMES = new Set([
+  "automation-forbidden",
   "card-send",
   "context-close",
   "context-delete",
   "card-check",
+  "settings-save",
 ]);
 
 function buildDefaultTagViewPrefs() {

@@ -110,9 +110,7 @@ export default function executeRulesMobileModal() {
                         : `自动处理 ${this.cardIds.length} 张卡片`,
                 });
                 if (result?.selected) {
-                    let msg = `✅ 执行完成！\n已处理: ${result.processed || 0}\n移动: ${result.moves || 0} 张\n打标: ${result.tag_changes || 0} 次\n跳过: ${result.skipped || 0} 张\n失败: ${result.failed || 0} 张`;
-                    if (result.cancelled) msg += '\n\n已停止后续处理。';
-                    alert(msg);
+                    this.$store.global.showToast('执行完成！', 2400, 'card-check');
                     if (this.executeMode === 'cards') {
                         this.$store.global.viewState.selectedIds = [];
                     }
@@ -122,7 +120,7 @@ export default function executeRulesMobileModal() {
                     }
                 }
             } catch (error) {
-                this.$store.global.showToast(`❌ ${error?.message || '批量执行失败'}`, 3600);
+                this.$store.global.showToast(error?.message || '批量执行失败', 3600, 'context-close');
             }
         }
     }

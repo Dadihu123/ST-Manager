@@ -1,3 +1,5 @@
+{% from "components/icon.html" import icon %}
+
 <!-- 移动端：执行规则弹窗 -->
 <div x-data="executeRulesMobileModal" x-show="showExecuteRulesModal" x-cloak class="modal-overlay z-modal-popover"
     @click.self="showExecuteRulesModal = false">
@@ -5,7 +7,8 @@
         <!-- Header -->
         <div style="padding: 1rem 1.25rem; background: var(--bg-sub); border-bottom: 1px solid var(--border-light);">
             <h3 style="font-weight: bold; color: var(--text-main); font-size: 1rem; display: flex; align-items: center; gap: 0.5rem;">
-                ⚡ 自动处理
+                <span aria-hidden="true">{{ icon('context-automation', 'ui-icon--sm') }}</span>
+                <span>自动处理</span>
             </h3>
         </div>
         
@@ -45,8 +48,9 @@
                         取消
                     </button>
                     <button @click="$dispatch('open-automation-modal'); showExecuteRulesModal = false" 
-                        class="btn-primary" style="flex:1; justify-content: center; font-size: 0.875rem; padding: 0.5rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); background-color: #7c3aed;">
-                        ⚙️ 管理规则
+                        class="btn-primary" style="flex:1; justify-content: center; align-items: center; gap: 0.35rem; font-size: 0.875rem; padding: 0.5rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); background-color: #7c3aed;">
+                        <span aria-hidden="true">{{ icon('settings', 'ui-icon--sm') }}</span>
+                        <span>管理规则</span>
                     </button>
                 </div>
             </div>

@@ -1,4 +1,4 @@
-{% from "components/icon.html" import icon %}
+{% from "components/icon.html" import icon, sidebar_icon, detail_icon %}
 
 <!-- 自动化规则管理器 -->
 <div x-show="showAutomationModal" x-data="automationModal" x-cloak class="modal-overlay z-modal-std"
@@ -8,7 +8,8 @@
         <!-- 移动端：侧边栏切换按钮 -->
         <button x-show="$store.global.deviceType === 'mobile' && !showMobileSidebar" 
             @click="showMobileSidebar = true"
-            class="fixed bottom-16 left-2 z-50 w-10 h-10 bg-[var(--bg-panel)] border border-[var(--border-light)] rounded-lg flex items-center justify-center text-[var(--text-main)] shadow-lg md:hidden">
+            class="fixed bottom-16 left-2 z-50 w-10 h-10 bg-[var(--bg-panel)] border border-[var(--border-light)] rounded-lg flex items-center justify-center text-[var(--text-main)] shadow-lg md:hidden"
+            title="打开规则集列表" aria-label="打开规则集列表">
             <span aria-hidden="true">{{ icon('worldbook-list', 'ui-icon--sm') }}</span>
         </button>
 
@@ -59,7 +60,8 @@
                 <span class="text-[var(--text-dim)]">全局规则:</span>
                 <template x-if="globalRulesetId">
                     <span class="text-yellow-600 font-bold flex items-center gap-1">
-                        🤖 <span x-text="ruleSets.find(r=>r.id===globalRulesetId)?.meta?.name || '未知'"></span>
+                        <span aria-hidden="true">{{ icon('context-automation', 'ui-icon--sm') }}</span>
+                        <span x-text="ruleSets.find(r=>r.id===globalRulesetId)?.meta?.name || '未知'"></span>
                     </span>
                 </template>
                 <template x-if="!globalRulesetId">
@@ -80,7 +82,8 @@
                                 class="text-xs px-3 py-1 rounded border transition-all flex items-center gap-1" :class="globalRulesetId === rs.id 
                                     ? 'bg-yellow-500 text-black border-yellow-600 font-bold shadow-md' 
                                     : 'border-gray-500 text-gray-500 hover:border-yellow-500 hover:text-yellow-500'">
-                                <span x-text="globalRulesetId === rs.id ? '🤖 已激活全局' : '🤖 设为全局'"></span>
+                                <span aria-hidden="true">{{ icon('context-automation', 'ui-icon--xs') }}</span>
+                                <span x-text="globalRulesetId === rs.id ? '已激活全局' : '设为全局'"></span>
                             </button>
                         </div>
                         <div class="ruleset-meta flex justify-between">
@@ -100,8 +103,8 @@
                 <!-- 关闭按钮 -->
                 <button @click="closeModal()" 
                     class="absolute top-2 right-2 z-50 w-8 h-8 bg-[var(--bg-panel)] border border-[var(--border-light)] rounded-lg flex items-center justify-center text-[var(--text-main)] hover:bg-[var(--bg-hover)] hover:text-red-400 transition-colors shadow-lg"
-                    title="关闭">
-                    <span class="text-lg">✕</span>
+                    title="关闭" aria-label="关闭">
+                    {{ icon('context-close', 'ui-icon--sm') }}
                 </button>
 
                 <!-- 1. 顶部元数据栏 -->
@@ -111,7 +114,7 @@
                     <div x-show="activeRuleSet?.id && globalRulesetId === activeRuleSet?.id"
                         class="bg-yellow-500/10 border border-yellow-500/30 rounded px-3 py-2 flex justify-between items-center transition-all duration-300">
                         <div class="flex items-center gap-2 text-yellow-600 font-bold text-xs">
-                            <span class="text-lg">🤖</span>
+                            <span aria-hidden="true">{{ icon('context-automation', 'ui-icon--sm') }}</span>
                             <span>当前状态：全局默认规则 (按规则触发时机和动作类型在不同场景执行)</span>
                         </div>
                         <button x-show="$store.global.deviceType !== 'mobile'" @click="toggleGlobalActive(activeRuleSet?.id)"
@@ -135,15 +138,15 @@
                                             ? 'bg-yellow-500 text-black border-yellow-600 font-bold shadow-sm' 
                                             : 'border-[var(--border-light)] text-[var(--text-dim)] hover:border-yellow-500 hover:text-yellow-500'"
                                         :title="(activeRuleSet?.id && globalRulesetId === activeRuleSet?.id) ? '点击关闭全局' : '设为全局自动规则'">
-                                        <span>🤖</span>
+                                        <span aria-hidden="true">{{ icon('context-automation', 'ui-icon--xs') }}</span>
                                         <span
                                             x-text="(activeRuleSet?.id && globalRulesetId === activeRuleSet?.id) ? '已激活' : '设为全局'"></span>
                                     </button>
                                     <!-- 语法帮助按钮 -->
                                     <button @click="openHelpTab('conditions')"
                                         class="w-6 h-6 flex items-center justify-center rounded-full border border-gray-500 text-gray-500 hover:border-blue-400 hover:text-blue-400 hover:bg-blue-400/10 transition-colors ml-2"
-                                        title="查看规则语法帮助">
-                                        <span class="text-xs font-bold">?</span>
+                                        title="查看规则语法帮助" aria-label="查看规则语法帮助">
+                                        {{ icon('settings-help-entry', 'ui-icon--sm') }}
                                     </button>
                                 </div>
                                 <input type="text" x-model="editingMeta.description"
@@ -163,8 +166,12 @@
                                 {{ icon('card-upload', 'ui-icon--sm') }}
                             </button>
                             <button @click="deleteCurrentRuleSet()"
-                                class="btn-secondary text-red-400 hover:text-red-500 px-3">删除</button>
-                            <button @click="saveCurrentRuleSet()" class="btn-primary px-4 shadow-md">💾 保存</button>
+                                class="btn-secondary text-red-400 hover:text-red-500 px-3 flex items-center gap-1">
+                                {{ icon('context-delete', 'ui-icon--sm') }}<span>删除</span>
+                            </button>
+                            <button @click="saveCurrentRuleSet()" class="btn-primary px-4 shadow-md flex items-center gap-1">
+                                {{ icon('settings-save', 'ui-icon--sm') }}<span>保存</span>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -173,7 +180,9 @@
                 <div class="auto-body custom-scrollbar">
 
                     <div x-show="editingUsesMetadata()" x-cloak class="automation-performance-notice" role="note">
-                        <span class="automation-performance-notice-icon" aria-hidden="true">ⓘ</span>
+                        <span class="automation-performance-notice-icon" aria-hidden="true">
+                            {{ icon('worldbook-tip', 'ui-icon--sm') }}
+                        </span>
                         <div>
                             <strong>已使用元数据条件</strong>
                             <div>元数据条件会逐张读取并解析角色卡原文件，批量执行时可能明显变慢。建议尽量缩小范围，避免对全库进行批量操作。</div>
@@ -411,23 +420,40 @@
                                     <div class="logic-content">
                                         <template x-for="(action, aIdx) in rule.actions" :key="aIdx">
                                             <div class="logic-row" style="border-color: rgba(16, 185, 129, 0.3);">
-                                                <select x-model="action.type"
-                                                    @change="initActionConfig(action)"
-                                                    class="auto-select w-32 font-bold text-green-600">
-                                                    <option value="move_folder">📂 移动到...</option>
-                                                    <option value="add_tag">🏷️ 添加标签</option>
-                                                    <option value="remove_tag">🗑️ 移除标签</option>
-                                                    <option value="set_favorite">★ 设为收藏</option>
-                                                    <option value="merge_tags">🔀 标签合并</option>
-                                                    <option value="fetch_forum_tags">🌐 抓取论坛标签</option>
-                                                    <option value="refresh_source_baseline">🕒 刷新来源更新基线</option>
-                                                    <option value="rename_file_by_template">🧩 模板重命名文件</option>
-                                                    <option value="split_category_to_tags">📝 分类拆分为标签</option>
-                                                    <option value="set_char_name_from_filename">📝 文件名→角色名</option>
-                                                    <option value="set_wi_name_from_filename">📚 文件名→世界书名</option>
-                                                    <option value="set_filename_from_char_name">📄 角色名→文件名</option>
-                                                    <option value="set_filename_from_wi_name">📄 世界书名→文件名</option>
-                                                </select>
+                                                <div class="automation-action-type-select">
+                                                    <span class="automation-action-type-icon" aria-hidden="true">
+                                                        <span x-show="action.type === 'move_folder'" x-cloak>{{ sidebar_icon('category-expanded', 'ui-icon--sm') }}</span>
+                                                        <span x-show="action.type === 'add_tag'" x-cloak>{{ detail_icon('tags', 'ui-icon--sm') }}</span>
+                                                        <span x-show="action.type === 'remove_tag'" x-cloak>{{ icon('context-delete', 'ui-icon--sm') }}</span>
+                                                        <span x-show="action.type === 'set_favorite'" x-cloak>{{ icon('card-favorite', 'ui-icon--sm') }}</span>
+                                                        <span x-show="action.type === 'merge_tags'" x-cloak>{{ icon('automation-merge', 'ui-icon--sm') }}</span>
+                                                        <span x-show="action.type === 'fetch_forum_tags'" x-cloak>{{ detail_icon('source-link', 'ui-icon--sm') }}</span>
+                                                        <span x-show="action.type === 'refresh_source_baseline'" x-cloak>{{ detail_icon('time', 'ui-icon--sm') }}</span>
+                                                        <span x-show="action.type === 'rename_file_by_template'" x-cloak>{{ icon('context-rename', 'ui-icon--sm') }}</span>
+                                                        <span x-show="action.type === 'split_category_to_tags'" x-cloak>{{ detail_icon('tags', 'ui-icon--sm') }}</span>
+                                                        <span x-show="action.type === 'set_char_name_from_filename'" x-cloak>{{ detail_icon('filename', 'ui-icon--sm') }}</span>
+                                                        <span x-show="action.type === 'set_wi_name_from_filename'" x-cloak>{{ detail_icon('filename', 'ui-icon--sm') }}</span>
+                                                        <span x-show="action.type === 'set_filename_from_char_name'" x-cloak>{{ detail_icon('filename', 'ui-icon--sm') }}</span>
+                                                        <span x-show="action.type === 'set_filename_from_wi_name'" x-cloak>{{ detail_icon('filename', 'ui-icon--sm') }}</span>
+                                                    </span>
+                                                    <select x-model="action.type"
+                                                        @change="initActionConfig(action)"
+                                                        class="auto-select automation-action-type-control font-bold text-green-600">
+                                                        <option value="move_folder">移动到...</option>
+                                                        <option value="add_tag">添加标签</option>
+                                                        <option value="remove_tag">移除标签</option>
+                                                        <option value="set_favorite">设为收藏</option>
+                                                        <option value="merge_tags">标签合并</option>
+                                                        <option value="fetch_forum_tags">抓取论坛标签</option>
+                                                        <option value="refresh_source_baseline">刷新来源更新基线</option>
+                                                        <option value="rename_file_by_template">模板重命名文件</option>
+                                                        <option value="split_category_to_tags">分类拆分为标签</option>
+                                                        <option value="set_char_name_from_filename">文件名→角色名</option>
+                                                        <option value="set_wi_name_from_filename">文件名→世界书名</option>
+                                                        <option value="set_filename_from_char_name">角色名→文件名</option>
+                                                        <option value="set_filename_from_wi_name">世界书名→文件名</option>
+                                                    </select>
+                                                </div>
 
                                                 <div class="flex-1">
                                                     <!-- 设为收藏 -->
@@ -444,8 +470,9 @@
                                                                 class="auto-input w-full text-xs"
                                                                 :placeholder="$store.global.settingsForm.automation_slash_is_tag_separator ? '格式：旧标签→新标签，多个可用 | 或 / 分隔，如：femdom→女上|female→女性/waifu→老婆' : '格式：旧标签→新标签，多个可用 | 分隔，如：femdom→女上|female→女性'"
                                                                 :title="$store.global.settingsForm.automation_slash_is_tag_separator ? '支持批量映射：使用 | 或 / 分隔，每条规则使用 →（如 a→A|b→B）' : '支持批量映射：使用 | 分隔，每条规则使用 →（如 a→A|b→B）'">
-                                                            <div class="text-[10px] text-[var(--text-dim)]">
-                                                                💡 将多个同义标签归并到统一标签。仅在“手动打标输入框添加标签”流程触发（批量标签管理输入框、详情页自定义添加输入框）
+                                                            <div class="text-[10px] text-[var(--text-dim)] flex items-start gap-1">
+                                                                <span aria-hidden="true">{{ icon('worldbook-tip', 'ui-icon--xs') }}</span>
+                                                                <span>将多个同义标签归并到统一标签。仅在“手动打标输入框添加标签”流程触发（批量标签管理输入框、详情页自定义添加输入框）</span>
                                                             </div>
                                                         </div>
                                                     </template>
@@ -478,8 +505,9 @@
                                                                      <option value="replace">替换（清空后添加）</option>
                                                                  </select>
                                                              </div>
-                                                             <div class="text-[10px] text-[var(--text-dim)] mt-1">
-                                                                 💡 从角色卡设置的来源链接抓取类脑论坛标签
+                                                              <div class="text-[10px] text-[var(--text-dim)] mt-1 flex items-start gap-1">
+                                                                  <span aria-hidden="true">{{ icon('worldbook-tip', 'ui-icon--xs') }}</span>
+                                                                  <span>从角色卡设置的来源链接抓取类脑论坛标签</span>
                                                              </div>
                                                          </div>
                                                      </template>
@@ -526,8 +554,9 @@
                                                                        class="auto-input flex-1 text-xs"
                                                                        placeholder="120">
                                                                </div>
-                                                               <div class="text-[10px] text-[var(--text-dim)] mt-1">
-                                                                   💡 若想在覆盖更新后重命名，请在规则上启用“更新角色卡后”；如果文件名要体现本次更新时间，优先使用 modified_date。
+                                                                <div class="text-[10px] text-[var(--text-dim)] mt-1 flex items-start gap-1">
+                                                                    <span aria-hidden="true">{{ icon('worldbook-tip', 'ui-icon--xs') }}</span>
+                                                                    <span>若想在覆盖更新后重命名，请在规则上启用“更新角色卡后”；如果文件名要体现本次更新时间，优先使用 modified_date。</span>
                                                                </div>
                                                            </div>
                                                        </template>
@@ -542,8 +571,9 @@
                                                                       class="auto-input flex-1 text-xs"
                                                                       :placeholder="$store.global.settingsForm.automation_slash_is_tag_separator ? '多个标签用|或/分隔，如：角色|题材/状态' : '多个标签用|分隔，如：角色|题材'">
                                                               </div>
-                                                              <div class="text-[10px] text-[var(--text-dim)] mt-1">
-                                                                  💡 当前分类路径会自动按 / 拆分，例如 <code class="font-mono">a/b/c</code> 会追加 <code class="font-mono">a</code>、<code class="font-mono">b</code>、<code class="font-mono">c</code>
+                                                               <div class="text-[10px] text-[var(--text-dim)] mt-1 flex items-start gap-1">
+                                                                   <span aria-hidden="true">{{ icon('worldbook-tip', 'ui-icon--xs') }}</span>
+                                                                   <span>当前分类路径会自动按 / 拆分，例如 <code class="font-mono">a/b/c</code> 会追加 <code class="font-mono">a</code>、<code class="font-mono">b</code>、<code class="font-mono">c</code></span>
                                                               </div>
                                                           </div>
                                                       </template>
@@ -612,10 +642,13 @@
                         <div
                             class="px-6 py-4 border-b border-[var(--border-light)] bg-[var(--bg-sub)] flex justify-between items-center">
                             <h3 class="font-bold text-lg text-[var(--text-main)] flex items-center gap-2">
-                                <span>💡</span> 规则编写指南
+                                <span aria-hidden="true">{{ icon('worldbook-tip', 'ui-icon--sm') }}</span>
+                                <span>规则编写指南</span>
                             </h3>
                             <button @click="showHelpModal = false"
-                                class="text-gray-500 hover:text-red-400 px-2 text-xl">✕</button>
+                                class="text-gray-500 hover:text-red-400 px-2 text-xl" title="关闭帮助" aria-label="关闭帮助">
+                                {{ icon('context-close', 'ui-icon--sm') }}
+                            </button>
                         </div>
 
                         <!-- 弹窗内容 -->
@@ -665,7 +698,10 @@
                                     <div class="bg-[var(--bg-sub)] rounded border border-[var(--border-light)] p-3">
                                         <div class="grid grid-cols-1 gap-3">
                                             <div>
-                                                <div class="font-bold text-xs text-blue-400 mb-1">✅ 肯定类操作符 (包含 / 等于)</div>
+                                                <div class="font-bold text-xs text-blue-400 mb-1 inline-flex items-center gap-1">
+                                                    <span aria-hidden="true">{{ icon('card-check', 'ui-icon--xs') }}</span>
+                                                    <span>肯定类操作符 (包含 / 等于)</span>
+                                                </div>
                                                 <div class="text-xs text-[var(--text-dim)] mb-1">
                                                     只要命中列表中的 <span class="font-bold text-white">任意一个</span> 值，条件即为真 (OR 逻辑)。
                                                 </div>
@@ -677,7 +713,10 @@
                                             </div>
 
                                             <div>
-                                                <div class="font-bold text-xs text-red-400 mb-1">🚫 否定类操作符 (不包含 / 不等于)</div>
+                                                <div class="font-bold text-xs text-red-400 mb-1 inline-flex items-center gap-1">
+                                                    <span aria-hidden="true">{{ icon('automation-forbidden', 'ui-icon--xs') }}</span>
+                                                    <span>否定类操作符 (不包含 / 不等于)</span>
+                                                </div>
                                                 <div class="text-xs text-[var(--text-dim)] mb-1">
                                                     必须 <span class="font-bold text-white">同时不匹配</span> 列表中的所有值，条件才为真 (NOR 逻辑)。
                                                 </div>
@@ -712,7 +751,10 @@
                                     </p>
                                     <div class="bg-[var(--bg-sub)] rounded border border-[var(--border-light)] p-3 space-y-3">
                                         <div>
-                                            <div class="font-bold text-xs text-orange-400 mb-1">🏷️ 批量标签动作</div>
+                                            <div class="font-bold text-xs text-orange-400 mb-1 inline-flex items-center gap-1">
+                                                <span aria-hidden="true">{{ detail_icon('tags', 'ui-icon--xs') }}</span>
+                                                <span>批量标签动作</span>
+                                            </div>
                                             <div class="text-xs text-[var(--text-dim)] mb-1">
                                                 在执行 "添加标签" 或 "移除标签" 时，一次性处理多个标签。
                                             </div>
@@ -933,10 +975,12 @@
             <!-- 关闭按钮（空状态时也显示） -->
             <button @click="closeModal()" 
                 class="absolute top-2 right-2 z-50 w-8 h-8 bg-[var(--bg-panel)] border border-[var(--border-light)] rounded-lg flex items-center justify-center text-[var(--text-main)] hover:bg-[var(--bg-hover)] hover:text-red-400 transition-colors shadow-lg"
-                title="关闭">
-                <span class="text-lg">✕</span>
+                title="关闭" aria-label="关闭">
+                {{ icon('context-close', 'ui-icon--sm') }}
             </button>
-            <div class="text-6xl mb-4 opacity-20">🤖</div>
+            <div class="automation-empty-icon mb-4 opacity-20" aria-hidden="true">
+                {{ icon('context-automation', 'ui-icon--xl') }}
+            </div>
             <p>请从左侧选择一个规则集，或新建一个</p>
         </div>
     </div>

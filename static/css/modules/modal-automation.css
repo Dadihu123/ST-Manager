@@ -130,6 +130,39 @@
   border: 1px solid var(--border-light);
 }
 
+.automation-action-type-select {
+  position: relative;
+  flex: 0 0 8rem;
+  min-width: 0;
+}
+
+.automation-action-type-icon {
+  position: absolute;
+  z-index: 1;
+  top: 50%;
+  left: 0.5rem;
+  display: flex;
+  width: 1rem;
+  height: 1rem;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-dim);
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.automation-action-type-icon > span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.automation-action-type-control {
+  width: 100%;
+  min-width: 0;
+  padding-left: 2rem;
+}
+
 .automation-inline-actions {
   display: flex;
   align-items: center;
@@ -323,6 +356,11 @@
   line-height: 1.45;
 }
 
+.automation-empty-icon .ui-icon--xl {
+  width: 4.5rem;
+  height: 4.5rem;
+}
+
 .metadata-path-input {
   min-width: 11rem;
   flex: 1.25 1 12rem;
@@ -498,6 +536,10 @@
   .logic-row > div,
   .logic-row > input {
     width: 100%;
+  }
+
+  .automation-action-type-select {
+    flex-basis: auto;
   }
   .logic-content > div[class*="border"] > div:first-child > div:first-child {
     width: 100%;

@@ -406,13 +406,13 @@ export default function header() {
     formatBatchResult(result, mode = "automation") {
       if (!result) return "操作未返回结果";
       if (mode === "source_update") {
-        return `✅ 检查完成！\n已检查: ${result.checked || 0} 张\n本次发现变化: ${result.updated || 0} 张\n当前待处理: ${result.pending || 0} 张\n本次无新变化: ${result.unchanged || 0} 张\n跳过: ${result.skipped || 0} 张\n失败: ${result.failed || 0} 张`;
+        return `检查完成！\n已检查: ${result.checked || 0} 张\n本次发现变化: ${result.updated || 0} 张\n当前待处理: ${result.pending || 0} 张\n本次无新变化: ${result.unchanged || 0} 张\n跳过: ${result.skipped || 0} 张\n失败: ${result.failed || 0} 张`;
       }
       if (mode === "source_acknowledge") {
         return `确认完成！\n已确认无需更新: ${result.acknowledged || 0} 张\n跳过: ${result.skipped || 0} 张\n失败: ${result.failed || 0} 张`;
       }
 
-      return `✅ 执行完成！\n已处理: ${result.processed || 0} 张\n移动: ${result.moves || 0} 张\n标签变更: ${result.tag_changes || 0} 次\n跳过: ${result.skipped || 0} 张\n失败: ${result.failed || 0} 张`;
+      return `执行完成！\n已处理: ${result.processed || 0} 张\n移动: ${result.moves || 0} 张\n标签变更: ${result.tag_changes || 0} 次\n跳过: ${result.skipped || 0} 张\n失败: ${result.failed || 0} 张`;
     },
 
     async executeRuleSet(rulesetId) {
@@ -433,12 +433,12 @@ export default function header() {
           title: `自动处理 ${count} 张卡片`,
         });
         if (result?.selected) {
-          alert(`${this.formatBatchResult(result)}${result.cancelled ? "\n\n已停止后续处理。" : ""}`);
+          this.$store.global.showToast("执行完成！", 2400, "card-check");
           window.dispatchEvent(new CustomEvent("refresh-card-list"));
           window.dispatchEvent(new CustomEvent("refresh-folder-list"));
         }
       } catch (error) {
-        this.$store.global.showToast(`❌ ${error?.message || "批量执行失败"}`, 3600);
+        this.$store.global.showToast(error?.message || "批量执行失败", 3600, "context-close");
       }
     },
 
@@ -458,11 +458,11 @@ export default function header() {
           title: `检查 ${ids.length} 张卡片的来源更新`,
         });
         if (result?.selected) {
-          alert(`${this.formatBatchResult(result, "source_update")}${result.cancelled ? "\n\n已停止后续处理。" : ""}`);
+          this.$store.global.showToast("检查完成！", 2400, "card-check");
           window.dispatchEvent(new CustomEvent("refresh-card-list"));
         }
       } catch (error) {
-        this.$store.global.showToast(`❌ ${error?.message || "批量检查失败"}`, 3600);
+        this.$store.global.showToast(error?.message || "批量检查失败", 3600, "context-close");
       }
     },
 
@@ -488,7 +488,7 @@ export default function header() {
           window.dispatchEvent(new CustomEvent("refresh-card-list"));
         }
       } catch (error) {
-        this.$store.global.showToast(`❌ ${error?.message || "批量确认失败"}`, 3600);
+        this.$store.global.showToast(error?.message || "批量确认失败", 3600, "context-close");
       }
     },
 
