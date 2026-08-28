@@ -59,6 +59,19 @@ def test_sidebar_reuses_existing_shared_icons_for_common_actions():
         assert source.count(token) == count, token
 
 
+def test_beautify_refresh_button_matches_extension_list_button_sizing():
+    sidebar_source = read_sidebar_template()
+    extension_source = (
+        PROJECT_ROOT / 'templates/components/grid_extensions.html'
+    ).read_text(encoding='utf-8')
+
+    expected_button_classes = 'btn-secondary px-3 py-1 text-xs flex items-center gap-1'
+    assert expected_button_classes in sidebar_source
+    assert expected_button_classes in extension_source
+    assert "icon('header-refresh', 'ui-icon--sm header-icon--150')" in sidebar_source
+    assert "icon('header-refresh', 'ui-icon--sm extension-list-icon--150')" in extension_source
+
+
 def test_sidebar_sprite_symbols_are_valid_and_background_free():
     sprite_path = PROJECT_ROOT / 'static/icons/sidebar.svg'
     root = ET.parse(sprite_path).getroot()
