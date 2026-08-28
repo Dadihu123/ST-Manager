@@ -1,4 +1,4 @@
-{% from "components/icon.html" import detail_icon %}
+{% from "components/icon.html" import detail_icon, icon %}
 
 <input type="file" x-ref="chatImportInput" class="hidden" multiple accept=".jsonl"
     @change="handleChatInputChange($event)">
@@ -9,7 +9,9 @@
         @drop.prevent="handleChatFilesDrop($event)">
 
         <div x-show="dragOverChats" x-transition.opacity class="drag-over-main-overlay">
-            <div class="text-6xl mb-4">💬</div>
+            <div class="chat-drag-import-icon mb-4" aria-hidden="true">
+                {{ detail_icon('chat', 'ui-icon--xl') }}
+            </div>
             <div class="text-2xl font-bold text-white tracking-wider">松开鼠标导入聊天记录</div>
             <div class="text-gray-300 mt-2 text-sm">支持 SillyTavern `.jsonl` 文件</div>
         </div>
@@ -34,8 +36,14 @@
                     </div>
 
                     <div class="chat-inline-actions chat-grid-toolbar-actions-row">
-                        <button @click="triggerChatImport()" class="chat-toolbar-btn chat-toolbar-btn--primary">📥 导入聊天</button>
-                        <button @click="fetchChats()" class="chat-toolbar-btn">↻ 刷新</button>
+                        <button @click="triggerChatImport()" class="chat-toolbar-btn chat-toolbar-btn--primary">
+                            <span aria-hidden="true">{{ icon('header-import', 'ui-icon--sm header-icon--150') }}</span>
+                            导入聊天
+                        </button>
+                        <button @click="fetchChats()" class="chat-toolbar-btn">
+                            <span aria-hidden="true">{{ icon('header-refresh', 'ui-icon--sm header-icon--150') }}</span>
+                            刷新
+                        </button>
                     </div>
                 </div>
             </div>
@@ -47,7 +55,10 @@
                             <button type="button" class="chat-card-favorite"
                                 :class="item.favorite ? 'is-active' : ''"
                                 @click.stop="toggleFavorite(item)"
-                                :title="item.favorite ? '取消收藏' : '收藏聊天'">♥</button>
+                                :aria-label="item.favorite ? '取消收藏聊天' : '收藏聊天'"
+                                :title="item.favorite ? '取消收藏聊天' : '收藏聊天'">
+                                {{ icon('card-favorite', 'chat-card-favorite-icon') }}
+                            </button>
 
                             <div class="chat-card-seq" :class="floorToneClass(item.end_floor)">
                                 <span class="chat-card-seq-label">#</span>

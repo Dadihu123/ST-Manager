@@ -210,7 +210,6 @@
   align-items: flex-start;
 }
 
-.chat-card-favorite,
 .detail-chat-favorite {
   width: 32px;
   height: 32px;
@@ -219,6 +218,78 @@
   background: color-mix(in srgb, var(--bg-panel), transparent 10%);
   color: var(--text-dim);
   cursor: pointer;
+}
+
+.chat-drag-import-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  line-height: 1;
+}
+
+.chat-drag-import-icon .ui-icon {
+  width: 3.75rem;
+  height: 3.75rem;
+}
+
+.chat-card-favorite {
+  width: 32px;
+  height: 32px;
+  padding: 0.05rem;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: rgba(241, 245, 249, 0.9);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  filter: drop-shadow(0 1px 3px rgba(2, 6, 23, 0.24));
+  opacity: 0;
+  transform: scale(0.86);
+  cursor: pointer;
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease,
+    color 0.2s ease,
+    filter 0.2s ease;
+}
+
+.chat-card-favorite .chat-card-favorite-icon {
+  width: 1.42rem;
+  height: 1.42rem;
+  fill: currentColor;
+  stroke: none;
+  stroke-width: 0;
+  overflow: visible;
+}
+
+.chat-card-favorite:focus-visible {
+  opacity: 1;
+  transform: scale(1);
+  outline: 2px solid var(--accent-light);
+  outline-offset: 1px;
+  border-radius: 0.35rem;
+}
+
+.chat-card:hover .chat-card-favorite,
+.chat-card-favorite.is-active {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.chat-card-favorite.is-active {
+  color: #fb7185;
+  transform: scale(1.02);
+  filter:
+    drop-shadow(0 1px 3px rgba(2, 6, 23, 0.24))
+    drop-shadow(0 0 4px rgba(251, 113, 133, 0.55));
+}
+
+.chat-card-favorite:hover {
+  color: #ffe4e6;
+  transform: scale(1.08);
 }
 
 .chat-bookmark-toggle {
@@ -241,9 +312,14 @@
   height: 17px;
 }
 
-.chat-card-favorite.is-active,
-.detail-chat-favorite.is-active,
-.chat-bookmark-toggle.is-active {
+.chat-bookmark-toggle .chat-bookmark-icon {
+  fill: currentColor;
+  stroke: none;
+  stroke-width: 0;
+  overflow: visible;
+}
+
+.detail-chat-favorite.is-active {
   color: #fff5f7;
   background: color-mix(in srgb, #f43f5e, var(--bg-panel) 25%);
   border-color: color-mix(in srgb, #f43f5e, var(--chat-border) 40%);

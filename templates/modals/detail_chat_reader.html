@@ -1,3 +1,5 @@
+{% from "components/icon.html" import icon %}
+
 <script src="https://cdn.bootcdn.net/ajax/libs/jquery/3.7.1/jquery.js"></script>
 
 <div x-show="detailOpen" x-cloak class="chat-reader-overlay chat-reader-overlay--fullscreen" @click.self="closeChatDetail()">
@@ -40,9 +42,7 @@
                 </div>
                 <div class="chat-reader-header-secondary">
                     <button type="button" class="chat-reader-icon-button" @click="closeChatDetail()" aria-label="关闭聊天阅读器" title="关闭聊天阅读器">
-                        <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                            <path d="M5.5 5.5l9 9m0-9l-9 9" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.8"></path>
-                        </svg>
+                        {{ icon('context-close', 'ui-icon--sm') }}
                     </button>
                 </div>
             </div>
@@ -60,9 +60,7 @@
                         <div class="chat-reader-rail-title">聊天工具栏</div>
                     </div>
                     <button type="button" class="chat-reader-icon-button chat-reader-rail-close" @click="readerShowLeftPanel = false; updateReaderLayoutMetrics()" aria-label="关闭工具栏" title="关闭工具栏">
-                        <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                            <path d="M5.5 5.5l9 9m0-9l-9 9" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.8"></path>
-                        </svg>
+                        {{ icon('context-close', 'ui-icon--sm') }}
                     </button>
                 </div>
 
@@ -275,9 +273,7 @@
                                     <div class="chat-message-floor-wrap">
                                         <button type="button" class="chat-floor-chip" @click="scrollToFloor(message.floor)">#<span x-text="message.floor"></span></button>
                                         <button type="button" class="chat-bookmark-toggle chat-reader-icon-button" :class="isBookmarked(message.floor) ? 'is-active' : ''" @click="toggleBookmark(message)" :aria-label="isBookmarked(message.floor) ? '取消收藏楼层' : '收藏楼层'" :title="isBookmarked(message.floor) ? '取消收藏楼层' : '收藏楼层'">
-                                            <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                                                <path d="M10 2.8l2.24 4.54 5.01.73-3.62 3.53.86 4.99L10 14.22 5.51 16.59l.86-4.99-3.62-3.53 5.01-.73L10 2.8z" fill="currentColor"></path>
-                                            </svg>
+                                            {{ icon('card-favorite', 'chat-bookmark-icon') }}
                                         </button>
                                         <button type="button" class="chat-floor-chip" x-show="executableMessageFloors.includes(message.floor)" @click="openMessageAsAppStage(message)">实例</button>
                                         <button type="button" class="chat-floor-chip" @click="openFloorEditor(message)">编辑</button>
@@ -344,9 +340,7 @@
                             : '检索与目录'"></div>
                     </div>
                     <button type="button" class="chat-reader-icon-button chat-reader-rail-close" @click="closeReaderRightPanel()" :aria-label="readerMobilePanelCloseLabel" :title="readerMobilePanelCloseLabel">
-                        <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                            <path d="M5.5 5.5l9 9m0-9l-9 9" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.8"></path>
-                        </svg>
+                        {{ icon('context-close', 'ui-icon--sm') }}
                     </button>
                 </div>
 
@@ -561,9 +555,7 @@
             </div>
             <div class="chat-reader-modal-close-slot">
                 <button type="button" class="chat-reader-icon-button" @click="readerViewSettingsOpen = false" aria-label="关闭显示策略" title="关闭显示策略">
-                    <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                        <path d="M5.5 5.5l9 9m0-9l-9 9" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.8"></path>
-                    </svg>
+                    {{ icon('context-close', 'ui-icon--sm') }}
                 </button>
             </div>
         </div>
@@ -648,9 +640,7 @@
                 <div class="chat-reader-regex-header-actions">
                     <button x-show="readerResponsiveMode === 'mobile'" class="chat-toolbar-btn chat-toolbar-btn--primary chat-reader-regex-save-pill" @click="saveRegexConfig()">保存</button>
                 <button type="button" class="chat-reader-icon-button" @click="closeRegexConfig()" aria-label="关闭解析规则" title="关闭解析规则">
-                    <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                        <path d="M5.5 5.5l9 9m0-9l-9 9" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.8"></path>
-                    </svg>
+                    {{ icon('context-close', 'ui-icon--sm') }}
                 </button>
                 </div>
             </div>
@@ -1170,9 +1160,7 @@
             </div>
             <div class="chat-reader-modal-close-slot">
                 <button type="button" class="chat-reader-icon-button" @click="closeRegexHelp()" aria-label="关闭解析规则帮助" title="关闭解析规则帮助">
-                    <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                        <path d="M5.5 5.5l9 9m0-9l-9 9" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.8"></path>
-                    </svg>
+                    {{ icon('context-close', 'ui-icon--sm') }}
                 </button>
             </div>
         </div>
@@ -1215,9 +1203,7 @@
             </div>
             <div class="chat-reader-modal-close-slot">
                 <button type="button" class="chat-reader-icon-button" @click="closeFloorEditor()" aria-label="关闭楼层编辑器" title="关闭楼层编辑器">
-                    <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                        <path d="M5.5 5.5l9 9m0-9l-9 9" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.8"></path>
-                    </svg>
+                    {{ icon('context-close', 'ui-icon--sm') }}
                 </button>
             </div>
         </div>
@@ -1265,9 +1251,7 @@
             <div class="chat-bind-actions chat-reader-nested-actions">
                 <button class="chat-toolbar-btn" @click="unbindCurrentChat()">解除绑定</button>
                 <button type="button" class="chat-reader-icon-button" @click="closeBindPicker()" aria-label="关闭角色卡绑定选择器" title="关闭角色卡绑定选择器">
-                    <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                        <path d="M5.5 5.5l9 9m0-9l-9 9" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.8"></path>
-                    </svg>
+                    {{ icon('context-close', 'ui-icon--sm') }}
                 </button>
             </div>
         </div>
@@ -1307,9 +1291,7 @@
             </div>
             <div class="chat-bind-actions chat-reader-nested-actions">
                 <button type="button" class="chat-reader-icon-button" @click="closeRegexRulePicker()" aria-label="关闭系统正则规则选择器" title="关闭系统正则规则选择器">
-                    <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                        <path d="M5.5 5.5l9 9m0-9l-9 9" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.8"></path>
-                    </svg>
+                    {{ icon('context-close', 'ui-icon--sm') }}
                 </button>
             </div>
         </div>
@@ -1352,9 +1334,7 @@
             </div>
             <div class="chat-bind-actions chat-reader-nested-actions">
                 <button type="button" class="chat-reader-icon-button" @click="closeRegexPresetPicker()" aria-label="关闭系统预设选择器" title="关闭系统预设选择器">
-                    <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                        <path d="M5.5 5.5l9 9m0-9l-9 9" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.8"></path>
-                    </svg>
+                    {{ icon('context-close', 'ui-icon--sm') }}
                 </button>
             </div>
         </div>

@@ -2852,16 +2852,23 @@ html.light-mode .header-favorite-btn.is-excluded .header-favorite-icon::after {
     transform: scale(0.98);
   }
   .favorite-icon {
-    font-size: 1.2rem;
-    font-weight: 700;
-    line-height: 1;
     position: relative;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 1.04em;
-    height: 1.04em;
-    text-shadow: 0 1px 3px rgba(2, 6, 23, 0.38);
+    font-size: 1.2rem;
+    line-height: 1;
+    width: 1.2rem;
+    height: 1.2rem;
+    flex: 0 0 auto;
+  }
+  .favorite-icon .favorite-filter-icon {
+    width: 1.2rem;
+    height: 1.2rem;
+    fill: currentColor;
+    stroke: none;
+    stroke-width: 0;
+    overflow: visible;
   }
   .mobile-recursive-toggle {
     padding: 0.75rem;

@@ -950,7 +950,9 @@
             }"
       :aria-label="'收藏筛选：' + favoriteFilterLabel"
     >
-      <span class="favorite-icon">♥</span>
+      <span class="favorite-icon" aria-hidden="true">
+        {{ icon('card-favorite', 'favorite-filter-icon') }}
+      </span>
 
       <span x-text="favoriteFilterLabel"></span>
     </button>
