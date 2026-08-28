@@ -131,15 +131,15 @@
                                                 </button>
                                                 <div class="flex flex-col">
                                                     <button @click.stop="moveRegex(idx, -1)"
-                                                        class="sort-btn-xs rounded-t border-b-0" title="上移">▲</button>
+                                                        class="sort-btn-xs rounded-t border-b-0" title="上移">{{ icon('other-arrow-up', 'ui-icon--xs') }}</button>
                                                     <button @click.stop="moveRegex(idx, 1)"
-                                                        class="sort-btn-xs rounded-b" title="下移">▼</button>
+                                                        class="sort-btn-xs rounded-b" title="下移">{{ icon('other-arrow-down', 'ui-icon--xs') }}</button>
                                                 </div>
                                             </div>
                                             <button @click.stop="removeRegexScript(idx)"
                                                 class="opacity-0 group-hover:opacity-100 text-gray-500 hover:text-red-400 p-1 flex-shrink-0 transition"
                                                 title="删除正则脚本" aria-label="删除正则脚本">
-                                                ✕
+                                                {{ icon('other-close', 'ui-icon--xs') }}
                                             </button>
                                         </div>
                                     </template>
@@ -377,7 +377,18 @@
                                     <!-- 输出 -->
                                     <div class="test-io-box">
                                         <div class="test-io-header">
-                                            <span>输出结果 (Result)</span>
+                                            <span class="inline-flex items-center gap-1">
+                                                <svg
+                                                    x-show="regexTestResultIcon"
+                                                    class="ui-icon ui-icon--sm advanced-editor-icon--150"
+                                                    viewBox="0 0 24 24"
+                                                    aria-hidden="true"
+                                                    focusable="false"
+                                                >
+                                                    <use :href="'{{ url_for('static', filename='icons/ui.svg') }}#icon-' + regexTestResultIcon"></use>
+                                                </svg>
+                                                <span>输出结果 (Result)</span>
+                                            </span>
                                             <div class="flex items-center gap-2">
                                                 <!-- 放大按钮 -->
                                                 <button x-show="regexPreviewMode==='html'"
@@ -493,9 +504,9 @@
                                                 </button>
                                                 <div class="flex flex-col">
                                                     <button @click.stop="moveTavernScript(script.id, -1)"
-                                                        class="sort-btn-xs rounded-t border-b-0" title="上移">▲</button>
+                                                        class="sort-btn-xs rounded-t border-b-0" title="上移">{{ icon('other-arrow-up', 'ui-icon--xs') }}</button>
                                                     <button @click.stop="moveTavernScript(script.id, 1)"
-                                                        class="sort-btn-xs rounded-b" title="下移">▼</button>
+                                                        class="sort-btn-xs rounded-b" title="下移">{{ icon('other-arrow-down', 'ui-icon--xs') }}</button>
                                                 </div>
                                             </div>
 
@@ -505,7 +516,7 @@
                                 <button @click.stop="removeTavernScript(script.id)"
                                     class="opacity-0 group-hover:opacity-100 text-gray-500 hover:text-red-400 p-1 flex-shrink-0 transition"
                                     title="删除 ST 脚本" aria-label="删除 ST 脚本">
-                                    ✕
+                                    {{ icon('other-close', 'ui-icon--xs') }}
                                 </button>
                             </div>
                         </template>
@@ -610,7 +621,7 @@
                                                     @click="removeScriptButton(getTavernScripts()[activeScriptIndex], btnIdx)"
                                                     class="text-gray-500 hover:text-red-400 px-1"
                                                     title="删除快捷按钮" aria-label="删除快捷按钮">
-                                                    ✕
+                                                    {{ icon('other-close', 'ui-icon--xs') }}
                                                 </button>
                                             </div>
                                         </template>
@@ -641,7 +652,7 @@
 
                             <div class="adv-section">
                                 <div class="adv-section-title text-emerald-400 flex justify-between items-center">
-                                    <span>▶ 运行时 (Runtime)</span>
+                                    <span class="inline-flex items-center gap-1">{{ icon('other-arrow-right', 'ui-icon--sm') }}<span>运行时 (Runtime)</span></span>
                                     <div class="flex flex-wrap gap-2 text-[10px]">
                                         <button @click="startScriptRuntime()"
                                             class="bg-emerald-600 hover:bg-emerald-500 text-white px-2 py-0.5 rounded transition">
@@ -839,14 +850,14 @@
                                     class="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
                                     <div class="flex gap-1">
                                         <button @click.stop="moveQrEntry(idx, -1)"
-                                            class="sort-btn-xs rounded-t border-b-0">▲</button>
+                                            class="sort-btn-xs rounded-t border-b-0">{{ icon('other-arrow-up', 'ui-icon--xs') }}</button>
                                         <button @click.stop="moveQrEntry(idx, 1)"
-                                            class="sort-btn-xs rounded-b">▼</button>
+                                            class="sort-btn-xs rounded-b">{{ icon('other-arrow-down', 'ui-icon--xs') }}</button>
                                     </div>
                                 </div>
                                 <button @click.stop="removeQrEntry(idx)"
                                     class="opacity-0 group-hover:opacity-100 text-gray-500 hover:text-red-400 p-1"
-                                    title="删除快速回复" aria-label="删除快速回复">✕</button>
+                                    title="删除快速回复" aria-label="删除快速回复">{{ icon('other-close', 'ui-icon--xs') }}</button>
                             </div>
                         </template>
                         <div x-show="!editingData.quick_reply?.qrList?.length"

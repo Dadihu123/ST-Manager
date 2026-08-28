@@ -195,7 +195,7 @@
                             <div class="rule-header">
                                 <div class="flex flex-col gap-2 flex-1 min-w-0">
                                     <div class="flex items-center gap-2">
-                                        <span class="drag-handle cursor-grab">☰</span>
+                                        <span class="drag-handle cursor-grab">{{ icon('other-menu', 'ui-icon--xs') }}</span>
                                         <input type="checkbox" x-model="rule.enabled" class="cursor-pointer" title="启用/禁用">
                                         <input type="text" x-model="rule.name"
                                             class="bg-transparent font-bold text-sm outline-none border-b border-transparent hover:border-gray-500 focus:border-blue-500 w-64"
@@ -239,8 +239,8 @@
                                         <span class="text-[var(--text-dim)]">命中即停止</span>
                                     </label>
                                     <div class="automation-inline-actions">
-                                        <button @click="moveRule(rIdx, -1)" class="btn-icon-sm" title="上移规则">▲</button>
-                                        <button @click="moveRule(rIdx, 1)" class="btn-icon-sm" title="下移规则">▼</button>
+                                        <button @click="moveRule(rIdx, -1)" class="btn-icon-sm" title="上移规则">{{ icon('other-arrow-up', 'ui-icon--xs') }}</button>
+                                        <button @click="moveRule(rIdx, 1)" class="btn-icon-sm" title="下移规则">{{ icon('other-arrow-down', 'ui-icon--xs') }}</button>
                                         <button @click="deleteRule(rIdx)" class="btn-icon-sm delete" title="删除规则"
                                             aria-label="删除规则">
                                             {{ icon('context-delete', 'ui-icon--sm') }}
@@ -289,8 +289,8 @@
                                                         </select>
                                                     </div>
                                                     <div class="automation-inline-actions">
-                                                        <button @click="moveGroup(rIdx, gIdx, -1)" class="btn-icon-sm" title="上移条件组">▲</button>
-                                                        <button @click="moveGroup(rIdx, gIdx, 1)" class="btn-icon-sm" title="下移条件组">▼</button>
+                                                        <button @click="moveGroup(rIdx, gIdx, -1)" class="btn-icon-sm" title="上移条件组">{{ icon('other-arrow-up', 'ui-icon--xs') }}</button>
+                                                        <button @click="moveGroup(rIdx, gIdx, 1)" class="btn-icon-sm" title="下移条件组">{{ icon('other-arrow-down', 'ui-icon--xs') }}</button>
                                                         <button @click="removeGroup(rIdx, gIdx)"
                                                             class="text-[10px] text-red-400 hover:text-red-500 px-2 py-1 rounded hover:bg-red-500/10">删除组</button>
                                                     </div>
@@ -391,10 +391,10 @@
                                                             </div>
 
                                                             <div class="automation-inline-actions">
-                                                                <button @click="moveConditionInGroup(rIdx, gIdx, cIdx, -1)" class="btn-icon-sm" title="上移条件">▲</button>
-                                                                <button @click="moveConditionInGroup(rIdx, gIdx, cIdx, 1)" class="btn-icon-sm" title="下移条件">▼</button>
+                                                                <button @click="moveConditionInGroup(rIdx, gIdx, cIdx, -1)" class="btn-icon-sm" title="上移条件">{{ icon('other-arrow-up', 'ui-icon--xs') }}</button>
+                                                                <button @click="moveConditionInGroup(rIdx, gIdx, cIdx, 1)" class="btn-icon-sm" title="下移条件">{{ icon('other-arrow-down', 'ui-icon--xs') }}</button>
                                                                 <button @click="removeConditionFromGroup(rIdx, gIdx, cIdx)"
-                                                                    class="btn-icon-sm delete" title="删除条件">✕</button>
+                                                                    class="btn-icon-sm delete" title="删除条件">{{ icon('other-close', 'ui-icon--xs') }}</button>
                                                             </div>
                                                         </div>
                                                     </template>
@@ -600,10 +600,10 @@
                                                 </div>
 
                                                 <div class="automation-inline-actions">
-                                                    <button @click="moveAction(rIdx, aIdx, -1)" class="btn-icon-sm" title="上移动作">▲</button>
-                                                    <button @click="moveAction(rIdx, aIdx, 1)" class="btn-icon-sm" title="下移动作">▼</button>
+                                                    <button @click="moveAction(rIdx, aIdx, -1)" class="btn-icon-sm" title="上移动作">{{ icon('other-arrow-up', 'ui-icon--xs') }}</button>
+                                                    <button @click="moveAction(rIdx, aIdx, 1)" class="btn-icon-sm" title="下移动作">{{ icon('other-arrow-down', 'ui-icon--xs') }}</button>
                                                     <button @click="removeAction(rIdx, aIdx)"
-                                                        class="btn-icon-sm delete" title="删除动作">✕</button>
+                                                        class="btn-icon-sm delete" title="删除动作">{{ icon('other-close', 'ui-icon--xs') }}</button>
                                                 </div>
                                             </div>
                                         </template>

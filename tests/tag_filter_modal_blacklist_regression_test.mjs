@@ -79,7 +79,7 @@ async function testSuccessfulDeleteModeAddUpdatesBlacklistAndClearsSelection() {
   assert.deepEqual(component.tagBlacklistTags, ["alpha", "beta"]);
   assert.equal(component.tagBlacklistInput, "alpha, beta");
   assert.deepEqual(component.selectedTagsForDeletion, []);
-  assert.equal(toasts.at(-1)?.message, "✅ 已将 1 个待删除标签加入黑名单");
+  assert.equal(toasts.at(-1)?.message, "已将 1 个待删除标签加入黑名单");
 }
 
 await testDuplicateOnlyDeleteModeAddPreservesSelection();

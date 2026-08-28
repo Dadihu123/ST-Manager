@@ -742,12 +742,12 @@ export default function wiDetailPopup() {
               last_sent_to_st: sentAt,
             },
           }));
-          this.$store.global.showToast("🚀 已发送到 ST", 1800);
+          this.$store.global.showToast("已发送到 ST", 1800, "card-send");
         } else {
-          this.$store.global.showToast(`❌ ${res?.msg || "发送失败"}`, 2600);
+          this.$store.global.showToast(res?.msg || "发送失败", 2600, "context-close");
         }
       } catch (error) {
-        this.$store.global.showToast(`❌ ${error?.message || "发送失败"}`, 2600);
+        this.$store.global.showToast(error?.message || "发送失败", 2600, "context-close");
       } finally {
         this.isSendingWorldInfoToST = false;
       }
@@ -794,8 +794,9 @@ export default function wiDetailPopup() {
         this.activeWiNoteDraft = nextSummary;
         this.emitWorldInfoNoteUpdated(nextSummary);
         this.$store.global.showToast(
-          `💾 ${this.getActiveWorldInfoNoteLabel()}已保存`,
+          `${this.getActiveWorldInfoNoteLabel()}已保存`,
           1600,
+          "settings-save",
         );
       } catch (err) {
         alert(`保存备注失败: ${err}`);
@@ -859,7 +860,7 @@ export default function wiDetailPopup() {
       }
 
       const name = this.activeWiDetail.name || "该世界书";
-      if (!confirm(`⚠️ 确定要删除 "${name}" 吗？\n文件将被移至回收站。`))
+      if (!confirm(`确定要删除 "${name}" 吗？\n文件将被移至回收站。`))
         return;
 
       deleteWorldInfo({
@@ -871,7 +872,7 @@ export default function wiDetailPopup() {
             this.showWiDetailModal = false;
             // 刷新列表
             window.dispatchEvent(new CustomEvent("refresh-wi-list"));
-            this.$store.global.showToast("🗑️ 已删除");
+            this.$store.global.showToast("已删除", 3000, "context-delete");
           } else {
             alert("删除失败: " + res.msg);
           }

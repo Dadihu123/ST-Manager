@@ -22,6 +22,7 @@ export default function advancedEditor() {
     // 正则测试
     regexTestInput: "",
     regexTestResult: "",
+    regexTestResultIcon: "",
 
     // ST脚本扩展
     activeScriptIndex: -1,
@@ -104,6 +105,7 @@ export default function advancedEditor() {
         this.activeRegexIndex = -1;
         this.regexTestInput = "";
         this.regexTestResult = "";
+        this.regexTestResultIcon = "";
         this.regexPreviewMode = "text";
         // 确保数据结构完整
         if (!this.editingData.extensions) this.editingData.extensions = {};
@@ -640,19 +642,23 @@ export default function advancedEditor() {
       if (!script) return;
       if (!this.regexTestInput) {
         this.regexTestResult = "";
+        this.regexTestResultIcon = "";
         return;
       }
       if (!script.findRegex) {
         this.regexTestResult = this.regexTestInput;
+        this.regexTestResultIcon = "";
         return;
       }
       try {
+        this.regexTestResultIcon = "";
         this.regexTestResult = runRegexTestBenchScript(
           script,
           this.regexTestInput,
         );
       } catch (e) {
-        this.regexTestResult = "❌ 正则表达式错误: " + e.message;
+        this.regexTestResultIcon = "context-close";
+        this.regexTestResult = "正则表达式错误: " + e.message;
       }
     },
 
@@ -861,7 +867,7 @@ export default function advancedEditor() {
             })
             .then((res) => {
               if (res.success)
-                this.$store.global.showToast("💾 脚本文件已保存");
+                this.$store.global.showToast("脚本文件已保存", 3000, "settings-save");
               else alert("保存失败: " + res.msg);
             });
         });

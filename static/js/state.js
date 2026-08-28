@@ -68,13 +68,25 @@ const DEFAULT_TAG_CATEGORY = "未分类";
 const DEFAULT_TAG_CATEGORY_COLOR = "#64748b";
 const DEFAULT_TAG_CATEGORY_OPACITY = 16;
 const TAG_VIEW_PREFS_STORAGE_KEY = "st_manager_tag_view_prefs";
+const TOAST_ICON_SPRITES = Object.freeze({
+  "detail-backup-rollback": "detail.svg#icon-detail-backup-rollback",
+  "detail-tags": "detail.svg#icon-detail-tags",
+  "detail-source-link": "detail.svg#icon-detail-source-link",
+});
 const TOAST_ICON_NAMES = new Set([
   "automation-forbidden",
   "card-send",
+  "card-folder",
+  "card-loader",
   "context-close",
   "context-delete",
   "card-check",
+  "settings-help-entry",
   "settings-save",
+  "settings-warning",
+  "worldbook-clipboard",
+  "worldbook-snapshot",
+  ...Object.keys(TOAST_ICON_SPRITES),
 ]);
 
 function buildDefaultTagViewPrefs() {
@@ -267,6 +279,7 @@ export function initState() {
     windowWidth: window.innerWidth,
     toastMessage: "",
     toastIcon: "",
+    toastIconHref: "",
     showToastState: false,
     toastTimer: null,
     batchProgress: {
@@ -1221,14 +1234,17 @@ export function initState() {
       }
       this.toastMessage = msg;
       const normalizedIconName = String(iconName || "").trim();
-      this.toastIcon = TOAST_ICON_NAMES.has(normalizedIconName)
-        ? normalizedIconName
+      const hasIcon = TOAST_ICON_NAMES.has(normalizedIconName);
+      this.toastIcon = hasIcon ? normalizedIconName : "";
+      this.toastIconHref = hasIcon
+        ? TOAST_ICON_SPRITES[normalizedIconName] || `ui.svg#icon-${normalizedIconName}`
         : "";
       this.showToastState = true;
       if (this.toastTimer) clearTimeout(this.toastTimer);
       this.toastTimer = setTimeout(() => {
         this.showToastState = false;
         this.toastIcon = "";
+        this.toastIconHref = "";
       }, duration);
     },
 

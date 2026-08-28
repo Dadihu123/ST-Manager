@@ -625,6 +625,23 @@ LOGIN_PAGE_TEMPLATE = '''
             color: #fff;
             font-size: 28px;
             margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        .login-icon {
+            width: 1.25em;
+            height: 1.25em;
+            color: currentColor;
+            flex: 0 0 auto;
+        }
+        .security-note-icon {
+            width: 1.2em;
+            height: 1.2em;
+            margin-right: 4px;
+            vertical-align: -0.25em;
+            color: #93c5fd;
         }
         .login-header p {
             color: rgba(255, 255, 255, 0.6);
@@ -700,7 +717,12 @@ LOGIN_PAGE_TEMPLATE = '''
 <body>
     <div class="login-container">
         <div class="login-header">
-            <h1>🔐 ST Manager</h1>
+            <h1>
+                <svg class="login-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <use href="/static/icons/ui.svg#icon-other-lock"></use>
+                </svg>
+                <span>ST Manager</span>
+            </h1>
             <p>外网访问需要身份验证</p>
         </div>
         
@@ -721,7 +743,10 @@ LOGIN_PAGE_TEMPLATE = '''
         </form>
 
         <div class="security-note">
-            🛡️ 您的 IP: {{ client_ip }}<br>
+            <svg class="security-note-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <use href="/static/icons/ui.svg#icon-other-security"></use>
+            </svg>
+            您的 IP: {{ client_ip }}<br>
             <span style="font-size: 11px; opacity: 0.7;">如需免登录访问，请在设置中将此 IP 添加到白名单</span>
         </div>
     </div>

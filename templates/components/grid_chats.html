@@ -32,7 +32,7 @@
                     <div x-show="linkedCardIdFilter" class="chat-linked-filter-pill">
                         <span>当前只看</span>
                         <strong x-text="linkedCardNameFilter || linkedCardIdFilter"></strong>
-                        <button type="button" @click="clearLinkedCardFilter()">✕</button>
+                        <button type="button" @click="clearLinkedCardFilter()">{{ icon('other-close', 'ui-icon--xs') }}</button>
                     </div>
 
                     <div class="chat-inline-actions chat-grid-toolbar-actions-row">

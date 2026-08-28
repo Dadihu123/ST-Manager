@@ -1093,7 +1093,7 @@ export default function tagFilterModal() {
             }
           }
           if (successMsg) {
-            this.$store.global.showToast(successMsg, 1800);
+            this.$store.global.showToast(successMsg, 1800, "card-check");
           }
           return res.taxonomy || taxonomy;
         })
@@ -1135,7 +1135,7 @@ export default function tagFilterModal() {
 
       this.saveTaxonomy(
         taxonomy,
-        exists ? `✅ 已更新分类「${name}」颜色` : `✅ 已新增分类「${name}」`,
+        exists ? `已更新分类「${name}」颜色` : `已新增分类「${name}」`,
       ).then((saved) => {
         if (!saved) return;
         this.categoryManagerDraftName = "";
@@ -1185,7 +1185,7 @@ export default function tagFilterModal() {
         taxonomy.default_category = newName;
       }
 
-      this.saveTaxonomy(taxonomy, `✅ 已重命名分类「${oldName}」`);
+      this.saveTaxonomy(taxonomy, `已重命名分类「${oldName}」`);
     },
 
     deleteCategory(categoryName) {
@@ -1217,7 +1217,7 @@ export default function tagFilterModal() {
         }
       });
 
-      this.saveTaxonomy(taxonomy, `✅ 已删除分类「${name}」`);
+      this.saveTaxonomy(taxonomy, `已删除分类「${name}」`);
     },
 
     setDefaultCategory(categoryName) {
@@ -1232,7 +1232,7 @@ export default function tagFilterModal() {
         name,
         ...taxonomy.category_order.filter((item) => item !== name),
       ];
-      this.saveTaxonomy(taxonomy, `✅ 已将「${name}」设为默认分类`);
+      this.saveTaxonomy(taxonomy, `已将「${name}」设为默认分类`);
     },
 
     setCategoryColor(categoryName, color) {
@@ -1459,8 +1459,8 @@ export default function tagFilterModal() {
 
       const successMsg =
         tags.length > 0
-          ? `✅ 已为 ${tags.length} 个标签设置分类`
-          : `✅ 已更新分类「${categoryName}」样式`;
+          ? `已为 ${tags.length} 个标签设置分类`
+          : `已更新分类「${categoryName}」样式`;
 
       this.saveTaxonomy(taxonomy, successMsg).then((saved) => {
         if (!saved) return;
@@ -1523,8 +1523,9 @@ export default function tagFilterModal() {
           if (clearBlacklistInputOnSuccess) this.blacklistSelectionInput = "";
           if (clearDeleteSelectionOnSuccess) this.selectedTagsForDeletion = [];
           this.$store.global.showToast(
-            successMessage || `✅ 已加入 ${addedCount} 个黑名单标签`,
+            successMessage || `已加入 ${addedCount} 个黑名单标签`,
             1800,
+            "card-check",
           );
           return true;
         })
@@ -1549,7 +1550,7 @@ export default function tagFilterModal() {
       }
 
       return this.mergeTagsIntoBlacklist(this.selectedTagsForDeletion, {
-        successMessage: `✅ 已将 ${this.selectedTagsForDeletion.length} 个待删除标签加入黑名单`,
+        successMessage: `已将 ${this.selectedTagsForDeletion.length} 个待删除标签加入黑名单`,
         clearDeleteSelectionOnSuccess: true,
       });
     },
@@ -1571,7 +1572,7 @@ export default function tagFilterModal() {
 
       this.saveTagManagementPrefsState().then((prefs) => {
         if (!prefs) return;
-        this.$store.global.showToast(`✅ 已将「${name}」移出黑名单`, 1800);
+        this.$store.global.showToast(`已将「${name}」移出黑名单`, 1800, "card-check");
       });
     },
 
@@ -1777,7 +1778,7 @@ export default function tagFilterModal() {
         })
         .then((result) => {
           if (!result) return;
-          this.$store.global.showToast("✅ 标签顺序已保存", 1800);
+          this.$store.global.showToast("标签顺序已保存", 1800, "card-check");
           this.resetSortModeState();
         })
         .catch((err) => {
@@ -1806,7 +1807,7 @@ export default function tagFilterModal() {
           this.resetSortModeState();
 
           window.dispatchEvent(new CustomEvent("refresh-card-list"));
-          this.$store.global.showToast("✅ 已恢复字符排序", 1800);
+          this.$store.global.showToast("已恢复字符排序", 1800, "card-check");
         })
         .catch((err) => {
           alert("清除自定义排序失败: " + err);
@@ -1866,7 +1867,7 @@ export default function tagFilterModal() {
         ? `"${currentCategory}" 分类下`
         : "所有";
 
-      const confirmMsg = `⚠️ 警告：确定要从【${scopeText}】的角色卡中移除以下标签吗？\n\n${tagsToDelete}\n\n此操作不可撤销！`;
+      const confirmMsg = `警告：确定要从【${scopeText}】的角色卡中移除以下标签吗？\n\n${tagsToDelete}\n\n此操作不可撤销！`;
 
       if (!confirm(confirmMsg)) return;
 

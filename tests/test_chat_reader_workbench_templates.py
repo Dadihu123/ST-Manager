@@ -618,7 +618,7 @@ def test_advanced_editor_regex_test_bench_uses_shared_preview_renderer_and_dedic
     assert 'renderUnifiedPreviewHost' in advanced_editor_source
     assert 'updateMixedPreviewContent' not in advanced_editor_source
     assert 'this.regexTestResult = runRegexTestBenchScript(' in run_regex_block
-    assert '❌ 正则表达式错误:' in run_regex_block
+    assert '正则表达式错误:' in run_regex_block
     assert 'applyDisplayRules: true' not in advanced_editor_template
 
 

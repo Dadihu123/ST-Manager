@@ -73,7 +73,7 @@ export function createAutoSaver(context) {
 
               // 显示提示
               if (res.status === "created") {
-                Alpine.store("global").showToast("📸 自动快照已生成", 2000);
+                Alpine.store("global").showToast("自动快照已生成", 2000, "worldbook-snapshot");
               } else if (res.status === "skipped") {
                 console.log("[AutoSave] Snapshot skipped (duplicate content)");
               }

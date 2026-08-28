@@ -92,7 +92,7 @@ export default function batchImportModal() {
                         
                         this.$store.global.showToast(`成功导入 ${res.new_cards.length} 张卡片`, 3000, 'card-check');
                     } else {
-                        this.$store.global.showToast("ℹ️ 没有文件被导入 (可能全部跳过)");
+                        this.$store.global.showToast("没有文件被导入 (可能全部跳过)", 3000, 'settings-help-entry');
                     }
 
                     // 2. 如果有分类计数更新

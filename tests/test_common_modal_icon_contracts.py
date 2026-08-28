@@ -136,11 +136,13 @@ def test_common_modal_custom_symbols_are_theme_safe():
         assert 'fill="currentcolor"' in serialized
 
 
-def test_preset_detail_status_glyphs_remain_unchanged():
+def test_preset_detail_status_uses_svg_icons():
     source = read_project_file('templates/modals/detail_preset_popup.html')
 
-    assert "x-text=\"item.prompt_meta?.is_enabled ? '✓' : '−'\"" in source
-    assert "x-text=\"activeContextItem?.prompt_meta?.is_enabled ? '✓' : '−'\"" in source
+    assert "icon('other-check', 'ui-icon--xs')" in source
+    assert "icon('other-minus', 'ui-icon--xs')" in source
+    assert "x-text=\"item.prompt_meta?.is_enabled ? '✓' : '−'\"" not in source
+    assert "x-text=\"activeContextItem?.prompt_meta?.is_enabled ? '✓' : '−'\"" not in source
 
 
 def test_card_import_and_move_success_toasts_use_the_card_check_icon():

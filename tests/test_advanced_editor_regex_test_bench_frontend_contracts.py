@@ -225,8 +225,12 @@ def test_advanced_editor_run_regex_test_formats_regex_errors():
 
         component.runRegexTest();
 
-        if (!component.regexTestResult.startsWith('❌ 正则表达式错误: ')) {
+        if (!component.regexTestResult.startsWith('正则表达式错误: ')) {
           throw new Error(`missing user-facing error prefix: ${component.regexTestResult}`);
+        }
+
+        if (component.regexTestResultIcon !== 'context-close') {
+          throw new Error(`missing SVG error icon: ${component.regexTestResultIcon}`);
         }
 
         if (!component.regexTestResult.includes('Invalid regular expression: Unterminated group')) {

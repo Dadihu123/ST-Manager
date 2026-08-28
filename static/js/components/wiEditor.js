@@ -1563,7 +1563,7 @@ export default function wiEditor() {
       try {
         const synced = await this._syncEditorStateAfterRestore();
         if (synced) {
-          this.$store.global.showToast("⏪ 已同步恢复版本到当前编辑器", 2200);
+          this.$store.global.showToast("已同步恢复版本到当前编辑器", 2200, "detail-backup-rollback");
         }
       } catch (e) {
         console.warn("Sync editor after restore failed:", e);
@@ -2095,7 +2095,7 @@ export default function wiEditor() {
       }
 
       this.showEntryHistoryModal = false;
-      this.$store.global.showToast("⏪ 条目已回滚，请记得保存世界书", 2200);
+      this.$store.global.showToast("条目已回滚，请记得保存世界书", 2200, "detail-backup-rollback");
     },
 
     getTotalWiTokens() {
@@ -2147,7 +2147,7 @@ export default function wiEditor() {
           .then((res) => {
             this.initialSnapshotChecked = true;
             if (res && res.created)
-              this.$store.global.showToast("🧷 已记录本次编辑初始版本", 1800);
+              this.$store.global.showToast("已记录本次编辑初始版本", 1800, "detail-source-link");
             return res;
           })
           .catch((e) => {
@@ -2333,9 +2333,9 @@ export default function wiEditor() {
               this.editingData.source_revision ||
               "";
             if (withSnapshot) {
-              this.$store.global.showToast("💾 已保存整本并生成回滚版本", 2200);
+              this.$store.global.showToast("已保存整本并生成回滚版本", 2200, "settings-save");
             } else {
-              this.$store.global.showToast("💾 条目修改已保存", 1800);
+              this.$store.global.showToast("条目修改已保存", 1800, "settings-save");
             }
 
             // 通知外部 (如卡片列表或详情页) 刷新数据
@@ -2781,8 +2781,9 @@ export default function wiEditor() {
           "";
         this.emitEditingWorldInfoNoteUpdated(nextSummary);
         this.$store.global.showToast(
-          `💾 ${this.getEditingWorldInfoNoteLabel()}已保存`,
+          `${this.getEditingWorldInfoNoteLabel()}已保存`,
           1600,
+          "settings-save",
         );
       } catch (e) {
         alert(`保存备注失败: ${e}`);
@@ -2851,9 +2852,9 @@ export default function wiEditor() {
               res.source_revision || this.editingWiFile?.source_revision || "";
             window.dispatchEvent(new CustomEvent("refresh-wi-list"));
             if (withSnapshot) {
-              this.$store.global.showToast("💾 已保存整本并生成回滚版本", 2200);
+              this.$store.global.showToast("已保存整本并生成回滚版本", 2200, "settings-save");
             } else {
-              this.$store.global.showToast("💾 条目修改已保存", 1800);
+              this.$store.global.showToast("条目修改已保存", 1800, "settings-save");
             }
             autoSaver.initBaseline(this.editingData);
           } else {
@@ -3002,7 +3003,7 @@ export default function wiEditor() {
             this.clipboardPendingEntry = null;
             if (!this.showWiClipboard) this.showWiClipboard = true;
 
-            this.$store.global.showToast("📋 已复制到全局剪切板");
+            this.$store.global.showToast("已复制到全局剪切板", 3000, "worldbook-clipboard");
           } else if (res.code === "FULL") {
             this.wiClipboardOverwriteMode = true;
             this.clipboardPendingEntry = entry;

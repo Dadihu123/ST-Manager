@@ -349,7 +349,7 @@ export const wiHelpers = {
       .then((res) => {
         if (!isSilent) this.$store.global.isLoading = false;
         if (res.success) {
-          this.$store.global.showToast("📸 快照已保存", 2000);
+          this.$store.global.showToast("快照已保存", 2000, "worldbook-snapshot");
         } else {
           alert("备份失败: " + res.msg);
         }
@@ -401,7 +401,7 @@ export const wiHelpers = {
     })
       .then((res) => {
         this.$store.global.isLoading = false;
-        if (res.success) this.$store.global.showToast("📸 关键快照已保存");
+        if (res.success) this.$store.global.showToast("关键快照已保存", 3000, "worldbook-snapshot");
         else alert(res.msg);
       })
       .catch((e) => {
@@ -540,7 +540,7 @@ export const wiHelpers = {
 
     // 1. 覆盖警告
     if (existingCount > 0) {
-      if (!confirm("⚠️ 警告：导入将【覆盖】当前世界书内容。\n是否继续？")) {
+      if (!confirm("警告：导入将【覆盖】当前世界书内容。\n是否继续？")) {
         if (onCancel) onCancel();
         return;
       }
@@ -665,13 +665,13 @@ export const wiHelpers = {
         }
       } catch (err) {
         console.error("[WI Import Error]", err);
-        alert("❌ 导入失败: " + err.message);
+        this.$store.global.showToast("导入失败: " + err.message, 2600, "context-close");
         if (onCancel) onCancel();
       }
     };
 
     reader.onerror = () => {
-      alert("❌ 读取文件出错");
+      this.$store.global.showToast("读取文件出错", 2600, "context-close");
       if (onCancel) onCancel();
     };
 

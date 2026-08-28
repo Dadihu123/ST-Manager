@@ -1,3 +1,5 @@
+{% from "components/icon.html" import icon %}
+
 <!-- 预设详情阅览界面 -->
 <div
   x-show="showModal"
@@ -645,8 +647,10 @@
                                     <span
                                       aria-hidden="true"
                                       class="absolute inset-0 flex items-center justify-center text-[10px] font-bold leading-none text-white"
-                                      x-text="item.prompt_meta?.is_enabled ? '✓' : '−'"
-                                    ></span>
+                                    >
+                                      <span x-show="item.prompt_meta?.is_enabled">{{ icon('other-check', 'ui-icon--xs') }}</span>
+                                      <span x-show="!item.prompt_meta?.is_enabled">{{ icon('other-minus', 'ui-icon--xs') }}</span>
+                                    </span>
                                     <span
                                       aria-hidden="true"
                                       class="absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform"
@@ -1048,8 +1052,10 @@
                             <span
                               aria-hidden="true"
                               class="absolute inset-0 flex items-center justify-center text-[10px] font-bold leading-none text-white"
-                              x-text="activeContextItem?.prompt_meta?.is_enabled ? '✓' : '−'"
-                            ></span>
+                            >
+                              <span x-show="activeContextItem?.prompt_meta?.is_enabled">{{ icon('other-check', 'ui-icon--xs') }}</span>
+                              <span x-show="!activeContextItem?.prompt_meta?.is_enabled">{{ icon('other-minus', 'ui-icon--xs') }}</span>
+                            </span>
                             <span
                               aria-hidden="true"
                               class="absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform"

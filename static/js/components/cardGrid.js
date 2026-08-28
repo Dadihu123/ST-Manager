@@ -580,10 +580,10 @@ export default function cardGrid() {
         if (result?.success) {
           this.$store.global.showToast(result.message || this.getSourceUpdateLabel(card), 3200);
         } else {
-          this.$store.global.showToast(`❌ ${result?.error || result?.msg || '检查来源失败'}`, 3200);
+          this.$store.global.showToast(result?.error || result?.msg || '检查来源失败', 3200, 'context-close');
         }
       } catch (error) {
-        this.$store.global.showToast(`❌ ${error?.message || '检查来源失败'}`, 3200);
+          this.$store.global.showToast(error?.message || '检查来源失败', 3200, 'context-close');
       } finally {
         const next = { ...this.checkingSourceUpdateIds };
         delete next[key];
@@ -627,14 +627,15 @@ export default function cardGrid() {
         if (res.success) {
           const sentAt = Number(res.last_sent_to_st || Date.now() / 1000);
           card.last_sent_to_st = sentAt;
-          this.$store.global.showToast("🚀 已发送到 ST", 1800);
+          this.$store.global.showToast("已发送到 ST", 1800, "card-send");
         } else {
-          this.$store.global.showToast(`❌ ${res.msg || "发送失败"}`, 2600);
+          this.$store.global.showToast(res.msg || "发送失败", 2600, "context-close");
         }
       } catch (error) {
         this.$store.global.showToast(
-          `❌ ${error?.message || "发送失败"}`,
+          error?.message || "发送失败",
           2600,
+          "context-close",
         );
       } finally {
         const next = { ...this.sendingToStIds };
@@ -1209,7 +1210,7 @@ export default function cardGrid() {
             // 如果有错误，弹窗提醒
             if (errors.length > 0) {
               const errorMsg = errors
-                .map((e) => `❌ ${e.filename}: ${e.msg || "格式无效"}`)
+                .map((e) => `${e.filename}: ${e.msg || "格式无效"}`)
                 .join("\n");
               alert(`部分文件导入失败：\n\n${errorMsg}\n\n这些文件将被跳过。`);
             }
@@ -1410,9 +1411,9 @@ export default function cardGrid() {
 
       let confirmMsg = "";
       if (hasBundle) {
-        confirmMsg = `⚠️【操作确认】⚠️\n\n你选中了聚合角色包：\n${bundleNames.join(", ")}\n\n确认将其移至回收站吗？`;
+        confirmMsg = `【操作确认】\n\n你选中了聚合角色包：\n${bundleNames.join(", ")}\n\n确认将其移至回收站吗？`;
       } else {
-        confirmMsg = `🗑️ 确定将选中的 ${ids.length} 张卡片移至回收站吗？`;
+        confirmMsg = `确定将选中的 ${ids.length} 张卡片移至回收站吗？`;
       }
       if (!confirm(confirmMsg)) return;
 
@@ -1422,10 +1423,10 @@ export default function cardGrid() {
 
       if (checkRes.success && checkRes.has_resources) {
         const folders = checkRes.resource_folders;
-        let resourceMsg = `⚠️ 检测到以下角色卡关联了资源目录：\n\n`;
+        let resourceMsg = `检测到以下角色卡关联了资源目录：\n\n`;
 
         folders.forEach((item) => {
-          resourceMsg += `📁 ${item.card_name}\n   资源目录: ${item.resource_folder}\n\n`;
+          resourceMsg += `${item.card_name}\n   资源目录: ${item.resource_folder}\n\n`;
         });
 
         resourceMsg += `是否连带删除这些资源目录？\n`;

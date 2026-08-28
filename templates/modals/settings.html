@@ -1,4 +1,4 @@
-{% from "components/icon.html" import icon %}
+{% from "components/icon.html" import detail_icon, icon %}
 
 <!-- 设置模态框 (Refactored) -->
 <div
@@ -725,8 +725,18 @@
               x-transition
               class="mt-2 text-sm"
               :class="stPathValid ? 'text-green-400' : 'text-red-400'"
-              x-text="stPathStatus"
-            ></div>
+            >
+              <svg
+                x-show="stPathStatusIcon"
+                class="ui-icon ui-icon--sm settings-icon--150 mr-1 align-middle"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <use :href="'{{ url_for('static', filename='icons/ui.svg') }}#icon-' + stPathStatusIcon"></use>
+              </svg>
+              <span x-text="stPathStatus"></span>
+            </div>
           </div>
 
           <div
@@ -743,7 +753,17 @@
                 <div
                   class="flex justify-between p-2 rounded bg-[var(--bg-main)]"
                 >
-                  <span x-text="getResourceLabel(type)"></span>
+                  <span class="inline-flex items-center gap-1">
+                    <svg
+                      class="ui-icon sidebar-icon ui-icon--sm"
+                      viewBox="0 0 24 24"
+                      aria-hidden="true"
+                      focusable="false"
+                    >
+                      <use :href="'{{ url_for('static', filename='icons/sidebar.svg') }}#icon-sidebar-' + getResourceIcon(type)"></use>
+                    </svg>
+                    <span x-text="getResourceLabel(type)"></span>
+                  </span>
                   <span class="text-accent" x-text="info.count + ' 个'"></span>
                 </div>
               </template>
@@ -815,8 +835,18 @@
               x-transition
               class="mt-3 p-2 rounded text-sm"
               :class="syncSuccess ? 'bg-green-900/30 text-green-400' : 'bg-red-900/30 text-red-400'"
-              x-text="syncStatus"
-            ></div>
+            >
+              <svg
+                x-show="syncStatusIcon"
+                class="ui-icon ui-icon--sm settings-icon--150 mr-1 align-middle"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <use :href="'{{ url_for('static', filename='icons/ui.svg') }}#icon-' + syncStatusIcon"></use>
+              </svg>
+              <span x-text="syncStatus"></span>
+            </div>
           </div>
 
           <div class="settings-group-title mt-8">SillyTavern API 连接</div>
@@ -1785,7 +1815,7 @@
               x-transition
               class="bg-[var(--bg-sub)] p-3 rounded border border-[var(--border-light)] mt-2 flex items-center gap-4"
             >
-              <span class="text-sm whitespace-nowrap">⏱️ 保存间隔:</span>
+              <span class="text-sm whitespace-nowrap inline-flex items-center gap-1">{{ detail_icon('time', 'ui-icon--sm settings-icon--150') }}<span>保存间隔:</span></span>
               <input
                 type="range"
                 min="1"

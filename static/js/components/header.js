@@ -514,7 +514,7 @@ export default function header() {
         );
         this.openSourceMonitorPool();
       } catch (error) {
-        this.$store.global.showToast(`❌ 加入监控池失败：${error?.message || "网络错误"}`, 3200);
+        this.$store.global.showToast(`加入监控池失败：${error?.message || "网络错误"}`, 3200, "context-close");
       }
     },
 
@@ -710,10 +710,10 @@ export default function header() {
 
         if (checkRes.success && checkRes.has_resources) {
           const folders = checkRes.resource_folders;
-          let resourceMsg = `⚠️ 检测到以下角色卡关联了资源目录：\n\n`;
+          let resourceMsg = `检测到以下角色卡关联了资源目录：\n\n`;
 
           folders.forEach((item) => {
-            resourceMsg += `📁 ${item.card_name}\n   资源目录: ${item.resource_folder}\n\n`;
+            resourceMsg += `${item.card_name}\n   资源目录: ${item.resource_folder}\n\n`;
           });
 
           resourceMsg += `是否连带删除这些资源目录？\n`;
@@ -724,7 +724,7 @@ export default function header() {
 
         deleteCards(ids, deleteResources).then((res) => {
           if (res.success) {
-            this.$store.global.showToast(`🗑️ 已删除 ${ids.length} 张卡片`);
+            this.$store.global.showToast(`已删除 ${ids.length} 张卡片`, 3000, "context-delete");
             this.selectedIds = []; // 清空 Store
             window.dispatchEvent(new CustomEvent("refresh-card-list")); // 通知 Grid 刷新
           } else {

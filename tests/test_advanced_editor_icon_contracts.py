@@ -49,8 +49,9 @@ def test_advanced_editor_uses_the_requested_icon_mappings():
     assert 'title="上移"' in source
     assert 'title="下移"' in source
     assert 'title="删除正则脚本"' in source
-    assert '✕' in source
-    assert '<span>▶ 运行时 (Runtime)</span>' in source
+    assert "icon('other-close'" in source
+    assert "icon('other-arrow-right'" in source
+    assert '运行时 (Runtime)' in source
     assert '<p>请在左侧选择一个条目进行详细编辑</p>' in source
     assert '👈 请在左侧选择一个条目进行详细编辑' not in source
 

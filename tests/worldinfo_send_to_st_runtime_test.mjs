@@ -139,6 +139,7 @@ function testDetailSendSyncsGridWithoutReload() {
     $nextTick(callback) {
       if (typeof callback === 'function') callback();
     },
+    initMarqueeSelection() {},
     scheduleFetchWorldInfoList() {},
     syncWorldInfoUiState() {},
     syncWiWindowRange() {},
@@ -177,7 +178,7 @@ function testDetailSendSyncsGridWithoutReload() {
     assert.equal(detailComponent.activeWiDetail.last_sent_to_st, 1712345678);
     assert.equal(gridComponent.wiList[0].last_sent_to_st, 1712345678);
     assert.equal(gridComponent.wiList[1].last_sent_to_st, 0);
-    assert.equal(toasts.includes('🚀 已发送到 ST'), true);
+    assert.equal(toasts.includes('已发送到 ST'), true);
   });
 }
 
@@ -321,7 +322,7 @@ function testGridSendSyncsOpenDetailWithoutReload() {
     assert.equal(gridComponent.wiList[0].last_sent_to_st, 1812345678);
     assert.equal(detailComponent.activeWiDetail.last_sent_to_st, 1812345678);
     assert.equal(detailComponent.loadContentCalls, 0);
-    assert.equal(toasts.includes('🚀 已发送到 ST'), true);
+    assert.equal(toasts.includes('已发送到 ST'), true);
   });
 }
 

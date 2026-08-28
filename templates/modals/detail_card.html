@@ -1569,14 +1569,14 @@
                         x-show="isEditMode"
                         class="detail-tag-handle"
                         title="拖拽排序"
-                        >☰</span
+                        >{{ icon('other-menu', 'ui-icon--xs') }}</span
                       >
                       <span x-text="tag"></span>
                       <span
                         x-show="isEditMode"
                         class="detail-tag-x"
                         @click.stop="removeTagAt(index)"
-                        >✕</span
+                        >{{ icon('other-close', 'ui-icon--xs') }}</span
                       >
                     </button>
                   </template>
@@ -1618,7 +1618,7 @@
                       class="detail-inline-add"
                       title="清空搜索"
                     >
-                      ✕
+                      {{ icon('other-close', 'ui-icon--xs') }}
                     </button>
                   </div>
 

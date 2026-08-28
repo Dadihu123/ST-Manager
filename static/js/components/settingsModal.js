@@ -366,8 +366,10 @@ export default function settingsModal() {
       formData.append("file", file);
 
       const btn = e.target.previousElementSibling;
-      const originalText = btn ? btn.innerText : "";
-      if (btn) btn.innerText = "⏳...";
+      const originalContent = btn ? btn.innerHTML : "";
+      if (btn) {
+        btn.innerHTML = '<svg class="ui-icon ui-icon--md settings-icon--150" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="/static/icons/ui.svg#icon-card-loader"></use></svg>';
+      }
 
       return uploadBackground(formData)
         .then((res) => {
@@ -386,7 +388,7 @@ export default function settingsModal() {
           alert("网络错误: " + err);
         })
         .finally(() => {
-          if (btn) btn.innerText = originalText;
+          if (btn) btn.innerHTML = originalContent;
           e.target.value = "";
         });
     },
@@ -465,42 +467,61 @@ export default function settingsModal() {
     // === SillyTavern 同步功能 ===
 
     stPathStatus: "",
+    stPathStatusIcon: "",
     stPathValid: false,
     stResources: {},
     syncing: false,
     syncStatus: "",
+    syncStatusIcon: "",
     syncSuccess: false,
 
     getResourceLabel(type) {
       const labels = {
-        characters: "🎴 角色卡",
-        chats: "💬 聊天记录",
-        worlds: "📚 世界书",
-        presets: "📝 预设",
-        regex: "🔧 正则脚本",
-        quick_replies: "💬 快速回复",
-        scripts: "📜 ST脚本",
+        characters: "角色卡",
+        chats: "聊天记录",
+        worlds: "世界书",
+        presets: "预设",
+        regex: "正则脚本",
+        quick_replies: "快速回复",
+        scripts: "ST脚本",
       };
       return labels[type] || type;
+    },
+
+    getResourceIcon(type) {
+      const icons = {
+        characters: "cards",
+        chats: "chats",
+        worlds: "worldbook",
+        presets: "presets",
+        regex: "regex",
+        quick_replies: "quick-replies",
+        scripts: "scripts",
+      };
+      return icons[type] || "folder";
     },
 
     async detectSTPath() {
       try {
         this.stPathStatus = "正在探测...";
+        this.stPathStatusIcon = "";
         const resp = await fetch("/api/st/detect_path");
         const data = await resp.json();
 
         if (data.success && data.path) {
           this.$store.global.settingsForm.st_data_dir = data.path;
-          this.stPathStatus = `✓ 探测到路径: ${data.path}`;
+          this.stPathStatus = `探测到路径: ${data.path}`;
+          this.stPathStatusIcon = "card-check";
           this.stPathValid = true;
           await this.validateSTPath();
         } else {
           this.stPathStatus = "未能自动探测到 SillyTavern 安装路径，请手动配置";
+          this.stPathStatusIcon = "context-close";
           this.stPathValid = false;
         }
       } catch (err) {
         this.stPathStatus = "探测失败: " + err.message;
+        this.stPathStatusIcon = "context-close";
         this.stPathValid = false;
       }
     },
@@ -509,6 +530,7 @@ export default function settingsModal() {
       const path = this.$store.global.settingsForm.st_data_dir;
       if (!path) {
         this.stPathStatus = "请输入或探测路径";
+        this.stPathStatusIcon = "context-close";
         this.stPathValid = false;
         this.stResources = {};
         return;
@@ -516,6 +538,7 @@ export default function settingsModal() {
 
       try {
         this.stPathStatus = "正在验证...";
+        this.stPathStatusIcon = "";
         const resp = await fetch("/api/st/validate_path", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -526,21 +549,24 @@ export default function settingsModal() {
         if (data.success && data.valid) {
           if (data.normalized_path && data.normalized_path !== path) {
             this.$store.global.settingsForm.st_data_dir = data.normalized_path;
-            this.stPathStatus = `✓ 路径有效，已转换为安装根目录：${data.normalized_path}`;
+            this.stPathStatus = `路径有效，已转换为安装根目录：${data.normalized_path}`;
           } else {
-            this.stPathStatus = "✓ 路径有效";
+            this.stPathStatus = "路径有效";
           }
+          this.stPathStatusIcon = "card-check";
           this.stPathValid = true;
           this.stResources = data.resources || {};
           await this.refreshPathSafety();
         } else {
-          this.stPathStatus = "✗ 路径无效或不是 SillyTavern 安装目录";
+          this.stPathStatus = "路径无效或不是 SillyTavern 安装目录";
+          this.stPathStatusIcon = "context-close";
           this.stPathValid = false;
           this.stResources = {};
           this.resetPathSafety();
         }
       } catch (err) {
         this.stPathStatus = "验证失败: " + err.message;
+        this.stPathStatusIcon = "context-close";
         this.stPathValid = false;
         this.stResources = {};
         this.resetPathSafety();
@@ -551,13 +577,15 @@ export default function settingsModal() {
       if (this.syncing) return;
       const action = `sync_${resourceType}`;
       if (this.isSyncActionBlocked(action)) {
-        this.syncStatus = `✗ ${this.getResourceLabel(resourceType)}同步已被禁用：${this.syncSafetySummary}`;
+        this.syncStatus = `${this.getResourceLabel(resourceType)}同步已被禁用：${this.syncSafetySummary}`;
+        this.syncStatusIcon = "context-close";
         this.syncSuccess = false;
         return;
       }
 
       this.syncing = true;
       this.syncStatus = `正在同步 ${this.getResourceLabel(resourceType)}...`;
+      this.syncStatusIcon = "";
       this.syncSuccess = false;
 
       try {
@@ -580,8 +608,9 @@ export default function settingsModal() {
 
         if (data.success) {
           const result = data.result;
-          this.syncStatus = `✓ 同步完成: ${result.success} 个成功, ${result.failed} 个失败`;
+          this.syncStatus = `同步完成: ${result.success} 个成功, ${result.failed} 个失败`;
           this.syncSuccess = result.failed === 0;
+          this.syncStatusIcon = result.failed === 0 ? "card-check" : "settings-warning";
 
           // 同步成功后触发刷新
           if (result.success > 0) {
@@ -590,7 +619,7 @@ export default function settingsModal() {
               // 等待后端扫描完成
               await new Promise((r) => setTimeout(r, 1500));
               window.dispatchEvent(new CustomEvent("refresh-card-list"));
-              this.syncStatus = `✓ 同步完成: ${result.success} 个成功, ${result.failed} 个失败`;
+              this.syncStatus = `同步完成: ${result.success} 个成功, ${result.failed} 个失败`;
             } else if (resourceType === "chats") {
               window.dispatchEvent(new CustomEvent("refresh-chat-list"));
             } else if (resourceType === "worlds") {
@@ -598,11 +627,13 @@ export default function settingsModal() {
             }
           }
         } else {
-          this.syncStatus = "✗ 同步失败: " + (data.error || "未知错误");
+          this.syncStatus = "同步失败: " + (data.error || "未知错误");
+          this.syncStatusIcon = "context-close";
           this.syncSuccess = false;
         }
       } catch (err) {
-        this.syncStatus = "✗ 同步失败: " + err.message;
+        this.syncStatus = "同步失败: " + err.message;
+        this.syncStatusIcon = "context-close";
         this.syncSuccess = false;
       } finally {
         this.syncing = false;
@@ -612,7 +643,8 @@ export default function settingsModal() {
     async syncAllFromST() {
       if (this.syncing) return;
       if (this.isSyncActionBlocked("sync_all")) {
-        this.syncStatus = `✗ 全部同步已被禁用：${this.syncSafetySummary}`;
+        this.syncStatus = `全部同步已被禁用：${this.syncSafetySummary}`;
+        this.syncStatusIcon = "context-close";
         this.syncSuccess = false;
         return;
       }
@@ -632,6 +664,7 @@ export default function settingsModal() {
       let hasWorlds = false;
 
       this.syncing = true;
+      this.syncStatusIcon = "";
 
       let stPath = (this.$store.global.settingsForm.st_data_dir || "").trim();
       if (!stPath) {
@@ -669,8 +702,9 @@ export default function settingsModal() {
         }
       }
 
-      this.syncStatus = `✓ 全部同步完成: ${totalSuccess} 个成功, ${totalFailed} 个失败`;
+      this.syncStatus = `全部同步完成: ${totalSuccess} 个成功, ${totalFailed} 个失败`;
       this.syncSuccess = totalFailed === 0;
+      this.syncStatusIcon = totalFailed === 0 ? "card-check" : "settings-warning";
       this.syncing = false;
 
       // 同步成功后触发刷新

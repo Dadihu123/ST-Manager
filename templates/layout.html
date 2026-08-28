@@ -48,7 +48,7 @@
           aria-hidden="true"
           focusable="false"
         >
-          <use :href="'{{ url_for('static', filename='icons/ui.svg') }}#icon-' + toastIcon"></use>
+          <use :href="'{{ url_for('static', filename='icons/') }}' + toastIconHref"></use>
         </svg>
       </span>
       <span x-text="toastMessage"></span>

@@ -143,7 +143,7 @@ export default function sourceUpdateMonitor() {
         }));
       } catch (error) {
         if (!quiet) {
-          this.$store.global.showToast(`❌ 无法读取监控池：${error?.message || "网络错误"}`, 3200);
+          this.$store.global.showToast(`无法读取监控池：${error?.message || "网络错误"}`, 3200, "context-close");
         }
       } finally {
         this.loading = false;
@@ -289,7 +289,7 @@ export default function sourceUpdateMonitor() {
             error: error?.message || "检查失败",
           }).catch(() => {});
         }
-        this.$store.global.showToast(`❌ 监控池检查失败：${error?.message || "网络错误"}`, 3600);
+        this.$store.global.showToast(`监控池检查失败：${error?.message || "网络错误"}`, 3600, "context-close");
         await this.refresh({ quiet: true });
       } finally {
         this.runId = "";
