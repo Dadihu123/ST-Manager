@@ -1,3 +1,5 @@
+{% from "components/icon.html" import icon %}
+
 <!-- 自动化规则管理器 -->
 <div x-show="showAutomationModal" x-data="automationModal" x-cloak class="modal-overlay z-modal-std"
     @click.self="closeModal()">
@@ -7,7 +9,7 @@
         <button x-show="$store.global.deviceType === 'mobile' && !showMobileSidebar" 
             @click="showMobileSidebar = true"
             class="fixed bottom-16 left-2 z-50 w-10 h-10 bg-[var(--bg-panel)] border border-[var(--border-light)] rounded-lg flex items-center justify-center text-[var(--text-main)] shadow-lg md:hidden">
-            <span>📋</span>
+            <span aria-hidden="true">{{ icon('worldbook-list', 'ui-icon--sm') }}</span>
         </button>
 
         <!-- 移动端：侧边栏遮罩 -->
@@ -40,9 +42,13 @@
                 <span class="font-bold text-sm">规则集</span>
                 <div class="flex gap-1">
                     <button @click="$refs.importInput.click()" class="btn-secondary px-2 py-1 text-xs"
-                        title="导入规则集">📥</button>
+                        title="导入规则集" aria-label="导入规则集">
+                        {{ icon('header-import', 'ui-icon--sm') }}
+                    </button>
                     <button @click="createNewRuleSet(); if($store.global.deviceType === 'mobile') showMobileSidebar = false" 
-                        class="btn-secondary px-2 py-1 text-xs" title="新建">+ 新建</button>
+                        class="btn-secondary px-2 py-1 text-xs flex items-center gap-1" title="新建规则集">
+                        {{ icon('context-new', 'ui-icon--sm') }}<span>新建</span>
+                    </button>
                 </div>
                 <input type="file" x-ref="importInput" style="display:none" accept=".json"
                     @change="handleImportRuleSet">
@@ -152,8 +158,9 @@
                             </div>
                         </div>
                         <div class="flex gap-2 automation-header-actions">
-                            <button @click="exportCurrentRuleSet()" class="btn-secondary px-3" title="导出 JSON">
-                                📤
+                            <button @click="exportCurrentRuleSet()" class="btn-secondary px-3" title="导出 JSON"
+                                aria-label="导出规则集">
+                                {{ icon('card-upload', 'ui-icon--sm') }}
                             </button>
                             <button @click="deleteCurrentRuleSet()"
                                 class="btn-secondary text-red-400 hover:text-red-500 px-3">删除</button>
@@ -225,7 +232,10 @@
                                     <div class="automation-inline-actions">
                                         <button @click="moveRule(rIdx, -1)" class="btn-icon-sm" title="上移规则">▲</button>
                                         <button @click="moveRule(rIdx, 1)" class="btn-icon-sm" title="下移规则">▼</button>
-                                        <button @click="deleteRule(rIdx)" class="btn-icon-sm delete" title="删除规则">🗑️</button>
+                                        <button @click="deleteRule(rIdx)" class="btn-icon-sm delete" title="删除规则"
+                                            aria-label="删除规则">
+                                            {{ icon('context-delete', 'ui-icon--sm') }}
+                                        </button>
                                     </div>
                                 </div>
                             </div>
