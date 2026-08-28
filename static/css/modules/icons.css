@@ -160,6 +160,27 @@
   height: 2.25rem;
 }
 
+/* 扩展列表中的 SVG 图标统一放大到基础尺寸的 150%，不改变交互容器尺寸。 */
+.extension-list-icon--150.ui-icon--sm {
+  width: 1.3125rem;
+  height: 1.3125rem;
+}
+
+.extension-list-icon--150.ui-icon--md {
+  width: 1.6875rem;
+  height: 1.6875rem;
+}
+
+.extension-list-icon--150.ui-icon--lg {
+  width: 2.25rem;
+  height: 2.25rem;
+}
+
+.extension-list-icon--150.ui-icon--xl {
+  width: 4.5rem;
+  height: 4.5rem;
+}
+
 /* 设置页及帮助信息图标统一放大到基础尺寸的 150%，不改变交互控件的点击区域。 */
 .settings-icon--150.ui-icon--xs {
   width: 1.125rem;
