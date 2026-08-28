@@ -15,7 +15,7 @@ def test_preset_grid_uses_the_requested_icon_mappings():
 
     expected_fragments = [
         "detail_icon('preset'",
-        "icon('header-refresh'",
+        "icon('header-refresh', 'ui-icon--sm header-icon--150')",
         "icon('header-import'",
         "icon('card-loader'",
         "icon('card-check'",
@@ -86,3 +86,25 @@ def test_prompt_marker_visuals_point_to_the_new_custom_assets():
         )
 
     assert 'PRESET_ICON_SPRITE_URL = "/static/icons/preset.svg"' in source
+
+
+def test_preset_loading_icon_matches_extension_size_and_animation():
+    preset_source = read_project_file('templates/components/grid_presets.html')
+    extension_source = read_project_file('templates/components/grid_extensions.html')
+    cards_css = read_project_file('static/css/modules/view-cards.css')
+    icons_css = read_project_file('static/css/modules/icons.css')
+
+    assert "icon('card-loader', 'ui-icon--xl ui-icon--spin')" in preset_source
+    assert "icon('card-loader', 'ui-icon--xl ui-icon--spin extension-list-icon--150')" in extension_source
+
+    loading_rule = re.search(
+        r'\.preset-list-loading-icon \.ui-icon\s*\{(?P<body>[^}]*)\}',
+        cards_css,
+    )
+    assert loading_rule is not None
+    assert 'width: 4.5rem;' in loading_rule.group('body')
+    assert 'height: 4.5rem;' in loading_rule.group('body')
+
+    spin_rule = re.search(r'\.ui-icon--spin\s*\{(?P<body>[^}]*)\}', icons_css)
+    assert spin_rule is not None
+    assert 'animation: ui-icon-spin 0.9s linear infinite;' in spin_rule.group('body')

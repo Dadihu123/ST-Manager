@@ -361,9 +361,10 @@ html.light-mode .card-bottom-toolbar {
   height: 3.75rem;
 }
 
+/* 预设列表加载图标与扩展列表保持相同的 150% 尺寸。 */
 .preset-list-loading-icon .ui-icon {
-  width: 2.25rem;
-  height: 2.25rem;
+  width: 4.5rem;
+  height: 4.5rem;
 }
 
 .preset-card-stat-icon .ui-icon,
