@@ -10,20 +10,20 @@ def read_project_file(relative_path):
     return (PROJECT_ROOT / relative_path).read_text(encoding='utf-8')
 
 
-def test_preset_grid_uses_the_requested_icon_mappings():
+def test_preset_grid_uses_semantic_icon_mappings():
     source = read_project_file('templates/components/grid_presets.html')
 
     expected_fragments = [
         "detail_icon('preset'",
-        "icon('header-refresh', 'ui-icon--sm header-icon--150')",
-        "icon('header-import'",
-        "icon('card-loader'",
-        "icon('card-check'",
-        "icon('context-delete'",
-        "icon('card-upload'",
-        "icon('card-send'",
+        "icon('refresh', 'ui-icon--sm ')",
+        "icon('file-import'",
+        "icon('loader-circle'",
+        "icon('check'",
+        "icon('trash'",
+        "icon('upload'",
+        "icon('send'",
         "detail_icon('regex'",
-        "preset_icon('temperature'",
+        "preset_icon('thermometer'",
         "preset_icon('token-count'",
         "preset_icon('prompt-count'",
         "preset_icon('owner'",
@@ -45,19 +45,19 @@ def test_preset_icon_sprite_contains_all_custom_assets_without_white_canvas():
         for symbol in root.findall(f'{namespace}symbol')
     }
     expected_ids = {
-        'icon-preset-character-definition-after',
-        'icon-preset-character-definition-before',
-        'icon-preset-character-description',
-        'icon-preset-character-scenario',
-        'icon-preset-character-personality',
-        'icon-preset-owner',
-        'icon-preset-temperature',
-        'icon-preset-user-persona-description',
-        'icon-preset-chat-examples',
-        'icon-preset-chat-history',
-        'icon-preset-prompt-count',
-        'icon-preset-token-count',
-        'icon-preset-empty-state',
+        'icon-definition-after',
+        'icon-definition-before',
+        'icon-character-description',
+        'icon-scenario',
+        'icon-character-personality',
+        'icon-owner',
+        'icon-thermometer',
+        'icon-persona-description',
+        'icon-chat-examples',
+        'icon-chat-history',
+        'icon-prompt-count',
+        'icon-token-count',
+        'icon-empty-state',
     }
 
     assert symbol_ids == expected_ids
@@ -69,12 +69,12 @@ def test_preset_icon_sprite_contains_all_custom_assets_without_white_canvas():
 def test_prompt_marker_visuals_point_to_the_new_custom_assets():
     source = read_project_file('static/js/utils/promptMarkerVisuals.js')
     expected_assets = {
-        'worldInfoBefore': 'character-definition-before',
-        'worldInfoAfter': 'character-definition-after',
+        'worldInfoBefore': 'definition-before',
+        'worldInfoAfter': 'definition-after',
         'charDescription': 'character-description',
         'charPersonality': 'character-personality',
-        'personaDescription': 'user-persona-description',
-        'scenario': 'character-scenario',
+        'personaDescription': 'persona-description',
+        'scenario': 'scenario',
         'dialogueExamples': 'chat-examples',
         'chatHistory': 'chat-history',
     }
@@ -94,16 +94,16 @@ def test_preset_loading_icon_matches_extension_size_and_animation():
     cards_css = read_project_file('static/css/modules/view-cards.css')
     icons_css = read_project_file('static/css/modules/icons.css')
 
-    assert "icon('card-loader', 'ui-icon--xl ui-icon--spin')" in preset_source
-    assert "icon('card-loader', 'ui-icon--xl ui-icon--spin extension-list-icon--150')" in extension_source
+    assert "icon('loader-circle', 'ui-icon--xl ui-icon--spin')" in preset_source
+    assert "icon('loader-circle', 'ui-icon--xl ui-icon--spin ')" in extension_source
 
     loading_rule = re.search(
         r'\.preset-list-loading-icon \.ui-icon\s*\{(?P<body>[^}]*)\}',
         cards_css,
     )
     assert loading_rule is not None
-    assert 'width: 4.5rem;' in loading_rule.group('body')
-    assert 'height: 4.5rem;' in loading_rule.group('body')
+    assert 'width: 64px;' in loading_rule.group('body')
+    assert 'height: 64px;' in loading_rule.group('body')
 
     spin_rule = re.search(r'\.ui-icon--spin\s*\{(?P<body>[^}]*)\}', icons_css)
     assert spin_rule is not None

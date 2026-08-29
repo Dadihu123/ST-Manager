@@ -111,8 +111,8 @@
 }
 
 .detail-thumb-symbol .ui-icon {
-  width: 1.5rem;
-  height: 1.5rem;
+  width: 24px;
+  height: 24px;
 }
 
 .detail-thumb:hover {
@@ -398,8 +398,8 @@ html.light-mode .detail-thumb-label {
 }
 
 .skin-gallery-folder-symbol .ui-icon {
-  width: 2.25rem;
-  height: 2.25rem;
+  width: 32px;
+  height: 32px;
 }
 
 .skin-gallery-empty {
@@ -1815,8 +1815,8 @@ html.light-mode .skin-gallery-folder-symbol {
 
 .detail-policy-select-icon {
   display: inline-flex;
-  width: 1.25rem;
-  min-width: 1.25rem;
+  width: 20px;
+  min-width: 20px;
   align-items: center;
   justify-content: center;
   color: var(--accent-light);
@@ -2006,7 +2006,6 @@ html.light-mode .skin-gallery-folder-symbol {
 
 .detail-update-dropzone:hover .detail-update-dropzone-icon,
 .detail-update-dropzone-icon.drag-over {
-  transform: scale(1.08);
   opacity: 1;
 }
 
@@ -2439,8 +2438,8 @@ html.light-mode .toolbox-btn.purple {
 }
 
 .detail-icon-btn--borderless .ui-icon {
-  width: 1.125rem;
-  height: 1.125rem;
+  width: 20px;
+  height: 20px;
 }
 
 .detail-zoombar {
@@ -2470,8 +2469,8 @@ html.light-mode .toolbox-btn.purple {
 }
 
 .detail-zoom-btn .ui-icon {
-  width: 0.875rem;
-  height: 0.875rem;
+  width: 16px;
+  height: 16px;
 }
 
 .detail-zoom-btn:hover {
@@ -2510,8 +2509,8 @@ html.light-mode .toolbox-btn.purple {
 }
 
 .detail-zoom-reset .ui-icon {
-  width: 1rem;
-  height: 1rem;
+  width: 20px;
+  height: 20px;
 }
 
 .detail-metadata {
@@ -4265,8 +4264,8 @@ html.light-mode .note-textarea:focus {
 }
 
 .detail-persona-hidden span:first-child .ui-icon {
-  width: 1.25rem;
-  height: 1.25rem;
+  width: 24px;
+  height: 24px;
 }
 
 .detail-persona-preview-overlay {
@@ -4554,70 +4553,40 @@ html.light-mode .note-textarea:focus {
   }
 }
 
-/* 角色详情内的 SVG 图标统一按现有尺寸放大 150%，不改变按钮点击区域。 */
-.detail-icon-scope .ui-icon {
-  width: 1.5rem;
-  height: 1.5rem;
-}
-
-.detail-icon-scope .ui-icon--xs {
-  width: 1.125rem;
-  height: 1.125rem;
-}
-
-.detail-icon-scope .ui-icon--sm {
-  width: 1.3125rem;
-  height: 1.3125rem;
-}
-
-.detail-icon-scope .ui-icon--md {
-  width: 1.6875rem;
-  height: 1.6875rem;
-}
-
-.detail-icon-scope .ui-icon--lg {
-  width: 2.25rem;
-  height: 2.25rem;
-}
-
-.detail-icon-scope .ui-icon--xl {
-  width: 4.5rem;
-  height: 4.5rem;
-}
-
+/* 详情页组件使用统一整数挡位，不再按图形单独做倍率补偿。 */
 .detail-icon-scope .detail-thumb-symbol .ui-icon {
-  width: 2.25rem;
-  height: 2.25rem;
+  width: 24px;
+  height: 24px;
 }
 
 .detail-icon-scope .skin-gallery-folder-symbol .ui-icon {
-  width: 3.375rem;
-  height: 3.375rem;
+  width: 32px;
+  height: 32px;
 }
 
 .detail-icon-scope .detail-icon-btn--borderless .ui-icon {
-  width: 1.6875rem;
-  height: 1.6875rem;
+  width: 20px;
+  height: 20px;
 }
 
 .detail-icon-scope .detail-zoom-btn .ui-icon {
-  width: 1.3125rem;
-  height: 1.3125rem;
+  width: 16px;
+  height: 16px;
 }
 
 .detail-icon-scope .detail-zoom-reset .ui-icon {
-  width: 1.5rem;
-  height: 1.5rem;
+  width: 20px;
+  height: 20px;
 }
 
 .detail-icon-scope .detail-persona-hidden span:first-child .ui-icon {
-  width: 1.875rem;
-  height: 1.875rem;
+  width: 24px;
+  height: 24px;
 }
 
 .detail-icon-scope .detail-chat-dropzone-icon .ui-icon {
-  width: 2.7rem;
-  height: 2.7rem;
+  width: 32px;
+  height: 32px;
 }
 
 .detail-resource-upload-icon {
@@ -4627,100 +4596,17 @@ html.light-mode .note-textarea:focus {
   line-height: 1;
 }
 
-/* 帮助指南中的重点图标与来源链接保持一致的视觉尺寸。 */
-.detail-icon-scope .detail-icon--prominent.ui-icon--xs {
-  width: 1.6875rem;
-  height: 1.6875rem;
-}
-
-.detail-icon-scope .detail-icon--prominent.ui-icon--sm {
-  width: 1.96875rem;
-  height: 1.96875rem;
-}
-
-.detail-icon-scope .detail-icon--prominent.ui-icon--md {
-  width: 2.53125rem;
-  height: 2.53125rem;
-}
-
-/* 备份目录按钮沿用世界书套件的放大比例，保留原有点击区域。 */
-.detail-icon-scope .wi-worldbook-backup-icon.ui-icon--md {
-  transform: scale(1.34);
-  transform-origin: center;
-}
-
-/* 工具箱图标统一外框尺寸，再按各 SVG 的实际绘制范围补偿视觉高度。 */
-.detail-icon-scope .detail-manage-tool-btn .ui-icon {
-  width: 1.6875rem;
-  height: 1.6875rem;
-  transform-origin: center;
-}
-
-/* 各图标的 viewBox 留白不同，按实际绘制高度匹配备份目录图标。 */
-.detail-icon-scope .detail-manage-tool-icon--jump-locate {
-  transform: scale(1.21);
-}
-
-.detail-icon-scope .detail-manage-tool-icon--folder,
-.detail-icon-scope .detail-manage-action-icon--folder {
-  transform: scale(1.1);
-}
-
-.detail-icon-scope .detail-manage-tool-icon--rollback {
-  transform: scale(0.97);
-}
-
-.detail-icon-scope .detail-manage-tool-btn .wi-worldbook-backup-icon {
-  transform: scale(1.34);
-}
-
-/* 更新与高级操作按钮沿用备份目录的可视高度；独立 scale 不会覆盖加载图标的旋转动画。 */
+/* 工具箱、更新和高级操作按钮统一使用 24px 图标挡位。 */
+.detail-icon-scope .detail-manage-tool-btn .ui-icon,
 .detail-icon-scope .detail-manage-action-btn .ui-icon,
 .detail-icon-scope .detail-manage-advanced-btn .ui-icon,
 .detail-icon-scope .detail-update-dropzone-icon .ui-icon {
-  width: 1.6875rem;
-  height: 1.6875rem;
-  transform-origin: center;
+  width: 24px;
+  height: 24px;
 }
 
-.detail-icon-scope .detail-manage-action-icon--card-refresh {
-  scale: 1.13;
-}
-
-.detail-icon-scope .detail-manage-action-icon--card-loader {
-  scale: 1.06;
-}
-
-.detail-icon-scope .detail-manage-action-icon--card-check {
-  scale: 1.55;
-}
-
-.detail-icon-scope .detail-manage-action-icon--header-url-import {
-  scale: 1.18;
-}
-
-.detail-icon-scope .detail-manage-action-icon--card-send {
-  scale: 1.09;
-}
-
-.detail-icon-scope .detail-manage-action-icon--card-package {
-  scale: 1.14;
-}
-
-.detail-icon-scope .detail-manage-action-icon--heart-broken {
-  scale: 1.28;
-}
-
-.detail-icon-scope .detail-manage-action-icon--context-delete {
-  scale: 1.08;
-}
-
-.detail-icon-scope .detail-manage-action-icon--advanced-editor {
-  scale: 1.02;
-}
-
-/* 空状态图标替换为 SVG 后保留原有空状态的视觉层级。 */
+/* 空状态图标使用 64px 挡位。 */
 .detail-icon-scope .detail-chat-empty-icon .ui-icon {
-  width: 3.75rem;
-  height: 3.75rem;
+  width: 64px;
+  height: 64px;
 }

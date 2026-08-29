@@ -9,11 +9,11 @@
         <div style="padding: 1.25rem 1.5rem; background: var(--bg-item); border-bottom: 1px solid var(--border-light);">
             <h3 style="font-weight: bold; color: var(--text-main); font-size: 1.125rem; display: flex; align-items: center; gap: 0.5rem;">
                 <span x-show="!conflictData" class="inline-flex items-center gap-2">
-                    <span aria-hidden="true">{{ icon('header-url-import', 'ui-icon--md') }}</span>
+                    <span aria-hidden="true">{{ icon('link-import', 'ui-icon--md') }}</span>
                     <span>从 URL 导入角色卡</span>
                 </span>
                 <span x-show="conflictData" class="inline-flex items-center gap-2" style="color: var(--text-warn);">
-                    <span aria-hidden="true">{{ icon('settings-warning', 'ui-icon--sm') }}</span>
+                    <span aria-hidden="true">{{ icon('alert-triangle', 'ui-icon--sm') }}</span>
                     <span>文件名冲突</span>
                 </span>
             </h3>
@@ -28,7 +28,7 @@
                         <input type="text" x-model="importUrlInput" class="form-input" style="width: 100%; padding-left: 2.5rem;" placeholder="https://example.com/character.png"
                             @keydown.enter="importFromUrl()">
                         <div style="position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); color: var(--text-dim);" aria-hidden="true">
-                            {{ detail_icon('source-link', 'ui-icon--sm') }}
+                            {{ detail_icon('link-source', 'ui-icon--sm') }}
                         </div>
                     </div>
                     <div class="text-xs mt-2" style="color: var(--text-dim);">支持 PNG 直链。</div>
@@ -41,9 +41,9 @@
                     </label>
                     <div class="relative">
                         <div class="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-dim)] pointer-events-none" aria-hidden="true">
-                            <span x-show="importTargetCategory === ''" x-cloak>{{ sidebar_icon('category-expanded', 'ui-icon--sm') }}</span>
-                            <span x-show="importTargetCategory === '根目录'" x-cloak>{{ icon('modal-root-directory', 'ui-icon--sm') }}</span>
-                            <span x-show="importTargetCategory !== '' && importTargetCategory !== '根目录'" x-cloak>{{ sidebar_icon('folder', 'ui-icon--sm') }}</span>
+                            <span x-show="importTargetCategory === ''" x-cloak>{{ sidebar_icon('folder-open', 'ui-icon--sm') }}</span>
+                            <span x-show="importTargetCategory === '根目录'" x-cloak>{{ icon('folder-root', 'ui-icon--sm') }}</span>
+                            <span x-show="importTargetCategory !== '' && importTargetCategory !== '根目录'" x-cloak>{{ sidebar_icon('folder-solid', 'ui-icon--sm') }}</span>
                         </div>
                         <select x-model="importTargetCategory" class="form-input" style="width: 100%; padding-left: 2.5rem;">
                             <option value="">(当前浏览目录)</option>
@@ -60,7 +60,7 @@
                     <button @click="importFromUrl()" :disabled="isLoading" class="btn-primary"
                         style="flex:2; justify-content: center; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
                         <span x-show="!isLoading" class="inline-flex items-center gap-2">
-                            <span aria-hidden="true">{{ icon('header-import', 'ui-icon--sm') }}</span>
+                            <span aria-hidden="true">{{ icon('file-import', 'ui-icon--sm') }}</span>
                             <span>立即导入</span>
                         </span>
                         <span x-show="isLoading" class="flex items-center gap-2">
@@ -136,7 +136,7 @@
                     </button>
                     <button @click="resolveConflict('rename')" class="btn-primary" style="justify-content: center; box-shadow: 0 4px 6px -1px rgba(var(--color-primary-rgb), 0.3);border-radius: 0.375rem; border-radius: 0.375rem;">
                         <span class="inline-flex items-center gap-1" style="font-size: 0.9rem;">
-                            <span aria-hidden="true">{{ icon('context-rename', 'ui-icon--sm') }}</span>
+                            <span aria-hidden="true">{{ icon('pencil-edit', 'ui-icon--sm') }}</span>
                             <span>追加 (Enter)</span>
                         </span>
                     </button>

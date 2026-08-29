@@ -18,7 +18,7 @@
       <!-- 第一行：标题和操作按钮 -->
       <div class="large-editor-topbar-row">
         <h3 class="large-editor-title">
-          <span aria-hidden="true">{{ icon('modal-document-edit', 'ui-icon--md large-editor-title-icon') }}</span>
+          <span aria-hidden="true">{{ icon('file-edit', 'ui-icon--md large-editor-title-icon') }}</span>
           <span x-text="largeEditorTitle"></span>
         </h3>
         <div class="large-editor-actions">
@@ -137,7 +137,7 @@
           x-show="['ui_summary', 'first_mes', 'mes_example', 'description'].includes(largeEditorField) && !markdownPreview"
           class="large-editor-hint"
         >
-          <span class="large-editor-hint-icon" aria-hidden="true">{{ icon('worldbook-tip', 'ui-icon--xs') }}</span>
+          <span class="large-editor-hint-icon" aria-hidden="true">{{ icon('book-tip', 'ui-icon--xs') }}</span>
           <span>支持 Markdown/HTML 渲染</span>
         </span>
       </div>

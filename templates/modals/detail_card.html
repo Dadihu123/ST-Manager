@@ -39,7 +39,7 @@
         title="返回上一级"
       >
         <div class="detail-thumb-symbol">
-          {{ detail_icon('return-parent', 'ui-icon--md') }}
+          {{ detail_icon('arrow-up-left', 'ui-icon--md') }}
         </div>
         <span class="detail-thumb-label">上一级</span>
       </button>
@@ -55,7 +55,7 @@
             :title="item.path"
           >
             <div class="detail-thumb-symbol">
-              {{ sidebar_icon('folder', 'ui-icon--md') }}
+              {{ sidebar_icon('folder-solid', 'ui-icon--md') }}
             </div>
             <span
               class="detail-thumb-label"
@@ -177,7 +177,7 @@
               class="btn-secondary detail-icon-btn"
               title="更换图片"
             >
-              {{ detail_icon('replace-image', 'ui-icon--sm') }}
+              {{ detail_icon('image-replace', 'ui-icon--sm') }}
             </button>
 
             <!-- 移动端：编辑模式开关按钮 -->
@@ -188,7 +188,7 @@
               :class="isEditMode ? 'active' : ''"
               :title="isEditMode ? '切换到阅览模式' : '切换到编辑模式'"
             >
-              <span x-show="!isEditMode">{{ detail_icon('read-mode', 'ui-icon--sm') }}</span>
+              <span x-show="!isEditMode">{{ detail_icon('book-read', 'ui-icon--sm') }}</span>
               <span x-show="isEditMode">{{ detail_icon('edit-mode', 'ui-icon--sm') }}</span>
             </button>
             <!-- 移动端：快照按钮（在图片区域右上角） -->
@@ -198,7 +198,7 @@
               class="btn-secondary detail-icon-btn detail-close-mobile"
               title="快照"
             >
-              {{ icon('worldbook-snapshot', 'ui-icon--sm') }}
+              {{ icon('snapshot', 'ui-icon--sm') }}
             </button>
             <!-- 移动端：保存按钮（在图片区域右上角） -->
             <button
@@ -208,8 +208,8 @@
               class="btn-secondary detail-icon-btn detail-close-mobile"
               title="保存卡片"
             >
-              <span x-show="!isSaving">{{ icon('worldbook-save-all', 'ui-icon--sm') }}</span>
-              <span x-show="isSaving">{{ icon('card-loader', 'ui-icon--sm ui-icon--spin') }}</span>
+              <span x-show="!isSaving">{{ icon('book-save', 'ui-icon--sm') }}</span>
+              <span x-show="isSaving">{{ icon('loader-circle', 'ui-icon--sm ui-icon--spin') }}</span>
             </button>
             <!-- 移动端：关闭按钮（在图片区域右上角） -->
             <button
@@ -218,14 +218,14 @@
               class="btn-secondary detail-icon-btn detail-close-mobile detail-icon-btn--borderless"
               title="关闭"
             >
-              {{ icon('context-close', 'ui-icon--sm') }}
+              {{ icon('close', 'ui-icon--sm') }}
             </button>
           </div>
 
           <!-- 缩放条（底部悬浮） -->
           <div x-show="!isCardFlipped" class="detail-zoombar">
             <button @click.stop="modifyZoom(-20)" class="detail-zoom-btn">
-              {{ detail_icon('shrink', 'ui-icon--sm') }}
+              {{ detail_icon('collapse', 'ui-icon--sm') }}
             </button>
 
             <input
@@ -239,7 +239,7 @@
             />
 
             <button @click.stop="modifyZoom(20)" class="detail-zoom-btn">
-              {{ detail_icon('enlarge', 'ui-icon--sm') }}
+              {{ detail_icon('maximize', 'ui-icon--sm') }}
             </button>
 
             <span class="detail-zoom-text" x-text="zoomLevel + '%'"></span>
@@ -282,7 +282,7 @@
                 class="detail-version-set-cover"
                 title="设为最新/封面 (更新时间)"
               >
-                {{ detail_icon('set-cover', 'ui-icon--xs') }}
+                {{ detail_icon('cover-image', 'ui-icon--xs') }}
               </button>
 
               <!-- 文件名覆盖层 -->
@@ -317,7 +317,7 @@
             class="btn-secondary detail-close-floating detail-icon-btn--borderless"
             title="关闭"
           >
-            {{ icon('context-close', 'ui-icon--sm') }}
+            {{ icon('close', 'ui-icon--sm') }}
           </button>
           <!-- 桌面端：编辑模式开关 (位于关闭按钮左侧) -->
           <button
@@ -326,7 +326,7 @@
             :class="isEditMode ? 'active' : ''"
             :title="isEditMode ? '切换到阅览模式' : '切换到编辑模式'"
           >
-            <span x-show="!isEditMode">{{ detail_icon('read-mode', 'ui-icon--sm') }}</span>
+            <span x-show="!isEditMode">{{ detail_icon('book-read', 'ui-icon--sm') }}</span>
             <span x-show="isEditMode">{{ detail_icon('edit-mode', 'ui-icon--sm') }}</span>
           </button>
           <!-- 桌面端：帮助按钮 (位于编辑按钮左侧) -->
@@ -358,7 +358,7 @@
                 class="flex items-center gap-2 min-w-[120px] flex-shrink-0"
                 title="创作者 (Creator)"
               >
-                <span class="text-xs opacity-60">{{ detail_icon('author', 'ui-icon--sm') }}</span>
+                <span class="text-xs opacity-60">{{ detail_icon('user', 'ui-icon--sm') }}</span>
                 <!-- 编辑模式：可编辑 -->
                 <input
                   x-show="isEditMode"
@@ -409,7 +409,7 @@
 
               <!-- 来源链接 -->
               <div class="flex items-center gap-2 flex-1 min-w-[180px]">
-                <span class="detail-link-icon">{{ detail_icon('source-link', 'ui-icon--sm') }}</span>
+                <span class="detail-link-icon">{{ detail_icon('link-source', 'ui-icon--sm') }}</span>
                 <input
                   type="text"
                   x-model="editingData.source_link"
@@ -422,7 +422,7 @@
                   target="_blank"
                   class="detail-open-link"
                   title="打开链接"
-                  >{{ icon('card-external-link', 'ui-icon--sm') }}</a
+                  >{{ icon('external-link', 'ui-icon--sm') }}</a
                 >
               </div>
             </div>
@@ -458,7 +458,7 @@
                 class="btn-secondary detail-action-btn detail-snapshot-btn"
                 title="左键: 快照 | 右键: 关键快照"
               >
-                {{ icon('worldbook-snapshot', 'ui-icon--sm') }}
+                {{ icon('snapshot', 'ui-icon--sm') }}
                 <span class="btn-text">快照</span>
               </button>
 
@@ -468,8 +468,8 @@
                 class="btn-primary detail-action-btn detail-save-btn"
                 title="保存更改"
               >
-                <span x-show="!isSaving">{{ icon('worldbook-save-all', 'ui-icon--sm') }}</span>
-                <span x-show="isSaving">{{ icon('card-loader', 'ui-icon--sm ui-icon--spin') }}</span>
+                <span x-show="!isSaving">{{ icon('book-save', 'ui-icon--sm') }}</span>
+                <span x-show="isSaving">{{ icon('loader-circle', 'ui-icon--sm ui-icon--spin') }}</span>
 
                 <span
                   class="btn-text ml-1"
@@ -487,7 +487,7 @@
         >
           <div class="detail-resource-left">
             <div class="detail-resource-title inline-flex items-center gap-1">
-              {{ sidebar_icon('folder', 'ui-icon--sm') }}
+              {{ sidebar_icon('folder-solid', 'ui-icon--sm') }}
               <span>资源目录</span>
             </div>
             <div class="detail-resource-path">
@@ -510,7 +510,7 @@
               class="btn-secondary detail-mini-btn"
               title="浏览资源目录"
             >
-              {{ icon('worldbook-search', 'ui-icon--sm') }}
+              {{ icon('book-search', 'ui-icon--sm') }}
               <span>浏览</span>
             </button>
             <button
@@ -519,7 +519,7 @@
               class="btn-secondary detail-mini-btn"
               title="创建资源目录"
             >
-              {{ detail_icon('create-resource-folder', 'ui-icon--sm') }}
+              {{ detail_icon('folder-create', 'ui-icon--sm') }}
               <span>创建</span>
             </button>
             <button
@@ -549,7 +549,7 @@
             :class="tab==='basic' ? 'active' : ''"
             @click="tab='basic'"
           >
-            <span class="tab-icon">{{ detail_icon('basic-info', 'ui-icon--xs') }}</span>
+            <span class="tab-icon">{{ detail_icon('info', 'ui-icon--xs') }}</span>
             <span class="tab-text">基础</span>
           </button>
           <button
@@ -583,7 +583,7 @@
             :class="tab==='wi' ? 'active' : ''"
             @click="tab='wi'"
           >
-            <span class="tab-icon wi-worldbook-tab-icon">{{ detail_icon('worldbook', 'ui-icon--xs') }}</span>
+            <span class="tab-icon wi-worldbook-tab-icon">{{ detail_icon('book-open', 'ui-icon--sm') }}</span>
             <span class="tab-text">世界书</span>
           </button>
           <button
@@ -591,7 +591,7 @@
             :class="tab==='chats' ? 'active' : ''"
             @click="tab='chats'"
           >
-            <span class="tab-icon">{{ detail_icon('chat', 'ui-icon--xs') }}</span>
+            <span class="tab-icon">{{ detail_icon('chat-bubble', 'ui-icon--xs') }}</span>
             <span class="tab-text">聊天</span>
           </button>
           <button
@@ -636,7 +636,7 @@
                   class="flex items-center gap-2 min-w-[120px] flex-shrink-0"
                   title="创作者 (Creator)"
                 >
-                  <span class="text-xs opacity-60">{{ detail_icon('author', 'ui-icon--sm') }}</span>
+                  <span class="text-xs opacity-60">{{ detail_icon('user', 'ui-icon--sm') }}</span>
                   <!-- 编辑模式：可编辑 -->
                   <input
                     x-show="isEditMode"
@@ -687,7 +687,7 @@
 
                 <!-- 来源链接 -->
                 <div class="flex items-center gap-2 flex-1 min-w-[180px]">
-                  <span class="detail-link-icon">{{ detail_icon('source-link', 'ui-icon--sm') }}</span>
+                  <span class="detail-link-icon">{{ detail_icon('link-source', 'ui-icon--sm') }}</span>
                   <input
                     type="text"
                     x-model="editingData.source_link"
@@ -700,7 +700,7 @@
                     target="_blank"
                     class="detail-open-link"
                     title="打开链接"
-                    >{{ icon('card-external-link', 'ui-icon--sm') }}</a
+                    >{{ icon('external-link', 'ui-icon--sm') }}</a
                   >
                 </div>
               </div>
@@ -746,7 +746,7 @@
                     class="detail-card-title flex items-center gap-2"
                     style="color: var(--accent-light)"
                   >
-                    <span class="note-label-icon">{{ detail_icon('local-note', 'ui-icon--sm') }}</span>
+                    <span class="note-label-icon">{{ detail_icon('note', 'ui-icon--sm') }}</span>
                     <span>本地备注 (Local Note)</span>
                   </div>
                   <div class="detail-card-actions">
@@ -883,7 +883,7 @@
                         :aria-pressed="isPersonaFieldHidden('personality')"
                         :aria-label="isPersonaFieldHidden('personality') ? '显示人格设定内容' : '隐藏人格设定内容'"
                         :title="isPersonaFieldHidden('personality') ? '显示内容' : '隐藏内容'"
-                      ><span x-show="isPersonaFieldHidden('personality')" aria-hidden="true">{{ icon('settings-show', 'ui-icon--sm') }}</span><span x-show="!isPersonaFieldHidden('personality')" aria-hidden="true">{{ icon('settings-hide', 'ui-icon--sm') }}</span></button>
+                      ><span x-show="isPersonaFieldHidden('personality')" aria-hidden="true">{{ icon('eye', 'ui-icon--sm') }}</span><span x-show="!isPersonaFieldHidden('personality')" aria-hidden="true">{{ icon('eye-off', 'ui-icon--sm') }}</span></button>
                     </div>
                   </div>
                   <div class="detail-persona-card-meta">
@@ -909,7 +909,7 @@
                       x-show="!isEditMode && hasTextValue(editingData.personality) && isPersonaFieldHidden('personality')"
                       class="detail-persona-hidden"
                     >
-                      <span aria-hidden="true">{{ icon('settings-show', 'ui-icon--sm') }}</span>
+                      <span aria-hidden="true">{{ icon('eye', 'ui-icon--sm') }}</span>
                       <span>内容已隐藏 · 点击眼睛按钮显示</span>
                     </div>
                     <div
@@ -955,7 +955,7 @@
                         :aria-pressed="isPersonaFieldHidden('scenario')"
                         :aria-label="isPersonaFieldHidden('scenario') ? '显示场景设定内容' : '隐藏场景设定内容'"
                         :title="isPersonaFieldHidden('scenario') ? '显示内容' : '隐藏内容'"
-                      ><span x-show="isPersonaFieldHidden('scenario')" aria-hidden="true">{{ icon('settings-show', 'ui-icon--sm') }}</span><span x-show="!isPersonaFieldHidden('scenario')" aria-hidden="true">{{ icon('settings-hide', 'ui-icon--sm') }}</span></button>
+                      ><span x-show="isPersonaFieldHidden('scenario')" aria-hidden="true">{{ icon('eye', 'ui-icon--sm') }}</span><span x-show="!isPersonaFieldHidden('scenario')" aria-hidden="true">{{ icon('eye-off', 'ui-icon--sm') }}</span></button>
                     </div>
                   </div>
                   <div class="detail-persona-card-meta">
@@ -981,7 +981,7 @@
                       x-show="!isEditMode && hasTextValue(editingData.scenario) && isPersonaFieldHidden('scenario')"
                       class="detail-persona-hidden"
                     >
-                      <span aria-hidden="true">{{ icon('settings-show', 'ui-icon--sm') }}</span>
+                      <span aria-hidden="true">{{ icon('eye', 'ui-icon--sm') }}</span>
                       <span>内容已隐藏 · 点击眼睛按钮显示</span>
                     </div>
                     <div
@@ -1027,7 +1027,7 @@
                         :aria-pressed="isPersonaFieldHidden('creator_notes')"
                         :aria-label="isPersonaFieldHidden('creator_notes') ? '显示作者注释内容' : '隐藏作者注释内容'"
                         :title="isPersonaFieldHidden('creator_notes') ? '显示内容' : '隐藏内容'"
-                      ><span x-show="isPersonaFieldHidden('creator_notes')" aria-hidden="true">{{ icon('settings-show', 'ui-icon--sm') }}</span><span x-show="!isPersonaFieldHidden('creator_notes')" aria-hidden="true">{{ icon('settings-hide', 'ui-icon--sm') }}</span></button>
+                      ><span x-show="isPersonaFieldHidden('creator_notes')" aria-hidden="true">{{ icon('eye', 'ui-icon--sm') }}</span><span x-show="!isPersonaFieldHidden('creator_notes')" aria-hidden="true">{{ icon('eye-off', 'ui-icon--sm') }}</span></button>
                     </div>
                   </div>
                   <div class="detail-persona-card-meta">
@@ -1053,7 +1053,7 @@
                       x-show="!isEditMode && hasTextValue(editingData.creator_notes) && isPersonaFieldHidden('creator_notes')"
                       class="detail-persona-hidden"
                     >
-                      <span aria-hidden="true">{{ icon('settings-show', 'ui-icon--sm') }}</span>
+                      <span aria-hidden="true">{{ icon('eye', 'ui-icon--sm') }}</span>
                       <span>内容已隐藏 · 点击眼睛按钮显示</span>
                     </div>
                     <div
@@ -1099,7 +1099,7 @@
                         :aria-pressed="isPersonaFieldHidden('system_prompt')"
                         :aria-label="isPersonaFieldHidden('system_prompt') ? '显示系统提示词内容' : '隐藏系统提示词内容'"
                         :title="isPersonaFieldHidden('system_prompt') ? '显示内容' : '隐藏内容'"
-                      ><span x-show="isPersonaFieldHidden('system_prompt')" aria-hidden="true">{{ icon('settings-show', 'ui-icon--sm') }}</span><span x-show="!isPersonaFieldHidden('system_prompt')" aria-hidden="true">{{ icon('settings-hide', 'ui-icon--sm') }}</span></button>
+                      ><span x-show="isPersonaFieldHidden('system_prompt')" aria-hidden="true">{{ icon('eye', 'ui-icon--sm') }}</span><span x-show="!isPersonaFieldHidden('system_prompt')" aria-hidden="true">{{ icon('eye-off', 'ui-icon--sm') }}</span></button>
                     </div>
                   </div>
                   <div class="detail-persona-card-meta">
@@ -1125,7 +1125,7 @@
                       x-show="!isEditMode && hasTextValue(editingData.system_prompt) && isPersonaFieldHidden('system_prompt')"
                       class="detail-persona-hidden"
                     >
-                      <span aria-hidden="true">{{ icon('settings-show', 'ui-icon--sm') }}</span>
+                      <span aria-hidden="true">{{ icon('eye', 'ui-icon--sm') }}</span>
                       <span>内容已隐藏 · 点击眼睛按钮显示</span>
                     </div>
                     <div
@@ -1171,7 +1171,7 @@
                         :aria-pressed="isPersonaFieldHidden('post_history_instructions')"
                         :aria-label="isPersonaFieldHidden('post_history_instructions') ? '显示后历史指令内容' : '隐藏后历史指令内容'"
                         :title="isPersonaFieldHidden('post_history_instructions') ? '显示内容' : '隐藏内容'"
-                      ><span x-show="isPersonaFieldHidden('post_history_instructions')" aria-hidden="true">{{ icon('settings-show', 'ui-icon--sm') }}</span><span x-show="!isPersonaFieldHidden('post_history_instructions')" aria-hidden="true">{{ icon('settings-hide', 'ui-icon--sm') }}</span></button>
+                      ><span x-show="isPersonaFieldHidden('post_history_instructions')" aria-hidden="true">{{ icon('eye', 'ui-icon--sm') }}</span><span x-show="!isPersonaFieldHidden('post_history_instructions')" aria-hidden="true">{{ icon('eye-off', 'ui-icon--sm') }}</span></button>
                     </div>
                   </div>
                   <div class="detail-persona-card-meta">
@@ -1197,7 +1197,7 @@
                       x-show="!isEditMode && hasTextValue(editingData.post_history_instructions) && isPersonaFieldHidden('post_history_instructions')"
                       class="detail-persona-hidden"
                     >
-                      <span aria-hidden="true">{{ icon('settings-show', 'ui-icon--sm') }}</span>
+                      <span aria-hidden="true">{{ icon('eye', 'ui-icon--sm') }}</span>
                       <span>内容已隐藏 · 点击眼睛按钮显示</span>
                     </div>
                     <div
@@ -1569,14 +1569,14 @@
                         x-show="isEditMode"
                         class="detail-tag-handle"
                         title="拖拽排序"
-                        >{{ icon('other-menu', 'ui-icon--xs') }}</span
+                        >{{ icon('menu-bold', 'ui-icon--xs') }}</span
                       >
                       <span x-text="tag"></span>
                       <span
                         x-show="isEditMode"
                         class="detail-tag-x"
                         @click.stop="removeTagAt(index)"
-                        >{{ icon('other-close', 'ui-icon--xs') }}</span
+                        >{{ icon('close-bold', 'ui-icon--xs') }}</span
                       >
                     </button>
                   </template>
@@ -1618,7 +1618,7 @@
                       class="detail-inline-add"
                       title="清空搜索"
                     >
-                      {{ icon('other-close', 'ui-icon--xs') }}
+                      {{ icon('close-bold', 'ui-icon--xs') }}
                     </button>
                   </div>
 
@@ -1769,7 +1769,7 @@
 
                 <div class="wi-header group" @click="wiOpen = !wiOpen">
                   <div class="flex items-center gap-2 mr-3 pointer-events-none">
-                    <span class="shadow-sm">{{ sidebar_icon('worldbook', 'ui-icon--md') }}</span>
+                    <span class="shadow-sm">{{ sidebar_icon('book-stack', 'ui-icon--md') }}</span>
                     <div class="flex flex-col leading-none">
                       <span
                         x-show="$store.global.deviceType !== 'mobile'"
@@ -1817,7 +1817,7 @@
                           title="导入"
                           class="wi-detail-worldbook-transfer-btn px-2 py-1 text-[10px] rounded transition-colors flex items-center gap-1"
                         >
-                          {{ icon('header-import', 'ui-icon--sm') }}
+                          {{ icon('file-import', 'ui-icon--sm') }}
                         </button>
                         <div
                           class="w-[1px] my-0.5"
@@ -1828,7 +1828,7 @@
                           title="导出"
                           class="wi-detail-worldbook-transfer-btn px-2 py-1 text-[10px] rounded transition-colors flex items-center gap-1"
                         >
-                          {{ icon('card-upload', 'ui-icon--sm') }}
+                          {{ icon('upload', 'ui-icon--sm') }}
                         </button>
                       </div>
 
@@ -1884,7 +1884,7 @@
                         @click="addWiEntry()"
                         class="text-xs bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded flex items-center gap-1 transition"
                       >
-                        {{ icon('context-new', 'ui-icon--sm') }}
+                        {{ icon('plus-square', 'ui-icon--sm') }}
                         <span>新增条目</span>
                       </button>
                     </div>
@@ -1951,7 +1951,7 @@
                               @click="removeWiEntry(entry)"
                               class="text-gray-500 hover:text-red-400 p-1 rounded transition"
                             >
-                              {{ icon('context-delete', 'ui-icon--sm') }}
+                              {{ icon('trash', 'ui-icon--sm') }}
                             </button>
                             <button
                               @click="expanded = !expanded"
@@ -2075,7 +2075,7 @@
                       class="text-[10px] underline flex items-center gap-1 transition-colors"
                       style="color: var(--text-dim)"
                     >
-                      {{ icon('settings-advanced-settings', 'ui-icon--sm') }}
+                      {{ icon('sliders-settings', 'ui-icon--sm') }}
                       <span
                         x-text="showRaw ? '隐藏原始数据' : '查看/编辑原始 JSON (Advanced)'"
                       ></span>
@@ -2089,7 +2089,7 @@
                         @click="if(applyCharacterBookJson()) showRaw=false"
                         class="btn-danger-xs"
                       >
-                        {{ icon('settings-warning', 'ui-icon--sm') }}
+                        {{ icon('alert-triangle', 'ui-icon--sm') }}
                         <span>应用 JSON 覆盖当前表格</span>
                       </button>
                     </div>
@@ -2109,7 +2109,7 @@
                 <div class="detail-chat-panel-head">
                   <div>
                     <div class="detail-manage-panel-title inline-flex items-center gap-2">
-                      {{ detail_icon('chat', 'ui-icon--sm') }}
+                      {{ detail_icon('chat-bubble', 'ui-icon--sm') }}
                       <span>角色关联聊天记录</span>
                     </div>
                     <div class="detail-manage-helper">
@@ -2122,7 +2122,7 @@
                       class="btn-secondary detail-mini-btn"
                       @click="triggerChatImportForCard()"
                     >
-                      {{ icon('card-upload', 'ui-icon--sm') }}
+                      {{ icon('upload', 'ui-icon--sm') }}
                       <span>导入聊天</span>
                     </button>
                     <button
@@ -2159,7 +2159,7 @@
                     @change="handleCardChatInputChange($event)"
                   />
                   <div class="detail-chat-dropzone-icon" aria-hidden="true">
-                    {{ icon('card-upload', 'ui-icon--lg') }}
+                    {{ icon('upload', 'ui-icon--lg') }}
                   </div>
                   <div class="detail-chat-dropzone-copy">
                     <div
@@ -2215,7 +2215,7 @@
                           :class="chat.favorite ? 'is-active' : ''"
                           @click.stop="openChatReaderForCard(chat.id)"
                         >
-                          {{ icon('card-favorite', 'ui-icon--sm') }}
+                          {{ icon('heart', 'ui-icon--sm') }}
                         </button>
                       </div>
                       <div class="detail-chat-date-row">
@@ -2263,7 +2263,7 @@
                   class="detail-manage-panel detail-manage-panel--compact"
                 >
                   <div class="detail-manage-panel-title inline-flex items-center gap-2">
-                    {{ detail_icon('time', 'ui-icon--sm') }}
+                    {{ detail_icon('clock', 'ui-icon--sm') }}
                     <span>时间信息</span>
                   </div>
                   <div class="detail-manage-kv-list">
@@ -2310,11 +2310,11 @@
                 >
                   <div class="detail-manage-panel-title">
                     <span x-show="!activeCard.is_bundle" class="inline-flex items-center gap-1">
-                      {{ detail_icon('filename', 'ui-icon--sm') }}
+                      {{ detail_icon('file-name', 'ui-icon--sm') }}
                       <span>文件名</span>
                     </span>
                     <span x-show="activeCard.is_bundle" class="inline-flex items-center gap-1">
-                      {{ icon('card-package', 'ui-icon--sm') }}
+                      {{ icon('package', 'ui-icon--sm') }}
                       <span>角色包 / 当前版本文件</span>
                     </span>
                   </div>
@@ -2340,7 +2340,7 @@
                     <div class="detail-manage-file-row">
                       <span
                         class="detail-manage-file-label detail-manage-file-label--folder"
-                        >{{ sidebar_icon('folder', 'ui-icon--sm') }} 文件夹</span
+                        >{{ sidebar_icon('folder-solid', 'ui-icon--sm') }} 文件夹</span
                       >
                       <div class="detail-manage-file-path">
                         <span x-text="activeCard.bundle_dir"></span>
@@ -2349,7 +2349,7 @@
                         @click="renameFolderFromDetail(activeCard.bundle_dir)"
                         class="btn-secondary detail-manage-mini-btn"
                       >
-                        {{ icon('context-rename', 'ui-icon--sm') }}
+                        {{ icon('pencil-edit', 'ui-icon--sm') }}
                         <span>重命名</span>
                       </button>
                     </div>
@@ -2358,7 +2358,7 @@
                     >
                       <span
                         class="detail-manage-file-label detail-manage-file-label--file"
-                        >{{ detail_icon('current-file', 'ui-icon--sm') }} 当前文件</span
+                        >{{ detail_icon('file-current', 'ui-icon--sm') }} 当前文件</span
                       >
                       <input
                         type="text"
@@ -2394,14 +2394,14 @@
                           @click="locateCard()"
                           class="toolbox-btn detail-manage-tool-btn"
                         >
-                          {{ detail_icon('jump-locate', 'ui-icon--md detail-manage-tool-icon--jump-locate') }}
+                          {{ detail_icon('locate-jump', 'ui-icon--lg') }}
                           <span>跳转定位</span>
                         </button>
                         <button
                           @click="openCardLocation()"
                           class="toolbox-btn detail-manage-tool-btn"
                         >
-                          {{ sidebar_icon('category-expanded', 'ui-icon--md detail-manage-tool-icon--folder') }}
+                          {{ sidebar_icon('folder-open', 'ui-icon--lg') }}
                           <span>打开所在文件夹</span>
                         </button>
                       </div>
@@ -2417,14 +2417,14 @@
                           @click="openRollback('card')"
                           class="toolbox-btn detail-manage-tool-btn warn"
                         >
-                          {{ icon('worldbook-rollback', 'ui-icon--md detail-manage-tool-icon--rollback') }}
+                          {{ icon('history-rollback', 'ui-icon--lg') }}
                           <span>时光机</span>
                         </button>
                         <button
                           @click="openBackupFolder('card')"
                           class="toolbox-btn detail-manage-tool-btn"
                         >
-                          {{ icon('worldbook-backup', 'ui-icon--md wi-worldbook-backup-icon') }}
+                          {{ icon('book-backup', 'ui-icon--lg') }}
                           <span>打开备份目录</span>
                         </button>
                       </div>
@@ -2454,14 +2454,14 @@
                         class="detail-update-dropzone-icon"
                         :class="dragOverUpdate ? 'drag-over' : ''"
                       >
-                        {{ sidebar_icon('category-expanded', 'ui-icon--md detail-manage-action-icon--folder') }}
+                        {{ sidebar_icon('folder-open', 'ui-icon--lg') }}
                       </div>
                       <div class="detail-update-dropzone-title">
                         文件覆盖升级
                       </div>
                       <div class="detail-update-dropzone-note">
                         <span x-show="!dragOverUpdate" class="inline-flex items-center gap-1">
-                          {{ icon('card-upload', 'ui-icon--xs') }}
+                          {{ icon('upload', 'ui-icon--xs') }}
                           <span>点击选择，或拖拽 PNG / JSON 到这里</span>
                         </span>
                         <span x-show="dragOverUpdate">松开后更新当前角色卡</span>
@@ -2488,7 +2488,7 @@
                               {{ detail_icon('overwrite', 'ui-icon--md') }}
                             </span>
                             <span x-show="updateImagePolicy === 'keep_image'">
-                              {{ detail_icon('keep-image', 'ui-icon--md') }}
+                              {{ detail_icon('image-keep', 'ui-icon--md') }}
                             </span>
                             <span x-show="updateImagePolicy === 'archive_old'">
                               {{ detail_icon('archive-old', 'ui-icon--md') }}
@@ -2536,11 +2536,11 @@
                           class="btn-secondary detail-manage-action-btn detail-source-update-action"
                         >
                           <span x-show="!sourceUpdateChecking" class="inline-flex items-center gap-1">
-                            {{ icon('card-refresh', 'ui-icon--md detail-manage-action-icon--card-refresh') }}
+                            {{ icon('refresh-card', 'ui-icon--lg') }}
                             <span>检查来源更新</span>
                           </span>
                           <span x-show="sourceUpdateChecking" class="inline-flex items-center gap-1">
-                            {{ icon('card-loader', 'ui-icon--md ui-icon--spin detail-manage-action-icon--card-loader') }}
+                            {{ icon('loader-circle', 'ui-icon--lg ui-icon--spin') }}
                             <span>检查中...</span>
                           </span>
                         </button>
@@ -2551,11 +2551,11 @@
                           class="btn-secondary detail-manage-action-btn detail-source-acknowledge-action"
                         >
                           <span x-show="!sourceUpdateAcknowledging" class="inline-flex items-center gap-1">
-                            {{ icon('card-check', 'ui-icon--md detail-manage-action-icon--card-check') }}
+                            {{ icon('check', 'ui-icon--lg') }}
                             <span>确认无需更新</span>
                           </span>
                           <span x-show="sourceUpdateAcknowledging" class="inline-flex items-center gap-1">
-                            {{ icon('card-loader', 'ui-icon--md ui-icon--spin detail-manage-action-icon--card-loader') }}
+                            {{ icon('loader-circle', 'ui-icon--lg ui-icon--spin') }}
                             <span>处理中...</span>
                           </span>
                         </button>
@@ -2563,7 +2563,7 @@
                           @click="triggerUrlUpdate()"
                           class="btn-update-card btn-update-url detail-manage-action-btn"
                         >
-                          {{ icon('header-url-import', 'ui-icon--md detail-manage-action-icon--header-url-import') }}
+                          {{ icon('link-import', 'ui-icon--lg') }}
                           <span>URL 更新</span>
                         </button>
                         <button
@@ -2571,7 +2571,7 @@
                           @click="sendToST()"
                           class="btn-update-card detail-manage-action-btn detail-manage-action-btn--st"
                         >
-                          {{ icon('card-send', 'ui-icon--md detail-manage-action-icon--card-send') }}
+                          {{ icon('send', 'ui-icon--lg') }}
                           <span class="detail-send-st-label">发送到 ST</span>
                         </button>
                         <button
@@ -2579,7 +2579,7 @@
                           @click="convertToBundle()"
                           class="btn-secondary detail-manage-action-btn detail-manage-action-btn--warn"
                         >
-                          {{ icon('card-package', 'ui-icon--md detail-manage-action-icon--card-package') }}
+                          {{ icon('package', 'ui-icon--lg') }}
                           <span>转为包模式</span>
                         </button>
                         <button
@@ -2587,14 +2587,14 @@
                           @click="unbundleCard()"
                           class="btn-secondary detail-manage-action-btn detail-manage-action-btn--warn"
                         >
-                          {{ detail_icon('heart-broken', 'ui-icon--md detail-manage-action-icon--heart-broken') }}
+                          {{ detail_icon('heart-broken', 'ui-icon--lg') }}
                           <span>取消聚合</span>
                         </button>
                         <button
                           @click="deleteCards([activeCard.id])"
                           class="btn-secondary detail-manage-action-btn detail-manage-action-btn--danger"
                         >
-                          {{ icon('context-delete', 'ui-icon--md detail-manage-action-icon--context-delete') }}
+                          {{ icon('trash', 'ui-icon--lg') }}
                           <span>移至回收站</span>
                         </button>
                       </div>
@@ -2629,7 +2629,7 @@
                     <div
                       class="detail-manage-panel-title detail-manage-panel-title--center"
                     >
-                      {{ detail_icon('advanced-editor', 'ui-icon--sm') }}
+                      {{ detail_icon('editor', 'ui-icon--sm') }}
                       <span>高级扩展</span>
                     </div>
                     <div class="detail-manage-helper">管理脚本、正则扩展。</div>
@@ -2638,7 +2638,7 @@
                     @click="openAdvancedEditor()"
                     class="toolbox-btn detail-manage-advanced-btn inline-flex items-center gap-2"
                   >
-                    {{ detail_icon('advanced-editor', 'ui-icon--md detail-manage-action-icon--advanced-editor') }}
+                    {{ detail_icon('editor', 'ui-icon--lg') }}
                     <span>打开高级编辑器</span>
                   </button>
                 </div>
@@ -2689,7 +2689,7 @@
                       class="detail-resource-upload-icon transition-transform duration-300"
                       :class="dragOverResource ? 'scale-110' : 'grayscale opacity-50 group-hover:grayscale-0 group-hover:opacity-100'"
                     >
-                      {{ icon('header-import', 'ui-icon--lg') }}
+                      {{ icon('file-import', 'ui-icon--lg') }}
                     </div>
                     <div class="text-left">
                       <h4
@@ -2766,7 +2766,7 @@
                             @click="goToSkinParentDirectory()"
                             class="px-2 py-1 rounded border border-[var(--border-light)] hover:text-[var(--text-main)]"
                           >
-                            {{ detail_icon('return-parent', 'ui-icon--sm') }}
+                            {{ detail_icon('arrow-up-left', 'ui-icon--sm') }}
                             <span>上一级</span>
                           </button>
                           <button
@@ -2791,7 +2791,7 @@
                                 @dblclick.stop="enterSkinDirectory(item.path)"
                                 :title="item.path"
                               >
-                                <div>{{ sidebar_icon('folder', 'ui-icon--lg') }}</div>
+                                <div>{{ sidebar_icon('folder-solid', 'ui-icon--lg') }}</div>
                                 <div
                                   class="absolute bottom-0 left-0 right-0 bg-black/60 text-[9px] text-white px-1 truncate"
                                   x-text="item.name"
@@ -2899,7 +2899,7 @@
                             :disabled="currentSkinIndex === -1"
                             class="btn-secondary flex-1 justify-center font-bold text-[var(--accent-main)] border-[var(--accent-main)] hover:bg-[var(--accent-main)] hover:text-white transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-[var(--accent-main)]"
                           >
-                            {{ detail_icon('set-cover', 'ui-icon--sm') }}
+                            {{ detail_icon('cover-image', 'ui-icon--sm') }}
                             <span>设为封面</span>
                           </button>
                           <button
@@ -2908,7 +2908,7 @@
                             class="btn-secondary w-10 flex items-center justify-center text-red-400 border-red-400/50 hover:bg-red-500 hover:text-white hover:border-red-500 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-red-400"
                             title="删除此皮肤文件"
                           >
-                            {{ icon('context-delete', 'ui-icon--sm') }}
+                            {{ icon('trash', 'ui-icon--sm') }}
                           </button>
                         </div>
                       </div>
@@ -2929,7 +2929,7 @@
                           <span
                             class="text-xs font-bold text-orange-400 uppercase flex items-center gap-1"
                           >
-                            <span>{{ detail_icon('worldbook', 'ui-icon--sm') }}</span>
+                            <span>{{ detail_icon('book-open', 'ui-icon--sm') }}</span>
                             世界书 (Lorebooks)
                           </span>
                         </div>
@@ -2943,7 +2943,7 @@
                               @click="window.dispatchEvent(new CustomEvent('open-wi-detail-modal', { detail: { id: file.path, type: 'resource', path: file.path, name: file.name, mtime: file.mtime } }))"
                             >
                               <div class="flex items-center gap-2 min-w-0">
-                                <span class="text-orange-400">{{ detail_icon('worldbook', 'ui-icon--sm') }}</span>
+                                <span class="text-orange-400">{{ detail_icon('book-open', 'ui-icon--sm') }}</span>
                                 <span
                                   class="text-xs text-[var(--text-main)] truncate"
                                   x-text="file.relative_path || file.name"
@@ -3029,7 +3029,7 @@
                           <span
                             class="text-xs font-bold text-purple-400 uppercase flex items-center gap-1"
                           >
-                            {{ detail_icon('scripts', 'ui-icon--sm') }}
+                            {{ detail_icon('script-file', 'ui-icon--sm') }}
                             <span>扩展脚本 (Scripts)</span>
                           </span>
                         </div>
@@ -3043,7 +3043,7 @@
                               @click="openResourceScript(file, 'script')"
                             >
                               <div class="flex items-center gap-2 min-w-0">
-                                <span class="text-purple-400">{{ detail_icon('scripts', 'ui-icon--sm') }}</span>
+                                <span class="text-purple-400">{{ detail_icon('script-file', 'ui-icon--sm') }}</span>
                                 <span
                                   class="text-xs text-[var(--text-main)] truncate"
                                   x-text="file.relative_path || file.name"
@@ -3079,7 +3079,7 @@
                           <span
                             class="text-xs font-bold text-yellow-500 uppercase flex items-center gap-1"
                           >
-                            {{ detail_icon('quick-replies', 'ui-icon--sm') }}
+                            {{ detail_icon('quick-reply', 'ui-icon--sm') }}
                             <span>快速回复 (Quick Replies)</span>
                           </span>
                         </div>
@@ -3093,7 +3093,7 @@
                               @click="openResourceScript(file, 'quick_reply')"
                             >
                               <div class="flex items-center gap-2 min-w-0">
-                                <span class="text-yellow-500">{{ detail_icon('quick-replies', 'ui-icon--sm') }}</span>
+                                <span class="text-yellow-500">{{ detail_icon('quick-reply', 'ui-icon--sm') }}</span>
                                 <span
                                   class="text-xs text-[var(--text-main)] truncate"
                                   x-text="file.relative_path || file.name"
@@ -3179,7 +3179,7 @@
                           <span
                             class="text-xs font-bold text-slate-400 uppercase flex items-center gap-1"
                           >
-                            {{ detail_icon('other-resource', 'ui-icon--sm') }}
+                            {{ detail_icon('resource', 'ui-icon--sm') }}
                             <span>其他资源 (Unknown)</span>
                           </span>
                         </div>
@@ -3192,7 +3192,7 @@
                               class="flex items-center justify-between p-2 rounded border border-transparent hover:border-[var(--border-light)] hover:bg-[var(--bg-hover)] group transition-colors"
                             >
                               <div class="flex items-center gap-2 min-w-0">
-                                <span class="text-slate-400">{{ detail_icon('other-resource', 'ui-icon--sm') }}</span>
+                                <span class="text-slate-400">{{ detail_icon('resource', 'ui-icon--sm') }}</span>
                                 <span
                                   class="text-xs text-[var(--text-main)] truncate"
                                   :title="file.relative_path || file.name"
@@ -3253,7 +3253,7 @@
           @click="closePersonaPreview()"
           aria-label="关闭字段预览"
           title="关闭"
-        >{{ icon('context-close', 'ui-icon--sm') }}</button>
+        >{{ icon('close', 'ui-icon--sm') }}</button>
       </header>
       <div class="detail-persona-preview-meta">
         <span
@@ -3324,7 +3324,7 @@
             @click="goToSkinParentDirectory(); closeSkinGalleryPreview()"
             class="skin-gallery-control"
           >
-            {{ detail_icon('return-parent', 'ui-icon--sm') }}
+            {{ detail_icon('arrow-up-left', 'ui-icon--sm') }}
             <span>上一级</span>
           </button>
           <button
@@ -3341,7 +3341,7 @@
             class="skin-gallery-close"
             title="退出全屏浏览"
           >
-            {{ icon('context-close', 'ui-icon--sm') }}
+            {{ icon('close', 'ui-icon--sm') }}
           </button>
         </div>
       </header>
@@ -3364,7 +3364,7 @@
               :title="item.path"
             >
               <span class="skin-gallery-folder-symbol">
-                {{ sidebar_icon('folder', 'ui-icon--lg') }}
+                {{ sidebar_icon('folder-solid', 'ui-icon--lg') }}
               </span>
               <span class="skin-gallery-tile-name" x-text="item.name"></span>
             </button>
@@ -3413,7 +3413,7 @@
           class="skin-gallery-close"
           title="关闭图片预览"
         >
-          {{ icon('context-close', 'ui-icon--sm') }}
+          {{ icon('close', 'ui-icon--sm') }}
         </button>
       </div>
       <img
@@ -3470,6 +3470,7 @@
   <!-- ================================================= -->
   <!-- 字段说明帮助模态框 (Help Modal) -->
   <!-- ================================================= -->
+  <template x-teleport="body">
   <div
     x-show="showHelpModal"
     x-cloak
@@ -3479,7 +3480,7 @@
     x-transition:leave="transition ease-in duration-150"
     x-transition:leave-start="opacity-100 scale-100"
     x-transition:leave-end="opacity-0 scale-95"
-    class="detail-icon-scope fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 md:p-8"
+    class="detail-icon-scope fixed inset-0 z-modal-popover flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 md:p-8"
     @click.self="showHelpModal = false"
   >
     <div
@@ -3492,14 +3493,14 @@
         <h3
           class="font-bold text-lg text-[var(--text-main)] flex items-center gap-2"
         >
-          {{ icon('settings-help-entry', 'ui-icon--sm detail-icon--prominent') }}
+          {{ icon('settings-help-entry', 'ui-icon--lg') }}
           <span>角色卡字段说明指南</span>
         </h3>
         <button
           @click="showHelpModal = false"
           class="text-gray-500 hover:text-red-400 px-2 text-xl"
         >
-          {{ icon('context-close', 'ui-icon--sm detail-icon--prominent') }}
+          {{ icon('close', 'ui-icon--lg') }}
         </button>
       </div>
 
@@ -3668,7 +3669,7 @@
               class="p-3 border border-[var(--border-light)] rounded bg-[var(--bg-body)] relative overflow-hidden"
             >
               <div class="absolute right-0 top-0 p-1 opacity-10">
-                {{ detail_icon('local-note', 'ui-icon--lg') }}
+                {{ detail_icon('note', 'ui-icon--lg') }}
               </div>
               <span class="font-bold text-green-400 block mb-1"
                 >本地备注 (Local Note)</span
@@ -3684,7 +3685,7 @@
               class="p-3 border border-[var(--border-light)] rounded bg-[var(--bg-body)] relative overflow-hidden"
             >
               <div class="absolute right-0 top-0 p-1 opacity-10">
-                {{ sidebar_icon('folder', 'ui-icon--lg') }}
+                {{ sidebar_icon('folder-solid', 'ui-icon--lg') }}
               </div>
               <span class="font-bold text-green-400 block mb-1"
                 >资源目录 (Assets)</span
@@ -3714,13 +3715,13 @@
                 class="p-3 border border-[var(--border-light)] rounded bg-[var(--bg-body)]"
               >
                 <span class="font-bold text-orange-300 mb-1 inline-flex items-center gap-1"
-                  >{{ detail_icon('source-link', 'ui-icon--sm detail-icon--prominent') }} 来源链接 (Source Link)</span
+                  >{{ detail_icon('link-source', 'ui-icon--lg') }} 来源链接 (Source Link)</span
                 >
                 <p class="text-[var(--text-dim)] text-xs">
                   记录角色卡的原始发布地址（如 类脑、chubai）。
                   <br />点击右上角的
                   <span class="inline-flex items-center gap-1 border border-gray-600 px-1 rounded"
-                    >{{ icon('card-external-link', 'ui-icon--xs') }} <span>打开</span></span
+                    >{{ icon('external-link', 'ui-icon--xs') }} <span>打开</span></span
                   >
                   可快速跳转。
                 </p>
@@ -3729,7 +3730,7 @@
                 class="p-3 border border-[var(--border-light)] rounded bg-[var(--bg-body)]"
               >
                 <span class="font-bold text-orange-300 mb-1 inline-flex items-center gap-1"
-                  >{{ icon('card-package', 'ui-icon--sm detail-icon--prominent') }} 角色包模式 (Bundle)</span
+                  >{{ icon('package', 'ui-icon--lg') }} 角色包模式 (Bundle)</span
                 >
                 <p class="text-[var(--text-dim)] text-xs">
                   将单张卡片转换为文件夹管理模式，支持多版本控制。
@@ -3739,7 +3740,7 @@
                   <span class="text-yellow-500">转为包</span>。 <br />•
                   <strong>封面：</strong> 点击左侧版本条上的
                   <span class="inline-flex items-center align-middle">
-                    {{ detail_icon('set-cover', 'ui-icon--xs') }}
+                    {{ detail_icon('cover-image', 'ui-icon--xs') }}
                   </span>
                   可切换当前主图和数据。
                 </p>
@@ -3751,18 +3752,18 @@
               class="bg-[var(--bg-sub)] rounded border border-[var(--border-light)] p-3"
             >
               <span class="font-bold text-orange-300 mb-2 inline-flex items-center gap-1"
-                >{{ detail_icon('backup-rollback', 'ui-icon--sm detail-icon--prominent') }} 备份与时光机 (Backup System)</span
+                  >{{ detail_icon('backup-rollback', 'ui-icon--lg') }} 备份与时光机 (Backup System)</span
               >
               <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
                 <div>
                   <span class="font-bold text-[var(--text-main)] inline-flex items-center gap-1"
-                    >{{ icon('worldbook-snapshot', 'ui-icon--sm') }} 快照 (Snapshot)</span
+                    >{{ icon('snapshot', 'ui-icon--sm') }} 快照 (Snapshot)</span
                   >
                   <p class="text-[var(--text-dim)] mt-1">
                     手动创建的备份点。建议在进行大改前点击顶部
                     <span
                       class="inline-block border border-gray-600 px-1 rounded"
-                      >{{ icon('worldbook-snapshot', 'ui-icon--xs') }}</span
+                      >{{ icon('snapshot', 'ui-icon--xs') }}</span
                     >
                     按钮。
                   </p>
@@ -3779,7 +3780,7 @@
                 </div>
                 <div>
                   <span class="font-bold text-[var(--text-main)] inline-flex items-center gap-1"
-                    >{{ icon('worldbook-rollback', 'ui-icon--sm') }} 时光机 (Rollback)</span
+                    >{{ icon('history-rollback', 'ui-icon--sm') }} 时光机 (Rollback)</span
                   >
                   <p class="text-[var(--text-dim)] mt-1">
                     可视化的版本回滚工具。支持左右分栏对比代码差异
@@ -3800,7 +3801,7 @@
               class="bg-[var(--bg-sub)] rounded border border-[var(--border-light)] p-3"
             >
               <span class="font-bold text-orange-300 mb-2 inline-flex items-center gap-1"
-                >{{ detail_icon('update-policy', 'ui-icon--sm detail-icon--prominent') }} 更新与导入策略 (Update Logic)</span
+                  >{{ detail_icon('update-policy', 'ui-icon--lg') }} 更新与导入策略 (Update Logic)</span
               >
               <p class="text-xs text-[var(--text-dim)] mb-2">
                 当您拖拽新图片覆盖旧卡片，或使用 URL
@@ -3810,19 +3811,19 @@
                 class="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-[var(--text-dim)]"
               >
                 <li class="flex items-center gap-2">
-                  <span class="text-red-400 inline-flex items-center gap-1">{{ detail_icon('overwrite', 'ui-icon--xs detail-icon--prominent') }} 直接覆盖</span
+                  <span class="text-red-400 inline-flex items-center gap-1">{{ detail_icon('overwrite', 'ui-icon--sm') }} 直接覆盖</span
                   >：用新图和新数据完全替换旧卡（旧数据丢失）。
                 </li>
                 <li class="flex items-center gap-2">
-                  <span class="text-blue-400 inline-flex items-center gap-1">{{ detail_icon('keep-image', 'ui-icon--xs detail-icon--prominent') }} 保留原图</span
+                  <span class="text-blue-400 inline-flex items-center gap-1">{{ detail_icon('image-keep', 'ui-icon--sm') }} 保留原图</span
                   >：仅更新文本数据，卡片立绘保持不变。
                 </li>
                 <li class="flex items-center gap-2">
-                  <span class="text-yellow-400 inline-flex items-center gap-1">{{ detail_icon('archive-old', 'ui-icon--xs detail-icon--prominent') }} 归档旧图</span
+                  <span class="text-yellow-400 inline-flex items-center gap-1">{{ detail_icon('archive-old', 'ui-icon--sm') }} 归档旧图</span
                   >：更新卡片，并将旧立绘移入资源目录保存。
                 </li>
                 <li class="flex items-center gap-2">
-                  <span class="text-purple-400 inline-flex items-center gap-1">{{ detail_icon('archive-new', 'ui-icon--xs detail-icon--prominent') }} 新图归档</span
+                  <span class="text-purple-400 inline-flex items-center gap-1">{{ detail_icon('archive-new', 'ui-icon--sm') }} 新图归档</span
                   >：不改变当前卡片，将新图作为“皮肤”存入资源目录。
                 </li>
               </ul>
@@ -3844,4 +3845,5 @@
       </div>
     </div>
   </div>
+  </template>
 </div>

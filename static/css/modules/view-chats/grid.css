@@ -229,8 +229,8 @@
 }
 
 .chat-drag-import-icon .ui-icon {
-  width: 3.75rem;
-  height: 3.75rem;
+  width: 64px;
+  height: 64px;
 }
 
 .chat-card-favorite {
@@ -257,8 +257,8 @@
 }
 
 .chat-card-favorite .chat-card-favorite-icon {
-  width: 1.42rem;
-  height: 1.42rem;
+  width: 20px;
+  height: 20px;
   fill: currentColor;
   stroke: none;
   stroke-width: 0;
@@ -308,8 +308,8 @@
 }
 
 .chat-bookmark-toggle.chat-reader-icon-button svg {
-  width: 17px;
-  height: 17px;
+  width: 16px;
+  height: 16px;
 }
 
 .chat-bookmark-toggle .chat-bookmark-icon {
@@ -635,8 +635,8 @@
 
 .chat-empty-icon .ui-icon,
 .detail-chat-empty-icon .ui-icon {
-  width: 3.75rem;
-  height: 3.75rem;
+  width: 64px;
+  height: 64px;
 }
 
 .chat-empty-title,

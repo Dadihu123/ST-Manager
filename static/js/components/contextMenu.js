@@ -194,12 +194,12 @@ export default function contextMenu() {
                     title: `自动处理分类：${folderName}`,
                 });
                 if (result?.selected) {
-                    this.$store.global.showToast('执行完成！', 2400, 'card-check');
+                    this.$store.global.showToast('执行完成！', 2400, 'check');
                     window.dispatchEvent(new CustomEvent('refresh-card-list'));
                     window.dispatchEvent(new CustomEvent('refresh-folder-list'));
                 }
             } catch (error) {
-                this.$store.global.showToast(error?.message || '批量执行失败', 3600, 'context-close');
+                this.$store.global.showToast(error?.message || '批量执行失败', 3600, 'close');
             }
         },
 
@@ -221,11 +221,11 @@ export default function contextMenu() {
                     title: `检查分类来源更新：${folderName}`,
                 });
                 if (result?.selected) {
-                    this.$store.global.showToast('检查完成！', 2400, 'card-check');
+                    this.$store.global.showToast('检查完成！', 2400, 'check');
                     window.dispatchEvent(new CustomEvent('refresh-card-list'));
                 }
             } catch (error) {
-                this.$store.global.showToast(error?.message || '批量检查失败', 3600, 'context-close');
+                this.$store.global.showToast(error?.message || '批量检查失败', 3600, 'close');
             }
         },
 

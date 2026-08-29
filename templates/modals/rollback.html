@@ -7,14 +7,14 @@
         <!-- 1. Header -->
         <div class="rb-header">
             <div class="flex items-center gap-3">
-                <span aria-hidden="true">{{ icon('worldbook-rollback', 'ui-icon--lg') }}</span>
+                <span aria-hidden="true">{{ icon('history-rollback', 'ui-icon--lg') }}</span>
                 <div>
                     <h3 class="font-bold text-lg">时光机 (Time Machine)</h3>
                     <p class="text-xs text-[var(--text-dim)]">选择两个版本进行比对，或恢复历史版本</p>
                 </div>
             </div>
             <button @click="showRollbackModal=false" class="text-gray-400 hover:text-white px-2 py-1 text-xl" aria-label="关闭回滚弹窗">
-                {{ icon('context-close', 'ui-icon--md') }}
+                {{ icon('close', 'ui-icon--md') }}
             </button>
         </div>
 
@@ -75,7 +75,7 @@
                             @click.stop="selectedBackup=ver; diffSelection.left=ver; performRestore()"
                             class="px-2 py-1 text-xs border border-[var(--border-light)] rounded hover:bg-red-900/30 text-[var(--text-sub)] hover:text-red-400 transition ml-2">
                             <span class="inline-flex items-center gap-1">
-                                <span aria-hidden="true">{{ icon('worldbook-rollback', 'ui-icon--sm') }}</span>
+                                <span aria-hidden="true">{{ icon('history-rollback', 'ui-icon--sm') }}</span>
                                 <span>恢复</span>
                             </span>
                         </button>
@@ -124,7 +124,7 @@
                     class="absolute inset-0 z-10 flex items-center justify-center backdrop-blur-sm bg-black/10 dark:bg-white/5">
                     <div
                         class="bg-[var(--bg-panel)] border border-[var(--border-light)] px-4 py-2 rounded-full shadow-lg flex items-center gap-2">
-                        <span aria-hidden="true">{{ icon('card-loader', 'ui-icon--sm ui-icon--spin') }}</span>
+                        <span aria-hidden="true">{{ icon('loader-circle', 'ui-icon--sm ui-icon--spin') }}</span>
                         <span class="text-sm font-bold">正在比对差异...</span>
                     </div>
                 </div>

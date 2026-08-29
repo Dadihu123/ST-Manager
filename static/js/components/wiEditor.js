@@ -1420,7 +1420,7 @@ export default function wiEditor() {
         this.$store.global.showToast(
           `已导入 ${uniqueBlocks.length} 条标签条目`,
           2200,
-          'card-check',
+          'check',
         );
         this.closeTaggedImportModal();
       } catch (e) {
@@ -1563,7 +1563,7 @@ export default function wiEditor() {
       try {
         const synced = await this._syncEditorStateAfterRestore();
         if (synced) {
-          this.$store.global.showToast("已同步恢复版本到当前编辑器", 2200, "detail-backup-rollback");
+          this.$store.global.showToast("已同步恢复版本到当前编辑器", 2200, "backup-rollback");
         }
       } catch (e) {
         console.warn("Sync editor after restore failed:", e);
@@ -2095,7 +2095,7 @@ export default function wiEditor() {
       }
 
       this.showEntryHistoryModal = false;
-      this.$store.global.showToast("条目已回滚，请记得保存世界书", 2200, "detail-backup-rollback");
+      this.$store.global.showToast("条目已回滚，请记得保存世界书", 2200, "backup-rollback");
     },
 
     getTotalWiTokens() {
@@ -2147,7 +2147,7 @@ export default function wiEditor() {
           .then((res) => {
             this.initialSnapshotChecked = true;
             if (res && res.created)
-              this.$store.global.showToast("已记录本次编辑初始版本", 1800, "detail-source-link");
+              this.$store.global.showToast("已记录本次编辑初始版本", 1800, "link-source");
             return res;
           })
           .catch((e) => {
@@ -2988,7 +2988,7 @@ export default function wiEditor() {
       if (isSafeButton && !overwriteId) {
         activeEl.innerHTML =
           '<svg class="ui-icon ui-icon--sm ui-icon--spin" viewBox="0 0 24 24" aria-hidden="true" focusable="false">' +
-          '<use href="/static/icons/ui.svg#icon-card-loader"></use>' +
+          '<use href="/static/icons/ui.svg#icon-loader-circle"></use>' +
           "</svg>";
       }
 
@@ -3003,7 +3003,7 @@ export default function wiEditor() {
             this.clipboardPendingEntry = null;
             if (!this.showWiClipboard) this.showWiClipboard = true;
 
-            this.$store.global.showToast("已复制到全局剪切板", 3000, "worldbook-clipboard");
+            this.$store.global.showToast("已复制到全局剪切板", 3000, "clipboard");
           } else if (res.code === "FULL") {
             this.wiClipboardOverwriteMode = true;
             this.clipboardPendingEntry = entry;

@@ -20,6 +20,7 @@ data/assets/backgrounds/*
 config.json
 venv/
 env/
+node_modules/
 dist/
 build/
 tmp/

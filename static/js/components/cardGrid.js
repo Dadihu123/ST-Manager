@@ -580,10 +580,10 @@ export default function cardGrid() {
         if (result?.success) {
           this.$store.global.showToast(result.message || this.getSourceUpdateLabel(card), 3200);
         } else {
-          this.$store.global.showToast(result?.error || result?.msg || '检查来源失败', 3200, 'context-close');
+          this.$store.global.showToast(result?.error || result?.msg || '检查来源失败', 3200, 'close');
         }
       } catch (error) {
-          this.$store.global.showToast(error?.message || '检查来源失败', 3200, 'context-close');
+          this.$store.global.showToast(error?.message || '检查来源失败', 3200, 'close');
       } finally {
         const next = { ...this.checkingSourceUpdateIds };
         delete next[key];
@@ -627,15 +627,15 @@ export default function cardGrid() {
         if (res.success) {
           const sentAt = Number(res.last_sent_to_st || Date.now() / 1000);
           card.last_sent_to_st = sentAt;
-          this.$store.global.showToast("已发送到 ST", 1800, "card-send");
+          this.$store.global.showToast("已发送到 ST", 1800, "send");
         } else {
-          this.$store.global.showToast(res.msg || "发送失败", 2600, "context-close");
+          this.$store.global.showToast(res.msg || "发送失败", 2600, "close");
         }
       } catch (error) {
         this.$store.global.showToast(
           error?.message || "发送失败",
           2600,
-          "context-close",
+          "close",
         );
       } finally {
         const next = { ...this.sendingToStIds };
@@ -1250,7 +1250,7 @@ export default function cardGrid() {
                     const cardName = cRes.new_cards[0]
                       ? cRes.new_cards[0].char_name
                       : item.filename;
-                    this.$store.global.showToast(`已导入: ${cardName}`, 3000, 'card-check');
+                    this.$store.global.showToast(`已导入: ${cardName}`, 3000, 'check');
 
                     // 触发事件以更新 UI (复用 batchImportModal 的事件逻辑)
                     window.dispatchEvent(

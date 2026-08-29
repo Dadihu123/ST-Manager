@@ -27,7 +27,7 @@
       class="drag-over-main-overlay"
     >
       <div class="mb-4" aria-hidden="true">
-        {{ icon('card-upload', 'ui-icon--xl') }}
+        {{ icon('upload', 'ui-icon--xl') }}
       </div>
       <div class="text-2xl font-bold text-white tracking-wider">
         松开鼠标上传世界书
@@ -99,7 +99,7 @@
                     class="wi-grid-tool-btn rounded-full flex items-center justify-center transition-all duration-200 shadow-md"
                     title="导出世界书 JSON"
                   >
-                    {{ icon('header-import', 'ui-icon--md') }}
+                    {{ icon('file-import', 'ui-icon--md') }}
                   </button>
 
                   <button
@@ -108,7 +108,7 @@
                     class="wi-grid-tool-btn wi-card-edit-btn rounded-full flex items-center justify-center transition-all duration-200 shadow-md"
                     title="打开全屏编辑器"
                   >
-                    {{ icon('context-rename', 'ui-icon--md') }}
+                    {{ icon('pencil-edit', 'ui-icon--md') }}
                   </button>
 
                   <button
@@ -124,7 +124,7 @@
                       :class="selectedIds.includes(item.id) ? 'bg-blue-600 border-blue-500 text-white scale-105' : 'bg-black/25 border-gray-400/60 hover:bg-black/50 hover:border-white/80 text-white/80'"
                     >
                       <span x-show="selectedIds.includes(item.id)" aria-hidden="true">
-                        {{ icon('card-check', 'ui-icon--xs') }}
+                        {{ icon('check', 'ui-icon--xs') }}
                       </span>
                     </div>
                   </button>
@@ -134,7 +134,7 @@
               <div class="wi-card-primary">
                 <div class="wi-card-title-row">
                   <div class="wi-card-bookmark" aria-hidden="true">
-                    {{ icon('worldbook-closed', 'ui-icon--lg wi-card-bookmark-icon') }}
+                    {{ icon('book-closed', 'ui-icon--xl wi-card-bookmark-icon') }}
                   </div>
                   <div class="wi-card-title-group">
                     <div class="wi-card-title-wrap">
@@ -187,7 +187,7 @@
                     :title="formatCategoryLabel(getWorldInfoDisplayCategory(item))"
                   >
                     <span class="wi-card-meta-icon" aria-hidden="true">
-                      {{ icon('card-folder', 'ui-icon--sm') }}
+                      {{ icon('folder', 'ui-icon--sm') }}
                     </span>
                     <span
                       class="wi-card-meta-text"
@@ -211,7 +211,7 @@
                       :title="getWorldInfoNotePreviewTitle(item)"
                       @click.stop="openWorldInfoLocalNote(item)"
                     >
-                      {{ icon('card-sticky-note', 'ui-icon--md') }}
+                      {{ icon('sticky-note', 'ui-icon--md') }}
                     </button>
                   </div>
                   <div class="wi-card-footer-tools-right">
@@ -225,10 +225,10 @@
                       @click.stop="sendWorldInfoToST(item)"
                     >
                       <span x-show="!isSendingWorldInfoToST(item.id)" aria-hidden="true">
-                        {{ icon('card-send', 'ui-icon--md') }}
+                        {{ icon('send', 'ui-icon--md') }}
                       </span>
                       <span x-show="isSendingWorldInfoToST(item.id)" aria-hidden="true">
-                        {{ icon('card-loader', 'ui-icon--md ui-icon--spin') }}
+                        {{ icon('loader-circle', 'ui-icon--md ui-icon--spin') }}
                       </span>
                     </button>
                   </div>
@@ -251,7 +251,7 @@
                       :title="formatCategoryLabel(getWorldInfoDisplayCategory(item))"
                     >
                       <span class="card-back-category-icon" aria-hidden="true">
-                        {{ icon('card-folder', 'ui-icon--sm') }}
+                        {{ icon('folder', 'ui-icon--sm') }}
                       </span>
                       <span
                         class="card-back-category-text"

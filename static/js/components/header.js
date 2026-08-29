@@ -433,12 +433,12 @@ export default function header() {
           title: `自动处理 ${count} 张卡片`,
         });
         if (result?.selected) {
-          this.$store.global.showToast("执行完成！", 2400, "card-check");
+          this.$store.global.showToast("执行完成！", 2400, "check");
           window.dispatchEvent(new CustomEvent("refresh-card-list"));
           window.dispatchEvent(new CustomEvent("refresh-folder-list"));
         }
       } catch (error) {
-        this.$store.global.showToast(error?.message || "批量执行失败", 3600, "context-close");
+        this.$store.global.showToast(error?.message || "批量执行失败", 3600, "close");
       }
     },
 
@@ -458,11 +458,11 @@ export default function header() {
           title: `检查 ${ids.length} 张卡片的来源更新`,
         });
         if (result?.selected) {
-          this.$store.global.showToast("检查完成！", 2400, "card-check");
+          this.$store.global.showToast("检查完成！", 2400, "check");
           window.dispatchEvent(new CustomEvent("refresh-card-list"));
         }
       } catch (error) {
-        this.$store.global.showToast(error?.message || "批量检查失败", 3600, "context-close");
+        this.$store.global.showToast(error?.message || "批量检查失败", 3600, "close");
       }
     },
 
@@ -488,7 +488,7 @@ export default function header() {
           window.dispatchEvent(new CustomEvent("refresh-card-list"));
         }
       } catch (error) {
-        this.$store.global.showToast(error?.message || "批量确认失败", 3600, "context-close");
+        this.$store.global.showToast(error?.message || "批量确认失败", 3600, "close");
       }
     },
 
@@ -514,7 +514,7 @@ export default function header() {
         );
         this.openSourceMonitorPool();
       } catch (error) {
-        this.$store.global.showToast(`加入监控池失败：${error?.message || "网络错误"}`, 3200, "context-close");
+        this.$store.global.showToast(`加入监控池失败：${error?.message || "网络错误"}`, 3200, "close");
       }
     },
 
@@ -724,7 +724,7 @@ export default function header() {
 
         deleteCards(ids, deleteResources).then((res) => {
           if (res.success) {
-            this.$store.global.showToast(`已删除 ${ids.length} 张卡片`, 3000, "context-delete");
+            this.$store.global.showToast(`已删除 ${ids.length} 张卡片`, 3000, "trash");
             this.selectedIds = []; // 清空 Store
             window.dispatchEvent(new CustomEvent("refresh-card-list")); // 通知 Grid 刷新
           } else {

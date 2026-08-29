@@ -1084,9 +1084,9 @@
 }
 
 .chat-bind-card-index .chat-bind-nav-icon {
-  width: 1.1rem;
-  height: 1.1rem;
-  flex: 0 0 1.1rem;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
 }
 
 .chat-bind-results {

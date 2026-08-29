@@ -12,7 +12,7 @@
     <div class="settings-header">
       <div class="settings-title-block">
         <span class="settings-title-mark" aria-hidden="true">
-          {{ icon('header-settings', 'ui-icon--md settings-icon--150') }}
+          {{ icon('settings-gear', 'ui-icon--md ') }}
         </span>
         <div class="settings-title-copy">
           <div class="settings-eyebrow">ST MANAGER / CONFIGURATION</div>
@@ -28,7 +28,7 @@
           title="查看帮助指南"
           aria-label="查看设置帮助"
         >
-          {{ icon('settings-help-entry', 'ui-icon--md settings-icon--150') }}
+          {{ icon('settings-help-entry', 'ui-icon--md ') }}
         </button>
         <button
           type="button"
@@ -37,7 +37,7 @@
           title="关闭设置"
           aria-label="关闭设置"
         >
-          {{ icon('context-close', 'ui-icon--md settings-icon--150') }}
+          {{ icon('close', 'ui-icon--md ') }}
         </button>
       </div>
     </div>
@@ -53,7 +53,7 @@
           :class="activeSettingTab==='general' ? 'active' : ''"
           :aria-selected="activeSettingTab==='general'"
         >
-          <span class="nav-icon" aria-hidden="true">{{ icon('settings-general-path', 'ui-icon--sm settings-icon--150') }}</span>
+          <span class="nav-icon" aria-hidden="true">{{ icon('directory-root', 'ui-icon--sm ') }}</span>
           <span class="nav-text">常规路径</span>
         </button>
         <button
@@ -63,7 +63,7 @@
           :class="activeSettingTab==='appearance' ? 'active' : ''"
           :aria-selected="activeSettingTab==='appearance'"
         >
-          <span class="nav-icon" aria-hidden="true">{{ icon('settings-appearance-display', 'ui-icon--sm settings-icon--150') }}</span>
+          <span class="nav-icon" aria-hidden="true">{{ icon('display', 'ui-icon--sm ') }}</span>
           <span class="nav-text">外观显示</span>
         </button>
         <button
@@ -73,7 +73,7 @@
           :class="activeSettingTab==='connection' ? 'active' : ''"
           :aria-selected="activeSettingTab==='connection'"
         >
-          <span class="nav-icon" aria-hidden="true">{{ icon('settings-connection-service', 'ui-icon--sm settings-icon--150') }}</span>
+          <span class="nav-icon" aria-hidden="true">{{ icon('settings-connection-service', 'ui-icon--sm ') }}</span>
           <span class="nav-text">连接与服务</span>
         </button>
         <button
@@ -83,7 +83,7 @@
           :class="activeSettingTab==='maintenance' ? 'active' : ''"
           :aria-selected="activeSettingTab==='maintenance'"
         >
-          <span class="nav-icon" aria-hidden="true">{{ icon('settings-maintenance-advanced', 'ui-icon--sm settings-icon--150') }}</span>
+          <span class="nav-icon" aria-hidden="true">{{ icon('settings-maintenance-advanced', 'ui-icon--sm ') }}</span>
           <span class="nav-text">维护与高级</span>
         </button>
       </aside>
@@ -145,7 +145,7 @@
                 aria-label="在资源管理器中打开角色卡目录"
                 class="btn-secondary settings-path-open-button px-3"
               >
-                {{ icon('settings-resource-directory', 'ui-icon--sm settings-icon--150 settings-path-open-icon') }}
+                {{ icon('folder-resources', 'ui-icon--sm  settings-path-open-icon') }}
               </button>
             </div>
             <div x-show="getPathConflictMessage('cards_dir')" class="mt-2 text-sm text-yellow-300" x-text="getPathConflictMessage('cards_dir')"></div>
@@ -297,8 +297,8 @@
               :title="isDarkMode ? '切换到浅色模式' : '切换到深色模式'"
               :aria-label="isDarkMode ? '切换到浅色模式' : '切换到深色模式'"
             >
-              <span x-show="isDarkMode" aria-hidden="true">{{ icon('header-dark-mode', 'ui-icon--sm settings-icon--150') }}</span>
-              <span x-show="!isDarkMode" aria-hidden="true">{{ icon('header-light-mode', 'ui-icon--sm settings-icon--150') }}</span>
+              <span x-show="isDarkMode" aria-hidden="true">{{ icon('header-dark-mode', 'ui-icon--sm ') }}</span>
+              <span x-show="!isDarkMode" aria-hidden="true">{{ icon('header-light-mode', 'ui-icon--sm ') }}</span>
               <span x-text="isDarkMode ? '深色模式' : '浅色模式'"></span>
             </button>
           </div>
@@ -519,7 +519,7 @@
                 aria-label="上传背景"
                 type="button"
               >
-                {{ icon('settings-background-upload', 'ui-icon--md settings-icon--150') }}
+                {{ icon('image-upload', 'ui-icon--md ') }}
               </button>
               <input
                 type="file"
@@ -535,7 +535,7 @@
                 aria-label="清除背景选择"
                 type="button"
               >
-                {{ icon('context-close', 'ui-icon--sm settings-icon--150') }}
+                {{ icon('close', 'ui-icon--sm ') }}
               </button>
             </div>
 
@@ -708,7 +708,7 @@
                 aria-label="自动探测 SillyTavern 路径"
                 type="button"
               >
-                {{ icon('settings-path-auto-detect', 'ui-icon--sm settings-icon--150 settings-path-action-icon--150') }}
+                {{ icon('folder-search', 'ui-icon--sm  ') }}
               </button>
               <button
                 @click="validateSTPath()"
@@ -717,7 +717,7 @@
                 aria-label="验证 SillyTavern 路径"
                 type="button"
               >
-                {{ icon('settings-path-validation', 'ui-icon--sm settings-icon--150 settings-path-action-icon--150') }}
+                {{ icon('file-check', 'ui-icon--sm  ') }}
               </button>
             </div>
             <div
@@ -728,7 +728,7 @@
             >
               <svg
                 x-show="stPathStatusIcon"
-                class="ui-icon ui-icon--sm settings-icon--150 mr-1 align-middle"
+                class="ui-icon ui-icon--sm  mr-1 align-middle"
                 viewBox="0 0 24 24"
                 aria-hidden="true"
                 focusable="false"
@@ -745,7 +745,7 @@
             class="settings-row p-3 rounded border border-[var(--border-light)] bg-[var(--bg-sub)]"
           >
             <div class="settings-subheading">
-              <span class="settings-subheading-icon" aria-hidden="true">{{ icon('settings-resource-directory', 'ui-icon--sm settings-icon--150') }}</span>
+              <span class="settings-subheading-icon" aria-hidden="true">{{ icon('folder-resources', 'ui-icon--sm ') }}</span>
               <span>检测到的资源</span>
             </div>
             <div class="grid grid-cols-2 md:grid-cols-3 gap-2 text-xs">
@@ -760,7 +760,7 @@
                       aria-hidden="true"
                       focusable="false"
                     >
-                      <use :href="'{{ url_for('static', filename='icons/sidebar.svg') }}#icon-sidebar-' + getResourceIcon(type)"></use>
+                      <use :href="'{{ url_for('static', filename='icons/sidebar.svg') }}#icon-' + getResourceIcon(type)"></use>
                     </svg>
                     <span x-text="getResourceLabel(type)"></span>
                   </span>
@@ -772,7 +772,7 @@
 
           <div class="settings-row">
             <div class="settings-subheading">
-              <span class="settings-subheading-icon" aria-hidden="true">{{ icon('settings-resource-sync', 'ui-icon--sm settings-icon--150') }}</span>
+              <span class="settings-subheading-icon" aria-hidden="true">{{ icon('folder-sync', 'ui-icon--sm ') }}</span>
               <span>从 SillyTavern 同步资源</span>
             </div>
             <div class="settings-desc mb-3">
@@ -785,49 +785,49 @@
                 class="btn-secondary settings-inline-action py-2 text-sm"
                 :disabled="isSyncActionBlocked('sync_characters') || syncing"
               >
-                {{ icon('settings-sync-cards', 'ui-icon--sm settings-icon--150') }}<span>同步角色卡</span>
+                {{ icon('cards-sync', 'ui-icon--sm ') }}<span>同步角色卡</span>
               </button>
               <button
                 @click="syncFromST('chats')"
                 class="btn-secondary py-2 text-sm"
                 :disabled="isSyncActionBlocked('sync_chats') || syncing"
               >
-                {{ icon('settings-sync-chats', 'ui-icon--sm settings-icon--150') }}<span>同步聊天</span>
+                {{ icon('chats-sync', 'ui-icon--sm ') }}<span>同步聊天</span>
               </button>
               <button
                 @click="syncFromST('worlds')"
                 class="btn-secondary py-2 text-sm"
                 :disabled="isSyncActionBlocked('sync_worlds') || syncing"
               >
-                {{ icon('settings-sync-worldbook', 'ui-icon--sm settings-icon--150') }}<span>同步世界书</span>
+                {{ icon('book-sync', 'ui-icon--sm ') }}<span>同步世界书</span>
               </button>
               <button
                 @click="syncFromST('presets')"
                 class="btn-secondary py-2 text-sm"
                 :disabled="isSyncActionBlocked('sync_presets') || syncing"
               >
-                {{ icon('settings-sync-presets', 'ui-icon--sm settings-icon--150') }}<span>同步预设</span>
+                {{ icon('presets-sync', 'ui-icon--sm ') }}<span>同步预设</span>
               </button>
               <button
                 @click="syncFromST('regex')"
                 class="btn-secondary py-2 text-sm"
                 :disabled="isSyncActionBlocked('sync_regex') || syncing"
               >
-                {{ icon('settings-sync-regex', 'ui-icon--sm settings-icon--150') }}<span>同步正则</span>
+                {{ icon('regex-sync', 'ui-icon--sm ') }}<span>同步正则</span>
               </button>
               <button
                 @click="syncFromST('quick_replies')"
                 class="btn-secondary py-2 text-sm"
                 :disabled="isSyncActionBlocked('sync_quick_replies') || syncing"
               >
-                {{ icon('settings-sync-quick-replies', 'ui-icon--sm settings-icon--150') }}<span>同步快速回复</span>
+                {{ icon('replies-sync', 'ui-icon--sm ') }}<span>同步快速回复</span>
               </button>
               <button
                 @click="syncAllFromST()"
                 class="btn-primary py-2 text-sm"
                 :disabled="isSyncActionBlocked('sync_all') || syncing"
               >
-                {{ icon('settings-resource-sync', 'ui-icon--sm settings-icon--150') }}<span>全部同步</span>
+                {{ icon('folder-sync', 'ui-icon--sm ') }}<span>全部同步</span>
               </button>
             </div>
             <div
@@ -838,7 +838,7 @@
             >
               <svg
                 x-show="syncStatusIcon"
-                class="ui-icon ui-icon--sm settings-icon--150 mr-1 align-middle"
+                class="ui-icon ui-icon--sm  mr-1 align-middle"
                 viewBox="0 0 24 24"
                 aria-hidden="true"
                 focusable="false"
@@ -1080,7 +1080,7 @@
                       @click="adjustNumberSetting('port', 1, 0, 65535)"
                       aria-label="增加端口"
                     >
-                      {{ icon('chevron-down', 'ui-icon--xs settings-icon--150 settings-number-stepper-icon settings-number-stepper-icon--up') }}
+                      {{ icon('chevron-down', 'ui-icon--xs  settings-number-stepper-icon settings-number-stepper-icon--up') }}
                     </button>
                     <button
                       type="button"
@@ -1088,14 +1088,14 @@
                       @click="adjustNumberSetting('port', -1, 0, 65535)"
                       aria-label="减少端口"
                     >
-                      {{ icon('chevron-down', 'ui-icon--xs settings-icon--150 settings-number-stepper-icon') }}
+                      {{ icon('chevron-down', 'ui-icon--xs  settings-number-stepper-icon') }}
                     </button>
                   </div>
                 </div>
               </div>
             </div>
             <div class="settings-status-note settings-status-note--warning mt-2">
-              <span class="settings-status-icon" aria-hidden="true">{{ icon('settings-warning', 'ui-icon--xs settings-icon--150') }}</span>
+              <span class="settings-status-icon" aria-hidden="true">{{ icon('alert-triangle', 'ui-icon--xs ') }}</span>
               <span>修改 Host 或 Port 需要手动重启程序才能生效。</span>
             </div>
           </div>
@@ -1104,13 +1104,13 @@
             class="settings-row p-4 rounded border border-[var(--border-light)] bg-[var(--bg-sub)]"
           >
             <label class="settings-label settings-section-label-with-icon text-red-400 mb-2">
-              <span aria-hidden="true">{{ icon('settings-authentication', 'ui-icon--sm settings-icon--150') }}</span>
+              <span aria-hidden="true">{{ icon('shield-key', 'ui-icon--sm ') }}</span>
               <span>外网访问身份验证</span>
             </label>
             <div class="settings-desc mb-4">
               启用后，不在白名单内的来源访问时需要登录验证。<br />
               <span class="settings-status-note settings-status-note--warning text-xs"
-                ><span class="settings-status-icon" aria-hidden="true">{{ icon('settings-warning', 'ui-icon--xs settings-icon--150') }}</span><span>默认仅 127.0.0.1 (本机) 免登录，局域网 IP 也需要登录。</span></span
+                ><span class="settings-status-icon" aria-hidden="true">{{ icon('alert-triangle', 'ui-icon--xs ') }}</span><span>默认仅 127.0.0.1 (本机) 免登录，局域网 IP 也需要登录。</span></span
               >
             </div>
             <div class="grid grid-cols-2 gap-4">
@@ -1180,7 +1180,7 @@
                       title="移除白名单条目"
                       aria-label="移除白名单条目"
                     >
-                      {{ icon('context-close', 'ui-icon--sm settings-icon--150') }}
+                      {{ icon('close', 'ui-icon--sm ') }}
                     </button>
                   </div>
                 </template>
@@ -1192,7 +1192,7 @@
                 class="btn-secondary settings-inline-action text-sm py-1 px-3"
                 type="button"
               >
-                {{ icon('context-new', 'ui-icon--sm settings-icon--150') }}<span>添加条目</span>
+                {{ icon('plus-square', 'ui-icon--sm ') }}<span>添加条目</span>
               </button>
 
               <!-- 快捷添加 -->
@@ -1214,7 +1214,7 @@
             </div>
 
             <div class="settings-status-note settings-status-note--warning text-xs mt-3">
-              <span class="settings-status-icon" aria-hidden="true">{{ icon('settings-warning', 'ui-icon--xs settings-icon--150') }}</span>
+              <span class="settings-status-icon" aria-hidden="true">{{ icon('alert-triangle', 'ui-icon--xs ') }}</span>
               <span>仅当用户名和密码都设置时才会启用认证。修改后保存即可生效。</span>
             </div>
           </div>
@@ -1226,7 +1226,7 @@
             class="settings-row p-4 rounded border border-[var(--border-light)] bg-[var(--bg-sub)]"
           >
             <div class="settings-label settings-section-label-with-icon text-indigo-400 mb-2">
-              <span aria-hidden="true">{{ icon('settings-connection-service', 'ui-icon--sm settings-icon--150') }}</span>
+              <span aria-hidden="true">{{ icon('settings-connection-service', 'ui-icon--sm ') }}</span>
               <span>Discord 认证</span>
             </div>
             <div class="settings-desc mb-4">
@@ -1290,8 +1290,8 @@
                     type="button"
                     :aria-label="showDiscordToken ? '隐藏 Discord Token' : '显示 Discord Token'"
                   >
-                    <span x-show="showDiscordToken" aria-hidden="true">{{ icon('settings-hide', 'ui-icon--sm settings-icon--150') }}</span>
-                    <span x-show="!showDiscordToken" aria-hidden="true">{{ icon('settings-show', 'ui-icon--sm settings-icon--150') }}</span>
+                    <span x-show="showDiscordToken" aria-hidden="true">{{ icon('eye-off', 'ui-icon--sm ') }}</span>
+                    <span x-show="!showDiscordToken" aria-hidden="true">{{ icon('eye', 'ui-icon--sm ') }}</span>
                   </button>
                 </div>
               </div>
@@ -1333,8 +1333,8 @@
                     type="button"
                     :aria-label="showDiscordCookie ? '隐藏 Discord Cookie' : '显示 Discord Cookie'"
                   >
-                    <span x-show="showDiscordCookie" aria-hidden="true">{{ icon('settings-hide', 'ui-icon--sm settings-icon--150') }}</span>
-                    <span x-show="!showDiscordCookie" aria-hidden="true">{{ icon('settings-show', 'ui-icon--sm settings-icon--150') }}</span>
+                    <span x-show="showDiscordCookie" aria-hidden="true">{{ icon('eye-off', 'ui-icon--sm ') }}</span>
+                    <span x-show="!showDiscordCookie" aria-hidden="true">{{ icon('eye', 'ui-icon--sm ') }}</span>
                   </button>
                 </div>
               </div>
@@ -1344,7 +1344,7 @@
             </div>
 
             <div class="settings-status-note settings-status-note--warning text-xs mt-4">
-              <span class="settings-status-icon" aria-hidden="true">{{ icon('settings-security-status', 'ui-icon--xs settings-icon--150') }}</span>
+              <span class="settings-status-icon" aria-hidden="true">{{ icon('shield-check', 'ui-icon--xs ') }}</span>
               <span>认证信息仅保存在本地，不会上传到任何服务器。</span>
             </div>
           </div>
@@ -1356,7 +1356,7 @@
             class="settings-row p-4 rounded border border-[var(--border-light)] bg-[var(--bg-sub)]"
           >
             <div class="settings-label settings-section-label-with-icon text-indigo-400 mb-2">
-              <span aria-hidden="true">{{ icon('settings-key', 'ui-icon--sm settings-icon--150') }}</span>
+              <span aria-hidden="true">{{ icon('key', 'ui-icon--sm ') }}</span>
               <span>类脑 Cookie</span>
             </div>
             <div class="settings-desc mb-3">
@@ -1381,8 +1381,8 @@
                   type="button"
                   :aria-label="showShimmerdayCookie ? '隐藏类脑 Cookie' : '显示类脑 Cookie'"
                 >
-                  <span x-show="showShimmerdayCookie" aria-hidden="true">{{ icon('settings-hide', 'ui-icon--sm settings-icon--150') }}</span>
-                  <span x-show="!showShimmerdayCookie" aria-hidden="true">{{ icon('settings-show', 'ui-icon--sm settings-icon--150') }}</span>
+                  <span x-show="showShimmerdayCookie" aria-hidden="true">{{ icon('eye-off', 'ui-icon--sm ') }}</span>
+                  <span x-show="!showShimmerdayCookie" aria-hidden="true">{{ icon('eye', 'ui-icon--sm ') }}</span>
                 </button>
               </div>
             </div>
@@ -1418,7 +1418,7 @@
             >
               <div>
                 <div class="settings-subheading">
-                  <span class="settings-subheading-icon" aria-hidden="true">{{ icon('settings-sync-scan', 'ui-icon--sm settings-icon--150') }}</span>
+                  <span class="settings-subheading-icon" aria-hidden="true">{{ icon('scan', 'ui-icon--sm ') }}</span>
                   <span>同步扫描</span>
                 </div>
                 <div class="text-xs text-[var(--text-dim)] mb-3">
@@ -1437,7 +1437,7 @@
             >
               <div>
                 <div class="settings-subheading">
-                  <span class="settings-subheading-icon" aria-hidden="true">{{ icon('settings-data-backup', 'ui-icon--sm settings-icon--150') }}</span>
+                  <span class="settings-subheading-icon" aria-hidden="true">{{ icon('database-backup', 'ui-icon--sm ') }}</span>
                   <span>备份数据</span>
                 </div>
                 <div class="text-xs text-[var(--text-dim)] mb-3">
@@ -1458,7 +1458,7 @@
             >
               <div>
                 <div class="settings-subheading">
-                  <span class="settings-subheading-icon" aria-hidden="true">{{ icon('settings-resource-directory', 'ui-icon--sm settings-icon--150') }}</span>
+                  <span class="settings-subheading-icon" aria-hidden="true">{{ icon('folder-resources', 'ui-icon--sm ') }}</span>
                   <span>资源文件夹</span>
                 </div>
                 <div class="text-xs text-[var(--text-dim)] mb-3">
@@ -1479,7 +1479,7 @@
             >
               <div>
                 <div class="settings-subheading">
-                  <span class="settings-subheading-icon" aria-hidden="true">{{ icon('settings-user-database', 'ui-icon--sm settings-icon--150') }}</span>
+                  <span class="settings-subheading-icon" aria-hidden="true">{{ icon('database-user', 'ui-icon--sm ') }}</span>
                   <span>用户 DB 数据</span>
                 </div>
                 <div class="text-xs text-[var(--text-dim)] mb-3">
@@ -1515,7 +1515,7 @@
             >
               <div>
                 <div class="settings-subheading">
-                  <span class="settings-subheading-icon" aria-hidden="true">{{ icon('context-delete', 'ui-icon--sm settings-icon--150') }}</span>
+                  <span class="settings-subheading-icon" aria-hidden="true">{{ icon('trash', 'ui-icon--sm ') }}</span>
                   <span>文件回收站</span>
                 </div>
                 <div class="text-xs text-[var(--text-dim)] mb-3">
@@ -1527,13 +1527,13 @@
                   @click="openTrashFolder()"
                   class="btn-secondary settings-inline-action flex-1 py-2"
                 >
-                  {{ icon('settings-resource-directory', 'ui-icon--sm settings-icon--150 settings-trash-open-icon') }}<span>打开</span>
+                  {{ icon('folder-resources', 'ui-icon--sm  settings-trash-open-icon') }}<span>打开</span>
                 </button>
                 <button
                   @click="emptyTrash()"
                   class="btn-secondary settings-inline-action flex-1 py-2 text-red-400 hover:text-red-500"
                 >
-                  {{ icon('context-delete', 'ui-icon--sm settings-icon--150') }}<span>清空</span>
+                  {{ icon('trash', 'ui-icon--sm ') }}<span>清空</span>
                 </button>
               </div>
             </div>
@@ -1617,7 +1617,7 @@
                       @click="adjustNumberSetting('wi_preview_limit', 1, 0)"
                       aria-label="增加预览条目数量"
                     >
-                      {{ icon('chevron-down', 'ui-icon--xs settings-icon--150 settings-number-stepper-icon settings-number-stepper-icon--up') }}
+                      {{ icon('chevron-down', 'ui-icon--xs  settings-number-stepper-icon settings-number-stepper-icon--up') }}
                     </button>
                     <button
                       type="button"
@@ -1625,7 +1625,7 @@
                       @click="adjustNumberSetting('wi_preview_limit', -1, 0)"
                       aria-label="减少预览条目数量"
                     >
-                      {{ icon('chevron-down', 'ui-icon--xs settings-icon--150 settings-number-stepper-icon') }}
+                      {{ icon('chevron-down', 'ui-icon--xs  settings-number-stepper-icon') }}
                     </button>
                   </div>
                 </div>
@@ -1649,7 +1649,7 @@
                       @click="adjustNumberSetting('wi_preview_entry_max_chars', 1, 0)"
                       aria-label="增加预览条目字符数"
                     >
-                      {{ icon('chevron-down', 'ui-icon--xs settings-icon--150 settings-number-stepper-icon settings-number-stepper-icon--up') }}
+                      {{ icon('chevron-down', 'ui-icon--xs  settings-number-stepper-icon settings-number-stepper-icon--up') }}
                     </button>
                     <button
                       type="button"
@@ -1657,7 +1657,7 @@
                       @click="adjustNumberSetting('wi_preview_entry_max_chars', -1, 0)"
                       aria-label="减少预览条目字符数"
                     >
-                      {{ icon('chevron-down', 'ui-icon--xs settings-icon--150 settings-number-stepper-icon') }}
+                      {{ icon('chevron-down', 'ui-icon--xs  settings-number-stepper-icon') }}
                     </button>
                   </div>
                 </div>
@@ -1707,7 +1707,7 @@
                       @click="adjustNumberSetting('snapshot_limit_manual', 1, 1, 200)"
                       aria-label="增加手动快照数量"
                     >
-                      {{ icon('chevron-down', 'ui-icon--xs settings-icon--150 settings-number-stepper-icon settings-number-stepper-icon--up') }}
+                      {{ icon('chevron-down', 'ui-icon--xs  settings-number-stepper-icon settings-number-stepper-icon--up') }}
                     </button>
                     <button
                       type="button"
@@ -1715,7 +1715,7 @@
                       @click="adjustNumberSetting('snapshot_limit_manual', -1, 1, 200)"
                       aria-label="减少手动快照数量"
                     >
-                      {{ icon('chevron-down', 'ui-icon--xs settings-icon--150 settings-number-stepper-icon') }}
+                      {{ icon('chevron-down', 'ui-icon--xs  settings-number-stepper-icon') }}
                     </button>
                   </div>
                 </div>
@@ -1740,7 +1740,7 @@
                       @click="adjustNumberSetting('snapshot_limit_auto', 1, 1, 50)"
                       aria-label="增加自动快照数量"
                     >
-                      {{ icon('chevron-down', 'ui-icon--xs settings-icon--150 settings-number-stepper-icon settings-number-stepper-icon--up') }}
+                      {{ icon('chevron-down', 'ui-icon--xs  settings-number-stepper-icon settings-number-stepper-icon--up') }}
                     </button>
                     <button
                       type="button"
@@ -1748,7 +1748,7 @@
                       @click="adjustNumberSetting('snapshot_limit_auto', -1, 1, 50)"
                       aria-label="减少自动快照数量"
                     >
-                      {{ icon('chevron-down', 'ui-icon--xs settings-icon--150 settings-number-stepper-icon') }}
+                      {{ icon('chevron-down', 'ui-icon--xs  settings-number-stepper-icon') }}
                     </button>
                   </div>
                 </div>
@@ -1774,7 +1774,7 @@
                     @click="adjustNumberSetting('wi_entry_history_limit', 1, 1, 100)"
                     aria-label="增加世界信息历史记录数量"
                   >
-                    {{ icon('chevron-down', 'ui-icon--xs settings-icon--150 settings-number-stepper-icon settings-number-stepper-icon--up') }}
+                    {{ icon('chevron-down', 'ui-icon--xs  settings-number-stepper-icon settings-number-stepper-icon--up') }}
                   </button>
                   <button
                     type="button"
@@ -1782,7 +1782,7 @@
                     @click="adjustNumberSetting('wi_entry_history_limit', -1, 1, 100)"
                     aria-label="减少世界信息历史记录数量"
                   >
-                    {{ icon('chevron-down', 'ui-icon--xs settings-icon--150 settings-number-stepper-icon') }}
+                    {{ icon('chevron-down', 'ui-icon--xs  settings-number-stepper-icon') }}
                   </button>
                 </div>
               </div>
@@ -1815,7 +1815,7 @@
               x-transition
               class="bg-[var(--bg-sub)] p-3 rounded border border-[var(--border-light)] mt-2 flex items-center gap-4"
             >
-              <span class="text-sm whitespace-nowrap inline-flex items-center gap-1">{{ detail_icon('time', 'ui-icon--sm settings-icon--150') }}<span>保存间隔:</span></span>
+              <span class="text-sm whitespace-nowrap inline-flex items-center gap-1">{{ detail_icon('clock', 'ui-icon--sm ') }}<span>保存间隔:</span></span>
               <input
                 type="range"
                 min="1"
@@ -1857,7 +1857,7 @@
         class="btn-primary settings-inline-action px-6 py-2 rounded-lg font-bold shadow-lg"
         type="button"
       >
-        {{ icon('settings-save', 'ui-icon--sm settings-icon--150') }}<span>保存并应用</span>
+        {{ icon('settings-save', 'ui-icon--sm ') }}<span>保存并应用</span>
       </button>
     </div>
   </div>
@@ -1885,7 +1885,7 @@
       >
         <div class="settings-help-title">
           <span class="settings-help-title-mark" aria-hidden="true">
-            {{ icon('settings-help-entry', 'ui-icon--sm settings-icon--150 settings-help-title-icon--150') }}
+            {{ icon('settings-help-entry', 'ui-icon--sm  ') }}
           </span>
           <div class="settings-help-title-copy">
             <h3 x-text="settingsHelpContent[activeSettingTab]?.title || '帮助指南'"></h3>
@@ -1899,7 +1899,7 @@
           aria-label="关闭帮助"
           title="关闭帮助"
         >
-          {{ icon('context-close', 'ui-icon--sm settings-icon--150') }}
+          {{ icon('close', 'ui-icon--sm ') }}
         </button>
       </div>
 
@@ -1914,7 +1914,7 @@
               class="bg-[var(--bg-sub)] rounded border border-[var(--border-light)] p-4"
             >
               <h4 class="font-bold text-[var(--accent-main)] mb-2">
-                <span aria-hidden="true">{{ icon('settings-path', 'ui-icon--sm settings-icon--150') }}</span>
+                <span aria-hidden="true">{{ icon('folder-path', 'ui-icon--sm ') }}</span>
                 <span>路径配置说明</span>
               </h4>
               <p class="text-[var(--text-dim)] mb-3">
@@ -1942,7 +1942,7 @@
             <div
               class="settings-help-callout"
             >
-              <span aria-hidden="true">{{ icon('settings-tip', 'ui-icon--sm settings-icon--150') }}</span>
+              <span aria-hidden="true">{{ icon('idea', 'ui-icon--sm ') }}</span>
               <span>修改路径后，建议执行“同步扫描”以重新索引文件。</span>
             </div>
           </div>
@@ -1955,7 +1955,7 @@
               class="bg-[var(--bg-sub)] rounded border border-[var(--border-light)] p-4"
             >
               <h4 class="font-bold text-[var(--accent-main)] mb-2">
-                <span aria-hidden="true">{{ icon('settings-appearance', 'ui-icon--sm settings-icon--150') }}</span>
+                <span aria-hidden="true">{{ icon('palette', 'ui-icon--sm ') }}</span>
                 <span>外观设置说明</span>
               </h4>
               <ul
@@ -1984,7 +1984,7 @@
               class="bg-[var(--bg-sub)] rounded border border-[var(--border-light)] p-4"
             >
               <h4 class="font-bold text-purple-400 mb-2">
-                <span aria-hidden="true">{{ icon('settings-wallpaper', 'ui-icon--sm settings-icon--150') }}</span>
+                <span aria-hidden="true">{{ icon('wallpaper', 'ui-icon--sm ') }}</span>
                 <span>个性化壁纸</span>
               </h4>
               <p class="text-[var(--text-dim)] text-xs">
@@ -2001,7 +2001,7 @@
               class="bg-[var(--bg-sub)] rounded border border-[var(--border-light)] p-4"
             >
               <h4 class="font-bold text-emerald-400 mb-2">
-                <span aria-hidden="true">{{ icon('settings-authentication', 'ui-icon--sm settings-icon--150') }}</span>
+                <span aria-hidden="true">{{ icon('shield-key', 'ui-icon--sm ') }}</span>
                 <span>ST 认证模式排查</span>
               </h4>
               <div class="space-y-3 text-xs text-[var(--text-dim)]">
@@ -2081,7 +2081,7 @@ basicAuthUser:
               class="bg-[var(--bg-sub)] rounded border border-[var(--border-light)] p-4"
             >
               <h4 class="font-bold text-[var(--accent-main)] mb-2">
-                <span aria-hidden="true">{{ icon('settings-integration', 'ui-icon--sm settings-icon--150') }}</span>
+                <span aria-hidden="true">{{ icon('plug', 'ui-icon--sm ') }}</span>
                 <span>SillyTavern 集成</span>
               </h4>
               <p class="text-[var(--text-dim)] text-xs mb-3">
@@ -2102,7 +2102,7 @@ basicAuthUser:
               class="bg-[var(--bg-sub)] rounded border border-[var(--border-light)] p-4"
             >
               <h4 class="font-bold text-indigo-400 mb-2">
-                <span aria-hidden="true">{{ icon('settings-connection-service', 'ui-icon--sm settings-icon--150') }}</span>
+                <span aria-hidden="true">{{ icon('settings-connection-service', 'ui-icon--sm ') }}</span>
                 <span>Discord 论坛标签抓取</span>
               </h4>
               <p class="text-[var(--text-dim)] text-xs mb-3">
@@ -2179,7 +2179,7 @@ iframe.remove();</pre
           <div class="space-y-4">
             <div class="settings-help-card">
               <h4 class="font-bold text-violet-400 mb-2">
-                <span aria-hidden="true">{{ icon('settings-key', 'ui-icon--sm settings-icon--150') }}</span>
+                <span aria-hidden="true">{{ icon('key', 'ui-icon--sm ') }}</span>
                 <span>类脑搜索预览</span>
               </h4>
               <p class="text-[var(--text-dim)] text-xs mb-3">
@@ -2201,7 +2201,7 @@ iframe.remove();</pre
               class="bg-[var(--bg-sub)] rounded border border-[var(--border-light)] p-4"
             >
               <h4 class="font-bold text-[var(--accent-main)] mb-2">
-                <span aria-hidden="true">{{ icon('settings-maintenance', 'ui-icon--sm settings-icon--150') }}</span>
+                <span aria-hidden="true">{{ icon('settings-maintenance', 'ui-icon--sm ') }}</span>
                 <span>维护功能说明</span>
               </h4>
               <ul
@@ -2223,7 +2223,7 @@ iframe.remove();</pre
               class="bg-[var(--bg-sub)] rounded border border-[var(--border-light)] p-4"
             >
               <h4 class="font-bold text-orange-400 mb-2">
-                <span aria-hidden="true">{{ icon('settings-advanced-settings', 'ui-icon--sm settings-icon--150') }}</span>
+                <span aria-hidden="true">{{ icon('sliders-settings', 'ui-icon--sm ') }}</span>
                 <span>高级选项</span>
               </h4>
               <ul

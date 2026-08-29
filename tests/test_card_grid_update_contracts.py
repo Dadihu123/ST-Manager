@@ -81,14 +81,15 @@ def test_light_mode_card_toolbar_actions_keep_icon_only_surfaces():
     assert 'box-shadow: none;' in light_toolbar_actions
 
 
-def test_card_bundle_icon_is_scaled_to_150_percent():
+def test_card_bundle_icon_uses_the_base_integer_size_tier():
     card_template = read_project_file('templates/components/grid_cards.html')
     card_css = read_project_file('static/css/modules/view-cards.css')
 
-    assert "icon('card-package', 'ui-icon--xs card-package-icon--150')" in card_template
-    assert '.card-meta-bundle .card-package-icon--150.ui-icon--xs' in card_css
-    assert 'width: 1.125rem;' in card_css
-    assert 'height: 1.125rem;' in card_css
+    assert "icon('package', 'ui-icon--xs ')" in card_template
+    assert '.card-meta-bundle ..ui-icon--xs' not in card_css
+    assert '.ui-icon--xs {' in read_project_file('static/css/modules/icons.css')
+    assert 'width: 12px;' in read_project_file('static/css/modules/icons.css')
+    assert 'height: 12px;' in read_project_file('static/css/modules/icons.css')
 
 
 def test_card_favorite_uses_solid_theme_aware_svg_with_existing_state_colors():
@@ -98,7 +99,7 @@ def test_card_favorite_uses_solid_theme_aware_svg_with_existing_state_colors():
     favorite_symbol = next(
         element
         for element in ui_root
-        if element.get('id') == 'icon-card-favorite'
+        if element.get('id') == 'icon-heart'
     )
     paths = [
         element
@@ -109,7 +110,7 @@ def test_card_favorite_uses_solid_theme_aware_svg_with_existing_state_colors():
         'class="card-fav-btn card-fav-overlay"', 1
     )[1].split('</button>', 1)[0]
 
-    assert "icon('card-favorite', 'card-fav-icon')" in favorite_button
+    assert "icon('heart', 'card-fav-icon')" in favorite_button
     assert '♥' not in favorite_button
     assert favorite_symbol.get('viewBox') == '98.422 75.852 629.893 552.273'
     assert len(paths) == 1

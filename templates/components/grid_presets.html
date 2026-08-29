@@ -40,7 +40,7 @@
         @click="fetchItems()"
         class="btn-secondary px-3 py-1 text-xs flex items-center gap-1"
       >
-        <span aria-hidden="true">{{ icon('header-refresh', 'ui-icon--sm header-icon--150') }}</span>
+        <span aria-hidden="true">{{ icon('refresh', 'ui-icon--sm ') }}</span>
         刷新
       </button>
     </div>
@@ -59,7 +59,7 @@
       class="absolute inset-0 z-50 bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center border-4 border-dashed border-[var(--accent-main)] m-4 rounded-xl"
     >
       <div class="preset-list-dropzone-icon mb-4" aria-hidden="true">
-        {{ icon('header-import', 'ui-icon--xl') }}
+        {{ icon('file-import', 'ui-icon--xl') }}
       </div>
       <div class="text-2xl font-bold text-white">松开上传预设</div>
       <div class="text-gray-300 mt-2" x-text="presetUploadHintText"></div>
@@ -88,7 +88,7 @@
         class="flex flex-col items-center justify-center h-64 text-[var(--text-dim)]"
       >
         <div class="preset-list-loading-icon mb-2" aria-hidden="true">
-          {{ icon('card-loader', 'ui-icon--xl ui-icon--spin') }}
+          {{ icon('loader-circle', 'ui-icon--xl ui-icon--spin') }}
         </div>
         <div>加载中...</div>
       </div>
@@ -125,7 +125,7 @@
                     x-show="selectedIds.includes(item.id)"
                     class="flex items-center justify-center"
                     aria-hidden="true"
-                    >{{ icon('card-check', 'ui-icon--sm') }}</span
+                    >{{ icon('check', 'ui-icon--sm') }}</span
                   >
                 </div>
               </button>
@@ -140,7 +140,7 @@
                   title="删除预设"
                   aria-label="删除预设"
                 >
-                  {{ icon('context-delete', 'ui-icon--sm') }}
+                  {{ icon('trash', 'ui-icon--sm') }}
                 </button>
 
                 <button
@@ -149,7 +149,7 @@
                   title="导出预设 JSON"
                   aria-label="导出预设 JSON"
                 >
-                  {{ icon('card-upload', 'ui-icon--sm') }}
+                  {{ icon('upload', 'ui-icon--sm') }}
                 </button>
               </div>
             </div>
@@ -204,7 +204,7 @@
                 <span
                   class="preset-card-stat-icon px-2 py-0.5 text-[10px] bg-orange-500/20 text-orange-300 rounded inline-flex items-center gap-1"
                 >
-                  {{ preset_icon('temperature', 'ui-icon--sm') }}
+                  {{ preset_icon('thermometer', 'ui-icon--sm') }}
                   <span x-text="item.temperature"></span>
                 </span>
               </template>
@@ -282,12 +282,12 @@
                 <span
                   x-show="!isSendingPresetToST(getPresetActionTargetId(item))"
                   aria-hidden="true"
-                  >{{ icon('card-send', 'ui-icon--sm') }}</span
+                  >{{ icon('send', 'ui-icon--sm') }}</span
                 >
                 <span
                   x-show="isSendingPresetToST(getPresetActionTargetId(item))"
                   aria-hidden="true"
-                  >{{ icon('card-loader', 'ui-icon--sm ui-icon--spin') }}</span
+                  >{{ icon('loader-circle', 'ui-icon--sm ui-icon--spin') }}</span
                 >
               </button>
 

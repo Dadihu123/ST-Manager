@@ -897,12 +897,12 @@ export default function presetDetailReader() {
               last_sent_to_st: sentAt,
             },
           }));
-          this.$store.global.showToast("已发送到 ST", 1800, "card-send");
+          this.$store.global.showToast("已发送到 ST", 1800, "send");
         } else {
-          this.$store.global.showToast(res?.msg || "发送失败", 2600, "context-close");
+          this.$store.global.showToast(res?.msg || "发送失败", 2600, "close");
         }
       } catch (error) {
-        this.$store.global.showToast(error?.message || "发送失败", 2600, "context-close");
+        this.$store.global.showToast(error?.message || "发送失败", 2600, "close");
       } finally {
         setPresetSendToStPending(presetId, false);
         window.dispatchEvent(new CustomEvent("preset-send-to-st-finished", {

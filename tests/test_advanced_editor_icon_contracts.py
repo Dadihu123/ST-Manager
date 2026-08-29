@@ -9,35 +9,35 @@ def read_project_file(relative_path):
     return (PROJECT_ROOT / relative_path).read_text(encoding='utf-8')
 
 
-def test_advanced_editor_uses_the_requested_icon_mappings():
+def test_advanced_editor_uses_semantic_icon_mappings():
     source = read_project_file('templates/modals/advanced_editor.html')
 
     expected_fragments = [
         '{% from "components/icon.html" import icon, detail_icon %}',
-        "icon('settings-advanced-settings'",
-        "icon('context-close'",
+        "icon('sliders-settings'",
+        "icon('close'",
         "detail_icon('regex'",
-        "detail_icon('scripts'",
-        "detail_icon('quick-replies'",
-        "icon('extension-file'",
-        "icon('header-import'",
-        "icon('card-upload'",
-        "icon('context-new'",
-        "icon('worldbook-search'",
-        "icon('advanced-editor-replace'",
-        "icon('advanced-editor-trim'",
+        "detail_icon('script-file'",
+        "detail_icon('quick-reply'",
+        "icon('file-code'",
+        "icon('file-import'",
+        "icon('upload'",
+        "icon('plus-square'",
+        "icon('book-search'",
+        "icon('replace'",
+        "icon('scissors'",
         "icon('settings'",
-        "icon('advanced-editor-test-lab'",
-        "icon('advanced-editor-execute'",
+        "icon('flask'",
+        "icon('play'",
         "detail_icon('expand'",
-        "icon('advanced-editor-quick-buttons'",
-        "icon('advanced-editor-script-code'",
-        "icon('advanced-editor-data'",
-        "icon('advanced-editor-send-content'",
-        "icon('advanced-editor-trigger'",
-        "icon('worldbook-list'",
-        "detail_icon('regex', 'ui-icon--lg advanced-editor-icon--150')",
-        "detail_icon('scripts', 'ui-icon--lg advanced-editor-icon--150')",
+        "icon('quick-actions'",
+        "icon('code-file'",
+        "icon('data-grid'",
+        "icon('send-content'",
+        "icon('bolt'",
+        "icon('list'",
+        "detail_icon('regex', 'ui-icon--lg ')",
+        "detail_icon('script-file', 'ui-icon--lg ')",
     ]
 
     for fragment in expected_fragments:
@@ -49,29 +49,38 @@ def test_advanced_editor_uses_the_requested_icon_mappings():
     assert 'title="上移"' in source
     assert 'title="下移"' in source
     assert 'title="删除正则脚本"' in source
-    assert "icon('other-close'" in source
-    assert "icon('other-arrow-right'" in source
+    assert "icon('close-bold'" in source
+    assert "icon('arrow-right'" in source
     assert '运行时 (Runtime)' in source
     assert '<p>请在左侧选择一个条目进行详细编辑</p>' in source
     assert '👈 请在左侧选择一个条目进行详细编辑' not in source
 
 
-def test_advanced_editor_icon_sizes_have_150_percent_tokens():
+def test_advanced_editor_uses_integer_icon_size_tiers():
     css = read_project_file('static/css/modules/icons.css')
 
     expected_sizes = {
-        'xs': '1.125rem',
-        'sm': '1.3125rem',
-        'md': '1.6875rem',
-        'lg': '2.25rem',
-        'xl': '4.5rem',
+        'xs': '12px',
+        'sm': '16px',
+        'md': '20px',
+        'lg': '24px',
+        'xl': '32px',
+        '2xl': '48px',
+        '3xl': '64px',
     }
     for size_name, size in expected_sizes.items():
-        selector = f'.advanced-editor-icon--150.ui-icon--{size_name}'
+        selector = f'.ui-icon--{size_name} {{'
         selector_start = css.index(selector)
         selector_block = css[selector_start:css.index('}', selector_start) + 1]
         assert f'width: {size};' in selector_block
         assert f'height: {size};' in selector_block
+
+    assert '--150' not in css
+    assert '1.125rem' not in css
+    assert '1.3125rem' not in css
+    assert '1.6875rem' not in css
+    assert '2.25rem' not in css
+    assert '4.5rem' not in css
 
 
 def test_automation_uses_shared_file_rule_and_mobile_list_icons():
@@ -79,26 +88,26 @@ def test_automation_uses_shared_file_rule_and_mobile_list_icons():
 
     for fragment in (
         '{% from "components/icon.html" import icon, sidebar_icon, detail_icon %}',
-        "icon('worldbook-list'",
-        "icon('header-import'",
-        "icon('context-new'",
-        "icon('card-upload'",
-        "icon('context-delete'",
+        "icon('list'",
+        "icon('file-import'",
+        "icon('plus-square'",
+        "icon('upload'",
+        "icon('trash'",
         "icon('settings-save'",
-        "icon('context-close'",
-        "icon('context-automation'",
+        "icon('close'",
+        "icon('workflow'",
         "icon('settings-help-entry'",
-        "sidebar_icon('category-expanded'",
+        "sidebar_icon('folder-open'",
         "detail_icon('tags'",
-        "icon('card-favorite'",
-        "icon('automation-merge'",
-        "detail_icon('source-link'",
-        "detail_icon('time'",
-        "icon('context-rename'",
-        "detail_icon('filename'",
-        "icon('worldbook-tip'",
-        "icon('card-check'",
-        "icon('automation-forbidden'",
+        "icon('heart'",
+        "icon('merge'",
+        "detail_icon('link-source'",
+        "detail_icon('clock'",
+        "icon('pencil-edit'",
+        "detail_icon('file-name'",
+        "icon('book-tip'",
+        "icon('check'",
+        "icon('forbidden'",
     ):
         assert fragment in source
 
@@ -117,7 +126,7 @@ def test_automation_mobile_execution_template_uses_shared_toolbar_icons():
 
     for fragment in (
         '{% from "components/icon.html" import icon %}',
-        "icon('context-automation'",
+        "icon('workflow'",
         "icon('settings'",
     ):
         assert fragment in source
@@ -134,18 +143,18 @@ def test_automation_execution_notifications_use_shared_svg_icons():
     state_js = read_project_file('static/js/state.js')
 
     for fragment in (
-        "showToast(`导入成功: ${res.name}`, 3000, 'card-check')",
-        "showToast('已关闭全局自动规则', 3000, 'automation-forbidden')",
+        "showToast(`导入成功: ${res.name}`, 3000, 'check')",
+        "showToast('已关闭全局自动规则', 3000, 'forbidden')",
         "showToast('规则集已保存', 3000, 'settings-save')",
     ):
         assert fragment in automation_js
 
-    assert "showToast('执行完成！', 2400, 'card-check')" in mobile_js
-    assert "showToast(error?.message || '批量执行失败', 3600, 'context-close')" in mobile_js
-    assert "showToast('执行完成！', 2400, 'card-check')" in context_menu_js
-    assert 'showToast("执行完成！", 2400, "card-check")' in header_js
-    assert 'showToast(error?.message || "批量执行失败", 3600, "context-close")' in header_js
-    assert '"automation-forbidden"' in state_js
+    assert "showToast('执行完成！', 2400, 'check')" in mobile_js
+    assert "showToast(error?.message || '批量执行失败', 3600, 'close')" in mobile_js
+    assert "showToast('执行完成！', 2400, 'check')" in context_menu_js
+    assert 'showToast("执行完成！", 2400, "check")' in header_js
+    assert 'showToast(error?.message || "批量执行失败", 3600, "close")' in header_js
+    assert '"forbidden"' in state_js
     assert '"settings-save"' in state_js
 
 
@@ -157,15 +166,15 @@ def test_advanced_editor_custom_symbols_are_theme_safe():
         if symbol.tag.endswith('symbol')
     }
     expected_viewboxes = {
-        'icon-advanced-editor-test-lab': '53 71 490 529',
-        'icon-advanced-editor-replace': '29 71 584 543',
-        'icon-advanced-editor-trim': '81 60 520 540',
-        'icon-advanced-editor-execute': '92 62 397 487',
-        'icon-advanced-editor-quick-buttons': '11 74 426 358',
-        'icon-advanced-editor-script-code': '35 61 426 388',
-        'icon-advanced-editor-data': '55 54 410 417',
-        'icon-advanced-editor-send-content': '18 58 426 419',
-        'icon-advanced-editor-trigger': '25 32 424 418',
+        'icon-flask': '53 71 490 529',
+        'icon-replace': '29 71 584 543',
+        'icon-scissors': '81 60 520 540',
+        'icon-play': '92 62 397 487',
+        'icon-quick-actions': '11 74 426 358',
+        'icon-code-file': '35 61 426 388',
+        'icon-data-grid': '55 54 410 417',
+        'icon-send-content': '18 58 426 419',
+        'icon-bolt': '25 32 424 418',
     }
 
     for symbol_id, viewbox in expected_viewboxes.items():
@@ -185,8 +194,8 @@ def test_automation_custom_symbols_are_theme_safe():
         if symbol.tag.endswith('symbol')
     }
     expected_viewboxes = {
-        'icon-automation-merge': '91 103 523 602',
-        'icon-automation-forbidden': '48 23 601 584',
+        'icon-merge': '91 103 523 602',
+        'icon-forbidden': '48 23 601 584',
     }
 
     for symbol_id, viewbox in expected_viewboxes.items():

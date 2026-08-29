@@ -368,7 +368,7 @@ export default function settingsModal() {
       const btn = e.target.previousElementSibling;
       const originalContent = btn ? btn.innerHTML : "";
       if (btn) {
-        btn.innerHTML = '<svg class="ui-icon ui-icon--md settings-icon--150" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="/static/icons/ui.svg#icon-card-loader"></use></svg>';
+        btn.innerHTML = '<svg class="ui-icon ui-icon--md " viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="/static/icons/ui.svg#icon-loader-circle"></use></svg>';
       }
 
       return uploadBackground(formData)
@@ -490,15 +490,15 @@ export default function settingsModal() {
 
     getResourceIcon(type) {
       const icons = {
-        characters: "cards",
-        chats: "chats",
-        worlds: "worldbook",
-        presets: "presets",
-        regex: "regex",
-        quick_replies: "quick-replies",
-        scripts: "scripts",
+        characters: "cards-stack",
+        chats: "chat-bubbles",
+        worlds: "book-stack",
+        presets: "preset-stack",
+        regex: "regex-file",
+        quick_replies: "reply-bolt",
+        scripts: "script-brackets",
       };
-      return icons[type] || "folder";
+      return icons[type] || "folder-solid";
     },
 
     async detectSTPath() {
@@ -511,17 +511,17 @@ export default function settingsModal() {
         if (data.success && data.path) {
           this.$store.global.settingsForm.st_data_dir = data.path;
           this.stPathStatus = `探测到路径: ${data.path}`;
-          this.stPathStatusIcon = "card-check";
+          this.stPathStatusIcon = "check";
           this.stPathValid = true;
           await this.validateSTPath();
         } else {
           this.stPathStatus = "未能自动探测到 SillyTavern 安装路径，请手动配置";
-          this.stPathStatusIcon = "context-close";
+          this.stPathStatusIcon = "close";
           this.stPathValid = false;
         }
       } catch (err) {
         this.stPathStatus = "探测失败: " + err.message;
-        this.stPathStatusIcon = "context-close";
+        this.stPathStatusIcon = "close";
         this.stPathValid = false;
       }
     },
@@ -530,7 +530,7 @@ export default function settingsModal() {
       const path = this.$store.global.settingsForm.st_data_dir;
       if (!path) {
         this.stPathStatus = "请输入或探测路径";
-        this.stPathStatusIcon = "context-close";
+        this.stPathStatusIcon = "close";
         this.stPathValid = false;
         this.stResources = {};
         return;
@@ -553,20 +553,20 @@ export default function settingsModal() {
           } else {
             this.stPathStatus = "路径有效";
           }
-          this.stPathStatusIcon = "card-check";
+          this.stPathStatusIcon = "check";
           this.stPathValid = true;
           this.stResources = data.resources || {};
           await this.refreshPathSafety();
         } else {
           this.stPathStatus = "路径无效或不是 SillyTavern 安装目录";
-          this.stPathStatusIcon = "context-close";
+          this.stPathStatusIcon = "close";
           this.stPathValid = false;
           this.stResources = {};
           this.resetPathSafety();
         }
       } catch (err) {
         this.stPathStatus = "验证失败: " + err.message;
-        this.stPathStatusIcon = "context-close";
+        this.stPathStatusIcon = "close";
         this.stPathValid = false;
         this.stResources = {};
         this.resetPathSafety();
@@ -578,7 +578,7 @@ export default function settingsModal() {
       const action = `sync_${resourceType}`;
       if (this.isSyncActionBlocked(action)) {
         this.syncStatus = `${this.getResourceLabel(resourceType)}同步已被禁用：${this.syncSafetySummary}`;
-        this.syncStatusIcon = "context-close";
+        this.syncStatusIcon = "close";
         this.syncSuccess = false;
         return;
       }
@@ -610,7 +610,7 @@ export default function settingsModal() {
           const result = data.result;
           this.syncStatus = `同步完成: ${result.success} 个成功, ${result.failed} 个失败`;
           this.syncSuccess = result.failed === 0;
-          this.syncStatusIcon = result.failed === 0 ? "card-check" : "settings-warning";
+          this.syncStatusIcon = result.failed === 0 ? "check" : "alert-triangle";
 
           // 同步成功后触发刷新
           if (result.success > 0) {
@@ -628,12 +628,12 @@ export default function settingsModal() {
           }
         } else {
           this.syncStatus = "同步失败: " + (data.error || "未知错误");
-          this.syncStatusIcon = "context-close";
+          this.syncStatusIcon = "close";
           this.syncSuccess = false;
         }
       } catch (err) {
         this.syncStatus = "同步失败: " + err.message;
-        this.syncStatusIcon = "context-close";
+        this.syncStatusIcon = "close";
         this.syncSuccess = false;
       } finally {
         this.syncing = false;
@@ -644,7 +644,7 @@ export default function settingsModal() {
       if (this.syncing) return;
       if (this.isSyncActionBlocked("sync_all")) {
         this.syncStatus = `全部同步已被禁用：${this.syncSafetySummary}`;
-        this.syncStatusIcon = "context-close";
+        this.syncStatusIcon = "close";
         this.syncSuccess = false;
         return;
       }
@@ -704,7 +704,7 @@ export default function settingsModal() {
 
       this.syncStatus = `全部同步完成: ${totalSuccess} 个成功, ${totalFailed} 个失败`;
       this.syncSuccess = totalFailed === 0;
-      this.syncStatusIcon = totalFailed === 0 ? "card-check" : "settings-warning";
+      this.syncStatusIcon = totalFailed === 0 ? "check" : "alert-triangle";
       this.syncing = false;
 
       // 同步成功后触发刷新

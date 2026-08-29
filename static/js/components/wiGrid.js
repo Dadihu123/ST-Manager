@@ -331,12 +331,12 @@ export default function wiGrid() {
           window.dispatchEvent(new CustomEvent("wi-sent-to-st", {
             detail: sentDetail,
           }));
-          this.$store.global.showToast("已发送到 ST", 1800, "card-send");
+          this.$store.global.showToast("已发送到 ST", 1800, "send");
         } else {
-          this.$store.global.showToast(res?.msg || "发送失败", 2600, "context-close");
+          this.$store.global.showToast(res?.msg || "发送失败", 2600, "close");
         }
       } catch (error) {
-        this.$store.global.showToast(error?.message || "发送失败", 2600, "context-close");
+        this.$store.global.showToast(error?.message || "发送失败", 2600, "close");
       } finally {
         const next = { ...this.sendingWorldInfoToStIds };
         delete next[key];
@@ -661,7 +661,7 @@ export default function wiGrid() {
         }
       }
 
-      this.$store.global.showToast(`已移动 ${count} 本世界书`, 3000, 'card-check');
+      this.$store.global.showToast(`已移动 ${count} 本世界书`, 3000, 'check');
       this.selectedIds = [];
       this.fetchWorldInfoList();
     },
@@ -684,7 +684,7 @@ export default function wiGrid() {
         }
       }
 
-      this.$store.global.showToast(`已删除 ${count} 本世界书`, 3000, "context-delete");
+      this.$store.global.showToast(`已删除 ${count} 本世界书`, 3000, "trash");
       this.selectedIds = [];
       this.fetchWorldInfoList();
     },
@@ -930,7 +930,7 @@ export default function wiGrid() {
         }
 
         if (this.$store?.global?.showToast) {
-          this.$store.global.showToast("已创建世界书（ST 兼容格式）", 1800, "card-check");
+          this.$store.global.showToast("已创建世界书（ST 兼容格式）", 1800, "check");
         }
 
         // 刷新列表并定位到新建条目

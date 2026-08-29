@@ -4,7 +4,7 @@ export const PROMPT_MARKER_VISUALS = {
   worldInfoBefore: {
     key: "worldInfoBefore",
     label: "世界书（前）",
-    asset: "character-definition-before",
+    asset: "definition-before",
     paths: [
       "M7.5 5.75h7.25A2.75 2.75 0 0 1 17.5 8.5v10.25",
       "M7.5 5.75v11.5c0 .552.448 1 1 1h8",
@@ -15,7 +15,7 @@ export const PROMPT_MARKER_VISUALS = {
   worldInfoAfter: {
     key: "worldInfoAfter",
     label: "世界书（后）",
-    asset: "character-definition-after",
+    asset: "definition-after",
     paths: [
       "M6.5 5.75h7.25A2.75 2.75 0 0 1 16.5 8.5v10.25",
       "M6.5 5.75v11.5c0 .552.448 1 1 1h8",
@@ -46,7 +46,7 @@ export const PROMPT_MARKER_VISUALS = {
   personaDescription: {
     key: "personaDescription",
     label: "人格描述",
-    asset: "user-persona-description",
+    asset: "persona-description",
     paths: [
       "M12 4.5 14.4 9.3 19.75 10.08 15.88 13.86 16.8 19.2 12 16.68 7.2 19.2 8.12 13.86 4.25 10.08 9.6 9.3Z",
     ],
@@ -54,7 +54,7 @@ export const PROMPT_MARKER_VISUALS = {
   scenario: {
     key: "scenario",
     label: "场景",
-    asset: "character-scenario",
+    asset: "scenario",
     paths: [
       "M4.75 17.5 9.5 12.75 12.25 15.5 16.75 11 19.25 13.5",
       "M7 9.75 9.25 7.5 12 10.25 15.75 6.5 19.25 10",
@@ -99,7 +99,7 @@ export function buildPromptMarkerIcon(visual, options = {}) {
   } = options;
   if (visual?.asset) {
     const asset = String(visual.asset).trim();
-    return `<svg class="preset-icon preset-marker-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="currentColor" stroke="none" stroke-width="${strokeWidth}"><use href="${PRESET_ICON_SPRITE_URL}#icon-preset-${asset}"></use></svg>`;
+    return `<svg class="preset-icon preset-marker-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="currentColor" stroke="none" stroke-width="${strokeWidth}"><use href="${PRESET_ICON_SPRITE_URL}#icon-${asset}"></use></svg>`;
   }
   const paths = Array.isArray(visual?.paths)
     ? visual.paths

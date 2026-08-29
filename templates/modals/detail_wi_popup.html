@@ -21,7 +21,7 @@
           class="wi-reader-title-icon select-none opacity-90"
           aria-hidden="true"
         >
-          {{ sidebar_icon('worldbook', 'ui-icon--lg') }}
+          {{ sidebar_icon('book-stack', 'ui-icon--lg') }}
         </div>
         <div class="min-w-0">
           <div class="flex items-center overflow-hidden gap-2 min-w-0">
@@ -51,7 +51,7 @@
               class="wi-reader-calendar-icon inline-flex items-center"
               aria-hidden="true"
             >
-              {{ icon('worldbook-calendar', 'ui-icon--xs') }}
+              {{ icon('calendar', 'ui-icon--xs') }}
             </span>
             <span x-text="formatDate(activeWiDetail?.mtime)"></span>
             <span class="opacity-40">|</span>
@@ -107,7 +107,7 @@
               class="absolute left-3 top-1/2 -translate-y-1/2 opacity-50"
               aria-hidden="true"
             >
-              {{ icon('worldbook-search', 'ui-icon--sm') }}
+              {{ icon('book-search', 'ui-icon--sm') }}
             </span>
             <input
               type="text"
@@ -120,7 +120,7 @@
               @click="searchTerm=''"
               class="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-200 p-0.5 rounded-full"
             >
-              {{ icon('context-close', 'ui-icon--sm') }}
+              {{ icon('close', 'ui-icon--sm') }}
             </button>
           </div>
         </div>
@@ -135,7 +135,7 @@
           class="absolute left-3 top-1/2 -translate-y-1/2 opacity-50"
           aria-hidden="true"
         >
-          {{ icon('worldbook-search', 'ui-icon--sm') }}
+          {{ icon('book-search', 'ui-icon--sm') }}
         </span>
         <input
           type="text"
@@ -148,7 +148,7 @@
           @click="searchTerm=''"
           class="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-200 p-0.5 rounded-full"
         >
-          {{ icon('context-close', 'ui-icon--sm') }}
+          {{ icon('close', 'ui-icon--sm') }}
         </button>
       </div>
 
@@ -180,7 +180,7 @@
           aria-label="设置世界书条目排序"
           title="设置排序"
         >
-          {{ icon('worldbook-sort', 'ui-icon--md') }}
+          {{ icon('sort', 'ui-icon--md') }}
         </button>
         <div
           x-show="showWiSortMenu"
@@ -208,7 +208,7 @@
         :class="$store.global.deviceType === 'mobile' ? '' : 'p-2'"
         title="关闭 (Esc)"
       >
-        {{ icon('context-close', 'ui-icon--lg wi-reader-close-icon') }}
+        {{ icon('close', 'ui-icon--md') }}
       </button>
     </div>
 
@@ -219,7 +219,7 @@
       class="fixed bottom-20 left-2 z-50 w-10 h-10 bg-[var(--bg-panel)] border border-[var(--border-light)] rounded-lg flex items-center justify-center text-[var(--text-main)] shadow-lg md:hidden"
     >
       <span x-show="!showMobileSidebar" aria-hidden="true">
-        {{ icon('header-menu', 'ui-icon--md') }}
+        {{ icon('menu', 'ui-icon--md') }}
       </span>
     </button>
 
@@ -452,7 +452,7 @@
             @click="enterWiEditorFromDetail()"
             class="w-full btn-primary py-2.5 rounded-lg flex items-center justify-center gap-2 font-bold shadow-md transform transition hover:translate-y-[-1px]"
           >
-            {{ icon('context-rename', 'ui-icon--md') }}
+            {{ icon('pencil-edit', 'ui-icon--md') }}
             <span>进入全屏编辑器</span>
           </button>
 
@@ -464,7 +464,7 @@
               :title="getActiveWorldInfoSendToSTTitle()"
               :disabled="isSendingWorldInfoToST"
             >
-              {{ icon('card-send', 'ui-icon--md') }}
+              {{ icon('send', 'ui-icon--md') }}
               <span class="scale-90">发送到 ST</span>
             </button>
             <button
@@ -472,7 +472,7 @@
               class="btn-secondary py-1.5 text-xs flex flex-col items-center justify-center gap-0.5"
               title="导出 JSON"
             >
-              {{ icon('worldbook-save-as', 'ui-icon--md') }}
+              {{ icon('book-save-as', 'ui-icon--md') }}
               <span class="scale-90">导出</span>
             </button>
             <button
@@ -480,7 +480,7 @@
               class="btn-secondary py-1.5 text-xs flex flex-col items-center justify-center gap-0.5"
               title="快速备份"
             >
-              {{ icon('worldbook-snapshot', 'ui-icon--md') }}
+              {{ icon('snapshot', 'ui-icon--md') }}
               <span class="scale-90">快照</span>
             </button>
             <button
@@ -488,7 +488,7 @@
               class="btn-secondary py-1.5 text-xs flex flex-col items-center justify-center gap-0.5"
               title="查看历史版本"
             >
-              {{ icon('worldbook-rollback', 'ui-icon--md') }}
+              {{ icon('history-rollback', 'ui-icon--md') }}
               <span class="scale-90">回滚</span>
             </button>
             <button
@@ -496,7 +496,7 @@
               class="btn-secondary py-1.5 text-xs flex flex-col items-center justify-center gap-0.5"
               title="打开备份文件夹"
             >
-              {{ icon('worldbook-backup', 'ui-icon--md wi-worldbook-backup-icon') }}
+              {{ icon('book-backup', 'ui-icon--md') }}
               <span class="scale-90">目录</span>
             </button>
           </div>
@@ -506,7 +506,7 @@
               @click="deleteCurrentWi()"
               class="w-full py-1 text-[10px] text-red-400 hover:text-red-500 hover:bg-red-500/10 rounded transition-colors flex items-center justify-center gap-1"
             >
-              {{ icon('context-delete', 'ui-icon--sm') }}
+              {{ icon('trash', 'ui-icon--sm') }}
               <span>删除此文件</span>
             </button>
           </template>
@@ -553,7 +553,7 @@
             class="h-full flex flex-col items-center justify-center text-gray-500 gap-4"
           >
             <div class="wi-reader-loading-icon" aria-hidden="true">
-              {{ icon('card-loader', 'ui-icon--spin') }}
+              {{ icon('loader-circle', 'ui-icon--2xl ui-icon--spin') }}
             </div>
             <p class="text-sm">正在读取卷宗...</p>
           </div>
@@ -635,7 +635,7 @@
               x-show="uiFilteredEntries.length === 0"
               class="flex flex-col items-center justify-center py-20 opacity-50"
             >
-              <div class="mb-2" aria-hidden="true">{{ icon('other-leaf-wind', 'ui-icon--xl') }}</div>
+              <div class="mb-2" aria-hidden="true">{{ icon('leaf-wind', 'ui-icon--xl') }}</div>
               <p class="text-sm">没有找到相关条目</p>
             </div>
 
@@ -688,7 +688,7 @@
             @click="activeEntry = null"
             class="text-gray-500 hover:text-[var(--text-main)] px-2"
           >
-            {{ icon('context-close', 'ui-icon--md') }}
+            {{ icon('close', 'ui-icon--md') }}
           </button>
         </div>
 
@@ -820,7 +820,7 @@
             @click="enterWiEditorFromDetail(activeEntry)"
             class="w-full btn-secondary py-2 text-xs flex items-center justify-center gap-2 font-bold hover:bg-accent-main hover:text-white transition-colors"
           >
-            {{ icon('context-rename', 'ui-icon--md') }}
+            {{ icon('pencil-edit', 'ui-icon--md') }}
             <span>去编辑器修改此条目</span>
           </button>
         </div>

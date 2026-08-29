@@ -69,23 +69,23 @@ const DEFAULT_TAG_CATEGORY_COLOR = "#64748b";
 const DEFAULT_TAG_CATEGORY_OPACITY = 16;
 const TAG_VIEW_PREFS_STORAGE_KEY = "st_manager_tag_view_prefs";
 const TOAST_ICON_SPRITES = Object.freeze({
-  "detail-backup-rollback": "detail.svg#icon-detail-backup-rollback",
-  "detail-tags": "detail.svg#icon-detail-tags",
-  "detail-source-link": "detail.svg#icon-detail-source-link",
+  "backup-rollback": "detail.svg#icon-backup-rollback",
+  "tags": "detail.svg#icon-tags",
+  "link-source": "detail.svg#icon-link-source",
 });
 const TOAST_ICON_NAMES = new Set([
-  "automation-forbidden",
-  "card-send",
-  "card-folder",
-  "card-loader",
-  "context-close",
-  "context-delete",
-  "card-check",
+  "forbidden",
+  "send",
+  "folder",
+  "loader-circle",
+  "close",
+  "trash",
+  "check",
   "settings-help-entry",
   "settings-save",
-  "settings-warning",
-  "worldbook-clipboard",
-  "worldbook-snapshot",
+  "alert-triangle",
+  "clipboard",
+  "snapshot",
   ...Object.keys(TOAST_ICON_SPRITES),
 ]);
 

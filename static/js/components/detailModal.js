@@ -1188,7 +1188,7 @@ export default function detailModal() {
             formData.append('card_id', this.editingData.id);
             formData.append('file', file);
 
-            this.$store.global.showToast(`正在上传: ${file.name}...`, 2000, "card-loader");
+            this.$store.global.showToast(`正在上传: ${file.name}...`, 2000, "loader-circle");
 
             try {
                 const res = await uploadCardResource(formData);
@@ -1197,7 +1197,7 @@ export default function detailModal() {
                         this.editingData.resource_folder = res.resource_folder;
                         this.activeCard.resource_folder = res.resource_folder;
                     }
-                    this.$store.global.showToast(`${file.name} 上传成功`, 3000, "card-check");
+                    this.$store.global.showToast(`${file.name} 上传成功`, 3000, "check");
                     return res;
                 } else {
                     alert(`上传 ${file.name} 失败: ${res.msg}`);
@@ -1234,9 +1234,9 @@ export default function detailModal() {
                     this.fetchResourceFiles(res.resource_folder);
 
                     if (auto) {
-                        this.$store.global.showToast('已自动创建资源目录', 1800, 'card-folder');
+                        this.$store.global.showToast('已自动创建资源目录', 1800, 'folder');
                     } else if (!silent) {
-                        this.$store.global.showToast('资源目录已创建', 1800, 'card-folder');
+                        this.$store.global.showToast('资源目录已创建', 1800, 'folder');
                     }
 
                     return res.resource_folder;
@@ -1435,7 +1435,7 @@ export default function detailModal() {
                     filename: relativePath,
                 });
                 if (res.success) {
-                    this.$store.global.showToast(`${label}已删除`, 3000, 'context-delete');
+                    this.$store.global.showToast(`${label}已删除`, 3000, 'trash');
                     this.fetchResourceFiles(this.editingData.resource_folder);
                 } else {
                     alert("删除失败: " + res.msg);
@@ -1463,7 +1463,7 @@ export default function detailModal() {
             }).then(res => {
                 this.isSaving = false;
                 if (res.success) {
-                    this.$store.global.showToast("皮肤已删除", 3000, "context-delete");
+                    this.$store.global.showToast("皮肤已删除", 3000, "trash");
                     
                     // 移除当前项
                     this.skinImages.splice(this.currentSkinIndex, 1);
@@ -1651,7 +1651,7 @@ export default function detailModal() {
                 
                 module.deleteCards(ids, deleteResources).then(res => {
                     if (res.success) {
-                        this.$store.global.showToast("已移至回收站", 3000, "context-delete");
+                        this.$store.global.showToast("已移至回收站", 3000, "trash");
                         this.showDetail = false;
                         
                         // 通知列表刷新
@@ -1984,7 +1984,7 @@ export default function detailModal() {
                             ? res.tag_merge.replacements.length
                             : 0;
                         if (replacedCount > 0) {
-                            this.$store.global.showToast(`已按全局规则合并标签（${replacedCount} 项）`, 2600, "detail-tags");
+                            this.$store.global.showToast(`已按全局规则合并标签（${replacedCount} 项）`, 2600, "tags");
                         }
                     }
 
@@ -2094,7 +2094,7 @@ export default function detailModal() {
             }).then(res => {
                 this.isSaving = false;
                 if (res.success) {
-                this.$store.global.showToast("封面已切换", 3000, "card-check");
+                this.$store.global.showToast("封面已切换", 3000, "check");
                     
                     // 强制刷新图片显示
                     const ts = new Date().getTime();
@@ -2175,7 +2175,7 @@ export default function detailModal() {
         handleUpdateResponse(res) {
             this.isSaving = false;
             if (res.success) {
-                this.$store.global.showToast("更新成功", 2000, "card-check");
+                this.$store.global.showToast("更新成功", 2000, "check");
                 const updatedCard = res.updated_card;
                 if (updatedCard) {
                     const responseRevision = updatedCard.source_revision || res.source_revision || "";
@@ -2429,7 +2429,7 @@ export default function detailModal() {
                 char_name: this.activeCard.char_name
             }).then(res => {
                 if(res.success) {
-                    this.$store.global.showToast("已设为封面", 3000, "card-check");
+                    this.$store.global.showToast("已设为封面", 3000, "check");
                     if (res.updated_card) {
                         const newBundle = res.updated_card;
                         const ts = new Date().getTime();
@@ -2546,7 +2546,7 @@ export default function detailModal() {
                     this.editingData.resource_folder = res.resource_folder;
                     this.activeCard.resource_folder = res.resource_folder;
                     this.fetchResourceFiles(res.resource_folder);
-                    this.$store.global.showToast('资源目录已设置', 1800, 'card-folder');
+                    this.$store.global.showToast('资源目录已设置', 1800, 'folder');
                 } else {
                     alert(res.msg);
                 }
@@ -2570,9 +2570,9 @@ export default function detailModal() {
                 .then(res => {
                     if (res.success) {
                         this.activeCard.last_sent_to_st = Number(res.last_sent_to_st || Date.now() / 1000);
-                        this.$store.global.showToast("发送成功", 2200, "card-check");
+                        this.$store.global.showToast("发送成功", 2200, "check");
                     }
-                    else this.$store.global.showToast("发送失败: " + res.msg, 2600, "context-close");
+                    else this.$store.global.showToast("发送失败: " + res.msg, 2600, "close");
                 })
                 .finally(() => {
                     if (label) label.textContent = '发送到 ST';
@@ -2754,7 +2754,7 @@ export default function detailModal() {
                             ? res.tag_merge.replacements.length
                             : 0;
                         if (replacedCount > 0) {
-                            this.$store.global.showToast(`标签已自动合并（${replacedCount} 项）`, 2200, "detail-tags");
+                            this.$store.global.showToast(`标签已自动合并（${replacedCount} 项）`, 2200, "tags");
                         }
                     }
                 }).catch(() => {});
@@ -2933,10 +2933,10 @@ export default function detailModal() {
                 if (result?.success) {
                     this.$store.global.showToast(result.message || this.getSourceUpdateLabel(), 3200);
                 } else {
-                    this.$store.global.showToast(result?.error || result?.msg || '检查来源失败', 3200, 'context-close');
+                    this.$store.global.showToast(result?.error || result?.msg || '检查来源失败', 3200, 'close');
                 }
             } catch (error) {
-                this.$store.global.showToast(error?.message || '检查来源失败', 3200, 'context-close');
+                this.$store.global.showToast(error?.message || '检查来源失败', 3200, 'close');
             } finally {
                 this.sourceUpdateChecking = false;
             }
@@ -2955,10 +2955,10 @@ export default function detailModal() {
                 if (result?.success) {
                     this.$store.global.showToast(result.message || '已确认无需更新', 3200);
                 } else {
-                    this.$store.global.showToast(result?.error || result?.msg || '确认状态失败', 3200, 'context-close');
+                    this.$store.global.showToast(result?.error || result?.msg || '确认状态失败', 3200, 'close');
                 }
             } catch (error) {
-                this.$store.global.showToast(error?.message || '确认状态失败', 3200, 'context-close');
+                this.$store.global.showToast(error?.message || '确认状态失败', 3200, 'close');
             } finally {
                 this.sourceUpdateAcknowledging = false;
             }
@@ -3031,7 +3031,7 @@ export default function detailModal() {
                     inputEl.value = ''; // 清空 input，允许重复导入同名文件
                     
                     // 4. 反馈
-                    this.$store.global.showToast(`成功导入: "${importedData.name}"`, 3000, 'card-check');
+                    this.$store.global.showToast(`成功导入: "${importedData.name}"`, 3000, 'check');
 
                 },
                 

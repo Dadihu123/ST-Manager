@@ -142,8 +142,8 @@
   top: 50%;
   left: 0.5rem;
   display: flex;
-  width: 1rem;
-  height: 1rem;
+  width: 16px;
+  height: 16px;
   align-items: center;
   justify-content: center;
   color: var(--text-dim);
@@ -354,11 +354,6 @@
   color: var(--text-warn);
   font-size: 1rem;
   line-height: 1.45;
-}
-
-.automation-empty-icon .ui-icon--xl {
-  width: 4.5rem;
-  height: 4.5rem;
 }
 
 .metadata-path-input {

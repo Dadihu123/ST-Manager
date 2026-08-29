@@ -742,12 +742,12 @@ export default function wiDetailPopup() {
               last_sent_to_st: sentAt,
             },
           }));
-          this.$store.global.showToast("已发送到 ST", 1800, "card-send");
+          this.$store.global.showToast("已发送到 ST", 1800, "send");
         } else {
-          this.$store.global.showToast(res?.msg || "发送失败", 2600, "context-close");
+          this.$store.global.showToast(res?.msg || "发送失败", 2600, "close");
         }
       } catch (error) {
-        this.$store.global.showToast(error?.message || "发送失败", 2600, "context-close");
+        this.$store.global.showToast(error?.message || "发送失败", 2600, "close");
       } finally {
         this.isSendingWorldInfoToST = false;
       }
@@ -872,7 +872,7 @@ export default function wiDetailPopup() {
             this.showWiDetailModal = false;
             // 刷新列表
             window.dispatchEvent(new CustomEvent("refresh-wi-list"));
-            this.$store.global.showToast("已删除", 3000, "context-delete");
+            this.$store.global.showToast("已删除", 3000, "trash");
           } else {
             alert("删除失败: " + res.msg);
           }

@@ -10,10 +10,10 @@
 
     <!-- 核心样式 -->
     <link rel="stylesheet" href="/static/css/style.css" />
+    <link rel="stylesheet" href="/static/css/tailwind.css" />
 
     <script type="module" src="/static/js/app.js"></script>
     <!-- 第三方库 (Phase 1 归档位置) -->
-    <script src="/static/lib/tailwindcss.js"></script>
     <script src="/static/lib/alpine-collapse.js"></script>
     <script src="/static/lib/alpine.js" defer></script>
     <script src="/static/lib/showdown.min.js"></script>
@@ -42,14 +42,16 @@
       :class="{'show': showToastState}"
     >
       <span x-show="toastIcon" aria-hidden="true">
-        <svg
-          class="ui-icon ui-icon--sm"
-          viewBox="0 0 24 24"
-          aria-hidden="true"
-          focusable="false"
-        >
-          <use :href="'{{ url_for('static', filename='icons/') }}' + toastIconHref"></use>
-        </svg>
+        <template x-if="toastIcon">
+          <svg
+            class="ui-icon ui-icon--sm"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+            focusable="false"
+          >
+            <use :href="'{{ url_for('static', filename='icons/') }}' + toastIconHref"></use>
+          </svg>
+        </template>
       </span>
       <span x-text="toastMessage"></span>
     </div>

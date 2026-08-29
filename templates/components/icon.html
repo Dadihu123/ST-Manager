@@ -16,7 +16,7 @@
   aria-hidden="true"
   focusable="false"
 >
-  <use href="{{ url_for('static', filename='icons/sidebar.svg') }}#icon-sidebar-{{ name }}"></use>
+  <use href="{{ url_for('static', filename='icons/sidebar.svg') }}#icon-{{ name }}"></use>
 </svg>
 {%- endmacro %}
 
@@ -27,7 +27,7 @@
   aria-hidden="true"
   focusable="false"
 >
-  <use href="{{ url_for('static', filename='icons/detail.svg') }}#icon-detail-{{ name }}"></use>
+  <use href="{{ url_for('static', filename='icons/detail.svg') }}#icon-{{ name }}"></use>
 </svg>
 {%- endmacro %}
 
@@ -38,6 +38,6 @@
   aria-hidden="true"
   focusable="false"
 >
-  <use href="{{ url_for('static', filename='icons/preset.svg') }}#icon-preset-{{ name }}"></use>
+  <use href="{{ url_for('static', filename='icons/preset.svg') }}#icon-{{ name }}"></use>
 </svg>
 {%- endmacro %}

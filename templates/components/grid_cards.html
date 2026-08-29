@@ -71,7 +71,7 @@
       class="drag-over-main-overlay"
     >
       <div class="mb-4" aria-hidden="true">
-        {{ icon('card-upload', 'ui-icon--xl') }}
+        {{ icon('upload', 'ui-icon--xl') }}
       </div>
       <div class="text-2xl font-bold text-white tracking-wider">
         松开鼠标上传卡片
@@ -147,7 +147,7 @@
                     class="card-meta-chip card-meta-bundle"
                     :title="`包模式版本数：${card.versions ? card.versions.length : 0}`"
                   >
-                    {{ icon('card-package', 'ui-icon--xs card-package-icon--150') }} v<span
+                    {{ icon('package', 'ui-icon--xs ') }} v<span
                       x-text="card.versions ? card.versions.length : 0"
                     ></span>
                   </div>
@@ -174,7 +174,7 @@
                     <span
                       x-show="selectedIds.includes(card.id)"
                       class="card-select-icon"
-                      >{{ icon('card-check', 'ui-icon--sm') }}</span
+                      >{{ icon('check', 'ui-icon--sm') }}</span
                     >
                   </div>
                 </button>
@@ -190,7 +190,7 @@
                   :title="card.is_favorite ? '取消收藏' : '加入收藏'"
                   :aria-label="card.is_favorite ? '取消收藏' : '加入收藏'"
                 >
-                  {{ icon('card-favorite', 'card-fav-icon') }}
+                  {{ icon('heart', 'card-fav-icon') }}
                 </button>
 
                 <img
@@ -215,7 +215,7 @@
                       class="card-source-link-fab"
                       rel="noopener noreferrer"
                     >
-                      {{ icon('card-external-link', 'ui-icon--sm') }}
+                      {{ icon('external-link', 'ui-icon--sm') }}
                     </a>
                   </div>
 
@@ -269,7 +269,7 @@
                   :title="`分类：${(card.category && card.category.trim()) ? card.category : '根目录'}`"
                 >
                   <span class="card-back-category-icon" aria-hidden="true">
-                    {{ icon('card-folder', 'ui-icon--sm') }}
+                    {{ icon('folder', 'ui-icon--sm') }}
                   </span>
                   <span
                     class="card-back-category-text"
@@ -321,7 +321,7 @@
               :aria-label="cardHasLocalNote(card) ? '查看本地备注预览' : '暂无本地备注'"
               @click.stop="openCardLocalNote(card)"
             >
-              {{ icon('card-sticky-note', 'ui-icon--sm') }}
+              {{ icon('sticky-note', 'ui-icon--sm') }}
             </button>
             <button
               type="button"
@@ -331,7 +331,7 @@
               aria-label="打开类脑搜索预览"
               @click.stop="openForumThreadPreview(card)"
             >
-              {{ icon('card-search', 'card-forum-search-icon') }}
+              {{ icon('search', 'card-forum-search-icon') }}
             </button>
             <button
               type="button"
@@ -343,10 +343,10 @@
               @click.stop="sendCardToST(card)"
             >
               <span x-show="!isSendingToST(card.id)" aria-hidden="true">
-                {{ icon('card-send', 'ui-icon--sm') }}
+                {{ icon('send', 'ui-icon--sm') }}
               </span>
               <span x-show="isSendingToST(card.id)" aria-hidden="true">
-                {{ icon('card-loader', 'ui-icon--sm ui-icon--spin') }}
+                {{ icon('loader-circle', 'ui-icon--sm ui-icon--spin') }}
               </span>
             </button>
             <button
@@ -360,10 +360,10 @@
               aria-label="检查来源更新"
             >
               <span x-show="!isCheckingSourceUpdate(card.id)" aria-hidden="true">
-                {{ icon('card-refresh', 'ui-icon--sm') }}
+                {{ icon('refresh-card', 'ui-icon--sm') }}
               </span>
               <span x-show="isCheckingSourceUpdate(card.id)" aria-hidden="true">
-                {{ icon('card-loader', 'ui-icon--sm ui-icon--spin') }}
+                {{ icon('loader-circle', 'ui-icon--sm ui-icon--spin') }}
               </span>
             </button>
             <span

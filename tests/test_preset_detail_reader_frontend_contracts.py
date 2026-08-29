@@ -427,8 +427,8 @@ def test_preset_detail_reader_template_compacts_prompt_list_metadata_row():
     assert 'x-text="getPromptPreview(item)"' in prompt_card_block
     assert 'item.prompt_meta?.is_enabled' in prompt_card_block
     assert ('sr-only' in prompt_card_block) or ('aria-label=' in prompt_card_block) or ('title=' in prompt_card_block)
-    assert "icon('other-check', 'ui-icon--xs')" in prompt_card_block
-    assert "icon('other-minus', 'ui-icon--xs')" in prompt_card_block
+    assert "icon('check-bold', 'ui-icon--xs')" in prompt_card_block
+    assert "icon('minus', 'ui-icon--xs')" in prompt_card_block
 
 
 def test_preset_detail_reader_template_compacts_prompt_state_info_bar():

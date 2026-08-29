@@ -851,7 +851,7 @@ export default function beautifyGrid() {
           throw new Error(res?.error || '发送主题到 ST 失败');
         }
         this.applyActiveVariantSentState(res.last_sent_to_st);
-        this.$store.global.showToast("主题已发送到 ST 并设为当前主题", 2200, "card-send");
+        this.$store.global.showToast("主题已发送到 ST 并设为当前主题", 2200, "send");
       } catch (error) {
         this.$store.global.showToast(String(error.message || error), 3200);
       } finally {

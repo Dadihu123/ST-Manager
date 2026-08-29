@@ -45,7 +45,7 @@
     aria-label="关闭侧边栏"
     title="关闭侧边栏"
   >
-    {{ icon('context-close', 'ui-icon--sm sidebar-action-icon') }}
+    {{ icon('close', 'ui-icon--sm sidebar-action-icon') }}
   </button>
   <div class="sidebar-navigation-shell sidebar-navigation-shell--compact">
     <div class="sidebar-module-switcher-wrap">
@@ -61,14 +61,14 @@
         :aria-expanded="moduleMenuOpen ? 'true' : 'false'"
       >
         <span class="sidebar-module-switcher-icon" aria-hidden="true">
-          <span x-cloak x-show="currentMode === 'cards'" class="sidebar-module-image-icon sidebar-module-image-icon--cards"></span>
-          <span x-cloak x-show="currentMode === 'worldinfo'">{{ detail_icon('worldbook', 'ui-icon--md') }}</span>
-          <span x-cloak x-show="currentMode === 'chats'">{{ detail_icon('chat', 'ui-icon--md') }}</span>
+          <span x-cloak x-show="currentMode === 'cards'">{{ sidebar_icon('character-cards', 'sidebar-module-image-icon') }}</span>
+          <span x-cloak x-show="currentMode === 'worldinfo'">{{ detail_icon('book-open', 'ui-icon--md') }}</span>
+          <span x-cloak x-show="currentMode === 'chats'">{{ detail_icon('chat-bubble', 'ui-icon--md') }}</span>
           <span x-cloak x-show="currentMode === 'presets'">{{ detail_icon('preset', 'ui-icon--md') }}</span>
           <span x-cloak x-show="currentMode === 'regex'">{{ detail_icon('regex', 'ui-icon--md') }}</span>
-          <span x-cloak x-show="currentMode === 'scripts'">{{ detail_icon('scripts', 'ui-icon--md') }}</span>
-          <span x-cloak x-show="currentMode === 'quick_replies'">{{ detail_icon('quick-replies', 'ui-icon--md') }}</span>
-          <span x-cloak x-show="currentMode === 'beautify'" class="sidebar-module-image-icon sidebar-module-image-icon--beautify"></span>
+          <span x-cloak x-show="currentMode === 'scripts'">{{ detail_icon('script-file', 'ui-icon--md') }}</span>
+          <span x-cloak x-show="currentMode === 'quick_replies'">{{ detail_icon('quick-reply', 'ui-icon--md') }}</span>
+          <span x-cloak x-show="currentMode === 'beautify'">{{ sidebar_icon('paint-brush', 'sidebar-module-image-icon') }}</span>
         </span>
         <span class="sidebar-module-switcher-copy">
           <span class="sidebar-module-switcher-kicker">当前模块</span>
@@ -104,7 +104,7 @@
           :class="currentMode === 'cards' ? 'is-active' : ''"
           :aria-current="currentMode === 'cards' ? 'page' : null"
         >
-          <span class="sidebar-module-menu-icon sidebar-module-image-icon sidebar-module-image-icon--cards" aria-hidden="true"></span>
+          <span class="sidebar-module-menu-icon" aria-hidden="true">{{ sidebar_icon('character-cards', 'sidebar-module-image-icon') }}</span>
           <span>角色卡</span>
         </button>
         <button
@@ -115,7 +115,7 @@
           :class="currentMode === 'worldinfo' ? 'is-active' : ''"
           :aria-current="currentMode === 'worldinfo' ? 'page' : null"
         >
-          <span class="sidebar-module-menu-icon" aria-hidden="true">{{ detail_icon('worldbook', 'ui-icon--md') }}</span>
+          <span class="sidebar-module-menu-icon" aria-hidden="true">{{ detail_icon('book-open', 'ui-icon--md') }}</span>
           <span>世界书</span>
         </button>
         <button
@@ -126,7 +126,7 @@
           :class="currentMode === 'chats' ? 'is-active' : ''"
           :aria-current="currentMode === 'chats' ? 'page' : null"
         >
-          <span class="sidebar-module-menu-icon" aria-hidden="true">{{ detail_icon('chat', 'ui-icon--md') }}</span>
+          <span class="sidebar-module-menu-icon" aria-hidden="true">{{ detail_icon('chat-bubble', 'ui-icon--md') }}</span>
           <span>聊天</span>
         </button>
         <button
@@ -159,7 +159,7 @@
           :class="currentMode === 'scripts' ? 'is-active' : ''"
           :aria-current="currentMode === 'scripts' ? 'page' : null"
         >
-          <span class="sidebar-module-menu-icon" aria-hidden="true">{{ detail_icon('scripts', 'ui-icon--md') }}</span>
+          <span class="sidebar-module-menu-icon" aria-hidden="true">{{ detail_icon('script-file', 'ui-icon--md') }}</span>
           <span>ST 脚本</span>
         </button>
         <button
@@ -170,7 +170,7 @@
           :class="currentMode === 'quick_replies' ? 'is-active' : ''"
           :aria-current="currentMode === 'quick_replies' ? 'page' : null"
         >
-          <span class="sidebar-module-menu-icon" aria-hidden="true">{{ detail_icon('quick-replies', 'ui-icon--md') }}</span>
+          <span class="sidebar-module-menu-icon" aria-hidden="true">{{ detail_icon('quick-reply', 'ui-icon--md') }}</span>
           <span>快速回复</span>
         </button>
         <button
@@ -181,7 +181,7 @@
           :class="currentMode === 'beautify' ? 'is-active' : ''"
           :aria-current="currentMode === 'beautify' ? 'page' : null"
         >
-          <span class="sidebar-module-menu-icon sidebar-module-image-icon sidebar-module-image-icon--beautify" aria-hidden="true"></span>
+          <span class="sidebar-module-menu-icon" aria-hidden="true">{{ sidebar_icon('paint-brush', 'sidebar-module-image-icon') }}</span>
           <span>美化</span>
         </button>
       </div>
@@ -204,7 +204,7 @@
           class="text-xs text-accent cursor-pointer hover:underline inline-flex items-center justify-center"
         >
           <span class="sidebar-inline-label">
-            <span aria-hidden="true">{{ icon('context-new', 'ui-icon--sm') }}</span>
+            <span aria-hidden="true">{{ icon('plus-square', 'ui-icon--sm') }}</span>
             <span>新建</span>
           </span>
         </button>
@@ -237,7 +237,7 @@
           :class="[filterCategory==='' ? 'active' : '', dragOverCat==='根目录' ? 'drag-over' : '']"
           class="folder-item flex items-center px-3 py-2 rounded-lg cursor-pointer text-sm mb-1"
         >
-          <span class="mr-2" aria-hidden="true">{{ sidebar_icon('all-cards-categories', 'ui-icon--sm sidebar-category-root-icon') }}</span>
+          <span class="mr-2" aria-hidden="true">{{ sidebar_icon('cards-grid', 'ui-icon--sm sidebar-category-root-icon') }}</span>
           <span style="flex: 1">全部卡片</span>
           <span class="text-xs opacity-60" x-text="libraryTotal"></span>
           <!-- 移动端：三个点操作按钮 -->
@@ -255,7 +255,7 @@
               flex-shrink: 0;
             "
           >
-            {{ sidebar_icon('category-menu', 'ui-icon--sm') }}
+            {{ sidebar_icon('menu-category', 'ui-icon--sm') }}
           </button>
         </div>
         <template x-for="folder in folderTree" :key="folder.path">
@@ -293,8 +293,8 @@
                 class="mr-2 text-yellow-500 opacity-80 group-hover:opacity-100"
                 aria-hidden="true"
               >
-                <span x-show="folder.expanded">{{ sidebar_icon('category-expanded', 'ui-icon--sm') }}</span>
-                <span x-show="!folder.expanded">{{ sidebar_icon('folder', 'ui-icon--sm') }}</span>
+                <span x-show="folder.expanded">{{ sidebar_icon('folder-open', 'ui-icon--sm') }}</span>
+                <span x-show="!folder.expanded">{{ sidebar_icon('folder-solid', 'ui-icon--sm') }}</span>
               </span>
               <span
                 style="
@@ -331,7 +331,7 @@
                   flex-shrink: 0;
                 "
               >
-                {{ sidebar_icon('category-menu', 'ui-icon--sm') }}
+                {{ sidebar_icon('menu-category', 'ui-icon--sm') }}
               </button>
             </div>
           </div>
@@ -490,7 +490,7 @@
         :class="wiFilterType === 'all' ? 'is-active' : ''"
       >
         <span class="sidebar-filter-label">
-          <span aria-hidden="true">{{ sidebar_icon('all-content', 'ui-icon--sm') }}</span>
+          <span aria-hidden="true">{{ sidebar_icon('layers', 'ui-icon--sm') }}</span>
           <span>全部显示</span>
         </span>
       </button>
@@ -501,7 +501,7 @@
         :class="wiFilterType === 'global' ? 'is-active' : ''"
       >
         <span class="sidebar-filter-label">
-          <span aria-hidden="true">{{ sidebar_icon('global-directory', 'ui-icon--sm') }}</span>
+          <span aria-hidden="true">{{ sidebar_icon('directory-tree', 'ui-icon--sm') }}</span>
           <span>全局目录</span>
         </span>
         <span class="text-xs opacity-60">lorebooks/</span>
@@ -513,7 +513,7 @@
         :class="wiFilterType === 'resource' ? 'is-active' : ''"
       >
         <span class="sidebar-filter-label">
-          <span aria-hidden="true">{{ sidebar_icon('folder', 'ui-icon--sm') }}</span>
+          <span aria-hidden="true">{{ sidebar_icon('folder-solid', 'ui-icon--sm') }}</span>
           <span>资源目录</span>
         </span>
         <span class="text-xs opacity-60">res/.../lorebooks</span>
@@ -525,7 +525,7 @@
         :class="wiFilterType === 'embedded' ? 'is-active' : ''"
       >
         <span class="sidebar-filter-label">
-          <span aria-hidden="true">{{ sidebar_icon('embedded', 'ui-icon--sm') }}</span>
+          <span aria-hidden="true">{{ sidebar_icon('file-embedded', 'ui-icon--sm') }}</span>
           <span>角色内嵌</span>
         </span>
         <span class="text-xs opacity-60">Embedded</span>
@@ -566,7 +566,7 @@
             class="sidebar-category-root sidebar-category-option"
           >
             <span class="sidebar-filter-label">
-              <span aria-hidden="true">{{ sidebar_icon('all-cards-categories', 'ui-icon--sm sidebar-category-root-icon') }}</span>
+              <span aria-hidden="true">{{ sidebar_icon('cards-grid', 'ui-icon--sm sidebar-category-root-icon') }}</span>
               <span>全部分类</span>
             </span>
             <span
@@ -603,8 +603,8 @@
                   </span>
                 </button>
                 <span class="mr-2 opacity-80 group-hover:opacity-100" aria-hidden="true">
-                  <span x-show="folder.expanded">{{ sidebar_icon('category-expanded', 'ui-icon--sm') }}</span>
-                  <span x-show="!folder.expanded">{{ sidebar_icon('folder', 'ui-icon--sm') }}</span>
+                  <span x-show="folder.expanded">{{ sidebar_icon('folder-open', 'ui-icon--sm') }}</span>
+                  <span x-show="!folder.expanded">{{ sidebar_icon('folder-solid', 'ui-icon--sm') }}</span>
                 </span>
                 <span
                   class="flex-1 overflow-hidden text-ellipsis whitespace-nowrap"
@@ -633,7 +633,7 @@
         class="sidebar-action-button sidebar-action-button--primary"
       >
         <span class="sidebar-inline-label">
-          <span aria-hidden="true">{{ icon('context-new', 'ui-icon--sm') }}</span>
+          <span aria-hidden="true">{{ icon('plus-square', 'ui-icon--sm') }}</span>
           <span>新建全局世界书</span>
         </span>
       </button>
@@ -664,7 +664,7 @@
         :class="$store.global.chatFilterType === 'all' ? 'is-active' : ''"
       >
         <span class="sidebar-filter-label">
-          <span aria-hidden="true">{{ sidebar_icon('all-content', 'ui-icon--sm') }}</span>
+          <span aria-hidden="true">{{ sidebar_icon('layers', 'ui-icon--sm') }}</span>
           <span>全部显示</span>
         </span>
       </button>
@@ -675,7 +675,7 @@
         :class="$store.global.chatFilterType === 'bound' ? 'is-active' : ''"
       >
         <span class="sidebar-filter-label">
-          <span aria-hidden="true">{{ sidebar_icon('bound', 'ui-icon--sm') }}</span>
+          <span aria-hidden="true">{{ sidebar_icon('link-bound', 'ui-icon--sm') }}</span>
           <span>已绑定角色</span>
         </span>
       </button>
@@ -686,7 +686,7 @@
         :class="$store.global.chatFilterType === 'unbound' ? 'is-active' : ''"
       >
         <span class="sidebar-filter-label">
-          <span aria-hidden="true">{{ sidebar_icon('unbound', 'ui-icon--sm sidebar-icon--unbound') }}</span>
+          <span aria-hidden="true">{{ sidebar_icon('link-unbound', 'ui-icon--sm') }}</span>
           <span>未绑定</span>
         </span>
       </button>
@@ -719,7 +719,7 @@
         :class="$store.global.presetFilterType === 'all' ? 'is-active' : ''"
       >
         <span class="sidebar-filter-label">
-          <span aria-hidden="true">{{ sidebar_icon('all-content', 'ui-icon--sm') }}</span>
+          <span aria-hidden="true">{{ sidebar_icon('layers', 'ui-icon--sm') }}</span>
           <span>全部显示</span>
         </span>
       </button>
@@ -731,7 +731,7 @@
         :class="$store.global.presetFilterType === 'global' ? 'is-active' : ''"
       >
         <span class="sidebar-filter-label">
-          <span aria-hidden="true">{{ sidebar_icon('global-directory', 'ui-icon--sm') }}</span>
+          <span aria-hidden="true">{{ sidebar_icon('directory-tree', 'ui-icon--sm') }}</span>
           <span>全局目录</span>
         </span>
         <span class="text-xs opacity-60">presets/</span>
@@ -744,7 +744,7 @@
         :class="$store.global.presetFilterType === 'resource' ? 'is-active' : ''"
       >
         <span class="sidebar-filter-label">
-          <span aria-hidden="true">{{ sidebar_icon('folder', 'ui-icon--sm') }}</span>
+          <span aria-hidden="true">{{ sidebar_icon('folder-solid', 'ui-icon--sm') }}</span>
           <span>资源绑定</span>
         </span>
         <span class="text-xs opacity-60">res/.../presets</span>
@@ -785,7 +785,7 @@
             class="sidebar-category-root sidebar-category-option"
           >
             <span class="sidebar-filter-label">
-              <span aria-hidden="true">{{ sidebar_icon('all-cards-categories', 'ui-icon--sm sidebar-category-root-icon') }}</span>
+              <span aria-hidden="true">{{ sidebar_icon('cards-grid', 'ui-icon--sm sidebar-category-root-icon') }}</span>
               <span>全部分类</span>
             </span>
             <span
@@ -825,8 +825,8 @@
                   </span>
                 </button>
                 <span class="mr-2 opacity-80 group-hover:opacity-100" aria-hidden="true">
-                  <span x-show="folder.expanded">{{ sidebar_icon('category-expanded', 'ui-icon--sm') }}</span>
-                  <span x-show="!folder.expanded">{{ sidebar_icon('folder', 'ui-icon--sm') }}</span>
+                  <span x-show="folder.expanded">{{ sidebar_icon('folder-open', 'ui-icon--sm') }}</span>
+                  <span x-show="!folder.expanded">{{ sidebar_icon('folder-solid', 'ui-icon--sm') }}</span>
                 </span>
                 <span
                   class="flex-1 overflow-hidden text-ellipsis whitespace-nowrap"
@@ -873,7 +873,7 @@
         :class="$store.global.extensionFilterType === 'all' ? 'is-active' : ''"
       >
         <span class="sidebar-filter-label">
-          <span aria-hidden="true">{{ sidebar_icon('all-content', 'ui-icon--sm') }}</span>
+          <span aria-hidden="true">{{ sidebar_icon('layers', 'ui-icon--sm') }}</span>
           <span>全部显示</span>
         </span>
       </button>
@@ -885,7 +885,7 @@
         :class="$store.global.extensionFilterType === 'global' ? 'is-active' : ''"
       >
         <span class="sidebar-filter-label">
-          <span aria-hidden="true">{{ sidebar_icon('global-directory', 'ui-icon--sm') }}</span>
+          <span aria-hidden="true">{{ sidebar_icon('directory-tree', 'ui-icon--sm') }}</span>
           <span>全局目录</span>
         </span>
         <!-- 动态显示目录名 -->
@@ -906,7 +906,7 @@
         :class="$store.global.extensionFilterType === 'resource' ? 'is-active' : ''"
       >
         <span class="sidebar-filter-label">
-          <span aria-hidden="true">{{ sidebar_icon('folder', 'ui-icon--sm') }}</span>
+          <span aria-hidden="true">{{ sidebar_icon('folder-solid', 'ui-icon--sm') }}</span>
           <span>资源绑定</span>
         </span>
         <span class="text-xs opacity-60">res/.../extensions</span>
@@ -926,7 +926,7 @@
       <div class="beautify-toolbar-row">
         <div class="beautify-toolbar-title">
           <span class="beautify-title-icon" aria-hidden="true">
-            <span class="sidebar-module-image-icon sidebar-module-image-icon--beautify"></span>
+            {{ sidebar_icon('paint-brush', 'sidebar-module-image-icon') }}
           </span>
           <div>
             <div class="beautify-title-main">美化</div>
@@ -934,7 +934,7 @@
           </div>
         </div>
         <button class="btn-secondary px-3 py-1 text-xs flex items-center gap-1" @click="fetchPackages()">
-          <span aria-hidden="true">{{ icon('header-refresh', 'ui-icon--sm header-icon--150') }}</span>
+          <span aria-hidden="true">{{ icon('refresh', 'ui-icon--sm ') }}</span>
           <span>刷新</span>
         </button>
       </div>

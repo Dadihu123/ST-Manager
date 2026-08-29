@@ -264,8 +264,8 @@ html.light-mode .chat-reader-danger-copy {
     transform: scale(1);
   }
   .chat-card-favorite .chat-card-favorite-icon {
-    width: 1.26rem;
-    height: 1.26rem;
+    width: 20px;
+    height: 20px;
   }
   .chat-reader-header {
     min-height: 0;

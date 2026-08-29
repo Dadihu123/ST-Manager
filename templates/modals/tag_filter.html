@@ -35,7 +35,7 @@
               cursor: pointer;
             "
           >
-            {{ icon('other-close', 'ui-icon--sm') }}
+            {{ icon('close-bold', 'ui-icon--sm') }}
           </button>
         </div>
         <div
@@ -414,7 +414,7 @@
                   :key="'m-sort-' + tag"
                 >
                   <div class="tag-filter-mobile-sort-row">
-                    <span class="tag-chip-drag-handle">{{ icon('other-menu', 'ui-icon--xs') }}</span>
+                    <span class="tag-chip-drag-handle">{{ icon('menu-bold', 'ui-icon--xs') }}</span>
                     <span
                       x-text="tag"
                       style="
@@ -464,12 +464,12 @@
                       <span
                         x-show="isDeleteMode && selectedTagsForDeletion.includes(tag)"
                         class="mr-1 font-bold"
-                        >{{ icon('other-check', 'ui-icon--xs') }}</span
+                        >{{ icon('check-bold', 'ui-icon--xs') }}</span
                       >
                       <span
                         x-show="showCategoryMode && selectedCategoryTags.includes(tag)"
                         class="mr-1 font-bold"
-                        >{{ icon('other-check', 'ui-icon--xs') }}</span
+                        >{{ icon('check-bold', 'ui-icon--xs') }}</span
                       >
                       <span
                         class="tag-chip-label"
@@ -526,12 +526,12 @@
                             <span
                               x-show="isDeleteMode && selectedTagsForDeletion.includes(tag)"
                               class="mr-1 font-bold"
-                              >{{ icon('other-check', 'ui-icon--xs') }}</span
+                              >{{ icon('check-bold', 'ui-icon--xs') }}</span
                             >
                             <span
                               x-show="showCategoryMode && selectedCategoryTags.includes(tag)"
                               class="mr-1 font-bold"
-                              >{{ icon('other-check', 'ui-icon--xs') }}</span
+                              >{{ icon('check-bold', 'ui-icon--xs') }}</span
                             >
                             <span
                               class="tag-chip-label"
@@ -746,7 +746,7 @@
                 @click="requestCloseTagFilterEditor()"
                 class="tag-filter-workspace-close-btn"
               >
-                {{ icon('other-close', 'ui-icon--sm') }}
+                {{ icon('close-bold', 'ui-icon--sm') }}
               </button>
             </div>
           </div>
@@ -857,7 +857,7 @@
                         class="tag-filter-selected-basket-chip-label"
                         x-text="tag"
                       ></span>
-                      <span aria-hidden="true">{{ icon('other-close', 'ui-icon--xs') }}</span>
+                      <span aria-hidden="true">{{ icon('close-bold', 'ui-icon--xs') }}</span>
                     </button>
                   </template>
                   <template
@@ -873,7 +873,7 @@
                         class="tag-filter-selected-basket-chip-label"
                         x-text="tag"
                       ></span>
-                      <span aria-hidden="true">{{ icon('other-close', 'ui-icon--xs') }}</span>
+                      <span aria-hidden="true">{{ icon('close-bold', 'ui-icon--xs') }}</span>
                     </button>
                   </template>
                   <div
@@ -1133,7 +1133,7 @@
                                 class="tag-filter-selected-basket-chip-label"
                                 x-text="tag"
                               ></span>
-                              <span aria-hidden="true">{{ icon('other-close', 'ui-icon--xs') }}</span>
+                              <span aria-hidden="true">{{ icon('close-bold', 'ui-icon--xs') }}</span>
                             </button>
                           </template>
                         </div>
@@ -1647,17 +1647,17 @@
                             <span
                               x-show="isDeleteMode && selectedTagsForDeletion.includes(tag)"
                               class="mr-1 font-bold"
-                              >{{ icon('other-check', 'ui-icon--xs') }}</span
+                              >{{ icon('check-bold', 'ui-icon--xs') }}</span
                             >
                             <span
                               x-show="showCategoryMode && selectedCategoryTags.includes(tag)"
                               class="mr-1 font-bold"
-                              >{{ icon('other-check', 'ui-icon--xs') }}</span
+                              >{{ icon('check-bold', 'ui-icon--xs') }}</span
                             >
                             <span
                               x-show="isBlacklistMode && selectedBlacklistTags.includes(tag)"
                               class="mr-1 font-bold"
-                              >{{ icon('other-check', 'ui-icon--xs') }}</span
+                              >{{ icon('check-bold', 'ui-icon--xs') }}</span
                             >
                             <span
                               class="tag-chip-label"
@@ -1711,17 +1711,17 @@
                                   <span
                                     x-show="isDeleteMode && selectedTagsForDeletion.includes(tag)"
                                     class="mr-1 font-bold"
-                                    >{{ icon('other-check', 'ui-icon--xs') }}</span
+                                    >{{ icon('check-bold', 'ui-icon--xs') }}</span
                                   >
                                   <span
                                     x-show="showCategoryMode && selectedCategoryTags.includes(tag)"
                                     class="mr-1 font-bold"
-                                    >{{ icon('other-check', 'ui-icon--xs') }}</span
+                                    >{{ icon('check-bold', 'ui-icon--xs') }}</span
                                   >
                                   <span
                                     x-show="isBlacklistMode && selectedBlacklistTags.includes(tag)"
                                     class="mr-1 font-bold"
-                                    >{{ icon('other-check', 'ui-icon--xs') }}</span
+                                    >{{ icon('check-bold', 'ui-icon--xs') }}</span
                                   >
                                   <span
                                     class="tag-chip-label"
@@ -1760,7 +1760,7 @@
                             @drop="onSortDrop($event, tag)"
                             @dragend="onSortDragEnd()"
                           >
-                            <span class="tag-chip-drag-handle">{{ icon('other-menu', 'ui-icon--xs') }}</span>
+                            <span class="tag-chip-drag-handle">{{ icon('menu-bold', 'ui-icon--xs') }}</span>
                             <span
                               x-text="tag"
                               style="
@@ -1789,7 +1789,7 @@
                               @drop="onSortCategoryDrop($event, group.category)"
                               @dragend="onSortCategoryDragEnd()"
                             >
-                              <span class="tag-chip-drag-handle">{{ icon('other-menu', 'ui-icon--xs') }}</span>
+                              <span class="tag-chip-drag-handle">{{ icon('menu-bold', 'ui-icon--xs') }}</span>
                               <span
                                 class="tag-group-dot"
                                 :style="`background:${group.color};`"
@@ -1818,7 +1818,7 @@
                                   @drop="onSortDrop($event, tag)"
                                   @dragend="onSortDragEnd()"
                                 >
-                                  <span class="tag-chip-drag-handle">{{ icon('other-menu', 'ui-icon--xs') }}</span>
+                                  <span class="tag-chip-drag-handle">{{ icon('menu-bold', 'ui-icon--xs') }}</span>
                                   <span
                                     class="tag-chip-label"
                                     x-text="tag"

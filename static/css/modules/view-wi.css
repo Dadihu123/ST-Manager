@@ -722,32 +722,6 @@ html.dark-mode .props-header {
   transform: translateY(-1px);
 }
 
-/* 世界书套件沿用第一阶段图标的无框视觉，尺寸放大不改变按钮点击区域。 */
-.wi-worldbook-icon-scope .ui-icon--xs {
-  width: 1.125rem;
-  height: 1.125rem;
-}
-
-.wi-worldbook-icon-scope .ui-icon--sm {
-  width: 1.3125rem;
-  height: 1.3125rem;
-}
-
-.wi-worldbook-icon-scope .ui-icon--md {
-  width: 1.6875rem;
-  height: 1.6875rem;
-}
-
-.wi-worldbook-icon-scope .ui-icon--lg {
-  width: 2.25rem;
-  height: 2.25rem;
-}
-
-.wi-worldbook-icon-scope .ui-icon--xl {
-  width: 4.5rem;
-  height: 4.5rem;
-}
-
 /* 详情页世界书导入/导出按钮按主题使用纯黑或纯白，提升图标对比度。 */
 .wi-worldbook-icon-scope .wi-detail-worldbook-transfer-btn {
   color: #fff;
@@ -765,24 +739,6 @@ html.light-mode .wi-worldbook-icon-scope .wi-detail-worldbook-transfer-btn {
 .wi-worldbook-icon-scope .wi-detail-worldbook-transfer-btn:focus-visible {
   outline: 2px solid var(--accent-main);
   outline-offset: 1px;
-}
-
-/* 备份图标的设计稿留白较多，补偿视觉绘制范围但不扩大按钮布局。 */
-.wi-worldbook-icon-scope .wi-worldbook-backup-icon.ui-icon--md {
-  transform: scale(1.34);
-  transform-origin: center;
-}
-
-/* 阅览模式标题图标进一步突出，使用变换保留原有标题栏高度。 */
-.wi-reader-title-icon .ui-icon--lg {
-  transform: scale(1.5);
-  transform-origin: center;
-}
-
-/* 阅览模式关闭按钮略微收回，保留原有按钮的点击范围。 */
-.wi-reader-close-icon {
-  transform: scale(0.8);
-  transform-origin: center;
 }
 
 .wi-reader-date-meta .wi-reader-calendar-icon {
@@ -818,8 +774,8 @@ html.light-mode .wi-worldbook-icon-scope .wi-detail-worldbook-transfer-btn {
 
 .wi-worldbook-grid .card-local-note-btn .ui-icon,
 .wi-worldbook-grid .card-send-st-btn .ui-icon {
-  width: 1.725rem;
-  height: 1.725rem;
+  width: 24px;
+  height: 24px;
 }
 
 .wi-editor-container .wi-action-btn--bright {
@@ -851,19 +807,13 @@ html.light-mode .wi-worldbook-icon-scope .wi-detail-worldbook-transfer-btn {
 }
 
 .wi-editor-container .wi-icon-only-action .ui-icon {
-  transform: scale(1.5);
-  transform-origin: center;
+  width: 20px;
+  height: 20px;
 }
 
-.wi-editor-container .wi-vectorize-icon {
-  transform: scale(1);
-  transform-origin: center;
-}
-
-/* 快捷键图标横向留白较多，补偿其视觉高度但不改变帮助标题布局。 */
-.wi-help-modal-content .wi-help-shortcut-icon {
-  transform: scale(1.5);
-  transform-origin: center;
+.wi-help-modal-content .wi-help-shortcut-icon .ui-icon {
+  width: 24px;
+  height: 24px;
 }
 
 .wi-worldbook-grid .wi-card-bookmark {
@@ -888,33 +838,18 @@ html.light-mode .wi-worldbook-icon-scope .wi-detail-worldbook-transfer-btn {
 }
 
 .wi-worldbook-grid .wi-card-bookmark .wi-card-bookmark-icon {
-  width: 3rem;
-  height: 3rem;
+  width: 32px;
+  height: 32px;
   flex: 0 0 auto;
 }
 
-.wi-worldbook-tab-icon .ui-icon--sm {
-  width: 1.3125rem;
-  height: 1.3125rem;
-}
-
-@media (max-width: 640px) {
-  .wi-worldbook-grid .card-local-note-btn .ui-icon,
-  .wi-worldbook-grid .card-send-st-btn .ui-icon {
-    width: 1.575rem;
-    height: 1.575rem;
-  }
-}
-
 .wi-reader-loading-icon {
-  width: 2.25rem;
-  height: 2.25rem;
   color: var(--accent-light);
 }
 
 .wi-reader-loading-icon .ui-icon {
-  width: 2.25rem;
-  height: 2.25rem;
+  width: 48px;
+  height: 48px;
 }
 
 .wi-toggle-btn-float {
@@ -1740,8 +1675,8 @@ html.light-mode .wi-help-modal-content {
 
 .wi-card-bookmark {
   flex: 0 0 auto;
-  width: 1.82rem;
-  height: 1.82rem;
+  width: 32px;
+  height: 32px;
   border-radius: 0.58rem;
   background: linear-gradient(
     180deg,
@@ -1837,8 +1772,8 @@ html.light-mode .wi-help-modal-content {
 }
 
 .wi-card-owner-icon {
-  width: 0.72rem;
-  height: 0.72rem;
+  width: 12px;
+  height: 12px;
   flex: 0 0 auto;
   position: relative;
 }
@@ -2208,8 +2143,8 @@ html.light-mode .wi-card-back {
     gap: 0.28rem;
   }
   .wi-card-bookmark {
-    width: 1.58rem;
-    height: 1.58rem;
+    width: 28px;
+    height: 28px;
     font-size: 0.84rem;
     border-radius: 0.56rem;
   }

@@ -10,7 +10,7 @@
             @click="showMobileSidebar = true"
             class="fixed bottom-16 left-2 z-50 w-10 h-10 bg-[var(--bg-panel)] border border-[var(--border-light)] rounded-lg flex items-center justify-center text-[var(--text-main)] shadow-lg md:hidden"
             title="打开规则集列表" aria-label="打开规则集列表">
-            <span aria-hidden="true">{{ icon('worldbook-list', 'ui-icon--sm') }}</span>
+            <span aria-hidden="true">{{ icon('list', 'ui-icon--sm') }}</span>
         </button>
 
         <!-- 移动端：侧边栏遮罩 -->
@@ -44,11 +44,11 @@
                 <div class="flex gap-1">
                     <button @click="$refs.importInput.click()" class="btn-secondary px-2 py-1 text-xs"
                         title="导入规则集" aria-label="导入规则集">
-                        {{ icon('header-import', 'ui-icon--sm') }}
+                        {{ icon('file-import', 'ui-icon--sm') }}
                     </button>
                     <button @click="createNewRuleSet(); if($store.global.deviceType === 'mobile') showMobileSidebar = false" 
                         class="btn-secondary px-2 py-1 text-xs flex items-center gap-1" title="新建规则集">
-                        {{ icon('context-new', 'ui-icon--sm') }}<span>新建</span>
+                        {{ icon('plus-square', 'ui-icon--sm') }}<span>新建</span>
                     </button>
                 </div>
                 <input type="file" x-ref="importInput" style="display:none" accept=".json"
@@ -60,7 +60,7 @@
                 <span class="text-[var(--text-dim)]">全局规则:</span>
                 <template x-if="globalRulesetId">
                     <span class="text-yellow-600 font-bold flex items-center gap-1">
-                        <span aria-hidden="true">{{ icon('context-automation', 'ui-icon--sm') }}</span>
+                        <span aria-hidden="true">{{ icon('workflow', 'ui-icon--sm') }}</span>
                         <span x-text="ruleSets.find(r=>r.id===globalRulesetId)?.meta?.name || '未知'"></span>
                     </span>
                 </template>
@@ -82,7 +82,7 @@
                                 class="text-xs px-3 py-1 rounded border transition-all flex items-center gap-1" :class="globalRulesetId === rs.id 
                                     ? 'bg-yellow-500 text-black border-yellow-600 font-bold shadow-md' 
                                     : 'border-gray-500 text-gray-500 hover:border-yellow-500 hover:text-yellow-500'">
-                                <span aria-hidden="true">{{ icon('context-automation', 'ui-icon--xs') }}</span>
+                                <span aria-hidden="true">{{ icon('workflow', 'ui-icon--xs') }}</span>
                                 <span x-text="globalRulesetId === rs.id ? '已激活全局' : '设为全局'"></span>
                             </button>
                         </div>
@@ -104,7 +104,7 @@
                 <button @click="closeModal()" 
                     class="absolute top-2 right-2 z-50 w-8 h-8 bg-[var(--bg-panel)] border border-[var(--border-light)] rounded-lg flex items-center justify-center text-[var(--text-main)] hover:bg-[var(--bg-hover)] hover:text-red-400 transition-colors shadow-lg"
                     title="关闭" aria-label="关闭">
-                    {{ icon('context-close', 'ui-icon--sm') }}
+                    {{ icon('close', 'ui-icon--sm') }}
                 </button>
 
                 <!-- 1. 顶部元数据栏 -->
@@ -114,7 +114,7 @@
                     <div x-show="activeRuleSet?.id && globalRulesetId === activeRuleSet?.id"
                         class="bg-yellow-500/10 border border-yellow-500/30 rounded px-3 py-2 flex justify-between items-center transition-all duration-300">
                         <div class="flex items-center gap-2 text-yellow-600 font-bold text-xs">
-                            <span aria-hidden="true">{{ icon('context-automation', 'ui-icon--sm') }}</span>
+                            <span aria-hidden="true">{{ icon('workflow', 'ui-icon--sm') }}</span>
                             <span>当前状态：全局默认规则 (按规则触发时机和动作类型在不同场景执行)</span>
                         </div>
                         <button x-show="$store.global.deviceType !== 'mobile'" @click="toggleGlobalActive(activeRuleSet?.id)"
@@ -138,7 +138,7 @@
                                             ? 'bg-yellow-500 text-black border-yellow-600 font-bold shadow-sm' 
                                             : 'border-[var(--border-light)] text-[var(--text-dim)] hover:border-yellow-500 hover:text-yellow-500'"
                                         :title="(activeRuleSet?.id && globalRulesetId === activeRuleSet?.id) ? '点击关闭全局' : '设为全局自动规则'">
-                                        <span aria-hidden="true">{{ icon('context-automation', 'ui-icon--xs') }}</span>
+                                        <span aria-hidden="true">{{ icon('workflow', 'ui-icon--xs') }}</span>
                                         <span
                                             x-text="(activeRuleSet?.id && globalRulesetId === activeRuleSet?.id) ? '已激活' : '设为全局'"></span>
                                     </button>
@@ -163,11 +163,11 @@
                         <div class="flex gap-2 automation-header-actions">
                             <button @click="exportCurrentRuleSet()" class="btn-secondary px-3" title="导出 JSON"
                                 aria-label="导出规则集">
-                                {{ icon('card-upload', 'ui-icon--sm') }}
+                                {{ icon('upload', 'ui-icon--sm') }}
                             </button>
                             <button @click="deleteCurrentRuleSet()"
                                 class="btn-secondary text-red-400 hover:text-red-500 px-3 flex items-center gap-1">
-                                {{ icon('context-delete', 'ui-icon--sm') }}<span>删除</span>
+                                {{ icon('trash', 'ui-icon--sm') }}<span>删除</span>
                             </button>
                             <button @click="saveCurrentRuleSet()" class="btn-primary px-4 shadow-md flex items-center gap-1">
                                 {{ icon('settings-save', 'ui-icon--sm') }}<span>保存</span>
@@ -181,7 +181,7 @@
 
                     <div x-show="editingUsesMetadata()" x-cloak class="automation-performance-notice" role="note">
                         <span class="automation-performance-notice-icon" aria-hidden="true">
-                            {{ icon('worldbook-tip', 'ui-icon--sm') }}
+                            {{ icon('book-tip', 'ui-icon--sm') }}
                         </span>
                         <div>
                             <strong>已使用元数据条件</strong>
@@ -195,7 +195,7 @@
                             <div class="rule-header">
                                 <div class="flex flex-col gap-2 flex-1 min-w-0">
                                     <div class="flex items-center gap-2">
-                                        <span class="drag-handle cursor-grab">{{ icon('other-menu', 'ui-icon--xs') }}</span>
+                                        <span class="drag-handle cursor-grab">{{ icon('menu-bold', 'ui-icon--xs') }}</span>
                                         <input type="checkbox" x-model="rule.enabled" class="cursor-pointer" title="启用/禁用">
                                         <input type="text" x-model="rule.name"
                                             class="bg-transparent font-bold text-sm outline-none border-b border-transparent hover:border-gray-500 focus:border-blue-500 w-64"
@@ -239,11 +239,11 @@
                                         <span class="text-[var(--text-dim)]">命中即停止</span>
                                     </label>
                                     <div class="automation-inline-actions">
-                                        <button @click="moveRule(rIdx, -1)" class="btn-icon-sm" title="上移规则">{{ icon('other-arrow-up', 'ui-icon--xs') }}</button>
-                                        <button @click="moveRule(rIdx, 1)" class="btn-icon-sm" title="下移规则">{{ icon('other-arrow-down', 'ui-icon--xs') }}</button>
+                                        <button @click="moveRule(rIdx, -1)" class="btn-icon-sm" title="上移规则">{{ icon('arrow-up', 'ui-icon--xs') }}</button>
+                                        <button @click="moveRule(rIdx, 1)" class="btn-icon-sm" title="下移规则">{{ icon('arrow-down', 'ui-icon--xs') }}</button>
                                         <button @click="deleteRule(rIdx)" class="btn-icon-sm delete" title="删除规则"
                                             aria-label="删除规则">
-                                            {{ icon('context-delete', 'ui-icon--sm') }}
+                                            {{ icon('trash', 'ui-icon--sm') }}
                                         </button>
                                     </div>
                                 </div>
@@ -289,8 +289,8 @@
                                                         </select>
                                                     </div>
                                                     <div class="automation-inline-actions">
-                                                        <button @click="moveGroup(rIdx, gIdx, -1)" class="btn-icon-sm" title="上移条件组">{{ icon('other-arrow-up', 'ui-icon--xs') }}</button>
-                                                        <button @click="moveGroup(rIdx, gIdx, 1)" class="btn-icon-sm" title="下移条件组">{{ icon('other-arrow-down', 'ui-icon--xs') }}</button>
+                                                        <button @click="moveGroup(rIdx, gIdx, -1)" class="btn-icon-sm" title="上移条件组">{{ icon('arrow-up', 'ui-icon--xs') }}</button>
+                                                        <button @click="moveGroup(rIdx, gIdx, 1)" class="btn-icon-sm" title="下移条件组">{{ icon('arrow-down', 'ui-icon--xs') }}</button>
                                                         <button @click="removeGroup(rIdx, gIdx)"
                                                             class="text-[10px] text-red-400 hover:text-red-500 px-2 py-1 rounded hover:bg-red-500/10">删除组</button>
                                                     </div>
@@ -391,10 +391,10 @@
                                                             </div>
 
                                                             <div class="automation-inline-actions">
-                                                                <button @click="moveConditionInGroup(rIdx, gIdx, cIdx, -1)" class="btn-icon-sm" title="上移条件">{{ icon('other-arrow-up', 'ui-icon--xs') }}</button>
-                                                                <button @click="moveConditionInGroup(rIdx, gIdx, cIdx, 1)" class="btn-icon-sm" title="下移条件">{{ icon('other-arrow-down', 'ui-icon--xs') }}</button>
+                                                                <button @click="moveConditionInGroup(rIdx, gIdx, cIdx, -1)" class="btn-icon-sm" title="上移条件">{{ icon('arrow-up', 'ui-icon--xs') }}</button>
+                                                                <button @click="moveConditionInGroup(rIdx, gIdx, cIdx, 1)" class="btn-icon-sm" title="下移条件">{{ icon('arrow-down', 'ui-icon--xs') }}</button>
                                                                 <button @click="removeConditionFromGroup(rIdx, gIdx, cIdx)"
-                                                                    class="btn-icon-sm delete" title="删除条件">{{ icon('other-close', 'ui-icon--xs') }}</button>
+                                                                    class="btn-icon-sm delete" title="删除条件">{{ icon('close-bold', 'ui-icon--xs') }}</button>
                                                             </div>
                                                         </div>
                                                     </template>
@@ -422,19 +422,19 @@
                                             <div class="logic-row" style="border-color: rgba(16, 185, 129, 0.3);">
                                                 <div class="automation-action-type-select">
                                                     <span class="automation-action-type-icon" aria-hidden="true">
-                                                        <span x-show="action.type === 'move_folder'" x-cloak>{{ sidebar_icon('category-expanded', 'ui-icon--sm') }}</span>
+                                                        <span x-show="action.type === 'move_folder'" x-cloak>{{ sidebar_icon('folder-open', 'ui-icon--sm') }}</span>
                                                         <span x-show="action.type === 'add_tag'" x-cloak>{{ detail_icon('tags', 'ui-icon--sm') }}</span>
-                                                        <span x-show="action.type === 'remove_tag'" x-cloak>{{ icon('context-delete', 'ui-icon--sm') }}</span>
-                                                        <span x-show="action.type === 'set_favorite'" x-cloak>{{ icon('card-favorite', 'ui-icon--sm') }}</span>
-                                                        <span x-show="action.type === 'merge_tags'" x-cloak>{{ icon('automation-merge', 'ui-icon--sm') }}</span>
-                                                        <span x-show="action.type === 'fetch_forum_tags'" x-cloak>{{ detail_icon('source-link', 'ui-icon--sm') }}</span>
-                                                        <span x-show="action.type === 'refresh_source_baseline'" x-cloak>{{ detail_icon('time', 'ui-icon--sm') }}</span>
-                                                        <span x-show="action.type === 'rename_file_by_template'" x-cloak>{{ icon('context-rename', 'ui-icon--sm') }}</span>
+                                                        <span x-show="action.type === 'remove_tag'" x-cloak>{{ icon('trash', 'ui-icon--sm') }}</span>
+                                                        <span x-show="action.type === 'set_favorite'" x-cloak>{{ icon('heart', 'ui-icon--sm') }}</span>
+                                                        <span x-show="action.type === 'merge_tags'" x-cloak>{{ icon('merge', 'ui-icon--sm') }}</span>
+                                                        <span x-show="action.type === 'fetch_forum_tags'" x-cloak>{{ detail_icon('link-source', 'ui-icon--sm') }}</span>
+                                                        <span x-show="action.type === 'refresh_source_baseline'" x-cloak>{{ detail_icon('clock', 'ui-icon--sm') }}</span>
+                                                        <span x-show="action.type === 'rename_file_by_template'" x-cloak>{{ icon('pencil-edit', 'ui-icon--sm') }}</span>
                                                         <span x-show="action.type === 'split_category_to_tags'" x-cloak>{{ detail_icon('tags', 'ui-icon--sm') }}</span>
-                                                        <span x-show="action.type === 'set_char_name_from_filename'" x-cloak>{{ detail_icon('filename', 'ui-icon--sm') }}</span>
-                                                        <span x-show="action.type === 'set_wi_name_from_filename'" x-cloak>{{ detail_icon('filename', 'ui-icon--sm') }}</span>
-                                                        <span x-show="action.type === 'set_filename_from_char_name'" x-cloak>{{ detail_icon('filename', 'ui-icon--sm') }}</span>
-                                                        <span x-show="action.type === 'set_filename_from_wi_name'" x-cloak>{{ detail_icon('filename', 'ui-icon--sm') }}</span>
+                                                        <span x-show="action.type === 'set_char_name_from_filename'" x-cloak>{{ detail_icon('file-name', 'ui-icon--sm') }}</span>
+                                                        <span x-show="action.type === 'set_wi_name_from_filename'" x-cloak>{{ detail_icon('file-name', 'ui-icon--sm') }}</span>
+                                                        <span x-show="action.type === 'set_filename_from_char_name'" x-cloak>{{ detail_icon('file-name', 'ui-icon--sm') }}</span>
+                                                        <span x-show="action.type === 'set_filename_from_wi_name'" x-cloak>{{ detail_icon('file-name', 'ui-icon--sm') }}</span>
                                                     </span>
                                                     <select x-model="action.type"
                                                         @change="initActionConfig(action)"
@@ -471,7 +471,7 @@
                                                                 :placeholder="$store.global.settingsForm.automation_slash_is_tag_separator ? '格式：旧标签→新标签，多个可用 | 或 / 分隔，如：femdom→女上|female→女性/waifu→老婆' : '格式：旧标签→新标签，多个可用 | 分隔，如：femdom→女上|female→女性'"
                                                                 :title="$store.global.settingsForm.automation_slash_is_tag_separator ? '支持批量映射：使用 | 或 / 分隔，每条规则使用 →（如 a→A|b→B）' : '支持批量映射：使用 | 分隔，每条规则使用 →（如 a→A|b→B）'">
                                                             <div class="text-[10px] text-[var(--text-dim)] flex items-start gap-1">
-                                                                <span aria-hidden="true">{{ icon('worldbook-tip', 'ui-icon--xs') }}</span>
+                                                                <span aria-hidden="true">{{ icon('book-tip', 'ui-icon--xs') }}</span>
                                                                 <span>将多个同义标签归并到统一标签。仅在“手动打标输入框添加标签”流程触发（批量标签管理输入框、详情页自定义添加输入框）</span>
                                                             </div>
                                                         </div>
@@ -506,7 +506,7 @@
                                                                  </select>
                                                              </div>
                                                               <div class="text-[10px] text-[var(--text-dim)] mt-1 flex items-start gap-1">
-                                                                  <span aria-hidden="true">{{ icon('worldbook-tip', 'ui-icon--xs') }}</span>
+                                                                  <span aria-hidden="true">{{ icon('book-tip', 'ui-icon--xs') }}</span>
                                                                   <span>从角色卡设置的来源链接抓取类脑论坛标签</span>
                                                              </div>
                                                          </div>
@@ -555,7 +555,7 @@
                                                                        placeholder="120">
                                                                </div>
                                                                 <div class="text-[10px] text-[var(--text-dim)] mt-1 flex items-start gap-1">
-                                                                    <span aria-hidden="true">{{ icon('worldbook-tip', 'ui-icon--xs') }}</span>
+                                                                    <span aria-hidden="true">{{ icon('book-tip', 'ui-icon--xs') }}</span>
                                                                     <span>若想在覆盖更新后重命名，请在规则上启用“更新角色卡后”；如果文件名要体现本次更新时间，优先使用 modified_date。</span>
                                                                </div>
                                                            </div>
@@ -572,7 +572,7 @@
                                                                       :placeholder="$store.global.settingsForm.automation_slash_is_tag_separator ? '多个标签用|或/分隔，如：角色|题材/状态' : '多个标签用|分隔，如：角色|题材'">
                                                               </div>
                                                                <div class="text-[10px] text-[var(--text-dim)] mt-1 flex items-start gap-1">
-                                                                   <span aria-hidden="true">{{ icon('worldbook-tip', 'ui-icon--xs') }}</span>
+                                                                   <span aria-hidden="true">{{ icon('book-tip', 'ui-icon--xs') }}</span>
                                                                    <span>当前分类路径会自动按 / 拆分，例如 <code class="font-mono">a/b/c</code> 会追加 <code class="font-mono">a</code>、<code class="font-mono">b</code>、<code class="font-mono">c</code></span>
                                                               </div>
                                                           </div>
@@ -600,10 +600,10 @@
                                                 </div>
 
                                                 <div class="automation-inline-actions">
-                                                    <button @click="moveAction(rIdx, aIdx, -1)" class="btn-icon-sm" title="上移动作">{{ icon('other-arrow-up', 'ui-icon--xs') }}</button>
-                                                    <button @click="moveAction(rIdx, aIdx, 1)" class="btn-icon-sm" title="下移动作">{{ icon('other-arrow-down', 'ui-icon--xs') }}</button>
+                                                    <button @click="moveAction(rIdx, aIdx, -1)" class="btn-icon-sm" title="上移动作">{{ icon('arrow-up', 'ui-icon--xs') }}</button>
+                                                    <button @click="moveAction(rIdx, aIdx, 1)" class="btn-icon-sm" title="下移动作">{{ icon('arrow-down', 'ui-icon--xs') }}</button>
                                                     <button @click="removeAction(rIdx, aIdx)"
-                                                        class="btn-icon-sm delete" title="删除动作">{{ icon('other-close', 'ui-icon--xs') }}</button>
+                                                        class="btn-icon-sm delete" title="删除动作">{{ icon('close-bold', 'ui-icon--xs') }}</button>
                                                 </div>
                                             </div>
                                         </template>
@@ -642,12 +642,12 @@
                         <div
                             class="px-6 py-4 border-b border-[var(--border-light)] bg-[var(--bg-sub)] flex justify-between items-center">
                             <h3 class="font-bold text-lg text-[var(--text-main)] flex items-center gap-2">
-                                <span aria-hidden="true">{{ icon('worldbook-tip', 'ui-icon--sm') }}</span>
+                                <span aria-hidden="true">{{ icon('book-tip', 'ui-icon--sm') }}</span>
                                 <span>规则编写指南</span>
                             </h3>
                             <button @click="showHelpModal = false"
                                 class="text-gray-500 hover:text-red-400 px-2 text-xl" title="关闭帮助" aria-label="关闭帮助">
-                                {{ icon('context-close', 'ui-icon--sm') }}
+                                {{ icon('close', 'ui-icon--sm') }}
                             </button>
                         </div>
 
@@ -699,7 +699,7 @@
                                         <div class="grid grid-cols-1 gap-3">
                                             <div>
                                                 <div class="font-bold text-xs text-blue-400 mb-1 inline-flex items-center gap-1">
-                                                    <span aria-hidden="true">{{ icon('card-check', 'ui-icon--xs') }}</span>
+                                                    <span aria-hidden="true">{{ icon('check', 'ui-icon--xs') }}</span>
                                                     <span>肯定类操作符 (包含 / 等于)</span>
                                                 </div>
                                                 <div class="text-xs text-[var(--text-dim)] mb-1">
@@ -714,7 +714,7 @@
 
                                             <div>
                                                 <div class="font-bold text-xs text-red-400 mb-1 inline-flex items-center gap-1">
-                                                    <span aria-hidden="true">{{ icon('automation-forbidden', 'ui-icon--xs') }}</span>
+                                                    <span aria-hidden="true">{{ icon('forbidden', 'ui-icon--xs') }}</span>
                                                     <span>否定类操作符 (不包含 / 不等于)</span>
                                                 </div>
                                                 <div class="text-xs text-[var(--text-dim)] mb-1">
@@ -976,10 +976,10 @@
             <button @click="closeModal()" 
                 class="absolute top-2 right-2 z-50 w-8 h-8 bg-[var(--bg-panel)] border border-[var(--border-light)] rounded-lg flex items-center justify-center text-[var(--text-main)] hover:bg-[var(--bg-hover)] hover:text-red-400 transition-colors shadow-lg"
                 title="关闭" aria-label="关闭">
-                {{ icon('context-close', 'ui-icon--sm') }}
+                {{ icon('close', 'ui-icon--sm') }}
             </button>
             <div class="automation-empty-icon mb-4 opacity-20" aria-hidden="true">
-                {{ icon('context-automation', 'ui-icon--xl') }}
+                {{ icon('workflow', 'ui-icon--3xl') }}
             </div>
             <p>请从左侧选择一个规则集，或新建一个</p>
         </div>

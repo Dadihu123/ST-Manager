@@ -11,59 +11,59 @@ def read_project_file(relative_path):
     return (PROJECT_ROOT / relative_path).read_text(encoding='utf-8')
 
 
-def test_common_modal_templates_use_requested_svg_mappings():
+def test_common_modal_templates_use_semantic_svg_mappings():
     expected_fragments = {
         'templates/modals/batch_import.html': (
-            "icon('header-import'",
-            "icon('context-close'",
+            "icon('file-import'",
+            "icon('close'",
             "detail_icon('overwrite'",
-            "icon('context-rename'",
-            "icon('automation-forbidden'",
-            "icon('settings-warning'",
-            "icon('card-check'",
-            "icon('card-loader'",
+            "icon('pencil-edit'",
+            "icon('forbidden'",
+            "icon('alert-triangle'",
+            "icon('check'",
+            "icon('loader-circle'",
         ),
         'templates/modals/import.html': (
-            "icon('header-url-import'",
-            "icon('settings-warning'",
-            "detail_icon('source-link'",
-            "sidebar_icon('category-expanded'",
-            "sidebar_icon('folder'",
-            "icon('modal-root-directory'",
+            "icon('link-import'",
+            "icon('alert-triangle'",
+            "detail_icon('link-source'",
+            "sidebar_icon('folder-open'",
+            "sidebar_icon('folder-solid'",
+            "icon('folder-root'",
             "detail_icon('locate'",
-            "icon('header-import'",
+            "icon('file-import'",
             "detail_icon('overwrite'",
-            "icon('context-rename'",
+            "icon('pencil-edit'",
         ),
         'templates/modals/move_cards.html': (
-            "sidebar_icon('category-expanded'",
-            "sidebar_icon('folder'",
-            "icon('modal-root-directory'",
+            "sidebar_icon('folder-open'",
+            "sidebar_icon('folder-solid'",
+            "icon('folder-root'",
             "detail_icon('locate'",
         ),
         'templates/modals/large_editor.html': (
-            "icon('modal-document-edit'",
-            "icon('worldbook-tip'",
+            "icon('file-edit'",
+            "icon('book-tip'",
             "icon('chevron-right'",
             'large-editor-nav-icon--reverse',
         ),
         'templates/modals/markdown_preview.html': (
-            "icon('modal-document'",
-            "icon('context-close'",
+            "icon('file'",
+            "icon('close'",
         ),
         'templates/modals/html_preview.html': (
-            "detail_icon('read-mode'",
-            "icon('context-close'",
+            "detail_icon('book-read'",
+            "icon('close'",
         ),
         'templates/modals/rollback.html': (
-            "icon('worldbook-rollback'",
-            "icon('context-close'",
-            "icon('card-loader'",
+            "icon('history-rollback'",
+            "icon('close'",
+            "icon('loader-circle'",
             'bg-red-500',
             'bg-green-500',
         ),
         'templates/modals/execute_rules_mobile.html': (
-            "icon('context-automation'",
+            "icon('workflow'",
             "icon('settings'",
         ),
     }
@@ -124,9 +124,9 @@ def test_common_modal_custom_symbols_are_theme_safe():
     }
 
     for symbol_id, viewbox in (
-        ('icon-modal-root-directory', '18 33 436 428'),
-        ('icon-modal-document', '87 93 660 1044'),
-        ('icon-modal-document-edit', '51 54 728 1044'),
+        ('icon-folder-root', '18 33 436 428'),
+        ('icon-file', '87 93 660 1044'),
+        ('icon-file-edit', '51 54 728 1044'),
     ):
         assert symbol_id in symbols
         assert symbols[symbol_id].attrib['viewBox'] == viewbox
@@ -139,22 +139,22 @@ def test_common_modal_custom_symbols_are_theme_safe():
 def test_preset_detail_status_uses_svg_icons():
     source = read_project_file('templates/modals/detail_preset_popup.html')
 
-    assert "icon('other-check', 'ui-icon--xs')" in source
-    assert "icon('other-minus', 'ui-icon--xs')" in source
+    assert "icon('check-bold', 'ui-icon--xs')" in source
+    assert "icon('minus', 'ui-icon--xs')" in source
     assert "x-text=\"item.prompt_meta?.is_enabled ? '✓' : '−'\"" not in source
     assert "x-text=\"activeContextItem?.prompt_meta?.is_enabled ? '✓' : '−'\"" not in source
 
 
-def test_card_import_and_move_success_toasts_use_the_card_check_icon():
+def test_card_import_and_move_success_toasts_use_the_shared_check_icon():
     expected_calls = {
-        'static/js/components/batchImportModal.js': "showToast(`成功导入 ${res.new_cards.length} 张卡片`, 3000, 'card-check')",
-        'static/js/components/importModal.js': "showToast(`导入成功：${res.new_card.char_name}`, 3000, 'card-check')",
-        'static/js/components/moveCardsModal.js': "showToast(`已移动 ${count} 张卡片`, 3000, 'card-check')",
-        'static/js/components/cardGrid.js': "showToast(`已导入: ${cardName}`, 3000, 'card-check')",
-        'static/js/components/detailModal.js': "showToast(`成功导入: \"${importedData.name}\"`, 3000, 'card-check')",
-        'static/js/components/sidebar.js': "showToast(`已移动 ${count} 张卡片`, 3000, 'card-check')",
-        'static/js/components/wiGrid.js': "showToast(`已移动 ${count} 本世界书`, 3000, 'card-check')",
-        'static/js/components/wiEditor.js': "`已导入 ${uniqueBlocks.length} 条标签条目`,\n          2200,\n          'card-check'",
+        'static/js/components/batchImportModal.js': "showToast(`成功导入 ${res.new_cards.length} 张卡片`, 3000, 'check')",
+        'static/js/components/importModal.js': "showToast(`导入成功：${res.new_card.char_name}`, 3000, 'check')",
+        'static/js/components/moveCardsModal.js': "showToast(`已移动 ${count} 张卡片`, 3000, 'check')",
+        'static/js/components/cardGrid.js': "showToast(`已导入: ${cardName}`, 3000, 'check')",
+        'static/js/components/detailModal.js': "showToast(`成功导入: \"${importedData.name}\"`, 3000, 'check')",
+        'static/js/components/sidebar.js': "showToast(`已移动 ${count} 张卡片`, 3000, 'check')",
+        'static/js/components/wiGrid.js': "showToast(`已移动 ${count} 本世界书`, 3000, 'check')",
+        'static/js/components/wiEditor.js': "`已导入 ${uniqueBlocks.length} 条标签条目`,\n          2200,\n          'check'",
     }
 
     for relative_path, expected_call in expected_calls.items():

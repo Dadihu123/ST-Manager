@@ -4,25 +4,25 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 WORLD_BOOK_SYMBOLS = (
-    'worldbook-save-all',
-    'worldbook-backup',
-    'worldbook-entry-rollback',
-    'worldbook-back',
-    'worldbook-rollback',
-    'worldbook-clipboard',
-    'worldbook-snapshot',
-    'worldbook-save-as',
-    'worldbook-sort',
-    'worldbook-calendar',
-    'worldbook-search',
-    'worldbook-constant',
-    'worldbook-vectorize',
-    'worldbook-layout',
-    'worldbook-tip',
-    'worldbook-keyword-trigger',
-    'worldbook-list',
-    'worldbook-shortcut',
-    'worldbook-closed',
+    'book-save',
+    'book-backup',
+    'entry-rollback',
+    'arrow-left',
+    'history-rollback',
+    'clipboard',
+    'snapshot',
+    'book-save-as',
+    'sort',
+    'calendar',
+    'book-search',
+    'pin',
+    'wand',
+    'layout',
+    'book-tip',
+    'key-trigger',
+    'list',
+    'keyboard',
+    'book-closed',
 )
 
 LEGACY_FUNCTIONAL_GLYPHS = (
@@ -75,13 +75,13 @@ def test_worldbook_design_symbols_are_theme_safe():
         assert f'id="icon-{name}"' in design_block
 
     for name, view_box in (
-        ('worldbook-constant', '21 34 525 636'),
-        ('worldbook-vectorize', '41 53 567 600'),
-        ('worldbook-layout', '78 109 487 492'),
-        ('worldbook-tip', '117 62 409 604'),
-        ('worldbook-keyword-trigger', '53 186 577 578'),
-        ('worldbook-list', '86 127.216 487.425 312.31'),
-        ('worldbook-shortcut', '80 129 519 355'),
+        ('pin', '21 34 525 636'),
+        ('wand', '41 53 567 600'),
+        ('layout', '78 109 487 492'),
+        ('book-tip', '117 62 409 604'),
+        ('key-trigger', '53 186 577 578'),
+        ('list', '86 127.216 487.425 312.31'),
+        ('keyboard', '80 129 519 355'),
     ):
         assert f'<symbol id="icon-{name}" viewBox="{view_box}">' in design_block
     assert design_block.count('fill="currentColor"') >= len(WORLD_BOOK_SYMBOLS)
@@ -125,43 +125,43 @@ def test_worldbook_templates_use_shared_icons_for_functional_controls():
     ):
         assert not any(glyph in source for glyph in LEGACY_FUNCTIONAL_GLYPHS)
 
-    assert "icon('worldbook-save-all'" in fullscreen_controls
-    assert "icon('worldbook-entry-rollback'" in fullscreen_controls
-    assert "icon('worldbook-vectorize'" in fullscreen_controls
-    assert "icon('worldbook-calendar'" in popup_source
-    assert "icon('worldbook-search'" in popup_source
-    assert "icon('worldbook-snapshot'" in popup_source
+    assert "icon('book-save'" in fullscreen_controls
+    assert "icon('entry-rollback'" in fullscreen_controls
+    assert "icon('wand'" in fullscreen_controls
+    assert "icon('calendar'" in popup_source
+    assert "icon('book-search'" in popup_source
+    assert "icon('snapshot'" in popup_source
 
-    assert "icon('card-upload'" in grid_source
-    assert "icon('card-check'" in grid_source
-    assert "icon('card-folder'" in grid_source
-    assert "icon('card-sticky-note'" in grid_source
-    assert "icon('card-send'" in grid_source
-    assert "icon('card-loader'" in grid_source
-    assert "icon('context-rename'" in popup_source
-    assert "icon('context-close'" in popup_source
-    assert "icon('card-send'" in popup_source
-    assert "icon('card-loader'" in popup_source
-    assert "icon('header-import'" in fullscreen_controls
-    assert "icon('worldbook-search'" in fullscreen_controls
-    assert "icon('worldbook-constant'" in fullscreen_controls
+    assert "icon('upload'" in grid_source
+    assert "icon('check'" in grid_source
+    assert "icon('folder'" in grid_source
+    assert "icon('sticky-note'" in grid_source
+    assert "icon('send'" in grid_source
+    assert "icon('loader-circle'" in grid_source
+    assert "icon('pencil-edit'" in popup_source
+    assert "icon('close'" in popup_source
+    assert "icon('send'" in popup_source
+    assert "icon('loader-circle'" in popup_source
+    assert "icon('file-import'" in fullscreen_controls
+    assert "icon('book-search'" in fullscreen_controls
+    assert "icon('pin'" in fullscreen_controls
     assert "icon('search'" not in fullscreen_controls
     assert "icon('circle-dot'" not in fullscreen_controls
     assert "icon('settings-save'" in fullscreen_controls
     assert "icon('settings-help-entry'" in fullscreen_controls
-    assert "icon('context-new'" in fullscreen_controls
-    assert "icon('context-delete'" in fullscreen_controls
-    assert "icon('settings-warning'" in fullscreen_controls
-    assert "icon('settings-advanced-settings'" in fullscreen_controls
-    assert "icon('settings-show'" in fullscreen_controls
-    assert "icon('header-import'" in detail_card_worldbook
-    assert "icon('card-upload'" in detail_card_worldbook
-    assert "icon('header-import'" in grid_source
-    assert "icon('worldbook-closed'" in grid_source
-    assert "icon('worldbook-save-as'" not in grid_source
-    assert "icon('context-rename'" in fullscreen_controls
-    assert "icon('context-new'" in detail_card_worldbook
-    assert "icon('context-delete'" in detail_card_worldbook
+    assert "icon('plus-square'" in fullscreen_controls
+    assert "icon('trash'" in fullscreen_controls
+    assert "icon('alert-triangle'" in fullscreen_controls
+    assert "icon('sliders-settings'" in fullscreen_controls
+    assert "icon('eye'" in fullscreen_controls
+    assert "icon('file-import'" in detail_card_worldbook
+    assert "icon('upload'" in detail_card_worldbook
+    assert "icon('file-import'" in grid_source
+    assert "icon('book-closed'" in grid_source
+    assert "icon('book-save-as'" not in grid_source
+    assert "icon('pencil-edit'" in fullscreen_controls
+    assert "icon('plus-square'" in detail_card_worldbook
+    assert "icon('trash'" in detail_card_worldbook
 
 
 def test_worldbook_help_reuses_shared_icons_without_functional_glyphs():
@@ -170,23 +170,23 @@ def test_worldbook_help_reuses_shared_icons_without_functional_glyphs():
 
     for name in (
         'settings-save',
-        'worldbook-save-all',
-        'worldbook-save-as',
-        'worldbook-rollback',
-        'worldbook-entry-rollback',
-        'worldbook-backup',
-        'worldbook-clipboard',
-        'context-new',
-        'settings-warning',
-        'settings-advanced-settings',
-        'worldbook-constant',
-        'worldbook-vectorize',
-        'worldbook-layout',
-        'worldbook-tip',
-        'worldbook-keyword-trigger',
-        'worldbook-list',
-        'worldbook-shortcut',
-        'worldbook-search',
+        'book-save',
+        'book-save-as',
+        'history-rollback',
+        'entry-rollback',
+        'book-backup',
+        'clipboard',
+        'plus-square',
+        'alert-triangle',
+        'sliders-settings',
+        'pin',
+        'wand',
+        'layout',
+        'book-tip',
+        'key-trigger',
+        'list',
+        'keyboard',
+        'book-search',
     ):
         assert f"icon('{name}'" in help_source
 
@@ -218,13 +218,13 @@ def test_worldbook_clipboard_loading_uses_svg_sprite():
         'addWiEntryFromClipboard', 1
     )[0]
 
-    assert 'icon-card-loader' in request_block
-    assert 'icon-loader-circle' not in request_block
+    assert 'icon-loader-circle' in request_block
+    assert request_block.count('<use') == 1
     assert 'ui-icon--spin' in request_block
     assert '⏳' not in request_block
 
 
-def test_worldbook_icons_use_phase_one_scale_and_borderless_actions():
+def test_worldbook_icons_use_integer_size_tiers_and_borderless_actions():
     css = _read('static/css/modules/view-wi.css')
     grid_source = _read('templates/components/grid_wi.html')
     popup_source = _read('templates/modals/detail_wi_popup.html')
@@ -237,17 +237,18 @@ def test_worldbook_icons_use_phase_one_scale_and_borderless_actions():
     assert 'wi-container wi-worldbook-icon-scope' in detail_card_source
     assert 'wi-worldbook-tab-icon' in detail_card_source
 
+    icons_css = _read('static/css/modules/icons.css')
     for size, value in (
-        ('xs', '1.125rem'),
-        ('sm', '1.3125rem'),
-        ('md', '1.6875rem'),
-        ('lg', '2.25rem'),
-        ('xl', '4.5rem'),
+        ('xs', '12px'),
+        ('sm', '16px'),
+        ('md', '20px'),
+        ('lg', '24px'),
+        ('xl', '32px'),
     ):
-        selector = f'.wi-worldbook-icon-scope .ui-icon--{size}'
-        block = css.split(selector, 1)[1].split('}', 1)[0]
-        assert f'width: {value}' in block
-        assert f'height: {value}' in block
+        selector = f'.ui-icon--{size} {{'
+        block = icons_css.split(selector, 1)[1].split('}', 1)[0]
+        assert f'width: {value};' in block
+        assert f'height: {value};' in block
 
     assert '.wi-worldbook-grid .wi-grid-tool-btn' in css
     assert '.wi-worldbook-grid .card-local-note-btn' in css
@@ -255,34 +256,32 @@ def test_worldbook_icons_use_phase_one_scale_and_borderless_actions():
     assert 'border-color: transparent !important' in css
     assert 'background: transparent !important' in css
     assert 'box-shadow: none !important' in css
-    assert 'width: 1.725rem' in css
-    assert 'width: 1.575rem' in css
-    assert '.wi-worldbook-icon-scope .wi-worldbook-backup-icon.ui-icon--md' in css
-    assert '.wi-reader-title-icon .ui-icon--lg' in css
-    assert '.wi-reader-close-icon' in css
+    assert 'width: 1.725rem' not in css
+    assert 'width: 1.575rem' not in css
+    assert '.wi-worldbook-icon-scope .wi-worldbook-backup-icon.ui-icon--md' not in css
+    assert '.wi-reader-title-icon .ui-icon--lg' not in css
+    assert "icon('close', 'ui-icon--md')" in popup_source
     assert '.wi-reader-date-meta .wi-reader-calendar-icon' in css
     assert 'margin-right: -0.25rem' in css
     assert '.wi-editor-container .wi-icon-only-action .ui-icon' in css
     assert '.wi-editor-container .wi-editor-top-actions .wi-editor-close-action' in css
-    assert '.wi-editor-container .wi-vectorize-icon' in css
-    vectorize_css = css.split('.wi-editor-container .wi-vectorize-icon', 1)[1].split(
-        '}', 1
-    )[0]
-    assert 'transform: scale(1)' in vectorize_css
-    assert 'wi-vectorize-icon' in fullscreen_source
+    assert '.wi-editor-container .wi-vectorize-icon' not in css
+    assert 'wi-vectorize-icon' not in fullscreen_source
     assert 'wi-help-shortcut-icon' in fullscreen_source
     help_source = fullscreen_source.split('<!-- 帮助指南模态框 -->', 1)[1]
-    assert "icon('worldbook-vectorize', 'ui-icon--xs wi-vectorize-icon')" not in help_source
+    assert "icon('wand', 'ui-icon--xs')" in help_source
     shortcut_css = css.split('.wi-help-modal-content .wi-help-shortcut-icon', 1)[1].split(
         '}', 1
     )[0]
-    assert 'transform: scale(1.5)' in shortcut_css
+    assert 'width: 24px;' in shortcut_css
+    assert 'height: 24px;' in shortcut_css
     assert 'wi-card-bookmark' in grid_source
     assert '.wi-worldbook-grid .wi-card-title-row::before' in css
     assert 'display: none;' in css.split(
         '.wi-worldbook-grid .wi-card-title-row::before', 1
     )[1].split('}', 1)[0]
-    assert 'width: 3rem' in css
+    assert '.wi-worldbook-grid .wi-card-bookmark .wi-card-bookmark-icon' in css
+    assert 'width: 32px;' in css
     assert fullscreen_source.count('wi-icon-only-action') == 2
 
     assert fullscreen_source.count('wi-action-btn wi-action-btn--bright') == 2

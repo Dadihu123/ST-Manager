@@ -11,7 +11,7 @@
             style="background: var(--bg-sub); border-color: var(--border-light);">
             <div class="flex items-center gap-3">
                 <h3 class="font-bold text-lg advanced-editor-title flex items-center gap-2" style="color: var(--text-main);">
-                    <span aria-hidden="true">{{ icon('settings-advanced-settings', 'ui-icon--md advanced-editor-icon--150') }}</span>
+                    <span aria-hidden="true">{{ icon('sliders-settings', 'ui-icon--md ') }}</span>
                     <span>高级扩展</span>
                 </h3>
                 <span class="text-xs px-2 py-0.5 rounded border border-gray-600 text-gray-400 hidden md:inline"
@@ -21,18 +21,18 @@
             <button type="button" @click="requestClose()"
                 class="text-gray-400 hover:text-red-500 transition text-xl advanced-editor-close-btn"
                 title="关闭" aria-label="关闭高级编辑器">
-                {{ icon('context-close', 'ui-icon--md advanced-editor-icon--150') }}
+                {{ icon('close', 'ui-icon--md ') }}
             </button>
         </div>
 
         <!-- 2. 顶部 Tabs -->
         <div class="adv-tab-bar" x-show="!isFileMode">
             <div @click="activeTab='regex'" class="adv-tab" :class="activeTab==='regex'?'active':''">
-                <span class="tab-icon inline-flex items-center" aria-hidden="true">{{ detail_icon('regex', 'ui-icon--sm advanced-editor-icon--150') }}</span>
+                <span class="tab-icon inline-flex items-center" aria-hidden="true">{{ detail_icon('regex', 'ui-icon--sm ') }}</span>
                 <span class="tab-text">正则脚本 (Regex)</span>
             </div>
             <div @click="activeTab='scripts'" class="adv-tab" :class="activeTab==='scripts'?'active':''">
-                <span class="tab-icon inline-flex items-center" aria-hidden="true">{{ detail_icon('scripts', 'ui-icon--sm advanced-editor-icon--150') }}</span>
+                <span class="tab-icon inline-flex items-center" aria-hidden="true">{{ detail_icon('script-file', 'ui-icon--sm ') }}</span>
                 <span class="tab-text">ST 脚本 (Helper)</span>
             </div>
         </div>
@@ -40,10 +40,10 @@
             style="background: var(--bg-sub); border-bottom: 1px solid var(--border-light); cursor: default;">
             <div class="adv-tab active" style="border-bottom-color: var(--accent-main); color: var(--accent-main);">
                 <span class="tab-icon inline-flex items-center" aria-hidden="true">
-                    <span x-show="fileType === 'regex'">{{ detail_icon('regex', 'ui-icon--sm advanced-editor-icon--150') }}</span>
-                    <span x-show="fileType === 'script'">{{ detail_icon('scripts', 'ui-icon--sm advanced-editor-icon--150') }}</span>
-                    <span x-show="fileType === 'quick_reply'">{{ detail_icon('quick-replies', 'ui-icon--sm advanced-editor-icon--150') }}</span>
-                    <span x-show="!['regex', 'script', 'quick_reply'].includes(fileType)">{{ icon('extension-file', 'ui-icon--sm advanced-editor-icon--150') }}</span>
+                    <span x-show="fileType === 'regex'">{{ detail_icon('regex', 'ui-icon--sm ') }}</span>
+                    <span x-show="fileType === 'script'">{{ detail_icon('script-file', 'ui-icon--sm ') }}</span>
+                    <span x-show="fileType === 'quick_reply'">{{ detail_icon('quick-reply', 'ui-icon--sm ') }}</span>
+                    <span x-show="!['regex', 'script', 'quick_reply'].includes(fileType)">{{ icon('file-code', 'ui-icon--sm ') }}</span>
                 </span>
                 <span class="tab-text"
                     x-text="currentFilePath ? currentFilePath.split('/').pop() : 'Editing File'"></span>
@@ -78,14 +78,14 @@
                                     <button @click="$refs.importRegexInput.click()"
                                         class="text-xs bg-[var(--bg-panel)] border border-[var(--border-light)] hover:bg-[var(--bg-hover)] px-2 py-1 rounded transition"
                                         title="导入正则" aria-label="导入正则">
-                                        {{ icon('header-import', 'ui-icon--sm advanced-editor-icon--150') }}
+                                        {{ icon('file-import', 'ui-icon--sm ') }}
                                     </button>
                                     <input type="file" x-ref="importRegexInput" @change="importRegex" accept=".json"
                                         style="display:none;">
                                     <button @click="addRegexScript()"
                                         class="text-xs bg-green-600 hover:bg-green-500 text-white px-2 py-1 rounded transition flex items-center gap-1"
                                         title="新建正则脚本">
-                                        {{ icon('context-new', 'ui-icon--sm advanced-editor-icon--150') }}<span>新建</span>
+                                        {{ icon('plus-square', 'ui-icon--sm ') }}<span>新建</span>
                                     </button>
                                 </div>
                             </template>
@@ -127,19 +127,19 @@
                                                 class="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
                                                 <button @click.stop="exportRegex(idx)" class="sort-btn-xs rounded"
                                                     title="导出正则" aria-label="导出正则">
-                                                    {{ icon('card-upload', 'ui-icon--sm advanced-editor-icon--150') }}
+                                                    {{ icon('upload', 'ui-icon--sm ') }}
                                                 </button>
                                                 <div class="flex flex-col">
                                                     <button @click.stop="moveRegex(idx, -1)"
-                                                        class="sort-btn-xs rounded-t border-b-0" title="上移">{{ icon('other-arrow-up', 'ui-icon--xs') }}</button>
+                                                        class="sort-btn-xs rounded-t border-b-0" title="上移">{{ icon('arrow-up', 'ui-icon--xs') }}</button>
                                                     <button @click.stop="moveRegex(idx, 1)"
-                                                        class="sort-btn-xs rounded-b" title="下移">{{ icon('other-arrow-down', 'ui-icon--xs') }}</button>
+                                                        class="sort-btn-xs rounded-b" title="下移">{{ icon('arrow-down', 'ui-icon--xs') }}</button>
                                                 </div>
                                             </div>
                                             <button @click.stop="removeRegexScript(idx)"
                                                 class="opacity-0 group-hover:opacity-100 text-gray-500 hover:text-red-400 p-1 flex-shrink-0 transition"
                                                 title="删除正则脚本" aria-label="删除正则脚本">
-                                                {{ icon('other-close', 'ui-icon--xs') }}
+                                                {{ icon('close-bold', 'ui-icon--xs') }}
                                             </button>
                                         </div>
                                     </template>
@@ -192,7 +192,7 @@
                             <div class="adv-section">
                                 <div class="adv-section-title">
                                     <span class="inline-flex items-center gap-1">
-                                        {{ icon('worldbook-search', 'ui-icon--sm advanced-editor-icon--150') }}
+                                        {{ icon('book-search', 'ui-icon--sm ') }}
                                         <span>查找 (Match)</span>
                                     </span>
                                     <div class="flex items-center gap-2">
@@ -231,7 +231,7 @@
                                 <div class="adv-section flex flex-col h-48">
                                     <div class="adv-section-title text-green-500">
                                         <span class="inline-flex items-center gap-1">
-                                            {{ icon('advanced-editor-replace', 'ui-icon--sm advanced-editor-icon--150') }}
+                                            {{ icon('replace', 'ui-icon--sm ') }}
                                             <span>替换内容 (Replace With)</span>
                                         </span>
                                     </div>
@@ -245,7 +245,7 @@
                                 <div class="adv-section flex flex-col h-48">
                                     <div class="adv-section-title text-blue-400">
                                         <span class="inline-flex items-center gap-1">
-                                            {{ icon('advanced-editor-trim', 'ui-icon--sm advanced-editor-icon--150') }}
+                                            {{ icon('scissors', 'ui-icon--sm ') }}
                                             <span>剔除字符串 (Trim Out)</span>
                                         </span>
                                     </div>
@@ -262,7 +262,7 @@
                             <div class="adv-section">
                                 <div class="adv-section-title">
                                     <span class="inline-flex items-center gap-1">
-                                        {{ icon('settings', 'ui-icon--sm advanced-editor-icon--150') }}
+                                        {{ icon('settings', 'ui-icon--sm ') }}
                                         <span>作用范围与限制 (Settings)</span>
                                     </span>
                                 </div>
@@ -357,13 +357,13 @@
                             <div class="adv-section bg-[var(--bg-sub)]">
                                 <div class="adv-section-title text-purple-400">
                                     <span class="inline-flex items-center gap-1">
-                                        {{ icon('advanced-editor-test-lab', 'ui-icon--sm advanced-editor-icon--150') }}
+                                        {{ icon('flask', 'ui-icon--sm ') }}
                                         <span>实时测试台 (JS Regex Playground)</span>
                                     </span>
                                     <button @click="runRegexTest()"
                                         class="text-xs bg-purple-600 hover:bg-purple-500 text-white px-3 py-1 rounded shadow-md transition flex items-center gap-1"
                                         title="运行正则测试" aria-label="运行正则测试">
-                                        {{ icon('advanced-editor-execute', 'ui-icon--sm advanced-editor-icon--150') }}<span>运行测试</span>
+                                        {{ icon('play', 'ui-icon--sm ') }}<span>运行测试</span>
                                     </button>
                                 </div>
                                 <div class="test-bench-grid">
@@ -380,7 +380,7 @@
                                             <span class="inline-flex items-center gap-1">
                                                 <svg
                                                     x-show="regexTestResultIcon"
-                                                    class="ui-icon ui-icon--sm advanced-editor-icon--150"
+                                                    class="ui-icon ui-icon--sm "
                                                     viewBox="0 0 24 24"
                                                     aria-hidden="true"
                                                     focusable="false"
@@ -395,7 +395,7 @@
                                                     @click="$dispatch('open-html-preview', regexTestResult)"
                                                     title="全屏预览"
                                                     class="text-[10px] bg-[var(--bg-panel)] border border-[var(--border-light)] rounded px-2 py-[2px] hover:text-[var(--accent-light)] transition">
-                                                    {{ detail_icon('expand', 'ui-icon--xs advanced-editor-icon--150') }}<span>放大</span>
+                                                    {{ detail_icon('expand', 'ui-icon--xs ') }}<span>放大</span>
                                                 </button>
 
                                                 <!-- 切换按钮 -->
@@ -431,7 +431,7 @@
                     x-show="activeRegexIndex === -1 || !editingData.extensions.regex_scripts[activeRegexIndex]">
                     <div class="text-center">
                         <div class="mb-2 opacity-30 flex justify-center" aria-hidden="true">
-                            {{ detail_icon('regex', 'ui-icon--lg advanced-editor-icon--150') }}
+                            {{ detail_icon('regex', 'ui-icon--lg ') }}
                         </div>
                         <p>请在左侧选择或新建一个正则脚本</p>
                     </div>
@@ -459,7 +459,7 @@
                                     <button @click="$refs.importScriptInput.click()"
                                         class="text-xs bg-[var(--bg-panel)] border border-[var(--border-light)] hover:bg-[var(--bg-hover)] px-2 py-1 rounded transition"
                                         title="导入脚本" aria-label="导入脚本">
-                                        {{ icon('header-import', 'ui-icon--sm advanced-editor-icon--150') }}
+                                        {{ icon('file-import', 'ui-icon--sm ') }}
                                     </button>
                                     <input type="file" x-ref="importScriptInput" @change="importScript" accept=".json"
                                         style="display:none;">
@@ -467,7 +467,7 @@
                                     <button @click="addTavernScript()"
                                         class="text-xs bg-green-600 hover:bg-green-500 text-white px-2 py-1 rounded transition flex items-center gap-1"
                                         title="新建 ST 脚本">
-                                        {{ icon('context-new', 'ui-icon--sm advanced-editor-icon--150') }}<span>新建</span>
+                                        {{ icon('plus-square', 'ui-icon--sm ') }}<span>新建</span>
                                     </button>
                                 </div>
                             </template>
@@ -500,13 +500,13 @@
                                                 class="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
                                                 <button @click.stop="exportScript(idx)" class="sort-btn-xs rounded"
                                                     title="导出 ST 脚本" aria-label="导出 ST 脚本">
-                                                    {{ icon('card-upload', 'ui-icon--sm advanced-editor-icon--150') }}
+                                                    {{ icon('upload', 'ui-icon--sm ') }}
                                                 </button>
                                                 <div class="flex flex-col">
                                                     <button @click.stop="moveTavernScript(script.id, -1)"
-                                                        class="sort-btn-xs rounded-t border-b-0" title="上移">{{ icon('other-arrow-up', 'ui-icon--xs') }}</button>
+                                                        class="sort-btn-xs rounded-t border-b-0" title="上移">{{ icon('arrow-up', 'ui-icon--xs') }}</button>
                                                     <button @click.stop="moveTavernScript(script.id, 1)"
-                                                        class="sort-btn-xs rounded-b" title="下移">{{ icon('other-arrow-down', 'ui-icon--xs') }}</button>
+                                                        class="sort-btn-xs rounded-b" title="下移">{{ icon('arrow-down', 'ui-icon--xs') }}</button>
                                                 </div>
                                             </div>
 
@@ -516,7 +516,7 @@
                                 <button @click.stop="removeTavernScript(script.id)"
                                     class="opacity-0 group-hover:opacity-100 text-gray-500 hover:text-red-400 p-1 flex-shrink-0 transition"
                                     title="删除 ST 脚本" aria-label="删除 ST 脚本">
-                                    {{ icon('other-close', 'ui-icon--xs') }}
+                                    {{ icon('close-bold', 'ui-icon--xs') }}
                                 </button>
                             </div>
                         </template>
@@ -579,7 +579,7 @@
                             <div class="adv-section">
                                 <div class="adv-section-title flex justify-between items-center text-blue-400">
                                     <span class="inline-flex items-center gap-1">
-                                        {{ icon('advanced-editor-quick-buttons', 'ui-icon--sm advanced-editor-icon--150') }}
+                                        {{ icon('quick-actions', 'ui-icon--sm ') }}
                                         <span>快捷按钮 (Buttons)</span>
                                     </span>
                                     <button @click="addScriptButton(getTavernScripts()[activeScriptIndex])"
@@ -621,7 +621,7 @@
                                                     @click="removeScriptButton(getTavernScripts()[activeScriptIndex], btnIdx)"
                                                     class="text-gray-500 hover:text-red-400 px-1"
                                                     title="删除快捷按钮" aria-label="删除快捷按钮">
-                                                    {{ icon('other-close', 'ui-icon--xs') }}
+                                                    {{ icon('close-bold', 'ui-icon--xs') }}
                                                 </button>
                                             </div>
                                         </template>
@@ -639,7 +639,7 @@
                             <div class="adv-section flex flex-col h-64">
                                 <div class="adv-section-title text-yellow-500 flex justify-between">
                                     <span class="inline-flex items-center gap-1">
-                                        {{ icon('advanced-editor-script-code', 'ui-icon--sm advanced-editor-icon--150') }}
+                                        {{ icon('code-file', 'ui-icon--sm ') }}
                                         <span>脚本代码 (Content - JavaScript)</span>
                                     </span>
                                     <span class="text-[10px] text-[var(--text-dim)]">Executed by STHelper</span>
@@ -652,7 +652,7 @@
 
                             <div class="adv-section">
                                 <div class="adv-section-title text-emerald-400 flex justify-between items-center">
-                                    <span class="inline-flex items-center gap-1">{{ icon('other-arrow-right', 'ui-icon--sm') }}<span>运行时 (Runtime)</span></span>
+                                    <span class="inline-flex items-center gap-1">{{ icon('arrow-right', 'ui-icon--sm') }}<span>运行时 (Runtime)</span></span>
                                     <div class="flex flex-wrap gap-2 text-[10px]">
                                         <button @click="startScriptRuntime()"
                                             class="bg-emerald-600 hover:bg-emerald-500 text-white px-2 py-0.5 rounded transition">
@@ -771,7 +771,7 @@
                             <div class="adv-section flex flex-col flex-1 min-h-[200px]">
                                 <div class="adv-section-title text-purple-400 flex justify-between">
                                     <span class="inline-flex items-center gap-1">
-                                        {{ icon('advanced-editor-data', 'ui-icon--sm advanced-editor-icon--150') }}
+                                        {{ icon('data-grid', 'ui-icon--sm ') }}
                                         <span>变量数据 (Data - JSON Object)</span>
                                     </span>
                                     <button @click="syncScriptDataJson(); $store.global.showToast('JSON 已格式化')"
@@ -801,7 +801,7 @@
                     x-show="activeScriptIndex === -1 || !getTavernScripts()[activeScriptIndex]">
                     <div class="text-center">
                         <div class="mb-2 opacity-30 flex justify-center" aria-hidden="true">
-                            {{ detail_icon('scripts', 'ui-icon--lg advanced-editor-icon--150') }}
+                            {{ detail_icon('script-file', 'ui-icon--lg ') }}
                         </div>
                         <p>请在左侧选择或新建一个脚本</p>
                     </div>
@@ -827,7 +827,7 @@
                             <button @click="addQrEntry()"
                                 class="text-xs bg-green-600 hover:bg-green-500 text-white px-2 py-1 rounded transition flex items-center gap-1"
                                 title="新建快速回复">
-                                {{ icon('context-new', 'ui-icon--sm advanced-editor-icon--150') }}<span>新建</span>
+                                {{ icon('plus-square', 'ui-icon--sm ') }}<span>新建</span>
                             </button>
                         </div>
                     </div>
@@ -850,14 +850,14 @@
                                     class="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
                                     <div class="flex gap-1">
                                         <button @click.stop="moveQrEntry(idx, -1)"
-                                            class="sort-btn-xs rounded-t border-b-0">{{ icon('other-arrow-up', 'ui-icon--xs') }}</button>
+                                            class="sort-btn-xs rounded-t border-b-0">{{ icon('arrow-up', 'ui-icon--xs') }}</button>
                                         <button @click.stop="moveQrEntry(idx, 1)"
-                                            class="sort-btn-xs rounded-b">{{ icon('other-arrow-down', 'ui-icon--xs') }}</button>
+                                            class="sort-btn-xs rounded-b">{{ icon('arrow-down', 'ui-icon--xs') }}</button>
                                     </div>
                                 </div>
                                 <button @click.stop="removeQrEntry(idx)"
                                     class="opacity-0 group-hover:opacity-100 text-gray-500 hover:text-red-400 p-1"
-                                    title="删除快速回复" aria-label="删除快速回复">{{ icon('other-close', 'ui-icon--xs') }}</button>
+                                    title="删除快速回复" aria-label="删除快速回复">{{ icon('close-bold', 'ui-icon--xs') }}</button>
                             </div>
                         </template>
                         <div x-show="!editingData.quick_reply?.qrList?.length"
@@ -875,7 +875,7 @@
                         <div class="adv-section mb-4" x-show="activeQrIndex === -1">
                             <div class="adv-section-title text-yellow-500">
                                 <span class="inline-flex items-center gap-1">
-                                    {{ icon('settings', 'ui-icon--sm advanced-editor-icon--150') }}
+                                    {{ icon('settings', 'ui-icon--sm ') }}
                                     <span>集合设置 (Set Settings)</span>
                                 </span>
                             </div>
@@ -944,7 +944,7 @@
                                 <div class="adv-section flex flex-col h-48">
                                     <div class="adv-section-title text-green-500">
                                         <span class="inline-flex items-center gap-1">
-                                            {{ icon('advanced-editor-send-content', 'ui-icon--sm advanced-editor-icon--150') }}
+                                            {{ icon('send-content', 'ui-icon--sm ') }}
                                             <span>发送内容 (Message)</span>
                                         </span>
                                     </div>
@@ -956,7 +956,7 @@
                                 <div class="adv-section">
                                     <div class="adv-section-title text-blue-400">
                                         <span class="inline-flex items-center gap-1">
-                                            {{ icon('advanced-editor-trigger', 'ui-icon--sm advanced-editor-icon--150') }}
+                                            {{ icon('bolt', 'ui-icon--sm ') }}
                                             <span>触发条件 (Execute On)</span>
                                         </span>
                                     </div>
@@ -1037,7 +1037,7 @@
         <button x-show="$store.global.deviceType === 'mobile' && !showMobileSidebar"
             @click="showMobileSidebar = true"
             class="fixed bottom-20 left-2 z-50 w-10 h-10 bg-[var(--bg-panel)] border border-[var(--border-light)] rounded-lg flex items-center justify-center text-[var(--text-main)] shadow-lg md:hidden">
-            <span aria-hidden="true">{{ icon('worldbook-list', 'ui-icon--sm advanced-editor-icon--150') }}</span>
+            <span aria-hidden="true">{{ icon('list', 'ui-icon--sm ') }}</span>
         </button>
 
         <!-- 移动端：侧边栏遮罩 -->

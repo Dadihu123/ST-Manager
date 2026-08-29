@@ -1093,7 +1093,7 @@ export default function tagFilterModal() {
             }
           }
           if (successMsg) {
-            this.$store.global.showToast(successMsg, 1800, "card-check");
+            this.$store.global.showToast(successMsg, 1800, "check");
           }
           return res.taxonomy || taxonomy;
         })
@@ -1525,7 +1525,7 @@ export default function tagFilterModal() {
           this.$store.global.showToast(
             successMessage || `已加入 ${addedCount} 个黑名单标签`,
             1800,
-            "card-check",
+            "check",
           );
           return true;
         })
@@ -1572,7 +1572,7 @@ export default function tagFilterModal() {
 
       this.saveTagManagementPrefsState().then((prefs) => {
         if (!prefs) return;
-        this.$store.global.showToast(`已将「${name}」移出黑名单`, 1800, "card-check");
+        this.$store.global.showToast(`已将「${name}」移出黑名单`, 1800, "check");
       });
     },
 
@@ -1778,7 +1778,7 @@ export default function tagFilterModal() {
         })
         .then((result) => {
           if (!result) return;
-          this.$store.global.showToast("标签顺序已保存", 1800, "card-check");
+          this.$store.global.showToast("标签顺序已保存", 1800, "check");
           this.resetSortModeState();
         })
         .catch((err) => {
@@ -1807,7 +1807,7 @@ export default function tagFilterModal() {
           this.resetSortModeState();
 
           window.dispatchEvent(new CustomEvent("refresh-card-list"));
-          this.$store.global.showToast("已恢复字符排序", 1800, "card-check");
+          this.$store.global.showToast("已恢复字符排序", 1800, "check");
         })
         .catch((err) => {
           alert("清除自定义排序失败: " + err);

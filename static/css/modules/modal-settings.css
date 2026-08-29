@@ -439,11 +439,11 @@ html.light-mode .settings-nav-item.active {
 }
 
 .nav-icon .ui-icon {
-  width: 1.05rem;
-  height: 1.05rem;
+  width: 16px;
+  height: 16px;
 }
 
-/* 设置页图标去除原有外框；导航图标在当前尺寸基础上再次放大到 150%。 */
+/* 设置页图标去除原有外框；导航图标使用统一的 16px 挡位。 */
 .settings-title-mark,
 .nav-icon,
 .settings-help-title-mark {
@@ -462,16 +462,6 @@ html.light-mode .settings-nav-item.active {
   background: transparent;
 }
 
-.settings-nav-item .nav-icon .settings-icon--150.ui-icon--sm {
-  width: 2.3625rem;
-  height: 2.3625rem;
-}
-
-.settings-path-action-icon--150.ui-icon--sm {
-  width: 1.96875rem;
-  height: 1.96875rem;
-}
-
 .settings-path-open-button {
   border: 0;
   background: transparent;
@@ -488,13 +478,13 @@ html.light-mode .settings-nav-item.active {
 }
 
 .settings-path-open-icon.ui-icon--sm {
-  width: 2.35rem;
-  height: 2.35rem;
+  width: 20px;
+  height: 20px;
 }
 
 .settings-trash-open-icon.ui-icon--sm {
-  width: 1.5rem;
-  height: 1.5rem;
+  width: 16px;
+  height: 16px;
 }
 
 .settings-content {
@@ -736,8 +726,8 @@ html.light-mode .settings-nav-item.active {
 }
 
 .settings-number-stepper-icon.ui-icon--xs {
-  width: 0.7rem;
-  height: 0.7rem;
+  width: 12px;
+  height: 12px;
 }
 
 .settings-number-stepper-icon--up {
@@ -828,11 +818,6 @@ html.light-mode .settings-nav-item.active {
   border: 0;
   background: transparent;
   box-shadow: none;
-}
-
-.settings-help-title-mark .settings-help-title-icon--150.ui-icon--sm {
-  width: 1.96875rem;
-  height: 1.96875rem;
 }
 
 .settings-help-title-copy {
@@ -1040,13 +1025,8 @@ html.light-mode .settings-nav-item.active {
   }
 
   .nav-icon .ui-icon {
-    width: 1.1rem;
-    height: 1.1rem;
-  }
-
-  .settings-nav-item .nav-icon .settings-icon--150.ui-icon--sm {
-    width: 2.475rem;
-    height: 2.475rem;
+    width: 16px;
+    height: 16px;
   }
 
   .nav-text {

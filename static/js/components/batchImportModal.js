@@ -90,7 +90,7 @@ export default function batchImportModal() {
                             detail: { cards: res.new_cards }
                         }));
                         
-                        this.$store.global.showToast(`成功导入 ${res.new_cards.length} 张卡片`, 3000, 'card-check');
+                        this.$store.global.showToast(`成功导入 ${res.new_cards.length} 张卡片`, 3000, 'check');
                     } else {
                         this.$store.global.showToast("没有文件被导入 (可能全部跳过)", 3000, 'settings-help-entry');
                     }

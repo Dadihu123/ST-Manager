@@ -657,7 +657,7 @@ export default function advancedEditor() {
           this.regexTestInput,
         );
       } catch (e) {
-        this.regexTestResultIcon = "context-close";
+        this.regexTestResultIcon = "close";
         this.regexTestResult = "正则表达式错误: " + e.message;
       }
     },

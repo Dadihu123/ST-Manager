@@ -318,11 +318,6 @@ html.light-mode .card-bottom-toolbar {
   background: rgba(146, 64, 14, 0.28);
 }
 
-.card-meta-bundle .card-package-icon--150.ui-icon--xs {
-  width: 1.125rem;
-  height: 1.125rem;
-}
-
 .card-image-container {
   position: relative;
   overflow: hidden;
@@ -347,51 +342,51 @@ html.light-mode .card-bottom-toolbar {
 }
 
 .preset-list-title-icon .ui-icon {
-  width: 1.5rem;
-  height: 1.5rem;
+  width: 24px;
+  height: 24px;
 }
 
 .preset-list-entry-icon .ui-icon {
-  width: 2rem;
-  height: 2rem;
+  width: 32px;
+  height: 32px;
 }
 
 .preset-list-dropzone-icon .ui-icon {
-  width: 3.75rem;
-  height: 3.75rem;
+  width: 64px;
+  height: 64px;
 }
 
-/* 预设列表加载图标与扩展列表保持相同的 150% 尺寸。 */
+/* 预设列表加载图标使用空状态的 64px 挡位。 */
 .preset-list-loading-icon .ui-icon {
-  width: 4.5rem;
-  height: 4.5rem;
+  width: 64px;
+  height: 64px;
 }
 
 .preset-card-stat-icon .ui-icon,
 .preset-card-owner-icon .ui-icon {
-  width: 0.875rem;
-  height: 0.875rem;
+  width: 12px;
+  height: 12px;
 }
 
 .preset-marker-icon-frame {
-  width: 3rem;
-  height: 3rem;
+  width: 48px;
+  height: 48px;
   color: inherit;
 }
 
 .preset-marker-icon-frame .preset-marker-icon {
-  width: 2.75rem;
-  height: 2.75rem;
+  width: 48px;
+  height: 48px;
 }
 
 .preset-marker-icon-frame--compact {
-  width: 1.75rem;
-  height: 1.75rem;
+  width: 32px;
+  height: 32px;
 }
 
 .preset-marker-icon-frame--compact .preset-marker-icon {
-  width: 1.625rem;
-  height: 1.625rem;
+  width: 32px;
+  height: 32px;
 }
 
 .card-select-overlay {
@@ -478,8 +473,8 @@ html.light-mode .card-bottom-toolbar {
 }
 
 .preset-card-action-btn .ui-icon {
-  width: 1.725rem;
-  height: 1.725rem;
+  width: 24px;
+  height: 24px;
 }
 
 .preset-card-action-btn:hover {
@@ -570,8 +565,8 @@ html.light-mode .preset-card-action-btn.is-export {
 }
 
 .card-fav-overlay .card-fav-icon {
-  width: 1.42rem;
-  height: 1.42rem;
+  width: 20px;
+  height: 20px;
   fill: currentColor;
   stroke: none;
   stroke-width: 0;
@@ -1728,8 +1723,8 @@ html.light-mode .card-send-st-btn.is-sending {
 }
 
 .preset-grid-card .card-send-st-btn .ui-icon {
-  width: 1.725rem;
-  height: 1.725rem;
+  width: 24px;
+  height: 24px;
 }
 
 .preset-grid-card .card-send-st-btn:hover:not(:disabled) {
@@ -2151,8 +2146,8 @@ html.light-mode .btn-note-preview:hover {
     height: 6.4rem;
   }
   .card-fav-overlay .card-fav-icon {
-    width: 1.26rem;
-    height: 1.26rem;
+    width: 20px;
+    height: 20px;
   }
   .card-image-tags-wrap .card-tags-row {
     min-height: 1.45rem;
@@ -2256,8 +2251,8 @@ html.light-mode .card-bottom-toolbar
 .card-bottom-toolbar > .card-forum-search-btn .ui-icon,
 .card-bottom-toolbar > .card-send-st-btn .ui-icon,
 .card-bottom-toolbar > .card-source-update-btn .ui-icon {
-  width: 1.725rem;
-  height: 1.725rem;
+  width: 24px;
+  height: 24px;
 }
 
 .card-bottom-toolbar .ui-icon--spin {
@@ -2284,7 +2279,7 @@ html.light-mode .card-bottom-toolbar
   .card-bottom-toolbar > .card-forum-search-btn .ui-icon,
   .card-bottom-toolbar > .card-send-st-btn .ui-icon,
   .card-bottom-toolbar > .card-source-update-btn .ui-icon {
-    width: 1.575rem;
-    height: 1.575rem;
+    width: 20px;
+    height: 20px;
   }
 }

@@ -229,7 +229,7 @@ def test_advanced_editor_run_regex_test_formats_regex_errors():
           throw new Error(`missing user-facing error prefix: ${component.regexTestResult}`);
         }
 
-        if (component.regexTestResultIcon !== 'context-close') {
+        if (component.regexTestResultIcon !== 'close') {
           throw new Error(`missing SVG error icon: ${component.regexTestResultIcon}`);
         }
 

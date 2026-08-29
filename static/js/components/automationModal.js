@@ -135,7 +135,7 @@ export default function automationModal() {
 
             importRuleSet(formData).then(res => {
                 if (res.success) {
-                    this.$store.global.showToast(`导入成功: ${res.name}`, 3000, 'card-check');
+                    this.$store.global.showToast(`导入成功: ${res.name}`, 3000, 'check');
                     this.loadList(); // 刷新列表
                     // 自动选中导入的规则集
                     this.selectRuleSet(res.id);
@@ -157,8 +157,8 @@ export default function automationModal() {
                 if (res.success) {
                     this.globalRulesetId = newVal;
                     // 给用户一点反馈
-                    if (newVal) this.$store.global.showToast('已设为全局自动规则 (按动作在不同场景触发)', 3000, 'card-check');
-                    else this.$store.global.showToast('已关闭全局自动规则', 3000, 'automation-forbidden');
+                    if (newVal) this.$store.global.showToast('已设为全局自动规则 (按动作在不同场景触发)', 3000, 'check');
+                    else this.$store.global.showToast('已关闭全局自动规则', 3000, 'forbidden');
                 }
             });
         },

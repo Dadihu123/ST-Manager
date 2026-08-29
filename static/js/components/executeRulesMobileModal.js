@@ -110,7 +110,7 @@ export default function executeRulesMobileModal() {
                         : `自动处理 ${this.cardIds.length} 张卡片`,
                 });
                 if (result?.selected) {
-                    this.$store.global.showToast('执行完成！', 2400, 'card-check');
+                    this.$store.global.showToast('执行完成！', 2400, 'check');
                     if (this.executeMode === 'cards') {
                         this.$store.global.viewState.selectedIds = [];
                     }
@@ -120,7 +120,7 @@ export default function executeRulesMobileModal() {
                     }
                 }
             } catch (error) {
-                this.$store.global.showToast(error?.message || '批量执行失败', 3600, 'context-close');
+                this.$store.global.showToast(error?.message || '批量执行失败', 3600, 'close');
             }
         }
     }

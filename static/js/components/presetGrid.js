@@ -595,12 +595,12 @@ export default function presetGrid() {
           window.dispatchEvent(new CustomEvent("preset-sent-to-st", {
             detail: sentDetail,
           }));
-          this.$store.global.showToast("已发送到 ST", 1800, "card-send");
+          this.$store.global.showToast("已发送到 ST", 1800, "send");
         } else {
-          this.$store.global.showToast(res?.msg || "发送失败", 2600, "context-close");
+          this.$store.global.showToast(res?.msg || "发送失败", 2600, "close");
         }
       } catch (error) {
-        this.$store.global.showToast(error?.message || "发送失败", 2600, "context-close");
+        this.$store.global.showToast(error?.message || "发送失败", 2600, "close");
       } finally {
         setPresetSendToStPending(key, false);
         window.dispatchEvent(new CustomEvent("preset-send-to-st-finished", {
@@ -662,7 +662,7 @@ export default function presetGrid() {
         }
       }
 
-      this.$store.global.showToast(`已删除 ${count} 个预设`, 3000, "context-delete");
+      this.$store.global.showToast(`已删除 ${count} 个预设`, 3000, "trash");
       this.selectedIds = [];
       this.fetchItems();
     },
@@ -701,7 +701,7 @@ export default function presetGrid() {
         }
       }
 
-      this.$store.global.showToast(`已移动 ${count} 个预设`, 3000, "card-check");
+      this.$store.global.showToast(`已移动 ${count} 个预设`, 3000, "check");
       this.selectedIds = [];
       this.fetchItems();
     },

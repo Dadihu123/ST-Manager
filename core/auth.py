@@ -719,7 +719,7 @@ LOGIN_PAGE_TEMPLATE = '''
         <div class="login-header">
             <h1>
                 <svg class="login-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                    <use href="/static/icons/ui.svg#icon-other-lock"></use>
+                    <use href="/static/icons/ui.svg#icon-lock"></use>
                 </svg>
                 <span>ST Manager</span>
             </h1>
@@ -744,7 +744,7 @@ LOGIN_PAGE_TEMPLATE = '''
 
         <div class="security-note">
             <svg class="security-note-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                <use href="/static/icons/ui.svg#icon-other-security"></use>
+                <use href="/static/icons/ui.svg#icon-shield"></use>
             </svg>
             您的 IP: {{ client_ip }}<br>
             <span style="font-size: 11px; opacity: 0.7;">如需免登录访问，请在设置中将此 IP 添加到白名单</span>

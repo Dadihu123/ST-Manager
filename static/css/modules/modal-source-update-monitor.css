@@ -16,11 +16,6 @@
   color: var(--text-main);
 }
 
-.source-monitor-heading__icon .ui-icon--source-monitor {
-  width: 3.75rem;
-  height: 3.75rem;
-}
-
 .source-monitor-heading__copy {
   min-width: 0;
 }
@@ -47,8 +42,4 @@
     margin-top: 0.1rem;
   }
 
-  .source-monitor-heading__icon .ui-icon--source-monitor {
-    width: 2.8rem;
-    height: 2.8rem;
-  }
 }

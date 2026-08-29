@@ -7,7 +7,7 @@
         <!-- Header -->
         <div style="padding: 1rem 1.25rem; background: var(--bg-sub); border-bottom: 1px solid var(--border-light);">
             <h3 style="font-weight: bold; color: var(--text-main); font-size: 1rem; display: flex; align-items: center; gap: 0.5rem;">
-                <span aria-hidden="true">{{ sidebar_icon('category-expanded', 'ui-icon--md') }}</span>
+                <span aria-hidden="true">{{ sidebar_icon('folder-open', 'ui-icon--md') }}</span>
                 <span>移动到文件夹</span>
             </h3>
         </div>
@@ -21,9 +21,9 @@
                     </label>
                     <div class="relative">
                         <div class="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-dim)] pointer-events-none" aria-hidden="true">
-                            <span x-show="targetCategory === ''" x-cloak>{{ sidebar_icon('category-expanded', 'ui-icon--sm') }}</span>
-                            <span x-show="targetCategory === '根目录'" x-cloak>{{ icon('modal-root-directory', 'ui-icon--sm') }}</span>
-                            <span x-show="targetCategory !== '' && targetCategory !== '根目录'" x-cloak>{{ sidebar_icon('folder', 'ui-icon--sm') }}</span>
+                            <span x-show="targetCategory === ''" x-cloak>{{ sidebar_icon('folder-open', 'ui-icon--sm') }}</span>
+                            <span x-show="targetCategory === '根目录'" x-cloak>{{ icon('folder-root', 'ui-icon--sm') }}</span>
+                            <span x-show="targetCategory !== '' && targetCategory !== '根目录'" x-cloak>{{ sidebar_icon('folder-solid', 'ui-icon--sm') }}</span>
                         </div>
                         <select x-model="targetCategory" class="form-input" style="width: 100%; padding-left: 2.5rem; font-size: 0.875rem;">
                             <option value="">(当前浏览目录)</option>
@@ -43,7 +43,7 @@
                         取消
                     </button>
                     <button @click="executeMove()" class="btn-primary" style="flex:2; justify-content: center; font-size: 0.875rem; padding: 0.5rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
-                        <span aria-hidden="true">{{ sidebar_icon('category-expanded', 'ui-icon--sm') }}</span>
+                        <span aria-hidden="true">{{ sidebar_icon('folder-open', 'ui-icon--sm') }}</span>
                         <span>移动</span>
                     </button>
                 </div>

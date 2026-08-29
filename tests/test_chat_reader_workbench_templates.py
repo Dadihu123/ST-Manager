@@ -750,6 +750,13 @@ def test_chat_reader_template_contains_workbench_regions():
     assert '\n            </main>\n\n            <aside x-show="readerShowRightPanel" class="chat-reader-right custom-scrollbar" :style="readerRightPaneStyle">' in shell
 
 
+def test_chat_reader_template_imports_sidebar_icon_macro():
+    reader_template = read_project_file('templates/modals/detail_chat_reader.html')
+
+    assert '{% from "components/icon.html" import icon, sidebar_icon, detail_icon %}' in reader_template
+    assert "sidebar_icon('character-cards'" in reader_template
+
+
 def test_chat_reader_template_groups_desktop_workbench_controls():
     reader_template = read_project_file('templates/modals/detail_chat_reader.html')
 

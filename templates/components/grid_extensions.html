@@ -11,13 +11,13 @@
             <!-- 标题显示当前筛选状态 -->
             <div class="flex items-center gap-2 text-sm">
                 <span x-show="currentMode === 'regex'" class="text-blue-400" aria-hidden="true">
-                    {{ detail_icon('regex', 'ui-icon--md extension-list-icon--150') }}
+                    {{ detail_icon('regex', 'ui-icon--md ') }}
                 </span>
                 <span x-show="currentMode === 'scripts'" class="text-purple-400" aria-hidden="true">
-                    {{ detail_icon('scripts', 'ui-icon--md extension-list-icon--150') }}
+                    {{ detail_icon('script-file', 'ui-icon--md ') }}
                 </span>
                 <span x-show="currentMode === 'quick_replies'" class="text-yellow-500" aria-hidden="true">
-                    {{ detail_icon('quick-replies', 'ui-icon--md extension-list-icon--150') }}
+                    {{ detail_icon('quick-reply', 'ui-icon--md ') }}
                 </span>
                 <span x-show="$store.global.deviceType !== 'mobile'" class="font-bold text-[var(--text-main)]" x-text="{
                         'regex': 'Regex Scripts',
@@ -38,7 +38,7 @@
                 共 <span x-text="items.length" class="text-[var(--text-main)] font-bold"></span> 个文件
             </span>
             <button @click="fetchItems()" class="btn-secondary px-3 py-1 text-xs flex items-center gap-1">
-                <span aria-hidden="true">{{ icon('header-refresh', 'ui-icon--sm extension-list-icon--150') }}</span> 刷新
+                <span aria-hidden="true">{{ icon('refresh', 'ui-icon--sm ') }}</span> 刷新
             </button>
         </div>
     </div>
@@ -50,7 +50,7 @@
         <div x-show="dragOver" x-transition.opacity
             class="absolute inset-0 z-50 bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center border-4 border-dashed border-[var(--accent-main)] m-4 rounded-xl">
             <div class="mb-4" aria-hidden="true">
-                {{ icon('card-upload', 'ui-icon--xl extension-list-icon--150') }}
+                {{ icon('upload', 'ui-icon--xl ') }}
             </div>
             <div class="text-2xl font-bold text-white">松开上传脚本</div>
             <div class="text-gray-300 mt-2">将存入全局配置目录</div>
@@ -60,7 +60,7 @@
         <div class="flex-1 overflow-y-auto custom-scrollbar p-4">
             <div x-show="isLoading" class="flex flex-col items-center justify-center h-64 text-[var(--text-dim)]">
                 <div class="mb-2" aria-hidden="true">
-                    {{ icon('card-loader', 'ui-icon--xl ui-icon--spin extension-list-icon--150') }}
+                    {{ icon('loader-circle', 'ui-icon--xl ui-icon--spin ') }}
                 </div>
                 <div>加载中...</div>
             </div>
@@ -78,7 +78,7 @@
 
                         <div class="flex items-start gap-3 mb-2">
                             <div class="pt-1 opacity-80 select-none" aria-hidden="true">
-                                {{ icon('extension-file', 'ui-icon--lg extension-list-icon--150') }}
+                                {{ icon('file-code', 'ui-icon--lg ') }}
                             </div>
                             <div class="min-w-0 flex-1">
                                 <div class="font-bold text-sm truncate text-[var(--text-main)] mb-1" :title="item.name"
@@ -95,7 +95,7 @@
                                 <div x-show="item.source_folder"
                                     class="text-[10px] text-green-400 flex items-center gap-1 truncate"
                                     :title="item.source_folder">
-                                    <span aria-hidden="true">{{ preset_icon('owner', 'ui-icon--sm extension-list-icon--150') }}</span>
+                                    <span aria-hidden="true">{{ preset_icon('owner', 'ui-icon--sm ') }}</span>
                                     <span x-text="item.source_folder"></span>
                                 </div>
                                 <div x-show="!item.source_folder" class="text-[10px] text-blue-400 opacity-60">Global
@@ -112,7 +112,7 @@
             <div x-show="!isLoading && items.length === 0"
                 class="flex flex-col items-center justify-center h-64 text-[var(--text-dim)] opacity-60">
                 <div class="mb-2" aria-hidden="true">
-                    {{ preset_icon('empty-state', 'ui-icon--xl extension-list-icon--150') }}
+                    {{ preset_icon('empty-state', 'ui-icon--xl ') }}
                 </div>
                 <div>没有找到相关文件</div>
             </div>
