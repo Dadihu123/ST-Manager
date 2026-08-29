@@ -4,7 +4,7 @@
 
 本次只整理已经集成到项目内的图标系统，主要检查和修改了 `static/icons/`，并同步扫描了 `templates/`、`static/js/`、`static/css/`、`core/` 和 `tests/` 中的模板宏、`<use>`、CSS mask、JavaScript 动态 icon id 及测试契约。`static/icons/forum-preview/` 下仍由 CSS mask 直接引用的 6 个独立 SVG 也纳入清单；同时将 Tailwind 浏览器运行时改为由 CLI 编译的静态 CSS。
 
-`tmp/` 和 `static/vendor/` 本次完全未处理、未修改。commit `cddb090` 已完成的 viewBox 裁切结果全部保留；本次没有重新裁切、补回空白或修改图形路径，整理只改变 symbol 所属 sprite、id、引用和外层尺寸规则。
+`static/vendor/` 本次完全未处理、未修改。`tmp/` 中新增的品牌 PNG 仅作为源文件使用，裁剪后的副本落在 `static/images/brand/`，并服务于左上角导航、加载界面和浏览器图标；旧的 `static/images/STM.ico` 已移除。commit `cddb090` 已完成的 viewBox 裁切结果全部保留。除品牌 PNG 的透明边界裁剪外，本次没有重新裁切、补回空白或修改其他图形路径，整理只改变 symbol 所属 sprite、id、引用和外层尺寸规则。
 
 分组原则如下：跨模块复用的操作和状态图形放入 `ui.svg`；详情页、阅读器和资源详情专用图形放入 `detail.svg`；侧边栏导航及侧边栏资源切换图形放入 `sidebar.svg`；预设/提示词字段和 marker 图形放入 `preset.svg`；论坛预览中作为 CSS mask 使用的原始独立 SVG 保持独立。只有在几何相同且引用语义允许共用时才合并，未因“看起来相似”而改变不同图形。
 
@@ -21,7 +21,7 @@ symbol id 统一使用带 `icon-` 前缀的英文 kebab-case，并优先表达�
 | 文件 | 用途 | 最终 symbol 数量 | 结构变更 |
 | --- | --- | ---: | --- |
 | `static/icons/ui.svg` | 通用操作、设置、同步、世界书操作、编辑器和状态图标 | 111 | 删除 38 个确认未引用的旧 symbol；将业务前缀重命名为语义 id，并复用统一图形 |
-| `static/icons/detail.svg` | 卡片/资源详情、阅读器、预览和详情操作 | 49 | 将 `icon-detail-*` 改为语义 id；删除未引用的 `icon-detail-character-card` |
+| `static/icons/detail.svg` | 卡片/资源详情、阅读器、预览和详情操作 | 48 | 将 `icon-detail-*` 改为语义 id；删除未引用的 `icon-detail-character-card` 和旧品牌 symbol `icon-brand` |
 | `static/icons/sidebar.svg` | 侧边栏导航、资源分类和模块入口 | 20 | 将 `icon-sidebar-*` 改为语义 id；把两个独立侧边栏 SVG 的原始图形移动为 `icon-character-cards`、`icon-paint-brush` |
 | `static/icons/preset.svg` | 预设字段、提示词 marker 和空状态 | 13 | 将 `icon-preset-*` 改为语义 id |
 | `static/icons/forum-preview/*.svg` | 论坛预览 CSS mask | 6 个独立 SVG | 继续保留；CSS 对每个文件存在明确 mask 引用 |
@@ -84,7 +84,6 @@ symbol id 统一使用带 `icon-` 前缀的英文 kebab-case，并优先表达�
 | icon-book-open | icon-detail-worldbook | static/icons/detail.svg | 书本打开 | `templates/components/sidebar.html:65,118`、`templates/modals/detail_card.html:586,2932,2946` | sm/16px、md/20px | 是 |
 | icon-collapse | icon-detail-shrink | static/icons/detail.svg | 收起 | `templates/modals/detail_card.html:228` | sm/16px | 是 |
 | icon-locate-jump | icon-detail-jump-locate | static/icons/detail.svg | 定位跳转 | `templates/modals/detail_card.html:2397` | lg/24px | 是 |
-| icon-brand | icon-detail-brand | static/icons/detail.svg | 品牌 | `templates/components/header.html:16,170`、`templates/components/loading.html:8` | md/20px、lg/24px、3xl/64px | 是 |
 | icon-image | icon-detail-image | static/icons/detail.svg | 图片 | `templates/modals/detail_card.html:153,2741` | sm/16px | 是 |
 | icon-file-name | icon-detail-filename | static/icons/detail.svg | 文件名称 | `templates/modals/automation.html:434,435,436,437`、`templates/modals/detail_card.html:2313`、`tests/test_advanced_editor_icon_contracts.py:107` | sm/16px | 是 |
 | icon-heart-broken | icon-detail-heart-broken | static/icons/detail.svg | 爱心破碎 | `templates/modals/detail_card.html:2590` | lg/24px | 是 |

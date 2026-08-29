@@ -14,7 +14,14 @@
       :aria-pressed="$store.global.visibleSidebar ? 'true' : 'false'"
     >
       <div class="app-icon-mobile" aria-hidden="true">
-        {{ detail_icon('brand', 'ui-icon--md') }}
+        <img
+          src="{{ url_for('static', filename='images/brand/stm-mark.png') }}"
+          alt=""
+          class="app-brand-mark"
+          width="256"
+          height="252"
+          draggable="false"
+        />
       </div>
       <div class="mobile-title">STM</div>
     </button>
@@ -168,7 +175,14 @@
         class="app-icon"
         aria-hidden="true"
       >
-        {{ detail_icon('brand', 'ui-icon--lg') }}
+        <img
+          src="{{ url_for('static', filename='images/brand/stm-mark.png') }}"
+          alt=""
+          class="app-brand-mark"
+          width="256"
+          height="252"
+          draggable="false"
+        />
       </div>
       <div>
         <span

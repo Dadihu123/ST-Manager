@@ -1940,10 +1940,11 @@ html.light-mode .pagination-bar {
   transition: transform 0.3s ease;
 }
 
-.app-icon .ui-icon {
+.app-icon .app-brand-mark {
   /* 品牌标记固定使用 48px 挡位，外层占位保持原有布局。 */
   width: 48px;
   height: 48px;
+  object-fit: contain;
 }
 
 .app-icon:hover {
@@ -2560,10 +2561,11 @@ html.light-mode .header-favorite-btn.is-excluded .header-favorite-icon::after {
     overflow: visible;
   }
 
-  .app-icon-mobile .ui-icon {
+  .app-icon-mobile .app-brand-mark {
     /* 移动端品牌标记固定使用 32px 挡位。 */
     width: 32px;
     height: 32px;
+    object-fit: contain;
   }
   .mobile-title {
     font-weight: 600;

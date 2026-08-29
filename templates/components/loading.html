@@ -1,11 +1,16 @@
-{% from "components/icon.html" import detail_icon %}
-
 <!-- Loading 遮罩 -->
 <div x-show="serverStatus && serverStatus.status !== 'ready'"
     class="fixed inset-0 z-topmost flex flex-col items-center justify-center"
     style="background-color: var(--bg-body); color: var(--text-main);" x-transition.opacity>
-    <div class="mb-4 animate-bounce" aria-hidden="true">
-        {{ detail_icon('brand', 'ui-icon--3xl') }}
+    <div class="mb-4 animate-bounce">
+        <img
+            src="{{ url_for('static', filename='images/brand/stm-lockup.png') }}"
+            alt="ST Manager"
+            class="loading-brand-logo"
+            width="499"
+            height="515"
+            draggable="false"
+        />
     </div>
     <h2 class="text-2xl font-bold mb-2">正在初始化资源库...</h2>
     <p class="mb-6" style="color: var(--text-dim);" x-text="serverStatus ? serverStatus.message : ''"></p>
