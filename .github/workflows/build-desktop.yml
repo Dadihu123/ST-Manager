@@ -34,8 +34,8 @@ jobs:
       - name: Build Windows package
         run: >-
           python -m PyInstaller --clean --noconfirm --onefile
-          --name "ST Manager Pro V101"
-          --icon "软件图标.ico"
+          --name "ST Manager Pro V102"
+          --icon "static/images/brand/stm-mark.png"
           --add-data "templates;templates"
           --add-data "static;static"
           app.py
@@ -43,8 +43,8 @@ jobs:
       - name: Upload Windows package
         uses: actions/upload-artifact@v4
         with:
-          name: ST-Manager-Pro-V101-windows
-          path: dist/ST Manager Pro V101.exe
+          name: ST-Manager-Pro-V102-windows
+          path: dist/ST Manager Pro V102.exe
           if-no-files-found: error
 
   build-macos:
@@ -77,7 +77,7 @@ jobs:
       - name: Build macOS app
         run: |
           python -m PyInstaller --clean --noconfirm --onedir --windowed \
-            --name "ST Manager Pro V101" \
+            --name "ST Manager Pro V102" \
             --target-arch "${{ matrix.arch }}" \
             --icon "软件图标.ico" \
             --add-data "templates:templates" \
@@ -87,12 +87,12 @@ jobs:
       - name: Archive macOS app
         run: |
           ditto -c -k --sequesterRsrc --keepParent \
-            "dist/ST Manager Pro V101.app" \
-            "ST-Manager-Pro-V101-macos-${{ matrix.arch }}.zip"
+            "dist/ST Manager Pro V102.app" \
+            "ST-Manager-Pro-V102-macos-${{ matrix.arch }}.zip"
 
       - name: Upload macOS package
         uses: actions/upload-artifact@v4
         with:
-          name: ST-Manager-Pro-V101-macos-${{ matrix.arch }}
-          path: ST-Manager-Pro-V101-macos-${{ matrix.arch }}.zip
+          name: ST-Manager-Pro-V102-macos-${{ matrix.arch }}
+          path: ST-Manager-Pro-V102-macos-${{ matrix.arch }}.zip
           if-no-files-found: error
