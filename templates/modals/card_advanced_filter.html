@@ -1,3 +1,5 @@
+{% from "components/styled_select.html" import styled_select %}
+
 <div
   x-data="cardAdvancedFilter"
   x-show="showCardAdvancedFilterDrawer && isCardsMode"
@@ -102,18 +104,23 @@
             <div class="card-advanced-filter-field-grid">
               <label>
                 搜索范围
-                <select
-                  x-model="draft.searchScope"
-                  @change="syncValidationState()"
-                >
+                {% call styled_select(
+                  "draft.searchScope",
+                  source_attrs='@change="syncValidationState()"',
+                  aria_label="搜索范围"
+                ) %}
                   <option value="current">当前目录</option>
                   <option value="all_dirs">全部目录</option>
                   <option value="full">全量</option>
-                </select>
+                {% endcall %}
               </label>
               <label>
                 当前列表排序
-                <select x-model="draft.sort" @change="syncValidationState()">
+                {% call styled_select(
+                  "draft.sort",
+                  source_attrs='@change="syncValidationState()"',
+                  aria_label="当前列表排序"
+                ) %}
                   <option value="date_desc">修改日期 (新→旧)</option>
                   <option value="date_asc">修改日期 (旧→新)</option>
                   <option value="import_desc">导入日期 (新→旧)</option>
@@ -122,7 +129,7 @@
                   <option value="name_desc">名称 (Z→A)</option>
                   <option value="token_desc">Token (大→小)</option>
                   <option value="token_asc">Token (小→大)</option>
-                </select>
+                {% endcall %}
               </label>
             </div>
             <div class="card-advanced-filter-toggle-row">
@@ -136,14 +143,15 @@
               </label>
               <label>
                 收藏筛选
-                <select
-                  x-model="draft.favFilter"
-                  @change="syncValidationState()"
-                >
+                {% call styled_select(
+                  "draft.favFilter",
+                  source_attrs='@change="syncValidationState()"',
+                  aria_label="收藏筛选"
+                ) %}
                   <option value="none">显示全部</option>
                   <option value="included">只看收藏</option>
                   <option value="excluded">排除收藏</option>
-                </select>
+                {% endcall %}
               </label>
             </div>
           </section>

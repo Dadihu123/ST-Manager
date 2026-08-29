@@ -1,4 +1,5 @@
 {% from "components/icon.html" import icon, sidebar_icon, detail_icon %}
+{% from "components/styled_select.html" import styled_select_controlled %}
 
 <script src="https://cdn.bootcdn.net/ajax/libs/jquery/3.7.1/jquery.js"></script>
 
@@ -956,12 +957,19 @@
                                         <div class="chat-reader-regex-depth-grid">
                                             <label class="chat-reader-field">
                                                 <span>阅读器深度模式</span>
-                                                <select class="form-input" :value="selectedActiveRegexRule.readerDepthMode || ''" @change="updateSelectedActiveRegexRuleDepthMode($event.target.value)">
+                                                {% call styled_select_controlled(
+                                                    "selectedActiveRegexRule.readerDepthMode || ''",
+                                                    "updateSelectedActiveRegexRuleDepthMode(option.value)",
+                                                    wrapper_class="form-input",
+                                                    trigger_class="text-sm",
+                                                    menu_class="icon-select-menu--fit",
+                                                    aria_label="阅读器深度模式"
+                                                ) %}
                                                     <option value="">关闭</option>
                                                     <option value="anchor_abs">锚点绝对距离</option>
                                                     <option value="anchor_backward">仅锚点之前</option>
                                                     <option value="anchor_relative">锚点相对距离</option>
-                                                </select>
+                                                {% endcall %}
                                             </label>
                                             <label class="chat-reader-field">
                                                 <span>阅读器最小深度</span>
@@ -1110,12 +1118,19 @@
                                         <div class="chat-reader-regex-depth-grid">
                                             <label class="chat-reader-field">
                                                 <span>阅读器深度模式</span>
-                                                <select class="form-input" :value="selectedDraftRegexRule.readerDepthMode || ''" @change="updateRegexDisplayRuleDepthMode(selectedDraftRegexRuleIndexSafe, $event.target.value)">
+                                                {% call styled_select_controlled(
+                                                    "selectedDraftRegexRule.readerDepthMode || ''",
+                                                    "updateRegexDisplayRuleDepthMode(selectedDraftRegexRuleIndexSafe, option.value)",
+                                                    wrapper_class="form-input",
+                                                    trigger_class="text-sm",
+                                                    menu_class="icon-select-menu--fit",
+                                                    aria_label="阅读器深度模式"
+                                                ) %}
                                                     <option value="">关闭</option>
                                                     <option value="anchor_abs">锚点绝对距离</option>
                                                     <option value="anchor_backward">仅锚点之前</option>
                                                     <option value="anchor_relative">锚点相对距离</option>
-                                                </select>
+                                                {% endcall %}
                                             </label>
                                             <label class="chat-reader-field">
                                                 <span>阅读器最小深度</span>

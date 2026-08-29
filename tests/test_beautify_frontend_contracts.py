@@ -951,8 +951,8 @@ def test_beautify_grid_platform_selector_does_not_optimistically_mutate_active_v
 
     assert 'x-model="activeVariant.platform"' not in template
     assert "x-model='activeVariant.platform'" not in template
-    assert '@change="updateCurrentVariantPlatform($event.target.value)"' in template or "@change='updateCurrentVariantPlatform($event.target.value)'" in template
-    assert ':value="activeVariant?.platform || \"pc\""' in template or ":value='activeVariant?.platform || \"pc\"'" in template or ':value="activeVariant?.platform || \'pc\'"' in template
+    assert 'updateCurrentVariantPlatform(option.value)' in template
+    assert '"activeVariant?.platform || \'pc\'"' in template
 
 
 def test_beautify_grid_source_tracks_workspace_screenshot_and_settings_methods():
@@ -3784,7 +3784,7 @@ def test_beautify_grid_exposes_variant_selector_markup():
     template = read_project_file('templates/components/grid_beautify.html')
 
     assert 'x-show="variantOptions.length > 0"' in template
-    assert 'x-model="selectedVariantId"' in template
+    assert '"selectedVariantId",' in template
     assert '@change="selectVariant($event.target.value)"' in template
     assert '<option value="">选择具体变体</option>' in template
     assert 'x-for="variant in variantOptions"' in template

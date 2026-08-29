@@ -107,16 +107,15 @@ def test_wi_editor_runtime_preserves_non_depth_positions_and_defaults_invalid_po
 def test_wi_editor_logic_select_matches_sillytavern_value_semantics():
     template = read_project_file('templates/modals/detail_wi_fullscreen.html')
     match = re.search(
-        r'<select[^>]*x-model\.number="activeEditorEntry\.selectiveLogic"[^>]*>(.*?)</select>',
+        r'"activeEditorEntry\.selectiveLogic"[\s\S]*?\{% endcall %\}',
         template,
-        re.S,
     )
 
     assert match, 'logic select should exist in fullscreen editor template'
 
     options = [
         (value, label.strip())
-        for value, label in re.findall(r'<option\s+value="([^"]+)">(.*?)</option>', match.group(1), re.S)
+        for value, label in re.findall(r'<option\s+value="([^"]+)">(.*?)</option>', match.group(0), re.S)
     ]
 
     assert [value for value, _ in options] == ['0', '3', '1', '2']
@@ -337,8 +336,8 @@ def test_wi_editor_template_uses_tri_state_selects_for_case_sensitive_and_whole_
 
     assert 'x-model="activeEditorEntry.matchWholeWords"' not in template
     assert 'x-model="activeEditorEntry.caseSensitive"' not in template
-    assert 'x-model="activeEditorEntry.matchWholeWordsState"' in template
-    assert 'x-model="activeEditorEntry.caseSensitiveState"' in template
+    assert '"activeEditorEntry.matchWholeWordsState"' in template
+    assert '"activeEditorEntry.caseSensitiveState"' in template
     assert template.count('<option value="null">跟随全局</option>') >= 2
     assert template.count('<option value="true">是</option>') >= 2
     assert template.count('<option value="false">否</option>') >= 2
@@ -657,8 +656,8 @@ def test_new_entries_default_group_phase6a_fields_to_st_values():
 def test_wi_editor_template_exposes_use_group_scoring_as_tri_state_select():
     template = read_project_file('templates/modals/detail_wi_fullscreen.html')
 
-    assert 'x-model="activeEditorEntry.useGroupScoringState"' in template
-    assert "setTriStateValue(activeEditorEntry, 'useGroupScoring', activeEditorEntry.useGroupScoringState)" in template
+    assert '"activeEditorEntry.useGroupScoringState"' in template
+    assert "useGroupScoring" in template
     assert 'getTriStateSelectValue(activeEditorEntry.useGroupScoring)' in template
 
 

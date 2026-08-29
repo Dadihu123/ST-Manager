@@ -1,4 +1,5 @@
 {% from "components/icon.html" import icon, sidebar_icon %}
+{% from "components/styled_select.html" import styled_select %}
 
 <!-- 世界书阅览室 (Reader Modal) -->
 <div
@@ -157,15 +158,18 @@
         x-show="$store.global.deviceType !== 'mobile'"
       >
         <span class="wi-sort-label">排序</span>
-        <select
-          x-model="wiSortMode"
-          @change="setWiSortMode($event.target.value)"
-          aria-label="世界书条目排序方式"
-        >
+        {% call styled_select(
+          "wiSortMode",
+          wrapper_class="icon-select--tiny",
+          trigger_class="icon-select-trigger--tiny",
+          menu_class="icon-select-menu--fit",
+          source_attrs='@change="setWiSortMode($event.target.value)"',
+          aria_label="世界书条目排序方式"
+        ) %}
           <template x-for="option in wiSortOptions" :key="option.value">
             <option :value="option.value" x-text="option.label"></option>
           </template>
-        </select>
+        {% endcall %}
       </label>
 
       <div

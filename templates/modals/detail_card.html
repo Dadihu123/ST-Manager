@@ -1,5 +1,6 @@
 {% from "components/icon.html" import icon, sidebar_icon %}
 {% from "components/icon.html" import detail_icon %}
+{% from "components/styled_select.html" import styled_select %}
 
 <!-- 详情页模态框 (Refactored) -->
 <div
@@ -2497,16 +2498,19 @@
                               {{ detail_icon('archive-new', 'ui-icon--md') }}
                             </span>
                           </span>
-                          <select
-                            id="detail-update-policy"
-                            x-model="updateImagePolicy"
-                            class="form-input detail-manage-select"
-                          >
+                          {% call styled_select(
+                            "updateImagePolicy",
+                            wrapper_class="form-input detail-manage-select",
+                            trigger_class="text-sm",
+                            menu_class="icon-select-menu--fit",
+                            trigger_id="detail-update-policy",
+                            aria_label="更新策略"
+                          ) %}
                             <option value="overwrite">直接覆盖</option>
                             <option value="keep_image">保留原图，仅更新数据</option>
                             <option value="archive_old">归档旧图后覆盖</option>
                             <option value="archive_new">保留原图，新图归档为皮肤</option>
-                          </select>
+                          {% endcall %}
                         </div>
                         <div class="detail-manage-helper">
                           文件覆盖和 URL 更新会共用这个策略。

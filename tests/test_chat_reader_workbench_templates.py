@@ -1053,7 +1053,7 @@ def test_worldinfo_editor_template_exposes_three_at_depth_role_entries():
     assert '@层级 (User)' in wi_editor_template
     assert '@层级 (Assistant)' in wi_editor_template
     assert 'getEditorPositionSelectValue(activeEditorEntry)' in wi_editor_template
-    assert "updateEditorPositionFromSelect(activeEditorEntry, $event.target.value)" in wi_editor_template
+    assert "updateEditorPositionFromSelect(activeEditorEntry, option.value)" in wi_editor_template
     assert '4 - @层级 (At Depth)' not in wi_editor_template
 
 
@@ -2348,6 +2348,7 @@ def test_mobile_tool_and_custom_modal_variants_prefer_dynamic_viewport_height():
 
 def test_automation_modal_template_exposes_new_action_options_and_structured_inputs():
     automation_template = read_project_file('templates/modals/automation.html')
+    automation_js = read_project_file('static/js/components/automationModal.js')
     rename_block = automation_template.split(
         '<template x-if="action.type === \'rename_file_by_template\'">', 1
     )[1].split('</template>', 1)[0]
@@ -2355,8 +2356,10 @@ def test_automation_modal_template_exposes_new_action_options_and_structured_inp
         '<template x-if="action.type === \'split_category_to_tags\'">', 1
     )[1].split('</template>', 1)[0]
 
-    assert '<option value="rename_file_by_template">模板重命名文件</option>' in automation_template
-    assert '<option value="split_category_to_tags">分类拆分为标签</option>' in automation_template
+    assert "{ value: 'rename_file_by_template', label: '模板重命名文件' }" in automation_js
+    assert "{ value: 'split_category_to_tags', label: '分类拆分为标签' }" in automation_js
+    assert 'class="icon-select-menu" role="listbox" aria-label="执行动作"' in automation_template
+    assert 'actionTypeOptions' in automation_template
     assert "action.type === 'rename_file_by_template'" in automation_template
     assert "action.type === 'split_category_to_tags'" in automation_template
     assert 'x-model="cfg.template"' in rename_block
@@ -2368,7 +2371,7 @@ def test_automation_modal_template_exposes_new_action_options_and_structured_inp
     assert '当前分类路径会自动按 / 拆分' in split_block
     assert '回退模板:' not in split_block
     assert '最大长度:' not in split_block
-    assert '@change="initActionConfig(action)"' in automation_template
+    assert '@click="selectActionType(action, option.value)"' in automation_template
     assert 'x-data="{ cfg: initActionConfig(action) }"' in automation_template
     assert "action.type === 'fetch_forum_tags'" in automation_template
     assert "action.config = { template: '', fallback_template: '', max_length: 120, exclude_category_tags: '' }" not in automation_template

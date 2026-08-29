@@ -1,3 +1,5 @@
+{% from "components/styled_select.html" import styled_select, styled_select_controlled %}
+
 {% macro package_detail_cards() %}
   <div class="beautify-detail-card">
     <div class="beautify-detail-heading">当前变体</div>
@@ -442,16 +444,19 @@
             >
               删除包
             </button>
-            <select
-              class="beautify-filter-select"
-              x-show="activeVariant"
-              :value="activeVariant?.platform || 'pc'"
-              @change="updateCurrentVariantPlatform($event.target.value)"
-            >
+            {% call styled_select_controlled(
+              "activeVariant?.platform || 'pc'",
+              "updateCurrentVariantPlatform(option.value)",
+              wrapper_class="beautify-filter-select",
+              trigger_class="icon-select-trigger--compact",
+              menu_class="icon-select-menu--fit",
+              aria_label="平台",
+              wrapper_attrs='x-show="activeVariant"'
+            ) %}
               <option value="pc">PC</option>
               <option value="mobile">移动端</option>
               <option value="dual">双端</option>
-            </select>
+            {% endcall %}
             <button
               type="button"
               class="beautify-soft-btn"
@@ -512,18 +517,20 @@
               双端
             </button>
           </div>
-          <select
-            class="beautify-filter-select beautify-variant-select"
-            x-show="variantOptions.length > 0"
-            x-model="selectedVariantId"
-            :disabled="stageMode === 'screenshot'"
-            @change="selectVariant($event.target.value)"
-          >
+          {% call styled_select(
+            "selectedVariantId",
+            wrapper_class="beautify-filter-select beautify-variant-select",
+            trigger_class="icon-select-trigger--compact",
+            menu_class="icon-select-menu--fit",
+            aria_label="具体变体",
+            wrapper_attrs='x-show="variantOptions.length > 0"',
+            source_attrs=':disabled="stageMode === \'screenshot\'" @change="selectVariant($event.target.value)"'
+          ) %}
             <option value="">选择具体变体</option>
             <template x-for="variant in variantOptions" :key="variant.id">
               <option :value="variant.id" x-text="variant.label"></option>
             </template>
-          </select>
+          {% endcall %}
           <div class="beautify-stage-actions">
             <button
               type="button"

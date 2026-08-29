@@ -1,4 +1,5 @@
 {% from "components/icon.html" import icon, sidebar_icon %}
+{% from "components/styled_select.html" import styled_select, styled_select_controlled %}
 
 <!-- 全屏世界书编辑器 (UI Refactored & Bug Fixed) -->
 <div
@@ -111,15 +112,18 @@
           x-show="$store.global.deviceType !== 'mobile'"
         >
           <span class="wi-sort-label">排序</span>
-          <select
-            x-model="wiSortMode"
-            @change="setWiSortMode($event.target.value)"
-            aria-label="世界书条目排序方式"
-          >
+          {% call styled_select(
+            "wiSortMode",
+            wrapper_class="icon-select--tiny",
+            trigger_class="icon-select-trigger--tiny",
+            menu_class="icon-select-menu--fit",
+            source_attrs='@change="setWiSortMode($event.target.value)"',
+            aria_label="世界书条目排序方式"
+          ) %}
             <template x-for="option in wiSortOptions" :key="option.value">
               <option :value="option.value" x-text="option.label"></option>
             </template>
-          </select>
+          {% endcall %}
         </label>
 
         <div
@@ -690,11 +694,14 @@
               <div class="props-body text-xs space-y-3">
                 <div class="flex items-center justify-between">
                   <span class="text-gray-500">位置 (Position)</span>
-                  <select
-                    :value="getEditorPositionSelectValue(activeEditorEntry)"
-                    @change="updateEditorPositionFromSelect(activeEditorEntry, $event.target.value)"
-                    class="bg-[var(--bg-body)] border border-[var(--border-light)] rounded px-2 py-1 max-w-[140px]"
-                  >
+                  {% call styled_select_controlled(
+                    "getEditorPositionSelectValue(activeEditorEntry)",
+                    "updateEditorPositionFromSelect(activeEditorEntry, option.value)",
+                    wrapper_class="icon-select--compact max-w-[140px]",
+                    trigger_class="icon-select-trigger--compact text-xs",
+                    menu_class="icon-select-menu--fit",
+                    aria_label="位置 (Position)"
+                  ) %}
                     <option value="0">0 - 角色定义前 (Before Char)</option>
                     <option value="1">1 - 角色定义后 (After Char)</option>
                     <option value="2">2 - 作者注释前 (Before AN)</option>
@@ -705,7 +712,7 @@
                     <option value="4:1">4 - @层级 (User)</option>
                     <option value="4:2">4 - @层级 (Assistant)</option>
                     <option value="7">7 - 输出端 (Outlet)</option>
-                  </select>
+                  {% endcall %}
                 </div>
                 <div class="flex items-center justify-between">
                   <span class="text-gray-500">权重 (Order)</span>
@@ -980,16 +987,20 @@
                     />
                     <span>启用选择过滤</span>
                   </label>
-                  <select
-                    x-model.number="activeEditorEntry.selectiveLogic"
-                    class="bg-[var(--bg-body)] border border-[var(--border-light)] rounded px-2 py-1.5 text-xs flex-1 min-w-0 hover:border-accent-main transition-colors cursor-pointer"
-                    :disabled="!activeEditorEntry.selective"
-                  >
+                  {% call styled_select(
+                    "activeEditorEntry.selectiveLogic",
+                    model_modifier=".number",
+                    wrapper_class="flex-1 min-w-0",
+                    trigger_class="icon-select-trigger--compact text-xs",
+                    menu_class="icon-select-menu--fit",
+                    source_attrs=':disabled="!activeEditorEntry.selective"',
+                    aria_label="逻辑模式 (Logic)"
+                  ) %}
                     <option value="0">0 - AND ANY (任一副关键词命中)</option>
                     <option value="3">3 - AND ALL (全部副关键词命中)</option>
                     <option value="1">1 - NOT ALL (存在未命中即可)</option>
                     <option value="2">2 - NOT ANY (全部副关键词未命中)</option>
-                  </select>
+                  {% endcall %}
                 </div>
 
                 <div
@@ -1002,16 +1013,18 @@
                       class="text-xs text-gray-400 group-hover:text-gray-200"
                       >全词匹配 (Whole Words)</span
                     >
-                    <select
-                      x-model="activeEditorEntry.matchWholeWordsState"
-                      @change="setTriStateValue(activeEditorEntry, 'matchWholeWords', activeEditorEntry.matchWholeWordsState)"
-                      x-init="activeEditorEntry.matchWholeWordsState = getTriStateSelectValue(activeEditorEntry.matchWholeWords)"
-                      class="bg-[var(--bg-body)] border border-[var(--border-light)] rounded px-2 py-1 text-xs min-w-[88px]"
-                    >
+                    {% call styled_select(
+                      "activeEditorEntry.matchWholeWordsState",
+                      wrapper_class="icon-select--compact min-w-[88px]",
+                      trigger_class="icon-select-trigger--compact text-xs",
+                      menu_class="icon-select-menu--fit",
+                      source_attrs='@change="setTriStateValue(activeEditorEntry, \'matchWholeWords\', activeEditorEntry.matchWholeWordsState)" x-init="activeEditorEntry.matchWholeWordsState = getTriStateSelectValue(activeEditorEntry.matchWholeWords)"',
+                      aria_label="全词匹配 (Whole Words)"
+                    ) %}
                       <option value="null">跟随全局</option>
                       <option value="true">是</option>
                       <option value="false">否</option>
-                    </select>
+                    {% endcall %}
                   </label>
                   <label
                     class="flex items-center justify-between cursor-pointer p-1.5 hover:bg-[var(--bg-hover)] rounded group transition-colors"
@@ -1020,16 +1033,18 @@
                       class="text-xs text-gray-400 group-hover:text-gray-200"
                       >区分大小写 (Case Sensitive)</span
                     >
-                    <select
-                      x-model="activeEditorEntry.caseSensitiveState"
-                      @change="setTriStateValue(activeEditorEntry, 'caseSensitive', activeEditorEntry.caseSensitiveState)"
-                      x-init="activeEditorEntry.caseSensitiveState = getTriStateSelectValue(activeEditorEntry.caseSensitive)"
-                      class="bg-[var(--bg-body)] border border-[var(--border-light)] rounded px-2 py-1 text-xs min-w-[88px]"
-                    >
+                    {% call styled_select(
+                      "activeEditorEntry.caseSensitiveState",
+                      wrapper_class="icon-select--compact min-w-[88px]",
+                      trigger_class="icon-select-trigger--compact text-xs",
+                      menu_class="icon-select-menu--fit",
+                      source_attrs='@change="setTriStateValue(activeEditorEntry, \'caseSensitive\', activeEditorEntry.caseSensitiveState)" x-init="activeEditorEntry.caseSensitiveState = getTriStateSelectValue(activeEditorEntry.caseSensitive)"',
+                      aria_label="区分大小写 (Case Sensitive)"
+                    ) %}
                       <option value="null">跟随全局</option>
                       <option value="true">是</option>
                       <option value="false">否</option>
-                    </select>
+                    {% endcall %}
                   </label>
                   <label
                     class="flex items-center justify-between cursor-pointer p-1.5 hover:bg-[var(--bg-hover)] rounded group transition-colors"
@@ -1399,16 +1414,18 @@
                     <span class="text-xs text-gray-400 whitespace-nowrap"
                       >Group Scoring</span
                     >
-                    <select
-                      x-model="activeEditorEntry.useGroupScoringState"
-                      @change="setTriStateValue(activeEditorEntry, 'useGroupScoring', activeEditorEntry.useGroupScoringState)"
-                      x-init="activeEditorEntry.useGroupScoringState = getTriStateSelectValue(activeEditorEntry.useGroupScoring)"
-                      class="bg-[var(--bg-body)] border border-[var(--border-light)] rounded px-2 py-1 text-xs min-w-[96px]"
-                    >
+                    {% call styled_select(
+                      "activeEditorEntry.useGroupScoringState",
+                      wrapper_class="icon-select--compact min-w-[96px]",
+                      trigger_class="icon-select-trigger--compact text-xs",
+                      menu_class="icon-select-menu--fit",
+                      source_attrs='@change="setTriStateValue(activeEditorEntry, \'useGroupScoring\', activeEditorEntry.useGroupScoringState)" x-init="activeEditorEntry.useGroupScoringState = getTriStateSelectValue(activeEditorEntry.useGroupScoring)"',
+                      aria_label="Group Scoring"
+                    ) %}
                       <option value="null">跟随全局</option>
                       <option value="true">是</option>
                       <option value="false">否</option>
-                    </select>
+                    {% endcall %}
                   </div>
                   <div class="flex items-center justify-between gap-3">
                     <span class="text-xs text-gray-400 whitespace-nowrap"
@@ -1728,13 +1745,16 @@
 
             <div class="flex items-center gap-3">
               <label class="text-[12px] text-[var(--text-dim)]">范围</label>
-              <select
-                x-model="findReplaceScope"
-                class="px-2 py-1 rounded bg-[var(--bg-body)] border border-[var(--border-light)] text-xs focus:border-[var(--accent-main)] outline-none"
-              >
+              {% call styled_select(
+                "findReplaceScope",
+                wrapper_class="icon-select--compact",
+                trigger_class="icon-select-trigger--compact text-xs",
+                menu_class="icon-select-menu--fit",
+                aria_label="查找替换范围"
+              ) %}
                 <option value="current">当前条目</option>
                 <option value="all">全部条目</option>
-              </select>
+              {% endcall %}
 
               <label
                 class="ml-2 inline-flex items-center gap-1 text-[11px] text-[var(--text-dim)] cursor-pointer"

@@ -2228,6 +2228,13 @@ html.light-mode .header-favorite-btn.is-excluded .header-favorite-icon::after {
   white-space: normal;
 }
 
+/* Keep the rounded search shell from clipping its open search-type listbox. */
+.header-search-container:has(.icon-select.is-open) {
+  position: relative;
+  z-index: var(--z-dropdown);
+  overflow: visible;
+}
+
 .header-search-container:focus-within {
   border-color: var(--accent-main);
   box-shadow: 0 0 0 2px var(--accent-faint);

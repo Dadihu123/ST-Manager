@@ -137,6 +137,230 @@ html.light-mode .btn-soft-purple:hover {
   min-width: 0;
 }
 
+/*
+ * Native select options cannot render the SVG sprites used by the application.
+ * Keep icon-bearing selects as a small, keyboard-friendly listbox instead.
+ */
+.icon-select {
+  box-sizing: border-box;
+  position: relative;
+  z-index: 0;
+  display: block;
+  min-width: 0;
+  width: 100%;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+}
+
+.icon-select.is-open {
+  z-index: var(--z-dropdown);
+}
+
+.icon-select-trigger {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  min-width: 0;
+  min-height: 2.65rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border-light);
+  border-radius: 0.375rem;
+  background: var(--bg-sub);
+  color: var(--text-main);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.2s, background-color 0.2s, box-shadow 0.2s;
+}
+
+.icon-select-trigger:hover,
+.icon-select-trigger[aria-expanded='true'] {
+  border-color: var(--accent-main);
+  background: var(--bg-panel);
+}
+
+.icon-select-trigger:focus-visible,
+.icon-select-option:focus-visible {
+  outline: 2px solid var(--accent-main);
+  outline-offset: 2px;
+}
+
+.icon-select-trigger-icon,
+.icon-select-option-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 1.25rem;
+  width: 1.25rem;
+  height: 1.25rem;
+  color: var(--text-dim);
+}
+
+.icon-select-trigger-icon {
+  flex-basis: 1.1rem;
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+.icon-select-trigger:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
+.icon-select-trigger:disabled:hover,
+.icon-select-trigger[aria-expanded='false']:disabled {
+  border-color: var(--border-light);
+  background: var(--bg-sub);
+}
+
+.icon-select-trigger-icon > *,
+.icon-select-option-icon > * {
+  display: block;
+}
+
+.icon-select-label {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.icon-select-chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  color: var(--text-dim);
+  transition: transform 0.2s ease;
+}
+
+.icon-select-trigger[aria-expanded='true'] .icon-select-chevron {
+  transform: rotate(180deg);
+  color: var(--accent-light);
+}
+
+.icon-select-menu {
+  position: absolute;
+  top: calc(100% + 0.35rem);
+  right: 0;
+  left: 0;
+  z-index: var(--z-dropdown);
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  max-height: 16rem;
+  overflow-y: auto;
+  padding: 0.25rem;
+  border: 1px solid var(--border-light);
+  border-radius: 0.5rem;
+  background: var(--bg-panel);
+  box-shadow: var(--shadow-elevation);
+}
+
+.icon-select-option {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  min-width: 0;
+  min-height: 2.4rem;
+  padding: 0.5rem 0.65rem;
+  border: 0;
+  border-radius: 0.3rem;
+  background: transparent;
+  color: var(--text-main);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.icon-select-group-label {
+  padding: 0.45rem 0.65rem 0.2rem;
+  color: var(--text-dim);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.icon-select-option:hover,
+.icon-select-option[aria-selected='true'] {
+  background: color-mix(in srgb, var(--accent-main), transparent 84%);
+  color: var(--text-main);
+}
+
+.icon-select-option[aria-selected='true'] .icon-select-option-icon {
+  color: var(--accent-light);
+}
+
+.icon-select-option:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.icon-select-source {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  margin: -1px !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  clip: rect(0 0 0 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+.icon-select-option-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.icon-select--compact {
+  width: auto;
+}
+
+.icon-select--tiny {
+  width: auto;
+  min-width: 6.4rem;
+}
+
+.icon-select-trigger--compact {
+  min-height: 2rem;
+  padding: 0.35rem 0.55rem;
+  font-size: 0.75rem;
+}
+
+.icon-select-trigger--tiny {
+  min-height: 1.6rem;
+  padding: 0.2rem 0.35rem;
+  font-size: 0.72rem;
+}
+
+.icon-select-menu--fit {
+  right: auto;
+  width: max-content;
+  min-width: 100%;
+  max-width: min(22rem, calc(100vw - 2rem));
+}
+
+.icon-select-option-wrap {
+  display: contents;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .icon-select-trigger,
+  .icon-select-chevron,
+  .icon-select-option {
+    transition: none;
+  }
+}
+
 input[type="checkbox"] {
   cursor: pointer;
   accent-color: var(--accent-main);

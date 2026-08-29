@@ -1,4 +1,5 @@
 {% from "components/icon.html" import icon, sidebar_icon, detail_icon %}
+{% from "components/styled_select.html" import styled_select %}
 
 <!-- 自动化规则管理器 -->
 <div x-show="showAutomationModal" x-data="automationModal" x-cloak class="modal-overlay z-modal-std"
@@ -142,11 +143,11 @@
                                         <span
                                             x-text="(activeRuleSet?.id && globalRulesetId === activeRuleSet?.id) ? '已激活' : '设为全局'"></span>
                                     </button>
-                                    <!-- 语法帮助按钮 -->
+                                    <!-- 语法帮助按钮；图标自身带圆形元素，不再叠加外边框 -->
                                     <button @click="openHelpTab('conditions')"
-                                        class="w-6 h-6 flex items-center justify-center rounded-full border border-gray-500 text-gray-500 hover:border-blue-400 hover:text-blue-400 hover:bg-blue-400/10 transition-colors ml-2"
+                                        class="automation-help-trigger w-7 h-7 flex items-center justify-center rounded-full text-gray-500 hover:text-blue-400 hover:bg-blue-400/10 transition-colors ml-2"
                                         title="查看规则语法帮助" aria-label="查看规则语法帮助">
-                                        {{ icon('settings-help-entry', 'ui-icon--sm') }}
+                                        {{ icon('settings-help-entry', 'ui-icon--md') }}
                                     </button>
                                 </div>
                                 <input type="text" x-model="editingMeta.description"
@@ -161,7 +162,7 @@
                             </div>
                         </div>
                         <div class="flex gap-2 automation-header-actions">
-                            <button @click="exportCurrentRuleSet()" class="btn-secondary px-3" title="导出 JSON"
+                            <button @click="exportCurrentRuleSet()" class="btn-secondary automation-export-btn" title="导出 JSON"
                                 aria-label="导出规则集">
                                 {{ icon('upload', 'ui-icon--sm') }}
                             </button>
@@ -263,12 +264,16 @@
                                         <div
                                             class="flex items-center gap-2 mb-2 p-2 bg-[var(--bg-sub)] rounded border border-[var(--border-light)]">
                                             <span class="text-xs font-bold text-[var(--text-dim)]">规则逻辑:</span>
-                                            <select x-model="rule.logic"
-                                                class="bg-[var(--bg-panel)] border border-[var(--border-light)] rounded px-2 py-1 text-xs text-[var(--text-main)] outline-none cursor-pointer hover:border-[var(--accent-main)]"
-                                                title="多个条件组之间的关系">
+                                            {% call styled_select(
+                                                "rule.logic",
+                                                wrapper_class="auto-select icon-select--compact",
+                                                trigger_class="icon-select-trigger--tiny text-xs",
+                                                menu_class="icon-select-menu--fit",
+                                                aria_label="规则逻辑"
+                                            ) %}
                                                 <option value="OR">满足任意一个条件组 (OR)</option>
                                                 <option value="AND">必须满足所有条件组 (AND)</option>
-                                            </select>
+                                            {% endcall %}
                                             <span class="text-xs text-[var(--text-dim)]">时触发动作</span>
                                         </div>
                                         <!-- 遍历 Groups -->
@@ -282,11 +287,16 @@
                                                     <div class="flex items-center gap-2">
                                                         <span class="text-xs font-bold text-[var(--text-dim)]"
                                                             x-text="'条件组 ' + (gIdx+1)"></span>
-                                                        <select x-model="group.logic"
-                                                            class="auto-select py-0 px-1 text-xs h-5">
+                                                        {% call styled_select(
+                                                            "group.logic",
+                                                            wrapper_class="auto-select icon-select--compact",
+                                                            trigger_class="icon-select-trigger--tiny text-xs",
+                                                            menu_class="icon-select-menu--fit",
+                                                            aria_label="条件组逻辑"
+                                                        ) %}
                                                             <option value="AND">且 (AND)</option>
                                                             <option value="OR">或 (OR)</option>
-                                                        </select>
+                                                        {% endcall %}
                                                     </div>
                                                     <div class="automation-inline-actions">
                                                         <button type="button" @click="moveGroup(rIdx, gIdx, -1)" class="ui-reorder-button" title="上移条件组" aria-label="上移条件组">{{ icon('arrow-up', 'ui-icon--xs') }}</button>
@@ -301,7 +311,13 @@
                                                     <template x-for="(cond, cIdx) in group.conditions" :key="cIdx">
                                                         <div class="logic-row bg-[var(--bg-panel)]">
                                                             <!-- 字段选择 -->
-                                                            <select x-model="cond.field" class="auto-select w-32">
+                                                            {% call styled_select(
+                                                                "cond.field",
+                                                                wrapper_class="auto-select icon-select--compact w-32",
+                                                                trigger_class="icon-select-trigger--tiny text-xs",
+                                                                menu_class="icon-select-menu--fit",
+                                                                aria_label="条件字段"
+                                                            ) %}
                                                                 <optgroup label="基础信息">
                                                                     <option value="char_name">角色名 (Name)</option>
                                                                     <option value="filename">文件名 (Filename)</option>
@@ -356,7 +372,7 @@
                                                                 <optgroup label="元数据（可能较慢）">
                                                                     <option value="metadata">原始元数据</option>
                                                                 </optgroup>
-                                                            </select>
+                                                            {% endcall %}
 
                                                             <input
                                                                 x-show="cond.field === 'metadata'"
@@ -368,7 +384,13 @@
                                                             >
 
                                                             <!-- 操作符 -->
-                                                            <select x-model="cond.operator" class="auto-select w-28">
+                                                            {% call styled_select(
+                                                                "cond.operator",
+                                                                wrapper_class="auto-select icon-select--compact w-28",
+                                                                trigger_class="icon-select-trigger--tiny text-xs",
+                                                                menu_class="icon-select-menu--fit",
+                                                                aria_label="条件操作符"
+                                                            ) %}
                                                                 <option value="contains">包含</option>
                                                                 <option value="not_contains">不包含</option>
                                                                 <option value="eq">等于</option>
@@ -380,7 +402,7 @@
                                                                 <option value="lt">小于</option>
                                                                 <option value="is_true">是 (True)</option>
                                                                 <option value="is_false">否 (False)</option>
-                                                            </select>
+                                                            {% endcall %}
 
                                                             <!-- 值 -->
                                                             <div class="flex-1">
@@ -420,48 +442,76 @@
                                     <div class="logic-content">
                                         <template x-for="(action, aIdx) in rule.actions" :key="aIdx">
                                             <div class="logic-row" style="border-color: rgba(16, 185, 129, 0.3);">
-                                                <div class="automation-action-type-select">
-                                                    <span class="automation-action-type-icon" aria-hidden="true">
-                                                        <span x-show="action.type === 'move_folder'" x-cloak>{{ sidebar_icon('folder-open', 'ui-icon--sm') }}</span>
-                                                        <span x-show="action.type === 'add_tag'" x-cloak>{{ detail_icon('tags', 'ui-icon--sm') }}</span>
-                                                        <span x-show="action.type === 'remove_tag'" x-cloak>{{ icon('trash', 'ui-icon--sm') }}</span>
-                                                        <span x-show="action.type === 'set_favorite'" x-cloak>{{ icon('heart', 'ui-icon--sm') }}</span>
-                                                        <span x-show="action.type === 'merge_tags'" x-cloak>{{ icon('merge', 'ui-icon--sm') }}</span>
-                                                        <span x-show="action.type === 'fetch_forum_tags'" x-cloak>{{ detail_icon('link-source', 'ui-icon--sm') }}</span>
-                                                        <span x-show="action.type === 'refresh_source_baseline'" x-cloak>{{ detail_icon('clock', 'ui-icon--sm') }}</span>
-                                                        <span x-show="action.type === 'rename_file_by_template'" x-cloak>{{ icon('pencil-edit', 'ui-icon--sm') }}</span>
-                                                        <span x-show="action.type === 'split_category_to_tags'" x-cloak>{{ detail_icon('tags', 'ui-icon--sm') }}</span>
-                                                        <span x-show="action.type === 'set_char_name_from_filename'" x-cloak>{{ detail_icon('file-name', 'ui-icon--sm') }}</span>
-                                                        <span x-show="action.type === 'set_wi_name_from_filename'" x-cloak>{{ detail_icon('file-name', 'ui-icon--sm') }}</span>
-                                                        <span x-show="action.type === 'set_filename_from_char_name'" x-cloak>{{ detail_icon('file-name', 'ui-icon--sm') }}</span>
-                                                        <span x-show="action.type === 'set_filename_from_wi_name'" x-cloak>{{ detail_icon('file-name', 'ui-icon--sm') }}</span>
-                                                    </span>
-                                                    <select x-model="action.type"
-                                                        @change="initActionConfig(action)"
-                                                        class="auto-select automation-action-type-control font-bold text-green-600">
-                                                        <option value="move_folder">移动到...</option>
-                                                        <option value="add_tag">添加标签</option>
-                                                        <option value="remove_tag">移除标签</option>
-                                                        <option value="set_favorite">设为收藏</option>
-                                                        <option value="merge_tags">标签合并</option>
-                                                        <option value="fetch_forum_tags">抓取论坛标签</option>
-                                                        <option value="refresh_source_baseline">刷新来源更新基线</option>
-                                                        <option value="rename_file_by_template">模板重命名文件</option>
-                                                        <option value="split_category_to_tags">分类拆分为标签</option>
-                                                        <option value="set_char_name_from_filename">文件名→角色名</option>
-                                                        <option value="set_wi_name_from_filename">文件名→世界书名</option>
-                                                        <option value="set_filename_from_char_name">角色名→文件名</option>
-                                                        <option value="set_filename_from_wi_name">世界书名→文件名</option>
-                                                    </select>
+                                                <div class="icon-select automation-action-type-select"
+                                                    :class="{ 'is-open': isActionMenuOpen(rIdx, aIdx) }"
+                                                    @click.outside="closeActionMenu()">
+                                                    <button type="button"
+                                                        class="icon-select-trigger automation-action-type-control font-bold text-green-600"
+                                                        :aria-expanded="isActionMenuOpen(rIdx, aIdx).toString()"
+                                                        aria-haspopup="listbox"
+                                                        :aria-controls="'automation-action-options-' + rIdx + '-' + aIdx"
+                                                        @click="toggleActionMenu(rIdx, aIdx)"
+                                                        @keydown.arrow-down.prevent="openActionMenu(rIdx, aIdx)"
+                                                        @keydown.escape.stop="closeActionMenu()">
+                                                        <span class="icon-select-trigger-icon" aria-hidden="true">
+                                                            <span x-show="action.type === 'move_folder'" x-cloak>{{ sidebar_icon('folder-open', 'ui-icon--sm') }}</span>
+                                                            <span x-show="action.type === 'add_tag'" x-cloak>{{ detail_icon('tags', 'ui-icon--sm') }}</span>
+                                                            <span x-show="action.type === 'remove_tag'" x-cloak>{{ icon('trash', 'ui-icon--sm') }}</span>
+                                                            <span x-show="action.type === 'set_favorite'" x-cloak>{{ icon('heart', 'ui-icon--sm') }}</span>
+                                                            <span x-show="action.type === 'merge_tags'" x-cloak>{{ icon('merge', 'ui-icon--sm') }}</span>
+                                                            <span x-show="action.type === 'fetch_forum_tags'" x-cloak>{{ detail_icon('link-source', 'ui-icon--sm') }}</span>
+                                                            <span x-show="action.type === 'refresh_source_baseline'" x-cloak>{{ detail_icon('clock', 'ui-icon--sm') }}</span>
+                                                            <span x-show="action.type === 'rename_file_by_template'" x-cloak>{{ icon('pencil-edit', 'ui-icon--sm') }}</span>
+                                                            <span x-show="action.type === 'split_category_to_tags'" x-cloak>{{ detail_icon('tags', 'ui-icon--sm') }}</span>
+                                                            <span x-show="action.type === 'set_char_name_from_filename'" x-cloak>{{ detail_icon('file-name', 'ui-icon--sm') }}</span>
+                                                            <span x-show="action.type === 'set_wi_name_from_filename'" x-cloak>{{ detail_icon('file-name', 'ui-icon--sm') }}</span>
+                                                            <span x-show="action.type === 'set_filename_from_char_name'" x-cloak>{{ detail_icon('file-name', 'ui-icon--sm') }}</span>
+                                                            <span x-show="action.type === 'set_filename_from_wi_name'" x-cloak>{{ detail_icon('file-name', 'ui-icon--sm') }}</span>
+                                                        </span>
+                                                        <span class="icon-select-label" x-text="actionTypeLabel(action.type)"></span>
+                                                        <span class="icon-select-chevron" aria-hidden="true">{{ icon('chevron-down', 'ui-icon--xs') }}</span>
+                                                    </button>
+                                                    <div x-show="isActionMenuOpen(rIdx, aIdx)" x-cloak
+                                                        :id="'automation-action-options-' + rIdx + '-' + aIdx"
+                                                        class="icon-select-menu" role="listbox" aria-label="执行动作">
+                                                        <template x-for="option in actionTypeOptions" :key="option.value">
+                                                            <button type="button" role="option" class="icon-select-option"
+                                                                :aria-selected="(action.type === option.value).toString()"
+                                                                @click="selectActionType(action, option.value)">
+                                                                <span class="icon-select-option-icon" aria-hidden="true">
+                                                                    <span x-show="option.value === 'move_folder'" x-cloak>{{ sidebar_icon('folder-open', 'ui-icon--sm') }}</span>
+                                                                    <span x-show="option.value === 'add_tag'" x-cloak>{{ detail_icon('tags', 'ui-icon--sm') }}</span>
+                                                                    <span x-show="option.value === 'remove_tag'" x-cloak>{{ icon('trash', 'ui-icon--sm') }}</span>
+                                                                    <span x-show="option.value === 'set_favorite'" x-cloak>{{ icon('heart', 'ui-icon--sm') }}</span>
+                                                                    <span x-show="option.value === 'merge_tags'" x-cloak>{{ icon('merge', 'ui-icon--sm') }}</span>
+                                                                    <span x-show="option.value === 'fetch_forum_tags'" x-cloak>{{ detail_icon('link-source', 'ui-icon--sm') }}</span>
+                                                                    <span x-show="option.value === 'refresh_source_baseline'" x-cloak>{{ detail_icon('clock', 'ui-icon--sm') }}</span>
+                                                                    <span x-show="option.value === 'rename_file_by_template'" x-cloak>{{ icon('pencil-edit', 'ui-icon--sm') }}</span>
+                                                                    <span x-show="option.value === 'split_category_to_tags'" x-cloak>{{ detail_icon('tags', 'ui-icon--sm') }}</span>
+                                                                    <span x-show="option.value === 'set_char_name_from_filename'" x-cloak>{{ detail_icon('file-name', 'ui-icon--sm') }}</span>
+                                                                    <span x-show="option.value === 'set_wi_name_from_filename'" x-cloak>{{ detail_icon('file-name', 'ui-icon--sm') }}</span>
+                                                                    <span x-show="option.value === 'set_filename_from_char_name'" x-cloak>{{ detail_icon('file-name', 'ui-icon--sm') }}</span>
+                                                                    <span x-show="option.value === 'set_filename_from_wi_name'" x-cloak>{{ detail_icon('file-name', 'ui-icon--sm') }}</span>
+                                                                </span>
+                                                                <span class="icon-select-option-label" x-text="option.label"></span>
+                                                            </button>
+                                                        </template>
+                                                    </div>
                                                 </div>
 
                                                 <div class="flex-1">
                                                     <!-- 设为收藏 -->
                                                     <template x-if="action.type === 'set_favorite'">
-                                                        <select x-model="action.value" class="auto-select w-full">
+                                                        {% call styled_select(
+                                                            "action.value",
+                                                            wrapper_class="auto-select w-full",
+                                                            trigger_class="icon-select-trigger--compact text-sm",
+                                                            menu_class="icon-select-menu--fit",
+                                                            aria_label="收藏状态"
+                                                        ) %}
                                                             <option value="true">是 (Favorite)</option>
                                                             <option value="false">否 (Unfavorite)</option>
-                                                        </select>
+                                                        {% endcall %}
                                                     </template>
 
                                                     <template x-if="action.type === 'merge_tags'">
@@ -500,10 +550,16 @@
                                                              <!-- 合并模式 -->
                                                              <div class="flex items-center gap-2">
                                                                  <span class="text-xs text-[var(--text-dim)] w-16">合并模式:</span>
-                                                                 <select x-model="cfg.merge_mode" class="auto-select flex-1 text-xs">
+                                                                 {% call styled_select(
+                                                                     "cfg.merge_mode",
+                                                                     wrapper_class="auto-select flex-1 min-w-0",
+                                                                     trigger_class="icon-select-trigger--compact text-xs",
+                                                                     menu_class="icon-select-menu--fit",
+                                                                     aria_label="标签合并模式"
+                                                                 ) %}
                                                                      <option value="merge">合并（与现有标签合并）</option>
                                                                      <option value="replace">替换（清空后添加）</option>
-                                                                 </select>
+                                                                 {% endcall %}
                                                              </div>
                                                               <div class="text-[10px] text-[var(--text-dim)] mt-1 flex items-start gap-1">
                                                                   <span aria-hidden="true">{{ icon('book-tip', 'ui-icon--xs') }}</span>

@@ -8,6 +8,7 @@ export default function batchImportModal() {
         // === 本地状态 ===
         showBatchImportModal: false,
         isLoading: false,
+        openConflictActionKey: null,
         
         batchId: null,          // 后端暂存批次 ID
         targetCategory: '',     // 目标分类
@@ -43,6 +44,7 @@ export default function batchImportModal() {
 
             this.showBatchImportModal = true;
             this.isLoading = false;
+            this.openConflictActionKey = null;
         },
 
         // === 批量操作 ===
@@ -53,6 +55,38 @@ export default function batchImportModal() {
                     item.action = action;
                 }
             });
+            this.openConflictActionKey = null;
+        },
+
+        conflictActionLabel(action) {
+            return {
+                rename: '追加新文件',
+                overwrite: '覆盖旧文件',
+                skip: '跳过不导入'
+            }[action] || '选择处理方式';
+        },
+
+        isConflictActionMenuOpen(index) {
+            return this.openConflictActionKey === index;
+        },
+
+        openConflictActionMenu(index) {
+            this.openConflictActionKey = index;
+        },
+
+        toggleConflictActionMenu(index) {
+            this.openConflictActionKey = this.isConflictActionMenuOpen(index) ? null : index;
+        },
+
+        closeConflictActionMenu() {
+            this.openConflictActionKey = null;
+        },
+
+        selectConflictAction(item, action) {
+            if (!item || !['rename', 'overwrite', 'skip'].includes(action)) return;
+
+            item.action = action;
+            this.openConflictActionKey = null;
         },
 
         // === 提交逻辑 ===
@@ -114,6 +148,7 @@ export default function batchImportModal() {
             this.showBatchImportModal = false;
             this.importItems = [];
             this.batchId = null;
+            this.openConflictActionKey = null;
         },
 
         // === 辅助显示 ===

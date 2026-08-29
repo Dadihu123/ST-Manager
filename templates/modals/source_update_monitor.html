@@ -1,4 +1,5 @@
 {% from "components/icon.html" import icon %}
+{% from "components/styled_select.html" import styled_select %}
 
 <div
   x-data="sourceUpdateMonitor"
@@ -163,10 +164,14 @@
             启用定期检查
           </label>
           <label class="text-xs text-[var(--text-sub)]">调度模式
-            <select x-model="settingsDraft.schedule_mode" class="form-input mt-1 min-h-11 text-sm">
+            {% call styled_select(
+              "settingsDraft.schedule_mode",
+              wrapper_class="form-input mt-1 min-h-11 text-sm",
+              aria_label="调度模式"
+            ) %}
               <option value="manual">仅手动检查</option>
               <option value="daily">每天检查</option>
-            </select>
+            {% endcall %}
           </label>
           <label x-show="settingsDraft.schedule_mode === 'daily'" class="text-xs text-[var(--text-sub)]">每日时间
             <input type="time" x-model="settingsDraft.daily_time" class="form-input mt-1 min-h-11 text-sm" />

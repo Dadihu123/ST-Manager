@@ -44,7 +44,7 @@
                 <template x-for="(item, idx) in importItems" :key="idx">
                     
                     <!-- 卡片容器 -->
-                    <div class="rounded border transition-colors overflow-hidden"
+                    <div class="batch-import-card rounded border transition-colors overflow-hidden"
                         :class="item.status === 'conflict' ? 'bg-[var(--bg-panel)] border-yellow-500/30' : 'bg-[var(--bg-panel)] border-[var(--border-light)]'">
                         
                         <!-- 1. 冲突模式：左右对比布局 -->
@@ -58,17 +58,51 @@
                                 </div>
                                 
                                 <!-- 操作选择 -->
-                                <select x-model="item.action" 
-                                    class="text-xs bg-[var(--bg-panel)] border rounded py-1 px-2 outline-none cursor-pointer"
-                                    :class="{
-                                        'border-yellow-500 text-yellow-500': item.action === 'rename',
-                                        'border-red-500 text-red-400': item.action === 'overwrite',
-                                        'border-gray-500 text-gray-500': item.action === 'skip'
-                                    }">
-                                    <option value="rename">追加新文件</option>
-                                    <option value="overwrite">覆盖旧文件</option>
-                                    <option value="skip">跳过不导入</option>
-                                </select>
+                                <div class="icon-select icon-select--compact batch-import-action-select"
+                                    :class="{ 'is-open': isConflictActionMenuOpen(idx) }"
+                                    @click.outside="closeConflictActionMenu()">
+                                    <button type="button" class="icon-select-trigger icon-select-trigger--compact batch-import-action-trigger"
+                                        :class="{
+                                            'batch-import-action-trigger--rename': item.action === 'rename',
+                                            'batch-import-action-trigger--overwrite': item.action === 'overwrite',
+                                            'batch-import-action-trigger--skip': item.action === 'skip'
+                                        }"
+                                        :aria-expanded="isConflictActionMenuOpen(idx).toString()"
+                                        aria-haspopup="listbox" :aria-controls="'batch-import-action-options-' + idx"
+                                        @click="toggleConflictActionMenu(idx)"
+                                        @keydown.arrow-down.prevent="openConflictActionMenu(idx)"
+                                        @keydown.escape.stop="closeConflictActionMenu()">
+                                        <span class="icon-select-trigger-icon" aria-hidden="true">
+                                            <span x-show="item.action === 'rename'" x-cloak>{{ icon('pencil-edit', 'ui-icon--sm') }}</span>
+                                            <span x-show="item.action === 'overwrite'" x-cloak>{{ detail_icon('overwrite', 'ui-icon--sm') }}</span>
+                                            <span x-show="item.action === 'skip'" x-cloak>{{ icon('forbidden', 'ui-icon--sm') }}</span>
+                                        </span>
+                                        <span class="icon-select-label" x-text="conflictActionLabel(item.action)"></span>
+                                        <span class="icon-select-chevron" aria-hidden="true">{{ icon('chevron-down', 'ui-icon--xs') }}</span>
+                                    </button>
+                                    <div x-show="isConflictActionMenuOpen(idx)" x-cloak
+                                        :id="'batch-import-action-options-' + idx"
+                                        class="icon-select-menu icon-select-menu--fit" role="listbox" aria-label="冲突处理方式">
+                                        <button type="button" role="option" class="icon-select-option"
+                                            :aria-selected="(item.action === 'rename').toString()"
+                                            @click="selectConflictAction(item, 'rename')">
+                                            <span class="icon-select-option-icon" aria-hidden="true">{{ icon('pencil-edit', 'ui-icon--sm') }}</span>
+                                            <span class="icon-select-option-label">追加新文件</span>
+                                        </button>
+                                        <button type="button" role="option" class="icon-select-option"
+                                            :aria-selected="(item.action === 'overwrite').toString()"
+                                            @click="selectConflictAction(item, 'overwrite')">
+                                            <span class="icon-select-option-icon" aria-hidden="true">{{ detail_icon('overwrite', 'ui-icon--sm') }}</span>
+                                            <span class="icon-select-option-label">覆盖旧文件</span>
+                                        </button>
+                                        <button type="button" role="option" class="icon-select-option"
+                                            :aria-selected="(item.action === 'skip').toString()"
+                                            @click="selectConflictAction(item, 'skip')">
+                                            <span class="icon-select-option-icon" aria-hidden="true">{{ icon('forbidden', 'ui-icon--sm') }}</span>
+                                            <span class="icon-select-option-label">跳过不导入</span>
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
 
                             <!-- 对比区域 -->

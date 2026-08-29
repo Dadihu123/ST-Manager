@@ -1,4 +1,5 @@
 {% from "components/icon.html" import detail_icon, icon %}
+{% from "components/styled_select.html" import styled_select %}
 
 <!-- 设置模态框 (Refactored) -->
 <div
@@ -404,34 +405,42 @@
           <div class="grid grid-cols-2 gap-4">
             <div>
               <label class="settings-label text-sm">角色卡每页数量</label>
-              <select
-                x-model.number="settingsForm.items_per_page"
-                class="form-input mt-1"
-              >
+              {% call styled_select(
+                "settingsForm.items_per_page",
+                model_modifier=".number",
+                wrapper_class="form-input mt-1",
+                aria_label="角色卡每页数量"
+              ) %}
                 <option value="0">自动 (Auto)</option>
                 <option value="20">20 张</option>
                 <option value="40">40 张</option>
                 <option value="100">100 张</option>
                 <option value="200">200 张</option>
-              </select>
+              {% endcall %}
             </div>
             <div>
               <label class="settings-label text-sm">世界书每页数量</label>
-              <select
-                x-model.number="settingsForm.items_per_page_wi"
-                class="form-input mt-1"
-              >
+              {% call styled_select(
+                "settingsForm.items_per_page_wi",
+                model_modifier=".number",
+                wrapper_class="form-input mt-1",
+                aria_label="世界书每页数量"
+              ) %}
                 <option value="0">自动 (Auto)</option>
                 <option value="20">20 本</option>
                 <option value="50">50 本</option>
                 <option value="100">100 本</option>
-              </select>
+              {% endcall %}
             </div>
           </div>
 
           <div class="settings-row mt-4">
             <label class="settings-label text-sm">默认排序方式</label>
-            <select x-model="settingsForm.default_sort" class="form-input mt-1">
+            {% call styled_select(
+              "settingsForm.default_sort",
+              wrapper_class="form-input mt-1",
+              aria_label="默认排序方式"
+            ) %}
               <option value="date_desc">修改日期（新到旧）</option>
               <option value="date_asc">修改日期（旧到新）</option>
               <option value="import_desc">导入日期（新到旧）</option>
@@ -440,7 +449,7 @@
               <option value="name_desc">名称（Z 到 A）</option>
               <option value="token_desc">Token 量（大到小）</option>
               <option value="token_asc">Token 量（小到大）</option>
-            </select>
+            {% endcall %}
             <div class="settings-desc mt-2">
               仅作为初始排序；主界面可临时切换，不会改写此默认值。
             </div>

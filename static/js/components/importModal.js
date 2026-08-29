@@ -12,6 +12,7 @@ export default function importModal() {
         importUrlInput: '',
         importTargetCategory: '', // 默认为空，表示根目录或跟随视图
         conflictData: null, // 冲突数据
+        categoryMenuOpen: false,
 
         get allFoldersList() { 
             return this.$store.global.allFoldersList; 
@@ -25,6 +26,7 @@ export default function importModal() {
                 this.importTargetCategory = e.detail && e.detail.category ? e.detail.category : '';
                 this.importUrlInput = e.detail && e.detail.url ? e.detail.url : '';
                 this.conflictData = null;
+                this.categoryMenuOpen = false;
                 this.showImportUrlModal = true;
             });
 
@@ -41,6 +43,9 @@ export default function importModal() {
                         e.preventDefault();
                         this.resolveConflict('cancel'); // 放弃
                     }
+                } else if (e.key === 'Escape' && this.categoryMenuOpen) {
+                    e.preventDefault();
+                    this.categoryMenuOpen = false;
                 }
             });
         },

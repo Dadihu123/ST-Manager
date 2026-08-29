@@ -1,4 +1,5 @@
 {% from "components/icon.html" import icon %}
+{% from "components/styled_select.html" import styled_select_controlled %}
 
 <!-- 预设详情阅览界面 -->
 <div
@@ -60,15 +61,18 @@
         ></div>
         <div x-show="hasMultipleVersions" class="flex items-center gap-2">
           <label class="sr-only">版本</label>
-          <select
-            class="rounded-lg border border-[var(--border-light)] bg-[var(--bg-panel)] px-2 py-1 text-xs text-[var(--text-main)]"
-            :value="activePresetDetail?.id || ''"
-            @change="switchVersion($event.target.value)"
-          >
+          {% call styled_select_controlled(
+            "activePresetDetail?.id || ''",
+            "switchVersion(option.value)",
+            wrapper_class="icon-select--compact",
+            trigger_class="icon-select-trigger--compact text-xs",
+            menu_class="icon-select-menu--fit",
+            aria_label="版本"
+          ) %}
             <template x-for="version in availableVersions" :key="version.id">
               <option :value="version.id" x-text="version.version_label || version.name || version.id"></option>
             </template>
-          </select>
+          {% endcall %}
         </div>
         <button
           @click="toggleMobileMoreMenu()"
@@ -147,15 +151,18 @@
       <div class="flex items-center gap-2 flex-wrap justify-end">
         <div x-show="hasMultipleVersions" class="flex items-center gap-2">
           <label class="text-[11px] text-[var(--text-dim)]">版本</label>
-          <select
-            class="rounded-lg border border-[var(--border-light)] bg-[var(--bg-panel)] px-2.5 py-1.5 text-xs text-[var(--text-main)]"
-            :value="activePresetDetail?.id || ''"
-            @change="switchVersion($event.target.value)"
-          >
+          {% call styled_select_controlled(
+            "activePresetDetail?.id || ''",
+            "switchVersion(option.value)",
+            wrapper_class="icon-select--compact",
+            trigger_class="icon-select-trigger--compact text-xs",
+            menu_class="icon-select-menu--fit",
+            aria_label="版本"
+          ) %}
             <template x-for="version in availableVersions" :key="version.id">
               <option :value="version.id" x-text="version.version_label || version.name || version.id"></option>
             </template>
-          </select>
+          {% endcall %}
         </div>
         <button
           x-show="canSendActivePresetToST()"

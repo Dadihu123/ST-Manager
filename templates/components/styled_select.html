@@ -1,0 +1,174 @@
+{% from "components/icon.html" import icon %}
+
+{#
+  Shared themed select shell. The native select remains in the DOM as the
+  state/event bridge; only its presentation is replaced by the listbox above.
+  Callers keep their original option markup, including Alpine x-for blocks.
+#}
+{% macro styled_select(model, model_modifier='', wrapper_class='', trigger_class='', source_class='', source_attrs='', menu_class='', trigger_id='', aria_label='', wrapper_attrs='') -%}
+  <div
+    x-data="styledSelect()"
+    x-effect="syncExternalValue({{ model|safe }})"
+    x-id="['styled-select-menu']"
+    class="icon-select{% if wrapper_class %} {{ wrapper_class }}{% endif %}"
+    :class="{ 'is-open': open }"
+    {{ wrapper_attrs|safe }}
+    @click.outside="closeMenu()"
+  >
+    <button
+      type="button"
+      {% if trigger_id %}id="{{ trigger_id }}"{% endif %}
+      x-ref="trigger"
+      class="icon-select-trigger{% if trigger_class %} {{ trigger_class }}{% endif %}"
+      :aria-expanded="open.toString()"
+      {% if aria_label %}aria-label="{{ aria_label }}"{% endif %}
+      :aria-controls="$id('styled-select-menu')"
+      aria-haspopup="listbox"
+      :disabled="disabled"
+      @click="toggle()"
+      @keydown.arrow-down.prevent="openMenu()"
+      @keydown.arrow-up.prevent="openMenu()"
+      @keydown.enter.prevent="toggle()"
+      @keydown.space.prevent="toggle()"
+      @keydown.escape.prevent="closeMenu(true)"
+    >
+      <span class="icon-select-label" x-text="selectedOptionLabel()"></span>
+      <span class="icon-select-chevron" aria-hidden="true">
+        {{ icon('chevron-down', 'ui-icon--xs') }}
+      </span>
+    </button>
+
+    <div
+      x-ref="menu"
+      x-show="open"
+      x-cloak
+      :id="$id('styled-select-menu')"
+      class="icon-select-menu{% if menu_class %} {{ menu_class }}{% endif %}"
+      role="listbox"
+      {% if aria_label %}aria-label="{{ aria_label }}"{% endif %}
+    >
+      <template x-for="option in options" :key="option.key">
+        <div class="icon-select-option-wrap">
+          <div
+            x-show="option.groupStart"
+            class="icon-select-group-label"
+            x-text="option.groupLabel"
+          ></div>
+          <button
+            type="button"
+            role="option"
+            class="icon-select-option"
+            :aria-selected="(String(value) === option.value).toString()"
+            :disabled="option.disabled"
+            x-show="!option.hidden"
+            @click="selectOption(option)"
+            @keydown.arrow-down.prevent="moveOption($event, 1)"
+            @keydown.arrow-up.prevent="moveOption($event, -1)"
+            @keydown.home.prevent="focusOption(0)"
+            @keydown.end.prevent="focusOption(options.length - 1)"
+            @keydown.enter.prevent="selectOption(option)"
+            @keydown.space.prevent="selectOption(option)"
+            @keydown.escape.prevent="closeMenu(true)"
+          >
+            <span class="icon-select-option-label" x-text="option.label"></span>
+          </button>
+        </div>
+      </template>
+    </div>
+
+    <select
+      x-ref="source"
+      x-model{{ model_modifier }}="{{ model|safe }}"
+      class="icon-select-source{% if source_class %} {{ source_class }}{% endif %}"
+      aria-hidden="true"
+      tabindex="-1"
+      {{ source_attrs|safe }}
+    >
+      {{ caller() }}
+    </select>
+  </div>
+{%- endmacro %}
+
+{% macro styled_select_controlled(value_expression, select_handler, wrapper_class='', trigger_class='', source_class='', source_attrs='', menu_class='', trigger_id='', aria_label='', wrapper_attrs='') -%}
+  <div
+    x-data="styledSelect()"
+    x-effect="syncExternalValue({{ value_expression|safe }})"
+    x-id="['styled-select-menu']"
+    class="icon-select{% if wrapper_class %} {{ wrapper_class }}{% endif %}"
+    :class="{ 'is-open': open }"
+    {{ wrapper_attrs|safe }}
+    @click.outside="closeMenu()"
+  >
+    <button
+      type="button"
+      {% if trigger_id %}id="{{ trigger_id }}"{% endif %}
+      x-ref="trigger"
+      class="icon-select-trigger{% if trigger_class %} {{ trigger_class }}{% endif %}"
+      :aria-expanded="open.toString()"
+      {% if aria_label %}aria-label="{{ aria_label }}"{% endif %}
+      :aria-controls="$id('styled-select-menu')"
+      aria-haspopup="listbox"
+      :disabled="disabled"
+      @click="toggle()"
+      @keydown.arrow-down.prevent="openMenu()"
+      @keydown.arrow-up.prevent="openMenu()"
+      @keydown.enter.prevent="toggle()"
+      @keydown.space.prevent="toggle()"
+      @keydown.escape.prevent="closeMenu(true)"
+    >
+      <span class="icon-select-label" x-text="selectedOptionLabel()"></span>
+      <span class="icon-select-chevron" aria-hidden="true">
+        {{ icon('chevron-down', 'ui-icon--xs') }}
+      </span>
+    </button>
+
+    <div
+      x-ref="menu"
+      x-show="open"
+      x-cloak
+      :id="$id('styled-select-menu')"
+      class="icon-select-menu{% if menu_class %} {{ menu_class }}{% endif %}"
+      role="listbox"
+      {% if aria_label %}aria-label="{{ aria_label }}"{% endif %}
+    >
+      <template x-for="option in options" :key="option.key">
+        <div class="icon-select-option-wrap">
+          <div
+            x-show="option.groupStart"
+            class="icon-select-group-label"
+            x-text="option.groupLabel"
+          ></div>
+          <button
+            type="button"
+            role="option"
+            class="icon-select-option"
+            :aria-selected="(String(value) === option.value).toString()"
+            :disabled="option.disabled"
+            x-show="!option.hidden"
+            @click="selectOption(option, false); {{ select_handler|safe }}"
+            @keydown.arrow-down.prevent="moveOption($event, 1)"
+            @keydown.arrow-up.prevent="moveOption($event, -1)"
+            @keydown.home.prevent="focusOption(0)"
+            @keydown.end.prevent="focusOption(options.length - 1)"
+            @keydown.enter.prevent="selectOption(option, false); {{ select_handler|safe }}"
+            @keydown.space.prevent="selectOption(option, false); {{ select_handler|safe }}"
+            @keydown.escape.prevent="closeMenu(true)"
+          >
+            <span class="icon-select-option-label" x-text="option.label"></span>
+          </button>
+        </div>
+      </template>
+    </div>
+
+    <select
+      x-ref="source"
+      x-model="value"
+      class="icon-select-source{% if source_class %} {{ source_class }}{% endif %}"
+      aria-hidden="true"
+      tabindex="-1"
+      {{ source_attrs|safe }}
+    >
+      {{ caller() }}
+    </select>
+  </div>
+{%- endmacro %}

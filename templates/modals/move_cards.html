@@ -3,9 +3,9 @@
 <!-- 移动卡片弹窗 -->
 <div x-data="moveCardsModal" x-show="showMoveCardsModal" x-cloak class="modal-overlay z-modal-popover"
     @click.self="showMoveCardsModal = false">
-    <div style="background: var(--bg-panel); padding: 0; border-radius: 1rem; width: 90vw; max-width: 400px; border: 1px solid var(--border-light); box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5); overflow: hidden; display: flex; flex-direction: column;">
+    <div style="background: var(--bg-panel); padding: 0; border-radius: 1rem; width: 90vw; max-width: 400px; border: 1px solid var(--border-light); box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5); overflow: visible; display: flex; flex-direction: column;">
         <!-- Header -->
-        <div style="padding: 1rem 1.25rem; background: var(--bg-sub); border-bottom: 1px solid var(--border-light);">
+        <div style="padding: 1rem 1.25rem; background: var(--bg-sub); border-bottom: 1px solid var(--border-light); border-radius: 1rem 1rem 0 0;">
             <h3 style="font-weight: bold; color: var(--text-main); font-size: 1rem; display: flex; align-items: center; gap: 0.5rem;">
                 <span aria-hidden="true">{{ sidebar_icon('folder-open', 'ui-icon--md') }}</span>
                 <span>移动到文件夹</span>
@@ -19,19 +19,43 @@
                         <span aria-hidden="true">{{ detail_icon('locate', 'ui-icon--sm') }}</span>
                         <span>选择目标文件夹</span>
                     </label>
-                    <div class="relative">
-                        <div class="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-dim)] pointer-events-none" aria-hidden="true">
-                            <span x-show="targetCategory === ''" x-cloak>{{ sidebar_icon('folder-open', 'ui-icon--sm') }}</span>
-                            <span x-show="targetCategory === '根目录'" x-cloak>{{ icon('folder-root', 'ui-icon--sm') }}</span>
-                            <span x-show="targetCategory !== '' && targetCategory !== '根目录'" x-cloak>{{ sidebar_icon('folder-solid', 'ui-icon--sm') }}</span>
-                        </div>
-                        <select x-model="targetCategory" class="form-input" style="width: 100%; padding-left: 2.5rem; font-size: 0.875rem;">
-                            <option value="">(当前浏览目录)</option>
-                            <option value="根目录">根目录</option>
+                    <div class="icon-select" :class="{ 'is-open': categoryMenuOpen }" @click.outside="categoryMenuOpen = false">
+                        <button type="button" class="icon-select-trigger text-sm" :aria-expanded="categoryMenuOpen.toString()"
+                            aria-haspopup="listbox" aria-controls="move-category-options"
+                            @click="categoryMenuOpen = !categoryMenuOpen"
+                            @keydown.arrow-down.prevent="categoryMenuOpen = true"
+                            @keydown.escape.stop="categoryMenuOpen = false">
+                            <span class="icon-select-trigger-icon" aria-hidden="true">
+                                <span x-show="targetCategory === ''" x-cloak>{{ sidebar_icon('folder-open', 'ui-icon--sm') }}</span>
+                                <span x-show="targetCategory === '根目录'" x-cloak>{{ icon('folder-root', 'ui-icon--sm') }}</span>
+                                <span x-show="targetCategory !== '' && targetCategory !== '根目录'" x-cloak>{{ sidebar_icon('folder-solid', 'ui-icon--sm') }}</span>
+                            </span>
+                            <span class="icon-select-label" x-text="targetCategory || '(当前浏览目录)'"></span>
+                            <span class="icon-select-chevron" aria-hidden="true">{{ icon('chevron-down', 'ui-icon--xs') }}</span>
+                        </button>
+                        <div id="move-category-options" x-show="categoryMenuOpen" x-cloak class="icon-select-menu"
+                            role="listbox" aria-label="选择目标文件夹">
+                            <button type="button" role="option" class="icon-select-option"
+                                :aria-selected="(targetCategory === '').toString()"
+                                @click="targetCategory = ''; categoryMenuOpen = false">
+                                <span class="icon-select-option-icon" aria-hidden="true">{{ sidebar_icon('folder-open', 'ui-icon--sm') }}</span>
+                                <span class="icon-select-option-label">(当前浏览目录)</span>
+                            </button>
+                            <button type="button" role="option" class="icon-select-option"
+                                :aria-selected="(targetCategory === '根目录').toString()"
+                                @click="targetCategory = '根目录'; categoryMenuOpen = false">
+                                <span class="icon-select-option-icon" aria-hidden="true">{{ icon('folder-root', 'ui-icon--sm') }}</span>
+                                <span class="icon-select-option-label">根目录</span>
+                            </button>
                             <template x-for="folder in allFoldersList" :key="folder.path">
-                                <option :value="folder.path" x-text="folder.path"></option>
+                                <button type="button" role="option" class="icon-select-option"
+                                    :aria-selected="(targetCategory === folder.path).toString()"
+                                    @click="targetCategory = folder.path; categoryMenuOpen = false">
+                                    <span class="icon-select-option-icon" aria-hidden="true">{{ sidebar_icon('folder-solid', 'ui-icon--sm') }}</span>
+                                    <span class="icon-select-option-label" x-text="folder.path"></span>
+                                </button>
                             </template>
-                        </select>
+                        </div>
                     </div>
                     <div style="font-size: 0.75rem; color: var(--text-dim); margin-top: 0.5rem;">
                         将移动 <span x-text="cardIds.length" style="font-weight: bold;"></span> 张卡片

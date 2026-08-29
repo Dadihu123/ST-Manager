@@ -2,11 +2,11 @@
 
 <!-- URL 导入模态框 -->
 <div x-data="importModal" x-show="showImportUrlModal" x-cloak class="modal-overlay z-modal-popover">
-    <div style="background: var(--bg-panel); padding: 0; border-radius: 1rem; width: 36rem; border: 1px solid var(--border-light); box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.3); overflow: hidden; display: flex; flex-direction: column;"
+    <div style="background: var(--bg-panel); padding: 0; border-radius: 1rem; width: 36rem; border: 1px solid var(--border-light); box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.3); overflow: visible; display: flex; flex-direction: column;"
         @click.away="if(!conflictData) showImportUrlModal=false">
         
         <!-- Header -->
-        <div style="padding: 1.25rem 1.5rem; background: var(--bg-item); border-bottom: 1px solid var(--border-light);">
+        <div style="padding: 1.25rem 1.5rem; background: var(--bg-item); border-bottom: 1px solid var(--border-light); border-radius: 1rem 1rem 0 0;">
             <h3 style="font-weight: bold; color: var(--text-main); font-size: 1.125rem; display: flex; align-items: center; gap: 0.5rem;">
                 <span x-show="!conflictData" class="inline-flex items-center gap-2">
                     <span aria-hidden="true">{{ icon('link-import', 'ui-icon--md') }}</span>
@@ -39,19 +39,43 @@
                         <span aria-hidden="true">{{ detail_icon('locate', 'ui-icon--sm') }}</span>
                         <span>保存位置</span>
                     </label>
-                    <div class="relative">
-                        <div class="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-dim)] pointer-events-none" aria-hidden="true">
-                            <span x-show="importTargetCategory === ''" x-cloak>{{ sidebar_icon('folder-open', 'ui-icon--sm') }}</span>
-                            <span x-show="importTargetCategory === '根目录'" x-cloak>{{ icon('folder-root', 'ui-icon--sm') }}</span>
-                            <span x-show="importTargetCategory !== '' && importTargetCategory !== '根目录'" x-cloak>{{ sidebar_icon('folder-solid', 'ui-icon--sm') }}</span>
-                        </div>
-                        <select x-model="importTargetCategory" class="form-input" style="width: 100%; padding-left: 2.5rem;">
-                            <option value="">(当前浏览目录)</option>
-                            <option value="根目录">根目录</option>
+                    <div class="icon-select" :class="{ 'is-open': categoryMenuOpen }" @click.outside="categoryMenuOpen = false">
+                        <button type="button" class="icon-select-trigger" :aria-expanded="categoryMenuOpen.toString()"
+                            aria-haspopup="listbox" aria-controls="import-category-options"
+                            @click="categoryMenuOpen = !categoryMenuOpen"
+                            @keydown.arrow-down.prevent="categoryMenuOpen = true"
+                            @keydown.escape.stop="categoryMenuOpen = false">
+                            <span class="icon-select-trigger-icon" aria-hidden="true">
+                                <span x-show="importTargetCategory === ''" x-cloak>{{ sidebar_icon('folder-open', 'ui-icon--sm') }}</span>
+                                <span x-show="importTargetCategory === '根目录'" x-cloak>{{ icon('folder-root', 'ui-icon--sm') }}</span>
+                                <span x-show="importTargetCategory !== '' && importTargetCategory !== '根目录'" x-cloak>{{ sidebar_icon('folder-solid', 'ui-icon--sm') }}</span>
+                            </span>
+                            <span class="icon-select-label" x-text="importTargetCategory || '(当前浏览目录)'"></span>
+                            <span class="icon-select-chevron" aria-hidden="true">{{ icon('chevron-down', 'ui-icon--xs') }}</span>
+                        </button>
+                        <div id="import-category-options" x-show="categoryMenuOpen" x-cloak class="icon-select-menu"
+                            role="listbox" aria-label="保存位置">
+                            <button type="button" role="option" class="icon-select-option"
+                                :aria-selected="(importTargetCategory === '').toString()"
+                                @click="importTargetCategory = ''; categoryMenuOpen = false">
+                                <span class="icon-select-option-icon" aria-hidden="true">{{ sidebar_icon('folder-open', 'ui-icon--sm') }}</span>
+                                <span class="icon-select-option-label">(当前浏览目录)</span>
+                            </button>
+                            <button type="button" role="option" class="icon-select-option"
+                                :aria-selected="(importTargetCategory === '根目录').toString()"
+                                @click="importTargetCategory = '根目录'; categoryMenuOpen = false">
+                                <span class="icon-select-option-icon" aria-hidden="true">{{ icon('folder-root', 'ui-icon--sm') }}</span>
+                                <span class="icon-select-option-label">根目录</span>
+                            </button>
                             <template x-for="folder in allFoldersList" :key="folder.path">
-                                <option :value="folder.path" x-text="folder.path"></option>
+                                <button type="button" role="option" class="icon-select-option"
+                                    :aria-selected="(importTargetCategory === folder.path).toString()"
+                                    @click="importTargetCategory = folder.path; categoryMenuOpen = false">
+                                    <span class="icon-select-option-icon" aria-hidden="true">{{ sidebar_icon('folder-solid', 'ui-icon--sm') }}</span>
+                                    <span class="icon-select-option-label" x-text="folder.path"></span>
+                                </button>
                             </template>
-                        </select>
+                        </div>
                     </div>
                 </div>
 

@@ -69,6 +69,13 @@
   transition: all 0.2s;
 }
 
+/* Let an open shared listbox escape the rounded rule card instead of clipping its menu. */
+.rule-card:has(.icon-select.is-open) {
+  position: relative;
+  z-index: var(--z-dropdown);
+  overflow: visible;
+}
+
 .rule-card:hover {
   border-color: var(--accent-light);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
@@ -132,35 +139,79 @@
 
 .automation-action-type-select {
   position: relative;
-  flex: 0 0 8rem;
-  min-width: 0;
+  flex: 0 1 12rem;
+  min-width: 10rem;
 }
 
-.automation-action-type-icon {
-  position: absolute;
-  z-index: 1;
-  top: 50%;
-  left: 0.5rem;
-  display: flex;
-  width: 16px;
-  height: 16px;
-  align-items: center;
-  justify-content: center;
+.automation-action-type-select .icon-select-menu {
+  top: auto;
+  bottom: calc(100% + 0.35rem);
+  min-width: 15rem;
+}
+
+.automation-action-type-control {
+  min-height: 2.2rem;
+  padding-top: 0.35rem;
+  padding-bottom: 0.35rem;
+}
+
+.automation-action-type-select .icon-select-trigger-icon {
+  color: currentColor;
+}
+
+.automation-action-type-select .icon-select-option-icon {
   color: var(--text-dim);
-  pointer-events: none;
-  transform: translateY(-50%);
 }
 
-.automation-action-type-icon > span {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.automation-action-type-select .icon-select-option[aria-selected='true'] .icon-select-option-icon {
+  color: var(--accent-light);
+}
+
+.automation-help-trigger {
+  flex: 0 0 auto;
+}
+
+.automation-export-btn {
+  padding-right: 0.5rem;
+  padding-left: 0.5rem;
+}
+
+/* The help glyph already contains its own circular shape; do not frame it twice. */
+.automation-help-trigger:focus-visible {
+  outline: 2px solid var(--accent-main);
+  outline-offset: 2px;
 }
 
 .automation-action-type-control {
   width: 100%;
   min-width: 0;
-  padding-left: 2rem;
+}
+
+.batch-import-action-select {
+  min-width: 11rem;
+  max-width: 100%;
+}
+
+/* Batch conflict cards use the same rounded clipping shell as rule cards. */
+.batch-import-card:has(.batch-import-action-select.is-open) {
+  position: relative;
+  z-index: var(--z-dropdown);
+  overflow: visible;
+}
+
+.batch-import-action-trigger--rename {
+  border-color: color-mix(in srgb, var(--color-warn), transparent 20%);
+  color: var(--text-warn);
+}
+
+.batch-import-action-trigger--overwrite {
+  border-color: color-mix(in srgb, var(--color-danger), transparent 20%);
+  color: #f87171;
+}
+
+.batch-import-action-trigger--skip {
+  border-color: var(--border-light);
+  color: var(--text-dim);
 }
 
 .automation-inline-actions {
@@ -491,6 +542,10 @@
   .logic-row > select {
     max-width: 100%;
   }
+  .logic-row > .icon-select {
+    width: 100%;
+    max-width: 100%;
+  }
   .logic-content > div[class*="border"] {
     padding: 0.75rem;
   }
@@ -521,6 +576,9 @@
     padding-bottom: 0.5rem;
   }
   .logic-content > div:first-child > select {
+    width: 100%;
+  }
+  .logic-content > div:first-child > .icon-select {
     width: 100%;
   }
   .auto-header > div:first-child > div:last-child {

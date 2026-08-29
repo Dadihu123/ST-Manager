@@ -25,7 +25,8 @@ def test_preset_merge_modal_template_renders_target_picker_family_name_and_previ
     source = read_project_file('templates/modals/preset_version_merge.html')
 
     assert 'x-data="presetVersionMergeModal"' in source
-    assert 'x-model="selectedTargetId"' in source
+    assert '{% call styled_select(' in source
+    assert '"selectedTargetId",' in source
     assert 'x-for="item in flattenedItems"' in source
     assert 'x-for="item in items"' not in source
     assert 'x-model="familyName"' in source

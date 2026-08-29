@@ -16,6 +16,21 @@ const SUPPORTED_RULE_TRIGGER_CONTEXTS = [
     'link_update',
     'tag_edit'
 ];
+const AUTOMATION_ACTION_OPTIONS = [
+    { value: 'move_folder', label: '移动到...' },
+    { value: 'add_tag', label: '添加标签' },
+    { value: 'remove_tag', label: '移除标签' },
+    { value: 'set_favorite', label: '设为收藏' },
+    { value: 'merge_tags', label: '标签合并' },
+    { value: 'fetch_forum_tags', label: '抓取论坛标签' },
+    { value: 'refresh_source_baseline', label: '刷新来源更新基线' },
+    { value: 'rename_file_by_template', label: '模板重命名文件' },
+    { value: 'split_category_to_tags', label: '分类拆分为标签' },
+    { value: 'set_char_name_from_filename', label: '文件名→角色名' },
+    { value: 'set_wi_name_from_filename', label: '文件名→世界书名' },
+    { value: 'set_filename_from_char_name', label: '角色名→文件名' },
+    { value: 'set_filename_from_wi_name', label: '世界书名→文件名' }
+];
 
 
 function deriveLegacyRuleTriggerContexts(rule) {
@@ -100,6 +115,8 @@ export default function automationModal() {
         ruleSets: [],
         activeRuleSet: null,
         globalRulesetId: null,
+        actionTypeOptions: AUTOMATION_ACTION_OPTIONS,
+        openActionMenuKey: null,
         
         // 编辑缓冲区 (Deep Copy)
         editingMeta: { name: "", description: "", author: "", version: "" },
@@ -414,11 +431,45 @@ export default function automationModal() {
             this.activeRuleSet = null;
             this.showHelpModal = false;
             this.helpActiveTab = 'conditions';
+            this.openActionMenuKey = null;
         },
 
         openHelpTab(tab) {
             this.helpActiveTab = tab;
             this.showHelpModal = true;
+        },
+
+        getActionMenuKey(ruleIdx, actionIdx) {
+            return `${ruleIdx}:${actionIdx}`;
+        },
+
+        isActionMenuOpen(ruleIdx, actionIdx) {
+            return this.openActionMenuKey === this.getActionMenuKey(ruleIdx, actionIdx);
+        },
+
+        openActionMenu(ruleIdx, actionIdx) {
+            this.openActionMenuKey = this.getActionMenuKey(ruleIdx, actionIdx);
+        },
+
+        toggleActionMenu(ruleIdx, actionIdx) {
+            const key = this.getActionMenuKey(ruleIdx, actionIdx);
+            this.openActionMenuKey = this.openActionMenuKey === key ? null : key;
+        },
+
+        closeActionMenu() {
+            this.openActionMenuKey = null;
+        },
+
+        actionTypeLabel(type) {
+            return this.actionTypeOptions.find(option => option.value === type)?.label || '选择动作';
+        },
+
+        selectActionType(action, type) {
+            if (!action || !this.actionTypeOptions.some(option => option.value === type)) return;
+
+            action.type = type;
+            this.initActionConfig(action);
+            this.openActionMenuKey = null;
         },
 
         conditionUsesMetadata(condition) {

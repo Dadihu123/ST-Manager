@@ -1,4 +1,5 @@
 {% from "components/icon.html" import icon, detail_icon %}
+{% from "components/styled_select.html" import styled_select %}
 
 <!-- 高级功能编辑器 (Regex & Scripts) -->
 <div x-show="showAdvancedModal" x-data="advancedEditor" x-cloak class="modal-overlay z-modal-popover"
@@ -198,13 +199,18 @@
                                     <div class="flex items-center gap-2">
                                         <span class="text-[10px] text-[var(--text-dim)]"
                                             title="8. 宏替换：在运行正则表达式之前，替换{{macros}}">宏替换:</span>
-                                        <select
-                                            x-model.number="editingData.extensions.regex_scripts[activeRegexIndex].substituteRegex"
-                                            class="bg-[var(--bg-sub)] border border-[var(--border-light)] text-[10px] rounded px-2 py-1 outline-none text-[var(--text-main)]">
+                                        {% call styled_select(
+                                            "editingData.extensions.regex_scripts[activeRegexIndex].substituteRegex",
+                                            model_modifier=".number",
+                                            wrapper_class="icon-select--compact",
+                                            trigger_class="icon-select-trigger--compact text-[10px]",
+                                            menu_class="icon-select-menu--fit",
+                                            aria_label="宏替换"
+                                        ) %}
                                             <option value="0">None (不替换)</option>
                                             <option value="1">Raw (原始)</option>
                                             <option value="2">Escaped (转义)</option>
-                                        </select>
+                                        {% endcall %}
                                     </div>
                                 </div>
                                 <div class="relative">

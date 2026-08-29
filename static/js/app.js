@@ -39,6 +39,7 @@ import presetVersionMergeModal from './components/presetVersionMergeModal.js';
 import beautifyGrid from "./components/beautifyGrid.js";
 import beautifyPreviewFrame from "./components/beautifyPreviewFrame.js";
 import sourceUpdateMonitor from "./components/sourceUpdateMonitor.js";
+import styledSelect from "./components/styledSelect.js";
 import { initPasteImportHandler } from "./components/pasteImportHandler.js";
 import "./utils/numberControl.js";
 
@@ -80,6 +81,7 @@ const registerComponents = () => {
   Alpine.data("beautifyGrid", beautifyGrid);
   Alpine.data("beautifyPreviewFrame", beautifyPreviewFrame);
   Alpine.data("sourceUpdateMonitor", sourceUpdateMonitor);
+  Alpine.data("styledSelect", styledSelect);
   initPasteImportHandler();
   console.log("✅ ST Manager Frontend: Modules Loaded & Alpine Initialized");
 };

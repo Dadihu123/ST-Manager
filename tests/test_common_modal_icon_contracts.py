@@ -1,6 +1,7 @@
 """通用弹窗 SVG 图标契约。"""
 
 from pathlib import Path
+import re
 import xml.etree.ElementTree as ET
 
 
@@ -102,6 +103,82 @@ def test_common_modal_templates_use_semantic_svg_mappings():
     for relative_path in expected_fragments:
         source = read_project_file(relative_path)
         assert not any(glyph in source for glyph in mapped_glyphs)
+
+
+def test_icon_select_contract_covers_import_batch_and_automation_controls():
+    import_template = read_project_file('templates/modals/import.html')
+    move_template = read_project_file('templates/modals/move_cards.html')
+    batch_template = read_project_file('templates/modals/batch_import.html')
+    automation_template = read_project_file('templates/modals/automation.html')
+    automation_css = read_project_file('static/css/modules/modal-automation.css')
+
+    for source in (import_template, move_template):
+        assert 'role="listbox"' in source
+        assert 'sidebar_icon(\'folder-open\'' in source
+        assert 'sidebar_icon(\'folder-solid\'' in source
+        assert 'icon(\'folder-root\'' in source
+        assert '<select' not in source
+
+    assert 'role="listbox" aria-label="冲突处理方式"' in batch_template
+    assert "icon('pencil-edit'" in batch_template
+    assert "detail_icon('overwrite'" in batch_template
+    assert "icon('forbidden'" in batch_template
+
+    assert 'role="listbox" aria-label="执行动作"' in automation_template
+    assert 'actionTypeOptions' in automation_template
+    assert 'automation-help-trigger' in automation_template
+    assert "icon('settings-help-entry', 'ui-icon--md')" in automation_template
+    assert 'border border-gray-500' not in automation_template
+    assert '.automation-export-btn' in automation_css
+
+
+def test_project_single_selects_reuse_shared_shell_without_touching_sidebar_or_multiselects():
+    templates_root = PROJECT_ROOT / 'templates'
+    sidebar_source = read_project_file('templates/components/sidebar.html')
+
+    assert '<select' in sidebar_source
+    assert 'styled_select' not in sidebar_source
+
+    for template_path in templates_root.rglob('*.html'):
+        relative_path = template_path.relative_to(templates_root).as_posix()
+        if relative_path in {'components/styled_select.html', 'components/sidebar.html'}:
+            continue
+        source = template_path.read_text(encoding='utf-8')
+        select_tags = re.findall(r'<select\b[^>]*>', source, re.IGNORECASE | re.DOTALL)
+        single_select_tags = [
+            tag for tag in select_tags
+            if not re.search(r'\bmultiple(?:\s|=|>)', tag, re.IGNORECASE)
+        ]
+        assert not single_select_tags, f'unstyled single select remains in {template_path}'
+
+
+def test_worldinfo_open_select_can_escape_props_group_clipping():
+    worldinfo_css = read_project_file('static/css/modules/view-wi.css')
+
+    assert '.props-group:has(.icon-select.is-open)' in worldinfo_css
+    open_group_block = worldinfo_css.split('.props-group:has(.icon-select.is-open)', 1)[1].split('}', 1)[0]
+    assert 'z-index: var(--z-dropdown);' in open_group_block
+    assert 'overflow: visible;' in open_group_block
+
+
+def test_other_open_selects_can_escape_known_rounded_clipping_shells():
+    automation_css = read_project_file('static/css/modules/modal-automation.css')
+    layout_css = read_project_file('static/css/modules/layout.css')
+    batch_template = read_project_file('templates/modals/batch_import.html')
+
+    assert '.rule-card:has(.icon-select.is-open)' in automation_css
+    assert '.batch-import-card:has(.batch-import-action-select.is-open)' in automation_css
+    assert '.header-search-container:has(.icon-select.is-open)' in layout_css
+    assert 'class="batch-import-card rounded border transition-colors overflow-hidden"' in batch_template
+
+    for selector, source in (
+        ('.rule-card:has(.icon-select.is-open)', automation_css),
+        ('.batch-import-card:has(.batch-import-action-select.is-open)', automation_css),
+        ('.header-search-container:has(.icon-select.is-open)', layout_css),
+    ):
+        open_shell_block = source.split(selector, 1)[1].split('}', 1)[0]
+        assert 'z-index: var(--z-dropdown);' in open_shell_block
+        assert 'overflow: visible;' in open_shell_block
 
 
 def test_forum_preview_icons_are_kept_as_separate_svg_assets():

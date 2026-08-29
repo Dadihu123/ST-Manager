@@ -477,7 +477,7 @@ def test_preset_detail_reader_template_renders_version_selector_for_multi_versio
     source = read_project_file('templates/modals/detail_preset_popup.html')
 
     assert 'x-show="hasMultipleVersions"' in source
-    assert '@change="switchVersion($event.target.value)"' in source
+    assert 'switchVersion(option.value)' in source
     assert 'x-for="version in availableVersions"' in source
 
 
@@ -487,7 +487,7 @@ def test_preset_detail_reader_template_renders_mobile_version_selector_for_famil
     mobile_header_block = extract_div_block(source, 'preset-reader-mobile-header')
 
     assert 'x-show="hasMultipleVersions"' in mobile_header_block
-    assert '@change="switchVersion($event.target.value)"' in mobile_header_block
+    assert 'switchVersion(option.value)' in mobile_header_block
     assert 'x-for="version in availableVersions"' in mobile_header_block
 
 

@@ -1,5 +1,6 @@
 {% from "components/dice_icon.html" import dice_icon %}
 {% from "components/icon.html" import detail_icon, icon %}
+{% from "components/styled_select.html" import styled_select %}
 
 <div class="header-bar" x-data="header">
   <!-- 移动端：紧凑单行布局 -->
@@ -446,14 +447,20 @@
           title="决定搜索匹配的字段范围"
         >
           <span class="search-type-label">搜索方式</span>
-          <select x-model="searchType" class="search-type-select">
+          {% call styled_select(
+            "searchType",
+            wrapper_class="search-type-select",
+            trigger_class="icon-select-trigger--compact",
+            menu_class="icon-select-menu--fit",
+            aria_label="搜索方式"
+          ) %}
             <option value="mix">智能混合</option>
             <option value="global">全局关键字</option>
             <option value="name">角色名称</option>
             <option value="filename">文件名</option>
             <option value="creator">创作者</option>
             <option value="tags">标签</option>
-          </select>
+          {% endcall %}
         </div>
 
         <input
@@ -825,14 +832,20 @@
     <!-- 搜索类型选择（移动端） -->
     <div x-show="currentMode === 'cards'" class="mobile-menu-section">
       <label class="mobile-menu-label">搜索类型</label>
-      <select x-model="searchType" class="mobile-menu-select">
+      {% call styled_select(
+        "searchType",
+        wrapper_class="mobile-menu-select",
+        trigger_class="icon-select-trigger--compact",
+        menu_class="icon-select-menu--fit",
+        aria_label="搜索类型"
+      ) %}
         <option value="mix">智能混合</option>
         <option value="global">全局关键字</option>
         <option value="name">角色名称</option>
         <option value="filename">文件名</option>
         <option value="creator">创作者</option>
         <option value="tags">标签</option>
-      </select>
+      {% endcall %}
     </div>
 
     <div x-show="currentMode === 'cards'" class="mobile-menu-section">

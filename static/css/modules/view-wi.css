@@ -672,6 +672,13 @@ html.light-mode .clipboard-item.editing {
   border-color: var(--border-light);
 }
 
+/* Let the shared select menu escape the rounded inspector group while open. */
+.props-group:has(.icon-select.is-open) {
+  position: relative;
+  z-index: var(--z-dropdown);
+  overflow: visible;
+}
+
 .props-header {
   padding: 0.5rem 0.75rem;
   background-color: rgba(0, 0, 0, 0.05);
@@ -1136,6 +1143,18 @@ input:focus {
 .wi-sort-control select:hover {
   border-color: var(--text-sub);
   background-color: var(--bg-panel);
+}
+
+.wi-sort-control .icon-select {
+  width: auto;
+  min-width: 6.4rem;
+}
+
+.wi-sort-control .icon-select-trigger {
+  min-height: 1.6rem;
+  padding: 0.2rem 0.35rem;
+  background-color: var(--bg-body);
+  font-size: 0.72rem;
 }
 
 .wi-sort-control select:focus-visible {
@@ -2182,6 +2201,10 @@ html.light-mode .wi-card-back {
     flex: 1;
   }
   .wi-sort-control-inline select {
+    min-width: 0;
+    width: 100%;
+  }
+  .wi-sort-control-inline .icon-select {
     min-width: 0;
     width: 100%;
   }

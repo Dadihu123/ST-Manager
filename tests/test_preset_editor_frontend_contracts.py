@@ -759,8 +759,9 @@ def test_preset_editor_template_renders_fullscreen_version_selector_and_actions(
 
     assert 'x-show="hasMultipleVersions"' in source
     assert 'x-model="editingPresetFile.id"' not in source
-    assert ':value="editingPresetFile?.id || \'\'"' in source
-    assert '@change="openVersion($event.target.value)"' in source
+    assert '"editingPresetFile?.id || \'\'"' in source
+    assert '"openVersion(option.value)"' in source
+    assert 'styled_select_controlled' in source
     assert 'x-for="version in availableVersions"' in source
     assert '@click="saveAsVersion()"' in source
     assert '@click="setCurrentVersionAsDefault()"' in source
@@ -3348,11 +3349,11 @@ def test_preset_editor_template_exposes_specialized_editor_sections():
     )
     assert "activeItem?.editor?.kind === 'select'" in source
     assert 'x-for="option in (activeItem?.editor?.options || [])"' in source
-    assert 'resolveSelectOptionValue(activeItem, $event.target.value)' in source
+    assert 'resolveSelectOptionValue(activeItem, option.value)' in source
     assert ':value="option.value ?? option"' in source
     assert 'x-text="option.label ?? option"' in source
     assert re.search(
-        r'<template x-if="activeItem\?\.editor\?\.kind === \'select\'">[\s\S]*?<select[\s\S]*?</select>',
+        r'<template x-if="activeItem\?\.editor\?\.kind === \'select\'">[\s\S]*?styled_select_controlled\([\s\S]*?\{% endcall %\}',
         source,
     )
     assert '<input\n                            type="text"' not in select_block

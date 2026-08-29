@@ -1,5 +1,6 @@
 <!-- 预设全屏编辑器 -->
 {% from "components/icon.html" import icon %}
+{% from "components/styled_select.html" import styled_select_controlled %}
 <div
   x-show="showPresetEditor"
   x-data="presetEditor"
@@ -35,15 +36,18 @@
       <div class="flex items-center gap-2 flex-wrap justify-end">
         <div x-show="hasMultipleVersions" class="flex items-center gap-2">
           <label class="text-[11px] text-[var(--text-dim)]">版本</label>
-          <select
-            :value="editingPresetFile?.id || ''"
-            @change="openVersion($event.target.value)"
-            class="rounded-lg border border-[var(--border-light)] bg-[var(--bg-panel)] px-2.5 py-1.5 text-xs text-[var(--text-main)]"
-          >
+          {% call styled_select_controlled(
+            "editingPresetFile?.id || ''",
+            "openVersion(option.value)",
+            wrapper_class="icon-select--compact",
+            trigger_class="icon-select-trigger--compact text-xs",
+            menu_class="icon-select-menu--fit",
+            aria_label="版本"
+          ) %}
             <template x-for="version in availableVersions" :key="version.id">
               <option :value="version.id" x-text="version.version_label || version.name || version.id"></option>
             </template>
-          </select>
+          {% endcall %}
         </div>
         <span
           class="text-[10px] px-2 py-1 rounded border border-[var(--border-light)]"
@@ -171,15 +175,18 @@
         class="px-4 pb-2 flex items-center gap-2"
       >
         <label class="sr-only">版本</label>
-        <select
-          :value="editingPresetFile?.id || ''"
-          @change="openVersion($event.target.value)"
-          class="flex-1 min-w-0 rounded-xl border border-[var(--border-light)] bg-[var(--bg-panel)] px-3 py-2 text-sm text-[var(--text-main)]"
-        >
+        {% call styled_select_controlled(
+          "editingPresetFile?.id || ''",
+          "openVersion(option.value)",
+          wrapper_class="flex-1 min-w-0",
+          trigger_class="text-sm",
+          menu_class="icon-select-menu--fit",
+          aria_label="版本"
+        ) %}
           <template x-for="version in availableVersions" :key="version.id">
             <option :value="version.id" x-text="version.version_label || version.name || version.id"></option>
           </template>
-        </select>
+        {% endcall %}
       </div>
 
       <div class="preset-editor-mobile-header-bottom">
@@ -631,11 +638,14 @@
                                 <div class="text-[11px] text-[var(--text-dim)]">
                                   角色决定提示词以谁的身份注入上下文。
                                 </div>
-                                <select
-                                  class="form-input"
-                                  :value="getPromptRoleValue(activePromptItem)"
-                                  @change="updatePromptField('role', $event.target.value)"
-                                >
+                                {% call styled_select_controlled(
+                                  "getPromptRoleValue(activePromptItem)",
+                                  "updatePromptField('role', option.value)",
+                                  wrapper_class="form-input",
+                                  trigger_class="text-sm",
+                                  menu_class="icon-select-menu--fit",
+                                  aria_label="角色"
+                                ) %}
                                   <template
                                     x-for="option in promptRoleOptions"
                                     :key="option.value"
@@ -645,7 +655,7 @@
                                       x-text="option.label"
                                     ></option>
                                   </template>
-                                </select>
+                                {% endcall %}
                               </label>
                             </div>
 
@@ -657,11 +667,14 @@
                                 <div class="text-[11px] text-[var(--text-dim)]">
                                   控制提示词是在聊天外相对插入，还是注入到聊天流中。
                                 </div>
-                                <select
-                                  class="form-input"
-                                  :value="Number(activePromptItem?.injection_position ?? 0)"
-                                  @change="updatePromptField('injection_position', $event.target.value)"
-                                >
+                                {% call styled_select_controlled(
+                                  "Number(activePromptItem?.injection_position ?? 0)",
+                                  "updatePromptField('injection_position', option.value)",
+                                  wrapper_class="form-input",
+                                  trigger_class="text-sm",
+                                  menu_class="icon-select-menu--fit",
+                                  aria_label="位置"
+                                ) %}
                                   <template
                                     x-for="option in promptPositionOptions"
                                     :key="option.value"
@@ -671,7 +684,7 @@
                                       x-text="option.label"
                                     ></option>
                                   </template>
-                                </select>
+                                {% endcall %}
                               </label>
                               <label
                                 x-show="isChatInjectionPosition(activePromptItem)"
@@ -983,11 +996,14 @@
                               <div class="text-[11px] text-[var(--text-dim)]">
                                 角色决定提示词以谁的身份注入上下文。
                               </div>
-                              <select
-                                class="form-input"
-                                :value="getPromptRoleValue(activePromptItem)"
-                                @change="updatePromptField('role', $event.target.value)"
-                              >
+                              {% call styled_select_controlled(
+                                "getPromptRoleValue(activePromptItem)",
+                                "updatePromptField('role', option.value)",
+                                wrapper_class="form-input",
+                                trigger_class="text-sm",
+                                menu_class="icon-select-menu--fit",
+                                aria_label="角色"
+                              ) %}
                                 <template
                                   x-for="option in promptRoleOptions"
                                   :key="option.value"
@@ -997,7 +1013,7 @@
                                     x-text="option.label"
                                   ></option>
                                 </template>
-                              </select>
+                              {% endcall %}
                             </label>
                           </div>
 
@@ -1009,11 +1025,14 @@
                               <div class="text-[11px] text-[var(--text-dim)]">
                                 控制提示词是在聊天外相对插入，还是注入到聊天流中。
                               </div>
-                              <select
-                                class="form-input"
-                                :value="Number(activePromptItem?.injection_position ?? 0)"
-                                @change="updatePromptField('injection_position', $event.target.value)"
-                              >
+                              {% call styled_select_controlled(
+                                "Number(activePromptItem?.injection_position ?? 0)",
+                                "updatePromptField('injection_position', option.value)",
+                                wrapper_class="form-input",
+                                trigger_class="text-sm",
+                                menu_class="icon-select-menu--fit",
+                                aria_label="位置"
+                              ) %}
                                 <template
                                   x-for="option in promptPositionOptions"
                                   :key="option.value"
@@ -1023,7 +1042,7 @@
                                     x-text="option.label"
                                   ></option>
                                 </template>
-                              </select>
+                              {% endcall %}
                             </label>
                             <label
                               x-show="isChatInjectionPosition(activePromptItem)"
@@ -1490,18 +1509,21 @@
                         </template>
 
                         <template x-if="isProfileFieldSelect(field)">
-                          <select
-                            class="form-input"
-                            :value="getProfileFieldValue(field.id) ?? field.default ?? ''"
-                            @change="setProfileFieldValue(field.id, $event.target.value)"
-                          >
+                          {% call styled_select_controlled(
+                            "getProfileFieldValue(field.id) ?? field.default ?? ''",
+                            "setProfileFieldValue(field.id, option.value)",
+                            wrapper_class="form-input",
+                            trigger_class="text-sm",
+                            menu_class="icon-select-menu--fit",
+                            aria_label="配置选项"
+                          ) %}
                             <template
                               x-for="option in (field.options || [])"
                               :key="`${field.id}-${option}`"
                             >
                               <option :value="option" x-text="option"></option>
                             </template>
-                          </select>
+                          {% endcall %}
                         </template>
 
                         <template x-if="field.control === 'textarea'">
@@ -1997,11 +2019,14 @@
                         <div
                           class="rounded-2xl border border-[var(--border-light)] bg-[var(--bg-body)] p-4"
                         >
-                          <select
-                            class="form-input"
-                            :value="getFieldValue(activeItem) || ''"
-                            @change="setFieldValue(activeItem, resolveSelectOptionValue(activeItem, $event.target.value))"
-                          >
+                          {% call styled_select_controlled(
+                            "getFieldValue(activeItem) || ''",
+                            "setFieldValue(activeItem, resolveSelectOptionValue(activeItem, option.value))",
+                            wrapper_class="form-input",
+                            trigger_class="text-sm",
+                            menu_class="icon-select-menu--fit",
+                            aria_label="预设字段选项"
+                          ) %}
                             <template
                               x-for="option in (activeItem?.editor?.options || [])"
                               :key="option.value ?? option"
@@ -2011,7 +2036,7 @@
                                 x-text="option.label ?? option"
                               ></option>
                             </template>
-                          </select>
+                          {% endcall %}
                         </div>
                       </template>
 
