@@ -124,9 +124,9 @@ def test_common_modal_custom_symbols_are_theme_safe():
     }
 
     for symbol_id, viewbox in (
-        ('icon-modal-root-directory', '0 0 530 504'),
-        ('icon-modal-document', '0 0 851 1267'),
-        ('icon-modal-document-edit', '0 0 824 1215'),
+        ('icon-modal-root-directory', '18 33 436 428'),
+        ('icon-modal-document', '87 93 660 1044'),
+        ('icon-modal-document-edit', '51 54 728 1044'),
     ):
         assert symbol_id in symbols
         assert symbols[symbol_id].attrib['viewBox'] == viewbox

@@ -75,7 +75,7 @@ def test_beautify_icon_uses_a_cropped_canvas_at_the_shared_navigation_size():
         PROJECT_ROOT / 'static/css/modules/view-beautify.css'
     ).read_text(encoding='utf-8')
 
-    assert 'viewBox="800 200 1150 1150"' in asset_source
+    assert 'viewBox="835 235 1082 1067"' in asset_source
     assert 'background: rgb(255, 255, 255)' not in asset_source
     assert (
         '.beautify-title-icon .sidebar-module-image-icon {\n'
@@ -154,7 +154,7 @@ def test_unbound_sidebar_icon_uses_theme_color_from_the_updated_asset():
         if element.tag.rsplit('}', 1)[-1] == 'path'
     ]
 
-    assert symbol.get('viewBox') == '0 0 2392 1760'
+    assert symbol.get('viewBox') == '163 197 1789 1265'
     assert len(paths) == 7
     assert all(path.get('fill') == 'currentColor' for path in paths)
     assert all(path.get('stroke') == 'none' for path in paths)

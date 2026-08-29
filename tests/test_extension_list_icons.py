@@ -59,6 +59,6 @@ def test_ui_sprite_contains_the_extension_file_asset_as_a_theme_aware_symbol():
         if symbol.attrib.get('id') == 'icon-extension-file'
     )
 
-    assert symbol.attrib['viewBox'] == '0 0 1856 2258'
+    assert symbol.attrib['viewBox'] == '361 347 1133 1548'
     assert 'fill="currentColor"' in ET.tostring(symbol, encoding='unicode')
     assert 'background' not in ET.tostring(symbol, encoding='unicode').lower()

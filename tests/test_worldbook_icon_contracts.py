@@ -75,13 +75,13 @@ def test_worldbook_design_symbols_are_theme_safe():
         assert f'id="icon-{name}"' in design_block
 
     for name, view_box in (
-        ('worldbook-constant', '0 0 596 727'),
-        ('worldbook-vectorize', '0 0 689 735'),
-        ('worldbook-layout', '0 0 666 715'),
-        ('worldbook-tip', '0 0 648 747'),
-        ('worldbook-keyword-trigger', '0 0 729 897'),
-        ('worldbook-list', '0 0 660 544'),
-        ('worldbook-shortcut', '0 0 709 607'),
+        ('worldbook-constant', '21 34 525 636'),
+        ('worldbook-vectorize', '41 53 567 600'),
+        ('worldbook-layout', '78 109 487 492'),
+        ('worldbook-tip', '117 62 409 604'),
+        ('worldbook-keyword-trigger', '53 186 577 578'),
+        ('worldbook-list', '86 127.216 487.425 312.31'),
+        ('worldbook-shortcut', '80 129 519 355'),
     ):
         assert f'<symbol id="icon-{name}" viewBox="{view_box}">' in design_block
     assert design_block.count('fill="currentColor"') >= len(WORLD_BOOK_SYMBOLS)

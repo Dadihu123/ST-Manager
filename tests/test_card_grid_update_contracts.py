@@ -111,7 +111,7 @@ def test_card_favorite_uses_solid_theme_aware_svg_with_existing_state_colors():
 
     assert "icon('card-favorite', 'card-fav-icon')" in favorite_button
     assert '♥' not in favorite_button
-    assert favorite_symbol.get('viewBox') == '0 0 848 677'
+    assert favorite_symbol.get('viewBox') == '98.422 75.852 629.893 552.273'
     assert len(paths) == 1
     assert paths[0].get('fill') == 'currentColor'
     assert paths[0].get('stroke') == 'none'

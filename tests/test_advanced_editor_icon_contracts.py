@@ -157,15 +157,15 @@ def test_advanced_editor_custom_symbols_are_theme_safe():
         if symbol.tag.endswith('symbol')
     }
     expected_viewboxes = {
-        'icon-advanced-editor-test-lab': '0 0 677 632',
-        'icon-advanced-editor-replace': '0 0 715 658',
-        'icon-advanced-editor-trim': '0 0 731 649',
-        'icon-advanced-editor-execute': '0 0 590 602',
-        'icon-advanced-editor-quick-buttons': '0 0 526 470',
-        'icon-advanced-editor-script-code': '0 0 481 494',
-        'icon-advanced-editor-data': '0 0 539 509',
-        'icon-advanced-editor-send-content': '0 0 520 517',
-        'icon-advanced-editor-trigger': '0 0 482 471',
+        'icon-advanced-editor-test-lab': '53 71 490 529',
+        'icon-advanced-editor-replace': '29 71 584 543',
+        'icon-advanced-editor-trim': '81 60 520 540',
+        'icon-advanced-editor-execute': '92 62 397 487',
+        'icon-advanced-editor-quick-buttons': '11 74 426 358',
+        'icon-advanced-editor-script-code': '35 61 426 388',
+        'icon-advanced-editor-data': '55 54 410 417',
+        'icon-advanced-editor-send-content': '18 58 426 419',
+        'icon-advanced-editor-trigger': '25 32 424 418',
     }
 
     for symbol_id, viewbox in expected_viewboxes.items():
@@ -185,8 +185,8 @@ def test_automation_custom_symbols_are_theme_safe():
         if symbol.tag.endswith('symbol')
     }
     expected_viewboxes = {
-        'icon-automation-merge': '0 0 777 896',
-        'icon-automation-forbidden': '0 0 762 675',
+        'icon-automation-merge': '91 103 523 602',
+        'icon-automation-forbidden': '48 23 601 584',
     }
 
     for symbol_id, viewbox in expected_viewboxes.items():
