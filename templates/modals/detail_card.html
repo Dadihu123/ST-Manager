@@ -40,7 +40,7 @@
         title="返回上一级"
       >
         <div class="detail-thumb-symbol">
-          {{ detail_icon('arrow-up-left', 'ui-icon--md') }}
+          {{ detail_icon('arrow-up-left', 'ui-icon--sm') }}
         </div>
         <span class="detail-thumb-label">上一级</span>
       </button>
@@ -1240,7 +1240,7 @@
                       aria-label="上一页"
                       title="上一页"
                     >
-                      ‹
+                      {{ icon('chevron-right', 'ui-icon--sm rotate-180') }}
                     </button>
                     <button
                       type="button"
@@ -1259,7 +1259,7 @@
                       aria-label="下一页"
                       title="下一页"
                     >
-                      ›
+                      {{ icon('chevron-right', 'ui-icon--sm') }}
                     </button>
                   </div>
                   <div class="detail-card-actions">
@@ -1448,7 +1448,7 @@
                       aria-label="上一页"
                       title="上一页"
                     >
-                      ‹
+                      {{ icon('chevron-right', 'ui-icon--sm rotate-180') }}
                     </button>
                     <button
                       type="button"
@@ -1467,7 +1467,7 @@
                       aria-label="下一页"
                       title="下一页"
                     >
-                      ›
+                      {{ icon('chevron-right', 'ui-icon--sm') }}
                     </button>
                   </div>
                   <div class="detail-card-actions">
@@ -2763,22 +2763,23 @@
                       </div>
 
                       <div class="flex-1 overflow-y-auto custom-scrollbar p-2">
-                        <div class="mb-2 flex items-center gap-2 text-[11px] text-[var(--text-dim)]">
+                        <div class="detail-skin-directory-toolbar mb-2 text-[11px] text-[var(--text-dim)]">
                           <button
                             type="button"
                             x-show="currentSkinDirectory"
                             @click="goToSkinParentDirectory()"
-                            class="px-2 py-1 rounded border border-[var(--border-light)] hover:text-[var(--text-main)]"
+                            class="detail-skin-directory-button px-2 py-1 rounded border border-[var(--border-light)] hover:text-[var(--text-main)]"
                           >
-                            {{ detail_icon('arrow-up-left', 'ui-icon--sm') }}
+                            {{ detail_icon('arrow-up-left', 'ui-icon--xs') }}
                             <span>上一级</span>
                           </button>
                           <button
                             type="button"
                             @click="goToSkinDirectory('')"
-                            class="px-2 py-1 rounded border border-[var(--border-light)] hover:text-[var(--text-main)]"
+                            class="detail-skin-directory-button px-2 py-1 rounded border border-[var(--border-light)] hover:text-[var(--text-main)]"
                             :class="!currentSkinDirectory ? 'text-[var(--accent-main)] border-[var(--accent-main)]' : ''"
                           >
+                            {{ icon('folder-root', 'ui-icon--xs') }}
                             根目录
                           </button>
                           <span class="truncate" :title="currentSkinDirectory || '根目录'" x-text="currentSkinDirectory || '根目录'"></span>
@@ -3337,6 +3338,7 @@
             class="skin-gallery-control"
             :class="!currentSkinDirectory ? 'active' : ''"
           >
+            {{ icon('folder-root', 'ui-icon--sm') }}
             根目录
           </button>
           <button

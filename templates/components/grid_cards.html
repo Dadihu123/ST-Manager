@@ -442,12 +442,15 @@
 
     <div class="card-pagination-controls card-pagination-page-cluster">
       <button
+        type="button"
         @click="changePage(currentPage-1)"
         :disabled="currentPage===1"
+        aria-label="上一页"
+        title="上一页"
         class="btn-secondary card-page-nav-btn"
         style="padding: 0.25rem 0.5rem"
       >
-        上一页
+        {{ icon('chevron-right', 'ui-icon--sm rotate-180') }}
       </button>
       <span
         class="card-pagination-page-indicator"
@@ -462,12 +465,15 @@
         x-text="currentPage + '/' + totalPages"
       ></span>
       <button
+        type="button"
         @click="changePage(currentPage+1)"
         :disabled="currentPage===totalPages"
+        aria-label="下一页"
+        title="下一页"
         class="btn-secondary card-page-nav-btn"
         style="padding: 0.25rem 0.5rem"
       >
-        下一页
+        {{ icon('chevron-right', 'ui-icon--sm') }}
       </button>
     </div>
   </div>

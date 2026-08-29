@@ -17,10 +17,10 @@ def test_extension_grid_uses_semantic_icon_mappings():
         "detail_icon('regex'",
         "detail_icon('script-file'",
         "detail_icon('quick-reply'",
+        'extension-list-entry-icon',
         "icon('refresh'",
         "icon('file-import'",
         "icon('loader-circle'",
-        "icon('file-code'",
         "preset_icon('owner'",
         "preset_icon('empty-state'",
     ]
@@ -30,6 +30,10 @@ def test_extension_grid_uses_semantic_icon_mappings():
 
     for emoji in ('🧩', '📜', '⚡', '↻', '📥', '⏳', '📄', '👤', '📭'):
         assert emoji not in source
+
+    assert source.count("detail_icon('regex'") >= 2
+    assert source.count("detail_icon('script-file'") >= 2
+    assert source.count("detail_icon('quick-reply'") >= 2
 
 
 def test_extension_list_icons_use_the_shared_integer_size_tiers():

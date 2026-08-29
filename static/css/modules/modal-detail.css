@@ -317,6 +317,33 @@ html.light-mode .detail-thumb-label {
   font-size: 12px;
 }
 
+.detail-skin-directory-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  flex-wrap: nowrap;
+}
+
+.detail-skin-directory-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.detail-skin-directory-button .ui-icon {
+  width: 12px;
+  height: 12px;
+}
+
+.detail-skin-directory-toolbar > .truncate {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
 .skin-gallery-grid {
   min-height: 0;
   overflow-y: auto;
@@ -4557,6 +4584,11 @@ html.light-mode .note-textarea:focus {
 .detail-icon-scope .detail-thumb-symbol .ui-icon {
   width: 24px;
   height: 24px;
+}
+
+.detail-icon-scope .detail-thumb--nav .detail-thumb-symbol .ui-icon {
+  width: 20px;
+  height: 20px;
 }
 
 .detail-icon-scope .skin-gallery-folder-symbol .ui-icon {

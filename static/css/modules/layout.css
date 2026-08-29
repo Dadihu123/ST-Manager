@@ -687,7 +687,8 @@
   padding: 8px 10px 10px;
   background-color: var(--sidebar-nav-surface);
   border-bottom: 1px solid var(--sidebar-divider);
-  box-shadow: 0 1px 0 color-mix(in srgb, var(--sidebar-divider), transparent 35%);
+  box-shadow: 0 1px 0
+    color-mix(in srgb, var(--sidebar-divider), transparent 35%);
 }
 
 .sidebar-module-switcher-wrap {
@@ -718,7 +719,7 @@
 
 .sidebar-module-switcher:hover,
 .sidebar-module-switcher:focus-visible,
-.sidebar-module-switcher[aria-expanded='true'] {
+.sidebar-module-switcher[aria-expanded="true"] {
   background-color: var(--sidebar-accent-hover-surface);
   border-color: color-mix(
     in srgb,
@@ -727,9 +728,10 @@
   );
 }
 
-.sidebar-module-switcher[aria-expanded='true'] {
+.sidebar-module-switcher[aria-expanded="true"] {
   background-color: var(--sidebar-active-surface);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--sidebar-active-border), transparent 78%);
+  box-shadow: 0 0 0 1px
+    color-mix(in srgb, var(--sidebar-active-border), transparent 78%);
 }
 
 .sidebar-module-switcher-icon {
@@ -785,10 +787,13 @@
   justify-content: center;
   flex: 0 0 auto;
   color: var(--sidebar-icon-muted);
-  transition: transform 0.18s ease, color 0.18s ease;
+  transition:
+    transform 0.18s ease,
+    color 0.18s ease;
 }
 
-.sidebar-module-switcher[aria-expanded='true'] .sidebar-module-switcher-chevron {
+.sidebar-module-switcher[aria-expanded="true"]
+  .sidebar-module-switcher-chevron {
   color: var(--sidebar-active-border);
   transform: rotate(180deg);
 }
@@ -802,7 +807,8 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
   padding: 8px;
-  border: 1px solid color-mix(in srgb, var(--sidebar-active-border), var(--sidebar-divider) 52%);
+  border: 1px solid
+    color-mix(in srgb, var(--sidebar-active-border), var(--sidebar-divider) 52%);
   border-radius: 14px;
   background-color: var(--sidebar-surface);
   box-shadow:
@@ -839,13 +845,21 @@
 .sidebar-module-menu-item:hover,
 .sidebar-module-menu-item:focus-visible {
   background-color: var(--sidebar-accent-hover-surface);
-  border-color: color-mix(in srgb, var(--sidebar-active-border), transparent 55%);
+  border-color: color-mix(
+    in srgb,
+    var(--sidebar-active-border),
+    transparent 55%
+  );
   color: var(--sidebar-label);
 }
 
 .sidebar-module-menu-item.is-active {
   background-color: var(--sidebar-active-surface);
-  border-color: color-mix(in srgb, var(--sidebar-active-border), var(--sidebar-divider) 42%);
+  border-color: color-mix(
+    in srgb,
+    var(--sidebar-active-border),
+    var(--sidebar-divider) 42%
+  );
   box-shadow: inset 0 -2px 0 var(--sidebar-active-border);
   color: var(--sidebar-label);
 }
@@ -881,7 +895,8 @@
 .sidebar-filter-option:focus-visible,
 .sidebar-category-root:focus-visible,
 .sidebar-action-button:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--sidebar-active-border), #ffffff 12%);
+  outline: 2px solid
+    color-mix(in srgb, var(--sidebar-active-border), #ffffff 12%);
   outline-offset: 2px;
 }
 
@@ -930,7 +945,7 @@
   height: 14px;
   border-radius: 999px;
   background-color: var(--sidebar-active-border);
-  content: '';
+  content: "";
   opacity: 0.85;
 }
 
@@ -1014,7 +1029,7 @@
   color: inherit;
 }
 
-.sidebar-filter-label > span[aria-hidden='true'] {
+.sidebar-filter-label > span[aria-hidden="true"] {
   display: inline-flex;
   width: 26px;
   height: 26px;
@@ -1030,7 +1045,9 @@
   color: var(--sidebar-icon);
 }
 
-.sidebar-filter-option.is-active .sidebar-filter-label > span[aria-hidden='true'] {
+.sidebar-filter-option.is-active
+  .sidebar-filter-label
+  > span[aria-hidden="true"] {
   background-color: color-mix(
     in srgb,
     var(--sidebar-filter-color) 22%,
@@ -1090,8 +1107,13 @@
 }
 
 .sidebar-category-section .sidebar-category-search:focus-within {
-  border-color: color-mix(in srgb, var(--sidebar-active-border), transparent 35%);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--sidebar-active-border), transparent 84%);
+  border-color: color-mix(
+    in srgb,
+    var(--sidebar-active-border),
+    transparent 35%
+  );
+  box-shadow: 0 0 0 3px
+    color-mix(in srgb, var(--sidebar-active-border), transparent 84%);
 }
 
 .sidebar-category-section .sidebar-category-search-input {
@@ -1207,7 +1229,7 @@
   flex: 0 0 28px;
 }
 
-.sidebar .folder-item > span[aria-hidden='true'] {
+.sidebar .folder-item > span[aria-hidden="true"] {
   display: inline-flex;
   width: 20px;
   height: 20px;
@@ -1219,7 +1241,7 @@
   opacity: 1 !important;
 }
 
-.sidebar .folder-item.active > span[aria-hidden='true'] {
+.sidebar .folder-item.active > span[aria-hidden="true"] {
   color: var(--sidebar-source-all);
 }
 
@@ -1258,13 +1280,21 @@
 
 .sidebar-action-button--primary {
   border-color: color-mix(in srgb, var(--accent-main), transparent 28%);
-  background-color: color-mix(in srgb, var(--accent-main) 12%, var(--sidebar-surface));
+  background-color: color-mix(
+    in srgb,
+    var(--accent-main) 12%,
+    var(--sidebar-surface)
+  );
   color: var(--accent-light);
 }
 
 .sidebar-action-button--primary:hover {
   border-color: var(--accent-main);
-  background-color: color-mix(in srgb, var(--accent-main) 20%, var(--sidebar-surface));
+  background-color: color-mix(
+    in srgb,
+    var(--accent-main) 20%,
+    var(--sidebar-surface)
+  );
   box-shadow: 0 4px 12px color-mix(in srgb, var(--accent-main), transparent 84%);
 }
 
@@ -1389,8 +1419,8 @@
   gap: 0.5rem;
 }
 
-.sidebar-filter-label > span[aria-hidden='true'],
-.sidebar-inline-label > span[aria-hidden='true'] {
+.sidebar-filter-label > span[aria-hidden="true"],
+.sidebar-inline-label > span[aria-hidden="true"] {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1973,10 +2003,15 @@ html.light-mode .pagination-bar {
 
 .header-tool-buttons {
   gap: 0.2rem;
-  margin-left: 0.35rem;
+  margin-left: 0;
   padding: 0.2rem;
   border-radius: 0.85rem;
   background: color-mix(in srgb, var(--bg-sub), transparent 46%);
+}
+
+.header-toolbar-divider {
+  flex: 0 0 1px;
+  margin-inline: 0;
 }
 
 .header-tool-btn {
@@ -2003,7 +2038,8 @@ html.light-mode .pagination-bar {
   border-color: transparent;
   background: color-mix(in srgb, var(--bg-hover), transparent 18%);
   color: var(--text-main);
-  box-shadow: 0 4px 12px color-mix(in srgb, var(--shadow-color), transparent 56%);
+  box-shadow: 0 4px 12px
+    color-mix(in srgb, var(--shadow-color), transparent 56%);
 }
 
 .header-tool-btn:active:not(:disabled) {
@@ -2028,7 +2064,7 @@ html.light-mode .pagination-bar {
   inset: -0.14rem;
   z-index: 0;
   border-radius: 0.79rem;
-  content: '';
+  content: "";
   pointer-events: none;
   transition: background-color 0.18s ease;
 }

@@ -115,6 +115,12 @@ export default function layout() {
         this.handleGlobalDragEnd();
       });
 
+      // 粘贴导入等跨模块操作通过统一事件同步左侧导航和主视图。
+      window.addEventListener("switch-mode", (event) => {
+        const mode = event.detail?.mode;
+        if (mode) this.switchMode(mode);
+      });
+
       // 监听 Escape 取消拖拽
       window.addEventListener("keydown", (e) => {
         if (

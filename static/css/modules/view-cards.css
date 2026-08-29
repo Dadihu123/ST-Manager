@@ -329,6 +329,7 @@ html.light-mode .card-bottom-toolbar {
 /* 预设列表图标保持与角色卡网格相同的线性尺度，但由对应 sprite 提供图形。 */
 .preset-list-title-icon,
 .preset-list-entry-icon,
+.extension-list-entry-icon,
 .preset-list-dropzone-icon,
 .preset-list-loading-icon,
 .preset-card-stat-icon,
@@ -346,7 +347,8 @@ html.light-mode .card-bottom-toolbar {
   height: 24px;
 }
 
-.preset-list-entry-icon .ui-icon {
+.preset-list-entry-icon .ui-icon,
+.extension-list-entry-icon .ui-icon {
   width: 32px;
   height: 32px;
 }

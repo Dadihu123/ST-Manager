@@ -362,12 +362,15 @@
     </div>
     <div style="display: flex; align-items: center; gap: 0.5rem">
       <button
+        type="button"
         @click="changeWiPage(wiCurrentPage-1)"
         :disabled="wiCurrentPage===1"
+        aria-label="上一页"
+        title="上一页"
         class="btn-secondary"
         style="padding: 0.25rem 0.5rem"
       >
-        上一页
+        {{ icon('chevron-right', 'ui-icon--sm rotate-180') }}
       </button>
       <span
         style="
@@ -381,12 +384,15 @@
         x-text="wiCurrentPage + '/' + wiTotalPages"
       ></span>
       <button
+        type="button"
         @click="changeWiPage(wiCurrentPage+1)"
         :disabled="wiCurrentPage===wiTotalPages"
+        aria-label="下一页"
+        title="下一页"
         class="btn-secondary"
         style="padding: 0.25rem 0.5rem"
       >
-        下一页
+        {{ icon('chevron-right', 'ui-icon--sm') }}
       </button>
     </div>
   </div>

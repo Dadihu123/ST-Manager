@@ -119,9 +119,13 @@
     <div class="pagination-bar chat-grid-pagination" x-show="chatList.length > 0 || chatCurrentPage > 1">
         <span class="chat-grid-pagination-meta">共 <span x-text="chatTotalItems"></span> 条</span>
         <div class="chat-grid-pagination-controls">
-            <button @click="changeChatPage(chatCurrentPage - 1)" :disabled="chatCurrentPage===1" class="btn-secondary">上一页</button>
+            <button type="button" @click="changeChatPage(chatCurrentPage - 1)" :disabled="chatCurrentPage===1" class="btn-secondary" aria-label="上一页" title="上一页">
+                {{ icon('chevron-right', 'ui-icon--sm rotate-180') }}
+            </button>
             <span class="chat-grid-pagination-indicator" x-text="chatCurrentPage + '/' + chatTotalPages"></span>
-            <button @click="changeChatPage(chatCurrentPage + 1)" :disabled="chatCurrentPage===chatTotalPages" class="btn-secondary">下一页</button>
+            <button type="button" @click="changeChatPage(chatCurrentPage + 1)" :disabled="chatCurrentPage===chatTotalPages" class="btn-secondary" aria-label="下一页" title="下一页">
+                {{ icon('chevron-right', 'ui-icon--sm') }}
+            </button>
         </div>
     </div>
 </div>

@@ -77,8 +77,16 @@
                         </div>
 
                         <div class="flex items-start gap-3 mb-2">
-                            <div class="pt-1 opacity-80 select-none" aria-hidden="true">
-                                {{ icon('file-code', 'ui-icon--lg ') }}
+                            <div class="extension-list-entry-icon pt-1 opacity-80 select-none" aria-hidden="true">
+                                <span x-cloak x-show="currentMode === 'regex'" class="text-blue-400">
+                                    {{ detail_icon('regex', 'ui-icon--lg') }}
+                                </span>
+                                <span x-cloak x-show="currentMode === 'scripts'" class="text-purple-400">
+                                    {{ detail_icon('script-file', 'ui-icon--lg') }}
+                                </span>
+                                <span x-cloak x-show="currentMode === 'quick_replies'" class="text-yellow-500">
+                                    {{ detail_icon('quick-reply', 'ui-icon--lg') }}
+                                </span>
                             </div>
                             <div class="min-w-0 flex-1">
                                 <div class="font-bold text-sm truncate text-[var(--text-main)] mb-1" :title="item.name"

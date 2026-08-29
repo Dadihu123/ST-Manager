@@ -77,6 +77,13 @@ def test_grid_components_expose_paste_upload_entrypoints():
     assert "window.stUploadPresetFiles" in preset_grid
 
 
+def test_layout_listens_for_cross_module_mode_switches():
+    source = read_project_file("static/js/components/layout.js")
+
+    assert 'window.addEventListener("switch-mode"' in source
+    assert "this.switchMode(mode)" in source
+
+
 def test_url_paste_dispatches_prefilled_import_event_and_prevents_default():
     run_node(
         """
@@ -202,6 +209,53 @@ def test_file_classification_and_dispatch_group_by_resource_type():
         const expected = 'card|chat|extension:quick_replies|extension:regex|extension:scripts|preset|worldinfo';
         if (labels !== expected) {
           throw new Error(`unexpected dispatch labels: ${labels}`);
+        }
+        """
+    )
+
+
+def test_single_resource_paste_syncs_workspace_mode_before_uploading():
+    run_node(
+        """
+        const events = [];
+        const calls = [];
+        const store = {
+          currentMode: 'presets',
+          viewState: { filterCategory: '' },
+        };
+        globalThis.window = {
+          Alpine: {
+            store() { return store; },
+          },
+          dispatchEvent(event) {
+            events.push(event);
+            return true;
+          },
+          stUploadWorldInfoFiles(files) {
+            calls.push(files.map((file) => file.name));
+          },
+          alert() {},
+        };
+
+        let prevented = false;
+        const handled = await module.handlePasteImport({
+          target: { closest() { return false; } },
+          clipboardData: {
+            files: [fakeFile('book.json', JSON.stringify({ entries: {} }))],
+            items: [],
+          },
+          preventDefault() { prevented = true; },
+        });
+
+        if (!handled || !prevented) throw new Error('resource paste should be handled');
+        if (store.currentMode !== 'worldinfo') {
+          throw new Error(`workspace mode was not synchronized: ${store.currentMode}`);
+        }
+        if (events.length !== 1 || events[0].type !== 'switch-mode' || events[0].detail.mode !== 'worldinfo') {
+          throw new Error(`unexpected mode events: ${JSON.stringify(events)}`);
+        }
+        if (calls.length !== 1 || calls[0][0] !== 'book.json') {
+          throw new Error('worldbook uploader did not receive the pasted file');
         }
         """
     )

@@ -258,9 +258,13 @@
                 <template x-if="activeChat && !detailLoading && !readerAppMode">
                     <div class="chat-message-list">
                         <div x-show="isReaderPageMode" class="chat-window-switcher">
-                            <button type="button" class="chat-toolbar-btn" @click="stepReaderPageGroup(-1)" :disabled="!hasPreviousReaderPageGroup">上一页</button>
+                            <button type="button" class="chat-toolbar-btn" @click="stepReaderPageGroup(-1)" :disabled="!hasPreviousReaderPageGroup" aria-label="上一页" title="上一页">
+                                {{ icon('chevron-right', 'ui-icon--sm rotate-180') }}
+                            </button>
                             <span role="status" aria-live="polite" x-text="readerPageGroupStatusText"></span>
-                            <button type="button" class="chat-toolbar-btn" @click="stepReaderPageGroup(1)" :disabled="!hasNextReaderPageGroup">下一页</button>
+                            <button type="button" class="chat-toolbar-btn" @click="stepReaderPageGroup(1)" :disabled="!hasNextReaderPageGroup" aria-label="下一页" title="下一页">
+                                {{ icon('chevron-right', 'ui-icon--sm') }}
+                            </button>
                         </div>
 
                         <div x-show="!isReaderPageMode && hasEarlierReaderWindow" class="chat-window-switcher">
@@ -322,9 +326,13 @@
                         </div>
 
                         <div x-show="isReaderPageMode" class="chat-window-switcher chat-window-switcher--tail">
-                            <button type="button" class="chat-toolbar-btn" @click="stepReaderPageGroup(-1)" :disabled="!hasPreviousReaderPageGroup">上一页</button>
+                            <button type="button" class="chat-toolbar-btn" @click="stepReaderPageGroup(-1)" :disabled="!hasPreviousReaderPageGroup" aria-label="上一页" title="上一页">
+                                {{ icon('chevron-right', 'ui-icon--sm rotate-180') }}
+                            </button>
                             <span role="status" aria-live="polite" x-text="readerPageGroupStatusText"></span>
-                            <button type="button" class="chat-toolbar-btn" @click="stepReaderPageGroup(1)" :disabled="!hasNextReaderPageGroup">下一页</button>
+                            <button type="button" class="chat-toolbar-btn" @click="stepReaderPageGroup(1)" :disabled="!hasNextReaderPageGroup" aria-label="下一页" title="下一页">
+                                {{ icon('chevron-right', 'ui-icon--sm') }}
+                            </button>
                         </div>
                     </div>
                 </template>

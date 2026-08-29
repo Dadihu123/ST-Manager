@@ -1,5 +1,18 @@
 const PASTE_HANDLER_KEY = "__stManagerPasteImportHandlerInstalled";
 
+const IMPORT_MODE_BY_GROUP = Object.freeze({
+  card: "cards",
+  worldinfo: "worldinfo",
+  preset: "presets",
+  chat: "chats",
+});
+
+const EXTENSION_IMPORT_TYPES = Object.freeze([
+  "regex",
+  "scripts",
+  "quick_replies",
+]);
+
 const EDITABLE_SELECTOR = [
   "input",
   "textarea",
@@ -211,6 +224,51 @@ export async function classifyFiles(files) {
   return groups;
 }
 
+/**
+ * Only switch the workspace automatically when a paste contains one resource
+ * type. Mixed pastes stay in the current workspace so the final view remains
+ * predictable while each uploader still receives its own file group.
+ */
+export function getPasteImportMode(groups) {
+  const modes = [];
+
+  Object.entries(IMPORT_MODE_BY_GROUP).forEach(([group, mode]) => {
+    if (Array.isArray(groups?.[group]) && groups[group].length > 0) {
+      modes.push(mode);
+    }
+  });
+
+  EXTENSION_IMPORT_TYPES.forEach((extensionType) => {
+    if (
+      Array.isArray(groups?.extension?.[extensionType]) &&
+      groups.extension[extensionType].length > 0
+    ) {
+      modes.push(extensionType);
+    }
+  });
+
+  const uniqueModes = [...new Set(modes)];
+  return uniqueModes.length === 1 ? uniqueModes[0] : "";
+}
+
+export function syncViewToPasteImportMode(groups) {
+  const mode = getPasteImportMode(groups);
+  if (!mode) return "";
+
+  const store = getGlobalStore();
+  if (store) store.currentMode = mode;
+
+  if (typeof window.dispatchEvent === "function") {
+    window.dispatchEvent(
+      new CustomEvent("switch-mode", {
+        detail: { mode },
+      }),
+    );
+  }
+
+  return mode;
+}
+
 function callUploader(name, files, ...args) {
   if (!files || files.length === 0) return false;
   const uploader = window[name];
@@ -261,6 +319,7 @@ export async function handlePasteImport(event) {
   if (files.length > 0) {
     event.preventDefault();
     const groups = await classifyFiles(files);
+    syncViewToPasteImportMode(groups);
     const dispatched = dispatchImportGroups(groups);
     showPasteImportSummary(groups, dispatched);
     return true;
