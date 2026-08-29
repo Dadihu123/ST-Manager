@@ -143,6 +143,21 @@ def test_card_advanced_filter_template_exposes_sections_and_footer_actions():
     assert 'get tagSummary() {' in drawer_component
 
 
+def test_card_advanced_filter_numeric_inputs_use_shared_stepper_contract():
+    drawer_template = read_project_file('templates/modals/card_advanced_filter.html')
+
+    assert drawer_template.count('type="number"') == 2
+    assert drawer_template.count('class="ui-number-control"') == 2
+    assert drawer_template.count('class="ui-number-stepper"') == 2
+    assert drawer_template.count('class="ui-number-input"') == 2
+    assert drawer_template.count('min="0"') == 2
+    assert drawer_template.count('step="1"') == 2
+    assert drawer_template.count("icon('arrow-up', 'ui-icon--xs')") == 2
+    assert drawer_template.count("icon('arrow-down', 'ui-icon--xs')") == 2
+    assert 'window.stepNumberInput($event.currentTarget, 1)' in drawer_template
+    assert 'window.stepNumberInput($event.currentTarget, -1)' in drawer_template
+
+
 def test_card_advanced_filter_component_exposes_section_navigation_and_inline_validation():
     drawer_component = read_project_file('static/js/components/cardAdvancedFilter.js')
     state_source = read_project_file('static/js/state.js')

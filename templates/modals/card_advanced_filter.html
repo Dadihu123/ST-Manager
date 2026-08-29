@@ -1,4 +1,5 @@
 {% from "components/styled_select.html" import styled_select %}
+{% from "components/icon.html" import icon %}
 
 <div
   x-data="cardAdvancedFilter"
@@ -215,23 +216,71 @@
             <div class="card-advanced-filter-field-grid">
               <label>
                 Token 最小值
-                <input
-                  type="number"
-                  inputmode="numeric"
-                  x-model="draft.tokenMin"
-                  @input="syncValidationState()"
-                  @change="syncValidationState()"
-                />
+                <div class="ui-number-control">
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    inputmode="numeric"
+                    x-model="draft.tokenMin"
+                    @input="syncValidationState()"
+                    @change="syncValidationState()"
+                    aria-label="Token 最小值"
+                    class="ui-number-input"
+                  />
+                  <div class="ui-number-stepper" aria-label="调整 Token 最小值">
+                    <button
+                      type="button"
+                      class="ui-number-stepper-btn"
+                      @click.prevent="window.stepNumberInput($event.currentTarget, 1)"
+                      aria-label="增加 Token 最小值"
+                    >
+                      {{ icon('arrow-up', 'ui-icon--xs') }}
+                    </button>
+                    <button
+                      type="button"
+                      class="ui-number-stepper-btn"
+                      @click.prevent="window.stepNumberInput($event.currentTarget, -1)"
+                      aria-label="减少 Token 最小值"
+                    >
+                      {{ icon('arrow-down', 'ui-icon--xs') }}
+                    </button>
+                  </div>
+                </div>
               </label>
               <label>
                 Token 最大值
-                <input
-                  type="number"
-                  inputmode="numeric"
-                  x-model="draft.tokenMax"
-                  @input="syncValidationState()"
-                  @change="syncValidationState()"
-                />
+                <div class="ui-number-control">
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    inputmode="numeric"
+                    x-model="draft.tokenMax"
+                    @input="syncValidationState()"
+                    @change="syncValidationState()"
+                    aria-label="Token 最大值"
+                    class="ui-number-input"
+                  />
+                  <div class="ui-number-stepper" aria-label="调整 Token 最大值">
+                    <button
+                      type="button"
+                      class="ui-number-stepper-btn"
+                      @click.prevent="window.stepNumberInput($event.currentTarget, 1)"
+                      aria-label="增加 Token 最大值"
+                    >
+                      {{ icon('arrow-up', 'ui-icon--xs') }}
+                    </button>
+                    <button
+                      type="button"
+                      class="ui-number-stepper-btn"
+                      @click.prevent="window.stepNumberInput($event.currentTarget, -1)"
+                      aria-label="减少 Token 最大值"
+                    >
+                      {{ icon('arrow-down', 'ui-icon--xs') }}
+                    </button>
+                  </div>
+                </div>
               </label>
             </div>
           </section>
