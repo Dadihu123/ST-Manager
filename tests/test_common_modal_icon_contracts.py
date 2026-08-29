@@ -132,6 +132,20 @@ def test_icon_select_contract_covers_import_batch_and_automation_controls():
     assert '.automation-export-btn' in automation_css
 
 
+def test_repeated_action_menus_ignore_sibling_outside_click_handlers():
+    automation_template = read_project_file('templates/modals/automation.html')
+    automation_js = read_project_file('static/js/components/automationModal.js')
+    batch_template = read_project_file('templates/modals/batch_import.html')
+    batch_js = read_project_file('static/js/components/batchImportModal.js')
+
+    assert '@click.outside="closeActionMenu($event)"' in automation_template
+    assert 'closeActionMenu(event = null)' in automation_js
+    assert "event?.target?.closest?.('.automation-action-type-select')" in automation_js
+    assert '@click.outside="closeConflictActionMenu($event)"' in batch_template
+    assert 'closeConflictActionMenu(event = null)' in batch_js
+    assert "event?.target?.closest?.('.batch-import-action-select')" in batch_js
+
+
 def test_project_single_selects_reuse_shared_shell_without_touching_sidebar_or_multiselects():
     templates_root = PROJECT_ROOT / 'templates'
     sidebar_source = read_project_file('templates/components/sidebar.html')

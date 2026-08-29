@@ -78,7 +78,10 @@ export default function batchImportModal() {
             this.openConflictActionKey = this.isConflictActionMenuOpen(index) ? null : index;
         },
 
-        closeConflictActionMenu() {
+        closeConflictActionMenu(event = null) {
+            // Each conflict card listens for outside clicks while sharing one open-menu state.
+            if (event?.target?.closest?.('.batch-import-action-select')) return;
+
             this.openConflictActionKey = null;
         },
 

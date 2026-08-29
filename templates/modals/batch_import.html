@@ -60,7 +60,7 @@
                                 <!-- 操作选择 -->
                                 <div class="icon-select icon-select--compact batch-import-action-select"
                                     :class="{ 'is-open': isConflictActionMenuOpen(idx) }"
-                                    @click.outside="closeConflictActionMenu()">
+                                    @click.outside="closeConflictActionMenu($event)">
                                     <button type="button" class="icon-select-trigger icon-select-trigger--compact batch-import-action-trigger"
                                         :class="{
                                             'batch-import-action-trigger--rename': item.action === 'rename',

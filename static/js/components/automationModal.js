@@ -456,7 +456,11 @@ export default function automationModal() {
             this.openActionMenuKey = this.openActionMenuKey === key ? null : key;
         },
 
-        closeActionMenu() {
+        closeActionMenu(event = null) {
+            // Every action row listens for outside clicks, so ignore clicks
+            // inside another action menu before clearing the shared state.
+            if (event?.target?.closest?.('.automation-action-type-select')) return;
+
             this.openActionMenuKey = null;
         },
 

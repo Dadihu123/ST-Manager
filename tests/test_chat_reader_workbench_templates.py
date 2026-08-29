@@ -2377,6 +2377,15 @@ def test_automation_modal_template_exposes_new_action_options_and_structured_inp
     assert "action.config = { template: '', fallback_template: '', max_length: 120, exclude_category_tags: '' }" not in automation_template
 
 
+def test_automation_action_menu_outside_click_does_not_close_a_sibling_menu():
+    automation_template = read_project_file('templates/modals/automation.html')
+    automation_js = read_project_file('static/js/components/automationModal.js')
+
+    assert '@click.outside="closeActionMenu($event)"' in automation_template
+    assert "event?.target?.closest?.('.automation-action-type-select')" in automation_js
+    assert 'closeActionMenu(event = null)' in automation_js
+
+
 def test_automation_modal_js_centralizes_template_action_config_and_removes_duplicate_methods():
     automation_js = read_project_file('static/js/components/automationModal.js')
 

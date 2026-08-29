@@ -444,7 +444,7 @@
                                             <div class="logic-row" style="border-color: rgba(16, 185, 129, 0.3);">
                                                 <div class="icon-select automation-action-type-select"
                                                     :class="{ 'is-open': isActionMenuOpen(rIdx, aIdx) }"
-                                                    @click.outside="closeActionMenu()">
+                                                    @click.outside="closeActionMenu($event)">
                                                     <button type="button"
                                                         class="icon-select-trigger automation-action-type-control font-bold text-green-600"
                                                         :aria-expanded="isActionMenuOpen(rIdx, aIdx).toString()"
