@@ -1372,3 +1372,203 @@ def test_get_cleaned_v3_data_preserves_raw_sillytavern_character_book_extensions
     )
 
     run_js(script)
+
+
+def test_wi_editor_template_exposes_entry_filter_and_previous_find_action():
+    template = read_project_file('templates/modals/detail_wi_fullscreen.html')
+
+    assert 'id="wi-entry-filter-input"' in template
+    assert 'x-model="wiEntryFilterQuery"' in template
+    assert ':draggable="wiSortMode === \'custom\' && !isWiEntryFilterActive()"' in template
+    assert ':disabled="isWiEntryFilterActive()"' in template
+    assert '@click="findPreviousMatch()"' in template
+    assert '查找上一个' in template
+
+
+def test_wi_editor_runtime_filters_entry_title_keys_and_content():
+    source = read_project_file('static/js/components/wiEditor.js')
+    search_text_block = extract_js_function_block(
+        source,
+        'getWiEntrySearchText(entry) {',
+    )
+    active_block = extract_js_function_block(
+        source,
+        'isWiEntryFilterActive() {',
+    )
+    filtered_block = extract_js_function_block(
+        source,
+        'getFilteredSortedWIEntries() {',
+    )
+
+    script = textwrap.dedent(
+        f'''
+        const entries = [
+          {{ comment: '森林守卫', keys: ['forest'], content: 'old tower' }},
+          {{ comment: '海港', keys: ['harbor'], content: 'blue water' }},
+          {{ comment: '无标题', keys: [], content: 'forest border' }},
+        ];
+        const component = {{
+          wiEntryFilterQuery: 'FOREST',
+          getSortedWIEntries() {{ return entries; }},
+          {search_text_block},
+          {active_block},
+          {filtered_block},
+        }};
+
+        if (!component.isWiEntryFilterActive()) throw new Error('filter should be active');
+        const filtered = component.getFilteredSortedWIEntries();
+        if (filtered.length !== 2 || filtered[0] !== entries[0] || filtered[1] !== entries[2]) {{
+          throw new Error(`unexpected filtered entries: ${{JSON.stringify(filtered)}}`);
+        }}
+
+        component.wiEntryFilterQuery = '  ';
+        if (component.isWiEntryFilterActive()) throw new Error('blank query should be inactive');
+        if (component.getFilteredSortedWIEntries().length !== entries.length) {{
+          throw new Error('blank query should return all entries');
+        }}
+        '''
+    )
+
+    run_js(script)
+
+
+def test_wi_editor_runtime_blocks_clipboard_insert_and_main_list_drag_while_filtered():
+    source = read_project_file('static/js/components/wiEditor.js')
+    add_block = extract_js_function_block(
+        source,
+        'addWiEntryFromClipboard(content) {',
+    )
+    drag_start_block = extract_js_function_block(
+        source,
+        'wiDragStart(e, index) {',
+    )
+    drop_block = extract_js_function_block(source, 'wiDrop(e, targetIndex) {')
+
+    script = textwrap.dedent(
+        f'''
+        let toast = '';
+        let prevented = false;
+        let stopped = false;
+        let classRemoved = false;
+        const component = {{
+          isWiEntryFilterActive() {{ return true; }},
+          $store: {{ global: {{ showToast(message) {{ toast = message; }} }} }},
+          getWIArrayRef() {{ throw new Error('filtered insert should stop before reading entries'); }},
+          {add_block},
+          {drag_start_block},
+          {drop_block},
+        }};
+
+        if (component.addWiEntryFromClipboard({{ content: 'blocked' }}) !== false) {{
+          throw new Error('clipboard insert should be rejected while filtered');
+        }}
+        if (!toast.includes('清空条目搜索')) throw new Error('missing filtered insert guidance');
+
+        component.wiDragStart({{}}, 0);
+        const event = {{
+          preventDefault() {{ prevented = true; }},
+          stopPropagation() {{ stopped = true; }},
+          currentTarget: {{
+            classList: {{
+              remove() {{ classRemoved = true; }},
+            }},
+          }},
+        }};
+        if (component.wiDrop(event, 0) !== false) throw new Error('filtered drop should be rejected');
+        if (!prevented || !stopped || !classRemoved) throw new Error('filtered drop should be cancelled cleanly');
+        '''
+    )
+
+    run_js(script)
+
+
+def test_wi_editor_runtime_previous_find_wraps_across_entries():
+    source = read_project_file('static/js/components/wiEditor.js')
+    blocks = [
+        extract_js_function_block(source, '_normalizeFindText(text) {'),
+        extract_js_function_block(source, '_parseFindReplaceExcludeTokens() {'),
+        extract_js_function_block(source, '_mergeRanges(ranges) {'),
+        extract_js_function_block(source, '_buildBlockedRanges(text, excludeTokens, caseSensitive = false) {'),
+        extract_js_function_block(source, '_isRangeBlocked(start, length, blockedRanges) {'),
+        extract_js_function_block(source, '_findPreviousInText('),
+        extract_js_function_block(source, '_applyFindHit(hit) {'),
+        extract_js_function_block(source, 'findPreviousMatch() {'),
+    ]
+
+    script = textwrap.dedent(
+        f'''
+        const entries = [
+          {{ uid: 'a', content: 'hit one hit two' }},
+          {{ uid: 'b', content: 'prefix hit three' }},
+        ];
+        const applied = [];
+        const component = {{
+          entryUidField: 'uid',
+          findReplaceQuery: 'hit',
+          findReplaceScope: 'all',
+          findReplaceCaseSensitive: false,
+          findReplaceExcludeText: '',
+          findReplaceLastHit: null,
+          isEditingClipboard: false,
+          currentClipboardIndex: -1,
+          currentWiIndex: 1,
+          currentWiEntryKey: 'manager:b',
+          getWiEntryIdentity(entry) {{ return `manager:${{entry.uid}}`; }},
+          _getFindReplaceTargets() {{ return entries.map((entry, index) => ({{ entry, index }})); }},
+          _getContentTextareaEl() {{ return {{ selectionStart: 0 }}; }},
+          _scrollWiEntryIntoView() {{}},
+          _focusAndRevealFindHit() {{}},
+          {', '.join(blocks)},
+        }};
+
+        component._applyFindHit({{ entry: entries[1], index: 1, start: 7, length: 3 }});
+        component.findPreviousMatch();
+        applied.push(component.findReplaceLastHit);
+        component.findPreviousMatch();
+        applied.push(component.findReplaceLastHit);
+        component.findPreviousMatch();
+        applied.push(component.findReplaceLastHit);
+
+        const summary = applied.map((hit) => [hit.entryUid, hit.start]);
+        if (JSON.stringify(summary) !== JSON.stringify([['a', 8], ['a', 0], ['b', 7]])) {{
+          throw new Error(`unexpected previous-find sequence: ${{JSON.stringify(summary)}}`);
+        }}
+        '''
+    )
+
+    run_js(script)
+
+
+def test_wi_editor_runtime_find_hit_centers_matching_left_entry():
+    source = read_project_file('static/js/components/wiEditor.js')
+    scroll_block = extract_js_function_block(
+        source,
+        '_scrollWiEntryIntoView(entry, fallbackIndex = 0) {',
+    )
+
+    script = textwrap.dedent(
+        f'''
+        let scrollOptions = null;
+        const item = {{
+          dataset: {{ entryKey: 'manager:entry-2' }},
+          scrollIntoView(options) {{ scrollOptions = options; }},
+        }};
+        const component = {{
+          getWiEntryIdentity(entry) {{ return `manager:${{entry.uid}}`; }},
+          _getEditorRootEl() {{ return {{ querySelectorAll() {{ return [item]; }} }}; }},
+          $nextTick(fn) {{ fn(); }},
+          {scroll_block},
+        }};
+        globalThis.window = {{
+          requestAnimationFrame(fn) {{ fn(); }},
+          matchMedia() {{ return {{ matches: false }}; }},
+        }};
+
+        component._scrollWiEntryIntoView({{ uid: 'entry-2' }}, 1);
+        if (!scrollOptions || scrollOptions.block !== 'center' || scrollOptions.behavior !== 'smooth') {{
+          throw new Error(`expected centered left-entry scroll, got ${{JSON.stringify(scrollOptions)}}`);
+        }}
+        '''
+    )
+
+    run_js(script)

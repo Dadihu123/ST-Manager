@@ -72,6 +72,7 @@ export default function wiEditor() {
     wiSortMode: loadWiSortMode(),
     wiSortOptions: WI_SORT_OPTIONS,
     showWiSortMenu: false,
+    wiEntryFilterQuery: "",
     initialSnapshotChecked: false,
     initialSnapshotInitPromise: null,
 
@@ -129,6 +130,40 @@ export default function wiEditor() {
 
     get activeCard() {
       return this.editingData;
+    },
+
+    getWiEntrySearchText(entry) {
+      if (!entry || typeof entry !== "object") return "";
+      return [
+        entry.comment,
+        entry.title,
+        entry.content,
+        entry.keys,
+        entry.secondary_keys,
+        entry.group,
+        entry.outletName,
+        entry.automationId,
+      ]
+        .map((value) =>
+          Array.isArray(value) ? value.join(" ") : String(value ?? ""),
+        )
+        .join("\n");
+    },
+
+    isWiEntryFilterActive() {
+      return String(this.wiEntryFilterQuery ?? "").trim().length > 0;
+    },
+
+    getFilteredSortedWIEntries() {
+      const entries = this.getSortedWIEntries();
+      const query = String(this.wiEntryFilterQuery ?? "")
+        .trim()
+        .toLowerCase();
+      if (!query) return entries;
+
+      return entries.filter((entry) =>
+        this.getWiEntrySearchText(entry).toLowerCase().includes(query),
+      );
     },
 
     openLargeEditor(
@@ -419,6 +454,7 @@ export default function wiEditor() {
           this.isEditingClipboard = false;
           this.currentWiIndex = 0;
           this.currentWiEntryKey = "";
+          this.wiEntryFilterQuery = "";
           this.initialSnapshotChecked = false;
           this.initialSnapshotInitPromise = null;
           this.showFindReplaceModal = false;
@@ -590,6 +626,54 @@ export default function wiEditor() {
       } finally {
         if (typeof mirror.remove === "function") mirror.remove();
         else if (typeof host.removeChild === "function") host.removeChild(mirror);
+      }
+    },
+
+    _scrollWiEntryIntoView(entry, fallbackIndex = 0) {
+      if (!entry || typeof this._getEditorRootEl !== "function") return;
+
+      const entryKey =
+        typeof this.getWiEntryIdentity === "function"
+          ? this.getWiEntryIdentity(entry, fallbackIndex)
+          : "";
+      if (!entryKey) return;
+
+      const reveal = () => {
+        const root = this._getEditorRootEl();
+        if (!root || typeof root.querySelectorAll !== "function") return;
+
+        const item = Array.from(root.querySelectorAll(".wi-list-item")).find(
+          (candidate) =>
+            (candidate.dataset?.entryKey ||
+              candidate.getAttribute?.("data-entry-key")) === entryKey,
+        );
+        if (!item || typeof item.scrollIntoView !== "function") return;
+
+        const reducedMotion =
+          typeof window !== "undefined" &&
+          typeof window.matchMedia === "function" &&
+          window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        item.scrollIntoView({
+          behavior: reducedMotion ? "auto" : "smooth",
+          block: "center",
+        });
+      };
+
+      const scheduleFrame = (callback) => {
+        if (
+          typeof window !== "undefined" &&
+          typeof window.requestAnimationFrame === "function"
+        ) {
+          window.requestAnimationFrame(callback);
+        } else {
+          callback();
+        }
+      };
+
+      if (typeof this.$nextTick === "function") {
+        this.$nextTick(() => scheduleFrame(reveal));
+      } else {
+        scheduleFrame(reveal);
       }
     },
 
@@ -897,6 +981,36 @@ export default function wiEditor() {
       return -1;
     },
 
+    _findPreviousInText(
+      text,
+      query,
+      fromIndex = Number.POSITIVE_INFINITY,
+      caseSensitive = false,
+      blockedRanges = [],
+    ) {
+      const src = this._normalizeFindText(text);
+      const needle = this._normalizeFindText(query);
+      if (!needle) return -1;
+
+      const maxStart = src.length - needle.length;
+      if (maxStart < 0) return -1;
+
+      const rawStart = Number(fromIndex);
+      let pos = Number.isFinite(rawStart) ? Math.trunc(rawStart) : maxStart;
+      pos = Math.min(pos, maxStart);
+      while (pos >= 0) {
+        const found = caseSensitive
+          ? src.lastIndexOf(needle, pos)
+          : src.toLowerCase().lastIndexOf(needle.toLowerCase(), pos);
+        if (found < 0) return -1;
+        if (!this._isRangeBlocked(found, needle.length, blockedRanges)) {
+          return found;
+        }
+        pos = found - 1;
+      }
+      return -1;
+    },
+
     _applyFindHit(hit) {
       if (!hit || !hit.entry) return false;
 
@@ -922,6 +1036,9 @@ export default function wiEditor() {
         length: hit.length,
       };
 
+      if (typeof this._scrollWiEntryIntoView === "function") {
+        this._scrollWiEntryIntoView(hit.entry, hit.index);
+      }
       this._focusAndRevealFindHit(hit.start, hit.length);
       return true;
     },
@@ -1022,6 +1139,120 @@ export default function wiEditor() {
           this._applyFindHit(hit);
           return true;
         }
+      }
+
+      alert("未找到匹配内容。");
+      return false;
+    },
+
+    findPreviousMatch() {
+      const query = this._normalizeFindText(this.findReplaceQuery).trim();
+      if (!query) {
+        alert("请输入查找内容。");
+        return false;
+      }
+
+      const targets = this._getFindReplaceTargets();
+      if (!targets.length) {
+        alert("当前范围没有可查找的条目。");
+        return false;
+      }
+
+      let startTargetIdx = 0;
+      let startOffset = Number.POSITIVE_INFINITY;
+      const last = this.findReplaceLastHit;
+      let resumedFromLast = false;
+
+      if (this.findReplaceScope === "current") {
+        const content = this._normalizeFindText(targets[0].entry?.content);
+        const textarea = this._getContentTextareaEl();
+        const cursorStart =
+          textarea && typeof textarea.selectionStart === "number"
+            ? textarea.selectionStart
+            : content.length;
+        startOffset = cursorStart - query.length;
+      } else if (
+        last &&
+        last.query === this.findReplaceQuery &&
+        last.scope === this.findReplaceScope &&
+        !!last.caseSensitive === !!this.findReplaceCaseSensitive
+      ) {
+        let idx = targets.findIndex((target) => {
+          const uid = String(target.entry?.[this.entryUidField] || "");
+          return uid && uid === String(last.entryUid || "");
+        });
+        if (idx < 0 && typeof last.index === "number") {
+          idx = targets.findIndex((target) => target.index === last.index);
+        }
+        if (idx >= 0 && idx < targets.length) {
+          startTargetIdx = idx;
+          startOffset = Number(last.start || 0) - 1;
+          resumedFromLast = true;
+        }
+      }
+
+      if (this.findReplaceScope === "all" && !resumedFromLast) {
+        const current = this.activeEditorEntry;
+        const currentIndex = targets.findIndex(
+          (target) => target.entry === current,
+        );
+        startTargetIdx = currentIndex >= 0 ? currentIndex : 0;
+        const content = this._normalizeFindText(
+          targets[startTargetIdx].entry?.content,
+        );
+        const textarea = this._getContentTextareaEl();
+        const cursorStart =
+          textarea && typeof textarea.selectionStart === "number"
+            ? textarea.selectionStart
+            : content.length;
+        startOffset = cursorStart - query.length;
+      }
+
+      const findInTarget = (target, fromIndex) => {
+        const content = this._normalizeFindText(target.entry?.content);
+        const excluded = this._parseFindReplaceExcludeTokens();
+        const blockedRanges = this._buildBlockedRanges(
+          content,
+          excluded,
+          this.findReplaceCaseSensitive,
+        );
+        return this._findPreviousInText(
+          content,
+          query,
+          fromIndex,
+          this.findReplaceCaseSensitive,
+          blockedRanges,
+        );
+      };
+
+      for (let pass = 0; pass < targets.length; pass++) {
+        const targetIdx =
+          (startTargetIdx - pass + targets.length) % targets.length;
+        const target = targets[targetIdx];
+        const from = pass === 0 ? startOffset : Number.POSITIVE_INFINITY;
+        const pos = findInTarget(target, from);
+        if (pos >= 0) {
+          this._applyFindHit({
+            entry: target.entry,
+            index: target.index,
+            start: pos,
+            length: query.length,
+          });
+          return true;
+        }
+      }
+
+      // 回到起点条目末尾，完成一整圈反向查找。
+      const startTarget = targets[startTargetIdx];
+      const pos = findInTarget(startTarget, Number.POSITIVE_INFINITY);
+      if (pos >= 0) {
+        this._applyFindHit({
+          entry: startTarget.entry,
+          index: startTarget.index,
+          start: pos,
+          length: query.length,
+        });
+        return true;
       }
 
       alert("未找到匹配内容。");
@@ -2393,6 +2624,7 @@ export default function wiEditor() {
     // 打开编辑器 (适配三种来源: global, resource, embedded)
     openWorldInfoEditor(item) {
       this.isLoading = true;
+      this.wiEntryFilterQuery = "";
       const targetId = item.id;
       const openRequestToken = ++this.openWorldInfoEditorRequestToken;
       this.editingWiFile = item;
@@ -2591,6 +2823,7 @@ export default function wiEditor() {
     // 打开独立文件 (兼容接口)
     openWorldInfoFile(item) {
       this.isLoading = true;
+      this.wiEntryFilterQuery = "";
       const targetId = item.id;
       this.editingWiFile = item;
       this.openWorldInfoFileRequestToken += 1;
@@ -2649,6 +2882,7 @@ export default function wiEditor() {
 
     openFullScreenWI() {
       this.showFullScreenWI = true;
+      this.wiEntryFilterQuery = "";
       // 确保选中第一项
       const entries = this.getWIArrayRef();
       const hasSelectedEntry =
@@ -3018,6 +3252,17 @@ export default function wiEditor() {
     },
 
     addWiEntryFromClipboard(content) {
+      if (
+        typeof this.isWiEntryFilterActive === "function" &&
+        this.isWiEntryFilterActive()
+      ) {
+        this.$store?.global?.showToast?.(
+          "请先清空条目搜索后再插入剪切板条目",
+          1800,
+        );
+        return false;
+      }
+
       const arr = this.getWIArrayRef();
       const newEntry = JSON.parse(JSON.stringify(content));
       // 不预先设置 id，在插入后统一重新分配
@@ -3111,6 +3356,15 @@ export default function wiEditor() {
 
     // 1. 主列表拖拽
     wiDragStart(e, index) {
+      if (
+        typeof this.isWiEntryFilterActive === "function" &&
+        this.isWiEntryFilterActive()
+      ) {
+        e?.preventDefault?.();
+        if (e?.dataTransfer) e.dataTransfer.effectAllowed = "none";
+        return false;
+      }
+
       this.wiDraggingIndex = index;
       const visibleEntries = this.getSortedWIEntries();
       const item = visibleEntries[index];
@@ -3141,6 +3395,14 @@ export default function wiEditor() {
     },
 
     wiDragOver(e, index) {
+      if (
+        typeof this.isWiEntryFilterActive === "function" &&
+        this.isWiEntryFilterActive()
+      ) {
+        e.currentTarget?.classList?.remove("drag-over-top", "drag-over-bottom");
+        return;
+      }
+
       e.preventDefault();
       const target = e.currentTarget;
       const rect = target.getBoundingClientRect();
@@ -3156,6 +3418,20 @@ export default function wiEditor() {
     },
 
     wiDrop(e, targetIndex) {
+      if (
+        typeof this.isWiEntryFilterActive === "function" &&
+        this.isWiEntryFilterActive()
+      ) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.currentTarget?.classList?.remove(
+          "drag-over-top",
+          "drag-over-bottom",
+          "dragging",
+        );
+        return false;
+      }
+
       e.preventDefault();
       e.stopPropagation();
       const el = e.currentTarget;

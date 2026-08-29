@@ -121,6 +121,111 @@
   background: transparent;
 }
 
+.wi-entry-list-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.wi-entry-filter {
+  position: relative;
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  align-items: center;
+  color: var(--text-dim);
+}
+
+.wi-entry-filter > span[aria-hidden="true"] {
+  position: absolute;
+  left: 0.55rem;
+  z-index: 1;
+  display: inline-flex;
+  pointer-events: none;
+}
+
+.wi-entry-filter-input {
+  width: 100%;
+  min-width: 0;
+  min-height: 2.1rem;
+  padding: 0.4rem 0.55rem 0.4rem 2rem;
+  border: 1px solid var(--border-light);
+  border-radius: 0.45rem;
+  outline: 0;
+  background: var(--bg-body);
+  color: var(--text-main);
+  font-size: 0.75rem;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background-color 0.2s ease;
+}
+
+.wi-entry-filter-input::placeholder {
+  color: var(--text-dim);
+}
+
+.wi-entry-filter:focus-within .wi-entry-filter-input {
+  border-color: var(--accent-main);
+  background: var(--bg-panel);
+  box-shadow: 0 0 0 2px var(--accent-faint);
+}
+
+.wi-entry-add-btn {
+  display: inline-flex;
+  flex: 0 0 2.1rem;
+  align-items: center;
+  justify-content: center;
+  width: 2.1rem;
+  min-height: 2.1rem;
+  padding: 0;
+  border: 1px solid color-mix(in srgb, #22c55e, var(--border-light) 45%);
+  border-radius: 0.45rem;
+  background: color-mix(in srgb, #16a34a, transparent 88%);
+  color: #4ade80;
+  cursor: pointer;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease;
+}
+
+.wi-entry-add-btn:hover,
+.wi-entry-add-btn:focus-visible {
+  border-color: #4ade80;
+  background: color-mix(in srgb, #16a34a, transparent 78%);
+  color: #86efac;
+  outline: none;
+}
+
+.wi-entry-filter-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: 0.35rem;
+  color: var(--text-dim);
+  font-size: 0.625rem;
+  line-height: 1.35;
+}
+
+.wi-entry-filter-status span:last-child {
+  color: color-mix(in srgb, var(--accent-main), var(--text-dim) 32%);
+  text-align: right;
+}
+
+.wi-entry-filter-empty {
+  padding: 2rem 0.75rem;
+  color: var(--text-dim);
+  font-size: 0.75rem;
+  text-align: center;
+}
+
+.wi-clipboard-add-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 .wi-list-item:hover {
   background-color: var(--bg-hover);
   background: var(--bg-hover);
