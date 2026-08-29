@@ -2122,7 +2122,7 @@
                       class="btn-secondary detail-mini-btn"
                       @click="triggerChatImportForCard()"
                     >
-                      {{ icon('upload', 'ui-icon--sm') }}
+                      {{ icon('file-import', 'ui-icon--sm') }}
                       <span>导入聊天</span>
                     </button>
                     <button
@@ -2159,7 +2159,7 @@
                     @change="handleCardChatInputChange($event)"
                   />
                   <div class="detail-chat-dropzone-icon" aria-hidden="true">
-                    {{ icon('upload', 'ui-icon--lg') }}
+                    {{ icon('file-import', 'ui-icon--lg') }}
                   </div>
                   <div class="detail-chat-dropzone-copy">
                     <div
@@ -2461,7 +2461,7 @@
                       </div>
                       <div class="detail-update-dropzone-note">
                         <span x-show="!dragOverUpdate" class="inline-flex items-center gap-1">
-                          {{ icon('upload', 'ui-icon--xs') }}
+                          {{ icon('file-import', 'ui-icon--xs') }}
                           <span>点击选择，或拖拽 PNG / JSON 到这里</span>
                         </span>
                         <span x-show="dragOverUpdate">松开后更新当前角色卡</span>

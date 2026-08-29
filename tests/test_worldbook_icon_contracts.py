@@ -64,6 +64,12 @@ def _read(relative_path):
     return (ROOT / relative_path).read_text(encoding='utf-8')
 
 
+def _button_block(source, marker):
+    start = source.index(marker)
+    end = source.index('</button>', start)
+    return source[start:end]
+
+
 def test_worldbook_design_symbols_are_theme_safe():
     source = _read('static/icons/ui.svg')
     design_block = source.split('<!-- 世界书套件专用图标', 1)[1]
@@ -162,6 +168,22 @@ def test_worldbook_templates_use_shared_icons_for_functional_controls():
     assert "icon('pencil-edit'" in fullscreen_controls
     assert "icon('plus-square'" in detail_card_worldbook
     assert "icon('trash'" in detail_card_worldbook
+
+
+def test_worldbook_export_controls_use_the_outbound_icon_direction():
+    grid_source = _read('templates/components/grid_wi.html')
+    popup_source = _read('templates/modals/detail_wi_popup.html')
+    detail_card_source = _read('templates/modals/detail_card.html')
+
+    for source, marker in (
+        (grid_source, '@click.stop="exportWorldInfoItem(item)"'),
+        (popup_source, '@click="exportActiveWorldInfo()"'),
+        (detail_card_source, '@click="exportWorldBookSingle()"'),
+    ):
+        button = _button_block(source, marker)
+        assert "icon('upload'" in button
+        assert "icon('book-save-as'" not in button
+        assert "icon('file-import'" not in button
 
 
 def test_worldbook_help_reuses_shared_icons_without_functional_glyphs():

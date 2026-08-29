@@ -14,6 +14,8 @@ symbol id 统一使用带 `icon-` 前缀的英文 kebab-case，并优先表达�
 
 上下移动控件统一使用 `icon-arrow-up` / `icon-arrow-down` 与 `.ui-reorder-button`；数字输入统一使用 `.ui-number-control`、`.ui-number-stepper` 和 `.ui-number-stepper-btn`。设置页保留 `.settings-number-*` 兼容类名，但共享相同的无边框、悬浮显示和键盘焦点状态。图标本身继续使用现有 `ui-icon--xs`（12px）挡位，不添加单独缩放规则。
 
+文件传输图标统一按“管理器内的数据流向”判定：进入管理器的本地文件（包括界面文案为“上传”的选择或拖拽入口）使用向下的 `icon-file-import`；从管理器导出或下载文件使用向上的 `icon-upload`。`icon-book-save-as` 仅用于确实会创建新文件的“另存为”操作，不用于直接导出下载。
+
 ## 2. Sprite 结构变更
 
 | 文件 | 用途 | 最终 symbol 数量 | 结构变更 |
@@ -136,7 +138,7 @@ symbol id 统一使用带 `icon-` 前缀的英文 kebab-case，并优先表达�
 | icon-settings | icon-settings | static/icons/ui.svg | 设置 | `templates/components/header.html:371`、`templates/modals/advanced_editor.html:265,878`、`templates/modals/execute_rules_mobile.html:52`、`tests/test_advanced_editor_icon_contracts.py:29,130`、`tests/test_common_modal_icon_contracts.py:67` | sm/16px | 否 |
 | icon-circle-dot | icon-circle-dot | static/icons/ui.svg | 圆形点 | `tests/test_worldbook_icon_contracts.py:149` | sm/16px（默认） | 否 |
 | icon-chevron-right | icon-chevron-right | static/icons/ui.svg | 折叠右 | `templates/components/context_menu.html:78`、`templates/components/sidebar.html:289,381,602,824`、`templates/modals/detail_card.html:1866`、`templates/modals/detail_wi_fullscreen.html:422,435,874,1439`、`templates/modals/detail_wi_popup.html:278` | xs/12px、sm/16px | 否 |
-| icon-image-upload | icon-settings-background-upload | static/icons/ui.svg | 图片上传 | `templates/modals/settings.html:522`、`tests/test_settings_icon_templates.py:108` | md/20px | 是 |
+| icon-image-upload | icon-settings-background-upload | static/icons/ui.svg | 图片上传（兼容保留，当前传输入口统一使用文件导入图标） | 无直接模板引用；背景选择入口使用 `icon-file-import` | md/20px | 是 |
 | icon-wallpaper | icon-settings-wallpaper | static/icons/ui.svg | 壁纸 | `core/data/ui_store.py:707`、`core/services/beautify_service.py:493,534`、`templates/modals/settings.html:1987` | sm/16px | 是 |
 | icon-directory-root | icon-settings-general-path | static/icons/ui.svg | 目录根 | `templates/modals/settings.html:56` | sm/16px | 是 |
 | icon-sliders-settings | icon-settings-advanced-settings | static/icons/ui.svg | 滑杆设置 | `templates/modals/advanced_editor.html:14`、`templates/modals/detail_card.html:2078`、`templates/modals/detail_wi_fullscreen.html:586,2086`、`templates/modals/settings.html:2226`、`tests/test_advanced_editor_icon_contracts.py:17` | sm/16px、md/20px | 是 |
@@ -159,7 +161,7 @@ symbol id 统一使用带 `icon-` 前缀的英文 kebab-case，并优先表达�
 | icon-database-user | icon-settings-user-database | static/icons/ui.svg | 数据库用户 | `templates/modals/settings.html:1482` | sm/16px | 是 |
 | icon-folder-resources | icon-settings-resource-directory | static/icons/ui.svg | 文件夹资源 | `templates/modals/settings.html:148,748,1461,1530` | sm/16px | 是 |
 | icon-folder-sync | icon-settings-resource-sync | static/icons/ui.svg | 文件夹同步 | `templates/modals/settings.html:775,830` | sm/16px | 是 |
-| icon-file-import | icon-header-import | static/icons/ui.svg | 文件导入 | `templates/components/grid_chats.html:40`、`templates/components/grid_presets.html:62`、`templates/components/grid_wi.html:102`、`templates/components/header.html:79,883`、`templates/modals/advanced_editor.html:81,462` | sm/16px、md/20px、lg/24px、xl/32px | 是 |
+| icon-file-import | icon-header-import | static/icons/ui.svg | 文件导入（向下，统一覆盖入站传输） | `templates/components/grid_cards.html:74`、`grid_chats.html:40`、`grid_extensions.html:53`、`grid_presets.html:62`、`grid_wi.html:30`、`header.html:79,883`、`templates/modals/advanced_editor.html:81,482`、`automation.html:47`、`batch_import.html:11`、`detail_card.html:2125,2162,2464,2692`、`detail_wi_fullscreen.html:192,1824`、`import.html:63`、`settings.html:522` | sm/16px、md/20px、lg/24px、xl/32px | 是 |
 | icon-filter | icon-header-advanced-filter | static/icons/ui.svg | 筛选 | `templates/components/header.html:570,846`、`tests/test_header_icon_templates.py:18` | md/20px | 是 |
 | icon-settings-gear | icon-header-settings | static/icons/ui.svg | 设置gear | `templates/components/header.html:659,937`、`templates/modals/settings.html:15`、`tests/test_header_icon_templates.py:25`、`tests/test_settings_icon_templates.py:56` | md/20px、lg/24px | 是 |
 | icon-refresh | icon-header-refresh | static/icons/ui.svg | 刷新 | `templates/components/grid_chats.html:44`、`templates/components/grid_extensions.html:41`、`templates/components/grid_presets.html:43`、`templates/components/header.html:634,913`、`templates/components/sidebar.html:937` | sm/16px、md/20px、lg/24px | 是 |
@@ -183,7 +185,7 @@ symbol id 统一使用带 `icon-` 前缀的英文 kebab-case，并优先表达�
 | icon-history-rollback | icon-worldbook-rollback | static/icons/ui.svg | 历史回滚 | `templates/modals/detail_card.html:2420,3782`、`templates/modals/detail_wi_fullscreen.html:164,1963,1982`、`templates/modals/detail_wi_popup.html:491`、`templates/modals/rollback.html:10,78`、`tests/test_common_modal_icon_contracts.py:59` | sm/16px、md/20px、lg/24px | 是 |
 | icon-clipboard | icon-worldbook-clipboard | static/icons/ui.svg | 剪贴板 | `templates/modals/detail_wi_fullscreen.html:456,541,594,2031…` | xs/12px、sm/16px、md/20px | 是 |
 | icon-snapshot | icon-worldbook-snapshot | static/icons/ui.svg | 快照 | `templates/modals/detail_card.html:201,461,3759,3765`、`templates/modals/detail_wi_fullscreen.html:174,1969`、`templates/modals/detail_wi_popup.html:483`、`tests/test_worldbook_icon_contracts.py:133` | xs/12px、sm/16px、md/20px | 是 |
-| icon-book-save-as | icon-worldbook-save-as | static/icons/ui.svg | 书本保存as | `templates/modals/detail_wi_fullscreen.html:245,291,1946`、`templates/modals/detail_wi_popup.html:475`、`tests/test_worldbook_icon_contracts.py:161` | xs/12px、sm/16px、md/20px | 是 |
+| icon-book-save-as | icon-worldbook-save-as | static/icons/ui.svg | 书本另存为 | `templates/modals/detail_wi_fullscreen.html:245,291,1946`、`tests/test_worldbook_icon_contracts.py:196` | xs/12px、sm/16px、md/20px | 是 |
 | icon-sort | icon-worldbook-sort | static/icons/ui.svg | 排序 | `templates/modals/detail_wi_fullscreen.html:137`、`templates/modals/detail_wi_popup.html:183` | md/20px | 是 |
 | icon-calendar | icon-worldbook-calendar | static/icons/ui.svg | 日历 | `templates/modals/detail_wi_popup.html:54`、`tests/test_worldbook_icon_contracts.py:131` | xs/12px | 是 |
 | icon-book-search | icon-worldbook-search | static/icons/ui.svg | 书本搜索 | `templates/modals/advanced_editor.html:195`、`templates/modals/detail_card.html:513`、`templates/modals/detail_wi_fullscreen.html:201,2253`、`templates/modals/detail_wi_popup.html:110,138`、`tests/test_advanced_editor_icon_contracts.py:26` | sm/16px、md/20px | 是 |
@@ -239,7 +241,7 @@ symbol id 统一使用带 `icon-` 前缀的英文 kebab-case，并优先表达�
 | icon-shield-check | icon-shield-check | static/icons/ui.svg | 盾牌勾选 | `templates/modals/settings.html:1347` | xs/12px | 否 |
 | icon-sticky-note | icon-card-sticky-note | static/icons/ui.svg | sticky备注 | `templates/components/grid_cards.html:324`、`templates/components/grid_wi.html:214`、`templates/modals/detail_wi_fullscreen.html:568`、`tests/test_worldbook_icon_contracts.py:138` | sm/16px、md/20px、xl/32px | 是 |
 | icon-header-light-mode | icon-header-light-mode | static/icons/ui.svg | 浅色模式太阳 | `templates/components/header.html:643,922`、`templates/modals/settings.html:301`、`tests/test_header_icon_templates.py:23`、`tests/test_settings_icon_templates.py:61` | sm/16px、md/20px、lg/24px | 否 |
-| icon-upload | icon-card-upload | static/icons/ui.svg | 上传 | `templates/components/grid_cards.html:74`、`templates/components/grid_extensions.html:53`、`templates/components/grid_presets.html:152`、`templates/components/grid_wi.html:30`、`templates/modals/advanced_editor.html:130,503` | xs/12px、sm/16px、lg/24px、xl/32px | 是 |
+| icon-upload | icon-card-upload | static/icons/ui.svg | 向上箭头（统一用于导出/下载） | `templates/components/grid_presets.html:152`、`grid_wi.html:102`、`templates/modals/advanced_editor.html:130,523`、`automation.html:166`、`detail_card.html:1831`、`detail_wi_popup.html:475` | sm/16px、md/20px | 是 |
 | icon-settings-maintenance | icon-settings-maintenance | static/icons/ui.svg | 维护扳手组合 | `templates/modals/settings.html:2204`、`tests/test_settings_icon_templates.py` | sm/16px | 否 |
 | static/icons/forum-preview/close.svg | static/icons/forum-preview/close.svg | forum-preview 独立 SVG | 关闭叉 | `static/css/modules/modal-forum-preview.css:139`、`static/css/modules/modal-forum-preview.css:140` | 16px | 否 |
 | static/icons/forum-preview/date.svg | static/icons/forum-preview/date.svg | forum-preview 独立 SVG | 日期日历 | `static/css/modules/modal-forum-preview.css:112`、`static/css/modules/modal-forum-preview.css:113` | 16px | 否 |

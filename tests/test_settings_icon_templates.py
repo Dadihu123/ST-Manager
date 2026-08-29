@@ -9,7 +9,7 @@ SETTINGS_ICON_NAMES = {
     'shield-check',
     'settings-help-entry',
     'settings-save',
-    'image-upload',
+    'file-import',
     'wallpaper',
     'directory-root',
     'sliders-settings',
@@ -105,7 +105,7 @@ def test_settings_followup_icon_layout_and_theme_controls():
     assert 'class="btn-secondary settings-inline-action whitespace-nowrap"' not in source
     assert 'settings-background-upload-button' in source
     assert 'settings-background-clear-button' in source
-    assert "icon('image-upload', 'ui-icon--md ')" in source
+    assert "icon('file-import', 'ui-icon--md ')" in source
 
     assert 'settings-path-action-icon--150' not in source
     assert 'width: 2.3625rem;' in settings_css

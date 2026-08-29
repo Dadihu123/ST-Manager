@@ -18,7 +18,7 @@ def test_extension_grid_uses_semantic_icon_mappings():
         "detail_icon('script-file'",
         "detail_icon('quick-reply'",
         "icon('refresh'",
-        "icon('upload'",
+        "icon('file-import'",
         "icon('loader-circle'",
         "icon('file-code'",
         "preset_icon('owner'",
