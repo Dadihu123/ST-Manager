@@ -1998,6 +1998,14 @@ def api_update_card():
                             existing_tags = set(final_return_obj['tags'] or [])
                             existing_tags.update(result_payload.get('tags_added') or [])
                             final_return_obj['tags'] = list(existing_tags)
+
+                    creator_sync_info = result_payload.get('creator_sync') or {}
+                    if (
+                        isinstance(final_return_obj, dict)
+                        and creator_sync_info.get('success')
+                        and creator_sync_info.get('changed')
+                    ):
+                        final_return_obj['creator'] = creator_sync_info.get('creator', '')
             except Exception as e:
                 logger.warning(f"链接更新后自动抓取论坛标签失败: {e}")
             if (
@@ -2045,6 +2053,14 @@ def api_update_card():
             "updated_card": final_return_obj,
             "current_version_id": current_version_id,
             "forum_tags_fetched": forum_tags_result.get('result') if forum_tags_result else None,
+            "source_title_tags": (
+                (forum_tags_result.get('result') or {}).get('source_title_tags')
+                if forum_tags_result else None
+            ),
+            "creator_sync": (
+                (forum_tags_result.get('result') or {}).get('creator_sync')
+                if forum_tags_result else None
+            ),
             "source_title_sync": source_title_sync_result,
             "tag_merge": tag_merge_info
         })

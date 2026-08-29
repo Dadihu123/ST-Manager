@@ -8,6 +8,14 @@ import { createLocalId } from '../utils/data.js';
 import { splitTagTokens } from '../state.js';
 
 const TEMPLATE_ACTION_TYPES = ['rename_file_by_template', 'split_category_to_tags'];
+const SOURCE_ACTION_TYPES = [
+    'fetch_forum_tags',
+    'refresh_source_baseline',
+    'add_tags_from_source_title',
+    'set_creator_from_source'
+];
+const DEFAULT_SOURCE_TITLE_PATTERN = '(?:【|\\[)([^】\\]]+)(?:】|\\])';
+const DEFAULT_SOURCE_TITLE_SPLIT_PATTERN = '[/|]';
 const DEFAULT_RULE_TRIGGER_CONTEXTS = ['manual_run', 'auto_import'];
 const SUPPORTED_RULE_TRIGGER_CONTEXTS = [
     'manual_run',
@@ -24,6 +32,8 @@ const AUTOMATION_ACTION_OPTIONS = [
     { value: 'merge_tags', label: '标签合并' },
     { value: 'fetch_forum_tags', label: '抓取论坛标签' },
     { value: 'refresh_source_baseline', label: '刷新来源更新基线' },
+    { value: 'add_tags_from_source_title', label: '来源标题→标签' },
+    { value: 'set_creator_from_source', label: '来源作者→创作者' },
     { value: 'rename_file_by_template', label: '模板重命名文件' },
     { value: 'split_category_to_tags', label: '分类拆分为标签' },
     { value: 'set_char_name_from_filename', label: '文件名→角色名' },
@@ -40,7 +50,7 @@ function deriveLegacyRuleTriggerContexts(rule) {
     actions.forEach(action => {
         if (!action || typeof action !== 'object') return;
 
-        if ((action.type === 'fetch_forum_tags' || action.type === 'refresh_source_baseline') && !normalized.includes('link_update')) {
+        if (SOURCE_ACTION_TYPES.includes(action.type) && !normalized.includes('link_update')) {
             normalized.push('link_update');
         }
 
@@ -50,6 +60,58 @@ function deriveLegacyRuleTriggerContexts(rule) {
     });
 
     return normalized;
+}
+
+
+function normalizeCaptureGroups(value) {
+    const raw = Array.isArray(value) ? value : (value === undefined || value === null ? [1] : [value]);
+    const groups = raw
+        .flatMap(item => typeof item === 'string' ? item.split(/[,，\s]+/) : [item])
+        .map(item => (item === null || item === undefined ? '' : item.toString().trim()))
+        .filter(item => item !== '')
+        .map(item => /^\d+$/.test(item) ? Number(item) : item);
+    return groups.length ? groups : [1];
+}
+
+
+function createSourceTitleTagsConfig(value = {}) {
+    const rawCaptureGroups = value.capture_groups !== undefined
+        ? value.capture_groups
+        : (value.capture_groups_text !== undefined ? value.capture_groups_text : value.capture_group);
+    const captureGroups = normalizeCaptureGroups(rawCaptureGroups);
+
+    return {
+        pattern: typeof value.pattern === 'string' && value.pattern
+            ? value.pattern
+            : DEFAULT_SOURCE_TITLE_PATTERN,
+        capture_groups: captureGroups,
+        capture_groups_text: captureGroups.join(','),
+        split_pattern: typeof value.split_pattern === 'string'
+            ? value.split_pattern
+            : DEFAULT_SOURCE_TITLE_SPLIT_PATTERN,
+        flags: typeof value.flags === 'string' ? value.flags : ''
+    };
+}
+
+
+function createSourceCreatorConfig(value = {}) {
+    const provider = ['auto', 'discord', 'shimmerday'].includes(value.provider)
+        ? value.provider
+        : 'auto';
+    const authorField = ['username', 'display_name', 'global_name', 'author_id'].includes(value.author_field)
+        ? value.author_field
+        : 'username';
+    return {
+        provider,
+        author_field: authorField,
+        format: typeof value.format === 'string' && value.format ? value.format : '{{author}}',
+        overwrite: value.overwrite === true
+            || value.overwrite === 1
+            || value.overwrite === '1'
+            || value.overwrite === 'true'
+            || value.overwrite === 'yes'
+            || value.overwrite === 'on'
+    };
 }
 
 function createFetchForumTagsConfig(value = {}) {
@@ -254,6 +316,14 @@ export default function automationModal() {
                                     };
                                 }
 
+                                if (action.type === 'add_tags_from_source_title') {
+                                    action.config = createSourceTitleTagsConfig(action.value || {});
+                                }
+
+                                if (action.type === 'set_creator_from_source') {
+                                    action.config = createSourceCreatorConfig(action.value || {});
+                                }
+
                                 if (action.type === 'merge_tags') {
                                     const rawValue = action.value;
                                     if (rawValue && typeof rawValue === 'object' && !Array.isArray(rawValue)) {
@@ -361,6 +431,30 @@ export default function automationModal() {
                             // 替换 value 为配置对象
                             action.value = valueObj;
                             // 删除临时 config 对象
+                            delete action.config;
+                        }
+
+                        if (action.type === 'add_tags_from_source_title' && action.config) {
+                            const config = createSourceTitleTagsConfig(action.config);
+                            action.value = {
+                                pattern: config.pattern,
+                                capture_groups: normalizeCaptureGroups(
+                                    config.capture_groups_text || config.capture_groups
+                                ),
+                                split_pattern: config.split_pattern,
+                                flags: config.flags,
+                            };
+                            delete action.config;
+                        }
+
+                        if (action.type === 'set_creator_from_source' && action.config) {
+                            const config = createSourceCreatorConfig(action.config);
+                            action.value = {
+                                provider: config.provider,
+                                author_field: config.author_field,
+                                format: config.format,
+                                overwrite: config.overwrite,
+                            };
                             delete action.config;
                         }
 
@@ -472,6 +566,11 @@ export default function automationModal() {
             if (!action || !this.actionTypeOptions.some(option => option.value === type)) return;
 
             action.type = type;
+            if (type === 'add_tags_from_source_title') {
+                action.value = createSourceTitleTagsConfig();
+            } else if (type === 'set_creator_from_source') {
+                action.value = createSourceCreatorConfig();
+            }
             this.initActionConfig(action);
             this.openActionMenuKey = null;
         },
@@ -509,6 +608,12 @@ export default function automationModal() {
                     normalized.push(trigger);
                 }
             });
+
+            const hasSourceAction = (Array.isArray(rule?.actions) ? rule.actions : [])
+                .some(action => action && SOURCE_ACTION_TYPES.includes(action.type));
+            if (hasSourceAction && !normalized.includes('link_update')) {
+                normalized.push('link_update');
+            }
 
             return normalized.length ? normalized : deriveLegacyRuleTriggerContexts(rule);
         },
@@ -653,6 +758,10 @@ export default function automationModal() {
                 action.config = createRenameTemplateConfig(action.config || action.value || {});
             } else if (action.type === 'split_category_to_tags') {
                 action.config = createSplitCategoryTagsConfig(action.config || action.value || {});
+            } else if (action.type === 'add_tags_from_source_title') {
+                action.config = createSourceTitleTagsConfig(action.config || action.value || {});
+            } else if (action.type === 'set_creator_from_source') {
+                action.config = createSourceCreatorConfig(action.config || action.value || {});
             } else {
                 // For other action types, remove config if exists
                 if (action.config) {

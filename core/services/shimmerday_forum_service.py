@@ -4,6 +4,7 @@ import logging
 
 import requests
 
+from core.automation.source_actions import normalize_source_author
 from core.config import load_config
 from core.utils.discord_url import extract_discord_thread_id
 
@@ -98,6 +99,48 @@ def fetch_thread_preview(source_link=None, card_id=None, timeout=DEFAULT_TIMEOUT
         }
 
     return {'success': True, 'thread_id': thread_id, 'data': payload}
+
+
+def fetch_shimmerday_source(source_link=None, card_id=None, timeout=DEFAULT_TIMEOUT):
+    """获取类脑帖子标题和作者，并转换为来源自动化统一结构。"""
+    result = fetch_thread_preview(source_link=source_link, card_id=card_id, timeout=timeout)
+    if not isinstance(result, dict):
+        result = {'success': False, 'msg': '类脑搜索站接口返回格式异常'}
+
+    thread_id = result.get('thread_id')
+    if not result.get('success'):
+        return {
+            'success': False,
+            'supported': True,
+            'status': 'error',
+            'thread_id': thread_id,
+            'error': result.get('msg') or '类脑帖子请求失败',
+        }
+
+    payload = result.get('data') if isinstance(result, dict) else None
+    if not isinstance(payload, dict):
+        return {
+            'success': False,
+            'supported': True,
+            'status': 'error',
+            'thread_id': thread_id,
+            'error': '类脑搜索站返回格式异常',
+        }
+
+    author = normalize_source_author(payload.get('author'))
+    source = {
+        'title': str(payload.get('title') or '').strip(),
+        'thread_id': str(thread_id or '').strip(),
+        'author': author,
+        'author_source': 'shimmerday' if author else None,
+    }
+    return {
+        'success': True,
+        'supported': True,
+        'status': 'ok' if author else 'author_unavailable',
+        'thread_id': thread_id,
+        'source': source,
+    }
 
 
 def _resolve_source_link(source_link=None, card_id=None):

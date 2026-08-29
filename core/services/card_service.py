@@ -1457,11 +1457,17 @@ def move_card_internal(card_id, target_category):
         print(f"Move internal error: {e}") # 打印日志以便调试
         return False, None, str(e)
 
-# 内部标签/收藏更新逻辑
+# 内部标签/收藏/创作者更新逻辑
 @card_operation_locked
-def modify_card_attributes_internal(card_id, add_tags=None, remove_tags=None, set_favorite=None):
+def modify_card_attributes_internal(
+    card_id,
+    add_tags=None,
+    remove_tags=None,
+    set_favorite=None,
+    set_creator=None,
+):
     """
-    修改卡片属性 (标签、收藏)
+    修改卡片属性 (标签、收藏、创作者)
     """
     try:
         full_path = os.path.join(CARDS_FOLDER, card_id.replace('/', os.sep))
@@ -1471,37 +1477,71 @@ def modify_card_attributes_internal(card_id, add_tags=None, remove_tags=None, se
         if not info: return False
         
         changed = False
-        
-        # 1. 处理标签 (写入文件 + DB)
-        if add_tags or remove_tags:
-            data_block = info.get('data', {}) if 'data' in info else info
-            current_tags = data_block.get('tags', []) or []
-            
-            tags_set = set(current_tags)
-            if add_tags: tags_set.update(add_tags)
-            if remove_tags: tags_set.difference_update(remove_tags)
-            
-            new_tags = sorted(list(tags_set))
-            
-            if new_tags != sorted(current_tags):
-                data_block['tags'] = new_tags
-                if 'data' in info: info['data'] = data_block # V3 write back
-                else: info = data_block # V2 write back
-                
-                suppress_fs_events(2.5)
-                if not write_card_metadata(full_path, info):
-                    return False
-                
-                # Update DB
-                conn = get_db()
-                conn.execute("UPDATE card_metadata SET tags = ? WHERE id = ?", (json.dumps(new_tags), card_id))
-                conn.commit()
 
-                enqueue_index_job('upsert_card', entity_id=card_id, source_path=full_path)
-                
-                # Update Cache
-                if ctx.cache: ctx.cache.update_tags_update(card_id, new_tags)
-                changed = True
+        # 1. 处理标签和创作者 (写入文件 + DB + Cache)
+        data_block = info.get('data', {}) if 'data' in info else info
+        current_tags = data_block.get('tags', []) or []
+        tags_changed = False
+        creator_changed = False
+        new_tags = current_tags
+        new_creator = str(data_block.get('creator') or '').strip()
+
+        if add_tags or remove_tags:
+            tags_set = set(current_tags)
+            if add_tags:
+                tags_set.update(add_tags)
+            if remove_tags:
+                tags_set.difference_update(remove_tags)
+
+            new_tags = sorted(list(tags_set))
+            tags_changed = new_tags != sorted(current_tags)
+
+        if set_creator is not None:
+            requested_creator = str(set_creator or '').strip()
+            creator_changed = requested_creator != new_creator
+            new_creator = requested_creator
+
+        if tags_changed or creator_changed:
+            if tags_changed:
+                data_block['tags'] = new_tags
+            if creator_changed:
+                data_block['creator'] = new_creator
+            if 'data' in info:
+                info['data'] = data_block  # V3 write back
+            else:
+                info = data_block  # V2 write back
+
+            suppress_fs_events(2.5)
+            if not write_card_metadata(full_path, info):
+                return False
+
+            conn = get_db()
+            if tags_changed:
+                conn.execute(
+                    "UPDATE card_metadata SET tags = ? WHERE id = ?",
+                    (json.dumps(new_tags), card_id),
+                )
+            if creator_changed:
+                conn.execute(
+                    "UPDATE card_metadata SET creator = ? WHERE id = ?",
+                    (new_creator, card_id),
+                )
+            conn.commit()
+
+            enqueue_index_job('upsert_card', entity_id=card_id, source_path=full_path)
+
+            if ctx.cache:
+                if tags_changed and hasattr(ctx.cache, 'update_tags_update'):
+                    ctx.cache.update_tags_update(card_id, new_tags)
+                if creator_changed:
+                    update_card_data = getattr(ctx.cache, 'update_card_data', None)
+                    if callable(update_card_data):
+                        update_card_data(card_id, {'creator': new_creator})
+                    else:
+                        cached_card = getattr(ctx.cache, 'id_map', {}).get(card_id)
+                        if isinstance(cached_card, dict):
+                            cached_card['creator'] = new_creator
+            changed = True
 
         # 2. 处理收藏 (仅 DB + Cache)
         if set_favorite is not None:

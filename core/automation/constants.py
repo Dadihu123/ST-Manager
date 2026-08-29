@@ -64,6 +64,10 @@ ACT_SET_FILENAME_FROM_WI_NAME = "set_filename_from_wi_name"
 ACT_FETCH_FORUM_TAGS = "fetch_forum_tags"
 # 来源更新基线动作（标题 + 首帖编辑时间）
 ACT_REFRESH_SOURCE_BASELINE = "refresh_source_baseline"
+# 来源标题正则提取标签动作
+ACT_ADD_TAGS_FROM_SOURCE_TITLE = "add_tags_from_source_title"
+# 来源作者填写创作者动作
+ACT_SET_CREATOR_FROM_SOURCE = "set_creator_from_source"
 
 # 标签合并动作
 ACT_MERGE_TAGS = "merge_tags"
@@ -123,6 +127,8 @@ TRIGGER_CONTEXT_ALLOWED_ACTIONS = {
     TRIGGER_CONTEXT_LINK_UPDATE: {
         ACT_FETCH_FORUM_TAGS,
         ACT_REFRESH_SOURCE_BASELINE,
+        ACT_ADD_TAGS_FROM_SOURCE_TITLE,
+        ACT_SET_CREATOR_FROM_SOURCE,
     },
     TRIGGER_CONTEXT_TAG_EDIT: {
         ACT_MERGE_TAGS,

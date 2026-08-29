@@ -6,6 +6,14 @@ from core.services.card_service import (
     sync_card_names_internal,
 )
 from core.automation.forum_tag_fetcher import get_tag_fetcher, TagProcessor
+from core.automation.constants import (
+    ACT_ADD_TAGS_FROM_SOURCE_TITLE,
+    ACT_SET_CREATOR_FROM_SOURCE,
+)
+from core.automation.source_actions import (
+    extract_source_title_tags,
+    render_source_creator,
+)
 from core.data.ui_store import load_ui_data
 from core.context import ctx
 from core.config import load_config
@@ -14,6 +22,7 @@ from core.services.forum_update_service import (
     fetch_discord_source,
     refresh_card_source_baseline,
 )
+from core.services.shimmerday_forum_service import fetch_shimmerday_source
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +40,7 @@ class AutomationExecutor:
             'set_wi_name_from_filename': bool,
             'set_filename_from_char_name': bool,
             'set_filename_from_wi_name': bool,
+            'set_creator': str or None,
         }
         返回: 执行结果摘要
         """
@@ -48,17 +58,35 @@ class AutomationExecutor:
         # 0. 执行来源链接动作（论坛标签和/或更新基线）
         forum_tags_config = plan.get('fetch_forum_tags')
         baseline_config = plan.get('refresh_source_baseline')
-        if forum_tags_config is not None or baseline_config is not None:
+        title_tags_config = plan.get(ACT_ADD_TAGS_FROM_SOURCE_TITLE)
+        creator_config = plan.get(ACT_SET_CREATOR_FROM_SOURCE)
+        has_source_action = any(
+            config is not None
+            for config in (
+                forum_tags_config,
+                baseline_config,
+                title_tags_config,
+                creator_config,
+            )
+        )
+        if has_source_action:
             if ui_data is None:
                 ui_data = load_ui_data()
 
-            # 两个来源动作同时执行时，共享帖子详情和首帖请求。
+            # 来源动作同时执行时，共享帖子详情和首帖请求。
             prefetched_source = None
-            source_link = None
-            if forum_tags_config is not None and baseline_config is not None:
-                source_link = self._source_link_for_card(current_id, ui_data)
-                if source_link:
-                    prefetched_source = fetch_discord_source(source_link)
+            source_link = self._source_link_for_card(current_id, ui_data)
+            creator_provider = (
+                str(creator_config.get('provider') or 'auto').strip().lower()
+                if isinstance(creator_config, dict) else 'auto'
+            )
+            needs_discord_source = (
+                title_tags_config is not None
+                or (creator_config is not None and creator_provider in {'auto', 'discord'})
+                or (forum_tags_config is not None and baseline_config is not None)
+            )
+            if needs_discord_source and source_link:
+                prefetched_source = fetch_discord_source(source_link)
 
             if baseline_config is not None:
                 result['source_baseline_refreshed'] = refresh_card_source_baseline(
@@ -88,6 +116,154 @@ class AutomationExecutor:
                 plan.setdefault('remove_tags', set())
                 plan['add_tags'].update(tag for tag in final_tags if tag not in existing_tags)
                 plan['remove_tags'].update(tag for tag in existing_tags if tag not in final_tags)
+
+            # 标题和作者动作共享同一个来源结果；类脑只在 Discord 没有满足需求时作为补充来源。
+            discord_source = {}
+            if isinstance(prefetched_source, dict) and prefetched_source.get('success'):
+                discord_source = dict(prefetched_source.get('source') or {})
+            if source_link:
+                discord_source['source_url'] = source_link
+
+            shimmerday_result = None
+            shimmerday_source = {}
+
+            def get_shimmerday_source():
+                nonlocal shimmerday_result, shimmerday_source
+                if shimmerday_result is None:
+                    shimmerday_result = fetch_shimmerday_source(
+                        source_link=source_link,
+                        card_id=current_id,
+                    )
+                    if not isinstance(shimmerday_result, dict):
+                        shimmerday_result = {
+                            'success': False,
+                            'error': '类脑搜索站接口返回格式异常',
+                        }
+                    if shimmerday_result.get('success'):
+                        shimmerday_source = dict(shimmerday_result.get('source') or {})
+                        shimmerday_source['source_url'] = source_link
+                return shimmerday_source
+
+            title_source = discord_source
+            title_source_provider = 'discord'
+            title_source_available = bool(
+                isinstance(prefetched_source, dict) and prefetched_source.get('success')
+            )
+            if title_tags_config is not None and not str(discord_source.get('title') or '').strip():
+                title_source = get_shimmerday_source()
+                title_source_provider = 'shimmerday'
+                title_source_available = bool(
+                    isinstance(shimmerday_result, dict) and shimmerday_result.get('success')
+                )
+
+            if title_tags_config is not None:
+                if not title_source_available:
+                    title_result = {
+                        'success': False,
+                        'title': '',
+                        'pattern': title_tags_config.get('pattern')
+                        if isinstance(title_tags_config, dict) else None,
+                        'capture_groups': [],
+                        'split_pattern': '',
+                        'matched_values': [],
+                        'extracted_tags': [],
+                        'match_count': 0,
+                        'source': title_source_provider,
+                        'skipped_reason': 'source_unavailable',
+                        'error': (
+                            (shimmerday_result or {}).get('error')
+                            or (prefetched_source or {}).get('error')
+                            or '未取得来源帖子标题'
+                        ),
+                    }
+                else:
+                    title_result = extract_source_title_tags(
+                        title_source.get('title', ''),
+                        title_tags_config,
+                    )
+                    title_result['source'] = title_source_provider
+
+                if title_result.get('success'):
+                    governed = filter_governed_tags(
+                        title_result.get('extracted_tags') or [],
+                        ui_data=ui_data,
+                        known_tags=build_known_tag_set(ui_data=ui_data),
+                    )
+                    accepted_tags = governed['accepted']
+                    current_tags = list(
+                        (ctx.cache.id_map.get(current_id, {}) if ctx.cache else {}).get('tags') or []
+                    )
+                    plan.setdefault('add_tags', set())
+                    plan.setdefault('remove_tags', set())
+                    plan['add_tags'].update(accepted_tags)
+                    # 标题动作是追加动作，即使论坛标签使用 replace，也不删除标题提取出的标签。
+                    plan['remove_tags'].difference_update(accepted_tags)
+                    title_result['governed_tags'] = accepted_tags
+                    title_result['tags_added'] = [
+                        tag for tag in accepted_tags if tag not in current_tags
+                    ]
+                    title_result.update(build_governance_feedback(governed))
+                result['source_title_tags'] = title_result
+
+            if creator_config is not None:
+                cfg = creator_config if isinstance(creator_config, dict) else {}
+                provider = str(cfg.get('provider') or 'auto').strip().lower()
+                if provider not in {'auto', 'discord', 'shimmerday'}:
+                    provider = 'auto'
+
+                author_source = discord_source
+                if provider == 'shimmerday':
+                    author_source = get_shimmerday_source()
+                elif provider == 'auto' and not discord_source.get('author'):
+                    author_source = get_shimmerday_source()
+
+                author = author_source.get('author') if isinstance(author_source, dict) else None
+                current_creator = str(
+                    (ctx.cache.id_map.get(current_id, {}) if ctx.cache else {}).get('creator') or ''
+                ).strip()
+                creator_result = {
+                    'success': False,
+                    'changed': False,
+                    'previous_creator': current_creator,
+                    'creator': current_creator,
+                    'author_source': author_source.get('author_source') if isinstance(author_source, dict) else None,
+                }
+
+                overwrite = cfg.get('overwrite', False)
+                if isinstance(overwrite, str):
+                    overwrite = overwrite.strip().lower() in {'1', 'true', 'yes', 'on'}
+                else:
+                    overwrite = bool(overwrite)
+
+                if not author:
+                    creator_result['skipped_reason'] = 'author_unavailable'
+                    creator_result['error'] = (
+                        (shimmerday_result or {}).get('error')
+                        or (prefetched_source or {}).get('error')
+                        or '未取得来源作者'
+                    )
+                else:
+                    creator_value = render_source_creator(
+                        cfg.get('format', '{{author}}'),
+                        source=author_source,
+                        author=author,
+                        author_field=cfg.get('author_field', 'username'),
+                    )
+                    creator_result['creator'] = creator_value
+                    if not creator_value:
+                        creator_result['skipped_reason'] = 'formatted_creator_empty'
+                    elif current_creator and not overwrite:
+                        creator_result['success'] = True
+                        creator_result['skipped_reason'] = 'creator_not_empty'
+                    elif creator_value == current_creator:
+                        creator_result['success'] = True
+                        creator_result['skipped_reason'] = 'already_current'
+                    else:
+                        plan['set_creator'] = creator_value
+                        creator_result['success'] = True
+                        creator_result['changed'] = True
+
+                result['creator_sync'] = creator_result
         
         # 1. 执行属性修改 (标签、收藏)
         # 这些操作不改变 ID，先执行
@@ -95,12 +271,28 @@ class AutomationExecutor:
         remove_tags = list(plan.get('remove_tags', []))
         fav = plan.get('favorite')
         
-        if add_tags or remove_tags or fav is not None:
-            success = modify_card_attributes_internal(current_id, add_tags, remove_tags, fav)
+        set_creator = plan.get('set_creator')
+        if add_tags or remove_tags or fav is not None or set_creator is not None:
+            if set_creator is None:
+                success = modify_card_attributes_internal(current_id, add_tags, remove_tags, fav)
+            else:
+                success = modify_card_attributes_internal(
+                    current_id,
+                    add_tags,
+                    remove_tags,
+                    fav,
+                    set_creator=set_creator,
+                )
             if success:
                 result["tags_added"] = add_tags
                 result["tags_removed"] = remove_tags
                 if fav is not None: result["fav_changed"] = True
+                if result.get('creator_sync') and result['creator_sync'].get('changed'):
+                    result['creator_sync']['creator'] = set_creator
+            elif result.get('creator_sync') and result['creator_sync'].get('changed'):
+                result['creator_sync']['success'] = False
+                result['creator_sync']['changed'] = False
+                result['creator_sync']['error'] = '角色卡元数据写入失败'
 
         # 1.5 同步名称/文件名（可能改变 ID）
         sync_flags = {

@@ -11,6 +11,7 @@ from urllib.parse import urlparse
 
 import requests
 
+from core.automation.source_actions import normalize_source_author
 from core.config import CARDS_FOLDER, load_config
 from core.context import ctx
 from core.data.ui_store import (
@@ -207,7 +208,7 @@ def _find_message_by_id(payload, message_id):
 
 def fetch_discord_source(url, *, timeout=DEFAULT_TIMEOUT, http_get=None, config=None,
                          include_first_message=True):
-    """抓取来源标题及可选的首帖消息时间，不访问父论坛频道。"""
+    """抓取来源标题、首帖作者及可选的首帖消息时间，不访问父论坛频道。"""
     parts = _parse_discord_parts(url)
     if not parts:
         return {
@@ -340,6 +341,10 @@ def fetch_discord_source(url, *, timeout=DEFAULT_TIMEOUT, http_get=None, config=
         'first_message_edited_at_epoch': edited_at,
         'first_message_revision_at_epoch': revision_at,
     })
+    author = normalize_source_author(message_payload.get('author'))
+    if author:
+        source['author'] = author
+        source['author_source'] = 'discord'
     return {'success': True, 'supported': True, 'status': 'ok', 'source': source}
 
 

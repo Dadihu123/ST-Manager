@@ -64,12 +64,15 @@ def _thread_payload(title, applied_tags=None, parent_id='2'):
     }
 
 
-def _message_payload(timestamp, edited=None):
-    return {
+def _message_payload(timestamp, edited=None, author=None):
+    payload = {
         'id': '3',
         'timestamp': timestamp,
         'edited_timestamp': edited,
     }
+    if author is not None:
+        payload['author'] = author
+    return payload
 
 
 def test_fetch_discord_source_reads_starter_message_not_pin_or_activity(monkeypatch):
@@ -93,6 +96,35 @@ def test_fetch_discord_source_reads_starter_message_not_pin_or_activity(monkeypa
         'https://discord.com/api/v10/channels/3',
         'https://discord.com/api/v10/channels/3/messages?around=3&limit=1',
     ]
+
+
+def test_fetch_discord_source_normalizes_starter_author(monkeypatch):
+    _prepare(monkeypatch)
+    getter = _Getter([
+        _Response(_thread_payload('标题 A')),
+        _Response([_message_payload(
+            '2026-08-05T12:00:00.000Z',
+            author={
+                'id': '123',
+                'username': 'abcd',
+                'global_name': '作者显示名',
+            },
+        )]),
+    ])
+
+    result = service.fetch_discord_source(
+        'https://discord.com/channels/1/2/threads/3',
+        http_get=getter,
+    )
+
+    assert result['source']['author'] == {
+        'id': '123',
+        'username': 'abcd',
+        'name': 'abcd',
+        'display_name': '作者显示名',
+        'global_name': '作者显示名',
+    }
+    assert result['source']['author_source'] == 'discord'
 
 
 def test_first_check_reports_remote_revision_after_local_card(monkeypatch):

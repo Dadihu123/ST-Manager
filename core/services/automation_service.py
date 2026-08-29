@@ -17,6 +17,8 @@ from core.automation.constants import (
     FIELD_MAP,
     ACT_FETCH_FORUM_TAGS,
     ACT_REFRESH_SOURCE_BASELINE,
+    ACT_ADD_TAGS_FROM_SOURCE_TITLE,
+    ACT_SET_CREATOR_FROM_SOURCE,
     ACT_MERGE_TAGS,
     ACT_RENAME_FILE_BY_TEMPLATE,
     ACT_SET_CHAR_NAME_FROM_FILENAME,
@@ -196,7 +198,12 @@ def _normalize_rule_trigger_contexts(rule):
                 continue
 
             action_type = action.get('type')
-            if action_type in {ACT_FETCH_FORUM_TAGS, ACT_REFRESH_SOURCE_BASELINE} and TRIGGER_CONTEXT_LINK_UPDATE not in legacy_contexts:
+            if action_type in {
+                ACT_FETCH_FORUM_TAGS,
+                ACT_REFRESH_SOURCE_BASELINE,
+                ACT_ADD_TAGS_FROM_SOURCE_TITLE,
+                ACT_SET_CREATOR_FROM_SOURCE,
+            } and TRIGGER_CONTEXT_LINK_UPDATE not in legacy_contexts:
                 legacy_contexts.append(TRIGGER_CONTEXT_LINK_UPDATE)
             elif action_type == ACT_MERGE_TAGS and TRIGGER_CONTEXT_TAG_EDIT not in legacy_contexts:
                 legacy_contexts.append(TRIGGER_CONTEXT_TAG_EDIT)
@@ -242,6 +249,9 @@ def _empty_exec_plan():
         'favorite': None,
         'fetch_forum_tags': None,
         'refresh_source_baseline': None,
+        ACT_ADD_TAGS_FROM_SOURCE_TITLE: None,
+        ACT_SET_CREATOR_FROM_SOURCE: None,
+        'set_creator': None,
         'rename_file_by_template': None,
         'set_char_name_from_filename': False,
         'set_wi_name_from_filename': False,
@@ -286,6 +296,10 @@ def _build_exec_plan_from_actions(actions, slash_as_separator=False):
             exec_plan['fetch_forum_tags'] = action_value if isinstance(action_value, dict) else {}
         elif action_type == ACT_REFRESH_SOURCE_BASELINE:
             exec_plan['refresh_source_baseline'] = action_value if isinstance(action_value, dict) else {}
+        elif action_type == ACT_ADD_TAGS_FROM_SOURCE_TITLE:
+            exec_plan[ACT_ADD_TAGS_FROM_SOURCE_TITLE] = action_value if isinstance(action_value, dict) else {}
+        elif action_type == ACT_SET_CREATOR_FROM_SOURCE:
+            exec_plan[ACT_SET_CREATOR_FROM_SOURCE] = action_value if isinstance(action_value, dict) else {}
 
     return exec_plan
 
@@ -476,12 +490,17 @@ def auto_run_forum_tags_on_link_update(card_id):
         if not normalized_plan['actions']:
             return {"run": True, "actions": 0}
 
-        exec_plan = _build_exec_plan_from_actions(normalized_plan.get('actions', []))
+        exec_plan = _build_exec_plan_from_actions(
+            normalized_plan.get('actions', []),
+            slash_as_separator=bool(cfg.get('automation_slash_is_tag_separator', False)),
+        )
 
         has_fetch_action = exec_plan.get('fetch_forum_tags') is not None
         has_baseline_action = exec_plan.get('refresh_source_baseline') is not None
-        if not has_fetch_action and not has_baseline_action:
-            return {"run": True, "actions": 0, "reason": "no_fetch_forum_tags_action"}
+        has_title_action = exec_plan.get(ACT_ADD_TAGS_FROM_SOURCE_TITLE) is not None
+        has_creator_action = exec_plan.get(ACT_SET_CREATOR_FROM_SOURCE) is not None
+        if not any((has_fetch_action, has_baseline_action, has_title_action, has_creator_action)):
+            return {"run": True, "actions": 0, "reason": "no_source_action"}
 
         # 执行
         res = executor.apply_plan(card_id, exec_plan, ui_data)
@@ -493,8 +512,17 @@ def auto_run_forum_tags_on_link_update(card_id):
         fetched_tags = fetch_payload.get('tags') or []
         final_tags = list(fetched_tags if has_fetched_tags else ((current_card or {}).get('tags') or []))
         tag_merge = None
+        should_merge_tags = has_fetch_action
 
-        if has_fetch_action and final_tags:
+        if has_title_action:
+            title_payload = res.get('source_title_tags') or {}
+            title_tags = title_payload.get('governed_tags') or []
+            for tag in title_tags:
+                if tag not in final_tags:
+                    final_tags.append(tag)
+            should_merge_tags = should_merge_tags or bool(title_tags)
+
+        if should_merge_tags and final_tags:
             merge_res = auto_run_tag_merge_on_tagging(card_id, final_tags, ui_data=ui_data, runtime={
                 'ruleset_id': active_id,
                 'ruleset': ruleset,
