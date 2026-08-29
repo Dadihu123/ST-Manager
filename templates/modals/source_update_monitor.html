@@ -166,7 +166,8 @@
           <label class="text-xs text-[var(--text-sub)]">调度模式
             {% call styled_select(
               "settingsDraft.schedule_mode",
-              wrapper_class="form-input mt-1 min-h-11 text-sm",
+              wrapper_class="form-input mt-1 min-h-11 text-sm source-monitor-schedule-select",
+              menu_class="source-monitor-schedule-menu",
               aria_label="调度模式"
             ) %}
               <option value="manual">仅手动检查</option>

@@ -29,6 +29,12 @@
   line-height: 1.5;
 }
 
+/* 调度设置位于滚动面板底部，菜单向上展开以避免被面板底部裁切。 */
+.source-monitor-schedule-select .source-monitor-schedule-menu {
+  top: auto;
+  bottom: calc(100% + 0.35rem);
+}
+
 @media (max-width: 640px) {
   .source-monitor-heading {
     align-items: flex-start;

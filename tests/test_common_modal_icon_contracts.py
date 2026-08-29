@@ -146,6 +146,19 @@ def test_repeated_action_menus_ignore_sibling_outside_click_handlers():
     assert "event?.target?.closest?.('.batch-import-action-select')" in batch_js
 
 
+def test_source_monitor_schedule_select_opens_above_scroll_panel_bottom():
+    monitor_template = read_project_file('templates/modals/source_update_monitor.html')
+    monitor_css = read_project_file('static/css/modules/modal-source-update-monitor.css')
+
+    assert 'source-monitor-schedule-select' in monitor_template
+    assert 'menu_class="source-monitor-schedule-menu"' in monitor_template
+    menu_block = monitor_css.split(
+        '.source-monitor-schedule-select .source-monitor-schedule-menu', 1
+    )[1].split('}', 1)[0]
+    assert 'top: auto;' in menu_block
+    assert 'bottom: calc(100% + 0.35rem);' in menu_block
+
+
 def test_project_single_selects_reuse_shared_shell_without_touching_sidebar_or_multiselects():
     templates_root = PROJECT_ROOT / 'templates'
     sidebar_source = read_project_file('templates/components/sidebar.html')
