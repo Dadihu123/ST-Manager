@@ -116,7 +116,7 @@
             "wiSortMode",
             wrapper_class="icon-select--tiny",
             trigger_class="icon-select-trigger--tiny",
-            menu_class="icon-select-menu--fit",
+            menu_class="icon-select-menu--fit icon-select-menu--tiny",
             source_attrs='@change="setWiSortMode($event.target.value)"',
             aria_label="世界书条目排序方式"
           ) %}
@@ -734,9 +734,9 @@
                   {% call styled_select_controlled(
                     "getEditorPositionSelectValue(activeEditorEntry)",
                     "updateEditorPositionFromSelect(activeEditorEntry, option.value)",
-                    wrapper_class="icon-select--compact max-w-[140px]",
+                    wrapper_class="icon-select--compact max-w-[140px] wi-position-select",
                     trigger_class="icon-select-trigger--compact text-xs",
-                    menu_class="icon-select-menu--fit",
+                    menu_class="icon-select-menu--fit icon-select-menu--align-right icon-select-menu--compact",
                     aria_label="位置 (Position)"
                   ) %}
                     <option value="0">0 - 角色定义前 (Before Char)</option>
@@ -1027,9 +1027,9 @@
                   {% call styled_select(
                     "activeEditorEntry.selectiveLogic",
                     model_modifier=".number",
-                    wrapper_class="flex-1 min-w-0",
+                    wrapper_class="flex-1 min-w-0 wi-logic-select",
                     trigger_class="icon-select-trigger--compact text-xs",
-                    menu_class="icon-select-menu--fit",
+                    menu_class="icon-select-menu--fit icon-select-menu--align-right icon-select-menu--compact",
                     source_attrs=':disabled="!activeEditorEntry.selective"',
                     aria_label="逻辑模式 (Logic)"
                   ) %}
@@ -1054,7 +1054,7 @@
                       "activeEditorEntry.matchWholeWordsState",
                       wrapper_class="icon-select--compact min-w-[88px]",
                       trigger_class="icon-select-trigger--compact text-xs",
-                      menu_class="icon-select-menu--fit",
+                      menu_class="icon-select-menu--fit icon-select-menu--compact",
                       source_attrs='@change="setTriStateValue(activeEditorEntry, \'matchWholeWords\', activeEditorEntry.matchWholeWordsState)" x-init="activeEditorEntry.matchWholeWordsState = getTriStateSelectValue(activeEditorEntry.matchWholeWords)"',
                       aria_label="全词匹配 (Whole Words)"
                     ) %}
@@ -1074,7 +1074,7 @@
                       "activeEditorEntry.caseSensitiveState",
                       wrapper_class="icon-select--compact min-w-[88px]",
                       trigger_class="icon-select-trigger--compact text-xs",
-                      menu_class="icon-select-menu--fit",
+                      menu_class="icon-select-menu--fit icon-select-menu--compact",
                       source_attrs='@change="setTriStateValue(activeEditorEntry, \'caseSensitive\', activeEditorEntry.caseSensitiveState)" x-init="activeEditorEntry.caseSensitiveState = getTriStateSelectValue(activeEditorEntry.caseSensitive)"',
                       aria_label="区分大小写 (Case Sensitive)"
                     ) %}
@@ -1455,7 +1455,7 @@
                       "activeEditorEntry.useGroupScoringState",
                       wrapper_class="icon-select--compact min-w-[96px]",
                       trigger_class="icon-select-trigger--compact text-xs",
-                      menu_class="icon-select-menu--fit",
+                      menu_class="icon-select-menu--fit icon-select-menu--compact",
                       source_attrs='@change="setTriStateValue(activeEditorEntry, \'useGroupScoring\', activeEditorEntry.useGroupScoringState)" x-init="activeEditorEntry.useGroupScoringState = getTriStateSelectValue(activeEditorEntry.useGroupScoring)"',
                       aria_label="Group Scoring"
                     ) %}
@@ -1705,7 +1705,7 @@
       >
         <div
           x-ref="findReplacePanel"
-          class="absolute w-full max-w-xl rounded-xl border border-[var(--border-main)] bg-[var(--bg-panel)] shadow-2xl overflow-hidden pointer-events-auto"
+          class="wi-find-replace-panel absolute w-full max-w-xl rounded-xl border border-[var(--border-main)] bg-[var(--bg-panel)] shadow-2xl overflow-hidden pointer-events-auto"
           :style="findReplacePanelStyle"
         >
           <div
@@ -1788,7 +1788,7 @@
                 "findReplaceScope",
                 wrapper_class="icon-select--compact",
                 trigger_class="icon-select-trigger--compact text-xs",
-                menu_class="icon-select-menu--fit",
+                menu_class="icon-select-menu--fit icon-select-menu--compact",
                 aria_label="查找替换范围"
               ) %}
                 <option value="current">当前条目</option>

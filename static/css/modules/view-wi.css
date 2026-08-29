@@ -784,6 +784,12 @@ html.light-mode .clipboard-item.editing {
   overflow: visible;
 }
 
+/* Let the floating find/replace listbox escape its rounded panel while open. */
+.wi-find-replace-panel:has(.icon-select.is-open) {
+  z-index: var(--z-dropdown);
+  overflow: visible;
+}
+
 .props-header {
   padding: 0.5rem 0.75rem;
   background-color: rgba(0, 0, 0, 0.05);

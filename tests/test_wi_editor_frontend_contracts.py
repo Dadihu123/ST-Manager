@@ -127,6 +127,56 @@ def test_wi_editor_logic_select_matches_sillytavern_value_semantics():
     assert 'NOT ANY' in labels['2']
 
 
+def test_wi_editor_edge_select_menus_align_inward_and_find_replace_can_escape_panel():
+    template = read_project_file('templates/modals/detail_wi_fullscreen.html')
+    view_wi_css = read_project_file('static/css/modules/view-wi.css')
+    components_css = read_project_file('static/css/modules/components.css')
+
+    assert 'wi-position-select' in template
+    assert 'wi-logic-select' in template
+    assert template.count('icon-select-menu--align-right') >= 2
+    assert 'wi-find-replace-panel' in template
+
+    align_right_block = components_css.split(
+        '.icon-select-menu--align-right', 1
+    )[1].split('}', 1)[0]
+    assert 'right: 0;' in align_right_block
+    assert 'left: auto;' in align_right_block
+
+    find_replace_block = view_wi_css.split(
+        '.wi-find-replace-panel:has(.icon-select.is-open)', 1
+    )[1].split('}', 1)[0]
+    assert 'z-index: var(--z-dropdown);' in find_replace_block
+    assert 'overflow: visible;' in find_replace_block
+
+
+def test_wi_editor_compact_select_menus_set_explicit_option_font_size():
+    template = read_project_file('templates/modals/detail_wi_fullscreen.html')
+    components_css = read_project_file('static/css/modules/components.css')
+
+    assert template.count('icon-select-menu--compact') >= 6
+
+    compact_menu_block = components_css.split(
+        '.icon-select-menu--compact', 1
+    )[1].split('}', 1)[0]
+    assert 'font-size: 0.75rem;' in compact_menu_block
+
+
+def test_wi_sort_select_menus_match_tiny_trigger_font_size():
+    popup_template = read_project_file('templates/modals/detail_wi_popup.html')
+    fullscreen_template = read_project_file('templates/modals/detail_wi_fullscreen.html')
+    components_css = read_project_file('static/css/modules/components.css')
+
+    expected_menu_class = 'menu_class="icon-select-menu--fit icon-select-menu--tiny"'
+    assert expected_menu_class in popup_template
+    assert expected_menu_class in fullscreen_template
+
+    tiny_menu_block = components_css.split(
+        '.icon-select-menu--tiny', 1
+    )[1].split('}', 1)[0]
+    assert 'font-size: 0.72rem;' in tiny_menu_block
+
+
 def test_normalize_wi_entry_preserves_delay_until_recursion_boolean_and_numeric_semantics():
     source = read_project_file('static/js/utils/data.js')
     normalize_block = extract_js_function_block(

@@ -349,6 +349,19 @@ html.light-mode .btn-soft-purple:hover {
   max-width: min(22rem, calc(100vw - 2rem));
 }
 
+.icon-select-menu--align-right {
+  right: 0;
+  left: auto;
+}
+
+.icon-select-menu--compact {
+  font-size: 0.75rem;
+}
+
+.icon-select-menu--tiny {
+  font-size: 0.72rem;
+}
+
 .icon-select-option-wrap {
   display: contents;
 }
