@@ -19,6 +19,38 @@ import { formatDate, getCardGridTokenBadgeClass } from "../utils/format.js";
 import { createMarqueeSelection } from "../utils/marqueeSelection.js";
 import { buildWindowedGridState } from "../utils/windowing.js";
 import { canPreviewForumThread } from "../utils/discordUrl.js";
+import { attachHoloCard } from "../../lib/cards-css/index.js";
+
+const CARD_EFFECT_NAMES = Object.freeze({
+  regular: "cosmos",
+  favorite: "glitter",
+});
+const CARD_EFFECT_VISUALS = Object.freeze({
+  cosmos: Object.freeze({
+    brightness: 1,
+    contrast: 0.94,
+    saturate: 0.9,
+    glareOpacity: 0.52,
+    shineOpacity: 0.62,
+  }),
+  glitter: Object.freeze({
+    brightness: 1,
+    contrast: 0.92,
+    saturate: 0.82,
+    glareOpacity: 0.3,
+    shineOpacity: 0.38,
+  }),
+});
+const cardEffectInstances = new WeakMap();
+
+const cardEffectTextureSeed = (cardId) => {
+  let hash = 2166136261;
+  for (const char of String(cardId ?? "")) {
+    hash ^= char.charCodeAt(0);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+};
 
 export default function cardGrid() {
   return {
@@ -56,6 +88,7 @@ export default function cardGrid() {
     autoFlipBackDelayMs: 1800,
     _autoFlipBackTimers: {},
     _syncCardWindowRangeHandler: null,
+    _cardEffectObserver: null,
 
     ...createMarqueeSelection({
       mode: "cards",
@@ -98,6 +131,7 @@ export default function cardGrid() {
     // === 初始化 ===
     init() {
       this.initMarqueeSelection();
+      this.initCardEffectObserver();
 
       // 1. 监听全局搜索/筛选变化 (Reactivity Fix)
       // 使用 debounce 防止输入时频繁请求
@@ -392,7 +426,111 @@ export default function cardGrid() {
       });
     },
 
+    initCardEffectObserver() {
+      if (
+        this._cardEffectObserver ||
+        typeof MutationObserver === "undefined" ||
+        !this.$el
+      ) {
+        return;
+      }
+
+      this._cardEffectObserver = new MutationObserver((mutations) => {
+        mutations.forEach(({ removedNodes }) => {
+          removedNodes.forEach((node) => {
+            if (!(node instanceof Element)) {
+              return;
+            }
+
+            if (node.matches(".card-effect-shell")) {
+              this.destroyCardEffect(node);
+            }
+            node.querySelectorAll(".card-effect-shell").forEach((shell) => {
+              this.destroyCardEffect(shell);
+            });
+          });
+        });
+      });
+
+      this._cardEffectObserver.observe(this.$el, {
+        childList: true,
+        subtree: true,
+      });
+    },
+
+    getCardEffect(card) {
+      return card?.is_favorite
+        ? CARD_EFFECT_NAMES.favorite
+        : CARD_EFFECT_NAMES.regular;
+    },
+
+    initCardEffect(element, card) {
+      const shell = element?.querySelector(".card-effect-shell");
+      if (!shell) {
+        return null;
+      }
+
+      const effect = this.getCardEffect(card);
+      shell.dataset.effect = effect;
+      const existingEffect = cardEffectInstances.get(shell);
+      if (existingEffect) {
+        return existingEffect;
+      }
+
+      const cardEffect = attachHoloCard(shell, {
+        effect,
+        interactive: true,
+        gyroscope: false,
+        textureSeed: cardEffectTextureSeed(card?.id),
+        physics: {
+          maxTilt: 7,
+          parallax: 0.82,
+          glareRange: 0.9,
+          returnDelay: 180,
+        },
+        visual: CARD_EFFECT_VISUALS[effect],
+      });
+      cardEffectInstances.set(shell, cardEffect);
+      return cardEffect;
+    },
+
+    syncCardEffect(element, card) {
+      const shell = element?.querySelector(".card-effect-shell");
+      if (!shell) {
+        return;
+      }
+
+      const effect = this.getCardEffect(card);
+      if (shell.dataset.effect !== effect) {
+        shell.dataset.effect = effect;
+        const cardEffect = cardEffectInstances.get(shell);
+        cardEffect?.setEffect(effect);
+        cardEffect?.setVisual(CARD_EFFECT_VISUALS[effect]);
+      }
+      this.initCardEffect(element, card);
+    },
+
+    destroyCardEffect(shell) {
+      const cardEffect = shell ? cardEffectInstances.get(shell) : null;
+      if (!cardEffect) {
+        return;
+      }
+
+      cardEffect.destroy();
+      cardEffectInstances.delete(shell);
+    },
+
     destroy() {
+      if (this._cardEffectObserver) {
+        this._cardEffectObserver.disconnect();
+        this._cardEffectObserver = null;
+      }
+      if (this.$el) {
+        this.$el.querySelectorAll(".card-effect-shell").forEach((shell) => {
+          this.destroyCardEffect(shell);
+        });
+      }
+
       const scrollHost = document.getElementById("main-scroll");
       if (scrollHost && this._syncCardWindowRangeHandler) {
         scrollHost.removeEventListener(

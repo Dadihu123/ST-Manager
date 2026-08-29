@@ -108,7 +108,8 @@
           class="st-card group"
           :data-card-id="card.id"
           :class="{'selected': selectedIds.includes(card.id), 'is-favorite': card.is_favorite, 'card-highlight-anim': highlightId === card.id, 'is-flipped': isCardFlipped(card.id)}"
-          x-effect="if(highlightId === card.id) $el.scrollIntoView({ behavior: 'smooth', block: 'start' })"
+          x-init="syncCardEffect($el, card)"
+          x-effect="syncCardEffect($el, card); if(highlightId === card.id) $el.scrollIntoView({ behavior: 'smooth', block: 'start' })"
           @click.stop="handleCardClick($event, card)"
           @mouseenter="handleCardMouseEnter(card.id)"
           @mouseleave="handleCardMouseLeave(card.id)"
@@ -116,9 +117,17 @@
           @dragstart="dragStart($event, card)"
         >
           <div
-            class="card-flip-inner"
-            :class="{'is-flipped': isCardFlipped(card.id)}"
+            class="card-effect-shell holo-card"
+            :data-effect="card.is_favorite ? 'glitter' : 'cosmos'"
           >
+            <div class="holo-card__translater">
+              <div class="holo-card__rotator">
+                <div class="holo-card__front">
+                  <div class="holo-card__content">
+                    <div
+                      class="card-flip-inner"
+                      :class="{'is-flipped': isCardFlipped(card.id)}"
+                    >
             <div class="card-face card-front">
               <div class="card-front-topbar">
                 <div class="card-front-meta-left">
@@ -309,9 +318,9 @@
                 ></div>
               </div>
             </div>
-          </div>
+                    </div>
 
-          <div class="card-bottom-toolbar" @click.stop>
+                    <div class="card-bottom-toolbar" @click.stop>
             <button
               type="button"
               class="card-local-note-btn"
@@ -373,16 +382,23 @@
               :title="getSourceUpdateLabel(card)"
               x-text="['baseline_established', 'baseline_refreshed'].includes(card.source_update.last_status) ? '基线' : (card.source_update.last_status === 'title_synced' ? '标题已同步' : (getSourceUpdateClass(card) === 'is-updated' ? '有更新' : '已检查'))"
             ></span>
-          </div>
+                    </div>
 
-          <button
-            type="button"
-            class="card-flip-corner"
-            :class="[isCardFlipped(card.id) ? 'is-active' : '', $store.global.deviceType === 'mobile' ? 'is-mobile' : '']"
-            :aria-label="isCardFlipped(card.id) ? '翻回正面' : '翻到背面'"
-            @click.stop="toggleCardFace(card.id)"
-            :title="isCardFlipped(card.id) ? '翻回正面' : '翻到背面'"
-          ></button>
+                    <button
+                      type="button"
+                      class="card-flip-corner"
+                      :class="[isCardFlipped(card.id) ? 'is-active' : '', $store.global.deviceType === 'mobile' ? 'is-mobile' : '']"
+                      :aria-label="isCardFlipped(card.id) ? '翻回正面' : '翻到背面'"
+                      @click.stop="toggleCardFace(card.id)"
+                      :title="isCardFlipped(card.id) ? '翻回正面' : '翻到背面'"
+                    ></button>
+                  </div>
+                  <div class="holo-card__shine" aria-hidden="true"></div>
+                  <div class="holo-card__glare" aria-hidden="true"></div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </template>
       <div

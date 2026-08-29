@@ -418,38 +418,61 @@ export default function tagFilterModal() {
     },
 
     toggleDesktopWorkspaceFullscreen() {
-      const shell = this.$root?.querySelector(".tag-filter-desktop-shell");
+      const shell = this._desktopWorkspaceShell();
       const doc = document;
       const activeFullscreenElement =
         doc.fullscreenElement || doc.webkitFullscreenElement || null;
 
+      if (activeFullscreenElement === shell) {
+        this.exitDesktopWorkspaceFullscreen();
+        return;
+      }
+
       if (activeFullscreenElement) {
-        const exitFullscreen = doc.exitFullscreen || doc.webkitExitFullscreen;
-        if (typeof exitFullscreen === "function") {
-          Promise.resolve(exitFullscreen.call(doc))
-            .catch(() => {})
-            .finally(() => {
-              this.isDesktopWorkspaceFullscreen = false;
-            });
-          return;
-        }
+        return;
       }
 
       const requestFullscreen =
         shell && (shell.requestFullscreen || shell.webkitRequestFullscreen);
       if (typeof requestFullscreen === "function") {
         Promise.resolve(requestFullscreen.call(shell))
-          .catch(() => {
-            this.isDesktopWorkspaceFullscreen =
-              !this.isDesktopWorkspaceFullscreen;
-          })
           .then(() => {
             this.isDesktopWorkspaceFullscreen = true;
+          })
+          .catch(() => {
+            this.isDesktopWorkspaceFullscreen = false;
           });
         return;
       }
 
       this.isDesktopWorkspaceFullscreen = !this.isDesktopWorkspaceFullscreen;
+    },
+
+    _desktopWorkspaceShell() {
+      return this.$root?.querySelector(".tag-filter-desktop-shell") || null;
+    },
+
+    exitDesktopWorkspaceFullscreen() {
+      const doc = document;
+      const shell = this._desktopWorkspaceShell();
+      const activeFullscreenElement =
+        doc.fullscreenElement || doc.webkitFullscreenElement || null;
+      const exitFullscreen = doc.exitFullscreen || doc.webkitExitFullscreen;
+
+      this.isDesktopWorkspaceFullscreen = false;
+      if (activeFullscreenElement !== shell || typeof exitFullscreen !== "function") {
+        return Promise.resolve(false);
+      }
+
+      return Promise.resolve(exitFullscreen.call(doc))
+        .catch(() => {})
+        .finally(() => {
+          const currentFullscreenElement =
+            doc.fullscreenElement || doc.webkitFullscreenElement || null;
+          if (!currentFullscreenElement || currentFullscreenElement === shell) {
+            this.isDesktopWorkspaceFullscreen = false;
+          }
+        });
     },
 
     toggleGovernanceDrawer() {
@@ -552,7 +575,8 @@ export default function tagFilterModal() {
           document.fullscreenElement ||
           document.webkitFullscreenElement ||
           null;
-        this.isDesktopWorkspaceFullscreen = !!activeFullscreenElement;
+        this.isDesktopWorkspaceFullscreen =
+          activeFullscreenElement === this._desktopWorkspaceShell();
       };
       document.addEventListener(
         "fullscreenchange",
@@ -586,6 +610,7 @@ export default function tagFilterModal() {
               return;
             }
           }
+          this.exitDesktopWorkspaceFullscreen();
           this.resetModalStateAfterClose();
         }
       });
@@ -721,6 +746,7 @@ export default function tagFilterModal() {
         if (!ok) return;
       }
 
+      this.exitDesktopWorkspaceFullscreen();
       this._syncClosing = true;
       this.resetModalStateAfterClose();
       this.showTagFilterModal = false;

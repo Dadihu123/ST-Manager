@@ -650,6 +650,8 @@
   grid-template-rows: auto auto minmax(0, 1fr);
   gap: 0.5rem;
   overflow: hidden;
+  background: var(--bg-panel);
+  color: var(--text-main);
 }
 
 .tag-filter-desktop-shell.tag-filter-desktop-shell--fullscreen {
@@ -661,6 +663,21 @@
   padding: clamp(1rem, 1.6vw, 1.75rem);
   border-radius: 0;
   box-sizing: border-box;
+  background: var(--bg-body);
+}
+
+.tag-filter-desktop-shell:fullscreen,
+.tag-filter-desktop-shell:-webkit-full-screen {
+  background: var(--bg-body);
+  color: var(--text-main);
+}
+
+.tag-filter-desktop-shell::backdrop {
+  background: var(--bg-body);
+}
+
+.tag-filter-desktop-shell::-webkit-backdrop {
+  background: var(--bg-body);
 }
 
 .tag-filter-desktop-toolbar {

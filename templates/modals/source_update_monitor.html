@@ -160,7 +160,7 @@
         </div>
         <div class="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <label class="flex min-h-11 items-center gap-2 text-sm">
-            <input type="checkbox" x-model="settingsDraft.enabled" />
+            <input type="checkbox" x-model="settingsDraft.enabled" @change="markSettingsDraftDirty()" />
             启用定期检查
           </label>
           <label class="text-xs text-[var(--text-sub)]">调度模式
@@ -168,6 +168,7 @@
               "settingsDraft.schedule_mode",
               wrapper_class="form-input mt-1 min-h-11 text-sm source-monitor-schedule-select",
               menu_class="source-monitor-schedule-menu",
+              source_attrs='@change="markSettingsDraftDirty()"',
               aria_label="调度模式"
             ) %}
               <option value="manual">仅手动检查</option>
@@ -175,10 +176,10 @@
             {% endcall %}
           </label>
           <label x-show="settingsDraft.schedule_mode === 'daily'" class="text-xs text-[var(--text-sub)]">每日时间
-            <input type="time" x-model="settingsDraft.daily_time" class="form-input mt-1 min-h-11 text-sm" />
+            <input type="time" x-model="settingsDraft.daily_time" @input="markSettingsDraftDirty()" class="form-input mt-1 min-h-11 text-sm" />
           </label>
           <label x-show="settingsDraft.schedule_mode === 'daily'" class="text-xs text-[var(--text-sub)]">时区（如 Asia/Shanghai）
-            <input type="text" x-model="settingsDraft.timezone" placeholder="留空使用本地时区" class="form-input mt-1 min-h-11 text-sm" />
+            <input type="text" x-model="settingsDraft.timezone" @input="markSettingsDraftDirty()" placeholder="留空使用本地时区" class="form-input mt-1 min-h-11 text-sm" />
           </label>
         </div>
         <div class="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-[var(--text-sub)]">

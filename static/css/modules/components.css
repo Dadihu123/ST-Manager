@@ -137,6 +137,29 @@ html.light-mode .btn-soft-purple:hover {
   min-width: 0;
 }
 
+/* Native date/time controls follow the application theme instead of the OS light default. */
+input[type="date"],
+input[type="time"] {
+  color-scheme: dark;
+  accent-color: var(--accent-main);
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+}
+
+html:not(.light-mode) input[type="date"]::-webkit-calendar-picker-indicator,
+html:not(.light-mode) input[type="time"]::-webkit-calendar-picker-indicator {
+  filter: brightness(0) invert(1);
+  opacity: 0.86;
+}
+
+html.light-mode input[type="date"],
+html.light-mode input[type="time"] {
+  color-scheme: light;
+}
+
 /*
  * Native select options cannot render the SVG sprites used by the application.
  * Keep icon-bearing selects as a small, keyboard-friendly listbox instead.

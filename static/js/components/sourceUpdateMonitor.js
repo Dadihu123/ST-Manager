@@ -56,6 +56,8 @@ export default function sourceUpdateMonitor() {
     runId: "",
     pollTimer: null,
     refreshInFlight: false,
+    settingsDraftDirty: false,
+    _settingsRevision: 0,
     progressRequests: [],
     settingsDraft: {
       enabled: false,
@@ -87,6 +89,26 @@ export default function sourceUpdateMonitor() {
     formatDateTime,
     entryStatusLabel,
 
+    _settingsFromPool(pool) {
+      const source = pool && typeof pool === "object" ? pool : {};
+      return {
+        enabled: source.enabled === true || source.enabled === 1,
+        schedule_mode: source.schedule_mode || "manual",
+        daily_time: source.daily_time || "09:00",
+        timezone: source.timezone || "",
+      };
+    },
+
+    _applySettingsDraft(pool) {
+      this.settingsDraft = this._settingsFromPool(pool);
+      this.settingsDraftDirty = false;
+    },
+
+    markSettingsDraftDirty() {
+      this.settingsDraftDirty = true;
+      this._settingsRevision += 1;
+    },
+
     open() {
       this.visible = true;
       this.refresh();
@@ -115,6 +137,7 @@ export default function sourceUpdateMonitor() {
 
     async refresh({ quiet = false } = {}) {
       if (this.refreshInFlight) return;
+      const settingsRevision = this._settingsRevision;
       this.refreshInFlight = true;
       if (!quiet) this.loading = true;
       try {
@@ -123,13 +146,22 @@ export default function sourceUpdateMonitor() {
           getSourceUpdateMonitorEntries(),
         ]);
         if (statusResponse?.success) {
-          this.status = statusResponse.pool || statusResponse;
-          this.settingsDraft = {
-            enabled: this.status.enabled === true,
-            schedule_mode: this.status.schedule_mode || "manual",
-            daily_time: this.status.daily_time || "09:00",
-            timezone: this.status.timezone || this.settingsDraft.timezone || "",
+          const serverPool = statusResponse.pool || statusResponse;
+          const canSyncSettings =
+            !this.settingsDraftDirty &&
+            !this.savingSettings &&
+            settingsRevision === this._settingsRevision;
+          const previousSettings = this._settingsFromPool(this.status);
+          this.status = {
+            ...(this.status || {}),
+            ...serverPool,
           };
+          if (!canSyncSettings && this.status) {
+            Object.assign(this.status, previousSettings);
+          }
+          if (canSyncSettings) {
+            this._applySettingsDraft(serverPool);
+          }
         }
         if (entriesResponse?.success) {
           this.entries = Array.isArray(entriesResponse.entries)
@@ -308,12 +340,24 @@ export default function sourceUpdateMonitor() {
     },
 
     async saveSettings() {
+      const payload = { ...this.settingsDraft };
+      const saveRevision = ++this._settingsRevision;
       this.savingSettings = true;
       try {
-        const response = await saveSourceUpdateMonitorSettings(this.settingsDraft);
+        const response = await saveSourceUpdateMonitorSettings(payload);
         if (!response?.success) {
           this.$store.global.showToast(response?.error || "保存监控设置失败", 2800);
           return;
+        }
+        this.status = {
+          ...(this.status || {}),
+          ...this._settingsFromPool(response),
+          ...(Object.prototype.hasOwnProperty.call(response, "next_run_at")
+            ? { next_run_at: response.next_run_at }
+            : {}),
+        };
+        if (this._settingsRevision === saveRevision) {
+          this._applySettingsDraft(response);
         }
         this.$store.global.showToast("监控调度设置已保存", 2200);
         await this.refresh();

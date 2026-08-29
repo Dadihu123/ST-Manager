@@ -31,24 +31,6 @@
   }
 }
 
-@keyframes holo-sheen {
-  0% {
-    left: -150%;
-    opacity: 0;
-  }
-  30% {
-    opacity: 1;
-  }
-  60% {
-    left: 200%;
-    opacity: 0;
-  }
-  100% {
-    left: 200%;
-    opacity: 0;
-  }
-}
-
 @keyframes cornerPeelSpring {
   0% {
     transform: rotate(0deg) skewX(0deg) scale(1);
@@ -1847,7 +1829,11 @@ html.light-mode .btn-note-preview:hover {
     0 0 15px rgba(251, 191, 36, 0.15);
   position: relative;
   overflow: hidden;
-  transition: all 0.3s ease;
+  transition:
+    transform 0.24s ease,
+    border-color 0.24s ease,
+    box-shadow 0.24s ease,
+    background 0.24s ease;
 }
 
 .st-card.is-favorite:hover {
@@ -1855,44 +1841,7 @@ html.light-mode .btn-note-preview:hover {
   box-shadow:
     0 10px 20px -3px rgba(0, 0, 0, 0.4),
     0 0 20px rgba(251, 191, 36, 0.3);
-  transform: translateY(-3px) scale(1.01);
-}
-
-.st-card.is-favorite::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: -150%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(
-    115deg,
-    transparent 30%,
-    rgba(255, 0, 0, 0.1) 40%,
-    rgba(0, 255, 0, 0.1) 45%,
-    rgba(255, 255, 255, 0.5) 50%,
-    rgba(0, 0, 255, 0.1) 55%,
-    rgba(255, 0, 255, 0.1) 60%,
-    transparent 70%
-  );
-  transform: skewX(-20deg);
-  pointer-events: none;
-  z-index: var(--z-floating);
-  animation: holo-sheen 6s infinite ease-in-out;
-}
-
-.st-card.is-favorite::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(
-    circle at 50% 0%,
-    rgba(251, 191, 36, 0.05),
-    transparent 70%
-  );
-  pointer-events: none;
-  z-index: calc(var(--z-floating) - 1);
-  mix-blend-mode: screen;
+  transform: translateY(-4px);
 }
 
 @media not ((backdrop-filter: blur(2px))) {
@@ -2283,5 +2232,128 @@ html.light-mode .card-bottom-toolbar
   .card-bottom-toolbar > .card-source-update-btn .ui-icon {
     width: 20px;
     height: 20px;
+  }
+}
+
+/* cards-css：将卡片正面、背面和底部工具栏作为同一块效果表面处理。 */
+.card-effect-shell.holo-card {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: block;
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto;
+  border-radius: inherit;
+  pointer-events: none;
+  isolation: isolate;
+}
+
+.card-effect-shell .holo-card__translater,
+.card-effect-shell .holo-card__rotator,
+.card-effect-shell .holo-card__front {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto;
+  border-radius: inherit;
+}
+
+.card-effect-shell .holo-card__translater,
+.card-effect-shell .holo-card__rotator {
+  display: block;
+}
+
+.card-effect-shell .holo-card__translater {
+  position: relative;
+}
+
+.card-effect-shell .holo-card__rotator {
+  position: relative;
+}
+
+.card-effect-shell .holo-card__front {
+  position: relative;
+  display: block;
+  overflow: hidden;
+}
+
+.card-effect-shell .holo-card__content {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto;
+  pointer-events: auto;
+}
+
+/* 上游库会为自定义内容预留 grid 布局，这些覆盖确保原有卡片排版不变。 */
+.card-effect-shell .holo-card__content .card-flip-inner {
+  display: block;
+  grid-area: auto;
+  aspect-ratio: auto;
+}
+
+.card-effect-shell .holo-card__content .card-face {
+  display: flex;
+  grid-area: auto;
+  aspect-ratio: auto;
+}
+
+.card-effect-shell .holo-card__content .card-image-container {
+  display: block;
+  grid-area: auto;
+  aspect-ratio: auto;
+}
+
+.card-effect-shell .holo-card__content .card-image-media {
+  display: block;
+  grid-area: auto;
+  aspect-ratio: auto;
+}
+
+.card-effect-shell .holo-card__content .card-image-overlay,
+.card-effect-shell .holo-card__content .card-overlay-actions,
+.card-effect-shell .holo-card__content .card-tags-wrap,
+.card-effect-shell .holo-card__content .card-tags-row,
+.card-effect-shell .holo-card__content .card-bottom-toolbar {
+  grid-area: auto;
+  aspect-ratio: auto;
+}
+
+.card-effect-shell .holo-card__content .card-flip-corner {
+  display: block;
+  grid-area: auto;
+  aspect-ratio: auto;
+}
+
+.card-effect-shell .holo-card__content * {
+  pointer-events: auto;
+}
+
+.card-effect-shell .holo-card__shine,
+.card-effect-shell .holo-card__glare {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.card-effect-shell .holo-card__glare {
+  z-index: 4;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-effect-shell .holo-card__translater,
+  .card-effect-shell .holo-card__rotator,
+  .card-effect-shell .holo-card__shine,
+  .card-effect-shell .holo-card__glare {
+    transition: none !important;
   }
 }
