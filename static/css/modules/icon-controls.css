@@ -1,0 +1,214 @@
+/*
+ * Shared directional and numeric controls.
+ * Keep the glyph size in the existing ui-icon tier system; this file only
+ * controls the button hit area and interaction states.
+ */
+
+.ui-reorder-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  min-width: 2rem;
+  min-height: 2rem;
+  flex: 0 0 2rem;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 0.45rem;
+  color: var(--text-dim);
+  background: transparent;
+  cursor: pointer;
+  transition:
+    color 0.18s ease,
+    background-color 0.18s ease,
+    border-color 0.18s ease,
+    opacity 0.18s ease;
+}
+
+.ui-reorder-button:hover {
+  color: var(--text-main);
+  background: var(--bg-hover);
+  border-color: var(--border-light);
+}
+
+.ui-reorder-button:active {
+  color: var(--accent-light);
+  background: var(--accent-faint);
+  border-color: color-mix(in srgb, var(--accent-main), transparent 62%);
+}
+
+.ui-reorder-button:focus-visible {
+  outline: 2px solid var(--accent-light);
+  outline-offset: 2px;
+}
+
+.ui-reorder-button:disabled,
+.ui-reorder-button[aria-disabled='true'] {
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+
+.ui-reorder-button:disabled:hover,
+.ui-reorder-button[aria-disabled='true']:hover {
+  color: var(--text-dim);
+  background: transparent;
+  border-color: transparent;
+}
+
+.ui-reorder-button-group {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+/* The mobile tag row has a more specific legacy button rule. Keep its
+ * responsive hit area while giving the reorder controls the shared surface. */
+.tag-filter-mobile-sort-row .ui-reorder-button {
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 0.45rem;
+  color: var(--text-dim);
+  background: transparent;
+  font-size: inherit;
+  font-weight: inherit;
+}
+
+.tag-filter-mobile-sort-row .ui-reorder-button:hover {
+  color: var(--text-main);
+  background: var(--bg-hover);
+  border-color: var(--border-light);
+}
+
+.tag-filter-mobile-sort-row .ui-reorder-button:active {
+  color: var(--accent-light);
+  background: var(--accent-faint);
+  border-color: color-mix(in srgb, var(--accent-main), transparent 62%);
+}
+
+.ui-number-control {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+}
+
+.ui-number-input {
+  padding-right: 2.65rem;
+  -moz-appearance: textfield;
+}
+
+/* Keep the reserved stepper space when a component also supplies px-* utilities. */
+.ui-number-control > .ui-number-input {
+  padding-right: 2.65rem;
+}
+
+.ui-number-input::-webkit-inner-spin-button,
+.ui-number-input::-webkit-outer-spin-button {
+  margin: 0;
+  -webkit-appearance: none;
+}
+
+.ui-number-stepper,
+.settings-number-stepper {
+  position: absolute;
+  top: 0.35rem;
+  right: 0.35rem;
+  bottom: 0.35rem;
+  display: flex;
+  flex-direction: column;
+  width: 1.55rem;
+  overflow: visible;
+  border: 0;
+  border-radius: 0.5rem;
+  background: transparent;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity 0.18s ease,
+    visibility 0s linear 0.18s;
+}
+
+.ui-number-control:hover > .ui-number-stepper,
+.ui-number-control:focus-within > .ui-number-stepper,
+.settings-number-control:hover > .settings-number-stepper,
+.settings-number-control:focus-within > .settings-number-stepper {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transition-delay: 0s;
+}
+
+.ui-number-stepper-btn,
+.settings-number-stepper-btn {
+  display: inline-flex;
+  flex: 1 1 50%;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0.35rem;
+  color: var(--text-dim);
+  background: transparent;
+  cursor: pointer;
+  transition:
+    color 0.18s ease,
+    background-color 0.18s ease;
+}
+
+.ui-number-stepper-btn + .ui-number-stepper-btn,
+.settings-number-stepper-btn + .settings-number-stepper-btn {
+  border-top: 0;
+}
+
+.ui-number-stepper-btn:hover,
+.settings-number-stepper-btn:hover {
+  color: var(--text-main);
+  background: var(--bg-hover);
+}
+
+.ui-number-stepper-btn:active,
+.settings-number-stepper-btn:active {
+  color: var(--accent-light);
+  background: var(--accent-faint);
+}
+
+.ui-number-stepper-btn:focus-visible,
+.settings-number-stepper-btn:focus-visible {
+  z-index: 1;
+  outline: 2px solid var(--accent-light);
+  outline-offset: -2px;
+}
+
+.ui-number-stepper-btn:disabled,
+.settings-number-stepper-btn:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+
+.ui-number-stepper-btn:disabled:hover,
+.settings-number-stepper-btn:disabled:hover {
+  color: var(--text-dim);
+  background: transparent;
+}
+
+@media (max-width: 768px) {
+  .ui-reorder-button {
+    width: 2.75rem;
+    height: 2.75rem;
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+    flex-basis: 2.75rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-reorder-button,
+  .ui-number-stepper,
+  .settings-number-stepper,
+  .ui-number-stepper-btn,
+  .settings-number-stepper-btn {
+    transition: none;
+  }
+}

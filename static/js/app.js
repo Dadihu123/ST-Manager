@@ -40,6 +40,7 @@ import beautifyGrid from "./components/beautifyGrid.js";
 import beautifyPreviewFrame from "./components/beautifyPreviewFrame.js";
 import sourceUpdateMonitor from "./components/sourceUpdateMonitor.js";
 import { initPasteImportHandler } from "./components/pasteImportHandler.js";
+import "./utils/numberControl.js";
 
 // 3. 监听 Alpine 初始化事件
 const registerComponents = () => {

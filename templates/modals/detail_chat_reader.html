@@ -563,27 +563,63 @@
         <div class="chat-reader-editor-section chat-reader-nested-section chat-reader-nested-section--form custom-scrollbar">
             <label class="chat-reader-field">
                 <span>尾部保活楼层数</span>
-                <input type="number" min="0" max="20" x-model.number="readerViewSettings.fullDisplayCount" class="form-input">
+                <div class="ui-number-control">
+                    <input type="number" min="0" max="20" step="1" x-model.number="readerViewSettings.fullDisplayCount" class="form-input ui-number-input">
+                    <div class="ui-number-stepper" aria-label="调整尾部保活楼层数">
+                        <button type="button" class="ui-number-stepper-btn" @click.prevent="window.stepNumberInput($event.currentTarget, 1)" aria-label="增加尾部保活楼层数">{{ icon('arrow-up', 'ui-icon--xs') }}</button>
+                        <button type="button" class="ui-number-stepper-btn" @click.prevent="window.stepNumberInput($event.currentTarget, -1)" aria-label="减少尾部保活楼层数">{{ icon('arrow-down', 'ui-icon--xs') }}</button>
+                    </div>
+                </div>
             </label>
             <label class="chat-reader-field">
                 <span>锚点附近完整渲染半径</span>
-                <input type="number" min="1" max="20" x-model.number="readerViewSettings.renderNearbyCount" class="form-input">
+                <div class="ui-number-control">
+                    <input type="number" min="1" max="20" step="1" x-model.number="readerViewSettings.renderNearbyCount" class="form-input ui-number-input">
+                    <div class="ui-number-stepper" aria-label="调整锚点附近完整渲染半径">
+                        <button type="button" class="ui-number-stepper-btn" @click.prevent="window.stepNumberInput($event.currentTarget, 1)" aria-label="增加锚点附近完整渲染半径">{{ icon('arrow-up', 'ui-icon--xs') }}</button>
+                        <button type="button" class="ui-number-stepper-btn" @click.prevent="window.stepNumberInput($event.currentTarget, -1)" aria-label="减少锚点附近完整渲染半径">{{ icon('arrow-down', 'ui-icon--xs') }}</button>
+                    </div>
+                </div>
             </label>
             <label class="chat-reader-field">
                 <span>缩略显示字符数</span>
-                <input type="number" min="40" max="400" x-model.number="readerViewSettings.compactPreviewLength" class="form-input">
+                <div class="ui-number-control">
+                    <input type="number" min="40" max="400" step="1" x-model.number="readerViewSettings.compactPreviewLength" class="form-input ui-number-input">
+                    <div class="ui-number-stepper" aria-label="调整缩略显示字符数">
+                        <button type="button" class="ui-number-stepper-btn" @click.prevent="window.stepNumberInput($event.currentTarget, 1)" aria-label="增加缩略显示字符数">{{ icon('arrow-up', 'ui-icon--xs') }}</button>
+                        <button type="button" class="ui-number-stepper-btn" @click.prevent="window.stepNumberInput($event.currentTarget, -1)" aria-label="减少缩略显示字符数">{{ icon('arrow-down', 'ui-icon--xs') }}</button>
+                    </div>
+                </div>
             </label>
             <label class="chat-reader-field">
                 <span>实例执行楼层数</span>
-                <input type="number" min="0" max="50" x-model.number="readerViewSettings.instanceRenderDepth" class="form-input">
+                <div class="ui-number-control">
+                    <input type="number" min="0" max="50" step="1" x-model.number="readerViewSettings.instanceRenderDepth" class="form-input ui-number-input">
+                    <div class="ui-number-stepper" aria-label="调整实例执行楼层数">
+                        <button type="button" class="ui-number-stepper-btn" @click.prevent="window.stepNumberInput($event.currentTarget, 1)" aria-label="增加实例执行楼层数">{{ icon('arrow-up', 'ui-icon--xs') }}</button>
+                        <button type="button" class="ui-number-stepper-btn" @click.prevent="window.stepNumberInput($event.currentTarget, -1)" aria-label="减少实例执行楼层数">{{ icon('arrow-down', 'ui-icon--xs') }}</button>
+                    </div>
+                </div>
             </label>
             <label class="chat-reader-field">
                 <span>锚点附近简化渲染半径</span>
-                <input type="number" min="0" max="60" x-model.number="readerViewSettings.simpleRenderRadius" class="form-input">
+                <div class="ui-number-control">
+                    <input type="number" min="0" max="60" step="1" x-model.number="readerViewSettings.simpleRenderRadius" class="form-input ui-number-input">
+                    <div class="ui-number-stepper" aria-label="调整锚点附近简化渲染半径">
+                        <button type="button" class="ui-number-stepper-btn" @click.prevent="window.stepNumberInput($event.currentTarget, 1)" aria-label="增加锚点附近简化渲染半径">{{ icon('arrow-up', 'ui-icon--xs') }}</button>
+                        <button type="button" class="ui-number-stepper-btn" @click.prevent="window.stepNumberInput($event.currentTarget, -1)" aria-label="减少锚点附近简化渲染半径">{{ icon('arrow-down', 'ui-icon--xs') }}</button>
+                    </div>
+                </div>
             </label>
             <label class="chat-reader-field">
                 <span>历史楼层隐藏阈值</span>
-                <input type="number" min="0" max="120" x-model.number="readerViewSettings.hiddenHistoryThreshold" class="form-input">
+                <div class="ui-number-control">
+                    <input type="number" min="0" max="120" step="1" x-model.number="readerViewSettings.hiddenHistoryThreshold" class="form-input ui-number-input">
+                    <div class="ui-number-stepper" aria-label="调整历史楼层隐藏阈值">
+                        <button type="button" class="ui-number-stepper-btn" @click.prevent="window.stepNumberInput($event.currentTarget, 1)" aria-label="增加历史楼层隐藏阈值">{{ icon('arrow-up', 'ui-icon--xs') }}</button>
+                        <button type="button" class="ui-number-stepper-btn" @click.prevent="window.stepNumberInput($event.currentTarget, -1)" aria-label="减少历史楼层隐藏阈值">{{ icon('arrow-down', 'ui-icon--xs') }}</button>
+                    </div>
+                </div>
             </label>
             <label class="chat-reader-field">
                 <span>Reasoning 默认折叠</span>
@@ -929,11 +965,23 @@
                                             </label>
                                             <label class="chat-reader-field">
                                                 <span>阅读器最小深度</span>
-                                                <input type="number" class="form-input" :value="selectedActiveRegexRule.readerMinDepth ?? ''" @input="updateSelectedActiveRegexRule('readerMinDepth', $event.target.value === '' ? null : Number($event.target.value))">
+                                                <div class="ui-number-control">
+                                                    <input type="number" min="0" step="1" class="form-input ui-number-input" :value="selectedActiveRegexRule.readerMinDepth ?? ''" @input="updateSelectedActiveRegexRule('readerMinDepth', $event.target.value === '' ? null : Number($event.target.value))">
+                                                    <div class="ui-number-stepper" aria-label="调整阅读器最小深度">
+                                                        <button type="button" class="ui-number-stepper-btn" @click.prevent="window.stepNumberInput($event.currentTarget, 1)" aria-label="增加阅读器最小深度">{{ icon('arrow-up', 'ui-icon--xs') }}</button>
+                                                        <button type="button" class="ui-number-stepper-btn" @click.prevent="window.stepNumberInput($event.currentTarget, -1)" aria-label="减少阅读器最小深度">{{ icon('arrow-down', 'ui-icon--xs') }}</button>
+                                                    </div>
+                                                </div>
                                             </label>
                                             <label class="chat-reader-field">
                                                 <span>阅读器最大深度</span>
-                                                <input type="number" class="form-input" :value="selectedActiveRegexRule.readerMaxDepth ?? ''" @input="updateSelectedActiveRegexRule('readerMaxDepth', $event.target.value === '' ? null : Number($event.target.value))">
+                                                <div class="ui-number-control">
+                                                    <input type="number" min="0" step="1" class="form-input ui-number-input" :value="selectedActiveRegexRule.readerMaxDepth ?? ''" @input="updateSelectedActiveRegexRule('readerMaxDepth', $event.target.value === '' ? null : Number($event.target.value))">
+                                                    <div class="ui-number-stepper" aria-label="调整阅读器最大深度">
+                                                        <button type="button" class="ui-number-stepper-btn" @click.prevent="window.stepNumberInput($event.currentTarget, 1)" aria-label="增加阅读器最大深度">{{ icon('arrow-up', 'ui-icon--xs') }}</button>
+                                                        <button type="button" class="ui-number-stepper-btn" @click.prevent="window.stepNumberInput($event.currentTarget, -1)" aria-label="减少阅读器最大深度">{{ icon('arrow-down', 'ui-icon--xs') }}</button>
+                                                    </div>
+                                                </div>
                                             </label>
                                         </div>
 
@@ -1071,11 +1119,23 @@
                                             </label>
                                             <label class="chat-reader-field">
                                                 <span>阅读器最小深度</span>
-                                                <input type="number" class="form-input" :value="selectedDraftRegexRule.readerMinDepth ?? ''" @input="updateRegexDisplayRule(selectedDraftRegexRuleIndexSafe, 'readerMinDepth', $event.target.value === '' ? null : Number($event.target.value))">
+                                                <div class="ui-number-control">
+                                                    <input type="number" min="0" step="1" class="form-input ui-number-input" :value="selectedDraftRegexRule.readerMinDepth ?? ''" @input="updateRegexDisplayRule(selectedDraftRegexRuleIndexSafe, 'readerMinDepth', $event.target.value === '' ? null : Number($event.target.value))">
+                                                    <div class="ui-number-stepper" aria-label="调整阅读器最小深度">
+                                                        <button type="button" class="ui-number-stepper-btn" @click.prevent="window.stepNumberInput($event.currentTarget, 1)" aria-label="增加阅读器最小深度">{{ icon('arrow-up', 'ui-icon--xs') }}</button>
+                                                        <button type="button" class="ui-number-stepper-btn" @click.prevent="window.stepNumberInput($event.currentTarget, -1)" aria-label="减少阅读器最小深度">{{ icon('arrow-down', 'ui-icon--xs') }}</button>
+                                                    </div>
+                                                </div>
                                             </label>
                                             <label class="chat-reader-field">
                                                 <span>阅读器最大深度</span>
-                                                <input type="number" class="form-input" :value="selectedDraftRegexRule.readerMaxDepth ?? ''" @input="updateRegexDisplayRule(selectedDraftRegexRuleIndexSafe, 'readerMaxDepth', $event.target.value === '' ? null : Number($event.target.value))">
+                                                <div class="ui-number-control">
+                                                    <input type="number" min="0" step="1" class="form-input ui-number-input" :value="selectedDraftRegexRule.readerMaxDepth ?? ''" @input="updateRegexDisplayRule(selectedDraftRegexRuleIndexSafe, 'readerMaxDepth', $event.target.value === '' ? null : Number($event.target.value))">
+                                                    <div class="ui-number-stepper" aria-label="调整阅读器最大深度">
+                                                        <button type="button" class="ui-number-stepper-btn" @click.prevent="window.stepNumberInput($event.currentTarget, 1)" aria-label="增加阅读器最大深度">{{ icon('arrow-up', 'ui-icon--xs') }}</button>
+                                                        <button type="button" class="ui-number-stepper-btn" @click.prevent="window.stepNumberInput($event.currentTarget, -1)" aria-label="减少阅读器最大深度">{{ icon('arrow-down', 'ui-icon--xs') }}</button>
+                                                    </div>
+                                                </div>
                                             </label>
                                         </div>
 

@@ -1,4 +1,5 @@
 <!-- 预设全屏编辑器 -->
+{% from "components/icon.html" import icon %}
 <div
   x-show="showPresetEditor"
   x-data="presetEditor"
@@ -538,18 +539,24 @@
                             </div>
                             <div class="mt-3 flex items-center gap-2">
                               <button
+                                type="button"
                                 @click.stop="movePromptItem(index, index - 1)"
-                                class="btn-secondary px-2 py-1 text-xs rounded"
+                                class="ui-reorder-button"
                                 :disabled="index === 0"
+                                title="上移"
+                                aria-label="上移"
                               >
-                                上移
+                                {{ icon('arrow-up', 'ui-icon--xs') }}
                               </button>
                               <button
+                                type="button"
                                 @click.stop="movePromptItem(index, index + 1)"
-                                class="btn-secondary px-2 py-1 text-xs rounded"
+                                class="ui-reorder-button"
                                 :disabled="index === orderedPromptItems.length - 1"
+                                title="下移"
+                                aria-label="下移"
                               >
-                                下移
+                                {{ icon('arrow-down', 'ui-icon--xs') }}
                               </button>
                             </div>
                           </article>
@@ -873,18 +880,24 @@
                           </div>
                           <div class="mt-3 flex items-center gap-2">
                             <button
+                              type="button"
                               @click.stop="movePromptItem(index, index - 1)"
-                              class="btn-secondary px-2 py-1 text-xs rounded"
+                              class="ui-reorder-button"
                               :disabled="index === 0"
+                              title="上移"
+                              aria-label="上移"
                             >
-                              上移
+                              {{ icon('arrow-up', 'ui-icon--xs') }}
                             </button>
                             <button
+                              type="button"
                               @click.stop="movePromptItem(index, index + 1)"
-                              class="btn-secondary px-2 py-1 text-xs rounded"
+                              class="ui-reorder-button"
                               :disabled="index === orderedPromptItems.length - 1"
+                              title="下移"
+                              aria-label="下移"
                             >
-                              下移
+                              {{ icon('arrow-down', 'ui-icon--xs') }}
                             </button>
                           </div>
                         </article>
@@ -1231,18 +1244,24 @@
                                   @input="updateStringListItem(field.storage_key, index, $event.target.value)"
                                 />
                                 <button
+                                  type="button"
                                   @click="moveListItem(field.storage_key, index, index - 1)"
-                                  class="btn-secondary px-3 py-1.5 text-xs rounded"
+                                  class="ui-reorder-button"
                                   :disabled="index === 0"
+                                  title="上移"
+                                  aria-label="上移"
                                 >
-                                  上移
+                                  {{ icon('arrow-up', 'ui-icon--xs') }}
                                 </button>
                                 <button
+                                  type="button"
                                   @click="moveListItem(field.storage_key, index, index + 1)"
-                                  class="btn-secondary px-3 py-1.5 text-xs rounded"
+                                  class="ui-reorder-button"
                                   :disabled="index === ((Array.isArray(getScalarWorkspaceFieldValue(field.storage_key)) ? getScalarWorkspaceFieldValue(field.storage_key).length : 0) - 1)"
+                                  title="下移"
+                                  aria-label="下移"
                                 >
-                                  下移
+                                  {{ icon('arrow-down', 'ui-icon--xs') }}
                                 </button>
                                 <button
                                   @click="removeStringListItem(field.storage_key, index)"
@@ -1511,19 +1530,25 @@
                                 />
                                 <button
                                   x-show="field.control === 'sortable_string_list'"
+                                  type="button"
                                   @click="moveListItem(field.storage_key || field.id, index, index - 1)"
-                                  class="btn-secondary px-3 py-1.5 text-xs rounded"
+                                  class="ui-reorder-button"
                                   :disabled="index === 0"
+                                  title="上移"
+                                  aria-label="上移"
                                 >
-                                  上移
+                                  {{ icon('arrow-up', 'ui-icon--xs') }}
                                 </button>
                                 <button
                                   x-show="field.control === 'sortable_string_list'"
+                                  type="button"
                                   @click="moveListItem(field.storage_key || field.id, index, index + 1)"
-                                  class="btn-secondary px-3 py-1.5 text-xs rounded"
+                                  class="ui-reorder-button"
                                   :disabled="index === ((Array.isArray(getProfileFieldValue(field.id)) ? getProfileFieldValue(field.id).length : 0) - 1)"
+                                  title="下移"
+                                  aria-label="下移"
                                 >
-                                  下移
+                                  {{ icon('arrow-down', 'ui-icon--xs') }}
                                 </button>
                                 <button
                                   @click="removeStringListItem(field.storage_key || field.id, index)"
@@ -1780,18 +1805,24 @@
                                   @input="updateStringListItem(activeItem.value_path, index, $event.target.value)"
                                 />
                                 <button
+                                  type="button"
                                   @click="moveListItem(activeItem.value_path, index, index - 1)"
-                                  class="btn-secondary px-3 py-1.5 text-xs rounded"
+                                  class="ui-reorder-button"
                                   :disabled="index === 0"
+                                  title="上移"
+                                  aria-label="上移"
                                 >
-                                  上移
+                                  {{ icon('arrow-up', 'ui-icon--xs') }}
                                 </button>
                                 <button
+                                  type="button"
                                   @click="moveListItem(activeItem.value_path, index, index + 1)"
-                                  class="btn-secondary px-3 py-1.5 text-xs rounded"
+                                  class="ui-reorder-button"
                                   :disabled="index === ((Array.isArray(getByPath(activeItem.value_path)) ? getByPath(activeItem.value_path).length : 0) - 1)"
+                                  title="下移"
+                                  aria-label="下移"
                                 >
-                                  下移
+                                  {{ icon('arrow-down', 'ui-icon--xs') }}
                                 </button>
                                 <button
                                   @click="removeStringListItem(activeItem.value_path, index)"

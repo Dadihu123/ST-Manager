@@ -129,11 +129,11 @@
                                                     title="导出正则" aria-label="导出正则">
                                                     {{ icon('upload', 'ui-icon--sm ') }}
                                                 </button>
-                                                <div class="flex flex-col">
-                                                    <button @click.stop="moveRegex(idx, -1)"
-                                                        class="sort-btn-xs rounded-t border-b-0" title="上移">{{ icon('arrow-up', 'ui-icon--xs') }}</button>
-                                                    <button @click.stop="moveRegex(idx, 1)"
-                                                        class="sort-btn-xs rounded-b" title="下移">{{ icon('arrow-down', 'ui-icon--xs') }}</button>
+                                                <div class="ui-reorder-button-group">
+                                                    <button type="button" @click.stop="moveRegex(idx, -1)"
+                                                        class="ui-reorder-button" title="上移" aria-label="上移">{{ icon('arrow-up', 'ui-icon--xs') }}</button>
+                                                    <button type="button" @click.stop="moveRegex(idx, 1)"
+                                                        class="ui-reorder-button" title="下移" aria-label="下移">{{ icon('arrow-down', 'ui-icon--xs') }}</button>
                                                 </div>
                                             </div>
                                             <button @click.stop="removeRegexScript(idx)"
@@ -321,16 +321,36 @@
                                             <div class="flex-1">
                                                 <label class="text-[10px] text-[var(--text-dim)] uppercase block mb-1"
                                                     title="7. 最小深度... '0'为最后一条消息">最小深度 (Min Depth)</label>
-                                                <input type="number"
-                                                    x-model.number="editingData.extensions.regex_scripts[activeRegexIndex].minDepth"
-                                                    class="form-input text-xs py-1" placeholder="Unlimited">
+                                                <div class="ui-number-control">
+                                                    <input type="number" min="0" step="1"
+                                                        x-model.number="editingData.extensions.regex_scripts[activeRegexIndex].minDepth"
+                                                        class="form-input text-xs py-1 ui-number-input" placeholder="Unlimited">
+                                                    <div class="ui-number-stepper" aria-label="调整最小深度">
+                                                        <button type="button" class="ui-number-stepper-btn"
+                                                            @click.prevent="window.stepNumberInput($event.currentTarget, 1)"
+                                                            aria-label="增加最小深度">{{ icon('arrow-up', 'ui-icon--xs') }}</button>
+                                                        <button type="button" class="ui-number-stepper-btn"
+                                                            @click.prevent="window.stepNumberInput($event.currentTarget, -1)"
+                                                            aria-label="减少最小深度">{{ icon('arrow-down', 'ui-icon--xs') }}</button>
+                                                    </div>
+                                                </div>
                                             </div>
                                             <div class="flex-1">
                                                 <label class="text-[10px] text-[var(--text-dim)] uppercase block mb-1"
                                                     title="7. 最大深度...">最大深度 (Max Depth)</label>
-                                                <input type="number"
-                                                    x-model.number="editingData.extensions.regex_scripts[activeRegexIndex].maxDepth"
-                                                    class="form-input text-xs py-1" placeholder="Unlimited">
+                                                <div class="ui-number-control">
+                                                    <input type="number" min="0" step="1"
+                                                        x-model.number="editingData.extensions.regex_scripts[activeRegexIndex].maxDepth"
+                                                        class="form-input text-xs py-1 ui-number-input" placeholder="Unlimited">
+                                                    <div class="ui-number-stepper" aria-label="调整最大深度">
+                                                        <button type="button" class="ui-number-stepper-btn"
+                                                            @click.prevent="window.stepNumberInput($event.currentTarget, 1)"
+                                                            aria-label="增加最大深度">{{ icon('arrow-up', 'ui-icon--xs') }}</button>
+                                                        <button type="button" class="ui-number-stepper-btn"
+                                                            @click.prevent="window.stepNumberInput($event.currentTarget, -1)"
+                                                            aria-label="减少最大深度">{{ icon('arrow-down', 'ui-icon--xs') }}</button>
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
                                         <div class="flex gap-4 pt-1 border-t border-[var(--border-light)] mt-1">
@@ -502,11 +522,11 @@
                                                     title="导出 ST 脚本" aria-label="导出 ST 脚本">
                                                     {{ icon('upload', 'ui-icon--sm ') }}
                                                 </button>
-                                                <div class="flex flex-col">
-                                                    <button @click.stop="moveTavernScript(script.id, -1)"
-                                                        class="sort-btn-xs rounded-t border-b-0" title="上移">{{ icon('arrow-up', 'ui-icon--xs') }}</button>
-                                                    <button @click.stop="moveTavernScript(script.id, 1)"
-                                                        class="sort-btn-xs rounded-b" title="下移">{{ icon('arrow-down', 'ui-icon--xs') }}</button>
+                                                <div class="ui-reorder-button-group">
+                                                    <button type="button" @click.stop="moveTavernScript(script.id, -1)"
+                                                        class="ui-reorder-button" title="上移" aria-label="上移">{{ icon('arrow-up', 'ui-icon--xs') }}</button>
+                                                    <button type="button" @click.stop="moveTavernScript(script.id, 1)"
+                                                        class="ui-reorder-button" title="下移" aria-label="下移">{{ icon('arrow-down', 'ui-icon--xs') }}</button>
                                                 </div>
                                             </div>
 
@@ -849,10 +869,10 @@
                                 <div
                                     class="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
                                     <div class="flex gap-1">
-                                        <button @click.stop="moveQrEntry(idx, -1)"
-                                            class="sort-btn-xs rounded-t border-b-0">{{ icon('arrow-up', 'ui-icon--xs') }}</button>
-                                        <button @click.stop="moveQrEntry(idx, 1)"
-                                            class="sort-btn-xs rounded-b">{{ icon('arrow-down', 'ui-icon--xs') }}</button>
+                                        <button type="button" @click.stop="moveQrEntry(idx, -1)"
+                                            class="ui-reorder-button" title="上移" aria-label="上移">{{ icon('arrow-up', 'ui-icon--xs') }}</button>
+                                        <button type="button" @click.stop="moveQrEntry(idx, 1)"
+                                            class="ui-reorder-button" title="下移" aria-label="下移">{{ icon('arrow-down', 'ui-icon--xs') }}</button>
                                     </div>
                                 </div>
                                 <button @click.stop="removeQrEntry(idx)"

@@ -12,6 +12,8 @@ symbol id 统一使用带 `icon-` 前缀的英文 kebab-case，并优先表达�
 
 尺寸统一为少量直接整数像素挡位：基础图标使用 12/16/20/24/32/48/64px；同级组件通过统一 class 或宏参数选择挡位。侧边栏在自身密度规则中使用 16/20/24/32px，论坛 mask 使用 16px，卡片 marker 的外框使用 48px 或 32px。已移除用于补偿单个图标留白的 `scale()`、150%/150% 及其他倍率尺寸规则。
 
+上下移动控件统一使用 `icon-arrow-up` / `icon-arrow-down` 与 `.ui-reorder-button`；数字输入统一使用 `.ui-number-control`、`.ui-number-stepper` 和 `.ui-number-stepper-btn`。设置页保留 `.settings-number-*` 兼容类名，但共享相同的无边框、悬浮显示和键盘焦点状态。图标本身继续使用现有 `ui-icon--xs`（12px）挡位，不添加单独缩放规则。
+
 ## 2. Sprite 结构变更
 
 | 文件 | 用途 | 最终 symbol 数量 | 结构变更 |
@@ -210,8 +212,8 @@ symbol id 统一使用带 `icon-` 前缀的英文 kebab-case，并优先表达�
 | icon-lock | icon-other-lock | static/icons/ui.svg | 锁 | `core/auth.py:722` | sm/16px（默认） | 是 |
 | icon-shield | icon-other-security | static/icons/ui.svg | 盾牌 | `core/auth.py:747` | sm/16px（默认） | 是 |
 | icon-leaf-wind | icon-other-leaf-wind | static/icons/ui.svg | 叶片风 | `templates/modals/detail_wi_popup.html:638` | xl/32px | 是 |
-| icon-arrow-up | icon-other-arrow-up | static/icons/ui.svg | 箭头上 | `templates/modals/advanced_editor.html:134,507,853`、`templates/modals/automation.html:242,292,394,603` | xs/12px | 是 |
-| icon-arrow-down | icon-other-arrow-down | static/icons/ui.svg | 箭头下 | `templates/modals/advanced_editor.html:136,509,855`、`templates/modals/automation.html:243,293,395,604` | xs/12px、sm/16px | 是 |
+| icon-arrow-up | icon-other-arrow-up | static/icons/ui.svg | 箭头上 | `templates/modals/advanced_editor.html:134,331,348,527,873`、`templates/modals/automation.html:242,292,394,603`、`templates/modals/detail_chat_reader.html:569,579,589,599,609,619,971,981,1125,1135`、`templates/modals/detail_preset_fullscreen.html:549,890,1254,1540,1815`、`templates/modals/settings.html:1083,1620,1652,1710,1743,1777`、`templates/modals/tag_filter.html:374,432,1586` | xs/12px | 是 |
+| icon-arrow-down | icon-other-arrow-down | static/icons/ui.svg | 箭头下 | `templates/modals/advanced_editor.html:136,334,351,529,875`、`templates/modals/automation.html:243,293,395,604`、`templates/modals/detail_chat_reader.html:570,580,590,600,610,620,972,982,1126,1136`、`templates/modals/detail_preset_fullscreen.html:559,900,1264,1551,1825`、`templates/modals/settings.html:1091,1628,1660,1718,1751,1785`、`templates/modals/tag_filter.html:385,435,1597` | xs/12px | 是 |
 | icon-close-bold | icon-other-close | static/icons/ui.svg | 关闭bold | `templates/components/grid_chats.html:35`、`templates/modals/advanced_editor.html:142,519,624,860`、`templates/modals/automation.html:397,606`、`templates/modals/batch_tag.html:10`、`templates/modals/detail_card.html:1579,1621` | xs/12px、sm/16px | 是 |
 | icon-arrow-right | icon-other-arrow-right | static/icons/ui.svg | 箭头右 | `templates/modals/advanced_editor.html:655`、`tests/test_advanced_editor_icon_contracts.py:53` | sm/16px | 是 |
 | icon-menu-bold | icon-other-menu | static/icons/ui.svg | 菜单bold | `templates/modals/automation.html:198`、`templates/modals/detail_card.html:1572`、`templates/modals/tag_filter.html:417,1763,1792,1821` | xs/12px | 是 |

@@ -709,22 +709,66 @@
                 </div>
                 <div class="flex items-center justify-between">
                   <span class="text-gray-500">权重 (Order)</span>
-                  <input
-                    type="number"
-                    x-model.number="activeEditorEntry.insertion_order"
-                    class="w-16 bg-[var(--bg-body)] border border-[var(--border-light)] rounded px-2 py-1 text-center"
-                  />
+                  <div class="ui-number-control w-20 shrink-0">
+                    <input
+                      type="number"
+                      x-model.number="activeEditorEntry.insertion_order"
+                      step="1"
+                      aria-label="权重 (Order)"
+                      class="w-full bg-[var(--bg-body)] border border-[var(--border-light)] rounded px-2 py-1 text-center ui-number-input"
+                    />
+                    <div class="ui-number-stepper" aria-label="调整权重">
+                      <button
+                        type="button"
+                        class="ui-number-stepper-btn"
+                        @click.prevent="window.stepNumberInput($event.currentTarget, 1)"
+                        aria-label="增加权重"
+                      >
+                        {{ icon('arrow-up', 'ui-icon--xs') }}
+                      </button>
+                      <button
+                        type="button"
+                        class="ui-number-stepper-btn"
+                        @click.prevent="window.stepNumberInput($event.currentTarget, -1)"
+                        aria-label="减少权重"
+                      >
+                        {{ icon('arrow-down', 'ui-icon--xs') }}
+                      </button>
+                    </div>
+                  </div>
                 </div>
                 <template x-if="activeEditorEntry.position === 4">
                   <div
                     class="pt-2 border-t border-[var(--border-light)] flex items-center justify-between"
                   >
                     <span class="text-gray-500">深度 (Depth)</span>
-                    <input
-                      type="number"
-                      x-model.number="activeEditorEntry.depth"
-                      class="w-16 bg-[var(--bg-body)] border border-[var(--border-light)] rounded px-2 py-1 text-center"
-                    />
+                    <div class="ui-number-control w-20 shrink-0">
+                      <input
+                        type="number"
+                        x-model.number="activeEditorEntry.depth"
+                        step="1"
+                        aria-label="深度 (Depth)"
+                        class="w-full bg-[var(--bg-body)] border border-[var(--border-light)] rounded px-2 py-1 text-center ui-number-input"
+                      />
+                      <div class="ui-number-stepper" aria-label="调整深度">
+                        <button
+                          type="button"
+                          class="ui-number-stepper-btn"
+                          @click.prevent="window.stepNumberInput($event.currentTarget, 1)"
+                          aria-label="增加深度"
+                        >
+                          {{ icon('arrow-up', 'ui-icon--xs') }}
+                        </button>
+                        <button
+                          type="button"
+                          class="ui-number-stepper-btn"
+                          @click.prevent="window.stepNumberInput($event.currentTarget, -1)"
+                          aria-label="减少深度"
+                        >
+                          {{ icon('arrow-down', 'ui-icon--xs') }}
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </template>
                 <template x-if="activeEditorEntry.position === 7">
@@ -748,12 +792,34 @@
                   <span class="text-gray-500 whitespace-nowrap"
                     >扫描深度 (Scan Depth)</span
                   >
-                  <input
-                    type="number"
-                    x-model.number="activeEditorEntry.scanDepth"
-                    placeholder="留空跟随全局"
-                    class="w-24 bg-[var(--bg-body)] border border-[var(--border-light)] rounded px-2 py-1 text-center"
-                  />
+                  <div class="ui-number-control w-24 shrink-0">
+                    <input
+                      type="number"
+                      x-model.number="activeEditorEntry.scanDepth"
+                      step="1"
+                      placeholder="留空跟随全局"
+                      aria-label="扫描深度 (Scan Depth)"
+                      class="w-full bg-[var(--bg-body)] border border-[var(--border-light)] rounded px-2 py-1 text-center ui-number-input"
+                    />
+                    <div class="ui-number-stepper" aria-label="调整扫描深度">
+                      <button
+                        type="button"
+                        class="ui-number-stepper-btn"
+                        @click.prevent="window.stepNumberInput($event.currentTarget, 1)"
+                        aria-label="增加扫描深度"
+                      >
+                        {{ icon('arrow-up', 'ui-icon--xs') }}
+                      </button>
+                      <button
+                        type="button"
+                        class="ui-number-stepper-btn"
+                        @click.prevent="window.stepNumberInput($event.currentTarget, -1)"
+                        aria-label="减少扫描深度"
+                      >
+                        {{ icon('arrow-down', 'ui-icon--xs') }}
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -808,14 +874,38 @@
                     />
                     <span>延迟递归</span>
                   </label>
-                  <input
-                    type="number"
-                    :value="getDelayUntilRecursionLevel(activeEditorEntry)"
-                    @input="setDelayUntilRecursionLevel(activeEditorEntry, $event.target.value)"
-                    placeholder="1"
-                    :disabled="!getDelayUntilRecursionEnabled(activeEditorEntry)"
-                    class="w-12 bg-[var(--bg-body)] border border-[var(--border-light)] rounded px-1 text-center"
-                  />
+                  <div class="ui-number-control w-20 shrink-0">
+                    <input
+                      type="number"
+                      :value="getDelayUntilRecursionLevel(activeEditorEntry)"
+                      @input="setDelayUntilRecursionLevel(activeEditorEntry, $event.target.value)"
+                      step="1"
+                      placeholder="1"
+                      :disabled="!getDelayUntilRecursionEnabled(activeEditorEntry)"
+                      aria-label="延迟递归级别"
+                      class="w-full bg-[var(--bg-body)] border border-[var(--border-light)] rounded px-1 text-center ui-number-input"
+                    />
+                    <div class="ui-number-stepper" aria-label="调整延迟递归级别">
+                      <button
+                        type="button"
+                        class="ui-number-stepper-btn"
+                        @click.prevent="window.stepNumberInput($event.currentTarget, 1)"
+                        :disabled="!getDelayUntilRecursionEnabled(activeEditorEntry)"
+                        aria-label="增加延迟递归级别"
+                      >
+                        {{ icon('arrow-up', 'ui-icon--xs') }}
+                      </button>
+                      <button
+                        type="button"
+                        class="ui-number-stepper-btn"
+                        @click.prevent="window.stepNumberInput($event.currentTarget, -1)"
+                        :disabled="!getDelayUntilRecursionEnabled(activeEditorEntry)"
+                        aria-label="减少延迟递归级别"
+                      >
+                        {{ icon('arrow-down', 'ui-icon--xs') }}
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -984,16 +1074,40 @@
 
                     <div class="flex items-center gap-2">
                       <!-- 概率数值输入 -->
-                      <div class="relative flex items-center">
-                        <input
-                          type="number"
-                          x-model.number="activeEditorEntry.probability"
-                          min="0"
-                          max="100"
-                          :disabled="!activeEditorEntry.useProbability"
-                          class="w-12 bg-[var(--bg-body)] border border-[var(--border-light)] rounded px-1 py-1 text-center text-xs focus:border-accent-main outline-none"
-                          :class="{'opacity-50': !activeEditorEntry.useProbability}"
-                        />
+                      <div class="flex items-center gap-1">
+                        <div class="ui-number-control w-20 shrink-0">
+                          <input
+                            type="number"
+                            x-model.number="activeEditorEntry.probability"
+                            min="0"
+                            max="100"
+                            step="1"
+                            :disabled="!activeEditorEntry.useProbability"
+                            aria-label="触发概率 (Probability)"
+                            class="w-full bg-[var(--bg-body)] border border-[var(--border-light)] rounded px-1 py-1 text-center text-xs focus:border-accent-main outline-none ui-number-input"
+                            :class="{'opacity-50': !activeEditorEntry.useProbability}"
+                          />
+                          <div class="ui-number-stepper" aria-label="调整触发概率">
+                            <button
+                              type="button"
+                              class="ui-number-stepper-btn"
+                              @click.prevent="window.stepNumberInput($event.currentTarget, 1)"
+                              :disabled="!activeEditorEntry.useProbability"
+                              aria-label="增加触发概率"
+                            >
+                              {{ icon('arrow-up', 'ui-icon--xs') }}
+                            </button>
+                            <button
+                              type="button"
+                              class="ui-number-stepper-btn"
+                              @click.prevent="window.stepNumberInput($event.currentTarget, -1)"
+                              :disabled="!activeEditorEntry.useProbability"
+                              aria-label="减少触发概率"
+                            >
+                              {{ icon('arrow-down', 'ui-icon--xs') }}
+                            </button>
+                          </div>
+                        </div>
                         <span class="ml-1 text-[10px] text-gray-500">%</span>
                       </div>
 
@@ -1112,40 +1226,106 @@
                     <span class="text-xs text-gray-400 whitespace-nowrap"
                       >Sticky</span
                     >
-                    <input
-                      type="number"
-                      min="1"
-                      :value="getOptionalNumberInputValue(activeEditorEntry.sticky)"
-                      @input="setOptionalNumberField(activeEditorEntry, 'sticky', $event.target.value)"
-                      placeholder="留空表示关闭"
-                      class="w-28 bg-[var(--bg-body)] border border-[var(--border-light)] rounded px-2 py-1 text-center placeholder:text-[10px]"
-                    />
+                    <div class="ui-number-control w-28 shrink-0">
+                      <input
+                        type="number"
+                        min="1"
+                        step="1"
+                        :value="getOptionalNumberInputValue(activeEditorEntry.sticky)"
+                        @input="setOptionalNumberField(activeEditorEntry, 'sticky', $event.target.value)"
+                        placeholder="留空表示关闭"
+                        aria-label="Sticky"
+                        class="w-full bg-[var(--bg-body)] border border-[var(--border-light)] rounded px-2 py-1 text-center placeholder:text-[10px] ui-number-input"
+                      />
+                      <div class="ui-number-stepper" aria-label="调整 Sticky">
+                        <button
+                          type="button"
+                          class="ui-number-stepper-btn"
+                          @click.prevent="window.stepNumberInput($event.currentTarget, 1)"
+                          aria-label="增加 Sticky"
+                        >
+                          {{ icon('arrow-up', 'ui-icon--xs') }}
+                        </button>
+                        <button
+                          type="button"
+                          class="ui-number-stepper-btn"
+                          @click.prevent="window.stepNumberInput($event.currentTarget, -1)"
+                          aria-label="减少 Sticky"
+                        >
+                          {{ icon('arrow-down', 'ui-icon--xs') }}
+                        </button>
+                      </div>
+                    </div>
                   </div>
                   <div class="flex items-center justify-between gap-3">
                     <span class="text-xs text-gray-400 whitespace-nowrap"
                       >Cooldown</span
                     >
-                    <input
-                      type="number"
-                      min="1"
-                      :value="getOptionalNumberInputValue(activeEditorEntry.cooldown)"
-                      @input="setOptionalNumberField(activeEditorEntry, 'cooldown', $event.target.value)"
-                      placeholder="留空表示关闭"
-                      class="w-28 bg-[var(--bg-body)] border border-[var(--border-light)] rounded px-2 py-1 text-center placeholder:text-[10px]"
-                    />
+                    <div class="ui-number-control w-28 shrink-0">
+                      <input
+                        type="number"
+                        min="1"
+                        step="1"
+                        :value="getOptionalNumberInputValue(activeEditorEntry.cooldown)"
+                        @input="setOptionalNumberField(activeEditorEntry, 'cooldown', $event.target.value)"
+                        placeholder="留空表示关闭"
+                        aria-label="Cooldown"
+                        class="w-full bg-[var(--bg-body)] border border-[var(--border-light)] rounded px-2 py-1 text-center placeholder:text-[10px] ui-number-input"
+                      />
+                      <div class="ui-number-stepper" aria-label="调整 Cooldown">
+                        <button
+                          type="button"
+                          class="ui-number-stepper-btn"
+                          @click.prevent="window.stepNumberInput($event.currentTarget, 1)"
+                          aria-label="增加 Cooldown"
+                        >
+                          {{ icon('arrow-up', 'ui-icon--xs') }}
+                        </button>
+                        <button
+                          type="button"
+                          class="ui-number-stepper-btn"
+                          @click.prevent="window.stepNumberInput($event.currentTarget, -1)"
+                          aria-label="减少 Cooldown"
+                        >
+                          {{ icon('arrow-down', 'ui-icon--xs') }}
+                        </button>
+                      </div>
+                    </div>
                   </div>
                   <div class="flex items-center justify-between gap-3">
                     <span class="text-xs text-gray-400 whitespace-nowrap"
                       >Delay</span
                     >
-                    <input
-                      type="number"
-                      min="1"
-                      :value="getOptionalNumberInputValue(activeEditorEntry.delay)"
-                      @input="setOptionalNumberField(activeEditorEntry, 'delay', $event.target.value)"
-                      placeholder="留空表示关闭"
-                      class="w-28 bg-[var(--bg-body)] border border-[var(--border-light)] rounded px-2 py-1 text-center placeholder:text-[10px]"
-                    />
+                    <div class="ui-number-control w-28 shrink-0">
+                      <input
+                        type="number"
+                        min="1"
+                        step="1"
+                        :value="getOptionalNumberInputValue(activeEditorEntry.delay)"
+                        @input="setOptionalNumberField(activeEditorEntry, 'delay', $event.target.value)"
+                        placeholder="留空表示关闭"
+                        aria-label="Delay"
+                        class="w-full bg-[var(--bg-body)] border border-[var(--border-light)] rounded px-2 py-1 text-center placeholder:text-[10px] ui-number-input"
+                      />
+                      <div class="ui-number-stepper" aria-label="调整 Delay">
+                        <button
+                          type="button"
+                          class="ui-number-stepper-btn"
+                          @click.prevent="window.stepNumberInput($event.currentTarget, 1)"
+                          aria-label="增加 Delay"
+                        >
+                          {{ icon('arrow-up', 'ui-icon--xs') }}
+                        </button>
+                        <button
+                          type="button"
+                          class="ui-number-stepper-btn"
+                          @click.prevent="window.stepNumberInput($event.currentTarget, -1)"
+                          aria-label="减少 Delay"
+                        >
+                          {{ icon('arrow-down', 'ui-icon--xs') }}
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
@@ -1185,13 +1365,35 @@
                     <span class="text-xs text-gray-400 whitespace-nowrap"
                       >组权重 (Weight)</span
                     >
-                    <input
-                      type="number"
-                      min="1"
-                      max="10000"
-                      x-model.number="activeEditorEntry.groupWeight"
-                      class="w-28 bg-[var(--bg-body)] border border-[var(--border-light)] rounded px-2 py-1 text-center"
-                    />
+                    <div class="ui-number-control w-28 shrink-0">
+                      <input
+                        type="number"
+                        min="1"
+                        max="10000"
+                        step="1"
+                        x-model.number="activeEditorEntry.groupWeight"
+                        aria-label="组权重 (Weight)"
+                        class="w-full bg-[var(--bg-body)] border border-[var(--border-light)] rounded px-2 py-1 text-center ui-number-input"
+                      />
+                      <div class="ui-number-stepper" aria-label="调整组权重">
+                        <button
+                          type="button"
+                          class="ui-number-stepper-btn"
+                          @click.prevent="window.stepNumberInput($event.currentTarget, 1)"
+                          aria-label="增加组权重"
+                        >
+                          {{ icon('arrow-up', 'ui-icon--xs') }}
+                        </button>
+                        <button
+                          type="button"
+                          class="ui-number-stepper-btn"
+                          @click.prevent="window.stepNumberInput($event.currentTarget, -1)"
+                          aria-label="减少组权重"
+                        >
+                          {{ icon('arrow-down', 'ui-icon--xs') }}
+                        </button>
+                      </div>
+                    </div>
                   </div>
                   <div class="flex items-center justify-between gap-3">
                     <span class="text-xs text-gray-400 whitespace-nowrap"

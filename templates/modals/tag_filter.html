@@ -364,21 +364,25 @@
                       </button>
                       <button
                         type="button"
-                        class="tag-category-manager-btn"
+                        class="tag-category-manager-btn ui-reorder-button"
                         @click="moveCategory(item.name, -1)"
                         :disabled="item.index===0"
                         :style="item.index===0 ? 'opacity:0.45; cursor:not-allowed;' : ''"
+                        title="上移"
+                        aria-label="上移"
                       >
-                        上移
+                        {{ icon('arrow-up', 'ui-icon--xs') }}
                       </button>
                       <button
                         type="button"
-                        class="tag-category-manager-btn"
+                        class="tag-category-manager-btn ui-reorder-button"
                         @click="moveCategory(item.name, 1)"
                         :disabled="item.index===categoryManagerItems.length-1"
                         :style="item.index===categoryManagerItems.length-1 ? 'opacity:0.45; cursor:not-allowed;' : ''"
+                        title="下移"
+                        aria-label="下移"
                       >
-                        下移
+                        {{ icon('arrow-down', 'ui-icon--xs') }}
                       </button>
                       <button
                         type="button"
@@ -424,11 +428,11 @@
                         white-space: nowrap;
                       "
                     ></span>
-                    <button type="button" @click="moveSortTagUp(tag)">
-                      上移
+                    <button type="button" class="ui-reorder-button" @click="moveSortTagUp(tag)" title="上移" aria-label="上移">
+                      {{ icon('arrow-up', 'ui-icon--xs') }}
                     </button>
-                    <button type="button" @click="moveSortTagDown(tag)">
-                      下移
+                    <button type="button" class="ui-reorder-button" @click="moveSortTagDown(tag)" title="下移" aria-label="下移">
+                      {{ icon('arrow-down', 'ui-icon--xs') }}
                     </button>
                   </div>
                 </template>
@@ -1572,21 +1576,25 @@
                                   </button>
                                   <button
                                     type="button"
-                                    class="tag-category-manager-btn"
+                                    class="tag-category-manager-btn ui-reorder-button"
                                     @click="moveCategory(item.name, -1)"
                                     :disabled="item.index===0"
                                     :style="item.index===0 ? 'opacity:0.45; cursor:not-allowed;' : ''"
+                                    title="上移"
+                                    aria-label="上移"
                                   >
-                                    上移
+                                    {{ icon('arrow-up', 'ui-icon--xs') }}
                                   </button>
                                   <button
                                     type="button"
-                                    class="tag-category-manager-btn"
+                                    class="tag-category-manager-btn ui-reorder-button"
                                     @click="moveCategory(item.name, 1)"
                                     :disabled="item.index===categoryManagerItems.length-1"
                                     :style="item.index===categoryManagerItems.length-1 ? 'opacity:0.45; cursor:not-allowed;' : ''"
+                                    title="下移"
+                                    aria-label="下移"
                                   >
-                                    下移
+                                    {{ icon('arrow-down', 'ui-icon--xs') }}
                                   </button>
                                   <button
                                     type="button"
