@@ -226,6 +226,9 @@ function buildCardAdvancedFilterDraftFromViewState(
   return {
     favFilter: viewState.favFilter || "none",
     searchScope: viewState.searchScope || "current",
+    allDirsOnlyWithFilters:
+      viewState.recursiveFilter !== false &&
+      viewState.allDirsOnlyWithFilters === true,
     recursiveFilter: viewState.recursiveFilter !== false,
     sort: resolvedSort,
     ...advancedFields,
@@ -464,6 +467,7 @@ export function initState() {
       searchQuery: "",
       searchType: "mix",
       searchScope: "current", // 'current' | 'all_dirs' | 'full'
+      allDirsOnlyWithFilters: false,
       filterCategory: "",
       filterTags: [],
       excludedTags: [],
@@ -1442,6 +1446,7 @@ export function initState() {
         ...this.cardAdvancedFilterDraft,
         favFilter: "none",
         searchScope: "current",
+        allDirsOnlyWithFilters: false,
         recursiveFilter: true,
         sort: nextSort,
         ...buildDefaultCardAdvancedFilterFields(),
@@ -1531,6 +1536,10 @@ export function initState() {
       const draft = this.cardAdvancedFilterDraft;
       this.viewState.favFilter = draft.favFilter || "none";
       this.viewState.searchScope = draft.searchScope || "current";
+      this.viewState.allDirsOnlyWithFilters =
+        this.viewState.searchScope === "all_dirs" &&
+        draft.recursiveFilter !== false &&
+        draft.allDirsOnlyWithFilters === true;
       this.viewState.recursiveFilter = draft.recursiveFilter !== false;
       this.viewState.importDateFrom = toSummaryLabel(draft.importDateFrom);
       this.viewState.importDateTo = toSummaryLabel(draft.importDateTo);
@@ -1565,6 +1574,13 @@ export function initState() {
           label: "搜索范围: 全部目录",
           section: "basic",
         });
+        if (vs.recursiveFilter !== false && vs.allDirsOnlyWithFilters === true) {
+          items.push({
+            key: "allDirsOnlyWithFilters",
+            label: "无筛选时仅当前目录",
+            section: "basic",
+          });
+        }
       } else if (vs.searchScope === "full") {
         items.push({
           key: "searchScope",
@@ -1690,9 +1706,14 @@ export function initState() {
           break;
         case "searchScope":
           this.viewState.searchScope = "current";
+          this.viewState.allDirsOnlyWithFilters = false;
+          break;
+        case "allDirsOnlyWithFilters":
+          this.viewState.allDirsOnlyWithFilters = false;
           break;
         case "recursiveFilter":
           this.viewState.recursiveFilter = true;
+          this.viewState.allDirsOnlyWithFilters = false;
           break;
         case "importDate":
           this.viewState.importDateFrom = "";
@@ -1727,6 +1748,7 @@ export function initState() {
     clearAllCardAdvancedFilters() {
       this.viewState.favFilter = "none";
       this.viewState.searchScope = "current";
+      this.viewState.allDirsOnlyWithFilters = false;
       this.viewState.recursiveFilter = true;
       this.viewState.importDateFrom = "";
       this.viewState.importDateTo = "";

@@ -133,12 +133,29 @@
                 {% endcall %}
               </label>
             </div>
+            <div
+              x-show="draft.searchScope === 'all_dirs' && draft.recursiveFilter"
+              x-cloak
+              class="card-advanced-filter-scope-option"
+            >
+              <label class="card-advanced-filter-checkbox card-advanced-filter-scope-checkbox">
+                <input
+                  type="checkbox"
+                  x-model="draft.allDirsOnlyWithFilters"
+                  @change="syncValidationState()"
+                />
+                <span>仅在有筛选条件时搜索全部目录</span>
+              </label>
+              <p>
+                没有搜索、收藏、时间、数值或标签条件时，按当前目录显示；当前目录本身不计入筛选条件。
+              </p>
+            </div>
             <div class="card-advanced-filter-toggle-row">
               <label class="card-advanced-filter-checkbox">
                 <input
                   type="checkbox"
                   x-model="draft.recursiveFilter"
-                  @change="syncValidationState()"
+                  @change="handleRecursiveFilterChange($event)"
                 />
                 包含子目录
               </label>

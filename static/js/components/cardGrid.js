@@ -113,6 +113,10 @@ export default function cardGrid() {
         this.currentPage = 1;
         this.scheduleFetchCards("filters");
       });
+      this.$watch("$store.global.viewState.allDirsOnlyWithFilters", () => {
+        this.currentPage = 1;
+        this.scheduleFetchCards("filters");
+      });
       this.$watch("$store.global.viewState.filterCategory", () => {
         this.currentPage = 1;
         this.scheduleFetchCards("filters");
@@ -872,6 +876,8 @@ export default function cardGrid() {
         search: vs.searchQuery || "",
         search_type: vs.searchType || "mix",
         search_scope: vs.searchScope || "current",
+        all_dirs_only_with_filters:
+          vs.allDirsOnlyWithFilters === true && vs.recursiveFilter !== false,
         sort:
           store.currentSort || store.settingsForm.default_sort || "date_desc",
         recursive: vs.recursiveFilter,

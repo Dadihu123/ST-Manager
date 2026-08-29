@@ -535,6 +535,30 @@
   width: auto;
 }
 
+.card-advanced-filter-scope-option {
+  margin-top: 0.85rem;
+}
+
+.card-advanced-filter-scope-checkbox {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 0.65rem;
+  padding: 0.85rem 0.9rem;
+}
+
+.card-advanced-filter-scope-checkbox input {
+  flex: 0 0 auto;
+  margin-top: 0.15rem;
+}
+
+.card-advanced-filter-scope-option p {
+  margin: 0.45rem 0.9rem 0;
+  color: var(--text-dim);
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
 .card-advanced-filter-tag-summary {
   margin-top: 1rem;
   padding: 0.9rem 1rem;

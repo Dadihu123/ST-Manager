@@ -678,6 +678,42 @@ def _parse_optional_int_filter(param_name: str):
         raise ValueError(f'{param_name} 必须是整数') from exc
 
 
+def _has_active_card_list_filters(
+    *,
+    search,
+    fav_filter,
+    include_tags,
+    exclude_tags,
+    import_date_from,
+    import_date_to,
+    modified_date_from,
+    modified_date_to,
+    token_min,
+    token_max,
+):
+    """判断是否存在会缩小卡片结果集的实际筛选条件。"""
+    return bool(
+        search
+        or fav_filter in ('included', 'excluded')
+        or include_tags
+        or exclude_tags
+        or any(value is not None for value in (
+            import_date_from,
+            import_date_to,
+            modified_date_from,
+            modified_date_to,
+            token_min,
+            token_max,
+        ))
+    )
+
+
+def _resolve_card_list_search_scope(search_scope, only_with_filters, has_filters):
+    if search_scope == 'all_dirs' and only_with_filters and not has_filters:
+        return 'current'
+    return search_scope
+
+
 def _can_use_indexed_list_cards(
     *,
     category,
@@ -943,6 +979,9 @@ def api_list_cards():
     search_scope = request.args.get('search_scope', 'current')
     if search_scope not in ('current', 'all_dirs', 'full'):
         search_scope = 'current'
+    all_dirs_only_with_filters = _coerce_request_bool(
+        request.args.get('all_dirs_only_with_filters', 'false')
+    )
     sort_mode = _normalize_sort_mode(request.args.get('sort', current_config.get('default_sort', 'date_desc')))
     # --- 获取是否递归显示的参数 (默认 true) ---
     recursive_str = request.args.get('recursive', 'true')
@@ -964,6 +1003,26 @@ def api_list_cards():
     if token_min is not None and token_max is not None and token_min > token_max:
         return jsonify({'success': False, 'msg': 'token_min 不能大于 token_max'}), 400
 
+    include_tags = [t.strip() for t in tags_param.split('|||') if t.strip()]
+    exclude_tags = [t.strip() for t in excluded_tags_param.split('|||') if t.strip()]
+    has_active_filters = _has_active_card_list_filters(
+        search=search,
+        fav_filter=fav_filter,
+        include_tags=include_tags,
+        exclude_tags=exclude_tags,
+        import_date_from=import_date_from,
+        import_date_to=import_date_to,
+        modified_date_from=modified_date_from,
+        modified_date_to=modified_date_to,
+        token_min=token_min,
+        token_max=token_max,
+    )
+    effective_search_scope = _resolve_card_list_search_scope(
+        search_scope,
+        all_dirs_only_with_filters and is_recursive,
+        has_active_filters,
+    )
+
     cfg = load_config()
     ui_data_for_order = load_ui_data()
     isolated_categories = get_isolated_categories(ui_data_for_order)
@@ -974,7 +1033,7 @@ def api_list_cards():
         use_index = use_index and use_index_for_search
     if use_index and _can_use_indexed_list_cards(
         category=category,
-        search_scope=search_scope,
+        search_scope=effective_search_scope,
         search_type=search_type,
         sort_mode=sort_mode,
         is_recursive=is_recursive,
@@ -991,10 +1050,10 @@ def api_list_cards():
             'category': current_category,
             'search': search,
             'search_mode': search_mode,
-            'search_scope': search_scope,
+            'search_scope': effective_search_scope,
             'fav_filter': fav_filter,
-            'include_tags': [t.strip() for t in tags_param.split('|||') if t.strip()],
-            'exclude_tags': [t.strip() for t in excluded_tags_param.split('|||') if t.strip()],
+            'include_tags': include_tags,
+            'exclude_tags': exclude_tags,
             'token_min': token_min,
             'token_max': token_max,
             'db_path': DEFAULT_DB_PATH,
@@ -1009,7 +1068,7 @@ def api_list_cards():
             metadata_candidates = _collect_list_cards_metadata_candidates(
                 getattr(ctx.cache, 'cards', []) or [],
                 category,
-                search_scope,
+                effective_search_scope,
                 is_recursive,
                 isolated_paths,
             )
@@ -1038,7 +1097,7 @@ def api_list_cards():
     # 2. 分类过滤 (支持递归子分类)
     # current: 使用当前目录过滤
     # all_dirs/full: 不按分类缩小范围
-    if search_scope == 'current':
+    if effective_search_scope == 'current':
         # 逻辑：如果选了分类，先缩减范围；如果没选(根目录)，则范围是全部
         if category and category != "根目录":
             target_cat_lower = category.lower()
@@ -1072,7 +1131,7 @@ def api_list_cards():
     # 这样标签池就只受“文件夹/分类”影响，而不会被“选中的标签”把自己给过滤没了
     tag_metadata = _build_list_cards_tag_metadata(candidates, ui_data_for_order, isolated_paths)
 
-    if search_scope != 'full':
+    if effective_search_scope != 'full':
         if fav_filter == 'included':
             candidates = [c for c in candidates if c.get('is_favorite')]
         elif fav_filter == 'excluded':
@@ -1106,7 +1165,7 @@ def api_list_cards():
                 )
             ]
 
-    if search_scope != 'full':
+    if effective_search_scope != 'full':
         # 4.1. 标签排除
         if excluded_tags_param:
             ex_tag_list = [t.strip() for t in excluded_tags_param.split('|||') if t.strip()]
@@ -3098,6 +3157,16 @@ def api_random_card():
         search_scope = data.get('search_scope', 'current')
         if search_scope not in ('current', 'all_dirs', 'full'):
             search_scope = 'current'
+        all_dirs_only_with_filters = _coerce_request_bool(
+            data.get('all_dirs_only_with_filters', False)
+        )
+        is_recursive = _coerce_request_bool(data.get('recursive', True))
+        random_include_tags = tags_param if isinstance(tags_param, list) else []
+        effective_search_scope = _resolve_card_list_search_scope(
+            search_scope,
+            all_dirs_only_with_filters and is_recursive,
+            bool(search or random_include_tags),
+        )
         
         # 1. 获取所有卡片
         if not ctx.cache.initialized:
@@ -3106,7 +3175,7 @@ def api_random_card():
         candidates = ctx.cache.cards
 
         # 2. 分类过滤
-        if search_scope == 'current':
+        if effective_search_scope == 'current':
             if category and category != "根目录":
                 target_cat_lower = category.lower()
                 target_cat_prefix = target_cat_lower + '/'
@@ -3134,9 +3203,9 @@ def api_random_card():
                 )]
 
         # 4. 标签过滤
-        if search_scope != 'full' and tags_param:
+        if effective_search_scope != 'full' and random_include_tags:
             # 确保 tags_param 是列表
-            target_tags = tags_param if isinstance(tags_param, list) else []
+            target_tags = random_include_tags
             if target_tags:
                 candidates = [c for c in candidates if all(t in c['tags'] for t in target_tags)]
 

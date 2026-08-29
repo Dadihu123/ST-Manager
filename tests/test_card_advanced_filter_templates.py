@@ -29,6 +29,8 @@ def test_header_js_exposes_drawer_opener_and_limits_favorite_button_to_chats():
     assert 'get cardAdvancedFilterCount() {' in header_source
     assert 'openCardAdvancedFilter() {' in header_source
     assert 'return this.currentMode === "chats";' in header_source
+    assert 'vs.allDirsOnlyWithFilters === true && vs.recursiveFilter !== false' in header_source
+    assert 'recursive: vs.recursiveFilter !== false' in header_source
 
 
 def test_index_template_includes_card_advanced_filter_drawer_and_app_registers_component():
@@ -55,6 +57,9 @@ def test_state_js_defines_advanced_filter_applied_state_draft_and_summary_helper
     assert 'applyCardAdvancedFilterDraft() {' in state_source
     assert 'getCardAdvancedFilterSummaryItems() {' in state_source
     assert 'clearAllCardAdvancedFilters() {' in state_source
+    assert 'allDirsOnlyWithFilters: false' in state_source
+    assert 'viewState.recursiveFilter !== false' in state_source
+    assert 'draft.recursiveFilter !== false' in state_source
 
 
 def test_state_js_tracks_workbench_sections_validation_and_stats():
@@ -99,6 +104,8 @@ def test_card_grid_source_sends_advanced_filter_params_and_debounces_filter_watc
     assert 'modified_date_to: vs.modifiedDateTo || ""' in card_grid_source
     assert 'token_min: vs.tokenMin === "" ? "" : String(vs.tokenMin)' in card_grid_source
     assert 'token_max: vs.tokenMax === "" ? "" : String(vs.tokenMax)' in card_grid_source
+    assert '"$store.global.viewState.allDirsOnlyWithFilters"' in card_grid_source
+    assert 'vs.allDirsOnlyWithFilters === true && vs.recursiveFilter !== false' in card_grid_source
     assert 'this.scheduleFetchCards("filters");' in card_grid_source
 
 
@@ -141,6 +148,11 @@ def test_card_advanced_filter_template_exposes_sections_and_footer_actions():
     assert '@click="openTagFilterEditor()"' in drawer_template
     assert 'x-text="tagSummary"' in drawer_template
     assert 'get tagSummary() {' in drawer_component
+    assert 'x-show="draft.searchScope === \'all_dirs\' && draft.recursiveFilter"' in drawer_template
+    assert 'x-model="draft.allDirsOnlyWithFilters"' in drawer_template
+    assert '仅在有筛选条件时搜索全部目录' in drawer_template
+    assert '@change="handleRecursiveFilterChange($event)"' in drawer_template
+    assert 'handleRecursiveFilterChange(event) {' in drawer_component
 
 
 def test_card_advanced_filter_numeric_inputs_use_shared_stepper_contract():

@@ -301,6 +301,23 @@ def test_indexed_list_cards_full_search_with_category_falls_back_to_legacy_behav
     assert [item['id'] for item in payload['cards']] == ['cards/beta.png']
 
 
+def test_indexed_list_cards_only_with_filters_uses_current_category_without_filters(monkeypatch, tmp_path):
+    db_path = _configure_indexed_list(monkeypatch, tmp_path, [])
+    _seed_index(db_path)
+
+    client = _make_test_app().test_client()
+    res = client.get(
+        '/api/list_cards?page=1&page_size=20'
+        '&category=SciFi'
+        '&search_scope=all_dirs'
+        '&all_dirs_only_with_filters=true'
+    )
+
+    assert res.status_code == 200
+    payload = res.get_json()
+    assert [item['id'] for item in payload['cards']] == ['cards/alpha.png']
+
+
 def test_indexed_list_cards_recursive_false_preserves_exact_folder_behavior(monkeypatch, tmp_path):
     _configure_indexed_list(
         monkeypatch,

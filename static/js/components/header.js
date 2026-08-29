@@ -90,6 +90,9 @@ export default function header() {
         : "current";
       if (vs.searchScope === next) return;
       vs.searchScope = next;
+      if (next !== "all_dirs") {
+        vs.allDirsOnlyWithFilters = false;
+      }
 
       // 切换范围时清空选择，避免跨范围误操作
       vs.selectedIds = [];
@@ -190,7 +193,11 @@ export default function header() {
       return this.$store.global.viewState.recursiveFilter;
     },
     set recursiveFilter(val) {
-      this.$store.global.viewState.recursiveFilter = val;
+      const viewState = this.$store.global.viewState;
+      viewState.recursiveFilter = val;
+      if (val !== true) {
+        viewState.allDirsOnlyWithFilters = false;
+      }
     },
 
     get selectedIds() {
@@ -748,6 +755,9 @@ export default function header() {
         search: vs.searchQuery,
         search_type: vs.searchType,
         search_scope: vs.searchScope || "current",
+        all_dirs_only_with_filters:
+          vs.allDirsOnlyWithFilters === true && vs.recursiveFilter !== false,
+        recursive: vs.recursiveFilter !== false,
       };
 
       getRandomCard(params)

@@ -132,6 +132,13 @@ export default function cardAdvancedFilter() {
       this.$store.global.syncCardAdvancedFilterValidationState();
     },
 
+    handleRecursiveFilterChange(event) {
+      if (!event?.target?.checked || this.draft.recursiveFilter !== true) {
+        this.draft.allDirsOnlyWithFilters = false;
+      }
+      this.syncValidationState();
+    },
+
     setCardAdvancedFilterTagEditSource(source) {
       this.$store.global.setCardAdvancedFilterTagEditSource(source);
     },

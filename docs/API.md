@@ -100,6 +100,7 @@
 | `search_mode` | `fast` 或 `fulltext` |
 | `search_type` | `mix`、`name`、`filename`、`tags`、`creator` |
 | `search_scope` | `current`、`all_dirs`、`full` |
+| `all_dirs_only_with_filters` | 为 `true` 且 `recursive=true` 时，`all_dirs` 仅在存在实际筛选条件时生效；无筛选时回到当前分类 |
 | `sort` | `date_desc`、`date_asc`、`import_desc`、`import_asc`、`name_asc`、`name_desc`、`token_desc`、`token_asc` |
 | `fav_filter` | `none`、`included`、`excluded` |
 | `favorites_first` | 收藏置顶 |

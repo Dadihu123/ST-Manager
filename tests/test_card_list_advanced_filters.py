@@ -175,6 +175,171 @@ def test_list_cards_filters_modified_date_range(monkeypatch, tmp_path):
     assert [item['id'] for item in payload['cards']] == ['target-edit.png']
 
 
+def test_all_dirs_only_with_filters_keeps_current_directory_without_filters(monkeypatch, tmp_path):
+    ui_path = tmp_path / 'ui_data.json'
+    _write_ui_data(ui_path, {})
+    monkeypatch.setattr(ui_store_module, 'UI_DATA_FILE', str(ui_path))
+
+    _install_fake_cache(
+        monkeypatch,
+        [
+            _make_card('base/direct.png', char_name='Direct', category='base', last_modified=30.0),
+            _make_card('base/sub/nested.png', char_name='Nested', category='base/sub', last_modified=20.0),
+            _make_card('other/remote.png', char_name='Remote', category='other', last_modified=40.0),
+            _make_card('root.png', char_name='Root', category='', last_modified=10.0),
+        ],
+    )
+
+    client = _make_test_app().test_client()
+    res = client.get(
+        '/api/list_cards?page=1&page_size=20'
+        '&category=base'
+        '&search_scope=all_dirs'
+        '&all_dirs_only_with_filters=true'
+    )
+
+    assert res.status_code == 200
+    payload = res.get_json()
+    assert [item['id'] for item in payload['cards']] == [
+        'base/direct.png',
+        'base/sub/nested.png',
+    ]
+
+
+def test_all_dirs_only_with_filters_defaults_to_all_directories_when_unchecked(monkeypatch, tmp_path):
+    ui_path = tmp_path / 'ui_data.json'
+    _write_ui_data(ui_path, {})
+    monkeypatch.setattr(ui_store_module, 'UI_DATA_FILE', str(ui_path))
+
+    _install_fake_cache(
+        monkeypatch,
+        [
+            _make_card('base/local.png', char_name='Local', category='base', last_modified=10.0),
+            _make_card('other/remote.png', char_name='Remote', category='other', last_modified=20.0),
+        ],
+    )
+
+    client = _make_test_app().test_client()
+    res = client.get(
+        '/api/list_cards?page=1&page_size=20'
+        '&category=base'
+        '&search_scope=all_dirs'
+    )
+
+    assert res.status_code == 200
+    payload = res.get_json()
+    assert [item['id'] for item in payload['cards']] == [
+        'other/remote.png',
+        'base/local.png',
+    ]
+
+
+def test_all_dirs_only_with_filters_is_ignored_without_recursive_filter(monkeypatch, tmp_path):
+    ui_path = tmp_path / 'ui_data.json'
+    _write_ui_data(ui_path, {})
+    monkeypatch.setattr(ui_store_module, 'UI_DATA_FILE', str(ui_path))
+
+    _install_fake_cache(
+        monkeypatch,
+        [
+            _make_card('base/local.png', char_name='Local', category='base', last_modified=10.0),
+            _make_card('other/remote.png', char_name='Remote', category='other', last_modified=20.0),
+        ],
+    )
+
+    client = _make_test_app().test_client()
+    res = client.get(
+        '/api/list_cards?page=1&page_size=20'
+        '&category=base'
+        '&search_scope=all_dirs'
+        '&all_dirs_only_with_filters=true'
+        '&recursive=false'
+    )
+
+    assert res.status_code == 200
+    payload = res.get_json()
+    assert [item['id'] for item in payload['cards']] == [
+        'other/remote.png',
+        'base/local.png',
+    ]
+
+
+def test_all_dirs_only_with_filters_uses_all_directories_when_search_is_active(monkeypatch, tmp_path):
+    ui_path = tmp_path / 'ui_data.json'
+    _write_ui_data(ui_path, {})
+    monkeypatch.setattr(ui_store_module, 'UI_DATA_FILE', str(ui_path))
+
+    _install_fake_cache(
+        monkeypatch,
+        [
+            _make_card('base/local.png', char_name='Local', category='base', last_modified=10.0),
+            _make_card('other/remote.png', char_name='Remote Match', category='other', last_modified=20.0),
+        ],
+    )
+
+    client = _make_test_app().test_client()
+    res = client.get(
+        '/api/list_cards?page=1&page_size=20'
+        '&category=base'
+        '&search_scope=all_dirs'
+        '&all_dirs_only_with_filters=true'
+        '&search=remote'
+    )
+
+    assert res.status_code == 200
+    payload = res.get_json()
+    assert [item['id'] for item in payload['cards']] == ['other/remote.png']
+
+
+def test_all_dirs_only_with_filters_treats_tag_and_numeric_filters_as_active(monkeypatch, tmp_path):
+    ui_path = tmp_path / 'ui_data.json'
+    _write_ui_data(ui_path, {})
+    monkeypatch.setattr(ui_store_module, 'UI_DATA_FILE', str(ui_path))
+
+    _install_fake_cache(
+        monkeypatch,
+        [
+            _make_card(
+                'base/local.png',
+                char_name='Local',
+                category='base',
+                import_time=_ts(2026, 3, 1),
+                token_count=100,
+                tags=['local'],
+                is_favorite=False,
+            ),
+            _make_card(
+                'other/remote.png',
+                char_name='Remote',
+                category='other',
+                import_time=_ts(2026, 4, 1),
+                token_count=500,
+                tags=['target'],
+                is_favorite=True,
+            ),
+        ],
+    )
+
+    client = _make_test_app().test_client()
+    for query in (
+        'tags=target',
+        'token_min=400',
+        'import_date_from=2026-04-01',
+        'fav_filter=included',
+    ):
+        res = client.get(
+            '/api/list_cards?page=1&page_size=20'
+            '&category=base'
+            '&search_scope=all_dirs'
+            '&all_dirs_only_with_filters=true'
+            f'&{query}'
+        )
+
+        assert res.status_code == 200
+        payload = res.get_json()
+        assert [item['id'] for item in payload['cards']] == ['other/remote.png']
+
+
 def test_list_cards_full_search_keeps_time_and_token_filters(monkeypatch, tmp_path):
     ui_path = tmp_path / 'ui_data.json'
     _write_ui_data(ui_path, {})
