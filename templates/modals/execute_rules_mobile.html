@@ -3,10 +3,10 @@
 <!-- 移动端：执行规则弹窗 -->
 <div x-data="executeRulesMobileModal" x-show="showExecuteRulesModal" x-cloak class="modal-overlay z-modal-popover"
     @click.self="showExecuteRulesModal = false">
-    <div style="background: var(--bg-panel); padding: 0; border-radius: 1rem; width: 90vw; max-width: 400px; border: 1px solid var(--border-light); box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5); overflow: hidden; display: flex; flex-direction: column;">
+    <div style="background: var(--surface-overlay); padding: 0; border-radius: 1rem; width: 90vw; max-width: 400px; border: 1px solid var(--border-default); box-shadow: var(--shadow-elevation); overflow: hidden; display: flex; flex-direction: column;">
         <!-- Header -->
-        <div style="padding: 1rem 1.25rem; background: var(--bg-sub); border-bottom: 1px solid var(--border-light);">
-            <h3 style="font-weight: bold; color: var(--text-main); font-size: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+        <div style="padding: 1rem 1.25rem; background: var(--surface-container-raised); border-bottom: 1px solid var(--border-default);">
+            <h3 style="font-weight: bold; color: var(--content-primary); font-size: 1rem; display: flex; align-items: center; gap: 0.5rem;">
                 <span aria-hidden="true">{{ icon('workflow', 'ui-icon--sm') }}</span>
                 <span>自动处理</span>
             </h3>
@@ -15,29 +15,29 @@
         <div style="padding: 1.25rem;">
             <div style="display: flex; flex-direction: column; gap: 1rem;">
                 <div>
-                    <label style="font-weight: 500; margin-bottom: 0.5rem; display: block; font-size: 0.875rem; color: var(--text-main);">选择规则集</label>
+                    <label style="font-weight: 500; margin-bottom: 0.5rem; display: block; font-size: 0.875rem; color: var(--content-primary);">选择规则集</label>
                     <!-- 卡片模式提示 -->
-                    <div x-show="executeMode === 'cards'" style="font-size: 0.75rem; color: var(--text-dim); margin-bottom: 0.5rem;">
+                    <div x-show="executeMode === 'cards'" style="font-size: 0.75rem; color: var(--content-muted); margin-bottom: 0.5rem;">
                         将对 <span x-text="cardIds.length" style="font-weight: bold;"></span> 张卡片执行规则
                     </div>
                     <!-- 文件夹模式提示 -->
-                    <div x-show="executeMode === 'folder'" style="font-size: 0.75rem; color: var(--text-dim); margin-bottom: 0.5rem;">
+                    <div x-show="executeMode === 'folder'" style="font-size: 0.75rem; color: var(--content-muted); margin-bottom: 0.5rem;">
                         将对文件夹 <span style="font-weight: bold;" x-text="folderCategory === '' ? '根目录' : folderCategory"></span> 
                         <span x-show="folderRecursive">(包括子文件夹)</span>
                         <span x-show="!folderRecursive">(仅当前文件夹)</span>
                         下的所有卡片执行规则
                     </div>
                     <!-- 规则集列表 -->
-                    <div style="max-height: 300px; overflow-y: auto; border: 1px solid var(--border-light); border-radius: 0.5rem; background: var(--bg-sub);">
+                    <div style="max-height: 300px; overflow-y: auto; border: 1px solid var(--border-default); border-radius: 0.5rem; background: var(--surface-container-raised);">
                         <template x-for="rs in $store.global.availableRuleSets" :key="rs.id">
                             <button @click="executeRuleSet(rs.id)"
-                                class="w-full text-left px-3 py-2 text-sm hover:bg-[var(--bg-hover)] text-[var(--text-main)] border-b border-[var(--border-light)] last:border-b-0 transition-colors"
+                                class="w-full text-left px-3 py-2 text-sm hover:bg-[var(--state-hover-surface)] text-[var(--content-primary)] border-b border-[var(--border-default)] last:border-b-0 transition-colors"
                                 style="display: flex; justify-content: space-between; align-items: center;">
                                 <span x-text="rs.meta.name || '未命名规则集'"></span>
-                                <span style="font-size: 0.75rem; color: var(--text-dim);" x-text="rs.rule_count + ' rules'"></span>
+                                <span style="font-size: 0.75rem; color: var(--content-muted);" x-text="rs.rule_count + ' rules'"></span>
                             </button>
                         </template>
-                        <div x-show="!$store.global.availableRuleSets || $store.global.availableRuleSets.length === 0" class="px-3 py-4 text-center text-xs text-[var(--text-dim)]">
+                        <div x-show="!$store.global.availableRuleSets || $store.global.availableRuleSets.length === 0" class="px-3 py-4 text-center text-xs text-[var(--content-muted)]">
                             无规则集
                         </div>
                     </div>
@@ -48,7 +48,7 @@
                         取消
                     </button>
                     <button @click="$dispatch('open-automation-modal'); showExecuteRulesModal = false" 
-                        class="btn-primary" style="flex:1; justify-content: center; align-items: center; gap: 0.35rem; font-size: 0.875rem; padding: 0.5rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); background-color: #7c3aed;">
+                        class="btn-violet" style="flex:1; justify-content: center; align-items: center; gap: 0.35rem; font-size: 0.875rem; padding: 0.5rem; box-shadow: var(--shadow-elevation);">
                         <span aria-hidden="true">{{ icon('settings', 'ui-icon--sm') }}</span>
                         <span>管理规则</span>
                     </button>

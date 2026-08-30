@@ -5,30 +5,30 @@
     <div class="tag-modal-container batch-tag-modal-shell flex flex-col" style="height: 82vh; max-height: 860px;"
         @click.away="showBatchTagModal=false">
         <div
-            style="display:flex; justify-content:space-between; align-items:center; padding-bottom: 1rem; border-bottom: 1px solid var(--border-light); flex-shrink: 0;">
+            style="display:flex; justify-content:space-between; align-items:center; padding-bottom: 1rem; border-bottom: 1px solid var(--border-default); flex-shrink: 0;">
             <h3 class="text-lg font-bold">批量标签管理</h3>
-            <button @click="showBatchTagModal=false" class="text-gray-400 hover:text-white text-xl">{{ icon('close-bold', 'ui-icon--sm') }}</button>
+            <button @click="showBatchTagModal=false" class="color-text-muted color-hover-text-on-dark text-xl">{{ icon('close-bold', 'ui-icon--sm') }}</button>
         </div>
         <div class="flex-1 overflow-y-auto custom-scrollbar" style="padding: 1rem 0;">
             <div style="margin-bottom:1rem;">
-                <label class="text-sm" style="color: var(--text-sub);">添加标签到所有选中卡片</label>
+                <label class="text-sm" style="color: var(--content-secondary);">添加标签到所有选中卡片</label>
                 <div class="flex gap-2 mt-1">
                     <input type="text" x-model="batchTagInputAdd" class="form-input" placeholder="输入标签…">
                     <button @click="batchAddTag(batchTagInputAdd)"
-                        class="bg-green-600 hover:bg-green-500 px-3 py-1 rounded text-white whitespace-nowrap">添加</button>
+                        class="color-surface-success-solid color-hover-surface-success px-3 py-1 rounded color-text-on-dark whitespace-nowrap">添加</button>
                 </div>
             </div>
-            <hr class="my-3" style="border-color: var(--border-light);">
+            <hr class="my-3" style="border-color: var(--border-default);">
             <div>
-                <label class="text-sm" style="color: var(--text-sub);">从所有选中卡片删除标签</label>
+                <label class="text-sm" style="color: var(--content-secondary);">从所有选中卡片删除标签</label>
                 <div class="flex gap-2 mt-1">
                     <input type="text" x-model="batchTagInputRemove" class="form-input" placeholder="输入标签…">
                     <button @click="batchRemoveTag(batchTagInputRemove)"
-                        class="bg-red-600 hover:bg-red-500 px-3 py-1 rounded text-white whitespace-nowrap">删除</button>
+                        class="color-surface-danger-solid color-hover-surface-danger px-3 py-1 rounded color-text-on-dark whitespace-nowrap">删除</button>
                 </div>
             </div>
             <div style="margin-top:1.5rem;">
-                <h4 class="text-sm font-bold text-purple-300 mb-2">从现有标签池选择（多选）</h4>
+                <h4 class="text-sm font-bold color-text-violet mb-2">从现有标签池选择（多选）</h4>
                 <input type="text" x-model="batchTagPickerSearch" placeholder="搜索标签（支持多个关键词，逗号/竖线分隔）…" class="form-input mb-2">
                 <div class="tag-category-filter-row" style="margin-bottom: 0.45rem;">
                     <button type="button" class="tag-category-filter-pill"
@@ -48,7 +48,7 @@
                                 'active-included': getBatchCategoryFilterState(name) === 'included',
                                 'active-excluded': getBatchCategoryFilterState(name) === 'excluded'
                             }"
-                            :style="`--tag-cat-color:${getCategoryColor(name)};`"
+                            :style="getCategoryChipStyle(name)"
                             @click="toggleBatchCategoryFilter(name, $event)"
                             :title="getBatchCategoryFilterState(name) === 'included' ? `分类：${name}（已包含，点击改为排除）` : (getBatchCategoryFilterState(name) === 'excluded' ? `分类：${name}（已排除，点击取消）` : `分类：${name}（点击包含，Shift+点击直接排除）`)">
                             <span class="tag-category-filter-dot"></span>
@@ -57,7 +57,7 @@
                     </template>
                 </div>
                 <div class="tag-cloud-container custom-scrollbar"
-                    style="border:1px solid var(--border-light); padding:0.75rem; background: var(--bg-sub);">
+                    style="border:1px solid var(--border-default); padding:0.75rem; background: var(--surface-container-raised);">
                     <div class="tag-cloud-mode-wrap">
                         <template x-if="mixedCategoryView">
                             <template x-for="tag in batchFilteredMixedTagPool" :key="'batch-mixed-' + tag">
@@ -74,7 +74,7 @@
                             <template x-for="group in batchFilteredTagGroups" :key="'batch-group-' + group.category">
                                 <div class="tag-group-block">
                                     <div class="tag-group-head">
-                                        <span class="tag-group-dot" :style="`background:${group.color};`"></span>
+                                        <span class="tag-group-dot" :style="getCategoryChipStyle(group.category)"></span>
                                         <span class="tag-group-title" x-text="group.category"></span>
                                         <span class="tag-group-count" x-text="group.tags.length + ' 个'"></span>
                                     </div>
@@ -94,16 +94,16 @@
                         </template>
                     </div>
                     <div x-show="batchVisibleTagCount === 0"
-                        style="width: 100%; text-align: center; color: var(--text-dim); margin-top: 1rem;">无匹配标签</div>
+                        style="width: 100%; text-align: center; color: var(--content-muted); margin-top: 1rem;">无匹配标签</div>
                 </div>
             </div>
         </div>
-        <div style="border-top: 1px solid var(--border-light); padding-top: 1rem; margin-top: auto; flex-shrink: 0;">
+        <div style="border-top: 1px solid var(--border-default); padding-top: 1rem; margin-top: auto; flex-shrink: 0;">
             <div class="flex gap-2 justify-end">
                 <button @click="applyBatchAddTags()"
-                    class="bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded text-sm">全部添加</button>
+                    class="color-surface-success-solid color-hover-surface-success color-text-on-dark px-4 py-2 rounded text-sm">全部添加</button>
                 <button @click="applyBatchRemoveTags()"
-                    class="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded text-sm">全部删除</button>
+                    class="color-surface-danger-solid color-hover-surface-danger color-text-on-dark px-4 py-2 rounded text-sm">全部删除</button>
             </div>
         </div>
     </div>

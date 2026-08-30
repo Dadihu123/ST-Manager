@@ -5,29 +5,29 @@
   x-show="showPresetEditor"
   x-data="presetEditor"
   x-cloak
-  class="detail-preset-full-screen fixed inset-0 z-modal-editor bg-[var(--bg-body)]"
+  class="detail-preset-full-screen fixed inset-0 z-modal-editor bg-[var(--surface-page)]"
 >
   <div class="flex flex-col h-full w-full overflow-hidden">
     <div
       x-show="$store.global.deviceType !== 'mobile'"
       x-cloak
-      class="flex h-12 border-b border-[var(--border-main)] bg-[var(--bg-panel)] px-4 items-center justify-between gap-4 flex-shrink-0"
+      class="flex h-12 border-b border-[var(--border-subtle)] bg-[var(--surface-container)] px-4 items-center justify-between gap-4 flex-shrink-0"
     >
       <div class="flex items-center gap-3 min-w-0">
-        <div class="text-[var(--accent-main)] font-bold text-sm">
+        <div class="text-[var(--accent-action)] font-bold text-sm">
           预设编辑器
         </div>
         <div
-          class="px-2 py-0.5 rounded text-[10px] font-bold uppercase border border-[var(--border-light)] text-[var(--text-main)] bg-[var(--bg-sub)]"
+          class="px-2 py-0.5 rounded text-[10px] font-bold uppercase border border-[var(--border-default)] text-[var(--content-primary)] bg-[var(--surface-container-raised)]"
           x-text="editingPresetFile?.preset_kind || '预设'"
         ></div>
         <div class="min-w-0">
           <div
-            class="text-sm font-bold truncate text-[var(--text-main)]"
+            class="text-sm font-bold truncate text-[var(--content-primary)]"
             x-text="presetTitle"
           ></div>
           <div
-            class="text-[10px] text-[var(--text-dim)] truncate"
+            class="text-[10px] text-[var(--content-muted)] truncate"
             x-text="editingPresetFile?.path || ''"
           ></div>
         </div>
@@ -35,7 +35,7 @@
 
       <div class="flex items-center gap-2 flex-wrap justify-end">
         <div x-show="hasMultipleVersions" class="flex items-center gap-2">
-          <label class="text-[11px] text-[var(--text-dim)]">版本</label>
+          <label class="text-[11px] text-[var(--content-muted)]">版本</label>
           {% call styled_select_controlled(
             "editingPresetFile?.id || ''",
             "openVersion(option.value)",
@@ -50,18 +50,18 @@
           {% endcall %}
         </div>
         <span
-          class="text-[10px] px-2 py-1 rounded border border-[var(--border-light)]"
-          :class="isDirty ? 'text-amber-300 bg-amber-500/10' : 'text-green-300 bg-green-500/10'"
+          class="text-[10px] px-2 py-1 rounded border border-[var(--border-default)]"
+          :class="isDirty ? 'color-text-warning color-surface-warning' : 'color-text-success color-surface-success'"
           x-text="isDirty ? '未保存修改' : '磁盘已同步'"
         ></span>
         <span
           x-show="draftState.savedAt"
-          class="text-[10px] px-2 py-1 rounded border border-[var(--border-light)] text-sky-300 bg-sky-500/10"
+          class="text-[10px] px-2 py-1 rounded border border-[var(--border-default)] color-text-info color-surface-info"
           x-text="`草稿 ${formatDate(draftState.savedAt, { includeYear: true })}`"
         ></span>
         <span
           x-show="hasConflict"
-          class="text-[10px] px-2 py-1 rounded border border-red-500/40 text-red-300 bg-red-500/10"
+          class="text-[10px] px-2 py-1 rounded border color-border-danger color-text-danger color-surface-danger"
         >
           检测到磁盘冲突
         </span>
@@ -123,7 +123,7 @@
         </button>
         <button
           @click="closeEditor()"
-          class="btn-secondary px-3 py-1.5 text-xs rounded hover:text-red-300"
+          class="btn-secondary px-3 py-1.5 text-xs rounded color-hover-text-danger"
         >
           关闭
         </button>
@@ -235,7 +235,7 @@
       </button>
       <button
         @click="deletePreset()"
-        class="btn-secondary px-3 py-2 text-sm rounded-xl text-red-300"
+        class="btn-secondary px-3 py-2 text-sm rounded-xl color-text-danger"
       >
         删除
       </button>
@@ -259,14 +259,14 @@
       </button>
     </div>
 
-    <div class="flex-1 flex overflow-hidden bg-[var(--bg-body)]">
+    <div class="flex-1 flex overflow-hidden bg-[var(--surface-page)]">
       <aside
-        class="preset-editor-sidebar border-r border-[var(--border-main)] bg-[var(--bg-sub)] flex-shrink-0 overflow-y-auto custom-scrollbar"
+        class="preset-editor-sidebar border-r border-[var(--border-subtle)] bg-[var(--surface-container-raised)] flex-shrink-0 overflow-y-auto custom-scrollbar"
         :class="$store.global.deviceType === 'mobile' ? (showMobileSidebar ? 'preset-editor-mobile-panel preset-editor-mobile-panel--left w-full max-w-[22rem]' : 'hidden') : 'md:block md:w-80'"
       >
         <div class="p-4 space-y-4">
           <div class="flex items-center justify-between gap-3 md:hidden">
-            <div class="text-sm font-bold text-[var(--text-main)]">
+            <div class="text-sm font-bold text-[var(--content-primary)]">
               字段导航
             </div>
             <button
@@ -281,11 +281,11 @@
             x-if="!isPromptWorkspaceEditor || activeWorkspace !== 'prompts'"
           >
             <div
-              class="rounded-2xl border border-[var(--border-light)] bg-[var(--bg-panel)] p-4 space-y-3"
+              class="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-container)] p-4 space-y-3"
             >
-              <div class="text-xs text-[var(--text-dim)]">字段筛选</div>
+              <div class="text-xs text-[var(--content-muted)]">字段筛选</div>
               <div
-                class="text-sm font-bold text-[var(--text-main)]"
+                class="text-sm font-bold text-[var(--content-primary)]"
                 x-text="editingPresetFile?.preset_kind_label || '预设'"
               ></div>
               <input
@@ -298,40 +298,40 @@
                 <button
                   @click="uiFilter = 'all'"
                   class="px-3 py-1.5 rounded-full text-xs border transition-colors"
-                  :class="uiFilter === 'all' ? 'bg-[var(--accent-main)]/15 text-[var(--text-main)] border-[var(--accent-main)]/30' : 'bg-[var(--bg-body)] text-[var(--text-dim)] border-[var(--border-light)]'"
+                  :class="uiFilter === 'all' ? 'bg-[var(--accent-action)]/15 text-[var(--content-primary)] border-[var(--accent-action)]/30' : 'bg-[var(--surface-page)] text-[var(--content-muted)] border-[var(--border-default)]'"
                 >
                   全部
                 </button>
                 <button
                   @click="uiFilter = 'editable'"
                   class="px-3 py-1.5 rounded-full text-xs border transition-colors"
-                  :class="uiFilter === 'editable' ? 'bg-[var(--accent-main)]/15 text-[var(--text-main)] border-[var(--accent-main)]/30' : 'bg-[var(--bg-body)] text-[var(--text-dim)] border-[var(--border-light)]'"
+                  :class="uiFilter === 'editable' ? 'bg-[var(--accent-action)]/15 text-[var(--content-primary)] border-[var(--accent-action)]/30' : 'bg-[var(--surface-page)] text-[var(--content-muted)] border-[var(--border-default)]'"
                 >
                   可编辑
                 </button>
                 <button
                   @click="uiFilter = 'changed'"
                   class="px-3 py-1.5 rounded-full text-xs border transition-colors"
-                  :class="uiFilter === 'changed' ? 'bg-[var(--accent-main)]/15 text-[var(--text-main)] border-[var(--accent-main)]/30' : 'bg-[var(--bg-body)] text-[var(--text-dim)] border-[var(--border-light)]'"
+                  :class="uiFilter === 'changed' ? 'bg-[var(--accent-action)]/15 text-[var(--content-primary)] border-[var(--accent-action)]/30' : 'bg-[var(--surface-page)] text-[var(--content-muted)] border-[var(--border-default)]'"
                 >
                   已修改
                 </button>
                 <button
                   @click="uiFilter = 'collections'"
                   class="px-3 py-1.5 rounded-full text-xs border transition-colors"
-                  :class="uiFilter === 'collections' ? 'bg-[var(--accent-main)]/15 text-[var(--text-main)] border-[var(--accent-main)]/30' : 'bg-[var(--bg-body)] text-[var(--text-dim)] border-[var(--border-light)]'"
+                  :class="uiFilter === 'collections' ? 'bg-[var(--accent-action)]/15 text-[var(--content-primary)] border-[var(--accent-action)]/30' : 'bg-[var(--surface-page)] text-[var(--content-muted)] border-[var(--border-default)]'"
                 >
                   集合
                 </button>
                 <button
                   @click="uiFilter = 'longtext'"
                   class="px-3 py-1.5 rounded-full text-xs border transition-colors"
-                  :class="uiFilter === 'longtext' ? 'bg-[var(--accent-main)]/15 text-[var(--text-main)] border-[var(--accent-main)]/30' : 'bg-[var(--bg-body)] text-[var(--text-dim)] border-[var(--border-light)]'"
+                  :class="uiFilter === 'longtext' ? 'bg-[var(--accent-action)]/15 text-[var(--content-primary)] border-[var(--accent-action)]/30' : 'bg-[var(--surface-page)] text-[var(--content-muted)] border-[var(--border-default)]'"
                 >
                   长文本
                 </button>
               </div>
-              <div class="text-[11px] text-[var(--text-dim)]">
+              <div class="text-[11px] text-[var(--content-muted)]">
                 <span x-show="uiFilter === 'all'">全部: 显示当前分区全部字段</span>
                 <span x-show="uiFilter === 'editable'"
                   >可编辑: 仅显示可直接编辑的字段</span
@@ -349,13 +349,13 @@
             x-if="isPromptWorkspaceEditor && activeWorkspace === 'prompts'"
           >
             <div
-              class="rounded-2xl border border-[var(--border-light)] bg-[var(--bg-panel)] p-4 space-y-3"
+              class="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-container)] p-4 space-y-3"
             >
-              <div class="text-xs text-[var(--text-dim)]">提示词列表</div>
-              <div class="text-sm font-bold text-[var(--text-main)]">
+              <div class="text-xs text-[var(--content-muted)]">提示词列表</div>
+              <div class="text-sm font-bold text-[var(--content-primary)]">
                 提示词工作区
               </div>
-              <div class="text-[11px] text-[var(--text-dim)]">
+              <div class="text-[11px] text-[var(--content-muted)]">
                 左侧管理提示词顺序与启用状态，中间编辑当前提示词内容与参数。
               </div>
             </div>
@@ -363,9 +363,9 @@
 
           <template x-if="isMirroredProfileEditor && editorProfile">
             <div
-              class="rounded-2xl border border-[var(--border-light)] bg-[var(--bg-panel)] p-3 space-y-2"
+              class="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-container)] p-3 space-y-2"
             >
-              <div class="text-xs text-[var(--text-dim)]">分区</div>
+              <div class="text-xs text-[var(--content-muted)]">分区</div>
               <template
                 x-for="section in mirroredProfileSections"
                 :key="section.id"
@@ -373,7 +373,7 @@
                 <button
                   @click="selectWorkspace(section.id === 'prompt_manager' ? 'prompts' : section.id)"
                   class="w-full text-left px-3 py-2 rounded-xl text-sm border transition-colors"
-                  :class="activeMirroredSection?.id === section.id ? 'bg-[var(--accent-main)]/15 text-[var(--text-main)] border-[var(--accent-main)]/30' : 'bg-[var(--bg-body)] text-[var(--text-dim)] border-transparent hover:border-[var(--border-light)] hover:text-[var(--text-main)]'"
+                  :class="activeMirroredSection?.id === section.id ? 'bg-[var(--accent-action)]/15 text-[var(--content-primary)] border-[var(--accent-action)]/30' : 'bg-[var(--surface-page)] text-[var(--content-muted)] border-transparent hover:border-[var(--border-default)] hover:text-[var(--content-primary)]'"
                 >
                   <div class="flex items-center justify-between gap-3">
                     <div
@@ -381,12 +381,12 @@
                       x-text="section.label || section.id"
                     ></div>
                     <div
-                      class="text-[11px] text-[var(--text-dim)]"
+                      class="text-[11px] text-[var(--content-muted)]"
                       x-text="getMirroredSectionFieldCount(section.id)"
                     ></div>
                   </div>
                   <div
-                    class="text-[11px] text-[var(--text-dim)] truncate"
+                    class="text-[11px] text-[var(--content-muted)] truncate"
                     x-text="section.description || section.id"
                   ></div>
                 </button>
@@ -396,13 +396,13 @@
 
           <template x-if="!isMirroredProfileEditor && !isPromptWorkspaceEditor">
             <div
-              class="rounded-2xl border border-[var(--border-light)] bg-[var(--bg-panel)] p-3 space-y-2"
+              class="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-container)] p-3 space-y-2"
             >
-              <div class="text-xs text-[var(--text-dim)]">分组</div>
+              <div class="text-xs text-[var(--content-muted)]">分组</div>
               <button
                 @click="selectGroup('all')"
                 class="w-full text-left px-3 py-2 rounded-xl text-sm border transition-colors"
-                :class="activeGroup === 'all' ? 'bg-[var(--accent-main)]/15 text-[var(--text-main)] border-[var(--accent-main)]/30' : 'bg-[var(--bg-body)] text-[var(--text-dim)] border-transparent hover:border-[var(--border-light)] hover:text-[var(--text-main)]'"
+                :class="activeGroup === 'all' ? 'bg-[var(--accent-action)]/15 text-[var(--content-primary)] border-[var(--accent-action)]/30' : 'bg-[var(--surface-page)] text-[var(--content-muted)] border-transparent hover:border-[var(--border-default)] hover:text-[var(--content-primary)]'"
               >
                 全部字段
               </button>
@@ -410,14 +410,14 @@
                 <button
                   @click="selectGroup(group.id)"
                   class="w-full text-left px-3 py-2 rounded-xl text-sm border transition-colors"
-                  :class="activeGroup === group.id ? 'bg-[var(--accent-main)]/15 text-[var(--text-main)] border-[var(--accent-main)]/30' : 'bg-[var(--bg-body)] text-[var(--text-dim)] border-transparent hover:border-[var(--border-light)] hover:text-[var(--text-main)]'"
+                  :class="activeGroup === group.id ? 'bg-[var(--accent-action)]/15 text-[var(--content-primary)] border-[var(--accent-action)]/30' : 'bg-[var(--surface-page)] text-[var(--content-muted)] border-transparent hover:border-[var(--border-default)] hover:text-[var(--content-primary)]'"
                 >
                   <div
                     class="font-medium"
                     x-text="group.title || group.id"
                   ></div>
                   <div
-                    class="text-[11px] text-[var(--text-dim)] truncate"
+                    class="text-[11px] text-[var(--content-muted)] truncate"
                     x-text="group.summary || group.description || '按分组聚焦该类配置项'"
                   ></div>
                 </button>
@@ -456,21 +456,21 @@
                     class="grid grid-cols-1 xl:grid-cols-[22rem_minmax(0,1fr)] gap-4 h-full min-h-0"
                   >
                     <section
-                      class="rounded-2xl border border-[var(--border-light)] bg-[var(--bg-panel)] min-h-[22rem] flex flex-col overflow-hidden"
+                      class="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-container)] min-h-[22rem] flex flex-col overflow-hidden"
                     >
                       <div
-                        class="px-4 py-3 border-b border-[var(--border-light)] flex items-center justify-between gap-3"
+                        class="px-4 py-3 border-b border-[var(--border-default)] flex items-center justify-between gap-3"
                       >
                         <div>
-                          <div class="text-sm font-bold text-[var(--text-main)]">
+                          <div class="text-sm font-bold text-[var(--content-primary)]">
                             提示词列表
                           </div>
                           <div
-                            class="text-[11px] text-[var(--text-dim)]"
+                            class="text-[11px] text-[var(--content-muted)]"
                             x-text="`${orderedPromptItems.length} 个提示词`"
                           ></div>
                         </div>
-                        <div class="text-[11px] text-[var(--text-dim)]">
+                        <div class="text-[11px] text-[var(--content-muted)]">
                           列表即顺序
                         </div>
                       </div>
@@ -479,7 +479,7 @@
                       >
                         <template x-if="orderedPromptItems.length === 0">
                           <div
-                            class="rounded-xl border border-dashed border-[var(--border-light)] bg-[var(--bg-body)] p-4 text-sm text-[var(--text-dim)]"
+                            class="rounded-xl border border-dashed border-[var(--border-default)] bg-[var(--surface-page)] p-4 text-sm text-[var(--content-muted)]"
                           >
                             当前预设没有可编辑的提示词条目。
                           </div>
@@ -491,16 +491,16 @@
                           <article
                             @click="selectPrompt(prompt.__identifier)"
                             class="rounded-xl border p-3 transition-colors cursor-pointer"
-                            :class="activePromptId === prompt.__identifier ? 'border-[var(--accent-main)]/40 bg-[var(--accent-main)]/10' : 'border-[var(--border-light)] bg-[var(--bg-body)] hover:border-[var(--accent-main)]/20'"
+                            :class="activePromptId === prompt.__identifier ? 'border-[var(--accent-action)]/40 bg-[var(--accent-action)]/10' : 'border-[var(--border-default)] bg-[var(--surface-page)] hover:border-[var(--accent-action)]/20'"
                           >
                             <div class="flex items-start justify-between gap-3">
                               <div class="min-w-0 flex-1">
                                 <div
-                                  class="text-sm font-semibold text-[var(--text-main)] truncate"
+                                  class="text-sm font-semibold text-[var(--content-primary)] truncate"
                                   x-text="prompt.name || prompt.__identifier"
                                 ></div>
                                 <div
-                                  class="text-[11px] text-[var(--text-dim)] truncate"
+                                  class="text-[11px] text-[var(--content-muted)] truncate"
                                   x-text="getPromptRoleLabel(prompt.role)"
                                 ></div>
                               </div>
@@ -519,11 +519,11 @@
                                     @change="togglePromptEnabled(prompt.__identifier)"
                                   />
                                   <span
-                                    class="h-full w-full rounded-full border border-[var(--border-light)] bg-[var(--bg-sub)] transition-colors peer-checked:border-emerald-400/40 peer-checked:bg-emerald-500/20 peer-focus-visible:outline-none peer-focus-visible:ring-2 peer-focus-visible:ring-[var(--accent-main)]/60 peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-[var(--bg-body)]"
+                                    class="h-full w-full rounded-full border border-[var(--border-default)] bg-[var(--surface-container-raised)] transition-colors color-peer-checked-border-success color-peer-checked-surface-success color-peer-focus-toggle    "
                                   ></span>
                                   <span
                                     class="pointer-events-none absolute left-[2px] top-[2px] h-4 w-4 rounded-full transition-transform"
-                                    :class="prompt.__enabled !== false ? 'translate-x-4 bg-white/90 shadow-sm' : 'bg-white/90 shadow-sm'"
+                                    :class="prompt.__enabled !== false ? 'translate-x-4 color-surface-control shadow-sm' : 'color-surface-control shadow-sm'"
                                   ></span>
                                 </span>
                               </label>
@@ -531,7 +531,7 @@
                             <div class="mt-2 flex flex-wrap gap-2 text-[10px]">
                               <span
                                 x-show="prompt.marker"
-                                class="preset-marker-label inline-flex items-center gap-1.5 text-sky-300"
+                                class="preset-marker-label inline-flex items-center gap-1.5 color-text-info"
                               >
                                 <span
                                   class="preset-marker-icon-frame preset-marker-icon-frame--compact"
@@ -540,7 +540,7 @@
                                 预留字段
                               </span>
                               <span
-                                class="px-2 py-0.5 rounded-full border border-[var(--border-light)] text-[var(--text-dim)]"
+                                class="px-2 py-0.5 rounded-full border border-[var(--border-default)] text-[var(--content-muted)]"
                                 x-text="getPromptPositionLabel(prompt)"
                               ></span>
                             </div>
@@ -572,21 +572,21 @@
                     </section>
 
                     <section
-                      class="rounded-2xl border border-[var(--border-light)] bg-[var(--bg-panel)] min-h-[22rem] flex flex-col min-w-0 overflow-hidden"
+                      class="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-container)] min-h-[22rem] flex flex-col min-w-0 overflow-hidden"
                     >
                       <div
-                        class="px-5 py-4 border-b border-[var(--border-light)] flex items-start justify-between gap-4"
+                        class="px-5 py-4 border-b border-[var(--border-default)] flex items-start justify-between gap-4"
                       >
                         <div class="min-w-0">
-                          <div class="text-xs text-[var(--text-dim)]">
+                          <div class="text-xs text-[var(--content-muted)]">
                             当前提示词
                           </div>
                           <div
-                            class="text-lg font-bold text-[var(--text-main)]"
+                            class="text-lg font-bold text-[var(--content-primary)]"
                             x-text="activePromptItem?.name || activePromptItem?.__identifier || '选择左侧提示词开始编辑'"
                           ></div>
                           <div
-                            class="text-[11px] text-[var(--text-dim)] break-all"
+                            class="text-[11px] text-[var(--content-muted)] break-all"
                             x-text="activePromptItem?.__identifier || 'prompts[]'"
                           ></div>
                         </div>
@@ -597,7 +597,7 @@
                       >
                         <template x-if="!activePromptItem">
                           <div
-                            class="rounded-2xl border border-dashed border-[var(--border-light)] bg-[var(--bg-body)] p-6 text-sm text-[var(--text-dim)]"
+                            class="rounded-2xl border border-dashed border-[var(--border-default)] bg-[var(--surface-page)] p-6 text-sm text-[var(--content-muted)]"
                           >
                             请选择一个提示词条目开始编辑。
                           </div>
@@ -606,22 +606,22 @@
                         <template x-if="activePromptItem">
                           <div class="space-y-5">
                             <div
-                              class="rounded-2xl border border-[var(--border-light)] bg-[var(--bg-body)] p-4 space-y-2"
+                              class="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-page)] p-4 space-y-2"
                             >
-                              <div class="text-sm font-bold text-[var(--text-main)]">
+                              <div class="text-sm font-bold text-[var(--content-primary)]">
                                 提示词基础信息
                               </div>
-                              <div class="text-sm text-[var(--text-dim)]">
+                              <div class="text-sm text-[var(--content-muted)]">
                                 按常用提示词编辑方式调整名称、角色、注入位置与触发器。
                               </div>
                             </div>
 
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                               <label
-                                class="rounded-2xl border border-[var(--border-light)] bg-[var(--bg-body)] p-4 space-y-2"
+                                class="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-page)] p-4 space-y-2"
                               >
-                                <div class="text-xs text-[var(--text-dim)]">名称</div>
-                                <div class="text-[11px] text-[var(--text-dim)]">
+                                <div class="text-xs text-[var(--content-muted)]">名称</div>
+                                <div class="text-[11px] text-[var(--content-muted)]">
                                   用于侧栏列表和编辑器顶部的可读名称。
                                 </div>
                                 <input
@@ -632,10 +632,10 @@
                                 />
                               </label>
                               <label
-                                class="rounded-2xl border border-[var(--border-light)] bg-[var(--bg-body)] p-4 space-y-2"
+                                class="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-page)] p-4 space-y-2"
                               >
-                                <div class="text-xs text-[var(--text-dim)]">角色</div>
-                                <div class="text-[11px] text-[var(--text-dim)]">
+                                <div class="text-xs text-[var(--content-muted)]">角色</div>
+                                <div class="text-[11px] text-[var(--content-muted)]">
                                   角色决定提示词以谁的身份注入上下文。
                                 </div>
                                 {% call styled_select_controlled(
@@ -661,10 +661,10 @@
 
                             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                               <label
-                                class="rounded-2xl border border-[var(--border-light)] bg-[var(--bg-body)] p-4 space-y-2"
+                                class="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-page)] p-4 space-y-2"
                               >
-                                <div class="text-xs text-[var(--text-dim)]">位置</div>
-                                <div class="text-[11px] text-[var(--text-dim)]">
+                                <div class="text-xs text-[var(--content-muted)]">位置</div>
+                                <div class="text-[11px] text-[var(--content-muted)]">
                                   控制提示词是在聊天外相对插入，还是注入到聊天流中。
                                 </div>
                                 {% call styled_select_controlled(
@@ -688,12 +688,12 @@
                               </label>
                               <label
                                 x-show="isChatInjectionPosition(activePromptItem)"
-                                class="rounded-2xl border border-[var(--border-light)] bg-[var(--bg-body)] p-4 space-y-2"
+                                class="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-page)] p-4 space-y-2"
                               >
-                                <div class="text-xs text-[var(--text-dim)]">
+                                <div class="text-xs text-[var(--content-muted)]">
                                   聊天内深度
                                 </div>
-                                <div class="text-[11px] text-[var(--text-dim)]">
+                                <div class="text-[11px] text-[var(--content-muted)]">
                                   仅在“聊天中”位置下生效，数值越小越靠前。
                                 </div>
                                 <input
@@ -705,12 +705,12 @@
                               </label>
                               <label
                                 x-show="isChatInjectionPosition(activePromptItem)"
-                                class="rounded-2xl border border-[var(--border-light)] bg-[var(--bg-body)] p-4 space-y-2"
+                                class="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-page)] p-4 space-y-2"
                               >
-                                <div class="text-xs text-[var(--text-dim)]">
+                                <div class="text-xs text-[var(--content-muted)]">
                                   注入顺序
                                 </div>
-                                <div class="text-[11px] text-[var(--text-dim)]">
+                                <div class="text-[11px] text-[var(--content-muted)]">
                                   仅在“聊天中”位置下生效，用于同深度提示词排序。
                                 </div>
                                 <input
@@ -723,7 +723,7 @@
                             </div>
 
                             <div
-                              class="rounded-2xl border border-[var(--border-light)] bg-[var(--bg-body)] p-4 space-y-3"
+                              class="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-page)] p-4 space-y-3"
                               data-prompt-triggers
                             >
                               <button
@@ -732,21 +732,21 @@
                                 class="w-full flex items-center justify-between gap-3 text-left"
                               >
                                 <div>
-                                  <div class="text-sm font-bold text-[var(--text-main)]">
+                                  <div class="text-sm font-bold text-[var(--content-primary)]">
                                     触发器
                                   </div>
-                                  <div class="text-[11px] text-[var(--text-dim)]">
+                                  <div class="text-[11px] text-[var(--content-muted)]">
                                     按需展开设置触发场景。
                                   </div>
                                 </div>
                                 <span
-                                  class="text-[11px] text-[var(--text-dim)]"
+                                  class="text-[11px] text-[var(--content-muted)]"
                                   x-text="showPromptTriggers ? '收起' : '展开'"
                                 ></span>
                               </button>
 
                               <div x-show="showPromptTriggers" class="space-y-3">
-                                <div class="text-[11px] text-[var(--text-dim)]">
+                                <div class="text-[11px] text-[var(--content-muted)]">
                                   勾选后仅在对应场景触发此提示词。
                                 </div>
                                 <div class="flex flex-wrap gap-2">
@@ -755,7 +755,7 @@
                                     :key="option.value"
                                   >
                                     <label
-                                      class="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-[var(--border-light)] text-sm text-[var(--text-main)]"
+                                      class="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-[var(--border-default)] text-sm text-[var(--content-primary)]"
                                     >
                                       <input
                                         type="checkbox"
@@ -773,14 +773,14 @@
 
                             <template x-if="!activePromptItem?.marker">
                               <div
-                                class="rounded-2xl border border-[var(--border-light)] bg-[var(--bg-body)] p-4 space-y-3"
+                                class="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-page)] p-4 space-y-3"
                               >
                                 <div
-                                  class="text-sm font-bold text-[var(--text-main)]"
+                                  class="text-sm font-bold text-[var(--content-primary)]"
                                 >
                                   提示词内容
                                 </div>
-                                <div class="text-[11px] text-[var(--text-dim)]">
+                                <div class="text-[11px] text-[var(--content-muted)]">
                                   填写实际要注入的提示词正文；marker 条目无需内容。
                                 </div>
                                 <textarea
@@ -803,21 +803,21 @@
                   class="h-full min-h-0"
                 >
                   <section
-                    class="rounded-2xl border border-[var(--border-light)] bg-[var(--bg-panel)] min-h-[22rem] h-full flex flex-col overflow-hidden"
+                    class="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-container)] min-h-[22rem] h-full flex flex-col overflow-hidden"
                   >
                     <div
-                      class="px-4 py-3 border-b border-[var(--border-light)] flex items-center justify-between gap-3"
+                      class="px-4 py-3 border-b border-[var(--border-default)] flex items-center justify-between gap-3"
                     >
                       <div>
-                        <div class="text-sm font-bold text-[var(--text-main)]">
+                        <div class="text-sm font-bold text-[var(--content-primary)]">
                           提示词列表
                         </div>
                         <div
-                          class="text-[11px] text-[var(--text-dim)]"
+                          class="text-[11px] text-[var(--content-muted)]"
                           x-text="`${orderedPromptItems.length} 个提示词`"
                         ></div>
                       </div>
-                      <div class="text-[11px] text-[var(--text-dim)]">
+                      <div class="text-[11px] text-[var(--content-muted)]">
                         点选条目进入编辑
                       </div>
                     </div>
@@ -826,7 +826,7 @@
                     >
                       <template x-if="orderedPromptItems.length === 0">
                         <div
-                          class="rounded-xl border border-dashed border-[var(--border-light)] bg-[var(--bg-body)] p-4 text-sm text-[var(--text-dim)]"
+                          class="rounded-xl border border-dashed border-[var(--border-default)] bg-[var(--surface-page)] p-4 text-sm text-[var(--content-muted)]"
                         >
                           当前预设没有可编辑的提示词条目。
                         </div>
@@ -838,16 +838,16 @@
                         <article
                           @click="selectPrompt(prompt.__identifier)"
                           class="rounded-xl border p-3 transition-colors cursor-pointer"
-                          :class="activePromptId === prompt.__identifier ? 'border-[var(--accent-main)]/40 bg-[var(--accent-main)]/10' : 'border-[var(--border-light)] bg-[var(--bg-body)] hover:border-[var(--accent-main)]/20'"
+                          :class="activePromptId === prompt.__identifier ? 'border-[var(--accent-action)]/40 bg-[var(--accent-action)]/10' : 'border-[var(--border-default)] bg-[var(--surface-page)] hover:border-[var(--accent-action)]/20'"
                         >
                           <div class="flex items-start justify-between gap-3">
                             <div class="min-w-0 flex-1">
                               <div
-                                class="text-sm font-semibold text-[var(--text-main)] truncate"
+                                class="text-sm font-semibold text-[var(--content-primary)] truncate"
                                 x-text="prompt.name || prompt.__identifier"
                               ></div>
                               <div
-                                class="text-[11px] text-[var(--text-dim)] truncate"
+                                class="text-[11px] text-[var(--content-muted)] truncate"
                                 x-text="getPromptRoleLabel(prompt.role)"
                               ></div>
                             </div>
@@ -866,11 +866,11 @@
                                   @change="togglePromptEnabled(prompt.__identifier)"
                                 />
                                 <span
-                                  class="h-full w-full rounded-full border border-[var(--border-light)] bg-[var(--bg-sub)] transition-colors peer-checked:border-emerald-400/40 peer-checked:bg-emerald-500/20 peer-focus-visible:outline-none peer-focus-visible:ring-2 peer-focus-visible:ring-[var(--accent-main)]/60 peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-[var(--bg-body)]"
+                                  class="h-full w-full rounded-full border border-[var(--border-default)] bg-[var(--surface-container-raised)] transition-colors color-peer-checked-border-success color-peer-checked-surface-success color-peer-focus-toggle    "
                                 ></span>
                                 <span
                                   class="pointer-events-none absolute left-[2px] top-[2px] h-4 w-4 rounded-full transition-transform"
-                                  :class="prompt.__enabled !== false ? 'translate-x-4 bg-white/90 shadow-sm' : 'bg-white/90 shadow-sm'"
+                                  :class="prompt.__enabled !== false ? 'translate-x-4 color-surface-control shadow-sm' : 'color-surface-control shadow-sm'"
                                 ></span>
                               </span>
                             </label>
@@ -878,7 +878,7 @@
                           <div class="mt-2 flex flex-wrap gap-2 text-[10px]">
                             <span
                               x-show="prompt.marker"
-                              class="preset-marker-label inline-flex items-center gap-1.5 text-sky-300"
+                              class="preset-marker-label inline-flex items-center gap-1.5 color-text-info"
                             >
                               <span
                                 class="preset-marker-icon-frame preset-marker-icon-frame--compact"
@@ -887,7 +887,7 @@
                               预留字段
                             </span>
                             <span
-                              class="px-2 py-0.5 rounded-full border border-[var(--border-light)] text-[var(--text-dim)]"
+                              class="px-2 py-0.5 rounded-full border border-[var(--border-default)] text-[var(--content-muted)]"
                               x-text="getPromptPositionLabel(prompt)"
                             ></span>
                           </div>
@@ -924,10 +924,10 @@
                   class="h-full min-h-0"
                 >
                   <section
-                    class="rounded-2xl border border-[var(--border-light)] bg-[var(--bg-panel)] min-h-[22rem] h-full flex flex-col min-w-0 overflow-hidden"
+                    class="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-container)] min-h-[22rem] h-full flex flex-col min-w-0 overflow-hidden"
                   >
                     <div
-                      class="px-5 py-4 border-b border-[var(--border-light)] space-y-3"
+                      class="px-5 py-4 border-b border-[var(--border-default)] space-y-3"
                     >
                       <button
                         @click="closeMobilePromptDetailView()"
@@ -936,15 +936,15 @@
                         返回提示词列表
                       </button>
                       <div class="min-w-0">
-                        <div class="text-xs text-[var(--text-dim)]">
+                        <div class="text-xs text-[var(--content-muted)]">
                           当前提示词
                         </div>
                         <div
-                          class="text-lg font-bold text-[var(--text-main)]"
+                          class="text-lg font-bold text-[var(--content-primary)]"
                           x-text="activePromptItem?.name || activePromptItem?.__identifier || '选择左侧提示词开始编辑'"
                         ></div>
                         <div
-                          class="text-[11px] text-[var(--text-dim)] break-all"
+                          class="text-[11px] text-[var(--content-muted)] break-all"
                           x-text="activePromptItem?.__identifier || 'prompts[]'"
                         ></div>
                       </div>
@@ -955,7 +955,7 @@
                     >
                       <template x-if="!activePromptItem">
                         <div
-                          class="rounded-2xl border border-dashed border-[var(--border-light)] bg-[var(--bg-body)] p-6 text-sm text-[var(--text-dim)]"
+                          class="rounded-2xl border border-dashed border-[var(--border-default)] bg-[var(--surface-page)] p-6 text-sm text-[var(--content-muted)]"
                         >
                           请选择一个提示词条目开始编辑。
                         </div>
@@ -964,22 +964,22 @@
                       <template x-if="activePromptItem">
                         <div class="space-y-5">
                           <div
-                            class="rounded-2xl border border-[var(--border-light)] bg-[var(--bg-body)] p-4 space-y-2"
+                            class="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-page)] p-4 space-y-2"
                           >
-                            <div class="text-sm font-bold text-[var(--text-main)]">
+                            <div class="text-sm font-bold text-[var(--content-primary)]">
                               提示词基础信息
                             </div>
-                            <div class="text-sm text-[var(--text-dim)]">
+                            <div class="text-sm text-[var(--content-muted)]">
                               按常用提示词编辑方式调整名称、角色、注入位置与触发器。
                             </div>
                           </div>
 
                           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <label
-                              class="rounded-2xl border border-[var(--border-light)] bg-[var(--bg-body)] p-4 space-y-2"
+                              class="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-page)] p-4 space-y-2"
                             >
-                              <div class="text-xs text-[var(--text-dim)]">名称</div>
-                              <div class="text-[11px] text-[var(--text-dim)]">
+                              <div class="text-xs text-[var(--content-muted)]">名称</div>
+                              <div class="text-[11px] text-[var(--content-muted)]">
                                 用于侧栏列表和编辑器顶部的可读名称。
                               </div>
                               <input
@@ -990,10 +990,10 @@
                               />
                             </label>
                             <label
-                              class="rounded-2xl border border-[var(--border-light)] bg-[var(--bg-body)] p-4 space-y-2"
+                              class="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-page)] p-4 space-y-2"
                             >
-                              <div class="text-xs text-[var(--text-dim)]">角色</div>
-                              <div class="text-[11px] text-[var(--text-dim)]">
+                              <div class="text-xs text-[var(--content-muted)]">角色</div>
+                              <div class="text-[11px] text-[var(--content-muted)]">
                                 角色决定提示词以谁的身份注入上下文。
                               </div>
                               {% call styled_select_controlled(
@@ -1019,10 +1019,10 @@
 
                           <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <label
-                              class="rounded-2xl border border-[var(--border-light)] bg-[var(--bg-body)] p-4 space-y-2"
+                              class="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-page)] p-4 space-y-2"
                             >
-                              <div class="text-xs text-[var(--text-dim)]">位置</div>
-                              <div class="text-[11px] text-[var(--text-dim)]">
+                              <div class="text-xs text-[var(--content-muted)]">位置</div>
+                              <div class="text-[11px] text-[var(--content-muted)]">
                                 控制提示词是在聊天外相对插入，还是注入到聊天流中。
                               </div>
                               {% call styled_select_controlled(
@@ -1046,12 +1046,12 @@
                             </label>
                             <label
                               x-show="isChatInjectionPosition(activePromptItem)"
-                              class="rounded-2xl border border-[var(--border-light)] bg-[var(--bg-body)] p-4 space-y-2"
+                              class="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-page)] p-4 space-y-2"
                             >
-                              <div class="text-xs text-[var(--text-dim)]">
+                              <div class="text-xs text-[var(--content-muted)]">
                                 聊天内深度
                               </div>
-                              <div class="text-[11px] text-[var(--text-dim)]">
+                              <div class="text-[11px] text-[var(--content-muted)]">
                                 仅在“聊天中”位置下生效，数值越小越靠前。
                               </div>
                               <input
@@ -1063,12 +1063,12 @@
                             </label>
                             <label
                               x-show="isChatInjectionPosition(activePromptItem)"
-                              class="rounded-2xl border border-[var(--border-light)] bg-[var(--bg-body)] p-4 space-y-2"
+                              class="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-page)] p-4 space-y-2"
                             >
-                              <div class="text-xs text-[var(--text-dim)]">
+                              <div class="text-xs text-[var(--content-muted)]">
                                 注入顺序
                               </div>
-                              <div class="text-[11px] text-[var(--text-dim)]">
+                              <div class="text-[11px] text-[var(--content-muted)]">
                                 仅在“聊天中”位置下生效，用于同深度提示词排序。
                               </div>
                               <input
@@ -1081,7 +1081,7 @@
                           </div>
 
                           <div
-                            class="rounded-2xl border border-[var(--border-light)] bg-[var(--bg-body)] p-4 space-y-3"
+                            class="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-page)] p-4 space-y-3"
                             data-prompt-triggers
                           >
                             <button
@@ -1090,21 +1090,21 @@
                               class="w-full flex items-center justify-between gap-3 text-left"
                             >
                               <div>
-                                <div class="text-sm font-bold text-[var(--text-main)]">
+                                <div class="text-sm font-bold text-[var(--content-primary)]">
                                   触发器
                                 </div>
-                                <div class="text-[11px] text-[var(--text-dim)]">
+                                <div class="text-[11px] text-[var(--content-muted)]">
                                   按需展开设置触发场景。
                                 </div>
                               </div>
                               <span
-                                class="text-[11px] text-[var(--text-dim)]"
+                                class="text-[11px] text-[var(--content-muted)]"
                                 x-text="showPromptTriggers ? '收起' : '展开'"
                               ></span>
                             </button>
 
                             <div x-show="showPromptTriggers" class="space-y-3">
-                              <div class="text-[11px] text-[var(--text-dim)]">
+                              <div class="text-[11px] text-[var(--content-muted)]">
                                 勾选后仅在对应场景触发此提示词。
                               </div>
                               <div class="flex flex-wrap gap-2">
@@ -1113,7 +1113,7 @@
                                   :key="option.value"
                                 >
                                   <label
-                                    class="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-[var(--border-light)] text-sm text-[var(--text-main)]"
+                                    class="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-[var(--border-default)] text-sm text-[var(--content-primary)]"
                                   >
                                     <input
                                       type="checkbox"
@@ -1131,14 +1131,14 @@
 
                           <template x-if="!activePromptItem?.marker">
                             <div
-                              class="rounded-2xl border border-[var(--border-light)] bg-[var(--bg-body)] p-4 space-y-3"
+                              class="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-page)] p-4 space-y-3"
                             >
                               <div
-                                class="text-sm font-bold text-[var(--text-main)]"
+                                class="text-sm font-bold text-[var(--content-primary)]"
                               >
                                 提示词内容
                               </div>
-                              <div class="text-[11px] text-[var(--text-dim)]">
+                              <div class="text-[11px] text-[var(--content-muted)]">
                                 填写实际要注入的提示词正文；marker 条目无需内容。
                               </div>
                               <textarea
@@ -1160,13 +1160,13 @@
           <template x-if="isScalarWorkspaceEditor">
             <div class="space-y-4">
               <div
-                class="rounded-2xl border border-[var(--border-light)] bg-[var(--bg-panel)] p-4 space-y-2"
+                class="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-container)] p-4 space-y-2"
               >
-                <div class="text-xs text-[var(--text-dim)]">参数工作区</div>
-                <div class="text-sm font-bold text-[var(--text-main)]">
+                <div class="text-xs text-[var(--content-muted)]">参数工作区</div>
+                <div class="text-sm font-bold text-[var(--content-primary)]">
                   分组参数编辑
                 </div>
-                <div class="text-[11px] text-[var(--text-dim)]">
+                <div class="text-[11px] text-[var(--content-muted)]">
                   按参数分区编辑当前可见字段，未分区字段会自动显示在“其他参数”。
                 </div>
               </div>
@@ -1176,14 +1176,14 @@
                 :key="section.id"
               >
                 <section
-                  class="rounded-2xl border border-[var(--border-light)] bg-[var(--bg-panel)] overflow-hidden"
+                  class="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-container)] overflow-hidden"
                 >
-                  <div class="px-5 py-4 border-b border-[var(--border-light)]">
+                  <div class="px-5 py-4 border-b border-[var(--border-default)]">
                     <div
-                      class="text-base font-bold text-[var(--text-main)]"
+                      class="text-base font-bold text-[var(--content-primary)]"
                       x-text="section.label || section.id"
                     ></div>
-                    <div class="text-[11px] text-[var(--text-dim)]">
+                    <div class="text-[11px] text-[var(--content-muted)]">
                       当前分组参数会直接写回对应参数项。
                     </div>
                   </div>
@@ -1193,30 +1193,30 @@
                       :key="field.storage_key"
                     >
                       <label
-                        class="rounded-2xl border border-[var(--border-light)] bg-[var(--bg-body)] p-4 space-y-2"
+                        class="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-page)] p-4 space-y-2"
                       >
                         <div class="flex items-start justify-between gap-3">
                           <div class="min-w-0">
                             <div
-                              class="text-sm font-semibold text-[var(--text-main)]"
+                              class="text-sm font-semibold text-[var(--content-primary)]"
                               x-text="field.label || field.canonical_key || field.fieldKey"
                             ></div>
                             <div
-                              class="text-[11px] font-mono text-[var(--text-dim)] break-all"
+                              class="text-[11px] font-mono text-[var(--content-muted)] break-all"
                               x-text="field.storage_key"
                             ></div>
                           </div>
                           <span
-                            class="px-2 py-0.5 rounded-full text-[10px] border border-[var(--border-light)] text-[var(--text-dim)]"
+                            class="px-2 py-0.5 rounded-full text-[10px] border border-[var(--border-default)] text-[var(--content-muted)]"
                             x-text="field.editor || 'text'"
                           ></span>
                         </div>
 
                         <template x-if="field.editor === 'boolean'">
                           <div
-                            class="flex items-center justify-between gap-3 rounded-xl border border-[var(--border-light)] bg-[var(--bg-panel)] px-3 py-2"
+                            class="flex items-center justify-between gap-3 rounded-xl border border-[var(--border-default)] bg-[var(--surface-container)] px-3 py-2"
                           >
-                            <span class="text-sm text-[var(--text-main)]"
+                            <span class="text-sm text-[var(--content-primary)]"
                               >启用</span
                             >
                             <input
@@ -1255,7 +1255,7 @@
                               :key="`${field.storage_key}-${index}`"
                             >
                               <div
-                                class="rounded-xl border border-[var(--border-light)] bg-[var(--bg-panel)] p-3 flex items-center gap-2"
+                                class="rounded-xl border border-[var(--border-default)] bg-[var(--surface-container)] p-3 flex items-center gap-2"
                               >
                                 <input
                                   class="form-input flex-1"
@@ -1284,7 +1284,7 @@
                                 </button>
                                 <button
                                   @click="removeStringListItem(field.storage_key, index)"
-                                  class="btn-secondary px-3 py-1.5 text-xs rounded hover:text-red-300"
+                                  class="btn-secondary px-3 py-1.5 text-xs rounded color-hover-text-danger"
                                 >
                                   删除
                                 </button>
@@ -1306,7 +1306,7 @@
                               :key="`${field.storage_key}-bias-${index}`"
                             >
                               <div
-                                class="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_8rem_auto] gap-2 rounded-xl border border-[var(--border-light)] bg-[var(--bg-panel)] p-3"
+                                class="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_8rem_auto] gap-2 rounded-xl border border-[var(--border-default)] bg-[var(--surface-container)] p-3"
                               >
                                 <input
                                   class="form-input"
@@ -1322,7 +1322,7 @@
                                 />
                                 <button
                                   @click="removeBiasEntry(index)"
-                                  class="btn-secondary px-3 py-1.5 text-xs rounded hover:text-red-300"
+                                  class="btn-secondary px-3 py-1.5 text-xs rounded color-hover-text-danger"
                                 >
                                   删除
                                 </button>
@@ -1341,13 +1341,13 @@
                           x-if="!['number', 'boolean', 'textarea', 'sortable-string-list', 'key-value-list'].includes(field.editor)"
                         >
                           <pre
-                            class="text-xs font-mono whitespace-pre-wrap break-words rounded-xl border border-[var(--border-light)] bg-black/20 p-4 text-[var(--text-sub)] max-h-[18rem] overflow-auto custom-scrollbar"
+                            class="text-xs font-mono whitespace-pre-wrap break-words rounded-xl border border-[var(--border-default)] color-surface-scrim-soft p-4 text-[var(--content-secondary)] max-h-[18rem] overflow-auto custom-scrollbar"
                             x-text="formatValue(getScalarWorkspaceFieldValue(field.storage_key))"
                           ></pre>
                         </template>
 
                         <div
-                          class="text-[11px] text-[var(--text-dim)]"
+                          class="text-[11px] text-[var(--content-muted)]"
                           x-text="field.description || field.summary || field.canonical_key || '按工作区元数据直接写回字段。'"
                         ></div>
                       </label>
@@ -1358,13 +1358,13 @@
 
               <section
                 x-show="getScalarWorkspaceSectionEntries(null).length || getScalarWorkspaceSectionEntries('').length"
-                class="rounded-2xl border border-[var(--border-light)] bg-[var(--bg-panel)] overflow-hidden"
+                class="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-container)] overflow-hidden"
               >
-                <div class="px-5 py-4 border-b border-[var(--border-light)]">
-                  <div class="text-base font-bold text-[var(--text-main)]">
+                <div class="px-5 py-4 border-b border-[var(--border-default)]">
+                  <div class="text-base font-bold text-[var(--content-primary)]">
                     其他参数
                   </div>
-                  <div class="text-[11px] text-[var(--text-dim)]">
+                  <div class="text-[11px] text-[var(--content-muted)]">
                     section 缺失时显示在这里，避免可编辑字段丢失。
                   </div>
                 </div>
@@ -1374,10 +1374,10 @@
                     :key="`fallback-${field.storage_key}`"
                   >
                     <label
-                      class="rounded-2xl border border-[var(--border-light)] bg-[var(--bg-body)] p-4 space-y-2"
+                      class="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-page)] p-4 space-y-2"
                     >
                       <div
-                        class="text-sm font-semibold text-[var(--text-main)]"
+                        class="text-sm font-semibold text-[var(--content-primary)]"
                         x-text="field.label || field.canonical_key || field.fieldKey"
                       ></div>
                       <input
@@ -1401,15 +1401,15 @@
                 x-if="activeMirroredSection && activeMirroredSection.id !== 'prompt_manager'"
               >
                 <section
-                  class="rounded-2xl border border-[var(--border-light)] bg-[var(--bg-panel)] p-4 space-y-4"
+                  class="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-container)] p-4 space-y-4"
                 >
                   <div>
                     <div
-                      class="text-sm font-bold text-[var(--text-main)]"
+                      class="text-sm font-bold text-[var(--content-primary)]"
                       x-text="activeMirroredSection.label"
                     ></div>
                     <div
-                      class="text-[11px] text-[var(--text-dim)]"
+                      class="text-[11px] text-[var(--content-muted)]"
                       x-text="activeMirroredSection.description || activeMirroredSection.id"
                     ></div>
                   </div>
@@ -1417,7 +1417,7 @@
                   <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
                     <template x-if="mirroredWorkspaceFieldItems.length === 0">
                       <div
-                        class="rounded-2xl border border-dashed border-[var(--border-light)] bg-[var(--bg-body)] p-4 text-sm text-[var(--text-dim)] xl:col-span-2"
+                        class="rounded-2xl border border-dashed border-[var(--border-default)] bg-[var(--surface-page)] p-4 text-sm text-[var(--content-muted)] xl:col-span-2"
                       >
                         当前筛选下没有可用字段。
                       </div>
@@ -1428,22 +1428,22 @@
                     >
                       <div
                         @click="selectMirroredField(field.id)"
-                        class="rounded-2xl border bg-[var(--bg-body)] p-4 space-y-3 cursor-pointer transition-colors"
-                        :class="activeMirroredField?.id === field.id ? 'border-[var(--accent-main)]/40 bg-[var(--accent-main)]/10' : 'border-[var(--border-light)] hover:border-[var(--accent-main)]/20'"
+                        class="rounded-2xl border bg-[var(--surface-page)] p-4 space-y-3 cursor-pointer transition-colors"
+                        :class="activeMirroredField?.id === field.id ? 'border-[var(--accent-action)]/40 bg-[var(--accent-action)]/10' : 'border-[var(--border-default)] hover:border-[var(--accent-action)]/20'"
                       >
                         <div class="flex items-center justify-between gap-3">
                           <div>
                             <div
-                              class="text-sm font-semibold text-[var(--text-main)]"
+                              class="text-sm font-semibold text-[var(--content-primary)]"
                               x-text="field.label"
                             ></div>
                             <div
-                              class="text-[11px] text-[var(--text-dim)]"
+                              class="text-[11px] text-[var(--content-muted)]"
                               x-text="field.storage_key"
                             ></div>
                           </div>
                           <div
-                            class="text-xs font-mono text-[var(--text-sub)]"
+                            class="text-xs font-mono text-[var(--content-secondary)]"
                             x-text="getProfileFieldValue(field.id)"
                           ></div>
                         </div>
@@ -1463,10 +1463,10 @@
                               class="grid grid-cols-[1fr_auto] gap-3 items-center"
                             >
                               <div
-                                class="h-2 rounded-full bg-[var(--bg-sub)] overflow-hidden"
+                                class="h-2 rounded-full bg-[var(--surface-container-raised)] overflow-hidden"
                               >
                                 <div
-                                  class="h-full rounded-full bg-[var(--accent-main)]"
+                                  class="h-full rounded-full bg-[var(--accent-action)]"
                                   :style="`width: ${getProfileFieldPercent(field.id)}%`"
                                 ></div>
                               </div>
@@ -1485,7 +1485,7 @@
 
                         <template x-if="isProfileFieldToggle(field)">
                           <label
-                            class="flex items-center justify-between gap-3 text-sm text-[var(--text-main)]"
+                            class="flex items-center justify-between gap-3 text-sm text-[var(--content-primary)]"
                           >
                             <span>开关</span>
                             <input
@@ -1543,7 +1543,7 @@
                               :key="`${field.id}-${index}`"
                             >
                               <div
-                                class="rounded-xl border border-[var(--border-light)] bg-[var(--bg-panel)] p-3 flex items-center gap-2"
+                                class="rounded-xl border border-[var(--border-default)] bg-[var(--surface-container)] p-3 flex items-center gap-2"
                               >
                                 <input
                                   class="form-input flex-1"
@@ -1574,7 +1574,7 @@
                                 </button>
                                 <button
                                   @click="removeStringListItem(field.storage_key || field.id, index)"
-                                  class="btn-secondary px-3 py-1.5 text-xs rounded hover:text-red-300"
+                                  class="btn-secondary px-3 py-1.5 text-xs rounded color-hover-text-danger"
                                 >
                                   删除
                                 </button>
@@ -1596,7 +1596,7 @@
                             <div
                               class="flex items-center justify-between gap-3"
                             >
-                              <div class="text-[11px] text-[var(--text-dim)]">
+                              <div class="text-[11px] text-[var(--content-muted)]">
                                 针对 text/value 结构的键值对编辑。
                               </div>
                               <button
@@ -1611,7 +1611,7 @@
                               :key="`${field.id}-bias-${index}`"
                             >
                               <div
-                                class="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_8rem_auto] gap-2 rounded-xl border border-[var(--border-light)] bg-[var(--bg-panel)] p-3"
+                                class="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_8rem_auto] gap-2 rounded-xl border border-[var(--border-default)] bg-[var(--surface-container)] p-3"
                               >
                                 <input
                                   class="form-input"
@@ -1627,7 +1627,7 @@
                                 />
                                 <button
                                   @click="removeBiasEntry(index)"
-                                  class="btn-secondary px-3 py-1.5 text-xs rounded hover:text-red-300"
+                                  class="btn-secondary px-3 py-1.5 text-xs rounded color-hover-text-danger"
                                 >
                                   删除
                                 </button>
@@ -1640,9 +1640,9 @@
                           x-if="field.control === 'raw_json' && field.id === 'extensions'"
                         >
                           <div
-                            class="rounded-xl border border-[var(--border-light)] bg-[var(--bg-body)] p-3 space-y-2"
+                            class="rounded-xl border border-[var(--border-default)] bg-[var(--surface-page)] p-3 space-y-2"
                           >
-                            <div class="text-[11px] text-[var(--text-dim)]">
+                            <div class="text-[11px] text-[var(--content-muted)]">
                               复杂 JSON 结构通过扩展编辑器处理。
                             </div>
                             <button
@@ -1668,22 +1668,22 @@
               class="grid grid-cols-1 xl:grid-cols-[20rem_minmax(0,1fr)] gap-4 h-full min-h-0"
             >
               <section
-                class="rounded-2xl border border-[var(--border-light)] bg-[var(--bg-panel)] min-h-[22rem] flex flex-col overflow-hidden"
+                class="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-container)] min-h-[22rem] flex flex-col overflow-hidden"
               >
                 <div
-                  class="px-4 py-3 border-b border-[var(--border-light)] flex items-center justify-between gap-3"
+                  class="px-4 py-3 border-b border-[var(--border-default)] flex items-center justify-between gap-3"
                 >
                   <div>
-                    <div class="text-sm font-bold text-[var(--text-main)]">
+                    <div class="text-sm font-bold text-[var(--content-primary)]">
                       字段列表
                     </div>
                     <div
-                      class="text-[11px] text-[var(--text-dim)]"
+                      class="text-[11px] text-[var(--content-muted)]"
                       x-text="`${filteredItems.length} 个结果`"
                     ></div>
                   </div>
                   <div
-                    class="text-[11px] text-[var(--text-dim)]"
+                    class="text-[11px] text-[var(--content-muted)]"
                     x-text="activeGroup === 'all' ? '全部分组' : activeGroup"
                   ></div>
                 </div>
@@ -1692,7 +1692,7 @@
                 >
                   <template x-if="filteredItems.length === 0">
                     <div
-                      class="rounded-xl border border-dashed border-[var(--border-light)] bg-[var(--bg-body)] p-4 text-sm text-[var(--text-dim)]"
+                      class="rounded-xl border border-dashed border-[var(--border-default)] bg-[var(--surface-page)] p-4 text-sm text-[var(--content-muted)]"
                     >
                       没有匹配当前筛选条件的字段。
                     </div>
@@ -1701,35 +1701,35 @@
                     <button
                       @click="selectItem(item.id)"
                       class="w-full text-left rounded-xl border p-3 transition-colors"
-                      :class="activeItem?.id === item.id ? 'border-[var(--accent-main)]/40 bg-[var(--accent-main)]/10' : 'border-[var(--border-light)] bg-[var(--bg-body)] hover:border-[var(--accent-main)]/20'"
+                      :class="activeItem?.id === item.id ? 'border-[var(--accent-action)]/40 bg-[var(--accent-action)]/10' : 'border-[var(--border-default)] bg-[var(--surface-page)] hover:border-[var(--accent-action)]/20'"
                     >
                       <div class="flex items-start justify-between gap-3">
                         <div class="min-w-0">
                           <div
-                            class="text-sm font-semibold text-[var(--text-main)] truncate"
+                            class="text-sm font-semibold text-[var(--content-primary)] truncate"
                             x-text="item.title || item.key || item.id"
                           ></div>
                           <div
-                            class="text-[11px] text-[var(--text-dim)] truncate"
+                            class="text-[11px] text-[var(--content-muted)] truncate"
                             x-text="item.summary || item.source_key || item.value_path || '未提供摘要' "
                           ></div>
                         </div>
                         <span
                           x-show="isItemDirty(item)"
-                          class="px-2 py-0.5 rounded-full text-[10px] border border-amber-500/30 bg-amber-500/10 text-amber-300"
+                          class="px-2 py-0.5 rounded-full text-[10px] border color-border-warning color-surface-warning color-text-warning"
                         >
                           已修改
                         </span>
                       </div>
                       <div
-                        class="mt-2 flex flex-wrap gap-2 text-[10px] text-[var(--text-dim)]"
+                        class="mt-2 flex flex-wrap gap-2 text-[10px] text-[var(--content-muted)]"
                       >
                         <span
-                          class="px-2 py-0.5 rounded-full border border-[var(--border-light)]"
+                          class="px-2 py-0.5 rounded-full border border-[var(--border-default)]"
                           x-text="item.editor?.kind || 'text'"
                         ></span>
                         <span
-                          class="px-2 py-0.5 rounded-full border border-[var(--border-light)]"
+                          class="px-2 py-0.5 rounded-full border border-[var(--border-default)]"
                           x-text="item.group || 'ungrouped'"
                         ></span>
                       </div>
@@ -1739,19 +1739,19 @@
               </section>
 
               <section
-                class="rounded-2xl border border-[var(--border-light)] bg-[var(--bg-panel)] min-h-[22rem] flex flex-col min-w-0 overflow-hidden"
+                class="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-container)] min-h-[22rem] flex flex-col min-w-0 overflow-hidden"
               >
                 <div
-                  class="px-5 py-4 border-b border-[var(--border-light)] flex items-start justify-between gap-4"
+                  class="px-5 py-4 border-b border-[var(--border-default)] flex items-start justify-between gap-4"
                 >
                   <div class="min-w-0">
-                    <div class="text-xs text-[var(--text-dim)]">当前编辑项</div>
+                    <div class="text-xs text-[var(--content-muted)]">当前编辑项</div>
                     <div
-                      class="text-lg font-bold text-[var(--text-main)]"
+                      class="text-lg font-bold text-[var(--content-primary)]"
                       x-text="activeItem?.title || '选择左侧字段开始编辑'"
                     ></div>
                     <div
-                      class="text-[11px] text-[var(--text-dim)] break-all"
+                      class="text-[11px] text-[var(--content-muted)] break-all"
                       x-text="activeItem?.value_path || activeItem?.source_key || activeItem?.id || '未选择字段' "
                     ></div>
                   </div>
@@ -1768,7 +1768,7 @@
                 >
                   <template x-if="!activeItem">
                     <div
-                      class="rounded-2xl border border-dashed border-[var(--border-light)] bg-[var(--bg-body)] p-6 text-sm text-[var(--text-dim)]"
+                      class="rounded-2xl border border-dashed border-[var(--border-default)] bg-[var(--surface-page)] p-6 text-sm text-[var(--content-muted)]"
                     >
                       请先从左侧选择一个字段。
                     </div>
@@ -1777,14 +1777,14 @@
                   <template x-if="activeItem">
                     <div class="space-y-5">
                       <div
-                        class="rounded-2xl border border-[var(--border-light)] bg-[var(--bg-body)] p-4 space-y-2"
+                        class="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-page)] p-4 space-y-2"
                       >
                         <div
-                          class="text-sm font-bold text-[var(--text-main)]"
+                          class="text-sm font-bold text-[var(--content-primary)]"
                           x-text="activeItem?.title || activeItem?.key || '字段详情'"
                         ></div>
                         <div
-                          class="text-sm text-[var(--text-dim)]"
+                          class="text-sm text-[var(--content-muted)]"
                           x-text="activeItem?.summary || '这里显示当前字段的编辑内容。' "
                         ></div>
                       </div>
@@ -1793,16 +1793,16 @@
                         x-if="activeItem?.editor?.kind === 'sortable-string-list'"
                       >
                         <div
-                          class="rounded-2xl border border-[var(--border-light)] bg-[var(--bg-body)] p-4 space-y-4"
+                          class="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-page)] p-4 space-y-4"
                         >
                           <div class="flex items-center justify-between gap-3">
                             <div>
                               <div
-                                class="text-base font-bold text-[var(--text-main)]"
+                                class="text-base font-bold text-[var(--content-primary)]"
                               >
                                 可排序字符串列表
                               </div>
-                              <div class="text-[11px] text-[var(--text-dim)]">
+                              <div class="text-[11px] text-[var(--content-muted)]">
                                 上下移动顺序，适合 prompt_order 等路径。
                               </div>
                             </div>
@@ -1819,7 +1819,7 @@
                               :key="`${activeItem.id}-${index}`"
                             >
                               <div
-                                class="rounded-xl border border-[var(--border-light)] bg-[var(--bg-panel)] p-3 flex items-center gap-2"
+                                class="rounded-xl border border-[var(--border-default)] bg-[var(--surface-container)] p-3 flex items-center gap-2"
                               >
                                 <input
                                   class="form-input flex-1"
@@ -1848,7 +1848,7 @@
                                 </button>
                                 <button
                                   @click="removeStringListItem(activeItem.value_path, index)"
-                                  class="btn-secondary px-3 py-1.5 text-xs rounded hover:text-red-300"
+                                  class="btn-secondary px-3 py-1.5 text-xs rounded color-hover-text-danger"
                                 >
                                   删除
                                 </button>
@@ -1862,16 +1862,16 @@
                         x-if="activeItem?.editor?.kind === 'string-list'"
                       >
                         <div
-                          class="rounded-2xl border border-[var(--border-light)] bg-[var(--bg-body)] p-4 space-y-4"
+                          class="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-page)] p-4 space-y-4"
                         >
                           <div class="flex items-center justify-between gap-3">
                             <div>
                               <div
-                                class="text-base font-bold text-[var(--text-main)]"
+                                class="text-base font-bold text-[var(--content-primary)]"
                               >
                                 字符串列表
                               </div>
-                              <div class="text-[11px] text-[var(--text-dim)]">
+                              <div class="text-[11px] text-[var(--content-muted)]">
                                 追加、编辑或删除普通字符串条目。
                               </div>
                             </div>
@@ -1888,7 +1888,7 @@
                               :key="`${activeItem.id}-plain-${index}`"
                             >
                               <div
-                                class="rounded-xl border border-[var(--border-light)] bg-[var(--bg-panel)] p-3 flex items-center gap-2"
+                                class="rounded-xl border border-[var(--border-default)] bg-[var(--surface-container)] p-3 flex items-center gap-2"
                               >
                                 <input
                                   class="form-input flex-1"
@@ -1897,7 +1897,7 @@
                                 />
                                 <button
                                   @click="removeStringListItem(activeItem.value_path, index)"
-                                  class="btn-secondary px-3 py-1.5 text-xs rounded hover:text-red-300"
+                                  class="btn-secondary px-3 py-1.5 text-xs rounded color-hover-text-danger"
                                 >
                                   删除
                                 </button>
@@ -1911,16 +1911,16 @@
                         x-if="activeItem?.editor?.kind === 'key-value-list'"
                       >
                         <div
-                          class="rounded-2xl border border-[var(--border-light)] bg-[var(--bg-body)] p-4 space-y-4"
+                          class="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-page)] p-4 space-y-4"
                         >
                           <div class="flex items-center justify-between gap-3">
                             <div>
                               <div
-                                class="text-base font-bold text-[var(--text-main)]"
+                                class="text-base font-bold text-[var(--content-primary)]"
                               >
                                 键值列表
                               </div>
-                              <div class="text-[11px] text-[var(--text-dim)]">
+                              <div class="text-[11px] text-[var(--content-muted)]">
                                 针对 logit_bias 这类 text/value 结构进行编辑。
                               </div>
                             </div>
@@ -1937,7 +1937,7 @@
                               :key="`${activeItem.id}-bias-${index}`"
                             >
                               <div
-                                class="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_8rem_auto] gap-2 rounded-xl border border-[var(--border-light)] bg-[var(--bg-panel)] p-3"
+                                class="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_8rem_auto] gap-2 rounded-xl border border-[var(--border-default)] bg-[var(--surface-container)] p-3"
                               >
                                 <input
                                   class="form-input"
@@ -1953,7 +1953,7 @@
                                 />
                                 <button
                                   @click="removeBiasEntry(index)"
-                                  class="btn-secondary px-3 py-1.5 text-xs rounded hover:text-red-300"
+                                  class="btn-secondary px-3 py-1.5 text-xs rounded color-hover-text-danger"
                                 >
                                   删除
                                 </button>
@@ -1965,7 +1965,7 @@
 
                       <template x-if="activeItem?.editor?.kind === 'textarea'">
                         <div
-                          class="rounded-2xl border border-[var(--border-light)] bg-[var(--bg-body)] p-4 space-y-3"
+                          class="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-page)] p-4 space-y-3"
                         >
                           <textarea
                             class="form-textarea min-h-[280px] w-full max-w-full min-w-0 custom-scrollbar"
@@ -1973,7 +1973,7 @@
                             @input="setFieldValue(activeItem, $event.target.value)"
                           ></textarea>
                           <div
-                            class="flex items-center justify-between gap-3 text-[11px] text-[var(--text-dim)]"
+                            class="flex items-center justify-between gap-3 text-[11px] text-[var(--content-muted)]"
                           >
                             <span
                               >保留换行，适合长提示词、说明和模板段落。</span
@@ -1987,7 +1987,7 @@
 
                       <template x-if="activeItem?.editor?.kind === 'boolean'">
                         <label
-                          class="rounded-2xl border border-[var(--border-light)] bg-[var(--bg-body)] p-4 flex items-center gap-3 text-sm text-[var(--text-main)]"
+                          class="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-page)] p-4 flex items-center gap-3 text-sm text-[var(--content-primary)]"
                         >
                           <input
                             type="checkbox"
@@ -2003,7 +2003,7 @@
 
                       <template x-if="activeItem?.editor?.kind === 'number'">
                         <div
-                          class="rounded-2xl border border-[var(--border-light)] bg-[var(--bg-body)] p-4"
+                          class="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-page)] p-4"
                         >
                           <input
                             type="number"
@@ -2017,7 +2017,7 @@
 
                       <template x-if="activeItem?.editor?.kind === 'select'">
                         <div
-                          class="rounded-2xl border border-[var(--border-light)] bg-[var(--bg-body)] p-4"
+                          class="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-page)] p-4"
                         >
                           {% call styled_select_controlled(
                             "getFieldValue(activeItem) || ''",
@@ -2042,7 +2042,7 @@
 
                       <template x-if="activeItem?.editor?.kind === 'text'">
                         <div
-                          class="rounded-2xl border border-[var(--border-light)] bg-[var(--bg-body)] p-4"
+                          class="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-page)] p-4"
                         >
                           <input
                             type="text"
@@ -2057,13 +2057,13 @@
                         x-if="activeItem?.editor?.kind === 'raw-json' || !['sortable-string-list', 'string-list', 'key-value-list', 'textarea', 'boolean', 'number', 'select', 'text'].includes(activeItem?.editor?.kind)"
                       >
                         <div
-                          class="rounded-2xl border border-[var(--border-light)] bg-[var(--bg-body)] p-4 space-y-3"
+                          class="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-page)] p-4 space-y-3"
                         >
-                          <div class="text-sm text-[var(--text-dim)]">
+                          <div class="text-sm text-[var(--content-muted)]">
                             当前字段适合通过原始 JSON 视图确认结构。
                           </div>
                           <pre
-                            class="text-xs font-mono whitespace-pre-wrap break-words rounded-xl border border-[var(--border-light)] bg-black/20 p-4 text-[var(--text-sub)] max-h-[18rem] overflow-auto custom-scrollbar"
+                            class="text-xs font-mono whitespace-pre-wrap break-words rounded-xl border border-[var(--border-default)] color-surface-scrim-soft p-4 text-[var(--content-secondary)] max-h-[18rem] overflow-auto custom-scrollbar"
                             x-text="formatValue(getFieldValue(activeItem))"
                           ></pre>
                         </div>
@@ -2078,13 +2078,13 @@
       </main>
 
       <aside
-        class="preset-editor-context border-l border-[var(--border-main)] bg-[var(--bg-sub)] flex-shrink-0 overflow-y-auto custom-scrollbar"
+        class="preset-editor-context border-l border-[var(--border-subtle)] bg-[var(--surface-container-raised)] flex-shrink-0 overflow-y-auto custom-scrollbar"
         x-show="showRightPanel || $store.global.deviceType !== 'mobile'"
         :class="$store.global.deviceType === 'mobile' ? 'preset-editor-mobile-panel preset-editor-mobile-panel--right w-full' : 'w-80'"
       >
         <div class="p-4 space-y-4">
           <div class="flex items-center justify-between gap-3 md:hidden">
-            <div class="text-sm font-bold text-[var(--text-main)]">上下文</div>
+            <div class="text-sm font-bold text-[var(--content-primary)]">上下文</div>
             <button
               @click="closeMobileRightPanel()"
               class="btn-secondary px-3 py-1 text-xs rounded"
@@ -2097,36 +2097,36 @@
             x-if="isPromptWorkspaceEditor && activeWorkspace === 'prompts'"
           >
             <div
-              class="rounded-2xl border border-[var(--border-light)] bg-[var(--bg-panel)] p-4 space-y-3"
+              class="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-container)] p-4 space-y-3"
             >
-              <div class="text-xs text-[var(--text-dim)]">活动提示词</div>
+              <div class="text-xs text-[var(--content-muted)]">活动提示词</div>
               <div
-                class="text-base font-bold text-[var(--text-main)]"
+                class="text-base font-bold text-[var(--content-primary)]"
                 x-text="activePromptItem?.name || activePromptItem?.__identifier || '尚未选择提示词'"
               ></div>
               <div
-                class="text-xs text-[var(--text-dim)]"
+                class="text-xs text-[var(--content-muted)]"
                 x-text="getPromptRoleLabel(activePromptItem?.role)"
               ></div>
               <div class="grid grid-cols-1 gap-2 text-xs">
                 <div>
-                  <div class="text-[var(--text-dim)]">标识符</div>
+                  <div class="text-[var(--content-muted)]">标识符</div>
                   <div
-                    class="font-mono break-all text-[var(--text-main)]"
+                    class="font-mono break-all text-[var(--content-primary)]"
                     x-text="activePromptItem?.__identifier || '-'"
                   ></div>
                 </div>
                 <div>
-                  <div class="text-[var(--text-dim)]">位置</div>
+                  <div class="text-[var(--content-muted)]">位置</div>
                   <div
-                    class="text-[var(--text-main)]"
+                    class="text-[var(--content-primary)]"
                     x-text="getPromptPositionLabel(activePromptItem)"
                   ></div>
                 </div>
                 <div class="flex flex-wrap gap-2">
                   <span
                     x-show="activePromptItem?.marker"
-                    class="px-2 py-0.5 rounded-full border border-sky-400/30 bg-sky-500/10 text-sky-300"
+                    class="px-2 py-0.5 rounded-full border color-border-info color-surface-info color-text-info"
                   >
                     预留字段
                   </span>
@@ -2139,29 +2139,29 @@
             x-if="!isMirroredProfileEditor && (!isPromptWorkspaceEditor || activeWorkspace !== 'prompts')"
           >
             <div
-              class="rounded-2xl border border-[var(--border-light)] bg-[var(--bg-panel)] p-4 space-y-3"
+              class="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-container)] p-4 space-y-3"
             >
-              <div class="text-xs text-[var(--text-dim)]">活动项</div>
+              <div class="text-xs text-[var(--content-muted)]">活动项</div>
               <div
-                class="text-base font-bold text-[var(--text-main)]"
+                class="text-base font-bold text-[var(--content-primary)]"
                 x-text="activeItem?.title || activeItem?.key || activeItem?.id || '尚未选择字段' "
               ></div>
               <div
-                class="text-xs text-[var(--text-dim)]"
+                class="text-xs text-[var(--content-muted)]"
                 x-text="activeItem?.summary || '在左侧选择字段后，这里会显示上下文信息。' "
               ></div>
               <div class="grid grid-cols-1 gap-2 text-xs">
                 <div>
-                  <div class="text-[var(--text-dim)]">字段路径</div>
+                  <div class="text-[var(--content-muted)]">字段路径</div>
                   <div
-                    class="font-mono break-all text-[var(--text-main)]"
+                    class="font-mono break-all text-[var(--content-primary)]"
                     x-text="activeItem?.value_path || activeItem?.source_key || '-' "
                   ></div>
                 </div>
                 <div>
-                  <div class="text-[var(--text-dim)]">编辑器类型</div>
+                  <div class="text-[var(--content-muted)]">编辑器类型</div>
                   <div
-                    class="text-[var(--text-main)]"
+                    class="text-[var(--content-primary)]"
                     x-text="activeItem?.editor?.kind || 'unknown'"
                   ></div>
                 </div>
@@ -2173,41 +2173,41 @@
             x-if="isMirroredProfileEditor && (!isPromptWorkspaceEditor || activeWorkspace !== 'prompts')"
           >
             <div
-              class="rounded-2xl border border-[var(--border-light)] bg-[var(--bg-panel)] p-4 space-y-3"
+              class="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-container)] p-4 space-y-3"
             >
               <template x-if="!activeMirroredField && mirroredWorkspaceFieldItems.length === 0">
-                <div class="text-sm text-[var(--text-dim)]">
+                <div class="text-sm text-[var(--content-muted)]">
                   当前筛选下没有可用字段。
                 </div>
               </template>
               <template x-if="!activeMirroredField && mirroredWorkspaceFieldItems.length > 0">
-                <div class="text-sm text-[var(--text-dim)]">
+                <div class="text-sm text-[var(--content-muted)]">
                   请先从中间选择一个字段。
                 </div>
               </template>
               <template x-if="activeMirroredField">
                 <div class="space-y-3">
-                  <div class="text-xs text-[var(--text-dim)]">当前字段</div>
+                  <div class="text-xs text-[var(--content-muted)]">当前字段</div>
                   <div
-                    class="text-base font-bold text-[var(--text-main)]"
+                    class="text-base font-bold text-[var(--content-primary)]"
                     x-text="activeMirroredField?.label || activeMirroredField?.id || '尚未选择字段'"
                   ></div>
                   <div
-                    class="text-xs text-[var(--text-dim)]"
+                    class="text-xs text-[var(--content-muted)]"
                     x-text="activeMirroredField?.description || '调整当前字段的值会直接影响该分区的生成设置。'"
                   ></div>
                   <div class="grid grid-cols-1 gap-2 text-xs">
                       <div>
-                        <div class="text-[var(--text-dim)]">当前值</div>
+                        <div class="text-[var(--content-muted)]">当前值</div>
                         <div
-                          class="font-mono break-all text-[var(--text-main)]"
+                          class="font-mono break-all text-[var(--content-primary)]"
                         x-text="formatValue(getProfileFieldValue(activeMirroredField?.id))"
                         ></div>
                       </div>
                     <div>
-                      <div class="text-[var(--text-dim)]">默认值</div>
+                      <div class="text-[var(--content-muted)]">默认值</div>
                       <div
-                        class="font-mono break-all text-[var(--text-main)]"
+                        class="font-mono break-all text-[var(--content-primary)]"
                         x-text="formatValue(activeMirroredField?.default ?? '-')"
                       ></div>
                     </div>
@@ -2219,28 +2219,28 @@
           </template>
 
           <div
-            class="rounded-2xl border border-[var(--border-light)] bg-[var(--bg-panel)] p-4 space-y-3"
+            class="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-container)] p-4 space-y-3"
           >
-            <div class="text-sm font-bold text-[var(--text-main)]">
+            <div class="text-sm font-bold text-[var(--content-primary)]">
               文件信息
             </div>
-            <div class="text-xs text-[var(--text-dim)]">路径</div>
+            <div class="text-xs text-[var(--content-muted)]">路径</div>
             <div
-              class="text-xs font-mono break-all text-[var(--text-main)]"
+              class="text-xs font-mono break-all text-[var(--content-primary)]"
               x-text="editingPresetFile?.path || '-' "
             ></div>
             <div class="grid grid-cols-2 gap-3 text-xs">
               <div>
-                <div class="text-[var(--text-dim)]">修改时间</div>
+                <div class="text-[var(--content-muted)]">修改时间</div>
                 <div
-                  class="text-[var(--text-main)]"
+                  class="text-[var(--content-primary)]"
                   x-text="formatDate(editingPresetFile?.mtime, { includeYear: true })"
                 ></div>
               </div>
               <div>
-                <div class="text-[var(--text-dim)]">文件大小</div>
+                <div class="text-[var(--content-muted)]">文件大小</div>
                 <div
-                  class="text-[var(--text-main)]"
+                  class="text-[var(--content-primary)]"
                   x-text="editingPresetFile?.file_size || 0"
                 ></div>
               </div>
@@ -2248,26 +2248,26 @@
           </div>
 
           <div
-            class="rounded-2xl border border-[var(--border-light)] bg-[var(--bg-panel)] p-4 space-y-3"
+            class="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-container)] p-4 space-y-3"
           >
-            <div class="text-sm font-bold text-[var(--text-main)]">
+            <div class="text-sm font-bold text-[var(--content-primary)]">
               保存检查
             </div>
-            <div class="text-xs text-[var(--text-dim)]">修改状态</div>
+            <div class="text-xs text-[var(--content-muted)]">修改状态</div>
             <div
               class="text-xs"
-              :class="isDirty ? 'text-amber-300' : 'text-green-300'"
+              :class="isDirty ? 'color-text-warning' : 'color-text-success'"
               x-text="isDirty ? '存在未保存修改' : '当前与磁盘同步' "
             ></div>
-            <div class="text-xs text-[var(--text-dim)]">冲突状态</div>
+            <div class="text-xs text-[var(--content-muted)]">冲突状态</div>
             <div
               class="text-xs"
-              :class="hasConflict ? 'text-red-300' : 'text-green-300'"
+              :class="hasConflict ? 'color-text-danger' : 'color-text-success'"
               x-text="hasConflict ? `冲突 revision: ${conflictRevision || '未知'}` : '未发现冲突' "
             ></div>
-            <div class="text-xs text-[var(--text-dim)]">草稿状态</div>
+            <div class="text-xs text-[var(--content-muted)]">草稿状态</div>
             <div
-              class="text-xs text-[var(--text-main)]"
+              class="text-xs text-[var(--content-primary)]"
               x-text="draftState.restored ? '已恢复本地草稿' : (draftState.savedAt ? '已自动保存草稿' : '暂无本地草稿')"
             ></div>
           </div>

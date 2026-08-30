@@ -19,12 +19,12 @@ body {
     "Helvetica Neue",
     Arial,
     sans-serif;
-  background-color: var(--bg-body);
+  background-color: var(--surface-page);
   background-image: var(--bg-image-url);
   background-size: cover;
   background-position: center;
   background-attachment: fixed;
-  color: var(--text-main);
+  color: var(--content-primary);
   overflow: hidden;
   min-height: 100vh;
   min-height: 100dvh;
@@ -50,15 +50,15 @@ body {
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--accent-light);
+  background: var(--accent-text);
 }
 
 .text-accent {
-  color: var(--accent-light);
+  color: var(--accent-text);
 }
 
 .border-accent {
-  border-color: var(--accent-main);
+  border-color: var(--accent-outline);
 }
 
 .font-mono {
@@ -69,7 +69,7 @@ body {
   max-width: 100%;
   border-radius: 8px;
   margin: 0.5rem 0;
-  border: 1px solid var(--border-light);
+  border: 1px solid var(--border-default);
 }
 
 .markdown-body h1,
@@ -78,12 +78,12 @@ body {
   font-weight: bold;
   margin-top: 1em;
   margin-bottom: 0.5em;
-  color: var(--accent-light);
+  color: var(--accent-text);
 }
 
 .markdown-body h1 {
   font-size: 1.5em;
-  border-bottom: 1px solid var(--border-light);
+  border-bottom: 1px solid var(--border-default);
 }
 
 .markdown-body h2 {
@@ -105,33 +105,33 @@ body {
 }
 
 .markdown-body blockquote {
-  border-left: 4px solid var(--accent-main);
+  border-left: 4px solid var(--accent-action);
   padding-left: 1em;
-  color: var(--text-sub);
+  color: var(--content-secondary);
   margin: 1em 0;
-  background: var(--bg-sub);
+  background: var(--surface-container-raised);
   padding: 0.5em 1em;
   border-radius: 4px;
 }
 
 .markdown-body code {
-  background: var(--bg-sub);
+  background: var(--surface-container-raised);
   padding: 0.2em 0.4em;
   border-radius: 3px;
   font-family: monospace;
   font-size: 0.9em;
-  color: #e06c75;
+  color: var(--status-danger-text);
 }
 
 .markdown-body pre {
-  background: var(--bg-body);
+  background: var(--surface-page);
   padding: 1em;
   border-radius: 8px;
   overflow-x: auto;
 }
 
 .markdown-body a {
-  color: var(--accent-main);
+  color: var(--accent-action);
   text-decoration: underline;
 }
 

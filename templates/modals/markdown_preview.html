@@ -3,17 +3,17 @@
 <!-- 只读 Markdown 预览模态框 -->
 <div x-show="showMarkdownModal" x-cloak class="modal-overlay z-modal-popover" @click="showMarkdownModal=false">
     <div class="modal-container"
-        style="width: 1000px; height: 90vh; max-width: 95vw; background: var(--bg-panel); display: flex; flex-direction: column;"
+        style="width: 1000px; height: 90vh; max-width: 95vw; background: var(--surface-container); display: flex; flex-direction: column;"
         @click.stop>
 
         <!-- 头部 -->
         <div
-            style="padding: 1rem; border-bottom: 1px solid var(--border-light); display: flex; justify-content: space-between; align-items: center; background: var(--bg-sub);">
+            style="padding: 1rem; border-bottom: 1px solid var(--border-default); display: flex; justify-content: space-between; align-items: center; background: var(--surface-container-raised);">
             <h3 class="font-bold flex items-center gap-2">
                 <span aria-hidden="true">{{ icon('file', 'ui-icon--md') }}</span>
                 <span>本地备注预览</span>
             </h3>
-            <button @click="showMarkdownModal=false" aria-label="关闭 Markdown 预览" style="color: var(--text-dim); cursor: pointer;">
+            <button @click="showMarkdownModal=false" aria-label="关闭 Markdown 预览" style="color: var(--content-muted); cursor: pointer;">
                 {{ icon('close', 'ui-icon--md') }}
             </button>
         </div>
@@ -25,7 +25,7 @@
 
         <!-- 底部 -->
         <div
-            style="padding: 0.75rem; border-top: 1px solid var(--border-light); text-align: right; background: var(--bg-sub); color: var(--text-dim); font-size: 0.75rem;">
+            style="padding: 0.75rem; border-top: 1px solid var(--border-default); text-align: right; background: var(--surface-container-raised); color: var(--content-muted); font-size: 0.75rem;">
             只读模式，如需编辑请进入详情页
         </div>
     </div>

@@ -589,7 +589,7 @@ def test_beautify_layout_css_replaces_dark_shell_colors_with_theme_driven_surfac
         'border',
         'var(--beautify-shell-frame-border)',
     )
-    assert 'color-mix(in srgb, var(--accent-main)' in primary_button_block
+    assert 'color-mix(in srgb, var(--accent-action)' in primary_button_block
     assert 'linear-gradient(135deg, var(--accent-main), #8b5cf6)' not in primary_button_block
 
 
@@ -639,7 +639,7 @@ def test_beautify_layout_css_styles_host_owned_scene_switcher_surface():
     active_button_block = extract_css_block_for_selector(css, '.beautify-preview-scene-btn.is-active')
 
     assert_has_css_declaration(switcher_block, 'display', 'flex')
-    assert_has_css_declaration(switcher_block, 'border', 'var(--border-light)')
+    assert_has_css_declaration(switcher_block, 'border', 'var(--border-default)')
     assert_has_css_declaration(switcher_block, 'background', 'var(--beautify-card-surface)')
     assert_has_css_declaration(button_block, 'text-align', 'left')
     assert_has_css_declaration(button_block, 'background', 'transparent')
@@ -686,9 +686,9 @@ def test_beautify_layout_css_avoids_fixed_pale_text_colors_for_status_pills_and_
     assert '#bfdbfe' not in installed_block
     assert '#a7f3d0' not in applied_block
     assert '#fde68a' not in preview_notice_block
-    assert_has_css_declaration(installed_block, 'color', 'var(--text-main)')
-    assert_has_css_declaration(applied_block, 'color', 'var(--text-main)')
-    assert_has_css_declaration(preview_notice_block, 'color', 'var(--text-main)')
+    assert_has_css_declaration(installed_block, 'color', 'var(--content-primary)')
+    assert_has_css_declaration(applied_block, 'color', 'var(--content-primary)')
+    assert_has_css_declaration(preview_notice_block, 'color', 'var(--content-primary)')
 
 
 def test_beautify_grid_template_mobile_css_drops_grid_area_layout():

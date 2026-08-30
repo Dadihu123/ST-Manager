@@ -87,6 +87,16 @@ function ensureGlobalListeners() {
     },
     { passive: true },
   );
+
+  window.addEventListener("theme-mode-changed", () => {
+    runtimes.forEach((runtime) => {
+      if (!runtime.host.isConnected) {
+        runtime.destroy();
+        return;
+      }
+      runtime.refreshTheme();
+    });
+  });
 }
 
 function cleanupDisconnectedRuntimes() {
@@ -130,7 +140,7 @@ class RenderIframeRuntime {
                 display: block;
                 width: 100%;
                 overflow: hidden;
-                background: var(--bg-body, #000);
+                background: var(--surface-page);
                 border-radius: 6px;
             }
             .stm-render-frame {
@@ -260,10 +270,20 @@ class RenderIframeRuntime {
         htmlPayload: options.htmlPayload,
         noteHtml: options.noteHtml || "",
         assetBase: options.assetBase || "",
+        themeMode: document.documentElement?.classList?.contains?.("light-mode")
+          ? "light"
+          : "dark",
       }),
     );
     this.syncViewport();
     this.publishState("running");
+  }
+
+  refreshTheme() {
+    if (!this.documentHtml || !this.options) {
+      return;
+    }
+    this.update({ ...this.options });
   }
 
   publishState(status) {

@@ -16,7 +16,7 @@
   padding: 0;
   border: 1px solid transparent;
   border-radius: 0.45rem;
-  color: var(--text-dim);
+  color: var(--content-muted);
   background: transparent;
   cursor: pointer;
   transition:
@@ -27,19 +27,19 @@
 }
 
 .ui-reorder-button:hover {
-  color: var(--text-main);
-  background: var(--bg-hover);
-  border-color: var(--border-light);
+  color: var(--content-primary);
+  background: var(--state-hover-surface);
+  border-color: var(--border-default);
 }
 
 .ui-reorder-button:active {
-  color: var(--accent-light);
-  background: var(--accent-faint);
-  border-color: color-mix(in srgb, var(--accent-main), transparent 62%);
+  color: var(--accent-text);
+  background: var(--accent-soft-strong);
+  border-color: color-mix(in srgb, var(--accent-action), transparent 62%);
 }
 
 .ui-reorder-button:focus-visible {
-  outline: 2px solid var(--accent-light);
+  outline: 2px solid var(--accent-text);
   outline-offset: 2px;
 }
 
@@ -51,7 +51,7 @@
 
 .ui-reorder-button:disabled:hover,
 .ui-reorder-button[aria-disabled='true']:hover {
-  color: var(--text-dim);
+  color: var(--content-muted);
   background: transparent;
   border-color: transparent;
 }
@@ -68,22 +68,22 @@
   padding: 0;
   border: 1px solid transparent;
   border-radius: 0.45rem;
-  color: var(--text-dim);
+  color: var(--content-muted);
   background: transparent;
   font-size: inherit;
   font-weight: inherit;
 }
 
 .tag-filter-mobile-sort-row .ui-reorder-button:hover {
-  color: var(--text-main);
-  background: var(--bg-hover);
-  border-color: var(--border-light);
+  color: var(--content-primary);
+  background: var(--state-hover-surface);
+  border-color: var(--border-default);
 }
 
 .tag-filter-mobile-sort-row .ui-reorder-button:active {
-  color: var(--accent-light);
-  background: var(--accent-faint);
-  border-color: color-mix(in srgb, var(--accent-main), transparent 62%);
+  color: var(--accent-text);
+  background: var(--accent-soft-strong);
+  border-color: color-mix(in srgb, var(--accent-action), transparent 62%);
 }
 
 .ui-number-control {
@@ -149,7 +149,7 @@
   padding: 0;
   border: 0;
   border-radius: 0.35rem;
-  color: var(--text-dim);
+  color: var(--content-muted);
   background: transparent;
   cursor: pointer;
   transition:
@@ -164,20 +164,20 @@
 
 .ui-number-stepper-btn:hover,
 .settings-number-stepper-btn:hover {
-  color: var(--text-main);
-  background: var(--bg-hover);
+  color: var(--content-primary);
+  background: var(--state-hover-surface);
 }
 
 .ui-number-stepper-btn:active,
 .settings-number-stepper-btn:active {
-  color: var(--accent-light);
-  background: var(--accent-faint);
+  color: var(--accent-text);
+  background: var(--accent-soft-strong);
 }
 
 .ui-number-stepper-btn:focus-visible,
 .settings-number-stepper-btn:focus-visible {
   z-index: 1;
-  outline: 2px solid var(--accent-light);
+  outline: 2px solid var(--accent-text);
   outline-offset: -2px;
 }
 
@@ -189,7 +189,7 @@
 
 .ui-number-stepper-btn:disabled:hover,
 .settings-number-stepper-btn:disabled:hover {
-  color: var(--text-dim);
+  color: var(--content-muted);
   background: transparent;
 }
 

@@ -76,7 +76,7 @@ def test_context_menu_uses_theme_aware_desktop_hover_colors():
 
     assert 'hover:bg-gray-700' not in template_source
     assert 'border-gray-700' not in template_source
-    assert template_source.count('hover:bg-[var(--bg-hover)]') >= 8
+    assert template_source.count('hover:bg-[var(--state-hover-surface)]') >= 8
 
 
 def test_settings_template_contains_isolated_category_management_section():

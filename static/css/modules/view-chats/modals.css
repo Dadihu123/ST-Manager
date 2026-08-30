@@ -1,7 +1,7 @@
 .chat-bind-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(5, 12, 10, 0.5);}
+  background: color-mix(in srgb, var(--surface-page) 50%, transparent);}
 
 .chat-bind-modal {
   width: min(720px, calc(100vw - 2rem));
@@ -44,7 +44,7 @@
   gap: 1rem;
   padding-bottom: 0.2rem;
   border-bottom: 1px solid
-    color-mix(in srgb, var(--border-light), transparent 16%);
+    color-mix(in srgb, var(--border-default), transparent 16%);
 }
 
 .chat-reader-nested-heading {
@@ -103,8 +103,8 @@
   gap: 0.45rem;
   padding: 0.85rem 0.95rem;
   border-radius: var(--chat-radius-md);
-  border: 1px solid color-mix(in srgb, var(--border-light), transparent 10%);
-  background: color-mix(in srgb, var(--bg-panel), transparent 2%);
+  border: 1px solid color-mix(in srgb, var(--border-default), transparent 10%);
+  background: color-mix(in srgb, var(--surface-container), transparent 2%);
 }
 
 .chat-reader-nested-empty {
@@ -222,7 +222,7 @@
   font-weight: 600;
   letter-spacing: 0.02em;
   text-transform: none;
-  color: var(--text-dim);
+  color: var(--content-muted);
 }
 
 .chat-reader-regex-rule-card {
@@ -300,15 +300,15 @@
 }
 
 .chat-reader-regex-browser-item:hover {
-  border-color: color-mix(in srgb, var(--accent-main), transparent 48%);
-  background: color-mix(in srgb, var(--accent-main), transparent 94%);
+  border-color: color-mix(in srgb, var(--accent-action), transparent 48%);
+  background: color-mix(in srgb, var(--accent-action), transparent 94%);
 }
 
 .chat-reader-regex-browser-item.is-active {
-  border-color: color-mix(in srgb, var(--accent-main), transparent 30%);
-  background: color-mix(in srgb, var(--accent-main), transparent 90%);
+  border-color: color-mix(in srgb, var(--accent-action), transparent 30%);
+  background: color-mix(in srgb, var(--accent-action), transparent 90%);
   box-shadow: inset 0 0 0 1px
-    color-mix(in srgb, var(--accent-main), transparent 48%);
+    color-mix(in srgb, var(--accent-action), transparent 48%);
 }
 
 .chat-reader-regex-browser-head {
@@ -334,16 +334,16 @@
   min-height: 26px;
   padding: 0.18rem 0.6rem;
   border-radius: 999px;
-  border: 1px solid var(--border-light);
-  background: color-mix(in srgb, var(--bg-body), transparent 0%);
-  color: var(--text-dim);
+  border: 1px solid var(--border-default);
+  background: color-mix(in srgb, var(--surface-page), transparent 0%);
+  color: var(--content-muted);
   font-family: "JetBrains Mono", "Fira Code", monospace;
   font-size: 0.72rem;
   font-weight: 700;
 }
 
 .chat-reader-regex-browser-pattern {
-  color: #facc15;
+  color: var(--status-warning-text);
   font-family: "JetBrains Mono", "Fira Code", monospace;
   font-size: 0.75rem;
   line-height: 1.65;
@@ -362,7 +362,7 @@
 }
 
 .chat-reader-regex-browser-meta span {
-  color: var(--text-dim);
+  color: var(--content-muted);
   font-size: 0.72rem;
   line-height: 1.5;
 }
@@ -372,17 +372,17 @@
   min-height: 0;
   overflow: auto;
   border-radius: var(--chat-radius-md);
-  border: 1px solid var(--border-light);
-  background: color-mix(in srgb, var(--bg-panel), transparent 2%);
+  border: 1px solid var(--border-default);
+  background: color-mix(in srgb, var(--surface-container), transparent 2%);
   padding: 0.85rem;
 }
 
 .chat-reader-regex-browser-empty {
   border-radius: var(--chat-radius-md);
-  border: 1px dashed var(--border-light);
-  background: color-mix(in srgb, var(--bg-panel), transparent 2%);
+  border: 1px dashed var(--border-default);
+  background: color-mix(in srgb, var(--surface-container), transparent 2%);
   padding: 1rem;
-  color: var(--text-dim);
+  color: var(--content-muted);
   font-size: 0.82rem;
   line-height: 1.7;
 }
@@ -414,23 +414,23 @@
   min-height: 24px;
   padding: 0.15rem 0.55rem;
   border-radius: 999px;
-  border: 1px solid var(--border-light);
-  background: color-mix(in srgb, var(--bg-body), transparent 0%);
-  color: var(--text-dim);
+  border: 1px solid var(--border-default);
+  background: color-mix(in srgb, var(--surface-page), transparent 0%);
+  color: var(--content-muted);
   font-size: 0.72rem;
   font-weight: 700;
 }
 
 .chat-reader-regex-state-pill.is-accent {
-  border-color: color-mix(in srgb, var(--accent-main), transparent 42%);
-  color: color-mix(in srgb, var(--accent-main), white 8%);
-  background: color-mix(in srgb, var(--accent-main), transparent 90%);
+  border-color: color-mix(in srgb, var(--accent-action), transparent 42%);
+  color: color-mix(in srgb, var(--accent-action), var(--content-on-dark) 8%);
+  background: color-mix(in srgb, var(--accent-action), transparent 90%);
 }
 
 .chat-reader-regex-state-pill.is-muted {
-  border-color: color-mix(in srgb, var(--border-light), transparent 12%);
-  color: var(--text-dim);
-  background: color-mix(in srgb, var(--bg-body), transparent 0%);
+  border-color: color-mix(in srgb, var(--border-default), transparent 12%);
+  color: var(--content-muted);
+  background: color-mix(in srgb, var(--surface-page), transparent 0%);
 }
 
 .chat-reader-regex-inspector-section {
@@ -444,7 +444,7 @@
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--text-dim);
+  color: var(--content-muted);
 }
 
 .chat-reader-regex-inspector-code {
@@ -465,17 +465,17 @@
 
 .chat-reader-regex-inspector-code--pattern {
   min-height: 10rem;
-  color: #facc15;
+  color: var(--status-warning-text);
 }
 
 .chat-reader-regex-inspector-code--replace {
   min-height: 5.25rem;
-  color: #86efac;
+  color: var(--status-success-text);
 }
 
 .chat-reader-regex-inspector-code--raw {
   min-height: 4.5rem;
-  color: #cbd5e1;
+  color: var(--content-secondary);
 }
 
 .chat-reader-regex-inspector-code--trim {
@@ -491,8 +491,8 @@
 
 .chat-reader-regex-meta-card {
   border-radius: var(--chat-radius-sm);
-  border: 1px solid var(--border-light);
-  background: color-mix(in srgb, var(--bg-body), transparent 0%);
+  border: 1px solid var(--border-default);
+  background: color-mix(in srgb, var(--surface-page), transparent 0%);
   padding: 0.72rem 0.8rem;
   display: flex;
   flex-direction: column;
@@ -501,12 +501,12 @@
 }
 
 .chat-reader-regex-meta-card span {
-  color: var(--text-dim);
+  color: var(--content-muted);
   font-size: 0.72rem;
 }
 
 .chat-reader-regex-meta-card strong {
-  color: var(--text-main);
+  color: var(--content-primary);
   font-size: 0.86rem;
   line-height: 1.6;
   overflow-wrap: anywhere;
@@ -625,29 +625,29 @@
 }
 
 .chat-reader-regex-summary-chip.is-accent {
-  border-color: color-mix(in srgb, var(--accent-main), transparent 42%);
-  background: color-mix(in srgb, var(--accent-main), transparent 92%);
+  border-color: color-mix(in srgb, var(--accent-action), transparent 42%);
+  background: color-mix(in srgb, var(--accent-action), transparent 92%);
 }
 
 .chat-reader-regex-summary-chip.is-success {
-  border-color: rgba(34, 197, 94, 0.38);
-  background: rgba(34, 197, 94, 0.08);
+  border-color: color-mix(in srgb, var(--status-success-solid) 38%, transparent);
+  background: color-mix(in srgb, var(--status-success-solid) 8%, transparent);
 }
 
 .chat-reader-regex-summary-chip.is-info {
-  border-color: rgba(59, 130, 246, 0.34);
-  background: rgba(59, 130, 246, 0.07);
+  border-color: color-mix(in srgb, var(--accent-action) 34%, transparent);
+  background: color-mix(in srgb, var(--accent-action) 7%, transparent);
 }
 
 .chat-reader-regex-summary-label {
-  color: var(--text-dim);
+  color: var(--content-muted);
   font-size: 0.65rem;
   font-weight: 600;
   letter-spacing: 0.02em;
 }
 
 .chat-reader-regex-summary-chip strong {
-  color: var(--text-main);
+  color: var(--content-primary);
   font-size: 0.72rem;
   line-height: 1.35;
   overflow-wrap: anywhere;
@@ -655,7 +655,7 @@
 
 .chat-reader-regex-summary-feedback {
   min-height: 1.2rem;
-  color: var(--text-dim);
+  color: var(--content-muted);
   font-size: 0.78rem;
   line-height: 1.45;
 }
@@ -693,7 +693,7 @@
 
 .chat-reader-rule-summary strong {
   display: block;
-  color: var(--text-main);
+  color: var(--content-primary);
   font-size: 0.92rem;
 }
 
@@ -710,33 +710,33 @@
   min-height: 24px;
   padding: 0.15rem 0.55rem;
   border-radius: 999px;
-  border: 1px solid var(--border-light);
-  background: color-mix(in srgb, var(--bg-body), transparent 0%);
-  color: var(--text-dim);
+  border: 1px solid var(--border-default);
+  background: color-mix(in srgb, var(--surface-page), transparent 0%);
+  color: var(--content-muted);
   font-size: 0.72rem;
   font-weight: 700;
 }
 
 .chat-reader-rule-source-pill.is-accent {
-  border-color: color-mix(in srgb, var(--accent-main), transparent 42%);
-  color: color-mix(in srgb, var(--accent-main), white 8%);
-  background: color-mix(in srgb, var(--accent-main), transparent 90%);
+  border-color: color-mix(in srgb, var(--accent-action), transparent 42%);
+  color: color-mix(in srgb, var(--accent-action), var(--content-on-dark) 8%);
+  background: color-mix(in srgb, var(--accent-action), transparent 90%);
 }
 
 .chat-reader-rule-source-pill.is-success {
-  border-color: rgba(34, 197, 94, 0.38);
-  color: #bbf7d0;
-  background: rgba(34, 197, 94, 0.08);
+  border-color: color-mix(in srgb, var(--status-success-solid) 38%, transparent);
+  color: var(--status-success-text);
+  background: color-mix(in srgb, var(--status-success-solid) 8%, transparent);
 }
 
 .chat-reader-rule-source-pill.is-info {
-  border-color: rgba(59, 130, 246, 0.34);
-  color: #bfdbfe;
-  background: rgba(59, 130, 246, 0.08);
+  border-color: color-mix(in srgb, var(--accent-action) 34%, transparent);
+  color: var(--accent-outline);
+  background: color-mix(in srgb, var(--accent-action) 8%, transparent);
 }
 
 .chat-reader-rule-summary span {
-  color: var(--text-dim);
+  color: var(--content-muted);
   font-size: 0.78rem;
   line-height: 1.5;
 }
@@ -756,9 +756,9 @@
   overflow: auto;
   padding: 0.7rem 0.85rem;
   border-radius: var(--chat-radius-sm);
-  border: 1px solid var(--border-light);
-  background: color-mix(in srgb, var(--bg-body), transparent 0%);
-  color: var(--text-dim);
+  border: 1px solid var(--border-default);
+  background: color-mix(in srgb, var(--surface-page), transparent 0%);
+  color: var(--content-muted);
   font-size: 0.8rem;
   line-height: 1.65;
   white-space: pre-wrap;
@@ -792,8 +792,8 @@
 .chat-reader-floor-preview {
   min-height: min(46dvh, 420px);
   border-radius: var(--chat-radius-md);
-  border: 1px solid var(--border-light);
-  background: color-mix(in srgb, var(--bg-body), transparent 0%);
+  border: 1px solid var(--border-default);
+  background: color-mix(in srgb, var(--surface-page), transparent 0%);
   padding: 1rem;
   overflow: auto;
 }
@@ -806,7 +806,7 @@
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--text-dim);
+  color: var(--content-muted);
 }
 
 .chat-reader-regex-test-grid {
@@ -828,7 +828,7 @@
 .chat-reader-floor-diff {
   border-radius: var(--chat-radius-sm);
   border: 1px solid var(--chat-border);
-  background: color-mix(in srgb, var(--bg-body), var(--bg-panel) 35%);
+  background: color-mix(in srgb, var(--surface-page), var(--surface-container) 35%);
   padding: 0.55rem 0.65rem;
   min-width: 0;
 }
@@ -902,7 +902,7 @@
   border: 1px solid var(--chat-reader-code-inline-border);
   background: var(--chat-reader-code-inline-bg);
   color: var(--chat-reader-code-inline-text);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--content-on-dark) 4%, transparent);
 }
 
 .chat-reader-floor-preview .markdown-body pre code,
@@ -975,8 +975,8 @@
   scrollbar-width: thin;
   scrollbar-color: color-mix(
       in srgb,
-      var(--accent-main) 48%,
-      var(--border-light)
+      var(--accent-action) 48%,
+      var(--border-default)
     )
     transparent;
 }
@@ -992,13 +992,13 @@
 
 .chat-reader-regex-preview::-webkit-scrollbar-thumb {
   border-radius: 999px;
-  background: color-mix(in srgb, var(--accent-main) 42%, var(--border-light));
+  background: color-mix(in srgb, var(--accent-action) 42%, var(--border-default));
   border: 2px solid transparent;
   background-clip: padding-box;
 }
 
 .chat-reader-regex-preview::-webkit-scrollbar-thumb:hover {
-  background: color-mix(in srgb, var(--accent-main) 62%, var(--border-light));
+  background: color-mix(in srgb, var(--accent-action) 62%, var(--border-default));
 }
 
 .chat-reader-regex-preview pre,
@@ -1034,8 +1034,8 @@
   gap: 0.55rem;
   border-radius: var(--chat-radius-sm);
   padding: 0.65rem 0.75rem;
-  border: 1px solid var(--border-light);
-  background: color-mix(in srgb, var(--bg-panel), transparent 4%);
+  border: 1px solid var(--border-default);
+  background: color-mix(in srgb, var(--surface-container), transparent 4%);
   white-space: pre-wrap;
   word-break: break-word;
   font-family: "JetBrains Mono", "Fira Code", monospace;
@@ -1044,11 +1044,11 @@
 }
 
 .chat-diff-cell--before {
-  color: #fca5a5;
+  color: var(--status-danger-text);
 }
 
 .chat-diff-cell--after {
-  color: #86efac;
+  color: var(--status-success-text);
 }
 
 .chat-diff-prefix {
@@ -1057,8 +1057,8 @@
 }
 
 .chat-diff-row.is-changed .chat-diff-cell {
-  border-color: color-mix(in srgb, var(--accent-main), white 10%);
-  background: color-mix(in srgb, var(--accent-main), transparent 94%);
+  border-color: color-mix(in srgb, var(--accent-action), var(--content-on-dark) 10%);
+  background: color-mix(in srgb, var(--accent-action), transparent 94%);
 }
 
 .chat-bind-header {

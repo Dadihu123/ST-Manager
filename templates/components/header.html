@@ -193,8 +193,8 @@
         <span
           style="
             font-size: 0.75rem;
-            background: var(--accent-main);
-            color: white;
+            background: var(--accent-action);
+            color: var(--content-on-accent);
             padding: 2px 6px;
             border-radius: 4px;
             margin-left: 0.25rem;
@@ -271,8 +271,8 @@
       x-show="selectedIds.length > 0"
       class="selection-bar flex items-center gap-2 border px-3 py-1.5 rounded-lg mr-2 relative"
       style="
-        background-color: var(--accent-faint);
-        border-color: var(--accent-light);
+        background-color: var(--accent-soft-strong);
+        border-color: var(--accent-text);
         z-index: var(--z-card-selected);
         overflow: visible;
       "
@@ -283,8 +283,8 @@
       <button
         x-show="currentMode === 'cards' || currentMode === 'worldinfo' || currentMode === 'presets'"
         @click="toggleSelectAll()"
-        class="text-xs px-2 py-1 rounded text-white transition-all"
-        :style="isCurrentPageAllSelected ? 'background-color: #ef4444;' : 'background-color: #10b981;'"
+        class="btn-success text-xs px-2 py-1 rounded color-text-on-accent transition-all"
+        :class="isCurrentPageAllSelected ? 'btn-danger' : 'btn-success'"
         :title="isCurrentPageAllSelected ? '取消全选当前页' : '全选当前页'"
       >
         <span x-show="!isCurrentPageAllSelected">全选</span>
@@ -293,15 +293,14 @@
       <button
         x-show="currentMode === 'cards'"
         @click.stop="openBatchTagModal()"
-        class="text-xs px-2 py-1 rounded text-white"
-        style="background-color: #7c3aed; transition: all 0.2s"
+        class="btn-violet text-xs px-2 py-1 rounded color-text-on-accent"
       >
         批量标签
       </button>
       <button
         x-show="currentMode === 'cards'"
         @click="deleteSelectedCards()"
-        class="text-xs bg-red-800 hover:bg-red-700 px-2 py-1 rounded text-white border border-red-600/50 transition-all flex items-center gap-1"
+        class="text-xs color-surface-danger-solid color-hover-surface-danger px-2 py-1 rounded color-text-on-dark border color-border-danger transition-all flex items-center gap-1"
       >
         <span aria-hidden="true">{{ icon('trash', 'ui-icon--sm ') }}</span
         >移至回收站
@@ -309,7 +308,7 @@
       <button
         x-show="currentMode === 'worldinfo' && canMoveWorldInfoSelection()"
         @click="moveSelectedWorldInfo()"
-        class="text-xs px-2 py-1 rounded text-white bg-blue-700 hover:bg-blue-600 transition-all flex items-center gap-1"
+        class="text-xs px-2 py-1 rounded color-text-on-accent color-surface-accent-solid color-hover-surface-accent transition-all flex items-center gap-1"
       >
         <span aria-hidden="true">{{ icon('folder', 'ui-icon--sm ') }}</span
         >移动分类
@@ -317,7 +316,7 @@
       <button
         x-show="currentMode === 'worldinfo' && canDeleteWorldInfoSelection()"
         @click="deleteSelectedWorldInfo()"
-        class="text-xs bg-red-800 hover:bg-red-700 px-2 py-1 rounded text-white border border-red-600/50 transition-all flex items-center gap-1"
+        class="text-xs color-surface-danger-solid color-hover-surface-danger px-2 py-1 rounded color-text-on-dark border color-border-danger transition-all flex items-center gap-1"
       >
         <span aria-hidden="true">{{ icon('trash', 'ui-icon--sm ') }}</span
         >删除世界书
@@ -327,15 +326,14 @@
         @click="mergeSelectedPresets()"
         :disabled="!canMergePresetSelection()"
         :title="getPresetMergeSelectionTitle()"
-        class="text-xs px-2 py-1 rounded text-white"
-        style="background-color: #7c3aed"
+        class="btn-violet text-xs px-2 py-1 rounded color-text-on-accent"
       >
         合并为多版本
       </button>
       <button
         x-show="currentMode === 'presets' && canMovePresetSelection()"
         @click="moveSelectedPresets()"
-        class="text-xs px-2 py-1 rounded text-white bg-blue-700 hover:bg-blue-600 transition-all flex items-center gap-1"
+        class="text-xs px-2 py-1 rounded color-text-on-accent color-surface-accent-solid color-hover-surface-accent transition-all flex items-center gap-1"
       >
         <span aria-hidden="true">{{ icon('folder', 'ui-icon--sm ') }}</span
         >移动分类
@@ -343,7 +341,7 @@
       <button
         x-show="currentMode === 'presets' && canDeletePresetSelection()"
         @click="deleteSelectedPresets()"
-        class="text-xs bg-red-800 hover:bg-red-700 px-2 py-1 rounded text-white border border-red-600/50 transition-all flex items-center gap-1"
+        class="text-xs color-surface-danger-solid color-hover-surface-danger px-2 py-1 rounded color-text-on-dark border color-border-danger transition-all flex items-center gap-1"
       >
         <span aria-hidden="true">{{ icon('trash', 'ui-icon--sm ') }}</span
         >删除预设
@@ -356,7 +354,7 @@
       >
         <button
           @click="showRuleMenu = !showRuleMenu; if(showRuleMenu) $dispatch('load-rulesets-for-menu')"
-          class="text-xs px-2 py-1 rounded text-white bg-yellow-600 hover:bg-yellow-500 transition-all flex items-center gap-1"
+          class="text-xs px-2 py-1 rounded color-text-on-accent color-surface-warning-solid color-hover-surface-warning transition-all flex items-center gap-1"
         >
           <span aria-hidden="true">{{ icon('workflow', 'ui-icon--sm ') }}</span
           >自动处理
@@ -368,27 +366,27 @@
           x-transition:enter="transition ease-out duration-100"
           x-transition:enter-start="opacity-0 scale-95"
           x-transition:enter-end="opacity-100 scale-100"
-          class="absolute top-full left-0 mt-2 w-56 bg-[var(--bg-panel)] border border-[var(--border-light)] rounded-lg shadow-2xl py-1"
+          class="absolute top-full left-0 mt-2 w-56 bg-[var(--surface-container)] border border-[var(--border-default)] rounded-lg shadow-2xl py-1"
           style="z-index: var(--z-dropdown)"
         >
           <!-- 这个列表由全局 store 管理 -->
           <template x-for="rs in $store.global.availableRuleSets" :key="rs.id">
             <button
               @click="executeRuleSet(rs.id); showRuleMenu=false"
-              class="w-full text-left px-3 py-2 text-xs hover:bg-[var(--bg-hover)] text-[var(--text-main)] block"
+              class="w-full text-left px-3 py-2 text-xs hover:bg-[var(--state-hover-surface)] text-[var(--content-primary)] block"
               x-text="rs.meta && rs.meta.name ? rs.meta.name : rs.id"
             ></button>
           </template>
           <div
             x-show="!$store.global.availableRuleSets || $store.global.availableRuleSets.length===0"
-            class="px-3 py-2 text-xs text-[var(--text-dim)]"
+            class="px-3 py-2 text-xs text-[var(--content-muted)]"
           >
             无规则集
           </div>
-          <div class="border-t border-[var(--border-light)] mt-1 pt-1">
+          <div class="border-t border-[var(--border-default)] mt-1 pt-1">
             <button
               @click="$dispatch('open-automation-modal'); showRuleMenu=false"
-              class="w-full text-left px-3 py-2 text-xs text-blue-400 hover:bg-[var(--bg-hover)] flex items-center gap-1"
+              class="w-full text-left px-3 py-2 text-xs color-text-accent hover:bg-[var(--state-hover-surface)] flex items-center gap-1"
             >
               <span aria-hidden="true"
                 >{{ icon('settings', 'ui-icon--sm') }}</span
@@ -408,7 +406,7 @@
           x-ref="sourceUpdateMenuButton"
           @click="showSourceUpdateMenu = !showSourceUpdateMenu"
           type="button"
-          class="text-xs px-2 py-1 rounded text-white bg-teal-700 hover:bg-teal-600 transition-all flex items-center gap-1"
+          class="text-xs px-2 py-1 rounded color-text-on-accent color-surface-info-solid color-hover-surface-info transition-all flex items-center gap-1"
           aria-haspopup="menu"
           :aria-expanded="showSourceUpdateMenu.toString()"
           title="检查更新或确认已有更新无需处理"
@@ -426,14 +424,14 @@
           x-transition:enter-start="opacity-0 scale-95"
           x-transition:enter-end="opacity-100 scale-100"
           role="menu"
-          class="absolute top-full left-0 mt-2 w-56 bg-[var(--bg-panel)] border border-[var(--border-light)] rounded-lg shadow-2xl py-1 overflow-hidden"
+          class="absolute top-full left-0 mt-2 w-56 bg-[var(--surface-container)] border border-[var(--border-default)] rounded-lg shadow-2xl py-1 overflow-hidden"
           style="z-index: var(--z-dropdown)"
         >
           <button
             @click="checkSelectedSourceUpdates(); showSourceUpdateMenu = false"
             type="button"
             role="menuitem"
-            class="w-full block text-left px-3 py-2 text-xs hover:bg-[var(--bg-hover)] text-[var(--text-main)] transition-colors"
+            class="w-full block text-left px-3 py-2 text-xs hover:bg-[var(--state-hover-surface)] text-[var(--content-primary)] transition-colors"
           >
             检查更新
           </button>
@@ -441,19 +439,19 @@
             @click="acknowledgeSelectedSourceUpdates(); showSourceUpdateMenu = false"
             type="button"
             role="menuitem"
-            class="w-full block text-left px-3 py-2 text-xs hover:bg-[var(--bg-hover)] text-[var(--text-main)] transition-colors"
+            class="w-full block text-left px-3 py-2 text-xs hover:bg-[var(--state-hover-surface)] text-[var(--content-primary)] transition-colors"
           >
             确认无需更新
           </button>
           <div
-            class="my-1 border-t border-[var(--border-light)]"
+            class="my-1 border-t border-[var(--border-default)]"
             role="separator"
           ></div>
           <button
             @click="addSelectedToSourceMonitorPool(); showSourceUpdateMenu = false"
             type="button"
             role="menuitem"
-            class="w-full block text-left px-3 py-2 text-xs hover:bg-[var(--bg-hover)] text-[var(--text-main)] transition-colors"
+            class="w-full block text-left px-3 py-2 text-xs hover:bg-[var(--state-hover-surface)] text-[var(--content-primary)] transition-colors"
           >
             加入监控池（已选 <span x-text="selectedIds.length"></span> 张）
           </button>
@@ -461,8 +459,8 @@
       </div>
       <button
         @click="selectedIds = []"
-        class="text-xs hover:text-white cursor-pointer"
-        style="color: var(--text-sub)"
+        class="text-xs color-hover-text-on-dark cursor-pointer"
+        style="color: var(--content-secondary)"
       >
         取消
       </button>
@@ -620,7 +618,7 @@
     </div>
 
     <div
-      class="header-toolbar-divider h-6 w-[1px] bg-[var(--border-light)]"
+      class="header-toolbar-divider h-6 w-[1px] bg-[var(--border-default)]"
       aria-hidden="true"
     ></div>
 
@@ -687,7 +685,7 @@
         @click="$dispatch('open-automation-modal')"
         title="自动化规则管理"
         aria-label="自动化规则管理"
-        class="btn-secondary header-tool-btn text-yellow-500"
+        class="btn-secondary header-tool-btn color-text-warning"
       >
         {{ icon('workflow', 'ui-icon--md ') }}
       </button>
@@ -709,7 +707,7 @@
     style="
       margin-top: 0.5rem;
       padding: 0.5rem;
-      background-color: var(--accent-faint);
+      background-color: var(--accent-soft-strong);
       border-radius: 0.5rem;
       display: flex;
       align-items: center;
@@ -720,14 +718,14 @@
     <span
       x-show="selectedIds.length > 0"
       class="text-xs"
-      style="color: var(--text-main)"
+      style="color: var(--content-primary)"
       >已选 <span x-text="selectedIds.length" class="font-bold"></span
     ></span>
     <button
       x-show="currentMode === 'cards' || currentMode === 'presets'"
       @click="toggleSelectAll()"
-      class="text-xs px-2 py-1 rounded text-white transition-all"
-      :style="isCurrentPageAllSelected ? 'background-color: #ef4444;' : 'background-color: #10b981;'"
+      class="btn-success text-xs px-2 py-1 rounded color-text-on-accent transition-all"
+      :class="isCurrentPageAllSelected ? 'btn-danger' : 'btn-success'"
       :title="isCurrentPageAllSelected ? '取消全选当前页' : '全选当前页'"
     >
       <span x-show="!isCurrentPageAllSelected">全选</span>
@@ -736,16 +734,14 @@
     <button
       x-show="selectedIds.length > 0 && currentMode === 'cards'"
       @click="openBatchTagModal()"
-      class="text-xs px-2 py-1 rounded text-white"
-      style="background-color: #7c3aed"
+      class="btn-violet text-xs px-2 py-1 rounded color-text-on-accent"
     >
       标签
     </button>
     <button
       x-show="selectedIds.length > 0 && currentMode === 'cards'"
       @click="openMoveModal()"
-      class="text-xs px-2 py-1 rounded text-white flex items-center justify-center"
-      style="background-color: #10b981"
+      class="btn-success text-xs px-2 py-1 rounded color-text-on-accent flex items-center justify-center"
       title="移动选中角色卡"
       aria-label="移动选中角色卡"
     >
@@ -754,8 +750,7 @@
     <button
       x-show="selectedIds.length > 0 && currentMode === 'cards'"
       @click="openExecuteRulesMobile()"
-      class="text-xs px-2 py-1 rounded text-white flex items-center justify-center"
-      style="background-color: #f59e0b"
+      class="btn-warning text-xs px-2 py-1 rounded color-text-on-accent flex items-center justify-center"
       title="运行自动化规则"
       aria-label="运行自动化规则"
     >
@@ -771,8 +766,8 @@
         x-ref="sourceUpdateMenuButton"
         @click="showSourceUpdateMenu = !showSourceUpdateMenu"
         type="button"
-        class="text-xs px-2 py-1 rounded text-white flex items-center justify-center gap-1"
-        style="background-color: #0f766e; min-height: 2.75rem"
+        class="btn-info text-xs px-2 py-1 rounded color-text-on-accent flex items-center justify-center gap-1"
+        style="min-height: 2.75rem"
         aria-haspopup="menu"
         :aria-expanded="showSourceUpdateMenu.toString()"
         title="检查更新或确认已有更新无需处理"
@@ -787,14 +782,14 @@
         x-cloak
         @click.away="showSourceUpdateMenu = false"
         role="menu"
-        class="absolute top-full left-0 mt-2 w-48 max-w-[calc(100vw-1rem)] bg-[var(--bg-panel)] border border-[var(--border-light)] rounded-lg shadow-2xl py-1 overflow-hidden"
+        class="absolute top-full left-0 mt-2 w-48 max-w-[calc(100vw-1rem)] bg-[var(--surface-container)] border border-[var(--border-default)] rounded-lg shadow-2xl py-1 overflow-hidden"
         style="z-index: var(--z-dropdown)"
       >
         <button
           @click="checkSelectedSourceUpdates(); showSourceUpdateMenu = false"
           type="button"
           role="menuitem"
-          class="w-full block min-h-11 text-left px-3 py-3 text-sm hover:bg-[var(--bg-hover)] text-[var(--text-main)]"
+          class="w-full block min-h-11 text-left px-3 py-3 text-sm hover:bg-[var(--state-hover-surface)] text-[var(--content-primary)]"
         >
           检查更新
         </button>
@@ -802,19 +797,19 @@
           @click="acknowledgeSelectedSourceUpdates(); showSourceUpdateMenu = false"
           type="button"
           role="menuitem"
-          class="w-full block min-h-11 text-left px-3 py-3 text-sm hover:bg-[var(--bg-hover)] text-[var(--text-main)]"
+          class="w-full block min-h-11 text-left px-3 py-3 text-sm hover:bg-[var(--state-hover-surface)] text-[var(--content-primary)]"
         >
           确认无需更新
         </button>
         <div
-          class="my-1 border-t border-[var(--border-light)]"
+          class="my-1 border-t border-[var(--border-default)]"
           role="separator"
         ></div>
         <button
           @click="addSelectedToSourceMonitorPool(); showSourceUpdateMenu = false"
           type="button"
           role="menuitem"
-          class="w-full block min-h-11 text-left px-3 py-3 text-sm hover:bg-[var(--bg-hover)] text-[var(--text-main)]"
+          class="w-full block min-h-11 text-left px-3 py-3 text-sm hover:bg-[var(--state-hover-surface)] text-[var(--content-primary)]"
         >
           加入监控池（已选 <span x-text="selectedIds.length"></span> 张）
         </button>
@@ -823,8 +818,7 @@
     <button
       x-show="selectedIds.length > 0 && currentMode === 'presets' && canMovePresetSelection()"
       @click="moveSelectedPresets()"
-      class="text-xs px-2 py-1 rounded text-white flex items-center justify-center"
-      style="background-color: #10b981"
+      class="btn-success text-xs px-2 py-1 rounded color-text-on-accent flex items-center justify-center"
       title="移动选中预设"
       aria-label="移动选中预设"
     >
@@ -833,7 +827,7 @@
     <button
       x-show="selectedIds.length > 0 && currentMode === 'presets' && canDeletePresetSelection()"
       @click="deleteSelectedPresets()"
-      class="text-xs px-2 py-1 rounded text-white bg-red-800 flex items-center justify-center"
+      class="text-xs px-2 py-1 rounded color-text-on-accent color-surface-danger-solid flex items-center justify-center"
       title="删除选中预设"
       aria-label="删除选中预设"
     >
@@ -842,7 +836,7 @@
     <button
       x-show="currentMode === 'cards'"
       @click="deleteSelectedCards()"
-      class="text-xs px-2 py-1 rounded text-white bg-red-800 flex items-center justify-center"
+      class="text-xs px-2 py-1 rounded color-text-on-accent color-surface-danger-solid flex items-center justify-center"
       title="删除选中角色卡"
       aria-label="删除选中角色卡"
     >
@@ -851,7 +845,7 @@
     <button
       @click="selectedIds = []"
       class="text-xs px-2 py-1 rounded"
-      style="background-color: var(--bg-sub); color: var(--text-main)"
+      style="background-color: var(--surface-container-raised); color: var(--content-primary)"
     >
       取消
     </button>

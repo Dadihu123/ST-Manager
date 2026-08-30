@@ -5,56 +5,56 @@
     <div class="modal-container flex flex-col" style="width: 900px; height: 85vh; max-height: 900px;">
         
         <!-- Header -->
-        <div style="padding: 1.25rem; border-bottom: 1px solid var(--border-light); background: var(--bg-sub); flex-shrink: 0;">
+        <div style="padding: 1.25rem; border-bottom: 1px solid var(--border-default); background: var(--surface-container-raised); flex-shrink: 0;">
             <div class="flex justify-between items-center">
                 <div class="flex items-center gap-3">
                     <span aria-hidden="true">{{ icon('file-import', 'ui-icon--lg') }}</span>
                     <div>
-                        <h3 class="font-bold text-lg text-[var(--text-main)]">批量导入确认</h3>
-                        <p class="text-xs text-[var(--text-dim)]">
+                        <h3 class="font-bold text-lg text-[var(--content-primary)]">批量导入确认</h3>
+                        <p class="text-xs text-[var(--content-muted)]">
                             目标路径: <span class="font-mono text-accent" x-text="targetCategory || '根目录'"></span>
                             <span class="mx-2">|</span>
-                            共 <span x-text="totalCount"></span> 个文件，发现 <span class="text-yellow-500 font-bold" x-text="conflictCount"></span> 个冲突
+                            共 <span x-text="totalCount"></span> 个文件，发现 <span class="color-text-warning font-bold" x-text="conflictCount"></span> 个冲突
                         </p>
                     </div>
                 </div>
-                <button @click="cancelImport()" class="text-gray-500 hover:text-red-400 text-xl px-2" aria-label="关闭批量导入弹窗">
+                <button @click="cancelImport()" class="color-text-muted color-hover-text-danger text-xl px-2" aria-label="关闭批量导入弹窗">
                     {{ icon('close', 'ui-icon--md') }}
                 </button>
             </div>
 
             <!-- 批量操作栏 -->
-            <div x-show="conflictCount > 0" class="mt-4 flex items-center gap-3 bg-[var(--bg-panel)] p-2 rounded border border-[var(--border-light)]">
-                <span class="text-xs font-bold text-[var(--text-dim)] uppercase ml-1">解决所有冲突:</span>
-                <button @click="applyToAllConflicts('rename')" class="btn-secondary py-1 px-3 text-xs flex items-center gap-1 hover:text-blue-400">
+            <div x-show="conflictCount > 0" class="mt-4 flex items-center gap-3 bg-[var(--surface-container)] p-2 rounded border border-[var(--border-default)]">
+                <span class="text-xs font-bold text-[var(--content-muted)] uppercase ml-1">解决所有冲突:</span>
+                <button @click="applyToAllConflicts('rename')" class="btn-secondary py-1 px-3 text-xs flex items-center gap-1 color-hover-text-accent">
                     <span aria-hidden="true">{{ icon('pencil-edit', 'ui-icon--sm') }}</span> 全部追加 (Rename)
                 </button>
-                <button @click="applyToAllConflicts('overwrite')" class="btn-secondary py-1 px-3 text-xs flex items-center gap-1 hover:text-red-400">
+                <button @click="applyToAllConflicts('overwrite')" class="btn-secondary py-1 px-3 text-xs flex items-center gap-1 color-hover-text-danger">
                     <span aria-hidden="true">{{ detail_icon('overwrite', 'ui-icon--sm') }}</span> 全部覆盖 (Overwrite)
                 </button>
-                <button @click="applyToAllConflicts('skip')" class="btn-secondary py-1 px-3 text-xs flex items-center gap-1 hover:text-gray-400">
+                <button @click="applyToAllConflicts('skip')" class="btn-secondary py-1 px-3 text-xs flex items-center gap-1 color-hover-text-neutral">
                     <span aria-hidden="true">{{ icon('forbidden', 'ui-icon--sm') }}</span> 全部跳过 (Skip)
                 </button>
             </div>
         </div>
 
         <!-- Body: List -->
-        <div class="flex-1 overflow-y-auto custom-scrollbar p-3 bg-[var(--bg-body)]">
+        <div class="flex-1 overflow-y-auto custom-scrollbar p-3 bg-[var(--surface-page)]">
             <div class="flex flex-col gap-3">
                 <template x-for="(item, idx) in importItems" :key="idx">
                     
                     <!-- 卡片容器 -->
                     <div class="batch-import-card rounded border transition-colors overflow-hidden"
-                        :class="item.status === 'conflict' ? 'bg-[var(--bg-panel)] border-yellow-500/30' : 'bg-[var(--bg-panel)] border-[var(--border-light)]'">
+                        :class="item.status === 'conflict' ? 'bg-[var(--surface-container)] color-border-warning' : 'bg-[var(--surface-container)] border-[var(--border-default)]'">
                         
                         <!-- 1. 冲突模式：左右对比布局 -->
                         <div x-show="item.status === 'conflict'" class="flex flex-col">
                             <!-- 标题栏 -->
-                            <div class="px-3 py-2 border-b border-[var(--border-light)] bg-[var(--bg-sub)] flex justify-between items-center">
+                            <div class="px-3 py-2 border-b border-[var(--border-default)] bg-[var(--surface-container-raised)] flex justify-between items-center">
                                 <div class="flex items-center gap-2 overflow-hidden">
-                                    <span class="text-yellow-500" aria-hidden="true">{{ icon('alert-triangle', 'ui-icon--sm') }}</span>
+                                    <span class="color-text-warning" aria-hidden="true">{{ icon('alert-triangle', 'ui-icon--sm') }}</span>
                                     <span class="font-bold text-sm truncate" x-text="item.filename" :title="item.filename"></span>
-                                    <span class="text-[10px] bg-yellow-500/10 text-yellow-500 px-1.5 rounded border border-yellow-500/20">冲突</span>
+                                    <span class="text-[10px] color-surface-warning color-text-warning px-1.5 rounded border color-border-warning">冲突</span>
                                 </div>
                                 
                                 <!-- 操作选择 -->
@@ -108,18 +108,18 @@
                             <!-- 对比区域 -->
                             <div class="grid grid-cols-2 gap-0 relative">
                                 <!-- VS 中轴线 -->
-                                <div class="absolute left-1/2 top-0 bottom-0 w-[1px] bg-[var(--border-light)] z-0"></div>
-                                <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-[var(--bg-panel)] border border-[var(--border-light)] text-[10px] px-1 rounded z-10 text-[var(--text-dim)]">VS</div>
+                                <div class="absolute left-1/2 top-0 bottom-0 w-[1px] bg-[var(--border-default)] z-0"></div>
+                                <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-[var(--surface-container)] border border-[var(--border-default)] text-[10px] px-1 rounded z-10 text-[var(--content-muted)]">VS</div>
 
                                 <!-- 左侧：现有文件 -->
                                 <div class="p-3 flex items-center gap-3 relative" :class="item.action === 'overwrite' ? 'opacity-50 grayscale' : ''">
-                                    <div class="w-12 h-16 bg-black rounded overflow-hidden flex-shrink-0 border border-[var(--border-light)]">
+                                    <div class="w-12 h-16 color-surface-scrim rounded overflow-hidden flex-shrink-0 border border-[var(--border-default)]">
                                         <img :src="item.existing_info?.preview_url" class="w-full h-full object-cover opacity-80">
                                     </div>
                                     <div class="min-w-0 flex-1">
-                                        <div class="text-[10px] text-[var(--text-dim)] uppercase">Existing (原有)</div>
-                                        <div class="font-bold text-sm truncate text-[var(--text-main)]" x-text="item.existing_info?.char_name"></div>
-                                        <div class="flex gap-2 mt-1 text-[10px] text-[var(--text-dim)]">
+                                        <div class="text-[10px] text-[var(--content-muted)] uppercase">Existing (原有)</div>
+                                        <div class="font-bold text-sm truncate text-[var(--content-primary)]" x-text="item.existing_info?.char_name"></div>
+                                        <div class="flex gap-2 mt-1 text-[10px] text-[var(--content-muted)]">
                                             <span x-text="(item.existing_info?.token_count || 0) + ' Tk'"></span>
                                             <span x-text="formatSize(item.existing_info?.file_size)"></span>
                                         </div>
@@ -128,22 +128,22 @@
 
                                 <!-- 右侧：新文件 -->
                                 <div class="p-3 flex items-center gap-3 relative" :class="item.action === 'skip' ? 'opacity-50 grayscale' : ''">
-                                    <div class="w-12 h-16 bg-black rounded overflow-hidden flex-shrink-0 border border-[var(--border-light)]">
+                                    <div class="w-12 h-16 color-surface-scrim rounded overflow-hidden flex-shrink-0 border border-[var(--border-default)]">
                                         <img :src="item.new_info?.preview_url" class="w-full h-full object-cover">
                                     </div>
                                     <div class="min-w-0 flex-1">
-                                        <div class="text-[10px] text-green-500 uppercase font-bold">New (导入)</div>
-                                        <div class="font-bold text-sm truncate text-green-400" x-text="item.new_info?.char_name"></div>
-                                        <div class="flex gap-2 mt-1 text-[10px] text-[var(--text-dim)]">
+                                        <div class="text-[10px] color-text-success uppercase font-bold">New (导入)</div>
+                                        <div class="font-bold text-sm truncate color-text-success" x-text="item.new_info?.char_name"></div>
+                                        <div class="flex gap-2 mt-1 text-[10px] text-[var(--content-muted)]">
                                             <span x-text="(item.new_info?.token_count || 0) + ' Tk'"></span>
                                             <span x-text="formatSize(item.new_info?.file_size)"></span>
                                         </div>
                                     </div>
                                     <!-- Action Badge -->
                                     <div class="absolute right-2 top-2 text-xs font-bold">
-                                        <span x-show="item.action==='rename'" class="text-yellow-500" aria-hidden="true">{{ icon('pencil-edit', 'ui-icon--xs') }}</span>
-                                        <span x-show="item.action==='overwrite'" class="text-red-500" aria-hidden="true">{{ detail_icon('overwrite', 'ui-icon--xs') }}</span>
-                                        <span x-show="item.action==='skip'" class="text-gray-500" aria-hidden="true">{{ icon('forbidden', 'ui-icon--xs') }}</span>
+                                        <span x-show="item.action==='rename'" class="color-text-warning" aria-hidden="true">{{ icon('pencil-edit', 'ui-icon--xs') }}</span>
+                                        <span x-show="item.action==='overwrite'" class="color-text-danger" aria-hidden="true">{{ detail_icon('overwrite', 'ui-icon--xs') }}</span>
+                                        <span x-show="item.action==='skip'" class="color-text-muted" aria-hidden="true">{{ icon('forbidden', 'ui-icon--xs') }}</span>
                                     </div>
                                 </div>
                             </div>
@@ -152,23 +152,23 @@
                         <!-- 2. 正常模式：简单列表 -->
                         <div x-show="item.status === 'ok'" class="flex items-center gap-3 p-2">
                             <!-- 小图 -->
-                            <div class="w-10 h-10 bg-black rounded overflow-hidden flex-shrink-0 border border-[var(--border-light)]">
+                            <div class="w-10 h-10 color-surface-scrim rounded overflow-hidden flex-shrink-0 border border-[var(--border-default)]">
                                 <img :src="item.new_info?.preview_url" class="w-full h-full object-cover">
                             </div>
                             
                             <div class="flex-1 min-w-0">
                                 <div class="flex items-center gap-2">
-                                    <span class="font-bold text-sm truncate text-[var(--text-main)]" x-text="item.new_info?.char_name || item.filename"></span>
-                                    <span class="text-[10px] bg-green-500/10 text-green-500 px-1.5 rounded border border-green-500/20">NEW</span>
+                                    <span class="font-bold text-sm truncate text-[var(--content-primary)]" x-text="item.new_info?.char_name || item.filename"></span>
+                                    <span class="text-[10px] color-surface-success color-text-success px-1.5 rounded border color-border-success">NEW</span>
                                 </div>
-                                <div class="text-[10px] text-[var(--text-dim)] flex gap-2">
+                                <div class="text-[10px] text-[var(--content-muted)] flex gap-2">
                                     <span x-text="item.filename"></span>
                                     <span>|</span>
                                     <span x-text="(item.new_info?.token_count || 0) + ' Tk'"></span>
                                 </div>
                             </div>
 
-                            <div class="text-green-500 text-xs px-2 flex items-center gap-1">
+                            <div class="color-text-success text-xs px-2 flex items-center gap-1">
                                 <span aria-hidden="true">{{ icon('check', 'ui-icon--sm') }}</span> 准备导入
                             </div>
                         </div>
@@ -179,7 +179,7 @@
         </div>
 
         <!-- Footer -->
-        <div style="padding: 1rem; border-top: 1px solid var(--border-light); background: var(--bg-sub); flex-shrink: 0;">
+        <div style="padding: 1rem; border-top: 1px solid var(--border-default); background: var(--surface-container-raised); flex-shrink: 0;">
             <div class="flex justify-end gap-3">
                 <button @click="cancelImport()" class="btn-secondary px-6 py-2 rounded">
                     取消

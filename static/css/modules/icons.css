@@ -194,12 +194,12 @@
   width: 24px;
   height: 24px;
   overflow: visible;
-  --ui-dice-face-side: #f8fafc;
-  --ui-dice-face-top: #ffffff;
-  --ui-dice-outline: #1e293b;
-  --ui-dice-pip: #1e293b;
-  --ui-dice-pip-accent: #ef4444;
-  --ui-dice-shadow: #0f172a;
+  --ui-dice-face-side: var(--content-on-dark);
+  --ui-dice-face-top: var(--content-on-dark);
+  --ui-dice-outline: var(--content-on-light);
+  --ui-dice-pip: var(--content-on-light);
+  --ui-dice-pip-accent: var(--status-danger-solid);
+  --ui-dice-shadow: var(--content-on-light);
 }
 
 /* 头部高频入口使用 32px 图标挡位；移动菜单沿用基础 24px 挡位。 */

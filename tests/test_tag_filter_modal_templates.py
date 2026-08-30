@@ -114,7 +114,7 @@ def test_tag_filter_template_desktop_topbar_has_sort_mode_context_label():
     compact_section = compact_whitespace(desktop_topbar_section)
 
     assert 'x-show="desktopWorkspaceMode === \'sort\'"' in desktop_topbar_section
-    assert 'class="text-blue-300"' in desktop_topbar_section
+    assert 'class="color-text-accent"' in desktop_topbar_section
     assert '>标签排序</span' in compact_section
 
 
@@ -124,7 +124,7 @@ def test_tag_filter_template_desktop_topbar_has_category_manager_context_label()
     compact_section = compact_whitespace(desktop_topbar_section)
 
     assert 'x-show="desktopWorkspaceMode === \'category-manager\' && !isDeleteMode"' in desktop_topbar_section
-    assert 'class="text-sky-300"' in desktop_topbar_section
+    assert 'class="color-text-info"' in desktop_topbar_section
     assert '>分类管理中心</span' in compact_section
 
 
@@ -147,8 +147,8 @@ def test_tag_filter_js_sync_mobile_tab_state_resets_mode_specific_mobile_state()
     ])
     assert 'this.selectedCategoryTags = [];' in section
     assert_contains_either(section, ["this.categoryDraftName = '';", 'this.categoryDraftName = "";'])
-    assert_contains_either(section, ["this.categoryDraftColor = '#64748b';", 'this.categoryDraftColor = "#64748b";'])
-    assert 'this.categoryDraftOpacity = 16;' in section
+    assert 'this.categoryDraftColor = DEFAULT_TAG_CATEGORY_COLOR;' in section
+    assert 'this.categoryDraftOpacity = DEFAULT_TAG_CATEGORY_OPACITY;' in section
     assert 'this.showCategoryManager = false;' in section
 
 
@@ -179,8 +179,8 @@ def test_tag_filter_js_close_reset_helper_covers_task2_contract():
     assert 'this.selectedTagsForDeletion = [];' in reset_section
     assert 'this.selectedCategoryTags = [];' in reset_section
     assert_contains_either(reset_section, ["this.categoryDraftName = '';", 'this.categoryDraftName = "";'])
-    assert_contains_either(reset_section, ["this.categoryDraftColor = '#64748b';", 'this.categoryDraftColor = "#64748b";'])
-    assert 'this.categoryDraftOpacity = 16;' in reset_section
+    assert 'this.categoryDraftColor = DEFAULT_TAG_CATEGORY_COLOR;' in reset_section
+    assert 'this.categoryDraftOpacity = DEFAULT_TAG_CATEGORY_OPACITY;' in reset_section
     assert 'this.showCategoryManager = false;' in reset_section
     assert_contains_either(reset_section, ["this.mobileActiveTab = 'filter';", 'this.mobileActiveTab = "filter";'])
 

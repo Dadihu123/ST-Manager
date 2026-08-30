@@ -5,22 +5,22 @@
 <div x-show="showAdvancedModal" x-data="advancedEditor" x-cloak class="modal-overlay z-modal-popover"
     @click.self="requestClose()">
     <div class="modal-container advanced-editor-container"
-        style="width: 1200px; height: 90vh; flex-direction: column; border: 1px solid var(--border-light);">
+        style="width: 1200px; height: 90vh; flex-direction: column; border: 1px solid var(--border-default);">
 
         <!-- 1. 顶部 Header -->
         <div class="p-4 border-b flex justify-between items-center advanced-editor-header"
-            style="background: var(--bg-sub); border-color: var(--border-light);">
+            style="background: var(--surface-container-raised); border-color: var(--border-default);">
             <div class="flex items-center gap-3">
-                <h3 class="font-bold text-lg advanced-editor-title flex items-center gap-2" style="color: var(--text-main);">
+                <h3 class="font-bold text-lg advanced-editor-title flex items-center gap-2" style="color: var(--content-primary);">
                     <span aria-hidden="true">{{ icon('sliders-settings', 'ui-icon--md ') }}</span>
                     <span>高级扩展</span>
                 </h3>
-                <span class="text-xs px-2 py-0.5 rounded border border-gray-600 text-gray-400 hidden md:inline"
+                <span class="text-xs px-2 py-0.5 rounded border color-border-default color-text-muted hidden md:inline"
                     x-text="isFileMode ? (fileType === 'regex' ? '单文件编辑: Regex' : '单文件编辑: Script') : 'Regex & Scripts'">
                 </span>
             </div>
             <button type="button" @click="requestClose()"
-                class="text-gray-400 hover:text-red-500 transition text-xl advanced-editor-close-btn"
+                class="color-text-muted color-hover-text-danger transition text-xl advanced-editor-close-btn"
                 title="关闭" aria-label="关闭高级编辑器">
                 {{ icon('close', 'ui-icon--md ') }}
             </button>
@@ -38,8 +38,8 @@
             </div>
         </div>
         <div class="adv-tab-bar" x-show="isFileMode"
-            style="background: var(--bg-sub); border-bottom: 1px solid var(--border-light); cursor: default;">
-            <div class="adv-tab active" style="border-bottom-color: var(--accent-main); color: var(--accent-main);">
+            style="background: var(--surface-container-raised); border-bottom: 1px solid var(--border-default); cursor: default;">
+            <div class="adv-tab active" style="border-bottom-color: var(--accent-action); color: var(--accent-action);">
                 <span class="tab-icon inline-flex items-center" aria-hidden="true">
                     <span x-show="fileType === 'regex'">{{ detail_icon('regex', 'ui-icon--sm ') }}</span>
                     <span x-show="fileType === 'script'">{{ detail_icon('script-file', 'ui-icon--sm ') }}</span>
@@ -71,20 +71,20 @@
                     x-transition:leave-start="transform translate-x-0"
                     x-transition:leave-end="transform -translate-x-full">
                     <div
-                        class="p-3 border-b border-[var(--border-light)] flex justify-between items-center bg-[var(--bg-sub)] sticky top-0 z-10">
-                        <span class="text-xs font-bold text-[var(--text-sub)] uppercase">Script List</span>
+                        class="p-3 border-b border-[var(--border-default)] flex justify-between items-center bg-[var(--surface-container-raised)] sticky top-0 z-10">
+                        <span class="text-xs font-bold text-[var(--content-secondary)] uppercase">Script List</span>
                         <div class="flex items-center gap-2">
                             <template x-if="!isFileMode">
                                 <div class="flex gap-2">
                                     <button @click="$refs.importRegexInput.click()"
-                                        class="text-xs bg-[var(--bg-panel)] border border-[var(--border-light)] hover:bg-[var(--bg-hover)] px-2 py-1 rounded transition"
+                                        class="text-xs bg-[var(--surface-container)] border border-[var(--border-default)] hover:bg-[var(--state-hover-surface)] px-2 py-1 rounded transition"
                                         title="导入正则" aria-label="导入正则">
                                         {{ icon('file-import', 'ui-icon--sm ') }}
                                     </button>
                                     <input type="file" x-ref="importRegexInput" @change="importRegex" accept=".json"
                                         style="display:none;">
                                     <button @click="addRegexScript()"
-                                        class="text-xs bg-green-600 hover:bg-green-500 text-white px-2 py-1 rounded transition flex items-center gap-1"
+                                        class="text-xs color-surface-success-solid color-hover-surface-success color-text-on-dark px-2 py-1 rounded transition flex items-center gap-1"
                                         title="新建正则脚本">
                                         {{ icon('plus-square', 'ui-icon--sm ') }}<span>新建</span>
                                     </button>
@@ -104,18 +104,18 @@
                                 <div class="flex-1 min-w-0 overflow-hidden">
                                     <div class="flex justify-between items-center mb-1">
                                         <span class="font-bold text-sm truncate"
-                                            :class="script.disabled ? 'text-gray-500 line-through' : 'text-[var(--text-main)]'"
+                                            :class="script.disabled ? 'color-text-muted line-through' : 'text-[var(--content-primary)]'"
                                             x-text="script.scriptName || '未命名脚本'"></span>
                                     </div>
-                                    <div class="text-[10px] font-mono text-[var(--text-dim)] truncate"
+                                    <div class="text-[10px] font-mono text-[var(--content-muted)] truncate"
                                         x-text="script.findRegex || 'Empty Regex'"></div>
 
                                     <!-- 状态小标 -->
                                     <div class="flex gap-1 mt-1">
-                                        <span x-show="script.runOnEdit" class="w-2 h-2 rounded-full bg-blue-500"
+                                        <span x-show="script.runOnEdit" class="w-2 h-2 rounded-full color-surface-accent-solid"
                                             title="Run On Edit"></span>
                                         <span x-show="script.placement && script.placement.length > 0"
-                                            class="w-2 h-2 rounded-full bg-purple-500" title="Has Placement"></span>
+                                            class="w-2 h-2 rounded-full color-surface-violet" title="Has Placement"></span>
                                     </div>
                                 </div>
 
@@ -138,7 +138,7 @@
                                                 </div>
                                             </div>
                                             <button @click.stop="removeRegexScript(idx)"
-                                                class="opacity-0 group-hover:opacity-100 text-gray-500 hover:text-red-400 p-1 flex-shrink-0 transition"
+                                                class="opacity-0 group-hover:opacity-100 color-text-muted color-hover-text-danger p-1 flex-shrink-0 transition"
                                                 title="删除正则脚本" aria-label="删除正则脚本">
                                                 {{ icon('close-bold', 'ui-icon--xs') }}
                                             </button>
@@ -151,7 +151,7 @@
                         </template>
 
                         <div x-show="editingData.extensions.regex_scripts.length === 0"
-                            class="p-8 text-center text-[var(--text-dim)] text-xs">
+                            class="p-8 text-center text-[var(--content-muted)] text-xs">
                             暂无正则脚本<br>点击上方按钮添加
                         </div>
                     </div>
@@ -165,7 +165,7 @@
                         <div class="flex flex-col gap-4">
 
                             <!-- A. 基础信息栏 -->
-                            <div class="flex gap-4 items-end border-b border-[var(--border-light)] pb-4">
+                            <div class="flex gap-4 items-end border-b border-[var(--border-default)] pb-4">
                                 <div class="flex-1">
                                     <label class="form-label">脚本名称 (Script Name)</label>
                                     <input type="text"
@@ -177,14 +177,14 @@
                                         title="6. 在编辑时运行，当指定角色的消息被编辑时运行正则脚本。">
                                         <input type="checkbox"
                                             x-model="editingData.extensions.regex_scripts[activeRegexIndex].runOnEdit"
-                                            class="w-4 h-4 rounded accent-blue-500">
-                                        <span class="text-sm text-[var(--text-main)]">编辑时运行</span>
+                                            class="w-4 h-4 rounded color-accent-primary">
+                                        <span class="text-sm text-[var(--content-primary)]">编辑时运行</span>
                                     </label>
                                     <label class="flex items-center gap-2 cursor-pointer select-none" title="禁用此脚本">
                                         <input type="checkbox"
                                             x-model="editingData.extensions.regex_scripts[activeRegexIndex].disabled"
-                                            class="w-4 h-4 rounded accent-red-500">
-                                        <span class="text-sm font-bold text-red-400">禁用</span>
+                                            class="w-4 h-4 rounded color-accent-danger">
+                                        <span class="text-sm font-bold color-text-danger">禁用</span>
                                     </label>
                                 </div>
                             </div>
@@ -197,7 +197,7 @@
                                         <span>查找 (Match)</span>
                                     </span>
                                     <div class="flex items-center gap-2">
-                                        <span class="text-[10px] text-[var(--text-dim)]"
+                                        <span class="text-[10px] text-[var(--content-muted)]"
                                             title="8. 宏替换：在运行正则表达式之前，替换{{macros}}">宏替换:</span>
                                         {% call styled_select(
                                             "editingData.extensions.regex_scripts[activeRegexIndex].substituteRegex",
@@ -214,19 +214,19 @@
                                     </div>
                                 </div>
                                 <div class="relative">
-                                    <span class="absolute left-3 top-2.5 text-yellow-500 font-mono text-sm">/</span>
+                                    <span class="absolute left-3 top-2.5 color-text-warning font-mono text-sm">/</span>
                                     <input type="text"
                                         x-model="editingData.extensions.regex_scripts[activeRegexIndex].findRegex"
                                         class="form-input font-mono text-sm pl-6 pr-12"
-                                        style="color: #eab308; background: var(--bg-code);" placeholder="regex pattern">
-                                    <span class="absolute right-3 top-2.5 text-yellow-500 font-mono text-sm">/gm</span>
+                                        style="color: var(--status-warning-text); background: var(--surface-code);" placeholder="regex pattern">
+                                    <span class="absolute right-3 top-2.5 color-text-warning font-mono text-sm">/gm</span>
                                 </div>
                                 <div class="flex gap-4 mt-2">
                                     <label class="flex items-center gap-2 cursor-pointer">
                                         <input type="checkbox"
                                             x-model="editingData.extensions.regex_scripts[activeRegexIndex].caseSensitive"
-                                            class="rounded bg-gray-700">
-                                        <span class="text-xs text-[var(--text-sub)]">区分大小写 (Case Sensitive)</span>
+                                            class="rounded color-surface-raised">
+                                        <span class="text-xs text-[var(--content-secondary)]">区分大小写 (Case Sensitive)</span>
                                     </label>
                                 </div>
                             </div>
@@ -235,7 +235,7 @@
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <!-- 替换 -->
                                 <div class="adv-section flex flex-col h-48">
-                                    <div class="adv-section-title text-green-500">
+                                    <div class="adv-section-title color-text-success">
                                         <span class="inline-flex items-center gap-1">
                                             {{ icon('replace', 'ui-icon--sm ') }}
                                             <span>替换内容 (Replace With)</span>
@@ -244,12 +244,12 @@
                                     <textarea
                                         x-model="editingData.extensions.regex_scripts[activeRegexIndex].replaceString"
                                         class="form-textarea font-mono text-xs flex-1 resize-none custom-scrollbar"
-                                        style="color: #22c55e; background: var(--bg-code);"
+                                        style="color: var(--status-success-text); background: var(--surface-code);"
                                         placeholder="Replacement string (supports $1, $2...)"></textarea>
                                 </div>
                                 <!-- 剔除 -->
                                 <div class="adv-section flex flex-col h-48">
-                                    <div class="adv-section-title text-blue-400">
+                                    <div class="adv-section-title color-text-accent">
                                         <span class="inline-flex items-center gap-1">
                                             {{ icon('scissors', 'ui-icon--sm ') }}
                                             <span>剔除字符串 (Trim Out)</span>
@@ -259,7 +259,7 @@
                                         :value="getTrimStringsText(editingData.extensions.regex_scripts[activeRegexIndex])"
                                         @input="updateTrimStrings(editingData.extensions.regex_scripts[activeRegexIndex], $event.target.value)"
                                         class="form-textarea font-mono text-xs flex-1 resize-none custom-scrollbar"
-                                        style="background: var(--bg-code);"
+                                        style="background: var(--surface-code);"
                                         placeholder="One string per line to remove before regex runs"></textarea>
                                 </div>
                             </div>
@@ -325,7 +325,7 @@
                                     <div class="flex flex-col gap-3">
                                         <div class="flex gap-4">
                                             <div class="flex-1">
-                                                <label class="text-[10px] text-[var(--text-dim)] uppercase block mb-1"
+                                                <label class="text-[10px] text-[var(--content-muted)] uppercase block mb-1"
                                                     title="7. 最小深度... '0'为最后一条消息">最小深度 (Min Depth)</label>
                                                 <div class="ui-number-control">
                                                     <input type="number" min="0" step="1"
@@ -342,7 +342,7 @@
                                                 </div>
                                             </div>
                                             <div class="flex-1">
-                                                <label class="text-[10px] text-[var(--text-dim)] uppercase block mb-1"
+                                                <label class="text-[10px] text-[var(--content-muted)] uppercase block mb-1"
                                                     title="7. 最大深度...">最大深度 (Max Depth)</label>
                                                 <div class="ui-number-control">
                                                     <input type="number" min="0" step="1"
@@ -359,20 +359,20 @@
                                                 </div>
                                             </div>
                                         </div>
-                                        <div class="flex gap-4 pt-1 border-t border-[var(--border-light)] mt-1">
+                                        <div class="flex gap-4 pt-1 border-t border-[var(--border-default)] mt-1">
                                             <label class="flex items-center gap-2 cursor-pointer select-none"
                                                 title="9. 仅格式显示：正则仅对聊天页面生效，聊天文件内的内容不会被改变。">
                                                 <input type="checkbox"
                                                     x-model="editingData.extensions.regex_scripts[activeRegexIndex].markdownOnly"
                                                     class="w-3.5 h-3.5 rounded">
-                                                <span class="text-xs text-[var(--text-sub)]">仅格式显示</span>
+                                                <span class="text-xs text-[var(--content-secondary)]">仅格式显示</span>
                                             </label>
                                             <label class="flex items-center gap-2 cursor-pointer select-none"
                                                 title="10. 仅格式提示词：聊天记录不会改变，只有在请求发送时（生成时）才会出现提示词。">
                                                 <input type="checkbox"
                                                     x-model="editingData.extensions.regex_scripts[activeRegexIndex].promptOnly"
                                                     class="w-3.5 h-3.5 rounded">
-                                                <span class="text-xs text-[var(--text-sub)]">仅格式提示词</span>
+                                                <span class="text-xs text-[var(--content-secondary)]">仅格式提示词</span>
                                             </label>
                                         </div>
                                     </div>
@@ -380,14 +380,14 @@
                             </div>
 
                             <!-- E. 实时测试台 (Test Bench) -->
-                            <div class="adv-section bg-[var(--bg-sub)]">
-                                <div class="adv-section-title text-purple-400">
+                            <div class="adv-section bg-[var(--surface-container-raised)]">
+                                <div class="adv-section-title color-text-violet">
                                     <span class="inline-flex items-center gap-1">
                                         {{ icon('flask', 'ui-icon--sm ') }}
                                         <span>实时测试台 (JS Regex Playground)</span>
                                     </span>
                                     <button @click="runRegexTest()"
-                                        class="text-xs bg-purple-600 hover:bg-purple-500 text-white px-3 py-1 rounded shadow-md transition flex items-center gap-1"
+                                        class="text-xs color-surface-violet-solid color-hover-surface-violet color-text-on-dark px-3 py-1 rounded shadow-md transition flex items-center gap-1"
                                         title="运行正则测试" aria-label="运行正则测试">
                                         {{ icon('play', 'ui-icon--sm ') }}<span>运行测试</span>
                                     </button>
@@ -420,7 +420,7 @@
                                                 <button x-show="regexPreviewMode==='html'"
                                                     @click="$dispatch('open-html-preview', regexTestResult)"
                                                     title="全屏预览"
-                                                    class="text-[10px] bg-[var(--bg-panel)] border border-[var(--border-light)] rounded px-2 py-[2px] hover:text-[var(--accent-light)] transition">
+                                                    class="text-[10px] bg-[var(--surface-container)] border border-[var(--border-default)] rounded px-2 py-[2px] hover:text-[var(--accent-text)] transition">
                                                     {{ detail_icon('expand', 'ui-icon--xs ') }}<span>放大</span>
                                                 </button>
 
@@ -453,7 +453,7 @@
 
 
                 <!-- 未选中脚本时的占位 -->
-                <div class="adv-editor-pane flex items-center justify-center text-[var(--text-dim)]"
+                <div class="adv-editor-pane flex items-center justify-center text-[var(--content-muted)]"
                     x-show="activeRegexIndex === -1 || !editingData.extensions.regex_scripts[activeRegexIndex]">
                     <div class="text-center">
                         <div class="mb-2 opacity-30 flex justify-center" aria-hidden="true">
@@ -477,13 +477,13 @@
                     }">
 
                     <div
-                        class="p-3 border-b border-[var(--border-light)] flex justify-between items-center bg-[var(--bg-sub)] sticky top-0 z-10">
-                        <span class="text-xs font-bold text-[var(--text-sub)] uppercase">Helper Scripts</span>
+                        class="p-3 border-b border-[var(--border-default)] flex justify-between items-center bg-[var(--surface-container-raised)] sticky top-0 z-10">
+                        <span class="text-xs font-bold text-[var(--content-secondary)] uppercase">Helper Scripts</span>
                         <div class="flex items-center gap-1">
                             <template x-if="!isFileMode">
                                 <div class="flex gap-1">
                                     <button @click="$refs.importScriptInput.click()"
-                                        class="text-xs bg-[var(--bg-panel)] border border-[var(--border-light)] hover:bg-[var(--bg-hover)] px-2 py-1 rounded transition"
+                                        class="text-xs bg-[var(--surface-container)] border border-[var(--border-default)] hover:bg-[var(--state-hover-surface)] px-2 py-1 rounded transition"
                                         title="导入脚本" aria-label="导入脚本">
                                         {{ icon('file-import', 'ui-icon--sm ') }}
                                     </button>
@@ -491,7 +491,7 @@
                                         style="display:none;">
 
                                     <button @click="addTavernScript()"
-                                        class="text-xs bg-green-600 hover:bg-green-500 text-white px-2 py-1 rounded transition flex items-center gap-1"
+                                        class="text-xs color-surface-success-solid color-hover-surface-success color-text-on-dark px-2 py-1 rounded transition flex items-center gap-1"
                                         title="新建 ST 脚本">
                                         {{ icon('plus-square', 'ui-icon--sm ') }}<span>新建</span>
                                     </button>
@@ -510,10 +510,10 @@
                                 <div class="flex-1 min-w-0 overflow-hidden">
                                     <div class="flex justify-between items-center mb-1">
                                         <span class="font-bold text-sm truncate"
-                                            :class="!script.enabled ? 'text-gray-500 line-through' : 'text-[var(--text-main)]'"
+                                            :class="!script.enabled ? 'color-text-muted line-through' : 'text-[var(--content-primary)]'"
                                             x-text="script.name || '未命名脚本'"></span>
                                     </div>
-                                    <div class="text-[10px] text-[var(--text-dim)] truncate"
+                                    <div class="text-[10px] text-[var(--content-muted)] truncate"
                                         x-text="script.info || 'No description'"></div>
                                 </div>
 
@@ -540,7 +540,7 @@
                                     </template>
                                 </div>
                                 <button @click.stop="removeTavernScript(script.id)"
-                                    class="opacity-0 group-hover:opacity-100 text-gray-500 hover:text-red-400 p-1 flex-shrink-0 transition"
+                                    class="opacity-0 group-hover:opacity-100 color-text-muted color-hover-text-danger p-1 flex-shrink-0 transition"
                                     title="删除 ST 脚本" aria-label="删除 ST 脚本">
                                     {{ icon('close-bold', 'ui-icon--xs') }}
                                 </button>
@@ -548,7 +548,7 @@
                         </template>
 
                         <div x-show="getTavernScripts().length === 0"
-                            class="p-8 text-center text-[var(--text-dim)] text-xs">
+                            class="p-8 text-center text-[var(--content-muted)] text-xs">
                             暂无脚本<br>点击上方按钮添加
                         </div>
                     </div>
@@ -560,7 +560,7 @@
 
                         <div class="flex flex-col gap-4">
                             <!-- A. 头部信息 -->
-                            <div class="flex gap-4 items-end border-b border-[var(--border-light)] pb-4">
+                            <div class="flex gap-4 items-end border-b border-[var(--border-default)] pb-4">
                                 <div class="flex-1">
                                     <label class="form-label">脚本名称 (Name)</label>
                                     <input type="text" x-model="getTavernScripts()[activeScriptIndex].name"
@@ -571,23 +571,23 @@
                                     <!-- 启用开关 -->
                                     <label class="flex items-center gap-2 cursor-pointer select-none">
                                         <input type="checkbox" x-model="getTavernScripts()[activeScriptIndex].enabled"
-                                            class="w-4 h-4 rounded accent-green-500">
+                                            class="w-4 h-4 rounded color-accent-success">
                                         <span class="text-sm font-bold"
-                                            :class="getTavernScripts()[activeScriptIndex].enabled ? 'text-green-400' : 'text-gray-500'">
+                                            :class="getTavernScripts()[activeScriptIndex].enabled ? 'color-text-success' : 'color-text-muted'">
                                             <span
                                                 x-text="getTavernScripts()[activeScriptIndex].enabled ? '已启用' : '已禁用'"></span>
                                         </span>
                                     </label>
 
                                     <!-- 按钮显示开关 -->
-                                    <div class="h-6 w-[1px] bg-[var(--border-light)] mx-2"></div>
+                                    <div class="h-6 w-[1px] bg-[var(--border-default)] mx-2"></div>
 
                                     <label class="flex items-center gap-2 cursor-pointer select-none" title="在快捷栏显示按钮">
                                         <input type="checkbox"
                                             x-model="getTavernScripts()[activeScriptIndex].button.enabled"
                                             @change="syncRuntimeContext()"
-                                            class="w-4 h-4 rounded accent-blue-500">
-                                        <span class="text-sm text-[var(--text-main)]">显示按钮 (Button)</span>
+                                            class="w-4 h-4 rounded color-accent-primary">
+                                        <span class="text-sm text-[var(--content-primary)]">显示按钮 (Button)</span>
                                     </label>
                                 </div>
                             </div>
@@ -603,13 +603,13 @@
 
                             <!-- B-2. 按钮配置 (Buttons) -->
                             <div class="adv-section">
-                                <div class="adv-section-title flex justify-between items-center text-blue-400">
+                                <div class="adv-section-title flex justify-between items-center color-text-accent">
                                     <span class="inline-flex items-center gap-1">
                                         {{ icon('quick-actions', 'ui-icon--sm ') }}
                                         <span>快捷按钮 (Buttons)</span>
                                     </span>
                                     <button @click="addScriptButton(getTavernScripts()[activeScriptIndex])"
-                                        class="text-[10px] bg-blue-600 hover:bg-blue-500 text-white px-2 py-0.5 rounded transition">
+                                        class="text-[10px] color-surface-accent-solid color-hover-surface-accent color-text-on-dark px-2 py-0.5 rounded transition">
                                         + 添加按钮
                                     </button>
                                 </div>
@@ -622,8 +622,8 @@
                                             x-for="(btn, btnIdx) in (getTavernScripts()[activeScriptIndex]?.button?.buttons || [])"
                                             :key="btnIdx">
                                             <div
-                                                class="flex items-center gap-2 bg-[var(--bg-panel)] p-1.5 rounded border border-[var(--border-light)]">
-                                                <span class="text-[var(--text-dim)] text-xs w-4 text-center"
+                                                class="flex items-center gap-2 bg-[var(--surface-container)] p-1.5 rounded border border-[var(--border-default)]">
+                                                <span class="text-[var(--content-muted)] text-xs w-4 text-center"
                                                     x-text="btnIdx + 1"></span>
 
                                                 <!-- 按钮名称 -->
@@ -632,20 +632,20 @@
 
                                                 <!-- 可见性开关 -->
                                                 <label
-                                                    class="flex items-center gap-1 cursor-pointer select-none px-2 border-l border-[var(--border-light)]"
+                                                    class="flex items-center gap-1 cursor-pointer select-none px-2 border-l border-[var(--border-default)]"
                                                     title="是否可见">
                                                     <input type="checkbox" x-model="btn.visible"
                                                         @change="syncRuntimeContext()"
-                                                        class="w-3.5 h-3.5 rounded accent-blue-500">
+                                                        class="w-3.5 h-3.5 rounded color-accent-primary">
                                                     <span class="text-[10px]"
-                                                        :class="btn.visible ? 'text-blue-400' : 'text-gray-500'"
+                                                        :class="btn.visible ? 'color-text-accent' : 'color-text-muted'"
                                                         x-text="btn.visible ? '显示' : '隐藏'"></span>
                                                 </label>
 
                                                 <!-- 删除 -->
                                                 <button
                                                     @click="removeScriptButton(getTavernScripts()[activeScriptIndex], btnIdx)"
-                                                    class="text-gray-500 hover:text-red-400 px-1"
+                                                    class="color-text-muted color-hover-text-danger px-1"
                                                     title="删除快捷按钮" aria-label="删除快捷按钮">
                                                     {{ icon('close-bold', 'ui-icon--xs') }}
                                                 </button>
@@ -655,7 +655,7 @@
 
                                     <!-- 空状态 -->
                                     <div x-show="!getTavernScripts()[activeScriptIndex].button?.buttons?.length"
-                                        class="text-[10px] text-[var(--text-dim)] text-center py-2 italic">
+                                        class="text-[10px] text-[var(--content-muted)] text-center py-2 italic">
                                         暂无自定义按钮
                                     </div>
                                 </div>
@@ -663,33 +663,33 @@
 
                             <!-- C. 脚本内容 (JS Code) -->
                             <div class="adv-section flex flex-col h-64">
-                                <div class="adv-section-title text-yellow-500 flex justify-between">
+                                <div class="adv-section-title color-text-warning flex justify-between">
                                     <span class="inline-flex items-center gap-1">
                                         {{ icon('code-file', 'ui-icon--sm ') }}
                                         <span>脚本代码 (Content - JavaScript)</span>
                                     </span>
-                                    <span class="text-[10px] text-[var(--text-dim)]">Executed by STHelper</span>
+                                    <span class="text-[10px] text-[var(--content-muted)]">Executed by STHelper</span>
                                 </div>
                                 <textarea x-model="getTavernScripts()[activeScriptIndex].content"
                                     class="form-textarea font-mono text-xs flex-1 resize-none custom-scrollbar"
-                                     style="background: var(--bg-code); color: #fde047; line-height: 1.5;"
+                                     style="background: var(--surface-code); color: var(--status-warning-text); line-height: 1.5;"
                                      spellcheck="false" placeholder="// write your code here..."></textarea>
                              </div>
 
                             <div class="adv-section">
-                                <div class="adv-section-title text-emerald-400 flex justify-between items-center">
+                                <div class="adv-section-title color-text-success flex justify-between items-center">
                                     <span class="inline-flex items-center gap-1">{{ icon('arrow-right', 'ui-icon--sm') }}<span>运行时 (Runtime)</span></span>
                                     <div class="flex flex-wrap gap-2 text-[10px]">
                                         <button @click="startScriptRuntime()"
-                                            class="bg-emerald-600 hover:bg-emerald-500 text-white px-2 py-0.5 rounded transition">
+                                            class="color-surface-success-solid color-hover-surface-success color-text-on-dark px-2 py-0.5 rounded transition">
                                             运行
                                         </button>
                                         <button @click="reloadScriptRuntime()"
-                                            class="bg-sky-600 hover:bg-sky-500 text-white px-2 py-0.5 rounded transition">
+                                            class="color-surface-info-solid color-hover-surface-info color-text-on-dark px-2 py-0.5 rounded transition">
                                             重载
                                         </button>
                                         <button @click="stopScriptRuntime()"
-                                            class="bg-rose-600 hover:bg-rose-500 text-white px-2 py-0.5 rounded transition">
+                                            class="color-surface-rose-solid color-hover-surface-rose color-text-on-dark px-2 py-0.5 rounded transition">
                                             停止
                                         </button>
                                     </div>
@@ -698,41 +698,41 @@
                                 <div class="grid grid-cols-1 xl:grid-cols-[minmax(0,1.2fr)_minmax(280px,0.8fr)] gap-4">
                                     <div class="flex flex-col gap-3">
                                         <div class="flex flex-wrap items-center gap-2 text-xs">
-                                            <span class="px-2 py-0.5 rounded border border-[var(--border-light)] bg-[var(--bg-panel)]"
+                                            <span class="px-2 py-0.5 rounded border border-[var(--border-default)] bg-[var(--surface-container)]"
                                                 x-text="'状态: ' + scriptRuntimeState.status"></span>
-                                            <span class="text-[var(--text-dim)]" x-show="activeRuntimeScriptId"
+                                            <span class="text-[var(--content-muted)]" x-show="activeRuntimeScriptId"
                                                 x-text="'运行脚本 ID: ' + activeRuntimeScriptId"></span>
-                                            <span class="text-[var(--text-dim)]" x-show="scriptRuntimeState.height"
+                                            <span class="text-[var(--content-muted)]" x-show="scriptRuntimeState.height"
                                                 x-text="'运行区高度: ' + scriptRuntimeState.height + 'px'"></span>
                                         </div>
 
-                                        <div class="text-[10px] text-[var(--text-dim)] leading-5 border border-[var(--border-light)] rounded px-3 py-2 bg-[var(--bg-panel)]">
-                                            <span class="font-bold text-emerald-300 mr-1">Safe Bridge:</span>
+                                        <div class="text-[10px] text-[var(--content-muted)] leading-5 border border-[var(--border-default)] rounded px-3 py-2 bg-[var(--surface-container)]">
+                                            <span class="font-bold color-text-success mr-1">Safe Bridge:</span>
                                             <span x-text="(scriptRuntimeState.bridgeCapabilities || []).join(' / ')"></span>
                                         </div>
 
-                                        <div class="text-[10px] text-[var(--text-dim)] leading-5 border border-[var(--border-light)] rounded px-3 py-2 bg-[var(--bg-panel)]">
-                                            <span class="font-bold text-cyan-300 mr-1">Runtime Manager:</span>
+                                        <div class="text-[10px] text-[var(--content-muted)] leading-5 border border-[var(--border-default)] rounded px-3 py-2 bg-[var(--surface-container)]">
+                                            <span class="font-bold color-text-info mr-1">Runtime Manager:</span>
                                             <span x-text="'总计 ' + (runtimeManagerOverview.total || 0) + ' 个运行时'"></span>
                                             <span class="ml-2" x-text="'render=' + (runtimeManagerOverview.byKind?.render || 0)"></span>
                                             <span class="ml-2" x-text="'script=' + (runtimeManagerOverview.byKind?.script || 0)"></span>
                                         </div>
 
                                         <div x-show="scriptRuntimeState.lastError"
-                                            class="text-xs text-red-300 bg-red-950/40 border border-red-500/30 rounded p-2 whitespace-pre-wrap"
+                                            class="text-xs color-text-danger color-surface-danger border color-border-danger rounded p-2 whitespace-pre-wrap"
                                             x-text="scriptRuntimeState.lastError"></div>
 
-                                        <div class="border border-[var(--border-light)] rounded bg-[var(--bg-body)] overflow-hidden">
-                                            <div class="px-3 py-2 text-[10px] uppercase tracking-wider text-[var(--text-dim)] border-b border-[var(--border-light)] bg-[var(--bg-sub)]">
+                                        <div class="border border-[var(--border-default)] rounded bg-[var(--surface-page)] overflow-hidden">
+                                            <div class="px-3 py-2 text-[10px] uppercase tracking-wider text-[var(--content-muted)] border-b border-[var(--border-default)] bg-[var(--surface-container-raised)]">
                                                 隔离运行舞台
                                             </div>
                                             <div x-ref="scriptRuntimeHost" class="min-h-[220px]"></div>
                                         </div>
 
-                                        <div class="border border-[var(--border-light)] rounded bg-[var(--bg-panel)] p-3">
+                                        <div class="border border-[var(--border-default)] rounded bg-[var(--surface-container)] p-3">
                                             <div class="flex items-center justify-between gap-2 mb-2">
-                                                <div class="text-xs font-bold text-blue-300">按钮触发器</div>
-                                                <label class="text-[10px] text-[var(--text-dim)] flex items-center gap-1">
+                                                <div class="text-xs font-bold color-text-accent">按钮触发器</div>
+                                                <label class="text-[10px] text-[var(--content-muted)] flex items-center gap-1">
                                                     <input type="checkbox"
                                                         x-model="scriptRuntimeState.buttonConfig.enabled"
                                                         @change="syncRuntimeContext()"
@@ -748,13 +748,13 @@
                                                     <button @click="triggerRuntimeButton(button.name)"
                                                         :disabled="!isRuntimeActiveForCurrentScript() || !button.visible || !scriptRuntimeState.buttonConfig.enabled"
                                                         class="px-3 py-1 rounded border text-xs transition"
-                                                        :class="button.visible ? 'border-blue-500/40 bg-blue-500/10 text-blue-200 hover:bg-blue-500/20' : 'border-gray-700 text-gray-500 cursor-not-allowed'"
+                                                        :class="button.visible ? 'color-border-accent color-surface-accent color-text-accent color-hover-surface-accent' : 'color-border-default color-text-muted cursor-not-allowed'"
                                                         x-text="button.name"></button>
                                                 </template>
                                             </div>
 
                                             <div x-show="!scriptRuntimeState.buttonConfig.buttons || scriptRuntimeState.buttonConfig.buttons.length === 0"
-                                                class="text-[10px] text-[var(--text-dim)] italic">
+                                                class="text-[10px] text-[var(--content-muted)] italic">
                                                 当前脚本没有可触发按钮。
                                             </div>
                                         </div>
@@ -762,25 +762,25 @@
 
                                     <div class="flex flex-col gap-3 min-h-0">
                                         <div class="flex items-center justify-between gap-2">
-                                            <div class="text-xs font-bold text-purple-300">运行日志</div>
+                                            <div class="text-xs font-bold color-text-violet">运行日志</div>
                                             <button @click="clearRuntimeLogs()"
-                                                class="text-[10px] bg-[var(--bg-panel)] border border-[var(--border-light)] px-2 py-0.5 rounded hover:text-white transition">
+                                                class="text-[10px] bg-[var(--surface-container)] border border-[var(--border-default)] px-2 py-0.5 rounded color-hover-text-on-dark transition">
                                                 清空日志
                                             </button>
                                         </div>
 
-                                        <div class="border border-[var(--border-light)] rounded bg-[#020617] min-h-[220px] max-h-[420px] overflow-auto p-2 custom-scrollbar">
+                                        <div class="border border-[var(--border-default)] rounded color-surface-sunken min-h-[220px] max-h-[420px] overflow-auto p-2 custom-scrollbar">
                                             <template x-if="scriptRuntimeState.logs.length === 0">
-                                                <div class="text-[10px] text-slate-400 italic">运行后这里会显示 console 输出。</div>
+                                                <div class="text-[10px] color-text-muted italic">运行后这里会显示 console 输出。</div>
                                             </template>
 
                                             <template x-for="(entry, logIdx) in scriptRuntimeState.logs" :key="entry.timestamp + '-' + logIdx">
-                                                <div class="text-[11px] font-mono leading-5 border-b border-white/5 py-1 last:border-b-0"
+                                                <div class="text-[11px] font-mono leading-5 border-b color-border-subtle py-1 last:border-b-0"
                                                     :class="{
-                                                        'text-slate-300': entry.level === 'log' || entry.level === 'info',
-                                                        'text-cyan-300': entry.level === 'debug',
-                                                        'text-amber-300': entry.level === 'warn',
-                                                        'text-rose-300': entry.level === 'error'
+                                                        'color-text-secondary': entry.level === 'log' || entry.level === 'info',
+                                                        'color-text-info': entry.level === 'debug',
+                                                        'color-text-warning': entry.level === 'warn',
+                                                        'color-text-rose': entry.level === 'error'
                                                     }">
                                                     <span class="opacity-60 mr-2"
                                                         x-text="new Date(entry.timestamp).toLocaleTimeString()"></span>
@@ -795,13 +795,13 @@
 
                             <!-- D. 变量数据 (Data - JSON) -->
                             <div class="adv-section flex flex-col flex-1 min-h-[200px]">
-                                <div class="adv-section-title text-purple-400 flex justify-between">
+                                <div class="adv-section-title color-text-violet flex justify-between">
                                     <span class="inline-flex items-center gap-1">
                                         {{ icon('data-grid', 'ui-icon--sm ') }}
                                         <span>变量数据 (Data - JSON Object)</span>
                                     </span>
                                     <button @click="syncScriptDataJson(); $store.global.showToast('JSON 已格式化')"
-                                        class="text-[10px] bg-[var(--bg-panel)] border border-[var(--border-light)] px-2 py-0.5 rounded hover:text-white transition">
+                                        class="text-[10px] bg-[var(--surface-container)] border border-[var(--border-default)] px-2 py-0.5 rounded color-hover-text-on-dark transition">
                                         Format JSON
                                     </button>
                                 </div>
@@ -810,10 +810,10 @@
                                     <textarea x-model="scriptDataJson" @input="syncScriptDataJson()"
                                         @blur="syncScriptDataJson()"
                                         class="form-textarea font-mono text-xs w-full h-full resize-none custom-scrollbar absolute inset-0"
-                                        style="background: var(--bg-code); color: #d8b4fe; line-height: 1.5;"
+                                        style="background: var(--surface-code); color: var(--decoration-violet); line-height: 1.5;"
                                         spellcheck="false" placeholder="{ 'key': 'value' }"></textarea>
                                 </div>
-                                <div class="text-[10px] text-[var(--text-dim)] mt-1">
+                                <div class="text-[10px] text-[var(--content-muted)] mt-1">
                                     * 此处支持嵌套对象和数组。修改时会自动解析为 JSON 对象。
                                 </div>
                             </div>
@@ -823,7 +823,7 @@
                 </template>
 
                 <!-- 空状态 -->
-                <div class="adv-editor-pane flex items-center justify-center text-[var(--text-dim)]"
+                <div class="adv-editor-pane flex items-center justify-center text-[var(--content-muted)]"
                     x-show="activeScriptIndex === -1 || !getTavernScripts()[activeScriptIndex]">
                     <div class="text-center">
                         <div class="mb-2 opacity-30 flex justify-center" aria-hidden="true">
@@ -847,11 +847,11 @@
                         'hidden': $store.global.deviceType === 'mobile' && !showMobileSidebar
                     }">
                     <div
-                        class="p-3 border-b border-[var(--border-light)] flex justify-between items-center bg-[var(--bg-sub)] sticky top-0 z-10">
-                        <span class="text-xs font-bold text-[var(--text-sub)] uppercase">Reply List</span>
+                        class="p-3 border-b border-[var(--border-default)] flex justify-between items-center bg-[var(--surface-container-raised)] sticky top-0 z-10">
+                        <span class="text-xs font-bold text-[var(--content-secondary)] uppercase">Reply List</span>
                         <div class="flex items-center gap-1">
                             <button @click="addQrEntry()"
-                                class="text-xs bg-green-600 hover:bg-green-500 text-white px-2 py-1 rounded transition flex items-center gap-1"
+                                class="text-xs color-surface-success-solid color-hover-surface-success color-text-on-dark px-2 py-1 rounded transition flex items-center gap-1"
                                 title="新建快速回复">
                                 {{ icon('plus-square', 'ui-icon--sm ') }}<span>新建</span>
                             </button>
@@ -868,7 +868,7 @@
                                     <div class="flex justify-between items-center mb-1">
                                         <span class="font-bold text-sm truncate" x-text="qr.label || '未命名'"></span>
                                     </div>
-                                    <div class="text-[10px] text-[var(--text-dim)] truncate opacity-70"
+                                    <div class="text-[10px] text-[var(--content-muted)] truncate opacity-70"
                                         x-text="qr.message || '(无内容)'"></div>
                                 </div>
 
@@ -882,12 +882,12 @@
                                     </div>
                                 </div>
                                 <button @click.stop="removeQrEntry(idx)"
-                                    class="opacity-0 group-hover:opacity-100 text-gray-500 hover:text-red-400 p-1"
+                                    class="opacity-0 group-hover:opacity-100 color-text-muted color-hover-text-danger p-1"
                                     title="删除快速回复" aria-label="删除快速回复">{{ icon('close-bold', 'ui-icon--xs') }}</button>
                             </div>
                         </template>
                         <div x-show="!editingData.quick_reply?.qrList?.length"
-                            class="p-8 text-center text-[var(--text-dim)] text-xs">
+                            class="p-8 text-center text-[var(--content-muted)] text-xs">
                             暂无回复条目<br>点击上方按钮添加
                         </div>
                     </div>
@@ -899,7 +899,7 @@
 
                         <!-- A. 全局设置 (Set Settings) -->
                         <div class="adv-section mb-4" x-show="activeQrIndex === -1">
-                            <div class="adv-section-title text-yellow-500">
+                            <div class="adv-section-title color-text-warning">
                                 <span class="inline-flex items-center gap-1">
                                     {{ icon('settings', 'ui-icon--sm ') }}
                                     <span>集合设置 (Set Settings)</span>
@@ -915,38 +915,38 @@
 
                                 <div class="grid grid-cols-2 gap-4">
                                     <label
-                                        class="flex items-center gap-2 cursor-pointer select-none border p-2 rounded hover:bg-[var(--bg-hover)] border-[var(--border-light)]">
+                                        class="flex items-center gap-2 cursor-pointer select-none border p-2 rounded hover:bg-[var(--state-hover-surface)] border-[var(--border-default)]">
                                         <input type="checkbox" x-model="editingData.quick_reply.disableSend"
                                             class="w-4 h-4 rounded">
                                         <div class="flex flex-col">
                                             <span class="text-sm font-bold">禁用发送</span>
-                                            <span class="text-[10px] text-[var(--text-dim)]">点击仅插入输入框，不自动发送</span>
+                                            <span class="text-[10px] text-[var(--content-muted)]">点击仅插入输入框，不自动发送</span>
                                         </div>
                                     </label>
 
                                     <label
-                                        class="flex items-center gap-2 cursor-pointer select-none border p-2 rounded hover:bg-[var(--bg-hover)] border-[var(--border-light)]">
+                                        class="flex items-center gap-2 cursor-pointer select-none border p-2 rounded hover:bg-[var(--state-hover-surface)] border-[var(--border-default)]">
                                         <input type="checkbox" x-model="editingData.quick_reply.placeBeforeInput"
                                             class="w-4 h-4 rounded">
                                         <div class="flex flex-col">
                                             <span class="text-sm font-bold">置于输入前</span>
-                                            <span class="text-[10px] text-[var(--text-dim)]">插入到当前输入内容的前面</span>
+                                            <span class="text-[10px] text-[var(--content-muted)]">插入到当前输入内容的前面</span>
                                         </div>
                                     </label>
 
                                     <label
-                                        class="flex items-center gap-2 cursor-pointer select-none border p-2 rounded hover:bg-[var(--bg-hover)] border-[var(--border-light)]">
+                                        class="flex items-center gap-2 cursor-pointer select-none border p-2 rounded hover:bg-[var(--state-hover-surface)] border-[var(--border-default)]">
                                         <input type="checkbox" x-model="editingData.quick_reply.injectInput"
                                             class="w-4 h-4 rounded">
                                         <div class="flex flex-col">
                                             <span class="text-sm font-bold">自动注入输入</span>
-                                            <span class="text-[10px] text-[var(--text-dim)]">将 {{input}}
+                                            <span class="text-[10px] text-[var(--content-muted)]">将 {{input}}
                                                 替换为当前输入框内容</span>
                                         </div>
                                     </label>
                                 </div>
                             </div>
-                            <div class="mt-4 text-center text-sm text-[var(--text-dim)]">
+                            <div class="mt-4 text-center text-sm text-[var(--content-muted)]">
                                 <p>请在左侧选择一个条目进行详细编辑</p>
                             </div>
                         </div>
@@ -954,7 +954,7 @@
                         <!-- B. 条目编辑 (Item Editor) -->
                         <template x-if="activeQrIndex !== -1 && editingData.quick_reply.qrList[activeQrIndex]">
                             <div class="flex flex-col gap-4">
-                                <div class="flex gap-4 items-end border-b border-[var(--border-light)] pb-4">
+                                <div class="flex gap-4 items-end border-b border-[var(--border-default)] pb-4">
                                     <div class="flex-1">
                                         <label class="form-label">按钮标签 (Label)</label>
                                         <input type="text" x-model="editingData.quick_reply.qrList[activeQrIndex].label"
@@ -968,7 +968,7 @@
                                 </div>
 
                                 <div class="adv-section flex flex-col h-48">
-                                    <div class="adv-section-title text-green-500">
+                                    <div class="adv-section-title color-text-success">
                                         <span class="inline-flex items-center gap-1">
                                             {{ icon('send-content', 'ui-icon--sm ') }}
                                             <span>发送内容 (Message)</span>
@@ -980,7 +980,7 @@
                                 </div>
 
                                 <div class="adv-section">
-                                    <div class="adv-section-title text-blue-400">
+                                    <div class="adv-section-title color-text-accent">
                                         <span class="inline-flex items-center gap-1">
                                             {{ icon('bolt', 'ui-icon--sm ') }}
                                             <span>触发条件 (Execute On)</span>
@@ -1010,12 +1010,12 @@
                                     </div>
                                 </div>
 
-                                <div class="flex items-center gap-4 border-t border-[var(--border-light)] pt-4">
+                                <div class="flex items-center gap-4 border-t border-[var(--border-default)] pt-4">
                                     <label
-                                        class="flex items-center gap-2 cursor-pointer select-none text-xs text-red-400">
+                                        class="flex items-center gap-2 cursor-pointer select-none text-xs color-text-danger">
                                         <input type="checkbox"
                                             x-model="editingData.quick_reply.qrList[activeQrIndex].isHidden"
-                                            class="accent-red-500 rounded">
+                                            class="color-accent-danger rounded">
                                         隐藏此按钮
                                     </label>
                                     <label class="flex items-center gap-2 cursor-pointer select-none text-xs">
@@ -1036,10 +1036,10 @@
 
         <!-- 4. 底部 Action Bar -->
         <div
-            class="p-4 border-t flex flex-col md:flex-row justify-between items-start md:items-center gap-3 advanced-editor-footer bg-[var(--bg-sub)] border-[var(--border-light)]">
-            <div class="text-xs text-[var(--text-dim)]">
+            class="p-4 border-t flex flex-col md:flex-row justify-between items-start md:items-center gap-3 advanced-editor-footer bg-[var(--surface-container-raised)] border-[var(--border-default)]">
+            <div class="text-xs text-[var(--content-muted)]">
                 <span x-show="!isFileMode">完成：仅返回当前编辑界面；保存：直接写入原文件。</span>
-                <span x-show="isFileMode" class="text-blue-400">正在编辑独立文件。点击保存将直接写入磁盘。</span>
+                <span x-show="isFileMode" class="color-text-accent">正在编辑独立文件。点击保存将直接写入磁盘。</span>
             </div>
 
             <div class="flex w-full md:w-auto gap-3 justify-end">
@@ -1062,14 +1062,14 @@
         <!-- 移动端：侧边栏切换按钮 -->
         <button x-show="$store.global.deviceType === 'mobile' && !showMobileSidebar"
             @click="showMobileSidebar = true"
-            class="fixed bottom-20 left-2 z-50 w-10 h-10 bg-[var(--bg-panel)] border border-[var(--border-light)] rounded-lg flex items-center justify-center text-[var(--text-main)] shadow-lg md:hidden">
+            class="fixed bottom-20 left-2 z-50 w-10 h-10 bg-[var(--surface-container)] border border-[var(--border-default)] rounded-lg flex items-center justify-center text-[var(--content-primary)] shadow-lg md:hidden">
             <span aria-hidden="true">{{ icon('list', 'ui-icon--sm ') }}</span>
         </button>
 
         <!-- 移动端：侧边栏遮罩 -->
         <div x-show="$store.global.deviceType === 'mobile' && showMobileSidebar"
             @click="showMobileSidebar = false"
-            class="fixed inset-0 bg-black/50 z-40"
+            class="fixed inset-0 color-surface-scrim z-40"
             x-transition:enter="transition ease-out duration-300"
             x-transition:enter-start="opacity-0"
             x-transition:enter-end="opacity-100"

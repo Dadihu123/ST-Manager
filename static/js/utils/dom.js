@@ -523,7 +523,7 @@ function escapeHtml(text) {
 }
 
 export function renderMarkdown(text) {
-  if (!text) return '<span class="text-gray-500 italic">空内容</span>';
+  if (!text) return '<span class="color-text-muted italic">空内容</span>';
   let safeText = String(text);
   if (typeof marked !== "undefined") {
     marked.setOptions({ breaks: true });
@@ -545,7 +545,7 @@ export function updateInlineRenderContent(el, content, options = {}) {
   const mode = options.mode || "markdown";
   const isolated = Boolean(options.isolated);
   const emptyHtml =
-    options.emptyHtml || '<span class="text-gray-500 italic">空内容</span>';
+    options.emptyHtml || '<span class="color-text-muted italic">空内容</span>';
 
   if (!trimmed) {
     htmlComponentRenderCache.delete(el);
@@ -760,7 +760,7 @@ export function updateShadowContent(el, content, options = {}) {
                         height: ${hostHeight};
                         overflow: ${hostOverflow};
                         background-color: transparent;
-                        color: var(--text-main, #e5e7eb);
+                        color: var(--content-primary);
                         font-family: ui-sans-serif, system-ui, sans-serif;
                         font-size: 0.9rem;
                         line-height: 1.6;
@@ -775,10 +775,10 @@ export function updateShadowContent(el, content, options = {}) {
                         box-sizing: border-box;
                     }
                     img { max-width: 100%; border-radius: 4px; }
-                    a { color: var(--accent-main, #2563eb); }
-                    blockquote { border-left: 4px solid var(--accent-main, #2563eb); padding-left: 1em; margin: 1em 0; opacity: 0.8; }
+                    a { color: var(--accent-text); }
+                    blockquote { border-left: 4px solid var(--accent-outline); padding-left: 1em; margin: 1em 0; color: var(--content-secondary); }
                     /* 代码块样式修复 */
-                    pre { background: rgba(0,0,0,0.3); padding: 1em; border-radius: 6px; overflow-x: auto; }
+                    pre { background: var(--surface-code); border: 1px solid var(--border-subtle); padding: 1em; border-radius: 6px; overflow-x: auto; }
                     code { font-family: monospace; }
                 </style>
             `;
@@ -798,7 +798,7 @@ export function updateShadowContent(el, content, options = {}) {
 
   const htmlWrapper =
     renderedHtml ||
-    '<div style="color: gray; font-style: italic;">空内容</div>';
+    '<div style="color: var(--content-muted); font-style: italic;">空内容</div>';
   shadow.innerHTML =
     style + `<div class="scroll-wrapper markdown-body">${htmlWrapper}</div>`;
 }
@@ -844,7 +844,7 @@ export function renderUnifiedPreviewHost(el, content, options = {}) {
                 height: ${scrollMode ? "100%" : "auto"};
                 overflow: ${scrollMode ? "hidden" : "visible"};
                 background-color: transparent;
-                color: var(--text-main, #e5e7eb);
+                color: var(--content-primary);
                 font-family: ui-sans-serif, system-ui, sans-serif;
                 font-size: 0.9rem;
                 line-height: 1.6;
@@ -859,7 +859,7 @@ export function renderUnifiedPreviewHost(el, content, options = {}) {
                 padding: 1rem;
                 scrollbar-gutter: stable both-edges;
                 scrollbar-width: thin;
-                scrollbar-color: color-mix(in srgb, var(--accent-main, #3b82f6) 48%, var(--border-light, #475569)) transparent;
+                scrollbar-color: color-mix(in srgb, var(--accent-text) 48%, var(--border-default)) transparent;
             }
             .mixed-preview-host {
                 width: 100%;
@@ -921,7 +921,8 @@ export function renderUnifiedPreviewHost(el, content, options = {}) {
                 height: auto;
             }
             .mixed-preview-host pre {
-                background: rgba(0,0,0,0.3);
+                background: var(--surface-code);
+                border: 1px solid var(--border-subtle);
                 padding: 1em;
                 border-radius: 6px;
                 overflow-x: auto;
@@ -947,13 +948,13 @@ export function renderUnifiedPreviewHost(el, content, options = {}) {
             .mixed-preview-scroll::-webkit-scrollbar-thumb,
             .mixed-preview-host pre::-webkit-scrollbar-thumb {
                 border-radius: 999px;
-                background: color-mix(in srgb, var(--accent-main, #3b82f6) 42%, var(--border-light, #475569));
+                background: color-mix(in srgb, var(--accent-text) 42%, var(--border-default));
                 border: 2px solid transparent;
                 background-clip: padding-box;
             }
             .mixed-preview-scroll::-webkit-scrollbar-thumb:hover,
             .mixed-preview-host pre::-webkit-scrollbar-thumb:hover {
-                background: color-mix(in srgb, var(--accent-main, #3b82f6) 62%, var(--border-light, #475569));
+                background: color-mix(in srgb, var(--accent-text) 62%, var(--border-default));
                 border: 2px solid transparent;
                 background-clip: padding-box;
             }
@@ -1011,7 +1012,7 @@ export function renderUnifiedPreviewHost(el, content, options = {}) {
   });
   if (!displaySource.trim()) {
     const emptyHtml =
-      options.emptyHtml || '<span class="text-gray-500 italic">空内容</span>';
+      options.emptyHtml || '<span class="color-text-muted italic">空内容</span>';
     host.innerHTML = emptyHtml;
     return;
   }

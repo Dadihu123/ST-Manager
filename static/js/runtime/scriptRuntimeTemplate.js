@@ -1,3 +1,5 @@
+import { getIsolatedPreviewColorVariables } from './previewColorTokens.js';
+
 export const SCRIPT_RUNTIME_CHANNEL = 'st-manager:script-runtime';
 
 function escapeForInlineScript(value) {
@@ -529,9 +531,11 @@ function buildBootstrapScript(runtimeId, scriptSnapshot) {
     ].join('\n');
 }
 
-export function buildScriptRuntimeDocument(runtimeId, scriptSnapshot) {
+export function buildScriptRuntimeDocument(runtimeId, scriptSnapshot, themeMode = 'dark') {
     const bootstrapScript = buildBootstrapScript(runtimeId, scriptSnapshot).replace(/<\/script>/gi, '<\\/script>');
     const userScript = unwrapScriptContent(scriptSnapshot.content).replace(/<\/script>/gi, '<\\/script>');
+    const previewColorVariables = getIsolatedPreviewColorVariables(themeMode).join('\n');
+    const colorScheme = themeMode === 'light' ? 'light' : 'dark';
 
     return `<!DOCTYPE html>
 <html>
@@ -542,7 +546,8 @@ export function buildScriptRuntimeDocument(runtimeId, scriptSnapshot) {
 <style>
   :root {
     --stm-script-viewport-height: 100vh;
-    color-scheme: dark;
+${previewColorVariables}
+    color-scheme: ${colorScheme};
   }
   *, *::before, *::after {
     box-sizing: border-box;
@@ -556,7 +561,7 @@ export function buildScriptRuntimeDocument(runtimeId, scriptSnapshot) {
     overflow-x: hidden !important;
     overflow-y: auto !important;
     background: transparent !important;
-    color: #e5e7eb;
+    color: var(--preview-content-primary);
     font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   }
   body {

@@ -2796,8 +2796,7 @@ def test_preset_editor_template_renders_marker_icons_switches_and_scroll_safe_pr
     assert 'min-h-9' in source
     assert 'min-w-9' in source
     assert 'justify-center' in source
-    assert 'peer-focus-visible:ring-2' in source
-    assert 'peer-focus-visible:ring-[var(--accent-main)]/60' in source
+    assert 'color-peer-focus-toggle' in source
     assert 'pointer-events-none absolute left-[2px] top-[2px] h-4 w-4 rounded-full transition-transform' in source
 
 
@@ -2903,7 +2902,7 @@ def test_preset_editor_template_uses_dedicated_prompt_toggle_input_skin_override
 def test_preset_editor_template_keeps_editor_panels_within_width_bounds():
     source = read_project_file('templates/modals/detail_preset_fullscreen.html')
 
-    for token in ['bg-[var(--bg-panel)]', 'min-h-[22rem]', 'flex', 'flex-col', 'min-w-0', 'overflow-hidden']:
+    for token in ['bg-[var(--surface-container)]', 'min-h-[22rem]', 'flex', 'flex-col', 'min-w-0', 'overflow-hidden']:
         assert token in source
     for token in ['flex-1', 'min-h-0', 'overflow-y-auto', 'custom-scrollbar', 'p-5', 'space-y-5']:
         assert token in source

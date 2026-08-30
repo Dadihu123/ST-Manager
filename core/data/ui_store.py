@@ -1,6 +1,7 @@
 import os
 import json
 import logging
+import re
 import shutil
 import tempfile
 import threading
@@ -53,9 +54,82 @@ def _normalize_timestamp(value):
     return ts
 
 
+_COLOR_COMPONENT_RE = re.compile(r'^\d*\.?\d+%?$')
+_COLOR_FUNCTION_RE = re.compile(r'^(rgba?|hsla?)\(([^()]*)\)$', re.IGNORECASE)
+
+
+def _is_valid_rgb_component(value):
+    text = str(value).strip()
+    if not _COLOR_COMPONENT_RE.fullmatch(text):
+        return False
+
+    number = float(text.rstrip('%'))
+    if text.endswith('%'):
+        return 0 <= number <= 100
+    return 0 <= number <= 255
+
+
+def _is_valid_percentage(value):
+    text = str(value).strip()
+    if not _COLOR_COMPONENT_RE.fullmatch(text) or not text.endswith('%'):
+        return False
+    return 0 <= float(text[:-1]) <= 100
+
+
+def _is_valid_alpha(value):
+    text = str(value).strip()
+    if not _COLOR_COMPONENT_RE.fullmatch(text):
+        return False
+    number = float(text.rstrip('%'))
+    return 0 <= number <= (100 if text.endswith('%') else 1)
+
+
+def _is_safe_css_color_function(value):
+    """验证可安全放入 CSS 自定义属性的 rgb/hsl 颜色函数。"""
+    match = _COLOR_FUNCTION_RE.fullmatch(value.strip())
+    if not match:
+        return False
+
+    function_name = match.group(1).lower()
+    parts = [part.strip() for part in match.group(2).split(',')]
+    expected_parts = 4 if function_name in {'rgba', 'hsla'} else 3
+    if len(parts) != expected_parts:
+        return False
+
+    if function_name.startswith('rgb'):
+        return all(_is_valid_rgb_component(part) for part in parts[:3]) and (
+            len(parts) == 3 or _is_valid_alpha(parts[3])
+        )
+
+    hue = parts[0].removesuffix('deg').strip()
+    if not re.fullmatch(r'\d*\.?\d+', hue):
+        return False
+    return _is_valid_percentage(parts[1]) and _is_valid_percentage(parts[2]) and (
+        len(parts) == 3 or _is_valid_alpha(parts[3])
+    )
+
+
 def _normalize_hex_color(value, fallback=DEFAULT_TAG_CATEGORY_COLOR):
-    """规范化 16 进制颜色值，非法值回退到 fallback。"""
-    fallback_color = fallback if isinstance(fallback, str) and fallback else DEFAULT_TAG_CATEGORY_COLOR
+    """规范化兼容的 CSS 颜色值，非法或危险值回退到 fallback。"""
+    fallback_color = DEFAULT_TAG_CATEGORY_COLOR
+    if isinstance(fallback, str):
+        fallback_candidate = fallback.strip()
+        if not fallback_candidate:
+            fallback_candidate = DEFAULT_TAG_CATEGORY_COLOR
+        if not fallback_candidate.startswith('#') and re.fullmatch(r'[0-9a-fA-F]{3,8}', fallback_candidate):
+            fallback_candidate = f'#{fallback_candidate}'
+
+        fallback_hex = fallback_candidate[1:]
+        if len(fallback_hex) in {3, 4} and all(
+            ch in '0123456789abcdefABCDEF' for ch in fallback_hex
+        ):
+            fallback_color = '#' + ''.join(ch * 2 for ch in fallback_hex).lower()
+        elif len(fallback_hex) in {6, 8} and all(
+            ch in '0123456789abcdefABCDEF' for ch in fallback_hex
+        ):
+            fallback_color = fallback_candidate.lower()
+        elif _is_safe_css_color_function(fallback_candidate):
+            fallback_color = fallback_candidate
 
     if not isinstance(value, str):
         return fallback_color
@@ -64,15 +138,25 @@ def _normalize_hex_color(value, fallback=DEFAULT_TAG_CATEGORY_COLOR):
     if not color:
         return fallback_color
 
-    if not color.startswith('#'):
+    if not color.startswith('#') and re.fullmatch(r'[0-9a-fA-F]{3,8}', color):
         color = f'#{color}'
 
     short_hex = color[1:]
     if len(short_hex) == 3 and all(ch in '0123456789abcdefABCDEF' for ch in short_hex):
         return '#' + ''.join(ch * 2 for ch in short_hex).lower()
 
+    if len(short_hex) == 4 and all(ch in '0123456789abcdefABCDEF' for ch in short_hex):
+        return '#' + ''.join(ch * 2 for ch in short_hex).lower()
+
     if len(short_hex) == 6 and all(ch in '0123456789abcdefABCDEF' for ch in short_hex):
         return color.lower()
+
+    if len(short_hex) == 8 and all(ch in '0123456789abcdefABCDEF' for ch in short_hex):
+        return color.lower()
+
+    if _is_safe_css_color_function(color):
+        # 函数式颜色保留用户输入的语义和值，不把它强制转换成近似色。
+        return color
 
     return fallback_color
 

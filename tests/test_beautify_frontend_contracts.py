@@ -488,7 +488,7 @@ def test_sidebar_template_hosts_beautify_toolbar_filters_and_package_list_contra
 
     assert "currentMode === 'beautify' && visibleSidebar" in sidebar_template
     assert 'beautify-sidebar-panel' in sidebar_template
-    assert 'class="flex-1 flex flex-col overflow-hidden bg-[var(--bg-panel)] beautify-sidebar-panel beautify-sidebar-pane"' in sidebar_template
+    assert 'class="flex-1 flex flex-col overflow-hidden bg-[var(--surface-container)] beautify-sidebar-panel beautify-sidebar-pane"' in sidebar_template
     assert 'beautify-toolbar' in sidebar_template
     assert 'beautify-package-list custom-scrollbar' in sidebar_template
     assert 'x-model.debounce.200ms="beautifySearch"' in sidebar_template

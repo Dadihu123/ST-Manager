@@ -164,6 +164,8 @@ def test_tag_workspace_direct_close_exits_native_fullscreen():
     const saveTagTaxonomy = async () => ({ success: true });
     const matchAnyTagSearchToken = () => true;
     const splitTagTokens = () => [];
+    const DEFAULT_TAG_CATEGORY_COLOR = '#64748b';
+    const DEFAULT_TAG_CATEGORY_OPACITY = 100;
     globalThis.shell = {};
     globalThis.exitCalls = 0;
     globalThis.document = {
@@ -229,7 +231,7 @@ def test_fullscreen_and_favorite_card_css_keep_surfaces_and_icons_crisp():
     layout_template = read_project_file('templates/layout.html')
 
     assert '.tag-filter-desktop-shell::backdrop {' in workspace_css
-    assert 'background: var(--bg-body);' in workspace_css
+    assert 'background: var(--surface-page);' in workspace_css
     assert 'input[type="date"],\ninput[type="time"] {' in components_css
     assert 'color-scheme: dark;' in components_css
     assert 'html.light-mode input[type="date"],\nhtml.light-mode input[type="time"] {' in components_css

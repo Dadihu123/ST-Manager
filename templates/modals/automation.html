@@ -9,7 +9,7 @@
         <!-- 移动端：侧边栏切换按钮 -->
         <button x-show="$store.global.deviceType === 'mobile' && !showMobileSidebar" 
             @click="showMobileSidebar = true"
-            class="fixed bottom-16 left-2 z-50 w-10 h-10 bg-[var(--bg-panel)] border border-[var(--border-light)] rounded-lg flex items-center justify-center text-[var(--text-main)] shadow-lg md:hidden"
+            class="fixed bottom-16 left-2 z-50 w-10 h-10 bg-[var(--surface-container)] border border-[var(--border-default)] rounded-lg flex items-center justify-center text-[var(--content-primary)] shadow-lg md:hidden"
             title="打开规则集列表" aria-label="打开规则集列表">
             <span aria-hidden="true">{{ icon('list', 'ui-icon--sm') }}</span>
         </button>
@@ -17,7 +17,7 @@
         <!-- 移动端：侧边栏遮罩 -->
         <div x-show="$store.global.deviceType === 'mobile' && showMobileSidebar"
             @click="showMobileSidebar = false"
-            class="fixed inset-0 bg-black/50 z-40"
+            class="fixed inset-0 color-surface-scrim z-40"
             x-transition:enter="transition ease-out duration-300"
             x-transition:enter-start="opacity-0"
             x-transition:enter-end="opacity-100"
@@ -40,7 +40,7 @@
             x-transition:leave-end="transform -translate-x-full">
             <!-- 头部保持不变 -->
             <div
-                class="p-3 border-b border-[var(--border-light)] flex justify-between items-center bg-[var(--bg-panel)]">
+                class="p-3 border-b border-[var(--border-default)] flex justify-between items-center bg-[var(--surface-container)]">
                 <span class="font-bold text-sm">规则集</span>
                 <div class="flex gap-1">
                     <button @click="$refs.importInput.click()" class="btn-secondary px-2 py-1 text-xs"
@@ -57,16 +57,16 @@
             </div>
 
             <div
-                class="px-3 py-2 border-b border-[var(--border-light)] bg-[var(--bg-sub)] text-xs flex justify-between items-center">
-                <span class="text-[var(--text-dim)]">全局规则:</span>
+                class="px-3 py-2 border-b border-[var(--border-default)] bg-[var(--surface-container-raised)] text-xs flex justify-between items-center">
+                <span class="text-[var(--content-muted)]">全局规则:</span>
                 <template x-if="globalRulesetId">
-                    <span class="text-yellow-600 font-bold flex items-center gap-1">
+                    <span class="color-text-warning font-bold flex items-center gap-1">
                         <span aria-hidden="true">{{ icon('workflow', 'ui-icon--sm') }}</span>
                         <span x-text="ruleSets.find(r=>r.id===globalRulesetId)?.meta?.name || '未知'"></span>
                     </span>
                 </template>
                 <template x-if="!globalRulesetId">
-                    <span class="text-[var(--text-dim)]">未设置 (禁用)</span>
+                    <span class="text-[var(--content-muted)]">未设置 (禁用)</span>
                 </template>
             </div>
 
@@ -81,8 +81,8 @@
                             <!-- 同时添加 .stop 修饰符防止触发父级点击 -->
                             <button @click.stop="toggleGlobalActive(rs.id)"
                                 class="text-xs px-3 py-1 rounded border transition-all flex items-center gap-1" :class="globalRulesetId === rs.id 
-                                    ? 'bg-yellow-500 text-black border-yellow-600 font-bold shadow-md' 
-                                    : 'border-gray-500 text-gray-500 hover:border-yellow-500 hover:text-yellow-500'">
+                                    ? 'color-surface-warning-solid color-text-on-light color-border-warning font-bold shadow-md'
+                                    : 'color-border-default color-text-muted color-hover-border-warning color-hover-text-warning'">
                                 <span aria-hidden="true">{{ icon('workflow', 'ui-icon--xs') }}</span>
                                 <span x-text="globalRulesetId === rs.id ? '已激活全局' : '设为全局'"></span>
                             </button>
@@ -93,7 +93,7 @@
                         </div>
                     </div>
                 </template>
-                <div x-show="ruleSets.length===0" class="p-4 text-center text-xs text-[var(--text-dim)]">暂无规则集</div>
+                <div x-show="ruleSets.length===0" class="p-4 text-center text-xs text-[var(--content-muted)]">暂无规则集</div>
             </div>
         </aside>
 
@@ -103,7 +103,7 @@
             <main class="automation-content relative">
                 <!-- 关闭按钮 -->
                 <button @click="closeModal()" 
-                    class="absolute top-2 right-2 z-50 w-8 h-8 bg-[var(--bg-panel)] border border-[var(--border-light)] rounded-lg flex items-center justify-center text-[var(--text-main)] hover:bg-[var(--bg-hover)] hover:text-red-400 transition-colors shadow-lg"
+                    class="absolute top-2 right-2 z-50 w-8 h-8 bg-[var(--surface-container)] border border-[var(--border-default)] rounded-lg flex items-center justify-center text-[var(--content-primary)] hover:bg-[var(--state-hover-surface)] color-hover-text-danger transition-colors shadow-lg"
                     title="关闭" aria-label="关闭">
                     {{ icon('close', 'ui-icon--sm') }}
                 </button>
@@ -113,13 +113,13 @@
 
                     <!-- 全局状态提示条 -->
                     <div x-show="activeRuleSet?.id && globalRulesetId === activeRuleSet?.id"
-                        class="bg-yellow-500/10 border border-yellow-500/30 rounded px-3 py-2 flex justify-between items-center transition-all duration-300">
-                        <div class="flex items-center gap-2 text-yellow-600 font-bold text-xs">
+                        class="color-surface-warning border color-border-warning rounded px-3 py-2 flex justify-between items-center transition-all duration-300">
+                        <div class="flex items-center gap-2 color-text-warning font-bold text-xs">
                             <span aria-hidden="true">{{ icon('workflow', 'ui-icon--sm') }}</span>
                             <span>当前状态：全局默认规则 (按规则触发时机和动作类型在不同场景执行)</span>
                         </div>
                         <button x-show="$store.global.deviceType !== 'mobile'" @click="toggleGlobalActive(activeRuleSet?.id)"
-                            class="text-xs underline hover:text-yellow-500 cursor-pointer">
+                            class="text-xs underline color-hover-text-warning cursor-pointer">
                             关闭全局状态
                         </button>
                     </div>
@@ -129,15 +129,15 @@
                             <div class="flex flex-col gap-1 flex-1">
                                 <div class="flex items-center gap-2 automation-name-row">
                                     <input type="text" x-model="editingMeta.name"
-                                        class="text-lg font-bold bg-transparent border-b border-transparent hover:border-[var(--border-light)] focus:border-[var(--accent-main)] outline-none transition-colors flex-1"
+                                        class="text-lg font-bold bg-transparent border-b border-transparent hover:border-[var(--border-default)] focus:border-[var(--accent-action)] outline-none transition-colors flex-1"
                                         placeholder="规则集名称">
 
                                     <!-- ?.id 安全访问 -->
                                     <button @click="toggleGlobalActive(activeRuleSet?.id)"
                                         class="text-[10px] px-2 py-1 rounded border transition-colors whitespace-nowrap flex items-center gap-1 automation-global-btn"
                                         :class="(activeRuleSet?.id && globalRulesetId === activeRuleSet?.id)
-                                            ? 'bg-yellow-500 text-black border-yellow-600 font-bold shadow-sm' 
-                                            : 'border-[var(--border-light)] text-[var(--text-dim)] hover:border-yellow-500 hover:text-yellow-500'"
+                                            ? 'color-surface-warning-solid color-text-on-light color-border-warning font-bold shadow-sm'
+                                            : 'border-[var(--border-default)] text-[var(--content-muted)] color-hover-border-warning color-hover-text-warning'"
                                         :title="(activeRuleSet?.id && globalRulesetId === activeRuleSet?.id) ? '点击关闭全局' : '设为全局自动规则'">
                                         <span aria-hidden="true">{{ icon('workflow', 'ui-icon--xs') }}</span>
                                         <span
@@ -145,13 +145,13 @@
                                     </button>
                                     <!-- 语法帮助按钮；图标自身带圆形元素，不再叠加外边框 -->
                                     <button @click="openHelpTab('conditions')"
-                                        class="automation-help-trigger w-7 h-7 flex items-center justify-center rounded-full text-gray-500 hover:text-blue-400 hover:bg-blue-400/10 transition-colors ml-2"
+                                        class="automation-help-trigger w-7 h-7 flex items-center justify-center rounded-full color-text-muted color-hover-text-accent color-hover-surface-accent transition-colors ml-2"
                                         title="查看规则语法帮助" aria-label="查看规则语法帮助">
                                         {{ icon('settings-help-entry', 'ui-icon--md') }}
                                     </button>
                                 </div>
                                 <input type="text" x-model="editingMeta.description"
-                                    class="text-xs text-[var(--text-dim)] bg-transparent border-b border-transparent hover:border-[var(--border-light)] focus:border-[var(--accent-main)] outline-none w-full"
+                                    class="text-xs text-[var(--content-muted)] bg-transparent border-b border-transparent hover:border-[var(--border-default)] focus:border-[var(--accent-action)] outline-none w-full"
                                     placeholder="描述...">
                             </div>
                             <div class="flex flex-col gap-1 automation-meta-inputs">
@@ -167,7 +167,7 @@
                                 {{ icon('upload', 'ui-icon--sm') }}
                             </button>
                             <button @click="deleteCurrentRuleSet()"
-                                class="btn-secondary text-red-400 hover:text-red-500 px-3 flex items-center gap-1">
+                                class="btn-secondary color-text-danger color-hover-text-danger px-3 flex items-center gap-1">
                                 {{ icon('trash', 'ui-icon--sm') }}<span>删除</span>
                             </button>
                             <button @click="saveCurrentRuleSet()" class="btn-primary px-4 shadow-md flex items-center gap-1">
@@ -199,37 +199,37 @@
                                         <span class="drag-handle cursor-grab">{{ icon('menu-bold', 'ui-icon--xs') }}</span>
                                         <input type="checkbox" x-model="rule.enabled" class="cursor-pointer" title="启用/禁用">
                                         <input type="text" x-model="rule.name"
-                                            class="bg-transparent font-bold text-sm outline-none border-b border-transparent hover:border-gray-500 focus:border-blue-500 w-64"
+                                            class="bg-transparent font-bold text-sm outline-none border-b border-transparent color-hover-border-neutral color-focus-border-accent w-64"
                                             placeholder="规则名称...">
                                     </div>
                                     <div class="flex flex-wrap items-center gap-2">
                                         <button type="button" class="automation-preset-chip"
-                                            :class="ruleHasTrigger(rule, 'manual_run') ? 'border-[var(--accent-main)] text-[var(--accent-main)]' : 'text-[var(--text-dim)]'"
+                                            :class="ruleHasTrigger(rule, 'manual_run') ? 'border-[var(--accent-action)] text-[var(--accent-action)]' : 'text-[var(--content-muted)]'"
                                             @click="toggleRuleTrigger(rule, 'manual_run')">
                                             手动执行
                                         </button>
                                         <button type="button" class="automation-preset-chip"
-                                            :class="ruleHasTrigger(rule, 'auto_import') ? 'border-[var(--accent-main)] text-[var(--accent-main)]' : 'text-[var(--text-dim)]'"
+                                            :class="ruleHasTrigger(rule, 'auto_import') ? 'border-[var(--accent-action)] text-[var(--accent-action)]' : 'text-[var(--content-muted)]'"
                                             @click="toggleRuleTrigger(rule, 'auto_import')">
                                             导入后
                                         </button>
                                         <button type="button" class="automation-preset-chip"
-                                            :class="ruleHasTrigger(rule, 'card_update') ? 'border-[var(--accent-main)] text-[var(--accent-main)]' : 'text-[var(--text-dim)]'"
+                                            :class="ruleHasTrigger(rule, 'card_update') ? 'border-[var(--accent-action)] text-[var(--accent-action)]' : 'text-[var(--content-muted)]'"
                                             @click="toggleRuleTrigger(rule, 'card_update')">
                                             更新角色卡后
                                         </button>
                                         <button type="button" class="automation-preset-chip"
-                                            :class="ruleHasTrigger(rule, 'link_update') ? 'border-[var(--accent-main)] text-[var(--accent-main)]' : 'text-[var(--text-dim)]'"
+                                            :class="ruleHasTrigger(rule, 'link_update') ? 'border-[var(--accent-action)] text-[var(--accent-action)]' : 'text-[var(--content-muted)]'"
                                             @click="toggleRuleTrigger(rule, 'link_update')">
                                             更新来源链接后
                                         </button>
                                         <button type="button" class="automation-preset-chip"
-                                            :class="ruleHasTrigger(rule, 'tag_edit') ? 'border-[var(--accent-main)] text-[var(--accent-main)]' : 'text-[var(--text-dim)]'"
+                                            :class="ruleHasTrigger(rule, 'tag_edit') ? 'border-[var(--accent-action)] text-[var(--accent-action)]' : 'text-[var(--content-muted)]'"
                                             @click="toggleRuleTrigger(rule, 'tag_edit')">
                                             手动打标后
                                         </button>
                                     </div>
-                                    <div class="text-[10px] text-[var(--text-dim)]">
+                                    <div class="text-[10px] text-[var(--content-muted)]">
                                         仅勾选的触发场景会参与该规则。
                                     </div>
                                 </div>
@@ -237,7 +237,7 @@
                                     <label class="flex items-center gap-1 text-xs cursor-pointer select-none"
                                         title="如果命中此规则，不再执行后续规则">
                                         <input type="checkbox" x-model="rule.stop_on_match">
-                                        <span class="text-[var(--text-dim)]">命中即停止</span>
+                                        <span class="text-[var(--content-muted)]">命中即停止</span>
                                     </label>
                                     <div class="automation-inline-actions">
                                         <button type="button" @click="moveRule(rIdx, -1)" class="ui-reorder-button" title="上移规则" aria-label="上移规则">{{ icon('arrow-up', 'ui-icon--xs') }}</button>
@@ -262,8 +262,8 @@
                                     <div class="logic-content gap-3">
                                         <!-- Rule Level Logic (Group Connector) -->
                                         <div
-                                            class="flex items-center gap-2 mb-2 p-2 bg-[var(--bg-sub)] rounded border border-[var(--border-light)]">
-                                            <span class="text-xs font-bold text-[var(--text-dim)]">规则逻辑:</span>
+                                            class="flex items-center gap-2 mb-2 p-2 bg-[var(--surface-container-raised)] rounded border border-[var(--border-default)]">
+                                            <span class="text-xs font-bold text-[var(--content-muted)]">规则逻辑:</span>
                                             {% call styled_select(
                                                 "rule.logic",
                                                 wrapper_class="auto-select icon-select--compact",
@@ -274,18 +274,18 @@
                                                 <option value="OR">满足任意一个条件组 (OR)</option>
                                                 <option value="AND">必须满足所有条件组 (AND)</option>
                                             {% endcall %}
-                                            <span class="text-xs text-[var(--text-dim)]">时触发动作</span>
+                                            <span class="text-xs text-[var(--content-muted)]">时触发动作</span>
                                         </div>
                                         <!-- 遍历 Groups -->
                                         <template x-for="(group, gIdx) in rule.groups" :key="group.id">
                                             <div
-                                                class="relative border border-[var(--border-light)] rounded-lg p-2 bg-[var(--bg-sub)]">
+                                                class="relative border border-[var(--border-default)] rounded-lg p-2 bg-[var(--surface-container-raised)]">
 
                                                 <!-- Group Header & Logic -->
                                                 <div
-                                                    class="flex justify-between items-center mb-2 pb-1 border-b border-[var(--border-light)] border-dashed">
+                                                    class="flex justify-between items-center mb-2 pb-1 border-b border-[var(--border-default)] border-dashed">
                                                     <div class="flex items-center gap-2">
-                                                        <span class="text-xs font-bold text-[var(--text-dim)]"
+                                                        <span class="text-xs font-bold text-[var(--content-muted)]"
                                                             x-text="'条件组 ' + (gIdx+1)"></span>
                                                         {% call styled_select(
                                                             "group.logic",
@@ -302,14 +302,14 @@
                                                         <button type="button" @click="moveGroup(rIdx, gIdx, -1)" class="ui-reorder-button" title="上移条件组" aria-label="上移条件组">{{ icon('arrow-up', 'ui-icon--xs') }}</button>
                                                         <button type="button" @click="moveGroup(rIdx, gIdx, 1)" class="ui-reorder-button" title="下移条件组" aria-label="下移条件组">{{ icon('arrow-down', 'ui-icon--xs') }}</button>
                                                         <button @click="removeGroup(rIdx, gIdx)"
-                                                            class="text-[10px] text-red-400 hover:text-red-500 px-2 py-1 rounded hover:bg-red-500/10">删除组</button>
+                                                            class="text-[10px] color-text-danger color-hover-text-danger px-2 py-1 rounded color-hover-surface-danger">删除组</button>
                                                     </div>
                                                 </div>
 
                                                 <!-- Conditions List -->
                                                 <div class="flex flex-col gap-1">
                                                     <template x-for="(cond, cIdx) in group.conditions" :key="cIdx">
-                                                        <div class="logic-row bg-[var(--bg-panel)]">
+                                                        <div class="logic-row bg-[var(--surface-container)]">
                                                             <!-- 字段选择 -->
                                                             {% call styled_select(
                                                                 "cond.field",
@@ -422,7 +422,7 @@
                                                     </template>
 
                                                     <button @click="addConditionToGroup(rIdx, gIdx)"
-                                                        class="text-xs text-left text-blue-400 hover:text-blue-300 w-fit mt-1">
+                                                        class="text-xs text-left color-text-accent color-hover-text-accent w-fit mt-1">
                                                         + 添加条件
                                                     </button>
                                                 </div>
@@ -430,7 +430,7 @@
                                         </template>
 
                                         <button @click="addGroup(rIdx)"
-                                            class="w-full py-1 text-xs border border-dashed border-[var(--border-light)] text-[var(--text-dim)] hover:border-blue-400 hover:text-blue-400 rounded transition">
+                                            class="w-full py-1 text-xs border border-dashed border-[var(--border-default)] text-[var(--content-muted)] color-hover-border-accent color-hover-text-accent rounded transition">
                                             + 新增条件组 (New Group)
                                         </button>
                                     </div>
@@ -441,12 +441,12 @@
                                     <div class="logic-label then">THEN</div>
                                     <div class="logic-content">
                                         <template x-for="(action, aIdx) in rule.actions" :key="aIdx">
-                                            <div class="logic-row" style="border-color: rgba(16, 185, 129, 0.3);">
+                                            <div class="logic-row" style="border-color: var(--status-success-border);">
                                                 <div class="icon-select automation-action-type-select"
                                                     :class="{ 'is-open': isActionMenuOpen(rIdx, aIdx) }"
                                                     @click.outside="closeActionMenu($event)">
                                                     <button type="button"
-                                                        class="icon-select-trigger automation-action-type-control font-bold text-green-600"
+                                                        class="icon-select-trigger automation-action-type-control font-bold color-text-success"
                                                         :aria-expanded="isActionMenuOpen(rIdx, aIdx).toString()"
                                                         aria-haspopup="listbox"
                                                         :aria-controls="'automation-action-options-' + rIdx + '-' + aIdx"
@@ -519,12 +519,12 @@
                                                     </template>
 
                                                     <template x-if="action.type === 'merge_tags'">
-                                                        <div class="space-y-2 p-2 bg-[var(--bg-sub)] rounded border border-[var(--border-light)]">
+                                                        <div class="space-y-2 p-2 bg-[var(--surface-container-raised)] rounded border border-[var(--border-default)]">
                                                             <input type="text" x-model="action.value"
                                                                 class="auto-input w-full text-xs"
                                                                 :placeholder="$store.global.settingsForm.automation_slash_is_tag_separator ? '格式：旧标签→新标签，多个可用 | 或 / 分隔，如：femdom→女上|female→女性/waifu→老婆' : '格式：旧标签→新标签，多个可用 | 分隔，如：femdom→女上|female→女性'"
                                                                 :title="$store.global.settingsForm.automation_slash_is_tag_separator ? '支持批量映射：使用 | 或 / 分隔，每条规则使用 →（如 a→A|b→B）' : '支持批量映射：使用 | 分隔，每条规则使用 →（如 a→A|b→B）'">
-                                                            <div class="text-[10px] text-[var(--text-dim)] flex items-start gap-1">
+                                                            <div class="text-[10px] text-[var(--content-muted)] flex items-start gap-1">
                                                                 <span aria-hidden="true">{{ icon('book-tip', 'ui-icon--xs') }}</span>
                                                                 <span>将多个同义标签归并到统一标签。仅在“手动打标输入框添加标签”流程触发（批量标签管理输入框、详情页自定义添加输入框）</span>
                                                             </div>
@@ -534,10 +534,10 @@
                                                      <!-- 抓取论坛标签配置 -->
                                                      <template x-if="action.type === 'fetch_forum_tags'">
                                                          <div x-data="{ cfg: initActionConfig(action) }"
-                                                               class="space-y-2 p-2 bg-[var(--bg-sub)] rounded border border-[var(--border-light)]">
+                                                               class="space-y-2 p-2 bg-[var(--surface-container-raised)] rounded border border-[var(--border-default)]">
                                                               <!-- 排除标签 -->
                                                                <div class="flex items-center gap-2">
-                                                                   <span class="text-xs text-[var(--text-dim)] w-16">排除标签:</span>
+                                                                   <span class="text-xs text-[var(--content-muted)] w-16">排除标签:</span>
                                                                    <input type="text"
                                                                        x-model="cfg.exclude_tags"
                                                                        class="auto-input flex-1 text-xs"
@@ -545,7 +545,7 @@
                                                                </div>
                                                                <!-- 标签替换 -->
                                                                <div class="flex items-center gap-2">
-                                                                   <span class="text-xs text-[var(--text-dim)] w-16">标签替换:</span>
+                                                                   <span class="text-xs text-[var(--content-muted)] w-16">标签替换:</span>
                                                                    <input type="text"
                                                                        x-model="cfg.replace_rules_text"
                                                                        class="auto-input flex-1 text-xs"
@@ -553,7 +553,7 @@
                                                                </div>
                                                              <!-- 合并模式 -->
                                                              <div class="flex items-center gap-2">
-                                                                 <span class="text-xs text-[var(--text-dim)] w-16">合并模式:</span>
+                                                                 <span class="text-xs text-[var(--content-muted)] w-16">合并模式:</span>
                                                                  {% call styled_select(
                                                                      "cfg.merge_mode",
                                                                      wrapper_class="auto-select flex-1 min-w-0",
@@ -565,7 +565,7 @@
                                                                      <option value="replace">替换（清空后添加）</option>
                                                                  {% endcall %}
                                                              </div>
-                                                              <div class="text-[10px] text-[var(--text-dim)] mt-1 flex items-start gap-1">
+                                                              <div class="text-[10px] text-[var(--content-muted)] mt-1 flex items-start gap-1">
                                                                   <span aria-hidden="true">{{ icon('book-tip', 'ui-icon--xs') }}</span>
                                                                   <span>从角色卡设置的来源链接抓取类脑论坛标签</span>
                                                              </div>
@@ -575,9 +575,9 @@
                                                      <!-- 来源标题正则提取标签配置 -->
                                                      <template x-if="action.type === 'add_tags_from_source_title'">
                                                          <div x-data="{ cfg: initActionConfig(action) }"
-                                                              class="space-y-2 p-2 bg-[var(--bg-sub)] rounded border border-[var(--border-light)]">
+                                                              class="space-y-2 p-2 bg-[var(--surface-container-raised)] rounded border border-[var(--border-default)]">
                                                              <div>
-                                                                 <label class="text-xs text-[var(--text-dim)] block mb-1">标题正则:</label>
+                                                                 <label class="text-xs text-[var(--content-muted)] block mb-1">标题正则:</label>
                                                                   <textarea x-model="cfg.pattern"
                                                                       class="auto-input w-full text-xs font-mono"
                                                                       rows="2"
@@ -585,7 +585,7 @@
                                                                       placeholder="例如：(?:【|\[)([^】\]]+)(?:】|\])"></textarea>
                                                              </div>
                                                              <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
-                                                                 <label class="text-xs text-[var(--text-dim)]">
+                                                                 <label class="text-xs text-[var(--content-muted)]">
                                                                      捕获组（可多个）:
                                                                      <input type="text"
                                                                          x-model="cfg.capture_groups_text"
@@ -593,7 +593,7 @@
                                                                          aria-label="来源标题正则捕获组"
                                                                          placeholder="1 或 1,2 或 tag,genre">
                                                                  </label>
-                                                                 <label class="text-xs text-[var(--text-dim)]">
+                                                                 <label class="text-xs text-[var(--content-muted)]">
                                                                      分割正则（可空）:
                                                                      <input type="text"
                                                                          x-model="cfg.split_pattern"
@@ -601,7 +601,7 @@
                                                                          aria-label="来源标题标签分割正则"
                                                                          placeholder="[/|]">
                                                                  </label>
-                                                                 <label class="text-xs text-[var(--text-dim)]">
+                                                                 <label class="text-xs text-[var(--content-muted)]">
                                                                      正则标记:
                                                                      <input type="text"
                                                                          x-model="cfg.flags"
@@ -610,7 +610,7 @@
                                                                          placeholder="ims">
                                                                  </label>
                                                              </div>
-                                                             <div class="text-[10px] text-[var(--text-dim)] mt-1 flex items-start gap-1">
+                                                             <div class="text-[10px] text-[var(--content-muted)] mt-1 flex items-start gap-1">
                                                                  <span aria-hidden="true">{{ detail_icon('regex', 'ui-icon--xs') }}</span>
                                                                  <span>使用 Python 正则；捕获组 0 表示完整匹配。每次来源链接更新时执行，提取结果只追加标签，并遵守标签黑名单和标签库锁定。</span>
                                                              </div>
@@ -620,9 +620,9 @@
                                                      <!-- 来源作者填写创作者配置 -->
                                                      <template x-if="action.type === 'set_creator_from_source'">
                                                          <div x-data="{ cfg: initActionConfig(action) }"
-                                                              class="space-y-2 p-2 bg-[var(--bg-sub)] rounded border border-[var(--border-light)]">
+                                                              class="space-y-2 p-2 bg-[var(--surface-container-raised)] rounded border border-[var(--border-default)]">
                                                              <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
-                                                                 <label class="text-xs text-[var(--text-dim)]">
+                                                                 <label class="text-xs text-[var(--content-muted)]">
                                                                      作者来源:
                                                                      {% call styled_select(
                                                                          "cfg.provider",
@@ -636,7 +636,7 @@
                                                                          <option value="shimmerday">类脑搜索</option>
                                                                      {% endcall %}
                                                                  </label>
-                                                                 <label class="text-xs text-[var(--text-dim)]">
+                                                                 <label class="text-xs text-[var(--content-muted)]">
                                                                      作者字段:
                                                                      {% call styled_select(
                                                                          "cfg.author_field",
@@ -652,20 +652,20 @@
                                                                      {% endcall %}
                                                                  </label>
                                                              </div>
-                                                             <label class="text-xs text-[var(--text-dim)] block">
+                                                             <label class="text-xs text-[var(--content-muted)] block">
                                                                  创作者格式:
                                                                  <input type="text" x-model="cfg.format"
                                                                      class="auto-input w-full text-xs font-mono mt-1"
                                                                      aria-label="创作者格式模板"
                                                                      placeholder="例如：&#123;&#123;author&#125;&#125; 或 &#123;&#123;author&#125;&#125;@&#123;&#123;author&#125;&#125;">
                                                              </label>
-                                                             <label class="inline-flex items-center gap-2 text-xs text-[var(--text-dim)] cursor-pointer">
+                                                             <label class="inline-flex items-center gap-2 text-xs text-[var(--content-muted)] cursor-pointer">
                                                                  <input type="checkbox" x-model="cfg.overwrite"
-                                                                     class="accent-blue-500"
+                                                                     class="color-accent-primary"
                                                                      aria-label="覆盖当前角色卡创作者">
                                                                  <span>覆盖当前角色卡创作者</span>
                                                              </label>
-                                                             <div class="text-[10px] text-[var(--text-dim)] mt-1 flex items-start gap-1">
+                                                             <div class="text-[10px] text-[var(--content-muted)] mt-1 flex items-start gap-1">
                                                                  <span aria-hidden="true">{{ detail_icon('user', 'ui-icon--xs') }}</span>
                                                                  <span>每次来源链接更新时执行；未勾选时仅在当前创作者为空时填写。可用变量：&#123;&#123;author&#125;&#125;、&#123;&#123;username&#125;&#125;、&#123;&#123;display_name&#125;&#125;、&#123;&#123;global_name&#125;&#125;、&#123;&#123;author_id&#125;&#125;、&#123;&#123;title&#125;&#125;。</span>
                                                              </div>
@@ -674,9 +674,9 @@
 
                                                      <template x-if="action.type === 'rename_file_by_template'">
                                                           <div x-data="{ cfg: initActionConfig(action) }"
-                                                               class="space-y-2 p-2 bg-[var(--bg-sub)] rounded border border-[var(--border-light)]">
+                                                               class="space-y-2 p-2 bg-[var(--surface-container-raised)] rounded border border-[var(--border-default)]">
                                                               <div>
-                                                                  <div class="text-xs text-[var(--text-dim)] mb-1">套用示例</div>
+                                                                  <div class="text-xs text-[var(--content-muted)] mb-1">套用示例</div>
                                                                   <div class="flex flex-wrap gap-2">
                                                                       <button type="button" class="automation-preset-chip"
                                                                           @click="cfg = applyRenameTemplatePreset(action, 'name_version')">
@@ -693,28 +693,28 @@
                                                                   </div>
                                                               </div>
                                                               <div class="flex items-center gap-2">
-                                                                  <span class="text-xs text-[var(--text-dim)] w-20">模板:</span>
+                                                                  <span class="text-xs text-[var(--content-muted)] w-20">模板:</span>
                                                                   <input type="text"
                                                                       x-model="cfg.template"
                                                                      class="auto-input flex-1 text-xs"
                                                                      placeholder="例如：{{char_name}} - {{creator}}">
                                                              </div>
                                                              <div class="flex items-center gap-2">
-                                                                 <span class="text-xs text-[var(--text-dim)] w-20">回退模板:</span>
+                                                                 <span class="text-xs text-[var(--content-muted)] w-20">回退模板:</span>
                                                                  <input type="text"
                                                                      x-model="cfg.fallback_template"
                                                                      class="auto-input flex-1 text-xs"
                                                                      placeholder="当主模板为空时使用，可留空">
                                                              </div>
                                                                <div class="flex items-center gap-2">
-                                                                   <span class="text-xs text-[var(--text-dim)] w-20">最大长度:</span>
+                                                                   <span class="text-xs text-[var(--content-muted)] w-20">最大长度:</span>
                                                                    <input type="number"
                                                                        x-model.number="cfg.max_length"
                                                                        min="1"
                                                                        class="auto-input flex-1 text-xs"
                                                                        placeholder="120">
                                                                </div>
-                                                                <div class="text-[10px] text-[var(--text-dim)] mt-1 flex items-start gap-1">
+                                                                <div class="text-[10px] text-[var(--content-muted)] mt-1 flex items-start gap-1">
                                                                     <span aria-hidden="true">{{ icon('book-tip', 'ui-icon--xs') }}</span>
                                                                     <span>若想在覆盖更新后重命名，请在规则上启用“更新角色卡后”；如果文件名要体现本次更新时间，优先使用 modified_date。</span>
                                                                </div>
@@ -723,15 +723,15 @@
 
                                                      <template x-if="action.type === 'split_category_to_tags'">
                                                           <div x-data="{ cfg: initActionConfig(action) }"
-                                                               class="space-y-2 p-2 bg-[var(--bg-sub)] rounded border border-[var(--border-light)]">
+                                                               class="space-y-2 p-2 bg-[var(--surface-container-raised)] rounded border border-[var(--border-default)]">
                                                               <div class="flex items-center gap-2">
-                                                                  <span class="text-xs text-[var(--text-dim)] w-20">排除分类标签:</span>
+                                                                  <span class="text-xs text-[var(--content-muted)] w-20">排除分类标签:</span>
                                                                   <input type="text"
                                                                       x-model="cfg.exclude_category_tags"
                                                                       class="auto-input flex-1 text-xs"
                                                                       :placeholder="$store.global.settingsForm.automation_slash_is_tag_separator ? '多个标签用|或/分隔，如：角色|题材/状态' : '多个标签用|分隔，如：角色|题材'">
                                                               </div>
-                                                               <div class="text-[10px] text-[var(--text-dim)] mt-1 flex items-start gap-1">
+                                                               <div class="text-[10px] text-[var(--content-muted)] mt-1 flex items-start gap-1">
                                                                    <span aria-hidden="true">{{ icon('book-tip', 'ui-icon--xs') }}</span>
                                                                    <span>当前分类路径会自动按 / 拆分，例如 <code class="font-mono">a/b/c</code> 会追加 <code class="font-mono">a</code>、<code class="font-mono">b</code>、<code class="font-mono">c</code></span>
                                                               </div>
@@ -739,7 +739,7 @@
                                                       </template>
 
                                                      <template x-if="action.type === 'refresh_source_baseline'">
-                                                         <div class="text-xs text-[var(--text-dim)] px-2 py-1 bg-[var(--bg-sub)] border border-[var(--border-light)] rounded">
+                                                         <div class="text-xs text-[var(--content-muted)] px-2 py-1 bg-[var(--surface-container-raised)] border border-[var(--border-default)] rounded">
                                                              更新来源链接时抓取标题和首帖编辑时间，并建立新的检查基线
                                                          </div>
                                                      </template>
@@ -753,7 +753,7 @@
                                                     </template>
 
                                                     <template x-if="action.type === 'set_char_name_from_filename' || action.type === 'set_wi_name_from_filename' || action.type === 'set_filename_from_char_name' || action.type === 'set_filename_from_wi_name'">
-                                                        <div class="text-xs text-[var(--text-dim)] px-2 py-1 bg-[var(--bg-sub)] border border-[var(--border-light)] rounded">
+                                                        <div class="text-xs text-[var(--content-muted)] px-2 py-1 bg-[var(--surface-container-raised)] border border-[var(--border-default)] rounded">
                                                             无需填写参数，命中后自动执行
                                                         </div>
                                                     </template>
@@ -768,21 +768,21 @@
                                             </div>
                                         </template>
                                         <button @click="addAction(rIdx)"
-                                            class="text-xs text-left text-green-500 hover:text-green-400 w-fit">+
+                                            class="text-xs text-left color-text-success color-hover-text-success w-fit">+
                                             添加执行动作</button>
                                     </div>
                                 </div>
 
                             </div>
                             <div x-show="!rule.enabled"
-                                class="bg-[var(--bg-sub)] p-2 text-center text-xs text-[var(--text-dim)]">
+                                class="bg-[var(--surface-container-raised)] p-2 text-center text-xs text-[var(--content-muted)]">
                                 (此规则已禁用)
                             </div>
                         </div>
                     </template>
 
                     <button @click="addRule()"
-                        class="w-full py-3 border-2 border-dashed border-[var(--border-light)] rounded-lg text-[var(--text-dim)] hover:border-[var(--accent-main)] hover:text-[var(--accent-main)] transition font-bold">
+                        class="w-full py-3 border-2 border-dashed border-[var(--border-default)] rounded-lg text-[var(--content-muted)] hover:border-[var(--accent-action)] hover:text-[var(--accent-action)] transition font-bold">
                         + 新增规则 (New Rule)
                     </button>
 
@@ -793,26 +793,26 @@
                     x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
                     x-transition:leave="transition ease-in duration-150"
                     x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95"
-                    class="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-8"
+                    class="absolute inset-0 z-50 flex items-center justify-center color-surface-scrim backdrop-blur-sm p-8"
                     @click.self="showHelpModal = false">
 
                     <div
-                        class="bg-[var(--bg-panel)] border border-[var(--border-light)] rounded-xl shadow-2xl w-full max-w-2xl flex flex-col overflow-hidden max-h-full">
+                        class="bg-[var(--surface-container)] border border-[var(--border-default)] rounded-xl shadow-2xl w-full max-w-2xl flex flex-col overflow-hidden max-h-full">
                         <!-- 弹窗标题 -->
                         <div
-                            class="px-6 py-4 border-b border-[var(--border-light)] bg-[var(--bg-sub)] flex justify-between items-center">
-                            <h3 class="font-bold text-lg text-[var(--text-main)] flex items-center gap-2">
+                            class="px-6 py-4 border-b border-[var(--border-default)] bg-[var(--surface-container-raised)] flex justify-between items-center">
+                            <h3 class="font-bold text-lg text-[var(--content-primary)] flex items-center gap-2">
                                 <span aria-hidden="true">{{ icon('book-tip', 'ui-icon--sm') }}</span>
                                 <span>规则编写指南</span>
                             </h3>
                             <button @click="showHelpModal = false"
-                                class="text-gray-500 hover:text-red-400 px-2 text-xl" title="关闭帮助" aria-label="关闭帮助">
+                                class="color-text-muted color-hover-text-danger px-2 text-xl" title="关闭帮助" aria-label="关闭帮助">
                                 {{ icon('close', 'ui-icon--sm') }}
                             </button>
                         </div>
 
                         <!-- 弹窗内容 -->
-                        <div class="automation-help-body p-6 overflow-y-auto custom-scrollbar text-sm text-[var(--text-main)]">
+                        <div class="automation-help-body p-6 overflow-y-auto custom-scrollbar text-sm text-[var(--content-primary)]">
                             <div class="automation-help-tabs" role="tablist" aria-label="规则帮助分类">
                                 <button type="button" class="automation-help-tab"
                                     id="automation-help-tab-conditions"
@@ -848,42 +848,42 @@
                                 role="tabpanel" aria-labelledby="automation-help-tab-conditions"
                                 class="automation-help-panel space-y-6">
                                 <div>
-                                    <h4 class="font-bold text-[var(--accent-main)] mb-2 text-base">条件</h4>
-                                    <p class="text-[var(--text-dim)] mb-3">
+                                    <h4 class="font-bold text-[var(--accent-action)] mb-2 text-base">条件</h4>
+                                    <p class="text-[var(--content-muted)] mb-3">
                                         在条件值中，你可以使用管道符 <code
-                                            class="bg-[var(--bg-code)] px-1.5 py-0.5 rounded text-yellow-500 font-mono">|</code>
+                                            class="bg-[var(--surface-code)] px-1.5 py-0.5 rounded color-text-warning font-mono">|</code>
                                         来分隔多个目标值。这允许你在单行条件中实现“或”逻辑。
                                     </p>
 
-                                    <div class="bg-[var(--bg-sub)] rounded border border-[var(--border-light)] p-3">
+                                    <div class="bg-[var(--surface-container-raised)] rounded border border-[var(--border-default)] p-3">
                                         <div class="grid grid-cols-1 gap-3">
                                             <div>
-                                                <div class="font-bold text-xs text-blue-400 mb-1 inline-flex items-center gap-1">
+                                                <div class="font-bold text-xs color-text-accent mb-1 inline-flex items-center gap-1">
                                                     <span aria-hidden="true">{{ icon('check', 'ui-icon--xs') }}</span>
                                                     <span>肯定类操作符 (包含 / 等于)</span>
                                                 </div>
-                                                <div class="text-xs text-[var(--text-dim)] mb-1">
-                                                    只要命中列表中的 <span class="font-bold text-white">任意一个</span> 值，条件即为真 (OR 逻辑)。
+                                                <div class="text-xs text-[var(--content-muted)] mb-1">
+                                                    只要命中列表中的 <span class="font-bold color-text-on-dark">任意一个</span> 值，条件即为真 (OR 逻辑)。
                                                 </div>
-                                                <div class="bg-[var(--bg-code)] p-2 rounded text-xs font-mono">
-                                                    <span class="text-purple-400">Tags</span> <span class="text-gray-500">contains</span> <span class="text-green-400">elf|orc|goblin</span>
+                                                <div class="bg-[var(--surface-code)] p-2 rounded text-xs font-mono">
+                                                    <span class="color-text-violet">Tags</span> <span class="color-text-muted">contains</span> <span class="color-text-success">elf|orc|goblin</span>
                                                     <br>
-                                                    <span class="text-gray-500 opacity-60">// 匹配包含 "elf" 或者 "orc" 或者 "goblin" 的卡片</span>
+                                                    <span class="color-text-muted opacity-60">// 匹配包含 "elf" 或者 "orc" 或者 "goblin" 的卡片</span>
                                                 </div>
                                             </div>
 
                                             <div>
-                                                <div class="font-bold text-xs text-red-400 mb-1 inline-flex items-center gap-1">
+                                                <div class="font-bold text-xs color-text-danger mb-1 inline-flex items-center gap-1">
                                                     <span aria-hidden="true">{{ icon('forbidden', 'ui-icon--xs') }}</span>
                                                     <span>否定类操作符 (不包含 / 不等于)</span>
                                                 </div>
-                                                <div class="text-xs text-[var(--text-dim)] mb-1">
-                                                    必须 <span class="font-bold text-white">同时不匹配</span> 列表中的所有值，条件才为真 (NOR 逻辑)。
+                                                <div class="text-xs text-[var(--content-muted)] mb-1">
+                                                    必须 <span class="font-bold color-text-on-dark">同时不匹配</span> 列表中的所有值，条件才为真 (NOR 逻辑)。
                                                 </div>
-                                                <div class="bg-[var(--bg-code)] p-2 rounded text-xs font-mono">
-                                                    <span class="text-purple-400">Creator</span> <span class="text-gray-500">not_contains</span> <span class="text-green-400">UserA|UserB</span>
+                                                <div class="bg-[var(--surface-code)] p-2 rounded text-xs font-mono">
+                                                    <span class="color-text-violet">Creator</span> <span class="color-text-muted">not_contains</span> <span class="color-text-success">UserA|UserB</span>
                                                     <br>
-                                                    <span class="text-gray-500 opacity-60">// 排除 UserA 和 UserB 的作品 (既不是A也不是B)</span>
+                                                    <span class="color-text-muted opacity-60">// 排除 UserA 和 UserB 的作品 (既不是A也不是B)</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -891,12 +891,12 @@
                                 </div>
 
                                 <div>
-                                    <h4 class="font-bold text-[var(--text-sub)] mb-2 text-base">书写规范</h4>
-                                    <ul class="list-disc list-inside space-y-1 text-[var(--text-dim)] ml-2">
-                                        <li>无需使用引号包裹值（如 <code class="text-red-400 line-through">"elf"|"orc"</code> 是错误的，直接写 <code class="text-green-400">elf|orc</code>）。</li>
+                                    <h4 class="font-bold text-[var(--content-secondary)] mb-2 text-base">书写规范</h4>
+                                    <ul class="list-disc list-inside space-y-1 text-[var(--content-muted)] ml-2">
+                                        <li>无需使用引号包裹值（如 <code class="color-text-danger line-through">"elf"|"orc"</code> 是错误的，直接写 <code class="color-text-success">elf|orc</code>）。</li>
                                         <li>管道符 <code class="font-mono">|</code> 前后的空格会被自动去除 (Trim)。</li>
                                         <li>适用于所有文本和列表类型字段 (Name, Tags, Description 等)。</li>
-                                        <li><span class="text-yellow-500">注意：</span>此语法不适用于 "正则匹配 (Regex)" 操作符，因为正则本身就支持 <code class="font-mono">|</code> 且逻辑更复杂。</li>
+                                        <li><span class="color-text-warning">注意：</span>此语法不适用于 "正则匹配 (Regex)" 操作符，因为正则本身就支持 <code class="font-mono">|</code> 且逻辑更复杂。</li>
                                     </ul>
                                 </div>
                             </section>
@@ -905,31 +905,31 @@
                                 role="tabpanel" aria-labelledby="automation-help-tab-actions"
                                 class="automation-help-panel space-y-6">
                                 <div>
-                                    <h4 class="font-bold text-[var(--accent-main)] mb-2 text-base">动作</h4>
-                                    <p class="text-[var(--text-dim)] mb-3">
+                                    <h4 class="font-bold text-[var(--accent-action)] mb-2 text-base">动作</h4>
+                                    <p class="text-[var(--content-muted)] mb-3">
                                         动作按触发场景分批执行。不同触发场景只会运行对应的动作子集，因此请根据实际入口选择合适动作。
                                     </p>
-                                    <div class="bg-[var(--bg-sub)] rounded border border-[var(--border-light)] p-3 space-y-3">
+                                    <div class="bg-[var(--surface-container-raised)] rounded border border-[var(--border-default)] p-3 space-y-3">
                                         <div>
-                                            <div class="font-bold text-xs text-orange-400 mb-1 inline-flex items-center gap-1">
+                                            <div class="font-bold text-xs color-text-warning mb-1 inline-flex items-center gap-1">
                                                 <span aria-hidden="true">{{ detail_icon('tags', 'ui-icon--xs') }}</span>
                                                 <span>批量标签动作</span>
                                             </div>
-                                            <div class="text-xs text-[var(--text-dim)] mb-1">
+                                            <div class="text-xs text-[var(--content-muted)] mb-1">
                                                 在执行 "添加标签" 或 "移除标签" 时，一次性处理多个标签。
                                             </div>
-                                            <div class="bg-[var(--bg-code)] p-2 rounded text-xs font-mono">
-                                                <span class="text-purple-400">Add Tag</span> <span class="text-gray-500">=</span> <span class="text-green-400">female|elf|mage</span>
+                                            <div class="bg-[var(--surface-code)] p-2 rounded text-xs font-mono">
+                                                <span class="color-text-violet">Add Tag</span> <span class="color-text-muted">=</span> <span class="color-text-success">female|elf|mage</span>
                                                 <br>
-                                                <span class="text-gray-500 opacity-60">// 同时添加 "female", "elf", "mage" 三个标签</span>
+                                                <span class="color-text-muted opacity-60">// 同时添加 "female", "elf", "mage" 三个标签</span>
                                                 <br>
-                                                <span class="text-gray-500 opacity-60" x-show="$store.global.settingsForm.automation_slash_is_tag_separator">// 当前已启用 / 分隔，也可写为 female/elf/mage</span>
+                                                <span class="color-text-muted opacity-60" x-show="$store.global.settingsForm.automation_slash_is_tag_separator">// 当前已启用 / 分隔，也可写为 female/elf/mage</span>
                                             </div>
                                         </div>
 
                                         <div>
-                                            <div class="font-bold text-xs text-blue-400 mb-2">论坛标签与模板动作</div>
-                                            <ul class="list-disc list-inside space-y-1 text-xs text-[var(--text-dim)]">
+                                            <div class="font-bold text-xs color-text-accent mb-2">论坛标签与模板动作</div>
+                                            <ul class="list-disc list-inside space-y-1 text-xs text-[var(--content-muted)]">
                                                 <li><strong>fetch_forum_tags</strong>：自动从来源链接抓取论坛标签，可配置排除标签、标签替换、合并模式；不会更新来源标题或首帖时间基线。</li>
                                                 <li><strong>refresh_source_baseline</strong>：更新来源链接时同步帖子标题和首帖编辑时间，并将其保存为新的检查基线；与抓取论坛标签同时启用时会合并帖子请求。</li>
                                                 <li><strong>add_tags_from_source_title</strong>：用自定义 Python 正则匹配来源帖子标题，按捕获组和分割正则提取标签；结果只追加，不替换已有标签。</li>
@@ -943,19 +943,19 @@
                                 </div>
 
                                 <div>
-                                    <h4 class="font-bold text-[var(--accent-main)] mb-2 text-base">论坛标签抓取 (Fetch Forum Tags)</h4>
-                                    <p class="text-[var(--text-dim)] mb-3">
+                                    <h4 class="font-bold text-[var(--accent-action)] mb-2 text-base">论坛标签抓取 (Fetch Forum Tags)</h4>
+                                    <p class="text-[var(--content-muted)] mb-3">
                                         自动从类脑论坛帖子抓取标签并为角色卡打标。使用前需要在角色卡详情页设置"来源链接"。
                                     </p>
-                                    <div class="bg-[var(--bg-sub)] rounded border border-[var(--border-light)] p-3">
-                                        <div class="font-bold text-xs text-green-400 mb-2">配置说明：</div>
-                                        <ul class="list-disc list-inside space-y-1 text-xs text-[var(--text-dim)]">
-                                            <li><strong>排除标签</strong>：填写不需要的标签，默认用 <code class="font-mono text-yellow-500">|</code> 分隔<span x-show="$store.global.settingsForm.automation_slash_is_tag_separator">，也支持 /</span></li>
-                                            <li><strong>标签替换</strong>：格式为"原标签→新标签"，多个规则默认用 <code class="font-mono text-yellow-500">|</code> 分隔<span x-show="$store.global.settingsForm.automation_slash_is_tag_separator">，也支持 /</span></li>
+                                    <div class="bg-[var(--surface-container-raised)] rounded border border-[var(--border-default)] p-3">
+                                        <div class="font-bold text-xs color-text-success mb-2">配置说明：</div>
+                                        <ul class="list-disc list-inside space-y-1 text-xs text-[var(--content-muted)]">
+                                            <li><strong>排除标签</strong>：填写不需要的标签，默认用 <code class="font-mono color-text-warning">|</code> 分隔<span x-show="$store.global.settingsForm.automation_slash_is_tag_separator">，也支持 /</span></li>
+                                            <li><strong>标签替换</strong>：格式为"原标签→新标签"，多个规则默认用 <code class="font-mono color-text-warning">|</code> 分隔<span x-show="$store.global.settingsForm.automation_slash_is_tag_separator">，也支持 /</span></li>
                                             <li><strong>合并模式</strong>：选择"合并"保留现有标签，或"替换"清空后添加</li>
                                         </ul>
-                                        <div class="bg-[var(--bg-code)] p-2 rounded text-xs font-mono mt-2">
-                                            <span class="text-purple-400">示例</span><br>
+                                        <div class="bg-[var(--surface-code)] p-2 rounded text-xs font-mono mt-2">
+                                            <span class="color-text-violet">示例</span><br>
                                             <span x-text="$store.global.settingsForm.automation_slash_is_tag_separator ? '排除标签: 其他/待审核' : '排除标签: 其他|待审核'"></span><br>
                                             <span x-text="$store.global.settingsForm.automation_slash_is_tag_separator ? '标签替换: 其他→杂项/调教→BDSM' : '标签替换: 其他→杂项|调教→BDSM'"></span><br>
                                             合并模式: 合并
@@ -964,41 +964,41 @@
                                 </div>
 
                                 <div>
-                                    <h4 class="font-bold text-[var(--accent-main)] mb-2 text-base">来源标题提取标签</h4>
-                                    <p class="text-[var(--text-dim)] mb-3">
+                                    <h4 class="font-bold text-[var(--accent-action)] mb-2 text-base">来源标题提取标签</h4>
+                                    <p class="text-[var(--content-muted)] mb-3">
                                         该动作支持自定义正则逻辑，不限制为固定的括号格式。正则对来源帖子标题执行，匹配到的捕获组会再按分割正则拆成标签。
                                     </p>
-                                    <div class="bg-[var(--bg-sub)] rounded border border-[var(--border-light)] p-3 space-y-2">
-                                        <div class="font-bold text-xs text-green-400">示例 1：标题 <code class="font-mono">【a/b】【c|d】</code></div>
-                                        <div class="bg-[var(--bg-code)] p-2 rounded text-xs font-mono">
-                                            正则：<span class="text-purple-400">(?:【|\[)([^】\]]+)(?:】|\])</span><br>
-                                            捕获组：<span class="text-green-400">1</span>　分割正则：<span class="text-green-400">[/|]</span><br>
-                                            结果：<span class="text-yellow-400">a、b、c、d</span>
+                                    <div class="bg-[var(--surface-container-raised)] rounded border border-[var(--border-default)] p-3 space-y-2">
+                                        <div class="font-bold text-xs color-text-success">示例 1：标题 <code class="font-mono">【a/b】【c|d】</code></div>
+                                        <div class="bg-[var(--surface-code)] p-2 rounded text-xs font-mono">
+                                            正则：<span class="color-text-violet">(?:【|\[)([^】\]]+)(?:】|\])</span><br>
+                                            捕获组：<span class="color-text-success">1</span>　分割正则：<span class="color-text-success">[/|]</span><br>
+                                            结果：<span class="color-text-warning">a、b、c、d</span>
                                         </div>
-                                        <div class="font-bold text-xs text-green-400">示例 2：自定义标题格式 <code class="font-mono">作者:abcd 标签:a/b</code></div>
-                                        <div class="bg-[var(--bg-code)] p-2 rounded text-xs font-mono">
-                                            正则：<span class="text-purple-400">标签[:：]([^\s]+)</span><br>
-                                            捕获组：<span class="text-green-400">1</span>　分割正则：<span class="text-green-400">[/]</span><br>
+                                        <div class="font-bold text-xs color-text-success">示例 2：自定义标题格式 <code class="font-mono">作者:abcd 标签:a/b</code></div>
+                                        <div class="bg-[var(--surface-code)] p-2 rounded text-xs font-mono">
+                                            正则：<span class="color-text-violet">标签[:：]([^\s]+)</span><br>
+                                            捕获组：<span class="color-text-success">1</span>　分割正则：<span class="color-text-success">[/]</span><br>
                                             结果：追加标题中标签字段拆出的各个标签，并继续经过标签黑名单和标签库锁定检查。
                                         </div>
-                                        <div class="text-[10px] text-[var(--text-dim)]">
+                                        <div class="text-[10px] text-[var(--content-muted)]">
                                             捕获组填写 <code class="font-mono">0</code> 表示完整匹配，也可以填写多个编号或命名组（如 <code class="font-mono">1,2</code>、<code class="font-mono">tag,genre</code>）；正则标记支持 <code class="font-mono">i</code>、<code class="font-mono">m</code>、<code class="font-mono">s</code>、<code class="font-mono">x</code>。
                                         </div>
                                     </div>
                                 </div>
 
                                 <div>
-                                    <h4 class="font-bold text-[var(--accent-main)] mb-2 text-base">来源作者填写创作者</h4>
-                                    <p class="text-[var(--text-dim)] mb-3">
+                                    <h4 class="font-bold text-[var(--accent-action)] mb-2 text-base">来源作者填写创作者</h4>
+                                    <p class="text-[var(--content-muted)] mb-3">
                                         来源作者优先从 Discord 首帖读取；自动模式下 Discord 没有作者时再尝试类脑搜索。类脑搜索需要配置可用的论坛 Cookie。
                                     </p>
-                                    <div class="bg-[var(--bg-sub)] rounded border border-[var(--border-light)] p-3 space-y-2">
-                                        <div class="bg-[var(--bg-code)] p-2 rounded text-xs font-mono">
-                                            来源作者账号名：<span class="text-green-400">abcd</span><br>
-                                            格式：<span class="text-purple-400">&#123;&#123;author&#125;&#125;</span>　结果：<span class="text-yellow-400">abcd</span><br>
-                                            格式：<span class="text-purple-400">&#123;&#123;author&#125;&#125;@&#123;&#123;author&#125;&#125;</span>　结果：<span class="text-yellow-400">abcd@abcd</span>
+                                    <div class="bg-[var(--surface-container-raised)] rounded border border-[var(--border-default)] p-3 space-y-2">
+                                        <div class="bg-[var(--surface-code)] p-2 rounded text-xs font-mono">
+                                            来源作者账号名：<span class="color-text-success">abcd</span><br>
+                                            格式：<span class="color-text-violet">&#123;&#123;author&#125;&#125;</span>　结果：<span class="color-text-warning">abcd</span><br>
+                                            格式：<span class="color-text-violet">&#123;&#123;author&#125;&#125;@&#123;&#123;author&#125;&#125;</span>　结果：<span class="color-text-warning">abcd@abcd</span>
                                         </div>
-                                        <div class="text-xs text-[var(--text-dim)]">
+                                        <div class="text-xs text-[var(--content-muted)]">
                                             未勾选“覆盖当前角色卡创作者”时，只有当前创作者为空才会填写；勾选后每次来源链接更新都会用新结果覆盖。支持变量 <code class="font-mono">&#123;&#123;author&#125;&#125;</code>、<code class="font-mono">&#123;&#123;username&#125;&#125;</code>、<code class="font-mono">&#123;&#123;display_name&#125;&#125;</code>、<code class="font-mono">&#123;&#123;global_name&#125;&#125;</code>、<code class="font-mono">&#123;&#123;author_id&#125;&#125;</code>、<code class="font-mono">&#123;&#123;title&#125;&#125;</code> 和 <code class="font-mono">&#123;&#123;source_url&#125;&#125;</code>。
                                         </div>
                                     </div>
@@ -1009,12 +1009,12 @@
                                 role="tabpanel" aria-labelledby="automation-help-tab-triggers"
                                 class="automation-help-panel space-y-6">
                                 <div>
-                                    <h4 class="font-bold text-[var(--accent-main)] mb-2 text-base">触发时机</h4>
-                                    <p class="text-[var(--text-dim)] mb-3">
+                                    <h4 class="font-bold text-[var(--accent-action)] mb-2 text-base">触发时机</h4>
+                                    <p class="text-[var(--content-muted)] mb-3">
                                         全局规则不是每个入口都执行全部动作。不同触发场景只会运行对应的动作子集，避免在不合适的场景里改名或改标签。
                                     </p>
-                                    <div class="p-3 bg-blue-500/10 border border-blue-500/30 rounded">
-                                            <ul class="list-disc list-inside space-y-1 text-xs text-[var(--text-dim)]">
+                                    <div class="p-3 color-surface-accent border color-border-accent rounded">
+                                            <ul class="list-disc list-inside space-y-1 text-xs text-[var(--content-muted)]">
                                                 <li><strong>导入时</strong>：会执行普通动作（移动文件夹、添加/移除标签、设置收藏、名称同步、rename_file_by_template、split_category_to_tags）；导入时会跳过抓取论坛标签与标签合并。</li>
                                                 <li><strong>更新角色卡后</strong>：仅在 upload-file 或 update-from-URL 用新角色卡内容覆盖已有角色卡时触发；普通保存详情、单独更换封面、修改本地备注、修改来源链接都不会触发。</li>
                                                 <li><strong>更新链接时只执行抓取论坛标签</strong>这一旧版说明现已扩展：在卡片详情页修改"来源链接"并保存后，会执行 <strong>fetch_forum_tags</strong>、<strong>refresh_source_baseline</strong>、<strong>add_tags_from_source_title</strong>、<strong>set_creator_from_source</strong>；其中论坛标签、标题提取和作者填写会共用来源请求。链接未发生变化时不会重复触发。</li>
@@ -1025,23 +1025,23 @@
                                 </div>
 
                                 <div>
-                                    <h4 class="font-bold text-[var(--text-sub)] mb-2 text-base">常用字段说明</h4>
+                                    <h4 class="font-bold text-[var(--content-secondary)] mb-2 text-base">常用字段说明</h4>
                                     <div class="grid grid-cols-2 gap-2 text-xs automation-help-grid">
-                                        <div class="p-2 border border-[var(--border-light)] rounded">
-                                            <span class="font-bold text-blue-400">Tags (标签)</span>
-                                            <p class="text-[var(--text-dim)] mt-1">列表匹配。检查卡片的标签列表中是否包含目标。</p>
+                                        <div class="p-2 border border-[var(--border-default)] rounded">
+                                            <span class="font-bold color-text-accent">Tags (标签)</span>
+                                            <p class="text-[var(--content-muted)] mt-1">列表匹配。检查卡片的标签列表中是否包含目标。</p>
                                         </div>
-                                        <div class="p-2 border border-[var(--border-light)] rounded">
-                                            <span class="font-bold text-blue-400">Raw Content (文本)</span>
-                                            <p class="text-[var(--text-dim)] mt-1">Description, First Mes 等。全文搜索匹配。</p>
+                                        <div class="p-2 border border-[var(--border-default)] rounded">
+                                            <span class="font-bold color-text-accent">Raw Content (文本)</span>
+                                            <p class="text-[var(--content-muted)] mt-1">Description, First Mes 等。全文搜索匹配。</p>
                                         </div>
-                                        <div class="p-2 border border-[var(--border-light)] rounded">
-                                            <span class="font-bold text-blue-400">WI Name/Content</span>
-                                            <p class="text-[var(--text-dim)] mt-1">高级匹配。会遍历所有世界书条目进行检查。</p>
+                                        <div class="p-2 border border-[var(--border-default)] rounded">
+                                            <span class="font-bold color-text-accent">WI Name/Content</span>
+                                            <p class="text-[var(--content-muted)] mt-1">高级匹配。会遍历所有世界书条目进行检查。</p>
                                         </div>
-                                        <div class="p-2 border border-[var(--border-light)] rounded">
-                                            <span class="font-bold text-blue-400">Local Note (本地备注)</span>
-                                            <p class="text-[var(--text-dim)] mt-1">匹配你在 ST Manager 中填写的私有备注。</p>
+                                        <div class="p-2 border border-[var(--border-default)] rounded">
+                                            <span class="font-bold color-text-accent">Local Note (本地备注)</span>
+                                            <p class="text-[var(--content-muted)] mt-1">匹配你在 ST Manager 中填写的私有备注。</p>
                                         </div>
                                     </div>
                                 </div>
@@ -1051,108 +1051,108 @@
                                 role="tabpanel" aria-labelledby="automation-help-tab-templates"
                                 class="automation-help-panel space-y-6">
                                 <div>
-                                    <h4 class="font-bold text-[var(--accent-main)] mb-2 text-base">模板语法</h4>
-                                    <p class="text-[var(--text-dim)] mb-3">
+                                    <h4 class="font-bold text-[var(--accent-action)] mb-2 text-base">模板语法</h4>
+                                    <p class="text-[var(--content-muted)] mb-3">
                                         <code class="font-mono">rename_file_by_template</code> 会把 <code class="font-mono">{% raw %}{{...}}{% endraw %}</code> 里的字段替换成当前卡片数据。<code class="font-mono">split_category_to_tags</code> 不读取模板，只会按当前分类路径拆分标签。
                                     </p>
                                     <div class="automation-template-cheatsheet text-xs mb-3">
-                                        <span class="font-bold text-[var(--text-main)]">字段写法：</span>
+                                        <span class="font-bold text-[var(--content-primary)]">字段写法：</span>
                                         <code class="font-mono">{% raw %}{{field}}{% endraw %}</code>
-                                        <span class="mx-2 text-[var(--text-dim)]">|</span>
-                                        <span class="font-bold text-[var(--text-main)]">过滤器写法：</span>
+                                        <span class="mx-2 text-[var(--content-muted)]">|</span>
+                                        <span class="font-bold text-[var(--content-primary)]">过滤器写法：</span>
                                         <code class="font-mono">{% raw %}{{field|filter}}{% endraw %}</code>
-                                        <span class="mx-2 text-[var(--text-dim)]">|</span>
-                                        <span class="font-bold text-[var(--text-main)]">带参数过滤器：</span>
+                                        <span class="mx-2 text-[var(--content-muted)]">|</span>
+                                        <span class="font-bold text-[var(--content-primary)]">带参数过滤器：</span>
                                         <code class="font-mono">{% raw %}{{field|filter:param}}{% endraw %}</code>
                                     </div>
-                                    <div class="bg-[var(--bg-sub)] rounded border border-[var(--border-light)] p-3 space-y-3">
+                                    <div class="bg-[var(--surface-container-raised)] rounded border border-[var(--border-default)] p-3 space-y-3">
                                         <div class="automation-template-reference-grid">
                                             <div class="automation-template-reference-column">
-                                                <div class="font-bold text-xs text-blue-400 mb-1">支持字段</div>
-                                                <div class="text-xs text-[var(--text-dim)] mb-2">
+                                                <div class="font-bold text-xs color-text-accent mb-1">支持字段</div>
+                                                <div class="text-xs text-[var(--content-muted)] mb-2">
                                                     支持字段：char_name、char_version、filename、filename_stem、category、import_time、import_date、modified_time、modified_date
                                                 </div>
                                                 <div class="automation-template-field-grid grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
-                                                    <div class="p-2 border border-[var(--border-light)] rounded bg-[var(--bg-panel)]">
-                                                        <div class="font-bold text-blue-400">char_name</div>
-                                                        <div class="text-[var(--text-dim)] mt-1">角色卡名</div>
+                                                    <div class="p-2 border border-[var(--border-default)] rounded bg-[var(--surface-container)]">
+                                                        <div class="font-bold color-text-accent">char_name</div>
+                                                        <div class="text-[var(--content-muted)] mt-1">角色卡名</div>
                                                     </div>
-                                                    <div class="p-2 border border-[var(--border-light)] rounded bg-[var(--bg-panel)]">
-                                                        <div class="font-bold text-blue-400">char_version</div>
-                                                        <div class="text-[var(--text-dim)] mt-1">角色卡版本文本，可配合 <code class="font-mono">version</code> 清洗</div>
+                                                    <div class="p-2 border border-[var(--border-default)] rounded bg-[var(--surface-container)]">
+                                                        <div class="font-bold color-text-accent">char_version</div>
+                                                        <div class="text-[var(--content-muted)] mt-1">角色卡版本文本，可配合 <code class="font-mono">version</code> 清洗</div>
                                                     </div>
-                                                    <div class="p-2 border border-[var(--border-light)] rounded bg-[var(--bg-panel)]">
-                                                        <div class="font-bold text-blue-400">filename</div>
-                                                        <div class="text-[var(--text-dim)] mt-1">当前文件名（含扩展名）</div>
+                                                    <div class="p-2 border border-[var(--border-default)] rounded bg-[var(--surface-container)]">
+                                                        <div class="font-bold color-text-accent">filename</div>
+                                                        <div class="text-[var(--content-muted)] mt-1">当前文件名（含扩展名）</div>
                                                     </div>
-                                                    <div class="p-2 border border-[var(--border-light)] rounded bg-[var(--bg-panel)]">
-                                                        <div class="font-bold text-blue-400">filename_stem</div>
-                                                        <div class="text-[var(--text-dim)] mt-1">当前文件名（不含扩展名）</div>
+                                                    <div class="p-2 border border-[var(--border-default)] rounded bg-[var(--surface-container)]">
+                                                        <div class="font-bold color-text-accent">filename_stem</div>
+                                                        <div class="text-[var(--content-muted)] mt-1">当前文件名（不含扩展名）</div>
                                                     </div>
-                                                    <div class="p-2 border border-[var(--border-light)] rounded bg-[var(--bg-panel)]">
-                                                        <div class="font-bold text-blue-400">category</div>
-                                                        <div class="text-[var(--text-dim)] mt-1">当前分类路径，如 <code class="font-mono">a/b</code></div>
+                                                    <div class="p-2 border border-[var(--border-default)] rounded bg-[var(--surface-container)]">
+                                                        <div class="font-bold color-text-accent">category</div>
+                                                        <div class="text-[var(--content-muted)] mt-1">当前分类路径，如 <code class="font-mono">a/b</code></div>
                                                     </div>
-                                                    <div class="p-2 border border-[var(--border-light)] rounded bg-[var(--bg-panel)]">
-                                                        <div class="font-bold text-blue-400">import_time / import_date</div>
-                                                        <div class="text-[var(--text-dim)] mt-1">导入时间戳 / 导入日期，更适合首次导入时命名</div>
+                                                    <div class="p-2 border border-[var(--border-default)] rounded bg-[var(--surface-container)]">
+                                                        <div class="font-bold color-text-accent">import_time / import_date</div>
+                                                        <div class="text-[var(--content-muted)] mt-1">导入时间戳 / 导入日期，更适合首次导入时命名</div>
                                                     </div>
-                                                    <div class="p-2 border border-[var(--border-light)] rounded bg-[var(--bg-panel)] md:col-span-2">
-                                                        <div class="font-bold text-blue-400">modified_time / modified_date</div>
-                                                        <div class="text-[var(--text-dim)] mt-1">文件修改时间戳 / 文件修改日期，更适合覆盖更新后命名</div>
+                                                    <div class="p-2 border border-[var(--border-default)] rounded bg-[var(--surface-container)] md:col-span-2">
+                                                        <div class="font-bold color-text-accent">modified_time / modified_date</div>
+                                                        <div class="text-[var(--content-muted)] mt-1">文件修改时间戳 / 文件修改日期，更适合覆盖更新后命名</div>
                                                     </div>
                                                 </div>
                                             </div>
                                             <div class="automation-template-reference-column">
-                                                <div class="font-bold text-xs text-blue-400 mb-1">支持过滤器</div>
-                                                <div class="text-xs text-[var(--text-dim)]">
+                                                <div class="font-bold text-xs color-text-accent mb-1">支持过滤器</div>
+                                                <div class="text-xs text-[var(--content-muted)]">
                                                     支持 <code class="font-mono">trim</code>、<code class="font-mono">default</code>、<code class="font-mono">limit</code>、<code class="font-mono">date</code>、<code class="font-mono">version</code>。日期字段支持 <code class="font-mono">date</code> 过滤器，例如 <code class="font-mono">date:%Y-%m-%d</code> 或 <code class="font-mono">date:%Y%m%d</code>。
                                                 </div>
-                                                <div class="text-xs text-[var(--text-dim)] mt-1">
+                                                <div class="text-xs text-[var(--content-muted)] mt-1">
                                                     日期字段支持 date 过滤器。
                                                 </div>
                                                 <div class="automation-template-filter-list space-y-2 mt-3 text-xs">
-                                                    <div class="p-2 border border-[var(--border-light)] rounded bg-[var(--bg-panel)]">
-                                                        <div class="font-bold text-green-400">trim：去掉首尾空格</div>
+                                                    <div class="p-2 border border-[var(--border-default)] rounded bg-[var(--surface-container)]">
+                                                        <div class="font-bold color-text-success">trim：去掉首尾空格</div>
                                                         <div class="font-mono mt-1">{% raw %}{{char_name|trim}}{% endraw %}</div>
-                                                        <div class="text-[var(--text-dim)] mt-1">示例：<code class="font-mono">"  Alice  "</code> -> <code class="font-mono">"Alice"</code></div>
+                                                        <div class="text-[var(--content-muted)] mt-1">示例：<code class="font-mono">"  Alice  "</code> -> <code class="font-mono">"Alice"</code></div>
                                                     </div>
-                                                    <div class="p-2 border border-[var(--border-light)] rounded bg-[var(--bg-panel)]">
-                                                        <div class="font-bold text-green-400">default：为空时使用备用值</div>
+                                                    <div class="p-2 border border-[var(--border-default)] rounded bg-[var(--surface-container)]">
+                                                        <div class="font-bold color-text-success">default：为空时使用备用值</div>
                                                         <div class="font-mono mt-1">{% raw %}{{char_version|default:unknown}}{% endraw %}</div>
-                                                        <div class="text-[var(--text-dim)] mt-1">示例：空版本 -> <code class="font-mono">unknown</code></div>
+                                                        <div class="text-[var(--content-muted)] mt-1">示例：空版本 -> <code class="font-mono">unknown</code></div>
                                                     </div>
-                                                    <div class="p-2 border border-[var(--border-light)] rounded bg-[var(--bg-panel)]">
-                                                        <div class="font-bold text-green-400">limit：截断过长文本</div>
+                                                    <div class="p-2 border border-[var(--border-default)] rounded bg-[var(--surface-container)]">
+                                                        <div class="font-bold color-text-success">limit：截断过长文本</div>
                                                         <div class="font-mono mt-1">{% raw %}{{filename_stem|limit:20}}{% endraw %}</div>
-                                                        <div class="text-[var(--text-dim)] mt-1">示例：<code class="font-mono">very-long-character-name-demo</code> -> <code class="font-mono">very-long-character-</code></div>
+                                                        <div class="text-[var(--content-muted)] mt-1">示例：<code class="font-mono">very-long-character-name-demo</code> -> <code class="font-mono">very-long-character-</code></div>
                                                     </div>
-                                                    <div class="p-2 border border-[var(--border-light)] rounded bg-[var(--bg-panel)]">
-                                                        <div class="font-bold text-green-400">date：格式化导入时间或修改时间</div>
+                                                    <div class="p-2 border border-[var(--border-default)] rounded bg-[var(--surface-container)]">
+                                                        <div class="font-bold color-text-success">date：格式化导入时间或修改时间</div>
                                                         <div class="font-mono mt-1">{% raw %}{{import_date|date:%Y-%m-%d}}{% endraw %}</div>
-                                                        <div class="text-[var(--text-dim)] mt-1">示例：时间戳 -> <code class="font-mono">2026-04-01</code></div>
+                                                        <div class="text-[var(--content-muted)] mt-1">示例：时间戳 -> <code class="font-mono">2026-04-01</code></div>
                                                     </div>
-                                                    <div class="p-2 border border-[var(--border-light)] rounded bg-[var(--bg-panel)]">
-                                                        <div class="font-bold text-green-400">version：从版本文本里提取主版本号</div>
+                                                    <div class="p-2 border border-[var(--border-default)] rounded bg-[var(--surface-container)]">
+                                                        <div class="font-bold color-text-success">version：从版本文本里提取主版本号</div>
                                                         <div class="font-mono mt-1">{% raw %}{{char_version|version}}{% endraw %}</div>
-                                                        <div class="text-[var(--text-dim)] mt-1">示例：<code class="font-mono">Version 1.2 beta by author</code> -> <code class="font-mono">v1.2</code></div>
+                                                        <div class="text-[var(--content-muted)] mt-1">示例：<code class="font-mono">Version 1.2 beta by author</code> -> <code class="font-mono">v1.2</code></div>
                                                     </div>
                                                 </div>
                                             </div>
                                         </div>
                                         <div>
-                                            <div class="font-bold text-xs text-green-400 mb-1">文件重命名示例</div>
-                                            <div class="bg-[var(--bg-code)] p-2 rounded text-xs font-mono">{% raw %}{{char_name}} - {{char_version|version}} - {{modified_date|date:%Y-%m-%d}}{% endraw %}</div>
-                                            <div class="text-xs text-[var(--text-dim)] mt-1">例如生成“角色名 - v1.2 - 2026-04-01”这种文件名；import_date 更适合首次导入时命名，modified_date 更适合覆盖更新后命名。</div>
+                                            <div class="font-bold text-xs color-text-success mb-1">文件重命名示例</div>
+                                            <div class="bg-[var(--surface-code)] p-2 rounded text-xs font-mono">{% raw %}{{char_name}} - {{char_version|version}} - {{modified_date|date:%Y-%m-%d}}{% endraw %}</div>
+                                            <div class="text-xs text-[var(--content-muted)] mt-1">例如生成“角色名 - v1.2 - 2026-04-01”这种文件名；import_date 更适合首次导入时命名，modified_date 更适合覆盖更新后命名。</div>
                                         </div>
                                         <div>
-                                            <div class="font-bold text-xs text-green-400 mb-1">拆分类标签示例</div>
-                                            <div class="bg-[var(--bg-code)] p-2 rounded text-xs font-mono">category = a/b/c  ->  tags += [a, b, c]</div>
-                                            <div class="text-xs text-[var(--text-dim)] mt-1"><code class="font-mono">split_category_to_tags</code> 不读取模板，也不会使用回退模板或最大长度；它只是把当前分类路径按 <code class="font-mono">/</code> 拆成多个标签。</div>
+                                            <div class="font-bold text-xs color-text-success mb-1">拆分类标签示例</div>
+                                            <div class="bg-[var(--surface-code)] p-2 rounded text-xs font-mono">category = a/b/c  ->  tags += [a, b, c]</div>
+                                            <div class="text-xs text-[var(--content-muted)] mt-1"><code class="font-mono">split_category_to_tags</code> 不读取模板，也不会使用回退模板或最大长度；它只是把当前分类路径按 <code class="font-mono">/</code> 拆成多个标签。</div>
                                         </div>
                                         <div>
-                                            <div class="font-bold text-xs text-blue-400 mb-1">补救模板与长度限制</div>
-                                            <ul class="list-disc list-inside space-y-1 text-xs text-[var(--text-dim)]">
+                                            <div class="font-bold text-xs color-text-accent mb-1">补救模板与长度限制</div>
+                                            <ul class="list-disc list-inside space-y-1 text-xs text-[var(--content-muted)]">
                                                 <li>主模板结果为空时，会尝试使用 fallback 模板。</li>
                                                 <li>文件名模板建议只拼接必要字段，并配合最大长度限制避免过长文件名。</li>
                                                 <li>分类拆分动作可结合“排除分类标签”过滤不想保留的类别词。</li>
@@ -1164,7 +1164,7 @@
                         </div>
 
                         <!-- 底部 -->
-                        <div class="p-4 border-t border-[var(--border-light)] bg-[var(--bg-sub)] flex justify-end">
+                        <div class="p-4 border-t border-[var(--border-default)] bg-[var(--surface-container-raised)] flex justify-end">
                             <button @click="showHelpModal = false" class="btn-primary px-6 py-2 rounded shadow-md">
                                 明白了
                             </button>
@@ -1175,10 +1175,10 @@
         </template>
 
         <!-- 空状态 -->
-        <div x-show="!activeRuleSet" class="flex-1 flex flex-col items-center justify-center text-[var(--text-dim)] relative">
+        <div x-show="!activeRuleSet" class="flex-1 flex flex-col items-center justify-center text-[var(--content-muted)] relative">
             <!-- 关闭按钮（空状态时也显示） -->
             <button @click="closeModal()" 
-                class="absolute top-2 right-2 z-50 w-8 h-8 bg-[var(--bg-panel)] border border-[var(--border-light)] rounded-lg flex items-center justify-center text-[var(--text-main)] hover:bg-[var(--bg-hover)] hover:text-red-400 transition-colors shadow-lg"
+                class="absolute top-2 right-2 z-50 w-8 h-8 bg-[var(--surface-container)] border border-[var(--border-default)] rounded-lg flex items-center justify-center text-[var(--content-primary)] hover:bg-[var(--state-hover-surface)] color-hover-text-danger transition-colors shadow-lg"
                 title="关闭" aria-label="关闭">
                 {{ icon('close', 'ui-icon--sm') }}
             </button>

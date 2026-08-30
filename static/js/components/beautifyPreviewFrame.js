@@ -165,6 +165,9 @@ export default function beautifyPreviewFrame() {
       this.$watch("$store.global.beautifyActiveScene", () => {
         if (this.isPreviewLoaded) this.renderPreview();
       });
+      this.$watch("$store.global.isDarkMode", () => {
+        if (this.isPreviewLoaded) this.renderPreview();
+      });
     },
 
     setPreviewScene(sceneId) {
@@ -276,6 +279,7 @@ export default function beautifyPreviewFrame() {
 
       return {
         platform,
+        themeMode: this.$store.global.isDarkMode ? 'dark' : 'light',
         theme: useGlobalOnly
           ? resolveSettingsPreviewTheme(platform)
           : variant.theme_data || {},

@@ -11,10 +11,10 @@
   max-height: min(88vh, 52rem);
   display: flex;
   flex-direction: column;
-  background: var(--bg-panel);
-  border: 1px solid var(--border-light);
+  background: var(--surface-container);
+  border: 1px solid var(--border-default);
   border-radius: 0.75rem;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 16px 40px color-mix(in srgb, var(--content-on-light) 45%, transparent);
   overflow: hidden;
 }
 
@@ -24,8 +24,8 @@
   justify-content: space-between;
   gap: 0.75rem;
   padding: 0.65rem 0.85rem;
-  background: var(--bg-item);
-  border-bottom: 1px solid var(--border-light);
+  background: var(--surface-container-raised);
+  border-bottom: 1px solid var(--border-default);
   flex-shrink: 0;
 }
 
@@ -42,12 +42,12 @@
   border-radius: 999px;
   object-fit: cover;
   flex-shrink: 0;
-  background: var(--bg-sub);
-  border: 1px solid var(--border-light);
+  background: var(--surface-container-raised);
+  border: 1px solid var(--border-default);
 }
 
 .forum-preview-avatar--placeholder {
-  background: color-mix(in srgb, var(--accent-main), transparent 70%);
+  background: color-mix(in srgb, var(--accent-action), transparent 70%);
 }
 
 .forum-preview-author-meta {
@@ -57,7 +57,7 @@
 .forum-preview-author-name {
   font-size: 0.88rem;
   font-weight: 600;
-  color: var(--text-main);
+  color: var(--content-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -65,15 +65,15 @@
 
 .forum-preview-thread-id {
   font-size: 0.68rem;
-  color: var(--text-dim);
+  color: var(--content-muted);
   margin-top: 0.05rem;
 }
 
 .forum-preview-close {
   appearance: none;
-  border: 1px solid var(--border-light);
+  border: 1px solid var(--border-default);
   background: transparent;
-  color: var(--text-sub);
+  color: var(--content-secondary);
   width: 1.7rem;
   height: 1.7rem;
   border-radius: 0.4rem;
@@ -86,8 +86,8 @@
 }
 
 .forum-preview-close:hover {
-  color: var(--text-main);
-  background: var(--bg-sub);
+  color: var(--content-primary);
+  background: var(--surface-container-raised);
 }
 
 /* 原站帖子元信息图标单独保留为静态 SVG，通过 mask 继承当前主题色。 */
@@ -156,12 +156,12 @@
 .forum-preview-state {
   padding: 2rem 1rem;
   text-align: center;
-  color: var(--text-dim);
+  color: var(--content-muted);
   font-size: 0.85rem;
 }
 
 .forum-preview-state--error {
-  color: var(--text-warn, #fbbf24);
+  color: var(--status-warning-text);
 }
 
 .forum-preview-stats {
@@ -169,7 +169,7 @@
   flex-wrap: wrap;
   gap: 0.45rem 0.75rem;
   font-size: 0.7rem;
-  color: var(--text-dim);
+  color: var(--content-muted);
   margin-bottom: 0.55rem;
 }
 
@@ -178,7 +178,7 @@
   font-size: 1.05rem;
   font-weight: 700;
   line-height: 1.35;
-  color: var(--text-main);
+  color: var(--content-primary);
 }
 
 .forum-preview-tags {
@@ -194,15 +194,15 @@
   padding: 0.12rem 0.45rem;
   border-radius: 999px;
   font-size: 0.68rem;
-  background: var(--bg-sub);
-  color: var(--text-sub);
-  border: 1px solid var(--border-light);
+  background: var(--surface-container-raised);
+  color: var(--content-secondary);
+  border: 1px solid var(--border-default);
 }
 
 .forum-preview-tag--virtual {
-  background: color-mix(in srgb, var(--accent-main), transparent 82%);
-  color: color-mix(in srgb, var(--accent-main), #ffffff 35%);
-  border-color: color-mix(in srgb, var(--accent-main), transparent 55%);
+  background: color-mix(in srgb, var(--accent-action), transparent 82%);
+  color: color-mix(in srgb, var(--accent-action), var(--content-on-dark) 35%);
+  border-color: color-mix(in srgb, var(--accent-action), transparent 55%);
 }
 
 .forum-preview-cover-wrap {
@@ -210,8 +210,8 @@
   margin-bottom: 0.65rem;
   border-radius: 0.5rem;
   overflow: hidden;
-  border: 1px solid var(--border-light);
-  background: var(--bg-sub);
+  border: 1px solid var(--border-default);
+  background: var(--surface-container-raised);
 }
 
 .forum-preview-cover {
@@ -238,8 +238,8 @@
   height: 1.85rem;
   border-radius: 999px;
   border: none;
-  background: rgba(15, 23, 42, 0.55);
-  color: #fff;
+  background: color-mix(in srgb, var(--content-on-light) 55%, transparent);
+  color: var(--content-on-dark);
   font-size: 1.25rem;
   line-height: 1;
   display: inline-flex;
@@ -250,7 +250,7 @@
 }
 
 .forum-preview-carousel-nav:hover {
-  background: rgba(15, 23, 42, 0.78);
+  background: color-mix(in srgb, var(--content-on-light) 78%, transparent);
 }
 
 .forum-preview-carousel-nav--prev {
@@ -280,7 +280,7 @@
   width: 0.38rem;
   height: 0.38rem;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.55);
+  background: color-mix(in srgb, var(--content-on-dark) 55%, transparent);
   cursor: pointer;
   transition:
     width 0.15s ease,
@@ -289,14 +289,14 @@
 
 .forum-preview-carousel-dot.is-active {
   width: 1rem;
-  background: var(--accent-main, #60a5fa);
+  background: var(--accent-action);
 }
 
 .forum-preview-excerpt-label {
   margin: 0 0 0.35rem;
   font-size: 0.8rem;
   font-weight: 600;
-  color: var(--text-main);
+  color: var(--content-primary);
 }
 
 .forum-preview-excerpt {
@@ -304,11 +304,11 @@
   overflow: auto;
   padding: 0.55rem 0.65rem;
   border-radius: 0.45rem;
-  background: var(--bg-item);
-  border: 1px solid var(--border-light);
+  background: var(--surface-container-raised);
+  border: 1px solid var(--border-default);
   font-size: 0.78rem;
   line-height: 1.55;
-  color: var(--text-sub);
+  color: var(--content-secondary);
 }
 
 .forum-preview-excerpt p {
@@ -329,19 +329,19 @@
 
 .forum-preview-empty {
   margin: 0;
-  color: var(--text-dim);
+  color: var(--content-muted);
 }
 
 /* 预留操作区高度，后续加按钮不改布局跳动 */
 .forum-preview-footer {
   flex-shrink: 0;
   min-height: 2.4rem;
-  border-top: 1px solid var(--border-light);
-  background: var(--bg-item);
+  border-top: 1px solid var(--border-default);
+  background: var(--surface-container-raised);
 }
 
 html.light-mode .forum-preview-panel {
-  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.12);
+  box-shadow: 0 12px 28px color-mix(in srgb, var(--content-on-light) 12%, transparent);
 }
 
 /* 移动端：与预设阅读器等弹窗一致，高度占满视口 */

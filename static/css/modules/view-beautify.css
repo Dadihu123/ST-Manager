@@ -5,30 +5,30 @@
   --beautify-control-gap: 0.5rem;
   --beautify-btn-min-height: 36px;
   --beautify-shell-bg: transparent;
-  --beautify-panel-bg: var(--bg-panel);
-  --beautify-panel-bg-strong: var(--bg-sub);
-  --beautify-panel-bg-soft: var(--bg-sub);
-  --beautify-control-bg: color-mix(in srgb, var(--bg-sub), var(--bg-panel) 50%);
-  --beautify-control-bg-hover: var(--bg-hover);
-  --beautify-stage-surface: var(--bg-panel);
+  --beautify-panel-bg: var(--surface-container);
+  --beautify-panel-bg-strong: var(--surface-container-raised);
+  --beautify-panel-bg-soft: var(--surface-container-raised);
+  --beautify-control-bg: color-mix(in srgb, var(--surface-container-raised), var(--surface-container) 50%);
+  --beautify-control-bg-hover: var(--state-hover-surface);
+  --beautify-stage-surface: var(--surface-container);
   --beautify-card-surface: var(--beautify-panel-bg-soft);
   --beautify-muted-surface: color-mix(
     in srgb,
     var(--beautify-panel-bg-soft) 82%,
-    var(--bg-body)
+    var(--surface-page)
   );
-  --beautify-thumbnail-border: var(--border-light);
-  --beautify-shell-frame-border: var(--border-light);
-  --beautify-shell-frame-bg: var(--bg-sub);
+  --beautify-thumbnail-border: var(--border-default);
+  --beautify-shell-frame-border: var(--border-default);
+  --beautify-shell-frame-bg: var(--surface-container-raised);
   --beautify-active-bg: color-mix(
     in srgb,
-    var(--accent-main) 12%,
+    var(--accent-action) 12%,
     var(--beautify-card-surface)
   );
   --beautify-active-border: color-mix(
     in srgb,
-    var(--accent-main) 55%,
-    var(--border-light)
+    var(--accent-action) 55%,
+    var(--border-default)
   );
   --beautify-active-shadow: none;
 }
@@ -46,7 +46,7 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
-  border: 1px solid var(--border-light);
+  border: 1px solid var(--border-default);
   border-radius: var(--beautify-radius-lg);
   background: var(--beautify-panel-bg);
   overflow: hidden;
@@ -54,7 +54,7 @@
 
 .beautify-toolbar {
   padding: 0.65rem 0.75rem;
-  border-bottom: 1px solid var(--border-light);
+  border-bottom: 1px solid var(--border-default);
   display: flex;
   flex-direction: column;
   gap: var(--beautify-control-gap);
@@ -118,7 +118,7 @@
 
 .beautify-workspace-switcher {
   padding: 2px;
-  border: 1px solid var(--border-light);
+  border: 1px solid var(--border-default);
   border-radius: var(--beautify-radius-sm);
   background: var(--beautify-panel-bg-strong);
 }
@@ -176,8 +176,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: color-mix(in srgb, var(--accent-main), transparent 88%);
-  color: var(--accent-light);
+  background: color-mix(in srgb, var(--accent-action), transparent 88%);
+  color: var(--accent-text);
   font-size: 0.95rem;
 }
 
@@ -191,7 +191,7 @@
 .beautify-stage-title,
 .beautify-package-name,
 .beautify-detail-heading {
-  color: var(--text-main);
+  color: var(--content-primary);
   font-weight: 700;
 }
 
@@ -202,7 +202,7 @@
 .beautify-wallpaper-size,
 .beautify-detail-kv span:first-child,
 .beautify-empty-inline {
-  color: var(--text-dim);
+  color: var(--content-muted);
   font-size: 0.82rem;
 }
 
@@ -212,9 +212,9 @@
 .beautify-action-btn,
 .beautify-primary-btn,
 .beautify-device-btn {
-  border: 1px solid var(--border-light);
+  border: 1px solid var(--border-default);
   background: var(--beautify-control-bg);
-  color: var(--text-main);
+  color: var(--content-primary);
   border-radius: var(--beautify-radius-sm);
   min-height: var(--beautify-btn-min-height);
   transition:
@@ -239,8 +239,8 @@
   padding-right: 2.5rem;
   background-color: var(--beautify-control-bg);
   background-image:
-    linear-gradient(45deg, transparent 50%, var(--text-main) 50%),
-    linear-gradient(135deg, var(--text-main) 50%, transparent 50%);
+    linear-gradient(45deg, transparent 50%, var(--content-primary) 50%),
+    linear-gradient(135deg, var(--content-primary) 50%, transparent 50%);
   background-position:
     calc(100% - 18px) calc(50% - 1px),
     calc(100% - 12px) calc(50% - 1px);
@@ -251,7 +251,7 @@
 
 .beautify-filter-select option {
   background-color: var(--beautify-panel-bg-strong);
-  color: var(--text-main);
+  color: var(--content-primary);
 }
 
 .beautify-filter-input:focus,
@@ -262,7 +262,7 @@
 .beautify-device-btn:focus,
 .beautify-package-card:focus,
 .beautify-wallpaper-item:focus {
-  outline: 3px solid rgba(96, 165, 250, 0.45);
+  outline: 3px solid color-mix(in srgb, var(--accent-text) 45%, transparent);
   outline-offset: 2px;
 }
 
@@ -305,9 +305,9 @@
 }
 
 .beautify-primary-btn {
-  background: color-mix(in srgb, var(--accent-main), var(--bg-panel) 15%);
-  border-color: color-mix(in srgb, var(--accent-main), var(--border-light) 45%);
-  color: var(--text-main);
+  background: color-mix(in srgb, var(--accent-action), var(--surface-container) 15%);
+  border-color: color-mix(in srgb, var(--accent-action), var(--border-default) 45%);
+  color: var(--content-primary);
 }
 
 .beautify-toolbar-global-action--primary {
@@ -321,7 +321,7 @@
 
 .beautify-toolbar-global-action--primary:hover {
   filter: none;
-  background: color-mix(in srgb, var(--accent-main), var(--bg-panel) 8%);
+  background: color-mix(in srgb, var(--accent-action), var(--surface-container) 8%);
   box-shadow: none;
 }
 
@@ -343,12 +343,12 @@
 .beautify-device-btn:hover,
 .beautify-package-card:hover,
 .beautify-wallpaper-item:hover {
-  border-color: var(--accent-light);
+  border-color: var(--accent-text);
   background: var(--beautify-control-bg-hover);
 }
 
 .beautify-primary-btn:hover {
-  background: color-mix(in srgb, var(--accent-main), var(--bg-panel) 8%);
+  background: color-mix(in srgb, var(--accent-action), var(--surface-container) 8%);
 }
 
 .beautify-action-btn.is-disabled,
@@ -371,7 +371,7 @@
 .beautify-package-card {
   width: 100%;
   text-align: left;
-  border: 1px solid var(--border-light);
+  border: 1px solid var(--border-default);
   border-radius: var(--beautify-radius-md);
   padding: 0.65rem;
   background: var(--beautify-card-surface);
@@ -400,18 +400,18 @@
   padding: 0 0.55rem;
   border-radius: 999px;
   font-size: 0.72rem;
-  background: rgba(148, 163, 184, 0.16);
-  color: var(--text-main);
+  background: color-mix(in srgb, var(--content-muted) 16%, transparent);
+  color: var(--content-primary);
 }
 
 .beautify-status-pill.is-installed {
-  background: rgba(59, 130, 246, 0.18);
-  color: var(--text-main);
+  background: color-mix(in srgb, var(--accent-action) 18%, transparent);
+  color: var(--content-primary);
 }
 
 .beautify-status-pill.is-applied {
-  background: rgba(16, 185, 129, 0.18);
-  color: var(--text-main);
+  background: color-mix(in srgb, var(--status-success-solid) 18%, transparent);
+  color: var(--content-primary);
 }
 
 .beautify-thumb,
@@ -432,7 +432,7 @@
   flex: 1;
   min-width: 0;
   min-height: 0;
-  border: 1px solid var(--border-light);
+  border: 1px solid var(--border-default);
   border-radius: var(--beautify-radius-lg);
   background: var(--beautify-stage-surface);
   overflow-x: hidden;
@@ -484,7 +484,7 @@
 .beautify-package-detail-drawer {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.45);
+  background: color-mix(in srgb, var(--content-on-light) 45%, transparent);
   display: flex;
   justify-content: flex-end;
   z-index: 70;
@@ -496,11 +496,11 @@
   overflow-y: auto;
   padding: 1rem;
   background: var(--beautify-stage-surface);
-  border-left: 1px solid var(--border-light);
+  border-left: 1px solid var(--border-default);
 }
 
 .beautify-detail-card {
-  border: 1px solid var(--border-light);
+  border: 1px solid var(--border-default);
   border-radius: var(--beautify-radius-md);
   background: var(--beautify-card-surface);
   padding: 0.65rem;
@@ -525,7 +525,7 @@
 
 .beautify-preview-unloaded-card {
   min-height: 220px;
-  border: 1px solid var(--border-light);
+  border: 1px solid var(--border-default);
   border-radius: var(--beautify-radius-md);
   display: flex;
   flex-direction: column;
@@ -535,14 +535,14 @@
 }
 
 .beautify-preview-unavailable-card {
-  border-color: color-mix(in srgb, #f59e0b 45%, var(--border-light));
+  border-color: color-mix(in srgb, var(--status-warning-solid) 45%, var(--border-default));
 }
 
 .beautify-preview-notice {
   margin-bottom: 0.45rem;
-  border: 1px solid color-mix(in srgb, #f59e0b, var(--border-light) 55%);
-  background: color-mix(in srgb, #f59e0b, transparent 92%);
-  color: var(--text-main);
+  border: 1px solid color-mix(in srgb, var(--status-warning-solid), var(--border-default) 55%);
+  background: color-mix(in srgb, var(--status-warning-solid), transparent 92%);
+  color: var(--content-primary);
   border-radius: var(--beautify-radius-sm);
   padding: 0.45rem 0.55rem;
   font-size: 0.78rem;
@@ -571,7 +571,7 @@
   gap: var(--beautify-control-gap);
   flex-wrap: wrap;
   padding: 0.55rem;
-  border: 1px solid var(--border-light);
+  border: 1px solid var(--border-default);
   border-radius: var(--beautify-radius-md);
   background: var(--beautify-card-surface);
 }
@@ -584,10 +584,10 @@
   gap: 0.15rem;
   padding: 0.45rem 0.55rem;
   text-align: left;
-  border: 1px solid var(--border-light);
+  border: 1px solid var(--border-default);
   border-radius: var(--beautify-radius-sm);
   background: transparent;
-  color: var(--text-main);
+  color: var(--content-primary);
 }
 
 .beautify-preview-scene-btn.is-active {
@@ -597,13 +597,13 @@
 }
 
 .beautify-preview-scene-label {
-  color: var(--text-main);
+  color: var(--content-primary);
   font-size: 0.88rem;
   font-weight: 700;
 }
 
 .beautify-preview-scene-description {
-  color: var(--text-dim);
+  color: var(--content-muted);
   font-size: 0.8rem;
 }
 
@@ -619,7 +619,7 @@
 
 .beautify-screenshot-stage {
   min-height: 260px;
-  border: 1px solid var(--border-light);
+  border: 1px solid var(--border-default);
   border-radius: var(--beautify-radius-md);
   display: flex;
   flex-direction: column;
@@ -657,7 +657,7 @@
   align-items: center;
   gap: 0.55rem;
   padding: 0.4rem;
-  border: 1px solid var(--border-light);
+  border: 1px solid var(--border-default);
   border-radius: var(--beautify-radius-sm);
 }
 
@@ -714,14 +714,14 @@
   resize: vertical;
   width: 100%;
   padding: 0.35rem 0.55rem;
-  border: 1px solid var(--border-light);
+  border: 1px solid var(--border-default);
   border-radius: var(--beautify-radius-sm);
-  color: var(--text-main);
+  color: var(--content-primary);
   font-size: 0.78rem;
 }
 
 .beautify-settings-textarea:focus {
-  outline: 3px solid rgba(96, 165, 250, 0.45);
+  outline: 3px solid color-mix(in srgb, var(--accent-text) 45%, transparent);
   outline-offset: 2px;
 }
 
@@ -731,7 +731,7 @@
   align-items: center;
   gap: 0.55rem;
   padding: 0.4rem;
-  border: 1px solid var(--border-light);
+  border: 1px solid var(--border-default);
   border-radius: var(--beautify-radius-sm);
 }
 
@@ -777,7 +777,7 @@
 }
 
 .beautify-wallpaper-name {
-  color: var(--text-main);
+  color: var(--content-primary);
   font-size: 0.84rem;
   white-space: nowrap;
   overflow: hidden;
@@ -796,7 +796,7 @@
 }
 
 .beautify-empty-title {
-  color: var(--text-main);
+  color: var(--content-primary);
   font-size: 1rem;
   font-weight: 700;
 }
@@ -810,7 +810,7 @@
   background: color-mix(
     in srgb,
     var(--beautify-shell-bg) 92%,
-    rgba(2, 6, 23, 0.85)
+    color-mix(in srgb, var(--surface-page) 85%, transparent)
   );
 }
 
@@ -824,7 +824,7 @@
   align-items: flex-start;
   justify-content: space-between;
   padding: 0.65rem 0.75rem;
-  border-bottom: 1px solid var(--border-light);
+  border-bottom: 1px solid var(--border-default);
   background: var(--beautify-panel-bg);
 }
 

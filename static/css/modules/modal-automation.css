@@ -6,8 +6,8 @@
 
 .automation-sidebar {
   width: 240px;
-  background: var(--bg-sub);
-  border-right: 1px solid var(--border-light);
+  background: var(--surface-container-raised);
+  border-right: 1px solid var(--border-default);
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
@@ -17,13 +17,13 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  background: var(--bg-panel);
+  background: var(--surface-container);
   overflow: hidden;
 }
 
 .ruleset-item {
   padding: 10px 12px;
-  border-bottom: 1px solid var(--border-light);
+  border-bottom: 1px solid var(--border-default);
   cursor: pointer;
   transition: background 0.2s;
   display: flex;
@@ -32,23 +32,23 @@
 }
 
 .ruleset-item:hover {
-  background: var(--bg-hover);
+  background: var(--state-hover-surface);
 }
 
 .ruleset-item.active {
-  background: var(--bg-panel);
-  border-left: 3px solid var(--accent-main);
+  background: var(--surface-container);
+  border-left: 3px solid var(--accent-action);
 }
 
 .ruleset-meta {
   font-size: 0.75rem;
-  color: var(--text-dim);
+  color: var(--content-muted);
 }
 
 .auto-header {
   padding: 1rem;
-  border-bottom: 1px solid var(--border-light);
-  background: var(--bg-sub);
+  border-bottom: 1px solid var(--border-default);
+  background: var(--surface-container-raised);
   display: flex;
 }
 
@@ -56,16 +56,16 @@
   flex: 1;
   overflow-y: auto;
   padding: 1.5rem;
-  background: var(--bg-body);
+  background: var(--surface-page);
 }
 
 .rule-card {
-  background: var(--bg-panel);
-  border: 1px solid var(--border-light);
+  background: var(--surface-container);
+  border: 1px solid var(--border-default);
   border-radius: 8px;
   margin-bottom: 1.5rem;
   overflow: hidden;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 2px 5px color-mix(in srgb, var(--content-on-light) 5%, transparent);
   transition: all 0.2s;
 }
 
@@ -77,14 +77,14 @@
 }
 
 .rule-card:hover {
-  border-color: var(--accent-light);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-color: var(--accent-text);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--content-on-light) 10%, transparent);
 }
 
 .rule-header {
   padding: 0.75rem 1rem;
-  background: color-mix(in srgb, var(--bg-sub), transparent 50%);
-  border-bottom: 1px solid var(--border-light);
+  background: color-mix(in srgb, var(--surface-container-raised), transparent 50%);
+  border-bottom: 1px solid var(--border-default);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -108,16 +108,16 @@
   font-weight: 900;
   font-size: 0.9rem;
   padding-top: 1rem;
-  color: var(--text-dim);
+  color: var(--content-muted);
   text-transform: uppercase;
 }
 
 .logic-label.if {
-  color: #f59e0b;
+  color: var(--status-warning-solid);
 }
 
 .logic-label.then {
-  color: #10b981;
+  color: var(--status-success-solid);
 }
 
 .logic-content {
@@ -131,10 +131,10 @@
   display: flex;
   gap: 0.5rem;
   align-items: center;
-  background: var(--bg-sub);
+  background: var(--surface-container-raised);
   padding: 4px;
   border-radius: 6px;
-  border: 1px solid var(--border-light);
+  border: 1px solid var(--border-default);
 }
 
 .automation-action-type-select {
@@ -160,11 +160,11 @@
 }
 
 .automation-action-type-select .icon-select-option-icon {
-  color: var(--text-dim);
+  color: var(--content-muted);
 }
 
 .automation-action-type-select .icon-select-option[aria-selected='true'] .icon-select-option-icon {
-  color: var(--accent-light);
+  color: var(--accent-text);
 }
 
 .automation-help-trigger {
@@ -178,7 +178,7 @@
 
 /* The help glyph already contains its own circular shape; do not frame it twice. */
 .automation-help-trigger:focus-visible {
-  outline: 2px solid var(--accent-main);
+  outline: 2px solid var(--accent-action);
   outline-offset: 2px;
 }
 
@@ -200,18 +200,18 @@
 }
 
 .batch-import-action-trigger--rename {
-  border-color: color-mix(in srgb, var(--color-warn), transparent 20%);
-  color: var(--text-warn);
+  border-color: color-mix(in srgb, var(--status-warning-text), transparent 20%);
+  color: var(--status-warning-text);
 }
 
 .batch-import-action-trigger--overwrite {
-  border-color: color-mix(in srgb, var(--color-danger), transparent 20%);
-  color: #f87171;
+  border-color: color-mix(in srgb, var(--status-danger-border), transparent 28%);
+  color: var(--status-danger-text);
 }
 
 .batch-import-action-trigger--skip {
-  border-color: var(--border-light);
-  color: var(--text-dim);
+  border-color: var(--border-default);
+  color: var(--content-muted);
 }
 
 .automation-inline-actions {
@@ -225,7 +225,7 @@
 
 .drag-handle {
   cursor: grab;
-  color: var(--text-dim);
+  color: var(--content-muted);
   padding: 0 4px;
 }
 
@@ -234,9 +234,9 @@
 }
 
 .auto-input {
-  background: var(--bg-panel);
-  border: 1px solid var(--border-light);
-  color: var(--text-main);
+  background: var(--surface-container);
+  border: 1px solid var(--border-default);
+  color: var(--content-primary);
   padding: 4px 8px;
   border-radius: 4px;
   font-size: 0.85rem;
@@ -244,13 +244,13 @@
 }
 
 .auto-input:focus {
-  border-color: var(--accent-main);
+  border-color: var(--accent-action);
 }
 
 .auto-select {
-  background: var(--bg-panel);
-  border: 1px solid var(--border-light);
-  color: var(--text-main);
+  background: var(--surface-container);
+  border: 1px solid var(--border-default);
+  color: var(--content-primary);
   padding: 4px 8px;
   border-radius: 4px;
   font-size: 0.85rem;
@@ -259,7 +259,7 @@
 }
 
 .auto-select:focus {
-  border-color: var(--accent-main);
+  border-color: var(--accent-action);
 }
 
 .btn-icon-sm {
@@ -269,23 +269,23 @@
   align-items: center;
   justify-content: center;
   border-radius: 4px;
-  color: var(--text-dim);
+  color: var(--content-muted);
   cursor: pointer;
 }
 
 .btn-icon-sm:hover {
-  background: var(--bg-hover);
-  color: var(--text-main);
+  background: var(--state-hover-surface);
+  color: var(--content-primary);
 }
 
 .btn-icon-sm.delete:hover {
-  color: #ef4444;
-  background: rgba(239, 68, 68, 0.1);
+  color: var(--status-danger-solid);
+  background: color-mix(in srgb, var(--status-danger-solid) 10%, transparent);
 }
 
 .logic-connector {
   width: 2px;
-  background: var(--border-light);
+  background: var(--border-default);
   margin-left: 29px;
   height: 10px;
 }
@@ -304,9 +304,9 @@
 }
 
 .automation-help-tab {
-  border: 1px solid var(--border-light);
-  background: var(--bg-sub);
-  color: var(--text-dim);
+  border: 1px solid var(--border-default);
+  background: var(--surface-container-raised);
+  color: var(--content-muted);
   border-radius: 999px;
   padding: 0.45rem 0.85rem;
   font-size: 0.8125rem;
@@ -315,14 +315,14 @@
 }
 
 .automation-help-tab:hover {
-  color: var(--text-main);
-  border-color: var(--accent-main);
+  color: var(--content-primary);
+  border-color: var(--accent-action);
 }
 
 .automation-help-tab.is-active {
-  color: var(--text-main);
-  border-color: var(--accent-main);
-  background: color-mix(in srgb, var(--accent-main), transparent 88%);
+  color: var(--content-primary);
+  border-color: var(--accent-action);
+  background: color-mix(in srgb, var(--accent-action), transparent 88%);
 }
 
 .automation-help-panel {
@@ -361,15 +361,15 @@
   gap: 0.35rem;
   align-items: center;
   padding: 0.75rem;
-  border: 1px solid var(--border-light);
+  border: 1px solid var(--border-default);
   border-radius: 0.75rem;
-  background: var(--bg-panel);
+  background: var(--surface-container);
 }
 
 .automation-preset-chip {
-  border: 1px solid var(--border-light);
-  background: var(--bg-panel);
-  color: var(--text-main);
+  border: 1px solid var(--border-default);
+  background: var(--surface-container);
+  color: var(--content-primary);
   border-radius: 999px;
   padding: 0.3rem 0.7rem;
   font-size: 0.75rem;
@@ -378,8 +378,8 @@
 }
 
 .automation-preset-chip:hover {
-  border-color: var(--accent-main);
-  color: var(--accent-main);
+  border-color: var(--accent-action);
+  color: var(--accent-action);
 }
 
 .automation-performance-notice {
@@ -388,21 +388,21 @@
   gap: 0.65rem;
   margin: 0 0 1rem;
   padding: 0.75rem 0.9rem;
-  border: 1px solid color-mix(in srgb, var(--color-warn), transparent 45%);
+  border: 1px solid color-mix(in srgb, var(--status-warning-text), transparent 45%);
   border-radius: 0.65rem;
-  background: color-mix(in srgb, var(--color-warn), transparent 90%);
-  color: var(--text-main);
+  background: color-mix(in srgb, var(--status-warning-text), transparent 90%);
+  color: var(--content-primary);
   font-size: 0.78rem;
   line-height: 1.55;
 }
 
 .automation-performance-notice strong {
-  color: var(--text-warn);
+  color: var(--status-warning-text);
 }
 
 .automation-performance-notice-icon {
   flex: 0 0 auto;
-  color: var(--text-warn);
+  color: var(--status-warning-text);
   font-size: 1rem;
   line-height: 1.45;
 }

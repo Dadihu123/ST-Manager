@@ -18,12 +18,12 @@
     <div
       class="h-12 border-b items-center justify-between px-4 shadow-sm flex-shrink-0 z-20"
       :class="$store.global.deviceType === 'mobile' ? '' : 'flex'"
-      style="background: var(--bg-panel); border-color: var(--border-main)"
+      style="background: var(--surface-container); border-color: var(--border-subtle)"
     >
       <div class="flex items-center gap-4 min-w-0">
         <!-- 标题/Logo -->
         <div
-          class="flex items-center gap-2 text-orange-400 font-bold select-none cursor-default"
+          class="flex items-center gap-2 color-text-warning font-bold select-none cursor-default"
         >
           <span aria-hidden="true">{{ sidebar_icon('book-stack', 'ui-icon--md') }}</span>
           <span class="hidden md:inline">编辑器</span>
@@ -34,22 +34,22 @@
           <div
             class="px-2 py-0.5 rounded text-[10px] font-bold tracking-wider uppercase border bg-opacity-10"
             :class="{
-                            'bg-blue-500 border-blue-500 text-blue-400': editingWiFile.type === 'global',
-                            'bg-green-500 border-green-500 text-green-400': editingWiFile.type === 'resource',
-                            'bg-purple-500 border-purple-500 text-purple-400': editingWiFile.type === 'embedded'
+                            'color-surface-accent-solid color-border-accent color-text-accent': editingWiFile.type === 'global',
+                            'color-surface-success-solid color-border-success color-text-success': editingWiFile.type === 'resource',
+                            'color-surface-violet color-border-violet color-text-violet': editingWiFile.type === 'embedded'
                         }"
           >
             <span x-text="editingWiFile.type"></span>
           </div>
         </template>
 
-        <div class="h-4 w-[1px] bg-[var(--border-light)]"></div>
+        <div class="h-4 w-[1px] bg-[var(--border-default)]"></div>
 
         <!-- 标题输入框 -->
         <div class="flex items-center gap-2">
           <span
             x-show="!editingWiFile && activeCard"
-            class="text-xs text-gray-500 truncate max-w-[100px]"
+            class="text-xs color-text-muted truncate max-w-[100px]"
             x-text="activeCard ? activeCard.char_name + ' /' : ''"
           ></span>
 
@@ -57,7 +57,7 @@
             <input
               type="text"
               x-model="editingData.character_book.name"
-              class="bg-transparent text-sm font-bold border-b border-transparent hover:border-gray-500 focus:border-accent-main outline-none transition-colors w-40 md:w-64"
+              class="bg-transparent text-sm font-bold border-b border-transparent color-hover-border-neutral color-focus-border-accent outline-none transition-colors w-40 md:w-64"
               placeholder="世界书名称..."
             />
           </template>
@@ -71,15 +71,15 @@
       >
         <!-- Token 统计 -->
         <div
-          class="hidden lg:flex flex-col items-end mr-4 px-3 border-r border-[var(--border-light)]"
+          class="hidden lg:flex flex-col items-end mr-4 px-3 border-r border-[var(--border-default)]"
           title="预估总 Token"
         >
-          <span class="text-[9px] text-gray-500 uppercase font-bold"
+          <span class="text-[9px] color-text-muted uppercase font-bold"
             >Tokens</span
           >
           <span
             class="text-xs font-mono font-bold text-neon"
-            :class="typeof getTotalWiTokens === 'function' ? getWiTokenClass(getTotalWiTokens(), 'text-green-400') : 'text-green-400'"
+            :class="typeof getTotalWiTokens === 'function' ? getWiTokenClass(getTotalWiTokens(), 'color-text-success') : 'color-text-success'"
             x-text="typeof getTotalWiTokens === 'function' ? getTotalWiTokens() : 0"
           >
           </span>
@@ -205,7 +205,7 @@
           {{ icon('book-search', 'ui-icon--md') }}
         </button>
 
-        <div class="h-4 w-[1px] bg-[var(--border-light)] mx-1"></div>
+        <div class="h-4 w-[1px] bg-[var(--border-default)] mx-1"></div>
 
         <!-- 4. 保存按钮组 -->
         <div class="flex items-center gap-2">
@@ -304,14 +304,14 @@
 
         <div class="wi-editor-final-actions flex items-center gap-0">
           <div
-            class="h-4 w-[1px] bg-[var(--border-light)] mx-1"
+            class="h-4 w-[1px] bg-[var(--border-default)] mx-1"
             aria-hidden="true"
           ></div>
 
           <!-- 帮助按钮 -->
           <button
             @click="showHelpModal=true"
-            class="btn-secondary wi-icon-only-action px-3 py-1.5 text-xs rounded hover:bg-blue-500/20 hover:text-blue-400"
+            class="btn-secondary wi-icon-only-action px-3 py-1.5 text-xs rounded color-hover-surface-accent color-hover-text-accent"
             title="查看帮助指南"
             aria-label="查看帮助指南"
           >
@@ -320,7 +320,7 @@
 
           <button
             @click="showFullScreenWI=false"
-            class="btn-secondary wi-icon-only-action wi-editor-close-action px-3 py-1.5 text-xs rounded hover:bg-red-500/20 hover:text-red-400"
+            class="btn-secondary wi-icon-only-action wi-editor-close-action px-3 py-1.5 text-xs rounded color-hover-surface-danger color-hover-text-danger"
             title="关闭全屏世界书编辑器"
             aria-label="关闭全屏世界书编辑器"
           >
@@ -334,11 +334,11 @@
     <div class="flex-1 flex overflow-hidden relative">
       <!-- === 左侧列表 === -->
       <div
-        class="flex flex-col border-r transition-all duration-300 ease-in-out bg-[var(--bg-sub)] relative"
+        class="flex flex-col border-r transition-all duration-300 ease-in-out bg-[var(--surface-container-raised)] relative"
         :style="{ width: showLeftList ? '260px' : '0px', opacity: showLeftList ? '1' : '0' }"
-        style="border-color: var(--border-main)"
+        style="border-color: var(--border-subtle)"
       >
-        <div class="p-2 border-b border-[var(--border-light)] flex-shrink-0">
+        <div class="p-2 border-b border-[var(--border-default)] flex-shrink-0">
           <div class="wi-entry-list-toolbar">
             <label class="wi-entry-filter" for="wi-entry-filter-input">
               <span aria-hidden="true">{{ icon('book-search', 'ui-icon--sm') }}</span>
@@ -400,15 +400,15 @@
                   <div
                     class="w-2 h-2 rounded-full flex-shrink-0 shadow-sm"
                     :class="{
-                                             'bg-blue-500 shadow-blue-500/50': entry.constant,
-                                             'bg-purple-500 shadow-purple-500/50': !entry.constant && entry.vectorized,
-                                             'bg-green-500 shadow-green-500/50': !entry.constant && !entry.vectorized && entry.enabled,
-                                             'bg-gray-600': !entry.enabled
+                                             'color-surface-accent-solid color-shadow-accent': entry.constant,
+                                             'color-surface-violet color-shadow-status': !entry.constant && entry.vectorized,
+                                             'color-surface-success-solid color-shadow-status': !entry.constant && !entry.vectorized && entry.enabled,
+                                             'color-surface-raised': !entry.enabled
                                          }"
                   ></div>
                   <span
                     class="font-bold truncate"
-                    :class="isCurrentWiEntry(entry, index) ? 'text-[var(--text-main)]' : 'text-[var(--text-sub)]'"
+                    :class="isCurrentWiEntry(entry, index) ? 'text-[var(--content-primary)]' : 'text-[var(--content-secondary)]'"
                     x-text="entry.comment || '无标题'"
                   ></span>
                 </div>
@@ -416,7 +416,7 @@
                   type="checkbox"
                   x-model="entry.enabled"
                   @click.stop
-                  class="cursor-pointer accent-accent-main"
+                  class="cursor-pointer color-accent-primary"
                 />
               </div>
 
@@ -431,7 +431,7 @@
 
                   <!-- 权重标记 -->
                   <span
-                    class="text-[9px] font-mono bg-black/10 dark:bg-white/10 px-1.5 rounded text-gray-500 ml-1 flex-shrink-0"
+                    class="text-[9px] font-mono color-surface-raised px-1.5 rounded color-text-muted ml-1 flex-shrink-0"
                     title="插入权重 (Insertion Order)"
                   >
                     #<span x-text="entry.insertion_order"></span>
@@ -454,11 +454,11 @@
         </div>
 
         <div
-          class="p-1 border-t border-[var(--border-light)] flex justify-center bg-[var(--bg-sub)]"
+          class="p-1 border-t border-[var(--border-default)] flex justify-center bg-[var(--surface-container-raised)]"
         >
           <button
             @click="showLeftList = false"
-            class="text-[10px] text-gray-500 hover:text-[var(--text-main)] w-full inline-flex items-center justify-center gap-1"
+            class="text-[10px] color-text-muted hover:text-[var(--content-primary)] w-full inline-flex items-center justify-center gap-1"
           >
             {{ icon('chevron-right', 'ui-icon--xs rotate-180') }}
             <span>收起列表</span>
@@ -484,13 +484,13 @@
           <div class="flex flex-col h-full">
             <div
               class="p-4 pb-2 flex-shrink-0 flex items-center gap-4 transition-all duration-300 border-b"
-              :class="isEditingClipboard ? 'bg-purple-900/10 border-purple-500/30' : 'bg-transparent border-transparent'"
+              :class="isEditingClipboard ? 'color-surface-violet color-border-violet' : 'bg-transparent border-transparent'"
             >
               <div class="flex-1">
                 <div class="flex items-center gap-2 mb-1">
                   <label
                     class="text-[10px] uppercase font-bold tracking-wider block"
-                    :class="isEditingClipboard ? 'text-purple-400' : 'text-gray-500'"
+                    :class="isEditingClipboard ? 'color-text-violet' : 'color-text-muted'"
                   >
                     <span class="inline-flex items-center gap-1">
                       <span x-show="isEditingClipboard" aria-hidden="true">
@@ -505,7 +505,7 @@
                   <!-- 剪切板模式徽章 -->
                   <span
                     x-show="isEditingClipboard"
-                    class="text-[9px] px-1.5 py-0.5 rounded bg-purple-500 text-white font-bold animate-pulse"
+                    class="text-[9px] px-1.5 py-0.5 rounded color-surface-violet color-text-violet font-bold animate-pulse"
                   >
                     EDITING
                   </span>
@@ -516,8 +516,8 @@
                   x-model="activeEditorEntry.comment"
                   class="w-full bg-transparent text-lg font-bold border-b outline-none transition-colors p-1"
                   :class="isEditingClipboard 
-                    ? 'border-purple-500/30 focus:border-purple-500 placeholder-purple-300/50' 
-                    : 'border-transparent focus:border-[var(--accent-main)]'"
+                    ? 'color-border-violet color-focus-border-accent color-placeholder-muted'
+                    : 'border-transparent focus:border-[var(--accent-action)]'"
                   placeholder="输入条目备注..."
                 />
               </div>
@@ -540,7 +540,7 @@
                   <div class="flex gap-2">
                     <button
                       @click="exitClipboardEdit()"
-                      class="wi-action-btn w-auto px-3 gap-1 hover:bg-gray-500/20 text-gray-500 border border-transparent hover:border-gray-500/30"
+                      class="wi-action-btn w-auto px-3 gap-1 color-surface-hover color-text-muted border border-transparent color-hover-border-neutral"
                       title="取消编辑并返回"
                     >
                       {{ icon('arrow-left', 'ui-icon--sm') }}
@@ -548,7 +548,7 @@
                     </button>
                     <button
                       @click="saveClipboardItem()"
-                      class="wi-action-btn w-auto px-3 gap-1 bg-purple-600 hover:bg-purple-500 text-white shadow-sm hover:shadow-purple-500/20"
+                      class="wi-action-btn w-auto px-3 gap-1 color-surface-violet-solid color-hover-surface-violet color-text-on-dark shadow-sm color-shadow-status"
                       title="保存对剪切板条目的修改"
                     >
                       {{ icon('settings-save', 'ui-icon--sm') }}
@@ -563,21 +563,21 @@
                     <button
                       @click.stop="openEntryHistoryModal()"
                       title="条目历史回滚"
-                      class="wi-action-btn hover:text-orange-400 hover:bg-orange-500/10"
+                      class="wi-action-btn color-hover-text-warning color-hover-surface-warning"
                     >
                       {{ icon('entry-rollback', 'ui-icon--md') }}
                     </button>
                     <button
                       @click.stop="removeWiEntry(activeEditorEntry)"
                       title="删除条目"
-                      class="wi-action-btn hover:text-red-400 hover:bg-red-500/10"
+                      class="wi-action-btn color-hover-text-danger color-hover-surface-danger"
                     >
                       {{ icon('trash', 'ui-icon--md') }}
                     </button>
                     <button
                       @click.stop="copyWiToClipboard(activeEditorEntry)"
                       title="复制到剪切板"
-                      class="wi-action-btn hover:text-purple-400 hover:bg-purple-500/10"
+                      class="wi-action-btn color-hover-text-violet color-hover-surface-violet"
                     >
                       {{ icon('clipboard', 'ui-icon--md') }}
                     </button>
@@ -588,13 +588,13 @@
 
             <div
               class="wi-content-wrapper"
-              :class="{'bg-purple-900/5': isEditingClipboard}"
+              :class="{'color-surface-violet': isEditingClipboard}"
             >
               <textarea
                 x-model="activeEditorEntry.content"
                 x-ref="wiContentTextarea"
                 class="wi-main-textarea custom-scrollbar"
-                :class="{'border-purple-500/30 focus:border-purple-500': isEditingClipboard}"
+                :class="{'color-border-violet color-focus-border-accent': isEditingClipboard}"
                 placeholder="在此输入世界书内容..."
               ></textarea>
             </div>
@@ -603,7 +603,7 @@
 
         <template x-if="!activeEditorEntry">
           <div
-            class="flex-1 flex flex-col items-center justify-center text-gray-600 gap-4 select-none"
+            class="flex-1 flex flex-col items-center justify-center color-text-muted gap-4 select-none"
           >
             <div class="opacity-20">
               {{ icon('sticky-note', 'ui-icon--xl') }}
@@ -637,7 +637,7 @@
           </div>
           <button
             @click="showRightPanel = false"
-            class="px-3 text-gray-500 hover:text-red-400 border-l border-[var(--border-light)]"
+            class="px-3 color-text-muted color-hover-text-danger border-l border-[var(--border-default)]"
           >
             {{ icon('close', 'ui-icon--sm') }}
           </button>
@@ -649,12 +649,12 @@
           <div class="wi-inspector-content">
             <!-- 1. 触发策略 -->
             <div class="props-group">
-              <div class="props-header text-blue-400">触发策略 (Strategy)</div>
+              <div class="props-header color-text-accent">触发策略 (Strategy)</div>
               <div class="props-body">
                 <div class="flex gap-2">
                   <label
                     class="flex-1 flex flex-col items-center justify-center p-2 rounded border cursor-pointer transition-all"
-                    :class="activeEditorEntry.constant ? 'bg-blue-500/10 border-blue-500 text-blue-400' : 'border-[var(--border-light)] hover:bg-[var(--bg-hover)]'"
+                    :class="activeEditorEntry.constant ? 'color-surface-accent color-border-accent color-text-accent' : 'border-[var(--border-default)] hover:bg-[var(--state-hover-surface)]'"
                   >
                     <input
                       type="checkbox"
@@ -671,7 +671,7 @@
                   </label>
                   <label
                     class="flex-1 flex flex-col items-center justify-center p-2 rounded border cursor-pointer transition-all"
-                    :class="activeEditorEntry.vectorized ? 'bg-purple-500/10 border-purple-500 text-purple-400' : 'border-[var(--border-light)] hover:bg-[var(--bg-hover)]'"
+                    :class="activeEditorEntry.vectorized ? 'color-surface-violet color-border-violet color-text-violet' : 'border-[var(--border-default)] hover:bg-[var(--state-hover-surface)]'"
                   >
                     <input
                       type="checkbox"
@@ -695,27 +695,27 @@
               x-if="!activeEditorEntry.constant && !activeEditorEntry.vectorized"
             >
               <div class="props-group">
-                <div class="props-header text-green-400">关键词 (Keywords)</div>
+                <div class="props-header color-text-success">关键词 (Keywords)</div>
                 <div class="props-body space-y-3">
                   <div>
-                    <label class="text-[10px] text-gray-500 block mb-1"
+                    <label class="text-[10px] color-text-muted block mb-1"
                       >主触发词 (Primary Keys)</label
                     >
                     <textarea
                       :value="(activeEditorEntry && typeof formatWiKeys === 'function') ? formatWiKeys(activeEditorEntry.keys) : (activeEditorEntry?.keys || '')"
                       @input="activeEditorEntry && (typeof updateWiKeys === 'function' ? updateWiKeys(activeEditorEntry, $event.target.value) : (activeEditorEntry.keys = $event.target.value.split(',')))"
-                      class="w-full bg-[var(--bg-body)] border border-[var(--border-light)] rounded p-2 text-xs font-mono text-yellow-500 focus:border-yellow-500 outline-none resize-none h-16"
+                      class="w-full bg-[var(--surface-page)] border border-[var(--border-default)] rounded p-2 text-xs font-mono color-text-warning color-focus-border-accent outline-none resize-none h-16"
                       placeholder="key1, key2..."
                     ></textarea>
                   </div>
                   <div>
-                    <label class="text-[10px] text-gray-500 block mb-1"
+                    <label class="text-[10px] color-text-muted block mb-1"
                       >次要/过滤词 (Filter Keys)</label
                     >
                     <textarea
                       :value="(activeEditorEntry && typeof formatWiKeys === 'function') ? formatWiKeys(activeEditorEntry.secondary_keys) : (activeEditorEntry?.secondary_keys || '')"
                       @input="activeEditorEntry && (activeEditorEntry.secondary_keys = $event.target.value.split(',').map(s=>s.trim()).filter(s=>s))"
-                      class="w-full bg-[var(--bg-body)] border border-[var(--border-light)] rounded p-2 text-xs font-mono text-teal-500 focus:border-teal-500 outline-none resize-none h-12"
+                      class="w-full bg-[var(--surface-page)] border border-[var(--border-default)] rounded p-2 text-xs font-mono color-text-info color-focus-border-accent outline-none resize-none h-12"
                       placeholder="可选过滤词..."
                     ></textarea>
                   </div>
@@ -725,12 +725,12 @@
 
             <!-- 3. 插入设置 -->
             <div class="props-group">
-              <div class="props-header text-orange-400">
+              <div class="props-header color-text-warning">
                 插入设置 (Insertion)
               </div>
               <div class="props-body text-xs space-y-3">
                 <div class="flex items-center justify-between">
-                  <span class="text-gray-500">位置 (Position)</span>
+                  <span class="color-text-muted">位置 (Position)</span>
                   {% call styled_select_controlled(
                     "getEditorPositionSelectValue(activeEditorEntry)",
                     "updateEditorPositionFromSelect(activeEditorEntry, option.value)",
@@ -752,14 +752,14 @@
                   {% endcall %}
                 </div>
                 <div class="flex items-center justify-between">
-                  <span class="text-gray-500">权重 (Order)</span>
+                  <span class="color-text-muted">权重 (Order)</span>
                   <div class="ui-number-control w-20 shrink-0">
                     <input
                       type="number"
                       x-model.number="activeEditorEntry.insertion_order"
                       step="1"
                       aria-label="权重 (Order)"
-                      class="w-full bg-[var(--bg-body)] border border-[var(--border-light)] rounded px-2 py-1 text-center ui-number-input"
+                      class="w-full bg-[var(--surface-page)] border border-[var(--border-default)] rounded px-2 py-1 text-center ui-number-input"
                     />
                     <div class="ui-number-stepper" aria-label="调整权重">
                       <button
@@ -783,16 +783,16 @@
                 </div>
                 <template x-if="activeEditorEntry.position === 4">
                   <div
-                    class="pt-2 border-t border-[var(--border-light)] flex items-center justify-between"
+                    class="pt-2 border-t border-[var(--border-default)] flex items-center justify-between"
                   >
-                    <span class="text-gray-500">深度 (Depth)</span>
+                    <span class="color-text-muted">深度 (Depth)</span>
                     <div class="ui-number-control w-20 shrink-0">
                       <input
                         type="number"
                         x-model.number="activeEditorEntry.depth"
                         step="1"
                         aria-label="深度 (Depth)"
-                        class="w-full bg-[var(--bg-body)] border border-[var(--border-light)] rounded px-2 py-1 text-center ui-number-input"
+                        class="w-full bg-[var(--surface-page)] border border-[var(--border-default)] rounded px-2 py-1 text-center ui-number-input"
                       />
                       <div class="ui-number-stepper" aria-label="调整深度">
                         <button
@@ -817,23 +817,23 @@
                 </template>
                 <template x-if="activeEditorEntry.position === 7">
                   <div
-                    class="pt-2 border-t border-[var(--border-light)] flex items-center justify-between gap-3"
+                    class="pt-2 border-t border-[var(--border-default)] flex items-center justify-between gap-3"
                   >
-                    <span class="text-gray-500 whitespace-nowrap"
+                    <span class="color-text-muted whitespace-nowrap"
                       >输出端名称 (Outlet)</span
                     >
                     <input
                       type="text"
                       x-model="activeEditorEntry.outletName"
                       placeholder="main"
-                      class="flex-1 bg-[var(--bg-body)] border border-[var(--border-light)] rounded px-2 py-1 text-xs"
+                      class="flex-1 bg-[var(--surface-page)] border border-[var(--border-default)] rounded px-2 py-1 text-xs"
                     />
                   </div>
                 </template>
                 <div
-                  class="pt-2 border-t border-[var(--border-light)] flex items-center justify-between gap-3"
+                  class="pt-2 border-t border-[var(--border-default)] flex items-center justify-between gap-3"
                 >
-                  <span class="text-gray-500 whitespace-nowrap"
+                  <span class="color-text-muted whitespace-nowrap"
                     >扫描深度 (Scan Depth)</span
                   >
                   <div class="ui-number-control w-24 shrink-0">
@@ -843,7 +843,7 @@
                       step="1"
                       placeholder="留空跟随全局"
                       aria-label="扫描深度 (Scan Depth)"
-                      class="w-full bg-[var(--bg-body)] border border-[var(--border-light)] rounded px-2 py-1 text-center ui-number-input"
+                      class="w-full bg-[var(--surface-page)] border border-[var(--border-default)] rounded px-2 py-1 text-center ui-number-input"
                     />
                     <div class="ui-number-stepper" aria-label="调整扫描深度">
                       <button
@@ -869,52 +869,52 @@
             </div>
 
             <div class="props-group">
-              <div class="props-header text-pink-400">
+              <div class="props-header color-text-rose">
                 递归与流程 (Recursion)
               </div>
               <div class="props-body text-xs space-y-2">
                 <label
-                  class="flex items-center gap-2 cursor-pointer p-1 hover:bg-[var(--bg-hover)] rounded"
+                  class="flex items-center gap-2 cursor-pointer p-1 hover:bg-[var(--state-hover-surface)] rounded"
                 >
                   <input
                     type="checkbox"
                     x-model="activeEditorEntry.excludeRecursion"
-                    class="accent-pink-500"
+                    class="color-accent-rose"
                   />
                   <span>不可递归 (Exclude Recursion)</span>
                 </label>
 
                 <label
-                  class="flex items-center gap-2 cursor-pointer p-1 hover:bg-[var(--bg-hover)] rounded"
+                  class="flex items-center gap-2 cursor-pointer p-1 hover:bg-[var(--state-hover-surface)] rounded"
                 >
                   <input
                     type="checkbox"
                     x-model="activeEditorEntry.preventRecursion"
-                    class="accent-pink-500"
+                    class="color-accent-rose"
                   />
                   <span>阻止后续递归 (Prevent Recursion)</span>
                 </label>
 
                 <label
-                  class="flex items-center gap-2 cursor-pointer p-1 hover:bg-[var(--bg-hover)] rounded"
+                  class="flex items-center gap-2 cursor-pointer p-1 hover:bg-[var(--state-hover-surface)] rounded"
                 >
                   <input
                     type="checkbox"
                     x-model="activeEditorEntry.ignoreBudget"
-                    class="accent-red-500"
+                    class="color-accent-danger"
                   />
-                  <span class="text-red-400">无视限额 (Ignore Budget)</span>
+                  <span class="color-text-danger">无视限额 (Ignore Budget)</span>
                 </label>
 
                 <div
-                  class="flex items-center justify-between mt-1 pt-1 border-t border-[var(--border-light)]"
+                  class="flex items-center justify-between mt-1 pt-1 border-t border-[var(--border-default)]"
                 >
-                  <label class="flex items-center gap-2 text-gray-500">
+                  <label class="flex items-center gap-2 color-text-muted">
                     <input
                       type="checkbox"
                       :checked="getDelayUntilRecursionEnabled(activeEditorEntry)"
                       @change="setDelayUntilRecursionEnabled(activeEditorEntry, $event.target.checked)"
-                      class="accent-pink-500"
+                      class="color-accent-rose"
                     />
                     <span>延迟递归</span>
                   </label>
@@ -927,7 +927,7 @@
                       placeholder="1"
                       :disabled="!getDelayUntilRecursionEnabled(activeEditorEntry)"
                       aria-label="延迟递归级别"
-                      class="w-full bg-[var(--bg-body)] border border-[var(--border-light)] rounded px-1 text-center ui-number-input"
+                      class="w-full bg-[var(--surface-page)] border border-[var(--border-default)] rounded px-1 text-center ui-number-input"
                     />
                     <div class="ui-number-stepper" aria-label="调整延迟递归级别">
                       <button
@@ -956,13 +956,13 @@
 
             <div class="props-group">
               <div
-                class="props-header text-green-400"
+                class="props-header color-text-success"
                 x-text="editingWiFile?.type === 'embedded' ? '角色卡备注 (Character Note)' : '本地备注 (Local Note)'"
               ></div>
               <div class="props-body space-y-2">
                 <div class="flex items-center justify-between gap-2">
                   <span
-                    class="text-[10px] text-gray-500"
+                    class="text-[10px] color-text-muted"
                     x-text="editingWiFile?.type === 'embedded' ? '此处编辑的是所属角色卡备注，不写入世界书文件本体' : '仅保存在本地，不写入世界书文件'"
                   ></span>
                   <div class="flex items-center gap-1">
@@ -982,7 +982,7 @@
                 </div>
                 <textarea
                   x-model="editingData.ui_summary"
-                  class="w-full bg-[var(--bg-body)] border border-[var(--border-light)] rounded p-2 text-xs text-[var(--text-main)] focus:border-accent-main outline-none resize-y min-h-[9rem]"
+                  class="w-full bg-[var(--surface-page)] border border-[var(--border-default)] rounded p-2 text-xs text-[var(--content-primary)] color-focus-border-accent outline-none resize-y min-h-[9rem]"
                   :placeholder="editingWiFile?.type === 'embedded' ? '这是仅存储在角色卡中的私有备注，不会写入世界书文件...' : '这是仅存储在本地的私有备注，不会写入世界书文件...'"
                 ></textarea>
                 <button
@@ -997,10 +997,10 @@
             <!-- 4. 逻辑与过滤 -->
             <div class="props-group" x-data="{ expanded: false }">
               <div
-                class="props-header cursor-pointer hover:bg-[var(--bg-hover)]"
+                class="props-header cursor-pointer hover:bg-[var(--state-hover-surface)]"
                 @click="expanded = !expanded"
               >
-                <span class="text-purple-400">高级逻辑 (Logic)</span>
+                <span class="color-text-violet">高级逻辑 (Logic)</span>
                 <span x-show="expanded" aria-hidden="true">
                   {{ icon('chevron-down', 'ui-icon--xs') }}
                 </span>
@@ -1011,16 +1011,16 @@
               <div class="props-body space-y-3" x-show="expanded">
                 <div class="flex items-center justify-between gap-2">
                   <span
-                    class="text-xs text-gray-500 whitespace-nowrap flex-shrink-0"
+                    class="text-xs color-text-muted whitespace-nowrap flex-shrink-0"
                     >逻辑模式 (Logic)</span
                   >
                   <label
-                    class="flex items-center gap-2 text-xs text-gray-400 whitespace-nowrap"
+                    class="flex items-center gap-2 text-xs color-text-muted whitespace-nowrap"
                   >
                     <input
                       type="checkbox"
                       x-model="activeEditorEntry.selective"
-                      class="accent-purple-500 scale-90"
+                      class="color-accent-violet scale-90"
                     />
                     <span>启用选择过滤</span>
                   </label>
@@ -1041,13 +1041,13 @@
                 </div>
 
                 <div
-                  class="grid grid-cols-1 gap-1 pt-2 border-t border-[var(--border-light)]"
+                  class="grid grid-cols-1 gap-1 pt-2 border-t border-[var(--border-default)]"
                 >
                   <label
-                    class="flex items-center justify-between cursor-pointer p-1.5 hover:bg-[var(--bg-hover)] rounded group transition-colors"
+                    class="flex items-center justify-between cursor-pointer p-1.5 hover:bg-[var(--state-hover-surface)] rounded group transition-colors"
                   >
                     <span
-                      class="text-xs text-gray-400 group-hover:text-gray-200"
+                      class="text-xs color-text-muted color-group-hover-text-secondary"
                       >全词匹配 (Whole Words)</span
                     >
                     {% call styled_select(
@@ -1064,10 +1064,10 @@
                     {% endcall %}
                   </label>
                   <label
-                    class="flex items-center justify-between cursor-pointer p-1.5 hover:bg-[var(--bg-hover)] rounded group transition-colors"
+                    class="flex items-center justify-between cursor-pointer p-1.5 hover:bg-[var(--state-hover-surface)] rounded group transition-colors"
                   >
                     <span
-                      class="text-xs text-gray-400 group-hover:text-gray-200"
+                      class="text-xs color-text-muted color-group-hover-text-secondary"
                       >区分大小写 (Case Sensitive)</span
                     >
                     {% call styled_select(
@@ -1084,28 +1084,28 @@
                     {% endcall %}
                   </label>
                   <label
-                    class="flex items-center justify-between cursor-pointer p-1.5 hover:bg-[var(--bg-hover)] rounded group transition-colors"
+                    class="flex items-center justify-between cursor-pointer p-1.5 hover:bg-[var(--state-hover-surface)] rounded group transition-colors"
                   >
                     <span
-                      class="text-xs text-gray-400 group-hover:text-gray-200"
+                      class="text-xs color-text-muted color-group-hover-text-secondary"
                       >正则模式 (Regex)</span
                     >
                     <input
                       type="checkbox"
                       x-model="activeEditorEntry.use_regex"
-                      class="accent-purple-500 scale-90"
+                      class="color-accent-violet scale-90"
                     />
                   </label>
                 </div>
 
-                <div class="pt-2 mt-2 border-t border-[var(--border-light)]">
+                <div class="pt-2 mt-2 border-t border-[var(--border-default)]">
                   <div class="flex items-center justify-between">
                     <div class="flex flex-col">
-                      <span class="text-xs text-gray-500"
+                      <span class="text-xs color-text-muted"
                         >触发概率 (Probability)</span
                       >
                       <span
-                        class="text-[9px] text-gray-600 inline-flex items-center gap-1"
+                        class="text-[9px] color-text-muted inline-flex items-center gap-1"
                       >
                         <span
                           x-show="activeEditorEntry.useProbability"
@@ -1136,7 +1136,7 @@
                             step="1"
                             :disabled="!activeEditorEntry.useProbability"
                             aria-label="触发概率 (Probability)"
-                            class="w-full bg-[var(--bg-body)] border border-[var(--border-light)] rounded px-1 py-1 text-center text-xs focus:border-accent-main outline-none ui-number-input"
+                            class="w-full bg-[var(--surface-page)] border border-[var(--border-default)] rounded px-1 py-1 text-center text-xs color-focus-border-accent outline-none ui-number-input"
                             :class="{'opacity-50': !activeEditorEntry.useProbability}"
                           />
                           <div class="ui-number-stepper" aria-label="调整触发概率">
@@ -1160,18 +1160,18 @@
                             </button>
                           </div>
                         </div>
-                        <span class="ml-1 text-[10px] text-gray-500">%</span>
+                        <span class="ml-1 text-[10px] color-text-muted">%</span>
                       </div>
 
                       <!-- 启用开关 -->
                       <label
-                        class="cursor-pointer flex items-center justify-center w-6 h-6 hover:bg-[var(--bg-hover)] rounded transition-colors"
+                        class="cursor-pointer flex items-center justify-center w-6 h-6 hover:bg-[var(--state-hover-surface)] rounded transition-colors"
                         title="启用/禁用概率"
                       >
                         <input
                           type="checkbox"
                           x-model="activeEditorEntry.useProbability"
-                          class="accent-accent-main cursor-pointer w-4 h-4"
+                          class="color-accent-primary cursor-pointer w-4 h-4"
                         />
                       </label>
                     </div>
@@ -1179,103 +1179,103 @@
                 </div>
 
                 <div
-                  class="pt-2 mt-2 border-t border-[var(--border-light)] space-y-1"
+                  class="pt-2 mt-2 border-t border-[var(--border-default)] space-y-1"
                 >
                   <div
-                    class="text-[10px] uppercase tracking-wide text-gray-500"
+                    class="text-[10px] uppercase tracking-wide color-text-muted"
                   >
                     附加扫描来源
                   </div>
                   <label
-                    class="flex items-center justify-between cursor-pointer p-1.5 hover:bg-[var(--bg-hover)] rounded group transition-colors"
+                    class="flex items-center justify-between cursor-pointer p-1.5 hover:bg-[var(--state-hover-surface)] rounded group transition-colors"
                   >
                     <span
-                      class="text-xs text-gray-400 group-hover:text-gray-200"
+                      class="text-xs color-text-muted color-group-hover-text-secondary"
                       >匹配角色描述</span
                     >
                     <input
                       type="checkbox"
                       x-model="activeEditorEntry.matchCharacterDescription"
-                      class="accent-purple-500 scale-90"
+                      class="color-accent-violet scale-90"
                     />
                   </label>
                   <label
-                    class="flex items-center justify-between cursor-pointer p-1.5 hover:bg-[var(--bg-hover)] rounded group transition-colors"
+                    class="flex items-center justify-between cursor-pointer p-1.5 hover:bg-[var(--state-hover-surface)] rounded group transition-colors"
                   >
                     <span
-                      class="text-xs text-gray-400 group-hover:text-gray-200"
+                      class="text-xs color-text-muted color-group-hover-text-secondary"
                       >匹配角色性格</span
                     >
                     <input
                       type="checkbox"
                       x-model="activeEditorEntry.matchCharacterPersonality"
-                      class="accent-purple-500 scale-90"
+                      class="color-accent-violet scale-90"
                     />
                   </label>
                   <label
-                    class="flex items-center justify-between cursor-pointer p-1.5 hover:bg-[var(--bg-hover)] rounded group transition-colors"
+                    class="flex items-center justify-between cursor-pointer p-1.5 hover:bg-[var(--state-hover-surface)] rounded group transition-colors"
                   >
                     <span
-                      class="text-xs text-gray-400 group-hover:text-gray-200"
+                      class="text-xs color-text-muted color-group-hover-text-secondary"
                       >匹配场景</span
                     >
                     <input
                       type="checkbox"
                       x-model="activeEditorEntry.matchScenario"
-                      class="accent-purple-500 scale-90"
+                      class="color-accent-violet scale-90"
                     />
                   </label>
                   <label
-                    class="flex items-center justify-between cursor-pointer p-1.5 hover:bg-[var(--bg-hover)] rounded group transition-colors"
+                    class="flex items-center justify-between cursor-pointer p-1.5 hover:bg-[var(--state-hover-surface)] rounded group transition-colors"
                   >
                     <span
-                      class="text-xs text-gray-400 group-hover:text-gray-200"
+                      class="text-xs color-text-muted color-group-hover-text-secondary"
                       >匹配 Persona 描述</span
                     >
                     <input
                       type="checkbox"
                       x-model="activeEditorEntry.matchPersonaDescription"
-                      class="accent-purple-500 scale-90"
+                      class="color-accent-violet scale-90"
                     />
                   </label>
                   <label
-                    class="flex items-center justify-between cursor-pointer p-1.5 hover:bg-[var(--bg-hover)] rounded group transition-colors"
+                    class="flex items-center justify-between cursor-pointer p-1.5 hover:bg-[var(--state-hover-surface)] rounded group transition-colors"
                   >
                     <span
-                      class="text-xs text-gray-400 group-hover:text-gray-200"
+                      class="text-xs color-text-muted color-group-hover-text-secondary"
                       >匹配角色深度提示</span
                     >
                     <input
                       type="checkbox"
                       x-model="activeEditorEntry.matchCharacterDepthPrompt"
-                      class="accent-purple-500 scale-90"
+                      class="color-accent-violet scale-90"
                     />
                   </label>
                   <label
-                    class="flex items-center justify-between cursor-pointer p-1.5 hover:bg-[var(--bg-hover)] rounded group transition-colors"
+                    class="flex items-center justify-between cursor-pointer p-1.5 hover:bg-[var(--state-hover-surface)] rounded group transition-colors"
                   >
                     <span
-                      class="text-xs text-gray-400 group-hover:text-gray-200"
+                      class="text-xs color-text-muted color-group-hover-text-secondary"
                       >匹配创作者备注</span
                     >
                     <input
                       type="checkbox"
                       x-model="activeEditorEntry.matchCreatorNotes"
-                      class="accent-purple-500 scale-90"
+                      class="color-accent-violet scale-90"
                     />
                   </label>
                 </div>
 
                 <div
-                  class="pt-2 mt-2 border-t border-[var(--border-light)] space-y-2"
+                  class="pt-2 mt-2 border-t border-[var(--border-default)] space-y-2"
                 >
                   <div
-                    class="text-[10px] uppercase tracking-wide text-gray-500"
+                    class="text-[10px] uppercase tracking-wide color-text-muted"
                   >
                     时序行为
                   </div>
                   <div class="flex items-center justify-between gap-3">
-                    <span class="text-xs text-gray-400 whitespace-nowrap"
+                    <span class="text-xs color-text-muted whitespace-nowrap"
                       >Sticky</span
                     >
                     <div class="ui-number-control w-28 shrink-0">
@@ -1287,7 +1287,7 @@
                         @input="setOptionalNumberField(activeEditorEntry, 'sticky', $event.target.value)"
                         placeholder="留空表示关闭"
                         aria-label="Sticky"
-                        class="w-full bg-[var(--bg-body)] border border-[var(--border-light)] rounded px-2 py-1 text-center placeholder:text-[10px] ui-number-input"
+                        class="w-full bg-[var(--surface-page)] border border-[var(--border-default)] rounded px-2 py-1 text-center placeholder:text-[10px] ui-number-input"
                       />
                       <div class="ui-number-stepper" aria-label="调整 Sticky">
                         <button
@@ -1310,7 +1310,7 @@
                     </div>
                   </div>
                   <div class="flex items-center justify-between gap-3">
-                    <span class="text-xs text-gray-400 whitespace-nowrap"
+                    <span class="text-xs color-text-muted whitespace-nowrap"
                       >Cooldown</span
                     >
                     <div class="ui-number-control w-28 shrink-0">
@@ -1322,7 +1322,7 @@
                         @input="setOptionalNumberField(activeEditorEntry, 'cooldown', $event.target.value)"
                         placeholder="留空表示关闭"
                         aria-label="Cooldown"
-                        class="w-full bg-[var(--bg-body)] border border-[var(--border-light)] rounded px-2 py-1 text-center placeholder:text-[10px] ui-number-input"
+                        class="w-full bg-[var(--surface-page)] border border-[var(--border-default)] rounded px-2 py-1 text-center placeholder:text-[10px] ui-number-input"
                       />
                       <div class="ui-number-stepper" aria-label="调整 Cooldown">
                         <button
@@ -1345,7 +1345,7 @@
                     </div>
                   </div>
                   <div class="flex items-center justify-between gap-3">
-                    <span class="text-xs text-gray-400 whitespace-nowrap"
+                    <span class="text-xs color-text-muted whitespace-nowrap"
                       >Delay</span
                     >
                     <div class="ui-number-control w-28 shrink-0">
@@ -1357,7 +1357,7 @@
                         @input="setOptionalNumberField(activeEditorEntry, 'delay', $event.target.value)"
                         placeholder="留空表示关闭"
                         aria-label="Delay"
-                        class="w-full bg-[var(--bg-body)] border border-[var(--border-light)] rounded px-2 py-1 text-center placeholder:text-[10px] ui-number-input"
+                        class="w-full bg-[var(--surface-page)] border border-[var(--border-default)] rounded px-2 py-1 text-center placeholder:text-[10px] ui-number-input"
                       />
                       <div class="ui-number-stepper" aria-label="调整 Delay">
                         <button
@@ -1382,39 +1382,39 @@
                 </div>
 
                 <div
-                  class="pt-2 mt-2 border-t border-[var(--border-light)] space-y-2"
+                  class="pt-2 mt-2 border-t border-[var(--border-default)] space-y-2"
                 >
                   <div
-                    class="text-[10px] uppercase tracking-wide text-gray-500"
+                    class="text-[10px] uppercase tracking-wide color-text-muted"
                   >
                     分组与自动化
                   </div>
                   <div class="flex items-center justify-between gap-3">
-                    <span class="text-xs text-gray-400 whitespace-nowrap"
+                    <span class="text-xs color-text-muted whitespace-nowrap"
                       >Inclusion Group</span
                     >
                     <input
                       type="text"
                       x-model="activeEditorEntry.group"
                       placeholder="逗号分隔多个组"
-                      class="flex-1 bg-[var(--bg-body)] border border-[var(--border-light)] rounded px-2 py-1 text-xs"
+                      class="flex-1 bg-[var(--surface-page)] border border-[var(--border-default)] rounded px-2 py-1 text-xs"
                     />
                   </div>
                   <label
-                    class="flex items-center justify-between cursor-pointer p-1.5 hover:bg-[var(--bg-hover)] rounded group transition-colors"
+                    class="flex items-center justify-between cursor-pointer p-1.5 hover:bg-[var(--state-hover-surface)] rounded group transition-colors"
                   >
                     <span
-                      class="text-xs text-gray-400 group-hover:text-gray-200"
+                      class="text-xs color-text-muted color-group-hover-text-secondary"
                       >组优先 (Prioritize)</span
                     >
                     <input
                       type="checkbox"
                       x-model="activeEditorEntry.groupOverride"
-                      class="accent-purple-500 scale-90"
+                      class="color-accent-violet scale-90"
                     />
                   </label>
                   <div class="flex items-center justify-between gap-3">
-                    <span class="text-xs text-gray-400 whitespace-nowrap"
+                    <span class="text-xs color-text-muted whitespace-nowrap"
                       >组权重 (Weight)</span
                     >
                     <div class="ui-number-control w-28 shrink-0">
@@ -1425,7 +1425,7 @@
                         step="1"
                         x-model.number="activeEditorEntry.groupWeight"
                         aria-label="组权重 (Weight)"
-                        class="w-full bg-[var(--bg-body)] border border-[var(--border-light)] rounded px-2 py-1 text-center ui-number-input"
+                        class="w-full bg-[var(--surface-page)] border border-[var(--border-default)] rounded px-2 py-1 text-center ui-number-input"
                       />
                       <div class="ui-number-stepper" aria-label="调整组权重">
                         <button
@@ -1448,7 +1448,7 @@
                     </div>
                   </div>
                   <div class="flex items-center justify-between gap-3">
-                    <span class="text-xs text-gray-400 whitespace-nowrap"
+                    <span class="text-xs color-text-muted whitespace-nowrap"
                       >Group Scoring</span
                     >
                     {% call styled_select(
@@ -1465,24 +1465,24 @@
                     {% endcall %}
                   </div>
                   <div class="flex items-center justify-between gap-3">
-                    <span class="text-xs text-gray-400 whitespace-nowrap"
+                    <span class="text-xs color-text-muted whitespace-nowrap"
                       >Automation ID</span
                     >
                     <input
                       type="text"
                       x-model="activeEditorEntry.automationId"
                       placeholder="可选"
-                      class="flex-1 bg-[var(--bg-body)] border border-[var(--border-light)] rounded px-2 py-1 text-xs"
+                      class="flex-1 bg-[var(--surface-page)] border border-[var(--border-default)] rounded px-2 py-1 text-xs"
                     />
                   </div>
                   <div class="flex flex-col gap-2 pt-1">
-                    <span class="text-xs text-gray-400"
+                    <span class="text-xs color-text-muted"
                       >Generation Triggers</span
                     >
                     <select
                       multiple
                       @change="setMultiSelectField(activeEditorEntry, 'triggers', $event.target)"
-                      class="bg-[var(--bg-body)] border border-[var(--border-light)] rounded px-2 py-1 text-xs min-h-[96px]"
+                      class="bg-[var(--surface-page)] border border-[var(--border-default)] rounded px-2 py-1 text-xs min-h-[96px]"
                     >
                       <option
                         value="normal"
@@ -1523,24 +1523,24 @@
                     </select>
                   </div>
                   <div
-                    class="flex flex-col gap-2 pt-1 border-t border-[var(--border-light)] mt-1 pt-3"
+                    class="flex flex-col gap-2 pt-1 border-t border-[var(--border-default)] mt-1 pt-3"
                   >
                     <label
-                      class="flex items-center justify-between cursor-pointer p-1.5 hover:bg-[var(--bg-hover)] rounded group transition-colors"
+                      class="flex items-center justify-between cursor-pointer p-1.5 hover:bg-[var(--state-hover-surface)] rounded group transition-colors"
                     >
                       <span
-                        class="text-xs text-gray-400 group-hover:text-gray-200"
+                        class="text-xs color-text-muted color-group-hover-text-secondary"
                         >Character Filter Exclude</span
                       >
                       <input
                         type="checkbox"
                         :checked="!!activeEditorEntry.characterFilter?.isExclude"
                         @change="toggleCharacterFilterExclude(activeEditorEntry, $event.target.checked)"
-                        class="accent-purple-500 scale-90"
+                        class="color-accent-violet scale-90"
                       />
                     </label>
                     <div class="flex items-center justify-between gap-3">
-                      <span class="text-xs text-gray-400 whitespace-nowrap"
+                      <span class="text-xs color-text-muted whitespace-nowrap"
                         >Character Names</span
                       >
                       <input
@@ -1548,11 +1548,11 @@
                         :value="getCharacterFilterCsv(activeEditorEntry, 'names')"
                         @input="setCharacterFilterCsv(activeEditorEntry, 'names', $event.target.value)"
                         placeholder="逗号分隔"
-                        class="flex-1 bg-[var(--bg-body)] border border-[var(--border-light)] rounded px-2 py-1 text-xs"
+                        class="flex-1 bg-[var(--surface-page)] border border-[var(--border-default)] rounded px-2 py-1 text-xs"
                       />
                     </div>
                     <div class="flex items-center justify-between gap-3">
-                      <span class="text-xs text-gray-400 whitespace-nowrap"
+                      <span class="text-xs color-text-muted whitespace-nowrap"
                         >Character Tags</span
                       >
                       <input
@@ -1560,7 +1560,7 @@
                         :value="getCharacterFilterCsv(activeEditorEntry, 'tags')"
                         @input="setCharacterFilterCsv(activeEditorEntry, 'tags', $event.target.value)"
                         placeholder="逗号分隔"
-                        class="flex-1 bg-[var(--bg-body)] border border-[var(--border-light)] rounded px-2 py-1 text-xs"
+                        class="flex-1 bg-[var(--surface-page)] border border-[var(--border-default)] rounded px-2 py-1 text-xs"
                       />
                     </div>
                   </div>
@@ -1572,7 +1572,7 @@
 
         <div
           x-show="rightTab==='settings' && !activeEditorEntry"
-          class="p-6 text-center text-gray-500 text-xs"
+          class="p-6 text-center color-text-muted text-xs"
         >
           没有选中的条目
         </div>
@@ -1583,12 +1583,12 @@
           class="flex-1 flex flex-col h-full overflow-hidden"
         >
           <div
-            class="p-2 border-b border-[var(--border-light)] flex justify-between items-center bg-[var(--bg-panel)]"
+            class="p-2 border-b border-[var(--border-default)] flex justify-between items-center bg-[var(--surface-container)]"
           >
-            <span class="text-xs font-bold text-gray-500">Global Items</span>
+            <span class="text-xs font-bold color-text-muted">Global Items</span>
             <button
               @click="typeof clearWiClipboard === 'function' && clearWiClipboard()"
-              class="text-[10px] text-red-400 hover:underline"
+              class="text-[10px] color-text-danger hover:underline"
             >
               清空
             </button>
@@ -1596,10 +1596,10 @@
 
           <div
             x-show="typeof wiClipboardOverwriteMode !== 'undefined' && wiClipboardOverwriteMode"
-            class="bg-yellow-500/10 border-b border-yellow-500/30 p-2 text-center"
+            class="color-surface-warning border-b color-border-warning p-2 text-center"
             x-transition
           >
-            <p class="text-[10px] text-yellow-500 font-bold mb-1">
+            <p class="text-[10px] color-text-warning font-bold mb-1">
               <span class="inline-flex items-center gap-1">
                 {{ icon('alert-triangle', 'ui-icon--xs') }}
                 <span>剪切板已满</span>
@@ -1608,7 +1608,7 @@
             <p class="text-[10px] opacity-70 mb-1">点击下方条目以覆盖保存</p>
             <button
               @click="wiClipboardOverwriteMode=false"
-              class="text-[10px] underline hover:text-white"
+              class="text-[10px] underline color-hover-text-on-dark"
             >
               取消
             </button>
@@ -1626,8 +1626,8 @@
               <div
                 class="clipboard-item group relative flex flex-col gap-1 p-2 rounded border transition-all cursor-pointer select-none"
                 :class="(isEditingClipboard && currentClipboardIndex === idx) 
-                                        ? 'border-purple-500 bg-purple-500/10 shadow-[0_0_10px_rgba(168,85,247,0.2)]' 
-                                        : 'border-[var(--border-light)] bg-[var(--bg-panel)] hover:border-blue-400'"
+                                        ? 'color-border-violet color-surface-violet color-selected-shadow'
+                                        : 'border-[var(--border-default)] bg-[var(--surface-container)] color-hover-border-accent'"
                 draggable="true"
                 @click="selectClipboardItem(idx)"
                 @dragstart="typeof clipboardDragStart === 'function' && clipboardDragStart($event, item, idx)"
@@ -1637,7 +1637,7 @@
                   <!-- 标题颜色也跟随状态改变 -->
                   <span
                     class="font-bold text-xs truncate"
-                    :class="(isEditingClipboard && currentClipboardIndex === idx) ? 'text-purple-400' : 'text-blue-400'"
+                    :class="(isEditingClipboard && currentClipboardIndex === idx) ? 'color-text-violet' : 'color-text-accent'"
                     x-text="item.content.comment || 'Untitled'"
                   ></span>
 
@@ -1648,7 +1648,7 @@
                     <button
                       @click.stop="addWiEntryFromClipboard(item.content)"
                       :disabled="isWiEntryFilterActive()"
-                      class="wi-clipboard-add-btn text-green-500 hover:bg-green-500/10 p-1 rounded"
+                      class="wi-clipboard-add-btn color-text-success color-hover-surface-success p-1 rounded"
                       :title="isWiEntryFilterActive() ? '请先清空条目搜索后再插入' : '添加'"
                       aria-label="从剪切板插入条目"
                     >
@@ -1656,7 +1656,7 @@
                     </button>
                     <button
                       @click.stop="deleteWiClipboardItem(item.db_id)"
-                      class="text-red-500 hover:bg-red-500/10 p-1 rounded"
+                      class="color-text-danger color-hover-surface-danger p-1 rounded"
                       title="删除"
                     >
                       {{ icon('close', 'ui-icon--sm') }}
@@ -1667,10 +1667,10 @@
                 <!-- 增加一个编辑中标记条 -->
                 <div
                   x-show="isEditingClipboard && currentClipboardIndex === idx"
-                  class="absolute left-0 top-0 bottom-0 w-1 bg-purple-500 rounded-l"
+                  class="absolute left-0 top-0 bottom-0 w-1 color-surface-violet-solid rounded-l"
                 ></div>
 
-                <div class="text-[10px] text-gray-500 truncate font-mono">
+                <div class="text-[10px] color-text-muted truncate font-mono">
                   <span
                     x-text="typeof formatWiKeys === 'function' ? formatWiKeys(item.content.keys) : item.content.keys"
                   ></span>
@@ -1680,7 +1680,7 @@
 
             <div
               x-show="typeof wiClipboardItems !== 'undefined' && wiClipboardItems.length === 0"
-              class="text-center py-8 text-gray-500 text-xs"
+              class="text-center py-8 color-text-muted text-xs"
             >
               剪切板为空
             </div>
@@ -1705,18 +1705,18 @@
       >
         <div
           x-ref="findReplacePanel"
-          class="wi-find-replace-panel absolute w-full max-w-xl rounded-xl border border-[var(--border-main)] bg-[var(--bg-panel)] shadow-2xl overflow-hidden pointer-events-auto"
+          class="wi-find-replace-panel absolute w-full max-w-xl rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-container)] shadow-2xl overflow-hidden pointer-events-auto"
           :style="findReplacePanelStyle"
         >
           <div
-            class="px-4 py-3 border-b border-[var(--border-light)] flex items-center justify-between cursor-move select-none"
+            class="px-4 py-3 border-b border-[var(--border-default)] flex items-center justify-between cursor-move select-none"
             @mousedown.prevent="startFindReplaceDrag($event)"
           >
             <div>
-              <div class="text-sm font-bold text-[var(--text-main)]">
+              <div class="text-sm font-bold text-[var(--content-primary)]">
                 查找与替换
               </div>
-              <div class="text-[11px] text-[var(--text-dim)]">
+              <div class="text-[11px] text-[var(--content-muted)]">
                 Ctrl+H 唤出，可拖动查看底层文本
               </div>
             </div>
@@ -1724,7 +1724,7 @@
               <button
                 @mousedown.stop
                 @click="showFindReplaceModal && _resetFindReplacePanelPos()"
-                class="text-[11px] text-gray-300 hover:text-white px-2 py-1 rounded hover:bg-white/10"
+                class="text-[11px] color-text-secondary color-hover-text-on-dark px-2 py-1 rounded color-surface-raised"
                 title="重置位置"
               >
                 {{ icon('refresh', 'ui-icon--sm') }}
@@ -1732,7 +1732,7 @@
               <button
                 @mousedown.stop
                 @click="closeFindReplaceModal()"
-                class="text-gray-400 hover:text-red-400 px-2 py-1 rounded"
+                class="color-text-muted color-hover-text-danger px-2 py-1 rounded"
               >
                 {{ icon('close', 'ui-icon--sm') }}
               </button>
@@ -1741,7 +1741,7 @@
 
           <div class="p-4 space-y-3">
             <div>
-              <label class="block text-[11px] text-[var(--text-dim)] mb-1"
+              <label class="block text-[11px] text-[var(--content-muted)] mb-1"
                 >查找内容</label
               >
               <input
@@ -1749,41 +1749,41 @@
                 x-ref="findReplaceInput"
                 x-model="findReplaceQuery"
                 @keydown.enter.prevent="findNextMatch()"
-                class="w-full px-3 py-2 rounded bg-[var(--bg-body)] border border-[var(--border-light)] text-sm focus:border-[var(--accent-main)] outline-none"
+                class="w-full px-3 py-2 rounded bg-[var(--surface-page)] border border-[var(--border-default)] text-sm focus:border-[var(--accent-action)] outline-none"
                 placeholder="输入要查找的文本..."
               />
             </div>
 
             <div>
-              <label class="block text-[11px] text-[var(--text-dim)] mb-1"
+              <label class="block text-[11px] text-[var(--content-muted)] mb-1"
                 >替换为</label
               >
               <input
                 type="text"
                 x-model="findReplaceReplacement"
                 @keydown.enter.prevent="replaceCurrentMatch()"
-                class="w-full px-3 py-2 rounded bg-[var(--bg-body)] border border-[var(--border-light)] text-sm focus:border-[var(--accent-main)] outline-none"
+                class="w-full px-3 py-2 rounded bg-[var(--surface-page)] border border-[var(--border-default)] text-sm focus:border-[var(--accent-action)] outline-none"
                 placeholder="输入替换文本..."
               />
             </div>
 
             <div>
-              <label class="block text-[11px] text-[var(--text-dim)] mb-1"
+              <label class="block text-[11px] text-[var(--content-muted)] mb-1"
                 >排除文本（逗号或换行分隔）</label
               >
               <textarea
                 x-model="findReplaceExcludeText"
                 rows="2"
-                class="w-full px-3 py-2 rounded bg-[var(--bg-body)] border border-[var(--border-light)] text-xs focus:border-[var(--accent-main)] outline-none resize-y"
+                class="w-full px-3 py-2 rounded bg-[var(--surface-page)] border border-[var(--border-default)] text-xs focus:border-[var(--accent-action)] outline-none resize-y"
                 placeholder="例如：{{user}}，<system>"
               ></textarea>
-              <div class="mt-1 text-[10px] text-[var(--text-dim)]">
+              <div class="mt-1 text-[10px] text-[var(--content-muted)]">
                 包含排除文本的命中区间会被跳过，不参与查找与替换。
               </div>
             </div>
 
             <div class="flex items-center gap-3">
-              <label class="text-[12px] text-[var(--text-dim)]">范围</label>
+              <label class="text-[12px] text-[var(--content-muted)]">范围</label>
               {% call styled_select(
                 "findReplaceScope",
                 wrapper_class="icon-select--compact",
@@ -1796,12 +1796,12 @@
               {% endcall %}
 
               <label
-                class="ml-2 inline-flex items-center gap-1 text-[11px] text-[var(--text-dim)] cursor-pointer"
+                class="ml-2 inline-flex items-center gap-1 text-[11px] text-[var(--content-muted)] cursor-pointer"
               >
                 <input
                   type="checkbox"
                   x-model="findReplaceCaseSensitive"
-                  class="accent-accent-main"
+                  class="color-accent-primary"
                 />
                 区分大小写
               </label>
@@ -1809,7 +1809,7 @@
           </div>
 
           <div
-            class="px-4 py-3 border-t border-[var(--border-light)] flex items-center justify-end gap-2 bg-[var(--bg-sub)]"
+            class="px-4 py-3 border-t border-[var(--border-default)] flex items-center justify-end gap-2 bg-[var(--surface-container-raised)]"
           >
             <button
               @click="findPreviousMatch()"
@@ -1843,26 +1843,26 @@
       <div
         x-show="showTaggedImportModal"
         x-cloak
-        class="fixed inset-0 z-[10001] bg-black/60 flex items-center justify-center p-4"
+        class="fixed inset-0 z-[10001] color-surface-scrim flex items-center justify-center p-4"
         @click.self="closeTaggedImportModal()"
       >
         <div
-          class="w-full max-w-2xl rounded-xl border border-[var(--border-main)] bg-[var(--bg-panel)] shadow-2xl overflow-hidden"
+          class="w-full max-w-2xl rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-container)] shadow-2xl overflow-hidden"
         >
           <div
-            class="px-4 py-3 border-b border-[var(--border-light)] flex items-center justify-between"
+            class="px-4 py-3 border-b border-[var(--border-default)] flex items-center justify-between"
           >
             <div>
-              <div class="text-sm font-bold text-[var(--text-main)]">
+              <div class="text-sm font-bold text-[var(--content-primary)]">
                 从 JSONL 导入标签条目
               </div>
-              <div class="text-[11px] text-[var(--text-dim)]">
+              <div class="text-[11px] text-[var(--content-muted)]">
                 提取 <tag>...</tag> 并自动创建世界书条目
               </div>
             </div>
             <button
               @click="closeTaggedImportModal()"
-              class="text-gray-400 hover:text-red-400 px-2 py-1 rounded"
+              class="color-text-muted color-hover-text-danger px-2 py-1 rounded"
             >
               {{ icon('close', 'ui-icon--sm') }}
             </button>
@@ -1879,7 +1879,7 @@
 
             <div
               class="rounded-lg border-2 border-dashed p-6 text-center cursor-pointer transition-colors"
-              :class="taggedImportDragOver ? 'border-[var(--accent-main)] bg-[var(--accent-main)]/10' : 'border-[var(--border-light)] hover:border-[var(--accent-main)]/60'"
+              :class="taggedImportDragOver ? 'border-[var(--accent-action)] bg-[var(--accent-action)]/10' : 'border-[var(--border-default)] hover:border-[var(--accent-action)]/60'"
               @click="triggerTaggedImportFilePick()"
               @dragover.prevent="taggedImportDragOver = true"
               @dragleave.prevent="taggedImportDragOver = false"
@@ -1888,37 +1888,37 @@
               <div class="mb-2">
                 {{ icon('file-import', 'ui-icon--xl') }}
               </div>
-              <div class="text-sm font-bold text-[var(--text-main)]">
+              <div class="text-sm font-bold text-[var(--content-primary)]">
                 将文件拖动至此或点击上传
               </div>
-              <div class="text-[11px] text-[var(--text-dim)] mt-1">
+              <div class="text-[11px] text-[var(--content-muted)] mt-1">
                 支持 .jsonl / .txt
               </div>
               <div
                 x-show="taggedImportPendingFileName"
-                class="mt-3 text-xs text-green-400 truncate"
+                class="mt-3 text-xs color-text-success truncate"
                 x-text="'已选择：' + taggedImportPendingFileName"
               ></div>
             </div>
 
             <div>
-              <label class="block text-[11px] text-[var(--text-dim)] mb-1"
+              <label class="block text-[11px] text-[var(--content-muted)] mb-1"
                 >忽略标签集（逗号或换行分隔）</label
               >
               <textarea
                 x-model="taggedImportIgnoreText"
                 rows="3"
-                class="w-full px-3 py-2 rounded bg-[var(--bg-body)] border border-[var(--border-light)] text-xs focus:border-[var(--accent-main)] outline-none resize-y"
+                class="w-full px-3 py-2 rounded bg-[var(--surface-page)] border border-[var(--border-default)] text-xs focus:border-[var(--accent-action)] outline-none resize-y"
                 placeholder="thinking, recap, content, details, summary"
               ></textarea>
-              <div class="mt-1 text-[10px] text-[var(--text-dim)]">
+              <div class="mt-1 text-[10px] text-[var(--content-muted)]">
                 匹配到这些标签时将跳过导入，但会继续扫描其内部可用标签。
               </div>
             </div>
           </div>
 
           <div
-            class="px-4 py-3 border-t border-[var(--border-light)] flex items-center justify-end gap-2 bg-[var(--bg-sub)]"
+            class="px-4 py-3 border-t border-[var(--border-default)] flex items-center justify-end gap-2 bg-[var(--surface-container-raised)]"
           >
             <button
               @click="closeTaggedImportModal()"
@@ -1941,26 +1941,26 @@
       <div
         x-show="showEntryHistoryModal"
         x-cloak
-        class="fixed inset-0 z-[9999] bg-black/60 flex items-center justify-center p-4"
+        class="fixed inset-0 z-[9999] color-surface-scrim flex items-center justify-center p-4"
         @click.self="showEntryHistoryModal = false"
       >
         <div
-          class="w-full max-w-7xl h-[82vh] rounded-xl border border-[var(--border-main)] bg-[var(--bg-panel)] shadow-2xl flex flex-col overflow-hidden"
+          class="w-full max-w-7xl h-[82vh] rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-container)] shadow-2xl flex flex-col overflow-hidden"
         >
           <div
-            class="px-4 py-3 border-b border-[var(--border-light)] flex items-center justify-between"
+            class="px-4 py-3 border-b border-[var(--border-default)] flex items-center justify-between"
           >
             <div>
-              <div class="text-sm font-bold text-[var(--text-main)]">
+              <div class="text-sm font-bold text-[var(--content-primary)]">
                 条目时光机
               </div>
-              <div class="text-[11px] text-[var(--text-dim)]">
+              <div class="text-[11px] text-[var(--content-muted)]">
                 左侧选择版本，右侧查看行级差异（绿=新增 / 黄=修改 / 红=删除）
               </div>
             </div>
             <button
               @click="showEntryHistoryModal = false"
-              class="text-gray-400 hover:text-red-400 px-2 py-1 rounded"
+              class="color-text-muted color-hover-text-danger px-2 py-1 rounded"
             >
               {{ icon('close', 'ui-icon--sm') }}
             </button>
@@ -1968,10 +1968,10 @@
 
           <div class="flex-1 min-h-0 flex overflow-hidden">
             <div
-              class="w-[290px] border-r border-[var(--border-light)] bg-[var(--bg-sub)] flex flex-col"
+              class="w-[290px] border-r border-[var(--border-default)] bg-[var(--surface-container-raised)] flex flex-col"
             >
               <div
-                class="px-3 py-2 border-b border-[var(--border-light)] text-[11px] text-[var(--text-dim)]"
+                class="px-3 py-2 border-b border-[var(--border-default)] text-[11px] text-[var(--content-muted)]"
               >
                 版本列表（可分别指定 Left / Right）
               </div>
@@ -1980,7 +1980,7 @@
               >
                 <div
                   x-show="isEntryHistoryLoading"
-                  class="text-center text-xs text-gray-400 py-8"
+                  class="text-center text-xs color-text-muted py-8"
                 >
                   正在加载历史版本...
                 </div>
@@ -1990,17 +1990,17 @@
                   :key="ver.id || ('v-' + ver.created_at)"
                 >
                   <div
-                    class="border rounded-lg p-2 bg-[var(--bg-panel)] border-[var(--border-light)]"
+                    class="border rounded-lg p-2 bg-[var(--surface-container)] border-[var(--border-default)]"
                   >
                     <div class="flex items-center justify-between gap-2">
                       <div class="min-w-0">
                         <div
                           class="text-xs font-bold"
-                          :class="ver.is_current ? 'text-green-400' : 'text-orange-400'"
+                          :class="ver.is_current ? 'color-text-success' : 'color-text-warning'"
                           x-text="ver.is_current ? '当前版本 (Current)' : formatEntryHistoryTime(ver.created_at)"
                         ></div>
                         <div
-                          class="text-[11px] text-[var(--text-dim)] truncate"
+                          class="text-[11px] text-[var(--content-muted)] truncate"
                           x-text="(ver.snapshot && ver.snapshot.comment) ? ver.snapshot.comment : '无备注'"
                         ></div>
                       </div>
@@ -2008,14 +2008,14 @@
                         <button
                           @click="setEntryHistorySide('left', ver)"
                           class="px-2 py-0.5 rounded text-[10px] border"
-                          :class="entryHistorySelection.left === ver ? 'bg-red-500/80 text-white border-red-400' : 'border-[var(--border-light)] text-[var(--text-dim)] hover:text-red-300'"
+                          :class="entryHistorySelection.left === ver ? 'color-surface-danger-solid color-text-on-accent color-border-danger' : 'border-[var(--border-default)] text-[var(--content-muted)] color-hover-text-danger'"
                         >
                           L
                         </button>
                         <button
                           @click="setEntryHistorySide('right', ver)"
                           class="px-2 py-0.5 rounded text-[10px] border"
-                          :class="entryHistorySelection.right === ver ? 'bg-green-500/80 text-white border-green-400' : 'border-[var(--border-light)] text-[var(--text-dim)] hover:text-green-300'"
+                          :class="entryHistorySelection.right === ver ? 'color-surface-success-solid color-text-on-accent color-border-success' : 'border-[var(--border-default)] text-[var(--content-muted)] color-hover-text-success'"
                         >
                           R
                         </button>
@@ -2026,7 +2026,7 @@
 
                 <div
                   x-show="!isEntryHistoryLoading && entryHistoryVersions.length <= 1"
-                  class="text-center text-xs text-gray-500 py-8"
+                  class="text-center text-xs color-text-muted py-8"
                 >
                   该条目暂无历史版本（仅当前版本）
                 </div>
@@ -2035,18 +2035,18 @@
 
             <div class="flex-1 min-w-0 flex flex-col">
               <div
-                class="px-3 py-2 border-b border-[var(--border-light)] flex items-center justify-between gap-3"
+                class="px-3 py-2 border-b border-[var(--border-default)] flex items-center justify-between gap-3"
               >
-                <div class="text-[11px] text-[var(--text-dim)] truncate">
+                <div class="text-[11px] text-[var(--content-muted)] truncate">
                   Left:
                   <span
-                    class="text-red-300"
+                    class="color-text-danger"
                     x-text="entryHistorySelection.left ? (entryHistorySelection.left.is_current ? 'Current' : formatEntryHistoryTime(entryHistorySelection.left.created_at)) : '-'"
                   ></span>
                   <span class="mx-2">vs</span>
                   Right:
                   <span
-                    class="text-green-300"
+                    class="color-text-success"
                     x-text="entryHistorySelection.right ? (entryHistorySelection.right.is_current ? 'Current' : formatEntryHistoryTime(entryHistorySelection.right.created_at)) : '-'"
                   ></span>
                 </div>
@@ -2060,9 +2060,9 @@
               </div>
 
               <div class="flex-1 min-h-0 grid grid-cols-2 gap-0">
-                <div class="min-h-0 border-r border-[var(--border-light)]">
+                <div class="min-h-0 border-r border-[var(--border-default)]">
                   <div
-                    class="px-3 py-2 text-xs font-bold text-red-300 border-b border-[var(--border-light)]"
+                    class="px-3 py-2 text-xs font-bold color-text-danger border-b border-[var(--border-default)]"
                   >
                     Left (Old)
                   </div>
@@ -2073,7 +2073,7 @@
                 </div>
                 <div class="min-h-0">
                   <div
-                    class="px-3 py-2 text-xs font-bold text-green-300 border-b border-[var(--border-light)]"
+                    class="px-3 py-2 text-xs font-bold color-text-success border-b border-[var(--border-default)]"
                   >
                     Right (New)
                   </div>
@@ -2094,30 +2094,30 @@
   <div
     x-show="showHelpModal"
     x-cloak
-    class="fixed inset-0 z-[10001] bg-black/70 flex items-center justify-center p-4"
+    class="fixed inset-0 z-[10001] color-surface-scrim flex items-center justify-center p-4"
     @click.self="showHelpModal=false"
   >
     <div
-      class="w-full max-w-4xl max-h-[85vh] rounded-xl border border-[var(--border-main)] bg-[var(--bg-body)] shadow-2xl flex flex-col overflow-hidden wi-help-modal-content"
+      class="w-full max-w-4xl max-h-[85vh] rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-page)] shadow-2xl flex flex-col overflow-hidden wi-help-modal-content"
     >
       <!-- 头部 -->
       <div
-        class="px-5 py-4 border-b border-[var(--border-light)] flex items-center justify-between bg-[var(--bg-sub)]"
+        class="px-5 py-4 border-b border-[var(--border-default)] flex items-center justify-between bg-[var(--surface-container-raised)]"
       >
         <div class="flex items-center gap-3">
           <span>{{ sidebar_icon('book-stack', 'ui-icon--lg') }}</span>
           <div>
-            <div class="text-lg font-bold text-[var(--text-main)]">
+            <div class="text-lg font-bold text-[var(--content-primary)]">
               全屏世界书编辑器帮助指南
             </div>
-            <div class="text-xs text-[var(--text-dim)]">
+            <div class="text-xs text-[var(--content-muted)]">
               World Info Editor Help Guide
             </div>
           </div>
         </div>
         <button
           @click="showHelpModal=false"
-          class="text-gray-400 hover:text-red-400 px-2 py-1 rounded text-xl"
+          class="color-text-muted color-hover-text-danger px-2 py-1 rounded text-xl"
         >
           {{ icon('close', 'ui-icon--lg') }}
         </button>
@@ -2128,31 +2128,31 @@
         <!-- 1. 界面概览 -->
         <div class="help-section">
           <h3
-            class="text-base font-bold text-orange-400 mb-3 flex items-center gap-2"
+            class="text-base font-bold color-text-warning mb-3 flex items-center gap-2"
           >
             <span aria-hidden="true">
               {{ icon('layout', 'ui-icon--sm') }}
             </span>
             <span>界面布局</span>
           </h3>
-          <div class="text-sm text-[var(--text-sub)] space-y-2 leading-relaxed">
+          <div class="text-sm text-[var(--content-secondary)] space-y-2 leading-relaxed">
             <p>全屏世界书编辑器采用三栏布局：</p>
             <ul class="list-disc list-inside space-y-1 ml-2">
               <li>
-                <strong class="text-[var(--text-main)]">左侧列表</strong> -
+                <strong class="text-[var(--content-primary)]">左侧列表</strong> -
                 显示所有条目，可点击选择、拖拽排序
               </li>
               <li>
-                <strong class="text-[var(--text-main)]">中间编辑区</strong> -
+                <strong class="text-[var(--content-primary)]">中间编辑区</strong> -
                 沉浸式编辑当前条目的内容
               </li>
               <li>
-                <strong class="text-[var(--text-main)]">右侧面板</strong> -
+                <strong class="text-[var(--content-primary)]">右侧面板</strong> -
                 属性设置与剪切板管理
               </li>
             </ul>
             <p
-              class="text-xs text-[var(--text-dim)] mt-2 flex items-start gap-1"
+              class="text-xs text-[var(--content-muted)] mt-2 flex items-start gap-1"
             >
               <span aria-hidden="true">
                 {{ icon('book-tip', 'ui-icon--xs') }}
@@ -2163,9 +2163,9 @@
         </div>
 
         <!-- 2. 保存相关 -->
-        <div class="help-section border-t border-[var(--border-light)] pt-5">
+        <div class="help-section border-t border-[var(--border-default)] pt-5">
           <h3
-            class="text-base font-bold text-green-400 mb-3 flex items-center gap-2"
+            class="text-base font-bold color-text-success mb-3 flex items-center gap-2"
           >
             <span aria-hidden="true">
               {{ icon('settings-save', 'ui-icon--sm') }}
@@ -2174,47 +2174,47 @@
           </h3>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div
-              class="bg-[var(--bg-sub)] p-3 rounded-lg border border-[var(--border-light)]"
+              class="bg-[var(--surface-container-raised)] p-3 rounded-lg border border-[var(--border-default)]"
             >
               <div
-                class="font-bold text-[var(--text-main)] mb-1 flex items-center gap-1"
+                class="font-bold text-[var(--content-primary)] mb-1 flex items-center gap-1"
               >
                 <span aria-hidden="true">
                   {{ icon('settings-save', 'ui-icon--xs') }}
                 </span>
                 <span>保存条目</span>
               </div>
-              <p class="text-xs text-[var(--text-sub)]">
+              <p class="text-xs text-[var(--content-secondary)]">
                 保存当前条目的修改。如果是独立世界书文件，直接保存到文件；如果是内嵌世界书，保存到角色卡。
               </p>
             </div>
             <div
-              class="bg-[var(--bg-sub)] p-3 rounded-lg border border-[var(--border-light)]"
+              class="bg-[var(--surface-container-raised)] p-3 rounded-lg border border-[var(--border-default)]"
             >
               <div
-                class="font-bold text-[var(--text-main)] mb-1 flex items-center gap-1"
+                class="font-bold text-[var(--content-primary)] mb-1 flex items-center gap-1"
               >
                 <span aria-hidden="true">
                   {{ icon('book-save', 'ui-icon--xs') }}
                 </span>
                 <span>保存整本</span>
               </div>
-              <p class="text-xs text-[var(--text-sub)]">
+              <p class="text-xs text-[var(--content-secondary)]">
                 先创建整本回滚版本（备份旧状态），再执行保存。适合大改前使用，可随时回滚整本。
               </p>
             </div>
             <div
-              class="bg-[var(--bg-sub)] p-3 rounded-lg border border-[var(--border-light)]"
+              class="bg-[var(--surface-container-raised)] p-3 rounded-lg border border-[var(--border-default)]"
             >
               <div
-                class="font-bold text-[var(--text-main)] mb-1 flex items-center gap-1"
+                class="font-bold text-[var(--content-primary)] mb-1 flex items-center gap-1"
               >
                 <span aria-hidden="true">
                   {{ icon('book-save-as', 'ui-icon--xs') }}
                 </span>
                 <span>另存为...</span>
               </div>
-              <p class="text-xs text-[var(--text-sub)]">
+              <p class="text-xs text-[var(--content-secondary)]">
                 将当前世界书保存为新文件。内嵌世界书可提取为独立的全局世界书文件。
               </p>
             </div>
@@ -2222,23 +2222,23 @@
         </div>
 
         <!-- 3. 备份与时光机 -->
-        <div class="help-section border-t border-[var(--border-light)] pt-5">
+        <div class="help-section border-t border-[var(--border-default)] pt-5">
           <h3
-            class="text-base font-bold text-blue-400 mb-3 flex items-center gap-2"
+            class="text-base font-bold color-text-accent mb-3 flex items-center gap-2"
           >
             <span aria-hidden="true">
               {{ icon('history-rollback', 'ui-icon--sm') }}
             </span>
             <span>备份、快照与时光机</span>
           </h3>
-          <div class="space-y-3 text-sm text-[var(--text-sub)]">
+          <div class="space-y-3 text-sm text-[var(--content-secondary)]">
             <div class="flex items-start gap-3">
               {{ icon('snapshot', 'ui-icon--md') }}
               <div>
-                <strong class="text-[var(--text-main)]">创建快照</strong>
+                <strong class="text-[var(--content-primary)]">创建快照</strong>
                 <p class="text-xs mt-1">
                   左键点击创建普通备份，右键点击创建<span
-                    class="text-orange-400"
+                    class="color-text-warning"
                     >关键节点</span
                   >备份（标记为重要版本）。
                 </p>
@@ -2249,7 +2249,7 @@
                 {{ icon('history-rollback', 'ui-icon--md') }}
               </span>
               <div>
-                <strong class="text-[var(--text-main)]"
+                <strong class="text-[var(--content-primary)]"
                   >时光机（整本回滚）</strong
                 >
                 <p class="text-xs mt-1">
@@ -2262,7 +2262,7 @@
                 {{ icon('entry-rollback', 'ui-icon--md') }}
               </span>
               <div>
-                <strong class="text-[var(--text-main)]">条目历史回滚</strong>
+                <strong class="text-[var(--content-primary)]">条目历史回滚</strong>
                 <p class="text-xs mt-1">
                   点击条目右侧的
                   <span
@@ -2280,7 +2280,7 @@
                 {{ icon('book-backup', 'ui-icon--md') }}
               </span>
               <div>
-                <strong class="text-[var(--text-main)]">打开备份文件夹</strong>
+                <strong class="text-[var(--content-primary)]">打开备份文件夹</strong>
                 <p class="text-xs mt-1">
                   快速打开存储备份文件的目录，方便手动管理或导出。
                 </p>
@@ -2290,20 +2290,20 @@
         </div>
 
         <!-- 4. 剪切板 -->
-        <div class="help-section border-t border-[var(--border-light)] pt-5">
+        <div class="help-section border-t border-[var(--border-default)] pt-5">
           <h3
-            class="text-base font-bold text-purple-400 mb-3 flex items-center gap-2"
+            class="text-base font-bold color-text-violet mb-3 flex items-center gap-2"
           >
             <span aria-hidden="true">
               {{ icon('clipboard', 'ui-icon--sm') }}
             </span>
             <span>剪切板系统</span>
           </h3>
-          <div class="text-sm text-[var(--text-sub)] space-y-2">
+          <div class="text-sm text-[var(--content-secondary)] space-y-2">
             <p>剪切板是一个全局存储空间，可跨条目、跨世界书复制粘贴内容：</p>
             <ul class="list-disc list-inside space-y-1 ml-2 text-xs">
               <li>
-                <strong class="text-[var(--text-main)]">复制到剪切板</strong> -
+                <strong class="text-[var(--content-primary)]">复制到剪切板</strong> -
                 点击条目的
                 <span
                   class="inline-flex items-center align-middle"
@@ -2314,7 +2314,7 @@
                 按钮
               </li>
               <li>
-                <strong class="text-[var(--text-main)]">从剪切板添加</strong> -
+                <strong class="text-[var(--content-primary)]">从剪切板添加</strong> -
                 在剪切板面板点击
                 <span
                   class="inline-flex items-center align-middle"
@@ -2325,15 +2325,15 @@
                 按钮
               </li>
               <li>
-                <strong class="text-[var(--text-main)]">编辑剪切板</strong> -
+                <strong class="text-[var(--content-primary)]">编辑剪切板</strong> -
                 点击剪切板中的条目可直接编辑，修改后保存不影响原条目
               </li>
               <li>
-                <strong class="text-[var(--text-main)]">清空剪切板</strong> -
+                <strong class="text-[var(--content-primary)]">清空剪切板</strong> -
                 点击右上角的"清空"链接
               </li>
             </ul>
-            <p class="text-xs text-yellow-500/80 mt-2">
+            <p class="text-xs color-text-warning mt-2">
               <span class="inline-flex items-center gap-1">
                 <span aria-hidden="true">
                   {{ icon('alert-triangle', 'ui-icon--xs') }}
@@ -2345,9 +2345,9 @@
         </div>
 
         <!-- 5. 条目属性详解 -->
-        <div class="help-section border-t border-[var(--border-light)] pt-5">
+        <div class="help-section border-t border-[var(--border-default)] pt-5">
           <h3
-            class="text-base font-bold text-cyan-400 mb-3 flex items-center gap-2"
+            class="text-base font-bold color-text-info mb-3 flex items-center gap-2"
           >
             <span aria-hidden="true">
               {{ icon('sliders-settings', 'ui-icon--sm') }}
@@ -2357,50 +2357,50 @@
 
           <!-- 5.1 触发策略 -->
           <div class="mb-4">
-            <h4 class="text-sm font-bold text-blue-400 mb-2">触发策略</h4>
+            <h4 class="text-sm font-bold color-text-accent mb-2">触发策略</h4>
             <div class="space-y-2 text-xs">
               <div
-                class="bg-[var(--bg-sub)] p-2 rounded border-l-2 border-blue-500"
+                class="bg-[var(--surface-container-raised)] p-2 rounded border-l-2 color-border-accent"
               >
                 <strong
-                  class="text-[var(--text-main)] inline-flex items-center gap-1"
+                  class="text-[var(--content-primary)] inline-flex items-center gap-1"
                 >
                   <span aria-hidden="true">
                     {{ icon('pin', 'ui-icon--xs') }}
                   </span>
                   <span>常驻 (Constant)</span>
                 </strong>
-                <p class="text-[var(--text-dim)] mt-1">
+                <p class="text-[var(--content-muted)] mt-1">
                   始终激活，不依赖关键词触发。适合世界观、背景设定等必须始终存在的内容。
                 </p>
               </div>
               <div
-                class="bg-[var(--bg-sub)] p-2 rounded border-l-2 border-purple-500"
+                class="bg-[var(--surface-container-raised)] p-2 rounded border-l-2 color-border-violet"
               >
                 <strong
-                  class="text-[var(--text-main)] inline-flex items-center gap-1"
+                  class="text-[var(--content-primary)] inline-flex items-center gap-1"
                 >
                   <span aria-hidden="true">
                     {{ icon('wand', 'ui-icon--xs') }}
                   </span>
                   <span>向量化 (Vectorized)</span>
                 </strong>
-                <p class="text-[var(--text-dim)] mt-1">
+                <p class="text-[var(--content-muted)] mt-1">
                   使用向量匹配而非关键词，适合语义相似的场景。与常驻互斥。
                 </p>
               </div>
               <div
-                class="bg-[var(--bg-sub)] p-2 rounded border-l-2 border-green-500"
+                class="bg-[var(--surface-container-raised)] p-2 rounded border-l-2 color-border-success"
               >
                 <strong
-                  class="text-[var(--text-main)] inline-flex items-center gap-1"
+                  class="text-[var(--content-primary)] inline-flex items-center gap-1"
                 >
                   <span aria-hidden="true">
                     {{ icon('key-trigger', 'ui-icon--xs') }}
                   </span>
                   <span>关键词触发 (Normal)</span>
                 </strong>
-                <p class="text-[var(--text-dim)] mt-1">
+                <p class="text-[var(--content-muted)] mt-1">
                   默认模式，需要匹配关键词才会激活。主触发词和次要/过滤词配合使用。
                 </p>
               </div>
@@ -2409,21 +2409,21 @@
 
           <!-- 5.2 关键词 -->
           <div class="mb-4">
-            <h4 class="text-sm font-bold text-green-400 mb-2">关键词设置</h4>
+            <h4 class="text-sm font-bold color-text-success mb-2">关键词设置</h4>
             <div class="space-y-2 text-xs">
-              <div class="bg-[var(--bg-sub)] p-2 rounded">
-                <strong class="text-[var(--text-main)]"
+              <div class="bg-[var(--surface-container-raised)] p-2 rounded">
+                <strong class="text-[var(--content-primary)]"
                   >主触发词 (Primary Keys)</strong
                 >
-                <p class="text-[var(--text-dim)] mt-1">
+                <p class="text-[var(--content-muted)] mt-1">
                   用逗号分隔，匹配任一即可触发条目。支持正则表达式（需在高级逻辑中开启）。
                 </p>
               </div>
-              <div class="bg-[var(--bg-sub)] p-2 rounded">
-                <strong class="text-[var(--text-main)]"
+              <div class="bg-[var(--surface-container-raised)] p-2 rounded">
+                <strong class="text-[var(--content-primary)]"
                   >次要/过滤词 (Filter Keys)</strong
                 >
-                <p class="text-[var(--text-dim)] mt-1">
+                <p class="text-[var(--content-muted)] mt-1">
                   可选。启用"选择性逻辑"后，这些词决定条目是否真正被插入。
                 </p>
               </div>
@@ -2432,23 +2432,23 @@
 
           <!-- 5.3 插入设置 -->
           <div class="mb-4">
-            <h4 class="text-sm font-bold text-orange-400 mb-2">插入设置</h4>
+            <h4 class="text-sm font-bold color-text-warning mb-2">插入设置</h4>
             <div class="grid grid-cols-1 gap-2 text-xs">
-              <div class="flex justify-between bg-[var(--bg-sub)] p-2 rounded">
-                <span class="text-[var(--text-main)]">位置 (Position)</span>
-                <span class="text-[var(--text-dim)]"
+              <div class="flex justify-between bg-[var(--surface-container-raised)] p-2 rounded">
+                <span class="text-[var(--content-primary)]">位置 (Position)</span>
+                <span class="text-[var(--content-muted)]"
                   >决定内容插入到对话的哪个部分</span
                 >
               </div>
-              <div class="flex justify-between bg-[var(--bg-sub)] p-2 rounded">
-                <span class="text-[var(--text-main)]">权重 (Order)</span>
-                <span class="text-[var(--text-dim)]"
+              <div class="flex justify-between bg-[var(--surface-container-raised)] p-2 rounded">
+                <span class="text-[var(--content-primary)]">权重 (Order)</span>
+                <span class="text-[var(--content-muted)]"
                   >数值越小越靠前，控制多个条目的插入顺序</span
                 >
               </div>
-              <div class="flex justify-between bg-[var(--bg-sub)] p-2 rounded">
-                <span class="text-[var(--text-main)]">深度 (Depth)</span>
-                <span class="text-[var(--text-dim)]"
+              <div class="flex justify-between bg-[var(--surface-container-raised)] p-2 rounded">
+                <span class="text-[var(--content-primary)]">深度 (Depth)</span>
+                <span class="text-[var(--content-muted)]"
                   >仅在"@层级"位置时有效，控制插入深度</span
                 >
               </div>
@@ -2457,22 +2457,22 @@
 
           <!-- 5.4 递归与流程 -->
           <div class="mb-4">
-            <h4 class="text-sm font-bold text-pink-400 mb-2">递归与流程</h4>
+            <h4 class="text-sm font-bold color-text-rose mb-2">递归与流程</h4>
             <div class="space-y-1 text-xs">
               <p>
-                <span class="text-[var(--text-main)]">不可递归</span> -
+                <span class="text-[var(--content-primary)]">不可递归</span> -
                 该条目不会被递归扫描触发
               </p>
               <p>
-                <span class="text-[var(--text-main)]">阻止后续递归</span> -
+                <span class="text-[var(--content-primary)]">阻止后续递归</span> -
                 激活后停止后续递归扫描
               </p>
               <p>
-                <span class="text-red-400">无视限额</span> -
+                <span class="color-text-danger">无视限额</span> -
                 即使超出预算也强制插入（慎用）
               </p>
               <p>
-                <span class="text-[var(--text-main)]">延迟递归等级</span> -
+                <span class="text-[var(--content-primary)]">延迟递归等级</span> -
                 延迟到指定递归深度才激活
               </p>
             </div>
@@ -2480,30 +2480,30 @@
 
           <!-- 5.5 高级逻辑 -->
           <div>
-            <h4 class="text-sm font-bold text-purple-400 mb-2">高级逻辑</h4>
+            <h4 class="text-sm font-bold color-text-violet mb-2">高级逻辑</h4>
             <div class="space-y-2 text-xs">
               <div class="grid grid-cols-2 gap-2">
-                <div class="bg-[var(--bg-sub)] p-2 rounded">
-                  <strong class="text-[var(--text-main)]">逻辑模式</strong>
-                  <ul class="text-[var(--text-dim)] mt-1 space-y-0.5">
+                <div class="bg-[var(--surface-container-raised)] p-2 rounded">
+                  <strong class="text-[var(--content-primary)]">逻辑模式</strong>
+                  <ul class="text-[var(--content-muted)] mt-1 space-y-0.5">
                     <li>0 - 任意匹配 (OR)</li>
                     <li>1 - 全部匹配 (AND)</li>
                     <li>2 - 全不匹配 (NOR)</li>
                     <li>3 - 非全部 (NAND)</li>
                   </ul>
                 </div>
-                <div class="bg-[var(--bg-sub)] p-2 rounded">
-                  <strong class="text-[var(--text-main)]">匹配选项</strong>
-                  <ul class="text-[var(--text-dim)] mt-1 space-y-0.5">
+                <div class="bg-[var(--surface-container-raised)] p-2 rounded">
+                  <strong class="text-[var(--content-primary)]">匹配选项</strong>
+                  <ul class="text-[var(--content-muted)] mt-1 space-y-0.5">
                     <li>全词匹配 - 匹配完整单词</li>
                     <li>区分大小写 - 严格大小写</li>
                     <li>正则模式 - 使用正则匹配</li>
                   </ul>
                 </div>
               </div>
-              <div class="bg-[var(--bg-sub)] p-2 rounded">
-                <strong class="text-[var(--text-main)]">触发概率</strong>
-                <p class="text-[var(--text-dim)] mt-1">
+              <div class="bg-[var(--surface-container-raised)] p-2 rounded">
+                <strong class="text-[var(--content-primary)]">触发概率</strong>
+                <p class="text-[var(--content-muted)] mt-1">
                   启用后可设置 0-100% 的随机触发概率，适合随机事件或变体内容。
                 </p>
               </div>
@@ -2512,37 +2512,37 @@
         </div>
 
         <!-- 6. 查找替换 -->
-        <div class="help-section border-t border-[var(--border-light)] pt-5">
+        <div class="help-section border-t border-[var(--border-default)] pt-5">
           <h3
-            class="text-base font-bold text-yellow-400 mb-3 flex items-center gap-2"
+            class="text-base font-bold color-text-warning mb-3 flex items-center gap-2"
           >
             <span aria-hidden="true">
               {{ icon('book-search', 'ui-icon--sm') }}
             </span>
             <span>查找与替换</span>
           </h3>
-          <div class="text-sm text-[var(--text-sub)] space-y-2">
+          <div class="text-sm text-[var(--content-secondary)] space-y-2">
             <p>支持在当前条目或全部条目中进行查找替换：</p>
             <ul class="list-disc list-inside space-y-1 ml-2 text-xs">
               <li>
-                <strong class="text-[var(--text-main)]">快捷键</strong> - 按
+                <strong class="text-[var(--content-primary)]">快捷键</strong> - 按
                 <kbd
-                  class="bg-[var(--bg-sub)] px-1.5 py-0.5 rounded text-[var(--text-main)]"
+                  class="bg-[var(--surface-container-raised)] px-1.5 py-0.5 rounded text-[var(--content-primary)]"
                   >Ctrl+H</kbd
                 >
                 快速打开
               </li>
               <li>
-                <strong class="text-[var(--text-main)]">排除文本</strong> -
+                <strong class="text-[var(--content-primary)]">排除文本</strong> -
                 可设置不参与替换的文本区间（如
-                <code class="bg-[var(--bg-sub)] px-1 rounded">{{user}}</code>）
+                <code class="bg-[var(--surface-container-raised)] px-1 rounded">{{user}}</code>）
               </li>
               <li>
-                <strong class="text-[var(--text-main)]">可拖动</strong> -
+                <strong class="text-[var(--content-primary)]">可拖动</strong> -
                 面板可拖动，方便查看底层文本
               </li>
               <li>
-                <strong class="text-[var(--text-main)]">范围选择</strong> -
+                <strong class="text-[var(--content-primary)]">范围选择</strong> -
                 支持"当前条目"或"全部条目"
               </li>
             </ul>
@@ -2550,45 +2550,45 @@
         </div>
 
         <!-- 7. 列表显示说明 -->
-        <div class="help-section border-t border-[var(--border-light)] pt-5">
+        <div class="help-section border-t border-[var(--border-default)] pt-5">
           <h3
-            class="text-base font-bold text-gray-400 mb-3 flex items-center gap-2"
+            class="text-base font-bold color-text-muted mb-3 flex items-center gap-2"
           >
             <span aria-hidden="true">
               {{ icon('list', 'ui-icon--sm') }}
             </span>
             <span>列表显示说明</span>
           </h3>
-          <div class="text-sm text-[var(--text-sub)] space-y-2">
+          <div class="text-sm text-[var(--content-secondary)] space-y-2">
             <p>左侧条目列表中的彩色标记含义：</p>
             <div class="flex flex-wrap gap-3 text-xs">
               <div class="flex items-center gap-1">
-                <span class="w-2 h-2 rounded-full bg-blue-500"></span>
+                <span class="w-2 h-2 rounded-full color-surface-accent-solid"></span>
                 <span>常驻条目</span>
               </div>
               <div class="flex items-center gap-1">
-                <span class="w-2 h-2 rounded-full bg-purple-500"></span>
+                <span class="w-2 h-2 rounded-full color-surface-violet-solid"></span>
                 <span>向量化</span>
               </div>
               <div class="flex items-center gap-1">
-                <span class="w-2 h-2 rounded-full bg-green-500"></span>
+                <span class="w-2 h-2 rounded-full color-surface-success-solid"></span>
                 <span>已启用</span>
               </div>
               <div class="flex items-center gap-1">
-                <span class="w-2 h-2 rounded-full bg-gray-600"></span>
+                <span class="w-2 h-2 rounded-full color-surface-raised"></span>
                 <span>已禁用</span>
               </div>
             </div>
-            <p class="text-xs text-[var(--text-dim)] mt-2">
+            <p class="text-xs text-[var(--content-muted)] mt-2">
               顶部的徽章显示当前编辑的世界书类型：global（全局）、resource（资源）、embedded（内嵌）
             </p>
           </div>
         </div>
 
         <!-- 8. 快捷键 -->
-        <div class="help-section border-t border-[var(--border-light)] pt-5">
+        <div class="help-section border-t border-[var(--border-default)] pt-5">
           <h3
-            class="text-base font-bold text-red-400 mb-3 flex items-center gap-2"
+            class="text-base font-bold color-text-danger mb-3 flex items-center gap-2"
           >
             <span class="wi-help-shortcut-icon" aria-hidden="true">
               {{ icon('keyboard', 'ui-icon--lg') }}
@@ -2596,13 +2596,13 @@
             <span>快捷键</span>
           </h3>
           <div class="grid grid-cols-2 gap-2 text-xs">
-            <div class="bg-[var(--bg-sub)] p-2 rounded flex justify-between">
-              <span class="text-[var(--text-main)]">Ctrl + H</span>
-              <span class="text-[var(--text-dim)]">打开查找替换</span>
+            <div class="bg-[var(--surface-container-raised)] p-2 rounded flex justify-between">
+              <span class="text-[var(--content-primary)]">Ctrl + H</span>
+              <span class="text-[var(--content-muted)]">打开查找替换</span>
             </div>
-            <div class="bg-[var(--bg-sub)] p-2 rounded flex justify-between">
-              <span class="text-[var(--text-main)]">Escape</span>
-              <span class="text-[var(--text-dim)]">关闭编辑器/弹窗</span>
+            <div class="bg-[var(--surface-container-raised)] p-2 rounded flex justify-between">
+              <span class="text-[var(--content-primary)]">Escape</span>
+              <span class="text-[var(--content-muted)]">关闭编辑器/弹窗</span>
             </div>
           </div>
         </div>
@@ -2610,7 +2610,7 @@
 
       <!-- 底部 -->
       <div
-        class="px-5 py-3 border-t border-[var(--border-light)] bg-[var(--bg-sub)] flex justify-end"
+        class="px-5 py-3 border-t border-[var(--border-default)] bg-[var(--surface-container-raised)] flex justify-end"
       >
         <button
           @click="showHelpModal=false"

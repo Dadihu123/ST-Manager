@@ -97,10 +97,10 @@ export function getDetailMobileTokenClass(tokenCount) {
         extreme: TOKEN_THRESHOLDS.EXTREME
     });
 
-    if (level === 'extreme') return 'text-red-300';
-    if (level === 'danger') return 'text-orange-300';
-    if (level === 'warn') return 'text-yellow-300';
-    return 'text-green-300';
+    if (level === 'extreme') return 'status-danger-text';
+    if (level === 'danger') return 'status-warning-text';
+    if (level === 'warn') return 'status-warning-text';
+    return 'status-success-text';
 }
 
 export function getTopbarTokenLevelClass(tokenCount) {
@@ -124,14 +124,14 @@ export function getCardGridTokenBadgeClass(tokenCount) {
     return 'card-token-level-ok';
 }
 
-export function getWiTokenClass(tokenCount, lowClass = 'text-green-400') {
+export function getWiTokenClass(tokenCount, lowClass = 'status-success-text') {
     const level = getTokenLevel(tokenCount, {
         danger: TOKEN_THRESHOLDS.WI_DANGER,
         extreme: TOKEN_THRESHOLDS.EXTREME
     });
 
-    if (level === 'extreme') return 'text-red-400';
-    if (level === 'danger') return 'text-orange-400';
+    if (level === 'extreme') return 'status-danger-text';
+    if (level === 'danger') return 'status-warning-text';
     return lowClass;
 }
 

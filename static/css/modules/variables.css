@@ -1,77 +1,15 @@
 :root {
+  /* Theme source values are updated by state.js when the user selects an accent. */
   --accent-main: #2563eb;
   --accent-hover: #1d4ed8;
   --accent-light: #60a5fa;
-  --accent-faint: rgba(37, 99, 235, 0.3);
   --accent-favorite: #fbbf24;
   --accent-favorite-faint: rgba(251, 191, 36, 0.2);
-  --bg-body: #030712;
-  --bg-panel: #111827;
-  --bg-sub: #1f2937;
-  --bg-hover: #374151;
-  --bg-tag: #1f2937;
-  --bg-modal-left: #000000;
-  --bg-code: #0f172a;
-  --bg-raw-section: #1f2937;
-  --border-main: #1f2937;
-  --border-light: #374151;
-  --text-main: #e5e7eb;
-  --text-sub: #9ca3af;
-  --text-dim: #6b7280;
-  --text-on-accent: #ffffff;
-  --sidebar-surface: #111827;
-  --sidebar-nav-surface: #1f2937;
-  --sidebar-label: #e5e7eb;
-  --sidebar-label-muted: #9ca3af;
-  --sidebar-icon: #cbd5e1;
-  --sidebar-icon-muted: #94a3b8;
-  --sidebar-divider: #2b3648;
-  --sidebar-hover-surface: #273449;
-  --sidebar-active-surface: color-mix(
-    in srgb,
-    var(--accent-main) 18%,
-    var(--sidebar-surface)
-  );
-  --sidebar-active-border: var(--accent-light);
-  --sidebar-accent-hover-surface: color-mix(
-    in srgb,
-    var(--accent-main) 8%,
-    var(--sidebar-nav-surface)
-  );
-  --sidebar-source-all: var(--accent-light);
-  --sidebar-source-global: var(--accent-light);
-  --sidebar-source-resource: #6ee7b7;
-  --sidebar-source-embedded: #d8b4fe;
-  --sidebar-source-bound: #6ee7b7;
-  --sidebar-source-unbound: #fdba74;
-  --text-code: #a5f3fc;
   --fallback-fonts:
     "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
-  --shadow-color: rgba(0, 0, 0, 0.5);
-  --scrollbar-track: #111827;
-  --scrollbar-thumb: #374151;
-  --btn-sec-bg: #1f2937;
-  --btn-sec-text: #9ca3af;
-  --btn-sec-border: #374151;
-  --color-primary: var(--accent-main);
-  --color-primary-rgb: var(--accent-main-rgb);
-  --color-danger: #ef4444;
-  --color-success: #10b981;
-  --color-warn: #f59e0b;
-  --SmartThemeQuoteColor: #f49066;
-  --text-warn: var(--color-warn);
-  --border-warn: rgba(245, 158, 11, 0.3);
-  --text-success: var(--color-success);
-  --bg-item: var(--bg-sub);
   --card-min-width: 200px;
   --card-height: 24rem;
   --app-font-family: ui-sans-serif, system-ui, sans-serif;
-  --bg-panel-rgb: 30, 41, 59;
-  --glass-bg: rgba(var(--bg-panel-rgb), 0.7);
-  --glass-border: rgba(255, 255, 255, 0.08);
-  --shadow-elevation:
-    0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.15);
-  --shadow-inset: inset 0 2px 4px 0 rgba(0, 0, 0, 0.15);
   --accent-main-rgb: 37, 99, 235;
   --bg-image-url: none;
   --bg-overlay-opacity: 0.95;
@@ -169,52 +107,390 @@
   z-index: var(--z-topmost) !important;
 }
 
+/*
+ * Semantic color system
+ *
+ * Keep the legacy aliases below so existing modules and third-party previews
+ * continue to work while application components migrate to purpose-driven
+ * names.  Component styles should consume these semantic tokens instead of
+ * palette values.
+ */
+:root {
+  /* Surface hierarchy */
+  --surface-page: #0b1220;
+  --surface-container: #111c2d;
+  --surface-container-raised: #17243a;
+  --surface-container-hover: #1e2f49;
+  --surface-container-sunken: #0f1a2b;
+  --surface-overlay: #142039;
+  --surface-code: #0c1728;
+  --surface-media: #0a1321;
+  --surface-tag: #17243a;
+  --surface-modal-side: #0d1728;
+  --surface-scrim: rgba(2, 6, 23, 0.72);
+  --surface-scrim-soft: rgba(2, 6, 23, 0.34);
+  --surface-control: #e2e8f0;
+
+  /* Content hierarchy */
+  --content-primary: #f1f5f9;
+  --content-secondary: #cbd5e1;
+  --content-muted: #94a3b8;
+  --content-disabled: #8193aa;
+  --content-on-accent: #f8fafc;
+  --content-on-dark: #f8fafc;
+  --content-on-light: #172033;
+  --content-on-control: #172033;
+  --content-on-status-solid: var(--content-on-dark);
+  --content-on-decoration-solid: var(--content-on-dark);
+  --content-code: #a5f3fc;
+  --content-quote: #fbbf24;
+
+  /* Icon hierarchy */
+  --icon-default: #cbd5e1;
+  --icon-muted: #8193aa;
+  --icon-interactive: var(--accent-light);
+  --icon-on-accent: var(--content-on-accent);
+
+  /* Borders and separators */
+  --border-subtle: #293a54;
+  --border-default: #526782;
+  --border-strong: #7186a1;
+  --border-divider: #26364e;
+
+  /* Interaction states */
+  --state-hover-surface: var(--surface-container-hover);
+  --state-active-surface: color-mix(
+    in srgb,
+    var(--accent-main) 24%,
+    var(--surface-container)
+  );
+  --state-selected-surface: color-mix(
+    in srgb,
+    var(--accent-main) 18%,
+    var(--surface-container)
+  );
+  --state-focus-ring: color-mix(
+    in srgb,
+    var(--accent-light) 78%,
+    var(--content-on-dark)
+  );
+  --state-focus-shadow: 0 0 0 3px color-mix(
+    in srgb,
+    var(--accent-light) 32%,
+    transparent
+  );
+  --state-disabled-surface: color-mix(
+    in srgb,
+    var(--surface-container) 78%,
+    var(--surface-page)
+  );
+
+  /* Theme accent contract */
+  --accent-action: var(--accent-main);
+  --accent-action-hover: var(--accent-hover);
+  --accent-action-active: color-mix(
+    in srgb,
+    var(--accent-hover) 86%,
+    var(--content-on-light)
+  );
+  --accent-text: var(--accent-light);
+  --accent-soft: color-mix(in srgb, var(--accent-main) 14%, var(--surface-container));
+  --accent-soft-strong: color-mix(
+    in srgb,
+    var(--accent-main) 24%,
+    var(--surface-container)
+  );
+  --accent-faint: var(--accent-soft-strong);
+  --accent-action-rgb: var(--accent-main-rgb);
+  --accent-outline: color-mix(in srgb, var(--accent-light) 72%, var(--border-default));
+  --theme-swatch-blue: #2563eb;
+  --theme-swatch-purple: #7c3aed;
+  --theme-swatch-green: #059669;
+  --theme-swatch-red: #dc2626;
+  --theme-swatch-orange: #ea580c;
+  --theme-swatch-pink: #db2777;
+
+  /* Semantic status colors */
+  --status-success-text: #6ee7b7;
+  --status-success-solid: #047857;
+  --status-success-hover-solid: #065f46;
+  --status-success-surface: rgba(16, 185, 129, 0.14);
+  --status-success-border: rgba(52, 211, 153, 0.56);
+  --status-info-text: #7dd3fc;
+  --status-info-solid: #0369a1;
+  --status-info-hover-solid: #075985;
+  --status-info-surface: rgba(14, 165, 233, 0.14);
+  --status-info-border: rgba(125, 211, 252, 0.56);
+  --status-warning-text: #fde68a;
+  --status-warning-solid: #a16207;
+  --status-warning-hover-solid: #854d0e;
+  --status-warning-surface: rgba(245, 158, 11, 0.16);
+  --status-warning-border: rgba(251, 191, 36, 0.58);
+  --status-danger-text: #fca5a5;
+  --status-danger-solid: #b91c1c;
+  --status-danger-hover-solid: #991b1b;
+  --status-danger-surface: rgba(239, 68, 68, 0.16);
+  --status-danger-border: rgba(248, 113, 113, 0.58);
+  --status-neutral-text: #cbd5e1;
+  --status-neutral-solid: #475569;
+  --status-neutral-hover-solid: #334155;
+  --status-neutral-surface: rgba(148, 163, 184, 0.14);
+  --status-neutral-border: rgba(148, 163, 184, 0.5);
+
+  /* Non-status decoration retains its visual meaning without becoming body text. */
+  --decoration-violet: #c4b5fd;
+  --decoration-violet-solid: #6d28d9;
+  --decoration-violet-hover-solid: #5b21b6;
+  --decoration-cyan: #67e8f9;
+  --decoration-cyan-solid: #0e7490;
+  --decoration-cyan-hover-solid: #155e75;
+  --decoration-rose: #fda4af;
+  --decoration-rose-solid: #be123c;
+  --decoration-rose-hover-solid: #9f1239;
+  --decoration-amber: #fcd34d;
+  --decoration-amber-solid: #a16207;
+  --decoration-amber-hover-solid: #854d0e;
+  --brand-preset: #d6b36a;
+  --brand-preset-deep: #b89455;
+  --brand-preset-surface: rgba(214, 179, 106, 0.12);
+  --brand-preset-border: rgba(214, 179, 106, 0.38);
+  --brand-preset-text: #fcd34d;
+
+  /* Form, tag, and elevation tokens */
+  --form-surface: var(--surface-container-sunken);
+  --form-surface-hover: var(--surface-container);
+  --form-border: var(--border-default);
+  --form-border-focus: var(--accent-outline);
+  --tag-default-surface: var(--surface-tag);
+  --tag-default-border: var(--border-default);
+  --tag-default-text: var(--content-secondary);
+  --tag-image-surface: color-mix(in srgb, var(--surface-media) 94%, transparent);
+  --tag-image-border: color-mix(in srgb, var(--content-on-dark) 82%, transparent);
+  --tag-image-text: var(--content-on-dark);
+  --scrollbar-track: var(--surface-container);
+  --scrollbar-thumb: var(--border-strong);
+  --shadow-color: rgba(2, 6, 23, 0.52);
+  --shadow-elevation:
+    0 12px 28px -8px rgba(2, 6, 23, 0.52),
+    0 4px 10px -4px rgba(2, 6, 23, 0.3);
+  --shadow-inset: inset 0 1px 0 rgba(248, 250, 252, 0.06);
+  --bg-panel-rgb: 17, 28, 45;
+  --glass-bg: rgba(var(--surface-container-rgb), 0.82);
+  --glass-border: rgba(203, 213, 225, 0.12);
+  --surface-container-rgb: 17, 28, 45;
+
+  /* Sidebar is intentionally a named view of the same hierarchy. */
+  --sidebar-surface: var(--surface-container);
+  --sidebar-nav-surface: var(--surface-container-raised);
+  --sidebar-label: var(--content-primary);
+  --sidebar-label-muted: var(--content-secondary);
+  --sidebar-icon: var(--icon-default);
+  --sidebar-icon-muted: var(--icon-muted);
+  --sidebar-divider: var(--border-divider);
+  --sidebar-hover-surface: var(--state-hover-surface);
+  --sidebar-active-surface: var(--state-selected-surface);
+  --sidebar-active-border: var(--accent-outline);
+  --sidebar-accent-hover-surface: var(--accent-soft);
+  --sidebar-source-all: var(--accent-text);
+  --sidebar-source-global: var(--accent-text);
+  --sidebar-source-resource: var(--status-success-text);
+  --sidebar-source-embedded: var(--decoration-violet);
+  --sidebar-source-bound: var(--status-success-text);
+  --sidebar-source-unbound: var(--status-warning-text);
+
+  /* Existing names remain stable for modules that have not migrated yet. */
+  --bg-body: var(--surface-page);
+  --bg-panel: var(--surface-container);
+  --bg-sub: var(--surface-container-raised);
+  --bg-hover: var(--surface-container-hover);
+  --bg-tag: var(--surface-tag);
+  --bg-modal-left: var(--surface-modal-side);
+  --bg-code: var(--surface-code);
+  --bg-raw-section: var(--surface-container-sunken);
+  --border-main: var(--border-divider);
+  --border-light: var(--border-default);
+  --text-main: var(--content-primary);
+  --text-sub: var(--content-secondary);
+  --text-dim: var(--content-muted);
+  --text-on-accent: var(--content-on-accent);
+  --text-code: var(--content-code);
+  --btn-sec-bg: var(--surface-container-raised);
+  --btn-sec-text: var(--content-secondary);
+  --btn-sec-border: var(--border-default);
+  --color-primary: var(--accent-action);
+  --color-primary-rgb: var(--accent-action-rgb);
+  --color-danger: var(--status-danger-solid);
+  --color-success: var(--status-success-solid);
+  --color-warn: var(--status-warning-solid);
+  --SmartThemeQuoteColor: var(--content-quote);
+  --text-warn: var(--status-warning-text);
+  --border-warn: var(--status-warning-border);
+  --text-success: var(--status-success-text);
+  --bg-item: var(--surface-container-raised);
+}
+
 html.light-mode {
-  --bg-body: #f3f4f6;
-  --bg-panel: #ffffff;
-  --bg-sub: #f9fafb;
-  --bg-hover: #e5e7eb;
-  --bg-tag: #e5e7eb;
-  --bg-modal-left: #18181b;
-  --bg-code: #f1f5f9;
-  --bg-raw-section: #f3f4f6;
-  --border-main: #e5e7eb;
-  --border-light: #d1d5db;
-  --text-main: #111827;
-  --text-sub: #4b5563;
-  --text-dim: #9ca3af;
-  --text-code: #0f172a;
-  --sidebar-surface: #ffffff;
-  --sidebar-nav-surface: #f8fafc;
-  --sidebar-label: #111827;
-  --sidebar-label-muted: #475569;
-  --sidebar-icon: #334155;
-  --sidebar-icon-muted: #475569;
-  --sidebar-divider: #e2e8f0;
-  --sidebar-hover-surface: #f1f5f9;
-  --sidebar-active-surface: color-mix(
+  /* Light mode uses a cool neutral canvas and preserves the sidebar layering. */
+  --surface-page: #f4f7fb;
+  --surface-container: #ffffff;
+  --surface-container-raised: #f8fafc;
+  --surface-container-hover: #eef3f9;
+  --surface-container-sunken: #eaf0f7;
+  --surface-overlay: #ffffff;
+  --surface-code: #eef3f8;
+  --surface-media: #e2eaf3;
+  --surface-tag: #f8fafc;
+  --surface-modal-side: #172033;
+  --surface-scrim: rgba(15, 23, 42, 0.58);
+  --surface-scrim-soft: rgba(15, 23, 42, 0.3);
+  --surface-control: #ffffff;
+
+  --content-primary: #172033;
+  --content-secondary: #334155;
+  --content-muted: #5b6b82;
+  --content-disabled: #64748b;
+  --content-on-accent: #f8fafc;
+  --content-on-dark: #f8fafc;
+  --content-on-light: #172033;
+  --content-on-control: #172033;
+  --content-on-status-solid: var(--content-on-dark);
+  --content-on-decoration-solid: var(--content-on-dark);
+  --content-code: #17324d;
+  --content-quote: #a16207;
+
+  --icon-default: #334155;
+  --icon-muted: #5b6b82;
+  --icon-interactive: var(--accent-hover);
+  --icon-on-accent: var(--content-on-accent);
+
+  --border-subtle: #e4eaf2;
+  --border-default: #8293a8;
+  --border-strong: #64748b;
+  --border-divider: #dfe6ef;
+
+  --state-hover-surface: var(--surface-container-hover);
+  --state-active-surface: color-mix(
     in srgb,
-    var(--accent-main) 11%,
-    var(--sidebar-surface)
+    var(--accent-main) 14%,
+    var(--surface-container)
   );
-  --sidebar-active-border: var(--accent-hover);
-  --sidebar-accent-hover-surface: color-mix(
+  --state-selected-surface: color-mix(
     in srgb,
-    var(--accent-main) 6%,
-    var(--sidebar-nav-surface)
+    var(--accent-main) 10%,
+    var(--surface-container)
   );
-  --sidebar-source-all: var(--accent-hover);
-  --sidebar-source-global: var(--accent-hover);
-  --sidebar-source-resource: #047857;
-  --sidebar-source-embedded: #7e22ce;
-  --sidebar-source-bound: #047857;
-  --sidebar-source-unbound: #c2410c;
-  --shadow-color: rgba(0, 0, 0, 0.1);
-  --scrollbar-track: #f3f4f6;
-  --scrollbar-thumb: #d1d5db;
-  --btn-sec-bg: #ffffff;
-  --btn-sec-text: #4b5563;
-  --btn-sec-border: #d1d5db;
-  --accent-favorite: #f59e0b;
-  --accent-favorite-faint: rgba(245, 158, 11, 0.2);
+  --state-focus-ring: color-mix(
+    in srgb,
+    var(--accent-hover) 86%,
+    var(--content-on-light)
+  );
+  --state-focus-shadow: 0 0 0 3px color-mix(
+    in srgb,
+    var(--accent-main) 24%,
+    transparent
+  );
+  --state-disabled-surface: color-mix(
+    in srgb,
+    var(--surface-container-sunken) 72%,
+    var(--surface-container)
+  );
+
+  --accent-text: var(--accent-hover);
+  --accent-soft: color-mix(in srgb, var(--accent-main) 9%, var(--surface-container));
+  --accent-soft-strong: color-mix(
+    in srgb,
+    var(--accent-main) 15%,
+    var(--surface-container)
+  );
+  --accent-faint: var(--accent-soft-strong);
+  --accent-action-rgb: var(--accent-main-rgb);
+  --accent-outline: color-mix(in srgb, var(--accent-hover) 72%, var(--border-strong));
+
+  --status-success-text: #047857;
+  --status-success-solid: #047857;
+  --status-success-hover-solid: #065f46;
+  --status-success-surface: #ecfdf5;
+  --status-success-border: #047857;
+  --status-info-text: #0369a1;
+  --status-info-solid: #0369a1;
+  --status-info-hover-solid: #075985;
+  --status-info-surface: #eff6ff;
+  --status-info-border: #0369a1;
+  --status-warning-text: #a16207;
+  --status-warning-solid: #a16207;
+  --status-warning-hover-solid: #854d0e;
+  --status-warning-surface: #fffbeb;
+  --status-warning-border: #a16207;
+  --status-danger-text: #b91c1c;
+  --status-danger-solid: #b91c1c;
+  --status-danger-hover-solid: #991b1b;
+  --status-danger-surface: #fff1f2;
+  --status-danger-border: #b91c1c;
+  --status-neutral-text: #475569;
+  --status-neutral-solid: #475569;
+  --status-neutral-hover-solid: #334155;
+  --status-neutral-surface: #f1f5f9;
+  --status-neutral-border: #64748b;
+
+  --decoration-violet: #6d28d9;
+  --decoration-violet-solid: #6d28d9;
+  --decoration-violet-hover-solid: #5b21b6;
+  --decoration-cyan: #0e7490;
+  --decoration-cyan-solid: #0e7490;
+  --decoration-cyan-hover-solid: #155e75;
+  --decoration-rose: #be123c;
+  --decoration-rose-solid: #be123c;
+  --decoration-rose-hover-solid: #9f1239;
+  --decoration-amber: #a16207;
+  --decoration-amber-solid: #a16207;
+  --decoration-amber-hover-solid: #854d0e;
+  --brand-preset: #b89455;
+  --brand-preset-deep: #8f6e35;
+  --brand-preset-surface: #faf4e8;
+  --brand-preset-border: #b89455;
+  --brand-preset-text: #6b5a41;
+
+  --shadow-color: rgba(15, 23, 42, 0.16);
+  --shadow-elevation:
+    0 12px 28px -8px rgba(15, 23, 42, 0.16),
+    0 4px 10px -4px rgba(15, 23, 42, 0.1);
+  --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  --bg-panel-rgb: 255, 255, 255;
+  --glass-bg: rgba(var(--surface-container-rgb), 0.88);
+  --glass-border: rgba(71, 85, 105, 0.16);
+  --surface-container-rgb: 255, 255, 255;
+  --scrollbar-track: var(--surface-container-raised);
+  --scrollbar-thumb: var(--border-strong);
+
+  --sidebar-surface: var(--surface-container);
+  --sidebar-nav-surface: var(--surface-container-raised);
+  --sidebar-label: var(--content-primary);
+  --sidebar-label-muted: var(--content-secondary);
+  --sidebar-icon: var(--icon-default);
+  --sidebar-icon-muted: var(--icon-muted);
+  --sidebar-divider: var(--border-divider);
+  --sidebar-hover-surface: var(--state-hover-surface);
+  --sidebar-active-surface: var(--state-selected-surface);
+  --sidebar-active-border: var(--accent-outline);
+  --sidebar-accent-hover-surface: var(--accent-soft);
+  --sidebar-source-all: var(--accent-text);
+  --sidebar-source-global: var(--accent-text);
+  --sidebar-source-resource: var(--status-success-text);
+  --sidebar-source-embedded: var(--decoration-violet);
+  --sidebar-source-bound: var(--status-success-text);
+  --sidebar-source-unbound: var(--status-warning-text);
+
+  --btn-sec-bg: var(--surface-container);
+  --btn-sec-text: var(--content-secondary);
+  --btn-sec-border: var(--border-default);
+  --color-danger: var(--status-danger-solid);
+  --color-success: var(--status-success-solid);
+  --color-warn: var(--status-warning-solid);
+  --SmartThemeQuoteColor: var(--content-quote);
+  --text-warn: var(--status-warning-text);
+  --border-warn: var(--status-warning-border);
+  --text-success: var(--status-success-text);
+  --bg-item: var(--surface-container-raised);
+  --accent-favorite: #a16207;
+  --accent-favorite-faint: rgba(161, 98, 7, 0.16);
 }

@@ -4,8 +4,8 @@
     <!-- 新建文件夹模态框 -->
     <div x-show="showCreateFolder" x-cloak class="modal-overlay">
         <div
-            style="background: var(--bg-panel); padding: 1.5rem; border-radius: 0.75rem; width: 20rem; border: 1px solid var(--border-light); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);">
-            <h3 style="font-weight: bold; color: var(--text-main); margin-bottom: 1rem;">新建文件夹</h3>
+            style="background: var(--surface-overlay); padding: 1.5rem; border-radius: 0.75rem; width: 20rem; border: 1px solid var(--border-default); box-shadow: var(--shadow-elevation);">
+            <h3 style="font-weight: bold; color: var(--content-primary); margin-bottom: 1rem;">新建文件夹</h3>
             <div style="display: flex; flex-direction: column; gap: 1rem;">
                 {% call styled_select(
                     "newFolderParent",
@@ -30,10 +30,10 @@
     <!-- 简单的重命名和子文件夹模态框 (略作简化以使用标准样式) -->
     <div x-show="folderRenameModal.visible" x-cloak class="modal-overlay">
         <div
-            style="background: var(--bg-panel); padding: 1.5rem; border-radius: 0.75rem; width: 20rem; border: 1px solid var(--border-light);">
+            style="background: var(--surface-container); padding: 1.5rem; border-radius: 0.75rem; width: 20rem; border: 1px solid var(--border-default);">
             <h3 style="font-weight: bold; margin-bottom: 1rem;">重命名文件夹</h3>
             <div class="flex flex-col gap-2">
-                <div style="color: var(--text-dim); font-size: 0.875rem;" x-text="folderRenameModal.path"></div>
+                <div style="color: var(--content-muted); font-size: 0.875rem;" x-text="folderRenameModal.path"></div>
                 <input type="text" x-model="folderRenameModal.name" class="form-input">
                 <div class="flex gap-2"><button @click="folderRenameModal.visible = false"
                         class="btn-secondary flex-1">取消</button><button @click="renameFolder()"
@@ -44,10 +44,10 @@
 
     <div x-show="folderCreateSubModal.visible" x-cloak class="modal-overlay">
         <div
-            style="background: var(--bg-panel); padding: 1.5rem; border-radius: 0.75rem; width: 20rem; border: 1px solid var(--border-light);">
+            style="background: var(--surface-container); padding: 1.5rem; border-radius: 0.75rem; width: 20rem; border: 1px solid var(--border-default);">
             <h3 style="font-weight: bold; margin-bottom: 1rem;">创建子分类</h3>
             <div class="flex flex-col gap-2">
-                <div style="color: var(--text-dim); font-size: 0.875rem;"
+                <div style="color: var(--content-muted); font-size: 0.875rem;"
                     x-text="folderCreateSubModal.parentPath || '根目录'">
                 </div>
                 <input type="text" x-model="folderCreateSubModal.name" class="form-input">

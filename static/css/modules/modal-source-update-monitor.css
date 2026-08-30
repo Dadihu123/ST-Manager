@@ -13,7 +13,7 @@
   flex: 0 0 4rem;
   align-items: center;
   justify-content: center;
-  color: var(--text-main);
+  color: var(--content-primary);
 }
 
 .source-monitor-heading__copy {

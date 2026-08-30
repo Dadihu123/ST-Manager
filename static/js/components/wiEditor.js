@@ -1922,15 +1922,15 @@ export default function wiEditor() {
 
     _entryHistoryFieldDiffClass(meta, side, fieldChanged) {
       if (meta.status === "added" && side === "right") {
-        return "bg-green-500/20 border border-green-500/40";
+        return "color-status-success";
       }
       if (meta.status === "removed" && side === "left") {
-        return "bg-red-500/20 border border-red-500/40";
+        return "color-status-danger";
       }
       if (meta.status === "changed" && fieldChanged) {
-        return "bg-yellow-500/20 border border-yellow-500/40";
+        return "color-status-warning";
       }
-      return "bg-black/10 border border-transparent";
+      return "color-surface-container";
     },
 
     _splitEntryHistoryLinesWithLimit(text, maxLines = 240, maxChars = 16000) {
@@ -2046,16 +2046,16 @@ export default function wiEditor() {
 
     _entryHistoryLineClass(type, side) {
       if (type === "changed")
-        return "bg-yellow-500/20 border border-yellow-500/40";
+        return "color-status-warning";
       if (type === "added" && side === "right")
-        return "bg-green-500/20 border border-green-500/40";
+        return "color-status-success";
       if (type === "removed" && side === "left")
-        return "bg-red-500/20 border border-red-500/40";
+        return "color-status-danger";
       if (type === "added" && side === "left")
-        return "bg-green-500/10 border border-green-500/30";
+        return "color-status-success";
       if (type === "removed" && side === "right")
-        return "bg-red-500/10 border border-red-500/30";
-      return "bg-black/10 border border-transparent";
+        return "color-status-danger";
+      return "color-surface-container";
     },
 
     _renderEntryHistoryLineDiffHtml(leftText, rightText, side) {
@@ -2084,12 +2084,12 @@ export default function wiEditor() {
           text === null ? "∅" : this._escapeEntryHistoryHtml(text);
         const lineTextClass =
           text === null
-            ? "text-[var(--text-dim)] italic"
-            : "text-[var(--text-main)]";
+            ? "text-[var(--content-muted)] italic"
+            : "text-[var(--content-primary)]";
 
         html += `
                     <div class="px-2 py-0.5 rounded ${cls}">
-                        <span class="inline-block w-8 mr-2 text-[10px] text-[var(--text-dim)] text-right select-none">${lineNo || " "}</span>
+                        <span class="inline-block w-8 mr-2 text-[10px] text-[var(--content-muted)] text-right select-none">${lineNo || " "}</span>
                         <span class="text-[11px] whitespace-pre-wrap break-words ${lineTextClass}">${lineText || " "}</span>
                     </div>
                 `;
@@ -2100,7 +2100,7 @@ export default function wiEditor() {
     _renderEntryHistoryPane(entry, oppositeEntry, meta, side) {
       if (!entry) {
         return `
-                    <div class="m-2 p-3 rounded border border-dashed border-[var(--border-light)] text-[11px] text-[var(--text-dim)] opacity-70">
+                    <div class="m-2 p-3 rounded border border-dashed border-[var(--border-default)] text-[11px] text-[var(--content-muted)] opacity-70">
                         <div>（此侧无对应条目）</div>
                     </div>
                 `;
@@ -2109,10 +2109,10 @@ export default function wiEditor() {
       const isLeft = side === "left";
       const markClass =
         isLeft && (meta.status === "removed" || meta.status === "changed")
-          ? "text-red-300"
+          ? "status-danger-text"
           : !isLeft && (meta.status === "added" || meta.status === "changed")
-            ? "text-green-300"
-            : "text-[var(--text-main)]";
+            ? "status-success-text"
+            : "text-[var(--content-primary)]";
 
       const comment = this._escapeEntryHistoryHtml(entry.comment || "(无备注)");
       const keys = this._escapeEntryHistoryHtml(
@@ -2124,11 +2124,11 @@ export default function wiEditor() {
 
       const commentCls = meta.changed.comment
         ? markClass
-        : "text-[var(--text-main)]";
-      const keyCls = meta.changed.keys ? markClass : "text-[var(--text-main)]";
+        : "text-[var(--content-primary)]";
+      const keyCls = meta.changed.keys ? markClass : "text-[var(--content-primary)]";
       const contentCls = meta.changed.content
         ? markClass
-        : "text-[var(--text-main)]";
+        : "text-[var(--content-primary)]";
 
       const commentBgCls = this._entryHistoryFieldDiffClass(
         meta,
@@ -2151,7 +2151,7 @@ export default function wiEditor() {
       );
 
       return `
-                <div class="m-2 p-3 rounded border bg-[var(--bg-sub)] border-[var(--border-light)]">
+                <div class="m-2 p-3 rounded border bg-[var(--surface-container-raised)] border-[var(--border-default)]">
                     <div class="mt-1 p-1.5 rounded ${commentBgCls}">
                         <div class="text-sm font-bold ${commentCls}">${comment}</div>
                     </div>
@@ -2159,9 +2159,9 @@ export default function wiEditor() {
                         <div class="text-[11px] ${keyCls}">关键词: ${keys}</div>
                         <div class="mt-1 text-[11px] ${keyCls}">次级词: ${sec}</div>
                     </div>
-                    <div class="mt-2 p-1.5 rounded bg-black/5 border border-[var(--border-light)]">
-                        <div class="text-[11px] text-[var(--text-dim)]">内容预览</div>
-                        <div class="mt-1 p-2 rounded bg-black/10 max-h-72 overflow-auto">${lineDiffHtml}</div>
+                    <div class="mt-2 p-1.5 rounded color-surface-sunken border border-[var(--border-default)]">
+                        <div class="text-[11px] text-[var(--content-muted)]">内容预览</div>
+                        <div class="mt-1 p-2 rounded color-surface-container max-h-72 overflow-auto">${lineDiffHtml}</div>
                         <div class="mt-1 text-[10px] ${contentCls}">行级高亮：绿=新增，黄=修改，红=删除</div>
                     </div>
                 </div>
@@ -2173,9 +2173,9 @@ export default function wiEditor() {
       const rightVer = this.entryHistorySelection.right;
       if (!leftVer || !rightVer) {
         this.entryHistoryDiff = {
-          left: '<div class="p-6 text-center text-[var(--text-dim)] text-xs">请选择版本进行对比</div>',
+          left: '<div class="p-6 text-center text-[var(--content-muted)] text-xs">请选择版本进行对比</div>',
           right:
-            '<div class="p-6 text-center text-[var(--text-dim)] text-xs">请选择版本进行对比</div>',
+            '<div class="p-6 text-center text-[var(--content-muted)] text-xs">请选择版本进行对比</div>',
         };
         return;
       }
@@ -2683,9 +2683,9 @@ export default function wiEditor() {
               const el = document.getElementById(elId);
               if (el) {
                 el.scrollIntoView({ behavior: "auto", block: "center" }); // 使用 auto 瞬间定位，避免 smooth 还没滚到就停止
-                el.classList.add("bg-accent-main", "text-white"); // 临时高亮
+                el.classList.add("color-accent-soft", "color-text-accent"); // 临时高亮
                 setTimeout(
-                  () => el.classList.remove("bg-accent-main", "text-white"),
+                  () => el.classList.remove("color-accent-soft", "color-text-accent"),
                   800,
                 );
               }

@@ -61,7 +61,7 @@ def test_bulk_flip_buttons_keep_white_text_in_both_themes_and_layouts():
     card_template = read_project_file('templates/components/grid_cards.html')
     world_info_template = read_project_file('templates/components/grid_wi.html')
 
-    assert 'color: var(--text-on-accent);' in bulk_flip_button
+    assert 'color: var(--content-on-accent);' in bulk_flip_button
     assert 'var(--text-main)' not in bulk_flip_button
     assert 'card-flip-all-btn' in card_template
     assert 'card-flip-all-btn' in world_info_template
@@ -120,7 +120,7 @@ def test_card_favorite_uses_solid_theme_aware_svg_with_existing_state_colors():
     assert '.card-fav-overlay .card-fav-icon {' in card_css
     assert 'fill: currentColor;' in card_css
     assert 'stroke: none;' in card_css
-    assert 'color: rgba(241, 245, 249, 0.9);' in card_css
-    assert 'color: #ffe4e6;' in card_css
-    assert 'color: #fb7185;' in card_css
-    assert 'drop-shadow(0 1px 3px rgba(2, 6, 23, 0.32))' in card_css
+    assert 'color: color-mix(in srgb, var(--content-primary) 90%, transparent);' in card_css
+    assert 'color: var(--decoration-rose);' in card_css
+    assert 'color: var(--status-danger-text);' in card_css
+    assert 'drop-shadow(0 1px 3px color-mix(in srgb, var(--surface-page) 32%, transparent))' in card_css

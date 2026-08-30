@@ -1,16 +1,16 @@
 @keyframes wiTocFlash {
   0% {
-    box-shadow: 0 0 0 0 rgba(var(--accent-main-rgb), 0);
+    box-shadow: 0 0 0 0 rgba(var(--accent-action-rgb), 0);
     transform: translateY(-2px);
   }
   25% {
-    box-shadow: 0 0 0 3px rgba(var(--accent-main-rgb), 0.22);
+    box-shadow: 0 0 0 3px rgba(var(--accent-action-rgb), 0.22);
   }
   60% {
-    box-shadow: 0 0 0 2px rgba(var(--accent-main-rgb), 0.12);
+    box-shadow: 0 0 0 2px rgba(var(--accent-action-rgb), 0.12);
   }
   100% {
-    box-shadow: 0 0 0 0 rgba(var(--accent-main-rgb), 0);
+    box-shadow: 0 0 0 0 rgba(var(--accent-action-rgb), 0);
     transform: none;
   }
 }
@@ -18,27 +18,27 @@
 @keyframes wiReaderEntryActive {
   0% {
     box-shadow:
-      0 0 0 0 var(--accent-faint),
-      0 0 0 rgba(var(--accent-main-rgb), 0);
+      0 0 0 0 var(--accent-soft-strong),
+      0 0 0 rgba(var(--accent-action-rgb), 0);
     transform: translateY(0) scale(1);
   }
   50% {
     box-shadow:
-      0 0 0 4px var(--accent-faint),
-      0 8px 16px rgba(var(--accent-main-rgb), 0.15);
+      0 0 0 4px var(--accent-soft-strong),
+      0 8px 16px rgba(var(--accent-action-rgb), 0.15);
     transform: translateY(-1px) scale(1.002);
   }
   100% {
     box-shadow:
-      0 0 0 3px var(--accent-faint),
-      0 16px 32px rgba(var(--accent-main-rgb), 0.25);
+      0 0 0 3px var(--accent-soft-strong),
+      0 16px 32px rgba(var(--accent-action-rgb), 0.25);
     transform: translateY(-2px) scale(1.005);
   }
 }
 
 .wi-container {
-  background: var(--bg-sub);
-  border: 1px solid var(--border-light);
+  background: var(--surface-container-raised);
+  border: 1px solid var(--border-default);
   border-radius: 0.5rem;
   overflow: hidden;
   margin-top: 1rem;
@@ -46,8 +46,8 @@
 
 .wi-header {
   padding: 0.75rem 1rem;
-  background: var(--bg-panel);
-  border-bottom: 1px solid var(--border-light);
+  background: var(--surface-container);
+  border-bottom: 1px solid var(--border-default);
   cursor: pointer;
   display: flex;
   justify-content: space-between;
@@ -57,15 +57,15 @@
 }
 
 .wi-header:hover {
-  background: var(--bg-hover);
+  background: var(--state-hover-surface);
 }
 
 .wi-content {
-  background: var(--bg-sub);
+  background: var(--surface-container-raised);
   padding: 0.5rem;
   max-height: 20rem;
   overflow-y: auto;
-  color: var(--text-main);
+  color: var(--content-primary);
 }
 
 .wi-content textarea {
@@ -79,13 +79,13 @@
 
 .wi-content input:focus,
 .wi-content textarea:focus {
-  border-color: var(--accent-light) !important;
-  box-shadow: 0 0 0 1px var(--accent-faint);
+  border-color: var(--accent-text) !important;
+  box-shadow: 0 0 0 1px var(--accent-soft-strong);
 }
 
 .wi-entry {
-  background: var(--bg-panel);
-  border: 1px solid var(--border-light);
+  background: var(--surface-container);
+  border: 1px solid var(--border-default);
   border-radius: 0.375rem;
   padding: 0.5rem;
   margin-bottom: 0.5rem;
@@ -93,14 +93,14 @@
 }
 
 .wi-entry-keys {
-  color: #facc15;
+  color: var(--status-warning-text);
   font-weight: bold;
   margin-bottom: 0.25rem;
   word-break: break-all;
 }
 
 .wi-entry-text {
-  color: var(--text-sub);
+  color: var(--content-secondary);
   white-space: pre-wrap;
   max-height: 4.5em;
   overflow: hidden;
@@ -133,7 +133,7 @@
   flex: 1 1 auto;
   min-width: 0;
   align-items: center;
-  color: var(--text-dim);
+  color: var(--content-muted);
 }
 
 .wi-entry-filter > span[aria-hidden="true"] {
@@ -149,11 +149,11 @@
   min-width: 0;
   min-height: 2.1rem;
   padding: 0.4rem 0.55rem 0.4rem 2rem;
-  border: 1px solid var(--border-light);
+  border: 1px solid var(--border-default);
   border-radius: 0.45rem;
   outline: 0;
-  background: var(--bg-body);
-  color: var(--text-main);
+  background: var(--surface-page);
+  color: var(--content-primary);
   font-size: 0.75rem;
   transition:
     border-color 0.2s ease,
@@ -162,13 +162,13 @@
 }
 
 .wi-entry-filter-input::placeholder {
-  color: var(--text-dim);
+  color: var(--content-muted);
 }
 
 .wi-entry-filter:focus-within .wi-entry-filter-input {
-  border-color: var(--accent-main);
-  background: var(--bg-panel);
-  box-shadow: 0 0 0 2px var(--accent-faint);
+  border-color: var(--accent-action);
+  background: var(--surface-container);
+  box-shadow: 0 0 0 2px var(--accent-soft-strong);
 }
 
 .wi-entry-add-btn {
@@ -179,10 +179,10 @@
   width: 2.1rem;
   min-height: 2.1rem;
   padding: 0;
-  border: 1px solid color-mix(in srgb, #22c55e, var(--border-light) 45%);
+  border: 1px solid color-mix(in srgb, var(--status-success-solid), var(--border-default) 45%);
   border-radius: 0.45rem;
-  background: color-mix(in srgb, #16a34a, transparent 88%);
-  color: #4ade80;
+  background: color-mix(in srgb, var(--status-success-solid), transparent 88%);
+  color: var(--status-success-text);
   cursor: pointer;
   transition:
     background-color 0.2s ease,
@@ -192,9 +192,9 @@
 
 .wi-entry-add-btn:hover,
 .wi-entry-add-btn:focus-visible {
-  border-color: #4ade80;
-  background: color-mix(in srgb, #16a34a, transparent 78%);
-  color: #86efac;
+  border-color: var(--status-success-text);
+  background: color-mix(in srgb, var(--status-success-solid), transparent 78%);
+  color: var(--status-success-text);
   outline: none;
 }
 
@@ -204,19 +204,19 @@
   justify-content: space-between;
   gap: 0.5rem;
   margin-top: 0.35rem;
-  color: var(--text-dim);
+  color: var(--content-muted);
   font-size: 0.625rem;
   line-height: 1.35;
 }
 
 .wi-entry-filter-status span:last-child {
-  color: color-mix(in srgb, var(--accent-main), var(--text-dim) 32%);
+  color: color-mix(in srgb, var(--accent-action), var(--content-muted) 32%);
   text-align: right;
 }
 
 .wi-entry-filter-empty {
   padding: 2rem 0.75rem;
-  color: var(--text-dim);
+  color: var(--content-muted);
   font-size: 0.75rem;
   text-align: center;
 }
@@ -227,63 +227,63 @@
 }
 
 .wi-list-item:hover {
-  background-color: var(--bg-hover);
-  background: var(--bg-hover);
+  background-color: var(--state-hover-surface);
+  background: var(--state-hover-surface);
   transform: none !important;
 }
 
 .wi-list-item.active {
-  background-color: var(--bg-panel) !important;
+  background-color: var(--surface-container) !important;
   padding-left: calc(0.5rem - 2px);
   background: color-mix(
     in srgb,
-    var(--accent-main),
+    var(--accent-action),
     transparent 92%
   ) !important;
-  border-left: 3px solid var(--accent-main);
+  border-left: 3px solid var(--accent-action);
   border-right: 1px solid var(--glass-border);
   box-shadow: none;
   border-color: color-mix(
     in srgb,
-    var(--accent-main),
+    var(--accent-action),
     transparent 70%
   ) !important;
 }
 
 .wi-list-item.active .font-bold {
-  color: var(--accent-main);
-  text-shadow: 0 0 8px rgba(var(--accent-main-rgb), 0.4);
+  color: var(--accent-action);
+  text-shadow: 0 0 8px rgba(var(--accent-action-rgb), 0.4);
 }
 
 .wi-list-item.dragging {
   opacity: 0.5;
-  background: var(--bg-hover);
-  border: 1px dashed var(--accent-main);
+  background: var(--state-hover-surface);
+  border: 1px dashed var(--accent-action);
 }
 
 .wi-list-item.drag-over-top {
-  border-top: 2px solid var(--accent-main) !important;
+  border-top: 2px solid var(--accent-action) !important;
 }
 
 .wi-list-item.drag-over-bottom {
-  border-bottom: 2px solid var(--accent-main) !important;
+  border-bottom: 2px solid var(--accent-action) !important;
 }
 
 html.light-mode .wi-list-item {
-  color: var(--text-main);
+  color: var(--content-primary);
 }
 
 html.light-mode .wi-list-item .font-bold {
-  color: var(--text-main);
+  color: var(--content-primary);
 }
 
 html.light-mode .wi-list-item.active {
-  background-color: color-mix(in srgb, var(--accent-main), transparent 85%);
-  border-color: var(--accent-light);
+  background-color: color-mix(in srgb, var(--accent-action), transparent 85%);
+  border-color: var(--accent-text);
 }
 
 html.light-mode .wi-list-item.active .font-bold {
-  color: var(--accent-hover);
+  color: var(--accent-action-hover);
 }
 
 .wi-status-indicator {
@@ -292,17 +292,17 @@ html.light-mode .wi-list-item.active .font-bold {
   border-radius: 50%;
   margin-right: 6px;
   flex-shrink: 0;
-  box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 0 4px color-mix(in srgb, var(--content-on-light) 50%, transparent);
 }
 
 .wi-status-constant {
-  background-color: #3b82f6;
-  box-shadow: 0 0 6px #3b82f6;
+  background-color: var(--accent-action);
+  box-shadow: 0 0 6px var(--accent-action);
 }
 
 html.light-mode .wi-status-constant {
-  background-color: #1d4ed8;
-  box-shadow: 0 0 5px #1d4ed8;
+  background-color: var(--accent-action-hover);
+  box-shadow: 0 0 5px var(--accent-action-hover);
 }
 
 .wi-badge {
@@ -311,7 +311,7 @@ html.light-mode .wi-status-constant {
   right: 0.72rem;
   padding: 0.18rem 0.42rem;
   border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--border-light), transparent 18%);
+  border: 1px solid color-mix(in srgb, var(--border-default), transparent 18%);
   font-size: 0.58rem;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -321,27 +321,27 @@ html.light-mode .wi-status-constant {
 }
 
 .wi-badge.global {
-  background: rgba(30, 58, 138, 0.6);
-  color: #93c5fd;
-  border-color: #1e40af;
+  background: color-mix(in srgb, var(--accent-action-hover) 60%, transparent);
+  color: var(--accent-text);
+  border-color: var(--accent-action-hover);
 }
 
 .wi-badge.resource {
-  background: rgba(20, 83, 45, 0.6);
-  color: #86efac;
-  border-color: #166534;
+  background: color-mix(in srgb, var(--status-success-solid) 60%, transparent);
+  color: var(--status-success-text);
+  border-color: var(--status-success-text);
 }
 
 .wi-badge.embedded {
-  background: rgba(88, 28, 135, 0.6);
-  color: #d8b4fe;
-  border-color: #6b21a8;
+  background: color-mix(in srgb, var(--decoration-violet-solid) 60%, transparent);
+  color: var(--decoration-violet);
+  border-color: var(--decoration-violet-solid);
 }
 
 .wi-badge.file {
-  background: rgba(55, 65, 81, 0.8);
-  color: #e5e7eb;
-  border-color: #6b7280;
+  background: color-mix(in srgb, var(--state-hover-surface) 80%, transparent);
+  color: var(--content-primary);
+  border-color: var(--content-muted);
 }
 
 .wi-grid-virtual-spacer {
@@ -351,48 +351,48 @@ html.light-mode .wi-status-constant {
 }
 
 html.light-mode .wi-badge.global {
-  background: #dbeafe;
-  color: #1e40af;
-  border-color: #bfdbfe;
+  background: var(--accent-soft);
+  color: var(--accent-action-hover);
+  border-color: var(--accent-outline);
 }
 
 html.light-mode .wi-badge.resource {
-  background: #dcfce7;
-  color: #166534;
-  border-color: #bbf7d0;
+  background: var(--status-success-surface);
+  color: var(--status-success-text);
+  border-color: var(--status-success-text);
 }
 
 html.light-mode .wi-badge.embedded {
-  background: #f3e8ff;
-  color: #6b21a8;
-  border-color: #e9d5ff;
+  background: var(--decoration-violet);
+  color: var(--decoration-violet-solid);
+  border-color: var(--decoration-violet);
 }
 
 html.light-mode .wi-badge.file {
-  background: #f3f4f6;
-  color: #374151;
-  border-color: #d1d5db;
+  background: var(--surface-container-raised);
+  color: var(--content-primary);
+  border-color: var(--border-default);
 }
 
 html.light-mode .wi-status-normal {
-  background-color: #16a34a;
-  box-shadow: 0 0 5px #16a34a;
+  background-color: var(--status-success-solid);
+  box-shadow: 0 0 5px var(--status-success-solid);
 }
 
 html.light-mode .wi-status-vector {
-  background-color: #7e22ce;
-  box-shadow: 0 0 5px #7e22ce;
+  background-color: var(--decoration-violet-solid);
+  box-shadow: 0 0 5px var(--decoration-violet-solid);
 }
 
 html.light-mode .wi-status-disabled {
-  background-color: #6b7280;
+  background-color: var(--content-muted);
 }
 
 .wi-clipboard-sidebar {
   width: 280px;
-  background-color: var(--bg-sub);
-  border-left: 1px solid var(--border-light);
-  color: var(--text-main);
+  background-color: var(--surface-container-raised);
+  border-left: 1px solid var(--border-default);
+  color: var(--content-primary);
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
@@ -406,9 +406,9 @@ html.light-mode .wi-status-disabled {
 }
 
 .clipboard-item {
-  background: var(--bg-panel);
-  border: 1px solid var(--border-light);
-  color: var(--text-main);
+  background: var(--surface-container);
+  border: 1px solid var(--border-default);
+  color: var(--content-primary);
   transition: all 0.2s;
   border-radius: 6px;
   padding: 8px;
@@ -420,8 +420,8 @@ html.light-mode .wi-status-disabled {
 }
 
 .clipboard-item:hover {
-  background-color: var(--bg-hover);
-  border-color: var(--accent-light);
+  background-color: var(--state-hover-surface);
+  border-color: var(--accent-text);
 }
 
 .clipboard-item:active {
@@ -429,34 +429,34 @@ html.light-mode .wi-status-disabled {
 }
 
 .clipboard-item.overwrite-mode {
-  border: 2px dashed #fbbf24;
-  background: rgba(251, 191, 36, 0.1);
+  border: 2px dashed var(--status-warning-text);
+  background: color-mix(in srgb, var(--status-warning-text) 10%, transparent);
 }
 
 .clipboard-item.overwrite-mode:hover {
-  background: rgba(251, 191, 36, 0.2);
+  background: color-mix(in srgb, var(--status-warning-text) 20%, transparent);
   cursor: pointer;
 }
 
 .clipboard-header {
   padding: 0.5rem;
-  background: var(--bg-panel);
-  border-bottom: 1px solid var(--border-light);
+  background: var(--surface-container);
+  border-bottom: 1px solid var(--border-default);
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
 .clipboard-item.editing {
-  border-color: #a855f7;
-  background-color: rgba(168, 85, 247, 0.1);
-  border: 1px solid #a855f7;
-  background: linear-gradient(to right, rgba(168, 85, 247, 0.1), transparent);
-  box-shadow: 0 0 10px rgba(168, 85, 247, 0.2);
+  border-color: var(--decoration-violet-solid);
+  background-color: color-mix(in srgb, var(--decoration-violet-solid) 10%, transparent);
+  border: 1px solid var(--decoration-violet-solid);
+  background: linear-gradient(to right, color-mix(in srgb, var(--decoration-violet-solid) 10%, transparent), transparent);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--decoration-violet-solid) 20%, transparent);
 }
 
 html.light-mode .clipboard-item.editing {
-  background-color: rgba(168, 85, 247, 0.2);
+  background-color: color-mix(in srgb, var(--decoration-violet-solid) 20%, transparent);
 }
 
 .clipboard-action-btn {
@@ -472,22 +472,22 @@ html.light-mode .clipboard-item.editing {
 }
 
 .clipboard-action-btn:hover {
-  background-color: var(--bg-hover);
-  color: var(--accent-main);
+  background-color: var(--state-hover-surface);
+  color: var(--accent-action);
 }
 
 .wi-status-normal {
-  background-color: #22c55e;
-  box-shadow: 0 0 6px #22c55e;
+  background-color: var(--status-success-solid);
+  box-shadow: 0 0 6px var(--status-success-solid);
 }
 
 .wi-status-vector {
-  background-color: #a855f7;
-  box-shadow: 0 0 6px #a855f7;
+  background-color: var(--decoration-violet-solid);
+  box-shadow: 0 0 6px var(--decoration-violet-solid);
 }
 
 .wi-status-disabled {
-  background-color: #4b5563;
+  background-color: var(--content-secondary);
 }
 
 .scroll-container-y {
@@ -499,17 +499,17 @@ html.light-mode .clipboard-item.editing {
 
 .wi-title-fallback {
   font-style: italic;
-  color: var(--text-dim) !important;
+  color: var(--content-muted) !important;
 }
 
 .editor-section-title {
   font-size: 0.7rem;
   font-weight: bold;
-  color: var(--text-dim);
+  color: var(--content-muted);
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin-bottom: 0.5rem;
-  border-bottom: 1px solid var(--border-light);
+  border-bottom: 1px solid var(--border-default);
   padding-bottom: 0.25rem;
 }
 
@@ -522,7 +522,7 @@ html.light-mode .clipboard-item.editing {
 
 .compact-label {
   font-size: 0.75rem;
-  color: var(--text-sub);
+  color: var(--content-secondary);
   white-space: nowrap;
   min-width: 4rem;
 }
@@ -537,11 +537,11 @@ html.light-mode .clipboard-item.editing {
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: var(--bg-sub);
-  border: 1px solid var(--border-light);
-  color: var(--text-dim);
+  background-color: var(--surface-container-raised);
+  border: 1px solid var(--border-default);
+  color: var(--content-muted);
   cursor: pointer;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 6px -1px color-mix(in srgb, var(--content-on-light) 30%, transparent);
   transition: all 0.3s ease;
   opacity: 0.3;
 }
@@ -549,8 +549,8 @@ html.light-mode .clipboard-item.editing {
 .edge-toggle-btn:hover,
 .edge-hover-zone:hover .edge-toggle-btn {
   opacity: 1;
-  background-color: var(--bg-hover);
-  color: var(--text-main);
+  background-color: var(--state-hover-surface);
+  color: var(--content-primary);
 }
 
 .edge-toggle-left {
@@ -568,29 +568,29 @@ html.light-mode .clipboard-item.editing {
 .wi-settings-toggle-bar {
   width: 100%;
   height: 24px;
-  background-color: var(--bg-sub);
-  border-top: 1px solid var(--border-light);
-  border-bottom: 1px solid var(--border-light);
+  background-color: var(--surface-container-raised);
+  border-top: 1px solid var(--border-default);
+  border-bottom: 1px solid var(--border-default);
   display: flex;
   justify-content: center;
   align-items: center;
   cursor: pointer;
-  color: var(--text-dim);
+  color: var(--content-muted);
   font-size: 12px;
   transition: background 0.2s;
   user-select: none;
 }
 
 .wi-settings-toggle-bar:hover {
-  background-color: var(--bg-hover);
-  color: var(--text-main);
+  background-color: var(--state-hover-surface);
+  color: var(--content-primary);
 }
 
 .help-icon {
   cursor: help;
   font-size: 0.75rem;
-  color: var(--text-dim);
-  border: 1px solid var(--border-light);
+  color: var(--content-muted);
+  border: 1px solid var(--border-default);
   border-radius: 50%;
   width: 14px;
   height: 14px;
@@ -606,10 +606,10 @@ html.light-mode .clipboard-item.editing {
   height: 100%;
   background: radial-gradient(
     circle at top right,
-    var(--bg-body),
-    var(--bg-sub)
+    var(--surface-page),
+    var(--surface-container-raised)
   );
-  color: var(--text-main);
+  color: var(--content-primary);
 }
 
 .wi-editor-container > .flex > div:first-child {
@@ -624,7 +624,7 @@ html.light-mode .clipboard-item.editing {
   display: flex;
   flex-direction: column;
   min-width: 0;
-  background-color: var(--bg-body);
+  background-color: var(--surface-page);
   position: relative;
   transition: margin 0.3s ease;
 }
@@ -635,7 +635,7 @@ html.light-mode .clipboard-item.editing {
   flex-direction: column;
   padding: 0 1rem 1rem 1rem;
   overflow: hidden;
-  background: var(--bg-body);
+  background: var(--surface-page);
 }
 
 .wi-content-token-label {
@@ -645,10 +645,10 @@ html.light-mode .clipboard-item.editing {
   flex: 0 0 auto;
   min-height: 30px;
   padding: 0 0.5rem;
-  border: 1px solid var(--border-light);
+  border: 1px solid var(--border-default);
   border-radius: 0.375rem;
-  background: var(--bg-panel);
-  color: var(--text-sub);
+  background: var(--surface-container);
+  color: var(--content-secondary);
   font-size: 0.625rem;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -657,44 +657,44 @@ html.light-mode .clipboard-item.editing {
 }
 
 .wi-content-token-label--clipboard {
-  border-color: color-mix(in srgb, #a855f7, var(--border-light) 45%);
-  background: color-mix(in srgb, #7e22ce, var(--bg-panel) 84%);
-  color: color-mix(in srgb, #a855f7, var(--text-main) 20%);
+  border-color: color-mix(in srgb, var(--decoration-violet-solid), var(--border-default) 45%);
+  background: color-mix(in srgb, var(--decoration-violet-solid), var(--surface-container) 84%);
+  color: color-mix(in srgb, var(--decoration-violet-solid), var(--content-primary) 20%);
 }
 
 .wi-main-textarea {
   flex: 1;
   width: 100%;
   resize: none;
-  background-color: var(--bg-panel);
+  background-color: var(--surface-container);
   border-radius: 0.5rem;
   padding: 1rem;
   font-family: "JetBrains Mono", "Fira Code", monospace;
   font-size: 0.875rem;
   line-height: 1.6;
-  color: var(--text-main);
+  color: var(--content-primary);
   transition:
     border-color 0.2s,
     box-shadow 0.2s;
-  background: color-mix(in srgb, var(--bg-panel), var(--bg-body) 18%);
+  background: color-mix(in srgb, var(--surface-container), var(--surface-page) 18%);
   box-shadow: var(--shadow-inset);
-  border: 1px solid var(--border-main);
+  border: 1px solid var(--border-subtle);
   max-width: 980px;
   margin: 0 auto;
-  border-color: var(--border-main);
+  border-color: var(--border-subtle);
 }
 
 .wi-main-textarea:focus {
-  border-color: var(--accent-main);
+  border-color: var(--accent-action);
   box-shadow:
-    inset 0 0 10px rgba(0, 0, 0, 0.1),
-    0 0 0 2px var(--accent-faint);
+    inset 0 0 10px color-mix(in srgb, var(--content-on-light) 10%, transparent),
+    0 0 0 2px var(--accent-soft-strong);
   outline: none;
 }
 
 .wi-inspector-panel {
-  background-color: var(--bg-sub);
-  border-left: 1px solid var(--border-main);
+  background-color: var(--surface-container-raised);
+  border-left: 1px solid var(--border-subtle);
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
@@ -702,16 +702,16 @@ html.light-mode .clipboard-item.editing {
     width 0.3s ease,
     opacity 0.3s ease;
   overflow: hidden;
-  background: var(--bg-sub);
-  border-left-color: var(--border-main);
+  background: var(--surface-container-raised);
+  border-left-color: var(--border-subtle);
 }
 
 .wi-inspector-tabs {
   display: flex;
-  border-bottom: 1px solid var(--border-main);
-  background-color: var(--bg-panel);
+  border-bottom: 1px solid var(--border-subtle);
+  background-color: var(--surface-container);
   flex-shrink: 0;
-  background: var(--bg-panel);
+  background: var(--surface-container);
 }
 
 .wi-tab-btn {
@@ -724,7 +724,7 @@ html.light-mode .clipboard-item.editing {
   font-size: 0.75rem;
   font-weight: bold;
   text-align: center;
-  color: var(--text-dim);
+  color: var(--content-muted);
   border-bottom: 2px solid transparent;
   cursor: pointer;
   user-select: none;
@@ -735,16 +735,16 @@ html.light-mode .clipboard-item.editing {
 }
 
 .wi-tab-btn:hover {
-  background-color: var(--bg-hover);
-  color: var(--text-main);
+  background-color: var(--state-hover-surface);
+  color: var(--content-primary);
 }
 
 .wi-tab-btn.active {
-  border-bottom-color: var(--accent-main);
-  background-color: var(--bg-sub);
-  color: var(--accent-main);
+  border-bottom-color: var(--accent-action);
+  background-color: var(--surface-container-raised);
+  color: var(--accent-action);
   opacity: 1;
-  background: var(--bg-body);
+  background: var(--surface-page);
 }
 
 .wi-tab-btn.active::after {
@@ -755,9 +755,9 @@ html.light-mode .clipboard-item.editing {
   right: 0;
   width: 100%;
   height: 2px;
-  background-color: var(--accent-main);
-  background: var(--accent-main);
-  box-shadow: 0 -2px 6px var(--accent-main);
+  background-color: var(--accent-action);
+  background: var(--accent-action);
+  box-shadow: 0 -2px 6px var(--accent-action);
 }
 
 .wi-inspector-content {
@@ -767,14 +767,14 @@ html.light-mode .clipboard-item.editing {
 }
 
 .props-group {
-  background-color: var(--bg-panel);
-  background: var(--bg-panel);
-  border: 1px solid var(--border-light);
+  background-color: var(--surface-container);
+  background: var(--surface-container);
+  border: 1px solid var(--border-default);
   border-radius: 8px;
   margin-bottom: 1rem;
   overflow: hidden;
   box-shadow: none;
-  border-color: var(--border-light);
+  border-color: var(--border-default);
 }
 
 /* Let the shared select menu escape the rounded inspector group while open. */
@@ -792,21 +792,21 @@ html.light-mode .clipboard-item.editing {
 
 .props-header {
   padding: 0.5rem 0.75rem;
-  background-color: rgba(0, 0, 0, 0.05);
-  border-bottom: 1px solid var(--border-light);
+  background-color: color-mix(in srgb, var(--content-on-light) 5%, transparent);
+  border-bottom: 1px solid var(--border-default);
   font-size: 0.7rem;
   text-transform: uppercase;
-  color: var(--text-dim);
+  color: var(--content-muted);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: color-mix(in srgb, var(--bg-hover), transparent 35%);
+  background: color-mix(in srgb, var(--state-hover-surface), transparent 35%);
   font-weight: 700;
   letter-spacing: 0.05em;
 }
 
 html.dark-mode .props-header {
-  background-color: rgba(255, 255, 255, 0.03);
+  background-color: color-mix(in srgb, var(--content-on-dark) 3%, transparent);
 }
 
 .props-body {
@@ -827,35 +827,35 @@ html.dark-mode .props-header {
     background 0.15s ease,
     border-color 0.15s ease,
     transform 0.15s ease;
-  color: var(--text-dim);
+  color: var(--content-muted);
   cursor: pointer;
   border: 1px solid transparent;
   background: transparent;
 }
 
 .wi-action-btn:hover {
-  background: var(--bg-hover);
-  color: var(--text-main);
-  border-color: var(--border-light);
+  background: var(--state-hover-surface);
+  color: var(--content-primary);
+  border-color: var(--border-default);
   transform: translateY(-1px);
 }
 
 /* 详情页世界书导入/导出按钮按主题使用纯黑或纯白，提升图标对比度。 */
 .wi-worldbook-icon-scope .wi-detail-worldbook-transfer-btn {
-  color: #fff;
+  color: var(--content-on-dark);
   background: transparent;
 }
 
 html.light-mode .wi-worldbook-icon-scope .wi-detail-worldbook-transfer-btn {
-  color: #000;
+  color: var(--content-on-light);
 }
 
 .wi-worldbook-icon-scope .wi-detail-worldbook-transfer-btn:hover {
-  background: var(--bg-hover);
+  background: var(--state-hover-surface);
 }
 
 .wi-worldbook-icon-scope .wi-detail-worldbook-transfer-btn:focus-visible {
-  outline: 2px solid var(--accent-main);
+  outline: 2px solid var(--accent-action);
   outline-offset: 1px;
 }
 
@@ -887,7 +887,7 @@ html.light-mode .wi-worldbook-icon-scope .wi-detail-worldbook-transfer-btn {
 }
 
 .wi-worldbook-grid .card-local-note-btn.has-note {
-  filter: drop-shadow(0 0 4px rgba(250, 204, 21, 0.28));
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--status-warning-text) 28%, transparent));
 }
 
 .wi-worldbook-grid .card-local-note-btn .ui-icon,
@@ -897,11 +897,11 @@ html.light-mode .wi-worldbook-icon-scope .wi-detail-worldbook-transfer-btn {
 }
 
 .wi-editor-container .wi-action-btn--bright {
-  color: var(--text-sub);
+  color: var(--content-secondary);
 }
 
 .wi-editor-container .wi-action-btn--bright:hover {
-  color: var(--text-main);
+  color: var(--content-primary);
 }
 
 .wi-editor-container .wi-icon-only-action {
@@ -938,7 +938,7 @@ html.light-mode .wi-worldbook-icon-scope .wi-detail-worldbook-transfer-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--accent-main);
+  color: var(--accent-action);
   background: transparent !important;
   border: 0 !important;
   box-shadow: none !important;
@@ -962,7 +962,7 @@ html.light-mode .wi-worldbook-icon-scope .wi-detail-worldbook-transfer-btn {
 }
 
 .wi-reader-loading-icon {
-  color: var(--accent-light);
+  color: var(--accent-text);
 }
 
 .wi-reader-loading-icon .ui-icon {
@@ -980,19 +980,19 @@ html.light-mode .wi-worldbook-icon-scope .wi-detail-worldbook-transfer-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: var(--bg-sub);
-  border: 1px solid var(--border-light);
-  color: var(--text-dim);
+  background-color: var(--surface-container-raised);
+  border: 1px solid var(--border-default);
+  color: var(--content-muted);
   cursor: pointer;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 2px 5px color-mix(in srgb, var(--content-on-light) 20%, transparent);
   transition: all 0.2s;
   opacity: 0.5;
 }
 
 .wi-toggle-btn-float:hover {
   opacity: 1;
-  background-color: var(--bg-hover);
-  color: var(--accent-main);
+  background-color: var(--state-hover-surface);
+  color: var(--accent-action);
 }
 
 .wi-toggle-btn-float.left {
@@ -1015,42 +1015,42 @@ html.light-mode .wi-worldbook-icon-scope .wi-detail-worldbook-transfer-btn {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: rgba(var(--accent-main-rgb), 0.1);
+  background: rgba(var(--accent-action-rgb), 0.1);
   backdrop-filter: blur(2px);
-  border: 2px dashed var(--accent-main);
+  border: 2px dashed var(--accent-action);
 }
 
 .wi-inspector-panel input,
 .wi-inspector-panel select,
 .wi-inspector-panel textarea {
-  background: var(--bg-body);
-  border-color: var(--border-light);
+  background: var(--surface-page);
+  border-color: var(--border-default);
   transition: all 0.2s;
 }
 
 .wi-inspector-panel input:focus,
 .wi-inspector-panel select:focus,
 .wi-inspector-panel textarea:focus {
-  border-color: var(--accent-main);
-  background: var(--bg-panel);
-  box-shadow: 0 0 0 2px var(--accent-faint);
+  border-color: var(--accent-action);
+  background: var(--surface-container);
+  box-shadow: 0 0 0 2px var(--accent-soft-strong);
 }
 
 input[type="checkbox"] {
   appearance: none;
   width: 16px;
   height: 16px;
-  border: 2px solid var(--border-main);
+  border: 2px solid var(--border-subtle);
   border-radius: 4px;
-  background: var(--bg-body);
+  background: var(--surface-page);
   cursor: pointer;
   position: relative;
   transition: all 0.2s;
 }
 
 input[type="checkbox"]:checked {
-  background: var(--accent-main);
-  border-color: var(--accent-main);
+  background: var(--accent-action);
+  border-color: var(--accent-action);
 }
 
 input[type="checkbox"]:checked::after {
@@ -1058,7 +1058,7 @@ input[type="checkbox"]:checked::after {
   position: absolute;
   width: 0.35rem;
   height: 0.65rem;
-  border: solid var(--text-on-accent);
+  border: solid var(--content-on-accent);
   border-width: 0 2px 2px 0;
   top: 50%;
   left: 50%;
@@ -1075,13 +1075,13 @@ input[type="checkbox"]:checked::after {
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: var(--border-light);
+  background: var(--border-default);
   border-radius: 3px;
   transition: background 0.2s;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: var(--accent-main);
+  background: var(--accent-action);
 }
 
 .font-mono {
@@ -1089,8 +1089,8 @@ input[type="checkbox"]:checked::after {
 }
 
 .wi-inspect-card {
-  background: var(--bg-panel);
-  border: 1px solid var(--border-light);
+  background: var(--surface-container);
+  border: 1px solid var(--border-default);
   position: relative;
   overflow: hidden;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
@@ -1102,17 +1102,17 @@ input[type="checkbox"]:checked::after {
 }
 
 .wi-inspect-card:hover {
-  border-color: var(--accent-light);
+  border-color: var(--accent-text);
   transform: translateY(-3px);
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 8px 16px color-mix(in srgb, var(--content-on-light) 15%, transparent);
 }
 
 .wi-inspect-card.active {
-  border-color: var(--accent-main);
-  background-color: color-mix(in srgb, var(--accent-main), transparent 95%);
+  border-color: var(--accent-action);
+  background-color: color-mix(in srgb, var(--accent-action), transparent 95%);
   box-shadow:
-    0 0 0 2px var(--accent-main),
-    0 10px 20px rgba(var(--accent-main-rgb), 0.2);
+    0 0 0 2px var(--accent-action),
+    0 10px 20px rgba(var(--accent-action-rgb), 0.2);
   z-index: 5;
 }
 
@@ -1125,71 +1125,71 @@ input[type="checkbox"]:checked::after {
 }
 
 .wi-inspect-card[data-status="constant"] .wi-inspect-status-bar {
-  background: linear-gradient(to bottom, #3b82f6, rgba(59, 130, 246, 0));
+  background: linear-gradient(to bottom, var(--accent-action), transparent);
 }
 
 .wi-inspect-card.active[data-status="constant"] .wi-inspect-status-bar {
-  background: linear-gradient(to bottom, #60a5fa, rgba(96, 165, 250, 0.4));
-  box-shadow: 0 0 10px rgba(59, 130, 246, 0.6);
+  background: linear-gradient(to bottom, var(--accent-text), color-mix(in srgb, var(--accent-text) 40%, transparent));
+  box-shadow: 0 0 10px color-mix(in srgb, var(--accent-action) 60%, transparent);
 }
 
 .wi-inspect-card[data-status="vector"] .wi-inspect-status-bar {
-  background: linear-gradient(to bottom, #a855f7, rgba(168, 85, 247, 0));
+  background: linear-gradient(to bottom, var(--decoration-violet-solid), transparent);
 }
 
 .wi-inspect-card.active[data-status="vector"] .wi-inspect-status-bar {
-  background: linear-gradient(to bottom, #c084fc, rgba(192, 132, 252, 0.4));
-  box-shadow: 0 0 10px rgba(168, 85, 247, 0.6);
+  background: linear-gradient(to bottom, var(--decoration-violet), color-mix(in srgb, var(--decoration-violet) 40%, transparent));
+  box-shadow: 0 0 10px color-mix(in srgb, var(--decoration-violet-solid) 60%, transparent);
 }
 
 .wi-inspect-card[data-status="normal"] .wi-inspect-status-bar {
-  background: linear-gradient(to bottom, #22c55e, rgba(34, 197, 94, 0));
+  background: linear-gradient(to bottom, var(--status-success-solid), transparent);
 }
 
 .wi-inspect-card.active[data-status="normal"] .wi-inspect-status-bar {
-  background: linear-gradient(to bottom, #4ade80, rgba(74, 222, 128, 0.4));
-  box-shadow: 0 0 10px rgba(34, 197, 94, 0.6);
+  background: linear-gradient(to bottom, var(--status-success-text), color-mix(in srgb, var(--status-success-text) 40%, transparent));
+  box-shadow: 0 0 10px color-mix(in srgb, var(--status-success-solid) 60%, transparent);
 }
 
 .wi-inspect-card[data-status="disabled"] .wi-inspect-status-bar {
-  background: linear-gradient(to bottom, #6b7280, rgba(107, 114, 128, 0));
+  background: linear-gradient(to bottom, var(--content-muted), transparent);
 }
 
 .wi-inspect-card.active[data-status="disabled"] .wi-inspect-status-bar {
-  background: linear-gradient(to bottom, #9ca3af, rgba(156, 163, 175, 0.4));
-  box-shadow: 0 0 5px rgba(107, 114, 128, 0.5);
+  background: linear-gradient(to bottom, var(--content-muted), color-mix(in srgb, var(--content-muted) 40%, transparent));
+  box-shadow: 0 0 5px color-mix(in srgb, var(--content-muted) 50%, transparent);
 }
 
 .bg-dots-pattern {
-  background-image: radial-gradient(var(--border-light) 1px, transparent 1px);
+  background-image: radial-gradient(var(--border-default) 1px, transparent 1px);
   background-size: 16px 16px;
 }
 
 .wi-inspect-detail-panel {
-  box-shadow: -4px 0 15px rgba(0, 0, 0, 0.1);
+  box-shadow: -4px 0 15px color-mix(in srgb, var(--content-on-light) 10%, transparent);
 }
 
 input:focus {
-  box-shadow: 0 0 0 2px var(--accent-faint);
+  box-shadow: 0 0 0 2px var(--accent-soft-strong);
 }
 
 .wi-detail-sidebar {
-  background: var(--bg-sub);
-  border-right: 1px solid var(--border-main);
+  background: var(--surface-container-raised);
+  border-right: 1px solid var(--border-subtle);
 }
 
 .bg-\[var\(--bg-body\)\] {
-  background: linear-gradient(145deg, var(--bg-panel), var(--bg-body));
+  background: linear-gradient(145deg, var(--surface-container), var(--surface-page));
   box-shadow:
-    inset 1px 1px 3px rgba(0, 0, 0, 0.1),
-    inset -1px -1px 3px rgba(255, 255, 255, 0.03);
+    inset 1px 1px 3px color-mix(in srgb, var(--content-on-light) 10%, transparent),
+    inset -1px -1px 3px color-mix(in srgb, var(--content-on-dark) 3%, transparent);
 }
 
 .wi-detail-overlay {
-  background: rgba(var(--bg-panel-rgb), 0.95);
+  background: rgba(var(--surface-container-rgb), 0.95);
   backdrop-filter: blur(20px);
   border-left: 1px solid var(--glass-border);
-  box-shadow: -10px 0 30px rgba(0, 0, 0, 0.2);
+  box-shadow: -10px 0 30px color-mix(in srgb, var(--content-on-light) 20%, transparent);
 }
 
 .wi-action-btn,
@@ -1203,11 +1203,11 @@ input:focus {
 }
 
 .wi-reader-modal {
-  background: var(--bg-panel);
+  background: var(--surface-container);
 }
 
 .wi-reader-topbar {
-  background: color-mix(in srgb, var(--bg-sub), transparent 0%);
+  background: color-mix(in srgb, var(--surface-container-raised), transparent 0%);
   position: relative;
 }
 
@@ -1217,10 +1217,10 @@ input:focus {
   gap: 0.4rem;
   min-height: 34px;
   padding: 0.2rem 0.45rem 0.2rem 0.6rem;
-  border: 1px solid var(--border-light);
+  border: 1px solid var(--border-default);
   border-radius: 0.45rem;
-  background: var(--bg-sub);
-  color: var(--text-sub);
+  background: var(--surface-container-raised);
+  color: var(--content-secondary);
   white-space: nowrap;
 }
 
@@ -1230,7 +1230,7 @@ input:focus {
 }
 
 .wi-sort-label {
-  color: var(--text-dim);
+  color: var(--content-muted);
   font-size: 0.65rem;
   font-weight: 700;
 }
@@ -1239,11 +1239,11 @@ input:focus {
   min-width: 6.4rem;
   min-height: 1.6rem;
   padding: 0.2rem 0.35rem;
-  border: 1px solid var(--border-light);
+  border: 1px solid var(--border-default);
   border-radius: 0.3rem;
   outline: 0;
-  background-color: var(--bg-body);
-  color: var(--text-main);
+  background-color: var(--surface-page);
+  color: var(--content-primary);
   font-size: 0.72rem;
   cursor: pointer;
   transition:
@@ -1252,8 +1252,8 @@ input:focus {
 }
 
 .wi-sort-control select:hover {
-  border-color: var(--text-sub);
-  background-color: var(--bg-panel);
+  border-color: var(--content-secondary);
+  background-color: var(--surface-container);
 }
 
 .wi-sort-control .icon-select {
@@ -1264,23 +1264,23 @@ input:focus {
 .wi-sort-control .icon-select-trigger {
   min-height: 1.6rem;
   padding: 0.2rem 0.35rem;
-  background-color: var(--bg-body);
+  background-color: var(--surface-page);
   font-size: 0.72rem;
 }
 
 .wi-sort-control select:focus-visible {
-  border-color: var(--accent-main);
-  box-shadow: 0 0 0 2px var(--accent-faint);
+  border-color: var(--accent-action);
+  box-shadow: 0 0 0 2px var(--accent-soft-strong);
 }
 
 .wi-sort-control select option {
-  background-color: var(--bg-panel);
-  color: var(--text-main);
+  background-color: var(--surface-container);
+  color: var(--content-primary);
 }
 
 .wi-sort-control:focus-within {
-  border-color: var(--accent-main);
-  box-shadow: 0 0 0 2px var(--accent-faint);
+  border-color: var(--accent-action);
+  box-shadow: 0 0 0 2px var(--accent-soft-strong);
 }
 
 .wi-sort-mobile {
@@ -1303,10 +1303,10 @@ input:focus {
   max-height: min(70vh, 26rem);
   overflow-y: auto;
   padding: 0.35rem;
-  border: 1px solid var(--border-light);
+  border: 1px solid var(--border-default);
   border-radius: 0.5rem;
-  background: var(--bg-panel);
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.3);
+  background: var(--surface-container);
+  box-shadow: 0 12px 30px color-mix(in srgb, var(--content-on-light) 30%, transparent);
 }
 
 .wi-sort-menu-topbar {
@@ -1320,7 +1320,7 @@ input:focus {
   border: 1px solid transparent;
   border-radius: 0.35rem;
   background: transparent;
-  color: var(--text-sub);
+  color: var(--content-secondary);
   text-align: left;
   font-size: 0.75rem;
   cursor: pointer;
@@ -1329,21 +1329,21 @@ input:focus {
 .wi-sort-menu button:hover,
 .wi-sort-menu button:focus-visible,
 .wi-sort-menu button.active {
-  border-color: color-mix(in srgb, var(--accent-main), transparent 55%);
-  background: color-mix(in srgb, var(--accent-main), transparent 88%);
-  color: var(--text-main);
+  border-color: color-mix(in srgb, var(--accent-action), transparent 55%);
+  background: color-mix(in srgb, var(--accent-action), transparent 88%);
+  color: var(--content-primary);
   outline: none;
 }
 
 .wi-reader-main {
-  background: radial-gradient(circle at top, var(--bg-body), var(--bg-sub));
+  background: radial-gradient(circle at top, var(--surface-page), var(--surface-container-raised));
 }
 
 .wi-reader-entry {
   display: flex;
   gap: 0;
-  border: 1px solid var(--border-light);
-  background: var(--bg-panel);
+  border: 1px solid var(--border-default);
+  background: var(--surface-container);
   border-radius: 12px;
   overflow: hidden;
   transition:
@@ -1354,22 +1354,22 @@ input:focus {
 
 .wi-reader-entry:hover {
   transform: translateY(-2px);
-  border-color: var(--accent-light);
-  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.12);
+  border-color: var(--accent-text);
+  box-shadow: 0 10px 22px color-mix(in srgb, var(--content-on-light) 12%, transparent);
 }
 
 html.light-mode .wi-reader-entry:hover {
-  box-shadow: 0 10px 18px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 10px 18px color-mix(in srgb, var(--content-on-light) 8%, transparent);
 }
 
 .wi-reader-entry.active {
-  border-color: var(--accent-main);
+  border-color: var(--accent-action);
   box-shadow:
-    0 0 0 3px var(--accent-faint),
-    0 16px 32px rgba(var(--accent-main-rgb), 0.25);
+    0 0 0 3px var(--accent-soft-strong),
+    0 16px 32px rgba(var(--accent-action-rgb), 0.25);
   transform: translateY(-2px) scale(1.005);
   z-index: var(--z-floating);
-  background: color-mix(in srgb, var(--bg-panel), var(--accent-main) 3%);
+  background: color-mix(in srgb, var(--surface-container), var(--accent-action) 3%);
   animation: wiReaderEntryActive 0.3s ease-out;
 }
 
@@ -1377,23 +1377,23 @@ html.light-mode .wi-reader-entry:hover {
   width: 6px;
   flex-shrink: 0;
   opacity: 0.9;
-  background: linear-gradient(to bottom, var(--border-light), transparent);
+  background: linear-gradient(to bottom, var(--border-default), transparent);
 }
 
 .wi-reader-entry[data-status="constant"] .wi-reader-entry-status {
-  background: linear-gradient(to bottom, #3b82f6, rgba(59, 130, 246, 0));
+  background: linear-gradient(to bottom, var(--accent-action), transparent);
 }
 
 .wi-reader-entry[data-status="vector"] .wi-reader-entry-status {
-  background: linear-gradient(to bottom, #a855f7, rgba(168, 85, 247, 0));
+  background: linear-gradient(to bottom, var(--decoration-violet-solid), transparent);
 }
 
 .wi-reader-entry[data-status="normal"] .wi-reader-entry-status {
-  background: linear-gradient(to bottom, #22c55e, rgba(34, 197, 94, 0));
+  background: linear-gradient(to bottom, var(--status-success-solid), transparent);
 }
 
 .wi-reader-entry[data-status="disabled"] .wi-reader-entry-status {
-  background: linear-gradient(to bottom, #6b7280, rgba(107, 114, 128, 0));
+  background: linear-gradient(to bottom, var(--content-muted), transparent);
 }
 
 .wi-reader-entry-body {
@@ -1405,7 +1405,7 @@ html.light-mode .wi-reader-entry:hover {
 .wi-reader-keys {
   font-size: 12px;
   font-weight: 800;
-  color: color-mix(in srgb, var(--accent-main), #facc15 45%);
+  color: color-mix(in srgb, var(--accent-action), var(--status-warning-text) 45%);
   line-height: 1.3;
   word-break: break-word;
 }
@@ -1419,7 +1419,7 @@ html.light-mode .wi-reader-entry:hover {
   margin-top: 10px;
   font-size: 13px;
   line-height: 1.7;
-  color: var(--text-main);
+  color: var(--content-primary);
   opacity: 0.92;
   display: -webkit-box;
   -webkit-line-clamp: 6;
@@ -1430,13 +1430,13 @@ html.light-mode .wi-reader-entry:hover {
 .wi-reader-meta {
   margin-top: 10px;
   padding-top: 10px;
-  border-top: 1px dashed var(--border-light);
+  border-top: 1px dashed var(--border-default);
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   align-items: center;
   font-size: 11px;
-  color: var(--text-dim);
+  color: var(--content-muted);
 }
 
 .wi-meta-dot {
@@ -1447,9 +1447,9 @@ html.light-mode .wi-reader-entry:hover {
   font-size: 10px;
   padding: 2px 8px;
   border-radius: 999px;
-  border: 1px solid var(--border-light);
-  background: color-mix(in srgb, var(--bg-sub), transparent 0%);
-  color: var(--text-dim);
+  border: 1px solid var(--border-default);
+  background: color-mix(in srgb, var(--surface-container-raised), transparent 0%);
+  color: var(--content-muted);
   user-select: none;
   white-space: nowrap;
 }
@@ -1461,9 +1461,9 @@ html.light-mode .wi-reader-entry:hover {
 }
 
 .wi-pill.on {
-  border-color: color-mix(in srgb, var(--accent-main), transparent 60%);
-  color: var(--accent-main);
-  background: color-mix(in srgb, var(--accent-main), transparent 92%);
+  border-color: color-mix(in srgb, var(--accent-action), transparent 60%);
+  color: var(--accent-action);
+  background: color-mix(in srgb, var(--accent-action), transparent 92%);
 }
 
 .wi-pill.off {
@@ -1473,7 +1473,7 @@ html.light-mode .wi-reader-entry:hover {
 .wi-reader-detail {
   width: 340px;
   flex-shrink: 0;
-  background: rgba(var(--bg-panel-rgb), 0.95);
+  background: rgba(var(--surface-container-rgb), 0.95);
   backdrop-filter: blur(16px);
   border-left: 1px solid var(--glass-border);
   display: flex;
@@ -1490,23 +1490,23 @@ html.light-mode .wi-reader-entry:hover {
   font-size: 10px;
   padding: 6px 6px;
   border-radius: 8px;
-  border: 1px solid var(--border-light);
-  background: var(--bg-panel);
-  color: var(--text-dim);
+  border: 1px solid var(--border-default);
+  background: var(--surface-container);
+  color: var(--content-muted);
   transition: all 0.15s ease;
   user-select: none;
 }
 
 .wi-filter-chip:hover {
-  border-color: var(--accent-light);
-  background: var(--bg-hover);
-  color: var(--text-main);
+  border-color: var(--accent-text);
+  background: var(--state-hover-surface);
+  color: var(--content-primary);
 }
 
 .wi-filter-chip.active {
-  border-color: color-mix(in srgb, var(--accent-main), transparent 50%);
-  background: color-mix(in srgb, var(--accent-main), transparent 90%);
-  color: var(--accent-main);
+  border-color: color-mix(in srgb, var(--accent-action), transparent 50%);
+  background: color-mix(in srgb, var(--accent-action), transparent 90%);
+  color: var(--accent-action);
 }
 
 .wi-toc-item {
@@ -1517,24 +1517,24 @@ html.light-mode .wi-reader-entry:hover {
   border-radius: 10px;
   border: 1px solid transparent;
   background: transparent;
-  color: var(--text-main);
+  color: var(--content-primary);
   transition: all 0.15s ease;
 }
 
 .wi-toc-item:hover {
-  background: var(--bg-hover);
-  border-color: var(--border-light);
+  background: var(--state-hover-surface);
+  border-color: var(--border-default);
 }
 
 .wi-toc-item.active {
-  background: color-mix(in srgb, var(--accent-main), transparent 92%);
-  border-color: color-mix(in srgb, var(--accent-main), transparent 65%);
+  background: color-mix(in srgb, var(--accent-action), transparent 92%);
+  border-color: color-mix(in srgb, var(--accent-action), transparent 65%);
 }
 
 .wi-toc-order {
   margin-left: auto;
   font-size: 10px;
-  color: var(--text-dim);
+  color: var(--content-muted);
   opacity: 0.85;
 }
 
@@ -1543,46 +1543,46 @@ html.light-mode .wi-reader-entry:hover {
   height: 8px;
   border-radius: 999px;
   flex-shrink: 0;
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--bg-sub), transparent 0%);
-  background: var(--border-light);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--surface-container-raised), transparent 0%);
+  background: var(--border-default);
 }
 
 .wi-toc-dot[data-status="constant"] {
-  background: #3b82f6;
+  background: var(--accent-action);
 }
 
 .wi-toc-dot[data-status="vector"] {
-  background: #a855f7;
+  background: var(--decoration-violet-solid);
 }
 
 .wi-toc-dot[data-status="normal"] {
-  background: #22c55e;
+  background: var(--status-success-solid);
 }
 
 .wi-toc-dot[data-status="disabled"] {
-  background: #6b7280;
+  background: var(--content-muted);
 }
 
 html.light-mode .wi-reader-detail {
-  background: color-mix(in srgb, var(--bg-panel), transparent 0%);
+  background: color-mix(in srgb, var(--surface-container), transparent 0%);
   backdrop-filter: blur(12px);
 }
 
 html.light-mode .wi-reader-detail .bg-\[var\(--bg-body\)\] {
-  background: var(--bg-body) !important;
+  background: var(--surface-page) !important;
   box-shadow: none;
 }
 
 html.light-mode .wi-reader-detail .bg-\[var\(--bg-sub\)\] {
-  background: var(--bg-sub) !important;
+  background: var(--surface-container-raised) !important;
 }
 
 .wi-help-modal-content {
-  background: var(--bg-body);
+  background: var(--surface-page);
 }
 
 html.light-mode .wi-help-modal-content {
-  background: #f3f4f6 !important;
+  background: var(--surface-container-raised) !important;
 }
 
 .wi-reader-entry.toc-flash {
@@ -1590,21 +1590,21 @@ html.light-mode .wi-help-modal-content {
 }
 
 .wi-pill.const {
-  border-color: color-mix(in srgb, #3b82f6, transparent 55%);
-  color: color-mix(in srgb, #3b82f6, var(--text-main) 20%);
-  background: color-mix(in srgb, #3b82f6, transparent 92%);
+  border-color: color-mix(in srgb, var(--accent-action), transparent 55%);
+  color: color-mix(in srgb, var(--accent-action), var(--content-primary) 20%);
+  background: color-mix(in srgb, var(--accent-action), transparent 92%);
 }
 
 .wi-pill.vector {
-  border-color: color-mix(in srgb, #a855f7, transparent 55%);
-  color: color-mix(in srgb, #a855f7, var(--text-main) 20%);
-  background: color-mix(in srgb, #a855f7, transparent 92%);
+  border-color: color-mix(in srgb, var(--decoration-violet-solid), transparent 55%);
+  color: color-mix(in srgb, var(--decoration-violet-solid), var(--content-primary) 20%);
+  background: color-mix(in srgb, var(--decoration-violet-solid), transparent 92%);
 }
 
 .wi-pill.normal {
-  border-color: color-mix(in srgb, #22c55e, transparent 60%);
-  color: color-mix(in srgb, #22c55e, var(--text-main) 20%);
-  background: color-mix(in srgb, #22c55e, transparent 92%);
+  border-color: color-mix(in srgb, var(--status-success-solid), transparent 60%);
+  color: color-mix(in srgb, var(--status-success-solid), var(--content-primary) 20%);
+  background: color-mix(in srgb, var(--status-success-solid), transparent 92%);
 }
 
 .wi-grid-card {
@@ -1617,7 +1617,7 @@ html.light-mode .wi-help-modal-content {
 }
 
 .wi-grid-card.selected {
-  border-color: color-mix(in srgb, var(--accent-light), #ffffff 12%);
+  border-color: color-mix(in srgb, var(--accent-text), var(--content-on-dark) 12%);
 }
 
 .wi-grid-card.is-selection-disabled {
@@ -1626,7 +1626,7 @@ html.light-mode .wi-help-modal-content {
 
 .wi-grid-card:hover {
   transform: translateY(-3px);
-  border-color: var(--accent-light);
+  border-color: var(--accent-text);
 }
 
 .wi-grid-card:hover .card-select-overlay,
@@ -1667,13 +1667,13 @@ html.light-mode .wi-help-modal-content {
   gap: 0.64rem;
   background: linear-gradient(
     180deg,
-    color-mix(in srgb, var(--bg-panel), #ffffff 2%),
-    color-mix(in srgb, var(--bg-panel), #0f172a 4%)
+    color-mix(in srgb, var(--surface-container), var(--content-on-dark) 2%),
+    color-mix(in srgb, var(--surface-container), var(--surface-code) 4%)
   );
-  border: 1px solid color-mix(in srgb, var(--border-main), #c8a96b 16%);
+  border: 1px solid color-mix(in srgb, var(--border-subtle), var(--brand-preset) 16%);
   box-shadow:
-    inset 0 0 0 1px color-mix(in srgb, var(--border-light), transparent 50%),
-    0 16px 30px rgba(2, 6, 23, 0.18);
+    inset 0 0 0 1px color-mix(in srgb, var(--border-default), transparent 50%),
+    0 16px 30px color-mix(in srgb, var(--surface-page) 18%, transparent);
 }
 
 .wi-card-front::before {
@@ -1681,7 +1681,7 @@ html.light-mode .wi-help-modal-content {
   position: absolute;
   inset: var(--wi-card-page-frame-inset);
   border-radius: calc(0.75rem - 0.08rem);
-  border: 1px solid color-mix(in srgb, var(--border-light), #d6b36a 12%);
+  border: 1px solid color-mix(in srgb, var(--border-default), var(--brand-preset) 12%);
   pointer-events: none;
   opacity: 0.82;
 }
@@ -1692,10 +1692,10 @@ html.light-mode .wi-help-modal-content {
   inset: 0;
   pointer-events: none;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent 24%),
+    linear-gradient(180deg, color-mix(in srgb, var(--content-on-dark) 5%, transparent), transparent 24%),
     radial-gradient(
       circle at 18% 12%,
-      rgba(214, 179, 106, 0.1),
+      color-mix(in srgb, var(--brand-preset) 10%, transparent),
       transparent 22%
     );
   opacity: 0.9;
@@ -1704,14 +1704,14 @@ html.light-mode .wi-help-modal-content {
 .wi-card-back {
   background: linear-gradient(
     180deg,
-    color-mix(in srgb, var(--bg-panel), #ffffff 2%),
-    color-mix(in srgb, var(--bg-panel), #0f172a 6%)
+    color-mix(in srgb, var(--surface-container), var(--content-on-dark) 2%),
+    color-mix(in srgb, var(--surface-container), var(--surface-code) 6%)
   );
-  border: 1px solid color-mix(in srgb, var(--border-main), #d6b36a 14%);
+  border: 1px solid color-mix(in srgb, var(--border-subtle), var(--brand-preset) 14%);
   padding: 0;
   overflow: hidden;
   box-shadow: inset 0 0 0 1px
-    color-mix(in srgb, var(--border-light), transparent 52%);
+    color-mix(in srgb, var(--border-default), transparent 52%);
 }
 
 .wi-card-header {
@@ -1750,9 +1750,9 @@ html.light-mode .wi-help-modal-content {
 }
 
 .wi-grid-tool-btn {
-  background: color-mix(in srgb, var(--bg-panel), transparent 0%);
-  border: 1px solid var(--border-light);
-  color: var(--accent-main);
+  background: color-mix(in srgb, var(--surface-container), transparent 0%);
+  border: 1px solid var(--border-default);
+  color: var(--accent-action);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
 }
@@ -1764,8 +1764,8 @@ html.light-mode .wi-help-modal-content {
 }
 
 .wi-grid-tool-btn:hover {
-  border-color: var(--accent-light);
-  background: var(--bg-hover);
+  border-color: var(--accent-text);
+  background: var(--state-hover-surface);
   transform: scale(1.05);
 }
 
@@ -1797,8 +1797,8 @@ html.light-mode .wi-help-modal-content {
   border-radius: 999px;
   background: linear-gradient(
     180deg,
-    color-mix(in srgb, var(--accent-main), #d6b36a 58%),
-    color-mix(in srgb, var(--accent-main), transparent 68%)
+    color-mix(in srgb, var(--accent-action), var(--brand-preset) 58%),
+    color-mix(in srgb, var(--accent-action), transparent 68%)
   );
   opacity: 0.78;
 }
@@ -1810,13 +1810,13 @@ html.light-mode .wi-help-modal-content {
   border-radius: 0.58rem;
   background: linear-gradient(
     180deg,
-    color-mix(in srgb, var(--bg-sub), #d6b36a 14%),
-    color-mix(in srgb, var(--bg-sub), #0f172a 4%)
+    color-mix(in srgb, var(--surface-container-raised), var(--brand-preset) 14%),
+    color-mix(in srgb, var(--surface-container-raised), var(--surface-code) 4%)
   );
-  border: 1px solid color-mix(in srgb, var(--border-light), #d6b36a 26%);
+  border: 1px solid color-mix(in srgb, var(--border-default), var(--brand-preset) 26%);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    0 10px 22px rgba(2, 6, 23, 0.18);
+    inset 0 1px 0 color-mix(in srgb, var(--content-on-dark) 8%, transparent),
+    0 10px 22px color-mix(in srgb, var(--surface-page) 18%, transparent);
   position: relative;
 }
 
@@ -1828,7 +1828,7 @@ html.light-mode .wi-help-modal-content {
   bottom: 0.24rem;
   width: 0.18rem;
   border-radius: 999px;
-  background: color-mix(in srgb, #d6b36a, #ffffff 22%);
+  background: color-mix(in srgb, var(--brand-preset), var(--content-on-dark) 22%);
   opacity: 0.88;
 }
 
@@ -1840,8 +1840,8 @@ html.light-mode .wi-help-modal-content {
   width: 0.62rem;
   height: 0.88rem;
   border-radius: 0.14rem;
-  border: 1px solid color-mix(in srgb, var(--border-light), #d6b36a 28%);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), transparent);
+  border: 1px solid color-mix(in srgb, var(--border-default), var(--brand-preset) 28%);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--content-on-dark) 6%, transparent), transparent);
 }
 
 .wi-card-title-group {
@@ -1860,7 +1860,7 @@ html.light-mode .wi-help-modal-content {
 
 .wi-card-title {
   margin: 0;
-  color: var(--text-main);
+  color: var(--content-primary);
   font-size: 0.98rem;
   font-weight: 750;
   line-height: 1.18;
@@ -1892,13 +1892,13 @@ html.light-mode .wi-help-modal-content {
   border: 0;
   padding: 0;
   background: transparent;
-  color: color-mix(in srgb, var(--text-sub), #d6b36a 28%);
+  color: color-mix(in srgb, var(--content-secondary), var(--brand-preset) 28%);
   cursor: pointer;
   text-align: left;
 }
 
 .wi-card-owner-link:hover {
-  color: color-mix(in srgb, var(--text-main), #d6b36a 24%);
+  color: color-mix(in srgb, var(--content-primary), var(--brand-preset) 24%);
 }
 
 .wi-card-owner-icon {
@@ -1913,7 +1913,7 @@ html.light-mode .wi-help-modal-content {
   position: absolute;
   inset: 0.12rem;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--accent-main), #d6b36a 44%);
+  background: color-mix(in srgb, var(--accent-action), var(--brand-preset) 44%);
   opacity: 0.7;
 }
 
@@ -1925,7 +1925,7 @@ html.light-mode .wi-help-modal-content {
 }
 
 .wi-card-owner-empty {
-  color: var(--text-dim);
+  color: var(--content-muted);
 }
 
 .wi-card-tag-summary {
@@ -1936,13 +1936,13 @@ html.light-mode .wi-help-modal-content {
   max-width: 100%;
   padding: 0.18rem 0.58rem;
   border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--border-light), #d6b36a 20%);
+  border: 1px solid color-mix(in srgb, var(--border-default), var(--brand-preset) 20%);
   background: linear-gradient(
     180deg,
-    color-mix(in srgb, var(--bg-sub), #d6b36a 6%),
-    color-mix(in srgb, var(--bg-sub), transparent 4%)
+    color-mix(in srgb, var(--surface-container-raised), var(--brand-preset) 6%),
+    color-mix(in srgb, var(--surface-container-raised), transparent 4%)
   );
-  color: color-mix(in srgb, var(--text-dim), #d6b36a 28%);
+  color: color-mix(in srgb, var(--content-muted), var(--brand-preset) 28%);
   font-size: 0.68rem;
   line-height: 1;
   white-space: nowrap;
@@ -1957,8 +1957,8 @@ html.light-mode .wi-help-modal-content {
   height: 0.3rem;
   border-radius: 999px;
   flex: 0 0 auto;
-  background: color-mix(in srgb, #d6b36a, #ffffff 14%);
-  box-shadow: 0 0 0 2px color-mix(in srgb, #d6b36a, transparent 90%);
+  background: color-mix(in srgb, var(--brand-preset), var(--content-on-dark) 14%);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand-preset), transparent 90%);
 }
 
 .wi-card-tag-placeholder {
@@ -1969,13 +1969,13 @@ html.light-mode .wi-help-modal-content {
   max-width: 100%;
   padding: 0.14rem 0.5rem;
   border-radius: 999px;
-  border: 1px dashed color-mix(in srgb, var(--accent-main), transparent 62%);
+  border: 1px dashed color-mix(in srgb, var(--accent-action), transparent 62%);
   background: linear-gradient(
     180deg,
-    color-mix(in srgb, var(--bg-sub), transparent 0%),
-    color-mix(in srgb, var(--accent-main), transparent 88%)
+    color-mix(in srgb, var(--surface-container-raised), transparent 0%),
+    color-mix(in srgb, var(--accent-action), transparent 88%)
   );
-  color: color-mix(in srgb, var(--text-dim), var(--accent-light) 24%);
+  color: color-mix(in srgb, var(--content-muted), var(--accent-text) 24%);
   font-size: 0.68rem;
   line-height: 1;
   white-space: nowrap;
@@ -1990,8 +1990,8 @@ html.light-mode .wi-help-modal-content {
   height: 0.28rem;
   border-radius: 999px;
   flex: 0 0 auto;
-  background: color-mix(in srgb, var(--accent-main), #ffffff 16%);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-main), transparent 92%);
+  background: color-mix(in srgb, var(--accent-action), var(--content-on-dark) 16%);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-action), transparent 92%);
   opacity: 0.88;
 }
 
@@ -2000,20 +2000,20 @@ html.light-mode .wi-help-modal-content {
   min-height: 1.36rem;
   padding: 0.18rem 0.58rem;
   border-style: solid;
-  border-color: color-mix(in srgb, var(--border-light), #d6b36a 20%);
+  border-color: color-mix(in srgb, var(--border-default), var(--brand-preset) 20%);
   background: linear-gradient(
     180deg,
-    color-mix(in srgb, var(--bg-sub), #d6b36a 6%),
-    color-mix(in srgb, var(--bg-sub), transparent 4%)
+    color-mix(in srgb, var(--surface-container-raised), var(--brand-preset) 6%),
+    color-mix(in srgb, var(--surface-container-raised), transparent 4%)
   );
-  color: color-mix(in srgb, var(--text-dim), #d6b36a 28%);
+  color: color-mix(in srgb, var(--content-muted), var(--brand-preset) 28%);
 }
 
 .wi-card-tag-placeholder.wi-card-tag-summary::before {
   width: 0.3rem;
   height: 0.3rem;
-  background: color-mix(in srgb, #d6b36a, #ffffff 14%);
-  box-shadow: 0 0 0 2px color-mix(in srgb, #d6b36a, transparent 90%);
+  background: color-mix(in srgb, var(--brand-preset), var(--content-on-dark) 14%);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand-preset), transparent 90%);
   opacity: 1;
 }
 
@@ -2023,7 +2023,7 @@ html.light-mode .wi-help-modal-content {
   align-items: stretch;
   gap: 0.42rem;
   padding-top: 0.56rem;
-  border-top: 1px solid color-mix(in srgb, var(--border-light), #d6b36a 12%);
+  border-top: 1px solid color-mix(in srgb, var(--border-default), var(--brand-preset) 12%);
   position: relative;
   z-index: 1;
 }
@@ -2043,9 +2043,9 @@ html.light-mode .wi-help-modal-content {
   max-width: 100%;
   padding: 0.2rem 0.46rem;
   border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--border-light), #d6b36a 14%);
-  background: color-mix(in srgb, var(--bg-sub), #d6b36a 6%);
-  color: color-mix(in srgb, var(--text-sub), #d6b36a 18%);
+  border: 1px solid color-mix(in srgb, var(--border-default), var(--brand-preset) 14%);
+  background: color-mix(in srgb, var(--surface-container-raised), var(--brand-preset) 6%);
+  color: color-mix(in srgb, var(--content-secondary), var(--brand-preset) 18%);
   font-size: 0.64rem;
   line-height: 1;
 }
@@ -2064,7 +2064,7 @@ html.light-mode .wi-help-modal-content {
 
 .wi-card-date-chip {
   margin-left: auto;
-  color: var(--text-dim);
+  color: var(--content-muted);
   font-variant-numeric: tabular-nums;
 }
 
@@ -2094,11 +2094,11 @@ html.light-mode .wi-help-modal-content {
 }
 
 html.light-mode .wi-card-front {
-  background: linear-gradient(180deg, #fbf7ee, #f4edde 100%);
-  border-color: color-mix(in srgb, var(--border-main), #b89455 28%);
+  background: linear-gradient(180deg, var(--brand-preset-surface), var(--surface-container-sunken) 100%);
+  border-color: color-mix(in srgb, var(--border-subtle), var(--brand-preset-deep) 28%);
   box-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.55),
-    0 14px 28px rgba(15, 23, 42, 0.08);
+    inset 0 0 0 1px color-mix(in srgb, var(--content-on-dark) 55%, transparent),
+    0 14px 28px color-mix(in srgb, var(--content-on-light) 8%, transparent);
 }
 
 html.light-mode .wi-card-front::before {
@@ -2110,30 +2110,30 @@ html.light-mode .wi-card-front::after {
 }
 
 html.light-mode .wi-card-title-row::before {
-  background: linear-gradient(180deg, #b89455, rgba(184, 148, 85, 0.16));
+  background: linear-gradient(180deg, var(--brand-preset-deep), color-mix(in srgb, var(--brand-preset-deep) 16%, transparent));
 }
 
 html.light-mode .wi-card-tag-summary {
   background: linear-gradient(
     180deg,
-    rgba(255, 251, 245, 0.96),
-    rgba(243, 232, 212, 0.92)
+    color-mix(in srgb, var(--brand-preset-surface) 96%, transparent),
+    color-mix(in srgb, var(--brand-preset-surface) 92%, transparent)
   );
-  border-color: rgba(148, 116, 60, 0.18);
-  color: #6b5a41;
+  border-color: color-mix(in srgb, var(--brand-preset-deep) 18%, transparent);
+  color: var(--brand-preset-text);
 }
 
 html.light-mode .wi-card-meta-chip {
-  background: rgba(252, 247, 236, 0.92);
-  border-color: rgba(148, 116, 60, 0.16);
-  color: #5e4d37;
+  background: color-mix(in srgb, var(--brand-preset-surface) 92%, transparent);
+  border-color: color-mix(in srgb, var(--brand-preset-deep) 16%, transparent);
+  color: var(--brand-preset-text);
 }
 
 html.light-mode .wi-card-bookmark {
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.18),
-    0 8px 18px rgba(15, 23, 42, 0.08),
-    0 0 0 1px color-mix(in srgb, var(--accent-main), transparent 90%);
+    inset 0 1px 0 color-mix(in srgb, var(--content-on-dark) 18%, transparent),
+    0 8px 18px color-mix(in srgb, var(--content-on-light) 8%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--accent-action), transparent 90%);
 }
 
 .wi-card-back-meta {
@@ -2152,7 +2152,7 @@ html.light-mode .wi-card-bookmark {
   right: 0.82rem;
   font-size: 0.52rem;
   letter-spacing: 0.14em;
-  color: color-mix(in srgb, var(--text-dim), #d6b36a 28%);
+  color: color-mix(in srgb, var(--content-muted), var(--brand-preset) 28%);
 }
 
 .wi-card-back-meta-row {
@@ -2169,7 +2169,7 @@ html.light-mode .wi-card-bookmark {
   font-size: 0.6rem;
   line-height: 1;
   letter-spacing: 0.08em;
-  color: color-mix(in srgb, var(--text-dim), #d6b36a 22%);
+  color: color-mix(in srgb, var(--content-muted), var(--brand-preset) 22%);
   text-transform: uppercase;
 }
 
@@ -2192,7 +2192,7 @@ html.light-mode .wi-card-bookmark {
   position: absolute;
   inset: 0.1rem var(--wi-card-page-inset-x) var(--wi-card-page-inset-y);
   border-radius: 0.82rem;
-  border: 1px solid color-mix(in srgb, var(--border-light), #d6b36a 12%);
+  border: 1px solid color-mix(in srgb, var(--border-default), var(--brand-preset) 12%);
   pointer-events: none;
 }
 
@@ -2201,7 +2201,7 @@ html.light-mode .wi-card-bookmark {
   line-height: 1;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: color-mix(in srgb, var(--text-dim), #d6b36a 22%);
+  color: color-mix(in srgb, var(--content-muted), var(--brand-preset) 22%);
 }
 
 .wi-back-note {
@@ -2211,20 +2211,20 @@ html.light-mode .wi-card-bookmark {
   line-height: 1.46;
   padding: 0.68rem 0.7rem;
   border-radius: 0.72rem;
-  border: 1px solid color-mix(in srgb, var(--border-light), #d6b36a 10%);
-  background: color-mix(in srgb, var(--bg-sub), #d6b36a 4%);
+  border: 1px solid color-mix(in srgb, var(--border-default), var(--brand-preset) 10%);
+  background: color-mix(in srgb, var(--surface-container-raised), var(--brand-preset) 4%);
 }
 
 html.light-mode .wi-card-back {
-  background: linear-gradient(180deg, #faf4e8, #f3ead8 100%);
-  border-color: rgba(148, 116, 60, 0.18);
+  background: linear-gradient(180deg, var(--brand-preset-surface), var(--surface-container-sunken) 100%);
+  border-color: color-mix(in srgb, var(--brand-preset-deep) 18%, transparent);
   box-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.55),
-    0 14px 28px rgba(15, 23, 42, 0.06);
+    inset 0 0 0 1px color-mix(in srgb, var(--content-on-dark) 55%, transparent),
+    0 14px 28px color-mix(in srgb, var(--content-on-light) 6%, transparent);
 }
 
 .wi-li-preview {
-  color: var(--text-dim);
+  color: var(--content-muted);
 }
 
 .wi-center-pane input[type="text"] {
@@ -2238,7 +2238,7 @@ html.light-mode .wi-card-back {
     top: 56px;
     right: 0;
     bottom: 0;
-    box-shadow: -14px 0 30px rgba(0, 0, 0, 0.22);
+    box-shadow: -14px 0 30px color-mix(in srgb, var(--content-on-light) 22%, transparent);
   }
 }
 
@@ -2413,7 +2413,7 @@ html.light-mode .wi-card-back {
     width: 100vw !important;
     max-width: 100vw !important;
     z-index: var(--z-card-selected);
-    box-shadow: -4px 0 20px rgba(0, 0, 0, 0.3);
+    box-shadow: -4px 0 20px color-mix(in srgb, var(--content-on-light) 30%, transparent);
     transform: translateX(100%);
     transition: transform 0.3s ease;
     opacity: 1 !important;
@@ -2514,7 +2514,7 @@ html.light-mode .wi-card-back {
     width: 280px !important;
     max-width: 85vw !important;
     z-index: var(--z-card-selected);
-    box-shadow: 4px 0 20px rgba(0, 0, 0, 0.3);
+    box-shadow: 4px 0 20px color-mix(in srgb, var(--content-on-light) 30%, transparent);
     transform: translateX(-100%);
     transition: transform 0.3s ease;
     opacity: 1 !important;

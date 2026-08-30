@@ -3,11 +3,11 @@
   z-index: var(--z-marquee-selection);
   box-sizing: border-box;
   pointer-events: none;
-  border: 1px solid var(--accent-light);
+  border: 1px solid var(--accent-text);
   border-radius: 2px;
-  background: color-mix(in srgb, var(--accent-main), transparent 86%);
+  background: color-mix(in srgb, var(--accent-action), transparent 86%);
   box-shadow: inset 0 0 0 1px
-    color-mix(in srgb, var(--accent-light), transparent 72%);
+    color-mix(in srgb, var(--accent-text), transparent 72%);
 }
 
 .is-marquee-selecting,

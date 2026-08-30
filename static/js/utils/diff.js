@@ -53,14 +53,14 @@ export function generateSideBySideDiff(oldObj, newObj) {
 
     } catch (e) {
         console.error(e);
-        return { left: `<div class="p-4 text-red-500">Diff 生成失败: ${e.message}</div>`, right: '' };
+        return { left: `<div class="p-4 status-danger-text">Diff 生成失败: ${e.message}</div>`, right: '' };
     }
 }
 
 // 生成 HTML Diff 字符串 (单列模式)
 export function generateHtmlDiff(oldObj, newObj) {
     if (!window.Diff) {
-        return '<div class="p-4 text-red-400">错误：Diff 库未加载，请检查网络或刷新页面。</div>';
+        return '<div class="p-4 status-danger-text">错误：Diff 库未加载，请检查网络或刷新页面。</div>';
     }
 
     try {
@@ -86,6 +86,6 @@ export function generateHtmlDiff(oldObj, newObj) {
         return html;
     } catch (e) {
         console.error(e);
-        return `<div class="p-4 text-red-400">Diff 生成失败: ${e.message}</div>`;
+        return `<div class="p-4 status-danger-text">Diff 生成失败: ${e.message}</div>`;
     }
 }

@@ -182,10 +182,10 @@ def test_layout_css_defines_compact_desktop_search_mode_toggle_contract():
     assert 'background: transparent;' in button_css
     assert 'cursor: pointer;' in button_css
     assert 'border-radius:' in button_css
-    assert 'color: var(--text-dim);' in button_css
+    assert 'color: var(--content-muted);' in button_css
 
     assert 'background:' in active_button_css
-    assert 'color: var(--accent-main);' in active_button_css
+    assert 'color: var(--accent-action);' in active_button_css
 
 
 def test_card_grid_source_and_template_use_windowed_slice_contracts():

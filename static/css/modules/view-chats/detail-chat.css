@@ -31,14 +31,14 @@
 
 .detail-chat-dropzone:hover,
 .detail-chat-dropzone:focus-visible {
-  border-color: var(--accent-main);
-  background: color-mix(in srgb, var(--chat-surface-raised), var(--accent-main) 7%);
+  border-color: var(--accent-action);
+  background: color-mix(in srgb, var(--chat-surface-raised), var(--accent-action) 7%);
   outline: none;
 }
 
 .detail-chat-dropzone.is-drag-over {
-  border-color: var(--accent-main);
-  background: color-mix(in srgb, var(--chat-surface-raised), var(--accent-main) 14%);
+  border-color: var(--accent-action);
+  background: color-mix(in srgb, var(--chat-surface-raised), var(--accent-action) 14%);
   transform: translateY(-1px);
 }
 
@@ -65,7 +65,7 @@
 }
 
 .detail-chat-dropzone-title {
-  color: var(--text-main);
+  color: var(--content-primary);
   font-size: 0.84rem;
   font-weight: 800;
   line-height: 1.35;
@@ -73,13 +73,13 @@
 
 .detail-chat-dropzone-note {
   margin-top: 0.25rem;
-  color: var(--text-dim);
+  color: var(--content-muted);
   font-size: 0.7rem;
   line-height: 1.5;
 }
 
 .detail-chat-dropzone-note code {
-  color: var(--accent-main);
+  color: var(--accent-action);
   font-family: inherit;
   font-weight: 700;
 }
@@ -91,8 +91,8 @@
 }
 
 .detail-chat-card {
-  border: 1px solid var(--chat-border, var(--border-light));
-  background: var(--chat-surface, var(--bg-panel));
+  border: 1px solid var(--chat-border, var(--border-default));
+  background: var(--chat-surface, var(--surface-container));
   border-radius: var(--chat-radius-md);
   padding: var(--chat-space-8) var(--chat-space-12);
   display: flex;
@@ -104,7 +104,7 @@
 
 .detail-chat-card:hover {
   transform: none;
-  border-color: color-mix(in srgb, var(--accent-main), var(--chat-border) 55%);
+  border-color: color-mix(in srgb, var(--accent-action), var(--chat-border) 55%);
   background: var(--chat-surface-raised);
 }
 
@@ -130,18 +130,18 @@
 
 .detail-chat-pill {
   border-radius: var(--chat-radius-xs);
-  color: var(--text-main);
+  color: var(--content-primary);
   font-weight: 500;
   font-size: 0.68rem;
   padding: 0.12rem 0.4rem;
   border: none;
-  background: color-mix(in srgb, var(--bg-sub), transparent 20%);
+  background: color-mix(in srgb, var(--surface-container-raised), transparent 20%);
 }
 
 .detail-chat-empty,
 .detail-chat-loading {
-  border: 1px solid var(--chat-border, var(--border-light));
-  background: var(--chat-surface, var(--bg-sub));
+  border: 1px solid var(--chat-border, var(--border-default));
+  background: var(--chat-surface, var(--surface-container-raised));
   border-radius: var(--chat-radius-md);
   padding: 1.5rem var(--chat-space-16);
   text-align: center;

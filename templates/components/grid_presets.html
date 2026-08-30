@@ -9,7 +9,7 @@
 >
   <!-- 顶部工具条 -->
   <div
-    class="h-12 border-b border-[var(--border-light)] flex items-center justify-between px-4 bg-[var(--bg-panel)] flex-shrink-0"
+    class="h-12 border-b border-[var(--border-default)] flex items-center justify-between px-4 bg-[var(--surface-container)] flex-shrink-0"
   >
     <div class="flex items-center gap-4">
       <!-- 标题 -->
@@ -19,20 +19,20 @@
         >
         <span
           x-show="$store.global.deviceType !== 'mobile'"
-          class="font-bold text-[var(--text-main)]"
+          class="font-bold text-[var(--content-primary)]"
           >预设 Presets</span
         >
-        <span class="text-[var(--text-dim)]">/</span>
+        <span class="text-[var(--content-muted)]">/</span>
         <span class="text-xs opacity-60">AI 生成参数预设</span>
       </div>
     </div>
 
     <div class="flex items-center gap-2">
-      <span class="text-xs text-[var(--text-dim)] mr-2">
+      <span class="text-xs text-[var(--content-muted)] mr-2">
         共
         <span
           x-text="items.length"
-          class="text-[var(--text-main)] font-bold"
+          class="text-[var(--content-primary)] font-bold"
         ></span>
         个预设
       </span>
@@ -56,13 +56,13 @@
     <div
       x-show="dragOver"
       x-transition.opacity
-      class="absolute inset-0 z-50 bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center border-4 border-dashed border-[var(--accent-main)] m-4 rounded-xl"
+      class="absolute inset-0 z-50 color-surface-scrim backdrop-blur-sm flex flex-col items-center justify-center border-4 border-dashed border-[var(--accent-action)] m-4 rounded-xl"
     >
       <div class="preset-list-dropzone-icon mb-4" aria-hidden="true">
         {{ icon('file-import', 'ui-icon--xl') }}
       </div>
-      <div class="text-2xl font-bold text-white">松开上传预设</div>
-      <div class="text-gray-300 mt-2" x-text="presetUploadHintText"></div>
+      <div class="text-2xl font-bold color-text-on-dark">松开上传预设</div>
+      <div class="color-text-secondary mt-2" x-text="presetUploadHintText"></div>
     </div>
 
     <!-- 列表内容区 -->
@@ -85,7 +85,7 @@
 
       <div
         x-show="isLoading"
-        class="flex flex-col items-center justify-center h-64 text-[var(--text-dim)]"
+        class="flex flex-col items-center justify-center h-64 text-[var(--content-muted)]"
       >
         <div class="preset-list-loading-icon mb-2" aria-hidden="true">
           {{ icon('loader-circle', 'ui-icon--xl ui-icon--spin') }}
@@ -103,8 +103,8 @@
             @dragstart="dragStart($event, item)"
             draggable="true"
             :data-preset-id="item.id"
-            :class="selectedIds.includes(item.id) ? 'border-[var(--accent-main)] ring-2 ring-[var(--accent-main)]/40' : 'border-[var(--border-light)]'"
-            class="preset-grid-card group bg-[var(--bg-panel)] px-4 pb-4 pt-14 rounded-lg cursor-pointer hover:border-[var(--accent-main)] hover:shadow-lg transition-all relative overflow-hidden flex flex-col"
+            :class="selectedIds.includes(item.id) ? 'border-[var(--accent-action)] ring-2 ring-[var(--accent-action)]/40' : 'border-[var(--border-default)]'"
+            class="preset-grid-card group bg-[var(--surface-container)] px-4 pb-4 pt-14 rounded-lg cursor-pointer hover:border-[var(--accent-action)] hover:shadow-lg transition-all relative overflow-hidden flex flex-col"
           >
             <div
               class="preset-card-toolbar absolute inset-x-3 top-3 z-20 flex items-start justify-between gap-3"
@@ -156,8 +156,8 @@
 
             <!-- 来源角标 -->
             <div
-              class="preset-card-source-badge absolute right-3 top-3 px-2 py-1 text-[10px] font-bold text-white rounded-md shadow-sm"
-              :class="(item.source_type || item.type) === 'global' ? 'bg-blue-600' : 'bg-green-600'"
+              class="preset-card-source-badge absolute right-3 top-3 px-2 py-1 text-[10px] font-bold color-text-on-dark rounded-md shadow-sm"
+              :class="(item.source_type || item.type) === 'global' ? 'color-surface-accent-solid' : 'color-surface-success-solid'"
             >
               <span x-text="getPresetSourceHint(item)"></span>
             </div>
@@ -168,25 +168,25 @@
               </div>
               <div class="min-w-0 flex-1">
                 <div
-                  class="font-bold text-sm truncate text-[var(--text-main)] mb-1"
+                  class="font-bold text-sm truncate text-[var(--content-primary)] mb-1"
                   :title="item.name"
                   x-text="item.name"
                 ></div>
                 <div
-                  class="text-[10px] font-mono text-[var(--text-dim)] truncate opacity-70"
+                  class="text-[10px] font-mono text-[var(--content-muted)] truncate opacity-70"
                   :title="item.filename"
                   x-text="item.filename"
                 ></div>
                 <template x-if="item.entry_type === 'family'">
                   <div class="mt-2 flex flex-wrap gap-2">
                     <span
-                      class="px-2 py-0.5 text-[10px] bg-indigo-500/20 text-indigo-200 rounded"
+                      class="px-2 py-0.5 text-[10px] color-surface-violet color-text-violet rounded"
                     >
                       版本 <span x-text="item.version_count"></span>
                     </span>
                     <template x-if="item.default_version_label">
                       <span
-                        class="px-2 py-0.5 text-[10px] bg-sky-500/20 text-sky-200 rounded"
+                        class="px-2 py-0.5 text-[10px] color-surface-info color-text-info rounded"
                       >
                         默认 <span x-text="item.default_version_label"></span>
                       </span>
@@ -202,7 +202,7 @@
                 x-if="item.temperature !== null && item.temperature !== undefined"
               >
                 <span
-                  class="preset-card-stat-icon px-2 py-0.5 text-[10px] bg-orange-500/20 text-orange-300 rounded inline-flex items-center gap-1"
+                  class="preset-card-stat-icon px-2 py-0.5 text-[10px] color-surface-warning color-text-warning rounded inline-flex items-center gap-1"
                 >
                   {{ preset_icon('thermometer', 'ui-icon--sm') }}
                   <span x-text="item.temperature"></span>
@@ -210,7 +210,7 @@
               </template>
               <template x-if="item.max_tokens">
                 <span
-                  class="preset-card-stat-icon px-2 py-0.5 text-[10px] bg-blue-500/20 text-blue-300 rounded inline-flex items-center gap-1"
+                  class="preset-card-stat-icon px-2 py-0.5 text-[10px] color-surface-accent color-text-accent rounded inline-flex items-center gap-1"
                 >
                   {{ preset_icon('token-count', 'ui-icon--sm') }}
                   <span x-text="item.max_tokens"></span>
@@ -218,7 +218,7 @@
               </template>
               <template x-if="item.prompt_count > 0">
                 <span
-                  class="preset-card-stat-icon px-2 py-0.5 text-[10px] bg-purple-500/20 text-purple-300 rounded inline-flex items-center gap-1"
+                  class="preset-card-stat-icon px-2 py-0.5 text-[10px] color-surface-violet color-text-violet rounded inline-flex items-center gap-1"
                 >
                   {{ preset_icon('prompt-count', 'ui-icon--sm') }}
                   <span x-text="item.prompt_count"></span> prompts
@@ -226,7 +226,7 @@
               </template>
               <template x-if="item.regex_count > 0">
                 <span
-                  class="preset-card-stat-icon px-2 py-0.5 text-[10px] bg-green-500/20 text-green-300 rounded inline-flex items-center gap-1"
+                  class="preset-card-stat-icon px-2 py-0.5 text-[10px] color-surface-success color-text-success rounded inline-flex items-center gap-1"
                 >
                   {{ detail_icon('regex', 'ui-icon--sm') }}
                   <span x-text="item.regex_count"></span> regex
@@ -237,12 +237,12 @@
             <!-- 描述 -->
             <div
               x-show="item.description"
-              class="text-xs text-[var(--text-dim)] line-clamp-2 mb-3"
+              class="text-xs text-[var(--content-muted)] line-clamp-2 mb-3"
               x-text="item.description"
             ></div>
 
             <div
-              class="mt-auto pt-2 border-t border-[var(--border-light)] flex justify-between items-center"
+              class="mt-auto pt-2 border-t border-[var(--border-default)] flex justify-between items-center"
             >
               <!-- 资源归属提示 -->
               <div class="min-w-0 flex-1 mr-2">
@@ -253,7 +253,7 @@
                   @keydown.space.stop.prevent="locatePresetOwnerCard(item)"
                   role="button"
                   tabindex="0"
-                  class="text-[10px] text-green-400 hover:text-green-300 flex items-center gap-1 truncate cursor-pointer"
+                  class="text-[10px] color-text-success color-hover-text-success flex items-center gap-1 truncate cursor-pointer"
                   :title="`所属角色卡：${getPresetOwnerName(item)}`"
                 >
                   <span class="preset-card-owner-icon" aria-hidden="true">
@@ -263,7 +263,7 @@
                 </div>
                 <div
                   x-show="!getPresetOwnerName(item)"
-                  class="text-[10px] text-blue-400 opacity-60"
+                  class="text-[10px] color-text-accent opacity-60"
                 >
                   Global Library
                 </div>
@@ -292,7 +292,7 @@
               </button>
 
               <span
-                class="text-[10px] text-[var(--text-dim)] whitespace-nowrap"
+                class="text-[10px] text-[var(--content-muted)] whitespace-nowrap"
                 x-text="formatDate(item.mtime)"
               ></span>
             </div>
@@ -302,7 +302,7 @@
 
       <div
         x-show="!isLoading && items.length === 0"
-        class="flex flex-col items-center justify-center h-64 text-[var(--text-dim)] opacity-60"
+        class="flex flex-col items-center justify-center h-64 text-[var(--content-muted)] opacity-60"
       >
         <div class="preset-list-empty-icon mb-2" aria-hidden="true">
           {{ preset_icon('empty-state', 'ui-icon--xl') }}

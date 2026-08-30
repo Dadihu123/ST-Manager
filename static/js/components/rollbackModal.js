@@ -494,16 +494,16 @@ export default function rollbackModal() {
 
     _lineClassByType(type, side) {
       if (type === "changed")
-        return "bg-yellow-500/20 border border-yellow-500/40";
+        return "color-status-warning";
       if (type === "added" && side === "right")
-        return "bg-green-500/20 border border-green-500/40";
+        return "color-status-success";
       if (type === "removed" && side === "left")
-        return "bg-red-500/20 border border-red-500/40";
+        return "color-status-danger";
       if (type === "added" && side === "left")
-        return "bg-green-500/10 border border-green-500/30";
+        return "color-status-success";
       if (type === "removed" && side === "right")
-        return "bg-red-500/10 border border-red-500/30";
-      return "bg-black/10 border border-transparent";
+        return "color-status-danger";
+      return "color-surface-container";
     },
 
     _renderLineDiffHtml(leftText, rightText, side) {
@@ -531,12 +531,12 @@ export default function rollbackModal() {
         const lineText = text === null ? "∅" : this._escapeHtml(text);
         const lineTextClass =
           text === null
-            ? "text-[var(--text-dim)] italic"
-            : "text-[var(--text-main)]";
+            ? "text-[var(--content-muted)] italic"
+            : "text-[var(--content-primary)]";
 
         html += `
                     <div class="px-2 py-0.5 rounded ${cls}">
-                        <span class="inline-block w-8 mr-2 text-[10px] text-[var(--text-dim)] text-right select-none">${lineNo || " "}</span>
+                        <span class="inline-block w-8 mr-2 text-[10px] text-[var(--content-muted)] text-right select-none">${lineNo || " "}</span>
                         <span class="text-[11px] whitespace-pre-wrap break-words ${lineTextClass}">${lineText || " "}</span>
                     </div>
                 `;
@@ -550,23 +550,23 @@ export default function rollbackModal() {
 
       // 整条新增：右侧字段全部绿底
       if (meta.status === "added" && isRight) {
-        return "bg-green-500/20 border border-green-500/40";
+        return "color-status-success";
       }
       // 整条删除：左侧字段全部红底
       if (meta.status === "removed" && isLeft) {
-        return "bg-red-500/20 border border-red-500/40";
+        return "color-status-danger";
       }
       // 双侧都存在时，仅变化字段黄底
       if (meta.status === "changed" && fieldChanged) {
-        return "bg-yellow-500/20 border border-yellow-500/40";
+        return "color-status-warning";
       }
-      return "bg-black/10 border border-transparent";
+      return "color-surface-container";
     },
 
     _renderLorebookEntry(entry, oppositeEntry, meta, side, orderNo) {
       if (!entry) {
         return `
-                    <div class="m-2 p-3 rounded border border-dashed border-[var(--border-light)] text-[11px] text-[var(--text-dim)] opacity-70">
+                    <div class="m-2 p-3 rounded border border-dashed border-[var(--border-default)] text-[11px] text-[var(--content-muted)] opacity-70">
                         <div>（此侧无对应条目）</div>
                     </div>
                 `;
@@ -575,10 +575,10 @@ export default function rollbackModal() {
       const isLeft = side === "left";
       const markClass =
         isLeft && (meta.status === "removed" || meta.status === "changed")
-          ? "text-red-300"
+          ? "status-danger-text"
           : !isLeft && (meta.status === "added" || meta.status === "changed")
-            ? "text-green-300"
-            : "text-[var(--text-main)]";
+            ? "status-success-text"
+            : "text-[var(--content-primary)]";
       const comment = this._escapeHtml(entry.title);
       const keys = this._escapeHtml(entry.keys.join(", ") || "(空)");
       const sec = this._escapeHtml(entry.secondaryKeys.join(", ") || "(空)");
@@ -586,11 +586,11 @@ export default function rollbackModal() {
 
       const commentCls = meta.changed.comment
         ? markClass
-        : "text-[var(--text-main)]";
-      const keyCls = meta.changed.keys ? markClass : "text-[var(--text-main)]";
+        : "text-[var(--content-primary)]";
+      const keyCls = meta.changed.keys ? markClass : "text-[var(--content-primary)]";
       const contentCls = meta.changed.content
         ? markClass
-        : "text-[var(--text-main)]";
+        : "text-[var(--content-primary)]";
 
       const commentBgCls = this._fieldDiffClass(
         meta,
@@ -609,8 +609,8 @@ export default function rollbackModal() {
       );
 
       return `
-                <div class="m-2 p-3 rounded border bg-[var(--bg-sub)] border-[var(--border-light)]">
-                    <div class="text-[10px] uppercase tracking-wide text-[var(--text-dim)]">Entry ${orderNo} · Source #${idx}</div>
+                <div class="m-2 p-3 rounded border bg-[var(--surface-container-raised)] border-[var(--border-default)]">
+                    <div class="text-[10px] uppercase tracking-wide text-[var(--content-muted)]">Entry ${orderNo} · Source #${idx}</div>
                     <div class="mt-1 p-1.5 rounded ${commentBgCls}">
                         <div class="text-sm font-bold ${commentCls}">${comment}</div>
                     </div>
@@ -618,9 +618,9 @@ export default function rollbackModal() {
                         <div class="text-[11px] ${keyCls}">关键词: ${keys}</div>
                         <div class="mt-1 text-[11px] ${keyCls}">次级词: ${sec}</div>
                     </div>
-                    <div class="mt-2 p-1.5 rounded bg-black/5 border border-[var(--border-light)]">
-                        <div class="text-[11px] text-[var(--text-dim)]">内容预览</div>
-                        <div class="mt-1 p-2 rounded bg-black/10 max-h-56 overflow-auto">${lineDiffHtml}</div>
+                    <div class="mt-2 p-1.5 rounded color-surface-sunken border border-[var(--border-default)]">
+                        <div class="text-[11px] text-[var(--content-muted)]">内容预览</div>
+                        <div class="mt-1 p-2 rounded color-surface-container max-h-56 overflow-auto">${lineDiffHtml}</div>
                         <div class="mt-1 text-[10px] ${contentCls}">行级高亮：绿=新增，黄=修改，红=删除</div>
                     </div>
                 </div>
@@ -646,13 +646,13 @@ export default function rollbackModal() {
       });
 
       const summary = `
-                <div class="sticky top-0 z-10 px-3 py-2 border-b border-[var(--border-light)] bg-[var(--bg-panel)] text-[11px]">
-                    <span class="text-green-400 mr-3">新增 ${counts.added}</span>
-                    <span class="text-red-400 mr-3">删除 ${counts.removed}</span>
-                    <span class="text-orange-400 mr-3">修改 ${counts.changed}</span>
-                    <span class="text-[var(--text-dim)]">未变化 ${counts.same}</span>
-                    <span class="ml-3 text-[var(--text-dim)]">行级底色: <span class="text-green-400">绿=新增</span> / <span class="text-yellow-300">黄=修改</span> / <span class="text-red-400">红=删除</span></span>
-                    ${hiddenCount > 0 ? `<span class="ml-3 text-[var(--text-dim)]">（已隐藏 ${hiddenCount} 条未变化）</span>` : ""}
+                <div class="sticky top-0 z-10 px-3 py-2 border-b border-[var(--border-default)] bg-[var(--surface-container)] text-[11px]">
+                    <span class="status-success-text mr-3">新增 ${counts.added}</span>
+                    <span class="status-danger-text mr-3">删除 ${counts.removed}</span>
+                    <span class="status-warning-text mr-3">修改 ${counts.changed}</span>
+                    <span class="text-[var(--content-muted)]">未变化 ${counts.same}</span>
+                    <span class="ml-3 text-[var(--content-muted)]">行级底色: <span class="status-success-text">绿=新增</span> / <span class="status-warning-text">黄=修改</span> / <span class="status-danger-text">红=删除</span></span>
+                    ${hiddenCount > 0 ? `<span class="ml-3 text-[var(--content-muted)]">（已隐藏 ${hiddenCount} 条未变化）</span>` : ""}
                 </div>
             `;
 
@@ -677,9 +677,9 @@ export default function rollbackModal() {
 
       if (displayList.length === 0) {
         leftHtml +=
-          '<div class="p-6 text-center text-[var(--text-dim)] text-xs">无可展示条目</div>';
+          '<div class="p-6 text-center text-[var(--content-muted)] text-xs">无可展示条目</div>';
         rightHtml +=
-          '<div class="p-6 text-center text-[var(--text-dim)] text-xs">无可展示条目</div>';
+          '<div class="p-6 text-center text-[var(--content-muted)] text-xs">无可展示条目</div>';
       }
 
       return { left: leftHtml, right: rightHtml };
@@ -850,7 +850,7 @@ export default function rollbackModal() {
 
       if (!leftVer || !rightVer) {
         this.diffData = {
-          left: '<div class="p-8 text-center text-gray-500">请在左侧列表选择版本进行比对</div>',
+          left: '<div class="p-8 text-center color-text-muted">请在左侧列表选择版本进行比对</div>',
           right: "",
         };
         return;
@@ -894,7 +894,7 @@ export default function rollbackModal() {
         this.diffData.right = result.right;
       } catch (e) {
         console.error(e);
-        this.diffData.left = `<div class="p-4 text-red-500">Error: ${e.message}</div>`;
+        this.diffData.left = `<div class="p-4 status-danger-text">Error: ${e.message}</div>`;
         this.diffData.right = "";
       } finally {
         this.isDiffLoading = false;

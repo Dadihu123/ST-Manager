@@ -2,29 +2,29 @@
 {% from "components/icon.html" import icon, detail_icon, preset_icon %}
 <div x-show="['regex', 'scripts', 'quick_replies'].includes($store.global.currentMode)" x-cloak
     style="display: none;" x-data="extensionGrid"
-    class="flex-1 flex flex-col overflow-hidden w-full relative h-full bg-[var(--bg-body)]">
+    class="flex-1 flex flex-col overflow-hidden w-full relative h-full bg-[var(--surface-page)]">
 
     <!-- 顶部工具条 -->
     <div
-        class="h-12 border-b border-[var(--border-light)] flex items-center justify-between px-4 bg-[var(--bg-panel)] flex-shrink-0">
+        class="h-12 border-b border-[var(--border-default)] flex items-center justify-between px-4 bg-[var(--surface-container)] flex-shrink-0">
         <div class="flex items-center gap-4">
             <!-- 标题显示当前筛选状态 -->
             <div class="flex items-center gap-2 text-sm">
-                <span x-show="currentMode === 'regex'" class="text-blue-400" aria-hidden="true">
+                <span x-show="currentMode === 'regex'" class="color-text-accent" aria-hidden="true">
                     {{ detail_icon('regex', 'ui-icon--md ') }}
                 </span>
-                <span x-show="currentMode === 'scripts'" class="text-purple-400" aria-hidden="true">
+                <span x-show="currentMode === 'scripts'" class="color-text-violet" aria-hidden="true">
                     {{ detail_icon('script-file', 'ui-icon--md ') }}
                 </span>
-                <span x-show="currentMode === 'quick_replies'" class="text-yellow-500" aria-hidden="true">
+                <span x-show="currentMode === 'quick_replies'" class="color-text-warning" aria-hidden="true">
                     {{ detail_icon('quick-reply', 'ui-icon--md ') }}
                 </span>
-                <span x-show="$store.global.deviceType !== 'mobile'" class="font-bold text-[var(--text-main)]" x-text="{
+                <span x-show="$store.global.deviceType !== 'mobile'" class="font-bold text-[var(--content-primary)]" x-text="{
                         'regex': 'Regex Scripts',
                         'scripts': 'ST Scripts',
                         'quick_replies': 'Quick Replies'
                     }[currentMode]"></span>
-                <span class="text-[var(--text-dim)]">/</span>
+                <span class="text-[var(--content-muted)]">/</span>
                 <span class="text-xs opacity-60" x-text="{
                         'regex': 'extensions/regex',
                         'scripts': 'extensions/tavern_helper',
@@ -34,8 +34,8 @@
         </div>
 
         <div class="flex items-center gap-2">
-            <span class="text-xs text-[var(--text-dim)] mr-2">
-                共 <span x-text="items.length" class="text-[var(--text-main)] font-bold"></span> 个文件
+            <span class="text-xs text-[var(--content-muted)] mr-2">
+                共 <span x-text="items.length" class="text-[var(--content-primary)] font-bold"></span> 个文件
             </span>
             <button @click="fetchItems()" class="btn-secondary px-3 py-1 text-xs flex items-center gap-1">
                 <span aria-hidden="true">{{ icon('refresh', 'ui-icon--sm ') }}</span> 刷新
@@ -48,17 +48,17 @@
         @dragleave.prevent="dragOver = false" @drop.prevent="handleDrop($event)">
 
         <div x-show="dragOver" x-transition.opacity
-            class="absolute inset-0 z-50 bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center border-4 border-dashed border-[var(--accent-main)] m-4 rounded-xl">
+            class="absolute inset-0 z-50 color-surface-scrim backdrop-blur-sm flex flex-col items-center justify-center border-4 border-dashed border-[var(--accent-action)] m-4 rounded-xl">
             <div class="mb-4" aria-hidden="true">
                 {{ icon('file-import', 'ui-icon--xl ') }}
             </div>
-            <div class="text-2xl font-bold text-white">松开上传脚本</div>
-            <div class="text-gray-300 mt-2">将存入全局配置目录</div>
+            <div class="text-2xl font-bold color-text-on-dark">松开上传脚本</div>
+            <div class="color-text-secondary mt-2">将存入全局配置目录</div>
         </div>
 
         <!-- 列表内容区 -->
         <div class="flex-1 overflow-y-auto custom-scrollbar p-4">
-            <div x-show="isLoading" class="flex flex-col items-center justify-center h-64 text-[var(--text-dim)]">
+            <div x-show="isLoading" class="flex flex-col items-center justify-center h-64 text-[var(--content-muted)]">
                 <div class="mb-2" aria-hidden="true">
                     {{ icon('loader-circle', 'ui-icon--xl ui-icon--spin ') }}
                 </div>
@@ -68,49 +68,49 @@
             <div x-show="!isLoading" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 <template x-for="item in items" :key="item.id">
                     <div @click="openItem(item)"
-                        class="group border border-[var(--border-light)] bg-[var(--bg-panel)] p-3 rounded-lg cursor-pointer hover:border-[var(--accent-main)] hover:shadow-lg transition-all relative overflow-hidden flex flex-col">
+                        class="group border border-[var(--border-default)] bg-[var(--surface-container)] p-3 rounded-lg cursor-pointer hover:border-[var(--accent-action)] hover:shadow-lg transition-all relative overflow-hidden flex flex-col">
 
                         <!-- 来源角标 -->
-                        <div class="absolute top-0 right-0 px-2 py-1 text-[10px] font-bold text-white rounded-bl-lg shadow-sm"
-                            :class="item.type === 'global' ? 'bg-blue-600' : 'bg-green-600'">
+                        <div class="absolute top-0 right-0 px-2 py-1 text-[10px] font-bold color-text-on-dark rounded-bl-lg shadow-sm"
+                            :class="item.type === 'global' ? 'color-surface-accent-solid' : 'color-surface-success-solid'">
                             <span x-text="item.type === 'global' ? 'GLOBAL' : 'RES'"></span>
                         </div>
 
                         <div class="flex items-start gap-3 mb-2">
                             <div class="extension-list-entry-icon pt-1 opacity-80 select-none" aria-hidden="true">
-                                <span x-cloak x-show="currentMode === 'regex'" class="text-blue-400">
+                                <span x-cloak x-show="currentMode === 'regex'" class="color-text-accent">
                                     {{ detail_icon('regex', 'ui-icon--lg') }}
                                 </span>
-                                <span x-cloak x-show="currentMode === 'scripts'" class="text-purple-400">
+                                <span x-cloak x-show="currentMode === 'scripts'" class="color-text-violet">
                                     {{ detail_icon('script-file', 'ui-icon--lg') }}
                                 </span>
-                                <span x-cloak x-show="currentMode === 'quick_replies'" class="text-yellow-500">
+                                <span x-cloak x-show="currentMode === 'quick_replies'" class="color-text-warning">
                                     {{ detail_icon('quick-reply', 'ui-icon--lg') }}
                                 </span>
                             </div>
                             <div class="min-w-0 flex-1">
-                                <div class="font-bold text-sm truncate text-[var(--text-main)] mb-1" :title="item.name"
+                                <div class="font-bold text-sm truncate text-[var(--content-primary)] mb-1" :title="item.name"
                                     x-text="item.name"></div>
-                                <div class="text-[10px] font-mono text-[var(--text-dim)] truncate opacity-70"
+                                <div class="text-[10px] font-mono text-[var(--content-muted)] truncate opacity-70"
                                     :title="item.filename" x-text="item.filename"></div>
                             </div>
                         </div>
 
                         <div
-                            class="mt-auto pt-2 border-t border-[var(--border-light)] flex justify-between items-center">
+                            class="mt-auto pt-2 border-t border-[var(--border-default)] flex justify-between items-center">
                             <!-- 资源归属提示 -->
                             <div class="min-w-0 flex-1 mr-2">
                                 <div x-show="item.source_folder"
-                                    class="text-[10px] text-green-400 flex items-center gap-1 truncate"
+                                    class="text-[10px] color-text-success flex items-center gap-1 truncate"
                                     :title="item.source_folder">
                                     <span aria-hidden="true">{{ preset_icon('owner', 'ui-icon--sm ') }}</span>
                                     <span x-text="item.source_folder"></span>
                                 </div>
-                                <div x-show="!item.source_folder" class="text-[10px] text-blue-400 opacity-60">Global
+                                <div x-show="!item.source_folder" class="text-[10px] color-text-accent opacity-60">Global
                                     Library</div>
                             </div>
 
-                            <span class="text-[10px] text-[var(--text-dim)] whitespace-nowrap"
+                            <span class="text-[10px] text-[var(--content-muted)] whitespace-nowrap"
                                 x-text="formatDate(item.mtime)"></span>
                         </div>
                     </div>
@@ -118,7 +118,7 @@
             </div>
 
             <div x-show="!isLoading && items.length === 0"
-                class="flex flex-col items-center justify-center h-64 text-[var(--text-dim)] opacity-60">
+                class="flex flex-col items-center justify-center h-64 text-[var(--content-muted)] opacity-60">
                 <div class="mb-2" aria-hidden="true">
                     {{ preset_icon('empty-state', 'ui-icon--xl ') }}
                 </div>

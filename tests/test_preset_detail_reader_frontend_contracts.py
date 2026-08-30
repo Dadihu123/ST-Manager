@@ -528,7 +528,7 @@ def test_preset_detail_reader_template_mobile_more_menu_is_list_page_only_and_ha
 def test_preset_detail_reader_template_hides_central_list_on_mobile_detail_page():
     source = read_project_file('templates/modals/detail_preset_popup.html')
 
-    assert 'class="flex-1 min-w-0 flex flex-col border-r border-[var(--border-light)] md:border-r-0 lg:border-r lg:border-[var(--border-light)]"' in source
+    assert 'class="flex-1 min-w-0 flex flex-col border-r border-[var(--border-default)] md:border-r-0 lg:border-r lg:border-[var(--border-default)]"' in source
     assert "'hidden': $store.global.deviceType === 'mobile' && showMobileDetailView" in source
 
 
@@ -646,7 +646,7 @@ def test_preset_detail_reader_template_promotes_mobile_list_overlay_and_modal_to
 
     assert "class=\"modal-overlay preset-reader-overlay z-modal-std flex\"" in source
     assert ":class=\"$store.global.deviceType === 'mobile' ? 'items-stretch justify-stretch p-0' : 'items-center justify-center p-4'\"" in source
-    assert "class=\"preset-reader-modal bg-[var(--bg-panel)] border border-[var(--border-light)] flex flex-col overflow-hidden\"" in source
+    assert "class=\"preset-reader-modal bg-[var(--surface-container)] border border-[var(--border-default)] flex flex-col overflow-hidden\"" in source
     assert ":class=\"$store.global.deviceType === 'mobile' ? 'w-screen max-w-none h-[100dvh] min-h-[100dvh] rounded-none shadow-none' : 'w-full max-w-7xl h-[90vh] rounded-2xl shadow-2xl'\"" in source
 
 
@@ -2657,7 +2657,7 @@ def test_preset_detail_reader_template_renders_marker_icons_switches_and_inner_s
     assert 'class="flex-1 min-h-0"' in source
     assert 'class="flex-1 min-h-0 p-4"' not in source
     assert 'class="h-full min-h-0 overflow-y-auto custom-scrollbar p-4 space-y-3"' in source
-    assert 'class="preset-marker-icon-frame flex-shrink-0 text-sky-200"' in source
+    assert 'class="preset-marker-icon-frame flex-shrink-0 color-text-info"' in source
     assert 'rounded-2xl border border-sky-400/30 bg-sky-500/10' not in source
     assert 'class="relative h-5 w-9 rounded-full transition-colors"' in source
     assert source.count('aria-hidden="true"') >= 4
@@ -2666,7 +2666,7 @@ def test_preset_detail_reader_template_renders_marker_icons_switches_and_inner_s
 def test_preset_detail_reader_template_keeps_right_panel_scroll_and_prompt_state_within_bounds():
     source = read_project_file('templates/modals/detail_preset_popup.html')
 
-    assert 'class="w-full lg:w-[340px] xl:w-[380px] flex-shrink-0 bg-[var(--bg-sub)] border-l border-[var(--border-light)] flex flex-col min-h-0"' in source
+    assert 'class="w-full lg:w-[340px] xl:w-[380px] flex-shrink-0 bg-[var(--surface-container-raised)] border-l border-[var(--border-default)] flex flex-col min-h-0"' in source
     assert 'class="preset-reader-mobile-detail-body flex-1 overflow-y-auto custom-scrollbar p-4 space-y-4"' in source
     assert 'class="min-w-0 flex flex-1 items-start gap-3"' in source
 

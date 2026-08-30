@@ -64,9 +64,9 @@ const THEME_PRESETS = {
   },
 };
 
-const DEFAULT_TAG_CATEGORY = "未分类";
-const DEFAULT_TAG_CATEGORY_COLOR = "#64748b";
-const DEFAULT_TAG_CATEGORY_OPACITY = 16;
+export const DEFAULT_TAG_CATEGORY = "未分类";
+export const DEFAULT_TAG_CATEGORY_COLOR = "#64748b";
+export const DEFAULT_TAG_CATEGORY_OPACITY = 16;
 const TAG_VIEW_PREFS_STORAGE_KEY = "st_manager_tag_view_prefs";
 const TOAST_ICON_SPRITES = Object.freeze({
   "backup-rollback": "detail.svg#icon-backup-rollback",
@@ -152,17 +152,71 @@ function buildDefaultTagTaxonomy() {
   };
 }
 
-function normalizeHexColor(value, fallback = DEFAULT_TAG_CATEGORY_COLOR) {
-  const fallbackColor =
-    typeof fallback === "string" && fallback
-      ? fallback
-      : DEFAULT_TAG_CATEGORY_COLOR;
-  if (typeof value !== "string") return fallbackColor;
+function isValidColorComponent(value, { percentage = false } = {}) {
+  const text = String(value || "").trim();
+  if (!/^\d*\.?\d+%?$/.test(text)) return false;
+  if (text.endsWith("%") && !percentage) return false;
+
+  const number = Number.parseFloat(text);
+  if (!Number.isFinite(number)) return false;
+  return percentage ? number >= 0 && number <= 100 : number >= 0 && number <= 255;
+}
+
+function isValidRgbComponent(value) {
+  const text = String(value || "").trim();
+  if (!/^\d*\.?\d+%?$/.test(text)) return false;
+  const number = Number.parseFloat(text);
+  if (!Number.isFinite(number)) return false;
+  return text.endsWith("%")
+    ? number >= 0 && number <= 100
+    : number >= 0 && number <= 255;
+}
+
+function isValidAlphaComponent(value) {
+  const text = String(value || "").trim();
+  if (!/^\d*\.?\d+%?$/.test(text)) return false;
+  const number = Number.parseFloat(text);
+  return Number.isFinite(number) &&
+    (text.endsWith("%") ? number >= 0 && number <= 100 : number >= 0 && number <= 1);
+}
+
+function isValidColorFunction(value) {
+  const rgbMatch = value.match(/^(rgba?)\((.*)\)$/i);
+  if (rgbMatch) {
+    const parts = rgbMatch[2].split(",").map((part) => part.trim());
+    if (parts.length !== (rgbMatch[1].toLowerCase() === "rgba" ? 4 : 3)) {
+      return false;
+    }
+    return parts.slice(0, 3).every((part) => isValidRgbComponent(part)) &&
+      (parts.length === 3 || isValidAlphaComponent(parts[3]));
+  }
+
+  const hslMatch = value.match(/^(hsla?)\((.*)\)$/i);
+  if (hslMatch) {
+    const parts = hslMatch[2].split(",").map((part) => part.trim());
+    if (parts.length !== (hslMatch[1].toLowerCase() === "hsla" ? 4 : 3)) {
+      return false;
+    }
+    const hue = parts[0].replace(/deg$/i, "").trim();
+    const saturation = parts[1];
+    const lightness = parts[2];
+    const hueNumber = Number.parseFloat(hue);
+    return /^\d*\.?\d+$/.test(hue) && Number.isFinite(hueNumber) &&
+      isValidColorComponent(saturation, { percentage: true }) &&
+      isValidColorComponent(lightness, { percentage: true }) &&
+      (parts.length === 3 || isValidAlphaComponent(parts[3]));
+  }
+
+  return false;
+}
+
+export function normalizeColorValue(value) {
+  if (typeof value !== "string") return null;
 
   let color = value.trim();
-  if (!color) return fallbackColor;
+  if (!color) return null;
 
-  if (!color.startsWith("#")) {
+  if (!color.startsWith("#") && /^[0-9a-fA-F]{3,8}$/.test(color)) {
     color = `#${color}`;
   }
 
@@ -171,14 +225,27 @@ function normalizeHexColor(value, fallback = DEFAULT_TAG_CATEGORY_COLOR) {
     return `#${hex[0]}${hex[0]}${hex[1]}${hex[1]}${hex[2]}${hex[2]}`.toLowerCase();
   }
 
-  if (/^[0-9a-fA-F]{6}$/.test(hex)) {
-    return color.toLowerCase();
+  if (/^[0-9a-fA-F]{4}$/.test(hex)) {
+    return `#${hex[0]}${hex[0]}${hex[1]}${hex[1]}${hex[2]}${hex[2]}${hex[3]}${hex[3]}`.toLowerCase();
   }
 
-  return fallbackColor;
+  if (/^[0-9a-fA-F]{6}$/.test(hex)) return color.toLowerCase();
+  if (/^[0-9a-fA-F]{8}$/.test(hex)) return color.toLowerCase();
+
+  if (/^(rgba?|hsla?)\(/i.test(color) && isValidColorFunction(color)) {
+    return color;
+  }
+
+  return null;
 }
 
-function normalizeOpacity(value, fallback = DEFAULT_TAG_CATEGORY_OPACITY) {
+export function normalizeHexColor(value, fallback = DEFAULT_TAG_CATEGORY_COLOR) {
+  const fallbackColor =
+    normalizeColorValue(fallback) || DEFAULT_TAG_CATEGORY_COLOR;
+  return normalizeColorValue(value) || fallbackColor;
+}
+
+export function normalizeOpacity(value, fallback = DEFAULT_TAG_CATEGORY_OPACITY) {
   const fallbackNum = Number.isFinite(Number(fallback))
     ? Math.max(0, Math.min(100, Math.round(Number(fallback))))
     : DEFAULT_TAG_CATEGORY_OPACITY;
@@ -187,6 +254,186 @@ function normalizeOpacity(value, fallback = DEFAULT_TAG_CATEGORY_OPACITY) {
   if (!Number.isFinite(raw)) return fallbackNum;
 
   return Math.max(0, Math.min(100, Math.round(raw)));
+}
+
+export function parseCssColor(value) {
+  const normalized = normalizeColorValue(value);
+  if (!normalized) return null;
+
+  if (normalized.startsWith("#")) {
+    const hex = normalized.slice(1);
+    const channels = hex.length === 3 || hex.length === 4
+      ? hex.split("").map((part) => Number.parseInt(part + part, 16))
+      : hex.match(/.{2}/g).map((part) => Number.parseInt(part, 16));
+    const alpha = channels.length === 4 ? channels[3] / 255 : 1;
+    return { r: channels[0], g: channels[1], b: channels[2], a: alpha };
+  }
+
+  const rgbMatch = normalized.match(/^rgba?\((.*)\)$/i);
+  if (rgbMatch) {
+    const parts = rgbMatch[1].split(",").map((part) => part.trim());
+    const channels = parts.slice(0, 3).map((part) => {
+      const number = Number.parseFloat(part);
+      return part.endsWith("%") ? (number / 100) * 255 : number;
+    });
+    const alpha = parts[3]
+      ? (parts[3].endsWith("%")
+        ? Number.parseFloat(parts[3]) / 100
+        : Number.parseFloat(parts[3]))
+      : 1;
+    return { r: channels[0], g: channels[1], b: channels[2], a: alpha };
+  }
+
+  const hslMatch = normalized.match(/^hsla?\((.*)\)$/i);
+  if (!hslMatch) return null;
+
+  const parts = hslMatch[1].split(",").map((part) => part.trim());
+  const hue = (Number.parseFloat(parts[0]) % 360 + 360) % 360 / 360;
+  const saturation = Number.parseFloat(parts[1]) / 100;
+  const lightness = Number.parseFloat(parts[2]) / 100;
+  const alpha = parts[3]
+    ? (parts[3].endsWith("%")
+      ? Number.parseFloat(parts[3]) / 100
+      : Number.parseFloat(parts[3]))
+    : 1;
+
+  if (saturation === 0) {
+    const channel = lightness * 255;
+    return { r: channel, g: channel, b: channel, a: alpha };
+  }
+
+  const hueToRgb = (p, q, t) => {
+    let normalizedHue = t;
+    if (normalizedHue < 0) normalizedHue += 1;
+    if (normalizedHue > 1) normalizedHue -= 1;
+    if (normalizedHue < 1 / 6) return p + (q - p) * 6 * normalizedHue;
+    if (normalizedHue < 1 / 2) return q;
+    if (normalizedHue < 2 / 3) return p + (q - p) * (2 / 3 - normalizedHue) * 6;
+    return p;
+  };
+  const q = lightness < 0.5
+    ? lightness * (1 + saturation)
+    : lightness + saturation - lightness * saturation;
+  const p = 2 * lightness - q;
+  return {
+    r: hueToRgb(p, q, hue + 1 / 3) * 255,
+    g: hueToRgb(p, q, hue) * 255,
+    b: hueToRgb(p, q, hue - 1 / 3) * 255,
+    a: alpha,
+  };
+}
+
+function clampColorChannel(value) {
+  return Math.max(0, Math.min(255, value));
+}
+
+function compositeColor(foreground, background) {
+  const alpha = Math.max(0, Math.min(1, foreground.a ?? 1));
+  return {
+    r: foreground.r * alpha + background.r * (1 - alpha),
+    g: foreground.g * alpha + background.g * (1 - alpha),
+    b: foreground.b * alpha + background.b * (1 - alpha),
+    a: 1,
+  };
+}
+
+function mixColor(base, overlay, overlayWeight) {
+  const weight = Math.max(0, Math.min(1, overlayWeight));
+  return {
+    r: base.r * (1 - weight) + overlay.r * weight,
+    g: base.g * (1 - weight) + overlay.g * weight,
+    b: base.b * (1 - weight) + overlay.b * weight,
+    a: 1,
+  };
+}
+
+function rgbToHex(color) {
+  const channelToHex = (channel) => Math.round(clampColorChannel(channel))
+    .toString(16)
+    .padStart(2, "0");
+  return `#${channelToHex(color.r)}${channelToHex(color.g)}${channelToHex(color.b)}`;
+}
+
+export function relativeLuminance(color) {
+  const linearize = (channel) => {
+    const normalized = clampColorChannel(channel) / 255;
+    return normalized <= 0.03928
+      ? normalized / 12.92
+      : ((normalized + 0.055) / 1.055) ** 2.4;
+  };
+  return 0.2126 * linearize(color.r) +
+    0.7152 * linearize(color.g) +
+    0.0722 * linearize(color.b);
+}
+
+export function contrastRatio(foreground, background) {
+  const foregroundLum = relativeLuminance(foreground);
+  const backgroundLum = relativeLuminance(background);
+  const lighter = Math.max(foregroundLum, backgroundLum);
+  const darker = Math.min(foregroundLum, backgroundLum);
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+function pickReadableColor(background, minimum = 4.5) {
+  const light = parseCssColor("#f8fafc");
+  const dark = parseCssColor("#172033");
+  const deepDark = parseCssColor("#0b1220");
+  const pureLight = parseCssColor("#ffffff");
+  // Prefer the normal content colors; use stronger endpoints only when the
+  // selected theme/accent needs the additional contrast.
+  const candidates = [light, dark, deepDark, pureLight];
+  return rgbToHex(
+    candidates.find((candidate) => contrastRatio(candidate, background) >= minimum) || candidates[0],
+  );
+}
+
+function pickReadableBorder(background, source) {
+  const light = parseCssColor("#f8fafc");
+  const dark = parseCssColor("#172033");
+  const sourceOnBackground = compositeColor(source, background);
+  const candidates = [
+    sourceOnBackground,
+    mixColor(sourceOnBackground, light, 0.52),
+    mixColor(sourceOnBackground, dark, 0.52),
+    light,
+    dark,
+  ];
+  const readable = candidates.find((candidate) => contrastRatio(candidate, background) >= 3);
+  return rgbToHex(readable || candidates[0]);
+}
+
+export function buildTagColorStyle(color, opacity) {
+  const safeColor = normalizeHexColor(color, DEFAULT_TAG_CATEGORY_COLOR);
+  const source = parseCssColor(safeColor) || parseCssColor(DEFAULT_TAG_CATEGORY_COLOR);
+  const darkBase = parseCssColor("#17243a");
+  const lightBase = parseCssColor("#f8fafc");
+  const tint = Math.max(0.08, Math.min(0.42, 0.08 + normalizeOpacity(opacity) / 100 * 0.34));
+  const darkSource = compositeColor(source, darkBase);
+  const lightSource = compositeColor(source, lightBase);
+  const darkBackground = mixColor(darkBase, darkSource, tint);
+  const lightBackground = mixColor(lightBase, lightSource, Math.min(0.34, tint * 0.78));
+  const darkHoverBackground = mixColor(darkBase, darkSource, Math.min(0.58, tint + 0.18));
+  const lightHoverBackground = mixColor(lightBase, lightSource, Math.min(0.42, tint + 0.12));
+  const darkText = pickReadableColor(darkBackground);
+  const lightText = pickReadableColor(lightBackground);
+
+  return [
+    `--tag-cat-color:${safeColor}`,
+    `--tag-cat-opacity:${normalizeOpacity(opacity)}`,
+    `--tag-cat-bg-dark:${rgbToHex(darkBackground)}`,
+    `--tag-cat-bg-light:${rgbToHex(lightBackground)}`,
+    `--tag-cat-border-dark:${pickReadableBorder(darkBackground, source)}`,
+    `--tag-cat-border-light:${pickReadableBorder(lightBackground, source)}`,
+    `--tag-cat-text-dark:${darkText}`,
+    `--tag-cat-text-light:${lightText}`,
+    `--tag-cat-hover-bg-dark:${rgbToHex(darkHoverBackground)}`,
+    `--tag-cat-hover-bg-light:${rgbToHex(lightHoverBackground)}`,
+    `--tag-cat-hover-text-dark:${pickReadableColor(darkHoverBackground)}`,
+    `--tag-cat-hover-text-light:${pickReadableColor(lightHoverBackground)}`,
+    "--tag-cat-bg:var(--tag-cat-bg-dark)",
+    "--tag-cat-border:var(--tag-cat-border-dark)",
+    "--tag-cat-text:var(--tag-cat-text-dark)",
+  ].join(";") + ";";
 }
 
 function buildDefaultCardAdvancedFilterFields() {
@@ -850,6 +1097,11 @@ export function initState() {
       } else {
         document.documentElement.classList.add("light-mode");
       }
+      window.dispatchEvent(
+        new CustomEvent("theme-mode-changed", {
+          detail: { mode: this.isDarkMode ? "dark" : "light" },
+        }),
+      );
     },
 
     // 应用主题色
@@ -860,6 +1112,13 @@ export function initState() {
       updateCssVariable("--accent-light", t.light);
       updateCssVariable("--accent-faint", t.faint);
       updateCssVariable("--accent-main-rgb", t.rgb);
+      updateCssVariable("--accent-action-rgb", t.rgb);
+      const accentBackground = parseCssColor(t.main);
+      if (accentBackground) {
+        const readableAccentText = pickReadableColor(accentBackground);
+        updateCssVariable("--content-on-accent", readableAccentText);
+        updateCssVariable("--icon-on-accent", readableAccentText);
+      }
       this.settingsForm.theme_accent = colorName;
     },
 
@@ -1123,27 +1382,15 @@ export function initState() {
       return this.getCategoryColor(this.getTagCategory(tag));
     },
 
+    getCategoryChipStyle(category) {
+      return buildTagColorStyle(
+        this.getCategoryColor(category),
+        this.getCategoryOpacity(category),
+      );
+    },
+
     getTagChipStyle(tag) {
-      const color = this.getTagColor(tag);
-      const opacity = this.getCategoryOpacity(this.getTagCategory(tag));
-      const bgColorWeight = Math.max(
-        8,
-        Math.min(62, Math.round(opacity * 0.62)),
-      );
-      const borderColorWeight = Math.max(
-        18,
-        Math.min(76, Math.round(opacity * 0.82)),
-      );
-      const textColorWeight = Math.max(
-        8,
-        Math.min(34, Math.round(opacity * 0.32)),
-      );
-
-      const bgBaseWeight = 100 - bgColorWeight;
-      const borderBaseWeight = 100 - borderColorWeight;
-      const textBaseWeight = 100 - textColorWeight;
-
-      return `--tag-cat-color:${color};--tag-cat-opacity:${opacity};--tag-cat-bg:color-mix(in srgb, var(--bg-tag, var(--bg-sub)) ${bgBaseWeight}%, ${color} ${bgColorWeight}%);--tag-cat-border:color-mix(in srgb, var(--border-light) ${borderBaseWeight}%, ${color} ${borderColorWeight}%);--tag-cat-text:color-mix(in srgb, var(--text-main) ${textBaseWeight}%, ${color} ${textColorWeight}%);`;
+      return this.getCategoryChipStyle(this.getTagCategory(tag));
     },
 
     groupTagsByTaxonomy(tags) {

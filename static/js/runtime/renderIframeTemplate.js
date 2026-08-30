@@ -1,3 +1,4 @@
+import { getIsolatedPreviewColorVariables } from './previewColorTokens.js';
 import { buildAutoHeightScript, buildViewportSyncScript } from './renderFrameScripts.js';
 
 const VIEWPORT_VAR = 'var(--stm-viewport-height)';
@@ -73,11 +74,15 @@ function replaceViewportUnits(content) {
     return content;
 }
 
-function createSupportStyle() {
+function createSupportStyle(themeMode = 'dark') {
+    const previewTokens = getIsolatedPreviewColorVariables(themeMode);
+
     return [
         '<style>',
         ':root {',
         '  --stm-viewport-height: 100vh;',
+        '  /* Isolated iframe tokens cannot inherit the host document variables. */',
+        ...previewTokens,
         '}',
         '*, *::before, *::after {',
         '  box-sizing: border-box;',
@@ -95,7 +100,7 @@ function createSupportStyle() {
         '}',
         'body {',
         '  position: relative !important;',
-        '  color: #e5e7eb;',
+        '  color: var(--preview-content-primary);',
         '  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;',
         '}',
         'body > :not(#st-manager-note-container) {',
@@ -106,9 +111,9 @@ function createSupportStyle() {
         '  width: 100% !important;',
         '  padding: 16px 24px !important;',
         '  margin: 0 !important;',
-        '  background: #1e293b;',
-        '  color: #e2e8f0;',
-        '  border-bottom: 1px solid rgba(255, 255, 255, 0.1);',
+        '  background: var(--preview-surface-note);',
+        '  color: var(--preview-content-note);',
+        '  border-bottom: 1px solid var(--preview-border-subtle);',
         '  font-size: 14px;',
         '  line-height: 1.6;',
         '  text-align: left;',
@@ -124,18 +129,18 @@ function createSupportStyle() {
         '}',
         '::-webkit-scrollbar { width: 8px; height: 8px; }',
         '::-webkit-scrollbar-track { background: transparent; }',
-        '::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 4px; }',
-        '::-webkit-scrollbar-thumb:hover { background: #6b7280; }',
+        '::-webkit-scrollbar-thumb { background: var(--preview-scrollbar); border-radius: 4px; }',
+        '::-webkit-scrollbar-thumb:hover { background: var(--preview-scrollbar-hover); }',
         '</style>',
     ].join('');
 }
 
-function createSupportHead(runtimeId, assetBase = '') {
+function createSupportHead(runtimeId, assetBase = '', themeMode = 'dark') {
     return [
         '<meta charset="utf-8">',
         '<meta name="viewport" content="width=device-width, initial-scale=1.0">',
         `<base href="${normalizeAssetBase(assetBase)}">`,
-        createSupportStyle(),
+        createSupportStyle(themeMode),
         `<script>${buildViewportSyncScript(runtimeId).replace(/<\/script>/gi, '<\\/script>')}</script>`,
         `<script>${buildAutoHeightScript(runtimeId).replace(/<\/script>/gi, '<\\/script>')}</script>`,
     ].join('');
@@ -173,10 +178,10 @@ function injectIntoFullDocument(htmlPayload, headMarkup, bodyPrefix) {
     return ensureBodyInsertion(finalHtml, bodyPrefix);
 }
 
-export function buildRenderIframeDocument({ runtimeId, htmlPayload, noteHtml = '', assetBase = '' }) {
+export function buildRenderIframeDocument({ runtimeId, htmlPayload, noteHtml = '', assetBase = '', themeMode = 'dark' }) {
     const payload = replaceViewportUnits(String(htmlPayload || ''));
     const noteBlock = noteHtml ? `<div id="st-manager-note-container">${noteHtml}</div>` : '';
-    const headMarkup = createSupportHead(runtimeId, assetBase);
+    const headMarkup = createSupportHead(runtimeId, assetBase, themeMode);
     const isFullDocument = /<!doctype html/i.test(payload) || /<html[\s>]/i.test(payload);
 
     if (isFullDocument) {

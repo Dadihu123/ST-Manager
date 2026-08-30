@@ -121,7 +121,7 @@ def test_settings_followup_icon_layout_and_theme_controls():
     assert 'settings-icon-button--field-centered' in source
     assert '.settings-icon-button--field-centered:hover' in settings_css
     assert 'transform: translateY(-50%);' in settings_css
-    assert '<h4 class="font-bold text-emerald-400 mb-2">' in source
+    assert '<h4 class="font-bold color-text-success mb-2">' in source
 
 
 def test_settings_path_trash_and_number_controls_use_shared_visual_contract():

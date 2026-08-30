@@ -3,10 +3,10 @@
 <!-- 移动卡片弹窗 -->
 <div x-data="moveCardsModal" x-show="showMoveCardsModal" x-cloak class="modal-overlay z-modal-popover"
     @click.self="showMoveCardsModal = false">
-    <div style="background: var(--bg-panel); padding: 0; border-radius: 1rem; width: 90vw; max-width: 400px; border: 1px solid var(--border-light); box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5); overflow: visible; display: flex; flex-direction: column;">
+    <div style="background: var(--surface-overlay); padding: 0; border-radius: 1rem; width: 90vw; max-width: 400px; border: 1px solid var(--border-default); box-shadow: var(--shadow-elevation); overflow: visible; display: flex; flex-direction: column;">
         <!-- Header -->
-        <div style="padding: 1rem 1.25rem; background: var(--bg-sub); border-bottom: 1px solid var(--border-light); border-radius: 1rem 1rem 0 0;">
-            <h3 style="font-weight: bold; color: var(--text-main); font-size: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+        <div style="padding: 1rem 1.25rem; background: var(--surface-container-raised); border-bottom: 1px solid var(--border-default); border-radius: 1rem 1rem 0 0;">
+            <h3 style="font-weight: bold; color: var(--content-primary); font-size: 1rem; display: flex; align-items: center; gap: 0.5rem;">
                 <span aria-hidden="true">{{ sidebar_icon('folder-open', 'ui-icon--md') }}</span>
                 <span>移动到文件夹</span>
             </h3>
@@ -15,7 +15,7 @@
         <div style="padding: 1.25rem;">
             <div style="display: flex; flex-direction: column; gap: 1rem;">
                 <div>
-                    <label style="font-weight: 500; margin-bottom: 0.5rem; display: inline-flex; align-items: center; gap: 0.25rem; font-size: 0.875rem; color: var(--text-main);">
+                    <label style="font-weight: 500; margin-bottom: 0.5rem; display: inline-flex; align-items: center; gap: 0.25rem; font-size: 0.875rem; color: var(--content-primary);">
                         <span aria-hidden="true">{{ detail_icon('locate', 'ui-icon--sm') }}</span>
                         <span>选择目标文件夹</span>
                     </label>
@@ -57,7 +57,7 @@
                             </template>
                         </div>
                     </div>
-                    <div style="font-size: 0.75rem; color: var(--text-dim); margin-top: 0.5rem;">
+                    <div style="font-size: 0.75rem; color: var(--content-muted); margin-top: 0.5rem;">
                         将移动 <span x-text="cardIds.length" style="font-weight: bold;"></span> 张卡片
                     </div>
                 </div>
@@ -66,7 +66,7 @@
                     <button @click="showMoveCardsModal = false" class="btn-secondary" style="flex:1; justify-content: center; font-size: 0.875rem; padding: 0.5rem;">
                         取消
                     </button>
-                    <button @click="executeMove()" class="btn-primary" style="flex:2; justify-content: center; font-size: 0.875rem; padding: 0.5rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+                    <button @click="executeMove()" class="btn-primary" style="flex:2; justify-content: center; font-size: 0.875rem; padding: 0.5rem; box-shadow: var(--shadow-elevation);">
                         <span aria-hidden="true">{{ sidebar_icon('folder-open', 'ui-icon--sm') }}</span>
                         <span>移动</span>
                     </button>

@@ -1,33 +1,33 @@
 @keyframes highlightPulse {
   0% {
-    box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.7);
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent-action) 70%, transparent);
     transform: scale(1);
-    border-color: var(--accent-main);
+    border-color: var(--accent-action);
   }
   50% {
-    box-shadow: 0 0 20px 10px rgba(37, 99, 235, 0);
+    box-shadow: 0 0 20px 10px transparent;
     transform: scale(1.05);
-    border-color: #fff;
+    border-color: var(--content-on-dark);
     z-index: var(--z-card-selected);
   }
   100% {
-    box-shadow: 0 0 0 0 rgba(37, 99, 235, 0);
+    box-shadow: 0 0 0 0 transparent;
     transform: scale(1);
-    border-color: var(--border-light);
+    border-color: var(--border-default);
   }
 }
 
 @keyframes highlight-pulse {
   0% {
-    box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.7);
-    border-color: #fbbf24;
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--status-warning-text) 70%, transparent);
+    border-color: var(--status-warning-text);
   }
   70% {
-    box-shadow: 0 0 0 10px rgba(251, 191, 36, 0);
-    border-color: #fbbf24;
+    box-shadow: 0 0 0 10px transparent;
+    border-color: var(--status-warning-text);
   }
   100% {
-    box-shadow: 0 0 0 0 rgba(251, 191, 36, 0);
+    box-shadow: 0 0 0 0 transparent;
   }
 }
 
@@ -72,11 +72,11 @@
 
 .card-tag {
   font-size: 10px;
-  background: var(--bg-sub);
-  color: var(--text-sub);
+  background: var(--surface-container-raised);
+  color: var(--content-secondary);
   padding: 1px 6px;
   border-radius: 4px;
-  border: 1px solid var(--border-light);
+  border: 1px solid var(--border-default);
   white-space: nowrap;
   max-width: 100%;
   overflow: hidden;
@@ -95,16 +95,16 @@
     color 0.15s ease,
     border-color 0.15s ease,
     transform 0.15s ease;
-  --tag-cat-color: var(--accent-main);
-  --tag-cat-bg: var(--bg-sub);
-  --tag-cat-border: var(--border-light);
-  --tag-cat-text: var(--text-sub);
+  --tag-cat-color: var(--accent-action);
+  --tag-cat-bg: var(--surface-container-raised);
+  --tag-cat-border: var(--border-default);
+  --tag-cat-text: var(--content-secondary);
 }
 
 .card-tag-filter:hover {
-  background: var(--bg-hover);
-  color: var(--text-main);
-  border-color: var(--text-sub);
+  background: var(--state-hover-surface);
+  color: var(--content-primary);
+  border-color: var(--content-secondary);
 }
 
 .card-tag-filter:active {
@@ -112,20 +112,20 @@
 }
 
 .card-tag-filter:focus-visible {
-  outline: 2px solid var(--accent-light);
+  outline: 2px solid var(--accent-text);
   outline-offset: 1px;
 }
 
 .card-tag-filter.is-included {
-  background: var(--accent-main) !important;
-  color: #ffffff !important;
-  border-color: var(--accent-light) !important;
+  background: var(--accent-action) !important;
+  color: var(--content-on-dark) !important;
+  border-color: var(--accent-text) !important;
 }
 
 .card-tag-filter.is-excluded {
-  background-color: rgba(220, 38, 38, 0.2) !important;
-  color: #fca5a5 !important;
-  border-color: #ef4444 !important;
+  background-color: color-mix(in srgb, var(--status-danger-solid) 20%, transparent) !important;
+  color: var(--status-danger-text) !important;
+  border-color: var(--status-danger-solid) !important;
 }
 
 .card-tag-filter.is-excluded span {
@@ -141,7 +141,7 @@
 .card-tag-filter:not(.is-included):not(.is-excluded):hover {
   background: color-mix(in srgb, var(--tag-cat-color), transparent 74%);
   border-color: color-mix(in srgb, var(--tag-cat-color), transparent 38%);
-  color: color-mix(in srgb, var(--tag-cat-color), #ffffff 18%);
+  color: color-mix(in srgb, var(--tag-cat-color), var(--content-on-dark) 18%);
 }
 
 .card-tag-empty {
@@ -155,9 +155,9 @@
   justify-content: space-between;
   gap: 0.45rem;
   padding: 0.42rem 0.5rem;
-  border-bottom: 1px solid rgba(226, 232, 240, 0.2);
-  background: rgba(2, 6, 23, 0.42);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid color-mix(in srgb, var(--surface-container-sunken) 20%, transparent);
+  background: color-mix(in srgb, var(--surface-page) 42%, transparent);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--content-on-dark) 8%, transparent);
   backdrop-filter: blur(12px) saturate(130%);
   -webkit-backdrop-filter: blur(12px) saturate(130%);
   min-height: 2rem;
@@ -202,9 +202,9 @@
   gap: 0.2rem;
   padding: 0.12rem 0.36rem;
   border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--border-light), #ffffff 14%);
-  background: rgba(2, 6, 23, 0.5);
-  color: var(--text-main);
+  border: 1px solid color-mix(in srgb, var(--border-default), var(--content-on-dark) 14%);
+  background: color-mix(in srgb, var(--surface-page) 50%, transparent);
+  color: var(--content-primary);
   font-size: 10px;
   line-height: 1;
   white-space: nowrap;
@@ -216,9 +216,9 @@
 .card-meta-token {
   max-width: 8.2rem;
   font-weight: 700;
-  color: color-mix(in srgb, var(--text-main), #ffffff 10%);
-  background: rgba(8, 47, 73, 0.44);
-  border-color: rgba(125, 211, 252, 0.28);
+  color: color-mix(in srgb, var(--content-primary), var(--content-on-dark) 10%);
+  background: color-mix(in srgb, var(--decoration-cyan-solid) 44%, transparent);
+  border-color: color-mix(in srgb, var(--status-info-text) 28%, transparent);
 }
 
 .card-meta-token span {
@@ -236,27 +236,27 @@
 .card-meta-category {
   max-width: 4.6rem;
   justify-content: flex-start;
-  color: color-mix(in srgb, var(--text-sub), #ffffff 18%);
-  border-color: color-mix(in srgb, var(--border-light), #ffffff 18%);
+  color: color-mix(in srgb, var(--content-secondary), var(--content-on-dark) 18%);
+  border-color: color-mix(in srgb, var(--border-default), var(--content-on-dark) 18%);
 }
 
 .card-meta-category,
 .card-meta-version,
 .card-meta-bundle {
-  background: rgba(2, 6, 23, 0.62);
-  border-color: rgba(226, 232, 240, 0.36);
+  background: color-mix(in srgb, var(--surface-page) 62%, transparent);
+  border-color: color-mix(in srgb, var(--surface-container-sunken) 36%, transparent);
 }
 
 .card-front-topbar,
 .card-bottom-toolbar {
-  background: rgba(2, 6, 23, 0.42) !important;
+  background: color-mix(in srgb, var(--surface-page) 42%, transparent) !important;
   backdrop-filter: blur(12px) saturate(130%) !important;
   -webkit-backdrop-filter: blur(12px) saturate(130%) !important;
 }
 
 html.light-mode .card-front-topbar,
 html.light-mode .card-bottom-toolbar {
-  background: rgba(255, 255, 255, 0.42) !important;
+  background: color-mix(in srgb, var(--content-on-dark) 42%, transparent) !important;
   backdrop-filter: blur(12px) saturate(130%) !important;
   -webkit-backdrop-filter: blur(12px) saturate(130%) !important;
 }
@@ -271,39 +271,39 @@ html.light-mode .card-bottom-toolbar {
 }
 
 .card-token-level-extreme {
-  color: #fecaca;
+  color: var(--status-danger-text);
 }
 
 .card-token-level-danger {
-  color: #fed7aa;
+  color: var(--status-warning-text);
 }
 
 .card-token-level-warn {
-  color: #fef08a;
+  color: var(--status-warning-text);
 }
 
 .card-token-level-ok {
-  color: #bbf7d0;
+  color: var(--status-success-text);
 }
 
 .card-meta-version {
   max-width: 3.2rem;
-  color: #bae6fd;
-  border-color: rgba(56, 189, 248, 0.55);
-  background: rgba(2, 132, 199, 0.22);
+  color: var(--decoration-cyan);
+  border-color: color-mix(in srgb, var(--decoration-cyan) 55%, transparent);
+  background: color-mix(in srgb, var(--status-info-solid) 22%, transparent);
 }
 
 .card-meta-bundle {
   max-width: 3.8rem;
-  color: #fde68a;
-  border-color: rgba(251, 191, 36, 0.56);
-  background: rgba(146, 64, 14, 0.28);
+  color: var(--status-warning-text);
+  border-color: color-mix(in srgb, var(--status-warning-text) 56%, transparent);
+  background: color-mix(in srgb, var(--status-warning-solid) 28%, transparent);
 }
 
 .card-image-container {
   position: relative;
   overflow: hidden;
-  background: #000;
+  background: var(--content-on-light);
   flex: 1 1 auto;
   min-height: 0;
 }
@@ -386,7 +386,7 @@ html.light-mode .card-bottom-toolbar {
 }
 
 .card-select-overlay:focus-visible {
-  outline: 2px solid var(--accent-light);
+  outline: 2px solid var(--accent-text);
   outline-offset: 1px;
 }
 
@@ -428,16 +428,16 @@ html.light-mode .card-bottom-toolbar {
 }
 
 .preset-select-shell {
-  background: color-mix(in srgb, var(--bg-panel), #ffffff 12%);
-  border-color: color-mix(in srgb, var(--border-light), var(--accent-main) 22%);
-  color: var(--text-main);
-  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.18);
+  background: color-mix(in srgb, var(--surface-container), var(--content-on-dark) 12%);
+  border-color: color-mix(in srgb, var(--border-default), var(--accent-action) 22%);
+  color: var(--content-primary);
+  box-shadow: 0 2px 10px color-mix(in srgb, var(--content-on-light) 18%, transparent);
 }
 
 .preset-select-shell.is-selected {
-  background: var(--accent-main);
-  border-color: var(--accent-main);
-  color: var(--text-on-accent);
+  background: var(--accent-action);
+  border-color: var(--accent-action);
+  color: var(--content-on-accent);
   transform: scale(1.05);
 }
 
@@ -448,7 +448,7 @@ html.light-mode .card-bottom-toolbar {
   border: 0;
   border-radius: 0.5rem;
   background: transparent;
-  color: var(--text-main);
+  color: var(--content-primary);
   box-shadow: none;
   transition:
     background-color 0.2s ease,
@@ -469,33 +469,33 @@ html.light-mode .card-bottom-toolbar {
 }
 
 .preset-card-action-btn.is-danger {
-  color: #fca5a5;
+  color: var(--status-danger-text);
 }
 
 .preset-card-action-btn.is-danger:hover {
-  color: #fecaca;
+  color: var(--status-danger-text);
 }
 
 .preset-card-action-btn.is-export {
-  color: #7dd3fc;
+  color: var(--status-info-text);
 }
 
 .preset-card-action-btn.is-export:hover {
-  color: #bae6fd;
+  color: var(--decoration-cyan);
 }
 
 html.light-mode .preset-card-action-btn {
   background: transparent;
-  color: color-mix(in srgb, var(--text-main), #0f172a 12%);
+  color: color-mix(in srgb, var(--content-primary), var(--surface-code) 12%);
   box-shadow: none;
 }
 
 html.light-mode .preset-card-action-btn.is-danger {
-  color: #b91c1c;
+  color: var(--status-danger-text);
 }
 
 html.light-mode .preset-card-action-btn.is-export {
-  color: #0369a1;
+  color: var(--status-info-text);
 }
 
 .preset-card-source-badge {
@@ -527,12 +527,12 @@ html.light-mode .preset-card-action-btn.is-export {
   border: none;
   border-radius: 0;
   background: transparent;
-  color: rgba(241, 245, 249, 0.9);
+  color: color-mix(in srgb, var(--content-primary) 90%, transparent);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   line-height: 1;
-  filter: drop-shadow(0 1px 3px rgba(2, 6, 23, 0.32));
+  filter: drop-shadow(0 1px 3px color-mix(in srgb, var(--surface-page) 32%, transparent));
   opacity: 0;
   transform: scale(0.86);
   transition:
@@ -543,7 +543,7 @@ html.light-mode .preset-card-action-btn.is-export {
 }
 
 .card-fav-overlay:focus-visible {
-  outline: 2px solid var(--accent-light);
+  outline: 2px solid var(--accent-text);
   outline-offset: 1px;
   border-radius: 0.35rem;
 }
@@ -560,10 +560,10 @@ html.light-mode .preset-card-action-btn.is-export {
 .card-fav-overlay.is-active {
   opacity: 1;
   transform: scale(1.02);
-  color: #fb7185;
+  color: var(--decoration-rose);
   filter:
-    drop-shadow(0 1px 3px rgba(2, 6, 23, 0.24))
-    drop-shadow(0 0 4px rgba(251, 113, 133, 0.55));
+    drop-shadow(0 1px 3px color-mix(in srgb, var(--surface-page) 24%, transparent))
+    drop-shadow(0 0 4px color-mix(in srgb, var(--decoration-rose) 55%, transparent));
 }
 
 .st-card:hover .card-fav-overlay,
@@ -573,7 +573,7 @@ html.light-mode .preset-card-action-btn.is-export {
 }
 
 .card-fav-overlay:hover {
-  color: #ffe4e6;
+  color: var(--status-danger-text);
   transform: scale(1.08);
 }
 
@@ -584,7 +584,7 @@ html.light-mode .preset-card-action-btn.is-export {
   right: 0;
   bottom: 0;
   height: 8rem;
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0));
+  background: linear-gradient(to top, color-mix(in srgb, var(--content-on-light) 80%, transparent), transparent);
   opacity: 1;
   pointer-events: none;
   transition: none;
@@ -630,14 +630,14 @@ html.light-mode .preset-card-action-btn.is-export {
 
 .card-image-tags-wrap .card-tag {
   --tag-chip-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.09), 0 1px 2px rgba(0, 0, 0, 0.38);
-  --tag-cat-color: #94a3b8;
-  --tag-cat-bg: rgba(2, 6, 23, 0.96);
-  --tag-cat-border: rgba(241, 245, 249, 0.82);
-  --tag-cat-text: #ffffff;
-  background: var(--tag-cat-bg, rgba(2, 6, 23, 0.96));
-  color: var(--tag-cat-text, #ffffff);
-  border-color: var(--tag-cat-border, rgba(241, 245, 249, 0.82));
+    inset 0 1px 0 color-mix(in srgb, var(--content-on-dark) 9%, transparent), 0 1px 2px color-mix(in srgb, var(--content-on-light) 38%, transparent);
+  --tag-cat-color: var(--content-muted);
+  --tag-cat-bg: color-mix(in srgb, var(--surface-page) 96%, transparent);
+  --tag-cat-border: color-mix(in srgb, var(--content-primary) 82%, transparent);
+  --tag-cat-text: var(--content-on-dark);
+  background: var(--tag-cat-bg, color-mix(in srgb, var(--surface-page) 96%, transparent));
+  color: var(--tag-cat-text, var(--content-on-dark));
+  border-color: var(--tag-cat-border, color-mix(in srgb, var(--content-primary) 82%, transparent));
   text-shadow: none;
   box-shadow: var(--tag-chip-shadow);
   backdrop-filter: none;
@@ -645,9 +645,9 @@ html.light-mode .preset-card-action-btn.is-export {
 }
 
 .card-image-tags-wrap .card-tag-filter:not(.is-included):not(.is-excluded) {
-  background: var(--tag-cat-bg, rgba(2, 6, 23, 0.96)) !important;
-  color: var(--tag-cat-text, #ffffff) !important;
-  border-color: var(--tag-cat-border, rgba(241, 245, 249, 0.82)) !important;
+  background: var(--tag-cat-bg, color-mix(in srgb, var(--surface-page) 96%, transparent)) !important;
+  color: var(--tag-cat-text, var(--content-on-dark)) !important;
+  border-color: var(--tag-cat-border, color-mix(in srgb, var(--content-primary) 82%, transparent)) !important;
   text-shadow: none;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
@@ -659,25 +659,25 @@ html.light-mode .preset-card-action-btn.is-export {
   .card-tag-filter:not(.is-included):not(.is-excluded):focus-visible {
   background: color-mix(
     in srgb,
-    var(--tag-cat-color, #94a3b8),
+    var(--tag-cat-color, var(--content-muted)),
     transparent 68%
   );
   border-color: color-mix(
     in srgb,
-    var(--tag-cat-color, #94a3b8),
+    var(--tag-cat-color, var(--content-muted)),
     transparent 35%
   );
-  color: color-mix(in srgb, var(--tag-cat-color, #ffffff), #ffffff 18%);
+  color: color-mix(in srgb, var(--tag-cat-color, var(--content-on-dark)), var(--content-on-dark) 18%);
 }
 
 .card-image-tags-wrap .card-tags-more {
-  color: rgba(241, 245, 249, 0.95);
+  color: color-mix(in srgb, var(--content-primary) 95%, transparent);
   text-shadow: none;
 }
 
 .card-image-char-name {
   margin: 0;
-  color: #ffffff;
+  color: var(--content-on-dark);
   font-size: 0.84rem;
   font-weight: 700;
   line-height: 1.2;
@@ -685,8 +685,8 @@ html.light-mode .preset-card-action-btn.is-export {
   overflow: hidden;
   text-overflow: ellipsis;
   text-shadow:
-    0 1px 2px rgba(0, 0, 0, 0.9),
-    0 0 8px rgba(0, 0, 0, 0.35);
+    0 1px 2px color-mix(in srgb, var(--content-on-light) 90%, transparent),
+    0 0 8px color-mix(in srgb, var(--content-on-light) 35%, transparent);
 }
 
 .card-source-link-fab {
@@ -694,10 +694,10 @@ html.light-mode .preset-card-action-btn.is-export {
   width: 1.65rem;
   height: 1.65rem;
   border-radius: 999px;
-  border: 1px solid rgba(147, 197, 253, 0.5);
-  background: rgba(37, 99, 235, 0.9);
-  color: #ffffff;
-  box-shadow: 0 6px 12px -8px rgba(0, 0, 0, 0.8);
+  border: 1px solid color-mix(in srgb, var(--accent-text) 50%, transparent);
+  background: color-mix(in srgb, var(--accent-action) 90%, transparent);
+  color: var(--content-on-dark);
+  box-shadow: 0 6px 12px -8px color-mix(in srgb, var(--content-on-light) 80%, transparent);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -712,7 +712,7 @@ html.light-mode .preset-card-action-btn.is-export {
 }
 
 .card-source-link-fab:focus-visible {
-  outline: 2px solid #93c5fd;
+  outline: 2px solid var(--accent-text);
   outline-offset: 1px;
 }
 
@@ -723,45 +723,45 @@ html.light-mode .preset-card-action-btn.is-export {
 }
 
 .card-source-link-fab:hover {
-  background: rgba(29, 78, 216, 0.94);
+  background: color-mix(in srgb, var(--accent-action-hover) 94%, transparent);
 }
 
 .st-card.highlighted {
   animation: highlight-pulse 1.5s infinite;
-  border-color: #fbbf24 !important;
+  border-color: var(--status-warning-text) !important;
   z-index: var(--z-floating);
 }
 
 .card-highlight-anim {
   animation: highlightPulse 1.5s ease-in-out infinite;
-  border: 2px solid var(--accent-main) !important;
+  border: 2px solid var(--accent-action) !important;
   position: relative;
   z-index: var(--z-card-highlight);
 }
 
 .st-card.selected {
-  border-color: var(--accent-main);
-  box-shadow: 0 0 0 2px var(--accent-faint);
+  border-color: var(--accent-action);
+  box-shadow: 0 0 0 2px var(--accent-soft-strong);
 }
 
 .st-card {
   background:
     radial-gradient(
       140% 120% at 100% 0%,
-      rgba(125, 211, 252, 0.14),
-      rgba(125, 211, 252, 0) 48%
+      color-mix(in srgb, var(--status-info-text) 14%, transparent),
+      transparent 48%
     ),
     radial-gradient(
       120% 115% at 0% 100%,
-      rgba(59, 130, 246, 0.1),
-      rgba(59, 130, 246, 0) 56%
+      color-mix(in srgb, var(--accent-action) 10%, transparent),
+      transparent 56%
     ),
     linear-gradient(
       165deg,
-      rgba(var(--bg-panel-rgb), 0.56),
-      rgba(var(--bg-panel-rgb), 0.34)
+      rgba(var(--surface-container-rgb), 0.56),
+      rgba(var(--surface-container-rgb), 0.34)
     );
-  border: 1px solid color-mix(in srgb, var(--border-light), #ffffff 18%);
+  border: 1px solid color-mix(in srgb, var(--border-default), var(--content-on-dark) 18%);
   border-radius: 0.75rem;
   overflow: hidden;
   display: flex;
@@ -775,21 +775,21 @@ html.light-mode .preset-card-action-btn.is-export {
     background 0.24s ease;
   height: var(--card-height);
   box-shadow:
-    0 10px 24px -16px rgba(15, 23, 42, 0.9),
-    0 6px 16px -12px rgba(2, 6, 23, 0.75),
-    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    0 10px 24px -16px color-mix(in srgb, var(--content-on-light) 90%, transparent),
+    0 6px 16px -12px color-mix(in srgb, var(--surface-page) 75%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--content-on-dark) 12%, transparent);
   backdrop-filter: blur(12px) saturate(130%);
   -webkit-backdrop-filter: blur(12px) saturate(130%);
   perspective: 1200px;
 }
 
 .st-card:hover {
-  border-color: color-mix(in srgb, var(--accent-light), #ffffff 24%);
+  border-color: color-mix(in srgb, var(--accent-text), var(--content-on-dark) 24%);
   transform: translateY(-4px);
   box-shadow:
-    0 18px 28px -18px rgba(14, 29, 55, 0.95),
-    0 10px 20px -12px rgba(2, 6, 23, 0.75),
-    inset 0 1px 0 rgba(255, 255, 255, 0.16);
+    0 18px 28px -18px color-mix(in srgb, var(--surface-page) 95%, transparent),
+    0 10px 20px -12px color-mix(in srgb, var(--surface-page) 75%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--content-on-dark) 16%, transparent);
 }
 
 .card-info {
@@ -800,8 +800,8 @@ html.light-mode .preset-card-action-btn.is-export {
   gap: 0.5rem;
   background: linear-gradient(
     180deg,
-    rgba(var(--bg-panel-rgb), 0.48),
-    rgba(var(--bg-panel-rgb), 0.6)
+    rgba(var(--surface-container-rgb), 0.48),
+    rgba(var(--surface-container-rgb), 0.6)
   );
   overflow: hidden;
   justify-content: flex-start;
@@ -823,8 +823,8 @@ html.light-mode .preset-card-action-btn.is-export {
   flex-direction: column;
   background: linear-gradient(
     180deg,
-    rgba(var(--bg-panel-rgb), 0.5),
-    rgba(var(--bg-panel-rgb), 0.62)
+    rgba(var(--surface-container-rgb), 0.5),
+    rgba(var(--surface-container-rgb), 0.62)
   );
   border-radius: inherit;
 }
@@ -855,16 +855,16 @@ html.light-mode .preset-card-action-btn.is-export {
 .card-front::before {
   background: linear-gradient(
     90deg,
-    rgba(0, 0, 0, 0) 60%,
-    rgba(0, 0, 0, 0.22) 100%
+    transparent 60%,
+    color-mix(in srgb, var(--content-on-light) 22%, transparent) 100%
   );
 }
 
 .card-front::after {
   background: radial-gradient(
     130% 95% at 100% 100%,
-    rgba(0, 0, 0, 0.28),
-    rgba(0, 0, 0, 0)
+    color-mix(in srgb, var(--content-on-light) 28%, transparent),
+    transparent
   );
   mix-blend-mode: multiply;
 }
@@ -872,7 +872,7 @@ html.light-mode .preset-card-action-btn.is-export {
 .card-flip-inner.is-flipped .card-front {
   transform: translate3d(-9px, -2px, 0) rotateZ(-3deg) rotateX(7deg)
     rotateY(-170deg);
-  box-shadow: -20px 4px 28px -20px rgba(0, 0, 0, 0.56);
+  box-shadow: -20px 4px 28px -20px color-mix(in srgb, var(--content-on-light) 56%, transparent);
   pointer-events: none;
 }
 
@@ -883,7 +883,7 @@ html.light-mode .preset-card-action-btn.is-export {
 
 .card-back {
   z-index: 1;
-  border-top: 1px solid var(--border-light);
+  border-top: 1px solid var(--border-default);
   opacity: 0;
   transform: translate3d(6px, 1px, 0) scale(0.992);
   transition:
@@ -900,7 +900,7 @@ html.light-mode .preset-card-action-btn.is-export {
   inset: 0;
   pointer-events: none;
   opacity: 0.2;
-  background: linear-gradient(90deg, rgba(0, 0, 0, 0.22), rgba(0, 0, 0, 0) 26%);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--content-on-light) 22%, transparent), transparent 26%);
   transition: opacity 0.38s ease;
 }
 
@@ -945,16 +945,16 @@ html.light-mode .preset-card-action-btn.is-export {
 .card-tags-more {
   font-size: 10px;
   line-height: 1;
-  color: var(--text-dim);
+  color: var(--content-muted);
   margin-top: -0.1rem;
 }
 
 .card-back-header {
   padding: 0.58rem 0.75rem 0.28rem;
-  border-bottom: 1px solid color-mix(in srgb, var(--border-light), #ffffff 12%);
+  border-bottom: 1px solid color-mix(in srgb, var(--border-default), var(--content-on-dark) 12%);
   background: linear-gradient(
     180deg,
-    color-mix(in srgb, var(--bg-sub), transparent 22%),
+    color-mix(in srgb, var(--surface-container-raised), transparent 22%),
     transparent
   );
 }
@@ -963,7 +963,7 @@ html.light-mode .preset-card-action-btn.is-export {
   margin: 0;
   font-size: 10px;
   line-height: 1;
-  color: var(--text-dim);
+  color: var(--content-muted);
   letter-spacing: 0.04em;
   padding-right: 0;
 }
@@ -972,7 +972,7 @@ html.light-mode .preset-card-action-btn.is-export {
   margin: 0.28rem 0 0;
   font-size: 11px;
   line-height: 1.2;
-  color: var(--text-main);
+  color: var(--content-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -986,7 +986,7 @@ html.light-mode .preset-card-action-btn.is-export {
   margin-top: 0.36rem;
   min-width: 0;
   font-size: 10px;
-  color: color-mix(in srgb, var(--text-sub), #ffffff 10%);
+  color: color-mix(in srgb, var(--content-secondary), var(--content-on-dark) 10%);
   line-height: 1.1;
 }
 
@@ -1027,7 +1027,7 @@ html.light-mode .preset-card-action-btn.is-export {
 }
 
 .card-back-time-label {
-  color: var(--text-dim);
+  color: var(--content-muted);
   letter-spacing: 0.04em;
 }
 
@@ -1036,7 +1036,7 @@ html.light-mode .preset-card-action-btn.is-export {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: color-mix(in srgb, var(--text-main), #ffffff 8%);
+  color: color-mix(in srgb, var(--content-primary), var(--content-on-dark) 8%);
 }
 
 .card-back-note {
@@ -1052,18 +1052,18 @@ html.light-mode .preset-card-action-btn.is-export {
   gap: 0.42rem;
   min-height: 2rem;
   padding: 0.34rem 0.5rem;
-  border-top: 1px solid rgba(226, 232, 240, 0.2);
-  background: rgba(2, 6, 23, 0.42);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  border-top: 1px solid color-mix(in srgb, var(--surface-container-sunken) 20%, transparent);
+  background: color-mix(in srgb, var(--surface-page) 42%, transparent);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--content-on-dark) 8%, transparent);
   backdrop-filter: blur(12px) saturate(130%);
   -webkit-backdrop-filter: blur(12px) saturate(130%);
 }
 
 .card-local-note-btn {
   appearance: none;
-  border: 1px solid color-mix(in srgb, var(--border-light), #ffffff 14%);
-  background: rgba(15, 23, 42, 0.45);
-  color: var(--text-sub);
+  border: 1px solid color-mix(in srgb, var(--border-default), var(--content-on-dark) 14%);
+  background: color-mix(in srgb, var(--content-on-light) 45%, transparent);
+  color: var(--content-secondary);
   width: 1.6rem;
   height: 1.6rem;
   border-radius: 999px;
@@ -1088,22 +1088,22 @@ html.light-mode .preset-card-action-btn.is-export {
 }
 
 .card-local-note-btn.has-note {
-  color: #fef08a;
-  border-color: rgba(250, 204, 21, 0.55);
+  color: var(--status-warning-text);
+  border-color: color-mix(in srgb, var(--status-warning-text) 55%, transparent);
   background: linear-gradient(
     180deg,
-    rgba(133, 77, 14, 0.58),
-    rgba(120, 53, 15, 0.36)
+    color-mix(in srgb, var(--status-warning-solid) 58%, transparent),
+    color-mix(in srgb, var(--status-warning-solid) 36%, transparent)
   );
   opacity: 1;
-  box-shadow: 0 0 0 1px rgba(250, 204, 21, 0.16) inset;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--status-warning-text) 16%, transparent) inset;
 }
 
 .card-send-st-btn {
   appearance: none;
-  border: 1px solid color-mix(in srgb, var(--border-light), #ffffff 14%);
-  background: rgba(15, 23, 42, 0.45);
-  color: var(--text-sub);
+  border: 1px solid color-mix(in srgb, var(--border-default), var(--content-on-dark) 14%);
+  background: color-mix(in srgb, var(--content-on-light) 45%, transparent);
+  color: var(--content-secondary);
   width: 1.6rem;
   height: 1.6rem;
   border-radius: 999px;
@@ -1122,9 +1122,9 @@ html.light-mode .preset-card-action-btn.is-export {
 
 .card-forum-search-btn {
   appearance: none;
-  border: 1px solid color-mix(in srgb, var(--border-light), #ffffff 14%);
-  background: rgba(15, 23, 42, 0.45);
-  color: var(--text-sub);
+  border: 1px solid color-mix(in srgb, var(--border-default), var(--content-on-dark) 14%);
+  background: color-mix(in srgb, var(--content-on-light) 45%, transparent);
+  color: var(--content-secondary);
   width: 1.6rem;
   height: 1.6rem;
   border-radius: 999px;
@@ -1141,9 +1141,9 @@ html.light-mode .preset-card-action-btn.is-export {
 }
 
 .card-forum-search-btn:hover {
-  color: #c4b5fd;
-  border-color: rgba(167, 139, 250, 0.65);
-  background: rgba(76, 29, 149, 0.35);
+  color: var(--decoration-violet);
+  border-color: color-mix(in srgb, var(--decoration-violet) 65%, transparent);
+  background: color-mix(in srgb, var(--decoration-violet-solid) 35%, transparent);
   transform: translateY(-1px);
 }
 
@@ -1160,9 +1160,9 @@ html.light-mode .preset-card-action-btn.is-export {
 
 .card-source-update-btn {
   appearance: none;
-  border: 1px solid color-mix(in srgb, var(--border-light), #ffffff 14%);
-  background: rgba(15, 23, 42, 0.45);
-  color: var(--text-sub);
+  border: 1px solid color-mix(in srgb, var(--border-default), var(--content-on-dark) 14%);
+  background: color-mix(in srgb, var(--content-on-light) 45%, transparent);
+  color: var(--content-secondary);
   width: 1.6rem;
   height: 1.6rem;
   border-radius: 999px;
@@ -1176,31 +1176,31 @@ html.light-mode .preset-card-action-btn.is-export {
 }
 
 .card-source-update-btn:hover:not(:disabled) {
-  color: #fef08a;
-  border-color: rgba(250, 204, 21, 0.72);
-  background: rgba(133, 77, 14, 0.32);
+  color: var(--status-warning-text);
+  border-color: color-mix(in srgb, var(--status-warning-text) 72%, transparent);
+  background: color-mix(in srgb, var(--status-warning-solid) 32%, transparent);
   transform: translateY(-1px);
 }
 
 .card-source-update-btn.is-updated,
 .card-source-update-status.is-updated {
-  color: #fecaca;
-  border-color: rgba(248, 113, 113, 0.72);
-  background: rgba(127, 29, 29, 0.35);
+  color: var(--status-danger-text);
+  border-color: color-mix(in srgb, var(--status-danger-text) 72%, transparent);
+  background: color-mix(in srgb, var(--status-danger-solid) 35%, transparent);
 }
 
 .card-source-update-btn.is-warning,
 .card-source-update-status.is-warning {
-  color: #fde68a;
-  border-color: rgba(251, 191, 36, 0.62);
-  background: rgba(120, 53, 15, 0.3);
+  color: var(--status-warning-text);
+  border-color: color-mix(in srgb, var(--status-warning-text) 62%, transparent);
+  background: color-mix(in srgb, var(--status-warning-solid) 30%, transparent);
 }
 
 .card-source-update-btn.is-baseline,
 .card-source-update-status.is-baseline {
-  color: #bfdbfe;
-  border-color: rgba(96, 165, 250, 0.58);
-  background: rgba(30, 64, 175, 0.25);
+  color: var(--accent-outline);
+  border-color: color-mix(in srgb, var(--accent-text) 58%, transparent);
+  background: color-mix(in srgb, var(--accent-action-hover) 25%, transparent);
 }
 
 .card-source-update-btn:disabled {
@@ -1223,21 +1223,21 @@ html.light-mode .preset-card-action-btn.is-export {
 }
 
 .card-send-st-btn.has-sent {
-  color: #bfdbfe;
-  border-color: rgba(96, 165, 250, 0.68);
+  color: var(--accent-outline);
+  border-color: color-mix(in srgb, var(--accent-text) 68%, transparent);
   background: linear-gradient(
     180deg,
-    rgba(30, 64, 175, 0.62),
-    rgba(30, 41, 59, 0.4)
+    color-mix(in srgb, var(--accent-action-hover) 62%, transparent),
+    color-mix(in srgb, var(--surface-container) 40%, transparent)
   );
   box-shadow:
-    0 0 0 1px rgba(96, 165, 250, 0.2) inset,
-    0 0 10px rgba(59, 130, 246, 0.18);
+    0 0 0 1px color-mix(in srgb, var(--accent-text) 20%, transparent) inset,
+    0 0 10px color-mix(in srgb, var(--accent-action) 18%, transparent);
 }
 
 .card-send-st-btn:hover:not(:disabled) {
-  color: #e0f2fe;
-  border-color: rgba(96, 165, 250, 0.8);
+  color: var(--decoration-cyan);
+  border-color: color-mix(in srgb, var(--accent-text) 80%, transparent);
   transform: translateY(-1px);
 }
 
@@ -1248,25 +1248,25 @@ html.light-mode .preset-card-action-btn.is-export {
 }
 
 .card-send-st-btn.is-sending {
-  color: #e0f2fe;
-  border-color: rgba(125, 211, 252, 0.74);
+  color: var(--decoration-cyan);
+  border-color: color-mix(in srgb, var(--status-info-text) 74%, transparent);
   background: linear-gradient(
     180deg,
-    rgba(14, 116, 144, 0.62),
-    rgba(15, 23, 42, 0.42)
+    color-mix(in srgb, var(--decoration-cyan-solid) 62%, transparent),
+    color-mix(in srgb, var(--content-on-light) 42%, transparent)
   );
-  box-shadow: 0 0 0 1px rgba(125, 211, 252, 0.22) inset;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--status-info-text) 22%, transparent) inset;
 }
 
 .card-local-note-btn.has-note:hover {
-  color: #fde68a;
-  border-color: rgba(250, 204, 21, 0.75);
+  color: var(--status-warning-text);
+  border-color: color-mix(in srgb, var(--status-warning-text) 75%, transparent);
   transform: translateY(-1px);
 }
 
 .card-local-note-btn.no-note:hover {
   opacity: 0.65;
-  color: color-mix(in srgb, var(--text-main), #ffffff 12%);
+  color: color-mix(in srgb, var(--content-primary), var(--content-on-dark) 12%);
 }
 
 .card-flip-corner {
@@ -1280,10 +1280,10 @@ html.light-mode .preset-card-action-btn.is-export {
   background: linear-gradient(
     136deg,
     transparent 47%,
-    color-mix(in srgb, var(--bg-sub), #ffffff 12%) 48%,
-    color-mix(in srgb, var(--bg-sub), #000000 6%) 100%
+    color-mix(in srgb, var(--surface-container-raised), var(--content-on-dark) 12%) 48%,
+    color-mix(in srgb, var(--surface-container-raised), var(--content-on-light) 6%) 100%
   );
-  color: var(--text-main);
+  color: var(--content-primary);
   z-index: 40;
   cursor: pointer;
   opacity: 0.26;
@@ -1291,14 +1291,14 @@ html.light-mode .preset-card-action-btn.is-export {
     opacity 0.2s,
     filter 0.2s,
     transform 0.26s cubic-bezier(0.2, 0.6, 0.2, 1);
-  filter: drop-shadow(-1px -1px 1px rgba(0, 0, 0, 0.35));
+  filter: drop-shadow(-1px -1px 1px color-mix(in srgb, var(--content-on-light) 35%, transparent));
   transform-origin: 100% 100%;
   overflow: hidden;
 }
 
 .card-flip-corner.is-active {
   transform: none;
-  filter: drop-shadow(-1px -1px 1px rgba(0, 0, 0, 0.35));
+  filter: drop-shadow(-1px -1px 1px color-mix(in srgb, var(--content-on-light) 35%, transparent));
   animation: none;
 }
 
@@ -1319,8 +1319,8 @@ html.light-mode .preset-card-action-btn.is-export {
   height: 130%;
   background: radial-gradient(
     ellipse at 0 0,
-    rgba(255, 255, 255, 0.55),
-    rgba(255, 255, 255, 0) 60%
+    color-mix(in srgb, var(--content-on-dark) 55%, transparent),
+    transparent 60%
   );
   opacity: 0;
   transition: opacity 0.22s ease;
@@ -1339,16 +1339,16 @@ html.light-mode .preset-card-action-btn.is-export {
   width: 0.95rem;
   height: 0.95rem;
   border-right: 1px solid
-    color-mix(in srgb, var(--border-light), transparent 15%);
+    color-mix(in srgb, var(--border-default), transparent 15%);
   border-bottom: 1px solid
-    color-mix(in srgb, var(--border-light), transparent 15%);
+    color-mix(in srgb, var(--border-default), transparent 15%);
   transition: transform 0.22s ease;
 }
 
 .card-flip-corner:hover {
   opacity: 1;
   transform: rotate(-9deg) skewX(-5deg) scale(1.05);
-  filter: drop-shadow(-1px -1px 2px rgba(0, 0, 0, 0.5));
+  filter: drop-shadow(-1px -1px 2px color-mix(in srgb, var(--content-on-light) 50%, transparent));
   animation:
     cornerPeelSpring 260ms cubic-bezier(0.2, 0.85, 0.25, 1) 1,
     cornerPeelPulse 1.9s ease-in-out infinite 260ms;
@@ -1392,11 +1392,11 @@ html.light-mode .preset-card-action-btn.is-export {
   min-height: 0;
   white-space: pre-wrap;
   word-break: break-all;
-  border: 1px solid color-mix(in srgb, var(--border-light), #ffffff 12%);
+  border: 1px solid color-mix(in srgb, var(--border-default), var(--content-on-dark) 12%);
   background: linear-gradient(
     180deg,
-    color-mix(in srgb, var(--bg-sub), #ffffff 4%),
-    color-mix(in srgb, var(--bg-sub), #000000 6%)
+    color-mix(in srgb, var(--surface-container-raised), var(--content-on-dark) 4%),
+    color-mix(in srgb, var(--surface-container-raised), var(--content-on-light) 6%)
   );
   display: block;
   text-align: left;
@@ -1433,8 +1433,8 @@ html.light-mode .preset-card-action-btn.is-export {
   gap: 0.5rem;
   padding: 0.3rem 0.45rem;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--bg-sub), transparent 14%);
-  border: 1px solid color-mix(in srgb, var(--border-light), #ffffff 14%);
+  background: color-mix(in srgb, var(--surface-container-raised), transparent 14%);
+  border: 1px solid color-mix(in srgb, var(--border-default), var(--content-on-dark) 14%);
 }
 
 .card-flip-all-btn {
@@ -1443,28 +1443,28 @@ html.light-mode .preset-card-action-btn.is-export {
   font-size: 0.72rem;
   font-weight: 600;
   letter-spacing: 0.01em;
-  color: var(--text-on-accent);
-  border-color: color-mix(in srgb, var(--accent-main), transparent 42%);
+  color: var(--content-on-accent);
+  border-color: color-mix(in srgb, var(--accent-action), transparent 42%);
   background: linear-gradient(
     180deg,
-    color-mix(in srgb, var(--accent-main), #ffffff 12%),
-    color-mix(in srgb, var(--accent-main), #000000 8%)
+    color-mix(in srgb, var(--accent-action), var(--content-on-dark) 12%),
+    color-mix(in srgb, var(--accent-action), var(--content-on-light) 8%)
   );
 }
 
 .card-flip-all-btn:hover {
-  color: var(--text-on-accent);
-  border-color: color-mix(in srgb, var(--accent-light), #ffffff 18%);
+  color: var(--content-on-accent);
+  border-color: color-mix(in srgb, var(--accent-text), var(--content-on-dark) 18%);
   background: linear-gradient(
     180deg,
-    color-mix(in srgb, var(--accent-main), #ffffff 20%),
-    color-mix(in srgb, var(--accent-hover), #000000 2%)
+    color-mix(in srgb, var(--accent-action), var(--content-on-dark) 20%),
+    color-mix(in srgb, var(--accent-action-hover), var(--content-on-light) 2%)
   );
 }
 
 .card-flip-count {
   font-size: 0.7rem;
-  color: var(--text-sub);
+  color: var(--content-secondary);
   line-height: 1;
 }
 
@@ -1472,86 +1472,86 @@ html.light-mode .st-card {
   background:
     radial-gradient(
       140% 120% at 100% 0%,
-      rgba(56, 189, 248, 0.16),
-      rgba(56, 189, 248, 0) 48%
+      color-mix(in srgb, var(--decoration-cyan) 16%, transparent),
+      transparent 48%
     ),
     radial-gradient(
       120% 110% at 0% 100%,
-      rgba(37, 99, 235, 0.12),
-      rgba(37, 99, 235, 0) 56%
+      color-mix(in srgb, var(--accent-action) 12%, transparent),
+      transparent 56%
     ),
-    linear-gradient(165deg, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.58));
-  border-color: color-mix(in srgb, var(--border-light), #ffffff 34%);
+    linear-gradient(165deg, color-mix(in srgb, var(--content-on-dark) 80%, transparent), color-mix(in srgb, var(--content-on-dark) 58%, transparent));
+  border-color: color-mix(in srgb, var(--border-default), var(--content-on-dark) 34%);
   box-shadow:
-    0 14px 30px -20px rgba(59, 130, 246, 0.35),
-    0 10px 22px -18px rgba(15, 23, 42, 0.22),
-    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+    0 14px 30px -20px color-mix(in srgb, var(--accent-action) 35%, transparent),
+    0 10px 22px -18px color-mix(in srgb, var(--content-on-light) 22%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--content-on-dark) 70%, transparent);
   backdrop-filter: blur(12px) saturate(115%);
   -webkit-backdrop-filter: blur(12px) saturate(115%);
 }
 
 html.light-mode .st-card:hover {
-  border-color: color-mix(in srgb, var(--accent-main), #ffffff 42%);
+  border-color: color-mix(in srgb, var(--accent-action), var(--content-on-dark) 42%);
   box-shadow:
-    0 20px 34px -22px rgba(59, 130, 246, 0.4),
-    0 12px 20px -16px rgba(15, 23, 42, 0.2),
-    inset 0 1px 0 rgba(255, 255, 255, 0.82);
+    0 20px 34px -22px color-mix(in srgb, var(--accent-action) 40%, transparent),
+    0 12px 20px -16px color-mix(in srgb, var(--content-on-light) 20%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--content-on-dark) 82%, transparent);
 }
 
 html.light-mode .card-face,
 html.light-mode .card-info {
   background: linear-gradient(
     180deg,
-    rgba(255, 255, 255, 0.62),
-    rgba(255, 255, 255, 0.74)
+    color-mix(in srgb, var(--content-on-dark) 62%, transparent),
+    color-mix(in srgb, var(--content-on-dark) 74%, transparent)
   );
 }
 
 html.light-mode .card-front-topbar {
-  background: rgba(255, 255, 255, 0.42) !important;
-  border-bottom-color: rgba(100, 116, 139, 0.24);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  background: color-mix(in srgb, var(--content-on-dark) 42%, transparent) !important;
+  border-bottom-color: color-mix(in srgb, var(--content-muted) 24%, transparent);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--content-on-dark) 90%, transparent);
   backdrop-filter: blur(12px) saturate(130%);
   -webkit-backdrop-filter: blur(12px) saturate(130%);
 }
 
 html.light-mode .card-bottom-toolbar {
-  background: rgba(255, 255, 255, 0.42) !important;
-  border-top-color: rgba(100, 116, 139, 0.24);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  background: color-mix(in srgb, var(--content-on-dark) 42%, transparent) !important;
+  border-top-color: color-mix(in srgb, var(--content-muted) 24%, transparent);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--content-on-dark) 90%, transparent);
   backdrop-filter: blur(12px) saturate(130%);
   -webkit-backdrop-filter: blur(12px) saturate(130%);
 }
 
 html.light-mode .card-meta-chip {
-  background: rgba(255, 255, 255, 0.84);
+  background: color-mix(in srgb, var(--content-on-dark) 84%, transparent);
 }
 
 html.light-mode .card-token-level-extreme {
-  color: #7f1d1d;
+  color: var(--status-danger-text);
 }
 
 html.light-mode .card-token-level-danger {
-  color: #9a3412;
+  color: var(--status-danger-text);
 }
 
 html.light-mode .card-token-level-warn {
-  color: #854d0e;
+  color: var(--status-warning-text);
 }
 
 html.light-mode .card-token-level-ok {
-  color: #166534;
+  color: var(--status-success-text);
 }
 
 html.light-mode .card-image-tags-wrap .card-tag {
   --tag-chip-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.88), 0 1px 2px rgba(15, 23, 42, 0.14);
-  --tag-cat-color: #475569;
-  --tag-cat-bg: rgba(255, 255, 255, 0.58);
-  --tag-cat-border: rgba(71, 85, 105, 0.62);
-  background: var(--tag-cat-bg, rgba(255, 255, 255, 0.58));
-  color: color-mix(in srgb, var(--tag-cat-color, #0f172a), #0f172a 24%);
-  border-color: var(--tag-cat-border, rgba(71, 85, 105, 0.62));
+    inset 0 1px 0 color-mix(in srgb, var(--content-on-dark) 88%, transparent), 0 1px 2px color-mix(in srgb, var(--content-on-light) 14%, transparent);
+  --tag-cat-color: var(--content-muted);
+  --tag-cat-bg: color-mix(in srgb, var(--content-on-dark) 58%, transparent);
+  --tag-cat-border: color-mix(in srgb, var(--content-muted) 62%, transparent);
+  background: var(--tag-cat-bg, color-mix(in srgb, var(--content-on-dark) 58%, transparent));
+  color: color-mix(in srgb, var(--tag-cat-color, var(--surface-code)), var(--surface-code) 24%);
+  border-color: var(--tag-cat-border, color-mix(in srgb, var(--content-muted) 62%, transparent));
   text-shadow: none;
   box-shadow: var(--tag-chip-shadow);
   backdrop-filter: none;
@@ -1561,19 +1561,19 @@ html.light-mode .card-image-tags-wrap .card-tag {
 html.light-mode .card-image-tags-wrap .card-tag-filter.is-included {
   background: color-mix(
     in srgb,
-    var(--accent-main),
+    var(--accent-action),
     transparent 26%
   ) !important;
-  border-color: color-mix(in srgb, var(--accent-main), #ffffff 38%) !important;
-  color: #ffffff !important;
+  border-color: color-mix(in srgb, var(--accent-action), var(--content-on-dark) 38%) !important;
+  color: var(--content-on-dark) !important;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
 }
 
 html.light-mode .card-image-tags-wrap .card-tag-filter.is-excluded {
-  background: rgba(220, 38, 38, 0.3) !important;
-  border-color: rgba(220, 38, 38, 0.7) !important;
-  color: #fee2e2 !important;
+  background: color-mix(in srgb, var(--status-danger-solid) 30%, transparent) !important;
+  border-color: color-mix(in srgb, var(--status-danger-solid) 70%, transparent) !important;
+  color: var(--status-danger-text) !important;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
 }
@@ -1581,13 +1581,13 @@ html.light-mode .card-image-tags-wrap .card-tag-filter.is-excluded {
 html.light-mode
   .card-image-tags-wrap
   .card-tag-filter:not(.is-included):not(.is-excluded) {
-  background: var(--tag-cat-bg, rgba(255, 255, 255, 0.58)) !important;
+  background: var(--tag-cat-bg, color-mix(in srgb, var(--content-on-dark) 58%, transparent)) !important;
   color: color-mix(
     in srgb,
-    var(--tag-cat-color, #0f172a),
-    #0f172a 24%
+    var(--tag-cat-color, var(--surface-code)),
+    var(--surface-code) 24%
   ) !important;
-  border-color: var(--tag-cat-border, rgba(71, 85, 105, 0.62)) !important;
+  border-color: var(--tag-cat-border, color-mix(in srgb, var(--content-muted) 62%, transparent)) !important;
   text-shadow: none;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
@@ -1601,94 +1601,94 @@ html.light-mode
   .card-tag-filter:not(.is-included):not(.is-excluded):focus-visible {
   background: color-mix(
     in srgb,
-    var(--tag-cat-color, #475569),
+    var(--tag-cat-color, var(--content-muted)),
     transparent 76%
   );
   border-color: color-mix(
     in srgb,
-    var(--tag-cat-color, #475569),
+    var(--tag-cat-color, var(--content-muted)),
     transparent 40%
   );
-  color: color-mix(in srgb, var(--tag-cat-color, #0f172a), #0f172a 34%);
+  color: color-mix(in srgb, var(--tag-cat-color, var(--surface-code)), var(--surface-code) 34%);
 }
 
 html.light-mode .card-image-tags-wrap .card-tags-more {
-  color: rgba(248, 250, 252, 0.94);
+  color: color-mix(in srgb, var(--content-on-dark) 94%, transparent);
   text-shadow: none;
 }
 
 html.light-mode .card-local-note-btn {
-  background: rgba(255, 255, 255, 0.85);
+  background: color-mix(in srgb, var(--content-on-dark) 85%, transparent);
 }
 
 html.light-mode .card-local-note-btn.has-note {
-  color: #92400e;
-  border-color: rgba(217, 119, 6, 0.5);
+  color: var(--status-warning-text);
+  border-color: color-mix(in srgb, var(--status-warning-solid) 50%, transparent);
   background: linear-gradient(
     180deg,
-    rgba(253, 224, 71, 0.38),
-    rgba(251, 191, 36, 0.24)
+    color-mix(in srgb, var(--status-warning-text) 38%, transparent),
+    color-mix(in srgb, var(--status-warning-text) 24%, transparent)
   );
 }
 
 html.light-mode .card-send-st-btn {
-  background: rgba(255, 255, 255, 0.85);
+  background: color-mix(in srgb, var(--content-on-dark) 85%, transparent);
 }
 
 html.light-mode .card-forum-search-btn {
-  background: rgba(255, 255, 255, 0.85);
-  color: #475569;
+  background: color-mix(in srgb, var(--content-on-dark) 85%, transparent);
+  color: var(--content-secondary);
 }
 
 html.light-mode .card-forum-search-btn:hover {
-  color: #6d28d9;
-  border-color: rgba(167, 139, 250, 0.7);
-  background: rgba(237, 233, 254, 0.95);
+  color: var(--decoration-violet-solid);
+  border-color: color-mix(in srgb, var(--decoration-violet) 70%, transparent);
+  background: color-mix(in srgb, var(--decoration-violet) 95%, transparent);
 }
 
 html.light-mode .card-source-update-btn {
-  background: rgba(255, 255, 255, 0.85);
-  color: #475569;
+  background: color-mix(in srgb, var(--content-on-dark) 85%, transparent);
+  color: var(--content-secondary);
 }
 
 html.light-mode .card-source-update-btn.is-updated,
 html.light-mode .card-source-update-status.is-updated {
-  color: #b91c1c;
-  background: rgba(254, 226, 226, 0.95);
+  color: var(--status-danger-text);
+  background: color-mix(in srgb, var(--status-danger-surface) 95%, transparent);
 }
 
 html.light-mode .card-source-update-btn.is-warning,
 html.light-mode .card-source-update-status.is-warning {
-  color: #a16207;
-  background: rgba(254, 249, 195, 0.95);
+  color: var(--status-warning-text);
+  background: color-mix(in srgb, var(--status-warning-surface) 95%, transparent);
 }
 
 html.light-mode .card-source-update-btn.is-baseline,
 html.light-mode .card-source-update-status.is-baseline {
-  color: #1d4ed8;
-  background: rgba(219, 234, 254, 0.9);
+  color: var(--accent-action-hover);
+  background: color-mix(in srgb, var(--accent-soft) 90%, transparent);
 }
 
 html.light-mode .card-send-st-btn.has-sent {
-  color: #1d4ed8;
-  border-color: rgba(59, 130, 246, 0.5);
+  color: var(--accent-action-hover);
+  border-color: color-mix(in srgb, var(--accent-action) 50%, transparent);
   background: linear-gradient(
     180deg,
-    rgba(191, 219, 254, 0.9),
-    rgba(219, 234, 254, 0.56)
+    color-mix(in srgb, var(--accent-text) 90%, transparent),
+    color-mix(in srgb, var(--accent-soft) 56%, transparent)
   );
   box-shadow:
-    0 0 0 1px rgba(96, 165, 250, 0.2) inset,
-    0 8px 16px -14px rgba(59, 130, 246, 0.38);
+    0 0 0 1px color-mix(in srgb, var(--accent-text) 20%, transparent) inset,
+    0 8px 16px -14px color-mix(in srgb, var(--accent-action) 38%, transparent);
 }
 
 html.light-mode .card-send-st-btn.is-sending {
-  color: #0f766e;
-  border-color: rgba(45, 212, 191, 0.5);
+  color: var(--decoration-cyan-solid);
+  border-color: color-mix(in srgb, var(--decoration-cyan-solid) 50%, transparent);
   background: linear-gradient(
     180deg,
-    rgba(204, 251, 241, 0.92),
-    rgba(240, 253, 250, 0.6)
+    color-mix(in srgb, var(--status-success-text) 92%, transparent),
+    color-mix(in srgb, var(--status-success-surface) 60%, transparent)
   );
 }
 
@@ -1712,7 +1712,7 @@ html.light-mode .card-send-st-btn.is-sending {
 }
 
 .preset-grid-card .card-send-st-btn:hover:not(:disabled) {
-  color: #e0f2fe;
+  color: var(--decoration-cyan);
   border-color: transparent;
   background: transparent;
   box-shadow: none;
@@ -1734,24 +1734,24 @@ html.light-mode .preset-grid-card .card-send-st-btn {
 
 html.light-mode .preset-grid-card .card-send-st-btn:hover:not(:disabled),
 html.light-mode .preset-grid-card .card-send-st-btn.has-sent {
-  color: #1d4ed8;
+  color: var(--accent-action-hover);
 }
 
 html.light-mode .preset-grid-card .card-send-st-btn.is-sending {
-  color: #0f766e;
+  color: var(--decoration-cyan-solid);
 }
 
 html.light-mode .card-meta-category {
-  color: color-mix(in srgb, var(--text-sub), #000000 8%);
+  color: color-mix(in srgb, var(--content-secondary), var(--content-on-light) 8%);
 }
 
 html.light-mode .card-flip-toolbar {
-  background: color-mix(in srgb, var(--bg-sub), #ffffff 42%);
-  border-color: color-mix(in srgb, var(--border-light), #ffffff 36%);
+  background: color-mix(in srgb, var(--surface-container-raised), var(--content-on-dark) 42%);
+  border-color: color-mix(in srgb, var(--border-default), var(--content-on-dark) 36%);
 }
 
 html.light-mode .card-flip-count {
-  color: color-mix(in srgb, var(--text-sub), #000000 8%);
+  color: color-mix(in srgb, var(--content-secondary), var(--content-on-light) 8%);
 }
 
 .drag-over-main-overlay {
@@ -1762,8 +1762,8 @@ html.light-mode .card-flip-count {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background-color: rgba(17, 24, 39, 0.85);
-  border: 4px dashed var(--accent-main);
+  background-color: color-mix(in srgb, var(--surface-container) 85%, transparent);
+  border: 4px dashed var(--accent-action);
   backdrop-filter: blur(4px);
   pointer-events: none;
 }
@@ -1775,11 +1775,11 @@ html.light-mode .card-flip-count {
 }
 
 .note-text {
-  color: var(--text-main);
+  color: var(--content-primary);
 }
 
 .note-placeholder {
-  color: var(--text-dim);
+  color: var(--content-muted);
   font-style: italic;
 }
 
@@ -1789,9 +1789,9 @@ html.light-mode .card-flip-count {
   height: 1.25rem;
   flex-shrink: 0;
   border-radius: 4px;
-  background-color: var(--bg-sub);
-  border: 1px solid var(--border-light);
-  color: var(--text-sub);
+  background-color: var(--surface-container-raised);
+  border: 1px solid var(--border-default);
+  color: var(--content-secondary);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1803,30 +1803,30 @@ html.light-mode .card-flip-count {
 }
 
 .btn-note-preview:hover {
-  background-color: var(--bg-hover);
-  border-color: var(--accent-main);
-  color: var(--accent-main);
+  background-color: var(--state-hover-surface);
+  border-color: var(--accent-action);
+  color: var(--accent-action);
   opacity: 1;
   transform: scale(1.1);
 }
 
 html.light-mode .btn-note-preview {
-  color: #4b5563;
-  background-color: #ffffff;
-  border-color: #d1d5db;
+  color: var(--content-secondary);
+  background-color: var(--content-on-dark);
+  border-color: var(--border-default);
 }
 
 html.light-mode .btn-note-preview:hover {
-  background-color: #f3f4f6;
-  color: var(--accent-main);
+  background-color: var(--surface-container-raised);
+  color: var(--accent-action);
 }
 
 .st-card.is-favorite {
-  border: 1px solid rgba(251, 191, 36, 0.5);
+  border: 1px solid color-mix(in srgb, var(--status-warning-text) 50%, transparent);
   box-shadow:
     0 4px 6px -1px var(--shadow-color),
-    0 0 0 1px rgba(251, 191, 36, 0.3) inset,
-    0 0 15px rgba(251, 191, 36, 0.15);
+    0 0 0 1px color-mix(in srgb, var(--status-warning-text) 30%, transparent) inset,
+    0 0 15px color-mix(in srgb, var(--status-warning-text) 15%, transparent);
   position: relative;
   overflow: hidden;
   transition:
@@ -1837,36 +1837,36 @@ html.light-mode .btn-note-preview:hover {
 }
 
 .st-card.is-favorite:hover {
-  border-color: #fbbf24;
+  border-color: var(--status-warning-text);
   box-shadow:
-    0 10px 20px -3px rgba(0, 0, 0, 0.4),
-    0 0 20px rgba(251, 191, 36, 0.3);
+    0 10px 20px -3px color-mix(in srgb, var(--content-on-light) 40%, transparent),
+    0 0 20px color-mix(in srgb, var(--status-warning-text) 30%, transparent);
   transform: translateY(-4px);
 }
 
 @media not ((backdrop-filter: blur(2px))) {
   .st-card {
-    background: var(--bg-panel);
+    background: var(--surface-container);
   }
   .card-face,
   .card-info {
-    background: var(--bg-panel);
+    background: var(--surface-container);
   }
   .card-image-tags-wrap .card-tag {
     box-shadow: none;
   }
   .card-front-topbar,
   .card-bottom-toolbar {
-    background: rgba(2, 6, 23, 0.82) !important;
+    background: color-mix(in srgb, var(--surface-page) 82%, transparent) !important;
   }
   html.light-mode .card-front-topbar,
   html.light-mode .card-bottom-toolbar {
-    background: rgba(255, 255, 255, 0.86) !important;
+    background: color-mix(in srgb, var(--content-on-dark) 86%, transparent) !important;
   }
   html.light-mode .st-card,
   html.light-mode .card-face,
   html.light-mode .card-info {
-    background: var(--bg-panel);
+    background: var(--surface-container);
   }
 }
 
@@ -2143,7 +2143,7 @@ html.light-mode .btn-note-preview:hover {
   > .card-send-st-btn:focus-visible,
 .card-bottom-toolbar
   > .card-source-update-btn:focus-visible {
-  outline: 2px solid var(--accent-light);
+  outline: 2px solid var(--accent-text);
   outline-offset: 2px;
 }
 
@@ -2172,7 +2172,7 @@ html.light-mode .btn-note-preview:hover {
 }
 
 .card-bottom-toolbar > .card-local-note-btn.has-note {
-  filter: drop-shadow(0 0 4px rgba(250, 204, 21, 0.28));
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--status-warning-text) 28%, transparent));
 }
 
 .card-bottom-toolbar > .card-send-st-btn.is-sending,
@@ -2182,7 +2182,7 @@ html.light-mode .btn-note-preview:hover {
 
 /* 浅色模式不能沿用深色背景下的浅色悬浮色，避免发送图标失去对比度。 */
 html.light-mode .card-bottom-toolbar > .card-send-st-btn:hover:not(:disabled) {
-  color: #1d4ed8;
+  color: var(--accent-action-hover);
 }
 
 html.light-mode .card-bottom-toolbar

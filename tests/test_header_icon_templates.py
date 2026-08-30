@@ -51,6 +51,20 @@ def test_header_keeps_shared_dice_monitor_and_source_menu_arrow_icons():
     assert source.count("icon('chevron-down'") == 2
 
 
+def test_dice_top_face_keeps_light_surface_across_theme_accents():
+    icons_source = (PROJECT_ROOT / 'static/css/modules/icons.css').read_text(encoding='utf-8')
+
+    assert '--ui-dice-face-top: var(--content-on-dark);' in icons_source
+    assert '--ui-dice-face-top: var(--content-on-accent);' not in icons_source
+
+
+def test_dice_shadow_uses_a_contrasting_semantic_color():
+    icons_source = (PROJECT_ROOT / 'static/css/modules/icons.css').read_text(encoding='utf-8')
+
+    assert '--ui-dice-shadow: var(--content-on-light);' in icons_source
+    assert '--ui-dice-shadow: var(--surface-page);' not in icons_source
+
+
 def test_brand_assets_are_used_in_header_and_loading_screen():
     header_source = read_header_template()
     loading_source = read_loading_template()

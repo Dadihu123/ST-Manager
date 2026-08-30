@@ -127,7 +127,9 @@ export class ManagerScriptRuntime {
         this.startedAt = 0;
 
         this.onWindowMessage = this.onWindowMessage.bind(this);
+        this.onThemeModeChange = this.onThemeModeChange.bind(this);
         window.addEventListener('message', this.onWindowMessage);
+        window.addEventListener('theme-mode-changed', this.onThemeModeChange);
     }
 
     setCallbacks(callbacks = {}) {
@@ -161,8 +163,8 @@ export class ManagerScriptRuntime {
                 maxHeight: `${this.options.maxHeight}px`,
                 overflow: 'hidden',
                 borderRadius: '10px',
-                border: '1px solid var(--border-light, rgba(255,255,255,0.08))',
-                background: 'rgba(2, 6, 23, 0.78)',
+                border: '1px solid var(--border-default)',
+                background: 'var(--surface-overlay)',
             });
 
             this.iframe = document.createElement('iframe');
@@ -296,6 +298,17 @@ export class ManagerScriptRuntime {
         this.iframe.src = this.objectUrl;
     }
 
+    onThemeModeChange() {
+        if (!this.runtimeId || !this.scriptSnapshot || !this.iframe) {
+            return;
+        }
+        this.setDocument(buildScriptRuntimeDocument(
+            this.runtimeId,
+            this.scriptSnapshot,
+            document.documentElement.classList.contains('light-mode') ? 'light' : 'dark',
+        ));
+    }
+
     run(script) {
         this.ensureMounted();
         this.scriptSnapshot = createRuntimeSnapshot(script);
@@ -310,7 +323,11 @@ export class ManagerScriptRuntime {
         this.lastMeasuredHeight = 0;
         this.startedAt = Date.now();
         this.emitStatus('starting');
-        this.setDocument(buildScriptRuntimeDocument(this.runtimeId, this.scriptSnapshot));
+        this.setDocument(buildScriptRuntimeDocument(
+            this.runtimeId,
+            this.scriptSnapshot,
+            document.documentElement.classList.contains('light-mode') ? 'light' : 'dark',
+        ));
         this.syncViewport();
         return this.runtimeId;
     }
@@ -395,6 +412,7 @@ export class ManagerScriptRuntime {
     destroy() {
         this.stop();
         window.removeEventListener('message', this.onWindowMessage);
+        window.removeEventListener('theme-mode-changed', this.onThemeModeChange);
         if (this.host && this.shell && this.shell.parentNode === this.host) {
             this.host.innerHTML = '';
         }

@@ -498,7 +498,7 @@ def test_automation_modal_template_exposes_rule_trigger_chip_controls_contract()
     for trigger_name, trigger_label in expected_trigger_chips:
         expected_block = f'''
         <button type="button" class="automation-preset-chip"
-            :class="ruleHasTrigger(rule, '{trigger_name}') ? 'border-[var(--accent-main)] text-[var(--accent-main)]' : 'text-[var(--text-dim)]'"
+            :class="ruleHasTrigger(rule, '{trigger_name}') ? 'border-[var(--accent-action)] text-[var(--accent-action)]' : 'text-[var(--content-muted)]'"
             @click="toggleRuleTrigger(rule, '{trigger_name}')">
             {trigger_label}
         </button>
@@ -1081,13 +1081,13 @@ def test_chat_reader_css_softens_bookmark_button_and_secondary_floor_actions():
 
     assert 'background: transparent;' in bookmark_toggle_block
     assert 'border-color: transparent;' in bookmark_toggle_block
-    assert 'color: var(--text-dim);' in bookmark_toggle_block
+    assert 'color: var(--content-muted);' in bookmark_toggle_block
 
     assert 'padding: 0.18rem 0.4rem;' in secondary_floor_chip_block
     assert 'font-weight: 600;' in secondary_floor_chip_block
-    assert 'color: color-mix(in srgb, var(--text-dim), var(--text-main) 22%);' in secondary_floor_chip_block
+    assert 'color: color-mix(in srgb, var(--content-muted), var(--content-primary) 22%);' in secondary_floor_chip_block
 
-    assert 'color: #475569;' in light_mode_secondary_floor_chip_block
+    assert 'color: var(--content-secondary);' in light_mode_secondary_floor_chip_block
 
 
 def test_chat_reader_css_mobile_drawer_starts_below_header_instead_of_centering_content():
@@ -1253,8 +1253,8 @@ def test_chat_reader_css_uses_theme_surface_backgrounds_for_mobile_drawers():
     chat_reader_css = read_chat_module_css()
     mobile_block = extract_media_block(chat_reader_css, '@media (max-width: 900px)')
 
-    assert 'background: var(--bg-panel);' in mobile_block
-    assert 'border-top: 1px solid var(--border-main);' in mobile_block
+    assert 'background: var(--surface-container);' in mobile_block
+    assert 'border-top: 1px solid var(--border-subtle);' in mobile_block
     assert 'backdrop-filter: blur(16px);' not in mobile_block
     assert '-webkit-backdrop-filter: blur(16px);' not in mobile_block
 
@@ -1905,7 +1905,7 @@ def test_chat_reader_scroll_disclosures_use_compact_chip_like_summaries_before_e
     assert 'border-radius: 999px;' in reasoning_block
     assert 'width: fit-content;' in reasoning_block
     assert 'padding: 0.22rem 0.68rem;' in reasoning_block
-    assert 'background: color-mix(in srgb, var(--bg-sub), transparent 8%);' in reasoning_block
+    assert 'background: color-mix(in srgb, var(--surface-container-raised), transparent 8%);' in reasoning_block
     assert 'border-top: 1px solid' in body_block
 
 
@@ -2003,7 +2003,7 @@ def test_mobile_header_css_keeps_search_tools_on_a_single_compact_row():
     assert '.mobile-search-mode-row {' not in mobile_layout_css
     assert 'height: 32px;' in toggle_button_block
     assert 'border-radius: 6px;' in toggle_button_block
-    assert 'border: 1px solid var(--border-light);' in toggle_button_block
+    assert 'border: 1px solid var(--border-default);' in toggle_button_block
 
 
 def test_mobile_header_template_tracks_sidebar_open_state_for_toggle_feedback():
@@ -2028,10 +2028,10 @@ def test_mobile_layout_css_defines_mobile_header_toggle_feedback_states():
     active_block = extract_exact_css_block(layout_css, '.mobile-header-left:active')
     open_block = extract_exact_css_block(layout_css, '.mobile-header-left.is-active')
 
-    assert 'background-color: var(--bg-hover);' in active_block
+    assert 'background-color: var(--state-hover-surface);' in active_block
     assert 'transform: scale(0.98);' in active_block
-    assert 'background-color: var(--accent-faint);' in open_block
-    assert 'border-color: var(--accent-light);' in open_block
+    assert 'background-color: var(--accent-soft-strong);' in open_block
+    assert 'border-color: var(--accent-text);' in open_block
 
 
 def test_card_sidebar_template_adds_stable_split_layout_hooks():
@@ -2540,8 +2540,8 @@ def test_automation_help_modal_js_and_css_define_tab_state_and_mobile_layout():
 
     assert 'border:' in help_tab_block
     assert 'transition:' in help_tab_block
-    assert 'border-color: var(--accent-main);' in active_tab_block
-    assert 'color: var(--text-main);' in active_tab_block
+    assert 'border-color: var(--accent-action);' in active_tab_block
+    assert 'color: var(--content-primary);' in active_tab_block
     assert 'flex-wrap: wrap' in mobile_tabs_block
     assert 'width: 100%' in mobile_tab_block or 'flex: 1 1' in mobile_tab_block
 

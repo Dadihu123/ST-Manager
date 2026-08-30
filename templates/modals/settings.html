@@ -118,7 +118,7 @@
             x-show="pathSafety.risk_level && pathSafety.risk_level !== 'safe'"
             x-transition
             class="settings-row p-3 rounded border"
-            :class="pathSafety.risk_level === 'danger' ? 'border-red-500/60 bg-red-950/30 text-red-200' : 'border-yellow-500/60 bg-yellow-950/20 text-yellow-100'"
+            :class="pathSafety.risk_level === 'danger' ? 'color-border-danger color-surface-danger color-text-danger' : 'color-border-warning color-surface-warning color-text-warning'"
           >
             <div class="text-sm font-bold">路径安全警告</div>
             <div class="mt-1 text-sm" x-text="pathSafety.risk_summary || '检测到路径重叠风险，请先处理后再继续。'"></div>
@@ -127,7 +127,7 @@
           <div class="settings-group-title">ST-Manager 管理目录</div>
 
           <div class="settings-row">
-            <label class="settings-label text-blue-400"
+            <label class="settings-label color-text-accent"
               >角色卡存储路径 (Cards)</label
             >
             <div class="settings-desc">
@@ -149,11 +149,11 @@
                 {{ icon('folder-resources', 'ui-icon--sm  settings-path-open-icon') }}
               </button>
             </div>
-            <div x-show="getPathConflictMessage('cards_dir')" class="mt-2 text-sm text-yellow-300" x-text="getPathConflictMessage('cards_dir')"></div>
+            <div x-show="getPathConflictMessage('cards_dir')" class="mt-2 text-sm color-text-warning" x-text="getPathConflictMessage('cards_dir')"></div>
           </div>
 
           <div class="settings-row">
-            <label class="settings-label text-yellow-400"
+            <label class="settings-label color-text-warning"
               >世界书存储路径 (Lorebooks)</label
             >
             <div class="settings-desc">存放全局共享世界书 (.json) 的目录</div>
@@ -163,11 +163,11 @@
               class="form-input mt-2"
               placeholder="lorebooks"
             />
-            <div x-show="getPathConflictMessage('world_info_dir')" class="mt-2 text-sm text-yellow-300" x-text="getPathConflictMessage('world_info_dir')"></div>
+            <div x-show="getPathConflictMessage('world_info_dir')" class="mt-2 text-sm color-text-warning" x-text="getPathConflictMessage('world_info_dir')"></div>
           </div>
 
           <div class="settings-row">
-            <label class="settings-label text-emerald-400"
+            <label class="settings-label color-text-success"
               >聊天记录路径 (Chats)</label
             >
             <div class="settings-desc">
@@ -179,11 +179,11 @@
               class="form-input mt-2"
               placeholder="data/library/chats"
             />
-            <div x-show="getPathConflictMessage('chats_dir')" class="mt-2 text-sm text-yellow-300" x-text="getPathConflictMessage('chats_dir')"></div>
+            <div x-show="getPathConflictMessage('chats_dir')" class="mt-2 text-sm color-text-warning" x-text="getPathConflictMessage('chats_dir')"></div>
           </div>
 
           <div class="settings-row">
-            <label class="settings-label text-purple-400"
+            <label class="settings-label color-text-violet"
               >正则脚本路径 (Regex)</label
             >
             <div class="settings-desc">存放全局正则脚本 (.json) 的目录</div>
@@ -193,11 +193,11 @@
               class="form-input mt-2"
               placeholder="extensions/regex"
             />
-            <div x-show="getPathConflictMessage('regex_dir')" class="mt-2 text-sm text-yellow-300" x-text="getPathConflictMessage('regex_dir')"></div>
+            <div x-show="getPathConflictMessage('regex_dir')" class="mt-2 text-sm color-text-warning" x-text="getPathConflictMessage('regex_dir')"></div>
           </div>
 
           <div class="settings-row">
-            <label class="settings-label text-indigo-400"
+            <label class="settings-label color-text-violet"
               >ST 脚本路径 (Scripts)</label
             >
             <div class="settings-desc">
@@ -209,11 +209,11 @@
               class="form-input mt-2"
               placeholder="extensions/tavern_helper"
             />
-            <div x-show="getPathConflictMessage('scripts_dir')" class="mt-2 text-sm text-yellow-300" x-text="getPathConflictMessage('scripts_dir')"></div>
+            <div x-show="getPathConflictMessage('scripts_dir')" class="mt-2 text-sm color-text-warning" x-text="getPathConflictMessage('scripts_dir')"></div>
           </div>
 
           <div class="settings-row">
-            <label class="settings-label text-yellow-500"
+            <label class="settings-label color-text-warning"
               >快速回复路径 (Quick Replies)</label
             >
             <div class="settings-desc">存放全局快速回复 (.json) 的目录</div>
@@ -223,11 +223,11 @@
               class="form-input mt-2"
               placeholder="extensions/quick-replies"
             />
-            <div x-show="getPathConflictMessage('quick_replies_dir')" class="mt-2 text-sm text-yellow-300" x-text="getPathConflictMessage('quick_replies_dir')"></div>
+            <div x-show="getPathConflictMessage('quick_replies_dir')" class="mt-2 text-sm color-text-warning" x-text="getPathConflictMessage('quick_replies_dir')"></div>
           </div>
 
           <div class="settings-row">
-            <label class="settings-label text-orange-400"
+            <label class="settings-label color-text-warning"
               >预设路径 (Presets)</label
             >
             <div class="settings-desc">存放 AI 生成参数预设 (.json) 的目录</div>
@@ -237,11 +237,11 @@
               class="form-input mt-2"
               placeholder="data/library/presets"
             />
-            <div x-show="getPathConflictMessage('presets_dir')" class="mt-2 text-sm text-yellow-300" x-text="getPathConflictMessage('presets_dir')"></div>
+            <div x-show="getPathConflictMessage('presets_dir')" class="mt-2 text-sm color-text-warning" x-text="getPathConflictMessage('presets_dir')"></div>
           </div>
 
           <div class="settings-row">
-            <label class="settings-label text-green-400"
+            <label class="settings-label color-text-success"
               >资源文件夹路径 (Resources)</label
             >
             <div class="settings-desc">
@@ -253,13 +253,13 @@
               class="form-input mt-2"
               placeholder="resources"
             />
-            <div x-show="getPathConflictMessage('resources_dir')" class="mt-2 text-sm text-yellow-300" x-text="getPathConflictMessage('resources_dir')"></div>
+            <div x-show="getPathConflictMessage('resources_dir')" class="mt-2 text-sm color-text-warning" x-text="getPathConflictMessage('resources_dir')"></div>
           </div>
 
           <div class="settings-group-title">SillyTavern 兼容目录</div>
 
           <div class="settings-row">
-            <label class="settings-label text-orange-400"
+            <label class="settings-label color-text-warning"
               >ST Chat Completion 预设目录</label
             >
             <div class="settings-desc">
@@ -271,7 +271,7 @@
               class="form-input mt-2"
               placeholder="例如: D:/SillyTavern/data/default-user/openai"
             />
-            <div x-show="getPathConflictMessage('st_openai_preset_dir')" class="mt-2 text-sm text-yellow-300" x-text="getPathConflictMessage('st_openai_preset_dir')"></div>
+            <div x-show="getPathConflictMessage('st_openai_preset_dir')" class="mt-2 text-sm color-text-warning" x-text="getPathConflictMessage('st_openai_preset_dir')"></div>
           </div>
         </div>
 
@@ -285,7 +285,7 @@
 
           <!-- 深色模式 -->
           <div
-            class="settings-row flex justify-between items-center p-3 rounded border border-[var(--border-light)] bg-[var(--bg-sub)]"
+            class="settings-row flex justify-between items-center p-3 rounded border border-[var(--border-default)] bg-[var(--surface-container-raised)]"
           >
             <div>
               <div class="settings-label">深浅色模式 (Light / Dark Mode)</div>
@@ -310,43 +310,37 @@
             <div class="flex gap-4">
               <button
                 @click="applyTheme('blue')"
-                class="theme-dot"
-                style="background-color: #2563eb"
+                class="theme-dot theme-dot--blue"
                 :class="settingsForm.theme_accent==='blue'?'active':''"
                 title="Blue"
               ></button>
               <button
                 @click="applyTheme('purple')"
-                class="theme-dot"
-                style="background-color: #7c3aed"
+                class="theme-dot theme-dot--purple"
                 :class="settingsForm.theme_accent==='purple'?'active':''"
                 title="Purple"
               ></button>
               <button
                 @click="applyTheme('green')"
-                class="theme-dot"
-                style="background-color: #059669"
+                class="theme-dot theme-dot--green"
                 :class="settingsForm.theme_accent==='green'?'active':''"
                 title="Green"
               ></button>
               <button
                 @click="applyTheme('red')"
-                class="theme-dot"
-                style="background-color: #dc2626"
+                class="theme-dot theme-dot--red"
                 :class="settingsForm.theme_accent==='red'?'active':''"
                 title="Red"
               ></button>
               <button
                 @click="applyTheme('orange')"
-                class="theme-dot"
-                style="background-color: #ea580c"
+                class="theme-dot theme-dot--orange"
                 :class="settingsForm.theme_accent==='orange'?'active':''"
                 title="Orange"
               ></button>
               <button
                 @click="applyTheme('pink')"
-                class="theme-dot"
-                style="background-color: #db2777"
+                class="theme-dot theme-dot--pink"
                 :class="settingsForm.theme_accent==='pink'?'active':''"
                 title="Pink"
               ></button>
@@ -359,22 +353,22 @@
             <div class="grid grid-cols-3 gap-3">
               <button
                 @click="applyFont('sans')"
-                class="py-3 border border-[var(--border-light)] rounded hover:bg-[var(--bg-hover)] transition"
-                :class="settingsForm.font_style === 'sans' ? 'bg-[var(--accent-main)] text-white border-transparent' : 'bg-[var(--bg-sub)]'"
+                class="py-3 border border-[var(--border-default)] rounded hover:bg-[var(--state-hover-surface)] transition"
+                :class="settingsForm.font_style === 'sans' ? 'bg-[var(--accent-action)] color-text-on-dark border-transparent' : 'bg-[var(--surface-container-raised)]'"
               >
                 <span class="font-sans text-sm">无衬线 (Sans)</span>
               </button>
               <button
                 @click="applyFont('serif')"
-                class="py-3 border border-[var(--border-light)] rounded hover:bg-[var(--bg-hover)] transition"
-                :class="settingsForm.font_style === 'serif' ? 'bg-[var(--accent-main)] text-white border-transparent' : 'bg-[var(--bg-sub)]'"
+                class="py-3 border border-[var(--border-default)] rounded hover:bg-[var(--state-hover-surface)] transition"
+                :class="settingsForm.font_style === 'serif' ? 'bg-[var(--accent-action)] color-text-on-dark border-transparent' : 'bg-[var(--surface-container-raised)]'"
               >
                 <span class="font-serif text-sm">衬线体 (Serif)</span>
               </button>
               <button
                 @click="applyFont('mono')"
-                class="py-3 border border-[var(--border-light)] rounded hover:bg-[var(--bg-hover)] transition"
-                :class="settingsForm.font_style === 'mono' ? 'bg-[var(--accent-main)] text-white border-transparent' : 'bg-[var(--bg-sub)]'"
+                class="py-3 border border-[var(--border-default)] rounded hover:bg-[var(--state-hover-surface)] transition"
+                :class="settingsForm.font_style === 'mono' ? 'bg-[var(--accent-action)] color-text-on-dark border-transparent' : 'bg-[var(--surface-container-raised)]'"
               >
                 <span class="font-mono text-sm">等宽 (Mono)</span>
               </button>
@@ -398,7 +392,7 @@
               step="10"
               x-model="settingsForm.card_width"
               @input="updateCssVariable('--card-min-width', $event.target.value + 'px')"
-              class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+              class="w-full h-2 color-surface-raised rounded-lg appearance-none cursor-pointer"
             />
           </div>
 
@@ -456,7 +450,7 @@
           </div>
 
           <div
-            class="settings-row flex justify-between items-center py-2 border-b border-[var(--border-light)]"
+            class="settings-row flex justify-between items-center py-2 border-b border-[var(--border-default)]"
           >
             <div>
               <div class="settings-label">主界面显示排序选项</div>
@@ -467,7 +461,7 @@
             <input
               type="checkbox"
               x-model="settingsForm.show_header_sort"
-              class="w-5 h-5 accent-[var(--accent-main)]"
+              class="w-5 h-5 accent-[var(--accent-action)]"
             />
           </div>
 
@@ -551,14 +545,14 @@
             <div
               x-data="sharedWallpaperPicker({ sourceFilter: 'all', selectionTarget: 'manager', persistSelection: false })"
               @shared-wallpaper-selected.window="applySharedWallpaperSelection($event.detail)"
-              class="bg-[var(--bg-sub)] p-3 rounded border border-[var(--border-light)] mt-3"
+              class="bg-[var(--surface-container-raised)] p-3 rounded border border-[var(--border-default)] mt-3"
             >
               <div class="flex flex-wrap items-center gap-2 mb-3">
                 <span class="settings-label mb-0">共享壁纸库</span>
                 <button
                   type="button"
                   class="btn-secondary px-3 py-1 text-xs"
-                  :class="sourceFilter === 'all' ? 'ring-1 ring-[var(--accent-main)]' : ''"
+                  :class="sourceFilter === 'all' ? 'ring-1 ring-[var(--accent-action)]' : ''"
                   @click="setSourceFilter('all')"
                 >
                   全部
@@ -566,7 +560,7 @@
                 <button
                   type="button"
                   class="btn-secondary px-3 py-1 text-xs"
-                  :class="sourceFilter === 'builtin' ? 'ring-1 ring-[var(--accent-main)]' : ''"
+                  :class="sourceFilter === 'builtin' ? 'ring-1 ring-[var(--accent-action)]' : ''"
                   @click="setSourceFilter('builtin')"
                 >
                   内置
@@ -574,7 +568,7 @@
                 <button
                   type="button"
                   class="btn-secondary px-3 py-1 text-xs"
-                  :class="sourceFilter === 'imported' ? 'ring-1 ring-[var(--accent-main)]' : ''"
+                  :class="sourceFilter === 'imported' ? 'ring-1 ring-[var(--accent-action)]' : ''"
                   @click="setSourceFilter('imported')"
                 >
                   用户导入
@@ -582,7 +576,7 @@
                 <button
                   type="button"
                   class="btn-secondary px-3 py-1 text-xs"
-                  :class="sourceFilter === 'beautify' ? 'ring-1 ring-[var(--accent-main)]' : ''"
+                  :class="sourceFilter === 'beautify' ? 'ring-1 ring-[var(--accent-action)]' : ''"
                   @click="setSourceFilter('beautify')"
                 >
                   Beautify 导入
@@ -607,12 +601,12 @@
                 <template x-for="item in filteredWallpapers" :key="item.id">
                   <button
                     type="button"
-                    class="text-left p-2 rounded border border-[var(--border-light)] hover:border-[var(--accent-main)] transition bg-[var(--bg-main)]"
-                    :class="isSelected(item) ? 'ring-1 ring-[var(--accent-main)] border-[var(--accent-main)]' : ''"
+                    class="text-left p-2 rounded border border-[var(--border-default)] hover:border-[var(--accent-action)] transition bg-[var(--surface-container)]"
+                    :class="isSelected(item) ? 'ring-1 ring-[var(--accent-action)] border-[var(--accent-action)]' : ''"
                     @click="selectWallpaper(item)"
                   >
                     <div
-                      class="w-full h-24 rounded bg-[var(--bg-sub)] bg-cover bg-center mb-2 border border-[var(--border-light)]"
+                      class="w-full h-24 rounded bg-[var(--surface-container-raised)] bg-cover bg-center mb-2 border border-[var(--border-default)]"
                       :style="`background-image:url('${sharedWallpaperPreviewUrl(item.file)}')`"
                     ></div>
                     <div
@@ -620,7 +614,7 @@
                       x-text="item.filename || item.name || item.id"
                     ></div>
                     <div
-                      class="text-xs text-gray-400 mt-1"
+                      class="text-xs color-text-muted mt-1"
                       x-text="item.source_type || 'imported'"
                     ></div>
                   </button>
@@ -637,7 +631,7 @@
             <div
               x-show="settingsForm.bg_url || settingsForm.manager_wallpaper_id"
               x-transition
-              class="bg-[var(--bg-sub)] p-3 rounded border border-[var(--border-light)] mt-2"
+              class="bg-[var(--surface-container-raised)] p-3 rounded border border-[var(--border-default)] mt-2"
             >
               <div class="mb-3">
                 <div class="flex justify-between text-xs mb-1">
@@ -653,7 +647,7 @@
                   step="0.05"
                   x-model="settingsForm.bg_opacity"
                   @input="updateCssVariable('--bg-overlay-opacity', $event.target.value)"
-                  class="w-full h-1.5 bg-gray-600 rounded-lg appearance-none cursor-pointer"
+                  class="w-full h-1.5 color-surface-raised rounded-lg appearance-none cursor-pointer"
                 />
               </div>
               <div>
@@ -668,13 +662,13 @@
                   step="1"
                   x-model="settingsForm.bg_blur"
                   @input="updateCssVariable('--bg-blur', $event.target.value + 'px')"
-                  class="w-full h-1.5 bg-gray-600 rounded-lg appearance-none cursor-pointer"
+                  class="w-full h-1.5 color-surface-raised rounded-lg appearance-none cursor-pointer"
                 />
               </div>
             </div>
           </div>
           <div
-            class="settings-row flex justify-between items-center py-2 border-b border-[var(--border-light)]"
+            class="settings-row flex justify-between items-center py-2 border-b border-[var(--border-default)]"
           >
             <div>
               <div class="settings-label">收藏卡片前置 (Pin Favorites)</div>
@@ -683,7 +677,7 @@
             <input
               type="checkbox"
               x-model="settingsForm.favorites_first"
-              class="w-5 h-5 accent-[var(--accent-main)]"
+              class="w-5 h-5 accent-[var(--accent-action)]"
             />
           </div>
         </div>
@@ -697,7 +691,7 @@
           <div class="settings-group-title">SillyTavern 本地目录</div>
 
           <div class="settings-row">
-            <label class="settings-label text-cyan-400">ST 安装目录</label>
+            <label class="settings-label color-text-info">ST 安装目录</label>
             <div class="settings-desc">
               请输入 SillyTavern 安装根目录（包含
               data/public/server.js）。若填入 data 或
@@ -733,7 +727,7 @@
               x-show="stPathStatus"
               x-transition
               class="mt-2 text-sm"
-              :class="stPathValid ? 'text-green-400' : 'text-red-400'"
+              :class="stPathValid ? 'color-text-success' : 'color-text-danger'"
             >
               <svg
                 x-show="stPathStatusIcon"
@@ -751,7 +745,7 @@
           <div
             x-show="stResources && Object.keys(stResources).length > 0"
             x-transition
-            class="settings-row p-3 rounded border border-[var(--border-light)] bg-[var(--bg-sub)]"
+            class="settings-row p-3 rounded border border-[var(--border-default)] bg-[var(--surface-container-raised)]"
           >
             <div class="settings-subheading">
               <span class="settings-subheading-icon" aria-hidden="true">{{ icon('folder-resources', 'ui-icon--sm ') }}</span>
@@ -760,7 +754,7 @@
             <div class="grid grid-cols-2 md:grid-cols-3 gap-2 text-xs">
               <template x-for="(info, type) in stResources" :key="type">
                 <div
-                  class="flex justify-between p-2 rounded bg-[var(--bg-main)]"
+                  class="flex justify-between p-2 rounded bg-[var(--surface-container)]"
                 >
                   <span class="inline-flex items-center gap-1">
                     <svg
@@ -787,7 +781,7 @@
             <div class="settings-desc mb-3">
               将 SillyTavern 中的资源复制到 ST-Manager 管理的目录
             </div>
-            <div class="mb-3 text-xs text-[var(--text-dim)]" x-text="syncSafetySummary"></div>
+            <div class="mb-3 text-xs text-[var(--content-muted)]" x-text="syncSafetySummary"></div>
             <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
               <button
                 @click="syncFromST('characters')"
@@ -843,7 +837,7 @@
               x-show="syncStatus"
               x-transition
               class="mt-3 p-2 rounded text-sm"
-              :class="syncSuccess ? 'bg-green-900/30 text-green-400' : 'bg-red-900/30 text-red-400'"
+              :class="syncSuccess ? 'color-surface-success color-text-success' : 'color-surface-danger color-text-danger'"
             >
               <svg
                 x-show="syncStatusIcon"
@@ -861,7 +855,7 @@
           <div class="settings-group-title mt-8">SillyTavern API 连接</div>
 
           <div class="settings-row">
-            <label class="settings-label text-pink-400">ST 服务地址</label>
+            <label class="settings-label color-text-rose">ST 服务地址</label>
             <input
               type="text"
               x-model="settingsForm.st_url"
@@ -871,11 +865,11 @@
           </div>
 
           <div class="settings-row">
-            <label class="settings-label text-gray-400">请求代理 (Proxy)</label>
+            <label class="settings-label color-text-muted">请求代理 (Proxy)</label>
             <div class="settings-desc">
               可选。若连接 ST 需经由代理，请在此填写 (如
               http://127.0.0.1:7890)。<br />
-              <span class="text-yellow-500 text-xs"
+              <span class="color-text-warning text-xs"
                 >留空则强制直连 (忽略系统代理)。</span
               >
             </div>
@@ -888,7 +882,7 @@
           </div>
 
           <div
-            class="settings-row p-4 rounded border border-[var(--border-light)] bg-[var(--bg-sub)]"
+            class="settings-row p-4 rounded border border-[var(--border-default)] bg-[var(--surface-container-raised)]"
           >
             <label class="settings-label mb-2 block">认证方式</label>
             <div class="flex gap-4 mb-4">
@@ -925,14 +919,14 @@
               <span class="text-sm">Basic Auth + Web Login</span>
             </label>
 
-            <div class="text-xs text-[var(--text-dim)] mb-4 leading-5">
+            <div class="text-xs text-[var(--content-muted)] mb-4 leading-5">
               <div>
                 `basicAuthMode: true` 时使用 Basic/Auth；`enableUserAccounts:
                 true` 时使用 Web Login。
               </div>
               <div>
                 `basicAuthMode: true` 且两者同时开启时，请选择
-                <span class="text-[var(--accent-main)] font-semibold"
+                <span class="text-[var(--accent-action)] font-semibold"
                   >Basic Auth + Web Login</span
                 >。
               </div>
@@ -944,16 +938,16 @@
               class="mb-4"
             >
               <div
-                class="rounded border border-[var(--border-light)] bg-[var(--bg-panel)] p-3"
+                class="rounded border border-[var(--border-default)] bg-[var(--surface-container)] p-3"
               >
                 <div
-                  class="text-xs uppercase tracking-wide text-[var(--text-dim)] mb-2"
+                  class="text-xs uppercase tracking-wide text-[var(--content-muted)] mb-2"
                 >
                   Basic/Auth
                 </div>
                 <div class="grid grid-cols-2 gap-4">
                   <div>
-                    <label class="text-xs text-[var(--text-dim)] uppercase"
+                    <label class="text-xs text-[var(--content-muted)] uppercase"
                       >Auth 用户名</label
                     >
                     <input
@@ -964,7 +958,7 @@
                     />
                   </div>
                   <div>
-                    <label class="text-xs text-[var(--text-dim)] uppercase"
+                    <label class="text-xs text-[var(--content-muted)] uppercase"
                       >Auth 密码</label
                     >
                     <input
@@ -975,7 +969,7 @@
                     />
                   </div>
                 </div>
-                <div class="mt-2 text-xs text-[var(--text-dim)]">
+                <div class="mt-2 text-xs text-[var(--content-muted)]">
                   `perUserBasicAuth: true` 时，这里可以直接填写 Web 用户的
                   handle/password。
                 </div>
@@ -988,16 +982,16 @@
               class="mb-4"
             >
               <div
-                class="rounded border border-[var(--border-light)] bg-[var(--bg-panel)] p-3"
+                class="rounded border border-[var(--border-default)] bg-[var(--surface-container)] p-3"
               >
                 <div
-                  class="text-xs uppercase tracking-wide text-[var(--text-dim)] mb-2"
+                  class="text-xs uppercase tracking-wide text-[var(--content-muted)] mb-2"
                 >
                   Web/Login
                 </div>
                 <div class="grid grid-cols-2 gap-4">
                   <div>
-                    <label class="text-xs text-[var(--text-dim)] uppercase"
+                    <label class="text-xs text-[var(--content-muted)] uppercase"
                       >Web 用户名</label
                     >
                     <input
@@ -1008,7 +1002,7 @@
                     />
                   </div>
                   <div>
-                    <label class="text-xs text-[var(--text-dim)] uppercase"
+                    <label class="text-xs text-[var(--content-muted)] uppercase"
                       >Web 密码</label
                     >
                     <input
@@ -1019,7 +1013,7 @@
                     />
                   </div>
                 </div>
-                <div class="mt-2 text-xs text-[var(--text-dim)]">
+                <div class="mt-2 text-xs text-[var(--content-muted)]">
                   Web handle 可在 Account / Manage Users
                   中查看；密码无法直接查询，只能验证、修改或重置。
                 </div>
@@ -1028,7 +1022,7 @@
 
             <div x-show="false" class="grid grid-cols-2 gap-4">
               <div>
-                <label class="text-xs text-[var(--text-dim)] uppercase"
+                <label class="text-xs text-[var(--content-muted)] uppercase"
                   >用户名</label
                 >
                 <input
@@ -1038,7 +1032,7 @@
                 />
               </div>
               <div>
-                <label class="text-xs text-[var(--text-dim)] uppercase"
+                <label class="text-xs text-[var(--content-muted)] uppercase"
                   >密码</label
                 >
                 <input
@@ -1054,7 +1048,7 @@
           <div class="settings-row">
             <div class="flex gap-4">
               <div class="flex-1">
-                <label class="settings-label text-orange-400"
+                <label class="settings-label color-text-warning"
                   >监听地址 (Host)</label
                 >
                 <div class="settings-desc">
@@ -1068,7 +1062,7 @@
                 />
               </div>
               <div class="w-32">
-                <label class="settings-label text-orange-400"
+                <label class="settings-label color-text-warning"
                   >端口 (Port)</label
                 >
                 <div class="settings-desc">重启生效</div>
@@ -1110,9 +1104,9 @@
           </div>
 
           <div
-            class="settings-row p-4 rounded border border-[var(--border-light)] bg-[var(--bg-sub)]"
+            class="settings-row p-4 rounded border border-[var(--border-default)] bg-[var(--surface-container-raised)]"
           >
-            <label class="settings-label settings-section-label-with-icon text-red-400 mb-2">
+            <label class="settings-label settings-section-label-with-icon color-text-danger mb-2">
               <span aria-hidden="true">{{ icon('shield-key', 'ui-icon--sm ') }}</span>
               <span>外网访问身份验证</span>
             </label>
@@ -1124,7 +1118,7 @@
             </div>
             <div class="grid grid-cols-2 gap-4">
               <div>
-                <label class="text-xs text-[var(--text-dim)] uppercase"
+                <label class="text-xs text-[var(--content-muted)] uppercase"
                   >用户名</label
                 >
                 <input
@@ -1135,7 +1129,7 @@
                 />
               </div>
               <div>
-                <label class="text-xs text-[var(--text-dim)] uppercase"
+                <label class="text-xs text-[var(--content-muted)] uppercase"
                   >密码</label
                 >
                 <input
@@ -1148,8 +1142,8 @@
             </div>
 
             <!-- IP/域名 白名单 -->
-            <div class="mt-4 pt-4 border-t border-[var(--border-light)]">
-              <label class="text-xs text-[var(--text-dim)] uppercase mb-2 block"
+            <div class="mt-4 pt-4 border-t border-[var(--border-default)]">
+              <label class="text-xs text-[var(--content-muted)] uppercase mb-2 block"
                 >白名单 (IP/域名, 免登录)</label
               >
               <div class="settings-desc mb-2">
@@ -1164,7 +1158,7 @@
               <!-- 白名单列表 -->
               <div class="space-y-2 mb-3">
                 <div
-                  class="flex items-center gap-2 px-2 py-1 rounded bg-[var(--bg-panel)] text-sm text-green-400"
+                  class="flex items-center gap-2 px-2 py-1 rounded bg-[var(--surface-container)] text-sm color-text-success"
                 >
                   <span class="flex-1 font-mono">127.0.0.1, ::1</span>
                   <span class="text-xs opacity-50">(本机 - 固定)</span>
@@ -1174,7 +1168,7 @@
                   :key="index"
                 >
                   <div
-                    class="flex items-center gap-2 px-2 py-1 rounded bg-[var(--bg-panel)]"
+                    class="flex items-center gap-2 px-2 py-1 rounded bg-[var(--surface-container)]"
                   >
                     <input
                       type="text"
@@ -1184,7 +1178,7 @@
                     />
                     <button
                       @click="settingsForm.auth_trusted_ips.splice(index, 1)"
-                      class="settings-icon-button settings-icon-button--inline text-red-400 hover:text-red-300"
+                      class="settings-icon-button settings-icon-button--inline color-text-danger color-hover-text-danger"
                       type="button"
                       title="移除白名单条目"
                       aria-label="移除白名单条目"
@@ -1206,16 +1200,16 @@
 
               <!-- 快捷添加 -->
               <div class="mt-3 flex flex-wrap gap-2">
-                <span class="text-xs text-[var(--text-dim)]">快捷添加：</span>
+                <span class="text-xs text-[var(--content-muted)]">快捷添加：</span>
                 <button
                   @click="if(!settingsForm.auth_trusted_ips) settingsForm.auth_trusted_ips = []; if(!settingsForm.auth_trusted_ips.includes('192.168.*.*')) settingsForm.auth_trusted_ips.push('192.168.*.*')"
-                  class="text-xs px-2 py-0.5 rounded bg-blue-900/30 text-blue-400 hover:bg-blue-900/50"
+                  class="text-xs px-2 py-0.5 rounded color-surface-accent color-text-accent color-hover-surface-accent"
                 >
                   192.168.*.* (局域网 C 类)
                 </button>
                 <button
                   @click="if(!settingsForm.auth_trusted_ips) settingsForm.auth_trusted_ips = []; if(!settingsForm.auth_trusted_ips.includes('10.*.*.*')) settingsForm.auth_trusted_ips.push('10.*.*.*')"
-                  class="text-xs px-2 py-0.5 rounded bg-blue-900/30 text-blue-400 hover:bg-blue-900/50"
+                  class="text-xs px-2 py-0.5 rounded color-surface-accent color-text-accent color-hover-surface-accent"
                 >
                   10.*.*.* (局域网 A 类)
                 </button>
@@ -1232,9 +1226,9 @@
             Discord 论坛标签抓取 (类脑)
           </div>
           <div
-            class="settings-row p-4 rounded border border-[var(--border-light)] bg-[var(--bg-sub)]"
+            class="settings-row p-4 rounded border border-[var(--border-default)] bg-[var(--surface-container-raised)]"
           >
-            <div class="settings-label settings-section-label-with-icon text-indigo-400 mb-2">
+            <div class="settings-label settings-section-label-with-icon color-text-violet mb-2">
               <span aria-hidden="true">{{ icon('settings-connection-service', 'ui-icon--sm ') }}</span>
               <span>Discord 认证</span>
             </div>
@@ -1245,7 +1239,7 @@
                 <a
                   href="https://discord.com/developers/applications"
                   target="_blank"
-                  class="text-blue-400 hover:underline"
+                  class="color-text-accent hover:underline"
                   >Discord Developer Portal</a
                 >
                 获取<br />
@@ -1282,7 +1276,7 @@
               x-show="settingsForm.discord_auth_type === 'token'"
               x-transition
             >
-              <label class="text-xs text-[var(--text-dim)] uppercase"
+              <label class="text-xs text-[var(--content-muted)] uppercase"
                 >Token (推荐)</label
               >
               <div class="flex gap-2 mt-1">
@@ -1304,7 +1298,7 @@
                   </button>
                 </div>
               </div>
-              <div class="text-xs text-[var(--text-dim)] mt-2 space-y-1">
+              <div class="text-xs text-[var(--content-muted)] mt-2 space-y-1">
                 <p><strong>获取方法（参考实现）：</strong></p>
                 <p>1. 浏览器打开Discord并进入类脑论坛帖子</p>
                 <p>2. F12打开开发者工具 → Network面板</p>
@@ -1324,7 +1318,7 @@
               x-show="settingsForm.discord_auth_type === 'cookie'"
               x-transition
             >
-              <label class="text-xs text-[var(--text-dim)] uppercase"
+              <label class="text-xs text-[var(--content-muted)] uppercase"
                 >Cookie</label
               >
               <div class="flex gap-2 mt-1">
@@ -1347,7 +1341,7 @@
                   </button>
                 </div>
               </div>
-              <div class="text-xs text-[var(--text-dim)] mt-1">
+              <div class="text-xs text-[var(--content-muted)] mt-1">
                 从浏览器开发者工具 Network 面板复制请求中的完整Cookie
               </div>
             </div>
@@ -1362,9 +1356,9 @@
             类脑搜索站预览
           </div>
           <div
-            class="settings-row p-4 rounded border border-[var(--border-light)] bg-[var(--bg-sub)]"
+            class="settings-row p-4 rounded border border-[var(--border-default)] bg-[var(--surface-container-raised)]"
           >
-            <div class="settings-label settings-section-label-with-icon text-indigo-400 mb-2">
+            <div class="settings-label settings-section-label-with-icon color-text-violet mb-2">
               <span aria-hidden="true">{{ icon('key', 'ui-icon--sm ') }}</span>
               <span>类脑 Cookie</span>
             </div>
@@ -1372,7 +1366,7 @@
               用于卡片「类脑搜索」预览类脑搜索站帖子详情。与上方 Discord
               标签抓取 Cookie 相互独立。
             </div>
-            <label class="text-xs text-[var(--text-dim)] uppercase"
+            <label class="text-xs text-[var(--content-muted)] uppercase"
               >shimmerday_forum_cookie</label
             >
             <div class="flex gap-2 mt-1">
@@ -1395,14 +1389,14 @@
                 </button>
               </div>
             </div>
-            <div class="text-xs text-[var(--text-dim)] mt-2 space-y-1">
+            <div class="text-xs text-[var(--content-muted)] mt-2 space-y-1">
               <p>
                 1. 浏览器打开并登录
                 <a
                   href="https://odysseia-forum-webpage.pages.dev/"
                   target="_blank"
                   rel="noopener noreferrer"
-                  class="text-blue-400 hover:underline"
+                  class="color-text-accent hover:underline"
                   >https://odysseia-forum-webpage.pages.dev/</a
                 >
               </p>
@@ -1423,14 +1417,14 @@
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
             <!-- 扫描 -->
             <div
-              class="p-4 rounded border border-[var(--border-light)] bg-[var(--bg-sub)] flex flex-col justify-between"
+              class="p-4 rounded border border-[var(--border-default)] bg-[var(--surface-container-raised)] flex flex-col justify-between"
             >
               <div>
                 <div class="settings-subheading">
                   <span class="settings-subheading-icon" aria-hidden="true">{{ icon('scan', 'ui-icon--sm ') }}</span>
                   <span>同步扫描</span>
                 </div>
-                <div class="text-xs text-[var(--text-dim)] mb-3">
+                <div class="text-xs text-[var(--content-muted)] mb-3">
                   强制扫描 cards
                   目录并修复数据库索引。如果手动修改了文件，请执行此操作。
                 </div>
@@ -1442,14 +1436,14 @@
 
             <!-- 备份 -->
             <div
-              class="p-4 rounded border border-[var(--border-light)] bg-[var(--bg-sub)] flex flex-col justify-between"
+              class="p-4 rounded border border-[var(--border-default)] bg-[var(--surface-container-raised)] flex flex-col justify-between"
             >
               <div>
                 <div class="settings-subheading">
                   <span class="settings-subheading-icon" aria-hidden="true">{{ icon('database-backup', 'ui-icon--sm ') }}</span>
                   <span>备份数据</span>
                 </div>
-                <div class="text-xs text-[var(--text-dim)] mb-3">
+                <div class="text-xs text-[var(--content-muted)] mb-3">
                   备份 ui_data.json 到根目录。建议定期执行。
                 </div>
               </div>
@@ -1463,14 +1457,14 @@
 
             <!-- 资源管理 -->
             <div
-              class="p-4 rounded border border-[var(--border-light)] bg-[var(--bg-sub)] flex flex-col justify-between"
+              class="p-4 rounded border border-[var(--border-default)] bg-[var(--surface-container-raised)] flex flex-col justify-between"
             >
               <div>
                 <div class="settings-subheading">
                   <span class="settings-subheading-icon" aria-hidden="true">{{ icon('folder-resources', 'ui-icon--sm ') }}</span>
                   <span>资源文件夹</span>
                 </div>
-                <div class="text-xs text-[var(--text-dim)] mb-3">
+                <div class="text-xs text-[var(--content-muted)] mb-3">
                   打开存放图片、Markdown附件的目录。
                 </div>
               </div>
@@ -1484,14 +1478,14 @@
 
             <!-- 用户 DB 数据 -->
             <div
-              class="p-4 rounded border border-[var(--border-light)] bg-[var(--bg-sub)] flex flex-col justify-between"
+              class="p-4 rounded border border-[var(--border-default)] bg-[var(--surface-container-raised)] flex flex-col justify-between"
             >
               <div>
                 <div class="settings-subheading">
                   <span class="settings-subheading-icon" aria-hidden="true">{{ icon('database-user', 'ui-icon--sm ') }}</span>
                   <span>用户 DB 数据</span>
                 </div>
-                <div class="text-xs text-[var(--text-dim)] mb-3">
+                <div class="text-xs text-[var(--content-muted)] mb-3">
                   备份或恢复仅保存在用户数据库中的状态，不影响 ui_data.json。
                 </div>
               </div>
@@ -1520,14 +1514,14 @@
 
             <!-- 回收站 -->
             <div
-              class="p-4 rounded border border-[var(--border-light)] bg-[var(--bg-sub)] flex flex-col justify-between"
+              class="p-4 rounded border border-[var(--border-default)] bg-[var(--surface-container-raised)] flex flex-col justify-between"
             >
               <div>
                 <div class="settings-subheading">
                   <span class="settings-subheading-icon" aria-hidden="true">{{ icon('trash', 'ui-icon--sm ') }}</span>
                   <span>文件回收站</span>
                 </div>
-                <div class="text-xs text-[var(--text-dim)] mb-3">
+                <div class="text-xs text-[var(--content-muted)] mb-3">
                   管理已删除的卡片。
                 </div>
               </div>
@@ -1540,7 +1534,7 @@
                 </button>
                 <button
                   @click="emptyTrash()"
-                  class="btn-secondary settings-inline-action flex-1 py-2 text-red-400 hover:text-red-500"
+                  class="btn-secondary settings-inline-action flex-1 py-2 color-text-danger color-hover-text-danger"
                 >
                   {{ icon('trash', 'ui-icon--sm ') }}<span>清空</span>
                 </button>
@@ -1550,10 +1544,10 @@
 
           <div class="settings-group-title">高级选项</div>
 
-          <div class="settings-row border-b border-[var(--border-light)] py-3">
+          <div class="settings-row border-b border-[var(--border-default)] py-3">
             <div class="flex justify-between items-center">
               <div>
-                <div class="settings-label text-emerald-400">
+                <div class="settings-label color-text-success">
                   将斜杠 / 视为标签分隔符
                 </div>
                 <div class="settings-desc">
@@ -1564,12 +1558,12 @@
               <input
                 type="checkbox"
                 x-model="settingsForm.automation_slash_is_tag_separator"
-                class="w-5 h-5 accent-[var(--accent-main)]"
+                class="w-5 h-5 accent-[var(--accent-action)]"
               />
             </div>
           </div>
 
-          <div class="settings-row border-b border-[var(--border-light)] py-3">
+          <div class="settings-row border-b border-[var(--border-default)] py-3">
             <div class="flex justify-between items-center">
               <div>
                 <div class="settings-label">导入时自动重命名为角色名</div>
@@ -1580,12 +1574,12 @@
               <input
                 type="checkbox"
                 x-model="settingsForm.auto_rename_on_import"
-                class="w-5 h-5 accent-[var(--accent-main)]"
+                class="w-5 h-5 accent-[var(--accent-action)]"
               />
             </div>
           </div>
 
-          <div class="settings-row border-b border-[var(--border-light)] py-3">
+          <div class="settings-row border-b border-[var(--border-default)] py-3">
             <div class="flex justify-between items-center">
               <div>
                 <div class="settings-label">PNG 元数据确定性排序</div>
@@ -1596,19 +1590,19 @@
               <input
                 type="checkbox"
                 x-model="settingsForm.png_deterministic_sort"
-                class="w-5 h-5 accent-[var(--accent-main)]"
+                class="w-5 h-5 accent-[var(--accent-action)]"
               />
             </div>
           </div>
 
-          <div class="settings-row border-b border-[var(--border-light)] py-3">
+          <div class="settings-row border-b border-[var(--border-default)] py-3">
             <div class="settings-label">世界书预览限制</div>
             <div class="settings-desc">
               控制详情弹窗的预览条目数与单条内容最大字符数
             </div>
             <div class="grid grid-cols-2 gap-4 mt-2">
               <div>
-                <label class="text-xs text-[var(--text-dim)]"
+                <label class="text-xs text-[var(--content-muted)]"
                   >预览最大条目数</label
                 >
                 <div class="settings-number-control mt-1">
@@ -1640,7 +1634,7 @@
                 </div>
               </div>
               <div>
-                <label class="text-xs text-[var(--text-dim)]"
+                <label class="text-xs text-[var(--content-muted)]"
                   >单条最大字符数</label
                 >
                 <div class="settings-number-control mt-1">
@@ -1674,7 +1668,7 @@
             </div>
           </div>
 
-          <div class="settings-row border-b border-[var(--border-light)] py-3">
+          <div class="settings-row border-b border-[var(--border-default)] py-3">
             <div class="settings-label">资源目录绝对路径白名单</div>
             <div class="settings-desc">
               一行一个路径，用于允许资源文件列表接口访问绝对路径
@@ -1688,7 +1682,7 @@
           </div>
 
           <!-- 自动保存设置行 -->
-          <div class="settings-row border-b border-[var(--border-light)] py-3">
+          <div class="settings-row border-b border-[var(--border-default)] py-3">
             <div class="flex justify-between items-center">
               <div>
                 <div class="settings-label">快照保留数量 (Snapshot Limits)</div>
@@ -1697,7 +1691,7 @@
             </div>
             <div class="grid grid-cols-2 gap-4 mt-2">
               <div>
-                <label class="text-xs text-[var(--text-dim)]"
+                <label class="text-xs text-[var(--content-muted)]"
                   >手动快照 (Manual) (上限200)</label
                 >
                 <div class="settings-number-control mt-1">
@@ -1730,7 +1724,7 @@
                 </div>
               </div>
               <div>
-                <label class="text-xs text-[var(--text-dim)]"
+                <label class="text-xs text-[var(--content-muted)]"
                   >自动快照 (Auto) (上限50)</label
                 >
                 <div class="settings-number-control mt-1">
@@ -1764,7 +1758,7 @@
               </div>
             </div>
             <div class="mt-3">
-              <label class="text-xs text-[var(--text-dim)]"
+              <label class="text-xs text-[var(--content-muted)]"
                 >世界书条目历史保留数 (每条目)</label
               >
               <div class="settings-number-control mt-1 max-w-[240px]">
@@ -1795,7 +1789,7 @@
                   </button>
                 </div>
               </div>
-              <div class="text-[11px] text-[var(--text-dim)] mt-1">
+              <div class="text-[11px] text-[var(--content-muted)] mt-1">
                 默认 7，保存时会自动清理更旧版本
               </div>
             </div>
@@ -1814,7 +1808,7 @@
                 name="toggle"
                 id="auto-save-toggle"
                 x-model="settingsForm.auto_save_enabled"
-                class="w-5 h-5 accent-[var(--accent-main)]"
+                class="w-5 h-5 accent-[var(--accent-action)]"
               />
             </div>
 
@@ -1822,7 +1816,7 @@
             <div
               x-show="settingsForm.auto_save_enabled"
               x-transition
-              class="bg-[var(--bg-sub)] p-3 rounded border border-[var(--border-light)] mt-2 flex items-center gap-4"
+              class="bg-[var(--surface-container-raised)] p-3 rounded border border-[var(--border-default)] mt-2 flex items-center gap-4"
             >
               <span class="text-sm whitespace-nowrap inline-flex items-center gap-1">{{ detail_icon('clock', 'ui-icon--sm ') }}<span>保存间隔:</span></span>
               <input
@@ -1831,7 +1825,7 @@
                 max="60"
                 step="1"
                 x-model.number="settingsForm.auto_save_interval"
-                class="flex-1 h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer"
+                class="flex-1 h-2 color-surface-raised rounded-lg appearance-none cursor-pointer"
               />
               <span class="text-sm font-mono w-16 text-right">
                 <span x-text="settingsForm.auto_save_interval"></span> min
@@ -1840,7 +1834,7 @@
           </div>
 
           <div
-            class="settings-row flex items-center justify-between py-2 border-b border-[var(--border-light)]"
+            class="settings-row flex items-center justify-between py-2 border-b border-[var(--border-default)]"
           >
             <div>
               <div class="settings-label">静默快照 (Silent Snapshot)</div>
@@ -1849,7 +1843,7 @@
             <input
               type="checkbox"
               x-model="settingsForm.silent_snapshot"
-              class="w-5 h-5 accent-[var(--accent-main)]"
+              class="w-5 h-5 accent-[var(--accent-action)]"
             />
           </div>
         </div>
@@ -1920,17 +1914,17 @@
         <div x-show="activeSettingTab === 'general'" x-transition>
           <div class="space-y-4">
             <div
-              class="bg-[var(--bg-sub)] rounded border border-[var(--border-light)] p-4"
+              class="bg-[var(--surface-container-raised)] rounded border border-[var(--border-default)] p-4"
             >
-              <h4 class="font-bold text-[var(--accent-main)] mb-2">
+              <h4 class="font-bold text-[var(--accent-action)] mb-2">
                 <span aria-hidden="true">{{ icon('folder-path', 'ui-icon--sm ') }}</span>
                 <span>路径配置说明</span>
               </h4>
-              <p class="text-[var(--text-dim)] mb-3">
+              <p class="text-[var(--content-muted)] mb-3">
                 各路径支持相对路径（相对于程序根目录）或绝对路径。
               </p>
               <ul
-                class="list-disc list-inside space-y-2 text-[var(--text-dim)] text-xs"
+                class="list-disc list-inside space-y-2 text-[var(--content-muted)] text-xs"
               >
                 <li>
                   <strong>角色卡路径：</strong>存放PNG/JSON格式角色卡的目录
@@ -1961,14 +1955,14 @@
         <div x-show="activeSettingTab === 'appearance'" x-transition>
           <div class="space-y-4">
             <div
-              class="bg-[var(--bg-sub)] rounded border border-[var(--border-light)] p-4"
+              class="bg-[var(--surface-container-raised)] rounded border border-[var(--border-default)] p-4"
             >
-              <h4 class="font-bold text-[var(--accent-main)] mb-2">
+              <h4 class="font-bold text-[var(--accent-action)] mb-2">
                 <span aria-hidden="true">{{ icon('palette', 'ui-icon--sm ') }}</span>
                 <span>外观设置说明</span>
               </h4>
               <ul
-                class="list-disc list-inside space-y-2 text-[var(--text-dim)] text-xs"
+                class="list-disc list-inside space-y-2 text-[var(--content-muted)] text-xs"
               >
                 <li><strong>深浅色模式：</strong>切换日间/夜间配色方案</li>
                 <li>
@@ -1990,13 +1984,13 @@
               </ul>
             </div>
             <div
-              class="bg-[var(--bg-sub)] rounded border border-[var(--border-light)] p-4"
+              class="bg-[var(--surface-container-raised)] rounded border border-[var(--border-default)] p-4"
             >
-              <h4 class="font-bold text-purple-400 mb-2">
+              <h4 class="font-bold color-text-violet mb-2">
                 <span aria-hidden="true">{{ icon('wallpaper', 'ui-icon--sm ') }}</span>
                 <span>个性化壁纸</span>
               </h4>
-              <p class="text-[var(--text-dim)] text-xs">
+              <p class="text-[var(--content-muted)] text-xs">
                 支持上传自定义背景图片，可调整遮罩浓度和模糊度以适应文字阅读。
               </p>
             </div>
@@ -2007,13 +2001,13 @@
         <div x-show="activeSettingTab === 'connection'" x-transition>
           <div class="space-y-4">
             <div
-              class="bg-[var(--bg-sub)] rounded border border-[var(--border-light)] p-4"
+              class="bg-[var(--surface-container-raised)] rounded border border-[var(--border-default)] p-4"
             >
-              <h4 class="font-bold text-emerald-400 mb-2">
+              <h4 class="font-bold color-text-success mb-2">
                 <span aria-hidden="true">{{ icon('shield-key', 'ui-icon--sm ') }}</span>
                 <span>ST 认证模式排查</span>
               </h4>
-              <div class="space-y-3 text-xs text-[var(--text-dim)]">
+              <div class="space-y-3 text-xs text-[var(--content-muted)]">
                 <p>
                   先打开 SillyTavern 根目录下的
                   <code class="font-mono">config.yaml</code>，重点检查
@@ -2051,8 +2045,8 @@
                     >。
                   </li>
                 </ul>
-                <div class="rounded bg-[var(--bg-code)] p-3 space-y-2">
-                  <div class="text-[var(--text-main)] font-semibold">
+                <div class="rounded bg-[var(--surface-code)] p-3 space-y-2">
+                  <div class="text-[var(--content-primary)] font-semibold">
                     三种常见配置示例
                   </div>
                   <pre class="overflow-x-auto text-[10px]">
@@ -2078,7 +2072,7 @@ basicAuthUser:
                   >
                 </div>
                 <div
-                  class="rounded border border-amber-500/40 bg-amber-500/10 p-3 text-amber-200"
+                  class="rounded border color-border-warning color-surface-warning p-3 color-text-warning"
                 >
                   Web 用户名是账号 handle，可在 Account / Manage Users
                   中查看；Web 密码无法直接查询，只能验证、修改，忘记时请使用官方
@@ -2087,17 +2081,17 @@ basicAuthUser:
               </div>
             </div>
             <div
-              class="bg-[var(--bg-sub)] rounded border border-[var(--border-light)] p-4"
+              class="bg-[var(--surface-container-raised)] rounded border border-[var(--border-default)] p-4"
             >
-              <h4 class="font-bold text-[var(--accent-main)] mb-2">
+              <h4 class="font-bold text-[var(--accent-action)] mb-2">
                 <span aria-hidden="true">{{ icon('plug', 'ui-icon--sm ') }}</span>
                 <span>SillyTavern 集成</span>
               </h4>
-              <p class="text-[var(--text-dim)] text-xs mb-3">
+              <p class="text-[var(--content-muted)] text-xs mb-3">
                 配置 SillyTavern 安装根目录后，可检测资源数量，并将资源复制到 ST-Manager 的管理目录。
               </p>
               <ul
-                class="list-disc list-inside space-y-2 text-[var(--text-dim)] text-xs"
+                class="list-disc list-inside space-y-2 text-[var(--content-muted)] text-xs"
               >
                 <li>点击“自动探测路径”尝试自动查找安装目录，也可以手动填写绝对路径</li>
                 <li>路径应指向包含 <code class="font-mono">data/</code>、<code class="font-mono">public/</code> 与 <code class="font-mono">server.js</code> 的根目录</li>
@@ -2108,40 +2102,40 @@ basicAuthUser:
 
             <!-- Discord认证帮助 -->
             <div
-              class="bg-[var(--bg-sub)] rounded border border-[var(--border-light)] p-4"
+              class="bg-[var(--surface-container-raised)] rounded border border-[var(--border-default)] p-4"
             >
-              <h4 class="font-bold text-indigo-400 mb-2">
+              <h4 class="font-bold color-text-violet mb-2">
                 <span aria-hidden="true">{{ icon('settings-connection-service', 'ui-icon--sm ') }}</span>
                 <span>Discord 论坛标签抓取</span>
               </h4>
-              <p class="text-[var(--text-dim)] text-xs mb-3">
+              <p class="text-[var(--content-muted)] text-xs mb-3">
                 配置Discord认证后，自动化规则可从类脑论坛帖子抓取标签。
               </p>
 
-              <div class="bg-[var(--bg-code)] rounded p-3 mb-3">
-                <div class="font-bold text-xs text-green-400 mb-2">
+              <div class="bg-[var(--surface-code)] rounded p-3 mb-3">
+                <div class="font-bold text-xs color-text-success mb-2">
                   获取 Discord Token 的步骤：
                 </div>
                 <ol
-                  class="list-decimal list-inside space-y-1 text-[var(--text-dim)] text-xs"
+                  class="list-decimal list-inside space-y-1 text-[var(--content-muted)] text-xs"
                 >
                   <li>浏览器打开 Discord 网页版并登录</li>
                   <li>
                     按
-                    <code class="bg-[var(--bg-sub)] px-1 rounded">F12</code>
+                    <code class="bg-[var(--surface-container-raised)] px-1 rounded">F12</code>
                     打开开发者工具
                   </li>
                   <li>
                     按
-                    <code class="bg-[var(--bg-sub)] px-1 rounded"
+                    <code class="bg-[var(--surface-container-raised)] px-1 rounded"
                       >Ctrl + Shift + M</code
                     >
                     启用移动设备模拟
                   </li>
                   <li>切换到 <strong>Console（控制台）</strong> 标签</li>
-                  <li class="text-yellow-400">
+                  <li class="color-text-warning">
                     Chrome 新版如提示无法粘贴，请先输入
-                    <code class="bg-[var(--bg-sub)] px-1 rounded"
+                    <code class="bg-[var(--surface-container-raised)] px-1 rounded"
                       >allow pasting</code
                     >
                     解锁
@@ -2149,7 +2143,7 @@ basicAuthUser:
                   <li>
                     粘贴以下代码并回车：
                     <pre
-                      class="bg-[var(--bg-sub)] p-2 rounded mt-1 overflow-x-auto text-[10px]"
+                      class="bg-[var(--surface-container-raised)] p-2 rounded mt-1 overflow-x-auto text-[10px]"
                     >
 const iframe = document.createElement('iframe');
 console.log(
@@ -2162,17 +2156,17 @@ iframe.remove();</pre
                   </li>
                   <li>
                     控制台显示
-                    <code class="text-green-400">Token: xxx</code>，复制该值
+                    <code class="color-text-success">Token: xxx</code>，复制该值
                   </li>
                   <li>在下方 Discord Token 输入框中粘贴保存</li>
                 </ol>
               </div>
 
               <div
-                class="bg-amber-100 border border-amber-300 rounded p-3 text-xs"
+                class="color-surface-warning border color-border-warning rounded p-3 text-xs"
               >
-                <div class="text-amber-800 font-bold mb-1">注意事项：</div>
-                <ul class="list-disc list-inside space-y-1 text-amber-700">
+                <div class="color-text-warning font-bold mb-1">注意事项：</div>
+                <ul class="list-disc list-inside space-y-1 color-text-warning">
                   <li>Token 有过期时间，通常几小时到几天不等</li>
                   <li>如遇 401 错误，请重新获取 Token</li>
                   <li>Token 仅保存在本地，不会上传到任何服务器</li>
@@ -2187,14 +2181,14 @@ iframe.remove();</pre
         <div x-show="activeSettingTab === 'connection'" x-transition>
           <div class="space-y-4">
             <div class="settings-help-card">
-              <h4 class="font-bold text-violet-400 mb-2">
+              <h4 class="font-bold color-text-violet mb-2">
                 <span aria-hidden="true">{{ icon('key', 'ui-icon--sm ') }}</span>
                 <span>类脑搜索预览</span>
               </h4>
-              <p class="text-[var(--text-dim)] text-xs mb-3">
+              <p class="text-[var(--content-muted)] text-xs mb-3">
                 类脑 Cookie 只用于打开卡片中的帖子详情预览，与 Discord 标签抓取使用的认证信息相互独立。
               </p>
-              <ul class="list-disc list-inside space-y-2 text-[var(--text-dim)] text-xs">
+              <ul class="list-disc list-inside space-y-2 text-[var(--content-muted)] text-xs">
                 <li>登录类脑镜像站后，从浏览器开发者工具的 Network 请求中复制完整 Cookie</li>
                 <li>优先复制包含 <code class="font-mono">session=</code> 的整段值，并粘贴到“类脑 Cookie”输入框</li>
                 <li>Cookie 只保存在本机；预览失败时先重新登录并更新 Cookie</li>
@@ -2207,14 +2201,14 @@ iframe.remove();</pre
         <div x-show="activeSettingTab === 'maintenance'" x-transition>
           <div class="space-y-4">
             <div
-              class="bg-[var(--bg-sub)] rounded border border-[var(--border-light)] p-4"
+              class="bg-[var(--surface-container-raised)] rounded border border-[var(--border-default)] p-4"
             >
-              <h4 class="font-bold text-[var(--accent-main)] mb-2">
+              <h4 class="font-bold text-[var(--accent-action)] mb-2">
                 <span aria-hidden="true">{{ icon('settings-maintenance', 'ui-icon--sm ') }}</span>
                 <span>维护功能说明</span>
               </h4>
               <ul
-                class="list-disc list-inside space-y-2 text-[var(--text-dim)] text-xs"
+                class="list-disc list-inside space-y-2 text-[var(--content-muted)] text-xs"
               >
                 <li>
                   <strong>同步扫描：</strong>强制扫描所有目录并修复数据库索引
@@ -2229,14 +2223,14 @@ iframe.remove();</pre
               </ul>
             </div>
             <div
-              class="bg-[var(--bg-sub)] rounded border border-[var(--border-light)] p-4"
+              class="bg-[var(--surface-container-raised)] rounded border border-[var(--border-default)] p-4"
             >
-              <h4 class="font-bold text-orange-400 mb-2">
+              <h4 class="font-bold color-text-warning mb-2">
                 <span aria-hidden="true">{{ icon('sliders-settings', 'ui-icon--sm ') }}</span>
                 <span>高级选项</span>
               </h4>
               <ul
-                class="list-disc list-inside space-y-2 text-[var(--text-dim)] text-xs"
+                class="list-disc list-inside space-y-2 text-[var(--content-muted)] text-xs"
               >
                 <li>
                   <strong>自动化标签分隔符：</strong>控制是否将

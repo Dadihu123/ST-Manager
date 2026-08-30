@@ -11,7 +11,12 @@ import {
   saveTagOrder,
   saveTagTaxonomy,
 } from "../api/system.js";
-import { matchAnyTagSearchToken, splitTagTokens } from "../state.js";
+import {
+  DEFAULT_TAG_CATEGORY_COLOR,
+  DEFAULT_TAG_CATEGORY_OPACITY,
+  matchAnyTagSearchToken,
+  splitTagTokens,
+} from "../state.js";
 
 export default function tagFilterModal() {
   return {
@@ -51,12 +56,12 @@ export default function tagFilterModal() {
     selectedCategoryTags: [],
     categorySelectionInput: "",
     categoryDraftName: "",
-    categoryDraftColor: "#64748b",
-    categoryDraftOpacity: 16,
+    categoryDraftColor: DEFAULT_TAG_CATEGORY_COLOR,
+    categoryDraftOpacity: DEFAULT_TAG_CATEGORY_OPACITY,
     showCategoryManager: false,
     categoryManagerDraftName: "",
-    categoryManagerDraftColor: "#64748b",
-    categoryManagerDraftOpacity: 16,
+    categoryManagerDraftColor: DEFAULT_TAG_CATEGORY_COLOR,
+    categoryManagerDraftOpacity: DEFAULT_TAG_CATEGORY_OPACITY,
     selectedBlacklistTags: [],
     blacklistSelectionInput: "",
     categoryFilterInclude: [],
@@ -365,8 +370,8 @@ export default function tagFilterModal() {
         this.selectedCategoryTags = [];
         this.categorySelectionInput = "";
         this.categoryDraftName = "";
-        this.categoryDraftColor = "#64748b";
-        this.categoryDraftOpacity = 16;
+        this.categoryDraftColor = DEFAULT_TAG_CATEGORY_COLOR;
+        this.categoryDraftOpacity = DEFAULT_TAG_CATEGORY_OPACITY;
         this.showCategoryManager = false;
         this.showCategoryMode = false;
       }
@@ -531,8 +536,8 @@ export default function tagFilterModal() {
         this.selectedCategoryTags = [];
         this.categorySelectionInput = "";
         this.categoryDraftName = "";
-        this.categoryDraftColor = "#64748b";
-        this.categoryDraftOpacity = 16;
+        this.categoryDraftColor = DEFAULT_TAG_CATEGORY_COLOR;
+        this.categoryDraftOpacity = DEFAULT_TAG_CATEGORY_OPACITY;
         this.showCategoryManager = false;
         this.showCategoryMode = false;
       }
@@ -640,12 +645,12 @@ export default function tagFilterModal() {
       this.selectedCategoryTags = [];
       this.categorySelectionInput = "";
       this.categoryDraftName = "";
-      this.categoryDraftColor = "#64748b";
-      this.categoryDraftOpacity = 16;
+      this.categoryDraftColor = DEFAULT_TAG_CATEGORY_COLOR;
+      this.categoryDraftOpacity = DEFAULT_TAG_CATEGORY_OPACITY;
       this.showCategoryManager = false;
       this.categoryManagerDraftName = "";
-      this.categoryManagerDraftColor = "#64748b";
-      this.categoryManagerDraftOpacity = 16;
+      this.categoryManagerDraftColor = DEFAULT_TAG_CATEGORY_COLOR;
+      this.categoryManagerDraftOpacity = DEFAULT_TAG_CATEGORY_OPACITY;
       this.selectedBlacklistTags = [];
       this.blacklistSelectionInput = "";
       this.categoryFilterInclude = [];
@@ -782,6 +787,10 @@ export default function tagFilterModal() {
       return this.$store.global.getCategoryColor(category);
     },
 
+    getCategoryChipStyle(category) {
+      return this.$store.global.getCategoryChipStyle(category);
+    },
+
     getCategoryOpacity(category) {
       return this.$store.global.getCategoryOpacity(category);
     },
@@ -838,7 +847,7 @@ export default function tagFilterModal() {
       return addedCount;
     },
 
-    normalizeOpacity(value, fallback = 16) {
+    normalizeOpacity(value, fallback = DEFAULT_TAG_CATEGORY_OPACITY) {
       const fallbackNum = Number.isFinite(Number(fallback))
         ? Number(fallback)
         : 16;
@@ -1085,7 +1094,10 @@ export default function tagFilterModal() {
           : {};
 
       if (!categories[defaultCategory]) {
-        categories[defaultCategory] = { color: "#64748b", opacity: 16 };
+        categories[defaultCategory] = {
+          color: DEFAULT_TAG_CATEGORY_COLOR,
+          opacity: DEFAULT_TAG_CATEGORY_OPACITY,
+        };
       }
 
       if (!categoryOrder.includes(defaultCategory)) {
@@ -1141,7 +1153,8 @@ export default function tagFilterModal() {
       }
 
       const color =
-        String(this.categoryManagerDraftColor || "").trim() || "#64748b";
+        String(this.categoryManagerDraftColor || "").trim() ||
+        DEFAULT_TAG_CATEGORY_COLOR;
       const opacity = this.normalizeOpacity(
         this.categoryManagerDraftOpacity,
         16,
@@ -1270,7 +1283,7 @@ export default function tagFilterModal() {
 
       taxonomy.categories[name] = {
         ...taxonomy.categories[name],
-        color: String(color || "").trim() || "#64748b",
+        color: String(color || "").trim() || DEFAULT_TAG_CATEGORY_COLOR,
       };
 
       if (String(this.categoryDraftName || "").trim() === name) {
@@ -1289,7 +1302,7 @@ export default function tagFilterModal() {
 
       taxonomy.categories[name] = {
         ...taxonomy.categories[name],
-        opacity: this.normalizeOpacity(opacity, 16),
+        opacity: this.normalizeOpacity(opacity, DEFAULT_TAG_CATEGORY_OPACITY),
       };
 
       if (String(this.categoryDraftName || "").trim() === name) {
@@ -1447,10 +1460,11 @@ export default function tagFilterModal() {
       }
 
       const categoryColor =
-        String(this.categoryDraftColor || "").trim() || "#64748b";
+        String(this.categoryDraftColor || "").trim() ||
+        DEFAULT_TAG_CATEGORY_COLOR;
       const categoryOpacity = this.normalizeOpacity(
         this.categoryDraftOpacity,
-        16,
+        DEFAULT_TAG_CATEGORY_OPACITY,
       );
       const tags = [
         ...new Set(

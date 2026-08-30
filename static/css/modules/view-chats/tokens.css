@@ -8,12 +8,12 @@
   --chat-space-8: 0.5rem;
   --chat-space-12: 0.75rem;
   --chat-space-16: 1rem;
-  --chat-surface: var(--bg-panel);
-  --chat-surface-raised: color-mix(in srgb, var(--bg-sub), var(--bg-panel) 55%);
-  --chat-border: var(--border-light);
+  --chat-surface: var(--surface-container);
+  --chat-surface-raised: color-mix(in srgb, var(--surface-container-raised), var(--surface-container) 55%);
+  --chat-border: var(--border-default);
   --chat-shadow: none;
-  --chat-overlay-bg: color-mix(in srgb, var(--bg-body), transparent 8%);
-  --chat-text-kicker: var(--text-dim);
+  --chat-overlay-bg: color-mix(in srgb, var(--surface-page), transparent 8%);
+  --chat-text-kicker: var(--content-muted);
   --chat-btn-min-height: 30px;
   --chat-control-gap: 0.5rem;
 }
@@ -60,12 +60,12 @@
 .chat-grid-loading {
   text-align: center;
   padding: 3rem 1rem;
-  color: var(--accent-light);
+  color: var(--accent-text);
 }
 
 .chat-grid-pagination-meta {
   font-size: 0.75rem;
-  color: var(--text-dim);
+  color: var(--content-muted);
 }
 
 .chat-grid-pagination {
@@ -118,7 +118,7 @@
 .chat-bind-empty {
   font-size: 0.68rem;
   line-height: 1.45;
-  color: var(--text-dim);
+  color: var(--content-muted);
 }
 
 .chat-reader-panel .chat-inline-actions:has(.chat-inline-input--wide) {
@@ -134,6 +134,6 @@
   padding: 0.2rem 0.45rem;
   background: var(--chat-surface-raised);
   border-radius: var(--chat-radius-sm);
-  color: var(--text-main);
+  color: var(--content-primary);
   font-size: 0.72rem;
 }

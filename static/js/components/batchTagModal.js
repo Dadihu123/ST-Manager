@@ -151,6 +151,10 @@ export default function batchTagModal() {
             return this.$store.global.getCategoryColor(category);
         },
 
+        getCategoryChipStyle(category) {
+            return this.$store.global.getCategoryChipStyle(category);
+        },
+
         getBatchCategoryFilterState(category) {
             if (this.batchCategoryFilterInclude.includes(category)) return 'included';
             if (this.batchCategoryFilterExclude.includes(category)) return 'excluded';

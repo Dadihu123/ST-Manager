@@ -60,8 +60,8 @@ def test_common_modal_templates_use_semantic_svg_mappings():
             "icon('history-rollback'",
             "icon('close'",
             "icon('loader-circle'",
-            'bg-red-500',
-            'bg-green-500',
+                'color-surface-danger-solid',
+                'color-surface-success-solid',
         ),
         'templates/modals/execute_rules_mobile.html': (
             "icon('workflow'",

@@ -9,18 +9,18 @@
     style="display:none;">
 
     <!-- 移动端：半透明遮罩 -->
-    <div x-show="isMobile" @click="hideContextMenu()" class="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
+    <div x-show="isMobile" @click="hideContextMenu()" class="absolute inset-0 color-surface-scrim backdrop-blur-sm"></div>
 
     <!-- 菜单内容容器：根据设备类型调整样式 -->
     <div :class="isMobile ? 'w-64 max-w-[90vw] rounded-xl shadow-2xl overflow-hidden relative z-10' : 'shadow-xl rounded-lg py-1 w-56'"
-        style="background: var(--bg-panel); border: 1px solid var(--border-light);">
+        style="background: var(--surface-container); border: 1px solid var(--border-default);">
 
         <!-- 移动端：标题栏 -->
         <div x-show="isMobile"
-            class="px-4 py-3 border-b border-[var(--border-light)] flex items-center justify-between bg-[var(--bg-sub)]">
-            <div class="text-sm font-bold text-[var(--text-main)]">目录操作</div>
+            class="px-4 py-3 border-b border-[var(--border-default)] flex items-center justify-between bg-[var(--surface-container-raised)]">
+            <div class="text-sm font-bold text-[var(--content-primary)]">目录操作</div>
             <button @click="hideContextMenu()"
-                class="w-6 h-6 flex items-center justify-center text-[var(--text-dim)] hover:text-[var(--text-main)]"
+                class="w-6 h-6 flex items-center justify-center text-[var(--content-muted)] hover:text-[var(--content-primary)]"
                 aria-label="关闭目录操作菜单">
                 {{ icon('close', 'ui-icon--sm context-menu-icon') }}
             </button>
@@ -31,8 +31,8 @@
             <template x-if="type === 'folder'">
                 <div>
                     <button x-show="targetMode === 'cards' && target !== ''" @click="handleToggleIsolation()"
-                        :class="isMobile ? 'w-full text-left px-4 py-3 text-base hover:bg-[var(--bg-hover)] transition-colors flex items-center gap-2' : 'w-full text-left px-4 py-2 text-sm hover:bg-[var(--bg-hover)] transition-colors flex items-center gap-2'"
-                        style="color: var(--text-main);">
+                        :class="isMobile ? 'w-full text-left px-4 py-3 text-base hover:bg-[var(--state-hover-surface)] transition-colors flex items-center gap-2' : 'w-full text-left px-4 py-2 text-sm hover:bg-[var(--state-hover-surface)] transition-colors flex items-center gap-2'"
+                        style="color: var(--content-primary);">
                         <!-- 根据状态显示不同文字 -->
                         <span class="inline-flex" aria-hidden="true">
                             <span x-show="($store.global.isolatedCategories || []).includes(target)">
@@ -46,25 +46,25 @@
                             x-text="($store.global.isolatedCategories || []).includes(target) ? '取消隔离分类' : '设为隔离分类'"></span>
                     </button>
                     <button x-show="targetMode === 'cards' ? target !== '' : (target !== '' && targetFolderCapabilities.can_rename_physical_folder)" @click="handleRename()"
-                        :class="isMobile ? 'w-full text-left px-4 py-3 text-base hover:bg-[var(--bg-hover)] transition-colors flex items-center gap-2' : 'w-full text-left px-4 py-2 text-sm hover:bg-[var(--bg-hover)] transition-colors flex items-center gap-2'"
-                        style="color: var(--text-main);"><span aria-hidden="true">{{ icon('pencil-edit', 'ui-icon--sm context-menu-icon') }}</span> 重命名</button>
+                        :class="isMobile ? 'w-full text-left px-4 py-3 text-base hover:bg-[var(--state-hover-surface)] transition-colors flex items-center gap-2' : 'w-full text-left px-4 py-2 text-sm hover:bg-[var(--state-hover-surface)] transition-colors flex items-center gap-2'"
+                        style="color: var(--content-primary);"><span aria-hidden="true">{{ icon('pencil-edit', 'ui-icon--sm context-menu-icon') }}</span> 重命名</button>
                     <button @click="handleCreateSub()"
                         x-show="targetMode === 'cards' || targetFolderCapabilities.can_create_child_folder"
-                        :class="isMobile ? 'w-full text-left px-4 py-3 text-base hover:bg-[var(--bg-hover)] transition-colors flex items-center gap-2' : 'w-full text-left px-4 py-2 text-sm hover:bg-[var(--bg-hover)] transition-colors flex items-center gap-2'"
-                        style="color: var(--text-main);"><span aria-hidden="true">{{ icon('plus-square', 'ui-icon--sm context-menu-icon') }}</span> 创建子分类</button>
+                        :class="isMobile ? 'w-full text-left px-4 py-3 text-base hover:bg-[var(--state-hover-surface)] transition-colors flex items-center gap-2' : 'w-full text-left px-4 py-2 text-sm hover:bg-[var(--state-hover-surface)] transition-colors flex items-center gap-2'"
+                        style="color: var(--content-primary);"><span aria-hidden="true">{{ icon('plus-square', 'ui-icon--sm context-menu-icon') }}</span> 创建子分类</button>
                     <hr x-show="target !== ''"
-                        :class="isMobile ? 'border-[var(--border-light)] my-1' : 'border-[var(--border-light)] my-1'">
+                        :class="isMobile ? 'border-[var(--border-default)] my-1' : 'border-[var(--border-default)] my-1'">
                     <button x-show="targetMode === 'cards' && target !== ''" @click="handleBundle()"
-                        :class="isMobile ? 'w-full text-left px-4 py-3 text-base text-yellow-400 hover:bg-[var(--bg-hover)] transition-colors flex items-center gap-2' : 'w-full text-left px-4 py-2 text-sm text-yellow-400 hover:bg-[var(--bg-hover)] transition-colors flex items-center gap-2'"><span aria-hidden="true">{{ icon('package', 'ui-icon--sm context-menu-icon') }}</span>
+                        :class="isMobile ? 'w-full text-left px-4 py-3 text-base color-text-warning hover:bg-[var(--state-hover-surface)] transition-colors flex items-center gap-2' : 'w-full text-left px-4 py-2 text-sm color-text-warning hover:bg-[var(--state-hover-surface)] transition-colors flex items-center gap-2'"><span aria-hidden="true">{{ icon('package', 'ui-icon--sm context-menu-icon') }}</span>
                         切换"角色包"</button>
                     <button x-show="targetMode === 'cards' ? target !== '' : (target !== '' && targetFolderCapabilities.can_delete_physical_folder)" @click="handleDelete()"
-                        :class="isMobile ? 'w-full text-left px-4 py-3 text-base text-red-400 hover:bg-[var(--bg-hover)] transition-colors flex items-center gap-2' : 'w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-[var(--bg-hover)] transition-colors flex items-center gap-2'"><span aria-hidden="true">{{ icon('trash', 'ui-icon--sm context-menu-icon') }}</span>
+                        :class="isMobile ? 'w-full text-left px-4 py-3 text-base color-text-danger hover:bg-[var(--state-hover-surface)] transition-colors flex items-center gap-2' : 'w-full text-left px-4 py-2 text-sm color-text-danger hover:bg-[var(--state-hover-surface)] transition-colors flex items-center gap-2'"><span aria-hidden="true">{{ icon('trash', 'ui-icon--sm context-menu-icon') }}</span>
                         删除分类</button>
-                    <hr :class="isMobile ? 'border-[var(--border-light)] my-1' : 'border-[var(--border-light)] my-1'">
+                    <hr :class="isMobile ? 'border-[var(--border-default)] my-1' : 'border-[var(--border-default)] my-1'">
                     <!-- 检查来源更新 -->
                     <button x-show="targetMode === 'cards'" @click="handleCheckSourceUpdates()"
-                        :class="isMobile ? 'w-full text-left px-4 py-3 text-base hover:bg-[var(--bg-hover)] transition-colors flex items-center gap-2' : 'w-full text-left px-4 py-2 text-sm hover:bg-[var(--bg-hover)] transition-colors flex items-center gap-2'"
-                        style="color: var(--text-main);">
+                        :class="isMobile ? 'w-full text-left px-4 py-3 text-base hover:bg-[var(--state-hover-surface)] transition-colors flex items-center gap-2' : 'w-full text-left px-4 py-2 text-sm hover:bg-[var(--state-hover-surface)] transition-colors flex items-center gap-2'"
+                        style="color: var(--content-primary);">
                         <span aria-hidden="true">{{ icon('refresh-card', 'ui-icon--sm context-menu-icon') }}</span> 检查分类更新
                     </button>
                     <!-- 运行自动化 -->
@@ -72,8 +72,8 @@
                     <div x-show="targetMode === 'cards' && !isMobile" x-data="{ showSub: false }" class="relative"
                         @mouseenter="showSub=true; $dispatch('load-rulesets-for-menu')" @mouseleave="showSub=false">
                         <button
-                            class="w-full text-left px-4 py-2 text-sm hover:bg-[var(--bg-hover)] transition-colors flex items-center justify-between"
-                            style="color: var(--text-main);">
+                            class="w-full text-left px-4 py-2 text-sm hover:bg-[var(--state-hover-surface)] transition-colors flex items-center justify-between"
+                            style="color: var(--content-primary);">
                             <span class="flex items-center gap-2"><span aria-hidden="true">{{ icon('workflow', 'ui-icon--sm context-menu-icon') }}</span> 运行自动化</span>
                             <span class="inline-flex" aria-hidden="true">{{ icon('chevron-right', 'ui-icon--xs') }}</span>
                         </button>
@@ -81,24 +81,24 @@
                         <!-- 子菜单：选择规则集 -->
                         <div x-show="showSub" x-transition:enter="transition ease-out duration-100"
                             x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
-                            class="absolute left-full top-0 ml-1 w-48 bg-[var(--bg-panel)] border border-[var(--border-light)] rounded shadow-xl py-1 custom-scrollbar"
+                            class="absolute left-full top-0 ml-1 w-48 bg-[var(--surface-container)] border border-[var(--border-default)] rounded shadow-xl py-1 custom-scrollbar"
                             style="max-height: 300px; overflow-y: auto;"
                             @mouseenter="showSub=true" @mouseleave="showSub=false">
 
                             <div
-                                class="px-3 py-1 text-[10px] text-[var(--text-dim)] border-b border-[var(--border-light)] bg-[var(--bg-sub)]">
+                                class="px-3 py-1 text-[10px] text-[var(--content-muted)] border-b border-[var(--border-default)] bg-[var(--surface-container-raised)]">
                                 选择规则集:
                             </div>
 
                             <template x-for="rs in $store.global.availableRuleSets" :key="rs.id">
                                 <button @click.stop="handleRunAuto(rs.id)"
-                                    class="w-full text-left px-3 py-2 text-xs hover:bg-[var(--bg-hover)] text-[var(--text-main)] truncate block">
+                                    class="w-full text-left px-3 py-2 text-xs hover:bg-[var(--state-hover-surface)] text-[var(--content-primary)] truncate block">
                                     <span x-text="rs.meta.name"></span>
                                 </button>
                             </template>
 
                             <div x-show="!$store.global.availableRuleSets || $store.global.availableRuleSets.length===0"
-                                class="px-3 py-2 text-xs text-[var(--text-dim)] text-center">
+                                class="px-3 py-2 text-xs text-[var(--content-muted)] text-center">
                                 (无规则集)
                             </div>
                         </div>
@@ -106,8 +106,8 @@
 
                     <!-- 移动端：直接打开执行规则弹窗 -->
                     <button x-show="targetMode === 'cards' && isMobile" @click="handleOpenExecuteRulesMobile()"
-                        class="w-full text-left px-4 py-3 text-base hover:bg-[var(--bg-hover)] transition-colors flex items-center gap-2"
-                        style="color: var(--text-main);">
+                        class="w-full text-left px-4 py-3 text-base hover:bg-[var(--state-hover-surface)] transition-colors flex items-center gap-2"
+                        style="color: var(--content-primary);">
                         <span aria-hidden="true">{{ icon('workflow', 'ui-icon--sm context-menu-icon') }}</span> 运行自动化
                     </button>
                 </div>
@@ -119,10 +119,10 @@
     <div x-show="deleteFolderConfirm.visible" x-cloak class="modal-overlay z-modal-popover"
         @click.self="cancelDeleteFolder()">
         <div
-            style="background: var(--bg-panel); padding: 1.5rem; border-radius: 0.75rem; width: 24rem; border: 1px solid var(--border-light); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);">
-            <h3 style="font-weight: bold; color: var(--text-main); margin-bottom: 1rem;">删除文件夹</h3>
+            style="background: var(--surface-overlay); padding: 1.5rem; border-radius: 0.75rem; width: 24rem; border: 1px solid var(--border-default); box-shadow: var(--shadow-elevation);">
+            <h3 style="font-weight: bold; color: var(--content-primary); margin-bottom: 1rem;">删除文件夹</h3>
 
-            <div style="color: var(--text-dim); font-size: 0.875rem; margin-bottom: 0.75rem;">
+            <div style="color: var(--content-muted); font-size: 0.875rem; margin-bottom: 0.75rem;">
                 正在删除：<span class="font-mono" x-text="deleteFolderConfirm.path"></span>
                 <div style="margin-top: 0.25rem;">
                     该文件夹包含 <span x-text="deleteFolderConfirm.cardCount"></span><span x-text="deleteFolderItemLabel"></span>
@@ -130,13 +130,13 @@
                 </div>
             </div>
 
-            <div style="color: var(--text-dim); font-size: 0.875rem; margin-bottom: 1rem;">
+            <div style="color: var(--content-muted); font-size: 0.875rem; margin-bottom: 1rem;">
                 <span x-text="deleteFolderModeSummary"></span>
             </div>
 
             <label x-show="supportsRecursiveFolderDelete" class="flex items-start gap-2 cursor-pointer select-none" style="margin-bottom: 1rem;">
                 <input type="checkbox" x-model="deleteFolderConfirm.deleteChildren" class="cursor-pointer mt-1">
-                <span style="color: var(--text-main); font-size: 0.875rem;">删除子文件/子文件夹（递归删除）</span>
+                <span style="color: var(--content-primary); font-size: 0.875rem;">删除子文件/子文件夹（递归删除）</span>
             </label>
 
             <div style="display: flex; gap: 0.5rem;">

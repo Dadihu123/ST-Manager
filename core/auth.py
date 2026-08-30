@@ -598,31 +598,53 @@ LOGIN_PAGE_TEMPLATE = '''
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ST Manager - 登录</title>
     <style>
+        :root {
+            color-scheme: dark;
+            --surface-page: #0b1220;
+            --surface-container: #111c2d;
+            --surface-container-raised: #17243a;
+            --surface-container-rgb: 17, 28, 45;
+            --content-primary: #f1f5f9;
+            --content-secondary: #cbd5e1;
+            --content-muted: #94a3b8;
+            --content-on-accent: #f8fafc;
+            --accent-action: #2563eb;
+            --accent-action-hover: #1d4ed8;
+            --accent-outline: #60a5fa;
+            --status-danger-surface: rgba(239, 68, 68, 0.16);
+            --status-danger-border: #fca5a5;
+            --status-danger-text: #fca5a5;
+            --state-focus-ring: #93c5fd;
+            --state-focus-shadow: 0 0 0 3px rgba(96, 165, 250, 0.32);
+            --shadow-elevation: 0 25px 50px -12px rgba(2, 6, 23, 0.52);
+        }
+
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            background: linear-gradient(135deg, var(--surface-page) 0%, var(--surface-container) 50%, var(--accent-action) 100%);
+            color: var(--content-primary);
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
         }
         .login-container {
-            background: rgba(255, 255, 255, 0.05);
+            background: rgba(var(--surface-container-rgb), 0.82);
             backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            border: 1px solid color-mix(in srgb, var(--content-on-accent) 18%, transparent);
             border-radius: 16px;
             padding: 40px;
             width: 100%;
             max-width: 400px;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            box-shadow: var(--shadow-elevation);
         }
         .login-header {
             text-align: center;
             margin-bottom: 30px;
         }
         .login-header h1 {
-            color: #fff;
+            color: var(--content-primary);
             font-size: 28px;
             margin-bottom: 8px;
             display: flex;
@@ -641,10 +663,10 @@ LOGIN_PAGE_TEMPLATE = '''
             height: 1.2em;
             margin-right: 4px;
             vertical-align: -0.25em;
-            color: #93c5fd;
+            color: var(--accent-outline);
         }
         .login-header p {
-            color: rgba(255, 255, 255, 0.6);
+            color: var(--content-secondary);
             font-size: 14px;
         }
         .form-group {
@@ -652,35 +674,36 @@ LOGIN_PAGE_TEMPLATE = '''
         }
         .form-group label {
             display: block;
-            color: rgba(255, 255, 255, 0.8);
+            color: var(--content-secondary);
             margin-bottom: 8px;
             font-size: 14px;
         }
         .form-group input {
             width: 100%;
             padding: 12px 16px;
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: color-mix(in srgb, var(--surface-container-raised) 88%, transparent);
+            border: 1px solid color-mix(in srgb, var(--content-on-accent) 32%, transparent);
             border-radius: 8px;
-            color: #fff;
+            color: var(--content-primary);
             font-size: 16px;
             transition: all 0.3s ease;
         }
         .form-group input:focus {
             outline: none;
-            border-color: #3b82f6;
-            background: rgba(255, 255, 255, 0.15);
+            border-color: var(--state-focus-ring);
+            background: color-mix(in srgb, var(--surface-container-raised) 76%, transparent);
+            box-shadow: var(--state-focus-shadow);
         }
         .form-group input::placeholder {
-            color: rgba(255, 255, 255, 0.4);
+            color: var(--content-muted);
         }
         .login-btn {
             width: 100%;
             padding: 14px;
-            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            background: linear-gradient(135deg, var(--accent-outline) 0%, var(--accent-action) 100%);
             border: none;
             border-radius: 8px;
-            color: #fff;
+            color: var(--content-on-accent);
             font-size: 16px;
             font-weight: 600;
             cursor: pointer;
@@ -688,15 +711,16 @@ LOGIN_PAGE_TEMPLATE = '''
         }
         .login-btn:hover {
             transform: translateY(-2px);
-            box-shadow: 0 10px 20px -10px rgba(59, 130, 246, 0.5);
+            background: var(--accent-action-hover);
+            box-shadow: 0 10px 20px -10px color-mix(in srgb, var(--accent-action) 50%, transparent);
         }
         .login-btn:active {
             transform: translateY(0);
         }
         .error-msg {
-            background: rgba(239, 68, 68, 0.2);
-            border: 1px solid rgba(239, 68, 68, 0.3);
-            color: #fca5a5;
+            background: var(--status-danger-surface);
+            border: 1px solid var(--status-danger-border);
+            color: var(--status-danger-text);
             padding: 12px;
             border-radius: 8px;
             margin-bottom: 20px;
@@ -706,11 +730,34 @@ LOGIN_PAGE_TEMPLATE = '''
         .security-note {
             margin-top: 20px;
             padding: 12px;
-            background: rgba(59, 130, 246, 0.1);
+            background: color-mix(in srgb, var(--accent-action) 12%, transparent);
             border-radius: 8px;
-            color: rgba(255, 255, 255, 0.6);
+            color: var(--content-secondary);
             font-size: 12px;
             text-align: center;
+        }
+
+        @media (prefers-color-scheme: light) {
+            :root {
+                color-scheme: light;
+                --surface-page: #f4f7fb;
+                --surface-container: #ffffff;
+                --surface-container-raised: #f8fafc;
+                --surface-container-rgb: 255, 255, 255;
+                --content-primary: #172033;
+                --content-secondary: #334155;
+                --content-muted: #5b6b82;
+                --content-on-accent: #f8fafc;
+                --accent-action: #1d4ed8;
+                --accent-action-hover: #1e40af;
+                --accent-outline: #1d4ed8;
+                --status-danger-surface: #fff1f2;
+                --status-danger-border: #b91c1c;
+                --status-danger-text: #b91c1c;
+                --state-focus-ring: #1d4ed8;
+                --state-focus-shadow: 0 0 0 3px rgba(37, 99, 235, 0.24);
+                --shadow-elevation: 0 25px 50px -12px rgba(15, 23, 42, 0.16);
+            }
         }
     </style>
 </head>

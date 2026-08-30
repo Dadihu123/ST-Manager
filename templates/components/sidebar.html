@@ -196,7 +196,7 @@
   >
     <div class="card-sidebar-categories">
       <div class="sidebar-section-header">
-        <span class="font-bold text-xs uppercase" style="color: var(--text-dim)"
+        <span class="font-bold text-xs uppercase" style="color: var(--content-muted)"
           >资源文件夹</span
         >
         <button
@@ -290,7 +290,7 @@
                 </span>
               </button>
               <span
-                class="mr-2 text-yellow-500 opacity-80 group-hover:opacity-100"
+                class="mr-2 color-text-warning opacity-80 group-hover:opacity-100"
                 aria-hidden="true"
               >
                 <span x-show="folder.expanded">{{ sidebar_icon('folder-open', 'ui-icon--sm') }}</span>
@@ -383,7 +383,7 @@
           </button>
           <span
             class="font-bold text-xs uppercase"
-            style="color: var(--text-dim)"
+            style="color: var(--content-muted)"
             >标签索引</span
           >
         </div>
@@ -424,7 +424,7 @@
               @click="setTagIndexCategory(category)"
               class="sidebar-tag-category-pill"
               :class="tagIndexActiveCategory === category ? 'active' : ''"
-              :style="`--tag-cat-color:${$store.global.getCategoryColor(category)};`"
+              :style="$store.global.getCategoryChipStyle(category)"
             >
               <span class="sidebar-tag-category-dot"></span>
               <span x-text="category"></span>
@@ -477,7 +477,7 @@
   <!-- === 模式 2: 世界书侧边栏 (Type Filters) === -->
   <div
     x-show="currentMode === 'worldinfo' && visibleSidebar"
-    class="flex-1 flex flex-col overflow-hidden bg-[var(--bg-panel)] sidebar-mode-panel sidebar-mode-panel--worldinfo"
+    class="flex-1 flex flex-col overflow-hidden bg-[var(--surface-container)] sidebar-mode-panel sidebar-mode-panel--worldinfo"
   >
     <div class="sidebar-mode-content sidebar-mode-content--with-tree">
       <div class="sidebar-section-label">
@@ -651,7 +651,7 @@
 
   <div
     x-show="currentMode === 'chats' && visibleSidebar"
-    class="flex-1 flex flex-col overflow-hidden bg-[var(--bg-panel)] sidebar-mode-panel sidebar-mode-panel--chats"
+    class="flex-1 flex flex-col overflow-hidden bg-[var(--surface-container)] sidebar-mode-panel sidebar-mode-panel--chats"
   >
     <div class="sidebar-mode-content sidebar-mode-content--compact">
       <div class="sidebar-section-label">
@@ -703,7 +703,7 @@
   <!-- === 模式 3: 预设侧边栏 === -->
   <div
     x-show="currentMode === 'presets' && visibleSidebar"
-    class="flex-1 flex flex-col overflow-hidden bg-[var(--bg-panel)] sidebar-mode-panel sidebar-mode-panel--presets"
+    class="flex-1 flex flex-col overflow-hidden bg-[var(--surface-container)] sidebar-mode-panel sidebar-mode-panel--presets"
     x-data
   >
     <div class="sidebar-mode-content sidebar-mode-content--with-tree">
@@ -857,7 +857,7 @@
   <!-- === 模式 4: 扩展脚本侧边栏 (Regex & Scripts & Quick Replies) === -->
   <div
     x-show="['regex', 'scripts', 'quick_replies'].includes(currentMode) && visibleSidebar"
-    class="flex-1 flex flex-col overflow-hidden bg-[var(--bg-panel)] sidebar-mode-panel sidebar-mode-panel--extensions"
+    class="flex-1 flex flex-col overflow-hidden bg-[var(--surface-container)] sidebar-mode-panel sidebar-mode-panel--extensions"
     x-data
   >
     <div class="sidebar-mode-content sidebar-mode-content--compact">
@@ -920,7 +920,7 @@
 
   <div
     x-show="currentMode === 'beautify' && visibleSidebar"
-    class="flex-1 flex flex-col overflow-hidden bg-[var(--bg-panel)] beautify-sidebar-panel beautify-sidebar-pane"
+    class="flex-1 flex flex-col overflow-hidden bg-[var(--surface-container)] beautify-sidebar-panel beautify-sidebar-pane"
   >
     <div class="beautify-toolbar">
       <div class="beautify-toolbar-row">

@@ -9,6 +9,7 @@ import {
   buildFormattingDrawerPreviewMarkupFromVendor,
   buildSettingsDrawerPreviewMarkupFromVendor,
 } from './beautifyPreviewDrawerAdapters.js';
+import { getBeautifyPreviewColorTokens } from '../runtime/previewColorTokens.js';
 
 export const DEFAULT_PREVIEW_SCENE_ID = 'daily';
 
@@ -159,17 +160,22 @@ function buildInlineAvatarDataUri({
   label,
   size = 96,
   radius = 24,
-  background = "#d8e8c8",
-  foreground = "#3c5a2a",
+  background,
+  foreground,
+  themeMode = 'dark',
 }) {
+  const fallbackColors = getBeautifyPreviewColorTokens(themeMode);
+  const safeBackground = background || fallbackColors.avatarSurface;
+  const safeForeground = foreground || fallbackColors.avatarText;
   const fontSize = Math.max(Math.round(size * 0.3125), 16);
-  return `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='${size}' height='${size}' viewBox='0 0 ${size} ${size}'%3E%3Crect width='${size}' height='${size}' rx='${radius}' fill='${encodeURIComponent(background)}'/%3E%3Ctext x='50%25' y='55%25' font-size='${fontSize}' text-anchor='middle' fill='${encodeURIComponent(foreground)}' font-family='Arial'%3E${encodeURIComponent(label)}%3C/text%3E%3C/svg%3E`;
+  return `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='${size}' height='${size}' viewBox='0 0 ${size} ${size}'%3E%3Crect width='${size}' height='${size}' rx='${radius}' fill='${encodeURIComponent(safeBackground)}'/%3E%3Ctext x='50%25' y='55%25' font-size='${fontSize}' text-anchor='middle' fill='${encodeURIComponent(safeForeground)}' font-family='Arial'%3E${encodeURIComponent(label)}%3C/text%3E%3C/svg%3E`;
 }
 
 function resolvePreviewAvatarSrc({
   avatarSrc = "",
   avatarLabel = "",
   size = 96,
+  themeMode = 'dark',
 }) {
   if (avatarSrc) {
     return avatarSrc;
@@ -179,6 +185,7 @@ function resolvePreviewAvatarSrc({
     label: avatarLabel,
     size,
     radius: Math.round(size / 4),
+    themeMode,
   });
 }
 
@@ -282,13 +289,18 @@ function buildMessage({
   isSystem = false,
   includeReasoning = false,
   extraClass = "",
+  themeMode = 'dark',
 }) {
   const classes = ["mes"];
   if (extraClass) {
     classes.push(extraClass);
   }
 
-  const resolvedAvatarSrc = resolvePreviewAvatarSrc({ avatarSrc, avatarLabel });
+  const resolvedAvatarSrc = resolvePreviewAvatarSrc({
+    avatarSrc,
+    avatarLabel,
+    themeMode,
+  });
 
   return `
     <div class="${classes.join(" ")}" mesid="${escapeHtml(mesId)}" ch_name="${escapeHtml(name)}" is_user="${isUser ? "true" : "false"}" is_system="${isSystem ? "true" : "false"}" bookmark_link="">
@@ -559,12 +571,13 @@ function getPreviewSceneContextStoryString(sceneId) {
   return PREVIEW_SCENE_CONTEXT_STORY_STRINGS[sceneId] || PREVIEW_SCENE_CONTEXT_STORY_STRINGS[DEFAULT_PREVIEW_SCENE_ID];
 }
 
-function buildPreviewSceneMessage(message, previewIdentities) {
+function buildPreviewSceneMessage(message, previewIdentities, themeMode = 'dark') {
   if (message.role === "system") {
     return buildMessage({
       ...message,
       name: previewIdentities.system.name,
       avatarLabel: previewIdentities.system.avatarLabel,
+      themeMode,
       isSystem: true,
     });
   }
@@ -576,6 +589,7 @@ function buildPreviewSceneMessage(message, previewIdentities) {
       avatarLabel: "CL",
       avatarSrc: previewIdentities.user.avatarSrc,
       isUser: true,
+      themeMode,
     });
   }
 
@@ -584,12 +598,13 @@ function buildPreviewSceneMessage(message, previewIdentities) {
     name: previewIdentities.character.name,
     avatarLabel: "QW",
     avatarSrc: previewIdentities.character.avatarSrc,
+    themeMode,
   });
 }
 
-function buildPreviewSceneMessages(scene, previewIdentities) {
+function buildPreviewSceneMessages(scene, previewIdentities, themeMode = 'dark') {
   return scene.messages
-    .map((message) => buildPreviewSceneMessage(message, previewIdentities))
+    .map((message) => buildPreviewSceneMessage(message, previewIdentities, themeMode))
     .join("");
 }
 
@@ -765,7 +780,13 @@ function buildPreviewBehaviorScript() {
   `;
 }
 
-export function buildBeautifyPreviewThemeVars(theme = {}, wallpaperUrl = "", platform = 'pc') {
+export function buildBeautifyPreviewThemeVars(
+  theme = {},
+  wallpaperUrl = "",
+  platform = 'pc',
+  themeMode = 'dark',
+) {
+  const fallbackColors = getBeautifyPreviewColorTokens(themeMode);
   const fontScale = (() => {
     const normalized = normalizeNumber(theme.font_scale, 1);
     return normalized > 0 ? normalized : 1;
@@ -780,23 +801,23 @@ export function buildBeautifyPreviewThemeVars(theme = {}, wallpaperUrl = "", pla
     : "none";
 
   return {
-    "--SmartThemeBodyColor": theme.main_text_color || "#f8fafc",
+    "--SmartThemeBodyColor": theme.main_text_color || fallbackColors.contentPrimary,
     "--SmartThemeEmColor":
-      theme.italics_text_color || theme.main_text_color || "#cbd5e1",
+      theme.italics_text_color || theme.main_text_color || fallbackColors.contentSecondary,
     "--SmartThemeUnderlineColor":
-      theme.underline_text_color || theme.quote_text_color || "#38bdf8",
-    "--SmartThemeQuoteColor": theme.quote_text_color || "#f59e0b",
+      theme.underline_text_color || theme.quote_text_color || fallbackColors.contentLink,
+    "--SmartThemeQuoteColor": theme.quote_text_color || fallbackColors.contentQuote,
     "--SmartThemeBlurTintColor":
-      theme.blur_tint_color || "rgba(15, 23, 42, 0.48)",
+      theme.blur_tint_color || fallbackColors.blurTint,
     "--SmartThemeChatTintColor":
-      theme.chat_tint_color || "rgba(15, 23, 42, 0.52)",
+      theme.chat_tint_color || fallbackColors.chatTint,
     "--SmartThemeUserMesBlurTintColor":
-      theme.user_mes_blur_tint_color || "rgba(59, 130, 246, 0.22)",
+      theme.user_mes_blur_tint_color || fallbackColors.userMessageTint,
     "--SmartThemeBotMesBlurTintColor":
-      theme.bot_mes_blur_tint_color || "rgba(15, 23, 42, 0.58)",
-    "--SmartThemeShadowColor": theme.shadow_color || "rgba(15, 23, 42, 0.35)",
+      theme.bot_mes_blur_tint_color || fallbackColors.botMessageTint,
+    "--SmartThemeShadowColor": theme.shadow_color || fallbackColors.shadow,
     "--SmartThemeBorderColor":
-      theme.border_color || "rgba(148, 163, 184, 0.24)",
+      theme.border_color || fallbackColors.border,
     "--fontScale": String(fontScale),
     "--blurStrength": `${blurStrength}px`,
     "--shadowWidth": `${shadowWidth}px`,
@@ -813,6 +834,7 @@ export function buildBeautifyPreviewSampleMarkup(
   identities = {},
   activeScene = "",
   detail = {},
+  themeMode = 'dark',
 ) {
   const normalizedPlatform = platform === "mobile" ? "mobile" : "pc";
   const previewIdentities = buildPreviewIdentities(identities);
@@ -845,7 +867,11 @@ export function buildBeautifyPreviewSampleMarkup(
     detail,
     vendorMarkup: vendorDrawerMarkup.character,
   });
-  const chatMarkup = buildPreviewSceneMessages(selectedScene, previewIdentities);
+  const chatMarkup = buildPreviewSceneMessages(
+    selectedScene,
+    previewIdentities,
+    themeMode,
+  );
 
   return buildVendorFirstPreviewShell({
     activeSceneId: escapeHtml(selectedScene.id),
@@ -861,12 +887,18 @@ export function buildBeautifyPreviewDocument({
   theme = {},
   wallpaperUrl = "",
   platform = "pc",
+  themeMode = 'dark',
   identities = {},
   activeScene = "",
   detail = {},
 } = {}) {
   const normalizedPlatform = platform === "mobile" ? "mobile" : "pc";
-  const themeVars = buildBeautifyPreviewThemeVars(theme, wallpaperUrl, normalizedPlatform);
+  const themeVars = buildBeautifyPreviewThemeVars(
+    theme,
+    wallpaperUrl,
+    normalizedPlatform,
+    themeMode,
+  );
   const bodyClasses = buildPreviewBodyClasses(theme);
   const bodyClassAttr = bodyClasses.length
     ? ` class="${escapeHtml(bodyClasses.join(" "))}"`
@@ -881,6 +913,7 @@ export function buildBeautifyPreviewDocument({
     identities,
     activeScene,
     detail,
+    themeMode,
   );
   const behaviorScript = buildPreviewBehaviorScript();
   const contentSecurityPolicy = escapeHtml(buildPreviewContentSecurityPolicy());
@@ -894,7 +927,7 @@ export function buildBeautifyPreviewDocument({
     <meta http-equiv="Content-Security-Policy" content="${contentSecurityPolicy}" />
     <title>Beautify Native ST Preview</title>
 ${stylesheetMarkup}
-    <style>:root{${serializedVars}}</style>
+    <style>:root{color-scheme:${themeMode === 'light' ? 'light' : 'dark'};${serializedVars}}</style>
     <style>
       html, body {
         margin: 0;

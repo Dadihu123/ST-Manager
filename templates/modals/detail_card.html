@@ -142,7 +142,7 @@
                   {{ detail_icon('metadata', 'ui-icon--sm') }}
                   <span>METADATA</span>
                 </span>
-                <span class="text-xs" style="color: var(--text-dim)"
+                <span class="text-xs" style="color: var(--content-muted)"
                   >只读预览</span
                 >
               </div>
@@ -259,7 +259,7 @@
         <div
           x-show="!isCardFlipped && activeCard.is_bundle"
           @wheel.prevent="$el.scrollLeft += $event.deltaY"
-          class="detail-versions custom-scrollbar flex items-center px-4 overflow-x-auto bg-black/20 border-t border-white/10"
+          class="detail-versions custom-scrollbar flex items-center px-4 overflow-x-auto color-surface-scrim-soft border-t color-border-subtle"
         >
           <div class="detail-versions-title mr-2">VERSIONS</div>
 
@@ -366,17 +366,17 @@
                   type="text"
                   x-model="editingData.creator"
                   placeholder="未知创作者"
-                  class="bg-transparent border-b border-dashed border-[var(--border-light)] text-xs text-[var(--text-sub)] focus:border-[var(--accent-main)] focus:text-[var(--text-main)] outline-none transition-colors w-full max-w-[150px] py-0.5"
+                  class="bg-transparent border-b border-dashed border-[var(--border-default)] text-xs text-[var(--content-secondary)] focus:border-[var(--accent-action)] focus:text-[var(--content-primary)] outline-none transition-colors w-full max-w-[150px] py-0.5"
                 />
                 <!-- 阅览模式：只读显示 -->
                 <span
                   x-show="!isEditMode && editingData.creator"
-                  class="text-xs text-[var(--text-sub)] max-w-[150px] truncate"
+                  class="text-xs text-[var(--content-secondary)] max-w-[150px] truncate"
                   x-text="editingData.creator"
                 ></span>
                 <span
                   x-show="!isEditMode && !editingData.creator"
-                  class="text-xs text-[var(--text-dim)] opacity-50 italic"
+                  class="text-xs text-[var(--content-muted)] opacity-50 italic"
                   >未知创作者</span
                 >
               </div>
@@ -393,17 +393,17 @@
                   type="text"
                   x-model="editingData.character_version"
                   placeholder="版本号"
-                  class="bg-transparent border-b border-dashed border-[var(--border-light)] text-xs text-[var(--text-sub)] focus:border-[var(--accent-main)] focus:text-[var(--text-main)] outline-none transition-colors w-full max-w-[120px] py-0.5"
+                  class="bg-transparent border-b border-dashed border-[var(--border-default)] text-xs text-[var(--content-secondary)] focus:border-[var(--accent-action)] focus:text-[var(--content-primary)] outline-none transition-colors w-full max-w-[120px] py-0.5"
                 />
                 <!-- 阅览模式：只读显示 -->
                 <span
                   x-show="!isEditMode && editingData.character_version"
-                  class="text-xs text-[var(--text-sub)] max-w-[120px] truncate"
+                  class="text-xs text-[var(--content-secondary)] max-w-[120px] truncate"
                   x-text="editingData.character_version"
                 ></span>
                 <span
                   x-show="!isEditMode && !editingData.character_version"
-                  class="text-xs text-[var(--text-dim)] opacity-50 italic"
+                  class="text-xs text-[var(--content-muted)] opacity-50 italic"
                   >无版本号</span
                 >
               </div>
@@ -440,13 +440,13 @@
           </div>
 
           <div
-            class="topbar-token border-r-0 pl-3 ml-2 border-l border-[var(--border-light)]"
+            class="topbar-token border-r-0 pl-3 ml-2 border-l border-[var(--border-default)]"
             title="最后修改时间"
           >
             <span class="topbar-token-label">Last Modified</span>
             <span
               class="text-xs font-mono font-bold text-neon"
-              style="color: var(--text-main)"
+              style="color: var(--content-primary)"
               x-text="formatDate(activeCard.last_modified)"
             ></span>
           </div>
@@ -644,17 +644,17 @@
                     type="text"
                     x-model="editingData.creator"
                     placeholder="未知创作者"
-                    class="bg-transparent border-b border-dashed border-[var(--border-light)] text-xs text-[var(--text-sub)] focus:border-[var(--accent-main)] focus:text-[var(--text-main)] outline-none transition-colors w-full max-w-[150px] py-0.5"
+                    class="bg-transparent border-b border-dashed border-[var(--border-default)] text-xs text-[var(--content-secondary)] focus:border-[var(--accent-action)] focus:text-[var(--content-primary)] outline-none transition-colors w-full max-w-[150px] py-0.5"
                   />
                   <!-- 阅览模式：只读显示 -->
                   <span
                     x-show="!isEditMode && editingData.creator"
-                    class="text-xs text-[var(--text-sub)] max-w-[150px] truncate"
+                    class="text-xs text-[var(--content-secondary)] max-w-[150px] truncate"
                     x-text="editingData.creator"
                   ></span>
                   <span
                     x-show="!isEditMode && !editingData.creator"
-                    class="text-xs text-[var(--text-dim)] opacity-50 italic"
+                    class="text-xs text-[var(--content-muted)] opacity-50 italic"
                     >未知创作者</span
                   >
                 </div>
@@ -671,17 +671,17 @@
                     type="text"
                     x-model="editingData.character_version"
                     placeholder="版本号"
-                    class="bg-transparent border-b border-dashed border-[var(--border-light)] text-xs text-[var(--text-sub)] focus:border-[var(--accent-main)] focus:text-[var(--text-main)] outline-none transition-colors w-full max-w-[120px] py-0.5"
+                    class="bg-transparent border-b border-dashed border-[var(--border-default)] text-xs text-[var(--content-secondary)] focus:border-[var(--accent-action)] focus:text-[var(--content-primary)] outline-none transition-colors w-full max-w-[120px] py-0.5"
                   />
                   <!-- 阅览模式：只读显示 -->
                   <span
                     x-show="!isEditMode && editingData.character_version"
-                    class="text-xs text-[var(--text-sub)] max-w-[120px] truncate"
+                    class="text-xs text-[var(--content-secondary)] max-w-[120px] truncate"
                     x-text="editingData.character_version"
                   ></span>
                   <span
                     x-show="!isEditMode && !editingData.character_version"
-                    class="text-xs text-[var(--text-dim)] opacity-50 italic"
+                    class="text-xs text-[var(--content-muted)] opacity-50 italic"
                     >无版本号</span
                   >
                 </div>
@@ -745,7 +745,7 @@
                 <div class="detail-card-head detail-card-head-row">
                   <div
                     class="detail-card-title flex items-center gap-2"
-                    style="color: var(--accent-light)"
+                    style="color: var(--accent-text)"
                   >
                     <span class="note-label-icon">{{ detail_icon('note', 'ui-icon--sm') }}</span>
                     <span>本地备注 (Local Note)</span>
@@ -823,9 +823,9 @@
                   style="
                     height: 10rem;
                     resize: none;
-                    background: var(--bg-sub);
-                    border-color: var(--border-light);
-                    color: var(--text-dim);
+                    background: var(--surface-container-raised);
+                    border-color: var(--border-default);
+                    color: var(--content-muted);
                     cursor: default;
                   "
                 ></textarea>
@@ -1304,8 +1304,8 @@
                   x-show="showGreetingPreview"
                   class="detail-render-box custom-scrollbar detail-dialog-grow-box detail-first-message-preview-box"
                   style="
-                    background: var(--bg-panel);
-                    border-color: var(--accent-main);
+                    background: var(--surface-container);
+                    border-color: var(--accent-action);
                     padding: 0;
                     overflow: auto;
                   "
@@ -1319,9 +1319,9 @@
                   class="form-textarea custom-scrollbar detail-dialog-grow-box"
                   style="
                     resize: none;
-                    background: var(--bg-sub);
-                    border-color: var(--border-light);
-                    color: var(--text-dim);
+                    background: var(--surface-container-raised);
+                    border-color: var(--border-default);
+                    color: var(--content-muted);
                     cursor: default;
                   "
                 ></textarea>
@@ -1495,9 +1495,9 @@
                   class="form-textarea custom-scrollbar detail-dialog-grow-box"
                   style="
                     resize: none;
-                    background: var(--bg-sub);
-                    border-color: var(--border-light);
-                    color: var(--text-dim);
+                    background: var(--surface-container-raised);
+                    border-color: var(--border-default);
+                    color: var(--content-muted);
                     cursor: default;
                     font-family: monospace;
                     font-size: 0.85rem;
@@ -1651,7 +1651,7 @@
                                                     'active-included': getDetailCategoryFilterState(name) === 'included',
                                                     'active-excluded': getDetailCategoryFilterState(name) === 'excluded'
                                                 }"
-                        :style="`--tag-cat-color:${getCategoryColor(name)};`"
+                        :style="getCategoryChipStyle(name)"
                         @click="toggleDetailCategoryFilter(name, $event)"
                         :title="getDetailCategoryFilterState(name) === 'included' ? `分类：${name}（已包含，点击改为排除）` : (getDetailCategoryFilterState(name) === 'excluded' ? `分类：${name}（已排除，点击取消）` : `分类：${name}（点击包含，Shift+点击直接排除）`)"
                       >
@@ -1698,7 +1698,7 @@
                             <div class="detail-tag-group-head">
                               <span
                                 class="detail-tag-group-dot"
-                                :style="`background:${group.color};`"
+                                :style="getCategoryChipStyle(group.category)"
                               ></span>
                               <span
                                 class="detail-tag-group-title"
@@ -1774,10 +1774,10 @@
                     <div class="flex flex-col leading-none">
                       <span
                         x-show="$store.global.deviceType !== 'mobile'"
-                        class="text-orange-400 font-bold text-xs uppercase tracking-wider"
+                        class="color-text-warning font-bold text-xs uppercase tracking-wider"
                         >World Info</span
                       >
-                      <span class="text-[10px] text-gray-500 font-mono mt-0.5">
+                      <span class="text-[10px] color-text-muted font-mono mt-0.5">
                         <span x-text="getWorldInfoCount()">0</span> 条目
                       </span>
                     </div>
@@ -1790,7 +1790,7 @@
                   >
                     <div
                       class="w-[1px] h-6 mr-3"
-                      style="background: var(--border-light)"
+                      style="background: var(--border-default)"
                     ></div>
                     <template x-if="editingData.character_book">
                       <input
@@ -1798,7 +1798,7 @@
                         x-model="editingData.character_book.name"
                         placeholder="未命名世界书..."
                         class="w-full bg-transparent text-sm font-medium outline-none border-b border-transparent transition-colors py-1"
-                        style="color: var(--text-main)"
+                        style="color: var(--content-primary)"
                         title="世界书名称"
                       />
                     </template>
@@ -1809,8 +1809,8 @@
                       <div
                         class="flex rounded-lg p-0.5 border"
                         style="
-                          background: var(--bg-sub);
-                          border-color: var(--border-light);
+                          background: var(--surface-container-raised);
+                          border-color: var(--border-default);
                         "
                       >
                         <button
@@ -1822,7 +1822,7 @@
                         </button>
                         <div
                           class="w-[1px] my-0.5"
-                          style="background: var(--border-light)"
+                          style="background: var(--border-default)"
                         ></div>
                         <button
                           @click="exportWorldBookSingle()"
@@ -1850,18 +1850,18 @@
 
                     <div
                       class="pl-2 ml-1 border-l h-6 flex items-center justify-center"
-                      style="border-color: var(--border-light)"
+                      style="border-color: var(--border-default)"
                     >
                       <span
                         x-show="wiOpen"
-                        class="text-orange-400"
+                        class="color-text-warning"
                         aria-hidden="true"
                       >
                         {{ icon('chevron-down', 'ui-icon--sm') }}
                       </span>
                       <span
                         x-show="!wiOpen"
-                        class="group-hover:text-gray-300"
+                        class="color-group-hover-text-secondary"
                         aria-hidden="true"
                       >
                         {{ icon('chevron-right', 'ui-icon--sm') }}
@@ -1877,13 +1877,13 @@
                 >
                   <!-- 以下 WI 内容：保持原来的功能 -->
                   <div class="flex justify-between items-center mb-3 px-1">
-                    <span class="text-xs text-gray-500"
+                    <span class="text-xs color-text-muted"
                       >提示: 调整 Order 可改变触发顺序</span
                     >
                     <div class="flex items-center gap-2">
                       <button
                         @click="addWiEntry()"
-                        class="text-xs bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded flex items-center gap-1 transition"
+                        class="text-xs color-surface-accent-solid color-hover-surface-accent color-text-on-dark px-3 py-1.5 rounded flex items-center gap-1 transition"
                       >
                         {{ icon('plus-square', 'ui-icon--sm') }}
                         <span>新增条目</span>
@@ -1900,13 +1900,13 @@
                         x-data="{ expanded: false }"
                         class="border rounded-md overflow-hidden transition-all"
                         style="
-                          background: var(--bg-panel);
-                          border-color: var(--border-light);
+                          background: var(--surface-container);
+                          border-color: var(--border-default);
                         "
                       >
                         <div
                           class="flex items-center gap-2 p-2 cursor-pointer select-none"
-                          style="background: var(--bg-sub)"
+                          style="background: var(--surface-container-raised)"
                           @click="expanded = !expanded"
                         >
                           <div @click.stop class="flex items-center">
@@ -1921,28 +1921,28 @@
                             <div class="flex items-center gap-2">
                               <span
                                 class="text-xs font-bold"
-                                style="color: var(--text-main)"
+                                style="color: var(--content-primary)"
                                 x-text="entry.comment || '无备注'"
                               ></span>
                               <span
                                 x-show="entry.constant"
                                 class="text-[10px] px-1 rounded border"
                                 style="
-                                  background: var(--bg-tag);
-                                  color: var(--accent-light);
-                                  border-color: var(--accent-light);
+                                  background: var(--surface-tag);
+                                  color: var(--accent-text);
+                                  border-color: var(--accent-text);
                                 "
                                 >Constant</span
                               >
                             </div>
                             <div
                               class="text-[10px] font-mono mt-0.5 break-all whitespace-normal"
-                              style="color: var(--text-dim); line-height: 1.2"
+                              style="color: var(--content-muted); line-height: 1.2"
                             >
                               <span class="opacity-70">Keys:</span>
                               <span
                                 x-text="formatWiKeys(entry.keys)"
-                                style="color: #ca8a04"
+                                style="color: var(--status-warning-text)"
                               ></span>
                             </div>
                           </div>
@@ -1950,13 +1950,13 @@
                           <div class="flex items-center gap-1" @click.stop>
                             <button
                               @click="removeWiEntry(entry)"
-                              class="text-gray-500 hover:text-red-400 p-1 rounded transition"
+                              class="color-text-muted color-hover-text-danger p-1 rounded transition"
                             >
                               {{ icon('trash', 'ui-icon--sm') }}
                             </button>
                             <button
                               @click="expanded = !expanded"
-                              class="text-gray-500 hover:text-blue-400 p-1 transform transition-transform duration-200"
+                              class="color-text-muted color-hover-text-accent p-1 transform transition-transform duration-200"
                               :class="expanded ? 'rotate-180' : ''"
                             >
                               {{ icon('chevron-down', 'ui-icon--sm') }}
@@ -1969,14 +1969,14 @@
                           x-collapse
                           class="p-3 border-t space-y-3"
                           style="
-                            border-color: var(--border-light);
-                            background: var(--bg-panel);
+                            border-color: var(--border-default);
+                            background: var(--surface-container);
                           "
                         >
                           <div class="grid grid-cols-6 gap-3">
                             <div class="col-span-4">
                               <label
-                                class="block text-[10px] text-purple-400 uppercase font-bold mb-1"
+                                class="block text-[10px] color-text-violet uppercase font-bold mb-1"
                                 >触发关键字</label
                               >
                               <input
@@ -1984,13 +1984,13 @@
                                 :value="formatWiKeys(entry.keys)"
                                 @input="updateWiKeys(entry, $event.target.value)"
                                 class="form-input text-xs"
-                                style="color: #fde047"
+                                style="color: var(--status-warning-text)"
                                 placeholder="艾雅, Python"
                               />
                             </div>
                             <div class="col-span-2">
                               <label
-                                class="block text-[10px] text-gray-500 uppercase font-bold mb-1"
+                                class="block text-[10px] color-text-muted uppercase font-bold mb-1"
                                 >权重 (Order)</label
                               >
                               <input
@@ -2004,10 +2004,10 @@
                           <div>
                             <div class="flex justify-between items-center mb-1">
                               <label
-                                class="text-[10px] text-green-400 uppercase font-bold"
+                                class="text-[10px] color-text-success uppercase font-bold"
                                 >内容 (Content)</label
                               >
-                              <div class="text-[10px] text-gray-600">
+                              <div class="text-[10px] color-text-muted">
                                 Token:
                                 <span
                                   x-text="estimateTokens(entry.content)"
@@ -2027,7 +2027,7 @@
                           <div class="flex items-center gap-4">
                             <div class="flex-1">
                               <label
-                                class="block text-[10px] text-gray-500 uppercase font-bold mb-1"
+                                class="block text-[10px] color-text-muted uppercase font-bold mb-1"
                                 >备注</label
                               >
                               <input
@@ -2058,12 +2058,12 @@
 
                     <div
                       x-show="getDefaultSortedWIEntries().length === 0"
-                      class="text-center py-8 text-gray-600 border border-dashed border-gray-700 rounded-lg"
+                      class="text-center py-8 color-text-muted border border-dashed color-border-default rounded-lg"
                     >
                       <p class="text-sm">暂无世界书条目</p>
                       <button
                         @click="addWiEntry()"
-                        class="mt-2 text-xs text-blue-400 hover:underline"
+                        class="mt-2 text-xs color-text-accent hover:underline"
                       >
                         点击添加第一条
                       </button>
@@ -2074,7 +2074,7 @@
                     <button
                       @click="showRaw = !showRaw; if(showRaw) editingData.character_book_raw = JSON.stringify(editingData.character_book, null, 2)"
                       class="text-[10px] underline flex items-center gap-1 transition-colors"
-                      style="color: var(--text-dim)"
+                      style="color: var(--content-muted)"
                     >
                       {{ icon('sliders-settings', 'ui-icon--sm') }}
                       <span
@@ -2661,7 +2661,7 @@
                 <!-- 1. 拖拽上传区 -->
                 <div
                   class="relative flex-shrink-0 group transition-all duration-300"
-                  :class="dragOverResource ? 'bg-blue-500/10 border-blue-500' : 'bg-[var(--bg-sub)] border-[var(--border-light)] hover:border-[var(--accent-main)]'"
+                  :class="dragOverResource ? 'color-surface-accent color-border-accent' : 'bg-[var(--surface-container-raised)] border-[var(--border-default)] hover:border-[var(--accent-action)]'"
                   style="
                     border-width: 2px;
                     border-style: dashed;
@@ -2698,16 +2698,16 @@
                     <div class="text-left">
                       <h4
                         class="font-bold text-sm"
-                        :class="dragOverResource ? 'text-blue-400' : 'text-[var(--text-main)]'"
+                        :class="dragOverResource ? 'color-text-accent' : 'text-[var(--content-primary)]'"
                         x-text="editingData.resource_folder ? '点击或拖拽文件上传' : '点击或拖拽导入首个资源'"
                       ></h4>
                       <div
-                        class="text-[10px] text-[var(--text-dim)] mt-0.5 leading-tight"
+                        class="text-[10px] text-[var(--content-muted)] mt-0.5 leading-tight"
                       >
-                        <span class="text-green-400">图片</span>(Skins)
-                        <span class="text-orange-400">世界书</span>
-                        <span class="text-blue-400">正则</span>
-                        <span class="text-purple-400">脚本</span>
+                        <span class="color-text-success">图片</span>(Skins)
+                        <span class="color-text-warning">世界书</span>
+                        <span class="color-text-accent">正则</span>
+                        <span class="color-text-violet">脚本</span>
                         <br />
                         <span x-show="editingData.resource_folder"
                           >会自动归类到对应文件夹</span
@@ -2722,7 +2722,7 @@
 
                 <div
                   x-show="!editingData.resource_folder"
-                  class="rounded-xl border border-dashed border-[var(--border-light)] bg-[var(--bg-sub)]/60 px-4 py-3 text-xs text-[var(--text-dim)]"
+                  class="rounded-xl border border-dashed border-[var(--border-default)] bg-[var(--surface-container-raised)]/60 px-4 py-3 text-xs text-[var(--content-muted)]"
                 >
                   当前还没有资源目录，先把第一个资源拖进来或点上面的导入框即可。创建完成后，下方会自动出现皮肤与其他资源面板。
                 </div>
@@ -2734,20 +2734,20 @@
                   >
                     <!-- 左栏：皮肤 (图片) -->
                     <div
-                      class="flex flex-col min-h-0 border border-[var(--border-light)] rounded-lg bg-[var(--bg-sub)]/30"
+                      class="flex flex-col min-h-0 border border-[var(--border-default)] rounded-lg bg-[var(--surface-container-raised)]/30"
                     >
                       <div
-                        class="p-2 border-b border-[var(--border-light)] flex justify-between items-center bg-[var(--bg-sub)] rounded-t-lg"
+                        class="p-2 border-b border-[var(--border-default)] flex justify-between items-center bg-[var(--surface-container-raised)] rounded-t-lg"
                       >
                         <span
-                          class="text-xs font-bold text-[var(--text-dim)] uppercase flex items-center gap-1"
+                          class="text-xs font-bold text-[var(--content-muted)] uppercase flex items-center gap-1"
                         >
                           {{ detail_icon('image', 'ui-icon--sm') }}
                           <span>皮肤 (Skins)</span>
                         </span>
                         <div class="flex items-center gap-2">
                           <span
-                            class="text-[10px] text-[var(--text-dim)]"
+                            class="text-[10px] text-[var(--content-muted)]"
                             x-text="currentSkinItems.length + ' items'"
                           ></span>
                           <button
@@ -2763,12 +2763,12 @@
                       </div>
 
                       <div class="flex-1 overflow-y-auto custom-scrollbar p-2">
-                        <div class="detail-skin-directory-toolbar mb-2 text-[11px] text-[var(--text-dim)]">
+                        <div class="detail-skin-directory-toolbar mb-2 text-[11px] text-[var(--content-muted)]">
                           <button
                             type="button"
                             x-show="currentSkinDirectory"
                             @click="goToSkinParentDirectory()"
-                            class="detail-skin-directory-button px-2 py-1 rounded border border-[var(--border-light)] hover:text-[var(--text-main)]"
+                            class="detail-skin-directory-button px-2 py-1 rounded border border-[var(--border-default)] hover:text-[var(--content-primary)]"
                           >
                             {{ detail_icon('arrow-up-left', 'ui-icon--xs') }}
                             <span>上一级</span>
@@ -2776,8 +2776,8 @@
                           <button
                             type="button"
                             @click="goToSkinDirectory('')"
-                            class="detail-skin-directory-button px-2 py-1 rounded border border-[var(--border-light)] hover:text-[var(--text-main)]"
-                            :class="!currentSkinDirectory ? 'text-[var(--accent-main)] border-[var(--accent-main)]' : ''"
+                            class="detail-skin-directory-button px-2 py-1 rounded border border-[var(--border-default)] hover:text-[var(--content-primary)]"
+                            :class="!currentSkinDirectory ? 'text-[var(--accent-action)] border-[var(--accent-action)]' : ''"
                           >
                             {{ icon('folder-root', 'ui-icon--xs') }}
                             根目录
@@ -2792,19 +2792,19 @@
                             <div style="display: contents">
                               <div
                                 x-show="item.type === 'directory'"
-                                class="relative group aspect-square rounded overflow-hidden border border-[var(--border-light)] bg-[var(--bg-body)]/80 cursor-pointer flex flex-col items-center justify-center gap-2"
+                                class="relative group aspect-square rounded overflow-hidden border border-[var(--border-default)] bg-[var(--surface-page)]/80 cursor-pointer flex flex-col items-center justify-center gap-2"
                                 @dblclick.stop="enterSkinDirectory(item.path)"
                                 :title="item.path"
                               >
                                 <div>{{ sidebar_icon('folder-solid', 'ui-icon--lg') }}</div>
                                 <div
-                                  class="absolute bottom-0 left-0 right-0 bg-black/60 text-[9px] text-white px-1 truncate"
+                                  class="absolute bottom-0 left-0 right-0 color-surface-scrim text-[9px] color-text-on-dark px-1 truncate"
                                   x-text="item.name"
                                 ></div>
                               </div>
                               <div
                                 x-show="item.type === 'image'"
-                                class="relative group aspect-square rounded overflow-hidden border border-[var(--border-light)] bg-black/20 cursor-pointer"
+                                class="relative group aspect-square rounded overflow-hidden border border-[var(--border-default)] color-surface-scrim-soft cursor-pointer"
                                 @click="selectSkinByPath(item.path)"
                               >
                                 <img
@@ -2814,18 +2814,18 @@
                                 <!-- 选中标记 -->
                                 <div
                                   x-show="isSkinPathSelected(item.path)"
-                                  class="absolute inset-0 border-2 border-[var(--accent-main)] z-10 pointer-events-none"
+                                  class="absolute inset-0 border-2 border-[var(--accent-action)] z-10 pointer-events-none"
                                 ></div>
                                 <!-- 悬浮遮罩 -->
                                 <div
-                                  class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                                  class="absolute inset-0 color-surface-scrim opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
                                 >
-                                  <span class="text-[10px] text-white font-bold"
+                                  <span class="text-[10px] color-text-on-dark font-bold"
                                     >预览</span
                                   >
                                 </div>
                                 <div
-                                  class="absolute bottom-0 left-0 right-0 bg-black/60 text-[9px] text-white px-1 truncate"
+                                  class="absolute bottom-0 left-0 right-0 color-surface-scrim text-[9px] color-text-on-dark px-1 truncate"
                                   x-text="item.name"
                                 ></div>
                               </div>
@@ -2834,30 +2834,30 @@
                         </div>
                         <div
                           x-show="currentSkinItems.length === 0"
-                          class="h-full flex items-center justify-center text-[var(--text-dim)] text-xs italic"
+                          class="h-full flex items-center justify-center text-[var(--content-muted)] text-xs italic"
                         >
                           暂无图片
                         </div>
                       </div>
 
                       <div
-                        class="border-t border-[var(--border-light)] p-3 space-y-3 bg-[var(--bg-sub)]/50"
+                        class="border-t border-[var(--border-default)] p-3 space-y-3 bg-[var(--surface-container-raised)]/50"
                       >
                         <div class="flex items-center justify-between gap-2">
                           <div
-                            class="text-xs font-bold text-[var(--text-main)]"
+                            class="text-xs font-bold text-[var(--content-primary)]"
                           >
                             皮肤换封
                           </div>
                           <span
                             x-show="currentSkinIndex >= 0"
-                            class="text-[10px] bg-[var(--accent-main)] text-white px-1.5 py-0.5 rounded"
+                            class="text-[10px] bg-[var(--accent-action)] color-text-on-dark px-1.5 py-0.5 rounded"
                             >Selected</span
                           >
                         </div>
 
                         <div
-                          class="text-[11px] text-[var(--text-dim)] min-h-[2.5rem] leading-relaxed"
+                          class="text-[11px] text-[var(--content-muted)] min-h-[2.5rem] leading-relaxed"
                         >
                           <template x-if="currentSkinIndex >= 0">
                             <div
@@ -2866,7 +2866,7 @@
                             >
                               当前选中:
                               <span
-                                class="font-mono text-[var(--text-main)]"
+                                class="font-mono text-[var(--content-primary)]"
                                 x-text="selectedSkinPath"
                               ></span>
                             </div>
@@ -2884,16 +2884,16 @@
                         </div>
 
                         <label
-                          class="flex items-center gap-2 cursor-pointer select-none p-2 rounded border border-transparent hover:bg-[var(--bg-body)] hover:border-[var(--border-light)] transition-colors"
+                          class="flex items-center gap-2 cursor-pointer select-none p-2 rounded border border-transparent hover:bg-[var(--surface-page)] hover:border-[var(--border-default)] transition-colors"
                           :class="currentSkinIndex === -1 ? 'opacity-50 cursor-not-allowed' : ''"
                         >
                           <input
                             type="checkbox"
                             x-model="saveOldCoverOnSwap"
                             :disabled="currentSkinIndex === -1"
-                            class="accent-[var(--accent-main)] w-3.5 h-3.5"
+                            class="accent-[var(--accent-action)] w-3.5 h-3.5"
                           />
-                          <span class="text-xs text-[var(--text-dim)]"
+                          <span class="text-xs text-[var(--content-muted)]"
                             >将当前封面归档至资源目录</span
                           >
                         </label>
@@ -2902,7 +2902,7 @@
                           <button
                             @click="setSkinAsCover(selectedSkinPath)"
                             :disabled="currentSkinIndex === -1"
-                            class="btn-secondary flex-1 justify-center font-bold text-[var(--accent-main)] border-[var(--accent-main)] hover:bg-[var(--accent-main)] hover:text-white transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-[var(--accent-main)]"
+                            class="btn-secondary flex-1 justify-center font-bold text-[var(--accent-action)] border-[var(--accent-action)] hover:bg-[var(--accent-action)] color-hover-text-on-dark transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-[var(--accent-action)]"
                           >
                             {{ detail_icon('cover-image', 'ui-icon--sm') }}
                             <span>设为封面</span>
@@ -2910,7 +2910,7 @@
                           <button
                             @click="deleteCurrentSkin()"
                             :disabled="currentSkinIndex === -1"
-                            class="btn-secondary w-10 flex items-center justify-center text-red-400 border-red-400/50 hover:bg-red-500 hover:text-white hover:border-red-500 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-red-400"
+                            class="btn-secondary w-10 flex items-center justify-center color-text-danger color-border-danger color-hover-surface-danger color-hover-text-on-dark color-hover-border-danger transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:color-hover-text-danger"
                             title="删除此皮肤文件"
                           >
                             {{ icon('trash', 'ui-icon--sm') }}
@@ -2926,13 +2926,13 @@
                     >
                       <!-- 世界书列表 -->
                       <div
-                        class="wi-worldbook-icon-scope border border-[var(--border-light)] rounded-lg bg-[var(--bg-sub)]/30 flex flex-col"
+                        class="wi-worldbook-icon-scope border border-[var(--border-default)] rounded-lg bg-[var(--surface-container-raised)]/30 flex flex-col"
                       >
                         <div
-                          class="p-2 border-b border-[var(--border-light)] bg-[var(--bg-sub)] rounded-t-lg"
+                          class="p-2 border-b border-[var(--border-default)] bg-[var(--surface-container-raised)] rounded-t-lg"
                         >
                           <span
-                            class="text-xs font-bold text-orange-400 uppercase flex items-center gap-1"
+                            class="text-xs font-bold color-text-warning uppercase flex items-center gap-1"
                           >
                             <span>{{ detail_icon('book-open', 'ui-icon--sm') }}</span>
                             世界书 (Lorebooks)
@@ -2944,30 +2944,30 @@
                             :key="file.path"
                           >
                             <div
-                              class="flex items-center justify-between p-2 rounded border border-transparent hover:border-[var(--border-light)] hover:bg-[var(--bg-hover)] cursor-pointer group transition-colors"
+                              class="flex items-center justify-between p-2 rounded border border-transparent hover:border-[var(--border-default)] hover:bg-[var(--state-hover-surface)] cursor-pointer group transition-colors"
                               @click="window.dispatchEvent(new CustomEvent('open-wi-detail-modal', { detail: { id: file.path, type: 'resource', path: file.path, name: file.name, mtime: file.mtime } }))"
                             >
                               <div class="flex items-center gap-2 min-w-0">
-                                <span class="text-orange-400">{{ detail_icon('book-open', 'ui-icon--sm') }}</span>
+                                <span class="color-text-warning">{{ detail_icon('book-open', 'ui-icon--sm') }}</span>
                                 <span
-                                  class="text-xs text-[var(--text-main)] truncate"
+                                  class="text-xs text-[var(--content-primary)] truncate"
                                   x-text="file.relative_path || file.name"
                                 ></span>
                                 <button
                                   @click.stop="deleteResourceItem(file, '世界书')"
-                                  class="text-[10px] text-red-400 hover:text-red-300"
+                                  class="text-[10px] color-text-danger color-hover-text-danger"
                                   title="删除世界书"
                                 >删除</button>
                               </div>
                               <span
-                                class="text-[10px] text-[var(--text-dim)] opacity-0 group-hover:opacity-100"
+                                class="text-[10px] text-[var(--content-muted)] opacity-0 group-hover:opacity-100"
                                 >编辑</span
                               >
                             </div>
                           </template>
                           <div
                             x-show="resourceLorebooks.length === 0"
-                            class="text-[10px] text-[var(--text-dim)] text-center py-2 italic"
+                            class="text-[10px] text-[var(--content-muted)] text-center py-2 italic"
                           >
                             无文件
                           </div>
@@ -2976,13 +2976,13 @@
 
                       <!-- 正则脚本列表 -->
                       <div
-                        class="border border-[var(--border-light)] rounded-lg bg-[var(--bg-sub)]/30 flex flex-col"
+                        class="border border-[var(--border-default)] rounded-lg bg-[var(--surface-container-raised)]/30 flex flex-col"
                       >
                         <div
-                          class="p-2 border-b border-[var(--border-light)] bg-[var(--bg-sub)] rounded-t-lg"
+                          class="p-2 border-b border-[var(--border-default)] bg-[var(--surface-container-raised)] rounded-t-lg"
                         >
                           <span
-                            class="text-xs font-bold text-blue-400 uppercase flex items-center gap-1"
+                            class="text-xs font-bold color-text-accent uppercase flex items-center gap-1"
                           >
                             {{ detail_icon('regex', 'ui-icon--sm') }}
                             <span>正则脚本 (Regex)</span>
@@ -2994,30 +2994,30 @@
                             :key="file.path"
                           >
                             <div
-                              class="flex items-center justify-between p-2 rounded border border-transparent hover:border-[var(--border-light)] hover:bg-[var(--bg-hover)] cursor-pointer group transition-colors"
+                              class="flex items-center justify-between p-2 rounded border border-transparent hover:border-[var(--border-default)] hover:bg-[var(--state-hover-surface)] cursor-pointer group transition-colors"
                               @click="openResourceScript(file, 'regex')"
                             >
                               <div class="flex items-center gap-2 min-w-0">
-                                <span class="text-blue-400">{{ detail_icon('regex', 'ui-icon--sm') }}</span>
+                                <span class="color-text-accent">{{ detail_icon('regex', 'ui-icon--sm') }}</span>
                                 <span
-                                  class="text-xs text-[var(--text-main)] truncate"
+                                  class="text-xs text-[var(--content-primary)] truncate"
                                   x-text="file.relative_path || file.name"
                                 ></span>
                                 <button
                                   @click.stop="deleteResourceItem(file, '正则脚本')"
-                                  class="text-[10px] text-red-400 hover:text-red-300"
+                                  class="text-[10px] color-text-danger color-hover-text-danger"
                                   title="删除正则脚本"
                                 >删除</button>
                               </div>
                               <span
-                                class="text-[10px] text-[var(--text-dim)] opacity-0 group-hover:opacity-100"
+                                class="text-[10px] text-[var(--content-muted)] opacity-0 group-hover:opacity-100"
                                 >编辑</span
                               >
                             </div>
                           </template>
                           <div
                             x-show="resourceRegex.length === 0"
-                            class="text-[10px] text-[var(--text-dim)] text-center py-2 italic"
+                            class="text-[10px] text-[var(--content-muted)] text-center py-2 italic"
                           >
                             无文件
                           </div>
@@ -3026,13 +3026,13 @@
 
                       <!-- 扩展脚本列表 -->
                       <div
-                        class="border border-[var(--border-light)] rounded-lg bg-[var(--bg-sub)]/30 flex flex-col"
+                        class="border border-[var(--border-default)] rounded-lg bg-[var(--surface-container-raised)]/30 flex flex-col"
                       >
                         <div
-                          class="p-2 border-b border-[var(--border-light)] bg-[var(--bg-sub)] rounded-t-lg"
+                          class="p-2 border-b border-[var(--border-default)] bg-[var(--surface-container-raised)] rounded-t-lg"
                         >
                           <span
-                            class="text-xs font-bold text-purple-400 uppercase flex items-center gap-1"
+                            class="text-xs font-bold color-text-violet uppercase flex items-center gap-1"
                           >
                             {{ detail_icon('script-file', 'ui-icon--sm') }}
                             <span>扩展脚本 (Scripts)</span>
@@ -3044,30 +3044,30 @@
                             :key="file.path"
                           >
                             <div
-                              class="flex items-center justify-between p-2 rounded border border-transparent hover:border-[var(--border-light)] hover:bg-[var(--bg-hover)] cursor-pointer group transition-colors"
+                              class="flex items-center justify-between p-2 rounded border border-transparent hover:border-[var(--border-default)] hover:bg-[var(--state-hover-surface)] cursor-pointer group transition-colors"
                               @click="openResourceScript(file, 'script')"
                             >
                               <div class="flex items-center gap-2 min-w-0">
-                                <span class="text-purple-400">{{ detail_icon('script-file', 'ui-icon--sm') }}</span>
+                                <span class="color-text-violet">{{ detail_icon('script-file', 'ui-icon--sm') }}</span>
                                 <span
-                                  class="text-xs text-[var(--text-main)] truncate"
+                                  class="text-xs text-[var(--content-primary)] truncate"
                                   x-text="file.relative_path || file.name"
                                 ></span>
                                 <button
                                   @click.stop="deleteResourceItem(file, '扩展脚本')"
-                                  class="text-[10px] text-red-400 hover:text-red-300"
+                                  class="text-[10px] color-text-danger color-hover-text-danger"
                                   title="删除扩展脚本"
                                 >删除</button>
                               </div>
                               <span
-                                class="text-[10px] text-[var(--text-dim)] opacity-0 group-hover:opacity-100"
+                                class="text-[10px] text-[var(--content-muted)] opacity-0 group-hover:opacity-100"
                                 >编辑</span
                               >
                             </div>
                           </template>
                           <div
                             x-show="resourceScripts.length === 0"
-                            class="text-[10px] text-[var(--text-dim)] text-center py-2 italic"
+                            class="text-[10px] text-[var(--content-muted)] text-center py-2 italic"
                           >
                             无文件
                           </div>
@@ -3076,13 +3076,13 @@
 
                       <!-- 右侧栏下方：快速回复列表 -->
                       <div
-                        class="border border-[var(--border-light)] rounded-lg bg-[var(--bg-sub)]/30 flex flex-col"
+                        class="border border-[var(--border-default)] rounded-lg bg-[var(--surface-container-raised)]/30 flex flex-col"
                       >
                         <div
-                          class="p-2 border-b border-[var(--border-light)] bg-[var(--bg-sub)] rounded-t-lg"
+                          class="p-2 border-b border-[var(--border-default)] bg-[var(--surface-container-raised)] rounded-t-lg"
                         >
                           <span
-                            class="text-xs font-bold text-yellow-500 uppercase flex items-center gap-1"
+                            class="text-xs font-bold color-text-warning uppercase flex items-center gap-1"
                           >
                             {{ detail_icon('quick-reply', 'ui-icon--sm') }}
                             <span>快速回复 (Quick Replies)</span>
@@ -3094,30 +3094,30 @@
                             :key="file.path"
                           >
                             <div
-                              class="flex items-center justify-between p-2 rounded border border-transparent hover:border-[var(--border-light)] hover:bg-[var(--bg-hover)] cursor-pointer group transition-colors"
+                              class="flex items-center justify-between p-2 rounded border border-transparent hover:border-[var(--border-default)] hover:bg-[var(--state-hover-surface)] cursor-pointer group transition-colors"
                               @click="openResourceScript(file, 'quick_reply')"
                             >
                               <div class="flex items-center gap-2 min-w-0">
-                                <span class="text-yellow-500">{{ detail_icon('quick-reply', 'ui-icon--sm') }}</span>
+                                <span class="color-text-warning">{{ detail_icon('quick-reply', 'ui-icon--sm') }}</span>
                                 <span
-                                  class="text-xs text-[var(--text-main)] truncate"
+                                  class="text-xs text-[var(--content-primary)] truncate"
                                   x-text="file.relative_path || file.name"
                                 ></span>
                                 <button
                                   @click.stop="deleteResourceItem(file, '快速回复')"
-                                  class="text-[10px] text-red-400 hover:text-red-300"
+                                  class="text-[10px] color-text-danger color-hover-text-danger"
                                   title="删除快速回复"
                                 >删除</button>
                               </div>
                               <span
-                                class="text-[10px] text-[var(--text-dim)] opacity-0 group-hover:opacity-100"
+                                class="text-[10px] text-[var(--content-muted)] opacity-0 group-hover:opacity-100"
                                 >编辑</span
                               >
                             </div>
                           </template>
                           <div
                             x-show="resourceQuickReplies.length === 0"
-                            class="text-[10px] text-[var(--text-dim)] text-center py-2 italic"
+                            class="text-[10px] text-[var(--content-muted)] text-center py-2 italic"
                           >
                             无文件
                           </div>
@@ -3126,13 +3126,13 @@
 
                       <!-- 预设文件列表 -->
                       <div
-                        class="border border-[var(--border-light)] rounded-lg bg-[var(--bg-sub)]/30 flex flex-col"
+                        class="border border-[var(--border-default)] rounded-lg bg-[var(--surface-container-raised)]/30 flex flex-col"
                       >
                         <div
-                          class="p-2 border-b border-[var(--border-light)] bg-[var(--bg-sub)] rounded-t-lg"
+                          class="p-2 border-b border-[var(--border-default)] bg-[var(--surface-container-raised)] rounded-t-lg"
                         >
                           <span
-                            class="text-xs font-bold text-cyan-400 uppercase flex items-center gap-1"
+                            class="text-xs font-bold color-text-info uppercase flex items-center gap-1"
                           >
                             {{ detail_icon('preset', 'ui-icon--sm') }}
                             <span>预设 (Presets)</span>
@@ -3144,30 +3144,30 @@
                             :key="file.path"
                           >
                             <div
-                              class="flex items-center justify-between p-2 rounded border border-transparent hover:border-[var(--border-light)] hover:bg-[var(--bg-hover)] cursor-pointer group transition-colors"
+                              class="flex items-center justify-between p-2 rounded border border-transparent hover:border-[var(--border-default)] hover:bg-[var(--state-hover-surface)] cursor-pointer group transition-colors"
                               @click="openResourcePreset(file)"
                             >
                               <div class="flex items-center gap-2 min-w-0">
-                                <span class="text-cyan-400">{{ detail_icon('preset', 'ui-icon--sm') }}</span>
+                                <span class="color-text-info">{{ detail_icon('preset', 'ui-icon--sm') }}</span>
                                 <span
-                                  class="text-xs text-[var(--text-main)] truncate"
+                                  class="text-xs text-[var(--content-primary)] truncate"
                                   x-text="file.relative_path || file.name"
                                 ></span>
                                 <button
                                   @click.stop="deleteResourceItem(file, '预设')"
-                                  class="text-[10px] text-red-400 hover:text-red-300"
+                                  class="text-[10px] color-text-danger color-hover-text-danger"
                                   title="删除预设"
                                 >删除</button>
                               </div>
                               <span
-                                class="text-[10px] text-[var(--text-dim)] opacity-0 group-hover:opacity-100"
+                                class="text-[10px] text-[var(--content-muted)] opacity-0 group-hover:opacity-100"
                                 >查看</span
                               >
                             </div>
                           </template>
                           <div
                             x-show="resourcePresets.length === 0"
-                            class="text-[10px] text-[var(--text-dim)] text-center py-2 italic"
+                            class="text-[10px] text-[var(--content-muted)] text-center py-2 italic"
                           >
                             无文件
                           </div>
@@ -3176,13 +3176,13 @@
 
                       <!-- 未识别资源列表 -->
                       <div
-                        class="border border-[var(--border-light)] rounded-lg bg-[var(--bg-sub)]/30 flex flex-col"
+                        class="border border-[var(--border-default)] rounded-lg bg-[var(--surface-container-raised)]/30 flex flex-col"
                       >
                         <div
-                          class="p-2 border-b border-[var(--border-light)] bg-[var(--bg-sub)] rounded-t-lg"
+                          class="p-2 border-b border-[var(--border-default)] bg-[var(--surface-container-raised)] rounded-t-lg"
                         >
                           <span
-                            class="text-xs font-bold text-slate-400 uppercase flex items-center gap-1"
+                            class="text-xs font-bold color-text-muted uppercase flex items-center gap-1"
                           >
                             {{ detail_icon('resource', 'ui-icon--sm') }}
                             <span>其他资源 (Unknown)</span>
@@ -3194,26 +3194,26 @@
                             :key="file.relative_path || file.path"
                           >
                             <div
-                              class="flex items-center justify-between p-2 rounded border border-transparent hover:border-[var(--border-light)] hover:bg-[var(--bg-hover)] group transition-colors"
+                              class="flex items-center justify-between p-2 rounded border border-transparent hover:border-[var(--border-default)] hover:bg-[var(--state-hover-surface)] group transition-colors"
                             >
                               <div class="flex items-center gap-2 min-w-0">
-                                <span class="text-slate-400">{{ detail_icon('resource', 'ui-icon--sm') }}</span>
+                                <span class="color-text-muted">{{ detail_icon('resource', 'ui-icon--sm') }}</span>
                                 <span
-                                  class="text-xs text-[var(--text-main)] truncate"
+                                  class="text-xs text-[var(--content-primary)] truncate"
                                   :title="file.relative_path || file.name"
                                   x-text="file.relative_path || file.name"
                                 ></span>
                               </div>
                               <button
                                 @click.stop="deleteResourceItem(file, '未知资源')"
-                                class="text-[10px] text-red-400 hover:text-red-300 opacity-0 group-hover:opacity-100"
+                                class="text-[10px] color-text-danger color-hover-text-danger opacity-0 group-hover:opacity-100"
                                 title="删除未知资源"
                               >删除</button>
                             </div>
                           </template>
                           <div
                             x-show="resourceUnknown.length === 0"
-                            class="text-[10px] text-[var(--text-dim)] text-center py-2 italic"
+                            class="text-[10px] text-[var(--content-muted)] text-center py-2 italic"
                           >
                             无文件
                           </div>
@@ -3438,17 +3438,17 @@
   >
     <div
       style="
-        background: var(--bg-panel);
+        background: var(--surface-container);
         padding: 1.5rem;
         border-radius: 0.75rem;
         width: 25rem;
-        border: 1px solid var(--border-light);
+        border: 1px solid var(--border-default);
       "
       @click.stop
     >
       <h3 style="font-weight: bold; margin-bottom: 1rem">设置资源目录</h3>
       <div class="flex flex-col gap-2">
-        <div style="color: var(--text-dim); font-size: 0.875rem">
+        <div style="color: var(--content-muted); font-size: 0.875rem">
           输入相对路径或绝对路径
         </div>
         <input
@@ -3486,25 +3486,25 @@
     x-transition:leave="transition ease-in duration-150"
     x-transition:leave-start="opacity-100 scale-100"
     x-transition:leave-end="opacity-0 scale-95"
-    class="detail-icon-scope fixed inset-0 z-modal-popover flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 md:p-8"
+    class="detail-icon-scope fixed inset-0 z-modal-popover flex items-center justify-center color-surface-scrim backdrop-blur-sm p-4 md:p-8"
     @click.self="showHelpModal = false"
   >
     <div
-      class="bg-[var(--bg-panel)] border border-[var(--border-light)] rounded-xl shadow-2xl w-full max-w-4xl flex flex-col overflow-hidden max-h-[90vh]"
+      class="bg-[var(--surface-container)] border border-[var(--border-default)] rounded-xl shadow-2xl w-full max-w-4xl flex flex-col overflow-hidden max-h-[90vh]"
     >
       <!-- Header -->
       <div
-        class="px-6 py-4 border-b border-[var(--border-light)] bg-[var(--bg-sub)] flex justify-between items-center flex-shrink-0"
+        class="px-6 py-4 border-b border-[var(--border-default)] bg-[var(--surface-container-raised)] flex justify-between items-center flex-shrink-0"
       >
         <h3
-          class="font-bold text-lg text-[var(--text-main)] flex items-center gap-2"
+          class="font-bold text-lg text-[var(--content-primary)] flex items-center gap-2"
         >
           {{ icon('settings-help-entry', 'ui-icon--lg') }}
           <span>角色卡字段说明指南</span>
         </h3>
         <button
           @click="showHelpModal = false"
-          class="text-gray-500 hover:text-red-400 px-2 text-xl"
+          class="color-text-muted color-hover-text-danger px-2 text-xl"
         >
           {{ icon('close', 'ui-icon--lg') }}
         </button>
@@ -3512,23 +3512,23 @@
 
       <!-- Content -->
       <div
-        class="p-6 overflow-y-auto custom-scrollbar text-sm text-[var(--text-main)] space-y-8"
+        class="p-6 overflow-y-auto custom-scrollbar text-sm text-[var(--content-primary)] space-y-8"
       >
         <!-- 1. 核心设定 -->
         <div>
           <h4
-            class="font-bold text-blue-400 mb-3 text-base border-b border-blue-500/30 pb-1 inline-block"
+            class="font-bold color-text-accent mb-3 text-base border-b color-border-accent pb-1 inline-block"
           >
             1. 核心设定 (Core Identity)
           </h4>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div
-              class="p-3 border border-[var(--border-light)] rounded bg-[var(--bg-body)]"
+              class="p-3 border border-[var(--border-default)] rounded bg-[var(--surface-page)]"
             >
-              <span class="font-bold text-[var(--accent-light)] block mb-1"
+              <span class="font-bold text-[var(--accent-text)] block mb-1"
                 >简介 (Description)</span
               >
-              <p class="text-[var(--text-dim)] text-xs leading-relaxed">
+              <p class="text-[var(--content-muted)] text-xs leading-relaxed">
                 角色的核心定义。包括外貌、性格、身世背景等。这是 AI
                 理解“我是谁”的最主要来源。
                 <br /><span class="opacity-60"
@@ -3537,24 +3537,24 @@
               </p>
             </div>
             <div
-              class="p-3 border border-[var(--border-light)] rounded bg-[var(--bg-body)]"
+              class="p-3 border border-[var(--border-default)] rounded bg-[var(--surface-page)]"
             >
-              <span class="font-bold text-[var(--accent-light)] block mb-1"
+              <span class="font-bold text-[var(--accent-text)] block mb-1"
                 >开场白 (First Message)</span
               >
-              <p class="text-[var(--text-dim)] text-xs leading-relaxed">
+              <p class="text-[var(--content-muted)] text-xs leading-relaxed">
                 对话开始时 AI
                 发送的第一条消息。它奠定了整个对话的语调、场景和格式（如是否使用动作描写）。
               </p>
             </div>
             <div
-              class="p-3 border border-[var(--border-light)] rounded bg-[var(--bg-body)]"
+              class="p-3 border border-[var(--border-default)] rounded bg-[var(--surface-page)]"
             >
-              <span class="font-bold text-[var(--accent-light)] block mb-1"
+              <span class="font-bold text-[var(--accent-text)] block mb-1"
                 >对话示例 (Mes Examples)</span
               >
-              <p class="text-[var(--text-dim)] text-xs leading-relaxed">
-                <span class="bg-gray-700 text-white px-1 rounded text-[10px]"
+              <p class="text-[var(--content-muted)] text-xs leading-relaxed">
+                <span class="color-surface-raised color-text-primary px-1 rounded text-[10px]"
                   >&lt;START&gt;</span
                 >
                 标签分隔的对话样例。 非常重要！它教 AI
@@ -3565,12 +3565,12 @@
               </p>
             </div>
             <div
-              class="p-3 border border-[var(--border-light)] rounded bg-[var(--bg-body)]"
+              class="p-3 border border-[var(--border-default)] rounded bg-[var(--surface-page)]"
             >
-              <span class="font-bold text-[var(--accent-light)] block mb-1"
+              <span class="font-bold text-[var(--accent-text)] block mb-1"
                 >备用开场白 (Alt Greetings)</span
               >
-              <p class="text-[var(--text-dim)] text-xs leading-relaxed">
+              <p class="text-[var(--content-muted)] text-xs leading-relaxed">
                 可以在开始新对话时随机替换默认开场白，用于提供不同的剧情切入点。
               </p>
             </div>
@@ -3580,43 +3580,43 @@
         <!-- 2. 深度扩展 -->
         <div>
           <h4
-            class="font-bold text-purple-400 mb-3 text-base border-b border-purple-500/30 pb-1 inline-block"
+            class="font-bold color-text-violet mb-3 text-base border-b color-border-violet pb-1 inline-block"
           >
             2. 深度扩展 (Extended Persona)
           </h4>
-          <p class="text-xs text-gray-500 mb-3">
+          <p class="text-xs color-text-muted mb-3">
             这些字段在 V2/V3 规范中用于细分设定，SillyTavern
             会根据配置将它们组合发送给 AI。
           </p>
 
           <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div
-              class="p-3 border border-[var(--border-light)] rounded bg-[var(--bg-body)]"
+              class="p-3 border border-[var(--border-default)] rounded bg-[var(--surface-page)]"
             >
-              <span class="font-bold text-purple-300 block mb-1"
+              <span class="font-bold color-text-violet block mb-1"
                 >人格设定 (Personality)</span
               >
-              <p class="text-[var(--text-dim)] text-xs">
+              <p class="text-[var(--content-muted)] text-xs">
                 专门描述性格特征（如：傲娇、冷酷、温柔）。有时会与“简介”合并发送。
               </p>
             </div>
             <div
-              class="p-3 border border-[var(--border-light)] rounded bg-[var(--bg-body)]"
+              class="p-3 border border-[var(--border-default)] rounded bg-[var(--surface-page)]"
             >
-              <span class="font-bold text-purple-300 block mb-1"
+              <span class="font-bold color-text-violet block mb-1"
                 >场景设定 (Scenario)</span
               >
-              <p class="text-[var(--text-dim)] text-xs">
+              <p class="text-[var(--content-muted)] text-xs">
                 当前对话发生的背景环境。例如：“在暴风雨的夜晚”、“在学校医务室”。
               </p>
             </div>
             <div
-              class="p-3 border border-[var(--border-light)] rounded bg-[var(--bg-body)]"
+              class="p-3 border border-[var(--border-default)] rounded bg-[var(--surface-page)]"
             >
-              <span class="font-bold text-purple-300 block mb-1"
+              <span class="font-bold color-text-violet block mb-1"
                 >作者注释 (Creator Notes)</span
               >
-              <p class="text-[var(--text-dim)] text-xs">
+              <p class="text-[var(--content-muted)] text-xs">
                 作者留给用户的说明（如：包含什么XP、如何使用）。通常不会发送给
                 AI，除非在 ST 中特殊配置。
               </p>
@@ -3627,35 +3627,35 @@
         <!-- 3. 系统指令 -->
         <div>
           <h4
-            class="font-bold text-red-400 mb-3 text-base border-b border-red-500/30 pb-1 inline-block"
+            class="font-bold color-text-danger mb-3 text-base border-b color-border-danger pb-1 inline-block"
           >
             3. 系统指令 (System & Instructions)
           </h4>
           <div
-            class="bg-[var(--bg-sub)] rounded border border-[var(--border-light)] p-3 space-y-3"
+            class="bg-[var(--surface-container-raised)] rounded border border-[var(--border-default)] p-3 space-y-3"
           >
             <div class="flex gap-3">
-              <div class="min-w-[120px] font-bold text-red-300 text-sm">
+              <div class="min-w-[120px] font-bold color-text-danger text-sm">
                 系统提示词<br /><span class="text-[10px] opacity-60"
                   >System Prompt</span
                 >
               </div>
-              <div class="text-xs text-[var(--text-dim)]">
+              <div class="text-xs text-[var(--content-muted)]">
                 强制覆盖全局的 Main Prompt。用于从底层改变 AI
                 的行为逻辑（如：“你是一个文字冒险游戏引擎”）。
-                <br /><span class="text-yellow-500"
+                <br /><span class="color-text-warning"
                   >*警告：除非你知道自己在做什么，否则留空。</span
                 >
               </div>
             </div>
-            <hr class="border-[var(--border-light)] border-dashed" />
+            <hr class="border-[var(--border-default)] border-dashed" />
             <div class="flex gap-3">
-              <div class="min-w-[120px] font-bold text-red-300 text-sm">
+              <div class="min-w-[120px] font-bold color-text-danger text-sm">
                 历史指令<br /><span class="text-[10px] opacity-60"
                   >Post-History</span
                 >
               </div>
-              <div class="text-xs text-[var(--text-dim)]">
+              <div class="text-xs text-[var(--content-muted)]">
                 被追加在聊天记录的末尾发送。由于位置靠后，权重极高。
                 <br />常用于：“强制打破复读”、“强制保持某种语言风格”或“当前剧情的强制引导”。
               </div>
@@ -3666,21 +3666,21 @@
         <!-- 4. 管理器特有功能 -->
         <div>
           <h4
-            class="font-bold text-green-400 mb-3 text-base border-b border-green-500/30 pb-1 inline-block"
+            class="font-bold color-text-success mb-3 text-base border-b color-border-success pb-1 inline-block"
           >
             4. 管理器特有功能 (Manager Only)
           </h4>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div
-              class="p-3 border border-[var(--border-light)] rounded bg-[var(--bg-body)] relative overflow-hidden"
+              class="p-3 border border-[var(--border-default)] rounded bg-[var(--surface-page)] relative overflow-hidden"
             >
               <div class="absolute right-0 top-0 p-1 opacity-10">
                 {{ detail_icon('note', 'ui-icon--lg') }}
               </div>
-              <span class="font-bold text-green-400 block mb-1"
+              <span class="font-bold color-text-success block mb-1"
                 >本地备注 (Local Note)</span
               >
-              <p class="text-[var(--text-dim)] text-xs">
+              <p class="text-[var(--content-muted)] text-xs">
                 仅存储在 ST Manager 本地数据库中的私有笔记。
                 <br />• 支持 Markdown 和图片粘贴 <br />•
                 不会写入角色卡文件，不会发送给 AI <br />•
@@ -3688,15 +3688,15 @@
               </p>
             </div>
             <div
-              class="p-3 border border-[var(--border-light)] rounded bg-[var(--bg-body)] relative overflow-hidden"
+              class="p-3 border border-[var(--border-default)] rounded bg-[var(--surface-page)] relative overflow-hidden"
             >
               <div class="absolute right-0 top-0 p-1 opacity-10">
                 {{ sidebar_icon('folder-solid', 'ui-icon--lg') }}
               </div>
-              <span class="font-bold text-green-400 block mb-1"
+              <span class="font-bold color-text-success block mb-1"
                 >资源目录 (Assets)</span
               >
-              <p class="text-[var(--text-dim)] text-xs">
+              <p class="text-[var(--content-muted)] text-xs">
                 关联一个物理文件夹来存放该角色的相关文件。
                 <br />•
                 <strong>Skins (皮肤):</strong> 放入图片即可在详情页左侧切换立绘
@@ -3710,7 +3710,7 @@
         <!-- 5. 高级功能详解 -->
         <div>
           <h4
-            class="font-bold text-orange-400 mb-3 text-base border-b border-orange-500/30 pb-1 inline-block"
+            class="font-bold color-text-warning mb-3 text-base border-b color-border-warning pb-1 inline-block"
           >
             5. 高级功能 (Advanced)
           </h4>
@@ -3718,32 +3718,32 @@
             <!-- 资源链接与包模式 -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div
-                class="p-3 border border-[var(--border-light)] rounded bg-[var(--bg-body)]"
+                class="p-3 border border-[var(--border-default)] rounded bg-[var(--surface-page)]"
               >
-                <span class="font-bold text-orange-300 mb-1 inline-flex items-center gap-1"
+                <span class="font-bold color-text-warning mb-1 inline-flex items-center gap-1"
                   >{{ detail_icon('link-source', 'ui-icon--lg') }} 来源链接 (Source Link)</span
                 >
-                <p class="text-[var(--text-dim)] text-xs">
+                <p class="text-[var(--content-muted)] text-xs">
                   记录角色卡的原始发布地址（如 类脑、chubai）。
                   <br />点击右上角的
-                  <span class="inline-flex items-center gap-1 border border-gray-600 px-1 rounded"
+                  <span class="inline-flex items-center gap-1 border color-border-default px-1 rounded"
                     >{{ icon('external-link', 'ui-icon--xs') }} <span>打开</span></span
                   >
                   可快速跳转。
                 </p>
               </div>
               <div
-                class="p-3 border border-[var(--border-light)] rounded bg-[var(--bg-body)]"
+                class="p-3 border border-[var(--border-default)] rounded bg-[var(--surface-page)]"
               >
-                <span class="font-bold text-orange-300 mb-1 inline-flex items-center gap-1"
+                <span class="font-bold color-text-warning mb-1 inline-flex items-center gap-1"
                   >{{ icon('package', 'ui-icon--lg') }} 角色包模式 (Bundle)</span
                 >
-                <p class="text-[var(--text-dim)] text-xs">
+                <p class="text-[var(--content-muted)] text-xs">
                   将单张卡片转换为文件夹管理模式，支持多版本控制。
                   <br />•
                   <strong>用途：</strong> 管理同一角色的不同服装差分、不同版本
                   (v1/v2)。 <br />• <strong>操作：</strong> 在"管理"页签点击
-                  <span class="text-yellow-500">转为包</span>。 <br />•
+                  <span class="color-text-warning">转为包</span>。 <br />•
                   <strong>封面：</strong> 点击左侧版本条上的
                   <span class="inline-flex items-center align-middle">
                     {{ detail_icon('cover-image', 'ui-icon--xs') }}
@@ -3755,47 +3755,47 @@
 
             <!-- 备份系统 -->
             <div
-              class="bg-[var(--bg-sub)] rounded border border-[var(--border-light)] p-3"
+              class="bg-[var(--surface-container-raised)] rounded border border-[var(--border-default)] p-3"
             >
-              <span class="font-bold text-orange-300 mb-2 inline-flex items-center gap-1"
+              <span class="font-bold color-text-warning mb-2 inline-flex items-center gap-1"
                   >{{ detail_icon('backup-rollback', 'ui-icon--lg') }} 备份与时光机 (Backup System)</span
               >
               <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
                 <div>
-                  <span class="font-bold text-[var(--text-main)] inline-flex items-center gap-1"
+                  <span class="font-bold text-[var(--content-primary)] inline-flex items-center gap-1"
                     >{{ icon('snapshot', 'ui-icon--sm') }} 快照 (Snapshot)</span
                   >
-                  <p class="text-[var(--text-dim)] mt-1">
+                  <p class="text-[var(--content-muted)] mt-1">
                     手动创建的备份点。建议在进行大改前点击顶部
                     <span
-                      class="inline-block border border-gray-600 px-1 rounded"
+                      class="inline-block border color-border-default px-1 rounded"
                       >{{ icon('snapshot', 'ui-icon--xs') }}</span
                     >
                     按钮。
                   </p>
                 </div>
                 <div>
-                  <span class="font-bold text-[var(--text-main)] inline-flex items-center gap-1"
+                  <span class="font-bold text-[var(--content-primary)] inline-flex items-center gap-1"
                     >{{ detail_icon('key-snapshot', 'ui-icon--sm') }} 关键快照 (Key Snapshot)</span
                   >
-                  <p class="text-[var(--text-dim)] mt-1">
-                    <span class="text-yellow-500">右键点击</span>
+                  <p class="text-[var(--content-muted)] mt-1">
+                    <span class="color-text-warning">右键点击</span>
                     快照按钮可创建带标签的备份（如 "v1.0
                     发布版"），方便长期存档。
                   </p>
                 </div>
                 <div>
-                  <span class="font-bold text-[var(--text-main)] inline-flex items-center gap-1"
+                  <span class="font-bold text-[var(--content-primary)] inline-flex items-center gap-1"
                     >{{ icon('history-rollback', 'ui-icon--sm') }} 时光机 (Rollback)</span
                   >
-                  <p class="text-[var(--text-dim)] mt-1">
+                  <p class="text-[var(--content-muted)] mt-1">
                     可视化的版本回滚工具。支持左右分栏对比代码差异
                     (Diff)，一键恢复到任意历史时刻。
                   </p>
                 </div>
               </div>
               <div
-                class="mt-2 pt-2 border-t border-[var(--border-light)] text-[10px] text-gray-500"
+                class="mt-2 pt-2 border-t border-[var(--border-default)] text-[10px] color-text-muted"
               >
                 * 提示：系统会在编辑时自动触发智能保存 (Smart
                 Auto-save)，仅当内容发生实质变化时才会生成自动快照。
@@ -3804,32 +3804,32 @@
 
             <!-- 更新策略 -->
             <div
-              class="bg-[var(--bg-sub)] rounded border border-[var(--border-light)] p-3"
+              class="bg-[var(--surface-container-raised)] rounded border border-[var(--border-default)] p-3"
             >
-              <span class="font-bold text-orange-300 mb-2 inline-flex items-center gap-1"
+              <span class="font-bold color-text-warning mb-2 inline-flex items-center gap-1"
                   >{{ detail_icon('update-policy', 'ui-icon--lg') }} 更新与导入策略 (Update Logic)</span
               >
-              <p class="text-xs text-[var(--text-dim)] mb-2">
+              <p class="text-xs text-[var(--content-muted)] mb-2">
                 当您拖拽新图片覆盖旧卡片，或使用 URL
                 更新时，系统提供四种保护策略：
               </p>
               <ul
-                class="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-[var(--text-dim)]"
+                class="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-[var(--content-muted)]"
               >
                 <li class="flex items-center gap-2">
-                  <span class="text-red-400 inline-flex items-center gap-1">{{ detail_icon('overwrite', 'ui-icon--sm') }} 直接覆盖</span
+                  <span class="color-text-danger inline-flex items-center gap-1">{{ detail_icon('overwrite', 'ui-icon--sm') }} 直接覆盖</span
                   >：用新图和新数据完全替换旧卡（旧数据丢失）。
                 </li>
                 <li class="flex items-center gap-2">
-                  <span class="text-blue-400 inline-flex items-center gap-1">{{ detail_icon('image-keep', 'ui-icon--sm') }} 保留原图</span
+                  <span class="color-text-accent inline-flex items-center gap-1">{{ detail_icon('image-keep', 'ui-icon--sm') }} 保留原图</span
                   >：仅更新文本数据，卡片立绘保持不变。
                 </li>
                 <li class="flex items-center gap-2">
-                  <span class="text-yellow-400 inline-flex items-center gap-1">{{ detail_icon('archive-old', 'ui-icon--sm') }} 归档旧图</span
+                  <span class="color-text-warning inline-flex items-center gap-1">{{ detail_icon('archive-old', 'ui-icon--sm') }} 归档旧图</span
                   >：更新卡片，并将旧立绘移入资源目录保存。
                 </li>
                 <li class="flex items-center gap-2">
-                  <span class="text-purple-400 inline-flex items-center gap-1">{{ detail_icon('archive-new', 'ui-icon--sm') }} 新图归档</span
+                  <span class="color-text-violet inline-flex items-center gap-1">{{ detail_icon('archive-new', 'ui-icon--sm') }} 新图归档</span
                   >：不改变当前卡片，将新图作为“皮肤”存入资源目录。
                 </li>
               </ul>
@@ -3840,7 +3840,7 @@
 
       <!-- Footer -->
       <div
-        class="p-4 border-t border-[var(--border-light)] bg-[var(--bg-sub)] flex justify-end"
+        class="p-4 border-t border-[var(--border-default)] bg-[var(--surface-container-raised)] flex justify-end"
       >
         <button
           @click="showHelpModal = false"

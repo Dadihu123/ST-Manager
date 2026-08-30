@@ -20,7 +20,7 @@
       >
         <div class="tag-filter-mobile-topbar">
           <div>
-            <div class="text-xs" style="color: var(--text-dim)">
+            <div class="text-xs" style="color: var(--content-muted)">
               移动端标签工具
             </div>
             <div style="font-size: 1rem; font-weight: 700">标签库筛选</div>
@@ -28,7 +28,7 @@
           <button
             @click="requestCloseTagFilterEditor()"
             style="
-              color: var(--text-dim);
+              color: var(--content-muted);
               font-size: 1.25rem;
               background: none;
               border: none;
@@ -110,7 +110,7 @@
                                     'active-included': getCategoryFilterState(name) === 'included',
                                     'active-excluded': getCategoryFilterState(name) === 'excluded'
                                 }"
-                  :style="`--tag-cat-color:${getCategoryColor(name)};`"
+                  :style="getCategoryChipStyle(name)"
                   @click="toggleCategoryFilter(name, $event)"
                 >
                   <span class="tag-category-filter-dot"></span>
@@ -123,7 +123,7 @@
             x-show="$store.global.deviceType === 'mobile' && mobileActiveTab === 'delete'"
             class="tag-filter-mobile-panel tag-filter-mobile-panel--delete"
           >
-            <div class="text-xs" style="color: var(--text-dim)">
+            <div class="text-xs" style="color: var(--content-muted)">
               已选择
               <span
                 class="text-accent font-bold"
@@ -136,7 +136,7 @@
             x-show="$store.global.deviceType === 'mobile' && mobileActiveTab === 'sort'"
             class="tag-filter-mobile-panel tag-filter-mobile-panel--sort"
           >
-            <div class="text-xs" style="color: var(--text-dim)">
+            <div class="text-xs" style="color: var(--content-muted)">
               使用上下按钮调整顺序，保存后将同步到全局标签库。
             </div>
           </div>
@@ -145,7 +145,7 @@
             class="tag-filter-mobile-panel tag-filter-mobile-panel--category"
           >
             <div class="tag-category-editor-row">
-              <span class="text-xs" style="color: var(--text-dim)"
+              <span class="text-xs" style="color: var(--content-muted)"
                 >已选择
                 <span
                   class="text-accent font-bold"
@@ -161,7 +161,7 @@
                 清空选择
               </button>
             </div>
-            <div class="text-xs" style="color: var(--text-dim)">
+            <div class="text-xs" style="color: var(--content-muted)">
               可点击标签增减选择，也可用下方分隔符输入批量选中。
             </div>
             <div class="tag-category-editor-row tag-category-editor-row-main">
@@ -176,7 +176,7 @@
               <button
                 type="button"
                 @click="applyCategorySelectionInput()"
-                class="text-xs bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded text-white font-bold shadow-md"
+                class="text-xs color-surface-raised color-surface-hover px-3 py-1 rounded color-text-primary font-bold shadow-md"
               >
                 批量选中
               </button>
@@ -218,7 +218,7 @@
                 type="button"
                 @click="saveCategoryBatch()"
                 :disabled="!canSaveCategoryBatch"
-                class="text-xs bg-green-700 hover:bg-green-600 px-3 py-1 rounded text-white font-bold shadow-md"
+                class="text-xs color-surface-success-solid color-hover-surface-success px-3 py-1 rounded color-text-on-dark font-bold shadow-md"
                 :style="canSaveCategoryBatch ? '' : 'opacity: 0.55; cursor: not-allowed;'"
               >
                 保存分类
@@ -234,7 +234,7 @@
                   class="tag-category-quick-btn"
                   @click="setCategoryDraft(name)"
                   :class="categoryDraftName === name ? 'active' : ''"
-                  :style="`--tag-cat-color:${getCategoryColor(name)};`"
+                  :style="getCategoryChipStyle(name)"
                 >
                   <span class="tag-category-quick-dot"></span>
                   <span x-text="name"></span>
@@ -249,7 +249,7 @@
             <button
               type="button"
               @click="toggleCategoryManager()"
-              class="text-xs bg-blue-700 hover:bg-blue-600 px-3 py-1 rounded text-white font-bold shadow-md"
+              class="text-xs color-surface-accent-solid color-hover-surface-accent px-3 py-1 rounded color-text-on-dark font-bold shadow-md"
               x-text="showCategoryManager ? '收起分类管理' : '分类管理'"
             ></button>
             <div
@@ -292,7 +292,7 @@
                 <button
                   type="button"
                   @click="addCategoryFromManager()"
-                  class="text-xs bg-blue-700 hover:bg-blue-600 px-3 py-1 rounded text-white font-bold shadow-md"
+                  class="text-xs color-surface-accent-solid color-hover-surface-accent px-3 py-1 rounded color-text-on-dark font-bold shadow-md"
                 >
                   新增/更新
                 </button>
@@ -306,7 +306,7 @@
                     <div class="tag-category-manager-main">
                       <span
                         class="tag-category-manager-dot"
-                        :style="`background:${item.color};`"
+                        :style="getCategoryChipStyle(item.name)"
                       ></span>
                       <span
                         class="tag-category-manager-name"
@@ -496,7 +496,7 @@
                       <div class="tag-group-head">
                         <span
                           class="tag-group-dot"
-                          :style="`background:${group.color};`"
+                          :style="getCategoryChipStyle(group.category)"
                         ></span>
                         <span
                           class="tag-group-title"
@@ -559,7 +559,7 @@
               style="
                 width: 100%;
                 text-align: center;
-                color: var(--text-dim);
+                color: var(--content-muted);
                 margin-top: 2rem;
               "
             >
@@ -594,7 +594,7 @@
               <div class="tag-filter-workspace-heading">
                 <div
                   class="text-xs tag-filter-workspace-eyebrow"
-                  style="color: var(--text-dim)"
+                  style="color: var(--content-muted)"
                 >
                   桌面端标签工作台
                 </div>
@@ -604,25 +604,25 @@
                   >
                   <span
                     x-show="showCategoryMode && !isDeleteMode"
-                    class="text-amber-300"
+                    class="color-text-warning"
                     >批量分类标签</span
                   >
                   <span
                     x-show="desktopWorkspaceMode === 'sort'"
-                    class="text-blue-300"
+                    class="color-text-accent"
                     >标签排序</span
                   >
                   <span
                     x-show="desktopWorkspaceMode === 'blacklist' && !isDeleteMode"
-                    class="text-rose-300"
+                    class="color-text-rose"
                     >黑名单治理</span
                   >
-                  <span x-show="isDeleteMode" class="text-red-400"
+                  <span x-show="isDeleteMode" class="color-text-danger"
                     >永久删除标签</span
                   >
                   <span
                     x-show="desktopWorkspaceMode === 'category-manager' && !isDeleteMode"
-                    class="text-sky-300"
+                    class="color-text-info"
                     >分类管理中心</span
                   >
                 </h3>
@@ -640,7 +640,7 @@
               </div>
               <div class="tag-filter-workspace-topbar-status">
                 <div class="tag-filter-workspace-selection-summary">
-                  <span class="text-sm" style="color: var(--text-dim)"
+                  <span class="text-sm" style="color: var(--content-muted)"
                     >已选
                     <span
                       x-text="filterTags.length + excludedTags.length"
@@ -648,7 +648,7 @@
                     ></span>
                     个标签</span
                   >
-                  <span class="text-sm" style="color: var(--text-dim)"
+                  <span class="text-sm" style="color: var(--content-muted)"
                     >可见
                     <span
                       x-text="filteredVisibleTagCount"
@@ -660,7 +660,7 @@
                 <span
                   x-show="!isDeleteMode"
                   class="text-xs px-2 py-1 rounded-full"
-                  :style="customOrderEnabled ? 'background: color-mix(in srgb, var(--accent-main), transparent 82%); color: var(--accent-light); border: 1px solid color-mix(in srgb, var(--accent-main), transparent 50%);' : 'background: var(--bg-sub); color: var(--text-dim); border: 1px solid var(--border-light);'"
+                  :style="customOrderEnabled ? 'background: color-mix(in srgb, var(--accent-action), transparent 82%); color: var(--accent-text); border: 1px solid color-mix(in srgb, var(--accent-action), transparent 50%);' : 'background: var(--surface-container-raised); color: var(--content-muted); border: 1px solid var(--border-default);'"
                   x-text="customOrderEnabled ? '当前：自定义排序' : '当前：字符排序'"
                 ></span>
               </div>
@@ -692,7 +692,7 @@
               <template x-if="isGovernanceDrawerOpen">
                 <div class="tag-filter-governance-drawer">
                   <div class="tag-filter-governance-drawer-body">
-                    <div class="text-xs" style="color: var(--text-dim)">
+                    <div class="text-xs" style="color: var(--content-muted)">
                       这里用于管理标签视图记忆，以及自动来源的标签准入规则。
                     </div>
                     <label
@@ -701,7 +701,7 @@
                         display: flex;
                         align-items: center;
                         gap: 0.5rem;
-                        color: var(--text-dim);
+                        color: var(--content-muted);
                         margin-top: 0.25rem;
                       "
                     >
@@ -718,7 +718,7 @@
                         display: flex;
                         align-items: center;
                         gap: 0.5rem;
-                        color: var(--text-dim);
+                        color: var(--content-muted);
                         margin-top: 0.5rem;
                       "
                     >
@@ -731,7 +731,7 @@
                     </label>
                     <div
                       class="text-xs"
-                      style="margin-top: 0.15rem; color: var(--text-dim)"
+                      style="margin-top: 0.15rem; color: var(--content-muted)"
                     >
                       开启后，仅已存在于标签库中的标签允许被自动流程或批量流程写入；手动单个添加不受影响。
                     </div>
@@ -813,14 +813,14 @@
               <div
                 x-show="$store.global.deviceType !== 'mobile' && isSortMode"
                 class="text-xs mb-2"
-                style="color: var(--text-dim)"
+                style="color: var(--content-muted)"
               >
                 排序模式仅针对完整标签库生效；混合视图调整全局标签顺序，分组视图可继续调整分类顺序和分类内顺序。
               </div>
               <div
                 x-show="$store.global.deviceType !== 'mobile' && customOrderEnabled && !isSortMode"
                 class="text-xs mb-2"
-                style="color: var(--text-dim)"
+                style="color: var(--content-muted)"
               >
                 当前使用自定义排序，可点击“恢复字符排序”回退到原始字母序。
               </div>
@@ -835,7 +835,7 @@
                     @click="filterTags=[]; excludedTags=[]"
                     x-show="!isSortMode && !showCategoryMode"
                     style="
-                      color: #f87171;
+                      color: var(--status-danger-text);
                       background: none;
                       border: none;
                       cursor: pointer;
@@ -883,7 +883,7 @@
                   <div
                     x-show="filterTags.length === 0 && excludedTags.length === 0"
                     class="tag-filter-selected-basket-empty"
-                    style="color: var(--text-dim)"
+                    style="color: var(--content-muted)"
                   >
                     暂无标签。
                   </div>
@@ -899,12 +899,12 @@
                   >
                     <div class="tag-filter-current-mode-tool-header">
                       <div>
-                        <div class="text-xs" style="color: var(--text-dim)">
+                        <div class="text-xs" style="color: var(--content-muted)">
                           共享视图工具
                         </div>
                         <div
                           class="text-sm"
-                          style="color: var(--text-main); font-weight: 700"
+                          style="color: var(--content-primary); font-weight: 700"
                         >
                           标签视图
                         </div>
@@ -928,7 +928,7 @@
                         分组视图
                       </button>
                     </div>
-                    <div class="text-xs" style="color: var(--text-dim)">
+                    <div class="text-xs" style="color: var(--content-muted)">
                       <span x-show="desktopWorkspaceMode !== 'sort'"
                         >当前模式下也会使用这套视图；下方分类条可快速聚焦某一分类。</span
                       >
@@ -951,12 +951,12 @@
                   >
                     <div class="tag-filter-current-mode-tool-header">
                       <div>
-                        <div class="text-xs" style="color: var(--text-dim)">
+                        <div class="text-xs" style="color: var(--content-muted)">
                           筛选摘要
                         </div>
                         <div
                           class="text-sm"
-                          style="color: var(--text-main); font-weight: 700"
+                          style="color: var(--content-primary); font-weight: 700"
                         >
                           当前筛选工具
                         </div>
@@ -1010,12 +1010,12 @@
                   >
                     <div class="tag-filter-current-mode-tool-header">
                       <div>
-                        <div class="text-xs" style="color: var(--text-dim)">
+                        <div class="text-xs" style="color: var(--content-muted)">
                           排序工具
                         </div>
                         <div
                           class="text-sm"
-                          style="color: var(--text-main); font-weight: 700"
+                          style="color: var(--content-primary); font-weight: 700"
                         >
                           全局排序与分组拖拽
                         </div>
@@ -1031,7 +1031,7 @@
                         </button>
                         <button
                           type="button"
-                          class="text-xs bg-green-700 hover:bg-green-600 px-3 py-1 rounded text-white font-bold shadow-md"
+                          class="text-xs color-surface-success-solid color-hover-surface-success px-3 py-1 rounded color-text-on-dark font-bold shadow-md"
                           @click="saveSortMode()"
                           x-show="isSortMode"
                         >
@@ -1068,7 +1068,7 @@
                         ></span>
                       </div>
                     </div>
-                    <div class="text-xs" style="color: var(--text-dim)">
+                    <div class="text-xs" style="color: var(--content-muted)">
                       <span x-show="mixedCategoryView"
                         >当前为全局排序视图，拖拽标签即可重排整个标签库；下方分类条可快速切到分组视图并聚焦某一分类。</span
                       >
@@ -1096,10 +1096,10 @@
                             margin-bottom: 0.5rem;
                           "
                         >
-                          <span class="text-xs" style="color: var(--text-dim)"
+                          <span class="text-xs" style="color: var(--content-muted)"
                             >待删除标签</span
                           >
-                          <span class="text-xs" style="color: var(--text-dim)"
+                          <span class="text-xs" style="color: var(--content-muted)"
                             >已选
                             <span
                               class="text-accent font-bold"
@@ -1119,7 +1119,7 @@
                           <template x-if="selectedTagsForDeletion.length === 0">
                             <div
                               class="text-xs"
-                              style="color: var(--text-dim); padding: 0.5rem 0"
+                              style="color: var(--content-muted); padding: 0.5rem 0"
                             >
                               在中间标签池中点击标签即可加入待删除列表。
                             </div>
@@ -1147,7 +1147,7 @@
                       >
                         <div
                           class="text-xs"
-                          style="color: #fca5a5; margin-bottom: 0.5rem"
+                          style="color: var(--status-danger-text); margin-bottom: 0.5rem"
                         >
                           删除操作不可撤销；如需保守处理，可直接将选中标签加入黑名单，避免误删。
                         </div>
@@ -1155,7 +1155,7 @@
                           type="button"
                           @click="addDeleteSelectionToBlacklist()"
                           x-show="isDeleteMode && selectedTagsForDeletion.length > 0"
-                          class="text-xs bg-rose-700 hover:bg-rose-600 px-3 py-1 rounded text-white font-bold shadow-md"
+                          class="text-xs color-surface-rose-solid color-hover-surface-rose px-3 py-1 rounded color-text-on-dark font-bold shadow-md"
                           style="margin-bottom: 0.5rem"
                         >
                           加入黑名单
@@ -1164,7 +1164,7 @@
                           type="button"
                           @click="deleteSelectedTags()"
                           x-show="isDeleteMode && selectedTagsForDeletion.length > 0"
-                          class="text-xs bg-red-700 hover:bg-red-600 px-3 py-1 rounded text-white font-bold shadow-md"
+                          class="text-xs color-surface-danger-solid color-hover-surface-danger px-3 py-1 rounded color-text-on-dark font-bold shadow-md"
                         >
                           永久删除选中标签
                         </button>
@@ -1180,19 +1180,19 @@
                   >
                     <div class="tag-filter-current-mode-tool-header">
                       <div>
-                        <div class="text-xs" style="color: var(--text-dim)">
+                        <div class="text-xs" style="color: var(--content-muted)">
                           批量分类工具
                         </div>
                         <div
                           class="text-sm"
-                          style="color: var(--text-main); font-weight: 700"
+                          style="color: var(--content-primary); font-weight: 700"
                         >
                           目标分类与批量操作
                         </div>
                       </div>
                     </div>
                     <div class="tag-category-editor-row">
-                      <span class="text-xs" style="color: var(--text-dim)"
+                      <span class="text-xs" style="color: var(--content-muted)"
                         >已选择
                         <span
                           class="text-accent font-bold"
@@ -1208,7 +1208,7 @@
                         清空选择
                       </button>
                     </div>
-                    <div class="text-xs" style="color: var(--text-dim)">
+                    <div class="text-xs" style="color: var(--content-muted)">
                       目标分类
                     </div>
                     <div
@@ -1225,7 +1225,7 @@
                       <button
                         type="button"
                         @click="applyCategorySelectionInput()"
-                        class="text-xs bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded text-white font-bold shadow-md"
+                        class="text-xs color-surface-raised color-surface-hover px-3 py-1 rounded color-text-primary font-bold shadow-md"
                       >
                         批量选中
                       </button>
@@ -1272,7 +1272,7 @@
                         type="button"
                         @click="saveCategoryBatch()"
                         :disabled="!canSaveCategoryBatch"
-                        class="text-xs bg-green-700 hover:bg-green-600 px-3 py-1 rounded text-white font-bold shadow-md"
+                        class="text-xs color-surface-success-solid color-hover-surface-success px-3 py-1 rounded color-text-on-dark font-bold shadow-md"
                         :style="canSaveCategoryBatch ? '' : 'opacity: 0.55; cursor: not-allowed;'"
                       >
                         保存分类
@@ -1288,7 +1288,7 @@
                           class="tag-category-quick-btn"
                           @click="setCategoryDraft(name)"
                           :class="categoryDraftName === name ? 'active' : ''"
-                          :style="`--tag-cat-color:${getCategoryColor(name)};`"
+                          :style="getCategoryChipStyle(name)"
                         >
                           <span class="tag-category-quick-dot"></span>
                           <span x-text="name"></span>
@@ -1310,19 +1310,19 @@
                   >
                     <div class="tag-filter-current-mode-tool-header">
                       <div>
-                        <div class="text-xs" style="color: var(--text-dim)">
+                        <div class="text-xs" style="color: var(--content-muted)">
                           黑名单工具
                         </div>
                         <div
                           class="text-sm"
-                          style="color: var(--text-main); font-weight: 700"
+                          style="color: var(--content-primary); font-weight: 700"
                         >
                           添加和维护黑名单标签
                         </div>
                       </div>
                     </div>
                     <div class="tag-category-editor-row">
-                      <span class="text-xs" style="color: var(--text-dim)"
+                      <span class="text-xs" style="color: var(--content-muted)"
                         >已选择
                         <span
                           class="text-accent font-bold"
@@ -1352,7 +1352,7 @@
                       <button
                         type="button"
                         @click="applyBlacklistSelectionInput()"
-                        class="text-xs bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded text-white font-bold shadow-md"
+                        class="text-xs color-surface-raised color-surface-hover px-3 py-1 rounded color-text-primary font-bold shadow-md"
                       >
                         批量加入选择
                       </button>
@@ -1360,18 +1360,18 @@
                         type="button"
                         @click="saveBlacklistSelection()"
                         :disabled="!canSaveBlacklistSelection"
-                        class="text-xs bg-rose-700 hover:bg-rose-600 px-3 py-1 rounded text-white font-bold shadow-md"
+                        class="text-xs color-surface-rose-solid color-hover-surface-rose px-3 py-1 rounded color-text-on-dark font-bold shadow-md"
                         :style="canSaveBlacklistSelection ? '' : 'opacity: 0.55; cursor: not-allowed;'"
                       >
                         加入黑名单
                       </button>
                     </div>
-                    <div class="text-xs" style="color: var(--text-dim)">
+                    <div class="text-xs" style="color: var(--content-muted)">
                       开启治理开关后，自动流程和批量流程会跳过这些黑名单标签。
                     </div>
                     <div
                       class="text-xs"
-                      style="color: var(--text-dim); margin-top: 0.6rem"
+                      style="color: var(--content-muted); margin-top: 0.6rem"
                     >
                       待加入黑名单
                     </div>
@@ -1382,7 +1382,7 @@
                       <template x-if="selectedBlacklistTags.length === 0">
                         <div
                           class="text-xs"
-                          style="color: var(--text-dim); padding: 0.5rem 0"
+                          style="color: var(--content-muted); padding: 0.5rem 0"
                         >
                           当前没有待加入黑名单的标签。
                         </div>
@@ -1406,7 +1406,7 @@
                     </div>
                     <div
                       class="text-xs"
-                      style="color: var(--text-dim); margin-top: 0.6rem"
+                      style="color: var(--content-muted); margin-top: 0.6rem"
                     >
                       当前黑名单标签
                     </div>
@@ -1417,7 +1417,7 @@
                       <template x-if="tagBlacklistTags.length === 0">
                         <div
                           class="text-xs"
-                          style="color: var(--text-dim); padding: 0.5rem 0"
+                          style="color: var(--content-muted); padding: 0.5rem 0"
                         >
                           当前没有黑名单标签。
                         </div>
@@ -1496,7 +1496,7 @@
                             <button
                               type="button"
                               @click="addCategoryFromManager()"
-                              class="text-xs bg-blue-700 hover:bg-blue-600 px-3 py-1 rounded text-white font-bold shadow-md"
+                              class="text-xs color-surface-accent-solid color-hover-surface-accent px-3 py-1 rounded color-text-on-dark font-bold shadow-md"
                             >
                               新增/更新
                             </button>
@@ -1518,7 +1518,7 @@
                                 <div class="tag-category-manager-main">
                                   <span
                                     class="tag-category-manager-dot"
-                                    :style="`background:${item.color};`"
+                                    :style="getCategoryChipStyle(item.name)"
                                   ></span>
                                   <span
                                     class="tag-category-manager-name"
@@ -1688,7 +1688,7 @@
                             <div class="tag-group-head">
                               <span
                                 class="tag-group-dot"
-                                :style="`background:${group.color};`"
+                                :style="getCategoryChipStyle(group.category)"
                               ></span>
                               <span
                                 class="tag-group-title"
@@ -1800,7 +1800,7 @@
                               <span class="tag-chip-drag-handle">{{ icon('menu-bold', 'ui-icon--xs') }}</span>
                               <span
                                 class="tag-group-dot"
-                                :style="`background:${group.color};`"
+                                :style="getCategoryChipStyle(group.category)"
                               ></span>
                               <span
                                 class="tag-group-title"
@@ -1849,7 +1849,7 @@
                     style="
                       width: 100%;
                       text-align: center;
-                      color: var(--text-dim);
+                      color: var(--content-muted);
                       margin-top: 2rem;
                     "
                   >
@@ -1860,7 +1860,7 @@
                     style="
                       width: 100%;
                       text-align: center;
-                      color: var(--text-dim);
+                      color: var(--content-muted);
                       margin-top: 2rem;
                     "
                   >
@@ -1876,7 +1876,7 @@
                   display: flex;
                   justify-content: space-between;
                   align-items: center;
-                  border-top: 1px solid var(--border-light);
+                  border-top: 1px solid var(--border-default);
                   padding-top: 1rem;
                 "
               >
@@ -1905,7 +1905,7 @@
                           'active-included': getCategoryFilterState(name) === 'included',
                           'active-excluded': getCategoryFilterState(name) === 'excluded'
                         }"
-                        :style="`--tag-cat-color:${getCategoryColor(name)};`"
+                        :style="getCategoryChipStyle(name)"
                         @click="applyFooterCategoryQuickFilter(name)"
                         :title="`快速查看分类：${name}`"
                       >
@@ -1919,7 +1919,7 @@
                   <button
                     @click="deleteFilterTags()"
                     x-show="(filterTags.length > 0 || excludedTags.length > 0) && !isDeleteMode && !isSortMode && !showCategoryMode"
-                    class="text-xs bg-red-600 hover:bg-red-500 px-2 py-1 rounded text-white"
+                    class="text-xs color-surface-danger-solid color-hover-surface-danger px-2 py-1 rounded color-text-on-dark"
                   >
                     从当前视图移除选中标签
                   </button>
@@ -1928,7 +1928,7 @@
                   <button
                     @click="deleteSelectedTags()"
                     x-show="isDeleteMode && selectedTagsForDeletion.length > 0"
-                    class="text-xs bg-red-700 hover:bg-red-600 px-3 py-1 rounded text-white font-bold shadow-md"
+                    class="text-xs color-surface-danger-solid color-hover-surface-danger px-3 py-1 rounded color-text-on-dark font-bold shadow-md"
                   >
                     永久删除选中标签
                   </button>

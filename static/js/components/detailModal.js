@@ -51,6 +51,7 @@ import { createAutoSaver } from '../utils/autoSave.js';
 import { wiHelpers } from '../utils/wiHelpers.js';
 import { clearActiveRuntimeContext, setActiveRuntimeContext } from '../runtime/runtimeContext.js';
 import { matchAnyTagSearchToken, splitTagTokens } from '../state.js';
+import { DEFAULT_TAG_CATEGORY_COLOR } from '../state.js';
 
 export default function detailModal() {
     const autoSaver = createAutoSaver();
@@ -991,8 +992,14 @@ export default function detailModal() {
 
         getCategoryColor(category) {
             const store = this.$store?.global;
-            if (!store || typeof store.getCategoryColor !== 'function') return '#64748b';
+            if (!store || typeof store.getCategoryColor !== 'function') return DEFAULT_TAG_CATEGORY_COLOR;
             return store.getCategoryColor(category);
+        },
+
+        getCategoryChipStyle(category) {
+            const store = this.$store?.global;
+            if (!store || typeof store.getCategoryChipStyle !== 'function') return '';
+            return store.getCategoryChipStyle(category);
         },
 
         getDetailCategoryFilterState(category) {

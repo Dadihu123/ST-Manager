@@ -9,12 +9,12 @@
   class="modal-overlay z-modal-std flex items-center justify-center p-4"
 >
   <div
-    class="wi-reader-modal wi-worldbook-icon-scope bg-[var(--bg-panel)] border border-[var(--border-light)] rounded-xl shadow-2xl flex flex-col w-full max-w-7xl h-[88vh] overflow-hidden relative animate-scale-in"
+    class="wi-reader-modal wi-worldbook-icon-scope bg-[var(--surface-container)] border border-[var(--border-default)] rounded-xl shadow-2xl flex flex-col w-full max-w-7xl h-[88vh] overflow-hidden relative animate-scale-in"
     @click.self="activeEntry = null"
   >
     <!-- 顶部工具栏：阅读优先 -->
     <div
-      class="wi-reader-topbar border-b border-[var(--border-light)] flex items-center gap-3 px-4 bg-[var(--bg-sub)] flex-shrink-0"
+      class="wi-reader-topbar border-b border-[var(--border-default)] flex items-center gap-3 px-4 bg-[var(--surface-container-raised)] flex-shrink-0"
     >
       <div class="flex items-center gap-3 min-w-0 flex-1">
         <div
@@ -45,7 +45,7 @@
           </div>
 
           <div
-            class="wi-reader-date-meta mt-1 flex items-center gap-3 text-[10px] text-gray-500 font-mono opacity-80"
+            class="wi-reader-date-meta mt-1 flex items-center gap-3 text-[10px] color-text-muted font-mono opacity-80"
           >
             <span
               x-show="$store.global.deviceType !== 'mobile'"
@@ -59,7 +59,7 @@
             <span
               >Entries:
               <span
-                class="font-bold text-[var(--text-main)]"
+                class="font-bold text-[var(--content-primary)]"
                 x-text="wiEntries.length"
                 >0</span
               ></span
@@ -68,7 +68,7 @@
               >Tokens:
               <span
                 class="font-bold"
-                :class="getWiTokenClass(totalTokens, 'text-green-500')"
+                :class="getWiTokenClass(totalTokens, 'color-text-success')"
                 x-text="totalTokens"
                 >0</span
               ></span
@@ -76,7 +76,7 @@
           </div>
           <div
             x-show="isTruncated"
-            class="mt-1 flex items-center gap-2 text-[10px] text-yellow-400 font-mono"
+            class="mt-1 flex items-center gap-2 text-[10px] color-text-warning font-mono"
           >
             <span
               >仅预览前 <span class="font-bold" x-text="previewLimit"></span> /
@@ -84,14 +84,14 @@
             >
             <button
               @click="loadFullContent()"
-              class="px-2 py-0.5 rounded border border-yellow-400/40 hover:border-yellow-300/60 hover:text-yellow-300 transition"
+              class="px-2 py-0.5 rounded border color-border-warning color-hover-border-warning color-hover-text-warning transition"
             >
               加载全部
             </button>
           </div>
           <div
             x-show="isContentTruncated"
-            class="mt-1 flex items-center gap-2 text-[10px] text-yellow-400 font-mono"
+            class="mt-1 flex items-center gap-2 text-[10px] color-text-warning font-mono"
           >
             <span
               >内容已截断（每条最多
@@ -113,13 +113,13 @@
             <input
               type="text"
               x-model="searchTerm"
-              class="w-full bg-[var(--bg-panel)] border border-[var(--border-light)] rounded-full pl-9 pr-8 py-1.5 text-sm focus:border-accent-main outline-none transition-all shadow-sm"
+              class="w-full bg-[var(--surface-container)] border border-[var(--border-default)] rounded-full pl-9 pr-8 py-1.5 text-sm color-focus-border-accent outline-none transition-all shadow-sm"
               placeholder="搜索关键词、内容或备注..."
             />
             <button
               x-show="searchTerm"
               @click="searchTerm=''"
-              class="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-200 p-0.5 rounded-full"
+              class="absolute right-2.5 top-1/2 -translate-y-1/2 color-text-muted color-hover-text-neutral p-0.5 rounded-full"
             >
               {{ icon('close', 'ui-icon--sm') }}
             </button>
@@ -141,13 +141,13 @@
         <input
           type="text"
           x-model="searchTerm"
-          class="w-full bg-[var(--bg-panel)] border border-[var(--border-light)] rounded-full pl-9 pr-8 py-1.5 text-sm focus:border-accent-main outline-none transition-all shadow-sm"
+              class="w-full bg-[var(--surface-container)] border border-[var(--border-default)] rounded-full pl-9 pr-8 py-1.5 text-sm color-focus-border-accent outline-none transition-all shadow-sm"
           placeholder="搜索关键词、内容或备注..."
         />
         <button
           x-show="searchTerm"
           @click="searchTerm=''"
-          class="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-200 p-0.5 rounded-full"
+          class="absolute right-2.5 top-1/2 -translate-y-1/2 color-text-muted color-hover-text-neutral p-0.5 rounded-full"
         >
           {{ icon('close', 'ui-icon--sm') }}
         </button>
@@ -208,7 +208,7 @@
       <!-- 关闭 -->
       <button
         @click="showWiDetailModal=false"
-        class="text-gray-500 hover:text-red-400 rounded-full hover:bg-[var(--bg-panel)] transition-colors"
+        class="color-text-muted color-hover-text-danger rounded-full hover:bg-[var(--surface-container)] transition-colors"
         :class="$store.global.deviceType === 'mobile' ? '' : 'p-2'"
         title="关闭 (Esc)"
       >
@@ -220,7 +220,7 @@
     <button
       x-show="$store.global.deviceType === 'mobile' && !showMobileSidebar"
       @click="showMobileSidebar = !showMobileSidebar"
-      class="fixed bottom-20 left-2 z-50 w-10 h-10 bg-[var(--bg-panel)] border border-[var(--border-light)] rounded-lg flex items-center justify-center text-[var(--text-main)] shadow-lg md:hidden"
+      class="fixed bottom-20 left-2 z-50 w-10 h-10 bg-[var(--surface-container)] border border-[var(--border-default)] rounded-lg flex items-center justify-center text-[var(--content-primary)] shadow-lg md:hidden"
     >
       <span x-show="!showMobileSidebar" aria-hidden="true">
         {{ icon('menu', 'ui-icon--md') }}
@@ -233,7 +233,7 @@
       <div
         x-show="$store.global.deviceType === 'mobile' && showMobileSidebar"
         @click="showMobileSidebar = false"
-        class="fixed inset-0 bg-black/50 z-30"
+        class="fixed inset-0 color-surface-scrim z-30"
         x-transition:enter="transition ease-out duration-300"
         x-transition:enter-start="opacity-0"
         x-transition:enter-end="opacity-100"
@@ -244,7 +244,7 @@
 
       <!-- 左侧：书本元数据与操作（更紧凑，但保留功能） -->
       <aside
-        class="wi-reader-sidebar w-full md:w-[280px] flex-shrink-0 bg-[var(--bg-sub)] border-r border-[var(--border-main)] flex-col min-h-0"
+        class="wi-reader-sidebar w-full md:w-[280px] flex-shrink-0 bg-[var(--surface-container-raised)] border-r border-[var(--border-subtle)] flex-col min-h-0"
         :class="{
                     'hidden md:flex': $store.global.deviceType !== 'mobile',
                     'top-14': $store.global.deviceType !== 'mobile',
@@ -259,14 +259,14 @@
         x-transition:leave-start="transform translate-x-0"
         x-transition:leave-end="transform -translate-x-full"
       >
-        <div class="p-4 border-b border-[var(--border-light)] space-y-3">
+        <div class="p-4 border-b border-[var(--border-default)] space-y-3">
           <template x-if="description">
             <div>
-              <div class="text-[10px] uppercase font-bold text-gray-500 mb-1">
+              <div class="text-[10px] uppercase font-bold color-text-muted mb-1">
                 Description
               </div>
               <div
-                class="text-xs text-[var(--text-sub)] italic bg-[var(--bg-body)] p-2 rounded border border-[var(--border-light)] max-h-28 overflow-y-auto custom-scrollbar"
+                class="text-xs text-[var(--content-secondary)] italic bg-[var(--surface-page)] p-2 rounded border border-[var(--border-default)] max-h-28 overflow-y-auto custom-scrollbar"
               >
                 <span x-text="description"></span>
               </div>
@@ -275,7 +275,7 @@
 
           <details class="group" x-show="activeWiDetail?.path">
             <summary
-              class="cursor-pointer select-none text-[10px] uppercase font-bold text-gray-500"
+              class="cursor-pointer select-none text-[10px] uppercase font-bold color-text-muted"
             >
               Path
               <span class="opacity-60 group-open:hidden" aria-hidden="true">
@@ -286,7 +286,7 @@
               </span>
             </summary>
             <div
-              class="mt-1 text-[10px] text-gray-500 font-mono break-all leading-tight opacity-70"
+              class="mt-1 text-[10px] color-text-muted font-mono break-all leading-tight opacity-70"
               x-text="activeWiDetail?.path"
             ></div>
           </details>
@@ -294,7 +294,7 @@
           <div class="space-y-2">
             <div class="flex items-center justify-between gap-2">
               <div
-                class="text-[10px] uppercase font-bold text-gray-500"
+                class="text-[10px] uppercase font-bold color-text-muted"
                 x-text="activeWiDetail?.type === 'embedded' ? '角色卡备注' : '本地备注'"
               ></div>
               <div class="flex items-center gap-1">
@@ -307,14 +307,14 @@
                 </button>
                 <button
                   @click="clearActiveWorldInfoNote()"
-                  class="wi-filter-chip text-red-300"
+                  class="wi-filter-chip color-text-danger"
                   x-text="activeWiDetail?.type === 'embedded' ? '清空角色卡备注' : '清空备注'"
                 ></button>
               </div>
             </div>
             <textarea
               x-model="activeWiNoteDraft"
-              class="w-full min-h-[7rem] bg-[var(--bg-body)] border border-[var(--border-light)] rounded p-2 text-xs text-[var(--text-main)] resize-y focus:border-accent-main outline-none"
+              class="w-full min-h-[7rem] bg-[var(--surface-page)] border border-[var(--border-default)] rounded p-2 text-xs text-[var(--content-primary)] resize-y color-focus-border-accent outline-none"
               :placeholder="activeWiDetail?.type === 'embedded' ? '这是仅存储在角色卡中的私有备注，不会写入世界书文件...' : '这是仅存储在本地的私有备注，不会写入世界书文件...'"
             ></textarea>
             <button
@@ -329,7 +329,7 @@
 
           <!-- 快速筛选 -->
           <div class="wi-reader-filters">
-            <div class="text-[10px] uppercase font-bold text-gray-500 mb-2">
+            <div class="text-[10px] uppercase font-bold color-text-muted mb-2">
               Quick Filters
             </div>
 
@@ -392,10 +392,10 @@
         <!-- 中部：目录（TOC） -->
         <div class="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-3">
           <div class="flex items-center justify-between mb-2">
-            <div class="text-[10px] uppercase font-bold text-gray-500">
+            <div class="text-[10px] uppercase font-bold color-text-muted">
               Contents
             </div>
-            <div class="text-[10px] text-gray-500 font-mono">
+            <div class="text-[10px] color-text-muted font-mono">
               <span x-text="uiFilteredEntries.length"></span>/<span
                 x-text="wiEntries.length"
               ></span>
@@ -430,7 +430,7 @@
 
             <div
               x-show="!isLoading && uiFilteredEntries.length === 0"
-              class="text-center py-8 text-[var(--text-dim)] text-xs"
+              class="text-center py-8 text-[var(--content-muted)] text-xs"
             >
               无匹配条目
             </div>
@@ -450,7 +450,7 @@
         </div>
 
         <div
-          class="p-3 border-t border-[var(--border-light)] mt-auto space-y-2 bg-[var(--bg-sub)]"
+          class="p-3 border-t border-[var(--border-default)] mt-auto space-y-2 bg-[var(--surface-container-raised)]"
         >
           <button
             @click="enterWiEditorFromDetail()"
@@ -508,7 +508,7 @@
           <template x-if="activeWiDetail?.type !== 'embedded'">
             <button
               @click="deleteCurrentWi()"
-              class="w-full py-1 text-[10px] text-red-400 hover:text-red-500 hover:bg-red-500/10 rounded transition-colors flex items-center justify-center gap-1"
+              class="w-full py-1 text-[10px] color-text-danger color-hover-text-danger color-hover-surface-danger rounded transition-colors flex items-center justify-center gap-1"
             >
               {{ icon('trash', 'ui-icon--sm') }}
               <span>删除此文件</span>
@@ -517,7 +517,7 @@
 
           <template x-if="activeWiDetail?.type === 'embedded'">
             <div
-              class="w-full py-1 text-[10px] text-[var(--text-dim)] rounded text-center border border-[var(--border-light)]"
+              class="w-full py-1 text-[10px] text-[var(--content-muted)] rounded text-center border border-[var(--border-default)]"
             >
               内嵌世界书不支持删除本体，只可删除备注
             </div>
@@ -527,20 +527,20 @@
 
       <!-- 中间：阅读流（纵向卡片，更适合读 content） -->
       <main
-        class="wi-reader-main flex-1 min-w-0 bg-[var(--bg-body)] relative overflow-hidden"
+        class="wi-reader-main flex-1 min-w-0 bg-[var(--surface-page)] relative overflow-hidden"
       >
         <div class="absolute inset-0 overflow-y-auto custom-scrollbar">
           <!-- 顶部提示条（搜索命中/总数） -->
           <div
-            class="sticky top-0 z-10 bg-[var(--bg-body)]/80 backdrop-blur border-b border-[var(--border-light)] px-4 py-2"
+            class="sticky top-0 z-10 bg-[var(--surface-page)]/80 backdrop-blur border-b border-[var(--border-default)] px-4 py-2"
           >
             <div
-              class="text-[11px] text-gray-500 flex items-center justify-between"
+              class="text-[11px] color-text-muted flex items-center justify-between"
             >
               <div>
                 <span class="font-mono">Results:</span>
                 <span
-                  class="font-bold text-[var(--text-main)]"
+                  class="font-bold text-[var(--content-primary)]"
                   x-text="uiFilteredEntries.length"
                 ></span>
                 <span class="opacity-60">/</span>
@@ -554,7 +554,7 @@
 
           <div
             x-show="isLoading"
-            class="h-full flex flex-col items-center justify-center text-gray-500 gap-4"
+            class="h-full flex flex-col items-center justify-center color-text-muted gap-4"
           >
             <div class="wi-reader-loading-icon" aria-hidden="true">
               {{ icon('loader-circle', 'ui-icon--2xl ui-icon--spin') }}
@@ -587,7 +587,7 @@
                       ></div>
                       <div
                         class="wi-reader-title text-[11px] mt-1"
-                        :class="entry.comment ? 'text-[var(--text-sub)]' : 'text-gray-400 italic'"
+                        :class="entry.comment ? 'text-[var(--content-secondary)]' : 'color-text-muted italic'"
                         x-text="entry.comment || 'Untitled'"
                       ></div>
                     </div>
@@ -662,7 +662,7 @@
       <div
         x-show="$store.global.deviceType === 'mobile' && activeEntry"
         @click="activeEntry = null"
-        class="fixed inset-0 bg-black/50 z-40"
+        class="fixed inset-0 color-surface-scrim z-40"
         x-transition:enter="transition ease-out duration-300"
         x-transition:enter-start="opacity-0"
         x-transition:enter-end="opacity-100"
@@ -683,14 +683,14 @@
         x-transition:leave-end="translate-x-full"
       >
         <div
-          class="h-10 border-b border-[var(--border-light)] flex items-center justify-between px-3 bg-[var(--bg-sub)] flex-shrink-0"
+          class="h-10 border-b border-[var(--border-default)] flex items-center justify-between px-3 bg-[var(--surface-container-raised)] flex-shrink-0"
         >
-          <span class="text-xs font-bold text-gray-500 uppercase tracking-wider"
+          <span class="text-xs font-bold color-text-muted uppercase tracking-wider"
             >Entry Details</span
           >
           <button
             @click="activeEntry = null"
-            class="text-gray-500 hover:text-[var(--text-main)] px-2"
+            class="color-text-muted hover:text-[var(--content-primary)] px-2"
           >
             {{ icon('close', 'ui-icon--md') }}
           </button>
@@ -701,13 +701,13 @@
             <div class="space-y-4">
               <div class="flex items-start justify-between gap-3">
                 <h4
-                  class="font-bold text-lg text-[var(--text-main)] break-all"
+                  class="font-bold text-lg text-[var(--content-primary)] break-all"
                   x-text="activeEntry.comment || '未命名条目'"
                 ></h4>
                 <div class="flex flex-col gap-1 items-end">
                   <div
                     class="px-2 py-0.5 rounded text-[10px] font-bold border uppercase"
-                    :class="activeEntry.enabled ? 'bg-green-500/10 border-green-500/30 text-green-500' : 'bg-gray-500/10 border-gray-500/30 text-gray-500'"
+                    :class="activeEntry.enabled ? 'color-surface-success color-border-success color-text-success' : 'color-surface-raised color-border-default color-text-muted'"
                   >
                     <span
                       x-text="activeEntry.enabled ? 'Enabled' : 'Disabled'"
@@ -715,7 +715,7 @@
                   </div>
                   <div
                     class="px-2 py-0.5 rounded text-[10px] font-bold border uppercase"
-                    :class="activeEntry.constant ? 'bg-blue-500/10 border-blue-500/30 text-blue-400' : (activeEntry.vectorized ? 'bg-purple-500/10 border-purple-500/30 text-purple-400' : 'bg-green-500/10 border-green-500/30 text-green-500')"
+                    :class="activeEntry.constant ? 'color-surface-accent color-border-accent color-text-accent' : (activeEntry.vectorized ? 'color-surface-violet color-border-violet color-text-violet' : 'color-surface-success color-border-success color-text-success')"
                   >
                     <span
                       x-text="activeEntry.constant ? 'Constant' : (activeEntry.vectorized ? 'Vector' : 'Normal')"
@@ -727,11 +727,11 @@
               <div class="space-y-2">
                 <div>
                   <label
-                    class="text-[10px] text-gray-500 uppercase font-bold block mb-1"
+                    class="text-[10px] color-text-muted uppercase font-bold block mb-1"
                     >Primary Keys</label
                   >
                   <div
-                    class="p-2 bg-[var(--bg-body)] border border-[var(--border-light)] rounded text-xs font-mono text-yellow-500 break-words select-text"
+                    class="p-2 bg-[var(--surface-page)] border border-[var(--border-default)] rounded text-xs font-mono color-text-warning break-words select-text"
                   >
                     <span x-text="formatWiKeys(activeEntry.keys)"></span>
                   </div>
@@ -741,11 +741,11 @@
                 >
                   <div>
                     <label
-                      class="text-[10px] text-gray-500 uppercase font-bold block mb-1"
+                      class="text-[10px] color-text-muted uppercase font-bold block mb-1"
                       >Secondary Keys</label
                     >
                     <div
-                      class="p-2 bg-[var(--bg-body)] border border-[var(--border-light)] rounded text-xs font-mono text-teal-500 break-words select-text"
+                      class="p-2 bg-[var(--surface-page)] border border-[var(--border-default)] rounded text-xs font-mono color-text-info break-words select-text"
                     >
                       <span
                         x-text="formatWiKeys(activeEntry.secondary_keys)"
@@ -757,17 +757,17 @@
 
               <div>
                 <div class="flex justify-between items-center mb-1">
-                  <label class="text-[10px] text-gray-500 uppercase font-bold"
+                  <label class="text-[10px] color-text-muted uppercase font-bold"
                     >Content</label
                   >
                   <span
-                    class="text-[10px] text-gray-400 font-mono"
+                    class="text-[10px] color-text-muted font-mono"
                     x-text="estimateTokens(activeEntry.content) + ' Tokens'"
                   ></span>
                 </div>
                 <div
-                  class="p-3 bg-[var(--bg-body)] border border-[var(--border-light)] rounded text-sm text-[var(--text-main)] whitespace-pre-wrap break-words font-sans leading-relaxed select-text min-h-[120px] border-l-4"
-                  :class="{'border-l-blue-500': activeEntry.constant, 'border-l-green-500': !activeEntry.constant}"
+                  class="p-3 bg-[var(--surface-page)] border border-[var(--border-default)] rounded text-sm text-[var(--content-primary)] whitespace-pre-wrap break-words font-sans leading-relaxed select-text min-h-[120px] border-l-4"
+                  :class="{'color-border-accent': activeEntry.constant, 'color-border-success': !activeEntry.constant}"
                 >
                   <span x-text="activeEntry.content"></span>
                 </div>
@@ -775,36 +775,36 @@
 
               <div class="grid grid-cols-2 gap-2 text-xs">
                 <div
-                  class="p-2 border border-[var(--border-light)] rounded bg-[var(--bg-body)]"
+                  class="p-2 border border-[var(--border-default)] rounded bg-[var(--surface-page)]"
                 >
-                  <div class="text-[9px] text-gray-500 uppercase">Order</div>
+                  <div class="text-[9px] color-text-muted uppercase">Order</div>
                   <div
                     class="font-mono font-bold"
                     x-text="activeEntry.insertion_order"
                   ></div>
                 </div>
                 <div
-                  class="p-2 border border-[var(--border-light)] rounded bg-[var(--bg-body)]"
+                  class="p-2 border border-[var(--border-default)] rounded bg-[var(--surface-page)]"
                 >
-                  <div class="text-[9px] text-gray-500 uppercase">Position</div>
+                  <div class="text-[9px] color-text-muted uppercase">Position</div>
                   <div
                     class="font-mono font-bold"
                     x-text="activeEntry.position"
                   ></div>
                 </div>
                 <div
-                  class="p-2 border border-[var(--border-light)] rounded bg-[var(--bg-body)]"
+                  class="p-2 border border-[var(--border-default)] rounded bg-[var(--surface-page)]"
                 >
-                  <div class="text-[9px] text-gray-500 uppercase">Strategy</div>
+                  <div class="text-[9px] color-text-muted uppercase">Strategy</div>
                   <div
                     class="font-bold"
                     x-text="activeEntry.constant ? 'Constant' : (activeEntry.vectorized ? 'Vector' : 'Normal')"
                   ></div>
                 </div>
                 <div
-                  class="p-2 border border-[var(--border-light)] rounded bg-[var(--bg-body)]"
+                  class="p-2 border border-[var(--border-default)] rounded bg-[var(--surface-page)]"
                 >
-                  <div class="text-[9px] text-gray-500 uppercase">
+                  <div class="text-[9px] color-text-muted uppercase">
                     Selective
                   </div>
                   <div
@@ -818,11 +818,11 @@
         </div>
 
         <div
-          class="p-3 border-t border-[var(--border-light)] bg-[var(--bg-sub)]"
+          class="p-3 border-t border-[var(--border-default)] bg-[var(--surface-container-raised)]"
         >
           <button
             @click="enterWiEditorFromDetail(activeEntry)"
-            class="w-full btn-secondary py-2 text-xs flex items-center justify-center gap-2 font-bold hover:bg-accent-main hover:text-white transition-colors"
+            class="w-full btn-secondary py-2 text-xs flex items-center justify-center gap-2 font-bold color-hover-surface-accent transition-colors"
           >
             {{ icon('pencil-edit', 'ui-icon--md') }}
             <span>去编辑器修改此条目</span>
