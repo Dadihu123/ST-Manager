@@ -1,5 +1,5 @@
 <!-- 标签筛选大模态框 -->
-{% from "components/icon.html" import icon %}
+{% from "components/icon.html" import icon, sidebar_icon, detail_icon %}
 
 <div
   x-show="showTagFilterModal"
@@ -19,21 +19,20 @@
         class="tag-filter-mobile-shell"
       >
         <div class="tag-filter-mobile-topbar">
-          <div>
-            <div class="text-xs" style="color: var(--content-muted)">
-              移动端标签工具
+          <div class="tag-filter-mobile-heading">
+            <span class="tag-filter-mobile-heading-icon" aria-hidden="true">
+              {{ sidebar_icon('tag-library', 'ui-icon--md') }}
+            </span>
+            <div>
+              <div class="tag-filter-mobile-eyebrow">标签库工作台</div>
+              <div class="tag-filter-mobile-title">标签库筛选</div>
             </div>
-            <div style="font-size: 1rem; font-weight: 700">标签库筛选</div>
           </div>
           <button
             @click="requestCloseTagFilterEditor()"
-            style="
-              color: var(--content-muted);
-              font-size: 1.25rem;
-              background: none;
-              border: none;
-              cursor: pointer;
-            "
+            class="tag-filter-mobile-close-btn"
+            aria-label="关闭标签工作台"
+            title="关闭标签工作台"
           >
             {{ icon('close-bold', 'ui-icon--sm') }}
           </button>
@@ -42,39 +41,43 @@
           class="tag-filter-mobile-tabs"
           role="tablist"
           aria-label="标签筛选模式切换"
-        >
-          <button
-            type="button"
-            role="tab"
+          >
+            <button
+              type="button"
+              role="tab"
             @click="switchMobileTagTab('filter')"
             :aria-selected="mobileActiveTab === 'filter'"
-          >
-            筛选
-          </button>
+            >
+            <span aria-hidden="true">{{ icon('filter', 'ui-icon--sm') }}</span>
+            <span>筛选</span>
+            </button>
           <button
             type="button"
             role="tab"
             @click="switchMobileTagTab('sort')"
             :aria-selected="mobileActiveTab === 'sort'"
-          >
-            排序
-          </button>
+            >
+            <span aria-hidden="true">{{ icon('sort', 'ui-icon--sm') }}</span>
+            <span>排序</span>
+            </button>
           <button
             type="button"
             role="tab"
             @click="switchMobileTagTab('delete')"
             :aria-selected="mobileActiveTab === 'delete'"
-          >
-            删除
-          </button>
+            >
+            <span aria-hidden="true">{{ icon('trash', 'ui-icon--sm') }}</span>
+            <span>删除</span>
+            </button>
           <button
             type="button"
             role="tab"
             @click="switchMobileTagTab('category')"
             :aria-selected="mobileActiveTab === 'category'"
-          >
-            分类
-          </button>
+            >
+            <span aria-hidden="true">{{ icon('palette', 'ui-icon--sm') }}</span>
+            <span>分类</span>
+            </button>
         </div>
         <div class="tag-filter-mobile-utility">
           <div
@@ -420,6 +423,11 @@
                   <div class="tag-filter-mobile-sort-row">
                     <span class="tag-chip-drag-handle">{{ icon('menu-bold', 'ui-icon--xs') }}</span>
                     <span
+                      class="tag-chip-color-dot"
+                      :style="getTagChipStyle(tag)"
+                      aria-hidden="true"
+                    ></span>
+                    <span
                       x-text="tag"
                       style="
                         flex: 1;
@@ -476,8 +484,13 @@
                         >{{ icon('check-bold', 'ui-icon--xs') }}</span
                       >
                       <span
+                        class="tag-chip-color-dot"
+                        :style="getTagChipStyle(tag)"
+                        aria-hidden="true"
+                      ></span>
+                      <span
                         class="tag-chip-label"
-                        x-text="tag"
+                                x-text="tag"
                         style="
                           overflow: hidden;
                           text-overflow: ellipsis;
@@ -538,6 +551,11 @@
                               >{{ icon('check-bold', 'ui-icon--xs') }}</span
                             >
                             <span
+                              class="tag-chip-color-dot"
+                              :style="getTagChipStyle(tag)"
+                              aria-hidden="true"
+                            ></span>
+                            <span
                               class="tag-chip-label"
                               x-text="tag"
                               style="
@@ -592,75 +610,87 @@
           <div class="tag-filter-desktop-toolbar">
             <div class="tag-filter-workspace-topbar-main">
               <div class="tag-filter-workspace-heading">
-                <div
-                  class="text-xs tag-filter-workspace-eyebrow"
-                  style="color: var(--content-muted)"
-                >
-                  桌面端标签工作台
+                <div class="tag-filter-workspace-title-row">
+                  <span class="tag-filter-workspace-brand-icon" aria-hidden="true">
+                    {{ sidebar_icon('tag-library', 'ui-icon--md') }}
+                  </span>
+                  <div class="tag-filter-workspace-title-copy">
+                    <div class="tag-filter-workspace-eyebrow">
+                      标签库 · 管理工作台
+                    </div>
+                    <h3 class="tag-filter-workspace-title">
+                      <span x-show="desktopWorkspaceMode === 'filter'"
+                        >标签库筛选</span
+                      >
+                      <span
+                        x-show="showCategoryMode && !isDeleteMode"
+                        class="color-text-warning"
+                        >批量分类标签</span
+                      >
+                      <span
+                        x-show="desktopWorkspaceMode === 'sort'"
+                        class="color-text-accent"
+                        >标签排序</span
+                      >
+                      <span
+                        x-show="desktopWorkspaceMode === 'blacklist' && !isDeleteMode"
+                        class="color-text-rose"
+                        >黑名单治理</span
+                      >
+                      <span x-show="isDeleteMode" class="color-text-danger"
+                        >永久删除标签</span
+                      >
+                      <span
+                        x-show="desktopWorkspaceMode === 'category-manager' && !isDeleteMode"
+                        class="color-text-info"
+                        >分类管理中心</span
+                      >
+                    </h3>
+                    <p class="tag-filter-workspace-subtitle">
+                      统一搜索、筛选、分类和治理本地标签
+                    </p>
+                  </div>
                 </div>
-                <h3 class="tag-filter-workspace-title">
-                  <span x-show="desktopWorkspaceMode === 'filter'"
-                    >标签库筛选</span
-                  >
-                  <span
-                    x-show="showCategoryMode && !isDeleteMode"
-                    class="color-text-warning"
-                    >批量分类标签</span
-                  >
-                  <span
-                    x-show="desktopWorkspaceMode === 'sort'"
-                    class="color-text-accent"
-                    >标签排序</span
-                  >
-                  <span
-                    x-show="desktopWorkspaceMode === 'blacklist' && !isDeleteMode"
-                    class="color-text-rose"
-                    >黑名单治理</span
-                  >
-                  <span x-show="isDeleteMode" class="color-text-danger"
-                    >永久删除标签</span
-                  >
-                  <span
-                    x-show="desktopWorkspaceMode === 'category-manager' && !isDeleteMode"
-                    class="color-text-info"
-                    >分类管理中心</span
-                  >
-                </h3>
               </div>
               <div class="tag-filter-workspace-topbar-search">
-                <input
-                  type="text"
-                  x-model="tagSearchQuery"
-                  aria-label="搜索标签"
-                  placeholder="搜索标签..."
-                  class="form-input"
-                  :disabled="isSortMode"
-                  :style="isSortMode ? 'padding: 0.75rem; font-size: 1rem; opacity: 0.6; cursor: not-allowed;' : 'padding: 0.75rem; font-size: 1rem;'"
-                />
+                <div class="tag-filter-workspace-search-wrap">
+                  <span class="tag-filter-workspace-search-icon" aria-hidden="true">
+                    {{ icon('search', 'ui-icon--sm') }}
+                  </span>
+                  <input
+                    type="text"
+                    x-model="tagSearchQuery"
+                    aria-label="搜索标签"
+                    placeholder="搜索标签..."
+                    class="form-input"
+                    :disabled="isSortMode"
+                    :style="isSortMode ? 'padding: 0.75rem; font-size: 1rem; opacity: 0.6; cursor: not-allowed;' : 'padding: 0.75rem; font-size: 1rem;'"
+                  />
+                </div>
               </div>
-              <div class="tag-filter-workspace-topbar-status">
+              <div class="tag-filter-workspace-topbar-status" role="status" aria-live="polite">
                 <div class="tag-filter-workspace-selection-summary">
-                  <span class="text-sm" style="color: var(--content-muted)"
-                    >已选
+                  <span class="text-sm tag-filter-workspace-stat"
+                    ><span class="tag-filter-workspace-stat-label">已选</span>
                     <span
                       x-text="filterTags.length + excludedTags.length"
-                      class="text-accent font-bold"
+                      class="tag-filter-workspace-stat-value"
                     ></span>
-                    个标签</span
+                    <span class="tag-filter-workspace-stat-label">个标签</span></span
                   >
-                  <span class="text-sm" style="color: var(--content-muted)"
-                    >可见
+                  <span class="text-sm tag-filter-workspace-stat"
+                    ><span class="tag-filter-workspace-stat-label">可见</span>
                     <span
                       x-text="filteredVisibleTagCount"
-                      class="text-accent font-bold"
+                      class="tag-filter-workspace-stat-value"
                     ></span>
-                    个标签</span
+                    <span class="tag-filter-workspace-stat-label">个标签</span></span
                   >
                 </div>
                 <span
                   x-show="!isDeleteMode"
-                  class="text-xs px-2 py-1 rounded-full"
-                  :style="customOrderEnabled ? 'background: color-mix(in srgb, var(--accent-action), transparent 82%); color: var(--accent-text); border: 1px solid color-mix(in srgb, var(--accent-action), transparent 50%);' : 'background: var(--surface-container-raised); color: var(--content-muted); border: 1px solid var(--border-default);'"
+                  class="tag-filter-workspace-order-badge"
+                  :class="customOrderEnabled ? 'is-custom' : ''"
                   x-text="customOrderEnabled ? '当前：自定义排序' : '当前：字符排序'"
                 ></span>
               </div>
@@ -672,6 +702,7 @@
                 class="tag-filter-workspace-top-tab tag-filter-workspace-top-tab--utility"
                 @click="clearCustomOrder()"
               >
+                <span aria-hidden="true">{{ icon('refresh', 'ui-icon--xs') }}</span>
                 恢复字符排序
               </button>
               <button
@@ -680,6 +711,7 @@
                 :class="isWorkspaceHelpOpen ? 'is-active' : ''"
                 @click="toggleWorkspaceHelp()"
               >
+                <span aria-hidden="true">{{ icon('settings-help-entry', 'ui-icon--xs') }}</span>
                 帮助
               </button>
               <button
@@ -687,6 +719,7 @@
                 class="tag-filter-workspace-top-tab tag-filter-workspace-top-tab--utility tag-filter-governance-drawer-toggle"
                 @click="toggleGovernanceDrawer()"
               >
+                <span aria-hidden="true">{{ icon('settings-gear', 'ui-icon--xs') }}</span>
                 治理设置
               </button>
               <template x-if="isGovernanceDrawerOpen">
@@ -743,8 +776,11 @@
                 @click="toggleDesktopWorkspaceFullscreen()"
                 class="tag-filter-workspace-fullscreen-btn"
                 :class="isDesktopWorkspaceFullscreen ? 'is-active' : ''"
-                x-text="isDesktopWorkspaceFullscreen ? '退出全屏' : '全屏工作台'"
-              ></button>
+                :aria-label="isDesktopWorkspaceFullscreen ? '退出全屏' : '全屏工作台'"
+              >
+                <span aria-hidden="true">{{ detail_icon('fullscreen', 'ui-icon--xs') }}</span>
+                <span x-text="isDesktopWorkspaceFullscreen ? '退出全屏' : '全屏工作台'"></span>
+              </button>
               <button
                 type="button"
                 @click="requestCloseTagFilterEditor()"
@@ -756,54 +792,72 @@
           </div>
         </div>
         <div class="tag-filter-workspace-top-tabs">
-          <div class="tag-filter-workspace-top-tabs-nav">
+          <div class="tag-filter-workspace-top-tabs-nav" role="tablist" aria-label="标签工作台模式">
             <button
               type="button"
+              role="tab"
               class="tag-filter-workspace-top-tab"
               :class="desktopWorkspaceMode === 'filter' ? 'is-active' : ''"
+              :aria-selected="desktopWorkspaceMode === 'filter'"
               @click="setDesktopWorkspaceMode('filter')"
             >
-              筛选
+              <span aria-hidden="true">{{ icon('filter', 'ui-icon--sm') }}</span>
+              <span>筛选</span>
             </button>
             <button
               type="button"
+              role="tab"
               class="tag-filter-workspace-top-tab"
               :class="desktopWorkspaceMode === 'batch-category' ? 'is-active' : ''"
+              :aria-selected="desktopWorkspaceMode === 'batch-category'"
               @click="desktopWorkspaceMode === 'batch-category' ? setDesktopWorkspaceMode('filter') : setDesktopWorkspaceMode('batch-category')"
             >
-              批量分类
+              <span aria-hidden="true">{{ icon('palette', 'ui-icon--sm') }}</span>
+              <span>批量分类</span>
             </button>
             <button
               type="button"
+              role="tab"
               class="tag-filter-workspace-top-tab"
               :class="desktopWorkspaceMode === 'sort' ? 'is-active' : ''"
+              :aria-selected="desktopWorkspaceMode === 'sort'"
               @click="desktopWorkspaceMode === 'sort' ? setDesktopWorkspaceMode('filter') : setDesktopWorkspaceMode('sort')"
             >
-              排序
+              <span aria-hidden="true">{{ icon('sort', 'ui-icon--sm') }}</span>
+              <span>排序</span>
             </button>
             <button
               type="button"
+              role="tab"
               class="tag-filter-workspace-top-tab"
               :class="desktopWorkspaceMode === 'delete' ? 'is-active' : ''"
+              :aria-selected="desktopWorkspaceMode === 'delete'"
               @click="desktopWorkspaceMode === 'delete' ? setDesktopWorkspaceMode('filter') : setDesktopWorkspaceMode('delete')"
             >
-              删除
+              <span aria-hidden="true">{{ icon('trash', 'ui-icon--sm') }}</span>
+              <span>删除</span>
             </button>
             <button
               type="button"
+              role="tab"
               class="tag-filter-workspace-top-tab"
               :class="desktopWorkspaceMode === 'blacklist' ? 'is-active' : ''"
+              :aria-selected="desktopWorkspaceMode === 'blacklist'"
               @click="desktopWorkspaceMode === 'blacklist' ? setDesktopWorkspaceMode('filter') : setDesktopWorkspaceMode('blacklist')"
             >
-              黑名单
+              <span aria-hidden="true">{{ icon('shield', 'ui-icon--sm') }}</span>
+              <span>黑名单</span>
             </button>
             <button
               type="button"
+              role="tab"
               class="tag-filter-workspace-top-tab"
               :class="desktopWorkspaceMode === 'category-manager' ? 'is-active' : ''"
+              :aria-selected="desktopWorkspaceMode === 'category-manager'"
               @click="desktopWorkspaceMode === 'category-manager' ? setDesktopWorkspaceMode('filter') : setDesktopWorkspaceMode('category-manager')"
             >
-              分类管理
+              <span aria-hidden="true">{{ icon('settings-gear', 'ui-icon--sm') }}</span>
+              <span>分类管理</span>
             </button>
           </div>
         </div>
@@ -830,18 +884,20 @@
                 <div
                   class="tag-filter-selected-basket-header tag-filter-selected-basket-header--calm"
                 >
-                  <span>已选标签区</span>
+                  <span class="tag-filter-selected-basket-title">
+                    <span class="tag-filter-selected-basket-title-icon" aria-hidden="true">
+                      {{ icon('filter', 'ui-icon--xs') }}
+                    </span>
+                    <span>当前筛选</span>
+                    <span class="tag-filter-selected-basket-hint">点击标签可移除</span>
+                  </span>
                   <button
+                    type="button"
                     @click="filterTags=[]; excludedTags=[]"
                     x-show="!isSortMode && !showCategoryMode"
-                    style="
-                      color: var(--status-danger-text);
-                      background: none;
-                      border: none;
-                      cursor: pointer;
-                      font-size: 0.75rem;
-                    "
+                    class="tag-filter-selected-basket-clear"
                   >
+                    <span aria-hidden="true">{{ icon('close-small', 'ui-icon--xs') }}</span>
                     清空
                   </button>
                 </div>
@@ -856,7 +912,13 @@
                       type="button"
                       class="tag-filter-selected-basket-chip tag-filter-selected-basket-chip--included tag-filter-selected-basket-chip--workspace"
                       @click="filterTags = filterTags.filter(item => item !== tag)"
+                      :aria-label="'移除包含标签：' + tag"
                     >
+                      <span
+                        class="tag-filter-selected-basket-chip-dot"
+                        :style="getTagChipStyle(tag)"
+                        aria-hidden="true"
+                      ></span>
                       <span
                         class="tag-filter-selected-basket-chip-label"
                         x-text="tag"
@@ -872,7 +934,13 @@
                       type="button"
                       class="tag-filter-selected-basket-chip tag-filter-selected-basket-chip--excluded tag-filter-selected-basket-chip--workspace"
                       @click="excludedTags = excludedTags.filter(item => item !== tag)"
+                      :aria-label="'移除排除标签：' + tag"
                     >
+                      <span
+                        class="tag-filter-selected-basket-chip-dot"
+                        :style="getTagChipStyle(tag)"
+                        aria-hidden="true"
+                      ></span>
                       <span
                         class="tag-filter-selected-basket-chip-label"
                         x-text="tag"
@@ -893,6 +961,18 @@
                 class="tag-filter-current-mode-tool-area"
                 x-show="!isWorkspaceHelpOpen"
               >
+                <div class="tag-filter-workspace-tool-area-header">
+                  <div class="tag-filter-workspace-tool-area-title">
+                    <span class="tag-filter-workspace-tool-area-icon" aria-hidden="true">
+                      {{ icon('sliders-settings', 'ui-icon--sm') }}
+                    </span>
+                    <span>工作区工具</span>
+                  </div>
+                  <span
+                    class="tag-filter-workspace-tool-area-mode"
+                    x-text="{ filter: '筛选', 'batch-category': '批量分类', sort: '排序', delete: '删除', blacklist: '黑名单', 'category-manager': '分类管理' }[desktopWorkspaceMode] || '标签库'"
+                  ></span>
+                </div>
                 <template x-if="$store.global.deviceType !== 'mobile'">
                   <div
                     class="tag-filter-current-mode-tool-panel tag-filter-current-mode-tool-panel--view"
@@ -1133,6 +1213,11 @@
                               class="tag-filter-selected-basket-chip tag-filter-selected-basket-chip--excluded"
                               @click="toggleTagSelectionForDeletion(tag)"
                             >
+                              <span
+                                class="tag-filter-selected-basket-chip-dot"
+                                :style="getTagChipStyle(tag)"
+                                aria-hidden="true"
+                              ></span>
                               <span
                                 class="tag-filter-selected-basket-chip-label"
                                 x-text="tag"
@@ -1397,6 +1482,11 @@
                           @click="toggleTagSelectionForBlacklist(tag)"
                         >
                           <span
+                            class="tag-filter-selected-basket-chip-dot"
+                            :style="getTagChipStyle(tag)"
+                            aria-hidden="true"
+                          ></span>
+                          <span
                             class="tag-filter-selected-basket-chip-label"
                             x-text="tag"
                           ></span>
@@ -1431,6 +1521,11 @@
                           class="tag-filter-selected-basket-chip tag-filter-selected-basket-chip--excluded"
                           @click="removeBlacklistedTag(tag)"
                         >
+                          <span
+                            class="tag-filter-selected-basket-chip-dot"
+                            :style="getTagChipStyle(tag)"
+                            aria-hidden="true"
+                          ></span>
                           <span
                             class="tag-filter-selected-basket-chip-label"
                             x-text="tag"
@@ -1626,6 +1721,27 @@
                 class="tag-filter-workspace-tag-pool"
                 x-show="!isWorkspaceHelpOpen"
               >
+                <div class="tag-filter-workspace-pool-header">
+                  <div class="tag-filter-workspace-pool-title-group">
+                    <div class="tag-filter-workspace-pool-title">
+                      <span class="tag-filter-workspace-pool-icon" aria-hidden="true">
+                        {{ sidebar_icon('tag-library', 'ui-icon--sm') }}
+                      </span>
+                      <span>标签库</span>
+                    </div>
+                    <p class="tag-filter-workspace-pool-description">
+                      <span x-show="!isSortMode && !isDeleteMode && !showCategoryMode && !isBlacklistMode">点击标签循环切换包含 / 排除 / 取消</span>
+                      <span x-show="showCategoryMode">点击标签加入批量分类选择</span>
+                      <span x-show="isBlacklistMode">点击标签加入黑名单选择</span>
+                      <span x-show="isDeleteMode">点击标签加入待删除列表</span>
+                      <span x-show="isSortMode">拖拽标签或使用排序控件调整顺序</span>
+                    </p>
+                  </div>
+                  <div class="tag-filter-workspace-pool-meta" aria-live="polite">
+                    <span x-text="filteredVisibleTagCount"></span>
+                    <span>个可见标签</span>
+                  </div>
+                </div>
                 <div
                   x-show="$store.global.deviceType !== 'mobile'"
                   class="tag-cloud-container custom-scrollbar"
@@ -1667,6 +1783,11 @@
                               class="mr-1 font-bold"
                               >{{ icon('check-bold', 'ui-icon--xs') }}</span
                             >
+                            <span
+                              class="tag-chip-color-dot"
+                              :style="getTagChipStyle(tag)"
+                              aria-hidden="true"
+                            ></span>
                             <span
                               class="tag-chip-label"
                               x-text="tag"
@@ -1732,6 +1853,11 @@
                                     >{{ icon('check-bold', 'ui-icon--xs') }}</span
                                   >
                                   <span
+                                    class="tag-chip-color-dot"
+                                    :style="getTagChipStyle(tag)"
+                                    aria-hidden="true"
+                                  ></span>
+                                  <span
                                     class="tag-chip-label"
                                     x-text="tag"
                                     style="
@@ -1769,6 +1895,11 @@
                             @dragend="onSortDragEnd()"
                           >
                             <span class="tag-chip-drag-handle">{{ icon('menu-bold', 'ui-icon--xs') }}</span>
+                            <span
+                              class="tag-chip-color-dot"
+                              :style="getTagChipStyle(tag)"
+                              aria-hidden="true"
+                            ></span>
                             <span
                               x-text="tag"
                               style="
@@ -1828,6 +1959,11 @@
                                 >
                                   <span class="tag-chip-drag-handle">{{ icon('menu-bold', 'ui-icon--xs') }}</span>
                                   <span
+                                    class="tag-chip-color-dot"
+                                    :style="getTagChipStyle(tag)"
+                                    aria-hidden="true"
+                                  ></span>
+                                  <span
                                     class="tag-chip-label"
                                     x-text="tag"
                                     style="
@@ -1871,16 +2007,12 @@
               <div
                 class="tag-filter-workspace-footer"
                 x-show="!isWorkspaceHelpOpen"
-                style="
-                  margin-top: 1rem;
-                  display: flex;
-                  justify-content: space-between;
-                  align-items: center;
-                  border-top: 1px solid var(--border-default);
-                  padding-top: 1rem;
-                "
               >
                 <div class="flex items-center gap-4">
+                  <span class="tag-filter-workspace-footer-label">
+                    <span aria-hidden="true">{{ sidebar_icon('layers', 'ui-icon--xs') }}</span>
+                    <span>分类快捷筛选</span>
+                  </span>
                   <div
                     x-show="desktopWorkspaceMode === 'filter' || desktopWorkspaceMode === 'batch-category' || desktopWorkspaceMode === 'sort' || desktopWorkspaceMode === 'category-manager' || desktopWorkspaceMode === 'blacklist' || desktopWorkspaceMode === 'delete'"
                     class="tag-category-filter-row tag-category-filter-row--workspace"
@@ -1921,6 +2053,7 @@
                     x-show="(filterTags.length > 0 || excludedTags.length > 0) && !isDeleteMode && !isSortMode && !showCategoryMode"
                     class="text-xs color-surface-danger-solid color-hover-surface-danger px-2 py-1 rounded color-text-on-dark"
                   >
+                    <span aria-hidden="true">{{ icon('scissors', 'ui-icon--xs') }}</span>
                     从当前视图移除选中标签
                   </button>
                 </div>
