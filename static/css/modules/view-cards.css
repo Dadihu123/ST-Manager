@@ -2376,6 +2376,11 @@ html.light-mode .card-effect-shell .card-toolbar-layout-spacer {
   pointer-events: none;
 }
 
+/* 元信息不参与按钮交互，但需要接收悬浮以显示 title 提示。 */
+.card-effect-shell .card-effect-controls-topbar .card-meta-chip {
+  pointer-events: auto;
+}
+
 /* 顶部栏的可视表面留在内容占位层，控制层只承载元信息，避免背景叠加变暗。 */
 .card-effect-shell .card-effect-controls-layer
   > .card-effect-controls-topbar {

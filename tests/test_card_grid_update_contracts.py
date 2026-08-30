@@ -96,6 +96,11 @@ def test_card_controls_are_sibling_layer_above_cards_css_effect():
     assert 'z-index: 5;' in controls_css
     assert 'pointer-events: none;' in controls_css
     assert '@click.stop="handleCardClick($event, card)"' in card_grid_template
+    assert re.search(
+        r'\.card-effect-shell \.card-effect-controls-topbar \.card-meta-chip\s*\{'
+        r'[\s\S]*?pointer-events: auto;',
+        card_css,
+    )
 
     assert '.card-image-container::after' not in card_css
     assert 'border-top-color: transparent !important;' in card_css
