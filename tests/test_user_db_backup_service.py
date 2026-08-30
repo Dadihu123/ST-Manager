@@ -77,6 +77,44 @@ def _create_tables_without_history(conn):
     conn.commit()
 
 
+def _create_monitor_tables(conn):
+    conn.execute(
+        '''
+        CREATE TABLE source_update_monitor_pools (
+            pool_id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            enabled INTEGER NOT NULL DEFAULT 0,
+            schedule_mode TEXT NOT NULL DEFAULT 'manual',
+            daily_time TEXT,
+            timezone TEXT,
+            next_run_at REAL,
+            last_run_at REAL,
+            last_run_id TEXT,
+            created_at REAL,
+            updated_at REAL
+        )
+        '''
+    )
+    conn.execute(
+        '''
+        CREATE TABLE source_update_monitor_entries (
+            pool_id TEXT NOT NULL,
+            card_id TEXT NOT NULL,
+            source_url_snapshot TEXT,
+            enabled INTEGER NOT NULL DEFAULT 1,
+            added_at REAL,
+            last_seen_source_url TEXT,
+            last_run_status TEXT,
+            last_run_at REAL,
+            last_error TEXT,
+            invalid_reason TEXT,
+            PRIMARY KEY (pool_id, card_id)
+        )
+        '''
+    )
+    conn.commit()
+
+
 def _fetch_all(conn, sql, params=()):
     return [dict(row) for row in conn.execute(sql, params).fetchall()]
 
@@ -108,6 +146,201 @@ def _seed_card_index_projection(conn, *, card_id, source_path, name='Hero', summ
     conn.execute('INSERT INTO index_search_full_v2(generation, entity_id, content) VALUES (?, ?, ?)', (1, f'card::{card_id}', search_content))
     for tag in tags:
         conn.execute('INSERT OR REPLACE INTO index_entity_tags_v2(generation, entity_id, tag) VALUES (?, ?, ?)', (1, f'card::{card_id}', tag))
+
+
+def test_export_backup_includes_monitor_config_and_card_uid(tmp_path, monkeypatch):
+    from core.services.user_db_backup_service import UserDbBackupService
+
+    db_path = tmp_path / 'app.db'
+    stable_uid = '11111111-1111-4111-8111-111111111111'
+    with _open_db(db_path) as conn:
+        _create_tables(conn)
+        conn.execute('ALTER TABLE card_metadata ADD COLUMN card_uid TEXT')
+        _create_monitor_tables(conn)
+        conn.execute(
+            'INSERT INTO card_metadata (id, is_favorite, card_uid) VALUES (?, ?, ?)',
+            ('folder/hero.png', 0, stable_uid),
+        )
+        conn.execute(
+            '''
+            INSERT INTO source_update_monitor_pools
+                (pool_id, name, enabled, schedule_mode, daily_time, timezone, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ''',
+            ('default', '我的监控池', 1, 'daily', '09:30', 'Asia/Shanghai', 10.0, 11.0),
+        )
+        conn.execute(
+            '''
+            INSERT INTO source_update_monitor_entries
+                (pool_id, card_id, source_url_snapshot, enabled, added_at, last_seen_source_url,
+                 last_run_status, last_run_at, last_error, invalid_reason)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''',
+            (
+                'default',
+                'folder/hero.png',
+                'https://discord.com/channels/1/2/3',
+                1,
+                12.0,
+                'https://discord.com/channels/1/2/3',
+                'unchanged',
+                13.0,
+                '',
+                '',
+            ),
+        )
+        conn.commit()
+
+    monkeypatch.setattr('core.services.user_db_backup_service.DEFAULT_DB_PATH', str(db_path))
+    monkeypatch.setattr('core.services.user_db_backup_service.BASE_DIR', str(tmp_path))
+
+    result = UserDbBackupService().export_backup()
+    payload = json.loads((tmp_path / result['file_path']).read_text(encoding='utf-8'))
+
+    assert result['stats']['source_update_monitor'] == {'pools': 1, 'entries': 1}
+    assert payload['data']['source_update_monitor'] == {
+        'pools': [
+            {
+                'pool_id': 'default',
+                'name': '我的监控池',
+                'enabled': True,
+                'schedule_mode': 'daily',
+                'daily_time': '09:30',
+                'timezone': 'Asia/Shanghai',
+            }
+        ],
+        'entries': [
+            {
+                'pool_id': 'default',
+                'card_id': 'folder/hero.png',
+                'card_uid': stable_uid,
+                'source_url_snapshot': 'https://discord.com/channels/1/2/3',
+                'enabled': True,
+                'added_at': 12.0,
+                'last_seen_source_url': 'https://discord.com/channels/1/2/3',
+            }
+        ],
+    }
+
+
+def test_import_monitor_backup_prefers_card_uid_and_falls_back_to_card_id(tmp_path, monkeypatch):
+    from core.services.user_db_backup_service import UserDbBackupService
+
+    db_path = tmp_path / 'app.db'
+    stable_uid = '22222222-2222-4222-8222-222222222222'
+    with _open_db(db_path) as conn:
+        _create_tables(conn)
+        conn.execute('ALTER TABLE card_metadata ADD COLUMN card_uid TEXT')
+        _create_monitor_tables(conn)
+        conn.execute(
+            'INSERT INTO card_metadata (id, is_favorite, card_uid) VALUES (?, ?, ?), (?, ?, ?)',
+            ('current/hero.png', 0, stable_uid, 'legacy/mage.png', 0, None),
+        )
+        conn.execute(
+            '''
+            INSERT INTO source_update_monitor_pools
+                (pool_id, name, enabled, schedule_mode, daily_time, timezone, created_at, updated_at)
+            VALUES ('default', '旧名称', 0, 'manual', NULL, NULL, 1.0, 1.0)
+            ''',
+        )
+        conn.execute(
+            '''
+            INSERT INTO source_update_monitor_entries
+                (pool_id, card_id, source_url_snapshot, enabled, added_at, last_seen_source_url,
+                 last_run_status, last_run_at, last_error, invalid_reason)
+            VALUES ('default', 'old/hero.png', '', 1, 2.0, '', 'missing', 3.0, 'old', 'old')
+            ''',
+        )
+        conn.commit()
+
+    payload = {
+        'schema_version': 1,
+        'exported_at': '2026-08-30T10:00:00Z',
+        'app': 'ST-Manager',
+        'data': {
+            'favorites': [],
+            'wi_clipboard': [],
+            'wi_entry_history': [],
+            'source_update_monitor': {
+                'pools': [
+                    {
+                        'pool_id': 'default',
+                        'name': '恢复后的监控池',
+                        'enabled': True,
+                        'schedule_mode': 'daily',
+                        'daily_time': '08:00',
+                        'timezone': 'Asia/Shanghai',
+                    }
+                ],
+                'entries': [
+                    {
+                        'pool_id': 'default',
+                        'card_id': 'old/hero.png',
+                        'card_uid': stable_uid,
+                        'source_url_snapshot': 'https://discord.com/channels/1/2/3',
+                        'enabled': True,
+                        'added_at': 20.0,
+                        'last_seen_source_url': 'https://discord.com/channels/1/2/3',
+                    },
+                    {
+                        'pool_id': 'default',
+                        'card_id': 'legacy/mage.png',
+                        'card_uid': '',
+                        'source_url_snapshot': 'https://discord.com/channels/4/5/6',
+                        'enabled': False,
+                        'added_at': 21.0,
+                        'last_seen_source_url': 'https://discord.com/channels/4/5/6',
+                    },
+                ],
+            },
+        },
+    }
+    backup_file = tmp_path / 'monitor.json'
+    backup_file.write_text(json.dumps(payload, ensure_ascii=False), encoding='utf-8')
+
+    monkeypatch.setattr('core.services.user_db_backup_service.DEFAULT_DB_PATH', str(db_path))
+    monkeypatch.setattr('core.services.user_db_backup_service.ctx.cache', None)
+
+    result = UserDbBackupService().import_backup(str(backup_file), source_name='monitor.json')
+
+    with _open_db(db_path) as conn:
+        pool = conn.execute(
+            'SELECT name, enabled, schedule_mode, daily_time, timezone FROM source_update_monitor_pools WHERE pool_id = ?',
+            ('default',),
+        ).fetchone()
+        entries = _fetch_all(
+            conn,
+            '''
+            SELECT pool_id, card_id, card_uid, source_url_snapshot, enabled, added_at, last_seen_source_url
+            FROM source_update_monitor_entries ORDER BY card_id
+            ''',
+        )
+
+    assert tuple(pool) == ('恢复后的监控池', 1, 'daily', '08:00', 'Asia/Shanghai')
+    assert entries == [
+        {
+            'pool_id': 'default',
+            'card_id': 'current/hero.png',
+            'card_uid': stable_uid,
+            'source_url_snapshot': 'https://discord.com/channels/1/2/3',
+            'enabled': 1,
+            'added_at': 20.0,
+            'last_seen_source_url': 'https://discord.com/channels/1/2/3',
+        },
+        {
+            'pool_id': 'default',
+            'card_id': 'legacy/mage.png',
+            'card_uid': None,
+            'source_url_snapshot': 'https://discord.com/channels/4/5/6',
+            'enabled': 0,
+            'added_at': 21.0,
+            'last_seen_source_url': 'https://discord.com/channels/4/5/6',
+        },
+    ]
+    assert result['stats']['source_update_monitor'] == {
+        'pools': {'imported': 1, 'unchanged': 0},
+        'entries': {'imported': 2, 'unchanged': 0, 'skipped_missing_cards': 0},
+    }
 
 
 def test_export_backup_includes_only_db_sections_and_counts(tmp_path, monkeypatch):

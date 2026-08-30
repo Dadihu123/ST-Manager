@@ -298,6 +298,15 @@ def _process_card_move_task(old_card_id, new_full_path):
         ):
             return False
 
+        from core.data.source_update_monitor_store import rename_source_update_monitor_card_reference
+
+        rename_source_update_monitor_card_reference(
+            conn,
+            old_card_id,
+            new_card_id,
+            stable_uid,
+        )
+
     try:
         ui_data = load_ui_data()
         if rename_card_ui_references(ui_data, old_card_id, new_card_id):
@@ -684,6 +693,15 @@ def _perform_scan_logic():
                                     (id, char_name, description, first_mes, mes_example, tags, category, creator, char_version, last_modified, file_hash, file_size, token_count, has_character_book, character_book_name, is_favorite)
                                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                                 ''', values[:-1])
+                        if renamed_from_id:
+                            from core.data.source_update_monitor_store import rename_source_update_monitor_card_reference
+
+                            rename_source_update_monitor_card_reference(
+                                conn,
+                                renamed_from_id,
+                                file_id,
+                                stable_uid,
+                            )
                         changed_card_paths[file_id] = full_path
 
         # 3. 清理已删除文件

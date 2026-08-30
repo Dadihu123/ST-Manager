@@ -432,7 +432,7 @@ export default function settingsModal() {
 
       try {
         const confirmed = confirm(
-          "确定要导入该备份吗？\n这会恢复仅存储在用户 DB 中的状态（如收藏、剪贴板、历史记录），不会影响 ui_data.json。",
+          "确定要导入该备份吗？\n这会恢复仅存储在用户 DB 中的状态（如收藏、剪贴板、历史记录、监控池配置与成员），不会影响 ui_data.json。",
         );
         if (!confirmed) return;
 
@@ -449,13 +449,20 @@ export default function settingsModal() {
         const favorites = stats.favorites?.imported || 0;
         const clipboard = stats.wi_clipboard?.imported || 0;
         const history = stats.wi_entry_history?.imported || 0;
+        const monitor = stats.source_update_monitor;
+        const resultLines = [
+          "导入成功",
+          `收藏: 导入 ${favorites}`,
+          `剪贴板: 导入 ${clipboard}`,
+          `历史记录: 导入 ${history}`,
+        ];
+        if (monitor) {
+          const monitorPools = monitor.pools?.imported || 0;
+          const monitorEntries = monitor.entries?.imported || 0;
+          resultLines.push(`监控池: 导入 ${monitorPools} 个配置、${monitorEntries} 个成员`);
+        }
         alert(
-          [
-            "导入成功",
-            `收藏: 导入 ${favorites}`,
-            `剪贴板: 导入 ${clipboard}`,
-            `历史记录: 导入 ${history}`,
-          ].join("\n"),
+          resultLines.join("\n"),
         );
       } catch (err) {
         alert("导入失败: " + (err.message || err));

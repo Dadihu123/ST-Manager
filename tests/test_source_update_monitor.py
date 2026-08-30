@@ -15,7 +15,10 @@ if str(ROOT) not in sys.path:
 
 from core.api.v1 import cards as cards_api
 from core.context import ctx
-from core.data.source_update_monitor_store import ensure_source_update_monitor_schema
+from core.data.source_update_monitor_store import (
+    ensure_source_update_monitor_schema,
+    rename_source_update_monitor_card_reference,
+)
 from core.services import source_update_monitor_service as monitor
 
 
@@ -53,7 +56,7 @@ def monitor_env(tmp_path, monkeypatch):
 
     with sqlite3.connect(db_path) as conn:
         conn.execute(
-            'CREATE TABLE card_metadata (id TEXT PRIMARY KEY, char_name TEXT)'
+            'CREATE TABLE card_metadata (id TEXT PRIMARY KEY, char_name TEXT, card_uid TEXT)'
         )
         ensure_source_update_monitor_schema(conn)
         conn.execute(
@@ -71,6 +74,52 @@ def test_valid_card_can_be_added_and_duplicate_is_idempotent(monitor_env):
     assert first['results'][0]['status'] == 'added'
     assert repeated['results'][0]['status'] == 'already_in_pool'
     assert monitor.get_monitor_target_ids() == ['demo.png']
+
+
+def test_monitor_member_persists_card_uuid(monitor_env):
+    ui_data, db_path = monitor_env
+    stable_uid = '33333333-3333-4333-8333-333333333333'
+    ui_data['demo.png']['card_uid'] = stable_uid
+    with sqlite3.connect(db_path) as conn:
+        conn.execute(
+            'UPDATE card_metadata SET card_uid = ? WHERE id = ?',
+            ('55555555-5555-4555-8555-555555555555', 'demo.png'),
+        )
+        conn.commit()
+
+    result = monitor.add_monitor_entries(['demo.png'])
+
+    assert result['results'][0]['status'] == 'added'
+    with sqlite3.connect(db_path) as conn:
+        row = conn.execute(
+            'SELECT card_id, card_uid FROM source_update_monitor_entries'
+        ).fetchone()
+    assert row == ('demo.png', stable_uid)
+
+
+def test_monitor_member_path_move_keeps_card_uuid(monitor_env):
+    _, db_path = monitor_env
+    stable_uid = '44444444-4444-4444-8444-444444444444'
+    monitor.add_monitor_entries(['demo.png'])
+
+    with sqlite3.connect(db_path) as conn:
+        conn.execute(
+            'UPDATE source_update_monitor_entries SET card_uid = ?',
+            (stable_uid,),
+        )
+        changed = rename_source_update_monitor_card_reference(
+            conn,
+            'demo.png',
+            'renamed/demo.png',
+            stable_uid,
+        )
+        conn.commit()
+        row = conn.execute(
+            'SELECT card_id, card_uid FROM source_update_monitor_entries'
+        ).fetchone()
+
+    assert changed is True
+    assert row == ('renamed/demo.png', stable_uid)
 
 
 def test_invalid_source_cannot_be_added_and_returns_reason(monitor_env, monkeypatch):

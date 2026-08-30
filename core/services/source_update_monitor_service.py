@@ -34,6 +34,7 @@ from core.services.forum_update_service import (
     prepare_source_link_for_card,
     resolve_card_source,
 )
+from core.utils.card_identity import normalize_card_uid
 
 logger = logging.getLogger(__name__)
 
@@ -117,6 +118,37 @@ def _card_exists(card_id, conn=None):
     if path and os.path.exists(path):
         return True
     return False
+
+
+def _card_uid_for_card_id(card_id, conn, ui_data=None):
+    if isinstance(ui_data, dict):
+        ui_key = _ui_key_for_card(card_id)
+        ui_entry = ui_data.get(ui_key)
+        if isinstance(ui_entry, dict):
+            ui_uid = normalize_card_uid(ui_entry.get('card_uid'))
+            if ui_uid:
+                return ui_uid
+
+    cache = getattr(ctx, 'cache', None)
+    id_map = getattr(cache, 'id_map', None)
+    if isinstance(id_map, dict):
+        cache_item = id_map.get(card_id)
+        if isinstance(cache_item, dict):
+            cache_uid = normalize_card_uid(cache_item.get('card_uid'))
+            if cache_uid:
+                return cache_uid
+
+    try:
+        row = conn.execute(
+            'SELECT card_uid FROM card_metadata WHERE id = ?',
+            (card_id,),
+        ).fetchone()
+    except sqlite3.OperationalError as exc:
+        error_text = str(exc).lower()
+        if 'no such column' not in error_text and 'no such table' not in error_text:
+            raise
+        return ''
+    return normalize_card_uid(row['card_uid']) if row is not None else ''
 
 
 def _ui_key_for_card(card_id):
@@ -223,6 +255,15 @@ def add_monitor_entries(card_ids, *, pool_id=DEFAULT_MONITOR_POOL_ID):
 
             existing = _entry_row(conn, normalized, pool_id)
             if existing is not None:
+                card_uid = _card_uid_for_card_id(normalized, conn, ui_data)
+                if card_uid and normalize_card_uid(existing['card_uid']) != card_uid:
+                    conn.execute(
+                        '''
+                        UPDATE source_update_monitor_entries SET card_uid = ?
+                        WHERE pool_id = ? AND card_id = ?
+                        ''',
+                        (card_uid, pool_id, normalized),
+                    )
                 results.append({
                     'card_id': normalized,
                     'success': True,
@@ -252,14 +293,15 @@ def add_monitor_entries(card_ids, *, pool_id=DEFAULT_MONITOR_POOL_ID):
                 })
                 continue
 
+            card_uid = _card_uid_for_card_id(normalized, conn, ui_data)
             conn.execute(
                 '''
                 INSERT INTO source_update_monitor_entries
-                    (pool_id, card_id, source_url_snapshot, enabled, added_at,
+                    (pool_id, card_id, card_uid, source_url_snapshot, enabled, added_at,
                      last_seen_source_url, last_run_status, last_error, invalid_reason)
-                VALUES (?, ?, ?, 1, ?, ?, 'never_checked', '', '')
+                VALUES (?, ?, ?, ?, 1, ?, ?, 'never_checked', '', '')
                 ''',
-                (pool_id, normalized, source_url, now, source_url),
+                (pool_id, normalized, card_uid, source_url, now, source_url),
             )
             results.append({
                 'card_id': normalized,
@@ -379,6 +421,15 @@ def _build_entry_payload(row, conn, ui_data, current_run=None):
     card_id = str(row['card_id'])
     source_url, ui_key = _current_source_url(card_id, ui_data)
     state = get_source_update_state(ui_data, ui_key)
+    card_uid = _card_uid_for_card_id(card_id, conn, ui_data)
+    if card_uid and card_uid != normalize_card_uid(row['card_uid']):
+        conn.execute(
+            '''
+            UPDATE source_update_monitor_entries SET card_uid = ?
+            WHERE pool_id = ? AND card_id = ?
+            ''',
+            (card_uid, row['pool_id'], card_id),
+        )
     card = _cache_card(card_id) or {}
     metadata = conn.execute(
         'SELECT char_name FROM card_metadata WHERE id = ?',
@@ -425,6 +476,7 @@ def _build_entry_payload(row, conn, ui_data, current_run=None):
     return {
         'pool_id': row['pool_id'],
         'card_id': card_id,
+        'card_uid': card_uid or normalize_card_uid(row['card_uid']),
         'char_name': char_name or os.path.splitext(os.path.basename(card_id))[0],
         'source_title': state.get('source_title', ''),
         'source_url': source_url,
@@ -567,14 +619,17 @@ def _record_entry_result(conn, card_id, result, *, pool_id=DEFAULT_MONITOR_POOL_
         invalid_reason = ''
 
     next_snapshot = source_url if source_url and is_supported_source_url(source_url) else row['source_url_snapshot']
+    card_uid = _card_uid_for_card_id(card_id, conn, ui_data)
     conn.execute(
         '''
         UPDATE source_update_monitor_entries
-        SET source_url_snapshot = ?, last_seen_source_url = ?, last_run_status = ?,
+        SET card_uid = COALESCE(NULLIF(card_uid, ''), ?),
+            source_url_snapshot = ?, last_seen_source_url = ?, last_run_status = ?,
             last_run_at = ?, last_error = ?, invalid_reason = ?
         WHERE pool_id = ? AND card_id = ?
         ''',
         (
+            card_uid or None,
             next_snapshot or '',
             source_url or '',
             last_status,

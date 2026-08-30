@@ -433,6 +433,14 @@ def update_card_content(card_id, temp_path, is_bundle_update, keep_ui_data, new_
         ctx.cache.delete_card_update(card_id)
         with sqlite3.connect(DEFAULT_DB_PATH, timeout=30) as conn:
             conn.execute("DELETE FROM card_metadata WHERE id = ?", (card_id,))
+            from core.data.source_update_monitor_store import rename_source_update_monitor_card_reference
+
+            rename_source_update_monitor_card_reference(
+                conn,
+                card_id,
+                final_rel_id,
+                stable_card_uid,
+            )
 
     # 4. 数据库写回 (Upsert)
     file_hash, file_size = get_file_hash_and_size(target_save_path)
@@ -890,6 +898,10 @@ def sync_exact_card_after_fs_move(
         (new_card_id, target_category, old_card_id),
     )
 
+    from core.data.source_update_monitor_store import rename_source_update_monitor_card_reference
+
+    rename_source_update_monitor_card_reference(conn, old_card_id, new_card_id)
+
     ui_changed = False
     if rename_card_ui_references(ui_data, old_card_id, new_card_id):
         ui_changed = True
@@ -943,6 +955,10 @@ def sync_exact_card_after_fs_move(
 
 def sync_folder_prefix_after_fs_move(*, conn, ui_data, old_path, new_path):
     moved_ids = _rename_prefixed_card_rows(conn, old_path, new_path)
+    from core.data.source_update_monitor_store import rename_source_update_monitor_card_reference
+
+    for old_card_id, new_card_id in moved_ids:
+        rename_source_update_monitor_card_reference(conn, old_card_id, new_card_id)
     conn.commit()
     ui_changed = False
 
@@ -1252,6 +1268,9 @@ def sync_card_names_internal(
             # 清理旧索引
             conn = get_db()
             conn.execute("DELETE FROM card_metadata WHERE id = ?", (old_id,))
+            from core.data.source_update_monitor_store import rename_source_update_monitor_card_reference
+
+            rename_source_update_monitor_card_reference(conn, old_id, new_id)
             conn.commit()
 
             # 迁移 ui_data 顶层 key + bundle 版本备注 key
