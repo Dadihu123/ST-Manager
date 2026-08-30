@@ -2313,6 +2313,179 @@ html.light-mode .card-bottom-toolbar
   pointer-events: auto;
 }
 
+/* 工具栏移到特效层后保留原来的 flex 占位，避免遮住图片底部信息。 */
+.card-effect-shell .card-toolbar-layout-spacer {
+  flex: 0 0 auto;
+  min-height: calc(1.8rem + 0.68rem + 1px);
+  padding: 0.34rem 0.5rem;
+  border-top: 1px solid transparent;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+@media (max-width: 768px) {
+  .card-effect-shell .card-toolbar-layout-spacer {
+    min-height: calc(1.8rem + 0.5rem + 1px);
+    padding: 0.25rem 0.35rem;
+  }
+
+  .card-effect-shell .card-effect-controls-topbar-spacer {
+    min-height: 1.8rem;
+    padding: 0.3rem 0.35rem;
+  }
+}
+
+/* 只把业务按钮提到特效层上方，保持图片、文字和原有卡片排版不变。 */
+.card-effect-shell .card-effect-controls-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  grid-area: auto;
+  aspect-ratio: auto;
+  overflow: visible;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.card-effect-shell .card-effect-controls-topbar-spacer {
+  flex: 0 0 auto;
+  width: 100%;
+  min-height: 2rem;
+  padding: 0.42rem 0.5rem;
+  border-bottom: 1px solid transparent;
+  display: block;
+  grid-area: auto;
+  aspect-ratio: auto;
+  overflow: visible;
+  border-radius: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.card-effect-shell .card-effect-controls-image-layer {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  display: block;
+  grid-area: auto;
+  aspect-ratio: auto;
+  overflow: visible;
+  border-radius: 0;
+  pointer-events: none;
+}
+
+.card-effect-shell .card-effect-controls-image-layer
+  > .card-select-overlay,
+.card-effect-shell .card-effect-controls-image-layer
+  > .card-fav-overlay {
+  width: auto;
+  display: revert;
+  grid-area: auto;
+  aspect-ratio: auto;
+  overflow: visible;
+  border-radius: revert;
+}
+
+.card-effect-shell .card-effect-controls-image-layer
+  > .card-select-overlay
+  > div {
+  width: 1.5rem;
+  height: 1.5rem;
+  display: flex;
+  grid-area: auto;
+  aspect-ratio: auto;
+  overflow: visible;
+}
+
+.card-effect-shell .card-effect-controls-image-layer
+  > .card-fav-overlay
+  > .card-fav-icon {
+  width: 20px;
+  height: 20px;
+  display: block;
+  grid-area: auto;
+  aspect-ratio: auto;
+  overflow: visible;
+  border-radius: 0;
+}
+
+.card-effect-shell .card-effect-controls-layer
+  > .card-bottom-toolbar {
+  position: relative;
+  right: auto;
+  bottom: auto;
+  left: auto;
+  flex: 0 0 auto;
+  display: flex;
+  width: 100%;
+  height: auto;
+  grid-area: auto;
+  aspect-ratio: auto;
+  overflow: visible;
+  border-radius: 0;
+  z-index: 2;
+  pointer-events: auto;
+}
+
+.card-effect-shell .card-effect-controls-layer
+  > .card-bottom-toolbar
+  > button,
+.card-effect-shell .card-effect-controls-layer
+  > .card-bottom-toolbar
+  > span {
+  width: auto;
+  display: revert;
+  grid-area: auto;
+  aspect-ratio: auto;
+  overflow: visible;
+  border-radius: revert;
+}
+
+.card-effect-shell .card-effect-controls-layer
+  > .card-bottom-toolbar
+  > button {
+  width: 1.8rem;
+  height: 1.8rem;
+  min-width: 1.8rem;
+  min-height: 1.8rem;
+  flex: 0 0 1.8rem;
+}
+
+.card-effect-shell .card-effect-controls-layer
+  > .card-flip-corner {
+  display: block;
+  grid-area: auto;
+  aspect-ratio: auto;
+  overflow: hidden;
+  border-radius: 0;
+}
+
+@media (max-width: 640px) {
+  .card-effect-shell .card-toolbar-layout-spacer {
+    min-height: calc(1.6rem + 0.5rem + 1px);
+  }
+
+  .card-effect-shell .card-effect-controls-layer
+    > .card-bottom-toolbar
+    > button {
+    width: 1.6rem;
+    height: 1.6rem;
+    min-width: 1.6rem;
+    min-height: 1.6rem;
+    flex-basis: 1.6rem;
+  }
+}
+
+.card-effect-shell .card-effect-controls-layer button,
+.card-effect-shell .card-effect-controls-layer button * {
+  pointer-events: auto;
+}
+
 .card-effect-shell .holo-card__shine,
 .card-effect-shell .holo-card__glare {
   position: absolute;

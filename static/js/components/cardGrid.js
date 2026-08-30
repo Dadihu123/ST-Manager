@@ -35,10 +35,10 @@ const CARD_EFFECT_VISUALS = Object.freeze({
   }),
   glitter: Object.freeze({
     brightness: 1,
-    contrast: 0.92,
-    saturate: 0.82,
-    glareOpacity: 0.3,
-    shineOpacity: 0.38,
+    contrast: 1,
+    saturate: 1,
+    glareOpacity: 1,
+    shineOpacity: 1,
   }),
 });
 const cardEffectInstances = new WeakMap();

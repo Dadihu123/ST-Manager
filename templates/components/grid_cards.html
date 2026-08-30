@@ -164,44 +164,6 @@
               </div>
 
               <div class="card-image-container">
-                <!-- 选择勾选框 -->
-                <button
-                  type="button"
-                  class="card-select-indicator card-select-overlay"
-                  :class="{
-                                        'is-selected': selectedIds.includes(card.id),
-                                        'is-mobile': $store.global.deviceType === 'mobile'
-                  }"
-                  @click.stop="toggleSelection(card)"
-                  title="选择角色卡"
-                  :aria-label="selectedIds.includes(card.id) ? '取消选择角色卡' : '选择角色卡'"
-                >
-                  <div
-                    class="w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-200 shadow-sm"
-                    :class="selectedIds.includes(card.id) ? 'color-surface-action color-border-action color-text-action scale-105' : 'color-surface-scrim-soft color-border-default color-hover-surface-scrim color-hover-border-neutral color-text-on-dark'"
-                  >
-                    <span
-                      x-show="selectedIds.includes(card.id)"
-                      class="card-select-icon"
-                      >{{ icon('check', 'ui-icon--sm') }}</span
-                    >
-                  </div>
-                </button>
-
-                <button
-                  type="button"
-                  @click.stop="toggleCardFav(card)"
-                  class="card-fav-btn card-fav-overlay"
-                  :class="{
-                                        'is-active': card.is_favorite,
-                                        'is-mobile': $store.global.deviceType === 'mobile'
-                  }"
-                  :title="card.is_favorite ? '取消收藏' : '加入收藏'"
-                  :aria-label="card.is_favorite ? '取消收藏' : '加入收藏'"
-                >
-                  {{ icon('heart', 'card-fav-icon') }}
-                </button>
-
                 <img
                   class="card-image-media"
                   :src="card.thumb_url"
@@ -320,68 +282,118 @@
             </div>
                     </div>
 
+                  <div class="card-toolbar-layout-spacer" aria-hidden="true"></div>
+
+                  </div>
+
+                  <div class="card-effect-controls-layer">
+                    <div
+                      class="card-effect-controls-topbar-spacer"
+                      aria-hidden="true"
+                    ></div>
+
+                    <div class="card-effect-controls-image-layer">
+                      <!-- 仅将交互按钮提到特效层之上，卡片内容与原有排版保持不变。 -->
+                      <button
+                        type="button"
+                        class="card-select-indicator card-select-overlay"
+                        :class="{
+                                            'is-selected': selectedIds.includes(card.id),
+                                            'is-mobile': $store.global.deviceType === 'mobile'
+                        }"
+                        @click.stop="toggleSelection(card)"
+                        title="选择角色卡"
+                        :aria-label="selectedIds.includes(card.id) ? '取消选择角色卡' : '选择角色卡'"
+                      >
+                        <div
+                          class="w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-200 shadow-sm"
+                          :class="selectedIds.includes(card.id) ? 'color-surface-action color-border-action color-text-action scale-105' : 'color-surface-scrim-soft color-border-default color-hover-surface-scrim color-hover-border-neutral color-text-on-dark'"
+                        >
+                          <span
+                            x-show="selectedIds.includes(card.id)"
+                            class="card-select-icon"
+                            >{{ icon('check', 'ui-icon--sm') }}</span
+                          >
+                        </div>
+                      </button>
+
+                      <button
+                        type="button"
+                        @click.stop="toggleCardFav(card)"
+                        class="card-fav-btn card-fav-overlay"
+                        :class="{
+                                            'is-active': card.is_favorite,
+                                            'is-mobile': $store.global.deviceType === 'mobile'
+                        }"
+                        :title="card.is_favorite ? '取消收藏' : '加入收藏'"
+                        :aria-label="card.is_favorite ? '取消收藏' : '加入收藏'"
+                      >
+                        {{ icon('heart', 'card-fav-icon') }}
+                      </button>
+                    </div>
+
                     <div class="card-bottom-toolbar" @click.stop>
-            <button
-              type="button"
-              class="card-local-note-btn"
-              :class="cardHasLocalNote(card) ? 'has-note' : 'no-note'"
-              :disabled="!cardHasLocalNote(card)"
-              :title="cardHasLocalNote(card) ? '查看本地备注预览' : '暂无本地备注'"
-              :aria-label="cardHasLocalNote(card) ? '查看本地备注预览' : '暂无本地备注'"
-              @click.stop="openCardLocalNote(card)"
-            >
-              {{ icon('sticky-note', 'ui-icon--sm') }}
-            </button>
-            <button
-              type="button"
-              class="card-forum-search-btn"
-              x-show="canOpenForumPreview(card)"
-              title="类脑搜索"
-              aria-label="打开类脑搜索预览"
-              @click.stop="openForumThreadPreview(card)"
-            >
-              {{ icon('search', 'card-forum-search-icon') }}
-            </button>
-            <button
-              type="button"
-              class="card-send-st-btn"
-              :class="{ 'has-sent': cardHasBeenSentToST(card), 'is-sending': isSendingToST(card.id) }"
-              :disabled="isSendingToST(card.id)"
-              :title="getCardSendToSTTitle(card)"
-              :aria-label="getCardSendToSTTitle(card)"
-              @click.stop="sendCardToST(card)"
-            >
-              <span x-show="!isSendingToST(card.id)" aria-hidden="true">
-                {{ icon('send', 'ui-icon--sm') }}
-              </span>
-              <span x-show="isSendingToST(card.id)" aria-hidden="true">
-                {{ icon('loader-circle', 'ui-icon--sm ui-icon--spin') }}
-              </span>
-            </button>
-            <button
-              type="button"
-              class="card-source-update-btn"
-              x-show="canCheckSourceUpdate(card)"
-              :class="getSourceUpdateClass(card)"
-              :disabled="isCheckingSourceUpdate(card.id)"
-              :title="isCheckingSourceUpdate(card.id) ? '正在检查来源' : getSourceUpdateLabel(card)"
-              @click.stop="checkCardSource(card)"
-              aria-label="检查来源更新"
-            >
-              <span x-show="!isCheckingSourceUpdate(card.id)" aria-hidden="true">
-                {{ icon('refresh-card', 'ui-icon--sm') }}
-              </span>
-              <span x-show="isCheckingSourceUpdate(card.id)" aria-hidden="true">
-                {{ icon('loader-circle', 'ui-icon--sm ui-icon--spin') }}
-              </span>
-            </button>
-            <span
-              class="card-source-update-status"
-              x-show="canCheckSourceUpdate(card) && card.source_update?.last_status && card.source_update.last_status !== 'never_checked'"
-              :class="getSourceUpdateClass(card)"
-              :title="getSourceUpdateLabel(card)"
-              x-text="['baseline_established', 'baseline_refreshed'].includes(card.source_update.last_status) ? '基线' : (card.source_update.last_status === 'title_synced' ? '标题已同步' : (getSourceUpdateClass(card) === 'is-updated' ? '有更新' : '已检查'))"
-            ></span>
+                      <button
+                        type="button"
+                        class="card-local-note-btn"
+                        :class="cardHasLocalNote(card) ? 'has-note' : 'no-note'"
+                        :disabled="!cardHasLocalNote(card)"
+                        :title="cardHasLocalNote(card) ? '查看本地备注预览' : '暂无本地备注'"
+                        :aria-label="cardHasLocalNote(card) ? '查看本地备注预览' : '暂无本地备注'"
+                        @click.stop="openCardLocalNote(card)"
+                      >
+                        {{ icon('sticky-note', 'ui-icon--sm') }}
+                      </button>
+                      <button
+                        type="button"
+                        class="card-forum-search-btn"
+                        x-show="canOpenForumPreview(card)"
+                        title="类脑搜索"
+                        aria-label="打开类脑搜索预览"
+                        @click.stop="openForumThreadPreview(card)"
+                      >
+                        {{ icon('search', 'card-forum-search-icon') }}
+                      </button>
+                      <button
+                        type="button"
+                        class="card-send-st-btn"
+                        :class="{ 'has-sent': cardHasBeenSentToST(card), 'is-sending': isSendingToST(card.id) }"
+                        :disabled="isSendingToST(card.id)"
+                        :title="getCardSendToSTTitle(card)"
+                        :aria-label="getCardSendToSTTitle(card)"
+                        @click.stop="sendCardToST(card)"
+                      >
+                        <span x-show="!isSendingToST(card.id)" aria-hidden="true">
+                          {{ icon('send', 'ui-icon--sm') }}
+                        </span>
+                        <span x-show="isSendingToST(card.id)" aria-hidden="true">
+                          {{ icon('loader-circle', 'ui-icon--sm ui-icon--spin') }}
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        class="card-source-update-btn"
+                        x-show="canCheckSourceUpdate(card)"
+                        :class="getSourceUpdateClass(card)"
+                        :disabled="isCheckingSourceUpdate(card.id)"
+                        :title="isCheckingSourceUpdate(card.id) ? '正在检查来源' : getSourceUpdateLabel(card)"
+                        @click.stop="checkCardSource(card)"
+                        aria-label="检查来源更新"
+                      >
+                        <span x-show="!isCheckingSourceUpdate(card.id)" aria-hidden="true">
+                          {{ icon('refresh-card', 'ui-icon--sm') }}
+                        </span>
+                        <span x-show="isCheckingSourceUpdate(card.id)" aria-hidden="true">
+                          {{ icon('loader-circle', 'ui-icon--sm ui-icon--spin') }}
+                        </span>
+                      </button>
+                      <span
+                        class="card-source-update-status"
+                        x-show="canCheckSourceUpdate(card) && card.source_update?.last_status && card.source_update.last_status !== 'never_checked'"
+                        :class="getSourceUpdateClass(card)"
+                        :title="getSourceUpdateLabel(card)"
+                        x-text="['baseline_established', 'baseline_refreshed'].includes(card.source_update.last_status) ? '基线' : (card.source_update.last_status === 'title_synced' ? '标题已同步' : (getSourceUpdateClass(card) === 'is-updated' ? '有更新' : '已检查'))"
+                      ></span>
                     </div>
 
                     <button

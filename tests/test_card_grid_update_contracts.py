@@ -55,6 +55,41 @@ def test_card_grid_places_send_to_st_before_source_update_check():
     )
 
 
+def test_card_controls_are_sibling_layer_above_cards_css_effect():
+    card_grid_template = read_project_file('templates/components/grid_cards.html')
+    card_css = read_project_file('static/css/modules/view-cards.css')
+
+    content = card_grid_template.split(
+        'class="holo-card__content"', 1
+    )[1].split('class="card-effect-controls-layer"', 1)[0]
+    image_container = card_grid_template.split(
+        'class="card-image-container"', 1
+    )[1].split('class="card-image-overlay"', 1)[0]
+    controls_layer = card_grid_template.split(
+        'class="card-effect-controls-layer"', 1
+    )[1].split('class="holo-card__shine"', 1)[0]
+    controls_css = card_css.split(
+        '.card-effect-shell .card-effect-controls-layer {', 1
+    )[1].split('}', 1)[0]
+
+    assert 'card-select-indicator' not in image_container
+    assert 'card-fav-btn' not in image_container
+    assert 'card-select-indicator' in controls_layer
+    assert 'card-fav-btn' in controls_layer
+    assert 'card-effect-controls-topbar-spacer' in controls_layer
+    assert 'card-effect-controls-image-layer' in controls_layer
+    assert 'card-bottom-toolbar' in controls_layer
+    assert 'card-flip-corner' in controls_layer
+    assert controls_layer.index('card-effect-controls-topbar-spacer') < controls_layer.index(
+        'card-effect-controls-image-layer'
+    ) < controls_layer.index('card-bottom-toolbar')
+    assert 'class="card-image-char-name" x-text="card.char_name"' in content
+    assert 'card-toolbar-layout-spacer' in content
+    assert 'z-index: 5;' in controls_css
+    assert 'pointer-events: none;' in controls_css
+    assert '@click.stop="handleCardClick($event, card)"' in card_grid_template
+
+
 def test_bulk_flip_buttons_use_the_soft_action_treatment_in_both_themes_and_layouts():
     card_css = read_project_file('static/css/modules/view-cards.css')
     bulk_flip_button = card_css.split('.card-flip-all-btn {', 1)[1].split('}', 1)[0]
