@@ -68,6 +68,7 @@ DEFAULT_CONFIG = {
     "dark_mode": True,
     "font_style": "sans",      # 字体: sans, serif, mono
     "card_width": 220,         # 卡片宽度
+    "card_effects_enabled": True,  # 是否启用角色卡悬浮与闪卡特效
     "bg_url": "/assets/backgrounds/default_background.jpeg",  # 默认背景图路径
     "bg_opacity": 0.45,        # 默认遮罩浓度
     "bg_blur": 2,               # 默认模糊度

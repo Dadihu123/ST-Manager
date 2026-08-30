@@ -684,6 +684,7 @@ export function initState() {
       dark_mode: true,
       font_style: "sans",
       card_width: 220,
+      card_effects_enabled: true,
       manager_wallpaper_id: "",
       bg_url: "",
       bg_opacity: 0.95,
@@ -881,6 +882,7 @@ export function initState() {
             cards_list_use_index: !!settings.cards_list_use_index,
             fast_search_use_index: !!settings.fast_search_use_index,
             worldinfo_list_use_index: !!settings.worldinfo_list_use_index,
+            card_effects_enabled: settings.card_effects_enabled !== false,
             sync_source_title_on_update: settings.sync_source_title_on_update !== false,
           };
           this.sharedWallpapers = Array.isArray(settings.shared_wallpapers)

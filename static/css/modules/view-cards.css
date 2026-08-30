@@ -2648,6 +2648,22 @@ html.light-mode .card-effect-shell .card-toolbar-layout-spacer {
   z-index: 4;
 }
 
+/* 关闭开关后保留静态卡面，避免 cards-css 的非交互悬浮兜底重新触发动画。 */
+.card-effect-shell.holo-card.card-effect-disabled,
+.card-effect-shell.holo-card.card-effect-disabled:hover {
+  --card-opacity: 0 !important;
+  --card-scale: 1 !important;
+  --translate-x: 0px !important;
+  --translate-y: 0px !important;
+  --rotate-x: 0deg !important;
+  --rotate-y: 0deg !important;
+}
+
+.card-effect-shell.holo-card.card-effect-disabled .holo-card__shine,
+.card-effect-shell.holo-card.card-effect-disabled .holo-card__glare {
+  display: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .card-effect-shell .holo-card__translater,
   .card-effect-shell .holo-card__rotator,

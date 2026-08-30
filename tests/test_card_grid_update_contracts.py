@@ -205,6 +205,22 @@ def test_card_effect_host_allows_effect_overflow_without_leaking_card_content():
     assert 'overflow: hidden;' in image_container_css
 
 
+def test_card_effect_toggle_disables_and_restores_effect_instances_without_hiding_card_content():
+    card_grid_source = read_project_file('static/js/components/cardGrid.js')
+    card_css = read_project_file('static/css/modules/view-cards.css')
+
+    assert '$store.global.settingsForm.card_effects_enabled' in card_grid_source
+    assert 'syncCardEffectsEnabled' in card_grid_source
+    assert 'this.destroyCardEffect(shell);' in card_grid_source
+    assert 'shell.dataset.effect = "none";' in card_grid_source
+    assert 'shell.classList.add("card-effect-disabled");' in card_grid_source
+    assert '.card-effect-shell.holo-card.card-effect-disabled' in card_css
+    assert 'display: none;' in card_css.split(
+        '.card-effect-shell.holo-card.card-effect-disabled .holo-card__shine,', 1
+    )[1].split('}', 1)[0]
+    assert '.card-effect-shell.holo-card.card-effect-disabled .holo-card__content' not in card_css
+
+
 def test_bulk_flip_buttons_use_the_soft_action_treatment_in_both_themes_and_layouts():
     card_css = read_project_file('static/css/modules/view-cards.css')
     bulk_flip_button = card_css.split('.card-flip-all-btn {', 1)[1].split('}', 1)[0]

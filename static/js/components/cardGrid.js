@@ -215,6 +215,12 @@ export default function cardGrid() {
       this.$watch("$store.global.settingsForm.favorites_first", () => {
         this.fetchCards();
       });
+      this.$watch(
+        "$store.global.settingsForm.card_effects_enabled",
+        (enabled) => {
+          this.syncCardEffectsEnabled(enabled !== false);
+        },
+      );
       this.$watch("$store.global.deviceType", (deviceType) => {
         if (deviceType === "mobile") {
           this.clearAllAutoFlipBackTimers();
@@ -458,6 +464,43 @@ export default function cardGrid() {
       });
     },
 
+    isCardEffectsEnabled() {
+      return this.$store?.global?.settingsForm?.card_effects_enabled !== false;
+    },
+
+    disableCardEffect(shell) {
+      if (!shell) {
+        return;
+      }
+
+      this.destroyCardEffect(shell);
+      shell.dataset.effect = "none";
+      shell.classList.add("card-effect-disabled");
+    },
+
+    syncCardEffectsEnabled(enabled = this.isCardEffectsEnabled()) {
+      if (!this.$el) {
+        return;
+      }
+
+      this.$el.querySelectorAll(".card-effect-shell").forEach((shell) => {
+        if (!enabled) {
+          this.disableCardEffect(shell);
+          return;
+        }
+
+        shell.classList.remove("card-effect-disabled");
+        const cardElement = shell.closest(".st-card[data-card-id]");
+        const cardId = cardElement?.dataset.cardId;
+        const card = this.cards.find(
+          (item) => String(item.id) === String(cardId),
+        );
+        if (cardElement && card) {
+          this.syncCardEffect(cardElement, card);
+        }
+      });
+    },
+
     getCardEffect(card) {
       return card?.is_favorite
         ? CARD_EFFECT_NAMES.favorite
@@ -469,6 +512,13 @@ export default function cardGrid() {
       if (!shell) {
         return null;
       }
+
+      if (!this.isCardEffectsEnabled()) {
+        this.disableCardEffect(shell);
+        return null;
+      }
+
+      shell.classList.remove("card-effect-disabled");
 
       const effect = this.getCardEffect(card);
       shell.dataset.effect = effect;
@@ -499,6 +549,13 @@ export default function cardGrid() {
       if (!shell) {
         return;
       }
+
+      if (!this.isCardEffectsEnabled()) {
+        this.disableCardEffect(shell);
+        return;
+      }
+
+      shell.classList.remove("card-effect-disabled");
 
       const effect = this.getCardEffect(card);
       if (shell.dataset.effect !== effect) {

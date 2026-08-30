@@ -234,6 +234,18 @@ def test_state_settings_form_only_includes_openai_preset_directory():
     assert 'st_reasoning_dir:' not in source
 
 
+def test_card_effect_setting_defaults_to_enabled_and_is_exposed_in_settings():
+    state_source = read_project_file('static/js/state.js')
+    config_source = read_project_file('core/config.py')
+    settings_source = read_project_file('templates/modals/settings.html')
+
+    assert 'card_effects_enabled: true' in state_source
+    assert 'card_effects_enabled: settings.card_effects_enabled !== false' in state_source
+    assert '"card_effects_enabled": True' in config_source
+    assert 'x-model="settingsForm.card_effects_enabled"' in settings_source
+    assert '角色卡特效 (Card Effects)' in settings_source
+
+
 def test_settings_template_only_exposes_openai_preset_directory_input():
     source = read_project_file('templates/modals/settings.html')
 
