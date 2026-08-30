@@ -2558,7 +2558,7 @@ html.light-mode .card-effect-shell .card-toolbar-layout-spacer {
   > button,
 .card-effect-shell .card-effect-controls-layer
   > .card-bottom-toolbar
-  > span {
+  > span:not(.card-source-update-status) {
   width: auto;
   display: revert;
   grid-area: auto;

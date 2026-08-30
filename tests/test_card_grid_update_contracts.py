@@ -221,6 +221,17 @@ def test_card_effect_toggle_disables_and_restores_effect_instances_without_hidin
     assert '.card-effect-shell.holo-card.card-effect-disabled .holo-card__content' not in card_css
 
 
+def test_source_update_status_keeps_pill_shape_and_vertical_alignment_in_effect_layer():
+    card_css = read_project_file('static/css/modules/view-cards.css')
+
+    status_rule = card_css.split('.card-source-update-status {', 1)[1].split('}', 1)[0]
+    assert 'display: inline-flex;' in status_rule
+    assert 'align-items: center;' in status_rule
+    assert 'justify-content: center;' in status_rule
+    assert 'border-radius: 999px;' in status_rule
+    assert '> span:not(.card-source-update-status) {' in card_css
+
+
 def test_card_effect_interaction_instances_are_lazy_and_release_is_bounded():
     card_grid_source = read_project_file('static/js/components/cardGrid.js')
     holo_card_source = read_project_file('static/lib/cards-css/holo-card.js')
