@@ -2207,9 +2207,24 @@ html.light-mode .card-bottom-toolbar
   width: 100%;
   height: 100%;
   aspect-ratio: auto;
-  border-radius: inherit;
+  --card-radius: var(--card-frame-radius, 0.75rem);
+  border-radius: var(--card-frame-radius, 0.75rem);
   pointer-events: none;
   isolation: isolate;
+  overflow: visible;
+}
+
+/* 只放开特效宿主的外溢；内容层和控制层使用同一边界独立裁剪。 */
+.st-card.card-effect-host {
+  --card-frame-radius: 0.75rem;
+  border-radius: var(--card-frame-radius);
+  overflow: visible;
+}
+
+.card-effect-shell .holo-card__translater,
+.card-effect-shell .holo-card__rotator,
+.card-effect-shell .holo-card__front {
+  overflow: visible;
 }
 
 .card-effect-shell .holo-card__translater,
@@ -2237,7 +2252,6 @@ html.light-mode .card-bottom-toolbar
 .card-effect-shell .holo-card__front {
   position: relative;
   display: block;
-  overflow: hidden;
 }
 
 .card-effect-shell .holo-card__content {
@@ -2249,6 +2263,8 @@ html.light-mode .card-bottom-toolbar
   width: 100%;
   height: 100%;
   aspect-ratio: auto;
+  overflow: hidden;
+  border-radius: var(--card-frame-radius);
   pointer-events: auto;
 }
 
@@ -2356,8 +2372,8 @@ html.light-mode .card-effect-shell .card-toolbar-layout-spacer {
   height: 100%;
   grid-area: auto;
   aspect-ratio: auto;
-  overflow: visible;
-  border-radius: inherit;
+  overflow: hidden;
+  border-radius: var(--card-frame-radius);
   pointer-events: none;
 }
 
@@ -2450,7 +2466,7 @@ html.light-mode .card-effect-shell .card-toolbar-layout-spacer {
   padding-bottom: calc(1.8rem + 0.68rem + 1px);
   grid-area: auto;
   aspect-ratio: auto;
-  overflow: hidden;
+  overflow: visible;
   border-radius: 0;
   opacity: 0;
   visibility: hidden;

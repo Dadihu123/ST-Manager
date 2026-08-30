@@ -163,6 +163,48 @@ def test_card_information_uses_the_existing_controls_layer_above_effects():
     assert 'z-index: 6;' not in card_css
 
 
+def test_card_effect_host_allows_effect_overflow_without_leaking_card_content():
+    card_grid_template = read_project_file('templates/components/grid_cards.html')
+    card_css = read_project_file('static/css/modules/view-cards.css')
+
+    assert 'class="st-card group card-effect-host"' in card_grid_template
+    assert re.search(
+        r'\.st-card\.card-effect-host\s*\{'
+        r'[\s\S]*?--card-frame-radius: 0\.75rem;'
+        r'[\s\S]*?overflow: visible;',
+        card_css,
+    )
+    assert re.search(
+        r'\.card-effect-shell \.holo-card__translater,\s*'
+        r'\.card-effect-shell \.holo-card__rotator,\s*'
+        r'\.card-effect-shell \.holo-card__front\s*\{'
+        r'[\s\S]*?overflow: visible;',
+        card_css,
+    )
+
+    effect_shell_css = card_css.split('.card-effect-shell.holo-card {', 1)[1].split('}', 1)[0]
+    content_css = card_css.split('.card-effect-shell .holo-card__content {', 1)[1].split('}', 1)[0]
+    controls_css = card_css.split(
+        '.card-effect-shell .card-effect-controls-layer {', 1
+    )[1].split('}', 1)[0]
+    back_info_css = card_css.split(
+        '.card-effect-shell .card-effect-controls-back-info {', 1
+    )[1].split('}', 1)[0]
+
+    assert '--card-radius: var(--card-frame-radius, 0.75rem);' in effect_shell_css
+    assert 'border-radius: var(--card-frame-radius, 0.75rem);' in effect_shell_css
+    assert 'overflow: hidden;' in content_css
+    assert 'border-radius: var(--card-frame-radius);' in content_css
+    assert 'overflow: hidden;' in controls_css
+    assert 'border-radius: var(--card-frame-radius);' in controls_css
+    assert 'overflow: visible;' in back_info_css
+
+    card_front_css = card_css.split('.card-front {', 1)[1].split('}', 1)[0]
+    image_container_css = card_css.split('.card-image-container {', 1)[1].split('}', 1)[0]
+    assert 'overflow: hidden;' in card_front_css
+    assert 'overflow: hidden;' in image_container_css
+
+
 def test_bulk_flip_buttons_use_the_soft_action_treatment_in_both_themes_and_layouts():
     card_css = read_project_file('static/css/modules/view-cards.css')
     bulk_flip_button = card_css.split('.card-flip-all-btn {', 1)[1].split('}', 1)[0]

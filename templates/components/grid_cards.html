@@ -105,7 +105,7 @@
       >
         <!-- ... (角色卡模板内容保持不变) ... -->
         <div
-          class="st-card group"
+          class="st-card group card-effect-host"
           :data-card-id="card.id"
           :class="{'selected': selectedIds.includes(card.id), 'is-favorite': card.is_favorite, 'card-highlight-anim': highlightId === card.id, 'is-flipped': isCardFlipped(card.id)}"
           x-init="syncCardEffect($el, card)"
