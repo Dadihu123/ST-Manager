@@ -38,6 +38,10 @@ export default function cardAdvancedFilter() {
       return this.$store.global.currentMode === "cards";
     },
 
+    get cardAdvancedFilterCount() {
+      return this.$store.global.getCardAdvancedFilterCount();
+    },
+
     get sectionItems() {
       return [
         {

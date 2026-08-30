@@ -147,6 +147,9 @@ def test_card_advanced_filter_template_exposes_sections_and_footer_actions():
     assert '@click="applyFilters()"' in drawer_template
     assert '@click="openTagFilterEditor()"' in drawer_template
     assert 'x-text="tagSummary"' in drawer_template
+    assert '{% from "components/icon.html" import icon, detail_icon %}' in drawer_template
+    assert drawer_template.count("detail_icon('tags', 'ui-icon--sm')") == 2
+    assert "icon('palette'" not in drawer_template
     assert 'get tagSummary() {' in drawer_component
     assert 'x-show="draft.searchScope === \'all_dirs\' && draft.recursiveFilter"' in drawer_template
     assert 'x-model="draft.allDirsOnlyWithFilters"' in drawer_template

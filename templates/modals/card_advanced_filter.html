@@ -1,5 +1,5 @@
 {% from "components/styled_select.html" import styled_select %}
-{% from "components/icon.html" import icon %}
+{% from "components/icon.html" import icon, detail_icon %}
 
 <div
   x-data="cardAdvancedFilter"
@@ -7,27 +7,53 @@
   x-cloak
   @keydown.escape.window="requestClose()"
   class="card-advanced-filter-overlay"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="card-advanced-filter-title"
+  aria-describedby="card-advanced-filter-description"
 >
   <div class="card-advanced-filter-backdrop" @click="requestClose()"></div>
 
   <aside class="card-advanced-filter-drawer" @click.stop>
     <div class="card-advanced-filter-header">
-      <div class="card-advanced-filter-eyebrow">角色卡工作台</div>
-      <h2>高级筛选</h2>
-      <p>集中调整当前角色卡列表的范围、排序、收藏、时间和数值条件。</p>
+      <div class="card-advanced-filter-header-copy">
+        <div class="card-advanced-filter-title-row">
+          <span class="card-advanced-filter-title-mark" aria-hidden="true">
+            {{ icon('filter', 'ui-icon--md') }}
+          </span>
+          <div>
+            <div class="card-advanced-filter-eyebrow">角色卡工作台 / FILTERS</div>
+            <h2 id="card-advanced-filter-title">筛选工作台</h2>
+          </div>
+        </div>
+        <p id="card-advanced-filter-description">集中调整当前角色卡列表的范围、排序、收藏、时间和数值条件。</p>
+      </div>
+      <div class="card-advanced-filter-header-actions">
+        <span
+          class="card-advanced-filter-header-status"
+          x-text="cardAdvancedFilterCount > 0 ? `已启用 ${cardAdvancedFilterCount} 项` : '当前无附加条件'"
+        ></span>
       <button
         type="button"
         class="card-advanced-filter-close"
         @click="requestClose()"
+        aria-label="关闭筛选工作台"
+        title="关闭筛选工作台"
       >
-        关闭
+        {{ icon('close', 'ui-icon--md') }}
+        <span class="sr-only">关闭筛选工作台</span>
       </button>
+      </div>
     </div>
 
     <div class="card-advanced-filter-body custom-scrollbar">
       <div class="card-advanced-filter-overview">
         <div class="card-advanced-filter-overview-head">
-          <div>
+          <div class="card-advanced-filter-overview-heading">
+            <span class="card-advanced-filter-overview-icon" aria-hidden="true">
+              {{ icon('clipboard', 'ui-icon--sm') }}
+            </span>
+            <div>
             <div class="card-advanced-filter-overview-label">当前筛选概览</div>
             <p>
               已启用
@@ -36,7 +62,13 @@
               ></strong>
               项条件
             </p>
+            </div>
           </div>
+          <span
+            class="card-advanced-filter-overview-count"
+            x-text="cardAdvancedFilterCount"
+            aria-label="已启用筛选条件数量"
+          ></span>
         </div>
         <div class="card-advanced-filter-overview-list">
           <template
@@ -61,6 +93,12 @@
             class="card-advanced-filter-stat-card"
             @click="setSection(item.section)"
           >
+            <span class="card-advanced-filter-stat-icon" aria-hidden="true">
+              <span x-show="item.key === 'basic'">{{ icon('sliders-settings', 'ui-icon--sm') }}</span>
+              <span x-show="item.key === 'time'">{{ icon('calendar', 'ui-icon--sm') }}</span>
+              <span x-show="item.key === 'numeric'">{{ icon('data-grid', 'ui-icon--sm') }}</span>
+            </span>
+            <span class="card-advanced-filter-stat-copy">
             <span
               class="card-advanced-filter-stat-label"
               x-text="item.label"
@@ -69,6 +107,7 @@
               class="card-advanced-filter-stat-value"
               x-text="item.value"
             ></strong>
+            </span>
           </button>
         </template>
       </div>
@@ -82,7 +121,18 @@
               :class="{ 'is-active': isSectionActive(section.key), 'has-value': section.active }"
               @click="setSection(section.key)"
             >
+              <span class="card-advanced-filter-nav-main">
+                <span class="card-advanced-filter-nav-icon" aria-hidden="true">
+                  <span x-show="section.key === 'basic'">{{ icon('sliders-settings', 'ui-icon--sm') }}</span>
+                  <span x-show="section.key === 'time'">{{ icon('calendar', 'ui-icon--sm') }}</span>
+                  <span x-show="section.key === 'numeric'">{{ icon('data-grid', 'ui-icon--sm') }}</span>
+                  <span x-show="section.key === 'tags'">{{ detail_icon('tags', 'ui-icon--sm') }}</span>
+                </span>
               <span x-text="section.label"></span>
+              </span>
+              <span class="card-advanced-filter-nav-state" aria-hidden="true">
+                <span x-show="section.active">{{ icon('check', 'ui-icon--xs') }}</span>
+              </span>
             </button>
           </template>
         </nav>
@@ -319,9 +369,11 @@
             </div>
             <div class="card-advanced-filter-tag-actions">
               <button type="button" @click="openTagFilterEditor()">
+                <span aria-hidden="true">{{ detail_icon('tags', 'ui-icon--sm') }}</span>
                 编辑标签条件
               </button>
               <button type="button" @click="clearTagFilters()">
+                <span aria-hidden="true">{{ icon('close', 'ui-icon--sm') }}</span>
                 清空标签条件
               </button>
             </div>
@@ -331,9 +383,18 @@
     </div>
 
     <div class="card-advanced-filter-footer">
-      <button type="button" @click="requestClose()">取消</button>
-      <button type="button" @click="clearDraft()">清空草稿</button>
-      <button type="button" @click="applyFilters()">应用筛选</button>
+      <button type="button" @click="requestClose()">
+        <span aria-hidden="true">{{ icon('close', 'ui-icon--sm') }}</span>
+        取消
+      </button>
+      <button type="button" @click="clearDraft()">
+        <span aria-hidden="true">{{ icon('close', 'ui-icon--sm') }}</span>
+        清空草稿
+      </button>
+      <button type="button" @click="applyFilters()">
+        <span aria-hidden="true">{{ icon('check', 'ui-icon--sm') }}</span>
+        应用筛选
+      </button>
     </div>
   </aside>
 </div>

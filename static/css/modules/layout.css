@@ -679,6 +679,577 @@
   flex-shrink: 0;
 }
 
+/* 筛选工作台视觉层：与设置页共享标题、卡片、操作和主题状态语言。 */
+.card-advanced-filter-overlay {
+  padding: 0;
+  background: var(--surface-scrim-soft);
+  backdrop-filter: blur(6px);
+}
+
+.card-advanced-filter-backdrop {
+  background: var(--surface-scrim);
+}
+
+.card-advanced-filter-drawer {
+  width: min(68rem, calc(100vw - 1rem));
+  border-left-color: color-mix(in srgb, var(--border-default), var(--accent-action) 14%);
+  background: var(--surface-container);
+  box-shadow:
+    -28px 0 70px color-mix(in srgb, var(--shadow-color), transparent 16%),
+    0 0 0 1px color-mix(in srgb, var(--accent-action), transparent 93%);
+}
+
+.card-advanced-filter-header {
+  align-items: center;
+  min-height: 5.25rem;
+  padding: 0.9rem 1.25rem;
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--surface-container-raised), var(--accent-action) 7%),
+      var(--surface-container-raised) 58%,
+      color-mix(in srgb, var(--surface-container), var(--accent-action) 4%)
+    );
+}
+
+.card-advanced-filter-header-copy {
+  min-width: 0;
+}
+
+.card-advanced-filter-title-row,
+.card-advanced-filter-overview-heading,
+.card-advanced-filter-nav-main {
+  display: flex;
+  align-items: center;
+}
+
+.card-advanced-filter-title-row,
+.card-advanced-filter-overview-heading {
+  gap: 0.7rem;
+}
+
+.card-advanced-filter-title-mark,
+.card-advanced-filter-overview-icon,
+.card-advanced-filter-stat-icon,
+.card-advanced-filter-nav-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  border-radius: 0.65rem;
+  color: var(--action-icon);
+  background: var(--action-surface);
+}
+
+.card-advanced-filter-title-mark {
+  width: 2.7rem;
+  height: 2.7rem;
+}
+
+.card-advanced-filter-eyebrow {
+  margin: 0;
+  color: var(--content-muted);
+  font-size: 0.65rem;
+  letter-spacing: 0.12em;
+}
+
+.card-advanced-filter-header h2 {
+  margin-top: 0.18rem;
+  color: var(--content-primary);
+  font-size: 1.1rem;
+}
+
+.card-advanced-filter-header p {
+  margin-top: 0.22rem;
+  color: var(--content-muted);
+  font-size: 0.74rem;
+}
+
+.card-advanced-filter-header-actions {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: 0.45rem;
+}
+
+.card-advanced-filter-header-status,
+.card-advanced-filter-overview-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2rem;
+  padding: 0.35rem 0.65rem;
+  border: 1px solid var(--action-border);
+  border-radius: 999px;
+  background: var(--action-surface);
+  color: var(--action-text);
+  font-size: 0.7rem;
+  white-space: nowrap;
+}
+
+.card-advanced-filter-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0;
+  border-color: transparent;
+  border-radius: 0.65rem;
+  background: transparent;
+  color: var(--content-muted);
+  cursor: pointer;
+  transition:
+    color 0.18s ease,
+    background-color 0.18s ease,
+    border-color 0.18s ease,
+    transform 0.18s ease;
+}
+
+.card-advanced-filter-close:hover {
+  border-color: var(--border-default);
+  background: var(--state-hover-surface);
+  color: var(--status-danger-text);
+  transform: translateY(-1px);
+}
+
+.card-advanced-filter-close:focus-visible,
+.card-advanced-filter-overview-chip:focus-visible,
+.card-advanced-filter-stat-card:focus-visible,
+.card-advanced-filter-nav-btn:focus-visible,
+.card-advanced-filter-tag-actions button:focus-visible,
+.card-advanced-filter-footer button:focus-visible,
+.card-advanced-filter-field-grid input:focus-visible,
+.card-advanced-filter-field-grid .icon-select-trigger:focus-visible {
+  outline: 2px solid var(--state-focus-ring);
+  outline-offset: 2px;
+  box-shadow: var(--state-focus-shadow);
+}
+
+.card-advanced-filter-body {
+  padding: 1.25rem;
+  background: color-mix(in srgb, var(--surface-container), var(--surface-page) 10%);
+}
+
+.card-advanced-filter-overview {
+  padding: 1rem;
+  border-color: color-mix(in srgb, var(--border-default), var(--accent-action) 12%);
+  background: color-mix(in srgb, var(--surface-container), var(--surface-container-raised) 24%);
+}
+
+.card-advanced-filter-overview-head {
+  align-items: center;
+}
+
+.card-advanced-filter-overview-icon {
+  width: 2.2rem;
+  height: 2.2rem;
+}
+
+.card-advanced-filter-overview-label {
+  color: var(--content-muted);
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.card-advanced-filter-overview-head p {
+  margin: 0.2rem 0 0;
+  color: var(--content-secondary);
+  font-size: 0.76rem;
+}
+
+.card-advanced-filter-overview-head strong {
+  color: var(--content-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.card-advanced-filter-overview-count {
+  min-width: 2rem;
+  padding-inline: 0.5rem;
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.card-advanced-filter-overview-list {
+  gap: 0.45rem;
+  margin-top: 0.8rem;
+}
+
+.card-advanced-filter-overview-chip {
+  min-height: 2.25rem;
+  padding: 0.45rem 0.7rem;
+  border-color: var(--border-default);
+  background: color-mix(in srgb, var(--surface-container-raised), transparent 12%);
+  color: var(--content-secondary);
+  transition:
+    color 0.18s ease,
+    background-color 0.18s ease,
+    border-color 0.18s ease,
+    transform 0.18s ease;
+}
+
+.card-advanced-filter-overview-chip:hover {
+  border-color: var(--action-border-hover);
+  background: var(--state-hover-surface);
+  color: var(--content-primary);
+  transform: translateY(-1px);
+}
+
+.card-advanced-filter-stat-grid {
+  gap: 0.65rem;
+  margin-top: 0.85rem;
+}
+
+.card-advanced-filter-stat-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  min-height: 4.2rem;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.7rem;
+  border-color: var(--border-subtle);
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, var(--surface-container-raised), transparent 12%);
+  text-align: left;
+  transition:
+    color 0.18s ease,
+    background-color 0.18s ease,
+    border-color 0.18s ease,
+    transform 0.18s ease;
+}
+
+.card-advanced-filter-stat-card:hover {
+  border-color: var(--action-border-hover);
+  background: var(--surface-container-raised);
+  transform: translateY(-1px);
+}
+
+.card-advanced-filter-stat-icon {
+  width: 2rem;
+  height: 2rem;
+}
+
+.card-advanced-filter-stat-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.card-advanced-filter-stat-label {
+  color: var(--content-muted);
+  font-size: 0.68rem;
+}
+
+.card-advanced-filter-stat-value {
+  color: var(--content-primary);
+  font-size: 0.95rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.card-advanced-filter-workbench {
+  gap: 0.85rem;
+  margin-top: 0.85rem;
+}
+
+.card-advanced-filter-nav {
+  gap: 0.45rem;
+  padding: 0.35rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 0.85rem;
+  background: color-mix(in srgb, var(--surface-container-sunken), transparent 12%);
+}
+
+.card-advanced-filter-nav-btn {
+  min-height: 2.9rem;
+  padding: 0.65rem 0.7rem;
+  border-color: transparent;
+  border-radius: 0.65rem;
+  background: transparent;
+  color: var(--content-secondary);
+  transition:
+    color 0.18s ease,
+    background-color 0.18s ease,
+    border-color 0.18s ease,
+    transform 0.18s ease;
+}
+
+.card-advanced-filter-nav-main {
+  min-width: 0;
+  gap: 0.55rem;
+}
+
+.card-advanced-filter-nav-icon {
+  width: 2rem;
+  height: 2rem;
+  background: color-mix(in srgb, var(--surface-container-raised), transparent 8%);
+  color: var(--content-muted);
+}
+
+.card-advanced-filter-nav-btn:hover {
+  background: var(--state-hover-surface);
+  color: var(--content-primary);
+}
+
+.card-advanced-filter-nav-btn.is-active {
+  border-color: var(--action-border);
+  background: var(--action-surface);
+  color: var(--action-text);
+}
+
+.card-advanced-filter-nav-btn.is-active .card-advanced-filter-nav-icon {
+  background: var(--action-surface-hover);
+  color: var(--action-icon);
+}
+
+.card-advanced-filter-nav-btn.has-value {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--action-border), transparent 38%);
+}
+
+.card-advanced-filter-nav-state {
+  display: inline-flex;
+  min-width: 1rem;
+  justify-content: center;
+  color: var(--action-text);
+}
+
+.card-advanced-filter-stage {
+  min-width: 0;
+}
+
+.card-advanced-filter-error {
+  border-color: var(--status-danger-border);
+  background: var(--status-danger-surface);
+  color: var(--status-danger-text);
+}
+
+.card-advanced-filter-module-card {
+  padding: 1rem;
+  border-color: color-mix(in srgb, var(--border-default), transparent 18%);
+  border-radius: 0.85rem;
+  background: color-mix(in srgb, var(--surface-container), var(--surface-container-raised) 24%);
+  box-shadow: none;
+}
+
+.card-advanced-filter-module-head h3 {
+  color: var(--content-primary);
+  font-size: 0.94rem;
+}
+
+.card-advanced-filter-module-head p {
+  color: var(--content-muted);
+  font-size: 0.74rem;
+}
+
+.card-advanced-filter-field-grid,
+.card-advanced-filter-toggle-row {
+  gap: 0.75rem;
+}
+
+.card-advanced-filter-field-grid label,
+.card-advanced-filter-toggle-row label {
+  gap: 0.4rem;
+  color: var(--content-primary);
+  font-size: 0.76rem;
+}
+
+.card-advanced-filter-field-grid input,
+.card-advanced-filter-field-grid .icon-select-trigger,
+.card-advanced-filter-toggle-row .icon-select-trigger {
+  min-height: 2.75rem;
+  border-color: var(--form-border);
+  border-radius: 0.65rem;
+  background: var(--form-surface);
+  color: var(--content-primary);
+}
+
+.card-advanced-filter-field-grid input::placeholder {
+  color: var(--content-muted);
+}
+
+.card-advanced-filter-field-grid .icon-select,
+.card-advanced-filter-toggle-row .icon-select {
+  width: 100%;
+}
+
+.card-advanced-filter-field-grid .icon-select-trigger,
+.card-advanced-filter-toggle-row .icon-select-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.65rem 0.75rem;
+  text-align: left;
+}
+
+.card-advanced-filter-field-grid .icon-select-menu,
+.card-advanced-filter-toggle-row .icon-select-menu {
+  z-index: var(--z-dropdown);
+  border-color: var(--border-default);
+  background: var(--surface-container-raised);
+}
+
+.card-advanced-filter-toggle-row {
+  margin-top: 0.75rem;
+}
+
+.card-advanced-filter-checkbox {
+  min-height: 2.75rem;
+  padding: 0.7rem 0.8rem;
+  border-color: var(--border-subtle);
+  border-radius: 0.7rem;
+  background: color-mix(in srgb, var(--surface-container-raised), transparent 12%);
+}
+
+.card-advanced-filter-checkbox input {
+  accent-color: var(--accent-action);
+}
+
+.card-advanced-filter-tag-summary {
+  border-color: var(--border-subtle);
+  background: color-mix(in srgb, var(--surface-container-raised), transparent 12%);
+}
+
+.card-advanced-filter-tag-summary p {
+  color: var(--content-primary);
+  font-size: 0.78rem;
+}
+
+.card-advanced-filter-tag-stat {
+  color: var(--content-muted);
+}
+
+.card-advanced-filter-tag-actions {
+  gap: 0.55rem;
+}
+
+.card-advanced-filter-tag-actions button,
+.card-advanced-filter-footer button {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.55rem 0.8rem;
+  border-color: var(--border-default);
+  border-radius: 0.65rem;
+  background: color-mix(in srgb, var(--surface-container-raised), transparent 8%);
+  color: var(--content-secondary);
+  transition:
+    color 0.18s ease,
+    background-color 0.18s ease,
+    border-color 0.18s ease,
+    transform 0.18s ease;
+}
+
+.card-advanced-filter-tag-actions button:hover,
+.card-advanced-filter-footer button:hover {
+  border-color: var(--action-border-hover);
+  background: var(--state-hover-surface);
+  color: var(--content-primary);
+  transform: translateY(-1px);
+}
+
+.card-advanced-filter-footer {
+  gap: 0.55rem;
+  padding: 0.85rem 1.25rem;
+  background: color-mix(in srgb, var(--surface-container-raised), var(--surface-page) 14%);
+}
+
+.card-advanced-filter-footer button:last-child {
+  border-color: var(--action-border);
+  background: var(--action-surface);
+  color: var(--action-text);
+  font-weight: 650;
+}
+
+.card-advanced-filter-footer button:last-child:hover {
+  background: var(--action-surface-hover);
+}
+
+@media (max-width: 900px) {
+  .card-advanced-filter-header,
+  .card-advanced-filter-header-actions {
+    align-items: flex-start;
+  }
+
+  .card-advanced-filter-header-status {
+    display: none;
+  }
+
+  .card-advanced-filter-nav {
+    padding: 0.3rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .card-advanced-filter-drawer {
+    width: min(100vw, 32rem);
+    border-radius: 0;
+    border-right: 0;
+    border-left: 0;
+  }
+
+  .card-advanced-filter-header {
+    padding: 0.75rem 0.85rem;
+  }
+
+  .card-advanced-filter-body {
+    padding: 0.8rem;
+  }
+
+  .card-advanced-filter-overview,
+  .card-advanced-filter-module-card {
+    padding: 0.8rem;
+  }
+
+  .card-advanced-filter-stat-grid {
+    gap: 0.55rem;
+  }
+
+  .card-advanced-filter-workbench {
+    margin-top: 0.75rem;
+  }
+
+  .card-advanced-filter-nav-btn {
+    min-height: 2.75rem;
+  }
+
+  .card-advanced-filter-nav-main > span:last-child {
+    white-space: nowrap;
+  }
+
+  .card-advanced-filter-footer {
+    flex-wrap: wrap;
+    padding: 0.75rem 0.8rem;
+  }
+
+  .card-advanced-filter-footer button {
+    flex: 1 1 9rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-advanced-filter-close,
+  .card-advanced-filter-overview-chip,
+  .card-advanced-filter-stat-card,
+  .card-advanced-filter-nav-btn,
+  .card-advanced-filter-tag-actions button,
+  .card-advanced-filter-footer button {
+    transition: none;
+  }
+
+  .card-advanced-filter-close:hover,
+  .card-advanced-filter-overview-chip:hover,
+  .card-advanced-filter-stat-card:hover,
+  .card-advanced-filter-tag-actions button:hover,
+  .card-advanced-filter-footer button:hover {
+    transform: none;
+  }
+}
+
 .sidebar {
   width: 300px;
   background-color: color-mix(in srgb, var(--surface-container), transparent 10%);
