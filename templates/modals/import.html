@@ -25,7 +25,7 @@
                 <div>
                     <label class="form-label" style="font-weight: 500; margin-bottom: 0.5rem; display: block;">图片链接</label>
                     <div class="relative">
-                        <input type="text" x-model="importUrlInput" class="form-input" style="width: 100%; padding-left: 2.5rem;" placeholder="https://example.com/character.png"
+                        <input type="text" x-model="importUrlInput" class="form-input import-url-input" style="width: 100%;" placeholder="https://example.com/character.png"
                             @keydown.enter="importFromUrl()">
                         <div style="position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); color: var(--content-muted);" aria-hidden="true">
                             {{ detail_icon('link-source', 'ui-icon--sm') }}

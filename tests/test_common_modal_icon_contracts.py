@@ -132,6 +132,17 @@ def test_icon_select_contract_covers_import_batch_and_automation_controls():
     assert '.automation-export-btn' in automation_css
 
 
+def test_url_import_input_keeps_icon_gutter_on_mobile():
+    import_template = read_project_file('templates/modals/import.html')
+    modal_css = read_project_file('static/css/modules/modal-tools.css')
+
+    assert 'class="form-input import-url-input"' in import_template
+    assert modal_css.index('.import-url-input') > modal_css.index('padding: 0.5rem !important;')
+    input_css = modal_css.split('.import-url-input', 1)[1].split('}', 1)[0]
+    assert 'box-sizing: border-box;' in input_css
+    assert 'padding-left: 2.5rem !important;' in input_css
+
+
 def test_repeated_action_menus_ignore_sibling_outside_click_handlers():
     automation_template = read_project_file('templates/modals/automation.html')
     automation_js = read_project_file('static/js/components/automationModal.js')

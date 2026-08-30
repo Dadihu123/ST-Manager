@@ -2745,3 +2745,9 @@ html.light-mode .preview-toggle-inactive {
     min-height: 44px;
   }
 }
+
+/* URL 导入输入框需要为左侧图标保留安全间距，避免移动端通用 padding 覆盖。 */
+.import-url-input {
+  box-sizing: border-box;
+  padding-left: 2.5rem !important;
+}
