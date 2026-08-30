@@ -175,16 +175,16 @@ html.light-mode .chat-bookmark-chip {
 
 html.light-mode .chat-toolbar-btn--primary,
 html.light-mode .chat-reader-toggle.is-active {
-  border-color: color-mix(in srgb, var(--accent-action) 18%, transparent);
-  background: linear-gradient(135deg, var(--accent-action), var(--decoration-cyan-solid));
-  color: var(--accent-soft);
+  border-color: var(--action-border);
+  background: var(--action-surface);
+  color: var(--action-text);
   box-shadow: none;
 }
 
 html.light-mode .chat-toolbar-btn--danger {
-  border-color: color-mix(in srgb, var(--status-danger-solid) 20%, transparent);
-  background: linear-gradient(135deg, var(--status-danger-solid), var(--status-danger-text));
-  color: var(--content-on-accent);
+  border-color: var(--status-danger-border);
+  background: var(--status-danger-surface);
+  color: var(--status-danger-text);
   box-shadow: none;
 }
 
@@ -222,9 +222,9 @@ html.light-mode .chat-bind-card-item:hover {
 
 html.light-mode .chat-toolbar-btn--primary:hover,
 html.light-mode .chat-reader-toggle.is-active:hover {
-  border-color: color-mix(in srgb, var(--accent-action-hover) 24%, transparent);
-  background: linear-gradient(135deg, var(--accent-action-hover), var(--decoration-cyan-solid));
-  color: var(--content-on-dark);
+  border-color: var(--action-border-hover);
+  background: var(--action-surface-hover);
+  color: var(--action-text);
 }
 
 html.light-mode .chat-toolbar-btn--danger:hover {

@@ -1883,7 +1883,7 @@
                     <div class="flex items-center gap-2">
                       <button
                         @click="addWiEntry()"
-                        class="text-xs color-surface-accent-solid color-hover-surface-accent color-text-on-dark px-3 py-1.5 rounded flex items-center gap-1 transition"
+                        class="btn-action-soft text-xs px-3 py-1.5 rounded flex items-center gap-1 transition"
                       >
                         {{ icon('plus-square', 'ui-icon--sm') }}
                         <span>新增条目</span>
@@ -2851,7 +2851,7 @@
                           </div>
                           <span
                             x-show="currentSkinIndex >= 0"
-                            class="text-[10px] bg-[var(--accent-action)] color-text-on-dark px-1.5 py-0.5 rounded"
+                            class="text-[10px] color-surface-action color-text-action color-border-action border px-1.5 py-0.5 rounded"
                             >Selected</span
                           >
                         </div>
@@ -2902,7 +2902,7 @@
                           <button
                             @click="setSkinAsCover(selectedSkinPath)"
                             :disabled="currentSkinIndex === -1"
-                            class="btn-secondary flex-1 justify-center font-bold text-[var(--accent-action)] border-[var(--accent-action)] hover:bg-[var(--accent-action)] color-hover-text-on-dark transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-[var(--accent-action)]"
+                            class="btn-action-soft flex-1 justify-center font-bold transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             {{ detail_icon('cover-image', 'ui-icon--sm') }}
                             <span>设为封面</span>

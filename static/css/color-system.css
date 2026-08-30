@@ -50,7 +50,11 @@ a:hover {
 }
 
 .color-text-accent {
-  color: var(--accent-text) !important;
+  color: var(--action-text) !important;
+}
+
+.color-text-action {
+  color: var(--action-text) !important;
 }
 
 .color-text-on-accent {
@@ -147,7 +151,11 @@ a:hover {
 }
 
 .color-surface-accent {
-  background-color: var(--accent-soft) !important;
+  background-color: var(--action-surface) !important;
+}
+
+.color-surface-action {
+  background-color: var(--action-surface) !important;
 }
 
 .color-surface-accent-solid {
@@ -243,7 +251,11 @@ a:hover {
 }
 
 .color-border-accent {
-  border-color: var(--accent-outline) !important;
+  border-color: var(--action-border) !important;
+}
+
+.color-border-action {
+  border-color: var(--action-border) !important;
 }
 
 .color-border-strong {
@@ -371,8 +383,29 @@ a:hover {
 }
 
 .color-hover-surface-accent:hover {
-  background-color: var(--accent-action-hover) !important;
-  color: var(--content-on-accent) !important;
+  background-color: var(--action-surface-hover) !important;
+  color: var(--action-text) !important;
+}
+
+.color-hover-surface-action:hover {
+  background-color: var(--action-surface-hover) !important;
+  color: var(--action-text) !important;
+}
+
+.app-version-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.25rem;
+  padding: 2px 6px;
+  margin-left: 0.25rem;
+  border: 1px solid var(--action-border);
+  border-radius: 0.375rem;
+  background-color: var(--action-surface);
+  color: var(--action-text);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .color-hover-surface-success:hover {
@@ -700,19 +733,23 @@ a:hover {
 /* Consistent controls, overlays, and keyboard navigation. */
 .btn-primary,
 button.btn-primary {
-  background-color: var(--accent-action) !important;
-  border-color: var(--accent-outline) !important;
-  color: var(--content-on-accent) !important;
+  background-color: var(--action-surface) !important;
+  border: 1px solid var(--action-border) !important;
+  color: var(--action-text) !important;
 }
 
 .btn-primary:hover:not(:disabled),
 button.btn-primary:hover:not(:disabled) {
-  background-color: var(--accent-action-hover) !important;
+  background-color: var(--action-surface-hover) !important;
+  border-color: var(--action-border-hover) !important;
+  color: var(--action-text) !important;
 }
 
 .btn-primary:active:not(:disabled),
 button.btn-primary:active:not(:disabled) {
-  background-color: var(--accent-action-active) !important;
+  background-color: var(--action-surface-active) !important;
+  border-color: var(--action-border-hover) !important;
+  color: var(--action-text) !important;
 }
 
 .btn-secondary,
@@ -729,6 +766,35 @@ button.btn-primary:active:not(:disabled) {
   background-color: var(--state-hover-surface) !important;
   border-color: var(--accent-outline) !important;
   color: var(--content-primary) !important;
+}
+
+/* Explicit modifier for non-primary controls that need the soft action treatment. */
+.btn-action-soft,
+button.btn-action-soft {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--action-border) !important;
+  background-color: var(--action-surface) !important;
+  color: var(--action-text) !important;
+  cursor: pointer;
+  transition:
+    background-color 0.18s ease,
+    border-color 0.18s ease,
+    color 0.18s ease,
+    transform 0.12s ease;
+}
+
+.btn-action-soft:hover:not(:disabled),
+button.btn-action-soft:hover:not(:disabled) {
+  background-color: var(--action-surface-hover) !important;
+  border-color: var(--action-border-hover) !important;
+  color: var(--action-text) !important;
+}
+
+.btn-action-soft:active:not(:disabled),
+button.btn-action-soft:active:not(:disabled) {
+  background-color: var(--action-surface-active) !important;
 }
 
 .btn-danger,
@@ -807,13 +873,9 @@ button[data-tone='danger']:hover:not(:disabled) {
 }
 
 .btn-soft-purple {
-  background-color: color-mix(
-    in srgb,
-    var(--decoration-violet-solid) 16%,
-    var(--surface-container)
-  ) !important;
-  border-color: color-mix(in srgb, var(--decoration-violet) 56%, var(--border-default)) !important;
-  color: var(--decoration-violet) !important;
+  background-color: var(--decoration-violet-surface) !important;
+  border-color: var(--decoration-violet-border) !important;
+  color: var(--decoration-violet-text) !important;
 }
 
 .btn-soft-cyan {
@@ -901,6 +963,9 @@ button[data-tone='danger']:hover:not(:disabled) {
   --tag-cat-bg-current: var(--tag-default-surface);
   --tag-cat-border-current: var(--tag-default-border);
   --tag-cat-text-current: var(--tag-default-text);
+  --tag-cat-active-bg-current: var(--action-surface);
+  --tag-cat-active-border-current: var(--action-border);
+  --tag-cat-active-text-current: var(--action-text);
 }
 
 .sidebar-tag-category-pill,
@@ -920,6 +985,9 @@ html:not(.light-mode) .card-tag-filter {
   --tag-cat-hover-bg: var(--tag-cat-hover-bg-dark, var(--state-hover-surface));
   --tag-cat-hover-border: var(--tag-cat-border-dark, var(--accent-outline));
   --tag-cat-hover-text: var(--tag-cat-hover-text-dark, var(--content-primary));
+  --tag-cat-active-bg-current: var(--tag-cat-active-bg-dark, var(--action-surface));
+  --tag-cat-active-border-current: var(--tag-cat-active-border-dark, var(--action-border));
+  --tag-cat-active-text-current: var(--tag-cat-active-text-dark, var(--action-text));
 }
 
 html.light-mode .sidebar-tag-category-pill,
@@ -931,6 +999,9 @@ html.light-mode .card-tag-filter {
   --tag-cat-hover-bg: var(--tag-cat-hover-bg-light, var(--state-hover-surface));
   --tag-cat-hover-border: var(--tag-cat-border-light, var(--accent-outline));
   --tag-cat-hover-text: var(--tag-cat-hover-text-light, var(--content-primary));
+  --tag-cat-active-bg-current: var(--tag-cat-active-bg-light, var(--action-surface));
+  --tag-cat-active-border-current: var(--tag-cat-active-border-light, var(--action-border));
+  --tag-cat-active-text-current: var(--tag-cat-active-text-light, var(--action-text));
 }
 
 .sidebar-tag-category-pill:hover,
@@ -944,16 +1015,18 @@ html.light-mode .card-tag-filter {
 .sidebar-tag-category-pill.active,
 .sidebar-tag-chip.active,
 .card-tag-filter.is-included {
-  background: var(--accent-action) !important;
-  border-color: var(--accent-outline) !important;
-  color: var(--content-on-accent) !important;
+  background: var(--tag-cat-active-bg-current) !important;
+  border-color: var(--tag-cat-active-border-current) !important;
+  color: var(--tag-cat-active-text-current) !important;
+  box-shadow: inset 0 -2px 0 var(--tag-cat-active-border-current);
 }
 
 .sidebar-tag-category-pill.active:hover,
 .sidebar-tag-chip.active:hover,
 .card-tag-filter.is-included:hover {
-  background: var(--accent-action-hover) !important;
-  color: var(--content-on-accent) !important;
+  background: var(--action-surface-hover) !important;
+  border-color: var(--action-border-hover) !important;
+  color: var(--action-text) !important;
 }
 
 .sidebar-tag-chip.excluded,
@@ -989,6 +1062,9 @@ html.light-mode .card-tag-filter {
   --tag-cat-bg-current: var(--tag-default-surface);
   --tag-cat-border-current: var(--tag-default-border);
   --tag-cat-text-current: var(--tag-default-text);
+  --tag-cat-active-bg-current: var(--action-surface);
+  --tag-cat-active-border-current: var(--action-border);
+  --tag-cat-active-text-current: var(--action-text);
   background: var(--tag-cat-bg-current) !important;
   border-color: var(--tag-cat-border-current) !important;
   color: var(--tag-cat-text-current) !important;
@@ -1029,6 +1105,9 @@ html:not(.light-mode) .tag-category-quick-btn {
   --tag-cat-hover-bg-current: var(--tag-cat-hover-bg-dark, var(--state-hover-surface));
   --tag-cat-hover-border-current: var(--tag-cat-border-dark, var(--accent-outline));
   --tag-cat-hover-text-current: var(--tag-cat-hover-text-dark, var(--content-primary));
+  --tag-cat-active-bg-current: var(--tag-cat-active-bg-dark, var(--action-surface));
+  --tag-cat-active-border-current: var(--tag-cat-active-border-dark, var(--action-border));
+  --tag-cat-active-text-current: var(--tag-cat-active-text-dark, var(--action-text));
 }
 
 html.light-mode .tag-chip-btn,
@@ -1038,24 +1117,37 @@ html.light-mode .tag-category-quick-btn {
   --tag-cat-hover-bg-current: var(--tag-cat-hover-bg-light, var(--state-hover-surface));
   --tag-cat-hover-border-current: var(--tag-cat-border-light, var(--accent-outline));
   --tag-cat-hover-text-current: var(--tag-cat-hover-text-light, var(--content-primary));
+  --tag-cat-active-bg-current: var(--tag-cat-active-bg-light, var(--action-surface));
+  --tag-cat-active-border-current: var(--tag-cat-active-border-light, var(--action-border));
+  --tag-cat-active-text-current: var(--tag-cat-active-text-light, var(--action-text));
 }
 
 .tag-chip-selected,
-.tag-chip-selected-purple,
 .tag-chip-category-selected,
 .tag-category-filter-pill.active-included,
 .detail-tag-category-filter-pill.active-included {
-  background: var(--accent-action) !important;
-  border-color: var(--accent-outline) !important;
-  color: var(--content-on-accent) !important;
+  background: var(--tag-cat-active-bg-current) !important;
+  border-color: var(--tag-cat-active-border-current) !important;
+  color: var(--tag-cat-active-text-current) !important;
 }
 
 .tag-chip-selected:hover,
-.tag-chip-selected-purple:hover,
 .tag-category-filter-pill.active-included:hover,
 .detail-tag-category-filter-pill.active-included:hover {
-  background: var(--accent-action-hover) !important;
-  color: var(--content-on-accent) !important;
+  background: var(--action-surface-hover) !important;
+  border-color: var(--action-border-hover) !important;
+  color: var(--action-text) !important;
+}
+
+.tag-chip-selected-purple {
+  background: var(--decoration-violet-solid) !important;
+  border-color: var(--decoration-violet) !important;
+  color: var(--content-on-decoration-solid) !important;
+}
+
+.tag-chip-selected-purple:hover {
+  background: var(--decoration-violet-hover-solid) !important;
+  color: var(--content-on-decoration-solid) !important;
 }
 
 .tag-chip-excluded,

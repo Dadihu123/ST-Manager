@@ -964,9 +964,10 @@ html.light-mode .skin-gallery-folder-symbol {
 }
 
 .detail-tab.active {
-  background: var(--accent-action);
-  color: var(--content-on-accent);
-  border-color: var(--accent-text);
+  background: var(--action-surface);
+  color: var(--action-text);
+  border-color: var(--action-border);
+  box-shadow: inset 0 -2px 0 var(--action-border-hover);
 }
 
 .detail-tab .tab-icon {
@@ -1581,23 +1582,15 @@ html.light-mode .skin-gallery-folder-symbol {
 }
 
 .detail-tag-category-filter-pill.active-mixed {
-  border-color: color-mix(in srgb, var(--accent-action), transparent 45%);
-  background: color-mix(in srgb, var(--accent-action), transparent 85%);
-  color: var(--accent-text);
+  border-color: var(--action-border);
+  background: var(--action-surface);
+  color: var(--action-text);
 }
 
 .detail-tag-category-filter-pill.active-included {
-  border-color: color-mix(
-    in srgb,
-    var(--tag-cat-color, var(--accent-action)),
-    transparent 36%
-  );
-  background: color-mix(
-    in srgb,
-    var(--tag-cat-color, var(--accent-action)),
-    transparent 82%
-  );
-  color: color-mix(in srgb, var(--tag-cat-color, var(--content-on-dark)), var(--content-on-dark) 22%);
+  border-color: var(--tag-cat-active-border-current, var(--action-border));
+  background: var(--tag-cat-active-bg-current, var(--action-surface));
+  color: var(--tag-cat-active-text-current, var(--action-text));
 }
 
 .detail-tag-category-filter-pill.active-excluded {
@@ -2148,15 +2141,15 @@ html.light-mode .skin-gallery-folder-symbol {
 }
 
 .detail-manage-action-btn--st {
-  background-color: color-mix(in srgb, var(--decoration-violet-solid) 95%, transparent);
-  border-color: color-mix(in srgb, var(--accent-action) 45%, transparent);
-  color: var(--content-on-dark);
+  background-color: var(--decoration-violet-surface);
+  border-color: var(--decoration-violet-border);
+  color: var(--decoration-violet-text);
 }
 
 .detail-manage-action-btn--st:hover {
-  background-color: color-mix(in srgb, var(--accent-action) 95%, transparent);
-  border-color: color-mix(in srgb, var(--decoration-violet) 70%, transparent);
-  color: var(--content-on-dark);
+  background-color: var(--decoration-violet-surface-hover);
+  border-color: var(--decoration-violet-text);
+  color: var(--decoration-violet-text);
 }
 
 .detail-manage-action-btn--warn {
@@ -4473,9 +4466,9 @@ html.light-mode .note-textarea:focus {
 }
 
 .detail-persona-preview-btn--primary {
-  border-color: var(--accent-action);
-  background: var(--accent-action);
-  color: var(--content-on-accent);
+  border-color: var(--action-border);
+  background: var(--action-surface);
+  color: var(--action-text);
 }
 
 .detail-persona-preview-btn:hover,
@@ -4492,7 +4485,8 @@ html.light-mode .note-textarea:focus {
 
 .detail-persona-preview-btn--primary:hover,
 .detail-persona-preview-btn--primary:focus-visible {
-  background: var(--accent-action-hover);
+  background: var(--action-surface-hover);
+  color: var(--action-text);
 }
 
 @media (max-width: 1100px) {

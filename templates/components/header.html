@@ -191,14 +191,7 @@
           >ST Manager</span
         >
         <span
-          style="
-            font-size: 0.75rem;
-            background: var(--accent-action);
-            color: var(--content-on-accent);
-            padding: 2px 6px;
-            border-radius: 4px;
-            margin-left: 0.25rem;
-          "
+          class="app-version-badge"
           >V101</span
         >
       </div>
@@ -293,7 +286,7 @@
       <button
         x-show="currentMode === 'cards'"
         @click.stop="openBatchTagModal()"
-        class="btn-violet text-xs px-2 py-1 rounded color-text-on-accent"
+        class="btn-soft-purple text-xs px-2 py-1 rounded"
       >
         批量标签
       </button>
@@ -308,7 +301,7 @@
       <button
         x-show="currentMode === 'worldinfo' && canMoveWorldInfoSelection()"
         @click="moveSelectedWorldInfo()"
-        class="text-xs px-2 py-1 rounded color-text-on-accent color-surface-accent-solid color-hover-surface-accent transition-all flex items-center gap-1"
+        class="btn-action-soft text-xs px-2 py-1 rounded transition-all flex items-center gap-1"
       >
         <span aria-hidden="true">{{ icon('folder', 'ui-icon--sm ') }}</span
         >移动分类
@@ -326,14 +319,14 @@
         @click="mergeSelectedPresets()"
         :disabled="!canMergePresetSelection()"
         :title="getPresetMergeSelectionTitle()"
-        class="btn-violet text-xs px-2 py-1 rounded color-text-on-accent"
+        class="btn-soft-purple text-xs px-2 py-1 rounded"
       >
         合并为多版本
       </button>
       <button
         x-show="currentMode === 'presets' && canMovePresetSelection()"
         @click="moveSelectedPresets()"
-        class="text-xs px-2 py-1 rounded color-text-on-accent color-surface-accent-solid color-hover-surface-accent transition-all flex items-center gap-1"
+        class="btn-action-soft text-xs px-2 py-1 rounded transition-all flex items-center gap-1"
       >
         <span aria-hidden="true">{{ icon('folder', 'ui-icon--sm ') }}</span
         >移动分类
@@ -459,7 +452,7 @@
       </div>
       <button
         @click="selectedIds = []"
-        class="text-xs color-hover-text-on-dark cursor-pointer"
+        class="text-xs color-hover-text-primary cursor-pointer"
         style="color: var(--content-secondary)"
       >
         取消
@@ -734,7 +727,7 @@
     <button
       x-show="selectedIds.length > 0 && currentMode === 'cards'"
       @click="openBatchTagModal()"
-      class="btn-violet text-xs px-2 py-1 rounded color-text-on-accent"
+      class="btn-soft-purple text-xs px-2 py-1 rounded"
     >
       标签
     </button>

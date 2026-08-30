@@ -320,9 +320,9 @@
 }
 
 .automation-help-tab.is-active {
-  color: var(--content-primary);
-  border-color: var(--accent-action);
-  background: color-mix(in srgb, var(--accent-action), transparent 88%);
+  color: var(--action-text);
+  border-color: var(--action-border);
+  background: var(--action-surface);
 }
 
 .automation-help-panel {

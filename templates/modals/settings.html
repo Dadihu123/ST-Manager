@@ -354,21 +354,21 @@
               <button
                 @click="applyFont('sans')"
                 class="py-3 border border-[var(--border-default)] rounded hover:bg-[var(--state-hover-surface)] transition"
-                :class="settingsForm.font_style === 'sans' ? 'bg-[var(--accent-action)] color-text-on-dark border-transparent' : 'bg-[var(--surface-container-raised)]'"
+                :class="settingsForm.font_style === 'sans' ? 'color-surface-action color-text-action color-border-action' : 'bg-[var(--surface-container-raised)]'"
               >
                 <span class="font-sans text-sm">无衬线 (Sans)</span>
               </button>
               <button
                 @click="applyFont('serif')"
                 class="py-3 border border-[var(--border-default)] rounded hover:bg-[var(--state-hover-surface)] transition"
-                :class="settingsForm.font_style === 'serif' ? 'bg-[var(--accent-action)] color-text-on-dark border-transparent' : 'bg-[var(--surface-container-raised)]'"
+                :class="settingsForm.font_style === 'serif' ? 'color-surface-action color-text-action color-border-action' : 'bg-[var(--surface-container-raised)]'"
               >
                 <span class="font-serif text-sm">衬线体 (Serif)</span>
               </button>
               <button
                 @click="applyFont('mono')"
                 class="py-3 border border-[var(--border-default)] rounded hover:bg-[var(--state-hover-surface)] transition"
-                :class="settingsForm.font_style === 'mono' ? 'bg-[var(--accent-action)] color-text-on-dark border-transparent' : 'bg-[var(--surface-container-raised)]'"
+                :class="settingsForm.font_style === 'mono' ? 'color-surface-action color-text-action color-border-action' : 'bg-[var(--surface-container-raised)]'"
               >
                 <span class="font-mono text-sm">等宽 (Mono)</span>
               </button>

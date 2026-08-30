@@ -80,16 +80,17 @@
 }
 
 .header-advanced-filter-btn:hover {
-  border-color: color-mix(in srgb, var(--accent-action), transparent 40%);
-  background: color-mix(in srgb, var(--accent-action), var(--surface-container) 86%);
+  border-color: var(--action-border-hover);
+  background: var(--action-surface-hover);
   box-shadow:
     0 10px 22px color-mix(in srgb, var(--shadow-color), transparent 52%),
     inset 0 1px 0 color-mix(in srgb, var(--content-on-dark), transparent 88%);
 }
 
 .header-advanced-filter-btn.is-active {
-  border-color: color-mix(in srgb, var(--accent-action), transparent 20%);
-  background: color-mix(in srgb, var(--accent-action), var(--surface-container) 80%);
+  border-color: var(--action-border);
+  background: var(--action-surface);
+  color: var(--action-text);
 }
 
 .header-advanced-filter-btn-meta {
@@ -137,8 +138,9 @@
   height: 1.2rem;
   padding: 0 0.35rem;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--accent-action), transparent 12%);
-  color: var(--content-on-dark);
+  background: var(--action-surface-hover);
+  border: 1px solid var(--action-border);
+  color: var(--action-text);
   font-size: 0.7rem;
   line-height: 1;
 }
@@ -635,8 +637,9 @@
   width: 2rem;
   height: 2rem;
   border-radius: 0.7rem;
-  background: color-mix(in srgb, var(--accent-action), transparent 82%);
-  color: var(--accent-text);
+  background: var(--action-surface);
+  border: 1px solid var(--action-border);
+  color: var(--action-icon);
   flex-shrink: 0;
 }
 
@@ -668,8 +671,9 @@
   height: 1.5rem;
   padding: 0 0.4rem;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--accent-action), transparent 14%);
-  color: var(--content-on-dark);
+  background: var(--action-surface);
+  border: 1px solid var(--action-border);
+  color: var(--action-text);
   font-size: 0.72rem;
   font-weight: 600;
   flex-shrink: 0;
@@ -1229,18 +1233,10 @@
 
 .sidebar .folder-item.active,
 .sidebar .folder-item.active.folder-item--isolated {
-  background-color: color-mix(
-    in srgb,
-    var(--sidebar-source-all) 14%,
-    var(--sidebar-surface)
-  );
-  border-color: color-mix(
-    in srgb,
-    var(--sidebar-source-all) 45%,
-    var(--sidebar-divider)
-  );
-  box-shadow: inset 2px 0 0 var(--sidebar-source-all);
-  color: var(--sidebar-label);
+  background-color: var(--action-surface);
+  border-color: var(--action-border);
+  box-shadow: inset 2px 0 0 var(--action-border);
+  color: var(--action-text);
 }
 
 .sidebar .folder-item.drag-over {
@@ -1266,7 +1262,7 @@
 }
 
 .sidebar .folder-item.active > span[aria-hidden="true"] {
-  color: var(--sidebar-source-all);
+  color: var(--action-icon);
 }
 
 .sidebar-mode-actions {
@@ -1303,22 +1299,15 @@
 }
 
 .sidebar-action-button--primary {
-  border-color: color-mix(in srgb, var(--accent-action), transparent 28%);
-  background-color: color-mix(
-    in srgb,
-    var(--accent-action) 12%,
-    var(--sidebar-surface)
-  );
-  color: var(--accent-text);
+  border-color: var(--action-border);
+  background-color: var(--action-surface);
+  color: var(--action-text);
 }
 
 .sidebar-action-button--primary:hover {
-  border-color: var(--accent-action);
-  background-color: color-mix(
-    in srgb,
-    var(--accent-action) 20%,
-    var(--sidebar-surface)
-  );
+  border-color: var(--action-border-hover);
+  background-color: var(--action-surface-hover);
+  color: var(--action-text);
   box-shadow: 0 4px 12px color-mix(in srgb, var(--accent-action), transparent 84%);
 }
 
@@ -1514,8 +1503,8 @@
   width: 32px;
   height: 32px;
   border-radius: 4px;
-  background: linear-gradient(135deg, var(--accent-action), var(--decoration-violet-solid));
-  border: none;
+  background: var(--action-surface);
+  border: 1px solid var(--action-border);
   box-shadow: 0 4px 12px color-mix(in srgb, var(--content-on-light) 30%, transparent);
   cursor: pointer;
   display: flex;
@@ -1529,7 +1518,7 @@
 }
 
 .sidebar-toggle-button .toggle-icon {
-  color: var(--content-on-dark);
+  color: var(--action-icon);
   font-size: 1.25rem;
   font-weight: bold;
 }
@@ -1713,8 +1702,9 @@
 }
 
 .folder-item.active {
-  background-color: var(--accent-action);
-  color: var(--content-on-dark);
+  background-color: var(--action-surface);
+  color: var(--action-text);
+  box-shadow: inset 3px 0 0 var(--action-border-hover);
 }
 
 .folder-item.drag-over {
@@ -1732,7 +1722,7 @@
 }
 
 .folder-item.active.folder-item--isolated {
-  color: var(--content-on-dark);
+  color: var(--action-text);
 }
 
 .folder-isolated-badge {
@@ -1752,9 +1742,9 @@
 }
 
 .folder-item.active .folder-isolated-badge {
-  border-color: color-mix(in srgb, var(--content-on-dark) 38%, transparent);
-  background: color-mix(in srgb, var(--content-on-dark) 16%, transparent);
-  color: var(--content-on-dark);
+  border-color: var(--action-border);
+  background: var(--action-surface-hover);
+  color: var(--action-text);
 }
 
 .sidebar-tag-cloud {
@@ -1800,17 +1790,9 @@
 }
 
 .sidebar-tag-category-pill.active {
-  background: color-mix(
-    in srgb,
-    var(--tag-cat-color, var(--accent-action)),
-    transparent 82%
-  );
-  border-color: color-mix(
-    in srgb,
-    var(--tag-cat-color, var(--accent-action)),
-    transparent 42%
-  );
-  color: color-mix(in srgb, var(--tag-cat-color, var(--content-on-dark)), var(--content-on-dark) 18%);
+  background: var(--tag-cat-active-bg-current, var(--action-surface));
+  border-color: var(--tag-cat-active-border-current, var(--action-border));
+  color: var(--tag-cat-active-text-current, var(--action-text));
 }
 
 .sidebar-tag-category-dot {
@@ -1847,9 +1829,9 @@
 }
 
 .sidebar-tag-chip.active {
-  background: var(--accent-action) !important;
-  color: var(--content-on-dark) !important;
-  border-color: var(--accent-text) !important;
+  background: var(--action-surface) !important;
+  color: var(--action-text) !important;
+  border-color: var(--action-border) !important;
 }
 
 .sidebar-tag-chip.excluded {
@@ -1869,9 +1851,9 @@
 }
 
 .sidebar-tag-chip:not(.active):not(.excluded):hover {
-  background: color-mix(in srgb, var(--tag-cat-color), transparent 75%);
-  border-color: color-mix(in srgb, var(--tag-cat-color), transparent 40%);
-  color: color-mix(in srgb, var(--tag-cat-color), var(--content-on-dark) 16%);
+  background: var(--tag-cat-hover-bg-current, var(--state-hover-surface));
+  border-color: var(--tag-cat-hover-border-current, var(--accent-outline));
+  color: var(--tag-cat-hover-text-current, var(--content-primary));
 }
 
 .pagination-bar {
@@ -1930,9 +1912,9 @@ html.light-mode .pagination-bar {
   display: flex;
   align-items: center;
   gap: 0.25rem;
-  background: var(--accent-action);
-  color: var(--content-on-accent);
-  border: 1px solid var(--accent-text);
+  background: var(--action-surface);
+  color: var(--action-text);
+  border: 1px solid var(--action-border);
   padding: 0.1rem 0.5rem;
   border-radius: 9999px;
   font-size: 0.75rem;
@@ -2078,8 +2060,9 @@ html.light-mode .pagination-bar {
 .header-tool-btn--random {
   position: relative;
   isolation: isolate;
-  color: var(--accent-text);
-  background: transparent;
+  color: var(--action-icon);
+  background: var(--action-surface);
+  border-color: var(--action-border);
 }
 
 /* 放大的头部图标使用独立状态层，向按钮外延伸但不参与横条排版高度。 */
@@ -2094,7 +2077,7 @@ html.light-mode .pagination-bar {
 }
 
 .header-tool-btn--random::before {
-  background-color: color-mix(in srgb, var(--accent-action), transparent 86%);
+  background-color: transparent;
 }
 
 .header-tool-btn--random > .ui-icon {
@@ -2103,12 +2086,13 @@ html.light-mode .pagination-bar {
 }
 
 .header-tool-btn--random:hover:not(:disabled) {
-  color: var(--content-on-dark);
-  background: transparent;
+  color: var(--action-text);
+  background: var(--action-surface-hover);
+  border-color: var(--action-border-hover);
 }
 
 .header-tool-btn--random:hover:not(:disabled)::before {
-  background-color: color-mix(in srgb, var(--accent-action), transparent 68%);
+  background-color: transparent;
 }
 
 html.light-mode .header-tool-buttons {
@@ -2330,9 +2314,9 @@ html.light-mode .header-favorite-btn.is-excluded .header-favorite-icon::after {
 }
 
 .search-mode-toggle button.is-active {
-  border-color: color-mix(in srgb, var(--accent-action), transparent 35%);
-  background: color-mix(in srgb, var(--accent-action), transparent 86%);
-  color: var(--accent-action);
+  border-color: var(--action-border);
+  background: var(--action-surface);
+  color: var(--action-text);
 }
 
 .search-type-inline {
@@ -2766,9 +2750,9 @@ html.light-mode .header-favorite-btn.is-excluded .header-favorite-icon::after {
     gap: 0.25rem;
     padding: 0.25rem 0.5rem;
     border-radius: 12px;
-    background-color: var(--accent-action);
-    border: 1px solid var(--accent-text);
-    color: var(--content-on-accent);
+    background-color: var(--action-surface);
+    border: 1px solid var(--action-border);
+    color: var(--action-text);
     font-size: 0.75rem;
     white-space: nowrap;
     cursor: default;
@@ -3079,9 +3063,9 @@ html.light-mode .header-favorite-btn.is-excluded .header-favorite-icon::after {
     flex: 0 0 auto;
   }
   .mobile-search-mode-toggle button.is-active {
-    border-color: var(--accent-action);
-    background-color: var(--accent-soft-strong);
-    color: var(--accent-action);
+    border-color: var(--action-border);
+    background-color: var(--action-surface);
+    color: var(--action-text);
   }
   .sidebar-mobile .card-sidebar-shell {
     flex: 1 1 auto;

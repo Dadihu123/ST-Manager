@@ -178,7 +178,7 @@
                 >
                   <div
                     class="w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-200 shadow-sm"
-                    :class="selectedIds.includes(card.id) ? 'color-surface-accent-solid color-border-accent color-text-on-dark scale-105' : 'color-surface-scrim-soft color-border-default color-hover-surface-scrim color-hover-border-neutral color-text-on-dark'"
+                    :class="selectedIds.includes(card.id) ? 'color-surface-action color-border-action color-text-action scale-105' : 'color-surface-scrim-soft color-border-default color-hover-surface-scrim color-hover-border-neutral color-text-on-dark'"
                   >
                     <span
                       x-show="selectedIds.includes(card.id)"
@@ -242,7 +242,7 @@
                                                         'is-included': $store.global.viewState.filterTags.includes(tag),
                                                         'is-excluded': $store.global.viewState.excludedTags.includes(tag)
                                                     }"
-                          :style="(!$store.global.viewState.filterTags.includes(tag) && !$store.global.viewState.excludedTags.includes(tag)) ? getReadableTagChipStyle(tag) : ''"
+                          :style="getReadableTagChipStyle(tag)"
                           :title="$store.global.viewState.filterTags.includes(tag) ? `标签：${tag}（已包含，点击改为排除）` : ($store.global.viewState.excludedTags.includes(tag) ? `标签：${tag}（已排除，点击取消筛选）` : `标签：${tag}（点击加入筛选，Shift+点击可直接排除）`)"
                         >
                           <span x-text="tag"></span>
@@ -432,7 +432,7 @@
       <div class="card-flip-toolbar" x-show="paginatedCards.length > 0">
         <button
           @click="toggleBulkFlipMode()"
-          class="btn-secondary card-flip-all-btn"
+          class="btn-secondary btn-action-soft card-flip-all-btn"
           :title="bulkBackMode ? '将当前页全部翻回正面（并关闭背面模式）' : '将当前页全部翻到背面（并保持背面模式）'"
         >
           <span x-show="$store.global.deviceType !== 'mobile' && !bulkBackMode"

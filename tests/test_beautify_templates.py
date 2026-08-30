@@ -589,7 +589,9 @@ def test_beautify_layout_css_replaces_dark_shell_colors_with_theme_driven_surfac
         'border',
         'var(--beautify-shell-frame-border)',
     )
-    assert 'color-mix(in srgb, var(--accent-action)' in primary_button_block
+    assert 'background: var(--action-surface);' in primary_button_block
+    assert 'border-color: var(--action-border);' in primary_button_block
+    assert 'color: var(--action-text);' in primary_button_block
     assert 'linear-gradient(135deg, var(--accent-main), #8b5cf6)' not in primary_button_block
 
 

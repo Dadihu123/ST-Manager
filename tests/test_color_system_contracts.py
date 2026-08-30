@@ -63,6 +63,15 @@ def test_semantic_color_contract_covers_surface_content_state_status_and_focus()
         '--accent-action',
         '--accent-action-hover',
         '--accent-soft',
+        '--action-surface',
+        '--action-surface-hover',
+        '--action-surface-active',
+        '--action-border',
+        '--action-text',
+        '--decoration-violet-surface',
+        '--decoration-violet-surface-hover',
+        '--decoration-violet-border',
+        '--decoration-violet-text',
         '--status-success-text',
         '--status-info-text',
         '--status-warning-text',
@@ -80,6 +89,7 @@ def test_semantic_color_contract_covers_surface_content_state_status_and_focus()
         '.color-status-success',
         '.color-status-danger',
         '.color-focus-border-accent',
+        '.btn-action-soft',
         '.modal-overlay',
         '.toast-notification',
         '.sidebar-tag-category-pill',
@@ -88,6 +98,20 @@ def test_semantic_color_contract_covers_surface_content_state_status_and_focus()
 
     assert '.color-surface-danger-solid' in semantic_css
     assert 'color: var(--content-on-status-solid)' in semantic_css
+
+    primary_button = semantic_css.split('.btn-primary,\nbutton.btn-primary {', 1)[1].split('}', 1)[0]
+    assert 'background-color: var(--action-surface) !important;' in primary_button
+    assert 'border: 1px solid var(--action-border) !important;' in primary_button
+    assert 'color: var(--action-text) !important;' in primary_button
+    assert 'content-on-accent' not in primary_button
+
+    for utility in (
+        '.color-surface-action',
+        '.color-text-action',
+        '.color-border-action',
+        '.color-hover-surface-action',
+    ):
+        assert utility in semantic_css
 
 
 def test_application_sources_do_not_reintroduce_palette_color_utilities():
@@ -147,8 +171,13 @@ def test_runtime_tag_color_combinations_meet_text_and_border_contrast():
             const background = parseCssColor(readVar(style, `--tag-cat-bg-${mode}`));
             const text = parseCssColor(readVar(style, `--tag-cat-text-${mode}`));
             const border = parseCssColor(readVar(style, `--tag-cat-border-${mode}`));
+            const activeBackground = parseCssColor(readVar(style, `--tag-cat-active-bg-${mode}`));
+            const activeText = parseCssColor(readVar(style, `--tag-cat-active-text-${mode}`));
+            const activeBorder = parseCssColor(readVar(style, `--tag-cat-active-border-${mode}`));
             assert.ok(contrastRatio(text, background) >= 4.5, `${color}/${mode} text`);
             assert.ok(contrastRatio(border, background) >= 3, `${color}/${mode} border`);
+            assert.ok(contrastRatio(activeText, activeBackground) >= 4.5, `${color}/${mode} active text`);
+            assert.ok(contrastRatio(activeBorder, activeBackground) >= 3, `${color}/${mode} active border`);
           }
         }
 

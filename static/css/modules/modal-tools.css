@@ -84,9 +84,9 @@
 }
 
 .tag-chip-selected {
-  background-color: var(--accent-action);
-  color: var(--content-on-dark);
-  border-color: var(--accent-text);
+  background-color: var(--action-surface);
+  color: var(--action-text);
+  border-color: var(--action-border);
 }
 
 .tag-chip-selected-purple {
@@ -296,50 +296,29 @@
 }
 
 .tag-category-filter-pill.active-mixed {
-  border-color: color-mix(in srgb, var(--accent-action), transparent 42%);
-  background: color-mix(in srgb, var(--accent-action), transparent 84%);
-  color: var(--accent-text);
+  border-color: var(--action-border);
+  background: var(--action-surface);
+  color: var(--action-text);
 }
 
 .tag-category-filter-pill--workspace.active-mixed {
-  border-color: color-mix(in srgb, var(--accent-action), transparent 28%);
-  background: color-mix(in srgb, var(--accent-action), transparent 78%);
-  color: color-mix(in srgb, var(--accent-text), var(--content-on-dark) 10%);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent-action), transparent 72%);
+  border-color: var(--action-border);
+  background: var(--action-surface);
+  color: var(--action-text);
+  box-shadow: 0 0 0 1px var(--action-border);
 }
 
 .tag-category-filter-pill.active-included {
-  border-color: color-mix(
-    in srgb,
-    var(--tag-cat-color, var(--accent-action)),
-    transparent 35%
-  );
-  background: color-mix(
-    in srgb,
-    var(--tag-cat-color, var(--accent-action)),
-    transparent 82%
-  );
-  color: color-mix(in srgb, var(--tag-cat-color, var(--content-on-dark)), var(--content-on-dark) 20%);
+  border-color: var(--tag-cat-active-border-current, var(--action-border));
+  background: var(--tag-cat-active-bg-current, var(--action-surface));
+  color: var(--tag-cat-active-text-current, var(--action-text));
 }
 
 .tag-category-filter-pill--workspace.active-included {
-  border-color: color-mix(
-    in srgb,
-    var(--tag-cat-color, var(--accent-action)),
-    transparent 18%
-  );
-  background: color-mix(
-    in srgb,
-    var(--tag-cat-color, var(--accent-action)),
-    transparent 74%
-  );
-  color: color-mix(in srgb, var(--tag-cat-color, var(--content-on-dark)), var(--content-on-dark) 12%);
-  box-shadow: 0 0 0 1px
-    color-mix(
-      in srgb,
-      var(--tag-cat-color, var(--accent-action)),
-      transparent 74%
-    );
+  border-color: var(--tag-cat-active-border-current, var(--action-border));
+  background: var(--tag-cat-active-bg-current, var(--action-surface));
+  color: var(--tag-cat-active-text-current, var(--action-text));
+  box-shadow: 0 0 0 1px var(--tag-cat-active-border-current, var(--action-border));
 }
 
 .tag-category-filter-pill.active-excluded {
@@ -1246,19 +1225,15 @@
 }
 
 .tag-filter-selected-basket-chip--included {
-  background: color-mix(in srgb, var(--accent-action), transparent 80%);
-  border-color: color-mix(in srgb, var(--accent-action), transparent 48%);
-  color: var(--accent-text);
+  background: var(--action-surface);
+  border-color: var(--action-border);
+  color: var(--action-text);
 }
 
 .tag-filter-selected-basket-chip--included.tag-filter-selected-basket-chip--workspace {
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--accent-action), transparent 78%),
-    color-mix(in srgb, var(--accent-action), transparent 86%)
-  );
-  border-color: color-mix(in srgb, var(--accent-action), transparent 42%);
-  color: color-mix(in srgb, var(--accent-text), var(--content-on-dark) 8%);
+  background: var(--action-surface);
+  border-color: var(--action-border);
+  color: var(--action-text);
 }
 
 .tag-filter-selected-basket-chip--excluded {
@@ -1326,9 +1301,9 @@
 }
 
 .tag-filter-desktop-main .tag-chip-selected {
-  background: color-mix(in srgb, var(--accent-action), transparent 18%);
-  border-color: color-mix(in srgb, var(--accent-text), transparent 18%);
-  color: var(--content-on-dark);
+  background: var(--action-surface);
+  border-color: var(--action-border);
+  color: var(--action-text);
 }
 
 .tag-filter-desktop-main .tag-chip-unselected {
@@ -1384,6 +1359,12 @@
   color: var(--tag-cat-text, color-mix(in srgb, var(--content-secondary), var(--content-on-dark) 8%));
 }
 
+.tag-filter-desktop-main .tag-chip-selected.tag-chip-categorized {
+  background: var(--tag-cat-active-bg-current, var(--action-surface));
+  border-color: var(--tag-cat-active-border-current, var(--action-border));
+  color: var(--tag-cat-active-text-current, var(--action-text));
+}
+
 .tag-filter-desktop-main .tag-chip-selected.tag-chip-categorized:hover,
 .tag-filter-desktop-main .tag-chip-unselected.tag-chip-categorized:hover,
 .tag-filter-desktop-main .tag-chip-sortable.tag-chip-categorized:hover {
@@ -1401,17 +1382,9 @@
 }
 
 .tag-filter-desktop-main .tag-chip-category-selected {
-  background: color-mix(
-    in srgb,
-    var(--tag-cat-color, var(--accent-action)),
-    transparent 70%
-  );
-  border-color: color-mix(
-    in srgb,
-    var(--tag-cat-color, var(--accent-action)),
-    transparent 34%
-  );
-  color: color-mix(in srgb, var(--tag-cat-color, var(--content-on-dark)), var(--content-on-dark) 18%);
+  background: var(--tag-cat-active-bg-current, var(--action-surface));
+  border-color: var(--tag-cat-active-border-current, var(--action-border));
+  color: var(--tag-cat-active-text-current, var(--action-text));
   box-shadow: none;
 }
 
@@ -1815,8 +1788,9 @@
 }
 
 .toggle-pill-btn.active {
-  background: var(--accent-action);
-  color: var(--content-on-accent);
+  background: var(--action-surface);
+  border: 1px solid var(--action-border);
+  color: var(--action-text);
 }
 
 .diff-container {
@@ -2289,9 +2263,9 @@ html.light-mode .btn-toggle-mode-delete {
 }
 
 .preview-toggle-active {
-  background-color: var(--accent-action) !important;
-  color: var(--content-on-dark) !important;
-  border: 1px solid var(--accent-text);
+  background-color: var(--action-surface) !important;
+  color: var(--action-text) !important;
+  border: 1px solid var(--action-border);
 }
 
 .preview-toggle-inactive {
@@ -2306,9 +2280,9 @@ html.light-mode .btn-toggle-mode-delete {
 }
 
 html.light-mode .preview-toggle-active {
-  background-color: var(--accent-action) !important;
-  color: var(--content-on-dark) !important;
-  border-color: var(--accent-action);
+  background-color: var(--action-surface) !important;
+  color: var(--action-text) !important;
+  border-color: var(--action-border);
 }
 
 html.light-mode .preview-toggle-inactive {
@@ -2701,11 +2675,21 @@ html.light-mode .preview-toggle-inactive {
     min-width: 44px;
     min-height: 44px;
     padding: 0.65rem 1rem;
-    border: 1px solid color-mix(in srgb, var(--accent-action), transparent 48%);
+    border: 1px solid var(--action-border);
     border-radius: 0.8rem;
-    background: color-mix(in srgb, var(--accent-action), transparent 16%);
-    color: var(--content-on-dark);
+    background: var(--action-surface);
+    color: var(--action-text);
     font-weight: 700;
+  }
+
+  .tag-filter-mobile-bottombar button:hover:not(:disabled) {
+    background: var(--action-surface-hover);
+    border-color: var(--action-border-hover);
+    color: var(--action-text);
+  }
+
+  .tag-filter-mobile-bottombar button:active:not(:disabled) {
+    background: var(--action-surface-active);
   }
   .large-editor-title span:first-child {
     font-size: 1.1rem;

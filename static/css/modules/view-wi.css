@@ -235,24 +235,16 @@
 .wi-list-item.active {
   background-color: var(--surface-container) !important;
   padding-left: calc(0.5rem - 2px);
-  background: color-mix(
-    in srgb,
-    var(--accent-action),
-    transparent 92%
-  ) !important;
-  border-left: 3px solid var(--accent-action);
-  border-right: 1px solid var(--glass-border);
+  background: var(--action-surface) !important;
+  border-left: 3px solid var(--action-border);
+  border-right: 1px solid var(--action-border);
   box-shadow: none;
-  border-color: color-mix(
-    in srgb,
-    var(--accent-action),
-    transparent 70%
-  ) !important;
+  border-color: var(--action-border) !important;
 }
 
 .wi-list-item.active .font-bold {
-  color: var(--accent-action);
-  text-shadow: 0 0 8px rgba(var(--accent-action-rgb), 0.4);
+  color: var(--action-text);
+  text-shadow: 0 0 8px color-mix(in srgb, var(--action-text) 40%, transparent);
 }
 
 .wi-list-item.dragging {
@@ -278,12 +270,12 @@ html.light-mode .wi-list-item .font-bold {
 }
 
 html.light-mode .wi-list-item.active {
-  background-color: color-mix(in srgb, var(--accent-action), transparent 85%);
-  border-color: var(--accent-text);
+  background-color: var(--action-surface);
+  border-color: var(--action-border);
 }
 
 html.light-mode .wi-list-item.active .font-bold {
-  color: var(--accent-action-hover);
+  color: var(--action-text);
 }
 
 .wi-status-indicator {
@@ -321,9 +313,9 @@ html.light-mode .wi-status-constant {
 }
 
 .wi-badge.global {
-  background: color-mix(in srgb, var(--accent-action-hover) 60%, transparent);
-  color: var(--accent-text);
-  border-color: var(--accent-action-hover);
+  background: var(--action-surface);
+  color: var(--action-text);
+  border-color: var(--action-border);
 }
 
 .wi-badge.resource {
@@ -351,9 +343,9 @@ html.light-mode .wi-status-constant {
 }
 
 html.light-mode .wi-badge.global {
-  background: var(--accent-soft);
-  color: var(--accent-action-hover);
-  border-color: var(--accent-outline);
+  background: var(--action-surface);
+  color: var(--action-text);
+  border-color: var(--action-border);
 }
 
 html.light-mode .wi-badge.resource {
@@ -740,9 +732,9 @@ html.light-mode .clipboard-item.editing {
 }
 
 .wi-tab-btn.active {
-  border-bottom-color: var(--accent-action);
+  border-bottom-color: var(--action-border);
   background-color: var(--surface-container-raised);
-  color: var(--accent-action);
+  color: var(--action-text);
   opacity: 1;
   background: var(--surface-page);
 }
@@ -755,9 +747,9 @@ html.light-mode .clipboard-item.editing {
   right: 0;
   width: 100%;
   height: 2px;
-  background-color: var(--accent-action);
-  background: var(--accent-action);
-  box-shadow: 0 -2px 6px var(--accent-action);
+  background-color: var(--action-border);
+  background: var(--action-border);
+  box-shadow: 0 -2px 6px var(--action-border);
 }
 
 .wi-inspector-content {
@@ -992,7 +984,7 @@ html.light-mode .wi-worldbook-icon-scope .wi-detail-worldbook-transfer-btn {
 .wi-toggle-btn-float:hover {
   opacity: 1;
   background-color: var(--state-hover-surface);
-  color: var(--accent-action);
+  color: var(--action-icon);
 }
 
 .wi-toggle-btn-float.left {

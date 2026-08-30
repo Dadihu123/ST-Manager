@@ -121,7 +121,7 @@
                   >
                     <div
                       class="w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-200 shadow-sm"
-                      :class="selectedIds.includes(item.id) ? 'color-surface-accent-solid color-border-accent color-text-on-dark scale-105' : 'color-surface-scrim-soft color-border-default color-hover-surface-scrim color-hover-border-neutral color-text-on-dark'"
+                      :class="selectedIds.includes(item.id) ? 'color-surface-action color-border-action color-text-action scale-105' : 'color-surface-scrim-soft color-border-default color-hover-surface-scrim color-hover-border-neutral color-text-on-dark'"
                     >
                       <span x-show="selectedIds.includes(item.id)" aria-hidden="true">
                         {{ icon('check', 'ui-icon--xs') }}
@@ -333,7 +333,7 @@
       <div class="card-flip-toolbar" x-show="wiList.length > 0">
         <button
           @click="toggleWorldInfoBulkFlipMode()"
-          class="btn-secondary card-flip-all-btn"
+          class="btn-secondary btn-action-soft card-flip-all-btn"
           :title="worldInfoBulkBackMode ? '将当前页全部翻回正面（并关闭背面模式）' : '将当前页全部翻到背面（并保持背面模式）'"
         >
           <span

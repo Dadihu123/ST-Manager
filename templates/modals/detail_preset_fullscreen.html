@@ -298,35 +298,35 @@
                 <button
                   @click="uiFilter = 'all'"
                   class="px-3 py-1.5 rounded-full text-xs border transition-colors"
-                  :class="uiFilter === 'all' ? 'bg-[var(--accent-action)]/15 text-[var(--content-primary)] border-[var(--accent-action)]/30' : 'bg-[var(--surface-page)] text-[var(--content-muted)] border-[var(--border-default)]'"
+                  :class="uiFilter === 'all' ? 'color-surface-action color-text-action color-border-action' : 'bg-[var(--surface-page)] text-[var(--content-muted)] border-[var(--border-default)]'"
                 >
                   全部
                 </button>
                 <button
                   @click="uiFilter = 'editable'"
                   class="px-3 py-1.5 rounded-full text-xs border transition-colors"
-                  :class="uiFilter === 'editable' ? 'bg-[var(--accent-action)]/15 text-[var(--content-primary)] border-[var(--accent-action)]/30' : 'bg-[var(--surface-page)] text-[var(--content-muted)] border-[var(--border-default)]'"
+                  :class="uiFilter === 'editable' ? 'color-surface-action color-text-action color-border-action' : 'bg-[var(--surface-page)] text-[var(--content-muted)] border-[var(--border-default)]'"
                 >
                   可编辑
                 </button>
                 <button
                   @click="uiFilter = 'changed'"
                   class="px-3 py-1.5 rounded-full text-xs border transition-colors"
-                  :class="uiFilter === 'changed' ? 'bg-[var(--accent-action)]/15 text-[var(--content-primary)] border-[var(--accent-action)]/30' : 'bg-[var(--surface-page)] text-[var(--content-muted)] border-[var(--border-default)]'"
+                  :class="uiFilter === 'changed' ? 'color-surface-action color-text-action color-border-action' : 'bg-[var(--surface-page)] text-[var(--content-muted)] border-[var(--border-default)]'"
                 >
                   已修改
                 </button>
                 <button
                   @click="uiFilter = 'collections'"
                   class="px-3 py-1.5 rounded-full text-xs border transition-colors"
-                  :class="uiFilter === 'collections' ? 'bg-[var(--accent-action)]/15 text-[var(--content-primary)] border-[var(--accent-action)]/30' : 'bg-[var(--surface-page)] text-[var(--content-muted)] border-[var(--border-default)]'"
+                  :class="uiFilter === 'collections' ? 'color-surface-action color-text-action color-border-action' : 'bg-[var(--surface-page)] text-[var(--content-muted)] border-[var(--border-default)]'"
                 >
                   集合
                 </button>
                 <button
                   @click="uiFilter = 'longtext'"
                   class="px-3 py-1.5 rounded-full text-xs border transition-colors"
-                  :class="uiFilter === 'longtext' ? 'bg-[var(--accent-action)]/15 text-[var(--content-primary)] border-[var(--accent-action)]/30' : 'bg-[var(--surface-page)] text-[var(--content-muted)] border-[var(--border-default)]'"
+                  :class="uiFilter === 'longtext' ? 'color-surface-action color-text-action color-border-action' : 'bg-[var(--surface-page)] text-[var(--content-muted)] border-[var(--border-default)]'"
                 >
                   长文本
                 </button>
@@ -373,7 +373,7 @@
                 <button
                   @click="selectWorkspace(section.id === 'prompt_manager' ? 'prompts' : section.id)"
                   class="w-full text-left px-3 py-2 rounded-xl text-sm border transition-colors"
-                  :class="activeMirroredSection?.id === section.id ? 'bg-[var(--accent-action)]/15 text-[var(--content-primary)] border-[var(--accent-action)]/30' : 'bg-[var(--surface-page)] text-[var(--content-muted)] border-transparent hover:border-[var(--border-default)] hover:text-[var(--content-primary)]'"
+                  :class="activeMirroredSection?.id === section.id ? 'color-surface-action color-text-action color-border-action' : 'bg-[var(--surface-page)] text-[var(--content-muted)] border-transparent hover:border-[var(--border-default)] hover:text-[var(--content-primary)]'"
                 >
                   <div class="flex items-center justify-between gap-3">
                     <div
@@ -402,7 +402,7 @@
               <button
                 @click="selectGroup('all')"
                 class="w-full text-left px-3 py-2 rounded-xl text-sm border transition-colors"
-                :class="activeGroup === 'all' ? 'bg-[var(--accent-action)]/15 text-[var(--content-primary)] border-[var(--accent-action)]/30' : 'bg-[var(--surface-page)] text-[var(--content-muted)] border-transparent hover:border-[var(--border-default)] hover:text-[var(--content-primary)]'"
+                :class="activeGroup === 'all' ? 'color-surface-action color-text-action color-border-action' : 'bg-[var(--surface-page)] text-[var(--content-muted)] border-transparent hover:border-[var(--border-default)] hover:text-[var(--content-primary)]'"
               >
                 全部字段
               </button>
@@ -410,7 +410,7 @@
                 <button
                   @click="selectGroup(group.id)"
                   class="w-full text-left px-3 py-2 rounded-xl text-sm border transition-colors"
-                  :class="activeGroup === group.id ? 'bg-[var(--accent-action)]/15 text-[var(--content-primary)] border-[var(--accent-action)]/30' : 'bg-[var(--surface-page)] text-[var(--content-muted)] border-transparent hover:border-[var(--border-default)] hover:text-[var(--content-primary)]'"
+                :class="activeGroup === group.id ? 'color-surface-action color-text-action color-border-action' : 'bg-[var(--surface-page)] text-[var(--content-muted)] border-transparent hover:border-[var(--border-default)] hover:text-[var(--content-primary)]'"
                 >
                   <div
                     class="font-medium"
@@ -491,7 +491,7 @@
                           <article
                             @click="selectPrompt(prompt.__identifier)"
                             class="rounded-xl border p-3 transition-colors cursor-pointer"
-                            :class="activePromptId === prompt.__identifier ? 'border-[var(--accent-action)]/40 bg-[var(--accent-action)]/10' : 'border-[var(--border-default)] bg-[var(--surface-page)] hover:border-[var(--accent-action)]/20'"
+                            :class="activePromptId === prompt.__identifier ? 'color-border-action color-surface-action' : 'border-[var(--border-default)] bg-[var(--surface-page)] hover:border-[var(--accent-action)]/20'"
                           >
                             <div class="flex items-start justify-between gap-3">
                               <div class="min-w-0 flex-1">
@@ -838,7 +838,7 @@
                         <article
                           @click="selectPrompt(prompt.__identifier)"
                           class="rounded-xl border p-3 transition-colors cursor-pointer"
-                          :class="activePromptId === prompt.__identifier ? 'border-[var(--accent-action)]/40 bg-[var(--accent-action)]/10' : 'border-[var(--border-default)] bg-[var(--surface-page)] hover:border-[var(--accent-action)]/20'"
+                          :class="activePromptId === prompt.__identifier ? 'color-border-action color-surface-action' : 'border-[var(--border-default)] bg-[var(--surface-page)] hover:border-[var(--accent-action)]/20'"
                         >
                           <div class="flex items-start justify-between gap-3">
                             <div class="min-w-0 flex-1">
@@ -1429,7 +1429,7 @@
                       <div
                         @click="selectMirroredField(field.id)"
                         class="rounded-2xl border bg-[var(--surface-page)] p-4 space-y-3 cursor-pointer transition-colors"
-                        :class="activeMirroredField?.id === field.id ? 'border-[var(--accent-action)]/40 bg-[var(--accent-action)]/10' : 'border-[var(--border-default)] hover:border-[var(--accent-action)]/20'"
+                        :class="activeMirroredField?.id === field.id ? 'color-border-action color-surface-action' : 'border-[var(--border-default)] hover:border-[var(--accent-action)]/20'"
                       >
                         <div class="flex items-center justify-between gap-3">
                           <div>
@@ -1701,7 +1701,7 @@
                     <button
                       @click="selectItem(item.id)"
                       class="w-full text-left rounded-xl border p-3 transition-colors"
-                      :class="activeItem?.id === item.id ? 'border-[var(--accent-action)]/40 bg-[var(--accent-action)]/10' : 'border-[var(--border-default)] bg-[var(--surface-page)] hover:border-[var(--accent-action)]/20'"
+                      :class="activeItem?.id === item.id ? 'color-border-action color-surface-action' : 'border-[var(--border-default)] bg-[var(--surface-page)] hover:border-[var(--accent-action)]/20'"
                     >
                       <div class="flex items-start justify-between gap-3">
                         <div class="min-w-0">

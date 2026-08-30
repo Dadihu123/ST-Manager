@@ -185,7 +185,8 @@ def test_layout_css_defines_compact_desktop_search_mode_toggle_contract():
     assert 'color: var(--content-muted);' in button_css
 
     assert 'background:' in active_button_css
-    assert 'color: var(--accent-action);' in active_button_css
+    assert 'border-color: var(--action-border);' in active_button_css
+    assert 'color: var(--action-text);' in active_button_css
 
 
 def test_card_grid_source_and_template_use_windowed_slice_contracts():

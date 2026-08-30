@@ -609,7 +609,7 @@
                                         <span>快捷按钮 (Buttons)</span>
                                     </span>
                                     <button @click="addScriptButton(getTavernScripts()[activeScriptIndex])"
-                                        class="text-[10px] color-surface-accent-solid color-hover-surface-accent color-text-on-dark px-2 py-0.5 rounded transition">
+                                        class="btn-action-soft text-[10px] px-2 py-0.5 rounded transition">
                                         + 添加按钮
                                     </button>
                                 </div>
@@ -764,7 +764,7 @@
                                         <div class="flex items-center justify-between gap-2">
                                             <div class="text-xs font-bold color-text-violet">运行日志</div>
                                             <button @click="clearRuntimeLogs()"
-                                                class="text-[10px] bg-[var(--surface-container)] border border-[var(--border-default)] px-2 py-0.5 rounded color-hover-text-on-dark transition">
+                                                class="text-[10px] bg-[var(--surface-container)] border border-[var(--border-default)] px-2 py-0.5 rounded color-hover-text-primary transition">
                                                 清空日志
                                             </button>
                                         </div>
@@ -801,7 +801,7 @@
                                         <span>变量数据 (Data - JSON Object)</span>
                                     </span>
                                     <button @click="syncScriptDataJson(); $store.global.showToast('JSON 已格式化')"
-                                        class="text-[10px] bg-[var(--surface-container)] border border-[var(--border-default)] px-2 py-0.5 rounded color-hover-text-on-dark transition">
+                                        class="text-[10px] bg-[var(--surface-container)] border border-[var(--border-default)] px-2 py-0.5 rounded color-hover-text-primary transition">
                                         Format JSON
                                     </button>
                                 </div>

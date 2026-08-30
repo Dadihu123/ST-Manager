@@ -414,8 +414,12 @@ export function buildTagColorStyle(color, opacity) {
   const lightBackground = mixColor(lightBase, lightSource, Math.min(0.34, tint * 0.78));
   const darkHoverBackground = mixColor(darkBase, darkSource, Math.min(0.58, tint + 0.18));
   const lightHoverBackground = mixColor(lightBase, lightSource, Math.min(0.42, tint + 0.12));
+  const darkActiveBackground = mixColor(darkBase, darkSource, Math.min(0.62, tint + 0.24));
+  const lightActiveBackground = mixColor(lightBase, lightSource, Math.min(0.5, tint + 0.18));
   const darkText = pickReadableColor(darkBackground);
   const lightText = pickReadableColor(lightBackground);
+  const darkActiveText = pickReadableColor(darkActiveBackground);
+  const lightActiveText = pickReadableColor(lightActiveBackground);
 
   return [
     `--tag-cat-color:${safeColor}`,
@@ -430,6 +434,12 @@ export function buildTagColorStyle(color, opacity) {
     `--tag-cat-hover-bg-light:${rgbToHex(lightHoverBackground)}`,
     `--tag-cat-hover-text-dark:${pickReadableColor(darkHoverBackground)}`,
     `--tag-cat-hover-text-light:${pickReadableColor(lightHoverBackground)}`,
+    `--tag-cat-active-bg-dark:${rgbToHex(darkActiveBackground)}`,
+    `--tag-cat-active-bg-light:${rgbToHex(lightActiveBackground)}`,
+    `--tag-cat-active-border-dark:${pickReadableBorder(darkActiveBackground, source)}`,
+    `--tag-cat-active-border-light:${pickReadableBorder(lightActiveBackground, source)}`,
+    `--tag-cat-active-text-dark:${darkActiveText}`,
+    `--tag-cat-active-text-light:${lightActiveText}`,
     "--tag-cat-bg:var(--tag-cat-bg-dark)",
     "--tag-cat-border:var(--tag-cat-border-dark)",
     "--tag-cat-text:var(--tag-cat-text-dark)",

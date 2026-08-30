@@ -34,7 +34,7 @@
           <div
             class="px-2 py-0.5 rounded text-[10px] font-bold tracking-wider uppercase border bg-opacity-10"
             :class="{
-                            'color-surface-accent-solid color-border-accent color-text-accent': editingWiFile.type === 'global',
+                            'color-surface-accent color-border-action color-text-action': editingWiFile.type === 'global',
                             'color-surface-success-solid color-border-success color-text-success': editingWiFile.type === 'resource',
                             'color-surface-violet color-border-violet color-text-violet': editingWiFile.type === 'embedded'
                         }"
@@ -548,7 +548,7 @@
                     </button>
                     <button
                       @click="saveClipboardItem()"
-                      class="wi-action-btn w-auto px-3 gap-1 color-surface-violet-solid color-hover-surface-violet color-text-on-dark shadow-sm color-shadow-status"
+                      class="wi-action-btn btn-soft-purple w-auto px-3 gap-1 shadow-sm color-shadow-status"
                       title="保存对剪切板条目的修改"
                     >
                       {{ icon('settings-save', 'ui-icon--sm') }}
@@ -1608,7 +1608,7 @@
             <p class="text-[10px] opacity-70 mb-1">点击下方条目以覆盖保存</p>
             <button
               @click="wiClipboardOverwriteMode=false"
-              class="text-[10px] underline color-hover-text-on-dark"
+              class="text-[10px] underline color-hover-text-primary"
             >
               取消
             </button>
@@ -1724,7 +1724,7 @@
               <button
                 @mousedown.stop
                 @click="showFindReplaceModal && _resetFindReplacePanelPos()"
-                class="text-[11px] color-text-secondary color-hover-text-on-dark px-2 py-1 rounded color-surface-raised"
+                class="text-[11px] color-text-secondary color-hover-text-primary px-2 py-1 rounded color-surface-raised"
                 title="重置位置"
               >
                 {{ icon('refresh', 'ui-icon--sm') }}

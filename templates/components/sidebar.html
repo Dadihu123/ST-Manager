@@ -447,7 +447,7 @@
                                 'active': filterTags.includes(tag),
                                 'excluded': $store.global.viewState.excludedTags.includes(tag)
                             }"
-              :style="(!filterTags.includes(tag) && !$store.global.viewState.excludedTags.includes(tag)) ? $store.global.getTagChipStyle(tag) : ''"
+              :style="$store.global.getTagChipStyle(tag)"
               :title="filterTags.includes(tag) ? `标签：${tag}（已包含，点击改为排除）` : ($store.global.viewState.excludedTags.includes(tag) ? `标签：${tag}（已排除，点击取消筛选）` : `标签：${tag}（点击加入筛选，Shift+点击可直接排除）`)"
             >
               <span x-text="tag"></span>

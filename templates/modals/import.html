@@ -130,14 +130,14 @@
                     </div>
 
                     <!-- New -->
-                    <div style="flex: 1; padding: 1rem; display: flex; flex-direction: column; align-items: center; gap: 0.75rem; position: relative; background: var(--accent-soft);">
-                        <div style="position: absolute; top: 0.5rem; right: 0.5rem; font-size: 0.75rem; background: var(--accent-action); color: var(--content-on-accent); padding: 0.1rem 0.5rem; border-radius: 99px; box-shadow: var(--shadow-elevation);">NEW</div>
+                    <div style="flex: 1; padding: 1rem; display: flex; flex-direction: column; align-items: center; gap: 0.75rem; position: relative; background: var(--action-surface);">
+                        <div style="position: absolute; top: 0.5rem; right: 0.5rem; font-size: 0.75rem; background: var(--action-surface-hover); color: var(--action-text); padding: 0.1rem 0.5rem; border-radius: 99px; border: 1px solid var(--action-border); box-shadow: var(--shadow-elevation);">NEW</div>
                         
-                        <div style="width: 100px; height: 150px; border-radius: 0.5rem; overflow: hidden; box-shadow: var(--shadow-elevation); background: var(--surface-media); border: 2px solid var(--accent-action);">
+                        <div style="width: 100px; height: 150px; border-radius: 0.5rem; overflow: hidden; box-shadow: var(--shadow-elevation); background: var(--surface-media); border: 2px solid var(--action-border);">
                             <img :src="conflictData ? conflictData.new_card.image_url : ''" style="width: 100%; height: 100%; object-fit: cover;">
                         </div>
                         <div style="text-align: center; width: 100%;">
-                            <div style="font-weight: 600; font-size: 0.9rem; margin-bottom: 0.25rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px; color: var(--accent-action);" x-text="conflictData?.new_card.char_name"></div>
+                            <div style="font-weight: 600; font-size: 0.9rem; margin-bottom: 0.25rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px; color: var(--action-text);" x-text="conflictData?.new_card.char_name"></div>
                             <div style="display: flex; justify-content: center; gap: 0.5rem; font-size: 0.75rem; color: var(--content-muted);">
                                 <span style="background: var(--surface-container); padding: 2px 6px; border-radius: 4px;" x-text="(conflictData?.new_card.token_count || 0) + ' Tk'"></span>
                                 <span style="background: var(--surface-container); padding: 2px 6px; border-radius: 4px;" x-text="Math.round((conflictData?.new_card.file_size || 0) / 1024) + ' KB'"></span>

@@ -98,8 +98,9 @@
   height: 24px;
   border-radius: 999px;
   border: none;
-  background: color-mix(in srgb, var(--accent-action), transparent 68%);
-  color: var(--content-on-accent);
+  border: 1px solid var(--action-border);
+  background: var(--action-surface);
+  color: var(--action-text);
   cursor: pointer;
 }
 
@@ -148,9 +149,9 @@
 
 .chat-toolbar-btn--primary,
 .chat-reader-toggle.is-active {
-  border-color: color-mix(in srgb, var(--accent-action), var(--chat-border) 40%);
-  background: color-mix(in srgb, var(--accent-action), var(--surface-container) 18%);
-  color: var(--content-primary);
+  border-color: var(--action-border);
+  background: var(--action-surface);
+  color: var(--action-text);
   box-shadow: none;
 }
 

@@ -2540,8 +2540,9 @@ def test_automation_help_modal_js_and_css_define_tab_state_and_mobile_layout():
 
     assert 'border:' in help_tab_block
     assert 'transition:' in help_tab_block
-    assert 'border-color: var(--accent-action);' in active_tab_block
-    assert 'color: var(--content-primary);' in active_tab_block
+    assert 'border-color: var(--action-border);' in active_tab_block
+    assert 'background: var(--action-surface);' in active_tab_block
+    assert 'color: var(--action-text);' in active_tab_block
     assert 'flex-wrap: wrap' in mobile_tabs_block
     assert 'width: 100%' in mobile_tab_block or 'flex: 1 1' in mobile_tab_block
 

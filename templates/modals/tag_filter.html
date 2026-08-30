@@ -249,7 +249,7 @@
             <button
               type="button"
               @click="toggleCategoryManager()"
-              class="text-xs color-surface-accent-solid color-hover-surface-accent px-3 py-1 rounded color-text-on-dark font-bold shadow-md"
+              class="btn-action-soft text-xs px-3 py-1 rounded font-bold shadow-md"
               x-text="showCategoryManager ? '收起分类管理' : '分类管理'"
             ></button>
             <div
@@ -292,7 +292,7 @@
                 <button
                   type="button"
                   @click="addCategoryFromManager()"
-                  class="text-xs color-surface-accent-solid color-hover-surface-accent px-3 py-1 rounded color-text-on-dark font-bold shadow-md"
+                  class="btn-action-soft text-xs px-3 py-1 rounded font-bold shadow-md"
                 >
                   新增/更新
                 </button>
@@ -462,7 +462,7 @@
                                                 'tag-chip-category-selected': showCategoryMode && selectedCategoryTags.includes(tag),
                                                 'tag-chip-category-unselected tag-chip-categorized': showCategoryMode && !selectedCategoryTags.includes(tag)
                                             }"
-                      :style="(!isDeleteMode && (filterTags.indexOf(tag) === -1) && (excludedTags.indexOf(tag) === -1)) ? getTagChipStyle(tag) : ''"
+                      :style="!isDeleteMode ? getTagChipStyle(tag) : ''"
                       :title="!isDeleteMode && !showCategoryMode ? (filterTags.includes(tag) ? `标签：${tag}（已包含，点击改为排除）` : (excludedTags.includes(tag) ? `标签：${tag}（已排除，点击取消筛选）` : `标签：${tag}（分类：${getTagCategory(tag)}，点击加入筛选，Shift+点击可直接排除）`)) : (showCategoryMode ? `标签：${tag}（当前分类：${getTagCategory(tag)}）` : '')"
                     >
                       <span
@@ -524,7 +524,7 @@
                                                             'tag-chip-category-selected': showCategoryMode && selectedCategoryTags.includes(tag),
                                                             'tag-chip-category-unselected tag-chip-categorized': showCategoryMode && !selectedCategoryTags.includes(tag)
                                                         }"
-                            :style="(!isDeleteMode && (filterTags.indexOf(tag) === -1) && (excludedTags.indexOf(tag) === -1)) ? getTagChipStyle(tag) : ''"
+                            :style="!isDeleteMode ? getTagChipStyle(tag) : ''"
                             :title="!isDeleteMode && !showCategoryMode ? (filterTags.includes(tag) ? `标签：${tag}（已包含，点击改为排除）` : (excludedTags.includes(tag) ? `标签：${tag}（已排除，点击取消筛选）` : `标签：${tag}（分类：${getTagCategory(tag)}，点击加入筛选，Shift+点击可直接排除）`)) : (showCategoryMode ? `标签：${tag}（当前分类：${getTagCategory(tag)}）` : '')"
                           >
                             <span
@@ -1496,7 +1496,7 @@
                             <button
                               type="button"
                               @click="addCategoryFromManager()"
-                              class="text-xs color-surface-accent-solid color-hover-surface-accent px-3 py-1 rounded color-text-on-dark font-bold shadow-md"
+                              class="btn-action-soft text-xs px-3 py-1 rounded font-bold shadow-md"
                             >
                               新增/更新
                             </button>

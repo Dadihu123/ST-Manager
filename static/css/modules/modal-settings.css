@@ -60,15 +60,17 @@
 }
 
 .settings-nav-item.active {
-  background-color: var(--surface-container);
-  color: var(--accent-action);
-  border-color: var(--border-default);
+  background-color: var(--action-surface);
+  color: var(--action-text);
+  border-color: var(--action-border);
   box-shadow: 0 1px 2px color-mix(in srgb, var(--content-on-light) 5%, transparent);
   font-weight: bold;
 }
 
 html.light-mode .settings-nav-item.active {
-  background-color: var(--content-on-dark);
+  background-color: var(--action-surface);
+  color: var(--action-text);
+  border-color: var(--action-border);
 }
 
 .settings-content {
@@ -414,10 +416,10 @@ html.light-mode .settings-nav-item.active {
 }
 
 .settings-nav-item.active {
-  color: var(--content-primary);
-  border-color: color-mix(in srgb, var(--accent-action), transparent 54%);
-  background: color-mix(in srgb, var(--accent-action), transparent 88%);
-  box-shadow: inset 3px 0 0 var(--accent-action), 0 5px 14px color-mix(in srgb, var(--shadow-color), transparent 58%);
+  color: var(--action-text);
+  border-color: var(--action-border);
+  background: var(--action-surface);
+  box-shadow: inset 3px 0 0 var(--action-border), 0 5px 14px color-mix(in srgb, var(--shadow-color), transparent 58%);
 }
 
 .nav-icon {
@@ -433,9 +435,9 @@ html.light-mode .settings-nav-item.active {
 }
 
 .settings-nav-item.active .nav-icon {
-  color: var(--accent-text);
-  border-color: color-mix(in srgb, var(--accent-action), transparent 48%);
-  background: color-mix(in srgb, var(--accent-action), transparent 82%);
+  color: var(--action-icon);
+  border-color: var(--action-border);
+  background: var(--action-surface-hover);
 }
 
 .nav-icon .ui-icon {
@@ -802,8 +804,8 @@ html.light-mode .settings-nav-item.active {
   height: 2rem;
   flex: 0 0 auto;
   border-radius: 0.6rem;
-  color: var(--accent-text);
-  background: color-mix(in srgb, var(--accent-action), transparent 84%);
+  color: var(--action-icon);
+  background: var(--action-surface);
 }
 
 .settings-help-title-mark {

@@ -270,7 +270,7 @@
                     <button
                       @click="setUiFilter(filter.id)"
                       class="px-2.5 py-1 rounded-lg text-xs border transition"
-                      :class="uiFilter === filter.id ? 'bg-[var(--accent-action)]/20 border-[var(--accent-action)] text-[var(--content-primary)]' : 'bg-[var(--surface-container)] border-[var(--border-default)] text-[var(--content-muted)]'"
+                      :class="uiFilter === filter.id ? 'color-surface-action color-border-action color-text-action' : 'bg-[var(--surface-container)] border-[var(--border-default)] text-[var(--content-muted)]'"
                       x-text="filter.label"
                     ></button>
                   </template>
@@ -305,7 +305,7 @@
                   <button
                     @click="selectGroup('all')"
                     class="w-full text-left rounded-xl border px-3 py-3 transition"
-                    :class="activeGroup === 'all' ? 'bg-[var(--accent-action)]/15 border-[var(--accent-action)]' : 'bg-[var(--surface-container)] border-[var(--border-default)]'"
+                      :class="activeGroup === 'all' ? 'color-surface-action color-border-action' : 'bg-[var(--surface-container)] border-[var(--border-default)]'"
                   >
                     <div class="flex items-center justify-between gap-2">
                       <div>
@@ -337,7 +337,7 @@
                     <button
                       @click="selectGroup(group.id)"
                       class="w-full text-left rounded-xl border px-3 py-3 transition"
-                      :class="activeGroup === group.id ? 'bg-[var(--accent-action)]/15 border-[var(--accent-action)]' : 'bg-[var(--surface-container)] border-[var(--border-default)] hover:border-[var(--content-muted)]'"
+                      :class="activeGroup === group.id ? 'color-surface-action color-border-action' : 'bg-[var(--surface-container)] border-[var(--border-default)] hover:border-[var(--content-muted)]'"
                     >
                       <div class="flex items-center justify-between gap-2">
                         <div>
@@ -365,7 +365,7 @@
                   <button
                     @click="selectWorkspace('prompts')"
                     class="w-full text-left rounded-xl border px-3 py-3 transition"
-                    :class="activeWorkspace === 'prompts' ? 'bg-[var(--accent-action)]/15 border-[var(--accent-action)]' : 'bg-[var(--surface-container)] border-[var(--border-default)] hover:border-[var(--content-muted)]'"
+                      :class="activeWorkspace === 'prompts' ? 'color-surface-action color-border-action' : 'bg-[var(--surface-container)] border-[var(--border-default)] hover:border-[var(--content-muted)]'"
                   >
                     <div class="flex items-center justify-between gap-2">
                       <div>
@@ -392,7 +392,7 @@
                     <button
                       @click="selectWorkspace(group.id)"
                       class="w-full text-left rounded-xl border px-3 py-3 transition"
-                      :class="activeWorkspace === group.id ? 'bg-[var(--accent-action)]/15 border-[var(--accent-action)]' : 'bg-[var(--surface-container)] border-[var(--border-default)] hover:border-[var(--content-muted)]'"
+                      :class="activeWorkspace === group.id ? 'color-surface-action color-border-action' : 'bg-[var(--surface-container)] border-[var(--border-default)] hover:border-[var(--content-muted)]'"
                     >
                       <div class="flex items-center justify-between gap-2">
                         <div>

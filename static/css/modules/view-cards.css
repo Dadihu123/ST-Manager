@@ -117,9 +117,9 @@
 }
 
 .card-tag-filter.is-included {
-  background: var(--accent-action) !important;
-  color: var(--content-on-dark) !important;
-  border-color: var(--accent-text) !important;
+  background: var(--action-surface) !important;
+  color: var(--action-text) !important;
+  border-color: var(--action-border) !important;
 }
 
 .card-tag-filter.is-excluded {
@@ -288,16 +288,16 @@ html.light-mode .card-bottom-toolbar {
 
 .card-meta-version {
   max-width: 3.2rem;
-  color: var(--decoration-cyan);
-  border-color: color-mix(in srgb, var(--decoration-cyan) 55%, transparent);
-  background: color-mix(in srgb, var(--status-info-solid) 22%, transparent);
+  color: var(--status-info-text);
+  border-color: var(--status-info-border);
+  background: var(--status-info-surface);
 }
 
 .card-meta-bundle {
   max-width: 3.8rem;
   color: var(--status-warning-text);
-  border-color: color-mix(in srgb, var(--status-warning-text) 56%, transparent);
-  background: color-mix(in srgb, var(--status-warning-solid) 28%, transparent);
+  border-color: var(--status-warning-border);
+  background: var(--status-warning-surface);
 }
 
 .card-image-container {
@@ -435,9 +435,10 @@ html.light-mode .card-bottom-toolbar {
 }
 
 .preset-select-shell.is-selected {
-  background: var(--accent-action);
-  border-color: var(--accent-action);
-  color: var(--content-on-accent);
+  background: var(--action-surface);
+  border-color: var(--action-border);
+  color: var(--action-text);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--action-border) 32%, transparent);
   transform: scale(1.05);
 }
 
@@ -1443,23 +1444,6 @@ html.light-mode .preset-card-action-btn.is-export {
   font-size: 0.72rem;
   font-weight: 600;
   letter-spacing: 0.01em;
-  color: var(--content-on-accent);
-  border-color: color-mix(in srgb, var(--accent-action), transparent 42%);
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--accent-action), var(--content-on-dark) 12%),
-    color-mix(in srgb, var(--accent-action), var(--content-on-light) 8%)
-  );
-}
-
-.card-flip-all-btn:hover {
-  color: var(--content-on-accent);
-  border-color: color-mix(in srgb, var(--accent-text), var(--content-on-dark) 18%);
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--accent-action), var(--content-on-dark) 20%),
-    color-mix(in srgb, var(--accent-action-hover), var(--content-on-light) 2%)
-  );
 }
 
 .card-flip-count {
@@ -1559,13 +1543,9 @@ html.light-mode .card-image-tags-wrap .card-tag {
 }
 
 html.light-mode .card-image-tags-wrap .card-tag-filter.is-included {
-  background: color-mix(
-    in srgb,
-    var(--accent-action),
-    transparent 26%
-  ) !important;
-  border-color: color-mix(in srgb, var(--accent-action), var(--content-on-dark) 38%) !important;
-  color: var(--content-on-dark) !important;
+  background: var(--action-surface) !important;
+  border-color: var(--action-border) !important;
+  color: var(--action-text) !important;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
 }

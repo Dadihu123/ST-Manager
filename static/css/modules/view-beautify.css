@@ -176,8 +176,9 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: color-mix(in srgb, var(--accent-action), transparent 88%);
-  color: var(--accent-text);
+  background: var(--action-surface);
+  border: 1px solid var(--action-border);
+  color: var(--action-icon);
   font-size: 0.95rem;
 }
 
@@ -305,9 +306,9 @@
 }
 
 .beautify-primary-btn {
-  background: color-mix(in srgb, var(--accent-action), var(--surface-container) 15%);
-  border-color: color-mix(in srgb, var(--accent-action), var(--border-default) 45%);
-  color: var(--content-primary);
+  background: var(--action-surface);
+  border-color: var(--action-border);
+  color: var(--action-text);
 }
 
 .beautify-toolbar-global-action--primary {
@@ -321,7 +322,9 @@
 
 .beautify-toolbar-global-action--primary:hover {
   filter: none;
-  background: color-mix(in srgb, var(--accent-action), var(--surface-container) 8%);
+  background: var(--action-surface-hover);
+  border-color: var(--action-border-hover);
+  color: var(--action-text);
   box-shadow: none;
 }
 
@@ -348,7 +351,13 @@
 }
 
 .beautify-primary-btn:hover {
-  background: color-mix(in srgb, var(--accent-action), var(--surface-container) 8%);
+  background: var(--action-surface-hover);
+  border-color: var(--action-border-hover);
+  color: var(--action-text);
+}
+
+.beautify-primary-btn:active:not(:disabled) {
+  background: var(--action-surface-active);
 }
 
 .beautify-action-btn.is-disabled,

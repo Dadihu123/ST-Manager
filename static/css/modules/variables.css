@@ -203,6 +203,19 @@
   --accent-faint: var(--accent-soft-strong);
   --accent-action-rgb: var(--accent-main-rgb);
   --accent-outline: color-mix(in srgb, var(--accent-light) 72%, var(--border-default));
+
+  /* Routine actions use the same soft selected-state language as the sidebar. */
+  --action-surface: var(--accent-soft);
+  --action-surface-hover: var(--accent-soft-strong);
+  --action-surface-active: color-mix(
+    in srgb,
+    var(--accent-action) 28%,
+    var(--surface-container)
+  );
+  --action-border: var(--accent-outline);
+  --action-border-hover: var(--accent-text);
+  --action-text: var(--accent-text);
+  --action-icon: var(--accent-text);
   --theme-swatch-blue: #2563eb;
   --theme-swatch-purple: #7c3aed;
   --theme-swatch-green: #059669;
@@ -250,6 +263,22 @@
   --decoration-amber: #fcd34d;
   --decoration-amber-solid: #a16207;
   --decoration-amber-hover-solid: #854d0e;
+  --decoration-violet-surface: color-mix(
+    in srgb,
+    var(--decoration-violet-solid) 16%,
+    var(--surface-container)
+  );
+  --decoration-violet-surface-hover: color-mix(
+    in srgb,
+    var(--decoration-violet-solid) 28%,
+    var(--surface-container)
+  );
+  --decoration-violet-border: color-mix(
+    in srgb,
+    var(--decoration-violet) 56%,
+    var(--border-default)
+  );
+  --decoration-violet-text: var(--decoration-violet);
   --brand-preset: #d6b36a;
   --brand-preset-deep: #b89455;
   --brand-preset-surface: rgba(214, 179, 106, 0.12);
@@ -406,6 +435,18 @@ html.light-mode {
   --accent-action-rgb: var(--accent-main-rgb);
   --accent-outline: color-mix(in srgb, var(--accent-hover) 72%, var(--border-strong));
 
+  --action-surface: var(--accent-soft);
+  --action-surface-hover: var(--accent-soft-strong);
+  --action-surface-active: color-mix(
+    in srgb,
+    var(--accent-action) 20%,
+    var(--surface-container)
+  );
+  --action-border: var(--accent-outline);
+  --action-border-hover: var(--accent-text);
+  --action-text: var(--accent-text);
+  --action-icon: var(--accent-text);
+
   --status-success-text: #047857;
   --status-success-solid: #047857;
   --status-success-hover-solid: #065f46;
@@ -444,6 +485,22 @@ html.light-mode {
   --decoration-amber: #a16207;
   --decoration-amber-solid: #a16207;
   --decoration-amber-hover-solid: #854d0e;
+  --decoration-violet-surface: color-mix(
+    in srgb,
+    var(--decoration-violet-solid) 10%,
+    var(--surface-container)
+  );
+  --decoration-violet-surface-hover: color-mix(
+    in srgb,
+    var(--decoration-violet-solid) 16%,
+    var(--surface-container)
+  );
+  --decoration-violet-border: color-mix(
+    in srgb,
+    var(--decoration-violet-solid) 48%,
+    var(--border-strong)
+  );
+  --decoration-violet-text: var(--decoration-violet-solid);
   --brand-preset: #b89455;
   --brand-preset-deep: #8f6e35;
   --brand-preset-surface: #faf4e8;
