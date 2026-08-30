@@ -129,39 +129,10 @@
                       :class="{'is-flipped': isCardFlipped(card.id)}"
                     >
             <div class="card-face card-front">
-              <div class="card-front-topbar">
-                <div class="card-front-meta-left">
-                  <!-- Token 计数 -->
-                  <div
-                    :class="getCardGridTokenBadgeClass(card.token_count)"
-                    class="card-meta-chip card-meta-token"
-                    title="Token 估算"
-                  >
-                    <span x-text="card.token_count"></span>
-                    <span class="card-meta-token-unit">T</span>
-                  </div>
-                </div>
-
-                <div class="card-front-meta-right">
-                  <div
-                    x-show="card.char_version && card.char_version.trim() !== ''"
-                    :title="`版本：${card.char_version}`"
-                    class="card-meta-chip card-meta-version"
-                  >
-                    <span x-text="card.char_version"></span>
-                  </div>
-
-                  <div
-                    x-show="card.is_bundle"
-                    class="card-meta-chip card-meta-bundle"
-                    :title="`包模式版本数：${card.versions ? card.versions.length : 0}`"
-                  >
-                    {{ icon('package', 'ui-icon--xs ') }} v<span
-                      x-text="card.versions ? card.versions.length : 0"
-                    ></span>
-                  </div>
-                </div>
-              </div>
+              <div
+                class="card-front-topbar card-front-topbar-surface"
+                aria-hidden="true"
+              ></div>
 
               <div class="card-image-container">
                 <img
@@ -174,111 +145,11 @@
                   "
                 />
 
-                <div class="card-image-overlay">
-                  <div class="card-overlay-actions">
-                    <a
-                      x-show="card.source_link"
-                      :href="card.source_link"
-                      target="_blank"
-                      @click.stop
-                      title="访问来源页面"
-                      aria-label="访问来源页面"
-                      class="card-source-link-fab"
-                      rel="noopener noreferrer"
-                    >
-                      {{ icon('external-link', 'ui-icon--sm') }}
-                    </a>
-                  </div>
-
-                  <div class="card-tags-wrap card-image-tags-wrap">
-                    <div class="card-tags-row">
-                      <template
-                        x-for="(tag, idx) in card.tags.slice(0, getVisibleTagLimit())"
-                        :key="`${card.id}-tag-${idx}-${tag}`"
-                      >
-                        <button
-                          type="button"
-                          class="card-tag card-tag-filter"
-                          @click.stop="$store.global.toggleFilterTag(tag, { forceExclude: !!$event.shiftKey })"
-                          :class="{
-                                                        'is-included': $store.global.viewState.filterTags.includes(tag),
-                                                        'is-excluded': $store.global.viewState.excludedTags.includes(tag)
-                                                    }"
-                          :style="getReadableTagChipStyle(tag)"
-                          :title="$store.global.viewState.filterTags.includes(tag) ? `标签：${tag}（已包含，点击改为排除）` : ($store.global.viewState.excludedTags.includes(tag) ? `标签：${tag}（已排除，点击取消筛选）` : `标签：${tag}（点击加入筛选，Shift+点击可直接排除）`)"
-                        >
-                          <span x-text="tag"></span>
-                        </button>
-                      </template>
-                    </div>
-                    <div
-                      x-show="card.tags.length > getVisibleTagLimit()"
-                      class="card-tags-more"
-                    >
-                      +<span
-                        x-text="card.tags.length - getVisibleTagLimit()"
-                      ></span>
-                      个标签
-                    </div>
-                  </div>
-
-                  <h3 class="card-image-char-name" x-text="card.char_name"></h3>
-                </div>
               </div>
+
             </div>
 
             <div class="card-face card-back">
-              <div class="card-back-header">
-                <p class="card-back-title">文件名</p>
-                <p
-                  class="card-back-filename"
-                  :title="card.filename"
-                  x-text="card.filename || '未知文件名'"
-                ></p>
-                <div
-                  class="card-back-category"
-                  :title="`分类：${(card.category && card.category.trim()) ? card.category : '根目录'}`"
-                >
-                  <span class="card-back-category-icon" aria-hidden="true">
-                    {{ icon('folder', 'ui-icon--sm') }}
-                  </span>
-                  <span
-                    class="card-back-category-text"
-                    x-text="formatCategoryLabel(card.category)"
-                  ></span>
-                </div>
-              </div>
-              <div class="card-info card-back-info">
-                <div class="card-back-times">
-                  <div
-                    class="card-back-time-row"
-                    :title="`导入时间：${formatCardBackDateFull(card.import_time || card.last_modified)}`"
-                  >
-                    <span class="card-back-time-label">导入</span>
-                    <span
-                      class="card-back-time-value"
-                      x-text="formatCardBackDate(card.import_time || card.last_modified)"
-                    ></span>
-                  </div>
-                  <div
-                    class="card-back-time-row"
-                    :title="`修改时间：${formatCardBackDateFull(card.last_modified)}`"
-                  >
-                    <span class="card-back-time-label">修改</span>
-                    <span
-                      class="card-back-time-value"
-                      x-text="formatCardBackDate(card.last_modified)"
-                    ></span>
-                  </div>
-                </div>
-                <div
-                  class="local-note-preview custom-scrollbar card-back-note"
-                  @click.stop
-                  :class="card.ui_summary ? 'note-text' : 'note-placeholder'"
-                  title="本地备注"
-                  x-text="card.ui_summary || '无本地备注...'"
-                ></div>
-              </div>
             </div>
                     </div>
 
@@ -286,14 +157,95 @@
 
                   </div>
 
-                  <div class="card-effect-controls-layer">
-                    <div
-                      class="card-effect-controls-topbar-spacer"
-                      aria-hidden="true"
-                    ></div>
+                  <div class="card-effect-controls-layer holo-card__content">
+                    <div class="card-front-topbar card-effect-controls-topbar">
+                      <div class="card-front-meta-left">
+                        <!-- Token 计数 -->
+                        <div
+                          :class="getCardGridTokenBadgeClass(card.token_count)"
+                          class="card-meta-chip card-meta-token"
+                          title="Token 估算"
+                        >
+                          <span x-text="card.token_count"></span>
+                          <span class="card-meta-token-unit">T</span>
+                        </div>
+                      </div>
+
+                      <div class="card-front-meta-right">
+                        <div
+                          x-show="card.char_version && card.char_version.trim() !== ''"
+                          :title="`版本：${card.char_version}`"
+                          class="card-meta-chip card-meta-version"
+                        >
+                          <span x-text="card.char_version"></span>
+                        </div>
+
+                        <div
+                          x-show="card.is_bundle"
+                          class="card-meta-chip card-meta-bundle"
+                          :title="`包模式版本数：${card.versions ? card.versions.length : 0}`"
+                        >
+                          {{ icon('package', 'ui-icon--xs ') }} v<span
+                            x-text="card.versions ? card.versions.length : 0"
+                          ></span>
+                        </div>
+                      </div>
+                    </div>
 
                     <div class="card-effect-controls-image-layer">
-                      <!-- 仅将交互按钮提到特效层之上，卡片内容与原有排版保持不变。 -->
+                      <div class="card-effect-controls-front-info">
+                        <div class="card-image-overlay">
+                          <div class="card-overlay-actions">
+                            <a
+                              x-show="card.source_link"
+                              :href="card.source_link"
+                              target="_blank"
+                              @click.stop
+                              title="访问来源页面"
+                              aria-label="访问来源页面"
+                              class="card-source-link-fab"
+                              rel="noopener noreferrer"
+                            >
+                              {{ icon('external-link', 'ui-icon--sm') }}
+                            </a>
+                          </div>
+
+                          <div class="card-tags-wrap card-image-tags-wrap">
+                            <div class="card-tags-row">
+                              <template
+                                x-for="(tag, idx) in card.tags.slice(0, getVisibleTagLimit())"
+                                :key="`${card.id}-tag-${idx}-${tag}`"
+                              >
+                                <button
+                                  type="button"
+                                  class="card-tag card-tag-filter"
+                                  @click.stop="$store.global.toggleFilterTag(tag, { forceExclude: !!$event.shiftKey })"
+                                  :class="{
+                                                                'is-included': $store.global.viewState.filterTags.includes(tag),
+                                                                'is-excluded': $store.global.viewState.excludedTags.includes(tag)
+                                                            }"
+                                  :style="getReadableTagChipStyle(tag)"
+                                  :title="$store.global.viewState.filterTags.includes(tag) ? `标签：${tag}（已包含，点击改为排除）` : ($store.global.viewState.excludedTags.includes(tag) ? `标签：${tag}（已排除，点击取消筛选）` : `标签：${tag}（点击加入筛选，Shift+点击可直接排除）`)"
+                                >
+                                  <span x-text="tag"></span>
+                                </button>
+                              </template>
+                            </div>
+                            <div
+                              x-show="card.tags.length > getVisibleTagLimit()"
+                              class="card-tags-more"
+                            >
+                              +<span
+                                x-text="card.tags.length - getVisibleTagLimit()"
+                              ></span>
+                              个标签
+                            </div>
+                          </div>
+
+                          <h3 class="card-image-char-name" x-text="card.char_name"></h3>
+                        </div>
+                      </div>
+
                       <button
                         type="button"
                         class="card-select-indicator card-select-overlay"
@@ -330,6 +282,60 @@
                       >
                         {{ icon('heart', 'card-fav-icon') }}
                       </button>
+                    </div>
+
+                    <div class="card-effect-controls-back-info">
+                      <div class="card-back-header">
+                        <p class="card-back-title">文件名</p>
+                        <p
+                          class="card-back-filename"
+                          :title="card.filename"
+                          x-text="card.filename || '未知文件名'"
+                        ></p>
+                        <div
+                          class="card-back-category"
+                          :title="`分类：${(card.category && card.category.trim()) ? card.category : '根目录'}`"
+                        >
+                          <span class="card-back-category-icon" aria-hidden="true">
+                            {{ icon('folder', 'ui-icon--sm') }}
+                          </span>
+                          <span
+                            class="card-back-category-text"
+                            x-text="formatCategoryLabel(card.category)"
+                          ></span>
+                        </div>
+                      </div>
+                      <div class="card-info card-back-info">
+                        <div class="card-back-times">
+                          <div
+                            class="card-back-time-row"
+                            :title="`导入时间：${formatCardBackDateFull(card.import_time || card.last_modified)}`"
+                          >
+                            <span class="card-back-time-label">导入</span>
+                            <span
+                              class="card-back-time-value"
+                              x-text="formatCardBackDate(card.import_time || card.last_modified)"
+                            ></span>
+                          </div>
+                          <div
+                            class="card-back-time-row"
+                            :title="`修改时间：${formatCardBackDateFull(card.last_modified)}`"
+                          >
+                            <span class="card-back-time-label">修改</span>
+                            <span
+                              class="card-back-time-value"
+                              x-text="formatCardBackDate(card.last_modified)"
+                            ></span>
+                          </div>
+                        </div>
+                        <div
+                          class="local-note-preview custom-scrollbar card-back-note"
+                          @click.stop
+                          :class="card.ui_summary ? 'note-text' : 'note-placeholder'"
+                          title="本地备注"
+                          x-text="card.ui_summary || '无本地备注...'"
+                        ></div>
+                      </div>
                     </div>
 
                     <div class="card-bottom-toolbar" @click.stop>

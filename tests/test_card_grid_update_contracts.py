@@ -61,30 +61,38 @@ def test_card_controls_are_sibling_layer_above_cards_css_effect():
 
     content = card_grid_template.split(
         'class="holo-card__content"', 1
-    )[1].split('class="card-effect-controls-layer"', 1)[0]
-    image_container = card_grid_template.split(
-        'class="card-image-container"', 1
-    )[1].split('class="card-image-overlay"', 1)[0]
+    )[1].split('class="card-effect-controls-layer', 1)[0]
+    front_visual = card_grid_template.split(
+        'class="card-face card-front"', 1
+    )[1].split('class="card-effect-controls-layer', 1)[0]
     controls_layer = card_grid_template.split(
-        'class="card-effect-controls-layer"', 1
+        'class="card-effect-controls-layer', 1
     )[1].split('class="holo-card__shine"', 1)[0]
     controls_css = card_css.split(
         '.card-effect-shell .card-effect-controls-layer {', 1
     )[1].split('}', 1)[0]
 
-    assert 'card-select-indicator' not in image_container
-    assert 'card-fav-btn' not in image_container
+    assert 'card-select-indicator' not in front_visual
+    assert 'card-fav-btn' not in front_visual
+    assert 'card-image-overlay' not in front_visual
     assert 'card-select-indicator' in controls_layer
     assert 'card-fav-btn' in controls_layer
-    assert 'card-effect-controls-topbar-spacer' in controls_layer
+    assert 'class="card-effect-controls-layer holo-card__content"' in card_grid_template
+    assert 'card-effect-controls-topbar' in controls_layer
     assert 'card-effect-controls-image-layer' in controls_layer
+    assert 'card-effect-controls-front-info' in controls_layer
+    assert 'card-effect-controls-back-info' in controls_layer
     assert 'card-bottom-toolbar' in controls_layer
     assert 'card-flip-corner' in controls_layer
-    assert controls_layer.index('card-effect-controls-topbar-spacer') < controls_layer.index(
+    assert controls_layer.index('card-effect-controls-topbar') < controls_layer.index(
         'card-effect-controls-image-layer'
-    ) < controls_layer.index('card-bottom-toolbar')
-    assert 'class="card-image-char-name" x-text="card.char_name"' in content
+    ) < controls_layer.index('card-effect-controls-back-info') < controls_layer.index(
+        'card-bottom-toolbar'
+    )
+    assert 'class="card-image-char-name" x-text="card.char_name"' in controls_layer
+    assert 'class="card-front-topbar card-front-topbar-surface"' in front_visual
     assert 'card-toolbar-layout-spacer' in content
+    assert content.count('class="card-toolbar-layout-spacer"') == 1
     assert 'z-index: 5;' in controls_css
     assert 'pointer-events: none;' in controls_css
     assert '@click.stop="handleCardClick($event, card)"' in card_grid_template
@@ -112,6 +120,47 @@ def test_card_controls_are_sibling_layer_above_cards_css_effect():
     )[1].split('}', 1)[0]
     assert 'background: color-mix(in srgb, var(--content-on-dark) 42%, transparent) !important;' in light_surface_rule
     assert 'backdrop-filter: blur(12px) saturate(130%) !important;' in light_surface_rule
+
+
+def test_card_information_uses_the_existing_controls_layer_above_effects():
+    card_grid_template = read_project_file('templates/components/grid_cards.html')
+    card_css = read_project_file('static/css/modules/view-cards.css')
+
+    controls = card_grid_template.split('class="card-effect-controls-layer', 1)[1].split(
+        'class="holo-card__shine"', 1
+    )[0]
+    controls_css = card_css.split(
+        '.card-effect-shell .card-effect-controls-layer {', 1
+    )[1].split('}', 1)[0]
+    front_info_css = card_css.split(
+        '.card-effect-shell .card-effect-controls-front-info {', 1
+    )[1].split('}', 1)[0]
+
+    assert controls.count('class="card-front-topbar card-effect-controls-topbar"') == 1
+    assert controls.count('class="card-effect-controls-front-info"') == 1
+    assert controls.count('class="card-effect-controls-back-info"') == 1
+    assert 'class="card-image-char-name" x-text="card.char_name"' in controls
+    assert 'class="card-back-header"' in controls
+    assert 'card-back-info' in controls
+    assert '@click.stop="$store.global.toggleFilterTag' in controls
+    assert '@click.stop="toggleSelection(card)"' in controls
+    assert '@click.stop="toggleCardFav(card)"' in controls
+    assert '@click.stop="toggleCardFace(card.id)"' in controls
+
+    effects_start = card_grid_template.index('<div class="holo-card__shine"')
+    controls_end = card_grid_template.index('</div>\n                  <div class="holo-card__shine"')
+    assert controls_end < effects_start
+    assert 'z-index: 5;' in controls_css
+    assert 'pointer-events: none;' in controls_css
+    assert 'position: absolute;' in front_info_css
+    assert 'pointer-events: none;' in front_info_css
+    assert re.search(
+        r'\.card-effect-shell \.card-effect-controls-back-info\s*\{'
+        r'[\s\S]*?position: absolute;[\s\S]*?pointer-events: none;',
+        card_css,
+    )
+    assert '.card-effect-shell .card-face {' not in card_css
+    assert 'z-index: 6;' not in card_css
 
 
 def test_bulk_flip_buttons_use_the_soft_action_treatment_in_both_themes_and_layouts():

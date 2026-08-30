@@ -2339,14 +2339,13 @@ html.light-mode .card-effect-shell .card-toolbar-layout-spacer {
     min-height: calc(1.8rem + 0.5rem + 1px);
     padding: 0.25rem 0.35rem;
   }
-
-  .card-effect-shell .card-effect-controls-topbar-spacer {
-    min-height: 1.8rem;
-    padding: 0.3rem 0.35rem;
-  }
 }
 
-/* 只把业务按钮提到特效层上方，保持图片、文字和原有卡片排版不变。 */
+/*
+ * 交互按钮和卡面信息共用同一前景控制层；内容层只保留视觉布局。
+ * 复用 cards-css 的 holo-card__content 标记，让其后代沿用原卡面尺寸重置，
+ * 避免旋转器的通用规则把 token、版本号和背面信息放大成整卡形状。
+ */
 .card-effect-shell .card-effect-controls-layer {
   position: absolute;
   inset: 0;
@@ -2362,18 +2361,33 @@ html.light-mode .card-effect-shell .card-toolbar-layout-spacer {
   pointer-events: none;
 }
 
-.card-effect-shell .card-effect-controls-topbar-spacer {
+.card-effect-shell .card-effect-controls-topbar {
   flex: 0 0 auto;
   width: 100%;
-  min-height: 2rem;
-  padding: 0.42rem 0.5rem;
-  border-bottom: 1px solid transparent;
-  display: block;
+  height: auto;
+  display: flex;
   grid-area: auto;
   aspect-ratio: auto;
   overflow: visible;
   border-radius: 0;
-  visibility: hidden;
+  pointer-events: none;
+}
+
+.card-effect-shell .card-effect-controls-topbar * {
+  pointer-events: none;
+}
+
+/* 顶部栏的可视表面留在内容占位层，控制层只承载元信息，避免背景叠加变暗。 */
+.card-effect-shell .card-effect-controls-layer
+  > .card-effect-controls-topbar {
+  background: transparent !important;
+  border-bottom-color: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.card-effect-shell .card-front-topbar-surface {
   pointer-events: none;
 }
 
@@ -2388,6 +2402,88 @@ html.light-mode .card-effect-shell .card-toolbar-layout-spacer {
   overflow: visible;
   border-radius: 0;
   pointer-events: none;
+}
+
+.card-effect-shell .card-effect-controls-front-info {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  display: block;
+  grid-area: auto;
+  aspect-ratio: auto;
+  overflow: visible;
+  border-radius: 0;
+  pointer-events: none;
+}
+
+.card-effect-shell .card-effect-controls-front-info > .card-image-overlay {
+  pointer-events: none;
+}
+
+.card-effect-shell .card-effect-controls-front-info .card-source-link-fab {
+  pointer-events: auto;
+}
+
+.card-effect-shell .card-effect-controls-topbar,
+.card-effect-shell .card-effect-controls-front-info {
+  transition:
+    opacity 0.18s ease,
+    visibility 0s linear 0.18s;
+}
+
+.st-card.is-flipped .card-effect-controls-topbar,
+.st-card.is-flipped .card-effect-controls-front-info {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.card-effect-shell .card-effect-controls-back-info {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  padding-bottom: calc(1.8rem + 0.68rem + 1px);
+  grid-area: auto;
+  aspect-ratio: auto;
+  overflow: hidden;
+  border-radius: 0;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity 0.18s ease,
+    visibility 0s linear 0.18s;
+}
+
+.card-effect-shell .card-effect-controls-back-info > .card-back-header {
+  width: 100%;
+  display: block;
+}
+
+.card-effect-shell .card-effect-controls-back-info > .card-back-info {
+  width: 100%;
+  display: flex;
+}
+
+.card-effect-shell .card-effect-controls-back-info .card-back-note {
+  pointer-events: auto;
+}
+
+.st-card.is-flipped .card-effect-controls-back-info {
+  opacity: 1;
+  visibility: visible;
+  transition-delay: 0s;
+}
+
+@media (max-width: 768px) {
+  .card-effect-shell .card-effect-controls-back-info {
+    padding-bottom: calc(1.8rem + 0.5rem + 1px);
+  }
 }
 
 .card-effect-shell .card-effect-controls-image-layer
@@ -2498,6 +2594,10 @@ html.light-mode .card-effect-shell .card-toolbar-layout-spacer {
 @media (max-width: 640px) {
   .card-effect-shell .card-toolbar-layout-spacer {
     min-height: calc(1.6rem + 0.5rem + 1px);
+  }
+
+  .card-effect-shell .card-effect-controls-back-info {
+    padding-bottom: calc(1.6rem + 0.5rem + 1px);
   }
 
   .card-effect-shell .card-effect-controls-layer
