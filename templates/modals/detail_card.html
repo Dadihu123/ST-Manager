@@ -7,10 +7,11 @@
   x-show="showDetail"
   x-data="detailModal"
   x-cloak
-  class="modal-overlay z-modal-std"
+  class="modal-overlay ui-modal-overlay ui-refresh-surface ui-detail-modal z-modal-std"
   @click.self="showDetail=false"
 >
-  <div class="detail-modal detail-icon-scope" @click.stop>
+  <div class="detail-modal detail-icon-scope" role="dialog" aria-modal="true"
+    aria-label="角色卡详情" @click.stop>
     <!-- 左侧外悬浮：SKINS（不遮挡图片） -->
     <div
       class="detail-filmstrip-outside custom-scrollbar"
@@ -1577,7 +1578,7 @@
                         x-show="isEditMode"
                         class="detail-tag-x"
                         @click.stop="removeTagAt(index)"
-                        >{{ icon('close-bold', 'ui-icon--xs') }}</span
+                        >{{ icon('close', 'ui-icon--xs') }}</span
                       >
                     </button>
                   </template>
@@ -1619,7 +1620,7 @@
                       class="detail-inline-add"
                       title="清空搜索"
                     >
-                      {{ icon('close-bold', 'ui-icon--xs') }}
+                      {{ icon('close', 'ui-icon--xs') }}
                     </button>
                   </div>
 
@@ -3416,8 +3417,9 @@
         <button
           type="button"
           @click="closeSkinGalleryPreview()"
-          class="skin-gallery-close"
+          class="ui-close-button skin-gallery-close"
           title="关闭图片预览"
+          aria-label="关闭图片预览"
         >
           {{ icon('close', 'ui-icon--sm') }}
         </button>
@@ -3432,22 +3434,19 @@
   <div
     x-show="showSetResourceFolderModal"
     x-cloak
-    class="modal-overlay z-[1000]"
+    class="modal-overlay ui-modal-overlay ui-refresh-surface z-[1000]"
     style="position: absolute"
     @click.stop
   >
     <div
-      style="
-        background: var(--surface-container);
-        padding: 1.5rem;
-        border-radius: 0.75rem;
-        width: 25rem;
-        border: 1px solid var(--border-default);
-      "
+      class="ui-small-dialog"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="resource-folder-title"
       @click.stop
     >
-      <h3 style="font-weight: bold; margin-bottom: 1rem">设置资源目录</h3>
-      <div class="flex flex-col gap-2">
+      <div class="ui-small-dialog-header"><h3 id="resource-folder-title">设置资源目录</h3></div>
+      <div class="ui-small-dialog-body"><div class="flex flex-col gap-2">
         <div style="color: var(--content-muted); font-size: 0.875rem">
           输入相对路径或绝对路径
         </div>
@@ -3456,7 +3455,7 @@
           x-model="editingData.resource_folder"
           class="form-input"
         />
-        <div class="flex gap-2">
+        <div class="ui-small-dialog-actions">
           <button
             @click="showSetResourceFolderModal = false"
             class="btn-secondary flex-1"
@@ -3470,7 +3469,7 @@
             确定 (API保存)
           </button>
         </div>
-      </div>
+      </div></div>
     </div>
   </div>
   <!-- ================================================= -->
@@ -3486,25 +3485,32 @@
     x-transition:leave="transition ease-in duration-150"
     x-transition:leave-start="opacity-100 scale-100"
     x-transition:leave-end="opacity-0 scale-95"
-    class="detail-icon-scope fixed inset-0 z-modal-popover flex items-center justify-center color-surface-scrim backdrop-blur-sm p-4 md:p-8"
+    class="detail-icon-scope ui-refresh-surface fixed inset-0 z-modal-popover flex items-center justify-center color-surface-scrim backdrop-blur-sm p-4 md:p-8"
     @click.self="showHelpModal = false"
   >
     <div
-      class="bg-[var(--surface-container)] border border-[var(--border-default)] rounded-xl shadow-2xl w-full max-w-4xl flex flex-col overflow-hidden max-h-[90vh]"
+      class="ui-modal-shell w-full max-w-4xl max-h-[90vh]"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="detail-help-title"
     >
       <!-- Header -->
       <div
-        class="px-6 py-4 border-b border-[var(--border-default)] bg-[var(--surface-container-raised)] flex justify-between items-center flex-shrink-0"
+        class="ui-modal-header flex-shrink-0"
       >
         <h3
-          class="font-bold text-lg text-[var(--content-primary)] flex items-center gap-2"
+          id="detail-help-title"
+          class="ui-modal-title flex items-center gap-2"
         >
           {{ icon('settings-help-entry', 'ui-icon--lg') }}
           <span>角色卡字段说明指南</span>
         </h3>
         <button
           @click="showHelpModal = false"
-          class="color-text-muted color-hover-text-danger px-2 text-xl"
+          class="ui-close-button"
+          type="button"
+          title="关闭字段说明"
+          aria-label="关闭字段说明"
         >
           {{ icon('close', 'ui-icon--lg') }}
         </button>
@@ -3512,7 +3518,7 @@
 
       <!-- Content -->
       <div
-        class="p-6 overflow-y-auto custom-scrollbar text-sm text-[var(--content-primary)] space-y-8"
+        class="ui-modal-body overflow-y-auto custom-scrollbar text-sm text-[var(--content-primary)] space-y-8"
       >
         <!-- 1. 核心设定 -->
         <div>

@@ -1,5 +1,5 @@
 {% from "components/dice_icon.html" import dice_icon %} {% from
-"components/icon.html" import detail_icon, icon %} {% from
+"components/icon.html" import detail_icon, icon, sidebar_icon %} {% from
 "components/styled_select.html" import styled_select %}
 
 <div class="header-bar" x-data="header">
@@ -257,12 +257,13 @@
   <!-- 桌面端：右侧操作区 -->
   <div
     x-show="deviceType !== 'mobile'"
+    class="header-batch-action-region"
     style="display: flex; align-items: center; gap: 0.5rem"
   >
     <!-- 选中状态栏 -->
     <div
       x-show="selectedIds.length > 0"
-      class="selection-bar flex items-center gap-2 border px-3 py-1.5 rounded-lg mr-2 relative"
+      class="selection-bar ui-batch-action-strip flex items-center gap-2 border px-3 py-1.5 rounded-lg mr-2 relative"
       style="
         background-color: var(--accent-soft-strong);
         border-color: var(--accent-text);
@@ -280,6 +281,7 @@
         :class="isCurrentPageAllSelected ? 'btn-danger' : 'btn-success'"
         :title="isCurrentPageAllSelected ? '取消全选当前页' : '全选当前页'"
       >
+        <span aria-hidden="true">{{ icon('check', 'ui-icon--sm') }}</span>
         <span x-show="!isCurrentPageAllSelected">全选</span>
         <span x-show="isCurrentPageAllSelected">取消全选</span>
       </button>
@@ -359,14 +361,14 @@
           x-transition:enter="transition ease-out duration-100"
           x-transition:enter-start="opacity-0 scale-95"
           x-transition:enter-end="opacity-100 scale-100"
-          class="absolute top-full left-0 mt-2 w-56 bg-[var(--surface-container)] border border-[var(--border-default)] rounded-lg shadow-2xl py-1"
+          class="header-batch-menu absolute top-full left-0 mt-2 w-56 bg-[var(--surface-container)] border border-[var(--border-default)] rounded-lg shadow-2xl py-1"
           style="z-index: var(--z-dropdown)"
         >
           <!-- 这个列表由全局 store 管理 -->
           <template x-for="rs in $store.global.availableRuleSets" :key="rs.id">
             <button
               @click="executeRuleSet(rs.id); showRuleMenu=false"
-              class="w-full text-left px-3 py-2 text-xs hover:bg-[var(--state-hover-surface)] text-[var(--content-primary)] block"
+              class="header-batch-menu-item w-full text-left px-3 py-2 text-xs hover:bg-[var(--state-hover-surface)] text-[var(--content-primary)] block"
               x-text="rs.meta && rs.meta.name ? rs.meta.name : rs.id"
             ></button>
           </template>
@@ -379,7 +381,7 @@
           <div class="border-t border-[var(--border-default)] mt-1 pt-1">
             <button
               @click="$dispatch('open-automation-modal'); showRuleMenu=false"
-              class="w-full text-left px-3 py-2 text-xs color-text-accent hover:bg-[var(--state-hover-surface)] flex items-center gap-1"
+              class="header-batch-menu-item w-full text-left px-3 py-2 text-xs color-text-accent hover:bg-[var(--state-hover-surface)] flex items-center gap-1"
             >
               <span aria-hidden="true"
                 >{{ icon('settings', 'ui-icon--sm') }}</span
@@ -417,14 +419,14 @@
           x-transition:enter-start="opacity-0 scale-95"
           x-transition:enter-end="opacity-100 scale-100"
           role="menu"
-          class="absolute top-full left-0 mt-2 w-56 bg-[var(--surface-container)] border border-[var(--border-default)] rounded-lg shadow-2xl py-1 overflow-hidden"
+          class="header-batch-menu absolute top-full left-0 mt-2 w-56 bg-[var(--surface-container)] border border-[var(--border-default)] rounded-lg shadow-2xl py-1 overflow-hidden"
           style="z-index: var(--z-dropdown)"
         >
           <button
             @click="checkSelectedSourceUpdates(); showSourceUpdateMenu = false"
             type="button"
             role="menuitem"
-            class="w-full block text-left px-3 py-2 text-xs hover:bg-[var(--state-hover-surface)] text-[var(--content-primary)] transition-colors"
+            class="w-full block text-left px-3 py-2 text-xs hover:bg-[var(--state-hover-surface)] text-[var(--content-primary)] transition-colors header-batch-menu-item"
           >
             检查更新
           </button>
@@ -432,7 +434,7 @@
             @click="acknowledgeSelectedSourceUpdates(); showSourceUpdateMenu = false"
             type="button"
             role="menuitem"
-            class="w-full block text-left px-3 py-2 text-xs hover:bg-[var(--state-hover-surface)] text-[var(--content-primary)] transition-colors"
+            class="w-full block text-left px-3 py-2 text-xs hover:bg-[var(--state-hover-surface)] text-[var(--content-primary)] transition-colors header-batch-menu-item"
           >
             确认无需更新
           </button>
@@ -444,7 +446,7 @@
             @click="addSelectedToSourceMonitorPool(); showSourceUpdateMenu = false"
             type="button"
             role="menuitem"
-            class="w-full block text-left px-3 py-2 text-xs hover:bg-[var(--state-hover-surface)] text-[var(--content-primary)] transition-colors"
+            class="w-full block text-left px-3 py-2 text-xs hover:bg-[var(--state-hover-surface)] text-[var(--content-primary)] transition-colors header-batch-menu-item"
           >
             加入监控池（已选 <span x-text="selectedIds.length"></span> 张）
           </button>
@@ -696,7 +698,7 @@
   <!-- 移动端：选中状态栏（独立显示） -->
   <div
     x-show="deviceType === 'mobile' && selectedIds.length > 0"
-    class="mobile-selection-bar"
+    class="mobile-selection-bar ui-batch-action-strip"
     style="
       margin-top: 0.5rem;
       padding: 0.5rem;
@@ -721,6 +723,7 @@
       :class="isCurrentPageAllSelected ? 'btn-danger' : 'btn-success'"
       :title="isCurrentPageAllSelected ? '取消全选当前页' : '全选当前页'"
     >
+      <span aria-hidden="true">{{ icon('check', 'ui-icon--sm') }}</span>
       <span x-show="!isCurrentPageAllSelected">全选</span>
       <span x-show="isCurrentPageAllSelected">取消全选</span>
     </button>
@@ -729,6 +732,7 @@
       @click="openBatchTagModal()"
       class="btn-soft-purple text-xs px-2 py-1 rounded"
     >
+      <span aria-hidden="true">{{ sidebar_icon('tag-library', 'ui-icon--sm') }}</span>
       标签
     </button>
     <button
@@ -775,14 +779,14 @@
         x-cloak
         @click.away="showSourceUpdateMenu = false"
         role="menu"
-        class="absolute top-full left-0 mt-2 w-48 max-w-[calc(100vw-1rem)] bg-[var(--surface-container)] border border-[var(--border-default)] rounded-lg shadow-2xl py-1 overflow-hidden"
+        class="header-batch-menu absolute top-full left-0 mt-2 w-48 max-w-[calc(100vw-1rem)] bg-[var(--surface-container)] border border-[var(--border-default)] rounded-lg shadow-2xl py-1 overflow-hidden"
         style="z-index: var(--z-dropdown)"
       >
         <button
           @click="checkSelectedSourceUpdates(); showSourceUpdateMenu = false"
           type="button"
           role="menuitem"
-          class="w-full block min-h-11 text-left px-3 py-3 text-sm hover:bg-[var(--state-hover-surface)] text-[var(--content-primary)]"
+          class="w-full block min-h-11 text-left px-3 py-3 text-sm hover:bg-[var(--state-hover-surface)] text-[var(--content-primary)] header-batch-menu-item"
         >
           检查更新
         </button>
@@ -790,7 +794,7 @@
           @click="acknowledgeSelectedSourceUpdates(); showSourceUpdateMenu = false"
           type="button"
           role="menuitem"
-          class="w-full block min-h-11 text-left px-3 py-3 text-sm hover:bg-[var(--state-hover-surface)] text-[var(--content-primary)]"
+          class="w-full block min-h-11 text-left px-3 py-3 text-sm hover:bg-[var(--state-hover-surface)] text-[var(--content-primary)] header-batch-menu-item"
         >
           确认无需更新
         </button>
@@ -802,7 +806,7 @@
           @click="addSelectedToSourceMonitorPool(); showSourceUpdateMenu = false"
           type="button"
           role="menuitem"
-          class="w-full block min-h-11 text-left px-3 py-3 text-sm hover:bg-[var(--state-hover-surface)] text-[var(--content-primary)]"
+          class="w-full block min-h-11 text-left px-3 py-3 text-sm hover:bg-[var(--state-hover-surface)] text-[var(--content-primary)] header-batch-menu-item"
         >
           加入监控池（已选 <span x-text="selectedIds.length"></span> 张）
         </button>

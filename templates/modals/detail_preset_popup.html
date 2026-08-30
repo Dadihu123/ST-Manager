@@ -5,13 +5,16 @@
 <div
   x-show="showModal"
   x-cloak
-  class="modal-overlay preset-reader-overlay z-modal-std flex"
+  class="modal-overlay preset-reader-overlay z-modal-std flex ui-modal-overlay ui-refresh-surface"
   :class="$store.global.deviceType === 'mobile' ? 'items-stretch justify-stretch p-0' : 'items-center justify-center p-4'"
   @click.self="closeModal()"
   x-data="presetDetailReader()"
 >
   <div
-    class="preset-reader-modal bg-[var(--surface-container)] border border-[var(--border-default)] flex flex-col overflow-hidden"
+    class="preset-reader-modal bg-[var(--surface-container)] border border-[var(--border-default)] flex flex-col overflow-hidden ui-modal-shell"
+    role="dialog"
+    aria-modal="true"
+    aria-label="预设详情阅览"
     :class="$store.global.deviceType === 'mobile' ? 'w-screen max-w-none h-[100dvh] min-h-[100dvh] rounded-none shadow-none' : 'w-full max-w-7xl h-[90vh] rounded-2xl shadow-2xl'"
   >
     <div
@@ -46,7 +49,11 @@
         <button
           @click="closeModal()"
           class="btn-secondary py-1.5 px-3 text-xs color-hover-text-danger"
+          type="button"
+          title="关闭预设阅览"
+          aria-label="关闭预设阅览"
         >
+          <span aria-hidden="true">{{ icon('close', 'ui-icon--sm') }}</span>
           关闭
         </button>
       </div>
@@ -204,7 +211,11 @@
         <button
           @click="closeModal()"
           class="btn-secondary py-1.5 px-3 text-xs color-hover-text-danger"
+          type="button"
+          title="关闭预设阅览"
+          aria-label="关闭预设阅览"
         >
+          <span aria-hidden="true">{{ icon('close', 'ui-icon--sm') }}</span>
           关闭
         </button>
       </div>

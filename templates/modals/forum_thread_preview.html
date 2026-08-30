@@ -1,9 +1,11 @@
+{% from "components/icon.html" import icon %}
+
 <!-- 类脑搜索站帖子只读预览（紧凑布局，底部预留操作区） -->
 <div
   x-data="forumThreadPreview"
   x-show="visible"
   x-cloak
-  class="modal-overlay z-modal-popover forum-preview-overlay"
+  class="modal-overlay ui-modal-overlay ui-refresh-surface z-modal-popover forum-preview-overlay"
   :class="$store.global.deviceType === 'mobile' ? 'forum-preview-overlay--mobile' : ''"
   @click.self="close()"
 >
@@ -40,7 +42,7 @@
         </div>
       </div>
       <button type="button" class="forum-preview-close" @click="close()" title="关闭" aria-label="关闭">
-        <span class="forum-preview-raw-icon forum-preview-raw-icon--close" aria-hidden="true"></span>
+        {{ icon('close', 'ui-icon--md') }}
       </button>
     </header>
 
@@ -109,7 +111,7 @@
                   title="上一张"
                   aria-label="上一张"
                 >
-                  ‹
+                  {{ icon('arrow-left', 'ui-icon--sm') }}
                 </button>
                 <button
                   type="button"
@@ -118,7 +120,7 @@
                   title="下一张"
                   aria-label="下一张"
                 >
-                  ›
+                  {{ icon('arrow-right', 'ui-icon--sm') }}
                 </button>
                 <div class="forum-preview-carousel-dots" role="tablist" aria-label="封面分页">
                   <template x-for="(url, idx) in coverUrls()" :key="'cover-dot-' + idx">

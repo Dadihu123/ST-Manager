@@ -1,19 +1,19 @@
 {% from "components/icon.html" import icon %}
 
 <!-- 移动端：执行规则弹窗 -->
-<div x-data="executeRulesMobileModal" x-show="showExecuteRulesModal" x-cloak class="modal-overlay z-modal-popover"
+<div x-data="executeRulesMobileModal" x-show="showExecuteRulesModal" x-cloak class="modal-overlay ui-modal-overlay ui-refresh-surface z-modal-popover"
     @click.self="showExecuteRulesModal = false">
-    <div style="background: var(--surface-overlay); padding: 0; border-radius: 1rem; width: 90vw; max-width: 400px; border: 1px solid var(--border-default); box-shadow: var(--shadow-elevation); overflow: hidden; display: flex; flex-direction: column;">
+    <div class="ui-modal-shell execute-rules-modal-shell" role="dialog" aria-modal="true" aria-labelledby="execute-rules-modal-title">
         <!-- Header -->
-        <div style="padding: 1rem 1.25rem; background: var(--surface-container-raised); border-bottom: 1px solid var(--border-default);">
-            <h3 style="font-weight: bold; color: var(--content-primary); font-size: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+        <div class="ui-modal-header ui-modal-header--compact">
+            <h3 id="execute-rules-modal-title" class="ui-modal-title flex items-center gap-2">
                 <span aria-hidden="true">{{ icon('workflow', 'ui-icon--sm') }}</span>
                 <span>自动处理</span>
             </h3>
         </div>
         
-        <div style="padding: 1.25rem;">
-            <div style="display: flex; flex-direction: column; gap: 1rem;">
+        <div class="ui-modal-body execute-rules-modal-body">
+            <div class="execute-rules-modal-form">
                 <div>
                     <label style="font-weight: 500; margin-bottom: 0.5rem; display: block; font-size: 0.875rem; color: var(--content-primary);">选择规则集</label>
                     <!-- 卡片模式提示 -->
@@ -43,12 +43,12 @@
                     </div>
                 </div>
 
-                <div style="display: flex; gap: 0.75rem; margin-top: 0.5rem;">
-                    <button @click="showExecuteRulesModal = false" class="btn-secondary" style="flex:1; justify-content: center; font-size: 0.875rem; padding: 0.5rem;">
+                <div class="execute-rules-modal-actions">
+                    <button type="button" @click="showExecuteRulesModal = false" class="btn-secondary">
                         取消
                     </button>
-                    <button @click="$dispatch('open-automation-modal'); showExecuteRulesModal = false" 
-                        class="btn-soft-purple" style="flex:1; justify-content: center; align-items: center; gap: 0.35rem; font-size: 0.875rem; padding: 0.5rem; box-shadow: var(--shadow-elevation);">
+                    <button type="button" @click="$dispatch('open-automation-modal'); showExecuteRulesModal = false"
+                        class="btn-soft-purple">
                         <span aria-hidden="true">{{ icon('settings', 'ui-icon--sm') }}</span>
                         <span>管理规则</span>
                     </button>

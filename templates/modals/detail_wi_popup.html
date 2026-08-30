@@ -6,10 +6,13 @@
   x-data="wiDetailPopup"
   x-show="showWiDetailModal"
   x-cloak
-  class="modal-overlay z-modal-std flex items-center justify-center p-4"
+  class="modal-overlay ui-modal-overlay ui-refresh-surface z-modal-std flex items-center justify-center p-4"
 >
   <div
-    class="wi-reader-modal wi-worldbook-icon-scope bg-[var(--surface-container)] border border-[var(--border-default)] rounded-xl shadow-2xl flex flex-col w-full max-w-7xl h-[88vh] overflow-hidden relative animate-scale-in"
+    class="wi-reader-modal wi-worldbook-icon-scope ui-modal-shell bg-[var(--surface-container)] border border-[var(--border-default)] rounded-xl shadow-2xl flex flex-col w-full max-w-7xl h-[88vh] overflow-hidden relative animate-scale-in"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="wi-reader-modal-title"
     @click.self="activeEntry = null"
   >
     <!-- 顶部工具栏：阅读优先 -->
@@ -27,6 +30,7 @@
         <div class="min-w-0">
           <div class="flex items-center overflow-hidden gap-2 min-w-0">
             <h3
+              id="wi-reader-modal-title"
               class="text-sm md:text-base font-bold leading-tight truncate"
               :title="activeWiDetail?.name"
               x-text="activeWiDetail?.name || '未命名世界书'"
@@ -119,7 +123,9 @@
             <button
               x-show="searchTerm"
               @click="searchTerm=''"
-              class="absolute right-2.5 top-1/2 -translate-y-1/2 color-text-muted color-hover-text-neutral p-0.5 rounded-full"
+              class="ui-icon-button absolute right-2.5 top-1/2 -translate-y-1/2"
+              title="清空搜索"
+              aria-label="清空搜索"
             >
               {{ icon('close', 'ui-icon--sm') }}
             </button>
@@ -147,7 +153,9 @@
         <button
           x-show="searchTerm"
           @click="searchTerm=''"
-          class="absolute right-2.5 top-1/2 -translate-y-1/2 color-text-muted color-hover-text-neutral p-0.5 rounded-full"
+          class="ui-icon-button absolute right-2.5 top-1/2 -translate-y-1/2"
+          title="清空搜索"
+          aria-label="清空搜索"
         >
           {{ icon('close', 'ui-icon--sm') }}
         </button>
@@ -207,10 +215,11 @@
 
       <!-- 关闭 -->
       <button
-        @click="showWiDetailModal=false"
-        class="color-text-muted color-hover-text-danger rounded-full hover:bg-[var(--surface-container)] transition-colors"
-        :class="$store.global.deviceType === 'mobile' ? '' : 'p-2'"
-        title="关闭 (Esc)"
+      @click="showWiDetailModal=false"
+          class="ui-close-button color-hover-text-danger"
+          :class="$store.global.deviceType === 'mobile' ? '' : 'p-2'"
+          title="关闭世界书预览 (Esc)"
+          aria-label="关闭世界书预览"
       >
         {{ icon('close', 'ui-icon--md') }}
       </button>
@@ -220,7 +229,9 @@
     <button
       x-show="$store.global.deviceType === 'mobile' && !showMobileSidebar"
       @click="showMobileSidebar = !showMobileSidebar"
-      class="fixed bottom-20 left-2 z-50 w-10 h-10 bg-[var(--surface-container)] border border-[var(--border-default)] rounded-lg flex items-center justify-center text-[var(--content-primary)] shadow-lg md:hidden"
+      class="ui-icon-button fixed bottom-20 left-2 z-50 md:hidden"
+      title="打开世界书目录"
+      aria-label="打开世界书目录"
     >
       <span x-show="!showMobileSidebar" aria-hidden="true">
         {{ icon('menu', 'ui-icon--md') }}

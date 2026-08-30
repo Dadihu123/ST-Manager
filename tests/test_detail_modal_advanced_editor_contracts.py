@@ -249,11 +249,11 @@ def test_detail_template_uses_trimmed_visibility_for_empty_readonly_text_cards()
     assert 'x-show="tab===\'dialog\' && hasDialogFields"' in template
     assert 'x-show="isEditMode || hasTextValue(editingData.description)"' in template
     assert 'x-show="!isEditMode && hasTextValue(editingData.description)"' in template
-    assert 'x-if="isEditMode || hasTextValue(editingData.personality)"' in template
-    assert 'x-if="isEditMode || hasTextValue(editingData.scenario)"' in template
-    assert 'x-if="isEditMode || hasTextValue(editingData.creator_notes)"' in template
-    assert 'x-if="isEditMode || hasTextValue(editingData.system_prompt)"' in template
-    assert 'x-if="isEditMode || hasTextValue(editingData.post_history_instructions)"' in template
+    assert 'x-show="isEditMode || hasTextValue(editingData.personality)"' in template
+    assert 'x-show="isEditMode || hasTextValue(editingData.scenario)"' in template
+    assert 'x-show="isEditMode || hasTextValue(editingData.creator_notes)"' in template
+    assert 'x-show="isEditMode || hasTextValue(editingData.system_prompt)"' in template
+    assert 'x-show="isEditMode || hasTextValue(editingData.post_history_instructions)"' in template
     assert 'dialogPage === \'greeting\' && hasGreetingPage' in template
     assert 'dialogPage === \'example\' && (isEditMode || hasTextValue(editingData.mes_example))' in template
     assert 'x-show="shouldShowDialogPageNav"' in template

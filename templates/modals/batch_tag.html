@@ -1,15 +1,18 @@
-{% from "components/icon.html" import icon %}
+{% from "components/icon.html" import icon, sidebar_icon %}
 
 <!-- 批量标签管理 -->
-<div x-data="batchTagModal" x-show="showBatchTagModal" x-cloak class="modal-overlay">
-    <div class="tag-modal-container batch-tag-modal-shell flex flex-col" style="height: 82vh; max-height: 860px;"
-        @click.away="showBatchTagModal=false">
-        <div
-            style="display:flex; justify-content:space-between; align-items:center; padding-bottom: 1rem; border-bottom: 1px solid var(--border-default); flex-shrink: 0;">
-            <h3 class="text-lg font-bold">批量标签管理</h3>
-            <button @click="showBatchTagModal=false" class="color-text-muted color-hover-text-primary text-xl">{{ icon('close-bold', 'ui-icon--sm') }}</button>
+<div x-data="batchTagModal" x-show="showBatchTagModal" x-cloak class="modal-overlay ui-modal-overlay ui-refresh-surface">
+    <div class="tag-modal-container batch-tag-modal-shell ui-modal-shell flex flex-col" role="dialog" aria-modal="true"
+        aria-labelledby="batch-tag-modal-title" @click.away="showBatchTagModal=false">
+        <div class="ui-modal-header ui-modal-header--compact">
+            <h3 id="batch-tag-modal-title" class="ui-modal-title flex items-center gap-2">
+                <span class="ui-modal-header-icon" aria-hidden="true">{{ sidebar_icon('tag-library', 'ui-icon--sm') }}</span>
+                <span>批量标签管理</span>
+            </h3>
+            <button type="button" @click="showBatchTagModal=false" class="ui-close-button" title="关闭批量标签管理"
+                aria-label="关闭批量标签管理">{{ icon('close', 'ui-icon--md') }}</button>
         </div>
-        <div class="flex-1 overflow-y-auto custom-scrollbar" style="padding: 1rem 0;">
+        <div class="ui-modal-body batch-tag-modal-body custom-scrollbar">
             <div style="margin-bottom:1rem;">
                 <label class="text-sm" style="color: var(--content-secondary);">添加标签到所有选中卡片</label>
                 <div class="flex gap-2 mt-1">
@@ -98,7 +101,7 @@
                 </div>
             </div>
         </div>
-        <div style="border-top: 1px solid var(--border-default); padding-top: 1rem; margin-top: auto; flex-shrink: 0;">
+        <div class="ui-modal-footer batch-tag-modal-footer">
             <div class="flex gap-2 justify-end">
                 <button @click="applyBatchAddTags()"
                     class="color-surface-success-solid color-hover-surface-success color-text-on-dark px-4 py-2 rounded text-sm">全部添加</button>

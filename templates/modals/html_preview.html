@@ -4,37 +4,31 @@
 <div
   x-show="showLargePreview"
   x-cloak
-  class="modal-overlay z-modal-popover"
+  class="modal-overlay ui-modal-overlay ui-refresh-surface z-modal-popover"
   x-init="ensurePreviewState()"
   @click.self="showLargePreview=false"
 >
   <div
-    class="modal-container"
-    style="
-      width: 1000px;
-      height: 90vh;
-      flex-direction: column;
-      background: var(--surface-container);
-      border: 1px solid var(--border-default);
-      box-shadow: var(--shadow-elevation);
-    "
+    class="modal-container ui-modal-shell html-preview-shell"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="html-preview-title"
   >
     <!-- 头部 -->
-    <div
-      class="p-4 border-b flex justify-between items-center"
-      style="background: var(--surface-container-raised); border-color: var(--border-default)"
-    >
+    <div class="ui-modal-header">
       <h3
-        class="font-bold text-lg flex items-center gap-2"
-        style="color: var(--content-primary)"
+        id="html-preview-title"
+        class="ui-modal-title flex items-center gap-2"
       >
         <span aria-hidden="true">{{ detail_icon('book-read', 'ui-icon--md') }}</span>
         <span>渲染结果预览 (HTML Preview)</span>
       </h3>
       <button
+        type="button"
         @click="showLargePreview=false"
         aria-label="关闭 HTML 预览"
-        class="color-text-muted color-hover-text-primary text-xl px-2"
+        title="关闭 HTML 预览"
+        class="ui-close-button"
       >
         {{ icon('close', 'ui-icon--md') }}
       </button>
@@ -48,13 +42,12 @@
     ></div>
 
     <!-- 底部 -->
-    <div
-      class="p-3 border-t text-right bg-[var(--surface-container-raised)] border-[var(--border-default)]"
-    >
+    <div class="ui-modal-footer html-preview-footer">
       <span class="text-xs text-[var(--content-muted)] mr-4"
         >提示：此视图样式已隔离，不受外部 CSS 影响</span
       >
-      <button @click="showLargePreview=false" class="btn-secondary px-4 py-1">
+      <button type="button" @click="showLargePreview=false" class="btn-secondary px-4 py-1">
+        <span aria-hidden="true">{{ icon('close', 'ui-icon--sm') }}</span>
         关闭 (Esc)
       </button>
     </div>

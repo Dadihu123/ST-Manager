@@ -1,12 +1,15 @@
+{% from "components/icon.html" import icon %}
 {% from "components/styled_select.html" import styled_select %}
 
-<div x-data="presetVersionMergeModal" x-show="showModal" x-cloak class="modal-overlay z-modal-std flex items-center justify-center p-4" @click.self="close()">
-  <div class="w-full max-w-2xl rounded-2xl border border-[var(--border-default)] bg-[var(--surface-container)] shadow-2xl overflow-hidden">
-    <div class="border-b border-[var(--border-default)] px-4 py-3 flex items-center justify-between">
-      <h3 class="text-base font-bold text-[var(--content-primary)]">合并为多版本</h3>
-      <button type="button" class="btn-secondary px-3 py-1 text-xs" @click="close()">关闭</button>
+<div x-data="presetVersionMergeModal" x-show="showModal" x-cloak class="modal-overlay ui-modal-overlay ui-refresh-surface z-modal-std flex items-center justify-center p-4" @click.self="close()">
+  <div class="ui-modal-shell preset-version-merge-shell w-full max-w-2xl" role="dialog" aria-modal="true" aria-labelledby="preset-version-merge-title">
+    <div class="ui-modal-header ui-modal-header--compact">
+      <h3 id="preset-version-merge-title" class="ui-modal-title">合并为多版本</h3>
+      <button type="button" class="ui-close-button" title="关闭版本合并" aria-label="关闭版本合并" @click="close()">
+        {{ icon('close', 'ui-icon--md') }}
+      </button>
     </div>
-    <div class="p-4 space-y-4">
+    <div class="ui-modal-body space-y-4">
       <label class="block space-y-2">
         <span class="text-xs text-[var(--content-muted)]">目标预设 / 目标家族</span>
         {% call styled_select(
@@ -37,7 +40,7 @@
         </div>
       </div>
     </div>
-    <div class="border-t border-[var(--border-default)] px-4 py-3 flex items-center justify-end gap-2">
+    <div class="ui-modal-footer">
       <button type="button" class="btn-secondary px-3 py-1.5 text-xs" @click="close()">取消</button>
       <button type="button" class="btn-primary px-3 py-1.5 text-xs" :disabled="isSubmitting" @click="confirmMerge()">确认合并</button>
     </div>

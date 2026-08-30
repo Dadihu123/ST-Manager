@@ -1,8 +1,8 @@
 {% from "components/icon.html" import icon %}
 
 <!-- 回滚/时光机模态框 -->
-<div x-show="showRollbackModal" x-data="rollbackModal" x-cloak class="modal-overlay z-modal-popover" @click.self="showRollbackModal=false">
-    <div class="rollback-modal-container">
+<div x-show="showRollbackModal" x-data="rollbackModal" x-cloak class="modal-overlay ui-modal-overlay ui-refresh-surface z-modal-popover" @click.self="showRollbackModal=false">
+    <div class="rollback-modal-container ui-modal-shell" role="dialog" aria-modal="true" aria-label="版本回滚与对比">
 
         <!-- 1. Header -->
         <div class="rb-header">
@@ -13,7 +13,7 @@
                     <p class="text-xs text-[var(--content-muted)]">选择两个版本进行比对，或恢复历史版本</p>
                 </div>
             </div>
-            <button @click="showRollbackModal=false" class="color-text-muted color-hover-text-primary px-2 py-1 text-xl" aria-label="关闭回滚弹窗">
+            <button type="button" @click="showRollbackModal=false" class="ui-close-button" title="关闭回滚弹窗" aria-label="关闭回滚弹窗">
                 {{ icon('close', 'ui-icon--md') }}
             </button>
         </div>

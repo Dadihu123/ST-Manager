@@ -223,11 +223,14 @@ def test_forum_preview_icons_are_kept_as_separate_svg_assets():
     css = read_project_file('static/css/modules/modal-forum-preview.css')
     template = read_project_file('templates/modals/forum_thread_preview.html')
 
-    for name in ('date', 'time', 'reply', 'reaction', 'view', 'close'):
+    for name in ('date', 'time', 'reply', 'reaction', 'view'):
         asset = PROJECT_ROOT / f'static/icons/forum-preview/{name}.svg'
         ET.parse(asset)
         assert f'forum-preview/{name}.svg' in css
         assert f'forum-preview-raw-icon--{name}' in template
+
+    ET.parse(PROJECT_ROOT / 'static/icons/forum-preview/close.svg')
+    assert "icon('close'" in template
 
 
 def test_common_modal_custom_symbols_are_theme_safe():

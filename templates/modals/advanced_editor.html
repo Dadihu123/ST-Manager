@@ -2,16 +2,15 @@
 {% from "components/styled_select.html" import styled_select %}
 
 <!-- 高级功能编辑器 (Regex & Scripts) -->
-<div x-show="showAdvancedModal" x-data="advancedEditor" x-cloak class="modal-overlay z-modal-popover"
+<div x-show="showAdvancedModal" x-data="advancedEditor" x-cloak class="modal-overlay ui-modal-overlay ui-refresh-surface z-modal-popover"
     @click.self="requestClose()">
-    <div class="modal-container advanced-editor-container"
-        style="width: 1200px; height: 90vh; flex-direction: column; border: 1px solid var(--border-default);">
+    <div class="modal-container advanced-editor-container ui-modal-shell" role="dialog" aria-modal="true"
+        aria-labelledby="advanced-editor-title">
 
         <!-- 1. 顶部 Header -->
-        <div class="p-4 border-b flex justify-between items-center advanced-editor-header"
-            style="background: var(--surface-container-raised); border-color: var(--border-default);">
+        <div class="p-4 border-b flex justify-between items-center advanced-editor-header">
             <div class="flex items-center gap-3">
-                <h3 class="font-bold text-lg advanced-editor-title flex items-center gap-2" style="color: var(--content-primary);">
+                <h3 id="advanced-editor-title" class="font-bold text-lg advanced-editor-title flex items-center gap-2">
                     <span aria-hidden="true">{{ icon('sliders-settings', 'ui-icon--md ') }}</span>
                     <span>高级扩展</span>
                 </h3>
@@ -28,18 +27,20 @@
 
         <!-- 2. 顶部 Tabs -->
         <div class="adv-tab-bar" x-show="!isFileMode">
-            <div @click="activeTab='regex'" class="adv-tab" :class="activeTab==='regex'?'active':''">
+            <div @click="activeTab='regex'" @keydown.enter.space.prevent="activeTab='regex'" class="adv-tab" role="tab" tabindex="0"
+                :aria-selected="(activeTab === 'regex').toString()" :class="activeTab==='regex'?'active':''">
                 <span class="tab-icon inline-flex items-center" aria-hidden="true">{{ detail_icon('regex', 'ui-icon--sm ') }}</span>
                 <span class="tab-text">正则脚本 (Regex)</span>
             </div>
-            <div @click="activeTab='scripts'" class="adv-tab" :class="activeTab==='scripts'?'active':''">
+            <div @click="activeTab='scripts'" @keydown.enter.space.prevent="activeTab='scripts'" class="adv-tab" role="tab" tabindex="0"
+                :aria-selected="(activeTab === 'scripts').toString()" :class="activeTab==='scripts'?'active':''">
                 <span class="tab-icon inline-flex items-center" aria-hidden="true">{{ detail_icon('script-file', 'ui-icon--sm ') }}</span>
                 <span class="tab-text">ST 脚本 (Helper)</span>
             </div>
         </div>
         <div class="adv-tab-bar" x-show="isFileMode"
             style="background: var(--surface-container-raised); border-bottom: 1px solid var(--border-default); cursor: default;">
-            <div class="adv-tab active" style="border-bottom-color: var(--accent-action); color: var(--accent-action);">
+            <div class="adv-tab active" role="tab" aria-selected="true" tabindex="0">
                 <span class="tab-icon inline-flex items-center" aria-hidden="true">
                     <span x-show="fileType === 'regex'">{{ detail_icon('regex', 'ui-icon--sm ') }}</span>
                     <span x-show="fileType === 'script'">{{ detail_icon('script-file', 'ui-icon--sm ') }}</span>
@@ -96,9 +97,10 @@
                     <div class="flex flex-col">
                         <template x-for="(script, idx) in editingData.extensions.regex_scripts" :key="script.id || idx">
                             <!-- 使用 flex 布局，移除 pr-8 和 relative，改为 items-center -->
-                            <div class="adv-list-item group flex items-center justify-between gap-2"
+                            <div class="adv-list-item group flex items-center justify-between gap-2" role="button" tabindex="0"
                                 :class="activeRegexIndex === idx ? 'active' : ''"
-                                @click="activeRegexIndex = idx; if($store.global.deviceType === 'mobile') showMobileSidebar = false">
+                                @click="activeRegexIndex = idx; if($store.global.deviceType === 'mobile') showMobileSidebar = false"
+                                @keydown.enter.space.prevent="activeRegexIndex = idx; if($store.global.deviceType === 'mobile') showMobileSidebar = false">
 
                                 <!-- 左侧：文本信息 (占据剩余空间) -->
                                 <div class="flex-1 min-w-0 overflow-hidden">
@@ -140,7 +142,7 @@
                                             <button @click.stop="removeRegexScript(idx)"
                                                 class="opacity-0 group-hover:opacity-100 color-text-muted color-hover-text-danger p-1 flex-shrink-0 transition"
                                                 title="删除正则脚本" aria-label="删除正则脚本">
-                                                {{ icon('close-bold', 'ui-icon--xs') }}
+                                                {{ icon('close', 'ui-icon--xs') }}
                                             </button>
                                         </div>
                                     </template>
@@ -502,9 +504,10 @@
 
                     <div class="flex flex-col">
                         <template x-for="(script, idx) in getTavernScripts()" :key="script.id || idx">
-                            <div class="adv-list-item group flex items-center justify-between gap-2"
+                            <div class="adv-list-item group flex items-center justify-between gap-2" role="button" tabindex="0"
                                 :class="activeScriptIndex === idx ? 'active' : ''"
-                                @click="activeScriptIndex = idx; if($store.global.deviceType === 'mobile') showMobileSidebar = false">
+                                @click="activeScriptIndex = idx; if($store.global.deviceType === 'mobile') showMobileSidebar = false"
+                                @keydown.enter.space.prevent="activeScriptIndex = idx; if($store.global.deviceType === 'mobile') showMobileSidebar = false">
 
                                 <!-- 左侧信息 -->
                                 <div class="flex-1 min-w-0 overflow-hidden">
@@ -542,7 +545,7 @@
                                 <button @click.stop="removeTavernScript(script.id)"
                                     class="opacity-0 group-hover:opacity-100 color-text-muted color-hover-text-danger p-1 flex-shrink-0 transition"
                                     title="删除 ST 脚本" aria-label="删除 ST 脚本">
-                                    {{ icon('close-bold', 'ui-icon--xs') }}
+                                    {{ icon('close', 'ui-icon--xs') }}
                                 </button>
                             </div>
                         </template>
@@ -647,7 +650,7 @@
                                                     @click="removeScriptButton(getTavernScripts()[activeScriptIndex], btnIdx)"
                                                     class="color-text-muted color-hover-text-danger px-1"
                                                     title="删除快捷按钮" aria-label="删除快捷按钮">
-                                                    {{ icon('close-bold', 'ui-icon--xs') }}
+                                                    {{ icon('close', 'ui-icon--xs') }}
                                                 </button>
                                             </div>
                                         </template>
@@ -860,9 +863,10 @@
 
                     <div class="flex flex-col">
                         <template x-for="(qr, idx) in editingData.quick_reply?.qrList" :key="qr.id || idx">
-                            <div class="adv-list-item group flex items-center justify-between gap-2"
+                            <div class="adv-list-item group flex items-center justify-between gap-2" role="button" tabindex="0"
                                 :class="activeQrIndex === idx ? 'active' : ''"
-                                @click="activeQrIndex = idx; if($store.global.deviceType==='mobile') showMobileSidebar=false">
+                                @click="activeQrIndex = idx; if($store.global.deviceType==='mobile') showMobileSidebar=false"
+                                @keydown.enter.space.prevent="activeQrIndex = idx; if($store.global.deviceType==='mobile') showMobileSidebar=false">
 
                                 <div class="flex-1 min-w-0 overflow-hidden">
                                     <div class="flex justify-between items-center mb-1">
@@ -883,7 +887,7 @@
                                 </div>
                                 <button @click.stop="removeQrEntry(idx)"
                                     class="opacity-0 group-hover:opacity-100 color-text-muted color-hover-text-danger p-1"
-                                    title="删除快速回复" aria-label="删除快速回复">{{ icon('close-bold', 'ui-icon--xs') }}</button>
+                                    title="删除快速回复" aria-label="删除快速回复">{{ icon('close', 'ui-icon--xs') }}</button>
                             </div>
                         </template>
                         <div x-show="!editingData.quick_reply?.qrList?.length"

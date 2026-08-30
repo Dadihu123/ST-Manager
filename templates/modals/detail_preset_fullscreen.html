@@ -5,7 +5,10 @@
   x-show="showPresetEditor"
   x-data="presetEditor"
   x-cloak
-  class="detail-preset-full-screen fixed inset-0 z-modal-editor bg-[var(--surface-page)]"
+  class="detail-preset-full-screen ui-fullscreen-surface fixed inset-0 z-modal-editor bg-[var(--surface-page)]"
+  role="dialog"
+  aria-modal="true"
+  aria-label="预设全屏编辑器"
 >
   <div class="flex flex-col h-full w-full overflow-hidden">
     <div
@@ -124,7 +127,11 @@
         <button
           @click="closeEditor()"
           class="btn-secondary px-3 py-1.5 text-xs rounded color-hover-text-danger"
+          type="button"
+          title="关闭预设编辑器"
+          aria-label="关闭预设编辑器"
         >
+          <span aria-hidden="true">{{ icon('close', 'ui-icon--sm') }}</span>
           关闭
         </button>
       </div>
@@ -141,7 +148,11 @@
         <button
           @click="closeEditor()"
           class="btn-secondary px-3 py-1.5 text-xs rounded shrink-0"
+          type="button"
+          title="关闭预设编辑器"
+          aria-label="关闭预设编辑器"
         >
+          <span aria-hidden="true">{{ icon('close', 'ui-icon--sm') }}</span>
           关闭
         </button>
 

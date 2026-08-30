@@ -1,16 +1,17 @@
 {% from "components/icon.html" import detail_icon, icon %}
 
 <!-- 批量导入确认模态框 -->
-<div x-show="showBatchImportModal" x-data="batchImportModal" x-cloak class="modal-overlay z-modal-popover">
-    <div class="modal-container flex flex-col" style="width: 900px; height: 85vh; max-height: 900px;">
+<div x-show="showBatchImportModal" x-data="batchImportModal" x-cloak class="modal-overlay ui-modal-overlay ui-refresh-surface z-modal-popover">
+    <div class="modal-container ui-modal-shell batch-import-container" role="dialog" aria-modal="true"
+        aria-labelledby="batch-import-modal-title">
         
         <!-- Header -->
-        <div style="padding: 1.25rem; border-bottom: 1px solid var(--border-default); background: var(--surface-container-raised); flex-shrink: 0;">
+        <div class="batch-import-header">
             <div class="flex justify-between items-center">
                 <div class="flex items-center gap-3">
                     <span aria-hidden="true">{{ icon('file-import', 'ui-icon--lg') }}</span>
-                    <div>
-                        <h3 class="font-bold text-lg text-[var(--content-primary)]">批量导入确认</h3>
+                    <div class="min-w-0">
+                        <h3 id="batch-import-modal-title" class="ui-modal-title">批量导入确认</h3>
                         <p class="text-xs text-[var(--content-muted)]">
                             目标路径: <span class="font-mono text-accent" x-text="targetCategory || '根目录'"></span>
                             <span class="mx-2">|</span>
@@ -18,13 +19,13 @@
                         </p>
                     </div>
                 </div>
-                <button @click="cancelImport()" class="color-text-muted color-hover-text-danger text-xl px-2" aria-label="关闭批量导入弹窗">
+                <button type="button" @click="cancelImport()" class="ui-close-button" title="关闭批量导入弹窗" aria-label="关闭批量导入弹窗">
                     {{ icon('close', 'ui-icon--md') }}
                 </button>
             </div>
 
             <!-- 批量操作栏 -->
-            <div x-show="conflictCount > 0" class="mt-4 flex items-center gap-3 bg-[var(--surface-container)] p-2 rounded border border-[var(--border-default)]">
+            <div x-show="conflictCount > 0" class="batch-import-toolbar mt-4 flex items-center gap-3">
                 <span class="text-xs font-bold text-[var(--content-muted)] uppercase ml-1">解决所有冲突:</span>
                 <button @click="applyToAllConflicts('rename')" class="btn-secondary py-1 px-3 text-xs flex items-center gap-1 color-hover-text-accent">
                     <span aria-hidden="true">{{ icon('pencil-edit', 'ui-icon--sm') }}</span> 全部追加 (Rename)
@@ -39,7 +40,7 @@
         </div>
 
         <!-- Body: List -->
-        <div class="flex-1 overflow-y-auto custom-scrollbar p-3 bg-[var(--surface-page)]">
+        <div class="batch-import-body flex-1 overflow-y-auto custom-scrollbar">
             <div class="flex flex-col gap-3">
                 <template x-for="(item, idx) in importItems" :key="idx">
                     
@@ -179,7 +180,7 @@
         </div>
 
         <!-- Footer -->
-        <div style="padding: 1rem; border-top: 1px solid var(--border-default); background: var(--surface-container-raised); flex-shrink: 0;">
+        <div class="batch-import-footer">
             <div class="flex justify-end gap-3">
                 <button @click="cancelImport()" class="btn-secondary px-6 py-2 rounded">
                     取消

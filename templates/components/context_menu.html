@@ -3,7 +3,7 @@
 <!-- 右键菜单 -->
 
 <!-- 外层容器：根据设备类型切换布局 -->
-<div x-data="contextMenu" x-show="visible" @click.away="hideContextMenu"
+<div x-data="contextMenu" x-show="visible" class="ui-refresh-surface" @click.away="hideContextMenu"
     :class="isMobile ? 'fixed inset-0 z-context-menu flex items-center justify-center' : 'fixed z-context-menu'"
     :style="isMobile ? {} : { top: y + 'px', left: x + 'px', display: visible ? 'block' : 'none' }"
     style="display:none;">
@@ -12,7 +12,7 @@
     <div x-show="isMobile" @click="hideContextMenu()" class="absolute inset-0 color-surface-scrim backdrop-blur-sm"></div>
 
     <!-- 菜单内容容器：根据设备类型调整样式 -->
-    <div :class="isMobile ? 'w-64 max-w-[90vw] rounded-xl shadow-2xl overflow-hidden relative z-10' : 'shadow-xl rounded-lg py-1 w-56'"
+    <div class="ui-context-menu" :class="isMobile ? 'w-64 max-w-[90vw] rounded-xl shadow-2xl overflow-hidden relative z-10' : 'shadow-xl rounded-lg py-1 w-56'"
         style="background: var(--surface-container); border: 1px solid var(--border-default);">
 
         <!-- 移动端：标题栏 -->
@@ -116,32 +116,33 @@
     </div>
 
     <!-- 删除文件夹确认弹窗 -->
-    <div x-show="deleteFolderConfirm.visible" x-cloak class="modal-overlay z-modal-popover"
+    <div x-show="deleteFolderConfirm.visible" x-cloak class="modal-overlay ui-modal-overlay ui-refresh-surface z-modal-popover"
         @click.self="cancelDeleteFolder()">
-        <div
-            style="background: var(--surface-overlay); padding: 1.5rem; border-radius: 0.75rem; width: 24rem; border: 1px solid var(--border-default); box-shadow: var(--shadow-elevation);">
-            <h3 style="font-weight: bold; color: var(--content-primary); margin-bottom: 1rem;">删除文件夹</h3>
+        <div class="ui-small-dialog" role="dialog" aria-modal="true" aria-labelledby="delete-folder-title">
+            <div class="ui-small-dialog-header"><h3 id="delete-folder-title">删除文件夹</h3></div>
 
-            <div style="color: var(--content-muted); font-size: 0.875rem; margin-bottom: 0.75rem;">
+            <div class="ui-small-dialog-body">
+              <div style="color: var(--content-muted); font-size: 0.875rem; margin-bottom: 0.75rem;">
                 正在删除：<span class="font-mono" x-text="deleteFolderConfirm.path"></span>
                 <div style="margin-top: 0.25rem;">
                     该文件夹包含 <span x-text="deleteFolderConfirm.cardCount"></span><span x-text="deleteFolderItemLabel"></span>
                     <span x-show="deleteFolderConfirm.hasSubfolders">并包含子文件夹</span>。
                 </div>
-            </div>
+              </div>
 
-            <div style="color: var(--content-muted); font-size: 0.875rem; margin-bottom: 1rem;">
+              <div style="color: var(--content-muted); font-size: 0.875rem; margin-bottom: 1rem;">
                 <span x-text="deleteFolderModeSummary"></span>
-            </div>
+              </div>
 
-            <label x-show="supportsRecursiveFolderDelete" class="flex items-start gap-2 cursor-pointer select-none" style="margin-bottom: 1rem;">
+              <label x-show="supportsRecursiveFolderDelete" class="flex items-start gap-2 cursor-pointer select-none" style="margin-bottom: 1rem;">
                 <input type="checkbox" x-model="deleteFolderConfirm.deleteChildren" class="cursor-pointer mt-1">
                 <span style="color: var(--content-primary); font-size: 0.875rem;">删除子文件/子文件夹（递归删除）</span>
-            </label>
+              </label>
 
-            <div style="display: flex; gap: 0.5rem;">
-                <button @click="cancelDeleteFolder()" class="btn-secondary" style="flex: 1; border-radius: 0.5rem;">取消</button>
-                <button @click="confirmDeleteFolder()" class="btn-primary" style="flex: 1; border-radius: 0.5rem;">确定</button>
+              <div class="ui-small-dialog-actions">
+                <button type="button" @click="cancelDeleteFolder()" class="btn-secondary">取消</button>
+                <button type="button" @click="confirmDeleteFolder()" class="btn-primary">确定</button>
+              </div>
             </div>
         </div>
     </div>

@@ -414,9 +414,9 @@ def test_advanced_editor_template_keeps_modal_shell_transparent_while_preserving
     modal_css = (ROOT / 'static/css/modules/components.css').read_text(encoding='utf-8')
     advanced_modal_css = (ROOT / 'static/css/modules/modal-tools.css').read_text(encoding='utf-8')
 
-    assert 'class="modal-container advanced-editor-container"' in template
+    assert 'class="modal-container advanced-editor-container ui-modal-shell"' in template
     assert 'background: var(--bg-panel);' not in template
-    assert 'border: 1px solid var(--border-default);' in template
+    assert 'border: 1px solid var(--border-default);' not in template
     assert 'class="adv-list-pane custom-scrollbar overflow-y-auto"' in template
     assert 'class="adv-editor-pane custom-scrollbar"' in template
     assert re.search(

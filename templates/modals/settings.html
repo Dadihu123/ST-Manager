@@ -6,9 +6,10 @@
   x-show="showSettingsModal"
   x-data="settingsModal"
   x-cloak
-  class="modal-overlay z-modal-std"
+  class="modal-overlay ui-modal-overlay ui-refresh-surface z-modal-std"
 >
-  <div class="settings-modal-container" @click.away="showSettingsModal=false">
+  <div class="settings-modal-container ui-modal-shell" role="dialog" aria-modal="true"
+    aria-labelledby="settings-modal-title" @click.away="showSettingsModal=false">
     <!-- 1. 顶部栏 -->
     <div class="settings-header">
       <div class="settings-title-block">
@@ -17,7 +18,7 @@
         </span>
         <div class="settings-title-copy">
           <div class="settings-eyebrow">ST MANAGER / CONFIGURATION</div>
-          <h3>系统设置</h3>
+          <h3 id="settings-modal-title">系统设置</h3>
           <p>集中管理资源目录、界面体验与服务连接</p>
         </div>
       </div>
@@ -300,7 +301,7 @@
             >
               <span x-show="isDarkMode" aria-hidden="true">{{ icon('header-dark-mode', 'ui-icon--sm ') }}</span>
               <span x-show="!isDarkMode" aria-hidden="true">{{ icon('header-light-mode', 'ui-icon--sm ') }}</span>
-              <span x-text="isDarkMode ? '深色模式' : '浅色模式'"></span>
+              <span class="settings-theme-label" x-text="isDarkMode ? '深色模式' : '浅色模式'"></span>
             </button>
           </div>
 
@@ -313,36 +314,42 @@
                 class="theme-dot theme-dot--blue"
                 :class="settingsForm.theme_accent==='blue'?'active':''"
                 title="Blue"
+                aria-label="蓝色主题"
               ></button>
               <button
                 @click="applyTheme('purple')"
                 class="theme-dot theme-dot--purple"
                 :class="settingsForm.theme_accent==='purple'?'active':''"
                 title="Purple"
+                aria-label="紫色主题"
               ></button>
               <button
                 @click="applyTheme('green')"
                 class="theme-dot theme-dot--green"
                 :class="settingsForm.theme_accent==='green'?'active':''"
                 title="Green"
+                aria-label="绿色主题"
               ></button>
               <button
                 @click="applyTheme('red')"
                 class="theme-dot theme-dot--red"
                 :class="settingsForm.theme_accent==='red'?'active':''"
                 title="Red"
+                aria-label="红色主题"
               ></button>
               <button
                 @click="applyTheme('orange')"
                 class="theme-dot theme-dot--orange"
                 :class="settingsForm.theme_accent==='orange'?'active':''"
                 title="Orange"
+                aria-label="橙色主题"
               ></button>
               <button
                 @click="applyTheme('pink')"
                 class="theme-dot theme-dot--pink"
                 :class="settingsForm.theme_accent==='pink'?'active':''"
                 title="Pink"
+                aria-label="粉色主题"
               ></button>
             </div>
           </div>

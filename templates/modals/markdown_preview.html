@@ -1,19 +1,17 @@
 {% from "components/icon.html" import icon %}
 
 <!-- 只读 Markdown 预览模态框 -->
-<div x-show="showMarkdownModal" x-cloak class="modal-overlay z-modal-popover" @click="showMarkdownModal=false">
-    <div class="modal-container"
-        style="width: 1000px; height: 90vh; max-width: 95vw; background: var(--surface-container); display: flex; flex-direction: column;"
-        @click.stop>
+<div x-show="showMarkdownModal" x-cloak class="modal-overlay ui-modal-overlay ui-refresh-surface z-modal-popover" @click="showMarkdownModal=false">
+    <div class="modal-container ui-modal-shell markdown-preview-shell"
+        role="dialog" aria-modal="true" aria-labelledby="markdown-preview-title" @click.stop>
 
         <!-- 头部 -->
-        <div
-            style="padding: 1rem; border-bottom: 1px solid var(--border-default); display: flex; justify-content: space-between; align-items: center; background: var(--surface-container-raised);">
-            <h3 class="font-bold flex items-center gap-2">
+        <div class="ui-modal-header ui-modal-header--compact">
+            <h3 id="markdown-preview-title" class="ui-modal-title flex items-center gap-2">
                 <span aria-hidden="true">{{ icon('file', 'ui-icon--md') }}</span>
                 <span>本地备注预览</span>
             </h3>
-            <button @click="showMarkdownModal=false" aria-label="关闭 Markdown 预览" style="color: var(--content-muted); cursor: pointer;">
+            <button type="button" @click="showMarkdownModal=false" class="ui-close-button" title="关闭 Markdown 预览" aria-label="关闭 Markdown 预览">
                 {{ icon('close', 'ui-icon--md') }}
             </button>
         </div>
@@ -24,8 +22,7 @@
         </div>
 
         <!-- 底部 -->
-        <div
-            style="padding: 0.75rem; border-top: 1px solid var(--border-default); text-align: right; background: var(--surface-container-raised); color: var(--content-muted); font-size: 0.75rem;">
+        <div class="ui-modal-footer markdown-preview-footer">
             只读模式，如需编辑请进入详情页
         </div>
     </div>

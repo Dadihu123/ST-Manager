@@ -4,34 +4,41 @@
 <div
   x-show="showLargeEditor"
   x-cloak
-  class="modal-overlay z-modal-popover"
+  class="modal-overlay ui-modal-overlay ui-refresh-surface z-modal-popover"
   x-init="ensurePreviewState()"
   @click.stop
 >
   <div
-    class="modal-container large-editor-container"
-    style="width: 1000px; height: 90vh; max-width: 95vw"
+    class="modal-container ui-modal-shell large-editor-container"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="large-editor-title"
     @click.away="saveLargeEditor()"
   >
     <!-- 顶部栏 -->
     <div class="large-editor-topbar">
       <!-- 第一行：标题和操作按钮 -->
       <div class="large-editor-topbar-row">
-        <h3 class="large-editor-title">
+        <h3 id="large-editor-title" class="large-editor-title">
           <span aria-hidden="true">{{ icon('file-edit', 'ui-icon--md large-editor-title-icon') }}</span>
           <span x-text="largeEditorTitle"></span>
         </h3>
         <div class="large-editor-actions">
           <button
             @click="showLargeEditor=false"
-            class="large-editor-cancel-btn"
+            class="btn-secondary large-editor-cancel-btn"
+            type="button"
+            aria-label="取消编辑"
           >
             取消
           </button>
           <button
             @click="saveLargeEditor()"
             class="btn-primary large-editor-save-btn"
+            type="button"
+            aria-label="完成编辑"
           >
+            <span aria-hidden="true">{{ icon('check', 'ui-icon--sm') }}</span>
             完成
           </button>
         </div>

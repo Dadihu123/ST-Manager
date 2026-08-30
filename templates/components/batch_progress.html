@@ -1,7 +1,9 @@
+{% from "components/icon.html" import icon %}
+
 <div
   x-show="$store.global.batchProgress.visible"
   x-cloak
-  class="batch-progress-host"
+  class="batch-progress-host ui-refresh-surface"
   role="status"
   aria-live="polite"
 >
@@ -15,7 +17,7 @@
         aria-label="关闭批量处理结果"
         title="关闭"
         @click="$store.global.dismissBatchProgress()"
-      >×</button>
+      >{{ icon('close', 'ui-icon--sm') }}</button>
     </div>
 
     <div class="batch-progress-meta">

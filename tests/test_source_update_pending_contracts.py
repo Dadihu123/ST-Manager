@@ -48,11 +48,12 @@ def test_selected_card_source_update_actions_use_accessible_dropdowns_on_both_la
 def test_source_update_dropdowns_match_automation_alignment_and_arrow_position():
     template = read_project_file('templates/components/header.html')
 
-    assert "<span aria-hidden=\"true\">{{ icon('chevron-down', 'ui-icon--xs') }}</span> 来源更新" in template
-    assert "<span aria-hidden=\"true\">{{ icon('chevron-down', 'ui-icon--xs') }}</span> 更新" in template
+    assert "{{ icon('chevron-down', 'ui-icon--xs') }}" in template
+    assert '来源更新' in template
+    assert '检查更新' in template
     assert (
-        'class="absolute top-full left-0 mt-2 w-56 '
-        'bg-[var(--bg-panel)] border border-[var(--border-light)] '
+        'class="header-batch-menu absolute top-full left-0 mt-2 w-56 '
+        'bg-[var(--surface-container)] border border-[var(--border-default)] '
         'rounded-lg shadow-2xl py-1 overflow-hidden"'
     ) in template
 

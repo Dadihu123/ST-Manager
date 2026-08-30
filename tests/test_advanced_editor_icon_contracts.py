@@ -49,7 +49,7 @@ def test_advanced_editor_uses_semantic_icon_mappings():
     assert 'title="上移"' in source
     assert 'title="下移"' in source
     assert 'title="删除正则脚本"' in source
-    assert "icon('close-bold'" in source
+    assert "icon('close-bold'" not in source
     assert "icon('arrow-right'" in source
     assert '运行时 (Runtime)' in source
     assert '<p>请在左侧选择一个条目进行详细编辑</p>' in source

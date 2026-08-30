@@ -2,9 +2,10 @@
 {% from "components/styled_select.html" import styled_select %}
 
 <!-- 自动化规则管理器 -->
-<div x-show="showAutomationModal" x-data="automationModal" x-cloak class="modal-overlay z-modal-std"
+<div x-show="showAutomationModal" x-data="automationModal" x-cloak class="modal-overlay ui-modal-overlay ui-refresh-surface z-modal-std"
     @click.self="closeModal()">
-    <div class="modal-container automation-container" style="width: 1100px; height: 85vh;">
+    <div class="modal-container ui-modal-shell automation-container" role="dialog" aria-modal="true"
+        aria-labelledby="automation-modal-title">
 
         <!-- 移动端：侧边栏切换按钮 -->
         <button x-show="$store.global.deviceType === 'mobile' && !showMobileSidebar" 
@@ -41,7 +42,7 @@
             <!-- 头部保持不变 -->
             <div
                 class="p-3 border-b border-[var(--border-default)] flex justify-between items-center bg-[var(--surface-container)]">
-                <span class="font-bold text-sm">规则集</span>
+                <span id="automation-modal-title" class="font-bold text-sm">规则集</span>
                 <div class="flex gap-1">
                     <button @click="$refs.importInput.click()" class="btn-secondary px-2 py-1 text-xs"
                         title="导入规则集" aria-label="导入规则集">
@@ -103,7 +104,7 @@
             <main class="automation-content relative">
                 <!-- 关闭按钮 -->
                 <button @click="closeModal()" 
-                    class="absolute top-2 right-2 z-50 w-8 h-8 bg-[var(--surface-container)] border border-[var(--border-default)] rounded-lg flex items-center justify-center text-[var(--content-primary)] hover:bg-[var(--state-hover-surface)] color-hover-text-danger transition-colors shadow-lg"
+                    class="ui-close-button absolute top-2 right-2 z-50"
                     title="关闭" aria-label="关闭">
                     {{ icon('close', 'ui-icon--sm') }}
                 </button>
@@ -415,8 +416,8 @@
                                                             <div class="automation-inline-actions">
                                                                 <button type="button" @click="moveConditionInGroup(rIdx, gIdx, cIdx, -1)" class="ui-reorder-button" title="上移条件" aria-label="上移条件">{{ icon('arrow-up', 'ui-icon--xs') }}</button>
                                                                 <button type="button" @click="moveConditionInGroup(rIdx, gIdx, cIdx, 1)" class="ui-reorder-button" title="下移条件" aria-label="下移条件">{{ icon('arrow-down', 'ui-icon--xs') }}</button>
-                                                                <button @click="removeConditionFromGroup(rIdx, gIdx, cIdx)"
-                                                                    class="btn-icon-sm delete" title="删除条件">{{ icon('close-bold', 'ui-icon--xs') }}</button>
+                                                                    <button type="button" @click="removeConditionFromGroup(rIdx, gIdx, cIdx)"
+                                                                    class="btn-icon-sm delete" title="删除条件" aria-label="删除条件">{{ icon('close', 'ui-icon--xs') }}</button>
                                                             </div>
                                                         </div>
                                                     </template>
@@ -762,8 +763,8 @@
                                                 <div class="automation-inline-actions">
                                                     <button type="button" @click="moveAction(rIdx, aIdx, -1)" class="ui-reorder-button" title="上移动作" aria-label="上移动作">{{ icon('arrow-up', 'ui-icon--xs') }}</button>
                                                     <button type="button" @click="moveAction(rIdx, aIdx, 1)" class="ui-reorder-button" title="下移动作" aria-label="下移动作">{{ icon('arrow-down', 'ui-icon--xs') }}</button>
-                                                    <button @click="removeAction(rIdx, aIdx)"
-                                                        class="btn-icon-sm delete" title="删除动作">{{ icon('close-bold', 'ui-icon--xs') }}</button>
+                                                    <button type="button" @click="removeAction(rIdx, aIdx)"
+                                                        class="btn-icon-sm delete" title="删除动作" aria-label="删除动作">{{ icon('close', 'ui-icon--xs') }}</button>
                                                 </div>
                                             </div>
                                         </template>
@@ -796,23 +797,22 @@
                     class="absolute inset-0 z-50 flex items-center justify-center color-surface-scrim backdrop-blur-sm p-8"
                     @click.self="showHelpModal = false">
 
-                    <div
-                        class="bg-[var(--surface-container)] border border-[var(--border-default)] rounded-xl shadow-2xl w-full max-w-2xl flex flex-col overflow-hidden max-h-full">
+                    <div class="ui-modal-shell automation-help-dialog w-full max-w-2xl max-h-full" role="dialog"
+                        aria-modal="true" aria-labelledby="automation-help-title">
                         <!-- 弹窗标题 -->
-                        <div
-                            class="px-6 py-4 border-b border-[var(--border-default)] bg-[var(--surface-container-raised)] flex justify-between items-center">
-                            <h3 class="font-bold text-lg text-[var(--content-primary)] flex items-center gap-2">
+                        <div class="ui-modal-header">
+                            <h3 id="automation-help-title" class="ui-modal-title flex items-center gap-2">
                                 <span aria-hidden="true">{{ icon('book-tip', 'ui-icon--sm') }}</span>
                                 <span>规则编写指南</span>
                             </h3>
-                            <button @click="showHelpModal = false"
-                                class="color-text-muted color-hover-text-danger px-2 text-xl" title="关闭帮助" aria-label="关闭帮助">
+                            <button type="button" @click="showHelpModal = false"
+                                class="ui-close-button" title="关闭帮助" aria-label="关闭帮助">
                                 {{ icon('close', 'ui-icon--sm') }}
                             </button>
                         </div>
 
                         <!-- 弹窗内容 -->
-                        <div class="automation-help-body p-6 overflow-y-auto custom-scrollbar text-sm text-[var(--content-primary)]">
+                        <div class="automation-help-body ui-modal-body overflow-y-auto custom-scrollbar text-sm text-[var(--content-primary)]">
                             <div class="automation-help-tabs" role="tablist" aria-label="规则帮助分类">
                                 <button type="button" class="automation-help-tab"
                                     id="automation-help-tab-conditions"
