@@ -398,6 +398,14 @@ def _state_for_card(ui_data, ui_key):
     return get_source_update_state(ui_data, ui_key)
 
 
+def _sync_card_source_update(card, state):
+    """让内存卡片与 UI Store 中的来源状态保持一致。"""
+    if not isinstance(card, dict):
+        return
+    card['source_update'] = state
+    card['source_title'] = state.get('source_title', '')
+
+
 def _reset_state_if_source_changed(data, ui_key, source_url, status, error=''):
     current = _state_for_card(data, ui_key)
     normalized_url = str(source_url or '').strip()
@@ -419,7 +427,7 @@ def _reset_state_if_source_changed(data, ui_key, source_url, status, error=''):
 @_source_operation_locked
 def prepare_source_link_for_card(card_id, source_link=None, *, ui_data=None):
     """记录链接变更并清空旧来源基线，不发起 Discord 请求。"""
-    _card, ui_key, link, data = _resolve_card_and_source(card_id, source_link, ui_data)
+    card, ui_key, link, data = _resolve_card_and_source(card_id, source_link, ui_data)
     if not ui_key:
         return {
             'success': False,
@@ -436,6 +444,7 @@ def prepare_source_link_for_card(card_id, source_link=None, *, ui_data=None):
         status = 'never_checked'
 
     state = _reset_state_if_source_changed(data, ui_key, link, status)
+    _sync_card_source_update(card, state)
     return {
         'success': True,
         'supported': bool(link and _parse_discord_parts(link)),
@@ -487,9 +496,7 @@ def save_source_title_for_card(card_id, title, source_link=None, *, ui_data=None
     if changed and not save_ui_data(data):
         return {'success': False, 'status': 'error', 'error': '保存来源标题失败'}
 
-    if isinstance(card, dict):
-        card['source_title'] = state['source_title']
-        card['source_update'] = state
+    _sync_card_source_update(card, state)
     return {
         'success': True,
         'supported': True,
@@ -506,6 +513,7 @@ def sync_source_title_for_card(card_id, source_link=None, *, title_hint=None, ui
     card, ui_key, link, data = _resolve_card_and_source(card_id, source_link, ui_data)
     if not link:
         state = _reset_state_if_source_changed(data, ui_key, '', 'no_source')
+        _sync_card_source_update(card, state)
         return {
             'success': False,
             'status': 'no_source',
@@ -514,6 +522,7 @@ def sync_source_title_for_card(card_id, source_link=None, *, title_hint=None, ui
         }
     if not _parse_discord_parts(link):
         state = _reset_state_if_source_changed(data, ui_key, link, 'unsupported')
+        _sync_card_source_update(card, state)
         return {
             'success': False,
             'supported': False,
@@ -544,6 +553,7 @@ def sync_source_title_for_card(card_id, source_link=None, *, title_hint=None, ui
             fetched.get('status', 'error'),
             fetched.get('error') or '无法取得来源标题',
         )
+        _sync_card_source_update(card, state)
         return {
             'success': False,
             'supported': True,
@@ -569,6 +579,7 @@ def check_card_source_update(card_id, source_link=None, *, ui_data=None, timeout
         return {'success': False, 'status': 'error', 'error': '找不到角色卡', 'card_id': card_id}
     if not link:
         state = _reset_state_if_source_changed(data, ui_key, '', 'no_source')
+        _sync_card_source_update(card, state)
         return {
             'success': True,
             'supported': False,
@@ -579,6 +590,7 @@ def check_card_source_update(card_id, source_link=None, *, ui_data=None, timeout
         }
     if not _parse_discord_parts(link):
         state = _reset_state_if_source_changed(data, ui_key, link, 'unsupported')
+        _sync_card_source_update(card, state)
         return {
             'success': True,
             'supported': False,
@@ -604,6 +616,7 @@ def check_card_source_update(card_id, source_link=None, *, ui_data=None, timeout
         changed, state = set_source_update_state(data, ui_key, state)
         if changed:
             save_ui_data(data)
+        _sync_card_source_update(card, state)
         return {
             'success': False,
             'supported': True,
@@ -711,9 +724,7 @@ def check_card_source_update(card_id, source_link=None, *, ui_data=None, timeout
     changed, normalized_state = set_source_update_state(data, ui_key, next_state)
     if changed:
         save_ui_data(data)
-    if isinstance(card, dict):
-        card['source_title'] = normalized_state['source_title']
-        card['source_update'] = normalized_state
+    _sync_card_source_update(card, normalized_state)
 
     message = _status_message(status, warnings[0] if warnings else '')
     if normalized_state['pending_update'] and not detected_change:
@@ -781,9 +792,7 @@ def acknowledge_card_source_update(card_id, *, ui_data=None):
             'source_update': state,
         }
 
-    if isinstance(card, dict):
-        card['source_update'] = normalized_state
-        card['source_title'] = normalized_state['source_title']
+    _sync_card_source_update(card, normalized_state)
 
     return {
         'success': True,
@@ -807,6 +816,7 @@ def refresh_card_source_baseline(card_id, source_link=None, *, ui_data=None,
         return {'success': False, 'status': 'error', 'error': '找不到角色卡', 'card_id': card_id}
     if not link:
         state = _reset_state_if_source_changed(data, ui_key, '', 'no_source')
+        _sync_card_source_update(card, state)
         return {
             'success': True,
             'supported': False,
@@ -817,6 +827,7 @@ def refresh_card_source_baseline(card_id, source_link=None, *, ui_data=None,
         }
     if not _parse_discord_parts(link):
         state = _reset_state_if_source_changed(data, ui_key, link, 'unsupported')
+        _sync_card_source_update(card, state)
         return {
             'success': True,
             'supported': False,
@@ -843,6 +854,7 @@ def refresh_card_source_baseline(card_id, source_link=None, *, ui_data=None,
         changed, state = set_source_update_state(data, ui_key, state)
         if changed:
             save_ui_data(data)
+        _sync_card_source_update(card, state)
         return {
             'success': False,
             'supported': True,
@@ -868,9 +880,7 @@ def refresh_card_source_baseline(card_id, source_link=None, *, ui_data=None,
         changed, state = set_source_update_state(data, ui_key, state)
         if changed:
             save_ui_data(data)
-        if isinstance(card, dict):
-            card['source_title'] = state['source_title']
-            card['source_update'] = state
+        _sync_card_source_update(card, state)
         return {
             'success': True,
             'supported': True,
@@ -901,9 +911,7 @@ def refresh_card_source_baseline(card_id, source_link=None, *, ui_data=None,
     changed, normalized_state = set_source_update_state(data, ui_key, next_state)
     if changed:
         save_ui_data(data)
-    if isinstance(card, dict):
-        card['source_title'] = normalized_state['source_title']
-        card['source_update'] = normalized_state
+    _sync_card_source_update(card, normalized_state)
 
     return {
         'success': True,

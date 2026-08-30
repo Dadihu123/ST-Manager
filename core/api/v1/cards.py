@@ -1961,7 +1961,10 @@ def api_update_card():
                         bundle_card['ui_summary'] = ui_info.get('summary', '')
                         bundle_card['source_link'] = ui_info.get('link', '')
                         bundle_card['resource_folder'] = ui_info.get('resource_folder', '')
-                    
+
+                    bundle_card['source_update'] = get_source_update_state(ui_data, bundle_dir)
+                    bundle_card['source_title'] = bundle_card['source_update'].get('source_title', '')
+
                     # URL
                     encoded_id = quote(bundle_card['id'])
                     ts = int(time.time())

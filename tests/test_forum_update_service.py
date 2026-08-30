@@ -375,7 +375,7 @@ def test_check_without_source_clears_previous_source_state(monkeypatch):
             },
         }
     }
-    _prepare(monkeypatch, ui_data=ui_data)
+    _, cache = _prepare(monkeypatch, ui_data=ui_data)
 
     result = service.check_card_source_update('cards/demo.png')
 
@@ -383,6 +383,7 @@ def test_check_without_source_clears_previous_source_state(monkeypatch):
     assert result['source_update']['source_title'] == ''
     assert result['source_update']['baseline_established'] is False
     assert result['source_update']['pending_update'] is False
+    assert cache.id_map['cards/demo.png']['source_update']['baseline_established'] is False
 
 
 def test_title_sync_is_distinct_from_baseline_check(monkeypatch):
@@ -453,7 +454,7 @@ def test_first_check_updated_message_is_explicit(monkeypatch):
 
 
 def test_prepare_source_link_does_not_make_network_request(monkeypatch):
-    data, _ = _prepare(monkeypatch)
+    data, cache = _prepare(monkeypatch)
     result = service.prepare_source_link_for_card(
         'cards/demo.png',
         source_link='https://discord.com/channels/1/2/threads/9',
@@ -464,6 +465,7 @@ def test_prepare_source_link_does_not_make_network_request(monkeypatch):
     assert result['source_update']['source_url'].endswith('/threads/9')
     assert result['source_update']['source_title'] == ''
     assert result['source_update']['baseline_established'] is False
+    assert cache.id_map['cards/demo.png']['source_update']['source_url'].endswith('/threads/9')
 
 
 def test_refresh_after_card_update_adopts_remote_revision_as_new_baseline(monkeypatch):

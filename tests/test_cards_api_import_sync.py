@@ -225,6 +225,38 @@ def _setup_update_card_content_test(monkeypatch, tmp_path, *, ui_state=None):
     return cards_root
 
 
+def test_cache_add_card_update_populates_source_update_state(monkeypatch):
+    source_state = {
+        'source_url': 'https://discord.com/channels/1/2/threads/3',
+        'source_title': '来源标题',
+        'baseline_established': True,
+        'last_status': 'baseline_refreshed',
+    }
+    monkeypatch.setattr(
+        cache_module,
+        'load_ui_data',
+        lambda: {
+            'hero.png': {
+                'link': source_state['source_url'],
+                '_source_update_v1': source_state,
+            }
+        },
+    )
+
+    cache = GlobalMetadataCache()
+    cache.add_card_update({
+        'id': 'hero.png',
+        'category': '',
+        'tags': [],
+        'last_modified': 100.0,
+    })
+
+    added_card = cache.id_map['hero.png']
+    assert added_card['source_update']['source_url'] == source_state['source_url']
+    assert added_card['source_update']['last_status'] == 'baseline_refreshed'
+    assert added_card['source_title'] == '来源标题'
+
+
 def test_update_card_content_archive_old_keeps_original_filename(monkeypatch, tmp_path):
     ui_state = {'hero.png': {'resource_folder': 'hero-assets'}}
     cards_root = _setup_update_card_content_test(monkeypatch, tmp_path, ui_state=ui_state)

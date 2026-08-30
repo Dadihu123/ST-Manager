@@ -231,6 +231,7 @@ def test_card_effect_toggle_disables_and_restores_effect_instances_without_hidin
 
 def test_source_update_status_keeps_pill_shape_and_vertical_alignment_in_effect_layer():
     card_css = read_project_file('static/css/modules/view-cards.css')
+    card_template = read_project_file('templates/components/grid_cards.html')
 
     status_rule = card_css.split('.card-source-update-status {', 1)[1].split('}', 1)[0]
     assert 'display: inline-flex;' in status_rule
@@ -238,6 +239,8 @@ def test_source_update_status_keeps_pill_shape_and_vertical_alignment_in_effect_
     assert 'justify-content: center;' in status_rule
     assert 'border-radius: 999px;' in status_rule
     assert '> span:not(.card-source-update-status) {' in card_css
+    assert "includes(card.source_update?.last_status)" in card_template
+    assert "card.source_update?.last_status === 'title_synced'" in card_template
 
 
 def test_card_effect_interaction_instances_are_lazy_and_release_is_bounded():

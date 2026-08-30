@@ -67,6 +67,28 @@ class GlobalMetadataCache:
                 tags.add(tag)
         self.global_tags = sorted(tags)
 
+    def _sync_source_update_fields(self, card, ui_data, *, overwrite=False):
+        """同步增量卡片对象中的来源状态，避免新对象缺少前端依赖字段。"""
+        if not isinstance(card, dict):
+            return
+
+        ui_key = card.get('bundle_dir') if card.get('is_bundle') else card.get('id')
+        if not ui_key:
+            return
+
+        state = get_source_update_state(ui_data, ui_key)
+        current_state = card.get('source_update')
+        should_sync_state = (
+            overwrite
+            or not isinstance(current_state, dict)
+            or not current_state.get('last_status')
+        )
+        if should_sync_state:
+            card['source_update'] = state
+            card['source_title'] = state.get('source_title', '')
+        elif overwrite or 'source_title' not in card:
+            card['source_title'] = state.get('source_title', '')
+
     def update_card_data(self, card_id, new_data):
         """
         [增量更新] 原地更新单个卡片对象的字段，无需重载数据库。
@@ -101,6 +123,13 @@ class GlobalMetadataCache:
                 # 4. 更新全局标签池
                 if 'tags' in new_data:
                     self._rebuild_global_tags_locked()
+
+                source_update = card.get('source_update')
+                if (
+                    not isinstance(source_update, dict)
+                    or not source_update.get('last_status')
+                ):
+                    self._sync_source_update_fields(card, load_ui_data())
 
                 return card
             return None
@@ -351,6 +380,11 @@ class GlobalMetadataCache:
         with self.lock:
             new_card_data['tags'] = self._normalize_tags(new_card_data.get('tags'))
             ui_data = load_ui_data()
+            ui_key = (
+                new_card_data.get('bundle_dir')
+                if new_card_data.get('is_bundle')
+                else new_card_data.get('id')
+            )
 
             import_ts = new_card_data.get('import_time')
             try:
@@ -367,9 +401,9 @@ class GlobalMetadataCache:
                 if sent_ts <= 0:
                     raise ValueError('invalid last_sent_to_st')
             except Exception:
-                ui_key = new_card_data.get('bundle_dir') if new_card_data.get('is_bundle') else new_card_data.get('id')
                 sent_ts = get_last_sent_to_st(ui_data, ui_key)
             new_card_data['last_sent_to_st'] = sent_ts
+            self._sync_source_update_fields(new_card_data, ui_data, overwrite=True)
 
             self.cards.append(new_card_data)
             self.id_map[new_card_data['id']] = new_card_data
