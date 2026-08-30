@@ -28,6 +28,7 @@ const CARD_EFFECT_NAMES = Object.freeze({
   regular: "cosmos",
   favorite: "glitter",
 });
+const FAVORITE_GLITTER_STRENGTH = 0.7;
 const CARD_EFFECT_VISUALS = Object.freeze({
   cosmos: Object.freeze({
     brightness: 1,
@@ -40,8 +41,8 @@ const CARD_EFFECT_VISUALS = Object.freeze({
     brightness: 1,
     contrast: 1,
     saturate: 1,
-    glareOpacity: 1,
-    shineOpacity: 1,
+    glareOpacity: FAVORITE_GLITTER_STRENGTH,
+    shineOpacity: FAVORITE_GLITTER_STRENGTH,
   }),
 });
 const cardEffectInstances = new WeakMap();

@@ -246,6 +246,17 @@ def test_card_effect_interaction_instances_are_lazy_and_release_is_bounded():
     assert 'generateTextures({ seed, effect })' in holo_card_source
 
 
+def test_favorite_glitter_effect_keeps_seventy_percent_intensity():
+    card_grid_source = read_project_file('static/js/components/cardGrid.js')
+
+    assert 'const FAVORITE_GLITTER_STRENGTH = 0.7;' in card_grid_source
+    glitter_visuals = card_grid_source.split('glitter: Object.freeze({', 1)[1].split(
+        '  }),', 1
+    )[0]
+    assert 'glareOpacity: FAVORITE_GLITTER_STRENGTH' in glitter_visuals
+    assert 'shineOpacity: FAVORITE_GLITTER_STRENGTH' in glitter_visuals
+
+
 def test_bulk_flip_buttons_use_the_soft_action_treatment_in_both_themes_and_layouts():
     card_css = read_project_file('static/css/modules/view-cards.css')
     bulk_flip_button = card_css.split('.card-flip-all-btn {', 1)[1].split('}', 1)[0]
