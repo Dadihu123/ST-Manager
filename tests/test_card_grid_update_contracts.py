@@ -105,7 +105,7 @@ def test_card_controls_are_sibling_layer_above_cards_css_effect():
         '.card-effect-shell .card-toolbar-layout-spacer {', 1
     )[1].split('}', 1)[0]
     assert 'visibility: visible;' in spacer_css
-    assert 'backdrop-filter: blur(12px) saturate(130%);' in spacer_css
+    assert 'backdrop-filter:' not in spacer_css
     assert 'rgba(var(--surface-container-rgb), 0.5)' in spacer_css
     assert 'rgba(var(--surface-container-rgb), 0.62)' in spacer_css
     bottom_surface_reset = card_css.rsplit(
@@ -119,7 +119,7 @@ def test_card_controls_are_sibling_layer_above_cards_css_effect():
         1,
     )[1].split('}', 1)[0]
     assert 'background: color-mix(in srgb, var(--content-on-dark) 42%, transparent) !important;' in light_surface_rule
-    assert 'backdrop-filter: blur(12px) saturate(130%) !important;' in light_surface_rule
+    assert 'backdrop-filter:' not in light_surface_rule
 
 
 def test_card_information_uses_the_existing_controls_layer_above_effects():
@@ -219,6 +219,31 @@ def test_card_effect_toggle_disables_and_restores_effect_instances_without_hidin
         '.card-effect-shell.holo-card.card-effect-disabled .holo-card__shine,', 1
     )[1].split('}', 1)[0]
     assert '.card-effect-shell.holo-card.card-effect-disabled .holo-card__content' not in card_css
+
+
+def test_card_effect_interaction_instances_are_lazy_and_release_is_bounded():
+    card_grid_source = read_project_file('static/js/components/cardGrid.js')
+    holo_card_source = read_project_file('static/lib/cards-css/holo-card.js')
+    holo_css = read_project_file('static/lib/cards-css/holo-cards.css')
+    texture_source = read_project_file('static/lib/cards-css/textures.js')
+
+    assert 'prepareHoloCard' in card_grid_source
+    assert 'activateCardEffect' in card_grid_source
+    assert 'releaseCardEffectIfIdle' in card_grid_source
+    assert '_cardEffectReleaseShell' in card_grid_source
+    assert 'releaseInteractive()' in holo_card_source
+    assert card_grid_source.count('addEventListener("pointerover"') == 1
+    assert card_grid_source.count('addEventListener("pointerout"') == 1
+    assert card_grid_source.count('addEventListener("pointercancel"') == 1
+    assert card_grid_source.count('addEventListener("focusin"') == 1
+    assert card_grid_source.count('addEventListener("focusout"') == 1
+    assert 'will-change: transform, visibility, z-index;' not in holo_css
+    assert 'will-change: transform, box-shadow;' not in holo_css
+    assert '.holo-card--interactive .holo-card__translater' in holo_css
+    assert 'TEXTURE_CACHE_LIMIT = 24' in texture_source
+    assert 'while (textureCache.size > TEXTURE_CACHE_LIMIT)' in texture_source
+    assert 'textureKeysForEffect' in texture_source
+    assert 'generateTextures({ seed, effect })' in holo_card_source
 
 
 def test_bulk_flip_buttons_use_the_soft_action_treatment_in_both_themes_and_layouts():

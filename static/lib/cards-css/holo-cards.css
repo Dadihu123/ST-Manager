@@ -65,10 +65,6 @@
   transform: translate3d(0px, 0px, 0.01px);
   pointer-events: none;
   z-index: calc(var(--card-scale) * 2);
-  will-change:
-    transform,
-    visibility,
-    z-index;
   transform-style: preserve-3d;
 }
 .holo-card,
@@ -112,9 +108,13 @@
 .holo-card__rotator {
   display: grid;
   perspective: var(--card-perspective, 600px);
-  will-change: transform, box-shadow;
   transform-origin: center;
   transform-style: preserve-3d;
+}
+
+.holo-card--interactive .holo-card__translater,
+.holo-card--interactive .holo-card__rotator {
+  will-change: transform;
 }
 .holo-card__translater {
   width: auto;
@@ -195,16 +195,9 @@ button.holo-card__rotator {
 .holo-card--loading .holo-card__back {
   transform: rotateY(0deg);
 }
-.holo-card__shine,
-.holo-card__glare {
-  will-change:
-    transform,
-    opacity,
-    background-image,
-    background-size,
-    background-position,
-    background-blend-mode,
-    filter;
+.holo-card--interactive .holo-card__shine,
+.holo-card--interactive .holo-card__glare {
+  will-change: opacity, background-position;
 }
 .holo-card__shine {
   display: grid;
@@ -277,7 +270,9 @@ button.holo-card__rotator {
   mix-blend-mode: var(--layer-blend);
   opacity: var(--layer-opacity);
   transform: translate3d(calc(var(--pointer-dx) * var(--layer-parallax) * 1px), calc(var(--pointer-dy) * var(--layer-parallax) * 1px), 0.02px);
-  will-change: transform, opacity;
+}
+.holo-card--interactive .holo-card__layer {
+  will-change: transform;
 }
 .holo-card__layer--masked {
   mask-image: var(--layer-mask);

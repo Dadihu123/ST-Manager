@@ -158,8 +158,6 @@
   border-bottom: 1px solid color-mix(in srgb, var(--surface-container-sunken) 20%, transparent);
   background: color-mix(in srgb, var(--surface-page) 42%, transparent);
   box-shadow: inset 0 1px 0 color-mix(in srgb, var(--content-on-dark) 8%, transparent);
-  backdrop-filter: blur(12px) saturate(130%);
-  -webkit-backdrop-filter: blur(12px) saturate(130%);
   min-height: 2rem;
 }
 
@@ -210,7 +208,6 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  backdrop-filter: blur(4px);
 }
 
 .card-meta-token {
@@ -250,15 +247,11 @@
 .card-front-topbar,
 .card-bottom-toolbar {
   background: color-mix(in srgb, var(--surface-page) 42%, transparent) !important;
-  backdrop-filter: blur(12px) saturate(130%) !important;
-  -webkit-backdrop-filter: blur(12px) saturate(130%) !important;
 }
 
 html.light-mode .card-front-topbar,
 html.light-mode .card-bottom-toolbar {
   background: color-mix(in srgb, var(--content-on-dark) 42%, transparent) !important;
-  backdrop-filter: blur(12px) saturate(130%) !important;
-  -webkit-backdrop-filter: blur(12px) saturate(130%) !important;
 }
 
 .card-meta-category span {
@@ -581,7 +574,6 @@ html.light-mode .preset-card-action-btn.is-export {
 .card-image-media {
   transition: none;
   transform-origin: center center;
-  will-change: transform;
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -765,8 +757,6 @@ html.light-mode .preset-card-action-btn.is-export {
     0 10px 24px -16px color-mix(in srgb, var(--content-on-light) 90%, transparent),
     0 6px 16px -12px color-mix(in srgb, var(--surface-page) 75%, transparent),
     inset 0 1px 0 color-mix(in srgb, var(--content-on-dark) 12%, transparent);
-  backdrop-filter: blur(12px) saturate(130%);
-  -webkit-backdrop-filter: blur(12px) saturate(130%);
   perspective: 1200px;
 }
 
@@ -824,7 +814,6 @@ html.light-mode .preset-card-action-btn.is-export {
     transform 0.72s cubic-bezier(0.16, 0.72, 0.24, 1),
     box-shadow 0.72s ease;
   backface-visibility: hidden;
-  will-change: transform;
   border-radius: inherit;
   overflow: hidden;
 }
@@ -1042,8 +1031,6 @@ html.light-mode .preset-card-action-btn.is-export {
   border-top: 1px solid color-mix(in srgb, var(--surface-container-sunken) 20%, transparent);
   background: color-mix(in srgb, var(--surface-page) 42%, transparent);
   box-shadow: inset 0 1px 0 color-mix(in srgb, var(--content-on-dark) 8%, transparent);
-  backdrop-filter: blur(12px) saturate(130%);
-  -webkit-backdrop-filter: blur(12px) saturate(130%);
 }
 
 .card-local-note-btn {
@@ -1456,8 +1443,6 @@ html.light-mode .st-card {
     0 14px 30px -20px color-mix(in srgb, var(--accent-action) 35%, transparent),
     0 10px 22px -18px color-mix(in srgb, var(--content-on-light) 22%, transparent),
     inset 0 1px 0 color-mix(in srgb, var(--content-on-dark) 70%, transparent);
-  backdrop-filter: blur(12px) saturate(115%);
-  -webkit-backdrop-filter: blur(12px) saturate(115%);
 }
 
 html.light-mode .st-card:hover {
@@ -1481,16 +1466,12 @@ html.light-mode .card-front-topbar {
   background: color-mix(in srgb, var(--content-on-dark) 42%, transparent) !important;
   border-bottom-color: color-mix(in srgb, var(--content-muted) 24%, transparent);
   box-shadow: inset 0 1px 0 color-mix(in srgb, var(--content-on-dark) 90%, transparent);
-  backdrop-filter: blur(12px) saturate(130%);
-  -webkit-backdrop-filter: blur(12px) saturate(130%);
 }
 
 html.light-mode .card-bottom-toolbar {
   background: color-mix(in srgb, var(--content-on-dark) 42%, transparent) !important;
   border-top-color: color-mix(in srgb, var(--content-muted) 24%, transparent);
   box-shadow: inset 0 1px 0 color-mix(in srgb, var(--content-on-dark) 90%, transparent);
-  backdrop-filter: blur(12px) saturate(130%);
-  -webkit-backdrop-filter: blur(12px) saturate(130%);
 }
 
 html.light-mode .card-meta-chip {
@@ -2330,8 +2311,6 @@ html.light-mode .card-bottom-toolbar
       rgba(var(--surface-container-rgb), 0.5),
       rgba(var(--surface-container-rgb), 0.62)
     );
-  backdrop-filter: blur(12px) saturate(130%);
-  -webkit-backdrop-filter: blur(12px) saturate(130%);
   border-top: 1px solid transparent;
   visibility: visible;
   pointer-events: none;
@@ -2651,6 +2630,13 @@ html.light-mode .card-effect-shell .card-toolbar-layout-spacer {
 /* 关闭开关后保留静态卡面，避免 cards-css 的非交互悬浮兜底重新触发动画。 */
 .card-effect-shell.holo-card.card-effect-disabled,
 .card-effect-shell.holo-card.card-effect-disabled:hover {
+  --pointer-x: 50% !important;
+  --pointer-y: 50% !important;
+  --pointer-from-center: 0 !important;
+  --pointer-from-top: 0 !important;
+  --pointer-from-left: 0 !important;
+  --background-x: 50% !important;
+  --background-y: 50% !important;
   --card-opacity: 0 !important;
   --card-scale: 1 !important;
   --translate-x: 0px !important;
@@ -2662,6 +2648,11 @@ html.light-mode .card-effect-shell .card-toolbar-layout-spacer {
 .card-effect-shell.holo-card.card-effect-disabled .holo-card__shine,
 .card-effect-shell.holo-card.card-effect-disabled .holo-card__glare {
   display: none;
+}
+
+.card-effect-shell.holo-card.card-effect-disabled .holo-card__translater,
+.card-effect-shell.holo-card.card-effect-disabled .holo-card__rotator {
+  transition: none !important;
 }
 
 @media (prefers-reduced-motion: reduce) {

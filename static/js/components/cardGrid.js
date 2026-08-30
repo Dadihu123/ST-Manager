@@ -19,7 +19,10 @@ import { formatDate, getCardGridTokenBadgeClass } from "../utils/format.js";
 import { createMarqueeSelection } from "../utils/marqueeSelection.js";
 import { buildWindowedGridState } from "../utils/windowing.js";
 import { canPreviewForumThread } from "../utils/discordUrl.js";
-import { attachHoloCard } from "../../lib/cards-css/index.js";
+import {
+  attachHoloCard,
+  prepareHoloCard,
+} from "../../lib/cards-css/index.js";
 
 const CARD_EFFECT_NAMES = Object.freeze({
   regular: "cosmos",
@@ -89,6 +92,11 @@ export default function cardGrid() {
     _autoFlipBackTimers: {},
     _syncCardWindowRangeHandler: null,
     _cardEffectObserver: null,
+    _cardEffectEventRoot: null,
+    _cardEffectEventHandlers: null,
+    _cardEffectActiveShell: null,
+    _cardEffectReleaseShell: null,
+    _cardEffectDragShell: null,
 
     ...createMarqueeSelection({
       mode: "cards",
@@ -132,6 +140,7 @@ export default function cardGrid() {
     init() {
       this.initMarqueeSelection();
       this.initCardEffectObserver();
+      this.initCardEffectInteractions();
 
       // 1. 监听全局搜索/筛选变化 (Reactivity Fix)
       // 使用 debounce 防止输入时频繁请求
@@ -464,6 +473,151 @@ export default function cardGrid() {
       });
     },
 
+    initCardEffectInteractions() {
+      if (this._cardEffectEventRoot || !this.$el) {
+        return;
+      }
+
+      const isNode = (value) =>
+        typeof Node !== "undefined" && value instanceof Node;
+      const findCardElement = (event) => {
+        const target = event?.target;
+        if (typeof Element === "undefined" || !(target instanceof Element)) {
+          return null;
+        }
+        const cardElement = target.closest(".st-card.card-effect-host");
+        return cardElement && this.$el.contains(cardElement)
+          ? cardElement
+          : null;
+      };
+      const findCard = (cardElement) => {
+        const cardId = cardElement?.dataset.cardId;
+        return this.cards.find(
+          (item) => String(item.id) === String(cardId),
+        );
+      };
+
+      const onPointerOver = (event) => {
+        const cardElement = findCardElement(event);
+        if (
+          !cardElement ||
+          (isNode(event.relatedTarget) && cardElement.contains(event.relatedTarget))
+        ) {
+          return;
+        }
+        this.activateCardEffect(cardElement, findCard(cardElement), event);
+      };
+      const onPointerOut = (event) => {
+        const cardElement = findCardElement(event);
+        if (
+          !cardElement ||
+          (isNode(event.relatedTarget) && cardElement.contains(event.relatedTarget))
+        ) {
+          return;
+        }
+        this.releaseCardEffectIfIdle(cardElement);
+      };
+      const onPointerCancel = (event) => {
+        const cardElement = findCardElement(event);
+        if (!cardElement) {
+          return;
+        }
+        const focused =
+          typeof document !== "undefined" &&
+          document.activeElement &&
+          cardElement.contains(document.activeElement);
+        if (focused) {
+          return;
+        }
+        if (this._cardEffectDragShell === cardElement) {
+          this._cardEffectDragShell = null;
+        }
+        this.releaseCardEffect(cardElement.querySelector(".card-effect-shell"));
+      };
+      const onFocusIn = (event) => {
+        const cardElement = findCardElement(event);
+        if (cardElement) {
+          this.activateCardEffect(cardElement, findCard(cardElement), event);
+        }
+      };
+      const onFocusOut = (event) => {
+        const cardElement = findCardElement(event);
+        if (
+          !cardElement ||
+          (isNode(event.relatedTarget) && cardElement.contains(event.relatedTarget))
+        ) {
+          return;
+        }
+        this.releaseCardEffectIfIdle(cardElement);
+      };
+      const onDragEnter = (event) => {
+        const cardElement = findCardElement(event);
+        if (
+          !cardElement ||
+          (isNode(event.relatedTarget) && cardElement.contains(event.relatedTarget))
+        ) {
+          return;
+        }
+        this._cardEffectDragShell = cardElement;
+        this.activateCardEffect(cardElement, findCard(cardElement), event);
+      };
+      const onDragOver = (event) => {
+        const cardElement = findCardElement(event);
+        if (!cardElement || this._cardEffectDragShell === cardElement) {
+          return;
+        }
+        this._cardEffectDragShell = cardElement;
+        this.activateCardEffect(cardElement, findCard(cardElement), event);
+      };
+      const onDragLeave = (event) => {
+        const cardElement = findCardElement(event);
+        if (
+          !cardElement ||
+          (isNode(event.relatedTarget) && cardElement.contains(event.relatedTarget))
+        ) {
+          return;
+        }
+        if (this._cardEffectDragShell === cardElement) {
+          this._cardEffectDragShell = null;
+          this.releaseCardEffectIfIdle(cardElement);
+        }
+      };
+      const onDragEnd = (event) => {
+        const source = findCardElement(event);
+        const activeShell = this._cardEffectActiveShell;
+        const activeElement = activeShell?.closest(".st-card.card-effect-host");
+        this._cardEffectDragShell = null;
+        if (activeElement) {
+          this.releaseCardEffectIfIdle(activeElement);
+        }
+        if (source && source !== activeElement) {
+          this.releaseCardEffectIfIdle(source);
+        }
+      };
+
+      this.$el.addEventListener("pointerover", onPointerOver);
+      this.$el.addEventListener("pointerout", onPointerOut);
+      this.$el.addEventListener("pointercancel", onPointerCancel);
+      this.$el.addEventListener("focusin", onFocusIn);
+      this.$el.addEventListener("focusout", onFocusOut);
+      this.$el.addEventListener("dragenter", onDragEnter);
+      this.$el.addEventListener("dragover", onDragOver);
+      this.$el.addEventListener("dragleave", onDragLeave);
+      this.$el.addEventListener("dragend", onDragEnd);
+      this._cardEffectEventRoot = this.$el;
+      this._cardEffectEventHandlers = {
+        onPointerOver,
+        onPointerOut,
+        onPointerCancel,
+        onFocusIn,
+        onFocusOut,
+        onDragEnter,
+        onDragOver,
+        onDragLeave,
+        onDragEnd,
+      };
+    },
+
     isCardEffectsEnabled() {
       return this.$store?.global?.settingsForm?.card_effects_enabled !== false;
     },
@@ -483,6 +637,9 @@ export default function cardGrid() {
         return;
       }
 
+      if (!enabled) {
+        this._cardEffectDragShell = null;
+      }
       this.$el.querySelectorAll(".card-effect-shell").forEach((shell) => {
         if (!enabled) {
           this.disableCardEffect(shell);
@@ -497,6 +654,12 @@ export default function cardGrid() {
         );
         if (cardElement && card) {
           this.syncCardEffect(cardElement, card);
+          if (
+            this._cardEffectDragShell === cardElement ||
+            this.isCardEffectEngaged(cardElement)
+          ) {
+            this.activateCardEffect(cardElement, card);
+          }
         }
       });
     },
@@ -505,6 +668,39 @@ export default function cardGrid() {
       return card?.is_favorite
         ? CARD_EFFECT_NAMES.favorite
         : CARD_EFFECT_NAMES.regular;
+    },
+
+    getCardEffectOptions(card) {
+      const effect = this.getCardEffect(card);
+      return {
+        effect,
+        textureSeed: cardEffectTextureSeed(card?.id),
+        physics: {
+          maxTilt: 7,
+          parallax: 0.82,
+          glareRange: 0.9,
+          returnDelay: 180,
+        },
+        visual: CARD_EFFECT_VISUALS[effect],
+      };
+    },
+
+    isCardEffectEngaged(element) {
+      if (!element) {
+        return false;
+      }
+      const focused =
+        typeof document !== "undefined" &&
+        document.activeElement &&
+        element.contains(document.activeElement);
+      if (focused) {
+        return true;
+      }
+      try {
+        return element.matches(":hover");
+      } catch (_error) {
+        return false;
+      }
     },
 
     initCardEffect(element, card) {
@@ -520,28 +716,110 @@ export default function cardGrid() {
 
       shell.classList.remove("card-effect-disabled");
 
-      const effect = this.getCardEffect(card);
-      shell.dataset.effect = effect;
+      const options = this.getCardEffectOptions(card);
+      prepareHoloCard(shell, options);
       const existingEffect = cardEffectInstances.get(shell);
       if (existingEffect) {
         return existingEffect;
       }
 
       const cardEffect = attachHoloCard(shell, {
-        effect,
+        ...options,
         interactive: true,
         gyroscope: false,
-        textureSeed: cardEffectTextureSeed(card?.id),
-        physics: {
-          maxTilt: 7,
-          parallax: 0.82,
-          glareRange: 0.9,
-          returnDelay: 180,
-        },
-        visual: CARD_EFFECT_VISUALS[effect],
       });
       cardEffectInstances.set(shell, cardEffect);
       return cardEffect;
+    },
+
+    activateCardEffect(element, card, event = null) {
+      if (!element || !card || !this.isCardEffectsEnabled()) {
+        return null;
+      }
+
+      const shell = element.querySelector(".card-effect-shell");
+      if (!shell) {
+        return null;
+      }
+
+      const previousShell = this._cardEffectActiveShell;
+      const wasReleasing = this._cardEffectReleaseShell === shell;
+      const hadInstance = cardEffectInstances.has(shell);
+      if (previousShell && previousShell !== shell) {
+        this.releaseCardEffect(previousShell, shell);
+      }
+      if (this._cardEffectReleaseShell === shell) {
+        this._cardEffectReleaseShell = null;
+      }
+
+      const cardEffect = this.initCardEffect(element, card);
+      if (!cardEffect) {
+        return null;
+      }
+      this._cardEffectActiveShell = shell;
+
+      if (!hadInstance || wasReleasing) {
+        let interaction = event;
+        if (
+          !interaction ||
+          !Number.isFinite(interaction.clientX) ||
+          !Number.isFinite(interaction.clientY)
+        ) {
+          const rect = cardEffect.rotator.getBoundingClientRect();
+          interaction = {
+            clientX: rect.left + rect.width / 2,
+            clientY: rect.top + rect.height / 2,
+          };
+        }
+        cardEffect.interact(interaction);
+      }
+      return cardEffect;
+    },
+
+    releaseCardEffectIfIdle(element) {
+      if (!element) {
+        return;
+      }
+      const shell = element.querySelector(".card-effect-shell");
+      if (!shell || this._cardEffectDragShell === element) {
+        return;
+      }
+
+      if (this.isCardEffectEngaged(element)) {
+        return;
+      }
+      this.releaseCardEffect(shell);
+    },
+
+    releaseCardEffect(shell, preserveShell = null) {
+      if (!shell) {
+        return;
+      }
+      if (this._cardEffectActiveShell === shell) {
+        this._cardEffectActiveShell = null;
+      }
+
+      const cardEffect = cardEffectInstances.get(shell);
+      if (!cardEffect || this._cardEffectReleaseShell === shell) {
+        return;
+      }
+      if (
+        this._cardEffectReleaseShell &&
+        this._cardEffectReleaseShell !== preserveShell
+      ) {
+        this.destroyCardEffect(this._cardEffectReleaseShell);
+      }
+
+      this._cardEffectReleaseShell = shell;
+      Promise.resolve(cardEffect.releaseInteractive()).then(() => {
+        if (this._cardEffectReleaseShell !== shell) {
+          return;
+        }
+        this._cardEffectReleaseShell = null;
+        if (this._cardEffectActiveShell !== shell) {
+          this.destroyCardEffect(shell);
+        }
+      });
     },
 
     syncCardEffect(element, card) {
@@ -557,17 +835,32 @@ export default function cardGrid() {
 
       shell.classList.remove("card-effect-disabled");
 
-      const effect = this.getCardEffect(card);
-      if (shell.dataset.effect !== effect) {
-        shell.dataset.effect = effect;
-        const cardEffect = cardEffectInstances.get(shell);
-        cardEffect?.setEffect(effect);
-        cardEffect?.setVisual(CARD_EFFECT_VISUALS[effect]);
+      const options = this.getCardEffectOptions(card);
+      const effectChanged = shell.dataset.effect !== options.effect;
+      prepareHoloCard(shell, options);
+      const cardEffect = cardEffectInstances.get(shell);
+      if (cardEffect) {
+        if (effectChanged) {
+          cardEffect.setEffect(options.effect);
+        }
+        cardEffect.setVisual(options.visual);
       }
-      this.initCardEffect(element, card);
     },
 
     destroyCardEffect(shell) {
+      if (this._cardEffectActiveShell === shell) {
+        this._cardEffectActiveShell = null;
+      }
+      if (this._cardEffectReleaseShell === shell) {
+        this._cardEffectReleaseShell = null;
+      }
+      if (
+        this._cardEffectDragShell ===
+        shell?.closest(".st-card.card-effect-host")
+      ) {
+        this._cardEffectDragShell = null;
+      }
+
       const cardEffect = shell ? cardEffectInstances.get(shell) : null;
       if (!cardEffect) {
         return;
@@ -582,6 +875,25 @@ export default function cardGrid() {
         this._cardEffectObserver.disconnect();
         this._cardEffectObserver = null;
       }
+      if (this._cardEffectEventRoot && this._cardEffectEventHandlers) {
+        const root = this._cardEffectEventRoot;
+        const handlers = this._cardEffectEventHandlers;
+        root.removeEventListener("pointerover", handlers.onPointerOver);
+        root.removeEventListener("pointerout", handlers.onPointerOut);
+        root.removeEventListener("pointercancel", handlers.onPointerCancel);
+        root.removeEventListener("focusin", handlers.onFocusIn);
+        root.removeEventListener("focusout", handlers.onFocusOut);
+        root.removeEventListener("dragenter", handlers.onDragEnter);
+        root.removeEventListener("dragover", handlers.onDragOver);
+        root.removeEventListener("dragleave", handlers.onDragLeave);
+        root.removeEventListener("dragend", handlers.onDragEnd);
+        this._cardEffectEventRoot = null;
+        this._cardEffectEventHandlers = null;
+      }
+      this._cardEffectActiveShell = null;
+      this._cardEffectReleaseShell = null;
+      this._cardEffectDragShell = null;
+      this.clearAllAutoFlipBackTimers();
       if (this.$el) {
         this.$el.querySelectorAll(".card-effect-shell").forEach((shell) => {
           this.destroyCardEffect(shell);
@@ -1309,6 +1621,9 @@ export default function cardGrid() {
       // 视觉反馈
       const cardElement = e.target.closest(".st-card");
       if (cardElement) {
+        this._cardEffectDragShell = cardElement;
+        this.activateCardEffect(cardElement, card, e);
+
         // 延迟添加样式，避免拖拽的“幽灵图”也变黑白
         requestAnimationFrame(() => {
           cardElement.classList.add("drag-source");
@@ -1317,6 +1632,10 @@ export default function cardGrid() {
         // 定义清理函数
         const cleanup = () => {
           cardElement.classList.remove("drag-source");
+          if (this._cardEffectDragShell === cardElement) {
+            this._cardEffectDragShell = null;
+          }
+          this.releaseCardEffectIfIdle(cardElement);
           // 触发全局清理，确保 Store 状态重置
           window.dispatchEvent(new CustomEvent("global-drag-end"));
         };

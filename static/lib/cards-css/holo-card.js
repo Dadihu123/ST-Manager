@@ -3,7 +3,12 @@ import { Spring } from "./spring.js";
 import { CLASS, applyVars, buildLayerElement, cssUrl, normalizeMask } from "./dom.js";
 import { getActiveCard, setActiveCard, subscribeActiveCard } from "./active-registry.js";
 import { resetBaseOrientation, subscribeOrientation } from "./orientation.js";
-import { generateTextures, mulberry32, texturesToCssVariables } from "./textures.js";
+import {
+    generateTextures,
+    mulberry32,
+    TEXTURE_VARIABLES,
+    texturesToCssVariables,
+} from "./textures.js";
 import { paletteToCssVariables, PALETTE_VARIABLES } from "./palette.js";
 const requestFrame = (cb) => typeof requestAnimationFrame !== "undefined" ? requestAnimationFrame(cb) : setTimeout(cb, 16);
 const cancelFrame = (id) => {
@@ -127,6 +132,73 @@ const composeGlareImage = (glare) => {
     const stops = (glare.stops?.length ? glare.stops : DEFAULT_GLARE_STOPS).join(", ");
     return `radial-gradient(${geometry} at var(--pointer-x) var(--pointer-y), ${stops})`;
 };
+const applyVisualProperties = (element, visual) => {
+    if (!visual) {
+        return;
+    }
+    const style = element.style;
+    const setNumber = (property, value) => {
+        if (typeof value === "number") {
+            style.setProperty(property, String(value));
+        }
+    };
+    setNumber("--hc-brightness", visual.brightness);
+    setNumber("--hc-contrast", visual.contrast);
+    setNumber("--hc-saturate", visual.saturate);
+    setNumber("--hc-glare-opacity", visual.glareOpacity);
+    setNumber("--hc-shine-opacity", visual.shineOpacity);
+    if (visual.lineSpace !== undefined) {
+        style.setProperty("--space", cssDimension(visual.lineSpace, "%"));
+    }
+    if (visual.lineAngle !== undefined) {
+        style.setProperty("--angle", cssDimension(visual.lineAngle, "deg"));
+    }
+    if (visual.glitterSize !== undefined) {
+        style.setProperty("--glittersize", cssDimension(visual.glitterSize, "%"));
+    }
+    if (visual.imageFit !== undefined) {
+        style.setProperty("--imgsize", visual.imageFit);
+    }
+};
+const applyStaticProperties = (element, seed) => {
+    const effect = element.dataset.effect || "none";
+    const seedKey = typeof seed === "number" ? String(seed >>> 0) : "random";
+    const textureKey = `${effect}:${seedKey}`;
+    if (element.dataset.holoTextureKey === textureKey) {
+        return;
+    }
+
+    const rng = typeof seed === "number" ? mulberry32(seed) : Math.random;
+    const seedX = rng();
+    const seedY = rng();
+    const style = element.style;
+    style.setProperty("--seedx", String(seedX));
+    style.setProperty("--seedy", String(seedY));
+    style.setProperty("--cosmosbg", `${Math.floor(seedX * 734)}px ${Math.floor(seedY * 1280)}px`);
+    for (const property of Object.values(TEXTURE_VARIABLES)) {
+        style.removeProperty(property);
+    }
+    if (typeof seed === "number") {
+        const vars = texturesToCssVariables(generateTextures({ seed, effect }));
+        for (const [name, value] of Object.entries(vars)) {
+            style.setProperty(name, value);
+        }
+    }
+    element.dataset.holoTextureKey = textureKey;
+};
+export const prepareHoloCard = (element, options = {}) => {
+    if (!element) {
+        return;
+    }
+    if (options.effect !== undefined) {
+        element.dataset.effect = options.effect;
+    }
+    else if (!element.dataset.effect) {
+        element.dataset.effect = "none";
+    }
+    applyVisualProperties(element, options.visual);
+    applyStaticProperties(element, options.textureSeed);
+};
 const DEPTH_VARS = ["--hc-depth", "--card-perspective", "--hc-depth-shadow", "--hc-depth-layer-scale"];
 const RENDER_VARS = [
     "--pointer-x",
@@ -186,6 +258,8 @@ export class HoloCard {
     pendingUpdate = null;
     repositionTimer = null;
     endTimer = null;
+    renderRaf = null;
+    textureSeed;
     showcaseStart = null;
     showcaseEnd = null;
     showcaseInterval = null;
@@ -210,6 +284,7 @@ export class HoloCard {
         this.showcaseRunning = Boolean(options.showcase);
         this.showcaseConfig = resolveShowcase(options.showcase);
         const physics = options.physics ?? {};
+        this.textureSeed = options.textureSeed;
         const maxTiltX = physics.maxTiltX ?? physics.maxTilt ?? DEFAULT_MAX_TILT;
         const maxTiltY = physics.maxTiltY ?? physics.maxTilt ?? DEFAULT_MAX_TILT;
         this.tiltFactorX = maxTiltX / 50;
@@ -303,32 +378,7 @@ export class HoloCard {
         }
     }
     applyVisual(visual) {
-        if (!visual) {
-            return;
-        }
-        const style = this.element.style;
-        const setNumber = (property, value) => {
-            if (typeof value === "number") {
-                style.setProperty(property, String(value));
-            }
-        };
-        setNumber("--hc-brightness", visual.brightness);
-        setNumber("--hc-contrast", visual.contrast);
-        setNumber("--hc-saturate", visual.saturate);
-        setNumber("--hc-glare-opacity", visual.glareOpacity);
-        setNumber("--hc-shine-opacity", visual.shineOpacity);
-        if (visual.lineSpace !== undefined) {
-            style.setProperty("--space", cssDimension(visual.lineSpace, "%"));
-        }
-        if (visual.lineAngle !== undefined) {
-            style.setProperty("--angle", cssDimension(visual.lineAngle, "deg"));
-        }
-        if (visual.glitterSize !== undefined) {
-            style.setProperty("--glittersize", cssDimension(visual.glitterSize, "%"));
-        }
-        if (visual.imageFit !== undefined) {
-            style.setProperty("--imgsize", visual.imageFit);
-        }
+        applyVisualProperties(this.element, visual);
     }
     applyPalette(palette) {
         if (!palette) {
@@ -380,25 +430,20 @@ export class HoloCard {
         style.setProperty("--hc-depth-layer-scale", String(config.layerScale));
     }
     applyStaticStyles(seed) {
-        const rng = typeof seed === "number" ? mulberry32(seed) : Math.random;
-        const seedX = rng();
-        const seedY = rng();
-        const cosmosX = Math.floor(seedX * 734);
-        const cosmosY = Math.floor(seedY * 1280);
-        this.element.style.setProperty("--seedx", String(seedX));
-        this.element.style.setProperty("--seedy", String(seedY));
-        this.element.style.setProperty("--cosmosbg", `${cosmosX}px ${cosmosY}px`);
-        if (typeof seed === "number") {
-            const vars = texturesToCssVariables(generateTextures({ seed }));
-            for (const [name, value] of Object.entries(vars)) {
-                this.element.style.setProperty(name, value);
-            }
-        }
+        applyStaticProperties(this.element, seed);
     }
     enableInteractive() {
         this.element.classList.add(CLASS.interactive);
         const onPointerMove = (event) => this.interact(event);
-        const onPointerLeave = () => this.interactEnd();
+        const onPointerLeave = () => {
+            const focused =
+                typeof document !== "undefined" &&
+                document.activeElement &&
+                this.element.contains(document.activeElement);
+            if (!focused) {
+                this.interactEnd();
+            }
+        };
         const onPointerCancel = () => this.interactEnd(0);
         this.rotator.addEventListener("pointermove", onPointerMove);
         this.rotator.addEventListener("pointerleave", onPointerLeave);
@@ -489,6 +534,9 @@ export class HoloCard {
         return { x: round(50 + (x - 50) * this.glareRange), y: round(50 + (y - 50) * this.glareRange), o };
     }
     interact(event) {
+        if (this.destroyed) {
+            return;
+        }
         this.endShowcase();
         if (!this.isVisible) {
             this.setInteracting(false);
@@ -529,6 +577,9 @@ export class HoloCard {
         }
     }
     interactEnd(delay = this.returnDelay) {
+        if (this.destroyed) {
+            return;
+        }
         if (this.interactRaf !== null) {
             cancelFrame(this.interactRaf);
             this.interactRaf = null;
@@ -543,6 +594,25 @@ export class HoloCard {
             void this.springBackground.set({ x: 50, y: 50 }, { soft: 1 });
             void this.springPointer.set({ x: 50, y: 50 }, { soft: 1 });
         }, delay);
+    }
+    releaseInteractive() {
+        if (this.destroyed) {
+            return Promise.resolve();
+        }
+        if (this.interactRaf !== null) {
+            cancelFrame(this.interactRaf);
+            this.interactRaf = null;
+        }
+        this.pendingUpdate = null;
+        this.endTimer = stopTimeout(this.endTimer);
+        this.setInteracting(false);
+        this.setGroupDynamics(this.snapDynamics);
+        return Promise.all([
+            this.springRotate.set({ x: 0, y: 0 }, { soft: 1 }),
+            this.springGlare.set({ x: 50, y: 50, o: 0 }, { soft: 1 }),
+            this.springBackground.set({ x: 50, y: 50 }, { soft: 1 }),
+            this.springPointer.set({ x: 50, y: 50 }, { soft: 1 }),
+        ]);
     }
     setGroupDynamics(dyn) {
         assignDynamics(this.springRotate, dyn);
@@ -580,7 +650,8 @@ export class HoloCard {
             return;
         }
         this.renderScheduled = true;
-        requestFrame(() => {
+        this.renderRaf = requestFrame(() => {
+            this.renderRaf = null;
             this.renderScheduled = false;
             if (!this.destroyed) {
                 this.applyStyles();
@@ -818,6 +889,7 @@ export class HoloCard {
     }
     setEffect(effect) {
         this.element.dataset.effect = effect ?? "none";
+        this.applyStaticStyles(this.textureSeed);
     }
     /** The `.holo-card__front` element, for appending custom content at runtime. */
     get front() {
@@ -915,6 +987,11 @@ export class HoloCard {
             cancelFrame(this.interactRaf);
             this.interactRaf = null;
         }
+        if (this.renderRaf !== null) {
+            cancelFrame(this.renderRaf);
+            this.renderRaf = null;
+        }
+        this.renderScheduled = false;
         this.pendingUpdate = null;
         for (const spring of this.allSprings) {
             spring.destroy();

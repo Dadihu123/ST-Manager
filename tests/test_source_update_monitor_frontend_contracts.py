@@ -1,6 +1,8 @@
 import json
+import re
 import subprocess
 import textwrap
+
 from pathlib import Path
 
 
@@ -246,7 +248,11 @@ def test_fullscreen_and_favorite_card_css_keep_surfaces_and_icons_crisp():
     assert 'holo-sheen' not in card_css
 
     assert '/static/lib/cards-css/holo-cards.css' in layout_template
-    assert 'import { attachHoloCard } from "../../lib/cards-css/index.js";' in card_grid_source
+    assert re.search(
+        r'import\s*\{\s*attachHoloCard,\s*prepareHoloCard,\s*\}'
+        r'\s*from\s*"../../lib/cards-css/index\.js";',
+        card_grid_source,
+    )
     assert 'regular: "cosmos"' in card_grid_source
     assert 'favorite: "glitter"' in card_grid_source
     assert 'textureSeed: cardEffectTextureSeed(card?.id)' in card_grid_source

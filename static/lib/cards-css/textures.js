@@ -152,15 +152,61 @@ const cosmosTop = (seed) => cosmosLayer("cst", seed, [
     const rings = ringClusters(rng, COSMOS_W, COSMOS_H, 7, "#54545f");
     return `${body}${rings}`;
 });
+// The texture key includes the fixed generator profile (including dimensions and
+// parameters) plus the card seed. Bump the profile version when those change.
+const TEXTURE_CACHE_VERSION = "v1-default-card-textures";
+const TEXTURE_CACHE_LIMIT = 24;
+const textureCache = new Map();
+const TEXTURE_GENERATORS = {
+    grain: (seed) => grainTexture(seed),
+    glitter: (seed) => glitterTexture(seed + 1),
+    cosmosBottom: (seed) => cosmosBottom(seed + 2),
+    cosmosMiddle: (seed) => cosmosMiddle(seed + 3),
+    cosmosTop: (seed) => cosmosTop(seed + 4),
+};
+const ALL_TEXTURE_KEYS = Object.freeze(Object.keys(TEXTURE_GENERATORS));
+const textureKeysForEffect = (effect) => {
+    if (effect === "none") {
+        return [];
+    }
+    if (effect === "glitter") {
+        return ["glitter"];
+    }
+    if (effect === "cosmos") {
+        return ["cosmosBottom", "cosmosMiddle", "cosmosTop"];
+    }
+    return ALL_TEXTURE_KEYS;
+};
+const getCachedTexture = (key, seed) => {
+    const cacheKey = `${TEXTURE_CACHE_VERSION}:${key}:${seed >>> 0}`;
+    const cached = textureCache.get(cacheKey);
+    if (cached !== undefined) {
+        // Map insertion order gives the small cache an inexpensive LRU policy.
+        textureCache.delete(cacheKey);
+        textureCache.set(cacheKey, cached);
+        return cached;
+    }
+
+    const texture = TEXTURE_GENERATORS[key](seed);
+    textureCache.set(cacheKey, texture);
+    while (textureCache.size > TEXTURE_CACHE_LIMIT) {
+        textureCache.delete(textureCache.keys().next().value);
+    }
+    return texture;
+};
+export const clearTextureCache = () => textureCache.clear();
 export const generateTextures = (options = {}) => {
     const seed = options.seed ?? DEFAULT_TEXTURE_SEED;
-    return {
-        grain: grainTexture(seed),
-        glitter: glitterTexture(seed + 1),
-        cosmosBottom: cosmosBottom(seed + 2),
-        cosmosMiddle: cosmosMiddle(seed + 3),
-        cosmosTop: cosmosTop(seed + 4),
-    };
+    const keys = Array.isArray(options.keys) && options.keys.length
+        ? options.keys
+        : textureKeysForEffect(options.effect);
+    const textures = {};
+    for (const key of keys) {
+        if (TEXTURE_GENERATORS[key]) {
+            textures[key] = getCachedTexture(key, seed);
+        }
+    }
+    return textures;
 };
 export const TEXTURE_VARIABLES = {
     grain: "--hc-grain",
@@ -172,7 +218,9 @@ export const TEXTURE_VARIABLES = {
 export const texturesToCssVariables = (textures) => {
     const vars = {};
     for (const key of Object.keys(TEXTURE_VARIABLES)) {
-        vars[TEXTURE_VARIABLES[key]] = `url("${textures[key]}")`;
+        if (typeof textures?.[key] === "string") {
+            vars[TEXTURE_VARIABLES[key]] = `url("${textures[key]}")`;
+        }
     }
     return vars;
 };
