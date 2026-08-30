@@ -89,6 +89,30 @@ def test_card_controls_are_sibling_layer_above_cards_css_effect():
     assert 'pointer-events: none;' in controls_css
     assert '@click.stop="handleCardClick($event, card)"' in card_grid_template
 
+    assert '.card-image-container::after' not in card_css
+    assert 'border-top-color: transparent !important;' in card_css
+    assert 'background: transparent !important;' in card_css
+    assert '.card-local-note-btn.no-note' in card_css
+    spacer_css = card_css.split(
+        '.card-effect-shell .card-toolbar-layout-spacer {', 1
+    )[1].split('}', 1)[0]
+    assert 'visibility: visible;' in spacer_css
+    assert 'backdrop-filter: blur(12px) saturate(130%);' in spacer_css
+    assert 'rgba(var(--surface-container-rgb), 0.5)' in spacer_css
+    assert 'rgba(var(--surface-container-rgb), 0.62)' in spacer_css
+    bottom_surface_reset = card_css.rsplit(
+        '.card-effect-shell .card-effect-controls-layer\n  > .card-bottom-toolbar {',
+        1,
+    )[1].split('}', 1)[0]
+    assert 'box-shadow: none !important;' in bottom_surface_reset
+    assert 'backdrop-filter: none !important;' in bottom_surface_reset
+    light_surface_rule = card_css.split(
+        'html.light-mode .card-front-topbar,\nhtml.light-mode .card-bottom-toolbar {',
+        1,
+    )[1].split('}', 1)[0]
+    assert 'background: color-mix(in srgb, var(--content-on-dark) 42%, transparent) !important;' in light_surface_rule
+    assert 'backdrop-filter: blur(12px) saturate(130%) !important;' in light_surface_rule
+
 
 def test_bulk_flip_buttons_use_the_soft_action_treatment_in_both_themes_and_layouts():
     card_css = read_project_file('static/css/modules/view-cards.css')

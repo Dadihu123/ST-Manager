@@ -578,20 +578,6 @@ html.light-mode .preset-card-action-btn.is-export {
   transform: scale(1.08);
 }
 
-.card-image-container::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 8rem;
-  background: linear-gradient(to top, color-mix(in srgb, var(--content-on-light) 80%, transparent), transparent);
-  opacity: 1;
-  pointer-events: none;
-  transition: none;
-  z-index: 2;
-}
-
 .card-image-media {
   transition: none;
   transform-origin: center center;
@@ -2073,9 +2059,6 @@ html.light-mode .btn-note-preview:hover {
   .card-front {
     transform-origin: 100% 100%;
   }
-  .card-image-container::after {
-    height: 6.4rem;
-  }
   .card-fav-overlay .card-fav-icon {
     width: 20px;
     height: 20px;
@@ -2313,14 +2296,42 @@ html.light-mode .card-bottom-toolbar
   pointer-events: auto;
 }
 
-/* 工具栏移到特效层后保留原来的 flex 占位，避免遮住图片底部信息。 */
+/*
+ * 工具栏移到特效层后保留原来的 flex 占位。
+ * 占位区位于内容层，负责绘制底部视觉表面；控制层中的工具栏只负责命中按钮。
+ */
 .card-effect-shell .card-toolbar-layout-spacer {
   flex: 0 0 auto;
   min-height: calc(1.8rem + 0.68rem + 1px);
   padding: 0.34rem 0.5rem;
+  background:
+    linear-gradient(
+      color-mix(in srgb, var(--surface-page) 42%, transparent),
+      color-mix(in srgb, var(--surface-page) 42%, transparent)
+    ),
+    linear-gradient(
+      180deg,
+      rgba(var(--surface-container-rgb), 0.5),
+      rgba(var(--surface-container-rgb), 0.62)
+    );
+  backdrop-filter: blur(12px) saturate(130%);
+  -webkit-backdrop-filter: blur(12px) saturate(130%);
   border-top: 1px solid transparent;
-  visibility: hidden;
+  visibility: visible;
   pointer-events: none;
+}
+
+html.light-mode .card-effect-shell .card-toolbar-layout-spacer {
+  background:
+    linear-gradient(
+      color-mix(in srgb, var(--content-on-dark) 42%, transparent),
+      color-mix(in srgb, var(--content-on-dark) 42%, transparent)
+    ),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--content-on-dark) 62%, transparent),
+      color-mix(in srgb, var(--content-on-dark) 74%, transparent)
+    );
 }
 
 @media (max-width: 768px) {
@@ -2430,6 +2441,25 @@ html.light-mode .card-bottom-toolbar
   border-radius: 0;
   z-index: 2;
   pointer-events: auto;
+}
+
+/* 控制层沿用内容层的分区高度，但不再绘制额外的边界线或底部遮罩。 */
+.card-effect-shell .card-effect-controls-layer
+  > .card-bottom-toolbar {
+  background: transparent !important;
+  border-top-color: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* 无备注时只保留图标本身，避免 disabled 状态重新带出方形按钮底色。 */
+.card-effect-shell .card-effect-controls-layer
+  > .card-bottom-toolbar
+  > .card-local-note-btn.no-note {
+  border-color: transparent;
+  background: transparent !important;
+  box-shadow: none;
 }
 
 .card-effect-shell .card-effect-controls-layer
