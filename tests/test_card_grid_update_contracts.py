@@ -204,6 +204,14 @@ def test_card_effect_host_allows_effect_overflow_without_leaking_card_content():
     assert 'overflow: hidden;' in card_front_css
     assert 'overflow: hidden;' in image_container_css
 
+    image_media_css = card_css.split(
+        '.card-effect-shell .holo-card__content .card-image-media {', 1
+    )[1].split('}', 1)[0]
+    assert 'width: 100%;' in image_media_css
+    assert 'height: 100%;' in image_media_css
+    assert 'object-fit: cover;' in image_media_css
+    assert 'object-position: center center;' in image_media_css
+
 
 def test_card_effect_toggle_disables_and_restores_effect_instances_without_hiding_card_content():
     card_grid_source = read_project_file('static/js/components/cardGrid.js')

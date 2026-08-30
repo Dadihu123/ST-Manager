@@ -2272,6 +2272,10 @@ html.light-mode .card-bottom-toolbar
   display: block;
   grid-area: auto;
   aspect-ratio: auto;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center center;
 }
 
 .card-effect-shell .holo-card__content .card-image-overlay,
