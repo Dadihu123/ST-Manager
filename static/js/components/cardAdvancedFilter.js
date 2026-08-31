@@ -42,12 +42,29 @@ export default function cardAdvancedFilter() {
       return this.$store.global.getCardAdvancedFilterCount();
     },
 
+    get hasBasicFilterConditions() {
+      const draft = this.draft || {};
+      const defaultSort =
+        this.$store.global.settingsForm?.default_sort || "date_desc";
+      const favFilter = draft.favFilter || "none";
+      const searchScope = draft.searchScope || "current";
+      const sort = draft.sort || defaultSort;
+
+      return (
+        favFilter !== "none" ||
+        searchScope !== "current" ||
+        draft.recursiveFilter === false ||
+        draft.allDirsOnlyWithFilters === true ||
+        sort !== defaultSort
+      );
+    },
+
     get sectionItems() {
       return [
         {
           key: "basic",
           label: "基础筛选",
-          active: true,
+          active: this.hasBasicFilterConditions,
         },
         {
           key: "time",

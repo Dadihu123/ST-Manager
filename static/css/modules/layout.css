@@ -730,14 +730,20 @@
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  border-radius: 0.65rem;
+  border: 0;
+  border-radius: 0;
   color: var(--action-icon);
-  background: var(--action-surface);
+  background: transparent;
 }
 
 .card-advanced-filter-title-mark {
-  width: 2.7rem;
-  height: 2.7rem;
+  width: 2.75rem;
+  height: 2.75rem;
+}
+
+.card-advanced-filter-title-mark .ui-icon {
+  width: 2rem;
+  height: 2rem;
 }
 
 .card-advanced-filter-eyebrow {
@@ -836,8 +842,8 @@
 }
 
 .card-advanced-filter-overview-icon {
-  width: 2.2rem;
-  height: 2.2rem;
+  width: 2.5rem;
+  height: 2.5rem;
 }
 
 .card-advanced-filter-overview-label {
@@ -920,8 +926,15 @@
 }
 
 .card-advanced-filter-stat-icon {
-  width: 2rem;
-  height: 2rem;
+  width: 2.25rem;
+  height: 2.25rem;
+}
+
+.card-advanced-filter-overview-icon .ui-icon,
+.card-advanced-filter-stat-icon .ui-icon,
+.card-advanced-filter-nav-icon .ui-icon {
+  width: 1.5rem;
+  height: 1.5rem;
 }
 
 .card-advanced-filter-stat-copy {
@@ -975,9 +988,9 @@
 }
 
 .card-advanced-filter-nav-icon {
-  width: 2rem;
-  height: 2rem;
-  background: color-mix(in srgb, var(--surface-container-raised), transparent 8%);
+  width: 2.25rem;
+  height: 2.25rem;
+  background: transparent;
   color: var(--content-muted);
 }
 
@@ -993,8 +1006,8 @@
 }
 
 .card-advanced-filter-nav-btn.is-active .card-advanced-filter-nav-icon {
-  background: var(--action-surface-hover);
-  color: var(--action-icon);
+  background: transparent;
+  color: var(--sidebar-source-all);
 }
 
 .card-advanced-filter-nav-btn.has-value {
@@ -1260,7 +1273,7 @@
 
 .card-advanced-filter-drawer {
   width: min(72rem, calc(100vw - 2rem));
-  height: min(54rem, calc(100dvh - 2rem));
+  height: auto;
   max-height: calc(100dvh - 2rem);
   margin: 0;
   border: 1px solid color-mix(in srgb, var(--border-default), var(--accent-action) 18%);
@@ -1388,10 +1401,12 @@
 }
 
 .card-advanced-filter-nav-btn.is-active {
-  border-color: var(--action-border);
-  background: var(--action-surface);
-  color: var(--action-text);
-  box-shadow: 0 0.25rem 0.8rem color-mix(in srgb, var(--accent-action), transparent 88%);
+  width: calc(100% + 4px);
+  border-color: color-mix(in srgb, var(--sidebar-source-all) 50%, var(--sidebar-divider));
+  background: color-mix(in srgb, var(--sidebar-source-all) 14%, var(--sidebar-surface));
+  color: var(--sidebar-label);
+  box-shadow: inset 3px 0 0 var(--sidebar-source-all);
+  transform: translateX(-4px);
 }
 
 .card-advanced-filter-nav-btn.has-value:not(.is-active) {
@@ -1409,8 +1424,8 @@
 .card-advanced-filter-nav-btn.has-value .card-advanced-filter-nav-state {
   display: inline-flex;
   justify-content: center;
-  background: var(--action-surface-hover);
-  color: var(--action-text);
+  background: transparent;
+  color: var(--sidebar-source-all);
 }
 
 .card-advanced-filter-stage {
@@ -1443,10 +1458,15 @@
   height: 2.25rem;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--action-border);
-  border-radius: 0.65rem;
-  background: var(--action-surface);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   color: var(--action-icon);
+}
+
+.card-advanced-filter-module-icon .ui-icon {
+  width: 1.5rem;
+  height: 1.5rem;
 }
 
 .card-advanced-filter-module-head {
@@ -1491,7 +1511,7 @@
   bottom: 0;
   z-index: 2;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 0.55rem;
   padding: 0.8rem 1.25rem calc(0.8rem + env(safe-area-inset-bottom, 0px));

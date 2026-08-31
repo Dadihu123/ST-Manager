@@ -2800,12 +2800,18 @@ html.light-mode .preview-toggle-inactive {
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  width: 2.35rem;
-  height: 2.35rem;
-  border: 1px solid var(--action-border);
-  border-radius: 0.65rem;
-  background: var(--action-surface);
+  width: 2.75rem;
+  height: 2.75rem;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   color: var(--action-text);
+}
+
+.tag-filter-workspace-brand-icon .ui-icon,
+.tag-filter-mobile-heading-icon .ui-icon {
+  width: 2rem;
+  height: 2rem;
 }
 
 .tag-filter-workspace-title-copy {
@@ -3630,11 +3636,11 @@ html.light-mode .preview-toggle-inactive {
 }
 
 .tag-filter-desktop-shell .tag-filter-workspace-brand-icon {
-  width: 2.6rem;
-  height: 2.6rem;
-  border-color: var(--action-border);
-  border-radius: 0.7rem;
-  background: var(--action-surface);
+  width: 2.75rem;
+  height: 2.75rem;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   color: var(--action-icon);
 }
 
@@ -4190,11 +4196,11 @@ html.light-mode .preview-toggle-inactive {
   }
 
   .tag-filter-mobile-heading-icon {
-    width: 2.45rem;
-    height: 2.45rem;
-    border-color: var(--action-border);
-    border-radius: 0.7rem;
-    background: var(--action-surface);
+    width: 2.75rem;
+    height: 2.75rem;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
     color: var(--action-icon);
   }
 
