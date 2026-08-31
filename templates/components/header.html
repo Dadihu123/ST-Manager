@@ -624,7 +624,7 @@
         @click="createWorldInfoBook()"
         title="新建世界书（SillyTavern 兼容）"
         aria-label="新建世界书"
-        class="btn-secondary header-tool-btn"
+        class="header-tool-btn"
       >
         {{ icon('plus-square', 'ui-icon--md ') }}
       </button>
@@ -641,7 +641,7 @@
         @click="openSourceMonitorPool()"
         title="打开角色卡监控池"
         aria-label="打开角色卡监控池"
-        class="btn-secondary header-tool-btn header-tool-btn--monitor"
+        class="header-tool-btn header-tool-btn--monitor"
       >
         {{ icon('monitor-user', 'ui-icon--xl') }}
       </button>
@@ -651,7 +651,7 @@
         :class="canOpenUrlImport ? '' : 'opacity-50 cursor-not-allowed'"
         :title="urlImportTitle"
         aria-label="从 URL 导入"
-        class="btn-secondary header-tool-btn"
+        class="header-tool-btn"
       >
         {{ icon('link-import', 'ui-icon--md ') }}
       </button>
@@ -659,7 +659,7 @@
         @click="currentMode === 'cards' ? fetchCards() : (currentMode === 'worldinfo' ? fetchWorldInfoList() : fetchChats())"
         title="刷新"
         aria-label="刷新当前列表"
-        class="btn-secondary header-tool-btn"
+        class="header-tool-btn"
       >
         {{ icon('refresh', 'ui-icon--md ') }}
       </button>
@@ -667,7 +667,7 @@
         @click="toggleDarkMode()"
         :title="isDarkMode ? '切换到浅色模式' : '切换到深色模式'"
         :aria-label="isDarkMode ? '切换到浅色模式' : '切换到深色模式'"
-        class="btn-secondary header-tool-btn"
+        class="header-tool-btn"
       >
         <span x-show="isDarkMode" aria-hidden="true"
           >{{ icon('header-dark-mode', 'ui-icon--md ') }}</span
@@ -680,7 +680,7 @@
         @click="$dispatch('open-automation-modal')"
         title="自动化规则管理"
         aria-label="自动化规则管理"
-        class="btn-secondary header-tool-btn color-text-warning"
+        class="header-tool-btn color-text-warning"
       >
         {{ icon('workflow', 'ui-icon--md ') }}
       </button>
@@ -688,7 +688,7 @@
         @click="openSettings()"
         title="系统设置"
         aria-label="系统设置"
-        class="btn-secondary header-tool-btn"
+        class="header-tool-btn"
       >
         {{ icon('settings-gear', 'ui-icon--md ') }}
       </button>

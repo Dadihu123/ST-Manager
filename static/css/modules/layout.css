@@ -2193,10 +2193,16 @@
   border: 1px solid var(--border-subtle);
   border-radius: 0.75rem;
   background-color: var(--surface-container);
+  overflow: hidden;
   transition:
     border-color 0.2s ease,
     box-shadow 0.2s ease,
     background-color 0.2s ease;
+}
+
+.sidebar-category-search:hover {
+  border-color: var(--accent-outline);
+  background-color: var(--form-surface-hover);
 }
 
 .sidebar-category-search:focus-within {
@@ -2214,12 +2220,21 @@
   font-size: 0.875rem;
 }
 
+.sidebar-category-search-input:hover:not(:disabled) {
+  background-color: transparent !important;
+}
+
 .sidebar-category-search-input::placeholder {
   color: var(--content-muted);
 }
 
-.sidebar-category-search-input:focus {
+/* The wrapper owns the rounded focus ring; suppress the global child focus shadow. */
+.sidebar-category-search-input:focus,
+.sidebar-category-search-input:focus-visible,
+.sidebar-category-search-clear:focus,
+.sidebar-category-search-clear:focus-visible {
   outline: none;
+  box-shadow: none !important;
 }
 
 .sidebar-category-search-clear {
@@ -2579,11 +2594,14 @@ html.light-mode .pagination-bar {
 }
 
 .header-tool-buttons {
-  gap: 0.2rem;
+  display: flex !important;
+  align-items: center;
+  flex-shrink: 0;
+  white-space: nowrap;
+  gap: 0.35rem;
   margin-left: 0;
-  padding: 0.2rem;
-  border-radius: 0.85rem;
-  background: color-mix(in srgb, var(--surface-container-raised), transparent 46%);
+  padding: 0;
+  background: transparent;
 }
 
 .header-toolbar-divider {
@@ -2595,12 +2613,12 @@ html.light-mode .pagination-bar {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2.25rem;
-  height: 2.25rem;
-  min-width: 2.25rem;
+  width: 2.375rem;
+  height: 2.375rem;
+  min-width: 2.375rem;
   padding: 0;
-  border: 1px solid transparent;
-  border-radius: 0.65rem;
+  border: none;
+  border-radius: 0.75rem;
   background: transparent;
   color: var(--content-muted);
   transition:
@@ -2612,11 +2630,24 @@ html.light-mode .pagination-bar {
 
 .header-tool-btn:hover:not(:disabled) {
   transform: translateY(-1px);
-  border-color: transparent;
   background: color-mix(in srgb, var(--state-hover-surface), transparent 18%);
+  border-radius: 0.75rem;
   color: var(--content-primary);
-  box-shadow: 0 4px 12px
-    color-mix(in srgb, var(--shadow-color), transparent 56%);
+  box-shadow: none;
+}
+
+/* Keep legacy button utility classes from replacing the borderless toolbar state. */
+.header-tool-btn:not(.header-tool-btn--random) {
+  border: none !important;
+  border-radius: 0.75rem !important;
+  overflow: hidden;
+  background-color: transparent !important;
+}
+
+.header-tool-btn:not(.header-tool-btn--random):hover:not(:disabled) {
+  border: none !important;
+  border-radius: 0.75rem !important;
+  background-color: color-mix(in srgb, var(--state-hover-surface), transparent 18%) !important;
 }
 
 .header-tool-btn:active:not(:disabled) {
@@ -2625,15 +2656,16 @@ html.light-mode .pagination-bar {
 
 .header-tool-btn:focus-visible {
   outline: 2px solid color-mix(in srgb, var(--accent-text), var(--content-on-dark) 18%);
-  outline-offset: 2px;
+  outline-offset: 3px;
 }
 
+/* 保留各图标原有尺寸挡位：不同 SVG viewBox 的留白不同，统一画布会造成视觉大小不一致。 */
 .header-tool-btn--random {
   position: relative;
   isolation: isolate;
   color: var(--action-icon);
   background: var(--action-surface);
-  border-color: var(--action-border);
+  border: none;
 }
 
 /* 放大的头部图标使用独立状态层，向按钮外延伸但不参与横条排版高度。 */
@@ -2659,7 +2691,6 @@ html.light-mode .pagination-bar {
 .header-tool-btn--random:hover:not(:disabled) {
   color: var(--action-text);
   background: var(--action-surface-hover);
-  border-color: var(--action-border-hover);
 }
 
 .header-tool-btn--random:hover:not(:disabled)::before {
@@ -2667,7 +2698,7 @@ html.light-mode .pagination-bar {
 }
 
 html.light-mode .header-tool-buttons {
-  background: color-mix(in srgb, var(--surface-container-raised), transparent 20%);
+  background: transparent;
 }
 
 .search-container {
@@ -3020,7 +3051,7 @@ html.light-mode .header-favorite-btn.is-excluded .header-favorite-icon::after {
   white-space: nowrap;
 }
 
-.tool-buttons {
+.tool-buttons:not(.header-tool-buttons) {
   display: flex !important;
   gap: 0.5rem;
   flex-shrink: 0;
@@ -3542,13 +3573,12 @@ html.light-mode .header-favorite-btn.is-excluded .header-favorite-icon::after {
     color: var(--content-muted);
     margin-top: 0.25rem;
   }
-  .tool-buttons {
+  .tool-buttons:not(.header-tool-buttons) {
     gap: 0.25rem;
   }
 
   .header-tool-buttons {
-    gap: 0.15rem;
-    padding: 0.15rem;
+    gap: 0.25rem;
   }
 
   .header-tool-btn {

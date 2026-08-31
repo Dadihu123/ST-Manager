@@ -341,6 +341,23 @@ def test_sidebar_category_search_layout_css_contracts_exist():
     assert '.sidebar-search-empty {' in source
 
 
+def test_sidebar_category_search_focus_uses_the_rounded_wrapper_ring():
+    source = read_project_file('static/css/modules/layout.css')
+
+    assert '.sidebar-category-search-input:focus-visible' in source
+    assert '.sidebar-category-search-clear:focus-visible' in source
+    assert 'box-shadow: none !important;' in source
+
+
+def test_sidebar_category_search_hover_uses_the_rounded_wrapper_surface():
+    source = read_project_file('static/css/modules/layout.css')
+
+    assert 'overflow: hidden;' in source
+    assert '.sidebar-category-search:hover {' in source
+    assert '.sidebar-category-search-input:hover:not(:disabled)' in source
+    assert 'background-color: transparent !important;' in source
+
+
 def test_sidebar_category_search_mobile_layout_css_contracts_exist():
     source = read_project_file('static/css/modules/layout.css')
 

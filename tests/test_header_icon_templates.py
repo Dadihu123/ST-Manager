@@ -51,6 +51,38 @@ def test_header_keeps_shared_dice_monitor_and_source_menu_arrow_icons():
     assert source.count("icon('chevron-down'") == 2
 
 
+def test_header_tool_navigation_uses_borderless_balanced_icon_buttons():
+    source = read_header_template()
+    layout_css = (PROJECT_ROOT / 'static/css/modules/layout.css').read_text(encoding='utf-8')
+
+    assert 'class="tool-buttons header-tool-buttons"' in source
+    assert 'btn-secondary header-tool-btn' not in source
+    assert "icon('monitor-user', 'ui-icon--xl')" in source
+    assert "icon('link-import', 'ui-icon--md ')" in source
+    assert '.header-tool-btn:not(.header-tool-btn--random) .ui-icon {' not in layout_css
+
+    button_block = layout_css.split('.header-tool-btn {', 1)[1].split('}', 1)[0]
+    assert 'width: 2.375rem;' in button_block
+    assert 'height: 2.375rem;' in button_block
+    assert 'border: none;' in button_block
+    assert '.header-tool-btn:not(.header-tool-btn--random) {' in layout_css
+    borderless_compatibility_block = layout_css.split(
+        '.header-tool-btn:not(.header-tool-btn--random) {', 1
+    )[1].split('}', 1)[0]
+    assert 'overflow: hidden;' in borderless_compatibility_block
+
+    toolbar_block = layout_css.split('.header-tool-buttons {', 1)[1].split('}', 1)[0]
+    assert 'display: flex !important;' in toolbar_block
+    assert 'align-items: center;' in toolbar_block
+    assert 'gap: 0.35rem;' in toolbar_block
+    assert 'padding: 0;' in toolbar_block
+
+    hover_block = layout_css.split('.header-tool-btn:hover:not(:disabled) {', 1)[1].split('}', 1)[0]
+    assert 'border-radius: 0.75rem;' in hover_block
+    assert '.header-tool-btn:not(.header-tool-btn--random):hover:not(:disabled) {' in layout_css
+    assert '.tool-buttons:not(.header-tool-buttons) {' in layout_css
+
+
 def test_dice_top_face_keeps_light_surface_across_theme_accents():
     icons_source = (PROJECT_ROOT / 'static/css/modules/icons.css').read_text(encoding='utf-8')
 
