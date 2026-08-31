@@ -127,6 +127,7 @@ export default function settingsModal() {
     settingsSnapshotDarkMode: null,
     settingsSessionOpen: false,
     lastFocusedElement: null,
+    lastHelpTrigger: null,
     saving: false,
     saveState: "idle",
     saveMessage: "",
@@ -266,7 +267,16 @@ export default function settingsModal() {
       if (typeof document !== "undefined" && document.activeElement) {
         this.lastFocusedElement = document.activeElement;
       }
-      setTimeout(() => this.$refs?.settingsSearch?.focus?.(), 0);
+      const focusSettingsDialog = (attempt = 0) => {
+        if (!this.showSettingsModal) return;
+        const dialog = document.querySelector?.(".settings-modal-container");
+        if (dialog?.getClientRects?.().length) {
+          dialog.focus?.();
+          return;
+        }
+        if (attempt < 12) setTimeout(() => focusSettingsDialog(attempt + 1), 50);
+      };
+      setTimeout(() => focusSettingsDialog(), 0);
     },
     selectSettingTab(section) {
       if (!this.settingsHelpContent[section]) return;
@@ -285,14 +295,28 @@ export default function settingsModal() {
       }, 0);
     },
     openSettingsHelp() {
+      if (typeof document !== "undefined") {
+        this.lastHelpTrigger = document.activeElement;
+      }
       this.showSettingsHelpModal = true;
-      setTimeout(() => {
-        const dialog = document.querySelector?.(".settings-help-modal");
-        dialog?.focus?.();
-      }, 0);
+      const focusSettingsHelp = (attempt = 0) => {
+        if (!this.showSettingsHelpModal) return;
+        const closeButton = document.querySelector?.(
+          ".settings-help-modal [aria-label='关闭设置帮助']",
+        );
+        if (closeButton?.getClientRects?.().length) {
+          closeButton.focus?.();
+          return;
+        }
+        if (attempt < 12) setTimeout(() => focusSettingsHelp(attempt + 1), 50);
+      };
+      setTimeout(() => focusSettingsHelp(), 0);
     },
     closeSettingsHelp() {
       this.showSettingsHelpModal = false;
+      const focusTarget = this.lastHelpTrigger;
+      this.lastHelpTrigger = null;
+      if (focusTarget?.focus) setTimeout(() => focusTarget.focus(), 0);
     },
     keepEditing() {
       this.showDiscardConfirm = false;

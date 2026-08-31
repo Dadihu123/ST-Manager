@@ -16,6 +16,7 @@
   @keydown.escape.window="handleEscape()"
 >
   <div
+    x-ref="settingsDialog"
     class="settings-modal-container ui-modal-shell"
     role="dialog"
     aria-modal="true"
@@ -46,7 +47,7 @@
 
     <div class="settings-toolbar">
       <label class="settings-search" for="settings-search-input">
-        <span aria-hidden="true">{{ icon('search', 'ui-icon--sm') }}</span>
+        <span aria-hidden="true">{{ icon('book-search', 'ui-icon--sm') }}</span>
         <span class="sr-only">搜索设置</span>
         <input id="settings-search-input" x-ref="settingsSearch" type="search" autocomplete="off" placeholder="搜索设置、目录或功能" x-model.debounce.120ms="settingsQuery" @keydown.escape.stop="settingsQuery = ''">
         <button x-show="settingsQuery" type="button" class="settings-search-clear" aria-label="清除设置搜索" title="清除搜索" @click="settingsQuery = ''">{{ close_icon_xs }}</button>
@@ -58,16 +59,16 @@
       <aside class="settings-sidebar" aria-label="设置分类">
         <div class="settings-sidebar-heading"><span>配置目录</span><span class="settings-sidebar-count" x-text="Object.keys(settingsHelpContent).length"></span></div>
         <nav class="settings-nav" role="tablist" aria-label="设置分类导航">
-          <button type="button" role="tab" id="settings-tab-general" aria-controls="settings-panel-general" :aria-selected="activeSettingTab === 'general'" :class="{ 'is-active': activeSettingTab === 'general' }" class="settings-nav-item" @click="selectSettingTab('general')"><span class="settings-nav-icon" aria-hidden="true">{{ sidebar_icon('folder-open', 'ui-icon--sm') }}</span><span class="settings-nav-copy"><strong>常规路径</strong><small>文件与存储位置</small></span><span class="settings-nav-index">01</span></button>
-          <button type="button" role="tab" id="settings-tab-appearance" aria-controls="settings-panel-appearance" :aria-selected="activeSettingTab === 'appearance'" :class="{ 'is-active': activeSettingTab === 'appearance' }" class="settings-nav-item" @click="selectSettingTab('appearance')"><span class="settings-nav-icon" aria-hidden="true">{{ icon('display', 'ui-icon--sm') }}</span><span class="settings-nav-copy"><strong>外观显示</strong><small>主题与布局体验</small></span><span class="settings-nav-index">02</span></button>
-          <button type="button" role="tab" id="settings-tab-connection" aria-controls="settings-panel-connection" :aria-selected="activeSettingTab === 'connection'" :class="{ 'is-active': activeSettingTab === 'connection' }" class="settings-nav-item" @click="selectSettingTab('connection')"><span class="settings-nav-icon" aria-hidden="true">{{ icon('settings-connection-service', 'ui-icon--sm') }}</span><span class="settings-nav-copy"><strong>连接与服务</strong><small>ST、认证与外部服务</small></span><span class="settings-nav-index">03</span></button>
-          <button type="button" role="tab" id="settings-tab-maintenance" aria-controls="settings-panel-maintenance" :aria-selected="activeSettingTab === 'maintenance'" :class="{ 'is-active': activeSettingTab === 'maintenance' }" class="settings-nav-item" @click="selectSettingTab('maintenance')"><span class="settings-nav-icon" aria-hidden="true">{{ icon('settings-maintenance-advanced', 'ui-icon--sm') }}</span><span class="settings-nav-copy"><strong>维护与高级</strong><small>扫描、备份与性能</small></span><span class="settings-nav-index">04</span></button>
+          <button type="button" role="tab" id="settings-tab-general" aria-controls="settings-panel-general" :aria-selected="activeSettingTab === 'general'" :class="{ 'is-active': activeSettingTab === 'general' }" class="settings-nav-item" @click="selectSettingTab('general')"><span class="settings-nav-icon" aria-hidden="true">{{ icon('directory-root', 'ui-icon--md') }}</span><span class="settings-nav-copy"><strong>常规路径</strong><small>文件与存储位置</small></span><span class="settings-nav-index">01</span></button>
+          <button type="button" role="tab" id="settings-tab-appearance" aria-controls="settings-panel-appearance" :aria-selected="activeSettingTab === 'appearance'" :class="{ 'is-active': activeSettingTab === 'appearance' }" class="settings-nav-item" @click="selectSettingTab('appearance')"><span class="settings-nav-icon" aria-hidden="true">{{ sidebar_icon('paint-brush', 'ui-icon--md') }}</span><span class="settings-nav-copy"><strong>外观显示</strong><small>主题与布局体验</small></span><span class="settings-nav-index">02</span></button>
+          <button type="button" role="tab" id="settings-tab-connection" aria-controls="settings-panel-connection" :aria-selected="activeSettingTab === 'connection'" :class="{ 'is-active': activeSettingTab === 'connection' }" class="settings-nav-item" @click="selectSettingTab('connection')"><span class="settings-nav-icon" aria-hidden="true">{{ icon('settings-connection-service', 'ui-icon--md') }}</span><span class="settings-nav-copy"><strong>连接与服务</strong><small>ST、认证与外部服务</small></span><span class="settings-nav-index">03</span></button>
+          <button type="button" role="tab" id="settings-tab-maintenance" aria-controls="settings-panel-maintenance" :aria-selected="activeSettingTab === 'maintenance'" :class="{ 'is-active': activeSettingTab === 'maintenance' }" class="settings-nav-item" @click="selectSettingTab('maintenance')"><span class="settings-nav-icon" aria-hidden="true">{{ icon('settings-maintenance-advanced', 'ui-icon--md') }}</span><span class="settings-nav-copy"><strong>维护与高级</strong><small>扫描、备份与性能</small></span><span class="settings-nav-index">04</span></button>
         </nav>
 
         <div class="settings-search-results" x-show="settingsQuery" x-cloak>
           <div class="settings-sidebar-heading"><span>匹配结果</span><span x-text="searchResults.length"></span></div>
           <div class="settings-search-result-list" x-show="searchResults.length"><template x-for="result in searchResults" :key="result.id"><button type="button" class="settings-search-result" @click="jumpToSetting(result.section, result.anchor)"><svg class="ui-icon ui-icon--sm" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use :href="'/static/icons/ui.svg#icon-' + result.icon"></use></svg><span><strong x-text="result.title"></strong><small x-text="settingsHelpContent[result.section]?.label"></small></span></button></template></div>
-          <div class="settings-empty-state settings-empty-state--compact" x-show="!searchResults.length">{{ icon('search', 'ui-icon--sm') }}<span>没有匹配的设置</span></div>
+          <div class="settings-empty-state settings-empty-state--compact" x-show="!searchResults.length">{{ icon('book-search', 'ui-icon--sm') }}<span>没有匹配的设置</span></div>
         </div>
 
         <div class="settings-sidebar-help"><span class="settings-sidebar-help-icon" aria-hidden="true">{{ icon('idea', 'ui-icon--sm') }}</span><div><strong>需要帮助？</strong><span>查看当前分区的字段说明</span></div><button type="button" class="settings-inline-icon-button" aria-label="打开设置帮助" title="打开设置帮助" @click="openSettingsHelp()">{{ icon('chevron-right', 'ui-icon--sm') }}</button></div>
@@ -75,7 +76,7 @@
 
       <main class="settings-content custom-scrollbar" x-ref="settingsScroll" role="tabpanel" :aria-labelledby="'settings-tab-' + activeSettingTab" tabindex="0">
         <div class="settings-content-intro">
-          <div class="settings-content-intro-icon" aria-hidden="true"><template x-if="activeSettingTab === 'general'">{{ icon('directory-root', 'ui-icon--md') }}</template><template x-if="activeSettingTab === 'appearance'">{{ icon('display', 'ui-icon--md') }}</template><template x-if="activeSettingTab === 'connection'">{{ icon('settings-connection-service', 'ui-icon--md') }}</template><template x-if="activeSettingTab === 'maintenance'">{{ icon('settings-maintenance-advanced', 'ui-icon--md') }}</template></div>
+          <div class="settings-content-intro-icon" aria-hidden="true"><template x-if="activeSettingTab === 'general'">{{ icon('directory-root', 'ui-icon--md') }}</template><template x-if="activeSettingTab === 'appearance'">{{ sidebar_icon('paint-brush', 'ui-icon--md') }}</template><template x-if="activeSettingTab === 'connection'">{{ icon('settings-connection-service', 'ui-icon--md') }}</template><template x-if="activeSettingTab === 'maintenance'">{{ icon('settings-maintenance-advanced', 'ui-icon--md') }}</template></div>
           <div><div class="settings-content-kicker" x-text="settingsHelpContent[activeSettingTab]?.kicker || 'SETTINGS'"></div><h3 class="settings-content-title" x-text="settingsHelpContent[activeSettingTab]?.label || '系统设置'"></h3><p class="settings-content-description" x-text="settingsHelpContent[activeSettingTab]?.description || ''"></p></div>
         </div>
 
@@ -113,7 +114,7 @@
         <div id="settings-panel-appearance" x-show="activeSettingTab === 'appearance'" role="tabpanel" aria-labelledby="settings-tab-appearance" class="settings-panel">
           <section id="settings-appearance-theme" class="settings-section-block">
             <div class="settings-section-heading settings-section-label-with-icon"><div class="settings-section-heading-icon" aria-hidden="true">{{ icon('palette', 'ui-icon--sm') }}</div><div><h4>主题与视觉</h4><p>预览会立即应用到当前界面，点击保存后写入配置。</p></div></div>
-            <div class="settings-preference-grid settings-preference-grid--theme"><div class="settings-preference-card settings-preference-card--wide"><div class="settings-preference-copy"><strong>深浅色模式 (Light / Dark Mode)</strong><span>根据环境光线切换界面底色。</span></div><button type="button" class="settings-icon-button settings-theme-toggle" @click="toggleDarkMode()" :aria-pressed="isDarkMode" :title="isDarkMode ? '切换到浅色模式' : '切换到深色模式'"><span class="settings-mode-switch-icon" aria-hidden="true"><template x-if="isDarkMode">{{ icon('header-dark-mode', 'ui-icon--sm') }}</template><template x-if="!isDarkMode">{{ icon('header-light-mode', 'ui-icon--sm') }}</template></span><span x-text="isDarkMode ? '深色模式' : '浅色模式'"></span></button></div><div class="settings-preference-card"><div class="settings-preference-copy"><strong>强调色</strong><span>用于按钮、选中态与焦点提示。</span></div><div class="settings-theme-swatches" role="radiogroup" aria-label="主题强调色"><button type="button" class="settings-theme-swatch settings-theme-swatch--blue" :class="{ 'is-active': settingsForm.theme_accent === 'blue' }" @click="applyTheme('blue')" aria-label="蓝色主题" title="蓝色"></button><button type="button" class="settings-theme-swatch settings-theme-swatch--purple" :class="{ 'is-active': settingsForm.theme_accent === 'purple' }" @click="applyTheme('purple')" aria-label="紫色主题" title="紫色"></button><button type="button" class="settings-theme-swatch settings-theme-swatch--green" :class="{ 'is-active': settingsForm.theme_accent === 'green' }" @click="applyTheme('green')" aria-label="绿色主题" title="绿色"></button><button type="button" class="settings-theme-swatch settings-theme-swatch--red" :class="{ 'is-active': settingsForm.theme_accent === 'red' }" @click="applyTheme('red')" aria-label="红色主题" title="红色"></button><button type="button" class="settings-theme-swatch settings-theme-swatch--orange" :class="{ 'is-active': settingsForm.theme_accent === 'orange' }" @click="applyTheme('orange')" aria-label="橙色主题" title="橙色"></button><button type="button" class="settings-theme-swatch settings-theme-swatch--pink" :class="{ 'is-active': settingsForm.theme_accent === 'pink' }" @click="applyTheme('pink')" aria-label="粉色主题" title="粉色"></button></div></div></div>
+            <div class="settings-preference-grid settings-preference-grid--theme"><div class="settings-preference-card settings-preference-card--wide"><div class="settings-preference-copy"><strong>深浅色模式 (Light / Dark Mode)</strong><span>根据环境光线切换界面底色。</span></div><button type="button" class="settings-icon-button settings-theme-toggle" @click="toggleDarkMode()" :aria-pressed="isDarkMode" :aria-label="isDarkMode ? '切换到浅色模式' : '切换到深色模式'" :title="isDarkMode ? '切换到浅色模式' : '切换到深色模式'"><span class="settings-mode-switch-icon" aria-hidden="true"><template x-if="isDarkMode">{{ icon('header-dark-mode', 'ui-icon--md') }}</template><template x-if="!isDarkMode">{{ icon('header-light-mode', 'ui-icon--md') }}</template></span><span class="sr-only" x-text="isDarkMode ? '深色模式' : '浅色模式'"></span></button></div><div class="settings-preference-card"><div class="settings-preference-copy"><strong>强调色</strong><span>用于按钮、选中态与焦点提示。</span></div><div class="settings-theme-swatches" role="radiogroup" aria-label="主题强调色"><button type="button" class="settings-theme-swatch settings-theme-swatch--blue" :class="{ 'is-active': settingsForm.theme_accent === 'blue' }" @click="applyTheme('blue')" aria-label="蓝色主题" title="蓝色"></button><button type="button" class="settings-theme-swatch settings-theme-swatch--purple" :class="{ 'is-active': settingsForm.theme_accent === 'purple' }" @click="applyTheme('purple')" aria-label="紫色主题" title="紫色"></button><button type="button" class="settings-theme-swatch settings-theme-swatch--green" :class="{ 'is-active': settingsForm.theme_accent === 'green' }" @click="applyTheme('green')" aria-label="绿色主题" title="绿色"></button><button type="button" class="settings-theme-swatch settings-theme-swatch--red" :class="{ 'is-active': settingsForm.theme_accent === 'red' }" @click="applyTheme('red')" aria-label="红色主题" title="红色"></button><button type="button" class="settings-theme-swatch settings-theme-swatch--orange" :class="{ 'is-active': settingsForm.theme_accent === 'orange' }" @click="applyTheme('orange')" aria-label="橙色主题" title="橙色"></button><button type="button" class="settings-theme-swatch settings-theme-swatch--pink" :class="{ 'is-active': settingsForm.theme_accent === 'pink' }" @click="applyTheme('pink')" aria-label="粉色主题" title="粉色"></button></div></div></div>
             <div class="settings-preference-card settings-preference-card--stacked"><div class="settings-preference-copy"><strong>字体风格</strong><span>选择更适合阅读、长文本或调试的字形。</span></div><div class="settings-choice-grid settings-choice-grid--three" role="radiogroup" aria-label="字体风格"><button type="button" class="settings-choice-card settings-choice-card--sans" :class="{ 'is-active': settingsForm.font_style === 'sans' }" @click="applyFont('sans')"><strong>无衬线</strong><span>Sans</span></button><button type="button" class="settings-choice-card settings-choice-card--serif" :class="{ 'is-active': settingsForm.font_style === 'serif' }" @click="applyFont('serif')"><strong>衬线体</strong><span>Serif</span></button><button type="button" class="settings-choice-card settings-choice-card--mono" :class="{ 'is-active': settingsForm.font_style === 'mono' }" @click="applyFont('mono')"><strong>等宽体</strong><span>Mono</span></button></div></div>
             <div class="settings-toggle-list"><label class="settings-toggle-row"><span class="settings-toggle-copy"><strong>角色卡特效 (Card Effects)</strong><small>开启角色卡悬浮与闪卡视觉效果；关闭后仅保留静态卡面。</small></span><input type="checkbox" x-model="settingsForm.card_effects_enabled" aria-label="启用角色卡特效"><span class="settings-toggle-control" aria-hidden="true"></span></label></div>
           </section>
@@ -181,14 +182,121 @@
       </main>
     </div>
 
-    <footer class="settings-footer"><div class="settings-footer-note"><span class="settings-footer-note-icon" aria-hidden="true">{{ icon('info', 'ui-icon--sm') }}</span><span>修改会在保存后写入配置；主题和字体会即时预览，服务地址可能需要重启。</span></div><div class="settings-footer-actions"><button type="button" class="settings-quiet-button" @click="resetSettingsToDefaults()">{{ icon('refresh', 'ui-icon--sm') }}<span>恢复默认</span></button><button type="button" class="settings-secondary-button" @click="requestClose()">{{ close_icon_sm }}<span>取消</span></button><button type="button" class="settings-primary-button" @click="saveSettings()" :disabled="saving"><template x-if="saving">{{ icon('loader-circle', 'ui-icon--sm settings-status-icon--spin') }}</template><template x-if="!saving">{{ icon('settings-save', 'ui-icon--sm') }}</template><span x-text="saving ? '保存中...' : '保存并应用'"></span></button></div></footer>
+    <footer class="settings-footer"><div class="settings-footer-note"><span class="settings-footer-note-icon" aria-hidden="true">{{ icon('info', 'ui-icon--sm') }}</span><span>修改会在保存后写入配置；主题和字体会即时预览，服务地址可能需要重启。</span></div><div class="settings-footer-actions"><button type="button" class="settings-quiet-button" @click="resetSettingsToDefaults()">{{ icon('refresh', 'ui-icon--sm') }}<span>恢复默认</span></button><button type="button" class="settings-primary-button" @click="saveSettings()" :disabled="saving"><template x-if="saving">{{ icon('loader-circle', 'ui-icon--sm settings-status-icon--spin') }}</template><template x-if="!saving">{{ icon('settings-save', 'ui-icon--sm') }}</template><span x-text="saving ? '保存中...' : '保存并应用'"></span></button></div></footer>
   </div>
 
   <div x-show="showSettingsHelpModal" x-cloak class="settings-help-overlay" role="presentation" @click.self="closeSettingsHelp()" @click.stop>
     <section class="settings-help-modal" role="dialog" aria-modal="true" aria-labelledby="settings-help-title" tabindex="-1">
       <header class="settings-help-header"><div><div class="settings-eyebrow">GUIDE / <span x-text="settingsHelpContent[activeSettingTab]?.kicker"></span></div><h3 id="settings-help-title" x-text="settingsHelpContent[activeSettingTab]?.title"></h3><p x-text="settingsHelpContent[activeSettingTab]?.description"></p></div><button type="button" class="settings-icon-button settings-icon-button--close" aria-label="关闭设置帮助" title="关闭帮助" @click="closeSettingsHelp()">{{ close_icon_md }}</button></header>
-      <div class="settings-help-content settings-help-body"><div class="settings-help-summary"><span class="settings-help-summary-icon" aria-hidden="true">{{ icon('idea', 'ui-icon--md') }}</span><div><strong>快速了解这一分区</strong><p>设置页会保留你正在编辑的内容；帮助窗口关闭后可以继续编辑，未保存修改不会被清除。</p></div></div><div class="settings-help-sections"><article class="settings-help-card" x-show="activeSettingTab === 'general'"><h4>{{ icon('shield-check', 'ui-icon--sm') }}路径安全</h4><p>目录编辑时会自动检查 ST 根目录与资源目录是否重叠。存在风险时，保存会先展示具体冲突，并允许你明确确认。</p></article><article class="settings-help-card" x-show="activeSettingTab === 'appearance'"><h4>{{ icon('display', 'ui-icon--sm') }}即时预览</h4><p>深浅色、强调色和字体会立即应用到当前页面。点击取消会恢复打开设置前的显示状态，保存后才会持久化。</p></article><article class="settings-help-card" x-show="activeSettingTab === 'connection'"><h4>{{ icon('plug', 'ui-icon--sm') }}连接与认证</h4><p>ST 目录用于资源同步，API 与认证信息用于连接服务。敏感字段默认隐藏，显示按钮只影响当前页面。</p></article><article class="settings-help-card" x-show="activeSettingTab === 'maintenance'"><h4>{{ icon('settings-maintenance', 'ui-icon--sm') }}即时操作</h4><p>扫描、备份、回收站和用户 DB 导入导出会立即调用对应服务；快照、索引和导入偏好则需要保存。</p></article></div><div class="settings-help-checklist"><div><span aria-hidden="true">{{ icon('check', 'ui-icon--sm') }}</span><span>可搜索字段与分区</span></div><div><span aria-hidden="true">{{ icon('check', 'ui-icon--sm') }}</span><span>键盘焦点与 Escape 退出</span></div><div><span aria-hidden="true">{{ icon('check', 'ui-icon--sm') }}</span><span>深色、浅色与主题色兼容</span></div></div></div>
-      <footer class="settings-help-footer"><button type="button" class="settings-secondary-button" @click="closeSettingsHelp()">{{ close_icon_sm }}<span>关闭帮助</span></button></footer>
+      <div class="settings-help-content settings-help-body">
+        <div class="settings-help-sections">
+          <article class="settings-help-card" x-show="activeSettingTab === 'general'">
+            <h4 class="font-bold color-text-accent mb-2"><span aria-hidden="true">{{ icon('folder-path', 'ui-icon--sm') }}</span><span>路径如何填写</span></h4>
+            <p>每个目录都支持相对路径和绝对路径。相对路径以 ST-Manager 的数据目录为基准，适合保持配置可迁移；绝对路径适合直接接入已有的 SillyTavern 或素材目录。</p>
+            <ul class="settings-help-list">
+              <li><strong>角色卡、世界书、聊天与预设：</strong>分别对应管理器中的四类内容。</li>
+              <li><strong>资源、正则、脚本与快速回复：</strong>用于附件、扩展资源和全局工具的统一浏览。</li>
+              <li><strong>ST Chat Completion 预设：</strong>填写 SillyTavern 的 OpenAI 预设目录后，才能检测和同步对应预设。</li>
+            </ul>
+          </article>
+          <article class="settings-help-card" x-show="activeSettingTab === 'general'">
+            <h4 class="font-bold color-text-warning mb-2"><span aria-hidden="true">{{ icon('shield-check', 'ui-icon--sm') }}</span><span>路径安全与同步</span></h4>
+            <p>编辑路径时会自动检查 ST 根目录与管理目录是否重叠。发现风险后，页面会列出具体冲突；保存或同步前请确认目标目录，避免把同一批文件重复当作来源和目标。</p>
+            <div class="settings-help-callout settings-help-callout--warning"><span aria-hidden="true">{{ icon('alert-triangle', 'ui-icon--sm') }}</span><span>修改路径后建议执行一次“立即扫描”，让数据库索引与磁盘内容重新对齐。</span></div>
+          </article>
+
+          <article class="settings-help-card" x-show="activeSettingTab === 'appearance'">
+            <h4 class="font-bold color-text-accent mb-2"><span aria-hidden="true">{{ icon('display', 'ui-icon--sm') }}</span><span>主题、字体与布局</span></h4>
+            <ul class="settings-help-list">
+              <li><strong>深浅色模式与强调色：</strong>会立即预览，影响整个管理器的表面、按钮、选中态和焦点提示。</li>
+              <li><strong>字体风格与卡片特效：</strong>分别控制阅读字形和角色卡的悬浮视觉效果。</li>
+              <li><strong>卡片尺寸、分页和排序：</strong>只改变列表的展示密度；每页数量为“自动”时会根据窗口宽度计算。</li>
+              <li><strong>隔离分类：</strong>隐藏分类在上级目录和搜索结果中的出现，但进入分类自身后仍可正常浏览。</li>
+            </ul>
+          </article>
+          <article class="settings-help-card" x-show="activeSettingTab === 'appearance'">
+            <h4 class="font-bold color-text-violet mb-2"><span aria-hidden="true">{{ icon('wallpaper', 'ui-icon--sm') }}</span><span>壁纸与美化</span></h4>
+            <p>可以使用 URL、本地上传或共享壁纸库设置管理器背景；不透明度和模糊度用于平衡背景效果与文字可读性。主题与字体的更改只是即时预览，保存后才会写入配置。</p>
+          </article>
+
+          <article class="settings-help-card" x-show="activeSettingTab === 'connection'">
+            <h4 class="font-bold color-text-success mb-2"><span aria-hidden="true">{{ icon('shield-key', 'ui-icon--sm') }}</span><span>ST 认证模式排查</span></h4>
+            <div class="settings-help-copy">
+              <p>先打开 SillyTavern 根目录中的 <code>config.yaml</code>，重点查看 <code>basicAuthMode</code>、<code>enableUserAccounts</code>、<code>perUserBasicAuth</code> 和 <code>basicAuthUser</code>。</p>
+              <ul class="settings-help-list">
+                <li><strong>Basic/Auth：</strong>适合 <code>basicAuthMode: true</code> 且不使用 Web 账号登录的情况。</li>
+                <li><strong>Web/Login：</strong>适合 <code>basicAuthMode: false</code> 且 <code>enableUserAccounts: true</code> 的情况。</li>
+                <li><strong>Basic Auth + Web Login：</strong>适合两者同时开启的情况。</li>
+                <li><code>perUserBasicAuth: true</code> 时，Basic 认证复用 Web 账号的 handle 和密码；为 <code>false</code> 时使用 <code>basicAuthUser.username/password</code>。</li>
+              </ul>
+              <pre class="settings-help-code"># Basic/Auth
+basicAuthMode: true
+enableUserAccounts: false
+perUserBasicAuth: false
+basicAuthUser:
+  username: admin
+  password: change-me
+
+# Web/Login
+basicAuthMode: false
+enableUserAccounts: true</pre>
+              <div class="settings-help-callout settings-help-callout--warning"><span aria-hidden="true">{{ icon('alert-triangle', 'ui-icon--sm') }}</span><span>Web 用户名是账号 handle；Web 密码无法直接查询，只能验证、修改，忘记时请使用 SillyTavern 官方 recover.js 流程重置。</span></div>
+            </div>
+          </article>
+          <article class="settings-help-card" x-show="activeSettingTab === 'connection'">
+            <h4 class="font-bold color-text-accent mb-2"><span aria-hidden="true">{{ icon('plug', 'ui-icon--sm') }}</span><span>SillyTavern 连接与同步</span></h4>
+            <ul class="settings-help-list">
+              <li>安装根目录应包含 SillyTavern 的 <code>data/</code>、<code>public/</code> 和 <code>server.js</code>。</li>
+              <li>可以先点击“自动探测”，再点击“验证目录”确认资源数量和目录结构。</li>
+              <li>同步按钮会遵守路径安全拦截；同步前请确认目标目录，必要时先保存地址和认证配置。</li>
+            </ul>
+          </article>
+          <article class="settings-help-card" x-show="activeSettingTab === 'connection'">
+            <h4 class="font-bold color-text-violet mb-2"><span aria-hidden="true">{{ icon('settings-connection-service', 'ui-icon--sm') }}</span><span>Discord 论坛标签抓取</span></h4>
+            <p>Discord 认证用于自动化规则从类脑论坛帖子抓取标签，和类脑帖子预览使用的 Cookie 相互独立。</p>
+            <div class="settings-help-subtitle">获取 Discord Token</div>
+            <ol class="settings-help-list settings-help-list--ordered">
+              <li>在浏览器打开 Discord 网页版并登录，进入可访问类脑帖子的频道。</li>
+              <li>按 <code>F12</code> 打开开发者工具，切换到 <strong>Console（控制台）</strong>。</li>
+              <li>如果 Chrome 阻止粘贴，先手动输入 <code>allow pasting</code> 并回车。</li>
+              <li>粘贴下面的代码并执行，在控制台显示 Token 后复制结果。</li>
+            </ol>
+            <pre class="settings-help-code">const iframe = document.createElement('iframe');
+console.log(
+  'Token: %c%s',
+  'font-size:16px;',
+  JSON.parse(document.body.appendChild(iframe).contentWindow.localStorage.token)
+);
+iframe.remove();</pre>
+            <div class="settings-help-callout settings-help-callout--warning"><span aria-hidden="true">{{ icon('shield-key', 'ui-icon--sm') }}</span><span>Token 可能过期；遇到 401 时请重新获取。认证信息只保存在本机，并且需要 Discord 账号具备对应服务器权限。</span></div>
+          </article>
+          <article class="settings-help-card" x-show="activeSettingTab === 'connection'">
+            <h4 class="font-bold color-text-violet mb-2"><span aria-hidden="true">{{ icon('key', 'ui-icon--sm') }}</span><span>类脑 Cookie 预览</span></h4>
+            <p>类脑 Cookie 只用于卡片中的帖子详情预览，不等同于 Discord Token 或 Discord 用户 Cookie。</p>
+            <ol class="settings-help-list settings-help-list--ordered">
+              <li>打开并登录 <a class="settings-help-link" href="https://odysseia-forum-webpage.pages.dev/" target="_blank" rel="noopener">类脑镜像站</a>。</li>
+              <li>按 <code>F12</code> 打开开发者工具，在 Network 面板刷新页面。</li>
+              <li>找到详情请求，在 Request Headers 中复制完整 Cookie，优先包含 <code>session=</code> 的整段值。</li>
+              <li>粘贴到“类脑 Cookie”字段并保存；预览失败时先重新登录并更新 Cookie。</li>
+            </ol>
+            <div class="settings-help-callout"><span aria-hidden="true">{{ icon('shield-check', 'ui-icon--sm') }}</span><span>Cookie 默认隐藏，只保存在本机，显示按钮只影响当前设置页面。</span></div>
+          </article>
+
+          <article class="settings-help-card" x-show="activeSettingTab === 'maintenance'">
+            <h4 class="font-bold color-text-accent mb-2"><span aria-hidden="true">{{ icon('settings-maintenance', 'ui-icon--sm') }}</span><span>维护操作与数据备份</span></h4>
+            <ul class="settings-help-list">
+              <li><strong>立即扫描、配置备份、回收站和用户 DB 导入导出：</strong>点击后立即执行，不需要先保存设置。</li>
+              <li><strong>用户 DB 备份：</strong>包含收藏、剪贴板、历史和监控池，不会覆盖角色卡、世界书等资源文件。</li>
+              <li><strong>清空回收站：</strong>属于不可撤销操作，执行前会要求确认。</li>
+            </ul>
+          </article>
+          <article class="settings-help-card" x-show="activeSettingTab === 'maintenance'">
+            <h4 class="font-bold color-text-accent mb-2"><span aria-hidden="true">{{ icon('sliders-settings', 'ui-icon--sm') }}</span><span>扫描、索引与快照</span></h4>
+            <p>自动扫描和启动索引适合文件经常在外部修改的场景；列表索引可以改善大型库的加载和搜索。世界书预览上限、历史条数、自动保存和快照保留数量会在保存后生效。</p>
+            <div class="settings-help-callout"><span aria-hidden="true">{{ icon('info', 'ui-icon--sm') }}</span><span>修改高级策略后建议观察一次扫描或快照状态，确认磁盘空间和响应速度符合预期。</span></div>
+          </article>
+        </div>
+      </div>
     </section>
   </div>
 
