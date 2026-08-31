@@ -1244,6 +1244,423 @@
   }
 }
 
+/* 筛选工作台整体重构：以设置页的工作区 shell 为参照，建立概览、分区导航、内容面板和底部操作四层。 */
+.card-advanced-filter-overlay {
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  overflow: auto;
+  background: var(--surface-scrim);
+}
+
+.card-advanced-filter-backdrop {
+  background: var(--surface-scrim);
+  backdrop-filter: blur(8px);
+}
+
+.card-advanced-filter-drawer {
+  width: min(72rem, calc(100vw - 2rem));
+  height: min(54rem, calc(100dvh - 2rem));
+  max-height: calc(100dvh - 2rem);
+  margin: 0;
+  border: 1px solid color-mix(in srgb, var(--border-default), var(--accent-action) 18%);
+  border-radius: 1.1rem;
+  background: var(--surface-container);
+  box-shadow:
+    0 1.5rem 4rem color-mix(in srgb, var(--shadow-color), transparent 18%),
+    0 0 0 1px color-mix(in srgb, var(--accent-action), transparent 92%);
+}
+
+.card-advanced-filter-header {
+  flex: 0 0 auto;
+  min-height: 5.75rem;
+  padding: 1rem 1.25rem;
+  border-bottom-color: var(--border-divider);
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--surface-container-raised), var(--accent-action) 8%),
+      var(--surface-container-raised) 62%,
+      var(--surface-container)
+    );
+}
+
+.card-advanced-filter-header-copy {
+  min-width: 0;
+}
+
+.card-advanced-filter-header-actions {
+  align-items: center;
+}
+
+.card-advanced-filter-header-status {
+  min-height: 2.25rem;
+  border-color: var(--action-border);
+  background: var(--action-surface);
+  color: var(--action-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.card-advanced-filter-body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 0.85rem;
+  min-height: 0;
+  padding: 1.15rem 1.25rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  background: var(--surface-page);
+}
+
+.card-advanced-filter-context {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(22rem, 0.75fr);
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.card-advanced-filter-overview,
+.card-advanced-filter-stat-card,
+.card-advanced-filter-module-card {
+  border-color: var(--border-subtle);
+  background: var(--surface-container);
+  box-shadow: 0 0.5rem 1.5rem color-mix(in srgb, var(--shadow-color), transparent 84%);
+}
+
+.card-advanced-filter-overview {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 1rem 1.05rem;
+}
+
+.card-advanced-filter-overview-heading {
+  min-width: 0;
+}
+
+.card-advanced-filter-overview-list {
+  min-height: 2.25rem;
+  align-content: flex-start;
+}
+
+.card-advanced-filter-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.65rem;
+  margin-top: 0;
+}
+
+.card-advanced-filter-stat-card {
+  min-height: 100%;
+  padding: 0.75rem;
+}
+
+.card-advanced-filter-stat-value {
+  font-variant-numeric: tabular-nums;
+}
+
+.card-advanced-filter-workbench {
+  display: grid;
+  grid-template-columns: minmax(11rem, 13rem) minmax(0, 1fr);
+  gap: 0.85rem;
+  min-height: 0;
+  margin-top: 0;
+}
+
+.card-advanced-filter-nav {
+  align-self: start;
+  gap: 0.4rem;
+  padding: 0.45rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 0.9rem;
+  background: var(--surface-container-sunken);
+}
+
+.card-advanced-filter-nav-btn {
+  min-height: 3.4rem;
+  padding: 0.65rem 0.7rem;
+  border-color: transparent;
+  border-radius: 0.65rem;
+  background: transparent;
+}
+
+.card-advanced-filter-nav-btn.is-active {
+  border-color: var(--action-border);
+  background: var(--action-surface);
+  color: var(--action-text);
+  box-shadow: 0 0.25rem 0.8rem color-mix(in srgb, var(--accent-action), transparent 88%);
+}
+
+.card-advanced-filter-nav-btn.has-value:not(.is-active) {
+  border-color: color-mix(in srgb, var(--action-border), transparent 40%);
+  background: color-mix(in srgb, var(--action-surface), transparent 45%);
+}
+
+.card-advanced-filter-nav-state {
+  min-width: 1.35rem;
+  min-height: 1.35rem;
+  align-items: center;
+  border-radius: 999px;
+}
+
+.card-advanced-filter-nav-btn.has-value .card-advanced-filter-nav-state {
+  display: inline-flex;
+  justify-content: center;
+  background: var(--action-surface-hover);
+  color: var(--action-text);
+}
+
+.card-advanced-filter-stage {
+  min-width: 0;
+}
+
+.card-advanced-filter-error {
+  margin-bottom: 0.75rem;
+  border-color: var(--status-danger-border);
+  background: var(--status-danger-surface);
+  color: var(--status-danger-text);
+}
+
+.card-advanced-filter-module-card {
+  min-height: 15rem;
+  padding: 1.15rem;
+  border-radius: 0.9rem;
+}
+
+.card-advanced-filter-module-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+}
+
+.card-advanced-filter-module-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  width: 2.25rem;
+  height: 2.25rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--action-border);
+  border-radius: 0.65rem;
+  background: var(--action-surface);
+  color: var(--action-icon);
+}
+
+.card-advanced-filter-module-head {
+  min-width: 0;
+}
+
+.card-advanced-filter-module-head h3 {
+  font-size: 1rem;
+}
+
+.card-advanced-filter-field-grid,
+.card-advanced-filter-toggle-row {
+  margin-top: 1.1rem;
+}
+
+.card-advanced-filter-field-grid input,
+.card-advanced-filter-field-grid .icon-select-trigger,
+.card-advanced-filter-toggle-row .icon-select-trigger {
+  min-height: 2.85rem;
+  border-color: var(--form-border);
+  background: var(--form-surface);
+}
+
+.card-advanced-filter-checkbox {
+  min-height: 2.85rem;
+  border-color: var(--border-subtle);
+  background: var(--surface-container-raised);
+}
+
+.card-advanced-filter-tag-summary {
+  border-color: var(--border-subtle);
+  background: var(--surface-container-raised);
+}
+
+.card-advanced-filter-tag-actions button,
+.card-advanced-filter-footer button {
+  min-height: 2.85rem;
+}
+
+.card-advanced-filter-footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.8rem 1.25rem calc(0.8rem + env(safe-area-inset-bottom, 0px));
+  border-top-color: var(--border-divider);
+  background: color-mix(in srgb, var(--surface-container-raised), transparent 4%);
+  box-shadow: 0 -0.75rem 1.5rem color-mix(in srgb, var(--shadow-color), transparent 90%);
+}
+
+.card-advanced-filter-footer-context {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--content-muted);
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+
+.card-advanced-filter-footer-context > span:first-child {
+  display: inline-flex;
+  flex: 0 0 auto;
+  color: var(--icon-muted);
+}
+
+.card-advanced-filter-footer button:last-child {
+  min-width: 8rem;
+}
+
+.card-advanced-filter-drawer button:disabled,
+.card-advanced-filter-drawer input:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.card-advanced-filter-drawer button:focus-visible,
+.card-advanced-filter-drawer input:focus-visible,
+.card-advanced-filter-drawer .icon-select-trigger:focus-visible {
+  outline: 2px solid var(--state-focus-ring);
+  outline-offset: 2px;
+  box-shadow: var(--state-focus-shadow);
+}
+
+@media (max-width: 62.5rem) {
+  .card-advanced-filter-context {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .card-advanced-filter-stat-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 56.25rem) {
+  .card-advanced-filter-overlay {
+    padding: 0.75rem;
+  }
+
+  .card-advanced-filter-drawer {
+    width: min(100%, 42rem);
+    height: calc(100dvh - 1.5rem);
+    max-height: calc(100dvh - 1.5rem);
+  }
+
+  .card-advanced-filter-workbench {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .card-advanced-filter-nav {
+    flex-direction: row;
+    max-width: 100%;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+  }
+
+  .card-advanced-filter-nav-btn {
+    flex: 1 0 10rem;
+  }
+}
+
+@media (max-width: 48rem) {
+  .card-advanced-filter-overlay {
+    align-items: stretch;
+    padding: 0;
+  }
+
+  .card-advanced-filter-drawer {
+    width: 100%;
+    height: 100dvh;
+    max-height: none;
+    border-right: 0;
+    border-left: 0;
+    border-radius: 0;
+  }
+
+  .card-advanced-filter-header {
+    padding: calc(env(safe-area-inset-top, 0px) + 0.85rem) 0.85rem 0.8rem;
+  }
+
+  .card-advanced-filter-header-status {
+    display: none;
+  }
+
+  .card-advanced-filter-header p {
+    max-width: 24rem;
+  }
+
+  .card-advanced-filter-body {
+    padding: 0.8rem;
+  }
+
+  .card-advanced-filter-context {
+    gap: 0.65rem;
+  }
+
+  .card-advanced-filter-stat-grid {
+    gap: 0.5rem;
+  }
+
+  .card-advanced-filter-stat-card {
+    padding: 0.65rem;
+  }
+
+  .card-advanced-filter-stat-icon {
+    width: 1.8rem;
+    height: 1.8rem;
+  }
+
+  .card-advanced-filter-workbench {
+    gap: 0.65rem;
+  }
+
+  .card-advanced-filter-module-card {
+    min-height: 0;
+    padding: 0.9rem;
+  }
+
+  .card-advanced-filter-footer {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding-inline: 0.8rem;
+  }
+
+  .card-advanced-filter-footer-context {
+    grid-column: 1 / -1;
+  }
+
+  .card-advanced-filter-footer button {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .card-advanced-filter-stat-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .card-advanced-filter-stat-card {
+    min-height: 3.25rem;
+  }
+
+  .card-advanced-filter-field-grid,
+  .card-advanced-filter-toggle-row {
+    grid-template-columns: 1fr;
+  }
+
+  .card-advanced-filter-footer {
+    grid-template-columns: 1fr;
+  }
+}
+
 .sidebar {
   width: 300px;
   background-color: color-mix(in srgb, var(--surface-container), transparent 10%);
@@ -3850,4 +4267,30 @@ html.light-mode .header-favorite-btn.is-excluded .header-favorite-icon::after {
   width: min(320px, 88vw);
   max-width: 88vw;
   overflow: hidden;
+}
+
+/* 过滤工作台响应式优先级收口：覆盖文件后段的通用移动端规则，保证 768px 以下仍是完整可滚动工作区。 */
+@media (max-width: 768px) {
+  .card-advanced-filter-drawer {
+    width: 100%;
+    height: 100dvh;
+    max-height: none;
+    border-radius: 0;
+  }
+
+  .card-advanced-filter-footer {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 480px) {
+  .card-advanced-filter-footer {
+    grid-template-columns: 1fr;
+  }
+}
+
+.card-advanced-filter-overlay {
+  overflow-x: hidden;
+  overflow-y: auto;
 }

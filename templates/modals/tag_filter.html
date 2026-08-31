@@ -7,6 +7,9 @@
   x-cloak
   class="modal-overlay"
   :class="isDesktopWorkspaceFullscreen && $store.global.deviceType !== 'mobile' ? 'modal-overlay--desktop-workspace-fullscreen' : ''"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="tag-filter-modal-title"
 >
   <div
     class="tag-modal-container"
@@ -25,10 +28,19 @@
             </span>
             <div>
               <div class="tag-filter-mobile-eyebrow">标签库工作台</div>
-              <div class="tag-filter-mobile-title">标签库筛选</div>
+              <div
+                class="tag-filter-mobile-title"
+                id="tag-filter-modal-title"
+                x-text="{ filter: '标签库筛选', sort: '标签排序', delete: '删除标签', category: '分类管理' }[mobileActiveTab] || '标签库筛选'"
+              >标签库筛选</div>
+              <div class="tag-filter-mobile-context" role="status" aria-live="polite">
+                <span x-text="filterTags.length + excludedTags.length"></span>
+                <span>个筛选标签</span>
+              </div>
             </div>
           </div>
           <button
+            type="button"
             @click="requestCloseTagFilterEditor()"
             class="tag-filter-mobile-close-btn"
             aria-label="关闭标签工作台"
@@ -45,8 +57,10 @@
             <button
               type="button"
               role="tab"
-            @click="switchMobileTagTab('filter')"
+              id="tag-filter-mobile-tab-filter"
+              @click="switchMobileTagTab('filter')"
             :aria-selected="mobileActiveTab === 'filter'"
+            aria-controls="tag-filter-mobile-panel-filter"
             >
             <span aria-hidden="true">{{ icon('filter', 'ui-icon--sm') }}</span>
             <span>筛选</span>
@@ -54,8 +68,10 @@
           <button
             type="button"
             role="tab"
+            id="tag-filter-mobile-tab-sort"
             @click="switchMobileTagTab('sort')"
             :aria-selected="mobileActiveTab === 'sort'"
+            aria-controls="tag-filter-mobile-panel-sort"
             >
             <span aria-hidden="true">{{ icon('sort', 'ui-icon--sm') }}</span>
             <span>排序</span>
@@ -63,8 +79,10 @@
           <button
             type="button"
             role="tab"
+            id="tag-filter-mobile-tab-delete"
             @click="switchMobileTagTab('delete')"
             :aria-selected="mobileActiveTab === 'delete'"
+            aria-controls="tag-filter-mobile-panel-delete"
             >
             <span aria-hidden="true">{{ icon('trash', 'ui-icon--sm') }}</span>
             <span>删除</span>
@@ -72,8 +90,10 @@
           <button
             type="button"
             role="tab"
+            id="tag-filter-mobile-tab-category"
             @click="switchMobileTagTab('category')"
             :aria-selected="mobileActiveTab === 'category'"
+            aria-controls="tag-filter-mobile-panel-category"
             >
             <span aria-hidden="true">{{ icon('palette', 'ui-icon--sm') }}</span>
             <span>分类</span>
@@ -82,16 +102,35 @@
         <div class="tag-filter-mobile-utility">
           <div
             x-show="$store.global.deviceType === 'mobile' && mobileActiveTab === 'filter'"
+            id="tag-filter-mobile-panel-filter"
+            role="tabpanel"
+            aria-labelledby="tag-filter-mobile-tab-filter"
             class="tag-filter-mobile-panel tag-filter-mobile-panel--filter"
           >
-            <input
-              type="text"
-              x-model="tagSearchQuery"
-              placeholder="搜索标签..."
-              class="form-input"
-              :disabled="isSortMode"
-              :style="isSortMode ? 'padding: 0.75rem; font-size: 1rem; opacity: 0.6; cursor: not-allowed;' : 'padding: 0.75rem; font-size: 1rem;'"
-            />
+            <label class="tag-filter-mobile-search">
+              <span class="sr-only">搜索标签</span>
+              <span class="tag-filter-mobile-search-icon" aria-hidden="true">
+                {{ icon('search', 'ui-icon--sm') }}
+              </span>
+              <input
+                type="text"
+                x-model="tagSearchQuery"
+                placeholder="搜索标签..."
+                aria-label="搜索标签"
+                class="form-input tag-filter-mobile-search-input"
+                :disabled="isSortMode"
+              />
+              <button
+                type="button"
+                x-show="tagSearchQuery && !isSortMode"
+                class="tag-filter-mobile-search-clear"
+                @click="tagSearchQuery = ''"
+                aria-label="清除标签搜索"
+                title="清除搜索"
+              >
+                {{ icon('close-small', 'ui-icon--xs') }}
+              </button>
+            </label>
             <div x-show="!isSortMode" class="tag-category-filter-row">
               <button
                 type="button"
@@ -124,6 +163,9 @@
           </div>
           <div
             x-show="$store.global.deviceType === 'mobile' && mobileActiveTab === 'delete'"
+            id="tag-filter-mobile-panel-delete"
+            role="tabpanel"
+            aria-labelledby="tag-filter-mobile-tab-delete"
             class="tag-filter-mobile-panel tag-filter-mobile-panel--delete"
           >
             <div class="text-xs" style="color: var(--content-muted)">
@@ -137,6 +179,9 @@
           </div>
           <div
             x-show="$store.global.deviceType === 'mobile' && mobileActiveTab === 'sort'"
+            id="tag-filter-mobile-panel-sort"
+            role="tabpanel"
+            aria-labelledby="tag-filter-mobile-tab-sort"
             class="tag-filter-mobile-panel tag-filter-mobile-panel--sort"
           >
             <div class="text-xs" style="color: var(--content-muted)">
@@ -145,6 +190,9 @@
           </div>
           <div
             x-show="$store.global.deviceType === 'mobile' && mobileActiveTab === 'category'"
+            id="tag-filter-mobile-panel-category"
+            role="tabpanel"
+            aria-labelledby="tag-filter-mobile-tab-category"
             class="tag-filter-mobile-panel tag-filter-mobile-panel--category"
           >
             <div class="tag-category-editor-row">
@@ -618,7 +666,7 @@
                     <div class="tag-filter-workspace-eyebrow">
                       标签库 · 管理工作台
                     </div>
-                    <h3 class="tag-filter-workspace-title">
+                    <h3 class="tag-filter-workspace-title" id="tag-filter-modal-title">
                       <span x-show="desktopWorkspaceMode === 'filter'"
                         >标签库筛选</span
                       >
@@ -652,8 +700,9 @@
                   </div>
                 </div>
               </div>
-              <div class="tag-filter-workspace-topbar-search">
-                <div class="tag-filter-workspace-search-wrap">
+            <div class="tag-filter-workspace-topbar-search">
+              <label class="tag-filter-workspace-search-wrap">
+                <span class="sr-only">搜索标签</span>
                   <span class="tag-filter-workspace-search-icon" aria-hidden="true">
                     {{ icon('search', 'ui-icon--sm') }}
                   </span>
@@ -662,11 +711,20 @@
                     x-model="tagSearchQuery"
                     aria-label="搜索标签"
                     placeholder="搜索标签..."
-                    class="form-input"
+                    class="form-input tag-filter-workspace-search-input"
                     :disabled="isSortMode"
-                    :style="isSortMode ? 'padding: 0.75rem; font-size: 1rem; opacity: 0.6; cursor: not-allowed;' : 'padding: 0.75rem; font-size: 1rem;'"
                   />
-                </div>
+                  <button
+                    type="button"
+                    x-show="tagSearchQuery && !isSortMode"
+                    class="tag-filter-workspace-search-clear"
+                    @click="tagSearchQuery = ''"
+                    aria-label="清除标签搜索"
+                    title="清除搜索"
+                  >
+                    {{ icon('close-small', 'ui-icon--xs') }}
+                  </button>
+              </label>
               </div>
               <div class="tag-filter-workspace-topbar-status" role="status" aria-live="polite">
                 <div class="tag-filter-workspace-selection-summary">
@@ -725,18 +783,11 @@
               <template x-if="isGovernanceDrawerOpen">
                 <div class="tag-filter-governance-drawer">
                   <div class="tag-filter-governance-drawer-body">
-                    <div class="text-xs" style="color: var(--content-muted)">
+                    <div class="tag-filter-governance-copy">
                       这里用于管理标签视图记忆，以及自动来源的标签准入规则。
                     </div>
                     <label
-                      class="text-xs"
-                      style="
-                        display: flex;
-                        align-items: center;
-                        gap: 0.5rem;
-                        color: var(--content-muted);
-                        margin-top: 0.25rem;
-                      "
+                      class="tag-filter-governance-option"
                     >
                       <input
                         type="checkbox"
@@ -746,14 +797,7 @@
                       记住上次标签视图
                     </label>
                     <label
-                      class="text-xs"
-                      style="
-                        display: flex;
-                        align-items: center;
-                        gap: 0.5rem;
-                        color: var(--content-muted);
-                        margin-top: 0.5rem;
-                      "
+                      class="tag-filter-governance-option"
                     >
                       <input
                         type="checkbox"
@@ -762,10 +806,7 @@
                       />
                       拒绝新增未知标签（自动/批量来源）
                     </label>
-                    <div
-                      class="text-xs"
-                      style="margin-top: 0.15rem; color: var(--content-muted)"
-                    >
+                    <div class="tag-filter-governance-note">
                       开启后，仅已存在于标签库中的标签允许被自动流程或批量流程写入；手动单个添加不受影响。
                     </div>
                   </div>
@@ -785,6 +826,8 @@
                 type="button"
                 @click="requestCloseTagFilterEditor()"
                 class="tag-filter-workspace-close-btn"
+                aria-label="关闭标签工作台"
+                title="关闭标签工作台"
               >
                 {{ icon('close', 'ui-icon--sm') }}
               </button>
@@ -864,20 +907,6 @@
         <div class="tag-filter-desktop-workbench">
           <div class="tag-filter-workspace-center">
             <div class="tag-filter-desktop-main">
-              <div
-                x-show="$store.global.deviceType !== 'mobile' && isSortMode"
-                class="text-xs mb-2"
-                style="color: var(--content-muted)"
-              >
-                排序模式仅针对完整标签库生效；混合视图调整全局标签顺序，分组视图可继续调整分类顺序和分类内顺序。
-              </div>
-              <div
-                x-show="$store.global.deviceType !== 'mobile' && customOrderEnabled && !isSortMode"
-                class="text-xs mb-2"
-                style="color: var(--content-muted)"
-              >
-                当前使用自定义排序，可点击“恢复字符排序”回退到原始字母序。
-              </div>
               <div
                 class="tag-filter-selected-basket tag-filter-selected-basket--workspace"
               >
@@ -1490,7 +1519,7 @@
                             class="tag-filter-selected-basket-chip-label"
                             x-text="tag"
                           ></span>
-                          <span aria-hidden="true">移除</span>
+                          <span aria-hidden="true">{{ icon('close-small', 'ui-icon--xs') }}</span>
                         </button>
                       </template>
                     </div>
@@ -1530,7 +1559,7 @@
                             class="tag-filter-selected-basket-chip-label"
                             x-text="tag"
                           ></span>
-                          <span aria-hidden="true">移除</span>
+                          <span aria-hidden="true">{{ icon('close-small', 'ui-icon--xs') }}</span>
                         </button>
                       </template>
                     </div>
@@ -1734,7 +1763,8 @@
                       <span x-show="showCategoryMode">点击标签加入批量分类选择</span>
                       <span x-show="isBlacklistMode">点击标签加入黑名单选择</span>
                       <span x-show="isDeleteMode">点击标签加入待删除列表</span>
-                      <span x-show="isSortMode">拖拽标签或使用排序控件调整顺序</span>
+                      <span x-show="$store.global.deviceType !== 'mobile' && isSortMode">排序模式仅针对完整标签库生效；拖拽标签或使用排序控件调整顺序</span>
+                      <span x-show="$store.global.deviceType !== 'mobile' && customOrderEnabled && !isSortMode">当前使用自定义排序，可点击“恢复字符排序”回退到原始字母序</span>
                     </p>
                   </div>
                   <div class="tag-filter-workspace-pool-meta" aria-live="polite">

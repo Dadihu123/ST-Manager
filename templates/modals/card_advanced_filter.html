@@ -14,7 +14,11 @@
 >
   <div class="card-advanced-filter-backdrop" @click="requestClose()"></div>
 
-  <aside class="card-advanced-filter-drawer" @click.stop>
+  <aside
+    class="card-advanced-filter-drawer"
+    @click.stop
+    tabindex="-1"
+  >
     <div class="card-advanced-filter-header">
       <div class="card-advanced-filter-header-copy">
         <div class="card-advanced-filter-title-row">
@@ -31,6 +35,8 @@
       <div class="card-advanced-filter-header-actions">
         <span
           class="card-advanced-filter-header-status"
+          role="status"
+          aria-live="polite"
           x-text="cardAdvancedFilterCount > 0 ? `已启用 ${cardAdvancedFilterCount} 项` : '当前无附加条件'"
         ></span>
       <button
@@ -47,7 +53,8 @@
     </div>
 
     <div class="card-advanced-filter-body custom-scrollbar">
-      <div class="card-advanced-filter-overview">
+      <div class="card-advanced-filter-context">
+        <div class="card-advanced-filter-overview">
         <div class="card-advanced-filter-overview-head">
           <div class="card-advanced-filter-overview-heading">
             <span class="card-advanced-filter-overview-icon" aria-hidden="true">
@@ -84,9 +91,9 @@
             </button>
           </template>
         </div>
-      </div>
+        </div>
 
-      <div class="card-advanced-filter-stat-grid">
+        <div class="card-advanced-filter-stat-grid">
         <template x-for="item in statItems" :key="item.key">
           <button
             type="button"
@@ -110,13 +117,22 @@
             </span>
           </button>
         </template>
+        </div>
       </div>
 
       <div class="card-advanced-filter-workbench">
-        <nav class="card-advanced-filter-nav">
+        <nav
+          class="card-advanced-filter-nav"
+          role="tablist"
+          aria-label="筛选工作台分区"
+        >
           <template x-for="section in sectionItems" :key="section.key">
             <button
               type="button"
+              role="tab"
+              :id="`card-advanced-filter-tab-${section.key}`"
+              :aria-selected="isSectionActive(section.key)"
+              :aria-controls="`card-advanced-filter-panel-${section.key}`"
               class="card-advanced-filter-nav-btn"
               :class="{ 'is-active': isSectionActive(section.key), 'has-value': section.active }"
               @click="setSection(section.key)"
@@ -141,16 +157,25 @@
           <div
             x-show="validationMessage"
             class="card-advanced-filter-error"
+            role="alert"
             x-text="validationMessage"
           ></div>
 
           <section
             x-show="isSectionActive('basic')"
+            id="card-advanced-filter-panel-basic"
+            role="tabpanel"
+            aria-labelledby="card-advanced-filter-tab-basic"
             class="card-advanced-filter-module-card"
           >
-            <div class="card-advanced-filter-module-head">
-              <h3>基础筛选</h3>
-              <p>调整当前列表的范围、排序和收藏状态。</p>
+            <div class="card-advanced-filter-module-heading">
+              <span class="card-advanced-filter-module-icon" aria-hidden="true">
+                {{ icon('sliders-settings', 'ui-icon--sm') }}
+              </span>
+              <div class="card-advanced-filter-module-head">
+                <h3>基础筛选</h3>
+                <p>调整当前列表的范围、排序和收藏状态。</p>
+              </div>
             </div>
             <div class="card-advanced-filter-field-grid">
               <label>
@@ -226,11 +251,19 @@
 
           <section
             x-show="isSectionActive('time')"
+            id="card-advanced-filter-panel-time"
+            role="tabpanel"
+            aria-labelledby="card-advanced-filter-tab-time"
             class="card-advanced-filter-module-card"
           >
-            <div class="card-advanced-filter-module-head">
-              <h3>时间筛选</h3>
-              <p>按导入时间和修改时间缩小结果范围。</p>
+            <div class="card-advanced-filter-module-heading">
+              <span class="card-advanced-filter-module-icon" aria-hidden="true">
+                {{ icon('calendar', 'ui-icon--sm') }}
+              </span>
+              <div class="card-advanced-filter-module-head">
+                <h3>时间筛选</h3>
+                <p>按导入时间和修改时间缩小结果范围。</p>
+              </div>
             </div>
             <div class="card-advanced-filter-field-grid">
               <label>
@@ -274,11 +307,19 @@
 
           <section
             x-show="isSectionActive('numeric')"
+            id="card-advanced-filter-panel-numeric"
+            role="tabpanel"
+            aria-labelledby="card-advanced-filter-tab-numeric"
             class="card-advanced-filter-module-card"
           >
-            <div class="card-advanced-filter-module-head">
-              <h3>数值筛选</h3>
-              <p>设置 Token 范围，用于快速收窄高密度角色卡。</p>
+            <div class="card-advanced-filter-module-heading">
+              <span class="card-advanced-filter-module-icon" aria-hidden="true">
+                {{ icon('data-grid', 'ui-icon--sm') }}
+              </span>
+              <div class="card-advanced-filter-module-head">
+                <h3>数值筛选</h3>
+                <p>设置 Token 范围，用于快速收窄高密度角色卡。</p>
+              </div>
             </div>
             <div class="card-advanced-filter-field-grid">
               <label>
@@ -354,11 +395,19 @@
 
           <section
             x-show="isSectionActive('tags')"
+            id="card-advanced-filter-panel-tags"
+            role="tabpanel"
+            aria-labelledby="card-advanced-filter-tab-tags"
             class="card-advanced-filter-module-card"
           >
-            <div class="card-advanced-filter-module-head">
-              <h3>标签条件</h3>
-              <p>沿用现有标签编辑器，只在这里展示摘要和快捷操作。</p>
+            <div class="card-advanced-filter-module-heading">
+              <span class="card-advanced-filter-module-icon" aria-hidden="true">
+                {{ icon('filter', 'ui-icon--sm') }}
+              </span>
+              <div class="card-advanced-filter-module-head">
+                <h3>标签条件</h3>
+                <p>沿用现有标签编辑器，只在这里展示摘要和快捷操作。</p>
+              </div>
             </div>
             <div class="card-advanced-filter-tag-summary">
               <p x-text="tagSummary"></p>
@@ -383,12 +432,16 @@
     </div>
 
     <div class="card-advanced-filter-footer">
+      <div class="card-advanced-filter-footer-context">
+        <span aria-hidden="true">{{ icon('info', 'ui-icon--xs') }}</span>
+        <span>修改会先保存在草稿中，点击应用后更新角色卡列表。</span>
+      </div>
       <button type="button" @click="requestClose()">
         <span aria-hidden="true">{{ icon('close', 'ui-icon--sm') }}</span>
         取消
       </button>
       <button type="button" @click="clearDraft()">
-        <span aria-hidden="true">{{ icon('close', 'ui-icon--sm') }}</span>
+        <span aria-hidden="true">{{ icon('refresh', 'ui-icon--sm') }}</span>
         清空草稿
       </button>
       <button type="button" @click="applyFilters()">
