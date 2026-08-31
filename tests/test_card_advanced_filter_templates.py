@@ -122,11 +122,10 @@ def test_header_and_summary_bar_render_workbench_status_and_section_targeting():
     header_template = read_project_file('templates/components/header.html')
     grid_template = read_project_file('templates/components/grid_cards.html')
 
-    assert 'class="header-advanced-filter-btn-meta"' in header_template
-    assert 'class="header-advanced-filter-status"' in header_template
     assert 'class="mobile-advanced-filter-entry-status"' in header_template
     assert '`已启用 ${cardAdvancedFilterCount} 项条件`' in header_template
-    assert header_template.count('当前无附加条件') == 2
+    assert '已启用 ${cardAdvancedFilterCount} 个筛选条件，打开高级筛选' in header_template
+    assert header_template.count('当前无附加条件') == 1
     assert 'class="card-filter-summary-chip-main"' in grid_template
     assert 'class="card-filter-summary-chip-remove"' in grid_template
     assert '@click="$store.global.openCardAdvancedFilterDrawer(item.section)"' in grid_template
@@ -282,8 +281,8 @@ def test_card_advanced_filter_component_does_not_auto_open_drawer_and_css_expose
 def test_layout_css_styles_workbench_panels_summary_split_actions_and_mobile_state():
     css_source = read_project_file('static/css/modules/layout.css')
 
-    assert '.header-advanced-filter-btn-meta {' in css_source
-    assert '.header-advanced-filter-status {' in css_source
+    assert '.header-advanced-filter-btn:focus-visible {' in css_source
+    assert '.header-advanced-filter-count {' in css_source
     assert '.card-filter-summary-chip-main {' in css_source
     assert '.card-filter-summary-chip-remove {' in css_source
     assert '.card-advanced-filter-overview {' in css_source

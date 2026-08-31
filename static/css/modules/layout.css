@@ -60,45 +60,50 @@
 }
 
 .header-advanced-filter-btn {
+  position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 0.7rem;
-  min-height: 2.75rem;
-  padding: 0.5rem 0.85rem;
-  border: 1px solid var(--border-default);
-  border-radius: 1rem;
-  background: color-mix(in srgb, var(--surface-container), var(--surface-container-raised) 38%);
-  color: var(--content-primary);
-  box-shadow:
-    0 8px 18px color-mix(in srgb, var(--shadow-color), transparent 60%),
-    inset 0 1px 0 color-mix(in srgb, var(--content-on-dark), transparent 92%);
+  justify-content: center;
+  flex: 0 0 2.375rem;
+  width: 2.375rem;
+  height: 2.375rem;
+  min-width: 2.375rem;
+  min-height: 0;
+  padding: 0;
+  border: none;
+  border-radius: 0.75rem;
+  background: transparent;
+  color: var(--content-muted);
+  cursor: pointer;
   transition:
-    border-color 0.18s ease,
-    background 0.18s ease,
-    box-shadow 0.18s ease,
+    background-color 0.18s ease,
+    color 0.18s ease,
     transform 0.18s ease;
 }
 
-.header-advanced-filter-btn:hover {
-  border-color: var(--action-border-hover);
-  background: var(--action-surface-hover);
-  box-shadow:
-    0 10px 22px color-mix(in srgb, var(--shadow-color), transparent 52%),
-    inset 0 1px 0 color-mix(in srgb, var(--content-on-dark), transparent 88%);
+.header-advanced-filter-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  background: color-mix(in srgb, var(--state-hover-surface), transparent 18%);
+  color: var(--content-primary);
+}
+
+.header-advanced-filter-btn:active:not(:disabled) {
+  transform: translateY(0) scale(0.94);
+}
+
+.header-advanced-filter-btn:focus-visible {
+  outline: 2px solid var(--accent-action);
+  outline-offset: 3px;
 }
 
 .header-advanced-filter-btn.is-active {
-  border-color: var(--action-border);
   background: var(--action-surface);
   color: var(--action-text);
 }
 
-.header-advanced-filter-btn-meta {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  min-width: 0;
-  gap: 0.1rem;
+.header-advanced-filter-btn.is-active:hover:not(:disabled) {
+  background: var(--action-surface-hover);
+  color: var(--action-text);
 }
 
 .header-advanced-filter-icon {
@@ -106,43 +111,32 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  font-size: 0.95rem;
   line-height: 1;
-  color: var(--accent-text);
-}
-
-.header-advanced-filter-label {
-  display: block;
-  font-size: 0.78rem;
-  font-weight: 600;
-  line-height: 1.2;
-  letter-spacing: 0.01em;
-}
-
-.header-advanced-filter-status {
-  display: block;
-  max-width: 15rem;
-  overflow: hidden;
-  color: var(--content-muted);
-  font-size: 0.68rem;
-  line-height: 1.3;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  color: currentColor;
 }
 
 .header-advanced-filter-count {
+  position: absolute;
+  top: 0.1rem;
+  right: 0.1rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 1.2rem;
-  height: 1.2rem;
-  padding: 0 0.35rem;
+  min-width: 1rem;
+  height: 1rem;
+  padding: 0 0.2rem;
+  border: none;
   border-radius: 999px;
-  background: var(--action-surface-hover);
-  border: 1px solid var(--action-border);
+  background: var(--action-surface);
   color: var(--action-text);
-  font-size: 0.7rem;
+  font-size: 0.625rem;
+  font-weight: 700;
   line-height: 1;
+  box-shadow: 0 0 0 2px var(--surface-container);
+}
+
+.header-advanced-filter-btn.is-active .header-advanced-filter-count {
+  background: var(--action-surface-hover);
 }
 
 .card-filter-summary-bar {
@@ -2712,7 +2706,7 @@ html.light-mode .header-tool-buttons {
 .header-search-block {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
+  gap: 0.35rem;
   flex-shrink: 0;
   min-width: 0;
 }
@@ -2864,15 +2858,22 @@ html.light-mode .header-favorite-btn.is-excluded .header-favorite-icon::after {
 }
 
 .header-search-container {
+  height: 38px;
   min-height: 38px;
-  background: var(--surface-container-raised);
-  border: 1px solid var(--border-default);
-  border-radius: 0.6rem;
+  background: color-mix(in srgb, var(--surface-container-raised), transparent 8%);
+  border: 1px solid color-mix(in srgb, var(--border-default), transparent 18%);
+  border-radius: 0.75rem;
   overflow: hidden;
   transition:
-    border-color 0.2s,
-    box-shadow 0.2s;
+    border-color 0.18s ease,
+    background-color 0.18s ease,
+    box-shadow 0.18s ease;
   white-space: normal;
+}
+
+.header-search-container:hover:not(:has(.icon-select.is-open)) {
+  background: var(--surface-container-raised);
+  border-color: color-mix(in srgb, var(--accent-text), transparent 62%);
 }
 
 /* Keep the rounded search shell from clipping its open search-type listbox. */
@@ -2887,15 +2888,27 @@ html.light-mode .header-favorite-btn.is-excluded .header-favorite-icon::after {
   box-shadow: 0 0 0 2px var(--accent-soft-strong);
 }
 
+.header-search-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 1rem;
+  width: 1rem;
+  height: 1rem;
+  margin-left: 0.65rem;
+  color: var(--content-muted);
+  pointer-events: none;
+}
+
 .search-mode-toggle {
   display: inline-flex;
   align-items: center;
-  gap: 0.28rem;
+  gap: 0.2rem;
   padding: 0.22rem;
   height: 38px;
-  border-radius: 0.7rem;
-  border: 1px solid color-mix(in srgb, var(--border-default), var(--content-on-dark) 10%);
-  background: color-mix(in srgb, var(--surface-container-raised), var(--surface-container) 24%);
+  border-radius: 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--border-default), transparent 18%);
+  background: color-mix(in srgb, var(--surface-container-raised), transparent 8%);
   flex-shrink: 0;
 }
 
@@ -2903,7 +2916,7 @@ html.light-mode .header-favorite-btn.is-excluded .header-favorite-icon::after {
   height: 100%;
   padding: 0 0.72rem;
   border: 1px solid transparent;
-  border-radius: 0.5rem;
+  border-radius: 0.6rem;
   background: transparent;
   color: var(--content-muted);
   font-size: 0.78rem;
@@ -2924,21 +2937,21 @@ html.light-mode .header-favorite-btn.is-excluded .header-favorite-icon::after {
 .search-type-inline {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.35rem;
   height: 100%;
-  padding: 0 0.65rem;
-  border-right: 1px solid var(--border-default);
-  background: color-mix(in srgb, var(--surface-container), var(--surface-container-raised) 35%);
+  padding: 0 0.55rem 0 0.65rem;
+  border-right: 1px solid var(--border-subtle);
+  background: transparent;
 }
 
 .search-type-label {
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   color: var(--content-muted);
   white-space: nowrap;
 }
 
 .search-type-select {
-  min-width: 7.5rem;
+  min-width: 6.5rem;
   height: 100%;
   border: none;
   background: transparent;
@@ -2991,7 +3004,7 @@ html.light-mode .header-favorite-btn.is-excluded .header-favorite-icon::after {
 }
 
 .search-input-standalone {
-  border-radius: 0.6rem !important;
+  border-radius: 0 !important;
 }
 
 .search-clear-btn {
@@ -3001,13 +3014,19 @@ html.light-mode .header-favorite-btn.is-excluded .header-favorite-icon::after {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0 0.6rem;
+  width: 2rem;
+  height: 2rem;
+  margin-right: 0.2rem;
+  padding: 0;
+  border-radius: 0.65rem;
   cursor: pointer;
   font-size: 0.9rem;
   line-height: 1;
+  transition: background-color 0.18s ease, color 0.18s ease;
 }
 
 .search-clear-btn:hover {
+  background: var(--state-hover-surface);
   color: var(--content-primary);
 }
 

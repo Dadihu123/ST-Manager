@@ -129,7 +129,7 @@ def test_header_template_exposes_beautify_search_contract():
 def test_desktop_header_places_search_mode_toggle_inside_search_block_contract():
     header_template = read_project_file('templates/components/header.html')
 
-    search_block_anchor = '<div class="header-search-block ml-auto mr-4">'
+    search_block_anchor = '<div class="header-search-block ml-auto">'
     search_container_anchor = 'search-container'
     search_mode_anchor = 'search-mode-toggle'
     advanced_filter_anchor = 'header-advanced-filter-btn'
@@ -142,10 +142,13 @@ def test_desktop_header_places_search_mode_toggle_inside_search_block_contract()
     assert search_mode_anchor in search_block_markup
     assert advanced_filter_anchor in search_block_markup
     assert (
-        search_block_markup.index(search_container_anchor)
+        search_block_markup.index(advanced_filter_anchor)
+        < search_block_markup.index(search_container_anchor)
         < search_block_markup.index(search_mode_anchor)
-        < search_block_markup.index(advanced_filter_anchor)
     )
+    assert 'header-advanced-filter-btn-meta' not in search_block_markup
+    assert 'class="header-search-icon"' in search_block_markup
+    assert ':aria-label=' in search_block_markup
 
     toggle_match = re.search(r'<[^>]*class="[^"]*\bsearch-mode-toggle\b[^"]*"[^>]*>', search_block_markup)
     assert toggle_match is not None
