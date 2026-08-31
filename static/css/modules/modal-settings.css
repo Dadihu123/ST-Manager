@@ -119,9 +119,25 @@
   width: 42px;
 }
 
+/* The shared refresh layer gives the title mark a framed treatment. Keep this
+ * decorative settings glyph as an open visual anchor beside the modal title. */
+.settings-modal-overlay .settings-header .settings-title-mark {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  height: 44px;
+  width: 44px;
+}
+
 .settings-title-mark .ui-icon {
   height: 28px;
   width: 28px;
+}
+
+.settings-modal-overlay .settings-header .settings-title-mark .ui-icon {
+  height: 32px;
+  width: 32px;
 }
 
 .settings-content-intro-icon .ui-icon,
@@ -304,6 +320,12 @@
   padding: 10px 0;
 }
 
+.settings-search input:hover:not(:disabled) {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
 .settings-search input:focus,
 .settings-search input:focus-visible {
   background: transparent;
@@ -357,8 +379,8 @@
 }
 
 .settings-sidebar {
-  background: var(--surface-modal-side);
-  border-right: 1px solid var(--settings-border);
+  background: var(--sidebar-nav-surface);
+  border-right: 1px solid var(--sidebar-divider);
   display: flex;
   flex: 0 0 252px;
   flex-direction: column;
@@ -404,7 +426,7 @@
   background: transparent;
   border: 1px solid transparent;
   border-radius: 12px;
-  color: var(--content-secondary);
+  color: var(--sidebar-label-muted);
   cursor: pointer;
   display: flex;
   gap: 10px;
@@ -417,22 +439,22 @@
 }
 
 .settings-nav-item:hover {
-  background: color-mix(in srgb, var(--surface-container-hover) 75%, transparent);
-  color: var(--content-primary);
+  background: var(--sidebar-hover-surface);
+  color: var(--sidebar-label);
   transform: translateX(2px);
 }
 
 .settings-nav-item.is-active {
-  background: color-mix(in srgb, var(--accent-action) 14%, var(--surface-modal-side));
-  border-color: color-mix(in srgb, var(--accent-action) 50%, var(--settings-border));
-  color: var(--settings-text);
-  box-shadow: inset 3px 0 0 var(--accent-action);
+  background: color-mix(in srgb, var(--sidebar-source-all) 14%, var(--sidebar-surface));
+  border-color: color-mix(in srgb, var(--sidebar-source-all) 50%, var(--sidebar-divider));
+  color: var(--sidebar-label);
+  box-shadow: inset 3px 0 0 var(--sidebar-source-all);
   transform: translateX(-4px);
   width: calc(100% + 4px);
 }
 
 .settings-nav-item.is-active:hover {
-  background: color-mix(in srgb, var(--accent-action) 18%, var(--surface-modal-side));
+  background: color-mix(in srgb, var(--sidebar-source-all) 18%, var(--sidebar-surface));
   transform: translateX(-4px);
 }
 
@@ -456,7 +478,7 @@
 .settings-nav-item.is-active .settings-nav-icon {
   background: transparent;
   border-color: transparent;
-  color: var(--accent-action);
+  color: var(--sidebar-source-all);
 }
 
 .settings-nav-copy {
@@ -542,18 +564,43 @@
 
 .settings-sidebar-help {
   align-items: center;
-  background: color-mix(in srgb, var(--accent-soft) 58%, var(--surface-container-raised));
+  background: var(--action-surface);
   border: 1px solid var(--action-border);
-  border-radius: 12px;
+  border-radius: 14px;
   display: flex;
-  gap: 8px;
+  gap: 10px;
   margin: auto 2px 0;
-  padding: 10px;
+  padding: 10px 8px 10px 12px;
 }
 
 .settings-sidebar-help-icon {
-  color: var(--accent-action);
+  color: var(--settings-accent);
   display: inline-flex;
+}
+
+.settings-sidebar-help .settings-inline-icon-button {
+  border-color: transparent;
+  border-radius: 50%;
+  color: var(--settings-accent);
+  flex: 0 0 44px;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 10px;
+}
+
+.settings-sidebar-help .settings-inline-icon-button:hover,
+.settings-sidebar-help .settings-inline-icon-button:focus-visible {
+  background: var(--action-surface-hover);
+  border-color: transparent;
+  color: var(--action-text);
+  transform: translateX(1px);
+}
+
+.settings-sidebar-help .settings-inline-icon-button:active {
+  background: var(--action-surface-active);
+  border-color: transparent;
+  color: var(--action-text);
+  transform: translateX(1px) scale(0.97);
 }
 
 .settings-sidebar-help > div {
@@ -565,12 +612,12 @@
 }
 
 .settings-sidebar-help strong {
-  color: var(--content-primary);
+  color: var(--settings-text);
   font-size: 11px;
 }
 
 .settings-sidebar-help span:not(.settings-sidebar-help-icon) {
-  color: var(--content-muted);
+  color: var(--settings-text-muted);
   font-size: 10px;
   line-height: 1.3;
 }
@@ -673,6 +720,30 @@
   gap: 5px;
   padding: 5px 8px;
   white-space: nowrap;
+}
+
+.settings-section-status {
+  justify-content: center;
+  min-width: 4.5rem;
+  position: relative;
+}
+
+.settings-section-status-dot {
+  background: var(--status-neutral-solid);
+  border-radius: 999px;
+  flex: 0 0 auto;
+  height: 0.45rem;
+  width: 0.45rem;
+}
+
+.settings-section-status--idle {
+  background: var(--status-neutral-surface);
+  border-color: var(--status-neutral-border);
+  color: var(--status-neutral-text);
+}
+
+.settings-section-status--ready .settings-section-status-dot {
+  background: var(--status-success-solid);
 }
 
 .settings-section-status--ready,
@@ -1316,17 +1387,50 @@
 }
 
 .settings-primary-button {
-  background: var(--accent-action);
-  border: 1px solid var(--accent-action);
-  color: var(--content-on-accent);
-  font-weight: 700;
+  background: var(--action-surface);
+  border: 1px solid var(--action-border);
+  border-radius: 0.65rem;
+  color: var(--action-text);
+  font-size: 0.75rem;
+  font-weight: 650;
+  gap: 0.4rem;
+  line-height: 1.2;
+  padding: 0.55rem 0.8rem;
 }
 
 .settings-primary-button:hover {
-  background: var(--accent-action-hover);
-  border-color: var(--accent-action-hover);
-  color: var(--content-on-accent);
+  background: var(--action-surface-hover);
+  border-color: var(--action-border-hover);
+  color: var(--action-text);
   transform: translateY(-1px);
+}
+
+.settings-secondary-button,
+.settings-sync-button {
+  background: color-mix(in srgb, var(--settings-surface-raised), transparent 8%);
+  border-radius: 0.65rem;
+  font-size: 0.75rem;
+  gap: 0.4rem;
+  line-height: 1.2;
+  padding: 0.55rem 0.8rem;
+}
+
+.settings-secondary-button:hover,
+.settings-sync-button:hover {
+  background: var(--settings-surface-hover);
+  border-color: var(--action-border-hover);
+  color: var(--settings-text);
+  transform: translateY(-1px);
+}
+
+.settings-secondary-button.settings-secondary-button--compact {
+  min-height: 40px;
+  padding: 7px 10px;
+}
+
+.settings-primary-button.settings-primary-button--compact {
+  min-height: 40px;
+  padding: 0.45rem 0.7rem;
 }
 
 .settings-primary-button:disabled,
@@ -1626,7 +1730,7 @@
 .settings-sync-button {
   justify-content: flex-start;
   min-width: 0;
-  padding: 9px 10px;
+  padding: 0.55rem 0.8rem;
 }
 
 .settings-sync-button span {
@@ -1676,10 +1780,13 @@
 
 .settings-number-control {
   margin-top: 3px;
+  position: relative;
+  width: 100%;
 }
 
 .settings-number-control .settings-number-input {
-  border-radius: 8px 0 0 8px;
+  border-radius: 8px;
+  padding-right: 2.65rem;
 }
 
 .settings-number-stepper {
@@ -1719,6 +1826,28 @@
   color: var(--settings-accent);
   outline: 2px solid var(--settings-focus);
   outline-offset: -2px;
+}
+
+/* Number steppers keep their hit area, but expose only the +/- glyph. The
+ * stronger selector wins over the shared control hover layer loaded later. */
+.settings-modal-overlay .settings-number-stepper .settings-number-stepper-btn,
+.settings-modal-overlay .settings-number-stepper .settings-number-stepper-btn:hover,
+.settings-modal-overlay .settings-number-stepper .settings-number-stepper-btn:active,
+.settings-modal-overlay .settings-number-stepper .settings-number-stepper-btn:focus-visible {
+  background: transparent;
+}
+
+.settings-modal-overlay .settings-number-stepper .settings-number-stepper-btn {
+  color: var(--settings-text-secondary);
+}
+
+.settings-modal-overlay .settings-number-stepper .settings-number-stepper-btn:hover,
+.settings-modal-overlay .settings-number-stepper .settings-number-stepper-btn:focus-visible {
+  color: var(--settings-accent);
+}
+
+.settings-modal-overlay .settings-number-stepper .settings-number-stepper-btn:active {
+  color: var(--settings-accent-hover);
 }
 
 .settings-number-input::-webkit-inner-spin-button,
@@ -1864,14 +1993,25 @@
   box-shadow: 0 20px 60px color-mix(in srgb, var(--content-on-light) 30%, transparent);
   max-height: min(680px, calc(100% - 20px));
   max-width: 640px;
-  overflow: auto;
   width: min(100%, 640px);
+}
+
+.settings-help-modal {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.settings-confirm-dialog {
+  overflow: auto;
 }
 
 .settings-help-header {
   align-items: flex-start;
   border-bottom: 1px solid var(--settings-border);
   gap: 16px;
+  flex: 0 0 auto;
   justify-content: space-between;
   padding: 18px 20px;
 }
@@ -1883,8 +2023,34 @@
 
 .settings-help-content {
   display: grid;
+  flex: 1 1 auto;
   gap: 14px;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
   padding: 18px 20px;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+  scrollbar-gutter: stable;
+}
+
+.settings-help-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.settings-help-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.settings-help-content::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background-clip: padding-box;
+}
+
+.settings-help-content::-webkit-scrollbar-thumb:hover {
+  background: var(--settings-accent);
+  border-color: transparent;
 }
 
 .settings-help-summary {
@@ -2099,13 +2265,20 @@
   }
 
   .settings-title-mark { height: 36px; width: 36px; }
+  .settings-modal-overlay .settings-header .settings-title-mark {
+    height: 38px;
+    width: 38px;
+  }
+  .settings-modal-overlay .settings-header .settings-title-mark .ui-icon {
+    height: 28px;
+    width: 28px;
+  }
   .settings-title-copy h2 { font-size: 17px; }
   .settings-title-copy p,
   .settings-eyebrow,
-  .settings-toolbar-hint,
-  .settings-save-state span:not(.settings-status-icon) { display: none; }
+  .settings-toolbar-hint { display: none; }
   .settings-header-actions { gap: 2px; }
-  .settings-save-state { border: 0; min-height: 40px; min-width: 40px; padding: 7px; }
+  .settings-save-state { border: 0; min-height: 40px; min-width: 40px; padding: 7px 8px; }
 
   .settings-toolbar {
     align-items: stretch;
@@ -2151,7 +2324,7 @@
   .settings-section-heading { gap: 8px; }
   .settings-section-heading-icon { height: 30px; width: 30px; }
   .settings-section-heading p { font-size: 10px; }
-  .settings-section-status { padding: 4px 6px; }
+  .settings-section-status { min-width: 0; padding: 4px 6px; }
   .settings-section-status span { display: none; }
   .settings-form-grid--two,
   .settings-form-grid--three,
@@ -2181,9 +2354,13 @@
     padding: 9px 12px calc(9px + env(safe-area-inset-bottom));
   }
   .settings-footer-note { display: none; }
-  .settings-footer-actions { display: grid; grid-template-columns: auto minmax(0, 1fr); }
+  .settings-footer-actions {
+    display: flex;
+    justify-content: flex-end;
+    width: 100%;
+  }
   .settings-footer-actions > * { min-width: 0; }
-  .settings-footer-actions .settings-primary-button { width: 100%; }
+  .settings-footer-actions .settings-primary-button { width: auto; }
   .settings-help-overlay,
   .settings-confirm-overlay { padding: 10px; }
   .settings-help-modal,

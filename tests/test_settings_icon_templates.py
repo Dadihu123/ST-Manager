@@ -23,15 +23,9 @@ SETTINGS_ICON_NAMES = {
     'shield-key',
     'database-backup',
     'idea',
-    'cards-sync',
-    'replies-sync',
-    'chats-sync',
     'scan',
-    'book-sync',
-    'presets-sync',
-    'regex-sync',
-    'palette',
     'display',
+    'layout',
     'settings-maintenance',
     'settings-maintenance-advanced',
     'eye',
@@ -42,6 +36,17 @@ SETTINGS_ICON_NAMES = {
 }
 
 
+SETTINGS_SHARED_ICON_SOURCES = {
+    'character-cards': 'static/icons/sidebar.svg',
+    'chat-bubble': 'static/icons/detail.svg',
+    'book-open': 'static/icons/detail.svg',
+    'preset': 'static/icons/detail.svg',
+    'regex': 'static/icons/detail.svg',
+    'quick-reply': 'static/icons/detail.svg',
+    'paint-brush': 'static/icons/sidebar.svg',
+}
+
+
 def read_settings_template():
     return (PROJECT_ROOT / 'templates/modals/settings.html').read_text(encoding='utf-8')
 
@@ -49,7 +54,7 @@ def read_settings_template():
 def test_settings_and_help_icons_use_requested_assets_or_shared_icons():
     source = read_settings_template()
 
-    for name in SETTINGS_ICON_NAMES:
+    for name in SETTINGS_ICON_NAMES | set(SETTINGS_SHARED_ICON_SOURCES):
         assert source.count(f"icon('{name}'") > 0, name
 
     shared_icons = {
@@ -91,6 +96,11 @@ def test_settings_svg_symbols_are_valid_and_background_free():
     for name in SETTINGS_ICON_NAMES:
         symbol = f'id="icon-{name}"'
         assert symbol in source, symbol
+
+    for name, icon_path in SETTINGS_SHARED_ICON_SOURCES.items():
+        shared_source = (PROJECT_ROOT / icon_path).read_text(encoding='utf-8')
+        symbol = f'id="icon-{name}"'
+        assert symbol in shared_source, symbol
 
     assert 'style="display: block; background: rgb(255, 255, 255);"' not in source
 

@@ -93,7 +93,7 @@ const SETTINGS_SEARCH_ITEMS = [
   { id: "general-manager", section: "general", anchor: "settings-general-manager", title: "管理目录", keywords: "角色卡 世界书 聊天 资源 预设 路径", icon: "folder-root" },
   { id: "general-st", section: "general", anchor: "settings-general-st", title: "SillyTavern 兼容目录", keywords: "st openai preset 预设", icon: "folder-sync" },
   { id: "general-safety", section: "general", anchor: "settings-general-safety", title: "路径安全检查", keywords: "风险 重叠 白名单 安全", icon: "shield-check" },
-  { id: "appearance-theme", section: "appearance", anchor: "settings-appearance-theme", title: "主题与视觉", keywords: "深色 浅色 主题 强调色 字体 卡片特效", icon: "palette" },
+  { id: "appearance-theme", section: "appearance", anchor: "settings-appearance-theme", title: "主题与视觉", keywords: "深色 浅色 主题 强调色 字体 卡片特效", icon: "paint-brush" },
   { id: "appearance-layout", section: "appearance", anchor: "settings-appearance-layout", title: "布局与列表", keywords: "卡片 分页 排序 收藏", icon: "layout" },
   { id: "appearance-isolated", section: "appearance", anchor: "settings-appearance-isolated", title: "隔离分类", keywords: "隔离 隐藏 分类", icon: "folder-search" },
   { id: "appearance-wallpaper", section: "appearance", anchor: "settings-appearance-wallpaper", title: "个性化壁纸", keywords: "壁纸 背景 上传 美化", icon: "wallpaper" },
@@ -105,7 +105,7 @@ const SETTINGS_SEARCH_ITEMS = [
   { id: "maintenance-actions", section: "maintenance", anchor: "settings-maintenance-actions", title: "维护操作", keywords: "扫描 备份 回收站 用户 db 导入 导出", icon: "settings-maintenance" },
   { id: "maintenance-performance", section: "maintenance", anchor: "settings-maintenance-performance", title: "扫描与性能", keywords: "自动扫描 索引 性能", icon: "sliders-settings" },
   { id: "maintenance-import", section: "maintenance", anchor: "settings-maintenance-import", title: "导入行为", keywords: "标签 分隔符 重命名 png", icon: "file-import" },
-  { id: "maintenance-worldinfo", section: "maintenance", anchor: "settings-maintenance-worldinfo", title: "世界书预览与历史", keywords: "世界书 条目 字符 历史", icon: "book-sync" },
+  { id: "maintenance-worldinfo", section: "maintenance", anchor: "settings-maintenance-worldinfo", title: "世界书预览与历史", keywords: "世界书 条目 字符 历史", icon: "book-search" },
   { id: "maintenance-snapshots", section: "maintenance", anchor: "settings-maintenance-snapshots", title: "快照与自动保存", keywords: "快照 自动保存 保留", icon: "snapshot" },
 ];
 

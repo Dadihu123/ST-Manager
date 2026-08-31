@@ -72,26 +72,26 @@ symbol id 统一使用带 `icon-` 前缀的英文 kebab-case，并优先表达�
 | icon-archive-old | icon-detail-archive-old | static/icons/detail.svg | 归档旧 | `templates/modals/detail_card.html:2494,3821` | sm/16px、md/20px | 是 |
 | icon-archive-new | icon-detail-archive-new | static/icons/detail.svg | 归档新 | `templates/modals/detail_card.html:2497,3825` | sm/16px、md/20px | 是 |
 | icon-info | icon-detail-basic-info | static/icons/detail.svg | 信息 | `templates/modals/detail_card.html:552` | xs/12px | 是 |
-| icon-quick-reply | icon-detail-quick-replies | static/icons/detail.svg | 快速回复 | `templates/components/grid_extensions.html:20`、`templates/components/sidebar.html:70,173`、`templates/modals/advanced_editor.html:45`、`templates/modals/detail_card.html:3082,3096`、`tests/test_advanced_editor_icon_contracts.py:21` | sm/16px、md/20px | 是 |
+| icon-quick-reply | icon-detail-quick-replies | static/icons/detail.svg | 快速回复 | `templates/components/grid_extensions.html:20`、`templates/components/sidebar.html:70,173`、`templates/modals/advanced_editor.html:45`、`templates/modals/detail_card.html:3082,3096`、`templates/modals/settings.html:157`、`tests/test_advanced_editor_icon_contracts.py:21` | sm/16px、md/20px | 是 |
 | icon-link-source | icon-detail-source-link | static/icons/detail.svg | 链接source | `static/js/state.js:74`、`templates/modals/automation.html:430`、`templates/modals/detail_card.html:412,690,3717`、`templates/modals/import.html:31`、`tests/test_advanced_editor_icon_contracts.py:104` | sm/16px、lg/24px | 是 |
-| icon-chat-bubble | icon-detail-chat | static/icons/detail.svg | 聊天气泡 | `templates/components/grid_chats.html:13`、`templates/components/sidebar.html:66,129`、`templates/modals/detail_card.html:594,2112` | xs/12px、sm/16px、md/20px、xl/32px | 是 |
+| icon-chat-bubble | icon-detail-chat | static/icons/detail.svg | 聊天气泡 | `templates/components/grid_chats.html:13`、`templates/components/sidebar.html:66,129`、`templates/modals/detail_card.html:594,2112`、`templates/modals/settings.html:157` | xs/12px、sm/16px、md/20px、xl/32px | 是 |
 | icon-resource | icon-detail-other-resource | static/icons/detail.svg | 资源 | `templates/modals/detail_card.html:3182,3195` | sm/16px | 是 |
 | icon-fullscreen | icon-detail-fullscreen | static/icons/detail.svg | 全屏 | `templates/modals/detail_card.html:1845,2756` | sm/16px | 是 |
 | icon-persona | icon-detail-persona | static/icons/detail.svg | 人格 | `templates/modals/detail_card.html:561` | xs/12px | 是 |
 | icon-cover-image | icon-detail-set-cover | static/icons/detail.svg | 封面图片 | `templates/modals/detail_card.html:285,2902,3742` | xs/12px、sm/16px | 是 |
 | icon-resource-settings | icon-detail-resource-settings | static/icons/detail.svg | 资源设置 | `templates/modals/detail_card.html:530` | xs/12px | 是 |
 | icon-clock | icon-detail-time | static/icons/detail.svg | 时钟 | `templates/modals/automation.html:431`、`templates/modals/detail_card.html:2266`、`templates/modals/settings.html:1818`、`tests/test_advanced_editor_icon_contracts.py:105` | sm/16px | 是 |
-| icon-book-open | icon-detail-worldbook | static/icons/detail.svg | 书本打开 | `templates/components/sidebar.html:65,118`、`templates/modals/detail_card.html:586,2932,2946` | sm/16px、md/20px | 是 |
+| icon-book-open | icon-detail-worldbook | static/icons/detail.svg | 书本打开 | `templates/components/sidebar.html:65,118`、`templates/modals/detail_card.html:586,2932,2946`、`templates/modals/settings.html:157,176` | sm/16px、md/20px | 是 |
 | icon-collapse | icon-detail-shrink | static/icons/detail.svg | 收起 | `templates/modals/detail_card.html:228` | sm/16px | 是 |
 | icon-locate-jump | icon-detail-jump-locate | static/icons/detail.svg | 定位跳转 | `templates/modals/detail_card.html:2397` | lg/24px | 是 |
 | icon-image | icon-detail-image | static/icons/detail.svg | 图片 | `templates/modals/detail_card.html:153,2741` | sm/16px | 是 |
 | icon-file-name | icon-detail-filename | static/icons/detail.svg | 文件名称 | `templates/modals/automation.html:434,435,436,437`、`templates/modals/detail_card.html:2313`、`tests/test_advanced_editor_icon_contracts.py:107` | sm/16px | 是 |
 | icon-heart-broken | icon-detail-heart-broken | static/icons/detail.svg | 爱心破碎 | `templates/modals/detail_card.html:2590` | lg/24px | 是 |
-| icon-preset | icon-detail-preset | static/icons/detail.svg | 预设 | `templates/components/grid_presets.html:18,167`、`templates/components/sidebar.html:67,140`、`templates/modals/detail_card.html:3132,3146`、`templates/modals/detail_chat_reader.html:1352`、`tests/test_preset_list_icons.py:17` | sm/16px、md/20px、lg/24px | 是 |
+| icon-preset | icon-detail-preset | static/icons/detail.svg | 预设 | `templates/components/grid_presets.html:18,167`、`templates/components/sidebar.html:67,140`、`templates/modals/detail_card.html:3132,3146`、`templates/modals/detail_chat_reader.html:1352`、`templates/modals/settings.html:157`、`tests/test_preset_list_icons.py:17` | sm/16px、md/20px、lg/24px | 是 |
 | icon-metadata | icon-detail-metadata | static/icons/detail.svg | 元数据 | `templates/modals/detail_card.html:141,171,544` | xs/12px、sm/16px | 是 |
 | icon-book-read | icon-detail-read-mode | static/icons/detail.svg | 书本阅读 | `templates/modals/detail_card.html:191,329`、`templates/modals/html_preview.html:31`、`tests/test_common_modal_icon_contracts.py:55` | sm/16px、md/20px | 是 |
 | icon-expand | icon-detail-expand | static/icons/detail.svg | 展开 | `templates/modals/advanced_editor.html:398`、`templates/modals/detail_card.html:757,806,877,949…`、`tests/test_advanced_editor_icon_contracts.py:32` | xs/12px、sm/16px | 是 |
-| icon-regex | icon-detail-regex | static/icons/detail.svg | 正则 | `templates/components/grid_extensions.html:14`、`templates/components/grid_presets.html:231`、`templates/components/sidebar.html:68,151`、`templates/modals/advanced_editor.html:31,43,46,434`、`templates/modals/detail_card.html:2982,2996` | sm/16px、md/20px、lg/24px | 是 |
+| icon-regex | icon-detail-regex | static/icons/detail.svg | 正则 | `templates/components/grid_extensions.html:14`、`templates/components/grid_presets.html:231`、`templates/components/sidebar.html:68,151`、`templates/modals/advanced_editor.html:31,43,46,434`、`templates/modals/detail_card.html:2982,2996`、`templates/modals/settings.html:157` | sm/16px、md/20px、lg/24px | 是 |
 | icon-reset | icon-detail-reset | static/icons/detail.svg | 重置 | `templates/modals/detail_card.html:252` | sm/16px | 是 |
 | icon-resources | icon-detail-resources | static/icons/detail.svg | 资源 | `templates/modals/detail_card.html:610`、`tests/test_cards_api_import_sync.py:233,262` | xs/12px | 是 |
 | icon-user | icon-detail-author | static/icons/detail.svg | 用户 | `templates/modals/detail_card.html:361,639` | sm/16px | 是 |
@@ -129,7 +129,7 @@ symbol id 统一使用带 `icon-` 前缀的英文 kebab-case，并优先表达�
 | icon-script-brackets | icon-sidebar-scripts | static/icons/sidebar.svg | 脚本括号 | `settingsModal.js:getResourceIcon(type)` → settings.html 动态拼接 | md/24px | 是 |
 | icon-reply-bolt | icon-sidebar-quick-replies | static/icons/sidebar.svg | 回复闪电 | `settingsModal.js:getResourceIcon(type)` → settings.html 动态拼接 | md/24px | 是 |
 | icon-folder-open | icon-sidebar-category-expanded | static/icons/sidebar.svg | 文件夹打开 | `templates/components/sidebar.html:296,606,828`、`templates/modals/automation.html:425`、`templates/modals/detail_card.html:2404,2457`、`templates/modals/import.html:44`、`templates/modals/move_cards.html:10,24,46` | sm/20px、md/24px、lg/32px | 是 |
-| icon-character-cards | static/icons/sidebar-nav/角色卡-简.svg | static/icons/sidebar.svg | 角色卡片 | `templates/components/sidebar.html:64,107`、`templates/modals/detail_chat_reader.html:1272`、`tests/test_sidebar_icon_templates.py:57,72` | md/24px | 是 |
+| icon-character-cards | static/icons/sidebar-nav/角色卡-简.svg | static/icons/sidebar.svg | 角色卡片 | `templates/components/sidebar.html:64,107`、`templates/modals/detail_chat_reader.html:1272`、`templates/modals/settings.html:157`、`tests/test_sidebar_icon_templates.py:57,72` | md/24px | 是 |
 | icon-paint-brush | static/icons/sidebar-nav/美化-简.svg | static/icons/sidebar.svg | 绘画画笔 | `templates/components/sidebar.html:71,184,929`、`tests/test_sidebar_icon_templates.py:58,73` | md/24px | 是 |
 | icon-close-small | icon-x | static/icons/ui.svg | 关闭小号 | `templates/components/header.html:133,150,222,241…` | xs/12px、sm/16px | 是 |
 | icon-chevron-down | icon-chevron-down | static/icons/ui.svg | 折叠下 | `templates/components/header.html:391,739`、`templates/components/sidebar.html:78,288,380,601…`、`templates/modals/detail_card.html:1859,1961`、`templates/modals/detail_wi_fullscreen.html:871`、`templates/modals/detail_wi_popup.html:281` | xs/12px、sm/16px | 否 |
@@ -148,13 +148,7 @@ symbol id 统一使用带 `icon-` 前缀的英文 kebab-case，并优先表达�
 | icon-shield-key | icon-settings-authentication | static/icons/ui.svg | 盾牌钥匙 | `templates/modals/settings.html:1107,2004` | sm/16px | 是 |
 | icon-database-backup | icon-settings-data-backup | static/icons/ui.svg | 数据库备份 | `templates/modals/settings.html:1440` | sm/16px | 是 |
 | icon-idea | icon-settings-tip | static/icons/ui.svg | 提示 | `templates/modals/settings.html:1945` | sm/16px | 是 |
-| icon-cards-sync | icon-settings-sync-cards | static/icons/ui.svg | 卡片同步 | `templates/modals/settings.html:788` | sm/16px | 是 |
-| icon-replies-sync | icon-settings-sync-quick-replies | static/icons/ui.svg | 回复同步 | `templates/modals/settings.html:823` | sm/16px | 是 |
-| icon-chats-sync | icon-settings-sync-chats | static/icons/ui.svg | 聊天同步 | `templates/modals/settings.html:795` | sm/16px | 是 |
 | icon-scan | icon-settings-sync-scan | static/icons/ui.svg | 扫描 | `templates/modals/settings.html:1421` | sm/16px | 是 |
-| icon-book-sync | icon-settings-sync-worldbook | static/icons/ui.svg | 书本同步 | `templates/modals/settings.html:802` | sm/16px | 是 |
-| icon-presets-sync | icon-settings-sync-presets | static/icons/ui.svg | 预设同步 | `templates/modals/settings.html:809` | sm/16px | 是 |
-| icon-regex-sync | icon-settings-sync-regex | static/icons/ui.svg | 正则同步 | `templates/modals/settings.html:816` | sm/16px | 是 |
 | icon-display | icon-settings-appearance-display | static/icons/ui.svg | 显示器 | `templates/modals/settings.html:66` | sm/16px | 是 |
 | icon-settings-maintenance-advanced | icon-settings-maintenance-advanced | static/icons/ui.svg | 维护与高级工具组合 | `templates/modals/settings.html:86`、`tests/test_settings_icon_templates.py` | sm/16px | 否 |
 | icon-database-user | icon-settings-user-database | static/icons/ui.svg | 数据库用户 | `templates/modals/settings.html:1482` | sm/16px | 是 |
