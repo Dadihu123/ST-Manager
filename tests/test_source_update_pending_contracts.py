@@ -11,6 +11,33 @@ def read_project_file(relative_path):
     return (PROJECT_ROOT / relative_path).read_text(encoding='utf-8')
 
 
+def extract_balanced_tag_block(source, opening_tag):
+    start = source.find(opening_tag)
+    if start == -1:
+        raise AssertionError(f'Opening tag not found: {opening_tag}')
+
+    search_from = start
+    depth = 0
+    while search_from < len(source):
+        next_open = source.find('<div', search_from)
+        next_close = source.find('</div>', search_from)
+
+        if next_close == -1:
+            break
+
+        if next_open != -1 and next_open < next_close:
+            depth += 1
+            search_from = next_open + 4
+            continue
+
+        depth -= 1
+        search_from = next_close + len('</div>')
+        if depth == 0:
+            return source[start:search_from]
+
+    raise AssertionError(f'Balanced block not found for: {opening_tag}')
+
+
 def test_detail_management_gates_source_controls_and_exposes_acknowledge_action():
     template = read_project_file('templates/modals/detail_card.html')
     script = read_project_file('static/js/components/detailModal.js')
@@ -33,11 +60,14 @@ def test_selected_card_source_update_actions_use_accessible_dropdowns_on_both_la
     script = read_project_file('static/js/components/header.js')
     batch_script = read_project_file('static/js/utils/batchOperations.js')
 
-    assert template.count('x-data="{ showSourceUpdateMenu: false }"') == 2
-    assert template.count('aria-haspopup="menu"') == 2
+    assert template.count('x-data="{ showSourceUpdateMenu: false }"') == 1
+    assert 'showSourceUpdateMenu: false' in template
+    # The desktop batch bar exposes one action menu plus nested automation and
+    # source-update menus; the mobile bar keeps its source-update menu.
+    assert template.count('aria-haspopup="menu"') == 4
     assert template.count(':aria-expanded="showSourceUpdateMenu.toString()"') == 2
     assert template.count('role="menuitem"') == 6
-    assert template.count('class="w-full block') == 6
+    assert template.count('class="w-full block') == 3
     assert template.count('acknowledgeSelectedSourceUpdates()') == 2
     assert 'async acknowledgeSelectedSourceUpdates() {' in script
     assert 'runSourceUpdateAcknowledgeBatch' in script
@@ -49,13 +79,30 @@ def test_source_update_dropdowns_match_automation_alignment_and_arrow_position()
     template = read_project_file('templates/components/header.html')
 
     assert "{{ icon('chevron-down', 'ui-icon--xs') }}" in template
+    assert 'ui-batch-menu-chevron--nested' in template
     assert '来源更新' in template
     assert '检查更新' in template
     assert (
-        'class="header-batch-menu absolute top-full left-0 mt-2 w-56 '
+        'class="header-batch-menu ui-batch-menu-submenu absolute top-0 left-full ml-2 '
         'bg-[var(--surface-container)] border border-[var(--border-default)] '
-        'rounded-lg shadow-2xl py-1 overflow-hidden"'
+        'rounded-lg shadow-2xl py-1"'
     ) in template
+
+    source_submenu_anchor = (
+        '<div\n'
+        '                  x-show="showSourceUpdateMenu"\n'
+        '                  x-cloak\n'
+        '                  role="menu"\n'
+        '                  class="header-batch-menu ui-batch-menu-submenu absolute top-0 left-full ml-2 '
+        'bg-[var(--surface-container)] border border-[var(--border-default)] '
+        'rounded-lg shadow-2xl py-1"'
+    )
+    source_submenu = extract_balanced_tag_block(template, source_submenu_anchor)
+
+    assert source_submenu.count('class="header-batch-menu-item ui-batch-menu-action"') == 3
+    assert 'text-xs' not in source_submenu
+    assert 'px-3 py-2' not in source_submenu
+    assert 'class="ui-batch-menu-separator"' in source_submenu
 
 
 def test_card_grid_prioritizes_persistent_pending_state_over_last_check_result():

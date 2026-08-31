@@ -217,6 +217,33 @@ def test_layout_css_flattens_header_search_type_and_focus_states():
     assert 'box-shadow: none !important;' in layout_css
 
 
+def test_batch_action_bar_reuses_shared_theme_tokens_and_sprite_icons():
+    header_template = read_project_file('templates/components/header.html')
+    ui_refresh_css = read_project_file('static/css/modules/ui-refresh.css')
+
+    desktop_start = header_template.index(
+        'class="selection-bar ui-batch-action-strip ui-batch-action-strip--desktop"'
+    )
+    desktop_end = header_template.index('<!-- 搜索与筛选区 -->', desktop_start)
+    desktop_batch_markup = header_template[desktop_start:desktop_end]
+
+    assert 'role="toolbar"' in desktop_batch_markup
+    assert 'icon(\'quick-actions\', \'ui-icon--sm\')' in desktop_batch_markup
+    assert 'sidebar_icon(\'tag-library\', \'ui-icon--sm\')' in desktop_batch_markup
+    assert 'icon(\'merge\', \'ui-icon--sm\')' in desktop_batch_markup
+    assert 'btn-success' not in desktop_batch_markup
+    assert 'btn-warning' not in desktop_batch_markup
+    assert 'btn-info' not in desktop_batch_markup
+    assert 'btn-soft-purple' not in desktop_batch_markup
+
+    assert 'ui-batch-action-strip--mobile' in header_template
+    assert '.ui-batch-action-button--danger' in ui_refresh_css
+    assert 'var(--status-danger-hover-solid)' in ui_refresh_css
+    assert 'var(--action-surface)' in ui_refresh_css
+    assert 'var(--surface-container)' in ui_refresh_css
+    assert 'min-height: var(--ui-control-height);' in ui_refresh_css
+
+
 def test_card_grid_source_and_template_use_windowed_slice_contracts():
     card_grid_source = read_project_file('static/js/components/cardGrid.js')
     grid_template = read_project_file('templates/components/grid_cards.html')

@@ -1000,23 +1000,230 @@
   border-top: 1px solid var(--border-divider);
 }
 
-/* Header batch menus: keep the navigation shell intact and refine only the
-   selection/action surfaces opened from it. */
+/* Header batch actions: a compact, token-driven surface shared by desktop and
+   mobile selection states. The action bar stays neutral while the selection
+   summary and routine actions use the active accent language. */
+.header-batch-action-region {
+  display: flex;
+  min-width: 0;
+  flex: 0 1 auto;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 .ui-batch-action-strip {
-  padding-block: 0.35rem;
-  background: var(--action-surface);
-  border-color: var(--action-border) !important;
+  position: relative;
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem;
+  color: var(--content-primary);
+  background: var(--surface-container);
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: var(--ui-radius-md);
   box-shadow: var(--shadow-inset);
+  animation: slideIn 0.24s ease-out;
 }
 
 .header-batch-action-region > .selection-bar.ui-batch-action-strip {
   margin-right: 0;
-  padding-inline: 0.5rem;
 }
 
-.ui-batch-action-strip :where(button, [role='button']) {
+.ui-batch-action-strip--desktop {
+  max-width: min(52vw, 52rem);
+  overflow: visible;
+}
+
+.ui-batch-selection-summary {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.4rem;
   min-height: var(--ui-control-height-compact);
+  padding: 0.25rem 0.55rem 0.25rem 0.45rem;
+  color: var(--action-text);
+  background: var(--action-surface);
+  border: 1px solid var(--action-border);
   border-radius: var(--ui-radius-xs);
+}
+
+.ui-batch-selection-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--action-icon);
+}
+
+.ui-batch-selection-copy {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.28rem;
+  white-space: nowrap;
+}
+
+.ui-batch-selection-label {
+  color: var(--action-text);
+  font-size: 0.7rem;
+  font-weight: 650;
+}
+
+.ui-batch-selection-copy strong {
+  color: var(--content-primary);
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.ui-batch-action-group {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.ui-batch-action-button,
+.ui-batch-action-clear {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--ui-control-height-compact);
+  padding: 0.35rem 0.6rem;
+  border: 1px solid var(--border-default);
+  border-radius: var(--ui-radius-xs);
+  color: var(--content-secondary);
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 650;
+  gap: 0.35rem;
+  line-height: 1.15;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    color var(--ui-transition-fast),
+    background-color var(--ui-transition-fast),
+    border-color var(--ui-transition-fast),
+    box-shadow var(--ui-transition-fast),
+    transform var(--ui-transition-fast);
+}
+
+.ui-batch-action-button {
+  background: color-mix(in srgb, var(--surface-container-raised), transparent 8%);
+}
+
+.ui-batch-action-button:hover:not(:disabled) {
+  color: var(--content-primary);
+  background: var(--state-hover-surface);
+  border-color: var(--action-border-hover);
+  transform: translateY(-1px);
+}
+
+.ui-batch-action-button:active:not(:disabled),
+.ui-batch-action-clear:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.ui-batch-action-button:focus-visible,
+.ui-batch-action-clear:focus-visible {
+  outline: 2px solid var(--state-focus-ring);
+  outline-offset: 2px;
+  box-shadow: var(--state-focus-shadow);
+}
+
+.ui-batch-action-button:disabled {
+  color: var(--content-disabled);
+  background: var(--state-disabled-surface);
+  border-color: var(--border-subtle);
+  cursor: not-allowed;
+  opacity: 0.72;
+}
+
+.ui-batch-action-button--accent {
+  color: var(--action-text);
+  background: var(--action-surface);
+  border-color: var(--action-border);
+}
+
+.ui-batch-action-button--accent:hover:not(:disabled),
+.ui-batch-action-button--accent.is-selected {
+  color: var(--action-text);
+  background: var(--action-surface-hover);
+  border-color: var(--action-border-hover);
+}
+
+.ui-batch-action-button--danger {
+  color: var(--status-danger-text);
+  background: var(--status-danger-surface);
+  border-color: var(--status-danger-border);
+}
+
+.ui-batch-action-button--danger:hover:not(:disabled) {
+  color: var(--content-on-status-solid);
+  background: var(--status-danger-hover-solid);
+  border-color: var(--status-danger-hover-solid);
+}
+
+.ui-batch-action-button--icon-only,
+.ui-batch-action-clear--icon-only {
+  width: var(--ui-control-height-compact);
+  min-width: var(--ui-control-height-compact);
+  padding-inline: 0;
+  gap: 0;
+}
+
+.ui-batch-action-clear {
+  color: var(--content-muted);
+  background: transparent;
+  border-color: transparent;
+}
+
+.ui-batch-action-clear:hover:not(:disabled) {
+  color: var(--content-primary);
+  background: var(--state-hover-surface);
+  border-color: var(--border-default);
+}
+
+.ui-batch-action-divider {
+  display: block;
+  flex: 0 0 1px;
+  width: 1px;
+  min-height: 1.35rem;
+  margin-inline: 0.05rem;
+  background: var(--border-divider);
+}
+
+.ui-batch-action-menu-anchor {
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 auto;
+}
+
+.ui-batch-action-strip--mobile {
+  width: 100%;
+  margin-top: 0.5rem;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  padding: 0.35rem;
+  border-radius: var(--ui-radius-md);
+}
+
+.ui-batch-action-group--mobile {
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+}
+
+.ui-batch-action-strip--mobile .ui-batch-action-button,
+.ui-batch-action-strip--mobile .ui-batch-action-clear {
+  min-width: 2.75rem;
+  min-height: var(--ui-control-height);
+  padding: 0.45rem 0.65rem;
+  border-radius: var(--ui-radius-sm);
+  font-size: 0.75rem;
+}
+
+.ui-batch-action-strip--mobile .ui-batch-action-clear {
+  margin-left: auto;
 }
 
 .header-batch-menu {
@@ -1042,6 +1249,81 @@
 .header-batch-menu-item:focus-visible {
   color: var(--accent-text) !important;
   background: var(--state-hover-surface) !important;
+}
+
+.ui-batch-actions-menu {
+  width: min(15.5rem, calc(100vw - 1.5rem)) !important;
+}
+
+.ui-batch-menu-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.45rem 0.7rem 0.5rem;
+  color: var(--content-muted);
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.ui-batch-menu-heading span:last-child {
+  color: var(--action-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.ui-batch-menu-action {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.5rem;
+  text-align: left;
+}
+
+.ui-batch-menu-action--danger {
+  color: var(--status-danger-text) !important;
+}
+
+.ui-batch-actions-menu .ui-batch-menu-action--danger:hover,
+.ui-batch-actions-menu .ui-batch-menu-action--danger:focus-visible {
+  color: var(--content-on-status-solid) !important;
+  background: var(--status-danger-hover-solid) !important;
+  border-color: var(--status-danger-hover-solid) !important;
+}
+
+.ui-batch-menu-chevron {
+  display: inline-flex;
+  margin-left: auto;
+  color: var(--content-muted);
+}
+
+.ui-batch-menu-chevron--nested {
+  transform: rotate(-90deg);
+}
+
+.ui-batch-menu-sub-anchor {
+  position: relative;
+}
+
+.ui-batch-menu-submenu {
+  top: -0.35rem !important;
+  left: calc(100% + 0.4rem) !important;
+  margin-top: 0 !important;
+  margin-left: 0 !important;
+}
+
+.ui-batch-menu-empty {
+  padding: 0.55rem 0.7rem;
+  color: var(--content-muted);
+  font-size: 0.72rem;
+}
+
+.ui-batch-menu-separator {
+  margin-top: 0.25rem;
+  padding-top: 0.25rem;
+  border-top: 1px solid var(--border-divider);
 }
 
 .batch-import-body {

@@ -255,210 +255,246 @@
   </div>
 
   <!-- 桌面端：右侧操作区 -->
-  <div
-    x-show="deviceType !== 'mobile'"
-    class="header-batch-action-region"
-    style="display: flex; align-items: center; gap: 0.5rem"
-  >
-    <!-- 选中状态栏 -->
     <div
-      x-show="selectedIds.length > 0"
-      class="selection-bar ui-batch-action-strip flex items-center gap-2 border px-3 py-1.5 rounded-lg mr-2 relative"
-      style="
-        background-color: var(--accent-soft-strong);
-        border-color: var(--accent-text);
-        z-index: var(--z-card-selected);
-        overflow: visible;
-      "
+      x-show="deviceType !== 'mobile'"
+      class="header-batch-action-region"
     >
-      <span class="text-sm text-accent"
-        >已选 <span x-text="selectedIds.length" class="font-bold"></span
-      ></span>
-      <button
-        x-show="currentMode === 'cards' || currentMode === 'worldinfo' || currentMode === 'presets'"
-        @click="toggleSelectAll()"
-        class="btn-success text-xs px-2 py-1 rounded color-text-on-accent transition-all"
-        :class="isCurrentPageAllSelected ? 'btn-danger' : 'btn-success'"
-        :title="isCurrentPageAllSelected ? '取消全选当前页' : '全选当前页'"
-      >
-        <span aria-hidden="true">{{ icon('check', 'ui-icon--sm') }}</span>
-        <span x-show="!isCurrentPageAllSelected">全选</span>
-        <span x-show="isCurrentPageAllSelected">取消全选</span>
-      </button>
-      <button
-        x-show="currentMode === 'cards'"
-        @click.stop="openBatchTagModal()"
-        class="btn-soft-purple text-xs px-2 py-1 rounded"
-      >
-        批量标签
-      </button>
-      <button
-        x-show="currentMode === 'cards'"
-        @click="deleteSelectedCards()"
-        class="text-xs color-surface-danger-solid color-hover-surface-danger px-2 py-1 rounded color-text-on-dark border color-border-danger transition-all flex items-center gap-1"
-      >
-        <span aria-hidden="true">{{ icon('trash', 'ui-icon--sm ') }}</span
-        >移至回收站
-      </button>
-      <button
-        x-show="currentMode === 'worldinfo' && canMoveWorldInfoSelection()"
-        @click="moveSelectedWorldInfo()"
-        class="btn-action-soft text-xs px-2 py-1 rounded transition-all flex items-center gap-1"
-      >
-        <span aria-hidden="true">{{ icon('folder', 'ui-icon--sm ') }}</span
-        >移动分类
-      </button>
-      <button
-        x-show="currentMode === 'worldinfo' && canDeleteWorldInfoSelection()"
-        @click="deleteSelectedWorldInfo()"
-        class="text-xs color-surface-danger-solid color-hover-surface-danger px-2 py-1 rounded color-text-on-dark border color-border-danger transition-all flex items-center gap-1"
-      >
-        <span aria-hidden="true">{{ icon('trash', 'ui-icon--sm ') }}</span
-        >删除世界书
-      </button>
-      <button
-        x-show="selectedIds.length > 1 && currentMode === 'presets'"
-        @click="mergeSelectedPresets()"
-        :disabled="!canMergePresetSelection()"
-        :title="getPresetMergeSelectionTitle()"
-        class="btn-soft-purple text-xs px-2 py-1 rounded"
-      >
-        合并为多版本
-      </button>
-      <button
-        x-show="currentMode === 'presets' && canMovePresetSelection()"
-        @click="moveSelectedPresets()"
-        class="btn-action-soft text-xs px-2 py-1 rounded transition-all flex items-center gap-1"
-      >
-        <span aria-hidden="true">{{ icon('folder', 'ui-icon--sm ') }}</span
-        >移动分类
-      </button>
-      <button
-        x-show="currentMode === 'presets' && canDeletePresetSelection()"
-        @click="deleteSelectedPresets()"
-        class="text-xs color-surface-danger-solid color-hover-surface-danger px-2 py-1 rounded color-text-on-dark border color-border-danger transition-all flex items-center gap-1"
-      >
-        <span aria-hidden="true">{{ icon('trash', 'ui-icon--sm ') }}</span
-        >删除预设
-      </button>
-      <!-- 批量执行规则按钮 -->
+      <!-- 选中状态栏 -->
       <div
-        x-show="currentMode === 'cards'"
-        x-data="{ showRuleMenu: false }"
-        class="relative"
+        x-show="selectedIds.length > 0"
+        x-data="{ showBatchActionsMenu: false, showRuleMenu: false, showSourceUpdateMenu: false }"
+        @keydown.escape.window="if (showRuleMenu) { showRuleMenu = false; } else if (showSourceUpdateMenu) { showSourceUpdateMenu = false; } else if (showBatchActionsMenu) { showBatchActionsMenu = false; $refs.batchActionsMenuButton.focus(); }"
+        class="selection-bar ui-batch-action-strip ui-batch-action-strip--desktop"
+        role="toolbar"
+        aria-label="批量操作"
       >
-        <button
-          @click="showRuleMenu = !showRuleMenu; if(showRuleMenu) $dispatch('load-rulesets-for-menu')"
-          class="text-xs px-2 py-1 rounded color-text-on-accent color-surface-warning-solid color-hover-surface-warning transition-all flex items-center gap-1"
-        >
-          <span aria-hidden="true">{{ icon('workflow', 'ui-icon--sm ') }}</span
-          >自动处理
-        </button>
-        <!-- 下拉菜单：列出可用规则集 -->
-        <div
-          x-show="showRuleMenu"
-          @click.away="showRuleMenu = false"
-          x-transition:enter="transition ease-out duration-100"
-          x-transition:enter-start="opacity-0 scale-95"
-          x-transition:enter-end="opacity-100 scale-100"
-          class="header-batch-menu absolute top-full left-0 mt-2 w-56 bg-[var(--surface-container)] border border-[var(--border-default)] rounded-lg shadow-2xl py-1"
-          style="z-index: var(--z-dropdown)"
-        >
-          <!-- 这个列表由全局 store 管理 -->
-          <template x-for="rs in $store.global.availableRuleSets" :key="rs.id">
-            <button
-              @click="executeRuleSet(rs.id); showRuleMenu=false"
-              class="header-batch-menu-item w-full text-left px-3 py-2 text-xs hover:bg-[var(--state-hover-surface)] text-[var(--content-primary)] block"
-              x-text="rs.meta && rs.meta.name ? rs.meta.name : rs.id"
-            ></button>
-          </template>
-          <div
-            x-show="!$store.global.availableRuleSets || $store.global.availableRuleSets.length===0"
-            class="px-3 py-2 text-xs text-[var(--content-muted)]"
+        <div class="ui-batch-selection-summary">
+          <span class="ui-batch-selection-icon" aria-hidden="true"
+            >{{ icon('check-bold', 'ui-icon--sm') }}</span
           >
-            无规则集
-          </div>
-          <div class="border-t border-[var(--border-default)] mt-1 pt-1">
+          <span class="ui-batch-selection-copy">
+            <span class="ui-batch-selection-label">已选</span>
+            <strong x-text="selectedIds.length"></strong>
+          </span>
+        </div>
+        <span class="ui-batch-action-divider" aria-hidden="true"></span>
+        <div class="ui-batch-action-group" role="group" aria-label="批量操作">
+          <button
+            x-show="currentMode === 'cards' || currentMode === 'worldinfo' || currentMode === 'presets'"
+            type="button"
+            @click="toggleSelectAll()"
+            class="ui-batch-action-button ui-batch-action-button--accent ui-batch-action-button--icon-only"
+            :class="isCurrentPageAllSelected ? 'is-selected' : ''"
+            :title="isCurrentPageAllSelected ? '取消全选当前页' : '全选当前页'"
+            :aria-label="isCurrentPageAllSelected ? '取消全选当前页' : '全选当前页'"
+          >
+            <span aria-hidden="true">{{ icon('check', 'ui-icon--sm') }}</span>
+            <span class="sr-only" x-show="!isCurrentPageAllSelected">全选</span>
+            <span class="sr-only" x-show="isCurrentPageAllSelected">取消全选</span>
+          </button>
+          <div class="ui-batch-action-menu-anchor">
             <button
-              @click="$dispatch('open-automation-modal'); showRuleMenu=false"
-              class="header-batch-menu-item w-full text-left px-3 py-2 text-xs color-text-accent hover:bg-[var(--state-hover-surface)] flex items-center gap-1"
+              x-ref="batchActionsMenuButton"
+              type="button"
+              @click="showBatchActionsMenu = !showBatchActionsMenu; if (!showBatchActionsMenu) { showRuleMenu = false; showSourceUpdateMenu = false; }"
+              class="ui-batch-action-button ui-batch-action-button--accent ui-batch-action-button--icon-only"
+              aria-haspopup="menu"
+              :aria-expanded="showBatchActionsMenu.toString()"
+              title="打开批量操作"
+              aria-label="打开批量操作"
             >
-              <span aria-hidden="true"
-                >{{ icon('settings', 'ui-icon--sm') }}</span
-              >
-              管理规则...
+              <span aria-hidden="true">{{ icon('quick-actions', 'ui-icon--sm') }}</span>
             </button>
+            <div
+              x-show="showBatchActionsMenu"
+              x-cloak
+              @click.away="showBatchActionsMenu = false; showRuleMenu = false; showSourceUpdateMenu = false"
+              x-transition:enter="transition ease-out duration-100"
+              x-transition:enter-start="opacity-0 scale-95"
+              x-transition:enter-end="opacity-100 scale-100"
+              role="menu"
+              class="header-batch-menu ui-batch-actions-menu absolute top-full left-0 mt-2 bg-[var(--surface-container)] border border-[var(--border-default)] rounded-lg shadow-2xl py-1"
+              style="z-index: var(--z-dropdown)"
+            >
+              <div class="ui-batch-menu-heading">
+                <span>批量操作</span>
+                <span x-text="selectedIds.length"></span>
+              </div>
+              <button
+                x-show="currentMode === 'cards'"
+                type="button"
+                @click="openBatchTagModal(); showBatchActionsMenu = false"
+                class="header-batch-menu-item ui-batch-menu-action"
+              >
+                <span aria-hidden="true">{{ sidebar_icon('tag-library', 'ui-icon--sm') }}</span>
+                <span>批量标签</span>
+              </button>
+              <button
+                x-show="currentMode === 'cards'"
+                type="button"
+                @click="deleteSelectedCards(); showBatchActionsMenu = false"
+                class="header-batch-menu-item ui-batch-menu-action ui-batch-menu-action--danger"
+              >
+                <span aria-hidden="true">{{ icon('trash', 'ui-icon--sm') }}</span>
+                <span>移至回收站</span>
+              </button>
+              <button
+                x-show="currentMode === 'worldinfo' && canMoveWorldInfoSelection()"
+                type="button"
+                @click="moveSelectedWorldInfo(); showBatchActionsMenu = false"
+                class="header-batch-menu-item ui-batch-menu-action"
+              >
+                <span aria-hidden="true">{{ icon('folder', 'ui-icon--sm') }}</span>
+                <span>移动分类</span>
+              </button>
+              <button
+                x-show="currentMode === 'worldinfo' && canDeleteWorldInfoSelection()"
+                type="button"
+                @click="deleteSelectedWorldInfo(); showBatchActionsMenu = false"
+                class="header-batch-menu-item ui-batch-menu-action ui-batch-menu-action--danger"
+              >
+                <span aria-hidden="true">{{ icon('trash', 'ui-icon--sm') }}</span>
+                <span>删除世界书</span>
+              </button>
+              <button
+                x-show="selectedIds.length > 1 && currentMode === 'presets'"
+                type="button"
+                @click="mergeSelectedPresets(); showBatchActionsMenu = false"
+                :disabled="!canMergePresetSelection()"
+                :title="getPresetMergeSelectionTitle()"
+                :aria-label="getPresetMergeSelectionTitle()"
+                class="header-batch-menu-item ui-batch-menu-action"
+              >
+                <span aria-hidden="true">{{ icon('merge', 'ui-icon--sm') }}</span>
+                <span>合并为多版本</span>
+              </button>
+              <button
+                x-show="currentMode === 'presets' && canMovePresetSelection()"
+                type="button"
+                @click="moveSelectedPresets(); showBatchActionsMenu = false"
+                class="header-batch-menu-item ui-batch-menu-action"
+              >
+                <span aria-hidden="true">{{ icon('folder', 'ui-icon--sm') }}</span>
+                <span>移动分类</span>
+              </button>
+              <button
+                x-show="currentMode === 'presets' && canDeletePresetSelection()"
+                type="button"
+                @click="deleteSelectedPresets(); showBatchActionsMenu = false"
+                class="header-batch-menu-item ui-batch-menu-action ui-batch-menu-action--danger"
+              >
+                <span aria-hidden="true">{{ icon('trash', 'ui-icon--sm') }}</span>
+                <span>删除预设</span>
+              </button>
+              <div x-show="currentMode === 'cards'" class="ui-batch-menu-sub-anchor">
+                <button
+                  type="button"
+                  @click="showRuleMenu = !showRuleMenu; showSourceUpdateMenu = false; if (showRuleMenu) $dispatch('load-rulesets-for-menu')"
+                  class="header-batch-menu-item ui-batch-menu-action"
+                  aria-haspopup="menu"
+                  :aria-expanded="showRuleMenu.toString()"
+                >
+                  <span aria-hidden="true">{{ icon('workflow', 'ui-icon--sm') }}</span>
+                  <span>自动处理</span>
+                  <span class="ui-batch-menu-chevron" aria-hidden="true">{{ icon('chevron-right', 'ui-icon--xs') }}</span>
+                </button>
+                <div
+                  x-show="showRuleMenu"
+                  x-cloak
+                  role="menu"
+                  class="header-batch-menu ui-batch-menu-submenu absolute top-0 left-full ml-2 bg-[var(--surface-container)] border border-[var(--border-default)] rounded-lg shadow-2xl py-1"
+                  style="z-index: var(--z-dropdown)"
+                >
+                  <template x-for="rs in $store.global.availableRuleSets" :key="rs.id">
+                    <button
+                      type="button"
+                      @click="executeRuleSet(rs.id); showRuleMenu=false; showBatchActionsMenu=false"
+                      class="header-batch-menu-item ui-batch-menu-action"
+                      x-text="rs.meta && rs.meta.name ? rs.meta.name : rs.id"
+                    ></button>
+                  </template>
+                  <div
+                    x-show="!$store.global.availableRuleSets || $store.global.availableRuleSets.length===0"
+                    class="ui-batch-menu-empty"
+                  >
+                    无规则集
+                  </div>
+                  <div class="ui-batch-menu-separator">
+                    <button
+                      type="button"
+                      @click="$dispatch('open-automation-modal'); showRuleMenu=false; showBatchActionsMenu=false"
+                      class="header-batch-menu-item ui-batch-menu-action"
+                    >
+                      <span aria-hidden="true">{{ icon('settings', 'ui-icon--sm') }}</span>
+                      <span>管理规则...</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div x-show="currentMode === 'cards'" class="ui-batch-menu-sub-anchor">
+                <button
+                  type="button"
+                  @click="showSourceUpdateMenu = !showSourceUpdateMenu; showRuleMenu = false"
+                  class="header-batch-menu-item ui-batch-menu-action"
+                  aria-haspopup="menu"
+                  :aria-expanded="showSourceUpdateMenu.toString()"
+                  title="检查更新或确认已有更新无需处理"
+                  aria-label="检查更新或确认已有更新无需处理"
+                >
+                  <span aria-hidden="true">{{ icon('refresh-card', 'ui-icon--sm') }}</span>
+                  <span>来源更新</span>
+                  <span class="ui-batch-menu-chevron ui-batch-menu-chevron--nested" aria-hidden="true">{{ icon('chevron-down', 'ui-icon--xs') }}</span>
+                </button>
+                <div
+                  x-show="showSourceUpdateMenu"
+                  x-cloak
+                  role="menu"
+                  class="header-batch-menu ui-batch-menu-submenu absolute top-0 left-full ml-2 bg-[var(--surface-container)] border border-[var(--border-default)] rounded-lg shadow-2xl py-1"
+                  style="z-index: var(--z-dropdown)"
+                >
+                  <button
+                    @click="checkSelectedSourceUpdates(); showSourceUpdateMenu = false; showBatchActionsMenu = false"
+                    type="button"
+                    role="menuitem"
+                    class="header-batch-menu-item ui-batch-menu-action"
+                  >
+                    检查更新
+                  </button>
+                  <button
+                    @click="acknowledgeSelectedSourceUpdates(); showSourceUpdateMenu = false; showBatchActionsMenu = false"
+                    type="button"
+                    role="menuitem"
+                    class="header-batch-menu-item ui-batch-menu-action"
+                  >
+                    确认无需更新
+                  </button>
+                  <div
+                    class="ui-batch-menu-separator"
+                    role="separator"
+                  ></div>
+                  <button
+                    @click="addSelectedToSourceMonitorPool(); showSourceUpdateMenu = false; showBatchActionsMenu = false"
+                    type="button"
+                    role="menuitem"
+                    class="header-batch-menu-item ui-batch-menu-action"
+                  >
+                    加入监控池（已选 <span x-text="selectedIds.length"></span> 张）
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
-      <div
-        x-show="currentMode === 'cards'"
-        x-data="{ showSourceUpdateMenu: false }"
-        @keydown.escape.window="if (showSourceUpdateMenu) { showSourceUpdateMenu = false; $refs.sourceUpdateMenuButton.focus(); }"
-        class="relative"
-      >
+        <span class="ui-batch-action-divider" aria-hidden="true"></span>
         <button
-          x-ref="sourceUpdateMenuButton"
-          @click="showSourceUpdateMenu = !showSourceUpdateMenu"
           type="button"
-          class="text-xs px-2 py-1 rounded color-text-on-accent color-surface-info-solid color-hover-surface-info transition-all flex items-center gap-1"
-          aria-haspopup="menu"
-          :aria-expanded="showSourceUpdateMenu.toString()"
-          title="检查更新或确认已有更新无需处理"
+          @click="selectedIds = []"
+          class="ui-batch-action-clear ui-batch-action-clear--icon-only"
+          title="清除当前选择"
+          aria-label="清除当前选择"
         >
-          <span aria-hidden="true"
-            >{{ icon('chevron-down', 'ui-icon--xs') }}</span
-          >
-          来源更新
+          <span aria-hidden="true">{{ icon('close-small', 'ui-icon--sm') }}</span>
         </button>
-        <div
-          x-show="showSourceUpdateMenu"
-          x-cloak
-          @click.away="showSourceUpdateMenu = false"
-          x-transition:enter="transition ease-out duration-100"
-          x-transition:enter-start="opacity-0 scale-95"
-          x-transition:enter-end="opacity-100 scale-100"
-          role="menu"
-          class="header-batch-menu absolute top-full left-0 mt-2 w-56 bg-[var(--surface-container)] border border-[var(--border-default)] rounded-lg shadow-2xl py-1 overflow-hidden"
-          style="z-index: var(--z-dropdown)"
-        >
-          <button
-            @click="checkSelectedSourceUpdates(); showSourceUpdateMenu = false"
-            type="button"
-            role="menuitem"
-            class="w-full block text-left px-3 py-2 text-xs hover:bg-[var(--state-hover-surface)] text-[var(--content-primary)] transition-colors header-batch-menu-item"
-          >
-            检查更新
-          </button>
-          <button
-            @click="acknowledgeSelectedSourceUpdates(); showSourceUpdateMenu = false"
-            type="button"
-            role="menuitem"
-            class="w-full block text-left px-3 py-2 text-xs hover:bg-[var(--state-hover-surface)] text-[var(--content-primary)] transition-colors header-batch-menu-item"
-          >
-            确认无需更新
-          </button>
-          <div
-            class="my-1 border-t border-[var(--border-default)]"
-            role="separator"
-          ></div>
-          <button
-            @click="addSelectedToSourceMonitorPool(); showSourceUpdateMenu = false"
-            type="button"
-            role="menuitem"
-            class="w-full block text-left px-3 py-2 text-xs hover:bg-[var(--state-hover-surface)] text-[var(--content-primary)] transition-colors header-batch-menu-item"
-          >
-            加入监控池（已选 <span x-text="selectedIds.length"></span> 张）
-          </button>
-        </div>
-      </div>
-      <button
-        @click="selectedIds = []"
-        class="text-xs color-hover-text-primary cursor-pointer"
-        style="color: var(--content-secondary)"
-      >
-        取消
-      </button>
     </div>
 
     <!-- 搜索与筛选区 -->
@@ -696,153 +732,167 @@
   <!-- 移动端：选中状态栏（独立显示） -->
   <div
     x-show="deviceType === 'mobile' && selectedIds.length > 0"
-    class="mobile-selection-bar ui-batch-action-strip"
-    style="
-      margin-top: 0.5rem;
-      padding: 0.5rem;
-      background-color: var(--accent-soft-strong);
-      border-radius: 0.5rem;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      flex-wrap: wrap;
-    "
+    class="mobile-selection-bar ui-batch-action-strip ui-batch-action-strip--mobile"
+    role="toolbar"
+    aria-label="批量操作"
   >
-    <span
-      x-show="selectedIds.length > 0"
-      class="text-xs"
-      style="color: var(--content-primary)"
-      >已选 <span x-text="selectedIds.length" class="font-bold"></span
-    ></span>
-    <button
-      x-show="currentMode === 'cards' || currentMode === 'presets'"
-      @click="toggleSelectAll()"
-      class="btn-success text-xs px-2 py-1 rounded color-text-on-accent transition-all"
-      :class="isCurrentPageAllSelected ? 'btn-danger' : 'btn-success'"
-      :title="isCurrentPageAllSelected ? '取消全选当前页' : '全选当前页'"
-    >
-      <span aria-hidden="true">{{ icon('check', 'ui-icon--sm') }}</span>
-      <span x-show="!isCurrentPageAllSelected">全选</span>
-      <span x-show="isCurrentPageAllSelected">取消全选</span>
-    </button>
-    <button
-      x-show="selectedIds.length > 0 && currentMode === 'cards'"
-      @click="openBatchTagModal()"
-      class="btn-soft-purple text-xs px-2 py-1 rounded"
-    >
-      <span aria-hidden="true">{{ sidebar_icon('tag-library', 'ui-icon--sm') }}</span>
-      标签
-    </button>
-    <button
-      x-show="selectedIds.length > 0 && currentMode === 'cards'"
-      @click="openMoveModal()"
-      class="btn-success text-xs px-2 py-1 rounded color-text-on-accent flex items-center justify-center"
-      title="移动选中角色卡"
-      aria-label="移动选中角色卡"
-    >
-      {{ icon('folder', 'ui-icon--sm ') }}
-    </button>
-    <button
-      x-show="selectedIds.length > 0 && currentMode === 'cards'"
-      @click="openExecuteRulesMobile()"
-      class="btn-warning text-xs px-2 py-1 rounded color-text-on-accent flex items-center justify-center"
-      title="运行自动化规则"
-      aria-label="运行自动化规则"
-    >
-      {{ icon('workflow', 'ui-icon--sm ') }}
-    </button>
-    <div
-      x-show="selectedIds.length > 0 && currentMode === 'cards'"
-      x-data="{ showSourceUpdateMenu: false }"
-      @keydown.escape.window="if (showSourceUpdateMenu) { showSourceUpdateMenu = false; $refs.sourceUpdateMenuButton.focus(); }"
-      class="relative"
-    >
-      <button
-        x-ref="sourceUpdateMenuButton"
-        @click="showSourceUpdateMenu = !showSourceUpdateMenu"
-        type="button"
-        class="btn-info text-xs px-2 py-1 rounded color-text-on-accent flex items-center justify-center gap-1"
-        style="min-height: 2.75rem"
-        aria-haspopup="menu"
-        :aria-expanded="showSourceUpdateMenu.toString()"
-        title="检查更新或确认已有更新无需处理"
+    <div class="ui-batch-selection-summary">
+      <span class="ui-batch-selection-icon" aria-hidden="true"
+        >{{ icon('check-bold', 'ui-icon--sm') }}</span
       >
-        <span aria-hidden="true"
-          >{{ icon('chevron-down', 'ui-icon--xs') }}</span
-        >
-        更新
+      <span class="ui-batch-selection-copy">
+        <span class="ui-batch-selection-label">已选</span>
+        <strong x-text="selectedIds.length"></strong>
+      </span>
+    </div>
+    <div class="ui-batch-action-group ui-batch-action-group--mobile" role="group" aria-label="批量操作项目">
+      <button
+        x-show="currentMode === 'cards' || currentMode === 'presets'"
+        type="button"
+        @click="toggleSelectAll()"
+        class="ui-batch-action-button ui-batch-action-button--accent"
+        :class="isCurrentPageAllSelected ? 'is-selected' : ''"
+        :title="isCurrentPageAllSelected ? '取消全选当前页' : '全选当前页'"
+        :aria-label="isCurrentPageAllSelected ? '取消全选当前页' : '全选当前页'"
+      >
+        <span aria-hidden="true">{{ icon('check', 'ui-icon--sm') }}</span>
+        <span x-show="!isCurrentPageAllSelected">全选</span>
+        <span x-show="isCurrentPageAllSelected">取消全选</span>
+      </button>
+      <button
+        x-show="selectedIds.length > 0 && currentMode === 'cards'"
+        type="button"
+        @click="openBatchTagModal()"
+        class="ui-batch-action-button ui-batch-action-button--accent"
+        title="批量编辑选中角色卡标签"
+        aria-label="批量编辑选中角色卡标签"
+      >
+        <span aria-hidden="true">{{ sidebar_icon('tag-library', 'ui-icon--sm') }}</span>
+        <span>标签</span>
+      </button>
+      <button
+        x-show="selectedIds.length > 0 && currentMode === 'cards'"
+        type="button"
+        @click="openMoveModal()"
+        class="ui-batch-action-button"
+        title="移动选中角色卡"
+        aria-label="移动选中角色卡"
+      >
+        <span aria-hidden="true">{{ icon('folder', 'ui-icon--sm') }}</span>
+        <span class="sr-only">移动</span>
+      </button>
+      <button
+        x-show="selectedIds.length > 0 && currentMode === 'cards'"
+        type="button"
+        @click="openExecuteRulesMobile()"
+        class="ui-batch-action-button ui-batch-action-button--accent"
+        title="运行自动化规则"
+        aria-label="运行自动化规则"
+      >
+        <span aria-hidden="true">{{ icon('workflow', 'ui-icon--sm') }}</span>
+        <span class="sr-only">自动处理</span>
       </button>
       <div
-        x-show="showSourceUpdateMenu"
-        x-cloak
-        @click.away="showSourceUpdateMenu = false"
-        role="menu"
-        class="header-batch-menu absolute top-full left-0 mt-2 w-48 max-w-[calc(100vw-1rem)] bg-[var(--surface-container)] border border-[var(--border-default)] rounded-lg shadow-2xl py-1 overflow-hidden"
-        style="z-index: var(--z-dropdown)"
+        x-show="selectedIds.length > 0 && currentMode === 'cards'"
+        x-data="{ showSourceUpdateMenu: false }"
+        @keydown.escape.window="if (showSourceUpdateMenu) { showSourceUpdateMenu = false; $refs.sourceUpdateMenuButton.focus(); }"
+        class="ui-batch-action-menu-anchor"
       >
         <button
-          @click="checkSelectedSourceUpdates(); showSourceUpdateMenu = false"
+          x-ref="sourceUpdateMenuButton"
+          @click="showSourceUpdateMenu = !showSourceUpdateMenu"
           type="button"
-          role="menuitem"
-          class="w-full block min-h-11 text-left px-3 py-3 text-sm hover:bg-[var(--state-hover-surface)] text-[var(--content-primary)] header-batch-menu-item"
+          class="ui-batch-action-button ui-batch-action-button--accent"
+          aria-haspopup="menu"
+          :aria-expanded="showSourceUpdateMenu.toString()"
+          title="检查更新或确认已有更新无需处理"
+          aria-label="检查更新或确认已有更新无需处理"
         >
-          检查更新
-        </button>
-        <button
-          @click="acknowledgeSelectedSourceUpdates(); showSourceUpdateMenu = false"
-          type="button"
-          role="menuitem"
-          class="w-full block min-h-11 text-left px-3 py-3 text-sm hover:bg-[var(--state-hover-surface)] text-[var(--content-primary)] header-batch-menu-item"
-        >
-          确认无需更新
+          <span aria-hidden="true">{{ icon('refresh-card', 'ui-icon--sm') }}</span>
+          <span>更新</span>
+          <span aria-hidden="true">{{ icon('chevron-down', 'ui-icon--xs') }}</span>
         </button>
         <div
-          class="my-1 border-t border-[var(--border-default)]"
-          role="separator"
-        ></div>
-        <button
-          @click="addSelectedToSourceMonitorPool(); showSourceUpdateMenu = false"
-          type="button"
-          role="menuitem"
-          class="w-full block min-h-11 text-left px-3 py-3 text-sm hover:bg-[var(--state-hover-surface)] text-[var(--content-primary)] header-batch-menu-item"
+          x-show="showSourceUpdateMenu"
+          x-cloak
+          @click.away="showSourceUpdateMenu = false"
+          role="menu"
+          class="header-batch-menu absolute top-full left-0 mt-2 w-48 max-w-[calc(100vw-1rem)] bg-[var(--surface-container)] border border-[var(--border-default)] rounded-lg shadow-2xl py-1 overflow-hidden"
+          style="z-index: var(--z-dropdown)"
         >
-          加入监控池（已选 <span x-text="selectedIds.length"></span> 张）
-        </button>
+          <button
+            @click="checkSelectedSourceUpdates(); showSourceUpdateMenu = false"
+            type="button"
+            role="menuitem"
+            class="w-full block min-h-11 text-left px-3 py-3 text-sm hover:bg-[var(--state-hover-surface)] text-[var(--content-primary)] header-batch-menu-item"
+          >
+            检查更新
+          </button>
+          <button
+            @click="acknowledgeSelectedSourceUpdates(); showSourceUpdateMenu = false"
+            type="button"
+            role="menuitem"
+            class="w-full block min-h-11 text-left px-3 py-3 text-sm hover:bg-[var(--state-hover-surface)] text-[var(--content-primary)] header-batch-menu-item"
+          >
+            确认无需更新
+          </button>
+          <div
+            class="my-1 border-t border-[var(--border-default)]"
+            role="separator"
+          ></div>
+          <button
+            @click="addSelectedToSourceMonitorPool(); showSourceUpdateMenu = false"
+            type="button"
+            role="menuitem"
+            class="w-full block min-h-11 text-left px-3 py-3 text-sm hover:bg-[var(--state-hover-surface)] text-[var(--content-primary)] header-batch-menu-item"
+          >
+            加入监控池（已选 <span x-text="selectedIds.length"></span> 张）
+          </button>
+        </div>
       </div>
+      <button
+        x-show="selectedIds.length > 0 && currentMode === 'presets' && canMovePresetSelection()"
+        type="button"
+        @click="moveSelectedPresets()"
+        class="ui-batch-action-button"
+        title="移动选中预设"
+        aria-label="移动选中预设"
+      >
+        <span aria-hidden="true">{{ icon('folder', 'ui-icon--sm') }}</span>
+        <span class="sr-only">移动</span>
+      </button>
+      <button
+        x-show="selectedIds.length > 0 && currentMode === 'presets' && canDeletePresetSelection()"
+        type="button"
+        @click="deleteSelectedPresets()"
+        class="ui-batch-action-button ui-batch-action-button--danger"
+        title="删除选中预设"
+        aria-label="删除选中预设"
+      >
+        <span aria-hidden="true">{{ icon('trash', 'ui-icon--sm') }}</span>
+        <span class="sr-only">删除</span>
+      </button>
+      <button
+        x-show="currentMode === 'cards'"
+        type="button"
+        @click="deleteSelectedCards()"
+        class="ui-batch-action-button ui-batch-action-button--danger"
+        title="删除选中角色卡"
+        aria-label="删除选中角色卡"
+      >
+        <span aria-hidden="true">{{ icon('trash', 'ui-icon--sm') }}</span>
+        <span class="sr-only">删除</span>
+      </button>
     </div>
     <button
-      x-show="selectedIds.length > 0 && currentMode === 'presets' && canMovePresetSelection()"
-      @click="moveSelectedPresets()"
-      class="btn-success text-xs px-2 py-1 rounded color-text-on-accent flex items-center justify-center"
-      title="移动选中预设"
-      aria-label="移动选中预设"
-    >
-      {{ icon('folder', 'ui-icon--sm ') }}
-    </button>
-    <button
-      x-show="selectedIds.length > 0 && currentMode === 'presets' && canDeletePresetSelection()"
-      @click="deleteSelectedPresets()"
-      class="text-xs px-2 py-1 rounded color-text-on-accent color-surface-danger-solid flex items-center justify-center"
-      title="删除选中预设"
-      aria-label="删除选中预设"
-    >
-      {{ icon('trash', 'ui-icon--sm ') }}
-    </button>
-    <button
-      x-show="currentMode === 'cards'"
-      @click="deleteSelectedCards()"
-      class="text-xs px-2 py-1 rounded color-text-on-accent color-surface-danger-solid flex items-center justify-center"
-      title="删除选中角色卡"
-      aria-label="删除选中角色卡"
-    >
-      {{ icon('trash', 'ui-icon--sm ') }}
-    </button>
-    <button
+      type="button"
       @click="selectedIds = []"
-      class="text-xs px-2 py-1 rounded"
-      style="background-color: var(--surface-container-raised); color: var(--content-primary)"
+      class="ui-batch-action-clear"
+      title="清除当前选择"
+      aria-label="清除当前选择"
     >
-      取消
+      <span aria-hidden="true">{{ icon('close-small', 'ui-icon--sm') }}</span>
+      <span>取消</span>
     </button>
   </div>
 
