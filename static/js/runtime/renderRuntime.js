@@ -369,3 +369,19 @@ export function clearIsolatedHtml(host, options = {}) {
   }
   runtime.destroy(options);
 }
+
+export function clearIsolatedHtmlByOwner(ownerId, options = {}) {
+  const normalizedOwnerId = String(ownerId || '').trim();
+  if (!normalizedOwnerId) {
+    return 0;
+  }
+
+  const matchingRuntimes = Array.from(runtimes.values()).filter(
+    (runtime) =>
+      String(runtime.host?.dataset?.runtimeOwner || '').trim() ===
+      normalizedOwnerId,
+  );
+
+  matchingRuntimes.forEach((runtime) => runtime.destroy(options));
+  return matchingRuntimes.length;
+}

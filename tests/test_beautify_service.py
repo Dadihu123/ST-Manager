@@ -2,6 +2,7 @@ import json
 import sys
 from pathlib import Path
 
+import pytest
 from PIL import Image
 
 
@@ -11,6 +12,7 @@ if str(ROOT) not in sys.path:
 
 
 from core.data.ui_store import get_beautify_library, set_beautify_library
+from core.services import beautify_service as beautify_service_module
 from core.services.beautify_service import BeautifyService
 from core.services.shared_wallpaper_service import SharedWallpaperService
 
@@ -2058,6 +2060,48 @@ def test_delete_package_removes_package_embedded_shared_wallpapers_from_disk_and
     assert service.get_package(package_id) is None
     assert shared_wallpaper_path.exists() is False
     assert shared_wallpaper['id'] not in ui_data['_shared_wallpaper_library_v1']['items']
+
+
+def test_delete_package_retries_directory_cleanup_after_transient_lock(tmp_path, monkeypatch):
+    ui_data = {}
+    service = _build_service(tmp_path, ui_data)
+    imported_theme = _import_theme_for_package(service, tmp_path, name='Delete Retry Demo')
+    package_id = imported_theme['package']['id']
+    package_dir = tmp_path / 'data' / 'library' / 'beautify' / 'packages' / package_id
+    original_rmtree = beautify_service_module.shutil.rmtree
+    attempts = []
+
+    def flaky_rmtree(path):
+        attempts.append(path)
+        if len(attempts) == 1:
+            raise PermissionError('simulated transient Windows file lock')
+        return original_rmtree(path)
+
+    monkeypatch.setattr(beautify_service_module.shutil, 'rmtree', flaky_rmtree)
+
+    assert service.delete_package(package_id) is True
+    assert len(attempts) == 2
+    assert package_dir.exists() is False
+    assert service.get_package(package_id) is None
+
+
+def test_delete_package_keeps_library_record_when_directory_stays_locked(tmp_path, monkeypatch):
+    ui_data = {}
+    service = _build_service(tmp_path, ui_data)
+    imported_theme = _import_theme_for_package(service, tmp_path, name='Delete Locked Demo')
+    package_id = imported_theme['package']['id']
+    package_dir = tmp_path / 'data' / 'library' / 'beautify' / 'packages' / package_id
+
+    def locked_rmtree(path):
+        raise PermissionError('simulated persistent Windows file lock')
+
+    monkeypatch.setattr(beautify_service_module.shutil, 'rmtree', locked_rmtree)
+
+    with pytest.raises(PermissionError):
+        service.delete_package(package_id)
+
+    assert package_dir.exists()
+    assert service.get_package(package_id) is not None
 
 
 def test_beautify_package_shape_no_longer_requires_install_state(tmp_path):

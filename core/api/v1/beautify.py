@@ -417,7 +417,14 @@ def delete_package():
     if not package_id:
         return _error('缺少 package_id')
 
-    deleted = get_beautify_service().delete_package(package_id)
+    try:
+        deleted = get_beautify_service().delete_package(package_id)
+    except OSError:
+        logger.warning('删除美化包文件失败，资源可能仍被占用: %s', package_id, exc_info=True)
+        return _error('美化包文件仍被占用，请关闭预览后重试', status=409)
+    except Exception:
+        logger.error('删除美化包失败: %s', package_id, exc_info=True)
+        return _error('删除美化包失败，请稍后重试', status=500)
     if not deleted:
         return _error('美化包不存在', status=404)
     return jsonify({'success': True})

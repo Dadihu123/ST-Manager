@@ -441,6 +441,7 @@
               type="button"
               class="beautify-soft-btn"
               @click="removeCurrentPackage()"
+              :disabled="isActionLoading"
             >
               删除包
             </button>

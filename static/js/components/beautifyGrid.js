@@ -18,6 +18,7 @@ import {
   updateBeautifySettings,
   updateBeautifyVariant,
 } from "../api/beautify.js";
+import { clearIsolatedHtmlByOwner } from "../runtime/renderRuntime.js";
 import sharedWallpaperPicker from "./sharedWallpaperPicker.js";
 
 if (typeof window !== "undefined") {
@@ -223,6 +224,27 @@ export default function beautifyGrid() {
     closeMobilePreviewAndReset() {
       this.closeMobileFullscreen();
       this.requestPreviewReset();
+    },
+
+    async releaseBeautifyPreviewBeforeDelete() {
+      this.closeMobileFullscreen();
+      this.requestPreviewReset();
+      clearIsolatedHtmlByOwner("beautify-preview", { clearShadow: true });
+
+      await new Promise((resolve) => {
+        if (
+          typeof window !== "undefined" &&
+          typeof window.requestAnimationFrame === "function"
+        ) {
+          window.requestAnimationFrame(resolve);
+          return;
+        }
+        if (typeof setTimeout === "function") {
+          setTimeout(resolve, 0);
+          return;
+        }
+        resolve();
+      });
     },
 
     alignSettingsPreviewDeviceToViewport() {
@@ -1496,6 +1518,7 @@ export default function beautifyGrid() {
       const removedPackageId = this.selectedPackageId;
       this.isActionLoading = true;
       try {
+        await this.releaseBeautifyPreviewBeforeDelete();
         const res = await deleteBeautifyPackage(removedPackageId);
         if (!res?.success) {
           throw new Error(res?.error || "删除失败");

@@ -1,5 +1,13 @@
 async function parseJson(res) {
-  return res.json();
+  try {
+    return await res.json();
+  } catch (error) {
+    const status = Number(res?.status || 0);
+    if (status) {
+      throw new Error(`请求失败（HTTP ${status}，服务器未返回有效 JSON）`);
+    }
+    throw new Error("服务器返回的响应不是有效 JSON");
+  }
 }
 
 export async function listBeautifyPackages() {

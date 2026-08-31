@@ -1241,6 +1241,27 @@ def test_delete_package_endpoint_rejects_non_dict_json(monkeypatch):
     assert fake_service.calls == []
 
 
+def test_delete_package_endpoint_returns_json_when_package_files_are_locked(monkeypatch):
+    app = _make_test_app()
+    client = app.test_client()
+
+    class LockedBeautifyService(FakeBeautifyService):
+        def delete_package(self, package_id):
+            raise PermissionError('simulated Windows file lock')
+
+    monkeypatch.setattr(beautify_api, 'get_beautify_service', lambda: LockedBeautifyService())
+
+    response = client.post('/api/beautify/delete-package', json={'package_id': 'pkg_demo'})
+    payload = response.get_json()
+
+    assert response.status_code == 409
+    assert response.is_json
+    assert payload == {
+        'success': False,
+        'error': '美化包文件仍被占用，请关闭预览后重试',
+    }
+
+
 def test_import_global_wallpaper_endpoint_returns_400_for_invalid_image_upload(tmp_path):
     app = _make_test_app()
     client = app.test_client()

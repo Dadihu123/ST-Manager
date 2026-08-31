@@ -84,6 +84,7 @@ def run_beautify_grid_runtime_check(script_body):
           return typeof fn === 'function' ? fn(...args) : fallback(...args);
         }};
         const buildBeautifyPreviewAssetUrl = getGridStub('buildBeautifyPreviewAssetUrl', (value) => String(value || ''));
+        const clearIsolatedHtmlByOwner = getGridStub('clearIsolatedHtmlByOwner', () => 0);
         const deleteBeautifyPackage = getGridStub('deleteBeautifyPackage', async () => ({{ success: true }}));
         const getBeautifySettings = getGridStub('getBeautifySettings', async () => ({{ success: true, item: null }}));
         const getBeautifyPackage = getGridStub('getBeautifyPackage', async () => ({{ success: true, item: null }}));
@@ -1899,6 +1900,53 @@ def test_beautify_grid_remove_current_package_prunes_package_shared_wallpapers_f
         const sharedIds = (component.$store.global.sharedWallpapers || []).map((item) => item.id);
         if (sharedIds.length !== 1 || sharedIds[0] !== 'imported:keep-me') {
           throw new Error(`expected package shared wallpapers pruned from store, got ${JSON.stringify(sharedIds)}`);
+        }
+        '''
+    )
+
+
+def test_beautify_grid_releases_preview_before_delete_request():
+    run_beautify_grid_runtime_check(
+        '''
+        globalThis.confirm = () => true;
+        const releaseCalls = [];
+        globalThis.__gridStubs = {
+          clearIsolatedHtmlByOwner: (...args) => releaseCalls.push(args),
+          deleteBeautifyPackage: async () => {
+            if (releaseCalls.length !== 1) {
+              throw new Error('delete request started before preview release');
+            }
+            return { success: true };
+          },
+          listBeautifyPackages: async () => ({ success: true, items: [] }),
+        };
+
+        const component = module.default();
+        component.$store = {
+          global: {
+            beautifySelectedPackageId: 'pkg_demo',
+            beautifyMobileFullscreenOpen: true,
+            beautifyPreviewResetToken: 0,
+            beautifyActiveDetail: null,
+            beautifyActiveVariant: null,
+            beautifyActiveWallpaper: null,
+            showToast: () => {},
+          },
+        };
+
+        await component.removeCurrentPackage();
+
+        if (releaseCalls.length !== 1 || releaseCalls[0][0] !== 'beautify-preview') {
+          throw new Error(`expected beautify preview release, got ${JSON.stringify(releaseCalls)}`);
+        }
+        if (releaseCalls[0][1]?.clearShadow !== true) {
+          throw new Error('preview release should clear the isolated shadow root');
+        }
+        if (component.$store.global.beautifyMobileFullscreenOpen !== false) {
+          throw new Error('delete should close mobile fullscreen preview');
+        }
+        if (component.$store.global.beautifyPreviewResetToken !== 1) {
+          throw new Error('delete should request a preview reset');
         }
         '''
     )
@@ -4137,6 +4185,38 @@ def test_render_runtime_fill_host_height_locks_iframe_to_host_height():
         }
         if (iframe.style.height !== '758px') {
           throw new Error(`expected iframe height to fill host, got ${iframe.style.height}`);
+        }
+        '''
+    )
+
+
+def test_render_runtime_can_clear_all_runtimes_for_owner():
+    run_render_runtime_check(
+        '''
+        const previewHost = document.createElement('div');
+        previewHost.dataset.runtimeOwner = 'beautify-preview';
+        const otherHost = document.createElement('div');
+        otherHost.dataset.runtimeOwner = 'other-preview';
+
+        const previewRuntime = module.renderIsolatedHtml(previewHost, {
+          htmlPayload: '<div>preview</div>',
+        });
+        const otherRuntime = module.renderIsolatedHtml(otherHost, {
+          htmlPayload: '<div>other</div>',
+        });
+
+        const releasedCount = module.clearIsolatedHtmlByOwner('beautify-preview', {
+          clearShadow: true,
+        });
+
+        if (releasedCount !== 1) {
+          throw new Error(`expected one beautify runtime to be released, got ${releasedCount}`);
+        }
+        if (previewRuntime.iframe.src !== 'about:blank') {
+          throw new Error('beautify preview iframe should navigate to about:blank on release');
+        }
+        if (otherRuntime.iframe.src === 'about:blank') {
+          throw new Error('unrelated preview runtime should remain active');
         }
         '''
     )

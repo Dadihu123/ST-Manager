@@ -24,6 +24,8 @@ from core.services.shared_wallpaper_service import SharedWallpaperService
 
 logger = logging.getLogger(__name__)
 
+PACKAGE_DIRECTORY_DELETE_DELAYS = (0, 0.05, 0.15)
+
 
 class BeautifyService:
     def __init__(
@@ -635,11 +637,29 @@ class BeautifyService:
         library['packages'] = packages
 
         package_dir = os.path.join(self.library_root, 'packages', resolved_package_id)
-        if os.path.isdir(package_dir):
-            shutil.rmtree(package_dir)
+        self._remove_package_directory(package_dir)
 
         self._save_library(ui_data, library)
         return True
+
+    def _remove_package_directory(self, package_dir: str):
+        last_error = None
+        for delay in PACKAGE_DIRECTORY_DELETE_DELAYS:
+            if delay:
+                time.sleep(delay)
+            try:
+                if not os.path.isdir(package_dir):
+                    return
+                shutil.rmtree(package_dir)
+                return
+            except FileNotFoundError:
+                return
+            except OSError as exc:
+                last_error = exc
+                logger.warning('删除美化包目录失败，将重试: %s', package_dir)
+
+        if os.path.isdir(package_dir) and last_error is not None:
+            raise last_error
 
     def _remove_shared_wallpaper_file(self, file_path: str):
         normalized = str(file_path or '').replace('\\', '/').strip().lstrip('/')
