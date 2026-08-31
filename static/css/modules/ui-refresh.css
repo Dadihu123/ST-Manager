@@ -859,6 +859,7 @@
   height: min(58rem, calc(100dvh - 2 * var(--ui-modal-gutter))) !important;
   max-width: calc(100vw - 2 * var(--ui-modal-gutter));
   max-height: calc(100dvh - 2 * var(--ui-modal-gutter));
+  flex-direction: row;
   border-radius: var(--ui-radius-lg);
 }
 
@@ -1354,6 +1355,10 @@
     max-height: 100dvh;
     min-height: 0;
     border-radius: 0;
+  }
+
+  .automation-container {
+    flex-direction: column;
   }
 
   .ui-modal-header {
