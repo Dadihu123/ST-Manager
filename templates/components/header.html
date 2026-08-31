@@ -463,26 +463,6 @@
 
     <!-- 搜索与筛选区 -->
     <div class="header-search-block ml-auto">
-      <button
-        x-show="currentMode === 'cards'"
-        type="button"
-        class="header-advanced-filter-btn"
-        :class="cardAdvancedFilterCount > 0 ? 'is-active' : ''"
-        @click="openCardAdvancedFilter()"
-        :title="cardAdvancedFilterCount > 0 ? `已启用 ${cardAdvancedFilterCount} 个筛选条件` : '打开高级筛选'"
-        :aria-label="cardAdvancedFilterCount > 0 ? `已启用 ${cardAdvancedFilterCount} 个筛选条件，打开高级筛选` : '打开高级筛选'"
-      >
-        <span class="header-advanced-filter-icon" aria-hidden="true">
-          {{ icon('filter', 'ui-icon--md ') }}
-        </span>
-        <span
-          class="header-advanced-filter-count"
-          x-show="cardAdvancedFilterCount > 0"
-          x-text="cardAdvancedFilterCount"
-          aria-hidden="true"
-        ></span>
-      </button>
-
       <div class="search-container header-search-container">
         <div
           x-show="currentMode === 'cards'"
@@ -504,7 +484,7 @@
         </div>
 
         <span class="header-search-icon" aria-hidden="true">
-          {{ icon('search', 'ui-icon--sm') }}
+          {{ icon('book-search', 'ui-icon--sm') }}
         </span>
 
         <input
@@ -588,6 +568,26 @@
           {{ icon('close-small', 'ui-icon--sm') }}
         </button>
       </div>
+
+      <button
+        x-show="currentMode === 'cards'"
+        type="button"
+        class="header-advanced-filter-btn"
+        :class="cardAdvancedFilterCount > 0 ? 'is-active' : ''"
+        @click="openCardAdvancedFilter()"
+        :title="cardAdvancedFilterCount > 0 ? `已启用 ${cardAdvancedFilterCount} 个筛选条件` : '打开高级筛选'"
+        :aria-label="cardAdvancedFilterCount > 0 ? `已启用 ${cardAdvancedFilterCount} 个筛选条件，打开高级筛选` : '打开高级筛选'"
+      >
+        <span class="header-advanced-filter-icon" aria-hidden="true">
+          {{ icon('filter', 'ui-icon--lg') }}
+        </span>
+        <span
+          class="header-advanced-filter-count"
+          x-show="cardAdvancedFilterCount > 0"
+          x-text="cardAdvancedFilterCount"
+          aria-hidden="true"
+        ></span>
+      </button>
 
       <div
         x-show="['cards', 'worldinfo'].includes(currentMode) && canUseFulltextSearch"

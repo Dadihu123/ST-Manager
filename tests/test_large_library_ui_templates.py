@@ -142,12 +142,14 @@ def test_desktop_header_places_search_mode_toggle_inside_search_block_contract()
     assert search_mode_anchor in search_block_markup
     assert advanced_filter_anchor in search_block_markup
     assert (
-        search_block_markup.index(advanced_filter_anchor)
-        < search_block_markup.index(search_container_anchor)
+        search_block_markup.index(search_container_anchor)
+        < search_block_markup.index(advanced_filter_anchor)
         < search_block_markup.index(search_mode_anchor)
     )
     assert 'header-advanced-filter-btn-meta' not in search_block_markup
     assert 'class="header-search-icon"' in search_block_markup
+    assert "icon('book-search', 'ui-icon--sm')" in search_block_markup
+    assert "icon('filter', 'ui-icon--lg')" in search_block_markup
     assert ':aria-label=' in search_block_markup
 
     toggle_match = re.search(r'<[^>]*class="[^"]*\bsearch-mode-toggle\b[^"]*"[^>]*>', search_block_markup)
@@ -190,6 +192,29 @@ def test_layout_css_defines_compact_desktop_search_mode_toggle_contract():
     assert 'background:' in active_button_css
     assert 'border-color: var(--action-border);' in active_button_css
     assert 'color: var(--action-text);' in active_button_css
+
+
+def test_layout_css_flattens_header_search_type_and_focus_states():
+    layout_css = read_project_file('static/css/modules/layout.css')
+
+    search_shell_block = re.search(r'\.header-search-container\s*\{([^}]*)\}', layout_css)
+    search_icon_block = re.search(r'\.header-search-icon\s*\{([^}]*)\}', layout_css)
+    search_type_block = re.search(r'\.search-type-inline\s*\{([^}]*)\}', layout_css)
+    search_trigger_block = re.search(r'\.search-type-select \.icon-select-trigger\s*\{([^}]*)\}', layout_css)
+
+    assert search_shell_block is not None
+    assert search_icon_block is not None
+    assert search_type_block is not None
+    assert search_trigger_block is not None
+
+    assert 'height: 38px;' in search_shell_block.group(1)
+    assert 'border-radius: 0.75rem;' in search_shell_block.group(1)
+    assert 'border-right: 1px solid var(--border-subtle);' in search_icon_block.group(1)
+    assert 'border-right: none;' in search_type_block.group(1)
+    assert 'height: 2rem;' in search_trigger_block.group(1)
+    assert 'border: 1px solid transparent;' in search_trigger_block.group(1)
+    assert '.header-search-container .search-input:focus,' in layout_css
+    assert 'box-shadow: none !important;' in layout_css
 
 
 def test_card_grid_source_and_template_use_windowed_slice_contracts():
