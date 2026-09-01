@@ -3759,43 +3759,42 @@
           :title="skinGalleryPreviewPath"
           x-text="skinGalleryPreviewName"
         ></span>
-        <div class="skin-gallery-preview-actions">
-          <div
-            x-show="skinGalleryPreviewItems.length > 1"
-            class="skin-gallery-preview-nav-group"
-            aria-label="皮肤图片导航"
-          >
-            <button
-              type="button"
-              class="skin-gallery-preview-nav"
-              :disabled="!canNavigateSkinGalleryPreview(-1)"
-              @click.stop="navigateSkinGalleryPreview(-1)"
-              title="上一张皮肤"
-              aria-label="上一张皮肤"
-            >
-              {{ icon('chevron-right', 'ui-icon--sm rotate-180') }}
-            </button>
-            <button
-              type="button"
-              class="skin-gallery-preview-nav"
-              :disabled="!canNavigateSkinGalleryPreview(1)"
-              @click.stop="navigateSkinGalleryPreview(1)"
-              title="下一张皮肤"
-              aria-label="下一张皮肤"
-            >
-              {{ icon('chevron-right', 'ui-icon--sm') }}
-            </button>
-          </div>
-          <button
-            type="button"
-            @click="closeSkinGalleryPreview()"
-            class="ui-close-button skin-gallery-close"
-            title="关闭图片预览"
-            aria-label="关闭图片预览"
-          >
-            {{ icon('close', 'ui-icon--sm') }}
-          </button>
-        </div>
+        <button
+          type="button"
+          @click="closeSkinGalleryPreview()"
+          class="ui-close-button skin-gallery-preview-close"
+          title="关闭图片预览"
+          aria-label="关闭图片预览"
+        >
+          {{ icon('close', 'ui-icon--sm') }}
+        </button>
+      </div>
+      <div
+        x-show="skinGalleryPreviewItems.length > 1"
+        class="skin-gallery-preview-navigation"
+        role="group"
+        aria-label="皮肤图片导航"
+      >
+        <button
+          type="button"
+          class="skin-gallery-preview-nav skin-gallery-preview-nav--previous"
+          :disabled="!canNavigateSkinGalleryPreview(-1)"
+          @click.stop="navigateSkinGalleryPreview(-1)"
+          title="上一张皮肤"
+          aria-label="上一张皮肤"
+        >
+          {{ icon('chevron-right', 'ui-icon--sm rotate-180') }}
+        </button>
+        <button
+          type="button"
+          class="skin-gallery-preview-nav skin-gallery-preview-nav--next"
+          :disabled="!canNavigateSkinGalleryPreview(1)"
+          @click.stop="navigateSkinGalleryPreview(1)"
+          title="下一张皮肤"
+          aria-label="下一张皮肤"
+        >
+          {{ icon('chevron-right', 'ui-icon--sm') }}
+        </button>
       </div>
       <img
         :src="skinGalleryPreviewUrl"
@@ -3821,43 +3820,42 @@
         :title="mainImagePreviewName"
         x-text="mainImagePreviewName"
       ></span>
-      <div class="skin-gallery-preview-actions">
-        <div
-          x-show="mainImagePreviewItems.length > 1"
-          class="skin-gallery-preview-nav-group"
-          aria-label="角色卡图片导航"
-        >
-          <button
-            type="button"
-            class="skin-gallery-preview-nav"
-            :disabled="!canNavigateMainImagePreview(-1)"
-            @click.stop="navigateMainImagePreview(-1)"
-            title="上一张图片"
-            aria-label="上一张图片"
-          >
-            {{ icon('chevron-right', 'ui-icon--sm rotate-180') }}
-          </button>
-          <button
-            type="button"
-            class="skin-gallery-preview-nav"
-            :disabled="!canNavigateMainImagePreview(1)"
-            @click.stop="navigateMainImagePreview(1)"
-            title="下一张图片"
-            aria-label="下一张图片"
-          >
-            {{ icon('chevron-right', 'ui-icon--sm') }}
-          </button>
-        </div>
-        <button
-          type="button"
-          @click="closeMainImagePreview()"
-          class="ui-close-button skin-gallery-close"
-          title="关闭图片预览"
-          aria-label="关闭图片预览"
-        >
-          {{ icon('close', 'ui-icon--sm') }}
-        </button>
-      </div>
+      <button
+        type="button"
+        @click="closeMainImagePreview()"
+        class="ui-close-button skin-gallery-preview-close"
+        title="关闭图片预览"
+        aria-label="关闭图片预览"
+      >
+        {{ icon('close', 'ui-icon--sm') }}
+      </button>
+    </div>
+    <div
+      x-show="mainImagePreviewItems.length > 1"
+      class="skin-gallery-preview-navigation"
+      role="group"
+      aria-label="角色卡图片导航"
+    >
+      <button
+        type="button"
+        class="skin-gallery-preview-nav skin-gallery-preview-nav--previous"
+        :disabled="!canNavigateMainImagePreview(-1)"
+        @click.stop="navigateMainImagePreview(-1)"
+        title="上一张图片"
+        aria-label="上一张图片"
+      >
+        {{ icon('chevron-right', 'ui-icon--sm rotate-180') }}
+      </button>
+      <button
+        type="button"
+        class="skin-gallery-preview-nav skin-gallery-preview-nav--next"
+        :disabled="!canNavigateMainImagePreview(1)"
+        @click.stop="navigateMainImagePreview(1)"
+        title="下一张图片"
+        aria-label="下一张图片"
+      >
+        {{ icon('chevron-right', 'ui-icon--sm') }}
+      </button>
     </div>
     <img
       :src="mainImagePreviewUrl"
