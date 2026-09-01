@@ -110,6 +110,10 @@ export default function detailModal() {
 
         // 界面控制
         isSaving: false,
+        isSendingToST: false,
+        detailLoading: false,
+        detailLoadError: '',
+        detailRequestToken: 0,
         isCardFlipped: false,
         zoomLevel: 100,
         altIdx: 0,
@@ -392,6 +396,15 @@ export default function detailModal() {
                 return value.trim().length > 0;
             }
             return value !== null && value !== undefined && value !== false;
+        },
+
+        get hasUnsavedChanges() {
+            if (!this.originalDataJson || !this.editingData) return false;
+            try {
+                return JSON.stringify(this.editingData) !== this.originalDataJson;
+            } catch (_) {
+                return false;
+            }
         },
 
         get hasAlternateGreetings() {
@@ -889,6 +902,39 @@ export default function detailModal() {
             this.ensureVisibleDetailTab();
         },
 
+        requestClose(event = null) {
+            // Nested overlays own Escape first. This guard keeps a gallery or
+            // field preview from bubbling the same keypress to the workbench.
+            if (event?.defaultPrevented) return false;
+            if (this.showHelpModal) {
+                this.showHelpModal = false;
+                return false;
+            }
+            if (this.personaPreviewField) {
+                this.closePersonaPreview();
+                return false;
+            }
+            if (this.skinGalleryPreviewPath) {
+                this.closeSkinGalleryPreview();
+                return false;
+            }
+            if (this.showSkinGallery) {
+                this.closeSkinGallery();
+                return false;
+            }
+            if (this.showSetResourceFolderModal) {
+                this.showSetResourceFolderModal = false;
+                return false;
+            }
+            if (this.isSaving) {
+                this.$store?.global?.showToast?.('正在保存，请稍候再关闭', 2200, 'loader-circle');
+                return false;
+            }
+            if (this.hasUnsavedChanges && !confirm('当前角色卡还有未保存修改，确定关闭吗？')) return false;
+            this.showDetail = false;
+            return true;
+        },
+
         get filteredTagLibraryPool() {
             const pool = Array.isArray(this.$store?.global?.globalTagsPool)
                 ? this.$store.global.globalTagsPool
@@ -1097,6 +1143,9 @@ export default function detailModal() {
                     this.isCardFlipped = false;
                     this.skinImages = [];
                     this.cardChats = [];
+                    this.detailLoading = false;
+                    this.detailLoadError = '';
+                    this.isSendingToST = false;
                     this.updateImagePolicy = 'overwrite';
                     this.syncSourceTitleOnUpdate = this.$store?.global?.settingsForm?.sync_source_title_on_update !== false;
                     this.sourceUpdateChecking = false;
@@ -1549,6 +1598,7 @@ export default function detailModal() {
         },
 
         openChatManagerForCard(chatId = '') {
+            if (this.showDetail && !this.requestClose()) return;
             const targetCardId = this.activeCard?.is_bundle ? (this.activeCard.bundle_dir || this.activeCard.id) : this.activeCard.id;
             window.dispatchEvent(new CustomEvent('open-chat-manager', {
                 detail: {
@@ -1557,11 +1607,11 @@ export default function detailModal() {
                     chat_id: chatId || '',
                 }
             }));
-            this.showDetail = false;
         },
 
         openChatReaderForCard(chatId = '') {
             if (!chatId) return;
+            if (this.showDetail && !this.requestClose()) return;
             window.dispatchEvent(new CustomEvent('open-chat-reader', {
                 detail: {
                     chat_id: chatId,
@@ -1569,7 +1619,6 @@ export default function detailModal() {
                     card_name: this.editingData.char_name || this.activeCard.char_name || '',
                 }
             }));
-            this.showDetail = false;
         },
 
         triggerChatImportForCard() {
@@ -1593,6 +1642,7 @@ export default function detailModal() {
 
         // 跳转定位
         locateCard() {
+            if (this.showDetail && !this.requestClose()) return;
             const locateTarget = {
                 id: this.activeCard.id,
                 category: this.activeCard.category,
@@ -1602,7 +1652,6 @@ export default function detailModal() {
             };
             // 派发事件，由 cardGrid.js 监听处理
             window.dispatchEvent(new CustomEvent('locate-card', { detail: locateTarget }));
-            this.showDetail = false; // 关闭详情页
         },
 
         // 打开所在文件夹
@@ -1677,7 +1726,10 @@ export default function detailModal() {
             // 重置状态
             this.stopAutoSave();
             this._cleanupPendingAdvancedEditorHandlers();
+            this.detailRequestToken += 1;
             this.originalDataJson = null;
+            this.detailLoading = true;
+            this.detailLoadError = '';
             this.activeCard = c;
             this.syncSourceTitleOnUpdate = this.$store?.global?.settingsForm?.sync_source_title_on_update !== false;
             this.sourceUpdateChecking = false;
@@ -1770,6 +1822,7 @@ export default function detailModal() {
 
             // 显示模态框
             this.showDetail = true;
+            this.$nextTick(() => this.$refs?.detailDialog?.focus?.());
 
             // 加载资源
             if (c.resource_folder) this.fetchSkins(c.resource_folder);
@@ -1781,9 +1834,17 @@ export default function detailModal() {
 
         // 刷新当前卡片数据 (从后端)
         refreshActiveCardDetail(cardId) {
-            if (!cardId) return;
+            const requestToken = ++this.detailRequestToken;
+            if (!cardId) {
+                this.detailLoading = false;
+                this.detailLoadError = '缺少角色卡标识，无法载入最新详情';
+                return;
+            }
+
+            this.detailLoadError = '';
             
             getCardDetail(cardId).then(res => {
+                if (requestToken !== this.detailRequestToken || !this.showDetail) return;
                 if (res.success && res.card) {
                     let safeCard = res.card;
                     
@@ -1874,6 +1935,17 @@ export default function detailModal() {
                         // 2. 启动计时器
                         this.startAutoSave();
                     });
+                }
+            }).catch(error => {
+                if (requestToken !== this.detailRequestToken) return;
+                this.detailLoading = false;
+                this.detailLoadError = error?.message || '角色卡详情载入失败';
+                if (this.showDetail) {
+                    this.$store?.global?.showToast?.(this.detailLoadError, 3200, 'close');
+                }
+            }).finally(() => {
+                if (requestToken === this.detailRequestToken && this.showDetail && (this.activeCard?.id === cardId || this.editingData?.id === cardId)) {
+                    this.detailLoading = false;
                 }
             });
         },
@@ -2569,9 +2641,11 @@ export default function detailModal() {
         },
 
         sendToST() {
+            if (this.isSendingToST) return;
             const btn = document.getElementById('btn-send-st');
             const label = btn?.querySelector('.detail-send-st-label');
             if (label) label.textContent = '发送中...';
+            this.isSendingToST = true;
             
             sendToSillyTavern(this.activeCard.id)
                 .then(res => {
@@ -2581,7 +2655,11 @@ export default function detailModal() {
                     }
                     else this.$store.global.showToast("发送失败: " + res.msg, 2600, "close");
                 })
+                .catch(error => {
+                    this.$store.global.showToast(error?.message || '发送失败', 2600, 'close');
+                })
                 .finally(() => {
+                    this.isSendingToST = false;
                     if (label) label.textContent = '发送到 ST';
                 });
         },

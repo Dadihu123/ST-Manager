@@ -7,11 +7,21 @@
   x-show="showDetail"
   x-data="detailModal"
   x-cloak
-  class="modal-overlay ui-modal-overlay ui-refresh-surface ui-detail-modal z-modal-std"
-  @click.self="showDetail=false"
+  class="modal-overlay ui-modal-overlay ui-refresh-surface ui-detail-modal detail-card-overlay z-modal-std"
+  @click.self="requestClose()"
+    @keydown.escape.window="requestClose($event)"
 >
-  <div class="detail-modal detail-icon-scope" role="dialog" aria-modal="true"
-    aria-label="角色卡详情" @click.stop>
+  <div
+    class="detail-modal detail-icon-scope detail-modal--workbench"
+    x-ref="detailDialog"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="detail-modal-title"
+    aria-describedby="detail-modal-context"
+    aria-label="角色卡详情"
+    tabindex="-1"
+    @click.stop
+  >
     <!-- 左侧外悬浮：SKINS（不遮挡图片） -->
     <div
       class="detail-filmstrip-outside custom-scrollbar"
@@ -28,8 +38,9 @@
         @click="currentSkinIndex=-1"
         class="detail-thumb"
         :class="currentSkinIndex === -1 ? 'active-main' : ''"
+        aria-label="显示主图"
       >
-        <img :src="activeCard.image_url" alt="Main" />
+        <img :src="activeCard.image_url" alt="角色卡主图" />
         <span class="detail-thumb-label">Main</span>
       </button>
 
@@ -39,6 +50,7 @@
         @click="goToSkinParentDirectory()"
         class="detail-thumb detail-thumb--nav"
         title="返回上一级"
+        aria-label="返回皮肤上一级目录"
       >
         <div class="detail-thumb-symbol">
           {{ detail_icon('arrow-up-left', 'ui-icon--sm') }}
@@ -55,6 +67,7 @@
             @dblclick.stop="enterSkinDirectory(item.path)"
             class="detail-thumb detail-thumb--folder"
             :title="item.path"
+            :aria-label="'打开皮肤目录：' + item.name"
           >
             <div class="detail-thumb-symbol">
               {{ sidebar_icon('folder-solid', 'ui-icon--md') }}
@@ -71,13 +84,14 @@
             class="detail-thumb"
             :class="isSkinPathSelected(item.path) ? 'active-skin' : ''"
             :title="item.path"
+            :aria-label="'显示皮肤：' + item.name"
           >
             <!-- 使用 getSkinUrl 函数，并添加 x-show 确保 URL 有效才渲染 -->
             <img
               :src="getSkinUrl(item.path)"
               x-show="getSkinUrl(item.path)"
               loading="lazy"
-              alt="Skin"
+              alt="角色卡皮肤"
               onerror="this.style.display = 'none'"
             />
             <span
@@ -102,6 +116,29 @@
                     }"
         @mouseleave="isPanning=false"
       >
+        <div class="detail-visual-header">
+          <div class="detail-visual-heading">
+            {{ sidebar_icon('character-cards', 'ui-icon--md') }}
+            <div class="detail-visual-copy">
+              <span class="detail-kicker">Portrait Preview</span>
+              <span
+                class="detail-visual-name"
+                x-text="editingData.char_name || activeCard.char_name || '未命名角色'"
+              ></span>
+            </div>
+          </div>
+          <span
+            class="detail-visual-state"
+            :class="activeCard.is_bundle ? 'is-bundle' : ''"
+            role="status"
+            aria-live="polite"
+          >
+            <span class="detail-status-dot" aria-hidden="true"></span>
+            <span
+              x-text="isCardFlipped ? '元数据预览' : (isSaving ? '正在保存' : (hasUnsavedChanges ? '待保存' : (activeCard.is_bundle ? '角色包' : '已同步')))"
+            ></span>
+          </span>
+        </div>
         <!-- 图片视口 -->
         <div class="detail-image-area">
           <!-- 图片滚动容器 -->
@@ -148,9 +185,11 @@
                 >
               </div>
               <button
+                type="button"
                 @click="isCardFlipped=false"
                 class="btn-secondary detail-icon-btn--borderless"
                 style="padding: 0.25rem 0.75rem; font-size: 0.75rem"
+                aria-label="返回图片预览"
               >
                 {{ detail_icon('image', 'ui-icon--sm') }}
                 <span>返回图片</span>
@@ -166,67 +205,31 @@
           <div class="detail-left-toolbar">
             <button
               x-show="!isCardFlipped"
+              type="button"
               @click.stop="flipCard()"
               class="btn-secondary detail-icon-btn"
               title="查看元数据"
+              aria-label="查看角色卡原始元数据"
             >
               {{ detail_icon('metadata', 'ui-icon--sm') }}
             </button>
 
             <button
               x-show="!isCardFlipped"
+              type="button"
               @click.stop="triggerImageUpload()"
               class="btn-secondary detail-icon-btn"
               title="更换图片"
+              aria-label="更换角色卡图片"
             >
               {{ detail_icon('image-replace', 'ui-icon--sm') }}
             </button>
 
-            <!-- 移动端：编辑模式开关按钮 -->
-            <button
-              x-show="$store.global.deviceType === 'mobile' && !isCardFlipped"
-              @click="toggleEditMode()"
-              class="btn-secondary detail-icon-btn detail-close-mobile detail-icon-btn--borderless"
-              :class="isEditMode ? 'active' : ''"
-              :title="isEditMode ? '切换到阅览模式' : '切换到编辑模式'"
-            >
-              <span x-show="!isEditMode">{{ detail_icon('book-read', 'ui-icon--sm') }}</span>
-              <span x-show="isEditMode">{{ detail_icon('edit-mode', 'ui-icon--sm') }}</span>
-            </button>
-            <!-- 移动端：快照按钮（在图片区域右上角） -->
-            <button
-              x-show="$store.global.deviceType === 'mobile' && !isCardFlipped"
-              @click="createSnapshot('card')"
-              class="btn-secondary detail-icon-btn detail-close-mobile"
-              title="快照"
-            >
-              {{ icon('snapshot', 'ui-icon--sm') }}
-            </button>
-            <!-- 移动端：保存按钮（在图片区域右上角） -->
-            <button
-              x-show="$store.global.deviceType === 'mobile' && !isCardFlipped"
-              @click="saveChanges()"
-              :disabled="isSaving"
-              class="btn-secondary detail-icon-btn detail-close-mobile"
-              title="保存卡片"
-            >
-              <span x-show="!isSaving">{{ icon('book-save', 'ui-icon--sm') }}</span>
-              <span x-show="isSaving">{{ icon('loader-circle', 'ui-icon--sm ui-icon--spin') }}</span>
-            </button>
-            <!-- 移动端：关闭按钮（在图片区域右上角） -->
-            <button
-              x-show="$store.global.deviceType === 'mobile' && !isCardFlipped"
-              @click.stop="showDetail=false"
-              class="btn-secondary detail-icon-btn detail-close-mobile detail-icon-btn--borderless"
-              title="关闭"
-            >
-              {{ icon('close', 'ui-icon--sm') }}
-            </button>
           </div>
 
           <!-- 缩放条（底部悬浮） -->
           <div x-show="!isCardFlipped" class="detail-zoombar">
-            <button @click.stop="modifyZoom(-20)" class="detail-zoom-btn">
+            <button type="button" @click.stop="modifyZoom(-20)" class="detail-zoom-btn" aria-label="缩小图片" title="缩小图片">
               {{ detail_icon('collapse', 'ui-icon--sm') }}
             </button>
 
@@ -237,19 +240,22 @@
               step="10"
               x-model.number="zoomLevel"
               class="detail-zoom-range"
+              aria-label="图片缩放比例"
               @click.stop
             />
 
-            <button @click.stop="modifyZoom(20)" class="detail-zoom-btn">
+            <button type="button" @click.stop="modifyZoom(20)" class="detail-zoom-btn" aria-label="放大图片" title="放大图片">
               {{ detail_icon('maximize', 'ui-icon--sm') }}
             </button>
 
             <span class="detail-zoom-text" x-text="zoomLevel + '%'"></span>
 
             <button
+              type="button"
               @click.stop="zoomLevel=100"
               class="detail-zoom-reset"
               title="重置"
+              aria-label="重置图片缩放"
             >
               {{ detail_icon('reset', 'ui-icon--sm') }}
             </button>
@@ -260,7 +266,7 @@
         <div
           x-show="!isCardFlipped && activeCard.is_bundle"
           @wheel.prevent="$el.scrollLeft += $event.deltaY"
-          class="detail-versions custom-scrollbar flex items-center px-4 overflow-x-auto color-surface-scrim-soft border-t color-border-subtle"
+          class="detail-versions custom-scrollbar flex items-center px-4 overflow-x-auto color-surface-container border-t color-border-subtle"
         >
           <div class="detail-versions-title mr-2">VERSIONS</div>
 
@@ -269,6 +275,11 @@
               class="detail-version-thumb-btn group relative"
               :class="editingData.id === ver.id ? 'active' : ''"
               @click="switchVersion(ver.id)"
+              @keydown.enter.prevent="switchVersion(ver.id)"
+              @keydown.space.prevent="switchVersion(ver.id)"
+              role="button"
+              tabindex="0"
+              :aria-label="'切换到版本：' + getVersionName(ver.filename)"
             >
               <!-- 缩略图 -->
               <img
@@ -280,9 +291,11 @@
 
               <!-- 设为封面按钮 (仅在非当前首图时显示，或者一直显示供调整) -->
               <button
+                type="button"
                 @click.stop="setAsBundleCover(ver.id)"
                 class="detail-version-set-cover"
                 title="设为最新/封面 (更新时间)"
+                :aria-label="'将版本设为封面：' + getVersionName(ver.filename)"
               >
                 {{ detail_icon('cover-image', 'ui-icon--xs') }}
               </button>
@@ -311,45 +324,33 @@
         <!-- 顶部栏：标题 / token / 快捷操作 -->
         <header
           class="detail-topbar"
-          x-show="$store.global.deviceType !== 'mobile'"
         >
-          <!-- 桌面端：关闭按钮 -->
-          <button
-            @click="showDetail=false"
-            class="btn-secondary detail-close-floating detail-icon-btn--borderless"
-            title="关闭"
-          >
-            {{ icon('close', 'ui-icon--sm') }}
-          </button>
-          <!-- 桌面端：编辑模式开关 (位于关闭按钮左侧) -->
-          <button
-            @click="toggleEditMode()"
-            class="btn-secondary detail-edit-mode-floating detail-icon-btn--borderless"
-            :class="isEditMode ? 'active' : ''"
-            :title="isEditMode ? '切换到阅览模式' : '切换到编辑模式'"
-          >
-            <span x-show="!isEditMode">{{ detail_icon('book-read', 'ui-icon--sm') }}</span>
-            <span x-show="isEditMode">{{ detail_icon('edit-mode', 'ui-icon--sm') }}</span>
-          </button>
-          <!-- 桌面端：帮助按钮 (位于编辑按钮左侧) -->
-          <button
-            @click="showHelpModal=true"
-            class="btn-secondary detail-help-floating detail-icon-btn--borderless"
-            title="查看帮助指南"
-          >
-            {{ icon('settings-help-entry', 'ui-icon--sm') }}
-          </button>
-
-          <div class="detail-title-block">
+          <div class="detail-topbar-info">
+            <div class="detail-title-block">
+            <div class="detail-workbench-eyebrow" id="detail-modal-context">
+              <span>CHARACTER CARD</span>
+              <span x-show="activeCard.is_bundle" class="detail-workbench-badge">
+                {{ icon('package', 'ui-icon--xs') }}
+                <span>Bundle</span>
+              </span>
+            </div>
             <div class="detail-title-row">
               <div class="detail-title-label">角色名称</div>
 
-              <!-- 名称 -->
               <div class="detail-title-inline">
+                <h1
+                  id="detail-modal-title"
+                  x-show="!isEditMode"
+                  class="detail-title-heading"
+                  x-text="editingData.char_name || activeCard.char_name || '未命名角色'"
+                ></h1>
                 <input
+                  x-show="isEditMode"
                   type="text"
                   x-model="editingData.char_name"
                   class="detail-title-input"
+                  aria-label="角色名称"
+                  placeholder="未命名角色"
                 />
               </div>
             </div>
@@ -367,6 +368,7 @@
                   type="text"
                   x-model="editingData.creator"
                   placeholder="未知创作者"
+                  aria-label="创作者"
                   class="bg-transparent border-b border-dashed border-[var(--border-default)] text-xs text-[var(--content-secondary)] focus:border-[var(--accent-action)] focus:text-[var(--content-primary)] outline-none transition-colors w-full max-w-[150px] py-0.5"
                 />
                 <!-- 阅览模式：只读显示 -->
@@ -394,6 +396,7 @@
                   type="text"
                   x-model="editingData.character_version"
                   placeholder="版本号"
+                  aria-label="角色版本"
                   class="bg-transparent border-b border-dashed border-[var(--border-default)] text-xs text-[var(--content-secondary)] focus:border-[var(--accent-action)] focus:text-[var(--content-primary)] outline-none transition-colors w-full max-w-[120px] py-0.5"
                 />
                 <!-- 阅览模式：只读显示 -->
@@ -416,6 +419,7 @@
                   type="text"
                   x-model="editingData.source_link"
                   placeholder="来源链接 (http://...)"
+                  aria-label="来源链接"
                   class="detail-link-input text-xs w-full"
                 />
                 <a
@@ -428,33 +432,67 @@
                 >
               </div>
             </div>
+            </div>
+
+            <!-- 桌面端：Token 显示 -->
+            <div class="topbar-token" title="预估 Token（含世界书）">
+              <span class="topbar-token-label">Tokens</span>
+              <span
+                class="topbar-token-value text-neon"
+                :class="getTopbarTokenLevelClass(totalTokenCount)"
+                x-text="totalTokenCount"
+              ></span>
+            </div>
+
+            <div
+              class="topbar-token border-r-0 pl-3 ml-2 border-l border-[var(--border-default)]"
+              title="最后修改时间"
+            >
+              <span class="topbar-token-label">Last Modified</span>
+              <span
+                class="text-xs font-mono font-bold text-neon"
+                style="color: var(--content-primary)"
+                x-text="formatDate(activeCard.last_modified)"
+              ></span>
+            </div>
           </div>
 
-          <!-- 桌面端：Token 显示 -->
-          <div class="topbar-token" title="预估 Token（含世界书）">
-            <span class="topbar-token-label">Tokens</span>
-            <span
-              class="topbar-token-value text-neon"
-              :class="getTopbarTokenLevelClass(totalTokenCount)"
-              x-text="totalTokenCount"
-            ></span>
-          </div>
-
-          <div
-            class="topbar-token border-r-0 pl-3 ml-2 border-l border-[var(--border-default)]"
-            title="最后修改时间"
-          >
-            <span class="topbar-token-label">Last Modified</span>
-            <span
-              class="text-xs font-mono font-bold text-neon"
-              style="color: var(--content-primary)"
-              x-text="formatDate(activeCard.last_modified)"
-            ></span>
-          </div>
-
-          <div class="detail-top-actions">
-            <div class="detail-actions-row">
+          <div class="detail-topbar-actions" aria-label="角色卡详情操作">
+            <div class="detail-topbar-action-row detail-topbar-action-row--icon">
               <button
+                type="button"
+                @click="showHelpModal=true"
+                class="btn-secondary detail-icon-btn--borderless detail-topbar-icon-action detail-topbar-help-action"
+                title="查看帮助指南"
+                aria-label="查看角色卡字段说明"
+              >
+                {{ icon('settings-help-entry', 'ui-icon--sm') }}
+              </button>
+              <button
+                type="button"
+                @click="toggleEditMode()"
+                class="btn-secondary detail-icon-btn--borderless detail-topbar-icon-action detail-topbar-edit-action"
+                :class="isEditMode ? 'active' : ''"
+                :title="isEditMode ? '切换到阅览模式' : '切换到编辑模式'"
+                :aria-label="isEditMode ? '切换到阅览模式' : '切换到编辑模式'"
+              >
+                <span x-show="!isEditMode">{{ detail_icon('book-read', 'ui-icon--sm') }}</span>
+                <span x-show="isEditMode">{{ detail_icon('edit-mode', 'ui-icon--sm') }}</span>
+              </button>
+              <button
+                type="button"
+                @click="requestClose()"
+                class="btn-secondary detail-icon-btn--borderless detail-topbar-icon-action detail-topbar-close-action"
+                title="关闭"
+                aria-label="关闭角色卡详情"
+              >
+                {{ icon('close', 'ui-icon--sm') }}
+              </button>
+            </div>
+
+            <div class="detail-topbar-action-row detail-topbar-action-row--primary">
+              <button
+                type="button"
                 @click="createSnapshot('card')"
                 @contextmenu.prevent="createKeySnapshot('card')"
                 class="btn-secondary detail-action-btn detail-snapshot-btn"
@@ -465,10 +503,12 @@
               </button>
 
               <button
+                type="button"
                 @click="saveChanges()"
                 :disabled="isSaving"
+                :aria-busy="isSaving.toString()"
                 class="btn-primary detail-action-btn detail-save-btn"
-                title="保存更改"
+                title="保存角色卡更改"
               >
                 <span x-show="!isSaving">{{ icon('book-save', 'ui-icon--sm') }}</span>
                 <span x-show="isSaving">{{ icon('loader-circle', 'ui-icon--sm ui-icon--spin') }}</span>
@@ -485,7 +525,6 @@
         <!-- 二级：资源目录条（更清晰） -->
         <div
           class="detail-resourcebar"
-          x-show="$store.global.deviceType !== 'mobile'"
         >
           <div class="detail-resource-left">
             <div class="detail-resource-title inline-flex items-center gap-1">
@@ -507,6 +546,7 @@
 
           <div class="detail-resource-actions">
             <button
+              type="button"
               @click="openResourceFolder()"
               x-show="editingData.resource_folder"
               class="btn-secondary detail-mini-btn"
@@ -516,6 +556,7 @@
               <span>浏览</span>
             </button>
             <button
+              type="button"
               @click="createResourceFolder()"
               x-show="!editingData.resource_folder"
               class="btn-secondary detail-mini-btn"
@@ -525,6 +566,7 @@
               <span>创建</span>
             </button>
             <button
+              type="button"
               @click="showSetResourceFolderModal=true"
               class="btn-secondary detail-mini-btn"
               title="设置资源目录"
@@ -535,11 +577,17 @@
           </div>
         </div>
 
-        <!-- Tab 栏 -->
-        <nav class="detail-tabs">
+        <div class="detail-workbench-body">
+          <!-- Tab 栏：桌面端为分区导航，窄屏保持横向可滚动 -->
+          <nav class="detail-tabs" aria-label="角色卡详情分区" role="tablist">
           <button
             x-show="$store.global.deviceType === 'mobile'"
+            type="button"
             class="detail-tab"
+            id="detail-tab-info"
+            role="tab"
+            aria-controls="detail-panel-info"
+            :aria-selected="(tab === 'info').toString()"
             :class="tab==='info' ? 'active' : ''"
             @click="tab='info'"
           >
@@ -547,7 +595,12 @@
             <span class="tab-text">信息</span>
           </button>
           <button
+            type="button"
             class="detail-tab"
+            id="detail-tab-basic"
+            role="tab"
+            aria-controls="detail-panel-basic"
+            :aria-selected="(tab === 'basic').toString()"
             :class="tab==='basic' ? 'active' : ''"
             @click="tab='basic'"
           >
@@ -556,48 +609,83 @@
           </button>
           <button
             x-show="hasPersonaFields"
+            type="button"
             class="detail-tab"
+            id="detail-tab-persona"
+            role="tab"
+            aria-controls="detail-panel-persona"
+            :aria-selected="(tab === 'persona').toString()"
             :class="tab==='persona' ? 'active' : ''"
             @click="tab='persona'"
           >
             <span class="tab-icon">{{ detail_icon('persona', 'ui-icon--xs') }}</span>
             <span class="tab-text">设定</span>
+            <span class="detail-tab-meta" x-text="personaFilledFieldCount + '/5'"></span>
           </button>
           <button
             x-show="hasDialogFields"
+            type="button"
             class="detail-tab"
+            id="detail-tab-dialog"
+            role="tab"
+            aria-controls="detail-panel-dialog"
+            :aria-selected="(tab === 'dialog').toString()"
             :class="tab==='dialog' ? 'active' : ''"
             @click="syncDialogState(); tab='dialog'"
           >
             <span class="tab-icon">{{ detail_icon('dialog', 'ui-icon--xs') }}</span>
             <span class="tab-text">对话</span>
+            <span class="detail-tab-meta" x-text="dialogPageCount"></span>
           </button>
           <button
+            type="button"
             class="detail-tab"
+            id="detail-tab-tags"
+            role="tab"
+            aria-controls="detail-panel-tags"
+            :aria-selected="(tab === 'tags').toString()"
             :class="tab==='tags' ? 'active' : ''"
             @click="tab='tags'"
           >
             <span class="tab-icon">{{ detail_icon('tags', 'ui-icon--xs') }}</span>
             <span class="tab-text">标签</span>
+            <span class="detail-tab-meta" x-text="editingData.tags?.length || 0"></span>
           </button>
           <button
+            type="button"
             class="detail-tab"
+            id="detail-tab-wi"
+            role="tab"
+            aria-controls="detail-panel-wi"
+            :aria-selected="(tab === 'wi').toString()"
             :class="tab==='wi' ? 'active' : ''"
             @click="tab='wi'"
           >
             <span class="tab-icon wi-worldbook-tab-icon">{{ detail_icon('book-open', 'ui-icon--sm') }}</span>
             <span class="tab-text">世界书</span>
+            <span class="detail-tab-meta" x-text="getWorldInfoCount()"></span>
           </button>
           <button
+            type="button"
             class="detail-tab"
+            id="detail-tab-chats"
+            role="tab"
+            aria-controls="detail-panel-chats"
+            :aria-selected="(tab === 'chats').toString()"
             :class="tab==='chats' ? 'active' : ''"
             @click="tab='chats'"
           >
             <span class="tab-icon">{{ detail_icon('chat-bubble', 'ui-icon--xs') }}</span>
             <span class="tab-text">聊天</span>
+            <span class="detail-tab-meta" x-text="cardChats.length"></span>
           </button>
           <button
+            type="button"
             class="detail-tab"
+            id="detail-tab-manage"
+            role="tab"
+            aria-controls="detail-panel-manage"
+            :aria-selected="(tab === 'manage').toString()"
             :class="tab==='manage' ? 'active' : ''"
             @click="tab='manage'"
           >
@@ -605,19 +693,62 @@
             <span class="tab-text">管理</span>
           </button>
           <button
+            type="button"
             class="detail-tab"
+            id="detail-tab-resources"
+            role="tab"
+            aria-controls="detail-panel-resources"
+            :aria-selected="(tab === 'resources').toString()"
             :class="tab==='resources' ? 'active' : ''"
             @click="tab='resources'"
           >
             <span class="tab-icon">{{ detail_icon('resources', 'ui-icon--xs') }}</span>
             <span class="tab-text">资源</span>
+            <span
+              class="detail-tab-meta"
+              x-text="resourceLorebooks.length + resourceRegex.length + resourceScripts.length + resourceQuickReplies.length + resourcePresets.length + resourceUnknown.length"
+            ></span>
           </button>
-        </nav>
+          </nav>
 
-        <!-- 内容区（滚动） -->
-        <div class="detail-content custom-scrollbar">
-          <!-- 信息 -->
-          <section x-show="tab==='info'">
+          <!-- 内容区：详情页唯一主滚动容器 -->
+          <div class="detail-content custom-scrollbar">
+            <div
+              x-show="detailLoading"
+              class="detail-loading-banner"
+              role="status"
+              aria-live="polite"
+            >
+              {{ icon('loader-circle', 'ui-icon--sm ui-icon--spin') }}
+              <span>正在同步角色卡详情…</span>
+            </div>
+            <div
+              x-show="detailLoadError"
+              class="detail-error-banner"
+              role="alert"
+            >
+              <span class="detail-error-banner-copy">
+                {{ icon('close', 'ui-icon--sm') }}
+                <span x-text="detailLoadError"></span>
+              </span>
+              <button
+                type="button"
+                class="detail-error-retry"
+                @click="refreshActiveCardDetail(activeCard.id)"
+                aria-label="重新载入角色卡详情"
+              >
+                {{ icon('refresh', 'ui-icon--sm') }}
+                <span>重试</span>
+              </button>
+            </div>
+            <!-- 信息 -->
+          <section
+            x-show="tab==='info'"
+            id="detail-panel-info"
+            role="tabpanel"
+            aria-labelledby="detail-tab-info"
+            tabindex="0"
+          >
             <div class="detail-title-block">
               <div class="detail-title-row">
                 <div class="detail-title-label">角色名称</div>
@@ -740,6 +871,10 @@
             x-show="tab==='basic'"
             x-transition.opacity
             class="detail-section detail-section-fill detail-section-mobile-stack"
+            id="detail-panel-basic"
+            role="tabpanel"
+            aria-labelledby="detail-tab-basic"
+            tabindex="0"
           >
             <div class="detail-tab-scroll custom-scrollbar">
               <div class="detail-card">
@@ -753,8 +888,11 @@
                   </div>
                   <div class="detail-card-actions">
                     <button
+                      type="button"
                       class="expand-btn"
                       @click="openLargeEditor('ui_summary','本地备注')"
+                      aria-label="放大编辑本地备注"
+                      title="放大编辑本地备注"
                     >
                       {{ detail_icon('expand', 'ui-icon--sm') }}
                     </button>
@@ -802,8 +940,11 @@
                 <div class="detail-card-head">
                   <div class="detail-card-title">原简介 (Description)</div>
                   <button
+                    type="button"
                     class="expand-btn"
                     @click="openLargeEditor('description','原简介')"
+                    aria-label="放大编辑原简介"
+                    title="放大编辑原简介"
                   >
                     {{ detail_icon('expand', 'ui-icon--sm') }}
                   </button>
@@ -838,6 +979,10 @@
             x-show="tab==='persona' && hasPersonaFields"
             x-transition.opacity
             class="detail-section detail-section-fill detail-section-mobile-stack detail-persona-section"
+            id="detail-panel-persona"
+            role="tabpanel"
+            aria-labelledby="detail-tab-persona"
+            tabindex="0"
           >
             <div class="detail-tab-scroll custom-scrollbar detail-persona-scroll">
               <div class="detail-persona-toolbar">
@@ -1218,6 +1363,10 @@
             x-show="tab==='dialog' && hasDialogFields"
             x-transition.opacity
             class="detail-section detail-section-fill detail-section-mobile-stack"
+            id="detail-panel-dialog"
+            role="tabpanel"
+            aria-labelledby="detail-tab-dialog"
+            tabindex="0"
           >
             <div class="detail-tab-scroll custom-scrollbar detail-dialog-scroll">
               <div
@@ -1269,6 +1418,7 @@
                       class="expand-btn"
                       @click="openSelectedGreetingEditor()"
                       :title="'放大编辑：' + selectedGreetingTitle"
+                      :aria-label="'放大编辑：' + selectedGreetingTitle"
                     >
                       {{ detail_icon('expand', 'ui-icon--sm') }}
                     </button>
@@ -1279,6 +1429,7 @@
                         :class="!showGreetingPreview ? 'active' : ''"
                         @click="showGreetingPreview=false"
                         x-text="isEditMode ? '编辑' : '阅览'"
+                        :aria-label="isEditMode ? '编辑开场白' : '阅览开场白'"
                       ></button>
                       <button
                         type="button"
@@ -1399,7 +1550,7 @@
                             x-show="isEditMode"
                             aria-hidden="true"
                             title="拖拽调整备用开场白顺序"
-                          >⋮⋮</span>
+                            >{{ icon('menu-bold', 'ui-icon--xs') }}</span>
                         </span>
                         <span class="detail-greeting-card-excerpt" x-text="getGreetingExcerpt(item.value)"></span>
                         <span
@@ -1417,14 +1568,17 @@
                       class="btn-primary detail-greeting-manage-btn"
                       @click="addAlt()"
                     >
-                      ＋ 新增备用
+                      {{ icon('plus-square', 'ui-icon--sm') }}
+                      <span>新增备用</span>
                     </button>
                     <button
                       type="button"
                       class="btn-secondary detail-greeting-manage-btn detail-greeting-manage-btn--danger"
                       :disabled="!canRemoveSelectedAlternate"
                       @click="removeSelectedAlternate()"
+                      aria-label="移除当前备用开场白"
                     >
+                      {{ icon('close', 'ui-icon--sm') }}
                       删除备用
                     </button>
                   </div>
@@ -1513,6 +1667,10 @@
             x-show="tab==='tags'"
             x-transition.opacity
             class="detail-section detail-section-fill detail-section-tags"
+            id="detail-panel-tags"
+            role="tabpanel"
+            aria-labelledby="detail-tab-tags"
+            tabindex="0"
           >
             <div class="detail-tab-scroll custom-scrollbar">
               <div class="detail-card detail-tags-card">
@@ -1521,9 +1679,11 @@
 
                   <div class="detail-card-actions">
                     <button
+                      type="button"
                       @click="openTagPicker()"
                       class="btn-secondary detail-mini-btn"
                       :title="showTagLibrary ? '收起标签库' : '展开标签库'"
+                      :aria-label="showTagLibrary ? '收起标签库' : '展开标签库'"
                     >
                       {{ sidebar_icon('tag-library', 'ui-icon--sm') }}
                       <span
@@ -1542,8 +1702,14 @@
                         :title="$store.global.settingsForm.automation_slash_is_tag_separator ? '支持输入多个标签，使用逗号(,)、斜杠(/)或管道符(|)分隔' : '支持输入多个标签，使用逗号(,)或管道符(|)分隔'"
                         class="detail-inline-text"
                       />
-                      <button @click="addTag()" class="detail-inline-add">
-                        +
+                      <button
+                        type="button"
+                        @click="addTag()"
+                        class="detail-inline-add"
+                        aria-label="添加标签"
+                        title="添加标签"
+                      >
+                        {{ icon('plus-square', 'ui-icon--sm') }}
                       </button>
                     </div>
                   </div>
@@ -1585,9 +1751,10 @@
 
                   <div
                     x-show="!editingData.tags || editingData.tags.length===0"
-                    class="detail-muted"
+                    class="detail-empty-state"
                   >
-                    暂无标签...
+                    <span class="detail-empty-state-icon" aria-hidden="true">{{ detail_icon('tags', 'ui-icon--sm') }}</span>
+                    <span>暂无标签</span>
                   </div>
                 </div>
 
@@ -1684,7 +1851,7 @@
                             <span
                               x-show="editingData.tags && editingData.tags.includes(tag)"
                               style="margin-left: 0.4rem; font-weight: bold"
-                              >+</span
+                      >{{ icon('check', 'ui-icon--xs') }}</span
                             >
                           </button>
                         </template>
@@ -1730,7 +1897,7 @@
                                       margin-left: 0.4rem;
                                       font-weight: bold;
                                     "
-                                    >+</span
+                                    >{{ icon('check', 'ui-icon--xs') }}</span
                                   >
                                 </button>
                               </template>
@@ -1757,6 +1924,10 @@
             x-show="tab==='wi'"
             x-transition.opacity
             class="detail-section detail-section-fill"
+            id="detail-panel-wi"
+            role="tabpanel"
+            aria-labelledby="detail-tab-wi"
+            tabindex="0"
           >
             <div class="detail-tab-scroll custom-scrollbar">
               <!-- 直接复用现有 WI 容器与内部逻辑（未删任何方法/字段） -->
@@ -1950,15 +2121,21 @@
 
                           <div class="flex items-center gap-1" @click.stop>
                             <button
+                              type="button"
                               @click="removeWiEntry(entry)"
                               class="color-text-muted color-hover-text-danger p-1 rounded transition"
+                              aria-label="删除世界书条目"
+                              title="删除世界书条目"
                             >
                               {{ icon('trash', 'ui-icon--sm') }}
                             </button>
                             <button
+                              type="button"
                               @click="expanded = !expanded"
                               class="color-text-muted color-hover-text-accent p-1 transform transition-transform duration-200"
                               :class="expanded ? 'rotate-180' : ''"
+                              :aria-label="expanded ? '收起世界书条目' : '展开世界书条目'"
+                              :title="expanded ? '收起条目' : '展开条目'"
                             >
                               {{ icon('chevron-down', 'ui-icon--sm') }}
                             </button>
@@ -2059,10 +2236,12 @@
 
                     <div
                       x-show="getDefaultSortedWIEntries().length === 0"
-                      class="text-center py-8 color-text-muted border border-dashed color-border-default rounded-lg"
+                      class="detail-empty-state text-center py-8 color-text-muted border border-dashed color-border-default rounded-lg"
                     >
+                      <span class="detail-empty-state-icon" aria-hidden="true">{{ icon('book-closed', 'ui-icon--md') }}</span>
                       <p class="text-sm">暂无世界书条目</p>
                       <button
+                        type="button"
                         @click="addWiEntry()"
                         class="mt-2 text-xs color-text-accent hover:underline"
                       >
@@ -2073,9 +2252,11 @@
 
                   <div class="wi-raw-section" x-data="{ showRaw: false }">
                     <button
+                      type="button"
                       @click="showRaw = !showRaw; if(showRaw) editingData.character_book_raw = JSON.stringify(editingData.character_book, null, 2)"
                       class="text-[10px] underline flex items-center gap-1 transition-colors"
                       style="color: var(--content-muted)"
+                      :aria-label="showRaw ? '隐藏原始世界书 JSON' : '查看或编辑原始世界书 JSON'"
                     >
                       {{ icon('sliders-settings', 'ui-icon--sm') }}
                       <span
@@ -2088,6 +2269,7 @@
                         class="wi-raw-textarea w-full h-40 custom-scrollbar"
                       ></textarea>
                       <button
+                        type="button"
                         @click="if(applyCharacterBookJson()) showRaw=false"
                         class="btn-danger-xs"
                       >
@@ -2105,6 +2287,10 @@
             x-show="tab==='chats'"
             x-transition.opacity
             class="detail-section detail-section-fill"
+            id="detail-panel-chats"
+            role="tabpanel"
+            aria-labelledby="detail-tab-chats"
+            tabindex="0"
           >
             <div class="detail-tab-scroll custom-scrollbar p-4">
               <div class="detail-chat-panel">
@@ -2216,6 +2402,8 @@
                           class="detail-chat-favorite"
                           :class="chat.favorite ? 'is-active' : ''"
                           @click.stop="openChatReaderForCard(chat.id)"
+                          :aria-label="chat.favorite ? '打开已收藏聊天' : '打开聊天'"
+                          title="打开聊天"
                         >
                           {{ icon('heart', 'ui-icon--sm') }}
                         </button>
@@ -2258,6 +2446,10 @@
             x-show="tab==='manage'"
             x-transition.opacity
             class="detail-section custom-scrollbar"
+            id="detail-panel-manage"
+            role="tabpanel"
+            aria-labelledby="detail-tab-manage"
+            tabindex="0"
           >
             <div class="detail-manage-layout">
               <div class="detail-manage-meta-grid">
@@ -2572,12 +2764,18 @@
                           <span>URL 更新</span>
                         </button>
                         <button
+                          type="button"
                           id="btn-send-st"
                           @click="sendToST()"
+                          :disabled="isSendingToST"
+                          :aria-busy="isSendingToST.toString()"
+                          :aria-label="isSendingToST ? '正在发送到 ST' : '发送到 ST'"
+                          title="发送当前角色卡到 ST"
                           class="btn-update-card detail-manage-action-btn detail-manage-action-btn--st"
                         >
-                          {{ icon('send', 'ui-icon--lg') }}
-                          <span class="detail-send-st-label">发送到 ST</span>
+                          <span x-show="!isSendingToST">{{ icon('send', 'ui-icon--lg') }}</span>
+                          <span x-show="isSendingToST">{{ icon('loader-circle', 'ui-icon--lg ui-icon--spin') }}</span>
+                          <span class="detail-send-st-label" x-text="isSendingToST ? '发送中...' : '发送到 ST'"></span>
                         </button>
                         <button
                           x-show="!activeCard.is_bundle"
@@ -2656,6 +2854,10 @@
             x-show="tab==='resources'"
             x-transition.opacity
             class="detail-section detail-section-fill"
+            id="detail-panel-resources"
+            role="tabpanel"
+            aria-labelledby="detail-tab-resources"
+            tabindex="0"
           >
             <div class="detail-tab-scroll custom-scrollbar p-4">
               <div class="flex flex-col gap-4 h-full">
@@ -2678,6 +2880,11 @@
                   @dragleave.prevent="dragOverResource = false"
                   @drop.prevent="handleResourceDrop($event)"
                   @click="$refs.resourceFileInput.click()"
+                  @keydown.enter.prevent="$refs.resourceFileInput.click()"
+                  @keydown.space.prevent="$refs.resourceFileInput.click()"
+                  role="button"
+                  tabindex="0"
+                  aria-label="点击或拖拽导入资源文件"
                 >
                   <input
                     type="file"
@@ -2723,9 +2930,10 @@
 
                 <div
                   x-show="!editingData.resource_folder"
-                  class="rounded-xl border border-dashed border-[var(--border-default)] bg-[var(--surface-container-raised)]/60 px-4 py-3 text-xs text-[var(--content-muted)]"
+                  class="detail-resource-empty-note rounded-xl border border-dashed border-[var(--border-default)] bg-[var(--surface-container-raised)]/60 px-4 py-3 text-xs text-[var(--content-muted)]"
                 >
-                  当前还没有资源目录，先把第一个资源拖进来或点上面的导入框即可。创建完成后，下方会自动出现皮肤与其他资源面板。
+                  <span class="detail-empty-state-icon" aria-hidden="true">{{ icon('folder-resources', 'ui-icon--sm') }}</span>
+                  <span>当前还没有资源目录，先把第一个资源拖进来或点上面的导入框即可。创建完成后，下方会自动出现皮肤与其他资源面板。</span>
                 </div>
 
                 <!-- 2. 资源列表 (左右分栏，仅目录存在后显示) -->
@@ -2835,9 +3043,10 @@
                         </div>
                         <div
                           x-show="currentSkinItems.length === 0"
-                          class="h-full flex items-center justify-center text-[var(--content-muted)] text-xs italic"
+                          class="detail-empty-state h-full flex items-center justify-center text-[var(--content-muted)] text-xs italic"
                         >
-                          暂无图片
+                          <span class="detail-empty-state-icon" aria-hidden="true">{{ detail_icon('image', 'ui-icon--md') }}</span>
+                          <span>暂无图片</span>
                         </div>
                       </div>
 
@@ -2956,9 +3165,10 @@
                                 ></span>
                                 <button
                                   @click.stop="deleteResourceItem(file, '世界书')"
-                                  class="text-[10px] color-text-danger color-hover-text-danger"
+                                  class="detail-resource-remove color-text-danger color-hover-text-danger"
+                                  aria-label="删除世界书"
                                   title="删除世界书"
-                                >删除</button>
+                                >{{ icon('close', 'ui-icon--xs') }}</button>
                               </div>
                               <span
                                 class="text-[10px] text-[var(--content-muted)] opacity-0 group-hover:opacity-100"
@@ -2968,9 +3178,10 @@
                           </template>
                           <div
                             x-show="resourceLorebooks.length === 0"
-                            class="text-[10px] text-[var(--content-muted)] text-center py-2 italic"
+                            class="detail-resource-empty text-[10px] text-[var(--content-muted)] text-center py-2 italic"
                           >
-                            无文件
+                            {{ icon('file', 'ui-icon--xs') }}
+                            <span>无文件</span>
                           </div>
                         </div>
                       </div>
@@ -3006,9 +3217,10 @@
                                 ></span>
                                 <button
                                   @click.stop="deleteResourceItem(file, '正则脚本')"
-                                  class="text-[10px] color-text-danger color-hover-text-danger"
+                                  class="detail-resource-remove color-text-danger color-hover-text-danger"
+                                  aria-label="删除正则脚本"
                                   title="删除正则脚本"
-                                >删除</button>
+                                >{{ icon('close', 'ui-icon--xs') }}</button>
                               </div>
                               <span
                                 class="text-[10px] text-[var(--content-muted)] opacity-0 group-hover:opacity-100"
@@ -3018,9 +3230,10 @@
                           </template>
                           <div
                             x-show="resourceRegex.length === 0"
-                            class="text-[10px] text-[var(--content-muted)] text-center py-2 italic"
+                            class="detail-resource-empty text-[10px] text-[var(--content-muted)] text-center py-2 italic"
                           >
-                            无文件
+                            {{ icon('file', 'ui-icon--xs') }}
+                            <span>无文件</span>
                           </div>
                         </div>
                       </div>
@@ -3056,9 +3269,10 @@
                                 ></span>
                                 <button
                                   @click.stop="deleteResourceItem(file, '扩展脚本')"
-                                  class="text-[10px] color-text-danger color-hover-text-danger"
+                                  class="detail-resource-remove color-text-danger color-hover-text-danger"
+                                  aria-label="删除扩展脚本"
                                   title="删除扩展脚本"
-                                >删除</button>
+                                >{{ icon('close', 'ui-icon--xs') }}</button>
                               </div>
                               <span
                                 class="text-[10px] text-[var(--content-muted)] opacity-0 group-hover:opacity-100"
@@ -3068,9 +3282,10 @@
                           </template>
                           <div
                             x-show="resourceScripts.length === 0"
-                            class="text-[10px] text-[var(--content-muted)] text-center py-2 italic"
+                            class="detail-resource-empty text-[10px] text-[var(--content-muted)] text-center py-2 italic"
                           >
-                            无文件
+                            {{ icon('file', 'ui-icon--xs') }}
+                            <span>无文件</span>
                           </div>
                         </div>
                       </div>
@@ -3106,9 +3321,10 @@
                                 ></span>
                                 <button
                                   @click.stop="deleteResourceItem(file, '快速回复')"
-                                  class="text-[10px] color-text-danger color-hover-text-danger"
+                                  class="detail-resource-remove color-text-danger color-hover-text-danger"
+                                  aria-label="删除快速回复"
                                   title="删除快速回复"
-                                >删除</button>
+                                >{{ icon('close', 'ui-icon--xs') }}</button>
                               </div>
                               <span
                                 class="text-[10px] text-[var(--content-muted)] opacity-0 group-hover:opacity-100"
@@ -3118,9 +3334,10 @@
                           </template>
                           <div
                             x-show="resourceQuickReplies.length === 0"
-                            class="text-[10px] text-[var(--content-muted)] text-center py-2 italic"
+                            class="detail-resource-empty text-[10px] text-[var(--content-muted)] text-center py-2 italic"
                           >
-                            无文件
+                            {{ icon('file', 'ui-icon--xs') }}
+                            <span>无文件</span>
                           </div>
                         </div>
                       </div>
@@ -3156,9 +3373,10 @@
                                 ></span>
                                 <button
                                   @click.stop="deleteResourceItem(file, '预设')"
-                                  class="text-[10px] color-text-danger color-hover-text-danger"
+                                  class="detail-resource-remove color-text-danger color-hover-text-danger"
+                                  aria-label="删除预设"
                                   title="删除预设"
-                                >删除</button>
+                                >{{ icon('close', 'ui-icon--xs') }}</button>
                               </div>
                               <span
                                 class="text-[10px] text-[var(--content-muted)] opacity-0 group-hover:opacity-100"
@@ -3168,9 +3386,10 @@
                           </template>
                           <div
                             x-show="resourcePresets.length === 0"
-                            class="text-[10px] text-[var(--content-muted)] text-center py-2 italic"
+                            class="detail-resource-empty text-[10px] text-[var(--content-muted)] text-center py-2 italic"
                           >
-                            无文件
+                            {{ icon('file', 'ui-icon--xs') }}
+                            <span>无文件</span>
                           </div>
                         </div>
                       </div>
@@ -3207,16 +3426,18 @@
                               </div>
                               <button
                                 @click.stop="deleteResourceItem(file, '未知资源')"
-                                class="text-[10px] color-text-danger color-hover-text-danger opacity-0 group-hover:opacity-100"
-                                title="删除未知资源"
-                              >删除</button>
+                                 class="detail-resource-remove color-text-danger color-hover-text-danger opacity-0 group-hover:opacity-100"
+                                 aria-label="删除未知资源"
+                                 title="删除未知资源"
+                               >{{ icon('close', 'ui-icon--xs') }}</button>
                             </div>
                           </template>
                           <div
                             x-show="resourceUnknown.length === 0"
-                            class="text-[10px] text-[var(--content-muted)] text-center py-2 italic"
+                            class="detail-resource-empty text-[10px] text-[var(--content-muted)] text-center py-2 italic"
                           >
-                            无文件
+                            {{ icon('file', 'ui-icon--xs') }}
+                            <span>无文件</span>
                           </div>
                         </div>
                       </div>
@@ -3227,7 +3448,9 @@
             </div>
           </section>
           <div style="height: 1rem"></div>
+          </div>
         </div>
+
       </section>
     </div>
   </div>
@@ -3235,9 +3458,10 @@
     x-show="personaPreviewField"
     x-cloak
     class="detail-persona-preview-overlay"
+    data-detail-nested-overlay
     role="presentation"
     @click.self="closePersonaPreview()"
-    @keydown.escape.window="closePersonaPreview()"
+    @keydown.escape.window.prevent="closePersonaPreview()"
   >
     <section
       class="detail-persona-preview-dialog"
@@ -3294,12 +3518,12 @@
             class="detail-persona-preview-btn detail-persona-preview-btn--secondary"
             x-show="isEditMode"
             @click="editPersonaPreview()"
-          >编辑字段</button>
+          >{{ icon('pencil-edit', 'ui-icon--sm') }}<span>编辑字段</span></button>
           <button
             type="button"
             class="detail-persona-preview-btn detail-persona-preview-btn--primary"
             @click="closePersonaPreview()"
-          >关闭</button>
+          >{{ icon('close', 'ui-icon--sm') }}<span>关闭</span></button>
         </div>
       </footer>
     </section>
@@ -3308,6 +3532,7 @@
     x-show="showSkinGallery"
     x-cloak
     class="skin-gallery-overlay"
+    data-detail-nested-overlay
     @click.self="closeSkinGallery()"
     @keydown.window="handleSkinGalleryKeydown($event)"
   >
@@ -3369,6 +3594,7 @@
               class="skin-gallery-tile skin-gallery-tile--folder"
               @click="enterSkinDirectory(item.path); closeSkinGalleryPreview()"
               :title="item.path"
+              :aria-label="'打开皮肤目录：' + item.name"
             >
               <span class="skin-gallery-folder-symbol">
                 {{ sidebar_icon('folder-solid', 'ui-icon--lg') }}
@@ -3382,6 +3608,7 @@
               :class="isSkinPathSelected(item.path) ? 'selected' : ''"
               @click="openSkinGalleryPreview(item.path)"
               :title="item.path"
+              :aria-label="'预览皮肤：' + item.name"
             >
               <img
                 :src="getSkinUrl(item.path)"
@@ -3397,6 +3624,7 @@
           x-show="currentSkinItems.length === 0"
           class="skin-gallery-empty"
         >
+          {{ detail_icon('image', 'ui-icon--md') }}
           当前目录暂无图片
         </div>
       </div>
@@ -3435,6 +3663,7 @@
     x-show="showSetResourceFolderModal"
     x-cloak
     class="modal-overlay ui-modal-overlay ui-refresh-surface z-[1000]"
+    data-detail-nested-overlay
     style="position: absolute"
     @click.stop
   >
@@ -3457,12 +3686,16 @@
         />
         <div class="ui-small-dialog-actions">
           <button
+            type="button"
             @click="showSetResourceFolderModal = false"
             class="btn-secondary flex-1"
+            aria-label="取消设置资源目录"
           >
+            {{ icon('close', 'ui-icon--sm') }}
             取消
           </button>
           <button
+            type="button"
             @click="setResourceFolder(); showSetResourceFolderModal = false;"
             class="btn-primary flex-1 rounded"
           >
@@ -3486,7 +3719,9 @@
     x-transition:leave-start="opacity-100 scale-100"
     x-transition:leave-end="opacity-0 scale-95"
     class="detail-icon-scope ui-refresh-surface fixed inset-0 z-modal-popover flex items-center justify-center color-surface-scrim backdrop-blur-sm p-4 md:p-8"
+    data-detail-nested-overlay
     @click.self="showHelpModal = false"
+    @keydown.escape.window.prevent="showHelpModal = false"
   >
     <div
       class="ui-modal-shell w-full max-w-4xl max-h-[90vh]"
