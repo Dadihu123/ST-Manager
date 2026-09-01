@@ -1826,3 +1826,50 @@
     transform: none;
   }
 }
+
+/* Settings navigation follows the detail workbench's borderless selected
+   state. Desktop settings are a vertical rail; the compact layout below is
+   a horizontal two-row shelf and therefore uses a bottom marker. This block
+   intentionally lives at the end because ui-refresh.css is loaded after
+   modal-settings.css. */
+.settings-nav-item.is-active,
+.settings-nav-item.is-active:hover {
+  width: calc(100% + 4px);
+  border-color: transparent;
+  background: var(--action-surface);
+  color: var(--action-text);
+  box-shadow: inset 3px 0 0 var(--accent-action);
+  transform: translateX(-4px);
+}
+
+.settings-nav-item.is-active:focus-visible {
+  width: calc(100% + 4px);
+  border-color: transparent;
+  background: var(--action-surface);
+  color: var(--action-text);
+  box-shadow: var(--state-focus-shadow), inset 3px 0 0 var(--accent-action);
+  transform: translateX(-4px);
+}
+
+.settings-nav-item.is-active .settings-nav-icon {
+  color: var(--action-icon);
+}
+
+@media (max-width: 768px) {
+  .settings-modal-overlay .settings-nav-item.is-active,
+  .settings-modal-overlay .settings-nav-item.is-active:hover {
+    width: 100%;
+    border-color: transparent;
+    background: var(--action-surface);
+    box-shadow: inset 0 -2px 0 var(--accent-action);
+    transform: none;
+  }
+
+  .settings-modal-overlay .settings-nav-item.is-active:focus-visible {
+    width: 100%;
+    border-color: transparent;
+    background: var(--action-surface);
+    box-shadow: var(--state-focus-shadow), inset 0 -2px 0 var(--accent-action);
+    transform: none;
+  }
+}

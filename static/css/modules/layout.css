@@ -4314,3 +4314,66 @@ html.light-mode .header-favorite-btn.is-excluded .header-favorite-icon::after {
   overflow-x: hidden;
   overflow-y: auto;
 }
+
+/* Directional navigation states ------------------------------------------
+ * Keep selected navigation visually open like the detail workbench tabs:
+ * transparent borders, a semantic surface, and an accent projected toward
+ * the direction in which the navigation is laid out. */
+.sidebar-module-menu-item.is-active,
+.sidebar-module-menu-item.is-active:hover,
+.sidebar-module-menu-item.is-active:focus-visible,
+.sidebar-filter-option.is-active,
+.sidebar-filter-option.is-active:hover,
+.sidebar-filter-option.is-active:focus-visible,
+.sidebar-category-root.is-active,
+.sidebar-category-root.is-active:hover,
+.sidebar .folder-item.active,
+.sidebar .folder-item.active:hover,
+.sidebar .folder-item.active.folder-item--isolated,
+.sidebar .folder-item.active.folder-item--isolated:hover {
+  border-color: transparent;
+}
+
+.sidebar-module-menu-item.is-active {
+  box-shadow: inset 0 -2px 0 var(--sidebar-active-border);
+}
+
+.sidebar-filter-option.is-active {
+  box-shadow: inset 3px 0 0 var(--sidebar-filter-color);
+}
+
+.sidebar-category-root.is-active {
+  box-shadow: inset 3px 0 0 var(--sidebar-source-all);
+}
+
+.sidebar .folder-item.active,
+.sidebar .folder-item.active.folder-item--isolated {
+  box-shadow: inset 3px 0 0 var(--action-border-hover);
+}
+
+.card-advanced-filter-nav-btn.is-active,
+.card-advanced-filter-nav-btn.is-active:hover,
+.card-advanced-filter-nav-btn.is-active:focus-visible {
+  width: calc(100% + 4px);
+  border-color: transparent;
+  background: var(--action-surface);
+  color: var(--action-text);
+  box-shadow: inset 3px 0 0 var(--accent-action);
+  transform: translateX(-4px);
+}
+
+.card-advanced-filter-nav-btn.is-active:focus-visible {
+  box-shadow: var(--state-focus-shadow), inset 3px 0 0 var(--accent-action);
+}
+
+/* The filter workbench becomes a horizontal shelf below the tablet
+   breakpoint, so its active marker changes to the bottom edge. */
+@media (max-width: 56.25rem) {
+  .card-advanced-filter-nav-btn.is-active,
+  .card-advanced-filter-nav-btn.is-active:hover,
+  .card-advanced-filter-nav-btn.is-active:focus-visible {
+    width: auto;
+    transform: none;
+    box-shadow: var(--state-focus-shadow), inset 0 -2px 0 var(--accent-action);
+  }
+}

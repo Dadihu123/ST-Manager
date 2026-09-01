@@ -4508,3 +4508,52 @@ html.light-mode .preview-toggle-inactive {
     animation: none !important;
   }
 }
+
+/* Tag workbench navigation uses the same directional active language as the
+   detail workbench: horizontal mode tabs project downward, while the help
+   table of contents remains a quiet vertical rail with a left marker. */
+.tag-filter-workspace-top-tabs-nav > .tag-filter-workspace-top-tab.is-active,
+.tag-filter-workspace-top-tabs-nav > .tag-filter-workspace-top-tab.is-active:hover,
+.tag-filter-workspace-top-tabs-nav > .tag-filter-workspace-top-tab.is-active:focus-visible,
+.tag-filter-desktop-shell .tag-filter-workspace-top-tabs-nav > .tag-filter-workspace-top-tab.is-active,
+.tag-filter-desktop-shell .tag-filter-workspace-top-tabs-nav > .tag-filter-workspace-top-tab.is-active:hover,
+.tag-filter-desktop-shell .tag-filter-workspace-top-tabs-nav > .tag-filter-workspace-top-tab.is-active:focus-visible {
+  border-color: transparent;
+  background: var(--action-surface);
+  color: var(--action-text);
+  box-shadow: inset 0 -2px 0 var(--accent-action);
+  transform: none;
+}
+
+.tag-filter-workspace-top-tabs-nav > .tag-filter-workspace-top-tab.is-active:focus-visible,
+.tag-filter-desktop-shell .tag-filter-workspace-top-tabs-nav > .tag-filter-workspace-top-tab.is-active:focus-visible {
+  box-shadow: var(--state-focus-shadow), inset 0 -2px 0 var(--accent-action);
+}
+
+.tag-filter-workspace-help-nav-item.is-active,
+.tag-filter-workspace-help-nav-item.is-active:hover,
+.tag-filter-workspace-help-nav-item.is-active:focus-visible {
+  border-color: transparent;
+  background: var(--action-surface);
+  color: var(--action-text);
+  box-shadow: inset 3px 0 0 var(--accent-action);
+}
+
+.tag-filter-workspace-help-nav-item.is-active:focus-visible {
+  box-shadow: var(--state-focus-shadow), inset 3px 0 0 var(--accent-action);
+}
+
+.tag-filter-mobile-tabs button[aria-selected="true"],
+.tag-filter-mobile-tabs button[aria-selected="true"]:hover {
+  border-color: transparent;
+  background: var(--action-surface);
+  color: var(--action-text);
+  box-shadow: inset 0 -2px 0 var(--accent-action);
+}
+
+.tag-filter-mobile-tabs button[aria-selected="true"]:focus-visible {
+  border-color: transparent;
+  background: var(--action-surface);
+  color: var(--action-text);
+  box-shadow: var(--state-focus-shadow), inset 0 -2px 0 var(--accent-action);
+}
