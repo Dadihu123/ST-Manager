@@ -1303,6 +1303,7 @@ export default function detailModal() {
 
             // 监听关闭信号
             this.$watch('showDetail', (val) => {
+                document.body?.classList.toggle('detail-card-workbench-open', Boolean(val));
                 if (!val) {
                     this.stopAutoSave();
                     this._cleanupPendingAdvancedEditorHandlers();
