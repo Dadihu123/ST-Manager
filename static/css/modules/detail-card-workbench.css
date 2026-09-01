@@ -77,6 +77,7 @@
   gap: 0.75rem;
   justify-content: space-between;
   min-height: 4.25rem;
+  min-width: 0;
   padding: 0.85rem 1rem;
 }
 
@@ -89,8 +90,11 @@ html.light-mode .ui-detail-modal .detail-modal--workbench .detail-visual-header 
 .ui-detail-modal .detail-modal--workbench .detail-visual-heading {
   align-items: center;
   display: flex;
+  flex: 1 1 auto;
   gap: 0.65rem;
+  max-width: 100%;
   min-width: 0;
+  overflow: hidden;
 }
 
 .ui-detail-modal .detail-modal--workbench .detail-visual-heading > .detail-icon,
@@ -101,9 +105,12 @@ html.light-mode .ui-detail-modal .detail-modal--workbench .detail-visual-header 
 
 .ui-detail-modal .detail-modal--workbench .detail-visual-copy {
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
   gap: 0.18rem;
+  max-width: 100%;
   min-width: 0;
+  overflow: hidden;
 }
 
 .ui-detail-modal .detail-modal--workbench .detail-kicker {
@@ -117,8 +124,11 @@ html.light-mode .ui-detail-modal .detail-modal--workbench .detail-visual-header 
 
 .ui-detail-modal .detail-modal--workbench .detail-visual-name {
   color: var(--content-primary);
+  display: block;
   font-size: 0.9rem;
   font-weight: 700;
+  max-width: 100%;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -154,7 +164,7 @@ html.light-mode .ui-detail-modal .detail-modal--workbench .detail-visual-header 
 }
 
 .ui-detail-modal .detail-modal--workbench .detail-image-scroll {
-  align-items: center;
+  align-items: stretch;
   background:
     linear-gradient(135deg, var(--surface-container-sunken) 25%, transparent 25%) 0 0 / 1rem 1rem,
     linear-gradient(315deg, var(--surface-container-sunken) 25%, transparent 25%) 0 0 / 1rem 1rem,
@@ -169,7 +179,7 @@ html.light-mode .ui-detail-modal .detail-modal--workbench .detail-visual-header 
   min-width: 0;
   overflow: auto;
   overscroll-behavior: contain;
-  padding: clamp(1rem, 2vw, 2rem);
+  padding: 0;
   scrollbar-color: var(--scrollbar-thumb) transparent;
   scrollbar-width: thin;
 }
@@ -189,12 +199,14 @@ html.light-mode .ui-detail-modal .detail-modal--workbench .detail-visual-header 
 }
 
 .ui-detail-modal .detail-modal--workbench .detail-image {
-  align-self: center;
+  align-self: auto;
   display: block;
   flex: 0 0 auto;
   height: auto;
   max-height: none;
+  margin: auto;
   object-fit: contain;
+  transition: width 75ms linear;
   user-select: none;
 }
 
@@ -1318,6 +1330,7 @@ html.light-mode .ui-detail-modal .detail-modal--workbench .detail-visual-header 
 }
 
 .ui-detail-modal .detail-modal--workbench .detail-thumb {
+  aspect-ratio: 3 / 4;
   background: var(--surface-container-raised);
   border: 1px solid var(--border-default);
   border-radius: 0.55rem;
@@ -1326,9 +1339,10 @@ html.light-mode .ui-detail-modal .detail-modal--workbench .detail-visual-header 
   flex: 0 0 auto;
   flex-direction: column;
   gap: 0.15rem;
-  min-height: 3.95rem;
+  height: auto;
+  min-height: 0;
   overflow: hidden;
-  padding: 0.2rem;
+  padding: 0;
   width: 100%;
 }
 
@@ -1340,9 +1354,11 @@ html.light-mode .ui-detail-modal .detail-modal--workbench .detail-visual-header 
 
 .ui-detail-modal .detail-modal--workbench .detail-thumb img {
   background: var(--surface-media);
+  display: block;
   border-radius: 0.35rem;
-  height: 2.65rem;
+  height: 100%;
   object-fit: cover;
+  object-position: center;
   width: 100%;
 }
 
@@ -1362,6 +1378,11 @@ html.light-mode .ui-detail-modal .detail-modal--workbench .detail-visual-header 
   text-overflow: ellipsis;
   white-space: nowrap;
   width: 100%;
+}
+
+html.light-mode .ui-detail-modal .detail-modal--workbench .detail-thumb-label {
+  background: var(--surface-container-sunken);
+  color: var(--content-primary);
 }
 
 @media (max-width: 78rem) {
@@ -1428,7 +1449,7 @@ html.light-mode .ui-detail-modal .detail-modal--workbench .detail-visual-header 
   }
 
   .ui-detail-modal .detail-modal--workbench .detail-image-scroll {
-    padding: 0.75rem;
+    padding: 0;
   }
 
   .ui-detail-modal .detail-modal--workbench .detail-filmstrip-outside {
@@ -1686,4 +1707,733 @@ html.light-mode .ui-detail-modal .detail-modal--workbench .detail-visual-header 
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* -------------------------------------------------------------------------
+ * Content-space pass
+ *
+ * The workbench uses one generous reading surface. Tabs act as a compact
+ * navigation rail at the top, while only genuinely large collections keep a
+ * local scroll region. Field panels are deliberately flat so long-form text
+ * is not trapped inside card -> editor -> card layers.
+ * ------------------------------------------------------------------------- */
+
+.ui-detail-modal .detail-modal--workbench .detail-modal-inner {
+  grid-template-columns: minmax(15.5rem, 0.42fr) minmax(0, 1.58fr) !important;
+}
+
+.ui-detail-modal .detail-modal--workbench .detail-workbench-body {
+  display: flex !important;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.ui-detail-modal .detail-modal--workbench .detail-tabs {
+  align-content: center;
+  align-items: center;
+  background: var(--surface-container-raised);
+  border-bottom: 1px solid var(--border-divider);
+  border-right: 0;
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: row;
+  gap: 0.2rem;
+  max-width: 100%;
+  min-height: 3.2rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.42rem 0.85rem 0.35rem;
+  position: relative !important;
+  scrollbar-width: thin;
+  top: auto !important;
+}
+
+.ui-detail-modal .detail-modal--workbench .detail-tab {
+  border-color: transparent;
+  border-radius: 0.55rem;
+  flex: 0 0 auto;
+  justify-content: center;
+  min-height: 2.35rem;
+  min-width: max-content;
+  padding: 0.45rem 0.7rem;
+  position: relative;
+  width: auto;
+}
+
+.ui-detail-modal .detail-modal--workbench .detail-tab.active {
+  background: var(--action-surface);
+  border-color: transparent;
+  box-shadow: inset 0 -2px 0 var(--accent-action);
+}
+
+.ui-detail-modal .detail-modal--workbench .detail-content {
+  background: var(--surface-container);
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  padding: 0;
+}
+
+.ui-detail-modal .detail-modal--workbench .detail-content > section[role='tabpanel'] {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  height: auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.ui-detail-modal .detail-modal--workbench .detail-content .detail-tab-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: clamp(0.85rem, 1.35vw, 1.25rem) !important;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+  scrollbar-width: thin;
+}
+
+.ui-detail-modal .detail-modal--workbench .detail-content > section[role='tabpanel'] > .detail-tab-scroll {
+  min-height: 0;
+}
+
+/* Flat field panels: the editor/preview surface is the single visual frame. */
+.ui-detail-modal .detail-modal--workbench .detail-field-panel {
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  color: var(--content-primary);
+  min-width: 0;
+  padding: 0 !important;
+}
+
+.ui-detail-modal .detail-modal--workbench .detail-field-panel > .detail-card-head,
+.ui-detail-modal .detail-modal--workbench .detail-field-panel > .detail-dialog-card-head {
+  align-items: center;
+  flex: 0 0 auto;
+  margin: 0;
+  min-height: 2.75rem;
+  padding: 0 0 0.65rem;
+}
+
+.ui-detail-modal .detail-modal--workbench .detail-field-panel > .form-textarea,
+.ui-detail-modal .detail-modal--workbench .detail-field-panel > .detail-local-note-editor,
+.ui-detail-modal .detail-modal--workbench .detail-field-panel > .detail-render-box,
+.ui-detail-modal .detail-modal--workbench .detail-field-panel > .detail-dialog-grow-box {
+  margin: 0.75rem 0 0 !important;
+  max-width: none;
+  width: 100% !important;
+}
+
+/* Basic: give the note the primary column and the original description a
+   readable companion column. When the description is absent, the note uses
+   the full work surface instead of leaving an empty grid track. */
+.ui-detail-modal .detail-modal--workbench .detail-basic-scroll {
+  display: grid;
+  gap: clamp(0.9rem, 1.5vw, 1.2rem);
+  grid-auto-rows: minmax(18rem, 1fr);
+  grid-template-columns: minmax(0, 1.35fr) minmax(17rem, 0.85fr);
+  overflow-y: auto;
+}
+
+.ui-detail-modal .detail-modal--workbench .detail-basic-scroll:not(.has-description) {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.ui-detail-modal .detail-modal--workbench .detail-basic-scroll:not(.has-description) .detail-field-panel--note {
+  grid-column: 1 / -1;
+}
+
+.ui-detail-modal .detail-modal--workbench .detail-basic-scroll > .detail-field-panel + .detail-field-panel,
+.ui-detail-modal .detail-modal--workbench .detail-dialog-scroll > .detail-field-panel + .detail-field-panel {
+  margin-top: 0 !important;
+}
+
+.ui-detail-modal .detail-modal--workbench .detail-basic-scroll .detail-field-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 18rem;
+}
+
+.ui-detail-modal .detail-modal--workbench .detail-basic-scroll .detail-local-note-editor {
+  display: flex;
+  flex: 1 1 auto !important;
+  flex-direction: column;
+  min-height: 0 !important;
+}
+
+.ui-detail-modal .detail-modal--workbench .detail-basic-scroll .detail-local-note-editor > .form-textarea,
+.ui-detail-modal .detail-modal--workbench .detail-basic-scroll .detail-local-note-editor > .detail-local-note-preview-box {
+  flex: 1 1 auto !important;
+  height: auto !important;
+  margin: 0 !important;
+  min-height: 0 !important;
+  width: 100% !important;
+}
+
+.ui-detail-modal .detail-modal--workbench .detail-basic-scroll .detail-local-note-editor > .form-textarea,
+.ui-detail-modal .detail-modal--workbench .detail-basic-scroll .detail-local-note-preview-box,
+.ui-detail-modal .detail-modal--workbench .detail-basic-scroll .detail-field-panel--description > .form-textarea {
+  background: var(--form-surface) !important;
+  border-color: var(--form-border) !important;
+  border-radius: 0.7rem;
+  color: var(--content-primary) !important;
+}
+
+.ui-detail-modal .detail-modal--workbench .detail-basic-scroll .detail-local-note-preview-box {
+  background: var(--surface-container-sunken) !important;
+  border-color: var(--border-default) !important;
+}
+
+.ui-detail-modal .detail-modal--workbench .detail-basic-scroll .detail-field-panel--description > .form-textarea {
+  flex: 1 1 auto !important;
+  height: auto !important;
+  margin: 0.75rem 0 0 !important;
+  min-height: 0 !important;
+  resize: none;
+}
+
+/* Dialogue: the opening-message stage owns the height; the greeting picker is
+   a compact horizontal shelf beneath it. */
+.ui-detail-modal .detail-modal--workbench .detail-dialog-scroll {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.ui-detail-modal .detail-modal--workbench .detail-greeting-preview-card,
+.ui-detail-modal .detail-modal--workbench .detail-dialog-example-card {
+  display: flex;
+  flex: 1 1 auto !important;
+  flex-direction: column;
+  min-height: clamp(20rem, 48dvh, 38rem) !important;
+}
+
+.ui-detail-modal .detail-modal--workbench .detail-greeting-preview-card > .detail-dialog-grow-box,
+.ui-detail-modal .detail-modal--workbench .detail-dialog-example-card > .detail-dialog-grow-box {
+  flex: 1 1 auto !important;
+  height: auto !important;
+  margin: 0.75rem 0 0 !important;
+  min-height: 0 !important;
+  width: 100% !important;
+}
+
+.ui-detail-modal .detail-modal--workbench .detail-greeting-preview-card > .detail-dialog-grow-box.detail-first-message-preview-box,
+.ui-detail-modal .detail-modal--workbench .detail-greeting-preview-card > .detail-dialog-grow-box.detail-first-message-edit-box,
+.ui-detail-modal .detail-modal--workbench .detail-greeting-preview-card > .detail-dialog-grow-box.form-textarea,
+.ui-detail-modal .detail-modal--workbench .detail-dialog-example-card > .detail-dialog-grow-box {
+  background: var(--surface-container-sunken) !important;
+  border-color: var(--border-default) !important;
+  border-radius: 0.7rem;
+  color: var(--content-primary) !important;
+}
+
+.ui-detail-modal .detail-modal--workbench .detail-greeting-picker {
+  flex: 0 0 auto !important;
+  min-height: 0 !important;
+}
+
+.ui-detail-modal .detail-modal--workbench .detail-greeting-picker > .detail-greeting-selector-head {
+  min-height: 2.55rem;
+  padding-bottom: 0.55rem;
+}
+
+.ui-detail-modal .detail-modal--workbench .detail-greeting-picker .detail-greeting-selector-body {
+  align-items: center;
+  display: flex;
+  gap: 0.65rem;
+  min-height: 0;
+  padding: 0.65rem 0 0;
+}
+
+.ui-detail-modal .detail-modal--workbench .detail-greeting-picker .detail-greeting-rail {
+  display: flex;
+  flex: 1 1 auto;
+  gap: 0.5rem;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0 0 0.25rem;
+}
+
+.ui-detail-modal .detail-modal--workbench .detail-greeting-picker .detail-greeting-rail > .detail-greeting-card,
+.ui-detail-modal .detail-modal--workbench .detail-greeting-picker .detail-greeting-option {
+  flex: 0 0 min(17rem, 34vw);
+  min-width: 12rem;
+}
+
+.ui-detail-modal .detail-modal--workbench .detail-greeting-picker .detail-greeting-card {
+  min-height: 4.7rem;
+  padding: 0.6rem;
+}
+
+.ui-detail-modal .detail-modal--workbench .detail-greeting-picker .detail-greeting-manage--side {
+  align-items: center;
+  flex: 0 0 auto;
+  flex-direction: row;
+  min-width: 0;
+}
+
+.ui-detail-modal .detail-modal--workbench .detail-greeting-picker .detail-greeting-manage-btn {
+  min-height: 2.35rem;
+}
+
+/* Persona fields remain individually discoverable, but no longer reserve
+   three columns when only one or two fields contain data. */
+.ui-detail-modal .detail-modal--workbench .detail-persona-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr)) !important;
+  gap: 0.8rem;
+}
+
+.ui-detail-modal .detail-modal--workbench .detail-persona-card {
+  background: var(--surface-container-raised);
+  box-shadow: none;
+  height: auto !important;
+  min-height: clamp(15rem, 32vh, 22rem);
+}
+
+/* Collections keep their useful grouped surfaces, while their outer page
+   shell no longer becomes a second large card. */
+.ui-detail-modal .detail-modal--workbench #detail-panel-tags .detail-tags-card,
+.ui-detail-modal .detail-modal--workbench #detail-panel-chats .detail-chat-panel,
+.ui-detail-modal .detail-modal--workbench #detail-panel-wi .wi-container {
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
+.ui-detail-modal .detail-modal--workbench #detail-panel-tags .detail-tags-card > .detail-card-head,
+.ui-detail-modal .detail-modal--workbench #detail-panel-chats .detail-chat-panel-head {
+  padding: 0 0 0.7rem;
+}
+
+.ui-detail-modal .detail-modal--workbench #detail-panel-tags .detail-taglist {
+  padding: 0.75rem 0;
+}
+
+.ui-detail-modal .detail-modal--workbench #detail-panel-tags .detail-tag-library {
+  margin-top: 0.25rem;
+  padding: 0.85rem 0 0;
+}
+
+.ui-detail-modal .detail-modal--workbench #detail-panel-tags .detail-tag-library-cloud {
+  max-height: min(34rem, 60dvh) !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+}
+
+.ui-detail-modal .detail-modal--workbench #detail-panel-chats .detail-chat-grid {
+  padding: 0.85rem 0 0;
+}
+
+.ui-detail-modal .detail-modal--workbench #detail-panel-chats .detail-chat-dropzone {
+  margin-top: 0.85rem;
+}
+
+.ui-detail-modal .detail-modal--workbench #detail-panel-wi .wi-header {
+  background: transparent;
+  padding: 0 0 0.75rem;
+}
+
+.ui-detail-modal .detail-modal--workbench #detail-panel-wi .wi-content {
+  padding: 0.75rem 0 0;
+}
+
+.ui-detail-modal .detail-modal--workbench .detail-manage-layout {
+  gap: 1rem;
+  padding-bottom: 0;
+}
+
+.ui-detail-modal .detail-modal--workbench .detail-manage-layout > .detail-manage-panel {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0 0 1rem;
+}
+
+.ui-detail-modal .detail-modal--workbench .detail-manage-layout > .detail-manage-panel + .detail-manage-panel {
+  border-top: 1px solid var(--border-divider);
+  padding-top: 1rem;
+}
+
+/* Management has a denser, multi-panel surface than the other tabs. Keep its
+   scroll ownership local and give the panel grid a quiet inset from the tab
+   shell. The generic adjacent-card margin must not offset the right column. */
+.ui-detail-modal .detail-modal--workbench #detail-panel-manage {
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: clamp(0.85rem, 1.35vw, 1.25rem);
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+  scrollbar-width: thin;
+}
+
+.ui-detail-modal .detail-modal--workbench #detail-panel-manage .detail-manage-layout {
+  gap: clamp(0.9rem, 1.5vw, 1.2rem);
+  min-width: 0;
+  padding: 0;
+}
+
+.ui-detail-modal .detail-modal--workbench #detail-panel-manage .detail-manage-meta-grid,
+.ui-detail-modal .detail-modal--workbench #detail-panel-manage .detail-manage-main-grid {
+  align-items: stretch;
+  gap: clamp(0.9rem, 1.5vw, 1.2rem);
+}
+
+.ui-detail-modal .detail-modal--workbench #detail-panel-manage .detail-manage-meta-grid > .detail-manage-panel,
+.ui-detail-modal .detail-modal--workbench #detail-panel-manage .detail-manage-main-grid > .detail-manage-panel {
+  align-self: stretch;
+  margin-top: 0;
+}
+
+.ui-detail-modal .detail-modal--workbench #detail-panel-resources .detail-resource-layout {
+  gap: 0.9rem;
+}
+
+.ui-detail-modal .detail-modal--workbench #detail-panel-resources .detail-resource-grid {
+  gap: 0.9rem;
+}
+
+.ui-detail-modal .detail-modal--workbench #detail-panel-resources .detail-resource-empty-note {
+  margin: 0;
+}
+
+/* Keep the skin panel and its cover actions on the same vertical track as the
+   logical-resource column, leaving the thumbnail area to absorb the height. */
+.ui-detail-modal .detail-modal--workbench #detail-panel-resources .detail-resource-layout {
+  height: auto;
+  min-height: 100%;
+}
+
+.ui-detail-modal .detail-modal--workbench #detail-panel-resources .detail-resource-grid {
+  align-items: stretch;
+  align-self: stretch;
+  flex: 0 0 auto;
+  grid-auto-rows: max-content;
+  min-height: 0;
+}
+
+.ui-detail-modal .detail-modal--workbench #detail-panel-resources .detail-resource-skins-panel {
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  height: auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.ui-detail-modal .detail-modal--workbench #detail-panel-resources .detail-resource-skins-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.ui-detail-modal .detail-modal--workbench #detail-panel-resources .detail-resource-skins-footer {
+  flex: 0 0 auto;
+}
+
+.ui-detail-modal .detail-modal--workbench #detail-panel-resources .detail-resource-files-column {
+  align-self: stretch;
+  height: auto;
+  min-height: 0;
+  overflow-y: visible;
+}
+
+.ui-detail-modal .detail-modal--workbench #detail-panel-resources .detail-resource-skins-footer .btn-action-soft {
+  border-radius: 0.65rem;
+}
+
+/* Fullscreen browsing is a quiet icon action in the resource header. */
+.ui-detail-modal .detail-modal--workbench .skin-gallery-open-btn {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 999px;
+  box-shadow: none;
+  color: var(--content-secondary);
+  display: inline-flex;
+  height: 2.5rem;
+  justify-content: center;
+  min-height: 2.5rem;
+  min-width: 2.5rem;
+  padding: 0;
+  transition: background-color 0.15s ease, color 0.15s ease;
+  width: 2.5rem;
+}
+
+.ui-detail-modal .detail-modal--workbench .skin-gallery-open-btn:hover:not(:disabled) {
+  background: var(--state-hover-surface);
+  color: var(--accent-action);
+}
+
+.ui-detail-modal .detail-modal--workbench .skin-gallery-open-btn:focus-visible {
+  box-shadow: var(--state-focus-shadow);
+  outline: 0;
+}
+
+.ui-detail-modal .detail-modal--workbench .skin-gallery-open-btn:disabled {
+  background: transparent;
+  color: var(--content-disabled);
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+@media (max-width: 56.25rem) {
+  .ui-detail-modal .detail-modal--workbench .detail-modal-inner {
+    grid-template-columns: 1fr !important;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-basic-scroll {
+    display: grid;
+    grid-auto-rows: minmax(16rem, auto);
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-basic-scroll .detail-field-panel--note,
+  .ui-detail-modal .detail-modal--workbench .detail-basic-scroll .detail-field-panel--description {
+    grid-column: 1 / -1;
+    min-height: 16rem;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-greeting-preview-card,
+  .ui-detail-modal .detail-modal--workbench .detail-dialog-example-card {
+    min-height: clamp(16rem, 44dvh, 30rem) !important;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-greeting-picker .detail-greeting-selector-body {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-greeting-picker .detail-greeting-manage--side {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .ui-detail-modal .detail-modal--workbench #detail-panel-manage {
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+}
+
+@media (max-width: 30rem) {
+  .ui-detail-modal .detail-modal--workbench .detail-content .detail-tab-scroll {
+    padding: 0.7rem !important;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-tabs {
+    padding-inline: 0.55rem;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-tab {
+    padding-inline: 0.58rem;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-greeting-picker .detail-greeting-rail > .detail-greeting-card,
+  .ui-detail-modal .detail-modal--workbench .detail-greeting-picker .detail-greeting-option {
+    flex-basis: min(15rem, 76vw);
+    min-width: min(13rem, 76vw);
+  }
+}
+
+/* Keep the custom-tag field and its add action as one connected control. */
+.ui-detail-modal .detail-modal--workbench .detail-tag-add-input {
+  align-items: stretch;
+  background: var(--form-surface);
+  border: 1px solid var(--form-border);
+  border-radius: var(--ui-radius-sm, 0.55rem);
+  display: flex;
+  min-height: var(--ui-control-height-compact, 2.35rem);
+  overflow: hidden;
+}
+
+.ui-detail-modal .detail-modal--workbench .detail-tag-add-input:focus-within {
+  border-color: var(--form-border-focus);
+  box-shadow: var(--state-focus-shadow);
+}
+
+.ui-detail-modal .detail-modal--workbench .detail-tag-add-input > .detail-inline-text {
+  background: transparent;
+  border: 0;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  flex: 1 1 auto;
+  min-width: 0;
+  width: auto;
+}
+
+.ui-detail-modal .detail-modal--workbench .detail-tag-add-input > .detail-inline-add {
+  align-items: center;
+  background: var(--state-hover-surface);
+  border: 0;
+  border-left: 1px solid var(--border-divider);
+  border-radius: 0 !important;
+  display: inline-flex;
+  flex: 0 0 var(--ui-control-height-compact, 2.35rem);
+  justify-content: center;
+  min-height: var(--ui-control-height-compact, 2.35rem);
+  min-width: var(--ui-control-height-compact, 2.35rem);
+  padding: 0;
+}
+
+.ui-detail-modal .detail-modal--workbench .detail-tag-add-input > .detail-inline-add:hover {
+  background: var(--accent-soft-strong);
+}
+
+/* Keep dialogue paging readable without adding a second set of bordered
+   controls inside the content header. The hit areas remain generous, while
+   the SVGs are centered by the button rather than by text-line metrics. */
+.ui-detail-modal .detail-modal--workbench .detail-dialog-page-nav {
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.ui-detail-modal .detail-modal--workbench .detail-dialog-page-nav-btn,
+.ui-detail-modal .detail-modal--workbench .detail-dialog-page-status {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 999px;
+  box-shadow: none;
+  display: inline-flex;
+  justify-content: center;
+  line-height: 1;
+  min-height: 2.5rem;
+  min-width: 2.5rem;
+  padding: 0;
+  transition: background-color 0.18s ease, color 0.18s ease, transform 0.18s ease;
+}
+
+.ui-detail-modal .detail-modal--workbench .detail-dialog-page-nav-btn > .ui-icon,
+.ui-detail-modal .detail-modal--workbench .detail-dialog-page-status > .detail-dialog-page-count {
+  display: block;
+  flex: 0 0 auto;
+  line-height: 1;
+  margin: 0;
+}
+
+.ui-detail-modal .detail-modal--workbench .detail-dialog-page-status {
+  min-width: 2.75rem;
+  padding-inline: 0.45rem;
+}
+
+.ui-detail-modal .detail-modal--workbench .detail-dialog-page-nav-btn:hover:not(:disabled),
+.ui-detail-modal .detail-modal--workbench .detail-dialog-page-status:hover:not(:disabled) {
+  background: var(--state-hover-surface);
+  border: 0;
+  color: var(--content-primary);
+}
+
+.ui-detail-modal .detail-modal--workbench .detail-dialog-page-nav-btn:focus-visible,
+.ui-detail-modal .detail-modal--workbench .detail-dialog-page-status:focus-visible {
+  box-shadow: none;
+  outline: 2px solid var(--state-focus-ring);
+  outline-offset: 2px;
+}
+
+@media (max-width: 48rem) {
+  .ui-detail-modal .detail-modal--workbench .detail-dialog-page-nav-btn,
+  .ui-detail-modal .detail-modal--workbench .detail-dialog-page-status {
+    min-height: 2.75rem;
+    min-width: 2.75rem;
+  }
+}
+
+/* Basic field splitter: both field surfaces share one row, while the
+   transparent hit area keeps resizing discoverable without adding another
+   permanent border to the workbench. */
+.ui-detail-modal .detail-modal--workbench .detail-basic-scroll.has-description {
+  --detail-basic-min-left: 18rem;
+  --detail-basic-min-right: 17rem;
+  --detail-basic-divider-track: 0.75rem;
+  align-items: stretch;
+  grid-template-columns:
+    minmax(var(--detail-basic-min-left), var(--detail-basic-left-track, 1.35fr))
+    var(--detail-basic-divider-track)
+    minmax(var(--detail-basic-min-right), var(--detail-basic-right-track, 0.85fr));
+  overflow-x: hidden;
+}
+
+.ui-detail-modal .detail-modal--workbench .detail-basic-scroll.has-description > .detail-field-panel {
+  height: 100%;
+  min-width: 0;
+}
+
+.ui-detail-modal .detail-modal--workbench .detail-basic-scroll.has-description > .detail-field-panel > .detail-card-head {
+  min-height: 3.35rem;
+}
+
+.ui-detail-modal .detail-modal--workbench .detail-basic-resize-handle {
+  align-items: stretch;
+  align-self: stretch;
+  background: transparent;
+  border: 0;
+  border-radius: 999px;
+  cursor: col-resize;
+  display: flex;
+  justify-content: center;
+  min-height: 100%;
+  min-width: 0;
+  padding: 0;
+  touch-action: none;
+  user-select: none;
+}
+
+.ui-detail-modal .detail-modal--workbench .detail-basic-resize-grip {
+  align-self: stretch;
+  background: var(--border-divider);
+  border-radius: 999px;
+  opacity: 0;
+  transition: background-color 0.16s ease, opacity 0.16s ease, width 0.16s ease;
+  width: 1px;
+}
+
+.ui-detail-modal .detail-modal--workbench .detail-basic-resize-handle:hover .detail-basic-resize-grip,
+.ui-detail-modal .detail-modal--workbench .detail-basic-resize-handle:focus-visible .detail-basic-resize-grip,
+.ui-detail-modal .detail-modal--workbench .detail-basic-scroll.is-resizing .detail-basic-resize-grip {
+  background: var(--accent-action);
+  opacity: 1;
+  width: 2px;
+}
+
+.ui-detail-modal .detail-modal--workbench .detail-basic-resize-handle:focus-visible {
+  border-radius: 999px;
+  outline: 2px solid var(--state-focus-ring);
+  outline-offset: 1px;
+}
+
+.ui-detail-modal .detail-modal--workbench .detail-basic-scroll.is-resizing {
+  cursor: col-resize;
+  user-select: none;
+}
+
+@media (max-width: 56.25rem) {
+  .ui-detail-modal .detail-modal--workbench .detail-basic-scroll.has-description {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-basic-resize-handle {
+    display: none;
+  }
+}
+
+/* The policy icon belongs to the same listbox trigger as its label, matching
+   the batch-operation menu and keeping the entire choice one hit target. */
+.ui-detail-modal .detail-modal--workbench .detail-policy-select-row {
+  display: block;
+}
+
+.ui-detail-modal .detail-modal--workbench .detail-policy-select {
+  max-width: 100%;
+  width: 100%;
 }

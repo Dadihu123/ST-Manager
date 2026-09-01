@@ -55,6 +55,12 @@ import { DEFAULT_TAG_CATEGORY_COLOR } from '../state.js';
 
 export default function detailModal() {
     const autoSaver = createAutoSaver();
+    const BASIC_SPLIT_DEFAULT = 0.58;
+    const BASIC_SPLIT_MIN = 0.35;
+    const BASIC_SPLIT_MAX = 0.65;
+    const BASIC_SPLIT_MIN_LEFT_PX = 288;
+    const BASIC_SPLIT_MIN_RIGHT_PX = 272;
+    const BASIC_SPLIT_DIVIDER_PX = 12;
     return {
         // === 本地状态 ===
         showDetail: false,
@@ -68,6 +74,10 @@ export default function detailModal() {
         selectedGreetingKind: 'default',
         showGreetingPreview: true,
         showLocalNotePreview: false,
+        basicColumnSplit: BASIC_SPLIT_DEFAULT,
+        basicSplitResizeState: null,
+        _basicSplitPointerMoveHandler: null,
+        _basicSplitPointerUpHandler: null,
         updateImagePolicy: 'overwrite', // 默认策略
         syncSourceTitleOnUpdate: true,
         sourceUpdateChecking: false,
@@ -159,6 +169,8 @@ export default function detailModal() {
         currentSkinDirectory: '',
         showSkinGallery: false,
         skinGalleryPreviewPath: '',
+        mainImagePreviewUrl: '',
+        mainImagePreviewName: '',
 
         // 自动保存
         originalDataJson: '', // 基准快照
@@ -902,6 +914,161 @@ export default function detailModal() {
             this.ensureVisibleDetailTab();
         },
 
+        _getBasicSplitLayout() {
+            const root = this.$root || (typeof document !== 'undefined' ? document : null);
+            return root?.querySelector?.('.detail-basic-scroll.has-description') || null;
+        },
+
+        _getBasicSplitAvailableWidth(layout) {
+            if (!layout || typeof window === 'undefined') return null;
+
+            const layoutWidth = layout.getBoundingClientRect().width;
+            if (!Number.isFinite(layoutWidth) || layoutWidth <= 0) return null;
+
+            const computedStyle = window.getComputedStyle(layout);
+            const columnGap = parseFloat(computedStyle.columnGap || computedStyle.gap) || 0;
+            const handle = layout.querySelector('.detail-basic-resize-handle');
+            const dividerWidth = handle?.getBoundingClientRect().width || BASIC_SPLIT_DIVIDER_PX;
+            const availableWidth = layoutWidth - (columnGap * 2) - dividerWidth;
+
+            return availableWidth > 0 ? availableWidth : null;
+        },
+
+        _clampBasicColumnSplit(value, availableWidth = null) {
+            const fallback = Number.isFinite(this.basicColumnSplit)
+                ? this.basicColumnSplit
+                : BASIC_SPLIT_DEFAULT;
+            const numericValue = Number(value);
+            if (!Number.isFinite(numericValue)) return fallback;
+
+            let minimum = BASIC_SPLIT_MIN;
+            let maximum = BASIC_SPLIT_MAX;
+            if (Number.isFinite(availableWidth) && availableWidth > 0) {
+                minimum = Math.max(minimum, BASIC_SPLIT_MIN_LEFT_PX / availableWidth);
+                maximum = Math.min(maximum, 1 - (BASIC_SPLIT_MIN_RIGHT_PX / availableWidth));
+            }
+
+            if (minimum > maximum) {
+                return Math.min(BASIC_SPLIT_MAX, Math.max(BASIC_SPLIT_MIN, numericValue));
+            }
+            return Math.min(maximum, Math.max(minimum, numericValue));
+        },
+
+        getBasicSplitStyle() {
+            const hasDescription = this.isEditMode || this.hasTextValue(this.editingData.description);
+            if (!hasDescription) return '';
+
+            const split = this._clampBasicColumnSplit(this.basicColumnSplit);
+            return `--detail-basic-left-track: ${split}fr; --detail-basic-right-track: ${1 - split}fr;`;
+        },
+
+        setBasicColumnSplit(value) {
+            const layout = this._getBasicSplitLayout();
+            const availableWidth = this._getBasicSplitAvailableWidth(layout);
+            this.basicColumnSplit = this._clampBasicColumnSplit(value, availableWidth);
+        },
+
+        adjustBasicSplit(delta) {
+            this.setBasicColumnSplit(this.basicColumnSplit + delta);
+        },
+
+        handleBasicSplitKeydown(event) {
+            if (!event) return;
+
+            if (event.key === 'ArrowLeft') {
+                event.preventDefault();
+                event.stopPropagation();
+                this.adjustBasicSplit(-0.03);
+            } else if (event.key === 'ArrowRight') {
+                event.preventDefault();
+                event.stopPropagation();
+                this.adjustBasicSplit(0.03);
+            } else if (event.key === 'Home') {
+                event.preventDefault();
+                event.stopPropagation();
+                this.setBasicColumnSplit(BASIC_SPLIT_MIN);
+            } else if (event.key === 'End') {
+                event.preventDefault();
+                event.stopPropagation();
+                this.setBasicColumnSplit(BASIC_SPLIT_MAX);
+            }
+        },
+
+        startBasicSplitResize(event) {
+            if (!event || (event.button !== undefined && event.button !== 0)) return;
+
+            const handle = event.currentTarget;
+            const layout = handle?.closest?.('.detail-basic-scroll.has-description');
+            if (!layout) return;
+
+            const availableWidth = this._getBasicSplitAvailableWidth(layout);
+            if (!Number.isFinite(availableWidth) || availableWidth <= 0) return;
+
+            this.endBasicSplitResize();
+            this.basicSplitResizeState = {
+                handle,
+                layout,
+                pointerId: Number.isFinite(event.pointerId) ? event.pointerId : null,
+                startX: event.clientX,
+                startSplit: this._clampBasicColumnSplit(this.basicColumnSplit, availableWidth),
+                availableWidth,
+            };
+            layout.classList.add('is-resizing');
+
+            if (!this._basicSplitPointerMoveHandler) {
+                this._basicSplitPointerMoveHandler = this.handleBasicSplitResize.bind(this);
+            }
+            if (!this._basicSplitPointerUpHandler) {
+                this._basicSplitPointerUpHandler = this.endBasicSplitResize.bind(this);
+            }
+
+            window.addEventListener('pointermove', this._basicSplitPointerMoveHandler);
+            window.addEventListener('pointerup', this._basicSplitPointerUpHandler);
+            window.addEventListener('pointercancel', this._basicSplitPointerUpHandler);
+
+            if (Number.isFinite(event.pointerId) && handle.setPointerCapture) {
+                try {
+                    handle.setPointerCapture(event.pointerId);
+                } catch (error) {
+                    // Pointer capture is best-effort; the window listeners still finish the drag.
+                }
+            }
+        },
+
+        handleBasicSplitResize(event) {
+            const resizeState = this.basicSplitResizeState;
+            if (!resizeState) return;
+            if (resizeState.pointerId !== null && event.pointerId !== resizeState.pointerId) return;
+
+            if (event.cancelable) event.preventDefault();
+            const deltaX = event.clientX - resizeState.startX;
+            const nextSplit = resizeState.startSplit + (deltaX / resizeState.availableWidth);
+            this.basicColumnSplit = this._clampBasicColumnSplit(nextSplit, resizeState.availableWidth);
+        },
+
+        endBasicSplitResize() {
+            const resizeState = this.basicSplitResizeState;
+            if (resizeState?.layout) resizeState.layout.classList.remove('is-resizing');
+            if (
+                resizeState?.handle
+                && Number.isFinite(resizeState.pointerId)
+                && resizeState.handle.releasePointerCapture
+            ) {
+                try {
+                    resizeState.handle.releasePointerCapture(resizeState.pointerId);
+                } catch (error) {
+                    // The pointer may already have been released by the browser.
+                }
+            }
+
+            if (typeof window !== 'undefined') {
+                window.removeEventListener('pointermove', this._basicSplitPointerMoveHandler);
+                window.removeEventListener('pointerup', this._basicSplitPointerUpHandler);
+                window.removeEventListener('pointercancel', this._basicSplitPointerUpHandler);
+            }
+            this.basicSplitResizeState = null;
+        },
+
         requestClose(event = null) {
             // Nested overlays own Escape first. This guard keeps a gallery or
             // field preview from bubbling the same keypress to the workbench.
@@ -912,6 +1079,10 @@ export default function detailModal() {
             }
             if (this.personaPreviewField) {
                 this.closePersonaPreview();
+                return false;
+            }
+            if (this.mainImagePreviewUrl) {
+                this.closeMainImagePreview();
                 return false;
             }
             if (this.skinGalleryPreviewPath) {
@@ -931,6 +1102,7 @@ export default function detailModal() {
                 return false;
             }
             if (this.hasUnsavedChanges && !confirm('当前角色卡还有未保存修改，确定关闭吗？')) return false;
+            this.endBasicSplitResize();
             this.showDetail = false;
             return true;
         },
@@ -1134,11 +1306,14 @@ export default function detailModal() {
                 if (!val) {
                     this.stopAutoSave();
                     this._cleanupPendingAdvancedEditorHandlers();
+                    this.endBasicSplitResize();
                     clearActiveRuntimeContext('card');
                     this.currentSkinIndex = -1;
                     this.currentSkinDirectory = '';
                     this.showSkinGallery = false;
                     this.skinGalleryPreviewPath = '';
+                    this.mainImagePreviewUrl = '';
+                    this.mainImagePreviewName = '';
                     this.zoomLevel = 100;
                     this.isCardFlipped = false;
                     this.skinImages = [];
@@ -1152,6 +1327,7 @@ export default function detailModal() {
                     this.sourceUpdateAcknowledging = false;
                     this.saveOldCoverOnSwap = false;
                     this.isEditMode = false; // 重置编辑模式
+                    this.basicColumnSplit = BASIC_SPLIT_DEFAULT;
                     this.showTagLibrary = true;
                     this.tagLibrarySearch = '';
                     this.mixedCategoryView = true;
@@ -1324,6 +1500,8 @@ export default function detailModal() {
             this.currentSkinDirectory = '';
             this.showSkinGallery = false;
             this.skinGalleryPreviewPath = '';
+            this.mainImagePreviewUrl = '';
+            this.mainImagePreviewName = '';
 
             if (!folderName) return;
 
@@ -1726,6 +1904,8 @@ export default function detailModal() {
             // 重置状态
             this.stopAutoSave();
             this._cleanupPendingAdvancedEditorHandlers();
+            this.endBasicSplitResize();
+            this.basicColumnSplit = BASIC_SPLIT_DEFAULT;
             this.detailRequestToken += 1;
             this.originalDataJson = null;
             this.detailLoading = true;
@@ -2405,6 +2585,25 @@ export default function detailModal() {
 
         closeSkinGalleryPreview() {
             this.skinGalleryPreviewPath = '';
+        },
+
+        openMainImagePreview() {
+            const previewUrl = this.displayImageUrl || this.activeCard?.image_url || '';
+            if (!previewUrl) return;
+
+            this.mainImagePreviewUrl = previewUrl;
+            this.mainImagePreviewName = this.selectedSkinPath
+                ? (this.selectedSkinName || '当前皮肤')
+                : (this.activeCard?.filename
+                    || this.editingData?.filename
+                    || this.editingData?.char_name
+                    || '角色卡主图');
+            this.isCardFlipped = false;
+        },
+
+        closeMainImagePreview() {
+            this.mainImagePreviewUrl = '';
+            this.mainImagePreviewName = '';
         },
 
         handleSkinGalleryKeydown(event) {

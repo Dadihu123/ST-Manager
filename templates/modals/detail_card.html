@@ -1,6 +1,5 @@
 {% from "components/icon.html" import icon, sidebar_icon %}
 {% from "components/icon.html" import detail_icon %}
-{% from "components/styled_select.html" import styled_select %}
 
 <!-- 详情页模态框 (Refactored) -->
 <div
@@ -124,6 +123,7 @@
               <span
                 class="detail-visual-name"
                 x-text="editingData.char_name || activeCard.char_name || '未命名角色'"
+                :title="editingData.char_name || activeCard.char_name || '未命名角色'"
               ></span>
             </div>
           </div>
@@ -223,6 +223,17 @@
               aria-label="更换角色卡图片"
             >
               {{ detail_icon('image-replace', 'ui-icon--sm') }}
+            </button>
+
+            <button
+              x-show="!isCardFlipped"
+              type="button"
+              @click.stop="openMainImagePreview()"
+              class="btn-secondary detail-icon-btn"
+              title="全屏预览图片"
+              aria-label="全屏预览当前图片"
+            >
+              {{ detail_icon('fullscreen', 'ui-icon--sm') }}
             </button>
 
           </div>
@@ -461,15 +472,6 @@
             <div class="detail-topbar-action-row detail-topbar-action-row--icon">
               <button
                 type="button"
-                @click="showHelpModal=true"
-                class="btn-secondary detail-icon-btn--borderless detail-topbar-icon-action detail-topbar-help-action"
-                title="查看帮助指南"
-                aria-label="查看角色卡字段说明"
-              >
-                {{ icon('settings-help-entry', 'ui-icon--sm') }}
-              </button>
-              <button
-                type="button"
                 @click="toggleEditMode()"
                 class="btn-secondary detail-icon-btn--borderless detail-topbar-icon-action detail-topbar-edit-action"
                 :class="isEditMode ? 'active' : ''"
@@ -478,6 +480,15 @@
               >
                 <span x-show="!isEditMode">{{ detail_icon('book-read', 'ui-icon--sm') }}</span>
                 <span x-show="isEditMode">{{ detail_icon('edit-mode', 'ui-icon--sm') }}</span>
+              </button>
+              <button
+                type="button"
+                @click="showHelpModal=true"
+                class="btn-secondary detail-icon-btn--borderless detail-topbar-icon-action detail-topbar-help-action"
+                title="查看帮助指南"
+                aria-label="查看角色卡字段说明"
+              >
+                {{ icon('settings-help-entry', 'ui-icon--sm') }}
               </button>
               <button
                 type="button"
@@ -876,8 +887,12 @@
             aria-labelledby="detail-tab-basic"
             tabindex="0"
           >
-            <div class="detail-tab-scroll custom-scrollbar">
-              <div class="detail-card">
+            <div
+              class="detail-tab-scroll custom-scrollbar detail-basic-scroll"
+              :class="(isEditMode || hasTextValue(editingData.description)) ? 'has-description' : ''"
+              :style="getBasicSplitStyle()"
+            >
+              <div class="detail-card detail-field-panel detail-field-panel--note">
                 <div class="detail-card-head detail-card-head-row">
                   <div
                     class="detail-card-title flex items-center gap-2"
@@ -932,9 +947,26 @@
                 </div>
               </div>
 
+              <div
+                x-show="isEditMode || hasTextValue(editingData.description)"
+                class="detail-basic-resize-handle"
+                role="separator"
+                aria-orientation="vertical"
+                aria-label="调整本地备注和原简介的宽度"
+                aria-valuemin="35"
+                aria-valuemax="65"
+                :aria-valuenow="Math.round(basicColumnSplit * 100)"
+                :aria-valuetext="'本地备注 ' + Math.round(basicColumnSplit * 100) + '%，原简介 ' + Math.round((1 - basicColumnSplit) * 100) + '%'"
+                tabindex="0"
+                @pointerdown.prevent.stop="startBasicSplitResize($event)"
+                @keydown="handleBasicSplitKeydown($event)"
+              >
+                <span class="detail-basic-resize-grip" aria-hidden="true"></span>
+              </div>
+
               <!-- 原简介卡片：条件渲染 -->
               <div
-                class="detail-card"
+                class="detail-card detail-field-panel detail-field-panel--description"
                 x-show="isEditMode || hasTextValue(editingData.description)"
               >
                 <div class="detail-card-head">
@@ -1370,7 +1402,7 @@
           >
             <div class="detail-tab-scroll custom-scrollbar detail-dialog-scroll">
               <div
-                class="detail-card detail-card--lg detail-greeting-preview-card"
+                class="detail-card detail-card--lg detail-field-panel detail-field-panel--greeting detail-greeting-preview-card"
                 x-show="dialogPage === 'greeting' && hasGreetingPage"
               >
                 <div class="detail-card-head detail-card-head-row detail-dialog-card-head">
@@ -1480,7 +1512,7 @@
               </div>
 
               <div
-                class="detail-card detail-greeting-selector"
+                class="detail-card detail-field-panel detail-greeting-picker detail-greeting-selector"
                 x-show="dialogPage === 'greeting' && (isEditMode || hasAlternateGreetings)"
               >
                 <div class="detail-card-head detail-greeting-selector-head">
@@ -1586,7 +1618,7 @@
               </div>
 
               <div
-                class="detail-card detail-card--lg detail-dialog-example-card"
+                class="detail-card detail-card--lg detail-field-panel detail-field-panel--dialog-example detail-dialog-example-card"
                 x-show="dialogPage === 'example' && (isEditMode || hasTextValue(editingData.mes_example))"
               >
                 <div class="detail-card-head detail-card-head-row detail-dialog-card-head">
@@ -1673,7 +1705,7 @@
             tabindex="0"
           >
             <div class="detail-tab-scroll custom-scrollbar">
-              <div class="detail-card detail-tags-card">
+              <div class="detail-card detail-tags-card detail-field-panel detail-field-panel--tags">
                 <div class="detail-card-head detail-card-head-row">
                   <div class="detail-card-title">标签 (Tags)</div>
 
@@ -1693,7 +1725,7 @@
                       ></span>
                     </button>
 
-                    <div class="detail-inline-input">
+                    <div class="detail-inline-input detail-tag-add-input">
                       <input
                         type="text"
                         x-model="newTagInput"
@@ -2677,33 +2709,116 @@
                           >{{ detail_icon('update-policy', 'ui-icon--sm') }} 更新策略</label
                         >
                         <div class="detail-policy-select-row">
-                          <span class="detail-policy-select-icon" aria-hidden="true">
-                            <span x-show="updateImagePolicy === 'overwrite'">
-                              {{ detail_icon('overwrite', 'ui-icon--md') }}
-                            </span>
-                            <span x-show="updateImagePolicy === 'keep_image'">
-                              {{ detail_icon('image-keep', 'ui-icon--md') }}
-                            </span>
-                            <span x-show="updateImagePolicy === 'archive_old'">
-                              {{ detail_icon('archive-old', 'ui-icon--md') }}
-                            </span>
-                            <span x-show="updateImagePolicy === 'archive_new'">
-                              {{ detail_icon('archive-new', 'ui-icon--md') }}
-                            </span>
-                          </span>
-                          {% call styled_select(
-                            "updateImagePolicy",
-                            wrapper_class="form-input detail-manage-select",
-                            trigger_class="text-sm",
-                            menu_class="icon-select-menu--fit",
-                            trigger_id="detail-update-policy",
-                            aria_label="更新策略"
-                          ) %}
-                            <option value="overwrite">直接覆盖</option>
-                            <option value="keep_image">保留原图，仅更新数据</option>
-                            <option value="archive_old">归档旧图后覆盖</option>
-                            <option value="archive_new">保留原图，新图归档为皮肤</option>
-                          {% endcall %}
+                          <div
+                            x-data="styledSelect()"
+                            x-effect="syncExternalValue(updateImagePolicy)"
+                            x-id="['styled-select-menu']"
+                            class="icon-select detail-manage-select detail-policy-select"
+                            :class="{ 'is-open': open }"
+                            @click.outside="closeMenu()"
+                          >
+                            <button
+                              type="button"
+                              id="detail-update-policy"
+                              x-ref="trigger"
+                              class="icon-select-trigger text-sm"
+                              :aria-expanded="open.toString()"
+                              aria-label="更新策略"
+                              :aria-controls="$id('styled-select-menu')"
+                              aria-haspopup="listbox"
+                              :disabled="disabled"
+                              @click="toggle()"
+                              @keydown.arrow-down.prevent="openMenu()"
+                              @keydown.arrow-up.prevent="openMenu()"
+                              @keydown.enter.prevent="toggle()"
+                              @keydown.space.prevent="toggle()"
+                              @keydown.escape.prevent="closeMenu(true)"
+                            >
+                              <span class="icon-select-trigger-icon" aria-hidden="true">
+                                <span x-show="value === 'overwrite'" x-cloak>
+                                  {{ detail_icon('overwrite', 'ui-icon--sm') }}
+                                </span>
+                                <span x-show="value === 'keep_image'" x-cloak>
+                                  {{ detail_icon('image-keep', 'ui-icon--sm') }}
+                                </span>
+                                <span x-show="value === 'archive_old'" x-cloak>
+                                  {{ detail_icon('archive-old', 'ui-icon--sm') }}
+                                </span>
+                                <span x-show="value === 'archive_new'" x-cloak>
+                                  {{ detail_icon('archive-new', 'ui-icon--sm') }}
+                                </span>
+                              </span>
+                              <span class="icon-select-label" x-text="selectedOptionLabel()"></span>
+                              <span class="icon-select-chevron" aria-hidden="true">
+                                {{ icon('chevron-down', 'ui-icon--xs') }}
+                              </span>
+                            </button>
+
+                            <div
+                              x-ref="menu"
+                              x-show="open"
+                              x-cloak
+                              :id="$id('styled-select-menu')"
+                              class="icon-select-menu icon-select-menu--fit"
+                              role="listbox"
+                              aria-label="更新策略"
+                            >
+                              <template x-for="option in options" :key="option.key">
+                                <div class="icon-select-option-wrap">
+                                  <div
+                                    x-show="option.groupStart"
+                                    class="icon-select-group-label"
+                                    x-text="option.groupLabel"
+                                  ></div>
+                                  <button
+                                    type="button"
+                                    role="option"
+                                    class="icon-select-option"
+                                    :aria-selected="(String(value) === option.value).toString()"
+                                    :disabled="option.disabled"
+                                    x-show="!option.hidden"
+                                    @click="selectOption(option)"
+                                    @keydown.arrow-down.prevent="moveOption($event, 1)"
+                                    @keydown.arrow-up.prevent="moveOption($event, -1)"
+                                    @keydown.home.prevent="focusOption(0)"
+                                    @keydown.end.prevent="focusOption(options.length - 1)"
+                                    @keydown.enter.prevent="selectOption(option)"
+                                    @keydown.space.prevent="selectOption(option)"
+                                    @keydown.escape.prevent="closeMenu(true)"
+                                  >
+                                    <span class="icon-select-option-icon" aria-hidden="true">
+                                      <span x-show="option.value === 'overwrite'" x-cloak>
+                                        {{ detail_icon('overwrite', 'ui-icon--sm') }}
+                                      </span>
+                                      <span x-show="option.value === 'keep_image'" x-cloak>
+                                        {{ detail_icon('image-keep', 'ui-icon--sm') }}
+                                      </span>
+                                      <span x-show="option.value === 'archive_old'" x-cloak>
+                                        {{ detail_icon('archive-old', 'ui-icon--sm') }}
+                                      </span>
+                                      <span x-show="option.value === 'archive_new'" x-cloak>
+                                        {{ detail_icon('archive-new', 'ui-icon--sm') }}
+                                      </span>
+                                    </span>
+                                    <span class="icon-select-option-label" x-text="option.label"></span>
+                                  </button>
+                                </div>
+                              </template>
+                            </div>
+
+                            <select
+                              x-ref="source"
+                              x-model="updateImagePolicy"
+                              class="icon-select-source"
+                              aria-hidden="true"
+                              tabindex="-1"
+                            >
+                              <option value="overwrite">直接覆盖</option>
+                              <option value="keep_image">保留原图，仅更新数据</option>
+                              <option value="archive_old">归档旧图后覆盖</option>
+                              <option value="archive_new">保留原图，新图归档为皮肤</option>
+                            </select>
+                          </div>
                         </div>
                         <div class="detail-manage-helper">
                           文件覆盖和 URL 更新会共用这个策略。
@@ -2860,7 +2975,7 @@
             tabindex="0"
           >
             <div class="detail-tab-scroll custom-scrollbar p-4">
-              <div class="flex flex-col gap-4 h-full">
+              <div class="flex flex-col gap-4 h-full detail-resource-layout">
                 <!-- 1. 拖拽上传区 -->
                 <div
                   class="relative flex-shrink-0 group transition-all duration-300"
@@ -2939,11 +3054,11 @@
                 <!-- 2. 资源列表 (左右分栏，仅目录存在后显示) -->
                 <template x-if="editingData.resource_folder">
                   <div
-                    class="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-2 gap-4"
+                    class="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-2 gap-4 detail-resource-grid"
                   >
                     <!-- 左栏：皮肤 (图片) -->
                     <div
-                      class="flex flex-col min-h-0 border border-[var(--border-default)] rounded-lg bg-[var(--surface-container-raised)]/30"
+                      class="detail-resource-skins-panel flex flex-col min-h-0 border border-[var(--border-default)] rounded-lg bg-[var(--surface-container-raised)]/30"
                     >
                       <div
                         class="p-2 border-b border-[var(--border-default)] flex justify-between items-center bg-[var(--surface-container-raised)] rounded-t-lg"
@@ -2966,12 +3081,12 @@
                             class="skin-gallery-open-btn"
                             title="全屏浏览皮肤"
                           >
-                            {{ detail_icon('fullscreen', 'ui-icon--sm') }}
+                            {{ detail_icon('fullscreen', 'ui-icon--md') }}
                           </button>
                         </div>
                       </div>
 
-                      <div class="flex-1 overflow-y-auto custom-scrollbar p-2">
+                      <div class="detail-resource-skins-body flex-1 overflow-y-auto custom-scrollbar p-2">
                         <div class="detail-skin-directory-toolbar mb-2 text-[11px] text-[var(--content-muted)]">
                           <button
                             type="button"
@@ -3051,7 +3166,7 @@
                       </div>
 
                       <div
-                        class="border-t border-[var(--border-default)] p-3 space-y-3 bg-[var(--surface-container-raised)]/50"
+                        class="detail-resource-skins-footer border-t border-[var(--border-default)] p-3 space-y-3 bg-[var(--surface-container-raised)]/50"
                       >
                         <div class="flex items-center justify-between gap-2">
                           <div
@@ -3132,7 +3247,7 @@
 
                     <!-- 右栏：逻辑文件 (Lorebooks / Regex / Scripts) -->
                     <div
-                      class="flex flex-col min-h-0 gap-3 overflow-y-auto custom-scrollbar pr-1"
+                      class="detail-resource-files-column flex flex-col min-h-0 gap-3 overflow-y-auto custom-scrollbar pr-1"
                     >
                       <!-- 世界书列表 -->
                       <div
@@ -3658,6 +3773,38 @@
         alt="Skin Preview"
       />
     </div>
+  </div>
+  <div
+    x-show="mainImagePreviewUrl"
+    x-cloak
+    class="skin-gallery-preview"
+    data-detail-nested-overlay
+    role="dialog"
+    aria-modal="true"
+    aria-label="角色卡图片预览"
+    @click.self="closeMainImagePreview()"
+  >
+    <div class="skin-gallery-preview-toolbar">
+      <span
+        class="skin-gallery-preview-name"
+        :title="mainImagePreviewName"
+        x-text="mainImagePreviewName"
+      ></span>
+      <button
+        type="button"
+        @click="closeMainImagePreview()"
+        class="ui-close-button skin-gallery-close"
+        title="关闭图片预览"
+        aria-label="关闭图片预览"
+      >
+        {{ icon('close', 'ui-icon--sm') }}
+      </button>
+    </div>
+    <img
+      :src="mainImagePreviewUrl"
+      class="skin-gallery-preview-image"
+      alt="角色卡图片预览"
+    />
   </div>
   <div
     x-show="showSetResourceFolderModal"
