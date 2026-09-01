@@ -43,16 +43,16 @@ body.detail-card-workbench-open .main-container {
   color: var(--content-primary);
   display: flex;
   flex-direction: column;
-  height: min(56rem, calc(100dvh - 3rem));
+  height: min(clamp(56rem, 78dvh, 96rem), calc(100dvh - 3rem));
   max-height: calc(100dvh - 3rem);
-  max-width: 90rem;
+  max-width: calc(100vw - 3rem);
   min-height: 32rem;
   min-width: 0;
   outline: none;
   overflow: visible;
   position: relative;
   transform: none;
-  width: min(90rem, calc(100vw - 3rem));
+  width: clamp(90rem, 70vw, 160rem);
 }
 
 .ui-detail-modal .detail-modal--workbench:focus-visible {
@@ -1430,6 +1430,7 @@ html.light-mode .ui-detail-modal .detail-modal--workbench .detail-thumb-label {
 
 @media (max-width: 78rem) {
   .ui-detail-modal .detail-modal--workbench {
+    max-width: calc(100vw - 2rem);
     width: min(100%, calc(100vw - 2rem));
   }
 
@@ -1448,6 +1449,7 @@ html.light-mode .ui-detail-modal .detail-modal--workbench .detail-thumb-label {
     border-radius: 0;
     height: 100dvh;
     max-height: 100dvh;
+    max-width: 100vw;
     min-height: 0;
     width: 100vw;
   }
@@ -2449,6 +2451,34 @@ html.light-mode .ui-detail-modal .detail-modal--workbench .detail-thumb-label {
 .ui-detail-modal .detail-modal--workbench .detail-policy-select {
   max-width: 100%;
   width: 100%;
+}
+
+/* At 2K and above, let the workbench use the available canvas while keeping
+   the management actions comfortably inset from their panel edge. The base
+   clamp intentionally keeps the existing 1080p footprint unchanged. */
+@media (min-width: 144rem) {
+  .ui-detail-modal .detail-modal--workbench .detail-content .detail-tab-scroll {
+    padding: clamp(1.25rem, 1.5vw, 1.75rem) !important;
+  }
+
+  .ui-detail-modal .detail-modal--workbench #detail-panel-manage {
+    padding: clamp(1.5rem, 1.7vw, 2rem);
+  }
+
+  .ui-detail-modal .detail-modal--workbench #detail-panel-manage .detail-manage-layout,
+  .ui-detail-modal .detail-modal--workbench #detail-panel-manage .detail-manage-meta-grid,
+  .ui-detail-modal .detail-modal--workbench #detail-panel-manage .detail-manage-main-grid {
+    gap: clamp(1.1rem, 1.4vw, 1.5rem);
+  }
+
+  .ui-detail-modal .detail-modal--workbench #detail-panel-manage .detail-manage-panel {
+    padding-inline: clamp(1.25rem, 1.35vw, 1.75rem);
+  }
+
+  .ui-detail-modal .detail-modal--workbench #detail-panel-manage .detail-manage-action-grid {
+    gap: clamp(0.75rem, 0.9vw, 1rem);
+    padding-inline: 0.25rem;
+  }
 }
 
 /* The greeting choices form a horizontal navigation shelf. Keep the active
