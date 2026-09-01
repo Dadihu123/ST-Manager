@@ -320,6 +320,48 @@ export default function detailModal() {
             }
         },
 
+        _syncPersistedBaseline(fields, persistedValues = this.editingData) {
+            const fieldNames = [...new Set(
+                (Array.isArray(fields) ? fields : [fields])
+                    .filter(field => typeof field === 'string' && field.length > 0)
+            )];
+            if (fieldNames.length === 0 || !this.editingData) return;
+
+            const source = persistedValues && typeof persistedValues === 'object'
+                ? persistedValues
+                : this.editingData;
+            let baseline = null;
+            try {
+                baseline = this.originalDataJson ? JSON.parse(this.originalDataJson) : null;
+            } catch (_) {
+                baseline = null;
+            }
+
+            if (!baseline || typeof baseline !== 'object' || Array.isArray(baseline)) {
+                baseline = JSON.parse(JSON.stringify(this.editingData));
+            }
+
+            fieldNames.forEach(field => {
+                if (Object.prototype.hasOwnProperty.call(source, field)) {
+                    const serializedValue = JSON.stringify(source[field]);
+                    if (serializedValue === undefined) {
+                        delete baseline[field];
+                    } else {
+                        baseline[field] = JSON.parse(serializedValue);
+                    }
+                } else {
+                    delete baseline[field];
+                }
+            });
+            this.originalDataJson = JSON.stringify(baseline);
+
+            if (typeof autoSaver.rebaseBaseline === 'function') {
+                autoSaver.rebaseBaseline(this.editingData, fieldNames, source);
+            } else {
+                autoSaver.initBaseline(this.editingData);
+            }
+        },
+
         _normalizeEditingDataShape(source = {}) {
             const normalized = {
                 id: null,
@@ -1429,6 +1471,7 @@ export default function detailModal() {
                     if (res.resource_folder) {
                         this.editingData.resource_folder = res.resource_folder;
                         this.activeCard.resource_folder = res.resource_folder;
+                        this._syncPersistedBaseline(['resource_folder']);
                     }
                     this.$store.global.showToast(`${file.name} 上传成功`, 3000, "check");
                     return res;
@@ -1464,6 +1507,7 @@ export default function detailModal() {
 
                     this.editingData.resource_folder = res.resource_folder;
                     this.activeCard.resource_folder = res.resource_folder;
+                    this._syncPersistedBaseline(['resource_folder']);
                     this.fetchResourceFiles(res.resource_folder);
 
                     if (auto) {
@@ -1737,14 +1781,32 @@ export default function detailModal() {
 
             // 监听全屏编辑器关闭事件，同步数据回来
             const handleEditorClosed = (e) => {
-                const { character_book } = e.detail || {};
-                if (character_book) {
-                    // 将全屏编辑器的修改同步回detailModal
-                    this.editingData.character_book = character_book;
-                    this.editingData.character_book_raw = JSON.stringify(character_book, null, 2);
-                    this.$store.global.showToast('世界书数据已同步', 1500);
+                const detail = e.detail || {};
+                const { character_book, persisted_character_book } = detail;
+                const hasPersistedWorldbook =
+                    persisted_character_book && typeof persisted_character_book === 'object';
+
+                if (character_book || hasPersistedWorldbook) {
+                    // 将全屏编辑器的当前内容同步回 detailModal。
+                    const currentWorldbook = character_book || persisted_character_book;
+                    this.editingData.character_book = currentWorldbook;
+                    this.editingData.character_book_raw = JSON.stringify(currentWorldbook, null, 2);
+
+                    if (hasPersistedWorldbook) {
+                        // 全屏编辑器已经直接写入原文件时，只将已保存的世界书重置为基线；
+                        // 若关闭前又有未保存修改，仍保留待保存状态。
+                        this._syncPersistedBaseline(
+                            ['character_book', 'character_book_raw'],
+                            {
+                                character_book: persisted_character_book,
+                                character_book_raw: JSON.stringify(persisted_character_book, null, 2),
+                            },
+                        );
+                    } else {
+                        this.$store.global.showToast('世界书数据已同步', 1500);
+                    }
                 }
-                // 移除监听，避免重复
+                // 无论是否有内容变化都移除监听，避免重复。
                 window.removeEventListener('wi-editor-closed', handleEditorClosed);
             };
             window.addEventListener('wi-editor-closed', handleEditorClosed);
@@ -2922,6 +2984,7 @@ export default function detailModal() {
                         const newId = `${newPath}/${this.activeCard.filename}`;
                         this.activeCard.id = newId;
                         this.editingData.id = newId;
+                        this._syncPersistedBaseline(['id']);
 
                         alert("重命名成功！");
                         // 刷新文件夹树和列表
@@ -2950,6 +3013,7 @@ export default function detailModal() {
                     this.editingData.resource_folder = res.resource_folder;
                     this.activeCard.resource_folder = res.resource_folder;
                     this.fetchResourceFiles(res.resource_folder);
+                    this._syncPersistedBaseline(['resource_folder']);
                     this.$store.global.showToast('资源目录已设置', 1800, 'folder');
                 } else {
                     alert(res.msg);
@@ -3038,6 +3102,7 @@ export default function detailModal() {
                     if (this.editingData.source_revision) {
                         this.activeCard.source_revision = this.editingData.source_revision;
                     }
+                    this._syncPersistedBaseline(['id', 'filename', 'source_revision']);
                     
                     if (updatedCard) {
                         window.dispatchEvent(new CustomEvent('card-updated', { detail: updatedCard }));
@@ -3331,6 +3396,7 @@ export default function detailModal() {
             this.activeCard.source_title = result.source_update.source_title || '';
             this.editingData.source_update = result.source_update;
             this.editingData.source_title = result.source_update.source_title || '';
+            this._syncPersistedBaseline(['source_update', 'source_title']);
             window.dispatchEvent(new CustomEvent('card-updated', { detail: this.activeCard }));
         },
 

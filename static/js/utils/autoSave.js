@@ -20,6 +20,43 @@ export function createAutoSaver(context) {
       this.originalJson = JSON.stringify(data);
     },
 
+    // 将已由其他 API 直接持久化的字段合并进基线，保留其余字段的未保存状态。
+    rebaseBaseline(data, fields, persistedData = data) {
+      if (!data || !Array.isArray(fields) || fields.length === 0) return;
+      if (!this.originalJson) {
+        this.initBaseline(data);
+        return;
+      }
+
+      let baseline;
+      try {
+        baseline = JSON.parse(this.originalJson);
+      } catch (_) {
+        this.initBaseline(data);
+        return;
+      }
+
+      if (!baseline || typeof baseline !== "object" || Array.isArray(baseline)) {
+        this.initBaseline(data);
+        return;
+      }
+
+      const source = persistedData || data;
+      fields.forEach((field) => {
+        if (Object.prototype.hasOwnProperty.call(source, field)) {
+          const serializedValue = JSON.stringify(source[field]);
+          if (serializedValue === undefined) {
+            delete baseline[field];
+          } else {
+            baseline[field] = JSON.parse(serializedValue);
+          }
+        } else {
+          delete baseline[field];
+        }
+      });
+      this.originalJson = JSON.stringify(baseline);
+    },
+
     // 启动自动保存
     start(getData, getPayload, onTick = null) {
       const settings = Alpine.store("global").settingsForm;

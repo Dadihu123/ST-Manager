@@ -75,6 +75,11 @@ export default function wiEditor() {
     wiEntryFilterQuery: "",
     initialSnapshotChecked: false,
     initialSnapshotInitPromise: null,
+    // 内嵌世界书进入编辑器时的归一化基线。关闭时只把真实改动同步回角色卡，
+    // 避免 normalizeWiBook/_ensureEntryUids 产生的前端字段被误判为卡片修改。
+    embeddedWorldbookBaselineJson: null,
+    // 最近一次已直接写入角色卡文件的世界书，用于关闭时重置宿主卡片基线。
+    embeddedWorldbookLastSavedJson: null,
 
     // 帮助模态框
     showHelpModal: false,
@@ -438,17 +443,35 @@ export default function wiEditor() {
             this.editingData &&
             this.editingData.character_book
           ) {
+            const currentWorldbookJson = JSON.stringify(
+              this.editingData.character_book,
+            );
+            const hasWorldbookChanges =
+              !this.embeddedWorldbookBaselineJson ||
+              currentWorldbookJson !== this.embeddedWorldbookBaselineJson;
+            const hasSavedWorldbook =
+              this.embeddedWorldbookLastSavedJson !== null;
+
+            const closeDetail = {
+              card_id: this.editingData.id || this.editingWiFile.card_id,
+              changed: hasWorldbookChanges,
+            };
+            if (hasWorldbookChanges || hasSavedWorldbook) {
+              closeDetail.character_book = JSON.parse(currentWorldbookJson);
+            }
+            if (hasSavedWorldbook) {
+              closeDetail.persisted_character_book = JSON.parse(
+                this.embeddedWorldbookLastSavedJson,
+              );
+            }
             window.dispatchEvent(
               new CustomEvent("wi-editor-closed", {
-                detail: {
-                  character_book: JSON.parse(
-                    JSON.stringify(this.editingData.character_book),
-                  ),
-                  card_id: this.editingData.id || this.editingWiFile.card_id,
-                },
+                detail: closeDetail,
               }),
             );
           }
+          this.embeddedWorldbookBaselineJson = null;
+          this.embeddedWorldbookLastSavedJson = null;
           this._cleanupInitBackupsOnExit();
           autoSaver.stop();
           this.isEditingClipboard = false;
@@ -2578,6 +2601,13 @@ export default function wiEditor() {
             if (autoSaver && typeof autoSaver.initBaseline === "function") {
               autoSaver.initBaseline(this.editingData);
             }
+            if (this.editingWiFile?.type === "embedded") {
+              const savedWorldbookJson = JSON.stringify(
+                this.editingData.character_book,
+              );
+              this.embeddedWorldbookBaselineJson = savedWorldbookJson;
+              this.embeddedWorldbookLastSavedJson = savedWorldbookJson;
+            }
           } else {
             alert("保存失败: " + res.msg);
           }
@@ -2630,6 +2660,8 @@ export default function wiEditor() {
       this.editingWiFile = item;
       this.initialSnapshotChecked = false;
       this.initialSnapshotInitPromise = null;
+      this.embeddedWorldbookBaselineJson = null;
+      this.embeddedWorldbookLastSavedJson = null;
 
       const handleSuccess = (dataObj, source) => {
         // === 强制执行归一化 ===
@@ -2654,6 +2686,11 @@ export default function wiEditor() {
           ...(this.editingWiFile || {}),
         };
         this._ensureEntryUids();
+        this.embeddedWorldbookBaselineJson =
+          this.editingWiFile?.type === "embedded"
+            ? JSON.stringify(this.editingData.character_book)
+            : null;
+        this.embeddedWorldbookLastSavedJson = null;
         let targetIndex = 0;
         if (typeof item.jumpToIndex === "number" && item.jumpToIndex >= 0) {
           targetIndex = item.jumpToIndex;
@@ -2830,6 +2867,8 @@ export default function wiEditor() {
       const requestToken = this.openWorldInfoFileRequestToken;
       this.initialSnapshotChecked = false;
       this.initialSnapshotInitPromise = null;
+      this.embeddedWorldbookBaselineJson = null;
+      this.embeddedWorldbookLastSavedJson = null;
       getWorldInfoDetail({
         id: item.id,
         source_type: item.source_type,
