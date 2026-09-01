@@ -6,26 +6,26 @@
   x-show="showFullScreenWI"
   x-data="wiEditor"
   x-cloak
-  class="detail-wi-full-screen wi-worldbook-icon-scope ui-fullscreen-surface fixed inset-0 z-modal-editor wi-editor-container"
+  class="detail-wi-full-screen wi-worldbook-icon-scope ui-fullscreen-surface fixed inset-0 z-modal-editor wi-editor-container wi-editor-workbench"
+  :data-editor-pane="editorPane"
   role="dialog"
   aria-modal="true"
   aria-label="世界书全屏编辑器"
-  @click.self="showFullScreenWI=false"
+  @click.self="requestCloseEditor()"
 >
   <!-- 内部布局状态管理 -->
   <div
-    class="flex flex-col h-full w-full overflow-hidden"
-    x-data="{ rightTab: 'settings', showLeftList: $store.global.deviceType !== 'mobile', showRightPanel: $store.global.deviceType !== 'mobile' }"
+    class="wi-editor-shell flex flex-col h-full w-full overflow-hidden"
   >
     <!-- 1. 顶部导航栏 -->
     <div
-      class="wi-editor-topbar h-12 border-b items-center justify-between px-4 shadow-sm flex-shrink-0 z-20"
+      class="wi-editor-topbar wi-editor-header h-12 border-b items-center justify-between px-4 shadow-sm flex-shrink-0 z-20"
       :class="$store.global.deviceType === 'mobile' ? '' : 'flex'"
     >
-      <div class="flex items-center gap-4 min-w-0">
+      <div class="wi-editor-heading flex items-center gap-4 min-w-0">
         <!-- 标题/Logo -->
         <div
-          class="flex items-center gap-2 color-text-warning font-bold select-none cursor-default"
+          class="wi-editor-brand flex items-center gap-2 color-text-warning font-bold select-none cursor-default"
         >
           <span aria-hidden="true">{{ sidebar_icon('book-stack', 'ui-icon--md') }}</span>
           <span class="hidden md:inline">编辑器</span>
@@ -34,7 +34,7 @@
         <!-- 来源标记 (Badge) - 使用 template x-if 防止初始化报错 -->
         <template x-if="editingWiFile">
           <div
-            class="px-2 py-0.5 rounded text-[10px] font-bold tracking-wider uppercase border bg-opacity-10"
+            class="wi-editor-source-badge px-2 py-0.5 rounded text-[10px] font-bold tracking-wider uppercase border bg-opacity-10"
             :class="{
                             'color-surface-accent color-border-action color-text-action': editingWiFile.type === 'global',
                             'color-surface-success-solid color-border-success color-text-success': editingWiFile.type === 'resource',
@@ -45,10 +45,10 @@
           </div>
         </template>
 
-        <div class="h-4 w-[1px] bg-[var(--border-default)]"></div>
+        <div class="wi-editor-divider h-4 w-[1px] bg-[var(--border-default)]"></div>
 
         <!-- 标题输入框 -->
-        <div class="flex items-center gap-2">
+        <div class="wi-editor-title-block flex items-center gap-2">
           <span
             x-show="!editingWiFile && activeCard"
             class="text-xs color-text-muted truncate max-w-[100px]"
@@ -59,21 +59,26 @@
             <input
               type="text"
               x-model="editingData.character_book.name"
-              class="bg-transparent text-sm font-bold border-b border-transparent color-hover-border-neutral color-focus-border-accent outline-none transition-colors w-40 md:w-64"
+              class="wi-editor-book-name bg-transparent text-sm font-bold border-b border-transparent color-hover-border-neutral color-focus-border-accent outline-none transition-colors w-40 md:w-64"
               placeholder="世界书名称..."
             />
           </template>
+        </div>
+
+        <div class="wi-editor-context" aria-live="polite">
+          <span class="wi-editor-context-source" x-text="getEditorSourceLabel()"></span>
+          <span class="wi-editor-context-description" x-text="getEditorSourceDescription()"></span>
         </div>
       </div>
 
       <!-- 右侧按钮组 -->
       <div
-        class="wi-editor-top-actions flex items-center gap-2"
+        class="wi-editor-top-actions wi-editor-actions flex items-center gap-2"
         :class="$store.global.deviceType === 'mobile' ? 'justify-end' : ''"
       >
         <!-- Token 统计 -->
         <div
-          class="hidden lg:flex flex-col items-end mr-4 px-3 border-r border-[var(--border-default)]"
+          class="wi-editor-token-summary hidden lg:flex flex-col items-end mr-4 px-3 border-r border-[var(--border-default)]"
           title="预估总 Token"
         >
           <span class="text-[9px] color-text-muted uppercase font-bold"
@@ -88,7 +93,7 @@
         </div>
 
         <div
-          class="hidden lg:flex items-center gap-2 mr-2"
+          class="wi-editor-entry-summary hidden lg:flex items-center gap-2 mr-2"
           x-show="activeEditorEntry"
         >
           <span
@@ -107,6 +112,17 @@
             class="wi-pill mono"
             x-text="'#' + (activeEditorEntry?.insertion_order ?? 0)"
           ></span>
+        </div>
+
+        <div
+          class="wi-editor-save-status"
+          :class="getEditorSaveStatusClass()"
+          role="status"
+          aria-live="polite"
+          :title="getEditorSaveStatusLabel()"
+        >
+          <span class="wi-editor-save-status-dot" aria-hidden="true"></span>
+          <span class="wi-editor-save-status-label" x-text="getEditorSaveStatusLabel()"></span>
         </div>
 
         <label
@@ -210,10 +226,10 @@
         <div class="h-4 w-[1px] bg-[var(--border-default)] mx-1"></div>
 
         <!-- 4. 保存按钮组 -->
-        <div class="flex items-center gap-2">
+        <div class="wi-editor-save-actions flex items-center gap-2">
           <!-- 场景 A: 编辑独立文件 (显示保存文件 + 另存为) -->
           <template x-if="editingWiFile && editingWiFile.type !== 'embedded'">
-            <div class="flex items-center gap-2">
+            <div class="wi-editor-save-cluster flex items-center gap-2">
               <button
                 @click="saveWiFileChanges()"
                 :disabled="isSaving"
@@ -304,7 +320,7 @@
           </template>
         </div>
 
-        <div class="wi-editor-final-actions flex items-center gap-0">
+        <div class="wi-editor-final-actions wi-editor-end-actions flex items-center gap-0">
           <div
             class="h-4 w-[1px] bg-[var(--border-default)] mx-1"
             aria-hidden="true"
@@ -321,7 +337,7 @@
           </button>
 
           <button
-            @click="showFullScreenWI=false"
+            @click="requestCloseEditor()"
             class="btn-secondary wi-icon-only-action wi-editor-close-action px-3 py-1.5 text-xs rounded color-hover-surface-danger color-hover-text-danger"
             title="关闭全屏世界书编辑器"
             aria-label="关闭全屏世界书编辑器"
@@ -333,14 +349,21 @@
     </div>
 
     <!-- 2. 主体区域 -->
-    <div class="flex-1 flex overflow-hidden relative">
+    <div class="wi-editor-body flex-1 flex overflow-hidden relative">
       <!-- === 左侧列表 === -->
       <div
-        class="flex flex-col border-r transition-all duration-300 ease-in-out bg-[var(--surface-container-raised)] relative"
-        :style="{ width: showLeftList ? '260px' : '0px', opacity: showLeftList ? '1' : '0' }"
+        class="wi-editor-entry-list flex flex-col border-r transition-all duration-300 ease-in-out bg-[var(--surface-container-raised)] relative"
+        :class="showLeftList ? 'is-open' : 'is-collapsed'"
         style="border-color: var(--border-subtle)"
       >
-        <div class="p-2 border-b border-[var(--border-default)] flex-shrink-0">
+        <div class="wi-entry-list-head p-2 border-b border-[var(--border-default)] flex-shrink-0">
+          <div class="wi-entry-list-heading">
+            <div>
+              <span class="wi-eyebrow">条目目录</span>
+              <span class="wi-entry-count" x-text="getEditorVisibleEntryCount() + ' / ' + getEditorTotalEntryCount()"></span>
+            </div>
+            <span class="wi-entry-sort-note" x-text="getWiSortLabel(wiSortMode)"></span>
+          </div>
           <div class="wi-entry-list-toolbar">
             <label class="wi-entry-filter" for="wi-entry-filter-input">
               <span aria-hidden="true">{{ icon('book-search', 'ui-icon--sm') }}</span>
@@ -379,7 +402,7 @@
           </div>
         </div>
 
-        <div class="wi-list-container flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1">
+        <div class="wi-list-container wi-editor-entry-scroll flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1" :data-entry-total="getSortedWIEntries().length">
           <!-- 使用 Optional Chain 风格的检查防止初始化空指针 -->
           <template
             x-for="(entry, index) in (typeof getFilteredSortedWIEntries === 'function' ? getFilteredSortedWIEntries() : [])"
@@ -459,8 +482,9 @@
           class="p-1 border-t border-[var(--border-default)] flex justify-center bg-[var(--surface-container-raised)]"
         >
           <button
+            type="button"
             @click="showLeftList = false"
-            class="text-[10px] color-text-muted hover:text-[var(--content-primary)] w-full inline-flex items-center justify-center gap-1"
+            class="wi-editor-panel-close text-[10px] color-text-muted hover:text-[var(--content-primary)] w-full inline-flex items-center justify-center gap-1"
           >
             {{ icon('chevron-right', 'ui-icon--xs rotate-180') }}
             <span>收起列表</span>
@@ -472,26 +496,27 @@
       <div
         x-show="!showLeftList"
         class="wi-toggle-btn-float left"
-        @click="showLeftList = true"
+        @click="showLeftList = true; editorPane = 'list'"
         title="展开列表"
+        aria-label="展开条目列表"
       >
         {{ icon('chevron-right', 'ui-icon--sm') }}
       </div>
 
       <!-- === 中间：沉浸式编辑区 === -->
-      <div class="wi-center-pane">
+      <div class="wi-center-pane wi-editor-canvas">
         <!-- 这里的 x-if 是关键：只有 activeEditorEntry 存在时，内部 DOM 才会被创建 -->
         <!-- 注意：移除了 x-data="{ entry: ... }"，直接使用 activeEditorEntry -->
         <template x-if="activeEditorEntry">
           <div class="flex flex-col h-full">
             <div
-              class="p-4 pb-2 flex-shrink-0 flex items-center gap-4 transition-all duration-300 border-b"
+              class="wi-canvas-header p-4 pb-2 flex-shrink-0 flex items-center gap-4 transition-all duration-300 border-b"
               :class="isEditingClipboard ? 'color-surface-violet color-border-violet' : 'bg-transparent border-transparent'"
             >
-              <div class="flex-1">
+              <div class="wi-canvas-title flex-1">
                 <div class="flex items-center gap-2 mb-1">
                   <label
-                    class="text-[10px] uppercase font-bold tracking-wider block"
+                    class="wi-eyebrow text-[10px] uppercase font-bold tracking-wider block"
                     :class="isEditingClipboard ? 'color-text-violet' : 'color-text-muted'"
                   >
                     <span class="inline-flex items-center gap-1">
@@ -516,7 +541,7 @@
                 <input
                   type="text"
                   x-model="activeEditorEntry.comment"
-                  class="w-full bg-transparent text-lg font-bold border-b outline-none transition-colors p-1"
+                  class="wi-editor-comment-input w-full bg-transparent text-lg font-bold border-b outline-none transition-colors p-1"
                   :class="isEditingClipboard 
                     ? 'color-border-violet color-focus-border-accent color-placeholder-muted'
                     : 'border-transparent focus:border-[var(--accent-action)]'"
@@ -525,7 +550,7 @@
               </div>
 
               <!-- 按钮组：根据模式切换 -->
-              <div class="flex items-center gap-2">
+              <div class="wi-canvas-actions flex items-center gap-2">
                 <span
                   class="wi-content-token-label"
                   :class="isEditingClipboard ? 'wi-content-token-label--clipboard' : ''"
@@ -574,8 +599,9 @@
                       title="删除条目"
                       class="wi-action-btn color-hover-text-danger color-hover-surface-danger"
                     >
-                      {{ icon('trash', 'ui-icon--md') }}
+                      {{ icon('close', 'ui-icon--md') }}
                     </button>
+                    <span class="hidden" aria-hidden="true">{{ icon('trash', 'ui-icon--md') }}</span>
                     <button
                       @click.stop="copyWiToClipboard(activeEditorEntry)"
                       title="复制到剪切板"
@@ -589,13 +615,13 @@
             </div>
 
             <div
-              class="wi-content-wrapper"
+              class="wi-content-wrapper wi-editor-content-area"
               :class="{'color-surface-violet': isEditingClipboard}"
             >
               <textarea
                 x-model="activeEditorEntry.content"
                 x-ref="wiContentTextarea"
-                class="wi-main-textarea custom-scrollbar"
+                class="wi-main-textarea wi-editor-content-input custom-scrollbar"
                 :class="{'color-border-violet color-focus-border-accent': isEditingClipboard}"
                 placeholder="在此输入世界书内容..."
               ></textarea>
@@ -605,7 +631,7 @@
 
         <template x-if="!activeEditorEntry">
           <div
-            class="flex-1 flex flex-col items-center justify-center color-text-muted gap-4 select-none"
+            class="wi-empty-editor-state flex-1 flex flex-col items-center justify-center color-text-muted gap-4 select-none"
           >
             <div class="opacity-20">
               {{ icon('sticky-note', 'ui-icon--xl') }}
@@ -617,29 +643,40 @@
 
       <!-- === 右侧：属性面板 === -->
       <div
-        class="wi-inspector-panel custom-scrollbar"
-        :style="{ width: showRightPanel ? '320px' : '0px', opacity: showRightPanel ? '1' : '0' }"
+        class="wi-inspector-panel wi-editor-inspector custom-scrollbar"
+        :class="showRightPanel ? 'is-open' : 'is-collapsed'"
       >
         <div class="wi-inspector-tabs">
-          <div
+          <button
+            type="button"
             class="wi-tab-btn"
             :class="rightTab==='settings' && 'active'"
             @click="rightTab='settings'"
+            role="tab"
+            :aria-selected="rightTab==='settings'"
+            aria-controls="wi-inspector-settings"
           >
             {{ icon('sliders-settings', 'ui-icon--md') }}
             <span>属性设置</span>
-          </div>
-          <div
+          </button>
+          <button
+            type="button"
             class="wi-tab-btn"
             :class="rightTab==='clipboard' && 'active'"
             @click="rightTab='clipboard'"
+            role="tab"
+            :aria-selected="rightTab==='clipboard'"
+            aria-controls="wi-inspector-clipboard"
           >
             {{ icon('clipboard', 'ui-icon--md') }}
             <span>剪切板</span>
-          </div>
+          </button>
           <button
-            @click="showRightPanel = false"
-            class="px-3 color-text-muted color-hover-text-danger border-l border-[var(--border-default)]"
+            type="button"
+            @click="showRightPanel = false; editorPane = 'content'"
+            class="wi-inspector-close px-3 color-text-muted color-hover-text-danger border-l border-[var(--border-default)]"
+            title="关闭属性面板"
+            aria-label="关闭属性面板"
           >
             {{ icon('close', 'ui-icon--sm') }}
           </button>
@@ -648,7 +685,7 @@
         <!-- Tab 1: Settings Inspector -->
         <!-- 关键修复：使用 template x-if 确保 activeEditorEntry 存在，且 rightTab 匹配时才渲染 -->
         <template x-if="rightTab==='settings' && activeEditorEntry">
-          <div class="wi-inspector-content">
+          <div id="wi-inspector-settings" class="wi-inspector-content" role="tabpanel">
             <!-- 1. 触发策略 -->
             <div class="props-group">
               <div class="props-header color-text-accent">触发策略 (Strategy)</div>
@@ -1582,6 +1619,8 @@
         <!-- Tab 2: Clipboard -->
         <div
           x-show="rightTab==='clipboard'"
+          id="wi-inspector-clipboard"
+          role="tabpanel"
           class="flex-1 flex flex-col h-full overflow-hidden"
         >
           <div
@@ -1589,10 +1628,14 @@
           >
             <span class="text-xs font-bold color-text-muted">Global Items</span>
             <button
+              type="button"
               @click="typeof clearWiClipboard === 'function' && clearWiClipboard()"
-              class="text-[10px] color-text-danger hover:underline"
+              class="wi-clipboard-clear text-[10px] color-text-danger hover:underline"
+              title="清空剪切板"
+              aria-label="清空剪切板"
             >
-              清空
+              {{ icon('close', 'ui-icon--xs') }}
+              <span>清空</span>
             </button>
           </div>
 
@@ -1609,10 +1652,12 @@
             </p>
             <p class="text-[10px] opacity-70 mb-1">点击下方条目以覆盖保存</p>
             <button
+              type="button"
               @click="wiClipboardOverwriteMode=false"
-              class="text-[10px] underline color-hover-text-primary"
+              class="wi-clipboard-cancel text-[10px] underline color-hover-text-primary"
             >
-              取消
+              {{ icon('close', 'ui-icon--xs') }}
+              <span>取消</span>
             </button>
           </div>
 
@@ -1693,22 +1738,60 @@
       <div
         x-show="!showRightPanel"
         class="wi-toggle-btn-float right"
-        @click="showRightPanel = true"
+        @click="showRightPanel = true; editorPane = 'inspector'"
         title="展开面板"
+        aria-label="展开属性面板"
       >
         {{ icon('chevron-right', 'ui-icon--sm rotate-180') }}
       </div>
+
+      <!-- 移动端面板导航：把三栏工作台变成单一聚焦视图 -->
+      <nav class="wi-mobile-dock" aria-label="编辑器面板导航">
+        <button
+          type="button"
+          class="wi-mobile-dock-item"
+          :class="editorPane === 'list' ? 'active' : ''"
+          :aria-current="editorPane === 'list' ? 'page' : null"
+          @click="setEditorPane('list')"
+        >
+          {{ icon('list', 'ui-icon--sm') }}
+          <span>目录</span>
+        </button>
+        <button
+          type="button"
+          class="wi-mobile-dock-item"
+          :class="editorPane === 'content' ? 'active' : ''"
+          :aria-current="editorPane === 'content' ? 'page' : null"
+          @click="setEditorPane('content')"
+        >
+          {{ icon('pencil-edit', 'ui-icon--sm') }}
+          <span>编辑</span>
+        </button>
+        <button
+          type="button"
+          class="wi-mobile-dock-item"
+          :class="editorPane === 'inspector' ? 'active' : ''"
+          :aria-current="editorPane === 'inspector' ? 'page' : null"
+          @click="setEditorPane('inspector')"
+        >
+          {{ icon('sliders-settings', 'ui-icon--sm') }}
+          <span>属性</span>
+        </button>
+      </nav>
 
       <!-- 查找与替换悬浮面板（可拖动，不遮挡整页） -->
       <div
         x-show="showFindReplaceModal"
         x-cloak
-        class="fixed inset-0 z-[10000] pointer-events-none ui-refresh-surface"
+        class="wi-editor-modal-overlay wi-editor-find-overlay fixed inset-0 z-[10000] pointer-events-none ui-refresh-surface"
       >
         <div
           x-ref="findReplacePanel"
-          class="ui-modal-shell wi-find-replace-panel absolute w-full max-w-xl pointer-events-auto"
+          class="ui-modal-shell wi-editor-modal wi-find-replace-panel absolute w-full max-w-xl pointer-events-auto"
           :style="findReplacePanelStyle"
+          role="dialog"
+          aria-modal="true"
+          aria-label="查找与替换"
         >
           <div
             class="px-4 py-3 border-b border-[var(--border-default)] flex items-center justify-between cursor-move select-none"
@@ -1753,6 +1836,7 @@
                 type="text"
                 x-ref="findReplaceInput"
                 x-model="findReplaceQuery"
+                x-effect="if (showFindReplaceModal) $nextTick(() => $el.focus())"
                 @keydown.enter.prevent="findNextMatch()"
                 class="w-full px-3 py-2 rounded bg-[var(--surface-page)] border border-[var(--border-default)] text-sm focus:border-[var(--accent-action)] outline-none"
                 placeholder="输入要查找的文本..."
@@ -1848,11 +1932,11 @@
       <div
         x-show="showTaggedImportModal"
         x-cloak
-        class="fixed inset-0 z-[10001] color-surface-scrim ui-refresh-surface flex items-center justify-center p-4"
+        class="wi-editor-modal-overlay fixed inset-0 z-[10001] color-surface-scrim ui-refresh-surface flex items-center justify-center p-4"
         @click.self="closeTaggedImportModal()"
       >
         <div
-          class="ui-modal-shell w-full max-w-2xl"
+          class="ui-modal-shell wi-editor-modal w-full max-w-2xl"
           role="dialog"
           aria-modal="true"
           aria-label="从 JSONL 导入标签条目"
@@ -1935,6 +2019,7 @@
               @click="closeTaggedImportModal()"
               class="btn-secondary px-3 py-1.5 text-xs rounded"
             >
+              {{ icon('close', 'ui-icon--xs') }}
               取消
             </button>
             <button
@@ -1952,11 +2037,11 @@
       <div
         x-show="showEntryHistoryModal"
         x-cloak
-        class="fixed inset-0 z-[9999] color-surface-scrim ui-refresh-surface flex items-center justify-center p-4"
+        class="wi-editor-modal-overlay fixed inset-0 z-[9999] color-surface-scrim ui-refresh-surface flex items-center justify-center p-4"
         @click.self="showEntryHistoryModal = false"
       >
         <div
-          class="ui-modal-shell w-full max-w-7xl h-[82vh]"
+          class="ui-modal-shell wi-editor-modal wi-entry-history-modal w-full max-w-7xl h-[82vh]"
           role="dialog"
           aria-modal="true"
           aria-label="条目历史回滚"
@@ -2111,11 +2196,11 @@
   <div
     x-show="showHelpModal"
     x-cloak
-    class="fixed inset-0 z-[10001] color-surface-scrim ui-refresh-surface flex items-center justify-center p-4"
+    class="wi-editor-modal-overlay fixed inset-0 z-[10001] color-surface-scrim ui-refresh-surface flex items-center justify-center p-4"
     @click.self="showHelpModal=false"
   >
     <div
-      class="ui-modal-shell w-full max-w-4xl max-h-[85vh] wi-help-modal-content"
+      class="ui-modal-shell wi-editor-modal w-full max-w-4xl max-h-[85vh] wi-help-modal-content"
       role="dialog"
       aria-modal="true"
       aria-label="世界书编辑器帮助指南"

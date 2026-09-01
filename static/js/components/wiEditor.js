@@ -48,8 +48,17 @@ export default function wiEditor() {
     showFullScreenWI: false,
     showWiList: true,
     showWiSettings: true,
+    // 三栏工作台的显式视图状态。桌面端保持三栏，移动端由底部导航切换面板。
+    editorPane: "content",
+    showLeftList: true,
+    showRightPanel: true,
+    rightTab: "settings",
     isLoading: false,
     isSaving: false,
+    editorSaveState: "idle", // idle | saving | saved | error
+    editorSaveMessage: "尚未保存",
+    editorLastSavedAt: "",
+    editorBaselineJson: null,
     openWorldInfoEditorRequestToken: 0,
     openWorldInfoFileRequestToken: 0,
 
@@ -135,6 +144,195 @@ export default function wiEditor() {
 
     get activeCard() {
       return this.editingData;
+    },
+
+    getEditorSourceLabel() {
+      const type = this.editingWiFile?.type || this.editingWiFile?.source_type;
+      if (type === "embedded") return "角色卡内嵌";
+      if (type === "resource") return "资源世界书";
+      if (type === "global") return "全局世界书";
+      return "世界书编辑器";
+    },
+
+    getEditorSourceDescription() {
+      const type = this.editingWiFile?.type || this.editingWiFile?.source_type;
+      if (type === "embedded") {
+        return this.editingData?.char_name
+          ? `${this.editingData.char_name} · 随角色卡保存`
+          : "随角色卡保存";
+      }
+      if (type === "resource") return "资源目录中的独立文件";
+      if (type === "global") return "应用共享的独立文件";
+      return "等待载入来源";
+    },
+
+    getEditorVisibleEntryCount() {
+      return typeof this.getFilteredSortedWIEntries === "function"
+        ? this.getFilteredSortedWIEntries().length
+        : 0;
+    },
+
+    getEditorTotalEntryCount() {
+      return typeof this.getSortedWIEntries === "function"
+        ? this.getSortedWIEntries().length
+        : 0;
+    },
+
+    _serializeEditorBookForComparison(book) {
+      const transientFields = new Set([
+        "matchWholeWordsState",
+        "caseSensitiveState",
+        "useGroupScoringState",
+      ]);
+
+      return JSON.stringify(book, (key, value) => {
+        return transientFields.has(key) ? undefined : value;
+      });
+    },
+
+    hasEditorUnsavedChanges() {
+      if (!this.editingData?.character_book || !this.editorBaselineJson) {
+        return false;
+      }
+
+      try {
+        return (
+          this._serializeEditorBookForComparison(this.editingData.character_book) !==
+          this.editorBaselineJson
+        );
+      } catch (e) {
+        console.warn("Unable to compare worldbook editor state:", e);
+        return true;
+      }
+    },
+
+    getEditorSaveStatusLabel() {
+      if (this.isLoading) return "正在载入";
+      if (this.isSaving || this.editorSaveState === "saving") return "正在保存";
+      if (this.hasEditorUnsavedChanges()) return "有未保存修改";
+      if (this.editorSaveState === "error") return this.editorSaveMessage || "保存失败";
+      if (this.editorSaveState === "saved" && this.editorLastSavedAt) {
+        return `已保存 ${this.editorLastSavedAt}`;
+      }
+      return this.editorSaveMessage || "已载入";
+    },
+
+    getEditorSaveStatusClass() {
+      if (this.isSaving || this.editorSaveState === "saving") return "is-saving";
+      if (this.editorSaveState === "error") return "is-error";
+      if (this.hasEditorUnsavedChanges()) return "is-dirty";
+      if (this.editorSaveState === "saved") return "is-saved";
+      return "is-idle";
+    },
+
+    _setEditorBaseline() {
+      if (!this.editingData?.character_book) {
+        this.editorBaselineJson = null;
+        return;
+      }
+
+      try {
+        this.editorBaselineJson = this._serializeEditorBookForComparison(
+          this.editingData.character_book,
+        );
+      } catch (e) {
+        this.editorBaselineJson = null;
+        console.warn("Unable to store worldbook editor baseline:", e);
+      }
+    },
+
+    _markEditorSaveStarted(message = "正在保存") {
+      this.editorSaveState = "saving";
+      this.editorSaveMessage = message;
+    },
+
+    _markEditorSaveSuccess(message = "已保存") {
+      this.editorSaveState = "saved";
+      this.editorSaveMessage = message;
+      this.editorLastSavedAt = new Date().toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+      this._setEditorBaseline();
+    },
+
+    _markEditorSaveError(message = "保存失败") {
+      this.editorSaveState = "error";
+      this.editorSaveMessage = message;
+    },
+
+    isEditorMobileViewport() {
+      return (
+        this.$store?.global?.deviceType === "mobile" ||
+        (typeof window !== "undefined" &&
+          typeof window.matchMedia === "function" &&
+          window.matchMedia("(max-width: 900px)").matches)
+      );
+    },
+
+    setEditorPane(pane) {
+      const nextPane = ["list", "content", "inspector"].includes(pane)
+        ? pane
+        : "content";
+      this.editorPane = nextPane;
+      if (nextPane === "list") {
+        this.showLeftList = true;
+        this.showRightPanel = false;
+      } else if (nextPane === "inspector") {
+        this.showLeftList = false;
+        this.showRightPanel = true;
+      } else if (this.isEditorMobileViewport()) {
+        this.showLeftList = false;
+        this.showRightPanel = false;
+      }
+
+      this.$nextTick(() => {
+        if (nextPane === "list") {
+          this._getEditorRootEl()?.querySelector("#wi-entry-filter-input")?.focus();
+        } else if (nextPane === "content") {
+          this._getContentTextareaEl()?.focus();
+        }
+      });
+    },
+
+    toggleEditorList() {
+      this.showLeftList = !this.showLeftList;
+      if (this.showLeftList) this.editorPane = "list";
+    },
+
+    toggleEditorInspector() {
+      this.showRightPanel = !this.showRightPanel;
+      if (this.showRightPanel) this.editorPane = "inspector";
+    },
+
+    requestCloseEditor() {
+      if (this.isLoading) return;
+      if (
+        this.hasEditorUnsavedChanges() &&
+        !confirm("当前世界书有未保存的修改，确定要关闭编辑器吗？")
+      ) {
+        return;
+      }
+      this.showFullScreenWI = false;
+    },
+
+    selectAdjacentWiEntry(step) {
+      if (this.isEditingClipboard) return;
+      const entries = this.getSortedWIEntries();
+      if (!entries.length) return;
+      const current = this.activeEditorEntry;
+      const currentIndex = entries.indexOf(current);
+      const nextIndex =
+        currentIndex < 0
+          ? 0
+          : (currentIndex + step + entries.length) % entries.length;
+      this.selectMainWiItem(entries[nextIndex], nextIndex);
+      this.$nextTick(() => {
+        const listItem = Array.from(
+          this._getEditorRootEl()?.querySelectorAll(".wi-list-item") || [],
+        ).find((item) => item.dataset.entryKey === this.currentWiEntryKey);
+        listItem?.scrollIntoView?.({ behavior: "smooth", block: "center" });
+      });
     },
 
     getWiEntrySearchText(entry) {
@@ -446,9 +644,14 @@ export default function wiEditor() {
             const currentWorldbookJson = JSON.stringify(
               this.editingData.character_book,
             );
+            const currentWorldbookComparableJson =
+              this._serializeEditorBookForComparison(
+                this.editingData.character_book,
+              );
             const hasWorldbookChanges =
               !this.embeddedWorldbookBaselineJson ||
-              currentWorldbookJson !== this.embeddedWorldbookBaselineJson;
+              currentWorldbookComparableJson !==
+                this.embeddedWorldbookBaselineJson;
             const hasSavedWorldbook =
               this.embeddedWorldbookLastSavedJson !== null;
 
@@ -472,6 +675,10 @@ export default function wiEditor() {
           }
           this.embeddedWorldbookBaselineJson = null;
           this.embeddedWorldbookLastSavedJson = null;
+          this.editorBaselineJson = null;
+          this.editorSaveState = "idle";
+          this.editorSaveMessage = "尚未保存";
+          this.editorLastSavedAt = "";
           this._cleanupInitBackupsOnExit();
           autoSaver.stop();
           this.isEditingClipboard = false;
@@ -487,6 +694,9 @@ export default function wiEditor() {
           this.taggedImportDragOver = false;
           this.taggedImportPendingFile = null;
           this.taggedImportPendingFileName = "";
+          this.showLeftList = false;
+          this.showRightPanel = false;
+          this.editorPane = "content";
         }
       });
 
@@ -504,14 +714,54 @@ export default function wiEditor() {
           return;
         }
 
+        // Ctrl/Cmd + S 保存当前编辑，Ctrl/Cmd + Shift + S 保存整本并生成快照。
+        if (
+          (e.ctrlKey || e.metaKey) &&
+          String(e.key || "").toLowerCase() === "s"
+        ) {
+          e.preventDefault();
+          e.stopPropagation();
+          if (e.shiftKey) this.saveWholeWorldbook();
+          else if (this.editingWiFile?.type === "embedded") this.saveChanges();
+          else this.saveWiFileChanges();
+          return;
+        }
+
+        // Alt + 上下方向键在条目间移动，保留方向键在表单中的原生行为。
+        if (e.altKey && (e.key === "ArrowUp" || e.key === "ArrowDown")) {
+          e.preventDefault();
+          e.stopPropagation();
+          this.selectAdjacentWiEntry(e.key === "ArrowUp" ? -1 : 1);
+          return;
+        }
+
         if (e.key === "Escape" && this.showFindReplaceModal) {
           e.preventDefault();
           this.closeFindReplaceModal();
           return;
         }
 
+        if (e.key === "Escape" && this.showTaggedImportModal) {
+          e.preventDefault();
+          this.closeTaggedImportModal();
+          return;
+        }
+
+        if (e.key === "Escape" && this.showEntryHistoryModal) {
+          e.preventDefault();
+          this.showEntryHistoryModal = false;
+          return;
+        }
+
+        if (e.key === "Escape" && this.showHelpModal) {
+          e.preventDefault();
+          this.showHelpModal = false;
+          return;
+        }
+
         if (e.key === "Escape") {
-          this.showFullScreenWI = false;
+          e.preventDefault();
+          this.requestCloseEditor();
         }
       });
     },
@@ -866,11 +1116,28 @@ export default function wiEditor() {
       }
 
       this.$nextTick(() => {
-        const input = this._getFindInputEl();
-        if (input && typeof input.focus === "function") {
-          input.focus();
-          if (typeof input.select === "function") input.select();
-        }
+        const focusInput = () => {
+          const input = this._getFindInputEl();
+          const panel = this._getFindReplacePanelEl();
+          const activeElement = document.activeElement;
+          if (
+            !input ||
+            (panel &&
+              activeElement &&
+              panel.contains(activeElement) &&
+              activeElement !== input)
+          ) {
+            return;
+          }
+          if (typeof input.focus === "function") {
+            input.focus();
+            if (typeof input.select === "function") input.select();
+          }
+        };
+        focusInput();
+        window.setTimeout(focusInput, 0);
+        window.setTimeout(focusInput, 120);
+        window.setTimeout(focusInput, 320);
       });
     },
 
@@ -2527,6 +2794,7 @@ export default function wiEditor() {
       await this._flushPendingEditorInput();
       this._ensureEntryUids();
       this.isSaving = true;
+      this._markEditorSaveStarted(withSnapshot ? "正在保存整本" : "正在保存修改");
       await this._ensureInitSnapshotReadyForSave();
 
       if (withSnapshot) {
@@ -2534,6 +2802,7 @@ export default function wiEditor() {
           const snapshotRes = await this._createWholeWorldbookSnapshot();
           if (!snapshotRes || !snapshotRes.success) {
             this.isSaving = false;
+            this._markEditorSaveError("整本保存失败");
             alert(
               "整本保存失败：无法创建版本快照" +
                 (snapshotRes && snapshotRes.msg ? ` (${snapshotRes.msg})` : ""),
@@ -2542,6 +2811,7 @@ export default function wiEditor() {
           }
         } catch (e) {
           this.isSaving = false;
+          this._markEditorSaveError("整本保存失败");
           alert("整本保存失败：创建版本快照异常 - " + e);
           return;
         }
@@ -2591,6 +2861,7 @@ export default function wiEditor() {
             } else {
               this.$store.global.showToast("条目修改已保存", 1800, "settings-save");
             }
+            this._markEditorSaveSuccess(withSnapshot ? "整本已保存" : "修改已保存");
 
             // 通知外部 (如卡片列表或详情页) 刷新数据
             window.dispatchEvent(
@@ -2605,15 +2876,20 @@ export default function wiEditor() {
               const savedWorldbookJson = JSON.stringify(
                 this.editingData.character_book,
               );
-              this.embeddedWorldbookBaselineJson = savedWorldbookJson;
+              this.embeddedWorldbookBaselineJson =
+                this._serializeEditorBookForComparison(
+                  this.editingData.character_book,
+                );
               this.embeddedWorldbookLastSavedJson = savedWorldbookJson;
             }
           } else {
+            this._markEditorSaveError("保存失败");
             alert("保存失败: " + res.msg);
           }
         })
         .catch((e) => {
           this.isSaving = false;
+          this._markEditorSaveError("请求错误");
           alert("请求错误: " + e);
         });
     },
@@ -2686,9 +2962,15 @@ export default function wiEditor() {
           ...(this.editingWiFile || {}),
         };
         this._ensureEntryUids();
+        this._setEditorBaseline();
+        this.editorSaveState = "idle";
+        this.editorSaveMessage = "已载入";
+        this.editorLastSavedAt = "";
         this.embeddedWorldbookBaselineJson =
           this.editingWiFile?.type === "embedded"
-            ? JSON.stringify(this.editingData.character_book)
+            ? this._serializeEditorBookForComparison(
+                this.editingData.character_book,
+              )
             : null;
         this.embeddedWorldbookLastSavedJson = null;
         let targetIndex = 0;
@@ -2888,6 +3170,10 @@ export default function wiEditor() {
             this.editingWiFile = item;
             this.editingWiFile.source_revision = res.source_revision || "";
             this._ensureEntryUids();
+            this._setEditorBaseline();
+            this.editorSaveState = "idle";
+            this.editorSaveMessage = "已载入";
+            this.editorLastSavedAt = "";
             this.openFullScreenWI();
             this.$nextTick(async () => {
               if (this.initialSnapshotInitPromise) {
@@ -2922,6 +3208,11 @@ export default function wiEditor() {
     openFullScreenWI() {
       this.showFullScreenWI = true;
       this.wiEntryFilterQuery = "";
+      this.editorPane = "content";
+      this.rightTab = "settings";
+      const isMobile = this.isEditorMobileViewport();
+      this.showLeftList = !isMobile;
+      this.showRightPanel = !isMobile;
       // 确保选中第一项
       const entries = this.getWIArrayRef();
       const hasSelectedEntry =
@@ -3027,6 +3318,7 @@ export default function wiEditor() {
 
     async saveEditingWorldInfoNote() {
       if (!this.editingWiFile) return;
+      this._markEditorSaveStarted("正在保存备注");
       try {
         let res;
         if (this.editingWiFile.type === "embedded") {
@@ -3043,6 +3335,7 @@ export default function wiEditor() {
           );
         }
         if (!res?.success) {
+          this._markEditorSaveError("备注保存失败");
           alert(`保存备注失败: ${res?.msg || "未知错误"}`);
           return;
         }
@@ -3058,7 +3351,9 @@ export default function wiEditor() {
           1600,
           "settings-save",
         );
+        this._markEditorSaveSuccess("备注已保存");
       } catch (e) {
+        this._markEditorSaveError("备注保存失败");
         alert(`保存备注失败: ${e}`);
       }
     },
@@ -3083,6 +3378,7 @@ export default function wiEditor() {
       await this._flushPendingEditorInput();
       this._ensureEntryUids();
       this.isSaving = true;
+      this._markEditorSaveStarted(withSnapshot ? "正在保存整本" : "正在保存修改");
       await this._ensureInitSnapshotReadyForSave();
 
       if (withSnapshot) {
@@ -3090,6 +3386,7 @@ export default function wiEditor() {
           const snapshotRes = await this._createWholeWorldbookSnapshot();
           if (!snapshotRes || !snapshotRes.success) {
             this.isSaving = false;
+            this._markEditorSaveError("整本保存失败");
             alert(
               "整本保存失败：无法创建版本快照" +
                 (snapshotRes && snapshotRes.msg ? ` (${snapshotRes.msg})` : ""),
@@ -3098,6 +3395,7 @@ export default function wiEditor() {
           }
         } catch (e) {
           this.isSaving = false;
+          this._markEditorSaveError("整本保存失败");
           alert("整本保存失败：创建版本快照异常 - " + e);
           return;
         }
@@ -3129,13 +3427,16 @@ export default function wiEditor() {
             } else {
               this.$store.global.showToast("条目修改已保存", 1800, "settings-save");
             }
+            this._markEditorSaveSuccess(withSnapshot ? "整本已保存" : "修改已保存");
             autoSaver.initBaseline(this.editingData);
           } else {
+            this._markEditorSaveError("保存失败");
             alert("保存失败: " + res.msg);
           }
         })
         .catch((e) => {
           this.isSaving = false;
+          this._markEditorSaveError("请求错误");
           alert("请求错误: " + e);
         });
     },
@@ -3363,6 +3664,11 @@ export default function wiEditor() {
       if (rawIndex < 0) return;
       this.currentWiIndex = rawIndex;
       this.currentWiEntryKey = this.getWiEntryIdentity(arr[rawIndex], rawIndex);
+      if (this.isEditorMobileViewport()) {
+        this.editorPane = "content";
+        this.showLeftList = false;
+        this.showRightPanel = false;
+      }
     },
 
     selectClipboardItem(index) {
@@ -3377,6 +3683,11 @@ export default function wiEditor() {
       this.isEditingClipboard = true;
       this.currentClipboardIndex = index;
       this.currentWiIndex = -1;
+      if (this.isEditorMobileViewport()) {
+        this.editorPane = "content";
+        this.showLeftList = false;
+        this.showRightPanel = false;
+      }
     },
 
     exitClipboardEdit() {
