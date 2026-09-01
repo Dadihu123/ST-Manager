@@ -129,13 +129,12 @@
           </div>
           <span
             class="detail-visual-state"
-            :class="activeCard.is_bundle ? 'is-bundle' : ''"
             role="status"
             aria-live="polite"
           >
             <span class="detail-status-dot" aria-hidden="true"></span>
             <span
-              x-text="isCardFlipped ? '元数据预览' : (isSaving ? '正在保存' : (hasUnsavedChanges ? '待保存' : (activeCard.is_bundle ? '角色包' : '已同步')))"
+              x-text="isCardFlipped ? '元数据预览' : (isSaving ? '正在保存' : (hasUnsavedChanges ? '待保存' : '已同步'))"
             ></span>
           </span>
         </div>
