@@ -2547,6 +2547,111 @@ export default function detailModal() {
             return this.getSkinUrl(this.skinGalleryPreviewPath);
         },
 
+        get skinGalleryPreviewItems() {
+            return this.skinGalleryImageItems;
+        },
+
+        get skinGalleryPreviewIndex() {
+            const previewPath = this.normalizeResourcePath(this.skinGalleryPreviewPath);
+            if (!previewPath) return -1;
+
+            return this.skinGalleryPreviewItems.findIndex(
+                item => this.normalizeResourcePath(item.path) === previewPath,
+            );
+        },
+
+        canNavigateSkinGalleryPreview(step) {
+            const offset = Number(step);
+            const targetIndex = this.skinGalleryPreviewIndex + offset;
+            return Number.isInteger(offset)
+                && this.skinGalleryPreviewItems.length > 1
+                && this.skinGalleryPreviewIndex >= 0
+                && targetIndex >= 0
+                && targetIndex < this.skinGalleryPreviewItems.length;
+        },
+
+        navigateSkinGalleryPreview(step) {
+            const offset = Number(step);
+            const items = this.skinGalleryPreviewItems;
+            const currentIndex = this.skinGalleryPreviewIndex;
+            const targetIndex = currentIndex + offset;
+            if (!Number.isInteger(offset) || currentIndex < 0 || targetIndex < 0 || targetIndex >= items.length) {
+                return;
+            }
+
+            const targetItem = items[targetIndex];
+            this.selectSkinByPath(targetItem.path);
+            this.skinGalleryPreviewPath = this.selectedSkinPath || targetItem.path;
+        },
+
+        get mainImagePreviewItems() {
+            const mainName = this.activeCard?.filename
+                || this.editingData?.filename
+                || this.editingData?.char_name
+                || '角色卡主图';
+            const skinItems = (this.skinImages || [])
+                .map((skin, index) => {
+                    const pathValue = this.normalizeResourcePath(skin);
+                    if (!pathValue) return null;
+                    return {
+                        type: 'skin',
+                        name: this.getResourcePathName(pathValue) || `皮肤 ${index + 1}`,
+                        path: pathValue,
+                    };
+                })
+                .filter(Boolean);
+
+            return [
+                { type: 'main', name: mainName, path: '' },
+                ...skinItems,
+            ];
+        },
+
+        get mainImagePreviewIndex() {
+            const selectedPath = this.normalizeResourcePath(this.selectedSkinPath);
+            if (!selectedPath) return 0;
+
+            const skinIndex = this.mainImagePreviewItems.findIndex(
+                item => item.type === 'skin' && item.path === selectedPath,
+            );
+            return skinIndex === -1 ? 0 : skinIndex;
+        },
+
+        canNavigateMainImagePreview(step) {
+            const offset = Number(step);
+            const targetIndex = this.mainImagePreviewIndex + offset;
+            return Number.isInteger(offset)
+                && this.mainImagePreviewItems.length > 1
+                && targetIndex >= 0
+                && targetIndex < this.mainImagePreviewItems.length;
+        },
+
+        navigateMainImagePreview(step) {
+            const offset = Number(step);
+            const items = this.mainImagePreviewItems;
+            const currentIndex = this.mainImagePreviewIndex;
+            const targetIndex = currentIndex + offset;
+            if (!this.mainImagePreviewUrl
+                || !Number.isInteger(offset)
+                || items.length < 2
+                || targetIndex < 0
+                || targetIndex >= items.length) {
+                return;
+            }
+
+            const targetItem = items[targetIndex];
+            if (targetItem.type === 'main') {
+                this.currentSkinIndex = -1;
+                this.mainImagePreviewUrl = this.activeCard?.image_url || '';
+                this.mainImagePreviewName = targetItem.name;
+            } else {
+                this.selectSkinByPath(targetItem.path);
+                this.mainImagePreviewUrl = this.displayImageUrl;
+                this.mainImagePreviewName = this.selectedSkinName || targetItem.name;
+            }
+            this.isCardFlipped = false;
+        },
+
         get displayImageUrl() {
             if (!this.selectedSkinPath) {
                 return this.activeCard.image_url;
@@ -2609,6 +2714,16 @@ export default function detailModal() {
 
         handleSkinGalleryKeydown(event) {
             if (!this.showSkinGallery || !event) return;
+
+            if (this.skinGalleryPreviewPath
+                && (event.key === 'ArrowLeft' || event.key === 'ArrowRight')) {
+                if (typeof event.preventDefault === 'function') {
+                    event.preventDefault();
+                }
+                this.navigateSkinGalleryPreview(event.key === 'ArrowLeft' ? -1 : 1);
+                return;
+            }
+
             if (event.key !== 'Escape') return;
 
             if (typeof event.preventDefault === 'function') {
@@ -2621,6 +2736,16 @@ export default function detailModal() {
             }
 
             this.closeSkinGallery();
+        },
+
+        handleMainImagePreviewKeydown(event) {
+            if (!this.mainImagePreviewUrl || !event) return;
+            if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+
+            if (typeof event.preventDefault === 'function') {
+                event.preventDefault();
+            }
+            this.navigateMainImagePreview(event.key === 'ArrowLeft' ? -1 : 1);
         },
 
         nextSkin() {

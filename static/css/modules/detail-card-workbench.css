@@ -2519,3 +2519,72 @@ html.light-mode .ui-detail-modal .detail-modal--workbench .detail-thumb-label {
     transform: none;
   }
 }
+
+/* Fullscreen image controls sit on a dark scrim in both themes. Keep their
+   contrast and hit areas independent from the regular gallery close button. */
+.ui-detail-modal .detail-modal--workbench .skin-gallery-preview-toolbar {
+  align-items: center;
+}
+
+.ui-detail-modal .detail-modal--workbench .skin-gallery-preview-name {
+  flex: 1 1 auto;
+}
+
+.ui-detail-modal .detail-modal--workbench .skin-gallery-preview-actions,
+.ui-detail-modal .detail-modal--workbench .skin-gallery-preview-nav-group {
+  align-items: center;
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 0.3rem;
+}
+
+.ui-detail-modal .detail-modal--workbench .skin-gallery-preview-nav,
+.ui-detail-modal .detail-modal--workbench .skin-gallery-preview .skin-gallery-close {
+  align-items: center;
+  background: color-mix(in srgb, var(--content-on-dark) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--content-on-dark) 34%, transparent);
+  border-radius: 999px;
+  color: var(--content-on-dark);
+  display: inline-flex;
+  justify-content: center;
+  min-height: 2.75rem;
+  min-width: 2.75rem;
+  padding: 0;
+  transition: background-color 0.16s ease, border-color 0.16s ease, color 0.16s ease, transform 0.16s ease;
+}
+
+.ui-detail-modal .detail-modal--workbench .skin-gallery-preview-nav:hover:not(:disabled),
+.ui-detail-modal .detail-modal--workbench .skin-gallery-preview .skin-gallery-close:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--content-on-dark) 24%, transparent);
+  border-color: var(--content-on-dark);
+  color: var(--content-on-dark);
+}
+
+.ui-detail-modal .detail-modal--workbench .skin-gallery-preview .skin-gallery-close:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--status-danger-solid) 82%, transparent);
+  border-color: var(--status-danger-solid);
+}
+
+.ui-detail-modal .detail-modal--workbench .skin-gallery-preview-nav:disabled {
+  cursor: not-allowed;
+  opacity: 0.38;
+}
+
+.ui-detail-modal .detail-modal--workbench .skin-gallery-preview-nav:focus-visible,
+.ui-detail-modal .detail-modal--workbench .skin-gallery-preview .skin-gallery-close:focus-visible {
+  box-shadow: none;
+  outline: 2px solid var(--state-focus-ring);
+  outline-offset: 2px;
+}
+
+@media (max-width: 40rem) {
+  .ui-detail-modal .detail-modal--workbench .skin-gallery-preview-toolbar {
+    gap: 0.5rem;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .skin-gallery-preview-nav,
+  .ui-detail-modal .detail-modal--workbench .skin-gallery-preview .skin-gallery-close {
+    min-height: 2.5rem;
+    min-width: 2.5rem;
+  }
+}
