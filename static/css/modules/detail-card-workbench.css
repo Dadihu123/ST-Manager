@@ -1328,9 +1328,10 @@ html.light-mode .ui-detail-modal .detail-modal--workbench .detail-visual-header 
   min-width: 2.65rem;
 }
 
-.ui-detail-modal .detail-modal--workbench .ui-small-dialog {
+.ui-detail-modal .detail-resource-folder-dialog {
   background: var(--surface-container);
-  border-color: var(--border-default);
+  border: 1px solid var(--border-default);
+  border-radius: var(--ui-radius-lg, 1rem);
   color: var(--content-primary);
 }
 
