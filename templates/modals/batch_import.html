@@ -1,4 +1,4 @@
-{% from "components/icon.html" import detail_icon, icon %}
+{% from "components/icon.html" import detail_icon, icon, loading_icon %}
 
 <!-- 批量导入确认模态框 -->
 <div x-show="showBatchImportModal" x-data="batchImportModal" x-cloak class="modal-overlay ui-modal-overlay ui-refresh-surface z-modal-popover">
@@ -186,7 +186,7 @@
                     取消
                 </button>
                 <button @click="commitImport()" :disabled="isLoading" class="btn-primary px-6 py-2 rounded shadow-lg flex items-center gap-2">
-                    <span x-show="isLoading" aria-hidden="true">{{ icon('loader-circle', 'ui-icon--sm ui-icon--spin') }}</span>
+                    <span x-show="isLoading" aria-hidden="true">{{ loading_icon('ui-icon--sm') }}</span>
                     <span x-text="isLoading ? '处理中...' : '开始导入'"></span>
                 </button>
             </div>

@@ -73,11 +73,14 @@ const TOAST_ICON_SPRITES = Object.freeze({
   "tags": "detail.svg#icon-tags",
   "link-source": "detail.svg#icon-link-source",
 });
+const TOAST_ICON_IMAGES = Object.freeze({
+  "loading-animation": "loading-animation.svg",
+});
 const TOAST_ICON_NAMES = new Set([
   "forbidden",
   "send",
   "folder",
-  "loader-circle",
+  "loading-animation",
   "close",
   "trash",
   "check",
@@ -1509,7 +1512,9 @@ export function initState() {
       const hasIcon = TOAST_ICON_NAMES.has(normalizedIconName);
       this.toastIcon = hasIcon ? normalizedIconName : "";
       this.toastIconHref = hasIcon
-        ? TOAST_ICON_SPRITES[normalizedIconName] || `ui.svg#icon-${normalizedIconName}`
+        ? TOAST_ICON_IMAGES[normalizedIconName] ||
+          TOAST_ICON_SPRITES[normalizedIconName] ||
+          `ui.svg#icon-${normalizedIconName}`
         : "";
       this.showToastState = true;
       if (this.toastTimer) clearTimeout(this.toastTimer);

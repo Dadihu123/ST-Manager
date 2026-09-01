@@ -1098,7 +1098,7 @@ export default function detailModal() {
                 return false;
             }
             if (this.isSaving) {
-                this.$store?.global?.showToast?.('正在保存，请稍候再关闭', 2200, 'loader-circle');
+                this.$store?.global?.showToast?.('正在保存，请稍候再关闭', 2200, 'loading-animation');
                 return false;
             }
             if (this.hasUnsavedChanges && !confirm('当前角色卡还有未保存修改，确定关闭吗？')) return false;
@@ -1421,7 +1421,7 @@ export default function detailModal() {
             formData.append('card_id', this.editingData.id);
             formData.append('file', file);
 
-            this.$store.global.showToast(`正在上传: ${file.name}...`, 2000, "loader-circle");
+            this.$store.global.showToast(`正在上传: ${file.name}...`, 2000, "loading-animation");
 
             try {
                 const res = await uploadCardResource(formData);

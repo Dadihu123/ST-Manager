@@ -33,6 +33,10 @@
   object-fit: contain;
 }
 
+.ui-loading-icon {
+  object-fit: contain;
+}
+
 /* 预设列表的实心图标来自独立 sprite；提示词标记会继承外层占位尺寸。 */
 .preset-icon {
   display: block;
@@ -183,12 +187,6 @@
   height: 20px;
 }
 
-.ui-icon--spin {
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: ui-icon-spin 0.9s linear infinite;
-}
-
 /* 随机角色骰子使用内联 SVG，确保原图的悬浮动画在模板中可靠生效。 */
 .ui-dice-icon {
   width: 24px;
@@ -279,18 +277,5 @@
   .header-tool-btn--random:hover .ui-dice-pip-center,
   .mobile-menu-btn-item:hover .ui-dice-pip-center {
     transform: none;
-  }
-}
-
-@keyframes ui-icon-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .ui-icon--spin {
-    animation: none;
-    opacity: 0.75;
   }
 }

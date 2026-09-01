@@ -1,4 +1,4 @@
-{% from "components/icon.html" import icon %}
+{% from "components/icon.html" import icon, loading_icon %}
 
 <!-- 回滚/时光机模态框 -->
 <div x-show="showRollbackModal" x-data="rollbackModal" x-cloak class="modal-overlay ui-modal-overlay ui-refresh-surface z-modal-popover" @click.self="showRollbackModal=false">
@@ -124,7 +124,7 @@
                     class="absolute inset-0 z-10 flex items-center justify-center backdrop-blur-sm color-surface-scrim-soft">
                     <div
                         class="bg-[var(--surface-container)] border border-[var(--border-default)] px-4 py-2 rounded-full shadow-lg flex items-center gap-2">
-                        <span aria-hidden="true">{{ icon('loader-circle', 'ui-icon--sm ui-icon--spin') }}</span>
+                        <span aria-hidden="true">{{ loading_icon('ui-icon--sm') }}</span>
                         <span class="text-sm font-bold">正在比对差异...</span>
                     </div>
                 </div>

@@ -1,4 +1,4 @@
-{% from "components/icon.html" import icon %}
+{% from "components/icon.html" import icon, loading_icon %}
 
 <!-- === 模式 2: 世界书网格 (包含滚动、拖拽、分页) === -->
 <div
@@ -228,7 +228,7 @@
                         {{ icon('send', 'ui-icon--md') }}
                       </span>
                       <span x-show="isSendingWorldInfoToST(item.id)" aria-hidden="true">
-                        {{ icon('loader-circle', 'ui-icon--md ui-icon--spin') }}
+                        {{ loading_icon('ui-icon--md') }}
                       </span>
                     </button>
                   </div>

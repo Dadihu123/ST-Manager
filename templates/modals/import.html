@@ -1,4 +1,4 @@
-{% from "components/icon.html" import detail_icon, icon, sidebar_icon %}
+{% from "components/icon.html" import detail_icon, icon, loading_icon, sidebar_icon %}
 
 <!-- URL 导入模态框 -->
 <div x-data="importModal" x-show="showImportUrlModal" x-cloak class="modal-overlay ui-modal-overlay ui-refresh-surface z-modal-popover">
@@ -91,7 +91,7 @@
                             <span>立即导入</span>
                         </span>
                         <span x-show="isLoading" class="flex items-center gap-2">
-                            <span aria-hidden="true">{{ icon('loader-circle', 'ui-icon--sm ui-icon--spin') }}</span>
+                            <span aria-hidden="true">{{ loading_icon('ui-icon--sm') }}</span>
                             下载中...
                         </span>
                     </button>

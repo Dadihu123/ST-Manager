@@ -1,4 +1,4 @@
-{% from "components/icon.html" import icon, sidebar_icon %}
+{% from "components/icon.html" import icon, loading_icon, sidebar_icon %}
 {% from "components/styled_select.html" import styled_select, styled_select_controlled %}
 
 <!-- 全屏世界书编辑器 (UI Refactored & Bug Fixed) -->
@@ -220,7 +220,7 @@
                 class="btn-primary px-4 py-1.5 rounded text-xs font-bold shadow-lg flex items-center gap-2 whitespace-nowrap transition-all hover:brightness-110"
               >
                 <span x-show="isSaving" aria-hidden="true">
-                  {{ icon('loader-circle', 'ui-icon--sm ui-icon--spin') }}
+                  {{ loading_icon('ui-icon--sm') }}
                 </span>
                 <span x-show="!isSaving" aria-hidden="true">
                   {{ icon('settings-save', 'ui-icon--sm') }}
@@ -266,7 +266,7 @@
                 class="btn-primary px-4 py-1.5 rounded text-xs font-bold shadow-lg flex items-center gap-2 whitespace-nowrap transition-all hover:brightness-110"
               >
                 <span x-show="isSaving" aria-hidden="true">
-                  {{ icon('loader-circle', 'ui-icon--sm ui-icon--spin') }}
+                  {{ loading_icon('ui-icon--sm') }}
                 </span>
                 <span x-show="!isSaving" aria-hidden="true">
                   {{ icon('settings-save', 'ui-icon--sm') }}

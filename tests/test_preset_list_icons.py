@@ -17,7 +17,7 @@ def test_preset_grid_uses_semantic_icon_mappings():
         "detail_icon('preset'",
         "icon('refresh', 'ui-icon--sm ')",
         "icon('file-import'",
-        "icon('loader-circle'",
+        "loading_icon('",
         "icon('check'",
         "icon('trash'",
         "icon('upload'",
@@ -88,14 +88,21 @@ def test_prompt_marker_visuals_point_to_the_new_custom_assets():
     assert 'PRESET_ICON_SPRITE_URL = "/static/icons/preset.svg"' in source
 
 
-def test_preset_loading_icon_matches_extension_size_and_animation():
+def test_preset_loading_icon_uses_the_animated_asset_and_shared_size():
     preset_source = read_project_file('templates/components/grid_presets.html')
     extension_source = read_project_file('templates/components/grid_extensions.html')
     cards_css = read_project_file('static/css/modules/view-cards.css')
     icons_css = read_project_file('static/css/modules/icons.css')
+    icon_source = read_project_file('templates/components/icon.html')
+    loading_asset = read_project_file('static/icons/loading-animation.svg')
 
-    assert "icon('loader-circle', 'ui-icon--xl ui-icon--spin')" in preset_source
-    assert "icon('loader-circle', 'ui-icon--xl ui-icon--spin ')" in extension_source
+    assert "loading_icon('ui-icon--xl')" in preset_source
+    assert "loading_icon('ui-icon--xl')" in extension_source
+    assert 'loading-animation.svg' in icon_source
+    assert '<animateTransform' in loading_asset
+    assert '<animate ' in loading_asset
+    assert 'ui-icon--spin' not in preset_source
+    assert 'ui-icon--spin' not in extension_source
 
     loading_rule = re.search(
         r'\.preset-list-loading-icon \.ui-icon\s*\{(?P<body>[^}]*)\}',
@@ -105,6 +112,4 @@ def test_preset_loading_icon_matches_extension_size_and_animation():
     assert 'width: 64px;' in loading_rule.group('body')
     assert 'height: 64px;' in loading_rule.group('body')
 
-    spin_rule = re.search(r'\.ui-icon--spin\s*\{(?P<body>[^}]*)\}', icons_css)
-    assert spin_rule is not None
-    assert 'animation: ui-icon-spin 0.9s linear infinite;' in spin_rule.group('body')
+    assert '.ui-icon--spin' not in icons_css

@@ -227,7 +227,7 @@ def test_monitor_settings_template_marks_all_editable_controls_dirty():
 def test_monitor_member_icons_reuse_sidebar_character_card_glyph():
     template = read_project_file('templates/modals/source_update_monitor.html')
 
-    assert '{% from "components/icon.html" import icon, sidebar_icon %}' in template
+    assert '{% from "components/icon.html" import icon, loading_icon, sidebar_icon %}' in template
     assert template.count("sidebar_icon('character-cards', 'ui-icon--sm')") == 1
     assert template.count("sidebar_icon('character-cards', 'ui-icon--lg')") == 1
     assert template.count("icon('monitor-users'") == 1

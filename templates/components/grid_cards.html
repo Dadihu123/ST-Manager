@@ -1,4 +1,4 @@
-{% from "components/icon.html" import icon %}
+{% from "components/icon.html" import icon, loading_icon %}
 
 <!-- === 模式 1: 角色卡网格 === -->
 <div
@@ -373,7 +373,7 @@
                           {{ icon('send', 'ui-icon--sm') }}
                         </span>
                         <span x-show="isSendingToST(card.id)" aria-hidden="true">
-                          {{ icon('loader-circle', 'ui-icon--sm ui-icon--spin') }}
+                          {{ loading_icon('ui-icon--sm') }}
                         </span>
                       </button>
                       <button
@@ -390,7 +390,7 @@
                           {{ icon('refresh-card', 'ui-icon--sm') }}
                         </span>
                         <span x-show="isCheckingSourceUpdate(card.id)" aria-hidden="true">
-                          {{ icon('loader-circle', 'ui-icon--sm ui-icon--spin') }}
+                          {{ loading_icon('ui-icon--sm') }}
                         </span>
                       </button>
                       <span

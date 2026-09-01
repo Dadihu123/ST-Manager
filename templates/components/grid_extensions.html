@@ -1,5 +1,5 @@
 <!-- templates/components/grid_extensions.html -->
-{% from "components/icon.html" import icon, detail_icon, preset_icon %}
+{% from "components/icon.html" import icon, loading_icon, detail_icon, preset_icon %}
 <div x-show="['regex', 'scripts', 'quick_replies'].includes($store.global.currentMode)" x-cloak
     style="display: none;" x-data="extensionGrid"
     class="flex-1 flex flex-col overflow-hidden w-full relative h-full bg-[var(--surface-page)]">
@@ -60,7 +60,7 @@
         <div class="flex-1 overflow-y-auto custom-scrollbar p-4">
             <div x-show="isLoading" class="flex flex-col items-center justify-center h-64 text-[var(--content-muted)]">
                 <div class="mb-2" aria-hidden="true">
-                    {{ icon('loader-circle', 'ui-icon--xl ui-icon--spin ') }}
+                    {{ loading_icon('ui-icon--xl') }}
                 </div>
                 <div>加载中...</div>
             </div>

@@ -1,4 +1,4 @@
-{% from "components/icon.html" import icon, sidebar_icon %}
+{% from "components/icon.html" import icon, loading_icon, sidebar_icon %}
 {% from "components/styled_select.html" import styled_select %}
 
 <!-- 世界书阅览室 (Reader Modal) -->
@@ -568,7 +568,7 @@
             class="h-full flex flex-col items-center justify-center color-text-muted gap-4"
           >
             <div class="wi-reader-loading-icon" aria-hidden="true">
-              {{ icon('loader-circle', 'ui-icon--2xl ui-icon--spin') }}
+              {{ loading_icon('ui-icon--2xl') }}
             </div>
             <p class="text-sm">正在读取卷宗...</p>
           </div>

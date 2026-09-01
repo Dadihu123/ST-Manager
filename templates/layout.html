@@ -48,7 +48,16 @@
       :class="{'show': showToastState}"
     >
       <span x-show="toastIcon" aria-hidden="true">
-        <template x-if="toastIcon">
+        <template x-if="toastIcon === 'loading-animation'">
+          <img
+            class="ui-icon ui-icon--sm ui-loading-icon"
+            :src="'{{ url_for('static', filename='icons/') }}' + toastIconHref"
+            alt=""
+            aria-hidden="true"
+            draggable="false"
+          >
+        </template>
+        <template x-if="toastIcon && toastIcon !== 'loading-animation'">
           <svg
             class="ui-icon ui-icon--sm"
             viewBox="0 0 24 24"

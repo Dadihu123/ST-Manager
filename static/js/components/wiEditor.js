@@ -3221,9 +3221,7 @@ export default function wiEditor() {
       const originalHtml = isSafeButton ? activeEl.innerHTML : "";
       if (isSafeButton && !overwriteId) {
         activeEl.innerHTML =
-          '<svg class="ui-icon ui-icon--sm ui-icon--spin" viewBox="0 0 24 24" aria-hidden="true" focusable="false">' +
-          '<use href="/static/icons/ui.svg#icon-loader-circle"></use>' +
-          "</svg>";
+          '<img class="ui-icon ui-icon--sm ui-loading-icon" src="/static/icons/loading-animation.svg" alt="" aria-hidden="true" draggable="false">';
       }
 
       clipboardAdd(entry, overwriteId)

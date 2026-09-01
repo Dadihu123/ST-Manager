@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="120" height="120">
+  <defs>
+    <style>
+      .loader-stroke {
+        fill: none;
+        stroke: #243B5A;
+        stroke-width: 8;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .loader-dot {
+        fill: #243B5A;
+      }
+    </style>
+  </defs>
+
+  <circle class="loader-dot" cx="50" cy="50" r="5">
+    <animate attributeName="r" values="4; 6.5; 4" dur="2s" calcMode="spline" keySplines="0.4 0 0.2 1; 0.4 0 0.2 1" keyTimes="0; 0.5; 1" repeatCount="indefinite" />
+    <animate attributeName="opacity" values="0.5; 1; 0.5" dur="2s" calcMode="spline" keySplines="0.4 0 0.2 1; 0.4 0 0.2 1" keyTimes="0; 0.5; 1" repeatCount="indefinite" />
+  </circle>
+
+  <circle class="loader-stroke" cx="50" cy="50" r="20" stroke-dasharray="80 45.66">
+    <animateTransform attributeName="transform" type="rotate" from="0 50 50" to="360 50 50" dur="1.8s" repeatCount="indefinite" />
+  </circle>
+
+  <circle class="loader-stroke" cx="50" cy="50" r="36" stroke-dasharray="70 43.1">
+    <animateTransform attributeName="transform" type="rotate" from="360 50 50" to="0 50 50" dur="2.4s" repeatCount="indefinite" />
+  </circle>
+</svg>

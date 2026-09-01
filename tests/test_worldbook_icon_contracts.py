@@ -105,11 +105,11 @@ def test_worldbook_templates_use_shared_icons_for_functional_controls():
         source = _read(relative_path)
         assert '{% from "components/icon.html" import icon' in source
 
-    assert '{% from "components/icon.html" import icon %}' in _read(
+    assert '{% from "components/icon.html" import icon, loading_icon %}' in _read(
         'templates/components/grid_wi.html'
     )
     for relative_path in template_paths[1:]:
-        assert '{% from "components/icon.html" import icon, sidebar_icon %}' in _read(
+        assert '{% from "components/icon.html" import icon, loading_icon, sidebar_icon %}' in _read(
             relative_path
         )
 
@@ -143,11 +143,11 @@ def test_worldbook_templates_use_shared_icons_for_functional_controls():
     assert "icon('folder'" in grid_source
     assert "icon('sticky-note'" in grid_source
     assert "icon('send'" in grid_source
-    assert "icon('loader-circle'" in grid_source
+    assert "loading_icon('" in grid_source
     assert "icon('pencil-edit'" in popup_source
     assert "icon('close'" in popup_source
     assert "icon('send'" in popup_source
-    assert "icon('loader-circle'" in popup_source
+    assert "loading_icon('" in popup_source
     assert "icon('file-import'" in fullscreen_controls
     assert "icon('book-search'" in fullscreen_controls
     assert "icon('pin'" in fullscreen_controls
@@ -234,15 +234,16 @@ def test_worldbook_help_reuses_shared_icons_without_functional_glyphs():
         assert glyph not in help_source
 
 
-def test_worldbook_clipboard_loading_uses_svg_sprite():
+def test_worldbook_clipboard_loading_uses_the_animated_asset():
     source = _read('static/js/components/wiEditor.js')
     request_block = source.split('_addWiClipboardRequest', 1)[1].split(
         'addWiEntryFromClipboard', 1
     )[0]
 
-    assert 'icon-loader-circle' in request_block
-    assert request_block.count('<use') == 1
-    assert 'ui-icon--spin' in request_block
+    assert 'loading-animation.svg' in request_block
+    assert '<img' in request_block
+    assert request_block.count('<use') == 0
+    assert 'ui-icon--spin' not in request_block
     assert '⏳' not in request_block
 
 

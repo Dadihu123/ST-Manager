@@ -767,7 +767,7 @@ export default function settingsModal() {
       const originalText = btn ? btn.innerText : "";
       if (btn) {
         if ("innerText" in btn) btn.innerText = "上传中...";
-        else btn.innerHTML = '<svg class="ui-icon ui-icon--md" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="/static/icons/ui.svg#icon-loader-circle"></use></svg>';
+        else btn.innerHTML = '<img class="ui-icon ui-icon--md ui-loading-icon" src="/static/icons/loading-animation.svg" alt="" aria-hidden="true" draggable="false">';
       }
       this.backgroundUploadState = "loading";
       this.backgroundUploadMessage = "正在上传壁纸...";

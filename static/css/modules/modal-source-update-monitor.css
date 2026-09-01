@@ -1021,8 +1021,4 @@
     transform: none;
   }
 
-  .source-monitor-run-icon .ui-icon,
-  .source-monitor-entry-checking .ui-icon {
-    animation: none;
-  }
 }

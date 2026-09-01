@@ -1742,11 +1742,6 @@
 
 .settings-status-icon--success { color: var(--status-success-text); }
 .settings-status-icon--danger { color: var(--status-danger-text); }
-.settings-status-icon--spin { animation: settings-icon-spin 900ms linear infinite; }
-
-@keyframes settings-icon-spin {
-  to { transform: rotate(360deg); }
-}
 
 .settings-subsection-heading {
   align-items: center;

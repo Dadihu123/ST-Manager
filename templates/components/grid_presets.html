@@ -1,5 +1,5 @@
 <!-- templates/components/grid_presets.html -->
-{% from "components/icon.html" import icon, detail_icon, preset_icon %}
+{% from "components/icon.html" import icon, loading_icon, detail_icon, preset_icon %}
 <div
   x-show="$store.global.currentMode === 'presets'"
   x-cloak
@@ -88,7 +88,7 @@
         class="flex flex-col items-center justify-center h-64 text-[var(--content-muted)]"
       >
         <div class="preset-list-loading-icon mb-2" aria-hidden="true">
-          {{ icon('loader-circle', 'ui-icon--xl ui-icon--spin') }}
+          {{ loading_icon('ui-icon--xl') }}
         </div>
         <div>加载中...</div>
       </div>
@@ -287,7 +287,7 @@
                 <span
                   x-show="isSendingPresetToST(getPresetActionTargetId(item))"
                   aria-hidden="true"
-                  >{{ icon('loader-circle', 'ui-icon--sm ui-icon--spin') }}</span
+                  >{{ loading_icon('ui-icon--sm') }}</span
                 >
               </button>
 

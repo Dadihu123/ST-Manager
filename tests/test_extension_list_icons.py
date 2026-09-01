@@ -20,7 +20,7 @@ def test_extension_grid_uses_semantic_icon_mappings():
         'extension-list-entry-icon',
         "icon('refresh'",
         "icon('file-import'",
-        "icon('loader-circle'",
+        "loading_icon('",
         "preset_icon('owner'",
         "preset_icon('empty-state'",
     ]

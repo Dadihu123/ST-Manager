@@ -2150,10 +2150,6 @@ html.light-mode .card-bottom-toolbar
   height: 24px;
 }
 
-.card-bottom-toolbar .ui-icon--spin {
-  animation-duration: 0.82s;
-}
-
 @media (max-width: 640px) {
   .card-bottom-toolbar
     > .card-local-note-btn,

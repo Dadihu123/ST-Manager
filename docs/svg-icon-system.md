@@ -4,7 +4,7 @@
 
 本次只整理已经集成到项目内的图标系统，主要检查和修改了 `static/icons/`，并同步扫描了 `templates/`、`static/js/`、`static/css/`、`core/` 和 `tests/` 中的模板宏、`<use>`、CSS mask、JavaScript 动态 icon id 及测试契约。`static/icons/forum-preview/` 下仍由 CSS mask 直接引用的 6 个独立 SVG 也纳入清单；同时将 Tailwind 浏览器运行时改为由 CLI 编译的静态 CSS。
 
-`static/vendor/` 本次完全未处理、未修改。`tmp/` 中新增的品牌 PNG 仅作为源文件使用，裁剪后的副本落在 `static/images/brand/`，并服务于左上角导航、加载界面和浏览器图标；旧的 `static/images/STM.ico` 已移除。commit `cddb090` 已完成的 viewBox 裁切结果全部保留。除品牌 PNG 的透明边界裁剪外，本次没有重新裁切、补回空白或修改其他图形路径，整理只改变 symbol 所属 sprite、id、引用和外层尺寸规则。
+`static/vendor/` 本次完全未处理、未修改。`tmp/` 中的品牌 PNG 与加载动效 SVG 作为源文件使用；品牌 PNG 的裁剪副本落在 `static/images/brand/`，加载动效则复制到 `static/icons/loading-animation.svg`，分别服务于左上角导航/加载界面/浏览器图标和全局加载状态；旧的 `static/images/STM.ico` 已移除。commit `cddb090` 已完成的 viewBox 裁切结果全部保留。除品牌 PNG 的透明边界裁剪外，本次没有重新裁切、补回空白或修改其他图形路径，整理只改变 symbol 所属 sprite、id、引用和外层尺寸规则。
 
 分组原则如下：跨模块复用的操作和状态图形放入 `ui.svg`；详情页、阅读器和资源详情专用图形放入 `detail.svg`；侧边栏导航及侧边栏资源切换图形放入 `sidebar.svg`；预设/提示词字段和 marker 图形放入 `preset.svg`；论坛预览中作为 CSS mask 使用的原始独立 SVG 保持独立。只有在几何相同且引用语义允许共用时才合并，未因“看起来相似”而改变不同图形。
 
@@ -26,7 +26,7 @@ symbol id 统一使用带 `icon-` 前缀的英文 kebab-case，并优先表达�
 | `static/icons/preset.svg` | 预设字段、提示词 marker 和空状态 | 13 | 将 `icon-preset-*` 改为语义 id |
 | `static/icons/forum-preview/*.svg` | 论坛预览 CSS mask | 6 个独立 SVG | 继续保留；CSS 对每个文件存在明确 mask 引用 |
 
-独立的 `static/icons/sidebar-nav/角色卡-简.svg` 和 `static/icons/sidebar-nav/美化-简.svg` 已分别移动进 `static/icons/sidebar.svg`，对应为 `icon-character-cards` 和 `icon-paint-brush`，并同步修改侧边栏模板；源文件随后删除，未复制出第二份定义。当前没有删除任何 sprite 文件，也没有删除 `forum-preview` 独立 SVG。
+独立的 `static/icons/sidebar-nav/角色卡-简.svg` 和 `static/icons/sidebar-nav/美化-简.svg` 已分别移动进 `static/icons/sidebar.svg`，对应为 `icon-character-cards` 和 `icon-paint-brush`，并同步修改侧边栏模板；源文件随后删除，未复制出第二份定义。加载状态使用独立的 `static/icons/loading-animation.svg`，不再复用通用 sprite 中的旧加载 symbol。当前没有删除任何 sprite 文件，也没有删除 `forum-preview` 独立 SVG。
 
 本次逐个比较了重命名 symbol 的子树几何，现有 sprite 之间没有发现可以安全再合并的完全相同几何组；因此没有为了减少数量而冒险合并视觉近似但语义不同的图形。
 
@@ -221,7 +221,7 @@ symbol id 统一使用带 `icon-` 前缀的英文 kebab-case，并优先表达�
 | icon-eye-off | icon-eye-off | static/icons/ui.svg | 眼睛隐藏 | `templates/modals/detail_card.html:886,958,1030,1102…`、`templates/modals/settings.html:1293,1336,1384` | sm/16px | 否 |
 | icon-folder | icon-card-folder | static/icons/ui.svg | 文件夹 | `templates/components/grid_cards.html:272`、`templates/components/grid_wi.html:190,254`、`templates/components/header.html:297,321,711,784`、`tests/test_header_icon_templates.py:26`、`tests/test_worldbook_icon_contracts.py:137` | sm/16px | 是 |
 | icon-settings-help-entry | icon-settings-help-entry | static/icons/ui.svg | 帮助说明入口 | `templates/modals/automation.html:149`、`templates/modals/detail_card.html:338,3495`、`templates/modals/detail_wi_fullscreen.html:314`、`templates/modals/settings.html:31,1888`、`static/js/state.js:84`、`static/js/components/batchImportModal.js:95`、`tests/test_advanced_editor_icon_contracts.py:99` | sm/16px、md/20px、lg/24px | 否 |
-| icon-loader-circle | icon-card-loader | static/icons/ui.svg | 加载圆形 | `static/js/components/settingsModal.js:371`、`static/js/components/wiEditor.js:2991`、`templates/components/grid_cards.html:349,366`、`templates/components/grid_extensions.html:63`、`templates/components/grid_presets.html:91,290` | sm/16px、md/20px、lg/24px、xl/32px、2xl/48px | 是 |
+| loading-animation.svg | loading-animation | static/icons/loading-animation.svg | 自带动画的统一加载图标 | `templates/components/icon.html`、角色卡/预设/扩展/世界书网格、详情弹窗、设置、导入、回滚和 Toast | xs/12px、sm/16px、md/20px、lg/24px、xl/32px、2xl/48px | 否 |
 | icon-menu | icon-menu | static/icons/ui.svg | 菜单 | `templates/components/header.html:109`、`templates/modals/detail_wi_popup.html:222`、`tests/test_header_icon_templates.py:16` | md/20px | 否 |
 | icon-header-dark-mode | icon-header-dark-mode | static/icons/ui.svg | 深色模式装饰星月 | `templates/components/header.html:642,921`、`templates/modals/settings.html:300`、`tests/test_header_icon_templates.py:22`、`tests/test_settings_icon_templates.py:60` | sm/16px、md/20px、lg/24px | 否 |
 | icon-package | icon-card-package | static/icons/ui.svg | 软件包 | `templates/components/context_menu.html:58`、`templates/components/grid_cards.html:150`、`templates/modals/detail_card.html:2317,2582,3732`、`tests/test_card_grid_update_contracts.py:88` | xs/12px、sm/16px、lg/24px | 是 |
@@ -280,7 +280,7 @@ symbol id 统一使用带 `icon-` 前缀的英文 kebab-case，并优先表达�
 | `marker` 外框 | 48px 或 32px | 提示词 marker 的大/紧凑卡片框 | `preset.svg` 中的字段 marker；图标填充父框，不使用倍率补偿 |
 | `forum-mask` | 16px × 16px | 论坛预览统计信息 | `forum-preview/*.svg` 的 CSS mask |
 
-移除的尺寸 hack 包括旧的 `--150`/150% 图标规则、单图标 `width`/`height` 放大、`scale(1.5)`/`scale(1.2)` 等补偿，以及对应模板中的特殊类。普通卡片 hover、选中、翻转、按钮 active 和图片 hover 的 `transform: scale(...)` 仍然保留，因为它们表达交互或内容预览效果，不是图标尺寸补偿；`.ui-icon--spin` 的旋转动画保留；`modal-tools.css` 中的 `scaleX(-1)` 保留为箭头方向语义翻转；dice 图标内部阴影/pip 的 hover scale 保留为图形动画，不改变外层图标尺寸。
+移除的尺寸 hack 包括旧的 `--150`/150% 图标规则、单图标 `width`/`height` 放大、`scale(1.5)`/`scale(1.2)` 等补偿，以及对应模板中的特殊类。普通卡片 hover、选中、翻转、按钮 active 和图片 hover 的 `transform: scale(...)` 仍然保留，因为它们表达交互或内容预览效果，不是图标尺寸补偿；加载状态统一使用独立 SVG 的原生动画，不再叠加 CSS 旋转；`modal-tools.css` 中的 `scaleX(-1)` 保留为箭头方向语义翻转；dice 图标内部阴影/pip 的 hover scale 保留为图形动画，不改变外层图标尺寸。
 
 ## 6. 验证记录
 

@@ -9,6 +9,16 @@
 </svg>
 {%- endmacro %}
 
+{% macro loading_icon(class_name='') -%}
+<img
+  class="ui-icon ui-loading-icon{% if class_name %} {{ class_name }}{% endif %}"
+  src="{{ url_for('static', filename='icons/loading-animation.svg') }}"
+  alt=""
+  aria-hidden="true"
+  draggable="false"
+>
+{%- endmacro %}
+
 {% macro sidebar_icon(name, class_name='') -%}
 <svg
   class="ui-icon sidebar-icon{% if class_name %} {{ class_name }}{% endif %}"

@@ -13,7 +13,9 @@ def test_layout_uses_compiled_tailwind_and_guards_empty_toast_icon_href():
 
     assert '/static/css/tailwind.css' in source
     assert '/static/lib/tailwindcss.js' not in source
-    assert '<template x-if="toastIcon">' in source
+    assert '<template x-if="toastIcon === \'loading-animation\'">' in source
+    assert '<template x-if="toastIcon && toastIcon !== \'loading-animation\'">' in source
+    assert 'ui-loading-icon' in source
     assert "<use :href=\"'{{ url_for('static', filename='icons/') }}' + toastIconHref\"></use>" in source
 
 

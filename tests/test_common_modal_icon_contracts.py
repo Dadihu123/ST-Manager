@@ -22,7 +22,7 @@ def test_common_modal_templates_use_semantic_svg_mappings():
             "icon('forbidden'",
             "icon('alert-triangle'",
             "icon('check'",
-            "icon('loader-circle'",
+            "loading_icon('",
         ),
         'templates/modals/import.html': (
             "icon('link-import'",
@@ -59,7 +59,7 @@ def test_common_modal_templates_use_semantic_svg_mappings():
         'templates/modals/rollback.html': (
             "icon('history-rollback'",
             "icon('close'",
-            "icon('loader-circle'",
+            "loading_icon('",
                 'color-surface-danger-solid',
                 'color-surface-success-solid',
         ),
