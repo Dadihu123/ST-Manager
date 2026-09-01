@@ -749,6 +749,24 @@ html.light-mode .ui-detail-modal .detail-modal--workbench .detail-visual-header 
   font-weight: 800;
 }
 
+/* Keep the four token levels visible above the workbench's generic accent color. */
+.ui-detail-modal .detail-modal--workbench .topbar-token-value.ok {
+  color: var(--status-success-text) !important;
+}
+
+.ui-detail-modal .detail-modal--workbench .topbar-token-value.warn {
+  color: var(--status-info-text) !important;
+}
+
+.ui-detail-modal .detail-modal--workbench .topbar-token-value.danger {
+  color: var(--status-warning-text) !important;
+}
+
+.ui-detail-modal .detail-modal--workbench .topbar-token-value.extreme {
+  color: var(--status-danger-text) !important;
+  text-shadow: 0 0 0.65rem color-mix(in srgb, var(--status-danger-text) 45%, transparent);
+}
+
 .ui-detail-modal .detail-modal--workbench .detail-resourcebar {
   align-items: center;
   background: var(--surface-container-raised);
@@ -2431,4 +2449,43 @@ html.light-mode .ui-detail-modal .detail-modal--workbench .detail-thumb-label {
 .ui-detail-modal .detail-modal--workbench .detail-policy-select {
   max-width: 100%;
   width: 100%;
+}
+
+/* The greeting choices form a horizontal navigation shelf. Keep the active
+   state directional (bottom accent) and reserve room for its small downward
+   emphasis so the rail's horizontal overflow never clips the card. */
+.ui-detail-modal .detail-modal--workbench .detail-greeting-picker .detail-greeting-rail {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.45rem 0 0.85rem;
+}
+
+.ui-detail-modal .detail-modal--workbench .detail-greeting-picker .detail-greeting-card {
+  background: var(--surface-container-raised);
+  border-color: transparent;
+  box-shadow: none;
+  transform: translateY(0);
+  transition: transform 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease, color 0.18s ease;
+}
+
+.ui-detail-modal .detail-modal--workbench .detail-greeting-picker .detail-greeting-card:hover {
+  background: var(--state-hover-surface);
+  border-color: transparent;
+  box-shadow: inset 0 -2px 0 var(--action-border);
+  transform: translateY(0.18rem);
+}
+
+.ui-detail-modal .detail-modal--workbench .detail-greeting-picker .detail-greeting-card.is-selected {
+  background: var(--action-surface);
+  border-color: transparent;
+  box-shadow: inset 0 -2px 0 var(--accent-action);
+  color: var(--action-text);
+  transform: translateY(0.35rem);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-detail-modal .detail-modal--workbench .detail-greeting-picker .detail-greeting-card:hover,
+  .ui-detail-modal .detail-modal--workbench .detail-greeting-picker .detail-greeting-card.is-selected {
+    transform: none;
+  }
 }

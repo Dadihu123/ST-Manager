@@ -724,11 +724,11 @@ html.light-mode .skin-gallery-folder-symbol {
 }
 
 .detail-mobile-info-meta-value.ok {
-  color: var(--status-success-solid);
+  color: var(--status-success-text);
 }
 
 .detail-mobile-info-meta-value.warn {
-  color: var(--status-warning-solid);
+  color: var(--status-info-text);
 }
 
 .detail-mobile-info-meta-value.danger {
@@ -736,8 +736,8 @@ html.light-mode .skin-gallery-folder-symbol {
 }
 
 .detail-mobile-info-meta-value.extreme {
-  color: var(--status-danger-solid);
-  text-shadow: 0 0 10px color-mix(in srgb, var(--status-danger-solid) 45%, transparent);
+  color: var(--status-danger-text);
+  text-shadow: 0 0 10px color-mix(in srgb, var(--status-danger-text) 45%, transparent);
 }
 
 .detail-link-icon {
@@ -833,11 +833,11 @@ html.light-mode .skin-gallery-folder-symbol {
 }
 
 .detail-token-value.ok {
-  color: var(--status-success-solid);
+  color: var(--status-success-text);
 }
 
 .detail-token-value.warn {
-  color: var(--status-warning-solid);
+  color: var(--status-info-text);
 }
 
 .detail-token-value.danger {
@@ -845,8 +845,8 @@ html.light-mode .skin-gallery-folder-symbol {
 }
 
 .detail-token-value.extreme {
-  color: var(--status-danger-solid);
-  text-shadow: 0 0 10px color-mix(in srgb, var(--status-danger-solid) 45%, transparent);
+  color: var(--status-danger-text);
+  text-shadow: 0 0 10px color-mix(in srgb, var(--status-danger-text) 45%, transparent);
 }
 
 .detail-toolbar-group {
@@ -2764,11 +2764,11 @@ html.light-mode .toolbox-btn.purple {
 }
 
 .topbar-token-value.ok {
-  color: var(--status-success-solid);
+  color: var(--status-success-text);
 }
 
 .topbar-token-value.warn {
-  color: var(--status-warning-solid);
+  color: var(--status-info-text);
 }
 
 .topbar-token-value.danger {
@@ -2776,8 +2776,8 @@ html.light-mode .toolbox-btn.purple {
 }
 
 .topbar-token-value.extreme {
-  color: var(--status-danger-solid);
-  text-shadow: 0 0 10px color-mix(in srgb, var(--status-danger-solid) 45%, transparent);
+  color: var(--status-danger-text);
+  text-shadow: 0 0 10px color-mix(in srgb, var(--status-danger-text) 45%, transparent);
 }
 
 .wi-raw-section {

@@ -81,7 +81,7 @@
           >
           <span
             class="text-xs font-mono font-bold text-neon"
-            :class="typeof getTotalWiTokens === 'function' ? getWiTokenClass(getTotalWiTokens(), 'color-text-success') : 'color-text-success'"
+            :class="typeof getTotalWiTokens === 'function' ? getWiTokenClass(getTotalWiTokens()) : 'status-success-text'"
             x-text="typeof getTotalWiTokens === 'function' ? getTotalWiTokens() : 0"
           >
           </span>

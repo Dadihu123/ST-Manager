@@ -74,7 +74,8 @@ export function estimateTokens(text) {
 export const TOKEN_THRESHOLDS = Object.freeze({
     CARD_WARN: 5000,
     CARD_DANGER: 20000,
-    WI_DANGER: 10000,
+    WI_WARN: 5000,
+    WI_DANGER: 20000,
     EXTREME: 100000
 });
 
@@ -99,7 +100,7 @@ export function getDetailMobileTokenClass(tokenCount) {
 
     if (level === 'extreme') return 'status-danger-text';
     if (level === 'danger') return 'status-warning-text';
-    if (level === 'warn') return 'status-warning-text';
+    if (level === 'warn') return 'status-info-text';
     return 'status-success-text';
 }
 
@@ -126,12 +127,14 @@ export function getCardGridTokenBadgeClass(tokenCount) {
 
 export function getWiTokenClass(tokenCount, lowClass = 'status-success-text') {
     const level = getTokenLevel(tokenCount, {
+        warn: TOKEN_THRESHOLDS.WI_WARN,
         danger: TOKEN_THRESHOLDS.WI_DANGER,
         extreme: TOKEN_THRESHOLDS.EXTREME
     });
 
     if (level === 'extreme') return 'status-danger-text';
     if (level === 'danger') return 'status-warning-text';
+    if (level === 'warn') return 'status-info-text';
     return lowClass;
 }
 

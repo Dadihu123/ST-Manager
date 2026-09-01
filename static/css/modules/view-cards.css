@@ -272,7 +272,7 @@ html.light-mode .card-bottom-toolbar {
 }
 
 .card-token-level-warn {
-  color: var(--status-warning-text);
+  color: var(--status-info-text);
 }
 
 .card-token-level-ok {
@@ -1483,11 +1483,11 @@ html.light-mode .card-token-level-extreme {
 }
 
 html.light-mode .card-token-level-danger {
-  color: var(--status-danger-text);
+  color: var(--status-warning-text);
 }
 
 html.light-mode .card-token-level-warn {
-  color: var(--status-warning-text);
+  color: var(--status-info-text);
 }
 
 html.light-mode .card-token-level-ok {
