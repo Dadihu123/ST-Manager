@@ -55,6 +55,24 @@ def test_card_grid_places_send_to_st_before_source_update_check():
     )
 
 
+def test_source_update_controls_use_the_provided_card_update_asset():
+    template_paths = (
+        'templates/components/context_menu.html',
+        'templates/components/grid_cards.html',
+        'templates/components/header.html',
+        'templates/modals/detail_card.html',
+    )
+
+    for template_path in template_paths:
+        template = read_project_file(template_path)
+        assert 'card_update_icon(' in template
+        assert 'refresh-card' not in template
+
+    asset = read_project_file('static/icons/card-update-check.svg')
+    source_asset = read_project_file('tmp/其他/检查角色卡更新.svg')
+    assert asset == source_asset
+
+
 def test_card_controls_are_sibling_layer_above_cards_css_effect():
     card_grid_template = read_project_file('templates/components/grid_cards.html')
     card_css = read_project_file('static/css/modules/view-cards.css')

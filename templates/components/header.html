@@ -1,5 +1,5 @@
 {% from "components/dice_icon.html" import dice_icon %} {% from
-"components/icon.html" import detail_icon, icon, sidebar_icon %} {% from
+"components/icon.html" import card_update_icon, detail_icon, icon, sidebar_icon %} {% from
 "components/styled_select.html" import styled_select %}
 
 <div class="header-bar" x-data="header">
@@ -441,7 +441,7 @@
                   title="检查更新或确认已有更新无需处理"
                   aria-label="检查更新或确认已有更新无需处理"
                 >
-                  <span aria-hidden="true">{{ icon('refresh-card', 'ui-icon--sm') }}</span>
+                  <span aria-hidden="true">{{ card_update_icon('ui-icon--sm') }}</span>
                   <span>来源更新</span>
                   <span class="ui-batch-menu-chevron ui-batch-menu-chevron--nested" aria-hidden="true">{{ icon('chevron-down', 'ui-icon--xs') }}</span>
                 </button>
@@ -808,7 +808,7 @@
           title="检查更新或确认已有更新无需处理"
           aria-label="检查更新或确认已有更新无需处理"
         >
-          <span aria-hidden="true">{{ icon('refresh-card', 'ui-icon--sm') }}</span>
+          <span aria-hidden="true">{{ card_update_icon('ui-icon--sm') }}</span>
           <span>更新</span>
           <span aria-hidden="true">{{ icon('chevron-down', 'ui-icon--xs') }}</span>
         </button>

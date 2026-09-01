@@ -1,4 +1,4 @@
-{% from "components/icon.html" import icon, loading_icon %}
+{% from "components/icon.html" import card_update_icon, icon, loading_icon %}
 
 <!-- === 模式 1: 角色卡网格 === -->
 <div
@@ -387,7 +387,7 @@
                         aria-label="检查来源更新"
                       >
                         <span x-show="!isCheckingSourceUpdate(card.id)" aria-hidden="true">
-                          {{ icon('refresh-card', 'ui-icon--sm') }}
+                          {{ card_update_icon('ui-icon--sm') }}
                         </span>
                         <span x-show="isCheckingSourceUpdate(card.id)" aria-hidden="true">
                           {{ loading_icon('ui-icon--sm') }}

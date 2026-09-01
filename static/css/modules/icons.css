@@ -37,6 +37,10 @@
   object-fit: contain;
 }
 
+.ui-card-update-icon {
+  object-fit: contain;
+}
+
 /* 预设列表的实心图标来自独立 sprite；提示词标记会继承外层占位尺寸。 */
 .preset-icon {
   display: block;

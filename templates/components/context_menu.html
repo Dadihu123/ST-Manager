@@ -1,4 +1,4 @@
-{% from "components/icon.html" import icon %}
+{% from "components/icon.html" import card_update_icon, icon %}
 
 <!-- 右键菜单 -->
 
@@ -65,7 +65,7 @@
                     <button x-show="targetMode === 'cards'" @click="handleCheckSourceUpdates()"
                         :class="isMobile ? 'w-full text-left px-4 py-3 text-base hover:bg-[var(--state-hover-surface)] transition-colors flex items-center gap-2' : 'w-full text-left px-4 py-2 text-sm hover:bg-[var(--state-hover-surface)] transition-colors flex items-center gap-2'"
                         style="color: var(--content-primary);">
-                        <span aria-hidden="true">{{ icon('refresh-card', 'ui-icon--sm context-menu-icon') }}</span> 检查分类更新
+                        <span aria-hidden="true">{{ card_update_icon('ui-icon--sm context-menu-icon') }}</span> 检查分类更新
                     </button>
                     <!-- 运行自动化 -->
                     <!-- 桌面端：悬停显示子菜单 -->

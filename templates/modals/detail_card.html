@@ -1,4 +1,4 @@
-{% from "components/icon.html" import icon, loading_icon, sidebar_icon %}
+{% from "components/icon.html" import card_update_icon, icon, loading_icon, sidebar_icon %}
 {% from "components/icon.html" import detail_icon %}
 
 <!-- 详情页模态框 (Refactored) -->
@@ -2847,7 +2847,7 @@
                           class="btn-secondary detail-manage-action-btn detail-source-update-action"
                         >
                           <span x-show="!sourceUpdateChecking" class="inline-flex items-center gap-1">
-                            {{ icon('refresh-card', 'ui-icon--lg') }}
+                            {{ card_update_icon('ui-icon--lg') }}
                             <span>检查来源更新</span>
                           </span>
                           <span x-show="sourceUpdateChecking" class="inline-flex items-center gap-1">
