@@ -3817,3 +3817,422 @@ html.light-mode .wi-card-back {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ========================================================================== */
+/* 全屏世界书编辑器 · adaptive action rail                                   */
+/* 以工具组折叠代替操作栏滚动，避免高 DPI 下同时出现横向/纵向滚动条。       */
+/* ========================================================================== */
+
+.wi-editor-workbench.wi-editor-container > .wi-editor-shell > .wi-editor-header,
+.wi-editor-workbench.wi-editor-container > .wi-editor-shell > .wi-editor-header > .wi-editor-heading,
+.wi-editor-workbench.wi-editor-container > .wi-editor-shell > .wi-editor-header > .wi-editor-actions {
+  background: var(--surface-container-raised) !important;
+}
+
+.wi-editor-workbench .wi-editor-actions {
+  flex-basis: auto;
+  overflow: visible;
+  scrollbar-width: none;
+}
+
+.wi-editor-workbench .wi-editor-actions::-webkit-scrollbar {
+  display: none;
+}
+
+.wi-editor-metrics-group,
+.wi-editor-tool-actions,
+.wi-editor-tool-icons,
+.wi-editor-tool-menu-anchor {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.wi-editor-metrics-group {
+  flex: 0 0 auto;
+  gap: 0.35rem;
+}
+
+.wi-editor-tool-actions {
+  position: relative;
+  flex: 0 0 auto;
+  gap: 0.25rem;
+}
+
+.wi-editor-tool-icons {
+  gap: 0.2rem;
+}
+
+.wi-editor-tool-menu-anchor {
+  position: relative;
+  display: none;
+  flex: 0 0 auto;
+}
+
+.wi-editor-workbench .wi-editor-tool-button {
+  border-color: transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--icon-muted);
+  transform: none;
+}
+
+.wi-editor-workbench .wi-editor-tool-button:hover,
+.wi-editor-workbench .wi-editor-tool-button:focus-visible {
+  border-color: transparent !important;
+  background: var(--state-hover-surface) !important;
+  color: var(--icon-interactive) !important;
+  transform: none;
+}
+
+.wi-editor-workbench .wi-editor-tool-button--history:hover,
+.wi-editor-workbench .wi-editor-tool-button--history:focus-visible {
+  background: var(--status-warning-surface) !important;
+  color: var(--status-warning-text) !important;
+}
+
+.wi-editor-workbench .wi-editor-tool-button--snapshot:hover,
+.wi-editor-workbench .wi-editor-tool-button--snapshot:focus-visible {
+  background: var(--status-info-surface) !important;
+  color: var(--status-info-text) !important;
+}
+
+.wi-editor-workbench .wi-editor-tool-button--backup:hover,
+.wi-editor-workbench .wi-editor-tool-button--backup:focus-visible {
+  background: var(--status-success-surface) !important;
+  color: var(--status-success-text) !important;
+}
+
+.wi-editor-workbench .wi-editor-tool-button--import:hover,
+.wi-editor-workbench .wi-editor-tool-button--import:focus-visible {
+  background: var(--surface-violet) !important;
+  color: var(--decoration-violet) !important;
+}
+
+.wi-editor-workbench .wi-editor-tool-button--find:hover,
+.wi-editor-workbench .wi-editor-tool-button--find:focus-visible {
+  background: var(--action-surface-hover) !important;
+  color: var(--action-text) !important;
+}
+
+.wi-editor-tool-menu {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  z-index: var(--z-dropdown);
+  width: min(18rem, calc(100vw - 1.5rem));
+  max-width: calc(100vw - 1.5rem);
+  padding: 0.35rem;
+  overflow: hidden;
+  border: 1px solid var(--border-default);
+  border-radius: 0.75rem;
+  background: var(--surface-container) !important;
+  box-shadow: var(--shadow-elevation);
+}
+
+.wi-editor-menu-heading {
+  padding: 0.45rem 0.7rem 0.35rem;
+  color: var(--content-muted);
+  font-size: 0.64rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.wi-editor-menu-action {
+  display: flex;
+  width: 100%;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.55rem;
+  padding: 0.55rem 0.7rem;
+  border: 0;
+  border-radius: 0.45rem;
+  color: var(--content-primary);
+  text-align: left;
+  transition:
+    background-color 160ms ease,
+    color 160ms ease;
+}
+
+.wi-editor-menu-action:hover,
+.wi-editor-menu-action:focus-visible {
+  background: var(--state-hover-surface) !important;
+  color: var(--accent-text) !important;
+  outline: none;
+}
+
+.wi-editor-menu-separator {
+  margin: 0.35rem 0;
+  border-top: 1px solid var(--border-divider);
+}
+
+.wi-editor-save-button {
+  justify-content: center;
+}
+
+.wi-editor-content-frame {
+  display: flex;
+  flex: 1 1 0;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  max-width: 980px;
+  margin: 0 auto;
+  overflow: hidden;
+  border: 1px solid var(--border-default);
+  border-radius: 0.9rem;
+  background: var(--surface-code);
+  box-shadow: inset 0 0.15rem 1rem color-mix(in srgb, var(--surface-page) 30%, transparent);
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.wi-editor-content-frame:focus-within {
+  border-color: var(--accent-action);
+  box-shadow:
+    inset 0 0.15rem 1rem color-mix(in srgb, var(--surface-page) 30%, transparent),
+    0 0 0 3px var(--accent-soft-strong);
+}
+
+.wi-editor-content-frame .wi-editor-content-input {
+  flex: 1 1 0;
+  width: 100%;
+  max-width: none !important;
+  min-width: 0;
+  min-height: 0;
+  margin: 0 !important;
+  border: 0 !important;
+  border-radius: inherit;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.wi-editor-entry-list .wi-entry-title-group {
+  min-width: 0;
+  overflow: visible !important;
+}
+
+.wi-editor-entry-list .wi-entry-state-dot {
+  position: relative;
+  z-index: 1;
+  width: 0.625rem !important;
+  height: 0.625rem !important;
+  min-width: 0.625rem;
+  min-height: 0.625rem;
+  flex: 0 0 0.625rem;
+  margin-inline: 0.1rem;
+  overflow: visible;
+}
+
+.wi-editor-entry-list .wi-list-item.active .wi-entry-state-dot {
+  box-shadow: 0 0 0 2px var(--action-surface);
+}
+
+.wi-editor-workbench .wi-entry-action,
+.wi-editor-workbench .wi-clipboard-icon-action {
+  border: 0 !important;
+}
+
+.wi-editor-workbench .wi-entry-action--history:hover,
+.wi-editor-workbench .wi-entry-action--history:focus-visible {
+  border-color: transparent !important;
+  background: var(--status-warning-hover-solid) !important;
+  color: var(--content-on-status-solid) !important;
+  box-shadow: none !important;
+}
+
+.wi-editor-workbench .wi-entry-action--delete:hover,
+.wi-editor-workbench .wi-entry-action--delete:focus-visible {
+  border-color: transparent !important;
+  background: var(--status-danger-hover-solid) !important;
+  color: var(--content-on-status-solid) !important;
+  box-shadow: none !important;
+}
+
+.wi-editor-workbench .wi-entry-action--clipboard:hover,
+.wi-editor-workbench .wi-entry-action--clipboard:focus-visible {
+  border-color: transparent !important;
+  background: var(--decoration-violet-hover-solid) !important;
+  color: var(--content-on-decoration-solid) !important;
+  box-shadow: none !important;
+}
+
+.wi-editor-workbench .wi-clipboard-back-action:hover,
+.wi-editor-workbench .wi-clipboard-back-action:focus-visible {
+  border-color: transparent !important;
+  background: var(--state-hover-surface) !important;
+  color: var(--icon-interactive) !important;
+}
+
+.wi-editor-workbench .wi-clipboard-save-action:hover,
+.wi-editor-workbench .wi-clipboard-save-action:focus-visible {
+  border-color: transparent !important;
+  background: var(--decoration-violet-hover-solid) !important;
+  color: var(--content-on-decoration-solid) !important;
+}
+
+.wi-editor-workbench .wi-inspector-close:hover,
+.wi-editor-workbench .wi-inspector-close:focus-visible {
+  border-color: transparent !important;
+  background: var(--state-hover-surface) !important;
+  color: var(--icon-interactive) !important;
+}
+
+.wi-editor-workbench .wi-clipboard-clear {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 0.25rem;
+  white-space: nowrap;
+}
+
+@media (max-width: 1840px) and (min-width: 901px) {
+  .wi-editor-workbench .wi-editor-header {
+    flex-wrap: nowrap;
+    gap: 0.65rem;
+  }
+
+  .wi-editor-workbench .wi-editor-heading {
+    flex: 1 1 auto;
+    flex-basis: auto;
+    min-width: 8rem;
+  }
+
+  .wi-editor-workbench .wi-editor-actions {
+    flex: 0 1 auto;
+    flex-basis: auto !important;
+    max-width: calc(100% - 8rem);
+    padding-top: 0;
+    border-top: 0;
+  }
+
+  .wi-editor-workbench .wi-editor-metrics-group,
+  .wi-editor-workbench .wi-editor-tool-icons {
+    display: none;
+  }
+
+  .wi-editor-workbench .wi-editor-tool-menu-anchor {
+    display: inline-flex;
+  }
+
+  .wi-editor-workbench .wi-editor-save-label {
+    display: none !important;
+  }
+
+  .wi-editor-workbench .wi-editor-save-button {
+    width: 2.5rem;
+    min-width: 2.5rem;
+    padding-inline: 0.5rem !important;
+    gap: 0 !important;
+  }
+
+  .wi-editor-workbench .wi-editor-save-actions,
+  .wi-editor-workbench .wi-editor-save-cluster {
+    gap: 0.25rem !important;
+  }
+
+  .wi-editor-workbench .wi-editor-save-actions {
+    padding-left: 0.35rem;
+  }
+}
+
+@media (max-width: 1180px) and (min-width: 901px) {
+  .wi-editor-workbench .wi-editor-brand > span:not(.ui-icon),
+  .wi-editor-workbench .wi-editor-context {
+    display: none;
+  }
+
+  .wi-editor-workbench .wi-editor-book-name {
+    width: clamp(8rem, 16vw, 12rem) !important;
+  }
+
+  .wi-editor-workbench .wi-sort-label {
+    display: none;
+  }
+
+  .wi-editor-workbench .wi-editor-save-status {
+    max-width: 7rem;
+    padding-inline: 0.5rem;
+  }
+}
+
+@media (max-width: 900px) {
+  .wi-editor-workbench.wi-editor-container .wi-editor-header {
+    flex-direction: column;
+    flex-wrap: nowrap !important;
+  }
+
+  .wi-editor-workbench .wi-editor-heading,
+  .wi-editor-workbench .wi-editor-actions {
+    flex-basis: auto;
+  }
+
+  .wi-editor-workbench.wi-editor-container .wi-editor-actions {
+    width: 100%;
+    max-width: none;
+    flex: 0 0 auto;
+    flex-wrap: nowrap !important;
+    overflow: visible;
+  }
+
+  .wi-editor-workbench.wi-editor-container
+    > .wi-editor-shell
+    > .wi-editor-header
+    > .wi-editor-actions
+    > .wi-editor-save-status {
+    display: inline-flex !important;
+  }
+
+  .wi-editor-workbench .wi-editor-metrics-group,
+  .wi-editor-workbench .wi-editor-tool-icons {
+    display: none;
+  }
+
+  .wi-editor-workbench .wi-editor-tool-menu-anchor {
+    display: inline-flex;
+  }
+
+  .wi-editor-workbench .wi-editor-tool-menu {
+    right: auto;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+
+  .wi-editor-workbench .wi-editor-save-label {
+    display: none !important;
+  }
+
+  .wi-editor-workbench .wi-editor-save-button {
+    width: 2.75rem;
+    min-width: 2.75rem;
+    padding-inline: 0.5rem !important;
+    gap: 0 !important;
+  }
+
+  .wi-editor-workbench .wi-editor-content-frame {
+    max-width: 100%;
+    margin: 0;
+    border-radius: 0.7rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .wi-editor-workbench .wi-editor-save-button--secondary {
+    display: none !important;
+  }
+
+  .wi-editor-workbench .wi-editor-save-status {
+    width: 2.75rem;
+    max-width: 2.75rem;
+    justify-content: center;
+    padding-inline: 0;
+    border-color: transparent;
+    background: transparent;
+  }
+
+  .wi-editor-workbench .wi-editor-save-status-label {
+    display: none !important;
+  }
+}

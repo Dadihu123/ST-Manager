@@ -76,42 +76,44 @@
         class="wi-editor-top-actions wi-editor-actions flex items-center gap-2"
         :class="$store.global.deviceType === 'mobile' ? 'justify-end' : ''"
       >
-        <!-- Token 统计 -->
-        <div
-          class="wi-editor-token-summary hidden lg:flex flex-col items-end mr-4 px-3 border-r border-[var(--border-default)]"
-          title="预估总 Token"
-        >
-          <span class="text-[9px] color-text-muted uppercase font-bold"
-            >Tokens</span
+        <div class="wi-editor-metrics-group" role="group" aria-label="编辑器状态">
+          <!-- Token 统计 -->
+          <div
+            class="wi-editor-token-summary hidden lg:flex flex-col items-end mr-4 px-3 border-r border-[var(--border-default)]"
+            title="预估总 Token"
           >
-          <span
-            class="text-xs font-mono font-bold text-neon"
-            :class="typeof getTotalWiTokens === 'function' ? getWiTokenClass(getTotalWiTokens()) : 'status-success-text'"
-            x-text="typeof getTotalWiTokens === 'function' ? getTotalWiTokens() : 0"
+            <span class="text-[9px] color-text-muted uppercase font-bold"
+              >Tokens</span
+            >
+            <span
+              class="text-xs font-mono font-bold text-neon"
+              :class="typeof getTotalWiTokens === 'function' ? getWiTokenClass(getTotalWiTokens()) : 'status-success-text'"
+              x-text="typeof getTotalWiTokens === 'function' ? getTotalWiTokens() : 0"
+            >
+            </span>
+          </div>
+
+          <div
+            class="wi-editor-entry-summary hidden lg:flex items-center gap-2 mr-2"
+            x-show="activeEditorEntry"
           >
-          </span>
-        </div>
+            <span
+              class="wi-pill mono"
+              :class="activeEditorEntry?.enabled ? 'on' : 'off'"
+              x-text="activeEditorEntry?.enabled ? 'EN' : 'OFF'"
+            ></span>
 
-        <div
-          class="wi-editor-entry-summary hidden lg:flex items-center gap-2 mr-2"
-          x-show="activeEditorEntry"
-        >
-          <span
-            class="wi-pill mono"
-            :class="activeEditorEntry?.enabled ? 'on' : 'off'"
-            x-text="activeEditorEntry?.enabled ? 'EN' : 'OFF'"
-          ></span>
+            <span
+              class="wi-pill"
+              :class="activeEditorEntry?.constant ? 'const' : (activeEditorEntry?.vectorized ? 'vector' : 'normal')"
+              x-text="activeEditorEntry?.constant ? 'Constant' : (activeEditorEntry?.vectorized ? 'Vector' : 'Normal')"
+            ></span>
 
-          <span
-            class="wi-pill"
-            :class="activeEditorEntry?.constant ? 'const' : (activeEditorEntry?.vectorized ? 'vector' : 'normal')"
-            x-text="activeEditorEntry?.constant ? 'Constant' : (activeEditorEntry?.vectorized ? 'Vector' : 'Normal')"
-          ></span>
-
-          <span
-            class="wi-pill mono"
-            x-text="'#' + (activeEditorEntry?.insertion_order ?? 0)"
-          ></span>
+            <span
+              class="wi-pill mono"
+              x-text="'#' + (activeEditorEntry?.insertion_order ?? 0)"
+            ></span>
+          </div>
         </div>
 
         <div
@@ -150,7 +152,7 @@
         >
           <button
             type="button"
-            class="wi-sort-button wi-action-btn"
+            class="wi-sort-button wi-action-btn wi-editor-tool-button"
             @click="showWiSortMenu = !showWiSortMenu"
             :aria-expanded="showWiSortMenu"
             aria-label="设置世界书条目排序"
@@ -177,51 +179,171 @@
           </div>
         </div>
 
-        <!-- 1. 时光机 -->
-        <button
-          @click="openRollback && openRollback()"
-          class="wi-action-btn"
-          title="时光机：查看历史版本与回滚"
+        <div
+          class="wi-editor-tool-actions"
+          x-data="{ showWiEditorToolsMenu: false }"
+          @keydown.escape.window.capture="if (showWiEditorToolsMenu) { $event.preventDefault(); $event.stopImmediatePropagation(); showWiEditorToolsMenu = false; $refs.wiEditorToolsMenuButton.focus(); }"
         >
-          {{ icon('history-rollback', 'ui-icon--md') }}
-        </button>
+          <div class="wi-editor-tool-icons" role="group" aria-label="世界书工具">
+            <!-- 1. 时光机 -->
+            <button
+              type="button"
+              @click="openRollback && openRollback()"
+              class="wi-action-btn wi-editor-tool-button wi-editor-tool-button--history"
+              title="时光机：查看历史版本与回滚"
+              aria-label="时光机：查看历史版本与回滚"
+            >
+              {{ icon('history-rollback', 'ui-icon--md') }}
+            </button>
 
-        <!-- 2. 快照 -->
-        <button
-          @click="createSnapshot('lorebook')"
-          @contextmenu.prevent="createKeySnapshot('lorebook')"
-          class="wi-action-btn"
-          :title="(!editingWiFile || editingWiFile.type === 'embedded') ? '备份当前角色 (左键: 普通 | 右键: 关键节点)' : '备份当前世界书 (左键: 普通 | 右键: 关键节点)'"
-        >
-          {{ icon('snapshot', 'ui-icon--md') }}
-        </button>
+            <!-- 2. 快照 -->
+            <button
+              type="button"
+              @click="createSnapshot('lorebook')"
+              @contextmenu.prevent="createKeySnapshot('lorebook')"
+              class="wi-action-btn wi-editor-tool-button wi-editor-tool-button--snapshot"
+              :title="(!editingWiFile || editingWiFile.type === 'embedded') ? '备份当前角色 (左键: 普通 | 右键: 关键节点)' : '备份当前世界书 (左键: 普通 | 右键: 关键节点)'"
+              aria-label="创建世界书快照（右键创建关键节点）"
+            >
+              {{ icon('snapshot', 'ui-icon--md') }}
+            </button>
 
-        <!-- 3. 打开备份文件夹 -->
-        <button
-          @click="openBackupFolder('lorebook')"
-          class="wi-action-btn wi-action-btn--bright"
-          title="打开备份文件夹"
-        >
-          {{ icon('book-backup', 'ui-icon--md') }}
-        </button>
+            <!-- 3. 打开备份文件夹 -->
+            <button
+              type="button"
+              @click="openBackupFolder('lorebook')"
+              class="wi-action-btn wi-action-btn--bright wi-editor-tool-button wi-editor-tool-button--backup"
+              title="打开备份文件夹"
+              aria-label="打开备份文件夹"
+            >
+              {{ icon('book-backup', 'ui-icon--md') }}
+            </button>
 
-        <!-- 3.3 从酒馆 JSONL 导入标签条目 -->
-        <button
-          @click="openTaggedImportModal()"
-          class="wi-action-btn wi-action-btn--bright"
-          title="从酒馆 JSONL 导入 <tag>...</tag> 条目"
-        >
-          {{ icon('file-import', 'ui-icon--md') }}
-        </button>
+            <!-- 3.3 从酒馆 JSONL 导入标签条目 -->
+            <button
+              type="button"
+              @click="openTaggedImportModal()"
+              class="wi-action-btn wi-action-btn--bright wi-editor-tool-button wi-editor-tool-button--import"
+              title="从酒馆 JSONL 导入 <tag>...</tag> 条目"
+              aria-label="从酒馆 JSONL 导入标签条目"
+            >
+              {{ icon('file-import', 'ui-icon--md') }}
+            </button>
 
-        <!-- 3.5 查找替换 -->
-        <button
-          @click="openFindReplaceModal()"
-          class="wi-action-btn"
-          title="查找与替换 (Ctrl+H)"
-        >
-          {{ icon('book-search', 'ui-icon--md') }}
-        </button>
+            <!-- 3.5 查找替换 -->
+            <button
+              type="button"
+              @click="openFindReplaceModal()"
+              class="wi-action-btn wi-editor-tool-button wi-editor-tool-button--find"
+              title="查找与替换 (Ctrl+H)"
+              aria-label="查找与替换 (Ctrl+H)"
+            >
+              {{ icon('book-search', 'ui-icon--md') }}
+            </button>
+          </div>
+
+          <div class="wi-editor-tool-menu-anchor">
+            <button
+              type="button"
+              x-ref="wiEditorToolsMenuButton"
+              @click="showWiEditorToolsMenu = !showWiEditorToolsMenu"
+              class="wi-editor-tool-menu-trigger wi-action-btn wi-editor-tool-button"
+              aria-haspopup="menu"
+              :aria-expanded="showWiEditorToolsMenu.toString()"
+              title="更多编辑器操作"
+              aria-label="更多编辑器操作"
+            >
+              {{ icon('quick-actions', 'ui-icon--md') }}
+            </button>
+
+            <div
+              x-show="showWiEditorToolsMenu"
+              x-cloak
+              @click.outside="showWiEditorToolsMenu = false"
+              class="wi-editor-tool-menu"
+              role="menu"
+            >
+              <div class="wi-editor-menu-heading">工具</div>
+              <button
+                type="button"
+                role="menuitem"
+                @click="openRollback && openRollback(); showWiEditorToolsMenu = false"
+                class="wi-editor-menu-action"
+              >
+                {{ icon('history-rollback', 'ui-icon--sm') }}
+                <span>时光机</span>
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                @click="createSnapshot('lorebook'); showWiEditorToolsMenu = false"
+                class="wi-editor-menu-action"
+              >
+                {{ icon('snapshot', 'ui-icon--sm') }}
+                <span>创建快照</span>
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                @click="createKeySnapshot('lorebook'); showWiEditorToolsMenu = false"
+                class="wi-editor-menu-action"
+              >
+                {{ icon('snapshot', 'ui-icon--sm') }}
+                <span>创建关键快照</span>
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                @click="openBackupFolder('lorebook'); showWiEditorToolsMenu = false"
+                class="wi-editor-menu-action"
+              >
+                {{ icon('book-backup', 'ui-icon--sm') }}
+                <span>打开备份文件夹</span>
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                @click="openTaggedImportModal(); showWiEditorToolsMenu = false"
+                class="wi-editor-menu-action"
+              >
+                {{ icon('file-import', 'ui-icon--sm') }}
+                <span>导入 JSONL 标签</span>
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                @click="openFindReplaceModal(); showWiEditorToolsMenu = false"
+                class="wi-editor-menu-action"
+              >
+                {{ icon('book-search', 'ui-icon--sm') }}
+                <span>查找与替换</span>
+              </button>
+
+              <div class="wi-editor-menu-separator" role="separator"></div>
+              <div class="wi-editor-menu-heading">保存</div>
+              <button
+                type="button"
+                role="menuitem"
+                @click="saveWholeWorldbook(); showWiEditorToolsMenu = false"
+                class="wi-editor-menu-action"
+              >
+                {{ icon('book-save', 'ui-icon--sm') }}
+                <span>保存整本</span>
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                @click="saveAsGlobalWi(); showWiEditorToolsMenu = false"
+                class="wi-editor-menu-action"
+              >
+                {{ icon('book-save-as', 'ui-icon--sm') }}
+                <span
+                  x-text="editingWiFile && editingWiFile.type !== 'embedded' ? '另存为...' : '提取为全局'"
+                ></span>
+              </button>
+            </div>
+          </div>
+        </div>
 
         <div class="h-4 w-[1px] bg-[var(--border-default)] mx-1"></div>
 
@@ -233,7 +355,9 @@
               <button
                 @click="saveWiFileChanges()"
                 :disabled="isSaving"
-                class="btn-primary px-4 py-1.5 rounded text-xs font-bold shadow-lg flex items-center gap-2 whitespace-nowrap transition-all hover:brightness-110"
+                class="btn-primary wi-editor-save-button wi-editor-save-button--primary px-4 py-1.5 rounded text-xs font-bold shadow-lg flex items-center gap-2 whitespace-nowrap transition-all hover:brightness-110"
+                title="保存当前条目"
+                aria-label="保存当前条目"
               >
                 <span x-show="isSaving" aria-hidden="true">
                   {{ loading_icon('ui-icon--sm') }}
@@ -241,32 +365,34 @@
                 <span x-show="!isSaving" aria-hidden="true">
                   {{ icon('settings-save', 'ui-icon--sm') }}
                 </span>
-                <span x-show="$store.global.deviceType !== 'mobile'">
+                <span class="wi-editor-save-label" x-show="$store.global.deviceType !== 'mobile'">
                   保存条目</span
                 >
               </button>
               <button
                 @click="saveWholeWorldbook()"
                 :disabled="isSaving"
-                class="btn-secondary px-3 py-1.5 text-xs rounded whitespace-nowrap"
+                class="btn-secondary wi-editor-save-button wi-editor-save-button--secondary wi-editor-save-whole-button px-3 py-1.5 text-xs rounded whitespace-nowrap"
                 title="先创建整本回滚版本，再执行保存"
+                aria-label="保存整本世界书"
               >
                 <span aria-hidden="true">
                   {{ icon('book-save', 'ui-icon--sm') }}
                 </span>
-                <span x-show="$store.global.deviceType !== 'mobile'">
+                <span class="wi-editor-save-label" x-show="$store.global.deviceType !== 'mobile'">
                   保存整本</span
                 >
               </button>
               <button
                 @click="saveAsGlobalWi()"
-                class="btn-secondary px-3 py-1.5 text-xs rounded whitespace-nowrap"
+                class="btn-secondary wi-editor-save-button wi-editor-save-button--secondary wi-editor-save-as-button px-3 py-1.5 text-xs rounded whitespace-nowrap"
                 title="另存为新文件"
+                aria-label="另存为新文件"
               >
                 <span aria-hidden="true">
                   {{ icon('book-save-as', 'ui-icon--sm') }}
                 </span>
-                <span x-show="$store.global.deviceType !== 'mobile'">
+                <span class="wi-editor-save-label" x-show="$store.global.deviceType !== 'mobile'">
                   另存为...</span
                 >
               </button>
@@ -279,7 +405,9 @@
               <button
                 @click="saveChanges()"
                 :disabled="isSaving"
-                class="btn-primary px-4 py-1.5 rounded text-xs font-bold shadow-lg flex items-center gap-2 whitespace-nowrap transition-all hover:brightness-110"
+                class="btn-primary wi-editor-save-button wi-editor-save-button--primary px-4 py-1.5 rounded text-xs font-bold shadow-lg flex items-center gap-2 whitespace-nowrap transition-all hover:brightness-110"
+                title="保存当前条目"
+                aria-label="保存当前条目"
               >
                 <span x-show="isSaving" aria-hidden="true">
                   {{ loading_icon('ui-icon--sm') }}
@@ -287,32 +415,34 @@
                 <span x-show="!isSaving" aria-hidden="true">
                   {{ icon('settings-save', 'ui-icon--sm') }}
                 </span>
-                <span x-show="$store.global.deviceType !== 'mobile'">
+                <span class="wi-editor-save-label" x-show="$store.global.deviceType !== 'mobile'">
                   保存条目</span
                 >
               </button>
               <button
                 @click="saveWholeWorldbook()"
                 :disabled="isSaving"
-                class="btn-secondary px-3 py-1.5 text-xs rounded whitespace-nowrap"
+                class="btn-secondary wi-editor-save-button wi-editor-save-button--secondary wi-editor-save-whole-button px-3 py-1.5 text-xs rounded whitespace-nowrap"
                 title="先创建整本回滚版本，再执行保存"
+                aria-label="保存整本世界书"
               >
                 <span aria-hidden="true">
                   {{ icon('book-save', 'ui-icon--sm') }}
                 </span>
-                <span x-show="$store.global.deviceType !== 'mobile'">
+                <span class="wi-editor-save-label" x-show="$store.global.deviceType !== 'mobile'">
                   保存整本</span
                 >
               </button>
               <button
                 @click="saveAsGlobalWi()"
-                class="btn-secondary px-3 py-1.5 text-xs rounded whitespace-nowrap"
+                class="btn-secondary wi-editor-save-button wi-editor-save-button--secondary wi-editor-save-as-button px-3 py-1.5 text-xs rounded whitespace-nowrap"
                 title="提取为全局世界书"
+                aria-label="提取为全局世界书"
               >
                 <span aria-hidden="true">
                   {{ icon('book-save-as', 'ui-icon--sm') }}
                 </span>
-                <span x-show="$store.global.deviceType !== 'mobile'">
+                <span class="wi-editor-save-label" x-show="$store.global.deviceType !== 'mobile'">
                   另存为全局</span
                 >
               </button>
@@ -421,9 +551,9 @@
               :class="isCurrentWiEntry(entry, index) ? 'active' : ''"
             >
               <div class="flex justify-between items-center mb-1">
-                <div class="flex items-center gap-2 overflow-hidden flex-1">
+                <div class="wi-entry-title-group flex items-center gap-2 overflow-hidden flex-1">
                   <div
-                    class="w-2 h-2 rounded-full flex-shrink-0 shadow-sm"
+                    class="wi-entry-state-dot w-2 h-2 rounded-full flex-shrink-0 shadow-sm"
                     :class="{
                                              'color-surface-accent-solid color-shadow-accent': entry.constant,
                                              'color-surface-violet color-shadow-status': !entry.constant && entry.vectorized,
@@ -567,7 +697,7 @@
                   <div class="flex gap-2">
                     <button
                       @click="exitClipboardEdit()"
-                      class="wi-action-btn wi-clipboard-icon-action color-surface-hover color-text-muted color-hover-border-neutral"
+                      class="wi-action-btn wi-clipboard-icon-action wi-clipboard-back-action color-surface-hover color-text-muted color-hover-border-neutral"
                       title="取消编辑并返回"
                       aria-label="取消编辑并返回"
                     >
@@ -575,7 +705,7 @@
                     </button>
                     <button
                       @click="saveClipboardItem()"
-                      class="wi-action-btn wi-clipboard-icon-action btn-soft-purple shadow-sm color-shadow-status"
+                      class="wi-action-btn wi-clipboard-icon-action wi-clipboard-save-action btn-soft-purple shadow-sm color-shadow-status"
                       title="保存对剪切板条目的修改"
                       aria-label="保存对剪切板条目的修改"
                     >
@@ -591,7 +721,7 @@
                       @click.stop="openEntryHistoryModal()"
                       title="条目历史回滚"
                       aria-label="条目历史回滚"
-                      class="wi-action-btn wi-entry-action color-hover-text-warning color-hover-surface-warning"
+                      class="wi-action-btn wi-entry-action wi-entry-action--history color-hover-text-warning color-hover-surface-warning"
                     >
                       {{ icon('entry-rollback', 'ui-icon--md') }}
                     </button>
@@ -599,16 +729,15 @@
                       @click.stop="removeWiEntry(activeEditorEntry)"
                       title="删除条目"
                       aria-label="删除条目"
-                      class="wi-action-btn wi-entry-action color-hover-text-danger color-hover-surface-danger"
+                      class="wi-action-btn wi-entry-action wi-entry-action--delete color-hover-text-danger color-hover-surface-danger"
                     >
-                      {{ icon('close', 'ui-icon--md') }}
+                      {{ icon('trash', 'ui-icon--md') }}
                     </button>
-                    <span class="hidden" aria-hidden="true">{{ icon('trash', 'ui-icon--md') }}</span>
                     <button
                       @click.stop="copyWiToClipboard(activeEditorEntry)"
                       title="复制到剪切板"
                       aria-label="复制到剪切板"
-                      class="wi-action-btn wi-entry-action color-hover-text-violet color-hover-surface-violet"
+                      class="wi-action-btn wi-entry-action wi-entry-action--clipboard color-hover-text-violet color-hover-surface-violet"
                     >
                       {{ icon('clipboard', 'ui-icon--md') }}
                     </button>
@@ -621,13 +750,17 @@
               class="wi-content-wrapper wi-editor-content-area"
               :class="{'color-surface-violet': isEditingClipboard}"
             >
-              <textarea
-                x-model="activeEditorEntry.content"
-                x-ref="wiContentTextarea"
-                class="wi-main-textarea wi-editor-content-input custom-scrollbar"
-                :class="{'color-border-violet color-focus-border-accent': isEditingClipboard}"
-                placeholder="在此输入世界书内容..."
-              ></textarea>
+              <div
+                class="wi-editor-content-frame"
+                :class="{'color-surface-violet color-border-violet color-focus-border-accent': isEditingClipboard}"
+              >
+                <textarea
+                  x-model="activeEditorEntry.content"
+                  x-ref="wiContentTextarea"
+                  class="wi-main-textarea wi-editor-content-input custom-scrollbar"
+                  placeholder="在此输入世界书内容..."
+                ></textarea>
+              </div>
             </div>
           </div>
         </template>
@@ -677,7 +810,7 @@
           <button
             type="button"
             @click="showRightPanel = false; editorPane = 'content'"
-            class="wi-inspector-close px-3 color-text-muted color-hover-text-danger border-l border-[var(--border-default)]"
+            class="wi-inspector-close px-3 color-text-muted color-hover-surface-neutral border-l border-[var(--border-default)]"
             title="关闭属性面板"
             aria-label="关闭属性面板"
           >
@@ -1633,7 +1766,7 @@
             <button
               type="button"
               @click="typeof clearWiClipboard === 'function' && clearWiClipboard()"
-              class="wi-clipboard-clear text-[10px] color-text-danger hover:underline"
+              class="wi-clipboard-clear inline-flex items-center gap-1 whitespace-nowrap text-[10px] color-text-danger hover:underline"
               title="清空剪切板"
               aria-label="清空剪切板"
             >
