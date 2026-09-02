@@ -28,7 +28,7 @@ def test_detail_and_embedded_editors_refresh_source_revision_after_save():
     wi_popup_source = read_project_file('static/js/components/wiDetailPopup.js')
 
     assert 'this.editingData.source_revision = res.updated_card?.source_revision || this.editingData.source_revision || "";' in detail_source
-    assert 'this.editingData.source_revision = c.source_revision || this.editingData.source_revision || "";' in detail_source
+    assert 'source_revision: c.source_revision ?? "",' in detail_source
     assert 'res?.updated_card?.source_revision ||' in wi_editor_source
     assert 'this.editingData.source_revision ||' in wi_editor_source
     assert 'res?.updated_card?.source_revision ||' in wi_popup_source

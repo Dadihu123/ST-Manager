@@ -2841,47 +2841,84 @@ export default function detailModal() {
         // === 版本与聚合包 ===
 
         switchVersion(versionId) {
-            const ver = this.activeCard.versions.find(v => v.id === versionId);
+            const versions = Array.isArray(this.activeCard?.versions) ? this.activeCard.versions : [];
+            const ver = versions.find(v => v.id === versionId);
             if (!ver) return;
 
+            const requestToken = ++this.detailRequestToken;
             this.activeCard.image_url = `/cards_file/${encodeURIComponent(ver.id)}`;
             this.activeCard.filename = ver.filename;
 
-            getCardDetail(ver.id).then(res => {
-                if (res.success && res.card) {
-                    const c = res.card;
-                    this.activeCard.import_time = c.import_time || c.last_modified || this.activeCard.import_time;
-                    // 更新文件名（Bundle模式下也需要更新）
-                    this.editingData.filename = c.filename;
+            return getCardDetail(ver.id).then(res => {
+                if (requestToken !== this.detailRequestToken || !this.showDetail) return;
+                if (!res.success || !res.card) return;
 
-                    this.editingData.id = c.id;
-                    this.editingData.char_name = c.char_name;
-                    this.editingData.description = c.description;
-                    this.editingData.first_mes = c.first_mes;
-                    this.editingData.mes_example = c.mes_example;
-                    this.editingData.alternate_greetings = c.alternate_greetings || [""];
-                    this.editingData.creator_notes = c.creator_notes;
-                    this.editingData.character_book = c.character_book;
-                    if (!this.editingData.character_book) {
-                        this.editingData.character_book = { name: "", entries: [] };
-                    }
-                    this.editingData.creator = c.creator || "";
-                    this.editingData.personality = c.personality || "";
-                    this.editingData.scenario = c.scenario || "";
-                    this.editingData.system_prompt = c.system_prompt || "";
-                    this.editingData.post_history_instructions = c.post_history_instructions || "";
-                    this.editingData.tags = c.tags || [];
-                    this.editingData.character_version = c.char_version || "";
-                    this.editingData.extensions = c.extensions || { regex_scripts: [], tavern_helper: {} };
-                    this.altIdx = 0;
-
-                    this.editingData.ui_summary = c.ui_summary || "";
-                    this.editingData.source_link = c.source_link || "";
-                    this.editingData.resource_folder = c.resource_folder || "";
-                    this.editingData.source_revision = c.source_revision || this.editingData.source_revision || "";
-                    this.editingData = this._normalizeEditingDataShape(this.editingData);
-                    this.syncDialogState();
+                const c = res.card;
+                const previousEditingData = this.editingData || {};
+                let previousBaseline = null;
+                try {
+                    previousBaseline = this.originalDataJson ? JSON.parse(this.originalDataJson) : null;
+                } catch (_) {
+                    previousBaseline = null;
                 }
+                const hasPreviousBaseline = previousBaseline
+                    && typeof previousBaseline === 'object'
+                    && !Array.isArray(previousBaseline);
+                const hasField = (source, field) => Object.prototype.hasOwnProperty.call(source || {}, field);
+                const sourceLinkWasDirty = hasPreviousBaseline
+                    && hasField(previousBaseline, 'source_link')
+                    && previousEditingData.source_link !== previousBaseline.source_link;
+                const resourceFolderWasDirty = hasPreviousBaseline
+                    && hasField(previousBaseline, 'resource_folder')
+                    && previousEditingData.resource_folder !== previousBaseline.resource_folder;
+                const persistedSourceLink = this.activeCard?.source_link
+                    || previousEditingData.source_link
+                    || c.source_link
+                    || ver.source_link
+                    || "";
+                const persistedResourceFolder = this.activeCard?.resource_folder
+                    || previousEditingData.resource_folder
+                    || c.resource_folder
+                    || ver.resource_folder
+                    || "";
+                const sharedSourceLink = sourceLinkWasDirty
+                    ? previousEditingData.source_link
+                    : persistedSourceLink;
+                const sharedResourceFolder = resourceFolderWasDirty
+                    ? previousEditingData.resource_folder
+                    : persistedResourceFolder;
+
+                // 版本切换需要以该版本的完整数据建立新快照，公共字段沿用聚合包值。
+                this.editingData = this._normalizeEditingDataShape({
+                    ...c,
+                    id: c.id ?? ver.id,
+                    filename: c.filename ?? ver.filename,
+                    character_version: c.character_version ?? c.char_version ?? "",
+                    ui_summary: c.ui_summary ?? ver.ui_summary ?? "",
+                    source_link: sharedSourceLink,
+                    resource_folder: sharedResourceFolder,
+                    source_title: c.source_title ?? this.editingData?.source_title ?? "",
+                    source_update: c.source_update ?? this.editingData?.source_update ?? null,
+                    source_revision: c.source_revision ?? "",
+                });
+
+                this.activeCard.image_url = c.image_url || `/cards_file/${encodeURIComponent(ver.id)}`;
+                this.activeCard.filename = this.editingData.filename;
+                this.activeCard.import_time = c.import_time || c.last_modified || this.activeCard.import_time;
+                this.activeCard.source_link = sharedSourceLink;
+                this.activeCard.resource_folder = sharedResourceFolder;
+                this.activeCard.source_title = this.editingData.source_title;
+                this.activeCard.source_update = this.editingData.source_update;
+                this.altIdx = 0;
+                this.syncDialogState();
+
+                // The selected version is clean until the user changes one of its fields.
+                // Keep an already-edited shared field dirty across the version switch.
+                const nextBaseline = JSON.parse(JSON.stringify(this.editingData));
+                if (sourceLinkWasDirty) nextBaseline.source_link = previousBaseline.source_link;
+                if (resourceFolderWasDirty) nextBaseline.resource_folder = previousBaseline.resource_folder;
+                this.originalDataJson = JSON.stringify(nextBaseline);
+                autoSaver.initBaseline(nextBaseline);
             });
         },
 

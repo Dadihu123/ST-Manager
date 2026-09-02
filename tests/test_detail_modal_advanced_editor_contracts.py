@@ -19,7 +19,9 @@ def run_detail_modal_runtime_check(script_body):
         source = source.replace('export default function detailModal()', 'function detailModal()');
 
         const stubs = `
-        const getCardDetail = async () => ({{ success: true, card: {{}} }});
+        const getCardDetail = async (...args) => globalThis.__getCardDetail
+          ? globalThis.__getCardDetail(...args)
+          : ({{ success: true, card: {{}} }});
         const updateCard = async () => ({{ success: true }});
         const previewMergedTags = async () => ({{ success: true }});
         const updateCardFile = async () => ({{ success: true }});
@@ -239,6 +241,93 @@ def test_detail_modal_keeps_pending_update_primary_after_later_check_results():
         }
         """
     )
+
+
+def test_detail_modal_switch_version_rebases_clean_baseline_and_keeps_shared_fields():
+    run_detail_modal_runtime_check(
+        """
+        globalThis.__getCardDetail = async (id) => ({
+          success: true,
+          card: {
+            id,
+            filename: 'version-2.png',
+            char_name: 'Version two',
+            description: 'Version two description',
+            first_mes: 'Version two greeting',
+            mes_example: '',
+            personality: 'Version two personality',
+            scenario: '',
+            creator_notes: '',
+            system_prompt: '',
+            post_history_instructions: '',
+            tags: ['version-two'],
+            creator: 'Creator',
+            char_version: '2.0',
+            alternate_greetings: ['Version two greeting'],
+            extensions: { regex_scripts: [], tavern_helper: {} },
+            character_book: { name: 'Version two book', entries: [] },
+            source_link: '',
+            resource_folder: '',
+            source_revision: 'revision-two',
+          },
+        });
+
+        modal.showDetail = true;
+        modal.activeCard = {
+          id: 'bundle/version-1.png',
+          is_bundle: true,
+          source_link: 'https://example.test/card',
+          resource_folder: 'shared-folder',
+          versions: [
+            { id: 'bundle/version-1.png', filename: 'version-1.png' },
+            { id: 'bundle/version-2.png', filename: 'version-2.png' },
+          ],
+        };
+        modal.editingData = modal._normalizeEditingDataShape({
+          id: 'bundle/version-1.png',
+          filename: 'version-1.png',
+          char_name: 'Version one',
+          description: 'Version one description',
+          source_link: 'https://example.test/card',
+          resource_folder: 'shared-folder',
+        });
+        modal.originalDataJson = JSON.stringify(modal.editingData);
+
+        await modal.switchVersion('bundle/version-2.png');
+
+        if (modal.hasUnsavedChanges) {
+          throw new Error('switching to an unchanged version must not mark the card dirty');
+        }
+        if (modal.editingData.id !== 'bundle/version-2.png' ||
+            modal.editingData.description !== 'Version two description' ||
+            modal.editingData.source_revision !== 'revision-two') {
+          throw new Error('expected the selected version fields to replace the previous version');
+        }
+        if (modal.editingData.source_link !== 'https://example.test/card' ||
+            modal.editingData.resource_folder !== 'shared-folder') {
+          throw new Error('expected shared fields to remain unchanged while switching versions');
+        }
+
+        modal.editingData.source_link = 'https://example.test/edited-card';
+        await modal.switchVersion('bundle/version-2.png');
+        if (!modal.hasUnsavedChanges ||
+            modal.editingData.source_link !== 'https://example.test/edited-card') {
+          throw new Error('expected an existing shared-field edit to remain dirty after switching');
+        }
+        """
+    )
+
+
+def test_detail_card_workbench_allocates_image_space_and_contains_zoom_bar_edges():
+    stylesheet = (PROJECT_ROOT / 'static/css/modules/detail-card-workbench.css').read_text(
+        encoding='utf-8'
+    )
+
+    assert 'grid-template-columns: minmax(20rem, 0.50fr) minmax(0, 1.50fr) !important;' in stylesheet
+    assert 'max-width: calc(100% - 2rem);' in stylesheet
+    assert 'width: min(26rem, calc(100% - 2rem));' in stylesheet
+    assert 'flex: 0 0 2.75rem;' in stylesheet
+    assert 'flex: 1 1 auto;' in stylesheet
 
 
 def test_detail_template_uses_trimmed_visibility_for_empty_readonly_text_cards():
