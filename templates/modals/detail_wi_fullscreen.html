@@ -74,6 +74,7 @@
       <!-- 右侧按钮组 -->
       <div
         class="wi-editor-top-actions wi-editor-actions flex items-center gap-2"
+        :data-action-density="wiEditorActionRailMode || 'expanded'"
         :class="$store.global.deviceType === 'mobile' ? 'justify-end' : ''"
       >
         <div class="wi-editor-metrics-group" role="group" aria-label="编辑器状态">
@@ -127,36 +128,17 @@
           <span class="wi-editor-save-status-label" x-text="getEditorSaveStatusLabel()"></span>
         </div>
 
-        <label
-          class="wi-sort-control hidden md:flex"
-          x-show="$store.global.deviceType !== 'mobile'"
-        >
-          <span class="wi-sort-label">排序</span>
-          {% call styled_select(
-            "wiSortMode",
-            wrapper_class="icon-select--tiny",
-            trigger_class="icon-select-trigger--tiny",
-            menu_class="icon-select-menu--fit icon-select-menu--tiny",
-            source_attrs='@change="setWiSortMode($event.target.value)"',
-            aria_label="世界书条目排序方式"
-          ) %}
-            <template x-for="option in wiSortOptions" :key="option.value">
-              <option :value="option.value" x-text="option.label"></option>
-            </template>
-          {% endcall %}
-        </label>
-
         <div
-          class="wi-sort-mobile"
-          x-show="$store.global.deviceType === 'mobile'"
+          class="wi-sort-mobile wi-sort-icon-control"
         >
           <button
             type="button"
             class="wi-sort-button wi-action-btn wi-editor-tool-button"
             @click="showWiSortMenu = !showWiSortMenu"
             :aria-expanded="showWiSortMenu"
+            aria-haspopup="menu"
             aria-label="设置世界书条目排序"
-            title="设置排序"
+            :title="'排序：' + getWiSortLabel(wiSortMode)"
           >
             {{ icon('sort', 'ui-icon--md') }}
           </button>
@@ -172,7 +154,8 @@
                 role="menuitemradio"
                 :aria-checked="wiSortMode === option.value"
                 :class="wiSortMode === option.value ? 'active' : ''"
-                @click="setWiSortMode(option.value)"
+                :data-sort-value="option.value"
+                @click="setWiSortMode($el.dataset.sortValue)"
                 x-text="option.label"
               ></button>
             </template>

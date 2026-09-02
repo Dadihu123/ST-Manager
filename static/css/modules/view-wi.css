@@ -1280,6 +1280,28 @@ input:focus {
   flex-shrink: 0;
 }
 
+.wi-sort-icon-control {
+  position: relative;
+  display: inline-flex;
+  min-height: 0;
+  align-items: center;
+  flex: 0 0 auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.wi-sort-icon-control .wi-sort-button {
+  display: inline-flex;
+  width: 2.5rem;
+  height: 2.5rem;
+  min-width: 2.5rem;
+  min-height: 2.5rem;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
 .wi-sort-button {
   display: inline-flex;
   align-items: center;
@@ -2312,6 +2334,7 @@ html.light-mode .wi-card-back {
     width: 100%;
   }
   .wi-sort-menu-topbar {
+    left: 0;
     right: 0;
     max-width: calc(100vw - 1.5rem);
   }
@@ -2892,7 +2915,7 @@ html.light-mode .wi-card-back {
 .wi-entry-list-head {
   padding: 0.9rem !important;
   border-bottom-color: var(--border-divider) !important;
-  background: var(--surface-container-raised);
+  background: var(--surface-container) !important;
 }
 
 .wi-entry-list-heading {
@@ -2930,6 +2953,7 @@ html.light-mode .wi-card-back {
 
 .wi-entry-list-toolbar {
   gap: 0.5rem;
+  background: var(--surface-container);
 }
 
 .wi-entry-filter-input {
@@ -3641,7 +3665,11 @@ html.light-mode .wi-card-back {
   }
 
   .wi-mobile-dock-item.active {
-    box-shadow: inset 3px 0 0 var(--accent-action);
+    box-shadow: inset 0 -3px 0 var(--accent-action);
+  }
+
+  .wi-mobile-dock-item.active:focus-visible {
+    box-shadow: var(--state-focus-shadow), inset 0 -3px 0 var(--accent-action);
   }
 
   .wi-toggle-btn-float {
@@ -3837,6 +3865,12 @@ html.light-mode .wi-card-back {
 
 .wi-editor-workbench .wi-editor-actions::-webkit-scrollbar {
   display: none;
+}
+
+/* 展开后的工具组只在实际挤压到操作栏时折叠。视口断点仅负责移动端布局。 */
+.wi-editor-workbench .wi-editor-actions[data-action-density="compact"] .wi-editor-metrics-group,
+.wi-editor-workbench .wi-editor-actions[data-action-density="compact"] .wi-editor-tool-icons {
+  display: none !important;
 }
 
 .wi-editor-metrics-group,
@@ -4147,11 +4181,6 @@ html.light-mode .wi-card-back {
     border-top: 0;
   }
 
-  .wi-editor-workbench .wi-editor-metrics-group,
-  .wi-editor-workbench .wi-editor-tool-icons {
-    display: none;
-  }
-
   .wi-editor-workbench .wi-editor-tool-menu-anchor {
     display: inline-flex;
   }
@@ -4198,6 +4227,11 @@ html.light-mode .wi-card-back {
 }
 
 @media (max-width: 900px) {
+  .wi-sort-menu-topbar {
+    left: 0;
+    right: auto;
+  }
+
   .wi-editor-workbench.wi-editor-container .wi-editor-header {
     flex-direction: column;
     flex-wrap: nowrap !important;

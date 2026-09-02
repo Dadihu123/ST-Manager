@@ -167,9 +167,13 @@ def test_wi_sort_select_menus_match_tiny_trigger_font_size():
     fullscreen_template = read_project_file('templates/modals/detail_wi_fullscreen.html')
     components_css = read_project_file('static/css/modules/components.css')
 
-    expected_menu_class = 'menu_class="icon-select-menu--fit icon-select-menu--tiny"'
-    assert expected_menu_class in popup_template
-    assert expected_menu_class in fullscreen_template
+    for template in (popup_template, fullscreen_template):
+        assert 'wi-sort-icon-control' in template
+        assert 'role="menuitemradio"' in template
+        assert ':data-sort-value="option.value"' in template
+
+    view_wi_css = read_project_file('static/css/modules/view-wi.css')
+    assert '.wi-sort-icon-control .wi-sort-button' in view_wi_css
 
     tiny_menu_block = components_css.split(
         '.icon-select-menu--tiny', 1

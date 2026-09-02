@@ -146,7 +146,9 @@ def test_world_info_templates_keep_sort_controls_out_of_fixed_card_detail_view()
 
     for template in (fullscreen, popup):
         assert 'wiSortMode' in template
-        assert 'setWiSortMode($event.target.value)' in template or 'setWiSortMode(option.value)' in template
+        assert 'wi-sort-icon-control' in template
+        assert 'setWiSortMode($el.dataset.sortValue)' in template
+        assert ':data-sort-value="option.value"' in template
     assert 'wi-sort-menu' in fullscreen
     assert 'wi-sort-menu' in popup
     assert 'getSortedWIEntries()' in fullscreen

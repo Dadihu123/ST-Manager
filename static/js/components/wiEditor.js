@@ -82,6 +82,9 @@ export default function wiEditor() {
     wiSortOptions: WI_SORT_OPTIONS,
     showWiSortMenu: false,
     wiEntryFilterQuery: "",
+    wiEditorActionRailMode: "expanded",
+    wiEditorActionRailResizeObserver: null,
+    wiEditorActionRailSyncFrame: null,
     initialSnapshotChecked: false,
     initialSnapshotInitPromise: null,
     // 内嵌世界书进入编辑器时的归一化基线。关闭时只把真实改动同步回角色卡，
@@ -268,6 +271,87 @@ export default function wiEditor() {
           typeof window.matchMedia === "function" &&
           window.matchMedia("(max-width: 900px)").matches)
       );
+    },
+
+    _scheduleEditorActionRailSync() {
+      if (typeof window === "undefined") return;
+      if (this.wiEditorActionRailSyncFrame !== null) {
+        window.cancelAnimationFrame?.(this.wiEditorActionRailSyncFrame);
+      }
+      const schedule = window.requestAnimationFrame || ((callback) => callback());
+      this.wiEditorActionRailSyncFrame = schedule(() => {
+        this.wiEditorActionRailSyncFrame = null;
+        this._syncEditorActionRail();
+      });
+    },
+
+    _syncEditorActionRail() {
+      if (!this.showFullScreenWI || typeof document === "undefined") return;
+
+      const root = this._getEditorRootEl?.();
+      const actions = root?.querySelector?.(".wi-editor-actions");
+      if (!actions || actions.offsetParent === null) return;
+
+      // 先临时恢复完整工具组，再读取实际的 scrollWidth。这样折叠由
+      // “展开后是否超出当前工具栏”决定，而不是由固定视口断点决定。
+      const previousMode = actions.getAttribute("data-action-density");
+      actions.setAttribute("data-action-density", "expanded");
+      const actionRect = actions.getBoundingClientRect();
+      const expandedContentRight = Math.max(
+        actionRect.right,
+        ...Array.from(actions.children).map((element) =>
+          element.getBoundingClientRect().right,
+        ),
+      );
+      const expandedOverflow =
+        actions.scrollWidth > actions.clientWidth + 1 ||
+        expandedContentRight > actionRect.right + 1;
+      if (previousMode) {
+        actions.setAttribute("data-action-density", previousMode);
+      } else {
+        actions.removeAttribute("data-action-density");
+      }
+
+      const nextMode = this.isEditorMobileViewport()
+        ? "compact"
+        : expandedOverflow
+          ? "compact"
+          : "expanded";
+      if (nextMode !== this.wiEditorActionRailMode) {
+        this.wiEditorActionRailMode = nextMode;
+      }
+    },
+
+    _initEditorActionRail() {
+      const root = this._getEditorRootEl?.();
+      const header = root?.querySelector?.(".wi-editor-header");
+      const actions = root?.querySelector?.(".wi-editor-actions");
+      const heading = root?.querySelector?.(".wi-editor-heading");
+      if (!header || !actions) return;
+
+      this.wiEditorActionRailResizeObserver?.disconnect?.();
+      if (typeof ResizeObserver === "function") {
+        this.wiEditorActionRailResizeObserver = new ResizeObserver(() => {
+          this._scheduleEditorActionRailSync();
+        });
+        [header, actions, heading].filter(Boolean).forEach((element) => {
+          this.wiEditorActionRailResizeObserver.observe(element);
+        });
+      }
+      this._scheduleEditorActionRailSync();
+    },
+
+    _destroyEditorActionRail() {
+      this.wiEditorActionRailResizeObserver?.disconnect?.();
+      this.wiEditorActionRailResizeObserver = null;
+      if (
+        typeof window !== "undefined" &&
+        this.wiEditorActionRailSyncFrame !== null
+      ) {
+        window.cancelAnimationFrame?.(this.wiEditorActionRailSyncFrame);
+      }
+      this.wiEditorActionRailSyncFrame = null;
+      this.wiEditorActionRailMode = "expanded";
     },
 
     setEditorPane(pane) {
@@ -634,6 +718,7 @@ export default function wiEditor() {
       // 监听关闭
       this.$watch("showFullScreenWI", (val) => {
         if (!val) {
+          this._destroyEditorActionRail();
           // 如果是内嵌模式，触发关闭事件同步数据回父组件
           if (
             this.editingWiFile &&
@@ -697,6 +782,8 @@ export default function wiEditor() {
           this.showLeftList = false;
           this.showRightPanel = false;
           this.editorPane = "content";
+        } else {
+          this.$nextTick(() => this._initEditorActionRail());
         }
       });
 
@@ -3220,6 +3307,7 @@ export default function wiEditor() {
       const isMobile = this.isEditorMobileViewport();
       this.showLeftList = !isMobile;
       this.showRightPanel = !isMobile;
+      this.$nextTick(() => this._initEditorActionRail());
       // 确保选中第一项
       const entries = this.getWIArrayRef();
       const hasSelectedEntry =
