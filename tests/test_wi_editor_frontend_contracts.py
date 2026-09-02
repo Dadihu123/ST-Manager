@@ -259,6 +259,15 @@ def test_wi_editor_mobile_panes_and_inspector_layout_have_explicit_contracts():
     assert 'z-index: var(--z-dropdown);' in view_wi_css
 
 
+def test_wi_editor_mobile_drawers_stop_above_bottom_dock():
+    view_wi_css = read_project_file('static/css/modules/view-wi.css')
+
+    assert 'inset: 0 auto var(--wi-editor-dock-height) 0 !important;' in view_wi_css
+    assert 'inset: 0 0 var(--wi-editor-dock-height) auto !important;' in view_wi_css
+    assert 'bottom: var(--wi-editor-dock-height) !important;' in view_wi_css
+    assert view_wi_css.count('padding-bottom: 1rem !important;') >= 2
+
+
 def test_normalize_wi_entry_preserves_delay_until_recursion_boolean_and_numeric_semantics():
     source = read_project_file('static/js/utils/data.js')
     normalize_block = extract_js_function_block(
