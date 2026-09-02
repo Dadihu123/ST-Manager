@@ -567,19 +567,19 @@
                   <div class="flex gap-2">
                     <button
                       @click="exitClipboardEdit()"
-                      class="wi-action-btn w-auto px-3 gap-1 color-surface-hover color-text-muted border border-transparent color-hover-border-neutral"
+                      class="wi-action-btn wi-clipboard-icon-action color-surface-hover color-text-muted color-hover-border-neutral"
                       title="取消编辑并返回"
+                      aria-label="取消编辑并返回"
                     >
                       {{ icon('arrow-left', 'ui-icon--sm') }}
-                      <span class="text-xs font-bold">返回</span>
                     </button>
                     <button
                       @click="saveClipboardItem()"
-                      class="wi-action-btn btn-soft-purple w-auto px-3 gap-1 shadow-sm color-shadow-status"
+                      class="wi-action-btn wi-clipboard-icon-action btn-soft-purple shadow-sm color-shadow-status"
                       title="保存对剪切板条目的修改"
+                      aria-label="保存对剪切板条目的修改"
                     >
                       {{ icon('settings-save', 'ui-icon--sm') }}
-                      <span class="text-xs font-bold">保存</span>
                     </button>
                   </div>
                 </template>
@@ -590,14 +590,16 @@
                     <button
                       @click.stop="openEntryHistoryModal()"
                       title="条目历史回滚"
-                      class="wi-action-btn color-hover-text-warning color-hover-surface-warning"
+                      aria-label="条目历史回滚"
+                      class="wi-action-btn wi-entry-action color-hover-text-warning color-hover-surface-warning"
                     >
                       {{ icon('entry-rollback', 'ui-icon--md') }}
                     </button>
                     <button
                       @click.stop="removeWiEntry(activeEditorEntry)"
                       title="删除条目"
-                      class="wi-action-btn color-hover-text-danger color-hover-surface-danger"
+                      aria-label="删除条目"
+                      class="wi-action-btn wi-entry-action color-hover-text-danger color-hover-surface-danger"
                     >
                       {{ icon('close', 'ui-icon--md') }}
                     </button>
@@ -605,7 +607,8 @@
                     <button
                       @click.stop="copyWiToClipboard(activeEditorEntry)"
                       title="复制到剪切板"
-                      class="wi-action-btn color-hover-text-violet color-hover-surface-violet"
+                      aria-label="复制到剪切板"
+                      class="wi-action-btn wi-entry-action color-hover-text-violet color-hover-surface-violet"
                     >
                       {{ icon('clipboard', 'ui-icon--md') }}
                     </button>

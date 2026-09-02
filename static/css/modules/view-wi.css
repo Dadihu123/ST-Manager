@@ -2977,10 +2977,9 @@ html.light-mode .wi-card-back {
 }
 
 .wi-editor-entry-list .wi-list-item.active {
-  border-color: var(--action-border) !important;
-  border-left-width: 3px;
+  border: 1px solid transparent !important;
   background: var(--action-surface) !important;
-  box-shadow: 0 0 0 1px var(--accent-soft-strong);
+  box-shadow: inset 3px 0 0 var(--accent-action);
 }
 
 .wi-editor-entry-list .wi-list-item.active .font-bold {
@@ -3053,8 +3052,9 @@ html.light-mode .wi-card-back {
 
 .wi-editor-content-input {
   min-height: 0;
-  max-width: none !important;
-  margin: 0 !important;
+  width: 100%;
+  max-width: 980px !important;
+  margin: 0 auto !important;
   padding: clamp(0.9rem, 2vw, 1.5rem) !important;
   border: 1px solid var(--border-default) !important;
   border-radius: 0.9rem;
@@ -3224,6 +3224,33 @@ html.light-mode .wi-card-back {
 
 .wi-editor-inspector .ui-number-input {
   min-height: 2.35rem;
+}
+
+.wi-editor-workbench .wi-entry-action,
+.wi-editor-workbench .wi-clipboard-icon-action {
+  border-color: transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.wi-editor-workbench .wi-entry-action:hover,
+.wi-editor-workbench .wi-clipboard-icon-action:hover {
+  border-color: transparent !important;
+  background: var(--state-hover-surface) !important;
+  box-shadow: none !important;
+}
+
+.wi-editor-workbench .wi-entry-action:focus-visible,
+.wi-editor-workbench .wi-clipboard-icon-action:focus-visible {
+  border-color: transparent !important;
+  background: var(--state-hover-surface) !important;
+  box-shadow: 0 0 0 3px var(--accent-soft-strong) !important;
+  outline: 2px solid var(--accent-action);
+  outline-offset: 2px;
+}
+
+.wi-editor-workbench .wi-clipboard-icon-action {
+  padding: 0 !important;
 }
 
 .wi-toggle-btn-float {
@@ -3517,6 +3544,8 @@ html.light-mode .wi-card-back {
 
   .wi-editor-content-input {
     padding: 0.8rem !important;
+    max-width: 100% !important;
+    margin: 0 !important;
     border-radius: 0.7rem;
     font-size: 0.86rem;
     line-height: 1.68;
@@ -3606,9 +3635,13 @@ html.light-mode .wi-card-back {
   .wi-mobile-dock-item:hover,
   .wi-mobile-dock-item:focus-visible,
   .wi-mobile-dock-item.active {
-    border-color: var(--accent-soft-strong);
+    border-color: transparent;
     background: var(--accent-soft);
     color: var(--accent-text);
+  }
+
+  .wi-mobile-dock-item.active {
+    box-shadow: inset 3px 0 0 var(--accent-action);
   }
 
   .wi-toggle-btn-float {
