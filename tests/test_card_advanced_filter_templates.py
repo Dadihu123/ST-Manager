@@ -255,6 +255,20 @@ def test_mobile_menu_replaces_card_specific_filter_controls_with_advanced_filter
     assert '包含子目录' not in mobile_menu
 
 
+def test_mobile_filter_and_random_entries_use_the_intended_icon_slots():
+    header_template = read_project_file('templates/components/header.html')
+    layout_css = read_project_file('static/css/modules/layout.css')
+
+    assert "icon('filter', 'ui-icon--lg ')" in header_template
+    assert "dice_icon('ui-icon--xl')" in header_template
+    assert '.mobile-advanced-filter-entry-icon .ui-icon {' in layout_css
+    mobile_override = layout_css.rsplit('.mobile-advanced-filter-entry-icon {', 1)[1].split(
+        '}', 1
+    )[0]
+    assert 'border: 0;' in mobile_override
+    assert '.mobile-advanced-filter-entry-desc {' in layout_css
+
+
 def test_layout_css_styles_filter_button_summary_bar_and_drawer_shell():
     css_source = read_project_file('static/css/modules/layout.css')
 

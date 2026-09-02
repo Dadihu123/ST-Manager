@@ -204,7 +204,13 @@
   --ui-dice-shadow: var(--content-on-light);
 }
 
-/* 头部高频入口使用 32px 图标挡位；移动菜单沿用基础 24px 挡位。 */
+/* 骰子沿用统一的 xl 挡位；组合选择器避免被骰子自身的基础尺寸覆盖。 */
+.ui-dice-icon.ui-icon--xl {
+  width: 32px;
+  height: 32px;
+}
+
+/* 头部和移动菜单中的骰子都使用 32px 图标挡位。 */
 .ui-dice-icon--header {
   width: 32px;
   height: 32px;
