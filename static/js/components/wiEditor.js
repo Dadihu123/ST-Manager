@@ -392,6 +392,14 @@ export default function wiEditor() {
       });
     },
 
+    toggleMobileEditorPane(pane) {
+      if (this.isEditorMobileViewport() && this.editorPane === pane) {
+        this.setEditorPane("content");
+        return;
+      }
+      this.setEditorPane(pane);
+    },
+
     toggleEditorList() {
       this.showLeftList = !this.showLeftList;
       if (this.showLeftList) this.editorPane = "list";

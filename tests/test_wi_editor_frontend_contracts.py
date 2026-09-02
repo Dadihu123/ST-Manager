@@ -215,6 +215,50 @@ def test_wi_editor_action_rail_only_shows_menu_for_hidden_tools():
     assert 'ui-icon--md' in template[template.index('wi-editor-save-icon-button--snapshot') :]
 
 
+def test_wi_editor_mobile_panes_and_inspector_layout_have_explicit_contracts():
+    template = read_project_file('templates/modals/detail_wi_fullscreen.html')
+    source = read_project_file('static/js/components/wiEditor.js')
+    view_wi_css = read_project_file('static/css/modules/view-wi.css')
+
+    toggle_block = extract_js_function_block(
+        source,
+        'toggleMobileEditorPane(pane) {',
+    )
+    script = textwrap.dedent(
+        f'''
+        const component = {{
+          editorPane: 'list',
+          isEditorMobileViewport() {{ return true; }},
+          setEditorPane(pane) {{ this.editorPane = pane; }},
+          {toggle_block}
+        }};
+        component.toggleMobileEditorPane('list');
+        if (component.editorPane !== 'content') throw new Error('list should toggle to content');
+        component.toggleMobileEditorPane('inspector');
+        if (component.editorPane !== 'inspector') throw new Error('inspector should open');
+        component.toggleMobileEditorPane('inspector');
+        if (component.editorPane !== 'content') throw new Error('inspector should toggle to content');
+        component.isEditorMobileViewport = () => false;
+        component.editorPane = 'list';
+        component.toggleMobileEditorPane('list');
+        if (component.editorPane !== 'list') throw new Error('desktop pane should remain selected');
+        '''
+    )
+    run_js(script)
+
+    assert '@click="toggleMobileEditorPane(\'list\')"' in template
+    assert '@click="toggleMobileEditorPane(\'inspector\')"' in template
+    assert 'wi-editor-strategy-options' in template
+    assert template.count('wi-editor-strategy-option"') == 2
+    assert template.count('wi-recursion-option') == 3
+    assert 'wi-editor-note-toolbar' in template
+    assert 'wi-editor-note-textarea' in template
+    assert '.wi-editor-inspector .props-body > .flex.gap-2' not in view_wi_css
+    assert 'min-height: 11rem !important;' in view_wi_css
+    assert '.wi-editor-workbench .wi-editor-header' in view_wi_css
+    assert 'z-index: var(--z-dropdown);' in view_wi_css
+
+
 def test_normalize_wi_entry_preserves_delay_until_recursion_boolean_and_numeric_semantics():
     source = read_project_file('static/js/utils/data.js')
     normalize_block = extract_js_function_block(

@@ -3814,11 +3814,11 @@ html.light-mode .wi-card-back {
     padding: 0.7rem;
   }
 
-  .wi-editor-inspector .props-body > .flex.gap-2 {
-    flex-direction: column;
+  .wi-editor-inspector .wi-editor-strategy-options {
+    flex-direction: row;
   }
 
-  .wi-editor-inspector .props-body > .flex.gap-2 > label {
+  .wi-editor-inspector .wi-editor-strategy-option {
     min-height: 3.25rem;
     flex-direction: row;
     justify-content: flex-start;
@@ -3826,8 +3826,31 @@ html.light-mode .wi-card-back {
     padding-inline: 0.7rem;
   }
 
-  .wi-editor-inspector .props-body > .flex.gap-2 > label span:last-child {
+  .wi-editor-inspector .wi-editor-strategy-label {
     margin-top: 0;
+    white-space: nowrap;
+  }
+
+  .wi-editor-inspector .wi-recursion-option {
+    min-height: 2.35rem;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    white-space: nowrap;
+  }
+
+  .wi-editor-inspector .wi-editor-note-toolbar {
+    flex-direction: row;
+    align-items: flex-start;
+  }
+
+  .wi-editor-inspector .wi-editor-note-description {
+    white-space: normal;
+  }
+
+  .wi-editor-inspector .wi-editor-note-actions {
+    flex: 0 0 auto;
+    padding-top: 0.1rem;
   }
 
   .wi-find-replace-panel .px-4.py-3 {
@@ -3855,6 +3878,34 @@ html.light-mode .wi-card-back {
 .wi-editor-workbench.wi-editor-container > .wi-editor-shell > .wi-editor-header > .wi-editor-heading,
 .wi-editor-workbench.wi-editor-container > .wi-editor-shell > .wi-editor-header > .wi-editor-actions {
   background: var(--surface-container-raised) !important;
+}
+
+.wi-editor-workbench .wi-editor-header {
+  z-index: var(--z-dropdown);
+}
+
+.wi-editor-workbench .wi-sort-menu,
+.wi-editor-workbench .wi-editor-tool-menu {
+  z-index: var(--z-dropdown);
+}
+
+.wi-editor-workbench .wi-editor-note-toolbar {
+  align-items: flex-start;
+}
+
+.wi-editor-workbench .wi-editor-note-description {
+  flex: 1 1 auto;
+  min-width: 0;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.wi-editor-workbench .wi-editor-note-actions {
+  flex: 0 0 auto;
+}
+
+.wi-editor-workbench .wi-editor-note-textarea {
+  min-height: 11rem !important;
 }
 
 .wi-editor-workbench .wi-editor-actions {

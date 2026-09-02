@@ -821,9 +821,9 @@
             <div class="props-group">
               <div class="props-header color-text-accent">触发策略 (Strategy)</div>
               <div class="props-body">
-                <div class="flex gap-2">
+                <div class="flex gap-2 wi-editor-strategy-options">
                   <label
-                    class="flex-1 flex flex-col items-center justify-center p-2 rounded border cursor-pointer transition-all"
+                    class="flex-1 flex flex-col items-center justify-center p-2 rounded border cursor-pointer transition-all wi-editor-strategy-option"
                     :class="activeEditorEntry.constant ? 'color-surface-accent color-border-accent color-text-accent' : 'border-[var(--border-default)] hover:bg-[var(--state-hover-surface)]'"
                   >
                     <input
@@ -835,12 +835,12 @@
                     <span aria-hidden="true">
                       {{ icon('pin', 'ui-icon--md') }}
                     </span>
-                    <span class="text-[10px] mt-1 font-bold"
+                    <span class="text-[10px] mt-1 font-bold wi-editor-strategy-label"
                       >常驻 (Constant)</span
                     >
                   </label>
                   <label
-                    class="flex-1 flex flex-col items-center justify-center p-2 rounded border cursor-pointer transition-all"
+                    class="flex-1 flex flex-col items-center justify-center p-2 rounded border cursor-pointer transition-all wi-editor-strategy-option"
                     :class="activeEditorEntry.vectorized ? 'color-surface-violet color-border-violet color-text-violet' : 'border-[var(--border-default)] hover:bg-[var(--state-hover-surface)]'"
                   >
                     <input
@@ -852,7 +852,7 @@
                     <span aria-hidden="true">
                         {{ icon('wand', 'ui-icon--md') }}
                     </span>
-                    <span class="text-[10px] mt-1 font-bold"
+                    <span class="text-[10px] mt-1 font-bold wi-editor-strategy-label"
                       >向量化 (Vector)</span
                     >
                   </label>
@@ -1044,7 +1044,7 @@
               </div>
               <div class="props-body text-xs space-y-2">
                 <label
-                  class="flex items-center gap-2 cursor-pointer p-1 hover:bg-[var(--state-hover-surface)] rounded"
+                  class="flex items-center gap-2 cursor-pointer p-1 hover:bg-[var(--state-hover-surface)] rounded wi-recursion-option"
                 >
                   <input
                     type="checkbox"
@@ -1055,7 +1055,7 @@
                 </label>
 
                 <label
-                  class="flex items-center gap-2 cursor-pointer p-1 hover:bg-[var(--state-hover-surface)] rounded"
+                  class="flex items-center gap-2 cursor-pointer p-1 hover:bg-[var(--state-hover-surface)] rounded wi-recursion-option"
                 >
                   <input
                     type="checkbox"
@@ -1066,7 +1066,7 @@
                 </label>
 
                 <label
-                  class="flex items-center gap-2 cursor-pointer p-1 hover:bg-[var(--state-hover-surface)] rounded"
+                  class="flex items-center gap-2 cursor-pointer p-1 hover:bg-[var(--state-hover-surface)] rounded wi-recursion-option"
                 >
                   <input
                     type="checkbox"
@@ -1130,12 +1130,12 @@
                 x-text="editingWiFile?.type === 'embedded' ? '角色卡备注 (Character Note)' : '本地备注 (Local Note)'"
               ></div>
               <div class="props-body space-y-2">
-                <div class="flex items-center justify-between gap-2">
+                <div class="flex items-center justify-between gap-2 wi-editor-note-toolbar">
                   <span
-                    class="text-[10px] color-text-muted"
+                    class="text-[10px] color-text-muted wi-editor-note-description"
                     x-text="editingWiFile?.type === 'embedded' ? '此处编辑的是所属角色卡备注，不写入世界书文件本体' : '仅保存在本地，不写入世界书文件'"
                   ></span>
-                  <div class="flex items-center gap-1">
+                  <div class="flex items-center gap-1 wi-editor-note-actions">
                     <button
                       class="expand-btn"
                       @click="openLargeEditor('ui_summary', editingWiFile?.type === 'embedded' ? '角色卡备注' : '本地备注', false, 0, editingData)"
@@ -1152,7 +1152,7 @@
                 </div>
                 <textarea
                   x-model="editingData.ui_summary"
-                  class="w-full bg-[var(--surface-page)] border border-[var(--border-default)] rounded p-2 text-xs text-[var(--content-primary)] color-focus-border-accent outline-none resize-y min-h-[9rem]"
+                  class="w-full bg-[var(--surface-page)] border border-[var(--border-default)] rounded p-2 text-xs text-[var(--content-primary)] color-focus-border-accent outline-none resize-y min-h-[9rem] wi-editor-note-textarea"
                   :placeholder="editingWiFile?.type === 'embedded' ? '这是仅存储在角色卡中的私有备注，不会写入世界书文件...' : '这是仅存储在本地的私有备注，不会写入世界书文件...'"
                 ></textarea>
                 <button
@@ -1883,7 +1883,7 @@
           class="wi-mobile-dock-item"
           :class="editorPane === 'list' ? 'active' : ''"
           :aria-current="editorPane === 'list' ? 'page' : null"
-          @click="setEditorPane('list')"
+          @click="toggleMobileEditorPane('list')"
         >
           {{ icon('list', 'ui-icon--sm') }}
           <span>目录</span>
@@ -1903,7 +1903,7 @@
           class="wi-mobile-dock-item"
           :class="editorPane === 'inspector' ? 'active' : ''"
           :aria-current="editorPane === 'inspector' ? 'page' : null"
-          @click="setEditorPane('inspector')"
+          @click="toggleMobileEditorPane('inspector')"
         >
           {{ icon('sliders-settings', 'ui-icon--sm') }}
           <span>属性</span>
