@@ -289,34 +289,47 @@ export default function wiEditor() {
       if (!this.showFullScreenWI || typeof document === "undefined") return;
 
       const root = this._getEditorRootEl?.();
+      const header = root?.querySelector?.(".wi-editor-header");
       const actions = root?.querySelector?.(".wi-editor-actions");
       if (!actions || actions.offsetParent === null) return;
 
-      // 先临时恢复完整工具组，再读取实际的 scrollWidth。这样折叠由
-      // “展开后是否超出当前工具栏”决定，而不是由固定视口断点决定。
+      // 先临时恢复完整工具组，再读取实际内容边界。这样折叠由“展开后是否
+      // 超出顶部实际可用空间”决定，而不是由固定视口断点决定。
       const previousMode = actions.getAttribute("data-action-density");
       actions.setAttribute("data-action-density", "expanded");
       const actionRect = actions.getBoundingClientRect();
+      const expandedChildren = Array.from(actions.children).filter((element) => {
+        const style = window.getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
+        return style.display !== "none" && rect.width > 0 && rect.height > 0;
+      });
+      const expandedContentLeft = Math.min(
+        actionRect.left,
+        ...expandedChildren.map((element) => element.getBoundingClientRect().left),
+      );
       const expandedContentRight = Math.max(
         actionRect.right,
-        ...Array.from(actions.children).map((element) =>
-          element.getBoundingClientRect().right,
-        ),
+        ...expandedChildren.map((element) => element.getBoundingClientRect().right),
       );
+      const headerRect = header?.getBoundingClientRect?.();
+      const headerOverflow =
+        !!header &&
+        !!headerRect &&
+        (header.scrollWidth > header.clientWidth + 1 ||
+          actionRect.left < headerRect.left - 1 ||
+          actionRect.right > headerRect.right + 1);
       const expandedOverflow =
         actions.scrollWidth > actions.clientWidth + 1 ||
-        expandedContentRight > actionRect.right + 1;
+        expandedContentLeft < actionRect.left - 1 ||
+        expandedContentRight > actionRect.right + 1 ||
+        headerOverflow;
       if (previousMode) {
         actions.setAttribute("data-action-density", previousMode);
       } else {
         actions.removeAttribute("data-action-density");
       }
 
-      const nextMode = this.isEditorMobileViewport()
-        ? "compact"
-        : expandedOverflow
-          ? "compact"
-          : "expanded";
+      const nextMode = expandedOverflow ? "compact" : "expanded";
       if (nextMode !== this.wiEditorActionRailMode) {
         this.wiEditorActionRailMode = nextMode;
       }

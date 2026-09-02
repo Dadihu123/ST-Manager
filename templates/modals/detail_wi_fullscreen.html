@@ -211,9 +211,37 @@
             >
               {{ icon('book-search', 'ui-icon--md') }}
             </button>
+
+            <!-- 3.6 先创建整本回滚版本再保存 -->
+            <button
+              type="button"
+              @click="saveWholeWorldbook()"
+              :disabled="isSaving"
+              class="wi-action-btn wi-editor-tool-button wi-editor-tool-button--rollback-save"
+              title="先创建整本回滚版本再保存"
+              aria-label="先创建整本回滚版本再保存"
+            >
+              {{ icon('snapshot', 'ui-icon--md') }}
+            </button>
+
+            <!-- 3.7 另存为或提取为全局 -->
+            <button
+              type="button"
+              @click="saveAsGlobalWi()"
+              class="wi-action-btn wi-editor-tool-button wi-editor-tool-button--extract"
+              :title="editingWiFile && editingWiFile.type !== 'embedded' ? '另存为世界书' : '提取为全局世界书'"
+              :aria-label="editingWiFile && editingWiFile.type !== 'embedded' ? '另存为世界书' : '提取为全局世界书'"
+            >
+              {{ icon('book-save-as', 'ui-icon--md') }}
+            </button>
           </div>
 
-          <div class="wi-editor-tool-menu-anchor">
+          <div
+            class="wi-editor-tool-menu-anchor"
+            x-show="wiEditorActionRailMode === 'compact'"
+            x-cloak
+            x-effect="if (wiEditorActionRailMode !== 'compact') showWiEditorToolsMenu = false"
+          >
             <button
               type="button"
               x-ref="wiEditorToolsMenuButton"
@@ -228,13 +256,13 @@
             </button>
 
             <div
-              x-show="showWiEditorToolsMenu"
+              x-show="showWiEditorToolsMenu && wiEditorActionRailMode === 'compact'"
               x-cloak
               @click.outside="showWiEditorToolsMenu = false"
               class="wi-editor-tool-menu"
               role="menu"
             >
-              <div class="wi-editor-menu-heading">工具</div>
+              <div class="wi-editor-menu-heading">收起的工具</div>
               <button
                 type="button"
                 role="menuitem"
@@ -243,24 +271,6 @@
               >
                 {{ icon('history-rollback', 'ui-icon--sm') }}
                 <span>时光机</span>
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                @click="createSnapshot('lorebook'); showWiEditorToolsMenu = false"
-                class="wi-editor-menu-action"
-              >
-                {{ icon('snapshot', 'ui-icon--sm') }}
-                <span>创建快照</span>
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                @click="createKeySnapshot('lorebook'); showWiEditorToolsMenu = false"
-                class="wi-editor-menu-action"
-              >
-                {{ icon('snapshot', 'ui-icon--sm') }}
-                <span>创建关键快照</span>
               </button>
               <button
                 type="button"
@@ -290,26 +300,6 @@
                 <span>查找与替换</span>
               </button>
 
-              <div class="wi-editor-menu-separator" role="separator"></div>
-              <div class="wi-editor-menu-heading">保存</div>
-              <button
-                type="button"
-                role="menuitem"
-                @click="saveChanges(); showWiEditorToolsMenu = false"
-                class="wi-editor-menu-action"
-              >
-                {{ icon('settings-save', 'ui-icon--sm') }}
-                <span>保存条目</span>
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                @click="saveCurrentWorldbook(); showWiEditorToolsMenu = false"
-                class="wi-editor-menu-action"
-              >
-                {{ icon('book-save', 'ui-icon--sm') }}
-                <span>保存整本</span>
-              </button>
               <button
                 type="button"
                 role="menuitem"
@@ -330,6 +320,36 @@
                   x-text="editingWiFile && editingWiFile.type !== 'embedded' ? '另存为...' : '提取为全局'"
                 ></span>
               </button>
+
+              <div class="wi-editor-menu-separator wi-editor-menu-mobile-save-only" role="separator"></div>
+              <div class="wi-editor-menu-heading wi-editor-menu-mobile-save-only">保存</div>
+              <button
+                type="button"
+                role="menuitem"
+                @click="createSnapshot('lorebook'); showWiEditorToolsMenu = false"
+                class="wi-editor-menu-action wi-editor-menu-action--mobile-save"
+              >
+                {{ icon('snapshot', 'ui-icon--sm') }}
+                <span>创建快照</span>
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                @click="createKeySnapshot('lorebook'); showWiEditorToolsMenu = false"
+                class="wi-editor-menu-action wi-editor-menu-action--mobile-save"
+              >
+                {{ icon('snapshot', 'ui-icon--sm') }}
+                <span>创建关键快照</span>
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                @click="saveCurrentWorldbook(); showWiEditorToolsMenu = false"
+                class="wi-editor-menu-action wi-editor-menu-action--mobile-save"
+              >
+                {{ icon('book-save', 'ui-icon--sm') }}
+                <span>保存整本</span>
+              </button>
             </div>
           </div>
         </div>
@@ -349,7 +369,7 @@
                 :title="(!editingWiFile || editingWiFile.type === 'embedded') ? '备份当前角色 (左键: 普通 | 右键: 关键节点)' : '备份当前世界书 (左键: 普通 | 右键: 关键节点)'"
                 aria-label="创建世界书快照（左键普通快照，右键关键快照）"
               >
-                {{ icon('snapshot', 'ui-icon--sm') }}
+                {{ icon('snapshot', 'ui-icon--md') }}
               </button>
               <button
                 type="button"
@@ -360,10 +380,10 @@
                 aria-label="保存条目"
               >
                 <span x-show="isSaving" aria-hidden="true">
-                  {{ loading_icon('ui-icon--sm') }}
+                  {{ loading_icon('ui-icon--md') }}
                 </span>
                 <span x-show="!isSaving" aria-hidden="true">
-                  {{ icon('settings-save', 'ui-icon--sm') }}
+                  {{ icon('settings-save', 'ui-icon--md') }}
                 </span>
               </button>
               <button
@@ -375,13 +395,13 @@
                 aria-label="保存整本世界书"
               >
                 <span aria-hidden="true">
-                  {{ icon('book-save', 'ui-icon--sm') }}
+                  {{ icon('book-save', 'ui-icon--md') }}
                 </span>
               </button>
             </div>
           </template>
 
-          <!-- 场景 B: 编辑卡片内嵌（快照、保存条目、保存整本；提取入口位于更多菜单） -->
+          <!-- 场景 B: 编辑卡片内嵌（快照、保存条目、保存整本；提取入口位于工具组或更多菜单） -->
           <template x-if="!editingWiFile || editingWiFile.type === 'embedded'">
             <div class="flex items-center gap-2">
               <button
@@ -392,7 +412,7 @@
                 :title="(!editingWiFile || editingWiFile.type === 'embedded') ? '备份当前角色 (左键: 普通 | 右键: 关键节点)' : '备份当前世界书 (左键: 普通 | 右键: 关键节点)'"
                 aria-label="创建世界书快照（左键普通快照，右键关键快照）"
               >
-                {{ icon('snapshot', 'ui-icon--sm') }}
+                {{ icon('snapshot', 'ui-icon--md') }}
               </button>
               <button
                 type="button"
@@ -403,10 +423,10 @@
                 aria-label="保存条目"
               >
                 <span x-show="isSaving" aria-hidden="true">
-                  {{ loading_icon('ui-icon--sm') }}
+                  {{ loading_icon('ui-icon--md') }}
                 </span>
                 <span x-show="!isSaving" aria-hidden="true">
-                  {{ icon('settings-save', 'ui-icon--sm') }}
+                  {{ icon('settings-save', 'ui-icon--md') }}
                 </span>
               </button>
               <button
@@ -418,7 +438,7 @@
                 aria-label="保存整本世界书"
               >
                 <span aria-hidden="true">
-                  {{ icon('book-save', 'ui-icon--sm') }}
+                  {{ icon('book-save', 'ui-icon--md') }}
                 </span>
               </button>
             </div>

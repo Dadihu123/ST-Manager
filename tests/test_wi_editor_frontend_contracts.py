@@ -181,6 +181,40 @@ def test_wi_sort_select_menus_match_tiny_trigger_font_size():
     assert 'font-size: 0.72rem;' in tiny_menu_block
 
 
+def test_wi_editor_action_rail_only_shows_menu_for_hidden_tools():
+    source = read_project_file('static/js/components/wiEditor.js')
+    template = read_project_file('templates/modals/detail_wi_fullscreen.html')
+    view_wi_css = read_project_file('static/css/modules/view-wi.css')
+
+    assert 'const nextMode = expandedOverflow ? "compact" : "expanded";' in source
+    assert 'this.isEditorMobileViewport()\n        ? "compact"' not in source
+    assert 'x-show="wiEditorActionRailMode === \'compact\'"' in template
+    assert 'x-show="showWiEditorToolsMenu && wiEditorActionRailMode === \'compact\'"' in template
+    assert '.wi-editor-actions[data-action-density="expanded"] .wi-editor-tool-menu-anchor' in view_wi_css
+    assert '.wi-editor-actions[data-action-density="compact"] .wi-editor-tool-icons' in view_wi_css
+
+    menu = template.split('class="wi-editor-tool-menu"', 1)[1].split(
+        '\n            </div>\n          </div>', 1
+    )[0]
+    assert menu.count('wi-editor-menu-action--mobile-save') == 3
+    assert '保存条目' not in menu
+    assert menu.count('createSnapshot(\'lorebook\')') == 1
+    assert menu.count('createKeySnapshot(\'lorebook\')') == 1
+    assert re.search(
+        r'@click="createSnapshot\(\'lorebook\'\); showWiEditorToolsMenu = false"'
+        r'.*?wi-editor-menu-action--mobile-save',
+        menu,
+        re.DOTALL,
+    )
+    assert re.search(
+        r'@click="createKeySnapshot\(\'lorebook\'\); showWiEditorToolsMenu = false"'
+        r'.*?wi-editor-menu-action--mobile-save',
+        menu,
+        re.DOTALL,
+    )
+    assert 'ui-icon--md' in template[template.index('wi-editor-save-icon-button--snapshot') :]
+
+
 def test_normalize_wi_entry_preserves_delay_until_recursion_boolean_and_numeric_semantics():
     source = read_project_file('static/js/utils/data.js')
     normalize_block = extract_js_function_block(
