@@ -2785,6 +2785,13 @@ export default function wiEditor() {
       return this.saveWiFileChanges(true);
     },
 
+    saveCurrentWorldbook() {
+      if (this.editingWiFile && this.editingWiFile.type === "embedded") {
+        return this.saveChanges();
+      }
+      return this.saveWiFileChanges();
+    },
+
     async saveChanges(withSnapshot = false) {
       // 如果不是内嵌模式，但误调了此方法，转给文件保存逻辑
       if (!this.editingWiFile || this.editingWiFile.type !== "embedded") {

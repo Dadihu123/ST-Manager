@@ -3865,7 +3865,7 @@ html.light-mode .wi-card-back {
 
 .wi-editor-tool-menu-anchor {
   position: relative;
-  display: none;
+  display: inline-flex;
   flex: 0 0 auto;
 }
 
@@ -3970,6 +3970,45 @@ html.light-mode .wi-card-back {
 
 .wi-editor-save-button {
   justify-content: center;
+}
+
+.wi-editor-workbench .wi-editor-save-actions {
+  padding-left: 0;
+  border-left: 0 !important;
+}
+
+.wi-editor-workbench .wi-editor-action-divider {
+  width: 1px;
+  height: 1.5rem;
+  flex: 0 0 1px;
+  margin-inline: 0.15rem;
+  background: var(--border-divider);
+}
+
+.wi-editor-workbench .wi-editor-save-icon-button {
+  width: 2.5rem !important;
+  height: 2.5rem !important;
+  min-width: 2.5rem !important;
+  min-height: 2.5rem !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0.65rem;
+}
+
+.wi-editor-workbench .wi-editor-tool-menu-trigger {
+  width: 2.5rem !important;
+  height: 2.5rem !important;
+  min-width: 2.5rem !important;
+  min-height: 2.5rem !important;
+  padding: 0 !important;
+}
+
+.wi-editor-workbench .wi-editor-final-actions .wi-icon-only-action {
+  width: 2.5rem;
+  height: 2.5rem;
+  min-width: 2.5rem;
+  min-height: 2.5rem;
+  padding: 0 !important;
 }
 
 .wi-editor-content-frame {
@@ -4211,6 +4250,16 @@ html.light-mode .wi-card-back {
     gap: 0 !important;
   }
 
+  .wi-editor-workbench .wi-editor-save-icon-button,
+  .wi-editor-workbench .wi-editor-tool-menu-trigger,
+  .wi-editor-workbench .wi-editor-final-actions .wi-icon-only-action {
+    width: 2.75rem !important;
+    height: 2.75rem !important;
+    min-width: 2.75rem !important;
+    min-height: 2.75rem !important;
+    padding: 0 !important;
+  }
+
   .wi-editor-workbench .wi-editor-content-frame {
     max-width: 100%;
     margin: 0;
@@ -4219,7 +4268,8 @@ html.light-mode .wi-card-back {
 }
 
 @media (max-width: 640px) {
-  .wi-editor-workbench .wi-editor-save-button--secondary {
+  .wi-editor-workbench .wi-editor-save-icon-button--snapshot,
+  .wi-editor-workbench .wi-editor-save-icon-button--whole {
     display: none !important;
   }
 
