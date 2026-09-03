@@ -1405,18 +1405,33 @@ html.light-mode .preset-card-action-btn.is-export {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.3rem 0.45rem;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--surface-container-raised), transparent 14%);
-  border: 1px solid color-mix(in srgb, var(--border-default), var(--content-on-dark) 14%);
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  border: 0;
 }
 
-.card-flip-all-btn {
-  padding: 0.25rem 0.7rem;
-  border-radius: 999px;
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.01em;
+button.card-flip-all-btn {
+  width: 2.75rem;
+  height: 2.75rem;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  padding: 0;
+  border: 0 !important;
+  border-radius: 0.5rem;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--action-icon) !important;
+}
+
+button.card-flip-all-btn:hover:not(:disabled) {
+  border-color: transparent !important;
+  background: var(--state-hover-surface) !important;
+  color: var(--action-text) !important;
+}
+
+button.card-flip-all-btn:active:not(:disabled) {
+  background: var(--action-surface-active) !important;
 }
 
 .card-flip-count {

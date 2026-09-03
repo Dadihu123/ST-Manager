@@ -224,13 +224,13 @@ def test_monitor_settings_template_marks_all_editable_controls_dirty():
     assert 'source_attrs=\'@change="markSettingsDraftDirty()"\'' in template
 
 
-def test_monitor_member_icons_reuse_sidebar_character_card_glyph():
+def test_monitor_member_icons_reuse_monitor_pool_glyph():
     template = read_project_file('templates/modals/source_update_monitor.html')
 
-    assert '{% from "components/icon.html" import icon, loading_icon, sidebar_icon %}' in template
-    assert template.count("sidebar_icon('character-cards', 'ui-icon--sm')") == 1
-    assert template.count("sidebar_icon('character-cards', 'ui-icon--lg')") == 1
-    assert template.count("icon('monitor-users'") == 1
+    assert '{% from "components/icon.html" import icon, loading_icon %}' in template
+    assert template.count("icon('monitor-user', 'ui-icon--md')") == 1
+    assert template.count("icon('monitor-user', 'ui-icon--xl')") == 1
+    assert template.count("icon('monitor-user'") == 3
 
 
 def test_fullscreen_and_favorite_card_css_keep_surfaces_and_icons_crisp():

@@ -1,3 +1,4 @@
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 
@@ -66,3 +67,39 @@ def test_personalized_save_icon_is_restored_for_all_production_save_calls():
         assert "icon('save'" not in source
         assert '"save"' not in source
         assert "'save'" not in source
+
+
+def test_bulk_flip_icon_uses_the_shared_ui_sprite():
+    sprite_path = PROJECT_ROOT / 'static/icons/ui.svg'
+    root = ET.parse(sprite_path).getroot()
+    symbol = next(
+        element
+        for element in root
+        if element.get('id') == 'icon-vertical-flip'
+    )
+
+    assert symbol.get('viewBox') == '0 0 1024 1024'
+    assert symbol.get('fill') == 'currentColor'
+    assert symbol.find('{http://www.w3.org/2000/svg}path').get('fill') == 'currentColor'
+
+    for relative_path in (
+        'templates/components/grid_cards.html',
+        'templates/components/grid_wi.html',
+    ):
+        source = read_project_file(relative_path)
+        assert "icon('vertical-flip', 'ui-icon--lg')" in source
+        assert 'ui-flip-icon' not in source
+
+    cards_css = read_project_file('static/css/modules/view-cards.css')
+    assert 'static/icons/vertical-flip.svg' not in cards_css
+
+
+def test_pagination_strip_keeps_its_surface_and_clears_inner_flip_surfaces():
+    css = read_project_file('static/css/modules/ui-refresh.css')
+    pagination_block = css.split('.pagination-bar {', 1)[1].split('}', 1)[0]
+
+    assert 'background:' not in pagination_block
+    assert 'background-color:' not in pagination_block
+    assert '.pagination-bar .card-flip-toolbar' in css
+    assert '.pagination-bar button.card-flip-all-btn' in css
+    assert 'background-color: transparent !important;' in css

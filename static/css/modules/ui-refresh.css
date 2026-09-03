@@ -1855,6 +1855,57 @@
   color: var(--action-icon);
 }
 
+/* 网格分页只保留轻量的悬停反馈，去掉翻页按钮和页码的边框容器。 */
+.pagination-bar {
+  border-top: 0;
+}
+
+/* Keep the pagination strip as a readable surface while making its flip
+   affordance inherit that surface instead of rendering a second button tile. */
+.pagination-bar .card-flip-toolbar,
+.pagination-bar .card-flip-count {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+.pagination-bar button.card-flip-all-btn,
+.pagination-bar button.card-flip-all-btn:hover:not(:disabled),
+.pagination-bar button.card-flip-all-btn:focus-visible,
+.pagination-bar button.card-flip-all-btn:active:not(:disabled) {
+  border: 0 !important;
+  border-color: transparent !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
+
+.pagination-bar .pagination-page-nav-btn,
+.pagination-bar .card-page-nav-btn {
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.pagination-bar .pagination-page-nav-btn:hover:not(:disabled),
+.pagination-bar .pagination-page-nav-btn:focus-visible,
+.pagination-bar .card-page-nav-btn:hover:not(:disabled),
+.pagination-bar .card-page-nav-btn:focus-visible {
+  border: 0 !important;
+  background: var(--state-hover-surface) !important;
+}
+
+.pagination-bar .pagination-page-indicator,
+.pagination-bar .card-pagination-page-indicator {
+  padding: 0.25rem 0.5rem;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--content-primary);
+}
+
 @media (max-width: 768px) {
   .settings-modal-overlay .settings-nav-item.is-active,
   .settings-modal-overlay .settings-nav-item.is-active:hover {

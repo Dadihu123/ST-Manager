@@ -110,16 +110,12 @@
 
         <!-- 右侧：菜单按钮 -->
         <button
+          x-show="!showMobileMenu"
           @click="toggleMobileMenu()"
           class="mobile-menu-btn-compact"
-          :aria-label="showMobileMenu ? '关闭菜单' : '打开菜单'"
+          aria-label="打开菜单"
         >
-          <span x-show="!showMobileMenu" aria-hidden="true"
-            >{{ icon('menu', 'ui-icon--md ') }}</span
-          >
-          <span x-show="showMobileMenu" aria-hidden="true"
-            >{{ icon('close', 'ui-icon--md ') }}</span
-          >
+          <span aria-hidden="true">{{ icon('menu', 'ui-icon--md ') }}</span>
         </button>
       </div>
     </div>
@@ -908,6 +904,19 @@
     x-transition:leave-end="opacity-0 -translate-y-2"
     class="mobile-menu"
   >
+    <div class="mobile-menu-head">
+      <span class="mobile-menu-head-title">导航</span>
+      <button
+        type="button"
+        class="mobile-menu-close"
+        @click="closeMobileMenu()"
+        aria-label="关闭导航菜单"
+        title="关闭导航菜单"
+      >
+        {{ icon('close', 'ui-icon--md') }}
+      </button>
+    </div>
+
     <!-- 搜索类型选择（移动端） -->
     <div x-show="currentMode === 'cards'" class="mobile-menu-section">
       <label class="mobile-menu-label">搜索类型</label>
