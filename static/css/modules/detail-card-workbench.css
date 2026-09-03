@@ -1728,6 +1728,230 @@ html.light-mode .ui-detail-modal .detail-modal--workbench .detail-thumb-label {
 
 }
 
+/* Keep card metadata in a dedicated mobile information panel. */
+@media (max-width: 56.25rem) {
+  .ui-detail-modal .detail-modal--workbench .detail-mobile-info-panel {
+    min-height: 0 !important;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-mobile-info-scroll {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    min-width: 0;
+    padding: 0.85rem 0.75rem calc(1.1rem + env(safe-area-inset-bottom)) !important;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-mobile-info-summary {
+    align-items: center;
+    display: flex;
+    gap: 0.6rem;
+    justify-content: space-between;
+    min-width: 0;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-mobile-info-heading {
+    align-items: center;
+    display: flex;
+    gap: 0.45rem;
+    min-width: 0;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-mobile-info-heading-icon {
+    color: var(--accent-text);
+    display: inline-flex;
+    flex: 0 0 auto;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-mobile-info-heading-title {
+    color: var(--content-primary);
+    font-size: 1rem;
+    font-weight: 900;
+    min-width: 0;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-mobile-info-token {
+    align-items: flex-end;
+    background: var(--surface-container-sunken);
+    border: 1px solid var(--border-default);
+    border-radius: 0.65rem;
+    display: flex;
+    flex: 0 0 auto;
+    flex-direction: column;
+    gap: 0.1rem;
+    justify-content: center;
+    min-height: 2.75rem;
+    min-width: 4.25rem;
+    padding: 0.35rem 0.65rem;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-mobile-info-token-label {
+    color: var(--content-muted);
+    font-size: 0.55rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    line-height: 1.1;
+    text-transform: uppercase;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-mobile-info-token-value {
+    color: var(--accent-text);
+    font-family: var(--font-mono, ui-monospace, SFMono-Regular, Consolas, monospace);
+    font-size: 0.8rem;
+    font-weight: 900;
+    line-height: 1.1;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-mobile-info-token-value.ok {
+    color: var(--status-success-text) !important;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-mobile-info-token-value.warn {
+    color: var(--status-info-text) !important;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-mobile-info-token-value.danger {
+    color: var(--status-warning-text) !important;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-mobile-info-token-value.extreme {
+    color: var(--status-danger-text) !important;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-mobile-info-card {
+    background: var(--surface-container);
+    border: 1px solid var(--border-default);
+    border-radius: 0.8rem;
+    color: var(--content-primary);
+    min-width: 0;
+    overflow: hidden;
+    width: 100%;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-mobile-info-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    min-width: 0;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-mobile-info-field {
+    align-items: flex-start;
+    display: flex;
+    gap: 0.55rem;
+    min-width: 0;
+    padding: 0.75rem;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-mobile-info-field:nth-child(-n + 2) {
+    border-bottom: 1px solid var(--border-divider);
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-mobile-info-field--source {
+    grid-column: 1 / -1;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-mobile-info-field-icon {
+    color: var(--accent-text);
+    display: inline-flex;
+    flex: 0 0 1.25rem;
+    justify-content: center;
+    padding-top: 0.15rem;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-mobile-info-field-copy {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: 0.3rem;
+    min-width: 0;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-mobile-info-field-label {
+    color: var(--content-muted);
+    font-size: 0.68rem;
+    font-weight: 800;
+    line-height: 1.2;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-mobile-info-input {
+    background: var(--form-surface);
+    border: 1px solid var(--form-border);
+    border-radius: 0.55rem;
+    color: var(--content-primary);
+    font-size: 0.78rem;
+    min-height: 2.75rem;
+    min-width: 0;
+    padding: 0.5rem 0.6rem;
+    width: 100%;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-mobile-info-input:focus {
+    border-color: var(--form-border-focus);
+    box-shadow: var(--state-focus-shadow);
+    outline: none;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-mobile-info-value {
+    align-items: center;
+    color: var(--content-secondary);
+    display: flex;
+    font-size: 0.82rem;
+    line-height: 1.35;
+    min-height: 2.75rem;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-mobile-info-value.is-muted {
+    color: var(--content-muted);
+    font-style: italic;
+    opacity: 0.75;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-mobile-info-source-row {
+    align-items: center;
+    display: flex;
+    gap: 0.4rem;
+    min-width: 0;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-mobile-info-source-row .detail-mobile-info-input,
+  .ui-detail-modal .detail-modal--workbench .detail-mobile-info-source-value {
+    flex: 1 1 auto;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-mobile-info-open-link {
+    align-items: center;
+    background: var(--action-surface);
+    border: 1px solid var(--action-border);
+    border-radius: 0.6rem;
+    color: var(--action-text);
+    display: inline-flex;
+    flex: 0 0 2.75rem;
+    height: 2.75rem;
+    justify-content: center;
+    min-width: 2.75rem;
+    width: 2.75rem;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-mobile-info-open-link:hover {
+    background: var(--state-hover-surface);
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-mobile-info-open-link:focus-visible {
+    outline: 2px solid var(--state-focus-ring);
+    outline-offset: 2px;
+  }
+}
+
+@media (max-width: 22.5rem) {
+  .ui-detail-modal .detail-modal--workbench .detail-mobile-info-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .ui-detail-modal .detail-modal--workbench *,
   .ui-detail-modal .detail-modal--workbench *::before,
@@ -2660,5 +2884,817 @@ html.light-mode .ui-detail-modal .detail-modal--workbench .detail-thumb-label {
 
   .ui-detail-modal .skin-gallery-preview-nav--next {
     right: 0.75rem;
+  }
+}
+
+/* -------------------------------------------------------------------------
+ * Mobile detail experience
+ *
+ * The desktop workbench keeps its split preview/editor surface. On phones,
+ * the same DOM becomes two mutually exclusive full-height panels: content is
+ * the entry point and the portrait surface is an explicit second destination.
+ * The nav rail becomes an overlay drawer so the reading surface never needs a
+ * horizontal scroll gesture.
+ * ------------------------------------------------------------------------- */
+
+@media (max-width: 56.25rem) {
+  .ui-detail-modal.detail-card-overlay {
+    --detail-mobile-shell-height: calc(3.6rem + env(safe-area-inset-top));
+    align-items: stretch;
+    min-height: 100svh;
+    overflow: hidden;
+    padding: 0;
+  }
+
+  .ui-detail-modal .detail-modal--workbench {
+    border: 0;
+    border-radius: 0;
+    flex: 0 0 100%;
+    height: 100dvh;
+    max-height: none;
+    max-width: 100vw;
+    min-width: 100%;
+    min-height: 100svh;
+    margin: 0 !important;
+    width: 100%;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-modal-inner {
+    display: block !important;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-mobile-shell-bar {
+    align-items: center;
+    background: var(--surface-container);
+    border-bottom: 1px solid var(--border-divider);
+    display: flex;
+    gap: 0.45rem;
+    height: var(--detail-mobile-shell-height);
+    inset: 0 0 auto;
+    padding: env(safe-area-inset-top) 0.6rem 0.35rem;
+    position: absolute;
+    z-index: 30;
+  }
+
+  .ui-detail-modal .detail-mobile-close,
+  .ui-detail-modal .detail-mobile-nav-trigger {
+    align-items: center;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 0.7rem;
+    color: var(--content-secondary);
+    display: inline-flex;
+    flex: 0 0 2.75rem;
+    height: 2.75rem;
+    justify-content: center;
+    min-height: 2.75rem;
+    min-width: 2.75rem;
+    padding: 0;
+    touch-action: manipulation;
+    transition: background-color 180ms ease, color 180ms ease, transform 180ms ease;
+    width: 2.75rem;
+  }
+
+  .ui-detail-modal .detail-mobile-close:hover,
+  .ui-detail-modal .detail-mobile-nav-trigger:hover {
+    background: var(--state-hover-surface);
+    color: var(--content-primary);
+  }
+
+  .ui-detail-modal .detail-mobile-close:active,
+  .ui-detail-modal .detail-mobile-nav-trigger:active {
+    transform: scale(0.96);
+  }
+
+  .ui-detail-modal .detail-mobile-close:focus-visible,
+  .ui-detail-modal .detail-mobile-nav-trigger:focus-visible,
+  .ui-detail-modal .detail-mobile-mode-button:focus-visible,
+  .ui-detail-modal .detail-mobile-image-nav-button:focus-visible,
+  .ui-detail-modal .detail-mobile-image-gallery-button:focus-visible {
+    outline: 2px solid var(--state-focus-ring);
+    outline-offset: 2px;
+  }
+
+  .ui-detail-modal .detail-mobile-mode-switcher {
+    align-items: center;
+    background: var(--surface-container-sunken);
+    border: 1px solid var(--border-default);
+    border-radius: 0.8rem;
+    display: flex;
+    flex: 1 1 auto;
+    gap: 0.2rem;
+    justify-content: center;
+    min-width: 0;
+    padding: 0.2rem;
+  }
+
+  .ui-detail-modal .detail-mobile-mode-button {
+    align-items: center;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 0.6rem;
+    color: var(--content-secondary);
+    display: inline-flex;
+    flex: 1 1 0;
+    font-size: 0.78rem;
+    font-weight: 800;
+    gap: 0.3rem;
+    justify-content: center;
+    min-height: 2.75rem;
+    min-width: 0;
+    padding: 0.3rem 0.45rem;
+    touch-action: manipulation;
+    transition: background-color 180ms ease, border-color 180ms ease, color 180ms ease;
+  }
+
+  .ui-detail-modal .detail-mobile-mode-button.active {
+    background: var(--action-surface);
+    border-color: var(--action-border);
+    color: var(--action-text);
+    box-shadow: inset 0 -2px 0 var(--accent-action);
+  }
+
+  .ui-detail-modal .detail-mobile-shell-actions {
+    align-items: center;
+    display: flex;
+    flex: 0 0 auto;
+    gap: 0.25rem;
+    min-width: 0;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-left,
+  .ui-detail-modal .detail-modal--workbench .detail-right {
+    bottom: 0;
+    display: grid !important;
+    height: auto !important;
+    left: 0;
+    max-height: none !important;
+    min-height: 0;
+    opacity: 0;
+    overflow: hidden;
+    pointer-events: none;
+    position: absolute !important;
+    right: 0;
+    top: var(--detail-mobile-shell-height) !important;
+    transform: translateX(1rem);
+    transition: opacity 220ms ease, transform 220ms ease, visibility 220ms ease;
+    visibility: hidden;
+    width: auto !important;
+    z-index: 1;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .mobile-panel-content .detail-right,
+  .ui-detail-modal .detail-modal--workbench .mobile-panel-image .detail-left {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateX(0);
+    visibility: visible;
+    z-index: 2;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-left {
+    border-bottom: 0;
+    border-right: 0;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-right {
+    grid-template-rows: auto auto minmax(0, 1fr);
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-visual-header {
+    min-height: 3.35rem;
+    padding: 0.55rem 0.8rem;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-visual-state {
+    max-width: 8rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-image-scroll {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    padding: 0;
+    touch-action: pan-x pan-y;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-image {
+    max-width: none !important;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-left-toolbar {
+    gap: 0.2rem;
+    right: 0.65rem;
+    top: 0.65rem;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-left-toolbar .detail-icon-btn,
+  .ui-detail-modal .detail-modal--workbench .detail-zoom-btn,
+  .ui-detail-modal .detail-modal--workbench .detail-zoom-reset {
+    min-height: 2.75rem;
+    min-width: 2.75rem;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-zoombar {
+    bottom: calc(0.65rem + env(safe-area-inset-bottom));
+    max-width: calc(100% - 1.25rem);
+    width: min(26rem, calc(100% - 1.25rem));
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-mobile-image-nav {
+    align-items: center;
+    background: color-mix(in srgb, var(--surface-container-raised) 94%, transparent);
+    border: 1px solid var(--border-default);
+    border-radius: 0.8rem;
+    bottom: calc(4rem + env(safe-area-inset-bottom));
+    box-shadow: var(--shadow-md, 0 0.5rem 1.5rem var(--surface-scrim-soft));
+    display: grid;
+    gap: 0.25rem;
+    grid-template-columns: 2.75rem minmax(0, 1fr) 2.75rem auto;
+    left: 0.65rem;
+    max-width: calc(100% - 1.3rem);
+    padding: 0.25rem;
+    position: absolute;
+    right: 0.65rem;
+    z-index: 4;
+  }
+
+  .ui-detail-modal .detail-mobile-image-nav-button,
+  .ui-detail-modal .detail-mobile-image-gallery-button {
+    align-items: center;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 0.6rem;
+    color: var(--content-primary);
+    display: inline-flex;
+    height: 2.75rem;
+    justify-content: center;
+    min-height: 2.75rem;
+    min-width: 2.75rem;
+    padding: 0;
+    touch-action: manipulation;
+  }
+
+  .ui-detail-modal .detail-mobile-image-nav-button:hover:not(:disabled),
+  .ui-detail-modal .detail-mobile-image-gallery-button:hover {
+    background: var(--state-hover-surface);
+    color: var(--action-text);
+  }
+
+  .ui-detail-modal .detail-mobile-image-nav-button:disabled {
+    color: var(--content-disabled);
+    cursor: not-allowed;
+    opacity: 0.45;
+  }
+
+  .ui-detail-modal .detail-mobile-image-nav-status {
+    display: flex;
+    flex-direction: column;
+    gap: 0.05rem;
+    min-width: 0;
+    padding-inline: 0.2rem;
+    text-align: center;
+  }
+
+  .ui-detail-modal .detail-mobile-image-nav-name,
+  .ui-detail-modal .detail-mobile-image-nav-count {
+    display: block;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .ui-detail-modal .detail-mobile-image-nav-name {
+    color: var(--content-primary);
+    font-size: 0.72rem;
+    font-weight: 800;
+  }
+
+  .ui-detail-modal .detail-mobile-image-nav-count {
+    color: var(--content-muted);
+    font-family: var(--font-mono, ui-monospace, SFMono-Regular, Consolas, monospace);
+    font-size: 0.62rem;
+  }
+
+  .ui-detail-modal .detail-mobile-image-gallery-button {
+    background: var(--action-surface);
+    border-color: var(--action-border);
+    color: var(--action-text);
+    gap: 0.2rem;
+    padding-inline: 0.55rem;
+    width: auto;
+  }
+
+  .ui-detail-modal .detail-mobile-image-gallery-button span {
+    font-size: 0.68rem;
+    font-weight: 800;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-versions {
+    min-height: 5rem;
+    padding-bottom: calc(0.6rem + env(safe-area-inset-bottom));
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-topbar {
+    align-items: start;
+    gap: 0.4rem 0.5rem;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: auto auto;
+    min-height: 0;
+    padding: 0.65rem 0.75rem 0.7rem !important;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-topbar-info {
+    grid-column: 1;
+    grid-row: 1;
+    gap: 0.5rem;
+    min-width: 0;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-topbar-actions {
+    display: contents;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-topbar-action-row--icon {
+    align-self: center;
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+    width: auto;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-topbar-action-row--primary {
+    display: grid;
+    gap: 0.5rem;
+    grid-column: 1 / -1;
+    grid-row: 2;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    justify-self: stretch;
+    width: 100%;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-topbar-actions .detail-icon-btn--borderless {
+    min-height: 2.75rem;
+    min-width: 2.75rem;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-topbar-actions .detail-action-btn {
+    min-height: 2.75rem;
+    min-width: 0;
+    padding-inline: 0.55rem;
+    width: 100%;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-topbar-close-action {
+    display: none !important;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .topbar-token {
+    display: none !important;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-resourcebar {
+    align-items: center;
+    flex-direction: row !important;
+    gap: 0.5rem;
+    min-height: 3.35rem;
+    padding: 0.35rem 0.75rem;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-resource-left {
+    align-items: center;
+    flex: 1 1 auto;
+    gap: 0.45rem;
+    min-width: 0;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-resource-title {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-resource-title span {
+    display: inline;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-resource-path {
+    display: flex !important;
+    flex: 1 1 auto;
+    margin-top: 0;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-resource-path .detail-chip,
+  .ui-detail-modal .detail-modal--workbench .detail-resource-path .detail-muted {
+    display: block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-resource-actions {
+    flex: 0 0 auto;
+    gap: 0.35rem;
+    margin-left: auto;
+    width: auto;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-resource-actions .detail-mini-btn {
+    min-height: 2.75rem;
+    min-width: 2.75rem;
+    padding-inline: 0;
+    width: 2.75rem;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-workbench-body {
+    display: flex !important;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-content {
+    flex: 1 1 auto;
+    min-height: 0;
+    min-width: 0;
+    overflow: hidden;
+    padding: 0;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-content > section[role='tabpanel'] {
+    min-width: 0;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-content .detail-tab-scroll {
+    -webkit-overflow-scrolling: touch;
+    min-width: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    padding: 0.9rem 0.75rem calc(1.1rem + env(safe-area-inset-bottom)) !important;
+    scroll-behavior: smooth;
+  }
+
+  .ui-detail-modal .detail-modal--workbench #detail-panel-manage {
+    padding: 0.9rem 0.75rem calc(1.1rem + env(safe-area-inset-bottom));
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-mobile-nav-backdrop {
+    background: var(--surface-scrim);
+    inset: 0;
+    position: fixed;
+    z-index: 105;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-tabs {
+    align-content: start;
+    align-items: stretch;
+    background: var(--surface-container-raised);
+    border: 1px solid var(--border-default);
+    border-radius: 0.95rem;
+    box-shadow: var(--shadow-lg, 0 0.8rem 2rem var(--surface-scrim-soft));
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    left: 0.6rem;
+    max-height: min(calc(100dvh - var(--detail-mobile-shell-height) - 1rem), 34rem);
+    overflow-x: hidden;
+    overflow-y: auto;
+    padding: 0.55rem;
+    position: fixed !important;
+    right: auto;
+    top: 0 !important;
+    width: min(20rem, calc(100vw - 1.2rem));
+    z-index: 110;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-tab {
+    align-items: center;
+    border-color: transparent;
+    border-radius: 0.7rem;
+    flex: 0 0 auto;
+    font-size: 0.88rem;
+    justify-content: flex-start;
+    min-height: 2.75rem;
+    padding: 0.6rem 0.7rem;
+    touch-action: manipulation;
+    width: 100%;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-tab .tab-icon {
+    flex-basis: 1.4rem;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-tab-meta {
+    display: inline;
+    font-size: 0.68rem;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-tab.active {
+    background: var(--action-surface);
+    border-color: var(--action-border);
+    box-shadow: inset 3px 0 0 var(--accent-action);
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-metadata-body {
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+  }
+
+  .ui-detail-modal .skin-gallery-preview,
+  .ui-detail-modal .skin-gallery-overlay {
+    padding: calc(0.7rem + env(safe-area-inset-top)) 0.7rem calc(0.7rem + env(safe-area-inset-bottom));
+  }
+
+  .ui-detail-modal .skin-gallery-preview-image {
+    max-height: 100%;
+    touch-action: pan-y;
+    user-select: none;
+    -webkit-user-drag: none;
+  }
+}
+
+/* Keep alternate greeting actions beside the option rail on every layout. */
+.ui-detail-modal .detail-modal--workbench .detail-greeting-picker .detail-greeting-manage--side {
+  align-items: stretch;
+  display: flex;
+  flex: 0 0 7.25rem;
+  flex-direction: column;
+  gap: 0.4rem;
+  justify-content: center;
+  min-width: 7.25rem;
+  width: 7.25rem;
+}
+
+.ui-detail-modal .detail-modal--workbench .detail-greeting-picker .detail-greeting-manage-btn {
+  min-height: 2.35rem;
+  padding-inline: 0.55rem;
+  width: 100%;
+}
+
+.ui-detail-modal .detail-modal--workbench .detail-greeting-preview-card .toggle-btn-icon,
+.ui-detail-modal .detail-modal--workbench .detail-dialog-example-card .toggle-btn-icon {
+  display: none;
+}
+
+@media (max-width: 56.25rem) {
+  .ui-detail-modal .detail-modal--workbench .detail-greeting-preview-card > .detail-dialog-card-head,
+  .ui-detail-modal .detail-modal--workbench .detail-dialog-example-card > .detail-dialog-card-head {
+    align-items: center;
+    display: grid;
+    gap: 0.3rem;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-rows: minmax(2.75rem, auto);
+    min-height: 2.75rem;
+    padding: 0 0 0.65rem;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-greeting-preview-card > .detail-dialog-card-head > :first-child,
+  .ui-detail-modal .detail-modal--workbench .detail-dialog-example-card > .detail-dialog-card-head > :first-child {
+    grid-column: 1;
+    grid-row: 1;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-greeting-preview-card .detail-dialog-page-nav--inline,
+  .ui-detail-modal .detail-modal--workbench .detail-dialog-example-card .detail-dialog-page-nav--inline {
+    gap: 0.1rem;
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+    white-space: nowrap;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-greeting-preview-card > .detail-dialog-card-head > .detail-card-actions,
+  .ui-detail-modal .detail-modal--workbench .detail-dialog-example-card > .detail-dialog-card-head > .detail-card-actions {
+    align-items: center;
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 0.15rem;
+    grid-column: 3;
+    grid-row: 1;
+    justify-self: end;
+    margin-left: 0;
+    min-width: 0;
+    width: auto;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-greeting-preview-card .detail-greeting-current-label,
+  .ui-detail-modal .detail-modal--workbench .detail-dialog-example-card .detail-greeting-current-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-greeting-picker .detail-greeting-selector-body {
+    align-items: center;
+    display: flex;
+    flex-direction: row;
+    gap: 0.45rem;
+    min-width: 0;
+    padding: 0.45rem 0 0;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-greeting-picker .detail-greeting-rail {
+    flex: 1 1 auto;
+    gap: 0.35rem;
+    min-width: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 0 0 0.25rem;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-greeting-picker .detail-greeting-rail > .detail-greeting-card,
+  .ui-detail-modal .detail-modal--workbench .detail-greeting-picker .detail-greeting-rail > .detail-greeting-option {
+    flex: 0 0 min(10.5rem, 58vw);
+    min-width: min(9.25rem, 58vw);
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-greeting-picker .detail-greeting-card {
+    min-height: 4.25rem;
+    padding: 0.5rem;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-greeting-picker .detail-greeting-card-excerpt {
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-greeting-picker .detail-greeting-manage--side {
+    align-items: stretch;
+    display: flex;
+    flex: 0 0 2.75rem;
+    flex-direction: column;
+    gap: 0.35rem;
+    justify-content: center;
+    min-width: 2.75rem;
+    width: 2.75rem;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-greeting-picker .detail-greeting-manage-btn {
+    align-items: center;
+    display: inline-flex;
+    flex: 0 0 2.75rem;
+    gap: 0;
+    justify-content: center;
+    min-height: 2.75rem;
+    min-width: 2.75rem;
+    padding: 0;
+    width: 2.75rem;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-greeting-picker .detail-greeting-manage-btn > span {
+    display: none;
+  }
+}
+
+@media (max-width: 22.5rem) {
+  .ui-detail-modal .detail-modal--workbench .detail-greeting-preview-card > .detail-dialog-card-head,
+  .ui-detail-modal .detail-modal--workbench .detail-dialog-example-card > .detail-dialog-card-head {
+    gap: 0.15rem;
+    grid-template-columns: minmax(3rem, 1fr) auto auto;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-greeting-preview-card .detail-dialog-page-nav--inline,
+  .ui-detail-modal .detail-modal--workbench .detail-dialog-example-card .detail-dialog-page-nav--inline {
+    gap: 0;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-dialog-page-status {
+    min-width: 2rem;
+    padding-inline: 0;
+    width: 2rem;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-greeting-preview-card > .detail-dialog-card-head > .detail-card-actions,
+  .ui-detail-modal .detail-modal--workbench .detail-dialog-example-card > .detail-dialog-card-head > .detail-card-actions {
+    gap: 0;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-greeting-preview-card .expand-btn,
+  .ui-detail-modal .detail-modal--workbench .detail-dialog-example-card .expand-btn {
+    min-width: 2.2rem;
+    padding-inline: 0;
+    width: 2.2rem;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-greeting-preview-card .toggle-btn-group,
+  .ui-detail-modal .detail-modal--workbench .detail-dialog-example-card .toggle-btn-group {
+    gap: 0.15rem;
+    padding: 0.15rem;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-greeting-preview-card .toggle-btn,
+  .ui-detail-modal .detail-modal--workbench .detail-dialog-example-card .toggle-btn {
+    font-size: 0;
+    min-width: 2.2rem;
+    padding-inline: 0;
+    width: 2.2rem;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-greeting-preview-card .toggle-btn-icon,
+  .ui-detail-modal .detail-modal--workbench .detail-dialog-example-card .toggle-btn-icon {
+    align-items: center;
+    display: inline-flex;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-greeting-preview-card .toggle-btn-label,
+  .ui-detail-modal .detail-modal--workbench .detail-dialog-example-card .toggle-btn-label {
+    display: none;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-greeting-preview-card .detail-greeting-current-label {
+    display: none;
+  }
+
+  .ui-detail-modal .detail-mobile-image-gallery-button span {
+    display: none;
+  }
+
+  .ui-detail-modal .detail-mobile-image-nav {
+    grid-template-columns: 2.75rem minmax(0, 1fr) 2.75rem 2.75rem;
+  }
+
+  .ui-detail-modal .detail-mobile-image-gallery-button {
+    padding-inline: 0;
+    width: 2.75rem;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-greeting-picker .detail-greeting-rail > .detail-greeting-card,
+  .ui-detail-modal .detail-modal--workbench .detail-greeting-picker .detail-greeting-rail > .detail-greeting-option {
+    flex-basis: min(9.25rem, 52vw);
+    min-width: 8.5rem;
+  }
+}
+
+/* Keep the mobile greeting picker compact while leaving the selected state visible. */
+@media (max-width: 56.25rem) {
+  .ui-detail-modal .detail-modal--workbench .detail-greeting-picker .detail-greeting-selector-body {
+    gap: 0.45rem;
+    padding-top: 0.35rem;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-greeting-picker .detail-greeting-rail {
+    gap: 0.35rem;
+    padding-bottom: 0.15rem;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-greeting-picker .detail-greeting-rail > .detail-greeting-card,
+  .ui-detail-modal .detail-modal--workbench .detail-greeting-picker .detail-greeting-rail > .detail-greeting-option {
+    flex: 0 0 8.5rem;
+    min-width: 8.5rem;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-greeting-picker .detail-greeting-card {
+    min-height: 2.75rem;
+    padding: 0.4rem 0.5rem;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-greeting-picker .detail-greeting-card-title-row {
+    min-height: 1.9rem;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-greeting-picker .detail-greeting-card-label {
+    font-size: 0.7rem;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-greeting-picker .detail-greeting-drag-handle {
+    flex-basis: 1.75rem;
+    height: 1.75rem;
+    min-width: 1.75rem;
+    width: 1.75rem;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-greeting-picker .detail-greeting-card-excerpt,
+  .ui-detail-modal .detail-modal--workbench .detail-greeting-picker .detail-greeting-card-state {
+    display: none !important;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-greeting-picker .detail-greeting-card:hover,
+  .ui-detail-modal .detail-modal--workbench .detail-greeting-picker .detail-greeting-card.is-selected {
+    transform: none;
+  }
+
+  .ui-detail-modal .detail-modal--workbench .detail-greeting-picker .detail-greeting-manage--side {
+    gap: 0.25rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-detail-modal .detail-modal--workbench .detail-left,
+  .ui-detail-modal .detail-modal--workbench .detail-right,
+  .ui-detail-modal .detail-mobile-close,
+  .ui-detail-modal .detail-mobile-nav-trigger,
+  .ui-detail-modal .detail-mobile-mode-button {
+    transition: none;
   }
 }

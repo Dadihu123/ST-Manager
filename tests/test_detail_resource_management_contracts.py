@@ -44,15 +44,27 @@ def test_detail_template_exposes_fullscreen_skin_gallery_controls():
     assert 'handleSkinGalleryKeydown($event)' in source
 
 
-def test_detail_source_update_metadata_stays_in_management_tab():
+def test_detail_source_update_metadata_has_mobile_info_without_duplicate_last_modified():
     template = (PROJECT_ROOT / 'templates/modals/detail_card.html').read_text(encoding='utf-8')
     script = (PROJECT_ROOT / 'static/js/components/detailModal.js').read_text(encoding='utf-8')
 
+    assert 'detail-tab-info' in template
+    assert 'detail-panel-info' in template
+    assert 'class="detail-mobile-token"' not in template
+    assert 'detail-mobile-info-meta' not in template
+    assert 'detail-mobile-info-token' in template
     assert 'class="detail-source-title-preview"' not in template
     assert 'detail-source-link-header' not in template
-    assert template.count('class="flex items-center gap-2 flex-1 min-w-[180px]"') == 2
+    assert template.count('class="flex items-center gap-2 flex-1 min-w-[180px]"') == 1
     assert template.count('x-model="editingData.source_link"') == 2
-    assert template.count('title="打开链接"') == 2
+    assert template.count('title="打开链接"') == 1
+    assert 'title="打开来源链接"' in template
+    info_start = template.index('id="detail-panel-info"')
+    basic_start = template.index('id="detail-panel-basic"', info_start)
+    info_panel = template[info_start:basic_start]
+    assert 'last_modified' not in info_panel
+    assert 'x-text="totalTokenCount"' in info_panel
+    assert "@click=\"selectDetailTab('info')\"" in template
     assert '首帖上次编辑' in template
     assert '上次更新检查时间' in template
     assert 'x-text="formatSourceFirstMessageEditedAt()"' in template
@@ -61,3 +73,4 @@ def test_detail_source_update_metadata_stays_in_management_tab():
     assert ':aria-label="\'来源标题：\' + activeCard.source_title"' in template
     assert 'formatSourceFirstMessageEditedAt()' in script
     assert 'formatSourceUpdateCheckedAt()' in script
+    assert "'info'" in script

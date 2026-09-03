@@ -688,58 +688,6 @@ html.light-mode .skin-gallery-folder-symbol {
   flex-wrap: wrap;
 }
 
-.detail-mobile-info-meta {
-  margin-top: 0.75rem;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-
-.detail-mobile-info-meta-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  min-width: 180px;
-  flex: 1 1 180px;
-  border: 1px solid var(--border-default);
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--surface-container-raised), transparent 8%);
-  padding: 0.5rem 0.625rem;
-}
-
-.detail-mobile-info-meta-label {
-  font-size: 0.6875rem;
-  line-height: 1;
-  text-transform: uppercase;
-  font-weight: 800;
-  color: var(--content-muted);
-}
-
-.detail-mobile-info-meta-value {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 0.875rem;
-  font-weight: 800;
-  color: var(--content-primary);
-}
-
-.detail-mobile-info-meta-value.ok {
-  color: var(--status-success-text);
-}
-
-.detail-mobile-info-meta-value.warn {
-  color: var(--status-info-text);
-}
-
-.detail-mobile-info-meta-value.danger {
-  color: var(--status-warning-text);
-}
-
-.detail-mobile-info-meta-value.extreme {
-  color: var(--status-danger-text);
-  text-shadow: 0 0 10px color-mix(in srgb, var(--status-danger-text) 45%, transparent);
-}
-
 .detail-link-icon {
   display: inline-flex;
   align-items: center;

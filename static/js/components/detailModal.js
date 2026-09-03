@@ -70,6 +70,8 @@ export default function detailModal() {
         tagLibrarySearch: '',
         tab: 'basic', 
         lastTab: 'basic',
+        mobilePanel: 'content',
+        mobileNavOpen: false,
         dialogPage: 'greeting',
         selectedGreetingKind: 'default',
         showGreetingPreview: true,
@@ -171,6 +173,7 @@ export default function detailModal() {
         skinGalleryPreviewPath: '',
         mainImagePreviewUrl: '',
         mainImagePreviewName: '',
+        imagePreviewPointer: null,
 
         // 自动保存
         originalDataJson: '', // 基准快照
@@ -940,12 +943,47 @@ export default function detailModal() {
 
         ensureVisibleDetailTab() {
             if (this.isEditMode) return;
+            if (this.tab === 'info' && this.$store?.global?.deviceType && this.$store.global.deviceType !== 'mobile') {
+                this.tab = 'basic';
+            }
             if (this.tab === 'persona' && !this.hasPersonaFields) {
                 this.tab = 'basic';
             }
             if (this.tab === 'dialog' && !this.hasDialogFields) {
                 this.tab = 'basic';
             }
+        },
+
+        setMobilePanel(panel) {
+            this.mobilePanel = panel === 'image' ? 'image' : 'content';
+            this.mobileNavOpen = false;
+        },
+
+        toggleMobileNav() {
+            if (this.mobilePanel === 'image') {
+                this.mobilePanel = 'content';
+                this.mobileNavOpen = true;
+                return;
+            }
+            this.mobileNavOpen = !this.mobileNavOpen;
+        },
+
+        closeMobileNav() {
+            this.mobileNavOpen = false;
+        },
+
+        selectDetailTab(tabName) {
+            const validTabs = ['basic', 'info', 'persona', 'dialog', 'tags', 'wi', 'chats', 'manage', 'resources'];
+            if (!validTabs.includes(tabName)) return;
+            if (tabName === 'dialog') this.syncDialogState();
+
+            this.tab = tabName;
+            this.mobileNavOpen = false;
+
+            this.$nextTick?.(() => {
+                const panel = this.$root?.querySelector?.(`#detail-panel-${tabName}`);
+                panel?.focus?.({ preventScroll: true });
+            });
         },
 
         toggleEditMode() {
@@ -1137,6 +1175,10 @@ export default function detailModal() {
             }
             if (this.showSetResourceFolderModal) {
                 this.showSetResourceFolderModal = false;
+                return false;
+            }
+            if (this.mobileNavOpen && event?.type === 'keydown') {
+                this.mobileNavOpen = false;
                 return false;
             }
             if (this.isSaving) {
@@ -1353,10 +1395,13 @@ export default function detailModal() {
                     clearActiveRuntimeContext('card');
                     this.currentSkinIndex = -1;
                     this.currentSkinDirectory = '';
+                    this.mobilePanel = 'content';
+                    this.mobileNavOpen = false;
                     this.showSkinGallery = false;
                     this.skinGalleryPreviewPath = '';
                     this.mainImagePreviewUrl = '';
                     this.mainImagePreviewName = '';
+                    this.imagePreviewPointer = null;
                     this.zoomLevel = 100;
                     this.isCardFlipped = false;
                     this.skinImages = [];
@@ -1386,6 +1431,12 @@ export default function detailModal() {
                 if (this.$store.global.settingsForm.sync_source_title_on_update === normalized) return;
                 this.$store.global.settingsForm.sync_source_title_on_update = normalized;
                 Promise.resolve(this.$store.global.saveSettings(false)).catch(() => {});
+            });
+
+            this.$watch('$store.global.deviceType', (deviceType) => {
+                if (deviceType === 'mobile' || this.tab !== 'info') return;
+                this.tab = 'basic';
+                this.mobileNavOpen = false;
             });
 
         },
@@ -1979,6 +2030,8 @@ export default function detailModal() {
             this.skinImages = [];
             this.currentSkinIndex = -1;
             this.currentSkinDirectory = '';
+            this.mobilePanel = 'content';
+            this.mobileNavOpen = false;
             this.showSkinGallery = false;
             this.skinGalleryPreviewPath = '';
             this.isCardFlipped = false;
@@ -2601,6 +2654,25 @@ export default function detailModal() {
             return this.getResourcePathName(this.selectedSkinPath);
         },
 
+        get currentImageName() {
+            return this.selectedSkinName
+                || this.activeCard?.filename
+                || this.editingData?.filename
+                || this.editingData?.char_name
+                || '角色卡主图';
+        },
+
+        get currentImagePosition() {
+            return this.currentSkinIndex === -1 ? 1 : this.currentSkinIndex + 2;
+        },
+
+        canNavigateSkin(step) {
+            const offset = Number(step);
+            return Number.isInteger(offset)
+                && Math.abs(offset) === 1
+                && (this.currentSkinItems || []).some(item => item.type === 'image');
+        },
+
         get skinGalleryPreviewName() {
             return this.getResourcePathName(this.skinGalleryPreviewPath);
         },
@@ -2753,6 +2825,7 @@ export default function detailModal() {
 
         closeSkinGalleryPreview() {
             this.skinGalleryPreviewPath = '';
+            this.imagePreviewPointer = null;
         },
 
         openMainImagePreview() {
@@ -2772,6 +2845,44 @@ export default function detailModal() {
         closeMainImagePreview() {
             this.mainImagePreviewUrl = '';
             this.mainImagePreviewName = '';
+            this.imagePreviewPointer = null;
+        },
+
+        beginImagePreviewSwipe(event, mode = 'main') {
+            if (!event || event.pointerType === 'mouse') return;
+            this.imagePreviewPointer = {
+                pointerId: event.pointerId,
+                startX: event.clientX,
+                startY: event.clientY,
+                mode: mode === 'skin' ? 'skin' : 'main',
+            };
+        },
+
+        finishImagePreviewSwipe(event) {
+            const pointer = this.imagePreviewPointer;
+            this.imagePreviewPointer = null;
+            if (!pointer || !event || pointer.pointerId !== event.pointerId) return;
+
+            const deltaX = event.clientX - pointer.startX;
+            const deltaY = event.clientY - pointer.startY;
+            if (Math.abs(deltaX) < 48 || Math.abs(deltaX) <= Math.abs(deltaY) * 1.15) return;
+
+            const direction = deltaX < 0 ? 1 : -1;
+            const canNavigate = pointer.mode === 'skin'
+                ? this.canNavigateSkinGalleryPreview(direction)
+                : this.canNavigateMainImagePreview(direction);
+            if (!canNavigate) return;
+
+            if (event.cancelable) event.preventDefault();
+            if (pointer.mode === 'skin') {
+                this.navigateSkinGalleryPreview(direction);
+            } else {
+                this.navigateMainImagePreview(direction);
+            }
+        },
+
+        cancelImagePreviewSwipe() {
+            this.imagePreviewPointer = null;
         },
 
         handleSkinGalleryKeydown(event) {

@@ -103,10 +103,73 @@
       </template>
     </div>
 
-    <div class="detail-modal-inner">
+    <div
+      class="detail-modal-inner"
+      :class="mobilePanel === 'image' ? 'mobile-panel-image' : 'mobile-panel-content'"
+    >
+      <div
+        x-show="$store.global.deviceType === 'mobile'"
+        x-cloak
+        class="detail-mobile-shell-bar"
+        role="toolbar"
+        aria-label="角色卡详情视图"
+      >
+        <button
+          type="button"
+          class="detail-mobile-nav-trigger"
+          @click.stop="toggleMobileNav()"
+          :aria-expanded="mobileNavOpen.toString()"
+          aria-controls="detail-mobile-nav"
+          aria-label="打开详情导航"
+          title="详情导航"
+        >
+          {{ icon('menu-bold', 'ui-icon--sm') }}
+        </button>
+
+        <div class="detail-mobile-mode-switcher" role="tablist" aria-label="详情面板">
+          <button
+            type="button"
+            role="tab"
+            class="detail-mobile-mode-button"
+            :class="mobilePanel === 'content' ? 'active' : ''"
+            :aria-selected="(mobilePanel === 'content').toString()"
+            aria-controls="detail-mobile-content-panel"
+            @click="setMobilePanel('content')"
+          >
+            {{ detail_icon('book-read', 'ui-icon--sm') }}
+            <span>内容</span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            class="detail-mobile-mode-button"
+            :class="mobilePanel === 'image' ? 'active' : ''"
+            :aria-selected="(mobilePanel === 'image').toString()"
+            aria-controls="detail-mobile-image-panel"
+            @click="setMobilePanel('image')"
+          >
+            {{ detail_icon('image', 'ui-icon--sm') }}
+            <span>图片</span>
+          </button>
+        </div>
+
+        <div class="detail-mobile-shell-actions">
+          <button
+            type="button"
+            class="detail-mobile-close"
+            @click="requestClose()"
+            aria-label="关闭角色卡详情"
+            title="关闭"
+          >
+            {{ icon('close', 'ui-icon--sm') }}
+          </button>
+        </div>
+      </div>
+
       <!-- 左侧：图片 / 元数据 / 缩放 / 版本条 -->
       <section
         class="detail-left"
+        id="detail-mobile-image-panel"
         x-data="{
                         isPanning: false,
                         startX: 0,
@@ -170,6 +233,55 @@
               "
               alt="Card Image"
             />
+          </div>
+
+          <div
+            x-show="!isCardFlipped && skinImages.length > 0"
+            class="detail-mobile-image-nav"
+            role="group"
+            aria-label="图片翻页"
+          >
+            <button
+              type="button"
+              class="detail-mobile-image-nav-button"
+              @click.stop="prevSkin()"
+              :disabled="!canNavigateSkin(-1)"
+              aria-label="上一张图片"
+              title="上一张图片"
+            >
+              {{ icon('chevron-right', 'ui-icon--sm rotate-180') }}
+            </button>
+            <div class="detail-mobile-image-nav-status" aria-live="polite">
+              <span
+                class="detail-mobile-image-nav-name"
+                x-text="currentImageName"
+              ></span>
+              <span
+                class="detail-mobile-image-nav-count"
+                x-text="currentImagePosition + ' / ' + (skinImages.length + 1)"
+              ></span>
+            </div>
+            <button
+              type="button"
+              class="detail-mobile-image-nav-button"
+              @click.stop="nextSkin()"
+              :disabled="!canNavigateSkin(1)"
+              aria-label="下一张图片"
+              title="下一张图片"
+            >
+              {{ icon('chevron-right', 'ui-icon--sm') }}
+            </button>
+            <button
+              type="button"
+              x-show="editingData.resource_folder || activeCard.resource_folder"
+              class="detail-mobile-image-gallery-button"
+              @click.stop="openSkinGallery()"
+              aria-label="浏览全部皮肤"
+              title="浏览全部皮肤"
+            >
+              {{ detail_icon('grid', 'ui-icon--sm') }}
+              <span>全部</span>
+            </button>
           </div>
 
           <!-- 元数据面板 -->
@@ -330,8 +442,8 @@
         />
       </section>
 
-      <!-- 右侧：信息 + Tab -->
-      <section class="detail-right">
+      <!-- 右侧：内容 + Tab -->
+      <section class="detail-right" id="detail-mobile-content-panel">
         <!-- 顶部栏：标题 / token / 快捷操作 -->
         <header
           class="detail-topbar"
@@ -446,7 +558,11 @@
             </div>
 
             <!-- 桌面端：Token 显示 -->
-            <div class="topbar-token" title="预估 Token（含世界书）">
+            <div
+              x-show="$store.global.deviceType !== 'mobile'"
+              class="topbar-token"
+              title="预估 Token（含世界书）"
+            >
               <span class="topbar-token-label">Tokens</span>
               <span
                 class="topbar-token-value text-neon"
@@ -456,6 +572,7 @@
             </div>
 
             <div
+              x-show="$store.global.deviceType !== 'mobile'"
               class="topbar-token border-r-0 pl-3 ml-2 border-l border-[var(--border-default)]"
               title="最后修改时间"
             >
@@ -562,6 +679,7 @@
               x-show="editingData.resource_folder"
               class="btn-secondary detail-mini-btn"
               title="浏览资源目录"
+              aria-label="浏览资源目录"
             >
               {{ icon('book-search', 'ui-icon--sm') }}
               <span>浏览</span>
@@ -572,6 +690,7 @@
               x-show="!editingData.resource_folder"
               class="btn-secondary detail-mini-btn"
               title="创建资源目录"
+              aria-label="创建资源目录"
             >
               {{ detail_icon('folder-create', 'ui-icon--sm') }}
               <span>创建</span>
@@ -581,6 +700,7 @@
               @click="showSetResourceFolderModal=true"
               class="btn-secondary detail-mini-btn"
               title="设置资源目录"
+              aria-label="设置资源目录"
             >
               {{ detail_icon('resource-settings', 'ui-icon--xs') }}
               <span>设置</span>
@@ -589,8 +709,24 @@
         </div>
 
         <div class="detail-workbench-body">
-          <!-- Tab 栏：桌面端为分区导航，窄屏保持横向可滚动 -->
-          <nav class="detail-tabs" aria-label="角色卡详情分区" role="tablist">
+          <div
+            x-show="$store.global.deviceType === 'mobile' && mobileNavOpen"
+            x-cloak
+            class="detail-mobile-nav-backdrop"
+            aria-hidden="true"
+            @click="closeMobileNav()"
+          ></div>
+
+          <!-- 桌面端为分区导航；移动端改为可收起的抽屉，避免横向滚动。 -->
+          <nav
+            id="detail-mobile-nav"
+            class="detail-tabs"
+            aria-label="角色卡详情分区"
+            role="tablist"
+            x-show="$store.global.deviceType !== 'mobile' || mobileNavOpen"
+            x-cloak
+            @click.stop
+          >
           <button
             x-show="$store.global.deviceType === 'mobile'"
             type="button"
@@ -600,7 +736,7 @@
             aria-controls="detail-panel-info"
             :aria-selected="(tab === 'info').toString()"
             :class="tab==='info' ? 'active' : ''"
-            @click="tab='info'"
+            @click="selectDetailTab('info')"
           >
             <span class="tab-icon">{{ detail_icon('metadata', 'ui-icon--xs') }}</span>
             <span class="tab-text">信息</span>
@@ -613,7 +749,7 @@
             aria-controls="detail-panel-basic"
             :aria-selected="(tab === 'basic').toString()"
             :class="tab==='basic' ? 'active' : ''"
-            @click="tab='basic'"
+            @click="selectDetailTab('basic')"
           >
             <span class="tab-icon">{{ detail_icon('info', 'ui-icon--xs') }}</span>
             <span class="tab-text">基础</span>
@@ -627,7 +763,7 @@
             aria-controls="detail-panel-persona"
             :aria-selected="(tab === 'persona').toString()"
             :class="tab==='persona' ? 'active' : ''"
-            @click="tab='persona'"
+            @click="selectDetailTab('persona')"
           >
             <span class="tab-icon">{{ detail_icon('persona', 'ui-icon--xs') }}</span>
             <span class="tab-text">设定</span>
@@ -642,7 +778,7 @@
             aria-controls="detail-panel-dialog"
             :aria-selected="(tab === 'dialog').toString()"
             :class="tab==='dialog' ? 'active' : ''"
-            @click="syncDialogState(); tab='dialog'"
+            @click="selectDetailTab('dialog')"
           >
             <span class="tab-icon">{{ detail_icon('dialog', 'ui-icon--xs') }}</span>
             <span class="tab-text">对话</span>
@@ -656,7 +792,7 @@
             aria-controls="detail-panel-tags"
             :aria-selected="(tab === 'tags').toString()"
             :class="tab==='tags' ? 'active' : ''"
-            @click="tab='tags'"
+            @click="selectDetailTab('tags')"
           >
             <span class="tab-icon">{{ detail_icon('tags', 'ui-icon--xs') }}</span>
             <span class="tab-text">标签</span>
@@ -670,7 +806,7 @@
             aria-controls="detail-panel-wi"
             :aria-selected="(tab === 'wi').toString()"
             :class="tab==='wi' ? 'active' : ''"
-            @click="tab='wi'"
+            @click="selectDetailTab('wi')"
           >
             <span class="tab-icon wi-worldbook-tab-icon">{{ detail_icon('book-open', 'ui-icon--sm') }}</span>
             <span class="tab-text">世界书</span>
@@ -684,7 +820,7 @@
             aria-controls="detail-panel-chats"
             :aria-selected="(tab === 'chats').toString()"
             :class="tab==='chats' ? 'active' : ''"
-            @click="tab='chats'"
+            @click="selectDetailTab('chats')"
           >
             <span class="tab-icon">{{ detail_icon('chat-bubble', 'ui-icon--xs') }}</span>
             <span class="tab-text">聊天</span>
@@ -698,7 +834,7 @@
             aria-controls="detail-panel-manage"
             :aria-selected="(tab === 'manage').toString()"
             :class="tab==='manage' ? 'active' : ''"
-            @click="tab='manage'"
+            @click="selectDetailTab('manage')"
           >
             <span class="tab-icon">{{ detail_icon('manage', 'ui-icon--xs') }}</span>
             <span class="tab-text">管理</span>
@@ -711,7 +847,7 @@
             aria-controls="detail-panel-resources"
             :aria-selected="(tab === 'resources').toString()"
             :class="tab==='resources' ? 'active' : ''"
-            @click="tab='resources'"
+            @click="selectDetailTab('resources')"
           >
             <span class="tab-icon">{{ detail_icon('resources', 'ui-icon--xs') }}</span>
             <span class="tab-text">资源</span>
@@ -752,126 +888,122 @@
                 <span>重试</span>
               </button>
             </div>
-            <!-- 信息 -->
+          <!-- TAB: 信息：移动端保留创作者、版本、来源和 Token，不重复管理页的更新时间。 -->
           <section
-            x-show="tab==='info'"
+            x-show="tab==='info' && $store.global.deviceType === 'mobile'"
+            x-transition.opacity
+            class="detail-section detail-section-fill detail-section-info detail-mobile-info-panel"
             id="detail-panel-info"
             role="tabpanel"
             aria-labelledby="detail-tab-info"
             tabindex="0"
           >
-            <div class="detail-title-block">
-              <div class="detail-title-row">
-                <div class="detail-title-label">角色名称</div>
-
-                <!-- 名称 -->
-                <div class="detail-title-inline">
-                  <input
-                    type="text"
-                    x-model="editingData.char_name"
-                    class="detail-title-input"
-                  />
+            <div class="detail-tab-scroll custom-scrollbar detail-mobile-info-scroll">
+              <div class="detail-mobile-info-summary">
+                <div class="detail-mobile-info-heading">
+                  <span class="detail-mobile-info-heading-icon">{{ detail_icon('metadata', 'ui-icon--sm') }}</span>
+                  <span class="detail-mobile-info-heading-title">角色信息</span>
                 </div>
-              </div>
-
-              <div class="detail-subrow flex-wrap gap-x-4 gap-y-2">
-                <!-- 创作者 -->
-                <div
-                  class="flex items-center gap-2 min-w-[120px] flex-shrink-0"
-                  title="创作者 (Creator)"
-                >
-                  <span class="text-xs opacity-60">{{ detail_icon('user', 'ui-icon--sm') }}</span>
-                  <!-- 编辑模式：可编辑 -->
-                  <input
-                    x-show="isEditMode"
-                    type="text"
-                    x-model="editingData.creator"
-                    placeholder="未知创作者"
-                    class="bg-transparent border-b border-dashed border-[var(--border-default)] text-xs text-[var(--content-secondary)] focus:border-[var(--accent-action)] focus:text-[var(--content-primary)] outline-none transition-colors w-full max-w-[150px] py-0.5"
-                  />
-                  <!-- 阅览模式：只读显示 -->
+                <div class="detail-mobile-info-token" title="预估 Token（含世界书）">
+                  <span class="detail-mobile-info-token-label">Tokens</span>
                   <span
-                    x-show="!isEditMode && editingData.creator"
-                    class="text-xs text-[var(--content-secondary)] max-w-[150px] truncate"
-                    x-text="editingData.creator"
-                  ></span>
-                  <span
-                    x-show="!isEditMode && !editingData.creator"
-                    class="text-xs text-[var(--content-muted)] opacity-50 italic"
-                    >未知创作者</span
-                  >
-                </div>
-
-                <!-- 版本号 -->
-                <div
-                  class="flex items-center gap-2 min-w-[100px] flex-shrink-0"
-                  title="角色版本 (Character Version)"
-                >
-                  <span class="text-xs opacity-60">{{ detail_icon('version', 'ui-icon--sm') }}</span>
-                  <!-- 编辑模式：可编辑 -->
-                  <input
-                    x-show="isEditMode"
-                    type="text"
-                    x-model="editingData.character_version"
-                    placeholder="版本号"
-                    class="bg-transparent border-b border-dashed border-[var(--border-default)] text-xs text-[var(--content-secondary)] focus:border-[var(--accent-action)] focus:text-[var(--content-primary)] outline-none transition-colors w-full max-w-[120px] py-0.5"
-                  />
-                  <!-- 阅览模式：只读显示 -->
-                  <span
-                    x-show="!isEditMode && editingData.character_version"
-                    class="text-xs text-[var(--content-secondary)] max-w-[120px] truncate"
-                    x-text="editingData.character_version"
-                  ></span>
-                  <span
-                    x-show="!isEditMode && !editingData.character_version"
-                    class="text-xs text-[var(--content-muted)] opacity-50 italic"
-                    >无版本号</span
-                  >
-                </div>
-
-                <!-- 来源链接 -->
-                <div class="flex items-center gap-2 flex-1 min-w-[180px]">
-                  <span class="detail-link-icon">{{ detail_icon('link-source', 'ui-icon--sm') }}</span>
-                  <input
-                    type="text"
-                    x-model="editingData.source_link"
-                    placeholder="来源链接 (http://...)"
-                    class="detail-link-input text-xs w-full"
-                  />
-                  <a
-                    x-show="editingData.source_link"
-                    :href="editingData.source_link"
-                    target="_blank"
-                    class="detail-open-link"
-                    title="打开链接"
-                    >{{ icon('external-link', 'ui-icon--sm') }}</a
-                  >
-                </div>
-              </div>
-
-              <div
-                x-show="$store.global.deviceType === 'mobile'"
-                class="detail-mobile-info-meta"
-              >
-                <div
-                  class="detail-mobile-info-meta-item"
-                  title="预估 Token（含世界书）"
-                >
-                  <span class="detail-mobile-info-meta-label">Tokens</span>
-                  <span
-                    class="detail-mobile-info-meta-value text-neon"
+                    class="detail-mobile-info-token-value"
                     :class="getTopbarTokenLevelClass(totalTokenCount)"
                     x-text="totalTokenCount"
                   ></span>
                 </div>
-                <div class="detail-mobile-info-meta-item" title="最后修改时间">
-                  <span class="detail-mobile-info-meta-label"
-                    >Last Modified</span
-                  >
-                  <span
-                    class="detail-mobile-info-meta-value font-mono"
-                    x-text="formatDate(activeCard.last_modified)"
-                  ></span>
+              </div>
+
+              <div class="detail-mobile-info-card">
+                <div class="detail-mobile-info-grid">
+                  <div class="detail-mobile-info-field">
+                    <span class="detail-mobile-info-field-icon">{{ detail_icon('user', 'ui-icon--sm') }}</span>
+                    <div class="detail-mobile-info-field-copy">
+                      <span class="detail-mobile-info-field-label">创作者</span>
+                      <input
+                        x-show="isEditMode"
+                        x-cloak
+                        type="text"
+                        x-model="editingData.creator"
+                        placeholder="未知创作者"
+                        aria-label="创作者"
+                        class="detail-mobile-info-input"
+                      />
+                      <span
+                        x-show="!isEditMode && editingData.creator"
+                        class="detail-mobile-info-value"
+                        x-text="editingData.creator"
+                      ></span>
+                      <span
+                        x-show="!isEditMode && !editingData.creator"
+                        class="detail-mobile-info-value is-muted"
+                        >未知创作者</span
+                      >
+                    </div>
+                  </div>
+
+                  <div class="detail-mobile-info-field">
+                    <span class="detail-mobile-info-field-icon">{{ detail_icon('version', 'ui-icon--sm') }}</span>
+                    <div class="detail-mobile-info-field-copy">
+                      <span class="detail-mobile-info-field-label">版本号</span>
+                      <input
+                        x-show="isEditMode"
+                        x-cloak
+                        type="text"
+                        x-model="editingData.character_version"
+                        placeholder="无版本号"
+                        aria-label="角色版本"
+                        class="detail-mobile-info-input"
+                      />
+                      <span
+                        x-show="!isEditMode && editingData.character_version"
+                        class="detail-mobile-info-value"
+                        x-text="editingData.character_version"
+                      ></span>
+                      <span
+                        x-show="!isEditMode && !editingData.character_version"
+                        class="detail-mobile-info-value is-muted"
+                        >无版本号</span
+                      >
+                    </div>
+                  </div>
+
+                  <div class="detail-mobile-info-field detail-mobile-info-field--source">
+                    <span class="detail-mobile-info-field-icon">{{ detail_icon('link-source', 'ui-icon--sm') }}</span>
+                    <div class="detail-mobile-info-field-copy">
+                      <span class="detail-mobile-info-field-label">来源链接</span>
+                      <div class="detail-mobile-info-source-row">
+                        <input
+                          x-show="isEditMode"
+                          x-cloak
+                          type="text"
+                          x-model="editingData.source_link"
+                          placeholder="来源链接 (http://...)"
+                          aria-label="来源链接"
+                          class="detail-mobile-info-input"
+                        />
+                        <span
+                          x-show="!isEditMode && editingData.source_link"
+                          class="detail-mobile-info-value detail-mobile-info-source-value"
+                          x-text="editingData.source_link"
+                        ></span>
+                        <span
+                          x-show="!isEditMode && !editingData.source_link"
+                          class="detail-mobile-info-value detail-mobile-info-source-value is-muted"
+                          >未设置来源链接</span
+                        >
+                        <a
+                          x-show="editingData.source_link"
+                          :href="editingData.source_link"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          class="detail-mobile-info-open-link"
+                          title="打开来源链接"
+                          aria-label="打开来源链接"
+                        >{{ icon('external-link', 'ui-icon--sm') }}</a>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1460,16 +1592,24 @@
                         class="toggle-btn"
                         :class="!showGreetingPreview ? 'active' : ''"
                         @click="showGreetingPreview=false"
-                        x-text="isEditMode ? '编辑' : '阅览'"
                         :aria-label="isEditMode ? '编辑开场白' : '阅览开场白'"
-                      ></button>
+                      >
+                        <span class="toggle-btn-icon" aria-hidden="true">
+                          <span x-show="!isEditMode">{{ detail_icon('book-read', 'ui-icon--xs') }}</span>
+                          <span x-show="isEditMode">{{ detail_icon('edit-mode', 'ui-icon--xs') }}</span>
+                        </span>
+                        <span class="toggle-btn-label" x-text="isEditMode ? '编辑' : '阅览'"></span>
+                      </button>
                       <button
                         type="button"
                         class="toggle-btn"
                         :class="showGreetingPreview ? 'active' : ''"
                         @click="showGreetingPreview=true"
+                        aria-label="预览开场白"
+                        title="预览开场白"
                       >
-                        预览
+                        <span class="toggle-btn-icon" aria-hidden="true">{{ icon('eye', 'ui-icon--xs') }}</span>
+                        <span class="toggle-btn-label">预览</span>
                       </button>
                     </div>
                   </div>
@@ -1599,6 +1739,8 @@
                       type="button"
                       class="btn-primary detail-greeting-manage-btn"
                       @click="addAlt()"
+                      aria-label="新增备用开场白"
+                      title="新增备用开场白"
                     >
                       {{ icon('plus-square', 'ui-icon--sm') }}
                       <span>新增备用</span>
@@ -1609,9 +1751,10 @@
                       :disabled="!canRemoveSelectedAlternate"
                       @click="removeSelectedAlternate()"
                       aria-label="移除当前备用开场白"
+                      title="删除备用开场白"
                     >
                       {{ icon('close', 'ui-icon--sm') }}
-                      删除备用
+                      <span>删除备用</span>
                     </button>
                   </div>
                 </div>
@@ -3800,6 +3943,9 @@
       <img
         :src="skinGalleryPreviewUrl"
         class="skin-gallery-preview-image"
+        @pointerdown="beginImagePreviewSwipe($event, 'skin')"
+        @pointerup="finishImagePreviewSwipe($event)"
+        @pointercancel="cancelImagePreviewSwipe()"
         alt="Skin Preview"
       />
     </div>
@@ -3861,6 +4007,9 @@
     <img
       :src="mainImagePreviewUrl"
       class="skin-gallery-preview-image"
+      @pointerdown="beginImagePreviewSwipe($event, 'main')"
+      @pointerup="finishImagePreviewSwipe($event)"
+      @pointercancel="cancelImagePreviewSwipe()"
       alt="角色卡图片预览"
     />
   </div>
