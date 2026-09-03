@@ -534,21 +534,6 @@
               <div class="automation-bottom-spacer"></div>
             </div>
 
-            <aside class="automation-inspector" aria-label="规则集概览与帮助">
-              <section class="automation-inspector-section">
-                <div class="automation-inspector-heading"><span class="automation-inspector-icon automation-inspector-icon--success" aria-hidden="true">{{ icon('data-grid', 'ui-icon--md') }}</span><div><span class="automation-overline">COVERAGE</span><h2>规则覆盖</h2></div></div>
-                <dl class="automation-coverage-list"><div><dt>启用规则</dt><dd x-text="enabledRuleCount"></dd></div><div><dt>条件组</dt><dd x-text="conditionGroupCount"></dd></div><div><dt>动作</dt><dd x-text="actionCount"></dd></div><div><dt>触发入口</dt><dd x-text="triggerCount"></dd></div></dl>
-              </section>
-              <section class="automation-inspector-section automation-inspector-section--notice" x-show="editingUsesMetadata()" x-cloak>
-                <div class="automation-inspector-heading"><span class="automation-inspector-icon automation-inspector-icon--warning" aria-hidden="true">{{ icon('book-tip', 'ui-icon--md') }}</span><div><span class="automation-overline">PERFORMANCE</span><h2>读取提醒</h2></div></div>
-                <p>使用“原始元数据”条件时会逐张读取并解析文件。批量执行前建议缩小分类范围。</p><button type="button" class="automation-text-button" @click="openHelpTab('conditions')">了解条件读取</button>
-              </section>
-              <section class="automation-inspector-section automation-inspector-section--help">
-                <div class="automation-inspector-heading"><span class="automation-inspector-icon automation-inspector-icon--info" aria-hidden="true">{{ icon('book-tip', 'ui-icon--md') }}</span><div><span class="automation-overline">REFERENCE</span><h2>需要帮助？</h2></div></div>
-                <p>查看条件、动作、触发时机和模板语法的完整说明。</p><button type="button" class="btn-secondary automation-action-button automation-action-button--wide" @click="openHelpTab('conditions')">{{ icon('settings-help-entry', 'ui-icon--sm') }}<span>打开编写指南</span></button>
-              </section>
-              <div class="automation-keyboard-note"><span aria-hidden="true">{{ icon('keyboard', 'ui-icon--md') }}</span><div><strong>键盘操作</strong><span><kbd>Ctrl</kbd> + <kbd>S</kbd> 保存，<kbd>Esc</kbd> 关闭弹层。</span></div></div>
-            </aside>
           </div>
         </div>
       </template>
