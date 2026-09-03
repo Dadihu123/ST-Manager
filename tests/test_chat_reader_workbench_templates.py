@@ -512,7 +512,8 @@ def test_automation_modal_template_updates_trigger_and_rename_help_copy_contract
     template = read_project_file('templates/modals/automation.html')
 
     assert '当前状态：全局默认规则' in template
-    assert '按规则触发时机和动作类型在不同场景执行' in template
+    assert '导入、更新与手动流程会按触发器执行' not in template
+    assert '按规则触发时机和动作类型在不同场景执行' not in template
     assert '仅在 upload-file 或 update-from-URL' in template
     assert '用新角色卡内容覆盖已有角色卡时触发' in template
     assert '普通保存详情' in template

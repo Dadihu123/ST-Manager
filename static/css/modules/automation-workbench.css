@@ -52,6 +52,7 @@
   min-width: 0;
   overflow: hidden;
   position: relative;
+  width: auto;
   z-index: 2;
 }
 
@@ -65,7 +66,6 @@
 .rule-trigger-strip,
 .logic-section-heading,
 .condition-group-head,
-.automation-editor-footer,
 .automation-dialog-header,
 .automation-dialog-footer {
   min-width: 0;
@@ -91,7 +91,6 @@
 .automation-builder-heading,
 .automation-builder-heading > div,
 .automation-inspector-heading,
-.automation-inspector-status,
 .automation-dialog-title,
 .automation-dialog-footer-note,
 .automation-keyboard-note {
@@ -119,12 +118,23 @@
 }
 
 .automation-brand-mark {
-  background: var(--action-surface);
-  border: 1px solid var(--action-border);
-  border-radius: 0.5rem;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
   color: var(--action-icon);
-  height: 2.5rem;
-  width: 2.5rem;
+  height: 3rem;
+  width: 3rem;
+}
+
+.automation-brand-mark .ui-icon,
+.automation-title-mark .ui-icon {
+  height: 2rem;
+  width: 2rem;
+}
+
+.automation-title-mark .ui-icon {
+  height: 2.25rem;
+  width: 2.25rem;
 }
 
 .automation-sidebar-copy,
@@ -211,19 +221,30 @@
 
 .automation-search {
   align-items: center;
-  background: var(--surface-container);
+  background: var(--surface-container-sunken);
   border: 1px solid var(--border-default);
-  border-radius: 0.5rem;
+  border-radius: 0.625rem;
   color: var(--content-muted);
   display: flex;
   gap: 0.5rem;
-  min-height: 2.75rem;
-  padding: 0 0.7rem;
+  min-height: 2.625rem;
+  padding: 0 0.5rem 0 0.75rem;
 }
 
 .automation-search:focus-within {
-  border-color: var(--form-border-focus);
+  background: var(--surface-container-sunken);
+  border-color: var(--accent-action);
   box-shadow: var(--state-focus-shadow);
+}
+
+.automation-search > span:first-child {
+  display: inline-flex;
+  flex: 0 0 auto;
+}
+
+.automation-search > span:first-child .ui-icon {
+  height: 1.25rem;
+  width: 1.25rem;
 }
 
 .automation-search input {
@@ -516,9 +537,9 @@
 
 .ruleset-item {
   background: transparent;
-  border: 1px solid transparent;
+  border: 0;
   border-left: 3px solid transparent;
-  border-radius: 0.45rem;
+  border-radius: 0;
   cursor: pointer;
   display: flex;
   flex-direction: column;
@@ -532,14 +553,28 @@
 .ruleset-item:hover,
 .ruleset-item:focus-visible {
   background: var(--state-hover-surface);
-  border-color: var(--border-default);
+  border-left-color: transparent;
   outline: none;
+  transform: translateX(2px);
 }
 
 .ruleset-item.active {
   background: var(--state-selected-surface);
-  border-color: var(--action-border);
+  border-color: transparent;
   border-left-color: var(--accent-action);
+  transform: translateX(-4px);
+  width: calc(100% + 4px);
+}
+
+.ruleset-item.active:hover,
+.ruleset-item.active:focus-visible {
+  border-left-color: var(--accent-action);
+  transform: translateX(-4px);
+}
+
+.ruleset-item .automation-icon-button > .is-global {
+  color: var(--status-warning-text);
+  display: inline-flex;
 }
 
 .ruleset-item.is-loading {
@@ -590,14 +625,30 @@
 .ruleset-item-meta {
   align-items: center;
   color: var(--content-muted);
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
   font-size: 0.65rem;
   gap: 0.55rem;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   margin-left: 1.55rem;
 }
 
-.ruleset-item-meta > span:first-child {
+.ruleset-item-meta-rule {
+  border-top: 1px solid var(--border-divider);
+  display: block;
+  min-width: 0;
+}
+
+.ruleset-item-meta-content {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  justify-content: center;
+  min-width: 0;
+  text-align: center;
+}
+
+.ruleset-item-meta-content > span:first-child {
   align-items: center;
   display: inline-flex;
   gap: 0.3rem;
@@ -702,10 +753,38 @@ kbd {
 }
 
 .automation-editor-actions {
-  flex: 0 0 auto;
-  flex-wrap: wrap;
+  flex: 0 1 auto;
+  flex-wrap: nowrap;
   gap: 0.25rem;
   justify-content: flex-end;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.automation-editor-actions::-webkit-scrollbar {
+  display: none;
+}
+
+.automation-editor-actions .automation-top-action {
+  border-color: transparent;
+  border-radius: 0;
+}
+
+.automation-editor-actions .automation-top-action:hover,
+.automation-editor-actions .automation-top-action:focus-visible {
+  border-color: transparent;
+}
+
+.automation-top-action--save {
+  color: var(--action-text);
+}
+
+.automation-top-action--close:hover,
+.automation-top-action--close:focus-visible {
+  background: var(--status-danger-surface);
+  color: var(--status-danger-text);
 }
 
 .automation-breadcrumb {
@@ -760,13 +839,13 @@ kbd {
 
 .automation-title-mark {
   align-self: flex-start;
-  background: var(--action-surface);
-  border: 1px solid var(--action-border);
-  border-radius: 0.55rem;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
   color: var(--action-icon);
-  height: 3rem;
+  height: 3.35rem;
   justify-content: center;
-  width: 3rem;
+  width: 3.35rem;
 }
 
 .automation-title-copy {
@@ -800,9 +879,8 @@ kbd {
 
 .automation-title-input {
   background: transparent;
-  border: 0;
-  border-bottom: 1px solid var(--border-default);
-  border-radius: 0;
+  border: 1px solid transparent;
+  border-radius: 0.625rem;
   color: var(--content-primary);
   flex: 1 1 auto;
   font-size: clamp(1.1rem, 2vw, 1.5rem);
@@ -810,12 +888,13 @@ kbd {
   line-height: 1.3;
   min-width: 0;
   outline: none;
-  padding: 0.35rem 0 0.45rem;
+  padding: 0.4rem 0.55rem;
 }
 
 .automation-title-input:focus {
-  border-bottom-color: var(--form-border-focus);
-  box-shadow: 0 2px 0 var(--form-border-focus);
+  background: color-mix(in srgb, var(--surface-container-raised), transparent 20%);
+  border-color: var(--accent-action);
+  box-shadow: var(--state-focus-shadow);
 }
 
 .automation-global-toggle {
@@ -840,6 +919,10 @@ kbd {
   background: var(--action-surface);
   border-color: var(--action-border);
   color: var(--action-text);
+}
+
+.automation-global-toggle.is-active > span:first-child {
+  color: var(--status-warning-text);
 }
 
 .automation-title-meta {
@@ -1140,7 +1223,13 @@ kbd {
   gap: 0.75rem;
   justify-content: space-between;
   min-height: 4.3rem;
+  overflow: hidden;
   padding: 0.75rem 0.9rem;
+}
+
+.rule-card > .rule-header {
+  border-top-left-radius: calc(0.5rem - 1px);
+  border-top-right-radius: calc(0.5rem - 1px);
 }
 
 .rule-heading {
@@ -1369,9 +1458,9 @@ kbd {
 }
 
 .rule-flow-grid {
-  display: grid;
-  gap: 0.75rem;
-  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
   min-width: 0;
 }
 
@@ -1798,31 +1887,6 @@ kbd {
   font-size: 0.82rem;
 }
 
-.automation-inspector-status {
-  align-items: flex-start;
-  gap: 0.5rem;
-  margin: 0.75rem 0;
-}
-
-.automation-inspector-status > div {
-  display: flex;
-  flex-direction: column;
-  gap: 0.18rem;
-  min-width: 0;
-}
-
-.automation-inspector-status strong {
-  color: var(--content-primary);
-  font-size: 0.72rem;
-  line-height: 1.35;
-}
-
-.automation-inspector-status span:not(.automation-status-dot) {
-  color: var(--content-muted);
-  font-size: 0.66rem;
-  line-height: 1.45;
-}
-
 .automation-coverage-list {
   display: flex;
   flex-direction: column;
@@ -1896,39 +1960,6 @@ kbd {
 .automation-keyboard-note span {
   font-size: 0.64rem;
   line-height: 1.45;
-}
-
-.automation-editor-footer {
-  align-items: center;
-  background: var(--surface-container-raised);
-  border-top: 1px solid var(--border-divider);
-  display: flex;
-  flex: 0 0 auto;
-  gap: 1rem;
-  justify-content: space-between;
-  min-height: 4.25rem;
-  padding: 0.7rem clamp(1rem, 2.1vw, 2rem);
-}
-
-.automation-footer-note {
-  align-items: center;
-  color: var(--content-muted);
-  display: inline-flex;
-  font-size: 0.68rem;
-  gap: 0.45rem;
-  min-width: 0;
-}
-
-.automation-footer-actions {
-  align-items: center;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  justify-content: flex-end;
-}
-
-.automation-action-button--save {
-  min-width: 8.5rem;
 }
 
 .automation-dialog-overlay,
@@ -2084,6 +2115,19 @@ kbd {
   max-width: min(64rem, calc(100vw - 2rem));
 }
 
+.automation-help-dialog .automation-dialog-icon {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  height: 3rem;
+  width: 3rem;
+}
+
+.automation-help-dialog .automation-dialog-icon .ui-icon {
+  height: 2rem;
+  width: 2rem;
+}
+
 .automation-help-body {
   display: flex;
   flex: 1 1 auto;
@@ -2095,38 +2139,63 @@ kbd {
 }
 
 .automation-help-tabs {
-  background: var(--surface-container-raised);
-  border: 1px solid var(--border-divider);
-  border-radius: 0.5rem;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--border-divider);
+  border-radius: 0;
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-  padding: 0.35rem;
+  flex-wrap: nowrap;
+  gap: 0.15rem;
+  overflow-x: auto;
+  padding: 0 0.15rem;
+  scrollbar-width: thin;
 }
 
 .automation-help-tab {
   align-items: center;
   background: transparent;
-  border: 1px solid transparent;
-  border-radius: 0.4rem;
+  border: 0;
+  border-radius: 0;
   color: var(--content-muted);
   display: inline-flex;
-  flex: 1 1 8rem;
+  flex: 0 0 auto;
   font-size: 0.72rem;
   font-weight: 700;
   gap: 0.35rem;
   justify-content: center;
-  min-height: 2.55rem;
-  padding: 0.45rem 0.6rem;
-  transition: background-color var(--ui-transition-fast), border-color var(--ui-transition-fast),
-    color var(--ui-transition-fast);
+  min-height: 2.75rem;
+  padding: 0.5rem 0.65rem;
+  position: relative;
+  transition: background-color var(--ui-transition-fast), color var(--ui-transition-fast);
+  width: auto;
 }
 
-.automation-help-tab:hover,
+.automation-help-tab::after {
+  background: transparent;
+  border-radius: 999px;
+  bottom: -1px;
+  content: '';
+  height: 3px;
+  left: 0.65rem;
+  position: absolute;
+  right: 0.65rem;
+  transform: scaleX(0.35);
+  transition: background-color var(--ui-transition-fast), transform var(--ui-transition-fast);
+}
+
+.automation-help-tab:hover {
+  background: var(--state-hover-surface);
+  color: var(--content-primary);
+}
+
 .automation-help-tab.is-active {
-  background: var(--action-surface);
-  border-color: var(--action-border);
+  background: transparent;
   color: var(--action-text);
+}
+
+.automation-help-tab.is-active::after {
+  background: var(--accent-action);
+  transform: scaleX(1);
 }
 
 .automation-help-panel {
@@ -2460,11 +2529,14 @@ kbd {
 
   .automation-editor-actions {
     gap: 0.1rem;
+    justify-content: flex-start;
   }
 
-  .automation-editor-actions .automation-icon-button[title='导出规则集 JSON'],
-  .automation-editor-actions .automation-icon-button[title='删除当前规则集'] {
-    display: none;
+  .automation-editor-actions .automation-top-action {
+    height: 2.25rem;
+    min-height: 2.25rem;
+    min-width: 2.25rem;
+    width: 2.25rem;
   }
 
   .automation-save-state {
@@ -2561,6 +2633,18 @@ kbd {
     gap: 0.55rem;
   }
 
+  .ruleset-item > div.ruleset-item-main {
+    align-items: flex-start;
+    flex-direction: row;
+    gap: 0.55rem;
+    width: 100%;
+  }
+
+  .ruleset-item > div.ruleset-item-main > button.automation-icon-button {
+    flex: 0 0 2.25rem;
+    width: 2.25rem;
+  }
+
   .rule-heading {
     width: 100%;
   }
@@ -2614,28 +2698,6 @@ kbd {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .automation-editor-footer {
-    align-items: stretch;
-    flex-direction: column;
-    gap: 0.55rem;
-    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 0.7rem);
-    padding-left: 0.85rem;
-    padding-right: 0.85rem;
-  }
-
-  .automation-footer-note {
-    min-height: 1.35rem;
-  }
-
-  .automation-footer-actions {
-    display: grid;
-    grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
-  }
-
-  .automation-footer-actions .automation-action-button {
-    width: 100%;
-  }
-
   .automation-dialog-overlay,
   .automation-help-overlay {
     align-items: stretch;
@@ -2655,7 +2717,7 @@ kbd {
   }
 
   .automation-help-tab {
-    flex: 1 1 calc(50% - 0.25rem);
+    flex: 0 0 auto;
   }
 
   .automation-dialog-footer {
@@ -2707,10 +2769,6 @@ kbd {
   .automation-preset-chip {
     flex: 1 1 calc(50% - 0.3rem);
     min-height: 2.4rem;
-  }
-
-  .automation-footer-actions {
-    grid-template-columns: minmax(0, 1fr);
   }
 
   .automation-add-rule small {

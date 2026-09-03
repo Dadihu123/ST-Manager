@@ -84,7 +84,7 @@
         </div>
 
         <label class="automation-search" for="automation-ruleset-search">
-          <span aria-hidden="true">{{ icon('search', 'ui-icon--sm') }}</span>
+          <span aria-hidden="true">{{ icon('book-search', 'ui-icon--md') }}</span>
           <span class="sr-only">搜索规则集</span>
           <input
             id="automation-ruleset-search"
@@ -116,7 +116,7 @@
           >
             <template x-if="isImporting">{{ loading_icon('ui-icon--sm') }}</template>
             <template x-if="!isImporting">{{ icon('file-import', 'ui-icon--sm') }}</template>
-            <span x-text="isImporting ? '导入中' : '导入 JSON'"></span>
+            <span x-text="isImporting ? '导入中' : '导入'"></span>
           </button>
           <button
             type="button"
@@ -141,8 +141,6 @@
           <span class="automation-status-icon automation-status-icon--warning" aria-hidden="true">{{ icon('workflow', 'ui-icon--sm') }}</span>
           <div>
             <strong>全局自动规则</strong>
-            <span>导入、更新与手动流程会按触发器执行</span>
-            <span>按规则触发时机和动作类型在不同场景执行</span>
           </div>
           <span
             class="automation-status-dot"
@@ -228,13 +226,17 @@
                 :title="globalRulesetId === rs.id ? '关闭全局规则' : '设为全局规则'"
                 :aria-label="globalRulesetId === rs.id ? '关闭全局规则' : '设为全局规则'"
               >
-                <span :class="globalRulesetId === rs.id ? 'is-global' : ''" aria-hidden="true">{{ icon('pin', 'ui-icon--sm') }}</span>
+                <span :class="globalRulesetId === rs.id ? 'is-global' : ''" aria-hidden="true">{{ icon('pin', 'ui-icon--md') }}</span>
               </button>
             </div>
             <div class="ruleset-item-meta">
-              <span><span class="automation-status-dot" :class="globalRulesetId === rs.id ? 'is-on' : 'is-off'" aria-hidden="true"></span><span x-text="globalRulesetId === rs.id ? '全局启用' : '未启用'"></span></span>
-              <span x-text="'v' + (rs.meta?.version || '1.0')"></span>
-              <span x-text="(rs.rule_count || 0) + ' 条规则'"></span>
+              <span class="ruleset-item-meta-rule" aria-hidden="true"></span>
+              <div class="ruleset-item-meta-content">
+                <span><span class="automation-status-dot" :class="globalRulesetId === rs.id ? 'is-on' : 'is-off'" aria-hidden="true"></span><span x-text="globalRulesetId === rs.id ? '全局启用' : '未启用'"></span></span>
+                <span x-text="'v' + (rs.meta?.version || '1.0')"></span>
+                <span x-text="(rs.rule_count || 0) + ' 条规则'"></span>
+              </div>
+              <span class="ruleset-item-meta-rule" aria-hidden="true"></span>
             </div>
           </div>
         </template>
@@ -287,10 +289,14 @@
                   <template x-if="saveState === 'error'">{{ icon('alert-triangle', 'ui-icon--xs') }}</template>
                   <span x-text="saveStateLabel"></span>
                 </div>
-                <button type="button" class="automation-icon-button automation-help-trigger" @click="openHelpTab('conditions')" title="查看规则编写指南" aria-label="查看规则编写指南">{{ icon('settings-help-entry', 'ui-icon--md') }}</button>
-                <button type="button" class="automation-icon-button" @click="exportCurrentRuleSet()" title="导出规则集 JSON" aria-label="导出规则集 JSON">{{ icon('upload', 'ui-icon--md') }}</button>
-                <button type="button" class="automation-icon-button automation-icon-button--danger" @click="deleteCurrentRuleSet()" :disabled="isDeleting" title="删除当前规则集" aria-label="删除当前规则集">{{ icon('trash', 'ui-icon--md') }}</button>
-                <button type="button" class="automation-icon-button automation-mobile-only" @click="closeModal()" title="关闭自动化工作台" aria-label="关闭自动化工作台">{{ icon('close', 'ui-icon--md') }}</button>
+                <button type="button" class="automation-icon-button automation-top-action automation-help-trigger" @click="openHelpTab('conditions')" title="查看规则编写指南" aria-label="查看规则编写指南">{{ icon('settings-help-entry', 'ui-icon--md') }}</button>
+                <button type="button" class="automation-icon-button automation-top-action" @click="exportCurrentRuleSet()" title="导出规则集 JSON" aria-label="导出规则集 JSON">{{ icon('upload', 'ui-icon--md') }}</button>
+                <button type="button" class="automation-icon-button automation-top-action automation-icon-button--danger" @click="deleteCurrentRuleSet()" :disabled="isDeleting" title="删除当前规则集" aria-label="删除当前规则集">{{ icon('trash', 'ui-icon--md') }}</button>
+                <button type="button" class="automation-icon-button automation-top-action automation-top-action--save" @click="saveCurrentRuleSet()" :disabled="isSaving" title="保存规则集" aria-label="保存规则集">
+                  <template x-if="isSaving">{{ loading_icon('ui-icon--md') }}</template>
+                  <template x-if="!isSaving">{{ icon('settings-save', 'ui-icon--md') }}</template>
+                </button>
+                <button type="button" class="automation-icon-button automation-top-action automation-top-action--close" @click="closeModal()" title="关闭自动化工作台" aria-label="关闭自动化工作台">{{ icon('close', 'ui-icon--md') }}</button>
               </div>
             </div>
 
@@ -529,11 +535,6 @@
             </div>
 
             <aside class="automation-inspector" aria-label="规则集概览与帮助">
-              <section class="automation-inspector-section automation-inspector-section--status">
-                <div class="automation-inspector-heading"><span class="automation-inspector-icon" aria-hidden="true">{{ icon('monitor-users', 'ui-icon--md') }}</span><div><span class="automation-overline">STATUS</span><h2>运行概览</h2></div></div>
-                <div class="automation-inspector-status"><span class="automation-status-dot" :class="globalRulesetId === activeRuleSet?.id ? 'is-on' : 'is-off'" aria-hidden="true"></span><div><strong x-text="globalRulesetId === activeRuleSet?.id ? '全局规则已启用' : '仅可手动执行'"></strong><span x-text="globalRulesetId === activeRuleSet?.id ? '符合触发场景的规则会在后台自动运行。' : '设为全局后，导入与更新流程才会读取这套规则。'"></span></div></div>
-                <button type="button" class="btn-secondary automation-action-button automation-action-button--wide" @click="toggleGlobalActive(activeRuleSet?.id)" :disabled="isSettingGlobal"><template x-if="isSettingGlobal">{{ loading_icon('ui-icon--sm') }}</template><template x-if="!isSettingGlobal">{{ icon('pin', 'ui-icon--sm') }}</template><span x-text="globalRulesetId === activeRuleSet?.id ? '关闭全局规则' : '设为全局规则'"></span></button>
-              </section>
               <section class="automation-inspector-section">
                 <div class="automation-inspector-heading"><span class="automation-inspector-icon automation-inspector-icon--success" aria-hidden="true">{{ icon('data-grid', 'ui-icon--md') }}</span><div><span class="automation-overline">COVERAGE</span><h2>规则覆盖</h2></div></div>
                 <dl class="automation-coverage-list"><div><dt>启用规则</dt><dd x-text="enabledRuleCount"></dd></div><div><dt>条件组</dt><dd x-text="conditionGroupCount"></dd></div><div><dt>动作</dt><dd x-text="actionCount"></dd></div><div><dt>触发入口</dt><dd x-text="triggerCount"></dd></div></dl>
@@ -546,14 +547,9 @@
                 <div class="automation-inspector-heading"><span class="automation-inspector-icon automation-inspector-icon--info" aria-hidden="true">{{ icon('book-tip', 'ui-icon--md') }}</span><div><span class="automation-overline">REFERENCE</span><h2>需要帮助？</h2></div></div>
                 <p>查看条件、动作、触发时机和模板语法的完整说明。</p><button type="button" class="btn-secondary automation-action-button automation-action-button--wide" @click="openHelpTab('conditions')">{{ icon('settings-help-entry', 'ui-icon--sm') }}<span>打开编写指南</span></button>
               </section>
-              <div class="automation-keyboard-note"><span aria-hidden="true">{{ icon('keyboard', 'ui-icon--sm') }}</span><div><strong>键盘操作</strong><span><kbd>Ctrl</kbd> + <kbd>S</kbd> 保存，<kbd>Esc</kbd> 关闭弹层。</span></div></div>
+              <div class="automation-keyboard-note"><span aria-hidden="true">{{ icon('keyboard', 'ui-icon--md') }}</span><div><strong>键盘操作</strong><span><kbd>Ctrl</kbd> + <kbd>S</kbd> 保存，<kbd>Esc</kbd> 关闭弹层。</span></div></div>
             </aside>
           </div>
-
-          <footer class="automation-editor-footer">
-            <div class="automation-footer-note"><span class="automation-status-dot" :class="isDirty ? 'is-warning' : 'is-on'" aria-hidden="true"></span><span x-text="isDirty ? '有未保存修改' : '所有修改已保存'"></span></div>
-            <div class="automation-footer-actions"><button type="button" class="btn-secondary automation-action-button" @click="closeModal()">关闭</button><button type="button" class="btn-primary automation-action-button automation-action-button--save" @click="saveCurrentRuleSet()" :disabled="isSaving"><template x-if="isSaving">{{ loading_icon('ui-icon--sm') }}</template><template x-if="!isSaving">{{ icon('settings-save', 'ui-icon--sm') }}</template><span x-text="isSaving ? '保存中' : '保存规则集'"></span></button></div>
-          </footer>
         </div>
       </template>
 
@@ -618,7 +614,6 @@
             <div class="automation-help-section"><h3>示例与限制</h3><div class="automation-help-code"><code>{% raw %}{{char_name}} - {{char_version|version}} - {{modified_date|date:%Y-%m-%d}}{% endraw %}</code><span>例如生成“角色名 - v1.2 - 2026-04-01”这种文件名。若想在覆盖更新后重命名，请在规则上启用“更新角色卡后”；如果文件名要体现本次更新时间，优先使用 modified_date。</span></div><div class="automation-help-code"><code>category = a/b/c  ->  tags += [a, b, c]</code><span><code>split_category_to_tags</code> 不读取模板，也不会使用回退模板或最大长度；它只是把当前分类路径按 <code>/</code> 拆成多个标签。</span></div><ul><li>主模板结果为空时，会尝试使用 fallback 模板。</li><li>文件名模板建议只拼接必要字段，并配合最大长度限制。</li><li>import_date 适合首次导入时命名，modified_date 更适合覆盖更新后命名。</li><li>分类拆分动作可结合“排除分类标签”过滤不想保留的类别词。</li></ul></div>
           </section>
         </div>
-        <footer class="automation-dialog-footer"><span class="automation-dialog-footer-note">{{ icon('keyboard', 'ui-icon--sm') }}使用 <kbd>Tab</kbd> 浏览控件，<kbd>Esc</kbd> 返回编辑器</span><button type="button" class="btn-primary automation-action-button" @click="closeHelpModal()">{{ icon('check', 'ui-icon--sm') }}<span>完成</span></button></footer>
       </section>
     </div>
   </template>
