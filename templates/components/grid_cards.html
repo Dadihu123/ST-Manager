@@ -1,4 +1,4 @@
-{% from "components/icon.html" import card_update_icon, icon, loading_icon %}
+{% from "components/icon.html" import detail_icon, icon, loading_icon %}
 
 <!-- === 模式 1: 角色卡网格 === -->
 <div
@@ -348,7 +348,7 @@
                         :aria-label="cardHasLocalNote(card) ? '查看本地备注预览' : '暂无本地备注'"
                         @click.stop="openCardLocalNote(card)"
                       >
-                        {{ icon('sticky-note', 'ui-icon--sm') }}
+                        {{ detail_icon('note', 'ui-icon--sm') }}
                       </button>
                       <button
                         type="button"
@@ -358,7 +358,7 @@
                         aria-label="打开类脑搜索预览"
                         @click.stop="openForumThreadPreview(card)"
                       >
-                        {{ icon('search', 'card-forum-search-icon') }}
+                        {{ icon('card-forum-search', 'card-forum-search-icon') }}
                       </button>
                       <button
                         type="button"
@@ -370,7 +370,7 @@
                         @click.stop="sendCardToST(card)"
                       >
                         <span x-show="!isSendingToST(card.id)" aria-hidden="true">
-                          {{ icon('send', 'ui-icon--sm') }}
+                          {{ icon('card-send-to-st', 'ui-icon--sm') }}
                         </span>
                         <span x-show="isSendingToST(card.id)" aria-hidden="true">
                           {{ loading_icon('ui-icon--sm') }}
@@ -387,7 +387,7 @@
                         aria-label="检查来源更新"
                       >
                         <span x-show="!isCheckingSourceUpdate(card.id)" aria-hidden="true">
-                          {{ card_update_icon('ui-icon--sm') }}
+                          {{ icon('card-update-check', 'ui-icon--sm') }}
                         </span>
                         <span x-show="isCheckingSourceUpdate(card.id)" aria-hidden="true">
                           {{ loading_icon('ui-icon--sm') }}

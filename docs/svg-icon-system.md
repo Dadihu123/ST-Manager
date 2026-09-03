@@ -4,7 +4,7 @@
 
 本次只整理已经集成到项目内的图标系统，主要检查和修改了 `static/icons/`，并同步扫描了 `templates/`、`static/js/`、`static/css/`、`core/` 和 `tests/` 中的模板宏、`<use>`、CSS mask、JavaScript 动态 icon id 及测试契约。`static/icons/forum-preview/` 下仍由 CSS mask 直接引用的 6 个独立 SVG 也纳入清单；同时将 Tailwind 浏览器运行时改为由 CLI 编译的静态 CSS。
 
-`static/vendor/` 本次完全未处理、未修改。`tmp/` 中的品牌 PNG、加载动效 SVG 和角色卡更新检查 SVG 作为源文件使用；品牌 PNG 的裁剪副本落在 `static/images/brand/`，加载动效和更新检查图标分别复制到 `static/icons/loading-animation.svg` 与 `static/icons/card-update-check.svg`，服务于全局加载状态和角色卡来源更新检查；旧的 `static/images/STM.ico` 已移除。commit `cddb090` 已完成的 viewBox 裁切结果全部保留。除品牌 PNG 的透明边界裁剪外，本次没有重新裁切、补回空白或修改其他图形路径，整理只改变 symbol 所属 sprite、id、引用和外层尺寸规则。
+`static/vendor/` 本次完全未处理、未修改。`tmp/` 中的品牌 PNG、加载动效 SVG 和角色卡图形作为源文件使用；品牌 PNG 的裁剪副本落在 `static/images/brand/`，加载动效保留为 `static/icons/loading-animation.svg`，角色卡来源更新检查图标已接入 `static/icons/ui.svg#icon-card-update-check`，服务于全局加载状态和角色卡来源更新检查；旧的 `static/images/STM.ico` 已移除。commit `cddb090` 已完成的 viewBox 裁切结果全部保留。除品牌 PNG 的透明边界裁剪外，本次没有重新裁切、补回空白或修改其他图形路径，整理只改变 symbol 所属 sprite、id、引用和外层尺寸规则。
 
 分组原则如下：跨模块复用的操作和状态图形放入 `ui.svg`；详情页、阅读器和资源详情专用图形放入 `detail.svg`；侧边栏导航及侧边栏资源切换图形放入 `sidebar.svg`；预设/提示词字段和 marker 图形放入 `preset.svg`；论坛预览中作为 CSS mask 使用的原始独立 SVG 保持独立。只有在几何相同且引用语义允许共用时才合并，未因“看起来相似”而改变不同图形。
 
@@ -26,7 +26,7 @@ symbol id 统一使用带 `icon-` 前缀的英文 kebab-case，并优先表达�
 | `static/icons/preset.svg` | 预设字段、提示词 marker 和空状态 | 13 | 将 `icon-preset-*` 改为语义 id |
 | `static/icons/forum-preview/*.svg` | 论坛预览 CSS mask | 6 个独立 SVG | 继续保留；CSS 对每个文件存在明确 mask 引用 |
 
-独立的 `static/icons/sidebar-nav/角色卡-简.svg` 和 `static/icons/sidebar-nav/美化-简.svg` 已分别移动进 `static/icons/sidebar.svg`，对应为 `icon-character-cards` 和 `icon-paint-brush`，并同步修改侧边栏模板；源文件随后删除，未复制出第二份定义。加载状态使用独立的 `static/icons/loading-animation.svg`，角色卡来源更新检查使用独立的 `static/icons/card-update-check.svg`，二者不再复用通用 sprite 中的旧状态/操作 symbol。当前没有删除任何 sprite 文件，也没有删除 `forum-preview` 独立 SVG。
+独立的 `static/icons/sidebar-nav/角色卡-简.svg` 和 `static/icons/sidebar-nav/美化-简.svg` 已分别移动进 `static/icons/sidebar.svg`，对应为 `icon-character-cards` 和 `icon-paint-brush`，并同步修改侧边栏模板；源文件随后删除，未复制出第二份定义。加载状态使用独立的 `static/icons/loading-animation.svg`；角色卡来源更新检查、论坛预览、发送到 ST 三个角色卡操作图形使用 `static/icons/ui.svg` 中的专用 symbol，备注按钮复用 `static/icons/detail.svg#icon-note`。当前没有删除任何 sprite 文件，也没有删除 `forum-preview` 独立 SVG。
 
 本次逐个比较了重命名 symbol 的子树几何，现有 sprite 之间没有发现可以安全再合并的完全相同几何组；因此没有为了减少数量而冒险合并视觉近似但语义不同的图形。
 
@@ -53,7 +53,7 @@ symbol id 统一使用带 `icon-` 前缀的英文 kebab-case，并优先表达�
 | icon-version | icon-detail-version | static/icons/detail.svg | 版本 | `templates/modals/detail_card.html:388,666` | sm/16px | 是 |
 | icon-image-keep | icon-detail-keep-image | static/icons/detail.svg | 图片保留 | `templates/modals/detail_card.html:2491,3817` | sm/16px、md/20px | 是 |
 | icon-backup-rollback | icon-detail-backup-rollback | static/icons/detail.svg | 备份回滚 | `static/js/state.js:72`、`templates/modals/detail_card.html:2412,3754` | sm/16px、lg/24px | 是 |
-| icon-note | icon-detail-local-note | static/icons/detail.svg | 备注 | `templates/modals/detail_card.html:749,3671`、`tests/test_cards_api_import_sync.py:2459` | sm/16px、lg/24px | 是 |
+| icon-note | icon-detail-local-note | static/icons/detail.svg | 备注 | `templates/components/grid_cards.html:351`、`templates/modals/detail_card.html:749,3671`、`tests/test_cards_api_import_sync.py:2459` | sm/16px、lg/24px | 是 |
 | icon-edit-mode | icon-detail-edit-mode | static/icons/detail.svg | 编辑模式 | `templates/modals/detail_card.html:192,330` | sm/16px | 是 |
 | icon-tags | icon-detail-tags | static/icons/detail.svg | 标签 | `static/js/state.js:73`、`templates/modals/automation.html:426,433,755`、`templates/modals/detail_card.html:578`、`tests/test_advanced_editor_icon_contracts.py:101` | xs/12px、sm/16px | 是 |
 | icon-folder-create | icon-detail-create-resource-folder | static/icons/detail.svg | 文件夹新建 | `templates/modals/detail_card.html:522` | sm/16px | 是 |
@@ -166,7 +166,7 @@ symbol id 统一使用带 `icon-` 前缀的英文 kebab-case，并优先表达�
 | icon-plus-square | icon-context-new | static/icons/ui.svg | 加号方框 | `templates/components/context_menu.html:54`、`templates/components/header.html:599,875`、`templates/components/sidebar.html:207,636`、`templates/modals/advanced_editor.html:88,470,830`、`templates/modals/automation.html:51` | xs/12px、sm/16px、md/20px、lg/24px | 是 |
 | icon-trash | icon-context-delete | static/icons/ui.svg | 垃圾桶 | `templates/components/context_menu.html:61`、`templates/components/grid_presets.html:143`、`templates/components/header.html:290,304,328,793…`、`templates/modals/automation.html:170,246,427`、`templates/modals/detail_card.html:1954,2597,2911` | sm/16px、md/20px、lg/24px | 是 |
 | icon-workflow | icon-context-automation | static/icons/ui.svg | 工作流 | `templates/components/context_menu.html:77,111`、`templates/components/header.html:340,651,721,930`、`templates/modals/automation.html:63,85,117,141…`、`templates/modals/execute_rules_mobile.html:10`、`tests/test_advanced_editor_icon_contracts.py:98,129` | xs/12px、sm/16px、md/20px、lg/24px、3xl/64px | 是 |
-| card-update-check.svg | icon-card-refresh | static/icons/card-update-check.svg | 角色卡来源更新检查 | `templates/components/context_menu.html:68`、`templates/components/grid_cards.html:390`、`templates/components/header.html:444,811`、`templates/modals/detail_card.html:2851` | sm/16px、lg/24px | 是 |
+| icon-card-update-check | `tmp/其他/更新.svg` | static/icons/ui.svg | 角色卡来源更新检查 | `templates/components/context_menu.html:68`、`templates/components/grid_cards.html:390`、`templates/components/header.html:444,811`、`templates/modals/detail_card.html:3014` | sm/16px、lg/24px | 是 |
 | icon-heart | icon-card-favorite | static/icons/ui.svg | 爱心 | `templates/components/grid_cards.html:193`、`templates/components/grid_chats.html:60`、`templates/components/header.html:954`、`templates/modals/automation.html:428`、`templates/modals/detail_card.html:2218` | sm/16px | 是 |
 | icon-file-code | icon-extension-file | static/icons/ui.svg | 文件代码 | `templates/components/grid_extensions.html:81`、`templates/modals/advanced_editor.html:46`、`tests/test_advanced_editor_icon_contracts.py:22`、`tests/test_extension_list_icons.py:23,61` | sm/16px、lg/24px | 是 |
 | icon-monitor-users | icon-monitor-pool | static/icons/ui.svg | 监视器users | `templates/modals/source_update_monitor.html:22` | 2xl/48px | 是 |
@@ -229,7 +229,9 @@ symbol id 统一使用带 `icon-` 前缀的英文 kebab-case，并优先表达�
 | icon-plug | icon-plug | static/icons/ui.svg | 插头 | `templates/modals/settings.html:2084` | sm/16px | 否 |
 | icon-settings-save | icon-settings-save | static/icons/ui.svg | 个性化保存（软盘） | `templates/modals/automation.html:173`、`templates/modals/detail_wi_fullscreen.html:220,266,513,1904,1916`、`templates/modals/settings.html:1860`、`static/js/state.js:85`、`static/js/components/advancedEditor.js:870`、`static/js/components/automationModal.js:381`、`static/js/components/detailModal.js:1991`、`static/js/components/wiDetailPopup.js:799`、`static/js/components/wiEditor.js:2336,2338,2786,2855,2857`、相关测试契约 | xs/12px、sm/16px | 否 |
 | icon-search | icon-card-search | static/icons/ui.svg | 搜索 | `templates/components/grid_cards.html:334`、`tests/test_worldbook_icon_contracts.py:148` | sm/16px（默认） | 是 |
+| icon-card-forum-search | `tmp/其他/论坛.svg` | static/icons/ui.svg | 类脑搜索预览 | `templates/components/grid_cards.html:361` | md/20px、lg/24px | 是 |
 | icon-send | icon-card-send | static/icons/ui.svg | 发送 | `templates/components/grid_cards.html:346`、`templates/components/grid_presets.html:285`、`templates/components/grid_wi.html:228`、`templates/modals/detail_card.html:2574`、`templates/modals/detail_wi_popup.html:467` | sm/16px、md/20px、lg/24px | 是 |
+| icon-card-send-to-st | `tmp/其他/1火箭.svg` | static/icons/ui.svg | 发送到 ST | `templates/components/grid_cards.html:373` | md/20px、lg/24px | 是 |
 | icon-settings-connection-service | icon-settings-connection-service | static/icons/ui.svg | 连接与服务链路 | `templates/modals/settings.html:76,1229,2105`、`tests/test_settings_icon_templates.py` | sm/16px | 否 |
 | icon-shield-check | icon-shield-check | static/icons/ui.svg | 盾牌勾选 | `templates/modals/settings.html:1347` | xs/12px | 否 |
 | icon-sticky-note | icon-card-sticky-note | static/icons/ui.svg | sticky备注 | `templates/components/grid_cards.html:324`、`templates/components/grid_wi.html:214`、`templates/modals/detail_wi_fullscreen.html:568`、`tests/test_worldbook_icon_contracts.py:138` | sm/16px、md/20px、xl/32px | 是 |

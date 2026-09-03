@@ -19,16 +19,6 @@
 >
 {%- endmacro %}
 
-{% macro card_update_icon(class_name='') -%}
-<img
-  class="ui-icon ui-card-update-icon{% if class_name %} {{ class_name }}{% endif %}"
-  src="{{ url_for('static', filename='icons/card-update-check.svg') }}"
-  alt=""
-  aria-hidden="true"
-  draggable="false"
->
-{%- endmacro %}
-
 {% macro sidebar_icon(name, class_name='') -%}
 <svg
   class="ui-icon sidebar-icon{% if class_name %} {{ class_name }}{% endif %}"

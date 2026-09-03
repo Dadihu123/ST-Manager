@@ -55,7 +55,7 @@ def test_card_grid_places_send_to_st_before_source_update_check():
     )
 
 
-def test_source_update_controls_use_the_provided_card_update_asset():
+def test_source_update_controls_use_the_provided_card_update_sprite_symbol():
     template_paths = (
         'templates/components/context_menu.html',
         'templates/components/grid_cards.html',
@@ -65,12 +65,43 @@ def test_source_update_controls_use_the_provided_card_update_asset():
 
     for template_path in template_paths:
         template = read_project_file(template_path)
-        assert 'card_update_icon(' in template
+        assert "icon('card-update-check'" in template
+        assert 'card_update_icon(' not in template
         assert 'refresh-card' not in template
 
-    asset = read_project_file('static/icons/card-update-check.svg')
-    source_asset = read_project_file('tmp/其他/检查角色卡更新.svg')
-    assert asset == source_asset
+    sprite = ET.parse(PROJECT_ROOT / 'static/icons/ui.svg').getroot()
+    symbol = next(element for element in sprite if element.get('id') == 'icon-card-update-check')
+    source = ET.parse(PROJECT_ROOT / 'tmp/其他/更新.svg').getroot()
+    assert symbol.get('viewBox') == source.get('viewBox')
+    assert [path.get('d') for path in symbol] == [path.get('d') for path in source]
+    assert all(path.get('fill') == 'currentColor' for path in symbol)
+    assert all(path.get('stroke') == 'none' for path in symbol)
+    assert not (PROJECT_ROOT / 'static/icons/card-update-check.svg').exists()
+
+
+def test_card_toolbar_uses_detail_note_and_requested_sprite_icons():
+    template = read_project_file('templates/components/grid_cards.html')
+    sprite = ET.parse(PROJECT_ROOT / 'static/icons/ui.svg').getroot()
+
+    assert "detail_icon('note', 'ui-icon--sm')" in template
+    assert "icon('card-forum-search', 'card-forum-search-icon')" in template
+    assert "icon('card-send-to-st', 'ui-icon--sm')" in template
+    assert "icon('card-update-check', 'ui-icon--sm')" in template
+
+    for symbol_id, source_name in (
+        ('icon-card-forum-search', '论坛.svg'),
+        ('icon-card-send-to-st', '1火箭.svg'),
+    ):
+        symbol = next(element for element in sprite if element.get('id') == symbol_id)
+        source = ET.parse(PROJECT_ROOT / 'tmp/其他' / source_name).getroot()
+        assert symbol.get('viewBox') == source.get('viewBox')
+        assert [path.get('d') for path in symbol] == [path.get('d') for path in source]
+        assert all(path.get('fill') == 'currentColor' for path in symbol)
+        assert all(path.get('stroke') == 'none' for path in symbol)
+
+    card_css = read_project_file('static/css/modules/view-cards.css')
+    assert '.card-bottom-toolbar > .card-source-update-btn:disabled {' in card_css
+    assert 'background: transparent !important;' in card_css
 
 
 def test_card_controls_are_sibling_layer_above_cards_css_effect():

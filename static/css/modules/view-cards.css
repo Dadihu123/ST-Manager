@@ -2124,6 +2124,13 @@ html.light-mode .btn-note-preview:hover {
   cursor: wait;
 }
 
+/* 检查更新时只保留加载图形，避免沿用来源状态按钮的背景。 */
+.card-bottom-toolbar > .card-source-update-btn:disabled {
+  border-color: transparent;
+  background: transparent !important;
+  box-shadow: none;
+}
+
 /* 浅色模式不能沿用深色背景下的浅色悬浮色，避免发送图标失去对比度。 */
 html.light-mode .card-bottom-toolbar > .card-send-st-btn:hover:not(:disabled) {
   color: var(--accent-action-hover);
