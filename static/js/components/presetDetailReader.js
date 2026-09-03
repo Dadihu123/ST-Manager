@@ -71,6 +71,8 @@ export default function presetDetailReader() {
   return {
     showModal: false,
     isLoading: false,
+    loadError: "",
+    activePresetRequestId: "",
     activePresetDetail: null,
     activeWorkspace: "all",
     activeGroup: "all",
@@ -325,6 +327,82 @@ export default function presetDetailReader() {
       return this.readerStatsCache;
     },
 
+    get extensionOverview() {
+      const detailExtensions = this.activePresetDetail?.extensions;
+      const rawExtensions = this.activePresetDetail?.raw_data?.extensions;
+      const extensions =
+        detailExtensions &&
+        typeof detailExtensions === "object" &&
+        !Array.isArray(detailExtensions)
+          ? detailExtensions
+          : rawExtensions &&
+              typeof rawExtensions === "object" &&
+              !Array.isArray(rawExtensions)
+            ? rawExtensions
+            : {};
+
+      const asList = (value, nestedKeys = []) => {
+        if (Array.isArray(value)) return value;
+        if (!value || typeof value !== "object") return [];
+        for (const key of nestedKeys) {
+          if (Array.isArray(value[key])) return value[key];
+        }
+        return [];
+      };
+
+      const regexSources = [
+        asList(extensions.regex_scripts),
+        asList(extensions.regex),
+        asList(extensions.regexes),
+        asList(extensions.regular_expressions),
+        asList(extensions.SPreset?.regex),
+        asList(extensions.SPreset?.regexes),
+        asList(extensions.SPreset?.RegexBinding, ["regexes"]),
+      ];
+      const scriptSources = [
+        asList(extensions.tavern_helper, ["scripts"]),
+        asList(extensions.tavernHelper, ["scripts"]),
+        asList(extensions.scripts),
+      ];
+      const firstNonEmpty = (sources) =>
+        sources.find((source) => source.length > 0) || sources[0] || [];
+      const regexItems = firstNonEmpty(regexSources);
+      const scriptItems = firstNonEmpty(scriptSources);
+      const knownKeys = new Set([
+        "regex_scripts",
+        "regex",
+        "regexes",
+        "regular_expressions",
+        "scripts",
+        "tavern_helper",
+        "tavernHelper",
+        "SPreset",
+        "RegexBinding",
+      ]);
+      const customKeys = Object.keys(extensions).filter(
+        (key) => !knownKeys.has(key),
+      );
+
+      return {
+        regex_count: regexItems.length,
+        script_count: scriptItems.length,
+        other_count: customKeys.length,
+        total_count:
+          regexItems.length + scriptItems.length + customKeys.length,
+        custom_keys: customKeys,
+        keys: Object.keys(extensions),
+      };
+    },
+
+    get extensionMetricCards() {
+      const overview = this.extensionOverview;
+      return [
+        { id: "regex", label: "正则脚本", value: overview.regex_count },
+        { id: "scripts", label: "ST 脚本", value: overview.script_count },
+        { id: "other", label: "其他扩展", value: overview.other_count },
+      ];
+    },
+
     get uiFilters() {
       if (this.isPromptWorkspaceReader && this.activeWorkspace === "prompts") {
         return PROMPT_UI_FILTERS;
@@ -354,6 +432,27 @@ export default function presetDetailReader() {
         return `${this.readerStats.visible_count} / ${this.readerStats.total_count}`;
       }
       return `${this.filteredItems.length} / ${this.readerStats.total_count}`;
+    },
+
+    getActivePresetSyncLabel() {
+      if (this.isSendingPresetToST) return "正在发送到 ST";
+      if (Number(this.activePresetDetail?.last_sent_to_st || 0) > 0) {
+        return "已发送到 ST";
+      }
+      return "尚未发送到 ST";
+    },
+
+    getPromptRoleLabel(item) {
+      const role = String(item?.payload?.role || "").trim();
+      return role || "未指定角色";
+    },
+
+    getPromptTriggerLabel(item) {
+      const triggers = item?.payload?.injection_trigger;
+      if (!Array.isArray(triggers) || triggers.length === 0) {
+        return "默认触发";
+      }
+      return triggers.join("、");
     },
 
     revealMobileHeader() {
@@ -402,6 +501,22 @@ export default function presetDetailReader() {
     toggleMobileMoreMenu() {
       this.revealMobileHeader();
       this.showMobileMoreMenu = !this.showMobileMoreMenu;
+    },
+
+    handleReaderEscape() {
+      if (this.showMobileMoreMenu) {
+        this.showMobileMoreMenu = false;
+        return;
+      }
+      if (this.showMobileSidebar) {
+        this.showMobileSidebar = false;
+        return;
+      }
+      if (this.showMobileDetailView) {
+        this.closeMobileDetailView();
+        return;
+      }
+      this.closeModal();
     },
 
     updatePresetLayoutMetrics() {
@@ -477,7 +592,9 @@ export default function presetDetailReader() {
           ? item.default_version_id
           : item?.id;
       if (!presetId) return;
+      this.activePresetRequestId = presetId;
       this.isLoading = true;
+      this.loadError = "";
       this.showModal = true;
       this.showMobileSidebar = false;
       this.showMobileDetailView = false;
@@ -495,8 +612,9 @@ export default function presetDetailReader() {
       try {
         const res = await getPresetDetail(presetId);
         if (!res.success) {
-          this.$store.global.showToast(res.msg || "获取详情失败", "error");
-          this.closeModal();
+          this.activePresetDetail = null;
+          this.loadError = res.msg || "获取详情失败";
+          this.$store.global.showToast(this.loadError, "error");
           return;
         }
 
@@ -514,11 +632,18 @@ export default function presetDetailReader() {
         this.updatePresetLayoutMetrics();
       } catch (error) {
         console.error("Failed to load preset detail:", error);
-        this.$store.global.showToast("获取详情失败", "error");
-        this.closeModal();
+        this.activePresetDetail = null;
+        this.loadError = error?.message || "获取详情失败";
+        this.$store.global.showToast(this.loadError, "error");
       } finally {
         this.isLoading = false;
+        this.updatePresetLayoutMetrics();
       }
+    },
+
+    async retryActivePreset() {
+      if (!this.activePresetRequestId) return;
+      await this.openPreset({ id: this.activePresetRequestId });
     },
 
     async switchVersion(versionId) {
@@ -565,6 +690,8 @@ export default function presetDetailReader() {
     closeModal() {
       this.cleanupAdvancedEditorHandlers();
       this.showModal = false;
+      this.loadError = "";
+      this.activePresetRequestId = "";
       this.activePresetDetail = null;
       this.activeWorkspace = "all";
       this.activeGroup = "all";

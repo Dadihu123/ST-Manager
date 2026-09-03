@@ -1,4 +1,4 @@
-{% from "components/icon.html" import icon %}
+{% from "components/icon.html" import icon, detail_icon, sidebar_icon %}
 {% from "components/styled_select.html" import styled_select_controlled %}
 
 <!-- 预设详情阅览界面 -->
@@ -8,6 +8,7 @@
   class="modal-overlay preset-reader-overlay z-modal-std flex ui-modal-overlay ui-refresh-surface"
   :class="$store.global.deviceType === 'mobile' ? 'items-stretch justify-stretch p-0' : 'items-center justify-center p-4'"
   @click.self="closeModal()"
+  @keydown.escape.stop="handleReaderEscape()"
   x-data="presetDetailReader()"
 >
   <div
@@ -27,7 +28,10 @@
         <button
           @click="toggleMobileSidebar()"
           class="btn-secondary py-1.5 px-3 text-xs"
+          title="打开规则集导航"
+          aria-label="打开规则集导航"
         >
+          <span aria-hidden="true">{{ icon('menu', 'ui-icon--sm') }}</span>
           目录
         </button>
         <div class="preset-reader-mobile-title-block">
@@ -43,6 +47,8 @@
         <button
           @click="openFullscreenEditor()"
           class="btn-primary py-1.5 px-3 text-xs"
+          title="打开全屏编辑器"
+          aria-label="打开全屏编辑器"
         >
           编辑
         </button>
@@ -84,7 +90,10 @@
         <button
           @click="toggleMobileMoreMenu()"
           class="btn-secondary py-1 px-3 text-xs"
+          title="打开更多操作"
+          aria-label="打开更多操作"
         >
+          <span aria-hidden="true">{{ icon('menu-bold', 'ui-icon--sm') }}</span>
           更多
         </button>
       </div>
@@ -103,6 +112,7 @@
         :title="getActivePresetSendToSTTitle()"
         :disabled="isSendingPresetToST"
       >
+        <span aria-hidden="true">{{ icon('send', 'ui-icon--sm') }}</span>
         发送到 ST
       </button>
       <button
@@ -110,28 +120,35 @@
         @click="triggerImportActivePresetVersion(); showMobileMoreMenu = false"
         class="btn-secondary py-1.5 px-3 text-xs"
       >
+        <span aria-hidden="true">{{ icon('merge', 'ui-icon--sm') }}</span>
         导入并合并
       </button>
       <button
         @click="exportActivePreset(); showMobileMoreMenu = false"
         class="btn-secondary py-1.5 px-3 text-xs"
       >
+        <span aria-hidden="true">{{ icon('file-code', 'ui-icon--sm') }}</span>
         导出
       </button>
       <button
         @click="openAdvancedExtensions(); showMobileMoreMenu = false"
         class="btn-secondary py-1.5 px-3 text-xs"
       >
+        <span aria-hidden="true">{{ detail_icon('toolbox', 'ui-icon--sm') }}</span>
         编辑扩展
       </button>
     </div>
 
     <div
       x-show="$store.global.deviceType !== 'mobile'"
-      class="border-b border-[var(--border-default)] px-4 py-3 bg-[var(--surface-container-raised)] flex items-center justify-between gap-3"
+      class="preset-reader-desktop-header border-b border-[var(--border-default)] px-4 py-3 bg-[var(--surface-container-raised)] flex items-center justify-between gap-3"
     >
       <div class="min-w-0 flex-1">
-        <div class="flex items-center gap-2 flex-wrap">
+        <div class="preset-reader-heading-row flex items-center gap-2 flex-wrap">
+          <div class="preset-reader-brand-mark" aria-hidden="true">
+            {{ detail_icon('preset', 'ui-icon--md') }}
+          </div>
+          <div class="preset-reader-heading-kicker">预设阅览</div>
           <h3
             class="text-base md:text-lg font-bold text-[var(--content-primary)] truncate"
             x-text="activePresetDetail?.name || '未命名预设'"
@@ -156,6 +173,14 @@
       </div>
 
       <div class="flex items-center gap-2 flex-wrap justify-end">
+        <div
+          class="preset-reader-sync-status"
+          role="status"
+          :class="isSendingPresetToST ? 'is-pending' : (Number(activePresetDetail?.last_sent_to_st || 0) > 0 ? 'is-synced' : 'is-neutral')"
+        >
+          <span class="preset-reader-status-dot" aria-hidden="true"></span>
+          <span x-text="getActivePresetSyncLabel()"></span>
+        </div>
         <div x-show="hasMultipleVersions" class="flex items-center gap-2">
           <label class="text-[11px] text-[var(--content-muted)]">版本</label>
           {% call styled_select_controlled(
@@ -179,6 +204,7 @@
           :title="getActivePresetSendToSTTitle()"
           :disabled="isSendingPresetToST"
         >
+          <span aria-hidden="true">{{ icon('send', 'ui-icon--sm') }}</span>
           发送到 ST
         </button>
         <button
@@ -186,6 +212,7 @@
           @click="triggerImportActivePresetVersion()"
           class="btn-secondary py-1.5 px-3 text-xs"
         >
+          <span aria-hidden="true">{{ icon('merge', 'ui-icon--sm') }}</span>
           导入并合并
         </button>
         <button
@@ -193,6 +220,7 @@
           @click="exportActivePreset()"
           class="btn-secondary py-1.5 px-3 text-xs"
         >
+          <span aria-hidden="true">{{ icon('file-code', 'ui-icon--sm') }}</span>
           导出
         </button>
         <button
@@ -200,12 +228,14 @@
           @click="openAdvancedExtensions()"
           class="btn-secondary py-1.5 px-3 text-xs"
         >
+          <span aria-hidden="true">{{ detail_icon('toolbox', 'ui-icon--sm') }}</span>
           编辑扩展
         </button>
         <button
           @click="openFullscreenEditor()"
           class="btn-primary py-1.5 px-3 text-xs"
         >
+          <span aria-hidden="true">{{ detail_icon('fullscreen', 'ui-icon--sm') }}</span>
           全屏编辑
         </button>
         <button
@@ -221,12 +251,42 @@
       </div>
     </div>
 
-    <div class="flex-1 min-h-0 flex overflow-hidden bg-[var(--surface-page)]">
+    <div class="flex-1 min-h-0 flex overflow-hidden bg-[var(--surface-page)]" data-reader-layout>
       <template x-if="isLoading">
         <div
-          class="h-full w-full flex items-center justify-center text-sm text-[var(--content-muted)]"
+          class="preset-reader-state-panel h-full w-full flex items-center justify-center text-sm text-[var(--content-muted)]"
+          role="status"
+          aria-live="polite"
         >
-          正在加载预设详情...
+          <div class="preset-reader-state-card">
+            <span class="preset-reader-state-icon is-loading" aria-hidden="true">{{ icon('refresh', 'ui-icon--lg') }}</span>
+            <span>正在加载预设详情...</span>
+          </div>
+        </div>
+      </template>
+
+      <template x-if="!isLoading && loadError">
+        <div
+          class="preset-reader-state-panel h-full w-full flex items-center justify-center"
+          role="alert"
+          aria-live="assertive"
+        >
+          <div class="preset-reader-state-card is-error">
+            <span class="preset-reader-state-icon" aria-hidden="true">{{ icon('alert-triangle', 'ui-icon--lg') }}</span>
+            <div class="preset-reader-state-copy">
+              <strong>预设详情加载失败</strong>
+              <span x-text="loadError"></span>
+            </div>
+            <div class="preset-reader-state-actions">
+              <button type="button" class="btn-primary" @click="retryActivePreset()">
+                <span aria-hidden="true">{{ icon('refresh', 'ui-icon--sm') }}</span>
+                重试
+              </button>
+              <button type="button" class="btn-secondary" @click="closeModal()">
+                关闭
+              </button>
+            </div>
+          </div>
         </div>
       </template>
 
@@ -239,7 +299,7 @@
           ></div>
 
           <aside
-            class="w-full md:w-[260px] lg:w-[280px] flex-shrink-0 bg-[var(--surface-container-raised)] border-r border-[var(--border-default)] flex flex-col min-h-0 z-40"
+            class="preset-reader-workbench-sidebar w-full md:w-[260px] lg:w-[280px] flex-shrink-0 bg-[var(--surface-container-raised)] border-r border-[var(--border-default)] flex flex-col min-h-0 z-40"
             :class="{
               'preset-reader-mobile-sidebar': true,
               'fixed left-0 bottom-0 max-w-[88vw] shadow-2xl': $store.global.deviceType === 'mobile',
@@ -249,22 +309,34 @@
             }"
           >
             <div class="p-4 border-b border-[var(--border-default)] space-y-3">
+              <div class="preset-reader-rail-heading">
+                <div class="preset-reader-rail-title">
+                  <span aria-hidden="true">{{ sidebar_icon('layers', 'ui-icon--sm') }}</span>
+                  <span>规则集导航</span>
+                </div>
+                <span class="preset-reader-rail-count" x-text="readerStats.total_count"></span>
+              </div>
               <div
                 x-show="!isPromptWorkspaceReader || activeWorkspace === 'prompts'"
                 class="space-y-2"
               >
                 <div
-                  class="text-[11px] font-bold text-[var(--content-muted)] uppercase tracking-wide"
+                  class="preset-reader-field-label text-[11px] font-bold text-[var(--content-muted)] uppercase tracking-wide"
                 >
+                  <span aria-hidden="true">{{ icon('search', 'ui-icon--xs') }}</span>
                   搜索
                 </div>
-                <input
-                  :value="searchTerm"
-                  @input="updateSearchTerm($event.target.value)"
-                  type="text"
-                  placeholder="搜索条目、分组、字段..."
-                  class="w-full rounded-xl border border-[var(--border-default)] bg-[var(--surface-container)] px-3 py-2 text-sm text-[var(--content-primary)] outline-none"
-                />
+                <div class="preset-reader-search-field">
+                  <span aria-hidden="true">{{ icon('search', 'ui-icon--sm') }}</span>
+                  <input
+                    :value="searchTerm"
+                    @input="updateSearchTerm($event.target.value)"
+                    type="search"
+                    aria-label="搜索规则集内容"
+                    placeholder="搜索条目、分组、字段..."
+                    class="w-full rounded-xl border border-[var(--border-default)] bg-[var(--surface-container)] px-3 py-2 text-sm text-[var(--content-primary)] outline-none"
+                  />
+                </div>
               </div>
 
               <div
@@ -272,8 +344,9 @@
                 class="space-y-2"
               >
                 <div
-                  class="text-[11px] font-bold text-[var(--content-muted)] uppercase tracking-wide"
+                  class="preset-reader-field-label text-[11px] font-bold text-[var(--content-muted)] uppercase tracking-wide"
                 >
+                  <span aria-hidden="true">{{ icon('filter', 'ui-icon--xs') }}</span>
                   筛选条件
                 </div>
                 <div class="flex flex-wrap gap-2">
@@ -290,18 +363,18 @@
 
               <div class="grid grid-cols-2 gap-2 text-xs">
                 <div
-                  class="rounded-xl border border-[var(--border-default)] bg-[var(--surface-container)] p-3"
+                  class="preset-reader-stat-card rounded-xl border border-[var(--border-default)] bg-[var(--surface-container)] p-3"
                 >
-                  <div class="text-[var(--content-muted)]">当前可见</div>
+                  <div class="preset-reader-stat-label"><span aria-hidden="true">{{ icon('eye', 'ui-icon--xs') }}</span>当前可见</div>
                   <div
                     class="mt-1 text-base font-bold text-[var(--content-primary)]"
                     x-text="readerStats.visible_count"
                   ></div>
                 </div>
                 <div
-                  class="rounded-xl border border-[var(--border-default)] bg-[var(--surface-container)] p-3"
+                  class="preset-reader-stat-card rounded-xl border border-[var(--border-default)] bg-[var(--surface-container)] p-3"
                 >
-                  <div class="text-[var(--content-muted)]">条目总数</div>
+                  <div class="preset-reader-stat-label"><span aria-hidden="true">{{ icon('list', 'ui-icon--xs') }}</span>条目总数</div>
                   <div
                     class="mt-1 text-base font-bold text-[var(--content-primary)]"
                     x-text="readerStats.total_count"
@@ -311,15 +384,25 @@
             </div>
 
             <div class="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-2">
+              <div class="preset-reader-nav-heading">
+                <span class="preset-reader-field-label">
+                  <span aria-hidden="true">{{ icon('layout', 'ui-icon--xs') }}</span>
+                  浏览范围
+                </span>
+                <span class="preset-reader-nav-note">选择后在中间规则流查看</span>
+              </div>
               <template x-if="!isPromptWorkspaceReader">
                 <div class="space-y-2">
                   <button
                     @click="selectGroup('all')"
-                    class="w-full text-left rounded-xl border px-3 py-3 transition"
+                    :aria-current="activeGroup === 'all' ? 'page' : null"
+                    class="preset-reader-nav-item w-full text-left rounded-xl border px-3 py-3 transition"
                       :class="activeGroup === 'all' ? 'color-surface-action color-border-action' : 'bg-[var(--surface-container)] border-[var(--border-default)]'"
                   >
                     <div class="flex items-center justify-between gap-2">
-                      <div>
+                      <div class="preset-reader-nav-item-copy">
+                        <span class="preset-reader-nav-item-icon" aria-hidden="true">{{ sidebar_icon('layers', 'ui-icon--sm') }}</span>
+                        <div>
                         <div
                           class="text-sm font-semibold text-[var(--content-primary)]"
                         >
@@ -327,6 +410,7 @@
                         </div>
                         <div class="text-[11px] text-[var(--content-muted)]">
                           按当前筛选查看
+                        </div>
                         </div>
                       </div>
                       <div
@@ -347,11 +431,18 @@
                   <template x-for="group in readerGroups" :key="group.id">
                     <button
                       @click="selectGroup(group.id)"
-                      class="w-full text-left rounded-xl border px-3 py-3 transition"
+                      :aria-current="activeGroup === group.id ? 'page' : null"
+                      class="preset-reader-nav-item w-full text-left rounded-xl border px-3 py-3 transition"
                       :class="activeGroup === group.id ? 'color-surface-action color-border-action' : 'bg-[var(--surface-container)] border-[var(--border-default)] hover:border-[var(--content-muted)]'"
                     >
                       <div class="flex items-center justify-between gap-2">
-                        <div>
+                        <div class="preset-reader-nav-item-copy">
+                          <span class="preset-reader-nav-item-icon" aria-hidden="true">
+                            <template x-if="group.id === 'extensions'">{{ detail_icon('toolbox', 'ui-icon--sm') }}</template>
+                            <template x-if="group.id === 'scalar_fields'">{{ icon('sliders-settings', 'ui-icon--sm') }}</template>
+                            <template x-if="group.id !== 'extensions' && group.id !== 'scalar_fields'">{{ icon('data-grid', 'ui-icon--sm') }}</template>
+                          </span>
+                          <div>
                           <div
                             class="text-sm font-semibold text-[var(--content-primary)]"
                             x-text="group.label"
@@ -360,6 +451,7 @@
                             class="text-[11px] text-[var(--content-muted)]"
                             x-text="group.id"
                           ></div>
+                          </div>
                         </div>
                         <div
                           class="text-xs font-mono text-[var(--content-secondary)]"
@@ -375,11 +467,14 @@
                 <div class="space-y-2">
                   <button
                     @click="selectWorkspace('prompts')"
-                    class="w-full text-left rounded-xl border px-3 py-3 transition"
+                    :aria-current="activeWorkspace === 'prompts' ? 'page' : null"
+                    class="preset-reader-nav-item w-full text-left rounded-xl border px-3 py-3 transition"
                       :class="activeWorkspace === 'prompts' ? 'color-surface-action color-border-action' : 'bg-[var(--surface-container)] border-[var(--border-default)] hover:border-[var(--content-muted)]'"
                   >
                     <div class="flex items-center justify-between gap-2">
-                      <div>
+                      <div class="preset-reader-nav-item-copy">
+                        <span class="preset-reader-nav-item-icon" aria-hidden="true">{{ icon('list', 'ui-icon--sm') }}</span>
+                        <div>
                         <div
                           class="text-sm font-semibold text-[var(--content-primary)]"
                         >
@@ -388,7 +483,8 @@
                         <div class="text-[11px] text-[var(--content-muted)]">
                           prompts
                         </div>
-                      </div>
+                        </div>
+                        </div>
                       <div
                         class="text-xs font-mono text-[var(--content-secondary)]"
                         x-text="orderedPromptItems.length"
@@ -402,11 +498,18 @@
                   >
                     <button
                       @click="selectWorkspace(group.id)"
-                      class="w-full text-left rounded-xl border px-3 py-3 transition"
+                      :aria-current="activeWorkspace === group.id ? 'page' : null"
+                      class="preset-reader-nav-item w-full text-left rounded-xl border px-3 py-3 transition"
                       :class="activeWorkspace === group.id ? 'color-surface-action color-border-action' : 'bg-[var(--surface-container)] border-[var(--border-default)] hover:border-[var(--content-muted)]'"
                     >
                       <div class="flex items-center justify-between gap-2">
-                        <div>
+                        <div class="preset-reader-nav-item-copy">
+                          <span class="preset-reader-nav-item-icon" aria-hidden="true">
+                            <template x-if="group.id === 'extensions'">{{ detail_icon('toolbox', 'ui-icon--sm') }}</template>
+                            <template x-if="group.id === 'scalar_fields'">{{ icon('sliders-settings', 'ui-icon--sm') }}</template>
+                            <template x-if="group.id !== 'extensions' && group.id !== 'scalar_fields'">{{ icon('data-grid', 'ui-icon--sm') }}</template>
+                          </span>
+                          <div>
                           <div
                             class="text-sm font-semibold text-[var(--content-primary)]"
                             x-text="group.label"
@@ -415,6 +518,7 @@
                             class="text-[11px] text-[var(--content-muted)]"
                             x-text="group.id"
                           ></div>
+                          </div>
                         </div>
                         <div
                           class="text-xs font-mono text-[var(--content-secondary)]"
@@ -426,6 +530,36 @@
                 </div>
               </template>
             </div>
+            <div class="preset-reader-rail-footer">
+              <div class="preset-reader-rail-footer-heading">
+                <div class="preset-reader-field-label">
+                  <span aria-hidden="true">{{ detail_icon('toolbox', 'ui-icon--xs') }}</span>
+                  扩展能力
+                </div>
+                <span class="preset-reader-rail-note">ST 兼容</span>
+              </div>
+              <div class="preset-reader-extension-mini-stats">
+                <span>
+                  <span aria-hidden="true">{{ detail_icon('regex', 'ui-icon--xs') }}</span>
+                  <span x-text="extensionOverview.regex_count"></span>
+                  正则
+                </span>
+                <span>
+                  <span aria-hidden="true">{{ detail_icon('script-file', 'ui-icon--xs') }}</span>
+                  <span x-text="extensionOverview.script_count"></span>
+                  脚本
+                </span>
+              </div>
+              <button
+                type="button"
+                class="preset-reader-extension-action"
+                @click="openAdvancedExtensions()"
+                title="打开正则脚本与 ST 脚本编辑器"
+              >
+                <span aria-hidden="true">{{ icon('pencil-edit', 'ui-icon--sm') }}</span>
+                管理扩展
+              </button>
+            </div>
           </aside>
 
           <section
@@ -436,10 +570,11 @@
             }"
           >
             <div
-              class="px-4 py-3 border-b border-[var(--border-default)] bg-[var(--surface-page)] flex items-center justify-between gap-3"
+              class="preset-reader-flow-header px-4 py-3 border-b border-[var(--border-default)] bg-[var(--surface-page)] flex items-center justify-between gap-3"
             >
               <div>
-                <div class="text-sm font-bold text-[var(--content-primary)]">
+                <div class="preset-reader-flow-title text-sm font-bold text-[var(--content-primary)]">
+                  <span aria-hidden="true">{{ detail_icon('book-read', 'ui-icon--sm') }}</span>
                   <span x-show="!isPromptWorkspaceReader">内容流</span>
                   <span
                     x-show="isPromptWorkspaceReader && activeWorkspace === 'prompts'"
@@ -470,9 +605,24 @@
                 </div>
               </div>
               <div
-                class="text-[11px] text-[var(--content-muted)]"
-                x-text="activePresetDetail?.preset_kind_label || '-' "
-              ></div>
+                class="preset-reader-flow-tools"
+              >
+                <span
+                  class="text-[11px] text-[var(--content-muted)]"
+                  x-text="activePresetDetail?.preset_kind_label || '-' "
+                ></span>
+                <button
+                  type="button"
+                  class="preset-reader-panel-toggle"
+                  x-show="$store.global.deviceType !== 'mobile'"
+                  @click="showRightPanel = !showRightPanel"
+                  :aria-pressed="showRightPanel.toString()"
+                  :title="showRightPanel ? '隐藏检查台' : '显示检查台'"
+                >
+                  <span aria-hidden="true">{{ detail_icon('info', 'ui-icon--sm') }}</span>
+                  <span x-text="showRightPanel ? '收起检查台' : '打开检查台'"></span>
+                </button>
+              </div>
             </div>
 
             <div class="flex-1 min-h-0">
@@ -518,13 +668,18 @@
                     <template x-for="item in filteredItems" :key="item.id">
                       <article
                         @click="selectItem(item.id)"
-                        class="rounded-2xl border p-4 bg-[var(--surface-container)] cursor-pointer transition"
-                            :class="activeItem?.id === item.id ? 'border-[var(--accent-action)] color-selected-shadow' : 'border-[var(--border-default)] hover:border-[var(--content-muted)]'"
+                        @keydown.enter.prevent="selectItem(item.id)"
+                        @keydown.space.prevent="selectItem(item.id)"
+                        role="button"
+                        tabindex="0"
+                        class="preset-reader-content-card rounded-2xl border p-4 bg-[var(--surface-container)] cursor-pointer transition"
+                        :class="activeItem?.id === item.id ? 'border-[var(--accent-action)] color-selected-shadow' : 'border-[var(--border-default)] hover:border-[var(--content-muted)]'"
                       >
                         <div>
                           <div class="flex items-start justify-between gap-3">
                             <div class="min-w-0 flex-1">
                               <div class="flex items-center gap-2 flex-wrap">
+                                <span class="preset-reader-content-card-icon" aria-hidden="true">{{ icon('file-code', 'ui-icon--sm') }}</span>
                                 <div
                                   class="text-sm font-bold text-[var(--content-primary)] break-all"
                                   x-text="item.title"
@@ -625,7 +780,12 @@
                         >
                           <article
                             @click="selectPrompt(item.id)"
-                            class="rounded-2xl border p-4 bg-[var(--surface-container)] cursor-pointer transition"
+                            @keydown.enter.prevent="selectPrompt(item.id)"
+                            @keydown.space.prevent="selectPrompt(item.id)"
+                            role="button"
+                            tabindex="0"
+                            :aria-label="`${item.title || '提示词'}，${getPromptPositionLabel(item)}`"
+                            class="preset-reader-prompt-card rounded-2xl border p-4 bg-[var(--surface-container)] cursor-pointer transition"
                             :class="activePromptItem?.id === item.id ? 'border-[var(--accent-action)] color-selected-shadow' : 'border-[var(--border-default)] hover:border-[var(--content-muted)]'"
                           >
                             <div class="flex items-start gap-3">
@@ -635,6 +795,11 @@
                                   class="preset-marker-icon-frame flex-shrink-0 color-text-info"
                                   x-html="getPromptMarkerIcon(item)"
                                 ></span>
+                              </template>
+                              <template x-if="!item.prompt_meta?.is_marker">
+                                <span class="preset-reader-prompt-icon-frame flex-shrink-0" aria-hidden="true">
+                                  {{ icon('file-code', 'ui-icon--sm') }}
+                                </span>
                               </template>
                               <div class="min-w-0 flex-1">
                                 <div class="flex items-center gap-2 flex-wrap">
@@ -681,9 +846,19 @@
 
                             <div
                               x-show="getPromptPreview(item)"
-                              class="mt-3 text-sm text-[var(--content-secondary)] whitespace-pre-wrap break-words line-clamp-3"
+                              class="preset-reader-prompt-preview mt-3 text-sm text-[var(--content-secondary)] whitespace-pre-wrap break-words line-clamp-3"
                               x-text="getPromptPreview(item)"
                             ></div>
+                            <div class="preset-reader-prompt-meta-row">
+                              <span>
+                                <span aria-hidden="true">{{ detail_icon('user', 'ui-icon--xs') }}</span>
+                                <span x-text="getPromptRoleLabel(item)"></span>
+                              </span>
+                              <span>
+                                <span aria-hidden="true">{{ icon('key-trigger', 'ui-icon--xs') }}</span>
+                                <span x-text="getPromptTriggerLabel(item)"></span>
+                              </span>
+                            </div>
                           </article>
                         </template>
                       </div>
@@ -877,6 +1052,11 @@
                           >
                             <article
                               @click="selectItem(item.id)"
+                              @keydown.enter.prevent="selectItem(item.id)"
+                              @keydown.space.prevent="selectItem(item.id)"
+                              role="button"
+                              tabindex="0"
+                              :aria-label="`${item.title || '条目'}，${getItemBadge(item)}`"
                               class="rounded-2xl border p-4 bg-[var(--surface-container)] cursor-pointer transition"
                               :class="activeContextItem?.id === item.id ? 'border-[var(--accent-action)] color-selected-shadow' : 'border-[var(--border-default)] hover:border-[var(--content-muted)]'"
                             >
@@ -942,11 +1122,13 @@
               <button
                 @click="closeMobileDetailView()"
                 class="btn-secondary py-1.5 px-3 text-xs"
+                title="返回规则列表"
               >
+                <span aria-hidden="true">{{ icon('arrow-left', 'ui-icon--sm') }}</span>
                 返回列表
               </button>
               <div class="min-w-0 flex-1 text-right">
-                <div class="text-[11px] text-[var(--content-muted)]">详情</div>
+                <div class="preset-reader-inspector-kicker"><span aria-hidden="true">{{ detail_icon('info', 'ui-icon--xs') }}</span>检查台</div>
                 <div
                   class="text-sm font-semibold text-[var(--content-primary)] truncate"
                   x-text="activeContextItem?.title || '未选择条目'"
@@ -964,6 +1146,28 @@
                       class="preset-marker-icon-frame flex-shrink-0 color-text-info"
                       x-html="getPromptMarkerIcon(activeContextItem)"
                     ></span>
+                  </template>
+                  <template
+                    x-if="activeContextItem?.group === 'prompts' && !activeContextItem?.prompt_meta?.is_marker"
+                  >
+                    <span class="preset-reader-prompt-icon-frame flex-shrink-0" aria-hidden="true">
+                      {{ icon('file-code', 'ui-icon--md') }}
+                    </span>
+                  </template>
+                  <template x-if="activeContextItem?.type === 'extension'">
+                    <span class="preset-reader-extension-icon-frame flex-shrink-0" aria-hidden="true">
+                      {{ detail_icon('toolbox', 'ui-icon--md') }}
+                    </span>
+                  </template>
+                  <template x-if="activeContextItem?.type === 'field'">
+                    <span class="preset-reader-field-icon-frame flex-shrink-0" aria-hidden="true">
+                      {{ icon('sliders-settings', 'ui-icon--md') }}
+                    </span>
+                  </template>
+                  <template x-if="activeContextItem?.type === 'structured'">
+                    <span class="preset-reader-structured-icon-frame flex-shrink-0" aria-hidden="true">
+                      {{ icon('data-grid', 'ui-icon--md') }}
+                    </span>
                   </template>
                   <div class="min-w-0 flex-1">
                     <div
@@ -987,13 +1191,15 @@
                     </div>
                   </div>
                 </div>
-                <button
-                  x-show="$store.global.deviceType === 'mobile'"
-                  @click="closeMobileDetailView()"
-                  class="btn-secondary py-1 px-2 text-xs"
-                >
-                  关闭
-                </button>
+              <button
+                x-show="$store.global.deviceType === 'mobile'"
+                @click="closeMobileDetailView()"
+                class="btn-secondary py-1 px-2 text-xs"
+                title="关闭条目详情"
+              >
+                <span aria-hidden="true">{{ icon('close-small', 'ui-icon--xs') }}</span>
+                关闭
+              </button>
               </div>
 
               <div
@@ -1003,7 +1209,7 @@
                 <div
                   class="rounded-xl border border-[var(--border-default)] bg-[var(--surface-container)] p-3"
                 >
-                  <div class="text-[var(--content-muted)]">修改时间</div>
+                  <div class="preset-reader-detail-stat-label"><span aria-hidden="true">{{ detail_icon('clock', 'ui-icon--xs') }}</span>修改时间</div>
                   <div
                     class="mt-1 text-[var(--content-primary)]"
                     x-text="formatDate(activePresetDetail?.mtime)"
@@ -1012,7 +1218,7 @@
                 <div
                   class="rounded-xl border border-[var(--border-default)] bg-[var(--surface-container)] p-3"
                 >
-                  <div class="text-[var(--content-muted)]">文件大小</div>
+                  <div class="preset-reader-detail-stat-label"><span aria-hidden="true">{{ detail_icon('file-name', 'ui-icon--xs') }}</span>文件大小</div>
                   <div
                     class="mt-1 text-[var(--content-primary)]"
                     x-text="formatSize(activePresetDetail?.file_size)"
@@ -1097,7 +1303,9 @@
                           <button
                             @click="copyText(getPromptFullDetail(activeContextItem), '条目内容')"
                             class="btn-secondary px-2 py-1 text-xs"
+                            title="复制提示词正文"
                           >
+                            <span aria-hidden="true">{{ icon('clipboard', 'ui-icon--xs') }}</span>
                             复制
                           </button>
                         </template>
@@ -1109,6 +1317,20 @@
                             class="font-mono break-all text-[var(--content-primary)]"
                             x-text="activeContextItem?.payload?.identifier || activeContextItem?.prompt_meta?.identifier || activeContextItem?.id || '-'"
                           ></div>
+                        </div>
+                      </div>
+                      <div class="preset-reader-rule-grid">
+                        <div class="preset-reader-rule-cell">
+                          <span class="preset-reader-detail-stat-label"><span aria-hidden="true">{{ detail_icon('user', 'ui-icon--xs') }}</span>角色</span>
+                          <strong x-text="getPromptRoleLabel(activeContextItem)"></strong>
+                        </div>
+                        <div class="preset-reader-rule-cell">
+                          <span class="preset-reader-detail-stat-label"><span aria-hidden="true">{{ icon('key-trigger', 'ui-icon--xs') }}</span>触发条件</span>
+                          <strong x-text="getPromptTriggerLabel(activeContextItem)"></strong>
+                        </div>
+                        <div class="preset-reader-rule-cell">
+                          <span class="preset-reader-detail-stat-label"><span aria-hidden="true">{{ sidebar_icon('layers', 'ui-icon--xs') }}</span>聊天深度</span>
+                          <strong x-text="activeContextItem?.payload?.injection_position === 1 ? (activeContextItem?.payload?.injection_depth ?? 4) : '相对位置'"></strong>
                         </div>
                       </div>
                       <div
@@ -1124,12 +1346,14 @@
 
                   <template x-if="activeContextItem?.type === 'extension'">
                     <div
-                      class="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-container)] p-4 space-y-3"
+                      class="preset-reader-extension-detail rounded-2xl border border-[var(--border-default)] bg-[var(--surface-container)] p-4 space-y-3"
                     >
-                      <div
-                        class="text-xs uppercase tracking-wide text-[var(--content-muted)]"
-                      >
-                        扩展信息
+                      <div class="preset-reader-detail-section-heading">
+                        <div>
+                          <div class="preset-reader-detail-kicker"><span aria-hidden="true">{{ detail_icon('toolbox', 'ui-icon--xs') }}</span>扩展信息</div>
+                          <strong>保持 ST 运行时兼容</strong>
+                        </div>
+                        <span class="preset-reader-extension-total" x-text="`${extensionOverview.total_count} 项`"></span>
                       </div>
                       <div class="text-sm text-[var(--content-primary)]">
                         扩展键名：<span
@@ -1137,6 +1361,33 @@
                           x-text="activeContextItem?.payload?.key || activeContextItem?.title"
                         ></span>
                       </div>
+                      <div class="preset-reader-extension-summary-grid">
+                        <template x-for="card in extensionMetricCards" :key="card.id">
+                          <div class="preset-reader-extension-summary-card">
+                            <span class="preset-reader-extension-summary-icon" aria-hidden="true">
+                              <template x-if="card.id === 'regex'">{{ detail_icon('regex', 'ui-icon--sm') }}</template>
+                              <template x-if="card.id === 'scripts'">{{ detail_icon('script-file', 'ui-icon--sm') }}</template>
+                              <template x-if="card.id === 'other'">{{ icon('package', 'ui-icon--sm') }}</template>
+                            </span>
+                            <span class="preset-reader-extension-summary-copy">
+                              <span x-text="card.label"></span>
+                              <strong x-text="card.value"></strong>
+                            </span>
+                          </div>
+                        </template>
+                      </div>
+                      <div class="preset-reader-extension-note">
+                        正则脚本与 ST 脚本由同一个扩展编辑器维护，保存后会回读当前预设。
+                      </div>
+                      <button
+                        type="button"
+                        class="preset-reader-extension-action"
+                        @click="openAdvancedExtensions()"
+                        title="编辑当前预设的正则脚本与 ST 脚本"
+                      >
+                        <span aria-hidden="true">{{ icon('pencil-edit', 'ui-icon--sm') }}</span>
+                        打开扩展编辑器
+                      </button>
                     </div>
                   </template>
 
@@ -1186,10 +1437,16 @@
                         <button
                           @click="copyText(getItemFullDetail(activeContextItem), '条目内容')"
                           class="btn-secondary px-2 py-1 text-xs"
+                          title="复制当前条目内容"
                         >
+                          <span aria-hidden="true">{{ icon('clipboard', 'ui-icon--xs') }}</span>
                           复制
                         </button>
                       </div>
+                      <div
+                        class="preset-reader-detail-preview"
+                        x-text="getItemValuePreview(activeContextItem)"
+                      ></div>
                       <pre
                         class="text-xs whitespace-pre-wrap break-words text-[var(--content-primary)] font-mono max-h-[28rem] overflow-auto custom-scrollbar"
                         x-text="getItemFullDetail(activeContextItem)"
