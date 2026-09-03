@@ -3,6 +3,8 @@
  * 角色卡相关 API 接口
  */
 
+import { downloadFileFromApi } from '../utils/download.js';
+
 // 获取角色卡列表
 export async function listCards(params) {
     // params: { page, page_size, category, tags, search, search_type, sort, recursive }
@@ -33,6 +35,17 @@ export async function getCardMetadata(id) {
         body: JSON.stringify({ id })
     });
     return res.json();
+}
+
+// 导出角色卡为 JSON（PNG 内嵌数据和 JSON 卡片均由后端解析）
+export async function exportCardJson(id, options = {}) {
+    return downloadFileFromApi({
+        url: '/api/cards/export',
+        body: { id },
+        defaultFilename: options.defaultFilename || 'character-card.json',
+        showToast: options.showToast,
+        successMessage: options.successMessage,
+    });
 }
 
 // 获取角色卡详情 (包含 UI 数据)

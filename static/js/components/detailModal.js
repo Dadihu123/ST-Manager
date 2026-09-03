@@ -11,6 +11,7 @@ import {
     updateCardFileFromUrl, 
     changeCardImage,
     getCardMetadata,
+    exportCardJson,
     sendToSillyTavern,
     acknowledgeCardSourceUpdate,
     checkCardSourceUpdate,
@@ -75,6 +76,8 @@ export default function detailModal() {
         dialogPage: 'greeting',
         selectedGreetingKind: 'default',
         showGreetingPreview: true,
+        showGreetingListModal: false,
+        greetingListSearch: '',
         showLocalNotePreview: false,
         basicColumnSplit: BASIC_SPLIT_DEFAULT,
         basicSplitResizeState: null,
@@ -551,6 +554,45 @@ export default function detailModal() {
             return '默认开场白';
         },
 
+        get greetingListItems() {
+            const items = [];
+            if (this.isEditMode || this.hasDefaultGreeting) {
+                items.push({
+                    kind: 'default',
+                    index: -1,
+                    position: 0,
+                    title: '默认开场白',
+                    value: this.editingData?.first_mes || '',
+                });
+            }
+
+            this.displayedAlternateGreetingItems.forEach((item) => {
+                items.push({
+                    kind: 'alternate',
+                    index: item.index,
+                    position: item.position,
+                    title: '备用开场白 #' + item.position,
+                    value: item.value,
+                });
+            });
+            return items;
+        },
+
+        get filteredGreetingListItems() {
+            const query = String(this.greetingListSearch || '').trim().toLocaleLowerCase();
+            if (!query) return this.greetingListItems;
+
+            return this.greetingListItems.filter((item) => {
+                const searchable = `${item.title} ${item.value || ''}`.toLocaleLowerCase();
+                return searchable.includes(query);
+            });
+        },
+
+        isGreetingListItemSelected(item) {
+            return this.selectedGreetingKind === item?.kind
+                && (item?.kind === 'default' || this.altIdx === item?.index);
+        },
+
         get canRemoveSelectedAlternate() {
             const greetings = Array.isArray(this.editingData?.alternate_greetings)
                 ? this.editingData.alternate_greetings
@@ -743,6 +785,23 @@ export default function detailModal() {
             return text.length > 56 ? `${text.slice(0, 56)}...` : text;
         },
 
+        openGreetingList() {
+            if (this.greetingListItems.length === 0) return;
+            this.greetingListSearch = '';
+            this.showGreetingListModal = true;
+        },
+
+        closeGreetingList() {
+            this.showGreetingListModal = false;
+            this.greetingListSearch = '';
+        },
+
+        selectGreetingFromList(item) {
+            if (!item) return;
+            this.selectGreeting(item.kind, item.index);
+            this.closeGreetingList();
+        },
+
         openSelectedGreetingEditor() {
             if (this.selectedGreetingKind === 'alternate') {
                 this.openLargeEditor(
@@ -754,6 +813,28 @@ export default function detailModal() {
                 return;
             }
             this.openLargeEditor('first_mes', '默认开场白');
+        },
+
+        async exportCurrentCardJson() {
+            const cardId = this.editingData?.id || this.activeCard?.id;
+            if (!cardId) return;
+
+            const cardName = this.editingData?.char_name
+                || this.activeCard?.char_name
+                || 'character-card';
+            const safeName = String(cardName)
+                .replace(/[\\/:*?"<>|]/g, '_')
+                .trim() || 'character-card';
+
+            try {
+                await exportCardJson(cardId, {
+                    defaultFilename: `${safeName}.json`,
+                    showToast: (...args) => this.$store?.global?.showToast?.(...args),
+                    successMessage: '角色卡 JSON 已导出',
+                });
+            } catch (error) {
+                this.$store?.global?.showToast?.(error?.message || '导出角色卡失败', 2600, 'close');
+            }
         },
 
         addAlt() {
@@ -1177,6 +1258,10 @@ export default function detailModal() {
                 this.showSetResourceFolderModal = false;
                 return false;
             }
+            if (this.showGreetingListModal) {
+                this.closeGreetingList();
+                return false;
+            }
             if (this.mobileNavOpen && event?.type === 'keydown') {
                 this.mobileNavOpen = false;
                 return false;
@@ -1421,6 +1506,8 @@ export default function detailModal() {
                     this.mixedCategoryView = true;
                     this.detailCategoryFilterInclude = [];
                     this.detailCategoryFilterExclude = [];
+                    this.showGreetingListModal = false;
+                    this.greetingListSearch = '';
                 }
             });
 

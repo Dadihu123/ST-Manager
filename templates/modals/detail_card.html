@@ -1657,11 +1657,24 @@
               >
                 <div class="detail-card-head detail-greeting-selector-head">
                   <div class="detail-card-title">开场白选择</div>
-                  <span
-                    class="detail-greeting-selector-count"
-                    x-show="hasAlternateGreetings"
-                    x-text="'备用 ' + displayedAlternateGreetingItems.filter(item => hasTextValue(item.value)).length + ' 条'"
-                  ></span>
+                  <div class="detail-greeting-selector-actions">
+                    <span
+                      class="detail-greeting-selector-count"
+                      x-show="hasAlternateGreetings"
+                      x-text="'备用 ' + displayedAlternateGreetingItems.filter(item => hasTextValue(item.value)).length + ' 条'"
+                    ></span>
+                    <button
+                      type="button"
+                      class="detail-greeting-list-trigger"
+                      @click="openGreetingList()"
+                      :aria-expanded="showGreetingListModal.toString()"
+                      aria-controls="detail-greeting-list-dialog"
+                      aria-label="展开开场白列表"
+                      title="展开开场白列表"
+                    >
+                      {{ icon('list', 'ui-icon--sm') }}
+                    </button>
+                  </div>
                 </div>
 
                 <div class="detail-greeting-selector-body">
@@ -2773,6 +2786,14 @@
                           {{ sidebar_icon('folder-open', 'ui-icon--lg') }}
                           <span>打开所在文件夹</span>
                         </button>
+                        <button
+                          @click="exportCurrentCardJson()"
+                          class="toolbox-btn detail-manage-tool-btn"
+                          title="导出当前角色卡 JSON"
+                        >
+                          {{ icon('file-code', 'ui-icon--lg') }}
+                          <span>导出 JSON</span>
+                        </button>
                       </div>
                     </section>
 
@@ -3711,6 +3732,86 @@
 
       </section>
     </div>
+  </div>
+  <div
+    x-show="showGreetingListModal"
+    x-cloak
+    class="detail-greeting-list-overlay"
+    data-detail-nested-overlay
+    @click.self="closeGreetingList()"
+    @keydown.escape.window.prevent="closeGreetingList()"
+  >
+    <section
+      id="detail-greeting-list-dialog"
+      class="detail-greeting-list-dialog"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="detail-greeting-list-title"
+      @click.stop
+    >
+      <header class="detail-greeting-list-head">
+        <div class="detail-greeting-list-heading">
+          <span class="detail-greeting-list-kicker">GREETING LIST</span>
+          <h2 id="detail-greeting-list-title">开场白列表</h2>
+          <span
+            class="detail-greeting-list-count"
+            aria-live="polite"
+            x-text="filteredGreetingListItems.length + ' / ' + greetingListItems.length"
+          ></span>
+        </div>
+        <button
+          type="button"
+          class="detail-greeting-list-close"
+          @click="closeGreetingList()"
+          aria-label="关闭开场白列表"
+          title="关闭"
+        >{{ icon('close', 'ui-icon--sm') }}</button>
+      </header>
+
+      <div class="detail-greeting-list-toolbar">
+        <label for="detail-greeting-list-search">搜索开场白</label>
+        <div class="detail-greeting-list-search-wrap">
+          {{ icon('book-search', 'ui-icon--sm') }}
+          <input
+            id="detail-greeting-list-search"
+            x-ref="greetingListSearch"
+            type="search"
+            x-model="greetingListSearch"
+            placeholder="搜索开场白内容..."
+            autocomplete="off"
+          >
+        </div>
+      </div>
+
+      <div class="detail-greeting-list-body custom-scrollbar" role="list" aria-label="开场白列表">
+        <template x-for="item in filteredGreetingListItems" :key="item.kind + ':' + item.index">
+          <button
+            type="button"
+            class="detail-greeting-list-item"
+            :class="isGreetingListItemSelected(item) ? 'is-selected' : ''"
+            :aria-pressed="isGreetingListItemSelected(item).toString()"
+            @click="selectGreetingFromList(item)"
+          >
+            <span class="detail-greeting-list-item-head">
+              <span class="detail-greeting-list-item-title" x-text="item.title"></span>
+              <span
+                class="detail-greeting-list-item-selected"
+                x-show="isGreetingListItemSelected(item)"
+              >当前预览</span>
+            </span>
+            <span
+              class="detail-greeting-list-item-excerpt"
+              x-text="getGreetingExcerpt(item.value)"
+            ></span>
+          </button>
+        </template>
+        <div
+          class="detail-greeting-list-empty"
+          x-show="filteredGreetingListItems.length === 0"
+          role="status"
+        >没有匹配的开场白</div>
+      </div>
+    </section>
   </div>
   <div
     x-show="personaPreviewField"

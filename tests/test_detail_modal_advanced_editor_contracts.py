@@ -28,6 +28,9 @@ def run_detail_modal_runtime_check(script_body):
         const updateCardFileFromUrl = async () => ({{ success: true }});
         const changeCardImage = async () => ({{ success: true }});
         const getCardMetadata = async () => ({{ success: true }});
+        const exportCardJson = async (...args) => globalThis.__exportCardJson
+          ? globalThis.__exportCardJson(...args)
+          : true;
         const sendToSillyTavern = async () => ({{ success: true }});
         const apiSetAsBundleCover = async () => ({{ success: true }});
         const apiConvertToBundle = async () => ({{ success: true }});
@@ -1047,3 +1050,106 @@ def test_detail_modal_runtime_open_detail_cleans_old_pending_advanced_editor_lis
         }
       """
     )
+
+
+def test_detail_modal_runtime_greeting_list_filters_previews_and_selects_items():
+    run_detail_modal_runtime_check(
+        """
+        modal.isEditMode = false;
+        modal.editingData = {
+          first_mes: '默认开场白',
+          alternate_greetings: [
+            '这是第一条备用开场白，内容较长，用于验证列表摘要。',
+            '第二条备用开场白',
+            '第三条备用开场白',
+          ],
+        };
+        modal.selectedGreetingKind = 'alternate';
+        modal.altIdx = 0;
+        let greetingSearchFocusCount = 0;
+        modal.$nextTick = (callback) => callback();
+        modal.$refs = {
+          greetingListSearch: {
+            focus() {
+              greetingSearchFocusCount += 1;
+            },
+          },
+        };
+
+        modal.openGreetingList();
+        if (!modal.showGreetingListModal || modal.greetingListItems.length !== 4 || greetingSearchFocusCount !== 0) {
+          throw new Error('expected the greeting list to open with default and alternate items');
+        }
+        if (modal.greetingListItems[1].title !== '备用开场白 #1' ||
+            modal.getGreetingExcerpt(modal.greetingListItems[1].value).length > 59) {
+          throw new Error('expected alternate items to expose numbered excerpt data');
+        }
+
+        modal.greetingListSearch = '第二条';
+        if (modal.filteredGreetingListItems.length !== 1 ||
+            modal.filteredGreetingListItems[0].index !== 1) {
+          throw new Error('expected greeting search to filter by content');
+        }
+
+        modal.selectGreetingFromList(modal.filteredGreetingListItems[0]);
+        if (modal.showGreetingListModal || modal.selectedGreetingKind !== 'alternate' || modal.altIdx !== 1) {
+          throw new Error('expected selecting a list item to update the preview and close the list');
+        }
+        """
+    )
+
+
+def test_detail_modal_runtime_export_uses_selected_bundle_version_and_safe_filename():
+    run_detail_modal_runtime_check(
+        """
+        const calls = [];
+        globalThis.__exportCardJson = async (...args) => {
+          calls.push(args);
+          return true;
+        };
+        modal.$store = { global: { showToast() {} } };
+        modal.activeCard = {
+          id: 'pack/cover.png',
+          char_name: 'Bundle cover',
+        };
+        modal.editingData = {
+          id: 'pack/version-2.png',
+          char_name: 'Hero / Version: 2',
+        };
+
+        await modal.exportCurrentCardJson();
+
+        if (calls.length !== 1 || calls[0][0] !== 'pack/version-2.png') {
+          throw new Error('expected export to target the selected bundle version');
+        }
+        if (calls[0][1].defaultFilename !== 'Hero _ Version_ 2.json') {
+          throw new Error(`expected a safe export filename, got ${calls[0][1].defaultFilename}`);
+        }
+        """
+    )
+
+
+def test_detail_greeting_list_and_card_export_template_contracts():
+    template = (PROJECT_ROOT / 'templates/modals/detail_card.html').read_text(encoding='utf-8')
+    stylesheet = (PROJECT_ROOT / 'static/css/modules/detail-card-workbench.css').read_text(
+        encoding='utf-8'
+    )
+    management_tab = template.split('<!-- TAB: 管理 -->', 1)[1]
+    topbar = template.split('<!-- 二级：资源目录条', 1)[0]
+    greeting_search = template.split('class="detail-greeting-list-search-wrap"', 1)[1].split(
+        '</div>', 1
+    )[0]
+
+    assert '@click="openGreetingList()"' in template
+    assert 'detail-greeting-list-dialog' in template
+    assert 'x-model="greetingListSearch"' in template
+    assert 'x-text="getGreetingExcerpt(item.value)"' in template
+    assert '@click="selectGreetingFromList(item)"' in template
+    assert '@click="exportCurrentCardJson()"' in management_tab
+    assert '@click="exportCurrentCardJson()"' not in topbar
+    assert 'icon(\'file-code\', \'ui-icon--lg\')' in management_tab
+    assert "icon('book-search', 'ui-icon--sm')" in greeting_search
+    assert '.detail-greeting-list-trigger' in stylesheet
+    assert 'flex: 0 0 2.75rem;' in stylesheet
+    assert 'grid-template-columns: repeat(3, minmax(0, 1fr));' not in stylesheet
+    assert 'grid-template-columns: minmax(0, 1fr);' in stylesheet

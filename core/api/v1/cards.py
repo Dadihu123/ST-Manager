@@ -10,9 +10,10 @@ import sqlite3
 import logging
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict
+from io import BytesIO
 from urllib.parse import quote, unquote, urlparse
 from PIL import Image
-from flask import Blueprint, request, jsonify, send_from_directory 
+from flask import Blueprint, request, jsonify, send_file, send_from_directory
 
 # === 基础设施 ===
 from core.config import CARDS_FOLDER, DATA_DIR, BASE_DIR, THUMB_FOLDER, TRASH_FOLDER, DEFAULT_DB_PATH, TEMP_DIR, load_config, current_config
@@ -3569,6 +3570,57 @@ def api_convert_to_bundle():
     except Exception as e:
         logger.error(f"Convert bundle error: {e}")
         return jsonify({"success": False, "msg": str(e)})
+
+@bp.route('/api/cards/export', methods=['POST'])
+def api_export_card_json():
+    """Export a card's embedded or JSON metadata as a downloadable JSON file."""
+    try:
+        payload = request.get_json(silent=True) or {}
+        raw_card_id = payload.get('id') if isinstance(payload, dict) else None
+        card_id = str(raw_card_id or '').strip().replace('\\', '/')
+
+        if not card_id or not _is_safe_rel_path(card_id) or not is_card_file(card_id):
+            return jsonify({'success': False, 'msg': '非法角色卡路径'}), 400
+
+        cards_root = os.path.realpath(CARDS_FOLDER)
+        full_path = os.path.realpath(os.path.join(CARDS_FOLDER, card_id.replace('/', os.sep)))
+        try:
+            inside_cards_root = (
+                os.path.normcase(os.path.commonpath((cards_root, full_path)))
+                == os.path.normcase(cards_root)
+            )
+        except ValueError:
+            inside_cards_root = False
+        if not inside_cards_root:
+            return jsonify({'success': False, 'msg': '非法角色卡路径'}), 400
+        if not os.path.isfile(full_path):
+            return jsonify({'success': False, 'msg': '角色卡文件不存在'}), 404
+
+        card_data = extract_card_info(full_path)
+        if not isinstance(card_data, dict):
+            return jsonify({'success': False, 'msg': '角色卡元数据无法解析'}), 422
+
+        filename_base = os.path.splitext(os.path.basename(card_id))[0]
+        safe_filename = sanitize_filename(filename_base)
+        if not filename_base.strip():
+            safe_filename = 'character-card'
+
+        json_bytes = json.dumps(card_data, ensure_ascii=False, indent=2).encode('utf-8')
+        download = BytesIO(json_bytes)
+        download.seek(0)
+        return send_file(
+            download,
+            mimetype='application/json; charset=utf-8',
+            as_attachment=True,
+            download_name=f'{safe_filename}.json',
+        )
+    except (OSError, TypeError, ValueError) as exc:
+        logger.error('Export card failed: %s', exc)
+        return jsonify({'success': False, 'msg': '角色卡导出失败'}), 500
+    except Exception as exc:
+        logger.error('Unexpected card export failure: %s', exc)
+        return jsonify({'success': False, 'msg': '角色卡导出失败'}), 500
+
 
 @bp.route('/api/get_raw_metadata', methods=['POST'])
 def api_get_raw_metadata():

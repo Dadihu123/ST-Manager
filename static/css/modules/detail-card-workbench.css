@@ -3698,3 +3698,303 @@ html.light-mode .ui-detail-modal .detail-modal--workbench .detail-thumb-label {
     transition: none;
   }
 }
+
+/* Expandable greeting list for cards with many alternate openers. */
+.ui-detail-modal .detail-greeting-selector-head {
+  align-items: center;
+  display: flex;
+  gap: 0.75rem;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.ui-detail-modal .detail-greeting-selector-head > .detail-card-title {
+  min-width: 0;
+}
+
+.ui-detail-modal .detail-greeting-selector-actions {
+  align-items: center;
+  display: flex;
+  flex: 0 0 auto;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.ui-detail-modal .detail-greeting-list-trigger {
+  align-items: center;
+  appearance: none;
+  background: var(--action-surface);
+  border: 1px solid var(--action-border);
+  border-radius: var(--ui-radius-sm, 0.55rem);
+  color: var(--action-text);
+  cursor: pointer;
+  display: inline-flex;
+  flex: 0 0 2.75rem;
+  height: 2.75rem;
+  justify-content: center;
+  min-height: 2.75rem;
+  min-width: 2.75rem;
+  padding: 0;
+  touch-action: manipulation;
+  transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease;
+  width: 2.75rem;
+}
+
+.ui-detail-modal .detail-greeting-list-trigger:hover {
+  background: var(--state-hover-surface);
+  border-color: var(--accent-action);
+  color: var(--content-primary);
+}
+
+.ui-detail-modal .detail-greeting-list-trigger:focus-visible,
+.ui-detail-modal .detail-greeting-list-close:focus-visible,
+.ui-detail-modal .detail-greeting-list-item:focus-visible,
+.ui-detail-modal .detail-greeting-list-search-wrap input:focus-visible {
+  outline: 2px solid var(--state-focus-ring);
+  outline-offset: 2px;
+}
+
+.ui-detail-modal .detail-greeting-list-overlay {
+  align-items: center;
+  background: var(--surface-scrim);
+  backdrop-filter: blur(0.35rem);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right))
+    max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
+  position: fixed;
+  z-index: calc(var(--z-modal-popover, 100) + 2);
+}
+
+.ui-detail-modal .detail-greeting-list-dialog {
+  background: var(--surface-container);
+  border: 1px solid var(--border-default);
+  border-radius: var(--ui-radius-lg, 1rem);
+  box-shadow: var(--shadow-xl, 0 1.5rem 4rem var(--surface-scrim));
+  box-sizing: border-box;
+  color: var(--content-primary);
+  display: flex;
+  flex-direction: column;
+  height: min(42rem, calc(100dvh - 2rem));
+  max-height: calc(100dvh - 2rem);
+  overflow: hidden;
+  width: min(46rem, calc(100vw - 2rem));
+}
+
+.ui-detail-modal .detail-greeting-list-head {
+  align-items: flex-start;
+  background: var(--surface-container-raised);
+  border-bottom: 1px solid var(--border-divider);
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  padding: 1rem 1.15rem 0.9rem;
+}
+
+.ui-detail-modal .detail-greeting-list-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.ui-detail-modal .detail-greeting-list-kicker {
+  color: var(--content-muted);
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+
+.ui-detail-modal .detail-greeting-list-heading h2 {
+  color: var(--content-primary);
+  font-size: 1.05rem;
+  font-weight: 850;
+  line-height: 1.25;
+  margin: 0;
+}
+
+.ui-detail-modal .detail-greeting-list-count {
+  color: var(--content-muted);
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.ui-detail-modal .detail-greeting-list-close {
+  align-items: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--ui-radius-sm, 0.55rem);
+  color: var(--content-secondary);
+  cursor: pointer;
+  display: inline-flex;
+  flex: 0 0 2.75rem;
+  height: 2.75rem;
+  justify-content: center;
+  min-height: 2.75rem;
+  min-width: 2.75rem;
+  padding: 0;
+  touch-action: manipulation;
+  width: 2.75rem;
+}
+
+.ui-detail-modal .detail-greeting-list-close:hover {
+  background: var(--state-hover-surface);
+  border-color: var(--border-default);
+  color: var(--content-primary);
+}
+
+.ui-detail-modal .detail-greeting-list-toolbar {
+  border-bottom: 1px solid var(--border-divider);
+  padding: 0.85rem 1.15rem;
+}
+
+.ui-detail-modal .detail-greeting-list-toolbar > label {
+  color: var(--content-secondary);
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 750;
+  margin-bottom: 0.35rem;
+}
+
+.ui-detail-modal .detail-greeting-list-search-wrap {
+  position: relative;
+}
+
+.ui-detail-modal .detail-greeting-list-search-wrap > .ui-icon {
+  color: var(--content-muted);
+  left: 0.8rem;
+  pointer-events: none;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.ui-detail-modal .detail-greeting-list-search-wrap input {
+  background: var(--form-surface, var(--surface-container-sunken));
+  border: 1px solid var(--form-border, var(--border-default));
+  border-radius: var(--ui-radius-sm, 0.55rem);
+  box-sizing: border-box;
+  color: var(--content-primary);
+  min-height: 2.75rem;
+  padding: 0.65rem 0.8rem 0.65rem 2.5rem;
+  width: 100%;
+}
+
+.ui-detail-modal .detail-greeting-list-search-wrap input::placeholder {
+  color: var(--content-muted);
+}
+
+.ui-detail-modal .detail-greeting-list-body {
+  align-content: start;
+  display: grid;
+  flex: 1 1 auto;
+  gap: 0.6rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 1rem 1.15rem 1.15rem;
+}
+
+.ui-detail-modal .detail-greeting-list-item {
+  align-items: stretch;
+  appearance: none;
+  background: var(--surface-container-raised);
+  border: 1px solid var(--border-default);
+  border-radius: var(--ui-radius-sm, 0.55rem);
+  color: var(--content-primary);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  min-height: 5.25rem;
+  padding: 0.75rem;
+  text-align: left;
+  touch-action: manipulation;
+  transition: background-color 160ms ease, border-color 160ms ease;
+  width: 100%;
+}
+
+.ui-detail-modal .detail-greeting-list-item:hover {
+  background: var(--state-hover-surface);
+  border-color: var(--action-border);
+}
+
+.ui-detail-modal .detail-greeting-list-item.is-selected {
+  background: var(--action-surface);
+  border-color: var(--action-border);
+  box-shadow: inset 3px 0 0 var(--accent-action);
+}
+
+.ui-detail-modal .detail-greeting-list-item-head {
+  align-items: center;
+  display: flex;
+  gap: 0.5rem;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.ui-detail-modal .detail-greeting-list-item-title {
+  color: var(--content-primary);
+  font-size: 0.75rem;
+  font-weight: 800;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ui-detail-modal .detail-greeting-list-item-selected {
+  color: var(--action-text);
+  flex: 0 0 auto;
+  font-size: 0.62rem;
+  font-weight: 800;
+}
+
+.ui-detail-modal .detail-greeting-list-item-excerpt {
+  color: var(--content-secondary);
+  display: -webkit-box;
+  font-size: 0.7rem;
+  line-height: 1.45;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.ui-detail-modal .detail-greeting-list-empty {
+  color: var(--content-muted);
+  font-size: 0.8rem;
+  grid-column: 1 / -1;
+  padding: 2rem 1rem;
+  text-align: center;
+}
+
+@media (max-width: 56.25rem) {
+  .ui-detail-modal .detail-greeting-list-overlay {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .ui-detail-modal .detail-greeting-list-dialog {
+    border-bottom: 0;
+    border-radius: var(--ui-radius-lg, 1rem) var(--ui-radius-lg, 1rem) 0 0;
+    height: min(80dvh, 48rem);
+    max-height: calc(100dvh - env(safe-area-inset-top));
+    padding-bottom: env(safe-area-inset-bottom);
+    width: 100%;
+  }
+
+  .ui-detail-modal .detail-greeting-list-body {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 0.75rem 0.75rem 1rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-detail-modal .detail-greeting-list-trigger,
+  .ui-detail-modal .detail-greeting-list-item {
+    transition: none;
+  }
+}
