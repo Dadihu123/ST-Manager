@@ -1,1191 +1,625 @@
 {% from "components/icon.html" import icon, sidebar_icon, detail_icon %}
+{% from "components/icon.html" import loading_icon %}
 {% from "components/styled_select.html" import styled_select %}
 
-<!-- 自动化规则管理器 -->
-<div x-show="showAutomationModal" x-data="automationModal" x-cloak class="modal-overlay ui-modal-overlay ui-refresh-surface z-modal-std"
-    @click.self="closeModal()">
-    <div class="modal-container ui-modal-shell automation-container" role="dialog" aria-modal="true"
-        aria-labelledby="automation-modal-title">
+<!-- 自动化规则工作台 -->
+<div
+  x-show="showAutomationModal"
+  x-data="automationModal"
+  x-cloak
+  class="modal-overlay ui-modal-overlay ui-refresh-surface automation-modal-overlay z-modal-std"
+  role="presentation"
+  @click.self="closeModal()"
+  @keydown.escape.window="handleEscape($event)"
+  @keydown.ctrl.s.window.prevent="saveCurrentRuleSet()"
+  @keydown.meta.s.window.prevent="saveCurrentRuleSet()"
+>
+  <div
+    x-ref="dialog"
+    class="modal-container ui-modal-shell automation-container"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="automation-modal-title"
+    aria-describedby="automation-modal-description"
+    tabindex="-1"
+    @click.stop
+  >
+    <!-- 移动端规则集抽屉 -->
+    <div
+      x-show="$store.global.deviceType === 'mobile' && showMobileSidebar"
+      x-cloak
+      class="automation-drawer-scrim"
+      @click="showMobileSidebar = false"
+      aria-hidden="true"
+    ></div>
 
-        <!-- 移动端：侧边栏切换按钮 -->
-        <button x-show="$store.global.deviceType === 'mobile' && !showMobileSidebar" 
-            @click="showMobileSidebar = true"
-            class="fixed bottom-16 left-2 z-50 w-10 h-10 bg-[var(--surface-container)] border border-[var(--border-default)] rounded-lg flex items-center justify-center text-[var(--content-primary)] shadow-lg md:hidden"
-            title="打开规则集列表" aria-label="打开规则集列表">
-            <span aria-hidden="true">{{ icon('list', 'ui-icon--sm') }}</span>
+    <aside
+      class="automation-sidebar custom-scrollbar"
+      :class="{
+        'is-mobile-open': $store.global.deviceType === 'mobile' && showMobileSidebar,
+        'is-mobile-closed': $store.global.deviceType === 'mobile' && !showMobileSidebar
+      }"
+      aria-label="规则集导航"
+    >
+      <div class="automation-sidebar-head">
+        <div class="automation-sidebar-brand">
+          <span class="automation-brand-mark" aria-hidden="true">{{ icon('workflow', 'ui-icon--md') }}</span>
+          <div class="automation-sidebar-copy">
+            <span class="automation-sidebar-kicker">ST MANAGER / AUTOMATION</span>
+            <strong id="automation-modal-title">规则集工作台</strong>
+            <span>按场景编排卡片处理流程</span>
+          </div>
+        </div>
+        <button
+          type="button"
+          class="automation-icon-button automation-mobile-only"
+          @click="showMobileSidebar = false"
+          title="关闭规则集列表"
+          aria-label="关闭规则集列表"
+        >
+          {{ icon('close', 'ui-icon--md') }}
         </button>
+      </div>
 
-        <!-- 移动端：侧边栏遮罩 -->
-        <div x-show="$store.global.deviceType === 'mobile' && showMobileSidebar"
-            @click="showMobileSidebar = false"
-            class="fixed inset-0 color-surface-scrim z-40"
-            x-transition:enter="transition ease-out duration-300"
-            x-transition:enter-start="opacity-0"
-            x-transition:enter-end="opacity-100"
-            x-transition:leave="transition ease-in duration-200"
-            x-transition:leave-start="opacity-100"
-            x-transition:leave-end="opacity-0"></div>
+      <div class="automation-library">
+        <div class="automation-library-heading">
+          <div>
+            <span class="automation-overline">LIBRARY</span>
+            <div class="automation-library-title">
+              <h2>规则集</h2>
+              <span class="automation-count-badge" x-text="ruleSets.length"></span>
+            </div>
+          </div>
+          <button
+            type="button"
+            class="automation-icon-button"
+            @click="loadList()"
+            :disabled="isLoadingList"
+            title="刷新规则集列表"
+            aria-label="刷新规则集列表"
+          >
+            <template x-if="isLoadingList">{{ loading_icon('ui-icon--sm') }}</template>
+            <template x-if="!isLoadingList">{{ icon('refresh', 'ui-icon--sm') }}</template>
+          </button>
+        </div>
 
-        <!-- 左侧：规则集列表 -->
-        <aside class="automation-sidebar custom-scrollbar"
+        <label class="automation-search" for="automation-ruleset-search">
+          <span aria-hidden="true">{{ icon('search', 'ui-icon--sm') }}</span>
+          <span class="sr-only">搜索规则集</span>
+          <input
+            id="automation-ruleset-search"
+            type="search"
+            x-model.debounce.120ms="rulesetQuery"
+            autocomplete="off"
+            placeholder="搜索名称、作者或描述"
+            @keydown.escape.stop="rulesetQuery = ''"
+          >
+          <button
+            type="button"
+            x-show="rulesetQuery"
+            x-cloak
+            class="automation-search-clear"
+            @click="rulesetQuery = ''"
+            title="清除搜索"
+            aria-label="清除规则集搜索"
+          >
+            {{ icon('close-small', 'ui-icon--xs') }}
+          </button>
+        </label>
+
+        <div class="automation-library-actions" role="group" aria-label="规则集文件操作">
+          <button
+            type="button"
+            class="btn-secondary automation-action-button automation-action-button--wide"
+            @click="$refs.importInput.click()"
+            :disabled="isImporting"
+          >
+            <template x-if="isImporting">{{ loading_icon('ui-icon--sm') }}</template>
+            <template x-if="!isImporting">{{ icon('file-import', 'ui-icon--sm') }}</template>
+            <span x-text="isImporting ? '导入中' : '导入 JSON'"></span>
+          </button>
+          <button
+            type="button"
+            class="btn-primary automation-action-button automation-action-button--wide"
+            @click="openCreateModal()"
+          >
+            {{ icon('plus-square', 'ui-icon--sm') }}
+            <span>新建</span>
+          </button>
+        </div>
+        <input
+          type="file"
+          x-ref="importInput"
+          class="sr-only"
+          accept=".json,application/json"
+          @change="handleImportRuleSet"
+        >
+      </div>
+
+      <div class="automation-global-card" :class="{ 'is-active': globalRulesetId }">
+        <div class="automation-global-card-head">
+          <span class="automation-status-icon automation-status-icon--warning" aria-hidden="true">{{ icon('workflow', 'ui-icon--sm') }}</span>
+          <div>
+            <strong>全局自动规则</strong>
+            <span>导入、更新与手动流程会按触发器执行</span>
+            <span>按规则触发时机和动作类型在不同场景执行</span>
+          </div>
+          <span
+            class="automation-status-dot"
+            :class="globalRulesetId ? 'is-on' : 'is-off'"
+            aria-hidden="true"
+          ></span>
+        </div>
+        <div class="automation-global-card-value">
+          <span x-show="globalRulesetId" x-text="globalRulesetName || '当前规则集'"></span>
+          <span x-show="globalRulesetId" class="automation-global-status-copy">当前状态：全局默认规则</span>
+          <span x-show="!globalRulesetId" class="is-muted">未启用</span>
+          <button
+            type="button"
+            class="automation-text-button"
+            x-show="globalRulesetId"
+            @click="toggleGlobalActive(globalRulesetId)"
+            :disabled="isSettingGlobal"
+          >
+            关闭
+          </button>
+        </div>
+        <div x-show="globalError" x-cloak class="automation-global-error" role="alert">
+          <span aria-hidden="true">{{ icon('alert-triangle', 'ui-icon--xs') }}</span>
+          <span x-text="globalError"></span>
+        </div>
+      </div>
+
+      <div class="automation-library-list custom-scrollbar">
+        <div class="automation-list-heading">
+          <span>已保存规则集</span>
+          <span x-show="rulesetQuery" x-text="filteredRuleSets.length + ' 个匹配'"></span>
+        </div>
+
+        <div x-show="isLoadingList" x-cloak class="automation-list-state automation-list-state--loading" role="status" aria-live="polite">
+          <span class="automation-skeleton automation-skeleton--title"></span>
+          <span class="automation-skeleton"></span>
+          <span class="automation-skeleton"></span>
+          <span class="automation-skeleton"></span>
+        </div>
+
+        <div
+          x-show="loadError && !isLoadingList"
+          x-cloak
+          class="automation-list-state automation-list-state--error"
+          role="alert"
+        >
+          <span class="automation-status-icon automation-status-icon--danger" aria-hidden="true">{{ icon('alert-triangle', 'ui-icon--sm') }}</span>
+          <strong>规则集列表加载失败</strong>
+          <span x-text="loadError"></span>
+          <button type="button" class="btn-secondary automation-action-button" @click="loadList()">重试</button>
+        </div>
+
+        <template x-for="rs in filteredRuleSets" :key="rs.id">
+          <div
+            class="ruleset-item"
             :class="{
-                'hidden md:flex': $store.global.deviceType !== 'mobile',
-                'fixed top-0 left-0 bottom-0 z-50 w-[280px] max-w-[85vw] shadow-2xl flex': $store.global.deviceType === 'mobile' && showMobileSidebar,
-                'hidden': $store.global.deviceType === 'mobile' && !showMobileSidebar
+              'active': activeRuleSet?.id === rs.id,
+              'is-global': globalRulesetId === rs.id,
+              'is-loading': loadingRuleSetId === rs.id
             }"
-            x-transition:enter="transition ease-out duration-300"
-            x-transition:enter-start="transform -translate-x-full"
-            x-transition:enter-end="transform translate-x-0"
-            x-transition:leave="transition ease-in duration-200"
-            x-transition:leave-start="transform translate-x-0"
-            x-transition:leave-end="transform -translate-x-full">
-            <!-- 头部保持不变 -->
-            <div
-                class="p-3 border-b border-[var(--border-default)] flex justify-between items-center bg-[var(--surface-container)]">
-                <span id="automation-modal-title" class="font-bold text-sm">规则集</span>
-                <div class="flex gap-1">
-                    <button @click="$refs.importInput.click()" class="btn-secondary px-2 py-1 text-xs"
-                        title="导入规则集" aria-label="导入规则集">
-                        {{ icon('file-import', 'ui-icon--sm') }}
-                    </button>
-                    <button @click="createNewRuleSet(); if($store.global.deviceType === 'mobile') showMobileSidebar = false" 
-                        class="btn-secondary px-2 py-1 text-xs flex items-center gap-1" title="新建规则集">
-                        {{ icon('plus-square', 'ui-icon--sm') }}<span>新建</span>
-                    </button>
-                </div>
-                <input type="file" x-ref="importInput" style="display:none" accept=".json"
-                    @change="handleImportRuleSet">
+            role="button"
+            tabindex="0"
+            :aria-current="activeRuleSet?.id === rs.id ? 'page' : 'false'"
+            @click="selectRuleSet(rs.id)"
+            @keydown.enter.prevent="selectRuleSet(rs.id)"
+            @keydown.space.prevent="selectRuleSet(rs.id)"
+          >
+            <div class="ruleset-item-main">
+              <span class="ruleset-item-icon" aria-hidden="true">{{ icon('file-code', 'ui-icon--sm') }}</span>
+              <div class="ruleset-item-copy">
+                <strong x-text="rs.meta?.name || '未命名规则集'"></strong>
+                <span x-text="rs.meta?.description || '暂无描述'"></span>
+              </div>
+              <template x-if="loadingRuleSetId === rs.id">
+                {{ loading_icon('ui-icon--sm') }}
+              </template>
+              <button
+                x-show="loadingRuleSetId !== rs.id"
+                type="button"
+                class="automation-icon-button automation-icon-button--small"
+                @click.stop="toggleGlobalActive(rs.id)"
+                :disabled="isSettingGlobal"
+                :title="globalRulesetId === rs.id ? '关闭全局规则' : '设为全局规则'"
+                :aria-label="globalRulesetId === rs.id ? '关闭全局规则' : '设为全局规则'"
+              >
+                <span :class="globalRulesetId === rs.id ? 'is-global' : ''" aria-hidden="true">{{ icon('pin', 'ui-icon--sm') }}</span>
+              </button>
             </div>
-
-            <div
-                class="px-3 py-2 border-b border-[var(--border-default)] bg-[var(--surface-container-raised)] text-xs flex justify-between items-center">
-                <span class="text-[var(--content-muted)]">全局规则:</span>
-                <template x-if="globalRulesetId">
-                    <span class="color-text-warning font-bold flex items-center gap-1">
-                        <span aria-hidden="true">{{ icon('workflow', 'ui-icon--sm') }}</span>
-                        <span x-text="ruleSets.find(r=>r.id===globalRulesetId)?.meta?.name || '未知'"></span>
-                    </span>
-                </template>
-                <template x-if="!globalRulesetId">
-                    <span class="text-[var(--content-muted)]">未设置 (禁用)</span>
-                </template>
+            <div class="ruleset-item-meta">
+              <span><span class="automation-status-dot" :class="globalRulesetId === rs.id ? 'is-on' : 'is-off'" aria-hidden="true"></span><span x-text="globalRulesetId === rs.id ? '全局启用' : '未启用'"></span></span>
+              <span x-text="'v' + (rs.meta?.version || '1.0')"></span>
+              <span x-text="(rs.rule_count || 0) + ' 条规则'"></span>
             </div>
-
-            <div class="flex-1 overflow-y-auto">
-                <template x-for="rs in ruleSets" :key="rs.id">
-                    <div class="ruleset-item" :class="activeRuleSet?.id === rs.id ? 'active' : ''"
-                        @click="selectRuleSet(rs.id); if($store.global.deviceType === 'mobile') showMobileSidebar = false">
-                        <div class="flex justify-between items-center">
-                            <span class="font-bold text-sm truncate" x-text="rs.meta.name || '未命名规则集'"></span>
-
-                            <!-- 修复点：这里原来错误地使用了 activeRuleSet.id，改为 rs.id -->
-                            <!-- 同时添加 .stop 修饰符防止触发父级点击 -->
-                            <button @click.stop="toggleGlobalActive(rs.id)"
-                                class="text-xs px-3 py-1 rounded border transition-all flex items-center gap-1" :class="globalRulesetId === rs.id 
-                                    ? 'color-surface-warning-solid color-text-on-light color-border-warning font-bold shadow-md'
-                                    : 'color-border-default color-text-muted color-hover-border-warning color-hover-text-warning'">
-                                <span aria-hidden="true">{{ icon('workflow', 'ui-icon--xs') }}</span>
-                                <span x-text="globalRulesetId === rs.id ? '已激活全局' : '设为全局'"></span>
-                            </button>
-                        </div>
-                        <div class="ruleset-meta flex justify-between">
-                            <span x-text="'v' + (rs.meta.version || '1.0')"></span>
-                            <span x-text="rs.rule_count + ' rules'"></span>
-                        </div>
-                    </div>
-                </template>
-                <div x-show="ruleSets.length===0" class="p-4 text-center text-xs text-[var(--content-muted)]">暂无规则集</div>
-            </div>
-        </aside>
-
-        <!-- 右侧：编辑器 -->
-        <!-- 使用 x-if 确保 activeRuleSet 为空时不渲染内部 DOM，彻底避免报错 -->
-        <template x-if="activeRuleSet">
-            <main class="automation-content relative">
-                <!-- 关闭按钮 -->
-                <button @click="closeModal()" 
-                    class="ui-close-button absolute top-2 right-2 z-50"
-                    title="关闭" aria-label="关闭">
-                    {{ icon('close', 'ui-icon--sm') }}
-                </button>
-
-                <!-- 1. 顶部元数据栏 -->
-                <div class="auto-header flex-col items-stretch gap-2">
-
-                    <!-- 全局状态提示条 -->
-                    <div x-show="activeRuleSet?.id && globalRulesetId === activeRuleSet?.id"
-                        class="color-surface-warning border color-border-warning rounded px-3 py-2 flex justify-between items-center transition-all duration-300">
-                        <div class="flex items-center gap-2 color-text-warning font-bold text-xs">
-                            <span aria-hidden="true">{{ icon('workflow', 'ui-icon--sm') }}</span>
-                            <span>当前状态：全局默认规则 (按规则触发时机和动作类型在不同场景执行)</span>
-                        </div>
-                        <button x-show="$store.global.deviceType !== 'mobile'" @click="toggleGlobalActive(activeRuleSet?.id)"
-                            class="text-xs underline color-hover-text-warning cursor-pointer">
-                            关闭全局状态
-                        </button>
-                    </div>
-
-                    <div class="flex justify-between items-center w-full automation-header-content">
-                        <div class="flex gap-4 items-center flex-1 automation-header-left">
-                            <div class="flex flex-col gap-1 flex-1">
-                                <div class="flex items-center gap-2 automation-name-row">
-                                    <input type="text" x-model="editingMeta.name"
-                                        class="text-lg font-bold bg-transparent border-b border-transparent hover:border-[var(--border-default)] focus:border-[var(--accent-action)] outline-none transition-colors flex-1"
-                                        placeholder="规则集名称">
-
-                                    <!-- ?.id 安全访问 -->
-                                    <button @click="toggleGlobalActive(activeRuleSet?.id)"
-                                        class="text-[10px] px-2 py-1 rounded border transition-colors whitespace-nowrap flex items-center gap-1 automation-global-btn"
-                                        :class="(activeRuleSet?.id && globalRulesetId === activeRuleSet?.id)
-                                            ? 'color-surface-warning-solid color-text-on-light color-border-warning font-bold shadow-sm'
-                                            : 'border-[var(--border-default)] text-[var(--content-muted)] color-hover-border-warning color-hover-text-warning'"
-                                        :title="(activeRuleSet?.id && globalRulesetId === activeRuleSet?.id) ? '点击关闭全局' : '设为全局自动规则'">
-                                        <span aria-hidden="true">{{ icon('workflow', 'ui-icon--xs') }}</span>
-                                        <span
-                                            x-text="(activeRuleSet?.id && globalRulesetId === activeRuleSet?.id) ? '已激活' : '设为全局'"></span>
-                                    </button>
-                                    <!-- 语法帮助按钮；图标自身带圆形元素，不再叠加外边框 -->
-                                    <button @click="openHelpTab('conditions')"
-                                        class="automation-help-trigger w-7 h-7 flex items-center justify-center rounded-full color-text-muted color-hover-text-accent color-hover-surface-accent transition-colors ml-2"
-                                        title="查看规则语法帮助" aria-label="查看规则语法帮助">
-                                        {{ icon('settings-help-entry', 'ui-icon--md') }}
-                                    </button>
-                                </div>
-                                <input type="text" x-model="editingMeta.description"
-                                    class="text-xs text-[var(--content-muted)] bg-transparent border-b border-transparent hover:border-[var(--border-default)] focus:border-[var(--accent-action)] outline-none w-full"
-                                    placeholder="描述...">
-                            </div>
-                            <div class="flex flex-col gap-1 automation-meta-inputs">
-                                <input type="text" x-model="editingMeta.author" class="auto-input text-xs"
-                                    placeholder="作者">
-                                <input type="text" x-model="editingMeta.version" class="auto-input text-xs"
-                                    placeholder="版本">
-                            </div>
-                        </div>
-                        <div class="flex gap-2 automation-header-actions">
-                            <button @click="exportCurrentRuleSet()" class="btn-secondary automation-export-btn" title="导出 JSON"
-                                aria-label="导出规则集">
-                                {{ icon('upload', 'ui-icon--sm') }}
-                            </button>
-                            <button @click="deleteCurrentRuleSet()"
-                                class="btn-secondary color-text-danger color-hover-text-danger px-3 flex items-center gap-1">
-                                {{ icon('trash', 'ui-icon--sm') }}<span>删除</span>
-                            </button>
-                            <button @click="saveCurrentRuleSet()" class="btn-primary px-4 shadow-md flex items-center gap-1">
-                                {{ icon('settings-save', 'ui-icon--sm') }}<span>保存</span>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 2. 规则列表构建器 -->
-                <div class="auto-body custom-scrollbar">
-
-                    <div x-show="editingUsesMetadata()" x-cloak class="automation-performance-notice" role="note">
-                        <span class="automation-performance-notice-icon" aria-hidden="true">
-                            {{ icon('book-tip', 'ui-icon--sm') }}
-                        </span>
-                        <div>
-                            <strong>已使用元数据条件</strong>
-                            <div>元数据条件会逐张读取并解析角色卡原文件，批量执行时可能明显变慢。建议尽量缩小范围，避免对全库进行批量操作。</div>
-                        </div>
-                    </div>
-
-                    <template x-for="(rule, rIdx) in editingRules" :key="rule.id">
-                        <div class="rule-card">
-                            <!-- 规则头 -->
-                            <div class="rule-header">
-                                <div class="flex flex-col gap-2 flex-1 min-w-0">
-                                    <div class="flex items-center gap-2">
-                                        <span class="drag-handle cursor-grab">{{ icon('menu-bold', 'ui-icon--xs') }}</span>
-                                        <input type="checkbox" x-model="rule.enabled" class="cursor-pointer" title="启用/禁用">
-                                        <input type="text" x-model="rule.name"
-                                            class="bg-transparent font-bold text-sm outline-none border-b border-transparent color-hover-border-neutral color-focus-border-accent w-64"
-                                            placeholder="规则名称...">
-                                    </div>
-                                    <div class="flex flex-wrap items-center gap-2">
-                                        <button type="button" class="automation-preset-chip"
-                                            :class="ruleHasTrigger(rule, 'manual_run') ? 'border-[var(--accent-action)] text-[var(--accent-action)]' : 'text-[var(--content-muted)]'"
-                                            @click="toggleRuleTrigger(rule, 'manual_run')">
-                                            手动执行
-                                        </button>
-                                        <button type="button" class="automation-preset-chip"
-                                            :class="ruleHasTrigger(rule, 'auto_import') ? 'border-[var(--accent-action)] text-[var(--accent-action)]' : 'text-[var(--content-muted)]'"
-                                            @click="toggleRuleTrigger(rule, 'auto_import')">
-                                            导入后
-                                        </button>
-                                        <button type="button" class="automation-preset-chip"
-                                            :class="ruleHasTrigger(rule, 'card_update') ? 'border-[var(--accent-action)] text-[var(--accent-action)]' : 'text-[var(--content-muted)]'"
-                                            @click="toggleRuleTrigger(rule, 'card_update')">
-                                            更新角色卡后
-                                        </button>
-                                        <button type="button" class="automation-preset-chip"
-                                            :class="ruleHasTrigger(rule, 'link_update') ? 'border-[var(--accent-action)] text-[var(--accent-action)]' : 'text-[var(--content-muted)]'"
-                                            @click="toggleRuleTrigger(rule, 'link_update')">
-                                            更新来源链接后
-                                        </button>
-                                        <button type="button" class="automation-preset-chip"
-                                            :class="ruleHasTrigger(rule, 'tag_edit') ? 'border-[var(--accent-action)] text-[var(--accent-action)]' : 'text-[var(--content-muted)]'"
-                                            @click="toggleRuleTrigger(rule, 'tag_edit')">
-                                            手动打标后
-                                        </button>
-                                    </div>
-                                    <div class="text-[10px] text-[var(--content-muted)]">
-                                        仅勾选的触发场景会参与该规则。
-                                    </div>
-                                </div>
-                                <div class="automation-inline-actions">
-                                    <label class="flex items-center gap-1 text-xs cursor-pointer select-none"
-                                        title="如果命中此规则，不再执行后续规则">
-                                        <input type="checkbox" x-model="rule.stop_on_match">
-                                        <span class="text-[var(--content-muted)]">命中即停止</span>
-                                    </label>
-                                    <div class="automation-inline-actions">
-                                        <button type="button" @click="moveRule(rIdx, -1)" class="ui-reorder-button" title="上移规则" aria-label="上移规则">{{ icon('arrow-up', 'ui-icon--xs') }}</button>
-                                        <button type="button" @click="moveRule(rIdx, 1)" class="ui-reorder-button" title="下移规则" aria-label="下移规则">{{ icon('arrow-down', 'ui-icon--xs') }}</button>
-                                        <button @click="deleteRule(rIdx)" class="btn-icon-sm delete" title="删除规则"
-                                            aria-label="删除规则">
-                                            {{ icon('trash', 'ui-icon--sm') }}
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- 规则体 -->
-                            <div class="rule-body" x-show="rule.enabled">
-
-                                <!-- IF 区块 (Conditions) -->
-                                <div class="logic-block">
-                                    <div class="logic-label if flex flex-col items-end gap-1">
-                                        <span>IF</span>
-                                    </div>
-
-                                    <div class="logic-content gap-3">
-                                        <!-- Rule Level Logic (Group Connector) -->
-                                        <div
-                                            class="flex items-center gap-2 mb-2 p-2 bg-[var(--surface-container-raised)] rounded border border-[var(--border-default)]">
-                                            <span class="text-xs font-bold text-[var(--content-muted)]">规则逻辑:</span>
-                                            {% call styled_select(
-                                                "rule.logic",
-                                                wrapper_class="auto-select icon-select--compact",
-                                                trigger_class="icon-select-trigger--tiny text-xs",
-                                                menu_class="icon-select-menu--fit",
-                                                aria_label="规则逻辑"
-                                            ) %}
-                                                <option value="OR">满足任意一个条件组 (OR)</option>
-                                                <option value="AND">必须满足所有条件组 (AND)</option>
-                                            {% endcall %}
-                                            <span class="text-xs text-[var(--content-muted)]">时触发动作</span>
-                                        </div>
-                                        <!-- 遍历 Groups -->
-                                        <template x-for="(group, gIdx) in rule.groups" :key="group.id">
-                                            <div
-                                                class="relative border border-[var(--border-default)] rounded-lg p-2 bg-[var(--surface-container-raised)]">
-
-                                                <!-- Group Header & Logic -->
-                                                <div
-                                                    class="flex justify-between items-center mb-2 pb-1 border-b border-[var(--border-default)] border-dashed">
-                                                    <div class="flex items-center gap-2">
-                                                        <span class="text-xs font-bold text-[var(--content-muted)]"
-                                                            x-text="'条件组 ' + (gIdx+1)"></span>
-                                                        {% call styled_select(
-                                                            "group.logic",
-                                                            wrapper_class="auto-select icon-select--compact",
-                                                            trigger_class="icon-select-trigger--tiny text-xs",
-                                                            menu_class="icon-select-menu--fit",
-                                                            aria_label="条件组逻辑"
-                                                        ) %}
-                                                            <option value="AND">且 (AND)</option>
-                                                            <option value="OR">或 (OR)</option>
-                                                        {% endcall %}
-                                                    </div>
-                                                    <div class="automation-inline-actions">
-                                                        <button type="button" @click="moveGroup(rIdx, gIdx, -1)" class="ui-reorder-button" title="上移条件组" aria-label="上移条件组">{{ icon('arrow-up', 'ui-icon--xs') }}</button>
-                                                        <button type="button" @click="moveGroup(rIdx, gIdx, 1)" class="ui-reorder-button" title="下移条件组" aria-label="下移条件组">{{ icon('arrow-down', 'ui-icon--xs') }}</button>
-                                                        <button @click="removeGroup(rIdx, gIdx)"
-                                                            class="text-[10px] color-text-danger color-hover-text-danger px-2 py-1 rounded color-hover-surface-danger">删除组</button>
-                                                    </div>
-                                                </div>
-
-                                                <!-- Conditions List -->
-                                                <div class="flex flex-col gap-1">
-                                                    <template x-for="(cond, cIdx) in group.conditions" :key="cIdx">
-                                                        <div class="logic-row bg-[var(--surface-container)]">
-                                                            <!-- 字段选择 -->
-                                                            {% call styled_select(
-                                                                "cond.field",
-                                                                wrapper_class="auto-select icon-select--compact w-32",
-                                                                trigger_class="icon-select-trigger--tiny text-xs",
-                                                                menu_class="icon-select-menu--fit",
-                                                                aria_label="条件字段"
-                                                            ) %}
-                                                                <optgroup label="基础信息">
-                                                                    <option value="char_name">角色名 (Name)</option>
-                                                                    <option value="filename">文件名 (Filename)</option>
-                                                                    <option value="creator">创作者 (Creator)</option>
-                                                                    <option value="char_version">版本 (Version)</option>
-                                                                    <option value="tags">标签 (Tags)</option>
-                                                                </optgroup>
-
-                                                                <optgroup label="核心文本">
-                                                                    <option value="description">简介 (Description)
-                                                                    </option>
-                                                                    <option value="first_mes">开场白 (First Mes)</option>
-                                                                    <option value="alternate_greetings">备用开场白 (Alt
-                                                                        Greetings)</option>
-                                                                    <option value="mes_example">对话示例 (Mes Example)
-                                                                    </option>
-                                                                </optgroup>
-
-                                                                <optgroup label="设定与提示词">
-                                                                    <option value="personality">人格设定 (Personality)
-                                                                    </option>
-                                                                    <option value="scenario">场景设定 (Scenario)</option>
-                                                                    <option value="creator_notes">作者注释 (Creator Notes)
-                                                                    </option>
-                                                                    <option value="system_prompt">系统提示词 (Sys Prompt)
-                                                                    </option>
-                                                                    <option value="post_history_instructions">历史指令 (Post
-                                                                        History)</option>
-                                                                </optgroup>
-
-                                                                <optgroup label="高级扩展">
-                                                                    <option value="wi_name">世界书条目名称</option>
-                                                                    <option value="wi_content">世界书条目内容</option>
-                                                                    <option value="regex_name">正则脚本名称</option>
-                                                                    <option value="regex_content">正则脚本内容</option>
-                                                                    <option value="st_script_name">ST Helper 脚本名
-                                                                    </option>
-                                                                    <option value="st_script_content">ST Helper 内容
-                                                                    </option>
-                                                                </optgroup>
-
-                                                                <optgroup label="系统属性">
-                                                                    <option value="ui_summary">本地备注 (Local Note)
-                                                                    </option>
-                                                                    <option value="source_link">来源链接 (Source Link)
-                                                                    </option>
-                                                                    <option value="is_favorite">是否收藏 (Is Fav)</option>
-                                                                    <option value="token_count">Token 数</option>
-                                                                    <option value="file_size">文件大小</option>
-                                                                </optgroup>
-
-                                                                <optgroup label="元数据（可能较慢）">
-                                                                    <option value="metadata">原始元数据</option>
-                                                                </optgroup>
-                                                            {% endcall %}
-
-                                                            <input
-                                                                x-show="cond.field === 'metadata'"
-                                                                x-model="cond.metadata_path"
-                                                                type="text"
-                                                                class="auto-input metadata-path-input"
-                                                                placeholder="元数据路径（可选，如 data.extensions.foo）"
-                                                                title="留空搜索完整元数据；支持点号路径和 [数组下标]"
-                                                            >
-
-                                                            <!-- 操作符 -->
-                                                            {% call styled_select(
-                                                                "cond.operator",
-                                                                wrapper_class="auto-select icon-select--compact w-28",
-                                                                trigger_class="icon-select-trigger--tiny text-xs",
-                                                                menu_class="icon-select-menu--fit",
-                                                                aria_label="条件操作符"
-                                                            ) %}
-                                                                <option value="contains">包含</option>
-                                                                <option value="not_contains">不包含</option>
-                                                                <option value="eq">等于</option>
-                                                                <option value="neq">不等于</option>
-                                                                <option value="regex">正则匹配</option>
-                                                                <option value="exists">有内容</option>
-                                                                <option value="not_exists">为空</option>
-                                                                <option value="gt">大于</option>
-                                                                <option value="lt">小于</option>
-                                                                <option value="is_true">是 (True)</option>
-                                                                <option value="is_false">否 (False)</option>
-                                                            {% endcall %}
-
-                                                            <!-- 值 -->
-                                                            <div class="flex-1">
-                                                                <input
-                                                                    x-show="['exists','not_exists','is_true','is_false'].indexOf(cond.operator) === -1"
-                                                                    type="text" x-model="cond.value"
-                                                                    class="auto-input w-full">
-                                                            </div>
-
-                                                            <div class="automation-inline-actions">
-                                                                <button type="button" @click="moveConditionInGroup(rIdx, gIdx, cIdx, -1)" class="ui-reorder-button" title="上移条件" aria-label="上移条件">{{ icon('arrow-up', 'ui-icon--xs') }}</button>
-                                                                <button type="button" @click="moveConditionInGroup(rIdx, gIdx, cIdx, 1)" class="ui-reorder-button" title="下移条件" aria-label="下移条件">{{ icon('arrow-down', 'ui-icon--xs') }}</button>
-                                                                    <button type="button" @click="removeConditionFromGroup(rIdx, gIdx, cIdx)"
-                                                                    class="btn-icon-sm delete" title="删除条件" aria-label="删除条件">{{ icon('close', 'ui-icon--xs') }}</button>
-                                                            </div>
-                                                        </div>
-                                                    </template>
-
-                                                    <button @click="addConditionToGroup(rIdx, gIdx)"
-                                                        class="text-xs text-left color-text-accent color-hover-text-accent w-fit mt-1">
-                                                        + 添加条件
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </template>
-
-                                        <button @click="addGroup(rIdx)"
-                                            class="w-full py-1 text-xs border border-dashed border-[var(--border-default)] text-[var(--content-muted)] color-hover-border-accent color-hover-text-accent rounded transition">
-                                            + 新增条件组 (New Group)
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <!-- THEN Actions -->
-                                <div class="logic-block">
-                                    <div class="logic-label then">THEN</div>
-                                    <div class="logic-content">
-                                        <template x-for="(action, aIdx) in rule.actions" :key="aIdx">
-                                            <div class="logic-row" style="border-color: var(--status-success-border);">
-                                                <div class="icon-select automation-action-type-select"
-                                                    :class="{ 'is-open': isActionMenuOpen(rIdx, aIdx) }"
-                                                    @click.outside="closeActionMenu($event)">
-                                                    <button type="button"
-                                                        class="icon-select-trigger automation-action-type-control font-bold color-text-success"
-                                                        :aria-expanded="isActionMenuOpen(rIdx, aIdx).toString()"
-                                                        aria-haspopup="listbox"
-                                                        :aria-controls="'automation-action-options-' + rIdx + '-' + aIdx"
-                                                        @click="toggleActionMenu(rIdx, aIdx)"
-                                                        @keydown.arrow-down.prevent="openActionMenu(rIdx, aIdx)"
-                                                        @keydown.escape.stop="closeActionMenu()">
-                                                        <span class="icon-select-trigger-icon" aria-hidden="true">
-                                                            <span x-show="action.type === 'move_folder'" x-cloak>{{ sidebar_icon('folder-open', 'ui-icon--sm') }}</span>
-                                                            <span x-show="action.type === 'add_tag'" x-cloak>{{ detail_icon('tags', 'ui-icon--sm') }}</span>
-                                                            <span x-show="action.type === 'remove_tag'" x-cloak>{{ icon('trash', 'ui-icon--sm') }}</span>
-                                                            <span x-show="action.type === 'set_favorite'" x-cloak>{{ icon('heart', 'ui-icon--sm') }}</span>
-                                                            <span x-show="action.type === 'merge_tags'" x-cloak>{{ icon('merge', 'ui-icon--sm') }}</span>
-                                                            <span x-show="action.type === 'fetch_forum_tags'" x-cloak>{{ detail_icon('link-source', 'ui-icon--sm') }}</span>
-                                                            <span x-show="action.type === 'refresh_source_baseline'" x-cloak>{{ detail_icon('clock', 'ui-icon--sm') }}</span>
-                                                            <span x-show="action.type === 'add_tags_from_source_title'" x-cloak>{{ detail_icon('regex', 'ui-icon--sm') }}</span>
-                                                            <span x-show="action.type === 'set_creator_from_source'" x-cloak>{{ detail_icon('user', 'ui-icon--sm') }}</span>
-                                                            <span x-show="action.type === 'rename_file_by_template'" x-cloak>{{ icon('pencil-edit', 'ui-icon--sm') }}</span>
-                                                            <span x-show="action.type === 'split_category_to_tags'" x-cloak>{{ detail_icon('tags', 'ui-icon--sm') }}</span>
-                                                            <span x-show="action.type === 'set_char_name_from_filename'" x-cloak>{{ detail_icon('file-name', 'ui-icon--sm') }}</span>
-                                                            <span x-show="action.type === 'set_wi_name_from_filename'" x-cloak>{{ detail_icon('file-name', 'ui-icon--sm') }}</span>
-                                                            <span x-show="action.type === 'set_filename_from_char_name'" x-cloak>{{ detail_icon('file-name', 'ui-icon--sm') }}</span>
-                                                            <span x-show="action.type === 'set_filename_from_wi_name'" x-cloak>{{ detail_icon('file-name', 'ui-icon--sm') }}</span>
-                                                        </span>
-                                                        <span class="icon-select-label" x-text="actionTypeLabel(action.type)"></span>
-                                                        <span class="icon-select-chevron" aria-hidden="true">{{ icon('chevron-down', 'ui-icon--xs') }}</span>
-                                                    </button>
-                                                    <div x-show="isActionMenuOpen(rIdx, aIdx)" x-cloak
-                                                        :id="'automation-action-options-' + rIdx + '-' + aIdx"
-                                                        class="icon-select-menu" role="listbox" aria-label="执行动作">
-                                                        <template x-for="option in actionTypeOptions" :key="option.value">
-                                                            <button type="button" role="option" class="icon-select-option"
-                                                                :aria-selected="(action.type === option.value).toString()"
-                                                                @click="selectActionType(action, option.value)">
-                                                                <span class="icon-select-option-icon" aria-hidden="true">
-                                                                    <span x-show="option.value === 'move_folder'" x-cloak>{{ sidebar_icon('folder-open', 'ui-icon--sm') }}</span>
-                                                                    <span x-show="option.value === 'add_tag'" x-cloak>{{ detail_icon('tags', 'ui-icon--sm') }}</span>
-                                                                    <span x-show="option.value === 'remove_tag'" x-cloak>{{ icon('trash', 'ui-icon--sm') }}</span>
-                                                                    <span x-show="option.value === 'set_favorite'" x-cloak>{{ icon('heart', 'ui-icon--sm') }}</span>
-                                                                    <span x-show="option.value === 'merge_tags'" x-cloak>{{ icon('merge', 'ui-icon--sm') }}</span>
-                                                                    <span x-show="option.value === 'fetch_forum_tags'" x-cloak>{{ detail_icon('link-source', 'ui-icon--sm') }}</span>
-                                                                    <span x-show="option.value === 'refresh_source_baseline'" x-cloak>{{ detail_icon('clock', 'ui-icon--sm') }}</span>
-                                                                    <span x-show="option.value === 'add_tags_from_source_title'" x-cloak>{{ detail_icon('regex', 'ui-icon--sm') }}</span>
-                                                                    <span x-show="option.value === 'set_creator_from_source'" x-cloak>{{ detail_icon('user', 'ui-icon--sm') }}</span>
-                                                                    <span x-show="option.value === 'rename_file_by_template'" x-cloak>{{ icon('pencil-edit', 'ui-icon--sm') }}</span>
-                                                                    <span x-show="option.value === 'split_category_to_tags'" x-cloak>{{ detail_icon('tags', 'ui-icon--sm') }}</span>
-                                                                    <span x-show="option.value === 'set_char_name_from_filename'" x-cloak>{{ detail_icon('file-name', 'ui-icon--sm') }}</span>
-                                                                    <span x-show="option.value === 'set_wi_name_from_filename'" x-cloak>{{ detail_icon('file-name', 'ui-icon--sm') }}</span>
-                                                                    <span x-show="option.value === 'set_filename_from_char_name'" x-cloak>{{ detail_icon('file-name', 'ui-icon--sm') }}</span>
-                                                                    <span x-show="option.value === 'set_filename_from_wi_name'" x-cloak>{{ detail_icon('file-name', 'ui-icon--sm') }}</span>
-                                                                </span>
-                                                                <span class="icon-select-option-label" x-text="option.label"></span>
-                                                            </button>
-                                                        </template>
-                                                    </div>
-                                                </div>
-
-                                                <div class="flex-1">
-                                                    <!-- 设为收藏 -->
-                                                    <template x-if="action.type === 'set_favorite'">
-                                                        {% call styled_select(
-                                                            "action.value",
-                                                            wrapper_class="auto-select w-full",
-                                                            trigger_class="icon-select-trigger--compact text-sm",
-                                                            menu_class="icon-select-menu--fit",
-                                                            aria_label="收藏状态"
-                                                        ) %}
-                                                            <option value="true">是 (Favorite)</option>
-                                                            <option value="false">否 (Unfavorite)</option>
-                                                        {% endcall %}
-                                                    </template>
-
-                                                    <template x-if="action.type === 'merge_tags'">
-                                                        <div class="space-y-2 p-2 bg-[var(--surface-container-raised)] rounded border border-[var(--border-default)]">
-                                                            <input type="text" x-model="action.value"
-                                                                class="auto-input w-full text-xs"
-                                                                :placeholder="$store.global.settingsForm.automation_slash_is_tag_separator ? '格式：旧标签→新标签，多个可用 | 或 / 分隔，如：femdom→女上|female→女性/waifu→老婆' : '格式：旧标签→新标签，多个可用 | 分隔，如：femdom→女上|female→女性'"
-                                                                :title="$store.global.settingsForm.automation_slash_is_tag_separator ? '支持批量映射：使用 | 或 / 分隔，每条规则使用 →（如 a→A|b→B）' : '支持批量映射：使用 | 分隔，每条规则使用 →（如 a→A|b→B）'">
-                                                            <div class="text-[10px] text-[var(--content-muted)] flex items-start gap-1">
-                                                                <span aria-hidden="true">{{ icon('book-tip', 'ui-icon--xs') }}</span>
-                                                                <span>将多个同义标签归并到统一标签。仅在“手动打标输入框添加标签”流程触发（批量标签管理输入框、详情页自定义添加输入框）</span>
-                                                            </div>
-                                                        </div>
-                                                    </template>
-
-                                                     <!-- 抓取论坛标签配置 -->
-                                                     <template x-if="action.type === 'fetch_forum_tags'">
-                                                         <div x-data="{ cfg: initActionConfig(action) }"
-                                                               class="space-y-2 p-2 bg-[var(--surface-container-raised)] rounded border border-[var(--border-default)]">
-                                                              <!-- 排除标签 -->
-                                                               <div class="flex items-center gap-2">
-                                                                   <span class="text-xs text-[var(--content-muted)] w-16">排除标签:</span>
-                                                                   <input type="text"
-                                                                       x-model="cfg.exclude_tags"
-                                                                       class="auto-input flex-1 text-xs"
-                                                                      :placeholder="$store.global.settingsForm.automation_slash_is_tag_separator ? '多个标签用|或/分隔，如：其他|待审核/临时' : '多个标签用|分隔，如：其他|待审核'">
-                                                               </div>
-                                                               <!-- 标签替换 -->
-                                                               <div class="flex items-center gap-2">
-                                                                   <span class="text-xs text-[var(--content-muted)] w-16">标签替换:</span>
-                                                                   <input type="text"
-                                                                       x-model="cfg.replace_rules_text"
-                                                                       class="auto-input flex-1 text-xs"
-                                                                      :placeholder="$store.global.settingsForm.automation_slash_is_tag_separator ? '格式：原标签→新标签，多个用|或/分隔，如：其他→杂项|待审核→审核中/临时→归档' : '格式：原标签→新标签，多个用|分隔，如：其他→杂项|待审核→审核中'">
-                                                               </div>
-                                                             <!-- 合并模式 -->
-                                                             <div class="flex items-center gap-2">
-                                                                 <span class="text-xs text-[var(--content-muted)] w-16">合并模式:</span>
-                                                                 {% call styled_select(
-                                                                     "cfg.merge_mode",
-                                                                     wrapper_class="auto-select flex-1 min-w-0",
-                                                                     trigger_class="icon-select-trigger--compact text-xs",
-                                                                     menu_class="icon-select-menu--fit",
-                                                                     aria_label="标签合并模式"
-                                                                 ) %}
-                                                                     <option value="merge">合并（与现有标签合并）</option>
-                                                                     <option value="replace">替换（清空后添加）</option>
-                                                                 {% endcall %}
-                                                             </div>
-                                                              <div class="text-[10px] text-[var(--content-muted)] mt-1 flex items-start gap-1">
-                                                                  <span aria-hidden="true">{{ icon('book-tip', 'ui-icon--xs') }}</span>
-                                                                  <span>从角色卡设置的来源链接抓取类脑论坛标签</span>
-                                                             </div>
-                                                         </div>
-                                                      </template>
-
-                                                     <!-- 来源标题正则提取标签配置 -->
-                                                     <template x-if="action.type === 'add_tags_from_source_title'">
-                                                         <div x-data="{ cfg: initActionConfig(action) }"
-                                                              class="space-y-2 p-2 bg-[var(--surface-container-raised)] rounded border border-[var(--border-default)]">
-                                                             <div>
-                                                                 <label class="text-xs text-[var(--content-muted)] block mb-1">标题正则:</label>
-                                                                  <textarea x-model="cfg.pattern"
-                                                                      class="auto-input w-full text-xs font-mono"
-                                                                      rows="2"
-                                                                      aria-label="来源标题正则表达式"
-                                                                      placeholder="例如：(?:【|\[)([^】\]]+)(?:】|\])"></textarea>
-                                                             </div>
-                                                             <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
-                                                                 <label class="text-xs text-[var(--content-muted)]">
-                                                                     捕获组（可多个）:
-                                                                     <input type="text"
-                                                                         x-model="cfg.capture_groups_text"
-                                                                         class="auto-input w-full text-xs font-mono mt-1"
-                                                                         aria-label="来源标题正则捕获组"
-                                                                         placeholder="1 或 1,2 或 tag,genre">
-                                                                 </label>
-                                                                 <label class="text-xs text-[var(--content-muted)]">
-                                                                     分割正则（可空）:
-                                                                     <input type="text"
-                                                                         x-model="cfg.split_pattern"
-                                                                         class="auto-input w-full text-xs font-mono mt-1"
-                                                                         aria-label="来源标题标签分割正则"
-                                                                         placeholder="[/|]">
-                                                                 </label>
-                                                                 <label class="text-xs text-[var(--content-muted)]">
-                                                                     正则标记:
-                                                                     <input type="text"
-                                                                         x-model="cfg.flags"
-                                                                         class="auto-input w-full text-xs font-mono mt-1"
-                                                                         aria-label="来源标题正则标记"
-                                                                         placeholder="ims">
-                                                                 </label>
-                                                             </div>
-                                                             <div class="text-[10px] text-[var(--content-muted)] mt-1 flex items-start gap-1">
-                                                                 <span aria-hidden="true">{{ detail_icon('regex', 'ui-icon--xs') }}</span>
-                                                                 <span>使用 Python 正则；捕获组 0 表示完整匹配。每次来源链接更新时执行，提取结果只追加标签，并遵守标签黑名单和标签库锁定。</span>
-                                                             </div>
-                                                         </div>
-                                                     </template>
-
-                                                     <!-- 来源作者填写创作者配置 -->
-                                                     <template x-if="action.type === 'set_creator_from_source'">
-                                                         <div x-data="{ cfg: initActionConfig(action) }"
-                                                              class="space-y-2 p-2 bg-[var(--surface-container-raised)] rounded border border-[var(--border-default)]">
-                                                             <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
-                                                                 <label class="text-xs text-[var(--content-muted)]">
-                                                                     作者来源:
-                                                                     {% call styled_select(
-                                                                         "cfg.provider",
-                                                                         wrapper_class="auto-select w-full mt-1",
-                                                                         trigger_class="icon-select-trigger--compact text-xs",
-                                                                         menu_class="icon-select-menu--fit",
-                                                                         aria_label="来源作者抓取来源"
-                                                                     ) %}
-                                                                         <option value="auto">自动（Discord 优先，类脑补充）</option>
-                                                                         <option value="discord">Discord 首帖</option>
-                                                                         <option value="shimmerday">类脑搜索</option>
-                                                                     {% endcall %}
-                                                                 </label>
-                                                                 <label class="text-xs text-[var(--content-muted)]">
-                                                                     作者字段:
-                                                                     {% call styled_select(
-                                                                         "cfg.author_field",
-                                                                         wrapper_class="auto-select w-full mt-1",
-                                                                         trigger_class="icon-select-trigger--compact text-xs",
-                                                                         menu_class="icon-select-menu--fit",
-                                                                         aria_label="来源作者字段"
-                                                                     ) %}
-                                                                         <option value="username">账号名（username/name）</option>
-                                                                         <option value="display_name">显示名</option>
-                                                                         <option value="global_name">全局名</option>
-                                                                         <option value="author_id">作者 ID</option>
-                                                                     {% endcall %}
-                                                                 </label>
-                                                             </div>
-                                                             <label class="text-xs text-[var(--content-muted)] block">
-                                                                 创作者格式:
-                                                                 <input type="text" x-model="cfg.format"
-                                                                     class="auto-input w-full text-xs font-mono mt-1"
-                                                                     aria-label="创作者格式模板"
-                                                                     placeholder="例如：&#123;&#123;author&#125;&#125; 或 &#123;&#123;author&#125;&#125;@&#123;&#123;author&#125;&#125;">
-                                                             </label>
-                                                             <label class="inline-flex items-center gap-2 text-xs text-[var(--content-muted)] cursor-pointer">
-                                                                 <input type="checkbox" x-model="cfg.overwrite"
-                                                                     class="color-accent-primary"
-                                                                     aria-label="覆盖当前角色卡创作者">
-                                                                 <span>覆盖当前角色卡创作者</span>
-                                                             </label>
-                                                             <div class="text-[10px] text-[var(--content-muted)] mt-1 flex items-start gap-1">
-                                                                 <span aria-hidden="true">{{ detail_icon('user', 'ui-icon--xs') }}</span>
-                                                                 <span>每次来源链接更新时执行；未勾选时仅在当前创作者为空时填写。可用变量：&#123;&#123;author&#125;&#125;、&#123;&#123;username&#125;&#125;、&#123;&#123;display_name&#125;&#125;、&#123;&#123;global_name&#125;&#125;、&#123;&#123;author_id&#125;&#125;、&#123;&#123;title&#125;&#125;。</span>
-                                                             </div>
-                                                         </div>
-                                                     </template>
-
-                                                     <template x-if="action.type === 'rename_file_by_template'">
-                                                          <div x-data="{ cfg: initActionConfig(action) }"
-                                                               class="space-y-2 p-2 bg-[var(--surface-container-raised)] rounded border border-[var(--border-default)]">
-                                                              <div>
-                                                                  <div class="text-xs text-[var(--content-muted)] mb-1">套用示例</div>
-                                                                  <div class="flex flex-wrap gap-2">
-                                                                      <button type="button" class="automation-preset-chip"
-                                                                          @click="cfg = applyRenameTemplatePreset(action, 'name_version')">
-                                                                          角色名 + 版本
-                                                                      </button>
-                                                                      <button type="button" class="automation-preset-chip"
-                                                                          @click="cfg = applyRenameTemplatePreset(action, 'name_import_date')">
-                                                                          角色名 + 导入日期
-                                                                      </button>
-                                                                      <button type="button" class="automation-preset-chip"
-                                                                          @click="cfg = applyRenameTemplatePreset(action, 'name_version_modified_date')">
-                                                                          角色名 + 版本 + 修改日期
-                                                                      </button>
-                                                                  </div>
-                                                              </div>
-                                                              <div class="flex items-center gap-2">
-                                                                  <span class="text-xs text-[var(--content-muted)] w-20">模板:</span>
-                                                                  <input type="text"
-                                                                      x-model="cfg.template"
-                                                                     class="auto-input flex-1 text-xs"
-                                                                     placeholder="例如：{{char_name}} - {{creator}}">
-                                                             </div>
-                                                             <div class="flex items-center gap-2">
-                                                                 <span class="text-xs text-[var(--content-muted)] w-20">回退模板:</span>
-                                                                 <input type="text"
-                                                                     x-model="cfg.fallback_template"
-                                                                     class="auto-input flex-1 text-xs"
-                                                                     placeholder="当主模板为空时使用，可留空">
-                                                             </div>
-                                                               <div class="flex items-center gap-2">
-                                                                   <span class="text-xs text-[var(--content-muted)] w-20">最大长度:</span>
-                                                                   <input type="number"
-                                                                       x-model.number="cfg.max_length"
-                                                                       min="1"
-                                                                       class="auto-input flex-1 text-xs"
-                                                                       placeholder="120">
-                                                               </div>
-                                                                <div class="text-[10px] text-[var(--content-muted)] mt-1 flex items-start gap-1">
-                                                                    <span aria-hidden="true">{{ icon('book-tip', 'ui-icon--xs') }}</span>
-                                                                    <span>若想在覆盖更新后重命名，请在规则上启用“更新角色卡后”；如果文件名要体现本次更新时间，优先使用 modified_date。</span>
-                                                               </div>
-                                                           </div>
-                                                       </template>
-
-                                                     <template x-if="action.type === 'split_category_to_tags'">
-                                                          <div x-data="{ cfg: initActionConfig(action) }"
-                                                               class="space-y-2 p-2 bg-[var(--surface-container-raised)] rounded border border-[var(--border-default)]">
-                                                              <div class="flex items-center gap-2">
-                                                                  <span class="text-xs text-[var(--content-muted)] w-20">排除分类标签:</span>
-                                                                  <input type="text"
-                                                                      x-model="cfg.exclude_category_tags"
-                                                                      class="auto-input flex-1 text-xs"
-                                                                      :placeholder="$store.global.settingsForm.automation_slash_is_tag_separator ? '多个标签用|或/分隔，如：角色|题材/状态' : '多个标签用|分隔，如：角色|题材'">
-                                                              </div>
-                                                               <div class="text-[10px] text-[var(--content-muted)] mt-1 flex items-start gap-1">
-                                                                   <span aria-hidden="true">{{ icon('book-tip', 'ui-icon--xs') }}</span>
-                                                                   <span>当前分类路径会自动按 / 拆分，例如 <code class="font-mono">a/b/c</code> 会追加 <code class="font-mono">a</code>、<code class="font-mono">b</code>、<code class="font-mono">c</code></span>
-                                                              </div>
-                                                          </div>
-                                                      </template>
-
-                                                     <template x-if="action.type === 'refresh_source_baseline'">
-                                                         <div class="text-xs text-[var(--content-muted)] px-2 py-1 bg-[var(--surface-container-raised)] border border-[var(--border-default)] rounded">
-                                                             更新来源链接时抓取标题和首帖编辑时间，并建立新的检查基线
-                                                         </div>
-                                                     </template>
-
-                                                     <!-- 其他动作类型的值输入 -->
-                                                     <template x-if="action.type !== 'set_favorite' && action.type !== 'fetch_forum_tags' && action.type !== 'refresh_source_baseline' && action.type !== 'add_tags_from_source_title' && action.type !== 'set_creator_from_source' && action.type !== 'merge_tags' && action.type !== 'rename_file_by_template' && action.type !== 'split_category_to_tags' && action.type !== 'set_char_name_from_filename' && action.type !== 'set_wi_name_from_filename' && action.type !== 'set_filename_from_char_name' && action.type !== 'set_filename_from_wi_name'">
-                                                         <input type="text" x-model="action.value"
-                                                             class="auto-input w-full"
-                                                             :placeholder="action.type==='move_folder' ? '文件夹路径 (e.g. Race/Elf)' : ((action.type==='add_tag' || action.type==='remove_tag') ? ($store.global.settingsForm.automation_slash_is_tag_separator ? '标签名称，多个可用 | 或 / 分隔' : '标签名称，多个可用 | 分隔') : '标签名称')"
-                                                             :title="(action.type==='add_tag' || action.type==='remove_tag') ? ($store.global.settingsForm.automation_slash_is_tag_separator ? '可批量输入：使用 | 或 / 分隔多个标签' : '可批量输入：使用 | 分隔多个标签') : ''">
-                                                    </template>
-
-                                                    <template x-if="action.type === 'set_char_name_from_filename' || action.type === 'set_wi_name_from_filename' || action.type === 'set_filename_from_char_name' || action.type === 'set_filename_from_wi_name'">
-                                                        <div class="text-xs text-[var(--content-muted)] px-2 py-1 bg-[var(--surface-container-raised)] border border-[var(--border-default)] rounded">
-                                                            无需填写参数，命中后自动执行
-                                                        </div>
-                                                    </template>
-                                                </div>
-
-                                                <div class="automation-inline-actions">
-                                                    <button type="button" @click="moveAction(rIdx, aIdx, -1)" class="ui-reorder-button" title="上移动作" aria-label="上移动作">{{ icon('arrow-up', 'ui-icon--xs') }}</button>
-                                                    <button type="button" @click="moveAction(rIdx, aIdx, 1)" class="ui-reorder-button" title="下移动作" aria-label="下移动作">{{ icon('arrow-down', 'ui-icon--xs') }}</button>
-                                                    <button type="button" @click="removeAction(rIdx, aIdx)"
-                                                        class="btn-icon-sm delete" title="删除动作" aria-label="删除动作">{{ icon('close', 'ui-icon--xs') }}</button>
-                                                </div>
-                                            </div>
-                                        </template>
-                                        <button @click="addAction(rIdx)"
-                                            class="text-xs text-left color-text-success color-hover-text-success w-fit">+
-                                            添加执行动作</button>
-                                    </div>
-                                </div>
-
-                            </div>
-                            <div x-show="!rule.enabled"
-                                class="bg-[var(--surface-container-raised)] p-2 text-center text-xs text-[var(--content-muted)]">
-                                (此规则已禁用)
-                            </div>
-                        </div>
-                    </template>
-
-                    <button @click="addRule()"
-                        class="w-full py-3 border-2 border-dashed border-[var(--border-default)] rounded-lg text-[var(--content-muted)] hover:border-[var(--accent-action)] hover:text-[var(--accent-action)] transition font-bold">
-                        + 新增规则 (New Rule)
-                    </button>
-
-                    <div class="h-10"></div> <!-- Bottom Spacer -->
-                </div>
-                <!-- 语法帮助模态框 (嵌套在 automation-content 内) -->
-                <div x-show="showHelpModal" x-cloak x-transition:enter="transition ease-out duration-200"
-                    x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
-                    x-transition:leave="transition ease-in duration-150"
-                    x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95"
-                    class="absolute inset-0 z-50 flex items-center justify-center color-surface-scrim backdrop-blur-sm p-8"
-                    @click.self="showHelpModal = false">
-
-                    <div class="ui-modal-shell automation-help-dialog w-full max-w-2xl max-h-full" role="dialog"
-                        aria-modal="true" aria-labelledby="automation-help-title">
-                        <!-- 弹窗标题 -->
-                        <div class="ui-modal-header">
-                            <h3 id="automation-help-title" class="ui-modal-title flex items-center gap-2">
-                                <span aria-hidden="true">{{ icon('book-tip', 'ui-icon--sm') }}</span>
-                                <span>规则编写指南</span>
-                            </h3>
-                            <button type="button" @click="showHelpModal = false"
-                                class="ui-close-button" title="关闭帮助" aria-label="关闭帮助">
-                                {{ icon('close', 'ui-icon--sm') }}
-                            </button>
-                        </div>
-
-                        <!-- 弹窗内容 -->
-                        <div class="automation-help-body ui-modal-body overflow-y-auto custom-scrollbar text-sm text-[var(--content-primary)]">
-                            <div class="automation-help-tabs" role="tablist" aria-label="规则帮助分类">
-                                <button type="button" class="automation-help-tab"
-                                    id="automation-help-tab-conditions"
-                                    role="tab"
-                                    :class="{ 'is-active': helpActiveTab === 'conditions' }"
-                                    :aria-selected="helpActiveTab === 'conditions'"
-                                    aria-controls="automation-help-panel-conditions"
-                                    @click="openHelpTab('conditions')">条件</button>
-                                <button type="button" class="automation-help-tab"
-                                    id="automation-help-tab-actions"
-                                    role="tab"
-                                    :class="{ 'is-active': helpActiveTab === 'actions' }"
-                                    :aria-selected="helpActiveTab === 'actions'"
-                                    aria-controls="automation-help-panel-actions"
-                                    @click="openHelpTab('actions')">动作</button>
-                                <button type="button" class="automation-help-tab"
-                                    id="automation-help-tab-triggers"
-                                    role="tab"
-                                    :class="{ 'is-active': helpActiveTab === 'triggers' }"
-                                    :aria-selected="helpActiveTab === 'triggers'"
-                                    aria-controls="automation-help-panel-triggers"
-                                    @click="openHelpTab('triggers')">触发时机</button>
-                                <button type="button" class="automation-help-tab"
-                                    id="automation-help-tab-templates"
-                                    role="tab"
-                                    :class="{ 'is-active': helpActiveTab === 'templates' }"
-                                    :aria-selected="helpActiveTab === 'templates'"
-                                    aria-controls="automation-help-panel-templates"
-                                    @click="openHelpTab('templates')">模板语法</button>
-                            </div>
-
-                            <section x-show="helpActiveTab === 'conditions'" id="automation-help-panel-conditions"
-                                role="tabpanel" aria-labelledby="automation-help-tab-conditions"
-                                class="automation-help-panel space-y-6">
-                                <div>
-                                    <h4 class="font-bold text-[var(--accent-action)] mb-2 text-base">条件</h4>
-                                    <p class="text-[var(--content-muted)] mb-3">
-                                        在条件值中，你可以使用管道符 <code
-                                            class="bg-[var(--surface-code)] px-1.5 py-0.5 rounded color-text-warning font-mono">|</code>
-                                        来分隔多个目标值。这允许你在单行条件中实现“或”逻辑。
-                                    </p>
-
-                                    <div class="bg-[var(--surface-container-raised)] rounded border border-[var(--border-default)] p-3">
-                                        <div class="grid grid-cols-1 gap-3">
-                                            <div>
-                                                <div class="font-bold text-xs color-text-accent mb-1 inline-flex items-center gap-1">
-                                                    <span aria-hidden="true">{{ icon('check', 'ui-icon--xs') }}</span>
-                                                    <span>肯定类操作符 (包含 / 等于)</span>
-                                                </div>
-                                                <div class="text-xs text-[var(--content-muted)] mb-1">
-                                                    只要命中列表中的 <span class="font-bold color-text-on-dark">任意一个</span> 值，条件即为真 (OR 逻辑)。
-                                                </div>
-                                                <div class="bg-[var(--surface-code)] p-2 rounded text-xs font-mono">
-                                                    <span class="color-text-violet">Tags</span> <span class="color-text-muted">contains</span> <span class="color-text-success">elf|orc|goblin</span>
-                                                    <br>
-                                                    <span class="color-text-muted opacity-60">// 匹配包含 "elf" 或者 "orc" 或者 "goblin" 的卡片</span>
-                                                </div>
-                                            </div>
-
-                                            <div>
-                                                <div class="font-bold text-xs color-text-danger mb-1 inline-flex items-center gap-1">
-                                                    <span aria-hidden="true">{{ icon('forbidden', 'ui-icon--xs') }}</span>
-                                                    <span>否定类操作符 (不包含 / 不等于)</span>
-                                                </div>
-                                                <div class="text-xs text-[var(--content-muted)] mb-1">
-                                                    必须 <span class="font-bold color-text-on-dark">同时不匹配</span> 列表中的所有值，条件才为真 (NOR 逻辑)。
-                                                </div>
-                                                <div class="bg-[var(--surface-code)] p-2 rounded text-xs font-mono">
-                                                    <span class="color-text-violet">Creator</span> <span class="color-text-muted">not_contains</span> <span class="color-text-success">UserA|UserB</span>
-                                                    <br>
-                                                    <span class="color-text-muted opacity-60">// 排除 UserA 和 UserB 的作品 (既不是A也不是B)</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <h4 class="font-bold text-[var(--content-secondary)] mb-2 text-base">书写规范</h4>
-                                    <ul class="list-disc list-inside space-y-1 text-[var(--content-muted)] ml-2">
-                                        <li>无需使用引号包裹值（如 <code class="color-text-danger line-through">"elf"|"orc"</code> 是错误的，直接写 <code class="color-text-success">elf|orc</code>）。</li>
-                                        <li>管道符 <code class="font-mono">|</code> 前后的空格会被自动去除 (Trim)。</li>
-                                        <li>适用于所有文本和列表类型字段 (Name, Tags, Description 等)。</li>
-                                        <li><span class="color-text-warning">注意：</span>此语法不适用于 "正则匹配 (Regex)" 操作符，因为正则本身就支持 <code class="font-mono">|</code> 且逻辑更复杂。</li>
-                                    </ul>
-                                </div>
-                            </section>
-
-                            <section x-show="helpActiveTab === 'actions'" id="automation-help-panel-actions"
-                                role="tabpanel" aria-labelledby="automation-help-tab-actions"
-                                class="automation-help-panel space-y-6">
-                                <div>
-                                    <h4 class="font-bold text-[var(--accent-action)] mb-2 text-base">动作</h4>
-                                    <p class="text-[var(--content-muted)] mb-3">
-                                        动作按触发场景分批执行。不同触发场景只会运行对应的动作子集，因此请根据实际入口选择合适动作。
-                                    </p>
-                                    <div class="bg-[var(--surface-container-raised)] rounded border border-[var(--border-default)] p-3 space-y-3">
-                                        <div>
-                                            <div class="font-bold text-xs color-text-warning mb-1 inline-flex items-center gap-1">
-                                                <span aria-hidden="true">{{ detail_icon('tags', 'ui-icon--xs') }}</span>
-                                                <span>批量标签动作</span>
-                                            </div>
-                                            <div class="text-xs text-[var(--content-muted)] mb-1">
-                                                在执行 "添加标签" 或 "移除标签" 时，一次性处理多个标签。
-                                            </div>
-                                            <div class="bg-[var(--surface-code)] p-2 rounded text-xs font-mono">
-                                                <span class="color-text-violet">Add Tag</span> <span class="color-text-muted">=</span> <span class="color-text-success">female|elf|mage</span>
-                                                <br>
-                                                <span class="color-text-muted opacity-60">// 同时添加 "female", "elf", "mage" 三个标签</span>
-                                                <br>
-                                                <span class="color-text-muted opacity-60" x-show="$store.global.settingsForm.automation_slash_is_tag_separator">// 当前已启用 / 分隔，也可写为 female/elf/mage</span>
-                                            </div>
-                                        </div>
-
-                                        <div>
-                                            <div class="font-bold text-xs color-text-accent mb-2">论坛标签与模板动作</div>
-                                            <ul class="list-disc list-inside space-y-1 text-xs text-[var(--content-muted)]">
-                                                <li><strong>fetch_forum_tags</strong>：自动从来源链接抓取论坛标签，可配置排除标签、标签替换、合并模式；不会更新来源标题或首帖时间基线。</li>
-                                                <li><strong>refresh_source_baseline</strong>：更新来源链接时同步帖子标题和首帖编辑时间，并将其保存为新的检查基线；与抓取论坛标签同时启用时会合并帖子请求。</li>
-                                                <li><strong>add_tags_from_source_title</strong>：用自定义 Python 正则匹配来源帖子标题，按捕获组和分割正则提取标签；结果只追加，不替换已有标签。</li>
-                                                <li><strong>set_creator_from_source</strong>：从 Discord 首帖或类脑搜索结果读取作者，按模板填写创作者；可选择作者字段、来源优先级，以及是否覆盖已有创作者。</li>
-                                                <li><strong>merge_tags</strong>：将多个旧标签统一替换为同一个目标标签，适合做同义词归并。</li>
-                                                <li><strong>rename_file_by_template</strong>：按模板重命名文件，适合把角色名、版本、导入日期或修改日期等字段拼成规范文件名。</li>
-                                                <li><strong>split_category_to_tags</strong>：把当前分类路径按 <code class="font-mono">/</code> 拆成多个标签，例如 <code class="font-mono">a/b/c</code> 会追加 <code class="font-mono">a</code>、<code class="font-mono">b</code>、<code class="font-mono">c</code>。</li>
-                                            </ul>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <h4 class="font-bold text-[var(--accent-action)] mb-2 text-base">论坛标签抓取 (Fetch Forum Tags)</h4>
-                                    <p class="text-[var(--content-muted)] mb-3">
-                                        自动从类脑论坛帖子抓取标签并为角色卡打标。使用前需要在角色卡详情页设置"来源链接"。
-                                    </p>
-                                    <div class="bg-[var(--surface-container-raised)] rounded border border-[var(--border-default)] p-3">
-                                        <div class="font-bold text-xs color-text-success mb-2">配置说明：</div>
-                                        <ul class="list-disc list-inside space-y-1 text-xs text-[var(--content-muted)]">
-                                            <li><strong>排除标签</strong>：填写不需要的标签，默认用 <code class="font-mono color-text-warning">|</code> 分隔<span x-show="$store.global.settingsForm.automation_slash_is_tag_separator">，也支持 /</span></li>
-                                            <li><strong>标签替换</strong>：格式为"原标签→新标签"，多个规则默认用 <code class="font-mono color-text-warning">|</code> 分隔<span x-show="$store.global.settingsForm.automation_slash_is_tag_separator">，也支持 /</span></li>
-                                            <li><strong>合并模式</strong>：选择"合并"保留现有标签，或"替换"清空后添加</li>
-                                        </ul>
-                                        <div class="bg-[var(--surface-code)] p-2 rounded text-xs font-mono mt-2">
-                                            <span class="color-text-violet">示例</span><br>
-                                            <span x-text="$store.global.settingsForm.automation_slash_is_tag_separator ? '排除标签: 其他/待审核' : '排除标签: 其他|待审核'"></span><br>
-                                            <span x-text="$store.global.settingsForm.automation_slash_is_tag_separator ? '标签替换: 其他→杂项/调教→BDSM' : '标签替换: 其他→杂项|调教→BDSM'"></span><br>
-                                            合并模式: 合并
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <h4 class="font-bold text-[var(--accent-action)] mb-2 text-base">来源标题提取标签</h4>
-                                    <p class="text-[var(--content-muted)] mb-3">
-                                        该动作支持自定义正则逻辑，不限制为固定的括号格式。正则对来源帖子标题执行，匹配到的捕获组会再按分割正则拆成标签。
-                                    </p>
-                                    <div class="bg-[var(--surface-container-raised)] rounded border border-[var(--border-default)] p-3 space-y-2">
-                                        <div class="font-bold text-xs color-text-success">示例 1：标题 <code class="font-mono">【a/b】【c|d】</code></div>
-                                        <div class="bg-[var(--surface-code)] p-2 rounded text-xs font-mono">
-                                            正则：<span class="color-text-violet">(?:【|\[)([^】\]]+)(?:】|\])</span><br>
-                                            捕获组：<span class="color-text-success">1</span>　分割正则：<span class="color-text-success">[/|]</span><br>
-                                            结果：<span class="color-text-warning">a、b、c、d</span>
-                                        </div>
-                                        <div class="font-bold text-xs color-text-success">示例 2：自定义标题格式 <code class="font-mono">作者:abcd 标签:a/b</code></div>
-                                        <div class="bg-[var(--surface-code)] p-2 rounded text-xs font-mono">
-                                            正则：<span class="color-text-violet">标签[:：]([^\s]+)</span><br>
-                                            捕获组：<span class="color-text-success">1</span>　分割正则：<span class="color-text-success">[/]</span><br>
-                                            结果：追加标题中标签字段拆出的各个标签，并继续经过标签黑名单和标签库锁定检查。
-                                        </div>
-                                        <div class="text-[10px] text-[var(--content-muted)]">
-                                            捕获组填写 <code class="font-mono">0</code> 表示完整匹配，也可以填写多个编号或命名组（如 <code class="font-mono">1,2</code>、<code class="font-mono">tag,genre</code>）；正则标记支持 <code class="font-mono">i</code>、<code class="font-mono">m</code>、<code class="font-mono">s</code>、<code class="font-mono">x</code>。
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <h4 class="font-bold text-[var(--accent-action)] mb-2 text-base">来源作者填写创作者</h4>
-                                    <p class="text-[var(--content-muted)] mb-3">
-                                        来源作者优先从 Discord 首帖读取；自动模式下 Discord 没有作者时再尝试类脑搜索。类脑搜索需要配置可用的论坛 Cookie。
-                                    </p>
-                                    <div class="bg-[var(--surface-container-raised)] rounded border border-[var(--border-default)] p-3 space-y-2">
-                                        <div class="bg-[var(--surface-code)] p-2 rounded text-xs font-mono">
-                                            来源作者账号名：<span class="color-text-success">abcd</span><br>
-                                            格式：<span class="color-text-violet">&#123;&#123;author&#125;&#125;</span>　结果：<span class="color-text-warning">abcd</span><br>
-                                            格式：<span class="color-text-violet">&#123;&#123;author&#125;&#125;@&#123;&#123;author&#125;&#125;</span>　结果：<span class="color-text-warning">abcd@abcd</span>
-                                        </div>
-                                        <div class="text-xs text-[var(--content-muted)]">
-                                            未勾选“覆盖当前角色卡创作者”时，只有当前创作者为空才会填写；勾选后每次来源链接更新都会用新结果覆盖。支持变量 <code class="font-mono">&#123;&#123;author&#125;&#125;</code>、<code class="font-mono">&#123;&#123;username&#125;&#125;</code>、<code class="font-mono">&#123;&#123;display_name&#125;&#125;</code>、<code class="font-mono">&#123;&#123;global_name&#125;&#125;</code>、<code class="font-mono">&#123;&#123;author_id&#125;&#125;</code>、<code class="font-mono">&#123;&#123;title&#125;&#125;</code> 和 <code class="font-mono">&#123;&#123;source_url&#125;&#125;</code>。
-                                        </div>
-                                    </div>
-                                </div>
-                            </section>
-
-                            <section x-show="helpActiveTab === 'triggers'" id="automation-help-panel-triggers"
-                                role="tabpanel" aria-labelledby="automation-help-tab-triggers"
-                                class="automation-help-panel space-y-6">
-                                <div>
-                                    <h4 class="font-bold text-[var(--accent-action)] mb-2 text-base">触发时机</h4>
-                                    <p class="text-[var(--content-muted)] mb-3">
-                                        全局规则不是每个入口都执行全部动作。不同触发场景只会运行对应的动作子集，避免在不合适的场景里改名或改标签。
-                                    </p>
-                                    <div class="p-3 color-surface-accent border color-border-accent rounded">
-                                            <ul class="list-disc list-inside space-y-1 text-xs text-[var(--content-muted)]">
-                                                <li><strong>导入时</strong>：会执行普通动作（移动文件夹、添加/移除标签、设置收藏、名称同步、rename_file_by_template、split_category_to_tags）；导入时会跳过抓取论坛标签与标签合并。</li>
-                                                <li><strong>更新角色卡后</strong>：仅在 upload-file 或 update-from-URL 用新角色卡内容覆盖已有角色卡时触发；普通保存详情、单独更换封面、修改本地备注、修改来源链接都不会触发。</li>
-                                                <li><strong>更新链接时只执行抓取论坛标签</strong>这一旧版说明现已扩展：在卡片详情页修改"来源链接"并保存后，会执行 <strong>fetch_forum_tags</strong>、<strong>refresh_source_baseline</strong>、<strong>add_tags_from_source_title</strong>、<strong>set_creator_from_source</strong>；其中论坛标签、标题提取和作者填写会共用来源请求。链接未发生变化时不会重复触发。</li>
-                                                <li><strong>来源动作的生效前提</strong>：必须存在当前全局启用的规则集，且动作位于启用规则中；对应规则还需要包含 <code class="font-mono">link_update</code> 触发场景。未启用规则集、禁用规则或未配置来源动作时不会访问论坛。</li>
-                                                <li><strong>手动打标时</strong>：仅在"批量标签管理输入框"和"详情页自定义添加标签输入框"点击添加时触发；手动打标时只执行标签合并。</li>
-                                            </ul>
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <h4 class="font-bold text-[var(--content-secondary)] mb-2 text-base">常用字段说明</h4>
-                                    <div class="grid grid-cols-2 gap-2 text-xs automation-help-grid">
-                                        <div class="p-2 border border-[var(--border-default)] rounded">
-                                            <span class="font-bold color-text-accent">Tags (标签)</span>
-                                            <p class="text-[var(--content-muted)] mt-1">列表匹配。检查卡片的标签列表中是否包含目标。</p>
-                                        </div>
-                                        <div class="p-2 border border-[var(--border-default)] rounded">
-                                            <span class="font-bold color-text-accent">Raw Content (文本)</span>
-                                            <p class="text-[var(--content-muted)] mt-1">Description, First Mes 等。全文搜索匹配。</p>
-                                        </div>
-                                        <div class="p-2 border border-[var(--border-default)] rounded">
-                                            <span class="font-bold color-text-accent">WI Name/Content</span>
-                                            <p class="text-[var(--content-muted)] mt-1">高级匹配。会遍历所有世界书条目进行检查。</p>
-                                        </div>
-                                        <div class="p-2 border border-[var(--border-default)] rounded">
-                                            <span class="font-bold color-text-accent">Local Note (本地备注)</span>
-                                            <p class="text-[var(--content-muted)] mt-1">匹配你在 ST Manager 中填写的私有备注。</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </section>
-
-                            <section x-show="helpActiveTab === 'templates'" id="automation-help-panel-templates"
-                                role="tabpanel" aria-labelledby="automation-help-tab-templates"
-                                class="automation-help-panel space-y-6">
-                                <div>
-                                    <h4 class="font-bold text-[var(--accent-action)] mb-2 text-base">模板语法</h4>
-                                    <p class="text-[var(--content-muted)] mb-3">
-                                        <code class="font-mono">rename_file_by_template</code> 会把 <code class="font-mono">{% raw %}{{...}}{% endraw %}</code> 里的字段替换成当前卡片数据。<code class="font-mono">split_category_to_tags</code> 不读取模板，只会按当前分类路径拆分标签。
-                                    </p>
-                                    <div class="automation-template-cheatsheet text-xs mb-3">
-                                        <span class="font-bold text-[var(--content-primary)]">字段写法：</span>
-                                        <code class="font-mono">{% raw %}{{field}}{% endraw %}</code>
-                                        <span class="mx-2 text-[var(--content-muted)]">|</span>
-                                        <span class="font-bold text-[var(--content-primary)]">过滤器写法：</span>
-                                        <code class="font-mono">{% raw %}{{field|filter}}{% endraw %}</code>
-                                        <span class="mx-2 text-[var(--content-muted)]">|</span>
-                                        <span class="font-bold text-[var(--content-primary)]">带参数过滤器：</span>
-                                        <code class="font-mono">{% raw %}{{field|filter:param}}{% endraw %}</code>
-                                    </div>
-                                    <div class="bg-[var(--surface-container-raised)] rounded border border-[var(--border-default)] p-3 space-y-3">
-                                        <div class="automation-template-reference-grid">
-                                            <div class="automation-template-reference-column">
-                                                <div class="font-bold text-xs color-text-accent mb-1">支持字段</div>
-                                                <div class="text-xs text-[var(--content-muted)] mb-2">
-                                                    支持字段：char_name、char_version、filename、filename_stem、category、import_time、import_date、modified_time、modified_date
-                                                </div>
-                                                <div class="automation-template-field-grid grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
-                                                    <div class="p-2 border border-[var(--border-default)] rounded bg-[var(--surface-container)]">
-                                                        <div class="font-bold color-text-accent">char_name</div>
-                                                        <div class="text-[var(--content-muted)] mt-1">角色卡名</div>
-                                                    </div>
-                                                    <div class="p-2 border border-[var(--border-default)] rounded bg-[var(--surface-container)]">
-                                                        <div class="font-bold color-text-accent">char_version</div>
-                                                        <div class="text-[var(--content-muted)] mt-1">角色卡版本文本，可配合 <code class="font-mono">version</code> 清洗</div>
-                                                    </div>
-                                                    <div class="p-2 border border-[var(--border-default)] rounded bg-[var(--surface-container)]">
-                                                        <div class="font-bold color-text-accent">filename</div>
-                                                        <div class="text-[var(--content-muted)] mt-1">当前文件名（含扩展名）</div>
-                                                    </div>
-                                                    <div class="p-2 border border-[var(--border-default)] rounded bg-[var(--surface-container)]">
-                                                        <div class="font-bold color-text-accent">filename_stem</div>
-                                                        <div class="text-[var(--content-muted)] mt-1">当前文件名（不含扩展名）</div>
-                                                    </div>
-                                                    <div class="p-2 border border-[var(--border-default)] rounded bg-[var(--surface-container)]">
-                                                        <div class="font-bold color-text-accent">category</div>
-                                                        <div class="text-[var(--content-muted)] mt-1">当前分类路径，如 <code class="font-mono">a/b</code></div>
-                                                    </div>
-                                                    <div class="p-2 border border-[var(--border-default)] rounded bg-[var(--surface-container)]">
-                                                        <div class="font-bold color-text-accent">import_time / import_date</div>
-                                                        <div class="text-[var(--content-muted)] mt-1">导入时间戳 / 导入日期，更适合首次导入时命名</div>
-                                                    </div>
-                                                    <div class="p-2 border border-[var(--border-default)] rounded bg-[var(--surface-container)] md:col-span-2">
-                                                        <div class="font-bold color-text-accent">modified_time / modified_date</div>
-                                                        <div class="text-[var(--content-muted)] mt-1">文件修改时间戳 / 文件修改日期，更适合覆盖更新后命名</div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="automation-template-reference-column">
-                                                <div class="font-bold text-xs color-text-accent mb-1">支持过滤器</div>
-                                                <div class="text-xs text-[var(--content-muted)]">
-                                                    支持 <code class="font-mono">trim</code>、<code class="font-mono">default</code>、<code class="font-mono">limit</code>、<code class="font-mono">date</code>、<code class="font-mono">version</code>。日期字段支持 <code class="font-mono">date</code> 过滤器，例如 <code class="font-mono">date:%Y-%m-%d</code> 或 <code class="font-mono">date:%Y%m%d</code>。
-                                                </div>
-                                                <div class="text-xs text-[var(--content-muted)] mt-1">
-                                                    日期字段支持 date 过滤器。
-                                                </div>
-                                                <div class="automation-template-filter-list space-y-2 mt-3 text-xs">
-                                                    <div class="p-2 border border-[var(--border-default)] rounded bg-[var(--surface-container)]">
-                                                        <div class="font-bold color-text-success">trim：去掉首尾空格</div>
-                                                        <div class="font-mono mt-1">{% raw %}{{char_name|trim}}{% endraw %}</div>
-                                                        <div class="text-[var(--content-muted)] mt-1">示例：<code class="font-mono">"  Alice  "</code> -> <code class="font-mono">"Alice"</code></div>
-                                                    </div>
-                                                    <div class="p-2 border border-[var(--border-default)] rounded bg-[var(--surface-container)]">
-                                                        <div class="font-bold color-text-success">default：为空时使用备用值</div>
-                                                        <div class="font-mono mt-1">{% raw %}{{char_version|default:unknown}}{% endraw %}</div>
-                                                        <div class="text-[var(--content-muted)] mt-1">示例：空版本 -> <code class="font-mono">unknown</code></div>
-                                                    </div>
-                                                    <div class="p-2 border border-[var(--border-default)] rounded bg-[var(--surface-container)]">
-                                                        <div class="font-bold color-text-success">limit：截断过长文本</div>
-                                                        <div class="font-mono mt-1">{% raw %}{{filename_stem|limit:20}}{% endraw %}</div>
-                                                        <div class="text-[var(--content-muted)] mt-1">示例：<code class="font-mono">very-long-character-name-demo</code> -> <code class="font-mono">very-long-character-</code></div>
-                                                    </div>
-                                                    <div class="p-2 border border-[var(--border-default)] rounded bg-[var(--surface-container)]">
-                                                        <div class="font-bold color-text-success">date：格式化导入时间或修改时间</div>
-                                                        <div class="font-mono mt-1">{% raw %}{{import_date|date:%Y-%m-%d}}{% endraw %}</div>
-                                                        <div class="text-[var(--content-muted)] mt-1">示例：时间戳 -> <code class="font-mono">2026-04-01</code></div>
-                                                    </div>
-                                                    <div class="p-2 border border-[var(--border-default)] rounded bg-[var(--surface-container)]">
-                                                        <div class="font-bold color-text-success">version：从版本文本里提取主版本号</div>
-                                                        <div class="font-mono mt-1">{% raw %}{{char_version|version}}{% endraw %}</div>
-                                                        <div class="text-[var(--content-muted)] mt-1">示例：<code class="font-mono">Version 1.2 beta by author</code> -> <code class="font-mono">v1.2</code></div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <div class="font-bold text-xs color-text-success mb-1">文件重命名示例</div>
-                                            <div class="bg-[var(--surface-code)] p-2 rounded text-xs font-mono">{% raw %}{{char_name}} - {{char_version|version}} - {{modified_date|date:%Y-%m-%d}}{% endraw %}</div>
-                                            <div class="text-xs text-[var(--content-muted)] mt-1">例如生成“角色名 - v1.2 - 2026-04-01”这种文件名；import_date 更适合首次导入时命名，modified_date 更适合覆盖更新后命名。</div>
-                                        </div>
-                                        <div>
-                                            <div class="font-bold text-xs color-text-success mb-1">拆分类标签示例</div>
-                                            <div class="bg-[var(--surface-code)] p-2 rounded text-xs font-mono">category = a/b/c  ->  tags += [a, b, c]</div>
-                                            <div class="text-xs text-[var(--content-muted)] mt-1"><code class="font-mono">split_category_to_tags</code> 不读取模板，也不会使用回退模板或最大长度；它只是把当前分类路径按 <code class="font-mono">/</code> 拆成多个标签。</div>
-                                        </div>
-                                        <div>
-                                            <div class="font-bold text-xs color-text-accent mb-1">补救模板与长度限制</div>
-                                            <ul class="list-disc list-inside space-y-1 text-xs text-[var(--content-muted)]">
-                                                <li>主模板结果为空时，会尝试使用 fallback 模板。</li>
-                                                <li>文件名模板建议只拼接必要字段，并配合最大长度限制避免过长文件名。</li>
-                                                <li>分类拆分动作可结合“排除分类标签”过滤不想保留的类别词。</li>
-                                            </ul>
-                                        </div>
-                                    </div>
-                                </div>
-                            </section>
-                        </div>
-
-                        <!-- 底部 -->
-                        <div class="p-4 border-t border-[var(--border-default)] bg-[var(--surface-container-raised)] flex justify-end">
-                            <button @click="showHelpModal = false" class="btn-primary px-6 py-2 rounded shadow-md">
-                                明白了
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </main>
+          </div>
         </template>
 
-        <!-- 空状态 -->
-        <div x-show="!activeRuleSet" class="flex-1 flex flex-col items-center justify-center text-[var(--content-muted)] relative">
-            <!-- 关闭按钮（空状态时也显示） -->
-            <button @click="closeModal()" 
-                class="absolute top-2 right-2 z-50 w-8 h-8 bg-[var(--surface-container)] border border-[var(--border-default)] rounded-lg flex items-center justify-center text-[var(--content-primary)] hover:bg-[var(--state-hover-surface)] color-hover-text-danger transition-colors shadow-lg"
-                title="关闭" aria-label="关闭">
-                {{ icon('close', 'ui-icon--sm') }}
-            </button>
-            <div class="automation-empty-icon mb-4 opacity-20" aria-hidden="true">
-                {{ icon('workflow', 'ui-icon--3xl') }}
-            </div>
-            <p>请从左侧选择一个规则集，或新建一个</p>
+        <div
+          x-show="!isLoadingList && !loadError && filteredRuleSets.length === 0"
+          x-cloak
+          class="automation-list-state"
+        >
+          <span class="automation-empty-mark" aria-hidden="true">{{ icon('file-code', 'ui-icon--lg') }}</span>
+          <strong x-text="rulesetQuery ? '没有匹配的规则集' : '还没有规则集'"></strong>
+          <span x-text="rulesetQuery ? '试试搜索其他名称或清空搜索。' : '创建第一个规则集，开始编排卡片处理流程。'"></span>
+          <button type="button" class="btn-secondary automation-action-button" x-show="!rulesetQuery" @click="openCreateModal()">
+            {{ icon('plus-square', 'ui-icon--sm') }}<span>创建规则集</span>
+          </button>
         </div>
+      </div>
+
+      <div class="automation-sidebar-footer">
+        <span aria-hidden="true">{{ icon('keyboard', 'ui-icon--xs') }}</span>
+        <span>按 <kbd>Ctrl</kbd> + <kbd>S</kbd> 保存</span>
+      </div>
+    </aside>
+
+    <main class="automation-content">
+      <template x-if="activeRuleSet">
+        <div class="automation-editor">
+          <header class="automation-editor-header">
+            <div class="automation-editor-topbar">
+              <button
+                type="button"
+                class="automation-icon-button automation-mobile-only"
+                @click="showMobileSidebar = true"
+                title="打开规则集列表"
+                aria-label="打开规则集列表"
+              >
+                {{ icon('list', 'ui-icon--md') }}
+              </button>
+              <div class="automation-breadcrumb" aria-label="当前位置">
+                <span class="automation-breadcrumb-icon" aria-hidden="true">{{ icon('workflow', 'ui-icon--sm') }}</span>
+                <span>自动化</span>
+                <span aria-hidden="true">/</span>
+                <strong x-text="editingMeta.name || '未命名规则集'"></strong>
+              </div>
+              <div class="automation-editor-actions">
+                <div class="automation-save-state" :class="'is-' + saveState" role="status" aria-live="polite">
+                  <template x-if="saveState === 'saving'">{{ loading_icon('ui-icon--xs') }}</template>
+                  <template x-if="saveState === 'saved'">{{ icon('check', 'ui-icon--xs') }}</template>
+                  <template x-if="saveState === 'dirty'">{{ icon('circle-dot', 'ui-icon--xs') }}</template>
+                  <template x-if="saveState === 'error'">{{ icon('alert-triangle', 'ui-icon--xs') }}</template>
+                  <span x-text="saveStateLabel"></span>
+                </div>
+                <button type="button" class="automation-icon-button automation-help-trigger" @click="openHelpTab('conditions')" title="查看规则编写指南" aria-label="查看规则编写指南">{{ icon('settings-help-entry', 'ui-icon--md') }}</button>
+                <button type="button" class="automation-icon-button" @click="exportCurrentRuleSet()" title="导出规则集 JSON" aria-label="导出规则集 JSON">{{ icon('upload', 'ui-icon--md') }}</button>
+                <button type="button" class="automation-icon-button automation-icon-button--danger" @click="deleteCurrentRuleSet()" :disabled="isDeleting" title="删除当前规则集" aria-label="删除当前规则集">{{ icon('trash', 'ui-icon--md') }}</button>
+                <button type="button" class="automation-icon-button automation-mobile-only" @click="closeModal()" title="关闭自动化工作台" aria-label="关闭自动化工作台">{{ icon('close', 'ui-icon--md') }}</button>
+              </div>
+            </div>
+
+            <div class="automation-title-row">
+              <div class="automation-title-mark" aria-hidden="true">{{ icon('workflow', 'ui-icon--lg') }}</div>
+              <div class="automation-title-copy">
+                <label class="automation-field-label" for="automation-name">规则集名称</label>
+                <div class="automation-title-input-row">
+                  <input id="automation-name" type="text" x-model="editingMeta.name" class="automation-title-input" placeholder="例如：导入后整理" autocomplete="off" @blur="validateMeta()">
+                  <button type="button" class="automation-global-toggle" :class="{ 'is-active': activeRuleSet?.id && globalRulesetId === activeRuleSet?.id }" @click="toggleGlobalActive(activeRuleSet?.id)" :disabled="isSettingGlobal" :title="activeRuleSet?.id && globalRulesetId === activeRuleSet?.id ? '关闭全局自动规则' : '设为全局自动规则'">
+                    <span aria-hidden="true">{{ icon('pin', 'ui-icon--sm') }}</span>
+                    <span x-text="activeRuleSet?.id && globalRulesetId === activeRuleSet?.id ? '全局启用' : '设为全局'"></span>
+                  </button>
+                </div>
+                <span class="automation-field-error" x-show="metaError" x-text="metaError" role="alert"></span>
+              </div>
+              <div class="automation-title-meta">
+                <label><span>作者</span><input type="text" x-model="editingMeta.author" class="auto-input" placeholder="作者"></label>
+                <label><span>版本</span><input type="text" x-model="editingMeta.version" class="auto-input" placeholder="1.0"></label>
+              </div>
+            </div>
+
+            <div class="automation-description-row">
+              <label class="automation-field-label" for="automation-description">用途说明</label>
+              <textarea id="automation-description" x-model="editingMeta.description" rows="2" class="auto-input automation-description-input" placeholder="说明这套规则负责什么，方便日后从列表中快速识别。"></textarea>
+            </div>
+
+            <div class="automation-metrics" aria-label="当前规则集概览">
+              <div class="automation-metric"><span class="automation-metric-icon" aria-hidden="true">{{ icon('layers', 'ui-icon--sm') }}</span><span><strong x-text="editingRules.length"></strong><small>条规则</small></span></div>
+              <div class="automation-metric"><span class="automation-metric-icon automation-metric-icon--success" aria-hidden="true">{{ icon('check', 'ui-icon--sm') }}</span><span><strong x-text="enabledRuleCount"></strong><small>条启用</small></span></div>
+              <div class="automation-metric"><span class="automation-metric-icon automation-metric-icon--warning" aria-hidden="true">{{ icon('key-trigger', 'ui-icon--sm') }}</span><span><strong x-text="triggerCount"></strong><small>个触发入口</small></span></div>
+              <div class="automation-metric automation-metric--note"><span class="automation-status-dot" :class="editingUsesMetadata() ? 'is-warning' : 'is-on'" aria-hidden="true"></span><span x-text="editingUsesMetadata() ? '包含原始元数据条件，批量时会较慢' : '条件读取使用卡片索引'"></span></div>
+            </div>
+          </header>
+
+          <div class="automation-mobile-overview">
+            <div><span class="automation-overline">WORKFLOW SUMMARY</span><strong x-text="enabledRuleCount + ' 条规则已启用'"></strong></div>
+            <button type="button" class="automation-text-button" @click="showMobileOverview = !showMobileOverview" :aria-expanded="showMobileOverview"><span x-text="showMobileOverview ? '收起概览' : '查看概览'"></span><span aria-hidden="true">{{ icon('chevron-down', 'ui-icon--xs') }}</span></button>
+            <div x-show="showMobileOverview" x-cloak class="automation-mobile-overview-detail"><span><strong x-text="editingRules.length"></strong> 条规则</span><span><strong x-text="triggerCount"></strong> 个触发入口</span><span x-text="globalRulesetId === activeRuleSet?.id ? '当前为全局规则' : '当前未设为全局'"></span></div>
+          </div>
+
+          <div class="automation-editor-layout">
+            <div class="auto-body custom-scrollbar" x-ref="ruleBody">
+              <div x-show="editorError" x-cloak class="automation-feedback automation-feedback--error" role="alert">
+                <span class="automation-feedback-icon" aria-hidden="true">{{ icon('alert-triangle', 'ui-icon--sm') }}</span>
+                <div><strong x-text="editorErrorTitle"></strong><span x-text="editorError"></span></div>
+                <button type="button" class="automation-icon-button automation-icon-button--small" @click="editorError = ''" title="关闭提示" aria-label="关闭提示">{{ icon('close', 'ui-icon--sm') }}</button>
+              </div>
+
+              <div x-show="editingUsesMetadata()" x-cloak class="automation-feedback automation-feedback--warning" role="note">
+                <span class="automation-feedback-icon" aria-hidden="true">{{ icon('book-tip', 'ui-icon--sm') }}</span>
+                <div><strong>原始元数据条件会读取角色卡文件</strong><span>批量执行前建议先缩小卡片范围；留空路径会搜索完整元数据，点号路径和数组下标均可用。</span></div>
+                <button type="button" class="automation-text-button" @click="openHelpTab('conditions')">查看说明</button>
+              </div>
+
+              <div class="automation-builder-heading">
+                <div><span class="automation-overline">RULE BUILDER</span><h2>执行流程</h2><p id="automation-modal-description">从上到下依次评估规则；每条规则由条件组和执行动作组成。</p></div>
+                <button type="button" class="automation-text-button" @click="openHelpTab('triggers')">{{ icon('key-trigger', 'ui-icon--sm') }}<span>触发时机</span></button>
+              </div>
+
+              <div x-show="editingRules.length === 0" x-cloak class="automation-builder-empty">
+                <span class="automation-empty-mark" aria-hidden="true">{{ icon('layers', 'ui-icon--2xl') }}</span>
+                <strong>这套规则集还没有流程</strong><span>从第一条规则开始，设置它在哪些场景触发，以及命中后要做什么。</span>
+                <button type="button" class="btn-primary automation-action-button" @click="addRule()">{{ icon('plus-square', 'ui-icon--sm') }}<span>添加第一条规则</span></button>
+              </div>
+
+              <template x-for="(rule, rIdx) in editingRules" :key="rule.id">
+                <article class="rule-card" :class="{ 'is-disabled': !rule.enabled, 'is-collapsed': isRuleCollapsed(rule.id), 'is-open': !isRuleCollapsed(rule.id) }">
+                  <header class="rule-header">
+                    <div class="rule-heading">
+                      <span class="rule-index" x-text="String(rIdx + 1).padStart(2, '0')"></span>
+                      <label class="automation-switch automation-switch--compact" :title="rule.enabled ? '停用规则' : '启用规则'"><input type="checkbox" x-model="rule.enabled" :aria-label="rule.enabled ? '停用规则' : '启用规则'"><span class="automation-switch-track" aria-hidden="true"></span></label>
+                      <div class="rule-name-block">
+                        <label class="sr-only" :for="'automation-rule-name-' + rIdx">规则名称</label>
+                        <input type="text" :id="'automation-rule-name-' + rIdx" x-model="rule.name" class="rule-name-input" placeholder="未命名规则">
+                        <span class="rule-summary" x-text="ruleSummary(rule)"></span>
+                      </div>
+                    </div>
+                    <div class="automation-inline-actions rule-header-actions">
+                      <span class="rule-enabled-label" :class="rule.enabled ? 'is-enabled' : 'is-disabled'" x-text="rule.enabled ? '启用中' : '已停用'"></span>
+                      <button type="button" @click="moveRule(rIdx, -1)" class="ui-reorder-button" title="上移规则" aria-label="上移规则" :disabled="rIdx === 0">{{ icon('arrow-up', 'ui-icon--xs') }}</button>
+                      <button type="button" @click="moveRule(rIdx, 1)" class="ui-reorder-button" title="下移规则" aria-label="下移规则" :disabled="rIdx === editingRules.length - 1">{{ icon('arrow-down', 'ui-icon--xs') }}</button>
+                      <button type="button" class="automation-icon-button automation-icon-button--small automation-icon-button--danger" @click="deleteRule(rIdx)" title="删除规则" aria-label="删除规则">{{ icon('trash', 'ui-icon--sm') }}</button>
+                      <button type="button" class="automation-icon-button automation-icon-button--small" @click="toggleRuleCollapsed(rule.id)" :aria-expanded="(!isRuleCollapsed(rule.id)).toString()" :title="isRuleCollapsed(rule.id) ? '展开规则' : '折叠规则'" :aria-label="isRuleCollapsed(rule.id) ? '展开规则' : '折叠规则'"><span :class="{ 'is-rotated': !isRuleCollapsed(rule.id) }" aria-hidden="true">{{ icon('chevron-down', 'ui-icon--sm') }}</span></button>
+                    </div>
+                  </header>
+
+                  <div class="rule-trigger-strip">
+                    <div class="rule-trigger-label"><span class="automation-status-icon automation-status-icon--info" aria-hidden="true">{{ icon('key-trigger', 'ui-icon--sm') }}</span><span>触发场景</span></div>
+                      <div class="rule-trigger-options" role="group" :aria-label="'规则 ' + (rIdx + 1) + ' 的触发场景'">
+                        <button type="button" class="automation-preset-chip"
+                          :class="ruleHasTrigger(rule, 'manual_run') ? 'border-[var(--accent-action)] text-[var(--accent-action)]' : 'text-[var(--content-muted)]'"
+                          @click="toggleRuleTrigger(rule, 'manual_run')">
+                          手动执行
+                        </button>
+                        <button type="button" class="automation-preset-chip"
+                          :class="ruleHasTrigger(rule, 'auto_import') ? 'border-[var(--accent-action)] text-[var(--accent-action)]' : 'text-[var(--content-muted)]'"
+                          @click="toggleRuleTrigger(rule, 'auto_import')">
+                          导入后
+                        </button>
+                        <button type="button" class="automation-preset-chip"
+                          :class="ruleHasTrigger(rule, 'card_update') ? 'border-[var(--accent-action)] text-[var(--accent-action)]' : 'text-[var(--content-muted)]'"
+                          @click="toggleRuleTrigger(rule, 'card_update')">
+                          更新角色卡后
+                        </button>
+                        <button type="button" class="automation-preset-chip"
+                          :class="ruleHasTrigger(rule, 'link_update') ? 'border-[var(--accent-action)] text-[var(--accent-action)]' : 'text-[var(--content-muted)]'"
+                          @click="toggleRuleTrigger(rule, 'link_update')">
+                          更新来源链接后
+                        </button>
+                        <button type="button" class="automation-preset-chip"
+                          :class="ruleHasTrigger(rule, 'tag_edit') ? 'border-[var(--accent-action)] text-[var(--accent-action)]' : 'text-[var(--content-muted)]'"
+                          @click="toggleRuleTrigger(rule, 'tag_edit')">
+                          手动打标后
+                        </button>
+                      </div>
+                      <span class="rule-trigger-note">仅勾选的触发场景会参与该规则。</span>
+                    <label class="rule-stop-toggle" title="命中此规则后不再执行后续规则"><input type="checkbox" x-model="rule.stop_on_match"><span>命中即停止</span></label>
+                  </div>
+
+                  <div class="rule-body" x-show="rule.enabled && !isRuleCollapsed(rule.id)" x-cloak>
+                    <div class="rule-flow-grid">
+                      <section class="logic-section logic-section--conditions" :aria-labelledby="'condition-section-title-' + rIdx">
+                        <div class="logic-section-heading">
+                          <div class="logic-section-title"><span class="logic-section-marker logic-section-marker--if" aria-hidden="true">{{ icon('filter', 'ui-icon--sm') }}</span><div><span class="logic-section-kicker">IF</span><h3 :id="'condition-section-title-' + rIdx">满足条件</h3></div></div>
+                          <span class="logic-section-count" x-text="conditionCount(rule) + ' 条'"></span>
+                        </div>
+                        <div class="rule-logic-control"><span>条件组关系</span>{% call styled_select("rule.logic", wrapper_class="auto-select icon-select--compact", trigger_class="icon-select-trigger--compact text-xs", menu_class="icon-select-menu--fit", aria_label="规则条件组逻辑") %}<option value="OR">满足任意条件组 (OR)</option><option value="AND">满足全部条件组 (AND)</option>{% endcall %}</div>
+
+                        <div class="condition-groups">
+                          <template x-for="(group, gIdx) in rule.groups" :key="group.id">
+                            <div class="condition-group">
+                              <div class="condition-group-head"><div><span class="condition-group-number" x-text="'组 ' + (gIdx + 1)"></span><span class="condition-group-count" x-text="(group.conditions || []).length + ' 条条件'"></span></div><div class="automation-inline-actions">
+                                <button type="button" @click="moveGroup(rIdx, gIdx, -1)" class="ui-reorder-button" title="上移条件组" aria-label="上移条件组" :disabled="gIdx === 0">{{ icon('arrow-up', 'ui-icon--xs') }}</button>
+                                <button type="button" @click="moveGroup(rIdx, gIdx, 1)" class="ui-reorder-button" title="下移条件组" aria-label="下移条件组" :disabled="gIdx === rule.groups.length - 1">{{ icon('arrow-down', 'ui-icon--xs') }}</button>
+                                <button type="button" class="automation-icon-button automation-icon-button--small automation-icon-button--danger" @click="removeGroup(rIdx, gIdx)" title="删除条件组" aria-label="删除条件组">{{ icon('trash', 'ui-icon--sm') }}</button>
+                              </div></div>
+                              <div class="condition-group-logic"><span>组内逻辑</span>{% call styled_select("group.logic", wrapper_class="auto-select icon-select--compact", trigger_class="icon-select-trigger--tiny text-xs", menu_class="icon-select-menu--fit", aria_label="条件组逻辑") %}<option value="AND">全部满足 (AND)</option><option value="OR">任一满足 (OR)</option>{% endcall %}</div>
+
+                              <div class="condition-list">
+                                <template x-for="(cond, cIdx) in group.conditions" :key="cIdx">
+                                  <div class="logic-row condition-row">
+                                    <div class="condition-row-fields">
+                                      <label class="condition-field"><span>字段</span>{% call styled_select("cond.field", wrapper_class="auto-select w-full", trigger_class="icon-select-trigger--compact text-xs", menu_class="icon-select-menu--fit", aria_label="条件字段") %}
+                                        <optgroup label="基础信息"><option value="char_name">角色名 (Name)</option><option value="filename">文件名 (Filename)</option><option value="creator">创作者 (Creator)</option><option value="char_version">版本 (Version)</option><option value="tags">标签 (Tags)</option></optgroup>
+                                        <optgroup label="核心文本"><option value="description">简介 (Description)</option><option value="first_mes">开场白 (First Mes)</option><option value="alternate_greetings">备用开场白 (Alt Greetings)</option><option value="mes_example">对话示例 (Mes Example)</option></optgroup>
+                                        <optgroup label="设定与提示词"><option value="personality">人格设定 (Personality)</option><option value="scenario">场景设定 (Scenario)</option><option value="creator_notes">作者注释 (Creator Notes)</option><option value="system_prompt">系统提示词 (Sys Prompt)</option><option value="post_history_instructions">历史指令 (Post History)</option></optgroup>
+                                        <optgroup label="高级扩展"><option value="wi_name">世界书条目名称</option><option value="wi_content">世界书条目内容</option><option value="regex_name">正则脚本名称</option><option value="regex_content">正则脚本内容</option><option value="st_script_name">ST Helper 脚本名</option><option value="st_script_content">ST Helper 内容</option></optgroup>
+                                        <optgroup label="系统属性"><option value="ui_summary">本地备注 (Local Note)</option><option value="source_link">来源链接 (Source Link)</option><option value="is_favorite">是否收藏 (Is Fav)</option><option value="token_count">Token 数</option><option value="file_size">文件大小</option></optgroup>
+                                        <optgroup label="元数据（可能较慢）"><option value="metadata">原始元数据</option></optgroup>
+                                      {% endcall %}</label>
+                                      <label class="condition-operator"><span>操作符</span>{% call styled_select("cond.operator", wrapper_class="auto-select w-full", trigger_class="icon-select-trigger--compact text-xs", menu_class="icon-select-menu--fit", aria_label="条件操作符") %}<option value="contains">包含</option><option value="not_contains">不包含</option><option value="eq">等于</option><option value="neq">不等于</option><option value="regex">正则匹配</option><option value="exists">有内容</option><option value="not_exists">为空</option><option value="gt">大于</option><option value="lt">小于</option><option value="is_true">是 (True)</option><option value="is_false">否 (False)</option>{% endcall %}</label>
+                                      <label class="condition-value"><span>匹配值</span><input x-show="['exists','not_exists','is_true','is_false'].indexOf(cond.operator) === -1" type="text" x-model="cond.value" class="auto-input w-full" placeholder="输入文本、标签或正则"><span x-show="['exists','not_exists','is_true','is_false'].indexOf(cond.operator) !== -1" x-cloak class="condition-no-value">无需填写匹配值</span></label>
+                                      <label x-show="cond.field === 'metadata'" x-cloak class="condition-metadata"><span>元数据路径</span><input x-model="cond.metadata_path" type="text" class="auto-input w-full" placeholder="可选，如 data.extensions.foo" title="留空搜索完整元数据；支持点号路径和数组下标"></label>
+                                    </div>
+                                    <div class="automation-inline-actions condition-row-actions">
+                                      <button type="button" @click="moveConditionInGroup(rIdx, gIdx, cIdx, -1)" class="ui-reorder-button" title="上移条件" aria-label="上移条件" :disabled="cIdx === 0">{{ icon('arrow-up', 'ui-icon--xs') }}</button>
+                                      <button type="button" @click="moveConditionInGroup(rIdx, gIdx, cIdx, 1)" class="ui-reorder-button" title="下移条件" aria-label="下移条件" :disabled="cIdx === group.conditions.length - 1">{{ icon('arrow-down', 'ui-icon--xs') }}</button>
+                                      <button type="button" @click="removeConditionFromGroup(rIdx, gIdx, cIdx)" class="automation-icon-button automation-icon-button--small automation-icon-button--danger" title="删除条件" aria-label="删除条件">{{ icon('close', 'ui-icon--sm') }}</button>
+                                    </div>
+                                  </div>
+                                </template>
+                                <div x-show="!group.conditions || group.conditions.length === 0" x-cloak class="condition-empty">{{ icon('filter', 'ui-icon--sm') }}<span>这个条件组还没有条件，将按空组处理。</span></div>
+                                <button type="button" class="automation-add-button" @click="addConditionToGroup(rIdx, gIdx)">{{ icon('plus-square', 'ui-icon--sm') }}<span>添加条件</span></button>
+                              </div>
+                            </div>
+                          </template>
+                          <div x-show="!rule.groups || rule.groups.length === 0" x-cloak class="condition-empty condition-empty--group">{{ icon('layers', 'ui-icon--sm') }}<span>还没有条件组。</span></div>
+                          <button type="button" class="automation-add-button automation-add-button--outline" @click="addGroup(rIdx)">{{ icon('plus-square', 'ui-icon--sm') }}<span>新增条件组</span></button>
+                        </div>
+                      </section>
+
+                      <section class="logic-section logic-section--actions" :aria-labelledby="'action-section-title-' + rIdx">
+                        <div class="logic-section-heading"><div class="logic-section-title"><span class="logic-section-marker logic-section-marker--then" aria-hidden="true">{{ icon('bolt', 'ui-icon--sm') }}</span><div><span class="logic-section-kicker">THEN</span><h3 :id="'action-section-title-' + rIdx">执行动作</h3></div></div><span class="logic-section-count" x-text="(rule.actions || []).length + ' 条'"></span></div>
+                        <div class="action-list">
+                          <template x-for="(action, aIdx) in rule.actions" :key="aIdx">
+                            <div class="logic-row action-row" :class="'action-row--' + action.type">
+                              <div class="action-row-main">
+                                <div class="icon-select automation-action-type-select" :class="{ 'is-open': isActionMenuOpen(rIdx, aIdx) }" @click.outside="closeActionMenu($event)">
+                                  <button type="button" class="icon-select-trigger automation-action-type-control font-bold" :aria-expanded="isActionMenuOpen(rIdx, aIdx).toString()" aria-haspopup="listbox" :aria-controls="'automation-action-options-' + rIdx + '-' + aIdx" @click="toggleActionMenu(rIdx, aIdx)" @keydown.arrow-down.prevent="openActionMenu(rIdx, aIdx)" @keydown.escape.stop="closeActionMenu()">
+                                    <span class="icon-select-trigger-icon" aria-hidden="true">
+                                      <span x-show="action.type === 'move_folder'" x-cloak>{{ sidebar_icon('folder-open', 'ui-icon--sm') }}</span><span x-show="action.type === 'add_tag'" x-cloak>{{ detail_icon('tags', 'ui-icon--sm') }}</span><span x-show="action.type === 'remove_tag'" x-cloak>{{ icon('trash', 'ui-icon--sm') }}</span><span x-show="action.type === 'set_favorite'" x-cloak>{{ icon('heart', 'ui-icon--sm') }}</span><span x-show="action.type === 'merge_tags'" x-cloak>{{ icon('merge', 'ui-icon--sm') }}</span><span x-show="action.type === 'fetch_forum_tags'" x-cloak>{{ detail_icon('link-source', 'ui-icon--sm') }}</span><span x-show="action.type === 'refresh_source_baseline'" x-cloak>{{ detail_icon('clock', 'ui-icon--sm') }}</span><span x-show="action.type === 'add_tags_from_source_title'" x-cloak>{{ detail_icon('regex', 'ui-icon--sm') }}</span><span x-show="action.type === 'set_creator_from_source'" x-cloak>{{ detail_icon('user', 'ui-icon--sm') }}</span><span x-show="action.type === 'rename_file_by_template'" x-cloak>{{ icon('pencil-edit', 'ui-icon--sm') }}</span><span x-show="action.type === 'split_category_to_tags'" x-cloak>{{ detail_icon('tags', 'ui-icon--sm') }}</span><span x-show="action.type === 'set_char_name_from_filename'" x-cloak>{{ detail_icon('file-name', 'ui-icon--sm') }}</span><span x-show="action.type === 'set_wi_name_from_filename'" x-cloak>{{ detail_icon('file-name', 'ui-icon--sm') }}</span><span x-show="action.type === 'set_filename_from_char_name'" x-cloak>{{ detail_icon('file-name', 'ui-icon--sm') }}</span><span x-show="action.type === 'set_filename_from_wi_name'" x-cloak>{{ detail_icon('file-name', 'ui-icon--sm') }}</span>
+                                    </span><span class="icon-select-label" x-text="actionTypeLabel(action.type)"></span><span class="icon-select-chevron" aria-hidden="true">{{ icon('chevron-down', 'ui-icon--xs') }}</span>
+                                  </button>
+                                  <div x-show="isActionMenuOpen(rIdx, aIdx)" x-cloak :id="'automation-action-options-' + rIdx + '-' + aIdx" class="icon-select-menu" role="listbox" aria-label="执行动作">
+                                    <template x-for="option in actionTypeOptions" :key="option.value">
+                                      <button type="button" role="option" class="icon-select-option" :aria-selected="(action.type === option.value).toString()" @click="selectActionType(action, option.value)">
+                                        <span class="icon-select-option-icon" aria-hidden="true">
+                                          <span x-show="option.value === 'move_folder'" x-cloak>{{ sidebar_icon('folder-open', 'ui-icon--sm') }}</span><span x-show="option.value === 'add_tag'" x-cloak>{{ detail_icon('tags', 'ui-icon--sm') }}</span><span x-show="option.value === 'remove_tag'" x-cloak>{{ icon('trash', 'ui-icon--sm') }}</span><span x-show="option.value === 'set_favorite'" x-cloak>{{ icon('heart', 'ui-icon--sm') }}</span><span x-show="option.value === 'merge_tags'" x-cloak>{{ icon('merge', 'ui-icon--sm') }}</span><span x-show="option.value === 'fetch_forum_tags'" x-cloak>{{ detail_icon('link-source', 'ui-icon--sm') }}</span><span x-show="option.value === 'refresh_source_baseline'" x-cloak>{{ detail_icon('clock', 'ui-icon--sm') }}</span><span x-show="option.value === 'add_tags_from_source_title'" x-cloak>{{ detail_icon('regex', 'ui-icon--sm') }}</span><span x-show="option.value === 'set_creator_from_source'" x-cloak>{{ detail_icon('user', 'ui-icon--sm') }}</span><span x-show="option.value === 'rename_file_by_template'" x-cloak>{{ icon('pencil-edit', 'ui-icon--sm') }}</span><span x-show="option.value === 'split_category_to_tags'" x-cloak>{{ detail_icon('tags', 'ui-icon--sm') }}</span><span x-show="option.value === 'set_char_name_from_filename'" x-cloak>{{ detail_icon('file-name', 'ui-icon--sm') }}</span><span x-show="option.value === 'set_wi_name_from_filename'" x-cloak>{{ detail_icon('file-name', 'ui-icon--sm') }}</span><span x-show="option.value === 'set_filename_from_char_name'" x-cloak>{{ detail_icon('file-name', 'ui-icon--sm') }}</span><span x-show="option.value === 'set_filename_from_wi_name'" x-cloak>{{ detail_icon('file-name', 'ui-icon--sm') }}</span>
+                                        </span><span class="icon-select-option-label" x-text="option.label"></span>
+                                      </button>
+                                    </template>
+                                  </div>
+                                </div>
+
+                                <div class="action-config">
+                                  <template x-if="action.type === 'set_favorite'">{% call styled_select("action.value", wrapper_class="auto-select w-full", trigger_class="icon-select-trigger--compact text-sm", menu_class="icon-select-menu--fit", aria_label="收藏状态") %}<option value="true">是 (Favorite)</option><option value="false">否 (Unfavorite)</option>{% endcall %}</template>
+                                  <template x-if="action.type === 'merge_tags'">
+                                    <div x-data="{ cfg: initActionConfig(action) }" class="action-config-panel"><label>映射规则<input type="text" x-model="action.value" class="auto-input w-full text-xs" :placeholder="$store.global.settingsForm.automation_slash_is_tag_separator ? '格式：旧标签→新标签，多个可用 | 或 / 分隔，如：femdom→女上|female→女性/waifu→老婆' : '格式：旧标签→新标签，多个可用 | 分隔，如：femdom→女上|female→女性'" :title="$store.global.settingsForm.automation_slash_is_tag_separator ? '支持批量映射：使用 | 或 / 分隔，每条规则使用 →（如 a→A|b→B）' : '支持批量映射：使用 | 分隔，每条规则使用 →（如 a→A|b→B）'"></label><span class="action-config-hint">{{ icon('merge', 'ui-icon--xs') }}将同义标签归并到统一标签，仅在手动打标输入框添加标签时触发。</span></div>
+                                  </template>
+                                  <template x-if="action.type === 'fetch_forum_tags'">
+                                    <div x-data="{ cfg: initActionConfig(action) }" class="action-config-panel"><label>排除标签<input type="text" x-model="cfg.exclude_tags" class="auto-input w-full text-xs" :placeholder="$store.global.settingsForm.automation_slash_is_tag_separator ? '多个标签用 | 或 / 分隔，如：其他|待审核/临时' : '多个标签用 | 分隔，如：其他|待审核'"></label><label>标签替换<input type="text" x-model="cfg.replace_rules_text" class="auto-input w-full text-xs" :placeholder="$store.global.settingsForm.automation_slash_is_tag_separator ? '格式：原标签→新标签，多个用 | 或 / 分隔' : '格式：原标签→新标签，多个用 | 分隔'"></label><label>合并模式{% call styled_select("cfg.merge_mode", wrapper_class="auto-select w-full", trigger_class="icon-select-trigger--compact text-xs", menu_class="icon-select-menu--fit", aria_label="标签合并模式") %}<option value="merge">合并（保留现有标签）</option><option value="replace">替换（清空后添加）</option>{% endcall %}</label><span class="action-config-hint">{{ detail_icon('link-source', 'ui-icon--xs') }}从角色卡来源链接抓取类脑论坛标签。</span></div>
+                                  </template>
+                                  <template x-if="action.type === 'add_tags_from_source_title'">
+                                    <div x-data="{ cfg: initActionConfig(action) }" class="action-config-panel"><label>标题正则<textarea x-model="cfg.pattern" class="auto-input w-full text-xs font-mono" rows="2" aria-label="来源标题正则表达式" placeholder="例如：(?:【|\[)([^】\]]+)(?:】|\])"></textarea></label><div class="action-config-grid"><label>捕获组<input type="text" x-model="cfg.capture_groups_text" class="auto-input w-full text-xs font-mono" aria-label="来源标题正则捕获组" placeholder="1 或 1,2 或 tag,genre"></label><label>分割正则<input type="text" x-model="cfg.split_pattern" class="auto-input w-full text-xs font-mono" aria-label="来源标题标签分割正则" placeholder="[/|]"></label><label>正则标记<input type="text" x-model="cfg.flags" class="auto-input w-full text-xs font-mono" aria-label="来源标题正则标记" placeholder="ims"></label></div><span class="action-config-hint">{{ detail_icon('regex', 'ui-icon--xs') }}使用 Python 正则提取标题标签，只追加结果并遵守标签黑名单。</span></div>
+                                  </template>
+                                  <template x-if="action.type === 'set_creator_from_source'">
+                                    <div x-data="{ cfg: initActionConfig(action) }" class="action-config-panel"><div class="action-config-grid"><label>作者来源{% call styled_select("cfg.provider", wrapper_class="auto-select w-full", trigger_class="icon-select-trigger--compact text-xs", menu_class="icon-select-menu--fit", aria_label="来源作者抓取来源") %}<option value="auto">自动（Discord 优先，类脑补充）</option><option value="discord">Discord 首帖</option><option value="shimmerday">类脑搜索</option>{% endcall %}</label><label>作者字段{% call styled_select("cfg.author_field", wrapper_class="auto-select w-full", trigger_class="icon-select-trigger--compact text-xs", menu_class="icon-select-menu--fit", aria_label="来源作者字段") %}<option value="username">账号名（username/name）</option><option value="display_name">显示名</option><option value="global_name">全局名</option><option value="author_id">作者 ID</option>{% endcall %}</label></div><label>创作者格式<input type="text" x-model="cfg.format" class="auto-input w-full text-xs font-mono" aria-label="创作者格式模板" placeholder="例如：{{ '{{author}}' }}"></label><label class="automation-checkbox-label"><input type="checkbox" x-model="cfg.overwrite" aria-label="覆盖当前角色卡创作者"><span>覆盖当前角色卡创作者</span></label><span class="action-config-hint">{{ detail_icon('user', 'ui-icon--xs') }}来源链接更新时执行；未勾选时仅在当前创作者为空时填写。</span></div>
+                                  </template>
+                                   <template x-if="action.type === 'rename_file_by_template'">
+                                     <div x-data="{ cfg: initActionConfig(action) }" class="action-config-panel"><div class="action-config-label-row"><span>套用示例</span><div class="automation-chip-row"><button type="button" class="automation-preset-chip" @click="cfg = applyRenameTemplatePreset(action, 'name_version')">{{ icon('version', 'ui-icon--xs') }}角色名 + 版本</button><button type="button" class="automation-preset-chip" @click="cfg = applyRenameTemplatePreset(action, 'name_import_date')">{{ icon('calendar', 'ui-icon--xs') }}角色名 + 导入日期</button><button type="button" class="automation-preset-chip" @click="cfg = applyRenameTemplatePreset(action, 'name_version_modified_date')">{{ icon('calendar', 'ui-icon--xs') }}角色名 + 版本 + 修改日期</button></div></div><label>模板<input type="text" x-model="cfg.template" class="auto-input w-full text-xs" placeholder="例如：{{ '{{char_name}}' }} - {{ '{{creator}}' }}"></label><div class="action-config-grid action-config-grid--rename"><label>回退模板<input type="text" x-model="cfg.fallback_template" class="auto-input w-full text-xs" placeholder="主模板为空时使用，可留空"></label><label>最大长度<input type="number" x-model.number="cfg.max_length" min="1" class="auto-input w-full text-xs" placeholder="120"></label></div><span class="action-config-hint">{{ icon('pencil-edit', 'ui-icon--xs') }}若想在覆盖更新后重命名，请在规则上启用“更新角色卡后”触发场景。</span></div>
+                                  </template>
+                                  <template x-if="action.type === 'split_category_to_tags'">
+                                     <div x-data="{ cfg: initActionConfig(action) }" class="action-config-panel"><label>排除分类标签:<input type="text" x-model="cfg.exclude_category_tags" class="auto-input w-full text-xs" :placeholder="$store.global.settingsForm.automation_slash_is_tag_separator ? '多个标签用 | 或 / 分隔，如：角色|题材/状态' : '多个标签用 | 分隔，如：角色|题材'"></label><span class="action-config-hint">{{ detail_icon('tags', 'ui-icon--xs') }}当前分类路径会自动按 / 拆分，例如 <code class="font-mono">a/b/c</code> 会追加 <code class="font-mono">a</code>、<code class="font-mono">b</code>、<code class="font-mono">c</code>。</span></div>
+                                  </template>
+                                  <template x-if="action.type === 'refresh_source_baseline'"><div class="action-config-panel action-config-panel--readonly">{{ detail_icon('clock', 'ui-icon--sm') }}<span>来源链接更新时抓取标题和首帖编辑时间，并建立新的检查基线。</span></div></template>
+                                  <template x-if="action.type !== 'set_favorite' && action.type !== 'fetch_forum_tags' && action.type !== 'refresh_source_baseline' && action.type !== 'add_tags_from_source_title' && action.type !== 'set_creator_from_source' && action.type !== 'merge_tags' && action.type !== 'rename_file_by_template' && action.type !== 'split_category_to_tags' && action.type !== 'set_char_name_from_filename' && action.type !== 'set_wi_name_from_filename' && action.type !== 'set_filename_from_char_name' && action.type !== 'set_filename_from_wi_name'"><label class="action-simple-field">参数<input type="text" x-model="action.value" class="auto-input w-full" :placeholder="action.type==='move_folder' ? '文件夹路径，例如 Race/Elf' : ((action.type==='add_tag' || action.type==='remove_tag') ? '标签名称，可用 | 分隔多个标签' : '标签名称')"></label></template>
+                                  <template x-if="action.type === 'set_char_name_from_filename' || action.type === 'set_wi_name_from_filename' || action.type === 'set_filename_from_char_name' || action.type === 'set_filename_from_wi_name'"><div class="action-config-panel action-config-panel--readonly">{{ detail_icon('file-name', 'ui-icon--sm') }}<span>无需填写参数，命中后自动执行。</span></div></template>
+                                </div>
+                              </div>
+                              <div class="automation-inline-actions action-row-actions"><button type="button" @click="moveAction(rIdx, aIdx, -1)" class="ui-reorder-button" title="上移动作" aria-label="上移动作" :disabled="aIdx === 0">{{ icon('arrow-up', 'ui-icon--xs') }}</button><button type="button" @click="moveAction(rIdx, aIdx, 1)" class="ui-reorder-button" title="下移动作" aria-label="下移动作" :disabled="aIdx === rule.actions.length - 1">{{ icon('arrow-down', 'ui-icon--xs') }}</button><button type="button" @click="removeAction(rIdx, aIdx)" class="automation-icon-button automation-icon-button--small automation-icon-button--danger" title="删除动作" aria-label="删除动作">{{ icon('close', 'ui-icon--sm') }}</button></div>
+                            </div>
+                          </template>
+                          <div x-show="!rule.actions || rule.actions.length === 0" x-cloak class="action-empty">{{ icon('bolt', 'ui-icon--sm') }}<span>命中条件后暂时不会执行动作。</span></div>
+                          <button type="button" class="automation-add-button automation-add-button--success" @click="addAction(rIdx)">{{ icon('plus-square', 'ui-icon--sm') }}<span>添加执行动作</span></button>
+                        </div>
+                      </section>
+                    </div>
+                  </div>
+                  <div x-show="!rule.enabled" x-cloak class="rule-disabled-note"><span aria-hidden="true">{{ icon('ban', 'ui-icon--sm') }}</span><span>此规则已停用，保存后不会参与任何触发场景。</span></div>
+                </article>
+              </template>
+
+              <button type="button" class="automation-add-rule" @click="addRule()">{{ icon('plus-square', 'ui-icon--md') }}<span>新增规则</span><small>从上到下按顺序评估</small></button>
+              <div class="automation-bottom-spacer"></div>
+            </div>
+
+            <aside class="automation-inspector" aria-label="规则集概览与帮助">
+              <section class="automation-inspector-section automation-inspector-section--status">
+                <div class="automation-inspector-heading"><span class="automation-inspector-icon" aria-hidden="true">{{ icon('monitor-users', 'ui-icon--md') }}</span><div><span class="automation-overline">STATUS</span><h2>运行概览</h2></div></div>
+                <div class="automation-inspector-status"><span class="automation-status-dot" :class="globalRulesetId === activeRuleSet?.id ? 'is-on' : 'is-off'" aria-hidden="true"></span><div><strong x-text="globalRulesetId === activeRuleSet?.id ? '全局规则已启用' : '仅可手动执行'"></strong><span x-text="globalRulesetId === activeRuleSet?.id ? '符合触发场景的规则会在后台自动运行。' : '设为全局后，导入与更新流程才会读取这套规则。'"></span></div></div>
+                <button type="button" class="btn-secondary automation-action-button automation-action-button--wide" @click="toggleGlobalActive(activeRuleSet?.id)" :disabled="isSettingGlobal"><template x-if="isSettingGlobal">{{ loading_icon('ui-icon--sm') }}</template><template x-if="!isSettingGlobal">{{ icon('pin', 'ui-icon--sm') }}</template><span x-text="globalRulesetId === activeRuleSet?.id ? '关闭全局规则' : '设为全局规则'"></span></button>
+              </section>
+              <section class="automation-inspector-section">
+                <div class="automation-inspector-heading"><span class="automation-inspector-icon automation-inspector-icon--success" aria-hidden="true">{{ icon('data-grid', 'ui-icon--md') }}</span><div><span class="automation-overline">COVERAGE</span><h2>规则覆盖</h2></div></div>
+                <dl class="automation-coverage-list"><div><dt>启用规则</dt><dd x-text="enabledRuleCount"></dd></div><div><dt>条件组</dt><dd x-text="conditionGroupCount"></dd></div><div><dt>动作</dt><dd x-text="actionCount"></dd></div><div><dt>触发入口</dt><dd x-text="triggerCount"></dd></div></dl>
+              </section>
+              <section class="automation-inspector-section automation-inspector-section--notice" x-show="editingUsesMetadata()" x-cloak>
+                <div class="automation-inspector-heading"><span class="automation-inspector-icon automation-inspector-icon--warning" aria-hidden="true">{{ icon('book-tip', 'ui-icon--md') }}</span><div><span class="automation-overline">PERFORMANCE</span><h2>读取提醒</h2></div></div>
+                <p>使用“原始元数据”条件时会逐张读取并解析文件。批量执行前建议缩小分类范围。</p><button type="button" class="automation-text-button" @click="openHelpTab('conditions')">了解条件读取</button>
+              </section>
+              <section class="automation-inspector-section automation-inspector-section--help">
+                <div class="automation-inspector-heading"><span class="automation-inspector-icon automation-inspector-icon--info" aria-hidden="true">{{ icon('book-tip', 'ui-icon--md') }}</span><div><span class="automation-overline">REFERENCE</span><h2>需要帮助？</h2></div></div>
+                <p>查看条件、动作、触发时机和模板语法的完整说明。</p><button type="button" class="btn-secondary automation-action-button automation-action-button--wide" @click="openHelpTab('conditions')">{{ icon('settings-help-entry', 'ui-icon--sm') }}<span>打开编写指南</span></button>
+              </section>
+              <div class="automation-keyboard-note"><span aria-hidden="true">{{ icon('keyboard', 'ui-icon--sm') }}</span><div><strong>键盘操作</strong><span><kbd>Ctrl</kbd> + <kbd>S</kbd> 保存，<kbd>Esc</kbd> 关闭弹层。</span></div></div>
+            </aside>
+          </div>
+
+          <footer class="automation-editor-footer">
+            <div class="automation-footer-note"><span class="automation-status-dot" :class="isDirty ? 'is-warning' : 'is-on'" aria-hidden="true"></span><span x-text="isDirty ? '有未保存修改' : '所有修改已保存'"></span></div>
+            <div class="automation-footer-actions"><button type="button" class="btn-secondary automation-action-button" @click="closeModal()">关闭</button><button type="button" class="btn-primary automation-action-button automation-action-button--save" @click="saveCurrentRuleSet()" :disabled="isSaving"><template x-if="isSaving">{{ loading_icon('ui-icon--sm') }}</template><template x-if="!isSaving">{{ icon('settings-save', 'ui-icon--sm') }}</template><span x-text="isSaving ? '保存中' : '保存规则集'"></span></button></div>
+          </footer>
+        </div>
+      </template>
+
+      <div x-show="!activeRuleSet" x-cloak class="automation-empty-state">
+        <div class="automation-empty-state-icon" aria-hidden="true">{{ icon('workflow', 'ui-icon--3xl') }}</div><span class="automation-overline">AUTOMATION LIBRARY</span><h2>选择一个规则集开始编排</h2><p>从左侧打开已有规则集，或创建一套新的卡片处理流程。</p><button type="button" class="btn-primary automation-action-button" @click="openCreateModal()">{{ icon('plus-square', 'ui-icon--sm') }}<span>新建规则集</span></button>
+      </div>
+    </main>
+
+    <!-- 新建规则集 -->
+    <template x-teleport="body">
+      <div x-show="showCreateModal" x-cloak class="automation-dialog-overlay" role="presentation" @click.self="closeCreateModal()">
+        <section class="automation-dialog automation-dialog--small" role="dialog" aria-modal="true" aria-labelledby="automation-create-title" @click.stop>
+          <header class="automation-dialog-header"><div class="automation-dialog-title"><span class="automation-dialog-icon" aria-hidden="true">{{ icon('plus-square', 'ui-icon--md') }}</span><div><span class="automation-overline">NEW WORKFLOW</span><h2 id="automation-create-title">新建规则集</h2></div></div><button type="button" class="automation-icon-button" @click="closeCreateModal()" title="关闭新建弹窗" aria-label="关闭新建弹窗">{{ icon('close', 'ui-icon--md') }}</button></header>
+          <div class="automation-dialog-body"><label class="automation-dialog-field" for="automation-new-name"><span>规则集名称</span><input id="automation-new-name" type="text" x-model="newRuleSetName" @keydown.enter.prevent="createNewRuleSet()" placeholder="例如：导入后整理" autocomplete="off"></label><p class="automation-dialog-hint">名称会用作规则集文件名；保存后仍可在编辑器顶部修改。</p><div x-show="createError" x-cloak class="automation-feedback automation-feedback--error" role="alert"><span aria-hidden="true">{{ icon('alert-triangle', 'ui-icon--sm') }}</span><span x-text="createError"></span></div></div>
+          <footer class="automation-dialog-footer"><button type="button" class="btn-secondary automation-action-button" @click="closeCreateModal()">取消</button><button type="button" class="btn-primary automation-action-button" @click="createNewRuleSet()" :disabled="isCreating || !newRuleSetName.trim()"><template x-if="isCreating">{{ loading_icon('ui-icon--sm') }}</template><template x-if="!isCreating">{{ icon('plus-square', 'ui-icon--sm') }}</template><span x-text="isCreating ? '创建中' : '创建规则集'"></span></button></footer>
+        </section>
+      </div>
+    </template>
+
+    <!-- 危险操作和未保存修改确认 -->
+    <template x-teleport="body">
+      <div x-show="showConfirmModal" x-cloak class="automation-dialog-overlay" role="presentation" @click.self="cancelConfirmation()">
+        <section class="automation-dialog automation-dialog--confirm" role="alertdialog" aria-modal="true" aria-labelledby="automation-confirm-title" aria-describedby="automation-confirm-message" @click.stop>
+          <header class="automation-dialog-header"><div class="automation-dialog-title"><span class="automation-dialog-icon automation-dialog-icon--danger" aria-hidden="true">{{ icon('alert-triangle', 'ui-icon--md') }}</span><div><span class="automation-overline">CONFIRM ACTION</span><h2 id="automation-confirm-title" x-text="confirmDialog.title"></h2></div></div><button type="button" class="automation-icon-button" @click="cancelConfirmation()" title="取消操作" aria-label="取消操作">{{ icon('close', 'ui-icon--md') }}</button></header>
+          <div class="automation-dialog-body"><p id="automation-confirm-message" class="automation-confirm-message" x-text="confirmDialog.message"></p><p x-show="confirmDialog.details" x-cloak class="automation-dialog-hint" x-text="confirmDialog.details"></p></div>
+          <footer class="automation-dialog-footer"><button type="button" class="btn-secondary automation-action-button" @click="cancelConfirmation()">取消</button><button type="button" class="btn-danger automation-action-button" @click="confirmPendingAction()" :disabled="isConfirming"><template x-if="isConfirming">{{ loading_icon('ui-icon--sm') }}</template><template x-if="!isConfirming">{{ icon('check', 'ui-icon--sm') }}</template><span x-text="isConfirming ? '处理中' : confirmDialog.confirmLabel"></span></button></footer>
+        </section>
+      </div>
+    </template>
+  </div>
+
+  <!-- 规则编写指南 -->
+  <template x-teleport="body">
+    <div x-show="showHelpModal" x-cloak class="automation-help-overlay" role="presentation" @click.self="closeHelpModal()">
+      <section class="automation-help-dialog" role="dialog" aria-modal="true" aria-labelledby="automation-help-title" @click.stop>
+        <header class="automation-dialog-header"><div class="automation-dialog-title"><span class="automation-dialog-icon automation-dialog-icon--info" aria-hidden="true">{{ icon('book-tip', 'ui-icon--md') }}</span><div><span class="automation-overline">RULE REFERENCE</span><h2 id="automation-help-title">规则编写指南</h2><p>把复杂条件拆成可读、可维护的流程。</p></div></div><button type="button" class="automation-icon-button" @click="closeHelpModal()" title="关闭帮助" aria-label="关闭帮助">{{ icon('close', 'ui-icon--md') }}</button></header>
+        <div class="automation-help-body custom-scrollbar">
+          <div class="automation-help-tabs" role="tablist" aria-label="规则帮助分类">
+            <button type="button" class="automation-help-tab" id="automation-help-tab-conditions" role="tab" :class="{ 'is-active': helpActiveTab === 'conditions' }" :aria-selected="helpActiveTab === 'conditions'" aria-controls="automation-help-panel-conditions" @click="openHelpTab('conditions')">{{ icon('filter', 'ui-icon--sm') }}<span>条件</span></button>
+            <button type="button" class="automation-help-tab" id="automation-help-tab-actions" role="tab" :class="{ 'is-active': helpActiveTab === 'actions' }" :aria-selected="helpActiveTab === 'actions'" aria-controls="automation-help-panel-actions" @click="openHelpTab('actions')">{{ icon('bolt', 'ui-icon--sm') }}<span>动作</span></button>
+            <button type="button" class="automation-help-tab" id="automation-help-tab-triggers" role="tab" :class="{ 'is-active': helpActiveTab === 'triggers' }" :aria-selected="helpActiveTab === 'triggers'" aria-controls="automation-help-panel-triggers" @click="openHelpTab('triggers')">{{ icon('key-trigger', 'ui-icon--sm') }}<span>触发时机</span></button>
+            <button type="button" class="automation-help-tab" id="automation-help-tab-templates" role="tab" :class="{ 'is-active': helpActiveTab === 'templates' }" :aria-selected="helpActiveTab === 'templates'" aria-controls="automation-help-panel-templates" @click="openHelpTab('templates')">{{ icon('pencil-edit', 'ui-icon--sm') }}<span>模板语法</span></button>
+          </div>
+
+          <section x-show="helpActiveTab === 'conditions'" id="automation-help-panel-conditions" role="tabpanel" aria-labelledby="automation-help-tab-conditions" class="automation-help-panel">
+            <div class="automation-help-section"><div class="automation-help-section-heading"><span class="automation-dialog-icon automation-dialog-icon--info" aria-hidden="true">{{ icon('filter', 'ui-icon--sm') }}</span><div><h3>把条件写成可读的筛选逻辑</h3><p>条件值可以用管道符分隔多个目标值，单个条件即可表达“或”逻辑。</p></div></div><div class="automation-help-example-grid"><div class="automation-help-example automation-help-example--positive"><strong>{{ icon('check', 'ui-icon--xs') }}肯定类操作符</strong><p>包含 / 等于只要命中任意一个值，条件即为真。</p><code><span>Tags</span> contains <b>elf|orc|goblin</b></code></div><div class="automation-help-example automation-help-example--negative"><strong>{{ icon('forbidden', 'ui-icon--xs') }}否定类操作符</strong><p>不包含 / 不等于必须同时不匹配所有值。</p><code><span>Creator</span> not_contains <b>UserA|UserB</b></code></div></div></div>
+            <div class="automation-help-section"><h3>书写规范</h3><ul><li>不要使用引号包裹值，直接写 <code>elf|orc</code>。</li><li>管道符前后的空格会自动去除。</li><li>适用于 Name、Tags、Description 等文本和列表字段。</li><li>正则匹配不使用这个拆分规则，正则本身可以表达复杂的 <code>|</code> 逻辑。</li><li>“原始元数据”支持完整搜索，也支持 <code>data.extensions.foo</code> 和 <code>entries[0].name</code> 这样的路径。</li></ul></div>
+          </section>
+
+          <section x-show="helpActiveTab === 'actions'" id="automation-help-panel-actions" role="tabpanel" aria-labelledby="automation-help-tab-actions" class="automation-help-panel">
+            <div class="automation-help-section"><div class="automation-help-section-heading"><span class="automation-dialog-icon automation-dialog-icon--success" aria-hidden="true">{{ icon('bolt', 'ui-icon--sm') }}</span><div><h3>动作会随触发场景筛选</h3><p>不同入口只运行允许的动作子集，避免在错误的流程里改名、改标签或访问来源。</p></div></div><div class="automation-help-card-list"><div><strong>{{ detail_icon('tags', 'ui-icon--xs') }}标签动作</strong><span>添加、移除、合并标签；一次输入多个标签时使用 <code>|</code>，是否把 <code>/</code> 当分隔符由设置控制。</span></div><div><strong>{{ detail_icon('link-source', 'ui-icon--xs') }}来源动作</strong><span><code>fetch_forum_tags</code> 抓取论坛标签；<code>refresh_source_baseline</code> 更新来源基线；<code>add_tags_from_source_title</code> 从标题提取标签；<code>set_creator_from_source</code> 填写作者。</span></div><div><strong>{{ icon('pencil-edit', 'ui-icon--xs') }}模板动作</strong><span><code>rename_file_by_template</code> 可使用字段和过滤器；<code>split_category_to_tags</code> 会把分类路径拆成标签。</span></div></div></div>
+            <div class="automation-help-section"><h3>来源与模板动作说明</h3><ul><li><strong>fetch_forum_tags</strong> 可配置排除标签、标签替换和合并模式。</li><li><strong>refresh_source_baseline</strong> 会同步帖子标题和首帖编辑时间，并保存为新的检查基线。</li><li><strong>add_tags_from_source_title</strong> 使用 Python 正则和捕获组提取标签，结果只追加。</li><li><strong>set_creator_from_source</strong> 可选择 Discord、类脑或自动来源，并决定是否覆盖已有创作者。</li><li><strong>merge_tags</strong> 通过“旧标签→新标签”批量归并同义标签。</li><li><strong>split_category_to_tags</strong> 把 <code>a/b/c</code> 拆为 <code>a</code>、<code>b</code>、<code>c</code>，可以配置排除分类标签。</li></ul></div>
+          </section>
+
+          <section x-show="helpActiveTab === 'triggers'" id="automation-help-panel-triggers" role="tabpanel" aria-labelledby="automation-help-tab-triggers" class="automation-help-panel">
+            <div class="automation-help-section"><div class="automation-help-section-heading"><span class="automation-dialog-icon automation-dialog-icon--warning" aria-hidden="true">{{ icon('key-trigger', 'ui-icon--sm') }}</span><div><h3>触发时机</h3><p>全局规则不是每个入口都执行全部动作。不同触发场景只会运行对应的动作子集，避免在不合适的场景里改名或改标签。</p></div></div><div class="automation-trigger-reference"><div><strong>手动执行</strong><span>从卡片列表或批量执行入口运行，适合验证规则和一次性整理。</span></div><div><strong>导入时</strong><span>执行移动、标签、收藏、名称同步、rename_file_by_template、split_category_to_tags；导入时会跳过抓取论坛标签与标签合并。</span></div><div><strong>更新角色卡后</strong><span>用新角色卡内容覆盖已有角色卡时触发；仅在 upload-file 或 update-from-URL 等导入/更新流程进入覆盖逻辑时执行。普通保存详情、单独更换封面、修改本地备注、修改来源链接都不会触发。</span></div><div><strong>来源链接更新</strong><span>更新链接时只执行抓取论坛标签；同时按配置运行来源基线、标题标签和作者同步，且来源动作需要当前全局启用的规则集。</span></div><div><strong>手动打标后</strong><span>仅在批量标签管理和详情页自定义添加标签时触发；手动打标时只执行标签合并。</span></div></div></div>
+            <div class="automation-help-section"><h3>常用字段说明</h3><div class="automation-help-grid"><div class="automation-help-card"><strong>Tags (标签)</strong><span>列表匹配，检查标签列表中是否包含目标。</span></div><div class="automation-help-card"><strong>Raw Content (文本)</strong><span>Description、First Mes 等字段的全文搜索。</span></div><div class="automation-help-card"><strong>WI Name / Content</strong><span>会遍历世界书条目进行检查。</span></div><div class="automation-help-card"><strong>Local Note (本地备注)</strong><span>匹配 ST Manager 中的私有备注。</span></div></div></div>
+          </section>
+
+          <section x-show="helpActiveTab === 'templates'" id="automation-help-panel-templates" role="tabpanel" aria-labelledby="automation-help-tab-templates" class="automation-help-panel">
+            <div class="automation-help-section"><div class="automation-help-section-heading"><span class="automation-dialog-icon automation-dialog-icon--info" aria-hidden="true">{{ icon('pencil-edit', 'ui-icon--sm') }}</span><div><h3>模板语法</h3><p><code>rename_file_by_template</code> 会把 <code>{% raw %}{{...}}{% endraw %}</code> 中的字段替换为当前卡片数据。</p></div></div><div class="automation-template-cheatsheet"><span class="font-bold">字段写法：</span><code>{% raw %}{{field}}{% endraw %}</code><span class="font-bold">过滤器写法：</span><code>{% raw %}{{field|filter}}{% endraw %}</code><span class="font-bold">带参数过滤器：</span><code>{% raw %}{{field|filter:param}}{% endraw %}</code></div><div class="automation-template-reference-grid"><div class="automation-template-reference-column"><h4>支持字段</h4><p>支持字段：char_name、char_version、filename、filename_stem、category、import_time、import_date、modified_time、modified_date</p><div class="automation-template-field-grid"><div><strong>char_name</strong><span>角色卡名</span></div><div><strong>char_version</strong><span>角色卡版本文本</span></div><div><strong>filename</strong><span>当前文件名（含扩展名）</span></div><div><strong>filename_stem</strong><span>当前文件名（不含扩展名）</span></div><div><strong>category</strong><span>当前分类路径，如 <code>a/b</code></span></div><div><strong>import_time / import_date</strong><span>首次导入时间</span></div><div><strong>modified_time / modified_date</strong><span>文件修改时间</span></div></div></div><div class="automation-template-reference-column"><h4>支持过滤器</h4><p>支持 <code>trim</code>、<code>default</code>、<code>limit</code>、<code>date</code>、<code>version</code>。日期字段支持 date 过滤器。</p><div class="automation-template-filter-list"><div><strong>trim：去掉首尾空格</strong><code>{% raw %}{{char_name|trim}}{% endraw %}</code></div><div><strong>default：为空时使用备用值</strong><code>{% raw %}{{char_version|default:unknown}}{% endraw %}</code></div><div><strong>limit：截断过长文本</strong><code>{% raw %}{{filename_stem|limit:20}}{% endraw %}</code></div><div><strong>date：格式化导入时间或修改时间</strong><code>{% raw %}{{import_date|date:%Y-%m-%d}}{% endraw %}</code><code>{% raw %}{{import_date|date:%Y%m%d}}{% endraw %}</code></div><div><strong>version：从版本文本里提取主版本号</strong><code>{% raw %}{{char_version|version}}{% endraw %}</code></div></div></div></div></div>
+            <div class="automation-help-section"><h3>示例与限制</h3><div class="automation-help-code"><code>{% raw %}{{char_name}} - {{char_version|version}} - {{modified_date|date:%Y-%m-%d}}{% endraw %}</code><span>例如生成“角色名 - v1.2 - 2026-04-01”这种文件名。若想在覆盖更新后重命名，请在规则上启用“更新角色卡后”；如果文件名要体现本次更新时间，优先使用 modified_date。</span></div><div class="automation-help-code"><code>category = a/b/c  ->  tags += [a, b, c]</code><span><code>split_category_to_tags</code> 不读取模板，也不会使用回退模板或最大长度；它只是把当前分类路径按 <code>/</code> 拆成多个标签。</span></div><ul><li>主模板结果为空时，会尝试使用 fallback 模板。</li><li>文件名模板建议只拼接必要字段，并配合最大长度限制。</li><li>import_date 适合首次导入时命名，modified_date 更适合覆盖更新后命名。</li><li>分类拆分动作可结合“排除分类标签”过滤不想保留的类别词。</li></ul></div>
+          </section>
+        </div>
+        <footer class="automation-dialog-footer"><span class="automation-dialog-footer-note">{{ icon('keyboard', 'ui-icon--sm') }}使用 <kbd>Tab</kbd> 浏览控件，<kbd>Esc</kbd> 返回编辑器</span><button type="button" class="btn-primary automation-action-button" @click="closeHelpModal()">{{ icon('check', 'ui-icon--sm') }}<span>完成</span></button></footer>
+      </section>
     </div>
+  </template>
 </div>

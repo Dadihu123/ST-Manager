@@ -171,26 +171,152 @@ function getRenameTemplatePreset(preset) {
 export default function automationModal() {
     return {
         showMobileSidebar: false,
+        showMobileOverview: false,
         showAutomationModal: false,
         showHelpModal: false,
+        showCreateModal: false,
+        showConfirmModal: false,
         helpActiveTab: 'conditions',
         ruleSets: [],
         activeRuleSet: null,
         globalRulesetId: null,
         actionTypeOptions: AUTOMATION_ACTION_OPTIONS,
         openActionMenuKey: null,
+        rulesetQuery: '',
+        loadingRuleSetId: null,
+        isLoadingList: false,
+        isImporting: false,
+        isCreating: false,
+        isSaving: false,
+        isDeleting: false,
+        isSettingGlobal: false,
+        isConfirming: false,
+        loadError: '',
+        globalError: '',
+        editorError: '',
+        editorErrorTitle: '编辑器无法加载',
+        metaError: '',
+        createError: '',
+        saveState: 'saved',
+        savedSnapshot: '',
+        newRuleSetName: '',
+        collapsedRuleIds: [],
+        confirmDialog: {
+            title: '确认操作',
+            message: '',
+            details: '',
+            confirmLabel: '确认'
+        },
+        pendingConfirmAction: null,
+        allowDiscard: false,
+        allowRuleSetSwitch: false,
         
         // 编辑缓冲区 (Deep Copy)
         editingMeta: { name: "", description: "", author: "", version: "" },
         editingRules: [],
 
+        get filteredRuleSets() {
+            const query = (this.rulesetQuery || '').trim().toLocaleLowerCase();
+            if (!query) return this.ruleSets;
+
+            return this.ruleSets.filter(ruleSet => {
+                const meta = ruleSet?.meta || {};
+                return [meta.name, meta.description, meta.author, meta.version]
+                    .filter(Boolean)
+                    .some(value => value.toString().toLocaleLowerCase().includes(query));
+            });
+        },
+
+        get globalRulesetName() {
+            const globalRuleSet = this.ruleSets.find(ruleSet => ruleSet.id === this.globalRulesetId);
+            return globalRuleSet?.meta?.name || '';
+        },
+
+        get isDirty() {
+            return Boolean(this.activeRuleSet && this.savedSnapshot && this.getSnapshot() !== this.savedSnapshot);
+        },
+
+        get saveStateLabel() {
+            if (this.isSaving) return '保存中';
+            if (this.saveState === 'error') return '保存失败';
+            if (this.isDirty) return '有未保存修改';
+            return '已保存';
+        },
+
+        get enabledRuleCount() {
+            return this.editingRules.filter(rule => rule?.enabled !== false).length;
+        },
+
+        get triggerCount() {
+            return new Set(this.editingRules.flatMap(rule => this.normalizeRuleTriggerContexts(rule))).size;
+        },
+
+        get conditionGroupCount() {
+            return this.editingRules.reduce((count, rule) => count + (rule?.groups || []).length, 0);
+        },
+
+        get actionCount() {
+            return this.editingRules.reduce((count, rule) => count + (rule?.actions || []).length, 0);
+        },
+
         init() {
             // 监听打开事件 (Settings 或 Header 触发)
             window.addEventListener('open-automation-modal', () => {
-                this.loadList();
-                this.loadGlobalSetting();
-                this.showAutomationModal = true;
+                this.openModal();
             });
+
+            this.$watch('editingMeta', () => this.markDirty());
+            this.$watch('editingRules', () => this.markDirty());
+        },
+
+        async openModal() {
+            this.showAutomationModal = true;
+            this.showMobileSidebar = false;
+            this.showMobileOverview = false;
+            this.rulesetQuery = '';
+            this.loadError = '';
+            this.globalError = '';
+            await this.loadGlobalSetting();
+            await this.loadList({ autoSelect: true });
+            this.$nextTick(() => this.$refs.dialog?.focus());
+        },
+
+        getSnapshot() {
+            return JSON.stringify({
+                meta: this.editingMeta || {},
+                rules: this.editingRules || []
+            });
+        },
+
+        markDirty() {
+            if (!this.isSaving && this.activeRuleSet && this.savedSnapshot && this.getSnapshot() !== this.savedSnapshot) {
+                this.saveState = 'dirty';
+            }
+        },
+
+        ruleSummary(rule) {
+            const groups = (rule?.groups || []).length;
+            const actions = (rule?.actions || []).length;
+            const triggers = this.normalizeRuleTriggerContexts(rule).length;
+            return `${groups} 组条件 · ${actions} 个动作 · ${triggers} 个触发入口`;
+        },
+
+        conditionCount(rule) {
+            return (rule?.groups || []).reduce(
+                (count, group) => count + (group?.conditions || []).length,
+                0
+            );
+        },
+
+        isRuleCollapsed(ruleId) {
+            return this.collapsedRuleIds.includes(ruleId);
+        },
+
+        toggleRuleCollapsed(ruleId) {
+            if (!ruleId) return;
+            this.collapsedRuleIds = this.isRuleCollapsed(ruleId)
+                ? this.collapsedRuleIds.filter(id => id !== ruleId)
+                : [...this.collapsedRuleIds, ruleId];
         },
 
         // 导出
@@ -203,7 +329,7 @@ export default function automationModal() {
 
         // 导入
         handleImportRuleSet(e) {
-            const file = e.target.files[0];
+            const file = e.target?.files?.[0];
             if (!file) return;
 
             const formData = new FormData();
@@ -212,67 +338,151 @@ export default function automationModal() {
             // 清空 input 允许重复导入同名文件
             e.target.value = '';
 
-            importRuleSet(formData).then(res => {
-                if (res.success) {
+            this.isImporting = true;
+            this.editorError = '';
+            const runImport = async () => {
+                try {
+                    const res = await importRuleSet(formData);
+                    if (!res.success) throw new Error(res.msg || '导入失败');
+
                     this.$store.global.showToast(`导入成功: ${res.name}`, 3000, 'check');
-                    this.loadList(); // 刷新列表
-                    // 自动选中导入的规则集
-                    this.selectRuleSet(res.id);
-                } else {
-                    alert("导入失败: " + res.msg);
+                    await this.loadList({ selectId: res.id });
+                } catch (error) {
+                    this.editorErrorTitle = '导入失败';
+                    this.editorError = error?.message || '无法导入规则集，请检查 JSON 文件后重试。';
+                } finally {
+                    this.isImporting = false;
                 }
-            });
+            };
+
+            return runImport();
         },
 
-        loadGlobalSetting() {
-            getGlobalRuleset().then(res => {
-                if (res.success) this.globalRulesetId = res.ruleset_id;
-            });
+        async loadGlobalSetting() {
+            try {
+                const res = await getGlobalRuleset();
+                if (!res.success) throw new Error(res.msg || '全局规则设置读取失败');
+                this.globalRulesetId = res.ruleset_id || null;
+                this.globalError = '';
+            } catch (error) {
+                this.globalError = error?.message || '全局规则状态暂时无法读取。';
+            }
         },
 
         toggleGlobalActive(id) {
+            if (!id || this.isSettingGlobal) return;
             const newVal = (this.globalRulesetId === id) ? null : id;
-            setGlobalRuleset(newVal).then(res => {
-                if (res.success) {
+            this.isSettingGlobal = true;
+            const runToggle = async () => {
+                try {
+                    const res = await setGlobalRuleset(newVal);
+                    if (!res.success) throw new Error(res.msg || '全局规则设置失败');
+
                     this.globalRulesetId = newVal;
+                    this.globalError = '';
                     // 给用户一点反馈
                     if (newVal) this.$store.global.showToast('已设为全局自动规则 (按动作在不同场景触发)', 3000, 'check');
                     else this.$store.global.showToast('已关闭全局自动规则', 3000, 'forbidden');
+                } catch (error) {
+                    this.globalError = error?.message || '全局规则设置失败，请重试。';
+                } finally {
+                    this.isSettingGlobal = false;
                 }
-            });
+            };
+
+            return runToggle();
         },
 
-        loadList() {
-            listRuleSets().then(res => {
-                if (res.success) {
-                    this.ruleSets = res.items;
+        loadList(options = {}) {
+            const { autoSelect = false, selectId = null } = options;
+            this.isLoadingList = true;
+            this.loadError = '';
+
+            const runLoad = async () => {
+                try {
+                    const res = await listRuleSets();
+                    if (!res.success) throw new Error(res.msg || '规则集列表加载失败');
+
+                    this.ruleSets = Array.isArray(res.items) ? res.items : [];
+                    const preferredId = selectId
+                        || (autoSelect ? this.globalRulesetId || this.activeRuleSet?.id || this.ruleSets[0]?.id : null);
+                    if (preferredId && this.ruleSets.some(ruleSet => ruleSet.id === preferredId)) {
+                        await this.selectRuleSet(preferredId);
+                    } else if (!this.ruleSets.length) {
+                        this.activeRuleSet = null;
+                        this.editingRules = [];
+                    }
+                } catch (error) {
+                    this.loadError = error?.message || '规则集列表加载失败，请重试。';
+                } finally {
+                    this.isLoadingList = false;
                 }
-            });
+            };
+
+            return runLoad();
         },
 
         createNewRuleSet() {
-            const name = prompt("请输入规则集名称:");
-            if (!name) return;
+            const name = (this.newRuleSetName || '').trim();
+            if (!name) {
+                this.createError = '请先填写规则集名称。';
+                return Promise.resolve(false);
+            }
 
             const newSet = {
                 id: null, // Let backend generate UUID
-                meta: { name: name, author: "User", version: "1.0" },
+                meta: { name: name, description: '', author: "User", version: "1.0" },
                 rules: []
             };
 
-            saveRuleSet(newSet).then(res => {
-                if (res.success) {
-                    this.loadList();
-                    // 自动选中新建的 (需要获取 ID，这里为了简单先由用户点选)
-                } else {
-                    alert("创建失败: " + res.msg);
+            this.isCreating = true;
+            this.createError = '';
+            const runCreate = async () => {
+                try {
+                    const res = await saveRuleSet(newSet);
+                    if (!res.success) throw new Error(res.msg || '创建失败');
+
+                    this.showCreateModal = false;
+                    this.newRuleSetName = '';
+                    await this.loadList({ selectId: res.id });
+                    this.$store.global.showToast('规则集已创建', 3000, 'check');
+                } catch (error) {
+                    this.createError = error?.message || '规则集创建失败，请重试。';
+                } finally {
+                    this.isCreating = false;
                 }
-            });
+            };
+
+            return runCreate();
         },
 
         selectRuleSet(id) {
-            getRuleSet(id).then(res => {
-                if (res.success) {
+            if (!id || this.loadingRuleSetId === id) return Promise.resolve(false);
+
+            if (this.isDirty && this.activeRuleSet?.id !== id && !this.allowRuleSetSwitch) {
+                this.requestConfirmation(
+                    '放弃未保存修改？',
+                    `切换到“${this.ruleSets.find(ruleSet => ruleSet.id === id)?.meta?.name || '另一套规则集'}”会丢失当前编辑内容。`,
+                    '先保存当前规则集，或确认放弃这些修改。',
+                    '放弃并切换',
+                    () => {
+                        this.allowRuleSetSwitch = true;
+                        return this.selectRuleSet(id).finally(() => {
+                            this.allowRuleSetSwitch = false;
+                        });
+                    }
+                );
+                return Promise.resolve(false);
+            }
+
+            this.loadingRuleSetId = id;
+            this.editorError = '';
+            const runSelect = async () => {
+                try {
+                    const res = await getRuleSet(id);
+                    if (!res.success) throw new Error(res.msg || '规则集加载失败');
+
+                    {
                     this.activeRuleSet = res.data;
                     this.editingMeta = JSON.parse(JSON.stringify(res.data.meta));
                     
@@ -370,14 +580,32 @@ export default function automationModal() {
                     });
                     
                     this.editingRules = rules;
-                } else {
-                    alert("加载失败: " + res.msg);
+                    this.savedSnapshot = this.getSnapshot();
+                    this.saveState = 'saved';
+                    this.collapsedRuleIds = [];
+                    this.showMobileSidebar = false;
+                    this.$nextTick(() => document.getElementById('automation-name')?.focus());
+                    return true;
+                    }
+                } catch (error) {
+                    this.editorErrorTitle = '规则集加载失败';
+                    this.editorError = error?.message || '无法读取这套规则集，请重试。';
+                    return false;
+                } finally {
+                    this.loadingRuleSetId = null;
                 }
-            });
+            };
+
+            return runSelect();
         },
 
         saveCurrentRuleSet() {
-            if (!this.activeRuleSet) return;
+            if (!this.activeRuleSet || this.isSaving) return;
+            if (!this.validateMeta()) return;
+
+            this.isSaving = true;
+            this.saveState = 'saving';
+            this.editorError = '';
 
             const slashAsSeparator = !!(this.$store?.global?.settingsForm?.automation_slash_is_tag_separator);
             const parseReplaceRulesText = (text) => {
@@ -499,33 +727,162 @@ export default function automationModal() {
                     this.loadGlobalSetting();
                     
                     // 刷新左侧列表，并保持高亮
-                    this.loadList(); 
+                    this.savedSnapshot = this.getSnapshot();
+                    this.saveState = 'saved';
+                    this.loadList({ selectId: newId });
                 } else {
-                    alert("保存失败: " + res.msg);
+                    this.saveState = 'error';
+                    this.editorErrorTitle = '保存失败';
+                    this.editorError = res.msg || '规则集保存失败，请重试。';
                 }
+            }).catch(error => {
+                this.saveState = 'error';
+                this.editorErrorTitle = '保存失败';
+                this.editorError = error?.message || '规则集保存失败，请检查网络后重试。';
+            }).finally(() => {
+                this.isSaving = false;
             });
         },
 
         deleteCurrentRuleSet() {
             if (!this.activeRuleSet) return;
-            if (!confirm(`确定删除规则集 "${this.editingMeta.name}" 吗？`)) return;
+            this.requestConfirmation(
+                '删除当前规则集？',
+                `确定删除“${this.editingMeta.name || '未命名规则集'}”吗？`,
+                '删除后无法从工作台恢复，请先导出 JSON 备份。',
+                '删除规则集',
+                () => this.performDeleteCurrentRuleSet()
+            );
+        },
 
-            deleteRuleSet(this.activeRuleSet.id).then(res => {
-                if (res.success) {
-                    this.activeRuleSet = null;
-                    this.loadList();
-                } else {
-                    alert("删除失败: " + res.msg);
-                }
-            });
+        async performDeleteCurrentRuleSet() {
+            if (!this.activeRuleSet?.id) return;
+
+            this.isDeleting = true;
+            try {
+                const res = await deleteRuleSet(this.activeRuleSet.id);
+                if (!res.success) throw new Error(res.msg || '删除失败');
+
+                this.activeRuleSet = null;
+                this.editingRules = [];
+                this.savedSnapshot = '';
+                this.saveState = 'saved';
+                await this.loadList({ autoSelect: true });
+                this.$store.global.showToast('规则集已删除', 3000, 'check');
+            } finally {
+                this.isDeleting = false;
+            }
         },
 
         closeModal() {
+            if (this.isDirty && !this.allowDiscard) {
+                this.requestConfirmation(
+                    '放弃未保存修改？',
+                    '当前规则集还有未保存的编辑内容。',
+                    '关闭后这些修改将被丢弃。',
+                    '放弃修改',
+                    () => {
+                        this.allowDiscard = true;
+                        this.closeModal();
+                        this.allowDiscard = false;
+                    }
+                );
+                return;
+            }
+
             this.showAutomationModal = false;
             this.activeRuleSet = null;
             this.showHelpModal = false;
             this.helpActiveTab = 'conditions';
             this.openActionMenuKey = null;
+            this.showMobileSidebar = false;
+            this.showMobileOverview = false;
+            this.savedSnapshot = '';
+            this.saveState = 'saved';
+            this.editorError = '';
+            this.metaError = '';
+        },
+
+        handleEscape(event) {
+            if (event?.defaultPrevented) return;
+            if (this.showConfirmModal) {
+                this.cancelConfirmation();
+            } else if (this.showCreateModal) {
+                this.closeCreateModal();
+            } else if (this.showHelpModal) {
+                this.closeHelpModal();
+            } else if (this.showMobileSidebar) {
+                this.showMobileSidebar = false;
+            } else {
+                this.closeModal();
+            }
+            event?.preventDefault();
+        },
+
+        validateMeta() {
+            const name = (this.editingMeta?.name || '').trim();
+            if (!name) {
+                this.metaError = '规则集名称不能为空。';
+                this.$nextTick(() => document.getElementById('automation-name')?.focus());
+                return false;
+            }
+
+            this.metaError = '';
+            this.editingMeta = { ...this.editingMeta, name };
+            return true;
+        },
+
+        openCreateModal() {
+            this.newRuleSetName = '';
+            this.createError = '';
+            this.showCreateModal = true;
+            this.$nextTick(() => document.getElementById('automation-new-name')?.focus());
+        },
+
+        closeCreateModal() {
+            if (this.isCreating) return;
+            this.showCreateModal = false;
+            this.createError = '';
+        },
+
+        closeHelpModal() {
+            this.showHelpModal = false;
+            this.helpActiveTab = 'conditions';
+        },
+
+        requestConfirmation(title, message, details, confirmLabel, action) {
+            this.confirmDialog = {
+                title,
+                message,
+                details,
+                confirmLabel
+            };
+            this.pendingConfirmAction = action;
+            this.showConfirmModal = true;
+            this.$nextTick(() => document.querySelector('.automation-dialog--confirm button')?.focus());
+        },
+
+        async confirmPendingAction() {
+            if (!this.pendingConfirmAction || this.isConfirming) return;
+
+            const action = this.pendingConfirmAction;
+            this.isConfirming = true;
+            try {
+                await action();
+                this.showConfirmModal = false;
+                this.pendingConfirmAction = null;
+            } catch (error) {
+                this.editorErrorTitle = '操作失败';
+                this.editorError = error?.message || '操作未完成，请重试。';
+            } finally {
+                this.isConfirming = false;
+            }
+        },
+
+        cancelConfirmation() {
+            if (this.isConfirming) return;
+            this.showConfirmModal = false;
+            this.pendingConfirmAction = null;
         },
 
         openHelpTab(tab) {
@@ -658,10 +1015,19 @@ export default function automationModal() {
         },
 
         deleteRule(index) {
-            if(confirm("删除此规则？")) {
+            const rule = this.editingRules[index];
+            if (!rule) return;
+
+            this.requestConfirmation(
+                '删除这条规则？',
+                `确定删除“${rule.name || `规则 ${index + 1}`}”吗？`,
+                '删除后会从当前规则集移除，保存后正式生效。',
+                '删除规则',
+                () => {
                 this.editingRules.splice(index, 1);
                 this.editingRules = [...this.editingRules];
-            }
+                }
+            );
         },
 
         moveArrayItem(items, index, dir) {
@@ -700,10 +1066,16 @@ export default function automationModal() {
         },
 
         removeGroup(ruleIdx, groupIdx) {
-            if(confirm("删除此条件组？")) {
+            this.requestConfirmation(
+                '删除条件组？',
+                '这个条件组及其中的条件会被移除。',
+                '保存规则集后才会写入配置。',
+                '删除条件组',
+                () => {
                 this.editingRules[ruleIdx].groups.splice(groupIdx, 1);
                 this.editingRules = [...this.editingRules];
-            }
+                }
+            );
         },
 
         // Condition Operations
