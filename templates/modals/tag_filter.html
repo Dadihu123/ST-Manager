@@ -31,23 +31,48 @@
               <div
                 class="tag-filter-mobile-title"
                 id="tag-filter-modal-title"
-                x-text="{ filter: '标签库筛选', sort: '标签排序', delete: '删除标签', category: '分类管理' }[mobileActiveTab] || '标签库筛选'"
+                x-text="{ filter: '标签库筛选', sort: '标签排序', delete: '删除标签', blacklist: '黑名单治理', category: '分类管理' }[mobileActiveTab] || '标签库筛选'"
               >标签库筛选</div>
-              <div class="tag-filter-mobile-context" role="status" aria-live="polite">
-                <span x-text="filterTags.length + excludedTags.length"></span>
-                <span>个筛选标签</span>
-              </div>
             </div>
           </div>
-          <button
-            type="button"
-            @click="requestCloseTagFilterEditor()"
-            class="tag-filter-mobile-close-btn"
-            aria-label="关闭标签工作台"
-            title="关闭标签工作台"
-          >
-            {{ icon('close', 'ui-icon--sm') }}
-          </button>
+          <div class="tag-filter-mobile-header-actions">
+            <span class="tag-filter-mobile-header-status" role="status" aria-live="polite">
+              <strong x-text="filterTags.length + excludedTags.length"></strong>
+              <span>已选</span>
+            </span>
+            <button
+              type="button"
+              @click="toggleWorkspaceHelp()"
+              class="tag-filter-mobile-help-toggle"
+              :class="isWorkspaceHelpOpen ? 'is-active' : ''"
+              :aria-expanded="isWorkspaceHelpOpen"
+              aria-controls="tag-filter-mobile-help"
+              aria-label="打开标签工作台帮助"
+              title="帮助"
+            >
+              {{ icon('settings-help-entry', 'ui-icon--sm') }}
+            </button>
+            <button
+              type="button"
+              @click="toggleMobileTools()"
+              class="tag-filter-mobile-tools-toggle"
+              :aria-expanded="isMobileToolsOpen"
+              aria-controls="tag-filter-mobile-tools"
+              aria-label="打开标签工作台工具"
+              title="工作台工具"
+            >
+              {{ icon('settings-gear', 'ui-icon--sm') }}
+            </button>
+            <button
+              type="button"
+              @click="requestCloseTagFilterEditor()"
+              class="tag-filter-mobile-close-btn"
+              aria-label="关闭标签工作台"
+              title="关闭标签工作台"
+            >
+              {{ icon('close', 'ui-icon--sm') }}
+            </button>
+          </div>
         </div>
         <div
           class="tag-filter-mobile-tabs"
@@ -86,7 +111,18 @@
             >
             <span aria-hidden="true">{{ icon('trash', 'ui-icon--sm') }}</span>
             <span>删除</span>
-            </button>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            id="tag-filter-mobile-tab-blacklist"
+            @click="switchMobileTagTab('blacklist')"
+            :aria-selected="mobileActiveTab === 'blacklist'"
+            aria-controls="tag-filter-mobile-panel-blacklist"
+          >
+            <span aria-hidden="true">{{ icon('shield', 'ui-icon--sm') }}</span>
+            <span>黑名单</span>
+          </button>
           <button
             type="button"
             role="tab"
@@ -95,11 +131,199 @@
             :aria-selected="mobileActiveTab === 'category'"
             aria-controls="tag-filter-mobile-panel-category"
             >
-            <span aria-hidden="true">{{ icon('palette', 'ui-icon--sm') }}</span>
+            <span aria-hidden="true">{{ icon('layout', 'ui-icon--sm') }}</span>
             <span>分类</span>
+          </button>
+        </div>
+        <div
+          x-show="isWorkspaceHelpOpen"
+          x-cloak
+          x-transition:enter="transition ease-out duration-180"
+          x-transition:enter-start="opacity-0"
+          x-transition:enter-end="opacity-100"
+          x-transition:leave="transition ease-in duration-120"
+          x-transition:leave-start="opacity-100"
+          x-transition:leave-end="opacity-0"
+          id="tag-filter-mobile-help"
+          class="tag-filter-mobile-help-overlay"
+          role="presentation"
+          @click.self="closeWorkspaceHelp()"
+          @keydown.escape.window.prevent="closeWorkspaceHelp()"
+        >
+          <section
+            class="tag-filter-mobile-help-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="tag-filter-mobile-help-title"
+            @click.stop
+          >
+            <header class="tag-filter-mobile-help-header">
+              <div class="tag-filter-mobile-help-heading">
+                <span class="tag-filter-mobile-help-icon" aria-hidden="true">
+                  {{ icon('settings-help-entry', 'ui-icon--md') }}
+                </span>
+                <div>
+                  <div class="tag-filter-mobile-help-eyebrow">标签工作台 / GUIDE</div>
+                  <h2
+                    id="tag-filter-mobile-help-title"
+                    x-text="workspaceHelpContent[activeWorkspaceHelpSection]?.title || '工作台帮助'"
+                  >工作台帮助</h2>
+                  <p
+                    x-text="workspaceHelpContent[activeWorkspaceHelpSection]?.description || ''"
+                  ></p>
+                </div>
+              </div>
+              <button
+                type="button"
+                class="tag-filter-mobile-help-close"
+                @click="closeWorkspaceHelp()"
+                aria-label="关闭标签工作台帮助"
+                title="关闭帮助"
+              >
+                {{ icon('close', 'ui-icon--sm') }}
+              </button>
+            </header>
+            <nav
+              class="tag-filter-mobile-help-nav"
+              role="tablist"
+              aria-label="标签工作台帮助目录"
+            >
+              <template
+                x-for="section in workspaceHelpSections"
+                :key="'mobile-help-nav-' + section.id"
+              >
+                <button
+                  type="button"
+                  role="tab"
+                  class="tag-filter-mobile-help-nav-item"
+                  :id="'tag-filter-mobile-help-tab-' + section.id"
+                  :aria-selected="activeWorkspaceHelpSection === section.id"
+                  @click="selectWorkspaceHelpSection(section.id)"
+                  x-text="section.label"
+                ></button>
+              </template>
+            </nav>
+            <div
+              class="tag-filter-mobile-help-body custom-scrollbar"
+              role="tabpanel"
+              :aria-labelledby="'tag-filter-mobile-help-tab-' + activeWorkspaceHelpSection"
+            >
+              <article class="tag-filter-mobile-help-card">
+                <div class="tag-filter-mobile-help-card-heading">
+                  <span class="tag-filter-mobile-help-card-icon" aria-hidden="true">
+                    {{ icon('idea', 'ui-icon--sm') }}
+                  </span>
+                  <span x-text="workspaceHelpContent[activeWorkspaceHelpSection]?.title || '工作台帮助'"></span>
+                </div>
+                <ul class="tag-filter-mobile-help-list">
+                  <template
+                    x-for="(item, index) in (workspaceHelpContent[activeWorkspaceHelpSection]?.items || [])"
+                    :key="'mobile-help-item-' + activeWorkspaceHelpSection + '-' + index"
+                  >
+                    <li x-text="item"></li>
+                  </template>
+                </ul>
+              </article>
+            </div>
+          </section>
+        </div>
+        <div
+          x-show="isMobileToolsOpen"
+          x-cloak
+          x-transition:enter="transition ease-out duration-160"
+          x-transition:enter-start="opacity-0 translate-x-3"
+          x-transition:enter-end="opacity-100 translate-x-0"
+          x-transition:leave="transition ease-in duration-120"
+          x-transition:leave-start="opacity-100 translate-x-0"
+          x-transition:leave-end="opacity-0 translate-x-3"
+          id="tag-filter-mobile-tools"
+          class="tag-filter-mobile-tools-panel"
+          role="dialog"
+          aria-label="标签工作台工具"
+          @click.stop
+        >
+          <div class="tag-filter-mobile-tools-row">
+            <span class="tag-filter-mobile-tools-label">
+              <span aria-hidden="true">{{ icon('layout', 'ui-icon--xs') }}</span>
+              <span>标签视图</span>
+            </span>
+            <div class="tag-filter-mobile-view-toggle" role="group" aria-label="标签视图">
+              <button
+                type="button"
+                :class="mixedCategoryView ? 'is-active' : ''"
+                @click="showAllCategoriesMixed()"
+              >
+                <span aria-hidden="true">{{ icon('layers', 'ui-icon--xs') }}</span>
+                <span>混合</span>
+              </button>
+              <button
+                type="button"
+                :class="!mixedCategoryView ? 'is-active' : ''"
+                @click="mixedCategoryView = false; saveDesktopWorkbenchPrefs()"
+              >
+                <span aria-hidden="true">{{ icon('menu-category', 'ui-icon--xs') }}</span>
+                <span>分组</span>
+              </button>
+            </div>
+          </div>
+          <div class="tag-filter-mobile-tools-actions">
+            <button
+              type="button"
+              class="tag-filter-mobile-tool-action"
+              x-show="customOrderEnabled"
+              @click="clearCustomOrder()"
+            >
+              <span aria-hidden="true">{{ icon('refresh', 'ui-icon--xs') }}</span>
+              <span>恢复字符排序</span>
             </button>
+          </div>
+          <div class="tag-filter-mobile-governance">
+            <label>
+              <input
+                type="checkbox"
+                x-model="rememberLastTagView"
+                @change="saveDesktopWorkbenchPrefs()"
+              />
+              <span>记住上次标签视图</span>
+            </label>
+            <label>
+              <input
+                type="checkbox"
+                x-model="lockTagLibrary"
+                @change="saveTagManagementPrefsState()"
+              />
+              <span>拒绝新增未知标签</span>
+            </label>
+          </div>
         </div>
         <div class="tag-filter-mobile-utility">
+          <label
+            class="tag-filter-mobile-search"
+            x-show="mobileActiveTab !== 'sort'"
+          >
+            <span class="sr-only">搜索标签</span>
+            <span class="tag-filter-mobile-search-icon" aria-hidden="true">
+              {{ icon('book-search', 'ui-icon--sm') }}
+            </span>
+            <input
+              type="text"
+              x-model="tagSearchQuery"
+              placeholder="搜索标签..."
+              aria-label="搜索标签"
+              class="form-input tag-filter-mobile-search-input"
+              :disabled="isSortMode"
+            />
+            <button
+              type="button"
+              x-show="tagSearchQuery && !isSortMode"
+              class="tag-filter-mobile-search-clear"
+              @click="tagSearchQuery = ''"
+              aria-label="清除标签搜索"
+              title="清除搜索"
+            >
+              {{ icon('close-small', 'ui-icon--xs') }}
+            </button>
+          </label>
           <div
             x-show="$store.global.deviceType === 'mobile' && mobileActiveTab === 'filter'"
             id="tag-filter-mobile-panel-filter"
@@ -107,30 +331,6 @@
             aria-labelledby="tag-filter-mobile-tab-filter"
             class="tag-filter-mobile-panel tag-filter-mobile-panel--filter"
           >
-            <label class="tag-filter-mobile-search">
-              <span class="sr-only">搜索标签</span>
-              <span class="tag-filter-mobile-search-icon" aria-hidden="true">
-                {{ icon('search', 'ui-icon--sm') }}
-              </span>
-              <input
-                type="text"
-                x-model="tagSearchQuery"
-                placeholder="搜索标签..."
-                aria-label="搜索标签"
-                class="form-input tag-filter-mobile-search-input"
-                :disabled="isSortMode"
-              />
-              <button
-                type="button"
-                x-show="tagSearchQuery && !isSortMode"
-                class="tag-filter-mobile-search-clear"
-                @click="tagSearchQuery = ''"
-                aria-label="清除标签搜索"
-                title="清除搜索"
-              >
-                {{ icon('close-small', 'ui-icon--xs') }}
-              </button>
-            </label>
             <div x-show="!isSortMode" class="tag-category-filter-row">
               <button
                 type="button"
@@ -160,6 +360,49 @@
                 </button>
               </template>
             </div>
+            <div
+              x-show="filterTags.length > 0 || excludedTags.length > 0"
+              class="tag-filter-mobile-selection-strip"
+            >
+              <div class="tag-filter-mobile-selection-header">
+                <span>
+                  <span class="tag-filter-mobile-selection-icon" aria-hidden="true">{{ icon('filter', 'ui-icon--xs') }}</span>
+                  <span>当前筛选</span>
+                </span>
+                <button
+                  type="button"
+                  class="tag-filter-mobile-selection-clear"
+                  @click="filterTags=[]; excludedTags=[]"
+                  aria-label="清空当前筛选"
+                >
+                  清空
+                </button>
+              </div>
+              <div class="tag-filter-mobile-selection-list">
+                <template x-for="tag in filterTags" :key="'mobile-selected-include-' + tag">
+                  <button
+                    type="button"
+                    class="tag-filter-mobile-selection-chip tag-filter-mobile-selection-chip--included"
+                    @click="filterTags = filterTags.filter(item => item !== tag)"
+                    :aria-label="'移除包含标签：' + tag"
+                  >
+                    <span x-text="tag"></span>
+                    <span aria-hidden="true">{{ icon('close-small', 'ui-icon--xs') }}</span>
+                  </button>
+                </template>
+                <template x-for="tag in excludedTags" :key="'mobile-selected-exclude-' + tag">
+                  <button
+                    type="button"
+                    class="tag-filter-mobile-selection-chip tag-filter-mobile-selection-chip--excluded"
+                    @click="excludedTags = excludedTags.filter(item => item !== tag)"
+                    :aria-label="'移除排除标签：' + tag"
+                  >
+                    <span x-text="tag"></span>
+                    <span aria-hidden="true">{{ icon('close-small', 'ui-icon--xs') }}</span>
+                  </button>
+                </template>
+              </div>
+            </div>
           </div>
           <div
             x-show="$store.global.deviceType === 'mobile' && mobileActiveTab === 'delete'"
@@ -168,13 +411,112 @@
             aria-labelledby="tag-filter-mobile-tab-delete"
             class="tag-filter-mobile-panel tag-filter-mobile-panel--delete"
           >
-            <div class="text-xs" style="color: var(--content-muted)">
-              已选择
-              <span
-                class="text-accent font-bold"
-                x-text="selectedTagsForDeletion.length"
-              ></span>
-              个待删除标签
+            <div class="tag-filter-mobile-panel-heading">
+              <span class="tag-filter-mobile-panel-status">
+                <span>待删除标签</span>
+                <strong x-text="selectedTagsForDeletion.length"></strong>
+              </span>
+              <button
+                type="button"
+                class="tag-category-clear"
+                @click="selectedTagsForDeletion=[]"
+                :disabled="selectedTagsForDeletion.length === 0"
+              >
+                清空选择
+              </button>
+            </div>
+            <div class="tag-filter-mobile-pending-list">
+              <template x-if="selectedTagsForDeletion.length === 0">
+                <span class="tag-filter-mobile-empty-copy">点击下方标签加入待删除列表。</span>
+              </template>
+              <template x-for="tag in selectedTagsForDeletion" :key="'mobile-delete-pending-' + tag">
+                <button
+                  type="button"
+                  class="tag-filter-selected-basket-chip tag-filter-selected-basket-chip--excluded"
+                  @click="toggleTagSelectionForDeletion(tag)"
+                  :aria-label="'移除待删除标签：' + tag"
+                >
+                  <span class="tag-filter-selected-basket-chip-label" x-text="tag"></span>
+                  <span aria-hidden="true">{{ icon('close-small', 'ui-icon--xs') }}</span>
+                </button>
+              </template>
+            </div>
+          </div>
+          <div
+            x-show="$store.global.deviceType === 'mobile' && mobileActiveTab === 'blacklist'"
+            id="tag-filter-mobile-panel-blacklist"
+            role="tabpanel"
+            aria-labelledby="tag-filter-mobile-tab-blacklist"
+            class="tag-filter-mobile-panel tag-filter-mobile-panel--blacklist"
+          >
+            <div class="tag-filter-mobile-panel-heading">
+              <span class="tag-filter-mobile-panel-status">
+                <span>待加入黑名单</span>
+                <strong x-text="selectedBlacklistTags.length"></strong>
+              </span>
+              <button
+                type="button"
+                class="tag-category-clear"
+                @click="selectedBlacklistTags=[]"
+                :disabled="selectedBlacklistTags.length === 0"
+              >
+                清空选择
+              </button>
+            </div>
+            <div class="tag-filter-mobile-input-row">
+              <input
+                type="text"
+                x-model="blacklistSelectionInput"
+                @keydown.enter.prevent="applyBlacklistSelectionInput()"
+                placeholder="输入标签名，用 |、逗号或换行批量加入"
+                class="form-input"
+                aria-label="批量选择黑名单标签"
+              />
+              <button
+                type="button"
+                class="tag-filter-mobile-soft-action"
+                @click="applyBlacklistSelectionInput()"
+              >
+                批量选择
+              </button>
+            </div>
+            <div class="tag-filter-mobile-pending-list">
+              <template x-if="selectedBlacklistTags.length === 0">
+                <span class="tag-filter-mobile-empty-copy">点击下方标签加入待处理列表。</span>
+              </template>
+              <template x-for="tag in selectedBlacklistTags" :key="'mobile-blacklist-selected-' + tag">
+                <button
+                  type="button"
+                  class="tag-filter-selected-basket-chip tag-filter-selected-basket-chip--excluded"
+                  @click="toggleTagSelectionForBlacklist(tag)"
+                  :aria-label="'移除待加入黑名单标签：' + tag"
+                >
+                  <span class="tag-filter-selected-basket-chip-label" x-text="tag"></span>
+                  <span aria-hidden="true">{{ icon('close-small', 'ui-icon--xs') }}</span>
+                </button>
+              </template>
+            </div>
+            <div class="tag-filter-mobile-blacklist-current">
+              <div class="tag-filter-mobile-panel-heading">
+                <span class="tag-filter-mobile-panel-label">当前黑名单</span>
+              </div>
+              <div class="tag-filter-mobile-pending-list tag-filter-mobile-pending-list--current">
+                <template x-if="tagBlacklistTags.length === 0">
+                  <span class="tag-filter-mobile-empty-copy">当前没有黑名单标签。</span>
+                </template>
+                <template x-for="tag in tagBlacklistTags" :key="'mobile-blacklist-' + tag">
+                  <button
+                    type="button"
+                    class="tag-filter-selected-basket-chip tag-filter-selected-basket-chip--excluded"
+                    @click="removeBlacklistedTag(tag)"
+                    :aria-label="'移出黑名单：' + tag"
+                  >
+                    <span class="tag-filter-selected-basket-chip-label" x-text="tag"></span>
+                    <span aria-hidden="true">{{ icon('close-small', 'ui-icon--xs') }}</span>
+                  </button>
+                </template>
+              </div>
+              <p class="tag-filter-mobile-panel-note">开启治理开关后，自动流程和批量流程会跳过这些标签。</p>
             </div>
           </div>
           <div
@@ -184,8 +526,23 @@
             aria-labelledby="tag-filter-mobile-tab-sort"
             class="tag-filter-mobile-panel tag-filter-mobile-panel--sort"
           >
-            <div class="text-xs" style="color: var(--content-muted)">
-              使用上下按钮调整顺序，保存后将同步到全局标签库。
+            <div class="tag-filter-mobile-panel-heading">
+              <span class="tag-filter-mobile-panel-status">
+                <span>排序工具</span>
+                <strong x-text="mixedCategoryView ? '混合' : '分组'"></strong>
+              </span>
+              <button
+                type="button"
+                class="tag-filter-mobile-soft-action"
+                x-show="customOrderEnabled"
+                @click="clearCustomOrder()"
+              >
+                <span aria-hidden="true">{{ icon('refresh', 'ui-icon--xs') }}</span>
+                <span>恢复字符排序</span>
+              </button>
+            </div>
+            <div class="tag-filter-mobile-panel-note">
+              使用行内上下按钮调整顺序，保存后将同步到全局标签库。
             </div>
           </div>
           <div
@@ -458,38 +815,167 @@
             </div>
           </div>
         </div>
+        <div
+          x-show="mobileActiveTab === 'sort' || mobileActiveTab === 'delete' || mobileActiveTab === 'blacklist'"
+          class="tag-filter-mobile-category-strip"
+        >
+          <div class="tag-filter-mobile-category-strip-heading">
+            <span aria-hidden="true">{{ sidebar_icon('layers', 'ui-icon--xs') }}</span>
+            <span>分类快捷筛选</span>
+          </div>
+          <div class="tag-category-filter-row">
+            <button
+              type="button"
+              class="tag-category-filter-pill"
+              :class="isCategoryFilterAllMixed ? 'active-mixed' : ''"
+              @click="showAllCategoriesMixed()"
+              title="显示全部分类（混合显示）"
+            >
+              全部
+            </button>
+            <template x-for="name in filterCategoryNames" :key="'mobile-quick-fcat-' + name">
+              <button
+                type="button"
+                class="tag-category-filter-pill"
+                :class="{
+                  'active-included': getCategoryFilterState(name) === 'included',
+                  'active-excluded': getCategoryFilterState(name) === 'excluded'
+                }"
+                :style="getCategoryChipStyle(name)"
+                @click="toggleCategoryFilter(name, $event)"
+                :title="`快速查看分类：${name}`"
+              >
+                <span class="tag-category-filter-dot"></span>
+                <span x-text="name"></span>
+              </button>
+            </template>
+          </div>
+        </div>
         <div class="tag-filter-mobile-main custom-scrollbar">
           <div
             x-show="$store.global.deviceType === 'mobile' && mobileActiveTab === 'sort'"
           >
             <template x-if="isSortMode">
-              <div>
-                <template
-                  x-for="tag in sortModeTagsPool"
-                  :key="'m-sort-' + tag"
-                >
-                  <div class="tag-filter-mobile-sort-row">
-                    <span class="tag-chip-drag-handle">{{ icon('menu-bold', 'ui-icon--xs') }}</span>
-                    <span
-                      class="tag-chip-color-dot"
-                      :style="getTagChipStyle(tag)"
-                      aria-hidden="true"
-                    ></span>
-                    <span
-                      x-text="tag"
-                      style="
-                        flex: 1;
-                        overflow: hidden;
-                        text-overflow: ellipsis;
-                        white-space: nowrap;
-                      "
-                    ></span>
-                    <button type="button" class="ui-reorder-button" @click="moveSortTagUp(tag)" title="上移" aria-label="上移">
-                      {{ icon('arrow-up', 'ui-icon--xs') }}
-                    </button>
-                    <button type="button" class="ui-reorder-button" @click="moveSortTagDown(tag)" title="下移" aria-label="下移">
-                      {{ icon('arrow-down', 'ui-icon--xs') }}
-                    </button>
+              <div class="tag-filter-mobile-sort-list">
+                <template x-if="mixedCategoryView">
+                  <div>
+                    <template
+                      x-for="tag in sortModeMixedTagsPool"
+                      :key="'m-sort-' + tag"
+                    >
+                      <div class="tag-filter-mobile-sort-row">
+                        <span class="tag-chip-drag-handle" aria-hidden="true">{{ icon('menu-bold', 'ui-icon--xs') }}</span>
+                        <span
+                          class="tag-chip-color-dot"
+                          :style="getTagChipStyle(tag)"
+                          aria-hidden="true"
+                        ></span>
+                        <span
+                          x-text="tag"
+                          class="tag-filter-mobile-sort-label"
+                        ></span>
+                        <button
+                          type="button"
+                          class="ui-reorder-button"
+                          @click="moveSortTagUp(tag)"
+                          :disabled="sortModeTagsPool.indexOf(tag) === 0"
+                          title="上移"
+                          :aria-label="'上移标签：' + tag"
+                        >
+                          {{ icon('arrow-up', 'ui-icon--xs') }}
+                        </button>
+                        <button
+                          type="button"
+                          class="ui-reorder-button"
+                          @click="moveSortTagDown(tag)"
+                          :disabled="sortModeTagsPool.indexOf(tag) === sortModeTagsPool.length - 1"
+                          title="下移"
+                          :aria-label="'下移标签：' + tag"
+                        >
+                          {{ icon('arrow-down', 'ui-icon--xs') }}
+                        </button>
+                      </div>
+                    </template>
+                  </div>
+                </template>
+                <template x-if="!mixedCategoryView">
+                  <div class="tag-filter-mobile-sort-groups">
+                    <template
+                      x-for="group in sortModeTagGroups"
+                      :key="'m-sort-group-' + group.category"
+                    >
+                      <section class="tag-filter-mobile-sort-group">
+                        <div class="tag-filter-mobile-sort-group-heading">
+                          <div class="tag-filter-mobile-sort-group-title">
+                            <span
+                              class="tag-group-dot"
+                              :style="getCategoryChipStyle(group.category)"
+                              aria-hidden="true"
+                            ></span>
+                            <span x-text="group.category"></span>
+                            <span class="tag-group-count" x-text="group.tags.length + ' 个'"></span>
+                          </div>
+                          <div class="tag-filter-mobile-sort-group-actions">
+                            <button
+                              type="button"
+                              class="ui-reorder-button"
+                              @click="moveSortCategoryUp(group.category)"
+                              :disabled="sortWorkingCategoryOrder.indexOf(group.category) === 0"
+                              title="分类上移"
+                              :aria-label="'上移分类：' + group.category"
+                            >
+                              {{ icon('arrow-up', 'ui-icon--xs') }}
+                            </button>
+                            <button
+                              type="button"
+                              class="ui-reorder-button"
+                              @click="moveSortCategoryDown(group.category)"
+                              :disabled="sortWorkingCategoryOrder.indexOf(group.category) === sortWorkingCategoryOrder.length - 1"
+                              title="分类下移"
+                              :aria-label="'下移分类：' + group.category"
+                            >
+                              {{ icon('arrow-down', 'ui-icon--xs') }}
+                            </button>
+                          </div>
+                        </div>
+                        <div class="tag-filter-mobile-sort-group-tags">
+                          <template
+                            x-for="tag in group.tags"
+                            :key="'m-sort-tag-' + group.category + '-' + tag"
+                          >
+                            <div class="tag-filter-mobile-sort-row">
+                              <span class="tag-chip-drag-handle" aria-hidden="true">{{ icon('menu-bold', 'ui-icon--xs') }}</span>
+                              <span
+                                class="tag-chip-color-dot"
+                                :style="getTagChipStyle(tag)"
+                                aria-hidden="true"
+                              ></span>
+                              <span x-text="tag" class="tag-filter-mobile-sort-label"></span>
+                              <button
+                                type="button"
+                                class="ui-reorder-button"
+                                @click="moveSortCategoryTagUp(tag)"
+                                :disabled="getSortCategoryTags(group.category).indexOf(tag) === 0"
+                                title="上移"
+                                :aria-label="'上移标签：' + tag"
+                              >
+                                {{ icon('arrow-up', 'ui-icon--xs') }}
+                              </button>
+                              <button
+                                type="button"
+                                class="ui-reorder-button"
+                                @click="moveSortCategoryTagDown(tag)"
+                                :disabled="getSortCategoryTags(group.category).indexOf(tag) === getSortCategoryTags(group.category).length - 1"
+                                title="下移"
+                                :aria-label="'下移标签：' + tag"
+                              >
+                                {{ icon('arrow-down', 'ui-icon--xs') }}
+                              </button>
+                            </div>
+                          </template>
+                        </div>
+                      </section>
+                    </template>
                   </div>
                 </template>
               </div>
@@ -507,19 +993,19 @@
                     :key="'mobile-mixed-' + tag"
                   >
                     <button
-                      @click="isDeleteMode ? toggleTagSelectionForDeletion(tag) : (showCategoryMode ? toggleTagSelectionForCategory(tag) : toggleFilterTag(tag, $event))"
+                      @click="isDeleteMode ? toggleTagSelectionForDeletion(tag) : (showCategoryMode ? toggleTagSelectionForCategory(tag) : (isBlacklistMode ? toggleTagSelectionForBlacklist(tag) : toggleFilterTag(tag, $event)))"
                       class="tag-chip-btn flex items-center"
                       :class="{
-                                                'tag-chip-selected': !isDeleteMode && !showCategoryMode && filterTags.includes(tag),
-                                                'tag-chip-excluded': !isDeleteMode && !showCategoryMode && excludedTags.includes(tag),
-                                                'tag-chip-unselected tag-chip-categorized': !isDeleteMode && !showCategoryMode && !filterTags.includes(tag) && !excludedTags.includes(tag),
+                                                'tag-chip-selected': !isDeleteMode && !showCategoryMode && !isBlacklistMode && filterTags.includes(tag),
+                                                'tag-chip-excluded': !isDeleteMode && !showCategoryMode && !isBlacklistMode && excludedTags.includes(tag),
+                                                'tag-chip-unselected tag-chip-categorized': !isDeleteMode && !showCategoryMode && !isBlacklistMode && !filterTags.includes(tag) && !excludedTags.includes(tag),
                                                 'tag-chip-delete-selected': isDeleteMode && selectedTagsForDeletion.includes(tag),
                                                 'tag-chip-delete-unselected': isDeleteMode && !selectedTagsForDeletion.includes(tag),
-                                                'tag-chip-category-selected': showCategoryMode && selectedCategoryTags.includes(tag),
-                                                'tag-chip-category-unselected tag-chip-categorized': showCategoryMode && !selectedCategoryTags.includes(tag)
+                                                'tag-chip-category-selected': (showCategoryMode && selectedCategoryTags.includes(tag)) || (isBlacklistMode && selectedBlacklistTags.includes(tag)),
+                                                'tag-chip-category-unselected tag-chip-categorized': (showCategoryMode && !selectedCategoryTags.includes(tag)) || (isBlacklistMode && !selectedBlacklistTags.includes(tag))
                                             }"
                       :style="!isDeleteMode ? getTagChipStyle(tag) : ''"
-                      :title="!isDeleteMode && !showCategoryMode ? (filterTags.includes(tag) ? `标签：${tag}（已包含，点击改为排除）` : (excludedTags.includes(tag) ? `标签：${tag}（已排除，点击取消筛选）` : `标签：${tag}（分类：${getTagCategory(tag)}，点击加入筛选，Shift+点击可直接排除）`)) : (showCategoryMode ? `标签：${tag}（当前分类：${getTagCategory(tag)}）` : '')"
+                      :title="!isDeleteMode && !showCategoryMode && !isBlacklistMode ? (filterTags.includes(tag) ? `标签：${tag}（已包含，点击改为排除）` : (excludedTags.includes(tag) ? `标签：${tag}（已排除，点击取消筛选）` : `标签：${tag}（分类：${getTagCategory(tag)}，点击加入筛选，Shift+点击可直接排除）`)) : (showCategoryMode ? `标签：${tag}（当前分类：${getTagCategory(tag)}）` : (isBlacklistMode ? `标签：${tag}（点击加入黑名单选择）` : ''))"
                     >
                       <span
                         x-show="isDeleteMode && selectedTagsForDeletion.includes(tag)"
@@ -527,7 +1013,7 @@
                         >{{ icon('check-bold', 'ui-icon--xs') }}</span
                       >
                       <span
-                        x-show="showCategoryMode && selectedCategoryTags.includes(tag)"
+                        x-show="(showCategoryMode && selectedCategoryTags.includes(tag)) || (isBlacklistMode && selectedBlacklistTags.includes(tag))"
                         class="mr-1 font-bold"
                         >{{ icon('check-bold', 'ui-icon--xs') }}</span
                       >
@@ -577,16 +1063,16 @@
                             @click="isDeleteMode ? toggleTagSelectionForDeletion(tag) : (showCategoryMode ? toggleTagSelectionForCategory(tag) : (isBlacklistMode ? toggleTagSelectionForBlacklist(tag) : toggleFilterTag(tag, $event)))"
                             class="tag-chip-btn flex items-center"
                             :class="{
-                                                            'tag-chip-selected': !isDeleteMode && !showCategoryMode && filterTags.includes(tag),
-                                                            'tag-chip-excluded': !isDeleteMode && !showCategoryMode && excludedTags.includes(tag),
-                                                            'tag-chip-unselected tag-chip-categorized': !isDeleteMode && !showCategoryMode && !filterTags.includes(tag) && !excludedTags.includes(tag),
+                                                            'tag-chip-selected': !isDeleteMode && !showCategoryMode && !isBlacklistMode && filterTags.includes(tag),
+                                                            'tag-chip-excluded': !isDeleteMode && !showCategoryMode && !isBlacklistMode && excludedTags.includes(tag),
+                                                            'tag-chip-unselected tag-chip-categorized': !isDeleteMode && !showCategoryMode && !isBlacklistMode && !filterTags.includes(tag) && !excludedTags.includes(tag),
                                                             'tag-chip-delete-selected': isDeleteMode && selectedTagsForDeletion.includes(tag),
                                                             'tag-chip-delete-unselected': isDeleteMode && !selectedTagsForDeletion.includes(tag),
-                                                            'tag-chip-category-selected': showCategoryMode && selectedCategoryTags.includes(tag),
-                                                            'tag-chip-category-unselected tag-chip-categorized': showCategoryMode && !selectedCategoryTags.includes(tag)
+                                                            'tag-chip-category-selected': (showCategoryMode && selectedCategoryTags.includes(tag)) || (isBlacklistMode && selectedBlacklistTags.includes(tag)),
+                                                            'tag-chip-category-unselected tag-chip-categorized': (showCategoryMode && !selectedCategoryTags.includes(tag)) || (isBlacklistMode && !selectedBlacklistTags.includes(tag))
                                                         }"
                             :style="!isDeleteMode ? getTagChipStyle(tag) : ''"
-                            :title="!isDeleteMode && !showCategoryMode ? (filterTags.includes(tag) ? `标签：${tag}（已包含，点击改为排除）` : (excludedTags.includes(tag) ? `标签：${tag}（已排除，点击取消筛选）` : `标签：${tag}（分类：${getTagCategory(tag)}，点击加入筛选，Shift+点击可直接排除）`)) : (showCategoryMode ? `标签：${tag}（当前分类：${getTagCategory(tag)}）` : '')"
+                            :title="!isDeleteMode && !showCategoryMode && !isBlacklistMode ? (filterTags.includes(tag) ? `标签：${tag}（已包含，点击改为排除）` : (excludedTags.includes(tag) ? `标签：${tag}（已排除，点击取消筛选）` : `标签：${tag}（分类：${getTagCategory(tag)}，点击加入筛选，Shift+点击可直接排除）`)) : (showCategoryMode ? `标签：${tag}（当前分类：${getTagCategory(tag)}）` : (isBlacklistMode ? `标签：${tag}（点击加入黑名单选择）` : ''))"
                           >
                             <span
                               x-show="isDeleteMode && selectedTagsForDeletion.includes(tag)"
@@ -594,7 +1080,7 @@
                               >{{ icon('check-bold', 'ui-icon--xs') }}</span
                             >
                             <span
-                              x-show="showCategoryMode && selectedCategoryTags.includes(tag)"
+                              x-show="(showCategoryMode && selectedCategoryTags.includes(tag)) || (isBlacklistMode && selectedBlacklistTags.includes(tag))"
                               class="mr-1 font-bold"
                               >{{ icon('check-bold', 'ui-icon--xs') }}</span
                             >
@@ -634,17 +1120,68 @@
           </div>
         </div>
         <div class="tag-filter-mobile-bottombar">
-          <span x-show="mobileActiveTab === 'filter'">筛选面板</span>
-          <span x-show="mobileActiveTab === 'sort'">排序面板</span>
-          <span x-show="mobileActiveTab === 'delete'">删除面板</span>
-          <span x-show="mobileActiveTab === 'category'">分类面板</span>
-          <button
-            type="button"
-            x-show="mobileActiveTab === 'sort' && isSortMode"
-            @click="saveSortMode()"
-          >
-            保存排序
-          </button>
+          <div class="tag-filter-mobile-bottombar-status">
+            <span x-show="mobileActiveTab === 'filter'">
+              已选 <strong x-text="filterTags.length + excludedTags.length"></strong> 个标签
+            </span>
+            <span x-show="mobileActiveTab === 'sort'">排序面板</span>
+            <span x-show="mobileActiveTab === 'delete'">
+              待删除 <strong x-text="selectedTagsForDeletion.length"></strong> 个
+            </span>
+            <span x-show="mobileActiveTab === 'blacklist'">
+              待加入 <strong x-text="selectedBlacklistTags.length"></strong> 个
+            </span>
+            <span x-show="mobileActiveTab === 'category'">
+              已选 <strong x-text="categorySelectionCount"></strong> 个标签
+            </span>
+          </div>
+          <div class="tag-filter-mobile-bottombar-actions">
+            <button
+              type="button"
+              class="tag-filter-mobile-secondary-danger"
+              x-show="mobileActiveTab === 'filter' && (filterTags.length > 0 || excludedTags.length > 0)"
+              @click="deleteFilterTags()"
+            >
+              <span aria-hidden="true">{{ icon('scissors', 'ui-icon--xs') }}</span>
+              <span>从当前视图移除</span>
+            </button>
+            <button
+              type="button"
+              class="tag-filter-mobile-secondary-danger"
+              x-show="mobileActiveTab === 'delete' && selectedTagsForDeletion.length > 0"
+              @click="addDeleteSelectionToBlacklist()"
+            >
+              <span aria-hidden="true">{{ icon('shield', 'ui-icon--xs') }}</span>
+              <span>加入黑名单</span>
+            </button>
+            <button
+              type="button"
+              class="tag-filter-mobile-primary-danger"
+              x-show="mobileActiveTab === 'delete' && selectedTagsForDeletion.length > 0"
+              @click="deleteSelectedTags()"
+            >
+              <span aria-hidden="true">{{ icon('trash', 'ui-icon--xs') }}</span>
+              <span>永久删除</span>
+            </button>
+            <button
+              type="button"
+              class="tag-filter-mobile-primary-danger"
+              x-show="mobileActiveTab === 'blacklist' && canSaveBlacklistSelection"
+              @click="saveBlacklistSelection()"
+            >
+              <span aria-hidden="true">{{ icon('shield', 'ui-icon--xs') }}</span>
+              <span>加入黑名单</span>
+            </button>
+            <button
+              type="button"
+              class="tag-filter-mobile-primary-action"
+              x-show="mobileActiveTab === 'sort' && isSortMode"
+              @click="saveSortMode()"
+            >
+              <span aria-hidden="true">{{ icon('check', 'ui-icon--xs') }}</span>
+              <span>保存排序</span>
+            </button>
+          </div>
         </div>
       </div>
     </template>
@@ -704,7 +1241,7 @@
               <label class="tag-filter-workspace-search-wrap">
                 <span class="sr-only">搜索标签</span>
                   <span class="tag-filter-workspace-search-icon" aria-hidden="true">
-                    {{ icon('search', 'ui-icon--sm') }}
+                    {{ icon('book-search', 'ui-icon--sm') }}
                   </span>
                   <input
                     type="text"
@@ -855,7 +1392,7 @@
               :aria-selected="desktopWorkspaceMode === 'batch-category'"
               @click="desktopWorkspaceMode === 'batch-category' ? setDesktopWorkspaceMode('filter') : setDesktopWorkspaceMode('batch-category')"
             >
-              <span aria-hidden="true">{{ icon('palette', 'ui-icon--sm') }}</span>
+              <span aria-hidden="true">{{ icon('layout', 'ui-icon--sm') }}</span>
               <span>批量分类</span>
             </button>
             <button

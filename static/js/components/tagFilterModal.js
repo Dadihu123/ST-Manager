@@ -29,7 +29,9 @@ export default function tagFilterModal() {
     desktopWorkspaceMode: "filter",
     isDesktopWorkspaceFullscreen: false,
     isWorkspaceHelpOpen: false,
+    lastWorkspaceHelpTrigger: null,
     isGovernanceDrawerOpen: false,
+    isMobileToolsOpen: false,
     rememberLastTagView: false,
     lockTagLibrary: false,
     tagBlacklistInput: "",
@@ -82,6 +84,116 @@ export default function tagFilterModal() {
       { id: "faq", label: "常见问题" },
     ],
     activeWorkspaceHelpSection: "overview",
+    workspaceHelpContent: {
+      overview: {
+        title: "工作台总览",
+        description: "先浏览标签分布，再按模式完成筛选、整理和治理。",
+        items: [
+          "顶部区域提供当前模式、选中数量、帮助和工作台工具入口。",
+          "筛选、排序、删除、黑名单和分类模式分别对应不同的标签处理流程。",
+          "移动端标签池支持连续换行显示，点击标签即可完成当前模式的主要操作。",
+        ],
+      },
+      "search-view": {
+        title: "搜索与视图",
+        description: "用搜索和视图切换快速缩小标签范围。",
+        items: [
+          "搜索框支持多个关键词并集匹配，适合先缩小范围再操作。",
+          "混合视图适合快速点选标签；分组视图适合按分类核对标签分布。",
+          "分类条支持包含、排除和恢复三态，Shift+点击可直接进入排除。",
+        ],
+      },
+      "separator-rules": {
+        title: "分隔符规则",
+        description: "搜索和批量输入使用不同的分隔符语义。",
+        items: [
+          "搜索框中的 | 表示多个关键词并集匹配，不会写入标签库。",
+          "批量分类、黑名单和手动输入会把 |、逗号或换行拆成多个标签名。",
+          "斜杠是否作为分隔符取决于自动化相关设置；点击现有标签不会解析分隔符。",
+        ],
+      },
+      "filter-mode": {
+        title: "筛选模式",
+        description: "通过包含、排除和取消三种状态调整当前结果。",
+        items: [
+          "点击标签会在包含、排除、取消之间循环切换。",
+          "按住 Shift 点击标签可以直接进入排除状态。",
+          "筛选模式只影响当前列表结果，不会修改标签库结构。",
+        ],
+      },
+      "batch-category-mode": {
+        title: "批量分类模式",
+        description: "一次选择多个标签，再统一写入分类和视觉配置。",
+        items: [
+          "先点击标签或使用批量输入选中目标标签，再设置分类名称、颜色和透明度。",
+          "保存后会批量写入分类；不存在的分类会自动创建。",
+          "适合建立分类体系，或把零散标签快速归类。",
+        ],
+      },
+      "sort-mode": {
+        title: "排序模式",
+        description: "调整完整标签库的全局顺序和分类内顺序。",
+        items: [
+          "混合视图下可以调整标签的全局顺序；分组视图下还能调整分类和分类内标签顺序。",
+          "移动端使用行内上移、下移按钮完成排序，保存后同步到全局标签库。",
+          "恢复字符排序会清除全局自定义顺序并回到默认排序。",
+        ],
+      },
+      "delete-mode": {
+        title: "删除模式",
+        description: "把确认无用的标签加入待删除列表后永久清理。",
+        items: [
+          "点击标签或使用批量输入加入待删除列表，底部操作栏会显示当前待处理数量。",
+          "永久删除不可撤销，只建议在确认标签无用时使用。",
+          "如果只是想暂时不看某些标签，请使用筛选模式而不是删除模式。",
+        ],
+      },
+      "blacklist-mode": {
+        title: "黑名单模式",
+        description: "集中维护自动流程和批量流程需要跳过的标签。",
+        items: [
+          "点击标签或使用分隔符批量选择要加入黑名单的标签。",
+          "保存后，自动流程和批量流程会跳过这些标签；手动单个编辑不受影响。",
+          "当前黑名单中的标签会单独列出，点击即可移出。",
+        ],
+      },
+      "category-manager-mode": {
+        title: "分类管理模式",
+        description: "维护分类定义、默认分类和视觉配置。",
+        items: [
+          "可以新增、重命名、设为默认、删除分类，并调整分类颜色和透明度。",
+          "新增空分类后，它会立即出现在分类条和相关选择器中。",
+          "删除分类时，分类下标签会迁移到默认分类，不会直接丢失映射。",
+        ],
+      },
+      governance: {
+        title: "治理设置",
+        description: "控制标签视图记忆和自动来源的标签准入规则。",
+        items: [
+          "记住上次标签视图会保存视图模式和分类筛选状态，方便下次继续。",
+          "拒绝新增未知标签会约束自动化和批量来源，减少意外污染标签库。",
+          "手动单个添加不受治理开关影响；黑名单维护在独立的黑名单模式中完成。",
+        ],
+      },
+      workflow: {
+        title: "推荐工作流",
+        description: "按照从观察到治理的顺序处理标签库。",
+        items: [
+          "先用搜索和分类条了解标签分布，再进入批量分类整理明显散乱的标签。",
+          "然后用分类管理维护分类定义、默认分类和视觉配置。",
+          "最后调整全局顺序，确认无用后再进入删除模式清理。",
+        ],
+      },
+      faq: {
+        title: "常见问题",
+        description: "遇到显示或操作疑问时，先检查当前模式和分类筛选状态。",
+        items: [
+          "分组视图看不到某个分类时，先检查分类条是否将它排除，或该分类当前没有匹配标签。",
+          "新增分类后没有看到时，确认保存成功；空分类也会出现在分类条和选择器中。",
+          "排序无法退出时，通常是因为存在未保存改动，需要先保存或确认放弃。",
+        ],
+      },
+    },
 
     get sidebarTagsPool() {
       return this.$store.global.sidebarTagsPool || [];
@@ -314,6 +426,7 @@ export default function tagFilterModal() {
     switchMobileTagTab(tab) {
       const changed = this.syncMobileTabState(tab);
       if (changed === false) return;
+      this.closeMobileTools();
       this.mobileActiveTab = tab;
     },
 
@@ -488,21 +601,69 @@ export default function tagFilterModal() {
       this.isGovernanceDrawerOpen = false;
     },
 
+    toggleMobileTools() {
+      if (!this.isMobileToolsOpen) this.closeWorkspaceHelp();
+      this.isMobileToolsOpen = !this.isMobileToolsOpen;
+    },
+
+    closeMobileTools() {
+      this.isMobileToolsOpen = false;
+    },
+
     toggleWorkspaceHelp() {
       if (!this.isWorkspaceHelpOpen) {
+        if (typeof document !== "undefined") {
+          this.lastWorkspaceHelpTrigger = document.activeElement;
+        }
         this.closeGovernanceDrawer();
+        this.closeMobileTools();
         this.activeWorkspaceHelpSection = "overview";
       }
       this.isWorkspaceHelpOpen = !this.isWorkspaceHelpOpen;
+      if (this.isWorkspaceHelpOpen) {
+        this.focusWorkspaceHelp();
+      } else {
+        this.restoreWorkspaceHelpFocus();
+      }
     },
 
     closeWorkspaceHelp() {
       this.isWorkspaceHelpOpen = false;
+      this.restoreWorkspaceHelpFocus();
+    },
+
+    focusWorkspaceHelp(attempt = 0) {
+      if (!this.isWorkspaceHelpOpen) return;
+
+      const selector =
+        this.$store?.global?.deviceType === "mobile"
+          ? "#tag-filter-mobile-help [aria-label='关闭标签工作台帮助']"
+          : ".tag-filter-workspace-help-hero-actions button";
+      const closeButton = this.$root?.querySelector(selector);
+      if (closeButton?.getClientRects?.().length) {
+        closeButton.focus?.();
+        return;
+      }
+      if (attempt < 12) {
+        setTimeout(() => this.focusWorkspaceHelp(attempt + 1), 50);
+      }
+    },
+
+    restoreWorkspaceHelpFocus() {
+      const focusTarget = this.lastWorkspaceHelpTrigger;
+      this.lastWorkspaceHelpTrigger = null;
+      if (focusTarget?.focus) setTimeout(() => focusTarget.focus(), 0);
+    },
+
+    selectWorkspaceHelpSection(sectionId) {
+      const nextId = String(sectionId || "").trim();
+      if (!nextId || !this.workspaceHelpContent[nextId]) return;
+      this.activeWorkspaceHelpSection = nextId;
     },
 
     jumpToWorkspaceHelpSection(sectionId) {
       const nextId = String(sectionId || "").trim();
-      if (!nextId) return;
+      if (!nextId || !this.workspaceHelpContent[nextId]) return;
 
       this.activeWorkspaceHelpSection = nextId;
       queueMicrotask(() => {
@@ -516,7 +677,7 @@ export default function tagFilterModal() {
     },
 
     syncMobileTabState(tab) {
-      if (!["filter", "sort", "delete", "category"].includes(tab)) {
+      if (!["filter", "sort", "delete", "blacklist", "category"].includes(tab)) {
         return false;
       }
 
@@ -532,6 +693,11 @@ export default function tagFilterModal() {
         this.isDeleteMode = false;
       }
 
+      if (previousTab === "blacklist" && tab !== "blacklist") {
+        this.selectedBlacklistTags = [];
+        this.blacklistSelectionInput = "";
+      }
+
       if (previousTab === "category" && tab !== "category") {
         this.selectedCategoryTags = [];
         this.categorySelectionInput = "";
@@ -543,6 +709,7 @@ export default function tagFilterModal() {
       }
 
       if (tab === "sort") {
+        this.desktopWorkspaceMode = "sort";
         this.tagSearchQuery = "";
         if (!this.isSortMode) {
           this.enterSortMode();
@@ -551,13 +718,23 @@ export default function tagFilterModal() {
       }
 
       if (tab === "delete") {
+        this.desktopWorkspaceMode = "delete";
         if (!this.isDeleteMode) {
           this.isDeleteMode = true;
         }
         return true;
       }
 
+      if (tab === "blacklist") {
+        this.desktopWorkspaceMode = "blacklist";
+        this.isDeleteMode = false;
+        this.showCategoryMode = false;
+        this.showCategoryManager = false;
+        return true;
+      }
+
       if (tab === "category") {
+        this.desktopWorkspaceMode = "batch-category";
         if (!this.showCategoryMode) {
           this.showCategoryMode = true;
           this.tagSearchQuery = "";
@@ -567,6 +744,8 @@ export default function tagFilterModal() {
 
       this.isDeleteMode = false;
       this.showCategoryMode = false;
+      this.showCategoryManager = false;
+      this.desktopWorkspaceMode = "filter";
 
       return true;
     },
@@ -662,6 +841,7 @@ export default function tagFilterModal() {
       this.isDesktopWorkspaceFullscreen = false;
       this.closeWorkspaceHelp();
       this.closeGovernanceDrawer();
+      this.closeMobileTools();
     },
 
     loadDesktopWorkbenchPrefs() {
@@ -1651,6 +1831,64 @@ export default function tagFilterModal() {
 
     moveSortTagDown(tag) {
       return this.moveSortTag(tag, 1);
+    },
+
+    moveSortCategory(categoryName, delta) {
+      const category = String(categoryName || "").trim();
+      const order = [...(this.sortWorkingCategoryOrder || [])];
+      if (!this.isSortMode || this.mixedCategoryView || !category || !Number.isFinite(delta)) {
+        return false;
+      }
+
+      const currentIndex = order.indexOf(category);
+      const targetIndex = currentIndex + delta;
+      if (currentIndex === -1 || targetIndex < 0 || targetIndex >= order.length) {
+        return false;
+      }
+
+      order.splice(currentIndex, 1);
+      order.splice(targetIndex, 0, category);
+      this.sortWorkingCategoryOrder = order;
+      return true;
+    },
+
+    moveSortCategoryUp(categoryName) {
+      return this.moveSortCategory(categoryName, -1);
+    },
+
+    moveSortCategoryDown(categoryName) {
+      return this.moveSortCategory(categoryName, 1);
+    },
+
+    moveSortCategoryTag(tag, delta) {
+      const name = String(tag || "").trim();
+      const category = String(this.getTagCategory(name) || "").trim();
+      if (!this.isSortMode || this.mixedCategoryView || !name || !category || !Number.isFinite(delta)) {
+        return false;
+      }
+
+      const tags = [...this.getSortCategoryTags(category)];
+      const currentIndex = tags.indexOf(name);
+      const targetIndex = currentIndex + delta;
+      if (currentIndex === -1 || targetIndex < 0 || targetIndex >= tags.length) {
+        return false;
+      }
+
+      tags.splice(currentIndex, 1);
+      tags.splice(targetIndex, 0, name);
+      this.sortWorkingCategoryTagOrder = {
+        ...(this.sortWorkingCategoryTagOrder || {}),
+        [category]: tags,
+      };
+      return true;
+    },
+
+    moveSortCategoryTagUp(tag) {
+      return this.moveSortCategoryTag(tag, -1);
+    },
+
+    moveSortCategoryTagDown(tag) {
+      return this.moveSortCategoryTag(tag, 1);
     },
 
     onSortDragStart(event, tag) {

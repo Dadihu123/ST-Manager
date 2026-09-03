@@ -52,6 +52,79 @@ def test_tag_filter_template_adds_mobile_shell_and_tabs():
     assert "@click=\"switchMobileTagTab('category')\"" in template_source
 
 
+def test_tag_filter_mobile_header_uses_borderless_help_and_tool_actions():
+    template_source = read_project_file('templates/modals/tag_filter.html')
+    css_source = read_project_file('static/css/modules/modal-tools.css')
+    mobile_header = template_source.split('<div class="tag-filter-mobile-topbar">', 1)[1].split(
+        '<div\n          class="tag-filter-mobile-tabs"',
+        1,
+    )[0]
+
+    assert 'class="tag-filter-mobile-help-toggle"' in mobile_header
+    assert '@click="toggleWorkspaceHelp()"' in mobile_header
+    assert 'class="tag-filter-mobile-tools-toggle"' in mobile_header
+    assert 'class="tag-filter-mobile-close-btn"' in mobile_header
+    assert_matches(
+        r'\.tag-filter-mobile-help-toggle,\s+'
+        r'\.tag-filter-mobile-tools-toggle,\s+'
+        r'\.tag-filter-mobile-close-btn\s*\{\s*'
+        r'display: inline-flex;.*?align-items: center;\s*justify-content: center;',
+        css_source,
+    )
+
+
+def test_tag_filter_mobile_help_uses_shared_directory_state_and_switchable_content():
+    template_source = read_project_file('templates/modals/tag_filter.html')
+    source = read_project_file('static/js/components/tagFilterModal.js')
+    mobile_help = template_source.split('id="tag-filter-mobile-help"', 1)[1].split(
+        '<div\n          x-show="isMobileToolsOpen"',
+        1,
+    )[0]
+
+    assert 'class="tag-filter-mobile-help-overlay"' in mobile_help
+    assert 'class="tag-filter-mobile-help-modal"' in mobile_help
+    assert 'role="tablist"' in mobile_help
+    assert 'x-for="section in workspaceHelpSections"' in mobile_help
+    assert '@click="selectWorkspaceHelpSection(section.id)"' in mobile_help
+    assert 'workspaceHelpContent[activeWorkspaceHelpSection]' in mobile_help
+    assert 'workspaceHelpContent: {' in source
+    assert 'selectWorkspaceHelpSection(sectionId) {' in source
+    assert 'this.closeMobileTools();' in source.split('toggleWorkspaceHelp() {', 1)[1].split('closeWorkspaceHelp()', 1)[0]
+
+
+def test_tag_filter_mobile_tools_remove_legacy_help_entry_and_use_drawer_hook():
+    template_source = read_project_file('templates/modals/tag_filter.html')
+    mobile_tools = template_source.split('id="tag-filter-mobile-tools"', 1)[1].split(
+        '<div class="tag-filter-mobile-utility">',
+        1,
+    )[0]
+    source = read_project_file('static/css/modules/modal-tools.css')
+
+    assert '使用帮助' not in mobile_tools
+    assert 'toggleMobileHelp()' not in template_source
+    assert '.tag-filter-mobile-tools-panel {' in source
+    assert 'position: absolute;' in source
+    assert 'max-height: calc(100dvh - env(safe-area-inset-top, 0px) - 8.1rem);' in source
+
+
+def test_tag_filter_mobile_navigation_and_category_icon_match_filter_workbench_language():
+    template_source = read_project_file('templates/modals/tag_filter.html')
+    source = read_project_file('static/css/modules/modal-tools.css')
+    mobile_tabs = template_source.split('class="tag-filter-mobile-tabs"', 1)[1].split(
+        'id="tag-filter-mobile-help"',
+        1,
+    )[0]
+
+    assert "icon('layout', 'ui-icon--sm')" in mobile_tabs
+    assert "icon('layout', 'ui-icon--sm')" in template_source.split(
+        'class="tag-filter-workspace-top-tabs"',
+        1,
+    )[1]
+    mobile_css = source.rsplit('@media (max-width: 899px)', 1)[1]
+    assert '.tag-filter-mobile-tabs button,' in mobile_css
+    assert 'border-color: transparent;' in mobile_css
+
+
 def test_tag_filter_js_defines_mobile_active_tab_and_switch_helper():
     source = read_project_file('static/js/components/tagFilterModal.js')
 
@@ -135,6 +208,8 @@ def test_tag_filter_js_sync_mobile_tab_state_resets_mode_specific_mobile_state()
     assert_contains_either(section, [
         "['filter', 'sort', 'delete', 'category'].includes(tab)",
         '["filter", "sort", "delete", "category"].includes(tab)',
+        '["filter", "sort", "delete", "blacklist", "category"].includes(tab)',
+        "['filter', 'sort', 'delete', 'blacklist', 'category'].includes(tab)",
     ])
     assert_contains_either(section, [
         "if (previousTab === 'delete' && tab !== 'delete')",
