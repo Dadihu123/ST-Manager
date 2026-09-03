@@ -21,7 +21,7 @@ def test_preset_grid_uses_semantic_icon_mappings():
         "icon('check'",
         "icon('trash'",
         "icon('upload'",
-        "icon('send'",
+        "icon('card-send-to-st'",
         "detail_icon('regex'",
         "preset_icon('thermometer'",
         "preset_icon('token-count'",

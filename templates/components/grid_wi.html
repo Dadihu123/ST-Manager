@@ -225,7 +225,7 @@
                       @click.stop="sendWorldInfoToST(item)"
                     >
                       <span x-show="!isSendingWorldInfoToST(item.id)" aria-hidden="true">
-                        {{ icon('send', 'ui-icon--md') }}
+                        {{ icon('card-send-to-st', 'ui-icon--md') }}
                       </span>
                       <span x-show="isSendingWorldInfoToST(item.id)" aria-hidden="true">
                         {{ loading_icon('ui-icon--md') }}

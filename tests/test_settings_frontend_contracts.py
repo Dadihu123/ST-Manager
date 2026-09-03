@@ -1420,3 +1420,14 @@ def test_settings_modal_number_stepper_clamps_and_increments_values():
         }
         """
     )
+
+
+def test_mobile_settings_toolbar_keeps_balanced_search_spacing():
+    css = read_project_file('static/css/modules/modal-settings.css')
+    mobile_block = css.split('@media (max-width: 767px)', 1)[1].split(
+        '@media (max-width: 768px)', 1
+    )[0]
+
+    assert '.settings-toolbar {' in mobile_block
+    assert 'padding: 8px 12px;' in mobile_block
+    assert '.settings-toolbar-meta { display: none; }' in mobile_block

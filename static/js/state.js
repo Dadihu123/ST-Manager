@@ -78,7 +78,7 @@ const TOAST_ICON_IMAGES = Object.freeze({
 });
 const TOAST_ICON_NAMES = new Set([
   "forbidden",
-  "send",
+  "card-send-to-st",
   "folder",
   "loading-animation",
   "close",

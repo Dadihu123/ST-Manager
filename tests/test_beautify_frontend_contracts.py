@@ -682,7 +682,7 @@ def test_beautify_grid_js_exposes_send_theme_to_st_contracts():
         'sendBeautifyThemeToSt({',
         "throw new Error(res?.error || '发送主题到 ST 失败');",
         'this.applyActiveVariantSentState(res.last_sent_to_st);',
-        'this.$store.global.showToast("主题已发送到 ST 并设为当前主题", 2200, "send");',
+        'this.$store.global.showToast("主题已发送到 ST 并设为当前主题", 2200, "card-send-to-st");',
     ):
         assert token in grid_source
 
@@ -788,7 +788,7 @@ def test_beautify_grid_runtime_send_active_theme_updates_active_variant_timestam
         if (component.$store.global.beautifyActiveDetail.variants.var_1.last_sent_to_st !== '2026-04-28T12:34:56Z') {
           throw new Error(`expected active detail variant timestamp to update, got ${component.$store.global.beautifyActiveDetail.variants.var_1.last_sent_to_st}`);
         }
-        if (toastCalls.length !== 1 || toastCalls[0][0] !== '主题已发送到 ST 并设为当前主题' || toastCalls[0][2] !== 'send') {
+        if (toastCalls.length !== 1 || toastCalls[0][0] !== '主题已发送到 ST 并设为当前主题' || toastCalls[0][2] !== 'card-send-to-st') {
           throw new Error(`expected success toast, got ${JSON.stringify(toastCalls)}`);
         }
         '''
@@ -875,7 +875,7 @@ def test_beautify_grid_runtime_send_active_theme_does_not_stamp_new_selection_af
         if (sentVariant.last_sent_to_st !== '2025-01-01T00:00:00Z') {
           throw new Error(`expected stale package variant object to remain untouched after switch, got ${sentVariant.last_sent_to_st}`);
         }
-        if (toastCalls.length !== 1 || toastCalls[0][0] !== '主题已发送到 ST 并设为当前主题' || toastCalls[0][2] !== 'send') {
+        if (toastCalls.length !== 1 || toastCalls[0][0] !== '主题已发送到 ST 并设为当前主题' || toastCalls[0][2] !== 'card-send-to-st') {
           throw new Error(`expected success toast after delayed send, got ${JSON.stringify(toastCalls)}`);
         }
         '''

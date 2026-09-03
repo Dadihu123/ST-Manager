@@ -2412,6 +2412,19 @@ html.light-mode .wi-card-back {
     bottom: 0 !important;
     left: 0 !important;
   }
+  .wi-reader-sidebar-meta {
+    flex: 0 1 auto;
+    min-height: 0;
+    max-height: 42%;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+  }
+  .wi-reader-sidebar-contents {
+    flex: 1 1 0%;
+    min-height: 0;
+    overscroll-behavior: contain;
+  }
   .wi-reader-topbar {
     display: grid !important;
     grid-template-columns: auto minmax(0, 1fr) auto auto;
