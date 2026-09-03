@@ -331,7 +331,7 @@ export default function wiGrid() {
           window.dispatchEvent(new CustomEvent("wi-sent-to-st", {
             detail: sentDetail,
           }));
-          this.$store.global.showToast("已发送到 ST", 1800, "send");
+          this.$store.global.showToast("已发送到 ST", 1800, "card-send-to-st");
         } else {
           this.$store.global.showToast(res?.msg || "发送失败", 2600, "close");
         }

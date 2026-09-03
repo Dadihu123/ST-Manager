@@ -233,6 +233,22 @@ def test_monitor_member_icons_reuse_monitor_pool_glyph():
     assert template.count("icon('monitor-user'") == 3
 
 
+def test_mobile_monitor_header_uses_the_compact_workbench_pattern():
+    template = read_project_file('templates/modals/source_update_monitor.html')
+    css = read_project_file('static/css/modules/modal-source-update-monitor.css')
+    mobile_block = css.split('@media (max-width: 760px)', 1)[1].split(
+        '@media (max-width: 440px)', 1
+    )[0]
+
+    assert 'source-monitor-eyebrow' in template
+    assert 'id="source-monitor-description"' in template
+    assert 'min-height: 3.55rem;' in mobile_block
+    assert 'padding: calc(env(safe-area-inset-top, 0px) + 0.55rem) 0.75rem 0.5rem;' in mobile_block
+    assert '.source-monitor-eyebrow,' in mobile_block
+    assert '.source-monitor-heading__copy p,' in mobile_block
+    assert 'width: 2.5rem;' in mobile_block
+
+
 def test_fullscreen_and_favorite_card_css_keep_surfaces_and_icons_crisp():
     workspace_css = read_project_file('static/css/modules/modal-tools.css')
     card_css = read_project_file('static/css/modules/view-cards.css')

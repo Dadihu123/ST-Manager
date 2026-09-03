@@ -259,6 +259,15 @@ def test_wi_editor_mobile_panes_and_inspector_layout_have_explicit_contracts():
     assert 'z-index: var(--z-dropdown);' in view_wi_css
 
 
+def test_wi_editor_pane_switch_does_not_auto_focus_mobile_fields():
+    source = read_project_file('static/js/components/wiEditor.js')
+    pane_block = extract_js_function_block(source, 'setEditorPane(pane) {')
+
+    assert '#wi-entry-filter-input' not in pane_block
+    assert '_getContentTextareaEl' not in pane_block
+    assert '_getEditorRootEl' not in pane_block
+
+
 def test_wi_editor_mobile_drawers_stop_above_bottom_dock():
     view_wi_css = read_project_file('static/css/modules/view-wi.css')
 

@@ -382,14 +382,6 @@ export default function wiEditor() {
         this.showLeftList = false;
         this.showRightPanel = false;
       }
-
-      this.$nextTick(() => {
-        if (nextPane === "list") {
-          this._getEditorRootEl()?.querySelector("#wi-entry-filter-input")?.focus();
-        } else if (nextPane === "content") {
-          this._getContentTextareaEl()?.focus();
-        }
-      });
     },
 
     toggleMobileEditorPane(pane) {

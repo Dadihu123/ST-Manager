@@ -142,11 +142,11 @@ def test_worldbook_templates_use_shared_icons_for_functional_controls():
     assert "icon('check'" in grid_source
     assert "icon('folder'" in grid_source
     assert "icon('sticky-note'" in grid_source
-    assert "icon('send'" in grid_source
+    assert "icon('card-send-to-st'" in grid_source
     assert "loading_icon('" in grid_source
     assert "icon('pencil-edit'" in popup_source
     assert "icon('close'" in popup_source
-    assert "icon('send'" in popup_source
+    assert "icon('card-send-to-st'" in popup_source
     assert "loading_icon('" in popup_source
     assert "icon('file-import'" in fullscreen_controls
     assert "icon('book-search'" in fullscreen_controls
@@ -330,3 +330,17 @@ def test_mobile_worldbook_reader_drawer_is_anchored_below_the_reader_topbar():
     assert '.wi-reader-mobile-scrim {' in css
     assert '.wi-reader-sidebar {' in css
     assert 'position: absolute !important;' in css
+
+
+def test_mobile_worldbook_reader_prioritizes_contents_over_sidebar_metadata():
+    popup_source = _read('templates/modals/detail_wi_popup.html')
+    css = _read('static/css/modules/view-wi.css')
+    mobile_block = css.split('@media (max-width: 768px)', 1)[1]
+
+    assert 'wi-reader-sidebar-meta' in popup_source
+    assert 'wi-reader-sidebar-contents' in popup_source
+    assert '.wi-reader-sidebar-meta {' in mobile_block
+    assert 'max-height: 42%;' in mobile_block
+    assert 'overflow-y: auto;' in mobile_block
+    assert '.wi-reader-sidebar-contents {' in mobile_block
+    assert 'flex: 1 1 0%;' in mobile_block

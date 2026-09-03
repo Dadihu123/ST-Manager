@@ -4759,6 +4759,32 @@ html.light-mode .preview-toggle-inactive {
     font-weight: 700;
   }
 
+  .tag-filter-mobile-view-toggle button {
+    display: grid;
+    grid-template-columns: 1rem minmax(0, 1fr) 1rem;
+    gap: 0;
+    position: relative;
+    min-width: 5rem;
+  }
+
+  .tag-filter-mobile-view-toggle button > span:first-child {
+    grid-column: 1;
+    grid-row: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-self: start;
+    pointer-events: none;
+    position: static;
+  }
+
+  .tag-filter-mobile-view-toggle button > span:last-child {
+    grid-column: 2;
+    grid-row: 1;
+    display: block;
+    width: auto;
+    text-align: center;
+  }
+
   .tag-filter-mobile-view-toggle button.is-active,
   .tag-filter-mobile-view-toggle button:hover,
   .tag-filter-mobile-tool-action:hover,

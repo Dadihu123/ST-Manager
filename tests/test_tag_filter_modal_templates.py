@@ -410,6 +410,17 @@ def test_tag_filter_mobile_css_applies_touch_targets_to_utility_controls():
     assert 'min-height: 44px' in mobile_section
 
 
+def test_tag_filter_mobile_view_toggle_centers_labels_between_symmetric_icon_columns():
+    source = read_project_file('static/css/modules/modal-tools.css')
+    mobile_section = source.split('@media (max-width: 768px) {', 1)[1]
+
+    assert 'grid-template-columns: 1rem minmax(0, 1fr) 1rem;' in mobile_section
+    assert 'min-width: 5rem;' in mobile_section
+    assert '.tag-filter-mobile-view-toggle button > span:first-child {' in mobile_section
+    assert 'grid-column: 2;' in mobile_section
+    assert 'text-align: center;' in mobile_section
+
+
 def test_tag_filter_template_mobile_category_panel_restores_save_and_existing_category_controls():
     template_source = read_project_file('templates/modals/tag_filter.html')
     mobile_shell_section = slice_between(
