@@ -5,7 +5,7 @@
   x-data="wiDetailPopup"
   x-show="showWiDetailModal"
   x-cloak
-  class="modal-overlay ui-modal-overlay ui-refresh-surface z-modal-std flex items-center justify-center p-4"
+  class="modal-overlay wi-reader-overlay ui-modal-overlay ui-refresh-surface z-modal-std flex items-center justify-center p-4"
 >
   <div
     class="wi-reader-modal wi-worldbook-icon-scope ui-modal-shell bg-[var(--surface-container)] border border-[var(--border-default)] rounded-xl shadow-2xl flex flex-col w-full max-w-7xl h-[88vh] overflow-hidden relative animate-scale-in"
@@ -16,9 +16,26 @@
   >
     <!-- 顶部工具栏：阅读优先 -->
     <div
-      class="wi-reader-topbar border-b border-[var(--border-default)] flex items-center gap-3 px-4 bg-[var(--surface-container-raised)] flex-shrink-0"
+      class="wi-reader-topbar border-b border-[var(--border-default)] px-4 bg-[var(--surface-container-raised)] flex-shrink-0"
     >
-      <div class="flex items-center gap-3 min-w-0 flex-1">
+      <button
+        type="button"
+        x-show="$store.global.deviceType === 'mobile'"
+        @click="showMobileSidebar = !showMobileSidebar"
+        class="wi-reader-mobile-menu-button"
+        :aria-expanded="showMobileSidebar"
+        :aria-label="showMobileSidebar ? '关闭世界书目录' : '打开世界书目录'"
+        :title="showMobileSidebar ? '关闭世界书目录' : '打开世界书目录'"
+      >
+        <span x-show="!showMobileSidebar" aria-hidden="true">
+          {{ icon('menu', 'ui-icon--md') }}
+        </span>
+        <span x-show="showMobileSidebar" aria-hidden="true">
+          {{ icon('close', 'ui-icon--md') }}
+        </span>
+      </button>
+
+      <div class="wi-reader-topbar-heading min-w-0 flex-1">
         <div
           x-show="$store.global.deviceType !== 'mobile'"
           class="wi-reader-title-icon select-none opacity-90"
@@ -102,40 +119,13 @@
               字符）</span
             >
           </div>
-          <!-- 搜索框：靠右但不抢标题 -->
-          <div
-            x-show="$store.global.deviceType === 'mobile'"
-            class="wi-reader-search flex-1 max-w-md relative"
-          >
-            <span
-              class="absolute left-3 top-1/2 -translate-y-1/2 opacity-50"
-              aria-hidden="true"
-            >
-              {{ icon('book-search', 'ui-icon--sm') }}
-            </span>
-            <input
-              type="text"
-              x-model="searchTerm"
-              class="w-full bg-[var(--surface-container)] border border-[var(--border-default)] rounded-full pl-9 pr-8 py-1.5 text-sm color-focus-border-accent outline-none transition-all shadow-sm"
-              placeholder="搜索关键词、内容或备注..."
-            />
-            <button
-              x-show="searchTerm"
-              @click="searchTerm=''"
-              class="ui-icon-button absolute right-2.5 top-1/2 -translate-y-1/2"
-              title="清空搜索"
-              aria-label="清空搜索"
-            >
-              {{ icon('close', 'ui-icon--sm') }}
-            </button>
-          </div>
         </div>
       </div>
 
-      <!-- 搜索框：靠右但不抢标题 -->
+      <!-- 移动端搜索：独立占满一行，避免被标题列限制宽度。 -->
       <div
-        x-show="$store.global.deviceType !== 'mobile'"
-        class="wi-reader-search flex-1 max-w-md relative"
+        x-show="$store.global.deviceType === 'mobile'"
+        class="wi-reader-search wi-reader-search--mobile relative"
       >
         <span
           class="absolute left-3 top-1/2 -translate-y-1/2 opacity-50"
@@ -146,7 +136,35 @@
         <input
           type="text"
           x-model="searchTerm"
-              class="w-full bg-[var(--surface-container)] border border-[var(--border-default)] rounded-full pl-9 pr-8 py-1.5 text-sm color-focus-border-accent outline-none transition-all shadow-sm"
+          class="w-full bg-[var(--surface-container)] border border-[var(--border-default)] rounded-full pl-9 pr-8 py-1.5 text-sm color-focus-border-accent outline-none transition-all shadow-sm"
+          placeholder="搜索关键词、内容或备注..."
+        />
+        <button
+          x-show="searchTerm"
+          @click="searchTerm=''"
+          class="ui-icon-button absolute right-2.5 top-1/2 -translate-y-1/2"
+          title="清空搜索"
+          aria-label="清空搜索"
+        >
+          {{ icon('close', 'ui-icon--sm') }}
+        </button>
+      </div>
+
+      <!-- 搜索框：靠右但不抢标题 -->
+      <div
+        x-show="$store.global.deviceType !== 'mobile'"
+        class="wi-reader-search wi-reader-search--desktop flex-1 max-w-md relative"
+      >
+        <span
+          class="absolute left-3 top-1/2 -translate-y-1/2 opacity-50"
+          aria-hidden="true"
+        >
+          {{ icon('book-search', 'ui-icon--sm') }}
+        </span>
+        <input
+          type="text"
+          x-model="searchTerm"
+          class="w-full bg-[var(--surface-container)] border border-[var(--border-default)] rounded-full pl-9 pr-8 py-1.5 text-sm color-focus-border-accent outline-none transition-all shadow-sm"
           placeholder="搜索关键词、内容或备注..."
         />
         <button
@@ -196,36 +214,24 @@
 
       <!-- 关闭 -->
       <button
-      @click="showWiDetailModal=false"
-          class="ui-close-button color-hover-text-danger"
-          :class="$store.global.deviceType === 'mobile' ? '' : 'p-2'"
-          title="关闭世界书预览 (Esc)"
-          aria-label="关闭世界书预览"
+        type="button"
+        @click="showWiDetailModal=false"
+        class="ui-close-button wi-reader-close-button color-hover-text-danger"
+        :class="$store.global.deviceType === 'mobile' ? '' : 'p-2'"
+        title="关闭世界书预览 (Esc)"
+        aria-label="关闭世界书预览"
       >
         {{ icon('close', 'ui-icon--md') }}
       </button>
     </div>
 
-    <!-- 移动端：侧边栏切换按钮 -->
-    <button
-      x-show="$store.global.deviceType === 'mobile' && !showMobileSidebar"
-      @click="showMobileSidebar = !showMobileSidebar"
-      class="ui-icon-button fixed bottom-20 left-2 z-50 md:hidden"
-      title="打开世界书目录"
-      aria-label="打开世界书目录"
-    >
-      <span x-show="!showMobileSidebar" aria-hidden="true">
-        {{ icon('menu', 'ui-icon--md') }}
-      </span>
-    </button>
-
     <!-- 主体：左信息 + 中阅读流 + 右详情（大屏固定，小屏抽屉） -->
-    <div class="flex-1 flex overflow-hidden min-h-0">
+    <div class="wi-reader-body flex-1 flex overflow-hidden min-h-0">
       <!-- 移动端：侧边栏遮罩 -->
       <div
         x-show="$store.global.deviceType === 'mobile' && showMobileSidebar"
         @click="showMobileSidebar = false"
-        class="fixed inset-0 color-surface-scrim z-30"
+        class="wi-reader-mobile-scrim absolute inset-0 color-surface-scrim z-30"
         x-transition:enter="transition ease-out duration-300"
         x-transition:enter-start="opacity-0"
         x-transition:enter-end="opacity-100"
@@ -241,7 +247,7 @@
                     'hidden md:flex': $store.global.deviceType !== 'mobile',
                     'top-14': $store.global.deviceType !== 'mobile',
                     'top-0': $store.global.deviceType === 'mobile',
-                    'fixed left-0 bottom-0 z-40 w-[280px] max-w-[85vw] shadow-2xl flex': $store.global.deviceType === 'mobile' && showMobileSidebar,
+                    'absolute left-0 bottom-0 z-40 w-[280px] max-w-[85vw] shadow-2xl flex': $store.global.deviceType === 'mobile' && showMobileSidebar,
                     'hidden': $store.global.deviceType === 'mobile' && !showMobileSidebar
                 }"
         x-transition:enter="transition ease-out duration-300"
@@ -283,12 +289,26 @@
             ></div>
           </details>
 
-          <div class="space-y-2">
+          <div class="space-y-2 wi-reader-note-panel">
             <div class="flex items-center justify-between gap-2">
-              <div
-                class="text-[10px] uppercase font-bold color-text-muted"
-                x-text="activeWiDetail?.type === 'embedded' ? '角色卡备注' : '本地备注'"
-              ></div>
+              <button
+                type="button"
+                class="wi-reader-note-toggle"
+                @click="showWorldInfoNote = !showWorldInfoNote"
+                :aria-expanded="showWorldInfoNote"
+                aria-controls="wi-reader-note-editor"
+              >
+                <span
+                  class="text-[10px] uppercase font-bold color-text-muted"
+                  x-text="activeWiDetail?.type === 'embedded' ? '角色卡备注' : '本地备注'"
+                ></span>
+                <span x-show="!showWorldInfoNote" aria-hidden="true">
+                  {{ icon('chevron-right', 'ui-icon--xs') }}
+                </span>
+                <span x-show="showWorldInfoNote" aria-hidden="true">
+                  {{ icon('chevron-down', 'ui-icon--xs') }}
+                </span>
+              </button>
               <div class="flex items-center gap-1">
                 <button
                   @click="openActiveWorldInfoNotePreview()"
@@ -304,19 +324,27 @@
                 ></button>
               </div>
             </div>
-            <textarea
-              x-model="activeWiNoteDraft"
-              class="w-full min-h-[7rem] bg-[var(--surface-page)] border border-[var(--border-default)] rounded p-2 text-xs text-[var(--content-primary)] resize-y color-focus-border-accent outline-none"
-              :placeholder="activeWiDetail?.type === 'embedded' ? '这是仅存储在角色卡中的私有备注，不会写入世界书文件...' : '这是仅存储在本地的私有备注，不会写入世界书文件...'"
-            ></textarea>
-            <button
-              @click="saveActiveWorldInfoNote()"
-              class="w-full btn-primary py-2 rounded text-xs font-bold"
-              :disabled="isSavingWorldInfoNote"
+            <div
+              id="wi-reader-note-editor"
+              x-show="showWorldInfoNote"
+              x-cloak
+              x-transition
+              class="wi-reader-note-editor space-y-2"
             >
-              <span x-show="!isSavingWorldInfoNote">保存备注</span>
-              <span x-show="isSavingWorldInfoNote">保存中...</span>
-            </button>
+              <textarea
+                x-model="activeWiNoteDraft"
+                class="w-full min-h-[7rem] bg-[var(--surface-page)] border border-[var(--border-default)] rounded p-2 text-xs text-[var(--content-primary)] resize-y color-focus-border-accent outline-none"
+                :placeholder="activeWiDetail?.type === 'embedded' ? '这是仅存储在角色卡中的私有备注，不会写入世界书文件...' : '这是仅存储在本地的私有备注，不会写入世界书文件...'"
+              ></textarea>
+              <button
+                @click="saveActiveWorldInfoNote()"
+                class="w-full btn-primary py-2 rounded text-xs font-bold"
+                :disabled="isSavingWorldInfoNote"
+              >
+                <span x-show="!isSavingWorldInfoNote">保存备注</span>
+                <span x-show="isSavingWorldInfoNote">保存中...</span>
+              </button>
+            </div>
           </div>
 
           <!-- 快速筛选 -->

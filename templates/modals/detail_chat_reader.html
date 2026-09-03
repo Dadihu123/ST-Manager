@@ -1352,7 +1352,7 @@
             <template x-for="card in bindPickerResults" :key="card.id">
                 <button type="button" class="chat-bind-card-item" @click="bindCardPick(card)">
                     <span class="chat-bind-card-index" aria-hidden="true">
-                        {{ sidebar_icon('character-cards', 'chat-bind-nav-icon sidebar-module-image-icon') }}
+                        {{ sidebar_icon('character-cards', 'chat-bind-nav-icon sidebar-module-image-icon role-card-nav-icon') }}
                     </span>
                     <span class="chat-bind-card-text" x-text="card.char_name || card.filename || card.id"></span>
                 </button>

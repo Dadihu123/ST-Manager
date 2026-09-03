@@ -314,3 +314,19 @@ def test_worldbook_icons_use_integer_size_tiers_and_borderless_actions():
     assert '.wi-tab-btn {\n  flex: 1;\n  display: flex;' in css
     assert 'align-items: center;' in css.split('.wi-tab-btn {', 1)[1].split('}', 1)[0]
     assert 'justify-content: center;' in css.split('.wi-tab-btn {', 1)[1].split('}', 1)[0]
+
+
+def test_mobile_worldbook_reader_drawer_is_anchored_below_the_reader_topbar():
+    popup_source = _read('templates/modals/detail_wi_popup.html')
+    css = _read('static/css/modules/view-wi.css')
+
+    assert 'wi-reader-body flex-1 flex overflow-hidden min-h-0' in popup_source
+    assert 'wi-reader-mobile-scrim absolute inset-0' in popup_source
+    assert (
+        "'absolute left-0 bottom-0 z-40 w-[280px] max-w-[85vw] shadow-2xl flex'"
+        in popup_source
+    )
+    assert '.wi-reader-body {' in css
+    assert '.wi-reader-mobile-scrim {' in css
+    assert '.wi-reader-sidebar {' in css
+    assert 'position: absolute !important;' in css

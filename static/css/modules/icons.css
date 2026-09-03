@@ -160,6 +160,13 @@
   flex: 0 0 24px;
 }
 
+/* 角色卡导航图形线条较细，略微放大后与同级模块图标保持视觉重量一致。 */
+.role-card-nav-icon,
+svg:has(> use[href$='#icon-character-cards']) {
+  transform: scale(1.14);
+  transform-origin: center;
+}
+
 /* 侧边栏操作按钮使用 20px 挡位，避免图标抢过文字。 */
 .sidebar .sidebar-mode-actions .ui-icon--sm {
   width: 20px;

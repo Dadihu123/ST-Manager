@@ -335,23 +335,13 @@
           @click="toggleWorldInfoBulkFlipMode()"
           class="btn-secondary btn-action-soft card-flip-all-btn"
           :title="worldInfoBulkBackMode ? '将当前页全部翻回正面（并关闭背面模式）' : '将当前页全部翻到背面（并保持背面模式）'"
+          :aria-label="worldInfoBulkBackMode ? '将当前页全部翻回正面（并关闭背面模式）' : '将当前页全部翻到背面（并保持背面模式）'"
         >
-          <span
-            x-show="$store.global.deviceType !== 'mobile' && !worldInfoBulkBackMode"
-            >一键翻到背面</span
-          >
-          <span
-            x-show="$store.global.deviceType !== 'mobile' && worldInfoBulkBackMode"
-            >一键翻回正面</span
-          >
-          <span
-            x-show="$store.global.deviceType === 'mobile' && !worldInfoBulkBackMode"
-            >翻面</span
-          >
-          <span
-            x-show="$store.global.deviceType === 'mobile' && worldInfoBulkBackMode"
-            >正面</span
-          >
+          {{ icon('vertical-flip', 'ui-icon--lg') }}
+          <span class="sr-only" x-show="$store.global.deviceType !== 'mobile' && !worldInfoBulkBackMode">一键翻到背面</span>
+          <span class="sr-only" x-show="$store.global.deviceType !== 'mobile' && worldInfoBulkBackMode">一键翻回正面</span>
+          <span class="sr-only" x-show="$store.global.deviceType === 'mobile' && !worldInfoBulkBackMode">翻面</span>
+          <span class="sr-only" x-show="$store.global.deviceType === 'mobile' && worldInfoBulkBackMode">正面</span>
         </button>
         <span
           x-show="$store.global.deviceType !== 'mobile'"
@@ -367,20 +357,12 @@
         :disabled="wiCurrentPage===1"
         aria-label="上一页"
         title="上一页"
-        class="btn-secondary"
-        style="padding: 0.25rem 0.5rem"
+        class="btn-secondary pagination-page-nav-btn"
       >
         {{ icon('chevron-right', 'ui-icon--sm rotate-180') }}
       </button>
       <span
-        style="
-          padding: 0.25rem 0.5rem;
-          background: var(--surface-container-raised);
-          border-radius: 0.25rem;
-          color: var(--content-primary);
-          font-size: 0.75rem;
-          height: 100%;
-        "
+        class="pagination-page-indicator"
         x-text="wiCurrentPage + '/' + wiTotalPages"
       ></span>
       <button
@@ -389,8 +371,7 @@
         :disabled="wiCurrentPage===wiTotalPages"
         aria-label="下一页"
         title="下一页"
-        class="btn-secondary"
-        style="padding: 0.25rem 0.5rem"
+        class="btn-secondary pagination-page-nav-btn"
       >
         {{ icon('chevron-right', 'ui-icon--sm') }}
       </button>

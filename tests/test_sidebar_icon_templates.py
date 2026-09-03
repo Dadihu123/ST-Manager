@@ -202,3 +202,14 @@ def test_sidebar_icon_macro_references_the_sidebar_sprite_namespace():
 
     assert 'icons/sidebar.svg' in source
     assert '#icon-{{ name }}' in source
+
+
+def test_mobile_module_switcher_shares_a_row_with_the_close_button():
+    source = read_sidebar_template()
+    layout_css = (PROJECT_ROOT / 'static/css/modules/layout.css').read_text(encoding='utf-8')
+
+    assert 'sidebar-mobile-nav-head' in source
+    assert 'sidebar-mobile .sidebar-mobile-nav-head' in layout_css
+    assert 'padding-top: 8px;' in layout_css
+    assert 'position: static;' in layout_css
+    assert 'width: calc(100% + 48px);' in layout_css

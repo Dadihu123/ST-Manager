@@ -246,13 +246,16 @@ def test_card_advanced_filter_template_renders_workbench_overview_nav_and_error_
 
 def test_mobile_menu_replaces_card_specific_filter_controls_with_advanced_filter_entry():
     header_template = read_project_file('templates/components/header.html')
+    layout_css = read_project_file('static/css/modules/layout.css')
     mobile_menu = header_template.split('<!-- 移动端：展开菜单 -->', 1)[1]
+    mobile_menu_css = layout_css.split('.mobile-menu {', 1)[1].split('}', 1)[0]
 
     assert '高级筛选' in mobile_menu
     assert '@click="openCardAdvancedFilter(); closeMobileMenu()"' in mobile_menu
     assert '搜索范围' not in mobile_menu
     assert '当前列表排序' not in mobile_menu
     assert '包含子目录' not in mobile_menu
+    assert 'top: calc(100% + 1px);' in mobile_menu_css
 
 
 def test_mobile_filter_and_random_entries_use_the_intended_icon_slots():

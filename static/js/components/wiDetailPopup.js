@@ -34,6 +34,7 @@ export default function wiDetailPopup() {
     showWiDetailModal: false,
     activeWiDetail: null, // 当前查看的 WI 对象 (包含 id, name, type, path 等)
     activeWiNoteDraft: "",
+    showWorldInfoNote: false,
     isSavingWorldInfoNote: false,
     isSendingWorldInfoToST: false,
     wiSortMode: loadWiSortMode(),
@@ -80,6 +81,7 @@ export default function wiDetailPopup() {
           this.highlightEntryKey = null;
           if (this.highlightTimer) clearTimeout(this.highlightTimer);
           this.activeEntry = null;
+          this.showWorldInfoNote = false;
         }
       });
 
@@ -97,6 +99,7 @@ export default function wiDetailPopup() {
         this.uiStrategy = null;
         this.searchTerm = "";
         this.activeWiNoteDraft = nextDetail?.ui_summary || "";
+        this.showWorldInfoNote = false;
         this.isTruncated = false;
         this.totalEntries = 0;
         this.previewLimit = 0;

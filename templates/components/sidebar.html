@@ -37,18 +37,9 @@
     @change="handleMobileImportChange($event)"
   />
 
-  <!-- 移动端：关闭按钮 -->
-  <button
-    x-show="$store.global.deviceType === 'mobile'"
-    @click="toggleSidebarVisible()"
-    class="sidebar-close-btn"
-    aria-label="关闭侧边栏"
-    title="关闭侧边栏"
-  >
-    {{ icon('close', 'ui-icon--sm sidebar-action-icon') }}
-  </button>
   <div class="sidebar-navigation-shell sidebar-navigation-shell--compact">
-    <div class="sidebar-module-switcher-wrap">
+    <div class="sidebar-mobile-nav-head">
+      <div class="sidebar-module-switcher-wrap">
       <button
         type="button"
         x-ref="moduleSwitcher"
@@ -61,7 +52,7 @@
         :aria-expanded="moduleMenuOpen ? 'true' : 'false'"
       >
         <span class="sidebar-module-switcher-icon" aria-hidden="true">
-          <span x-cloak x-show="currentMode === 'cards'">{{ sidebar_icon('character-cards', 'sidebar-module-image-icon') }}</span>
+          <span x-cloak x-show="currentMode === 'cards'">{{ sidebar_icon('character-cards', 'sidebar-module-image-icon role-card-nav-icon') }}</span>
           <span x-cloak x-show="currentMode === 'worldinfo'">{{ detail_icon('book-open', 'ui-icon--md') }}</span>
           <span x-cloak x-show="currentMode === 'chats'">{{ detail_icon('chat-bubble', 'ui-icon--md') }}</span>
           <span x-cloak x-show="currentMode === 'presets'">{{ detail_icon('preset', 'ui-icon--md') }}</span>
@@ -104,7 +95,7 @@
           :class="currentMode === 'cards' ? 'is-active' : ''"
           :aria-current="currentMode === 'cards' ? 'page' : null"
         >
-          <span class="sidebar-module-menu-icon" aria-hidden="true">{{ sidebar_icon('character-cards', 'sidebar-module-image-icon') }}</span>
+          <span class="sidebar-module-menu-icon" aria-hidden="true">{{ sidebar_icon('character-cards', 'sidebar-module-image-icon role-card-nav-icon') }}</span>
           <span>角色卡</span>
         </button>
         <button
@@ -185,6 +176,17 @@
           <span>美化</span>
         </button>
       </div>
+      </div>
+      <!-- 移动端：关闭按钮与模块切换器同排，释放顶部空间。 -->
+      <button
+        x-show="$store.global.deviceType === 'mobile'"
+        @click="toggleSidebarVisible()"
+        class="sidebar-close-btn"
+        aria-label="关闭侧边栏"
+        title="关闭侧边栏"
+      >
+        {{ icon('close', 'ui-icon--sm sidebar-action-icon') }}
+      </button>
     </div>
   </div>
   <!-- === 模式 1: 角色卡侧边栏 (Folder + Tags) === -->

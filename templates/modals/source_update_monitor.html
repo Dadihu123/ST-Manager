@@ -1,4 +1,4 @@
-{% from "components/icon.html" import icon, loading_icon, sidebar_icon %}
+{% from "components/icon.html" import icon, loading_icon %}
 {% from "components/styled_select.html" import styled_select %}
 
 <div
@@ -17,7 +17,7 @@
     <header class="source-monitor-header">
       <div class="source-monitor-heading">
         <div class="source-monitor-heading__icon" aria-hidden="true">
-          {{ icon('monitor-users', 'ui-icon--2xl') }}
+          {{ icon('monitor-user', 'ui-icon--2xl') }}
         </div>
         <div class="source-monitor-heading__copy">
           <div class="source-monitor-eyebrow">角色卡工作台 / MONITORING</div>
@@ -66,7 +66,7 @@
         <div class="source-monitor-stat-grid">
           <div class="source-monitor-stat-card">
             <span class="source-monitor-stat-icon" aria-hidden="true">
-              {{ sidebar_icon('character-cards', 'ui-icon--sm') }}
+              {{ icon('monitor-user', 'ui-icon--md') }}
             </span>
             <span class="source-monitor-stat-copy">
               <span class="source-monitor-stat-label">成员</span>
@@ -169,7 +169,7 @@
 
         <div x-show="!entries.length" class="source-monitor-empty-state">
           <span class="source-monitor-empty-icon" aria-hidden="true">
-            {{ sidebar_icon('character-cards', 'ui-icon--lg') }}
+            {{ icon('monitor-user', 'ui-icon--xl') }}
           </span>
           <strong>暂无监控成员</strong>
           <p>请在角色卡列表中选择角色卡后，点击“加入监控池”。</p>
