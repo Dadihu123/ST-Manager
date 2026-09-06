@@ -45,9 +45,13 @@
         <div class="automation-sidebar-brand">
           <span class="automation-brand-mark" aria-hidden="true">{{ icon('workflow', 'ui-icon--md') }}</span>
           <div class="automation-sidebar-copy">
-            <span class="automation-sidebar-kicker">ST MANAGER / AUTOMATION</span>
+            <template x-if="$store.global.deviceType !== 'mobile'">
+              <span class="automation-sidebar-kicker">ST MANAGER / AUTOMATION</span>
+            </template>
             <strong id="automation-modal-title">规则集工作台</strong>
-            <span>按场景编排卡片处理流程</span>
+            <template x-if="$store.global.deviceType !== 'mobile'">
+              <span class="automation-sidebar-description">按场景编排卡片处理流程</span>
+            </template>
           </div>
         </div>
         <button
@@ -234,7 +238,7 @@
               <div class="ruleset-item-meta-content">
                 <span><span class="automation-status-dot" :class="globalRulesetId === rs.id ? 'is-on' : 'is-off'" aria-hidden="true"></span><span x-text="globalRulesetId === rs.id ? '全局启用' : '未启用'"></span></span>
                 <span x-text="'v' + (rs.meta?.version || '1.0')"></span>
-                <span x-text="(rs.rule_count || 0) + ' 条规则'"></span>
+                <span class="ruleset-item-meta-stat"><span class="ruleset-item-meta-icon" aria-hidden="true">{{ detail_icon('rules', 'ui-icon--sm') }}</span><span x-text="(rs.rule_count || 0) + ' 条规则'"></span></span>
               </div>
               <span class="ruleset-item-meta-rule" aria-hidden="true"></span>
             </div>
@@ -256,7 +260,7 @@
       </div>
 
       <div class="automation-sidebar-footer">
-        <span aria-hidden="true">{{ icon('keyboard', 'ui-icon--xs') }}</span>
+        <span aria-hidden="true">{{ icon('keyboard', 'ui-icon--lg') }}</span>
         <span>按 <kbd>Ctrl</kbd> + <kbd>S</kbd> 保存</span>
       </div>
     </aside>
@@ -276,18 +280,23 @@
                 {{ icon('list', 'ui-icon--md') }}
               </button>
               <div class="automation-breadcrumb" aria-label="当前位置">
-                <span class="automation-breadcrumb-icon" aria-hidden="true">{{ icon('workflow', 'ui-icon--sm') }}</span>
-                <span>自动化</span>
-                <span aria-hidden="true">/</span>
+                <template x-if="$store.global.deviceType !== 'mobile'">
+                  <span class="automation-breadcrumb-icon" aria-hidden="true">{{ icon('workflow', 'ui-icon--sm') }}</span>
+                </template>
+                <template x-if="$store.global.deviceType !== 'mobile'">
+                  <span class="automation-breadcrumb-prefix"><span>自动化</span><span aria-hidden="true">/</span></span>
+                </template>
                 <strong x-text="editingMeta.name || '未命名规则集'"></strong>
               </div>
               <div class="automation-editor-actions">
-                <div class="automation-save-state" :class="'is-' + saveState" role="status" aria-live="polite">
+                <div class="automation-save-state" :class="'is-' + saveState" role="status" aria-live="polite" :aria-label="$store.global.deviceType === 'mobile' ? saveStateLabel : null">
                   <template x-if="saveState === 'saving'">{{ loading_icon('ui-icon--xs') }}</template>
                   <template x-if="saveState === 'saved'">{{ icon('check', 'ui-icon--xs') }}</template>
                   <template x-if="saveState === 'dirty'">{{ icon('circle-dot', 'ui-icon--xs') }}</template>
                   <template x-if="saveState === 'error'">{{ icon('alert-triangle', 'ui-icon--xs') }}</template>
-                  <span x-text="saveStateLabel"></span>
+                  <template x-if="$store.global.deviceType !== 'mobile'">
+                    <span x-text="saveStateLabel"></span>
+                  </template>
                 </div>
                 <button type="button" class="automation-icon-button automation-top-action automation-help-trigger" @click="openHelpTab('conditions')" title="查看规则编写指南" aria-label="查看规则编写指南">{{ icon('settings-help-entry', 'ui-icon--md') }}</button>
                 <button type="button" class="automation-icon-button automation-top-action" @click="exportCurrentRuleSet()" title="导出规则集 JSON" aria-label="导出规则集 JSON">{{ icon('upload', 'ui-icon--md') }}</button>
@@ -301,11 +310,15 @@
             </div>
 
             <div class="automation-title-row">
-              <div class="automation-title-mark" aria-hidden="true">{{ icon('workflow', 'ui-icon--lg') }}</div>
+              <template x-if="$store.global.deviceType !== 'mobile'">
+                <div class="automation-title-mark" aria-hidden="true">{{ icon('workflow', 'ui-icon--lg') }}</div>
+              </template>
               <div class="automation-title-copy">
-                <label class="automation-field-label" for="automation-name">规则集名称</label>
+                <template x-if="$store.global.deviceType !== 'mobile'">
+                  <label class="automation-field-label" for="automation-name">规则集名称</label>
+                </template>
                 <div class="automation-title-input-row">
-                  <input id="automation-name" type="text" x-model="editingMeta.name" class="automation-title-input" placeholder="例如：导入后整理" autocomplete="off" @blur="validateMeta()">
+                  <input id="automation-name" type="text" x-model="editingMeta.name" class="automation-title-input" placeholder="例如：导入后整理" autocomplete="off" aria-label="规则集名称" @blur="validateMeta()">
                   <button type="button" class="automation-global-toggle" :class="{ 'is-active': activeRuleSet?.id && globalRulesetId === activeRuleSet?.id }" @click="toggleGlobalActive(activeRuleSet?.id)" :disabled="isSettingGlobal" :title="activeRuleSet?.id && globalRulesetId === activeRuleSet?.id ? '关闭全局自动规则' : '设为全局自动规则'">
                     <span aria-hidden="true">{{ icon('pin', 'ui-icon--sm') }}</span>
                     <span x-text="activeRuleSet?.id && globalRulesetId === activeRuleSet?.id ? '全局启用' : '设为全局'"></span>
@@ -313,29 +326,30 @@
                 </div>
                 <span class="automation-field-error" x-show="metaError" x-text="metaError" role="alert"></span>
               </div>
-              <div class="automation-title-meta">
+              <div x-show="$store.global.deviceType !== 'mobile' || showMobileOverview" x-cloak class="automation-title-meta">
                 <label><span>作者</span><input type="text" x-model="editingMeta.author" class="auto-input" placeholder="作者"></label>
                 <label><span>版本</span><input type="text" x-model="editingMeta.version" class="auto-input" placeholder="1.0"></label>
               </div>
             </div>
 
-            <div class="automation-description-row">
+            <div x-show="$store.global.deviceType !== 'mobile' || showMobileOverview" x-cloak class="automation-description-row">
               <label class="automation-field-label" for="automation-description">用途说明</label>
               <textarea id="automation-description" x-model="editingMeta.description" rows="2" class="auto-input automation-description-input" placeholder="说明这套规则负责什么，方便日后从列表中快速识别。"></textarea>
             </div>
 
-            <div class="automation-metrics" aria-label="当前规则集概览">
-              <div class="automation-metric"><span class="automation-metric-icon" aria-hidden="true">{{ icon('layers', 'ui-icon--sm') }}</span><span><strong x-text="editingRules.length"></strong><small>条规则</small></span></div>
-              <div class="automation-metric"><span class="automation-metric-icon automation-metric-icon--success" aria-hidden="true">{{ icon('check', 'ui-icon--sm') }}</span><span><strong x-text="enabledRuleCount"></strong><small>条启用</small></span></div>
-              <div class="automation-metric"><span class="automation-metric-icon automation-metric-icon--warning" aria-hidden="true">{{ icon('key-trigger', 'ui-icon--sm') }}</span><span><strong x-text="triggerCount"></strong><small>个触发入口</small></span></div>
-              <div class="automation-metric automation-metric--note"><span class="automation-status-dot" :class="editingUsesMetadata() ? 'is-warning' : 'is-on'" aria-hidden="true"></span><span x-text="editingUsesMetadata() ? '包含原始元数据条件，批量时会较慢' : '条件读取使用卡片索引'"></span></div>
-            </div>
+            <template x-if="$store.global.deviceType !== 'mobile'">
+              <div class="automation-metrics" aria-label="当前规则集概览">
+                <div class="automation-metric"><span class="automation-metric-icon" aria-hidden="true">{{ detail_icon('rules', 'ui-icon--sm') }}</span><span><strong x-text="editingRules.length"></strong><small>条规则</small></span></div>
+                <div class="automation-metric"><span class="automation-metric-icon automation-metric-icon--success" aria-hidden="true">{{ icon('check', 'ui-icon--sm') }}</span><span><strong x-text="enabledRuleCount"></strong><small>条启用</small></span></div>
+                <div class="automation-metric"><span class="automation-metric-icon automation-metric-icon--warning" aria-hidden="true">{{ icon('key-trigger', 'ui-icon--sm') }}</span><span><strong x-text="triggerCount"></strong><small>个触发入口</small></span></div>
+                <div class="automation-metric automation-metric--note"><span class="automation-status-dot" :class="editingUsesMetadata() ? 'is-warning' : 'is-on'" aria-hidden="true"></span><span x-text="editingUsesMetadata() ? '包含原始元数据条件，批量时会较慢' : '条件读取使用卡片索引'"></span></div>
+              </div>
+            </template>
           </header>
 
           <div class="automation-mobile-overview">
-            <div><span class="automation-overline">WORKFLOW SUMMARY</span><strong x-text="enabledRuleCount + ' 条规则已启用'"></strong></div>
-            <button type="button" class="automation-text-button" @click="showMobileOverview = !showMobileOverview" :aria-expanded="showMobileOverview"><span x-text="showMobileOverview ? '收起概览' : '查看概览'"></span><span aria-hidden="true">{{ icon('chevron-down', 'ui-icon--xs') }}</span></button>
-            <div x-show="showMobileOverview" x-cloak class="automation-mobile-overview-detail"><span><strong x-text="editingRules.length"></strong> 条规则</span><span><strong x-text="triggerCount"></strong> 个触发入口</span><span x-text="globalRulesetId === activeRuleSet?.id ? '当前为全局规则' : '当前未设为全局'"></span></div>
+            <span class="automation-mobile-overview-title"><span aria-hidden="true">{{ icon('info', 'ui-icon--sm') }}</span><span>规则集信息</span></span>
+            <button type="button" class="automation-text-button" @click="showMobileOverview = !showMobileOverview" :aria-expanded="showMobileOverview"><span x-text="showMobileOverview ? '收起信息' : '查看信息'"></span><span class="automation-mobile-overview-chevron" :class="{ 'is-expanded': showMobileOverview }" aria-hidden="true">{{ icon('chevron-down', 'ui-icon--xs') }}</span></button>
           </div>
 
           <div class="automation-editor-layout">
@@ -367,7 +381,9 @@
                 <article class="rule-card" :class="{ 'is-disabled': !rule.enabled, 'is-collapsed': isRuleCollapsed(rule.id), 'is-open': !isRuleCollapsed(rule.id) }">
                   <header class="rule-header">
                     <div class="rule-heading">
-                      <span class="rule-index" x-text="String(rIdx + 1).padStart(2, '0')"></span>
+                      <template x-if="$store.global.deviceType !== 'mobile'">
+                        <span class="rule-index" x-text="String(rIdx + 1).padStart(2, '0')"></span>
+                      </template>
                       <label class="automation-switch automation-switch--compact" :title="rule.enabled ? '停用规则' : '启用规则'"><input type="checkbox" x-model="rule.enabled" :aria-label="rule.enabled ? '停用规则' : '启用规则'"><span class="automation-switch-track" aria-hidden="true"></span></label>
                       <div class="rule-name-block">
                         <label class="sr-only" :for="'automation-rule-name-' + rIdx">规则名称</label>
@@ -510,7 +526,7 @@
                                      <div x-data="{ cfg: initActionConfig(action) }" class="action-config-panel"><div class="action-config-label-row"><span>套用示例</span><div class="automation-chip-row"><button type="button" class="automation-preset-chip" @click="cfg = applyRenameTemplatePreset(action, 'name_version')">{{ icon('version', 'ui-icon--xs') }}角色名 + 版本</button><button type="button" class="automation-preset-chip" @click="cfg = applyRenameTemplatePreset(action, 'name_import_date')">{{ icon('calendar', 'ui-icon--xs') }}角色名 + 导入日期</button><button type="button" class="automation-preset-chip" @click="cfg = applyRenameTemplatePreset(action, 'name_version_modified_date')">{{ icon('calendar', 'ui-icon--xs') }}角色名 + 版本 + 修改日期</button></div></div><label>模板<input type="text" x-model="cfg.template" class="auto-input w-full text-xs" placeholder="例如：{{ '{{char_name}}' }} - {{ '{{creator}}' }}"></label><div class="action-config-grid action-config-grid--rename"><label>回退模板<input type="text" x-model="cfg.fallback_template" class="auto-input w-full text-xs" placeholder="主模板为空时使用，可留空"></label><label>最大长度<input type="number" x-model.number="cfg.max_length" min="1" class="auto-input w-full text-xs" placeholder="120"></label></div><span class="action-config-hint">{{ icon('pencil-edit', 'ui-icon--xs') }}若想在覆盖更新后重命名，请在规则上启用“更新角色卡后”触发场景。</span></div>
                                   </template>
                                   <template x-if="action.type === 'split_category_to_tags'">
-                                     <div x-data="{ cfg: initActionConfig(action) }" class="action-config-panel"><label>排除分类标签:<input type="text" x-model="cfg.exclude_category_tags" class="auto-input w-full text-xs" :placeholder="$store.global.settingsForm.automation_slash_is_tag_separator ? '多个标签用 | 或 / 分隔，如：角色|题材/状态' : '多个标签用 | 分隔，如：角色|题材'"></label><span class="action-config-hint">{{ detail_icon('tags', 'ui-icon--xs') }}当前分类路径会自动按 / 拆分，例如 <code class="font-mono">a/b/c</code> 会追加 <code class="font-mono">a</code>、<code class="font-mono">b</code>、<code class="font-mono">c</code>。</span></div>
+                                     <div x-data="{ cfg: initActionConfig(action) }" class="action-config-panel"><label>排除分类标签:<input type="text" x-model="cfg.exclude_category_tags" class="auto-input w-full text-xs" :placeholder="$store.global.settingsForm.automation_slash_is_tag_separator ? '多个标签用 | 或 / 分隔，如：角色|题材/状态' : '多个标签用 | 或 / 分隔，如：角色|题材'"></label><span class="action-config-hint">{{ detail_icon('tags', 'ui-icon--xs') }}<span>当前分类路径会自动按 / 拆分，例如 <code class="font-mono">a/b/c</code> 会追加 <code class="font-mono">a</code>、<code class="font-mono">b</code>、<code class="font-mono">c</code>。</span></span></div>
                                   </template>
                                   <template x-if="action.type === 'refresh_source_baseline'"><div class="action-config-panel action-config-panel--readonly">{{ detail_icon('clock', 'ui-icon--sm') }}<span>来源链接更新时抓取标题和首帖编辑时间，并建立新的检查基线。</span></div></template>
                                   <template x-if="action.type !== 'set_favorite' && action.type !== 'fetch_forum_tags' && action.type !== 'refresh_source_baseline' && action.type !== 'add_tags_from_source_title' && action.type !== 'set_creator_from_source' && action.type !== 'merge_tags' && action.type !== 'rename_file_by_template' && action.type !== 'split_category_to_tags' && action.type !== 'set_char_name_from_filename' && action.type !== 'set_wi_name_from_filename' && action.type !== 'set_filename_from_char_name' && action.type !== 'set_filename_from_wi_name'"><label class="action-simple-field">参数<input type="text" x-model="action.value" class="auto-input w-full" :placeholder="action.type==='move_folder' ? '文件夹路径，例如 Race/Elf' : ((action.type==='add_tag' || action.type==='remove_tag') ? '标签名称，可用 | 分隔多个标签' : '标签名称')"></label></template>
@@ -556,11 +572,11 @@
 
     <!-- 危险操作和未保存修改确认 -->
     <template x-teleport="body">
-      <div x-show="showConfirmModal" x-cloak class="automation-dialog-overlay" role="presentation" @click.self="cancelConfirmation()">
+      <div x-show="showConfirmModal" x-cloak class="automation-dialog-overlay automation-dialog-overlay--confirm" role="presentation" @click.self="cancelConfirmation()">
         <section class="automation-dialog automation-dialog--confirm" role="alertdialog" aria-modal="true" aria-labelledby="automation-confirm-title" aria-describedby="automation-confirm-message" @click.stop>
           <header class="automation-dialog-header"><div class="automation-dialog-title"><span class="automation-dialog-icon automation-dialog-icon--danger" aria-hidden="true">{{ icon('alert-triangle', 'ui-icon--md') }}</span><div><span class="automation-overline">CONFIRM ACTION</span><h2 id="automation-confirm-title" x-text="confirmDialog.title"></h2></div></div><button type="button" class="automation-icon-button" @click="cancelConfirmation()" title="取消操作" aria-label="取消操作">{{ icon('close', 'ui-icon--md') }}</button></header>
           <div class="automation-dialog-body"><p id="automation-confirm-message" class="automation-confirm-message" x-text="confirmDialog.message"></p><p x-show="confirmDialog.details" x-cloak class="automation-dialog-hint" x-text="confirmDialog.details"></p></div>
-          <footer class="automation-dialog-footer"><button type="button" class="btn-secondary automation-action-button" @click="cancelConfirmation()">取消</button><button type="button" class="btn-danger automation-action-button" @click="confirmPendingAction()" :disabled="isConfirming"><template x-if="isConfirming">{{ loading_icon('ui-icon--sm') }}</template><template x-if="!isConfirming">{{ icon('check', 'ui-icon--sm') }}</template><span x-text="isConfirming ? '处理中' : confirmDialog.confirmLabel"></span></button></footer>
+          <footer class="automation-dialog-footer"><button type="button" class="btn-secondary automation-action-button" @click="cancelConfirmation()">{{ icon('close', 'ui-icon--sm') }}<span>取消</span></button><button type="button" class="btn-danger automation-action-button" @click="confirmPendingAction()" :disabled="isConfirming"><template x-if="isConfirming">{{ loading_icon('ui-icon--sm') }}</template><template x-if="!isConfirming">{{ icon('check', 'ui-icon--sm') }}</template><span x-text="isConfirming ? '处理中' : confirmDialog.confirmLabel"></span></button></footer>
         </section>
       </div>
     </template>

@@ -584,7 +584,6 @@ export default function automationModal() {
                     this.saveState = 'saved';
                     this.collapsedRuleIds = [];
                     this.showMobileSidebar = false;
-                    this.$nextTick(() => document.getElementById('automation-name')?.focus());
                     return true;
                     }
                 } catch (error) {
