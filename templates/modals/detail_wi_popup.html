@@ -788,9 +788,8 @@
                 <div
                   class="p-3 bg-[var(--surface-page)] border border-[var(--border-default)] rounded text-sm text-[var(--content-primary)] whitespace-pre-wrap break-words font-sans leading-relaxed select-text min-h-[120px] border-l-4"
                   :class="{'color-border-accent': activeEntry.constant, 'color-border-success': !activeEntry.constant}"
-                >
-                  <span x-text="activeEntry.content"></span>
-                </div>
+                  x-text="activeEntry.content"
+                ></div>
               </div>
 
               <div class="grid grid-cols-2 gap-2 text-xs">

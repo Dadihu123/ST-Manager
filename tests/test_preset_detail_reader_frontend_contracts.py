@@ -2707,3 +2707,23 @@ def test_preset_detail_reader_template_removes_invalid_raw_json_and_restore_defa
 
     assert not re.search(r'<button\s+@click="openRawViewer\(\)"[\s\S]*?>[\s\S]*?查看原始 JSON[\s\S]*?</button>', source)
     assert not re.search(r'<button\s+@click="previewRestoreDefault\(\)"[\s\S]*?>[\s\S]*?恢复默认[\s\S]*?</button>', source)
+
+
+def test_reader_detail_content_bindings_replace_template_whitespace_nodes():
+    wi_source = read_project_file('templates/modals/detail_wi_popup.html')
+    preset_source = read_project_file('templates/modals/detail_preset_popup.html')
+
+    assert re.search(
+        r'<div\s+[^>]*x-text="activeEntry\.content"\s*>\s*</div>',
+        wi_source,
+    )
+    assert '<span x-text="activeEntry.content"></span>' not in wi_source
+
+    assert re.search(
+        r'<div\s+[^>]*x-text="getPromptFullDetail\(activeContextItem\)"\s*>\s*</div>',
+        preset_source,
+    )
+    assert not re.search(
+        r'<span\s+x-text="getPromptFullDetail\(activeContextItem\)"',
+        preset_source,
+    )
