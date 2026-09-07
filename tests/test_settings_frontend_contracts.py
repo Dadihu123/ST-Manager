@@ -1431,3 +1431,19 @@ def test_mobile_settings_toolbar_keeps_balanced_search_spacing():
     assert '.settings-toolbar {' in mobile_block
     assert 'padding: 8px 12px;' in mobile_block
     assert '.settings-toolbar-meta { display: none; }' in mobile_block
+
+
+def test_settings_help_cards_shrink_around_connection_code_blocks():
+    css = read_project_file('static/css/modules/modal-settings.css')
+    help_content_block = css.split('.settings-help-content {', 1)[1].split('}', 1)[0]
+    help_sections_block = css.split('.settings-help-sections {', 1)[1].split('}', 1)[0]
+    help_card_block = css.split('.settings-help-card {', 1)[1].split('}', 1)[0]
+    help_code_block = css.split('.settings-help-code {', 1)[1].split('}', 1)[0]
+
+    assert 'grid-template-columns: minmax(0, 1fr);' in help_content_block
+    assert 'min-width: 0;' in help_content_block
+    assert 'min-width: 0;' in help_sections_block
+    assert 'min-width: 0;' in help_card_block
+    assert 'min-width: 0;' in help_code_block
+    assert 'overflow: auto;' in help_code_block
+    assert 'width: 100%;' in help_code_block
