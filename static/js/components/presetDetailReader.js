@@ -18,6 +18,11 @@ import {
 import { downloadFileFromApi } from "../utils/download.js";
 import { formatDate } from "../utils/format.js";
 import {
+  getPresetExtensionSummary,
+  normalizePresetExtensionsForEditor,
+  normalizePresetExtensionsForSave,
+} from "../utils/extensionCompatibility.js";
+import {
   buildPromptMarkerIcon,
   getPromptMarkerVisual as resolvePromptMarkerVisual,
 } from "../utils/promptMarkerVisuals.js";
@@ -341,57 +346,7 @@ export default function presetDetailReader() {
             ? rawExtensions
             : {};
 
-      const asList = (value, nestedKeys = []) => {
-        if (Array.isArray(value)) return value;
-        if (!value || typeof value !== "object") return [];
-        for (const key of nestedKeys) {
-          if (Array.isArray(value[key])) return value[key];
-        }
-        return [];
-      };
-
-      const regexSources = [
-        asList(extensions.regex_scripts),
-        asList(extensions.regex),
-        asList(extensions.regexes),
-        asList(extensions.regular_expressions),
-        asList(extensions.SPreset?.regex),
-        asList(extensions.SPreset?.regexes),
-        asList(extensions.SPreset?.RegexBinding, ["regexes"]),
-      ];
-      const scriptSources = [
-        asList(extensions.tavern_helper, ["scripts"]),
-        asList(extensions.tavernHelper, ["scripts"]),
-        asList(extensions.scripts),
-      ];
-      const firstNonEmpty = (sources) =>
-        sources.find((source) => source.length > 0) || sources[0] || [];
-      const regexItems = firstNonEmpty(regexSources);
-      const scriptItems = firstNonEmpty(scriptSources);
-      const knownKeys = new Set([
-        "regex_scripts",
-        "regex",
-        "regexes",
-        "regular_expressions",
-        "scripts",
-        "tavern_helper",
-        "tavernHelper",
-        "SPreset",
-        "RegexBinding",
-      ]);
-      const customKeys = Object.keys(extensions).filter(
-        (key) => !knownKeys.has(key),
-      );
-
-      return {
-        regex_count: regexItems.length,
-        script_count: scriptItems.length,
-        other_count: customKeys.length,
-        total_count:
-          regexItems.length + scriptItems.length + customKeys.length,
-        custom_keys: customKeys,
-        keys: Object.keys(extensions),
-      };
+      return getPresetExtensionSummary(extensions);
     },
 
     get extensionMetricCards() {
@@ -1277,14 +1232,7 @@ export default function presetDetailReader() {
 
       const extensions = this.activePresetDetail.extensions || {};
       const editingData = {
-        extensions: {
-          regex_scripts: Array.isArray(extensions.regex_scripts)
-            ? JSON.parse(JSON.stringify(extensions.regex_scripts))
-            : [],
-          tavern_helper: JSON.parse(
-            JSON.stringify(extensions.tavern_helper || { scripts: [] }),
-          ),
-        },
+        extensions: normalizePresetExtensionsForEditor(extensions),
         editorCommitMode: "buffered",
         showPersistButton: true,
       };
@@ -1304,8 +1252,11 @@ export default function presetDetailReader() {
 
       const persistHandler = async () => {
         this.cleanupAdvancedEditorHandlers();
+        const persistedExtensions = normalizePresetExtensionsForSave(
+          editingData.extensions,
+        );
         this.activePresetDetail.extensions = JSON.parse(
-          JSON.stringify(editingData.extensions),
+          JSON.stringify(persistedExtensions),
         );
         const didSave = await this.savePresetExtensions(
           this.activePresetDetail.extensions,
@@ -1326,7 +1277,7 @@ export default function presetDetailReader() {
       try {
         const res = await apiSavePresetExtensions({
           id: this.activePresetDetail.id,
-          extensions,
+          extensions: normalizePresetExtensionsForSave(extensions),
         });
         if (!res.success) {
           this.$store.global.showToast(res.msg || "保存失败", "error");

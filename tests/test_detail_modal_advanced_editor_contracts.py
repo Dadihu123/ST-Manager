@@ -1148,7 +1148,7 @@ def test_detail_greeting_list_and_card_export_template_contracts():
     assert '@click="exportCurrentCardJson()"' in management_tab
     assert '@click="exportCurrentCardJson()"' not in topbar
     assert 'icon(\'file-code\', \'ui-icon--lg\')' in management_tab
-    assert "icon('book-search', 'ui-icon--sm')" in greeting_search
+    assert "icon('search', 'ui-icon--sm')" in greeting_search
     assert '.detail-greeting-list-trigger' in stylesheet
     assert 'flex: 0 0 2.75rem;' in stylesheet
     assert 'grid-template-columns: repeat(3, minmax(0, 1fr));' not in stylesheet

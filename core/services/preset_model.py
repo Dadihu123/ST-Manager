@@ -7,6 +7,7 @@ from core.services.preset_editor_schema import build_editor_profile_payload
 from core.services.preset_editor_schema import normalize_preset_content_for_save
 from core.services.preset_editor_schema import resolve_profile_remove_keys
 from core.services.preset_editor_schema import resolve_profile_storage_key
+from core.services.preset_extensions import is_managed_extension_key
 from core.utils.source_revision import build_file_source_revision
 
 
@@ -813,6 +814,8 @@ def _build_extension_items(data):
 
     items = []
     for key in sorted(extensions.keys()):
+        if is_managed_extension_key(key):
+            continue
         value = extensions.get(key)
         items.append(
             _with_editor_fields(

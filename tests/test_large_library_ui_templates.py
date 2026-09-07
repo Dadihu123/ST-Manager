@@ -148,7 +148,7 @@ def test_desktop_header_places_search_mode_toggle_inside_search_block_contract()
     )
     assert 'header-advanced-filter-btn-meta' not in search_block_markup
     assert 'class="header-search-icon"' in search_block_markup
-    assert "icon('book-search', 'ui-icon--sm')" in search_block_markup
+    assert "icon('search', 'ui-icon--sm')" in search_block_markup
     assert "icon('filter', 'ui-icon--lg')" in search_block_markup
     assert ':aria-label=' in search_block_markup
 

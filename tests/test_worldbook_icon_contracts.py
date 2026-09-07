@@ -14,7 +14,7 @@ WORLD_BOOK_SYMBOLS = (
     'book-save-as',
     'sort',
     'calendar',
-    'book-search',
+    'search',
     'pin',
     'wand',
     'layout',
@@ -135,7 +135,7 @@ def test_worldbook_templates_use_shared_icons_for_functional_controls():
     assert "icon('entry-rollback'" in fullscreen_controls
     assert "icon('wand'" in fullscreen_controls
     assert "icon('calendar'" in popup_source
-    assert "icon('book-search'" in popup_source
+    assert "icon('search'" in popup_source
     assert "icon('snapshot'" in popup_source
 
     assert "icon('upload'" in grid_source
@@ -149,9 +149,8 @@ def test_worldbook_templates_use_shared_icons_for_functional_controls():
     assert "icon('card-send-to-st'" in popup_source
     assert "loading_icon('" in popup_source
     assert "icon('file-import'" in fullscreen_controls
-    assert "icon('book-search'" in fullscreen_controls
+    assert "icon('search'" in fullscreen_controls
     assert "icon('pin'" in fullscreen_controls
-    assert "icon('search'" not in fullscreen_controls
     assert "icon('circle-dot'" not in fullscreen_controls
     assert "icon('settings-save'" in fullscreen_controls
     assert "icon('settings-help-entry'" in fullscreen_controls
@@ -208,7 +207,7 @@ def test_worldbook_help_reuses_shared_icons_without_functional_glyphs():
         'key-trigger',
         'list',
         'keyboard',
-        'book-search',
+        'search',
     ):
         assert f"icon('{name}'" in help_source
 

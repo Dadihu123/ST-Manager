@@ -105,7 +105,7 @@ const SETTINGS_SEARCH_ITEMS = [
   { id: "maintenance-actions", section: "maintenance", anchor: "settings-maintenance-actions", title: "维护操作", keywords: "扫描 备份 回收站 用户 db 导入 导出", icon: "settings-maintenance" },
   { id: "maintenance-performance", section: "maintenance", anchor: "settings-maintenance-performance", title: "扫描与性能", keywords: "自动扫描 索引 性能", icon: "sliders-settings" },
   { id: "maintenance-import", section: "maintenance", anchor: "settings-maintenance-import", title: "导入行为", keywords: "标签 分隔符 重命名 png", icon: "file-import" },
-  { id: "maintenance-worldinfo", section: "maintenance", anchor: "settings-maintenance-worldinfo", title: "世界书预览与历史", keywords: "世界书 条目 字符 历史", icon: "book-search" },
+  { id: "maintenance-worldinfo", section: "maintenance", anchor: "settings-maintenance-worldinfo", title: "世界书预览与历史", keywords: "世界书 条目 字符 历史", icon: "search" },
   { id: "maintenance-snapshots", section: "maintenance", anchor: "settings-maintenance-snapshots", title: "快照与自动保存", keywords: "快照 自动保存 保留", icon: "snapshot" },
 ];
 

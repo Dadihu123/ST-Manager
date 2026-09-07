@@ -7,6 +7,10 @@ import { ManagerScriptRuntime } from "../runtime/scriptRuntime.js";
 import { subscribeRuntimeManager } from "../runtime/runtimeManager.js";
 import { renderUnifiedPreviewHost, updateShadowContent } from "../utils/dom.js";
 import { runRegexTestBenchScript } from "../utils/regexTestBench.js";
+import {
+  extractPresetTavernScripts,
+  normalizePresetExtensionsForEditor,
+} from "../utils/extensionCompatibility.js";
 
 export default function advancedEditor() {
   return {
@@ -100,6 +104,9 @@ export default function advancedEditor() {
         this.showPersistButton = detail.showPersistButton === true;
         this.isPersistPending = false;
         this.editingData = detail; // 接收引用，实现响应式同步
+        this.editingData.extensions = normalizePresetExtensionsForEditor(
+          this.editingData.extensions,
+        );
         this.showAdvancedModal = true;
         this.activeTab = "regex";
         this.activeRegexIndex = -1;
@@ -679,31 +686,47 @@ export default function advancedEditor() {
     // === Tavern Scripts (Post-History / Slash Commands) ===
 
     getTavernScripts() {
-      if (!this.editingData.extensions) return [];
-      const helper = this.editingData.extensions.tavern_helper;
+      const extensions = this.editingData?.extensions;
+      if (!extensions || typeof extensions !== "object") return [];
+      const helper = extensions.tavern_helper;
+      const fallbackScripts = extractPresetTavernScripts(extensions);
 
-      if (!helper) return [];
-
-      // 1. 新版：字典结构 (Dict)
-      if (!Array.isArray(helper) && typeof helper === "object") {
-        // 新版结构通常是 { scripts: [], variables: {} }
-        if (!Array.isArray(helper.scripts)) helper.scripts = [];
-        return helper.scripts;
+      if (!Array.isArray(helper) && typeof helper === "object" && helper) {
+        if (
+          Array.isArray(helper.scripts) &&
+          (helper.scripts.length > 0 || fallbackScripts.length === 0)
+        ) {
+          return helper.scripts;
+        }
       }
 
-      // 2. 旧版：数组结构 (List)
       if (Array.isArray(helper)) {
-        // 查找 ["scripts", Array] 结构
         const scriptBlock = helper.find(
-          (item) => Array.isArray(item) && item[0] === "scripts",
+          (item) =>
+            Array.isArray(item) && item.length >= 2 && item[0] === "scripts",
         );
-        if (scriptBlock && Array.isArray(scriptBlock[1])) {
+        if (
+          scriptBlock &&
+          Array.isArray(scriptBlock[1]) &&
+          (scriptBlock[1].length > 0 || fallbackScripts.length === 0)
+        ) {
           return scriptBlock[1];
         }
-        // 如果是纯旧版且没找到 scripts 块，可能数据还未迁移，返回空
-        return [];
       }
 
+      // Normalize legacy aliases and direct script arrays before exposing them.
+      this.editingData.extensions = normalizePresetExtensionsForEditor(
+        extensions,
+      );
+      const normalizedHelper = this.editingData.extensions.tavern_helper;
+      if (
+        normalizedHelper &&
+        typeof normalizedHelper === "object" &&
+        !Array.isArray(normalizedHelper) &&
+        Array.isArray(normalizedHelper.scripts)
+      ) {
+        return normalizedHelper.scripts;
+      }
       return [];
     },
 

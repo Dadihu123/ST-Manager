@@ -1,4 +1,4 @@
-{% from "components/icon.html" import icon, detail_icon, sidebar_icon %}
+{% from "components/icon.html" import icon, detail_icon, sidebar_icon, loading_icon %}
 {% from "components/styled_select.html" import styled_select_controlled %}
 
 <!-- 预设详情阅览界面 -->
@@ -112,7 +112,7 @@
         :title="getActivePresetSendToSTTitle()"
         :disabled="isSendingPresetToST"
       >
-        <span aria-hidden="true">{{ icon('send', 'ui-icon--sm') }}</span>
+        <span aria-hidden="true">{{ icon('card-send-to-st', 'ui-icon--sm') }}</span>
         发送到 ST
       </button>
       <button
@@ -127,15 +127,8 @@
         @click="exportActivePreset(); showMobileMoreMenu = false"
         class="btn-secondary py-1.5 px-3 text-xs"
       >
-        <span aria-hidden="true">{{ icon('file-code', 'ui-icon--sm') }}</span>
+        <span aria-hidden="true">{{ icon('upload', 'ui-icon--sm') }}</span>
         导出
-      </button>
-      <button
-        @click="openAdvancedExtensions(); showMobileMoreMenu = false"
-        class="btn-secondary py-1.5 px-3 text-xs"
-      >
-        <span aria-hidden="true">{{ detail_icon('toolbox', 'ui-icon--sm') }}</span>
-        编辑扩展
       </button>
     </div>
 
@@ -146,7 +139,7 @@
       <div class="min-w-0 flex-1">
         <div class="preset-reader-heading-row flex items-center gap-2 flex-wrap">
           <div class="preset-reader-brand-mark" aria-hidden="true">
-            {{ detail_icon('preset', 'ui-icon--md') }}
+            {{ detail_icon('preset', 'ui-icon--lg') }}
           </div>
           <div class="preset-reader-heading-kicker">预设阅览</div>
           <h3
@@ -204,7 +197,7 @@
           :title="getActivePresetSendToSTTitle()"
           :disabled="isSendingPresetToST"
         >
-          <span aria-hidden="true">{{ icon('send', 'ui-icon--sm') }}</span>
+          <span aria-hidden="true">{{ icon('card-send-to-st', 'ui-icon--sm') }}</span>
           发送到 ST
         </button>
         <button
@@ -220,16 +213,8 @@
           @click="exportActivePreset()"
           class="btn-secondary py-1.5 px-3 text-xs"
         >
-          <span aria-hidden="true">{{ icon('file-code', 'ui-icon--sm') }}</span>
+          <span aria-hidden="true">{{ icon('upload', 'ui-icon--md') }}</span>
           导出
-        </button>
-        <button
-          x-show="$store.global.deviceType !== 'mobile'"
-          @click="openAdvancedExtensions()"
-          class="btn-secondary py-1.5 px-3 text-xs"
-        >
-          <span aria-hidden="true">{{ detail_icon('toolbox', 'ui-icon--sm') }}</span>
-          编辑扩展
         </button>
         <button
           @click="openFullscreenEditor()"
@@ -254,14 +239,12 @@
     <div class="flex-1 min-h-0 flex overflow-hidden bg-[var(--surface-page)]" data-reader-layout>
       <template x-if="isLoading">
         <div
-          class="preset-reader-state-panel h-full w-full flex items-center justify-center text-sm text-[var(--content-muted)]"
+          class="preset-reader-loading-state h-full w-full"
           role="status"
           aria-live="polite"
+          aria-label="正在加载预设详情"
         >
-          <div class="preset-reader-state-card">
-            <span class="preset-reader-state-icon is-loading" aria-hidden="true">{{ icon('refresh', 'ui-icon--lg') }}</span>
-            <span>正在加载预设详情...</span>
-          </div>
+          {{ loading_icon('ui-icon--3xl') }}
         </div>
       </template>
 
@@ -311,7 +294,7 @@
             <div class="p-4 border-b border-[var(--border-default)] space-y-3">
               <div class="preset-reader-rail-heading">
                 <div class="preset-reader-rail-title">
-                  <span aria-hidden="true">{{ sidebar_icon('layers', 'ui-icon--sm') }}</span>
+                  <span aria-hidden="true">{{ sidebar_icon('layers', 'ui-icon--md') }}</span>
                   <span>规则集导航</span>
                 </div>
                 <span class="preset-reader-rail-count" x-text="readerStats.total_count"></span>
@@ -401,7 +384,7 @@
                   >
                     <div class="flex items-center justify-between gap-2">
                       <div class="preset-reader-nav-item-copy">
-                        <span class="preset-reader-nav-item-icon" aria-hidden="true">{{ sidebar_icon('layers', 'ui-icon--sm') }}</span>
+                        <span class="preset-reader-nav-item-icon" aria-hidden="true">{{ sidebar_icon('layers', 'ui-icon--md') }}</span>
                         <div>
                         <div
                           class="text-sm font-semibold text-[var(--content-primary)]"
@@ -438,9 +421,9 @@
                       <div class="flex items-center justify-between gap-2">
                         <div class="preset-reader-nav-item-copy">
                           <span class="preset-reader-nav-item-icon" aria-hidden="true">
-                            <template x-if="group.id === 'extensions'">{{ detail_icon('toolbox', 'ui-icon--sm') }}</template>
-                            <template x-if="group.id === 'scalar_fields'">{{ icon('sliders-settings', 'ui-icon--sm') }}</template>
-                            <template x-if="group.id !== 'extensions' && group.id !== 'scalar_fields'">{{ icon('data-grid', 'ui-icon--sm') }}</template>
+                            <template x-if="group.id === 'extensions'">{{ detail_icon('toolbox', 'ui-icon--md') }}</template>
+                            <template x-if="group.id === 'scalar_fields'">{{ icon('sliders-settings', 'ui-icon--md') }}</template>
+                            <template x-if="group.id !== 'extensions' && group.id !== 'scalar_fields'">{{ icon('data-grid', 'ui-icon--md') }}</template>
                           </span>
                           <div>
                           <div
@@ -473,7 +456,7 @@
                   >
                     <div class="flex items-center justify-between gap-2">
                       <div class="preset-reader-nav-item-copy">
-                        <span class="preset-reader-nav-item-icon" aria-hidden="true">{{ icon('list', 'ui-icon--sm') }}</span>
+                        <span class="preset-reader-nav-item-icon" aria-hidden="true">{{ icon('list', 'ui-icon--md') }}</span>
                         <div>
                         <div
                           class="text-sm font-semibold text-[var(--content-primary)]"
@@ -505,9 +488,9 @@
                       <div class="flex items-center justify-between gap-2">
                         <div class="preset-reader-nav-item-copy">
                           <span class="preset-reader-nav-item-icon" aria-hidden="true">
-                            <template x-if="group.id === 'extensions'">{{ detail_icon('toolbox', 'ui-icon--sm') }}</template>
-                            <template x-if="group.id === 'scalar_fields'">{{ icon('sliders-settings', 'ui-icon--sm') }}</template>
-                            <template x-if="group.id !== 'extensions' && group.id !== 'scalar_fields'">{{ icon('data-grid', 'ui-icon--sm') }}</template>
+                            <template x-if="group.id === 'extensions'">{{ detail_icon('toolbox', 'ui-icon--md') }}</template>
+                            <template x-if="group.id === 'scalar_fields'">{{ icon('sliders-settings', 'ui-icon--md') }}</template>
+                            <template x-if="group.id !== 'extensions' && group.id !== 'scalar_fields'">{{ icon('data-grid', 'ui-icon--md') }}</template>
                           </span>
                           <div>
                           <div
@@ -533,19 +516,19 @@
             <div class="preset-reader-rail-footer">
               <div class="preset-reader-rail-footer-heading">
                 <div class="preset-reader-field-label">
-                  <span aria-hidden="true">{{ detail_icon('toolbox', 'ui-icon--xs') }}</span>
+                  <span aria-hidden="true">{{ detail_icon('toolbox', 'ui-icon--sm') }}</span>
                   扩展能力
                 </div>
                 <span class="preset-reader-rail-note">ST 兼容</span>
               </div>
               <div class="preset-reader-extension-mini-stats">
                 <span>
-                  <span aria-hidden="true">{{ detail_icon('regex', 'ui-icon--xs') }}</span>
+                  <span aria-hidden="true">{{ detail_icon('regex', 'ui-icon--sm') }}</span>
                   <span x-text="extensionOverview.regex_count"></span>
                   正则
                 </span>
                 <span>
-                  <span aria-hidden="true">{{ detail_icon('script-file', 'ui-icon--xs') }}</span>
+                  <span aria-hidden="true">{{ detail_icon('script-file', 'ui-icon--sm') }}</span>
                   <span x-text="extensionOverview.script_count"></span>
                   脚本
                 </span>
@@ -574,7 +557,7 @@
             >
               <div>
                 <div class="preset-reader-flow-title text-sm font-bold text-[var(--content-primary)]">
-                  <span aria-hidden="true">{{ detail_icon('book-read', 'ui-icon--sm') }}</span>
+                  <span aria-hidden="true">{{ detail_icon('book-read', 'ui-icon--md') }}</span>
                   <span x-show="!isPromptWorkspaceReader">内容流</span>
                   <span
                     x-show="isPromptWorkspaceReader && activeWorkspace === 'prompts'"
@@ -679,7 +662,7 @@
                           <div class="flex items-start justify-between gap-3">
                             <div class="min-w-0 flex-1">
                               <div class="flex items-center gap-2 flex-wrap">
-                                <span class="preset-reader-content-card-icon" aria-hidden="true">{{ icon('file-code', 'ui-icon--sm') }}</span>
+                                <span class="preset-reader-content-card-icon" aria-hidden="true">{{ icon('file-code', 'ui-icon--md') }}</span>
                                 <div
                                   class="text-sm font-bold text-[var(--content-primary)] break-all"
                                   x-text="item.title"
@@ -798,7 +781,7 @@
                               </template>
                               <template x-if="!item.prompt_meta?.is_marker">
                                 <span class="preset-reader-prompt-icon-frame flex-shrink-0" aria-hidden="true">
-                                  {{ icon('file-code', 'ui-icon--sm') }}
+                                  {{ icon('file-code', 'ui-icon--md') }}
                                 </span>
                               </template>
                               <div class="min-w-0 flex-1">
@@ -1128,7 +1111,7 @@
                 返回列表
               </button>
               <div class="min-w-0 flex-1 text-right">
-                <div class="preset-reader-inspector-kicker"><span aria-hidden="true">{{ detail_icon('info', 'ui-icon--xs') }}</span>检查台</div>
+                <div class="preset-reader-inspector-kicker"><span aria-hidden="true">{{ detail_icon('info', 'ui-icon--sm') }}</span>检查台</div>
                 <div
                   class="text-sm font-semibold text-[var(--content-primary)] truncate"
                   x-text="activeContextItem?.title || '未选择条目'"
@@ -1347,7 +1330,7 @@
                     >
                       <div class="preset-reader-detail-section-heading">
                         <div>
-                          <div class="preset-reader-detail-kicker"><span aria-hidden="true">{{ detail_icon('toolbox', 'ui-icon--xs') }}</span>扩展信息</div>
+                          <div class="preset-reader-detail-kicker"><span aria-hidden="true">{{ detail_icon('toolbox', 'ui-icon--sm') }}</span>扩展信息</div>
                           <strong>保持 ST 运行时兼容</strong>
                         </div>
                         <span class="preset-reader-extension-total" x-text="`${extensionOverview.total_count} 项`"></span>
@@ -1362,9 +1345,9 @@
                         <template x-for="card in extensionMetricCards" :key="card.id">
                           <div class="preset-reader-extension-summary-card">
                             <span class="preset-reader-extension-summary-icon" aria-hidden="true">
-                              <template x-if="card.id === 'regex'">{{ detail_icon('regex', 'ui-icon--sm') }}</template>
-                              <template x-if="card.id === 'scripts'">{{ detail_icon('script-file', 'ui-icon--sm') }}</template>
-                              <template x-if="card.id === 'other'">{{ icon('package', 'ui-icon--sm') }}</template>
+                              <template x-if="card.id === 'regex'">{{ detail_icon('regex', 'ui-icon--md') }}</template>
+                              <template x-if="card.id === 'scripts'">{{ detail_icon('script-file', 'ui-icon--md') }}</template>
+                              <template x-if="card.id === 'other'">{{ icon('package', 'ui-icon--md') }}</template>
                             </span>
                             <span class="preset-reader-extension-summary-copy">
                               <span x-text="card.label"></span>
@@ -1376,15 +1359,6 @@
                       <div class="preset-reader-extension-note">
                         正则脚本与 ST 脚本由同一个扩展编辑器维护，保存后会回读当前预设。
                       </div>
-                      <button
-                        type="button"
-                        class="preset-reader-extension-action"
-                        @click="openAdvancedExtensions()"
-                        title="编辑当前预设的正则脚本与 ST 脚本"
-                      >
-                        <span aria-hidden="true">{{ icon('pencil-edit', 'ui-icon--sm') }}</span>
-                        打开扩展编辑器
-                      </button>
                     </div>
                   </template>
 

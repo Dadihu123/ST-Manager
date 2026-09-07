@@ -13,6 +13,11 @@ import {
 } from "../api/presets.js";
 import { estimateTokens, formatDate } from "../utils/format.js";
 import {
+  getPresetExtensionSummary,
+  normalizePresetExtensionsForEditor,
+  normalizePresetExtensionsForSave,
+} from "../utils/extensionCompatibility.js";
+import {
   buildPromptMarkerIcon,
   getPromptMarkerVisual as resolvePromptMarkerVisual,
 } from "../utils/promptMarkerVisuals.js";
@@ -710,14 +715,13 @@ export default function presetEditor() {
     },
 
     get extensionSummary() {
-      const extensions = this.editingData?.extensions || {};
-      const regexCount = Array.isArray(extensions.regex_scripts)
-        ? extensions.regex_scripts.length
-        : 0;
-      const scriptCount = Array.isArray(extensions?.tavern_helper?.scripts)
-        ? extensions.tavern_helper.scripts.length
-        : 0;
-      return { regexCount, scriptCount };
+      const summary = getPresetExtensionSummary(
+        this.editingData?.extensions || {},
+      );
+      return {
+        regexCount: summary.regex_count,
+        scriptCount: summary.script_count,
+      };
     },
 
     buildDraftKey() {
@@ -2188,11 +2192,8 @@ export default function presetEditor() {
       if (!this.editingData) return;
       this.cleanupAdvancedEditorListeners();
       const editingData = {
-        extensions: deepClone(
-          this.editingData.extensions || {
-            regex_scripts: [],
-            tavern_helper: { scripts: [] },
-          },
+        extensions: normalizePresetExtensionsForEditor(
+          this.editingData.extensions || {},
         ),
         editorCommitMode: "buffered",
         showPersistButton: true,
@@ -2206,12 +2207,7 @@ export default function presetEditor() {
         this.cleanupAdvancedEditorListeners();
         this.setByPath(
           "extensions",
-          deepClone(
-            editingData.extensions || {
-              regex_scripts: [],
-              tavern_helper: { scripts: [] },
-            },
-          ),
+          deepClone(editingData.extensions || {}),
         );
         this.markDirty("extensions");
       };
@@ -2219,12 +2215,7 @@ export default function presetEditor() {
         this.cleanupAdvancedEditorListeners();
         this.setByPath(
           "extensions",
-          deepClone(
-            editingData.extensions || {
-              regex_scripts: [],
-              tavern_helper: { scripts: [] },
-            },
-          ),
+          normalizePresetExtensionsForSave(editingData.extensions || {}),
         );
         this.markDirty("extensions");
         const saveResult = await this.saveExtensions();
@@ -2259,7 +2250,9 @@ export default function presetEditor() {
       try {
         const res = await apiSavePresetExtensions({
           id: this.editingPresetFile.id,
-          extensions: this.editingData.extensions || {},
+          extensions: normalizePresetExtensionsForSave(
+            this.editingData.extensions || {},
+          ),
         });
         if (!res.success) {
           this.$store.global.showToast(res.msg || "保存扩展失败", "error");

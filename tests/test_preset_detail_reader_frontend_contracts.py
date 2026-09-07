@@ -98,7 +98,13 @@ def run_preset_detail_reader_runtime_check(script_body):
         import {{ readFileSync }} from 'node:fs';
 
         const sourcePath = {json.dumps(str(source_path))};
+        const compatibilityPath = {json.dumps(str(PROJECT_ROOT / 'static/js/utils/extensionCompatibility.js'))};
+        let compatibilitySource = readFileSync(compatibilityPath, 'utf8');
+        compatibilitySource = compatibilitySource
+          .replace(/^export\\s+\\{{[^}}]+\\}};\\s*$/gm, '')
+          .replace(/^export\\s+/gm, '');
         let source = readFileSync(sourcePath, 'utf8');
+        source = compatibilitySource + '\\n' + source;
         source = source.replace(/^import[\\s\\S]*?;\\r?\\n/gm, '');
         source = source.replace('export default function presetDetailReader()', 'function presetDetailReader()');
 
@@ -520,7 +526,7 @@ def test_preset_detail_reader_template_mobile_more_menu_is_list_page_only_and_ha
     assert '打开详情' not in more_menu_block
     assert '收起详情' not in more_menu_block
     assert '@click="exportActivePreset(); showMobileMoreMenu = false"' in more_menu_block
-    assert '@click="openAdvancedExtensions(); showMobileMoreMenu = false"' in more_menu_block
+    assert '@click="openAdvancedExtensions(); showMobileMoreMenu = false"' not in more_menu_block
     assert '@click="exportActivePreset(); showMobileMoreMenu = false"' not in main_header_block
     assert '@click="openAdvancedExtensions(); showMobileMoreMenu = false"' not in main_header_block
 
@@ -606,6 +612,32 @@ def test_preset_detail_reader_template_exposes_send_to_st_buttons_contracts():
     assert '@click="sendActivePresetToST()"' in source
     assert 'x-show="canSendActivePresetToST()"' in source
     assert '发送到 ST（对话补全预设，同名将直接覆盖 ST 中现有预设）' in source
+
+
+def test_preset_detail_reader_template_uses_reader_icon_contracts_and_single_extension_entry():
+    source = read_project_file('templates/modals/detail_preset_popup.html')
+
+    assert source.count("icon('card-send-to-st'") == 2
+    assert "icon('send'" not in source
+    assert source.count("icon('upload'") == 2
+    assert source.count("icon('search'") == 2
+    loading_block = extract_div_block(source, 'preset-reader-loading-state')
+    assert 'loading_icon(' in loading_block
+    assert 'preset-reader-state-card' not in loading_block
+    assert '<span' not in loading_block
+    reader_css = read_project_file('static/css/modules/modal-preset-workbench.css')
+    loading_style = extract_exact_css_block(reader_css, '.preset-reader-loading-state')
+    assert 'border: 0;' in loading_style
+    assert 'background: transparent;' in loading_style
+    assert '.preset-reader-state-card' not in loading_style
+    nav_active_style = extract_exact_css_block(
+        reader_css,
+        '.preset-reader-nav-item.color-surface-action',
+    )
+    assert 'border: 1px solid transparent !important;' in nav_active_style
+    assert 'box-shadow: inset 3px 0 0 var(--sidebar-source-all);' in nav_active_style
+    assert source.count('@click="openAdvancedExtensions()"') == 1
+    assert '打开扩展编辑器' not in source
 
 
 def test_preset_detail_reader_css_adds_mobile_hidden_header_contracts():

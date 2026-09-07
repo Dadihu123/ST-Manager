@@ -47,7 +47,7 @@
 
     <div class="settings-toolbar">
       <label class="settings-search" for="settings-search-input">
-        <span aria-hidden="true">{{ icon('book-search', 'ui-icon--sm') }}</span>
+        <span aria-hidden="true">{{ icon('search', 'ui-icon--sm') }}</span>
         <span class="sr-only">搜索设置</span>
         <input id="settings-search-input" x-ref="settingsSearch" type="search" autocomplete="off" placeholder="搜索设置、目录或功能" x-model.debounce.120ms="settingsQuery" @keydown.escape.stop="settingsQuery = ''">
         <button x-show="settingsQuery" type="button" class="settings-search-clear" aria-label="清除设置搜索" title="清除搜索" @click="settingsQuery = ''">{{ close_icon_xs }}</button>
@@ -68,7 +68,7 @@
         <div class="settings-search-results" x-show="settingsQuery" x-cloak>
           <div class="settings-sidebar-heading"><span>匹配结果</span><span x-text="searchResults.length"></span></div>
           <div class="settings-search-result-list" x-show="searchResults.length"><template x-for="result in searchResults" :key="result.id"><button type="button" class="settings-search-result" @click="jumpToSetting(result.section, result.anchor)"><svg class="ui-icon ui-icon--sm" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use :href="'/static/icons/ui.svg#icon-' + result.icon"></use></svg><span><strong x-text="result.title"></strong><small x-text="settingsHelpContent[result.section]?.label"></small></span></button></template></div>
-          <div class="settings-empty-state settings-empty-state--compact" x-show="!searchResults.length">{{ icon('book-search', 'ui-icon--sm') }}<span>没有匹配的设置</span></div>
+          <div class="settings-empty-state settings-empty-state--compact" x-show="!searchResults.length">{{ icon('search', 'ui-icon--sm') }}<span>没有匹配的设置</span></div>
         </div>
 
         <div class="settings-sidebar-help"><span class="settings-sidebar-help-icon" aria-hidden="true">{{ icon('idea', 'ui-icon--sm') }}</span><div><strong>需要帮助？</strong><span>查看当前分区的字段说明</span></div><button type="button" class="settings-inline-icon-button" aria-label="打开设置帮助" title="打开设置帮助" @click="openSettingsHelp()">{{ icon('chevron-right', 'ui-icon--sm') }}</button></div>

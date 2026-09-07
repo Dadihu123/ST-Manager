@@ -58,15 +58,15 @@
 
 .preset-reader-brand-mark {
   display: inline-flex;
-  flex: 0 0 2.25rem;
-  width: 2.25rem;
-  height: 2.25rem;
+  flex: 0 0 2.5rem;
+  width: 2.5rem;
+  height: 2.5rem;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--action-border);
-  border-radius: 0.75rem;
-  background: var(--action-surface);
-  color: var(--action-text);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--accent-action);
 }
 
 .preset-reader-heading-kicker {
@@ -417,9 +417,15 @@
 }
 
 .preset-reader-nav-item.color-surface-action {
-  border-color: var(--action-border) !important;
-  background: var(--state-selected-surface) !important;
-  box-shadow: inset 3px 0 0 var(--accent-action);
+  border: 1px solid transparent !important;
+  background: color-mix(
+    in srgb,
+    var(--sidebar-source-all) 14%,
+    var(--sidebar-surface)
+  ) !important;
+  box-shadow: inset 3px 0 0 var(--sidebar-source-all);
+  transform: translateX(-4px);
+  width: calc(100% + 4px);
 }
 
 .preset-reader-nav-item-copy {
@@ -442,22 +448,20 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 0.62rem;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
 }
 
 .preset-reader-nav-item-icon {
-  width: 2rem;
-  height: 2rem;
-  flex: 0 0 2rem;
-  border: 1px solid var(--border-default);
-  background: var(--surface-container-raised);
+  width: 2.25rem;
+  height: 2.25rem;
+  flex: 0 0 2.25rem;
   color: var(--content-muted);
 }
 
 .preset-reader-nav-item.color-surface-action .preset-reader-nav-item-icon {
-  border-color: var(--action-border);
-  background: var(--action-surface);
-  color: var(--action-text);
+  color: var(--sidebar-source-all);
 }
 
 .preset-reader-rail-footer {
@@ -649,22 +653,17 @@
 .preset-reader-extension-icon-frame,
 .preset-reader-field-icon-frame,
 .preset-reader-structured-icon-frame {
-  width: 2.15rem;
-  height: 2.15rem;
-  flex: 0 0 2.15rem;
-  border: 1px solid var(--border-default);
-  background: var(--surface-container-raised);
+  width: 2.4rem;
+  height: 2.4rem;
+  flex: 0 0 2.4rem;
   color: var(--accent-text);
 }
 
 .preset-reader-prompt-icon-frame {
-  border-color: var(--action-border);
-  background: var(--action-surface);
+  color: var(--action-text);
 }
 
 .preset-reader-extension-icon-frame {
-  border-color: var(--status-warning-border);
-  background: var(--status-warning-surface);
   color: var(--status-warning-text);
 }
 
@@ -674,18 +673,15 @@
 }
 
 .preset-reader-prompt-card .preset-marker-icon-frame {
-  width: 2.15rem;
-  height: 2.15rem;
+  width: 2.4rem;
+  height: 2.4rem;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--status-info-border);
-  border-radius: 0.62rem;
-  background: var(--status-info-surface);
 }
 
 .preset-reader-prompt-card .preset-marker-icon-frame svg {
-  width: 1.15rem;
-  height: 1.15rem;
+  width: 1.35rem;
+  height: 1.35rem;
 }
 
 .preset-reader-prompt-meta-row {
@@ -872,13 +868,14 @@
 
 .preset-reader-extension-summary-icon {
   display: inline-flex;
-  flex: 0 0 1.75rem;
-  width: 1.75rem;
-  height: 1.75rem;
+  flex: 0 0 2rem;
+  width: 2rem;
+  height: 2rem;
   align-items: center;
   justify-content: center;
-  border-radius: 0.5rem;
-  background: var(--surface-container-raised);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   color: var(--accent-text);
 }
 
@@ -910,6 +907,20 @@
   min-width: 0;
   padding: 1.5rem;
   background: var(--surface-page);
+}
+
+.preset-reader-loading-state {
+  display: grid;
+  min-width: 0;
+  place-items: center;
+  padding: 1.5rem;
+  border: 0;
+  background: transparent;
+}
+
+.preset-reader-loading-state .ui-loading-icon {
+  width: 4rem;
+  height: 4rem;
 }
 
 .preset-reader-state-card {
@@ -946,10 +957,6 @@
 .preset-reader-state-card.is-error .preset-reader-state-icon {
   background: var(--status-danger-solid);
   color: var(--content-on-dark);
-}
-
-.preset-reader-state-icon.is-loading .ui-icon {
-  animation: presetReaderSpin 900ms linear infinite;
 }
 
 .preset-reader-state-copy {
@@ -1120,12 +1127,6 @@
   }
   50% {
     opacity: 1;
-  }
-}
-
-@keyframes presetReaderSpin {
-  to {
-    transform: rotate(360deg);
   }
 }
 
@@ -2080,28 +2081,14 @@
   z-index: 60;
   display: grid;
   place-items: center;
-  background: color-mix(in srgb, var(--surface-page) 74%, transparent);
-  backdrop-filter: blur(4px);
+  padding: 1.5rem;
+  border: 0;
+  background: transparent;
 }
 
-.preset-editor-loading-panel {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.7rem;
-  min-height: 3.25rem;
-  padding: 0.8rem 1rem;
-  border: 1px solid var(--border-default);
-  border-radius: var(--preset-editor-panel-radius);
-  color: var(--content-primary);
-  background: var(--surface-container);
-  box-shadow: 0 1rem 2.5rem color-mix(in srgb, var(--surface-page) 35%, transparent);
-  font-size: 0.8rem;
-  font-weight: 700;
-}
-
-.preset-editor-loading-panel .ui-loading-icon {
-  width: 1.35rem;
-  height: 1.35rem;
+.preset-editor-loading-layer .ui-loading-icon {
+  width: 4rem;
+  height: 4rem;
 }
 
 /* The extension dialog is shared by preset and character-card editors. Keep
@@ -2330,10 +2317,6 @@
   .preset-editor-workbench .preset-editor-inspector-status,
   .preset-editor-workbench .preset-editor-inspector-section {
     border-radius: 8px !important;
-  }
-
-  .preset-editor-workbench .preset-editor-loading-panel {
-    max-width: calc(100vw - 2rem);
   }
 
   .advanced-editor-container {

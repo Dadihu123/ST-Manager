@@ -23,7 +23,7 @@ def test_advanced_editor_uses_semantic_icon_mappings():
         "icon('file-import'",
         "icon('upload'",
         "icon('plus-square'",
-        "icon('book-search'",
+        "icon('search'",
         "icon('replace'",
         "icon('scissors'",
         "icon('settings'",

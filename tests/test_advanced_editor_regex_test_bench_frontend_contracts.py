@@ -40,7 +40,13 @@ def run_advanced_editor_runtime_check(script_body: str) -> None:
         import {{ readFileSync }} from 'node:fs';
 
         const sourcePath = {json.dumps(str(source_path))};
+        const compatibilityPath = {json.dumps(str(ROOT / 'static/js/utils/extensionCompatibility.js'))};
+        let compatibilitySource = readFileSync(compatibilityPath, 'utf8');
+        compatibilitySource = compatibilitySource
+          .replace(/^export\\s+\\{{[^}}]+\\}};\\s*$/gm, '')
+          .replace(/^export\\s+/gm, '');
         let source = readFileSync(sourcePath, 'utf8');
+        source = compatibilitySource + '\\n' + source;
         source = source.replace(/^import[\\s\\S]*?;\\r?\\n/gm, '');
         source = source.replace('export default function advancedEditor()', 'function advancedEditor()');
 
@@ -83,6 +89,26 @@ def run_advanced_editor_runtime_check(script_body: str) -> None:
         check=False,
     )
     assert result.returncode == 0, result.stderr or result.stdout
+
+
+def test_advanced_editor_reads_all_tavern_helper_shapes():
+    run_advanced_editor_runtime_check(
+        """
+        const cases = [
+          { tavern_helper: { scripts: [{ name: 'object' }] } },
+          { tavern_helper: [['scripts', [{ name: 'list' }]], ['variables', {}]] },
+          { TavernHelper_scripts: [{ type: 'script', value: { name: 'legacy' } }] },
+        ];
+
+        for (const extensions of cases) {
+          component.editingData = { extensions };
+          const scripts = component.getTavernScripts();
+          if (scripts.length !== 1) {
+            throw new Error(`expected one script, got ${JSON.stringify(scripts)}`);
+          }
+        }
+        """
+    )
 
 
 def test_regex_test_bench_plain_patterns_are_not_global_by_default():

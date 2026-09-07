@@ -22,6 +22,11 @@ from core.data.ui_store import (
 )
 from core.services.preset_editor_schema import normalize_preset_content_for_save
 from core.services.preset_editor_schema import resolve_global_save_dir_config_key
+from core.services.preset_extensions import REGEX_EXTENSION_KEYS
+from core.services.preset_extensions import TAVERN_HELPER_EXTENSION_KEYS
+from core.services.preset_extensions import extract_regex_script_items
+from core.services.preset_extensions import extract_tavern_helper_scripts
+from core.services.preset_extensions import normalize_extensions_for_save
 from core.services.preset_model import PRESET_KIND_LABELS, build_preset_detail
 from core.services.preset_model import detect_preset_kind, merge_preset_content
 from core.services.preset_model import strip_managed_kind_marker
@@ -944,16 +949,10 @@ def _parse_preset_file(file_path, filename):
         
         # 6. 提取扩展
         regexes = _extract_regex_from_preset(data)
-        extensions = data.get('extensions', {})
-        regex_scripts = extensions.get('regex_scripts', [])
-        tavern_helper = extensions.get('tavern_helper', {})
-        
-        # 计算统计数据
-        regex_count = len(regex_scripts) if isinstance(regex_scripts, list) else 0
-        script_count = 0
-        if isinstance(tavern_helper, dict) and 'scripts' in tavern_helper:
-            script_count = len(tavern_helper['scripts']) if isinstance(tavern_helper['scripts'], list) else 0
-        
+        extensions = data.get('extensions')
+        extensions = extensions if isinstance(extensions, dict) else {}
+        regex_count = len(regexes) or len(extract_regex_script_items(extensions))
+        script_count = len(extract_tavern_helper_scripts(extensions))
         mtime = os.path.getmtime(file_path)
         file_size = os.path.getsize(file_path)
         
@@ -2221,14 +2220,32 @@ def save_preset_extensions():
         with open(file_path, 'r', encoding='utf-8') as f:
             preset_data = json.load(f)
         
-        # 更新extensions字段
-        if 'extensions' not in preset_data:
-            preset_data['extensions'] = {}
-        
-        # 合并extensions数据，保留原有其他扩展
-        for key, value in extensions.items():
-            preset_data['extensions'][key] = value
-        
+        if not isinstance(extensions, dict):
+            return jsonify({'success': False, 'msg': 'extensions 必须是对象'}), 400
+
+        # Keep unrelated extension keys, but canonicalize managed data before saving.
+        normalized_extensions = normalize_extensions_for_save(extensions)
+        existing_extensions = preset_data.get('extensions')
+        if not isinstance(existing_extensions, dict):
+            existing_extensions = {}
+            preset_data['extensions'] = existing_extensions
+
+        regex_payload_present = any(
+            key in extensions for key in REGEX_EXTENSION_KEYS
+        ) or 'RegexBinding' in extensions
+        if regex_payload_present:
+            for key in REGEX_EXTENSION_KEYS - {'regex_scripts'}:
+                existing_extensions.pop(key, None)
+            existing_extensions.pop('RegexBinding', None)
+
+        script_payload_present = any(key in extensions for key in TAVERN_HELPER_EXTENSION_KEYS)
+        if script_payload_present:
+            for key in TAVERN_HELPER_EXTENSION_KEYS - {'tavern_helper'}:
+                existing_extensions.pop(key, None)
+
+        for key, value in normalized_extensions.items():
+            existing_extensions[key] = value
+
         # 写回文件
         with open(file_path, 'w', encoding='utf-8') as f:
             json.dump(preset_data, f, ensure_ascii=False, indent=2)

@@ -44,6 +44,14 @@ def extract_tag_block(source, marker, tag_name='div'):
     raise AssertionError(f'failed to extract {tag_name} block for marker: {marker}')
 
 
+def extract_exact_css_block(css_source, selector):
+    match = re.search(rf'(^|\n)\s*{re.escape(selector)}\s*\{{', css_source)
+    assert match is not None, f'CSS selector not found: {selector}'
+    block_start = css_source.index('{', match.start())
+    block_end = css_source.index('}', block_start)
+    return css_source[block_start + 1:block_end]
+
+
 def run_preset_editor_runtime_check(script_body):
     source_path = PROJECT_ROOT / 'static/js/components/presetEditor.js'
     node_script = textwrap.dedent(
@@ -51,7 +59,13 @@ def run_preset_editor_runtime_check(script_body):
         import {{ readFileSync }} from 'node:fs';
 
         const sourcePath = {json.dumps(str(source_path))};
+        const compatibilityPath = {json.dumps(str(PROJECT_ROOT / 'static/js/utils/extensionCompatibility.js'))};
+        let compatibilitySource = readFileSync(compatibilityPath, 'utf8');
+        compatibilitySource = compatibilitySource
+          .replace(/^export\\s+\\{{[^}}]+\\}};\\s*$/gm, '')
+          .replace(/^export\\s+/gm, '');
         let source = readFileSync(sourcePath, 'utf8');
+        source = compatibilitySource + '\\n' + source;
         source = source.replace(/^import[\\s\\S]*?;\\r?\\n/gm, '');
         source = source.replace('export default function presetEditor()', 'function presetEditor()');
 
@@ -2600,6 +2614,24 @@ def test_preset_editor_js_tracks_changed_state_and_safe_nested_path_writes():
     assert 'if (target[part] === null || typeof target[part] !== "object") {' in source
     assert 'markAllReaderItemsDirty() {' in source
     assert 'this.markAllReaderItemsDirty();' in source
+
+
+def test_preset_editor_template_uses_bare_svg_loading_state():
+    source = read_project_file('templates/modals/detail_preset_fullscreen.html')
+
+    assert 'preset-editor-loading-panel' not in source
+    loading_block = extract_tag_block(source, 'preset-editor-loading-layer')
+    assert "loading_icon('ui-icon--3xl')" in loading_block
+    assert '<span' not in loading_block
+
+    stylesheet = read_project_file('static/css/modules/modal-preset-workbench.css')
+    loading_style = extract_exact_css_block(
+        stylesheet,
+        '.preset-editor-loading-layer',
+    )
+    assert 'border: 0;' in loading_style
+    assert 'background: transparent;' in loading_style
+    assert 'backdrop-filter' not in loading_style
 
 
 def test_preset_editor_template_uses_three_column_workspace_contracts():

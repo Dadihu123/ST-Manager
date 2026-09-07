@@ -33,7 +33,7 @@ symbol id 统一使用带 `icon-` 前缀的英文 kebab-case，并优先表达�
 ### 变更统计
 
 - 最终保留 193 个 sprite symbol；其中 173 个沿用原图形完成语义改名，18 个原 id 已经符合语义规则而保持不变，另有 2 个来自独立侧边栏 SVG 的合并 symbol。
-- 删除 40 个确认未引用的旧 symbol 定义；删除 2 个已合并完成的独立侧边栏 SVG 文件。
+- 删除 39 个确认未引用的旧 symbol 定义；删除 2 个已合并完成的独立侧边栏 SVG 文件。
 - 论坛预览保留 6 个被 CSS mask 明确引用的独立 SVG 文件。
 
 ### 重命名和合并概览
@@ -179,7 +179,7 @@ symbol id 统一使用带 `icon-` 前缀的英文 kebab-case，并优先表达�
 | icon-book-save-as | icon-worldbook-save-as | static/icons/ui.svg | 书本另存为 | `templates/modals/detail_wi_fullscreen.html:245,291,1946`、`tests/test_worldbook_icon_contracts.py:196` | xs/12px、sm/16px、md/20px | 是 |
 | icon-sort | icon-worldbook-sort | static/icons/ui.svg | 排序 | `templates/modals/detail_wi_fullscreen.html:137`、`templates/modals/detail_wi_popup.html:183` | md/20px | 是 |
 | icon-calendar | icon-worldbook-calendar | static/icons/ui.svg | 日历 | `templates/modals/detail_wi_popup.html:54`、`tests/test_worldbook_icon_contracts.py:131` | xs/12px | 是 |
-| icon-book-search | icon-worldbook-search | static/icons/ui.svg | 书本搜索 | `templates/modals/advanced_editor.html:195`、`templates/modals/detail_card.html:513`、`templates/modals/detail_wi_fullscreen.html:201,2253`、`templates/modals/detail_wi_popup.html:110,138`、`tests/test_advanced_editor_icon_contracts.py:26` | sm/16px、md/20px | 是 |
+| icon-search | icon-worldbook-search | static/icons/ui.svg | 搜索 | `templates/components/header.html:519`、`templates/modals/advanced_editor.html:198`、`templates/modals/automation.html:91`、`templates/modals/detail_card.html:683,3767`、`templates/modals/detail_preset_popup.html:311,313`、`templates/modals/detail_wi_fullscreen.html:212,299,494,2774`、`templates/modals/detail_wi_popup.html:134,162`、`templates/modals/settings.html:50,71`、`templates/modals/tag_filter.html:306,1244` | xs/12px、sm/16px、md/20px | 是 |
 | icon-pin | icon-worldbook-constant | static/icons/ui.svg | 图钉 | `templates/modals/detail_wi_fullscreen.html:625,2102`、`tests/test_worldbook_icon_contracts.py:147` | xs/12px、md/20px | 是 |
 | icon-wand | icon-worldbook-vectorize | static/icons/ui.svg | 魔杖 | `templates/modals/detail_wi_fullscreen.html:642,2117`、`tests/test_worldbook_icon_contracts.py:130,272` | xs/12px、md/20px | 是 |
 | icon-layout | icon-worldbook-layout | static/icons/ui.svg | 布局 | `templates/modals/detail_wi_fullscreen.html:1867` | sm/16px | 是 |
@@ -219,14 +219,13 @@ symbol id 统一使用带 `icon-` 前缀的英文 kebab-case，并优先表达�
 | icon-eye-off | icon-eye-off | static/icons/ui.svg | 眼睛隐藏 | `templates/modals/detail_card.html:886,958,1030,1102…`、`templates/modals/settings.html:1293,1336,1384` | sm/16px | 否 |
 | icon-folder | icon-card-folder | static/icons/ui.svg | 文件夹 | `templates/components/grid_cards.html:272`、`templates/components/grid_wi.html:190,254`、`templates/components/header.html:297,321,711,784`、`tests/test_header_icon_templates.py:26`、`tests/test_worldbook_icon_contracts.py:137` | sm/16px | 是 |
 | icon-settings-help-entry | icon-settings-help-entry | static/icons/ui.svg | 帮助说明入口 | `templates/modals/automation.html:149`、`templates/modals/detail_card.html:338,3495`、`templates/modals/detail_wi_fullscreen.html:314`、`templates/modals/settings.html:31,1888`、`static/js/state.js:84`、`static/js/components/batchImportModal.js:95`、`tests/test_advanced_editor_icon_contracts.py:99` | sm/16px、md/20px、lg/24px | 否 |
-| loading-animation.svg | loading-animation | static/icons/loading-animation.svg | 自带动画的统一加载图标 | `templates/components/icon.html`、角色卡/预设/扩展/世界书网格、详情弹窗、设置、导入、回滚和 Toast | xs/12px、sm/16px、md/20px、lg/24px、xl/32px、2xl/48px | 否 |
+| loading-animation.svg | loading-animation | static/icons/loading-animation.svg | 自带动画的统一加载图标 | `templates/components/icon.html`、角色卡/预设/扩展/世界书网格、详情弹窗、设置、导入、回滚和 Toast | xs/12px、sm/16px、md/20px、lg/24px、xl/32px、2xl/48px、3xl/64px | 否 |
 | icon-menu | icon-menu | static/icons/ui.svg | 菜单 | `templates/components/header.html:109`、`templates/modals/detail_wi_popup.html:222`、`tests/test_header_icon_templates.py:16` | md/20px | 否 |
 | icon-header-dark-mode | icon-header-dark-mode | static/icons/ui.svg | 深色模式装饰星月 | `templates/components/header.html:642,921`、`templates/modals/settings.html:300`、`tests/test_header_icon_templates.py:22`、`tests/test_settings_icon_templates.py:60` | sm/16px、md/20px、lg/24px | 否 |
 | icon-package | icon-card-package | static/icons/ui.svg | 软件包 | `templates/components/context_menu.html:58`、`templates/components/grid_cards.html:150`、`templates/modals/detail_card.html:2317,2582,3732`、`tests/test_card_grid_update_contracts.py:88` | xs/12px、sm/16px、lg/24px | 是 |
 | icon-palette | icon-palette | static/icons/ui.svg | 调色板 | `templates/modals/settings.html:1958` | sm/16px | 否 |
 | icon-plug | icon-plug | static/icons/ui.svg | 插头 | `templates/modals/settings.html:2084` | sm/16px | 否 |
 | icon-settings-save | icon-settings-save | static/icons/ui.svg | 个性化保存（软盘） | `templates/modals/automation.html:173`、`templates/modals/detail_wi_fullscreen.html:220,266,513,1904,1916`、`templates/modals/settings.html:1860`、`static/js/state.js:85`、`static/js/components/advancedEditor.js:870`、`static/js/components/automationModal.js:381`、`static/js/components/detailModal.js:1991`、`static/js/components/wiDetailPopup.js:799`、`static/js/components/wiEditor.js:2336,2338,2786,2855,2857`、相关测试契约 | xs/12px、sm/16px | 否 |
-| icon-search | icon-card-search | static/icons/ui.svg | 搜索 | `templates/components/grid_cards.html:334`、`tests/test_worldbook_icon_contracts.py:148` | sm/16px（默认） | 是 |
 | icon-card-forum-search | `tmp/其他/论坛.svg` | static/icons/ui.svg | 类脑搜索预览 | `templates/components/grid_cards.html:361` | md/20px、lg/24px | 是 |
 | icon-card-send-to-st | `tmp/其他/1火箭.svg` | static/icons/ui.svg | 发送到 ST | `templates/components/grid_cards.html:373`、`templates/components/grid_presets.html:285`、`templates/components/grid_wi.html:228`、`templates/modals/detail_card.html:3054`、`templates/modals/detail_wi_popup.html:491`、发送成功 Toast | sm/16px、md/20px、lg/24px | 是 |
 | icon-settings-connection-service | icon-settings-connection-service | static/icons/ui.svg | 连接与服务链路 | `templates/modals/settings.html:76,1229,2105`、`tests/test_settings_icon_templates.py` | sm/16px | 否 |
@@ -247,11 +246,11 @@ symbol id 统一使用带 `icon-` 前缀的英文 kebab-case，并优先表达�
 
 ### 已删除的 symbol
 
-以下 40 个旧 symbol 定义在源文件、模板宏、`<use>`、JavaScript icon map、CSS、测试契约和已核对的动态规则中均无实际引用；其中部分是与最终语义 symbol 不同的旧重复几何，已由实际使用的语义版本覆盖：
+以下 39 个旧 symbol 定义在源文件、模板宏、`<use>`、JavaScript icon map、CSS、测试契约和已核对的动态规则中均无实际引用；其中部分是与最终语义 symbol 不同的旧重复几何，已由实际使用的语义版本覆盖：
 
 | 旧 symbol | 文件 | 删除原因 | 删除前确认范围 |
 | --- | --- | --- | --- |
-| `icon-alert-triangle`, `icon-archive`, `icon-book-open`, `icon-bot`, `icon-check`, `icon-circle-check`, `icon-clock-3`, `icon-database`, `icon-download`, `icon-external-link`, `icon-folder`, `icon-globe`, `icon-help-circle`, `icon-header-menu`, `icon-image`, `icon-image-upload`, `icon-key-round`, `icon-message-circle`, `icon-moon`, `icon-monitor-users`, `icon-package`, `icon-pencil`, `icon-plus`, `icon-refresh-cw`, `icon-save`, `icon-search`, `icon-send`, `icon-server`, `icon-settings-appearance`, `icon-settings-hide`, `icon-settings-integration`, `icon-settings-security-status`, `icon-settings-show`, `icon-sliders-horizontal`, `icon-sticky-note`, `icon-sun`, `icon-tools`, `icon-trash-2`, `icon-upload`, `icon-wrench` | `static/icons/ui.svg` | 无引用的旧基础/重复定义；保存流程已恢复使用基线中的个性化 `icon-settings-save`，帮助、主题、连接和维护入口已恢复使用基线中的专用视觉图形，通用重复定义不再保留 | `templates/`、`static/js/`、`static/css/`、`core/`、`tests/` 的精确 id/宏/字符串搜索，以及动态 icon map 核对 |
+| `icon-alert-triangle`, `icon-archive`, `icon-book-open`, `icon-bot`, `icon-check`, `icon-circle-check`, `icon-clock-3`, `icon-database`, `icon-download`, `icon-external-link`, `icon-folder`, `icon-globe`, `icon-help-circle`, `icon-header-menu`, `icon-image`, `icon-image-upload`, `icon-key-round`, `icon-message-circle`, `icon-moon`, `icon-monitor-users`, `icon-package`, `icon-pencil`, `icon-plus`, `icon-refresh-cw`, `icon-save`, `icon-send`, `icon-server`, `icon-settings-appearance`, `icon-settings-hide`, `icon-settings-integration`, `icon-settings-security-status`, `icon-settings-show`, `icon-sliders-horizontal`, `icon-sticky-note`, `icon-sun`, `icon-tools`, `icon-trash-2`, `icon-upload`, `icon-wrench` | `static/icons/ui.svg` | 无引用的旧基础/重复定义；保存流程已恢复使用基线中的个性化 `icon-settings-save`，帮助、主题、连接和维护入口已恢复使用基线中的专用视觉图形，通用重复定义不再保留 | `templates/`、`static/js/`、`static/css/`、`core/`、`tests/` 的精确 id/宏/字符串搜索，以及动态 icon map 核对 |
 | `icon-detail-character-card` | `static/icons/detail.svg` | 没有详情 sprite、模板、JS、CSS 或测试引用；角色卡图形来自已合并的独立侧边栏 SVG | 同上，并单独核对 `detail_icon` 和角色卡文件路径 |
 | `icon-sidebar-beautify` | `static/icons/sidebar.svg` | 旧的业务命名定义无引用；美化入口改用从独立 SVG 移入的 `icon-paint-brush` | 同上，并核对 `sidebar_icon`、CSS mask 和独立文件路径 |
 
