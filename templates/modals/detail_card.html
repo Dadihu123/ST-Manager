@@ -2166,44 +2166,38 @@
                   <div class="flex items-center gap-2 pl-2">
                     <div class="flex items-center gap-2" @click.stop>
                       <div
-                        class="flex rounded-lg p-0.5 border"
-                        style="
-                          background: var(--surface-container-raised);
-                          border-color: var(--border-default);
-                        "
+                        class="wi-detail-worldbook-transfer-group"
+                        role="group"
+                        aria-label="世界书导入导出"
                       >
                         <button
+                          type="button"
                           @click="$refs.wiImportInput.click()"
-                          title="导入"
-                          class="wi-detail-worldbook-transfer-btn px-2 py-1 text-[10px] rounded transition-colors flex items-center gap-1"
+                          title="导入世界书"
+                          aria-label="导入世界书"
+                          class="wi-detail-worldbook-transfer-btn"
                         >
                           {{ icon('file-import', 'ui-icon--sm') }}
                         </button>
-                        <div
-                          class="w-[1px] my-0.5"
-                          style="background: var(--border-default)"
-                        ></div>
                         <button
+                          type="button"
                           @click="exportWorldBookSingle()"
-                          title="导出"
-                          class="wi-detail-worldbook-transfer-btn px-2 py-1 text-[10px] rounded transition-colors flex items-center gap-1"
+                          title="导出世界书"
+                          aria-label="导出世界书"
+                          class="wi-detail-worldbook-transfer-btn"
                         >
                           {{ icon('upload', 'ui-icon--sm') }}
                         </button>
                       </div>
 
                       <button
+                        type="button"
                         @click="openFullScreenWI()"
-                        title="全屏编辑"
-                        class="btn-primary"
-                        style="
-                          padding: 0.35rem 0.75rem;
-                          font-size: 0.75rem;
-                          border-radius: 0.375rem;
-                        "
+                        title="全屏编辑世界书"
+                        aria-label="全屏编辑世界书"
+                        class="wi-detail-worldbook-fullscreen-btn"
                       >
-                        {{ detail_icon('fullscreen', 'ui-icon--sm') }}
-                        <span>全屏</span>
+                        {{ detail_icon('fullscreen', 'ui-icon--md') }}
                       </button>
                     </div>
 

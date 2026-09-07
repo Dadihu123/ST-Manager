@@ -832,23 +832,62 @@ html.dark-mode .props-header {
   transform: translateY(-1px);
 }
 
-/* 详情页世界书导入/导出按钮按主题使用纯黑或纯白，提升图标对比度。 */
+/* 详情页世界书工具栏使用紧凑的无边框图标按钮。 */
+.wi-worldbook-icon-scope .wi-detail-worldbook-transfer-group {
+  align-items: center;
+  display: inline-flex;
+  gap: 0.15rem;
+}
+
+.wi-worldbook-icon-scope .wi-detail-worldbook-transfer-btn,
+.wi-worldbook-icon-scope .wi-detail-worldbook-fullscreen-btn {
+  align-items: center;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0.5rem;
+  box-shadow: none !important;
+  cursor: pointer;
+  display: inline-flex;
+  flex: 0 0 auto;
+  height: 2.25rem;
+  justify-content: center;
+  padding: 0;
+  transition:
+    background-color 0.18s ease,
+    color 0.18s ease,
+    transform 0.12s ease;
+  width: 2.25rem;
+}
+
 .wi-worldbook-icon-scope .wi-detail-worldbook-transfer-btn {
-  color: var(--content-on-dark);
-  background: transparent;
+  color: var(--content-secondary);
 }
 
-html.light-mode .wi-worldbook-icon-scope .wi-detail-worldbook-transfer-btn {
-  color: var(--content-on-light);
+.wi-worldbook-icon-scope .wi-detail-worldbook-fullscreen-btn {
+  color: var(--accent-text);
+  height: 2.5rem;
+  width: 2.5rem;
 }
 
-.wi-worldbook-icon-scope .wi-detail-worldbook-transfer-btn:hover {
-  background: var(--state-hover-surface);
+.wi-worldbook-icon-scope .wi-detail-worldbook-transfer-btn:hover,
+.wi-worldbook-icon-scope .wi-detail-worldbook-fullscreen-btn:hover {
+  background: var(--state-hover-surface) !important;
+  color: var(--content-primary);
 }
 
-.wi-worldbook-icon-scope .wi-detail-worldbook-transfer-btn:focus-visible {
+.wi-worldbook-icon-scope .wi-detail-worldbook-fullscreen-btn:hover {
+  color: var(--accent-text);
+}
+
+.wi-worldbook-icon-scope .wi-detail-worldbook-transfer-btn:active,
+.wi-worldbook-icon-scope .wi-detail-worldbook-fullscreen-btn:active {
+  transform: scale(0.94);
+}
+
+.wi-worldbook-icon-scope .wi-detail-worldbook-transfer-btn:focus-visible,
+.wi-worldbook-icon-scope .wi-detail-worldbook-fullscreen-btn:focus-visible {
   outline: 2px solid var(--accent-action);
-  outline-offset: 1px;
+  outline-offset: 2px;
 }
 
 .wi-reader-date-meta .wi-reader-calendar-icon {
