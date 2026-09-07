@@ -265,6 +265,10 @@ export default function automationModal() {
                 this.openModal();
             });
 
+            this.$watch('showAutomationModal', (value) => {
+                document.body?.classList.toggle('automation-workbench-open', Boolean(value));
+            });
+
             this.$watch('editingMeta', () => this.markDirty());
             this.$watch('editingRules', () => this.markDirty());
         },

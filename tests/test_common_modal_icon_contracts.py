@@ -132,6 +132,24 @@ def test_icon_select_contract_covers_import_batch_and_automation_controls():
     assert '.automation-export-btn' in automation_css
 
 
+def test_automation_workbench_disables_nested_backdrop_compositing():
+    automation_css = read_project_file('static/css/modules/automation-workbench.css')
+    automation_js = read_project_file('static/js/components/automationModal.js')
+
+    overlay_block = automation_css.split('.automation-modal-overlay {', 1)[1].split('}', 1)[0]
+    menu_block = automation_css.rsplit(
+        '.automation-action-type-select .icon-select-menu', 1
+    )[1].split('}', 1)[0]
+    assert '-webkit-backdrop-filter: none;' in overlay_block
+    assert 'backdrop-filter: none;' in overlay_block
+    assert 'body.automation-workbench-open .main-container' in automation_css
+    assert "this.$watch('showAutomationModal'" in automation_js
+    assert "classList.toggle('automation-workbench-open'" in automation_js
+    assert 'bottom: auto;' in menu_block
+    assert 'top: calc(100% + 0.3rem);' in menu_block
+    assert 'max-height: 18rem;' in menu_block
+
+
 def test_url_import_input_keeps_icon_gutter_on_mobile():
     import_template = read_project_file('templates/modals/import.html')
     modal_css = read_project_file('static/css/modules/modal-tools.css')

@@ -12,11 +12,23 @@
 .automation-modal-overlay {
   align-items: center;
   background: var(--surface-scrim);
+  /* Keep the workbench scrim flat. A second full-screen blur layer can make
+     Chromium repaint the page behind the modal as a fixed black rectangle. */
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
   display: flex;
   inset: 0;
   justify-content: center;
   overflow: hidden;
   padding: var(--ui-modal-gutter);
+}
+
+/* The modal scrim already owns the page backdrop while this workbench is
+   open. Removing the shell's extra compositing layer avoids the same repaint
+   artifact when the underlying card grid contains transformed cards. */
+body.automation-workbench-open .main-container {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
 
 .automation-container {
@@ -652,32 +664,6 @@
   align-items: center;
   display: inline-flex;
   gap: 0.3rem;
-}
-
-.ruleset-item-meta-content > .ruleset-item-meta-stat {
-  align-items: center;
-  display: inline-flex;
-  gap: 0.3rem;
-}
-
-.ruleset-item-meta-icon {
-  align-items: center;
-  color: var(--content-primary);
-  display: inline-flex;
-  flex: 0 0 1rem;
-  height: 1rem;
-  justify-content: center;
-  opacity: 1;
-  width: 1rem;
-}
-
-.ruleset-item-meta-icon .ui-icon {
-  color: inherit;
-  display: block;
-  fill: currentColor;
-  height: 1rem;
-  stroke: none;
-  width: 1rem;
 }
 
 .automation-sidebar-footer {

@@ -238,7 +238,7 @@
               <div class="ruleset-item-meta-content">
                 <span><span class="automation-status-dot" :class="globalRulesetId === rs.id ? 'is-on' : 'is-off'" aria-hidden="true"></span><span x-text="globalRulesetId === rs.id ? '全局启用' : '未启用'"></span></span>
                 <span x-text="'v' + (rs.meta?.version || '1.0')"></span>
-                <span class="ruleset-item-meta-stat"><span class="ruleset-item-meta-icon" aria-hidden="true">{{ detail_icon('rules', 'ui-icon--sm') }}</span><span x-text="(rs.rule_count || 0) + ' 条规则'"></span></span>
+                <span x-text="(rs.rule_count || 0) + ' 条规则'"></span>
               </div>
               <span class="ruleset-item-meta-rule" aria-hidden="true"></span>
             </div>

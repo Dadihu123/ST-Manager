@@ -121,6 +121,16 @@ def test_automation_uses_shared_file_rule_and_mobile_list_icons():
     assert 'ⓘ' not in source
 
 
+def test_ruleset_list_rule_count_has_no_decorative_icon():
+    source = read_project_file('templates/modals/automation.html')
+    stylesheet = read_project_file('static/css/modules/automation-workbench.css')
+
+    assert 'ruleset-item-meta-icon' not in source
+    assert 'ruleset-item-meta-stat' not in source
+    assert 'ruleset-item-meta-icon' not in stylesheet
+    assert "detail_icon('rules', 'ui-icon--sm')" in source
+
+
 def test_automation_mobile_execution_template_uses_shared_toolbar_icons():
     source = read_project_file('templates/modals/execute_rules_mobile.html')
 
