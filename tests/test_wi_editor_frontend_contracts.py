@@ -1689,6 +1689,14 @@ def test_wi_editor_runtime_previous_find_wraps_across_entries():
     run_js(script)
 
 
+def test_wi_editor_reader_jump_uses_entry_identity_for_centered_scroll():
+    source = read_project_file('static/js/components/wiEditor.js')
+    open_block = extract_js_function_block(source, 'openWorldInfoEditor(item) {')
+
+    assert '_scrollWiEntryIntoView(targetEntry, targetIndex)' in open_block
+    assert 'getElementById(elId)' not in open_block
+
+
 def test_wi_editor_runtime_find_hit_centers_matching_left_entry():
     source = read_project_file('static/js/components/wiEditor.js')
     scroll_block = extract_js_function_block(

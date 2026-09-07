@@ -3093,27 +3093,32 @@ export default function wiEditor() {
 
         this.openFullScreenWI();
 
-        // 滚动到选中项
+        // 滚动到选中项。左侧列表按排序后的可见顺序渲染，不能再用原始数组索引拼接 DOM id。
         if (targetIndex >= 0) {
           this.$nextTick(() => {
             // 稍微延迟以等待列表渲染
             setTimeout(() => {
-              // 再次强制设置一次 index
+              if (
+                openRequestToken !== this.openWorldInfoEditorRequestToken ||
+                !this.editingWiFile ||
+                this.editingWiFile.id !== targetId
+              ) {
+                return;
+              }
+
+              // 再次同步选中状态，避免列表刷新期间丢失跳转目标
               this.currentWiIndex = targetIndex;
               const targetEntry = this.getWIArrayRef()[targetIndex];
               this.currentWiEntryKey = targetEntry
                 ? this.getWiEntryIdentity(targetEntry, targetIndex)
                 : "";
 
-              const elId = `wi-item-${targetIndex}`;
-              const el = document.getElementById(elId);
-              if (el) {
-                el.scrollIntoView({ behavior: "auto", block: "center" }); // 使用 auto 瞬间定位，避免 smooth 还没滚到就停止
-                el.classList.add("color-accent-soft", "color-text-accent"); // 临时高亮
-                setTimeout(
-                  () => el.classList.remove("color-accent-soft", "color-text-accent"),
-                  800,
-                );
+              // 按条目身份查找 DOM，兼容排序模式与原始数组顺序不同的情况。
+              if (
+                targetEntry &&
+                typeof this._scrollWiEntryIntoView === "function"
+              ) {
+                this._scrollWiEntryIntoView(targetEntry, targetIndex);
               }
             }, 100);
           });
