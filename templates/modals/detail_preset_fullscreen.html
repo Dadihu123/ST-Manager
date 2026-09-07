@@ -1,11 +1,11 @@
 <!-- 预设全屏编辑器 -->
-{% from "components/icon.html" import icon %}
+{% from "components/icon.html" import icon, loading_icon, sidebar_icon, detail_icon, preset_icon %}
 {% from "components/styled_select.html" import styled_select_controlled %}
 <div
   x-show="showPresetEditor"
   x-data="presetEditor"
   x-cloak
-  class="detail-preset-full-screen ui-fullscreen-surface fixed inset-0 z-modal-editor bg-[var(--surface-page)]"
+  class="detail-preset-full-screen preset-editor-workbench ui-fullscreen-surface fixed inset-0 z-modal-editor bg-[var(--surface-page)]"
   role="dialog"
   aria-modal="true"
   aria-label="预设全屏编辑器"
@@ -14,30 +14,52 @@
     <div
       x-show="$store.global.deviceType !== 'mobile'"
       x-cloak
-      class="flex h-12 border-b border-[var(--border-subtle)] bg-[var(--surface-container)] px-4 items-center justify-between gap-4 flex-shrink-0"
+      class="preset-editor-header flex h-12 border-b border-[var(--border-subtle)] bg-[var(--surface-container)] px-4 items-center justify-between gap-4 flex-shrink-0"
     >
-      <div class="flex items-center gap-3 min-w-0">
-        <div class="text-[var(--accent-action)] font-bold text-sm">
-          预设编辑器
+      <div class="preset-editor-header-brand flex items-center gap-3 min-w-0">
+        <div class="preset-editor-brand-mark" aria-hidden="true">
+          {{ sidebar_icon('preset-stack', 'ui-icon--md') }}
+        </div>
+        <div class="preset-editor-heading min-w-0">
+          <div class="preset-editor-eyebrow">预设工作台</div>
+          <div class="text-sm font-bold truncate text-[var(--content-primary)]">
+            编辑与校验
+          </div>
         </div>
         <div
-          class="px-2 py-0.5 rounded text-[10px] font-bold uppercase border border-[var(--border-default)] text-[var(--content-primary)] bg-[var(--surface-container-raised)]"
+          class="preset-editor-kind-badge px-2 py-0.5 rounded text-[10px] font-bold uppercase border border-[var(--border-default)] text-[var(--content-primary)] bg-[var(--surface-container-raised)]"
           x-text="editingPresetFile?.preset_kind || '预设'"
         ></div>
         <div class="min-w-0">
           <div
-            class="text-sm font-bold truncate text-[var(--content-primary)]"
+            class="preset-editor-file-title text-sm font-bold truncate text-[var(--content-primary)]"
             x-text="presetTitle"
           ></div>
           <div
-            class="text-[10px] text-[var(--content-muted)] truncate"
+            class="preset-editor-file-path text-[10px] text-[var(--content-muted)] truncate"
             x-text="editingPresetFile?.path || ''"
           ></div>
         </div>
       </div>
 
-      <div class="flex items-center gap-2 flex-wrap justify-end">
-        <div x-show="hasMultipleVersions" class="flex items-center gap-2">
+      <div class="preset-editor-header-actions flex items-center gap-2 flex-wrap justify-end">
+        <div class="preset-editor-header-status" role="status" aria-live="polite">
+          <span x-show="isSaving" x-cloak class="preset-editor-status-icon color-text-info" aria-label="正在保存">
+            {{ loading_icon('ui-icon--sm') }}
+          </span>
+          <span x-show="!isSaving && hasConflict" x-cloak class="preset-editor-status-icon color-text-danger" aria-label="存在冲突">
+            {{ icon('alert-triangle', 'ui-icon--sm') }}
+          </span>
+          <span x-show="!isSaving && !hasConflict && isDirty" x-cloak class="preset-editor-status-icon color-text-warning" aria-label="有未保存修改">
+            {{ icon('pencil-edit', 'ui-icon--sm') }}
+          </span>
+          <span x-show="!isSaving && !hasConflict && !isDirty" x-cloak class="preset-editor-status-icon color-text-success" aria-label="已同步">
+            {{ icon('file-check', 'ui-icon--sm') }}
+          </span>
+          <span class="preset-editor-status-label" x-text="isSaving ? '正在保存' : (hasConflict ? '需要处理冲突' : (isDirty ? '有未保存修改' : '已同步'))"></span>
+        </div>
+        <div x-show="hasMultipleVersions" class="preset-editor-version-control flex items-center gap-2">
+          <span class="preset-editor-control-icon" aria-hidden="true">{{ detail_icon('version', 'ui-icon--sm') }}</span>
           <label class="text-[11px] text-[var(--content-muted)]">版本</label>
           {% call styled_select_controlled(
             "editingPresetFile?.id || ''",
@@ -53,7 +75,7 @@
           {% endcall %}
         </div>
         <span
-          class="text-[10px] px-2 py-1 rounded border border-[var(--border-default)]"
+          class="preset-editor-legacy-status text-[10px] px-2 py-1 rounded border border-[var(--border-default)]"
           :class="isDirty ? 'color-text-warning color-surface-warning' : 'color-text-success color-surface-success'"
           x-text="isDirty ? '未保存修改' : '磁盘已同步'"
         ></span>
@@ -71,57 +93,85 @@
         <button
           @click="saveOverwrite()"
           :disabled="isSaving"
-          class="btn-primary px-3 py-1.5 text-xs rounded"
+          class="btn-primary preset-editor-action-button px-3 py-1.5 text-xs rounded"
+          title="保存当前修改"
+          aria-label="保存当前修改"
         >
+          <span x-show="isSaving" x-cloak aria-hidden="true">{{ loading_icon('ui-icon--sm') }}</span>
+          <span x-show="!isSaving" aria-hidden="true">{{ icon('settings-save', 'ui-icon--sm') }}</span>
           保存
         </button>
         <button
           @click="saveAs()"
-          class="btn-secondary px-3 py-1.5 text-xs rounded"
+          class="btn-secondary preset-editor-action-button px-3 py-1.5 text-xs rounded"
+          title="另存为新预设"
+          aria-label="另存为新预设"
         >
+          <span aria-hidden="true">{{ icon('file-edit', 'ui-icon--sm') }}</span>
           另存为
         </button>
         <button
           @click="saveAsVersion()"
-          class="btn-secondary px-3 py-1.5 text-xs rounded"
+          class="btn-secondary preset-editor-action-button px-3 py-1.5 text-xs rounded"
+          title="另存为新版本"
+          aria-label="另存为新版本"
         >
+          <span aria-hidden="true">{{ icon('file-check', 'ui-icon--sm') }}</span>
           另存为版本
         </button>
         <button
           x-show="hasMultipleVersions"
           @click="setCurrentVersionAsDefault()"
-          class="btn-secondary px-3 py-1.5 text-xs rounded"
+          class="btn-secondary preset-editor-action-button px-3 py-1.5 text-xs rounded"
+          title="设为默认版本"
+          aria-label="设为默认版本"
         >
+          <span aria-hidden="true">{{ icon('pin', 'ui-icon--sm') }}</span>
           设为默认版本
         </button>
         <button
           @click="renamePreset()"
-          class="btn-secondary px-3 py-1.5 text-xs rounded"
+          class="btn-secondary preset-editor-action-button px-3 py-1.5 text-xs rounded"
+          title="重命名预设"
+          aria-label="重命名预设"
         >
+          <span aria-hidden="true">{{ icon('pencil-edit', 'ui-icon--sm') }}</span>
           重命名
         </button>
         <button
           @click="deletePreset()"
-          class="btn-secondary px-3 py-1.5 text-xs rounded"
+          class="btn-secondary preset-editor-action-button color-hover-text-danger px-3 py-1.5 text-xs rounded"
+          title="删除预设"
+          aria-label="删除预设"
         >
+          <span aria-hidden="true">{{ icon('trash', 'ui-icon--sm') }}</span>
           删除
         </button>
         <button
           @click="createSnapshot()"
-          class="btn-secondary px-3 py-1.5 text-xs rounded"
+          class="btn-secondary preset-editor-action-button px-3 py-1.5 text-xs rounded"
+          title="创建预设快照"
+          aria-label="创建预设快照"
         >
+          <span aria-hidden="true">{{ icon('snapshot', 'ui-icon--sm') }}</span>
           创建快照
         </button>
         <button
           @click="openRollback()"
-          class="btn-secondary px-3 py-1.5 text-xs rounded"
+          class="btn-secondary preset-editor-action-button px-3 py-1.5 text-xs rounded"
+          title="打开预设回滚"
+          aria-label="打开预设回滚"
         >
+          <span aria-hidden="true">{{ icon('history-rollback', 'ui-icon--sm') }}</span>
           回滚
         </button>
         <button
           @click="openAdvancedExtensions()"
-          class="btn-secondary px-3 py-1.5 text-xs rounded"
+          class="btn-secondary preset-editor-action-button px-3 py-1.5 text-xs rounded"
+          title="编辑正则与 ST 脚本扩展"
+          aria-label="编辑正则与 ST 脚本扩展"
         >
+          <span aria-hidden="true">{{ sidebar_icon('script-brackets', 'ui-icon--sm') }}</span>
           编辑扩展
         </button>
         <button
@@ -167,15 +217,21 @@
         <button
           @click="saveOverwrite()"
           :disabled="isSaving"
-          class="btn-primary px-3 py-1.5 text-xs rounded shrink-0"
+          class="btn-primary preset-editor-mobile-save px-3 py-1.5 text-xs rounded shrink-0"
         >
+          <span x-show="isSaving" x-cloak aria-hidden="true">{{ loading_icon('ui-icon--sm') }}</span>
+          <span x-show="!isSaving" aria-hidden="true">{{ icon('settings-save', 'ui-icon--sm') }}</span>
           保存
         </button>
 
         <button
           @click="toggleMobileHeaderMoreMenu()"
-          class="btn-secondary px-3 py-1.5 text-xs rounded shrink-0"
+          class="btn-secondary preset-editor-mobile-more-trigger px-3 py-1.5 text-xs rounded shrink-0"
+          type="button"
+          title="打开更多操作"
+          aria-label="打开更多操作"
         >
+          <span aria-hidden="true">{{ icon('quick-actions', 'ui-icon--sm') }}</span>
           更多
         </button>
       </div>
@@ -218,59 +274,77 @@
       x-show="$store.global.deviceType === 'mobile' && showMobileHeaderMoreMenu"
       x-cloak
       class="preset-editor-mobile-more-menu"
+      role="menu"
+      aria-label="预设操作"
     >
       <button
         @click="saveAs()"
         class="btn-secondary px-3 py-2 text-sm rounded-xl"
+        role="menuitem"
       >
+        <span aria-hidden="true">{{ icon('file-edit', 'ui-icon--sm') }}</span>
         另存为
       </button>
       <button
         @click="saveAsVersion()"
         class="btn-secondary px-3 py-2 text-sm rounded-xl"
+        role="menuitem"
       >
+        <span aria-hidden="true">{{ icon('file-check', 'ui-icon--sm') }}</span>
         另存为版本
       </button>
       <button
         x-show="hasMultipleVersions"
         @click="setCurrentVersionAsDefault()"
         class="btn-secondary px-3 py-2 text-sm rounded-xl"
+        role="menuitem"
       >
+        <span aria-hidden="true">{{ icon('pin', 'ui-icon--sm') }}</span>
         设为默认版本
       </button>
       <button
         @click="renamePreset()"
         class="btn-secondary px-3 py-2 text-sm rounded-xl"
+        role="menuitem"
       >
+        <span aria-hidden="true">{{ icon('pencil-edit', 'ui-icon--sm') }}</span>
         重命名
       </button>
       <button
         @click="deletePreset()"
         class="btn-secondary px-3 py-2 text-sm rounded-xl color-text-danger"
+        role="menuitem"
       >
+        <span aria-hidden="true">{{ icon('trash', 'ui-icon--sm') }}</span>
         删除
       </button>
       <button
         @click="createSnapshot()"
         class="btn-secondary px-3 py-2 text-sm rounded-xl"
+        role="menuitem"
       >
+        <span aria-hidden="true">{{ icon('snapshot', 'ui-icon--sm') }}</span>
         创建快照
       </button>
       <button
         @click="openRollback()"
         class="btn-secondary px-3 py-2 text-sm rounded-xl"
+        role="menuitem"
       >
+        <span aria-hidden="true">{{ icon('history-rollback', 'ui-icon--sm') }}</span>
         回滚
       </button>
       <button
         @click="openAdvancedExtensions()"
         class="btn-secondary px-3 py-2 text-sm rounded-xl"
+        role="menuitem"
       >
+        <span aria-hidden="true">{{ sidebar_icon('script-brackets', 'ui-icon--sm') }}</span>
         编辑扩展
       </button>
     </div>
 
-    <div class="flex-1 flex overflow-hidden bg-[var(--surface-page)]">
+    <div class="preset-editor-body flex-1 flex overflow-hidden bg-[var(--surface-page)]">
       <aside
         class="preset-editor-sidebar border-r border-[var(--border-subtle)] bg-[var(--surface-container-raised)] flex-shrink-0 overflow-y-auto custom-scrollbar"
         :class="$store.global.deviceType === 'mobile' ? (showMobileSidebar ? 'preset-editor-mobile-panel preset-editor-mobile-panel--left w-full max-w-[22rem]' : 'hidden') : 'md:block md:w-80'"
@@ -288,13 +362,117 @@
             </button>
           </div>
 
+          <div class="preset-editor-sidebar-intro">
+            <div class="preset-editor-sidebar-intro-icon" aria-hidden="true">
+              {{ icon('list', 'ui-icon--md') }}
+            </div>
+            <div class="min-w-0">
+              <div class="preset-editor-panel-kicker">编辑导航</div>
+              <div class="preset-editor-panel-title">配置工作区</div>
+              <div
+                class="preset-editor-panel-caption"
+                x-text="editorView.family_label || '通用预设'"
+              ></div>
+            </div>
+          </div>
+
+          <nav
+            class="preset-editor-workspace-nav"
+            aria-label="预设编辑工作区"
+          >
+            <div class="preset-editor-section-label">
+              <span>工作区</span>
+              <span class="preset-editor-section-rule" aria-hidden="true"></span>
+            </div>
+            <button
+              x-show="isPromptWorkspaceEditor"
+              @click="selectWorkspace('prompts')"
+              class="preset-editor-nav-item"
+              :class="activeWorkspace === 'prompts' ? 'is-active' : ''"
+              type="button"
+            >
+              <span class="preset-editor-nav-icon" aria-hidden="true">{{ preset_icon('prompt-count', 'ui-icon--sm') }}</span>
+              <span class="preset-editor-nav-copy">
+                <span class="preset-editor-nav-title">提示词工作区</span>
+                <span class="preset-editor-nav-description">顺序、角色、触发器与正文</span>
+              </span>
+              <span class="preset-editor-nav-count" x-text="editorView.stats?.prompt_count || 0"></span>
+            </button>
+            <button
+              x-show="isPromptWorkspaceEditor && hasScalarWorkspace"
+              @click="selectWorkspace('scalar_fields')"
+              class="preset-editor-nav-item"
+              :class="activeWorkspace === 'scalar_fields' ? 'is-active' : ''"
+              type="button"
+            >
+              <span class="preset-editor-nav-icon" aria-hidden="true">{{ icon('sliders-settings', 'ui-icon--sm') }}</span>
+              <span class="preset-editor-nav-copy">
+                <span class="preset-editor-nav-title">参数工作区</span>
+                <span class="preset-editor-nav-description">采样、限制与生成控制</span>
+              </span>
+              <span class="preset-editor-nav-count" x-text="scalarWorkspaceSections.length"></span>
+            </button>
+            <button
+              x-show="isPromptWorkspaceEditor"
+              @click="selectWorkspace('all')"
+              class="preset-editor-nav-item"
+              :class="activeWorkspace !== 'prompts' && activeWorkspace !== 'scalar_fields' ? 'is-active' : ''"
+              type="button"
+            >
+              <span class="preset-editor-nav-icon" aria-hidden="true">{{ icon('data-grid', 'ui-icon--sm') }}</span>
+              <span class="preset-editor-nav-copy">
+                <span class="preset-editor-nav-title">全部字段</span>
+                <span class="preset-editor-nav-description">完整配置与结构化对象</span>
+              </span>
+              <span class="preset-editor-nav-count" x-text="editorView.items?.length || 0"></span>
+            </button>
+          </nav>
+
+          <div class="preset-editor-extension-strip">
+            <div class="preset-editor-extension-strip-head">
+              <div class="preset-editor-section-label">扩展能力</div>
+              <span class="preset-editor-extension-state" :class="(extensionSummary.regexCount || 0) + (extensionSummary.scriptCount || 0) ? 'is-on' : ''">
+                <span aria-hidden="true">{{ icon('check', 'ui-icon--xs') }}</span>
+                <span x-text="(extensionSummary.regexCount || 0) + (extensionSummary.scriptCount || 0) ? '已加载' : '未配置'"></span>
+              </span>
+            </div>
+            <div class="preset-editor-extension-grid">
+              <div class="preset-editor-extension-metric">
+                <span class="preset-editor-extension-metric-icon" aria-hidden="true">{{ sidebar_icon('regex-file', 'ui-icon--sm') }}</span>
+                <span class="preset-editor-extension-metric-copy">
+                  <strong x-text="extensionSummary.regexCount || 0"></strong>
+                  <span>正则脚本</span>
+                </span>
+              </div>
+              <div class="preset-editor-extension-metric">
+                <span class="preset-editor-extension-metric-icon" aria-hidden="true">{{ sidebar_icon('script-brackets', 'ui-icon--sm') }}</span>
+                <span class="preset-editor-extension-metric-copy">
+                  <strong x-text="extensionSummary.scriptCount || 0"></strong>
+                  <span>ST 脚本</span>
+                </span>
+              </div>
+            </div>
+            <button
+              @click="openAdvancedExtensions()"
+              class="preset-editor-extension-action"
+              type="button"
+            >
+              <span aria-hidden="true">{{ icon('code-file', 'ui-icon--sm') }}</span>
+              <span>打开扩展编辑器</span>
+              <span aria-hidden="true">{{ icon('chevron-right', 'ui-icon--xs') }}</span>
+            </button>
+          </div>
+
           <template
             x-if="!isPromptWorkspaceEditor || activeWorkspace !== 'prompts'"
           >
             <div
               class="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-container)] p-4 space-y-3"
             >
-              <div class="text-xs text-[var(--content-muted)]">字段筛选</div>
+              <div class="preset-editor-section-label">
+                <span class="preset-editor-section-label-icon" aria-hidden="true">{{ icon('filter', 'ui-icon--xs') }}</span>
+                <span>字段筛选</span>
+              </div>
               <div
                 class="text-sm font-bold text-[var(--content-primary)]"
                 x-text="editingPresetFile?.preset_kind_label || '预设'"
@@ -303,7 +481,8 @@
                 x-model="searchTerm"
                 type="search"
                 placeholder="搜索字段标题、路径或摘要"
-                class="form-input"
+                class="form-input preset-editor-search"
+                aria-label="搜索字段标题、路径或摘要"
               />
               <div class="flex flex-wrap gap-2">
                 <button
@@ -362,7 +541,10 @@
             <div
               class="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-container)] p-4 space-y-3"
             >
-              <div class="text-xs text-[var(--content-muted)]">提示词列表</div>
+              <div class="preset-editor-section-label">
+                <span class="preset-editor-section-label-icon" aria-hidden="true">{{ preset_icon('prompt-count', 'ui-icon--xs') }}</span>
+                <span>提示词列表</span>
+              </div>
               <div class="text-sm font-bold text-[var(--content-primary)]">
                 提示词工作区
               </div>
@@ -376,7 +558,10 @@
             <div
               class="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-container)] p-3 space-y-2"
             >
-              <div class="text-xs text-[var(--content-muted)]">分区</div>
+              <div class="preset-editor-section-label">
+                <span class="preset-editor-section-label-icon" aria-hidden="true">{{ sidebar_icon('layers', 'ui-icon--xs') }}</span>
+                <span>分区</span>
+              </div>
               <template
                 x-for="section in mirroredProfileSections"
                 :key="section.id"
@@ -409,7 +594,10 @@
             <div
               class="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-container)] p-3 space-y-2"
             >
-              <div class="text-xs text-[var(--content-muted)]">分组</div>
+              <div class="preset-editor-section-label">
+                <span class="preset-editor-section-label-icon" aria-hidden="true">{{ icon('data-grid', 'ui-icon--xs') }}</span>
+                <span>分组</span>
+              </div>
               <button
                 @click="selectGroup('all')"
                 class="w-full text-left px-3 py-2 rounded-xl text-sm border transition-colors"
@@ -440,23 +628,59 @@
       </aside>
 
       <main
+        id="preset-editor-workspace"
         class="flex-1 min-w-0 overflow-y-auto custom-scrollbar preset-editor-main-scroll"
         x-ref="presetEditorContentScroll"
         @scroll.passive="handleMobileEditorContentScroll($event)"
       >
-        <div class="h-full p-4 md:p-6">
-          <div class="flex items-center justify-between gap-3 mb-4 md:hidden">
+        <div class="preset-editor-main-inner h-full p-4 md:p-6">
+          <div class="preset-editor-stage-header">
+            <div class="preset-editor-stage-heading">
+              <div class="preset-editor-eyebrow">
+                <span aria-hidden="true">{{ detail_icon('edit-mode', 'ui-icon--xs') }}</span>
+                <span x-text="activeWorkspace === 'prompts' ? '提示词工作区' : (isScalarWorkspaceEditor ? '参数工作区' : '字段工作区')"></span>
+              </div>
+              <h1
+                class="preset-editor-stage-title"
+                x-text="activePromptItem?.name || activeItem?.title || activeMirroredField?.label || (activeWorkspace === 'prompts' ? '提示词列表' : '配置字段')"
+              ></h1>
+              <p
+                class="preset-editor-stage-description"
+                x-text="activePromptItem ? '按 SillyTavern 的注入顺序检查提示词，并编辑角色、位置和触发场景。' : (activeItem?.summary || activeMirroredField?.description || '选择左侧工作区中的项目开始编辑。')"
+              ></p>
+            </div>
+            <div class="preset-editor-stage-tools" role="toolbar" aria-label="编辑舞台工具">
+              <div class="preset-editor-stage-indicator" role="status" aria-live="polite">
+                <span class="preset-editor-stage-indicator-dot" :class="hasConflict ? 'is-danger' : (isDirty ? 'is-warning' : 'is-ready')"></span>
+                <span x-text="hasConflict ? '冲突待处理' : (isDirty ? '编辑中' : '已同步')"></span>
+              </div>
+              <button
+                @click="openAdvancedExtensions()"
+                class="btn-secondary preset-editor-stage-tool-button hidden md:inline-flex"
+                type="button"
+              >
+                <span aria-hidden="true">{{ sidebar_icon('script-brackets', 'ui-icon--sm') }}</span>
+                <span>扩展</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="preset-editor-mobile-stage-controls flex items-center justify-between gap-3 mb-4 md:hidden">
             <button
               @click="openMobileSidebar()"
-              class="btn-secondary px-3 py-1.5 text-xs rounded"
+              class="btn-secondary preset-editor-mobile-stage-button px-3 py-1.5 text-xs rounded"
+              type="button"
             >
+              <span aria-hidden="true">{{ icon('list', 'ui-icon--sm') }}</span>
               字段导航
             </button>
             <button
               @click="toggleMobileRightPanel()"
-              class="btn-secondary px-3 py-1.5 text-xs rounded"
+              class="btn-secondary preset-editor-mobile-stage-button px-3 py-1.5 text-xs rounded"
+              type="button"
             >
-              详情侧栏
+              <span aria-hidden="true">{{ icon('clipboard', 'ui-icon--sm') }}</span>
+              右侧信息
             </button>
           </div>
 
@@ -619,8 +843,9 @@
                             <div
                               class="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-page)] p-4 space-y-2"
                             >
-                              <div class="text-sm font-bold text-[var(--content-primary)]">
-                                提示词基础信息
+                              <div class="text-sm font-bold text-[var(--content-primary)] flex items-center gap-2">
+                                <span aria-hidden="true">{{ icon('sliders-settings', 'ui-icon--sm') }}</span>
+                                <span>提示词基础信息</span>
                               </div>
                               <div class="text-sm text-[var(--content-muted)]">
                                 按常用提示词编辑方式调整名称、角色、注入位置与触发器。
@@ -743,8 +968,9 @@
                                 class="w-full flex items-center justify-between gap-3 text-left"
                               >
                                 <div>
-                                  <div class="text-sm font-bold text-[var(--content-primary)]">
-                                    触发器
+                                  <div class="text-sm font-bold text-[var(--content-primary)] flex items-center gap-2">
+                                    <span aria-hidden="true">{{ icon('workflow', 'ui-icon--sm') }}</span>
+                                    <span>触发器</span>
                                   </div>
                                   <div class="text-[11px] text-[var(--content-muted)]">
                                     按需展开设置触发场景。
@@ -787,9 +1013,10 @@
                                 class="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-page)] p-4 space-y-3"
                               >
                                 <div
-                                  class="text-sm font-bold text-[var(--content-primary)]"
+                                  class="text-sm font-bold text-[var(--content-primary)] flex items-center gap-2"
                                 >
-                                  提示词内容
+                                  <span aria-hidden="true">{{ icon('sticky-note', 'ui-icon--sm') }}</span>
+                                  <span>提示词内容</span>
                                 </div>
                                 <div class="text-[11px] text-[var(--content-muted)]">
                                   填写实际要注入的提示词正文；marker 条目无需内容。
@@ -977,8 +1204,9 @@
                           <div
                             class="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-page)] p-4 space-y-2"
                           >
-                            <div class="text-sm font-bold text-[var(--content-primary)]">
-                              提示词基础信息
+                              <div class="text-sm font-bold text-[var(--content-primary)] flex items-center gap-2">
+                                <span aria-hidden="true">{{ icon('sliders-settings', 'ui-icon--sm') }}</span>
+                                <span>提示词基础信息</span>
                             </div>
                             <div class="text-sm text-[var(--content-muted)]">
                               按常用提示词编辑方式调整名称、角色、注入位置与触发器。
@@ -1101,8 +1329,9 @@
                               class="w-full flex items-center justify-between gap-3 text-left"
                             >
                               <div>
-                                <div class="text-sm font-bold text-[var(--content-primary)]">
-                                  触发器
+                                  <div class="text-sm font-bold text-[var(--content-primary)] flex items-center gap-2">
+                                    <span aria-hidden="true">{{ icon('workflow', 'ui-icon--sm') }}</span>
+                                    <span>触发器</span>
                                 </div>
                                 <div class="text-[11px] text-[var(--content-muted)]">
                                   按需展开设置触发场景。
@@ -1145,9 +1374,10 @@
                               class="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-page)] p-4 space-y-3"
                             >
                               <div
-                                class="text-sm font-bold text-[var(--content-primary)]"
-                              >
-                                提示词内容
+                                  class="text-sm font-bold text-[var(--content-primary)] flex items-center gap-2"
+                                >
+                                  <span aria-hidden="true">{{ icon('sticky-note', 'ui-icon--sm') }}</span>
+                                  <span>提示词内容</span>
                               </div>
                               <div class="text-[11px] text-[var(--content-muted)]">
                                 填写实际要注入的提示词正文；marker 条目无需内容。
@@ -1169,7 +1399,7 @@
           </template>
 
           <template x-if="isScalarWorkspaceEditor">
-            <div class="space-y-4">
+            <div class="preset-editor-workspace-panel space-y-4">
               <div
                 class="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-container)] p-4 space-y-2"
               >
@@ -1676,7 +1906,7 @@
             x-if="!isMirroredProfileEditor && (!isPromptWorkspaceEditor || (activeWorkspace !== 'prompts' && !isScalarWorkspaceEditor))"
           >
             <div
-              class="grid grid-cols-1 xl:grid-cols-[20rem_minmax(0,1fr)] gap-4 h-full min-h-0"
+              class="preset-editor-generic-workspace grid grid-cols-1 xl:grid-cols-[20rem_minmax(0,1fr)] gap-4 h-full min-h-0"
             >
               <section
                 class="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-container)] min-h-[22rem] flex flex-col overflow-hidden"
@@ -2089,19 +2319,45 @@
       </main>
 
       <aside
-        class="preset-editor-context border-l border-[var(--border-subtle)] bg-[var(--surface-container-raised)] flex-shrink-0 overflow-y-auto custom-scrollbar"
+        class="preset-editor-context preset-editor-inspector border-l border-[var(--border-subtle)] bg-[var(--surface-container-raised)] flex-shrink-0 overflow-y-auto custom-scrollbar"
         x-show="showRightPanel || $store.global.deviceType !== 'mobile'"
         :class="$store.global.deviceType === 'mobile' ? 'preset-editor-mobile-panel preset-editor-mobile-panel--right w-full' : 'w-80'"
       >
-        <div class="p-4 space-y-4">
+        <div class="preset-editor-inspector-inner p-4 space-y-4">
           <div class="flex items-center justify-between gap-3 md:hidden">
-            <div class="text-sm font-bold text-[var(--content-primary)]">上下文</div>
+            <div class="flex items-center gap-2 text-sm font-bold text-[var(--content-primary)]">
+              <span aria-hidden="true">{{ icon('clipboard', 'ui-icon--sm') }}</span>
+              <span>检查器</span>
+            </div>
             <button
               @click="closeMobileRightPanel()"
-              class="btn-secondary px-3 py-1 text-xs rounded"
+              class="btn-secondary preset-editor-inspector-close px-3 py-1 text-xs rounded"
+              type="button"
             >
+              <span aria-hidden="true">{{ icon('close', 'ui-icon--sm') }}</span>
               收起
             </button>
+          </div>
+
+          <div class="preset-editor-inspector-heading hidden md:flex">
+            <div class="preset-editor-inspector-heading-icon" aria-hidden="true">
+              {{ icon('clipboard', 'ui-icon--md') }}
+            </div>
+            <div class="min-w-0">
+              <div class="preset-editor-panel-kicker">实时检查</div>
+              <div class="preset-editor-panel-title">编辑器检查器</div>
+            </div>
+          </div>
+
+          <div class="preset-editor-inspector-status" role="status" aria-live="polite">
+            <div class="preset-editor-inspector-status-main">
+              <span class="preset-editor-inspector-status-dot" :class="hasConflict ? 'is-danger' : (isDirty ? 'is-warning' : 'is-ready')"></span>
+              <strong x-text="hasConflict ? '外部内容已变化' : (isDirty ? '有未保存修改' : '当前与磁盘同步')"></strong>
+            </div>
+            <div
+              class="preset-editor-inspector-status-detail"
+              x-text="hasConflict ? '保存前请先回滚或重新载入当前版本。' : (isDirty ? '保存会写回当前预设版本。' : '可以继续检查其他配置项。')"
+            ></div>
           </div>
 
           <template
@@ -2229,11 +2485,42 @@
             </template>
           </template>
 
+          <div class="preset-editor-inspector-section">
+            <div class="preset-editor-inspector-section-head">
+              <div>
+                <div class="preset-editor-panel-kicker">扩展能力</div>
+                <div class="preset-editor-inspector-section-title">脚本与正则</div>
+              </div>
+              <span class="preset-editor-inspector-section-icon" aria-hidden="true">{{ icon('code-file', 'ui-icon--sm') }}</span>
+            </div>
+            <div class="preset-editor-inspector-metrics">
+              <div>
+                <strong x-text="extensionSummary.regexCount || 0"></strong>
+                <span>正则脚本</span>
+              </div>
+              <div>
+                <strong x-text="extensionSummary.scriptCount || 0"></strong>
+                <span>ST 脚本</span>
+              </div>
+            </div>
+            <button
+              @click="openAdvancedExtensions()"
+              class="btn-secondary preset-editor-inspector-action"
+              type="button"
+            >
+              <span aria-hidden="true">{{ icon('pencil-edit', 'ui-icon--sm') }}</span>
+              编辑扩展脚本
+            </button>
+          </div>
+
           <div
-            class="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-container)] p-4 space-y-3"
+            class="preset-editor-inspector-section rounded-2xl border border-[var(--border-default)] bg-[var(--surface-container)] p-4 space-y-3"
           >
-            <div class="text-sm font-bold text-[var(--content-primary)]">
-              文件信息
+            <div class="preset-editor-inspector-section-head">
+              <div class="text-sm font-bold text-[var(--content-primary)]">
+                文件信息
+              </div>
+              <span class="preset-editor-inspector-section-icon" aria-hidden="true">{{ icon('file', 'ui-icon--sm') }}</span>
             </div>
             <div class="text-xs text-[var(--content-muted)]">路径</div>
             <div
@@ -2259,10 +2546,13 @@
           </div>
 
           <div
-            class="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-container)] p-4 space-y-3"
+            class="preset-editor-inspector-section rounded-2xl border border-[var(--border-default)] bg-[var(--surface-container)] p-4 space-y-3"
           >
-            <div class="text-sm font-bold text-[var(--content-primary)]">
-              保存检查
+            <div class="preset-editor-inspector-section-head">
+              <div class="text-sm font-bold text-[var(--content-primary)]">
+                保存检查
+              </div>
+              <span class="preset-editor-inspector-section-icon" aria-hidden="true">{{ icon('file-check', 'ui-icon--sm') }}</span>
             </div>
             <div class="text-xs text-[var(--content-muted)]">修改状态</div>
             <div
@@ -2284,6 +2574,20 @@
           </div>
         </div>
       </aside>
+    </div>
+
+    <div
+      x-show="isLoading"
+      x-cloak
+      class="preset-editor-loading-layer"
+      role="status"
+      aria-live="polite"
+      aria-label="正在加载预设"
+    >
+      <div class="preset-editor-loading-panel">
+        {{ loading_icon('ui-icon--lg') }}
+        <span>正在加载预设内容</span>
+      </div>
     </div>
   </div>
 </div>
