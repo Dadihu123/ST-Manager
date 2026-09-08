@@ -645,6 +645,17 @@ def test_preset_detail_reader_template_exposes_send_to_st_buttons_contracts():
     assert '发送到 ST（对话补全预设，同名将直接覆盖 ST 中现有预设）' in source
 
 
+def test_preset_detail_reader_more_menu_uses_worldbook_collapsed_tools_icon():
+    preset_reader = read_project_file('templates/modals/detail_preset_popup.html')
+    worldbook_editor = read_project_file('templates/modals/detail_wi_fullscreen.html')
+    mobile_header = extract_div_block(preset_reader, 'preset-reader-mobile-header')
+    mobile_secondary = extract_div_block(mobile_header, 'preset-reader-mobile-header-secondary')
+
+    assert "{{ icon('quick-actions', 'ui-icon--md') }}" in worldbook_editor
+    assert "{{ icon('quick-actions', 'ui-icon--sm') }}" in mobile_secondary
+    assert "icon('menu-bold'" not in mobile_secondary
+
+
 def test_preset_detail_reader_template_uses_reader_icon_contracts_and_single_extension_entry():
     source = read_project_file('templates/modals/detail_preset_popup.html')
 
