@@ -511,7 +511,7 @@ def test_preset_detail_reader_template_mobile_header_only_renders_for_mobile_lis
     assert '@click="openFullscreenEditor()"' in main_header_block
     assert '@click="closeModal()"' in main_header_block
     assert '@click="toggleMobileMoreMenu()"' in secondary_header_block
-    assert '>\n          编辑\n        </button>' in main_header_block
+    assert '<span class="preset-reader-mobile-button-label">编辑</span>' in main_header_block
 
 
 def test_preset_detail_reader_template_mobile_more_menu_is_list_page_only_and_has_no_detail_toggle():
@@ -534,7 +534,7 @@ def test_preset_detail_reader_template_mobile_more_menu_is_list_page_only_and_ha
 def test_preset_detail_reader_template_hides_central_list_on_mobile_detail_page():
     source = read_project_file('templates/modals/detail_preset_popup.html')
 
-    assert 'class="flex-1 min-w-0 flex flex-col border-r border-[var(--border-default)] md:border-r-0 lg:border-r lg:border-[var(--border-default)]"' in source
+    assert 'class="preset-reader-flow-panel flex-1 min-w-0 flex-col border-r border-[var(--border-default)] md:border-r-0 lg:border-r lg:border-[var(--border-default)]"' in source
     assert "'hidden': $store.global.deviceType === 'mobile' && showMobileDetailView" in source
 
 
@@ -554,30 +554,61 @@ def test_preset_detail_reader_template_adds_mobile_detail_header_and_body_hooks(
     assert '@click="closeMobileDetailView()"' in source
 
 
-def test_preset_detail_reader_template_compacts_mobile_title_meta_and_marks_scroll_region():
+def test_preset_detail_reader_template_keeps_mobile_navigation_controls_in_their_views():
+    source = read_project_file('templates/modals/detail_preset_popup.html')
+    mobile_header_block = extract_div_block(source, 'preset-reader-mobile-header')
+    more_menu_block = extract_div_block(source, 'preset-reader-mobile-more-menu')
+    detail_start = source.index('class="preset-reader-detail-panel')
+    detail_end = source.index('</aside>', detail_start)
+    detail_block = source[detail_start:detail_end]
+
+    assert mobile_header_block.index('preset-reader-mobile-more-menu') > mobile_header_block.index('preset-reader-mobile-header-secondary')
+    assert '@click="closeMobileDetailView()"' in detail_block
+    assert '@click="closeModal()"' in detail_block
+    assert 'preset-reader-mobile-detail-action' in detail_block
+    assert 'preset-reader-mobile-drawer-close' in source
+    assert 'x-cloak' in more_menu_block
+    assert 'role="menu"' in more_menu_block
+
+
+def test_preset_detail_reader_template_has_no_scroll_driven_mobile_header_state():
+    source = read_project_file('templates/modals/detail_preset_popup.html')
+
+    assert 'presetMobileHeaderHidden' not in source
+    assert 'is-mobile-hidden' not in source
+    assert 'handleMobileContentScroll' not in source
+    assert 'class="preset-reader-mobile-content flex-1 min-h-0 flex overflow-hidden"' in source
+
+
     source = read_project_file('templates/modals/detail_preset_popup.html')
 
     assert 'getMobileHeaderMetaLine()' in source
     assert 'preset-reader-mobile-title' in source
     assert 'preset-reader-mobile-subtitle' in source
-    assert '@scroll.passive="handleMobileContentScroll($event)"' in source
+    assert 'preset-reader-flow-scroll' in source
     assert 'x-ref="presetReaderContentScroll"' in source
+    assert '@scroll.passive="handleMobileContentScroll($event)"' not in source
 
 
 def test_preset_detail_reader_js_exposes_mobile_header_state_and_helpers():
     source = read_project_file('static/js/components/presetDetailReader.js')
 
-    assert 'presetMobileHeaderHidden:' in source
-    assert 'presetLastScrollTop:' in source
     assert 'showMobileMoreMenu:' in source
-    assert 'updatePresetLayoutMetrics() {' in source
-    assert 'syncPresetMobileHeaderVisibility(container) {' in source
-    assert 'handleMobileContentScroll(event) {' in source
+    assert 'showMobileDetailView:' in source
+    assert 'showMobileSidebar:' in source
+    assert 'resetMobileHeaderState() {' in source
     assert 'toggleMobileMoreMenu() {' in source
     assert 'toggleMobileSidebar() {' in source
+    assert 'openMobileDetailView() {' in source
+    assert 'closeMobileDetailView() {' in source
     assert 'getMobileHeaderMetaLine() {' in source
     assert 'getMobileHeaderContextLabel() {' in source
     assert 'getMobileHeaderCountLabel() {' in source
+    assert 'presetMobileHeaderHidden' not in source
+    assert 'presetLastScrollTop' not in source
+    assert 'updatePresetLayoutMetrics' not in source
+    assert 'syncPresetMobileHeaderVisibility' not in source
+    assert 'handleMobileContentScroll' not in source
 
 
 def test_preset_detail_reader_js_exposes_send_to_st_contracts():
@@ -640,28 +671,184 @@ def test_preset_detail_reader_template_uses_reader_icon_contracts_and_single_ext
     assert '打开扩展编辑器' not in source
 
 
-def test_preset_detail_reader_css_adds_mobile_hidden_header_contracts():
-    source = read_project_file('static/css/modules/modal-detail.css')
-    root_block = extract_exact_css_block(source, '.preset-reader-modal')
-    header_block = extract_exact_css_block(source, '.preset-reader-modal .preset-reader-mobile-header')
-    hidden_header_block = extract_exact_css_block(
-        source,
-        '.preset-reader-modal .preset-reader-mobile-header.is-mobile-hidden',
+def test_preset_detail_reader_template_groups_drawer_count_and_close_actions():
+    source = read_project_file('templates/modals/detail_preset_popup.html')
+    rail_heading = extract_div_block(source, 'preset-reader-rail-heading')
+
+    assert 'preset-reader-rail-heading-actions' in rail_heading
+    assert rail_heading.index('preset-reader-rail-count') < rail_heading.index('preset-reader-mobile-drawer-close')
+    assert "@click=\"showMobileSidebar = false\"" in rail_heading
+
+
+def test_preset_detail_reader_mobile_actions_are_borderless_icon_controls():
+    source = read_project_file('templates/modals/detail_preset_popup.html')
+    workbench = read_project_file('static/css/modules/modal-preset-workbench.css')
+    mobile_block = extract_media_block(workbench, '@media (max-width: 899px)')
+    mobile_header = extract_div_block(source, 'preset-reader-mobile-header')
+    detail_start = source.index('class="preset-reader-detail-panel')
+    detail_end = source.index('</aside>', detail_start)
+    detail_block = source[detail_start:detail_end]
+    header_action = extract_exact_css_block(
+        mobile_block,
+        '.preset-reader-mobile-header .preset-reader-mobile-header-button',
+    )
+    detail_action = extract_exact_css_block(mobile_block, '.preset-reader-mobile-detail-action')
+    drawer_close = extract_exact_css_block(mobile_block, '.preset-reader-mobile-drawer-close')
+
+    assert 'preset-reader-mobile-button-label' in mobile_header
+    assert 'preset-reader-mobile-detail-action' in detail_block
+    for block in (header_action, detail_action, drawer_close):
+        assert 'width: 3rem;' in block
+        assert 'height: 3rem;' in block
+        assert 'border: 0' in block
+        assert 'background: transparent' in block
+    assert 'display: none;' in extract_exact_css_block(
+        mobile_block,
+        '.preset-reader-mobile-header .preset-reader-mobile-header-button .preset-reader-mobile-button-label',
+    )
+    assert 'display: none;' in extract_exact_css_block(
+        mobile_block,
+        '.preset-reader-mobile-detail-action .preset-reader-mobile-button-label',
     )
 
-    assert '--preset-reader-header-height:' in root_block
-    assert 'max-height:' in header_block
-    assert 'max-height: 0;' in hidden_header_block
-    assert 'opacity: 0.01;' in hidden_header_block
-    assert 'transform: translateY(' in hidden_header_block
+
+def test_preset_detail_reader_mobile_toggle_rows_keep_switch_geometry():
+    template = read_project_file('templates/modals/detail_preset_popup.html')
+    workbench = read_project_file('static/css/modules/modal-preset-workbench.css')
+    mobile_block = extract_media_block(workbench, '@media (max-width: 899px)')
+    switch = extract_exact_css_block(workbench, '.preset-reader-readonly-switch')
+    track = extract_exact_css_block(workbench, '.preset-reader-readonly-switch-track')
+    thumb = extract_exact_css_block(workbench, '.preset-reader-readonly-switch-thumb')
+    thumb_on = extract_exact_css_block(workbench, '.preset-reader-readonly-switch-thumb.is-on')
+    toggle_row = extract_exact_css_block(
+        mobile_block,
+        '.preset-reader-setting-row > .preset-reader-setting-head--toggle',
+    )
+
+    assert 'preset-reader-setting-head' in template
+    assert "isProfileFieldToggle(field) ? 'preset-reader-setting-head--toggle' : ''" in template
+    assert 'width: var(--preset-reader-switch-width);' in switch
+    assert 'height: var(--preset-reader-switch-height);' in switch
+    assert 'flex: 0 0 var(--preset-reader-switch-width);' in switch
+    assert 'width: 100%;' in track
+    assert 'height: 100%;' in track
+    assert 'border-radius: 999px;' in track
+    assert 'width: var(--preset-reader-switch-thumb-size);' in thumb
+    assert 'height: var(--preset-reader-switch-thumb-size);' in thumb
+    assert 'transform: translateX(' in thumb_on
+    assert 'flex-direction: row;' in toggle_row
+    assert 'flex-wrap: nowrap;' in toggle_row
 
 
-def test_preset_detail_reader_css_positions_mobile_sidebar_drawer_with_header_height_variable():
+def test_preset_detail_reader_css_keeps_mobile_header_persistent_and_x_show_compatible():
+    workbench = read_project_file('static/css/modules/modal-preset-workbench.css')
+    modal_detail = read_project_file('static/css/modules/modal-detail.css')
+
+    desktop_header = extract_exact_css_block(workbench, '.preset-reader-desktop-header')
+    icon_button = extract_exact_css_block(workbench, '.preset-reader-header-icon-button')
+
+    assert 'display: grid !important;' not in desktop_header
+    assert 'display: grid;' in desktop_header
+    assert 'display: inline-flex !important;' not in icon_button
+    assert 'display: inline-flex;' in icon_button
+    assert 'preset-reader' not in modal_detail
+    assert 'preset-reader-header-height' not in workbench
+
+
+def test_preset_detail_reader_css_uses_shared_mobile_breakpoint_and_content_flow():
+    source = read_project_file('static/css/modules/modal-preset-workbench.css')
+    mobile_block = extract_media_block(source, '@media (max-width: 899px)')
+
+    layout_block = extract_exact_css_block(mobile_block, '.preset-reader-modal > [data-reader-layout]')
+    content_block = extract_exact_css_block(mobile_block, '.preset-reader-mobile-content')
+    scroll_block = extract_exact_css_block(mobile_block, '.preset-reader-flow-scroll')
+    flow_body = extract_exact_css_block(source, '.preset-reader-flow-body')
+
+    assert 'display: flex;' in flow_body
+    assert 'flex-direction: column;' in flow_body
+    assert 'overflow: hidden;' in flow_body
+    assert 'display: flex;' in layout_block
+    assert 'flex: 1 1 auto;' in layout_block
+    assert 'min-height: 0;' in layout_block
+    assert 'position: relative;' in content_block
+    assert 'display: flex;' in content_block
+    assert 'min-height: 0;' in content_block
+    assert 'overflow: hidden;' in content_block
+    assert 'overflow-y: auto;' in scroll_block
+    assert 'overflow-x: hidden;' in scroll_block
+    assert 'height: auto !important;' in scroll_block
+
+
+def test_preset_detail_reader_css_leaves_pane_visibility_to_alpine_classes():
+    source = read_project_file('static/css/modules/modal-preset-workbench.css')
+    mobile_block = extract_media_block(source, '@media (max-width: 899px)')
+
+    drawer_block = extract_exact_css_block(mobile_block, '.preset-reader-mobile-drawer')
+    flow_block = extract_exact_css_block(mobile_block, '.preset-reader-flow-panel')
+    detail_block = extract_exact_css_block(mobile_block, '.preset-reader-mobile-detail')
+
+    assert 'display:' not in drawer_block
+    assert 'display: none !important;' not in flow_block
+    assert 'display: flex !important;' not in detail_block
+    assert 'display: none !important;' not in detail_block
+
+
+    source = read_project_file('static/css/modules/modal-preset-workbench.css')
+    mobile_block = extract_media_block(source, '@media (max-width: 899px)')
+
+    scrim_block = extract_exact_css_block(mobile_block, '.preset-reader-mobile-scrim')
+    sidebar_block = extract_exact_css_block(mobile_block, '.preset-reader-mobile-drawer')
+    detail_block = extract_exact_css_block(mobile_block, '.preset-reader-mobile-detail')
+    more_menu_block = extract_exact_css_block(mobile_block, '.preset-reader-mobile-more-menu')
+
+    assert 'position: absolute;' in scrim_block
+    assert 'inset: 0;' in scrim_block
+    assert 'position: absolute;' in sidebar_block
+    assert 'top: 0;' in sidebar_block
+    assert 'right: auto;' in sidebar_block
+    assert 'bottom: 0;' in sidebar_block
+    assert 'left: 0;' in sidebar_block
+    assert 'position: absolute;' in detail_block
+    assert 'inset: 0;' in detail_block
+    assert 'width: 100% !important;' in detail_block
+    assert 'height: 100% !important;' in detail_block
+    assert 'position: absolute;' in more_menu_block
+    assert 'top: calc(100% + 0.5rem);' in more_menu_block
+    assert 'preset-reader-header-height' not in mobile_block
+
+
+def test_preset_detail_reader_css_adds_mobile_only_drawer_close_and_long_value_wrapping():
+    source = read_project_file('static/css/modules/modal-preset-workbench.css')
+    mobile_block = extract_media_block(source, '@media (max-width: 899px)')
+    drawer_close = extract_exact_css_block(source, '.preset-reader-mobile-drawer-close')
+    summary = extract_exact_css_block(source, '.preset-reader-card-summary')
+
+    assert 'display: none;' in drawer_close
+    assert 'display: inline-flex;' in mobile_block
+    assert 'overflow-wrap: anywhere;' in summary
+    assert 'white-space: normal;' in summary
+    assert '.preset-reader-breakable' in source
+    assert 'word-break: break-word;' in source
+
+
+def test_preset_detail_reader_css_keeps_mobile_detail_as_single_vertical_scroll_owner():
+    source = read_project_file('static/css/modules/modal-preset-workbench.css')
+    mobile_block = extract_media_block(source, '@media (max-width: 899px)')
+    detail_body = extract_exact_css_block(mobile_block, '.preset-reader-mobile-detail-body')
+
+    assert 'flex: 1 1 auto;' in detail_body
+    assert 'min-height: 0;' in detail_body
+    assert 'overflow-y: auto;' in detail_body
+    assert 'overflow-x: hidden;' in detail_body
+    assert '.preset-reader-prompt-content' in mobile_block
+    assert 'max-height: none;' in mobile_block
+    assert 'overflow: visible;' in mobile_block
+
+
+def test_preset_detail_reader_css_uses_no_reader_rules_in_generic_modal_detail_module():
     source = read_project_file('static/css/modules/modal-detail.css')
-    mobile_block = extract_media_block(source, '@media (max-width: 768px)')
-    sidebar_block = extract_exact_css_block(mobile_block, '.preset-reader-modal .preset-reader-mobile-sidebar')
 
-    assert 'top: var(--preset-reader-header-height);' in sidebar_block
+    assert 'preset-reader' not in source
 
 
 def test_preset_detail_reader_template_uses_mobile_fullscreen_detail_shell_hooks():
@@ -705,90 +892,94 @@ def test_preset_detail_reader_runtime_mobile_header_meta_line_includes_source_la
 
 
 def test_preset_detail_reader_css_adds_fullscreen_mobile_overlay_and_detail_panel_contracts():
-    source = read_project_file('static/css/modules/modal-detail.css')
-    mobile_block = extract_media_block(source, '@media (max-width: 768px)')
+    source = read_project_file('static/css/modules/modal-preset-workbench.css')
+    mobile_block = extract_media_block(source, '@media (max-width: 899px)')
     overlay_block = extract_exact_css_block(mobile_block, '.preset-reader-overlay')
     modal_block = extract_exact_css_block(mobile_block, '.preset-reader-modal')
-    detail_panel_block = extract_exact_css_block(
-        mobile_block,
-        '.preset-reader-modal .preset-reader-mobile-detail-panel',
-    )
-    detail_header_block = extract_exact_css_block(
-        mobile_block,
-        '.preset-reader-modal .preset-reader-mobile-detail-header',
-    )
-    detail_body_block = extract_exact_css_block(
-        mobile_block,
-        '.preset-reader-modal .preset-reader-mobile-detail-body',
-    )
+    detail_panel_block = extract_exact_css_block(mobile_block, '.preset-reader-mobile-detail')
+    detail_header_block = extract_exact_css_block(mobile_block, '.preset-reader-mobile-detail-header')
+    detail_body_block = extract_exact_css_block(mobile_block, '.preset-reader-mobile-detail-body')
 
-    assert 'padding: 0;' in overlay_block
-    assert 'align-items: stretch;' in overlay_block
-    assert 'justify-content: stretch;' in overlay_block
-
-    assert 'width: 100vw;' in modal_block
-    assert 'max-width: none;' in modal_block
-    assert 'height: var(--app-viewport-height-safe, var(--app-viewport-height, 100dvh));' in modal_block
-    assert 'min-height: var(' in modal_block
-    assert 'border-radius: 0;' in modal_block
-    assert 'box-shadow: none;' in modal_block
-
-    assert 'width: 100%;' in detail_panel_block
-    assert 'max-width: none;' in detail_panel_block
-    assert 'height: 100%;' in detail_panel_block
-    assert 'border-left: none;' in detail_panel_block
-    assert 'top: var(--preset-reader-header-height);' not in detail_panel_block
-
-    assert 'position: sticky;' in detail_header_block
-    assert 'top: 0;' in detail_header_block
-
+    assert 'padding: 0 !important;' in overlay_block
+    assert 'align-items: stretch !important;' in overlay_block
+    assert 'justify-content: stretch !important;' in overlay_block
+    assert 'width: 100vw !important;' in modal_block
+    assert 'max-width: none !important;' in modal_block
+    assert 'height: var(--app-viewport-height-safe, var(--app-viewport-height, 100dvh)) !important;' in modal_block
+    assert 'min-height: 0;' in modal_block
+    assert 'border-radius: 0 !important;' in modal_block
+    assert 'box-shadow: none !important;' in modal_block
+    assert 'width: 100% !important;' in detail_panel_block
+    assert 'height: 100% !important;' in detail_panel_block
+    assert 'inset: 0;' in detail_panel_block
+    assert 'position: relative;' in detail_header_block
+    assert 'flex: 0 0 auto;' in detail_header_block
     assert 'overflow-y: auto;' in detail_body_block
-    assert 'padding-bottom:' in detail_body_block
+    assert 'padding: 1rem 1rem max(1rem, env(safe-area-inset-bottom)) !important;' in mobile_block
 
 
-def test_preset_detail_reader_css_keeps_sidebar_and_more_menu_tied_to_header_height_without_old_detail_panel_anchor():
-    source = read_project_file('static/css/modules/modal-detail.css')
-    mobile_block = extract_media_block(source, '@media (max-width: 768px)')
-    more_menu_block = extract_exact_css_block(
-        mobile_block,
-        '.preset-reader-modal .preset-reader-mobile-more-menu',
-    )
-    sidebar_block = extract_exact_css_block(mobile_block, '.preset-reader-modal .preset-reader-mobile-sidebar')
-    detail_panel_block = extract_exact_css_block(
-        mobile_block,
-        '.preset-reader-modal .preset-reader-mobile-detail-panel',
-    )
+def test_preset_detail_reader_css_does_not_reintroduce_header_height_anchors():
+    workbench = read_project_file('static/css/modules/modal-preset-workbench.css')
+    modal_detail = read_project_file('static/css/modules/modal-detail.css')
 
-    assert 'top: var(--preset-reader-header-height);' in more_menu_block
-    assert 'top: var(--preset-reader-header-height);' in sidebar_block
-    assert 'top: var(--preset-reader-header-height);' not in detail_panel_block
+    assert '--preset-reader-header-height' not in workbench
+    assert '--preset-reader-header-height' not in modal_detail
+    assert 'position: fixed' not in extract_media_block(workbench, '@media (max-width: 899px)')
 
 
-def test_preset_detail_reader_runtime_reveals_mobile_header_for_sidebar_and_more_menu():
+def test_preset_detail_reader_runtime_keeps_mobile_header_state_persistent_when_opening_overlays():
     run_preset_detail_reader_runtime_check(
         """
         reader.$store.global.deviceType = 'mobile';
-        reader.presetMobileHeaderHidden = true;
         reader.showMobileMoreMenu = false;
         reader.showMobileSidebar = false;
-        reader.showRightPanel = false;
-        reader.updatePresetLayoutMetrics = () => {};
+        reader.showMobileDetailView = false;
 
         reader.toggleMobileMoreMenu();
-        if (!reader.showMobileMoreMenu || reader.presetMobileHeaderHidden) {
-          throw new Error('expected more menu open to reveal header');
+        if (!reader.showMobileMoreMenu) {
+          throw new Error('expected more menu to open');
+        }
+        if (reader.presetMobileHeaderHidden !== undefined || reader.presetLastScrollTop !== undefined) {
+          throw new Error('expected mobile header scroll state to be removed');
         }
 
-        reader.presetMobileHeaderHidden = true;
         reader.toggleMobileSidebar();
-        if (!reader.showMobileSidebar || reader.presetMobileHeaderHidden) {
-          throw new Error('expected sidebar open to reveal header');
+        if (!reader.showMobileSidebar || reader.showMobileMoreMenu) {
+          throw new Error('expected sidebar open to close more menu');
+        }
+        if (reader.presetMobileHeaderHidden !== undefined || reader.presetLastScrollTop !== undefined) {
+          throw new Error('expected sidebar action to keep header state-free');
         }
         """
     )
 
 
-def test_preset_detail_reader_runtime_tracks_shared_send_state_for_active_preset():
+def test_preset_detail_reader_runtime_resets_mobile_overlays_when_device_type_leaves_mobile():
+    run_preset_detail_reader_runtime_check(
+        """
+        let deviceTypeWatcher;
+        reader.$watch = (_expression, callback) => {
+          deviceTypeWatcher = callback;
+        };
+        reader.$store.global.deviceType = 'mobile';
+        reader.init();
+        reader.showMobileSidebar = true;
+        reader.showMobileDetailView = true;
+        reader.showMobileMoreMenu = true;
+        reader.showRightPanel = false;
+
+        deviceTypeWatcher('desktop');
+
+        if (reader.showMobileSidebar || reader.showMobileDetailView || reader.showMobileMoreMenu) {
+          throw new Error('expected device transition to clear mobile overlays');
+        }
+        if (!reader.showRightPanel) {
+          throw new Error('expected desktop transition to restore right panel');
+        }
+        """
+    )
+
+
     run_preset_detail_reader_runtime_check(
         """
         const listeners = {};
@@ -837,7 +1028,7 @@ def test_preset_detail_reader_runtime_tracks_shared_send_state_for_active_preset
     )
 
 
-def test_preset_detail_reader_runtime_clears_mobile_header_state_on_close():
+def test_preset_detail_reader_runtime_clears_mobile_overlay_state_on_close():
     run_preset_detail_reader_runtime_check(
         """
         reader.$store.global.deviceType = 'mobile';
@@ -845,13 +1036,16 @@ def test_preset_detail_reader_runtime_clears_mobile_header_state_on_close():
         reader.showMobileSidebar = true;
         reader.showRightPanel = true;
         reader.showMobileMoreMenu = true;
-        reader.presetMobileHeaderHidden = true;
+        reader.showMobileDetailView = true;
         reader.activePresetDetail = { id: 'preset-1', reader_view: { family: 'generic', groups: [], items: [], stats: { total_count: 0 } } };
 
         reader.closeModal();
 
-        if (reader.showMobileSidebar || reader.showRightPanel || reader.showMobileMoreMenu || reader.presetMobileHeaderHidden) {
-          throw new Error('expected closeModal to clear mobile header state');
+        if (reader.showMobileSidebar || reader.showRightPanel || reader.showMobileMoreMenu || reader.showMobileDetailView) {
+          throw new Error('expected closeModal to clear mobile overlay state');
+        }
+        if (reader.presetMobileHeaderHidden !== undefined || reader.presetLastScrollTop !== undefined) {
+          throw new Error('expected closeModal to have no mobile header state');
         }
         """
     )
@@ -1389,7 +1583,6 @@ def test_preset_detail_reader_runtime_mobile_prompt_selection_enters_detail_view
     run_preset_detail_reader_runtime_check(
         """
         reader.$store.global.deviceType = 'mobile';
-        reader.updatePresetLayoutMetrics = () => {};
         reader.activePresetDetail = {
           reader_view: {
             family: 'prompt_manager',
@@ -1527,7 +1720,6 @@ def test_preset_detail_reader_runtime_mobile_generic_selection_enters_detail_vie
     run_preset_detail_reader_runtime_check(
         """
         reader.$store.global.deviceType = 'mobile';
-        reader.updatePresetLayoutMetrics = () => {};
         reader.activePresetDetail = {
           reader_view: {
             family: 'generic',
@@ -2693,9 +2885,8 @@ def test_preset_detail_reader_template_renders_marker_icons_switches_and_inner_s
 
     assert 'x-html="getPromptMarkerIcon(item)"' in source
     assert 'x-html="getPromptMarkerIcon(activeContextItem)"' in source
-    assert 'class="flex-1 min-h-0"' in source
-    assert 'class="flex-1 min-h-0 p-4"' not in source
-    assert 'class="h-full min-h-0 overflow-y-auto custom-scrollbar p-4 space-y-3"' in source
+    assert 'class="preset-reader-flow-body flex-1 min-h-0 flex flex-col overflow-hidden"' in source
+    assert 'class="preset-reader-flow-scroll h-full min-h-0 overflow-y-auto custom-scrollbar p-4 space-y-3"' in source
     assert 'class="preset-marker-icon-frame flex-shrink-0 color-text-info"' in source
     assert 'rounded-2xl border border-sky-400/30 bg-sky-500/10' not in source
     assert 'class="relative h-5 w-9 rounded-full transition-colors"' in source
@@ -2705,7 +2896,7 @@ def test_preset_detail_reader_template_renders_marker_icons_switches_and_inner_s
 def test_preset_detail_reader_template_keeps_right_panel_scroll_and_prompt_state_within_bounds():
     source = read_project_file('templates/modals/detail_preset_popup.html')
 
-    assert 'class="w-full lg:w-[340px] xl:w-[380px] flex-shrink-0 bg-[var(--surface-container-raised)] border-l border-[var(--border-default)] flex flex-col min-h-0"' in source
+    assert 'class="preset-reader-detail-panel w-full lg:w-[340px] xl:w-[380px] flex-shrink-0 bg-[var(--surface-container-raised)] border-l border-[var(--border-default)] flex-col min-h-0"' in source
     assert 'class="preset-reader-mobile-detail-body flex-1 overflow-y-auto custom-scrollbar p-4 space-y-4"' in source
     assert 'class="min-w-0 flex flex-1 items-start gap-3"' in source
 

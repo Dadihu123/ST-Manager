@@ -88,8 +88,6 @@ export default function presetDetailReader() {
     showRightPanel: true,
     showMobileDetailView: false,
     showMobileSidebar: false,
-    presetMobileHeaderHidden: false,
-    presetLastScrollTop: 0,
     showMobileMoreMenu: false,
     isSendingPresetToST: false,
     promptItemsCache: [],
@@ -116,7 +114,6 @@ export default function presetDetailReader() {
           this.showMobileSidebar = false;
           this.showRightPanel = false;
         }
-        this.updatePresetLayoutMetrics();
       });
       window.addEventListener("open-preset-reader", (e) => {
         this.openPreset(e.detail || {});
@@ -410,35 +407,21 @@ export default function presetDetailReader() {
       return triggers.join("、");
     },
 
-    revealMobileHeader() {
-      const previousHidden = this.presetMobileHeaderHidden;
-      this.presetMobileHeaderHidden = false;
-      this.presetLastScrollTop = 0;
-      if (previousHidden) {
-        this.updatePresetLayoutMetrics();
-      }
-    },
-
     resetMobileHeaderState() {
       this.showMobileMoreMenu = false;
-      this.presetMobileHeaderHidden = false;
-      this.presetLastScrollTop = 0;
     },
 
     toggleMobileSidebar() {
-      this.revealMobileHeader();
       this.showMobileMoreMenu = false;
       this.showMobileSidebar = !this.showMobileSidebar;
     },
 
     toggleMobileRightPanel() {
-      this.revealMobileHeader();
       this.showMobileMoreMenu = false;
       this.showRightPanel = !this.showRightPanel;
     },
 
     openMobileDetailView() {
-      this.revealMobileHeader();
       this.showMobileMoreMenu = false;
       this.showMobileSidebar = false;
       this.showMobileDetailView = true;
@@ -446,7 +429,6 @@ export default function presetDetailReader() {
     },
 
     closeMobileDetailView() {
-      this.revealMobileHeader();
       this.showMobileMoreMenu = false;
       this.showMobileSidebar = false;
       this.showMobileDetailView = false;
@@ -454,7 +436,6 @@ export default function presetDetailReader() {
     },
 
     toggleMobileMoreMenu() {
-      this.revealMobileHeader();
       this.showMobileMoreMenu = !this.showMobileMoreMenu;
     },
 
@@ -472,73 +453,6 @@ export default function presetDetailReader() {
         return;
       }
       this.closeModal();
-    },
-
-    updatePresetLayoutMetrics() {
-      const applyMetrics = () => {
-        if (typeof document === "undefined") return;
-
-        const root = document.querySelector(".preset-reader-modal");
-        if (!root) return;
-
-        const header = root.querySelector(".preset-reader-mobile-header");
-        const headerHeight = header
-          ? Math.ceil(header.getBoundingClientRect().height)
-          : 0;
-        const effectiveHeaderHeight =
-          this.$store?.global?.deviceType === "mobile" &&
-          this.presetMobileHeaderHidden
-            ? 0
-            : headerHeight;
-        root.style.setProperty(
-          "--preset-reader-header-height",
-          `${effectiveHeaderHeight}px`,
-        );
-      };
-
-      if (typeof this.$nextTick === "function") {
-        this.$nextTick(() => {
-          applyMetrics();
-        });
-        return;
-      }
-
-      applyMetrics();
-    },
-
-    syncPresetMobileHeaderVisibility(container) {
-      if (
-        this.$store?.global?.deviceType !== "mobile" ||
-        typeof Element === "undefined" ||
-        !(container instanceof Element) ||
-        this.showMobileSidebar ||
-        this.showRightPanel ||
-        this.showMobileMoreMenu
-      ) {
-        return;
-      }
-
-      const previousHidden = this.presetMobileHeaderHidden;
-      const nextTop = Math.max(0, Number(container.scrollTop || 0));
-      const delta = nextTop - Number(this.presetLastScrollTop || 0);
-
-      if (nextTop <= 24 || delta < -14) {
-        this.presetMobileHeaderHidden = false;
-      } else if (delta > 18 && nextTop > 72) {
-        this.presetMobileHeaderHidden = true;
-      }
-
-      this.presetLastScrollTop = nextTop;
-      if (previousHidden !== this.presetMobileHeaderHidden) {
-        this.updatePresetLayoutMetrics();
-      }
-    },
-
-    handleMobileContentScroll(event) {
-      const container = event?.target;
-      if (typeof Element !== "undefined" && container instanceof Element) {
-        this.syncPresetMobileHeaderVisibility(container);
-      }
     },
 
     async openPreset(item) {
@@ -562,7 +476,6 @@ export default function presetDetailReader() {
       this.activePromptId = "";
       this.activeItemId = "";
       this.refreshReaderCollections();
-      this.updatePresetLayoutMetrics();
 
       try {
         const res = await getPresetDetail(presetId);
@@ -584,7 +497,6 @@ export default function presetDetailReader() {
           },
         });
         this.initializeReaderState();
-        this.updatePresetLayoutMetrics();
       } catch (error) {
         console.error("Failed to load preset detail:", error);
         this.activePresetDetail = null;
@@ -592,7 +504,6 @@ export default function presetDetailReader() {
         this.$store.global.showToast(this.loadError, "error");
       } finally {
         this.isLoading = false;
-        this.updatePresetLayoutMetrics();
       }
     },
 
@@ -660,7 +571,6 @@ export default function presetDetailReader() {
       this.isSendingPresetToST = false;
       this.resetMobileHeaderState();
       this.refreshReaderCollections();
-      this.updatePresetLayoutMetrics();
       clearActiveRuntimeContext("preset");
     },
 
@@ -686,7 +596,6 @@ export default function presetDetailReader() {
       this.activeItemId = "";
       this.refreshReaderCollections();
       this.resetMobileHeaderState();
-      this.updatePresetLayoutMetrics();
       if (this.$store?.global?.deviceType === "mobile") {
         this.showMobileDetailView = false;
         this.showMobileSidebar = false;
@@ -710,7 +619,6 @@ export default function presetDetailReader() {
       }
       this.refreshReaderCollections();
       this.resetMobileHeaderState();
-      this.updatePresetLayoutMetrics();
       if (this.$store?.global?.deviceType === "mobile") {
         this.showMobileDetailView = false;
         this.showMobileSidebar = false;
@@ -729,7 +637,6 @@ export default function presetDetailReader() {
       this.activeItemId = itemId || "";
       this.syncActiveReaderSelections();
       this.resetMobileHeaderState();
-      this.updatePresetLayoutMetrics();
       if (this.$store?.global?.deviceType === "mobile") {
         this.openMobileDetailView();
       } else {
@@ -742,7 +649,6 @@ export default function presetDetailReader() {
       this.activePromptId = itemId || "";
       this.refreshReaderCollections();
       this.resetMobileHeaderState();
-      this.updatePresetLayoutMetrics();
       if (this.$store?.global?.deviceType === "mobile") {
         this.openMobileDetailView();
       } else {

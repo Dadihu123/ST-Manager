@@ -20,19 +20,19 @@
   >
     <div
       class="preset-reader-mobile-header"
-      :class="($store.global.deviceType === 'mobile' && presetMobileHeaderHidden) ? 'is-mobile-hidden' : ''"
       x-show="$store.global.deviceType === 'mobile' && !showMobileDetailView"
       x-ref="presetReaderMobileHeader"
     >
       <div class="preset-reader-mobile-header-main">
         <button
+          type="button"
           @click="toggleMobileSidebar()"
-          class="btn-secondary py-1.5 px-3 text-xs"
+          class="preset-reader-mobile-header-button btn-secondary py-1.5 px-3 text-xs"
           title="打开规则集导航"
           aria-label="打开规则集导航"
         >
           <span aria-hidden="true">{{ icon('menu', 'ui-icon--sm') }}</span>
-          目录
+          <span class="preset-reader-mobile-button-label">目录</span>
         </button>
         <div class="preset-reader-mobile-title-block">
           <div
@@ -45,34 +45,42 @@
           ></div>
         </div>
         <button
+          type="button"
           @click="openFullscreenEditor()"
-          class="btn-primary py-1.5 px-3 text-xs"
+          class="preset-reader-mobile-header-button btn-primary py-1.5 px-3 text-xs"
           title="打开全屏编辑器"
           aria-label="打开全屏编辑器"
         >
-          编辑
+          <span aria-hidden="true">{{ detail_icon('fullscreen', 'ui-icon--sm') }}</span>
+          <span class="preset-reader-mobile-button-label">编辑</span>
         </button>
         <button
           @click="closeModal()"
-          class="btn-secondary py-1.5 px-3 text-xs color-hover-text-danger"
+          class="preset-reader-mobile-header-button btn-secondary py-1.5 px-3 text-xs color-hover-text-danger"
           type="button"
           title="关闭预设阅览"
           aria-label="关闭预设阅览"
         >
           <span aria-hidden="true">{{ icon('close', 'ui-icon--sm') }}</span>
-          关闭
+          <span class="preset-reader-mobile-button-label">关闭</span>
         </button>
       </div>
       <div class="preset-reader-mobile-header-secondary">
+        <div class="preset-reader-mobile-context-group">
+          <div
+            class="preset-reader-mobile-context"
+            x-text="getMobileHeaderContextLabel()"
+          ></div>
+          <div
+            class="preset-reader-mobile-count"
+            x-text="getMobileHeaderCountLabel()"
+          ></div>
+        </div>
         <div
-          class="preset-reader-mobile-context"
-          x-text="getMobileHeaderContextLabel()"
-        ></div>
-        <div
-          class="preset-reader-mobile-count"
-          x-text="getMobileHeaderCountLabel()"
-        ></div>
-        <div x-show="hasMultipleVersions" class="flex items-center gap-2">
+          x-show="hasMultipleVersions"
+          x-cloak
+          class="preset-reader-mobile-version-control"
+        >
           <label class="sr-only">版本</label>
           {% call styled_select_controlled(
             "activePresetDetail?.id || ''",
@@ -88,53 +96,62 @@
           {% endcall %}
         </div>
         <button
+          type="button"
           @click="toggleMobileMoreMenu()"
-          class="btn-secondary py-1 px-3 text-xs"
+          class="preset-reader-mobile-header-button btn-secondary py-1 px-3 text-xs"
           title="打开更多操作"
           aria-label="打开更多操作"
         >
           <span aria-hidden="true">{{ icon('menu-bold', 'ui-icon--sm') }}</span>
-          更多
+          <span class="preset-reader-mobile-button-label">更多</span>
+        </button>
+      </div>
+      <div
+        x-show="$store.global.deviceType === 'mobile' && showMobileMoreMenu && !showMobileDetailView"
+        x-cloak
+        class="preset-reader-mobile-more-menu"
+        role="menu"
+        aria-label="预设操作"
+      >
+        <button
+          type="button"
+          x-show="canSendActivePresetToST()"
+          @click="sendActivePresetToST(); showMobileMoreMenu = false"
+          class="btn-secondary py-1.5 px-3 text-xs"
+          :title="getActivePresetSendToSTTitle()"
+          title="发送到 ST（对话补全预设，同名将直接覆盖 ST 中现有预设）"
+          :disabled="isSendingPresetToST"
+          role="menuitem"
+        >
+          <span aria-hidden="true">{{ icon('card-send-to-st', 'ui-icon--sm') }}</span>
+          发送到 ST
+        </button>
+        <button
+          type="button"
+          x-show="canImportActivePresetVersion()"
+          @click="triggerImportActivePresetVersion(); showMobileMoreMenu = false"
+          class="btn-secondary py-1.5 px-3 text-xs"
+          role="menuitem"
+        >
+          <span aria-hidden="true">{{ icon('merge', 'ui-icon--sm') }}</span>
+          导入并合并
+        </button>
+        <button
+          type="button"
+          @click="exportActivePreset(); showMobileMoreMenu = false"
+          class="btn-secondary py-1.5 px-3 text-xs"
+          role="menuitem"
+        >
+          <span aria-hidden="true">{{ icon('upload', 'ui-icon--sm') }}</span>
+          导出
         </button>
       </div>
     </div>
 
     <div
-      x-show="$store.global.deviceType === 'mobile' && showMobileMoreMenu && !showMobileDetailView"
-      x-cloak
-      class="preset-reader-mobile-more-menu"
-    >
-      <button
-        x-show="canSendActivePresetToST()"
-        @click="sendActivePresetToST(); showMobileMoreMenu = false"
-        class="btn-secondary py-1.5 px-3 text-xs"
-        title="发送到 ST（对话补全预设，同名将直接覆盖 ST 中现有预设）"
-        :title="getActivePresetSendToSTTitle()"
-        :disabled="isSendingPresetToST"
-      >
-        <span aria-hidden="true">{{ icon('card-send-to-st', 'ui-icon--sm') }}</span>
-        发送到 ST
-      </button>
-      <button
-        x-show="canImportActivePresetVersion()"
-        @click="triggerImportActivePresetVersion(); showMobileMoreMenu = false"
-        class="btn-secondary py-1.5 px-3 text-xs"
-      >
-        <span aria-hidden="true">{{ icon('merge', 'ui-icon--sm') }}</span>
-        导入并合并
-      </button>
-      <button
-        @click="exportActivePreset(); showMobileMoreMenu = false"
-        class="btn-secondary py-1.5 px-3 text-xs"
-      >
-        <span aria-hidden="true">{{ icon('upload', 'ui-icon--sm') }}</span>
-        导出
-      </button>
-    </div>
-
-    <div
       x-show="$store.global.deviceType !== 'mobile'"
-      class="preset-reader-desktop-header border-b border-[var(--border-default)] px-4 py-3 bg-[var(--surface-container-raised)] flex items-center justify-between gap-3"
+      x-cloak
+      class="preset-reader-desktop-header border-b border-[var(--border-default)] px-4 py-3 bg-[var(--surface-container-raised)] items-center justify-between gap-3"
     >
       <div class="min-w-0 flex-1">
         <div class="preset-reader-heading-row flex items-center gap-2 flex-wrap">
@@ -195,6 +212,7 @@
           @click="sendActivePresetToST()"
           class="preset-reader-header-icon-button btn-secondary"
           :title="getActivePresetSendToSTTitle()"
+          title="发送到 ST（对话补全预设，同名将直接覆盖 ST 中现有预设）"
           aria-label="发送到 ST"
           :disabled="isSendingPresetToST"
         >
@@ -284,18 +302,20 @@
       </template>
 
       <template x-if="!isLoading && activePresetDetail">
-        <div class="flex-1 min-h-0 flex overflow-hidden">
+        <div class="preset-reader-mobile-content flex-1 min-h-0 flex overflow-hidden">
           <div
             x-show="$store.global.deviceType === 'mobile' && showMobileSidebar"
+            x-cloak
             @click="showMobileSidebar = false"
-            class="fixed inset-0 color-surface-scrim z-30"
+            class="preset-reader-mobile-scrim absolute inset-0 color-surface-scrim z-30"
           ></div>
 
           <aside
-            class="preset-reader-workbench-sidebar w-full md:w-[260px] lg:w-[280px] flex-shrink-0 bg-[var(--surface-container-raised)] border-r border-[var(--border-default)] flex flex-col min-h-0 z-40"
+            x-cloak
+            class="preset-reader-workbench-sidebar w-full md:w-[260px] lg:w-[280px] flex-shrink-0 bg-[var(--surface-container-raised)] border-r border-[var(--border-default)] flex-col min-h-0 z-40"
             :class="{
               'preset-reader-mobile-sidebar': true,
-              'fixed left-0 bottom-0 max-w-[88vw] shadow-2xl': $store.global.deviceType === 'mobile',
+              'preset-reader-mobile-drawer': $store.global.deviceType === 'mobile',
               'hidden md:flex': $store.global.deviceType !== 'mobile',
               'flex': $store.global.deviceType === 'mobile' && showMobileSidebar,
               'hidden': $store.global.deviceType === 'mobile' && !showMobileSidebar
@@ -307,7 +327,19 @@
                   <span aria-hidden="true">{{ sidebar_icon('layers', 'ui-icon--md') }}</span>
                   <span>规则集导航</span>
                 </div>
-                <span class="preset-reader-rail-count" x-text="readerStats.total_count"></span>
+                <div class="preset-reader-rail-heading-actions">
+                  <span class="preset-reader-rail-count" x-text="readerStats.total_count"></span>
+                  <button
+                    type="button"
+                    class="preset-reader-mobile-drawer-close"
+                    @click="showMobileSidebar = false"
+                    title="关闭规则集导航"
+                    aria-label="关闭规则集导航"
+                  >
+                    <span aria-hidden="true">{{ icon('close', 'ui-icon--sm') }}</span>
+                    <span class="sr-only">关闭目录</span>
+                  </button>
+                </div>
               </div>
               <div
                 x-show="!isPromptWorkspaceReader || activeWorkspace === 'prompts'"
@@ -556,7 +588,7 @@
           </aside>
 
           <section
-            class="flex-1 min-w-0 flex flex-col border-r border-[var(--border-default)] md:border-r-0 lg:border-r lg:border-[var(--border-default)]"
+            class="preset-reader-flow-panel flex-1 min-w-0 flex-col border-r border-[var(--border-default)] md:border-r-0 lg:border-r lg:border-[var(--border-default)]"
             :class="{
               'flex': $store.global.deviceType !== 'mobile' || !$store.global.deviceType || !showMobileDetailView,
               'hidden': $store.global.deviceType === 'mobile' && showMobileDetailView
@@ -619,11 +651,10 @@
               </div>
             </div>
 
-            <div class="flex-1 min-h-0">
+            <div class="preset-reader-flow-body flex-1 min-h-0 flex flex-col overflow-hidden">
               <div
-                class="h-full min-h-0 overflow-y-auto custom-scrollbar p-4 space-y-3"
+                class="preset-reader-flow-scroll h-full min-h-0 overflow-y-auto custom-scrollbar p-4 space-y-3"
                 x-ref="presetReaderContentScroll"
-                @scroll.passive="handleMobileContentScroll($event)"
               >
                 <template x-if="readerItems.length === 0">
                   <div
@@ -670,9 +701,9 @@
                         :class="activeItem?.id === item.id ? 'border-[var(--accent-action)] color-selected-shadow' : 'border-[var(--border-default)] hover:border-[var(--content-muted)]'"
                       >
                         <div>
-                          <div class="flex items-start justify-between gap-3">
+                          <div class="preset-reader-card-heading-row flex items-start justify-between gap-3">
                             <div class="min-w-0 flex-1">
-                              <div class="flex items-center gap-2 flex-wrap">
+                              <div class="preset-reader-card-meta flex items-center gap-2 flex-wrap">
                                 <span class="preset-reader-content-card-icon" aria-hidden="true">{{ icon('file-code', 'ui-icon--md') }}</span>
                                 <div
                                   class="text-sm font-bold text-[var(--content-primary)] break-all"
@@ -689,7 +720,7 @@
                               </div>
                             </div>
                             <div
-                              class="text-[11px] text-[var(--content-secondary)] whitespace-nowrap"
+                              class="preset-reader-card-summary text-[11px] text-[var(--content-secondary)]"
                               x-text="item.summary || '-' "
                             ></div>
                           </div>
@@ -704,7 +735,7 @@
                           <div class="mt-3 text-[11px] text-[var(--content-muted)]">
                             扩展键名：
                             <span
-                              class="font-mono"
+                              class="preset-reader-breakable-key font-mono"
                               x-text="item.payload?.key || item.title"
                             ></span>
                           </div>
@@ -714,7 +745,7 @@
                           <div class="mt-3 text-[11px] text-[var(--content-muted)]">
                             字段键名：
                             <span
-                              class="font-mono"
+                              class="preset-reader-breakable-key font-mono"
                               x-text="item.payload?.key || item.title"
                             ></span>
                           </div>
@@ -796,7 +827,7 @@
                                 </span>
                               </template>
                               <div class="min-w-0 flex-1">
-                                <div class="flex items-center gap-2 flex-wrap">
+                                <div class="preset-reader-card-meta flex items-center gap-2 flex-wrap">
                                   <div
                                     class="min-w-0 flex-1 text-sm font-bold text-[var(--content-primary)] break-all"
                                     x-text="item.title"
@@ -915,10 +946,11 @@
                                       class="preset-reader-setting-row space-y-2"
                                     >
                                       <div
-                                        class="flex items-center justify-between gap-3"
+                                        class="preset-reader-setting-head flex items-center justify-between gap-3"
+                                        :class="isProfileFieldToggle(field) ? 'preset-reader-setting-head--toggle' : ''"
                                       >
                                         <div
-                                          class="text-sm text-[var(--content-primary)]"
+                                          class="preset-reader-breakable text-sm text-[var(--content-primary)]"
                                           x-text="field.label"
                                         ></div>
                                         <template
@@ -1066,11 +1098,11 @@
                             >
                               <div>
                                 <div
-                                  class="flex items-start justify-between gap-3"
+                                  class="preset-reader-card-heading-row flex items-start justify-between gap-3"
                                 >
                                   <div class="min-w-0 flex-1">
                                     <div
-                                      class="flex items-center gap-2 flex-wrap"
+                                      class="preset-reader-card-meta flex items-center gap-2 flex-wrap"
                                     >
                                       <div
                                         class="text-sm font-bold text-[var(--content-primary)] break-all"
@@ -1087,7 +1119,7 @@
                                     </div>
                                   </div>
                                   <div
-                                    class="text-[11px] text-[var(--content-secondary)] whitespace-nowrap"
+                                    class="preset-reader-card-summary text-[11px] text-[var(--content-secondary)]"
                                     x-text="item.summary || '-' "
                                   ></div>
                                 </div>
@@ -1110,11 +1142,12 @@
 
           <aside
             x-show="!isScalarWorkspaceReader && (($store.global.deviceType !== 'mobile' && showRightPanel) || ($store.global.deviceType === 'mobile' && showMobileDetailView))"
-            class="w-full lg:w-[340px] xl:w-[380px] flex-shrink-0 bg-[var(--surface-container-raised)] border-l border-[var(--border-default)] flex flex-col min-h-0"
+            x-cloak
+            class="preset-reader-detail-panel w-full lg:w-[340px] xl:w-[380px] flex-shrink-0 bg-[var(--surface-container-raised)] border-l border-[var(--border-default)] flex-col min-h-0"
             :class="{
               'preset-reader-mobile-detail-panel': true,
-              'fixed right-0 bottom-0 z-40 max-w-[92vw] shadow-2xl': $store.global.deviceType === 'mobile',
-              'hidden lg:flex': $store.global.deviceType !== 'mobile',
+              'preset-reader-mobile-detail': $store.global.deviceType === 'mobile',
+              'hidden md:flex': $store.global.deviceType !== 'mobile',
               'flex': $store.global.deviceType === 'mobile' && showMobileDetailView,
               'hidden': $store.global.deviceType === 'mobile' && !showMobileDetailView
             }"
@@ -1124,23 +1157,35 @@
               class="preset-reader-mobile-detail-header p-4 border-b border-[var(--border-default)] flex items-center justify-between gap-3"
             >
               <button
+                type="button"
                 @click="closeMobileDetailView()"
-                class="btn-secondary py-1.5 px-3 text-xs"
+                class="preset-reader-mobile-detail-action btn-secondary py-1.5 px-3 text-xs"
                 title="返回规则列表"
+                aria-label="返回规则列表"
               >
                 <span aria-hidden="true">{{ icon('arrow-left', 'ui-icon--sm') }}</span>
-                返回列表
+                <span class="preset-reader-mobile-button-label">返回列表</span>
               </button>
               <div class="min-w-0 flex-1 text-right">
                 <div class="preset-reader-inspector-kicker"><span aria-hidden="true">{{ detail_icon('info', 'ui-icon--sm') }}</span>检查台</div>
                 <div
-                  class="text-sm font-semibold text-[var(--content-primary)] truncate"
+                  class="preset-reader-mobile-detail-title text-sm font-semibold text-[var(--content-primary)]"
                   x-text="activeContextItem?.title || '未选择条目'"
                 ></div>
               </div>
+              <button
+                type="button"
+                @click="closeModal()"
+                class="preset-reader-mobile-detail-action btn-secondary py-1.5 px-2 text-xs color-hover-text-danger"
+                title="关闭预设阅览"
+                aria-label="关闭预设阅览"
+              >
+                <span aria-hidden="true">{{ icon('close', 'ui-icon--sm') }}</span>
+                <span class="preset-reader-mobile-button-label">关闭</span>
+              </button>
             </div>
             <div class="p-4 border-b border-[var(--border-default)] space-y-3">
-              <div class="flex items-start justify-between gap-3">
+              <div class="preset-reader-card-heading-row flex items-start justify-between gap-3">
                 <div class="min-w-0 flex flex-1 items-start gap-3">
                   <template
                     x-if="activeContextItem?.group === 'prompts' && activeContextItem?.prompt_meta?.is_marker"
@@ -1195,15 +1240,6 @@
                     </div>
                   </div>
                 </div>
-              <button
-                x-show="$store.global.deviceType === 'mobile'"
-                @click="closeMobileDetailView()"
-                class="btn-secondary py-1 px-2 text-xs"
-                title="关闭条目详情"
-              >
-                <span aria-hidden="true">{{ icon('close-small', 'ui-icon--xs') }}</span>
-                关闭
-              </button>
               </div>
 
               <div
@@ -1377,9 +1413,9 @@
                         </div>
                         <span class="preset-reader-extension-total" x-text="`${extensionOverview.total_count} 项`"></span>
                       </div>
-                      <div class="text-sm text-[var(--content-primary)]">
+                      <div class="preset-reader-breakable text-sm text-[var(--content-primary)]">
                         扩展键名：<span
-                          class="font-mono"
+                          class="preset-reader-breakable-key font-mono"
                           x-text="activeContextItem?.payload?.key || activeContextItem?.title"
                         ></span>
                       </div>
@@ -1431,9 +1467,9 @@
                       >
                         字段信息
                       </div>
-                      <div class="text-sm text-[var(--content-primary)]">
+                      <div class="preset-reader-breakable text-sm text-[var(--content-primary)]">
                         字段键名：<span
-                          class="font-mono"
+                          class="preset-reader-breakable-key font-mono"
                           x-text="activeContextItem?.payload?.key || activeContextItem?.title"
                         ></span>
                       </div>
@@ -1449,7 +1485,7 @@
                       >
                         结构化内容
                       </div>
-                      <div class="text-sm text-[var(--content-primary)]">
+                      <div class="preset-reader-breakable text-sm text-[var(--content-primary)]">
                         这是结构化内容，下面展示完整信息以便查看。
                       </div>
                     </div>
