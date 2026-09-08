@@ -541,7 +541,7 @@ def test_preset_detail_reader_template_hides_central_list_on_mobile_detail_page(
 def test_preset_detail_reader_template_repurposes_detail_panel_for_desktop_and_mobile_detail_view():
     source = read_project_file('templates/modals/detail_preset_popup.html')
 
-    assert "x-show=\"($store.global.deviceType !== 'mobile' && showRightPanel) || ($store.global.deviceType === 'mobile' && showMobileDetailView)\"" in source
+    assert "x-show=\"!isScalarWorkspaceReader && (($store.global.deviceType !== 'mobile' && showRightPanel) || ($store.global.deviceType === 'mobile' && showMobileDetailView))\"" in source
     assert "'flex': $store.global.deviceType === 'mobile' && showMobileDetailView" in source
     assert "'hidden': $store.global.deviceType === 'mobile' && !showMobileDetailView" in source
 
@@ -1676,7 +1676,14 @@ def test_preset_detail_reader_runtime_filters_reader_mirrored_sections_for_scala
               { id: 'core_sampling', label: '核心采样' },
               { id: 'extensions_and_advanced', label: '扩展与高级' },
             ],
-            fields: {},
+            fields: {
+               temperature: {
+                 canonical_key: 'temperature',
+                 source_key: 'temperature',
+                 section: 'core_sampling',
+                 control: 'range_with_number',
+               },
+             },
           },
           reader_view: {
             family: 'prompt_manager',
@@ -2528,7 +2535,7 @@ def test_preset_detail_reader_template_uses_reader_view_three_column_layout_cont
     source = read_project_file('templates/modals/detail_preset_popup.html')
 
     assert 'x-if="!isPromptWorkspaceReader"' in source
-    assert "x-show=\"($store.global.deviceType !== 'mobile' && showRightPanel) || ($store.global.deviceType === 'mobile' && showMobileDetailView)\"" in source
+    assert "x-show=\"!isScalarWorkspaceReader && (($store.global.deviceType !== 'mobile' && showRightPanel) || ($store.global.deviceType === 'mobile' && showMobileDetailView))\"" in source
     assert 'x-text="activeItem?.title ||' in source
     assert 'readerStats.prompt_count' not in source
     assert 'readerStats.unknown_count' not in source
@@ -2678,7 +2685,7 @@ def test_preset_detail_reader_template_keeps_generic_items_available_for_non_pro
     assert 'x-show="activeWorkspace !== \"prompts\""' in source or "x-show=\"activeWorkspace !== 'prompts'\"" in source
     assert 'x-text="getItemValuePreview(activeContextItem)"' in source
     assert 'x-text="getItemFullDetail(activeContextItem)"' in source
-    assert "x-if=\"activeContextItem?.group !== 'prompts'\"" in source
+    assert "x-if=\"activeContextItem?.group !== 'prompts' && activeContextItem?.type !== 'extension'\"" in source
 
 
 def test_preset_detail_reader_template_renders_marker_icons_switches_and_inner_scroll_regions():
@@ -2708,17 +2715,20 @@ def test_preset_detail_reader_template_prevents_blank_prompt_content_cards_and_s
 
     assert "activeWorkspace === 'prompts' && orderedPromptItems.length > 0 && promptFilteredItems.length === 0" in source
     assert '没有匹配的提示词' in source
-    assert "x-if=\"activeContextItem?.group !== 'prompts'\"" in source
+    assert "x-if=\"activeContextItem?.group !== 'prompts' && activeContextItem?.type !== 'extension'\"" in source
     assert "activeContextItem?.group === 'prompts' ? getPromptPreview(activeContextItem) : getItemFullDetail(activeContextItem)" not in source
 
 
 def test_preset_detail_reader_template_restores_prompt_copy_action_without_reopening_generic_content_card():
     source = read_project_file('templates/modals/detail_preset_popup.html')
 
-    assert "x-if=\"activeContextItem?.group === 'prompts' && getPromptFullDetail(activeContextItem)\"" in source
-    assert '@click="copyText(getPromptFullDetail(activeContextItem), \"条目内容\")"' in source or "@click=\"copyText(getPromptFullDetail(activeContextItem), '条目内容')\"" in source
-    assert "x-if=\"activeContextItem?.group !== 'prompts'\"" in source
-    assert '@click="copyText(getItemFullDetail(activeContextItem), \"条目内容\")"' in source or "@click=\"copyText(getItemFullDetail(activeContextItem), '条目内容')\"" in source
+    assert 'class="preset-reader-prompt-content-block"' in source
+    assert 'class="preset-reader-prompt-content"' in source
+    assert '@click="copyText(getPromptFullDetail(activeContextItem), \'条目内容\')"' in source or '@click="copyText(getPromptFullDetail(activeContextItem), "条目内容")"' in source
+    assert 'class="preset-reader-content-icon-button"' in source
+    assert 'x-if="activeContextItem?.group !== \'prompts\' && activeContextItem?.type !== \'extension\'"' in source
+    assert 'x-if="activeContextItem?.type === \'extension\'"' in source
+    assert '@click="copyText(getItemFullDetail(activeContextItem), \'条目内容\')"' in source or '@click="copyText(getItemFullDetail(activeContextItem), "条目内容")"' in source
 
 
 def test_preset_detail_reader_template_guards_active_item_accesses():
@@ -2759,3 +2769,28 @@ def test_reader_detail_content_bindings_replace_template_whitespace_nodes():
         r'<span\s+x-text="getPromptFullDetail\(activeContextItem\)"',
         preset_source,
     )
+
+
+def test_preset_detail_reader_template_marks_grouped_settings_and_conditional_injection_fields():
+    reader_source = read_project_file('static/js/components/presetDetailReader.js')
+    template_source = read_project_file('templates/modals/detail_preset_popup.html')
+    stylesheet_source = read_project_file('static/css/modules/modal-preset-workbench.css')
+
+    assert 'getProfileFieldValue(fieldKey)' in reader_source
+    assert 'readerField && Object.prototype.hasOwnProperty.call(readerField, "reader_value")' in reader_source
+    assert 'isPromptChatInjection(item)' in reader_source
+    assert 'isPromptChatInjection(activeContextItem)' in template_source
+    assert 'preset-reader-setting-row' in template_source
+    assert '.preset-reader-setting-row' in stylesheet_source
+    assert 'x-show="!isScalarWorkspaceReader &&' in template_source
+    assert 'isProfileFieldExpanded(field)' in reader_source
+    assert 'preset-reader-readonly-switch' in template_source
+    assert 'preset-reader-header-icon-button' in template_source
+    assert ':class="isScalarWorkspaceReader ? \'hidden\' : \'\'"' in template_source
+    assert 'preset-reader-extension-content-block' in template_source
+    assert 'preset-reader-prompt-detail-stack' in template_source
+    assert "section.id === 'templates_and_features'" in template_source
+    assert 'border: 0 !important;' in stylesheet_source
+    assert 'transform: scale(1.35);' in stylesheet_source
+    assert 'width: 3rem;' in stylesheet_source
+    assert 'width: 2.75rem;' in stylesheet_source

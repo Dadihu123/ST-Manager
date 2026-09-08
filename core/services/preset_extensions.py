@@ -124,16 +124,6 @@ def extract_regex_script_items(extensions) -> list:
         return []
 
     candidates = [extensions.get(key) for key in REGEX_EXTENSION_KEY_ORDER]
-    spreset = extensions.get('SPreset')
-    if isinstance(spreset, dict):
-        candidates.extend(
-            [
-                spreset.get('regex'),
-                spreset.get('regexes'),
-                spreset.get('regular_expressions'),
-                spreset.get('RegexBinding'),
-            ]
-        )
     candidates.append(extensions.get('RegexBinding'))
 
     for candidate in candidates:
@@ -148,14 +138,11 @@ def _has_regex_source(extensions) -> bool:
         return False
     if any(key in extensions for key in REGEX_EXTENSION_KEYS):
         return True
-    for container_key in ('SPreset', 'RegexBinding'):
-        container = extensions.get(container_key)
-        if isinstance(container, dict) and any(
-            key in container
-            for key in ('regex', 'regexes', 'regular_expressions', 'RegexBinding')
-        ):
-            return True
-    return False
+    container = extensions.get('RegexBinding')
+    return isinstance(container, dict) and any(
+        key in container
+        for key in ('regex', 'regexes', 'regular_expressions', 'RegexBinding')
+    )
 
 
 def _has_tavern_helper_source(extensions) -> bool:

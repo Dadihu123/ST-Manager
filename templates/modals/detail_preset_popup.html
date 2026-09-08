@@ -190,48 +190,58 @@
           {% endcall %}
         </div>
         <button
+          type="button"
           x-show="canSendActivePresetToST()"
           @click="sendActivePresetToST()"
-          class="btn-secondary py-1.5 px-3 text-xs"
-          title="发送到 ST（对话补全预设，同名将直接覆盖 ST 中现有预设）"
+          class="preset-reader-header-icon-button btn-secondary"
           :title="getActivePresetSendToSTTitle()"
+          aria-label="发送到 ST"
           :disabled="isSendingPresetToST"
         >
-          <span aria-hidden="true">{{ icon('card-send-to-st', 'ui-icon--sm') }}</span>
-          发送到 ST
+          <span aria-hidden="true">{{ icon('card-send-to-st', 'ui-icon--md') }}</span>
+          <span class="sr-only">发送到 ST</span>
         </button>
         <button
+          type="button"
           x-show="canImportActivePresetVersion()"
           @click="triggerImportActivePresetVersion()"
-          class="btn-secondary py-1.5 px-3 text-xs"
+          class="preset-reader-header-icon-button btn-secondary"
+          title="导入并合并当前预设版本"
+          aria-label="导入并合并当前预设版本"
         >
-          <span aria-hidden="true">{{ icon('merge', 'ui-icon--sm') }}</span>
-          导入并合并
+          <span aria-hidden="true">{{ icon('merge', 'ui-icon--md') }}</span>
+          <span class="sr-only">导入并合并</span>
         </button>
         <button
+          type="button"
           x-show="$store.global.deviceType !== 'mobile'"
           @click="exportActivePreset()"
-          class="btn-secondary py-1.5 px-3 text-xs"
+          class="preset-reader-header-icon-button btn-secondary"
+          title="导出预设 JSON"
+          aria-label="导出预设 JSON"
         >
           <span aria-hidden="true">{{ icon('upload', 'ui-icon--md') }}</span>
-          导出
+          <span class="sr-only">导出</span>
         </button>
         <button
-          @click="openFullscreenEditor()"
-          class="btn-primary py-1.5 px-3 text-xs"
-        >
-          <span aria-hidden="true">{{ detail_icon('fullscreen', 'ui-icon--sm') }}</span>
-          全屏编辑
-        </button>
-        <button
-          @click="closeModal()"
-          class="btn-secondary py-1.5 px-3 text-xs color-hover-text-danger"
           type="button"
+          @click="openFullscreenEditor()"
+          class="preset-reader-header-icon-button btn-primary"
+          title="打开全屏编辑器"
+          aria-label="打开全屏编辑器"
+        >
+          <span aria-hidden="true">{{ detail_icon('fullscreen', 'ui-icon--md') }}</span>
+          <span class="sr-only">全屏编辑</span>
+        </button>
+        <button
+          type="button"
+          @click="closeModal()"
+          class="preset-reader-header-icon-button btn-secondary color-hover-text-danger"
           title="关闭预设阅览"
           aria-label="关闭预设阅览"
         >
-          <span aria-hidden="true">{{ icon('close', 'ui-icon--sm') }}</span>
-          关闭
+          <span aria-hidden="true">{{ icon('close', 'ui-icon--md') }}</span>
+          <span class="sr-only">关闭</span>
         </button>
       </div>
     </div>
@@ -600,6 +610,7 @@
                   x-show="$store.global.deviceType !== 'mobile'"
                   @click="showRightPanel = !showRightPanel"
                   :aria-pressed="showRightPanel.toString()"
+                   :class="isScalarWorkspaceReader ? 'hidden' : ''"
                   :title="showRightPanel ? '隐藏检查台' : '显示检查台'"
                 >
                   <span aria-hidden="true">{{ detail_icon('info', 'ui-icon--sm') }}</span>
@@ -883,7 +894,7 @@
                               >
                                 <div
                                   class="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-container)] p-4 space-y-3"
-                                  :class="section.id === 'formatting_and_templates' ? 'md:col-span-2 xl:col-span-3' : ''"
+                                  :class="section.id === 'templates_and_features' ? 'md:col-span-2 xl:col-span-2' : (section.id === 'formatting_and_templates' ? 'md:col-span-2 xl:col-span-3' : '')"
                                 >
                                   <div>
                                     <div
@@ -901,7 +912,7 @@
                                     :key="field.canonical_key"
                                   >
                                     <div
-                                      class="rounded-xl border border-[var(--border-default)] bg-[var(--surface-page)] p-3 space-y-2"
+                                      class="preset-reader-setting-row space-y-2"
                                     >
                                       <div
                                         class="flex items-center justify-between gap-3"
@@ -910,10 +921,33 @@
                                           class="text-sm text-[var(--content-primary)]"
                                           x-text="field.label"
                                         ></div>
-                                        <div
-                                          class="text-xs font-mono text-[var(--content-secondary)]"
-                                          x-text="getProfileFieldDisplay(field.canonical_key)"
-                                        ></div>
+                                        <template
+                                          x-if="isProfileFieldToggle(field)"
+                                        >
+                                          <span
+                                            class="preset-reader-readonly-switch"
+                                            role="switch"
+                                            :aria-checked="getProfileFieldValue(field.canonical_key) ? 'true' : 'false'"
+                                            :title="getProfileFieldValue(field.canonical_key) ? '已启用' : '已关闭'"
+                                          >
+                                            <span
+                                              class="preset-reader-readonly-switch-track"
+                                              :class="getProfileFieldValue(field.canonical_key) ? 'is-on' : 'is-off'"
+                                            ></span>
+                                            <span
+                                              class="preset-reader-readonly-switch-thumb"
+                                              :class="getProfileFieldValue(field.canonical_key) ? 'is-on' : 'is-off'"
+                                            ></span>
+                                          </span>
+                                        </template>
+                                        <template
+                                          x-if="!isProfileFieldToggle(field) && !isProfileFieldExpanded(field)"
+                                        >
+                                          <div
+                                            class="preset-reader-setting-display"
+                                            x-text="getProfileFieldDisplay(field.canonical_key)"
+                                          ></div>
+                                        </template>
                                       </div>
 
                                       <template
@@ -942,23 +976,10 @@
                                       </template>
 
                                       <template
-                                        x-if="isProfileFieldToggle(field)"
+                                        x-if="['textarea', 'raw_json', 'key_value_list'].includes(field.control)"
                                       >
                                         <div
-                                          class="flex items-center justify-between text-xs text-[var(--content-muted)]"
-                                        >
-                                          <span>状态</span>
-                                          <span
-                                            x-text="getProfileFieldValue(field.canonical_key) ? '启用' : '关闭'"
-                                          ></span>
-                                        </div>
-                                      </template>
-
-                                      <template
-                                        x-if="isProfileFieldSelect(field)"
-                                      >
-                                        <div
-                                          class="inline-flex items-center rounded-full border border-[var(--border-default)] px-2.5 py-1 text-[11px] text-[var(--content-primary)] bg-[var(--surface-container-raised)]"
+                                          class="preset-reader-setting-value"
                                           x-text="getProfileFieldDisplay(field.canonical_key)"
                                         ></div>
                                       </template>
@@ -1088,7 +1109,7 @@
           </section>
 
           <aside
-            x-show="($store.global.deviceType !== 'mobile' && showRightPanel) || ($store.global.deviceType === 'mobile' && showMobileDetailView)"
+            x-show="!isScalarWorkspaceReader && (($store.global.deviceType !== 'mobile' && showRightPanel) || ($store.global.deviceType === 'mobile' && showMobileDetailView))"
             class="w-full lg:w-[340px] xl:w-[380px] flex-shrink-0 bg-[var(--surface-container-raised)] border-l border-[var(--border-default)] flex flex-col min-h-0"
             :class="{
               'preset-reader-mobile-detail-panel': true,
@@ -1233,7 +1254,7 @@
 
               <template x-if="activeContextItem">
                 <div class="space-y-4">
-                  <template x-if="activeContextItem?.group === 'prompts'">
+                  <template x-if="activeContextItem?.group === 'prompts'"><div class="preset-reader-prompt-detail-stack space-y-4">
                     <div
                       class="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-container)] p-4 space-y-3"
                     >
@@ -1281,12 +1302,12 @@
                           x-text="getPromptPositionLabel(activeContextItem)"
                         ></span>
                         <template
-                          x-if="activeContextItem?.group === 'prompts' && getPromptFullDetail(activeContextItem)"
+                          x-if="false"
                         >
                           <button
                             @click="copyText(getPromptFullDetail(activeContextItem), '条目内容')"
                             class="btn-secondary px-2 py-1 text-xs"
-                            title="复制提示词正文"
+
                           >
                             <span aria-hidden="true">{{ icon('clipboard', 'ui-icon--xs') }}</span>
                             复制
@@ -1312,15 +1333,36 @@
                           <strong x-text="getPromptTriggerLabel(activeContextItem)"></strong>
                         </div>
                         <div class="preset-reader-rule-cell">
-                          <span class="preset-reader-detail-stat-label"><span aria-hidden="true">{{ sidebar_icon('layers', 'ui-icon--xs') }}</span>聊天深度</span>
-                          <strong x-text="activeContextItem?.payload?.injection_position === 1 ? (activeContextItem?.payload?.injection_depth ?? 4) : '相对位置'"></strong>
+                          <span x-show="isPromptChatInjection(activeContextItem)" class="preset-reader-detail-stat-label preset-reader-depth-label"><span aria-hidden="true">{{ sidebar_icon('layers', 'ui-icon--xs') }}</span>聊天深度</span>
+                          <strong x-show="isPromptChatInjection(activeContextItem)" x-text="activeContextItem?.payload?.injection_depth ?? 4"></strong>
+                         </div>
+                         <div class="preset-reader-rule-cell" x-show="isPromptChatInjection(activeContextItem)">
+                           <span class="preset-reader-detail-stat-label"><span aria-hidden="true">{{ icon('sort', 'ui-icon--xs') }}</span>插入顺序</span>
+                           <strong x-text="activeContextItem?.payload?.injection_order ?? 100"></strong>
+                         </div>
                         </div>
                       </div>
                       <div
                         x-show="getPromptFullDetail(activeContextItem)"
-                        class="text-sm text-[var(--content-primary)] whitespace-pre-wrap break-words"
-                        x-text="getPromptFullDetail(activeContextItem)"
-                      ></div>
+                        class="preset-reader-prompt-content-block">
+                         <div class="preset-reader-prompt-content-heading">
+                           <span>提示词内容</span>
+                           <button
+                             type="button"
+                             @click="copyText(getPromptFullDetail(activeContextItem), '条目内容')"
+                             class="preset-reader-content-icon-button"
+                             title="复制提示词正文"
+                             aria-label="复制提示词正文"
+                           >
+                             <span aria-hidden="true">{{ icon('clipboard', 'ui-icon--md') }}</span>
+                           </button>
+                         </div>
+                         <div
+                           class="preset-reader-prompt-content"
+                           x-text="getPromptFullDetail(activeContextItem)"
+                         ></div>
+
+                      </div>
                     </div>
                   </template>
 
@@ -1358,6 +1400,24 @@
                       </div>
                       <div class="preset-reader-extension-note">
                         正则脚本与 ST 脚本由同一个扩展编辑器维护，保存后会回读当前预设。
+                       </div>
+                       <div class="preset-reader-extension-content-block">
+                         <div class="preset-reader-prompt-content-heading">
+                           <span>扩展内容</span>
+                           <button
+                             type="button"
+                             @click="copyText(getItemFullDetail(activeContextItem), '条目内容')"
+                             class="preset-reader-content-icon-button"
+                             title="复制扩展内容"
+                             aria-label="复制扩展内容"
+                           >
+                             <span aria-hidden="true">{{ icon('clipboard', 'ui-icon--md') }}</span>
+                           </button>
+                         </div>
+                         <pre
+                           class="preset-reader-detail-preview preset-reader-extension-content"
+                           x-text="getItemFullDetail(activeContextItem)"
+                         ></pre>
                       </div>
                     </div>
                   </template>
@@ -1395,7 +1455,7 @@
                     </div>
                   </template>
 
-                  <template x-if="activeContextItem?.group !== 'prompts'">
+                  <template x-if="activeContextItem?.group !== 'prompts' && activeContextItem?.type !== 'extension'">
                     <div
                       class="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-container)] p-4"
                     >
@@ -1425,7 +1485,7 @@
                     </div>
                   </template>
 
-                  <template x-if="activeContextItem?.group !== 'prompts'">
+                  <template x-if="activeContextItem?.group !== 'prompts' && activeContextItem?.type !== 'extension'">
                     <div class="hidden">
                       <span
                         x-text="getItemValuePreview(activeContextItem)"

@@ -99,15 +99,6 @@ export function extractPresetRegexScripts(extensions) {
   if (!isRecord(extensions)) return [];
 
   const candidates = REGEX_EXTENSION_KEYS.map((key) => extensions[key]);
-  const spreset = extensions.SPreset;
-  if (isRecord(spreset)) {
-    candidates.push(
-      spreset.regex,
-      spreset.regexes,
-      spreset.regular_expressions,
-      spreset.RegexBinding,
-    );
-  }
   candidates.push(extensions.RegexBinding);
 
   for (const candidate of candidates) {
@@ -121,7 +112,7 @@ function hasRegexSource(extensions) {
   if (!isRecord(extensions)) return false;
   if (REGEX_EXTENSION_KEYS.some((key) => key in extensions)) return true;
 
-  return [extensions.SPreset, extensions.RegexBinding].some(
+  return [extensions.RegexBinding].some(
     (container) =>
       isRecord(container) &&
       ["regex", "regexes", "regular_expressions", "RegexBinding"].some(
@@ -155,7 +146,9 @@ export function normalizePresetExtensionsForEditor(extensions) {
   const normalized = isRecord(extensions)
     ? cloneJson(extensions) || {}
     : {};
-  const regexScripts = cloneJson(extractPresetRegexScripts(normalized)) || [];
+  const editorSource = { ...normalized };
+  delete editorSource.SPreset;
+  const regexScripts = cloneJson(extractPresetRegexScripts(editorSource)) || [];
   const tavernScripts = cloneJson(extractPresetTavernScripts(normalized)) || [];
 
   normalized.regex_scripts = regexScripts;
@@ -201,8 +194,10 @@ export function normalizePresetExtensionsForSave(extensions) {
 
 export function getPresetExtensionSummary(extensions) {
   const safeExtensions = isRecord(extensions) ? extensions : {};
-  const regexItems = extractPresetRegexScripts(safeExtensions);
-  const scriptItems = extractPresetTavernScripts(safeExtensions);
+  const readerExtensions = { ...safeExtensions };
+  delete readerExtensions.SPreset;
+  const regexItems = extractPresetRegexScripts(readerExtensions);
+  const scriptItems = extractPresetTavernScripts(readerExtensions);
   const customKeys = Object.keys(safeExtensions).filter(
     (key) => !MANAGED_EXTENSION_KEYS.has(key),
   );
@@ -213,9 +208,9 @@ export function getPresetExtensionSummary(extensions) {
     other_count: customKeys.length,
     total_count: regexItems.length + scriptItems.length + customKeys.length,
     custom_keys: customKeys,
-    keys: Object.keys(safeExtensions),
-    has_regex_source: hasRegexSource(safeExtensions),
-    has_tavern_helper_source: hasTavernHelperSource(safeExtensions),
+    keys: Object.keys(readerExtensions),
+    has_regex_source: hasRegexSource(readerExtensions),
+    has_tavern_helper_source: hasTavernHelperSource(readerExtensions),
   };
 }
 

@@ -454,10 +454,8 @@ def test_preset_grid_and_detail_expose_export_actions():
     assert '/api/presets/export' in export_detail_block
     assert 'id: detail.id' in export_detail_block
     assert '@click="exportActivePreset()"' in preset_detail_template
-    assert re.search(
-        r'@click="exportActivePreset\(\)"[\s\S]*?>\s*导出\s*</button>',
-        preset_detail_template,
-    )
+    assert 'title="导出预设 JSON"' in preset_detail_template
+    assert 'aria-label="导出预设 JSON"' in preset_detail_template
 
 
 def test_preset_grid_template_places_selection_left_and_actions_right():

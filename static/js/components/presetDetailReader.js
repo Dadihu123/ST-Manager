@@ -48,7 +48,7 @@ const TYPE_LABELS = {
 
 const GROUP_FALLBACK_LABELS = {
   extensions: "扩展",
-  scalar_fields: "基础字段",
+  scalar_fields: "基础设置",
   structured_objects: "结构化对象",
 };
 
@@ -716,11 +716,16 @@ export default function presetDetailReader() {
         this.showMobileSidebar = false;
         this.showRightPanel = false;
       } else {
-        this.showRightPanel = true;
+        this.showRightPanel = !this.isScalarWorkspaceReader;
       }
     },
 
     selectItem(itemId) {
+      if (this.isScalarWorkspaceReader) {
+        this.showRightPanel = false;
+        this.showMobileDetailView = false;
+        return;
+      }
       this.activeItemId = itemId || "";
       this.syncActiveReaderSelections();
       this.resetMobileHeaderState();
@@ -1074,6 +1079,10 @@ export default function presetDetailReader() {
       return PROMPT_POSITION_LABELS[position] || "相对";
     },
 
+    isPromptChatInjection(item) {
+      return Number(item?.payload?.injection_position ?? 0) === 1;
+    },
+
     getPromptMarkerVisual(item) {
       const identifier = String(item?.payload?.identifier || "");
       return resolvePromptMarkerVisual(identifier);
@@ -1118,7 +1127,9 @@ export default function presetDetailReader() {
 
     get readerMirroredProfileSections() {
       return this.mirroredProfileSections.filter(
-        (section) => !HIDDEN_READER_MIRRORED_SECTION_IDS.has(section?.id),
+        (section) =>
+          !HIDDEN_READER_MIRRORED_SECTION_IDS.has(section?.id) &&
+          this.getProfileSectionFields(section?.id).length > 0,
       );
     },
 
@@ -1136,19 +1147,60 @@ export default function presetDetailReader() {
 
     getProfileSectionFields(sectionId) {
       return Object.values(this.editorProfile?.fields || {}).filter(
-        (field) => field.section === sectionId,
+        (field) =>
+          field.section === sectionId &&
+          field.source_key !== null &&
+          field.canonical_key !== "prompts" &&
+          field.canonical_key !== "prompt_order" &&
+          field.canonical_key !== "extensions",
       );
     },
 
     getProfileFieldValue(fieldKey) {
       const field = this.getProfileField(fieldKey);
       if (!field) return null;
+      const readerField = this.scalarWorkspace?.field_map?.[field.canonical_key];
+      if (readerField && Object.prototype.hasOwnProperty.call(readerField, "reader_value")) {
+        return readerField.reader_value;
+      }
       const storageKey = field.storage_key || fieldKey;
       return this.activePresetDetail?.raw_data?.[storageKey];
     },
 
     getProfileFieldDisplay(fieldKey) {
-      return this.formatValue(this.getProfileFieldValue(fieldKey));
+      const field = this.getProfileField(fieldKey);
+      if (!field) return "-";
+      const value = this.getProfileFieldValue(fieldKey);
+      if (field.sensitive) {
+        return value === "已设置" || value === "未设置"
+          ? value
+          : value
+            ? "已设置"
+            : "未设置";
+      }
+      return this.formatValue(value);
+    },
+
+    isProfileFieldExpanded(field) {
+      return [
+        "textarea",
+        "raw_json",
+        "key_value_list",
+        "sortable_string_list",
+        "prompt_workspace",
+      ].includes(field?.control);
+    },
+
+    isProfileFieldTextual(field) {
+      return [
+        "text",
+        "password",
+        "textarea",
+        "number",
+        "raw_json",
+        "key_value_list",
+        "sortable_string_list",
+      ].includes(field?.control);
     },
 
     resolveProfileFieldMax(field) {

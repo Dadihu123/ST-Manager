@@ -63,7 +63,14 @@ def test_preset_extension_helper_reads_regex_binding_shape():
     assert scripts[0]['findRegex'] == 'foo'
 
 
-def test_preset_compatibility_utility_matches_backend_shape_matrix():
+def test_preset_extension_spreset_is_preserved_without_reader_normalization():
+    source = {'SPreset': {'regex': [{'findRegex': 'deferred'}]}}
+    normalized = normalize_extensions_for_save(source)
+
+    assert normalized == source
+
+
+
     utility_path = ROOT / 'static/js/utils/extensionCompatibility.js'
     node_script = textwrap.dedent(
         """
@@ -94,6 +101,24 @@ def test_preset_compatibility_utility_matches_backend_shape_matrix():
           if (saved.tavern_helper.scripts.length !== 1 || saved.TavernHelper_scripts) {
             throw new Error(`save normalization failed: ${JSON.stringify(saved)}`);
           }
+        }
+        const spresetSummary = module.getPresetExtensionSummary({
+          SPreset: { regex: [{ findRegex: 'deferred' }] },
+        });
+        if (spresetSummary.total_count !== 0 || spresetSummary.keys.includes('SPreset')) {
+          throw new Error(`SPreset should be hidden from reader summary: ${JSON.stringify(spresetSummary)}`);
+        }
+        const spresetEditor = module.normalizePresetExtensionsForEditor({
+          SPreset: { regex: [{ findRegex: 'deferred' }] },
+        });
+        if (!spresetEditor.SPreset || spresetEditor.regex_scripts.length !== 0) {
+          throw new Error(`SPreset should remain raw and not enter the editor surface: ${JSON.stringify(spresetEditor)}`);
+        }
+        const spresetSaved = module.normalizePresetExtensionsForSave({
+          SPreset: { regex: [{ findRegex: 'deferred' }] },
+        });
+        if (!spresetSaved.SPreset || spresetSaved.regex_scripts.length !== 0) {
+          throw new Error(`SPreset save normalization should preserve raw data: ${JSON.stringify(spresetSaved)}`);
         }
         """
     ).replace('__SOURCE_PATH__', json.dumps(str(utility_path)))
@@ -162,7 +187,8 @@ def test_preset_detail_and_list_share_extension_counts_and_hide_managed_items(
     extension_items = [
         item for item in detail['reader_view']['items'] if item.get('group') == 'extensions'
     ]
-    assert [item['title'] for item in extension_items] == ['memory']
+    assert [item['title'] for item in extension_items] == ['正则与 ST 脚本', 'memory']
+    assert extension_items[0]['editable'] is False
 
 
 def test_save_preset_extensions_canonicalizes_old_helper_and_keeps_unrelated_extension(

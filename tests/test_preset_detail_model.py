@@ -202,7 +202,7 @@ def test_preset_detail_reader_view_uses_prompt_manager_family_for_prompt_presets
     assert 'prompt_order' not in [group['id'] for group in reader_view['groups']]
     assert [item['payload']['identifier'] for item in prompt_items] == ['summary', 'main', 'worldInfoAfter']
     assert prompt_items[0]['editor']['kind'] == 'prompt-manager-item'
-    assert prompt_items[0]['reorderable'] is True
+    assert prompt_items[0]['reorderable'] is False
     assert prompt_items[0]['prompt_meta']['identifier'] == 'summary'
     assert prompt_items[0]['prompt_meta']['is_enabled'] is True
     assert prompt_items[0]['prompt_meta']['content_editable'] is True
@@ -650,8 +650,8 @@ def test_preset_detail_reader_view_uses_prompt_enabled_state_for_simple_prompt_o
 
     assert [item['payload']['identifier'] for item in prompt_items] == ['main', 'summary']
     assert prompt_items[0]['prompt_meta']['uses_prompt_order'] is True
-    assert prompt_items[0]['prompt_meta']['is_enabled'] is False
-    assert '禁用' in prompt_items[0]['summary']
+    assert prompt_items[0]['prompt_meta']['is_enabled'] is True
+    assert '启用' in prompt_items[0]['summary']
 
 
 def test_preset_detail_reader_view_handles_malformed_prompt_position_values(monkeypatch, tmp_path):
@@ -826,7 +826,6 @@ def test_preset_detail_exposes_chat_completion_editor_profile(monkeypatch, tmp_p
     assert profile['fields']['prompt_order']['control'] == 'prompt_workspace'
     assert profile['fields']['wi_format']['control'] == 'textarea'
     assert profile['fields']['extensions']['control'] == 'raw_json'
-    assert profile['fields']['logit_bias']['control'] == 'key_value_list'
 
 
 def test_preset_detail_uses_generic_editor_profile_for_legacy_textgen_shape(monkeypatch, tmp_path):
@@ -1247,11 +1246,9 @@ def test_preset_detail_exposes_aligned_openai_output_and_behavior_sections(monke
         }
     ]
 
-    reader_item = next(
-        item for item in preset['reader_view']['items'] if item['payload'].get('key') == 'names_behavior'
-    )
-    assert reader_item['editor']['kind'] == 'select'
-    assert reader_item['editor']['options'] == ['default', 'always', 'never']
+    reader_field = preset['reader_view']['scalar_workspace']['field_map']['names_behavior']
+    assert reader_field['control'] == 'select'
+    assert reader_field['options'] == [-1, 0, 1, 2]
 
 
 def test_preset_detail_uses_canonical_openai_section_keys(monkeypatch, tmp_path):
@@ -1404,8 +1401,9 @@ def test_preset_detail_reader_view_flattens_all_nested_prompt_order_buckets(monk
     assert prompt_items[1]['prompt_meta']['is_enabled'] is True
     assert prompt_items[2]['prompt_meta']['is_enabled'] is True
     assert prompt_items[0]['prompt_meta']['is_orphan'] is False
-    assert prompt_items[1]['prompt_meta']['is_orphan'] is False
-    assert prompt_items[2]['prompt_meta']['is_orphan'] is False
+    assert prompt_items[1]['prompt_meta']['is_orphan'] is True
+    assert prompt_items[2]['prompt_meta']['is_orphan'] is True
+    assert prompt_items[0]['prompt_meta']['character_id'] == 100000
 
 
 def test_preset_detail_reader_view_deduplicates_prompt_identifiers_across_nested_prompt_order_buckets(
@@ -1776,3 +1774,81 @@ def test_preset_detail_reader_items_expose_logit_bias_editor_metadata(monkeypatc
     assert bias_item['source_key'] == 'logit_bias'
     assert bias_item['value_path'] == 'logit_bias'
     assert bias_item['editor']['kind'] == 'key-value-list'
+
+
+def test_preset_detail_reader_groups_openai_settings_and_hides_unknown_sensitive_and_spreset_data(
+    monkeypatch, tmp_path
+):
+    presets_dir = tmp_path / 'presets'
+    _write_json(
+        presets_dir / 'reader-alignment.json',
+        {
+            'name': 'Reader Alignment',
+            'deepseek_model': 'deepseek-chat',
+            'proxy_password': 'secret',
+            'custom_url': 'https://example.test',
+            'future_runtime_key': 'do not show',
+            'prompts': [
+                {
+                    'identifier': 'relative',
+                    'role': 'system',
+                    'content': 'relative content',
+                    'injection_position': 0,
+                    'injection_depth': 33,
+                    'injection_order': 44,
+                },
+                {
+                    'identifier': 'absolute',
+                    'role': 'system',
+                    'content': 'absolute content',
+                    'injection_position': 1,
+                },
+                {
+                    'identifier': 'marker',
+                    'marker': True,
+                    'content': 'marker content must stay hidden',
+                },
+            ],
+            'prompt_order': ['relative', 'absolute', 'marker'],
+            'extensions': {
+                'SPreset': {'regex': [{'findRegex': 'hidden'}]},
+                'regex_scripts': [{'findRegex': 'visible'}],
+            },
+        },
+    )
+
+    monkeypatch.setattr(presets_api, 'BASE_DIR', str(tmp_path))
+    monkeypatch.setattr(
+        presets_api,
+        'load_config',
+        lambda: {'presets_dir': str(presets_dir), 'resources_dir': str(tmp_path / 'resources')},
+    )
+
+    preset = _make_test_app().test_client().get(
+        '/api/presets/detail/global::reader-alignment.json'
+    ).get_json()['preset']
+    reader_view = preset['reader_view']
+    prompt_items = [item for item in reader_view['items'] if item['type'] == 'prompt']
+    field_map = reader_view['scalar_workspace']['field_map']
+
+    assert [item['payload']['identifier'] for item in prompt_items] == [
+        'relative', 'absolute', 'marker'
+    ]
+    assert 'future_runtime_key' not in field_map
+    assert field_map['proxy_password']['reader_value'] == '已设置'
+    assert field_map['custom_url']['reader_value'] == '已设置'
+    assert reader_view['stats']['base_count'] == len(field_map)
+    assert reader_view['stats']['hidden_count'] == 1
+    assert [item['title'] for item in reader_view['items'] if item['type'] == 'extension'] == [
+        '正则与 ST 脚本'
+    ]
+
+    relative_payload = prompt_items[0]['payload']
+    absolute_payload = prompt_items[1]['payload']
+    marker_payload = prompt_items[2]['payload']
+    assert 'injection_depth' not in relative_payload
+    assert 'injection_order' not in relative_payload
+    assert absolute_payload['injection_depth'] == 4
+    assert absolute_payload['injection_order'] == 100
+    assert marker_payload['content'] == ''
+    assert preset['raw_data']['extensions']['SPreset']['regex'][0]['findRegex'] == 'hidden'
