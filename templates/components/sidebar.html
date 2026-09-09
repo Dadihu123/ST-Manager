@@ -1,4 +1,5 @@
-{% from "components/icon.html" import icon, sidebar_icon, detail_icon, loading_icon %}
+{% from "components/icon.html" import icon, sidebar_icon, detail_icon, loading_icon, beautify_asset_icon %}
+{% from "components/styled_select.html" import styled_select %}
 
 <!-- 移动端：遮罩层 -->
 <div
@@ -973,62 +974,47 @@
 
       <nav class="beautify-workspace-switcher" aria-label="美化工作区">
         <div class="beautify-workspace-switch" role="tablist">
-        <button
-          type="button"
-          role="tab"
-          class="beautify-device-btn beautify-workspace-btn"
-          :class="beautifyWorkspace === 'packages' ? 'is-active' : ''"
-          :aria-selected="beautifyWorkspace === 'packages'"
-          @click="switchBeautifyWorkspace('packages')"
-        >
-          <span aria-hidden="true">{{ icon('package', 'ui-icon--sm') }}</span>
-          美化包
-        </button>
-        <button
-          type="button"
-          role="tab"
-          class="beautify-device-btn beautify-workspace-btn"
-          :class="beautifyWorkspace === 'settings' ? 'is-active' : ''"
-          :aria-selected="beautifyWorkspace === 'settings'"
-          @click="switchBeautifyWorkspace('settings')"
-        >
-          <span aria-hidden="true">{{ icon('settings-gear', 'ui-icon--sm') }}</span>
-          全局设置
-        </button>
+          <button
+            type="button"
+            role="tab"
+            class="beautify-device-btn beautify-workspace-btn"
+            :class="beautifyWorkspace === 'packages' ? 'is-active' : ''"
+            :aria-selected="beautifyWorkspace === 'packages'"
+            @click="switchBeautifyWorkspace('packages')"
+          >
+            <span aria-hidden="true">{{ icon('package', 'ui-icon--sm') }}</span>
+            美化包
+          </button>
+          <button
+            type="button"
+            role="tab"
+            class="beautify-device-btn beautify-workspace-btn"
+            :class="beautifyWorkspace === 'settings' ? 'is-active' : ''"
+            :aria-selected="beautifyWorkspace === 'settings'"
+            @click="switchBeautifyWorkspace('settings')"
+          >
+            <span aria-hidden="true">{{ icon('settings-gear', 'ui-icon--sm') }}</span>
+            全局设置
+          </button>
         </div>
       </nav>
 
       <div
-        class="beautify-toolbar-filters"
+        class="beautify-toolbar-filters beautify-toolbar-platform-filter"
         x-show="beautifyWorkspace === 'packages'"
       >
-        <label class="beautify-search-field">
-          <span aria-hidden="true">{{ icon('search', 'ui-icon--sm') }}</span>
-          <span class="sr-only">搜索美化包</span>
-          <input
-            x-ref="beautifySearch"
-            x-model.debounce.200ms="beautifySearch"
-            type="search"
-            class="beautify-filter-input"
-            placeholder="搜索美化包"
-            autocomplete="off"
-            aria-label="搜索美化包"
-          />
-        </label>
-        <label class="beautify-filter-field">
-          <span aria-hidden="true">{{ icon('filter', 'ui-icon--sm') }}</span>
-          <span class="sr-only">按平台筛选</span>
-          <select
-            x-model="platformFilter"
-            class="beautify-filter-select beautify-variant-select beautify-platform-filter-select"
-            aria-label="按平台筛选"
-          >
-            <option value="all">全部端</option>
-            <option value="pc">PC</option>
-            <option value="mobile">移动端</option>
-            <option value="dual">双端</option>
-          </select>
-        </label>
+        {% call styled_select(
+          "platformFilter",
+          wrapper_class="beautify-filter-select beautify-platform-filter-select",
+          trigger_class="icon-select-trigger--compact",
+          menu_class="icon-select-menu--fit",
+          aria_label="按平台筛选"
+        ) %}
+          <option value="all">全部端</option>
+          <option value="pc" data-icon="{{ url_for('static', filename='icons/beautify/pc.svg') }}">PC</option>
+          <option value="mobile" data-icon="{{ url_for('static', filename='icons/beautify/mobile.svg') }}">移动端</option>
+          <option value="dual" data-icon="{{ url_for('static', filename='icons/beautify/dual.svg') }}">双端</option>
+        {% endcall %}
       </div>
 
       <div
@@ -1044,7 +1030,8 @@
             @change="handleThemeFiles($event.target.files); $event.target.value = ''"
           />
           <span aria-hidden="true">{{ icon('file-import', 'ui-icon--sm') }}</span>
-          <span>导入主题</span>
+          <span class="beautify-action-label beautify-action-label--desktop">导入主题</span>
+          <span class="beautify-action-label beautify-action-label--mobile">主题</span>
         </label>
         <div class="beautify-toolbar-package-actions">
           <label
@@ -1061,8 +1048,9 @@
               :disabled="!selectedPackageId"
               @change="handleVariantFiles($event.target.files); $event.target.value = ''"
             />
-            <span aria-hidden="true">{{ icon('layers', 'ui-icon--sm') }}</span>
-            <span>导入变体</span>
+            <span aria-hidden="true">{{ beautify_asset_icon('variant-atomic.svg', 'ui-icon--sm') }}</span>
+            <span class="beautify-action-label beautify-action-label--desktop">导入变体</span>
+            <span class="beautify-action-label beautify-action-label--mobile">变体</span>
           </label>
           <label
             class="beautify-action-btn cursor-pointer"
@@ -1078,7 +1066,8 @@
               @change="handleWallpaperFiles($event.target.files); $event.target.value = ''"
             />
             <span aria-hidden="true">{{ icon('wallpaper', 'ui-icon--sm') }}</span>
-            <span>导入壁纸</span>
+            <span class="beautify-action-label beautify-action-label--desktop">导入壁纸</span>
+            <span class="beautify-action-label beautify-action-label--mobile">壁纸</span>
           </label>
           <label
             class="beautify-action-btn cursor-pointer"
@@ -1094,8 +1083,9 @@
               :disabled="!selectedPackageId"
               @change="handleScreenshotFiles($event.target.files); $event.target.value = ''"
             />
-            <span aria-hidden="true">{{ icon('image', 'ui-icon--sm') }}</span>
-            <span>导入截图</span>
+            <span aria-hidden="true">{{ beautify_asset_icon('screenshot.svg', 'ui-icon--sm') }}</span>
+            <span class="beautify-action-label beautify-action-label--desktop">导入截图</span>
+            <span class="beautify-action-label beautify-action-label--mobile">截图</span>
           </label>
         </div>
       </div>
@@ -1130,30 +1120,30 @@
             <div class="beautify-package-card-title-wrap">
               <span class="beautify-package-card-icon" aria-hidden="true">{{ icon('package', 'ui-icon--sm') }}</span>
               <div>
-              <div class="beautify-package-name" x-text="item.name"></div>
-              <div
-                class="beautify-package-meta"
-                x-text="item.author || '未填写作者'"
-              ></div>
+                <div class="beautify-package-name" x-text="item.name"></div>
+                <div
+                  class="beautify-package-meta"
+                  x-text="item.author || '未填写作者'"
+                ></div>
               </div>
             </div>
             <span class="beautify-package-card-arrow" aria-hidden="true">{{ icon('arrow-right', 'ui-icon--xs') }}</span>
           </div>
           <div class="beautify-package-chips">
             <span class="beautify-chip" x-show="supportsPlatform(item, 'pc')">
-              <span aria-hidden="true">{{ icon('display', 'ui-icon--xs') }}</span><span>PC</span>
+              <span aria-hidden="true">{{ beautify_asset_icon('pc.svg', 'ui-icon--xs') }}</span><span>PC</span>
             </span>
             <span class="beautify-chip" x-show="supportsPlatform(item, 'mobile')">
-              <span aria-hidden="true">{{ icon('display', 'ui-icon--xs') }}</span><span>移动端</span>
+              <span aria-hidden="true">{{ beautify_asset_icon('mobile.svg', 'ui-icon--xs') }}</span><span>移动端</span>
             </span>
             <span class="beautify-chip" x-show="supportsPlatform(item, 'dual')">
-              <span aria-hidden="true">{{ icon('layers', 'ui-icon--xs') }}</span><span>双端</span>
+              <span aria-hidden="true">{{ beautify_asset_icon('dual.svg', 'ui-icon--xs') }}</span><span>双端</span>
             </span>
           </div>
           <div class="beautify-package-stats">
-            <span><span aria-hidden="true">{{ icon('layers', 'ui-icon--xs') }}</span><span x-text="`变体 ${item.variant_count}`"></span></span>
+            <span><span aria-hidden="true">{{ beautify_asset_icon('variant-atomic.svg', 'ui-icon--xs') }}</span><span x-text="`变体 ${item.variant_count}`"></span></span>
             <span><span aria-hidden="true">{{ icon('wallpaper', 'ui-icon--xs') }}</span><span x-text="`壁纸 ${item.wallpaper_count}`"></span></span>
-            <span x-show="item.screenshot_count"><span aria-hidden="true">{{ icon('image', 'ui-icon--xs') }}</span><span x-text="`截图 ${item.screenshot_count}`"></span></span>
+            <span x-show="item.screenshot_count"><span aria-hidden="true">{{ beautify_asset_icon('screenshot.svg', 'ui-icon--xs') }}</span><span x-text="`截图 ${item.screenshot_count}`"></span></span>
           </div>
           <div
             class="beautify-package-thumbs"

@@ -188,12 +188,12 @@ def test_source_monitor_schedule_select_opens_above_scroll_panel_bottom():
     assert 'bottom: calc(100% + 0.35rem);' in menu_block
 
 
-def test_project_single_selects_reuse_shared_shell_without_touching_sidebar_or_multiselects():
+def test_project_single_selects_reuse_shared_shell_without_native_sidebar_selects_or_multiselects():
     templates_root = PROJECT_ROOT / 'templates'
     sidebar_source = read_project_file('templates/components/sidebar.html')
 
-    assert '<select' in sidebar_source
-    assert 'styled_select' not in sidebar_source
+    assert '<select' not in sidebar_source
+    assert 'styled_select' in sidebar_source
 
     for template_path in templates_root.rglob('*.html'):
         relative_path = template_path.relative_to(templates_root).as_posix()

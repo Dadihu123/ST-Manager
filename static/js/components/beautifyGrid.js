@@ -412,7 +412,17 @@ export default function beautifyGrid() {
 
     focusBeautifySearch() {
       this.$nextTick(() => {
-        const searchInput = this.$refs?.beautifySearch;
+        const searchInput =
+          this.$refs?.beautifySearch ||
+          (typeof document !== "undefined"
+            ? Array.from(document.querySelectorAll("input")).find((input) => {
+                const modelAttribute = Array.from(input.attributes).find((attribute) =>
+                  attribute.name.startsWith("x-model") &&
+                  attribute.value === "beautifySearch",
+                );
+                return Boolean(modelAttribute) && input.offsetParent !== null;
+              })
+            : null);
         if (searchInput && typeof searchInput.focus === "function") {
           searchInput.focus();
           searchInput.select?.();
@@ -645,14 +655,14 @@ export default function beautifyGrid() {
       const hasMobile = !!this.findVariantForPreviewPlatform("mobile", detail);
       const hasDual = !!this.findVariantByPlatform("dual", detail);
 
+      if (isMobileViewport) {
+        return "mobile";
+      }
       if (currentPlatform === "dual" && hasDual) {
         return "dual";
       }
       if (currentPlatform === "dual" && hasPc) {
         return "pc";
-      }
-      if (isMobileViewport && hasMobile) {
-        return "mobile";
       }
       if (currentPlatform === "mobile" && hasMobile) {
         return "mobile";

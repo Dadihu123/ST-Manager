@@ -1,11 +1,11 @@
 {% from "components/styled_select.html" import styled_select, styled_select_controlled %}
-{% from "components/icon.html" import icon, detail_icon, loading_icon %}
+{% from "components/icon.html" import icon, detail_icon, sidebar_icon, loading_icon, beautify_asset_icon %}
 
 {% macro package_detail_cards() %}
   <div class="beautify-detail-card">
     <div class="beautify-detail-card-heading">
       <div class="beautify-detail-heading-group">
-        <span class="beautify-detail-heading-icon" aria-hidden="true">{{ icon('layers', 'ui-icon--sm') }}</span>
+        <span class="beautify-detail-heading-icon beautify-detail-heading-icon--asset" aria-hidden="true">{{ beautify_asset_icon('variant-atomic.svg', 'ui-icon--md') }}</span>
         <div>
           <div class="beautify-detail-heading">当前变体</div>
           <div class="beautify-detail-card-kicker">正在预览的主题来源</div>
@@ -17,18 +17,26 @@
       </span>
     </div>
     <div class="beautify-detail-kv">
-      <span><span aria-hidden="true">{{ icon('display', 'ui-icon--xs') }}</span>平台</span><strong x-text="activeVariant?.platform || '-' "></strong>
+      <span>
+        <span class="beautify-inline-icon" aria-hidden="true">
+          <template x-if="activeVariant?.platform === 'pc'">{{ beautify_asset_icon('pc.svg', 'ui-icon--sm') }}</template>
+          <template x-if="activeVariant?.platform === 'mobile'">{{ beautify_asset_icon('mobile.svg', 'ui-icon--sm') }}</template>
+          <template x-if="activeVariant?.platform === 'dual'">{{ beautify_asset_icon('dual.svg', 'ui-icon--sm') }}</template>
+        </span>
+        <span>平台</span>
+      </span>
+      <strong x-text="activeVariant?.platform || '-' "></strong>
     </div>
     <div class="beautify-detail-kv">
-      <span><span aria-hidden="true">{{ icon('palette', 'ui-icon--xs') }}</span>主题</span><strong x-text="activeVariant?.theme_name || '-' "></strong>
+      <span><span aria-hidden="true">{{ sidebar_icon('paint-brush', 'ui-icon--sm') }}</span>主题</span><strong x-text="activeVariant?.theme_name || '-' "></strong>
     </div>
     <div class="beautify-detail-kv">
-      <span><span aria-hidden="true">{{ icon('info', 'ui-icon--xs') }}</span>预览状态</span><span
+      <span><span aria-hidden="true">{{ icon('eye', 'ui-icon--sm') }}</span>预览状态</span><span
         x-text="activeVariant?.preview_hint?.needs_platform_review ? '需要人工确认平台' : '可直接对照预览' "
       ></span>
     </div>
     <template x-if="activeVariant">
-      <div class="beautify-stage-actions">
+      <div class="beautify-stage-actions beautify-detail-primary-actions">
         <button
           type="button"
           class="beautify-primary-btn beautify-send-theme-btn"
@@ -94,7 +102,7 @@
   <div class="beautify-detail-card">
     <div class="beautify-detail-card-heading">
       <div class="beautify-detail-heading-group">
-        <span class="beautify-detail-heading-icon" aria-hidden="true">{{ icon('image', 'ui-icon--sm') }}</span>
+        <span class="beautify-detail-heading-icon beautify-detail-heading-icon--asset" aria-hidden="true">{{ beautify_asset_icon('screenshot.svg', 'ui-icon--md') }}</span>
         <div>
           <div class="beautify-detail-heading">截图</div>
           <div class="beautify-detail-card-kicker">用于核对 SillyTavern 实际效果</div>
@@ -137,7 +145,7 @@
   <div class="beautify-detail-card">
     <div class="beautify-detail-card-heading">
       <div class="beautify-detail-heading-group">
-        <span class="beautify-detail-heading-icon" aria-hidden="true">{{ detail_icon('persona', 'ui-icon--sm') }}</span>
+        <span class="beautify-detail-heading-icon" aria-hidden="true">{{ detail_icon('persona', 'ui-icon--md') }}</span>
         <div>
           <div class="beautify-detail-heading">角色与用户覆盖</div>
           <div class="beautify-detail-card-kicker">仅影响当前美化包的原生预览</div>
@@ -178,7 +186,7 @@
         </div>
       </label>
       <label class="beautify-settings-field">
-        <span class="beautify-field-label"><span aria-hidden="true">{{ icon('user', 'ui-icon--xs') }}</span>用户覆盖</span>
+        <span class="beautify-field-label"><span aria-hidden="true">{{ beautify_asset_icon('user.svg', 'ui-icon--sm') }}</span>用户覆盖</span>
         <input
           type="text"
           class="beautify-filter-input"
@@ -210,7 +218,7 @@
         </div>
       </label>
     </div>
-    <div class="beautify-stage-actions">
+    <div class="beautify-stage-actions beautify-detail-primary-actions">
       <button
         type="button"
         class="beautify-primary-btn"
@@ -253,7 +261,7 @@
               </div>
             </div>
           </div>
-          <div class="beautify-stage-actions">
+          <div class="beautify-stage-actions beautify-settings-action-row">
             <label class="beautify-action-btn cursor-pointer">
               <input
                 type="file"
@@ -356,89 +364,79 @@
           </div>
         </div>
 
-        <div class="beautify-detail-card">
+        <div class="beautify-detail-card beautify-identity-card">
           <div class="beautify-detail-card-heading">
             <div class="beautify-detail-heading-group">
-              <span class="beautify-detail-heading-icon" aria-hidden="true">{{ detail_icon('persona', 'ui-icon--sm') }}</span>
+              <span class="beautify-detail-heading-icon" aria-hidden="true">{{ detail_icon('persona', 'ui-icon--md') }}</span>
               <div>
-                <div class="beautify-detail-heading">角色默认资料</div>
-                <div class="beautify-detail-card-kicker">原生 ST 预览中的角色身份</div>
+                <div class="beautify-detail-heading">角色与用户默认资料</div>
+                <div class="beautify-detail-card-kicker">统一管理原生 ST 预览中的两组默认身份</div>
               </div>
             </div>
           </div>
-          <div class="beautify-settings-form-grid">
-            <label class="beautify-settings-field">
-              <span class="beautify-field-label"><span aria-hidden="true">{{ icon('user', 'ui-icon--xs') }}</span>角色名称</span>
-              <input
-                type="text"
-                class="beautify-filter-input"
-                x-model="globalCharacterName"
-                autocomplete="off"
-                placeholder="角色默认名称"
-              />
-            </label>
-            <div class="beautify-stage-actions">
-              <label class="beautify-action-btn cursor-pointer">
+          <div class="beautify-identity-grid">
+            <div class="beautify-identity-row">
+              <label class="beautify-settings-field">
+                <span class="beautify-field-label"><span aria-hidden="true">{{ detail_icon('persona', 'ui-icon--sm') }}</span>角色默认资料</span>
                 <input
-                  type="file"
-                  class="hidden"
-                  accept="image/*"
-                  @change="handleGlobalAvatarFile('character', $event.target.files); $event.target.value = ''"
+                  type="text"
+                  class="beautify-filter-input"
+                  x-model="globalCharacterName"
+                  autocomplete="off"
+                  placeholder="角色默认名称"
                 />
-                <span aria-hidden="true">{{ icon('file-import', 'ui-icon--sm') }}</span><span>上传角色头像</span>
               </label>
-              <button
-                type="button"
-                class="beautify-soft-btn"
-                @click="clearGlobalCharacterAvatar()"
-              >
-                <span aria-hidden="true">{{ icon('close', 'ui-icon--sm') }}</span><span>清除角色头像</span>
-              </button>
+              <div class="beautify-stage-actions beautify-identity-actions">
+                <label class="beautify-action-btn cursor-pointer">
+                  <input
+                    type="file"
+                    class="hidden"
+                    accept="image/*"
+                    @change="handleGlobalAvatarFile('character', $event.target.files); $event.target.value = ''"
+                  />
+                  <span aria-hidden="true">{{ icon('file-import', 'ui-icon--sm') }}</span><span>上传角色头像</span>
+                </label>
+                <button
+                  type="button"
+                  class="beautify-soft-btn"
+                  @click="clearGlobalCharacterAvatar()"
+                >
+                  <span aria-hidden="true">{{ icon('close', 'ui-icon--sm') }}</span><span>清除角色头像</span>
+                </button>
+              </div>
             </div>
-          </div>
-        </div>
-
-        <div class="beautify-detail-card">
-          <div class="beautify-detail-card-heading">
-            <div class="beautify-detail-heading-group">
-              <span class="beautify-detail-heading-icon" aria-hidden="true">{{ icon('user', 'ui-icon--sm') }}</span>
-              <div>
-                <div class="beautify-detail-heading">用户默认资料</div>
-                <div class="beautify-detail-card-kicker">用户消息与头像的默认身份</div>
+            <div class="beautify-identity-row">
+              <label class="beautify-settings-field">
+                <span class="beautify-field-label"><span aria-hidden="true">{{ beautify_asset_icon('user.svg', 'ui-icon--sm') }}</span>用户默认资料</span>
+                <input
+                  type="text"
+                  class="beautify-filter-input"
+                  x-model="globalUserName"
+                  autocomplete="off"
+                  placeholder="用户默认名称"
+                />
+              </label>
+              <div class="beautify-stage-actions beautify-identity-actions">
+                <label class="beautify-action-btn cursor-pointer">
+                  <input
+                    type="file"
+                    class="hidden"
+                    accept="image/*"
+                    @change="handleGlobalAvatarFile('user', $event.target.files); $event.target.value = ''"
+                  />
+                  <span aria-hidden="true">{{ icon('file-import', 'ui-icon--sm') }}</span><span>上传用户头像</span>
+                </label>
+                <button
+                  type="button"
+                  class="beautify-soft-btn"
+                  @click="clearGlobalUserAvatar()"
+                >
+                  <span aria-hidden="true">{{ icon('close', 'ui-icon--sm') }}</span><span>清除用户头像</span>
+                </button>
               </div>
             </div>
           </div>
-          <div class="beautify-settings-form-grid">
-            <label class="beautify-settings-field">
-              <span class="beautify-field-label"><span aria-hidden="true">{{ icon('user', 'ui-icon--xs') }}</span>用户名称</span>
-              <input
-                type="text"
-                class="beautify-filter-input"
-                x-model="globalUserName"
-                autocomplete="off"
-                placeholder="用户默认名称"
-              />
-            </label>
-            <div class="beautify-stage-actions">
-              <label class="beautify-action-btn cursor-pointer">
-                <input
-                  type="file"
-                  class="hidden"
-                  accept="image/*"
-                  @change="handleGlobalAvatarFile('user', $event.target.files); $event.target.value = ''"
-                />
-                <span aria-hidden="true">{{ icon('file-import', 'ui-icon--sm') }}</span><span>上传用户头像</span>
-              </label>
-              <button
-                type="button"
-                class="beautify-soft-btn"
-                @click="clearGlobalUserAvatar()"
-              >
-                <span aria-hidden="true">{{ icon('close', 'ui-icon--sm') }}</span><span>清除用户头像</span>
-              </button>
-            </div>
-          </div>
-          <div class="beautify-stage-actions">
+          <div class="beautify-stage-actions beautify-detail-primary-actions">
             <button
               type="button"
               class="beautify-primary-btn"
@@ -572,20 +570,19 @@
               aria_label="平台",
               wrapper_attrs='x-show="activeVariant"'
             ) %}
-              <option value="pc">PC</option>
-              <option value="mobile">移动端</option>
-              <option value="dual">双端</option>
+              <option value="pc" data-icon="{{ url_for('static', filename='icons/beautify/pc.svg') }}">PC</option>
+              <option value="mobile" data-icon="{{ url_for('static', filename='icons/beautify/mobile.svg') }}">移动端</option>
+              <option value="dual" data-icon="{{ url_for('static', filename='icons/beautify/dual.svg') }}">双端</option>
             {% endcall %}
             <button
               type="button"
               class="beautify-soft-btn"
-              x-show="!isMobileBeautifyViewport()"
               @click="togglePackageDetailCollapsed()"
               :aria-expanded="!packageDetailCollapsed"
               :title="packageDetailCollapsed ? '展开详情面板' : '收起详情面板'"
             >
-              <span aria-hidden="true" x-show="packageDetailCollapsed">{{ icon('expand', 'ui-icon--sm') }}</span>
-              <span aria-hidden="true" x-show="!packageDetailCollapsed">{{ icon('collapse', 'ui-icon--sm') }}</span>
+              <span aria-hidden="true" x-show="packageDetailCollapsed">{{ beautify_asset_icon('details.svg', 'ui-icon--sm') }}</span>
+              <span aria-hidden="true" x-show="!packageDetailCollapsed">{{ beautify_asset_icon('details.svg', 'ui-icon--sm') }}</span>
               <span x-text="packageDetailCollapsed ? '展开详情' : '收起详情'"></span>
             </button>
           </div>
@@ -613,12 +610,12 @@
                 :aria-selected="stageMode === 'screenshot'"
                 @click="setStageMode('screenshot')"
               >
-                <span aria-hidden="true">{{ icon('image', 'ui-icon--sm') }}</span>
+                <span aria-hidden="true">{{ beautify_asset_icon('screenshot.svg', 'ui-icon--sm') }}</span>
                 截图查看
               </button>
             </div>
           </div>
-          <div class="beautify-device-switches">
+          <div class="beautify-device-switches" x-show="!isMobileBeautifyViewport()">
              <button
                type="button"
                class="beautify-device-btn"
@@ -627,7 +624,7 @@
                :disabled="stageMode === 'screenshot' || !hasPcVariant || isMobileBeautifyViewport()"
                @click="previewPlatform('pc')"
              >
-               <span aria-hidden="true">{{ icon('display', 'ui-icon--sm') }}</span>
+               <span aria-hidden="true">{{ beautify_asset_icon('pc.svg', 'ui-icon--sm') }}</span>
                PC
              </button>
             <button
@@ -638,7 +635,7 @@
               :disabled="stageMode === 'screenshot' || !hasMobileVariant"
               @click="previewPlatform('mobile')"
             >
-              <span aria-hidden="true">{{ icon('display', 'ui-icon--sm') }}</span>
+              <span aria-hidden="true">{{ beautify_asset_icon('mobile.svg', 'ui-icon--sm') }}</span>
               移动端
             </button>
             <button
@@ -649,7 +646,7 @@
               :disabled="stageMode === 'screenshot' || !canPreviewDualTarget"
               @click="previewPlatform('dual')"
             >
-              <span aria-hidden="true">{{ icon('layers', 'ui-icon--sm') }}</span>
+              <span aria-hidden="true">{{ beautify_asset_icon('dual.svg', 'ui-icon--sm') }}</span>
               双端
             </button>
           </div>
@@ -664,7 +661,7 @@
           ) %}
             <option value="">选择具体变体</option>
             <template x-for="variant in variantOptions" :key="variant.id">
-              <option :value="variant.id" x-text="variant.label"></option>
+              <option :value="variant.id" data-icon="{{ url_for('static', filename='icons/beautify/variant-atomic.svg') }}" x-text="variant.label"></option>
             </template>
           {% endcall %}
           <div class="beautify-stage-actions">
@@ -881,6 +878,7 @@
             <div class="beautify-mobile-topbar-actions">
               <div
                 class="beautify-device-switches beautify-mobile-device-switches"
+                x-show="!isMobileBeautifyViewport()"
               >
                 <button
                   type="button"
@@ -889,7 +887,7 @@
                   :disabled="!hasPcVariant || isMobileBeautifyViewport()"
                   @click="previewPlatform('pc')"
                 >
-                  PC
+                  <span aria-hidden="true">{{ beautify_asset_icon('pc.svg', 'ui-icon--sm') }}</span>PC
                 </button>
                 <button
                   type="button"
@@ -898,7 +896,7 @@
                   :disabled="!hasMobileVariant"
                   @click="previewPlatform('mobile')"
                 >
-                  移动端
+                  <span aria-hidden="true">{{ beautify_asset_icon('mobile.svg', 'ui-icon--sm') }}</span>移动端
                 </button>
                 <button
                   type="button"
@@ -907,7 +905,7 @@
                   :disabled="!hasDualVariant"
                   @click="previewPlatform('dual')"
                 >
-                  双端
+                  <span aria-hidden="true">{{ beautify_asset_icon('dual.svg', 'ui-icon--sm') }}</span>双端
                 </button>
               </div>
               <button
@@ -924,7 +922,7 @@
           <template
             x-if="beautifyWorkspace !== 'settings' && stageMode === 'screenshot'"
           >
-            <div class="beautify-detail-heading">截图查看</div>
+            <div class="beautify-detail-heading"><span aria-hidden="true">{{ beautify_asset_icon('screenshot.svg', 'ui-icon--sm') }}</span>截图查看</div>
           </template>
         </div>
 
@@ -995,7 +993,7 @@
 
               <template x-if="!activeScreenshot">
                 <div class="beautify-screenshot-stage-copy">
-                  <div class="beautify-detail-heading">截图查看</div>
+                  <div class="beautify-detail-heading"><span aria-hidden="true">{{ beautify_asset_icon('screenshot.svg', 'ui-icon--sm') }}</span>截图查看</div>
                   <div class="beautify-empty-copy">
                     从侧边栏导入截图后，可在这里对照当前美化包的效果。
                   </div>

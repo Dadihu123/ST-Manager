@@ -981,6 +981,12 @@ ${stylesheetMarkup}
         right: 0;
       }
 
+      body[data-st-preview-platform='mobile'] #leftSendForm {
+        width: calc(2 * var(--bottomFormBlockSize));
+        height: var(--bottomFormBlockSize);
+        flex-wrap: nowrap;
+      }
+
       .drawer-toggle {
         pointer-events: auto;
       }

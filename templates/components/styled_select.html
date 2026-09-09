@@ -32,6 +32,9 @@
       @keydown.space.prevent="toggle()"
       @keydown.escape.prevent="closeMenu(true)"
     >
+      <span class="icon-select-trigger-icon" x-show="selectedOptionIcon()" aria-hidden="true">
+        <img :src="selectedOptionIcon()" alt="" draggable="false" />
+      </span>
       <span class="icon-select-label" x-text="selectedOptionLabel()"></span>
       <span class="icon-select-chevron" aria-hidden="true">
         {{ icon('chevron-down', 'ui-icon--xs') }}
@@ -70,6 +73,9 @@
             @keydown.space.prevent="selectOption(option)"
             @keydown.escape.prevent="closeMenu(true)"
           >
+            <span class="icon-select-option-icon" x-show="option.icon" aria-hidden="true">
+              <img :src="option.icon" alt="" draggable="false" />
+            </span>
             <span class="icon-select-option-label" x-text="option.label"></span>
           </button>
         </div>
@@ -116,6 +122,9 @@
       @keydown.space.prevent="toggle()"
       @keydown.escape.prevent="closeMenu(true)"
     >
+      <span class="icon-select-trigger-icon" x-show="selectedOptionIcon()" aria-hidden="true">
+        <img :src="selectedOptionIcon()" alt="" draggable="false" />
+      </span>
       <span class="icon-select-label" x-text="selectedOptionLabel()"></span>
       <span class="icon-select-chevron" aria-hidden="true">
         {{ icon('chevron-down', 'ui-icon--xs') }}
@@ -154,6 +163,9 @@
             @keydown.space.prevent="selectOption(option, false); {{ select_handler|safe }}"
             @keydown.escape.prevent="closeMenu(true)"
           >
+            <span class="icon-select-option-icon" x-show="option.icon" aria-hidden="true">
+              <img :src="option.icon" alt="" draggable="false" />
+            </span>
             <span class="icon-select-option-label" x-text="option.label"></span>
           </button>
         </div>

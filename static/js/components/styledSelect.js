@@ -51,6 +51,7 @@ export default function styledSelect() {
           key: `${option.value}-${index}`,
           value: String(option.value),
           label: option.textContent.trim(),
+          icon: option.dataset.icon || '',
           disabled: option.disabled,
           hidden: option.hidden,
           groupLabel,
@@ -74,6 +75,12 @@ export default function styledSelect() {
         (option) => String(this.value) === option.value && !option.hidden,
       );
       return selected?.label || this.$refs.source?.selectedOptions?.[0]?.textContent?.trim() || '请选择';
+    },
+
+    selectedOptionIcon() {
+      return this.options.find(
+        (option) => String(this.value) === option.value && !option.hidden,
+      )?.icon || '';
     },
 
     toggle() {

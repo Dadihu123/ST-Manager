@@ -493,6 +493,7 @@ def test_build_beautify_preview_document_loads_mobile_stylesheet_only_for_mobile
 
         if (!html.includes('/static/vendor/sillytavern/style.css')) throw new Error('missing vendored ST style.css');
         if (!html.includes('/static/vendor/sillytavern/css/mobile-styles.css')) throw new Error('missing vendored ST mobile stylesheet');
+        if (!html.includes("body[data-st-preview-platform='mobile'] #leftSendForm")) throw new Error('mobile preview should keep send tools on one row');
         '''
     )
 

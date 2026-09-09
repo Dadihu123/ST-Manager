@@ -492,8 +492,9 @@ def test_sidebar_template_hosts_beautify_toolbar_filters_and_package_list_contra
     assert 'class="flex-1 flex flex-col overflow-hidden bg-[var(--surface-container)] beautify-sidebar-panel beautify-sidebar-pane"' in sidebar_template
     assert 'beautify-toolbar' in sidebar_template
     assert 'beautify-package-list custom-scrollbar' in sidebar_template
-    assert 'x-model.debounce.200ms="beautifySearch"' in sidebar_template
-    assert 'x-model="platformFilter"' in sidebar_template
+    assert 'x-model.debounce.200ms="beautifySearch"' not in sidebar_template
+    assert 'beautify-toolbar-platform-filter' in sidebar_template
+    assert 'styled_select(' in sidebar_template
     assert 'x-model="installFilter"' not in sidebar_template
     assert '@click="fetchPackages()"' in sidebar_template
     assert any(handler in sidebar_template for handler in theme_change_handlers)
