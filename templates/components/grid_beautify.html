@@ -31,7 +31,7 @@
       <span><span aria-hidden="true">{{ sidebar_icon('paint-brush', 'ui-icon--sm') }}</span>主题</span><strong x-text="activeVariant?.theme_name || '-' "></strong>
     </div>
     <div class="beautify-detail-kv">
-      <span><span aria-hidden="true">{{ icon('eye', 'ui-icon--sm') }}</span>预览状态</span><span
+      <span><span aria-hidden="true">{{ detail_icon('book-read', 'ui-icon--sm') }}</span>预览状态</span><span
         x-text="activeVariant?.preview_hint?.needs_platform_review ? '需要人工确认平台' : '可直接对照预览' "
       ></span>
     </div>
@@ -450,7 +450,7 @@
         <div class="beautify-detail-card beautify-settings-preview-card-wrap">
           <div class="beautify-detail-card-heading">
             <div class="beautify-detail-heading-group">
-              <span class="beautify-detail-heading-icon" aria-hidden="true">{{ icon('eye', 'ui-icon--sm') }}</span>
+              <span class="beautify-detail-heading-icon" aria-hidden="true">{{ detail_icon('book-read', 'ui-icon--sm') }}</span>
               <div>
                 <div class="beautify-detail-heading">全局默认预览</div>
                 <div class="beautify-detail-card-kicker">不会带入当前包的主题与覆盖</div>
@@ -493,7 +493,7 @@
                     class="beautify-primary-btn"
                     @click="openMobileFullscreen('preview'); loadPreview()"
                   >
-                    <span aria-hidden="true">{{ icon('eye', 'ui-icon--sm') }}</span><span>加载全局默认预览</span>
+                    <span aria-hidden="true">{{ detail_icon('book-read', 'ui-icon--sm') }}</span><span>加载全局默认预览</span>
                   </button>
                 </div>
               </template>
@@ -507,7 +507,7 @@
                     class="beautify-primary-btn"
                     @click="loadPreview()"
                   >
-                    <span aria-hidden="true">{{ icon('eye', 'ui-icon--sm') }}</span><span>加载全局默认预览</span>
+                    <span aria-hidden="true">{{ detail_icon('book-read', 'ui-icon--sm') }}</span><span>加载全局默认预览</span>
                   </button>
                 </div>
               </template>
@@ -599,7 +599,7 @@
                 :aria-selected="stageMode === 'preview'"
                 @click="setStageMode('preview')"
               >
-                <span aria-hidden="true">{{ icon('eye', 'ui-icon--sm') }}</span>
+                <span aria-hidden="true">{{ detail_icon('book-read', 'ui-icon--sm') }}</span>
                 原生预览
               </button>
               <button
@@ -721,7 +721,7 @@
                         class="beautify-primary-btn"
                         @click="openMobileFullscreen('preview'); loadPreview()"
                       >
-                        <span aria-hidden="true">{{ icon('eye', 'ui-icon--sm') }}</span><span>加载原生 ST 预览</span>
+                        <span aria-hidden="true">{{ detail_icon('book-read', 'ui-icon--sm') }}</span><span>加载原生 ST 预览</span>
                       </button>
                     </div>
                   </template>
@@ -750,7 +750,7 @@
                         class="beautify-primary-btn"
                         @click="loadPreview()"
                       >
-                        <span aria-hidden="true">{{ icon('eye', 'ui-icon--sm') }}</span><span>加载原生 ST 预览</span>
+                        <span aria-hidden="true">{{ detail_icon('book-read', 'ui-icon--sm') }}</span><span>加载原生 ST 预览</span>
                       </button>
                     </div>
                   </template>

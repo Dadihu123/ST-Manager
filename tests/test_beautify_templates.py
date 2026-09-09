@@ -745,3 +745,21 @@ def test_beautify_toolbar_action_buttons_keep_import_labels_on_single_line():
     )
 
     assert_has_css_declaration(action_button_block, 'white-space', 'nowrap')
+
+
+def test_beautify_preview_status_uses_character_card_read_icon_everywhere():
+    template = read_project_file('templates/components/grid_beautify.html')
+
+    assert "detail_icon('book-read', 'ui-icon--sm')" in template
+    assert "icon('eye', 'ui-icon--sm')" not in template
+
+
+def test_beautify_variant_platform_icon_matches_detail_row_icon_size():
+    css = read_project_file('static/css/modules/view-beautify.css')
+    platform_icon_block = extract_css_block_for_selector(
+        css,
+        '.beautify-detail-kv .beautify-inline-icon .beautify-asset-icon',
+    )
+
+    assert_has_css_declaration(platform_icon_block, 'width', '1rem')
+    assert_has_css_declaration(platform_icon_block, 'height', '1rem')
