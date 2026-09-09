@@ -27,6 +27,14 @@ export default function advancedEditor() {
     regexTestInput: "",
     regexTestResult: "",
     regexTestResultIcon: "",
+    scriptDataError: "",
+
+    // 编辑器级反馈与危险操作确认
+    editorFeedback: { type: "", message: "" },
+    showDeleteConfirm: false,
+    deleteRequest: null,
+    isSavingFile: false,
+    _editorFeedbackTimer: null,
 
     // ST脚本扩展
     activeScriptIndex: -1,
@@ -114,10 +122,18 @@ export default function advancedEditor() {
         this.regexTestResult = "";
         this.regexTestResultIcon = "";
         this.regexPreviewMode = "text";
+        this.scriptDataError = "";
+        this.editorFeedback = { type: "", message: "" };
+        this.showDeleteConfirm = false;
+        this.deleteRequest = null;
+        this.isSavingFile = false;
         // 确保数据结构完整
         if (!this.editingData.extensions) this.editingData.extensions = {};
         if (!this.editingData.extensions.regex_scripts)
           this.editingData.extensions.regex_scripts = [];
+        if (this.editingData.quick_reply) {
+          this._normalizeQrSet(this.editingData.quick_reply);
+        }
         // 确保 Helper 脚本也经过清洗
         this.getTavernScripts().forEach((s) => this._normalizeScript(s));
 
@@ -150,6 +166,11 @@ export default function advancedEditor() {
           this._normalizeQrSet(fileData);
         }
         this.showAdvancedModal = true;
+        this.scriptDataError = "";
+        this.editorFeedback = { type: "", message: "" };
+        this.showDeleteConfirm = false;
+        this.deleteRequest = null;
+        this.isSavingFile = false;
 
         // 构造一个伪造的 editingData 结构，让现有 UI 能够复用
         // 因为 UI 绑定的是 editingData.extensions.regex_scripts 等
@@ -168,7 +189,7 @@ export default function advancedEditor() {
           this.activeRegexIndex = 0;
         } else if (type === "quick_reply") {
           this.activeTab = "quick_reply";
-          this.activeQrIndex = 0;
+          this.activeQrIndex = fileData.qrList?.length ? 0 : -1;
         } else {
           // 默认为 Scripts
           this.activeTab = "scripts";
@@ -311,6 +332,107 @@ export default function advancedEditor() {
       return scripts[this.activeScriptIndex] || null;
     },
 
+    getFileTypeLabel() {
+      return {
+        regex: "正则脚本",
+        script: "ST 脚本",
+        quick_reply: "快速回复",
+      }[this.fileType] || "独立扩展文件";
+    },
+
+    getActiveEntryLabel() {
+      if (this.activeTab === "regex") {
+        return this.editingData?.extensions?.regex_scripts?.[this.activeRegexIndex]
+          ?.scriptName || "未命名正则脚本";
+      }
+      if (this.activeTab === "scripts") {
+        return this.getActiveScript()?.name || "未命名 ST 脚本";
+      }
+      return this.editingData?.quick_reply?.qrList?.[this.activeQrIndex]?.label ||
+        (this.activeQrIndex === -1 ? this.editingData?.quick_reply?.name : "未命名回复");
+    },
+
+    _setEditorFeedback(type, message, duration = 0) {
+      this.editorFeedback = { type: type || "info", message: String(message || "") };
+      if (this._editorFeedbackTimer) {
+        clearTimeout(this._editorFeedbackTimer);
+        this._editorFeedbackTimer = null;
+      }
+      if (duration > 0 && typeof setTimeout === "function") {
+        this._editorFeedbackTimer = setTimeout(() => {
+          this.editorFeedback = { type: "", message: "" };
+          this._editorFeedbackTimer = null;
+        }, duration);
+      }
+    },
+
+    clearEditorFeedback() {
+      if (this._editorFeedbackTimer) {
+        clearTimeout(this._editorFeedbackTimer);
+        this._editorFeedbackTimer = null;
+      }
+      this.editorFeedback = { type: "", message: "" };
+    },
+
+    handleGlobalKeydown(event) {
+      if (!this.showAdvancedModal) return;
+
+      if (event.key === "Escape") {
+        event.preventDefault();
+        if (this.showDeleteConfirm) {
+          this.cancelDeleteConfirmation();
+        } else {
+          this.requestClose();
+        }
+        return;
+      }
+
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
+        event.preventDefault();
+        if (this.isFileMode) {
+          this.saveFileChanges();
+        } else if (this.showPersistButton) {
+          this.persistChanges();
+        } else {
+          this._setEditorFeedback("info", "当前编辑会在点击完成后返回", 2600);
+        }
+      }
+    },
+
+    selectEditorEntry(kind, index) {
+      if (kind === "regex") this.activeRegexIndex = index;
+      if (kind === "script") this.activeScriptIndex = index;
+      if (kind === "quick_reply") this.activeQrIndex = index;
+      this.showMobileSidebar = false;
+      this.$nextTick(() => {
+        if (typeof document === "undefined") return;
+        const entry = document.querySelector(
+          `[data-advanced-entry="${kind}"][data-entry-index="${index}"]`,
+        );
+        entry?.focus();
+      });
+    },
+
+    handleEntryKeydown(event, kind, index) {
+      const lists = {
+        regex: this.editingData?.extensions?.regex_scripts || [],
+        script: this.getTavernScripts(),
+        quick_reply: this.editingData?.quick_reply?.qrList || [],
+      };
+      const list = lists[kind] || [];
+      if (!list.length) return;
+
+      let nextIndex = index;
+      if (event.key === "ArrowDown") nextIndex = Math.min(index + 1, list.length - 1);
+      if (event.key === "ArrowUp") nextIndex = Math.max(index - 1, 0);
+      if (event.key === "Home") nextIndex = 0;
+      if (event.key === "End") nextIndex = list.length - 1;
+      if (nextIndex === index) return;
+
+      event.preventDefault();
+      this.selectEditorEntry(kind, nextIndex);
+    },
+
     syncRuntimeContext() {
       const script = this.getActiveScript();
       if (!script || !this.scriptRuntime) {
@@ -423,12 +545,19 @@ export default function advancedEditor() {
     // 初始化/标准化 QR 数据
     _normalizeQrSet(data) {
       if (!data.name) data.name = "New Quick Reply Set";
-      if (!Array.isArray(data.qrList)) data.qrList = [];
+      if (!Array.isArray(data.qrList)) {
+        const sourceList = Array.isArray(data.quickReplies)
+          ? data.quickReplies
+          : Array.isArray(data.entries)
+            ? data.entries
+            : [];
+        data.qrList = sourceList;
+      }
       // 确保每个 QR 条目有必要字段
       data.qrList.forEach((qr) => {
         if (qr.id === undefined) qr.id = Math.floor(Math.random() * 1000000);
-        if (qr.label === undefined) qr.label = "New Reply";
-        if (qr.message === undefined) qr.message = "";
+        if (qr.label === undefined) qr.label = qr.name || "New Reply";
+        if (qr.message === undefined) qr.message = qr.content || "";
       });
       return data;
     },
@@ -510,9 +639,11 @@ export default function advancedEditor() {
         this.editingData.extensions.regex_scripts.push(data);
         this.activeRegexIndex =
           this.editingData.extensions.regex_scripts.length - 1;
-        this.$store.global.showToast("导入成功");
+        this._setEditorFeedback("success", "正则脚本已导入", 3200);
+        this.$store.global.showToast("导入成功", 3000, "check");
       } catch (err) {
-        alert("导入失败: " + err.message);
+        this._setEditorFeedback("error", "导入失败：" + err.message);
+        this.$store.global.showToast("导入失败", 3600, "close");
       }
       e.target.value = "";
     },
@@ -563,10 +694,12 @@ export default function advancedEditor() {
           this.activeScriptIndex = helper.scripts.length - 1;
         }
 
-        this.$store.global.showToast("导入成功");
+        this._setEditorFeedback("success", "ST 脚本已导入", 3200);
+        this.$store.global.showToast("导入成功", 3000, "check");
         this.$nextTick(() => this.syncRuntimeContext());
       } catch (err) {
-        alert("导入失败: " + err.message);
+        this._setEditorFeedback("error", "导入失败：" + err.message);
+        this.$store.global.showToast("导入失败", 3600, "close");
       }
       e.target.value = "";
     },
@@ -581,9 +714,26 @@ export default function advancedEditor() {
       try {
         const parsed = JSON.parse(this.scriptDataJson);
         script.data = parsed;
+        this.scriptDataError = "";
         this.syncRuntimeContext();
       } catch (e) {
+        this.scriptDataError = "JSON 格式无效，修正后才会同步到脚本数据。";
         console.warn("JSON Parse Error in Data field");
+      }
+    },
+
+    formatScriptDataJson() {
+      if (this.activeScriptIndex === -1) return;
+      try {
+        const parsed = JSON.parse(this.scriptDataJson || "{}");
+        this.scriptDataJson = JSON.stringify(parsed, null, 2);
+        this.syncScriptDataJson();
+        if (!this.scriptDataError) {
+          this._setEditorFeedback("success", "JSON 已格式化", 2200);
+        }
+      } catch (error) {
+        this.scriptDataError = "JSON 格式无效，无法格式化。";
+        this._setEditorFeedback("error", this.scriptDataError);
       }
     },
 
@@ -614,10 +764,12 @@ export default function advancedEditor() {
     },
 
     removeRegexScript(index) {
-      if (confirm("确定删除此正则脚本？")) {
-        this.editingData.extensions.regex_scripts.splice(index, 1);
-        this.activeRegexIndex = -1;
-      }
+      const script = this.editingData?.extensions?.regex_scripts?.[index];
+      if (!script) return;
+      this.openDeleteConfirmation("regex", {
+        index,
+        label: script.scriptName || "未命名正则脚本",
+      });
     },
 
     moveRegex(index, dir) {
@@ -783,11 +935,11 @@ export default function advancedEditor() {
       const list = this.getTavernScripts();
       const index = list.findIndex((s) => s.id === scriptId);
       if (index > -1) {
-        if (this.activeRuntimeScriptId === scriptId) {
-          this.stopScriptRuntime();
-        }
-        list.splice(index, 1);
-        this.activeScriptIndex = -1;
+        const script = list[index];
+        this.openDeleteConfirmation("script", {
+          scriptId,
+          label: script?.name || "未命名 ST 脚本",
+        });
       }
     },
 
@@ -851,10 +1003,63 @@ export default function advancedEditor() {
     },
 
     removeQrEntry(index) {
-      if (confirm("删除此回复条目？")) {
-        this.editingData.quick_reply.qrList.splice(index, 1);
-        this.activeQrIndex = -1;
+      const qr = this.editingData?.quick_reply?.qrList?.[index];
+      if (!qr) return;
+      this.openDeleteConfirmation("quick_reply", {
+        index,
+        label: qr.label || "未命名回复",
+      });
+    },
+
+    openDeleteConfirmation(type, request) {
+      this.deleteRequest = { type, ...(request || {}) };
+      this.showDeleteConfirm = true;
+      this.$nextTick(() => {
+        if (typeof document === "undefined") return;
+        document.querySelector(".advanced-delete-dialog [data-delete-cancel]")?.focus();
+      });
+    },
+
+    cancelDeleteConfirmation() {
+      this.showDeleteConfirm = false;
+      this.deleteRequest = null;
+    },
+
+    confirmDelete() {
+      const request = this.deleteRequest;
+      if (!request) return;
+
+      if (request.type === "regex") {
+        const list = this.editingData?.extensions?.regex_scripts || [];
+        if (list[request.index]) {
+          list.splice(request.index, 1);
+          this.activeRegexIndex = list.length
+            ? Math.min(request.index, list.length - 1)
+            : -1;
+        }
+      } else if (request.type === "script") {
+        const list = this.getTavernScripts();
+        const index = list.findIndex((script) => script.id === request.scriptId);
+        if (index > -1) {
+          if (this.activeRuntimeScriptId === request.scriptId) this.stopScriptRuntime();
+          list.splice(index, 1);
+          this.activeScriptIndex = list.length
+            ? Math.min(index, list.length - 1)
+            : -1;
+        }
+      } else if (request.type === "quick_reply") {
+        const list = this.editingData?.quick_reply?.qrList || [];
+        if (list[request.index]) {
+          list.splice(request.index, 1);
+          this.activeQrIndex = list.length
+            ? Math.min(request.index, list.length - 1)
+            : -1;
+        }
       }
+
+      this.cancelDeleteConfirmation();
+      this._setEditorFeedback("success", `已删除：${request.label || "扩展条目"}`, 2600);
+      this.$store?.global?.showToast?.("已删除扩展条目", 2600, "check");
     },
 
     moveQrEntry(index, dir) {
@@ -869,8 +1074,9 @@ export default function advancedEditor() {
     },
 
     // 保存独立文件的方法
-    saveFileChanges() {
-      if (!this.isFileMode || !this.currentFilePath) return;
+    async saveFileChanges() {
+      if (!this.isFileMode || !this.currentFilePath || this.isSavingFile) return;
+      this.isSavingFile = true;
       let contentToSave = null;
       try {
         if (this.fileType === "regex") {
@@ -882,21 +1088,20 @@ export default function advancedEditor() {
         } else if (this.fileType === "quick_reply") {
           contentToSave = this.editingData.quick_reply;
         }
-        import("../api/resource.js").then((module) => {
-          module
-            .saveScriptFile({
-              file_path: this.currentFilePath,
-              content: contentToSave,
-            })
-            .then((res) => {
-              if (res.success)
-                this.$store.global.showToast("脚本文件已保存", 3000, "settings-save");
-              else alert("保存失败: " + res.msg);
-            });
+        const module = await import("../api/resource.js");
+        const res = await module.saveScriptFile({
+          file_path: this.currentFilePath,
+          content: contentToSave,
         });
+        if (!res.success) throw new Error(res.msg || "写入文件失败");
+        this._setEditorFeedback("success", "文件已保存到磁盘", 3200);
+        this.$store?.global?.showToast?.("脚本文件已保存", 3000, "settings-save");
       } catch (e) {
         console.error(e);
-        alert("保存前处理数据出错: " + e.message);
+        this._setEditorFeedback("error", "保存失败：" + e.message);
+        this.$store?.global?.showToast?.("保存失败", 3600, "close");
+      } finally {
+        this.isSavingFile = false;
       }
     },
 
@@ -911,6 +1116,10 @@ export default function advancedEditor() {
 
     persistChanges() {
       if (this.isFileMode || !this.showPersistButton) return;
+      if (this.isPersistPending) {
+        this._setEditorFeedback("info", "保存正在进行，请稍候", 2200);
+        return;
+      }
       this.isPersistPending = true;
       window.dispatchEvent(
         new CustomEvent("advanced-editor-persist", {
@@ -926,12 +1135,14 @@ export default function advancedEditor() {
         this.showPersistButton &&
         this.isPersistPending
       ) {
+        this._setEditorFeedback("info", "保存正在进行，请等待保存完成", 2400);
         return;
       }
       this.showAdvancedModal = false;
     },
 
     destroy() {
+      this.clearEditorFeedback();
       this.stopScriptRuntime();
       if (this.scriptRuntime) {
         this.scriptRuntime.destroy();

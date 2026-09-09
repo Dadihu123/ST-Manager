@@ -1,1086 +1,949 @@
 {% from "components/icon.html" import icon, detail_icon %}
 {% from "components/styled_select.html" import styled_select %}
 
-<!-- 高级功能编辑器 (Regex & Scripts) -->
-<div x-show="showAdvancedModal" x-data="advancedEditor" x-cloak class="modal-overlay ui-modal-overlay ui-refresh-surface z-modal-popover"
-    @click.self="requestClose()">
+<div x-show="showAdvancedModal" x-data="advancedEditor" x-cloak
+    class="modal-overlay ui-modal-overlay ui-refresh-surface z-modal-popover"
+    @click.self="requestClose()" @keydown.window="handleGlobalKeydown($event)">
     <div class="modal-container advanced-editor-container ui-modal-shell" role="dialog" aria-modal="true"
-        aria-labelledby="advanced-editor-title">
+        aria-labelledby="advanced-editor-title" aria-describedby="advanced-editor-description">
 
-        <!-- 1. 顶部 Header -->
-        <div class="p-4 border-b flex justify-between items-center advanced-editor-header">
-            <div class="flex items-center gap-3">
-                <h3 id="advanced-editor-title" class="font-bold text-lg advanced-editor-title flex items-center gap-2">
-                    <span aria-hidden="true">{{ icon('sliders-settings', 'ui-icon--md ') }}</span>
-                    <span>高级扩展</span>
-                </h3>
-                <span class="text-xs px-2 py-0.5 rounded border color-border-default color-text-muted hidden md:inline"
-                    x-text="isFileMode ? (fileType === 'regex' ? '单文件编辑: Regex' : '单文件编辑: Script') : 'Regex & Scripts'">
-                </span>
+        <header class="advanced-editor-header">
+            <div class="advanced-editor-heading">
+                <div class="advanced-editor-heading-icon" aria-hidden="true">
+                    {{ icon('sliders-settings', 'ui-icon--md ') }}
+                    <span x-show="isFileMode && !['regex', 'script', 'quick_reply'].includes(fileType)" class="advanced-editor-heading-fallback-icon">
+                        {{ icon('file-code', 'ui-icon--sm ') }}
+                    </span>
+                </div>
+                <div class="advanced-editor-heading-copy">
+                    <span class="advanced-editor-eyebrow">EXTENSIONS / EDITOR</span>
+                    <h2 id="advanced-editor-title">高级扩展</h2>
+                    <p id="advanced-editor-description">
+                        <span x-text="isFileMode ? getFileTypeLabel() : '预设扩展规则'"></span>
+                        <span class="advanced-editor-heading-separator">/</span>
+                        <span class="advanced-editor-active-label" x-text="getActiveEntryLabel() || '等待选择条目'"></span>
+                    </p>
+                </div>
             </div>
-            <button type="button" @click="requestClose()"
-                class="color-text-muted color-hover-text-danger transition text-xl advanced-editor-close-btn"
-                title="关闭" aria-label="关闭高级编辑器">
-                {{ icon('close', 'ui-icon--md ') }}
+
+            <div class="advanced-editor-header-meta">
+                <span class="advanced-editor-mode-badge" :class="isFileMode ? 'is-file' : 'is-buffered'">
+                    <span class="advanced-status-dot" aria-hidden="true"></span>
+                    <span x-text="isFileMode ? '独立文件' : '编辑缓冲区'"></span>
+                </span>
+                <button type="button" @click="requestClose()" class="ui-close-button advanced-editor-close-btn"
+                    title="关闭高级扩展编辑器" aria-label="关闭高级扩展编辑器">
+                    {{ icon('close', 'ui-icon--md ') }}
+                </button>
+            </div>
+        </header>
+
+        <nav class="advanced-editor-tabs" role="tablist" aria-label="扩展类型">
+            <button type="button" role="tab" class="advanced-editor-tab" id="advanced-tab-regex"
+                aria-controls="advanced-panel-regex" :aria-selected="(activeTab === 'regex').toString()"
+                :class="{ 'is-active': activeTab === 'regex' }"
+                :disabled="isFileMode && fileType !== 'regex'"
+                @click="activeTab = 'regex'; showMobileSidebar = false">
+                <span class="advanced-editor-tab-icon color-text-accent" aria-hidden="true">
+                    {{ detail_icon('regex', 'ui-icon--sm ') }}
+                </span>
+                <span class="advanced-editor-tab-copy"><strong>正则脚本</strong><small>Regex rules</small></span>
+                <span class="advanced-editor-tab-count" x-text="editingData.extensions?.regex_scripts?.length || 0"></span>
+            </button>
+            <button type="button" role="tab" class="advanced-editor-tab" id="advanced-tab-scripts"
+                aria-controls="advanced-panel-scripts" :aria-selected="(activeTab === 'scripts').toString()"
+                :class="{ 'is-active': activeTab === 'scripts' }"
+                :disabled="isFileMode && fileType !== 'script'"
+                @click="activeTab = 'scripts'; showMobileSidebar = false">
+                <span class="advanced-editor-tab-icon color-text-violet" aria-hidden="true">
+                    {{ detail_icon('script-file', 'ui-icon--sm ') }}
+                </span>
+                <span class="advanced-editor-tab-copy"><strong>ST 脚本</strong><small>Tavern Helper</small></span>
+                <span class="advanced-editor-tab-count" x-text="getTavernScripts().length"></span>
+            </button>
+            <button type="button" role="tab" class="advanced-editor-tab" id="advanced-tab-quick-reply"
+                aria-controls="advanced-panel-quick-reply" :aria-selected="(activeTab === 'quick_reply').toString()"
+                :class="{ 'is-active': activeTab === 'quick_reply' }"
+                :disabled="isFileMode ? fileType !== 'quick_reply' : !editingData.quick_reply"
+                @click="activeTab = 'quick_reply'; showMobileSidebar = false">
+                <span class="advanced-editor-tab-icon color-text-warning" aria-hidden="true">
+                    {{ detail_icon('quick-reply', 'ui-icon--sm ') }}
+                </span>
+                <span class="advanced-editor-tab-copy"><strong>快速回复</strong><small>Quick replies</small></span>
+                <span class="advanced-editor-tab-count" x-text="editingData.quick_reply?.qrList?.length || 0"></span>
+            </button>
+        </nav>
+
+        <div x-show="editorFeedback.message" class="advanced-editor-feedback"
+            :class="'is-' + (editorFeedback.type || 'info')" role="status" aria-live="polite">
+            <span class="advanced-feedback-icon" aria-hidden="true">
+                <template x-if="editorFeedback.type === 'error'">{{ icon('alert-triangle', 'ui-icon--sm ') }}</template>
+                <template x-if="editorFeedback.type === 'success'">{{ icon('check', 'ui-icon--sm ') }}</template>
+                <template x-if="!['error', 'success'].includes(editorFeedback.type)">{{ icon('circle-dot', 'ui-icon--sm ') }}</template>
+            </span>
+            <span x-text="editorFeedback.message"></span>
+            <button type="button" class="advanced-icon-button advanced-feedback-dismiss" @click="clearEditorFeedback()"
+                title="关闭提示" aria-label="关闭提示">
+                {{ icon('close-small', 'ui-icon--sm ') }}
             </button>
         </div>
 
-        <!-- 2. 顶部 Tabs -->
-        <div class="adv-tab-bar" x-show="!isFileMode">
-            <div @click="activeTab='regex'" @keydown.enter.space.prevent="activeTab='regex'" class="adv-tab" role="tab" tabindex="0"
-                :aria-selected="(activeTab === 'regex').toString()" :class="activeTab==='regex'?'active':''">
-                <span class="tab-icon inline-flex items-center" aria-hidden="true">{{ detail_icon('regex', 'ui-icon--sm ') }}</span>
-                <span class="tab-text">正则脚本 (Regex)</span>
-            </div>
-            <div @click="activeTab='scripts'" @keydown.enter.space.prevent="activeTab='scripts'" class="adv-tab" role="tab" tabindex="0"
-                :aria-selected="(activeTab === 'scripts').toString()" :class="activeTab==='scripts'?'active':''">
-                <span class="tab-icon inline-flex items-center" aria-hidden="true">{{ detail_icon('script-file', 'ui-icon--sm ') }}</span>
-                <span class="tab-text">ST 脚本 (Helper)</span>
-            </div>
-        </div>
-        <div class="adv-tab-bar" x-show="isFileMode"
-            style="background: var(--surface-container-raised); border-bottom: 1px solid var(--border-default); cursor: default;">
-            <div class="adv-tab active" role="tab" aria-selected="true" tabindex="0">
-                <span class="tab-icon inline-flex items-center" aria-hidden="true">
-                    <span x-show="fileType === 'regex'">{{ detail_icon('regex', 'ui-icon--sm ') }}</span>
-                    <span x-show="fileType === 'script'">{{ detail_icon('script-file', 'ui-icon--sm ') }}</span>
-                    <span x-show="fileType === 'quick_reply'">{{ detail_icon('quick-reply', 'ui-icon--sm ') }}</span>
-                    <span x-show="!['regex', 'script', 'quick_reply'].includes(fileType)">{{ icon('file-code', 'ui-icon--sm ') }}</span>
-                </span>
-                <span class="tab-text"
-                    x-text="currentFilePath ? currentFilePath.split('/').pop() : 'Editing File'"></span>
-            </div>
-        </div>
-
-        <!-- 3. 主体内容区 (已移除 x-data，使用父级状态) -->
-        <div class="flex-1 overflow-hidden relative">
-
-            <!-- === Tab 1: Regex (Split View) === -->
-            <div x-show="activeTab==='regex'" class="adv-split-view">
-
-                <!-- 左侧：正则列表 -->
-                <div class="adv-list-pane custom-scrollbar overflow-y-auto" :class="{
-                        'hidden md:flex': $store.global.deviceType !== 'mobile',
-                        'top-14': $store.global.deviceType !== 'mobile',
-                        'top-0': $store.global.deviceType === 'mobile',
-                        'fixed left-0 bottom-0 z-50 w-[280px] max-w-[85vw] shadow-2xl flex flex-col': $store.global.deviceType === 'mobile' && showMobileSidebar,
-                        'hidden': $store.global.deviceType === 'mobile' && !showMobileSidebar
-                    }" x-transition:enter="transition ease-out duration-300"
-                    x-transition:enter-start="transform -translate-x-full"
-                    x-transition:enter-end="transform translate-x-0"
-                    x-transition:leave="transition ease-in duration-200"
-                    x-transition:leave-start="transform translate-x-0"
-                    x-transition:leave-end="transform -translate-x-full">
-                    <div
-                        class="p-3 border-b border-[var(--border-default)] flex justify-between items-center bg-[var(--surface-container-raised)] sticky top-0 z-10">
-                        <span class="text-xs font-bold text-[var(--content-secondary)] uppercase">Script List</span>
-                        <div class="flex items-center gap-2">
+        <main class="advanced-editor-body">
+            <!-- 正则脚本 -->
+            <section x-show="activeTab === 'regex'" id="advanced-panel-regex" class="advanced-editor-tab-panel"
+                role="tabpanel" aria-labelledby="advanced-tab-regex">
+                <aside class="adv-list-pane custom-scrollbar overflow-y-auto" :class="{ 'is-mobile-open': showMobileSidebar }"
+                    aria-label="正则脚本列表">
+                    <div class="advanced-list-header">
+                        <div>
+                            <span class="advanced-list-eyebrow">RULE SET</span>
+                            <h3>正则脚本</h3>
+                            <p><span x-text="editingData.extensions?.regex_scripts?.length || 0"></span> 个规则，按列表顺序执行</p>
+                        </div>
+                        <div class="advanced-list-actions">
                             <template x-if="!isFileMode">
-                                <div class="flex gap-2">
-                                    <button @click="$refs.importRegexInput.click()"
-                                        class="text-xs bg-[var(--surface-container)] border border-[var(--border-default)] hover:bg-[var(--state-hover-surface)] px-2 py-1 rounded transition"
-                                        title="导入正则" aria-label="导入正则">
-                                        {{ icon('file-import', 'ui-icon--sm ') }}
-                                    </button>
-                                    <input type="file" x-ref="importRegexInput" @change="importRegex" accept=".json"
-                                        style="display:none;">
-                                    <button @click="addRegexScript()"
-                                        class="text-xs color-surface-success-solid color-hover-surface-success color-text-on-dark px-2 py-1 rounded transition flex items-center gap-1"
-                                        title="新建正则脚本">
-                                        {{ icon('plus-square', 'ui-icon--sm ') }}<span>新建</span>
-                                    </button>
-                                </div>
+                                <button type="button" class="advanced-icon-button" @click="$refs.importRegexInput.click()"
+                                    title="导入正则脚本" aria-label="导入正则脚本">
+                                    {{ icon('file-import', 'ui-icon--sm ') }}
+                                </button>
+                            </template>
+                            <input type="file" x-ref="importRegexInput" @change="importRegex" accept=".json" hidden>
+                            <template x-if="!isFileMode">
+                                <button type="button" class="advanced-text-button advanced-text-button--accent"
+                                    @click="addRegexScript()" title="新建正则脚本">
+                                    {{ icon('plus-square', 'ui-icon--sm ') }}<span>新建</span>
+                                </button>
                             </template>
                         </div>
                     </div>
 
-                    <div class="flex flex-col">
-                        <template x-for="(script, idx) in editingData.extensions.regex_scripts" :key="script.id || idx">
-                            <!-- 使用 flex 布局，移除 pr-8 和 relative，改为 items-center -->
-                            <div class="adv-list-item group flex items-center justify-between gap-2" role="button" tabindex="0"
-                                :class="activeRegexIndex === idx ? 'active' : ''"
-                                @click="activeRegexIndex = idx; if($store.global.deviceType === 'mobile') showMobileSidebar = false"
-                                @keydown.enter.space.prevent="activeRegexIndex = idx; if($store.global.deviceType === 'mobile') showMobileSidebar = false">
-
-                                <!-- 左侧：文本信息 (占据剩余空间) -->
-                                <div class="flex-1 min-w-0 overflow-hidden">
-                                    <div class="flex justify-between items-center mb-1">
-                                        <span class="font-bold text-sm truncate"
-                                            :class="script.disabled ? 'color-text-muted line-through' : 'text-[var(--content-primary)]'"
-                                            x-text="script.scriptName || '未命名脚本'"></span>
+                    <div class="advanced-entry-list" role="listbox" aria-label="正则脚本条目">
+                        <template x-for="(script, idx) in (editingData.extensions?.regex_scripts || [])" :key="script.id || idx">
+                            <div class="advanced-entry" role="option" tabindex="0" :data-advanced-entry="'regex'"
+                                :data-entry-index="idx" :aria-selected="(activeRegexIndex === idx).toString()"
+                                :class="{ 'is-active': activeRegexIndex === idx, 'is-disabled': script.disabled }"
+                                @click="selectEditorEntry('regex', idx)"
+                                @keydown="handleEntryKeydown($event, 'regex', idx)">
+                                <div class="advanced-entry-main">
+                                    <div class="advanced-entry-title-row">
+                                        <span class="advanced-entry-title" x-text="script.scriptName || '未命名正则脚本'"></span>
+                                        <span class="advanced-entry-order" x-text="String(idx + 1).padStart(2, '0')"></span>
                                     </div>
-                                    <div class="text-[10px] font-mono text-[var(--content-muted)] truncate"
-                                        x-text="script.findRegex || 'Empty Regex'"></div>
-
-                                    <!-- 状态小标 -->
-                                    <div class="flex gap-1 mt-1">
-                                        <span x-show="script.runOnEdit" class="w-2 h-2 rounded-full color-surface-accent-solid"
-                                            title="Run On Edit"></span>
-                                        <span x-show="script.placement && script.placement.length > 0"
-                                            class="w-2 h-2 rounded-full color-surface-violet" title="Has Placement"></span>
+                                    <span class="advanced-entry-preview" x-text="script.findRegex || '尚未填写查找表达式'"></span>
+                                    <div class="advanced-entry-tags">
+                                        <span x-show="script.runOnEdit" class="advanced-status-chip is-accent">编辑时</span>
+                                        <span x-show="script.placement?.length" class="advanced-status-chip">位置 <span x-text="script.placement.length"></span></span>
+                                        <span x-show="script.disabled" class="advanced-status-chip is-danger">已禁用</span>
                                     </div>
                                 </div>
-
-                                <!-- 右侧：操作按钮组 (悬停显示，Flex布局防止错位) -->
-                                <div
-                                    class="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                                <div class="advanced-entry-actions" @click.stop>
                                     <template x-if="!isFileMode">
-                                        <div class="flex gap-1">
-                                            <div
-                                                class="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-                                                <button @click.stop="exportRegex(idx)" class="sort-btn-xs rounded"
-                                                    title="导出正则" aria-label="导出正则">
-                                                    {{ icon('upload', 'ui-icon--sm ') }}
-                                                </button>
-                                                <div class="ui-reorder-button-group">
-                                                    <button type="button" @click.stop="moveRegex(idx, -1)"
-                                                        class="ui-reorder-button" title="上移" aria-label="上移">{{ icon('arrow-up', 'ui-icon--xs') }}</button>
-                                                    <button type="button" @click.stop="moveRegex(idx, 1)"
-                                                        class="ui-reorder-button" title="下移" aria-label="下移">{{ icon('arrow-down', 'ui-icon--xs') }}</button>
-                                                </div>
-                                            </div>
-                                            <button @click.stop="removeRegexScript(idx)"
-                                                class="opacity-0 group-hover:opacity-100 color-text-muted color-hover-text-danger p-1 flex-shrink-0 transition"
-                                                title="删除正则脚本" aria-label="删除正则脚本">
-                                                {{ icon('close', 'ui-icon--xs') }}
-                                            </button>
-                                        </div>
+                                        <button type="button" class="advanced-icon-button" @click="exportRegex(idx)"
+                                            title="导出正则脚本" aria-label="导出正则脚本">
+                                            {{ icon('upload', 'ui-icon--xs ') }}
+                                        </button>
+                                    </template>
+                                    <template x-if="!isFileMode">
+                                        <button type="button" class="ui-reorder-button" @click="moveRegex(idx, -1)"
+                                            :disabled="idx === 0" title="上移" aria-label="上移">
+                                            {{ icon('arrow-up', 'ui-icon--xs') }}
+                                        </button>
+                                    </template>
+                                    <template x-if="!isFileMode">
+                                        <button type="button" class="ui-reorder-button" @click="moveRegex(idx, 1)"
+                                            :disabled="idx === (editingData.extensions?.regex_scripts?.length || 0) - 1"
+                                            title="下移" aria-label="下移">
+                                            {{ icon('arrow-down', 'ui-icon--xs') }}
+                                        </button>
+                                    </template>
+                                    <template x-if="!isFileMode">
+                                        <button type="button" class="advanced-icon-button is-danger" @click="removeRegexScript(idx)"
+                                            title="删除正则脚本" aria-label="删除正则脚本">
+                                            {{ icon('trash', 'ui-icon--xs ') }}
+                                        </button>
                                     </template>
                                 </div>
-
-
                             </div>
                         </template>
-
-                        <div x-show="editingData.extensions.regex_scripts.length === 0"
-                            class="p-8 text-center text-[var(--content-muted)] text-xs">
-                            暂无正则脚本<br>点击上方按钮添加
+                        <div x-show="!editingData.extensions?.regex_scripts?.length" class="advanced-list-empty">
+                            <span class="advanced-empty-icon color-text-accent" aria-hidden="true">
+                                {{ detail_icon('regex', 'ui-icon--md ') }}
+                            </span>
+                            <strong>还没有正则脚本</strong>
+                            <span x-text="isFileMode ? '此文件没有可编辑的规则' : '导入已有规则，或从空白规则开始'"></span>
                         </div>
                     </div>
-                </div>
+                </aside>
 
-                <!-- 右侧：编辑器 -->
-                <template
-                    x-if="activeRegexIndex !== -1 && editingData.extensions.regex_scripts && editingData.extensions.regex_scripts[activeRegexIndex]">
-                    <div class="adv-editor-pane custom-scrollbar">
-                        <!-- 移除 x-data="{ script: ... }"，改为直接绑定路径，确保切换索引时数据实时刷新 -->
-                        <div class="flex flex-col gap-4">
-
-                            <!-- A. 基础信息栏 -->
-                            <div class="flex gap-4 items-end border-b border-[var(--border-default)] pb-4">
-                                <div class="flex-1">
-                                    <label class="form-label">脚本名称 (Script Name)</label>
-                                    <input type="text"
-                                        x-model="editingData.extensions.regex_scripts[activeRegexIndex].scriptName"
-                                        class="form-input font-bold text-lg">
+                <template x-if="activeRegexIndex !== -1 && editingData.extensions?.regex_scripts?.[activeRegexIndex]">
+                    <section class="adv-editor-pane custom-scrollbar" aria-label="正则脚本编辑器">
+                        <div class="advanced-editor-scroll">
+                            <div class="advanced-editor-pane-heading">
+                                <div>
+                                    <span class="advanced-section-eyebrow color-text-accent">REGEX RULE</span>
+                                    <h3 x-text="editingData.extensions.regex_scripts[activeRegexIndex].scriptName || '未命名正则脚本'"></h3>
                                 </div>
-                                <div class="flex gap-4 pb-2">
-                                    <label class="flex items-center gap-2 cursor-pointer select-none"
-                                        title="6. 在编辑时运行，当指定角色的消息被编辑时运行正则脚本。">
-                                        <input type="checkbox"
-                                            x-model="editingData.extensions.regex_scripts[activeRegexIndex].runOnEdit"
-                                            class="w-4 h-4 rounded color-accent-primary">
-                                        <span class="text-sm text-[var(--content-primary)]">编辑时运行</span>
-                                    </label>
-                                    <label class="flex items-center gap-2 cursor-pointer select-none" title="禁用此脚本">
-                                        <input type="checkbox"
-                                            x-model="editingData.extensions.regex_scripts[activeRegexIndex].disabled"
-                                            class="w-4 h-4 rounded color-accent-danger">
-                                        <span class="text-sm font-bold color-text-danger">禁用</span>
-                                    </label>
-                                </div>
+                                <span class="advanced-pane-index" x-text="'RULE ' + String(activeRegexIndex + 1).padStart(2, '0')"></span>
                             </div>
 
-                            <!-- B. 正则核心 (Find) -->
-                            <div class="adv-section">
-                                <div class="adv-section-title">
-                                    <span class="inline-flex items-center gap-1">
-                                        {{ icon('search', 'ui-icon--sm ') }}
-                                        <span>查找 (Match)</span>
-                                    </span>
-                                    <div class="flex items-center gap-2">
-                                        <span class="text-[10px] text-[var(--content-muted)]"
-                                            title="8. 宏替换：在运行正则表达式之前，替换{{macros}}">宏替换:</span>
-                                        {% call styled_select(
-                                            "editingData.extensions.regex_scripts[activeRegexIndex].substituteRegex",
-                                            model_modifier=".number",
-                                            wrapper_class="icon-select--compact",
-                                            trigger_class="icon-select-trigger--compact text-[10px]",
-                                            menu_class="icon-select-menu--fit",
-                                            aria_label="宏替换"
-                                        ) %}
-                                            <option value="0">None (不替换)</option>
-                                            <option value="1">Raw (原始)</option>
-                                            <option value="2">Escaped (转义)</option>
-                                        {% endcall %}
-                                    </div>
-                                </div>
-                                <div class="relative">
-                                    <span class="absolute left-3 top-2.5 color-text-warning font-mono text-sm">/</span>
-                                    <input type="text"
-                                        x-model="editingData.extensions.regex_scripts[activeRegexIndex].findRegex"
-                                        class="form-input font-mono text-sm pl-6 pr-12"
-                                        style="color: var(--status-warning-text); background: var(--surface-code);" placeholder="regex pattern">
-                                    <span class="absolute right-3 top-2.5 color-text-warning font-mono text-sm">/gm</span>
-                                </div>
-                                <div class="flex gap-4 mt-2">
-                                    <label class="flex items-center gap-2 cursor-pointer">
-                                        <input type="checkbox"
-                                            x-model="editingData.extensions.regex_scripts[activeRegexIndex].caseSensitive"
-                                            class="rounded color-surface-raised">
-                                        <span class="text-xs text-[var(--content-secondary)]">区分大小写 (Case Sensitive)</span>
-                                    </label>
-                                </div>
-                            </div>
-
-                            <!-- C. 替换与剔除 (Replace & Trim) -->
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <!-- 替换 -->
-                                <div class="adv-section flex flex-col h-48">
-                                    <div class="adv-section-title color-text-success">
-                                        <span class="inline-flex items-center gap-1">
-                                            {{ icon('replace', 'ui-icon--sm ') }}
-                                            <span>替换内容 (Replace With)</span>
-                                        </span>
-                                    </div>
-                                    <textarea
-                                        x-model="editingData.extensions.regex_scripts[activeRegexIndex].replaceString"
-                                        class="form-textarea font-mono text-xs flex-1 resize-none custom-scrollbar"
-                                        style="color: var(--status-success-text); background: var(--surface-code);"
-                                        placeholder="Replacement string (supports $1, $2...)"></textarea>
-                                </div>
-                                <!-- 剔除 -->
-                                <div class="adv-section flex flex-col h-48">
-                                    <div class="adv-section-title color-text-accent">
-                                        <span class="inline-flex items-center gap-1">
-                                            {{ icon('scissors', 'ui-icon--sm ') }}
-                                            <span>剔除字符串 (Trim Out)</span>
-                                        </span>
-                                    </div>
-                                    <textarea
-                                        :value="getTrimStringsText(editingData.extensions.regex_scripts[activeRegexIndex])"
-                                        @input="updateTrimStrings(editingData.extensions.regex_scripts[activeRegexIndex], $event.target.value)"
-                                        class="form-textarea font-mono text-xs flex-1 resize-none custom-scrollbar"
-                                        style="background: var(--surface-code);"
-                                        placeholder="One string per line to remove before regex runs"></textarea>
-                                </div>
-                            </div>
-
-                            <!-- D. 高级设置 (Placement & Depth) -->
-                            <div class="adv-section">
-                                <div class="adv-section-title">
-                                    <span class="inline-flex items-center gap-1">
-                                        {{ icon('settings', 'ui-icon--sm ') }}
-                                        <span>作用范围与限制 (Settings)</span>
-                                    </span>
-                                </div>
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-                                    <!-- 作用范围 Placement -->
+                            <section class="adv-section advanced-form-section">
+                                <div class="advanced-section-heading">
                                     <div>
-                                        <label class="form-label mb-2">生效位置 (Placement)</label>
-                                        <div class="grid grid-cols-2 gap-y-2 gap-x-4">
-                                            <label class="flex items-center gap-2 cursor-pointer select-none"
-                                                title="1. 用户输入：用户发送的信息">
-                                                <input type="checkbox"
-                                                    :checked="editingData.extensions.regex_scripts[activeRegexIndex].placement?.includes(1)"
-                                                    @change="toggleRegexPlacement(editingData.extensions.regex_scripts[activeRegexIndex], 1)"
-                                                    class="w-3.5 h-3.5 rounded">
-                                                <span class="text-xs">用户输入 (User)</span>
-                                            </label>
-                                            <label class="flex items-center gap-2 cursor-pointer select-none"
-                                                title="2. AI输出从生成式AI中获取的信息">
-                                                <input type="checkbox"
-                                                    :checked="editingData.extensions.regex_scripts[activeRegexIndex].placement?.includes(2)"
-                                                    @change="toggleRegexPlacement(editingData.extensions.regex_scripts[activeRegexIndex], 2)"
-                                                    class="w-3.5 h-3.5 rounded">
-                                                <span class="text-xs">AI 输出 (AI)</span>
-                                            </label>
-                                            <label class="flex items-center gap-2 cursor-pointer select-none"
-                                                title="3. 快捷命令：通过 STscript 命令发送的消息">
-                                                <input type="checkbox"
-                                                    :checked="editingData.extensions.regex_scripts[activeRegexIndex].placement?.includes(3)"
-                                                    @change="toggleRegexPlacement(editingData.extensions.regex_scripts[activeRegexIndex], 3)"
-                                                    class="w-3.5 h-3.5 rounded">
-                                                <span class="text-xs">快捷命令 (Slash)</span>
-                                            </label>
-                                            <label class="flex items-center gap-2 cursor-pointer select-none"
-                                                title="4. 世界信息：知识书/世界书 条目的内容。需要勾选'仅格式提示词'！">
-                                                <input type="checkbox"
-                                                    :checked="editingData.extensions.regex_scripts[activeRegexIndex].placement?.includes(5)"
-                                                    @change="toggleRegexPlacement(editingData.extensions.regex_scripts[activeRegexIndex], 5)"
-                                                    class="w-3.5 h-3.5 rounded">
-                                                <span class="text-xs">世界信息 (WI)</span>
-                                            </label>
-                                            <label class="flex items-center gap-2 cursor-pointer select-none"
-                                                title="5. 推理：推理块内容。当'仅格式提示词'被选中时，它会影响提示词里的推理内容。">
-                                                <input type="checkbox"
-                                                    :checked="editingData.extensions.regex_scripts[activeRegexIndex].placement?.includes(6)"
-                                                    @change="toggleRegexPlacement(editingData.extensions.regex_scripts[activeRegexIndex], 6)"
-                                                    class="w-3.5 h-3.5 rounded">
-                                                <span class="text-xs">推理 (Reasoning)</span>
-                                            </label>
+                                        <span class="advanced-section-eyebrow">IDENTITY</span>
+                                        <h4>规则信息</h4>
+                                    </div>
+                                    <span class="advanced-section-index">01</span>
+                                </div>
+                                <div class="advanced-form-grid advanced-form-grid--identity">
+                                    <label class="advanced-field advanced-field--wide">
+                                        <span class="form-label">脚本名称 <small>Script Name</small></span>
+                                        <input type="text" x-model="editingData.extensions.regex_scripts[activeRegexIndex].scriptName"
+                                            class="form-input" autocomplete="off">
+                                    </label>
+                                    <label class="advanced-toggle-card">
+                                        <input type="checkbox" x-model="editingData.extensions.regex_scripts[activeRegexIndex].runOnEdit">
+                                        <span class="advanced-toggle-copy"><strong>编辑时运行</strong><small>消息被编辑时执行此规则</small></span>
+                                    </label>
+                                    <label class="advanced-toggle-card is-danger">
+                                        <input type="checkbox" x-model="editingData.extensions.regex_scripts[activeRegexIndex].disabled">
+                                        <span class="advanced-toggle-copy"><strong>禁用规则</strong><small>保留配置但跳过执行</small></span>
+                                    </label>
+                                </div>
+                            </section>
+
+                            <section class="adv-section advanced-form-section">
+                                <div class="advanced-section-heading">
+                                    <div>
+                                        <span class="advanced-section-eyebrow color-text-accent">MATCH</span>
+                                        <h4>{{ icon('search', 'ui-icon--sm ') }}查找与替换</h4>
+                                    </div>
+                                    <span class="advanced-section-index">02</span>
+                                </div>
+                                <div class="advanced-field">
+                                    <div class="advanced-field-heading">
+                                        <label class="form-label" for="advanced-regex-find">查找表达式 <small>Find Regex</small></label>
+                                        <div class="advanced-inline-control">
+                                            <span class="advanced-inline-label">宏替换</span>
+                                            {% call styled_select(
+                                                "editingData.extensions.regex_scripts[activeRegexIndex].substituteRegex",
+                                                model_modifier=".number",
+                                                wrapper_class="icon-select--compact",
+                                                trigger_class="icon-select-trigger--compact",
+                                                menu_class="icon-select-menu--fit",
+                                                aria_label="宏替换"
+                                            ) %}
+                                                <option value="0">None（不替换）</option>
+                                                <option value="1">Raw（原始）</option>
+                                                <option value="2">Escaped（转义）</option>
+                                            {% endcall %}
                                         </div>
                                     </div>
+                                    <div class="advanced-code-input-wrap">
+                                        <span class="advanced-code-prefix" aria-hidden="true">/</span>
+                                        <input id="advanced-regex-find" type="text"
+                                            x-model="editingData.extensions.regex_scripts[activeRegexIndex].findRegex"
+                                            class="form-input advanced-code-input" placeholder="输入正则表达式"
+                                            spellcheck="false" autocomplete="off">
+                                        <span class="advanced-code-suffix" aria-hidden="true">/gm</span>
+                                    </div>
+                                    <label class="advanced-check-row">
+                                        <input type="checkbox" x-model="editingData.extensions.regex_scripts[activeRegexIndex].caseSensitive">
+                                        <span>区分大小写 <small>Case Sensitive</small></span>
+                                    </label>
+                                </div>
+                                <div class="advanced-form-grid advanced-form-grid--two">
+                                    <label class="advanced-field">
+                                        <span class="form-label color-text-success"><span class="advanced-label-with-icon">{{ icon('replace', 'ui-icon--sm ') }}替换内容</span><small>Replace With</small></span>
+                                        <textarea x-model="editingData.extensions.regex_scripts[activeRegexIndex].replaceString"
+                                            class="form-textarea advanced-code-area advanced-code-area--replace custom-scrollbar"
+                                            placeholder="支持 $1、$2 等捕获组引用" spellcheck="false"></textarea>
+                                    </label>
+                                    <label class="advanced-field">
+                                        <span class="form-label color-text-accent"><span class="advanced-label-with-icon">{{ icon('scissors', 'ui-icon--sm ') }}剔除字符串</span><small>Trim Strings</small></span>
+                                        <textarea :value="getTrimStringsText(editingData.extensions.regex_scripts[activeRegexIndex])"
+                                            @input="updateTrimStrings(editingData.extensions.regex_scripts[activeRegexIndex], $event.target.value)"
+                                            class="form-textarea advanced-code-area custom-scrollbar"
+                                            placeholder="每行一个需要剔除的字符串" spellcheck="false"></textarea>
+                                    </label>
+                                </div>
+                            </section>
 
-                                    <!-- 限制与模式 -->
-                                    <div class="flex flex-col gap-3">
-                                        <div class="flex gap-4">
-                                            <div class="flex-1">
-                                                <label class="text-[10px] text-[var(--content-muted)] uppercase block mb-1"
-                                                    title="7. 最小深度... '0'为最后一条消息">最小深度 (Min Depth)</label>
-                                                <div class="ui-number-control">
-                                                    <input type="number" min="0" step="1"
-                                                        x-model.number="editingData.extensions.regex_scripts[activeRegexIndex].minDepth"
-                                                        class="form-input text-xs py-1 ui-number-input" placeholder="Unlimited">
-                                                    <div class="ui-number-stepper" aria-label="调整最小深度">
-                                                        <button type="button" class="ui-number-stepper-btn"
-                                                            @click.prevent="window.stepNumberInput($event.currentTarget, 1)"
-                                                            aria-label="增加最小深度">{{ icon('arrow-up', 'ui-icon--xs') }}</button>
-                                                        <button type="button" class="ui-number-stepper-btn"
-                                                            @click.prevent="window.stepNumberInput($event.currentTarget, -1)"
-                                                            aria-label="减少最小深度">{{ icon('arrow-down', 'ui-icon--xs') }}</button>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="flex-1">
-                                                <label class="text-[10px] text-[var(--content-muted)] uppercase block mb-1"
-                                                    title="7. 最大深度...">最大深度 (Max Depth)</label>
-                                                <div class="ui-number-control">
-                                                    <input type="number" min="0" step="1"
-                                                        x-model.number="editingData.extensions.regex_scripts[activeRegexIndex].maxDepth"
-                                                        class="form-input text-xs py-1 ui-number-input" placeholder="Unlimited">
-                                                    <div class="ui-number-stepper" aria-label="调整最大深度">
-                                                        <button type="button" class="ui-number-stepper-btn"
-                                                            @click.prevent="window.stepNumberInput($event.currentTarget, 1)"
-                                                            aria-label="增加最大深度">{{ icon('arrow-up', 'ui-icon--xs') }}</button>
-                                                        <button type="button" class="ui-number-stepper-btn"
-                                                            @click.prevent="window.stepNumberInput($event.currentTarget, -1)"
-                                                            aria-label="减少最大深度">{{ icon('arrow-down', 'ui-icon--xs') }}</button>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="flex gap-4 pt-1 border-t border-[var(--border-default)] mt-1">
-                                            <label class="flex items-center gap-2 cursor-pointer select-none"
-                                                title="9. 仅格式显示：正则仅对聊天页面生效，聊天文件内的内容不会被改变。">
-                                                <input type="checkbox"
-                                                    x-model="editingData.extensions.regex_scripts[activeRegexIndex].markdownOnly"
-                                                    class="w-3.5 h-3.5 rounded">
-                                                <span class="text-xs text-[var(--content-secondary)]">仅格式显示</span>
-                                            </label>
-                                            <label class="flex items-center gap-2 cursor-pointer select-none"
-                                                title="10. 仅格式提示词：聊天记录不会改变，只有在请求发送时（生成时）才会出现提示词。">
-                                                <input type="checkbox"
-                                                    x-model="editingData.extensions.regex_scripts[activeRegexIndex].promptOnly"
-                                                    class="w-3.5 h-3.5 rounded">
-                                                <span class="text-xs text-[var(--content-secondary)]">仅格式提示词</span>
-                                            </label>
-                                        </div>
+                            <section class="adv-section advanced-form-section">
+                                <div class="advanced-section-heading">
+                                    <div>
+                                        <span class="advanced-section-eyebrow color-text-warning">SCOPE</span>
+                                        <h4>作用范围与条件</h4>
+                                    </div>
+                                    <span class="advanced-section-index">03</span>
+                                </div>
+                                <div class="advanced-field">
+                                    <span class="form-label">生效位置 <small>Placement</small></span>
+                                    <div class="advanced-choice-grid advanced-choice-grid--placement">
+                                        <label class="advanced-choice-card" title="用户发送的信息">
+                                            <input type="checkbox" :checked="editingData.extensions.regex_scripts[activeRegexIndex].placement?.includes(1)"
+                                                @change="toggleRegexPlacement(editingData.extensions.regex_scripts[activeRegexIndex], 1)">
+                                            <span><strong>用户输入</strong><small>User</small></span>
+                                        </label>
+                                        <label class="advanced-choice-card" title="从生成式 AI 获取的信息">
+                                            <input type="checkbox" :checked="editingData.extensions.regex_scripts[activeRegexIndex].placement?.includes(2)"
+                                                @change="toggleRegexPlacement(editingData.extensions.regex_scripts[activeRegexIndex], 2)">
+                                            <span><strong>AI 输出</strong><small>AI</small></span>
+                                        </label>
+                                        <label class="advanced-choice-card" title="通过 STscript 命令发送的消息">
+                                            <input type="checkbox" :checked="editingData.extensions.regex_scripts[activeRegexIndex].placement?.includes(3)"
+                                                @change="toggleRegexPlacement(editingData.extensions.regex_scripts[activeRegexIndex], 3)">
+                                            <span><strong>快捷命令</strong><small>Slash</small></span>
+                                        </label>
+                                        <label class="advanced-choice-card" title="世界书条目的内容">
+                                            <input type="checkbox" :checked="editingData.extensions.regex_scripts[activeRegexIndex].placement?.includes(5)"
+                                                @change="toggleRegexPlacement(editingData.extensions.regex_scripts[activeRegexIndex], 5)">
+                                            <span><strong>世界信息</strong><small>World Info</small></span>
+                                        </label>
+                                        <label class="advanced-choice-card" title="推理块内容">
+                                            <input type="checkbox" :checked="editingData.extensions.regex_scripts[activeRegexIndex].placement?.includes(6)"
+                                                @change="toggleRegexPlacement(editingData.extensions.regex_scripts[activeRegexIndex], 6)">
+                                            <span><strong>推理</strong><small>Reasoning</small></span>
+                                        </label>
                                     </div>
                                 </div>
-                            </div>
+                                <div class="advanced-form-grid advanced-form-grid--two advanced-scope-limits">
+                                    <label class="advanced-field">
+                                        <span class="form-label">深度范围 <small>Depth</small></span>
+                                        <div class="advanced-number-pair">
+                                            <div class="ui-number-control">
+                                                <span>最小</span>
+                                                <input type="number" min="0" step="1" x-model.number="editingData.extensions.regex_scripts[activeRegexIndex].minDepth"
+                                                    class="form-input ui-number-input" placeholder="不限" aria-label="最小深度">
+                                                <div class="ui-number-stepper" aria-label="调整最小深度">
+                                                    <button type="button" class="ui-number-stepper-btn" @click.prevent="window.stepNumberInput($event.currentTarget, 1)"
+                                                        aria-label="增加最小深度">{{ icon('arrow-up', 'ui-icon--xs') }}</button>
+                                                    <button type="button" class="ui-number-stepper-btn" @click.prevent="window.stepNumberInput($event.currentTarget, -1)"
+                                                        aria-label="减少最小深度">{{ icon('arrow-down', 'ui-icon--xs') }}</button>
+                                                </div>
+                                            </div>
+                                            <div class="ui-number-control">
+                                                <span>最大</span>
+                                                <input type="number" min="0" step="1" x-model.number="editingData.extensions.regex_scripts[activeRegexIndex].maxDepth"
+                                                    class="form-input ui-number-input" placeholder="不限" aria-label="最大深度">
+                                                <div class="ui-number-stepper" aria-label="调整最大深度">
+                                                    <button type="button" class="ui-number-stepper-btn" @click.prevent="window.stepNumberInput($event.currentTarget, 1)"
+                                                        aria-label="增加最大深度">{{ icon('arrow-up', 'ui-icon--xs') }}</button>
+                                                    <button type="button" class="ui-number-stepper-btn" @click.prevent="window.stepNumberInput($event.currentTarget, -1)"
+                                                        aria-label="减少最大深度">{{ icon('arrow-down', 'ui-icon--xs') }}</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </label>
+                                    <div class="advanced-field advanced-field--options">
+                                        <span class="form-label">执行模式 <small>Output Mode</small></span>
+                                        <label class="advanced-check-row">
+                                            <input type="checkbox" x-model="editingData.extensions.regex_scripts[activeRegexIndex].markdownOnly">
+                                            <span>仅格式显示 <small>Markdown Only</small></span>
+                                        </label>
+                                        <label class="advanced-check-row">
+                                            <input type="checkbox" x-model="editingData.extensions.regex_scripts[activeRegexIndex].promptOnly">
+                                            <span>仅格式提示词 <small>Prompt Only</small></span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </section>
 
-                            <!-- E. 实时测试台 (Test Bench) -->
-                            <div class="adv-section bg-[var(--surface-container-raised)]">
-                                <div class="adv-section-title color-text-violet">
-                                    <span class="inline-flex items-center gap-1">
-                                        {{ icon('flask', 'ui-icon--sm ') }}
-                                        <span>实时测试台 (JS Regex Playground)</span>
-                                    </span>
-                                    <button @click="runRegexTest()"
-                                        class="text-xs color-surface-violet-solid color-hover-surface-violet color-text-on-dark px-3 py-1 rounded shadow-md transition flex items-center gap-1"
-                                        title="运行正则测试" aria-label="运行正则测试">
+                            <section class="adv-section advanced-test-bench">
+                                <div class="advanced-section-heading">
+                                    <div>
+                                        <span class="advanced-section-eyebrow color-text-violet">PLAYGROUND</span>
+                                        <h4>{{ icon('flask', 'ui-icon--sm ') }}实时测试台</h4>
+                                    </div>
+                                    <button type="button" class="advanced-text-button advanced-text-button--violet" @click="runRegexTest()"
+                                        title="运行正则测试">
                                         {{ icon('play', 'ui-icon--sm ') }}<span>运行测试</span>
                                     </button>
                                 </div>
-                                <div class="test-bench-grid">
-                                    <!-- 输入 -->
-                                    <div class="test-io-box">
-                                        <div class="test-io-header">输入文本 (Input)</div>
+                                <div class="advanced-test-bench-grid">
+                                    <label class="advanced-test-panel">
+                                        <span class="advanced-test-panel-heading"><span>输入文本</span><small>INPUT</small></span>
                                         <textarea x-model="regexTestInput" @input.debounce.300ms="runRegexTest()"
-                                            class="test-io-content custom-scrollbar"
-                                            placeholder="Paste test text here..."></textarea>
-                                    </div>
-                                    <!-- 输出 -->
-                                    <div class="test-io-box">
-                                        <div class="test-io-header">
-                                            <span class="inline-flex items-center gap-1">
-                                                <svg
-                                                    x-show="regexTestResultIcon"
-                                                    class="ui-icon ui-icon--sm "
-                                                    viewBox="0 0 24 24"
-                                                    aria-hidden="true"
-                                                    focusable="false"
-                                                >
-                                                    <use :href="'{{ url_for('static', filename='icons/ui.svg') }}#icon-' + regexTestResultIcon"></use>
-                                                </svg>
-                                                <span>输出结果 (Result)</span>
+                                            class="advanced-test-editor custom-scrollbar" placeholder="粘贴一段文本，实时查看规则结果"
+                                            spellcheck="false"></textarea>
+                                    </label>
+                                    <div class="advanced-test-panel advanced-test-panel--output">
+                                        <div class="advanced-test-panel-heading">
+                                            <span class="inline-flex items-center gap-2">
+                                                <template x-if="regexTestResultIcon">{{ icon('close', 'ui-icon--xs ') }}</template>
+                                                <span>输出结果</span>
                                             </span>
-                                            <div class="flex items-center gap-2">
-                                                <!-- 放大按钮 -->
-                                                <button x-show="regexPreviewMode==='html'"
-                                                    @click="$dispatch('open-html-preview', regexTestResult)"
-                                                    title="全屏预览"
-                                                    class="text-[10px] bg-[var(--surface-container)] border border-[var(--border-default)] rounded px-2 py-[2px] hover:text-[var(--accent-text)] transition">
-                                                    {{ detail_icon('expand', 'ui-icon--xs ') }}<span>放大</span>
+                                            <div class="advanced-test-actions">
+                                                <button type="button" x-show="regexPreviewMode === 'html'" @click="$dispatch('open-html-preview', regexTestResult)"
+                                                    class="advanced-icon-button" title="全屏预览" aria-label="全屏预览">
+                                                    {{ detail_icon('expand', 'ui-icon--xs ') }}
                                                 </button>
-
-                                                <!-- 切换按钮 -->
-                                                <div class="toggle-pill">
-                                                    <div @click="regexPreviewMode='text'" class="toggle-pill-btn"
-                                                        :class="regexPreviewMode==='text'?'active':''">Text</div>
-                                                    <div @click="regexPreviewMode='html'" class="toggle-pill-btn"
-                                                        :class="regexPreviewMode==='html'?'active':''">HTML</div>
+                                                <div class="advanced-segmented-control" role="group" aria-label="预览模式">
+                                                    <button type="button" :class="{ 'is-active': regexPreviewMode === 'text' }"
+                                                        @click="regexPreviewMode = 'text'">Text</button>
+                                                    <button type="button" :class="{ 'is-active': regexPreviewMode === 'html' }"
+                                                        @click="regexPreviewMode = 'html'">HTML</button>
                                                 </div>
                                             </div>
                                         </div>
-
-                                        <!-- 纯文本显示 -->
-                                        <textarea x-show="regexPreviewMode==='text'" readonly
-                                            class="test-io-content custom-scrollbar" x-text="regexTestResult"
-                                            placeholder="Result will appear here..."></textarea>
-
-                                        <!-- HTML 渲染显示 (Shadow DOM) -->
-                                        <div x-show="regexPreviewMode==='html'" class="test-io-render-box"
-                                            x-effect="renderUnifiedPreviewHost($el, regexPreviewMode==='html' ? regexTestResult : null, { runtimeOwner: 'regex-test-bench', runtimeLabel: 'Regex Test Bench Preview', scroll: true, minHeight: 200, maxHeight: 0, embeddedStageStyle: false })">
+                                        <textarea x-show="regexPreviewMode === 'text'" readonly class="advanced-test-editor custom-scrollbar"
+                                            :value="regexTestResult" placeholder="运行测试后显示结果" aria-label="正则测试文本结果"></textarea>
+                                        <div x-show="regexPreviewMode === 'html'" class="test-io-render-box advanced-test-render"
+                                            x-effect="renderUnifiedPreviewHost($el, regexPreviewMode === 'html' ? regexTestResult : null, { runtimeOwner: 'regex-test-bench', runtimeLabel: 'Regex Test Bench Preview', scroll: true, minHeight: 200, maxHeight: 0, embeddedStageStyle: false })">
                                         </div>
                                     </div>
                                 </div>
-                            </div>
-
+                            </section>
                         </div>
-                    </div>
+                    </section>
                 </template>
 
-
-                <!-- 未选中脚本时的占位 -->
-                <div class="adv-editor-pane flex items-center justify-center text-[var(--content-muted)]"
-                    x-show="activeRegexIndex === -1 || !editingData.extensions.regex_scripts[activeRegexIndex]">
-                    <div class="text-center">
-                        <div class="mb-2 opacity-30 flex justify-center" aria-hidden="true">
-                            {{ detail_icon('regex', 'ui-icon--lg ') }}
-                        </div>
-                        <p>请在左侧选择或新建一个正则脚本</p>
+                <div class="adv-editor-pane custom-scrollbar advanced-editor-empty-pane"
+                    x-show="activeRegexIndex === -1 || !editingData.extensions?.regex_scripts?.[activeRegexIndex]">
+                    <div class="advanced-empty-state">
+                        {{ detail_icon('regex', 'ui-icon--lg ') }}
+                        <strong>选择一个正则脚本开始编辑</strong>
+                        <p>请在左侧选择一个条目进行详细编辑</p>
                     </div>
                 </div>
-            </div>
+            </section>
 
-            <!-- === Tab 2: Scripts (Placeholder / Simple List) === -->
-            <div x-show="activeTab==='scripts'" class="adv-split-view">
-
-                <!-- 左侧：脚本列表 -->
-                <div class="adv-list-pane custom-scrollbar overflow-y-auto" :class="{
-                        'hidden md:flex': $store.global.deviceType !== 'mobile',
-                        'top-14': $store.global.deviceType !== 'mobile',
-                        'top-0': $store.global.deviceType === 'mobile',
-                        'fixed left-0 bottom-0 z-50 w-[280px] max-w-[85vw] shadow-2xl flex flex-col': $store.global.deviceType === 'mobile' && showMobileSidebar,
-                        'hidden': $store.global.deviceType === 'mobile' && !showMobileSidebar
-                    }">
-
-                    <div
-                        class="p-3 border-b border-[var(--border-default)] flex justify-between items-center bg-[var(--surface-container-raised)] sticky top-0 z-10">
-                        <span class="text-xs font-bold text-[var(--content-secondary)] uppercase">Helper Scripts</span>
-                        <div class="flex items-center gap-1">
+            <!-- ST 脚本 -->
+            <section x-show="activeTab === 'scripts'" id="advanced-panel-scripts" class="advanced-editor-tab-panel"
+                role="tabpanel" aria-labelledby="advanced-tab-scripts">
+                <aside class="adv-list-pane custom-scrollbar overflow-y-auto" :class="{ 'is-mobile-open': showMobileSidebar }"
+                    aria-label="ST 脚本列表">
+                    <div class="advanced-list-header">
+                        <div>
+                            <span class="advanced-list-eyebrow">RUNTIME SCRIPTS</span>
+                            <h3>ST 脚本</h3>
+                            <p><span x-text="getTavernScripts().length"></span> 个脚本，支持安全运行时</p>
+                        </div>
+                        <div class="advanced-list-actions">
                             <template x-if="!isFileMode">
-                                <div class="flex gap-1">
-                                    <button @click="$refs.importScriptInput.click()"
-                                        class="text-xs bg-[var(--surface-container)] border border-[var(--border-default)] hover:bg-[var(--state-hover-surface)] px-2 py-1 rounded transition"
-                                        title="导入脚本" aria-label="导入脚本">
-                                        {{ icon('file-import', 'ui-icon--sm ') }}
-                                    </button>
-                                    <input type="file" x-ref="importScriptInput" @change="importScript" accept=".json"
-                                        style="display:none;">
-
-                                    <button @click="addTavernScript()"
-                                        class="text-xs color-surface-success-solid color-hover-surface-success color-text-on-dark px-2 py-1 rounded transition flex items-center gap-1"
-                                        title="新建 ST 脚本">
-                                        {{ icon('plus-square', 'ui-icon--sm ') }}<span>新建</span>
-                                    </button>
-                                </div>
+                                <button type="button" class="advanced-icon-button" @click="$refs.importScriptInput.click()"
+                                    title="导入 ST 脚本" aria-label="导入 ST 脚本">
+                                    {{ icon('file-import', 'ui-icon--sm ') }}
+                                </button>
+                            </template>
+                            <input type="file" x-ref="importScriptInput" @change="importScript" accept=".json" hidden>
+                            <template x-if="!isFileMode">
+                                <button type="button" class="advanced-text-button advanced-text-button--violet" @click="addTavernScript()"
+                                    title="新建 ST 脚本">
+                                    {{ icon('plus-square', 'ui-icon--sm ') }}<span>新建</span>
+                                </button>
                             </template>
                         </div>
                     </div>
 
-                    <div class="flex flex-col">
+                    <div class="advanced-entry-list" role="listbox" aria-label="ST 脚本条目">
                         <template x-for="(script, idx) in getTavernScripts()" :key="script.id || idx">
-                            <div class="adv-list-item group flex items-center justify-between gap-2" role="button" tabindex="0"
-                                :class="activeScriptIndex === idx ? 'active' : ''"
-                                @click="activeScriptIndex = idx; if($store.global.deviceType === 'mobile') showMobileSidebar = false"
-                                @keydown.enter.space.prevent="activeScriptIndex = idx; if($store.global.deviceType === 'mobile') showMobileSidebar = false">
-
-                                <!-- 左侧信息 -->
-                                <div class="flex-1 min-w-0 overflow-hidden">
-                                    <div class="flex justify-between items-center mb-1">
-                                        <span class="font-bold text-sm truncate"
-                                            :class="!script.enabled ? 'color-text-muted line-through' : 'text-[var(--content-primary)]'"
-                                            x-text="script.name || '未命名脚本'"></span>
+                            <div class="advanced-entry" role="option" tabindex="0" :data-advanced-entry="'script'"
+                                :data-entry-index="idx" :aria-selected="(activeScriptIndex === idx).toString()"
+                                :class="{ 'is-active': activeScriptIndex === idx, 'is-disabled': !script.enabled }"
+                                @click="selectEditorEntry('script', idx)"
+                                @keydown="handleEntryKeydown($event, 'script', idx)">
+                                <div class="advanced-entry-main">
+                                    <div class="advanced-entry-title-row">
+                                        <span class="advanced-entry-title" x-text="script.name || '未命名 ST 脚本'"></span>
+                                        <span class="advanced-entry-order" x-text="String(idx + 1).padStart(2, '0')"></span>
                                     </div>
-                                    <div class="text-[10px] text-[var(--content-muted)] truncate"
-                                        x-text="script.info || 'No description'"></div>
+                                    <span class="advanced-entry-preview" x-text="script.info || '没有备注信息'"></span>
+                                    <div class="advanced-entry-tags">
+                                        <span class="advanced-status-chip" :class="script.enabled ? 'is-success' : 'is-muted'"
+                                            x-text="script.enabled ? '已启用' : '已禁用'"></span>
+                                        <span x-show="script.button?.enabled" class="advanced-status-chip is-violet">快捷按钮</span>
+                                    </div>
                                 </div>
-
-                                <!-- 操作按钮 -->
-                                <div
-                                    class="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                                <div class="advanced-entry-actions" @click.stop>
                                     <template x-if="!isFileMode">
-                                        <div class="flex gap-1">
-                                            <div
-                                                class="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-                                                <button @click.stop="exportScript(idx)" class="sort-btn-xs rounded"
-                                                    title="导出 ST 脚本" aria-label="导出 ST 脚本">
-                                                    {{ icon('upload', 'ui-icon--sm ') }}
-                                                </button>
-                                                <div class="ui-reorder-button-group">
-                                                    <button type="button" @click.stop="moveTavernScript(script.id, -1)"
-                                                        class="ui-reorder-button" title="上移" aria-label="上移">{{ icon('arrow-up', 'ui-icon--xs') }}</button>
-                                                    <button type="button" @click.stop="moveTavernScript(script.id, 1)"
-                                                        class="ui-reorder-button" title="下移" aria-label="下移">{{ icon('arrow-down', 'ui-icon--xs') }}</button>
-                                                </div>
-                                            </div>
-
-                                        </div>
+                                        <button type="button" class="advanced-icon-button" @click="exportScript(idx)"
+                                            title="导出 ST 脚本" aria-label="导出 ST 脚本">
+                                            {{ icon('upload', 'ui-icon--xs ') }}
+                                        </button>
+                                    </template>
+                                    <template x-if="!isFileMode">
+                                        <button type="button" class="ui-reorder-button" @click="moveTavernScript(script.id, -1)"
+                                            :disabled="idx === 0" title="上移" aria-label="上移">
+                                            {{ icon('arrow-up', 'ui-icon--xs') }}
+                                        </button>
+                                    </template>
+                                    <template x-if="!isFileMode">
+                                        <button type="button" class="ui-reorder-button" @click="moveTavernScript(script.id, 1)"
+                                            :disabled="idx === getTavernScripts().length - 1" title="下移" aria-label="下移">
+                                            {{ icon('arrow-down', 'ui-icon--xs') }}
+                                        </button>
+                                    </template>
+                                    <template x-if="!isFileMode">
+                                        <button type="button" class="advanced-icon-button is-danger" @click="removeTavernScript(script.id)"
+                                            title="删除 ST 脚本" aria-label="删除 ST 脚本">
+                                            {{ icon('trash', 'ui-icon--xs ') }}
+                                        </button>
                                     </template>
                                 </div>
-                                <button @click.stop="removeTavernScript(script.id)"
-                                    class="opacity-0 group-hover:opacity-100 color-text-muted color-hover-text-danger p-1 flex-shrink-0 transition"
-                                    title="删除 ST 脚本" aria-label="删除 ST 脚本">
-                                    {{ icon('close', 'ui-icon--xs') }}
-                                </button>
                             </div>
                         </template>
-
-                        <div x-show="getTavernScripts().length === 0"
-                            class="p-8 text-center text-[var(--content-muted)] text-xs">
-                            暂无脚本<br>点击上方按钮添加
+                        <div x-show="getTavernScripts().length === 0" class="advanced-list-empty">
+                            <span class="advanced-empty-icon color-text-violet" aria-hidden="true">
+                                {{ detail_icon('script-file', 'ui-icon--md ') }}
+                            </span>
+                            <strong>还没有 ST 脚本</strong>
+                            <span x-text="isFileMode ? '此文件没有可编辑的脚本' : '导入已有脚本，或创建一个新的脚本'"></span>
                         </div>
                     </div>
-                </div>
+                </aside>
 
-                <!-- 右侧：编辑器 -->
                 <template x-if="activeScriptIndex !== -1 && getTavernScripts()[activeScriptIndex]">
-                    <div class="adv-editor-pane custom-scrollbar">
-
-                        <div class="flex flex-col gap-4">
-                            <!-- A. 头部信息 -->
-                            <div class="flex gap-4 items-end border-b border-[var(--border-default)] pb-4">
-                                <div class="flex-1">
-                                    <label class="form-label">脚本名称 (Name)</label>
-                                    <input type="text" x-model="getTavernScripts()[activeScriptIndex].name"
-                                        @input="handleRuntimeMetaInput()"
-                                        class="form-input font-bold text-lg">
+                    <section class="adv-editor-pane custom-scrollbar" aria-label="ST 脚本编辑器">
+                        <div class="advanced-editor-scroll">
+                            <div class="advanced-editor-pane-heading">
+                                <div>
+                                    <span class="advanced-section-eyebrow color-text-violet">TAVERN HELPER</span>
+                                    <h3 x-text="getTavernScripts()[activeScriptIndex].name || '未命名 ST 脚本'"></h3>
                                 </div>
-                                <div class="flex gap-4 pb-2 items-center">
-                                    <!-- 启用开关 -->
-                                    <label class="flex items-center gap-2 cursor-pointer select-none">
-                                        <input type="checkbox" x-model="getTavernScripts()[activeScriptIndex].enabled"
-                                            class="w-4 h-4 rounded color-accent-success">
-                                        <span class="text-sm font-bold"
-                                            :class="getTavernScripts()[activeScriptIndex].enabled ? 'color-text-success' : 'color-text-muted'">
-                                            <span
-                                                x-text="getTavernScripts()[activeScriptIndex].enabled ? '已启用' : '已禁用'"></span>
-                                        </span>
-                                    </label>
-
-                                    <!-- 按钮显示开关 -->
-                                    <div class="h-6 w-[1px] bg-[var(--border-default)] mx-2"></div>
-
-                                    <label class="flex items-center gap-2 cursor-pointer select-none" title="在快捷栏显示按钮">
-                                        <input type="checkbox"
-                                            x-model="getTavernScripts()[activeScriptIndex].button.enabled"
-                                            @change="syncRuntimeContext()"
-                                            class="w-4 h-4 rounded color-accent-primary">
-                                        <span class="text-sm text-[var(--content-primary)]">显示按钮 (Button)</span>
-                                    </label>
-                                </div>
+                                <span class="advanced-pane-index" x-text="'SCRIPT ' + String(activeScriptIndex + 1).padStart(2, '0')"></span>
                             </div>
 
-                            <!-- B. 备注信息 -->
-                            <div>
-                                <label class="form-label">作者/备注信息 (Info)</label>
-                                <textarea x-model="getTavernScripts()[activeScriptIndex].info"
-                                    @input="handleRuntimeMetaInput()"
-                                    class="form-textarea text-xs h-16 resize-none custom-scrollbar"
-                                    placeholder="描述此脚本的功能..."></textarea>
-                            </div>
+                            <section class="adv-section advanced-form-section">
+                                <div class="advanced-section-heading">
+                                    <div>
+                                        <span class="advanced-section-eyebrow color-text-violet">IDENTITY</span>
+                                        <h4>脚本信息</h4>
+                                    </div>
+                                    <span class="advanced-section-index">01</span>
+                                </div>
+                                <div class="advanced-form-grid advanced-form-grid--identity">
+                                    <label class="advanced-field advanced-field--wide">
+                                        <span class="form-label">脚本名称 <small>Name</small></span>
+                                        <input type="text" x-model="getTavernScripts()[activeScriptIndex].name" @input="handleRuntimeMetaInput()"
+                                            class="form-input" autocomplete="off">
+                                    </label>
+                                    <label class="advanced-toggle-card is-violet">
+                                        <input type="checkbox" x-model="getTavernScripts()[activeScriptIndex].enabled">
+                                        <span class="advanced-toggle-copy"><strong>脚本启用</strong><small x-text="getTavernScripts()[activeScriptIndex].enabled ? '允许脚本进入运行时' : '脚本暂不执行'"></small></span>
+                                    </label>
+                                    <label class="advanced-toggle-card">
+                                        <input type="checkbox" x-model="getTavernScripts()[activeScriptIndex].button.enabled" @change="syncRuntimeContext()">
+                                        <span class="advanced-toggle-copy"><strong>显示快捷按钮</strong><small>将按钮挂载到快捷栏</small></span>
+                                    </label>
+                                </div>
+                                <label class="advanced-field advanced-field--full">
+                                    <span class="form-label">作者 / 备注信息 <small>Info</small></span>
+                                    <textarea x-model="getTavernScripts()[activeScriptIndex].info" @input="handleRuntimeMetaInput()"
+                                        class="form-textarea advanced-textarea--compact custom-scrollbar" placeholder="描述此脚本的用途或注意事项"></textarea>
+                                </label>
+                            </section>
 
-                            <!-- B-2. 按钮配置 (Buttons) -->
-                            <div class="adv-section">
-                                <div class="adv-section-title flex justify-between items-center color-text-accent">
-                                    <span class="inline-flex items-center gap-1">
-                                        {{ icon('quick-actions', 'ui-icon--sm ') }}
-                                        <span>快捷按钮 (Buttons)</span>
-                                    </span>
-                                    <button @click="addScriptButton(getTavernScripts()[activeScriptIndex])"
-                                        class="btn-action-soft text-[10px] px-2 py-0.5 rounded transition">
-                                        + 添加按钮
+                            <section class="adv-section advanced-form-section">
+                                <div class="advanced-section-heading">
+                                    <div>
+                                        <span class="advanced-section-eyebrow color-text-accent">ACTIONS</span>
+                                        <h4>快捷按钮</h4>
+                                    </div>
+                                    <button type="button" class="advanced-text-button advanced-text-button--soft"
+                                        @click="addScriptButton(getTavernScripts()[activeScriptIndex])">
+                                        {{ icon('plus-square', 'ui-icon--sm ') }}<span>添加按钮</span>
                                     </button>
                                 </div>
-
-                                <div class="flex flex-col gap-2">
-                                    <!-- 按钮列表 -->
-                                    <template
-                                        x-if="getTavernScripts()[activeScriptIndex].button && getTavernScripts()[activeScriptIndex].button.buttons">
-                                        <template
-                                            x-for="(btn, btnIdx) in (getTavernScripts()[activeScriptIndex]?.button?.buttons || [])"
-                                            :key="btnIdx">
-                                            <div
-                                                class="flex items-center gap-2 bg-[var(--surface-container)] p-1.5 rounded border border-[var(--border-default)]">
-                                                <span class="text-[var(--content-muted)] text-xs w-4 text-center"
-                                                    x-text="btnIdx + 1"></span>
-
-                                                <!-- 按钮名称 -->
-                                                <input type="text" x-model="btn.name" @input="syncRuntimeContext()"
-                                                    class="auto-input py-0.5 px-2 text-xs flex-1" placeholder="按钮名称">
-
-                                                <!-- 可见性开关 -->
-                                                <label
-                                                    class="flex items-center gap-1 cursor-pointer select-none px-2 border-l border-[var(--border-default)]"
-                                                    title="是否可见">
-                                                    <input type="checkbox" x-model="btn.visible"
-                                                        @change="syncRuntimeContext()"
-                                                        class="w-3.5 h-3.5 rounded color-accent-primary">
-                                                    <span class="text-[10px]"
-                                                        :class="btn.visible ? 'color-text-accent' : 'color-text-muted'"
-                                                        x-text="btn.visible ? '显示' : '隐藏'"></span>
-                                                </label>
-
-                                                <!-- 删除 -->
-                                                <button
-                                                    @click="removeScriptButton(getTavernScripts()[activeScriptIndex], btnIdx)"
-                                                    class="color-text-muted color-hover-text-danger px-1"
-                                                    title="删除快捷按钮" aria-label="删除快捷按钮">
-                                                    {{ icon('close', 'ui-icon--xs') }}
-                                                </button>
-                                            </div>
-                                        </template>
-                                    </template>
-
-                                    <!-- 空状态 -->
-                                    <div x-show="!getTavernScripts()[activeScriptIndex].button?.buttons?.length"
-                                        class="text-[10px] text-[var(--content-muted)] text-center py-2 italic">
-                                        暂无自定义按钮
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- C. 脚本内容 (JS Code) -->
-                            <div class="adv-section flex flex-col h-64">
-                                <div class="adv-section-title color-text-warning flex justify-between">
-                                    <span class="inline-flex items-center gap-1">
-                                        {{ icon('code-file', 'ui-icon--sm ') }}
-                                        <span>脚本代码 (Content - JavaScript)</span>
-                                    </span>
-                                    <span class="text-[10px] text-[var(--content-muted)]">Executed by STHelper</span>
-                                </div>
-                                <textarea x-model="getTavernScripts()[activeScriptIndex].content"
-                                    class="form-textarea font-mono text-xs flex-1 resize-none custom-scrollbar"
-                                     style="background: var(--surface-code); color: var(--status-warning-text); line-height: 1.5;"
-                                     spellcheck="false" placeholder="// write your code here..."></textarea>
-                             </div>
-
-                            <div class="adv-section">
-                                <div class="adv-section-title color-text-success flex justify-between items-center">
-                                    <span class="inline-flex items-center gap-1">{{ icon('arrow-right', 'ui-icon--sm') }}<span>运行时 (Runtime)</span></span>
-                                    <div class="flex flex-wrap gap-2 text-[10px]">
-                                        <button @click="startScriptRuntime()"
-                                            class="color-surface-success-solid color-hover-surface-success color-text-on-dark px-2 py-0.5 rounded transition">
-                                            运行
-                                        </button>
-                                        <button @click="reloadScriptRuntime()"
-                                            class="color-surface-info-solid color-hover-surface-info color-text-on-dark px-2 py-0.5 rounded transition">
-                                            重载
-                                        </button>
-                                        <button @click="stopScriptRuntime()"
-                                            class="color-surface-rose-solid color-hover-surface-rose color-text-on-dark px-2 py-0.5 rounded transition">
-                                            停止
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <div class="grid grid-cols-1 xl:grid-cols-[minmax(0,1.2fr)_minmax(280px,0.8fr)] gap-4">
-                                    <div class="flex flex-col gap-3">
-                                        <div class="flex flex-wrap items-center gap-2 text-xs">
-                                            <span class="px-2 py-0.5 rounded border border-[var(--border-default)] bg-[var(--surface-container)]"
-                                                x-text="'状态: ' + scriptRuntimeState.status"></span>
-                                            <span class="text-[var(--content-muted)]" x-show="activeRuntimeScriptId"
-                                                x-text="'运行脚本 ID: ' + activeRuntimeScriptId"></span>
-                                            <span class="text-[var(--content-muted)]" x-show="scriptRuntimeState.height"
-                                                x-text="'运行区高度: ' + scriptRuntimeState.height + 'px'"></span>
-                                        </div>
-
-                                        <div class="text-[10px] text-[var(--content-muted)] leading-5 border border-[var(--border-default)] rounded px-3 py-2 bg-[var(--surface-container)]">
-                                            <span class="font-bold color-text-success mr-1">Safe Bridge:</span>
-                                            <span x-text="(scriptRuntimeState.bridgeCapabilities || []).join(' / ')"></span>
-                                        </div>
-
-                                        <div class="text-[10px] text-[var(--content-muted)] leading-5 border border-[var(--border-default)] rounded px-3 py-2 bg-[var(--surface-container)]">
-                                            <span class="font-bold color-text-info mr-1">Runtime Manager:</span>
-                                            <span x-text="'总计 ' + (runtimeManagerOverview.total || 0) + ' 个运行时'"></span>
-                                            <span class="ml-2" x-text="'render=' + (runtimeManagerOverview.byKind?.render || 0)"></span>
-                                            <span class="ml-2" x-text="'script=' + (runtimeManagerOverview.byKind?.script || 0)"></span>
-                                        </div>
-
-                                        <div x-show="scriptRuntimeState.lastError"
-                                            class="text-xs color-text-danger color-surface-danger border color-border-danger rounded p-2 whitespace-pre-wrap"
-                                            x-text="scriptRuntimeState.lastError"></div>
-
-                                        <div class="border border-[var(--border-default)] rounded bg-[var(--surface-page)] overflow-hidden">
-                                            <div class="px-3 py-2 text-[10px] uppercase tracking-wider text-[var(--content-muted)] border-b border-[var(--border-default)] bg-[var(--surface-container-raised)]">
-                                                隔离运行舞台
-                                            </div>
-                                            <div x-ref="scriptRuntimeHost" class="min-h-[220px]"></div>
-                                        </div>
-
-                                        <div class="border border-[var(--border-default)] rounded bg-[var(--surface-container)] p-3">
-                                            <div class="flex items-center justify-between gap-2 mb-2">
-                                                <div class="text-xs font-bold color-text-accent">按钮触发器</div>
-                                                <label class="text-[10px] text-[var(--content-muted)] flex items-center gap-1">
-                                                    <input type="checkbox"
-                                                        x-model="scriptRuntimeState.buttonConfig.enabled"
-                                                        @change="syncRuntimeContext()"
-                                                        class="rounded">
-                                                    已启用
-                                                </label>
-                                            </div>
-
-                                            <div class="flex flex-wrap gap-2"
-                                                x-show="scriptRuntimeState.buttonConfig.buttons && scriptRuntimeState.buttonConfig.buttons.length > 0">
-                                                <template x-for="button in (scriptRuntimeState.buttonConfig.buttons || [])"
-                                                    :key="button.name + String(button.visible)">
-                                                    <button @click="triggerRuntimeButton(button.name)"
-                                                        :disabled="!isRuntimeActiveForCurrentScript() || !button.visible || !scriptRuntimeState.buttonConfig.enabled"
-                                                        class="px-3 py-1 rounded border text-xs transition"
-                                                        :class="button.visible ? 'color-border-accent color-surface-accent color-text-accent color-hover-surface-accent' : 'color-border-default color-text-muted cursor-not-allowed'"
-                                                        x-text="button.name"></button>
-                                                </template>
-                                            </div>
-
-                                            <div x-show="!scriptRuntimeState.buttonConfig.buttons || scriptRuntimeState.buttonConfig.buttons.length === 0"
-                                                class="text-[10px] text-[var(--content-muted)] italic">
-                                                当前脚本没有可触发按钮。
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div class="flex flex-col gap-3 min-h-0">
-                                        <div class="flex items-center justify-between gap-2">
-                                            <div class="text-xs font-bold color-text-violet">运行日志</div>
-                                            <button @click="clearRuntimeLogs()"
-                                                class="text-[10px] bg-[var(--surface-container)] border border-[var(--border-default)] px-2 py-0.5 rounded color-hover-text-primary transition">
-                                                清空日志
+                                <div class="advanced-button-list">
+                                    <template x-for="(btn, btnIdx) in (getTavernScripts()[activeScriptIndex]?.button?.buttons || [])" :key="btnIdx">
+                                        <div class="advanced-script-button-row">
+                                            <span class="advanced-row-index" x-text="String(btnIdx + 1).padStart(2, '0')"></span>
+                                            <label class="advanced-field advanced-field--row">
+                                                <span class="sr-only">按钮名称</span>
+                                                <input type="text" x-model="btn.name" @input="syncRuntimeContext()" class="form-input"
+                                                    placeholder="按钮名称" aria-label="按钮名称">
+                                            </label>
+                                            <label class="advanced-check-row advanced-check-row--compact" title="是否在快捷栏显示">
+                                                <input type="checkbox" x-model="btn.visible" @change="syncRuntimeContext()">
+                                                <span x-text="btn.visible ? '显示' : '隐藏'"></span>
+                                            </label>
+                                            <button type="button" class="advanced-icon-button is-danger" @click="removeScriptButton(getTavernScripts()[activeScriptIndex], btnIdx)"
+                                                title="删除快捷按钮" aria-label="删除快捷按钮">
+                                                {{ icon('trash', 'ui-icon--xs ') }}
                                             </button>
                                         </div>
+                                    </template>
+                                    <div x-show="!getTavernScripts()[activeScriptIndex].button?.buttons?.length" class="advanced-inline-empty">
+                                        {{ icon('quick-actions', 'ui-icon--sm ') }}<span>当前脚本没有自定义按钮</span>
+                                    </div>
+                                </div>
+                            </section>
 
-                                        <div class="border border-[var(--border-default)] rounded color-surface-sunken min-h-[220px] max-h-[420px] overflow-auto p-2 custom-scrollbar">
+                            <section class="adv-section advanced-code-section">
+                                <div class="advanced-section-heading">
+                                    <div>
+                                        <span class="advanced-section-eyebrow color-text-warning">SOURCE</span>
+                                        <h4>{{ icon('code-file', 'ui-icon--sm ') }}脚本代码</h4>
+                                    </div>
+                                    <span class="advanced-section-note">Executed by STHelper</span>
+                                </div>
+                                <textarea x-model="getTavernScripts()[activeScriptIndex].content"
+                                    class="form-textarea advanced-code-editor custom-scrollbar" spellcheck="false"
+                                    placeholder="// write your code here..."></textarea>
+                            </section>
+
+                            <section class="adv-section advanced-runtime-section">
+                                <div class="advanced-section-heading">
+                                    <div>
+                                        <span class="advanced-section-eyebrow color-text-success">SAFE RUNTIME</span>
+                                        <h4>{{ icon('arrow-right', 'ui-icon--sm') }}运行时 (Runtime)</h4>
+                                    </div>
+                                    <div class="advanced-runtime-actions">
+                                        <button type="button" class="advanced-text-button advanced-text-button--success" @click="startScriptRuntime()"
+                                            :disabled="scriptRuntimeState.status === 'running'">
+                                            {{ icon('play', 'ui-icon--sm ') }}<span>运行</span>
+                                        </button>
+                                        <button type="button" class="advanced-text-button advanced-text-button--soft" @click="reloadScriptRuntime()">
+                                            {{ icon('refresh', 'ui-icon--sm ') }}<span>重载</span>
+                                        </button>
+                                        <button type="button" class="advanced-text-button advanced-text-button--danger" @click="stopScriptRuntime()"
+                                            :disabled="!activeRuntimeScriptId">
+                                            {{ icon('close', 'ui-icon--sm ') }}<span>停止</span>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="advanced-runtime-layout">
+                                    <div class="advanced-runtime-main">
+                                        <div class="advanced-runtime-status-row" role="status" aria-live="polite">
+                                            <span class="advanced-runtime-status" :class="'is-' + scriptRuntimeState.status">
+                                                <span class="advanced-status-dot" aria-hidden="true"></span>
+                                                <span x-text="'状态：' + scriptRuntimeState.status"></span>
+                                            </span>
+                                            <span x-show="activeRuntimeScriptId" class="advanced-runtime-meta" x-text="'脚本 ID：' + activeRuntimeScriptId"></span>
+                                            <span x-show="scriptRuntimeState.height" class="advanced-runtime-meta" x-text="'舞台高度：' + scriptRuntimeState.height + 'px'"></span>
+                                        </div>
+                                        <div class="advanced-runtime-info">
+                                            <div><strong>Safe Bridge</strong><span x-text="(scriptRuntimeState.bridgeCapabilities || []).join(' / ')"></span></div>
+                                            <div><strong>Runtime Manager</strong><span x-text="'总计 ' + (runtimeManagerOverview.total || 0) + ' 个运行时 · render=' + (runtimeManagerOverview.byKind?.render || 0) + ' · script=' + (runtimeManagerOverview.byKind?.script || 0)"></span></div>
+                                        </div>
+                                        <div x-show="scriptRuntimeState.lastError" class="advanced-runtime-error" role="alert">
+                                            {{ icon('alert-triangle', 'ui-icon--sm ') }}<span x-text="scriptRuntimeState.lastError"></span>
+                                        </div>
+                                        <div class="advanced-runtime-stage">
+                                            <div class="advanced-runtime-stage-heading"><span>隔离运行舞台</span><small>PREVIEW</small></div>
+                                            <div x-ref="scriptRuntimeHost" class="advanced-runtime-host"></div>
+                                        </div>
+                                        <div class="advanced-runtime-buttons">
+                                            <div class="advanced-runtime-subheading">
+                                                <span>{{ icon('quick-actions', 'ui-icon--sm ') }}按钮触发器</span>
+                                                <label class="advanced-check-row advanced-check-row--compact">
+                                                    <input type="checkbox" x-model="scriptRuntimeState.buttonConfig.enabled" @change="syncRuntimeContext()">
+                                                    <span>已启用</span>
+                                                </label>
+                                            </div>
+                                            <div class="advanced-runtime-button-list" x-show="scriptRuntimeState.buttonConfig.buttons?.length">
+                                                <template x-for="button in (scriptRuntimeState.buttonConfig.buttons || [])" :key="button.name + String(button.visible)">
+                                                    <button type="button" @click="triggerRuntimeButton(button.name)"
+                                                        :disabled="!isRuntimeActiveForCurrentScript() || !button.visible || !scriptRuntimeState.buttonConfig.enabled"
+                                                        class="advanced-runtime-trigger" x-text="button.name"></button>
+                                                </template>
+                                            </div>
+                                            <div x-show="!scriptRuntimeState.buttonConfig.buttons?.length" class="advanced-inline-empty">
+                                                <span>当前脚本没有可触发按钮</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="advanced-runtime-logs">
+                                        <div class="advanced-runtime-subheading">
+                                            <span>{{ icon('list', 'ui-icon--sm ') }}运行日志</span>
+                                            <button type="button" class="advanced-icon-button" @click="clearRuntimeLogs()" title="清空运行日志" aria-label="清空运行日志">
+                                                {{ icon('trash', 'ui-icon--xs ') }}
+                                            </button>
+                                        </div>
+                                        <div class="advanced-log-list custom-scrollbar">
                                             <template x-if="scriptRuntimeState.logs.length === 0">
-                                                <div class="text-[10px] color-text-muted italic">运行后这里会显示 console 输出。</div>
+                                                <div class="advanced-inline-empty">运行后这里会显示 console 输出</div>
                                             </template>
-
                                             <template x-for="(entry, logIdx) in scriptRuntimeState.logs" :key="entry.timestamp + '-' + logIdx">
-                                                <div class="text-[11px] font-mono leading-5 border-b color-border-subtle py-1 last:border-b-0"
-                                                    :class="{
-                                                        'color-text-secondary': entry.level === 'log' || entry.level === 'info',
-                                                        'color-text-info': entry.level === 'debug',
-                                                        'color-text-warning': entry.level === 'warn',
-                                                        'color-text-rose': entry.level === 'error'
-                                                    }">
-                                                    <span class="opacity-60 mr-2"
-                                                        x-text="new Date(entry.timestamp).toLocaleTimeString()"></span>
-                                                    <span class="uppercase mr-2" x-text="entry.level"></span>
-                                                    <span class="whitespace-pre-wrap break-words" x-text="entry.message"></span>
+                                                <div class="advanced-log-entry" :class="'is-' + entry.level">
+                                                    <time x-text="new Date(entry.timestamp).toLocaleTimeString()"></time>
+                                                    <strong x-text="entry.level"></strong>
+                                                    <span x-text="entry.message"></span>
                                                 </div>
                                             </template>
                                         </div>
                                     </div>
                                 </div>
-                            </div>
+                            </section>
 
-                            <!-- D. 变量数据 (Data - JSON) -->
-                            <div class="adv-section flex flex-col flex-1 min-h-[200px]">
-                                <div class="adv-section-title color-text-violet flex justify-between">
-                                    <span class="inline-flex items-center gap-1">
-                                        {{ icon('data-grid', 'ui-icon--sm ') }}
-                                        <span>变量数据 (Data - JSON Object)</span>
-                                    </span>
-                                    <button @click="syncScriptDataJson(); $store.global.showToast('JSON 已格式化')"
-                                        class="text-[10px] bg-[var(--surface-container)] border border-[var(--border-default)] px-2 py-0.5 rounded color-hover-text-primary transition">
-                                        Format JSON
+                            <section class="adv-section advanced-data-section">
+                                <div class="advanced-section-heading">
+                                    <div>
+                                        <span class="advanced-section-eyebrow color-text-violet">STATE</span>
+                                        <h4>{{ icon('data-grid', 'ui-icon--sm ') }}变量数据</h4>
+                                    </div>
+                                    <button type="button" class="advanced-text-button advanced-text-button--soft" @click="formatScriptDataJson()">
+                                        {{ icon('data-grid', 'ui-icon--sm ') }}<span>格式化 JSON</span>
                                     </button>
                                 </div>
-                                <div class="relative flex-1">
-                                    <!-- scriptDataJson 是组件级的状态变量，不需要修改，它通过 watch 自动更新 -->
-                                    <textarea x-model="scriptDataJson" @input="syncScriptDataJson()"
-                                        @blur="syncScriptDataJson()"
-                                        class="form-textarea font-mono text-xs w-full h-full resize-none custom-scrollbar absolute inset-0"
-                                        style="background: var(--surface-code); color: var(--decoration-violet); line-height: 1.5;"
-                                        spellcheck="false" placeholder="{ 'key': 'value' }"></textarea>
+                                <textarea x-model="scriptDataJson" @input="syncScriptDataJson()" @blur="syncScriptDataJson()"
+                                    class="form-textarea advanced-code-editor advanced-code-editor--data custom-scrollbar" spellcheck="false"
+                                    placeholder="{ &quot;key&quot;: &quot;value&quot; }" aria-label="脚本变量 JSON 数据"></textarea>
+                                <div x-show="scriptDataError" class="advanced-field-error" role="alert">
+                                    {{ icon('alert-triangle', 'ui-icon--xs ') }}<span x-text="scriptDataError"></span>
                                 </div>
-                                <div class="text-[10px] text-[var(--content-muted)] mt-1">
-                                    * 此处支持嵌套对象和数组。修改时会自动解析为 JSON 对象。
-                                </div>
-                            </div>
-
+                                <p class="advanced-section-note">支持嵌套对象与数组。只有合法 JSON 才会同步到脚本数据。</p>
+                            </section>
                         </div>
-                    </div>
+                    </section>
                 </template>
 
-                <!-- 空状态 -->
-                <div class="adv-editor-pane flex items-center justify-center text-[var(--content-muted)]"
+                <div class="adv-editor-pane custom-scrollbar advanced-editor-empty-pane"
                     x-show="activeScriptIndex === -1 || !getTavernScripts()[activeScriptIndex]">
-                    <div class="text-center">
-                        <div class="mb-2 opacity-30 flex justify-center" aria-hidden="true">
-                            {{ detail_icon('script-file', 'ui-icon--lg ') }}
-                        </div>
-                        <p>请在左侧选择或新建一个脚本</p>
+                    <div class="advanced-empty-state">
+                        {{ detail_icon('script-file', 'ui-icon--lg ') }}
+                        <strong>选择一个 ST 脚本开始编辑</strong>
+                        <p>请在左侧选择一个条目进行详细编辑</p>
                     </div>
                 </div>
-            </div>
+            </section>
 
-            <!-- === Tab 3: Quick Replies === -->
-            <div x-show="activeTab === 'quick_reply'" class="adv-split-view">
-
-                <!-- 左侧：回复列表 -->
-                <div class="adv-list-pane custom-scrollbar overflow-y-auto"
-                    :class="{
-                        'hidden md:flex': $store.global.deviceType !== 'mobile',
-                        'top-14': $store.global.deviceType !== 'mobile',
-                        'top-0': $store.global.deviceType === 'mobile',
-                        'fixed left-0 bottom-0 z-50 w-[280px] max-w-[85vw] shadow-2xl flex flex-col': $store.global.deviceType === 'mobile' && showMobileSidebar,
-                        'hidden': $store.global.deviceType === 'mobile' && !showMobileSidebar
-                    }">
-                    <div
-                        class="p-3 border-b border-[var(--border-default)] flex justify-between items-center bg-[var(--surface-container-raised)] sticky top-0 z-10">
-                        <span class="text-xs font-bold text-[var(--content-secondary)] uppercase">Reply List</span>
-                        <div class="flex items-center gap-1">
-                            <button @click="addQrEntry()"
-                                class="text-xs color-surface-success-solid color-hover-surface-success color-text-on-dark px-2 py-1 rounded transition flex items-center gap-1"
-                                title="新建快速回复">
+            <!-- 快速回复 -->
+            <section x-show="activeTab === 'quick_reply'" id="advanced-panel-quick-reply" class="advanced-editor-tab-panel"
+                role="tabpanel" aria-labelledby="advanced-tab-quick-reply">
+                <aside class="adv-list-pane custom-scrollbar overflow-y-auto" :class="{ 'is-mobile-open': showMobileSidebar }"
+                    aria-label="快速回复列表">
+                    <div class="advanced-list-header">
+                        <div>
+                            <span class="advanced-list-eyebrow">REPLY SET</span>
+                            <h3>快速回复</h3>
+                            <p><span x-text="editingData.quick_reply?.qrList?.length || 0"></span> 个动作，点击条目查看详情</p>
+                        </div>
+                        <div class="advanced-list-actions">
+                            <button type="button" class="advanced-text-button advanced-text-button--warning" @click="addQrEntry()"
+                                :disabled="!editingData.quick_reply" title="新建快速回复">
                                 {{ icon('plus-square', 'ui-icon--sm ') }}<span>新建</span>
                             </button>
                         </div>
                     </div>
 
-                    <div class="flex flex-col">
-                        <template x-for="(qr, idx) in editingData.quick_reply?.qrList" :key="qr.id || idx">
-                            <div class="adv-list-item group flex items-center justify-between gap-2" role="button" tabindex="0"
-                                :class="activeQrIndex === idx ? 'active' : ''"
-                                @click="activeQrIndex = idx; if($store.global.deviceType==='mobile') showMobileSidebar=false"
-                                @keydown.enter.space.prevent="activeQrIndex = idx; if($store.global.deviceType==='mobile') showMobileSidebar=false">
-
-                                <div class="flex-1 min-w-0 overflow-hidden">
-                                    <div class="flex justify-between items-center mb-1">
-                                        <span class="font-bold text-sm truncate" x-text="qr.label || '未命名'"></span>
+                    <div class="advanced-entry-list" role="listbox" aria-label="快速回复条目">
+                        <button type="button" class="advanced-entry advanced-entry--settings" role="option" tabindex="0"
+                            data-advanced-entry="quick_reply" data-entry-index="-1"
+                            :aria-selected="(activeQrIndex === -1).toString()" :class="{ 'is-active': activeQrIndex === -1 }"
+                            @click="selectEditorEntry('quick_reply', -1)"
+                            @keydown.enter.space.prevent="selectEditorEntry('quick_reply', -1)"
+                            @keydown.arrow-down.prevent="editingData.quick_reply?.qrList?.length && selectEditorEntry('quick_reply', 0)">
+                            <span class="advanced-entry-leading color-text-warning" aria-hidden="true">{{ icon('settings', 'ui-icon--sm ') }}</span>
+                            <span class="advanced-entry-main"><span class="advanced-entry-title">集合设置</span><span class="advanced-entry-preview">发送行为与插入策略</span></span>
+                        </button>
+                        <template x-for="(qr, idx) in (editingData.quick_reply?.qrList || [])" :key="qr.id || idx">
+                            <div class="advanced-entry" role="option" tabindex="0" :data-advanced-entry="'quick_reply'"
+                                :data-entry-index="idx" :aria-selected="(activeQrIndex === idx).toString()"
+                                :class="{ 'is-active': activeQrIndex === idx, 'is-disabled': qr.isHidden }"
+                                @click="selectEditorEntry('quick_reply', idx)"
+                                @keydown="handleEntryKeydown($event, 'quick_reply', idx)">
+                                <div class="advanced-entry-main">
+                                    <div class="advanced-entry-title-row">
+                                        <span class="advanced-entry-title" x-text="qr.label || '未命名回复'"></span>
+                                        <span class="advanced-entry-order" x-text="String(idx + 1).padStart(2, '0')"></span>
                                     </div>
-                                    <div class="text-[10px] text-[var(--content-muted)] truncate opacity-70"
-                                        x-text="qr.message || '(无内容)'"></div>
-                                </div>
-
-                                <div
-                                    class="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-                                    <div class="flex gap-1">
-                                        <button type="button" @click.stop="moveQrEntry(idx, -1)"
-                                            class="ui-reorder-button" title="上移" aria-label="上移">{{ icon('arrow-up', 'ui-icon--xs') }}</button>
-                                        <button type="button" @click.stop="moveQrEntry(idx, 1)"
-                                            class="ui-reorder-button" title="下移" aria-label="下移">{{ icon('arrow-down', 'ui-icon--xs') }}</button>
+                                    <span class="advanced-entry-preview" x-text="qr.message || '尚未填写发送内容'"></span>
+                                    <div class="advanced-entry-tags">
+                                        <span x-show="qr.executeOnStartup || qr.executeOnUser || qr.executeOnAi || qr.executeOnChatChange || qr.executeOnNewChat"
+                                            class="advanced-status-chip is-warning">有触发条件</span>
+                                        <span x-show="qr.isHidden" class="advanced-status-chip is-muted">已隐藏</span>
                                     </div>
                                 </div>
-                                <button @click.stop="removeQrEntry(idx)"
-                                    class="opacity-0 group-hover:opacity-100 color-text-muted color-hover-text-danger p-1"
-                                    title="删除快速回复" aria-label="删除快速回复">{{ icon('close', 'ui-icon--xs') }}</button>
+                                <div class="advanced-entry-actions" @click.stop>
+                                    <button type="button" class="ui-reorder-button" @click="moveQrEntry(idx, -1)" :disabled="idx === 0"
+                                        title="上移" aria-label="上移">{{ icon('arrow-up', 'ui-icon--xs') }}</button>
+                                    <button type="button" class="ui-reorder-button" @click="moveQrEntry(idx, 1)"
+                                        :disabled="idx === (editingData.quick_reply?.qrList?.length || 0) - 1" title="下移" aria-label="下移">
+                                        {{ icon('arrow-down', 'ui-icon--xs') }}
+                                    </button>
+                                    <button type="button" class="advanced-icon-button is-danger" @click="removeQrEntry(idx)"
+                                        title="删除快速回复" aria-label="删除快速回复">{{ icon('trash', 'ui-icon--xs ') }}</button>
+                                </div>
                             </div>
                         </template>
-                        <div x-show="!editingData.quick_reply?.qrList?.length"
-                            class="p-8 text-center text-[var(--content-muted)] text-xs">
-                            暂无回复条目<br>点击上方按钮添加
+                        <div x-show="!editingData.quick_reply?.qrList?.length" class="advanced-list-empty">
+                            <span class="advanced-empty-icon color-text-warning" aria-hidden="true">{{ detail_icon('quick-reply', 'ui-icon--md ') }}</span>
+                            <strong>还没有快速回复</strong>
+                            <span>创建一个条目后即可配置触发条件</span>
                         </div>
                     </div>
-                </div>
+                </aside>
 
-                <!-- 右侧：QR 编辑器 -->
-                <template x-if="editingData.quick_reply">
-                    <div class="adv-editor-pane custom-scrollbar w-full">
-
-                        <!-- A. 全局设置 (Set Settings) -->
-                        <div class="adv-section mb-4" x-show="activeQrIndex === -1">
-                            <div class="adv-section-title color-text-warning">
-                                <span class="inline-flex items-center gap-1">
-                                    {{ icon('settings', 'ui-icon--sm ') }}
-                                    <span>集合设置 (Set Settings)</span>
-                                </span>
+                <section class="adv-editor-pane custom-scrollbar" aria-label="快速回复编辑器">
+                    <div class="advanced-editor-scroll" x-show="editingData.quick_reply">
+                        <div class="advanced-editor-pane-heading">
+                            <div>
+                                <span class="advanced-section-eyebrow color-text-warning">QUICK REPLY SET</span>
+                                <h3 x-text="activeQrIndex === -1 ? (editingData.quick_reply?.name || '集合设置') : (editingData.quick_reply?.qrList?.[activeQrIndex]?.label || '未命名回复')"></h3>
                             </div>
-
-                            <div class="flex flex-col gap-4">
-                                <div>
-                                    <label class="form-label">集合名称 (Set Name)</label>
-                                    <input type="text" x-model="editingData.quick_reply.name"
-                                        class="form-input font-bold text-lg">
-                                </div>
-
-                                <div class="grid grid-cols-2 gap-4">
-                                    <label
-                                        class="flex items-center gap-2 cursor-pointer select-none border p-2 rounded hover:bg-[var(--state-hover-surface)] border-[var(--border-default)]">
-                                        <input type="checkbox" x-model="editingData.quick_reply.disableSend"
-                                            class="w-4 h-4 rounded">
-                                        <div class="flex flex-col">
-                                            <span class="text-sm font-bold">禁用发送</span>
-                                            <span class="text-[10px] text-[var(--content-muted)]">点击仅插入输入框，不自动发送</span>
-                                        </div>
-                                    </label>
-
-                                    <label
-                                        class="flex items-center gap-2 cursor-pointer select-none border p-2 rounded hover:bg-[var(--state-hover-surface)] border-[var(--border-default)]">
-                                        <input type="checkbox" x-model="editingData.quick_reply.placeBeforeInput"
-                                            class="w-4 h-4 rounded">
-                                        <div class="flex flex-col">
-                                            <span class="text-sm font-bold">置于输入前</span>
-                                            <span class="text-[10px] text-[var(--content-muted)]">插入到当前输入内容的前面</span>
-                                        </div>
-                                    </label>
-
-                                    <label
-                                        class="flex items-center gap-2 cursor-pointer select-none border p-2 rounded hover:bg-[var(--state-hover-surface)] border-[var(--border-default)]">
-                                        <input type="checkbox" x-model="editingData.quick_reply.injectInput"
-                                            class="w-4 h-4 rounded">
-                                        <div class="flex flex-col">
-                                            <span class="text-sm font-bold">自动注入输入</span>
-                                            <span class="text-[10px] text-[var(--content-muted)]">将 {{input}}
-                                                替换为当前输入框内容</span>
-                                        </div>
-                                    </label>
-                                </div>
-                            </div>
-                            <div class="mt-4 text-center text-sm text-[var(--content-muted)]">
-                                <p>请在左侧选择一个条目进行详细编辑</p>
-                            </div>
+                            <span class="advanced-pane-index" x-text="activeQrIndex === -1 ? 'SETTINGS' : 'REPLY ' + String(activeQrIndex + 1).padStart(2, '0')"></span>
                         </div>
 
-                        <!-- B. 条目编辑 (Item Editor) -->
-                        <template x-if="activeQrIndex !== -1 && editingData.quick_reply.qrList[activeQrIndex]">
-                            <div class="flex flex-col gap-4">
-                                <div class="flex gap-4 items-end border-b border-[var(--border-default)] pb-4">
-                                    <div class="flex-1">
-                                        <label class="form-label">按钮标签 (Label)</label>
-                                        <input type="text" x-model="editingData.quick_reply.qrList[activeQrIndex].label"
-                                            class="form-input font-bold">
-                                    </div>
-                                    <div class="flex-1">
-                                        <label class="form-label">标题/提示 (Title)</label>
-                                        <input type="text" x-model="editingData.quick_reply.qrList[activeQrIndex].title"
-                                            class="form-input" placeholder="悬停提示...">
-                                    </div>
+                        <section class="adv-section advanced-form-section" x-show="activeQrIndex === -1">
+                            <div class="advanced-section-heading">
+                                <div>
+                                    <span class="advanced-section-eyebrow color-text-warning">SETTINGS</span>
+                                    <h4>{{ icon('settings', 'ui-icon--sm ') }}集合设置</h4>
                                 </div>
+                                <span class="advanced-section-index">01</span>
+                            </div>
+                            <label class="advanced-field advanced-field--full">
+                                <span class="form-label">集合名称 <small>Set Name</small></span>
+                                <input type="text" x-model="editingData.quick_reply.name" class="form-input" autocomplete="off">
+                            </label>
+                            <div class="advanced-choice-grid advanced-choice-grid--settings">
+                                <label class="advanced-toggle-card is-warning">
+                                    <input type="checkbox" x-model="editingData.quick_reply.disableSend">
+                                    <span class="advanced-toggle-copy"><strong>禁用发送</strong><small>点击后仅插入输入框，不自动发送</small></span>
+                                </label>
+                                <label class="advanced-toggle-card">
+                                    <input type="checkbox" x-model="editingData.quick_reply.placeBeforeInput">
+                                    <span class="advanced-toggle-copy"><strong>置于输入前</strong><small>插入到当前输入内容的前面</small></span>
+                                </label>
+                                <label class="advanced-toggle-card">
+                                    <input type="checkbox" x-model="editingData.quick_reply.injectInput">
+                                    <span class="advanced-toggle-copy"><strong>自动注入输入</strong><small>将 &#123;&#123;input&#125;&#125; 替换为当前输入框内容</small></span>
+                                </label>
+                            </div>
+                            <div class="advanced-inline-callout">
+                                {{ detail_icon('quick-reply', 'ui-icon--sm ') }}<span>集合设置影响本组所有回复。选择左侧条目可继续编辑具体内容。</span>
+                            </div>
+                        </section>
 
-                                <div class="adv-section flex flex-col h-48">
-                                    <div class="adv-section-title color-text-success">
-                                        <span class="inline-flex items-center gap-1">
-                                            {{ icon('send-content', 'ui-icon--sm ') }}
-                                            <span>发送内容 (Message)</span>
-                                        </span>
+                        <template x-if="activeQrIndex !== -1 && editingData.quick_reply?.qrList?.[activeQrIndex]">
+                            <div class="advanced-quick-reply-editor">
+                                <section class="adv-section advanced-form-section">
+                                    <div class="advanced-section-heading">
+                                        <div>
+                                            <span class="advanced-section-eyebrow color-text-warning">IDENTITY</span>
+                                            <h4>回复信息</h4>
+                                        </div>
+                                        <span class="advanced-section-index">01</span>
+                                    </div>
+                                    <div class="advanced-form-grid advanced-form-grid--two">
+                                        <label class="advanced-field">
+                                            <span class="form-label">按钮标签 <small>Label</small></span>
+                                            <input type="text" x-model="editingData.quick_reply.qrList[activeQrIndex].label" class="form-input" autocomplete="off">
+                                        </label>
+                                        <label class="advanced-field">
+                                            <span class="form-label">标题 / 提示 <small>Title</small></span>
+                                            <input type="text" x-model="editingData.quick_reply.qrList[activeQrIndex].title" class="form-input" placeholder="悬停时显示的提示">
+                                        </label>
+                                    </div>
+                                </section>
+
+                                <section class="adv-section advanced-message-section">
+                                    <div class="advanced-section-heading">
+                                        <div>
+                                            <span class="advanced-section-eyebrow color-text-success">ACTION</span>
+                                            <h4>{{ icon('send-content', 'ui-icon--sm ') }}发送内容</h4>
+                                        </div>
+                                        <span class="advanced-section-note">支持宏与 /commands</span>
                                     </div>
                                     <textarea x-model="editingData.quick_reply.qrList[activeQrIndex].message"
-                                        class="form-textarea font-mono text-xs flex-1 resize-none custom-scrollbar"
-                                        placeholder="支持宏 (Macros), /commands 等"></textarea>
-                                </div>
+                                        class="form-textarea advanced-code-editor advanced-message-editor custom-scrollbar"
+                                        placeholder="输入发送给酒馆的内容" spellcheck="false"></textarea>
+                                </section>
 
-                                <div class="adv-section">
-                                    <div class="adv-section-title color-text-accent">
-                                        <span class="inline-flex items-center gap-1">
-                                            {{ icon('bolt', 'ui-icon--sm ') }}
-                                            <span>触发条件 (Execute On)</span>
-                                        </span>
+                                <section class="adv-section advanced-form-section">
+                                    <div class="advanced-section-heading">
+                                        <div>
+                                            <span class="advanced-section-eyebrow color-text-accent">CONDITIONS</span>
+                                            <h4>{{ icon('bolt', 'ui-icon--sm ') }}触发条件</h4>
+                                        </div>
+                                        <span class="advanced-section-index">02</span>
                                     </div>
-                                    <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
-                                        <label class="flex items-center gap-2 cursor-pointer select-none text-xs"><input
-                                                type="checkbox"
-                                                x-model="editingData.quick_reply.qrList[activeQrIndex].executeOnStartup"
-                                                class="rounded"> Startup (启动时)</label>
-                                        <label class="flex items-center gap-2 cursor-pointer select-none text-xs"><input
-                                                type="checkbox"
-                                                x-model="editingData.quick_reply.qrList[activeQrIndex].executeOnUser"
-                                                class="rounded"> User Message</label>
-                                        <label class="flex items-center gap-2 cursor-pointer select-none text-xs"><input
-                                                type="checkbox"
-                                                x-model="editingData.quick_reply.qrList[activeQrIndex].executeOnAi"
-                                                class="rounded"> AI Message</label>
-                                        <label class="flex items-center gap-2 cursor-pointer select-none text-xs"><input
-                                                type="checkbox"
-                                                x-model="editingData.quick_reply.qrList[activeQrIndex].executeOnNewChat"
-                                                class="rounded"> New Chat</label>
-                                        <label class="flex items-center gap-2 cursor-pointer select-none text-xs"><input
-                                                type="checkbox"
-                                                x-model="editingData.quick_reply.qrList[activeQrIndex].executeOnChatChange"
-                                                class="rounded"> Chat Change</label>
+                                    <div class="advanced-choice-grid advanced-choice-grid--triggers">
+                                        <label class="advanced-choice-card"><input type="checkbox" x-model="editingData.quick_reply.qrList[activeQrIndex].executeOnStartup"><span><strong>启动时</strong><small>Startup</small></span></label>
+                                        <label class="advanced-choice-card"><input type="checkbox" x-model="editingData.quick_reply.qrList[activeQrIndex].executeOnUser"><span><strong>用户消息</strong><small>User Message</small></span></label>
+                                        <label class="advanced-choice-card"><input type="checkbox" x-model="editingData.quick_reply.qrList[activeQrIndex].executeOnAi"><span><strong>AI 消息</strong><small>AI Message</small></span></label>
+                                        <label class="advanced-choice-card"><input type="checkbox" x-model="editingData.quick_reply.qrList[activeQrIndex].executeOnNewChat"><span><strong>新聊天</strong><small>New Chat</small></span></label>
+                                        <label class="advanced-choice-card"><input type="checkbox" x-model="editingData.quick_reply.qrList[activeQrIndex].executeOnChatChange"><span><strong>聊天切换</strong><small>Chat Change</small></span></label>
                                     </div>
-                                </div>
+                                </section>
 
-                                <div class="flex items-center gap-4 border-t border-[var(--border-default)] pt-4">
-                                    <label
-                                        class="flex items-center gap-2 cursor-pointer select-none text-xs color-text-danger">
-                                        <input type="checkbox"
-                                            x-model="editingData.quick_reply.qrList[activeQrIndex].isHidden"
-                                            class="color-accent-danger rounded">
-                                        隐藏此按钮
-                                    </label>
-                                    <label class="flex items-center gap-2 cursor-pointer select-none text-xs">
-                                        <input type="checkbox"
-                                            x-model="editingData.quick_reply.qrList[activeQrIndex].showLabel"
-                                            class="rounded">
-                                        仅显示标签 (不显示图标)
-                                    </label>
-                                </div>
+                                <section class="adv-section advanced-form-section">
+                                    <div class="advanced-section-heading">
+                                        <div>
+                                            <span class="advanced-section-eyebrow">DISPLAY</span>
+                                            <h4>显示与执行行为</h4>
+                                        </div>
+                                        <span class="advanced-section-index">03</span>
+                                    </div>
+                                    <div class="advanced-choice-grid advanced-choice-grid--settings">
+                                        <label class="advanced-toggle-card is-danger">
+                                            <input type="checkbox" x-model="editingData.quick_reply.qrList[activeQrIndex].isHidden">
+                                            <span class="advanced-toggle-copy"><strong>隐藏此按钮</strong><small>保留条目但不在列表显示</small></span>
+                                        </label>
+                                        <label class="advanced-toggle-card">
+                                            <input type="checkbox" x-model="editingData.quick_reply.qrList[activeQrIndex].showLabel">
+                                            <span class="advanced-toggle-copy"><strong>仅显示标签</strong><small>不显示按钮图标</small></span>
+                                        </label>
+                                        <label class="advanced-toggle-card is-warning">
+                                            <input type="checkbox" x-model="editingData.quick_reply.qrList[activeQrIndex].preventAutoExecute">
+                                            <span class="advanced-toggle-copy"><strong>阻止自动执行</strong><small>仅允许手动触发此回复</small></span>
+                                        </label>
+                                    </div>
+                                </section>
                             </div>
                         </template>
-
                     </div>
-                </template>
-            </div>
+                    <div x-show="!editingData.quick_reply" class="advanced-editor-empty-pane">
+                        <div class="advanced-empty-state">
+                            {{ detail_icon('quick-reply', 'ui-icon--lg ') }}
+                            <strong>没有可编辑的快速回复集合</strong>
+                            <p>请先打开一个快速回复文件</p>
+                        </div>
+                    </div>
+                </section>
+            </section>
+        </main>
 
-        </div>
-
-        <!-- 4. 底部 Action Bar -->
-        <div
-            class="p-4 border-t flex flex-col md:flex-row justify-between items-start md:items-center gap-3 advanced-editor-footer bg-[var(--surface-container-raised)] border-[var(--border-default)]">
-            <div class="text-xs text-[var(--content-muted)]">
+        <footer class="advanced-editor-footer">
+            <div class="advanced-footer-note">
                 <span x-show="!isFileMode">完成：仅返回当前编辑界面；保存：直接写入原文件。</span>
                 <span x-show="isFileMode" class="color-text-accent">正在编辑独立文件。点击保存将直接写入磁盘。</span>
+                <span class="advanced-footer-context" x-text="isFileMode ? currentFilePath : '修改会先保留在当前编辑上下文中'"></span>
             </div>
-
-            <div class="flex w-full md:w-auto gap-3 justify-end">
-                <button x-show="!isFileMode && showPersistButton" @click="persistChanges()"
-                    class="btn-secondary px-6 py-2 rounded shadow-lg font-bold w-full md:w-auto">
+            <div class="advanced-footer-actions">
+                <button type="button" x-show="!isFileMode && showPersistButton" @click="persistChanges()"
+                    class="advanced-text-button advanced-text-button--soft">
                 保存
             </button>
-                <button x-show="!isFileMode" @click="applyChangesAndClose()"
-                    class="btn-primary px-6 py-2 rounded shadow-lg font-bold w-full md:w-auto">
+                <button type="button" x-show="!isFileMode" @click="applyChangesAndClose()"
+                    class="advanced-text-button advanced-text-button--accent">
                 完成
             </button>
-                <button x-show="isFileMode" @click="saveFileChanges()"
-                    class="btn-primary px-6 py-2 rounded shadow-lg font-bold w-full md:w-auto">
-                保存文件
+                <button type="button" x-show="isFileMode" @click="saveFileChanges()"
+                    class="advanced-text-button advanced-text-button--accent" :disabled="isSavingFile">
+                    <template x-if="!isSavingFile">{{ icon('settings-save', 'ui-icon--sm ') }}</template>
+                    <template x-if="isSavingFile">{{ icon('refresh', 'ui-icon--sm ') }}</template>
+                    <span>保存文件</span>
             </button>
             </div>
-        </div>
+        </footer>
 
-        
-        <!-- 移动端：侧边栏切换按钮 -->
-        <button x-show="$store.global.deviceType === 'mobile' && !showMobileSidebar"
-            @click="showMobileSidebar = true"
-            class="fixed bottom-20 left-2 z-50 w-10 h-10 bg-[var(--surface-container)] border border-[var(--border-default)] rounded-lg flex items-center justify-center text-[var(--content-primary)] shadow-lg md:hidden">
-            <span aria-hidden="true">{{ icon('list', 'ui-icon--sm ') }}</span>
+        <button type="button" x-show="$store.global.deviceType === 'mobile' && !showMobileSidebar"
+            @click="showMobileSidebar = true" class="advanced-mobile-list-trigger" title="打开条目列表" aria-label="打开条目列表">
+            {{ icon('list', 'ui-icon--sm ') }}
         </button>
+        <div x-show="$store.global.deviceType === 'mobile' && showMobileSidebar" class="advanced-editor-mobile-scrim"
+            @click="showMobileSidebar = false" aria-hidden="true"></div>
 
-        <!-- 移动端：侧边栏遮罩 -->
-        <div x-show="$store.global.deviceType === 'mobile' && showMobileSidebar"
-            @click="showMobileSidebar = false"
-            class="fixed inset-0 color-surface-scrim z-40"
-            x-transition:enter="transition ease-out duration-300"
-            x-transition:enter-start="opacity-0"
-            x-transition:enter-end="opacity-100"
-            x-transition:leave="transition ease-in duration-200"
-            x-transition:leave-start="opacity-100"
-            x-transition:leave-end="opacity-0"></div>
+        <div x-show="showDeleteConfirm" x-cloak class="advanced-delete-overlay" role="presentation"
+            @click.self="cancelDeleteConfirmation()">
+            <section class="advanced-delete-dialog" role="alertdialog" aria-modal="true"
+                aria-labelledby="advanced-delete-title" aria-describedby="advanced-delete-description" @click.stop>
+                <div class="advanced-delete-icon" aria-hidden="true">{{ icon('alert-triangle', 'ui-icon--md ') }}</div>
+                <div class="advanced-delete-content">
+                    <span class="advanced-section-eyebrow color-text-danger">DANGER ZONE</span>
+                    <h3 id="advanced-delete-title">删除扩展条目</h3>
+                    <p id="advanced-delete-description" x-text="'确定删除“' + (deleteRequest?.label || '此条目') + '”吗？删除后需点击保存或完成才会生效。'"></p>
+                </div>
+                <div class="advanced-delete-actions">
+                    <button type="button" data-delete-cancel class="advanced-text-button advanced-text-button--soft"
+                        @click="cancelDeleteConfirmation()">取消</button>
+                    <button type="button" class="advanced-text-button advanced-text-button--danger" @click="confirmDelete()">
+                        {{ icon('trash', 'ui-icon--sm ') }}<span>确认删除</span>
+                    </button>
+                </div>
+            </section>
         </div>
-
     </div>
 </div>
