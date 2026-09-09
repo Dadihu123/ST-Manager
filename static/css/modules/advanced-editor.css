@@ -117,10 +117,6 @@
   text-transform: uppercase;
 }
 
-.advanced-editor-eyebrow--mobile {
-  display: none;
-}
-
 .advanced-editor-heading-copy h2,
 .advanced-editor-heading-copy p,
 .advanced-list-header h3,
@@ -2398,10 +2394,6 @@ button.advanced-entry {
 
   .advanced-editor-eyebrow--desktop {
     display: none;
-  }
-
-  .advanced-editor-eyebrow--mobile {
-    display: block;
   }
 
   .advanced-editor-context-label,

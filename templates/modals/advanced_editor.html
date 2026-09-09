@@ -22,7 +22,6 @@
                 </button>
                 <div class="advanced-editor-heading-copy">
                     <span class="advanced-editor-eyebrow advanced-editor-eyebrow--desktop">EXTENSIONS / EDITOR</span>
-                    <span class="advanced-editor-eyebrow advanced-editor-eyebrow--mobile">扩展规则</span>
                     <h2 id="advanced-editor-title">高级扩展</h2>
                     <p id="advanced-editor-description">
                         <span class="advanced-editor-context-label" x-text="isFileMode ? getFileTypeLabel() : '扩展规则'"></span>
@@ -107,11 +106,6 @@
                             <p><span x-text="editingData.extensions?.regex_scripts?.length || 0"></span> 个规则，按列表顺序执行</p>
                         </div>
                         <div class="advanced-list-actions">
-                            <button type="button" x-show="$store.global.deviceType === 'mobile'"
-                                class="advanced-icon-button advanced-mobile-list-close" @click="showMobileSidebar = false"
-                                title="关闭条目列表" aria-label="关闭条目列表">
-                                {{ icon('close', 'ui-icon--md ') }}
-                            </button>
                             <template x-if="!isFileMode">
                                 <button type="button" class="advanced-icon-button" @click="$refs.importRegexInput.click()"
                                     title="导入正则脚本" aria-label="导入正则脚本">
@@ -125,6 +119,11 @@
                                     {{ icon('plus-square', 'ui-icon--sm ') }}<span>新建</span>
                                 </button>
                             </template>
+                            <button type="button" x-show="$store.global.deviceType === 'mobile'"
+                                class="advanced-icon-button advanced-mobile-list-close" @click="showMobileSidebar = false"
+                                title="关闭条目列表" aria-label="关闭条目列表">
+                                {{ icon('close', 'ui-icon--md ') }}
+                            </button>
                         </div>
                     </div>
 
@@ -428,11 +427,6 @@
                             <p><span x-text="getTavernScripts().length"></span> 个脚本，支持安全运行时</p>
                         </div>
                         <div class="advanced-list-actions">
-                            <button type="button" x-show="$store.global.deviceType === 'mobile'"
-                                class="advanced-icon-button advanced-mobile-list-close" @click="showMobileSidebar = false"
-                                title="关闭条目列表" aria-label="关闭条目列表">
-                                {{ icon('close', 'ui-icon--md ') }}
-                            </button>
                             <template x-if="!isFileMode">
                                 <button type="button" class="advanced-icon-button" @click="$refs.importScriptInput.click()"
                                     title="导入 ST 脚本" aria-label="导入 ST 脚本">
@@ -446,6 +440,11 @@
                                     {{ icon('plus-square', 'ui-icon--sm ') }}<span>新建</span>
                                 </button>
                             </template>
+                            <button type="button" x-show="$store.global.deviceType === 'mobile'"
+                                class="advanced-icon-button advanced-mobile-list-close" @click="showMobileSidebar = false"
+                                title="关闭条目列表" aria-label="关闭条目列表">
+                                {{ icon('close', 'ui-icon--md ') }}
+                            </button>
                         </div>
                     </div>
 
@@ -722,14 +721,14 @@
                             <p><span x-text="editingData.quick_reply?.qrList?.length || 0"></span> 个动作，点击条目查看详情</p>
                         </div>
                         <div class="advanced-list-actions">
+                            <button type="button" class="advanced-text-button advanced-text-button--soft" @click="addQrEntry()"
+                                :disabled="!editingData.quick_reply" title="新建快速回复">
+                                {{ icon('plus-square', 'ui-icon--sm ') }}<span>新建</span>
+                            </button>
                             <button type="button" x-show="$store.global.deviceType === 'mobile'"
                                 class="advanced-icon-button advanced-mobile-list-close" @click="showMobileSidebar = false"
                                 title="关闭条目列表" aria-label="关闭条目列表">
                                 {{ icon('close', 'ui-icon--md ') }}
-                            </button>
-                            <button type="button" class="advanced-text-button advanced-text-button--soft" @click="addQrEntry()"
-                                :disabled="!editingData.quick_reply" title="新建快速回复">
-                                {{ icon('plus-square', 'ui-icon--sm ') }}<span>新建</span>
                             </button>
                         </div>
                     </div>
