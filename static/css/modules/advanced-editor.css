@@ -80,14 +80,19 @@
 
 .advanced-editor-heading-icon {
   display: grid;
-  width: 2.4rem;
-  height: 2.4rem;
-  flex: 0 0 2.4rem;
+  width: 2.9rem;
+  height: 2.9rem;
+  flex: 0 0 2.9rem;
   place-items: center;
   color: var(--action-icon);
-  background: var(--action-surface);
-  border: 1px solid var(--action-border);
-  border-radius: var(--ui-radius-sm);
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+}
+
+.advanced-editor-heading-icon .ui-icon {
+  width: 2rem;
+  height: 2rem;
 }
 
 .advanced-editor-heading-copy {
@@ -220,12 +225,12 @@
 
 .advanced-editor-tabs {
   display: flex;
-  min-height: 4rem;
+  min-height: 4.15rem;
   flex: 0 0 auto;
   align-items: stretch;
-  gap: 0.35rem;
+  gap: 0.45rem;
   overflow-x: auto;
-  padding: 0 1rem;
+  padding: 0.55rem 1rem 0.4rem;
   background: var(--surface-container);
   border-bottom: 1px solid var(--border-divider);
   scrollbar-width: thin;
@@ -234,7 +239,7 @@
 .advanced-editor-tab {
   position: relative;
   min-width: 0;
-  min-height: 4rem;
+  min-height: 3.2rem;
   flex: 1 1 0;
   justify-content: flex-start;
   gap: 0.6rem;
@@ -242,8 +247,8 @@
   color: var(--content-muted);
   text-align: left;
   background: transparent;
-  border: 0;
-  border-radius: 0;
+  border: 1px solid transparent;
+  border-radius: var(--ui-radius-sm);
   cursor: pointer;
 }
 
@@ -252,7 +257,7 @@
   right: 0.7rem;
   bottom: 0;
   left: 0.7rem;
-  height: 3px;
+  height: 2px;
   background: transparent;
   content: "";
 }
@@ -266,6 +271,8 @@
 .advanced-editor-tab.is-active {
   color: var(--action-text);
   background: var(--action-surface);
+  border-color: transparent;
+  box-shadow: inset 0 -2px 0 var(--action-border-hover);
 }
 
 .advanced-editor-tab.is-active::after {
@@ -401,7 +408,7 @@
   overflow-x: hidden;
   overflow-y: auto;
   padding: 0;
-  background: var(--surface-modal-side) !important;
+  background: var(--sidebar-surface) !important;
   border: 0 !important;
   border-right: 1px solid var(--border-divider) !important;
   transform: none;
@@ -418,7 +425,7 @@
   justify-content: space-between;
   gap: 0.65rem;
   padding: 1rem 0.95rem 0.85rem;
-  background: var(--surface-modal-side);
+  background: var(--sidebar-nav-surface);
   border-bottom: 1px solid var(--border-divider);
 }
 
@@ -587,12 +594,42 @@ button.advanced-entry {
 }
 
 .advanced-entry-actions {
+  align-items: stretch;
   display: flex;
-  max-width: 6.6rem;
   flex: 0 0 auto;
-  flex-wrap: wrap;
   justify-content: flex-end;
+  gap: 0.22rem;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 140ms ease;
+}
+
+.advanced-entry:hover .advanced-entry-actions,
+.advanced-entry:focus-within .advanced-entry-actions,
+.advanced-entry.is-active .advanced-entry-actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.advanced-entry-action-stack {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
   gap: 0.12rem;
+}
+
+.advanced-entry-action-stack .advanced-icon-button,
+.advanced-entry-action-stack .ui-reorder-button {
+  width: 1.72rem;
+  height: 1.72rem;
+  flex-basis: 1.72rem;
+}
+
+@media (hover: none), (pointer: coarse) {
+  .advanced-entry-actions {
+    opacity: 1;
+    pointer-events: auto;
+  }
 }
 
 .advanced-icon-button,
@@ -705,9 +742,25 @@ button.advanced-entry {
 }
 
 .advanced-text-button--warning {
-  color: var(--content-on-dark);
-  background: var(--status-warning-solid);
-  border-color: var(--status-warning-solid);
+  color: var(--status-warning-text);
+  background: var(--status-warning-surface);
+  border-color: var(--status-warning-border);
+}
+
+.advanced-text-button--warning:hover,
+.advanced-text-button--warning:focus-visible {
+  color: var(--status-warning-text);
+  background: color-mix(in srgb, var(--status-warning-surface) 72%, var(--state-hover-surface));
+  border-color: var(--status-warning-text);
+}
+
+.advanced-editor-container .advanced-macro-select-menu {
+  font-size: 0.72rem;
+}
+
+.advanced-editor-container .advanced-macro-select-menu .icon-select-option {
+  min-height: 1.9rem;
+  padding: 0.32rem 0.5rem;
 }
 
 .advanced-text-button--danger {
@@ -1626,19 +1679,24 @@ button.advanced-entry {
 }
 
 .advanced-mobile-list-trigger {
-  position: absolute;
-  z-index: 45;
-  bottom: 5.35rem;
-  left: 0.85rem;
   display: none;
-  width: 2.75rem;
-  height: 2.75rem;
-  place-items: center;
+  min-height: 2.25rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.55rem;
+  flex: 0 0 auto;
   color: var(--action-text);
-  background: var(--surface-container-raised);
-  border: 1px solid var(--action-border);
+  background: var(--action-surface);
+  border: 0;
   border-radius: var(--ui-radius-sm);
-  box-shadow: 0 0.6rem 1.5rem color-mix(in srgb, var(--surface-page) 48%, transparent);
+  cursor: pointer;
+}
+
+.advanced-mobile-list-trigger:hover,
+.advanced-mobile-list-trigger:focus-visible {
+  color: var(--action-text);
+  background: var(--action-surface-hover);
 }
 
 .advanced-editor-mobile-scrim {
@@ -2293,6 +2351,14 @@ button.advanced-entry {
     padding: 0.75rem 0.85rem;
   }
 
+  .advanced-editor-heading {
+    gap: 0.55rem;
+  }
+
+  .advanced-editor-heading-icon--desktop {
+    display: none;
+  }
+
   .advanced-editor-heading-copy p {
     max-width: 58vw;
   }
@@ -2302,12 +2368,12 @@ button.advanced-entry {
   }
 
   .advanced-editor-tabs {
-    min-height: 3.7rem;
-    padding: 0 0.55rem;
+    min-height: 3.65rem;
+    padding: 0.35rem 0.55rem 0.3rem;
   }
 
   .advanced-editor-tab {
-    min-height: 3.7rem;
+    min-height: 3rem;
     gap: 0.35rem;
     padding: 0.45rem 0.45rem;
   }
@@ -2337,13 +2403,18 @@ button.advanced-entry {
     top: 0;
     bottom: 0;
     left: 0;
-    width: min(23rem, 86vw) !important;
-    max-width: 86vw;
+    width: min(22rem, 88vw) !important;
+    max-width: 88vw;
     min-width: 0;
     flex: 0 0 auto;
     box-shadow: 1rem 0 2rem color-mix(in srgb, var(--surface-page) 50%, transparent);
     transform: translateX(-105%);
     transition: transform 160ms ease;
+  }
+
+  .advanced-entry-actions {
+    opacity: 1;
+    pointer-events: auto;
   }
 
   .advanced-editor-container .adv-list-pane.is-mobile-open {
@@ -2410,7 +2481,7 @@ button.advanced-entry {
   }
 
   .advanced-mobile-list-trigger {
-    display: grid;
+    display: inline-flex;
   }
 
   .extension-workbench-header {
@@ -2479,10 +2550,9 @@ button.advanced-entry {
 }
 
 @media (max-width: 30rem) {
-  .advanced-editor-heading-icon {
-    width: 2.15rem;
-    height: 2.15rem;
-    flex-basis: 2.15rem;
+  .advanced-mobile-list-trigger {
+    min-height: 2.1rem;
+    padding-inline: 0.48rem;
   }
 
   .advanced-editor-heading-copy h2 {
@@ -2504,7 +2574,9 @@ button.advanced-entry {
   }
 
   .advanced-editor-tab-icon {
-    display: none;
+    width: 1.2rem;
+    height: 1.2rem;
+    flex-basis: 1.2rem;
   }
 
   .advanced-editor-tab-copy strong {

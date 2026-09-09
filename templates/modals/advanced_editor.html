@@ -9,12 +9,17 @@
 
         <header class="advanced-editor-header">
             <div class="advanced-editor-heading">
-                <div class="advanced-editor-heading-icon" aria-hidden="true">
-                    {{ icon('sliders-settings', 'ui-icon--md ') }}
+                <div class="advanced-editor-heading-icon advanced-editor-heading-icon--desktop" aria-hidden="true">
+                    {{ icon('sliders-settings', 'ui-icon--xl ') }}
                     <span x-show="isFileMode && !['regex', 'script', 'quick_reply'].includes(fileType)" class="advanced-editor-heading-fallback-icon">
                         {{ icon('file-code', 'ui-icon--sm ') }}
                     </span>
                 </div>
+                <button type="button" x-show="$store.global.deviceType === 'mobile' && !showMobileSidebar"
+                    @click="showMobileSidebar = true" class="advanced-mobile-list-trigger advanced-mobile-header-menu"
+                    title="打开条目列表" aria-label="打开条目列表">
+                    {{ icon('list', 'ui-icon--sm ') }}<span>条目</span>
+                </button>
                 <div class="advanced-editor-heading-copy">
                     <span class="advanced-editor-eyebrow">EXTENSIONS / EDITOR</span>
                     <h2 id="advanced-editor-title">高级扩展</h2>
@@ -109,7 +114,7 @@
                             </template>
                             <input type="file" x-ref="importRegexInput" @change="importRegex" accept=".json" hidden>
                             <template x-if="!isFileMode">
-                                <button type="button" class="advanced-text-button advanced-text-button--accent"
+                                <button type="button" class="advanced-text-button advanced-text-button--violet"
                                     @click="addRegexScript()" title="新建正则脚本">
                                     {{ icon('plus-square', 'ui-icon--sm ') }}<span>新建</span>
                                 </button>
@@ -137,31 +142,29 @@
                                     </div>
                                 </div>
                                 <div class="advanced-entry-actions" @click.stop>
-                                    <template x-if="!isFileMode">
+                                    <div class="advanced-entry-action-stack advanced-entry-action-stack--file" x-show="!isFileMode"
+                                        role="group" aria-label="导出与删除">
                                         <button type="button" class="advanced-icon-button" @click="exportRegex(idx)"
                                             title="导出正则脚本" aria-label="导出正则脚本">
                                             {{ icon('upload', 'ui-icon--xs ') }}
                                         </button>
-                                    </template>
-                                    <template x-if="!isFileMode">
+                                        <button type="button" class="advanced-icon-button is-danger" @click="removeRegexScript(idx)"
+                                            title="删除正则脚本" aria-label="删除正则脚本">
+                                            {{ icon('trash', 'ui-icon--xs ') }}
+                                        </button>
+                                    </div>
+                                    <div class="advanced-entry-action-stack advanced-entry-action-stack--order" x-show="!isFileMode"
+                                        role="group" aria-label="调整顺序">
                                         <button type="button" class="ui-reorder-button" @click="moveRegex(idx, -1)"
                                             :disabled="idx === 0" title="上移" aria-label="上移">
                                             {{ icon('arrow-up', 'ui-icon--xs') }}
                                         </button>
-                                    </template>
-                                    <template x-if="!isFileMode">
                                         <button type="button" class="ui-reorder-button" @click="moveRegex(idx, 1)"
                                             :disabled="idx === (editingData.extensions?.regex_scripts?.length || 0) - 1"
                                             title="下移" aria-label="下移">
                                             {{ icon('arrow-down', 'ui-icon--xs') }}
                                         </button>
-                                    </template>
-                                    <template x-if="!isFileMode">
-                                        <button type="button" class="advanced-icon-button is-danger" @click="removeRegexScript(idx)"
-                                            title="删除正则脚本" aria-label="删除正则脚本">
-                                            {{ icon('trash', 'ui-icon--xs ') }}
-                                        </button>
-                                    </template>
+                                    </div>
                                 </div>
                             </div>
                         </template>
@@ -229,7 +232,7 @@
                                                 model_modifier=".number",
                                                 wrapper_class="icon-select--compact",
                                                 trigger_class="icon-select-trigger--compact",
-                                                menu_class="icon-select-menu--fit",
+                                                menu_class="icon-select-menu--fit icon-select-menu--tiny advanced-macro-select-menu",
                                                 aria_label="宏替换"
                                             ) %}
                                                 <option value="0">None（不替换）</option>
@@ -455,30 +458,28 @@
                                     </div>
                                 </div>
                                 <div class="advanced-entry-actions" @click.stop>
-                                    <template x-if="!isFileMode">
+                                    <div class="advanced-entry-action-stack advanced-entry-action-stack--file" x-show="!isFileMode"
+                                        role="group" aria-label="导出与删除">
                                         <button type="button" class="advanced-icon-button" @click="exportScript(idx)"
                                             title="导出 ST 脚本" aria-label="导出 ST 脚本">
                                             {{ icon('upload', 'ui-icon--xs ') }}
                                         </button>
-                                    </template>
-                                    <template x-if="!isFileMode">
-                                        <button type="button" class="ui-reorder-button" @click="moveTavernScript(script.id, -1)"
-                                            :disabled="idx === 0" title="上移" aria-label="上移">
-                                            {{ icon('arrow-up', 'ui-icon--xs') }}
-                                        </button>
-                                    </template>
-                                    <template x-if="!isFileMode">
-                                        <button type="button" class="ui-reorder-button" @click="moveTavernScript(script.id, 1)"
-                                            :disabled="idx === getTavernScripts().length - 1" title="下移" aria-label="下移">
-                                            {{ icon('arrow-down', 'ui-icon--xs') }}
-                                        </button>
-                                    </template>
-                                    <template x-if="!isFileMode">
                                         <button type="button" class="advanced-icon-button is-danger" @click="removeTavernScript(script.id)"
                                             title="删除 ST 脚本" aria-label="删除 ST 脚本">
                                             {{ icon('trash', 'ui-icon--xs ') }}
                                         </button>
-                                    </template>
+                                    </div>
+                                    <div class="advanced-entry-action-stack advanced-entry-action-stack--order" x-show="!isFileMode"
+                                        role="group" aria-label="调整顺序">
+                                        <button type="button" class="ui-reorder-button" @click="moveTavernScript(script.id, -1)"
+                                            :disabled="idx === 0" title="上移" aria-label="上移">
+                                            {{ icon('arrow-up', 'ui-icon--xs') }}
+                                        </button>
+                                        <button type="button" class="ui-reorder-button" @click="moveTavernScript(script.id, 1)"
+                                            :disabled="idx === getTavernScripts().length - 1" title="下移" aria-label="下移">
+                                            {{ icon('arrow-down', 'ui-icon--xs') }}
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </template>
@@ -746,14 +747,20 @@
                                     </div>
                                 </div>
                                 <div class="advanced-entry-actions" @click.stop>
-                                    <button type="button" class="ui-reorder-button" @click="moveQrEntry(idx, -1)" :disabled="idx === 0"
-                                        title="上移" aria-label="上移">{{ icon('arrow-up', 'ui-icon--xs') }}</button>
-                                    <button type="button" class="ui-reorder-button" @click="moveQrEntry(idx, 1)"
-                                        :disabled="idx === (editingData.quick_reply?.qrList?.length || 0) - 1" title="下移" aria-label="下移">
-                                        {{ icon('arrow-down', 'ui-icon--xs') }}
-                                    </button>
-                                    <button type="button" class="advanced-icon-button is-danger" @click="removeQrEntry(idx)"
-                                        title="删除快速回复" aria-label="删除快速回复">{{ icon('trash', 'ui-icon--xs ') }}</button>
+                                    <div class="advanced-entry-action-stack advanced-entry-action-stack--file"
+                                        role="group" aria-label="删除">
+                                        <button type="button" class="advanced-icon-button is-danger" @click="removeQrEntry(idx)"
+                                            title="删除快速回复" aria-label="删除快速回复">{{ icon('trash', 'ui-icon--xs ') }}</button>
+                                    </div>
+                                    <div class="advanced-entry-action-stack advanced-entry-action-stack--order"
+                                        role="group" aria-label="调整顺序">
+                                        <button type="button" class="ui-reorder-button" @click="moveQrEntry(idx, -1)" :disabled="idx === 0"
+                                            title="上移" aria-label="上移">{{ icon('arrow-up', 'ui-icon--xs') }}</button>
+                                        <button type="button" class="ui-reorder-button" @click="moveQrEntry(idx, 1)"
+                                            :disabled="idx === (editingData.quick_reply?.qrList?.length || 0) - 1" title="下移" aria-label="下移">
+                                            {{ icon('arrow-down', 'ui-icon--xs') }}
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </template>
@@ -775,7 +782,8 @@
                             <span class="advanced-pane-index" x-text="activeQrIndex === -1 ? 'SETTINGS' : 'REPLY ' + String(activeQrIndex + 1).padStart(2, '0')"></span>
                         </div>
 
-                        <section class="adv-section advanced-form-section" x-show="activeQrIndex === -1">
+                        <template x-if="editingData.quick_reply">
+                            <section class="adv-section advanced-form-section" x-show="activeQrIndex === -1">
                             <div class="advanced-section-heading">
                                 <div>
                                     <span class="advanced-section-eyebrow color-text-warning">SETTINGS</span>
@@ -804,7 +812,8 @@
                             <div class="advanced-inline-callout">
                                 {{ detail_icon('quick-reply', 'ui-icon--sm ') }}<span>集合设置影响本组所有回复。选择左侧条目可继续编辑具体内容。</span>
                             </div>
-                        </section>
+                            </section>
+                        </template>
 
                         <template x-if="activeQrIndex !== -1 && editingData.quick_reply?.qrList?.[activeQrIndex]">
                             <div class="advanced-quick-reply-editor">
@@ -919,10 +928,6 @@
             </div>
         </footer>
 
-        <button type="button" x-show="$store.global.deviceType === 'mobile' && !showMobileSidebar"
-            @click="showMobileSidebar = true" class="advanced-mobile-list-trigger" title="打开条目列表" aria-label="打开条目列表">
-            {{ icon('list', 'ui-icon--sm ') }}
-        </button>
         <div x-show="$store.global.deviceType === 'mobile' && showMobileSidebar" class="advanced-editor-mobile-scrim"
             @click="showMobileSidebar = false" aria-hidden="true"></div>
 
