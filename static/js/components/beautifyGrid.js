@@ -46,6 +46,7 @@ export default function beautifyGrid() {
   return {
     isLoading: false,
     isActionLoading: false,
+    loadError: "",
     pendingThemeSendTarget: null,
     globalCharacterName: "",
     globalUserName: "",
@@ -409,7 +410,58 @@ export default function beautifyGrid() {
       this.closePackageDetailDrawer();
     },
 
+    focusBeautifySearch() {
+      this.$nextTick(() => {
+        const searchInput = this.$refs?.beautifySearch;
+        if (searchInput && typeof searchInput.focus === "function") {
+          searchInput.focus();
+          searchInput.select?.();
+        }
+      });
+    },
+
+    handleBeautifyKeydown(event) {
+      if (!event || event.defaultPrevented) {
+        return;
+      }
+
+      const target = event.target;
+      const isField = target?.matches?.(
+        "input, textarea, select, [contenteditable='true']",
+      );
+      const normalizedKey = String(event.key || "").toLowerCase();
+      const isSearchShortcut =
+        event.code === "Slash" ||
+        event.key === "/" ||
+        normalizedKey === "slash" ||
+        normalizedKey === "divide";
+
+      if (isSearchShortcut && !isField && this.workspace === "packages") {
+        event.preventDefault();
+        this.focusBeautifySearch();
+        return;
+      }
+
+      if (event.key !== "Escape") {
+        return;
+      }
+
+      if (this.showMobileFullscreen) {
+        event.preventDefault();
+        this.closeMobilePreviewAndReset();
+        return;
+      }
+
+      if (this.packageDetailDrawerOpen) {
+        event.preventDefault();
+        this.closePackageDetailDrawer();
+      }
+    },
+
     init() {
+      this._beautifyKeydownHandler = (event) => this.handleBeautifyKeydown(event);
+      window.addEventListener("keydown", this._beautifyKeydownHandler);
+
       this.$watch("$store.global.currentMode", (mode) => {
         if (mode === "beautify") {
           this.fetchPackages();
@@ -483,8 +535,12 @@ export default function beautifyGrid() {
 
     async fetchPackages() {
       this.isLoading = true;
+      this.loadError = "";
       try {
         const res = await listBeautifyPackages();
+        if (!res?.success && !Array.isArray(res?.items)) {
+          throw new Error(res?.error || res?.msg || "美化库加载失败");
+        }
         this.packages = res.items || [];
         if (!this.selectedPackageId && this.packages.length) {
           await this.selectPackage(this.packages[0].id);
@@ -507,6 +563,7 @@ export default function beautifyGrid() {
           }
         }
       } catch (error) {
+        this.loadError = String(error?.message || error || "美化库加载失败，请重试。");
         this.$store.global.showToast(`加载美化库失败: ${error}`, 3000);
       } finally {
         this.isLoading = false;

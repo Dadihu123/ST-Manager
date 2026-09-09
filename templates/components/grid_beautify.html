@@ -1,42 +1,72 @@
 {% from "components/styled_select.html" import styled_select, styled_select_controlled %}
+{% from "components/icon.html" import icon, detail_icon, loading_icon %}
 
 {% macro package_detail_cards() %}
   <div class="beautify-detail-card">
-    <div class="beautify-detail-heading">当前变体</div>
-    <div class="beautify-detail-kv">
-      <span>平台</span><span x-text="activeVariant?.platform || '-' "></span>
+    <div class="beautify-detail-card-heading">
+      <div class="beautify-detail-heading-group">
+        <span class="beautify-detail-heading-icon" aria-hidden="true">{{ icon('layers', 'ui-icon--sm') }}</span>
+        <div>
+          <div class="beautify-detail-heading">当前变体</div>
+          <div class="beautify-detail-card-kicker">正在预览的主题来源</div>
+        </div>
+      </div>
+      <span class="beautify-status-pill" :class="activeVariant?.preview_hint?.needs_platform_review ? 'is-warning' : 'is-ready'">
+        <span aria-hidden="true">{{ icon('circle-dot', 'ui-icon--xs') }}</span>
+        <span x-text="activeVariant?.preview_hint?.needs_platform_review ? '待确认' : '已确认'"></span>
+      </span>
     </div>
     <div class="beautify-detail-kv">
-      <span>主题</span><span x-text="activeVariant?.theme_name || '-' "></span>
+      <span><span aria-hidden="true">{{ icon('display', 'ui-icon--xs') }}</span>平台</span><strong x-text="activeVariant?.platform || '-' "></strong>
     </div>
     <div class="beautify-detail-kv">
-      <span>待确认</span><span
-        x-text="activeVariant?.preview_hint?.needs_platform_review ? '需要人工确认' : '已确认' "
+      <span><span aria-hidden="true">{{ icon('palette', 'ui-icon--xs') }}</span>主题</span><strong x-text="activeVariant?.theme_name || '-' "></strong>
+    </div>
+    <div class="beautify-detail-kv">
+      <span><span aria-hidden="true">{{ icon('info', 'ui-icon--xs') }}</span>预览状态</span><span
+        x-text="activeVariant?.preview_hint?.needs_platform_review ? '需要人工确认平台' : '可直接对照预览' "
       ></span>
     </div>
     <template x-if="activeVariant">
       <div class="beautify-stage-actions">
         <button
           type="button"
-          class="beautify-soft-btn"
+          class="beautify-primary-btn beautify-send-theme-btn"
           @click="sendActiveThemeToST()"
           :title="getActiveVariantSendToSTTitle()"
           :disabled="isActionLoading || !canSendActiveVariantToST()"
         >
-          发送主题到 ST
+          <template x-if="isActionLoading && pendingThemeSendTarget">
+            <span aria-hidden="true">{{ loading_icon('ui-icon--sm') }}</span>
+          </template>
+          <template x-if="!(isActionLoading && pendingThemeSendTarget)">
+            <span aria-hidden="true">{{ icon('card-send-to-st', 'ui-icon--sm') }}</span>
+          </template>
+          <span>发送主题到 ST</span>
         </button>
       </div>
     </template>
   </div>
 
   <div class="beautify-detail-card">
-    <div class="beautify-detail-heading">壁纸</div>
+    <div class="beautify-detail-card-heading">
+      <div class="beautify-detail-heading-group">
+        <span class="beautify-detail-heading-icon" aria-hidden="true">{{ icon('wallpaper', 'ui-icon--sm') }}</span>
+        <div>
+          <div class="beautify-detail-heading">壁纸</div>
+          <div class="beautify-detail-card-kicker">选择后立即写入当前变体</div>
+        </div>
+      </div>
+      <span class="beautify-detail-count" x-text="wallpaperOptions.length"></span>
+    </div>
     <div class="beautify-wallpaper-list" x-show="wallpaperOptions.length > 0">
       <template x-for="wallpaper in wallpaperOptions" :key="wallpaper.id">
         <button
           type="button"
           class="beautify-wallpaper-item cursor-pointer"
           :class="selectedWallpaperId === wallpaper.id ? 'is-active' : ''"
+          :aria-pressed="selectedWallpaperId === wallpaper.id"
+          :aria-label="`选择壁纸 ${wallpaper.filename}`"
           @click="selectWallpaper(wallpaper.id)"
         >
           <span
@@ -50,6 +80,9 @@
               x-text="`${wallpaper.width} × ${wallpaper.height}`"
             ></span>
           </span>
+          <span class="beautify-selection-mark" aria-hidden="true">
+            <span x-show="selectedWallpaperId === wallpaper.id">{{ icon('check', 'ui-icon--xs') }}</span>
+          </span>
         </button>
       </template>
     </div>
@@ -59,13 +92,24 @@
   </div>
 
   <div class="beautify-detail-card">
-    <div class="beautify-detail-heading">截图</div>
+    <div class="beautify-detail-card-heading">
+      <div class="beautify-detail-heading-group">
+        <span class="beautify-detail-heading-icon" aria-hidden="true">{{ icon('image', 'ui-icon--sm') }}</span>
+        <div>
+          <div class="beautify-detail-heading">截图</div>
+          <div class="beautify-detail-card-kicker">用于核对 SillyTavern 实际效果</div>
+        </div>
+      </div>
+      <span class="beautify-detail-count" x-text="screenshotOptions.length"></span>
+    </div>
     <div class="beautify-screenshot-list" x-show="screenshotOptions.length > 0">
       <template x-for="screenshot in screenshotOptions" :key="screenshot.id">
         <button
           type="button"
           class="beautify-screenshot-item cursor-pointer"
           :class="activeScreenshot?.id === screenshot.id ? 'is-active' : ''"
+          :aria-pressed="activeScreenshot?.id === screenshot.id"
+          :aria-label="`查看截图 ${screenshot.filename}`"
           @click="selectScreenshot(screenshot.id)"
         >
           <span
@@ -79,6 +123,9 @@
               x-text="`${screenshot.width} × ${screenshot.height}`"
             ></span>
           </span>
+          <span class="beautify-selection-mark" aria-hidden="true">
+            <span x-show="activeScreenshot?.id === screenshot.id">{{ icon('check', 'ui-icon--xs') }}</span>
+          </span>
         </button>
       </template>
     </div>
@@ -88,14 +135,23 @@
   </div>
 
   <div class="beautify-detail-card">
-    <div class="beautify-detail-heading">角色与用户覆盖</div>
+    <div class="beautify-detail-card-heading">
+      <div class="beautify-detail-heading-group">
+        <span class="beautify-detail-heading-icon" aria-hidden="true">{{ detail_icon('persona', 'ui-icon--sm') }}</span>
+        <div>
+          <div class="beautify-detail-heading">角色与用户覆盖</div>
+          <div class="beautify-detail-card-kicker">仅影响当前美化包的原生预览</div>
+        </div>
+      </div>
+    </div>
     <div class="beautify-settings-form-grid">
       <label class="beautify-settings-field">
-        <span>角色覆盖</span>
+        <span class="beautify-field-label"><span aria-hidden="true">{{ icon('user', 'ui-icon--xs') }}</span>角色覆盖</span>
         <input
           type="text"
           class="beautify-filter-input"
           x-model="packageCharacterName"
+          autocomplete="off"
           placeholder="未设置，将使用全局默认角色资料"
         />
         <div
@@ -110,23 +166,24 @@
               accept="image/*"
               @change="handlePackageAvatarFile('character', $event.target.files); $event.target.value = ''"
             />
-            上传角色头像
+            <span aria-hidden="true">{{ icon('file-import', 'ui-icon--sm') }}</span><span>上传角色头像</span>
           </label>
           <button
             type="button"
             class="beautify-soft-btn"
             @click="clearPackageCharacterAvatar()"
           >
-            清除角色头像
+            <span aria-hidden="true">{{ icon('close', 'ui-icon--sm') }}</span><span>清除角色头像</span>
           </button>
         </div>
       </label>
       <label class="beautify-settings-field">
-        <span>用户覆盖</span>
+        <span class="beautify-field-label"><span aria-hidden="true">{{ icon('user', 'ui-icon--xs') }}</span>用户覆盖</span>
         <input
           type="text"
           class="beautify-filter-input"
           x-model="packageUserName"
+          autocomplete="off"
           placeholder="未设置，将使用全局默认用户资料"
         />
         <div
@@ -141,14 +198,14 @@
               accept="image/*"
               @change="handlePackageAvatarFile('user', $event.target.files); $event.target.value = ''"
             />
-            上传用户头像
+            <span aria-hidden="true">{{ icon('file-import', 'ui-icon--sm') }}</span><span>上传用户头像</span>
           </label>
           <button
             type="button"
             class="beautify-soft-btn"
             @click="clearPackageUserAvatar()"
           >
-            清除用户头像
+            <span aria-hidden="true">{{ icon('close', 'ui-icon--sm') }}</span><span>清除用户头像</span>
           </button>
         </div>
       </label>
@@ -159,7 +216,7 @@
         class="beautify-primary-btn"
         @click="savePackageIdentityOverrides()"
       >
-        保存覆盖
+        <span aria-hidden="true">{{ icon('settings-save', 'ui-icon--sm') }}</span><span>保存覆盖</span>
       </button>
     </div>
   </div>
@@ -174,8 +231,28 @@
   <section class="beautify-stage-pane" x-data="beautifyPreviewFrame">
     <template x-if="beautifyWorkspace === 'settings'">
       <div class="beautify-settings-shell custom-scrollbar">
+        <div class="beautify-settings-intro">
+          <div class="beautify-settings-intro-copy">
+            <div class="beautify-settings-eyebrow"><span aria-hidden="true">{{ icon('settings-gear', 'ui-icon--xs') }}</span>GLOBAL DEFAULTS</div>
+            <h2 class="beautify-settings-title">统一预览环境</h2>
+            <p class="beautify-empty-copy">先配置共享资料，再用下方原生 ST 预览检查默认效果。包级覆盖只会在对应美化包中生效。</p>
+          </div>
+          <div class="beautify-settings-intro-state">
+            <span class="beautify-summary-dot" aria-hidden="true"></span>
+            <span>设置会即时同步到预览</span>
+          </div>
+        </div>
+
         <div class="beautify-detail-card">
-          <div class="beautify-detail-heading">全局壁纸</div>
+          <div class="beautify-detail-card-heading">
+            <div class="beautify-detail-heading-group">
+              <span class="beautify-detail-heading-icon" aria-hidden="true">{{ icon('wallpaper', 'ui-icon--sm') }}</span>
+              <div>
+                <div class="beautify-detail-heading">全局壁纸</div>
+                <div class="beautify-detail-card-kicker">所有没有包级壁纸的预览会使用这里</div>
+              </div>
+            </div>
+          </div>
           <div class="beautify-stage-actions">
             <label class="beautify-action-btn cursor-pointer">
               <input
@@ -184,14 +261,14 @@
                 accept="image/*"
                 @change="handleGlobalWallpaperFiles($event.target.files); $event.target.value = ''"
               />
-              上传全局壁纸
+              <span aria-hidden="true">{{ icon('file-import', 'ui-icon--sm') }}</span><span>上传全局壁纸</span>
             </label>
             <button
               type="button"
               class="beautify-soft-btn"
               @click="clearGlobalWallpaper()"
             >
-              清除全局壁纸
+              <span aria-hidden="true">{{ icon('close', 'ui-icon--sm') }}</span><span>清除全局壁纸</span>
             </button>
           </div>
 
@@ -199,7 +276,7 @@
             x-data="sharedWallpaperPicker({ sourceFilter: 'all', selectionTarget: 'preview' })"
             class="mt-4"
           >
-            <div class="beautify-detail-heading">共享壁纸库</div>
+            <div class="beautify-subsection-heading"><span aria-hidden="true">{{ icon('layers', 'ui-icon--xs') }}</span><span>共享壁纸库</span></div>
             <div class="beautify-stage-actions">
               <button
                 type="button"
@@ -207,7 +284,7 @@
                 :class="sourceFilter === 'all' ? 'is-active' : ''"
                 @click="setSourceFilter('all')"
               >
-                全部
+                <span>全部</span>
               </button>
               <button
                 type="button"
@@ -215,7 +292,7 @@
                 :class="sourceFilter === 'builtin' ? 'is-active' : ''"
                 @click="setSourceFilter('builtin')"
               >
-                内置
+                <span>内置</span>
               </button>
               <button
                 type="button"
@@ -223,7 +300,7 @@
                 :class="sourceFilter === 'imported' ? 'is-active' : ''"
                 @click="setSourceFilter('imported')"
               >
-                用户导入
+                <span>用户导入</span>
               </button>
               <button
                 type="button"
@@ -231,7 +308,7 @@
                 :class="sourceFilter === 'beautify' ? 'is-active' : ''"
                 @click="setSourceFilter('beautify')"
               >
-                Beautify 导入
+                <span>Beautify 导入</span>
               </button>
             </div>
             <div
@@ -280,14 +357,26 @@
         </div>
 
         <div class="beautify-detail-card">
-          <div class="beautify-detail-heading">角色默认资料</div>
+          <div class="beautify-detail-card-heading">
+            <div class="beautify-detail-heading-group">
+              <span class="beautify-detail-heading-icon" aria-hidden="true">{{ detail_icon('persona', 'ui-icon--sm') }}</span>
+              <div>
+                <div class="beautify-detail-heading">角色默认资料</div>
+                <div class="beautify-detail-card-kicker">原生 ST 预览中的角色身份</div>
+              </div>
+            </div>
+          </div>
           <div class="beautify-settings-form-grid">
-            <input
-              type="text"
-              class="beautify-filter-input"
-              x-model="globalCharacterName"
-              placeholder="角色默认名称"
-            />
+            <label class="beautify-settings-field">
+              <span class="beautify-field-label"><span aria-hidden="true">{{ icon('user', 'ui-icon--xs') }}</span>角色名称</span>
+              <input
+                type="text"
+                class="beautify-filter-input"
+                x-model="globalCharacterName"
+                autocomplete="off"
+                placeholder="角色默认名称"
+              />
+            </label>
             <div class="beautify-stage-actions">
               <label class="beautify-action-btn cursor-pointer">
                 <input
@@ -296,28 +385,40 @@
                   accept="image/*"
                   @change="handleGlobalAvatarFile('character', $event.target.files); $event.target.value = ''"
                 />
-                上传角色头像
+                <span aria-hidden="true">{{ icon('file-import', 'ui-icon--sm') }}</span><span>上传角色头像</span>
               </label>
               <button
                 type="button"
                 class="beautify-soft-btn"
                 @click="clearGlobalCharacterAvatar()"
               >
-                清除角色头像
+                <span aria-hidden="true">{{ icon('close', 'ui-icon--sm') }}</span><span>清除角色头像</span>
               </button>
             </div>
           </div>
         </div>
 
         <div class="beautify-detail-card">
-          <div class="beautify-detail-heading">用户默认资料</div>
+          <div class="beautify-detail-card-heading">
+            <div class="beautify-detail-heading-group">
+              <span class="beautify-detail-heading-icon" aria-hidden="true">{{ icon('user', 'ui-icon--sm') }}</span>
+              <div>
+                <div class="beautify-detail-heading">用户默认资料</div>
+                <div class="beautify-detail-card-kicker">用户消息与头像的默认身份</div>
+              </div>
+            </div>
+          </div>
           <div class="beautify-settings-form-grid">
-            <input
-              type="text"
-              class="beautify-filter-input"
-              x-model="globalUserName"
-              placeholder="用户默认名称"
-            />
+            <label class="beautify-settings-field">
+              <span class="beautify-field-label"><span aria-hidden="true">{{ icon('user', 'ui-icon--xs') }}</span>用户名称</span>
+              <input
+                type="text"
+                class="beautify-filter-input"
+                x-model="globalUserName"
+                autocomplete="off"
+                placeholder="用户默认名称"
+              />
+            </label>
             <div class="beautify-stage-actions">
               <label class="beautify-action-btn cursor-pointer">
                 <input
@@ -326,14 +427,14 @@
                   accept="image/*"
                   @change="handleGlobalAvatarFile('user', $event.target.files); $event.target.value = ''"
                 />
-                上传用户头像
+                <span aria-hidden="true">{{ icon('file-import', 'ui-icon--sm') }}</span><span>上传用户头像</span>
               </label>
               <button
                 type="button"
                 class="beautify-soft-btn"
                 @click="clearGlobalUserAvatar()"
               >
-                清除用户头像
+                <span aria-hidden="true">{{ icon('close', 'ui-icon--sm') }}</span><span>清除用户头像</span>
               </button>
             </div>
           </div>
@@ -343,15 +444,24 @@
               class="beautify-primary-btn"
               @click="saveGlobalSettings()"
             >
-              保存全局设置
+              <span aria-hidden="true">{{ icon('settings-save', 'ui-icon--sm') }}</span><span>保存全局设置</span>
             </button>
           </div>
         </div>
 
-        <div class="beautify-detail-card">
-          <div class="beautify-detail-heading">全局默认预览</div>
-          <div class="beautify-empty-copy">
-            不会带入当前包的主题与覆盖，只显示全局默认效果。
+        <div class="beautify-detail-card beautify-settings-preview-card-wrap">
+          <div class="beautify-detail-card-heading">
+            <div class="beautify-detail-heading-group">
+              <span class="beautify-detail-heading-icon" aria-hidden="true">{{ icon('eye', 'ui-icon--sm') }}</span>
+              <div>
+                <div class="beautify-detail-heading">全局默认预览</div>
+                <div class="beautify-detail-card-kicker">不会带入当前包的主题与覆盖</div>
+              </div>
+            </div>
+            <span class="beautify-stage-state-pill"><span class="beautify-summary-dot" aria-hidden="true"></span>按需加载</span>
+          </div>
+          <div class="beautify-empty-copy beautify-settings-preview-copy">
+            选择一个场景，再加载原生 ST 预览检查默认效果。
           </div>
           <div class="beautify-settings-preview-stage">
             <div class="beautify-settings-preview-layout">
@@ -385,7 +495,7 @@
                     class="beautify-primary-btn"
                     @click="openMobileFullscreen('preview'); loadPreview()"
                   >
-                    加载全局默认预览
+                    <span aria-hidden="true">{{ icon('eye', 'ui-icon--sm') }}</span><span>加载全局默认预览</span>
                   </button>
                 </div>
               </template>
@@ -399,7 +509,7 @@
                     class="beautify-primary-btn"
                     @click="loadPreview()"
                   >
-                    加载全局默认预览
+                    <span aria-hidden="true">{{ icon('eye', 'ui-icon--sm') }}</span><span>加载全局默认预览</span>
                   </button>
                 </div>
               </template>
@@ -428,22 +538,30 @@
     <template x-if="beautifyWorkspace !== 'settings' && activePackage">
       <div class="beautify-stage-shell">
         <div class="beautify-stage-header">
-          <div>
+          <div class="beautify-stage-heading">
+            <div class="beautify-stage-eyebrow"><span aria-hidden="true">{{ icon('package', 'ui-icon--xs') }}</span>当前美化包</div>
             <div class="beautify-stage-title" x-text="activePackage.name"></div>
             <div class="beautify-stage-subtitle">
+              <span x-text="activePackage.author || '未填写作者'"></span>
+              <span>·</span>
               <span x-text="activeVariant?.theme_name || '未选择变体'"></span>
               <span>·</span>
               <span x-text="activeWallpaper?.filename || '纯主题预览'"></span>
             </div>
           </div>
           <div class="beautify-stage-header-actions">
+            <span class="beautify-stage-state-pill" x-show="activeVariant">
+              <span class="beautify-summary-dot" :class="activeVariant?.preview_hint?.needs_platform_review ? 'is-warning' : ''" aria-hidden="true"></span>
+              <span x-text="activeVariant?.preview_hint?.needs_platform_review ? '需要确认' : '预览就绪'"></span>
+            </span>
             <button
               type="button"
-              class="beautify-soft-btn"
+              class="beautify-soft-btn beautify-danger-btn"
               @click="removeCurrentPackage()"
               :disabled="isActionLoading"
+              title="删除当前美化包"
             >
-              删除包
+              <span aria-hidden="true">{{ icon('trash', 'ui-icon--sm') }}</span><span>删除</span>
             </button>
             {% call styled_select_controlled(
               "activeVariant?.platform || 'pc'",
@@ -463,28 +581,39 @@
               class="beautify-soft-btn"
               x-show="!isMobileBeautifyViewport()"
               @click="togglePackageDetailCollapsed()"
-              x-text="packageDetailCollapsed ? '展开详情' : '收起详情'"
-            ></button>
+              :aria-expanded="!packageDetailCollapsed"
+              :title="packageDetailCollapsed ? '展开详情面板' : '收起详情面板'"
+            >
+              <span aria-hidden="true" x-show="packageDetailCollapsed">{{ icon('expand', 'ui-icon--sm') }}</span>
+              <span aria-hidden="true" x-show="!packageDetailCollapsed">{{ icon('collapse', 'ui-icon--sm') }}</span>
+              <span x-text="packageDetailCollapsed ? '展开详情' : '收起详情'"></span>
+            </button>
           </div>
         </div>
 
         <div class="beautify-stage-controls">
           <div class="beautify-workspace-switcher beautify-stage-mode-switches">
-            <div class="beautify-workspace-switch">
+            <div class="beautify-workspace-switch" role="tablist" aria-label="预览模式">
               <button
                 type="button"
+                role="tab"
                 class="beautify-device-btn"
                 :class="stageMode === 'preview' ? 'is-active' : ''"
+                :aria-selected="stageMode === 'preview'"
                 @click="setStageMode('preview')"
               >
+                <span aria-hidden="true">{{ icon('eye', 'ui-icon--sm') }}</span>
                 原生预览
               </button>
               <button
                 type="button"
+                role="tab"
                 class="beautify-device-btn"
                 :class="stageMode === 'screenshot' ? 'is-active' : ''"
+                :aria-selected="stageMode === 'screenshot'"
                 @click="setStageMode('screenshot')"
               >
+                <span aria-hidden="true">{{ icon('image', 'ui-icon--sm') }}</span>
                 截图查看
               </button>
             </div>
@@ -494,27 +623,33 @@
                type="button"
                class="beautify-device-btn"
                :class="selectedVariantPlatform === 'pc' ? 'is-active' : ''"
+               :aria-pressed="selectedVariantPlatform === 'pc'"
                :disabled="stageMode === 'screenshot' || !hasPcVariant || isMobileBeautifyViewport()"
                @click="previewPlatform('pc')"
              >
+               <span aria-hidden="true">{{ icon('display', 'ui-icon--sm') }}</span>
                PC
              </button>
             <button
               type="button"
               class="beautify-device-btn"
               :class="selectedVariantPlatform === 'mobile' ? 'is-active' : ''"
+              :aria-pressed="selectedVariantPlatform === 'mobile'"
               :disabled="stageMode === 'screenshot' || !hasMobileVariant"
               @click="previewPlatform('mobile')"
             >
+              <span aria-hidden="true">{{ icon('display', 'ui-icon--sm') }}</span>
               移动端
             </button>
             <button
               type="button"
               class="beautify-device-btn"
               :class="selectedVariantPlatform === 'dual' ? 'is-active' : ''"
+              :aria-pressed="selectedVariantPlatform === 'dual'"
               :disabled="stageMode === 'screenshot' || !canPreviewDualTarget"
               @click="previewPlatform('dual')"
             >
+              <span aria-hidden="true">{{ icon('layers', 'ui-icon--sm') }}</span>
               双端
             </button>
           </div>
@@ -538,7 +673,9 @@
               class="beautify-soft-btn"
               @click="cycleWallpaper()"
               :disabled="stageMode === 'screenshot' || wallpaperOptions.length === 0"
+              title="切换当前变体壁纸"
             >
+              <span aria-hidden="true">{{ icon('wallpaper', 'ui-icon--sm') }}</span>
               壁纸切换
             </button>
           </div>
@@ -587,7 +724,7 @@
                         class="beautify-primary-btn"
                         @click="openMobileFullscreen('preview'); loadPreview()"
                       >
-                        加载原生 ST 预览
+                        <span aria-hidden="true">{{ icon('eye', 'ui-icon--sm') }}</span><span>加载原生 ST 预览</span>
                       </button>
                     </div>
                   </template>
@@ -616,7 +753,7 @@
                         class="beautify-primary-btn"
                         @click="loadPreview()"
                       >
-                        加载原生 ST 预览
+                        <span aria-hidden="true">{{ icon('eye', 'ui-icon--sm') }}</span><span>加载原生 ST 预览</span>
                       </button>
                     </div>
                   </template>
@@ -656,7 +793,7 @@
                       class="beautify-primary-btn"
                       @click="openMobileFullscreen('screenshot')"
                     >
-                      进入截图全屏查看
+                      <span aria-hidden="true">{{ detail_icon('fullscreen', 'ui-icon--sm') }}</span><span>进入截图全屏查看</span>
                     </button>
                   </div>
                 </div>
@@ -707,8 +844,9 @@
                     type="button"
                     class="beautify-soft-btn"
                     @click="closePackageDetailDrawer()"
+                    aria-label="关闭包详情"
                   >
-                    关闭详情
+                    <span aria-hidden="true">{{ icon('close', 'ui-icon--sm') }}</span><span>关闭详情</span>
                   </button>
                 </div>
                 <div class="beautify-detail-column">
@@ -728,8 +866,9 @@
             type="button"
             class="beautify-soft-btn beautify-mobile-back-btn"
             @click="closeMobilePreviewAndReset()"
+            aria-label="返回美化工作台"
           >
-            返回
+            <span aria-hidden="true">{{ icon('arrow-left', 'ui-icon--sm') }}</span><span>返回</span>
           </button>
 
           <template x-if="beautifyWorkspace === 'settings'">

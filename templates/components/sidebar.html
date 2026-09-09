@@ -1,4 +1,4 @@
-{% from "components/icon.html" import icon, sidebar_icon, detail_icon %}
+{% from "components/icon.html" import icon, sidebar_icon, detail_icon, loading_icon %}
 
 <!-- 移动端：遮罩层 -->
 <div
@@ -924,63 +924,111 @@
     x-show="currentMode === 'beautify' && visibleSidebar"
     class="flex-1 flex flex-col overflow-hidden bg-[var(--surface-container)] beautify-sidebar-panel beautify-sidebar-pane"
   >
-    <div class="beautify-toolbar">
-      <div class="beautify-toolbar-row">
+    <div class="beautify-toolbar beautify-toolbar--refreshed">
+      <div class="beautify-toolbar-row beautify-toolbar-row--brand">
         <div class="beautify-toolbar-title">
           <span class="beautify-title-icon" aria-hidden="true">
             {{ sidebar_icon('paint-brush', 'sidebar-module-image-icon') }}
           </span>
-          <div>
+          <div class="beautify-title-copy">
+            <div class="beautify-title-eyebrow">WORKSPACE / BEAUTIFY</div>
             <div class="beautify-title-main">美化</div>
-            <div class="beautify-title-sub">Theme JSON + 壁纸管理</div>
+            <div class="beautify-title-sub">主题、壁纸与截图资产</div>
           </div>
         </div>
-        <button class="btn-secondary px-3 py-1 text-xs flex items-center gap-1" @click="fetchPackages()">
-          <span aria-hidden="true">{{ icon('refresh', 'ui-icon--sm ') }}</span>
-          <span>刷新</span>
-        </button>
+        <div class="beautify-toolbar-row-actions">
+          <button
+            type="button"
+            class="beautify-icon-button btn-secondary px-3 py-1 text-xs flex items-center gap-1"
+            @click="fetchPackages()"
+            aria-label="刷新美化包列表"
+            title="刷新美化包列表"
+          >
+            <span aria-hidden="true">{{ icon('refresh', 'ui-icon--sm ') }}</span>
+          </button>
+          <span class="beautify-toolbar-status" x-show="isLoading" role="status" aria-live="polite">
+            <span aria-hidden="true">{{ loading_icon('ui-icon--xs') }}</span>
+            <span>同步中</span>
+          </span>
+        </div>
       </div>
 
-      <div class="beautify-workspace-switcher">
-        <div class="beautify-workspace-switch">
+      <div class="beautify-toolbar-summary" aria-label="美化库概览">
+        <span class="beautify-toolbar-summary-item">
+          <span aria-hidden="true">{{ icon('package', 'ui-icon--xs') }}</span>
+          <strong x-text="packages.length"></strong>
+          <span>个包</span>
+        </span>
+        <span class="beautify-toolbar-summary-item" x-show="beautifyWorkspace === 'packages' && filteredPackages.length !== packages.length">
+          <span aria-hidden="true">{{ icon('filter', 'ui-icon--xs') }}</span>
+          <strong x-text="filteredPackages.length"></strong>
+          <span>个匹配</span>
+        </span>
+        <span class="beautify-toolbar-summary-item" x-show="selectedPackageId && beautifyWorkspace === 'packages'">
+          <span class="beautify-summary-dot" aria-hidden="true"></span>
+          <span>已选</span>
+          <strong class="beautify-summary-selected-name" x-text="activePackage?.name || '美化包'"></strong>
+        </span>
+      </div>
+
+      <nav class="beautify-workspace-switcher" aria-label="美化工作区">
+        <div class="beautify-workspace-switch" role="tablist">
         <button
           type="button"
+          role="tab"
           class="beautify-device-btn beautify-workspace-btn"
           :class="beautifyWorkspace === 'packages' ? 'is-active' : ''"
+          :aria-selected="beautifyWorkspace === 'packages'"
           @click="switchBeautifyWorkspace('packages')"
         >
+          <span aria-hidden="true">{{ icon('package', 'ui-icon--sm') }}</span>
           美化包
         </button>
         <button
           type="button"
+          role="tab"
           class="beautify-device-btn beautify-workspace-btn"
           :class="beautifyWorkspace === 'settings' ? 'is-active' : ''"
+          :aria-selected="beautifyWorkspace === 'settings'"
           @click="switchBeautifyWorkspace('settings')"
         >
+          <span aria-hidden="true">{{ icon('settings-gear', 'ui-icon--sm') }}</span>
           全局设置
         </button>
         </div>
-      </div>
+      </nav>
 
       <div
         class="beautify-toolbar-filters"
         x-show="beautifyWorkspace === 'packages'"
       >
-        <input
-          x-model.debounce.200ms="beautifySearch"
-          type="text"
-          class="beautify-filter-input"
-          placeholder="搜索美化包..."
-        />
-        <select
-          x-model="platformFilter"
-          class="beautify-filter-select beautify-variant-select beautify-platform-filter-select"
-        >
-          <option value="all">全部端</option>
-          <option value="pc">PC</option>
-          <option value="mobile">移动端</option>
-          <option value="dual">双端</option>
-        </select>
+        <label class="beautify-search-field">
+          <span aria-hidden="true">{{ icon('search', 'ui-icon--sm') }}</span>
+          <span class="sr-only">搜索美化包</span>
+          <input
+            x-ref="beautifySearch"
+            x-model.debounce.200ms="beautifySearch"
+            type="search"
+            class="beautify-filter-input"
+            placeholder="搜索美化包"
+            autocomplete="off"
+            aria-label="搜索美化包"
+          />
+        </label>
+        <label class="beautify-filter-field">
+          <span aria-hidden="true">{{ icon('filter', 'ui-icon--sm') }}</span>
+          <span class="sr-only">按平台筛选</span>
+          <select
+            x-model="platformFilter"
+            class="beautify-filter-select beautify-variant-select beautify-platform-filter-select"
+            aria-label="按平台筛选"
+          >
+            <option value="all">全部端</option>
+            <option value="pc">PC</option>
+            <option value="mobile">移动端</option>
+            <option value="dual">双端</option>
+          </select>
+        </label>
       </div>
 
       <div
@@ -995,12 +1043,15 @@
             multiple
             @change="handleThemeFiles($event.target.files); $event.target.value = ''"
           />
-          导入主题
+          <span aria-hidden="true">{{ icon('file-import', 'ui-icon--sm') }}</span>
+          <span>导入主题</span>
         </label>
         <div class="beautify-toolbar-package-actions">
           <label
             class="beautify-action-btn cursor-pointer"
-            :class="!selectedPackageId ? 'is-disabled' : ''"
+            :class="!selectedPackageId || isActionLoading ? 'is-disabled' : ''"
+            :aria-disabled="!selectedPackageId || isActionLoading"
+            title="导入变体到当前美化包"
           >
             <input
               type="file"
@@ -1010,11 +1061,14 @@
               :disabled="!selectedPackageId"
               @change="handleVariantFiles($event.target.files); $event.target.value = ''"
             />
-            导入变体
+            <span aria-hidden="true">{{ icon('layers', 'ui-icon--sm') }}</span>
+            <span>导入变体</span>
           </label>
           <label
             class="beautify-action-btn cursor-pointer"
-            :class="!selectedVariantId ? 'is-disabled' : ''"
+            :class="!selectedVariantId || isActionLoading ? 'is-disabled' : ''"
+            :aria-disabled="!selectedVariantId || isActionLoading"
+            title="导入壁纸到当前变体"
           >
             <input
               type="file"
@@ -1023,11 +1077,14 @@
               :disabled="!selectedVariantId"
               @change="handleWallpaperFiles($event.target.files); $event.target.value = ''"
             />
-            导入壁纸
+            <span aria-hidden="true">{{ icon('wallpaper', 'ui-icon--sm') }}</span>
+            <span>导入壁纸</span>
           </label>
           <label
             class="beautify-action-btn cursor-pointer"
-            :class="!selectedPackageId ? 'is-disabled' : ''"
+            :class="!selectedPackageId || isActionLoading ? 'is-disabled' : ''"
+            :aria-disabled="!selectedPackageId || isActionLoading"
+            title="导入截图到当前美化包"
           >
             <input
               type="file"
@@ -1037,48 +1094,66 @@
               :disabled="!selectedPackageId"
               @change="handleScreenshotFiles($event.target.files); $event.target.value = ''"
             />
-            导入截图
+            <span aria-hidden="true">{{ icon('image', 'ui-icon--sm') }}</span>
+            <span>导入截图</span>
           </label>
         </div>
+      </div>
+      <div class="beautify-toolbar-hint" x-show="beautifyWorkspace === 'packages' && !selectedPackageId">
+        <span aria-hidden="true">{{ icon('info', 'ui-icon--xs') }}</span>
+        <span>导入主题后会自动创建美化包</span>
       </div>
     </div>
 
     <div
       class="beautify-package-list custom-scrollbar"
       x-show="beautifyWorkspace === 'packages'"
+      role="listbox"
+      aria-label="美化包列表"
     >
+      <div class="beautify-package-loading" x-show="isLoading" role="status" aria-live="polite">
+        <span class="beautify-skeleton beautify-skeleton--title"></span>
+        <span class="beautify-skeleton"></span>
+        <span class="beautify-skeleton beautify-skeleton--short"></span>
+      </div>
       <template x-for="item in filteredPackages" :key="item.id">
         <button
           type="button"
+          role="option"
           class="beautify-package-card cursor-pointer"
           :class="selectedPackageId === item.id ? 'is-active' : ''"
+          :aria-selected="selectedPackageId === item.id"
+          :aria-label="`打开美化包 ${item.name}`"
           @click="selectPackage(item.id)"
         >
           <div class="beautify-package-card-head">
-            <div>
+            <div class="beautify-package-card-title-wrap">
+              <span class="beautify-package-card-icon" aria-hidden="true">{{ icon('package', 'ui-icon--sm') }}</span>
+              <div>
               <div class="beautify-package-name" x-text="item.name"></div>
               <div
                 class="beautify-package-meta"
                 x-text="item.author || '未填写作者'"
               ></div>
+              </div>
             </div>
+            <span class="beautify-package-card-arrow" aria-hidden="true">{{ icon('arrow-right', 'ui-icon--xs') }}</span>
           </div>
           <div class="beautify-package-chips">
-            <span class="beautify-chip" x-show="supportsPlatform(item, 'pc')"
-              >PC</span
-            >
-            <span
-              class="beautify-chip"
-              x-show="supportsPlatform(item, 'mobile')"
-              >移动端</span
-            >
-            <span class="beautify-chip" x-show="supportsPlatform(item, 'dual')"
-              >双端</span
-            >
+            <span class="beautify-chip" x-show="supportsPlatform(item, 'pc')">
+              <span aria-hidden="true">{{ icon('display', 'ui-icon--xs') }}</span><span>PC</span>
+            </span>
+            <span class="beautify-chip" x-show="supportsPlatform(item, 'mobile')">
+              <span aria-hidden="true">{{ icon('display', 'ui-icon--xs') }}</span><span>移动端</span>
+            </span>
+            <span class="beautify-chip" x-show="supportsPlatform(item, 'dual')">
+              <span aria-hidden="true">{{ icon('layers', 'ui-icon--xs') }}</span><span>双端</span>
+            </span>
           </div>
           <div class="beautify-package-stats">
-            <span x-text="`变体 ${item.variant_count}`"></span>
-            <span x-text="`壁纸 ${item.wallpaper_count}`"></span>
+            <span><span aria-hidden="true">{{ icon('layers', 'ui-icon--xs') }}</span><span x-text="`变体 ${item.variant_count}`"></span></span>
+            <span><span aria-hidden="true">{{ icon('wallpaper', 'ui-icon--xs') }}</span><span x-text="`壁纸 ${item.wallpaper_count}`"></span></span>
+            <span x-show="item.screenshot_count"><span aria-hidden="true">{{ icon('image', 'ui-icon--xs') }}</span><span x-text="`截图 ${item.screenshot_count}`"></span></span>
           </div>
           <div
             class="beautify-package-thumbs"
@@ -1095,13 +1170,26 @@
       </template>
 
       <div
-        x-show="!isLoading && filteredPackages.length === 0"
+        x-show="!isLoading && loadError"
+        class="beautify-empty-state beautify-error-state"
+        role="alert"
+      >
+        <span class="beautify-empty-state-icon" aria-hidden="true">{{ icon('alert-triangle', 'ui-icon--lg') }}</span>
+        <div class="beautify-empty-title">美化库暂时不可用</div>
+        <div class="beautify-empty-copy" x-text="loadError"></div>
+        <button type="button" class="beautify-soft-btn beautify-retry-btn" @click="fetchPackages()">
+          <span aria-hidden="true">{{ icon("refresh", "ui-icon--sm") }}</span>
+          <span>重新加载</span>
+        </button>
+      </div>
+
+      <div
+        x-show="!isLoading && !loadError && filteredPackages.length === 0"
         class="beautify-empty-state"
       >
-        <div class="beautify-empty-title">还没有美化包</div>
-        <div class="beautify-empty-copy">
-          先导入一个 theme JSON，管理器会自动创建美化包。
-        </div>
+        <span class="beautify-empty-state-icon" aria-hidden="true">{{ icon('package', 'ui-icon--lg') }}</span>
+        <div class="beautify-empty-title" x-text="packages.length ? '没有匹配的美化包' : '还没有美化包'"></div>
+        <div class="beautify-empty-copy" x-text="packages.length ? '调整搜索或平台筛选后再试。' : '先导入一个 theme JSON，管理器会自动创建美化包。'"></div>
       </div>
     </div>
 
@@ -1110,9 +1198,14 @@
       x-show="beautifyWorkspace === 'settings'"
     >
       <div class="beautify-detail-card">
-        <div class="beautify-detail-heading">全局设置</div>
-        <div class="beautify-empty-copy">
-          在这里配置默认壁纸与角色、用户资料，供所有美化包共享。
+        <div class="beautify-sidebar-settings-intro">
+          <span class="beautify-sidebar-settings-icon" aria-hidden="true">{{ icon('settings-gear', 'ui-icon--md') }}</span>
+          <div>
+            <div class="beautify-detail-heading">全局设置</div>
+            <div class="beautify-empty-copy">
+              默认壁纸与角色、用户资料会供所有美化包共享。
+            </div>
+          </div>
         </div>
       </div>
     </div>
