@@ -1,7 +1,7 @@
 {% from "components/icon.html" import icon, loading_icon, detail_icon, sidebar_icon, preset_icon %}
 
 <div x-show="['regex', 'scripts', 'quick_replies'].includes($store.global.currentMode)" x-cloak
-    x-data="extensionGrid" class="extension-workbench" aria-label="高级扩展文件工作台">
+    x-data="extensionGrid" class="extension-workbench resource-grid-view resource-grid-view--extensions" aria-label="高级扩展文件工作台">
     <header class="extension-workbench-header">
         <div class="extension-workbench-title-group">
             <div class="extension-workbench-title-icon" aria-hidden="true">
@@ -31,6 +31,27 @@
             </button>
         </div>
     </header>
+
+    <nav class="extension-mode-tabs" role="tablist" aria-label="扩展类型">
+        <button type="button" class="extension-mode-tab" role="tab"
+            :class="{ 'is-active': currentMode === 'regex' }"
+            :aria-selected="currentMode === 'regex'"
+            @click="$store.global.currentMode = 'regex'">
+            {{ detail_icon('regex', 'ui-icon--sm ') }}<span>正则脚本</span>
+        </button>
+        <button type="button" class="extension-mode-tab" role="tab"
+            :class="{ 'is-active': currentMode === 'scripts' }"
+            :aria-selected="currentMode === 'scripts'"
+            @click="$store.global.currentMode = 'scripts'">
+            {{ detail_icon('script-file', 'ui-icon--sm ') }}<span>ST 脚本</span>
+        </button>
+        <button type="button" class="extension-mode-tab" role="tab"
+            :class="{ 'is-active': currentMode === 'quick_replies' }"
+            :aria-selected="currentMode === 'quick_replies'"
+            @click="$store.global.currentMode = 'quick_replies'">
+            {{ detail_icon('quick-reply', 'ui-icon--sm ') }}<span>快速回复</span>
+        </button>
+    </nav>
 
     <section class="extension-workbench-toolbar" aria-label="扩展筛选工具">
         <label class="extension-search-field">
@@ -81,7 +102,7 @@
                 <div class="extension-skeleton-card"><span></span><span></span><span></span></div>
             </div>
             <div class="extension-loading-label">正在读取扩展文件</div>
-            <div class="extension-loading-icon" aria-hidden="true">{{ loading_icon('ui-icon--sm') }}</div>
+            <div class="extension-loading-icon" aria-hidden="true">{{ loading_icon('ui-icon--xl') }}</div>
         </div>
 
         <div x-show="!isLoading && errorMessage" class="extension-error-state" role="alert">

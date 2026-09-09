@@ -25,3 +25,27 @@
 - 图标来源：项目现有 `static/icons/ui.svg` 与 `static/icons/detail.svg`
 
 新增入口均使用现有 SVG symbol，并为纯图标按钮补充了 `title` 与 `aria-label`。
+
+# 资源管理网格 SVG 图标缺口
+
+本次世界书、预设、ST 脚本、正则脚本、快速回复和聊天管理网格重构，逐项审查了资源导航、导入导出、刷新、新建、筛选、目录上下文、选择、翻面、编辑、发送到 ST、阅读、目录和角色绑定入口，以及加载、空状态和错误状态。
+
+## 结论
+
+- 缺失 SVG：无
+- 使用中性占位符：无
+- 图标来源：项目现有 `static/icons/ui.svg`、`static/icons/detail.svg`、`static/icons/sidebar.svg` 和 `static/icons/preset.svg`
+
+本次新增的重要入口均复用了现有语义 SVG，并为纯图标操作保留了 `title` 或 `aria-label`。没有使用 emoji 或 Unicode 字符替代图标。
+
+# 聊天阅读器 SVG 图标缺口
+
+本次聊天阅读器工作台重构已逐项审查顶部工具栏、聊天上下文、定位与收藏、编辑与显示、搜索、楼层导航、规则集导入与绑定、条件与动作编辑、楼层编辑、角色卡绑定、预设选择、加载/错误反馈和危险操作确认。
+
+## 结论
+
+- 缺失 SVG：无
+- 使用中性占位符：无
+- 图标来源：项目现有 `static/icons/ui.svg`、`static/icons/detail.svg` 和 `static/icons/sidebar.svg`
+
+本次新增的重要入口均使用现有语义 SVG，并保留文字标签、`title` 或 `aria-label`。没有使用 emoji 或 Unicode 字符替代图标。

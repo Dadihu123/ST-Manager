@@ -6,45 +6,62 @@
   style="display: none"
   x-data="presetGrid"
   class="flex-1 flex flex-col overflow-hidden w-full relative h-full"
+  x-bind:class="'resource-grid-view resource-grid-view--presets'"
 >
-  <!-- 顶部工具条 -->
-  <div
-    class="h-12 border-b border-[var(--border-default)] flex items-center justify-between px-4 bg-[var(--surface-container)] flex-shrink-0"
-  >
-    <div class="flex items-center gap-4">
-      <!-- 标题 -->
-      <div class="flex items-center gap-2 text-sm">
-        <span class="preset-list-title-icon" aria-hidden="true"
-          >{{ detail_icon('preset', 'ui-icon--md') }}</span
-        >
-        <span
-          x-show="$store.global.deviceType !== 'mobile'"
-          class="font-bold text-[var(--content-primary)]"
-          >预设 Presets</span
-        >
-        <span class="text-[var(--content-muted)]">/</span>
-        <span class="text-xs opacity-60">AI 生成参数预设</span>
+  <header class="resource-grid-header resource-grid-header--presets">
+    <div class="resource-grid-header__lead">
+      <div class="resource-grid-header__heading">
+        <div class="resource-grid-mode-icon" aria-hidden="true">
+          {{ detail_icon('preset', 'ui-icon--lg') }}
+        </div>
+        <div class="resource-grid-header__copy">
+          <span class="resource-grid-kicker">GENERATION PROFILES</span>
+          <h1>预设</h1>
+          <p>管理 AI 生成参数、版本族与资源归属，保持全局配置和角色卡配置清晰可追踪。</p>
+          <span class="resource-grid-header__context">
+            <span x-text="filterType === 'all' ? '全部来源' : (filterType === 'global' ? '全局预设' : '资源预设')"></span>
+            <span aria-hidden="true">/</span>
+            <span x-text="filterCategory || '全部分类'"></span>
+          </span>
+        </div>
       </div>
     </div>
-
-    <div class="flex items-center gap-2">
-      <span class="text-xs text-[var(--content-muted)] mr-2">
-        共
-        <span
-          x-text="items.length"
-          class="text-[var(--content-primary)] font-bold"
-        ></span>
-        个预设
-      </span>
-      <button
-        @click="fetchItems()"
-        class="btn-secondary px-3 py-1 text-xs flex items-center gap-1"
-      >
-        <span aria-hidden="true">{{ icon('refresh', 'ui-icon--sm ') }}</span>
-        刷新
-      </button>
+    <div class="resource-grid-header__rail">
+      <div class="resource-grid-header__stats" aria-label="预设统计">
+        <div class="resource-grid-stat">
+          <span>当前结果</span>
+          <strong x-text="items.length"></strong>
+        </div>
+        <div class="resource-grid-stat">
+          <span>已选择</span>
+          <strong x-text="selectedIds.length"></strong>
+        </div>
+        <div class="resource-grid-stat">
+          <span>上传目标</span>
+          <strong x-text="filterCategory || (filterType === 'global' ? '全局' : '资源')"></strong>
+        </div>
+      </div>
+      <div class="resource-grid-header__actions">
+        <input
+          type="file"
+          x-ref="presetImportInput"
+          accept=".json,application/json"
+          multiple
+          hidden
+          @change="_uploadPresetsFiles($event.target.files); $event.target.value = ''"
+        />
+        <button type="button" class="resource-grid-action resource-grid-action--primary" @click="$refs.presetImportInput.click()">
+          {{ icon('file-import', 'ui-icon--sm') }}
+          <span>导入预设</span>
+        </button>
+        <button type="button" class="resource-grid-action" @click="fetchItems()" :disabled="isLoading">
+          <template x-if="!isLoading">{{ icon('refresh', 'ui-icon--sm ') }}</template>
+          <template x-if="isLoading">{{ loading_icon('ui-icon--sm') }}</template>
+          <span>刷新</span>
+        </button>
+      </div>
     </div>
-  </div>
+  </header>
 
   <!-- 拖拽上传遮罩 -->
   <div
@@ -53,6 +70,25 @@
     @dragleave.prevent="dragOver = false"
     @drop.prevent="handleDrop($event)"
   >
+    <div class="resource-grid-contextbar">
+      <div class="resource-grid-contextbar__group">
+        <div class="resource-grid-contextbar__item">
+          <span aria-hidden="true">{{ icon('folder', 'ui-icon--sm') }}</span>
+          <span>当前目录</span>
+          <strong x-text="filterCategory || '全部分类'"></strong>
+        </div>
+        <div class="resource-grid-contextbar__item">
+          <span aria-hidden="true">{{ detail_icon('preset', 'ui-icon--sm') }}</span>
+          <span>来源</span>
+          <strong x-text="filterType === 'all' ? '全部来源' : (filterType === 'global' ? '全局配置' : '角色资源')"></strong>
+        </div>
+      </div>
+      <div class="resource-grid-contextbar__item">
+        <span aria-hidden="true">{{ icon('file-import', 'ui-icon--sm') }}</span>
+        <strong x-text="presetUploadHintText"></strong>
+      </div>
+    </div>
+
     <div
       x-show="dragOver"
       x-transition.opacity

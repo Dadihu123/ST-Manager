@@ -1,9 +1,9 @@
-{% from "components/icon.html" import detail_icon, icon %}
+{% from "components/icon.html" import detail_icon, icon, sidebar_icon %}
 
 <input type="file" x-ref="chatImportInput" class="hidden" multiple accept=".jsonl"
     @change="handleChatInputChange($event)">
 
-<div class="flex-1 min-h-0 flex flex-col overflow-hidden w-full relative">
+<div class="chat-mode-shell resource-grid-view resource-grid-view--chats flex-1 min-h-0 flex flex-col overflow-hidden w-full relative">
     <div id="chat-scroll-area" class="scroll-container-y flex-1 min-h-0 p-5 custom-scrollbar relative"
         @dragover.prevent="dragOverChats = true" @dragleave.prevent="dragOverChats = false"
         @drop.prevent="handleChatFilesDrop($event)">
@@ -26,6 +26,18 @@
                     <div class="chat-grid-kicker">SillyTavern Chats</div>
                     <h2 class="chat-grid-title">按聊天记录管理本地对话</h2>
                     <p class="chat-grid-desc">聊天与角色卡、世界书平级管理。支持收藏、角色绑定、全文搜索、楼层跳转与本地阅读工作台。</p>
+                    <div class="chat-grid-toolbar-stats" aria-label="聊天统计">
+                        <div class="chat-grid-toolbar-stat">
+                            <span aria-hidden="true">{{ icon('list', 'ui-icon--sm') }}</span>
+                            <span>本页</span>
+                            <strong x-text="chatList.length"></strong>
+                        </div>
+                        <div class="chat-grid-toolbar-stat">
+                            <span aria-hidden="true">{{ icon('heart', 'ui-icon--sm') }}</span>
+                            <span>总计</span>
+                            <strong x-text="chatTotalItems"></strong>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="chat-grid-toolbar-actions">
@@ -50,11 +62,16 @@
 
             <div class="chat-grid">
                 <template x-for="item in chatList" :key="item.id">
-                    <article class="chat-card" @click="openChatDetail(item)">
+                    <article class="chat-card" role="button" tabindex="0"
+                        @click="openChatDetail(item)"
+                        @keydown.enter.prevent="openChatDetail(item)"
+                        @keydown.space.prevent="openChatDetail(item)"
+                        :aria-label="'打开聊天：' + (item.chat_name || item.filename || '未命名聊天')">
                         <div class="chat-card-top">
                             <button type="button" class="chat-card-favorite"
                                 :class="item.favorite ? 'is-active' : ''"
                                 @click.stop="toggleFavorite(item)"
+                                @keydown.stop
                                 :aria-label="item.favorite ? '取消收藏聊天' : '收藏聊天'"
                                 :title="item.favorite ? '取消收藏聊天' : '收藏聊天'">
                                 {{ icon('heart', 'chat-card-favorite-icon') }}
@@ -67,6 +84,10 @@
                         </div>
 
                         <div class="chat-card-body">
+                            <div class="chat-card-name-row">
+                                <span aria-hidden="true">{{ detail_icon('chat-bubble', 'ui-icon--sm') }}</span>
+                                <h3 class="chat-card-name" x-text="item.chat_name || item.filename || '未命名聊天'"></h3>
+                            </div>
                             <div class="chat-card-stat-group">
                                 <div class="chat-card-stat">
                                     <span class="chat-card-stat-label">起始</span>
@@ -98,9 +119,15 @@
                         </div>
 
                         <div class="chat-card-bottom">
-                            <button type="button" class="chat-card-action" @click.stop="openImmersive(item)">沉浸阅读</button>
-                            <button type="button" class="chat-card-action" @click.stop="openChatFolder(item)">打开文件夹</button>
-                            <button type="button" class="chat-card-action" @click.stop="openBindPicker(item)">绑定角色</button>
+                            <button type="button" class="chat-card-action" @click.stop="openImmersive(item)" @keydown.stop>
+                                {{ detail_icon('book-read', 'ui-icon--sm') }}<span>沉浸阅读</span>
+                            </button>
+                            <button type="button" class="chat-card-action" @click.stop="openChatFolder(item)" @keydown.stop>
+                                {{ sidebar_icon('folder-open', 'ui-icon--sm') }}<span>打开文件夹</span>
+                            </button>
+                            <button type="button" class="chat-card-action" @click.stop="openBindPicker(item)" @keydown.stop>
+                                {{ detail_icon('link-source', 'ui-icon--sm') }}<span>绑定角色</span>
+                            </button>
                         </div>
                     </article>
                 </template>

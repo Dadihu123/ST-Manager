@@ -4,8 +4,66 @@
 <div
   x-show="currentMode === 'worldinfo'"
   x-data="wiGrid"
-  class="wi-worldbook-icon-scope wi-worldbook-grid flex-1 min-h-0 flex flex-col overflow-hidden w-full relative"
+  class="wi-worldbook-icon-scope wi-worldbook-grid resource-grid-view resource-grid-view--worldinfo flex-1 min-h-0 flex flex-col overflow-hidden w-full relative"
 >
+  <header class="resource-grid-header resource-grid-header--worldinfo">
+    <div class="resource-grid-header__lead">
+      <div class="resource-grid-header__heading">
+        <div class="resource-grid-mode-icon" aria-hidden="true">
+          {{ icon('book-closed', 'ui-icon--lg') }}
+        </div>
+        <div class="resource-grid-header__copy">
+          <span class="resource-grid-kicker">RESOURCE LIBRARY</span>
+          <h1>世界书</h1>
+          <p>按来源与目录管理世界设定，快速预览、编辑、导出或发送到 SillyTavern。</p>
+          <span class="resource-grid-header__context">
+            <span x-text="wiFilterType === 'all' ? '全部来源' : (wiFilterType === 'global' ? '全局世界书' : (wiFilterType === 'embedded' ? '角色内嵌' : '资源世界书'))"></span>
+            <span aria-hidden="true">/</span>
+            <span x-text="wiFilterCategory ? formatCategoryLabel(wiFilterCategory) : '全部分类'"></span>
+          </span>
+        </div>
+      </div>
+    </div>
+    <div class="resource-grid-header__rail">
+      <div class="resource-grid-header__stats" aria-label="世界书统计">
+        <div class="resource-grid-stat">
+          <span>当前结果</span>
+          <strong x-text="wiList.length"></strong>
+        </div>
+        <div class="resource-grid-stat">
+          <span>全部条目</span>
+          <strong x-text="wiTotalItems"></strong>
+        </div>
+        <div class="resource-grid-stat">
+          <span>已选择</span>
+          <strong x-text="selectedIds.length"></strong>
+        </div>
+      </div>
+      <div class="resource-grid-header__actions">
+        <input
+          type="file"
+          x-ref="wiImportInput"
+          accept=".json,application/json"
+          hidden
+          @change="_uploadWorldInfoInternal($event.target.files); $event.target.value = ''"
+        />
+        <button type="button" class="resource-grid-action resource-grid-action--primary" @click="$refs.wiImportInput.click()">
+          {{ icon('file-import', 'ui-icon--sm') }}
+          <span>导入世界书</span>
+        </button>
+        <button type="button" class="resource-grid-action" @click="createNewWorldInfo()">
+          {{ icon('plus-square', 'ui-icon--sm') }}
+          <span>新建</span>
+        </button>
+        <button type="button" class="resource-grid-action" @click="fetchWorldInfoList()" :disabled="isLoading">
+          <template x-if="!isLoading">{{ icon('refresh', 'ui-icon--sm') }}</template>
+          <template x-if="isLoading">{{ loading_icon('ui-icon--sm') }}</template>
+          <span>刷新</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
   <!-- 滚动区域 -->
   <div
     id="wi-scroll-area"
@@ -98,6 +156,7 @@
                     @click.stop="exportWorldInfoItem(item)"
                     class="wi-grid-tool-btn rounded-full flex items-center justify-center transition-all duration-200 shadow-md"
                     title="导出世界书 JSON"
+                    aria-label="导出世界书 JSON"
                   >
                     {{ icon('upload', 'ui-icon--md') }}
                   </button>
@@ -107,6 +166,7 @@
                     @click.stop="openWorldInfoEditor(item)"
                     class="wi-grid-tool-btn wi-card-edit-btn rounded-full flex items-center justify-center transition-all duration-200 shadow-md"
                     title="打开全屏编辑器"
+                    aria-label="打开全屏编辑器"
                   >
                     {{ icon('pencil-edit', 'ui-icon--md') }}
                   </button>
@@ -302,7 +362,7 @@
             :aria-label="isWorldInfoFlipped(item.id) ? '翻回正面' : '翻到背面'"
             @click.stop="toggleWorldInfoFace(item.id)"
             :title="isWorldInfoFlipped(item.id) ? '翻回正面' : '翻到背面'"
-          ></button>
+          >{{ icon('vertical-flip', 'ui-icon--sm') }}</button>
         </div>
       </template>
       <div
