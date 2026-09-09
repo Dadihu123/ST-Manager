@@ -229,7 +229,10 @@ def test_preset_editor_js_exposes_reader_item_workspace_state():
     assert 'searchTerm:' in source
     assert 'uiFilter:' in source
     assert 'showMobileSidebar:' in source
-    assert 'showRightPanel:' in source
+    assert 'showRightPanel:' not in source
+    assert 'toggleMobileRightPanel' not in source
+    assert 'closeMobileRightPanel' not in source
+    assert 'PRESET_DRAFT_PREFIX' not in source
     assert 'get editorView() {' in source
     assert 'get filteredItems() {' in source
     assert 'get activeItem() {' in source
@@ -398,7 +401,6 @@ def test_preset_editor_runtime_open_version_preserves_prompt_workspace_context_t
         };
         editor.$store = { global: { deviceType: 'desktop', showToast() {} } };
         editor.$nextTick = (callback) => callback();
-        editor.restoreLocalDraft = () => false;
         editor.updatePresetEditorLayoutMetrics = () => {};
         globalThis.__getPresetDetail = async (presetId) => {
           requestedPresetIds.push(presetId);
@@ -479,7 +481,6 @@ def test_preset_editor_runtime_selector_change_reopens_even_if_bound_id_mutated_
         };
         editor.$store = { global: { deviceType: 'desktop', showToast() {} } };
         editor.$nextTick = (callback) => callback();
-        editor.restoreLocalDraft = () => false;
         editor.updatePresetEditorLayoutMetrics = () => {};
         globalThis.__getPresetDetail = async (presetId) => {
           requestedPresetIds.push(presetId);
@@ -552,7 +553,6 @@ def test_preset_editor_runtime_save_as_version_reopens_returned_preset_with_pres
         const requestedPresetIds = [];
         editor.$store = { global: { deviceType: 'desktop', showToast() {} } };
         editor.$nextTick = (callback) => callback();
-        editor.restoreLocalDraft = () => false;
         editor.updatePresetEditorLayoutMetrics = () => {};
         globalThis.__getPresetDetail = async (presetId) => {
           requestedPresetIds.push(presetId);
@@ -783,6 +783,42 @@ def test_preset_editor_template_renders_fullscreen_version_selector_and_actions(
     assert '另存为版本' in source
 
 
+def test_preset_editor_template_exposes_snapshot_gestures_and_settings_link():
+    source = read_project_file('templates/modals/detail_preset_fullscreen.html')
+
+    assert '@click="createSnapshot(false)"' in source
+    assert '@contextmenu.prevent="createSnapshot(true)"' in source
+    assert '@click="createSnapshot(true)"' in source
+    assert '@click="openSnapshotSettings()"' in source
+    assert 'autoSaveStatusLabel' in source
+    assert '草稿' not in source
+    assert 'preset-editor-inspector' not in source
+
+
+def test_preset_editor_js_links_auto_saver_to_snapshot_settings():
+    source = read_project_file('static/js/components/presetEditor.js')
+
+    assert 'window.addEventListener("settings-saved"' in source
+    assert 'getAutoSavePayload() {' in source
+    assert 'restartAutoSaver() {' in source
+    assert 'autoSaver.initBaseline(this.editingData);' in source
+    assert 'autoSaver.start(' in source
+
+
+def test_preset_rollback_template_exposes_typed_diff_summary_and_keyboard_close():
+    template = read_project_file('templates/modals/rollback.html')
+    js_source = read_project_file('static/js/components/rollbackModal.js')
+    css_source = read_project_file('static/css/modules/preset-rollback.css')
+
+    assert '@keydown.escape.stop="showRollbackModal = false"' in template
+    assert 'diffSummaryItems' in template
+    assert 'diffSummary.categories' in template
+    assert 'getDiffStatusLabel(category.status)' in template
+    assert 'diffModeDescription' in template
+    assert '_summarizeRawDiff(leftData, rightData)' in js_source
+    assert 'preset-rollback-category-strip' in css_source
+
+
 def test_grid_presets_template_leaves_manager_wallpaper_visible_at_root_surface():
     source = read_project_file('templates/components/grid_presets.html')
 
@@ -949,8 +985,8 @@ def test_preset_editor_template_localizes_remaining_prompt_workspace_copy():
     assert '提示词基础信息' in source
     assert '当前预设没有可编辑的提示词条目。' in source
     assert '切换提示词启用状态' in source
-    assert '标识符' in source
     assert '聊天内深度' in source
+    assert 'x-text="activePromptItem?.__identifier ||' in source
 
     assert '当前 Prompt' not in source
     assert 'Prompt 内容' not in source
@@ -2613,7 +2649,7 @@ def test_preset_editor_js_tracks_changed_state_and_safe_nested_path_writes():
     assert 'return [item.value_path, item.source_key, item.key, item.id].some(' in source
     assert 'if (target[part] === null || typeof target[part] !== "object") {' in source
     assert 'markAllReaderItemsDirty() {' in source
-    assert 'this.markAllReaderItemsDirty();' in source
+    assert 'this.hasUnsavedChanges = true;' in source
 
 
 def test_preset_editor_template_uses_bare_svg_loading_state():
@@ -2634,7 +2670,7 @@ def test_preset_editor_template_uses_bare_svg_loading_state():
     assert 'backdrop-filter' not in loading_style
 
 
-def test_preset_editor_template_uses_three_column_workspace_contracts():
+def test_preset_editor_template_uses_sidebar_workspace_contracts_without_inspector():
     source = read_project_file('templates/modals/detail_preset_fullscreen.html')
 
     assert 'x-model="searchTerm"' in source
@@ -2642,7 +2678,10 @@ def test_preset_editor_template_uses_three_column_workspace_contracts():
     assert 'x-for="item in filteredItems"' in source
     assert '@click="selectItem(item.id)"' in source
     assert 'x-text="activeItem?.title ||' in source
-    assert 'x-show="showRightPanel || $store.global.deviceType !== ' in source
+    assert 'preset-editor-sidebar' in source
+    assert 'preset-editor-main-scroll' in source
+    assert 'preset-editor-context' not in source
+    assert 'showRightPanel' not in source
     assert 'x-show="uiFilter ===' in source or 'uiFilter' in source
 
 
@@ -2734,16 +2773,17 @@ def test_preset_editor_template_mirrored_profile_uses_stable_field_ids_for_bindi
     assert 'setProfileFieldValue(field.canonical_key, $event.target.checked)' not in source
 
 
-def test_preset_editor_template_uses_user_facing_active_mirrored_field_panel():
+def test_preset_editor_template_uses_compact_mirrored_field_cards():
     source = read_project_file('templates/modals/detail_preset_fullscreen.html')
 
     assert 'activeMirroredField?.description' in source
     assert '当前筛选下没有可用字段' in source
+    assert 'mirroredWorkspaceFieldItems' in source
+    assert '@click="selectMirroredField(field.id)"' in source
+    assert 'getProfileFieldDisplayValue(field.id)' in source
+    assert 'preset-editor-range' in source
+    assert 'preset-switch' in source
     assert 'getProfileFieldValue(activeMirroredField.id)' not in source
-    assert 'getProfileFieldValue(activeMirroredField?.id)' in source
-    assert 'activeMirroredField?.storage_key' not in source
-    assert 'activeMirroredField?.source_key ||' not in source
-    assert 'activeMirroredField?.preset_bound' not in source
 
 
 def test_preset_editor_template_exposes_full_mirrored_profile_control_kinds():
@@ -2767,7 +2807,7 @@ def test_preset_editor_template_mirrored_profile_supports_number_controls_and_li
 def test_preset_editor_template_mirrored_profile_branch_yields_to_prompt_workspace():
     source = read_project_file('templates/modals/detail_preset_fullscreen.html')
 
-    assert "x-if=\"isMirroredProfileEditor && editorProfile && (!isPromptWorkspaceEditor || activeWorkspace !== 'prompts')\"" in source
+    assert "x-if=\"isMirroredProfileEditor && editorProfile && !isScalarWorkspaceEditor && (!isPromptWorkspaceEditor || activeWorkspace !== 'prompts')\"" in source
 
 
 def test_preset_editor_template_scalar_workspace_supports_structured_editor_kinds():
@@ -2950,8 +2990,8 @@ def test_preset_editor_template_keeps_editor_panels_within_width_bounds():
 def test_preset_editor_template_localizes_prompt_sidebar_summary_labels():
     source = read_project_file('templates/modals/detail_preset_fullscreen.html')
 
-    assert 'getPromptRoleLabel(activePromptItem?.role)' in source
-    assert 'getPromptPositionLabel(activePromptItem)' in source
+    assert 'getPromptRoleLabel(prompt.role)' in source
+    assert 'getPromptPositionLabel(prompt)' in source
     assert 'prompt.role || prompt.__identifier || \'prompt\'' not in source
     assert 'Number(prompt.injection_position ?? 0) === 1 ? `In-Chat @ ${Number(prompt.injection_depth ?? 4)}` : \'相对位置\'' not in source
 
@@ -2987,19 +3027,12 @@ def test_preset_editor_runtime_normalizes_role_and_trigger_option_object_values(
     )
 
 
-def test_preset_editor_template_keeps_right_info_toggle_mobile_only():
+def test_preset_editor_template_removes_right_info_toggle_and_inspector():
     source = read_project_file('templates/modals/detail_preset_fullscreen.html')
 
-    right_info_buttons = re.findall(
-        r'<button\b[^>]*>[\s\S]*?右侧信息\s*</button>',
-        source,
-    )
-
-    assert right_info_buttons
-
-    for button in right_info_buttons:
-        assert '@click="toggleMobileRightPanel()"' in button
-        assert 'md:hidden' in button
+    assert '右侧信息' not in source
+    assert 'preset-editor-context' not in source
+    assert '@click="toggleMobileRightPanel()"' not in source
 
 
 def test_preset_editor_template_adds_mobile_header_shell_and_primary_actions():
@@ -3028,7 +3061,8 @@ def test_preset_editor_template_moves_secondary_actions_into_mobile_more_menu_an
     assert '@click="saveAs()"' in mobile_more_menu_block
     assert '@click="renamePreset()"' in mobile_more_menu_block
     assert '@click="deletePreset()"' in mobile_more_menu_block
-    assert '@click="createSnapshot()"' in mobile_more_menu_block
+    assert '@click="createSnapshot(false)"' in mobile_more_menu_block
+    assert '@click="createSnapshot(true)"' in mobile_more_menu_block
     assert '@click="openRollback()"' in mobile_more_menu_block
     assert '@click="openAdvancedExtensions()"' in mobile_more_menu_block
     assert 'x-ref="presetEditorContentScroll"' in source
@@ -3037,7 +3071,8 @@ def test_preset_editor_template_moves_secondary_actions_into_mobile_more_menu_an
     assert '@click="saveAs()"' not in mobile_header_block
     assert '@click="renamePreset()"' not in mobile_header_block
     assert '@click="deletePreset()"' not in mobile_header_block
-    assert '@click="createSnapshot()"' not in mobile_header_block
+    assert '@click="createSnapshot(false)"' not in mobile_header_block
+    assert '@click="createSnapshot(true)"' not in mobile_header_block
     assert '@click="openRollback()"' not in mobile_header_block
     assert '@click="openAdvancedExtensions()"' not in mobile_header_block
 
@@ -3050,7 +3085,7 @@ def test_preset_editor_mobile_header_css_uses_safe_area_compact_state_and_header
     assert '.detail-preset-full-screen .preset-editor-mobile-header-bottom {' in css_source
     assert '.detail-preset-full-screen .preset-editor-mobile-more-menu {' in css_source
     assert '.detail-preset-full-screen .preset-editor-mobile-panel {' in css_source
-    assert '.detail-preset-full-screen .preset-editor-mobile-panel--right {' in css_source
+    assert '.detail-preset-full-screen .preset-editor-mobile-panel--right {' not in css_source
     assert 'padding: calc(env(safe-area-inset-top, 0px) + 0.75rem)' in css_source
     assert 'top: var(--preset-editor-header-height);' in css_source
 
@@ -3069,8 +3104,6 @@ def test_preset_editor_js_exposes_mobile_header_state_and_helpers():
         'toggleMobileHeaderMoreMenu() {',
         'openMobileSidebar() {',
         'closeMobileSidebar() {',
-        'toggleMobileRightPanel() {',
-        'closeMobileRightPanel() {',
         'updatePresetEditorLayoutMetrics() {',
         'syncPresetEditorMobileHeaderCompactState(container) {',
         'handleMobileEditorContentScroll(event) {',
@@ -3131,20 +3164,21 @@ def test_preset_editor_runtime_reveals_mobile_header_for_mobile_sidebar():
     )
 
 
-def test_preset_editor_runtime_reveals_mobile_header_for_right_panel():
+def test_preset_editor_runtime_closes_mobile_sidebar_when_selecting_workspace():
     run_preset_editor_runtime_check(
         """
         editor.$store = { global: { deviceType: 'mobile', showToast() {} } };
 
         editor.presetEditorMobileHeaderCompact = true;
-        editor.showRightPanel = false;
+        editor.showMobileSidebar = true;
+        editor.editingData = { prompts: [] };
 
-        editor.toggleMobileRightPanel();
-        if (editor.showRightPanel !== true) {
-          throw new Error(`expected right panel to open, got ${editor.showRightPanel}`);
+        editor.selectWorkspace('prompts');
+        if (editor.showMobileSidebar !== false) {
+          throw new Error(`expected workspace selection to close sidebar, got ${editor.showMobileSidebar}`);
         }
         if (editor.presetEditorMobileHeaderCompact !== false) {
-          throw new Error(`expected opening right panel to reveal mobile header, got compact=${editor.presetEditorMobileHeaderCompact}`);
+          throw new Error(`expected workspace selection to reveal mobile header, got compact=${editor.presetEditorMobileHeaderCompact}`);
         }
         """
     )
@@ -3160,7 +3194,6 @@ def test_preset_editor_runtime_compacts_and_expands_mobile_header_from_scroll():
 
         editor.$store = { global: { deviceType: 'mobile', showToast() {} } };
         editor.showMobileSidebar = false;
-        editor.showRightPanel = false;
         editor.showMobileHeaderMoreMenu = false;
         editor.presetEditorMobileHeaderCompact = false;
         editor.presetEditorLastScrollTop = 0;
@@ -3189,7 +3222,6 @@ def test_preset_editor_runtime_clears_mobile_header_state_on_close():
 
         editor.$store = { global: { deviceType: 'mobile', showToast() {} } };
         editor.showMobileSidebar = true;
-        editor.showRightPanel = true;
         editor.showMobileHeaderMoreMenu = true;
         editor.presetEditorMobileHeaderCompact = true;
         editor.presetEditorLastScrollTop = 96;
@@ -3199,9 +3231,6 @@ def test_preset_editor_runtime_clears_mobile_header_state_on_close():
 
         if (editor.showMobileSidebar !== false) {
           throw new Error(`expected closeEditor to clear mobile sidebar, got ${editor.showMobileSidebar}`);
-        }
-        if (editor.showRightPanel !== false) {
-          throw new Error(`expected closeEditor to clear right panel, got ${editor.showRightPanel}`);
         }
         if (editor.showMobileHeaderMoreMenu !== false) {
           throw new Error(`expected closeEditor to clear mobile more menu, got ${editor.showMobileHeaderMoreMenu}`);

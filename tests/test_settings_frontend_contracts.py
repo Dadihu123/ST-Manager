@@ -303,6 +303,22 @@ def test_settings_template_exposes_user_db_backup_controls():
     assert '@change="handleUserDbImport($event)"' in source
 
 
+def test_settings_modal_broadcasts_snapshot_configuration_after_save():
+    source = read_project_file('static/js/components/settingsModal.js')
+
+    assert 'new CustomEvent("settings-saved"' in source
+    assert 'auto_save_enabled: Boolean(this.settingsForm.auto_save_enabled)' in source
+    assert 'auto_save_interval: Number(this.settingsForm.auto_save_interval) || 3' in source
+
+
+def test_settings_modal_accepts_deep_link_to_snapshot_maintenance_section():
+    source = read_project_file('static/js/components/settingsModal.js')
+
+    assert 'window.addEventListener("open-settings-section"' in source
+    assert 'this.selectSettingTab(section);' in source
+    assert 'settings-maintenance-snapshots' in source
+
+
 def test_resource_api_exposes_shared_wallpaper_import_and_select_helpers():
     source = read_project_file('static/js/api/resource.js')
 

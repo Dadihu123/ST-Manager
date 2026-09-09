@@ -36,6 +36,14 @@ export default function rollbackModal() {
     // Diff 状态
     diffSelection: { left: null, right: null },
     diffData: { left: "", right: "", currentObj: null },
+    diffSummary: {
+      added: 0,
+      removed: 0,
+      changed: 0,
+      same: 0,
+      total: 0,
+      categories: [],
+    },
 
     init() {
       // 监听打开事件 (由 detailModal 或 wiEditor 触发)
@@ -43,6 +51,59 @@ export default function rollbackModal() {
         const { type, id, path, editingData, editingWiFile } = e.detail;
         this.openRollback(type, id, path, editingData, editingWiFile);
       });
+    },
+
+    get rollbackTargetTypeLabel() {
+      return (
+        {
+          preset: "预设",
+          card: "角色卡",
+          lorebook: "世界书",
+        }[this.rollbackTargetType] || "内容"
+      );
+    },
+
+    get diffModeLabel() {
+      return this._isLorebookComparison() ? "按条目对比" : "按字段对比";
+    },
+
+    get diffModeDescription() {
+      return this._isLorebookComparison()
+        ? "按世界书条目匹配，分别标记新增、删除、修改和未变化内容。"
+        : "按顶层字段归类，再在下方展开 JSON 行级差异。";
+    },
+
+    get diffSummaryItems() {
+      return [
+        { key: "added", label: "新增", value: this.diffSummary.added, tone: "is-added" },
+        { key: "removed", label: "删除", value: this.diffSummary.removed, tone: "is-removed" },
+        { key: "changed", label: "修改", value: this.diffSummary.changed, tone: "is-changed" },
+        { key: "same", label: "未变化", value: this.diffSummary.same, tone: "is-same" },
+      ];
+    },
+
+    getDiffStatusLabel(status) {
+      return { added: "新增", removed: "删除", changed: "修改", same: "未变化" }[
+        status
+      ] || "未变化";
+    },
+
+    getVersionLabel(version) {
+      if (!version) return "未选择";
+      if (version.is_current) return "当前编辑内容";
+      return version.label && version.is_key
+        ? version.label
+        : new Date(Number(version.mtime || 0) * 1000).toLocaleString();
+    },
+
+    getVersionMeta(version) {
+      if (!version) return "";
+      if (version.is_current) return "当前编辑器状态";
+      const size = Number(version.size || 0);
+      const sizeLabel = size ? `${(size / 1024).toFixed(1)} KB` : "大小未知";
+      if (version.is_auto) return `自动快照 · ${sizeLabel}`;
+      if (version.is_key) return `关键快照 · ${sizeLabel}`;
+      return `手动快照 · ${sizeLabel}`;
     },
 
     // === 打开时光机 ===
@@ -172,6 +233,56 @@ export default function rollbackModal() {
         return `{${keys.map((k) => `${JSON.stringify(k)}:${this._stableStringify(value[k])}`).join(",")}}`;
       }
       return JSON.stringify(value);
+    },
+
+    _getRawCategoryLabel(key) {
+      return (
+        {
+          prompts: "提示词内容",
+          prompt_order: "提示词顺序",
+          extensions: "扩展配置",
+          name: "预设名称",
+          x_st_manager: "管理元数据",
+        }[key] || key
+      );
+    },
+
+    _summarizeRawDiff(leftData, rightData) {
+      const left = leftData && typeof leftData === "object" ? leftData : {};
+      const right = rightData && typeof rightData === "object" ? rightData : {};
+      const keys = new Set([...Object.keys(left), ...Object.keys(right)]);
+      const summary = {
+        added: 0,
+        removed: 0,
+        changed: 0,
+        same: 0,
+        total: keys.size,
+        categories: [],
+      };
+
+      [...keys].sort().forEach((key) => {
+        const inLeft = Object.prototype.hasOwnProperty.call(left, key);
+        const inRight = Object.prototype.hasOwnProperty.call(right, key);
+        let status = "same";
+        if (!inLeft) {
+          summary.added += 1;
+          status = "added";
+        } else if (!inRight) {
+          summary.removed += 1;
+          status = "removed";
+        } else if (!this._isDataEqual(left[key], right[key])) {
+          summary.changed += 1;
+          status = "changed";
+        } else {
+          summary.same += 1;
+        }
+        summary.categories.push({
+          key,
+          label: this._getRawCategoryLabel(key),
+          status,
+        });
+      });
+      return summary;
     },
 
     _toArray(val) {
@@ -528,7 +639,7 @@ export default function rollbackModal() {
           : row.right !== null
             ? rightNo
             : "";
-        const lineText = text === null ? "∅" : this._escapeHtml(text);
+        const lineText = text === null ? "(空值)" : this._escapeHtml(text);
         const lineTextClass =
           text === null
             ? "text-[var(--content-muted)] italic"
@@ -853,6 +964,14 @@ export default function rollbackModal() {
           left: '<div class="p-8 text-center color-text-muted">请在左侧列表选择版本进行比对</div>',
           right: "",
         };
+        this.diffSummary = {
+          added: 0,
+          removed: 0,
+          changed: 0,
+          same: 0,
+          total: 0,
+          categories: [],
+        };
         return;
       }
 
@@ -887,6 +1006,23 @@ export default function rollbackModal() {
           }
         }
 
+        if (this._isLorebookComparison()) {
+          const leftEntries = this._extractLorebookEntries(leftData);
+          const rightEntries = this._extractLorebookEntries(rightData);
+          const pairs = this._buildLorebookPairs(leftEntries, rightEntries);
+          const counts = { added: 0, removed: 0, changed: 0, same: 0 };
+          pairs.forEach((pair) => {
+            counts[this._getPairMeta(pair).status] += 1;
+          });
+          this.diffSummary = {
+            ...counts,
+            total: pairs.length,
+            categories: [{ key: "entries", label: "世界书条目", status: "changed" }],
+          };
+        } else {
+          this.diffSummary = this._summarizeRawDiff(leftData, rightData);
+        }
+
         const result = this._isLorebookComparison()
           ? this._renderLorebookDiff(leftData, rightData)
           : generateSideBySideDiff(leftData, rightData);
@@ -894,6 +1030,14 @@ export default function rollbackModal() {
         this.diffData.right = result.right;
       } catch (e) {
         console.error(e);
+        this.diffSummary = {
+          added: 0,
+          removed: 0,
+          changed: 0,
+          same: 0,
+          total: 0,
+          categories: [],
+        };
         this.diffData.left = `<div class="p-4 status-danger-text">Error: ${e.message}</div>`;
         this.diffData.right = "";
       } finally {
@@ -924,7 +1068,6 @@ export default function rollbackModal() {
         type: this.rollbackTargetType,
         target_file_path: this.rollbackTargetPath,
       }).then((res) => {
-        this.isLoading = false;
         if (res.success) {
           alert("回滚成功！页面将刷新数据。");
           this.showRollbackModal = false;
@@ -976,6 +1119,11 @@ export default function rollbackModal() {
         } else {
           alert("回滚失败: " + res.msg);
         }
+      }).catch((error) => {
+        console.error("Restore backup failed:", error);
+        alert("回滚失败: " + (error?.message || "网络或服务异常"));
+      }).finally(() => {
+        this.isLoading = false;
       });
     },
 
@@ -988,6 +1136,7 @@ export default function rollbackModal() {
       // 1. 预判逻辑
       let isEmbedded = false;
       let targetName = "";
+      let base = "";
 
       // 辅助：从 ID 或路径中提取纯文件名 (无后缀)
       const extractName = (str) => {
@@ -1020,7 +1169,6 @@ export default function rollbackModal() {
       }
 
       // 2. 构造路径
-      let base = "";
       if (isEmbedded || type === "card") {
         base = `data/system/backups/cards`;
       } else {

@@ -3499,13 +3499,6 @@ html.light-mode .note-textarea:focus {
     background: var(--surface-container-raised);
     padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 0.75rem);
   }
-  .detail-preset-full-screen .preset-editor-mobile-panel--right {
-    left: auto;
-    right: 0;
-    width: 100%;
-    border-right: none;
-    border-left: 1px solid var(--border-subtle);
-  }
   .detail-preset-full-screen .preset-editor-main-scroll {
     padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 1rem);
   }
