@@ -19,6 +19,18 @@
   stroke: none;
 }
 
+/* 美化专用图形来自 ui.svg 精灵；保持 currentColor 以适配主题、浅深色和禁用态。 */
+.ui-icon.beautify-asset-icon {
+  fill: currentColor;
+  stroke: none;
+}
+
+.ui-icon.beautify-asset-icon path,
+.ui-icon.beautify-asset-icon use {
+  fill: currentColor;
+  stroke: none;
+}
+
 /* 品牌位图自身带颜色，使用 contain 保留裁剪后的完整比例。 */
 .app-brand-mark,
 .loading-brand-logo {

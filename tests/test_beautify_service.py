@@ -1246,6 +1246,37 @@ def test_load_library_recovers_packages_from_disk_when_ui_index_missing(tmp_path
     assert get_beautify_library(ui_data)['packages'][package_id]['name'] == 'Recovered Demo'
 
 
+def test_load_library_merges_disk_packages_into_existing_ui_index(tmp_path):
+    ui_data = {}
+    service = _build_service(tmp_path, ui_data)
+
+    imported_theme = _import_theme_for_package(service, tmp_path, name='Disk Package', platform='pc')
+    disk_package_id = imported_theme['package']['id']
+
+    ui_data.clear()
+    set_beautify_library(
+        ui_data,
+        {
+            'packages': {
+                'pkg_demo': {
+                    'id': 'pkg_demo',
+                    'name': 'Demo',
+                    'variants': {},
+                    'wallpapers': {},
+                    'screenshots': {},
+                    'identity_overrides': {},
+                },
+            },
+        },
+    )
+
+    recovered_library = service.load_library()
+
+    assert set(recovered_library['packages']) >= {'pkg_demo', disk_package_id}
+    assert recovered_library['packages']['pkg_demo']['name'] == 'Demo'
+    assert recovered_library['packages'][disk_package_id]['name'] == 'Disk Package'
+
+
 def test_load_library_recovery_rebuilds_variant_wallpaper_truth_from_package_local_wallpapers(tmp_path):
     ui_data = {}
     service = _build_service(tmp_path, ui_data)

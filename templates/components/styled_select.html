@@ -33,7 +33,9 @@
       @keydown.escape.prevent="closeMenu(true)"
     >
       <span class="icon-select-trigger-icon" x-show="selectedOptionIcon()" aria-hidden="true">
-        <img :src="selectedOptionIcon()" alt="" draggable="false" />
+        <svg class="ui-icon beautify-asset-icon icon-select-asset-icon" viewBox="0 0 1024 1024" focusable="false">
+          <use :href="selectedOptionIcon()"></use>
+        </svg>
       </span>
       <span class="icon-select-label" x-text="selectedOptionLabel()"></span>
       <span class="icon-select-chevron" aria-hidden="true">
@@ -74,7 +76,9 @@
             @keydown.escape.prevent="closeMenu(true)"
           >
             <span class="icon-select-option-icon" x-show="option.icon" aria-hidden="true">
-              <img :src="option.icon" alt="" draggable="false" />
+              <svg class="ui-icon beautify-asset-icon icon-select-asset-icon" viewBox="0 0 1024 1024" focusable="false">
+                <use :href="option.icon"></use>
+              </svg>
             </span>
             <span class="icon-select-option-label" x-text="option.label"></span>
           </button>
@@ -123,7 +127,9 @@
       @keydown.escape.prevent="closeMenu(true)"
     >
       <span class="icon-select-trigger-icon" x-show="selectedOptionIcon()" aria-hidden="true">
-        <img :src="selectedOptionIcon()" alt="" draggable="false" />
+        <svg class="ui-icon beautify-asset-icon icon-select-asset-icon" viewBox="0 0 1024 1024" focusable="false">
+          <use :href="selectedOptionIcon()"></use>
+        </svg>
       </span>
       <span class="icon-select-label" x-text="selectedOptionLabel()"></span>
       <span class="icon-select-chevron" aria-hidden="true">
@@ -164,7 +170,9 @@
             @keydown.escape.prevent="closeMenu(true)"
           >
             <span class="icon-select-option-icon" x-show="option.icon" aria-hidden="true">
-              <img :src="option.icon" alt="" draggable="false" />
+              <svg class="ui-icon beautify-asset-icon icon-select-asset-icon" viewBox="0 0 1024 1024" focusable="false">
+                <use :href="option.icon"></use>
+              </svg>
             </span>
             <span class="icon-select-option-label" x-text="option.label"></span>
           </button>

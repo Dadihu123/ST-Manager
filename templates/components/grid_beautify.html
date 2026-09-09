@@ -570,9 +570,9 @@
               aria_label="平台",
               wrapper_attrs='x-show="activeVariant"'
             ) %}
-              <option value="pc" data-icon="{{ url_for('static', filename='icons/beautify/pc.svg') }}">PC</option>
-              <option value="mobile" data-icon="{{ url_for('static', filename='icons/beautify/mobile.svg') }}">移动端</option>
-              <option value="dual" data-icon="{{ url_for('static', filename='icons/beautify/dual.svg') }}">双端</option>
+              <option value="pc" data-icon="{{ url_for('static', filename='icons/ui.svg') }}#icon-beautify-pc">PC</option>
+              <option value="mobile" data-icon="{{ url_for('static', filename='icons/ui.svg') }}#icon-beautify-mobile">移动端</option>
+              <option value="dual" data-icon="{{ url_for('static', filename='icons/ui.svg') }}#icon-beautify-dual">双端</option>
             {% endcall %}
             <button
               type="button"
@@ -661,7 +661,7 @@
           ) %}
             <option value="">选择具体变体</option>
             <template x-for="variant in variantOptions" :key="variant.id">
-              <option :value="variant.id" data-icon="{{ url_for('static', filename='icons/beautify/variant-atomic.svg') }}" x-text="variant.label"></option>
+              <option :value="variant.id" data-icon="{{ url_for('static', filename='icons/ui.svg') }}#icon-beautify-variant-atomic" x-text="variant.label"></option>
             </template>
           {% endcall %}
           <div class="beautify-stage-actions">

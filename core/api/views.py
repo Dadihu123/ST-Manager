@@ -29,3 +29,10 @@ def favicon():
         'stm-mark.png',
         mimetype='image/png'
     )
+
+
+@bp.route('/img/<path:filename>')
+def sillytavern_preview_image(filename):
+    """Serve the relative image paths used by the vendored ST preview shell."""
+    preview_image_dir = os.path.join(INTERNAL_DIR, 'static', 'vendor', 'sillytavern', 'img')
+    return send_from_directory(preview_image_dir, filename)

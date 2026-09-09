@@ -95,7 +95,21 @@ class BeautifyService:
         return selections
 
     def _should_recover_library_from_disk(self, ui_data: Dict, library: Dict):
-        return not bool(library.get('packages'))
+        packages_root = os.path.join(self.library_root, 'packages')
+        if not os.path.isdir(packages_root):
+            return not bool(library.get('packages'))
+
+        try:
+            disk_package_ids = {
+                entry
+                for entry in os.listdir(packages_root)
+                if os.path.isdir(os.path.join(packages_root, entry))
+            }
+        except OSError:
+            return not bool(library.get('packages'))
+
+        indexed_package_ids = set((library.get('packages') or {}).keys())
+        return not indexed_package_ids or bool(disk_package_ids - indexed_package_ids)
 
     def load_library(self):
         return self._load_library_state()
@@ -774,7 +788,7 @@ class BeautifyService:
     def _recover_library_from_disk(self, library: Optional[Dict] = None):
         recovered_library = copy.deepcopy(library if isinstance(library, dict) else {})
         existing_packages = copy.deepcopy(recovered_library.get('packages') or {})
-        packages = {}
+        packages = existing_packages
         packages_root = os.path.join(self.library_root, 'packages')
         if not os.path.isdir(packages_root):
             recovered_library['packages'] = packages

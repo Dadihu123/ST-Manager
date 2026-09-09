@@ -1003,17 +1003,18 @@
         class="beautify-toolbar-filters beautify-toolbar-platform-filter"
         x-show="beautifyWorkspace === 'packages'"
       >
+        <span class="beautify-platform-filter-icon" aria-hidden="true">{{ icon('filter', 'ui-icon--sm') }}</span>
         {% call styled_select(
           "platformFilter",
-          wrapper_class="beautify-filter-select beautify-platform-filter-select",
+          wrapper_class="beautify-platform-filter-select",
           trigger_class="icon-select-trigger--compact",
           menu_class="icon-select-menu--fit",
           aria_label="按平台筛选"
         ) %}
           <option value="all">全部端</option>
-          <option value="pc" data-icon="{{ url_for('static', filename='icons/beautify/pc.svg') }}">PC</option>
-          <option value="mobile" data-icon="{{ url_for('static', filename='icons/beautify/mobile.svg') }}">移动端</option>
-          <option value="dual" data-icon="{{ url_for('static', filename='icons/beautify/dual.svg') }}">双端</option>
+          <option value="pc" data-icon="{{ url_for('static', filename='icons/ui.svg') }}#icon-beautify-pc">PC</option>
+          <option value="mobile" data-icon="{{ url_for('static', filename='icons/ui.svg') }}#icon-beautify-mobile">移动端</option>
+          <option value="dual" data-icon="{{ url_for('static', filename='icons/ui.svg') }}#icon-beautify-dual">双端</option>
         {% endcall %}
       </div>
 
