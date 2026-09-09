@@ -542,7 +542,12 @@
 
 .preset-rollback-footer-button {
   min-height: 2.65rem;
+  padding-inline: 0.9rem;
   white-space: nowrap;
+}
+
+.preset-rollback-footer-actions {
+  padding-inline: 0.2rem;
 }
 
 .preset-rollback-footer-button:disabled {
@@ -637,12 +642,12 @@
 
   .preset-rollback-footer-actions {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .preset-rollback-footer-button {
     justify-content: center;
-    padding-inline: 0.45rem;
+    padding-inline: 0.7rem;
   }
 
   .preset-rollback-footer-button span {

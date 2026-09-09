@@ -264,13 +264,6 @@
         </button>
         <button
           type="button"
-          class="btn-secondary preset-rollback-footer-button"
-          @click="showRollbackModal = false"
-        >
-          取消
-        </button>
-        <button
-          type="button"
           class="btn-primary preset-rollback-footer-button"
           :disabled="isLoading || !diffSelection.left || diffSelection.left.is_current"
           @click="performRestore()"

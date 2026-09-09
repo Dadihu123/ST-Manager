@@ -3471,3 +3471,193 @@
     pointer-events: auto;
   }
 }
+
+/* Final interaction pass: title editing and icon-first top actions. */
+.preset-editor-workbench .preset-editor-name-editor,
+.preset-editor-workbench .preset-editor-mobile-name-editor {
+  display: block;
+  min-width: 0;
+}
+
+.preset-editor-workbench .preset-editor-name-input,
+.preset-editor-workbench .preset-editor-mobile-title {
+  width: 100%;
+  min-width: 0;
+  padding: 0.1rem 0;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  border-radius: 0;
+  color: var(--content-primary);
+  background: transparent;
+  font-weight: 800;
+  outline: none;
+}
+
+.preset-editor-workbench .preset-editor-name-input {
+  max-width: 28rem;
+  font-size: 0.9rem;
+}
+
+.preset-editor-workbench .preset-editor-name-input:hover,
+.preset-editor-workbench .preset-editor-name-input:focus-visible,
+.preset-editor-workbench .preset-editor-mobile-title:hover,
+.preset-editor-workbench .preset-editor-mobile-title:focus-visible {
+  border-bottom-color: var(--accent-action);
+}
+
+.preset-editor-workbench .preset-editor-file-meta {
+  flex: 0 1 20rem;
+}
+
+.preset-editor-workbench .preset-editor-tool-button {
+  width: 2.55rem;
+  min-width: 2.55rem;
+  height: 2.55rem;
+  min-height: 2.55rem;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 4px;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--content-secondary);
+}
+
+.preset-editor-workbench .preset-editor-tool-button:hover:not(:disabled),
+.preset-editor-workbench .preset-editor-tool-button:focus-visible {
+  border: 0 !important;
+  background: var(--state-hover-surface) !important;
+  color: var(--content-primary);
+}
+
+.preset-editor-workbench .preset-editor-tool-button.btn-primary {
+  color: var(--action-text);
+}
+
+.preset-editor-workbench .preset-editor-tool-button.btn-primary:hover:not(:disabled),
+.preset-editor-workbench .preset-editor-tool-button.btn-primary:focus-visible {
+  background: var(--action-surface) !important;
+  color: var(--action-text);
+}
+
+.preset-editor-workbench .preset-editor-tool-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.preset-editor-workbench .preset-editor-sidebar-intro-icon {
+  border: 0 !important;
+  border-radius: 0;
+  background: transparent;
+}
+
+.preset-editor-workbench .preset-editor-inline-toggle {
+  display: inline-flex;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  cursor: pointer;
+}
+
+.preset-editor-workbench .preset-prompt-card {
+  padding-right: 0.75rem;
+}
+
+.preset-editor-workbench .preset-prompt-order-controls {
+  position: static;
+  display: flex;
+  width: 100%;
+  min-height: 2.25rem;
+  justify-content: flex-end;
+  margin-top: 0.55rem !important;
+  padding-top: 0.45rem;
+  border-top: 1px solid var(--border-subtle);
+  opacity: 0;
+  transform: none;
+  pointer-events: none;
+}
+
+.preset-editor-workbench .preset-prompt-card:hover .preset-prompt-order-controls,
+.preset-editor-workbench .preset-prompt-card:focus-within .preset-prompt-order-controls {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+
+.preset-editor-workbench .preset-editor-mobile-stage-status {
+  display: inline-flex;
+  min-width: 0;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  padding: 0 0.7rem;
+  color: var(--content-muted);
+  background: var(--surface-container);
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+@media (max-width: 767px) {
+  .preset-editor-workbench .preset-editor-stage-tools {
+    display: none;
+  }
+
+  .preset-editor-workbench .preset-editor-stage-description {
+    display: none;
+  }
+
+  .preset-editor-workbench .preset-editor-mobile-header-top > button {
+    width: 2.75rem;
+    min-width: 2.75rem;
+    height: 2.75rem;
+    min-height: 2.75rem;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 4px;
+    background: transparent !important;
+    box-shadow: none !important;
+    font-size: 0;
+  }
+
+  .preset-editor-workbench .preset-editor-mobile-header-top > button:hover:not(:disabled),
+  .preset-editor-workbench .preset-editor-mobile-header-top > button:focus-visible {
+    border: 0 !important;
+    background: var(--state-hover-surface) !important;
+  }
+
+  .preset-editor-workbench .preset-editor-mobile-title-block {
+    flex: 1 1 auto;
+  }
+
+  .preset-editor-workbench .preset-editor-mobile-title {
+    max-width: 100%;
+    font-size: 0.88rem;
+    text-align: left;
+  }
+
+  .preset-editor-workbench .preset-editor-mobile-stage-controls {
+    align-items: stretch;
+  }
+
+  .preset-editor-workbench .preset-editor-mobile-stage-button {
+    flex: 1 1 auto;
+    border: 0 !important;
+    background: var(--surface-container) !important;
+    box-shadow: none !important;
+  }
+
+  .preset-editor-workbench .preset-prompt-order-controls {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+@media (max-width: 480px) {
+  .preset-editor-workbench .preset-editor-mobile-stage-status {
+    padding-inline: 0.45rem;
+    font-size: 0.68rem;
+  }
+}

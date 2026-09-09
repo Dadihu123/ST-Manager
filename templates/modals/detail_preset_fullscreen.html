@@ -25,19 +25,20 @@
         </div>
         <div class="preset-editor-heading min-w-0">
           <div class="preset-editor-eyebrow">预设工作台</div>
-          <div class="text-sm font-bold truncate text-[var(--content-primary)]">
-            编辑与校验
-          </div>
+          <label class="preset-editor-name-editor">
+            <span class="sr-only">预设名称</span>
+            <input
+              type="text"
+              class="preset-editor-name-input"
+              :value="editingData?.name ?? editingPresetFile?.name ?? ''"
+              @input="updatePresetName($event.target.value)"
+              @keydown.enter.prevent="$event.target.blur()"
+              :disabled="isSaving"
+              aria-label="预设名称"
+            />
+          </label>
         </div>
-        <div
-          class="preset-editor-kind-badge px-2 py-0.5 rounded text-[10px] font-bold uppercase border border-[var(--border-default)] text-[var(--content-primary)] bg-[var(--surface-container-raised)]"
-          x-text="editingPresetFile?.preset_kind || '预设'"
-        ></div>
-        <div class="min-w-0">
-          <div
-            class="preset-editor-file-title text-sm font-bold truncate text-[var(--content-primary)]"
-            x-text="presetTitle"
-          ></div>
+        <div class="preset-editor-file-meta min-w-0">
           <div
             class="preset-editor-file-path text-[10px] text-[var(--content-muted)] truncate"
             x-text="editingPresetFile?.path || ''"
@@ -46,21 +47,6 @@
       </div>
 
       <div class="preset-editor-header-actions flex items-center gap-2 flex-wrap justify-end">
-        <div class="preset-editor-header-status" role="status" aria-live="polite">
-          <span x-show="isSaving" x-cloak class="preset-editor-status-icon color-text-info" aria-label="正在保存">
-            {{ loading_icon('ui-icon--sm') }}
-          </span>
-          <span x-show="!isSaving && hasConflict" x-cloak class="preset-editor-status-icon color-text-danger" aria-label="存在冲突">
-            {{ icon('alert-triangle', 'ui-icon--sm') }}
-          </span>
-          <span x-show="!isSaving && !hasConflict && isDirty" x-cloak class="preset-editor-status-icon color-text-warning" aria-label="有未保存修改">
-            {{ icon('pencil-edit', 'ui-icon--sm') }}
-          </span>
-          <span x-show="!isSaving && !hasConflict && !isDirty" x-cloak class="preset-editor-status-icon color-text-success" aria-label="已同步">
-            {{ icon('file-check', 'ui-icon--sm') }}
-          </span>
-          <span class="preset-editor-status-label" x-text="isSaving ? '正在保存' : (hasConflict ? '需要处理冲突' : (isDirty ? '有未保存修改' : '已同步'))"></span>
-        </div>
         <div x-show="hasMultipleVersions" class="preset-editor-version-control flex items-center gap-2">
           <span class="preset-editor-control-icon" aria-hidden="true">{{ detail_icon('version', 'ui-icon--sm') }}</span>
           <label class="text-[11px] text-[var(--content-muted)]">版本</label>
@@ -77,122 +63,82 @@
             </template>
           {% endcall %}
         </div>
-        <span
-          class="preset-editor-legacy-status text-[10px] px-2 py-1 rounded border border-[var(--border-default)]"
-          :class="isDirty ? 'color-text-warning color-surface-warning' : 'color-text-success color-surface-success'"
-          x-text="isDirty ? '未保存修改' : '磁盘已同步'"
-        ></span>
-        <button
-          type="button"
-          @click="openSnapshotSettings()"
-          class="preset-editor-autosave-indicator"
-          :class="autoSaveEnabled ? 'is-enabled' : 'is-disabled'"
-          :title="autoSaveEnabled ? '打开设置调整自动快照间隔' : '自动快照未启用，打开设置启用'"
-          aria-label="打开快照与自动保存设置"
-        >
-          <span aria-hidden="true">{{ icon('snapshot', 'ui-icon--xs') }}</span>
-          <span x-text="autoSaveStatusLabel"></span>
-        </button>
-        <span
-          x-show="hasConflict"
-          class="text-[10px] px-2 py-1 rounded border color-border-danger color-text-danger color-surface-danger"
-        >
-          检测到磁盘冲突
-        </span>
         <button
           @click="saveOverwrite()"
           :disabled="isSaving"
-          class="btn-primary preset-editor-action-button px-3 py-1.5 text-xs rounded"
+          class="btn-primary preset-editor-action-button preset-editor-tool-button"
           title="保存当前修改"
           aria-label="保存当前修改"
         >
           <span x-show="isSaving" x-cloak aria-hidden="true">{{ loading_icon('ui-icon--sm') }}</span>
           <span x-show="!isSaving" aria-hidden="true">{{ icon('settings-save', 'ui-icon--sm') }}</span>
-          保存
         </button>
         <button
           @click="saveAs()"
-          class="btn-secondary preset-editor-action-button px-3 py-1.5 text-xs rounded"
+          class="btn-secondary preset-editor-action-button preset-editor-tool-button"
           title="另存为新预设"
           aria-label="另存为新预设"
         >
-          <span aria-hidden="true">{{ icon('file-edit', 'ui-icon--sm') }}</span>
-          另存为
+          <span aria-hidden="true">{{ icon('book-save-as', 'ui-icon--sm') }}</span>
         </button>
         <button
           @click="saveAsVersion()"
-          class="btn-secondary preset-editor-action-button px-3 py-1.5 text-xs rounded"
+          class="btn-secondary preset-editor-action-button preset-editor-tool-button"
           title="另存为新版本"
           aria-label="另存为新版本"
         >
           <span aria-hidden="true">{{ icon('file-check', 'ui-icon--sm') }}</span>
-          另存为版本
         </button>
         <button
           x-show="hasMultipleVersions"
           @click="setCurrentVersionAsDefault()"
-          class="btn-secondary preset-editor-action-button px-3 py-1.5 text-xs rounded"
+          class="btn-secondary preset-editor-action-button preset-editor-tool-button"
           title="设为默认版本"
           aria-label="设为默认版本"
         >
           <span aria-hidden="true">{{ icon('pin', 'ui-icon--sm') }}</span>
-          设为默认版本
-        </button>
-        <button
-          @click="renamePreset()"
-          class="btn-secondary preset-editor-action-button px-3 py-1.5 text-xs rounded"
-          title="重命名预设"
-          aria-label="重命名预设"
-        >
-          <span aria-hidden="true">{{ icon('pencil-edit', 'ui-icon--sm') }}</span>
-          重命名
         </button>
         <button
           @click="deletePreset()"
-          class="btn-secondary preset-editor-action-button color-hover-text-danger px-3 py-1.5 text-xs rounded"
+          class="btn-secondary preset-editor-action-button preset-editor-tool-button color-hover-text-danger"
           title="删除预设"
           aria-label="删除预设"
         >
           <span aria-hidden="true">{{ icon('trash', 'ui-icon--sm') }}</span>
-          删除
         </button>
         <button
           @click="createSnapshot(false)"
           @contextmenu.prevent="createSnapshot(true)"
-          class="btn-secondary preset-editor-action-button px-3 py-1.5 text-xs rounded"
+          class="btn-secondary preset-editor-action-button preset-editor-tool-button"
           title="左键创建普通快照，右键创建关键快照"
           aria-label="创建预设快照（左键普通快照，右键关键快照）"
         >
           <span aria-hidden="true">{{ icon('snapshot', 'ui-icon--sm') }}</span>
-          创建快照
         </button>
         <button
           @click="openRollback()"
-          class="btn-secondary preset-editor-action-button px-3 py-1.5 text-xs rounded"
+          class="btn-secondary preset-editor-action-button preset-editor-tool-button"
           title="打开预设回滚"
           aria-label="打开预设回滚"
         >
           <span aria-hidden="true">{{ icon('history-rollback', 'ui-icon--sm') }}</span>
-          回滚
         </button>
         <button
           @click="openAdvancedExtensions()"
-          class="btn-secondary preset-editor-action-button px-3 py-1.5 text-xs rounded"
+          class="btn-secondary preset-editor-action-button preset-editor-tool-button"
           title="编辑正则与 ST 脚本扩展"
           aria-label="编辑正则与 ST 脚本扩展"
         >
           <span aria-hidden="true">{{ detail_icon('editor', 'ui-icon--sm') }}</span>
-          编辑扩展
         </button>
         <button
           @click="closeEditor()"
-          class="btn-secondary px-3 py-1.5 text-xs rounded color-hover-text-danger"
+          class="btn-secondary preset-editor-tool-button color-hover-text-danger"
           type="button"
           title="关闭预设编辑器"
           aria-label="关闭预设编辑器"
         >
           <span aria-hidden="true">{{ icon('close', 'ui-icon--sm') }}</span>
-          关闭
         </button>
       </div>
     </div>
@@ -205,19 +151,19 @@
       x-ref="presetEditorMobileHeader"
     >
       <div class="preset-editor-mobile-header-top">
-        <button
-          @click="closeEditor()"
-          class="btn-secondary px-3 py-1.5 text-xs rounded shrink-0"
-          type="button"
-          title="关闭预设编辑器"
-          aria-label="关闭预设编辑器"
-        >
-          <span aria-hidden="true">{{ icon('close', 'ui-icon--sm') }}</span>
-          关闭
-        </button>
-
         <div class="preset-editor-mobile-title-block">
-          <div class="preset-editor-mobile-title" x-text="presetTitle"></div>
+          <label class="preset-editor-mobile-name-editor">
+            <span class="sr-only">预设名称</span>
+            <input
+              type="text"
+              class="preset-editor-mobile-title"
+              :value="editingData?.name ?? editingPresetFile?.name ?? ''"
+              @input="updatePresetName($event.target.value)"
+              @keydown.enter.prevent="$event.target.blur()"
+              :disabled="isSaving"
+              aria-label="预设名称"
+            />
+          </label>
           <div
             class="preset-editor-mobile-subtitle"
             x-text="getMobileHeaderMetaLine()"
@@ -231,7 +177,6 @@
         >
           <span x-show="isSaving" x-cloak aria-hidden="true">{{ loading_icon('ui-icon--sm') }}</span>
           <span x-show="!isSaving" aria-hidden="true">{{ icon('settings-save', 'ui-icon--sm') }}</span>
-          保存
         </button>
 
         <button
@@ -242,7 +187,16 @@
           aria-label="打开更多操作"
         >
           <span aria-hidden="true">{{ icon('quick-actions', 'ui-icon--sm') }}</span>
-          更多
+        </button>
+
+        <button
+          @click="closeEditor()"
+          class="btn-secondary preset-editor-mobile-close px-3 py-1.5 text-xs rounded shrink-0"
+          type="button"
+          title="关闭预设编辑器"
+          aria-label="关闭预设编辑器"
+        >
+          <span aria-hidden="true">{{ icon('close', 'ui-icon--sm') }}</span>
         </button>
       </div>
 
@@ -266,24 +220,6 @@
         {% endcall %}
       </div>
 
-      <div class="preset-editor-mobile-header-bottom">
-        <span
-          class="preset-editor-mobile-status-chip"
-          :class="hasConflict ? 'is-danger' : (isDirty ? 'is-warn' : 'is-ok')"
-          x-text="getCompactHeaderStatusLabel()"
-        ></span>
-        <button
-          type="button"
-          @click="openSnapshotSettings()"
-          class="preset-editor-mobile-status-text preset-editor-mobile-status-button"
-          :class="autoSaveEnabled ? 'is-enabled' : 'is-disabled'"
-          title="快照与自动保存设置"
-          aria-label="打开快照与自动保存设置"
-        >
-          <span aria-hidden="true">{{ icon('snapshot', 'ui-icon--xs') }}</span>
-          <span x-text="autoSaveStatusLabel"></span>
-        </button>
-      </div>
     </div>
 
     <div
@@ -298,7 +234,7 @@
         class="btn-secondary px-3 py-2 text-sm rounded-xl"
         role="menuitem"
       >
-        <span aria-hidden="true">{{ icon('file-edit', 'ui-icon--sm') }}</span>
+        <span aria-hidden="true">{{ icon('book-save-as', 'ui-icon--sm') }}</span>
         另存为
       </button>
       <button
@@ -317,14 +253,6 @@
       >
         <span aria-hidden="true">{{ icon('pin', 'ui-icon--sm') }}</span>
         设为默认版本
-      </button>
-      <button
-        @click="renamePreset()"
-        class="btn-secondary px-3 py-2 text-sm rounded-xl"
-        role="menuitem"
-      >
-        <span aria-hidden="true">{{ icon('pencil-edit', 'ui-icon--sm') }}</span>
-        重命名
       </button>
       <button
         @click="deletePreset()"
@@ -644,6 +572,17 @@
               <span aria-hidden="true">{{ icon('list', 'ui-icon--sm') }}</span>
               字段导航
             </button>
+            <div
+              class="preset-editor-stage-indicator preset-editor-mobile-stage-status"
+              role="status"
+              aria-live="polite"
+            >
+              <span
+                class="preset-editor-stage-indicator-dot"
+                :class="hasConflict ? 'is-danger' : (isDirty ? 'is-warning' : 'is-ready')"
+              ></span>
+              <span x-text="hasConflict ? '冲突待处理' : (isSaving ? '保存中' : (isDirty ? '编辑中' : '已同步'))"></span>
+            </div>
           </div>
 
           <template x-if="isPromptWorkspaceEditor && activeWorkspace === 'prompts'">
@@ -1647,7 +1586,7 @@
                       <label
                         class="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-page)] p-4 space-y-2"
                       >
-                        <div class="flex items-start justify-between gap-3">
+                        <div class="flex items-center justify-between gap-3">
                           <div class="min-w-0">
                             <div
                               class="text-sm font-semibold text-[var(--content-primary)]"
@@ -1659,18 +1598,16 @@
                             ></div>
                           </div>
                           <span
+                            x-show="field.editor !== 'boolean'"
                             class="px-2 py-0.5 rounded-full text-[10px] border border-[var(--border-default)] text-[var(--content-muted)]"
                             x-text="field.editor || 'text'"
                           ></span>
-                        </div>
-
-                        <template x-if="field.editor === 'boolean'">
-                          <div
-                            class="flex items-center justify-between gap-3 rounded-xl border border-[var(--border-default)] bg-[var(--surface-container)] px-3 py-2"
+                          <label
+                            x-show="field.editor === 'boolean'"
+                            class="preset-editor-inline-toggle"
+                            @click.stop
                           >
-                            <span class="text-sm text-[var(--content-primary)]"
-                              >启用</span
-                            >
+                            <span class="sr-only" x-text="field.label || '切换字段'"></span>
                             <span class="preset-switch" role="switch" :aria-checked="getScalarWorkspaceFieldValue(field.storage_key) ? 'true' : 'false'">
                               <input
                                 type="checkbox"
@@ -1681,8 +1618,8 @@
                               <span class="preset-switch-track"></span>
                               <span class="preset-switch-thumb" :class="getScalarWorkspaceFieldValue(field.storage_key) ? 'is-on' : 'is-off'"></span>
                             </span>
-                          </div>
-                        </template>
+                          </label>
+                        </div>
 
                         <template x-if="field.editor === 'number'">
                           <input
@@ -1888,7 +1825,7 @@
                         :class="activeMirroredField?.id === field.id ? 'color-border-action color-surface-action' : 'border-[var(--border-default)] hover:border-[var(--accent-action)]/20'"
                       >
                         <div class="flex items-center justify-between gap-3">
-                          <div>
+                          <div class="min-w-0">
                             <div
                               class="text-sm font-semibold text-[var(--content-primary)]"
                               x-text="field.label"
@@ -1898,10 +1835,23 @@
                               x-text="field.storage_key"
                             ></div>
                           </div>
-                          <div
-                            class="text-xs font-mono text-[var(--content-secondary)]"
-                            x-text="getProfileFieldDisplayValue(field.id)"
-                          ></div>
+                          <label
+                            x-show="isProfileFieldToggle(field)"
+                            class="preset-editor-inline-toggle"
+                            @click.stop
+                          >
+                            <span class="sr-only" x-text="field.label || '切换字段'"></span>
+                            <span class="preset-switch" role="switch" :aria-checked="getProfileFieldValue(field.id) ? 'true' : 'false'">
+                              <input
+                                type="checkbox"
+                                class="peer preset-switch-input"
+                                :checked="!!getProfileFieldValue(field.id)"
+                                @change="setProfileFieldValue(field.id, $event.target.checked)"
+                              />
+                              <span class="preset-switch-track"></span>
+                              <span class="preset-switch-thumb" :class="getProfileFieldValue(field.id) ? 'is-on' : 'is-off'"></span>
+                            </span>
+                          </label>
                         </div>
 
                         <template x-if="isProfileFieldSlider(field)">
@@ -1922,24 +1872,6 @@
                               <span x-text="resolveProfileFieldMax(field) ?? '-' "></span>
                             </div>
                           </div>
-                        </template>
-
-                        <template x-if="isProfileFieldToggle(field)">
-                          <label
-                            class="flex items-center justify-between gap-3 text-sm text-[var(--content-primary)]"
-                          >
-                            <span>开关</span>
-                            <span class="preset-switch" role="switch" :aria-checked="getProfileFieldValue(field.id) ? 'true' : 'false'">
-                              <input
-                                type="checkbox"
-                                class="peer preset-switch-input"
-                                :checked="!!getProfileFieldValue(field.id)"
-                                @change="setProfileFieldValue(field.id, $event.target.checked)"
-                              />
-                              <span class="preset-switch-track"></span>
-                              <span class="preset-switch-thumb" :class="getProfileFieldValue(field.id) ? 'is-on' : 'is-off'"></span>
-                            </span>
-                          </label>
                         </template>
 
                         <template x-if="field.control === 'number'">

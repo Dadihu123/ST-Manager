@@ -783,14 +783,17 @@ def test_preset_editor_template_renders_fullscreen_version_selector_and_actions(
     assert '另存为版本' in source
 
 
-def test_preset_editor_template_exposes_snapshot_gestures_and_settings_link():
+def test_preset_editor_template_exposes_snapshot_gestures_without_header_autosave_status():
     source = read_project_file('templates/modals/detail_preset_fullscreen.html')
 
     assert '@click="createSnapshot(false)"' in source
     assert '@contextmenu.prevent="createSnapshot(true)"' in source
     assert '@click="createSnapshot(true)"' in source
-    assert '@click="openSnapshotSettings()"' in source
-    assert 'autoSaveStatusLabel' in source
+    assert '@click="openSnapshotSettings()"' not in source
+    assert 'autoSaveStatusLabel' not in source
+    assert 'preset-editor-autosave-indicator' not in source
+    assert 'preset-editor-header-status' not in source
+    assert 'preset-editor-legacy-status' not in source
     assert '草稿' not in source
     assert 'preset-editor-inspector' not in source
 
@@ -817,6 +820,48 @@ def test_preset_rollback_template_exposes_typed_diff_summary_and_keyboard_close(
     assert 'diffModeDescription' in template
     assert '_summarizeRawDiff(leftData, rightData)' in js_source
     assert 'preset-rollback-category-strip' in css_source
+
+
+def test_preset_editor_template_uses_inline_field_controls_and_icon_first_actions():
+    source = read_project_file('templates/modals/detail_preset_fullscreen.html')
+    css_source = read_project_file('static/css/modules/modal-preset-workbench.css')
+
+    mirrored_block = source[
+        source.index('isMirroredProfileEditor && editorProfile && !isScalarWorkspaceEditor'):
+        source.index('!isMirroredProfileEditor && (!isPromptWorkspaceEditor')
+    ]
+    assert 'x-text="field.control || \'text\'"' not in mirrored_block
+    assert 'isProfileFieldToggle(field)' in mirrored_block
+    assert 'preset-editor-inline-toggle' in mirrored_block
+    assert 'field.editor === \'boolean\'' in source
+    assert 'preset-editor-kind-badge' not in source
+    assert '@click="renamePreset()"' not in source
+    assert "icon('book-save-as', 'ui-icon--sm')" in source
+    assert '.preset-editor-tool-button {' in css_source
+    assert 'border: 0 !important;' in css_source
+
+
+def test_preset_editor_schema_orders_chat_completion_workspaces_for_editing():
+    source = read_project_file('core/services/preset_editor_schema.py')
+    order = [
+        source.index("'id': 'generation'", source.index('CHAT_COMPLETION_WORKSPACE_SECTIONS')),
+        source.index("'id': 'connection'", source.index('CHAT_COMPLETION_WORKSPACE_SECTIONS')),
+        source.index("'id': 'features'", source.index('CHAT_COMPLETION_WORKSPACE_SECTIONS')),
+        source.index("'id': 'prompt_options'", source.index('CHAT_COMPLETION_WORKSPACE_SECTIONS')),
+    ]
+    assert order == sorted(order)
+
+
+def test_preset_rollback_footer_keeps_only_spaced_backup_and_restore_actions():
+    template = read_project_file('templates/modals/rollback.html')
+    css_source = read_project_file('static/css/modules/preset-rollback.css')
+
+    footer = template[template.index('<footer class="preset-rollback-footer">'):]
+    assert '>取消<' not in footer
+    assert '@click="openBackupFolder()"' in footer
+    assert '@click="performRestore()"' in footer
+    assert 'grid-template-columns: repeat(2, minmax(0, 1fr));' in css_source
+    assert 'padding-inline: 0.9rem;' in css_source
 
 
 def test_grid_presets_template_leaves_manager_wallpaper_visible_at_root_surface():
@@ -3043,13 +3088,14 @@ def test_preset_editor_template_adds_mobile_header_shell_and_primary_actions():
     assert 'hidden md:flex h-12' not in source
     assert 'preset-editor-mobile-header' in source
     assert 'preset-editor-mobile-header-top' in mobile_header_block
-    assert 'preset-editor-mobile-header-bottom' in mobile_header_block
+    assert 'preset-editor-mobile-header-bottom' not in mobile_header_block
     assert 'x-ref="presetEditorMobileHeader"' in mobile_header_block
     assert '@click="closeEditor()"' in mobile_header_block
     assert '@click="saveOverwrite()"' in mobile_header_block
     assert '@click="toggleMobileHeaderMoreMenu()"' in mobile_header_block
-    assert 'x-text="presetTitle"' in mobile_header_block
+    assert 'updatePresetName($event.target.value)' in mobile_header_block
     assert 'x-text="getMobileHeaderMetaLine()"' in mobile_header_block
+    assert 'preset-editor-mobile-close' in mobile_header_block
 
 
 def test_preset_editor_template_moves_secondary_actions_into_mobile_more_menu_and_marks_scroll_region():
@@ -3059,7 +3105,7 @@ def test_preset_editor_template_moves_secondary_actions_into_mobile_more_menu_an
 
     assert 'preset-editor-mobile-more-menu' in source
     assert '@click="saveAs()"' in mobile_more_menu_block
-    assert '@click="renamePreset()"' in mobile_more_menu_block
+    assert '@click="renamePreset()"' not in mobile_more_menu_block
     assert '@click="deletePreset()"' in mobile_more_menu_block
     assert '@click="createSnapshot(false)"' in mobile_more_menu_block
     assert '@click="createSnapshot(true)"' in mobile_more_menu_block

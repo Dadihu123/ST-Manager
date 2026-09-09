@@ -163,12 +163,6 @@ CHAT_COMPLETION_SECTIONS = [
 # fields, while the editor and reader use these broader workspaces.
 CHAT_COMPLETION_WORKSPACE_SECTIONS = [
     {
-        'id': 'connection',
-        'label': '连接与模型',
-        'description': '选择来源，模型以及当前来源需要的连接设置',
-        'legacy_sections': ['provider_and_models', 'connection_and_endpoints'],
-    },
-    {
         'id': 'generation',
         'label': '生成参数',
         'description': '上下文、回复长度、采样与惩罚参数',
@@ -179,16 +173,22 @@ CHAT_COMPLETION_WORKSPACE_SECTIONS = [
         ],
     },
     {
-        'id': 'prompt_options',
-        'label': '提示词设置',
-        'description': '系统提示、Utility Prompts 与继续生成行为',
-        'legacy_sections': ['templates_and_features'],
+        'id': 'connection',
+        'label': '连接与模型',
+        'description': '选择来源，模型以及当前来源需要的连接设置',
+        'legacy_sections': ['provider_and_models', 'connection_and_endpoints'],
     },
     {
         'id': 'features',
         'label': '功能开关',
         'description': '工具调用、推理、多模态与高级请求选项',
         'legacy_sections': ['images_and_advanced'],
+    },
+    {
+        'id': 'prompt_options',
+        'label': '提示词设置',
+        'description': '系统提示、Utility Prompts 与继续生成行为',
+        'legacy_sections': ['templates_and_features'],
     },
 ]
 

@@ -339,6 +339,12 @@ export default function presetEditor() {
       );
     },
 
+    updatePresetName(value) {
+      if (!this.editingData) return;
+      this.editingData.name = String(value ?? "");
+      this.markDirtyWithoutRefresh("name");
+    },
+
     get presetKind() {
       return this.editingPresetFile?.preset_kind || "";
     },
@@ -402,17 +408,12 @@ export default function presetEditor() {
     },
 
     getMobileHeaderMetaLine() {
-      const kind =
-        this.editingPresetFile?.preset_kind_label ||
-        this.presetKind ||
-        this.editingPresetFile?.type ||
-        "预设";
       const path =
         this.editingPresetFile?.path ||
         this.editingPresetFile?.file_path ||
         this.editingPresetFile?.name ||
         "未定位文件";
-      return `${kind} · ${path}`;
+      return path;
     },
 
     getCompactHeaderStatusLabel() {
