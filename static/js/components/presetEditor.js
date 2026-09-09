@@ -26,8 +26,6 @@ import {
   setActiveRuntimeContext,
 } from "../runtime/runtimeContext.js";
 
-const PRESET_DRAFT_PREFIX = "st-manager:preset-draft:";
-
 const PROMPT_ROLE_OPTIONS = [
   { value: "system", label: "系统" },
   { value: "user", label: "用户" },
@@ -233,7 +231,6 @@ export default function presetEditor() {
     searchTerm: "",
     uiFilter: "all",
     showMobileSidebar: false,
-    showRightPanel: true,
     showMobilePromptDetailView: false,
     presetEditorMobileHeaderCompact: false,
     presetEditorLastScrollTop: 0,
@@ -262,7 +259,6 @@ export default function presetEditor() {
     pendingLargeEditorSaveHandler: null,
     pendingAdvancedEditorApplyHandler: null,
     pendingAdvancedEditorPersistHandler: null,
-    draftState: { savedAt: "", restored: false },
     sectionLabels: SECTION_LABELS,
     promptRoleOptions: PROMPT_ROLE_OPTIONS,
     promptTriggerOptions: PROMPT_TRIGGER_OPTIONS,
@@ -280,6 +276,10 @@ export default function presetEditor() {
         if (!this.showPresetEditor || !this.editingPresetFile) return;
         if (detail.id && detail.id !== this.editingPresetFile.id) return;
         this.reloadFromDisk();
+      });
+
+      window.addEventListener("settings-saved", () => {
+        if (this.showPresetEditor) this.restartAutoSaver();
       });
 
       window.addEventListener("beforeunload", (event) => {
@@ -318,9 +318,14 @@ export default function presetEditor() {
       this.$watch("$store.global.deviceType", (deviceType) => {
         this.resetMobileHeaderState();
         this.showMobileSidebar = false;
-        this.showRightPanel = deviceType !== "mobile";
         this.showMobilePromptDetailView = false;
         this.updatePresetEditorLayoutMetrics();
+      });
+      this.$watch("$store.global.settingsForm.auto_save_enabled", () => {
+        if (this.showPresetEditor) this.restartAutoSaver();
+      });
+      this.$watch("$store.global.settingsForm.auto_save_interval", () => {
+        if (this.showPresetEditor) this.restartAutoSaver();
       });
     },
 
@@ -332,6 +337,12 @@ export default function presetEditor() {
       return (
         this.editingData?.name || this.editingPresetFile?.name || "未命名预设"
       );
+    },
+
+    updatePresetName(value) {
+      if (!this.editingData) return;
+      this.editingData.name = String(value ?? "");
+      this.markDirtyWithoutRefresh("name");
     },
 
     get presetKind() {
@@ -346,6 +357,22 @@ export default function presetEditor() {
 
     get hasMultipleVersions() {
       return this.availableVersions.length > 1;
+    },
+
+    get autoSaveEnabled() {
+      return Boolean(this.$store?.global?.settingsForm?.auto_save_enabled);
+    },
+
+    get autoSaveStatusLabel() {
+      if (!this.autoSaveEnabled) return "自动快照未启用";
+      const interval = Math.min(
+        60,
+        Math.max(
+          1,
+          Number(this.$store?.global?.settingsForm?.auto_save_interval) || 3,
+        ),
+      );
+      return `自动快照 · ${interval} 分钟`;
     },
 
     buildReopenContext() {
@@ -381,17 +408,12 @@ export default function presetEditor() {
     },
 
     getMobileHeaderMetaLine() {
-      const kind =
-        this.editingPresetFile?.preset_kind_label ||
-        this.presetKind ||
-        this.editingPresetFile?.type ||
-        "预设";
       const path =
         this.editingPresetFile?.path ||
         this.editingPresetFile?.file_path ||
         this.editingPresetFile?.name ||
         "未定位文件";
-      return `${kind} · ${path}`;
+      return path;
     },
 
     getCompactHeaderStatusLabel() {
@@ -437,25 +459,11 @@ export default function presetEditor() {
       this.updatePresetEditorLayoutMetrics();
     },
 
-    toggleMobileRightPanel() {
-      this.revealMobileHeader();
-      this.showMobileHeaderMoreMenu = false;
-      this.showRightPanel = !this.showRightPanel;
-      this.updatePresetEditorLayoutMetrics();
-    },
-
-    closeMobileRightPanel() {
-      this.showRightPanel = false;
-      this.showMobileHeaderMoreMenu = false;
-      this.updatePresetEditorLayoutMetrics();
-    },
-
     openMobilePromptDetailView() {
       this.revealMobileHeader();
       this.showMobileHeaderMoreMenu = false;
       this.showMobileSidebar = false;
       this.showMobilePromptDetailView = true;
-      this.showRightPanel = false;
       this.updatePresetEditorLayoutMetrics();
     },
 
@@ -464,7 +472,6 @@ export default function presetEditor() {
       this.showMobileHeaderMoreMenu = false;
       this.showMobileSidebar = false;
       this.showMobilePromptDetailView = false;
-      this.showRightPanel = false;
       this.updatePresetEditorLayoutMetrics();
     },
 
@@ -486,7 +493,6 @@ export default function presetEditor() {
       }
       if (
         this.showMobileSidebar ||
-        this.showRightPanel ||
         this.showMobileHeaderMoreMenu
       ) {
         return;
@@ -873,48 +879,6 @@ export default function presetEditor() {
         regexCount: summary.regex_count,
         scriptCount: summary.script_count,
       };
-    },
-
-    buildDraftKey() {
-      return `${PRESET_DRAFT_PREFIX}${this.editingPresetFile?.id || "unknown"}`;
-    },
-
-    persistLocalDraft() {
-      if (!this.editingData || !this.editingPresetFile) return;
-      const payload = {
-        saved_at: new Date().toISOString(),
-        source_revision: this.editingPresetFile.source_revision || "",
-        content: this.editingData,
-      };
-      localStorage.setItem(this.buildDraftKey(), JSON.stringify(payload));
-      this.draftState.savedAt = payload.saved_at;
-    },
-
-    restoreLocalDraft() {
-      if (!this.editingPresetFile) return false;
-      const raw = localStorage.getItem(this.buildDraftKey());
-      if (!raw) return false;
-      try {
-        const payload = JSON.parse(raw);
-        if (payload?.content && confirm("检测到本地草稿，是否恢复到编辑器？")) {
-          this.editingData = payload.content;
-          this.dirtyPaths = {};
-          this.markAllReaderItemsDirty();
-          this.draftState.savedAt = payload.saved_at || "";
-          this.draftState.restored = true;
-          this.refreshEditorCollections();
-          return true;
-        }
-      } catch (error) {
-        console.warn("Restore preset draft failed:", error);
-      }
-      return false;
-    },
-
-    clearLocalDraft() {
-      if (!this.editingPresetFile) return;
-      localStorage.removeItem(this.buildDraftKey());
-      this.draftState = { savedAt: "", restored: false };
     },
 
     isItemDirty(item) {
@@ -1930,6 +1894,9 @@ export default function presetEditor() {
 
     selectGroup(groupId) {
       this.revealMobileHeader();
+      if (this.$store?.global?.deviceType === "mobile") {
+        this.closeMobileSidebar();
+      }
       const previousItemId = this.activeItemId;
       this.activeGroup = groupId || "all";
       this.refreshEditorCollections();
@@ -1953,6 +1920,9 @@ export default function presetEditor() {
 
     selectWorkspace(workspaceId) {
       this.revealMobileHeader();
+      if (this.$store?.global?.deviceType === "mobile") {
+        this.closeMobileSidebar();
+      }
       this.activeWorkspace =
         workspaceId || (this.isPromptWorkspaceEditor ? "prompts" : "all");
       if (!this.isPromptWorkspaceEditor) {
@@ -1964,9 +1934,6 @@ export default function presetEditor() {
       if (this.activeWorkspace === "prompts") {
         this.activeMirroredFieldId = "";
         this.refreshEditorCollections();
-        if (this.$store?.global?.deviceType !== "mobile") {
-          this.showRightPanel = true;
-        }
         return;
       }
 
@@ -1974,6 +1941,39 @@ export default function presetEditor() {
       this.activeGroup = this.activeWorkspace;
       this.refreshEditorCollections();
       this.syncActiveMirroredField();
+    },
+
+    getAutoSavePayload() {
+      if (!this.editingPresetFile || !this.editingData) return null;
+      return {
+        id: this.editingPresetFile.id,
+        type: "preset",
+        file_path:
+          this.editingPresetFile.file_path || this.editingPresetFile.path || "",
+        content: this.editingData,
+      };
+    },
+
+    restartAutoSaver() {
+      autoSaver.stop();
+      if (!this.showPresetEditor || !this.editingData) return;
+      autoSaver.initBaseline(this.editingData);
+      autoSaver.start(
+        () => this.editingData,
+        () => this.getAutoSavePayload(),
+      );
+    },
+
+    openSnapshotSettings() {
+      if (this.$store?.global) {
+        this.$store.global.showSettingsModal = true;
+      }
+      window.dispatchEvent(
+        new CustomEvent("open-settings-section", {
+          detail: { section: "maintenance" },
+        }),
+      );
+      this.showMobileHeaderMoreMenu = false;
     },
 
     selectItem(itemId) {
@@ -2502,7 +2502,6 @@ export default function presetEditor() {
         this.activeGenericItemId = reopenContext?.activeGenericItemId || "";
         this.activeItemId = reopenContext?.activeItemId || "";
         this.showMobileSidebar = false;
-        this.showRightPanel = this.$store?.global?.deviceType !== "mobile";
         this.showMobilePromptDetailView = false;
         this.resetMobileHeaderState();
         this.showPromptTriggers = false;
@@ -2514,7 +2513,6 @@ export default function presetEditor() {
           this.selectGroup(this.activeGroup || "all");
         }
         this.showPresetEditor = true;
-        this.draftState = { savedAt: "", restored: false };
         this.hasConflict = false;
         this.conflictRevision = "";
 
@@ -2528,15 +2526,7 @@ export default function presetEditor() {
         });
 
         this.$nextTick(() => {
-          this.restoreLocalDraft();
-          autoSaver.initBaseline(this.editingData);
-          autoSaver.start(
-            () => this.editingData,
-            () => null,
-            async () => {
-              this.persistLocalDraft();
-            },
-          );
+          this.restartAutoSaver();
           this.updatePresetEditorLayoutMetrics();
         });
       } catch (error) {
@@ -2549,10 +2539,6 @@ export default function presetEditor() {
 
     async reloadFromDisk() {
       if (!this.editingPresetFile?.id) return;
-      const preserveDraft = this.isDirty;
-      if (preserveDraft) {
-        this.persistLocalDraft();
-      }
       await this.openPresetEditor({ presetId: this.editingPresetFile.id });
     },
 
@@ -2567,9 +2553,6 @@ export default function presetEditor() {
     closeEditor() {
       if (this.isDirty && !confirm("当前预设有未保存修改，确定关闭吗？")) {
         return;
-      }
-      if (this.isDirty) {
-        this.persistLocalDraft();
       }
       if (this.pendingLargeEditorSaveHandler) {
         window.removeEventListener(
@@ -2587,7 +2570,6 @@ export default function presetEditor() {
       this.activeItemId = "";
       this.showMobilePromptDetailView = false;
       this.showMobileSidebar = false;
-      this.showRightPanel = this.$store?.global?.deviceType !== "mobile";
       this.resetMobileHeaderState();
       this.showPromptTriggers = false;
       this.promptItemsCache = [];
@@ -2634,8 +2616,7 @@ export default function presetEditor() {
           this.editingPresetFile.raw_data || this.editingData,
         );
         this.markClean();
-        autoSaver.initBaseline(this.editingData);
-        this.clearLocalDraft();
+        this.restartAutoSaver();
         setActiveRuntimeContext({
           preset: {
             id: this.editingPresetFile.id,
@@ -2913,7 +2894,7 @@ export default function presetEditor() {
       }
     },
 
-    async createSnapshot() {
+    async createSnapshot(isKey = false) {
       if (!this.editingPresetFile || !this.editingData) return;
       try {
         const res = await apiCreateSnapshot({
@@ -2921,7 +2902,7 @@ export default function presetEditor() {
           type: "preset",
           file_path:
             this.editingPresetFile.file_path || this.editingPresetFile.path,
-          label: "",
+          label: isKey ? "KEY" : "",
           content: this.editingData,
           compact: true,
         });
@@ -2929,7 +2910,7 @@ export default function presetEditor() {
           this.$store.global.showToast(res.msg || "快照失败", "error");
           return;
         }
-        this.$store.global.showToast("快照已保存");
+        this.$store.global.showToast(isKey ? "关键快照已保存" : "快照已保存");
       } catch (error) {
         console.error(error);
         this.$store.global.showToast("快照失败", "error");

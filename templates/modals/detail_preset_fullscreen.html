@@ -10,6 +10,9 @@
   aria-modal="true"
   aria-label="预设全屏编辑器"
 >
+  <a class="preset-editor-skip-link" href="#preset-editor-workspace">
+    跳转到编辑区
+  </a>
   <div class="flex flex-col h-full w-full overflow-hidden">
     <div
       x-show="$store.global.deviceType !== 'mobile'"
@@ -22,19 +25,20 @@
         </div>
         <div class="preset-editor-heading min-w-0">
           <div class="preset-editor-eyebrow">预设工作台</div>
-          <div class="text-sm font-bold truncate text-[var(--content-primary)]">
-            编辑与校验
-          </div>
+          <label class="preset-editor-name-editor">
+            <span class="sr-only">预设名称</span>
+            <input
+              type="text"
+              class="preset-editor-name-input"
+              :value="editingData?.name ?? editingPresetFile?.name ?? ''"
+              @input="updatePresetName($event.target.value)"
+              @keydown.enter.prevent="$event.target.blur()"
+              :disabled="isSaving"
+              aria-label="预设名称"
+            />
+          </label>
         </div>
-        <div
-          class="preset-editor-kind-badge px-2 py-0.5 rounded text-[10px] font-bold uppercase border border-[var(--border-default)] text-[var(--content-primary)] bg-[var(--surface-container-raised)]"
-          x-text="editingPresetFile?.preset_kind || '预设'"
-        ></div>
-        <div class="min-w-0">
-          <div
-            class="preset-editor-file-title text-sm font-bold truncate text-[var(--content-primary)]"
-            x-text="presetTitle"
-          ></div>
+        <div class="preset-editor-file-meta min-w-0">
           <div
             class="preset-editor-file-path text-[10px] text-[var(--content-muted)] truncate"
             x-text="editingPresetFile?.path || ''"
@@ -43,21 +47,6 @@
       </div>
 
       <div class="preset-editor-header-actions flex items-center gap-2 flex-wrap justify-end">
-        <div class="preset-editor-header-status" role="status" aria-live="polite">
-          <span x-show="isSaving" x-cloak class="preset-editor-status-icon color-text-info" aria-label="正在保存">
-            {{ loading_icon('ui-icon--sm') }}
-          </span>
-          <span x-show="!isSaving && hasConflict" x-cloak class="preset-editor-status-icon color-text-danger" aria-label="存在冲突">
-            {{ icon('alert-triangle', 'ui-icon--sm') }}
-          </span>
-          <span x-show="!isSaving && !hasConflict && isDirty" x-cloak class="preset-editor-status-icon color-text-warning" aria-label="有未保存修改">
-            {{ icon('pencil-edit', 'ui-icon--sm') }}
-          </span>
-          <span x-show="!isSaving && !hasConflict && !isDirty" x-cloak class="preset-editor-status-icon color-text-success" aria-label="已同步">
-            {{ icon('file-check', 'ui-icon--sm') }}
-          </span>
-          <span class="preset-editor-status-label" x-text="isSaving ? '正在保存' : (hasConflict ? '需要处理冲突' : (isDirty ? '有未保存修改' : '已同步'))"></span>
-        </div>
         <div x-show="hasMultipleVersions" class="preset-editor-version-control flex items-center gap-2">
           <span class="preset-editor-control-icon" aria-hidden="true">{{ detail_icon('version', 'ui-icon--sm') }}</span>
           <label class="text-[11px] text-[var(--content-muted)]">版本</label>
@@ -74,115 +63,82 @@
             </template>
           {% endcall %}
         </div>
-        <span
-          class="preset-editor-legacy-status text-[10px] px-2 py-1 rounded border border-[var(--border-default)]"
-          :class="isDirty ? 'color-text-warning color-surface-warning' : 'color-text-success color-surface-success'"
-          x-text="isDirty ? '未保存修改' : '磁盘已同步'"
-        ></span>
-        <span
-          x-show="draftState.savedAt"
-          class="text-[10px] px-2 py-1 rounded border border-[var(--border-default)] color-text-info color-surface-info"
-          x-text="`草稿 ${formatDate(draftState.savedAt, { includeYear: true })}`"
-        ></span>
-        <span
-          x-show="hasConflict"
-          class="text-[10px] px-2 py-1 rounded border color-border-danger color-text-danger color-surface-danger"
-        >
-          检测到磁盘冲突
-        </span>
         <button
           @click="saveOverwrite()"
           :disabled="isSaving"
-          class="btn-primary preset-editor-action-button px-3 py-1.5 text-xs rounded"
+          class="btn-primary preset-editor-action-button preset-editor-tool-button"
           title="保存当前修改"
           aria-label="保存当前修改"
         >
           <span x-show="isSaving" x-cloak aria-hidden="true">{{ loading_icon('ui-icon--sm') }}</span>
           <span x-show="!isSaving" aria-hidden="true">{{ icon('settings-save', 'ui-icon--sm') }}</span>
-          保存
         </button>
         <button
           @click="saveAs()"
-          class="btn-secondary preset-editor-action-button px-3 py-1.5 text-xs rounded"
+          class="btn-secondary preset-editor-action-button preset-editor-tool-button"
           title="另存为新预设"
           aria-label="另存为新预设"
         >
-          <span aria-hidden="true">{{ icon('file-edit', 'ui-icon--sm') }}</span>
-          另存为
+          <span aria-hidden="true">{{ icon('book-save-as', 'ui-icon--sm') }}</span>
         </button>
         <button
           @click="saveAsVersion()"
-          class="btn-secondary preset-editor-action-button px-3 py-1.5 text-xs rounded"
+          class="btn-secondary preset-editor-action-button preset-editor-tool-button"
           title="另存为新版本"
           aria-label="另存为新版本"
         >
           <span aria-hidden="true">{{ icon('file-check', 'ui-icon--sm') }}</span>
-          另存为版本
         </button>
         <button
           x-show="hasMultipleVersions"
           @click="setCurrentVersionAsDefault()"
-          class="btn-secondary preset-editor-action-button px-3 py-1.5 text-xs rounded"
+          class="btn-secondary preset-editor-action-button preset-editor-tool-button"
           title="设为默认版本"
           aria-label="设为默认版本"
         >
           <span aria-hidden="true">{{ icon('pin', 'ui-icon--sm') }}</span>
-          设为默认版本
-        </button>
-        <button
-          @click="renamePreset()"
-          class="btn-secondary preset-editor-action-button px-3 py-1.5 text-xs rounded"
-          title="重命名预设"
-          aria-label="重命名预设"
-        >
-          <span aria-hidden="true">{{ icon('pencil-edit', 'ui-icon--sm') }}</span>
-          重命名
         </button>
         <button
           @click="deletePreset()"
-          class="btn-secondary preset-editor-action-button color-hover-text-danger px-3 py-1.5 text-xs rounded"
+          class="btn-secondary preset-editor-action-button preset-editor-tool-button color-hover-text-danger"
           title="删除预设"
           aria-label="删除预设"
         >
           <span aria-hidden="true">{{ icon('trash', 'ui-icon--sm') }}</span>
-          删除
         </button>
         <button
-          @click="createSnapshot()"
-          class="btn-secondary preset-editor-action-button px-3 py-1.5 text-xs rounded"
-          title="创建预设快照"
-          aria-label="创建预设快照"
+          @click="createSnapshot(false)"
+          @contextmenu.prevent="createSnapshot(true)"
+          class="btn-secondary preset-editor-action-button preset-editor-tool-button"
+          title="左键创建普通快照，右键创建关键快照"
+          aria-label="创建预设快照（左键普通快照，右键关键快照）"
         >
           <span aria-hidden="true">{{ icon('snapshot', 'ui-icon--sm') }}</span>
-          创建快照
         </button>
         <button
           @click="openRollback()"
-          class="btn-secondary preset-editor-action-button px-3 py-1.5 text-xs rounded"
+          class="btn-secondary preset-editor-action-button preset-editor-tool-button"
           title="打开预设回滚"
           aria-label="打开预设回滚"
         >
           <span aria-hidden="true">{{ icon('history-rollback', 'ui-icon--sm') }}</span>
-          回滚
         </button>
         <button
           @click="openAdvancedExtensions()"
-          class="btn-secondary preset-editor-action-button px-3 py-1.5 text-xs rounded"
+          class="btn-secondary preset-editor-action-button preset-editor-tool-button"
           title="编辑正则与 ST 脚本扩展"
           aria-label="编辑正则与 ST 脚本扩展"
         >
-          <span aria-hidden="true">{{ sidebar_icon('script-brackets', 'ui-icon--sm') }}</span>
-          编辑扩展
+          <span aria-hidden="true">{{ detail_icon('editor', 'ui-icon--sm') }}</span>
         </button>
         <button
           @click="closeEditor()"
-          class="btn-secondary px-3 py-1.5 text-xs rounded color-hover-text-danger"
+          class="btn-secondary preset-editor-tool-button color-hover-text-danger"
           type="button"
           title="关闭预设编辑器"
           aria-label="关闭预设编辑器"
         >
           <span aria-hidden="true">{{ icon('close', 'ui-icon--sm') }}</span>
-          关闭
         </button>
       </div>
     </div>
@@ -195,19 +151,19 @@
       x-ref="presetEditorMobileHeader"
     >
       <div class="preset-editor-mobile-header-top">
-        <button
-          @click="closeEditor()"
-          class="btn-secondary px-3 py-1.5 text-xs rounded shrink-0"
-          type="button"
-          title="关闭预设编辑器"
-          aria-label="关闭预设编辑器"
-        >
-          <span aria-hidden="true">{{ icon('close', 'ui-icon--sm') }}</span>
-          关闭
-        </button>
-
         <div class="preset-editor-mobile-title-block">
-          <div class="preset-editor-mobile-title" x-text="presetTitle"></div>
+          <label class="preset-editor-mobile-name-editor">
+            <span class="sr-only">预设名称</span>
+            <input
+              type="text"
+              class="preset-editor-mobile-title"
+              :value="editingData?.name ?? editingPresetFile?.name ?? ''"
+              @input="updatePresetName($event.target.value)"
+              @keydown.enter.prevent="$event.target.blur()"
+              :disabled="isSaving"
+              aria-label="预设名称"
+            />
+          </label>
           <div
             class="preset-editor-mobile-subtitle"
             x-text="getMobileHeaderMetaLine()"
@@ -221,7 +177,6 @@
         >
           <span x-show="isSaving" x-cloak aria-hidden="true">{{ loading_icon('ui-icon--sm') }}</span>
           <span x-show="!isSaving" aria-hidden="true">{{ icon('settings-save', 'ui-icon--sm') }}</span>
-          保存
         </button>
 
         <button
@@ -232,7 +187,16 @@
           aria-label="打开更多操作"
         >
           <span aria-hidden="true">{{ icon('quick-actions', 'ui-icon--sm') }}</span>
-          更多
+        </button>
+
+        <button
+          @click="closeEditor()"
+          class="btn-secondary preset-editor-mobile-close px-3 py-1.5 text-xs rounded shrink-0"
+          type="button"
+          title="关闭预设编辑器"
+          aria-label="关闭预设编辑器"
+        >
+          <span aria-hidden="true">{{ icon('close', 'ui-icon--sm') }}</span>
         </button>
       </div>
 
@@ -256,18 +220,6 @@
         {% endcall %}
       </div>
 
-      <div class="preset-editor-mobile-header-bottom">
-        <span
-          class="preset-editor-mobile-status-chip"
-          :class="hasConflict ? 'is-danger' : (isDirty ? 'is-warn' : 'is-ok')"
-          x-text="getCompactHeaderStatusLabel()"
-        ></span>
-        <span
-          x-show="draftState.savedAt"
-          class="preset-editor-mobile-status-text"
-          x-text="`草稿 ${formatDate(draftState.savedAt, { includeYear: true })}`"
-        ></span>
-      </div>
     </div>
 
     <div
@@ -282,7 +234,7 @@
         class="btn-secondary px-3 py-2 text-sm rounded-xl"
         role="menuitem"
       >
-        <span aria-hidden="true">{{ icon('file-edit', 'ui-icon--sm') }}</span>
+        <span aria-hidden="true">{{ icon('book-save-as', 'ui-icon--sm') }}</span>
         另存为
       </button>
       <button
@@ -303,14 +255,6 @@
         设为默认版本
       </button>
       <button
-        @click="renamePreset()"
-        class="btn-secondary px-3 py-2 text-sm rounded-xl"
-        role="menuitem"
-      >
-        <span aria-hidden="true">{{ icon('pencil-edit', 'ui-icon--sm') }}</span>
-        重命名
-      </button>
-      <button
         @click="deletePreset()"
         class="btn-secondary px-3 py-2 text-sm rounded-xl color-text-danger"
         role="menuitem"
@@ -319,12 +263,20 @@
         删除
       </button>
       <button
-        @click="createSnapshot()"
+        @click="createSnapshot(false)"
         class="btn-secondary px-3 py-2 text-sm rounded-xl"
         role="menuitem"
       >
         <span aria-hidden="true">{{ icon('snapshot', 'ui-icon--sm') }}</span>
         创建快照
+      </button>
+      <button
+        @click="createSnapshot(true)"
+        class="btn-secondary px-3 py-2 text-sm rounded-xl"
+        role="menuitem"
+      >
+        <span aria-hidden="true">{{ icon('snapshot', 'ui-icon--sm') }}</span>
+        创建关键快照
       </button>
       <button
         @click="openRollback()"
@@ -339,7 +291,7 @@
         class="btn-secondary px-3 py-2 text-sm rounded-xl"
         role="menuitem"
       >
-        <span aria-hidden="true">{{ sidebar_icon('script-brackets', 'ui-icon--sm') }}</span>
+        <span aria-hidden="true">{{ detail_icon('editor', 'ui-icon--sm') }}</span>
         编辑扩展
       </button>
     </div>
@@ -608,7 +560,10 @@
             </div>
           </div>
 
-          <div class="preset-editor-mobile-stage-controls flex items-center justify-between gap-3 mb-4 md:hidden">
+          <div
+            x-show="$store.global.deviceType === 'mobile'"
+            class="preset-editor-mobile-stage-controls flex items-center gap-3 mb-4"
+          >
             <button
               @click="openMobileSidebar()"
               class="btn-secondary preset-editor-mobile-stage-button px-3 py-1.5 text-xs rounded"
@@ -617,14 +572,17 @@
               <span aria-hidden="true">{{ icon('list', 'ui-icon--sm') }}</span>
               字段导航
             </button>
-            <button
-              @click="toggleMobileRightPanel()"
-              class="btn-secondary preset-editor-mobile-stage-button px-3 py-1.5 text-xs rounded"
-              type="button"
+            <div
+              class="preset-editor-stage-indicator preset-editor-mobile-stage-status"
+              role="status"
+              aria-live="polite"
             >
-              <span aria-hidden="true">{{ icon('clipboard', 'ui-icon--sm') }}</span>
-              右侧信息
-            </button>
+              <span
+                class="preset-editor-stage-indicator-dot"
+                :class="hasConflict ? 'is-danger' : (isDirty ? 'is-warning' : 'is-ready')"
+              ></span>
+              <span x-text="hasConflict ? '冲突待处理' : (isSaving ? '保存中' : (isDirty ? '编辑中' : '已同步'))"></span>
+            </div>
           </div>
 
           <template x-if="isPromptWorkspaceEditor && activeWorkspace === 'prompts'">
@@ -749,7 +707,7 @@
                         >
                           <article
                             @click="selectPrompt(prompt.__identifier)"
-                            class="rounded-xl border p-3 transition-colors cursor-pointer"
+                            class="preset-prompt-card relative rounded-xl border p-3 transition-colors cursor-pointer"
                             :class="activePromptId === prompt.__identifier ? 'color-border-action color-surface-action' : 'border-[var(--border-default)] bg-[var(--surface-page)] hover:border-[var(--accent-action)]/20'"
                           >
                             <div class="flex items-start justify-between gap-3">
@@ -808,7 +766,7 @@
                                 class="px-2 py-0.5 rounded-full border border-dashed border-[var(--border-default)] text-[var(--content-muted)]"
                               >未加入顺序</span>
                             </div>
-                            <div class="mt-3 flex items-center gap-2">
+                            <div class="preset-prompt-order-controls mt-3 flex items-center gap-1">
                               <button
                                 type="button"
                                 @click.stop="movePromptItem(index, index - 1)"
@@ -1061,12 +1019,17 @@
                                 <span class="block font-semibold">禁止覆盖</span>
                                 <span class="block text-[11px] text-[var(--content-muted)]">保留当前系统提示词，不允许角色卡覆盖。</span>
                               </span>
-                              <input
-                                type="checkbox"
-                                :disabled="!isPromptEditAllowed(activePromptItem)"
-                                :checked="!!activePromptItem?.forbid_overrides"
-                                @change="updatePromptField('forbid_overrides', $event.target.checked)"
-                              />
+                              <span class="preset-switch" role="switch" :aria-checked="activePromptItem?.forbid_overrides ? 'true' : 'false'">
+                                <input
+                                  type="checkbox"
+                                  class="peer preset-switch-input"
+                                  :disabled="!isPromptEditAllowed(activePromptItem)"
+                                  :checked="!!activePromptItem?.forbid_overrides"
+                                  @change="updatePromptField('forbid_overrides', $event.target.checked)"
+                                />
+                                <span class="preset-switch-track"></span>
+                                <span class="preset-switch-thumb" :class="activePromptItem?.forbid_overrides ? 'is-on' : 'is-off'"></span>
+                              </span>
                             </label>
 
                             <template x-if="activePromptItem">
@@ -1219,7 +1182,7 @@
                       >
                         <article
                           @click="selectPrompt(prompt.__identifier)"
-                          class="rounded-xl border p-3 transition-colors cursor-pointer"
+                          class="preset-prompt-card relative rounded-xl border p-3 transition-colors cursor-pointer"
                           :class="activePromptId === prompt.__identifier ? 'color-border-action color-surface-action' : 'border-[var(--border-default)] bg-[var(--surface-page)] hover:border-[var(--accent-action)]/20'"
                         >
                           <div class="flex items-start justify-between gap-3">
@@ -1278,7 +1241,7 @@
                               class="px-2 py-0.5 rounded-full border border-dashed border-[var(--border-default)] text-[var(--content-muted)]"
                             >未加入顺序</span>
                           </div>
-                          <div class="mt-3 flex items-center gap-2">
+                          <div class="preset-prompt-order-controls mt-3 flex items-center gap-1">
                             <button
                               type="button"
                               @click.stop="movePromptItem(index, index - 1)"
@@ -1542,12 +1505,17 @@
                               <span class="block font-semibold">禁止覆盖</span>
                               <span class="block text-[11px] text-[var(--content-muted)]">保留当前系统提示词，不允许角色卡覆盖。</span>
                             </span>
-                            <input
-                              type="checkbox"
-                              :disabled="!isPromptEditAllowed(activePromptItem)"
-                              :checked="!!activePromptItem?.forbid_overrides"
-                              @change="updatePromptField('forbid_overrides', $event.target.checked)"
-                            />
+                            <span class="preset-switch" role="switch" :aria-checked="activePromptItem?.forbid_overrides ? 'true' : 'false'">
+                              <input
+                                type="checkbox"
+                                class="peer preset-switch-input"
+                                :disabled="!isPromptEditAllowed(activePromptItem)"
+                                :checked="!!activePromptItem?.forbid_overrides"
+                                @change="updatePromptField('forbid_overrides', $event.target.checked)"
+                              />
+                              <span class="preset-switch-track"></span>
+                              <span class="preset-switch-thumb" :class="activePromptItem?.forbid_overrides ? 'is-on' : 'is-off'"></span>
+                            </span>
                           </label>
 
                           <template x-if="activePromptItem">
@@ -1618,7 +1586,7 @@
                       <label
                         class="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-page)] p-4 space-y-2"
                       >
-                        <div class="flex items-start justify-between gap-3">
+                        <div class="flex items-center justify-between gap-3">
                           <div class="min-w-0">
                             <div
                               class="text-sm font-semibold text-[var(--content-primary)]"
@@ -1630,26 +1598,28 @@
                             ></div>
                           </div>
                           <span
+                            x-show="field.editor !== 'boolean'"
                             class="px-2 py-0.5 rounded-full text-[10px] border border-[var(--border-default)] text-[var(--content-muted)]"
                             x-text="field.editor || 'text'"
                           ></span>
-                        </div>
-
-                        <template x-if="field.editor === 'boolean'">
-                          <div
-                            class="flex items-center justify-between gap-3 rounded-xl border border-[var(--border-default)] bg-[var(--surface-container)] px-3 py-2"
+                          <label
+                            x-show="field.editor === 'boolean'"
+                            class="preset-editor-inline-toggle"
+                            @click.stop
                           >
-                            <span class="text-sm text-[var(--content-primary)]"
-                              >启用</span
-                            >
-                            <input
-                              type="checkbox"
-                              class="rounded"
-                              :checked="Boolean(getScalarWorkspaceFieldValue(field.storage_key))"
-                              @change="setScalarWorkspaceFieldValue(field.storage_key, $event.target.checked)"
-                            />
-                          </div>
-                        </template>
+                            <span class="sr-only" x-text="field.label || '切换字段'"></span>
+                            <span class="preset-switch" role="switch" :aria-checked="getScalarWorkspaceFieldValue(field.storage_key) ? 'true' : 'false'">
+                              <input
+                                type="checkbox"
+                                class="peer preset-switch-input"
+                                :checked="Boolean(getScalarWorkspaceFieldValue(field.storage_key))"
+                                @change="setScalarWorkspaceFieldValue(field.storage_key, $event.target.checked)"
+                              />
+                              <span class="preset-switch-track"></span>
+                              <span class="preset-switch-thumb" :class="getScalarWorkspaceFieldValue(field.storage_key) ? 'is-on' : 'is-off'"></span>
+                            </span>
+                          </label>
+                        </div>
 
                         <template x-if="field.editor === 'number'">
                           <input
@@ -1817,7 +1787,7 @@
           </template>
 
           <template
-            x-if="isMirroredProfileEditor && editorProfile && (!isPromptWorkspaceEditor || activeWorkspace !== 'prompts')"
+            x-if="isMirroredProfileEditor && editorProfile && !isScalarWorkspaceEditor && (!isPromptWorkspaceEditor || activeWorkspace !== 'prompts')"
           >
             <div class="space-y-4">
               <template
@@ -1855,7 +1825,7 @@
                         :class="activeMirroredField?.id === field.id ? 'color-border-action color-surface-action' : 'border-[var(--border-default)] hover:border-[var(--accent-action)]/20'"
                       >
                         <div class="flex items-center justify-between gap-3">
-                          <div>
+                          <div class="min-w-0">
                             <div
                               class="text-sm font-semibold text-[var(--content-primary)]"
                               x-text="field.label"
@@ -1865,58 +1835,43 @@
                               x-text="field.storage_key"
                             ></div>
                           </div>
-                          <div
-                            class="text-xs font-mono text-[var(--content-secondary)]"
-                            x-text="getProfileFieldDisplayValue(field.id)"
-                          ></div>
+                          <label
+                            x-show="isProfileFieldToggle(field)"
+                            class="preset-editor-inline-toggle"
+                            @click.stop
+                          >
+                            <span class="sr-only" x-text="field.label || '切换字段'"></span>
+                            <span class="preset-switch" role="switch" :aria-checked="getProfileFieldValue(field.id) ? 'true' : 'false'">
+                              <input
+                                type="checkbox"
+                                class="peer preset-switch-input"
+                                :checked="!!getProfileFieldValue(field.id)"
+                                @change="setProfileFieldValue(field.id, $event.target.checked)"
+                              />
+                              <span class="preset-switch-track"></span>
+                              <span class="preset-switch-thumb" :class="getProfileFieldValue(field.id) ? 'is-on' : 'is-off'"></span>
+                            </span>
+                          </label>
                         </div>
 
                         <template x-if="isProfileFieldSlider(field)">
                           <div class="space-y-2">
                             <input
                               type="range"
-                              class="w-full"
+                              class="preset-editor-range w-full"
                               :min="field.min ?? 0"
                               :max="resolveProfileFieldMax(field) ?? (field.min ?? 0)"
                               :step="field.step ?? 1"
                               :value="getProfileFieldValue(field.id) ?? field.default ?? field.min ?? 0"
+                              :style="`--preset-editor-range-progress: ${getProfileFieldPercent(field.id)}%`"
                               @input="setProfileFieldValue(field.id, $event.target.value)"
                             />
-                            <div
-                              class="grid grid-cols-[1fr_auto] gap-3 items-center"
-                            >
-                              <div
-                                class="h-2 rounded-full bg-[var(--surface-container-raised)] overflow-hidden"
-                              >
-                                <div
-                                  class="h-full rounded-full bg-[var(--accent-action)]"
-                                  :style="`width: ${getProfileFieldPercent(field.id)}%`"
-                                ></div>
-                              </div>
-                              <input
-                                type="number"
-                                class="form-input w-28 text-right"
-                                :min="field.min ?? 0"
-                                :max="resolveProfileFieldMax(field) ?? undefined"
-                                :step="field.step ?? 1"
-                                :value="getProfileFieldValue(field.id) ?? field.default ?? ''"
-                                @change="setProfileFieldValue(field.id, $event.target.value)"
-                              />
+                            <div class="flex items-center justify-between gap-3 text-[10px] text-[var(--content-muted)] font-mono">
+                              <span x-text="field.min ?? '-' "></span>
+                              <output class="preset-editor-range-value color-text-action" x-text="getProfileFieldDisplayValue(field.id)"></output>
+                              <span x-text="resolveProfileFieldMax(field) ?? '-' "></span>
                             </div>
                           </div>
-                        </template>
-
-                        <template x-if="isProfileFieldToggle(field)">
-                          <label
-                            class="flex items-center justify-between gap-3 text-sm text-[var(--content-primary)]"
-                          >
-                            <span>开关</span>
-                            <input
-                              type="checkbox"
-                              :checked="!!getProfileFieldValue(field.id)"
-                              @change="setProfileFieldValue(field.id, $event.target.checked)"
-                            />
-                          </label>
                         </template>
 
                         <template x-if="field.control === 'number'">
@@ -2191,12 +2146,6 @@
                       x-text="activeItem?.value_path || activeItem?.source_key || activeItem?.id || '未选择字段' "
                     ></div>
                   </div>
-                  <button
-                    @click="toggleMobileRightPanel()"
-                    class="btn-secondary px-3 py-1.5 text-xs rounded md:hidden"
-                  >
-                    右侧信息
-                  </button>
                 </div>
 
                 <div
@@ -2425,12 +2374,16 @@
                         <label
                           class="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-page)] p-4 flex items-center gap-3 text-sm text-[var(--content-primary)]"
                         >
-                          <input
-                            type="checkbox"
-                            class="rounded"
-                            :checked="Boolean(getFieldValue(activeItem))"
-                            @change="setFieldValue(activeItem, $event.target.checked)"
-                          />
+                          <span class="preset-switch" role="switch" :aria-checked="getFieldValue(activeItem) ? 'true' : 'false'">
+                            <input
+                              type="checkbox"
+                              class="peer preset-switch-input"
+                              :checked="Boolean(getFieldValue(activeItem))"
+                              @change="setFieldValue(activeItem, $event.target.checked)"
+                            />
+                            <span class="preset-switch-track"></span>
+                            <span class="preset-switch-thumb" :class="getFieldValue(activeItem) ? 'is-on' : 'is-off'"></span>
+                          </span>
                           <span
                             x-text="Boolean(getFieldValue(activeItem)) ? '当前为启用状态' : '当前为关闭状态'"
                           ></span>
@@ -2513,234 +2466,6 @@
         </div>
       </main>
 
-      <aside
-        class="preset-editor-context preset-editor-inspector border-l border-[var(--border-subtle)] bg-[var(--surface-container-raised)] flex-shrink-0 overflow-y-auto custom-scrollbar"
-        x-show="showRightPanel || $store.global.deviceType !== 'mobile'"
-        :class="$store.global.deviceType === 'mobile' ? 'preset-editor-mobile-panel preset-editor-mobile-panel--right w-full' : 'w-80'"
-      >
-        <div class="preset-editor-inspector-inner p-4 space-y-4">
-          <div class="flex items-center justify-between gap-3 md:hidden">
-            <div class="flex items-center gap-2 text-sm font-bold text-[var(--content-primary)]">
-              <span aria-hidden="true">{{ icon('clipboard', 'ui-icon--sm') }}</span>
-              <span>检查器</span>
-            </div>
-            <button
-              @click="closeMobileRightPanel()"
-              class="btn-secondary preset-editor-inspector-close px-3 py-1 text-xs rounded"
-              type="button"
-            >
-              <span aria-hidden="true">{{ icon('close', 'ui-icon--sm') }}</span>
-              收起
-            </button>
-          </div>
-
-          <div class="preset-editor-inspector-heading hidden md:flex">
-            <div class="preset-editor-inspector-heading-icon" aria-hidden="true">
-              {{ icon('clipboard', 'ui-icon--md') }}
-            </div>
-            <div class="min-w-0">
-              <div class="preset-editor-panel-kicker">实时检查</div>
-              <div class="preset-editor-panel-title">编辑器检查器</div>
-            </div>
-          </div>
-
-          <div class="preset-editor-inspector-status" role="status" aria-live="polite">
-            <div class="preset-editor-inspector-status-main">
-              <span class="preset-editor-inspector-status-dot" :class="hasConflict ? 'is-danger' : (isDirty ? 'is-warning' : 'is-ready')"></span>
-              <strong x-text="hasConflict ? '外部内容已变化' : (isDirty ? '有未保存修改' : '当前与磁盘同步')"></strong>
-            </div>
-            <div
-              class="preset-editor-inspector-status-detail"
-              x-text="hasConflict ? '保存前请先回滚或重新载入当前版本。' : (isDirty ? '保存会写回当前预设版本。' : '可以继续检查其他配置项。')"
-            ></div>
-          </div>
-
-          <template
-            x-if="isPromptWorkspaceEditor && activeWorkspace === 'prompts'"
-          >
-            <div
-              class="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-container)] p-4 space-y-3"
-            >
-              <div class="text-xs text-[var(--content-muted)]">活动提示词</div>
-              <div
-                class="text-base font-bold text-[var(--content-primary)]"
-                x-text="activePromptItem?.name || activePromptItem?.__identifier || '尚未选择提示词'"
-              ></div>
-              <div
-                class="text-xs text-[var(--content-muted)]"
-                x-text="getPromptRoleLabel(activePromptItem?.role)"
-              ></div>
-              <div class="grid grid-cols-1 gap-2 text-xs">
-                <div>
-                  <div class="text-[var(--content-muted)]">标识符</div>
-                  <div
-                    class="font-mono break-all text-[var(--content-primary)]"
-                    x-text="activePromptItem?.__identifier || '-'"
-                  ></div>
-                </div>
-                <div>
-                  <div class="text-[var(--content-muted)]">位置</div>
-                  <div
-                    class="text-[var(--content-primary)]"
-                    x-text="getPromptPositionLabel(activePromptItem)"
-                  ></div>
-                </div>
-                <div class="flex flex-wrap gap-2">
-                  <span
-                    x-show="activePromptItem?.marker"
-                    class="px-2 py-0.5 rounded-full border color-border-info color-surface-info color-text-info"
-                  >
-                    预留字段
-                  </span>
-                </div>
-              </div>
-            </div>
-          </template>
-
-          <template
-            x-if="!isMirroredProfileEditor && (!isPromptWorkspaceEditor || activeWorkspace !== 'prompts')"
-          >
-            <div
-              class="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-container)] p-4 space-y-3"
-            >
-              <div class="text-xs text-[var(--content-muted)]">活动项</div>
-              <div
-                class="text-base font-bold text-[var(--content-primary)]"
-                x-text="activeItem?.title || activeItem?.key || activeItem?.id || '尚未选择字段' "
-              ></div>
-              <div
-                class="text-xs text-[var(--content-muted)]"
-                x-text="activeItem?.summary || '在左侧选择字段后，这里会显示上下文信息。' "
-              ></div>
-              <div class="grid grid-cols-1 gap-2 text-xs">
-                <div>
-                  <div class="text-[var(--content-muted)]">字段路径</div>
-                  <div
-                    class="font-mono break-all text-[var(--content-primary)]"
-                    x-text="activeItem?.value_path || activeItem?.source_key || '-' "
-                  ></div>
-                </div>
-                <div>
-                  <div class="text-[var(--content-muted)]">编辑器类型</div>
-                  <div
-                    class="text-[var(--content-primary)]"
-                    x-text="activeItem?.editor?.kind || 'unknown'"
-                  ></div>
-                </div>
-              </div>
-            </div>
-          </template>
-
-          <template
-            x-if="isMirroredProfileEditor && (!isPromptWorkspaceEditor || activeWorkspace !== 'prompts')"
-          >
-            <div
-              class="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-container)] p-4 space-y-3"
-            >
-              <template x-if="!activeMirroredField && mirroredWorkspaceFieldItems.length === 0">
-                <div class="text-sm text-[var(--content-muted)]">
-                  当前筛选下没有可用字段。
-                </div>
-              </template>
-              <template x-if="!activeMirroredField && mirroredWorkspaceFieldItems.length > 0">
-                <div class="text-sm text-[var(--content-muted)]">
-                  请先从中间选择一个字段。
-                </div>
-              </template>
-              <template x-if="activeMirroredField">
-                <div class="space-y-3">
-                  <div class="text-xs text-[var(--content-muted)]">当前字段</div>
-                  <div
-                    class="text-base font-bold text-[var(--content-primary)]"
-                    x-text="activeMirroredField?.label || activeMirroredField?.id || '尚未选择字段'"
-                  ></div>
-                  <div
-                    class="text-xs text-[var(--content-muted)]"
-                    x-text="activeMirroredField?.description || '调整当前字段的值会直接影响该分区的生成设置。'"
-                  ></div>
-                  <div class="grid grid-cols-1 gap-2 text-xs">
-                      <div>
-                        <div class="text-[var(--content-muted)]">当前值</div>
-                        <div
-                          class="font-mono break-all text-[var(--content-primary)]"
-                        x-text="formatValue(getProfileFieldValue(activeMirroredField?.id))"
-                        ></div>
-                      </div>
-                    <div>
-                      <div class="text-[var(--content-muted)]">默认值</div>
-                      <div
-                        class="font-mono break-all text-[var(--content-primary)]"
-                        x-text="formatValue(activeMirroredField?.default ?? '-')"
-                      ></div>
-                    </div>
-                  </div>
-                </div>
-              </template>
-            </div>
-            </template>
-          </template>
-
-          <div
-            class="preset-editor-inspector-section rounded-2xl border border-[var(--border-default)] bg-[var(--surface-container)] p-4 space-y-3"
-          >
-            <div class="preset-editor-inspector-section-head">
-              <div class="text-sm font-bold text-[var(--content-primary)]">
-                文件信息
-              </div>
-              <span class="preset-editor-inspector-section-icon" aria-hidden="true">{{ icon('file', 'ui-icon--sm') }}</span>
-            </div>
-            <div class="text-xs text-[var(--content-muted)]">路径</div>
-            <div
-              class="text-xs font-mono break-all text-[var(--content-primary)]"
-              x-text="editingPresetFile?.path || '-' "
-            ></div>
-            <div class="grid grid-cols-2 gap-3 text-xs">
-              <div>
-                <div class="text-[var(--content-muted)]">修改时间</div>
-                <div
-                  class="text-[var(--content-primary)]"
-                  x-text="formatDate(editingPresetFile?.mtime, { includeYear: true })"
-                ></div>
-              </div>
-              <div>
-                <div class="text-[var(--content-muted)]">文件大小</div>
-                <div
-                  class="text-[var(--content-primary)]"
-                  x-text="editingPresetFile?.file_size || 0"
-                ></div>
-              </div>
-            </div>
-          </div>
-
-          <div
-            class="preset-editor-inspector-section rounded-2xl border border-[var(--border-default)] bg-[var(--surface-container)] p-4 space-y-3"
-          >
-            <div class="preset-editor-inspector-section-head">
-              <div class="text-sm font-bold text-[var(--content-primary)]">
-                保存检查
-              </div>
-              <span class="preset-editor-inspector-section-icon" aria-hidden="true">{{ icon('file-check', 'ui-icon--sm') }}</span>
-            </div>
-            <div class="text-xs text-[var(--content-muted)]">修改状态</div>
-            <div
-              class="text-xs"
-              :class="isDirty ? 'color-text-warning' : 'color-text-success'"
-              x-text="isDirty ? '存在未保存修改' : '当前与磁盘同步' "
-            ></div>
-            <div class="text-xs text-[var(--content-muted)]">冲突状态</div>
-            <div
-              class="text-xs"
-              :class="hasConflict ? 'color-text-danger' : 'color-text-success'"
-              x-text="hasConflict ? `冲突 revision: ${conflictRevision || '未知'}` : '未发现冲突' "
-            ></div>
-            <div class="text-xs text-[var(--content-muted)]">草稿状态</div>
-            <div
-              class="text-xs text-[var(--content-primary)]"
-              x-text="draftState.restored ? '已恢复本地草稿' : (draftState.savedAt ? '已自动保存草稿' : '暂无本地草稿')"
-            ></div>
-          </div>
-        </div>
-      </aside>
     </div>
 
     <div

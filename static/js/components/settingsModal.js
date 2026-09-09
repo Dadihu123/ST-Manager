@@ -602,6 +602,24 @@ export default function settingsModal() {
 
     // === 初始化 ===
     init() {
+      if (typeof window !== "undefined") {
+        window.addEventListener("open-settings-section", (event) => {
+          const detail = event.detail || {};
+          const section = detail.section || "maintenance";
+          const anchor =
+            detail.anchor ||
+            (section === "maintenance" ? "settings-maintenance-snapshots" : "");
+          this.openSettings();
+          this.selectSettingTab(section);
+          if (anchor && typeof document !== "undefined") {
+            setTimeout(() => {
+              const target = document.getElementById(anchor);
+              target?.scrollIntoView?.({ behavior: "smooth", block: "start" });
+            }, 0);
+          }
+        });
+      }
+
       // 设置数据直接绑定到 $store.global.settingsForm
       // 无需本地 duplicate
       this.$watch("showSettingsModal", (val) => {
@@ -686,6 +704,14 @@ export default function settingsModal() {
           this.settingsSnapshotDarkMode = Boolean(this.$store.global.isDarkMode);
           this.saveState = res.saved_with_warnings ? "warning" : "saved";
           this.saveMessage = res.saved_with_warnings ? "已保存，有提示" : "已保存";
+          window.dispatchEvent(
+            new CustomEvent("settings-saved", {
+              detail: {
+                auto_save_enabled: Boolean(this.settingsForm.auto_save_enabled),
+                auto_save_interval: Number(this.settingsForm.auto_save_interval) || 3,
+              },
+            }),
+          );
           if (closeModal) this.closeSettings();
         } else {
           this.saveState = "error";

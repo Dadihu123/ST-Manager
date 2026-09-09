@@ -1,0 +1,703 @@
+/* Preset rollback workbench */
+.preset-rollback-overlay {
+  padding: clamp(0.5rem, 2vw, 1.5rem);
+}
+
+.preset-rollback-shell {
+  display: flex;
+  width: min(100%, 118rem);
+  height: min(92dvh, 62rem);
+  max-height: calc(100dvh - 1rem);
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background: var(--surface-container);
+  box-shadow: var(--shadow-xl, 0 1.5rem 4rem var(--surface-scrim));
+}
+
+.preset-rollback-header,
+.preset-rollback-toolbar,
+.preset-rollback-footer {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem 1.1rem;
+  border-bottom: 1px solid var(--border-divider);
+  background: var(--surface-container-raised);
+}
+
+.preset-rollback-header {
+  flex: 0 0 auto;
+}
+
+.preset-rollback-heading,
+.preset-rollback-header-meta,
+.preset-rollback-toolbar-summary,
+.preset-rollback-footer-actions,
+.preset-rollback-side-heading {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.preset-rollback-heading-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  color: var(--action-text);
+}
+
+.preset-rollback-kicker,
+.preset-rollback-toolbar-label,
+.preset-rollback-section-title,
+.preset-rollback-side-label {
+  color: var(--content-muted);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  line-height: 1.25;
+  text-transform: uppercase;
+}
+
+.preset-rollback-title {
+  margin: 0.16rem 0 0;
+  color: var(--content-primary);
+  font-size: 1.08rem;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.preset-rollback-description,
+.preset-rollback-section-caption,
+.preset-rollback-toolbar-muted,
+.preset-rollback-footer-hint {
+  color: var(--content-muted);
+  font-size: 0.72rem;
+  line-height: 1.45;
+}
+
+.preset-rollback-description {
+  margin: 0.28rem 0 0;
+}
+
+.preset-rollback-type,
+.preset-rollback-history-count,
+.preset-rollback-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 1.5rem;
+  padding: 0.2rem 0.5rem;
+  border: 1px solid var(--border-default);
+  border-radius: 4px;
+  color: var(--content-secondary);
+  background: var(--surface-container);
+  font-size: 0.68rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.preset-rollback-loading {
+  display: inline-flex;
+  color: var(--action-text);
+}
+
+.preset-rollback-close {
+  width: 2.5rem;
+  height: 2.5rem;
+  min-width: 2.5rem;
+  padding: 0;
+  border: 0;
+}
+
+.preset-rollback-toolbar {
+  flex: 0 0 auto;
+  padding-block: 0.65rem;
+  background: var(--surface-container);
+}
+
+.preset-rollback-toolbar-summary strong {
+  color: var(--content-primary);
+  font-size: 0.86rem;
+}
+
+.preset-rollback-toolbar-divider {
+  width: 1px;
+  height: 1rem;
+  background: var(--border-divider);
+}
+
+.preset-rollback-mode-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.2rem;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  background: var(--surface-container-raised);
+}
+
+.preset-rollback-mode-switch button {
+  min-height: 2rem;
+  padding: 0.35rem 0.7rem;
+  border: 0;
+  border-radius: 4px;
+  color: var(--content-secondary);
+  background: transparent;
+  cursor: pointer;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.preset-rollback-mode-switch button:hover,
+.preset-rollback-mode-switch button:focus-visible,
+.preset-rollback-mode-switch button.is-active {
+  color: var(--action-text);
+  background: var(--action-surface);
+}
+
+.preset-rollback-layout {
+  display: grid;
+  min-height: 0;
+  flex: 1 1 auto;
+  grid-template-columns: minmax(16rem, 21rem) minmax(0, 1fr);
+}
+
+.preset-rollback-history {
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  border-right: 1px solid var(--border-divider);
+  background: var(--surface-container-raised);
+}
+
+.preset-rollback-history-head {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.9rem;
+  border-bottom: 1px solid var(--border-divider);
+}
+
+.preset-rollback-section-caption {
+  max-width: 16rem;
+  margin-top: 0.3rem;
+}
+
+.preset-rollback-version-list {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.55rem;
+}
+
+.preset-rollback-version {
+  display: flex;
+  min-width: 0;
+  align-items: stretch;
+  gap: 0.35rem;
+  padding: 0.3rem;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+}
+
+.preset-rollback-version:hover,
+.preset-rollback-version:focus-within {
+  border-color: var(--border-default);
+  background: var(--state-hover-surface);
+}
+
+.preset-rollback-version.is-left {
+  border-color: color-mix(in srgb, var(--status-danger-solid) 42%, var(--border-default));
+}
+
+.preset-rollback-version.is-right {
+  box-shadow: inset -2px 0 0 var(--status-success-solid);
+}
+
+.preset-rollback-version-main {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  align-items: flex-start;
+  gap: 0.55rem;
+  padding: 0.42rem;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+
+.preset-rollback-version-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 1.8rem;
+  height: 1.8rem;
+  color: var(--content-muted);
+}
+
+.preset-rollback-version.is-left .preset-rollback-version-icon {
+  color: var(--status-danger-text);
+}
+
+.preset-rollback-version.is-right .preset-rollback-version-icon {
+  color: var(--status-success-text);
+}
+
+.preset-rollback-version-copy {
+  display: grid;
+  min-width: 0;
+  gap: 0.2rem;
+}
+
+.preset-rollback-version-title,
+.preset-rollback-version-meta {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.preset-rollback-version-title {
+  color: var(--content-primary);
+  font-size: 0.76rem;
+  font-weight: 750;
+}
+
+.preset-rollback-version-meta {
+  color: var(--content-muted);
+  font-size: 0.66rem;
+}
+
+.preset-rollback-version-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.preset-rollback-badge {
+  min-height: 1.2rem;
+  padding: 0.1rem 0.35rem;
+  font-size: 0.6rem;
+}
+
+.preset-rollback-badge.is-current {
+  color: var(--action-text);
+  border-color: var(--accent-action);
+  background: var(--action-surface);
+}
+
+.preset-rollback-badge.is-auto {
+  color: var(--status-info-text);
+  border-color: var(--status-info-solid);
+  background: var(--status-info-surface);
+}
+
+.preset-rollback-badge.is-key {
+  color: var(--status-warning-text);
+  border-color: var(--status-warning-solid);
+  background: var(--status-warning-surface);
+}
+
+.preset-rollback-version-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.1rem;
+}
+
+.preset-rollback-icon-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  color: var(--content-muted);
+  background: transparent;
+  cursor: pointer;
+}
+
+.preset-rollback-icon-action:hover,
+.preset-rollback-icon-action:focus-visible,
+.preset-rollback-icon-action.is-selected {
+  color: var(--action-text);
+  background: var(--action-surface);
+}
+
+.preset-rollback-icon-action.is-danger:hover,
+.preset-rollback-icon-action.is-danger:focus-visible {
+  color: var(--status-danger-text);
+  background: var(--status-danger-surface);
+}
+
+.preset-rollback-empty {
+  display: grid;
+  min-height: 10rem;
+  place-items: center;
+  align-content: center;
+  gap: 0.55rem;
+  padding: 1rem;
+  color: var(--content-muted);
+  font-size: 0.75rem;
+}
+
+.preset-rollback-diff {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  position: relative;
+  background: var(--surface-page);
+}
+
+.preset-rollback-compare-head {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border-divider);
+  background: var(--surface-container-raised);
+}
+
+.preset-rollback-side-heading {
+  min-width: 0;
+}
+
+.preset-rollback-side-heading > div {
+  display: grid;
+  min-width: 0;
+  gap: 0.18rem;
+}
+
+.preset-rollback-side-heading strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--content-primary);
+  font-size: 0.76rem;
+}
+
+.preset-rollback-side-heading.is-new {
+  justify-content: flex-end;
+  text-align: right;
+}
+
+.preset-rollback-side-dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--status-danger-solid);
+}
+
+.preset-rollback-side-heading.is-new .preset-rollback-side-dot {
+  background: var(--status-success-solid);
+}
+
+.preset-rollback-compare-arrow {
+  display: inline-flex;
+  color: var(--content-muted);
+}
+
+.preset-rollback-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.5rem;
+  padding: 0.75rem 1rem 0;
+}
+
+.preset-rollback-summary-item {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.55rem 0.65rem;
+  border-left: 3px solid var(--border-default);
+  background: var(--surface-container);
+  color: var(--content-muted);
+  font-size: 0.68rem;
+}
+
+.preset-rollback-summary-item strong {
+  color: var(--content-primary);
+  font-size: 0.9rem;
+}
+
+.preset-rollback-summary-item.is-added {
+  border-left-color: var(--status-success-solid);
+}
+
+.preset-rollback-summary-item.is-removed {
+  border-left-color: var(--status-danger-solid);
+}
+
+.preset-rollback-summary-item.is-changed {
+  border-left-color: var(--status-warning-solid);
+}
+
+.preset-rollback-category-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  padding: 0.65rem 1rem 0;
+}
+
+.preset-rollback-category {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--border-default);
+  background: var(--surface-container);
+  color: var(--content-secondary);
+  font-size: 0.66rem;
+}
+
+.preset-rollback-category-status {
+  color: var(--content-muted);
+}
+
+.preset-rollback-category.is-added {
+  border-color: color-mix(in srgb, var(--status-success-solid) 42%, var(--border-default));
+}
+
+.preset-rollback-category.is-removed {
+  border-color: color-mix(in srgb, var(--status-danger-solid) 42%, var(--border-default));
+}
+
+.preset-rollback-category.is-changed {
+  border-color: color-mix(in srgb, var(--status-warning-solid) 42%, var(--border-default));
+}
+
+.preset-rollback-diff-note {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.65rem 1rem;
+  color: var(--content-muted);
+  font-size: 0.7rem;
+}
+
+.preset-rollback-diff-container {
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  flex: 1 1 auto;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border-top: 1px solid var(--border-divider);
+}
+
+.preset-rollback-pane {
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  background: var(--surface-page);
+}
+
+.preset-rollback-pane + .preset-rollback-pane {
+  border-left: 1px solid var(--border-divider);
+}
+
+.preset-rollback-diff-loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  color: var(--content-primary);
+  background: var(--surface-scrim-soft);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.preset-rollback-footer {
+  flex: 0 0 auto;
+  border-top: 1px solid var(--border-divider);
+  border-bottom: 0;
+  background: var(--surface-container-raised);
+}
+
+.preset-rollback-footer-hint {
+  min-width: 0;
+}
+
+.preset-rollback-footer-button {
+  min-height: 2.65rem;
+  padding-inline: 0.9rem;
+  white-space: nowrap;
+}
+
+.preset-rollback-footer-actions {
+  padding-inline: 0.2rem;
+}
+
+.preset-rollback-footer-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.preset-rollback-shell :where(button):focus-visible {
+  outline: 2px solid var(--state-focus-ring);
+  outline-offset: 2px;
+}
+
+@media (max-width: 767px) {
+  .preset-rollback-overlay {
+    align-items: stretch;
+    padding: 0;
+  }
+
+  .preset-rollback-shell {
+    width: 100%;
+    height: 100dvh;
+    max-height: none;
+    border: 0;
+    border-radius: 0;
+  }
+
+  .preset-rollback-header,
+  .preset-rollback-toolbar,
+  .preset-rollback-footer {
+    padding-inline: 0.8rem;
+  }
+
+  .preset-rollback-description {
+    display: none;
+  }
+
+  .preset-rollback-layout {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .preset-rollback-history {
+    flex: 0 0 auto;
+    max-height: 14.5rem;
+    border-right: 0;
+    border-bottom: 1px solid var(--border-divider);
+  }
+
+  .preset-rollback-version-list {
+    display: flex;
+    overflow-x: auto;
+    padding-inline: 0.55rem;
+  }
+
+  .preset-rollback-version {
+    min-width: min(18rem, 82vw);
+  }
+
+  .preset-rollback-diff {
+    min-height: 0;
+    flex: 1 1 auto;
+  }
+
+  .preset-rollback-summary-grid {
+    padding-inline: 0.8rem;
+  }
+
+  .preset-rollback-diff-note {
+    padding-inline: 0.8rem;
+  }
+
+  .preset-rollback-diff-container {
+    grid-template-columns: 1fr;
+    overflow-y: auto;
+  }
+
+  .preset-rollback-pane {
+    min-height: 12rem;
+    max-height: 50vh;
+  }
+
+  .preset-rollback-pane + .preset-rollback-pane {
+    border-top: 1px solid var(--border-divider);
+    border-left: 0;
+  }
+
+  .preset-rollback-footer {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+
+  .preset-rollback-footer-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .preset-rollback-footer-button {
+    justify-content: center;
+    padding-inline: 0.7rem;
+  }
+
+  .preset-rollback-footer-button span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+@media (max-width: 480px) {
+  .preset-rollback-heading-icon {
+    width: 2rem;
+    height: 2rem;
+  }
+
+  .preset-rollback-title {
+    font-size: 0.98rem;
+  }
+
+  .preset-rollback-toolbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .preset-rollback-mode-switch {
+    width: 100%;
+  }
+
+  .preset-rollback-mode-switch button {
+    flex: 1 1 0;
+  }
+
+  .preset-rollback-summary-grid {
+    gap: 0.3rem;
+  }
+
+  .preset-rollback-summary-item {
+    display: grid;
+    justify-items: center;
+    gap: 0.15rem;
+    padding-inline: 0.35rem;
+  }
+
+  .preset-rollback-footer-actions {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .preset-rollback-shell * {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}

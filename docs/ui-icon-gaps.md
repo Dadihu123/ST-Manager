@@ -15,3 +15,13 @@
 ## 结论
 
 暂无缺失项。正则脚本、ST 脚本、快速回复、导入导出、运行/重载/停止、搜索、来源筛选、运行日志、反馈、删除确认和空状态均使用项目现有 `ui.svg`、`detail.svg`、`sidebar.svg` 或 `preset.svg` 中的语义 SVG。没有使用 emoji 或 Unicode 字符替代图标，因此本次无需中性占位符。
+
+# 预设编辑器 SVG 图标缺口
+
+本次预设全屏编辑器与回滚工作台重构已逐项核对新增和调整的图标入口。
+
+- 缺失 SVG：无
+- 使用中性占位符：无
+- 图标来源：项目现有 `static/icons/ui.svg` 与 `static/icons/detail.svg`
+
+新增入口均使用现有 SVG symbol，并为纯图标按钮补充了 `title` 与 `aria-label`。
