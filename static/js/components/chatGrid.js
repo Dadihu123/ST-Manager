@@ -2943,6 +2943,8 @@ export default function chatGrid() {
     readerShowLeftPanel: true,
     readerShowRightPanel: true,
     readerMobilePanel: "",
+    readerDeleteConfirmOpen: false,
+    readerDeleteTarget: null,
     readerRightTab: "search",
     readerMobileHeaderHidden: false,
     readerLastScrollTop: 0,
@@ -5548,6 +5550,10 @@ export default function chatGrid() {
 
       window.addEventListener("keydown", (e) => {
         if (e.key !== "Escape") return;
+        if (this.readerDeleteConfirmOpen) {
+          this.cancelDeleteChat();
+          return;
+        }
         if (this.regexPresetPickerOpen) {
           this.closeRegexPresetPicker();
           return;
@@ -5680,6 +5686,8 @@ export default function chatGrid() {
       this.replaceStatus = "";
       this.setReaderFeedbackTone();
       this.readerMobilePanel = "";
+      this.readerDeleteConfirmOpen = false;
+      this.readerDeleteTarget = null;
       this.readerRightTab = "search";
       const renderPreferences = loadStoredRenderPreferences();
       this.readerRenderMode = renderPreferences.renderMode;
@@ -5838,6 +5846,87 @@ export default function chatGrid() {
       }
     },
 
+    handleReaderKeydown(event) {
+      if (
+        !this.detailOpen ||
+        this.readerDeleteConfirmOpen ||
+        event.defaultPrevented
+      ) {
+        return;
+      }
+
+      const target = event.target;
+      const tagName = String(target?.tagName || "").toLowerCase();
+      if (
+        target?.isContentEditable ||
+        tagName === "input" ||
+        tagName === "textarea" ||
+        tagName === "select" ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.altKey
+      ) {
+        return;
+      }
+
+      if (event.key === "/") {
+        event.preventDefault();
+        if (this.readerResponsiveMode === "mobile") {
+          this.setReaderMobilePanel("search");
+        } else {
+          this.readerRightTab = "search";
+          this.readerShowRightPanel = true;
+          this.updateReaderLayoutMetrics();
+        }
+        this.$nextTick(() => {
+          document.querySelector("[data-reader-search-input]")?.focus();
+        });
+        return;
+      }
+
+      const stepByKey = {
+        j: 1,
+        ArrowDown: 1,
+        k: -1,
+        ArrowUp: -1,
+      };
+      const delta = stepByKey[event.key];
+      if (!delta) return;
+
+      event.preventDefault();
+      this.stepReaderKeyboardFloor(delta);
+    },
+
+    stepReaderKeyboardFloor(delta) {
+      if (!this.activeChat) return;
+
+      const total = Math.max(
+        1,
+        Number(this.readerTotalMessages || this.activeChat.message_count || 1),
+      );
+      const current = Math.min(
+        Math.max(
+          1,
+          Number(
+            this.readerViewportFloor ||
+              this.effectiveReaderAnchorFloor ||
+              this.activeChat.last_view_floor ||
+              1,
+          ),
+        ),
+        total,
+      );
+      const next = Math.min(total, Math.max(1, current + Number(delta || 0)));
+      if (next === current) return;
+
+      void this.scrollToFloor(
+        next,
+        true,
+        "smooth",
+        READER_ANCHOR_SOURCES.JUMP,
+      );
+    },
+
     closeChatDetail() {
       this.logReaderScrollDebug("close_chat_detail_start", {
         activeChatId: String(this.activeChat?.id || ""),
@@ -5866,6 +5955,8 @@ export default function chatGrid() {
       this.replaceStatus = "";
       this.setReaderFeedbackTone();
       this.readerMobilePanel = "";
+      this.readerDeleteConfirmOpen = false;
+      this.readerDeleteTarget = null;
       this.readerRightTab = "search";
       const renderPreferences = loadStoredRenderPreferences();
       this.readerRenderMode = renderPreferences.renderMode;
@@ -9112,9 +9203,33 @@ export default function chatGrid() {
       }
     },
 
-    async deleteChat(item) {
+    requestDeleteChat(item) {
+      if (!item || !item.id) return;
+      this.readerDeleteTarget = item;
+      this.readerDeleteConfirmOpen = true;
+      this.$nextTick(() => {
+        document
+          .querySelector(".chat-reader-delete-confirm [data-autofocus]")
+          ?.focus();
+      });
+    },
+
+    cancelDeleteChat() {
+      this.readerDeleteConfirmOpen = false;
+      this.readerDeleteTarget = null;
+    },
+
+    async confirmDeleteChat() {
+      const target = this.readerDeleteTarget;
+      if (!target) return;
+      this.cancelDeleteChat();
+      await this.deleteChat(target, { skipConfirm: true });
+    },
+
+    async deleteChat(item, options = {}) {
       if (!item || !item.id) return;
       if (
+        !options.skipConfirm &&
         !confirm(
           `确定将聊天记录 "${item.title || item.chat_name}" 移至回收站吗？`,
         )
