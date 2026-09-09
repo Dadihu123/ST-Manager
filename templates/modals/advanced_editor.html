@@ -15,16 +15,17 @@
                         {{ icon('file-code', 'ui-icon--sm ') }}
                     </span>
                 </div>
-                <button type="button" x-show="$store.global.deviceType === 'mobile' && !showMobileSidebar"
+                <button type="button" x-show="$store.global.deviceType === 'mobile'"
                     @click="showMobileSidebar = true" class="advanced-mobile-list-trigger advanced-mobile-header-menu"
-                    title="打开条目列表" aria-label="打开条目列表">
-                    {{ icon('list', 'ui-icon--sm ') }}<span>条目</span>
+                    title="打开条目列表" aria-label="打开条目列表" :aria-expanded="showMobileSidebar.toString()">
+                    {{ icon('list', 'ui-icon--md ') }}
                 </button>
                 <div class="advanced-editor-heading-copy">
-                    <span class="advanced-editor-eyebrow">EXTENSIONS / EDITOR</span>
+                    <span class="advanced-editor-eyebrow advanced-editor-eyebrow--desktop">EXTENSIONS / EDITOR</span>
+                    <span class="advanced-editor-eyebrow advanced-editor-eyebrow--mobile">扩展规则</span>
                     <h2 id="advanced-editor-title">高级扩展</h2>
                     <p id="advanced-editor-description">
-                        <span x-text="isFileMode ? getFileTypeLabel() : '预设扩展规则'"></span>
+                        <span class="advanced-editor-context-label" x-text="isFileMode ? getFileTypeLabel() : '扩展规则'"></span>
                         <span class="advanced-editor-heading-separator">/</span>
                         <span class="advanced-editor-active-label" x-text="getActiveEntryLabel() || '等待选择条目'"></span>
                     </p>
@@ -106,6 +107,11 @@
                             <p><span x-text="editingData.extensions?.regex_scripts?.length || 0"></span> 个规则，按列表顺序执行</p>
                         </div>
                         <div class="advanced-list-actions">
+                            <button type="button" x-show="$store.global.deviceType === 'mobile'"
+                                class="advanced-icon-button advanced-mobile-list-close" @click="showMobileSidebar = false"
+                                title="关闭条目列表" aria-label="关闭条目列表">
+                                {{ icon('close', 'ui-icon--md ') }}
+                            </button>
                             <template x-if="!isFileMode">
                                 <button type="button" class="advanced-icon-button" @click="$refs.importRegexInput.click()"
                                     title="导入正则脚本" aria-label="导入正则脚本">
@@ -114,7 +120,7 @@
                             </template>
                             <input type="file" x-ref="importRegexInput" @change="importRegex" accept=".json" hidden>
                             <template x-if="!isFileMode">
-                                <button type="button" class="advanced-text-button advanced-text-button--violet"
+                                <button type="button" class="advanced-text-button advanced-text-button--soft"
                                     @click="addRegexScript()" title="新建正则脚本">
                                     {{ icon('plus-square', 'ui-icon--sm ') }}<span>新建</span>
                                 </button>
@@ -137,7 +143,7 @@
                                     <span class="advanced-entry-preview" x-text="script.findRegex || '尚未填写查找表达式'"></span>
                                     <div class="advanced-entry-tags">
                                         <span x-show="script.runOnEdit" class="advanced-status-chip is-accent">编辑时</span>
-                                        <span x-show="script.placement?.length" class="advanced-status-chip">位置 <span x-text="script.placement.length"></span></span>
+                                        <span x-show="script.placement?.length" class="advanced-status-chip">位置 <span x-text="script.placement?.length || 0"></span></span>
                                         <span x-show="script.disabled" class="advanced-status-chip is-danger">已禁用</span>
                                     </div>
                                 </div>
@@ -422,6 +428,11 @@
                             <p><span x-text="getTavernScripts().length"></span> 个脚本，支持安全运行时</p>
                         </div>
                         <div class="advanced-list-actions">
+                            <button type="button" x-show="$store.global.deviceType === 'mobile'"
+                                class="advanced-icon-button advanced-mobile-list-close" @click="showMobileSidebar = false"
+                                title="关闭条目列表" aria-label="关闭条目列表">
+                                {{ icon('close', 'ui-icon--md ') }}
+                            </button>
                             <template x-if="!isFileMode">
                                 <button type="button" class="advanced-icon-button" @click="$refs.importScriptInput.click()"
                                     title="导入 ST 脚本" aria-label="导入 ST 脚本">
@@ -430,7 +441,7 @@
                             </template>
                             <input type="file" x-ref="importScriptInput" @change="importScript" accept=".json" hidden>
                             <template x-if="!isFileMode">
-                                <button type="button" class="advanced-text-button advanced-text-button--violet" @click="addTavernScript()"
+                                <button type="button" class="advanced-text-button advanced-text-button--soft" @click="addTavernScript()"
                                     title="新建 ST 脚本">
                                     {{ icon('plus-square', 'ui-icon--sm ') }}<span>新建</span>
                                 </button>
@@ -711,7 +722,12 @@
                             <p><span x-text="editingData.quick_reply?.qrList?.length || 0"></span> 个动作，点击条目查看详情</p>
                         </div>
                         <div class="advanced-list-actions">
-                            <button type="button" class="advanced-text-button advanced-text-button--warning" @click="addQrEntry()"
+                            <button type="button" x-show="$store.global.deviceType === 'mobile'"
+                                class="advanced-icon-button advanced-mobile-list-close" @click="showMobileSidebar = false"
+                                title="关闭条目列表" aria-label="关闭条目列表">
+                                {{ icon('close', 'ui-icon--md ') }}
+                            </button>
+                            <button type="button" class="advanced-text-button advanced-text-button--soft" @click="addQrEntry()"
                                 :disabled="!editingData.quick_reply" title="新建快速回复">
                                 {{ icon('plus-square', 'ui-icon--sm ') }}<span>新建</span>
                             </button>
@@ -746,7 +762,7 @@
                                         <span x-show="qr.isHidden" class="advanced-status-chip is-muted">已隐藏</span>
                                     </div>
                                 </div>
-                                <div class="advanced-entry-actions" @click.stop>
+                                <div class="advanced-entry-actions advanced-entry-actions--quick-reply" @click.stop>
                                     <div class="advanced-entry-action-stack advanced-entry-action-stack--file"
                                         role="group" aria-label="删除">
                                         <button type="button" class="advanced-icon-button is-danger" @click="removeQrEntry(idx)"

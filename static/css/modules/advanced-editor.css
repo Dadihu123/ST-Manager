@@ -117,6 +117,10 @@
   text-transform: uppercase;
 }
 
+.advanced-editor-eyebrow--mobile {
+  display: none;
+}
+
 .advanced-editor-heading-copy h2,
 .advanced-editor-heading-copy p,
 .advanced-list-header h3,
@@ -594,11 +598,11 @@ button.advanced-entry {
 }
 
 .advanced-entry-actions {
-  align-items: stretch;
-  display: flex;
+  display: grid;
   flex: 0 0 auto;
-  justify-content: flex-end;
-  gap: 0.22rem;
+  grid-template-columns: repeat(2, 1.72rem);
+  grid-template-rows: repeat(2, 1.72rem);
+  gap: 0.12rem 0.22rem;
   opacity: 0;
   pointer-events: none;
   transition: opacity 140ms ease;
@@ -612,10 +616,7 @@ button.advanced-entry {
 }
 
 .advanced-entry-action-stack {
-  display: flex;
-  flex: 0 0 auto;
-  flex-direction: column;
-  gap: 0.12rem;
+  display: contents;
 }
 
 .advanced-entry-action-stack .advanced-icon-button,
@@ -623,6 +624,31 @@ button.advanced-entry {
   width: 1.72rem;
   height: 1.72rem;
   flex-basis: 1.72rem;
+}
+
+.advanced-entry-action-stack--file .advanced-icon-button:first-child {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.advanced-entry-action-stack--file .advanced-icon-button:last-child {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.advanced-entry-action-stack--order .ui-reorder-button:first-child {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.advanced-entry-action-stack--order .ui-reorder-button:last-child {
+  grid-column: 2;
+  grid-row: 2;
+}
+
+.advanced-entry-actions--quick-reply .advanced-entry-action-stack--file .advanced-icon-button {
+  grid-column: 1;
+  grid-row: 2;
 }
 
 @media (hover: none), (pointer: coarse) {
@@ -727,6 +753,13 @@ button.advanced-entry {
   color: var(--action-text);
   background: var(--action-surface);
   border-color: var(--action-border);
+}
+
+.advanced-text-button--soft:hover,
+.advanced-text-button--soft:focus-visible {
+  color: var(--action-text);
+  background: var(--action-surface-hover);
+  border-color: var(--action-border-hover);
 }
 
 .advanced-text-button--violet {
@@ -1693,6 +1726,10 @@ button.advanced-entry {
   cursor: pointer;
 }
 
+.advanced-mobile-list-close {
+  display: none;
+}
+
 .advanced-mobile-list-trigger:hover,
 .advanced-mobile-list-trigger:focus-visible {
   color: var(--action-text);
@@ -2359,6 +2396,25 @@ button.advanced-entry {
     display: none;
   }
 
+  .advanced-editor-eyebrow--desktop {
+    display: none;
+  }
+
+  .advanced-editor-eyebrow--mobile {
+    display: block;
+  }
+
+  .advanced-editor-context-label,
+  .advanced-editor-heading-separator {
+    display: none;
+  }
+
+  .advanced-editor-body,
+  .advanced-editor-tab-panel {
+    position: static;
+    overflow: visible;
+  }
+
   .advanced-editor-heading-copy p {
     max-width: 58vw;
   }
@@ -2403,7 +2459,7 @@ button.advanced-entry {
     top: 0;
     bottom: 0;
     left: 0;
-    width: min(22rem, 88vw) !important;
+    width: min(21rem, 88vw) !important;
     max-width: 88vw;
     min-width: 0;
     flex: 0 0 auto;
@@ -2481,7 +2537,21 @@ button.advanced-entry {
   }
 
   .advanced-mobile-list-trigger {
-    display: inline-flex;
+    display: inline-grid;
+    width: 2.65rem;
+    height: 2.65rem;
+    min-height: 2.65rem;
+    padding: 0;
+    flex: 0 0 2.65rem;
+    place-items: center;
+  }
+
+  .advanced-mobile-list-close {
+    display: inline-grid;
+    width: 2.65rem;
+    height: 2.65rem;
+    flex: 0 0 2.65rem;
+    place-items: center;
   }
 
   .extension-workbench-header {
@@ -2551,8 +2621,24 @@ button.advanced-entry {
 
 @media (max-width: 30rem) {
   .advanced-mobile-list-trigger {
-    min-height: 2.1rem;
-    padding-inline: 0.48rem;
+    width: 2.5rem;
+    height: 2.5rem;
+    min-height: 2.5rem;
+    flex-basis: 2.5rem;
+  }
+
+  .advanced-mobile-list-close {
+    width: 2.5rem;
+    height: 2.5rem;
+    flex-basis: 2.5rem;
+  }
+
+  .advanced-editor-close-btn {
+    width: 2.5rem;
+    height: 2.5rem;
+    min-width: 2.5rem;
+    min-height: 2.5rem;
+    flex-basis: 2.5rem;
   }
 
   .advanced-editor-heading-copy h2 {
