@@ -158,6 +158,48 @@ CHAT_COMPLETION_SECTIONS = [
 ]
 
 
+# SillyTavern presents chat-completion settings as a small number of
+# progressive workspaces. Legacy section ids remain the source mapping for
+# fields, while the editor and reader use these broader workspaces.
+CHAT_COMPLETION_WORKSPACE_SECTIONS = [
+    {
+        'id': 'connection',
+        'label': '连接与模型',
+        'description': '选择来源，模型以及当前来源需要的连接设置',
+        'legacy_sections': ['provider_and_models', 'connection_and_endpoints'],
+    },
+    {
+        'id': 'generation',
+        'label': '生成参数',
+        'description': '上下文、回复长度、采样与惩罚参数',
+        'legacy_sections': [
+            'output_and_reasoning',
+            'core_sampling',
+            'penalties_and_behavior',
+        ],
+    },
+    {
+        'id': 'prompt_options',
+        'label': '提示词设置',
+        'description': '系统提示、Utility Prompts 与继续生成行为',
+        'legacy_sections': ['templates_and_features'],
+    },
+    {
+        'id': 'features',
+        'label': '功能开关',
+        'description': '工具调用、推理、多模态与高级请求选项',
+        'legacy_sections': ['images_and_advanced'],
+    },
+]
+
+
+CHAT_COMPLETION_WORKSPACE_SECTION_BY_LEGACY = {
+    legacy_section: workspace_section['id']
+    for workspace_section in CHAT_COMPLETION_WORKSPACE_SECTIONS
+    for legacy_section in workspace_section['legacy_sections']
+}
+
+
 TEXTGEN_SECTIONS = [
     {'id': 'length_and_output', 'label': '长度与输出', 'description': '输出长度、流式与输出行为'},
     {'id': 'core_sampling', 'label': '核心采样', 'description': '温度、Top P、Top K 等核心采样参数'},
@@ -481,7 +523,7 @@ CHAT_COMPLETION_FIELDS = {
         section='templates_and_features',
         label='Impersonation Prompt',
         control='textarea',
-        visibility_rule='present_only',
+        visibility_rule='present_or_core',
     ),
     'new_chat_prompt': _field(
         'new_chat_prompt',
@@ -497,7 +539,7 @@ CHAT_COMPLETION_FIELDS = {
         section='templates_and_features',
         label='New Group Chat Prompt',
         control='textarea',
-        visibility_rule='present_only',
+        visibility_rule='present_or_core',
     ),
     'new_example_chat_prompt': _field(
         'new_example_chat_prompt',
@@ -505,7 +547,7 @@ CHAT_COMPLETION_FIELDS = {
         section='templates_and_features',
         label='New Example Chat Prompt',
         control='textarea',
-        visibility_rule='present_only',
+        visibility_rule='present_or_core',
     ),
     'continue_nudge_prompt': _field(
         'continue_nudge_prompt',
@@ -521,7 +563,7 @@ CHAT_COMPLETION_FIELDS = {
         section='templates_and_features',
         label='Group Nudge Prompt',
         control='textarea',
-        visibility_rule='present_only',
+        visibility_rule='present_or_core',
     ),
     'function_calling': _field(
         'function_calling',
@@ -620,7 +662,7 @@ CHAT_COMPLETION_FIELDS.update(
         ),
         'group_models': _field(
             'group_models',
-            ['group_models', 'openrouter_group_models'],
+            ['group_models'],
             section='provider_and_models',
             label='按提供商分组模型',
             control='checkbox',
@@ -628,7 +670,7 @@ CHAT_COMPLETION_FIELDS.update(
         ),
         'sort_models': _field(
             'sort_models',
-            ['sort_models', 'openrouter_sort_models'],
+            ['sort_models'],
             section='provider_and_models',
             label='模型排序',
             control='select',
@@ -959,7 +1001,7 @@ CHAT_COMPLETION_FIELDS.update(
             section='templates_and_features',
             label='空消息发送内容',
             control='textarea',
-            visibility_rule='present_only',
+            visibility_rule='present_or_core',
         ),
         'bias_preset_selected': _field(
             'bias_preset_selected',
@@ -967,7 +1009,7 @@ CHAT_COMPLETION_FIELDS.update(
             section='images_and_advanced',
             label='Bias 预设',
             control='text',
-            visibility_rule='present_only',
+            visibility_rule='present_or_core',
         ),
         'show_external_models': _field(
             'show_external_models',
@@ -1008,7 +1050,7 @@ CHAT_COMPLETION_FIELDS.update(
             section='templates_and_features',
             label='合并连续系统消息',
             control='checkbox',
-            visibility_rule='present_only',
+            visibility_rule='present_or_core',
         ),
         'inline_image_quality': _field(
             'inline_image_quality',
@@ -1025,7 +1067,7 @@ CHAT_COMPLETION_FIELDS.update(
             section='templates_and_features',
             label='继续生成预填充',
             control='checkbox',
-            visibility_rule='present_only',
+            visibility_rule='present_or_core',
         ),
         'continue_postfix': _field(
             'continue_postfix',
@@ -1034,7 +1076,7 @@ CHAT_COMPLETION_FIELDS.update(
             label='继续生成后缀',
             control='select',
             options=['', ' ', '\n', '\n\n'],
-            visibility_rule='present_only',
+            visibility_rule='present_or_core',
         ),
         'tool_call_recurse_limit': _field(
             'tool_call_recurse_limit',
@@ -1097,6 +1139,212 @@ CHAT_COMPLETION_FIELDS.update(
         ),
     }
 )
+
+
+CHAT_COMPLETION_PROVIDER_SOURCES = {
+    'group_models': ['openrouter', 'chutes', 'electronhub', 'nanogpt', 'aimlapi'],
+    'sort_models': ['openrouter', 'chutes', 'electronhub', 'nanogpt', 'aimlapi'],
+    'custom_url': ['custom'],
+    'reverse_proxy': [
+        'openai', 'claude', 'mistralai', 'makersuite', 'vertexai',
+        'deepseek', 'xai', 'zai', 'moonshot',
+    ],
+    'proxy_password': [
+        'openai', 'claude', 'mistralai', 'makersuite', 'vertexai',
+        'deepseek', 'xai', 'zai', 'moonshot',
+    ],
+    'openai_model': ['openai'],
+    'openrouter_model': ['openrouter'],
+    'claude_model': ['claude'],
+    'ai21_model': ['ai21'],
+    'mistralai_model': ['mistralai'],
+    'cohere_model': ['cohere'],
+    'perplexity_model': ['perplexity'],
+    'groq_model': ['groq'],
+    'chutes_model': ['chutes'],
+    'siliconflow_model': ['siliconflow'],
+    'siliconflow_endpoint': ['siliconflow'],
+    'minimax_model': ['minimax'],
+    'minimax_endpoint': ['minimax'],
+    'electronhub_model': ['electronhub'],
+    'nanogpt_model': ['nanogpt'],
+    'nanogpt_provider': ['nanogpt'],
+    'nanogpt_payg_override': ['nanogpt'],
+    'deepseek_model': ['deepseek'],
+    'aimlapi_model': ['aimlapi'],
+    'xai_model': ['xai'],
+    'pollinations_model': ['pollinations'],
+    'moonshot_model': ['moonshot'],
+    'fireworks_model': ['fireworks'],
+    'cometapi_model': ['cometapi'],
+    'custom_model': ['custom'],
+    'custom_include_body': ['custom'],
+    'custom_exclude_body': ['custom'],
+    'custom_include_headers': ['custom'],
+    'custom_prompt_post_processing': ['custom'],
+    'google_model': ['makersuite'],
+    'vertexai_model': ['vertexai'],
+    'zai_model': ['zai'],
+    'zai_endpoint': ['zai'],
+    'workers_ai_model': ['workers_ai'],
+    'workers_ai_account_id': ['workers_ai'],
+    'vertexai_auth_mode': ['vertexai'],
+    'vertexai_region': ['vertexai'],
+    'vertexai_express_project_id': ['vertexai'],
+    'azure_base_url': ['azure_openai'],
+    'azure_deployment_name': ['azure_openai'],
+    'azure_api_version': ['azure_openai'],
+    'azure_openai_model': ['azure_openai'],
+    'openrouter_use_fallback': ['openrouter'],
+    'openrouter_providers': ['openrouter'],
+    'openrouter_quantizations': ['openrouter'],
+    'openrouter_allow_fallbacks': ['openrouter'],
+    'openrouter_middleout': ['openrouter'],
+    'assistant_prefill': ['claude'],
+    'assistant_impersonation': ['claude'],
+}
+
+CHAT_COMPLETION_FEATURE_SOURCES = {
+    'bias_preset_selected': [
+        'openai', 'aimlapi', 'openrouter', 'custom', 'electronhub', 'azure_openai', 'chutes',
+    ],
+    'temperature': [
+        'openai', 'claude', 'aimlapi', 'openrouter', 'ai21', 'makersuite',
+        'vertexai', 'mistralai', 'custom', 'cohere', 'perplexity', 'groq',
+        'siliconflow', 'minimax', 'electronhub', 'chutes', 'nanogpt',
+        'deepseek', 'xai', 'pollinations', 'moonshot', 'fireworks',
+        'cometapi', 'azure_openai', 'zai', 'workers_ai',
+    ],
+    'frequency_penalty': [
+        'openai', 'aimlapi', 'openrouter', 'custom', 'cohere', 'perplexity',
+        'groq', 'siliconflow', 'mistralai', 'electronhub', 'nanogpt',
+        'deepseek', 'xai', 'pollinations', 'moonshot', 'fireworks',
+        'cometapi', 'azure_openai', 'chutes', 'workers_ai',
+    ],
+    'presence_penalty': [
+        'openai', 'aimlapi', 'openrouter', 'custom', 'cohere', 'perplexity',
+        'groq', 'siliconflow', 'mistralai', 'electronhub', 'nanogpt',
+        'deepseek', 'xai', 'pollinations', 'moonshot', 'fireworks',
+        'cometapi', 'azure_openai', 'chutes', 'workers_ai',
+    ],
+    'top_k': [
+        'claude', 'aimlapi', 'openrouter', 'makersuite', 'vertexai', 'cohere',
+        'perplexity', 'electronhub', 'chutes', 'nanogpt', 'workers_ai',
+    ],
+    'top_p': [
+        'openai', 'claude', 'aimlapi', 'openrouter', 'ai21', 'makersuite',
+        'vertexai', 'mistralai', 'custom', 'cohere', 'perplexity', 'groq',
+        'siliconflow', 'minimax', 'electronhub', 'chutes', 'nanogpt',
+        'deepseek', 'xai', 'pollinations', 'moonshot', 'fireworks',
+        'cometapi', 'azure_openai', 'zai', 'workers_ai',
+    ],
+    'repetition_penalty': ['openrouter', 'nanogpt', 'chutes', 'workers_ai'],
+    'min_p': ['openrouter', 'nanogpt', 'chutes'],
+    'top_a': ['openrouter', 'nanogpt'],
+    'n': ['openai', 'custom', 'xai', 'aimlapi', 'moonshot', 'azure_openai'],
+    'seed': [
+        'openai', 'openrouter', 'mistralai', 'custom', 'cohere', 'groq',
+        'electronhub', 'chutes', 'nanogpt', 'xai', 'pollinations', 'aimlapi',
+        'makersuite', 'vertexai', 'azure_openai', 'workers_ai',
+    ],
+    'max_context_unlocked': ['openai'],
+    'show_external_models': ['openai'],
+    'bypass_status_check': ['openai'],
+    'use_sysprompt': ['claude', 'makersuite', 'vertexai'],
+    'enable_web_search': [
+        'makersuite', 'vertexai', 'aimlapi', 'openrouter', 'claude',
+        'electronhub', 'chutes', 'nanogpt',
+    ],
+    'function_calling': [
+        'openai', 'cohere', 'mistralai', 'custom', 'claude', 'aimlapi',
+        'openrouter', 'groq', 'siliconflow', 'minimax', 'deepseek',
+        'makersuite', 'vertexai', 'ai21', 'xai', 'pollinations', 'moonshot',
+        'fireworks', 'cometapi', 'electronhub', 'chutes', 'azure_openai',
+        'zai', 'nanogpt', 'workers_ai',
+    ],
+    'tool_call_recurse_limit': [
+        'openai', 'cohere', 'mistralai', 'custom', 'claude', 'aimlapi',
+        'openrouter', 'groq', 'siliconflow', 'minimax', 'deepseek',
+        'makersuite', 'vertexai', 'ai21', 'xai', 'pollinations', 'moonshot',
+        'fireworks', 'cometapi', 'electronhub', 'chutes', 'azure_openai',
+        'zai', 'nanogpt', 'workers_ai',
+    ],
+    'tool_reasoning_mode': ['openrouter', 'custom'],
+    'media_inlining': [
+        'openai', 'custom', 'xai', 'pollinations', 'cohere', 'cometapi',
+        'nanogpt', 'moonshot', 'aimlapi', 'openrouter', 'mistralai',
+        'electronhub', 'azure_openai', 'zai', 'siliconflow', 'chutes',
+        'makersuite', 'vertexai', 'workers_ai',
+    ],
+    'inline_image_quality': [
+        'openai', 'custom', 'xai', 'pollinations', 'cohere', 'cometapi',
+        'nanogpt', 'moonshot', 'aimlapi', 'openrouter', 'mistralai',
+        'electronhub', 'azure_openai', 'zai', 'siliconflow', 'chutes',
+        'makersuite', 'vertexai', 'workers_ai',
+    ],
+    'request_images': ['makersuite', 'vertexai'],
+    'request_image_aspect_ratio': ['makersuite', 'vertexai'],
+    'request_image_resolution': ['makersuite', 'vertexai'],
+    'show_thoughts': [
+        'deepseek', 'aimlapi', 'openrouter', 'custom', 'claude', 'xai',
+        'makersuite', 'vertexai', 'pollinations', 'moonshot', 'mistralai',
+        'fireworks', 'cometapi', 'electronhub', 'chutes', 'azure_openai',
+        'nanogpt', 'zai', 'workers_ai',
+    ],
+    'reasoning_effort': [
+        'openai', 'custom', 'claude', 'xai', 'makersuite', 'vertexai',
+        'aimlapi', 'openrouter', 'pollinations', 'perplexity', 'cometapi',
+        'electronhub', 'azure_openai', 'chutes', 'nanogpt', 'deepseek',
+    ],
+    'verbosity': ['openai', 'custom', 'openrouter', 'claude'],
+}
+
+
+def _apply_chat_completion_field_metadata(fields):
+    for field_def in fields.values():
+        legacy_section = field_def.get('section')
+        field_def['workspace_section'] = CHAT_COMPLETION_WORKSPACE_SECTION_BY_LEGACY.get(
+            legacy_section,
+            'prompts' if legacy_section == 'prompt_manager' else legacy_section,
+        )
+
+    for field_key, sources in CHAT_COMPLETION_PROVIDER_SOURCES.items():
+        if field_key in fields:
+            fields[field_key]['visible_when'] = {
+                'field': 'chat_completion_source',
+                'in': list(sources),
+            }
+
+    for field_key, sources in CHAT_COMPLETION_FEATURE_SOURCES.items():
+        if field_key in fields:
+            fields[field_key]['visible_when'] = {
+                'field': 'chat_completion_source',
+                'in': list(sources),
+            }
+
+    for field_key in ('tool_call_recurse_limit', 'inline_image_quality'):
+        if field_key in fields:
+            fields[field_key]['depends_on'] = {
+                'field': 'function_calling'
+                if field_key == 'tool_call_recurse_limit'
+                else 'media_inlining',
+                'equals': True,
+            }
+
+    for field_key in ('request_image_aspect_ratio', 'request_image_resolution'):
+        if field_key in fields:
+            fields[field_key]['depends_on'] = {
+                'field': 'request_images',
+                'equals': True,
+            }
+
+
+_apply_chat_completion_field_metadata(CHAT_COMPLETION_FIELDS)
+
+
+CHAT_COMPLETION_EDITABLE_FIELDS = {
+    **CHAT_COMPLETION_FIELDS,
+}
 
 
 for _sensitive_key in {
@@ -1454,7 +1702,8 @@ PROFILE_REGISTRY = {
         'reader_layout': 'mirrored_sections',
         'save_target': 'st_openai_preset_dir',
         'sections': CHAT_COMPLETION_SECTIONS,
-        'fields': CHAT_COMPLETION_FIELDS,
+        'workspace_sections': CHAT_COMPLETION_WORKSPACE_SECTIONS,
+        'fields': CHAT_COMPLETION_EDITABLE_FIELDS,
     },
     GENERIC_PROFILE_ID: {
         'id': GENERIC_PROFILE_ID,
@@ -1514,6 +1763,26 @@ def _resolve_dynamic_max_value(max_value, current_value, incoming_value=None):
     if isinstance(incoming_value, (int, float)) and not isinstance(incoming_value, bool):
         return max(incoming_value, fallback)
     return fallback
+
+
+def _field_matches_current_source(data, field_def):
+    condition = field_def.get('visible_when')
+    if not isinstance(condition, dict):
+        return False
+
+    condition_field = condition.get('field')
+    if not condition_field:
+        return False
+    current_value = data.get(condition_field)
+    if condition_field == 'chat_completion_source' and current_value in (None, ''):
+        current_value = 'openai'
+
+    allowed_values = condition.get('in')
+    if isinstance(allowed_values, (list, tuple, set)):
+        return current_value in allowed_values
+    if 'equals' in condition:
+        return current_value == condition.get('equals')
+    return True
 
 
 def detect_editor_profile_id(raw_data, preset_kind):
@@ -1625,7 +1894,14 @@ def build_editor_profile_payload(raw_data, preset_kind):
     fields = {}
     for canonical_key, field_def in profile_def.get('fields', {}).items():
         source_key = _resolve_source_key(data, field_def['storage_keys'])
-        if field_def.get('visibility_rule') == 'present_only' and source_key is None:
+        visibility_rule = field_def.get('visibility_rule')
+        visible_for_source = _field_matches_current_source(data, field_def)
+        if (
+            visibility_rule == 'present_only'
+            and source_key is None
+            and not visible_for_source
+            and not field_def.get('visible_when')
+        ):
             continue
         resolved_key = source_key or canonical_key
         field_payload = copy.deepcopy(field_def)
@@ -1642,5 +1918,6 @@ def build_editor_profile_payload(raw_data, preset_kind):
         'save_target': profile_def.get('save_target', 'presets_dir'),
         'reader_layout': profile_def.get('reader_layout', 'generic'),
         'sections': copy.deepcopy(profile_def.get('sections', [])),
+        'workspace_sections': copy.deepcopy(profile_def.get('workspace_sections', [])),
         'fields': fields,
     }

@@ -775,11 +775,10 @@ def _build_scalar_workspace(data, preset_kind):
     for field_key, field_def in profile.get('fields', {}).items():
         if field_key in {'prompts', 'prompt_order', 'extensions'}:
             continue
-        storage_key = field_def.get('source_key')
-        if not storage_key:
-            continue
+        source_key = field_def.get('source_key')
+        storage_key = field_def.get('storage_key') or field_key
 
-        section_ids.add(field_def['section'])
+        section_ids.add(field_def.get('workspace_section') or field_def['section'])
         sensitive = bool(field_def.get('sensitive'))
         raw_value = data.get(storage_key)
         reader_value = (
@@ -790,27 +789,40 @@ def _build_scalar_workspace(data, preset_kind):
         field_map[field_key] = {
             'canonical_key': field_def['canonical_key'],
             'storage_key': field_def['storage_key'],
-            'source_key': storage_key,
-            'section': field_def['section'],
+            'source_key': source_key,
+            'section': field_def.get('workspace_section') or field_def['section'],
+            'legacy_section': field_def['section'],
+            'workspace_section': field_def.get('workspace_section') or field_def['section'],
             'label': field_def['label'],
+            'description': field_def.get('description', ''),
             'control': field_def['control'],
             'reader_style': field_def.get('reader_style'),
             'min': copy.deepcopy(field_def.get('min')),
             'max': copy.deepcopy(field_def.get('max')),
             'step': copy.deepcopy(field_def.get('step')),
             'options': copy.deepcopy(field_def.get('options', [])),
+            'default': copy.deepcopy(field_def.get('default')),
+            'visible_when': copy.deepcopy(field_def.get('visible_when')),
+            'depends_on': copy.deepcopy(field_def.get('depends_on')),
             'sensitive': sensitive,
             'reader_value': reader_value,
         }
 
     sections = [
         section
-        for section in profile.get('sections', [])
+        for section in profile.get('workspace_sections', [])
         if section['id'] in section_ids
     ]
     return {
         'profile_id': SCALAR_WORKSPACE_PROFILE_ID,
         'sections': sections,
+        'legacy_sections': [
+            section
+            for section in profile.get('sections', [])
+            if section['id'] in {
+                field['legacy_section'] for field in field_map.values()
+            }
+        ],
         'field_map': field_map,
         'hidden_fields': [],
     }
@@ -951,6 +963,7 @@ def _build_prompt_manager_prompt_items(data):
         }
         items.append(item)
     return items
+
 
 def _build_extension_items(data):
     extensions = data.get('extensions')

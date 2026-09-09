@@ -1,4 +1,4 @@
-{% from "components/icon.html" import icon, detail_icon, sidebar_icon, loading_icon %}
+{% from "components/icon.html" import icon, detail_icon, sidebar_icon, preset_icon, loading_icon %}
 {% from "components/styled_select.html" import styled_select_controlled %}
 
 <!-- 预设详情阅览界面 -->
@@ -518,36 +518,37 @@
                   </button>
 
                   <template
-                    x-for="group in readerGroups.filter((group) => group.id !== 'prompts')"
-                    :key="group.id"
+                    x-for="section in readerWorkspaceSections"
+                    :key="section.id"
                   >
                     <button
-                      @click="selectWorkspace(group.id)"
-                      :aria-current="activeWorkspace === group.id ? 'page' : null"
+                      @click="selectWorkspace(section.id)"
+                      :aria-current="activeWorkspace === section.id ? 'page' : null"
                       class="preset-reader-nav-item w-full text-left rounded-xl border px-3 py-3 transition"
-                      :class="activeWorkspace === group.id ? 'color-surface-action color-border-action' : 'bg-[var(--surface-container)] border-[var(--border-default)] hover:border-[var(--content-muted)]'"
+                      :class="activeWorkspace === section.id ? 'color-surface-action color-border-action' : 'bg-[var(--surface-container)] border-[var(--border-default)] hover:border-[var(--content-muted)]'"
                     >
                       <div class="flex items-center justify-between gap-2">
                         <div class="preset-reader-nav-item-copy">
                           <span class="preset-reader-nav-item-icon" aria-hidden="true">
-                            <template x-if="group.id === 'extensions'">{{ detail_icon('toolbox', 'ui-icon--md') }}</template>
-                            <template x-if="group.id === 'scalar_fields'">{{ icon('sliders-settings', 'ui-icon--md') }}</template>
-                            <template x-if="group.id !== 'extensions' && group.id !== 'scalar_fields'">{{ icon('data-grid', 'ui-icon--md') }}</template>
+                            <template x-if="section.id === 'connection'">{{ detail_icon('link-source', 'ui-icon--md') }}</template>
+                            <template x-if="section.id === 'generation'">{{ icon('sliders-settings', 'ui-icon--md') }}</template>
+                            <template x-if="section.id === 'prompt_options'">{{ preset_icon('prompt-count', 'ui-icon--md') }}</template>
+                            <template x-if="section.id === 'features'">{{ detail_icon('toolbox', 'ui-icon--md') }}</template>
                           </span>
                           <div>
                           <div
                             class="text-sm font-semibold text-[var(--content-primary)]"
-                            x-text="group.label"
+                            x-text="section.label"
                           ></div>
                           <div
                             class="text-[11px] text-[var(--content-muted)]"
-                            x-text="group.id"
+                            x-text="section.description || section.id"
                           ></div>
                           </div>
                         </div>
                         <div
                           class="text-xs font-mono text-[var(--content-secondary)]"
-                          x-text="group.count"
+                          x-text="getProfileSectionFields(section.id).length"
                         ></div>
                       </div>
                     </button>
@@ -925,6 +926,7 @@
                               >
                                 <div
                                   class="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-container)] p-4 space-y-3"
+                                  x-show="activeWorkspace === 'all' || section.id === activeWorkspace"
                                   :class="section.id === 'templates_and_features' ? 'md:col-span-2 xl:col-span-2' : (section.id === 'formatting_and_templates' ? 'md:col-span-2 xl:col-span-3' : '')"
                                 >
                                   <div>

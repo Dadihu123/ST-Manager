@@ -62,6 +62,44 @@ const PROMPT_POSITION_LABELS = Object.fromEntries(
   PROMPT_POSITION_OPTIONS.map((option) => [option.value, option.label]),
 );
 
+const ST_DEFAULT_PROMPT_ORDER = [
+  { identifier: "main", enabled: true },
+  { identifier: "worldInfoBefore", enabled: true },
+  { identifier: "personaDescription", enabled: true },
+  { identifier: "charDescription", enabled: true },
+  { identifier: "charPersonality", enabled: true },
+  { identifier: "scenario", enabled: true },
+  { identifier: "enhanceDefinitions", enabled: false },
+  { identifier: "nsfw", enabled: true },
+  { identifier: "worldInfoAfter", enabled: true },
+  { identifier: "dialogueExamples", enabled: true },
+  { identifier: "chatHistory", enabled: true },
+  { identifier: "jailbreak", enabled: true },
+];
+
+const ST_DEFAULT_SYSTEM_PROMPTS = {
+  main: {
+    name: "Main Prompt",
+    content:
+      "Write {{char}}'s next reply in a fictional chat between {{charIfNotGroup}} and {{user}}.",
+    forbid_overrides: false,
+  },
+  nsfw: {
+    name: "Nsfw Prompt",
+    content: "",
+  },
+  jailbreak: {
+    name: "Jailbreak Prompt",
+    content: "",
+    forbid_overrides: false,
+  },
+  enhanceDefinitions: {
+    name: "Enhance Definitions",
+    content:
+      "If you have more knowledge of {{char}}, add to the character's lore and personality to enhance them but keep the Character Sheet's definitions absolute.",
+  },
+};
+
 const SECTION_LABELS = {
   basic: "基础信息",
   sampling: "采样参数",
@@ -89,6 +127,67 @@ const SECTION_LABELS = {
   extensions: "扩展配置",
   raw: "原始 JSON",
   snapshots: "快照历史",
+};
+
+const PROFILE_SOURCE_LABELS = {
+  openai: "OpenAI",
+  custom: "Custom",
+  ai21: "AI21",
+  aimlapi: "AIML API",
+  azure_openai: "Azure OpenAI",
+  chutes: "Chutes",
+  claude: "Claude",
+  workers_ai: "Workers AI",
+  cohere: "Cohere",
+  cometapi: "CometAPI",
+  deepseek: "DeepSeek",
+  electronhub: "ElectronHub",
+  fireworks: "Fireworks",
+  groq: "Groq",
+  makersuite: "Google AI Studio",
+  vertexai: "Vertex AI",
+  mistralai: "Mistral",
+  minimax: "MiniMax",
+  moonshot: "Moonshot",
+  nanogpt: "NanoGPT",
+  openrouter: "OpenRouter",
+  perplexity: "Perplexity",
+  pollinations: "Pollinations",
+  siliconflow: "SiliconFlow",
+  xai: "xAI",
+  zai: "Z.AI",
+};
+
+const PROFILE_OPTION_LABELS = {
+  "": "自动",
+  " ": "空格",
+  "\n": "换行",
+  "\n\n": "空两行",
+  "-1": "不处理",
+  "0": "默认",
+  "1": "Completion Object",
+  "2": "Message Content",
+  auto: "自动",
+  low: "低",
+  medium: "中",
+  high: "高",
+  min: "最低",
+  max: "最高",
+  disabled: "禁用",
+  since_last_user: "上个用户消息后",
+  active_chain: "当前工具链",
+  alphabetically: "按字母排序",
+  "pricing.prompt": "输入价格",
+  "pricing.completion": "输出价格",
+  context_length: "上下文长度",
+  express: "Express",
+  full: "完整鉴权",
+  global: "Global",
+  cn: "中国节点",
+  common: "通用",
+  coding: "Coding",
+  on: "开启",
+  off: "关闭",
 };
 
 const LONG_TEXT_FIELDS = new Set([
@@ -127,6 +226,7 @@ export default function presetEditor() {
     activeWorkspace: "all",
     activeGroup: "all",
     activePromptId: "",
+    promptAppendId: "",
     activeGenericItemId: "",
     activeItemId: "",
     activeMirroredFieldId: "",
@@ -470,6 +570,21 @@ export default function presetEditor() {
         : [];
     },
 
+    get workspaceSections() {
+      if (Array.isArray(this.editorProfile?.workspace_sections)) {
+        return this.editorProfile.workspace_sections;
+      }
+      if (Array.isArray(this.scalarWorkspace?.workspace_sections)) {
+        return this.scalarWorkspace.workspace_sections;
+      }
+      return this.mirroredProfileSections;
+    },
+
+    get currentCompletionSource() {
+      const source = this.getProfileFieldValue("chat_completion_source");
+      return String(source || "openai");
+    },
+
     get activeMirroredSection() {
       if (!this.isMirroredProfileEditor) return null;
       if (this.activeWorkspace === "prompts") {
@@ -479,11 +594,22 @@ export default function presetEditor() {
           ) || null
         );
       }
+      if (this.activeWorkspace === "all") {
+        return {
+          id: "all",
+          label: "全部基础字段",
+          description: "按 SillyTavern 的字段定义查看当前预设中的所有基础设置",
+        };
+      }
       return (
         this.mirroredProfileSections.find(
           (section) => section.id === this.activeWorkspace,
         ) ||
+        this.workspaceSections.find(
+          (section) => section.id === this.activeWorkspace,
+        ) ||
         this.mirroredProfileSections[0] ||
+        this.workspaceSections[0] ||
         null
       );
     },
@@ -505,6 +631,9 @@ export default function presetEditor() {
       ]);
 
       return this.getProfileSectionFields(sectionId).filter((field) => {
+        if (!this.isProfileFieldVisible(field)) {
+          return false;
+        }
         if (
           this.uiFilter === "editable" &&
           !editableControls.has(field?.control)
@@ -550,7 +679,7 @@ export default function presetEditor() {
     },
 
     getMirroredSectionFieldCount(sectionId) {
-      return this.getProfileSectionFields(sectionId).length;
+      return this.getFilteredProfileSectionFields(sectionId).length;
     },
 
     get mirroredWorkspaceFieldItems() {
@@ -637,9 +766,31 @@ export default function presetEditor() {
       return nestedBucketCount > 1;
     },
 
+    isPromptOrderMovable(prompt, direction) {
+      if (!prompt || prompt.__is_orphan || this.hasUnsupportedNestedPromptOrder()) {
+        return false;
+      }
+      const orderedPrompts = this.orderedPromptItems.filter(
+        (entry) => !entry?.__is_orphan,
+      );
+      const currentIndex = orderedPrompts.findIndex(
+        (entry) => entry.__identifier === prompt.__identifier,
+      );
+      if (currentIndex === -1) return false;
+      return direction < 0
+        ? currentIndex > 0
+        : currentIndex < orderedPrompts.length - 1;
+    },
+
     get orderedPromptItems() {
       this.ensureEditorCollections();
       return this.orderedPromptItemsCache;
+    },
+
+    get detachedPromptItems() {
+      return this.orderedPromptItems.filter(
+        (prompt) => prompt?.__is_orphan && prompt?.__raw_identifier,
+      );
     },
 
     get activePromptItem() {
@@ -1069,9 +1220,10 @@ export default function presetEditor() {
       if (!this.editingData) return;
       if (this.hasUnsupportedNestedPromptOrder()) return;
 
-      const orderedPrompts = Array.isArray(nextOrderedPrompts)
+      const orderedPrompts = (Array.isArray(nextOrderedPrompts)
         ? nextOrderedPrompts
-        : this.orderedPromptItems;
+        : this.orderedPromptItems
+      ).filter((prompt) => !prompt?.__is_orphan);
       const canPersistOrder = orderedPrompts.every((prompt) =>
         String(prompt?.__raw_identifier || "").trim(),
       );
@@ -1192,25 +1344,10 @@ export default function presetEditor() {
       if (!this.editingData || !Array.isArray(nextOrderedPrompts)) return;
       if (this.hasUnsupportedNestedPromptOrder()) return;
 
-      const reordered = nextOrderedPrompts
-        .map((entry) => {
-          const promptIndex = Number(entry?.__prompt_index);
-          if (!Number.isInteger(promptIndex)) {
-            return null;
-          }
-          return this.promptItems.find(
-            (prompt) => Number(prompt.__prompt_index) === promptIndex,
-          );
-        })
-        .filter(Boolean)
-        .map((prompt) => {
-          const nextPrompt = { ...prompt };
-          delete nextPrompt.__prompt_index;
-          return nextPrompt;
-        });
-
-      this.setByPath("prompts", reordered);
-      const enriched = nextOrderedPrompts.map((entry) => ({
+      const orderedEntries = nextOrderedPrompts.filter(
+        (entry) => !entry?.__is_orphan,
+      );
+      const enriched = orderedEntries.map((entry) => ({
         ...entry,
         __enabled: entry.__enabled !== false,
       }));
@@ -1218,27 +1355,132 @@ export default function presetEditor() {
     },
 
     movePromptItem(fromIndex, toIndex) {
-      const orderedPrompts = [...this.getPromptArrayWithMeta()];
+      const visiblePrompts = this.getPromptArrayWithMeta();
       if (
         fromIndex < 0 ||
         toIndex < 0 ||
-        fromIndex >= orderedPrompts.length ||
-        toIndex >= orderedPrompts.length ||
+        fromIndex >= visiblePrompts.length ||
+        toIndex >= visiblePrompts.length ||
         fromIndex === toIndex
       ) {
         return;
       }
 
-      const [prompt] = orderedPrompts.splice(fromIndex, 1);
-      orderedPrompts.splice(toIndex, 0, prompt);
+      const sourcePrompt = visiblePrompts[fromIndex];
+      const targetPrompt = visiblePrompts[toIndex];
+      if (
+        !sourcePrompt ||
+        !targetPrompt ||
+        sourcePrompt.__is_orphan ||
+        targetPrompt.__is_orphan
+      ) {
+        return;
+      }
+
+      const orderedPrompts = visiblePrompts.filter(
+        (prompt) => !prompt?.__is_orphan,
+      );
+      const orderedFromIndex = orderedPrompts.findIndex(
+        (prompt) => prompt.__identifier === sourcePrompt.__identifier,
+      );
+      const orderedToIndex = orderedPrompts.findIndex(
+        (prompt) => prompt.__identifier === targetPrompt.__identifier,
+      );
+      if (orderedFromIndex === -1 || orderedToIndex === -1) return;
+
+      const [prompt] = orderedPrompts.splice(orderedFromIndex, 1);
+      orderedPrompts.splice(orderedToIndex, 0, prompt);
       this.replacePromptOrder(orderedPrompts);
       this.activePromptId = prompt?.__identifier || this.activePromptId;
+    },
+
+    getPromptIdentifier(prompt) {
+      return String(prompt?.identifier || prompt?.__identifier || "").trim();
+    },
+
+    isPromptEditAllowed(prompt) {
+      const identifier = this.getPromptIdentifier(prompt);
+      const sourcePrompts = new Set([
+        "charDescription",
+        "charPersonality",
+        "scenario",
+        "personaDescription",
+        "worldInfoBefore",
+        "worldInfoAfter",
+      ]);
+      return sourcePrompts.has(identifier) || !prompt?.marker;
+    },
+
+    isPromptToggleAllowed(prompt) {
+      const identifier = this.getPromptIdentifier(prompt);
+      if (prompt?.__is_orphan) return false;
+      const forcedTogglePrompts = new Set([
+        "charDescription",
+        "charPersonality",
+        "scenario",
+        "personaDescription",
+        "worldInfoBefore",
+        "worldInfoAfter",
+        "main",
+        "chatHistory",
+        "dialogueExamples",
+      ]);
+      return !prompt?.marker || forcedTogglePrompts.has(identifier);
+    },
+
+    isPromptDeleteAllowed(prompt) {
+      return Boolean(prompt && prompt.system_prompt === false);
+    },
+
+    isPromptOverrideControlVisible(prompt) {
+      const identifier = this.getPromptIdentifier(prompt);
+      return identifier === "main" || identifier === "jailbreak";
+    },
+
+    isSystemPromptResettable(prompt) {
+      const identifier = this.getPromptIdentifier(prompt);
+      return Boolean(prompt?.system_prompt === true && ST_DEFAULT_SYSTEM_PROMPTS[identifier]);
+    },
+
+    resetSystemPrompt() {
+      const active = this.activePromptItem;
+      const identifier = this.getPromptIdentifier(active);
+      const defaults = ST_DEFAULT_SYSTEM_PROMPTS[identifier];
+      if (!active || !defaults || !this.editingData) return;
+
+      const promptIndex = Number(active.__prompt_index);
+      const prompts = Array.isArray(this.editingData.prompts)
+        ? [...this.editingData.prompts]
+        : [];
+      if (
+        !Number.isInteger(promptIndex) ||
+        promptIndex < 0 ||
+        !prompts[promptIndex] ||
+        prompts[promptIndex].system_prompt !== true
+      ) {
+        return;
+      }
+
+      prompts[promptIndex] = {
+        ...prompts[promptIndex],
+        name: defaults.name,
+        content: defaults.content,
+      };
+      if (Object.prototype.hasOwnProperty.call(defaults, "forbid_overrides")) {
+        prompts[promptIndex].forbid_overrides = defaults.forbid_overrides;
+      }
+      this.setByPath("prompts", prompts);
     },
 
     togglePromptEnabled(identifier) {
       const promptId = String(identifier || "");
       if (!promptId || !this.editingData) return;
       if (this.hasUnsupportedNestedPromptOrder()) return;
+
+      const targetPrompt = this.orderedPromptItems.find(
+        (prompt) => prompt.__identifier === promptId,
+      );
+      if (!this.isPromptToggleAllowed(targetPrompt)) return;
 
       const orderedPrompts = this.orderedPromptItems.map((prompt) => {
         if (prompt.__identifier !== promptId) {
@@ -1279,6 +1521,286 @@ export default function presetEditor() {
       this.syncPromptOrder(orderedPrompts);
     },
 
+    createPrompt() {
+      if (!this.editingData) return;
+      const prompts = Array.isArray(this.editingData.prompts)
+        ? [...this.editingData.prompts]
+        : [];
+      const identifier = `prompt_${Date.now()}_${Math.random()
+        .toString(16)
+        .slice(2, 8)}`;
+      prompts.push({
+        identifier,
+        name: "",
+        role: "system",
+        content: "",
+        system_prompt: false,
+        enabled: false,
+        marker: false,
+        injection_position: 0,
+        injection_order: 100,
+        injection_trigger: [],
+      });
+      this.setByPath("prompts", prompts);
+      this.activePromptId = identifier;
+      this.refreshEditorCollections();
+    },
+
+    deleteActivePrompt() {
+      const active = this.activePromptItem;
+      if (!active || !this.isPromptDeleteAllowed(active) || !this.editingData) {
+        return;
+      }
+      const prompts = Array.isArray(this.editingData.prompts)
+        ? [...this.editingData.prompts]
+        : [];
+      const promptIndex = Number(active.__prompt_index);
+      if (!Number.isInteger(promptIndex) || promptIndex < 0) return;
+      const hadPromptOrder = Array.isArray(this.editingData.prompt_order);
+      prompts.splice(promptIndex, 1);
+      this.setByPath("prompts", prompts);
+      this.activePromptId = "";
+      this.refreshEditorCollections();
+      if (hadPromptOrder) this.syncPromptOrder(this.orderedPromptItems);
+    },
+
+    getPromptOrderShape() {
+      const promptOrder = Array.isArray(this.editingData?.prompt_order)
+        ? this.editingData.prompt_order
+        : [];
+      const bucketIndex = promptOrder.findIndex(
+        (entry) =>
+          entry && typeof entry === "object" && Array.isArray(entry.order),
+      );
+      if (bucketIndex !== -1) {
+        return {
+          mode: "nested",
+          bucketIndex,
+          entries: promptOrder[bucketIndex].order,
+        };
+      }
+      if (
+        promptOrder.length &&
+        promptOrder.every((entry) => typeof entry === "string")
+      ) {
+        return { mode: "strings", bucketIndex: -1, entries: promptOrder };
+      }
+      if (
+        promptOrder.length &&
+        promptOrder.every(
+          (entry) =>
+            entry && typeof entry === "object" && "identifier" in entry,
+        )
+      ) {
+        return { mode: "objects", bucketIndex: -1, entries: promptOrder };
+      }
+      return { mode: "objects", bucketIndex: -1, entries: [] };
+    },
+
+    updatePromptOrderMembership(identifier, include) {
+      if (!this.editingData || this.hasUnsupportedNestedPromptOrder()) return;
+      const promptId = String(identifier || "").trim();
+      if (!promptId) return;
+
+      const currentOrder = Array.isArray(this.editingData.prompt_order)
+        ? deepClone(this.editingData.prompt_order)
+        : [];
+      const shape = this.getPromptOrderShape();
+      const getIdentifier = (entry) =>
+        typeof entry === "string"
+          ? entry
+          : String(entry?.identifier || "").trim();
+      const entries = Array.isArray(shape.entries) ? [...shape.entries] : [];
+      const existingIndex = entries.findIndex(
+        (entry) => getIdentifier(entry) === promptId,
+      );
+
+      if (include) {
+        if (existingIndex !== -1) return;
+        entries.unshift(
+          shape.mode === "strings"
+            ? promptId
+            : { identifier: promptId, enabled: false },
+        );
+      } else {
+        if (existingIndex === -1) return;
+        entries.splice(existingIndex, 1);
+      }
+
+      if (shape.mode === "nested") {
+        if (!currentOrder[shape.bucketIndex]) return;
+        currentOrder[shape.bucketIndex] = {
+          ...currentOrder[shape.bucketIndex],
+          order: entries,
+        };
+        this.setByPath("prompt_order", currentOrder);
+      } else {
+        this.setByPath("prompt_order", entries);
+      }
+      this.promptAppendId = "";
+      this.refreshEditorCollections();
+    },
+
+    appendPromptToOrder(identifier = this.promptAppendId) {
+      const promptId = String(identifier || "").trim();
+      const prompt = this.promptItems.find(
+        (entry) => this.getPromptIdentifier(entry) === promptId,
+      );
+      if (!prompt) return;
+      this.updatePromptOrderMembership(promptId, true);
+    },
+
+    detachActivePrompt() {
+      const active = this.activePromptItem;
+      const promptId = String(active?.__raw_identifier || "").trim();
+      if (!promptId) return;
+      this.updatePromptOrderMembership(promptId, false);
+    },
+
+    resetPromptOrder() {
+      if (!this.editingData || this.hasUnsupportedNestedPromptOrder()) return;
+      if (
+        !confirm(
+          "这会恢复 SillyTavern 的默认提示词顺序，不会删除提示词正文。继续吗？",
+        )
+      ) {
+        return;
+      }
+
+      const currentOrder = Array.isArray(this.editingData.prompt_order)
+        ? deepClone(this.editingData.prompt_order)
+        : [];
+      const shape = this.getPromptOrderShape();
+      const defaultEntries =
+        shape.mode === "strings"
+          ? ST_DEFAULT_PROMPT_ORDER.map((entry) => entry.identifier)
+          : deepClone(ST_DEFAULT_PROMPT_ORDER);
+
+      if (shape.mode === "nested" && currentOrder[shape.bucketIndex]) {
+        currentOrder[shape.bucketIndex] = {
+          ...currentOrder[shape.bucketIndex],
+          order: defaultEntries,
+        };
+        this.setByPath("prompt_order", currentOrder);
+      } else {
+        this.setByPath("prompt_order", defaultEntries);
+      }
+      this.promptAppendId = "";
+      this.refreshEditorCollections();
+    },
+
+    exportPrompts() {
+      if (!this.editingData) return;
+      const prompts = (Array.isArray(this.editingData.prompts)
+        ? this.editingData.prompts
+        : []
+      )
+        .filter(
+          (prompt) =>
+            prompt &&
+            typeof prompt === "object" &&
+            prompt.system_prompt === false &&
+            prompt.marker === false,
+        )
+        .map((prompt) => deepClone(prompt));
+      const promptOrder = deepClone(this.getPromptOrderShape().entries || []);
+      const payload = {
+        version: 1,
+        type: "full",
+        data: {
+          prompts,
+          prompt_order: promptOrder,
+        },
+      };
+
+      const safeTitle = String(this.presetTitle || "st-prompts")
+        .replace(/[\\/:*?"<>|]+/g, "-")
+        .slice(0, 80);
+      const blob = new Blob([JSON.stringify(payload, null, 2)], {
+        type: "application/json",
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${safeTitle || "st-prompts"}-prompts.json`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 0);
+      this.$store?.global?.showToast?.("提示词已导出");
+    },
+
+    importPrompts() {
+      if (!this.editingData) return;
+      if (!confirm("同 ID 的现有提示词会被导入内容覆盖。继续吗？")) return;
+
+      const input = document.createElement("input");
+      input.type = "file";
+      input.accept = ".json,application/json";
+      input.addEventListener("change", (event) => {
+        const file = event.target?.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+          try {
+            const parsed = JSON.parse(String(reader.result || ""));
+            const imported = parsed?.data;
+            if (!imported || !Array.isArray(imported.prompts)) {
+              throw new Error("提示词文件结构无效");
+            }
+
+            const merged = new Map();
+            (Array.isArray(this.editingData.prompts)
+              ? this.editingData.prompts
+              : []
+            ).forEach((prompt) => {
+              const identifier = String(prompt?.identifier || "").trim();
+              if (identifier) merged.set(identifier, prompt);
+            });
+            imported.prompts.forEach((prompt) => {
+              const identifier = String(prompt?.identifier || "").trim();
+              if (identifier) merged.set(identifier, deepClone(prompt));
+            });
+
+            this.editingData.prompts = Array.from(merged.values());
+            this.markDirty("prompts");
+            if (Array.isArray(imported.prompt_order)) {
+              const currentOrder = Array.isArray(this.editingData.prompt_order)
+                ? deepClone(this.editingData.prompt_order)
+                : [];
+              const shape = this.getPromptOrderShape();
+              if (shape.mode === "nested" && currentOrder[shape.bucketIndex]) {
+                currentOrder[shape.bucketIndex] = {
+                  ...currentOrder[shape.bucketIndex],
+                  order: deepClone(imported.prompt_order),
+                };
+                this.editingData.prompt_order = currentOrder;
+              } else {
+                this.editingData.prompt_order = deepClone(imported.prompt_order);
+              }
+              this.markDirty("prompt_order");
+            }
+            this.activePromptId =
+              String(imported.prompts[0]?.identifier || "").trim() ||
+              this.activePromptId;
+            this.promptAppendId = "";
+            this.refreshEditorCollections();
+            this.$store?.global?.showToast?.("提示词已导入并合并");
+          } catch (error) {
+            console.error(error);
+            this.$store?.global?.showToast?.("导入提示词失败", "error");
+          }
+        };
+        reader.onerror = () => {
+          this.$store?.global?.showToast?.("读取提示词文件失败", "error");
+        };
+        reader.readAsText(file);
+      });
+      document.body.appendChild(input);
+      input.click();
+      window.setTimeout(() => input.remove(), 0);
+    },
+
     updatePromptField(key, value) {
       const active = this.activePromptItem;
       if (!active || !this.editingData) return;
@@ -1291,7 +1813,10 @@ export default function presetEditor() {
       if (!prompts[promptIndex] || typeof prompts[promptIndex] !== "object") {
         return;
       }
-      if (key === "content" && prompts[promptIndex].marker) {
+      if (!this.isPromptEditAllowed(prompts[promptIndex])) {
+        return;
+      }
+      if (key === "content" && !this.isPromptContentEditable(prompts[promptIndex])) {
         return;
       }
 
@@ -1380,6 +1905,7 @@ export default function presetEditor() {
     updatePromptTriggers(selectedValues) {
       const active = this.activePromptItem;
       if (!active || !this.editingData) return;
+      if (!this.isPromptEditAllowed(active)) return;
 
       const promptIndex = Number(active.__prompt_index);
       const prompts = Array.isArray(this.editingData.prompts)
@@ -1399,7 +1925,7 @@ export default function presetEditor() {
     },
 
     isPromptContentEditable(prompt) {
-      return Boolean(prompt && !prompt.marker);
+      return Boolean(prompt && this.isPromptEditAllowed(prompt) && !prompt.marker);
     },
 
     selectGroup(groupId) {
@@ -1492,13 +2018,18 @@ export default function presetEditor() {
       const hiddenFields = new Set(this.scalarWorkspace?.hidden_fields || []);
       return Object.entries(this.scalarWorkspace?.field_map || {})
         .filter(([fieldKey]) => !hiddenFields.has(fieldKey))
-        .filter(([, meta]) => meta?.section === sectionId)
+        .filter(
+          ([, meta]) =>
+            meta?.section === sectionId ||
+            meta?.workspace_section === sectionId,
+        )
         .map(([fieldKey, meta]) => ({
           fieldKey,
           storage_key: meta?.storage_key || fieldKey,
           canonical_key: meta?.canonical_key || fieldKey,
           ...meta,
-        }));
+        }))
+        .filter((field) => this.isProfileFieldVisible(field));
     },
 
     getProfileField(fieldKey) {
@@ -1514,9 +2045,95 @@ export default function presetEditor() {
     },
 
     getProfileSectionFields(sectionId) {
+      if (sectionId === "all") {
+        return Object.values(this.editorProfile?.fields || {}).filter(
+          (field) =>
+            field?.control !== "prompt_workspace" &&
+            field?.canonical_key !== "extensions",
+        );
+      }
       return Object.values(this.editorProfile?.fields || {}).filter(
-        (field) => field.section === sectionId,
+        (field) =>
+          field.section === sectionId || field.workspace_section === sectionId,
+      ).filter(
+        (field) =>
+          field?.control !== "prompt_workspace" &&
+          field?.canonical_key !== "extensions",
       );
+    },
+
+    getProfileFieldRawValue(fieldKey) {
+      if (!fieldKey) return undefined;
+      const field = this.getProfileField(fieldKey);
+      const storageKey = field?.storage_key || field?.canonical_key || fieldKey;
+      const value = this.getByPath(storageKey);
+      if (value !== undefined) return value;
+      return this.editingData?.[fieldKey];
+    },
+
+    matchesProfileCondition(condition) {
+      if (!condition || typeof condition !== "object") return true;
+      const value = this.getProfileFieldRawValue(condition.field);
+      const normalizedValue =
+        condition.field === "chat_completion_source" &&
+        (value === undefined || value === null || value === "")
+          ? "openai"
+          : value;
+      if (Array.isArray(condition.in)) {
+        return condition.in.some(
+          (candidate) => String(candidate) === String(normalizedValue),
+        );
+      }
+      if (Object.prototype.hasOwnProperty.call(condition, "equals")) {
+        return normalizedValue === condition.equals;
+      }
+      if (condition.truthy === true) return Boolean(normalizedValue);
+      if (condition.truthy === false) return !normalizedValue;
+      return true;
+    },
+
+    isProfileFieldVisible(field) {
+      if (!field) return false;
+      if (!this.matchesProfileCondition(field.visible_when)) return false;
+      const dependencies = Array.isArray(field.depends_on)
+        ? field.depends_on
+        : field.depends_on
+          ? [field.depends_on]
+          : [];
+      return dependencies.every((condition) =>
+        this.matchesProfileCondition(condition),
+      );
+    },
+
+    getProfileFieldOptionLabel(field, value) {
+      const key = String(value ?? "");
+      if (field?.id === "chat_completion_source") {
+        return PROFILE_SOURCE_LABELS[key] || key;
+      }
+      return PROFILE_OPTION_LABELS[key] || key || "自动";
+    },
+
+    getProfileFieldDisplayValue(fieldKey) {
+      const field = this.getProfileField(fieldKey);
+      const value = this.getProfileFieldValue(fieldKey);
+      if (
+        field?.sensitive &&
+        value !== null &&
+        value !== undefined &&
+        value !== ""
+      ) {
+        return "已设置";
+      }
+      if (field?.control === "checkbox") return value ? "开启" : "关闭";
+      if (field?.control === "select") {
+        return this.getProfileFieldOptionLabel(field, value);
+      }
+      if (value && typeof value === "object") {
+        return Array.isArray(value) ? `${value.length} 项` : "已配置";
+      }
+      return value === null || value === undefined || value === ""
+        ? "未设置"
+        : String(value);
     },
 
     isProfileFieldDirty(fieldKey) {
@@ -1614,6 +2231,32 @@ export default function presetEditor() {
       if (!field) return;
       const normalized = this.normalizeProfileFieldValue(field, value);
       this.setByPath(field.storage_key || fieldKey, normalized);
+    },
+
+    getProfileFieldTextValue(fieldKey) {
+      const value = this.getProfileFieldValue(fieldKey);
+      if (value === null || value === undefined) return "";
+      if (typeof value === "object") {
+        try {
+          return JSON.stringify(value, null, 2);
+        } catch (error) {
+          return "";
+        }
+      }
+      return String(value);
+    },
+
+    setProfileFieldJsonValue(fieldKey, value) {
+      const field = this.getProfileField(fieldKey);
+      if (!field) return;
+      try {
+        this.setByPath(
+          field.storage_key || fieldKey,
+          JSON.parse(String(value || "")),
+        );
+      } catch (error) {
+        return;
+      }
     },
 
     getProfileFieldPercent(fieldKey) {
@@ -1855,6 +2498,7 @@ export default function presetEditor() {
         this.uiFilter = "all";
         this.activeGroup = reopenContext?.activeGroup || "all";
         this.activePromptId = reopenContext?.activePromptId || "";
+        this.promptAppendId = "";
         this.activeGenericItemId = reopenContext?.activeGenericItemId || "";
         this.activeItemId = reopenContext?.activeItemId || "";
         this.showMobileSidebar = false;
@@ -1938,6 +2582,7 @@ export default function presetEditor() {
       this.activeWorkspace = "all";
       this.activeGroup = "all";
       this.activePromptId = "";
+      this.promptAppendId = "";
       this.activeGenericItemId = "";
       this.activeItemId = "";
       this.showMobilePromptDetailView = false;

@@ -57,6 +57,67 @@ const PROMPT_POSITION_LABELS = {
   1: "聊天中",
 };
 
+const PROFILE_SOURCE_LABELS = {
+  openai: "OpenAI",
+  custom: "Custom",
+  ai21: "AI21",
+  aimlapi: "AIML API",
+  azure_openai: "Azure OpenAI",
+  chutes: "Chutes",
+  cohere: "Cohere",
+  cometapi: "CometAPI",
+  electronhub: "ElectronHub",
+  fireworks: "Fireworks",
+  groq: "Groq",
+  makersuite: "Google AI Studio",
+  claude: "Claude",
+  deepseek: "DeepSeek",
+  minimax: "MiniMax",
+  mistralai: "Mistral",
+  moonshot: "Moonshot",
+  nanogpt: "NanoGPT",
+  openrouter: "OpenRouter",
+  perplexity: "Perplexity",
+  pollinations: "Pollinations",
+  siliconflow: "SiliconFlow",
+  vertexai: "Vertex AI",
+  workers_ai: "Workers AI",
+  xai: "xAI",
+  zai: "Z.AI",
+};
+
+const PROFILE_OPTION_LABELS = {
+  "": "自动",
+  " ": "空格",
+  "\n": "换行",
+  "\n\n": "空两行",
+  "-1": "不处理",
+  "0": "默认",
+  "1": "Completion Object",
+  "2": "Message Content",
+  auto: "自动",
+  low: "低",
+  medium: "中",
+  high: "高",
+  min: "最低",
+  max: "最高",
+  disabled: "禁用",
+  since_last_user: "上个用户消息后",
+  active_chain: "当前工具链",
+  alphabetically: "按字母排序",
+  "pricing.prompt": "输入价格",
+  "pricing.completion": "输出价格",
+  context_length: "上下文长度",
+  express: "Express",
+  full: "完整鉴权",
+  global: "Global",
+  cn: "中国节点",
+  common: "通用",
+  coding: "Coding",
+  on: "开启",
+  off: "关闭",
+};
+
 const UI_FILTER_IDS = new Set(UI_FILTERS.map((filter) => filter.id));
 const PROMPT_UI_FILTER_IDS = new Set(
   PROMPT_UI_FILTERS.map((filter) => filter.id),
@@ -229,7 +290,10 @@ export default function presetDetailReader() {
     get isScalarWorkspaceReader() {
       return (
         this.readerView.family === "prompt_manager" &&
-        this.activeWorkspace === "scalar_fields" &&
+        this.activeWorkspace !== "prompts" &&
+        (this.readerWorkspaceSections.some(
+          (section) => section.id === this.activeWorkspace,
+        ) || this.activeWorkspace === "scalar_fields") &&
         this.hasScalarWorkspace
       );
     },
@@ -249,6 +313,26 @@ export default function presetDetailReader() {
 
       return fieldEntries.filter(([fieldKey, fieldConfig]) => {
         if (hiddenFields.has(fieldKey)) {
+          return false;
+        }
+
+        if (
+          Object.prototype.hasOwnProperty.call(fieldConfig || {}, "source_key") &&
+          fieldConfig.source_key === null
+        ) {
+          return false;
+        }
+
+        if (!this.isProfileFieldVisible(fieldConfig)) {
+          return false;
+        }
+
+        if (
+          this.activeWorkspace !== "all" &&
+          this.activeWorkspace !== "scalar_fields" &&
+          fieldConfig?.section !== this.activeWorkspace &&
+          fieldConfig?.workspace_section !== this.activeWorkspace
+        ) {
           return false;
         }
 
@@ -274,8 +358,25 @@ export default function presetDetailReader() {
         this.scalarWorkspace?.field_map || {},
       );
       const hiddenFields = new Set(this.scalarWorkspace?.hidden_fields || []);
-      return fieldEntries.filter(([fieldKey]) => !hiddenFields.has(fieldKey))
-        .length;
+      return fieldEntries.filter(([fieldKey, fieldConfig]) => {
+        if (hiddenFields.has(fieldKey)) return false;
+        if (
+          Object.prototype.hasOwnProperty.call(fieldConfig || {}, "source_key") &&
+          fieldConfig.source_key === null
+        ) {
+          return false;
+        }
+        if (!this.isProfileFieldVisible(fieldConfig)) return false;
+        if (
+          this.activeWorkspace !== "all" &&
+          this.activeWorkspace !== "scalar_fields" &&
+          fieldConfig?.section !== this.activeWorkspace &&
+          fieldConfig?.workspace_section !== this.activeWorkspace
+        ) {
+          return false;
+        }
+        return true;
+      }).length;
     },
 
     get scalarWorkspaceSummaryCards() {
@@ -1032,7 +1133,16 @@ export default function presetDetailReader() {
     },
 
     get readerMirroredProfileSections() {
-      return this.mirroredProfileSections.filter(
+      return this.readerWorkspaceSections;
+    },
+
+    get readerWorkspaceSections() {
+      const workspaceSections = Array.isArray(
+        this.editorProfile?.workspace_sections,
+      )
+        ? this.editorProfile.workspace_sections
+        : this.mirroredProfileSections;
+      return workspaceSections.filter(
         (section) =>
           !HIDDEN_READER_MIRRORED_SECTION_IDS.has(section?.id) &&
           this.getProfileSectionFields(section?.id).length > 0,
@@ -1054,11 +1164,55 @@ export default function presetDetailReader() {
     getProfileSectionFields(sectionId) {
       return Object.values(this.editorProfile?.fields || {}).filter(
         (field) =>
-          field.section === sectionId &&
+          (field.section === sectionId || field.workspace_section === sectionId) &&
+          this.isProfileFieldVisible(field) &&
           field.source_key !== null &&
           field.canonical_key !== "prompts" &&
           field.canonical_key !== "prompt_order" &&
           field.canonical_key !== "extensions",
+      );
+    },
+
+    getProfileFieldRawValue(fieldKey) {
+      if (!fieldKey) return undefined;
+      const field = this.getProfileField(fieldKey);
+      const storageKey = field?.storage_key || field?.canonical_key || fieldKey;
+      const rawData = this.activePresetDetail?.raw_data;
+      if (!rawData || typeof rawData !== "object") return undefined;
+      return rawData[storageKey];
+    },
+
+    matchesProfileCondition(condition) {
+      if (!condition || typeof condition !== "object") return true;
+      const value = this.getProfileFieldRawValue(condition.field);
+      const normalizedValue =
+        condition.field === "chat_completion_source" &&
+        (value === undefined || value === null || value === "")
+          ? "openai"
+          : value;
+      if (Array.isArray(condition.in)) {
+        return condition.in.some(
+          (candidate) => String(candidate) === String(normalizedValue),
+        );
+      }
+      if (Object.prototype.hasOwnProperty.call(condition, "equals")) {
+        return normalizedValue === condition.equals;
+      }
+      if (condition.truthy === true) return Boolean(normalizedValue);
+      if (condition.truthy === false) return !normalizedValue;
+      return true;
+    },
+
+    isProfileFieldVisible(field) {
+      if (!field) return false;
+      if (!this.matchesProfileCondition(field.visible_when)) return false;
+      const dependencies = Array.isArray(field.depends_on)
+        ? field.depends_on
+        : field.depends_on
+          ? [field.depends_on]
+          : [];
+      return dependencies.every((condition) =>
+        this.matchesProfileCondition(condition),
       );
     },
 
@@ -1083,6 +1237,13 @@ export default function presetDetailReader() {
           : value
             ? "已设置"
             : "未设置";
+      }
+      if (field.control === "select") {
+        const valueKey = String(value ?? "");
+        if (field.canonical_key === "chat_completion_source") {
+          return PROFILE_SOURCE_LABELS[valueKey] || valueKey || "OpenAI";
+        }
+        return PROFILE_OPTION_LABELS[valueKey] || valueKey || "自动";
       }
       return this.formatValue(value);
     },

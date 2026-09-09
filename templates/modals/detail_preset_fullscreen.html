@@ -18,7 +18,7 @@
     >
       <div class="preset-editor-header-brand flex items-center gap-3 min-w-0">
         <div class="preset-editor-brand-mark" aria-hidden="true">
-          {{ sidebar_icon('preset-stack', 'ui-icon--md') }}
+          {{ detail_icon('preset', 'ui-icon--md') }}
         </div>
         <div class="preset-editor-heading min-w-0">
           <div class="preset-editor-eyebrow">预设工作台</div>
@@ -400,68 +400,19 @@
             </button>
             <button
               x-show="isPromptWorkspaceEditor && hasScalarWorkspace"
-              @click="selectWorkspace('scalar_fields')"
+              @click="selectWorkspace('all')"
               class="preset-editor-nav-item"
-              :class="activeWorkspace === 'scalar_fields' ? 'is-active' : ''"
+              :class="activeWorkspace === 'all' ? 'is-active' : ''"
               type="button"
             >
               <span class="preset-editor-nav-icon" aria-hidden="true">{{ icon('sliders-settings', 'ui-icon--sm') }}</span>
               <span class="preset-editor-nav-copy">
-                <span class="preset-editor-nav-title">参数工作区</span>
-                <span class="preset-editor-nav-description">采样、限制与生成控制</span>
+                <span class="preset-editor-nav-title">基础字段</span>
+                <span class="preset-editor-nav-description">来源、生成参数与功能开关</span>
               </span>
-              <span class="preset-editor-nav-count" x-text="scalarWorkspaceSections.length"></span>
-            </button>
-            <button
-              x-show="isPromptWorkspaceEditor"
-              @click="selectWorkspace('all')"
-              class="preset-editor-nav-item"
-              :class="activeWorkspace !== 'prompts' && activeWorkspace !== 'scalar_fields' ? 'is-active' : ''"
-              type="button"
-            >
-              <span class="preset-editor-nav-icon" aria-hidden="true">{{ icon('data-grid', 'ui-icon--sm') }}</span>
-              <span class="preset-editor-nav-copy">
-                <span class="preset-editor-nav-title">全部字段</span>
-                <span class="preset-editor-nav-description">完整配置与结构化对象</span>
-              </span>
-              <span class="preset-editor-nav-count" x-text="editorView.items?.length || 0"></span>
+              <span class="preset-editor-nav-count" x-text="getMirroredSectionFieldCount('all') || workspaceSections.length || scalarWorkspaceSections.length"></span>
             </button>
           </nav>
-
-          <div class="preset-editor-extension-strip">
-            <div class="preset-editor-extension-strip-head">
-              <div class="preset-editor-section-label">扩展能力</div>
-              <span class="preset-editor-extension-state" :class="(extensionSummary.regexCount || 0) + (extensionSummary.scriptCount || 0) ? 'is-on' : ''">
-                <span aria-hidden="true">{{ icon('check', 'ui-icon--xs') }}</span>
-                <span x-text="(extensionSummary.regexCount || 0) + (extensionSummary.scriptCount || 0) ? '已加载' : '未配置'"></span>
-              </span>
-            </div>
-            <div class="preset-editor-extension-grid">
-              <div class="preset-editor-extension-metric">
-                <span class="preset-editor-extension-metric-icon" aria-hidden="true">{{ sidebar_icon('regex-file', 'ui-icon--sm') }}</span>
-                <span class="preset-editor-extension-metric-copy">
-                  <strong x-text="extensionSummary.regexCount || 0"></strong>
-                  <span>正则脚本</span>
-                </span>
-              </div>
-              <div class="preset-editor-extension-metric">
-                <span class="preset-editor-extension-metric-icon" aria-hidden="true">{{ sidebar_icon('script-brackets', 'ui-icon--sm') }}</span>
-                <span class="preset-editor-extension-metric-copy">
-                  <strong x-text="extensionSummary.scriptCount || 0"></strong>
-                  <span>ST 脚本</span>
-                </span>
-              </div>
-            </div>
-            <button
-              @click="openAdvancedExtensions()"
-              class="preset-editor-extension-action"
-              type="button"
-            >
-              <span aria-hidden="true">{{ icon('code-file', 'ui-icon--sm') }}</span>
-              <span>打开扩展编辑器</span>
-              <span aria-hidden="true">{{ icon('chevron-right', 'ui-icon--xs') }}</span>
-            </button>
-          </div>
 
           <template
             x-if="!isPromptWorkspaceEditor || activeWorkspace !== 'prompts'"
@@ -554,7 +505,7 @@
             </div>
           </template>
 
-          <template x-if="isMirroredProfileEditor && editorProfile">
+          <template x-if="isMirroredProfileEditor && editorProfile && activeWorkspace !== 'prompts'">
             <div
               class="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-container)] p-3 space-y-2"
             >
@@ -563,7 +514,7 @@
                 <span>分区</span>
               </div>
               <template
-                x-for="section in mirroredProfileSections"
+                x-for="section in workspaceSections"
                 :key="section.id"
               >
                 <button
@@ -638,15 +589,15 @@
             <div class="preset-editor-stage-heading">
               <div class="preset-editor-eyebrow">
                 <span aria-hidden="true">{{ detail_icon('edit-mode', 'ui-icon--xs') }}</span>
-                <span x-text="activeWorkspace === 'prompts' ? '提示词工作区' : (isScalarWorkspaceEditor ? '参数工作区' : '字段工作区')"></span>
+                <span x-text="activeWorkspace === 'prompts' ? '提示词列表' : (activeMirroredSection?.label || (isScalarWorkspaceEditor ? '基础字段' : '字段工作区'))"></span>
               </div>
               <h1
                 class="preset-editor-stage-title"
-                x-text="activePromptItem?.name || activeItem?.title || activeMirroredField?.label || (activeWorkspace === 'prompts' ? '提示词列表' : '配置字段')"
+                x-text="activeWorkspace === 'prompts' ? (activePromptItem?.name || '提示词列表') : (isMirroredProfileEditor ? (activeMirroredSection?.label || activeMirroredField?.label || '配置字段') : (activeItem?.title || '配置字段'))"
               ></h1>
               <p
                 class="preset-editor-stage-description"
-                x-text="activePromptItem ? '按 SillyTavern 的注入顺序检查提示词，并编辑角色、位置和触发场景。' : (activeItem?.summary || activeMirroredField?.description || '选择左侧工作区中的项目开始编辑。')"
+                x-text="activeWorkspace === 'prompts' ? '按 SillyTavern 的注入顺序检查提示词，并编辑角色、位置和触发场景。' : (isMirroredProfileEditor ? (activeMirroredSection?.description || activeMirroredField?.description || '选择左侧工作区中的字段开始编辑。') : (activeItem?.summary || '选择左侧工作区中的项目开始编辑。'))"
               ></p>
             </div>
             <div class="preset-editor-stage-tools" role="toolbar" aria-label="编辑舞台工具">
@@ -654,14 +605,6 @@
                 <span class="preset-editor-stage-indicator-dot" :class="hasConflict ? 'is-danger' : (isDirty ? 'is-warning' : 'is-ready')"></span>
                 <span x-text="hasConflict ? '冲突待处理' : (isDirty ? '编辑中' : '已同步')"></span>
               </div>
-              <button
-                @click="openAdvancedExtensions()"
-                class="btn-secondary preset-editor-stage-tool-button hidden md:inline-flex"
-                type="button"
-              >
-                <span aria-hidden="true">{{ sidebar_icon('script-brackets', 'ui-icon--sm') }}</span>
-                <span>扩展</span>
-              </button>
             </div>
           </div>
 
@@ -705,8 +648,89 @@
                             x-text="`${orderedPromptItems.length} 个提示词`"
                           ></div>
                         </div>
-                        <div class="text-[11px] text-[var(--content-muted)]">
-                          列表即顺序
+                        <div class="flex items-center gap-1">
+                          <button
+                            type="button"
+                            @click="createPrompt()"
+                            class="ui-reorder-button"
+                            title="新建提示词"
+                            aria-label="新建提示词"
+                          >
+                            {{ icon('plus', 'ui-icon--xs') }}
+                          </button>
+                          <button
+                            type="button"
+                            @click="deleteActivePrompt()"
+                            class="ui-reorder-button color-hover-text-danger"
+                            :disabled="!isPromptDeleteAllowed(activePromptItem)"
+                            title="删除当前提示词"
+                            aria-label="删除当前提示词"
+                          >
+                            {{ icon('trash', 'ui-icon--xs') }}
+                          </button>
+                        </div>
+                      </div>
+                      <div class="px-4 py-3 border-b border-[var(--border-default)] space-y-2">
+                        <div class="flex items-center justify-between gap-3">
+                          <span class="text-xs font-semibold text-[var(--content-secondary)]">提示词工具</span>
+                          <span
+                            x-show="hasUnsupportedNestedPromptOrder()"
+                            class="text-[11px] color-text-warning"
+                          >多列表结构暂不重排</span>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-2">
+                          <select
+                            x-model="promptAppendId"
+                            class="form-input flex-1 min-w-[10rem] text-xs"
+                            :disabled="!detachedPromptItems.length || hasUnsupportedNestedPromptOrder()"
+                            aria-label="选择要加入顺序的提示词"
+                          >
+                            <option value="">选择未加入顺序的提示词</option>
+                            <template x-for="prompt in detachedPromptItems" :key="`append-${prompt.__identifier}`">
+                              <option
+                                :value="prompt.__raw_identifier"
+                                x-text="prompt.name || prompt.__raw_identifier"
+                              ></option>
+                            </template>
+                          </select>
+                          <button
+                            type="button"
+                            @click="appendPromptToOrder()"
+                            class="btn-secondary px-3 py-1.5 text-xs rounded"
+                            :disabled="!promptAppendId || hasUnsupportedNestedPromptOrder()"
+                          >
+                            {{ icon('plus', 'ui-icon--xs') }}<span>加入顺序</span>
+                          </button>
+                          <button
+                            type="button"
+                            @click="detachActivePrompt()"
+                            class="btn-secondary px-3 py-1.5 text-xs rounded"
+                            :disabled="!activePromptItem || activePromptItem.__is_orphan || hasUnsupportedNestedPromptOrder()"
+                          >
+                            {{ icon('minus', 'ui-icon--xs') }}<span>移出顺序</span>
+                          </button>
+                          <button
+                            type="button"
+                            @click="resetPromptOrder()"
+                            class="btn-secondary px-3 py-1.5 text-xs rounded"
+                            :disabled="hasUnsupportedNestedPromptOrder()"
+                          >
+                            {{ icon('refresh', 'ui-icon--xs') }}<span>默认顺序</span>
+                          </button>
+                          <button
+                            type="button"
+                            @click="importPrompts()"
+                            class="btn-secondary px-3 py-1.5 text-xs rounded"
+                          >
+                            {{ icon('file-import', 'ui-icon--xs') }}<span>导入</span>
+                          </button>
+                          <button
+                            type="button"
+                            @click="exportPrompts()"
+                            class="btn-secondary px-3 py-1.5 text-xs rounded"
+                          >
+                            {{ icon('upload', 'ui-icon--xs') }}<span>导出</span>
+                          </button>
                         </div>
                       </div>
                       <div
@@ -750,6 +774,7 @@
                                     type="checkbox"
                                     class="peer prompt-toggle-input"
                                     aria-label="切换提示词启用状态"
+                                    :disabled="!isPromptToggleAllowed(prompt)"
                                     :checked="prompt.__enabled !== false"
                                     @change="togglePromptEnabled(prompt.__identifier)"
                                   />
@@ -778,13 +803,17 @@
                                 class="px-2 py-0.5 rounded-full border border-[var(--border-default)] text-[var(--content-muted)]"
                                 x-text="getPromptPositionLabel(prompt)"
                               ></span>
+                              <span
+                                x-show="prompt.__is_orphan"
+                                class="px-2 py-0.5 rounded-full border border-dashed border-[var(--border-default)] text-[var(--content-muted)]"
+                              >未加入顺序</span>
                             </div>
                             <div class="mt-3 flex items-center gap-2">
                               <button
                                 type="button"
                                 @click.stop="movePromptItem(index, index - 1)"
                                 class="ui-reorder-button"
-                                :disabled="index === 0"
+                                :disabled="!isPromptOrderMovable(prompt, -1)"
                                 title="上移"
                                 aria-label="上移"
                               >
@@ -794,7 +823,7 @@
                                 type="button"
                                 @click.stop="movePromptItem(index, index + 1)"
                                 class="ui-reorder-button"
-                                :disabled="index === orderedPromptItems.length - 1"
+                                :disabled="!isPromptOrderMovable(prompt, 1)"
                                 title="下移"
                                 aria-label="下移"
                               >
@@ -825,6 +854,16 @@
                             x-text="activePromptItem?.__identifier || 'prompts[]'"
                           ></div>
                         </div>
+                        <button
+                          x-show="isSystemPromptResettable(activePromptItem)"
+                          type="button"
+                          @click="resetSystemPrompt()"
+                          class="ui-reorder-button"
+                          title="恢复默认提示词"
+                          aria-label="恢复默认提示词"
+                        >
+                          {{ icon('refresh', 'ui-icon--xs') }}
+                        </button>
                       </div>
 
                       <div
@@ -864,6 +903,7 @@
                                   type="text"
                                   class="form-input"
                                   :value="activePromptItem?.name || ''"
+                                  :disabled="!isPromptEditAllowed(activePromptItem)"
                                   @input="updatePromptField('name', $event.target.value)"
                                 />
                               </label>
@@ -880,7 +920,8 @@
                                   wrapper_class="form-input",
                                   trigger_class="text-sm",
                                   menu_class="icon-select-menu--fit",
-                                  aria_label="角色"
+                                  aria_label="角色",
+                                  source_attrs=':disabled="!isPromptEditAllowed(activePromptItem)"'
                                 ) %}
                                   <template
                                     x-for="option in promptRoleOptions"
@@ -909,7 +950,8 @@
                                   wrapper_class="form-input",
                                   trigger_class="text-sm",
                                   menu_class="icon-select-menu--fit",
-                                  aria_label="位置"
+                                  aria_label="位置",
+                                  source_attrs=':disabled="!isPromptEditAllowed(activePromptItem)"'
                                 ) %}
                                   <template
                                     x-for="option in promptPositionOptions"
@@ -936,6 +978,7 @@
                                   type="number"
                                   class="form-input"
                                   :value="Number(activePromptItem?.injection_depth ?? 4)"
+                                  :disabled="!isPromptEditAllowed(activePromptItem)"
                                   @input="updatePromptField('injection_depth', $event.target.value)"
                                 />
                               </label>
@@ -953,6 +996,7 @@
                                   type="number"
                                   class="form-input"
                                   :value="Number(activePromptItem?.injection_order ?? 100)"
+                                  :disabled="!isPromptEditAllowed(activePromptItem)"
                                   @input="updatePromptField('injection_order', $event.target.value)"
                                 />
                               </label>
@@ -998,6 +1042,7 @@
                                         type="checkbox"
                                         class="rounded"
                                         :value="option.value"
+                                        :disabled="!isPromptEditAllowed(activePromptItem)"
                                         :checked="Array.isArray(activePromptItem?.injection_trigger) && activePromptItem.injection_trigger.includes(option.value)"
                                         @change="updatePromptTriggers(Array.from($el.closest('[data-prompt-triggers]').querySelectorAll('input:checked')).map((input) => input.value))"
                                       />
@@ -1008,7 +1053,23 @@
                               </div>
                             </div>
 
-                            <template x-if="!activePromptItem?.marker">
+                            <label
+                              x-show="isPromptOverrideControlVisible(activePromptItem)"
+                              class="flex items-center justify-between gap-3 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-page)] p-4 text-sm text-[var(--content-primary)]"
+                            >
+                              <span>
+                                <span class="block font-semibold">禁止覆盖</span>
+                                <span class="block text-[11px] text-[var(--content-muted)]">保留当前系统提示词，不允许角色卡覆盖。</span>
+                              </span>
+                              <input
+                                type="checkbox"
+                                :disabled="!isPromptEditAllowed(activePromptItem)"
+                                :checked="!!activePromptItem?.forbid_overrides"
+                                @change="updatePromptField('forbid_overrides', $event.target.checked)"
+                              />
+                            </label>
+
+                            <template x-if="activePromptItem">
                               <div
                                 class="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-page)] p-4 space-y-3"
                               >
@@ -1019,7 +1080,8 @@
                                   <span>提示词内容</span>
                                 </div>
                                 <div class="text-[11px] text-[var(--content-muted)]">
-                                  填写实际要注入的提示词正文；marker 条目无需内容。
+                                  <span x-show="activePromptItem?.marker === false">填写实际要注入的提示词正文；marker 条目无需内容。</span>
+                                  <span x-show="activePromptItem?.marker">这是 SillyTavern 的运行时来源字段，正文不可编辑。</span>
                                 </div>
                                 <textarea
                                   class="form-textarea min-h-[320px] w-full max-w-full custom-scrollbar"
@@ -1043,9 +1105,9 @@
                   <section
                     class="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-container)] min-h-[22rem] h-full flex flex-col overflow-hidden"
                   >
-                    <div
-                      class="px-4 py-3 border-b border-[var(--border-default)] flex items-center justify-between gap-3"
-                    >
+                      <div
+                        class="px-4 py-3 border-b border-[var(--border-default)] flex items-center justify-between gap-3"
+                      >
                       <div>
                         <div class="text-sm font-bold text-[var(--content-primary)]">
                           提示词列表
@@ -1055,12 +1117,94 @@
                           x-text="`${orderedPromptItems.length} 个提示词`"
                         ></div>
                       </div>
-                      <div class="text-[11px] text-[var(--content-muted)]">
-                        点选条目进入编辑
+                      <div class="flex items-center gap-1">
+                        <button
+                          type="button"
+                          @click="createPrompt()"
+                          class="ui-reorder-button"
+                          title="新建提示词"
+                          aria-label="新建提示词"
+                        >
+                          {{ icon('plus', 'ui-icon--xs') }}
+                        </button>
+                        <button
+                          type="button"
+                          @click="deleteActivePrompt()"
+                          class="ui-reorder-button color-hover-text-danger"
+                          :disabled="!isPromptDeleteAllowed(activePromptItem)"
+                          title="删除当前提示词"
+                          aria-label="删除当前提示词"
+                        >
+                          {{ icon('trash', 'ui-icon--xs') }}
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                    <div
-                      class="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-3 space-y-2"
+                      <span class="sr-only">点选条目进入编辑</span>
+                      <div class="px-4 py-3 border-b border-[var(--border-default)] space-y-2">
+                        <div class="flex items-center justify-between gap-3">
+                          <span class="text-xs font-semibold text-[var(--content-secondary)]">提示词工具</span>
+                          <span
+                            x-show="hasUnsupportedNestedPromptOrder()"
+                            class="text-[11px] color-text-warning"
+                          >多列表结构暂不重排</span>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-2">
+                          <select
+                            x-model="promptAppendId"
+                            class="form-input flex-1 min-w-[10rem] text-xs"
+                            :disabled="!detachedPromptItems.length || hasUnsupportedNestedPromptOrder()"
+                            aria-label="选择要加入顺序的提示词"
+                          >
+                            <option value="">选择未加入顺序的提示词</option>
+                            <template x-for="prompt in detachedPromptItems" :key="`append-mobile-${prompt.__identifier}`">
+                              <option
+                                :value="prompt.__raw_identifier"
+                                x-text="prompt.name || prompt.__raw_identifier"
+                              ></option>
+                            </template>
+                          </select>
+                          <button
+                            type="button"
+                            @click="appendPromptToOrder()"
+                            class="btn-secondary px-3 py-1.5 text-xs rounded"
+                            :disabled="!promptAppendId || hasUnsupportedNestedPromptOrder()"
+                          >
+                            {{ icon('plus', 'ui-icon--xs') }}<span>加入顺序</span>
+                          </button>
+                          <button
+                            type="button"
+                            @click="detachActivePrompt()"
+                            class="btn-secondary px-3 py-1.5 text-xs rounded"
+                            :disabled="!activePromptItem || activePromptItem.__is_orphan || hasUnsupportedNestedPromptOrder()"
+                          >
+                            {{ icon('minus', 'ui-icon--xs') }}<span>移出顺序</span>
+                          </button>
+                          <button
+                            type="button"
+                            @click="resetPromptOrder()"
+                            class="btn-secondary px-3 py-1.5 text-xs rounded"
+                            :disabled="hasUnsupportedNestedPromptOrder()"
+                          >
+                            {{ icon('refresh', 'ui-icon--xs') }}<span>默认顺序</span>
+                          </button>
+                          <button
+                            type="button"
+                            @click="importPrompts()"
+                            class="btn-secondary px-3 py-1.5 text-xs rounded"
+                          >
+                            {{ icon('file-import', 'ui-icon--xs') }}<span>导入</span>
+                          </button>
+                          <button
+                            type="button"
+                            @click="exportPrompts()"
+                            class="btn-secondary px-3 py-1.5 text-xs rounded"
+                          >
+                            {{ icon('upload', 'ui-icon--xs') }}<span>导出</span>
+                          </button>
+                        </div>
+                      </div>
+                      <div
+                        class="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-3 space-y-2"
                     >
                       <template x-if="orderedPromptItems.length === 0">
                         <div
@@ -1096,11 +1240,12 @@
                               <span
                                 class="relative inline-flex h-5 w-9 items-center"
                               >
-                                <input
-                                  type="checkbox"
-                                  class="peer prompt-toggle-input"
-                                  aria-label="切换提示词启用状态"
-                                  :checked="prompt.__enabled !== false"
+                                  <input
+                                    type="checkbox"
+                                    class="peer prompt-toggle-input"
+                                    aria-label="切换提示词启用状态"
+                                    :disabled="!isPromptToggleAllowed(prompt)"
+                                    :checked="prompt.__enabled !== false"
                                   @change="togglePromptEnabled(prompt.__identifier)"
                                 />
                                 <span
@@ -1128,13 +1273,17 @@
                               class="px-2 py-0.5 rounded-full border border-[var(--border-default)] text-[var(--content-muted)]"
                               x-text="getPromptPositionLabel(prompt)"
                             ></span>
+                            <span
+                              x-show="prompt.__is_orphan"
+                              class="px-2 py-0.5 rounded-full border border-dashed border-[var(--border-default)] text-[var(--content-muted)]"
+                            >未加入顺序</span>
                           </div>
                           <div class="mt-3 flex items-center gap-2">
                             <button
                               type="button"
                               @click.stop="movePromptItem(index, index - 1)"
                               class="ui-reorder-button"
-                              :disabled="index === 0"
+                              :disabled="!isPromptOrderMovable(prompt, -1)"
                               title="上移"
                               aria-label="上移"
                             >
@@ -1144,7 +1293,7 @@
                               type="button"
                               @click.stop="movePromptItem(index, index + 1)"
                               class="ui-reorder-button"
-                              :disabled="index === orderedPromptItems.length - 1"
+                              :disabled="!isPromptOrderMovable(prompt, 1)"
                               title="下移"
                               aria-label="下移"
                             >
@@ -1185,6 +1334,16 @@
                           class="text-[11px] text-[var(--content-muted)] break-all"
                           x-text="activePromptItem?.__identifier || 'prompts[]'"
                         ></div>
+                        <button
+                          x-show="isSystemPromptResettable(activePromptItem)"
+                          type="button"
+                          @click="resetSystemPrompt()"
+                          class="ui-reorder-button"
+                          title="恢复默认提示词"
+                          aria-label="恢复默认提示词"
+                        >
+                          {{ icon('refresh', 'ui-icon--xs') }}
+                        </button>
                       </div>
                     </div>
 
@@ -1225,6 +1384,7 @@
                                 type="text"
                                 class="form-input"
                                 :value="activePromptItem?.name || ''"
+                                :disabled="!isPromptEditAllowed(activePromptItem)"
                                 @input="updatePromptField('name', $event.target.value)"
                               />
                             </label>
@@ -1241,7 +1401,8 @@
                                 wrapper_class="form-input",
                                 trigger_class="text-sm",
                                 menu_class="icon-select-menu--fit",
-                                aria_label="角色"
+                                aria_label="角色",
+                                source_attrs=':disabled="!isPromptEditAllowed(activePromptItem)"'
                               ) %}
                                 <template
                                   x-for="option in promptRoleOptions"
@@ -1270,7 +1431,8 @@
                                 wrapper_class="form-input",
                                 trigger_class="text-sm",
                                 menu_class="icon-select-menu--fit",
-                                aria_label="位置"
+                                aria_label="位置",
+                                source_attrs=':disabled="!isPromptEditAllowed(activePromptItem)"'
                               ) %}
                                 <template
                                   x-for="option in promptPositionOptions"
@@ -1297,6 +1459,7 @@
                                 type="number"
                                 class="form-input"
                                 :value="Number(activePromptItem?.injection_depth ?? 4)"
+                                :disabled="!isPromptEditAllowed(activePromptItem)"
                                 @input="updatePromptField('injection_depth', $event.target.value)"
                               />
                             </label>
@@ -1314,6 +1477,7 @@
                                 type="number"
                                 class="form-input"
                                 :value="Number(activePromptItem?.injection_order ?? 100)"
+                                :disabled="!isPromptEditAllowed(activePromptItem)"
                                 @input="updatePromptField('injection_order', $event.target.value)"
                               />
                             </label>
@@ -1359,6 +1523,7 @@
                                       type="checkbox"
                                       class="rounded"
                                       :value="option.value"
+                                      :disabled="!isPromptEditAllowed(activePromptItem)"
                                       :checked="Array.isArray(activePromptItem?.injection_trigger) && activePromptItem.injection_trigger.includes(option.value)"
                                       @change="updatePromptTriggers(Array.from($el.closest('[data-prompt-triggers]').querySelectorAll('input:checked')).map((input) => input.value))"
                                     />
@@ -1369,7 +1534,23 @@
                             </div>
                           </div>
 
-                          <template x-if="!activePromptItem?.marker">
+                          <label
+                            x-show="isPromptOverrideControlVisible(activePromptItem)"
+                            class="flex items-center justify-between gap-3 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-page)] p-4 text-sm text-[var(--content-primary)]"
+                          >
+                            <span>
+                              <span class="block font-semibold">禁止覆盖</span>
+                              <span class="block text-[11px] text-[var(--content-muted)]">保留当前系统提示词，不允许角色卡覆盖。</span>
+                            </span>
+                            <input
+                              type="checkbox"
+                              :disabled="!isPromptEditAllowed(activePromptItem)"
+                              :checked="!!activePromptItem?.forbid_overrides"
+                              @change="updatePromptField('forbid_overrides', $event.target.checked)"
+                            />
+                          </label>
+
+                          <template x-if="activePromptItem">
                             <div
                               class="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-page)] p-4 space-y-3"
                             >
@@ -1380,7 +1561,8 @@
                                   <span>提示词内容</span>
                               </div>
                               <div class="text-[11px] text-[var(--content-muted)]">
-                                填写实际要注入的提示词正文；marker 条目无需内容。
+                                <span x-show="activePromptItem?.marker === false">填写实际要注入的提示词正文；marker 条目无需内容。</span>
+                                <span x-show="activePromptItem?.marker">这是 SillyTavern 的运行时来源字段，正文不可编辑。</span>
                               </div>
                               <textarea
                                 class="form-textarea min-h-[320px] w-full max-w-full custom-scrollbar"
@@ -1685,7 +1867,7 @@
                           </div>
                           <div
                             class="text-xs font-mono text-[var(--content-secondary)]"
-                            x-text="getProfileFieldValue(field.id)"
+                            x-text="getProfileFieldDisplayValue(field.id)"
                           ></div>
                         </div>
 
@@ -1749,6 +1931,16 @@
                           />
                         </template>
 
+                        <template x-if="field.control === 'text' || field.control === 'password'">
+                          <input
+                            :type="field.control === 'password' ? 'password' : 'text'"
+                            class="form-input"
+                            :value="getProfileFieldValue(field.id) ?? ''"
+                            @input="setProfileFieldValue(field.id, $event.target.value)"
+                            :autocomplete="field.control === 'password' ? 'new-password' : 'off'"
+                          />
+                        </template>
+
                         <template x-if="isProfileFieldSelect(field)">
                           {% call styled_select_controlled(
                             "getProfileFieldValue(field.id) ?? field.default ?? ''",
@@ -1762,7 +1954,7 @@
                               x-for="option in (field.options || [])"
                               :key="`${field.id}-${option}`"
                             >
-                              <option :value="option" x-text="option"></option>
+                              <option :value="option" x-text="getProfileFieldOptionLabel(field, option)"></option>
                             </template>
                           {% endcall %}
                         </template>
@@ -1884,15 +2076,18 @@
                             class="rounded-xl border border-[var(--border-default)] bg-[var(--surface-page)] p-3 space-y-2"
                           >
                             <div class="text-[11px] text-[var(--content-muted)]">
-                              复杂 JSON 结构通过扩展编辑器处理。
+                              正则与 ST 脚本属于独立扩展资源，使用顶部的扩展入口处理。
                             </div>
-                            <button
-                              @click="openAdvancedExtensions()"
-                              class="btn-secondary px-3 py-1.5 text-xs rounded"
-                            >
-                              编辑扩展
-                            </button>
                           </div>
+                        </template>
+
+                        <template x-if="field.control === 'raw_json' && field.id !== 'extensions'">
+                          <textarea
+                            class="form-input min-h-[10rem] font-mono"
+                            :value="getProfileFieldTextValue(field.id)"
+                            @input="setProfileFieldJsonValue(field.id, $event.target.value)"
+                            spellcheck="false"
+                          ></textarea>
                         </template>
                       </div>
                     </template>
@@ -2484,34 +2679,6 @@
             </div>
             </template>
           </template>
-
-          <div class="preset-editor-inspector-section">
-            <div class="preset-editor-inspector-section-head">
-              <div>
-                <div class="preset-editor-panel-kicker">扩展能力</div>
-                <div class="preset-editor-inspector-section-title">脚本与正则</div>
-              </div>
-              <span class="preset-editor-inspector-section-icon" aria-hidden="true">{{ icon('code-file', 'ui-icon--sm') }}</span>
-            </div>
-            <div class="preset-editor-inspector-metrics">
-              <div>
-                <strong x-text="extensionSummary.regexCount || 0"></strong>
-                <span>正则脚本</span>
-              </div>
-              <div>
-                <strong x-text="extensionSummary.scriptCount || 0"></strong>
-                <span>ST 脚本</span>
-              </div>
-            </div>
-            <button
-              @click="openAdvancedExtensions()"
-              class="btn-secondary preset-editor-inspector-action"
-              type="button"
-            >
-              <span aria-hidden="true">{{ icon('pencil-edit', 'ui-icon--sm') }}</span>
-              编辑扩展脚本
-            </button>
-          </div>
 
           <div
             class="preset-editor-inspector-section rounded-2xl border border-[var(--border-default)] bg-[var(--surface-container)] p-4 space-y-3"
