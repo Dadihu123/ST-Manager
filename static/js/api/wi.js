@@ -37,7 +37,7 @@ export async function saveWorldInfo(payload) {
 
 // 获取世界书条目历史版本
 export async function listWiEntryHistory(payload) {
-  // payload: { source_type, source_id, file_path, entry_uid, limit? }
+  // payload: { source_type, source_id, file_path, entry_uid, card_id?, legacy_source_id?, limit? }
   const res = await fetch("/api/world_info/entry_history/list", {
     method: "POST",
     headers: { "Content-Type": "application/json" },

@@ -215,6 +215,35 @@ def test_wi_editor_action_rail_only_shows_menu_for_hidden_tools():
     assert 'ui-icon--md' in template[template.index('wi-editor-save-icon-button--snapshot') :]
 
 
+def test_wi_editor_save_actions_are_whole_book_actions_and_history_uses_card_uid():
+    template = read_project_file('templates/modals/detail_wi_fullscreen.html')
+    source = read_project_file('static/js/components/wiEditor.js')
+
+    assert 'title="保存当前条目"' not in template
+    assert '@click="saveWiFileChanges()"' not in template
+    assert '@click="saveChanges()"' not in template
+    assert '保存当前条目的修改' not in template
+
+    context_block = extract_js_function_block(source, '_getEntryHistoryContext() {')
+    script = textwrap.dedent(
+        f'''
+        const component = {{
+          editingWiFile: {{ type: 'embedded', card_id: 'cards/hero.json' }},
+          editingData: {{ id: 'cards/hero.json', card_uid: '12345678-1234-4234-8234-123456789abc' }},
+          {context_block}
+        }};
+        const context = component._getEntryHistoryContext();
+        if (context.source_id !== component.editingData.card_uid) {{
+          throw new Error('embedded history should use the card UUID as source_id');
+        }}
+        if (context.card_id !== component.editingData.id || context.legacy_source_id !== component.editingData.id) {{
+          throw new Error('embedded history should preserve the legacy card path');
+        }}
+        '''
+    )
+    run_js(script)
+
+
 def test_wi_editor_mobile_panes_and_inspector_layout_have_explicit_contracts():
     template = read_project_file('templates/modals/detail_wi_fullscreen.html')
     source = read_project_file('static/js/components/wiEditor.js')

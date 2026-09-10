@@ -42,11 +42,13 @@ from core.services.wi_entry_history_service import (
     collect_previous_versions,
     append_entry_history_records,
     list_entry_history_records,
-    get_history_limit
+    get_history_limit,
+    resolve_card_uid,
 )
 from core.utils.filesystem import safe_move_to_trash
 from core.utils.filesystem import sanitize_filename
 from core.utils.source_revision import build_file_source_revision
+from core.utils.card_identity import normalize_card_uid
 from core.utils.world_info_sort import (
     normalize_world_info_sort_mode,
     sort_world_info_entries,
@@ -470,6 +472,16 @@ def _worldinfo_owner_card_id(item: dict) -> str:
     return ''
 
 
+def _embedded_card_id(value) -> str:
+    """Extract a card path from either an embedded worldbook or card ID."""
+    card_id = str(value or '').strip().replace('\\', '/')
+    if card_id.startswith('world::embedded::'):
+        return card_id[len('world::embedded::'):]
+    if card_id.startswith('embedded::'):
+        return card_id[len('embedded::'):]
+    return card_id
+
+
 def _legacy_worldinfo_id(item: dict) -> str:
     item_id = str(item.get('id') or '')
     item_type = str(item.get('type') or '')
@@ -513,6 +525,13 @@ def _enrich_indexed_worldinfo_item(item: dict, card_map: dict, ui_data: dict, cf
     owner_card_name = str(owner_card.get('char_name') or '')
     owner_card_category = _normalize_category_path(owner_card.get('category', ''))
     item_type = str(enriched.get('type') or '')
+    owner_card_uid = ''
+    if item_type == 'embedded':
+        owner_card_uid = normalize_card_uid(owner_card.get('card_uid')) or resolve_card_uid(
+            owner_card_id,
+            cache=ctx.cache,
+            db_path=DEFAULT_DB_PATH,
+        )
 
     enriched['file_name'] = file_name
     enriched['name_source'] = _infer_worldinfo_name_source(
@@ -549,6 +568,7 @@ def _enrich_indexed_worldinfo_item(item: dict, card_map: dict, ui_data: dict, cf
     else:
         enriched['card_id'] = owner_card_id
         enriched['card_name'] = owner_card_name
+        enriched['card_uid'] = owner_card_uid
         enriched['ui_summary'] = _get_embedded_worldinfo_ui_summary(ui_data, card_id=owner_card_id)
         enriched['last_sent_to_st'] = 0.0
 
@@ -1359,21 +1379,28 @@ def api_list_world_infos():
             cursor = conn.execute("SELECT id, char_name, character_book_name, last_modified FROM card_metadata WHERE has_character_book = 1")
             rows = cursor.fetchall()
             for row in rows:
-                card = card_map.get(str(row['id']) or '') or {}
+                card_id = str(row['id'] or '')
+                card = card_map.get(card_id) or {}
+                card_uid = normalize_card_uid(card.get('card_uid')) or resolve_card_uid(
+                    card_id,
+                    cache=ctx.cache,
+                    db_path=DEFAULT_DB_PATH,
+                )
                 owner_category = _normalize_category_path(card.get('category', ''))
                 items.append({
-                    "id": f"embedded::{row['id']}",
+                    "id": f"embedded::{card_id}",
                     "type": "embedded",
                     "source_type": "embedded",
                     "name": row['character_book_name'] or f"{row['char_name']}'s WI",
                     "card_name": row['char_name'],
-                    "card_id": row['id'],
+                    "card_id": card_id,
+                    "card_uid": card_uid,
                     "mtime": row['last_modified'],
                     "display_category": owner_category,
                     "physical_category": '',
                     "category_mode": 'inherited',
                     "category_override": '',
-                    "owner_card_id": row['id'],
+                    "owner_card_id": card_id,
                     "owner_card_name": row['char_name'],
                     "owner_card_category": owner_category,
                     "ui_summary": _get_embedded_worldinfo_ui_summary(ui_data, card_id=row['id']),
@@ -2178,18 +2205,43 @@ def api_save_world_info():
 @bp.route('/api/world_info/entry_history/list', methods=['POST'])
 def api_list_wi_entry_history():
     try:
-        source_type = request.json.get('source_type') or 'lorebook'
-        source_id = request.json.get('source_id') or ''
-        file_path = request.json.get('file_path') or ''
-        entry_uid = request.json.get('entry_uid') or ''
-        limit = request.json.get('limit')
+        req = request.get_json(silent=True) or {}
+        source_type = str(req.get('source_type') or 'lorebook').strip().lower()
+        source_id = str(req.get('source_id') or '').strip()
+        file_path = req.get('file_path') or ''
+        entry_uid = req.get('entry_uid') or ''
+        limit = req.get('limit')
+        fallback_contexts = []
+
+        if source_type == 'embedded':
+            card_id = _embedded_card_id(
+                req.get('card_id') or req.get('legacy_source_id') or source_id
+            )
+            resolved_uid = resolve_card_uid(
+                card_id,
+                cache=ctx.cache,
+                db_path=DEFAULT_DB_PATH,
+            )
+            stable_uid = resolved_uid or normalize_card_uid(source_id) or normalize_card_uid(
+                req.get('card_uid')
+            )
+            legacy_card_id = card_id if card_id and not normalize_card_uid(card_id) else ''
+            source_id = stable_uid or card_id or source_id
+            file_path = ''
+            if stable_uid and legacy_card_id:
+                fallback_contexts.append({
+                    'source_type': 'embedded',
+                    'source_id': legacy_card_id,
+                    'file_path': '',
+                })
 
         records = list_entry_history_records(
             source_type=source_type,
             source_id=source_id,
             file_path=file_path,
             entry_uid=entry_uid,
-            limit=limit
+            limit=limit,
+            fallback_contexts=fallback_contexts,
         )
 
         return jsonify({

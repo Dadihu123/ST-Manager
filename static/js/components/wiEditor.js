@@ -68,6 +68,7 @@ export default function wiEditor() {
       char_name: "",
       character_book: { name: "", entries: [] },
       extensions: { regex_scripts: [], tavern_helper: [] },
+      card_uid: "",
       source_revision: "",
     },
 
@@ -814,7 +815,7 @@ export default function wiEditor() {
           return;
         }
 
-        // Ctrl/Cmd + S 保存当前编辑，Ctrl/Cmd + Shift + S 保存整本并生成快照。
+        // Ctrl/Cmd + S 保存世界书修改，Ctrl/Cmd + Shift + S 保存整本并生成快照。
         if (
           (e.ctrlKey || e.metaKey) &&
           String(e.key || "").toLowerCase() === "s"
@@ -2230,12 +2231,18 @@ export default function wiEditor() {
     _getEntryHistoryContext() {
       const file = this.editingWiFile || {};
       if (file.type === "embedded" || (!file.type && this.editingData?.id)) {
+        const cardId =
+          this.editingData?.id || file.card_id || file.owner_card_id || "";
+        const cardUid =
+          this.editingData?.card_uid ||
+          file.card_uid ||
+          file.owner_card_uid ||
+          "";
         return {
           source_type: "embedded",
-          source_id:
-            this.editingData && this.editingData.id
-              ? this.editingData.id
-              : file.card_id || "",
+          source_id: cardUid || cardId,
+          card_id: cardId,
+          legacy_source_id: cardId,
           file_path: "",
         };
       }
@@ -2845,7 +2852,7 @@ export default function wiEditor() {
           id: ctx.id,
           type: ctx.type,
           file_path: ctx.file_path,
-          // 保留最近一个 INIT，避免“仅保存条目”后时光机无历史
+          // 保留最近一个 INIT，避免普通保存后时光机无历史
           keep_latest: 1,
         });
         if (!res || !res.success) {
@@ -2945,6 +2952,7 @@ export default function wiEditor() {
         source_link: this.editingData.source_link || "",
         resource_folder: this.editingData.resource_folder || "",
         source_revision: this.editingData.source_revision || "",
+        card_uid: this.editingData.card_uid || "",
 
         // 4. Bundle 状态透传 (保持包模式状态不丢失)
         save_ui_to_bundle: this.editingData.is_bundle,
@@ -2966,9 +2974,9 @@ export default function wiEditor() {
             if (withSnapshot) {
               this.$store.global.showToast("已保存整本并生成回滚版本", 2200, "settings-save");
             } else {
-              this.$store.global.showToast("条目修改已保存", 1800, "settings-save");
+              this.$store.global.showToast("世界书修改已保存", 1800, "settings-save");
             }
-            this._markEditorSaveSuccess(withSnapshot ? "整本已保存" : "修改已保存");
+            this._markEditorSaveSuccess(withSnapshot ? "整本已保存" : "世界书已保存");
 
             // 通知外部 (如卡片列表或详情页) 刷新数据
             window.dispatchEvent(
@@ -3538,9 +3546,9 @@ export default function wiEditor() {
             if (withSnapshot) {
               this.$store.global.showToast("已保存整本并生成回滚版本", 2200, "settings-save");
             } else {
-              this.$store.global.showToast("条目修改已保存", 1800, "settings-save");
+              this.$store.global.showToast("世界书修改已保存", 1800, "settings-save");
             }
-            this._markEditorSaveSuccess(withSnapshot ? "整本已保存" : "修改已保存");
+            this._markEditorSaveSuccess(withSnapshot ? "整本已保存" : "世界书已保存");
             autoSaver.initBaseline(this.editingData);
           } else {
             this._markEditorSaveError("保存失败");

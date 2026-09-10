@@ -348,7 +348,7 @@
                 class="wi-editor-menu-action wi-editor-menu-action--mobile-save"
               >
                 {{ icon('book-save', 'ui-icon--sm') }}
-                <span>保存整本</span>
+                <span>保存世界书</span>
               </button>
             </div>
           </div>
@@ -358,7 +358,7 @@
 
         <!-- 4. 快照与保存按钮组 -->
         <div class="wi-editor-save-actions flex items-center gap-2">
-          <!-- 场景 A: 编辑独立文件（快照、保存条目、保存整本） -->
+          <!-- 场景 A: 编辑独立文件（快照、保存世界书） -->
           <template x-if="editingWiFile && editingWiFile.type !== 'embedded'">
             <div class="wi-editor-save-cluster flex items-center gap-2">
               <button
@@ -370,21 +370,6 @@
                 aria-label="创建世界书快照（左键普通快照，右键关键快照）"
               >
                 {{ icon('snapshot', 'ui-icon--md') }}
-              </button>
-              <button
-                type="button"
-                @click="saveWiFileChanges()"
-                :disabled="isSaving"
-                class="wi-action-btn wi-editor-tool-button wi-editor-save-button wi-editor-save-icon-button wi-editor-save-icon-button--entry"
-                title="保存当前条目"
-                aria-label="保存条目"
-              >
-                <span x-show="isSaving" aria-hidden="true">
-                  {{ loading_icon('ui-icon--md') }}
-                </span>
-                <span x-show="!isSaving" aria-hidden="true">
-                  {{ icon('settings-save', 'ui-icon--md') }}
-                </span>
               </button>
               <button
                 type="button"
@@ -401,7 +386,7 @@
             </div>
           </template>
 
-          <!-- 场景 B: 编辑卡片内嵌（快照、保存条目、保存整本；提取入口位于工具组或更多菜单） -->
+          <!-- 场景 B: 编辑卡片内嵌（快照、保存世界书；提取入口位于工具组或更多菜单） -->
           <template x-if="!editingWiFile || editingWiFile.type === 'embedded'">
             <div class="flex items-center gap-2">
               <button
@@ -413,21 +398,6 @@
                 aria-label="创建世界书快照（左键普通快照，右键关键快照）"
               >
                 {{ icon('snapshot', 'ui-icon--md') }}
-              </button>
-              <button
-                type="button"
-                @click="saveChanges()"
-                :disabled="isSaving"
-                class="wi-action-btn wi-editor-tool-button wi-editor-save-button wi-editor-save-icon-button wi-editor-save-icon-button--entry"
-                title="保存当前条目"
-                aria-label="保存条目"
-              >
-                <span x-show="isSaving" aria-hidden="true">
-                  {{ loading_icon('ui-icon--md') }}
-                </span>
-                <span x-show="!isSaving" aria-hidden="true">
-                  {{ icon('settings-save', 'ui-icon--md') }}
-                </span>
               </button>
               <button
                 type="button"
@@ -2419,27 +2389,12 @@
                 class="font-bold text-[var(--content-primary)] mb-1 flex items-center gap-1"
               >
                 <span aria-hidden="true">
-                  {{ icon('settings-save', 'ui-icon--xs') }}
-                </span>
-                <span>保存条目</span>
-              </div>
-              <p class="text-xs text-[var(--content-secondary)]">
-                保存当前条目的修改。如果是独立世界书文件，直接保存到文件；如果是内嵌世界书，保存到角色卡。
-              </p>
-            </div>
-            <div
-              class="bg-[var(--surface-container-raised)] p-3 rounded-lg border border-[var(--border-default)]"
-            >
-              <div
-                class="font-bold text-[var(--content-primary)] mb-1 flex items-center gap-1"
-              >
-                <span aria-hidden="true">
                   {{ icon('book-save', 'ui-icon--xs') }}
                 </span>
                 <span>保存整本</span>
               </div>
               <p class="text-xs text-[var(--content-secondary)]">
-                直接保存当前整本世界书，不额外创建回滚快照。需要先备份旧状态时，请使用更多菜单中的“先创建整本回滚版本再保存”。
+                保存当前整本世界书的修改，不额外创建回滚快照。需要先备份旧状态时，请使用更多菜单中的“先创建整本回滚版本再保存”。
               </p>
             </div>
             <div
