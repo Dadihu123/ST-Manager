@@ -211,9 +211,9 @@ const serializeEmbeddedWiEntry = (entry, index = 0) => {
   if (source.characterFilter) out.character_filter = source.characterFilter;
   out.extensions = extensions;
 
+  // 条目历史依赖这个持久化 UID；仅清理运行时索引和 ST 别名，不能丢掉它。
   [
     "st_source_id",
-    "st_manager_uid",
     "uid",
     "key",
     "keysecondary",
@@ -411,9 +411,8 @@ export function toStV3Worldbook(bookData, fallbackName = "World Info") {
     delete out.secondary_keys;
     delete out.insertion_order;
 
-    // 清理前端内部使用的字段
+    // 清理前端内部使用的索引；st_manager_uid 用于条目历史，必须保留。
     delete out.id;
-    delete out.st_manager_uid;
     delete out.st_source_id;
 
     stripStLoreEntryDefaults(out);

@@ -7,6 +7,7 @@ import logging
 import sqlite3
 
 from core.config import BASE_DIR, DEFAULT_DB_PATH, load_config
+from core.config import CARDS_FOLDER
 from core.utils.card_identity import normalize_card_uid
 
 logger = logging.getLogger(__name__)
@@ -32,6 +33,27 @@ def _ensure_table(conn):
         CREATE INDEX IF NOT EXISTS idx_wi_entry_history_scope_uid_time
         ON wi_entry_history(scope_key, entry_uid, created_at DESC, id DESC)
     ''')
+
+
+def _build_scope_keys(source_type, source_id='', file_path='', fallback_contexts=None):
+    """Build the primary and compatibility scope keys for one source."""
+    scope_keys = []
+    contexts = [(source_type, source_id, file_path)]
+    for context in fallback_contexts or []:
+        if isinstance(context, dict):
+            contexts.append((
+                context.get('source_type', source_type),
+                context.get('source_id', ''),
+                context.get('file_path', ''),
+            ))
+        elif isinstance(context, (list, tuple)) and len(context) >= 3:
+            contexts.append((context[0], context[1], context[2]))
+
+    for context in contexts:
+        scope_key = build_scope_key(*context)
+        if scope_key and scope_key not in scope_keys:
+            scope_keys.append(scope_key)
+    return scope_keys
 
 
 def _normalize_path(file_path: str) -> str:
@@ -136,6 +158,15 @@ def ensure_entry_uids(book_data) -> bool:
     return changed
 
 
+def get_entry_uids(book_data):
+    """Return the persisted UIDs currently present in a worldbook."""
+    return [
+        str(entry.get(ENTRY_UID_FIELD, '') or '').strip()
+        for entry in _get_entries_ref(book_data)
+        if str(entry.get(ENTRY_UID_FIELD, '') or '').strip()
+    ]
+
+
 def _snapshot_entry(entry: dict, forced_uid: str = '') -> dict:
     try:
         snap = json.loads(json.dumps(entry, ensure_ascii=False))
@@ -191,6 +222,261 @@ def collect_previous_versions(old_book, new_book):
                 'snapshot': old_snapshot
             })
     return records
+
+
+def purge_entry_history_scope(
+    source_type: str,
+    source_id: str = '',
+    file_path: str = '',
+    fallback_contexts=None,
+    db_path=None,
+) -> int:
+    """Delete all history rows belonging to a source and its legacy scopes."""
+    scope_keys = _build_scope_keys(
+        source_type,
+        source_id,
+        file_path,
+        fallback_contexts=fallback_contexts,
+    )
+    if not scope_keys:
+        return 0
+
+    try:
+        with sqlite3.connect(db_path or DEFAULT_DB_PATH, timeout=30) as conn:
+            _ensure_table(conn)
+            placeholders = ', '.join('?' for _ in scope_keys)
+            cursor = conn.execute(
+                f'DELETE FROM wi_entry_history WHERE scope_key IN ({placeholders})',
+                tuple(scope_keys),
+            )
+            conn.commit()
+            return max(int(cursor.rowcount or 0), 0)
+    except Exception as e:
+        logger.warning(f'Purge WI entry history failed: {e}')
+        return 0
+
+
+def reconcile_entry_history_scope(
+    source_type: str,
+    source_id: str = '',
+    file_path: str = '',
+    active_entry_uids=None,
+    fallback_contexts=None,
+    db_path=None,
+) -> int:
+    """Remove history for entries no longer present in the saved worldbook."""
+    scope_keys = _build_scope_keys(
+        source_type,
+        source_id,
+        file_path,
+        fallback_contexts=fallback_contexts,
+    )
+    if not scope_keys:
+        return 0
+
+    active_uids = {
+        str(uid or '').strip()
+        for uid in (active_entry_uids or [])
+        if str(uid or '').strip()
+    }
+
+    try:
+        with sqlite3.connect(db_path or DEFAULT_DB_PATH, timeout=30) as conn:
+            _ensure_table(conn)
+            if not active_uids:
+                placeholders = ', '.join('?' for _ in scope_keys)
+                cursor = conn.execute(
+                    f'DELETE FROM wi_entry_history WHERE scope_key IN ({placeholders})',
+                    tuple(scope_keys),
+                )
+            else:
+                uid_placeholders = ', '.join('?' for _ in active_uids)
+                scope_placeholders = ', '.join('?' for _ in scope_keys)
+                cursor = conn.execute(
+                    f'''
+                    DELETE FROM wi_entry_history
+                    WHERE scope_key IN ({scope_placeholders})
+                      AND entry_uid NOT IN ({uid_placeholders})
+                    ''',
+                    (*scope_keys, *sorted(active_uids)),
+                )
+            conn.commit()
+            return max(int(cursor.rowcount or 0), 0)
+    except Exception as e:
+        logger.warning(f'Reconcile WI entry history failed: {e}')
+        return 0
+
+
+def _trim_scope_history(conn, scope_key: str, limit: int):
+    """Deduplicate and bound history after a scope migration."""
+    entry_rows = conn.execute(
+        'SELECT DISTINCT entry_uid FROM wi_entry_history WHERE scope_key = ?',
+        (scope_key,),
+    ).fetchall()
+    for (entry_uid,) in entry_rows:
+        rows = conn.execute(
+            '''
+            SELECT id, snapshot_hash
+            FROM wi_entry_history
+            WHERE scope_key = ? AND entry_uid = ?
+            ORDER BY created_at DESC, id DESC
+            ''',
+            (scope_key, entry_uid),
+        ).fetchall()
+        keep_ids = []
+        seen_hashes = set()
+        for row in rows:
+            if row[1] in seen_hashes or len(keep_ids) >= limit:
+                continue
+            seen_hashes.add(row[1])
+            keep_ids.append(row[0])
+        if not keep_ids:
+            continue
+        placeholders = ', '.join('?' for _ in keep_ids)
+        conn.execute(
+            f'''
+            DELETE FROM wi_entry_history
+            WHERE scope_key = ? AND entry_uid = ? AND id NOT IN ({placeholders})
+            ''',
+            (scope_key, entry_uid, *keep_ids),
+        )
+
+
+def move_entry_history_scope(
+    source_type: str,
+    source_id: str = '',
+    file_path: str = '',
+    target_source_type: str = '',
+    target_source_id: str = '',
+    target_file_path: str = '',
+    fallback_contexts=None,
+    db_path=None,
+) -> int:
+    """Move history to a renamed source while collapsing legacy scopes."""
+    old_scope_keys = _build_scope_keys(
+        source_type,
+        source_id,
+        file_path,
+        fallback_contexts=fallback_contexts,
+    )
+    target_scope_key = build_scope_key(
+        target_source_type or source_type,
+        target_source_id,
+        target_file_path,
+    )
+    if not old_scope_keys or not target_scope_key:
+        return 0
+
+    old_scope_keys = [key for key in old_scope_keys if key != target_scope_key]
+    if not old_scope_keys:
+        return 0
+
+    try:
+        with sqlite3.connect(db_path or DEFAULT_DB_PATH, timeout=30) as conn:
+            _ensure_table(conn)
+            placeholders = ', '.join('?' for _ in old_scope_keys)
+            cursor = conn.execute(
+                f'''
+                UPDATE wi_entry_history
+                SET scope_key = ?
+                WHERE scope_key IN ({placeholders})
+                ''',
+                (target_scope_key, *old_scope_keys),
+            )
+            _trim_scope_history(conn, target_scope_key, get_history_limit())
+            conn.commit()
+            return max(int(cursor.rowcount or 0), 0)
+    except Exception as e:
+        logger.warning(f'Move WI entry history failed: {e}')
+        return 0
+
+
+def purge_orphaned_entry_history(
+    *,
+    cards_root=None,
+    world_info_root=None,
+    resources_root=None,
+    db_path=None,
+) -> int:
+    """Remove history scopes that no longer map to an existing source file."""
+    cards_root = os.path.abspath(os.fspath(cards_root or CARDS_FOLDER))
+    world_info_root = os.path.abspath(os.fspath(world_info_root or '')) if world_info_root else ''
+    resources_root = os.path.abspath(os.fspath(resources_root or '')) if resources_root else ''
+
+    roots = [cards_root, world_info_root, resources_root]
+    if any(not root or not os.path.isdir(root) for root in roots):
+        return 0
+
+    valid_scope_keys = set()
+    card_uid_map = {}
+    try:
+        with sqlite3.connect(db_path or DEFAULT_DB_PATH, timeout=30) as conn:
+            try:
+                card_uid_map = {
+                    str(row[0]).replace('\\', '/').strip('/'): normalize_card_uid(row[1])
+                    for row in conn.execute('SELECT id, card_uid FROM card_metadata').fetchall()
+                }
+            except sqlite3.Error:
+                card_uid_map = {}
+    except sqlite3.Error:
+        card_uid_map = {}
+
+    def add_worldbook_scopes(path, source_type):
+        valid_scope_keys.add(build_scope_key(source_type, file_path=path))
+        # History written before source_type was corrected used lorebook for all files.
+        valid_scope_keys.add(build_scope_key('lorebook', file_path=path))
+
+    for root, _dirs, files in os.walk(world_info_root):
+        for name in files:
+            if name.lower().endswith('.json'):
+                add_worldbook_scopes(os.path.join(root, name), 'global')
+
+    for root, _dirs, files in os.walk(resources_root):
+        for name in files:
+            if not name.lower().endswith('.json'):
+                continue
+            path = os.path.abspath(os.path.join(root, name))
+            rel_path = os.path.relpath(path, resources_root).replace('\\', '/').lower()
+            if '/lorebooks/' not in f'/{rel_path}/':
+                continue
+            add_worldbook_scopes(path, 'resource')
+
+    for root, _dirs, files in os.walk(cards_root):
+        for name in files:
+            if not name.lower().endswith(('.json', '.png')):
+                continue
+            path = os.path.abspath(os.path.join(root, name))
+            card_id = os.path.relpath(path, cards_root).replace('\\', '/').strip('/')
+            valid_scope_keys.add(build_scope_key('embedded', source_id=card_id))
+            card_uid = card_uid_map.get(card_id)
+            if card_uid:
+                valid_scope_keys.add(build_scope_key('embedded', source_id=card_uid))
+
+    try:
+        with sqlite3.connect(db_path or DEFAULT_DB_PATH, timeout=30) as conn:
+            _ensure_table(conn)
+            if valid_scope_keys:
+                conn.execute(
+                    'CREATE TEMP TABLE IF NOT EXISTS wi_valid_history_scopes (scope_key TEXT PRIMARY KEY)'
+                )
+                conn.execute('DELETE FROM wi_valid_history_scopes')
+                conn.executemany(
+                    'INSERT OR IGNORE INTO wi_valid_history_scopes (scope_key) VALUES (?)',
+                    [(scope_key,) for scope_key in valid_scope_keys],
+                )
+                cursor = conn.execute(
+                    '''
+                    DELETE FROM wi_entry_history
+                    WHERE scope_key NOT IN (SELECT scope_key FROM wi_valid_history_scopes)
+                    '''
+                )
+            else:
+                cursor = conn.execute('DELETE FROM wi_entry_history')
+            conn.commit()
+            return max(int(cursor.rowcount or 0), 0)
+    except Exception as e:
+        logger.warning(f'Purge orphaned WI entry history failed: {e}')
+        return 0
 
 
 def append_entry_history_records(source_type: str, source_id: str, file_path: str, records, limit=None) -> int:
@@ -281,22 +567,12 @@ def list_entry_history_records(
     if not uid:
         return []
 
-    scope_keys = []
-    contexts = [(source_type, source_id, file_path)]
-    for context in fallback_contexts or []:
-        if isinstance(context, dict):
-            contexts.append((
-                context.get('source_type', source_type),
-                context.get('source_id', ''),
-                context.get('file_path', ''),
-            ))
-        elif isinstance(context, (list, tuple)) and len(context) >= 3:
-            contexts.append((context[0], context[1], context[2]))
-
-    for context in contexts:
-        scope_key = build_scope_key(*context)
-        if scope_key and scope_key not in scope_keys:
-            scope_keys.append(scope_key)
+    scope_keys = _build_scope_keys(
+        source_type,
+        source_id,
+        file_path,
+        fallback_contexts=fallback_contexts,
+    )
     if not scope_keys:
         return []
 

@@ -21,6 +21,7 @@ from core.utils.filesystem import safe_move_to_trash, sanitize_filename, save_js
 
 from core.services.card_service import resolve_ui_key
 from core.data.ui_store import load_ui_data, save_ui_data
+from core.services.wi_entry_history_service import purge_entry_history_scope
 
 logger = logging.getLogger(__name__)
 
@@ -330,6 +331,18 @@ def api_delete_resource_file():
 
         # 2. 移至回收站
         if safe_move_to_trash(target_file, TRASH_FOLDER):
+            relative_to_resources = os.path.relpath(target_file, res_root).replace('\\', '/').lower()
+            if '/lorebooks/' in f'/{relative_to_resources}/':
+                purge_entry_history_scope(
+                    source_type='resource',
+                    file_path=target_file,
+                    fallback_contexts=[
+                        {
+                            'source_type': 'lorebook',
+                            'file_path': target_file,
+                        },
+                    ],
+                )
             return jsonify({"success": True})
         else:
             return jsonify({"success": False, "msg": "移动到回收站失败"})

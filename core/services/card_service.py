@@ -30,6 +30,11 @@ from core.services.card_index_sync_service import sync_card_index_jobs
 from core.services.index_build_service import apply_card_increment, connect_index_db
 from core.services.index_job_worker import enqueue_index_job
 from core.services.scan_service import suppress_fs_events
+from core.services.wi_entry_history_service import (
+    move_entry_history_scope,
+    purge_entry_history_scope,
+    resolve_card_uid,
+)
 
 # === 工具函数 ===
 from core.utils.image import (
@@ -40,8 +45,45 @@ from core.utils.filesystem import save_json_atomic, sanitize_filename
 from core.utils.text import calculate_token_count
 from core.utils.hash import get_file_hash_and_size
 from core.utils.source_revision import build_file_source_revision
+from core.utils.card_identity import normalize_card_uid
 
 logger = logging.getLogger(__name__)
+
+
+def cleanup_embedded_worldbook_history(
+    card_id,
+    card_uid='',
+    legacy_card_ids=None,
+    db_path=None,
+):
+    """Remove embedded worldbook history for a card and its old path aliases."""
+    card_ids = []
+    for value in [card_id, *(legacy_card_ids or [])]:
+        normalized = str(value or '').replace('\\', '/').strip('/')
+        if normalized and normalized not in card_ids:
+            card_ids.append(normalized)
+
+    stable_uid = normalize_card_uid(card_uid)
+    primary_source_id = stable_uid or (card_ids[0] if card_ids else '')
+    if not primary_source_id:
+        return 0
+
+    fallback_contexts = [
+        {
+            'source_type': 'embedded',
+            'source_id': legacy_id,
+            'file_path': '',
+        }
+        for legacy_id in card_ids
+        if legacy_id != primary_source_id
+    ]
+    return purge_entry_history_scope(
+        source_type='embedded',
+        source_id=primary_source_id,
+        file_path='',
+        fallback_contexts=fallback_contexts,
+        db_path=db_path,
+    )
 
 
 def _apply_card_index_increment_now(card_id, source_path, remove_entity_ids=None):
@@ -142,6 +184,14 @@ def update_card_content(card_id, temp_path, is_bundle_update, keep_ui_data, new_
     keep_ui_data = keep_ui_data if isinstance(keep_ui_data, dict) else {}
     import_time_fallback = None
     cache_entry = ctx.cache.id_map.get(card_id)
+    initial_card_uid = normalize_card_uid(
+        cache_entry.get('card_uid') if isinstance(cache_entry, dict) else ''
+    )
+    initial_card_uid = initial_card_uid or resolve_card_uid(
+        card_id,
+        cache=ctx.cache,
+        db_path=DEFAULT_DB_PATH,
+    )
     if cache_entry:
         _cached_it = cache_entry.get('import_time')
         if isinstance(_cached_it, (int, float)) and not isinstance(_cached_it, bool) and _cached_it > 0:
@@ -374,10 +424,10 @@ def update_card_content(card_id, temp_path, is_bundle_update, keep_ui_data, new_
     # 1. UI Data 同步
     ui_data = load_ui_data()
     ui_key = resolve_ui_key(final_rel_id)
-    stable_card_uid = ''
+    stable_card_uid = initial_card_uid
     old_cache_item = ctx.cache.id_map.get(card_id) if ctx.cache else None
     if old_cache_item:
-        stable_card_uid = str(old_cache_item.get('card_uid') or '').strip()
+        stable_card_uid = stable_card_uid or normalize_card_uid(old_cache_item.get('card_uid'))
     # 如果 ID 变更，迁移旧数据
     if card_id != final_rel_id and not is_bundle_update:
         if rename_card_ui_references(ui_data, card_id, ui_key):
@@ -454,6 +504,18 @@ def update_card_content(card_id, temp_path, is_bundle_update, keep_ui_data, new_
         remove_entity_ids=[card_id] if card_id != final_rel_id and not is_bundle_update else None,
         card_uid=stable_card_uid or None,
     )
+    if not is_bundle_update:
+        # 上传/URL 更新是整张卡片替换，旧嵌入式世界书不参与字段比对，直接清理历史。
+        cleanup_embedded_worldbook_history(
+            card_id=final_rel_id,
+            card_uid=stable_card_uid or resolve_card_uid(
+                final_rel_id,
+                cache=ctx.cache,
+                db_path=DEFAULT_DB_PATH,
+            ),
+            legacy_card_ids=[card_id],
+            db_path=DEFAULT_DB_PATH,
+        )
     sync_card_index_jobs(
         card_id=final_rel_id,
         source_path=target_save_path,
@@ -924,6 +986,14 @@ def sync_exact_card_after_fs_move(
         if ui_changed:
             save_ui_data(ui_data)
 
+    move_entry_history_scope(
+        source_type='embedded',
+        source_id=old_card_id,
+        target_source_type='embedded',
+        target_source_id=new_card_id,
+        db_path=DEFAULT_DB_PATH,
+    )
+
     if ctx.cache:
         ctx.cache.move_card_update(
             old_card_id,
@@ -975,6 +1045,13 @@ def sync_folder_prefix_after_fs_move(*, conn, ui_data, old_path, new_path):
         save_ui_data(ui_data)
 
     for old_sub_id, new_sub_id in moved_ids:
+        move_entry_history_scope(
+            source_type='embedded',
+            source_id=old_sub_id,
+            target_source_type='embedded',
+            target_source_id=new_sub_id,
+            db_path=DEFAULT_DB_PATH,
+        )
         new_sub_full_path = os.path.join(CARDS_FOLDER, new_sub_id.replace('/', os.sep))
         remove_ids = [old_sub_id] if new_sub_id != old_sub_id else None
         cache_result = update_card_cache(
@@ -997,10 +1074,21 @@ def sync_folder_prefix_after_fs_move(*, conn, ui_data, old_path, new_path):
     return moved_ids
 
 
-def cleanup_deleted_cards_after_fs_delete(*, deleted_card_ids, source_paths_by_card_id=None):
+def cleanup_deleted_cards_after_fs_delete(
+    *,
+    deleted_card_ids,
+    source_paths_by_card_id=None,
+    card_uids_by_card_id=None,
+):
     source_paths_by_card_id = source_paths_by_card_id or {}
+    card_uids_by_card_id = card_uids_by_card_id or {}
 
     for card_id in deleted_card_ids or []:
+        cleanup_embedded_worldbook_history(
+            card_id=card_id,
+            card_uid=card_uids_by_card_id.get(card_id, ''),
+            db_path=DEFAULT_DB_PATH,
+        )
         sync_card_index_jobs(
             card_id=card_id,
             source_path=source_paths_by_card_id.get(card_id, ''),

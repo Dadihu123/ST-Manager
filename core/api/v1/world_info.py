@@ -39,8 +39,12 @@ from core.services.st_auth import STAuthError, build_st_http_client
 from core.services.worldinfo_index_query_service import query_worldinfo_index
 from core.services.wi_entry_history_service import (
     ensure_entry_uids,
+    get_entry_uids,
     collect_previous_versions,
     append_entry_history_records,
+    reconcile_entry_history_scope,
+    purge_entry_history_scope,
+    move_entry_history_scope,
     list_entry_history_records,
     get_history_limit,
     resolve_card_uid,
@@ -1550,6 +1554,18 @@ def api_move_world_info_category():
         new_path = _move_global_worldinfo_file(file_path, target_category, cfg)
         try:
             _remap_global_worldinfo_note_path(old_path, new_path)
+            move_entry_history_scope(
+                source_type='global',
+                file_path=old_path,
+                target_source_type='global',
+                target_file_path=new_path,
+                fallback_contexts=[
+                    {
+                        'source_type': 'lorebook',
+                        'file_path': old_path,
+                    },
+                ],
+            )
         except ValueError:
             if os.path.exists(new_path) and not os.path.exists(old_path):
                 shutil.move(new_path, old_path)
@@ -1639,6 +1655,19 @@ def api_rename_world_info_folder():
         new_prefix = os.path.normcase(os.path.normpath(target_dir)).replace('\\', '/')
         try:
             _remap_global_worldinfo_note_path(old_prefix, new_prefix)
+            for old_file_path, new_file_path in moved_global_files:
+                move_entry_history_scope(
+                    source_type='global',
+                    file_path=old_file_path,
+                    target_source_type='global',
+                    target_file_path=new_file_path,
+                    fallback_contexts=[
+                        {
+                            'source_type': 'lorebook',
+                            'file_path': old_file_path,
+                        },
+                    ],
+                )
         except ValueError:
             if os.path.exists(target_dir) and not os.path.exists(source_dir):
                 os.rename(target_dir, source_dir)
@@ -2113,6 +2142,7 @@ def api_save_world_info():
         content = req.get('content') # JSON 对象
         old_content = None
         history_records = []
+        history_source_type = 'global'
         
         final_path = ""
         
@@ -2129,6 +2159,7 @@ def api_save_world_info():
                 return jsonify({"success": False, "msg": "内嵌世界书请通过卡片保存流程更新"})
             if not _is_valid_wi_file(final_path, cfg):
                 return jsonify({"success": False, "msg": "非法路径"})
+            history_source_type = 'resource' if _is_resource_worldinfo_path(final_path, cfg) else 'global'
             requested_revision = str(req.get('source_revision') or '').strip()
             if not requested_revision:
                 return jsonify({
@@ -2180,13 +2211,39 @@ def api_save_world_info():
             else:
                 json.dump(content, f, ensure_ascii=False, indent=2)
 
+        move_entry_history_scope(
+            source_type=history_source_type,
+            source_id='',
+            file_path=final_path,
+            target_source_type=history_source_type,
+            target_source_id='',
+            target_file_path=final_path,
+            fallback_contexts=[
+                {
+                    'source_type': 'lorebook',
+                    'file_path': final_path,
+                },
+            ],
+        )
         if history_records:
             append_entry_history_records(
-                source_type='lorebook',
+                source_type=history_source_type,
                 source_id='',
                 file_path=final_path,
                 records=history_records
             )
+        reconcile_entry_history_scope(
+            source_type=history_source_type,
+            source_id='',
+            file_path=final_path,
+            active_entry_uids=get_entry_uids(content),
+            fallback_contexts=[
+                {
+                    'source_type': 'lorebook',
+                    'file_path': final_path,
+                },
+            ],
+        )
         
         invalidate_wi_list_cache()
         try:
@@ -2234,6 +2291,13 @@ def api_list_wi_entry_history():
                     'source_id': legacy_card_id,
                     'file_path': '',
                 })
+        elif source_type in ('global', 'resource') and file_path:
+            # 兼容修复来源类型前写入的 lorebook 作用域。
+            fallback_contexts.append({
+                'source_type': 'lorebook',
+                'source_id': '',
+                'file_path': file_path,
+            })
 
         records = list_entry_history_records(
             source_type=source_type,
@@ -2512,6 +2576,18 @@ def api_delete_world_info():
         # 执行移动到回收站
         suppress_fs_events(2.5)
         if safe_move_to_trash(file_path, TRASH_FOLDER):
+            history_source_type = 'resource' if _is_resource_worldinfo_path(file_path, cfg) else 'global'
+            purge_entry_history_scope(
+                source_type=history_source_type,
+                source_id='',
+                file_path=file_path,
+                fallback_contexts=[
+                    {
+                        'source_type': 'lorebook',
+                        'file_path': file_path,
+                    },
+                ],
+            )
             ui_data = load_ui_data()
             if source_type in ('global', 'resource'):
                 if delete_worldinfo_note(ui_data, source_type, file_path=file_path):

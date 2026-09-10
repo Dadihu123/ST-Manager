@@ -13,6 +13,7 @@ if str(ROOT) not in sys.path:
 
 
 from core.api.v1 import cards as cards_api
+from core.services import wi_entry_history_service as history_service
 
 
 def _make_app():
@@ -150,6 +151,102 @@ def test_update_card_success_returns_refreshed_source_revision(monkeypatch, tmp_
     payload = res.get_json()
     assert payload['success'] is True
     assert payload['updated_card']['source_revision'] == refreshed_revision
+
+
+def test_update_embedded_worldbook_writes_history_for_current_entry_uid(monkeypatch, tmp_path):
+    cards_dir = tmp_path / 'cards'
+    cards_dir.mkdir()
+    card_path = cards_dir / 'hero.json'
+    card_path.write_text(json.dumps({'data': {'name': 'Hero'}}, ensure_ascii=False), encoding='utf-8')
+
+    card_uid = '12345678-1234-4234-8234-123456789abc'
+    old_info = {
+        'data': {
+            'name': 'Hero',
+            'tags': [],
+            'character_book': {
+                'name': 'Hero WI',
+                'entries': [{
+                    'uid': 'source-1',
+                    'key': ['hello'],
+                    'keysecondary': [],
+                    'comment': 'Greeting',
+                    'content': 'before',
+                    'disable': False,
+                    'order': 100,
+                }],
+            },
+        },
+    }
+    new_book = {
+        'name': 'Hero WI',
+        'entries': [{
+            'st_manager_uid': 'entry-uuid-1',
+            'keys': ['hello'],
+            'secondary_keys': [],
+            'comment': 'Greeting',
+            'content': 'after',
+            'enabled': True,
+            'insertion_order': 100,
+        }],
+    }
+    db_path = tmp_path / 'history.db'
+
+    monkeypatch.setattr(cards_api, 'CARDS_FOLDER', str(cards_dir))
+    monkeypatch.setattr(cards_api, 'DEFAULT_DB_PATH', str(db_path))
+    monkeypatch.setattr(history_service, 'DEFAULT_DB_PATH', str(db_path))
+    monkeypatch.setattr(cards_api, 'suppress_fs_events', lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(
+        cards_api,
+        'extract_card_info',
+        lambda _path: json.loads(json.dumps(old_info, ensure_ascii=False)),
+    )
+    monkeypatch.setattr(cards_api, 'write_card_metadata', lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(cards_api, 'load_ui_data', lambda: {'hero.json': {}})
+    monkeypatch.setattr(cards_api, 'save_ui_data', lambda _payload: None)
+    monkeypatch.setattr(cards_api, 'ensure_import_time', lambda *_args, **_kwargs: (False, 0))
+    monkeypatch.setattr(cards_api, 'get_import_time', lambda *_args, **_kwargs: 0)
+    monkeypatch.setattr(cards_api, 'calculate_token_count', lambda _data: 0)
+    monkeypatch.setattr(cards_api, 'sync_card_index_jobs', lambda **_kwargs: {})
+    monkeypatch.setattr(cards_api, '_apply_card_index_increment_now', lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(cards_api, '_refresh_source_after_update', lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(cards_api, 'auto_run_forum_tags_on_link_update', lambda _card_id: None)
+
+    class _FakeCache:
+        bundle_map = {}
+        cards = []
+        lock = RLock()
+
+        def __init__(self):
+            self.id_map = {'hero.json': {'card_uid': card_uid}}
+
+        def update_card_data(self, card_id, update_payload):
+            return {
+                'id': card_id,
+                'image_url': '/cards_file/hero.json',
+                **update_payload,
+            }
+
+    monkeypatch.setattr(cards_api.ctx, 'cache', _FakeCache())
+
+    client = _make_app().test_client()
+    response = client.post('/api/update_card', json={
+        'id': 'hero.json',
+        'char_name': 'Hero',
+        'tags': [],
+        'character_book': new_book,
+        'card_uid': card_uid,
+    })
+
+    assert response.status_code == 200
+    assert response.get_json()['success'] is True
+    records = history_service.list_entry_history_records(
+        source_type='embedded',
+        source_id=card_uid,
+        file_path='',
+        entry_uid='entry-uuid-1',
+    )
+    assert [item['snapshot']['content'] for item in records] == ['before']
 
 
 def test_change_image_json_to_png_enqueues_stale_cleanup_with_raw_id(monkeypatch, tmp_path):

@@ -244,6 +244,94 @@ def test_wi_editor_save_actions_are_whole_book_actions_and_history_uses_card_uid
     run_js(script)
 
 
+def test_worldbook_serializers_preserve_entry_history_uid():
+    source = read_project_file('static/js/utils/data.js')
+    normalize_block = extract_js_function_block(
+        source,
+        'export function normalizeWiEntry(entry, index = 0) {',
+    ).replace('export function ', 'function ', 1)
+    embedded_entry_block = extract_js_function_block(
+        source,
+        'const serializeEmbeddedWiEntry = (entry, index = 0) => {',
+    )
+    strip_defaults_block = extract_js_function_block(
+        source,
+        'export function stripStLoreEntryDefaults(entry) {',
+    ).replace('export function ', 'function ', 1)
+    standalone_book_block = extract_js_function_block(
+        source,
+        'export function toStV3Worldbook(bookData, fallbackName = "World Info") {',
+    ).replace('export function ', 'function ', 1)
+
+    script = textwrap.dedent(
+        f'''
+        const ST_DEFAULT_DEPTH = 4;
+        const ST_DEFAULT_GROUP_WEIGHT = 100;
+        const ST_DEFAULT_ORDER = 100;
+        const ST_DEFAULT_POSITION = 0;
+        const ST_DEFAULT_ROLE = 0;
+        const hasOwn = (obj, key) =>
+          !!obj && Object.prototype.hasOwnProperty.call(obj, key);
+        const isPlainObject = (value) =>
+          value && typeof value === 'object' && !Array.isArray(value);
+        const cloneArray = (value) => (Array.isArray(value) ? [...value] : []);
+        const toFiniteNumber = (value, fallback) => {{
+          if (value === true) return 1;
+          if (value === false) return 0;
+          if (value === null || value === undefined || value === '') return fallback;
+          const numberValue = Number(value);
+          return Number.isFinite(numberValue) ? numberValue : fallback;
+        }};
+        const setExtensionField = (extensions, key, value, defaultValue) => {{
+          const existed = hasOwn(extensions, key);
+          if (value === undefined) return;
+          if (Array.isArray(value)) {{
+            if (value.length > 0 || existed) extensions[key] = [...value];
+            else delete extensions[key];
+            return;
+          }}
+          if (value === null) {{
+            if (defaultValue !== null || existed) extensions[key] = null;
+            else delete extensions[key];
+            return;
+          }}
+          if (value !== defaultValue || existed) extensions[key] = value;
+          else delete extensions[key];
+        }};
+        {normalize_block}
+        {embedded_entry_block}
+        {strip_defaults_block}
+        {standalone_book_block}
+
+        const embedded = serializeEmbeddedWiEntry({{
+          st_manager_uid: 'entry-uuid-1',
+          st_source_id: 'source-1',
+          keys: ['hero'],
+          comment: 'Greeting',
+          content: 'Changed content',
+        }}, 0);
+        if (embedded.st_manager_uid !== 'entry-uuid-1') {{
+          throw new Error('embedded serialization must preserve the entry history UID');
+        }}
+
+        const standalone = toStV3Worldbook({{
+          name: 'Shared',
+          entries: [{{
+            st_manager_uid: 'entry-uuid-1',
+            st_source_id: 'source-1',
+            keys: ['hero'],
+            comment: 'Greeting',
+            content: 'Changed content',
+          }}],
+        }});
+        if (standalone.entries['source-1'].st_manager_uid !== 'entry-uuid-1') {{
+          throw new Error('standalone serialization must preserve the entry history UID');
+        }}
+        '''
+    )
+    run_js(script)
+
+
 def test_wi_editor_mobile_panes_and_inspector_layout_have_explicit_contracts():
     template = read_project_file('templates/modals/detail_wi_fullscreen.html')
     source = read_project_file('static/js/components/wiEditor.js')

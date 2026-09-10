@@ -59,7 +59,17 @@ from core.services.index_service import enqueue_index_job
 from core.services.card_index_sync_service import sync_card_index_jobs
 from core.services.index_build_service import apply_card_increment, connect_index_db
 from core.services.card_index_query_service import query_indexed_cards
-from core.services.card_service import update_card_content, rename_folder_in_db, rename_folder_in_ui, resolve_ui_key, swap_skin_to_cover, move_card_internal, sync_folder_prefix_after_fs_move, cleanup_deleted_cards_after_fs_delete
+from core.services.card_service import (
+    update_card_content,
+    rename_folder_in_db,
+    rename_folder_in_ui,
+    resolve_ui_key,
+    swap_skin_to_cover,
+    move_card_internal,
+    sync_folder_prefix_after_fs_move,
+    cleanup_deleted_cards_after_fs_delete,
+    cleanup_embedded_worldbook_history,
+)
 from core.services.card_service import sync_exact_card_after_fs_move
 from core.services.tag_management_service import build_governance_feedback, build_known_tag_set, filter_governed_tags
 from core.services.automation_service import (
@@ -71,8 +81,12 @@ from core.services.automation_service import (
 )
 from core.services.wi_entry_history_service import (
     ensure_entry_uids,
+    get_entry_uids,
     collect_previous_versions,
     append_entry_history_records,
+    reconcile_entry_history_scope,
+    purge_entry_history_scope,
+    move_entry_history_scope,
     resolve_card_uid,
 )
 from core.services.forum_update_service import (
@@ -1529,6 +1543,9 @@ def api_update_card():
         file_content_modified = False
         wi_entry_history_records = []
         history_card_uid = ''
+        new_book = None
+        old_book = None
+        embedded_book_changed = False
         tag_merge_info = None
 
         # =========================================================
@@ -1608,6 +1625,7 @@ def api_update_card():
             if clean_for_compare(new_book) != clean_for_compare(old_book):
                 target['character_book'] = new_book
                 file_content_modified = True
+                embedded_book_changed = True
                 
             if file_content_modified:
                 if 'name' in info and data.get('char_name'): info['name'] = data.get('char_name')
@@ -2021,12 +2039,54 @@ def api_update_card():
         # 确定返回给前端的 new_id
         # Bundle模式下：始终返回主版本ID，避免前端activeCard被切换
         # 非Bundle模式下：返回实际的文件ID
+        effective_history_card_uid = (
+            history_card_uid
+            or resolve_card_uid(
+                final_rel_path_id,
+                cache=ctx.cache,
+                db_path=DEFAULT_DB_PATH,
+            )
+            or normalize_card_uid(data.get('card_uid'))
+            or raw_id
+        )
+        history_fallback_contexts = []
+        for legacy_card_id in dict.fromkeys((final_rel_path_id, raw_id)):
+            if effective_history_card_uid == legacy_card_id:
+                continue
+            history_fallback_contexts.append({
+                'source_type': 'embedded',
+                'source_id': legacy_card_id,
+                'file_path': '',
+            })
+
+        if raw_id != final_rel_path_id:
+            move_entry_history_scope(
+                source_type='embedded',
+                source_id=raw_id,
+                target_source_type='embedded',
+                target_source_id=final_rel_path_id,
+            )
+
         if wi_entry_history_records:
             append_entry_history_records(
                 source_type='embedded',
-                source_id=history_card_uid,
+                source_id=effective_history_card_uid,
                 file_path='',
                 records=wi_entry_history_records
+            )
+        if isinstance(new_book, (dict, list)) and embedded_book_changed:
+            reconcile_entry_history_scope(
+                source_type='embedded',
+                source_id=effective_history_card_uid,
+                file_path='',
+                active_entry_uids=get_entry_uids(new_book),
+                fallback_contexts=history_fallback_contexts,
+            )
+        elif embedded_book_changed and old_book:
+            cleanup_embedded_worldbook_history(
+                card_id=final_rel_path_id,
+                card_uid=effective_history_card_uid,
+                legacy_card_ids=[raw_id],
             )
 
         return_new_id = final_rel_path_id
@@ -2291,6 +2351,7 @@ def api_delete_cards():
         deleted_count = 0
         deleted_card_ids = []
         source_paths_by_card_id = {}
+        card_uids_by_card_id = {}
         ui_data = load_ui_data()
         ui_changed = False
 
@@ -2314,6 +2375,12 @@ def api_delete_cards():
             if card_info:
                 is_bundle = card_info.get('is_bundle', False)
                 bundle_dir = card_info.get('bundle_dir', '')
+
+            cached_card_uid = normalize_card_uid(
+                card_info.get('card_uid') if isinstance(card_info, dict) else ''
+            )
+            if cached_card_uid:
+                card_uids_by_card_id[cid] = cached_card_uid
             
             is_deleted = False
             
@@ -2326,6 +2393,22 @@ def api_delete_cards():
                     resource_folder_name = ui_data[ui_key]['resource_folder']
                     resource_folder_path = os.path.join(resources_dir, resource_folder_name)
                     if os.path.exists(resource_folder_path):
+                        lorebook_root = os.path.join(resource_folder_path, 'lorebooks')
+                        for resource_root, _resource_dirs, resource_files in os.walk(lorebook_root):
+                            for resource_name in resource_files:
+                                if not resource_name.lower().endswith('.json'):
+                                    continue
+                                resource_worldbook_path = os.path.join(resource_root, resource_name)
+                                purge_entry_history_scope(
+                                    source_type='resource',
+                                    file_path=resource_worldbook_path,
+                                    fallback_contexts=[
+                                        {
+                                            'source_type': 'lorebook',
+                                            'file_path': resource_worldbook_path,
+                                        },
+                                    ],
+                                )
                         if safe_move_to_trash(resource_folder_path, TRASH_FOLDER):
                             print(f"Moved resource folder to trash: {resource_folder_path}")
                         else:
@@ -2338,8 +2421,43 @@ def api_delete_cards():
                     full_dir_path = os.path.join(CARDS_FOLDER, sys_bundle_path)
                     
                     if os.path.exists(full_dir_path):
+                        bundle_card_rows = []
+                        escaped_bundle_dir = bundle_dir.replace('_', r'\_').replace('%', r'\%')
+                        try:
+                            bundle_card_rows = cursor.execute(
+                                """
+                                SELECT id, card_uid
+                                FROM card_metadata
+                                WHERE id = ? OR id LIKE ? || '/%' ESCAPE '\\'
+                                """,
+                                (bundle_dir, escaped_bundle_dir),
+                            ).fetchall()
+                        except sqlite3.OperationalError:
+                            bundle_card_rows = [
+                                (row[0], '')
+                                for row in cursor.execute(
+                                    """
+                                    SELECT id
+                                    FROM card_metadata
+                                    WHERE id = ? OR id LIKE ? || '/%' ESCAPE '\\'
+                                    """,
+                                    (bundle_dir, escaped_bundle_dir),
+                                ).fetchall()
+                            ]
                         if safe_move_to_trash(full_dir_path, TRASH_FOLDER):
                             is_deleted = True
+                            for row in bundle_card_rows:
+                                bundle_card_id = str(row[0]).replace('\\', '/').strip('/')
+                                if not bundle_card_id:
+                                    continue
+                                deleted_card_ids.append(bundle_card_id)
+                                source_paths_by_card_id[bundle_card_id] = os.path.join(
+                                    CARDS_FOLDER,
+                                    bundle_card_id.replace('/', os.sep),
+                                )
+                                bundle_uid = normalize_card_uid(row[1]) if len(row) > 1 else ''
+                                if bundle_uid:
+                                    card_uids_by_card_id[bundle_card_id] = bundle_uid
                             if bundle_dir in ui_data:
                                 del ui_data[bundle_dir]
                                 ui_changed = True
@@ -2365,6 +2483,14 @@ def api_delete_cards():
                 if is_deleted:
                     deleted_card_ids.append(cid)
                     source_paths_by_card_id[cid] = full_path
+                    if cid not in card_uids_by_card_id:
+                        resolved_uid = resolve_card_uid(
+                            cid,
+                            cache=ctx.cache,
+                            db_path=DEFAULT_DB_PATH,
+                        )
+                        if resolved_uid:
+                            card_uids_by_card_id[cid] = resolved_uid
                     if cid in ui_data:
                         del ui_data[cid]
                         ui_changed = True
@@ -2384,9 +2510,14 @@ def api_delete_cards():
                     ctx.cache.delete_card_update(cid)
         
         conn.commit()
+        cleanup_kwargs = {
+            'deleted_card_ids': deleted_card_ids,
+            'source_paths_by_card_id': source_paths_by_card_id,
+        }
+        if card_uids_by_card_id:
+            cleanup_kwargs['card_uids_by_card_id'] = card_uids_by_card_id
         cleanup_deleted_cards_after_fs_delete(
-            deleted_card_ids=deleted_card_ids,
-            source_paths_by_card_id=source_paths_by_card_id,
+            **cleanup_kwargs,
         )
 
         if ui_changed:
@@ -2484,6 +2615,8 @@ def api_import_from_url():
             final_filename = f"{safe_name}{ext}"
             
         target_save_path = os.path.join(target_dir, final_filename)
+        overwritten_card_id = ''
+        overwritten_card_uid = ''
         
         # === 4. 冲突检测与处理, 加入伴生文件检测，以决定是否返回 conflict 状态 ===
         base_target = os.path.splitext(target_save_path)[0]
@@ -2570,6 +2703,15 @@ def api_import_from_url():
                 
             elif resolution == 'overwrite':
                 existing_target_path = _resolve_existing_card_target(target_save_path)
+                overwritten_card_id = os.path.relpath(
+                    existing_target_path,
+                    CARDS_FOLDER,
+                ).replace('\\', '/')
+                overwritten_card_uid = resolve_card_uid(
+                    overwritten_card_id,
+                    cache=ctx.cache,
+                    db_path=DEFAULT_DB_PATH,
+                )
 
                 # 1. 读取旧文件的 Tags 并合并到 info 对象
                 merged_tags = _merge_tags_into_new_info(existing_target_path, info)
@@ -2606,6 +2748,16 @@ def api_import_from_url():
         
         # === 6. 更新缓存与返回 ===
         cache_result = update_card_cache(rel_path, target_save_path)
+        if resolution == 'overwrite':
+            cleanup_embedded_worldbook_history(
+                card_id=rel_path,
+                card_uid=overwritten_card_uid or resolve_card_uid(
+                    rel_path,
+                    cache=ctx.cache,
+                    db_path=DEFAULT_DB_PATH,
+                ),
+                legacy_card_ids=[overwritten_card_id],
+            )
         sync_card_index_jobs(
             card_id=rel_path,
             source_path=target_save_path,
@@ -2844,6 +2996,12 @@ def api_change_image():
             target_save_path,
             **cache_kwargs,
         )
+        if is_format_conversion:
+            cleanup_embedded_worldbook_history(
+                card_id=final_id,
+                card_uid=stable_card_uid,
+                legacy_card_ids=[raw_id],
+            )
         sync_card_index_jobs(
             card_id=final_id,
             source_path=target_save_path,
@@ -4787,11 +4945,29 @@ def api_delete_folder():
             conn = get_db()
             cursor = conn.cursor()
             escaped_old_prefix = folder_path.replace('_', r'\_').replace('%', r'\%')
-            cursor.execute(
-                "SELECT id FROM card_metadata WHERE id = ? OR id LIKE ? || '/%' ESCAPE '\\' ORDER BY id",
-                (folder_path, escaped_old_prefix),
-            )
-            deleted_card_ids = [row[0] for row in cursor.fetchall()]
+            card_uids_by_card_id = {}
+            try:
+                cursor.execute(
+                    """
+                    SELECT id, card_uid
+                    FROM card_metadata
+                    WHERE id = ? OR id LIKE ? || '/%' ESCAPE '\\'
+                    ORDER BY id
+                    """,
+                    (folder_path, escaped_old_prefix),
+                )
+                deleted_card_rows = cursor.fetchall()
+            except sqlite3.OperationalError:
+                cursor.execute(
+                    "SELECT id FROM card_metadata WHERE id = ? OR id LIKE ? || '/%' ESCAPE '\\' ORDER BY id",
+                    (folder_path, escaped_old_prefix),
+                )
+                deleted_card_rows = [(row[0], '') for row in cursor.fetchall()]
+            deleted_card_ids = [row[0] for row in deleted_card_rows]
+            for row in deleted_card_rows:
+                card_uid = normalize_card_uid(row[1]) if len(row) > 1 else ''
+                if card_uid:
+                    card_uids_by_card_id[row[0]] = card_uid
             source_paths_by_card_id = {card_id: card_id for card_id in deleted_card_ids}
             cursor.execute(
                 "SELECT COUNT(*) FROM card_metadata WHERE id = ? OR id LIKE ? || '/%' ESCAPE '\\'",
@@ -4830,9 +5006,14 @@ def api_delete_folder():
             # 5) 触发刷新（这里必须强制同步重载：前端会立即请求 list_cards 读取 ctx.cache）
             force_reload(reason="delete_folder:delete_children")
 
+            cleanup_kwargs = {
+                'deleted_card_ids': deleted_card_ids,
+                'source_paths_by_card_id': source_paths_by_card_id,
+            }
+            if card_uids_by_card_id:
+                cleanup_kwargs['card_uids_by_card_id'] = card_uids_by_card_id
             cleanup_result = cleanup_deleted_cards_after_fs_delete(
-                deleted_card_ids=deleted_card_ids,
-                source_paths_by_card_id=source_paths_by_card_id,
+                **cleanup_kwargs,
             )
             cleanup_warnings = []
             if isinstance(cleanup_result, dict):

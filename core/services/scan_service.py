@@ -15,6 +15,14 @@ from core.services.card_binding_service import rename_card_ui_references
 from core.services.cache_service import schedule_reload
 from core.services.index_build_service import classify_worldinfo_path, resolve_resource_worldinfo_owner_card_ids
 from core.services.index_job_worker import enqueue_index_job
+from core.services.wi_entry_history_service import (
+    get_entry_uids,
+    move_entry_history_scope,
+    purge_entry_history_scope,
+    purge_orphaned_entry_history,
+    reconcile_entry_history_scope,
+    resolve_card_uid,
+)
 from core.utils.card_identity import new_card_uid, normalize_card_uid
 
 # === 工具函数 ===
@@ -57,6 +65,48 @@ def _is_resource_worldinfo_watch_path(path):
 
 def _is_worldinfo_watch_path(path):
     return _is_global_worldinfo_watch_path(path) or _is_resource_worldinfo_watch_path(path)
+
+
+def _reconcile_worldinfo_history_file(file_path, source_type):
+    if not file_path or source_type not in ('global', 'resource'):
+        return
+    if not os.path.isfile(file_path) or not str(file_path).lower().endswith('.json'):
+        return
+
+    try:
+        with open(file_path, 'r', encoding='utf-8') as file_obj:
+            book_data = json.load(file_obj)
+    except (OSError, ValueError, TypeError):
+        return
+
+    move_entry_history_scope(
+        source_type=source_type,
+        source_id='',
+        file_path=file_path,
+        target_source_type=source_type,
+        target_source_id='',
+        target_file_path=file_path,
+        fallback_contexts=[
+            {
+                'source_type': 'lorebook',
+                'file_path': file_path,
+            },
+        ],
+        db_path=DEFAULT_DB_PATH,
+    )
+    reconcile_entry_history_scope(
+        source_type=source_type,
+        source_id='',
+        file_path=file_path,
+        active_entry_uids=get_entry_uids(book_data),
+        fallback_contexts=[
+            {
+                'source_type': 'lorebook',
+                'file_path': file_path,
+            },
+        ],
+        db_path=DEFAULT_DB_PATH,
+    )
 
 
 def _resolve_card_rel_path(path):
@@ -239,6 +289,8 @@ def _process_card_upsert_task(full_path):
     if not card_id:
         return False
 
+    previous_card_uid = resolve_card_uid(card_id, db_path=DEFAULT_DB_PATH)
+    had_previous_card = False
     if not os.path.isfile(full_path):
         return _process_card_delete_task(full_path)
 
@@ -248,11 +300,33 @@ def _process_card_upsert_task(full_path):
         except Exception:
             pass
 
-        row = conn.execute('SELECT is_favorite FROM card_metadata WHERE id = ?', (card_id,)).fetchone()
-        favorite = int(row[0] or 0) if row else 0
+        try:
+            existing_row = conn.execute(
+                'SELECT id, is_favorite FROM card_metadata WHERE id = ?',
+                (card_id,),
+            ).fetchone()
+        except sqlite3.OperationalError:
+            existing_row = conn.execute(
+                'SELECT id FROM card_metadata WHERE id = ?',
+                (card_id,),
+            ).fetchone()
+        had_previous_card = existing_row is not None
+        favorite = int(existing_row[1] or 0) if existing_row and len(existing_row) > 1 else 0
         if not _upsert_card_metadata_row(conn, card_id, full_path, fallback_favorite=favorite):
             return False
 
+    if had_previous_card:
+        purge_entry_history_scope(
+            source_type='embedded',
+            source_id=previous_card_uid or card_id,
+            fallback_contexts=[
+                {
+                    'source_type': 'embedded',
+                    'source_id': card_id,
+                },
+            ],
+            db_path=DEFAULT_DB_PATH,
+        )
     _enqueue_card_reconcile_jobs(card_id, full_path)
     schedule_reload(reason='watchdog_card_upsert')
     return True
@@ -323,6 +397,14 @@ def _process_card_move_task(old_card_id, new_full_path):
             new_card_id,
         )
 
+    move_entry_history_scope(
+        source_type='embedded',
+        source_id=old_card_id,
+        target_source_type='embedded',
+        target_source_id=new_card_id,
+        db_path=DEFAULT_DB_PATH,
+    )
+
     _enqueue_card_reconcile_jobs(
         new_card_id,
         new_full_path,
@@ -338,6 +420,8 @@ def _process_card_delete_task(full_path):
     if not card_id:
         return False
 
+    previous_card_uid = resolve_card_uid(card_id, db_path=DEFAULT_DB_PATH)
+
     with sqlite3.connect(DEFAULT_DB_PATH, timeout=60) as conn:
         try:
             conn.execute('PRAGMA journal_mode=WAL;')
@@ -345,6 +429,18 @@ def _process_card_delete_task(full_path):
             pass
         conn.execute('DELETE FROM card_metadata WHERE id = ?', (card_id,))
         conn.commit()
+
+    purge_entry_history_scope(
+        source_type='embedded',
+        source_id=previous_card_uid or card_id,
+        fallback_contexts=[
+            {
+                'source_type': 'embedded',
+                'source_id': card_id,
+            },
+        ],
+        db_path=DEFAULT_DB_PATH,
+    )
 
     _enqueue_card_reconcile_jobs(
         card_id,
@@ -439,14 +535,68 @@ def start_fs_watcher():
             if ctx.should_ignore_fs_event():
                 return
 
+            event_type = str(getattr(event, 'event_type', '') or '').lower()
+            source_path = str(getattr(event, 'src_path', '') or '')
+            destination_path = str(getattr(event, 'dest_path', '') or '')
+            source_worldinfo = classify_worldinfo_path(source_path)
+            destination_worldinfo = classify_worldinfo_path(destination_path)
+
+            if event_type == 'deleted' and source_worldinfo.get('kind') in ('global', 'resource'):
+                purge_entry_history_scope(
+                    source_type=source_worldinfo['kind'],
+                    file_path=source_path,
+                    fallback_contexts=[
+                        {
+                            'source_type': 'lorebook',
+                            'file_path': source_path,
+                        },
+                    ],
+                    db_path=DEFAULT_DB_PATH,
+                )
+            elif event_type == 'moved' and source_worldinfo.get('kind') in ('global', 'resource'):
+                if destination_worldinfo.get('kind') in ('global', 'resource'):
+                    move_entry_history_scope(
+                        source_type=source_worldinfo['kind'],
+                        file_path=source_path,
+                        target_source_type=destination_worldinfo['kind'],
+                        target_file_path=destination_path,
+                        fallback_contexts=[
+                            {
+                                'source_type': 'lorebook',
+                                'file_path': source_path,
+                            },
+                        ],
+                        db_path=DEFAULT_DB_PATH,
+                    )
+                else:
+                    purge_entry_history_scope(
+                        source_type=source_worldinfo['kind'],
+                        file_path=source_path,
+                        fallback_contexts=[
+                            {
+                                'source_type': 'lorebook',
+                                'file_path': source_path,
+                            },
+                        ],
+                        db_path=DEFAULT_DB_PATH,
+                    )
+
             handled_worldinfo = False
             for candidate_path in (getattr(event, 'src_path', ''), getattr(event, 'dest_path', '')):
                 worldinfo_path = classify_worldinfo_path(candidate_path)
                 if worldinfo_path.get('kind') == 'global':
+                    if event_type in ('created', 'modified') or (
+                        event_type == 'moved' and candidate_path == destination_path
+                    ):
+                        _reconcile_worldinfo_history_file(candidate_path, 'global')
                     enqueue_index_job('upsert_worldinfo_path', source_path=candidate_path)
                     handled_worldinfo = True
                     continue
                 if worldinfo_path.get('kind') == 'resource':
+                    if event_type in ('created', 'modified') or (
+                        event_type == 'moved' and candidate_path == destination_path
+                    ):
+                        _reconcile_worldinfo_history_file(candidate_path, 'resource')
                     owner_card_ids = resolve_resource_worldinfo_owner_card_ids(candidate_path)
                     if owner_card_ids:
                         for owner_card_id in owner_card_ids:
@@ -562,6 +712,9 @@ def _perform_scan_logic():
         }
         
         changed_card_paths = {}
+        moved_card_history = []
+        renamed_card_ids = set()
+        replaced_card_uids = {}
         deleted_card_ids = set()
         fs_found_files = set()
         ui_data = load_ui_data()
@@ -702,13 +855,20 @@ def _perform_scan_logic():
                                 file_id,
                                 stable_uid,
                             )
+                            moved_card_history.append((renamed_from_id, file_id))
+                            renamed_card_ids.add(renamed_from_id)
                         changed_card_paths[file_id] = full_path
+                        if file_changed and not renamed_from_id and db_info:
+                            replaced_card_uids[file_id] = normalize_card_uid(
+                                db_info.get('card_uid')
+                            )
 
         # 3. 清理已删除文件
         for db_id in list(db_files_map.keys()):
             if db_id not in fs_found_files:
                 cursor.execute("DELETE FROM card_metadata WHERE id = ?", (db_id,))
-                deleted_card_ids.add(db_id)
+                if db_id not in renamed_card_ids:
+                    deleted_card_ids.add(db_id)
 
         if changed_card_paths or deleted_card_ids:
             conn.commit()
@@ -720,12 +880,64 @@ def _perform_scan_logic():
                 deleted_path = os.path.join(cards_root, card_id.replace('/', os.sep))
                 _enqueue_card_reconcile_jobs(card_id, deleted_path, remove_owner_ids=[card_id])
 
+            for card_id in sorted(renamed_card_ids):
+                old_path = os.path.join(cards_root, card_id.replace('/', os.sep))
+                _enqueue_card_reconcile_jobs(
+                    card_id,
+                    old_path,
+                    remove_entity_ids=[card_id],
+                    remove_owner_ids=[card_id],
+                )
+
         if ui_changed and not save_ui_data(ui_data):
             logger.warning('全量扫描后保存角色卡聊天绑定失败')
 
         if changed_card_paths or deleted_card_ids:
             logger.info("Background scan detected changes. Updating cache...")
             schedule_reload(reason="background_scanner")
+
+    for old_card_id, new_card_id in moved_card_history:
+        move_entry_history_scope(
+            source_type='embedded',
+            source_id=old_card_id,
+            target_source_type='embedded',
+            target_source_id=new_card_id,
+            db_path=DEFAULT_DB_PATH,
+        )
+
+    for card_id, card_uid in replaced_card_uids.items():
+        purge_entry_history_scope(
+            source_type='embedded',
+            source_id=card_uid or card_id,
+            fallback_contexts=[
+                {
+                    'source_type': 'embedded',
+                    'source_id': card_id,
+                },
+            ],
+            db_path=DEFAULT_DB_PATH,
+        )
+
+    for card_id in deleted_card_ids:
+        purge_entry_history_scope(
+            source_type='embedded',
+            source_id=db_files_map.get(card_id, {}).get('card_uid') or card_id,
+            fallback_contexts=[
+                {
+                    'source_type': 'embedded',
+                    'source_id': card_id,
+                },
+            ],
+            db_path=DEFAULT_DB_PATH,
+        )
+
+    cfg = load_config()
+    purge_orphaned_entry_history(
+        cards_root=cards_root,
+        world_info_root=_resolve_runtime_dir(cfg.get('world_info_dir'), ''),
+        resources_root=_resolve_runtime_dir(cfg.get('resources_dir'), ''),
+        db_path=DEFAULT_DB_PATH,
+    )
 
 def start_background_scanner():
     """启动后台扫描线程与（可选的）文件系统监听"""
