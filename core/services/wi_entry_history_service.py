@@ -7,6 +7,7 @@ import logging
 import sqlite3
 
 from core.config import BASE_DIR, DEFAULT_DB_PATH, load_config
+from core.utils.card_identity import normalize_card_uid
 
 logger = logging.getLogger(__name__)
 
@@ -45,12 +46,53 @@ def _normalize_path(file_path: str) -> str:
 def build_scope_key(source_type: str, source_id: str = '', file_path: str = '') -> str:
     stype = str(source_type or '').strip().lower() or 'unknown'
     sid = str(source_id or '').strip().replace('\\', '/')
+    if stype == 'embedded':
+        sid = normalize_card_uid(sid) or sid
     npath = _normalize_path(file_path)
     if npath:
         raw = f'{stype}|{npath}'
     else:
         raw = f'{stype}|{sid}|'
     return hashlib.sha1(raw.encode('utf-8')).hexdigest()
+
+
+def resolve_card_uid(card_id: str, cache=None, db_path=None) -> str:
+    """Resolve a card's durable UUID from the runtime cache or metadata DB."""
+    normalized_id = str(card_id or '').strip().replace('\\', '/').strip('/')
+    if normalized_id.startswith('embedded::'):
+        normalized_id = normalized_id.split('::', 1)[1]
+    if not normalized_id:
+        return ''
+
+    cache_id_map = getattr(cache, 'id_map', {}) if cache is not None else {}
+    candidates = []
+    bundle_map = getattr(cache, 'bundle_map', {}) if cache is not None else {}
+    if isinstance(bundle_map, dict):
+        bundle_keys = [normalized_id]
+        if '/' in normalized_id:
+            bundle_keys.append(normalized_id.rsplit('/', 1)[0])
+        for bundle_key in bundle_keys:
+            real_card_id = bundle_map.get(bundle_key)
+            if real_card_id:
+                candidates.append(str(real_card_id).replace('\\', '/').strip('/'))
+    candidates.extend([normalized_id, str(card_id or '').strip()])
+
+    for candidate in candidates:
+        item = cache_id_map.get(candidate) if isinstance(cache_id_map, dict) else None
+        if isinstance(item, dict):
+            uid = normalize_card_uid(item.get('card_uid'))
+            if uid:
+                return uid
+
+    try:
+        with sqlite3.connect(db_path or DEFAULT_DB_PATH, timeout=30) as conn:
+            row = conn.execute(
+                'SELECT card_uid FROM card_metadata WHERE id = ?',
+                (normalized_id,),
+            ).fetchone()
+        return normalize_card_uid(row[0]) if row and row[0] else ''
+    except (OSError, sqlite3.Error, AttributeError):
+        return ''
 
 
 def get_history_limit(limit=None) -> int:
@@ -227,12 +269,37 @@ def append_entry_history_records(source_type: str, source_id: str, file_path: st
     return inserted
 
 
-def list_entry_history_records(source_type: str, source_id: str, file_path: str, entry_uid: str, limit=None):
+def list_entry_history_records(
+    source_type: str,
+    source_id: str,
+    file_path: str,
+    entry_uid: str,
+    limit=None,
+    fallback_contexts=None,
+):
     uid = str(entry_uid or '').strip()
     if not uid:
         return []
 
-    scope_key = build_scope_key(source_type, source_id, file_path)
+    scope_keys = []
+    contexts = [(source_type, source_id, file_path)]
+    for context in fallback_contexts or []:
+        if isinstance(context, dict):
+            contexts.append((
+                context.get('source_type', source_type),
+                context.get('source_id', ''),
+                context.get('file_path', ''),
+            ))
+        elif isinstance(context, (list, tuple)) and len(context) >= 3:
+            contexts.append((context[0], context[1], context[2]))
+
+    for context in contexts:
+        scope_key = build_scope_key(*context)
+        if scope_key and scope_key not in scope_keys:
+            scope_keys.append(scope_key)
+    if not scope_keys:
+        return []
+
     fetch_limit = get_history_limit(limit)
     items = []
 
@@ -240,15 +307,16 @@ def list_entry_history_records(source_type: str, source_id: str, file_path: str,
         with sqlite3.connect(DEFAULT_DB_PATH, timeout=30) as conn:
             _ensure_table(conn)
             cursor = conn.cursor()
+            placeholders = ', '.join('?' for _ in scope_keys)
             cursor.execute(
-                '''
+                f'''
                 SELECT id, snapshot_json, created_at
                 FROM wi_entry_history
-                WHERE scope_key = ? AND entry_uid = ?
+                WHERE scope_key IN ({placeholders}) AND entry_uid = ?
                 ORDER BY created_at DESC, id DESC
                 LIMIT ?
                 ''',
-                (scope_key, uid, fetch_limit)
+                (*scope_keys, uid, fetch_limit),
             )
             rows = cursor.fetchall()
     except Exception as e:

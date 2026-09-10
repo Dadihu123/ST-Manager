@@ -490,7 +490,11 @@ export function normalizeWiEntry(entry, index = 0) {
   const ext = isPlainObject(entry.extensions) ? entry.extensions : {};
   const sourceId = entry.st_source_id ?? entry.uid ?? entry.id;
   const isCharacterBookEntry =
-    Array.isArray(entry.keys) || entry.enabled !== undefined || !!entry.extensions;
+    Array.isArray(entry.keys) ||
+    Array.isArray(entry.key) ||
+    entry.enabled !== undefined ||
+    entry.disable !== undefined ||
+    !!entry.extensions;
   const rawPosition =
     ext.position ??
     (typeof entry.position === "string"

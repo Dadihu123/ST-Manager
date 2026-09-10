@@ -13,7 +13,11 @@ import {
 
 import { getCardMetadata } from "../api/card.js";
 import { generateSideBySideDiff } from "../utils/diff.js";
-import { getCleanedV3Data, toStV3Worldbook } from "../utils/data.js";
+import {
+  getCleanedV3Data,
+  normalizeWiEntry,
+  toStV3Worldbook,
+} from "../utils/data.js";
 
 export default function rollbackModal() {
   return {
@@ -31,11 +35,11 @@ export default function rollbackModal() {
     rollbackTargetPath: "",
     rollbackLiveContent: null, // 当前编辑器中的实时内容
     rollbackEmbeddedWiContext: false,
-    diffRenderMode: "raw", // 'raw' | 'wi_entries'
+    diffRenderMode: "raw", // 'raw' | 'wi_entries' | 'fields'
 
     // Diff 状态
     diffSelection: { left: null, right: null },
-    diffData: { left: "", right: "", currentObj: null },
+    diffData: { left: "", right: "", fields: "", currentObj: null },
     diffSummary: {
       added: 0,
       removed: 0,
@@ -64,13 +68,25 @@ export default function rollbackModal() {
     },
 
     get diffModeLabel() {
-      return this._isLorebookComparison() ? "按条目对比" : "按字段对比";
+      if (this._isLorebookComparison()) {
+        return this.diffRenderMode === "raw" ? "原始 JSON" : "按条目对比";
+      }
+      if (this.rollbackTargetType === "card") {
+        return this.diffRenderMode === "raw" ? "原始 JSON" : "按字段对比";
+      }
+      return "原始 JSON";
     },
 
     get diffModeDescription() {
-      return this._isLorebookComparison()
-        ? "按世界书条目匹配，分别标记新增、删除、修改和未变化内容。"
-        : "按顶层字段归类，再在下方展开 JSON 行级差异。";
+      if (this._isLorebookComparison()) {
+        return this.diffRenderMode === "raw"
+          ? "显示快照文件的原始 JSON 行级差异。"
+          : "按稳定条目标识匹配，只统计真实的新增、删除和字段修改。";
+      }
+      if (this.rollbackTargetType === "card" && this.diffRenderMode !== "raw") {
+        return "按角色卡业务字段汇总差异，展开即可查看旧值与新值。";
+      }
+      return "显示快照文件的原始 JSON 行级差异。";
     },
 
     get diffSummaryItems() {
@@ -118,7 +134,9 @@ export default function rollbackModal() {
       this.diffRenderMode =
         type === "lorebook" || this.rollbackEmbeddedWiContext
           ? "wi_entries"
-          : "raw";
+          : type === "card"
+            ? "fields"
+            : "raw";
 
       // 1. 捕获实时内容 (Live Content)
       if (type === "card") {
@@ -211,9 +229,25 @@ export default function rollbackModal() {
       this.updateDiffView(false);
     },
 
+    setDiffRenderMode(mode) {
+      const allowedModes = new Set(["raw", "wi_entries", "fields"]);
+      if (!allowedModes.has(mode)) return;
+      this.diffRenderMode = mode;
+      this.updateDiffView(false);
+    },
+
     _isLorebookComparison() {
       return (
-        this.rollbackTargetType === "lorebook" || this.rollbackEmbeddedWiContext
+        this.rollbackTargetType === "lorebook" ||
+        this.rollbackEmbeddedWiContext ||
+        String(this.rollbackTargetId || "").startsWith("embedded::")
+      );
+    },
+
+    _isEmbeddedWorldbookTarget() {
+      return (
+        this.rollbackEmbeddedWiContext ||
+        String(this.rollbackTargetId || "").startsWith("embedded::")
       );
     },
 
@@ -285,6 +319,206 @@ export default function rollbackModal() {
       return summary;
     },
 
+    _getCardFieldDefinitions() {
+      return [
+        { key: "name", label: "角色名", kind: "text" },
+        { key: "description", label: "描述", kind: "text" },
+        { key: "personality", label: "性格", kind: "text" },
+        { key: "scenario", label: "场景", kind: "text" },
+        { key: "first_mes", label: "首条消息", kind: "text" },
+        { key: "mes_example", label: "对话示例", kind: "text" },
+        { key: "creator_notes", label: "创作者备注", kind: "text" },
+        { key: "system_prompt", label: "系统提示词", kind: "text" },
+        {
+          key: "post_history_instructions",
+          label: "历史消息后指令",
+          kind: "text",
+        },
+        { key: "alternate_greetings", label: "备用开场白", kind: "json" },
+        { key: "tags", label: "标签", kind: "json" },
+        { key: "creator", label: "作者", kind: "text" },
+        { key: "character_version", label: "卡片版本", kind: "text" },
+        { key: "character_book", label: "嵌入式世界书", kind: "json" },
+        { key: "extensions", label: "扩展数据", kind: "json" },
+      ];
+    },
+
+    _extractCardPayload(raw) {
+      const root = raw && typeof raw === "object" ? raw : {};
+      const data = root.data && typeof root.data === "object" ? root.data : {};
+      const payload = { ...root, ...data };
+      const aliases = {
+        name: ["name", "char_name"],
+        creator_notes: ["creator_notes", "creatorcomment"],
+        character_version: ["character_version", "char_version"],
+      };
+
+      Object.entries(aliases).forEach(([key, keys]) => {
+        const value = keys
+          .map((candidate) => payload[candidate] ?? root[candidate])
+          .find((candidate) => candidate !== undefined && candidate !== null);
+        if (value !== undefined) payload[key] = value;
+      });
+
+      return payload;
+    },
+
+    _normalizeCardBookValue(value) {
+      const book = this._extractLorebookBook(value);
+      if (!book) return null;
+
+      const entries = this._extractLorebookEntries(book).map((entry, index) => {
+        return this._normalizeLorebookEntry(entry, index).compareObj;
+      });
+      const name = String(book.name || "").trim();
+      if (entries.length === 0 && (!name || name === "World Info")) return null;
+      if (!name && entries.length === 0) return null;
+      return { name, entries };
+    },
+
+    _normalizeCardFieldValue(key, value) {
+      if (key === "character_book") return this._normalizeCardBookValue(value);
+      if (key === "extensions") {
+        const extensions =
+          value && typeof value === "object" && !Array.isArray(value)
+            ? { ...value }
+            : {};
+        if (
+          Array.isArray(extensions.regex_scripts) &&
+          extensions.regex_scripts.length === 0
+        ) {
+          delete extensions.regex_scripts;
+        }
+        if (
+          Array.isArray(extensions.tavern_helper) &&
+          extensions.tavern_helper.length === 0
+        ) {
+          delete extensions.tavern_helper;
+        }
+        return extensions;
+      }
+      if (key === "tags" || key === "alternate_greetings") {
+        return Array.isArray(value)
+          ? value.filter((item) => String(item ?? "").trim() !== "")
+          : [];
+      }
+      return value === undefined || value === null ? "" : value;
+    },
+
+    _summarizeCardDiff(leftData, rightData) {
+      const left = this._extractCardPayload(leftData);
+      const right = this._extractCardPayload(rightData);
+      const fields = this._getCardFieldDefinitions().map((definition) => {
+        const leftValue = this._normalizeCardFieldValue(
+          definition.key,
+          left[definition.key],
+        );
+        const rightValue = this._normalizeCardFieldValue(
+          definition.key,
+          right[definition.key],
+        );
+        return {
+          ...definition,
+          leftValue,
+          rightValue,
+          status: this._isDataEqual(leftValue, rightValue) ? "same" : "changed",
+        };
+      });
+
+      const changedFields = fields.filter((field) => field.status !== "same");
+      return {
+        added: 0,
+        removed: 0,
+        changed: changedFields.length,
+        same: fields.length - changedFields.length,
+        total: fields.length,
+        categories: changedFields.map((field) => ({
+          key: field.key,
+          label: field.label,
+          status: field.status,
+        })),
+        fields,
+      };
+    },
+
+    _formatCardFieldValue(value) {
+      if (value === null || value === undefined || value === "") {
+        return '<span class="preset-rollback-field-empty">（未设置）</span>';
+      }
+      if (typeof value === "string") return this._escapeHtml(value);
+      try {
+        return this._escapeHtml(JSON.stringify(value, null, 2));
+      } catch (e) {
+        return this._escapeHtml(String(value));
+      }
+    },
+
+    _renderCardFieldValue(field, side) {
+      const leftValue = field.leftValue;
+      const rightValue = field.rightValue;
+      const value = side === "left" ? leftValue : rightValue;
+      const opposite = side === "left" ? rightValue : leftValue;
+      const bothText =
+        typeof value === "string" && typeof opposite === "string";
+
+      if (field.status === "changed" && bothText) {
+        return `<div class="preset-rollback-field-value">${this._renderLineDiffHtml(
+          leftValue,
+          rightValue,
+          side,
+        )}</div>`;
+      }
+
+      return `<pre class="preset-rollback-field-value">${this._formatCardFieldValue(value)}</pre>`;
+    },
+
+    _renderCardFieldDiff(leftData, rightData) {
+      const summary = this._summarizeCardDiff(leftData, rightData);
+      const changedFields = summary.fields.filter((field) => field.status !== "same");
+      let html = `
+        <div class="preset-rollback-card-fields-head">
+          <div>
+            <strong>字段变更清单</strong>
+            <span>只显示有差异的业务字段，展开原始 JSON 可检查完整结构。</span>
+          </div>
+          <span>${changedFields.length} / ${summary.total} 个字段</span>
+        </div>
+      `;
+
+      if (!changedFields.length) {
+        html += '<div class="preset-rollback-card-fields-empty">两个版本的角色卡字段一致。</div>';
+        return { html, summary };
+      }
+
+      html += '<div class="preset-rollback-card-fields-list">';
+      changedFields.forEach((field) => {
+        const statusLabel = field.status === "changed" ? "修改" : field.status;
+        html += `
+          <article class="preset-rollback-field-diff-card is-${field.status}">
+            <header class="preset-rollback-field-diff-head">
+              <div>
+                <span class="preset-rollback-field-status">${statusLabel}</span>
+                <strong>${this._escapeHtml(field.label)}</strong>
+                <code>${this._escapeHtml(field.key)}</code>
+              </div>
+            </header>
+            <div class="preset-rollback-field-diff-values">
+              <section class="preset-rollback-field-value-pane is-old">
+                <div class="preset-rollback-field-value-label">旧版本</div>
+                ${this._renderCardFieldValue(field, "left")}
+              </section>
+              <section class="preset-rollback-field-value-pane is-new">
+                <div class="preset-rollback-field-value-label">新版本</div>
+                ${this._renderCardFieldValue(field, "right")}
+              </section>
+            </div>
+          </article>
+        `;
+      });
+      html += "</div>";
+      return { html, summary };
+    },
+
     _toArray(val) {
       if (Array.isArray(val)) {
         return val.map((v) => String(v ?? "").trim()).filter(Boolean);
@@ -298,15 +532,20 @@ export default function rollbackModal() {
       return [];
     },
 
-    _extractLorebookEntries(raw) {
-      if (!raw) return [];
+    _extractLorebookBook(raw) {
+      if (!raw || typeof raw !== "object") return null;
 
-      let book = raw;
-      if (raw?.data?.character_book) {
-        book = raw.data.character_book;
-      } else if (raw?.character_book) {
-        book = raw.character_book;
-      }
+      if (Array.isArray(raw)) return raw;
+      if (raw?.data?.character_book) return raw.data.character_book;
+      if (raw?.character_book) return raw.character_book;
+      if (raw?.data?.entries) return raw.data;
+      if (raw?.entries) return raw;
+      return null;
+    },
+
+    _extractLorebookEntries(raw) {
+      const book = this._extractLorebookBook(raw);
+      if (!book) return [];
 
       if (Array.isArray(book)) {
         return book.filter((e) => e && typeof e === "object");
@@ -327,20 +566,84 @@ export default function rollbackModal() {
 
     _normalizeLorebookEntry(entry, index) {
       const raw = entry || {};
-      const keys = this._toArray(raw.keys ?? raw.key);
-      const secondaryKeys = this._toArray(
-        raw.secondary_keys ?? raw.keysecondary,
-      );
-      const comment = String(raw.comment ?? "").trim();
-      const content = String(raw.content ?? "");
+      const normalized = normalizeWiEntry(raw, index);
+      const keys = this._toArray(normalized.keys);
+      const secondaryKeys = this._toArray(normalized.secondary_keys);
+      const comment = String(normalized.comment ?? "").trim();
+      const content = String(normalized.content ?? "");
       const uid = String(raw.st_manager_uid ?? "").trim();
-      const legacyUid = String(raw.uid ?? "").trim();
+      const legacyUid = String(
+        raw.st_source_id ?? raw.uid ?? raw.id ?? normalized.st_source_id ?? "",
+      ).trim();
 
-      const compareObj = { ...raw };
-      delete compareObj.id;
-      delete compareObj.uid;
-      delete compareObj.displayIndex;
-      delete compareObj.st_manager_uid;
+      // Normalize legacy/ST/editor aliases before comparing. Runtime indexes and
+      // generated defaults are deliberately excluded from the semantic signature.
+      const runtimeKeys = new Set([
+        "id",
+        "displayIndex",
+        "st_source_id",
+        "st_manager_uid",
+        "uid",
+      ]);
+      const compareObj = {};
+      Object.keys(normalized).forEach((key) => {
+        if (!runtimeKeys.has(key) && key !== "extensions") {
+          compareObj[key] = normalized[key];
+        }
+      });
+      if (normalized.extensions && typeof normalized.extensions === "object") {
+        const extensions = { ...normalized.extensions };
+        [
+          "position",
+          "depth",
+          "role",
+          "display_index",
+          "probability",
+          "selectiveLogic",
+          "delay_until_recursion",
+          "vectorized",
+          "exclude_recursion",
+          "prevent_recursion",
+          "ignore_budget",
+          "match_whole_words",
+          "case_sensitive",
+          "useProbability",
+          "outlet_name",
+          "group",
+          "group_override",
+          "group_weight",
+          "scan_depth",
+          "use_group_scoring",
+          "automation_id",
+          "sticky",
+          "cooldown",
+          "delay",
+          "triggers",
+          "match_persona_description",
+          "match_character_description",
+          "match_character_personality",
+          "match_character_depth_prompt",
+          "match_scenario",
+          "match_creator_notes",
+        ].forEach((key) => delete extensions[key]);
+        if (Object.keys(extensions).length) compareObj.extensions = extensions;
+      }
+      Object.assign(compareObj, {
+        enabled: !!normalized.enabled,
+        constant: !!normalized.constant,
+        selective: !!normalized.selective,
+        position: Number(normalized.position || 0),
+        depth: Number(normalized.depth || 0),
+        role: Number(normalized.role || 0),
+        probability: Number(normalized.probability ?? 100),
+        group: String(normalized.group || ""),
+        keys: [...keys].map((value) => value.toLowerCase()).sort(),
+        secondary_keys: [...secondaryKeys]
+          .map((value) => value.toLowerCase())
+          .sort(),
+        comment,
+        content,
+      });
 
       const keySig = keys
         .map((k) => k.toLowerCase())
@@ -355,6 +658,7 @@ export default function rollbackModal() {
 
       return {
         raw,
+        normalized,
         index,
         uid,
         legacyUid,
@@ -459,27 +763,44 @@ export default function rollbackModal() {
         const leftStr = this._stableStringify(pair.left.compareObj);
         const rightStr = this._stableStringify(pair.right.compareObj);
         const isSame = leftStr === rightStr;
+        const visibleChanged = {
+          comment: pair.left.comment !== pair.right.comment,
+          keys:
+            pair.left.keys
+              .map((value) => value.toLowerCase())
+              .sort()
+              .join("|") !==
+              pair.right.keys
+                .map((value) => value.toLowerCase())
+                .sort()
+                .join("|") ||
+            pair.left.secondaryKeys
+              .map((value) => value.toLowerCase())
+              .sort()
+              .join("|") !==
+              pair.right.secondaryKeys
+                .map((value) => value.toLowerCase())
+                .sort()
+                .join("|"),
+          content: pair.left.content !== pair.right.content,
+        };
         return {
           status: isSame ? "same" : "changed",
           changed: {
-            comment: pair.left.comment !== pair.right.comment,
-            keys:
-              pair.left.keys.join("|") !== pair.right.keys.join("|") ||
-              pair.left.secondaryKeys.join("|") !==
-                pair.right.secondaryKeys.join("|"),
-            content: pair.left.content !== pair.right.content,
+            ...visibleChanged,
+            other: !isSame && !Object.values(visibleChanged).some(Boolean),
           },
         };
       }
       if (pair.left && !pair.right) {
         return {
           status: "removed",
-          changed: { comment: true, keys: true, content: true },
+          changed: { comment: true, keys: true, content: true, other: true },
         };
       }
       return {
         status: "added",
-        changed: { comment: true, keys: true, content: true },
+        changed: { comment: true, keys: true, content: true, other: true },
       };
     },
 
@@ -646,9 +967,9 @@ export default function rollbackModal() {
             : "text-[var(--content-primary)]";
 
         html += `
-                    <div class="px-2 py-0.5 rounded ${cls}">
-                        <span class="inline-block w-8 mr-2 text-[10px] text-[var(--content-muted)] text-right select-none">${lineNo || " "}</span>
-                        <span class="text-[11px] whitespace-pre-wrap break-words ${lineTextClass}">${lineText || " "}</span>
+                    <div class="preset-rollback-line-diff-row px-2 py-0.5 rounded ${cls}">
+                        <span class="preset-rollback-line-diff-number inline-block w-8 mr-2 text-[10px] text-[var(--content-muted)] text-right select-none">${lineNo || " "}</span>
+                        <span class="preset-rollback-line-diff-text text-[11px] whitespace-pre-wrap break-words ${lineTextClass}">${lineText || " "}</span>
                     </div>
                 `;
       });
@@ -718,6 +1039,9 @@ export default function rollbackModal() {
         rightContent,
         side,
       );
+      const otherChangedHtml = meta.changed.other
+        ? `<div class="mt-2 text-[10px] status-warning-text">其他行为设置已修改（原始 JSON 模式可查看完整字段）</div>`
+        : "";
 
       return `
                 <div class="m-2 p-3 rounded border bg-[var(--surface-container-raised)] border-[var(--border-default)]">
@@ -729,6 +1053,7 @@ export default function rollbackModal() {
                         <div class="text-[11px] ${keyCls}">关键词: ${keys}</div>
                         <div class="mt-1 text-[11px] ${keyCls}">次级词: ${sec}</div>
                     </div>
+                    ${otherChangedHtml}
                     <div class="mt-2 p-1.5 rounded color-surface-sunken border border-[var(--border-default)]">
                         <div class="text-[11px] text-[var(--content-muted)]">内容预览</div>
                         <div class="mt-1 p-2 rounded color-surface-container max-h-56 overflow-auto">${lineDiffHtml}</div>
@@ -826,6 +1151,12 @@ export default function rollbackModal() {
       const pairs = this._buildLorebookPairs(leftEntries, rightEntries);
       if (!pairs.length) return false;
 
+      const entryKeySignature = (values) =>
+        values
+          .map((value) => String(value).toLowerCase())
+          .sort()
+          .join("|");
+
       for (const pair of pairs) {
         // 一侧有一侧无：可视上一定是新增/删除
         if (!pair.left || !pair.right) return true;
@@ -834,12 +1165,12 @@ export default function rollbackModal() {
         if (pair.left.comment !== pair.right.comment) return true;
         if (pair.left.content !== pair.right.content) return true;
 
-        const leftKeys = pair.left.keys.join("|");
-        const rightKeys = pair.right.keys.join("|");
+        const leftKeys = entryKeySignature(pair.left.keys);
+        const rightKeys = entryKeySignature(pair.right.keys);
         if (leftKeys !== rightKeys) return true;
 
-        const leftSec = pair.left.secondaryKeys.join("|");
-        const rightSec = pair.right.secondaryKeys.join("|");
+        const leftSec = entryKeySignature(pair.left.secondaryKeys);
+        const rightSec = entryKeySignature(pair.right.secondaryKeys);
         if (leftSec !== rightSec) return true;
       }
       return false;
@@ -848,6 +1179,9 @@ export default function rollbackModal() {
     _isSameForAutoPick(leftData, rightData) {
       if (this._isLorebookComparison()) {
         return !this._hasLorebookVisibleDiff(leftData, rightData);
+      }
+      if (this.rollbackTargetType === "card" && this.diffRenderMode !== "raw") {
+        return this._summarizeCardDiff(leftData, rightData).changed === 0;
       }
       return this._isDataEqual(leftData, rightData);
     },
@@ -898,13 +1232,19 @@ export default function rollbackModal() {
         if (!rawContent) {
           if (this.rollbackTargetType === "card") {
             // 读取角色卡元数据
-            const res = await getCardMetadata(this.rollbackTargetId);
+            const cardId = this._isEmbeddedWorldbookTarget()
+              ? String(this.rollbackTargetId || "").replace(/^embedded::/, "")
+              : this.rollbackTargetId;
+            const res = await getCardMetadata(cardId);
             rawContent = res.success === true && res.data ? res.data : res;
           } else if (this.rollbackTargetType === "lorebook") {
             // 读取世界书
-            if (this.rollbackTargetId.startsWith("embedded::")) {
+            if (this._isEmbeddedWorldbookTarget()) {
               // 内嵌：读取宿主卡片
-              const realId = this.rollbackTargetId.replace("embedded::", "");
+              const realId = String(this.rollbackTargetId || "").replace(
+                /^embedded::/,
+                "",
+              );
               const res = await getCardMetadata(realId);
               rawContent = res.success === true && res.data ? res.data : res;
             } else {
@@ -945,11 +1285,8 @@ export default function rollbackModal() {
 
       // 世界书对比模式：统一提取 character_book
       if (this._isLorebookComparison()) {
-        if (data?.data?.character_book) {
-          data = data.data.character_book;
-        } else if (data?.character_book) {
-          data = data.character_book;
-        }
+        const book = this._extractLorebookBook(data);
+        if (book !== null) data = book;
       }
 
       return data;
@@ -963,6 +1300,7 @@ export default function rollbackModal() {
         this.diffData = {
           left: '<div class="p-8 text-center color-text-muted">请在左侧列表选择版本进行比对</div>',
           right: "",
+          fields: "",
         };
         this.diffSummary = {
           added: 0,
@@ -1006,7 +1344,7 @@ export default function rollbackModal() {
           }
         }
 
-        if (this._isLorebookComparison()) {
+        if (this._isLorebookComparison() && this.diffRenderMode !== "raw") {
           const leftEntries = this._extractLorebookEntries(leftData);
           const rightEntries = this._extractLorebookEntries(rightData);
           const pairs = this._buildLorebookPairs(leftEntries, rightEntries);
@@ -1014,20 +1352,42 @@ export default function rollbackModal() {
           pairs.forEach((pair) => {
             counts[this._getPairMeta(pair).status] += 1;
           });
+          const entryStatusLabels = {
+            added: "新增条目",
+            removed: "删除条目",
+            changed: "修改条目",
+          };
           this.diffSummary = {
             ...counts,
             total: pairs.length,
-            categories: [{ key: "entries", label: "世界书条目", status: "changed" }],
+            categories: Object.keys(entryStatusLabels)
+              .filter((status) => counts[status] > 0)
+              .map((status) => ({
+                key: `entries-${status}`,
+                label: entryStatusLabels[status],
+                status,
+              })),
           };
+          const result = this._renderLorebookDiff(leftData, rightData);
+          this.diffData.left = result.left;
+          this.diffData.right = result.right;
+          this.diffData.fields = "";
+        } else if (
+          this.rollbackTargetType === "card" &&
+          this.diffRenderMode === "fields"
+        ) {
+          const result = this._renderCardFieldDiff(leftData, rightData);
+          this.diffSummary = result.summary;
+          this.diffData.left = "";
+          this.diffData.right = "";
+          this.diffData.fields = result.html;
         } else {
           this.diffSummary = this._summarizeRawDiff(leftData, rightData);
+          const result = generateSideBySideDiff(leftData, rightData);
+          this.diffData.left = result.left;
+          this.diffData.right = result.right;
+          this.diffData.fields = "";
         }
-
-        const result = this._isLorebookComparison()
-          ? this._renderLorebookDiff(leftData, rightData)
-          : generateSideBySideDiff(leftData, rightData);
-        this.diffData.left = result.left;
-        this.diffData.right = result.right;
       } catch (e) {
         console.error(e);
         this.diffSummary = {
@@ -1040,6 +1400,7 @@ export default function rollbackModal() {
         };
         this.diffData.left = `<div class="p-4 status-danger-text">Error: ${e.message}</div>`;
         this.diffData.right = "";
+        this.diffData.fields = "";
       } finally {
         this.isDiffLoading = false;
       }
@@ -1067,6 +1428,7 @@ export default function rollbackModal() {
         target_id: this.rollbackTargetId,
         type: this.rollbackTargetType,
         target_file_path: this.rollbackTargetPath,
+        is_embedded_wi_only: this._isEmbeddedWorldbookTarget(),
       }).then((res) => {
         if (res.success) {
           alert("回滚成功！页面将刷新数据。");

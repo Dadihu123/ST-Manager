@@ -276,6 +276,7 @@ export const wiHelpers = {
 
   createSnapshot(forceType = null) {
     let type, targetId, path, content, name;
+    let isEmbeddedWiOnly = false;
 
     // 场景 A: 角色卡详情页 (detailModal)
     if (this.activeCard && this.activeCard.id && !this.showFullScreenWI) {
@@ -320,6 +321,7 @@ export const wiHelpers = {
             ...this.wiData,
             entries: this.wiEntries,
           };
+          isEmbeddedWiOnly = type === "embedded";
         }
       }
     }
@@ -344,6 +346,7 @@ export const wiHelpers = {
       file_path: path,
       label: label,
       content: content, // 传递实时内容
+      is_embedded_wi_only: isEmbeddedWiOnly,
       compact: type === "lorebook", // 只有纯世界书才压缩 JSON，卡片通常不压缩
     })
       .then((res) => {
@@ -366,6 +369,7 @@ export const wiHelpers = {
     if (label === null) return;
 
     let type, targetId, path, content;
+    let isEmbeddedWiOnly = false;
 
     if (this.activeCard && this.activeCard.id && !this.showFullScreenWI) {
       type = "card";
@@ -387,6 +391,7 @@ export const wiHelpers = {
         content = this._getAutoSavePayload().content;
       } else if (this.wiData) {
         content = { ...this.wiData, entries: this.wiEntries };
+        isEmbeddedWiOnly = type === "embedded";
       }
     }
 
@@ -397,6 +402,7 @@ export const wiHelpers = {
       file_path: path,
       label: label,
       content: content,
+      is_embedded_wi_only: isEmbeddedWiOnly,
       compact: type === "lorebook",
     })
       .then((res) => {

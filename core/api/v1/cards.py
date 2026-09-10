@@ -49,7 +49,7 @@ from core.utils.world_info_sort import (
     sort_world_info_entries,
     sort_world_info_mapping,
 )
-from core.utils.card_identity import normalize_card_uid
+from core.utils.card_identity import new_card_uid, normalize_card_uid
 
 # === 核心服务 ===
 from core.services.scan_service import suppress_fs_events
@@ -72,7 +72,8 @@ from core.services.automation_service import (
 from core.services.wi_entry_history_service import (
     ensure_entry_uids,
     collect_previous_versions,
-    append_entry_history_records
+    append_entry_history_records,
+    resolve_card_uid,
 )
 from core.services.forum_update_service import (
     acknowledge_card_source_update,
@@ -1527,6 +1528,7 @@ def api_update_card():
         info = extract_card_info(old_full_path)
         file_content_modified = False
         wi_entry_history_records = []
+        history_card_uid = ''
         tag_merge_info = None
 
         # =========================================================
@@ -1592,6 +1594,17 @@ def api_update_card():
             if isinstance(new_book, (dict, list)):
                 ensure_entry_uids(new_book)
                 wi_entry_history_records = collect_previous_versions(old_book, new_book)
+                if wi_entry_history_records:
+                    history_card_uid = resolve_card_uid(
+                        raw_id,
+                        cache=ctx.cache,
+                        db_path=DEFAULT_DB_PATH,
+                    )
+                    history_card_uid = (
+                        history_card_uid
+                        or normalize_card_uid(data.get('card_uid'))
+                        or new_card_uid()
+                    )
             if clean_for_compare(new_book) != clean_for_compare(old_book):
                 target['character_book'] = new_book
                 file_content_modified = True
@@ -1740,6 +1753,7 @@ def api_update_card():
                 current_full_path,
                 parsed_info=info,
                 mtime=current_mtime,
+                card_uid=history_card_uid or None,
                 remove_entity_ids=[raw_id] if raw_id != final_rel_path_id else None,
             )
 
@@ -1847,6 +1861,8 @@ def api_update_card():
             "char_version": data_block.get('character_version', ''),
             "creator": data_block.get('creator', '')
         }
+        if history_card_uid:
+            update_payload['card_uid'] = history_card_uid
         
         # 更新单卡内存对象
         # Bundle 模式下：只有保存主版本时才更新缓存，避免用非主版本的备注污染主版本
@@ -2008,7 +2024,7 @@ def api_update_card():
         if wi_entry_history_records:
             append_entry_history_records(
                 source_type='embedded',
-                source_id=final_rel_path_id,
+                source_id=history_card_uid,
                 file_path='',
                 records=wi_entry_history_records
             )
@@ -3741,6 +3757,19 @@ def api_get_card_detail():
                 "thumb_url": f"/api/thumbnail/{quote(card_id)}?t={mtime}",
                 "source_revision": current_revision,
             }
+
+        card_uid = resolve_card_uid(
+            card_id,
+            cache=ctx.cache,
+            db_path=DEFAULT_DB_PATH,
+        )
+        if not card_uid and row:
+            try:
+                card_uid = normalize_card_uid(row['card_uid'])
+            except (IndexError, KeyError, TypeError):
+                card_uid = ''
+        if card_uid:
+            card_data['card_uid'] = card_uid
 
         # 预览模式：嵌入式世界书可能过大，按需截断
         preview_wi = bool(request.json.get('preview_wi', False))
