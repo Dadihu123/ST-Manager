@@ -60,17 +60,28 @@
         <span class="preset-rollback-toolbar-muted" x-text="diffModeLabel"></span>
       </div>
       <div
-        x-show="_isLorebookComparison()"
+        x-show="rollbackTargetType === 'card' || _isLorebookComparison()"
         class="preset-rollback-mode-switch"
         role="tablist"
         aria-label="差异显示方式"
       >
         <button
+          x-show="rollbackTargetType === 'card' && !_isLorebookComparison()"
+          type="button"
+          role="tab"
+          :aria-selected="diffRenderMode === 'fields'"
+          :class="diffRenderMode === 'fields' ? 'is-active' : ''"
+          @click="setDiffRenderMode('fields')"
+        >
+          字段差异
+        </button>
+        <button
+          x-show="_isLorebookComparison()"
           type="button"
           role="tab"
           :aria-selected="diffRenderMode === 'wi_entries'"
           :class="diffRenderMode === 'wi_entries' ? 'is-active' : ''"
-          @click="diffRenderMode = 'wi_entries'; updateDiffView(false)"
+          @click="setDiffRenderMode('wi_entries')"
         >
           条目
         </button>
@@ -79,9 +90,9 @@
           role="tab"
           :aria-selected="diffRenderMode === 'raw'"
           :class="diffRenderMode === 'raw' ? 'is-active' : ''"
-          @click="diffRenderMode = 'raw'; updateDiffView(false)"
+          @click="setDiffRenderMode('raw')"
         >
-          原始数据
+          原始 JSON
         </button>
       </div>
     </div>
@@ -154,7 +165,7 @@
                   title="设为新侧"
                   aria-label="设为新侧"
                 >
-                  {{ icon('arrow-right', 'ui-icon--xs') }}
+                  {{ icon('arrow-left', 'ui-icon--xs rotate-180') }}
                 </button>
                 <button
                   x-show="!ver.is_current"
@@ -226,7 +237,19 @@
           <span x-text="diffModeDescription"></span>
         </div>
 
-        <div class="preset-rollback-diff-container" id="diff-scroll-container">
+        <div
+          x-show="rollbackTargetType === 'card' && !_isLorebookComparison() && diffRenderMode === 'fields'"
+          class="preset-rollback-card-fields-view custom-scrollbar"
+          aria-label="角色卡字段差异"
+        >
+          <div x-html="diffData.fields"></div>
+        </div>
+
+        <div
+          x-show="!(rollbackTargetType === 'card' && !_isLorebookComparison() && diffRenderMode === 'fields')"
+          class="preset-rollback-diff-container"
+          id="diff-scroll-container"
+        >
           <div class="preset-rollback-pane custom-scrollbar" id="diff-left">
             <div x-html="diffData.left"></div>
           </div>

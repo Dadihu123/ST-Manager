@@ -1,3 +1,4 @@
+import copy
 import os
 import json
 import platform
@@ -229,6 +230,43 @@ def _is_valid_preset_path(path: str) -> bool:
         return '/presets/' in f'/{rel_path}/'
 
     return False
+
+
+def _extract_embedded_worldbook(card_data):
+    """Extract an embedded worldbook from either a card wrapper or a book payload."""
+    if not isinstance(card_data, dict):
+        return None
+
+    data_block = card_data.get('data')
+    if isinstance(data_block, dict) and isinstance(data_block.get('character_book'), (dict, list)):
+        return data_block['character_book']
+
+    if isinstance(card_data.get('character_book'), (dict, list)):
+        return card_data['character_book']
+
+    if 'entries' in card_data and isinstance(card_data.get('entries'), (dict, list)):
+        return card_data
+
+    return None
+
+
+def _merge_embedded_worldbook_snapshot(src_path, worldbook):
+    """Keep the host card intact while replacing only its embedded worldbook."""
+    book = _extract_embedded_worldbook(worldbook)
+    if book is None:
+        return None
+
+    card_data = extract_card_info(src_path)
+    if not isinstance(card_data, dict):
+        return None
+
+    merged = copy.deepcopy(card_data)
+    data_block = merged.get('data')
+    if isinstance(data_block, dict):
+        data_block['character_book'] = copy.deepcopy(book)
+    else:
+        merged['character_book'] = copy.deepcopy(book)
+    return merged
 
 
 def _extract_settings_save_payload(raw_payload):
@@ -563,10 +601,13 @@ def api_create_snapshot():
         # 这里的 suppress_fs_events 依然需要，因为备份也是写文件
         suppress_fs_events(1.0)
         
-        req_data = request.json
+        req_data = request.get_json(silent=True) or {}
         target_id = req_data.get('id')
         snapshot_type = req_data.get('type', 'card') 
         label = req_data.get('label', '').strip()
+        embedded_worldbook_only = bool(req_data.get('is_embedded_wi_only'))
+        if snapshot_type == 'lorebook' and str(target_id or '').startswith('embedded::'):
+            embedded_worldbook_only = True
         
         # === 获取前端传来的未保存内容 ===
         unsaved_content = req_data.get('content') 
@@ -652,7 +693,19 @@ def api_create_snapshot():
 
         # === 执行快照写入 ===
         # 使用新函数，传入 unsaved_content
-        success = write_snapshot_file(src_path, dst_path, unsaved_content, is_png, compact=compact)
+        snapshot_content = unsaved_content
+        if embedded_worldbook_only and snapshot_content is not None:
+            snapshot_content = _merge_embedded_worldbook_snapshot(
+                src_path,
+                snapshot_content,
+            )
+            if snapshot_content is None:
+                return jsonify({
+                    "success": False,
+                    "msg": "无法从宿主角色卡生成嵌入式世界书快照",
+                })
+
+        success = write_snapshot_file(src_path, dst_path, snapshot_content, is_png, compact=compact)
         
         if not success:
              return jsonify({"success": False, "msg": "快照写入失败"})
@@ -688,16 +741,24 @@ def api_smart_auto_snapshot():
         # 自动备份涉及文件写入，抑制 watchdog
         suppress_fs_events(1.0)
         
-        req_data = request.json
+        req_data = request.get_json(silent=True) or {}
         target_id = req_data.get('id')
         snapshot_type = req_data.get('type', 'card')
         content = req_data.get('content') # 当前编辑器内容的 V3 标准对象
+        embedded_worldbook_only = bool(req_data.get('is_embedded_wi_only')) or (
+            snapshot_type == 'lorebook' and str(target_id or '').startswith('embedded::')
+        )
         
         if not content:
             return jsonify({"success": False, "msg": "Content empty"})
 
         # 1. 计算当前内容的 Hash
-        current_hash = _calculate_data_hash(content)
+        compare_content = (
+            _extract_embedded_worldbook(content)
+            if embedded_worldbook_only
+            else content
+        )
+        current_hash = _calculate_data_hash(compare_content or {})
 
         # 2. 确定备份目录 (复用之前的逻辑)
         cfg = load_config()
@@ -712,11 +773,13 @@ def api_smart_auto_snapshot():
             filename = os.path.basename(path) if path else 'Unknown.json'
             backups_root = os.path.join(res_base, 'backups', 'presets')
         elif snapshot_type == 'lorebook':
-            if target_id.startswith('embedded::'):
+            if str(target_id or '').startswith('embedded::'):
                 real_card_id = target_id.replace('embedded::', '')
                 filename = os.path.basename(real_card_id)
                 backups_root = os.path.join(res_base, 'backups', 'cards')
+                target_id = real_card_id
                 snapshot_type = 'card' # 嵌入式WI实际上是存为角色卡快照
+                embedded_worldbook_only = True
             elif target_id.startswith('global::') or target_id.startswith('resource::'):
                 path = req_data.get('file_path')
                 filename = os.path.basename(path)
@@ -748,10 +811,9 @@ def api_smart_auto_snapshot():
                     if info:
                         # 如果是 PNG，info 是字典；如果是 JSON，info 也是字典
                         # 针对嵌入式 WI 的特殊提取：如果当前保存的是 WI，我们需要从备份卡片中提取 WI 来比对
-                        if snapshot_type == 'card' and req_data.get('is_embedded_wi_only'):
+                        if snapshot_type == 'card' and embedded_worldbook_only:
                             # 提取备份中的 character_book
-                            data_block = info.get('data', info)
-                            backup_content = data_block.get('character_book', {})
+                            backup_content = _extract_embedded_worldbook(info) or {}
                         else:
                             backup_content = info
                         
@@ -814,11 +876,20 @@ def api_smart_auto_snapshot():
              elif not _is_valid_lorebook_path(src_path):
                   return jsonify({"success": False, "msg": "非法路径"})
 
+        snapshot_content = content
+        if embedded_worldbook_only:
+            snapshot_content = _merge_embedded_worldbook_snapshot(src_path, content)
+            if snapshot_content is None:
+                return jsonify({
+                    "success": False,
+                    "msg": "无法从宿主角色卡生成嵌入式世界书快照",
+                })
+
         if is_png and os.path.exists(src_path):
-            write_snapshot_file(src_path, dst_path, content, True)
+            write_snapshot_file(src_path, dst_path, snapshot_content, True)
         else:
             # JSON 直接写
-            write_snapshot_file(None, dst_path, content, False, compact=True)
+            write_snapshot_file(None, dst_path, snapshot_content, False, compact=True)
 
         return jsonify({
             "success": True, 
@@ -1023,6 +1094,9 @@ def api_restore_backup():
         target_id = request.json.get('target_id')
         type_ = request.json.get('type')
         target_file_path_param = request.json.get('target_file_path')
+        embedded_worldbook_restore = bool(request.json.get('is_embedded_wi_only')) or (
+            type_ == 'lorebook' and str(target_id or '').startswith('embedded::')
+        )
         
         if not os.path.exists(backup_path):
             return jsonify({"success": False, "msg": "备份文件丢失"})
@@ -1032,7 +1106,7 @@ def api_restore_backup():
         if type_ == 'preset':
             target_path = target_file_path_param
         elif type_ == 'lorebook':
-            if target_id.startswith('embedded::'):
+            if str(target_id or '').startswith('embedded::'):
                 real_card_id = target_id.replace('embedded::', '')
                 target_path = os.path.join(CARDS_FOLDER, real_card_id.replace('/', os.sep))
             else:
@@ -1043,12 +1117,33 @@ def api_restore_backup():
         if not target_path: return jsonify({"success": False, "msg": "目标路径解析失败"})
 
         # 1. 物理覆盖 (恢复图片像素 或 JSON 内容)
-        shutil.copy2(backup_path, target_path)
+        # 兼容修复前生成的“仅世界书对象”嵌入式快照，避免把 book 当成整张卡片。
+        backup_info = None
+        is_book_only_backup = False
+        if embedded_worldbook_restore:
+            backup_info = extract_card_info(backup_path)
+            is_book_only_backup = (
+                isinstance(backup_info, dict)
+                and 'entries' in backup_info
+                and 'data' not in backup_info
+                and 'spec' not in backup_info
+                and 'character_book' not in backup_info
+            )
+
+        if is_book_only_backup:
+            merged = _merge_embedded_worldbook_snapshot(target_path, backup_info)
+            if merged is None:
+                return jsonify({"success": False, "msg": "无法将旧世界书快照合并回宿主角色卡"})
+            write_card_metadata(target_path, merged)
+        else:
+            shutil.copy2(backup_path, target_path)
         
         # 2. 卡片类型可选标准化重写
         # 仅对卡片文件做标准化，避免把独立世界书 JSON 误判为角色卡并重写结构
-        is_embedded_lorebook = (type_ == 'lorebook' and target_id.startswith('embedded::'))
-        should_normalize = (type_ == 'card' or is_embedded_lorebook)
+        is_embedded_lorebook = (
+            type_ == 'lorebook' and str(target_id or '').startswith('embedded::')
+        )
+        should_normalize = (type_ == 'card' or is_embedded_lorebook) and not is_book_only_backup
         if should_normalize:
             try:
                 info = extract_card_info(target_path)
@@ -1074,7 +1169,7 @@ def api_restore_backup():
         # 4. 刷新缓存
         if type_ == 'preset':
             schedule_reload(reason="restore_backup")
-        elif type_ == 'lorebook' and not target_id.startswith('embedded'):
+        elif type_ == 'lorebook' and not str(target_id or '').startswith('embedded'):
             invalidate_wi_list_cache()
         else:
             real_id = target_id.replace('embedded::', '') if 'embedded::' in target_id else target_id

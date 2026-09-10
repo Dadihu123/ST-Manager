@@ -146,7 +146,7 @@
 }
 
 .preset-rollback-mode-switch button {
-  min-height: 2rem;
+  min-height: 2.5rem;
   padding: 0.35rem 0.7rem;
   border: 0;
   border-radius: 4px;
@@ -496,6 +496,197 @@
   font-size: 0.7rem;
 }
 
+.preset-rollback-card-fields-view {
+  min-width: 0;
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow: auto;
+  padding: 0.85rem 1rem 1rem;
+  border-top: 1px solid var(--border-divider);
+  background: var(--surface-page);
+}
+
+.preset-rollback-card-fields-head {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 0.75rem;
+  color: var(--content-muted);
+  font-size: 0.7rem;
+}
+
+.preset-rollback-card-fields-head > div {
+  display: grid;
+  min-width: 0;
+  gap: 0.22rem;
+}
+
+.preset-rollback-card-fields-head strong {
+  color: var(--content-primary);
+  font-size: 0.82rem;
+}
+
+.preset-rollback-card-fields-head > span {
+  flex: 0 0 auto;
+  color: var(--content-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.preset-rollback-card-fields-list {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.preset-rollback-field-diff-card {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  background: var(--surface-container-raised);
+}
+
+.preset-rollback-field-diff-head {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.6rem 0.7rem;
+  border-bottom: 1px solid var(--border-divider);
+}
+
+.preset-rollback-field-diff-head > div {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.preset-rollback-field-diff-head strong {
+  color: var(--content-primary);
+  font-size: 0.77rem;
+}
+
+.preset-rollback-field-diff-head code {
+  color: var(--content-muted);
+  font-size: 0.65rem;
+  overflow-wrap: anywhere;
+}
+
+.preset-rollback-field-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.25rem;
+  padding: 0.1rem 0.35rem;
+  border: 1px solid var(--status-warning-solid);
+  border-radius: 3px;
+  color: var(--status-warning-text);
+  background: var(--status-warning-surface);
+  font-size: 0.61rem;
+  font-weight: 800;
+}
+
+.preset-rollback-field-diff-values {
+  display: grid;
+  min-width: 0;
+  align-items: start;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.preset-rollback-field-value-pane {
+  display: flex;
+  min-width: 0;
+  align-self: start;
+  flex-direction: column;
+  padding: 0.6rem 0.7rem 0.7rem;
+  text-align: left;
+  background: var(--surface-container);
+}
+
+.preset-rollback-field-value-pane + .preset-rollback-field-value-pane {
+  border-left: 1px solid var(--border-divider);
+  background: var(--surface-page);
+}
+
+.preset-rollback-field-value-label {
+  margin-bottom: 0.35rem;
+  color: var(--content-muted);
+  font-size: 0.64rem;
+  font-weight: 800;
+}
+
+.preset-rollback-field-value {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  height: auto;
+  max-height: 15rem;
+  min-height: 2.2rem;
+  margin: 0;
+  overflow: auto;
+  padding: 0.55rem;
+  border: 1px solid var(--border-default);
+  border-radius: 4px;
+  color: var(--content-primary);
+  background: var(--surface-page);
+  font: inherit;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Consolas, monospace);
+  font-size: 0.69rem;
+  line-height: 1.5;
+  text-align: start;
+  vertical-align: top;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.preset-rollback-field-value .preset-rollback-line-diff-row {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 2rem minmax(0, 1fr);
+  align-items: start;
+  column-gap: 0.5rem;
+  min-height: 1.55rem;
+  padding: 0.28rem 0.4rem;
+  text-align: start;
+}
+
+.preset-rollback-field-value .preset-rollback-line-diff-number {
+  display: block;
+  width: auto;
+  margin: 0;
+  color: var(--content-muted);
+  font-size: 0.62rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.5;
+  text-align: right;
+}
+
+.preset-rollback-field-value .preset-rollback-line-diff-text {
+  display: block;
+  min-width: 0;
+  font-size: 0.72rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  text-align: left;
+  white-space: pre-wrap;
+}
+
+.preset-rollback-field-empty {
+  color: var(--content-muted);
+  font-style: italic;
+}
+
+.preset-rollback-card-fields-empty {
+  padding: 2.5rem 1rem;
+  border: 1px dashed var(--border-default);
+  color: var(--content-muted);
+  font-size: 0.75rem;
+  text-align: center;
+}
+
 .preset-rollback-diff-container {
   display: grid;
   min-width: 0;
@@ -619,6 +810,19 @@
     padding-inline: 0.8rem;
   }
 
+  .preset-rollback-card-fields-view {
+    padding-inline: 0.8rem;
+  }
+
+  .preset-rollback-field-diff-values {
+    grid-template-columns: 1fr;
+  }
+
+  .preset-rollback-field-value-pane + .preset-rollback-field-value-pane {
+    border-top: 1px solid var(--border-divider);
+    border-left: 0;
+  }
+
   .preset-rollback-diff-container {
     grid-template-columns: 1fr;
     overflow-y: auto;
@@ -677,6 +881,11 @@
 
   .preset-rollback-mode-switch button {
     flex: 1 1 0;
+  }
+
+  .preset-rollback-card-fields-head {
+    display: grid;
+    gap: 0.3rem;
   }
 
   .preset-rollback-summary-grid {
