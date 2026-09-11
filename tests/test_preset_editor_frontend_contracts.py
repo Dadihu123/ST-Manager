@@ -841,6 +841,63 @@ def test_preset_editor_template_uses_inline_field_controls_and_icon_first_action
     assert 'border: 0 !important;' in css_source
 
 
+def test_preset_editor_orders_all_basic_fields_by_workspace_sections():
+    run_preset_editor_runtime_check(
+        """
+        editor.editingPresetFile = {
+          editor_profile: {
+            family: 'st_mirror',
+            workspace_sections: [
+              { id: 'generation' },
+              { id: 'connection' },
+              { id: 'features' },
+              { id: 'prompt_options' },
+            ],
+            fields: {
+              prompt_field: { id: 'prompt_field', section: 'templates_and_features', workspace_section: 'prompt_options', control: 'text' },
+              feature_field: { id: 'feature_field', section: 'images_and_advanced', workspace_section: 'features', control: 'checkbox' },
+              connection_field: { id: 'connection_field', section: 'provider_and_models', workspace_section: 'connection', control: 'text' },
+              generation_field: { id: 'generation_field', section: 'core_sampling', workspace_section: 'generation', control: 'number' },
+            },
+          },
+        };
+
+        const ordered = editor.getProfileSectionFields('all').map((field) => field.id);
+        const expected = ['generation_field', 'connection_field', 'feature_field', 'prompt_field'];
+        if (JSON.stringify(ordered) !== JSON.stringify(expected)) {
+          throw new Error(`expected all basic fields to follow workspace order, got ${JSON.stringify(ordered)}`);
+        }
+        """
+    )
+
+
+def test_preset_editor_header_and_prompt_metadata_keep_compact_single_rows():
+    source = read_project_file('templates/modals/detail_preset_fullscreen.html')
+    css_source = read_project_file('static/css/modules/modal-preset-workbench.css')
+
+    assert source.index('preset-editor-name-input') < source.index('preset-editor-eyebrow')
+    assert 'preset-editor-header-meta' in source
+    assert '预设工作台' in source
+    assert source.count('preset-prompt-meta-row') == 2
+    assert source.count('class="preset-prompt-order-controls flex items-center gap-1"') == 2
+    assert 'width: 100%;' not in css_source[css_source.rfind('.preset-prompt-order-controls {'):]
+    assert 'flex-wrap: nowrap;' in css_source
+
+
+def test_preset_editor_name_input_uses_rounded_focus_state():
+    css_source = read_project_file('static/css/modules/modal-preset-workbench.css')
+    name_input_block = css_source[
+        css_source.index('.preset-editor-workbench .preset-editor-name-input,') :
+        css_source.index('.preset-editor-workbench .preset-editor-file-meta')
+    ]
+
+    assert 'border-radius: 0.55rem;' in name_input_block
+    assert 'border: 1px solid transparent;' in name_input_block
+    assert 'background: color-mix(in srgb, var(--surface-container-raised), transparent 20%);' in name_input_block
+    assert 'box-shadow: var(--state-focus-shadow);' in name_input_block
+    assert 'border-radius: 0;' not in name_input_block
+
+
 def test_preset_editor_schema_orders_chat_completion_workspaces_for_editing():
     source = read_project_file('core/services/preset_editor_schema.py')
     order = [

@@ -2045,20 +2045,31 @@ export default function presetEditor() {
     },
 
     getProfileSectionFields(sectionId) {
-      if (sectionId === "all") {
-        return Object.values(this.editorProfile?.fields || {}).filter(
-          (field) =>
-            field?.control !== "prompt_workspace" &&
-            field?.canonical_key !== "extensions",
-        );
-      }
-      return Object.values(this.editorProfile?.fields || {}).filter(
-        (field) =>
-          field.section === sectionId || field.workspace_section === sectionId,
-      ).filter(
+      const visibleFields = Object.values(this.editorProfile?.fields || {}).filter(
         (field) =>
           field?.control !== "prompt_workspace" &&
           field?.canonical_key !== "extensions",
+      );
+
+      if (sectionId === "all") {
+        const sectionOrder = new Map(
+          (this.workspaceSections || []).map((section, index) => [section.id, index]),
+        );
+        return visibleFields
+          .map((field, index) => ({ field, index }))
+          .sort((left, right) => {
+            const leftSection = left.field.workspace_section || left.field.section;
+            const rightSection = right.field.workspace_section || right.field.section;
+            const leftOrder = sectionOrder.get(leftSection) ?? Number.MAX_SAFE_INTEGER;
+            const rightOrder = sectionOrder.get(rightSection) ?? Number.MAX_SAFE_INTEGER;
+            return leftOrder - rightOrder || left.index - right.index;
+          })
+          .map(({ field }) => field);
+      }
+
+      return visibleFields.filter(
+        (field) =>
+          field.section === sectionId || field.workspace_section === sectionId,
       );
     },
 

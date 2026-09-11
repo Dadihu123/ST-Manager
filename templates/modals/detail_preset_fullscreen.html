@@ -24,7 +24,6 @@
           {{ detail_icon('preset', 'ui-icon--md') }}
         </div>
         <div class="preset-editor-heading min-w-0">
-          <div class="preset-editor-eyebrow">预设工作台</div>
           <label class="preset-editor-name-editor">
             <span class="sr-only">预设名称</span>
             <input
@@ -37,12 +36,13 @@
               aria-label="预设名称"
             />
           </label>
-        </div>
-        <div class="preset-editor-file-meta min-w-0">
-          <div
-            class="preset-editor-file-path text-[10px] text-[var(--content-muted)] truncate"
-            x-text="editingPresetFile?.path || ''"
-          ></div>
+          <div class="preset-editor-header-meta">
+            <span class="preset-editor-eyebrow">预设工作台</span>
+            <span
+              class="preset-editor-file-path text-[10px] text-[var(--content-muted)] truncate"
+              x-text="editingPresetFile?.path || ''"
+            ></span>
+          </div>
         </div>
       </div>
 
@@ -166,8 +166,11 @@
           </label>
           <div
             class="preset-editor-mobile-subtitle"
-            x-text="getMobileHeaderMetaLine()"
-          ></div>
+          >
+            <span>预设工作台</span>
+            <span aria-hidden="true">·</span>
+            <span class="truncate" x-text="getMobileHeaderMetaLine()"></span>
+          </div>
         </div>
 
         <button
@@ -746,7 +749,7 @@
                                 </span>
                               </label>
                             </div>
-                            <div class="mt-2 flex flex-wrap gap-2 text-[10px]">
+                            <div class="preset-prompt-meta-row mt-2 flex items-center gap-2 text-[10px]">
                               <span
                                 x-show="prompt.marker"
                                 class="preset-marker-label inline-flex items-center gap-1.5 color-text-info"
@@ -765,28 +768,28 @@
                                 x-show="prompt.__is_orphan"
                                 class="px-2 py-0.5 rounded-full border border-dashed border-[var(--border-default)] text-[var(--content-muted)]"
                               >未加入顺序</span>
-                            </div>
-                            <div class="preset-prompt-order-controls mt-3 flex items-center gap-1">
-                              <button
-                                type="button"
-                                @click.stop="movePromptItem(index, index - 1)"
-                                class="ui-reorder-button"
-                                :disabled="!isPromptOrderMovable(prompt, -1)"
-                                title="上移"
-                                aria-label="上移"
-                              >
-                                {{ icon('arrow-up', 'ui-icon--xs') }}
-                              </button>
-                              <button
-                                type="button"
-                                @click.stop="movePromptItem(index, index + 1)"
-                                class="ui-reorder-button"
-                                :disabled="!isPromptOrderMovable(prompt, 1)"
-                                title="下移"
-                                aria-label="下移"
-                              >
-                                {{ icon('arrow-down', 'ui-icon--xs') }}
-                              </button>
+                              <div class="preset-prompt-order-controls flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  @click.stop="movePromptItem(index, index - 1)"
+                                  class="ui-reorder-button"
+                                  :disabled="!isPromptOrderMovable(prompt, -1)"
+                                  title="上移"
+                                  aria-label="上移"
+                                >
+                                  {{ icon('arrow-up', 'ui-icon--xs') }}
+                                </button>
+                                <button
+                                  type="button"
+                                  @click.stop="movePromptItem(index, index + 1)"
+                                  class="ui-reorder-button"
+                                  :disabled="!isPromptOrderMovable(prompt, 1)"
+                                  title="下移"
+                                  aria-label="下移"
+                                >
+                                  {{ icon('arrow-down', 'ui-icon--xs') }}
+                                </button>
+                              </div>
                             </div>
                           </article>
                         </template>
@@ -1221,7 +1224,7 @@
                               </span>
                             </label>
                           </div>
-                          <div class="mt-2 flex flex-wrap gap-2 text-[10px]">
+                          <div class="preset-prompt-meta-row mt-2 flex items-center gap-2 text-[10px]">
                             <span
                               x-show="prompt.marker"
                               class="preset-marker-label inline-flex items-center gap-1.5 color-text-info"
@@ -1240,28 +1243,28 @@
                               x-show="prompt.__is_orphan"
                               class="px-2 py-0.5 rounded-full border border-dashed border-[var(--border-default)] text-[var(--content-muted)]"
                             >未加入顺序</span>
-                          </div>
-                          <div class="preset-prompt-order-controls mt-3 flex items-center gap-1">
-                            <button
-                              type="button"
-                              @click.stop="movePromptItem(index, index - 1)"
-                              class="ui-reorder-button"
-                              :disabled="!isPromptOrderMovable(prompt, -1)"
-                              title="上移"
-                              aria-label="上移"
-                            >
-                              {{ icon('arrow-up', 'ui-icon--xs') }}
-                            </button>
-                            <button
-                              type="button"
-                              @click.stop="movePromptItem(index, index + 1)"
-                              class="ui-reorder-button"
-                              :disabled="!isPromptOrderMovable(prompt, 1)"
-                              title="下移"
-                              aria-label="下移"
-                            >
-                              {{ icon('arrow-down', 'ui-icon--xs') }}
-                            </button>
+                            <div class="preset-prompt-order-controls flex items-center gap-1">
+                              <button
+                                type="button"
+                                @click.stop="movePromptItem(index, index - 1)"
+                                class="ui-reorder-button"
+                                :disabled="!isPromptOrderMovable(prompt, -1)"
+                                title="上移"
+                                aria-label="上移"
+                              >
+                                {{ icon('arrow-up', 'ui-icon--xs') }}
+                              </button>
+                              <button
+                                type="button"
+                                @click.stop="movePromptItem(index, index + 1)"
+                                class="ui-reorder-button"
+                                :disabled="!isPromptOrderMovable(prompt, 1)"
+                                title="下移"
+                                aria-label="下移"
+                              >
+                                {{ icon('arrow-down', 'ui-icon--xs') }}
+                              </button>
+                            </div>
                           </div>
                         </article>
                       </template>

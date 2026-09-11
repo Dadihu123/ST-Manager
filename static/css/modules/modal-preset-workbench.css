@@ -3455,23 +3455,6 @@
   }
 }
 
-/* Prompt rows keep their reorder affordance in the card header on touch screens. */
-@media (max-width: 767px) {
-  .preset-editor-workbench .preset-prompt-card {
-    padding-right: 5.25rem;
-  }
-
-  .preset-editor-workbench .preset-prompt-order-controls {
-    position: absolute;
-    top: 0.35rem;
-    right: 0.35rem;
-    margin-top: 0 !important;
-    opacity: 1;
-    transform: none;
-    pointer-events: auto;
-  }
-}
-
 /* Final interaction pass: title editing and icon-first top actions. */
 .preset-editor-workbench .preset-editor-name-editor,
 .preset-editor-workbench .preset-editor-mobile-name-editor {
@@ -3483,14 +3466,17 @@
 .preset-editor-workbench .preset-editor-mobile-title {
   width: 100%;
   min-width: 0;
-  padding: 0.1rem 0;
-  border: 0;
-  border-bottom: 1px solid transparent;
-  border-radius: 0;
+  padding: 0.25rem 0.45rem;
+  border: 1px solid transparent;
+  border-radius: 0.55rem;
   color: var(--content-primary);
   background: transparent;
   font-weight: 800;
   outline: none;
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease,
+    box-shadow 140ms ease;
 }
 
 .preset-editor-workbench .preset-editor-name-input {
@@ -3499,14 +3485,57 @@
 }
 
 .preset-editor-workbench .preset-editor-name-input:hover,
+.preset-editor-workbench .preset-editor-mobile-title:hover {
+  border-color: var(--border-default);
+  background: color-mix(in srgb, var(--surface-container-raised), transparent 55%);
+}
+
+.preset-editor-workbench .preset-editor-name-input:focus,
 .preset-editor-workbench .preset-editor-name-input:focus-visible,
-.preset-editor-workbench .preset-editor-mobile-title:hover,
+.preset-editor-workbench .preset-editor-mobile-title:focus,
 .preset-editor-workbench .preset-editor-mobile-title:focus-visible {
-  border-bottom-color: var(--accent-action);
+  border-color: var(--accent-action);
+  background: color-mix(in srgb, var(--surface-container-raised), transparent 20%);
+  box-shadow: var(--state-focus-shadow);
 }
 
 .preset-editor-workbench .preset-editor-file-meta {
   flex: 0 1 20rem;
+}
+
+.preset-editor-workbench .preset-editor-heading {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.18rem;
+}
+
+.preset-editor-workbench .preset-editor-header-meta {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.preset-editor-workbench .preset-editor-header-meta .preset-editor-eyebrow {
+  flex: 0 0 auto;
+}
+
+.preset-editor-workbench .preset-editor-header-meta .preset-editor-file-path {
+  min-width: 0;
+  max-width: 34rem;
+}
+
+.preset-editor-workbench .preset-editor-mobile-subtitle {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.preset-editor-workbench .preset-editor-mobile-subtitle > .truncate {
+  min-width: 0;
 }
 
 .preset-editor-workbench .preset-editor-tool-button {
@@ -3564,15 +3593,26 @@
   padding-right: 0.75rem;
 }
 
+.preset-editor-workbench .preset-prompt-meta-row {
+  min-width: 0;
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
+
+.preset-editor-workbench .preset-prompt-meta-row > span {
+  min-width: 0;
+  flex: 0 1 auto;
+  white-space: nowrap;
+}
+
 .preset-editor-workbench .preset-prompt-order-controls {
   position: static;
   display: flex;
-  width: 100%;
+  flex: 0 0 auto;
   min-height: 2.25rem;
-  justify-content: flex-end;
-  margin-top: 0.55rem !important;
-  padding-top: 0.45rem;
-  border-top: 1px solid var(--border-subtle);
+  margin-left: auto;
+  padding-top: 0;
+  border-top: 0;
   opacity: 0;
   transform: none;
   pointer-events: none;
@@ -3636,6 +3676,10 @@
     max-width: 100%;
     font-size: 0.88rem;
     text-align: left;
+  }
+
+  .preset-editor-workbench .preset-editor-mobile-subtitle {
+    max-width: 100%;
   }
 
   .preset-editor-workbench .preset-editor-mobile-stage-controls {
