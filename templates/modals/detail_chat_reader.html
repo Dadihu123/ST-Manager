@@ -1,6 +1,5 @@
 {% from "components/icon.html" import icon, sidebar_icon, detail_icon %}
 {% from "components/styled_select.html" import styled_select_controlled %}
-{% set reader_render_icon_src = url_for('static', filename='icons/chat-reader-render.svg') %}
 
 <div x-show="detailOpen" x-cloak class="chat-reader-overlay chat-reader-overlay--fullscreen ui-refresh-surface" @click.self="closeChatDetail()" @keydown.window="handleReaderKeydown($event)">
     <div class="chat-reader-modal chat-reader-modal--fullscreen" role="dialog" aria-modal="true" aria-label="聊天阅读器">
@@ -73,6 +72,24 @@
                     </div>
                 </div>
             </div>
+
+            <nav class="chat-reader-mobile-dock" x-show="readerResponsiveMode === 'mobile'" aria-label="阅读器移动端入口">
+                <button type="button" class="chat-reader-toggle" :class="readerMobilePanel === 'tools' ? 'is-active' : ''" @click="toggleReaderPanel('left')" :aria-pressed="readerMobilePanel === 'tools' ? 'true' : 'false'">
+                    {{ icon('settings-gear', 'ui-icon--sm') }}<span>工具</span>
+                </button>
+                <button type="button" class="chat-reader-toggle" :class="readerMobilePanel === 'search' ? 'is-active' : ''" @click="setReaderMobilePanel('search')" :aria-pressed="readerMobilePanel === 'search' ? 'true' : 'false'">
+                    {{ icon('search', 'ui-icon--sm') }}<span>搜索</span>
+                </button>
+                <button type="button" class="chat-reader-toggle" :class="readerMobilePanel === 'navigator' ? 'is-active' : ''" @click="setReaderMobilePanel('navigator')" :aria-pressed="readerMobilePanel === 'navigator' ? 'true' : 'false'">
+                    {{ icon('list', 'ui-icon--sm') }}<span>导航</span>
+                </button>
+                <button type="button" class="chat-reader-toggle" :class="!readerMobilePanel ? 'is-active' : ''" @click="hideReaderPanels()" :aria-pressed="!readerMobilePanel ? 'true' : 'false'">
+                    {{ icon('display', 'ui-icon--sm') }}<span>阅读</span>
+                </button>
+                <button type="button" class="chat-reader-toggle" :class="readerAppMode ? 'is-active' : ''" @click="readerAppMode ? deactivateChatAppStage() : activateChatAppStage()" :aria-pressed="readerAppMode ? 'true' : 'false'">
+                    {{ icon('layout', 'ui-icon--sm') }}<span>实例</span>
+                </button>
+            </nav>
         </div>
 
         <div class="chat-reader-body" :style="readerBodyGridStyle">
@@ -228,12 +245,12 @@
                     </div>
 
                     <div class="chat-reader-panel chat-reader-panel--quiet">
-                        <div class="chat-reader-panel-title"><img class="chat-reader-asset-icon chat-reader-render-icon" src="{{ reader_render_icon_src }}" alt="" aria-hidden="true" draggable="false"><span>解析与渲染</span></div>
+                        <div class="chat-reader-panel-title">{{ icon('chat-reader-render', 'chat-reader-render-icon') }}<span>解析与渲染</span></div>
                         <div class="chat-reader-option-group">
                             <div class="chat-reader-option-group-label">显示模式</div>
                             <div class="chat-inline-actions">
                                 <button type="button" class="chat-toolbar-btn" :class="readerRenderMode === 'plain' ? 'chat-toolbar-btn--primary' : ''" @click="readerRenderMode = 'plain'">{{ icon('file', 'ui-icon--sm') }}<span>纯文本</span></button>
-                                <button type="button" class="chat-toolbar-btn" :class="readerRenderMode === 'markdown' ? 'chat-toolbar-btn--primary' : ''" @click="readerRenderMode = 'markdown'"><img class="chat-reader-asset-icon chat-reader-render-icon" src="{{ reader_render_icon_src }}" alt="" aria-hidden="true" draggable="false"><span>渲染</span></button>
+                                <button type="button" class="chat-toolbar-btn" :class="readerRenderMode === 'markdown' ? 'chat-toolbar-btn--primary' : ''" @click="readerRenderMode = 'markdown'">{{ icon('chat-reader-render', 'chat-reader-render-icon') }}<span>渲染</span></button>
                                 <label class="chat-inline-checkbox">
                                     <input type="checkbox" x-model="readerComponentMode">
                                     <span>后挂载实例</span>
@@ -510,12 +527,12 @@
                     </div>
 
                     <div class="chat-reader-panel chat-reader-panel--quiet" x-show="activeChat">
-                        <div class="chat-reader-panel-title"><img class="chat-reader-asset-icon chat-reader-render-icon" src="{{ reader_render_icon_src }}" alt="" aria-hidden="true" draggable="false"><span>解析与渲染</span></div>
+                        <div class="chat-reader-panel-title">{{ icon('chat-reader-render', 'chat-reader-render-icon') }}<span>解析与渲染</span></div>
                         <div class="chat-reader-option-group">
                             <div class="chat-reader-option-group-label">显示模式</div>
                             <div class="chat-inline-actions">
                                 <button class="chat-toolbar-btn" :class="readerRenderMode === 'plain' ? 'chat-toolbar-btn--primary' : ''" @click="readerRenderMode = 'plain'">{{ icon('file', 'ui-icon--sm') }}<span>纯文本</span></button>
-                                <button class="chat-toolbar-btn" :class="readerRenderMode === 'markdown' ? 'chat-toolbar-btn--primary' : ''" @click="readerRenderMode = 'markdown'"><img class="chat-reader-asset-icon chat-reader-render-icon" src="{{ reader_render_icon_src }}" alt="" aria-hidden="true" draggable="false"><span>渲染</span></button>
+                                <button class="chat-toolbar-btn" :class="readerRenderMode === 'markdown' ? 'chat-toolbar-btn--primary' : ''" @click="readerRenderMode = 'markdown'">{{ icon('chat-reader-render', 'chat-reader-render-icon') }}<span>渲染</span></button>
                                 <label class="chat-inline-checkbox">
                                     <input type="checkbox" x-model="readerComponentMode">
                                     <span>后挂载实例</span>
@@ -589,23 +606,6 @@
                 </div>
             </aside>
 
-            <nav class="chat-reader-mobile-dock" x-show="readerResponsiveMode === 'mobile'" aria-label="阅读器移动端入口">
-                <button type="button" class="chat-reader-toggle" :class="readerMobilePanel === 'tools' ? 'is-active' : ''" @click="toggleReaderPanel('left')" :aria-pressed="readerMobilePanel === 'tools' ? 'true' : 'false'">
-                    {{ icon('settings-gear', 'ui-icon--sm') }}<span>工具</span>
-                </button>
-                <button type="button" class="chat-reader-toggle" :class="readerMobilePanel === 'search' ? 'is-active' : ''" @click="setReaderMobilePanel('search')" :aria-pressed="readerMobilePanel === 'search' ? 'true' : 'false'">
-                    {{ icon('search', 'ui-icon--sm') }}<span>搜索</span>
-                </button>
-                <button type="button" class="chat-reader-toggle" :class="readerMobilePanel === 'navigator' ? 'is-active' : ''" @click="setReaderMobilePanel('navigator')" :aria-pressed="readerMobilePanel === 'navigator' ? 'true' : 'false'">
-                    {{ icon('list', 'ui-icon--sm') }}<span>导航</span>
-                </button>
-                <button type="button" class="chat-reader-toggle" :class="!readerMobilePanel ? 'is-active' : ''" @click="hideReaderPanels()" :aria-pressed="!readerMobilePanel ? 'true' : 'false'">
-                    {{ icon('display', 'ui-icon--sm') }}<span>阅读</span>
-                </button>
-                <button type="button" class="chat-reader-toggle" :class="readerAppMode ? 'is-active' : ''" @click="readerAppMode ? deactivateChatAppStage() : activateChatAppStage()" :aria-pressed="readerAppMode ? 'true' : 'false'">
-                    {{ icon('layout', 'ui-icon--sm') }}<span>实例</span>
-                </button>
-            </nav>
         </div>
     </div>
 </div>

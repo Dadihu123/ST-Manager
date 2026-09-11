@@ -884,18 +884,18 @@
   }
 
   .chat-reader-mobile-dock {
-    position: fixed;
-    right: 0;
-    bottom: 0;
-    left: 0;
-    z-index: calc(var(--z-chat-reader) + 4);
+    position: static;
+    grid-column: 1 / -1;
+    grid-row: auto;
+    width: 100%;
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 0.35rem;
-    padding: 0.4rem 0.55rem max(0.4rem, env(safe-area-inset-bottom));
+    padding: 0.4rem 0.55rem;
     border-top: 1px solid var(--chat-reader-divider);
+    border-bottom: 0;
     background: color-mix(in srgb, var(--surface-container), transparent 2%);
-    box-shadow: 0 -8px 24px color-mix(in srgb, var(--surface-page), transparent 70%);
+    box-shadow: none;
   }
 
   .chat-reader-mobile-dock .chat-reader-toggle {
@@ -914,12 +914,12 @@
 
   .chat-reader-message-list {
     padding-right: 0.85rem;
-    padding-bottom: 5.5rem;
+    padding-bottom: 1.25rem;
     padding-left: 0.85rem;
   }
 
   .chat-reader-app-stage {
-    min-height: calc(100dvh - var(--chat-reader-header-height) - 5rem);
+    min-height: calc(100dvh - var(--chat-reader-header-height));
     padding: 0.85rem;
   }
 }
@@ -1060,10 +1060,6 @@
 .chat-reader-render-icon {
   width: 1.05rem;
   height: 1.05rem;
-}
-
-html:not(.light-mode) .chat-reader-render-icon {
-  filter: invert(1) brightness(0.92);
 }
 
 .chat-reader-header-secondary .chat-reader-icon-button,
@@ -1262,35 +1258,8 @@ html:not(.light-mode) .chat-reader-render-icon {
 }
 
 @media (max-width: 900px) {
-  .chat-reader-overlay--fullscreen {
-    --chat-reader-mobile-dock-height: 4.35rem;
-  }
-
   .chat-reader-mobile-dock {
-    top: var(--chat-reader-header-height);
-    bottom: auto;
-    min-height: var(--chat-reader-mobile-dock-height);
-    padding: 0.4rem 0.55rem;
-    border-top: 0;
-    border-bottom: 1px solid var(--chat-reader-divider);
-    box-shadow: 0 8px 24px color-mix(in srgb, var(--surface-page), transparent 70%);
-  }
-
-  .chat-reader-left,
-  .chat-reader-right {
-    top: calc(var(--chat-reader-header-height) + var(--chat-reader-mobile-dock-height));
-  }
-
-  .chat-reader-center {
-    padding-top: var(--chat-reader-mobile-dock-height);
-  }
-
-  .chat-reader-message-list {
-    padding-bottom: 1.25rem;
-  }
-
-  .chat-reader-app-stage {
-    min-height: calc(100dvh - var(--chat-reader-header-height) - var(--chat-reader-mobile-dock-height));
+    min-height: 4.35rem;
   }
 
   .chat-message-head {

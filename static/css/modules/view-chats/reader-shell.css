@@ -47,7 +47,7 @@
   );
   --chat-reader-code-border: color-mix(in srgb, var(--accent-text) 24%, transparent);
   --chat-reader-code-shadow: 0 18px 38px color-mix(in srgb, var(--surface-page) 34%, transparent);
-  --chat-reader-code-text: var(--accent-soft);
+  --chat-reader-code-text: var(--content-code);
   --chat-reader-code-muted: var(--accent-text);
   --chat-reader-code-inline-bg: color-mix(in srgb, var(--accent-action) 16%, transparent);
   --chat-reader-code-inline-border: color-mix(in srgb, var(--accent-text) 18%, transparent);

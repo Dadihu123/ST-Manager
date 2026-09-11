@@ -46,6 +46,6 @@
 
 - 缺失 SVG：无
 - 使用中性占位符：无
-- 图标来源：项目现有 `static/icons/ui.svg`、`static/icons/detail.svg`、`static/icons/sidebar.svg`，以及按要求复用的 `static/icons/chat-reader-render.svg`（源自 `tmp/其他/render.svg`）
+- 图标来源：项目现有 `static/icons/ui.svg`、`static/icons/detail.svg`、`static/icons/sidebar.svg`，以及已融合到 `static/icons/ui.svg` 的 `icon-chat-reader-render`（源自 `tmp/其他/render.svg`）
 
 本次新增的重要入口均使用现有语义 SVG，并保留文字标签、`title` 或 `aria-label`。没有使用 emoji 或 Unicode 字符替代图标。
