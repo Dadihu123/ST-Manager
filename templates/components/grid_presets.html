@@ -1,5 +1,6 @@
 <!-- templates/components/grid_presets.html -->
 {% from "components/icon.html" import icon, loading_icon, detail_icon, preset_icon %}
+{% from "components/icon.html" import sidebar_icon %}
 <div
   x-show="$store.global.currentMode === 'presets'"
   x-cloak
@@ -139,7 +140,7 @@
             @dragstart="dragStart($event, item)"
             draggable="true"
             :data-preset-id="item.id"
-            :class="selectedIds.includes(item.id) ? 'border-[var(--accent-action)] ring-2 ring-[var(--accent-action)]/40' : 'border-[var(--border-default)]'"
+            :class="selectedIds.includes(item.id) ? 'border-[var(--accent-action)] ring-2 ring-[var(--accent-action)]/40 is-selected' : 'border-[var(--border-default)]'"
             class="preset-grid-card group bg-[var(--surface-container)] px-4 pb-4 pt-14 rounded-lg cursor-pointer hover:border-[var(--accent-action)] hover:shadow-lg transition-all relative overflow-hidden flex flex-col"
           >
             <div
@@ -154,7 +155,7 @@
                 :aria-label="selectedIds.includes(item.id) ? '取消选择预设' : '选择预设'"
               >
                 <div
-                  class="preset-select-shell w-6 h-6 rounded-full border flex items-center justify-center transition-all duration-200"
+                  class="preset-select-shell resource-card-select-shell w-6 h-6 rounded-full border flex items-center justify-center transition-all duration-200"
                   :class="{ 'is-selected': selectedIds.includes(item.id) }"
                 >
                   <span
@@ -192,14 +193,15 @@
 
             <!-- 来源角标 -->
             <div
-              class="preset-card-source-badge absolute right-3 top-3 px-2 py-1 text-[10px] font-bold color-text-on-dark rounded-md shadow-sm"
-              :class="(item.source_type || item.type) === 'global' ? 'color-surface-accent-solid' : 'color-surface-success-solid'"
+              class="preset-card-source-badge resource-source-badge absolute right-3 top-3"
+              :class="(item.source_type || item.type) === 'global' ? 'global' : 'resource'"
+              :title="getPresetSourceHint(item)"
             >
-              <span x-text="getPresetSourceHint(item)"></span>
+              <span x-text="(item.source_type || item.type) === 'global' ? 'GLOBAL' : 'RESOURCE'"></span>
             </div>
 
             <div class="flex items-start gap-3 mb-3">
-              <div class="preset-list-entry-icon pt-1 opacity-80 select-none" aria-hidden="true">
+              <div class="preset-list-entry-icon resource-card-icon select-none" aria-hidden="true">
                 {{ detail_icon('preset', 'ui-icon--lg') }}
               </div>
               <div class="min-w-0 flex-1">
@@ -229,6 +231,31 @@
                     </template>
                   </div>
                 </template>
+                <div
+                  x-show="getPresetOwnerName(item)"
+                  class="preset-card-owner-row resource-card-owner-row mt-2 min-w-0"
+                >
+                  <div
+                    x-show="getPresetOwnerName(item)"
+                    @click.stop="locatePresetOwnerCard(item)"
+                    @keydown.enter.stop.prevent="locatePresetOwnerCard(item)"
+                    @keydown.space.stop.prevent="locatePresetOwnerCard(item)"
+                    role="button"
+                    tabindex="0"
+                    class="resource-card-owner text-[10px] flex items-center gap-1 truncate cursor-pointer"
+                    :title="`所属角色卡：${getPresetOwnerName(item)}`"
+                  >
+                    <span class="preset-card-owner-icon resource-card-owner-icon" aria-hidden="true">
+                      <template x-if="item.owner_card_name || item.owner_card_id">
+                        {{ sidebar_icon('character-cards', 'ui-icon--sm') }}
+                      </template>
+                      <template x-if="!(item.owner_card_name || item.owner_card_id)">
+                        {{ preset_icon('owner', 'ui-icon--sm') }}
+                      </template>
+                    </span>
+                    <span x-text="getPresetOwnerName(item)"></span>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -278,33 +305,8 @@
             ></div>
 
             <div
-              class="mt-auto pt-2 border-t border-[var(--border-default)] flex justify-between items-center"
+              class="resource-card-footer mt-auto pt-2 border-t border-[var(--border-default)] flex justify-between items-center"
             >
-              <!-- 资源归属提示 -->
-              <div class="min-w-0 flex-1 mr-2">
-                <div
-                  x-show="getPresetOwnerName(item)"
-                  @click.stop="locatePresetOwnerCard(item)"
-                  @keydown.enter.stop.prevent="locatePresetOwnerCard(item)"
-                  @keydown.space.stop.prevent="locatePresetOwnerCard(item)"
-                  role="button"
-                  tabindex="0"
-                  class="text-[10px] color-text-success color-hover-text-success flex items-center gap-1 truncate cursor-pointer"
-                  :title="`所属角色卡：${getPresetOwnerName(item)}`"
-                >
-                  <span class="preset-card-owner-icon" aria-hidden="true">
-                    {{ preset_icon('owner', 'ui-icon--sm') }}
-                  </span>
-                  <span x-text="getPresetOwnerName(item)"></span>
-                </div>
-                <div
-                  x-show="!getPresetOwnerName(item)"
-                  class="text-[10px] color-text-accent opacity-60"
-                >
-                  Global Library
-                </div>
-              </div>
-
               <button
                 type="button"
                 x-show="canSendPresetToST(item)"

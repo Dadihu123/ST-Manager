@@ -22,6 +22,9 @@
 
         <div x-show="!isLoading" class="chat-grid-shell">
             <div class="chat-grid-toolbar">
+                <div class="resource-grid-mode-icon chat-grid-mode-icon" aria-hidden="true">
+                    {{ detail_icon('chat-bubble', 'ui-icon--lg') }}
+                </div>
                 <div class="chat-grid-toolbar-copy">
                     <div class="chat-grid-kicker">SillyTavern Chats</div>
                     <h2 class="chat-grid-title">按聊天记录管理本地对话</h2>
@@ -85,7 +88,7 @@
 
                         <div class="chat-card-body">
                             <div class="chat-card-name-row">
-                                <span aria-hidden="true">{{ detail_icon('chat-bubble', 'ui-icon--sm') }}</span>
+                                <span class="resource-card-icon chat-card-title-icon" aria-hidden="true">{{ detail_icon('chat-bubble', 'ui-icon--sm') }}</span>
                                 <h3 class="chat-card-name" x-text="item.chat_name || item.filename || '未命名聊天'"></h3>
                             </div>
                             <div class="chat-card-stat-group">
@@ -111,7 +114,10 @@
                             </div>
 
                             <div class="chat-card-pill-row">
-                                <span class="chat-pill" x-text="item.bound_card_name || item.character_name || '未绑定角色'"></span>
+                                <span class="chat-pill chat-pill--owner">
+                                    <span aria-hidden="true">{{ sidebar_icon('character-cards', 'ui-icon--xs') }}</span>
+                                    <span x-text="item.bound_card_name || item.character_name || '未绑定角色'"></span>
+                                </span>
                                 <span class="chat-pill chat-pill--muted" x-text="item.chat_name || item.filename"></span>
                             </div>
 

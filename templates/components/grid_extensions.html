@@ -2,84 +2,51 @@
 
 <div x-show="['regex', 'scripts', 'quick_replies'].includes($store.global.currentMode)" x-cloak
     x-data="extensionGrid" class="extension-workbench resource-grid-view resource-grid-view--extensions" aria-label="高级扩展文件工作台">
-    <header class="extension-workbench-header">
-        <div class="extension-workbench-title-group">
-            <div class="extension-workbench-title-icon" aria-hidden="true">
+    <header class="extension-workbench-header resource-grid-header resource-grid-header--extensions">
+        <div class="resource-grid-header__lead extension-workbench-title-group">
+            <div class="resource-grid-header__heading">
+                <div class="extension-workbench-title-icon resource-grid-mode-icon" aria-hidden="true">
                 <span x-show="currentMode === 'regex'">{{ detail_icon('regex', 'ui-icon--md ') }}</span>
                 <span x-show="currentMode === 'scripts'">{{ detail_icon('script-file', 'ui-icon--md ') }}</span>
                 <span x-show="currentMode === 'quick_replies'">{{ detail_icon('quick-reply', 'ui-icon--md ') }}</span>
-            </div>
-            <div>
-                <span class="extension-workbench-eyebrow">ADVANCED EXTENSIONS</span>
-                <h1 x-text="modeLabel"></h1>
-                <p x-text="modeDescription"></p>
+                </div>
+                <div class="resource-grid-header__copy">
+                    <span class="extension-workbench-eyebrow resource-grid-kicker">ADVANCED EXTENSIONS</span>
+                    <h1 x-text="modeLabel"></h1>
+                    <p x-text="modeDescription"></p>
+                    <span class="resource-grid-header__context">
+                        <span x-text="modePath"></span>
+                        <span aria-hidden="true">/</span>
+                        <span x-text="filterType === 'all' ? '全部来源' : (filterType === 'global' ? '全局配置' : '资源目录')"></span>
+                    </span>
+                </div>
             </div>
         </div>
-        <div class="extension-workbench-header-actions">
-            <div class="extension-workbench-count" role="status" aria-live="polite">
-                <strong x-text="items.length"></strong><span>个文件</span>
+        <div class="resource-grid-header__rail extension-workbench-header-actions">
+            <div class="resource-grid-header__stats" role="status" aria-live="polite" aria-label="扩展文件统计">
+                <div class="resource-grid-stat">
+                    <span>当前结果</span>
+                    <strong x-text="items.length"></strong>
+                </div>
+                <div class="resource-grid-stat">
+                    <span>来源</span>
+                    <strong x-text="filterType === 'all' ? '全部' : (filterType === 'global' ? '全局' : '资源')"></strong>
+                </div>
             </div>
-            <button type="button" class="extension-action-button extension-action-button--primary"
+            <div class="resource-grid-header__actions">
+            <button type="button" class="resource-grid-action resource-grid-action--primary extension-action-button extension-action-button--primary"
                 @click="$refs.extensionImportInput.click()" title="导入扩展文件">
                 {{ icon('file-import', 'ui-icon--sm ') }}<span>导入文件</span>
             </button>
             <input type="file" x-ref="extensionImportInput" @change="uploadInputFiles($event)" accept=".json" multiple hidden>
-            <button type="button" class="extension-icon-button btn-secondary px-3 py-1 text-xs flex items-center gap-1" @click="fetchItems()" :disabled="isLoading"
+            <button type="button" class="resource-grid-action extension-icon-button btn-secondary px-3 py-1 text-xs flex items-center gap-1" @click="fetchItems()" :disabled="isLoading"
                 title="刷新扩展列表" aria-label="刷新扩展列表">
                 <template x-if="!isLoading">{{ icon('refresh', 'ui-icon--sm ') }}</template>
                 <template x-if="isLoading">{{ loading_icon('ui-icon--sm') }}</template>
             </button>
+            </div>
         </div>
     </header>
-
-    <nav class="extension-mode-tabs" role="tablist" aria-label="扩展类型">
-        <button type="button" class="extension-mode-tab" role="tab"
-            :class="{ 'is-active': currentMode === 'regex' }"
-            :aria-selected="currentMode === 'regex'"
-            @click="$store.global.currentMode = 'regex'">
-            {{ detail_icon('regex', 'ui-icon--sm ') }}<span>正则脚本</span>
-        </button>
-        <button type="button" class="extension-mode-tab" role="tab"
-            :class="{ 'is-active': currentMode === 'scripts' }"
-            :aria-selected="currentMode === 'scripts'"
-            @click="$store.global.currentMode = 'scripts'">
-            {{ detail_icon('script-file', 'ui-icon--sm ') }}<span>ST 脚本</span>
-        </button>
-        <button type="button" class="extension-mode-tab" role="tab"
-            :class="{ 'is-active': currentMode === 'quick_replies' }"
-            :aria-selected="currentMode === 'quick_replies'"
-            @click="$store.global.currentMode = 'quick_replies'">
-            {{ detail_icon('quick-reply', 'ui-icon--sm ') }}<span>快速回复</span>
-        </button>
-    </nav>
-
-    <section class="extension-workbench-toolbar" aria-label="扩展筛选工具">
-        <label class="extension-search-field">
-            <span class="sr-only">搜索扩展文件</span>
-            <span aria-hidden="true">{{ icon('search', 'ui-icon--sm ') }}</span>
-            <input type="search" x-model.debounce.300ms="$store.global.extensionSearch"
-                :placeholder="'搜索' + modeLabel + '...'" autocomplete="off" aria-label="搜索扩展文件">
-            <button type="button" x-show="$store.global.extensionSearch" class="extension-search-clear"
-                @click="$store.global.extensionSearch = ''" title="清除搜索" aria-label="清除搜索">
-                {{ icon('close-small', 'ui-icon--sm ') }}
-            </button>
-        </label>
-        <div class="extension-source-filter" role="group" aria-label="扩展来源">
-            <button type="button" :class="{ 'is-active': filterType === 'all' }"
-                @click="$store.global.extensionFilterType = 'all'">
-                {{ sidebar_icon('layers', 'ui-icon--sm ') }}<span>全部</span>
-            </button>
-            <button type="button" :class="{ 'is-active': filterType === 'global' }"
-                @click="$store.global.extensionFilterType = 'global'">
-                {{ sidebar_icon('directory-tree', 'ui-icon--sm ') }}<span>全局</span>
-            </button>
-            <button type="button" :class="{ 'is-active': filterType === 'resource' }"
-                @click="$store.global.extensionFilterType = 'resource'">
-                {{ sidebar_icon('folder-solid', 'ui-icon--sm ') }}<span>资源</span>
-            </button>
-        </div>
-        <span class="extension-workbench-path" x-text="modePath"></span>
-    </section>
 
     <section class="extension-workbench-content" @dragover.prevent="dragOver = true"
         @dragleave.prevent="dragOver = false" @drop.prevent="handleDrop($event)" :aria-busy="isLoading.toString()">
@@ -119,7 +86,7 @@
                 <article class="extension-file-card" role="listitem" tabindex="0" @click="openItem(item)"
                     @keydown="handleItemKeydown($event, item)" :title="'打开 ' + item.filename">
                     <div class="extension-file-card-header">
-                        <div class="extension-list-entry-icon" aria-hidden="true">
+                        <div class="extension-list-entry-icon resource-card-icon" aria-hidden="true">
                             <span x-show="currentMode === 'regex'" class="color-text-accent">{{ detail_icon('regex', 'ui-icon--lg ') }}</span>
                             <span x-show="currentMode === 'scripts'" class="color-text-violet">{{ detail_icon('script-file', 'ui-icon--lg ') }}</span>
                             <span x-show="currentMode === 'quick_replies'" class="color-text-warning">{{ detail_icon('quick-reply', 'ui-icon--lg ') }}</span>
@@ -127,12 +94,12 @@
                         <div class="extension-file-card-heading">
                             <div class="extension-file-card-title-row">
                                 <h2 x-text="item.name || item.filename"></h2>
-                                <span class="extension-file-source-badge" :class="item.type === 'global' ? 'is-global' : 'is-resource'"
+                                <span class="extension-file-source-badge resource-source-badge"
+                                    :class="item.type === 'global' ? 'global is-global' : 'resource is-resource'"
                                     x-text="item.type === 'global' ? 'GLOBAL' : 'RESOURCE'"></span>
                             </div>
                             <p x-text="item.filename" :title="item.filename"></p>
                         </div>
-                        <span class="extension-file-open-icon" aria-hidden="true">{{ icon('external-link', 'ui-icon--sm ') }}</span>
                     </div>
                     <div class="extension-file-card-footer">
                         <span x-show="item.source_folder" class="extension-file-source" :title="item.source_folder">
@@ -150,7 +117,7 @@
         <div x-show="!isLoading && !errorMessage && items.length === 0" class="extension-empty-state">
             <div class="extension-state-icon" aria-hidden="true">{{ preset_icon('empty-state', 'ui-icon--xl ') }}</div>
             <strong>没有找到扩展文件</strong>
-            <p>尝试调整搜索词或来源筛选，也可以直接导入一个 JSON 文件。</p>
+            <p>尝试使用顶部搜索或左侧来源筛选，也可以直接导入一个 JSON 文件。</p>
             <button type="button" class="extension-action-button extension-action-button--primary"
                 @click="$refs.extensionImportInput.click()">
                 {{ icon('file-import', 'ui-icon--sm ') }}<span>导入文件</span>

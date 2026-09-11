@@ -650,15 +650,6 @@
     <!-- 工具按钮组 -->
     <div class="tool-buttons header-tool-buttons">
       <button
-        x-show="currentMode === 'worldinfo'"
-        @click="createWorldInfoBook()"
-        title="新建世界书（SillyTavern 兼容）"
-        aria-label="新建世界书"
-        class="header-tool-btn"
-      >
-        {{ icon('plus-square', 'ui-icon--md ') }}
-      </button>
-      <button
         @click="randomByMode()"
         :title="currentMode === 'cards' ? '手气不错，随机角色' : (currentMode === 'worldinfo' ? '手气不错，随机世界书' : '手气不错，随机聊天')"
         :aria-label="currentMode === 'cards' ? '随机角色' : (currentMode === 'worldinfo' ? '随机世界书' : '随机聊天')"
@@ -964,16 +955,6 @@
 
     <!-- 工具按钮（移动端） -->
     <div class="mobile-menu-grid">
-      <button
-        x-show="currentMode === 'worldinfo'"
-        @click="createWorldInfoBook(); closeMobileMenu()"
-        class="mobile-menu-btn-item"
-      >
-        <div class="menu-icon" aria-hidden="true">
-          {{ icon('plus-square', 'ui-icon--lg ') }}
-        </div>
-        <div class="menu-label">新建世界书</div>
-      </button>
       <button
         x-show="currentMode === 'chats'"
         @click="triggerChatImport(); closeMobileMenu()"

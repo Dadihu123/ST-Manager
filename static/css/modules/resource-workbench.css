@@ -58,8 +58,6 @@
 .resource-grid-contextbar__group,
 .resource-grid-contextbar__item,
 .resource-grid-mode-icon,
-.extension-mode-tabs,
-.extension-mode-tab,
 .chat-grid-toolbar-stats,
 .chat-grid-toolbar-stat,
 .chat-card-name-row,
@@ -597,69 +595,6 @@
   gap: 0.5rem;
 }
 
-.extension-mode-tabs {
-  flex: 0 0 auto;
-  gap: 0.35rem;
-  padding: 0.7rem 1.25rem 0;
-  background: var(--resource-workbench-header);
-  border-bottom: 1px solid var(--border-divider);
-}
-
-.extension-mode-tab {
-  min-height: 2.6rem;
-  gap: 0.42rem;
-  padding: 0.5rem 0.78rem;
-  color: var(--content-muted);
-  background: transparent;
-  border: 1px solid transparent;
-  border-bottom-color: var(--border-divider);
-  border-radius: 6px 6px 0 0;
-  cursor: pointer;
-  font-size: 0.76rem;
-  font-weight: 650;
-  transition:
-    color 0.18s ease,
-    background-color 0.18s ease,
-    border-color 0.18s ease;
-}
-
-.extension-mode-tab:hover,
-.extension-mode-tab:focus-visible {
-  color: var(--content-primary);
-  background: var(--state-hover-surface);
-}
-
-.extension-mode-tab.is-active {
-  color: var(--action-text);
-  background: var(--surface-page);
-  border-color: var(--border-divider);
-  border-bottom-color: var(--surface-page);
-}
-
-.extension-mode-tab .ui-icon {
-  width: 1rem;
-  height: 1rem;
-}
-
-.extension-workbench.resource-grid-view .extension-workbench-toolbar {
-  min-height: 4.2rem;
-  padding: 0.75rem 1.25rem;
-  background: var(--surface-page);
-  border-bottom: 1px solid var(--border-divider);
-}
-
-.extension-workbench.resource-grid-view .extension-search-field {
-  min-height: 2.65rem;
-  border-radius: 6px;
-  background: var(--surface-container);
-  border-color: var(--resource-workbench-border);
-}
-
-.extension-workbench.resource-grid-view .extension-source-filter button {
-  min-height: 2.35rem;
-  border-radius: 6px;
-}
-
 .extension-workbench.resource-grid-view .extension-workbench-content {
   padding: 0 1.25rem 1.25rem;
 }
@@ -886,6 +821,429 @@
   margin-top: 0.25rem;
 }
 
+/* Shared resource-card language: source, selection, ownership, and action states. */
+
+.resource-grid-view .resource-grid-mode-icon,
+.resource-grid-view .extension-workbench-title-icon {
+  display: inline-flex;
+  width: 3.25rem;
+  height: 3.25rem;
+  flex: 0 0 3.25rem;
+  align-items: center;
+  justify-content: center;
+  color: var(--action-icon);
+  background: var(--action-surface);
+  border: 0;
+  border-radius: 0.75rem;
+  box-shadow: none;
+}
+
+.resource-grid-view .resource-grid-mode-icon .ui-icon,
+.resource-grid-view .extension-workbench-title-icon .ui-icon {
+  width: 1.8rem;
+  height: 1.8rem;
+}
+
+.resource-grid-view .resource-source-badge {
+  display: inline-flex;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 1.45rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.24rem;
+  overflow: hidden;
+  padding: 0.24rem 0.5rem;
+  color: var(--content-secondary);
+  background: var(--surface-container-sunken);
+  border: 1px solid var(--resource-workbench-border);
+  border-radius: 5px;
+  box-shadow: none;
+  font-size: 0.62rem;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.resource-grid-view .resource-source-badge.global {
+  color: var(--action-text);
+  background: var(--action-surface);
+  border-color: var(--action-border);
+}
+
+.resource-grid-view .resource-source-badge.resource {
+  color: var(--status-success-text);
+  background: var(--status-success-surface);
+  border-color: color-mix(in srgb, var(--status-success-text) 50%, var(--resource-workbench-border));
+}
+
+.resource-grid-view .resource-source-badge.embedded {
+  color: var(--decoration-violet);
+  background: color-mix(in srgb, var(--decoration-violet-solid) 16%, transparent);
+  border-color: var(--decoration-violet-solid);
+}
+
+.resource-grid-view .resource-source-badge.file {
+  color: var(--content-secondary);
+  background: var(--surface-container-raised);
+  border-color: var(--resource-workbench-border);
+}
+
+html.light-mode .resource-grid-view .resource-source-badge.global {
+  color: var(--action-text);
+  background: var(--action-surface);
+  border-color: var(--action-border);
+}
+
+html.light-mode .resource-grid-view .resource-source-badge.resource {
+  color: var(--status-success-text);
+  background: var(--status-success-surface);
+  border-color: color-mix(in srgb, var(--status-success-text) 50%, var(--resource-workbench-border));
+}
+
+html.light-mode .resource-grid-view .resource-source-badge.embedded {
+  color: var(--decoration-violet);
+  background: color-mix(in srgb, var(--decoration-violet-solid) 16%, transparent);
+  border-color: var(--decoration-violet-solid);
+}
+
+html.light-mode .resource-grid-view .resource-source-badge.file {
+  color: var(--content-secondary);
+  background: var(--surface-container-raised);
+  border-color: var(--resource-workbench-border);
+}
+
+.resource-grid-view .resource-card-icon {
+  width: 2.5rem;
+  height: 2.5rem;
+  flex: 0 0 2.5rem;
+  align-items: center;
+  justify-content: center;
+  color: var(--action-icon);
+  background: var(--action-surface);
+  border: 0;
+  border-radius: 0.65rem;
+  opacity: 1;
+}
+
+.resource-grid-view .resource-card-icon .ui-icon {
+  width: 1.55rem;
+  height: 1.55rem;
+}
+
+.resource-grid-view .resource-card-owner {
+  min-width: 0;
+  color: var(--action-text);
+}
+
+.resource-grid-view .resource-card-owner-row {
+  min-height: 1.25rem;
+}
+
+.resource-grid-view .resource-card-owner:hover,
+.resource-grid-view .resource-card-owner:focus-visible {
+  color: var(--action-text);
+}
+
+.resource-grid-view .resource-card-owner-icon,
+.resource-grid-view .wi-card-owner-icon {
+  display: inline-flex;
+  width: 1.1rem;
+  height: 1.1rem;
+  flex: 0 0 1.1rem;
+  align-items: center;
+  justify-content: center;
+  color: currentColor;
+  background: transparent;
+}
+
+.resource-grid-view .resource-card-owner-icon::before,
+.resource-grid-view .wi-card-owner-icon::before {
+  display: none;
+}
+
+.resource-grid-view .resource-card-owner-icon .ui-icon,
+.resource-grid-view .wi-card-owner-icon .ui-icon {
+  width: 1rem;
+  height: 1rem;
+}
+
+.resource-grid-view .resource-grid-action--primary,
+.resource-grid-view .extension-action-button--primary,
+.chat-mode-shell.resource-grid-view .chat-toolbar-btn--primary {
+  color: var(--action-text);
+  background: var(--action-surface);
+  border-color: var(--action-border);
+  box-shadow: none;
+}
+
+.resource-grid-view .resource-grid-action--primary:hover,
+.resource-grid-view .resource-grid-action--primary:focus-visible,
+.resource-grid-view .extension-action-button--primary:hover,
+.resource-grid-view .extension-action-button--primary:focus-visible,
+.chat-mode-shell.resource-grid-view .chat-toolbar-btn--primary:hover,
+.chat-mode-shell.resource-grid-view .chat-toolbar-btn--primary:focus-visible {
+  color: var(--action-text);
+  background: var(--action-surface-hover);
+  border-color: var(--action-border-hover);
+}
+
+.resource-grid-view .card-select-indicator {
+  width: 2rem;
+  height: 2rem;
+  align-items: center;
+  justify-content: center;
+}
+
+.resource-grid-view .card-select-indicator > div,
+.resource-grid-view .resource-card-select-shell {
+  width: 2rem !important;
+  height: 2rem !important;
+  border: 0 !important;
+  border-radius: 999px !important;
+  color: var(--content-secondary);
+  background: var(--surface-container-raised) !important;
+  box-shadow: 0 0 0 1px var(--resource-workbench-border);
+}
+
+.resource-grid-view .card-select-indicator:hover > div,
+.resource-grid-view .card-select-indicator:focus-visible > div,
+.resource-grid-view .resource-card-select-shell:hover {
+  color: var(--action-text);
+  background: var(--action-surface-hover) !important;
+  box-shadow: 0 0 0 1px var(--action-border-hover);
+}
+
+.resource-grid-view .card-select-indicator.is-selected > div,
+.resource-grid-view .resource-card-select-shell.is-selected {
+  color: var(--action-text);
+  background: var(--action-surface) !important;
+  box-shadow: 0 0 0 2px var(--action-border);
+  transform: scale(1.02);
+}
+
+.resource-grid-view--worldinfo .wi-grid-card.selected,
+.resource-grid-view--presets .preset-grid-card.is-selected {
+  border-color: var(--action-border) !important;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--action-border) 58%, transparent);
+}
+
+.resource-grid-view--worldinfo .wi-card-bookmark {
+  border: 0;
+  background: var(--action-surface);
+}
+
+.resource-grid-view--worldinfo .wi-card-bookmark .wi-card-bookmark-icon {
+  width: 1.55rem;
+  height: 1.55rem;
+}
+
+.resource-grid-view--worldinfo .wi-grid-tool-btn,
+.resource-grid-view--worldinfo .wi-card-edit-btn {
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  color: var(--content-secondary);
+  background: transparent;
+  border: 0;
+  border-color: transparent;
+  border-radius: 0.45rem;
+  box-shadow: none;
+}
+
+.resource-grid-view--worldinfo .wi-grid-tool-btn:hover,
+.resource-grid-view--worldinfo .wi-grid-tool-btn:focus-visible,
+.resource-grid-view--worldinfo .wi-card-edit-btn:hover,
+.resource-grid-view--worldinfo .wi-card-edit-btn:focus-visible {
+  color: var(--action-text);
+  background: var(--state-hover-surface);
+  border-color: transparent;
+  transform: translateY(-1px) scale(1.04);
+}
+
+.resource-grid-view--worldinfo .wi-grid-tool-btn .ui-icon,
+.resource-grid-view--worldinfo .wi-card-edit-btn .ui-icon {
+  width: 1.15rem;
+  height: 1.15rem;
+}
+
+.resource-grid-view--worldinfo .wi-card-primary,
+.resource-grid-view--presets .resource-card-footer,
+.extension-workbench.resource-grid-view .extension-file-card-footer {
+  flex: 0 0 auto;
+  margin-top: 0.55rem;
+}
+
+.resource-grid-view--worldinfo .wi-grid-card {
+  height: 15rem !important;
+}
+
+.resource-grid-view--worldinfo .wi-card-front {
+  justify-content: flex-start;
+}
+
+.resource-grid-view--worldinfo .wi-card-tag-placeholder {
+  display: none !important;
+}
+
+.resource-grid-view--worldinfo .wi-item-flip-corner {
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 2rem !important;
+  height: 2rem !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: linear-gradient(
+    136deg,
+    transparent 47%,
+    color-mix(in srgb, var(--surface-container-raised), var(--content-on-dark) 12%) 48%,
+    color-mix(in srgb, var(--surface-container-raised), var(--content-on-light) 6%) 100%
+  );
+  box-shadow: none;
+}
+
+.resource-grid-view--worldinfo .wi-item-flip-corner .ui-icon {
+  display: none;
+}
+
+.resource-grid-view--worldinfo .wi-grid-card:hover .wi-item-flip-corner,
+.resource-grid-view--worldinfo .wi-item-flip-corner.is-mobile {
+  opacity: 0.9;
+}
+
+.resource-grid-view .card-local-note-btn,
+.resource-grid-view .card-send-st-btn,
+.resource-grid-view .wi-card-note-tool {
+  width: 1.8rem;
+  height: 1.8rem;
+  min-width: 1.8rem;
+  min-height: 1.8rem;
+  flex: 0 0 1.8rem;
+  padding: 0;
+  border: 0 !important;
+  border-radius: 0.45rem;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.resource-grid-view .card-local-note-btn .ui-icon,
+.resource-grid-view .card-send-st-btn .ui-icon,
+.resource-grid-view .wi-card-note-tool .ui-icon {
+  width: 24px;
+  height: 24px;
+}
+
+.resource-grid-view .card-local-note-btn:hover:not(:disabled),
+.resource-grid-view .card-send-st-btn:hover:not(:disabled),
+.resource-grid-view .wi-card-note-tool:hover:not(:disabled) {
+  background: transparent !important;
+  border-color: transparent !important;
+  transform: translateY(-1px) scale(1.04);
+}
+
+.resource-grid-view--presets .preset-grid-card {
+  min-height: 14.5rem;
+  padding-top: 4rem;
+}
+
+.resource-grid-view--presets .preset-card-source-badge,
+.resource-grid-view--presets .preset-grid-card:hover .preset-card-source-badge,
+.resource-grid-view--presets .preset-grid-card:focus-within .preset-card-source-badge {
+  top: 0.8rem;
+  right: auto;
+  left: 3.15rem;
+  transition: none;
+}
+
+.resource-grid-view--presets .preset-card-action-btn {
+  min-width: 2rem;
+  min-height: 2rem;
+  border-radius: 0.45rem;
+}
+
+.extension-workbench.resource-grid-view .extension-workbench-header {
+  height: auto;
+  min-height: 5.25rem;
+}
+
+.extension-workbench.resource-grid-view .extension-file-card {
+  min-height: 8rem;
+}
+
+.extension-workbench.resource-grid-view .extension-file-card-footer {
+  padding-top: 0.65rem;
+}
+
+.chat-mode-shell.resource-grid-view .chat-grid-toolbar {
+  grid-template-columns: auto minmax(0, 1fr) minmax(18rem, auto);
+  align-items: center;
+  padding: 0 0 1rem;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--border-divider);
+  border-radius: 0;
+}
+
+.chat-mode-shell.resource-grid-view .chat-grid-toolbar-copy {
+  min-width: 0;
+}
+
+.chat-mode-shell.resource-grid-view .chat-grid-toolbar-actions {
+  min-width: 0;
+}
+
+.chat-mode-shell.resource-grid-view .chat-toolbar-btn {
+  min-height: var(--resource-workbench-control-height);
+  padding: 0.55rem 0.8rem;
+}
+
+.chat-mode-shell.resource-grid-view .chat-card-favorite {
+  width: 2rem;
+  height: 2rem;
+  padding: 0.05rem;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.chat-mode-shell.resource-grid-view .chat-card-favorite:hover,
+.chat-mode-shell.resource-grid-view .chat-card-favorite:focus-visible {
+  background: transparent;
+  border-color: transparent;
+}
+
+.chat-mode-shell.resource-grid-view .chat-card-title-icon {
+  width: 2.5rem;
+  height: 2.5rem;
+  flex-basis: 2.5rem;
+  border-radius: 0.5rem;
+}
+
+.chat-mode-shell.resource-grid-view .chat-card-title-icon .ui-icon {
+  width: 1.55rem;
+  height: 1.55rem;
+}
+
+.chat-mode-shell.resource-grid-view .chat-pill--owner {
+  gap: 0.25rem;
+  color: var(--action-text);
+  background: var(--action-surface);
+}
+
+.chat-mode-shell.resource-grid-view .chat-pill--owner .ui-icon {
+  width: 0.85rem;
+  height: 0.85rem;
+  flex: 0 0 auto;
+}
+
+.chat-mode-shell.resource-grid-view .chat-card {
+  min-height: 14.5rem;
+}
+
 /* Advanced editor: keep the existing data contract, strengthen the workflow hierarchy. */
 
 .advanced-editor-container {
@@ -1109,24 +1467,8 @@
     margin-left: 0;
   }
 
-  .extension-mode-tabs {
-    padding-right: 0.75rem;
-    padding-left: 0.75rem;
-    overflow-x: auto;
-  }
-
-  .extension-mode-tab {
-    min-width: max-content;
-  }
-
   .extension-workbench.resource-grid-view .extension-workbench-header {
     padding: 0.8rem 0.75rem;
-  }
-
-  .extension-workbench.resource-grid-view .extension-workbench-toolbar {
-    align-items: stretch;
-    flex-direction: column;
-    padding: 0.65rem 0.75rem;
   }
 
   .extension-workbench.resource-grid-view .extension-summary-strip {

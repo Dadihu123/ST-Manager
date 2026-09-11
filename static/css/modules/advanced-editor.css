@@ -59,9 +59,6 @@
 .extension-workbench-header,
 .extension-workbench-title-group,
 .extension-workbench-header-actions,
-.extension-workbench-toolbar,
-.extension-search-field,
-.extension-source-filter,
 .extension-summary-strip,
 .extension-file-card-header,
 .extension-file-card-title-row,
@@ -1933,112 +1930,6 @@ button.advanced-entry {
   font-variant-numeric: tabular-nums;
 }
 
-.extension-workbench-toolbar {
-  min-width: 0;
-  flex: 0 0 auto;
-  flex-wrap: wrap;
-  gap: 0.55rem;
-  padding: 0.75rem 1.25rem;
-  background: var(--surface-container-raised);
-  border-bottom: 1px solid var(--border-divider);
-}
-
-.extension-search-field {
-  min-width: min(16rem, 100%);
-  height: 2.45rem;
-  flex: 1 1 18rem;
-  gap: 0.48rem;
-  padding: 0 0.65rem;
-  color: var(--icon-muted);
-  background: var(--surface-code);
-  border: 1px solid var(--border-default);
-  border-radius: var(--ui-radius-sm);
-}
-
-.extension-search-field:focus-within {
-  border-color: var(--accent-outline);
-  box-shadow: var(--state-focus-shadow);
-}
-
-.extension-search-field input {
-  width: 100%;
-  min-width: 0;
-  flex: 1 1 auto;
-  color: var(--content-primary);
-  font-size: 0.72rem;
-  background: transparent;
-  border: 0;
-  outline: 0;
-}
-
-.extension-search-field input::placeholder {
-  color: var(--content-muted);
-}
-
-.extension-search-clear {
-  display: grid;
-  width: 1.9rem;
-  height: 1.9rem;
-  flex: 0 0 1.9rem;
-  place-items: center;
-  color: var(--icon-muted);
-  background: transparent;
-  border: 0;
-  border-radius: var(--ui-radius-xs);
-}
-
-.extension-search-clear:hover,
-.extension-search-clear:focus-visible {
-  color: var(--content-primary);
-  background: var(--state-hover-surface);
-}
-
-.extension-source-filter {
-  flex: 0 0 auto;
-  flex-wrap: wrap;
-  gap: 0.15rem;
-  padding: 0.15rem;
-  background: var(--surface-container);
-  border: 1px solid var(--border-default);
-  border-radius: var(--ui-radius-sm);
-}
-
-.extension-source-filter button {
-  display: inline-flex;
-  min-height: 2rem;
-  align-items: center;
-  gap: 0.3rem;
-  padding: 0.3rem 0.55rem;
-  color: var(--content-muted);
-  font-size: 0.64rem;
-  font-weight: 700;
-  background: transparent;
-  border: 0;
-  border-radius: var(--ui-radius-xs);
-  cursor: pointer;
-}
-
-.extension-source-filter button:hover,
-.extension-source-filter button:focus-visible {
-  color: var(--content-primary);
-  background: var(--state-hover-surface);
-}
-
-.extension-source-filter button.is-active {
-  color: var(--action-text);
-  background: var(--action-surface);
-}
-
-.extension-workbench-path {
-  max-width: min(22rem, 30vw);
-  overflow: hidden;
-  color: var(--content-muted);
-  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
-  font-size: 0.61rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .extension-workbench-content {
   position: relative;
   min-width: 0;
@@ -2364,9 +2255,6 @@ button.advanced-entry {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .extension-workbench-path {
-    max-width: 22vw;
-  }
 }
 
 @media (max-width: 52rem) {
@@ -2556,29 +2444,6 @@ button.advanced-entry {
   .extension-workbench-header-actions {
     width: 100%;
     justify-content: space-between;
-  }
-
-  .extension-workbench-toolbar {
-    align-items: stretch;
-    padding: 0.65rem 0.9rem;
-  }
-
-  .extension-search-field {
-    flex-basis: 100%;
-  }
-
-  .extension-source-filter {
-    flex: 1 1 auto;
-  }
-
-  .extension-source-filter button {
-    flex: 1 1 0;
-    justify-content: center;
-  }
-
-  .extension-workbench-path {
-    max-width: 100%;
-    flex: 1 1 100%;
   }
 
   .extension-workbench-content {

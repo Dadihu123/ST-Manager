@@ -1,4 +1,5 @@
 {% from "components/icon.html" import icon, loading_icon %}
+{% from "components/icon.html" import sidebar_icon %}
 
 <!-- === 模式 2: 世界书网格 (包含滚动、拖拽、分页) === -->
 <div
@@ -50,10 +51,6 @@
         <button type="button" class="resource-grid-action resource-grid-action--primary" @click="$refs.wiImportInput.click()">
           {{ icon('file-import', 'ui-icon--sm') }}
           <span>导入世界书</span>
-        </button>
-        <button type="button" class="resource-grid-action" @click="createNewWorldInfo()">
-          {{ icon('plus-square', 'ui-icon--sm') }}
-          <span>新建</span>
         </button>
         <button type="button" class="resource-grid-action" @click="fetchWorldInfoList()" :disabled="isLoading">
           <template x-if="!isLoading">{{ icon('refresh', 'ui-icon--sm') }}</template>
@@ -138,13 +135,14 @@
               <div class="wi-card-header">
                 <div class="wi-card-header-left">
                   <div
-                    class="wi-badge"
-                    :class="item.source_type || item.type"
+                    class="wi-badge resource-source-badge"
+                    :class="item.source_type === 'global' || item.type === 'global' ? 'global' : (item.source_type === 'embedded' || item.type === 'embedded' ? 'embedded' : 'resource')"
+                    :data-source-type="item.source_type || item.type"
                     x-text="getWorldInfoSourceBadge(item)"
                   ></div>
                   <div
                     x-show="item.name_source === 'filename'"
-                    class="wi-badge file"
+                    class="wi-badge resource-source-badge file"
                   >
                     FILE
                   </div>
@@ -209,14 +207,14 @@
                       <template x-if="getWorldInfoOwnerName(item)">
                         <button
                           type="button"
-                          class="wi-card-owner-link"
+                          class="wi-card-owner-link resource-card-owner"
                           @click.stop="jumpToCardFromWi(getWorldInfoOwnerId(item))"
                           :title="getWorldInfoOwnerName(item)"
                         >
                           <span
                             class="wi-card-owner-icon"
                             aria-hidden="true"
-                          ></span>
+                          >{{ sidebar_icon('character-cards', 'ui-icon--sm') }}</span>
                           <span
                             class="wi-card-owner-text"
                             x-text="getWorldInfoOwnerName(item)"
@@ -235,6 +233,8 @@
 
                 <div
                   class="wi-card-tag-placeholder wi-card-tag-summary"
+                  hidden
+                  aria-hidden="true"
                   :title="getWorldInfoTagPlaceholder(item)"
                   x-text="getWorldInfoTagPlaceholder(item)"
                 ></div>
@@ -319,7 +319,8 @@
                       ></span>
                     </div>
                     <div
-                      class="wi-card-back-source"
+                      class="wi-card-back-source resource-source-badge"
+                      :class="item.source_type === 'global' || item.type === 'global' ? 'global' : (item.source_type === 'embedded' || item.type === 'embedded' ? 'embedded' : 'resource')"
                       x-text="getWorldInfoSourceBadge(item)"
                     ></div>
                   </div>
@@ -362,7 +363,7 @@
             :aria-label="isWorldInfoFlipped(item.id) ? '翻回正面' : '翻到背面'"
             @click.stop="toggleWorldInfoFace(item.id)"
             :title="isWorldInfoFlipped(item.id) ? '翻回正面' : '翻到背面'"
-          >{{ icon('vertical-flip', 'ui-icon--sm') }}</button>
+          ></button>
         </div>
       </template>
       <div
