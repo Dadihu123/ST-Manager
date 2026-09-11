@@ -225,8 +225,8 @@ export default function header() {
     get deviceType() {
       return this.$store.global.deviceType;
     },
-    toggleDarkMode() {
-      this.$store.global.toggleDarkMode();
+    toggleDarkMode(event) {
+      this.$store.global.toggleDarkMode(event);
     },
     get showFavoriteFilter() {
       return this.currentMode === "chats";

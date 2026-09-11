@@ -2391,7 +2391,7 @@
 
 .sidebar-mobile .sidebar-mobile-nav-head {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 8px;
 }
 
@@ -2402,6 +2402,7 @@
 
 .sidebar-mobile .sidebar-close-btn {
   position: static;
+  align-self: center;
   flex: 0 0 40px;
   top: 8px;
   right: 8px;
@@ -2410,7 +2411,7 @@
   margin: 0;
   border-radius: 10px;
   background-color: var(--sidebar-nav-surface);
-  border-color: var(--sidebar-divider);
+  border: 0;
   color: var(--sidebar-label);
 }
 
@@ -3109,6 +3110,50 @@ html.light-mode .pagination-bar {
 .header-tool-btn:focus-visible {
   outline: 2px solid color-mix(in srgb, var(--accent-text), var(--content-on-dark) 18%);
   outline-offset: 3px;
+}
+
+@media (min-width: 56.25rem) {
+  .header-theme-toggle {
+    position: relative;
+  }
+
+  .header-theme-toggle .header-theme-icon {
+    position: absolute;
+    inset: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    transition:
+      opacity 0.28s ease,
+      transform 0.36s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .header-theme-toggle .header-theme-icon--dark {
+    opacity: 1;
+    transform: rotate(0deg) scale(1);
+  }
+
+  .header-theme-toggle .header-theme-icon--light {
+    opacity: 0;
+    transform: rotate(-90deg) scale(0.5);
+  }
+
+  .header-theme-toggle.is-light .header-theme-icon--dark {
+    opacity: 0;
+    transform: rotate(90deg) scale(0.5);
+  }
+
+  .header-theme-toggle.is-light .header-theme-icon--light {
+    opacity: 1;
+    transform: rotate(0deg) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .header-theme-toggle .header-theme-icon {
+    transition: none;
+  }
 }
 
 /* 保留各图标原有尺寸挡位：不同 SVG viewBox 的留白不同，统一画布会造成视觉大小不一致。 */

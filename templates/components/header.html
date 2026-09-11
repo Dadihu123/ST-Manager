@@ -685,15 +685,16 @@
         {{ icon('refresh', 'ui-icon--md ') }}
       </button>
       <button
-        @click="toggleDarkMode()"
+        @click="toggleDarkMode($event)"
         :title="isDarkMode ? '切换到浅色模式' : '切换到深色模式'"
         :aria-label="isDarkMode ? '切换到浅色模式' : '切换到深色模式'"
-        class="header-tool-btn"
+        class="header-tool-btn header-theme-toggle"
+        :class="isDarkMode ? 'is-dark' : 'is-light'"
       >
-        <span x-show="isDarkMode" aria-hidden="true"
+        <span class="header-theme-icon header-theme-icon--dark" aria-hidden="true"
           >{{ icon('header-dark-mode', 'ui-icon--md ') }}</span
         >
-        <span x-show="!isDarkMode" aria-hidden="true"
+        <span class="header-theme-icon header-theme-icon--light" aria-hidden="true"
           >{{ icon('header-light-mode', 'ui-icon--md ') }}</span
         >
       </button>

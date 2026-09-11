@@ -539,6 +539,7 @@ export function initState() {
 
     // 界面状态
     isDarkMode: true,
+    isThemeTransitioning: false,
     windowWidth: window.innerWidth,
     toastMessage: "",
     toastIcon: "",
@@ -1108,11 +1109,99 @@ export function initState() {
     // === 全局动作 ===
 
     // 切换深色模式
-    toggleDarkMode() {
-      this.isDarkMode = !this.isDarkMode;
-      this.settingsForm.dark_mode = this.isDarkMode;
-      this.applyDarkMode();
-      this.saveSettings(false); // 静默保存
+    toggleDarkMode(event = null) {
+      if (this.isThemeTransitioning) return;
+
+      const nextIsDark = !this.isDarkMode;
+      let themeCommitted = false;
+      const commitTheme = () => {
+        if (themeCommitted) return;
+        themeCommitted = true;
+        this.isDarkMode = nextIsDark;
+        this.settingsForm.dark_mode = nextIsDark;
+        this.applyDarkMode();
+      };
+      const persistTheme = () => {
+        const savePromise = this.saveSettings(false);
+        if (savePromise && typeof savePromise.catch === "function") {
+          savePromise.catch(() => {});
+        }
+      };
+
+      const target = event?.currentTarget;
+      const activeIcon = target?.querySelector?.(
+        this.isDarkMode
+          ? ".header-theme-icon--dark .ui-icon"
+          : ".header-theme-icon--light .ui-icon",
+      );
+      const rect = activeIcon?.getBoundingClientRect?.();
+      let reduceMotion = false;
+      try {
+        reduceMotion =
+          window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ===
+          true;
+      } catch (_) {
+        reduceMotion = false;
+      }
+
+      const canAnimate =
+        this.deviceType === "desktop" &&
+        typeof document.startViewTransition === "function" &&
+        typeof document.documentElement.animate === "function" &&
+        !reduceMotion &&
+        rect &&
+        rect.width > 0 &&
+        rect.height > 0;
+
+      if (!canAnimate) {
+        commitTheme();
+        persistTheme();
+        return;
+      }
+
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+      const maxRadius = Math.hypot(
+        Math.max(centerX, window.innerWidth - centerX),
+        Math.max(centerY, window.innerHeight - centerY),
+      );
+
+      // Use the native document snapshot so the new theme expands from the clicked control.
+      this.settingsForm.dark_mode = nextIsDark;
+      this.isThemeTransitioning = true;
+      let transition;
+      try {
+        transition = document.startViewTransition(commitTheme);
+      } catch (_) {
+        this.isThemeTransitioning = false;
+        commitTheme();
+        persistTheme();
+        return;
+      }
+
+      persistTheme();
+      transition.ready
+        .then(() => {
+          document.documentElement.animate(
+            {
+              clipPath: [
+                `circle(0px at ${centerX}px ${centerY}px)`,
+                `circle(${maxRadius}px at ${centerX}px ${centerY}px)`,
+              ],
+            },
+            {
+              duration: 520,
+              easing: "cubic-bezier(0.4, 0, 0.2, 1)",
+              pseudoElement: "::view-transition-new(root)",
+            },
+          );
+        })
+        .catch(() => {});
+      transition.finished
+        .catch(() => {})
+        .finally(() => {
+          this.isThemeTransitioning = false;
+        });
     },
 
     applyDarkMode() {

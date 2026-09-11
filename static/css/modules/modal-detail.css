@@ -2951,7 +2951,7 @@ html.light-mode .note-textarea:focus {
   }
 }
 
-@media (max-width: 1900px) {
+@media (max-width: 1920px) {
   .detail-manage-update-grid {
     grid-template-columns: minmax(0, 1fr);
   }
