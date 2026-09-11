@@ -975,9 +975,9 @@ html.light-mode .resource-grid-view .resource-source-badge.file {
 .resource-grid-view .resource-card-owner-icon,
 .resource-grid-view .wi-card-owner-icon {
   display: inline-flex;
-  width: 1.1rem;
-  height: 1.1rem;
-  flex: 0 0 1.1rem;
+  width: 1.25rem;
+  height: 1.25rem;
+  flex: 0 0 1.25rem;
   align-items: center;
   justify-content: center;
   color: currentColor;
@@ -991,8 +991,8 @@ html.light-mode .resource-grid-view .resource-source-badge.file {
 
 .resource-grid-view .resource-card-owner-icon .ui-icon,
 .resource-grid-view .wi-card-owner-icon .ui-icon {
-  width: 1rem;
-  height: 1rem;
+  width: 1.15rem;
+  height: 1.15rem;
 }
 
 .resource-grid-view .resource-grid-action--primary,
@@ -1133,13 +1133,52 @@ html.light-mode .resource-grid-view .resource-source-badge.file {
   margin-top: 0.55rem;
 }
 
+.resource-grid-view--worldinfo {
+  --resource-wi-card-bottom-inset: 0.55rem;
+}
+
 .resource-grid-view--worldinfo .wi-grid-card {
-  height: 15rem !important;
+  height: 13rem !important;
 }
 
 .resource-grid-view--worldinfo .wi-card-front {
   justify-content: flex-start;
-  padding-bottom: 0;
+  padding-bottom: var(--resource-wi-card-bottom-inset) !important;
+  background: var(--resource-workbench-card) !important;
+  border-color: var(--resource-workbench-border) !important;
+  box-shadow: none !important;
+}
+
+.resource-grid-view--worldinfo .wi-card-back {
+  background: var(--resource-workbench-card-raised) !important;
+  border-color: var(--resource-workbench-border) !important;
+  box-shadow: none !important;
+}
+
+.resource-grid-view--worldinfo .wi-card-front::before,
+.resource-grid-view--worldinfo .wi-card-front::after,
+.resource-grid-view--worldinfo .wi-card-bookmark::before,
+.resource-grid-view--worldinfo .wi-card-bookmark::after {
+  display: none !important;
+  content: none !important;
+  background: none !important;
+  opacity: 0 !important;
+}
+
+.resource-grid-view--worldinfo .wi-card-title-row::before {
+  background: var(--action-border) !important;
+}
+
+.resource-grid-view--worldinfo .wi-card-primary {
+  margin-top: 0.35rem;
+}
+
+.resource-grid-view--worldinfo .wi-card-footer {
+  margin-top: 0.35rem !important;
+}
+
+.resource-grid-view--worldinfo .wi-item-flip-corner {
+  bottom: var(--resource-wi-card-bottom-inset) !important;
 }
 
 .resource-grid-view--worldinfo .wi-card-tag-placeholder {
@@ -1182,8 +1221,33 @@ html.light-mode .resource-grid-view .resource-source-badge.file {
 }
 
 .resource-grid-view--presets .preset-grid-card {
-  min-height: 14.5rem;
+  height: 16.5rem;
+  min-height: 16.5rem;
   padding-top: 4rem;
+}
+
+.resource-grid-view--presets .preset-card-main {
+  min-width: 0;
+}
+
+.resource-grid-view--presets .preset-card-owner-row {
+  min-height: 1.35rem;
+}
+
+.resource-grid-view--presets .preset-card-owner-row .resource-card-owner {
+  min-width: 0;
+}
+
+.resource-grid-view--presets .resource-card-owner--empty {
+  color: var(--content-muted);
+  cursor: default;
+}
+
+.resource-grid-view--presets .preset-card-footer {
+  flex: 0 0 2.35rem;
+  min-height: 2.35rem;
+  margin-top: auto !important;
+  padding-top: 0.55rem;
 }
 
 .resource-grid-view--presets .preset-card-source-badge,
@@ -1301,10 +1365,18 @@ html.light-mode .resource-grid-view .resource-source-badge.file {
   background: var(--action-surface);
 }
 
-.chat-mode-shell.resource-grid-view .chat-pill--owner .ui-icon {
-  width: 0.85rem;
-  height: 0.85rem;
-  flex: 0 0 auto;
+.chat-mode-shell.resource-grid-view .chat-pill--owner .chat-card-owner-icon {
+  display: inline-flex;
+  width: 1.1rem;
+  height: 1.1rem;
+  flex: 0 0 1.1rem;
+  align-items: center;
+  justify-content: center;
+}
+
+.chat-mode-shell.resource-grid-view .chat-pill--owner .chat-card-owner-icon .ui-icon {
+  width: 1rem;
+  height: 1rem;
 }
 
 .chat-mode-shell.resource-grid-view .chat-card {
@@ -1522,6 +1594,10 @@ html.light-mode .resource-grid-view .resource-source-badge.file {
     height: 15.25rem !important;
   }
 
+  .resource-grid-view--worldinfo .wi-grid-card {
+    height: 12.6rem !important;
+  }
+
   .resource-grid-view--presets .preset-grid-card {
     min-height: 15.5rem;
     padding-right: 0.75rem;
@@ -1563,6 +1639,14 @@ html.light-mode .resource-grid-view .resource-source-badge.file {
   .resource-grid-view--worldinfo .card-flip-corner {
     width: 1.75rem;
     height: 1.75rem;
+  }
+
+  .resource-grid-view--worldinfo .wi-card-primary {
+    margin-top: 0.3rem;
+  }
+
+  .resource-grid-view--worldinfo .wi-card-footer {
+    margin-top: 0.3rem !important;
   }
 
   .resource-grid-contextbar,

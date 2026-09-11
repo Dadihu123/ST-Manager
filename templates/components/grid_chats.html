@@ -1,4 +1,5 @@
 {% from "components/icon.html" import detail_icon, icon, sidebar_icon %}
+{% from "components/icon.html" import preset_icon %}
 
 <input type="file" x-ref="chatImportInput" class="hidden" multiple accept=".jsonl"
     @change="handleChatInputChange($event)">
@@ -115,7 +116,7 @@
 
                             <div class="chat-card-pill-row">
                                 <span class="chat-pill chat-pill--owner">
-                                    <span aria-hidden="true">{{ sidebar_icon('character-cards', 'ui-icon--xs') }}</span>
+                                    <span class="chat-card-owner-icon" aria-hidden="true">{{ preset_icon('owner', 'ui-icon--sm') }}</span>
                                     <span x-text="item.bound_card_name || item.character_name || '未绑定角色'"></span>
                                 </span>
                                 <span class="chat-pill chat-pill--muted" x-text="item.chat_name || item.filename"></span>

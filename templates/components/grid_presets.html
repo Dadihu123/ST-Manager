@@ -1,6 +1,5 @@
 <!-- templates/components/grid_presets.html -->
 {% from "components/icon.html" import icon, loading_icon, detail_icon, preset_icon %}
-{% from "components/icon.html" import sidebar_icon %}
 <div
   x-show="$store.global.currentMode === 'presets'"
   x-cloak
@@ -200,7 +199,7 @@
               <span x-text="(item.source_type || item.type) === 'global' ? 'GLOBAL' : 'RESOURCE'"></span>
             </div>
 
-            <div class="flex items-start gap-3 mb-3">
+            <div class="preset-card-main flex items-start gap-3 mb-3">
               <div class="preset-list-entry-icon resource-card-icon select-none" aria-hidden="true">
                 {{ detail_icon('preset', 'ui-icon--lg') }}
               </div>
@@ -209,11 +208,6 @@
                   class="font-bold text-sm truncate text-[var(--content-primary)] mb-1"
                   :title="item.name"
                   x-text="item.name"
-                ></div>
-                <div
-                  class="text-[10px] font-mono text-[var(--content-muted)] truncate opacity-70"
-                  :title="item.filename"
-                  x-text="item.filename"
                 ></div>
                 <template x-if="item.entry_type === 'family'">
                   <div class="mt-2 flex flex-wrap gap-2">
@@ -231,71 +225,77 @@
                     </template>
                   </div>
                 </template>
-                <div
-                  x-show="getPresetOwnerName(item)"
-                  class="preset-card-owner-row resource-card-owner-row mt-2 min-w-0"
-                >
-                  <div
-                    x-show="getPresetOwnerName(item)"
-                    @click.stop="locatePresetOwnerCard(item)"
-                    @keydown.enter.stop.prevent="locatePresetOwnerCard(item)"
-                    @keydown.space.stop.prevent="locatePresetOwnerCard(item)"
-                    role="button"
-                    tabindex="0"
-                    class="resource-card-owner text-[10px] flex items-center gap-1 truncate cursor-pointer"
-                    :title="`所属角色卡：${getPresetOwnerName(item)}`"
-                  >
-                    <span class="preset-card-owner-icon resource-card-owner-icon" aria-hidden="true">
-                      <template x-if="item.owner_card_name || item.owner_card_id">
-                        {{ sidebar_icon('character-cards', 'ui-icon--sm') }}
-                      </template>
-                      <template x-if="!(item.owner_card_name || item.owner_card_id)">
+                <div class="preset-card-owner-row resource-card-owner-row mt-2 min-w-0">
+                  <template x-if="getPresetOwnerName(item)">
+                    <div
+                      @click.stop="locatePresetOwnerCard(item)"
+                      @keydown.enter.stop.prevent="locatePresetOwnerCard(item)"
+                      @keydown.space.stop.prevent="locatePresetOwnerCard(item)"
+                      role="button"
+                      tabindex="0"
+                      class="resource-card-owner text-[10px] flex items-center gap-1 truncate cursor-pointer"
+                      :title="`所属角色卡：${getPresetOwnerName(item)}`"
+                    >
+                      <span class="preset-card-owner-icon resource-card-owner-icon" aria-hidden="true">
                         {{ preset_icon('owner', 'ui-icon--sm') }}
-                      </template>
-                    </span>
-                    <span x-text="getPresetOwnerName(item)"></span>
-                  </div>
+                      </span>
+                      <span x-text="getPresetOwnerName(item)"></span>
+                    </div>
+                  </template>
+                  <template x-if="!getPresetOwnerName(item)">
+                    <div
+                      class="resource-card-owner resource-card-owner--empty text-[10px] flex items-center gap-1 truncate"
+                      title="全局预设（未绑定角色卡）"
+                    >
+                      <span class="preset-card-owner-icon resource-card-owner-icon" aria-hidden="true">
+                        {{ preset_icon('owner', 'ui-icon--sm') }}
+                      </span>
+                      <span>全局预设</span>
+                    </div>
+                  </template>
                 </div>
               </div>
             </div>
 
             <!-- 参数概览 -->
-            <div class="flex flex-wrap gap-2 mb-3">
-              <template
-                x-if="item.temperature !== null && item.temperature !== undefined"
-              >
-                <span
-                  class="preset-card-stat-icon px-2 py-0.5 text-[10px] color-surface-warning color-text-warning rounded inline-flex items-center gap-1"
+            <template x-if="item.entry_type !== 'family'">
+              <div class="preset-card-parameter-row flex flex-wrap gap-2 mb-3">
+                <template
+                  x-if="item.temperature !== null && item.temperature !== undefined"
                 >
-                  {{ preset_icon('thermometer', 'ui-icon--sm') }}
-                  <span x-text="item.temperature"></span>
-                </span>
-              </template>
-              <template x-if="item.max_tokens">
-                <span
-                  class="preset-card-stat-icon px-2 py-0.5 text-[10px] color-surface-accent color-text-accent rounded inline-flex items-center gap-1"
-                >
-                  {{ preset_icon('token-count', 'ui-icon--sm') }}
-                  <span x-text="item.max_tokens"></span>
-                </span>
-              </template>
-              <template x-if="item.prompt_count > 0">
-                <span
-                  class="preset-card-stat-icon px-2 py-0.5 text-[10px] color-surface-violet color-text-violet rounded inline-flex items-center gap-1"
-                >
-                  {{ preset_icon('prompt-count', 'ui-icon--sm') }}
-                  <span x-text="item.prompt_count"></span> prompts
-                </span>
-              </template>
-              <template x-if="item.regex_count > 0">
-                <span
-                  class="preset-card-stat-icon px-2 py-0.5 text-[10px] color-surface-success color-text-success rounded inline-flex items-center gap-1"
-                >
-                  {{ detail_icon('regex', 'ui-icon--sm') }}
-                  <span x-text="item.regex_count"></span> regex
-                </span>
-              </template>
-            </div>
+                  <span
+                    class="preset-card-stat-icon px-2 py-0.5 text-[10px] color-surface-warning color-text-warning rounded inline-flex items-center gap-1"
+                  >
+                    {{ preset_icon('thermometer', 'ui-icon--sm') }}
+                    <span x-text="item.temperature"></span>
+                  </span>
+                </template>
+                <template x-if="item.max_tokens">
+                  <span
+                    class="preset-card-stat-icon px-2 py-0.5 text-[10px] color-surface-accent color-text-accent rounded inline-flex items-center gap-1"
+                  >
+                    {{ preset_icon('token-count', 'ui-icon--sm') }}
+                    <span x-text="item.max_tokens"></span>
+                  </span>
+                </template>
+                <template x-if="item.prompt_count > 0">
+                  <span
+                    class="preset-card-stat-icon px-2 py-0.5 text-[10px] color-surface-violet color-text-violet rounded inline-flex items-center gap-1"
+                  >
+                    {{ preset_icon('prompt-count', 'ui-icon--sm') }}
+                    <span x-text="item.prompt_count"></span> prompts
+                  </span>
+                </template>
+                <template x-if="item.regex_count > 0">
+                  <span
+                    class="preset-card-stat-icon px-2 py-0.5 text-[10px] color-surface-success color-text-success rounded inline-flex items-center gap-1"
+                  >
+                    {{ detail_icon('regex', 'ui-icon--sm') }}
+                    <span x-text="item.regex_count"></span> regex
+                  </span>
+                </template>
+              </div>
+            </template>
 
             <!-- 描述 -->
             <div
@@ -305,7 +305,7 @@
             ></div>
 
             <div
-              class="resource-card-footer mt-auto pt-2 border-t border-[var(--border-default)] flex justify-between items-center"
+              class="resource-card-footer preset-card-footer mt-auto pt-2 border-t border-[var(--border-default)] flex justify-between items-center"
             >
               <button
                 type="button"
