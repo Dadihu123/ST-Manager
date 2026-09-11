@@ -300,7 +300,8 @@
             <!-- 描述 -->
             <div
               x-show="item.description"
-              class="text-xs text-[var(--content-muted)] line-clamp-2 mb-3"
+              class="preset-card-description text-xs text-[var(--content-muted)] line-clamp-2 mb-3"
+              :title="item.description"
               x-text="item.description"
             ></div>
 

@@ -304,8 +304,9 @@
   min-width: 0;
 }
 
-.resource-grid-view .wi-grid-window {
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 250px), 1fr));
+.resource-grid-view .wi-grid-window,
+.resource-grid-view--presets #preset-scroll-area > .grid {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
   gap: 0.85rem;
 }
 
@@ -1178,7 +1179,8 @@ html.light-mode .resource-grid-view .resource-source-badge.file {
 }
 
 .resource-grid-view--worldinfo .wi-item-flip-corner {
-  bottom: var(--resource-wi-card-bottom-inset) !important;
+  right: 0 !important;
+  bottom: 0 !important;
 }
 
 .resource-grid-view--worldinfo .wi-card-tag-placeholder {
@@ -1221,13 +1223,20 @@ html.light-mode .resource-grid-view .resource-source-badge.file {
 }
 
 .resource-grid-view--presets .preset-grid-card {
-  height: 16.5rem;
-  min-height: 16.5rem;
+  height: 13.5rem;
+  min-height: 13.5rem;
   padding-top: 4rem;
 }
 
 .resource-grid-view--presets .preset-card-main {
   min-width: 0;
+}
+
+.resource-grid-view--presets .preset-card-description {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .resource-grid-view--presets .preset-card-owner-row {
@@ -1583,11 +1592,20 @@ html.light-mode .resource-grid-view .resource-source-badge.file {
   }
 
   .resource-grid-view .wi-grid-window,
-  .resource-grid-view--presets .grid,
+  .resource-grid-view--presets #preset-scroll-area > .grid,
+  .extension-workbench.resource-grid-view .extension-file-grid,
+  .chat-mode-shell.resource-grid-view .chat-grid {
+    gap: 0.65rem;
+  }
+
+  .resource-grid-view .wi-grid-window,
+  .resource-grid-view--presets #preset-scroll-area > .grid {
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
+  }
+
   .extension-workbench.resource-grid-view .extension-file-grid,
   .chat-mode-shell.resource-grid-view .chat-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.65rem;
   }
 
   .resource-grid-view .wi-grid-card {
@@ -1599,7 +1617,8 @@ html.light-mode .resource-grid-view .resource-source-badge.file {
   }
 
   .resource-grid-view--presets .preset-grid-card {
-    min-height: 15.5rem;
+    height: 13.5rem;
+    min-height: 13.5rem;
     padding-right: 0.75rem;
     padding-left: 0.75rem;
   }
@@ -1727,7 +1746,7 @@ html.light-mode .resource-grid-view .resource-source-badge.file {
 
 @media (max-width: 420px) {
   .resource-grid-view .wi-grid-window,
-  .resource-grid-view--presets .grid,
+  .resource-grid-view--presets #preset-scroll-area > .grid,
   .extension-workbench.resource-grid-view .extension-file-grid,
   .chat-mode-shell.resource-grid-view .chat-grid {
     grid-template-columns: 1fr;
