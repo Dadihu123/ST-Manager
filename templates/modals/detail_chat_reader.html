@@ -1,5 +1,6 @@
 {% from "components/icon.html" import icon, sidebar_icon, detail_icon %}
 {% from "components/styled_select.html" import styled_select_controlled %}
+{% set reader_render_icon_src = url_for('static', filename='icons/chat-reader-render.svg') %}
 
 <div x-show="detailOpen" x-cloak class="chat-reader-overlay chat-reader-overlay--fullscreen ui-refresh-surface" @click.self="closeChatDetail()" @keydown.window="handleReaderKeydown($event)">
     <div class="chat-reader-modal chat-reader-modal--fullscreen" role="dialog" aria-modal="true" aria-label="聊天阅读器">
@@ -27,7 +28,7 @@
 
                 <div class="chat-reader-header-actions">
                 <div class="chat-reader-header-primary">
-                        <div class="chat-reader-header-tools">
+                        <div class="chat-reader-header-tools" x-show="readerResponsiveMode !== 'mobile'">
                             <!-- Preserve the legacy template contract while the visible control gains icon and state semantics. @click="toggleReaderPanel('left')">工具</button> -->
                             <button type="button" class="chat-reader-toggle" :class="readerResponsiveMode === 'mobile' ? (readerMobilePanel === 'tools' ? 'is-active' : '') : (readerShowLeftPanel ? 'is-active' : '')" @click="toggleReaderPanel('left')" :aria-pressed="readerResponsiveMode === 'mobile' ? (readerMobilePanel === 'tools' ? 'true' : 'false') : (readerShowLeftPanel ? 'true' : 'false')">
                                 {{ icon('settings-gear', 'ui-icon--sm') }}<span>工具</span>
@@ -39,30 +40,38 @@
                                 {{ icon('list', 'ui-icon--sm') }}<span>导航</span>
                             </button>
                             <!-- Preserve the legacy text-only toggle contracts for template consumers. @click="openReaderDesktopPanel('search')">搜索</button> @click="openReaderDesktopPanel('navigator')">导航</button> -->
-                            <button type="button" class="chat-reader-toggle" x-show="readerResponsiveMode === 'mobile'" :class="readerMobilePanel === 'search' ? 'is-active' : ''" @click="setReaderMobilePanel('search')" :aria-pressed="readerMobilePanel === 'search' ? 'true' : 'false'">
-                                {{ icon('search', 'ui-icon--sm') }}<span>搜索</span>
-                            </button>
-                            <button type="button" class="chat-reader-toggle" x-show="readerResponsiveMode === 'mobile'" :class="readerMobilePanel === 'navigator' ? 'is-active' : ''" @click="setReaderMobilePanel('navigator')" :aria-pressed="readerMobilePanel === 'navigator' ? 'true' : 'false'">
-                                {{ icon('list', 'ui-icon--sm') }}<span>导航</span>
-                            </button>
-                            <button class="chat-reader-toggle" :class="readerAppMode ? 'is-active' : ''"
-                                @click="readerAppMode ? deactivateChatAppStage() : activateChatAppStage()">
+                            <div class="chat-reader-reading-mode-group" role="group" aria-label="阅读浏览方式">
+                                <button type="button" class="chat-reader-toggle" :class="effectiveReaderBrowseMode === 'scroll' ? 'is-active' : ''" @click="setReaderBrowseMode('scroll')">
+                                    {{ icon('arrow-down', 'ui-icon--sm') }}<span>滚动</span>
+                                </button>
+                                <button type="button" class="chat-reader-toggle" :class="effectiveReaderBrowseMode === 'page_non_user' ? 'is-active' : ''" @click="setReaderBrowseMode('page_non_user')">
+                                    {{ icon('file', 'ui-icon--sm') }}<span>单页</span>
+                                </button>
+                                <button type="button" class="chat-reader-toggle" :class="effectiveReaderBrowseMode === 'page_pair' ? 'is-active' : ''" @click="setReaderBrowseMode('page_pair')">
+                                    {{ icon('list', 'ui-icon--sm') }}<span>对话页</span>
+                                </button>
+                            </div>
+                            <button type="button" class="chat-reader-toggle" x-show="readerResponsiveMode !== 'mobile'" :class="readerAppMode ? 'is-active' : ''"
+                                @click="readerAppMode ? deactivateChatAppStage() : activateChatAppStage()" :aria-pressed="readerAppMode ? 'true' : 'false'">
                                 {{ icon('layout', 'ui-icon--sm') }}<span>整页实例</span>
                             </button>
-                            <button type="button" class="chat-reader-toggle" x-show="readerResponsiveMode === 'mobile'" @click="hideReaderPanels()">
-                                {{ icon('display', 'ui-icon--sm') }}<span>阅读</span>
-                            </button>
-                    </div>
+                        </div>
                 </div>
                 <div class="chat-reader-header-secondary">
-                    <button type="button" class="chat-reader-icon-button" @click="closeChatDetail()" aria-label="关闭聊天阅读器" title="关闭聊天阅读器">
+                    <button type="button" class="chat-reader-icon-button chat-reader-modal-close-button" @click="closeChatDetail()" aria-label="关闭聊天阅读器" title="关闭聊天阅读器">
                         {{ icon('close', 'ui-icon--sm') }}
                     </button>
                 </div>
             </div>
 
             <div class="chat-reader-shell-status" :class="'is-' + readerSaveFeedbackTone" role="status" aria-live="polite">
-                <div class="chat-reader-shell-status-text" x-text="readerShellStatusLineText"></div>
+                <div class="chat-reader-shell-status-main">
+                    <div class="chat-reader-shell-status-text" x-text="readerShellStatusLineText"></div>
+                    <div class="chat-reader-shell-reading-status" x-show="activeChat && !detailLoading">
+                        <span aria-hidden="true">·</span>
+                        <span x-text="readerBrowseModeLabel"></span>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -115,7 +124,7 @@
                     </div>
 
                     <div class="chat-reader-panel chat-reader-panel--quiet" x-show="activeChat">
-                        <div class="chat-reader-panel-title">{{ icon('sticky-note', 'ui-icon--sm') }}<span>本地信息</span></div>
+                        <div class="chat-reader-panel-title">{{ detail_icon('note', 'ui-icon--sm') }}<span>本地信息</span></div>
                         <label class="chat-reader-field">
                             <span>显示名称</span>
                             <input type="text" x-model="detailDraftName" class="form-input">
@@ -219,12 +228,12 @@
                     </div>
 
                     <div class="chat-reader-panel chat-reader-panel--quiet">
-                        <div class="chat-reader-panel-title">{{ icon('display', 'ui-icon--sm') }}<span>解析与渲染</span></div>
+                        <div class="chat-reader-panel-title"><img class="chat-reader-asset-icon chat-reader-render-icon" src="{{ reader_render_icon_src }}" alt="" aria-hidden="true" draggable="false"><span>解析与渲染</span></div>
                         <div class="chat-reader-option-group">
                             <div class="chat-reader-option-group-label">显示模式</div>
                             <div class="chat-inline-actions">
                                 <button type="button" class="chat-toolbar-btn" :class="readerRenderMode === 'plain' ? 'chat-toolbar-btn--primary' : ''" @click="readerRenderMode = 'plain'">{{ icon('file', 'ui-icon--sm') }}<span>纯文本</span></button>
-                                <button type="button" class="chat-toolbar-btn" :class="readerRenderMode === 'markdown' ? 'chat-toolbar-btn--primary' : ''" @click="readerRenderMode = 'markdown'">{{ icon('display', 'ui-icon--sm') }}<span>渲染</span></button>
+                                <button type="button" class="chat-toolbar-btn" :class="readerRenderMode === 'markdown' ? 'chat-toolbar-btn--primary' : ''" @click="readerRenderMode = 'markdown'"><img class="chat-reader-asset-icon chat-reader-render-icon" src="{{ reader_render_icon_src }}" alt="" aria-hidden="true" draggable="false"><span>渲染</span></button>
                                 <label class="chat-inline-checkbox">
                                     <input type="checkbox" x-model="readerComponentMode">
                                     <span>后挂载实例</span>
@@ -267,26 +276,6 @@
 
             <main class="chat-reader-center custom-scrollbar" :style="readerCenterPaneStyle" @scroll.passive="handleReaderScroll()">
                 <div id="chat-reader-content" class="chat-reader-content-anchor" tabindex="-1" aria-label="聊天消息阅读区"></div>
-                <div class="chat-reader-controlbar" x-show="activeChat && !detailLoading">
-                    <div class="chat-reader-controlbar-heading">
-                        <div class="chat-grid-kicker">阅读工作区</div>
-                        <div class="chat-reader-controlbar-status" role="status" aria-live="polite">
-                            <span x-text="readerViewportStatusText"></span>
-                            <span aria-hidden="true">·</span>
-                            <span x-text="readerAnchorStatusText"></span>
-                            <span aria-hidden="true">·</span>
-                            <span x-text="readerBrowseModeLabel"></span>
-                        </div>
-                    </div>
-                    <div class="chat-reader-controlbar-tools">
-                        <div class="chat-reader-segmented" role="group" aria-label="阅读浏览方式">
-                            <button type="button" class="chat-toolbar-btn" :class="effectiveReaderBrowseMode === 'scroll' ? 'chat-toolbar-btn--primary' : ''" @click="setReaderBrowseMode('scroll')">{{ icon('arrow-down', 'ui-icon--sm') }}<span>滚动</span></button>
-                            <button type="button" class="chat-toolbar-btn" :class="effectiveReaderBrowseMode === 'page_non_user' ? 'chat-toolbar-btn--primary' : ''" @click="setReaderBrowseMode('page_non_user')">{{ icon('file', 'ui-icon--sm') }}<span>单页</span></button>
-                            <button type="button" class="chat-toolbar-btn" :class="effectiveReaderBrowseMode === 'page_pair' ? 'chat-toolbar-btn--primary' : ''" @click="setReaderBrowseMode('page_pair')">{{ icon('list', 'ui-icon--sm') }}<span>对话页</span></button>
-                        </div>
-                        <button type="button" class="chat-toolbar-btn" @click="readerViewSettingsOpen = true">{{ icon('sliders-settings', 'ui-icon--sm') }}<span>视图</span></button>
-                    </div>
-                </div>
                 <div x-show="detailLoading" class="chat-reader-loading" role="status" aria-live="polite">正在读取聊天内容...</div>
 
                 <template x-if="readerAppMode && activeAppMessage && !detailLoading">
@@ -330,14 +319,14 @@
                                 <div class="chat-message-head">
                                     <div class="chat-message-floor-wrap">
                                         <button type="button" class="chat-floor-chip" @click="scrollToFloor(message.floor)">#<span x-text="message.floor"></span></button>
-                                        <button type="button" class="chat-bookmark-toggle chat-reader-icon-button" :class="isBookmarked(message.floor) ? 'is-active' : ''" @click="toggleBookmark(message)" :aria-label="isBookmarked(message.floor) ? '取消收藏楼层' : '收藏楼层'" :title="isBookmarked(message.floor) ? '取消收藏楼层' : '收藏楼层'">
-                                            {{ icon('heart', 'chat-bookmark-icon') }}
+                                        <button type="button" class="chat-bookmark-toggle card-fav-btn card-fav-overlay" :class="isBookmarked(message.floor) ? 'is-active' : ''" @click="toggleBookmark(message)" :aria-label="isBookmarked(message.floor) ? '取消收藏楼层' : '收藏楼层'" :title="isBookmarked(message.floor) ? '取消收藏楼层' : '收藏楼层'">
+                                            {{ icon('heart', 'chat-bookmark-icon card-fav-icon') }}
                                         </button>
                                         <button type="button" class="chat-floor-chip chat-floor-chip--action" x-show="executableMessageFloors.includes(message.floor)" @click="openMessageAsAppStage(message)">{{ icon('layout', 'ui-icon--sm') }}<span>实例</span></button>
                                         <button type="button" class="chat-floor-chip chat-floor-chip--action" @click="openFloorEditor(message)">{{ icon('pencil-edit', 'ui-icon--sm') }}<span>编辑</span></button>
                                     </div>
                                     <div class="chat-message-meta">
-                                        <strong><span class="chat-message-role-mark" aria-hidden="true">{{ icon('circle-dot', 'ui-icon--xs') }}</span><span x-text="message.name || readerMessageRole(message)"></span></strong>
+                                        <strong class="chat-message-author"><span class="chat-message-role-mark" aria-hidden="true">{{ icon('circle-dot', 'ui-icon--xs') }}</span><span x-text="message.name || readerMessageRole(message)"></span></strong>
                                         <span x-text="formatChatDate(message.send_date)"></span>
                                     </div>
                                 </div>
@@ -406,14 +395,14 @@
                     </button>
                 </div>
 
-                <div class="chat-reader-rail-tabs" x-show="readerResponsiveMode !== 'mobile'">
-                    <button type="button" class="chat-reader-rail-tab" :class="readerRightTab === 'search' ? 'is-active' : ''" @click="readerRightTab = 'search'">全文搜索</button>
-                    <button type="button" class="chat-reader-rail-tab" :class="readerRightTab === 'floors' ? 'is-active' : ''" @click="readerRightTab = 'floors'">楼层导航</button>
+                <div class="chat-reader-rail-tabs" x-show="readerResponsiveMode !== 'mobile'" role="tablist" aria-label="检索与目录视图">
+                    <button type="button" class="chat-reader-rail-tab" role="tab" :aria-selected="readerRightTab === 'search' ? 'true' : 'false'" :class="readerRightTab === 'search' ? 'is-active' : ''" @click="readerRightTab = 'search'">全文搜索</button>
+                    <button type="button" class="chat-reader-rail-tab" role="tab" :aria-selected="readerRightTab === 'floors' ? 'true' : 'false'" :class="readerRightTab === 'floors' ? 'is-active' : ''" @click="readerRightTab = 'floors'">楼层导航</button>
                 </div>
 
                 <div class="chat-reader-panel-group" x-show="readerResponsiveMode === 'mobile' && readerMobilePanel === 'tools'">
                     <div class="chat-reader-panel chat-reader-panel--quiet">
-                        <div class="chat-reader-panel-title">聊天信息</div>
+                        <div class="chat-reader-panel-title">{{ icon('monitor-user', 'ui-icon--sm') }}<span>聊天信息</span></div>
                         <div class="chat-reader-info-grid" x-show="activeChat">
                             <div class="chat-reader-info-row"><span>角色</span><strong x-text="activeChat?.bound_card_name || activeChat?.character_name || '未绑定'"></strong></div>
                             <div class="chat-reader-info-row"><span>聊天名</span><strong x-text="activeChat?.chat_name || activeChat?.filename"></strong></div>
@@ -422,14 +411,14 @@
                         </div>
 
                         <div class="chat-reader-actions">
-                            <button class="chat-toolbar-btn" @click="activeChat && jumpToBoundCard(activeChat)" :disabled="!activeChat || !activeChat.bound_card_id">跳到角色卡</button>
-                            <button class="chat-toolbar-btn" @click="activeChat && openBindPicker(activeChat)" :disabled="!activeChat">修改绑定</button>
-                            <button class="chat-toolbar-btn" @click="activeChat && openChatFolder(activeChat)" :disabled="!activeChat">打开目录</button>
+                            <button class="chat-toolbar-btn" @click="activeChat && jumpToBoundCard(activeChat)" :disabled="!activeChat || !activeChat.bound_card_id">{{ sidebar_icon('character-cards', 'ui-icon--sm') }}<span>跳到角色卡</span></button>
+                            <button class="chat-toolbar-btn" @click="activeChat && openBindPicker(activeChat)" :disabled="!activeChat">{{ icon('link-import', 'ui-icon--sm') }}<span>修改绑定</span></button>
+                            <button class="chat-toolbar-btn" @click="activeChat && openChatFolder(activeChat)" :disabled="!activeChat">{{ icon('folder', 'ui-icon--sm') }}<span>打开目录</span></button>
                         </div>
                     </div>
 
                     <div class="chat-reader-panel chat-reader-panel--quiet" x-show="activeChat">
-                        <div class="chat-reader-panel-title">本地信息</div>
+                        <div class="chat-reader-panel-title">{{ detail_icon('note', 'ui-icon--sm') }}<span>本地信息</span></div>
                         <label class="chat-reader-field">
                             <span>显示名称</span>
                             <input type="text" x-model="detailDraftName" class="form-input">
@@ -444,7 +433,7 @@
                     </div>
 
                     <div class="chat-reader-panel chat-reader-panel--quiet" x-show="activeChat">
-                        <div class="chat-reader-panel-title">阅读锚点</div>
+                        <div class="chat-reader-panel-title">{{ icon('pin', 'ui-icon--sm') }}<span>阅读锚点</span></div>
                         <div class="chat-reader-option-group">
                             <div class="chat-reader-option-group-label">锚点模式</div>
                              <div class="chat-inline-actions">
@@ -465,7 +454,7 @@
                     </div>
 
                     <div class="chat-reader-panel chat-reader-panel--quiet" x-show="activeChat">
-                        <div class="chat-reader-panel-title">楼层跳转</div>
+                        <div class="chat-reader-panel-title">{{ icon('list', 'ui-icon--sm') }}<span>楼层跳转</span></div>
                         <div class="chat-reader-option-group">
                             <div class="chat-reader-option-group-label">快捷跳转</div>
                             <div class="chat-inline-actions">
@@ -483,7 +472,7 @@
                     </div>
 
                     <div class="chat-reader-panel chat-reader-panel--quiet" x-show="activeChat">
-                        <div class="chat-reader-panel-title">收藏楼层</div>
+                        <div class="chat-reader-panel-title">{{ icon('heart', 'ui-icon--sm') }}<span>收藏楼层</span></div>
                         <div class="chat-reader-bookmark-input">
                             <input type="text" x-model="bookmarkDraft" class="form-input" placeholder="收藏标签（可选）">
                             <button class="chat-toolbar-btn" @click="detailBookmarkedOnly = !detailBookmarkedOnly"
@@ -501,7 +490,7 @@
                     </div>
 
                     <div class="chat-reader-panel chat-reader-panel--quiet" x-show="activeChat">
-                        <div class="chat-reader-panel-title">本地编辑模式</div>
+                        <div class="chat-reader-panel-title">{{ icon('replace', 'ui-icon--sm') }}<span>本地编辑模式</span></div>
                         <div class="chat-inline-actions chat-inline-actions--stack">
                             <input type="text" x-model="replaceQuery" class="chat-inline-input chat-inline-input--wide" placeholder="查找内容">
                             <input type="text" x-model="replaceReplacement" class="chat-inline-input chat-inline-input--wide" placeholder="替换为">
@@ -521,12 +510,12 @@
                     </div>
 
                     <div class="chat-reader-panel chat-reader-panel--quiet" x-show="activeChat">
-                        <div class="chat-reader-panel-title">解析与渲染</div>
+                        <div class="chat-reader-panel-title"><img class="chat-reader-asset-icon chat-reader-render-icon" src="{{ reader_render_icon_src }}" alt="" aria-hidden="true" draggable="false"><span>解析与渲染</span></div>
                         <div class="chat-reader-option-group">
                             <div class="chat-reader-option-group-label">显示模式</div>
                             <div class="chat-inline-actions">
-                                <button class="chat-toolbar-btn" :class="readerRenderMode === 'plain' ? 'chat-toolbar-btn--primary' : ''" @click="readerRenderMode = 'plain'">纯文本</button>
-                                <button class="chat-toolbar-btn" :class="readerRenderMode === 'markdown' ? 'chat-toolbar-btn--primary' : ''" @click="readerRenderMode = 'markdown'">渲染</button>
+                                <button class="chat-toolbar-btn" :class="readerRenderMode === 'plain' ? 'chat-toolbar-btn--primary' : ''" @click="readerRenderMode = 'plain'">{{ icon('file', 'ui-icon--sm') }}<span>纯文本</span></button>
+                                <button class="chat-toolbar-btn" :class="readerRenderMode === 'markdown' ? 'chat-toolbar-btn--primary' : ''" @click="readerRenderMode = 'markdown'"><img class="chat-reader-asset-icon chat-reader-render-icon" src="{{ reader_render_icon_src }}" alt="" aria-hidden="true" draggable="false"><span>渲染</span></button>
                                 <label class="chat-inline-checkbox">
                                     <input type="checkbox" x-model="readerComponentMode">
                                     <span>后挂载实例</span>
@@ -556,7 +545,7 @@
                     </div>
 
                     <div class="chat-reader-panel chat-reader-danger-zone" x-show="activeChat">
-                        <div class="chat-reader-panel-title">危险操作</div>
+                        <div class="chat-reader-panel-title">{{ icon('alert-triangle', 'ui-icon--sm') }}<span>危险操作</span></div>
                         <div class="chat-reader-replace-status chat-reader-danger-copy" role="note">危险操作 · 删除会直接移除当前聊天记录，请确认不再需要后再执行。</div>
                         <div class="chat-reader-actions">
                             <button class="chat-toolbar-btn chat-toolbar-btn--danger" @click="requestDeleteChat(activeChat)" :disabled="!activeChat">{{ icon('trash', 'ui-icon--sm') }}<span>删除聊天（危险）</span></button>
@@ -629,7 +618,7 @@
                 <div class="chat-reader-title" id="chat-reader-delete-confirm-title">{{ icon('alert-triangle', 'ui-icon--sm') }}<span>移入回收站</span></div>
             </div>
             <div class="chat-reader-modal-close-slot">
-                <button type="button" class="chat-reader-icon-button" @click="cancelDeleteChat()" aria-label="取消删除确认" title="取消删除确认">
+                <button type="button" class="chat-reader-icon-button chat-reader-modal-close-button" @click="cancelDeleteChat()" aria-label="取消删除确认" title="取消删除确认">
                     {{ icon('close', 'ui-icon--sm') }}
                 </button>
             </div>
@@ -647,7 +636,7 @@
 
 <div x-show="readerViewSettingsOpen" x-cloak class="chat-reader-overlay" style="z-index: calc(var(--z-topmost) - 3);" @click.self="readerViewSettingsOpen = false" @keydown.escape.window.prevent="readerViewSettingsOpen = false">
     <div class="chat-bind-modal chat-reader-nested-modal chat-reader-nested-modal--settings chat-reader-transition-surface" role="dialog" aria-modal="true" aria-label="楼层显示与渲染策略">
-        <div class="chat-bind-header chat-reader-nested-header">
+        <div class="chat-bind-header chat-reader-nested-header chat-reader-view-settings-header">
             <div class="chat-reader-nested-heading">
                 <div class="chat-grid-kicker">View Strategy</div>
                 <div class="chat-reader-title" style="font-size: 1.05rem;">{{ icon('sliders-settings', 'ui-icon--sm') }}<span>楼层显示与渲染策略</span></div>
@@ -658,7 +647,7 @@
                 <button class="chat-toolbar-btn chat-toolbar-btn--primary" @click="saveReaderViewSettings()">保存</button>
             </div>
             <div class="chat-reader-modal-close-slot">
-                <button type="button" class="chat-reader-icon-button" @click="readerViewSettingsOpen = false" aria-label="关闭显示策略" title="关闭显示策略">
+                <button type="button" class="chat-reader-icon-button chat-reader-modal-close-button" @click="readerViewSettingsOpen = false" aria-label="关闭显示策略" title="关闭显示策略">
                     {{ icon('close', 'ui-icon--sm') }}
                 </button>
             </div>
@@ -779,7 +768,7 @@
             <div class="chat-reader-modal-close-slot">
                 <div class="chat-reader-regex-header-actions">
                     <button x-show="readerResponsiveMode === 'mobile'" class="chat-toolbar-btn chat-toolbar-btn--primary chat-reader-regex-save-pill" @click="saveRegexConfig()">保存</button>
-                <button type="button" class="chat-reader-icon-button" @click="closeRegexConfig()" aria-label="关闭解析规则" title="关闭解析规则">
+                <button type="button" class="chat-reader-icon-button chat-reader-modal-close-button" @click="closeRegexConfig()" aria-label="关闭解析规则" title="关闭解析规则">
                     {{ icon('close', 'ui-icon--sm') }}
                 </button>
                 </div>
@@ -789,7 +778,7 @@
         <div class="chat-reader-regex-summary-strip chat-reader-nested-section chat-reader-nested-section--summary custom-scrollbar" x-show="readerResponsiveMode !== 'mobile'">
             <div class="chat-reader-regex-summary-head">
                 <div class="chat-reader-panel-title">当前状态</div>
-                <button type="button" class="chat-toolbar-btn chat-reader-regex-help-button" @click="openRegexHelp()" aria-label="聊天解析规则帮助" title="聊天解析规则帮助">{{ icon('info', 'ui-icon--sm') }}<span>帮助</span></button>
+                <button type="button" class="chat-toolbar-btn chat-reader-regex-help-button" @click="openRegexHelp()" aria-label="聊天解析规则帮助" title="聊天解析规则帮助">{{ icon('settings-help-entry', 'ui-icon--sm') }}<span>帮助</span></button>
             </div>
             <div class="chat-reader-regex-summary-grid">
                 <template x-for="source in regexStateCards" :key="source.id">
@@ -806,7 +795,7 @@
             <div class="chat-reader-regex-summary-strip chat-reader-regex-summary-strip--mobile chat-reader-nested-section chat-reader-nested-section--summary">
                 <div class="chat-reader-regex-summary-head">
                     <div class="chat-reader-panel-title">当前状态</div>
-                    <button type="button" class="chat-toolbar-btn chat-reader-regex-help-button" @click="openRegexHelp()" aria-label="聊天解析规则帮助" title="聊天解析规则帮助">{{ icon('info', 'ui-icon--sm') }}<span>帮助</span></button>
+                    <button type="button" class="chat-toolbar-btn chat-reader-regex-help-button" @click="openRegexHelp()" aria-label="聊天解析规则帮助" title="聊天解析规则帮助">{{ icon('settings-help-entry', 'ui-icon--sm') }}<span>帮助</span></button>
                 </div>
                 <div class="chat-reader-regex-summary-grid">
                     <template x-for="source in regexStateCards" :key="'mobile-' + source.id">
@@ -1337,11 +1326,11 @@
         <div class="chat-bind-header chat-reader-nested-header">
             <div class="chat-reader-nested-heading">
                 <div class="chat-grid-kicker">Regex Help</div>
-                <div class="chat-reader-title" style="font-size: 1.05rem;">{{ icon('info', 'ui-icon--sm') }}<span>聊天解析规则帮助</span></div>
+                <div class="chat-reader-title" style="font-size: 1.05rem;">{{ icon('settings-help-entry', 'ui-icon--sm') }}<span>聊天解析规则帮助</span></div>
                 <div class="chat-reader-subtitle">解释当前生效、继承、已保存、草稿，以及预览与保存的关系。</div>
             </div>
             <div class="chat-reader-modal-close-slot">
-                <button type="button" class="chat-reader-icon-button" @click="closeRegexHelp()" aria-label="关闭解析规则帮助" title="关闭解析规则帮助">
+                <button type="button" class="chat-reader-icon-button chat-reader-modal-close-button" @click="closeRegexHelp()" aria-label="关闭解析规则帮助" title="关闭解析规则帮助">
                     {{ icon('close', 'ui-icon--sm') }}
                 </button>
             </div>
@@ -1384,7 +1373,7 @@
                 <button class="chat-toolbar-btn chat-toolbar-btn--primary" @click="saveFloorEdit()">保存楼层</button>
             </div>
             <div class="chat-reader-modal-close-slot">
-                <button type="button" class="chat-reader-icon-button" @click="closeFloorEditor()" aria-label="关闭楼层编辑器" title="关闭楼层编辑器">
+                <button type="button" class="chat-reader-icon-button chat-reader-modal-close-button" @click="closeFloorEditor()" aria-label="关闭楼层编辑器" title="关闭楼层编辑器">
                     {{ icon('close', 'ui-icon--sm') }}
                 </button>
             </div>
@@ -1432,7 +1421,7 @@
             </div>
             <div class="chat-bind-actions chat-reader-nested-actions">
                 <button class="chat-toolbar-btn" @click="unbindCurrentChat()">解除绑定</button>
-                <button type="button" class="chat-reader-icon-button" @click="closeBindPicker()" aria-label="关闭角色卡绑定选择器" title="关闭角色卡绑定选择器">
+                <button type="button" class="chat-reader-icon-button chat-reader-modal-close-button" @click="closeBindPicker()" aria-label="关闭角色卡绑定选择器" title="关闭角色卡绑定选择器">
                     {{ icon('close', 'ui-icon--sm') }}
                 </button>
             </div>
@@ -1469,7 +1458,7 @@
                 <div class="chat-reader-subtitle">从系统中已上传的正则规则里挑选，并合并进当前聊天草稿。</div>
             </div>
             <div class="chat-bind-actions chat-reader-nested-actions">
-                <button type="button" class="chat-reader-icon-button" @click="closeRegexRulePicker()" aria-label="关闭系统正则规则选择器" title="关闭系统正则规则选择器">
+                <button type="button" class="chat-reader-icon-button chat-reader-modal-close-button" @click="closeRegexRulePicker()" aria-label="关闭系统正则规则选择器" title="关闭系统正则规则选择器">
                     {{ icon('close', 'ui-icon--sm') }}
                 </button>
             </div>
@@ -1509,7 +1498,7 @@
                 <div class="chat-reader-subtitle">从系统中已上传的预设里提取正则规则，并合并进当前聊天草稿。</div>
             </div>
             <div class="chat-bind-actions chat-reader-nested-actions">
-                <button type="button" class="chat-reader-icon-button" @click="closeRegexPresetPicker()" aria-label="关闭系统预设选择器" title="关闭系统预设选择器">
+                <button type="button" class="chat-reader-icon-button chat-reader-modal-close-button" @click="closeRegexPresetPicker()" aria-label="关闭系统预设选择器" title="关闭系统预设选择器">
                     {{ icon('close', 'ui-icon--sm') }}
                 </button>
             </div>
