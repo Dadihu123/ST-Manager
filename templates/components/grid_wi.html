@@ -1,4 +1,5 @@
 {% from "components/icon.html" import icon, loading_icon %}
+{% from "components/icon.html" import detail_icon %}
 {% from "components/icon.html" import sidebar_icon %}
 
 <!-- === 模式 2: 世界书网格 (包含滚动、拖拽、分页) === -->
@@ -120,7 +121,7 @@
         <div
           @click="handleWorldInfoClick($event, item)"
           class="wi-grid-card group relative rounded-xl p-[1px] cursor-pointer transition-all duration-200 flex flex-col"
-          :class="[$store.global.deviceType === 'mobile' ? 'wi-grid-card--mobile' : 'h-52', selectedIds.includes(item.id) ? 'selected' : '', canSelectWorldInfoItem(item) ? '' : 'is-selection-disabled', isWorldInfoFlipped(item.id) ? 'is-flipped' : '']"
+          :class="[$store.global.deviceType === 'mobile' ? 'wi-grid-card--mobile' : 'h-52', selectedIds.includes(item.id) ? 'selected' : '', canSelectWorldInfoItem(item) ? 'wi-grid-card--selectable' : 'is-selection-disabled', isWorldInfoFlipped(item.id) ? 'is-flipped' : '']"
           :data-wi-id="item.id"
           draggable="true"
           @dragstart="dragStart($event, item)"
@@ -199,6 +200,7 @@
                       <h3
                         class="wi-card-title"
                         :class="item.name_source === 'filename' ? 'wi-title-fallback' : ''"
+                        :title="item.name"
                         x-text="item.name"
                       ></h3>
                     </div>
@@ -271,7 +273,7 @@
                       :title="getWorldInfoNotePreviewTitle(item)"
                       @click.stop="openWorldInfoLocalNote(item)"
                     >
-                      {{ icon('sticky-note', 'ui-icon--md') }}
+                      {{ detail_icon('note', 'ui-icon--sm') }}
                     </button>
                   </div>
                   <div class="wi-card-footer-tools-right">
@@ -285,10 +287,10 @@
                       @click.stop="sendWorldInfoToST(item)"
                     >
                       <span x-show="!isSendingWorldInfoToST(item.id)" aria-hidden="true">
-                        {{ icon('card-send-to-st', 'ui-icon--md') }}
+                        {{ icon('card-send-to-st', 'ui-icon--sm') }}
                       </span>
                       <span x-show="isSendingWorldInfoToST(item.id)" aria-hidden="true">
-                        {{ loading_icon('ui-icon--md') }}
+                        {{ loading_icon('ui-icon--sm') }}
                       </span>
                     </button>
                   </div>

@@ -398,13 +398,14 @@
 }
 
 .resource-grid-view .wi-card-title {
-  display: -webkit-box;
+  display: block;
   overflow: hidden;
+  min-width: 0;
   color: var(--content-primary);
   font-size: 0.92rem;
   line-height: 1.35;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .resource-grid-view .wi-card-owner-row {
@@ -413,6 +414,7 @@
 
 .resource-grid-view .wi-card-footer {
   gap: 0.5rem;
+  margin-top: auto;
   padding-top: 0.6rem;
   border-top-color: var(--border-divider);
 }
@@ -424,7 +426,18 @@
 }
 
 .resource-grid-view .wi-card-footer-tools {
-  gap: 0.25rem;
+  justify-content: flex-start;
+  gap: 0.42rem;
+  padding-right: 2.25rem;
+}
+
+.resource-grid-view .wi-card-footer-tools-left,
+.resource-grid-view .wi-card-footer-tools-right {
+  margin-left: 0;
+}
+
+.resource-grid-view .wi-card-footer-tools-right {
+  min-width: 0;
 }
 
 .resource-grid-view .card-local-note-btn,
@@ -435,14 +448,19 @@
 }
 
 .resource-grid-view .card-flip-corner {
-  right: 0.55rem;
-  bottom: 0.55rem;
+  right: 0;
+  bottom: 0;
   width: 2rem;
   height: 2rem;
-  border-radius: 6px;
-  color: var(--action-icon);
-  background: var(--surface-container-raised);
-  border: 1px solid var(--resource-workbench-border);
+  border-radius: 0;
+  color: var(--content-primary);
+  background: linear-gradient(
+    136deg,
+    transparent 47%,
+    color-mix(in srgb, var(--surface-container-raised), var(--content-on-dark) 12%) 48%,
+    color-mix(in srgb, var(--surface-container-raised), var(--content-on-light) 6%) 100%
+  );
+  border: 0;
 }
 
 .resource-grid-view .card-flip-corner .ui-icon {
@@ -538,11 +556,16 @@
   right: 4.35rem;
 }
 
-.resource-grid-view--presets .preset-card-action-btn,
-.resource-grid-view--presets .preset-select-shell {
+.resource-grid-view--presets .preset-card-action-btn {
   min-width: 2.25rem;
   min-height: 2.25rem;
   border-radius: 6px;
+}
+
+.resource-grid-view--presets .preset-select-shell {
+  min-width: 1.5rem;
+  min-height: 1.5rem;
+  border-radius: 999px;
 }
 
 .resource-grid-view--presets .preset-card-stat-icon,
@@ -920,6 +943,7 @@ html.light-mode .resource-grid-view .resource-source-badge.file {
   width: 2.5rem;
   height: 2.5rem;
   flex: 0 0 2.5rem;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   color: var(--action-icon);
@@ -992,16 +1016,16 @@ html.light-mode .resource-grid-view .resource-source-badge.file {
 }
 
 .resource-grid-view .card-select-indicator {
-  width: 2rem;
-  height: 2rem;
+  width: 1.5rem;
+  height: 1.5rem;
   align-items: center;
   justify-content: center;
 }
 
 .resource-grid-view .card-select-indicator > div,
 .resource-grid-view .resource-card-select-shell {
-  width: 2rem !important;
-  height: 2rem !important;
+  width: 1.5rem !important;
+  height: 1.5rem !important;
   border: 0 !important;
   border-radius: 999px !important;
   color: var(--content-secondary);
@@ -1022,7 +1046,7 @@ html.light-mode .resource-grid-view .resource-source-badge.file {
   color: var(--action-text);
   background: var(--action-surface) !important;
   box-shadow: 0 0 0 2px var(--action-border);
-  transform: scale(1.02);
+  transform: scale(1.05);
 }
 
 .resource-grid-view--worldinfo .wi-grid-card.selected,
@@ -1032,13 +1056,18 @@ html.light-mode .resource-grid-view .resource-source-badge.file {
 }
 
 .resource-grid-view--worldinfo .wi-card-bookmark {
-  border: 0;
-  background: var(--action-surface);
+  width: 2.5rem;
+  height: 2.5rem;
+  flex-basis: 2.5rem;
+  border: 0 !important;
+  border-radius: 0.65rem;
+  background: var(--action-surface) !important;
+  box-shadow: none !important;
 }
 
 .resource-grid-view--worldinfo .wi-card-bookmark .wi-card-bookmark-icon {
-  width: 1.55rem;
-  height: 1.55rem;
+  width: 1.55rem !important;
+  height: 1.55rem !important;
 }
 
 .resource-grid-view--worldinfo .wi-grid-tool-btn,
@@ -1052,6 +1081,33 @@ html.light-mode .resource-grid-view .resource-source-badge.file {
   border-color: transparent;
   border-radius: 0.45rem;
   box-shadow: none;
+}
+
+.resource-grid-view--worldinfo .wi-grid-tool-btn {
+  color: var(--status-info-text);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(-2px) scale(0.96);
+  transition:
+    opacity 0.2s ease,
+    visibility 0.2s ease,
+    color 0.2s ease,
+    background-color 0.2s ease,
+    transform 0.2s ease;
+}
+
+.resource-grid-view--worldinfo .wi-card-edit-btn {
+  color: var(--action-text);
+}
+
+.resource-grid-view--worldinfo .wi-grid-card:hover .wi-grid-tool-btn,
+.resource-grid-view--worldinfo .wi-grid-card:focus-within .wi-grid-tool-btn,
+.resource-grid-view--worldinfo .wi-grid-tool-btn:focus-visible {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(0) scale(1);
 }
 
 .resource-grid-view--worldinfo .wi-grid-tool-btn:hover,
@@ -1083,30 +1139,11 @@ html.light-mode .resource-grid-view .resource-source-badge.file {
 
 .resource-grid-view--worldinfo .wi-card-front {
   justify-content: flex-start;
+  padding-bottom: 0;
 }
 
 .resource-grid-view--worldinfo .wi-card-tag-placeholder {
   display: none !important;
-}
-
-.resource-grid-view--worldinfo .wi-item-flip-corner {
-  right: 0 !important;
-  bottom: 0 !important;
-  width: 2rem !important;
-  height: 2rem !important;
-  border: 0 !important;
-  border-radius: 0 !important;
-  background: linear-gradient(
-    136deg,
-    transparent 47%,
-    color-mix(in srgb, var(--surface-container-raised), var(--content-on-dark) 12%) 48%,
-    color-mix(in srgb, var(--surface-container-raised), var(--content-on-light) 6%) 100%
-  );
-  box-shadow: none;
-}
-
-.resource-grid-view--worldinfo .wi-item-flip-corner .ui-icon {
-  display: none;
 }
 
 .resource-grid-view--worldinfo .wi-grid-card:hover .wi-item-flip-corner,
@@ -1154,14 +1191,44 @@ html.light-mode .resource-grid-view .resource-source-badge.file {
 .resource-grid-view--presets .preset-grid-card:focus-within .preset-card-source-badge {
   top: 0.8rem;
   right: auto;
+  left: 0.8rem;
+  transition: left 0.2s ease, top 0.2s ease;
+}
+
+.resource-grid-view--presets .preset-grid-card:hover .preset-card-source-badge,
+.resource-grid-view--presets .preset-grid-card:focus-within .preset-card-source-badge {
   left: 3.15rem;
-  transition: none;
 }
 
 .resource-grid-view--presets .preset-card-action-btn {
+  width: 2rem;
+  height: 2rem;
   min-width: 2rem;
   min-height: 2rem;
+  padding: 0;
   border-radius: 0.45rem;
+}
+
+.resource-grid-view--presets .preset-card-action-btn .ui-icon {
+  width: 1.15rem;
+  height: 1.15rem;
+}
+
+.resource-grid-view--worldinfo .wi-card-header-left {
+  min-width: 0;
+  transition: transform 0.2s ease;
+}
+
+.resource-grid-view--worldinfo .wi-grid-card--selectable:hover .wi-card-header-left,
+.resource-grid-view--worldinfo .wi-grid-card--selectable:focus-within .wi-card-header-left {
+  transform: translateX(2.25rem);
+}
+
+.resource-grid-view--worldinfo .card-back-filename {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .extension-workbench.resource-grid-view .extension-workbench-header {
@@ -1459,6 +1526,43 @@ html.light-mode .resource-grid-view .resource-source-badge.file {
     min-height: 15.5rem;
     padding-right: 0.75rem;
     padding-left: 0.75rem;
+  }
+
+  .resource-grid-view--presets .preset-card-source-badge {
+    left: 3.15rem;
+  }
+
+  .resource-grid-view--worldinfo .wi-grid-card .wi-grid-tool-btn {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transform: translateY(0) scale(1);
+  }
+
+  .resource-grid-view--worldinfo .wi-grid-card--selectable .wi-card-header-left {
+    transform: translateX(2.25rem);
+  }
+
+  .resource-grid-view--worldinfo .card-local-note-btn,
+  .resource-grid-view--worldinfo .card-send-st-btn,
+  .resource-grid-view--worldinfo .wi-card-note-tool {
+    width: 1.6rem;
+    height: 1.6rem;
+    min-width: 1.6rem;
+    min-height: 1.6rem;
+    flex-basis: 1.6rem;
+  }
+
+  .resource-grid-view--worldinfo .card-local-note-btn .ui-icon,
+  .resource-grid-view--worldinfo .card-send-st-btn .ui-icon,
+  .resource-grid-view--worldinfo .wi-card-note-tool .ui-icon {
+    width: 20px;
+    height: 20px;
+  }
+
+  .resource-grid-view--worldinfo .card-flip-corner {
+    width: 1.75rem;
+    height: 1.75rem;
   }
 
   .resource-grid-contextbar,
