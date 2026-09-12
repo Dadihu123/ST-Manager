@@ -361,6 +361,13 @@ Compose 将 `./data` 挂载到容器的 `/app/data`，将 `./config.json` 挂载
 - [开发指南](docs/DEVELOPMENT.md)：项目结构、启动链路、测试、CSS 构建和打包。
 - [SVG 图标系统](docs/svg-icon-system.md)：网页模板图标精灵的组织与使用约定。
 
+## 反馈与贡献
+
+欢迎通过 Issue 反馈问题或提出建议：
+
+- [GitHub Issues](https://github.com/Dadihu123/ST-Manager/issues)
+- [Discord 讨论帖](https://discord.com/channels/1134557553011998840/1448353646596325578)
+
 ## 许可证
 
 项目代码按 [GNU AGPL-3.0](LICENSE) 发布。仓库中的 SillyTavern vendored 资源、`cards-css` 和前端库保留各自的上游许可与版权声明；分发时请同时遵守对应目录中的 notice 文件。
