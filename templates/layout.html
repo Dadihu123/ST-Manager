@@ -10,7 +10,7 @@
       type="image/png"
       href="{{ url_for('static', filename='images/brand/stm-mark.png') }}"
     />
-    <title>ST Manager Pro V101</title>
+    <title>ST Manager Pro V102</title>
 
     <!-- 核心样式 -->
     <link rel="stylesheet" href="/static/lib/cards-css/holo-cards.css" />
@@ -43,10 +43,7 @@
     {% block content %}{% endblock %}
 
     <!-- 3. 全局 Toast 通知 -->
-    <div
-      class="toast-notification"
-      :class="{'show': showToastState}"
-    >
+    <div class="toast-notification" :class="{'show': showToastState}">
       <span x-show="toastIcon" aria-hidden="true">
         <template x-if="toastIcon === 'loading-animation'">
           <img
@@ -55,7 +52,7 @@
             alt=""
             aria-hidden="true"
             draggable="false"
-          >
+          />
         </template>
         <template x-if="toastIcon && toastIcon !== 'loading-animation'">
           <svg
@@ -64,7 +61,9 @@
             aria-hidden="true"
             focusable="false"
           >
-            <use :href="'{{ url_for('static', filename='icons/') }}' + toastIconHref"></use>
+            <use
+              :href="'{{ url_for('static', filename='icons/') }}' + toastIconHref"
+            ></use>
           </svg>
         </template>
       </span>
