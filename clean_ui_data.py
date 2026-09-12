@@ -7,9 +7,18 @@ import argparse
 import json
 import os
 import shutil
+import sys
 import tempfile
 from pathlib import Path
 from typing import Any, Iterable
+
+
+if sys.platform == 'win32':
+    try:
+        sys.stdout.reconfigure(encoding='utf-8')
+        sys.stderr.reconfigure(encoding='utf-8')
+    except AttributeError:
+        pass
 
 
 DEFAULT_CONFIG = {
@@ -35,6 +44,12 @@ RESERVED_UI_KEYS = {
 
 def _real_path(path: Path) -> Path:
     return Path(os.path.realpath(os.fspath(path)))
+
+
+def _runtime_root() -> Path:
+    if getattr(sys, 'frozen', False):
+        return _real_path(Path(sys.executable).parent)
+    return _real_path(Path(__file__).resolve().parent)
 
 
 def _is_inside(path: Path, root: Path) -> bool:
@@ -581,7 +596,7 @@ def clean_ui_data_file(
     ui_data_path: Path | None = None,
     dry_run: bool = False,
 ) -> dict[str, Any]:
-    script_dir = Path(__file__).resolve().parent
+    script_dir = _runtime_root()
     resolved_config_path = _real_path(config_path or script_dir / 'config.json')
     resolved_ui_data_path = _real_path(
         ui_data_path or script_dir / 'data' / 'system' / 'db' / 'ui_data.json'

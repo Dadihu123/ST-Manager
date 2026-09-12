@@ -190,3 +190,20 @@ def test_clean_ui_data_file_dry_run_does_not_backup_or_write(tmp_path):
     assert stats['changed'] is True
     assert not ui_data_path.with_name('ui_data.json.bak').exists()
     assert json.loads(ui_data_path.read_text(encoding='utf-8')) == original
+
+
+def test_clean_ui_data_file_uses_executable_directory_when_frozen(tmp_path, monkeypatch):
+    executable_root = tmp_path / 'package'
+    cards_dir = executable_root / 'data' / 'library' / 'characters'
+    cards_dir.mkdir(parents=True)
+    ui_data_path = executable_root / 'data' / 'system' / 'db' / 'ui_data.json'
+    _write_json(ui_data_path, {'missing.png': {'summary': 'stale'}})
+
+    monkeypatch.setattr('clean_ui_data.sys.frozen', True, raising=False)
+    monkeypatch.setattr('clean_ui_data.sys.executable', str(executable_root / 'clean_ui_data.exe'))
+
+    stats = clean_ui_data_file(dry_run=True)
+
+    assert stats['config_path'] == str(executable_root / 'config.json')
+    assert stats['ui_data_path'] == str(ui_data_path)
+    assert stats['changed'] is True
