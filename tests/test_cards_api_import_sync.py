@@ -37,6 +37,22 @@ def _make_app():
     return app
 
 
+def test_is_safe_filename_allows_internal_double_dots_and_respects_platform_separators():
+    assert cards_api._is_safe_filename('什么...为什么.png')
+    assert cards_api._is_safe_filename('11.23...png')
+    assert cards_api._is_safe_rel_path('tmp/11.23...png')
+    assert cards_api._is_safe_filename('..hidden.png')
+    assert not cards_api._is_safe_filename('.')
+    assert not cards_api._is_safe_filename('..')
+    assert not cards_api._is_safe_filename('name\x00.png')
+    assert not cards_api._is_safe_filename('folder/name.png')
+
+    if os.sep == '/':
+        assert cards_api._is_safe_filename(r'folder\name.png')
+    else:
+        assert not cards_api._is_safe_filename(r'folder\name.png')
+
+
 class _StopWorkerLoop(Exception):
     pass
 

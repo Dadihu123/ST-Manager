@@ -476,14 +476,17 @@ def _is_safe_rel_path(rel_path, allow_empty: bool = False) -> bool:
     return True
 
 def _is_safe_filename(name: str) -> bool:
-    """仅允许文件名，不允许路径或父目录引用"""
-    if not name:
+    """仅允许当前平台的单个文件名，不允许路径或目录别名。"""
+    if not isinstance(name, str) or not name:
         return False
-    if name != os.path.basename(name):
+    if name in {'.', '..'} or '\x00' in name:
         return False
-    if '..' in name.replace('\\', '/'):
+
+    forbidden_separators = {'/'} if os.sep == '/' else {'/', '\\'}
+    if any(separator in name for separator in forbidden_separators):
         return False
-    return True
+
+    return name == os.path.basename(name)
 
 
 def _remove_conflicting_card_targets(target_path: str) -> None:

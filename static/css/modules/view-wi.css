@@ -3552,6 +3552,8 @@ html.light-mode .wi-card-back {
 
 .wi-editor-find-overlay {
   z-index: var(--z-modal-editor);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 .wi-editor-modal {
