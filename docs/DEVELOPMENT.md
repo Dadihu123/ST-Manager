@@ -1,383 +1,214 @@
 # 开发指南
 
-本文档面向当前仓库的实际结构，概述启动链路、模块分层、数据存储、测试方式与常用开发约定。
+本文档描述 ST Manager 当前代码的开发入口和运行模型。项目是一个 Python Flask 服务加浏览器端 ES modules 的单体应用，资源文件本身仍保存在文件系统中，SQLite 负责元数据、索引和运行时任务。
 
----
+## 环境
 
-## 1. 技术栈与入口
+- Python 3.10 或更高版本。
+- 运行依赖：Flask、Pillow、requests、watchdog，见 `requirements.txt`。
+- 前端样式构建需要 Node.js/npm；`package.json` 只声明 Tailwind CSS 3.4.17。
+- 浏览器端代码使用原生 ES modules 和 Alpine.js，不需要 Vite、Webpack 或 React 构建链。
 
-- Python 3.10+
-- Flask
-- SQLite
-- Pillow
-- requests
-- watchdog
-
-关键入口：
-
-- 主入口：`app.py`
-- 应用工厂：`core/__init__.py:create_app`
-- 后台初始化：`core/__init__.py:init_services`
-
-前端形态：
-
-- 单页入口：`/` -> `templates/index.html`
-- 模板层：Jinja2
-- 交互层：Alpine.js
-- 样式层：Tailwind CSS
-- 逻辑组织：原生 ES Modules
-
----
-
-## 2. 项目结构
-
-```text
-ST-Manager/
-├── app.py
-├── config.json
-├── requirements.txt
-├── Dockerfile
-├── docker-compose.yaml
-├── AGENTS.md
-├── core/
-│   ├── __init__.py              # create_app + init_services
-│   ├── auth.py                  # 外网认证、白名单、限流、Session
-│   ├── config.py                # 默认配置、配置归一化、路径解析
-│   ├── context.py               # 全局运行时上下文
-│   ├── consts.py                # 常量
-│   ├── event_bus.py             # 事件总线
-│   ├── api/
-│   │   ├── views.py             # 单页入口与 favicon
-│   │   └── v1/
-│   │       ├── cards.py         # 角色卡 API
-│   │       ├── chats.py         # 聊天 API
-│   │       ├── world_info.py    # 世界书 API
-│   │       ├── presets.py       # 预设 API
-│   │       ├── extensions.py    # 扩展脚本 API
-│   │       ├── automation.py    # 自动化 API
-│   │       ├── system.py        # 设置、快照、索引、系统动作
-│   │       ├── st_sync.py       # ST 同步 API
-│   │       ├── beautify.py      # 美化库 API
-│   │       └── resources.py     # 文件预览与资源服务
-│   ├── services/                # 业务服务、索引、ST 集成、版本逻辑
-│   ├── automation/              # 自动化规则引擎
-│   ├── data/                    # SQLite、UI 存储、聊天存储、索引状态
-│   └── utils/                   # 纯工具函数
-├── templates/                   # 单页模板、组件模板、模态模板
-├── static/
-│   └── js/
-│       ├── api/                 # 前端 API 封装
-│       ├── components/          # 页面组件与模态逻辑
-│       ├── runtime/             # 运行时预览、脚本执行、聊天展示
-│       ├── utils/               # 前端工具函数
-│       └── vendor/              # 本地第三方脚本
-├── tests/                       # pytest 与前端契约回归测试
-└── data/                        # 运行时数据目录
-```
-
----
-
-## 3. 启动流程
-
-### 3.1 本地启动
-
-`app.py` 的实际流程如下：
-
-1. 解析命令行参数 `--debug`、`--host`、`--port`
-2. 判断是否运行在 Docker 中
-3. 自动确保 `config.json` 存在
-4. 读取配置并创建运行时目录
-5. 解析最终 `host` / `port` / `debug`
-6. 在主进程中进行端口占用检测
-7. 在后台线程中启动 `init_services()`
-8. 创建 Flask 应用并注册全部蓝图
-9. 启动 Web 服务，并在合适场景下自动打开浏览器
-
-`debug` 模式下只会在 Flask reloader 子进程中启动后台服务，避免数据库初始化、扫描器和索引 worker 被重复拉起。
-
-### 3.2 后台初始化
-
-`core.__init__.init_services()` 负责：
-
-1. 清理 `data/temp`
-2. 初始化数据库与迁移
-3. 检查索引升级状态
-4. 加载缓存
-5. 启动后台扫描器
-6. 启动索引任务 worker
-7. 更新全局状态为 ready
-
-### 3.3 Docker Compose 启动
-
-`docker-compose.yaml` 包含两个服务：
-
-- `init-config`：先在宿主机根目录生成 `./config.json`
-- `st-manager`：等待初始化成功后再启动主服务
-
-这意味着文档、测试和部署脚本都应默认假设 `config.json` 来自宿主机挂载，而不是容器内部临时生成。
-
----
-
-## 4. 后端架构
-
-### 4.1 API 层
-
-API 主要集中在 `core/api/v1/`，按资源域拆分：
-
-- `cards.py`：角色卡列表、编辑、导入、标签、文件夹、Bundle、资源联动
-- `chats.py`：聊天列表、阅读、搜索、书签、绑定、保存
-- `world_info.py`：全局 / 资源 / 内嵌世界书管理
-- `presets.py`：预设详情、保存、版本家族、发送到 ST
-- `extensions.py`：Regex、Quick Replies、Tavern Helper 扩展统一入口
-- `automation.py`：规则集和执行
-- `system.py`：设置、扫描、索引、快照、回收站、系统动作
-- `st_sync.py`：SillyTavern 探测、校验、同步、概览；同步按 `data/<用户目录>` 解析，Regex 仅同步全局来源，冲突资源跳过并返回明细
-- `beautify.py`：主题美化库、壁纸、头像、变体、发送到 ST
-- `resources.py`：缩略图、资源文件、背景图、资源上传与删除
-- `forum.py`：类脑搜索站预览转发（`forum.shimmerday.top`）
-
-### 4.2 服务层
-
-`core/services/` 是主要业务逻辑承载层，包含：
-
-- 文件扫描与缓存刷新
-- 缩略图孤儿缓存清理与 UI 数据维护
-- 索引构建、状态查询、升级恢复与任务 worker
-- 角色卡读写与同步
-- 世界书索引查询
-- 预设存储、建模与版本家族管理
-- ST 认证、ST 客户端与路径安全校验
-- 标签治理
-- 共享壁纸库与用户数据库备份
-
-### 4.3 自动化引擎
-
-`core/automation/` 负责：
-
-- 规则集模型与标准化
-- 条件评估
-- 动作执行
-- 模板运行时
-- 标签合并逻辑
-- 论坛标签抓取
-
-### 4.4 全局上下文
-
-`core/context.py` 中的 `ctx` 提供共享运行时状态，包括：
-
-- 启动状态
-- 缓存对象
-- 锁 / 队列
-- 后台服务之间的协作状态
-
----
-
-## 5. 前端架构
-
-### 5.1 单页入口
-
-- `/` 由 `core/api/views.py` 返回 `templates/index.html`
-- 页面模式由前端状态切换，而不是多路由页面切换
-
-### 5.2 目录分层
-
-| 目录 | 职责 |
-| --- | --- |
-| `static/js/api/` | 浏览器端 API 封装 |
-| `static/js/components/` | 网格、详情、设置、模态、编辑器 |
-| `static/js/runtime/` | 聊天运行时、脚本运行时、预览框架 |
-| `static/js/utils/` | 格式化、差异、DOM、下载等工具 |
-| `templates/components/` | 页面级组件模板 |
-| `templates/modals/` | 各类弹窗模板 |
-
-### 5.3 运行时子系统
-
-前端不仅是列表与表单界面，还包含多个运行时子系统：
-
-- 聊天阅读器运行时
-- 统一文本 / Markdown / HTML 预览
-- 正则测试台
-- ST 脚本运行时
-- 主题美化预览 frame
-
-因此修改聊天阅读器、预设编辑器或美化预览时，通常需要同时检查模板、组件脚本和 `static/js/runtime/`。
-
----
-
-## 6. 配置与路径管理
-
-配置逻辑在 `core/config.py`：
-
-- `DEFAULT_CONFIG` 定义默认配置项
-- `normalize_config()` 会做 ST 认证字段归一化
-- `ensure_config_file()` 负责首次生成
-- `ensure_runtime_dirs()` 负责创建主要运行目录
-
-路径相关约定：
-
-- 相对路径以项目根目录为基准
-- 统一使用 `os.path.join()` 生成本地路径
-- 存储到 ID 或 JSON 中的相对路径统一转为 `/`
-
----
-
-## 7. 数据存储
-
-项目当前采用“SQLite 主索引 + JSON 辅助存储”的混合模式。
-
-### 7.1 SQLite
-
-数据库入口：`core/data/db_session.py`
-
-主要职责：
-
-- 提供请求内数据库连接
-- 在连接上开启 WAL 与 `synchronous=NORMAL`
-- 通过 `execute_with_retry()` 处理 `database is locked`
-- 初始化核心表与迁移
-- 引导索引运行时 schema
-
-核心表包括：
-
-| 表名 | 作用 |
-| --- | --- |
-| `card_metadata` | 角色卡元数据索引 |
-| `folder_structure` | 文件夹结构缓存 |
-| `ui_data_cache` | 卡片 UI 关联信息缓存 |
-| `wi_clipboard` | 世界书剪贴板 |
-
-索引运行时 schema 由 `core/data/index_runtime_store.py` 创建，主要包括：
-
-| 表名 | 作用 |
-| --- | --- |
-| `index_schema_state` | schema 状态 |
-| `index_build_state` | cards / worldinfo 索引构建状态 |
-| `index_entities_v2` | 索引实体投影 |
-| `index_entity_tags_v2` | 索引标签投影 |
-| `index_search_fast_v2` | FTS5 快速搜索索引 |
-| `index_search_full_v2` | FTS5 全文搜索索引 |
-| `index_category_stats_v2` | 分类统计 |
-| `index_facet_stats_v2` | Facet 统计 |
-| `index_jobs` | 索引任务队列表 |
-
-### 7.2 JSON 辅助存储
-
-| 文件 | 模块 | 作用 |
-| --- | --- | --- |
-| `data/system/db/ui_data.json` | `core/data/ui_store.py` | 标签体系、隔离分类、资源分类覆盖、世界书备注、美化库、共享壁纸等 UI 数据 |
-| `data/system/db/chat_data.json` | `core/data/chat_store.py` | 聊天收藏、备注、显示名、书签、阅读位置等本地元数据 |
-
-这些 JSON 文件由各自 store 模块负责规范化读写，不建议在其他模块中直接手写结构。
-
----
-
-## 8. 测试
-
-### 8.1 安装
+### 初始化
 
 ```bash
+python -m venv .venv
+
+# Windows PowerShell
+.\\.venv\\Scripts\\Activate.ps1
+
+# macOS / Linux
+# source .venv/bin/activate
+
 pip install -r requirements.txt
 pip install pytest
 ```
 
-### 8.2 常用命令
+## 启动链路
+
+入口是 `app.py`：
+
+1. 解析 `--debug`、`--host`、`--port`。
+2. 创建/读取根目录 `config.json`，再创建运行时目录。
+3. 检查监听端口是否被占用。
+4. 在 daemon 线程中启动 `init_services()`，避免数据库扫描阻塞 Flask 页面启动。
+5. 通过 `core.create_app()` 创建 Flask 应用，注册 API 蓝图、页面蓝图和认证钩子。
+6. 非 debug 模式下自动打开浏览器；debug 模式只在 Werkzeug 子进程启动后台服务。
+
+`init_services()` 的顺序是：清理 `data/temp`、初始化/迁移 SQLite、恢复或引导索引、加载内存缓存、启动文件扫描器、启动索引任务 worker、启动来源更新监控调度器，最后把全局状态切换为 `ready`。
+
+## 项目结构
+
+```text
+app.py                         # CLI 启动入口
+core/
+├─ __init__.py                 # create_app / init_services
+├─ config.py                   # 配置默认值、路径解析和归一化
+├─ context.py                  # 全局运行时状态、锁和队列
+├─ auth.py                     # 可选外网认证、白名单和失败限流
+├─ api/
+│  ├─ views.py                 # 首页、预览资源页面
+│  └─ v1/                      # Flask 业务蓝图
+├─ data/                       # SQLite、UI 数据、聊天和索引存储
+├─ services/                   # 文件扫描、缓存、索引、同步和业务服务
+├─ automation/                 # 规则引擎、动作执行、模板和标签合并
+└─ utils/                      # 图片、路径、解析、哈希和纯函数工具
+templates/                     # Jinja 页面、组件和模态框
+static/
+├─ js/api/                     # 浏览器端 API 封装
+├─ js/components/              # Alpine 页面组件和编辑器
+├─ js/runtime/                 # 聊天/预览 iframe 运行时
+├─ css/                        # Tailwind 产物和模块样式
+├─ icons/                      # SVG 精灵及独立图标
+└─ vendor/sillytavern/         # 隔离的 ST 预览资源
+tests/                         # pytest、Node runtime 和前端契约测试
+docs/                          # API、配置、开发和设计说明
+```
+
+## 后端边界
+
+### Flask 工厂和蓝图
+
+所有页面和业务接口都在 `create_app()` 中注册。新增 HTTP 功能时：
+
+- 页面入口放到 `core/api/views.py` 或新的页面蓝图。
+- 业务 API 放到 `core/api/v1/` 的对应蓝图中。
+- 解析、持久化和外部服务调用放到 `core/services/`，不要把长业务流程塞进路由函数。
+- 纯粹的路径、文本、解析和转换逻辑放到 `core/utils/`。
+- 返回 JSON 错误时使用结构化字段，不把 Python traceback 返回给浏览器。
+
+当前主要蓝图如下：
+
+| 蓝图 | 负责范围 |
+| --- | --- |
+| `cards` | 角色卡、标签、文件夹、上传、来源更新 |
+| `world_info` | 全局/资源/内嵌世界书、编辑、历史和剪贴板 |
+| `chats` | JSONL 聊天索引、范围读取、阅读和绑定 |
+| `presets` | 预设、扩展、版本和 SillyTavern 发送 |
+| `extensions` / `resources` | 扩展脚本、角色资源和静态文件 |
+| `beautify` | 主题包、变体、壁纸、头像和预览 |
+| `automation` | 规则集、条件、动作和批量执行 |
+| `st_sync` | SillyTavern 本地/API 连接和资源同步 |
+| `system` | 状态、设置、扫描、索引、快照、备份和维护 |
+| `forum` | 来源论坛帖子预览 |
+
+### 数据流
+
+```text
+浏览器 Alpine 组件
+        │  fetch JSON / FormData
+        ▼
+Flask Blueprint 路由
+        │  参数校验、路径安全、权限边界
+        ▼
+Service / Automation / STClient
+        ├─ 文件系统：卡片、世界书、聊天、预设、扩展、主题
+        ├─ SQLite：元数据、UI 关联、索引、任务、监控运行
+        └─ 内存状态：ctx.cache、初始化状态、索引唤醒事件
+        ▼
+JSON 响应、下载流或静态资源
+```
+
+### SQLite 约定
+
+- 请求上下文内通过 `core.data.db_session.get_db()` 获取连接。
+- 连接启用 WAL 和 `synchronous=NORMAL`，请求结束由 Flask teardown 关闭。
+- 可能遇到锁的写入使用 `execute_with_retry()` 或业务已有的重试/锁封装。
+- 所有查询使用参数化 SQL；不要拼接用户输入。
+- 数据库初始化和迁移集中在 `init_database()` 及对应的数据模块。
+- 索引采用代际构建：卡片和世界书索引可以后台重建，任务由 daemon worker 消费并记录状态。
+
+### 文件系统安全
+
+文件接口必须先规范化相对路径，再验证目标位于允许根目录内。删除优先移动到 `data/system/trash`，不要直接 `os.remove()` 绕过回收站、UI 关联和索引清理。绝对资源根只有在 `allowed_abs_resource_roots` 或已有资源绑定允许时才可访问。
+
+## 前端开发
+
+### 入口和组件
+
+`static/js/app.js` 初始化全局状态并注册 Alpine 组件；`static/js/state.js` 维护跨工作区状态。页面组件按领域拆分：
+
+- `cardGrid.js`、`detailModal.js`：角色卡网格和详情编辑。
+- `wiGrid.js`、`wiEditor.js`、`wiDetailPopup.js`：世界书列表、编辑器和预览。
+- `chatGrid.js`：聊天列表、阅读器、范围加载、书签和变量快照。
+- `presetGrid.js`、`presetEditor.js`、`presetDetailReader.js`：预设列表、编辑器和阅读器。
+- `extensionGrid.js`、`automationModal.js`、`beautifyGrid.js`：扩展、自动化和 Beautify。
+- `runtime/`：隔离的 HTML/Markdown/脚本/聊天预览运行时。
+
+与后端交互的函数集中在 `static/js/api/`；新增请求时优先在对应 API 模块添加封装，再由组件调用。模板图标使用 `templates/components/icon.html` 的宏和 `static/icons/*.svg` 精灵，不要复制 SVG path。
+
+### CSS
+
+源文件是 `static/css/tailwind-input.css` 和模块 CSS；压缩后的 `static/css/tailwind.css` 由 Tailwind 生成。聊天和 Beautify 的样式分别位于 `static/css/modules/view-chats.css`、`static/css/modules/view-beautify.css` 及其局部文件。
 
 ```bash
-# 全量
+npm install
+npm run build:css
+```
+
+手动调整模块样式后，应确认桌面、窄屏和移动端布局，以及深色/浅色主题下的文本、图标和弹窗状态。
+
+## 测试
+
+### Python
+
+```bash
 pytest tests/
-
-# 单文件
-pytest tests/test_st_auth_flow.py
-
-# 单用例
-pytest tests/test_st_auth_flow.py::test_st_http_client_web_performs_login
-
-# 详细输出
-pytest -v tests/test_chat_list_filters.py::test_chat_list_fav_filter_included
+pytest -q tests/test_st_auth_flow.py
+pytest -q tests/test_settings_api.py tests/test_st_path_safety.py
+pytest -q tests/test_index_schema.py tests/test_index_job_worker.py
 ```
 
-### 8.3 覆盖面
+### 前端和运行时
 
-当前 `tests/` 已覆盖多个层面：
-
-- API 行为测试
-- 服务层与存储层测试
-- 配置启动测试
-- 索引状态与任务测试
-- 路径安全与 ST 认证测试
-- 前端模板契约测试
-- 聊天阅读器 / 预设编辑器 / 美化预览等前端契约测试
-
-仓库中还包含部分 `.mjs` 运行时回归脚本，主要用于专项验证前端行为。
-
-缩略图维护服务位于 `core/services/maintenance_service.py`，HTTP 入口位于
-`core/api/v1/system.py`。根目录 `clean_ui_data.py` 不依赖 Flask，适合在应用未启动时对
-`ui_data.json` 做 dry-run 或带备份清理。它会根据 `config.json` 中的目录配置检查卡片、世界书、预设、美化资源和共享壁纸引用。
-
-布局相关改动应同时检查 `static/js/components/layout.js`、
-`static/css/modules/layout.css` 以及头部、侧边栏模板。设备类型由视口宽度驱动，切换到
-移动端时关闭抽屉，恢复到平板或桌面宽度时重新显示桌面侧边栏，避免浏览器缩放后状态残留。
-
----
-
-## 9. 常用开发命令
+仓库中还有 Node `.mjs` 测试以及读取模板/JavaScript 源码的契约测试。可直接执行：
 
 ```bash
-# 启动应用
-python app.py
-
-# Debug 模式
-python app.py --debug
-
-# 黑格式化（可选）
-black app.py core tests
-
-# flake8（可选）
-flake8 app.py core tests
-
-# mypy（可选）
-mypy core
-
-# 预览 UI 数据清理
-python clean_ui_data.py --dry-run
+node tests/chat_reader_variable_merge_test.mjs
+node tests/tag_filter_modal_blacklist_regression_test.mjs
 ```
 
----
+新增行为时，优先补充对应服务/API 测试；涉及模板、图标、Alpine 状态或 iframe 预览时，同时更新前端契约测试。
 
-## 10. 开发约定
+## 调试与常见检查
 
-### 10.1 Python
+```bash
+python app.py --debug
+python -m core.auth
+python -m core.auth --set-auth <username> <password>
+python -m core.auth --add-ip <ip-or-cidr-or-domain>
+```
 
-- 导入顺序：标准库、第三方、本地模块
-- 命名：`PascalCase`、`snake_case`、`UPPER_CASE`
-- Blueprint 对象通常命名为 `bp`
-- 对文件系统、网络、JSON、子进程操作使用显式错误处理
-- 日志统一使用 `logging.getLogger(__name__)`
+检查启动状态：
 
-### 10.2 数据与路径
+```bash
+curl http://127.0.0.1:5000/api/status
+curl http://127.0.0.1:5000/api/index/status
+```
 
-- SQL 必须参数化，避免拼接 SQL
-- 写操作优先通过 `execute_with_retry()` 处理锁冲突
-- 路径写入存储前统一转为 `/`
-- 修改资源 / 配置路径时要注意路径安全检查逻辑
+如果页面停留在初始化遮罩，先查看 `/api/status`，再检查 `data/system/db/cards_metadata.db` 是否可写、索引任务是否报错、配置目录是否有效。不要通过删除数据库解决普通数据问题；优先使用扫描、索引重建、备份和回滚能力。
 
-### 10.3 编辑策略
+## Docker 与桌面打包
 
-- 优先做小而准的改动
-- 跟随现有模块边界，不随意引入新的框架层
-- 改动角色卡、世界书、预设、聊天等核心流程时，优先补充或更新对应测试
+### Docker
 
----
+```bash
+docker compose up --build
+```
 
-## 11. 文档与排查建议
+镜像使用 Python 3.10 slim，安装 Pillow 所需的系统库，暴露 5000 端口。Compose 中的 `init-config` 服务只负责在工作区生成配置，主服务挂载 `./data` 和 `./config.json`。
 
-- API 变更优先同步 `docs/API.md`
-- 配置字段或 Docker 行为变更优先同步 `docs/CONFIG.md`
-- 启动链路、数据层或目录结构变更优先同步本文件
+### PyInstaller
 
-排查问题时建议按以下顺序：
+`.github/workflows/build-desktop.yml` 会在 Windows、macOS arm64 和 macOS x86_64 上安装依赖并把 `templates/`、`static/` 一并打包。修改资源路径或新增静态目录时，需要同步检查 `--add-data` 参数和 PyInstaller frozen 路径逻辑。
 
-1. 先确认配置是否正确加载
-2. 再看 `ctx` 状态、扫描状态与索引状态
-3. 再看具体 API / 服务层日志
-4. 最后补充或运行针对性的 pytest 用例
+标签以 `v*` 发布时，Docker workflow 会构建并推送 GHCR 镜像；桌面构建 workflow 还支持手动触发。
+
+## 代码风格与提交边界
+
+- Python 使用 4 空格、绝对导入和小范围改动；导入顺序为标准库、第三方、本地模块。
+- API、服务、数据层保持单向依赖，避免在模块顶层制造循环导入。
+- 用户可见文字优先保持中文；技术标识符、函数名和模块名使用英文。
+- 新增文件读写、JSON、网络和子进程操作时处理具体异常并记录日志。
+- 路径、SQL、认证和同步相关改动必须补安全边界测试。
+- 不要把 `config.json`、`data/`、运行时 DB、Token、Cookie 和个人资源写入提交。

@@ -1,409 +1,356 @@
-# ST-Manager
+# ST Manager
 
-<div align="center">
-
-**面向 SillyTavern 的本地资源管理与同步工具**
-
-[![Python](https://img.shields.io/badge/Python-3.10%2B-blue)](https://www.python.org/downloads/)
-[![Flask](https://img.shields.io/badge/Flask-2.0%2B-green)](https://flask.palletsprojects.com/)
-[![SQLite](https://img.shields.io/badge/SQLite-local%20first-0f766e)](https://www.sqlite.org/)
-[![Docker](https://img.shields.io/badge/Docker-Compose-2496ed)](https://docs.docker.com/compose/)
-
-角色卡、聊天记录、世界书、预设、扩展脚本、主题美化和自动化规则的一站式管理面板。
-
-</div>
+> 面向 SillyTavern 创作者的本地资源工作台：集中管理角色卡、世界书、聊天记录、预设、扩展脚本和视觉主题。
 
 <p align="center">
-  <img src="docs/screenshots/hero.png" alt="ST-Manager 主界面" width="900">
+  <img src="static/images/brand/stm-lockup.png" alt="ST Manager" width="180">
 </p>
 
-
----
+<p align="center">
+  <a href="https://www.python.org/"><img src="https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white" alt="Python 3.10+"></a>
+  <a href="https://flask.palletsprojects.com/"><img src="https://img.shields.io/badge/Flask-2.x%2B-000000?logo=flask&logoColor=white" alt="Flask"></a>
+  <a href="https://www.sqlite.org/"><img src="https://img.shields.io/badge/SQLite-local--first-003B57?logo=sqlite&logoColor=white" alt="SQLite"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-EF5350" alt="AGPL-3.0 license"></a>
+</p>
 
 ## 项目定位
 
-ST-Manager 是一个本地优先的 SillyTavern 资源管理器。它通过 Flask 提供 Web 管理界面，用 SQLite 建立索引与本地元数据层，配合文件系统监听把角色卡、世界书、聊天记录、预设和扩展脚本统一整理到一个可搜索、可编辑、可同步的工作台里。
+ST Manager 是一个以本地文件为主、SQLite 元数据为辅的 SillyTavern 资源管理器。它适合需要长期维护大量角色卡、世界书、聊天、预设和扩展资源的个人创作者工作流。
 
-适合这些场景：
+项目提供统一的浏览、搜索、筛选、编辑、预览、导入、导出、同步和恢复入口。资源仍然保存在本地目录中，管理器只负责建立索引、维护界面数据和提供工作台能力。
 
-- 本地资源很多，需要按目录、标签、收藏、来源和时间快速筛选
-- 想在浏览器里编辑角色卡、世界书、预设和扩展脚本
-- 需要把本地资源和 SillyTavern 之间做导入、同步或发送
-- 想对资源做批量标签治理、分类整理、自动化命名和规则处理
-- 希望在桌面端和移动端都能管理自己的 ST 资源库
+## 功能总览
 
----
+<table>
+  <tr>
+    <td valign="top" width="33%">
+      <img src="docs/readme-icons/character-cards.svg" alt="角色卡库" width="24" height="24">
+      <strong>角色卡库</strong><br>
+      PNG/JSON 卡片、内嵌世界书、聚合包、版本封面、资源皮肤、收藏、标签、批量操作和来源更新监控。
+    </td>
+    <td valign="top" width="33%">
+      <img src="docs/readme-icons/book-open.svg" alt="世界书工作台" width="24" height="24">
+      <strong>世界书工作台</strong><br>
+      全局、资源绑定和角色卡内嵌世界书统一浏览，支持预览、编辑、历史、剪贴板、导出和发送到 ST。
+    </td>
+    <td valign="top" width="33%">
+      <img src="docs/readme-icons/chat-bubble.svg" alt="聊天阅读器" width="24" height="24">
+      <strong>聊天记录</strong><br>
+      JSONL 聊天导入、元数据、角色卡绑定、全文搜索、范围加载、书签、楼层定位和沉浸式阅读。
+    </td>
+  </tr>
+  <tr>
+    <td valign="top">
+      <img src="docs/readme-icons/preset.svg" alt="预设编辑器" width="24" height="24">
+      <strong>预设浏览与编辑</strong><br>
+      OpenAI 兼容预设、提示词序列、采样参数、扩展脚本、版本合并、快照、差异和 ST 同步。
+    </td>
+    <td valign="top">
+      <img src="docs/readme-icons/paint-brush.svg" alt="Beautify 视觉库" width="24" height="24">
+      <strong>Beautify 美化包</strong><br>
+      主题包、变体、设置、壁纸、头像、截图和隔离预览，支持将主题发送到 SillyTavern。
+    </td>
+    <td valign="top">
+      <img src="docs/readme-icons/settings-gear.svg" alt="设置与系统" width="24" height="24">
+      <strong>扩展、自动化与系统</strong><br>
+      Regex/ST Helper、高级规则、文件监听、索引、快照、回收站、路径安全和 SillyTavern 连接。
+    </td>
+  </tr>
+</table>
 
-## 功能概览
+## 界面展示
 
-| 模块 | 能力 |
-| --- | --- |
-| 角色卡管理 | 浏览 PNG / JSON 角色卡，查看详情，编辑元数据，替换头像，管理 Bundle 多版本、来源链接、本地备注和资源目录，支持批量导入、删除、移动、收藏与标签处理 |
-| 聊天记录 | 导入 `.jsonl` 聊天，绑定角色，全文搜索，收藏楼层，分段读取，沉浸式阅读与保存；支持楼层编辑、批量拖拽导入和正则 / 预设规则合并 |
-| 世界书 | 管理全局、资源目录和角色内嵌世界书，支持分类、搜索、编辑、导出、发送到 ST、条目历史，以及与 SillyTavern 对齐的排序和持久化 |
-| 预设 | 上传、分类、编辑、导出、发送预设到 ST，支持版本家族、默认版本和扩展字段维护 |
-| 扩展脚本 | 统一管理 Regex、Tavern Helper 脚本和 Quick Replies，支持全局目录与资源绑定目录 |
-| 自动化规则 | 通过规则集批量执行标签、重命名、分类、模板、论坛标签抓取和来源更新基线刷新等操作 |
-| 美化库 | 管理 SillyTavern 主题 JSON、壁纸、头像、截图与变体，支持 PC / 移动端预览和发送到 ST |
-| ST 同步 | 检测 ST 连接和数据目录，列出角色、聊天、世界书、预设、Regex、Quick Replies 并同步到本地 |
-| 来源联动 | 通过 Discord / 类脑来源链接查看帖子预览，检查来源标题和首帖编辑时间是否更新 |
-| 系统工具 | 自动扫描、手动重建索引、快照备份、回收站、缩略图清理、共享壁纸、剪贴板分流导入、外网访问认证和路径安全检查 |
+桌面端和移动端使用同一套资源模型与 API。移动端不是另一套功能，而是针对窄屏重新组织导航、工具栏、详情面板和阅读区域。
 
----
+### PC 端
 
-## 核心特色
+下面的截图按用户实际使用流程排列：先找到资源，再打开详情或编辑器，最后同步、自动化或调整系统设置。
 
-### 本地资源可视化
+#### 1. 工作区总览与资源导航
 
-- 多资源类型共用一套浏览、搜索、分类与详情查看体验
-- 角色卡支持名称、文件名、标签、作者、Token、导入时间、修改时间等维度筛选
-- 角色资源目录支持子目录遍历、皮肤画廊、Regex / 预设 / 其他资源分类和资源删除
-- 世界书、预设、扩展脚本可区分全局目录、资源目录和内嵌来源
-- 缩略图、背景图、笔记图片和角色资源目录通过资源服务统一访问
+<p align="center">
+  <img src="docs/screenshots/hero.png" alt="PC 端工作区总览" width="100%">
+</p>
 
-### 和 SillyTavern 深度联动
+顶部工具栏承载工作区切换、导入、批量动作、收藏、搜索、排序、主题和系统入口；左侧导航显示资源文件夹、分类计数和标签索引，主区域负责卡片或条目展示。
 
-- 支持配置 ST Web 地址和 ST 数据目录
-- 可配置 `data/<用户目录>` 的实际用户名；未填写时使用 `default-user`
-- 支持 Basic / Web 登录等 ST 认证字段归一化
-- 可从 ST 侧列出并同步角色、聊天、世界书、预设、Regex 和 Quick Replies
-- 可把角色卡、世界书、预设和主题美化包发送回 SillyTavern
-- Docker 场景内置 `host.docker.internal`，便于容器访问宿主机 ST 服务
+#### 2. 角色卡列表
 
-### 类脑来源与更新检查
+<p align="center">
+  <img src="docs/screenshots/feature-cards.png" alt="PC 端角色卡列表" width="100%">
+</p>
 
-- 角色卡填写可解析的 Discord `channels` 来源链接后，可从卡片操作区打开「类脑搜索」帖子只读预览
-- 预览展示帖子标题、作者、时间、标签、回复 / 反应 / 浏览统计、简介和多图轮播，不会直接修改本地卡片
-- 卡片列表和详情页都可以检查来源更新，对比来源标题与首帖编辑时间，并保存本地检查状态
-- 第一次检查会建立来源基线；如果来源首帖晚于本地卡片会直接提示首次更新，后续检查可区分标题变化、首帖内容更新、两者同时变化和未变化
-- 自动化规则支持论坛标签抓取与「刷新来源更新基线」，角色卡实际更新后也可同步刷新来源标题和基线
+- 支持 PNG/JSON 角色卡和角色卡内嵌数据。
+- 支持文件夹、递归分类、收藏置顶、分页、排序和随机卡片。
+- 支持从 URL 导入、批量导入、卡片移动、删除到回收站和资源目录检查。
+- 卡片网格会显示 Token、版本/聚合包状态、标签和快捷操作。
 
-类脑帖子预览使用独立的 `shimmerday_forum_cookie`；来源更新检查和论坛标签抓取使用 Discord Token 或 Cookie。凭据配置和来源链接要求见[配置速览](#配置速览)与 [docs/CONFIG.md](docs/CONFIG.md)。
+#### 3. 角色卡详情页与编辑工作台
 
-### 角色详情与聊天工作台
+<p align="center">
+  <img src="docs/screenshots/gallery-cards-detail.png" alt="PC 端角色卡详情工作台" width="100%">
+</p>
 
-- 角色详情页将人格设定、作者注释、系统提示词和后历史指令拆分为可编辑、可隐藏和可预览的字段
-- 默认开场白和备用开场白支持切换、编辑、Markdown 预览、增加、删除和拖拽排序，对话示例可单独查看
-- 本地备注支持 Markdown 预览和粘贴图片；角色资源可通过皮肤、Regex、预设和其他资源面板统一管理
-- 聊天阅读器支持楼层导航、收藏、编辑、批量查找替换、显示规则预览，以及从系统选择并合并 Regex / 预设规则
-- 在非编辑输入控件中粘贴文件或 URL 时，会自动识别并分流到角色卡、世界书、预设、聊天或扩展导入流程
+详情工作台将卡片内容拆成多个面板，包含基础信息、对话/开场白、标签、世界书、聊天、管理和资源等区域。可以编辑本地备注、描述和元数据，切换卡片图片或皮肤，管理内嵌世界书与聊天，并通过保存、快照和版本封面保护修改结果。
 
-### 高效索引与文件监听
+#### 4. 搜索、筛选与标签工作台
 
-- 启动时自动初始化 SQLite、执行索引升级恢复、加载缓存
-- `watchdog` 监听文件系统变化，让资源改动同步到数据库
-- 支持手动扫描、索引重建、角色卡索引和世界书索引开关
-- 大资源库场景下可通过分页、窗口化渲染和索引查询减轻前端压力
+<p align="center">
+  <img src="docs/screenshots/hero.png" alt="PC 端搜索筛选和标签入口" width="100%">
+</p>
 
-### 批量处理与自动化
+- 支持混合搜索、名称、文件名、标签和创建者搜索。
+- 支持快速索引搜索与全文搜索，以及当前目录、所有目录和完整范围。
+- 支持包含标签、排除标签、收藏过滤、Token 范围和导入/修改日期范围。
+- 标签工作台支持标签顺序、分类、颜色、隔离分类、批量增删和合并预览。
 
-- 批量上传使用暂存和提交两阶段流程，便于处理冲突
-- 支持批量打标签、删标签、标签合并预览和标签分类体系
-- 自动化规则集支持导入、导出、全局默认设置和手动执行
-- 可将文件命名、分类、标签拆分、论坛标签同步、来源基线刷新等流程固化为规则
+> PC 截图占位：标签工作台独立面板。建议后续补充为 `docs/screenshots/desktop-tag-workbench.png`。
 
-### 移动端可用
+#### 5. 世界书浏览
 
-- 侧边栏在移动端切换为抽屉式导航
-- 角色卡、聊天、世界书、设置等核心页面都有移动端适配
-- 触控场景保留分类、搜索、详情、编辑和常用批量操作入口
+<p align="center">
+  <img src="docs/screenshots/feature-wi.png" alt="PC 端世界书列表" width="100%">
+</p>
 
----
+世界书列表区分全局目录、角色卡资源目录和角色卡内嵌世界书。可以按来源、分类、递归目录、名称和内容筛选，查看条目数量、来源路径、修改时间，并直接进入详情或编辑器。
 
-## 截图
+#### 6. 世界书编辑器与阅览
 
-### 主功能展示
+<p align="center">
+  <img src="docs/screenshots/gallery-wi-editor.png" alt="PC 端世界书编辑器" width="100%">
+</p>
 
-| 角色卡 | 聊天阅读 |
-| --- | --- |
-| <img src="docs/screenshots/feature-cards.png" alt="角色卡管理" width="420"> | <img src="docs/screenshots/feature-chats.png" alt="聊天阅读器" width="420"> |
+- 编辑条目备注、关键词、内容、策略、插入位置、顺序和递归设置。
+- 管理启用状态、概率、Token 计数、深度和高级逻辑。
+- 支持条目搜索、预览、历史版本、剪贴板、重排和批量处理。
+- 独立世界书可以保存、导出、迁移和发送到 SillyTavern；内嵌世界书保留与角色卡的绑定关系。
 
-| 世界书 | 预设 |
-| --- | --- |
-| <img src="docs/screenshots/feature-wi.png" alt="世界书管理" width="420"> | <img src="docs/screenshots/feature-presets.png" alt="预设管理" width="420"> |
+#### 7. 聊天记录管理
 
-| 自动化 | 扩展脚本 |
-| --- | --- |
-| <img src="docs/screenshots/feature-automation.png" alt="自动化规则" width="420"> | <img src="docs/screenshots/feature-scripts.png" alt="扩展脚本" width="420"> |
+<p align="center">
+  <img src="docs/screenshots/feature-chats.png" alt="PC 端聊天记录列表" width="100%">
+</p>
 
-### 更多界面
+聊天工作区读取 JSONL 对话文件，按已绑定角色卡、未绑定记录和目录组织内容。列表显示消息数量、起止楼层、导入时间和角色信息，支持导入、搜索、修改元数据、绑定角色卡和移入回收站。
 
-| 角色详情 | 世界书编辑 | 设置 |
-| --- | --- | --- |
-| <img src="docs/screenshots/gallery-cards-detail.png" alt="角色详情" width="280"> | <img src="docs/screenshots/gallery-wi-editor.png" alt="世界书编辑" width="280"> | <img src="docs/screenshots/gallery-settings.png" alt="设置界面" width="280"> |
+#### 8. 聊天阅读器
 
-| 移动端角色卡 | 移动端聊天 | 移动端设置 |
-| --- | --- | --- |
-| <img src="docs/screenshots/mobile-cards.png" alt="移动端角色卡" width="240"> | <img src="docs/screenshots/mobile-chat-reader.png" alt="移动端聊天" width="240"> | <img src="docs/screenshots/mobile-settings.png" alt="移动端设置" width="240"> |
+<p align="center">
+  <img src="docs/screenshots/gallery-chat-reader.png" alt="PC 端聊天阅读器" width="100%">
+</p>
 
-### 设置、维护与响应式界面
+阅读器提供楼层导航、搜索、书签、锁定阅读位置、分页加载、前后页切换、实例/编辑入口和本地备注。对带有自定义 HTML/CSS 的聊天内容，会在隔离的阅读区域中呈现，便于长对话回看。
 
-| 设置与维护 | 移动端导航 |
-| --- | --- |
-| <img src="docs/screenshots/gallery-settings.png" alt="设置与维护" width="420"> | <img src="docs/screenshots/mobile-sidebar.png" alt="移动端导航" width="420"> |
+#### 9. 预设浏览
 
-| 移动端资源列表 | 移动端设置 |
-| --- | --- |
-| <img src="docs/screenshots/mobile-cards.png" alt="移动端资源列表" width="420"> | <img src="docs/screenshots/mobile-settings.png" alt="移动端设置" width="420"> |
+<p align="center">
+  <img src="docs/screenshots/feature-presets.png" alt="PC 端预设列表" width="100%">
+</p>
 
-设置页提供缩略图缓存清理入口，只删除磁盘上已经找不到对应原图的 WebP 缓存；需要批量清理界面数据时，可在项目根目录运行 `clean_ui_data.py`，工具会先备份 `ui_data.json`。
+预设列表展示预设来源、版本、Token 上限、提示词数量和 Regex 数量，支持全局预设、资源绑定预设、分类文件夹、上传、移动、重置、导出以及发送到 SillyTavern。
 
----
+#### 10. 预设编辑器
+
+<p align="center">
+  <img src="docs/screenshots/gallery-preset-detail.png" alt="PC 端预设编辑器" width="100%">
+</p>
+
+编辑器支持采样参数、模板、提示词上下文序列、系统消息、Chat Examples、Chat History、World Info 前后插入、开关状态和高级脚本等内容。修改可以保存为预设版本，并配合快照、版本导入、合并和默认版本管理。
+
+#### 11. Beautify 美化包与主题
+
+> PC 截图占位：Beautify 包列表、主题变体和资源预览。建议后续补充为 `docs/screenshots/desktop-beautify.png`。
+
+Beautify 工作区用于管理主题包的身份信息、包头像、PC/移动端变体、主题设置、局部壁纸、全局壁纸、全局头像和截图。每个包可以独立预览资源，修改后再发送到 SillyTavern，避免直接覆盖原始主题文件。
+
+#### 12. 高级扩展：Regex 与 ST Helper
+
+<p align="center">
+  <img src="docs/screenshots/feature-scripts.png" alt="PC 端 Regex 与 ST Helper 编辑器" width="100%">
+</p>
+
+高级扩展编辑器包含 Regex 和 ST Helper 两类脚本，支持查找、替换、删除字符串、大小写、转义模式、作用位置、深度限制、启用开关和实时测试 playground。脚本可以按全局目录管理，并通过预设或 SillyTavern 工作流使用。
+
+#### 13. 自动化规则工作台
+
+<p align="center">
+  <img src="docs/screenshots/gallery-automation.png" alt="PC 端自动化规则编辑器" width="100%">
+</p>
+
+- 以 IF/THEN 方式组合条件组和动作。
+- 条件支持 OR/AND、包含/不包含、多值匹配以及角色卡、世界书、脚本等目标字段。
+- 动作支持添加、删除、重命名标签及其他批量资源操作。
+- 支持规则集、全局规则、执行预览、规则导入导出和目标选择。
+
+#### 14. 系统设置
+
+<p align="center">
+  <img src="docs/screenshots/gallery-settings.png" alt="PC 端系统设置" width="100%">
+</p>
+
+设置页覆盖常规路径、主题与视觉、连接与服务、维护与高级四类内容，包括角色卡/世界书/聊天/预设目录、SillyTavern 地址和认证、代理、深色模式、强调色、字体、卡片尺寸、壁纸、分页、自动保存、自动扫描和索引开关。
+
+#### 15. 同步、索引、快照与安全维护
+
+> PC 截图占位：SillyTavern 同步、索引状态、快照和回收站维护流程。建议后续补充为 `docs/screenshots/desktop-system-maintenance.png`。
+
+系统维护能力包括本地目录探测、SillyTavern HTTP 连接测试、角色卡/聊天/世界书/预设/Regex/Quick Replies 同步，watchdog 文件监听，SQLite 索引重建，手动和自动快照，数据库备份、回收站和路径安全检查。角色卡来源更新监控还可以建立检查目标、运行批量检查并确认来源版本。
+
+### 移动端
+
+移动端与 PC 端对应同一组工作区。截图使用真实移动端页面；当前没有专属截图的功能保留文字占位，后续可以按建议路径补入。
+
+#### 1. 工作区总览与资源导航
+
+<p align="center">
+  <img src="docs/screenshots/mobile-sidebar.png" alt="移动端工作区导航" width="320">
+</p>
+
+移动端将工作区标签、搜索、导入和侧边栏折叠到窄屏顶部，侧边栏展开后仍可在角色卡、世界书、聊天、预设、Regex 和 ST 脚本之间切换。
+
+#### 2. 角色卡列表
+
+<p align="center">
+  <img src="docs/screenshots/mobile-cards.png" alt="移动端角色卡列表" width="320">
+</p>
+
+角色卡列表保留搜索、收藏、分页、卡片网格和快速编辑入口，并通过两列卡片布局适配手机宽度。
+
+#### 3. 角色卡详情页与编辑工作台
+
+<p align="center">
+  <img src="docs/screenshots/mobile-card-detail.png" alt="移动端角色卡详情工作台" width="320">
+</p>
+
+详情页将图片工具栏、面板导航、本地备注、描述和其他字段纵向排列；图片缩放、保存、标签、世界书、聊天、管理和资源入口仍然与 PC 端保持对应。
+
+#### 4. 搜索、筛选与标签工作台
+
+> 移动端截图占位：筛选抽屉、标签筛选、批量标签和标签合并面板。建议后续补充为 `docs/screenshots/mobile-tag-filter.png`。
+
+移动端会把桌面端的顶部筛选控件收纳为抽屉或弹层，保留搜索范围、标签包含/排除、收藏、Token 和日期筛选；标签编辑、颜色和批量操作在窄屏下改为纵向表单。
+
+#### 5. 世界书浏览
+
+> 移动端截图占位：世界书来源筛选和列表浏览。建议后续补充为 `docs/screenshots/mobile-world-info.png`。
+
+移动端世界书浏览保留全局、资源绑定和内嵌来源切换，列表卡片显示名称、来源和更新时间，详情入口进入同一世界书阅读/编辑工作流。
+
+#### 6. 世界书编辑器与阅览
+
+<p align="center">
+  <img src="docs/screenshots/mobile-wi-editor.png" alt="移动端世界书编辑器" width="320">
+</p>
+
+编辑器将条目内容、关键词、策略、递归和高级设置组织为可滚动区域，并保留保存、导出、历史、剪贴板、条目搜索和前后条目导航。
+
+#### 7. 聊天记录管理
+
+> 移动端截图占位：聊天记录列表、绑定筛选和导入入口。建议后续补充为 `docs/screenshots/mobile-chats.png`。
+
+移动端聊天列表沿用已绑定/未绑定分类、消息数量、导入和搜索能力；较宽的元数据显示为可折叠详情，避免占用列表主区域。
+
+#### 8. 聊天阅读器
+
+<p align="center">
+  <img src="docs/screenshots/mobile-chat-reader.png" alt="移动端聊天阅读器" width="320">
+</p>
+
+阅读器在手机上将工具、搜索、导航、整页实例和阅读模式集中到顶部操作区，楼层分页和锁定阅读位置独立呈现，正文区域保持连续滚动。
+
+#### 9. 预设浏览
+
+> 移动端截图占位：预设列表、分类和搜索。建议后续补充为 `docs/screenshots/mobile-presets.png`。
+
+移动端预设浏览保留预设来源、版本、Token、提示词和 Regex 统计，并将分类、上传、导出和发送到 ST 收纳到顶部菜单或抽屉。
+
+#### 10. 预设编辑器
+
+> 移动端截图占位：预设采样参数、提示词序列和扩展脚本编辑器。建议后续补充为 `docs/screenshots/mobile-preset-editor.png`。
+
+预设编辑器在移动端将采样参数、提示词块、系统消息和脚本区块纵向排列，提示词开关、排序、版本保存和恢复功能保持与 PC 端一致。
+
+#### 11. Beautify 美化包与主题
+
+> 移动端截图占位：Beautify 包列表、移动端变体和主题预览。建议后续补充为 `docs/screenshots/mobile-beautify.png`。
+
+移动端 Beautify 工作区重点呈现移动端变体、壁纸、头像、主题设置和预览结果；PC/移动端变体仍由同一个主题包统一管理。
+
+#### 12. 高级扩展：Regex 与 ST Helper
+
+> 移动端截图占位：Regex/ST Helper 脚本编辑和实时测试。建议后续补充为 `docs/screenshots/mobile-scripts.png`。
+
+脚本编辑器在手机上将查找、替换、删除、作用位置、深度和 playground 改为纵向布局，保存和完成操作固定在易于触达的位置。
+
+#### 13. 自动化规则工作台
+
+> 移动端截图占位：自动化规则集、条件组和动作编辑。建议后续补充为 `docs/screenshots/mobile-automation.png`。
+
+移动端规则编辑器将规则集列表、条件组和 THEN 动作拆分为可折叠区块，保留规则启用、排序、全局规则、执行和导入导出。
+
+#### 14. 系统设置
+
+<p align="center">
+  <img src="docs/screenshots/mobile-settings.png" alt="移动端系统设置" width="320">
+</p>
+
+设置页在手机上使用图标侧栏和纵向表单，仍覆盖主题、字体、卡片尺寸、分页、壁纸、路径、连接、扫描、索引和保存应用。
+
+#### 15. 同步、索引、快照与安全维护
+
+> 移动端截图占位：同步连接、索引状态、备份恢复和回收站维护。建议后续补充为 `docs/screenshots/mobile-system-maintenance.png`。
+
+同步、索引、快照、备份、回收站和路径安全操作会复用移动端设置与弹层组件；涉及文件覆盖、恢复和批量删除的动作仍要求在界面中明确确认。
+
+## 技术特点
+
+- 后端：Python 3.10+、Flask、SQLite。
+- 文件处理：Pillow、requests、watchdog。
+- 前端：服务端模板、Alpine.js、ES modules、Tailwind CSS，以及本地 Markdown/HTML 清理和差异查看库。
+- 数据策略：资源文件保存在可配置目录，SQLite 保存元数据、索引和 UI 关联数据；写入操作配合重试、WAL 和路径边界检查。
+- 部署方式：本地 Python、Docker Compose，桌面端通过 PyInstaller 工作流构建。
 
 ## 快速开始
 
-### 环境要求
-
-- Python 3.10+
-- pip
-- 可选：SillyTavern 本体，用于同步和发送资源
-
-### 本地运行
+### 本地 Python
 
 ```bash
-git clone https://github.com/Dadihu123/ST-Manager.git
-cd ST-Manager
+python -m venv .venv
+
+# Windows PowerShell
+.\\.venv\\Scripts\\Activate.ps1
+
+# macOS / Linux
+# source .venv/bin/activate
+
 pip install -r requirements.txt
 python app.py
 ```
 
-默认访问地址：
+默认访问地址是 `http://127.0.0.1:5000`。首次启动会生成 `config.json` 使用的运行目录和 `data/system/db/cards_metadata.db`。配置文件与运行数据不应提交到公开仓库。
 
-```text
-http://127.0.0.1:5000
-```
-
-首次启动时，如果项目根目录没有 `config.json`，程序会自动生成默认配置，并创建运行所需的数据目录。
-
-### 数据维护工具
-
-先预览无效 UI 数据：
-
-```bash
-python clean_ui_data.py --dry-run
-```
-
-确认输出后执行清理：
-
-```bash
-python clean_ui_data.py
-```
-
-工具默认读取同级 `config.json`，并在写入前创建 `ui_data.json.bak`。详细规则见
-[`docs/CONFIG.md`](docs/CONFIG.md) 和 [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md)。
-
-### 指定监听地址和端口
+可以通过命令行覆盖监听参数：
 
 ```bash
 python app.py --host 127.0.0.1 --port 5000
-```
-
-命令行参数只影响当前进程，不会写回 `config.json`。
-
-### 调试模式
-
-```bash
 python app.py --debug
 ```
 
-或：
+### Docker Compose
 
 ```bash
-FLASK_DEBUG=1 python app.py
+docker compose up --build
 ```
 
-调试模式会启用 Flask reloader。项目已避免在 reloader watcher 进程里重复启动后台扫描器和索引 worker。
+Compose 将 `./data` 挂载到容器的 `/app/data`，将 `./config.json` 挂载到 `/app/config.json`，服务默认暴露在 `http://127.0.0.1:5000`。
 
----
+## 文档
 
-## Docker 部署
-
-项目内置 `Dockerfile` 和 `docker-compose.yaml`。
-
-```bash
-docker-compose up -d
-```
-
-访问：
-
-```text
-http://localhost:5000
-```
-
-Compose 部署包含两个服务：
-
-| 服务 | 作用 |
-| --- | --- |
-| `init-config` | 首次启动前在宿主机项目根目录生成 `./config.json` |
-| `st-manager` | 启动主 Web 服务，暴露 `5000` 端口 |
-
-默认挂载：
-
-| 宿主机路径 | 容器路径 | 说明 |
-| --- | --- | --- |
-| `./data` | `/app/data` | 运行时数据、数据库、缩略图、资源库 |
-| `./config.json` | `/app/config.json` | 主配置文件 |
-
-Docker 首次生成配置时会把 `host` 设为 `0.0.0.0`，便于容器对外监听。如果容器内需要访问宿主机上的 SillyTavern，可优先把 `st_url` 配成类似：
-
-```json
-{
-  "st_url": "http://host.docker.internal:8000"
-}
-```
-
----
-
-## 桌面版构建
-
-仓库提供 GitHub Actions 桌面打包工作流，可构建以下交付件：
-
-- Windows 可执行文件
-- macOS `arm64` 和 `x86_64` 应用压缩包
-
-工作流会在推送到 `main`、推送 `v*` 标签或手动触发时运行，构建产物可在 GitHub Actions 对应运行记录的 Artifacts 中下载。
-
----
-
-## 配置速览
-
-主要配置文件：
-
-```text
-config.json
-```
-
-常用字段：
-
-| 配置项 | 默认值 | 说明 |
-| --- | --- | --- |
-| `host` | `127.0.0.1` | Web 服务监听地址 |
-| `port` | `5000` | Web 服务监听端口 |
-| `cards_dir` | `data/library/characters` | 角色卡目录 |
-| `world_info_dir` | `data/library/lorebooks` | 世界书目录 |
-| `chats_dir` | `data/library/chats` | 聊天目录 |
-| `presets_dir` | `data/library/presets` | 预设目录 |
-| `regex_dir` | `data/library/extensions/regex` | Regex 目录 |
-| `scripts_dir` | `data/library/extensions/tavern_helper` | Tavern Helper 脚本目录 |
-| `quick_replies_dir` | `data/library/extensions/quick-replies` | Quick Replies 目录 |
-| `beautify_dir` | `data/library/beautify` | 美化包目录 |
-| `resources_dir` | `data/assets/card_assets` | 角色资源目录 |
-| `st_url` | `http://127.0.0.1:8000` | SillyTavern Web 地址 |
-| `st_data_dir` | `""` | SillyTavern 数据目录，留空时尝试自动探测 |
-| `st_user_handle` | `default-user` | SillyTavern `data/<用户目录>` 名称 |
-| `discord_auth_type` | `token` | Discord 来源更新检查和论坛标签抓取的认证方式，可选 `token` / `cookie` |
-| `discord_bot_token` | `""` | Discord Token 凭据，使用 Token 认证时填写 |
-| `discord_user_cookie` | `""` | Discord 浏览器 Cookie，使用 Cookie 认证时填写 |
-| `shimmerday_forum_cookie` | `""` | 类脑搜索站帖子预览使用的会话 Cookie |
-| `sync_source_title_on_update` | `true` | 角色卡实际更新后是否同步来源标题并刷新首帖更新基线 |
-| `enable_auto_scan` | `true` | 是否启用文件系统监听 |
-| `auth_username` / `auth_password` | `""` | 设置后启用外网访问登录保护 |
-
-更完整的配置说明见 [docs/CONFIG.md](docs/CONFIG.md)。
-
-### 类脑与来源功能配置
-
-1. 在角色卡详情页填写 Discord `channels` 来源链接，类脑预览和来源更新按钮才会出现。
-2. 要使用类脑帖子预览，在设置中填写 `shimmerday_forum_cookie`。可登录类脑搜索站，在浏览器开发者工具的 Network 面板复制请求 Cookie。
-3. 要使用来源更新检查或论坛标签抓取，配置 `discord_auth_type` 对应的 Token 或 Cookie；凭据属于敏感信息，不要提交到版本库。
-4. 来源链接变更后会清除旧基线；首次成功检查通常建立基线，若来源首帖晚于本地卡片会直接提示首次更新，后续检查再判断来源是否变化。
-
----
-
-## 公网访问建议
-
-如果需要通过局域网、内网穿透或公网访问 ST-Manager，建议至少完成以下配置：
-
-1. 设置 `auth_username` 和 `auth_password`，或使用环境变量 `STM_AUTH_USER` / `STM_AUTH_PASS`
-2. 如有反向代理，配置 `auth_trusted_proxies`
-3. 如需免登录访问固定来源，配置 `auth_trusted_ips`
-4. 确认 `host` 监听地址符合部署场景，本地只用建议保留 `127.0.0.1`
-
-认证模块包含白名单、失败限流、临时锁定和硬锁定逻辑。详细规则见 [docs/CONFIG.md](docs/CONFIG.md#4-外网访问认证)。
-
----
-
-## 项目结构
-
-```text
-ST-Manager/
-├── app.py                    # 启动入口
-├── .github/workflows/        # Docker 与桌面版构建工作流
-├── core/
-│   ├── __init__.py           # create_app + init_services
-│   ├── api/v1/               # REST API 蓝图
-│   ├── services/             # 业务服务、索引、同步、版本逻辑
-│   ├── automation/           # 自动化规则引擎
-│   ├── data/                 # SQLite、缓存、聊天存储、索引状态
-│   └── utils/                # 文件、图片、文本、路径等工具
-├── templates/                # Jinja2 页面和组件模板
-├── static/                   # 前端 JS、CSS、图片和本地 vendor 资源
-├── docs/                     # 配置、API、开发文档与截图
-├── tests/                    # pytest 与前端契约回归测试
-├── Dockerfile
-└── docker-compose.yaml
-```
-
----
-
-## 开发与验证
-
-安装测试工具：
-
-```bash
-pip install pytest
-```
-
-运行测试：
-
-```bash
-pytest tests/
-```
-
-运行单个测试文件：
-
-```bash
-pytest tests/test_st_auth_flow.py
-```
-
-项目还包含若干前端契约和模板回归测试，用于保护聊天阅读器、世界书、预设、美化库、自动化规则等复杂界面行为。
-
----
-
-## 相关文档
-
-| 文档 | 内容 |
-| --- | --- |
-| [docs/CONFIG.md](docs/CONFIG.md) | 配置生成、默认值、认证、Docker 和排查建议 |
-| [docs/API.md](docs/API.md) | REST API 汇总，覆盖各资源模块和系统接口 |
-| [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | 启动链路、架构分层、目录结构和开发约定 |
-
----
-
-## 反馈与贡献
-
-欢迎通过 Issue 反馈问题或提出建议：
-
-- [GitHub Issues](https://github.com/Dadihu123/ST-Manager/issues)
-- [Discord 讨论帖](https://discord.com/channels/1134557553011998840/1448353646596325578)
-
-贡献流程：
-
-1. Fork 仓库
-2. 创建功能分支
-3. 提交改动
-4. 发起 Pull Request
-
----
+- [API 参考](docs/API.md)：业务接口、请求方式、参数和文件资源端点。
+- [配置参考](docs/CONFIG.md)：`config.json` 全部配置项、默认值与安全注意事项。
+- [开发指南](docs/DEVELOPMENT.md)：项目结构、启动链路、测试、CSS 构建和打包。
+- [SVG 图标系统](docs/svg-icon-system.md)：网页模板图标精灵的组织与使用约定。
 
 ## 许可证
 
-许可证信息待补充。正式对外开源前，建议添加独立的 `LICENSE` 文件，并在这里写明具体许可证。
-
----
-
-<div align="center">
-
-如果这个项目对你有帮助，欢迎给一个 Star。
-
-</div>
+项目代码按 [GNU AGPL-3.0](LICENSE) 发布。仓库中的 SillyTavern vendored 资源、`cards-css` 和前端库保留各自的上游许可与版权声明；分发时请同时遵守对应目录中的 notice 文件。
