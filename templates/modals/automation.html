@@ -279,7 +279,7 @@
               >
                 {{ icon('list', 'ui-icon--md') }}
               </button>
-              <div class="automation-breadcrumb" aria-label="当前位置">
+              <div class="automation-breadcrumb" x-show="$store.global.deviceType !== 'mobile'" x-cloak aria-label="当前位置">
                 <template x-if="$store.global.deviceType !== 'mobile'">
                   <span class="automation-breadcrumb-icon" aria-hidden="true">{{ icon('workflow', 'ui-icon--sm') }}</span>
                 </template>

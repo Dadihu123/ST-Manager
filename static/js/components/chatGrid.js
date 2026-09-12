@@ -5464,6 +5464,12 @@ export default function chatGrid() {
         this.fetchChats();
       });
 
+      this.$watch("$store.global.settingsForm.items_per_page_wi", () => {
+        if (this.$store.global.currentMode !== "chats") return;
+        this.chatCurrentPage = 1;
+        this.fetchChats();
+      });
+
       this.$watch("$store.global.deviceType", () => {
         if (!this.detailOpen) return;
         this.reconcileReaderPanelsForDeviceType();

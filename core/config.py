@@ -66,6 +66,7 @@ DEFAULT_CONFIG = {
     "st_proxy": "",
     "items_per_page": 0,
     "items_per_page_wi": 0,
+    "items_per_page_extensions": 0,
     "dark_mode": True,
     "font_style": "sans",      # 字体: sans, serif, mono
     "card_width": 220,         # 卡片宽度

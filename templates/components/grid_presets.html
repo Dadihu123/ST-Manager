@@ -355,4 +355,42 @@
       </div>
     </div>
   </div>
+
+  <div
+    class="pagination-bar"
+    x-show="items.length > 0 || presetCurrentPage > 1"
+    style="flex-shrink: 0"
+  >
+    <div class="card-pagination-summary">
+      <span style="font-size: 0.75rem; color: var(--content-muted)">
+        共 <span x-text="presetTotalItems"></span> 项
+      </span>
+    </div>
+    <div style="display: flex; align-items: center; gap: 0.5rem">
+      <button
+        type="button"
+        @click="changePresetPage(presetCurrentPage - 1)"
+        :disabled="presetCurrentPage === 1"
+        aria-label="上一页"
+        title="上一页"
+        class="btn-secondary pagination-page-nav-btn"
+      >
+        {{ icon('chevron-right', 'ui-icon--sm rotate-180') }}
+      </button>
+      <span
+        class="pagination-page-indicator"
+        x-text="presetCurrentPage + '/' + presetTotalPages"
+      ></span>
+      <button
+        type="button"
+        @click="changePresetPage(presetCurrentPage + 1)"
+        :disabled="presetCurrentPage === presetTotalPages"
+        aria-label="下一页"
+        title="下一页"
+        class="btn-secondary pagination-page-nav-btn"
+      >
+        {{ icon('chevron-right', 'ui-icon--sm') }}
+      </button>
+    </div>
+  </div>
 </div>

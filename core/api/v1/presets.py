@@ -54,6 +54,29 @@ from core.utils.source_revision import build_file_source_revision
 logger = logging.getLogger(__name__)
 bp = Blueprint('presets', __name__)
 
+
+def _paginate_preset_items(items):
+    """按请求参数切分预设列表，同时保留无分页调用的兼容行为。"""
+    total = len(items)
+    pagination_requested = 'page' in request.args or 'page_size' in request.args
+
+    if not pagination_requested:
+        return items, total, 1, max(total, 20), 1
+
+    try:
+        page = max(1, int(request.args.get('page', 1)))
+    except (TypeError, ValueError):
+        page = 1
+    try:
+        page_size = max(1, min(500, int(request.args.get('page_size', 20))))
+    except (TypeError, ValueError):
+        page_size = 20
+
+    total_pages = max(1, (total + page_size - 1) // page_size)
+    page = min(page, total_pages)
+    start = (page - 1) * page_size
+    return items[start:start + page_size], total, page, page_size, total_pages
+
 ALTERNATE_GLOBAL_ROOT_CONFIG_KEYS = (
     'st_openai_preset_dir',
 )
@@ -1504,10 +1527,16 @@ def list_presets():
                 continue
             items.append(item)
 
+        paginated_items, total, page, page_size, total_pages = _paginate_preset_items(items)
+
         return jsonify({
             "success": True,
-            "items": items,
-            "count": len(items),
+            "items": paginated_items,
+            "count": total,
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": total_pages,
             "all_folders": folder_meta['all_folders'],
             "category_counts": folder_meta['category_counts'],
             "folder_capabilities": folder_meta['folder_capabilities'],

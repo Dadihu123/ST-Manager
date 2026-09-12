@@ -622,6 +622,9 @@ export function initState() {
     chatTotalPages: 1,
 
     extensionFilterType: "all", // 'all', 'global', 'resource'
+    extensionCurrentPage: 1,
+    extensionTotalItems: 0,
+    extensionTotalPages: 1,
 
     // 美化库状态
     beautifyList: [],
@@ -654,6 +657,9 @@ export function initState() {
     presetCategoryCounts: {},
     presetFolderCapabilities: {},
     presetSearch: "",
+    presetCurrentPage: 1,
+    presetTotalItems: 0,
+    presetTotalPages: 1,
     extensionSearch: "",
 
     availableRuleSets: [], // 规则集列表
@@ -687,6 +693,7 @@ export function initState() {
       port: 5000,
       items_per_page: 0,
       items_per_page_wi: 0,
+      items_per_page_extensions: 0,
       theme_accent: "blue",
       auto_save_enabled: false,
       auto_save_interval: 3,
@@ -864,6 +871,9 @@ export function initState() {
         .then(([settings]) => {
           const localPerPage = localStorage.getItem("st_manager_per_page");
           const localPerPageWi = localStorage.getItem("st_manager_per_page_wi");
+          const localPerPageExtensions = localStorage.getItem(
+            "st_manager_per_page_extensions",
+          );
 
           const normalizedRoots = Array.isArray(
             settings.allowed_abs_resource_roots,
@@ -896,6 +906,9 @@ export function initState() {
             items_per_page_wi: localPerPageWi
               ? parseInt(localPerPageWi)
               : settings.items_per_page_wi || 0,
+            items_per_page_extensions: localPerPageExtensions
+              ? parseInt(localPerPageExtensions)
+              : settings.items_per_page_extensions || 0,
             cards_list_use_index: !!settings.cards_list_use_index,
             fast_search_use_index: !!settings.fast_search_use_index,
             worldinfo_list_use_index: !!settings.worldinfo_list_use_index,
@@ -1283,11 +1296,19 @@ export function initState() {
           "st_manager_per_page",
           this.settingsForm.items_per_page,
         );
+      else localStorage.removeItem("st_manager_per_page");
       if (this.settingsForm.items_per_page_wi)
         localStorage.setItem(
           "st_manager_per_page_wi",
           this.settingsForm.items_per_page_wi,
         );
+      else localStorage.removeItem("st_manager_per_page_wi");
+      if (this.settingsForm.items_per_page_extensions)
+        localStorage.setItem(
+          "st_manager_per_page_extensions",
+          this.settingsForm.items_per_page_extensions,
+        );
+      else localStorage.removeItem("st_manager_per_page_extensions");
 
       return saveSettings(this.settingsForm, options).then((res) => {
         if (res.success) {

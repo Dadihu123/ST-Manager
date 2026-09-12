@@ -15,6 +15,31 @@ export default function extensionGrid() {
             return this.$store.global.extensionFilterType;
         },
 
+        get extensionCurrentPage() {
+            return this.$store.global.extensionCurrentPage;
+        },
+        set extensionCurrentPage(value) {
+            this.$store.global.extensionCurrentPage = value;
+        },
+        get extensionTotalItems() {
+            return this.$store.global.extensionTotalItems;
+        },
+        set extensionTotalItems(value) {
+            this.$store.global.extensionTotalItems = value;
+        },
+        get extensionTotalPages() {
+            return this.$store.global.extensionTotalPages;
+        },
+        set extensionTotalPages(value) {
+            this.$store.global.extensionTotalPages = value;
+        },
+        get extensionPageSize() {
+            const configured = Number(
+                this.$store.global.settingsForm?.items_per_page_extensions,
+            );
+            return configured > 0 ? Math.min(Math.max(configured, 1), 500) : 20;
+        },
+
         get modeLabel() {
             return {
                 regex: '正则脚本',
@@ -43,16 +68,26 @@ export default function extensionGrid() {
             this.$watch('$store.global.currentMode', (val) => {
                 if (['regex', 'scripts', 'quick_replies'].includes(val)) {
                     this.currentMode = val;
+                    this.extensionCurrentPage = 1;
                     this.fetchItems();
                 }
             });
 
             this.$watch('$store.global.extensionFilterType', () => {
+                this.extensionCurrentPage = 1;
                 this.fetchItems();
             });
 
             this.$watch('$store.global.extensionSearch', () => {
                 if (['regex', 'scripts', 'quick_replies'].includes(this.$store.global.currentMode)) {
+                    this.extensionCurrentPage = 1;
+                    this.fetchItems();
+                }
+            });
+
+            this.$watch('$store.global.settingsForm.items_per_page_extensions', () => {
+                if (['regex', 'scripts', 'quick_replies'].includes(this.$store.global.currentMode)) {
+                    this.extensionCurrentPage = 1;
                     this.fetchItems();
                 }
             });
@@ -132,7 +167,10 @@ export default function extensionGrid() {
 
             const filterType = this.$store.global.extensionFilterType || 'all';
             const search = this.$store.global.extensionSearch || '';
+            const pageSize = this.extensionPageSize;
+            const currentPage = Number(this.extensionCurrentPage) || 1;
             let url = `/api/extensions/list?mode=${this.currentMode}&filter_type=${filterType}`;
+            url += `&page=${currentPage}&page_size=${pageSize}`;
             if (search) url += `&search=${encodeURIComponent(search)}`;
 
             try {
@@ -143,15 +181,44 @@ export default function extensionGrid() {
                 }
                 if (requestId !== this._itemsRequestId) return;
                 this.items = Array.isArray(result.items) ? result.items : [];
+                this.extensionTotalItems = Number(result.total) || 0;
+                this.extensionTotalPages = Math.max(
+                    1,
+                    Number(result.total_pages) || Math.ceil(
+                        this.extensionTotalItems / Number(result.page_size || pageSize),
+                    ),
+                );
+                this.extensionCurrentPage = Math.min(
+                    Math.max(1, Number(result.page) || currentPage),
+                    this.extensionTotalPages,
+                );
             } catch (error) {
                 if (requestId !== this._itemsRequestId) return;
                 console.error(error);
                 this.items = [];
+                this.extensionTotalItems = 0;
+                this.extensionTotalPages = 1;
                 this.errorMessage = '扩展文件加载失败，请重试。';
                 this.$store.global.showToast(this.errorMessage, 3600, 'close');
             } finally {
                 if (requestId === this._itemsRequestId) this.isLoading = false;
             }
+        },
+
+        changeExtensionPage(page) {
+            const targetPage = Number(page);
+            if (
+                !Number.isInteger(targetPage) ||
+                targetPage < 1 ||
+                targetPage > this.extensionTotalPages ||
+                targetPage === this.extensionCurrentPage
+            ) {
+                return;
+            }
+            this.extensionCurrentPage = targetPage;
+            const scrollArea = this.$el?.querySelector('.extension-workbench-content');
+            if (scrollArea) scrollArea.scrollTop = 0;
+            this.fetchItems();
         },
 
         async handleDrop(event) {

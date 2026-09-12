@@ -58,7 +58,8 @@ ST Manager 使用项目根目录的 `config.json`。文件不存在时，`app.py
 | `show_header_sort` | `true` | 是否在顶部显示排序控件 |
 | `theme_accent` | `blue` | 主题强调色名称 |
 | `items_per_page` | `0` | 角色卡列表页大小；`0` 表示由界面/后端默认值决定 |
-| `items_per_page_wi` | `0` | 世界书列表页大小；`0` 表示由界面/后端默认值决定 |
+| `items_per_page_wi` | `0` | 世界书和预设列表共用的页大小；`0` 表示由界面/后端默认值决定 |
+| `items_per_page_extensions` | `0` | ST 脚本、正则脚本和快速回复列表共用的页大小；`0` 表示由界面/后端默认值决定 |
 | `dark_mode` | `true` | 初始深色模式 |
 | `font_style` | `sans` | 字体风格：`sans`、`serif`、`mono` |
 | `card_width` | `220` | 角色卡网格宽度 |

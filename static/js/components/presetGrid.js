@@ -65,6 +65,30 @@ export default function presetGrid() {
     get filterCategory() {
       return this.$store.global.presetFilterCategory || "";
     },
+    get presetCurrentPage() {
+      return this.$store.global.presetCurrentPage;
+    },
+    set presetCurrentPage(value) {
+      this.$store.global.presetCurrentPage = value;
+    },
+    get presetTotalItems() {
+      return this.$store.global.presetTotalItems;
+    },
+    set presetTotalItems(value) {
+      this.$store.global.presetTotalItems = value;
+    },
+    get presetTotalPages() {
+      return this.$store.global.presetTotalPages;
+    },
+    set presetTotalPages(value) {
+      this.$store.global.presetTotalPages = value;
+    },
+    get presetPageSize() {
+      const configured = Number(
+        this.$store.global.settingsForm?.items_per_page_wi,
+      );
+      return configured > 0 ? Math.min(Math.max(configured, 1), 500) : 20;
+    },
 
     get presetUploadHintText() {
       if (this.isGlobalCategoryContext()) {
@@ -358,6 +382,7 @@ export default function presetGrid() {
       // 监听模式切换
       this.$watch("$store.global.currentMode", (val) => {
         if (val === "presets") {
+          this.presetCurrentPage = 1;
           this.fetchItems();
         }
       });
@@ -365,12 +390,14 @@ export default function presetGrid() {
       // 监听侧边栏筛选变化
       this.$watch("$store.global.presetFilterType", () => {
         if (this.$store.global.currentMode === "presets") {
+          this.presetCurrentPage = 1;
           this.fetchItems();
         }
       });
 
       this.$watch("$store.global.presetFilterCategory", () => {
         if (this.$store.global.currentMode === "presets") {
+          this.presetCurrentPage = 1;
           this.fetchItems();
         }
       });
@@ -378,6 +405,14 @@ export default function presetGrid() {
       // 监听搜索关键词变化
       this.$watch("$store.global.presetSearch", () => {
         if (this.$store.global.currentMode === "presets") {
+          this.presetCurrentPage = 1;
+          this.fetchItems();
+        }
+      });
+
+      this.$watch("$store.global.settingsForm.items_per_page_wi", () => {
+        if (this.$store.global.currentMode === "presets") {
+          this.presetCurrentPage = 1;
           this.fetchItems();
         }
       });
@@ -486,8 +521,11 @@ export default function presetGrid() {
       const filterType = this.$store.global.presetFilterType || "all";
       const search = this.$store.global.presetSearch || "";
       const category = this.$store.global.presetFilterCategory || "";
+      const pageSize = this.presetPageSize;
+      const currentPage = Number(this.presetCurrentPage) || 1;
 
       let url = `/api/presets/list?filter_type=${filterType}`;
+      url += `&page=${currentPage}&page_size=${pageSize}`;
       if (search) {
         url += `&search=${encodeURIComponent(search)}`;
       }
@@ -498,7 +536,22 @@ export default function presetGrid() {
       fetch(url)
         .then((res) => res.json())
         .then((res) => {
+          if (res?.success === false) {
+            throw new Error(res.msg || "预设列表加载失败");
+          }
           this.items = res.items || [];
+          this.presetTotalItems = Number(res.total) || 0;
+          this.presetTotalPages = Math.max(
+            1,
+            Number(res.total_pages) ||
+              Math.ceil(
+                this.presetTotalItems / Number(res.page_size || pageSize),
+              ),
+          );
+          this.presetCurrentPage = Math.min(
+            Math.max(1, Number(res.page) || currentPage),
+            this.presetTotalPages,
+          );
           this.$store.global.presetList = this.items;
           this.$store.global.presetAllFolders = res.all_folders || [];
           this.$store.global.presetCategoryCounts = res.category_counts || {};
@@ -510,6 +563,22 @@ export default function presetGrid() {
           console.error("Failed to fetch presets:", err);
           this.isLoading = false;
         });
+    },
+
+    changePresetPage(page) {
+      const targetPage = Number(page);
+      if (
+        !Number.isInteger(targetPage) ||
+        targetPage < 1 ||
+        targetPage > this.presetTotalPages ||
+        targetPage === this.presetCurrentPage
+      ) {
+        return;
+      }
+      this.presetCurrentPage = targetPage;
+      const scrollArea = document.getElementById("preset-scroll-area");
+      if (scrollArea) scrollArea.scrollTop = 0;
+      this.fetchItems();
     },
 
     async handleDrop(e) {

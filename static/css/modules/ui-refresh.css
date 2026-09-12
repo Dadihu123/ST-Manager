@@ -1501,10 +1501,18 @@
 /* Smaller management dialogs and shared context menu -------------------- */
 
 .ui-small-dialog {
+  position: relative;
+  display: flex;
   width: min(30rem, calc(100vw - 2 * var(--ui-modal-gutter))) !important;
   max-width: calc(100vw - 2 * var(--ui-modal-gutter));
   max-height: calc(100dvh - 2 * var(--ui-modal-gutter));
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
   overflow: auto;
+  color: var(--content-primary);
+  background: var(--surface-container);
+  border: 1px solid var(--border-default);
   border-radius: var(--ui-radius-lg) !important;
   box-shadow: var(--shadow-elevation);
 }

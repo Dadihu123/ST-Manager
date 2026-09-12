@@ -108,6 +108,29 @@ def test_list_presets_returns_relative_path_ids_for_global_nested_files(monkeypa
     assert item['category_mode'] == 'physical'
 
 
+def test_list_presets_paginates_filtered_items(monkeypatch, tmp_path):
+    presets_dir, _ = _setup_preset_env(monkeypatch, tmp_path)
+    for index in range(3):
+        _write_json(
+            presets_dir / f'item-{index}.json',
+            {'name': f'Item {index}', 'description': 'needle'},
+        )
+
+    client = _make_test_app().test_client()
+    res = client.get(
+        '/api/presets/list?filter_type=global&search=needle&page=2&page_size=2'
+    )
+
+    assert res.status_code == 200
+    payload = res.get_json()
+    assert payload['total'] == 3
+    assert payload['count'] == 3
+    assert payload['page'] == 2
+    assert payload['page_size'] == 2
+    assert payload['total_pages'] == 2
+    assert len(payload['items']) == 1
+
+
 def test_list_presets_returns_display_category_for_global_and_resource_items(monkeypatch, tmp_path):
     presets_dir, resources_dir = _setup_preset_env(
         monkeypatch,

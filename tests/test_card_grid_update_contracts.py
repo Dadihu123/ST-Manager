@@ -89,7 +89,7 @@ def test_card_toolbar_uses_detail_note_and_requested_sprite_icons():
     assert "icon('card-update-check', 'ui-icon--sm')" in template
 
     for symbol_id, source_name in (
-        ('icon-card-forum-search', '论坛.svg'),
+        ('icon-card-forum-search', '论坛-加粗.svg'),
         ('icon-card-send-to-st', '1火箭.svg'),
     ):
         symbol = next(element for element in sprite if element.get('id') == symbol_id)

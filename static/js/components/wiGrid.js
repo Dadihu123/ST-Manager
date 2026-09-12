@@ -713,6 +713,11 @@ export default function wiGrid() {
         this.scheduleFetchWorldInfoList();
       });
 
+      this.$watch("$store.global.settingsForm.items_per_page_wi", () => {
+        this.wiCurrentPage = 1;
+        this.scheduleFetchWorldInfoList();
+      });
+
       this.$watch("$store.global.wiList", () => {
         this.syncWorldInfoUiState();
         this.$nextTick(() => {

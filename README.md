@@ -69,7 +69,7 @@ ST Manager 是一个以本地文件为主、SQLite 元数据为辅的 SillyTaver
 #### 1. 工作区总览与资源导航
 
 <p align="center">
-  <img src="docs/screenshots/hero.png" alt="PC 端工作区总览" width="100%">
+  <img src="docs/screenshots/desktop-sidebar.png" alt="PC 端工作区总览" width="100%">
 </p>
 
 顶部工具栏承载工作区切换、导入、批量动作、收藏、搜索、排序、主题和系统入口；左侧导航显示资源文件夹、分类计数和标签索引，主区域负责卡片或条目展示。
@@ -77,7 +77,7 @@ ST Manager 是一个以本地文件为主、SQLite 元数据为辅的 SillyTaver
 #### 2. 角色卡列表
 
 <p align="center">
-  <img src="docs/screenshots/feature-cards.png" alt="PC 端角色卡列表" width="100%">
+  <img src="docs/screenshots/desktop-cards.png" alt="PC 端角色卡列表" width="100%">
 </p>
 
 - 支持 PNG/JSON 角色卡和角色卡内嵌数据。
@@ -88,7 +88,7 @@ ST Manager 是一个以本地文件为主、SQLite 元数据为辅的 SillyTaver
 #### 3. 角色卡详情页与编辑工作台
 
 <p align="center">
-  <img src="docs/screenshots/gallery-cards-detail.png" alt="PC 端角色卡详情工作台" width="100%">
+  <img src="docs/screenshots/desktop-card-detail.png" alt="PC 端角色卡详情工作台" width="100%">
 </p>
 
 详情工作台将卡片内容拆成多个面板，包含基础信息、对话/开场白、标签、世界书、聊天、管理和资源等区域。可以编辑本地备注、描述和元数据，切换卡片图片或皮肤，管理内嵌世界书与聊天，并通过保存、快照和版本封面保护修改结果。
@@ -96,7 +96,11 @@ ST Manager 是一个以本地文件为主、SQLite 元数据为辅的 SillyTaver
 #### 4. 搜索、筛选与标签工作台
 
 <p align="center">
-  <img src="docs/screenshots/hero.png" alt="PC 端搜索筛选和标签入口" width="100%">
+  <img src="docs/screenshots/desktop-tag-workbench.png" alt="PC 端搜索标签工作台" width="100%">
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/desktop-filter-workbench.png" alt="PC 端筛选工作台" width="100%">
 </p>
 
 - 支持混合搜索、名称、文件名、标签和创建者搜索。
@@ -104,12 +108,10 @@ ST Manager 是一个以本地文件为主、SQLite 元数据为辅的 SillyTaver
 - 支持包含标签、排除标签、收藏过滤、Token 范围和导入/修改日期范围。
 - 标签工作台支持标签顺序、分类、颜色、隔离分类、批量增删和合并预览。
 
-> PC 截图占位：标签工作台独立面板。建议后续补充为 `docs/screenshots/desktop-tag-workbench.png`。
-
 #### 5. 世界书浏览
 
 <p align="center">
-  <img src="docs/screenshots/feature-wi.png" alt="PC 端世界书列表" width="100%">
+  <img src="docs/screenshots/desktop-world-info.png" alt="PC 端世界书列表" width="100%">
 </p>
 
 世界书列表区分全局目录、角色卡资源目录和角色卡内嵌世界书。可以按来源、分类、递归目录、名称和内容筛选，查看条目数量、来源路径、修改时间，并直接进入详情或编辑器。
@@ -117,7 +119,7 @@ ST Manager 是一个以本地文件为主、SQLite 元数据为辅的 SillyTaver
 #### 6. 世界书编辑器与阅览
 
 <p align="center">
-  <img src="docs/screenshots/gallery-wi-editor.png" alt="PC 端世界书编辑器" width="100%">
+  <img src="docs/screenshots/desktop-wi-editor.png" alt="PC 端世界书编辑器" width="100%">
 </p>
 
 - 编辑条目备注、关键词、内容、策略、插入位置、顺序和递归设置。
@@ -128,7 +130,7 @@ ST Manager 是一个以本地文件为主、SQLite 元数据为辅的 SillyTaver
 #### 7. 聊天记录管理
 
 <p align="center">
-  <img src="docs/screenshots/feature-chats.png" alt="PC 端聊天记录列表" width="100%">
+  <img src="docs/screenshots/desktop-chats.png" alt="PC 端聊天记录列表" width="100%">
 </p>
 
 聊天工作区读取 JSONL 对话文件，按已绑定角色卡、未绑定记录和目录组织内容。列表显示消息数量、起止楼层、导入时间和角色信息，支持导入、搜索、修改元数据、绑定角色卡和移入回收站。
@@ -136,7 +138,7 @@ ST Manager 是一个以本地文件为主、SQLite 元数据为辅的 SillyTaver
 #### 8. 聊天阅读器
 
 <p align="center">
-  <img src="docs/screenshots/gallery-chat-reader.png" alt="PC 端聊天阅读器" width="100%">
+  <img src="docs/screenshots/desktop-chat-reader.png" alt="PC 端聊天阅读器" width="100%">
 </p>
 
 阅读器提供楼层导航、搜索、书签、锁定阅读位置、分页加载、前后页切换、实例/编辑入口和本地备注。对带有自定义 HTML/CSS 的聊天内容，会在隔离的阅读区域中呈现，便于长对话回看。
@@ -144,7 +146,7 @@ ST Manager 是一个以本地文件为主、SQLite 元数据为辅的 SillyTaver
 #### 9. 预设浏览
 
 <p align="center">
-  <img src="docs/screenshots/feature-presets.png" alt="PC 端预设列表" width="100%">
+  <img src="docs/screenshots/desktop-presets.png" alt="PC 端预设列表" width="100%">
 </p>
 
 预设列表展示预设来源、版本、Token 上限、提示词数量和 Regex 数量，支持全局预设、资源绑定预设、分类文件夹、上传、移动、重置、导出以及发送到 SillyTavern。
@@ -152,21 +154,23 @@ ST Manager 是一个以本地文件为主、SQLite 元数据为辅的 SillyTaver
 #### 10. 预设编辑器
 
 <p align="center">
-  <img src="docs/screenshots/gallery-preset-detail.png" alt="PC 端预设编辑器" width="100%">
+  <img src="docs/screenshots/desktop-preset-editor.png" alt="PC 端预设编辑器" width="100%">
 </p>
 
 编辑器支持采样参数、模板、提示词上下文序列、系统消息、Chat Examples、Chat History、World Info 前后插入、开关状态和高级脚本等内容。修改可以保存为预设版本，并配合快照、版本导入、合并和默认版本管理。
 
 #### 11. Beautify 美化包与主题
 
-> PC 截图占位：Beautify 包列表、主题变体和资源预览。建议后续补充为 `docs/screenshots/desktop-beautify.png`。
+<p align="center">
+  <img src="docs/screenshots/desktop-beautify.png" alt="PC 端美化包管理页" width="100%">
+</p>
 
 Beautify 工作区用于管理主题包的身份信息、包头像、PC/移动端变体、主题设置、局部壁纸、全局壁纸、全局头像和截图。每个包可以独立预览资源，修改后再发送到 SillyTavern，避免直接覆盖原始主题文件。
 
 #### 12. 高级扩展：Regex 与 ST Helper
 
 <p align="center">
-  <img src="docs/screenshots/feature-scripts.png" alt="PC 端 Regex 与 ST Helper 编辑器" width="100%">
+  <img src="docs/screenshots/desktop-scripts.png" alt="PC 端 Regex 与 ST Helper 编辑器" width="100%">
 </p>
 
 高级扩展编辑器包含 Regex 和 ST Helper 两类脚本，支持查找、替换、删除字符串、大小写、转义模式、作用位置、深度限制、启用开关和实时测试 playground。ST Helper 脚本同步会读取 JS-Slash-Runner 写入 ST `settings.json` 的全局脚本树，保留脚本文件夹、按钮、变量和导出选项，并导出为可再次导入插件的 JSON。
@@ -174,7 +178,7 @@ Beautify 工作区用于管理主题包的身份信息、包头像、PC/移动�
 #### 13. 自动化规则工作台
 
 <p align="center">
-  <img src="docs/screenshots/gallery-automation.png" alt="PC 端自动化规则编辑器" width="100%">
+  <img src="docs/screenshots/desktop-automation.png" alt="PC 端自动化规则编辑器" width="100%">
 </p>
 
 - 以 IF/THEN 方式组合条件组和动作。
@@ -185,20 +189,12 @@ Beautify 工作区用于管理主题包的身份信息、包头像、PC/移动�
 #### 14. 系统设置
 
 <p align="center">
-  <img src="docs/screenshots/gallery-settings.png" alt="PC 端系统设置" width="100%">
+  <img src="docs/screenshots/desktop-settings.png" alt="PC 端系统设置" width="100%">
 </p>
 
 设置页覆盖常规路径、主题与视觉、连接与服务、维护与高级四类内容，包括角色卡/世界书/聊天/预设目录、SillyTavern 地址和认证、代理、深色模式、强调色、字体、卡片尺寸、壁纸、分页、自动保存、自动扫描和索引开关。
 
-#### 15. 同步、索引、快照与安全维护
-
-> PC 截图占位：SillyTavern 同步、索引状态、快照和回收站维护流程。建议后续补充为 `docs/screenshots/desktop-system-maintenance.png`。
-
-系统维护能力包括本地目录探测、SillyTavern HTTP 连接测试、角色卡/聊天/世界书/预设/Regex/JS-Slash-Runner ST 脚本/Quick Replies 同步，watchdog 文件监听，SQLite 索引重建，手动和自动快照，数据库备份、回收站和路径安全检查。角色卡来源更新监控还可以建立检查目标、运行批量检查并确认来源版本。
-
 ### 移动端
-
-移动端与 PC 端对应同一组工作区。截图使用真实移动端页面；当前没有专属截图的功能保留文字占位，后续可以按建议路径补入。
 
 #### 1. 工作区总览与资源导航
 
@@ -226,13 +222,21 @@ Beautify 工作区用于管理主题包的身份信息、包头像、PC/移动�
 
 #### 4. 搜索、筛选与标签工作台
 
-> 移动端截图占位：筛选抽屉、标签筛选、批量标签和标签合并面板。建议后续补充为 `docs/screenshots/mobile-tag-filter.png`。
+<p align="center">
+  <img src="docs/screenshots/mobile-tag-workbench.png" alt="移动端搜索标签工作台" width="320">
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/mobile-filter-workbench.png" alt="移动端筛选工作台" width="320">
+</p>
 
 移动端会把桌面端的顶部筛选控件收纳为抽屉或弹层，保留搜索范围、标签包含/排除、收藏、Token 和日期筛选；标签编辑、颜色和批量操作在窄屏下改为纵向表单。
 
 #### 5. 世界书浏览
 
-> 移动端截图占位：世界书来源筛选和列表浏览。建议后续补充为 `docs/screenshots/mobile-world-info.png`。
+<p align="center">
+  <img src="docs/screenshots/mobile-world-info.png" alt="移动端世界书列表" width="320">
+</p>
 
 移动端世界书浏览保留全局、资源绑定和内嵌来源切换，列表卡片显示名称、来源和更新时间，详情入口进入同一世界书阅读/编辑工作流。
 
@@ -246,7 +250,9 @@ Beautify 工作区用于管理主题包的身份信息、包头像、PC/移动�
 
 #### 7. 聊天记录管理
 
-> 移动端截图占位：聊天记录列表、绑定筛选和导入入口。建议后续补充为 `docs/screenshots/mobile-chats.png`。
+<p align="center">
+  <img src="docs/screenshots/mobile-chats.png" alt="移动端聊天记录列表" width="320">
+</p>
 
 移动端聊天列表沿用已绑定/未绑定分类、消息数量、导入和搜索能力；较宽的元数据显示为可折叠详情，避免占用列表主区域。
 
@@ -260,31 +266,41 @@ Beautify 工作区用于管理主题包的身份信息、包头像、PC/移动�
 
 #### 9. 预设浏览
 
-> 移动端截图占位：预设列表、分类和搜索。建议后续补充为 `docs/screenshots/mobile-presets.png`。
+<p align="center">
+  <img src="docs/screenshots/mobile-presets.png" alt="移动端预设列表" width="320">
+</p>
 
 移动端预设浏览保留预设来源、版本、Token、提示词和 Regex 统计，并将分类、上传、导出和发送到 ST 收纳到顶部菜单或抽屉。
 
 #### 10. 预设编辑器
 
-> 移动端截图占位：预设采样参数、提示词序列和扩展脚本编辑器。建议后续补充为 `docs/screenshots/mobile-preset-editor.png`。
+<p align="center">
+  <img src="docs/screenshots/mobile-preset-editor.png" alt="移动端预设编辑器" width="320">
+</p>
 
 预设编辑器在移动端将采样参数、提示词块、系统消息和脚本区块纵向排列，提示词开关、排序、版本保存和恢复功能保持与 PC 端一致。
 
 #### 11. Beautify 美化包与主题
 
-> 移动端截图占位：Beautify 包列表、移动端变体和主题预览。建议后续补充为 `docs/screenshots/mobile-beautify.png`。
+<p align="center">
+  <img src="docs/screenshots/mobile-beautify.png" alt="移动端美化包管理页" width="320">
+</p>
 
 移动端 Beautify 工作区重点呈现移动端变体、壁纸、头像、主题设置和预览结果；PC/移动端变体仍由同一个主题包统一管理。
 
 #### 12. 高级扩展：Regex 与 ST Helper
 
-> 移动端截图占位：Regex/ST Helper 脚本编辑和实时测试。建议后续补充为 `docs/screenshots/mobile-scripts.png`。
+<p align="center">
+  <img src="docs/screenshots/mobile-scripts.png" alt="移动端 Regex 与 ST Helper 编辑器" width="320">
+</p>
 
 脚本编辑器在手机上将查找、替换、删除、作用位置、深度和 playground 改为纵向布局，保存和完成操作固定在易于触达的位置。
 
 #### 13. 自动化规则工作台
 
-> 移动端截图占位：自动化规则集、条件组和动作编辑。建议后续补充为 `docs/screenshots/mobile-automation.png`。
+<p align="center">
+  <img src="docs/screenshots/mobile-automation.png" alt="移动端自动化规则编辑器" width="320">
+</p>
 
 移动端规则编辑器将规则集列表、条件组和 THEN 动作拆分为可折叠区块，保留规则启用、排序、全局规则、执行和导入导出。
 
@@ -295,12 +311,6 @@ Beautify 工作区用于管理主题包的身份信息、包头像、PC/移动�
 </p>
 
 设置页在手机上使用图标侧栏和纵向表单，仍覆盖主题、字体、卡片尺寸、分页、壁纸、路径、连接、扫描、索引和保存应用。
-
-#### 15. 同步、索引、快照与安全维护
-
-> 移动端截图占位：同步连接、索引状态、备份恢复和回收站维护。建议后续补充为 `docs/screenshots/mobile-system-maintenance.png`。
-
-同步、索引、快照、备份、回收站和路径安全操作会复用移动端设置与弹层组件；涉及文件覆盖、恢复和批量删除的动作仍要求在界面中明确确认。
 
 ## 技术特点
 
