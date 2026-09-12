@@ -169,7 +169,7 @@ Beautify 工作区用于管理主题包的身份信息、包头像、PC/移动�
   <img src="docs/screenshots/feature-scripts.png" alt="PC 端 Regex 与 ST Helper 编辑器" width="100%">
 </p>
 
-高级扩展编辑器包含 Regex 和 ST Helper 两类脚本，支持查找、替换、删除字符串、大小写、转义模式、作用位置、深度限制、启用开关和实时测试 playground。脚本可以按全局目录管理，并通过预设或 SillyTavern 工作流使用。
+高级扩展编辑器包含 Regex 和 ST Helper 两类脚本，支持查找、替换、删除字符串、大小写、转义模式、作用位置、深度限制、启用开关和实时测试 playground。ST Helper 脚本同步会读取 JS-Slash-Runner 写入 ST `settings.json` 的全局脚本树，保留脚本文件夹、按钮、变量和导出选项，并导出为可再次导入插件的 JSON。
 
 #### 13. 自动化规则工作台
 
@@ -194,7 +194,7 @@ Beautify 工作区用于管理主题包的身份信息、包头像、PC/移动�
 
 > PC 截图占位：SillyTavern 同步、索引状态、快照和回收站维护流程。建议后续补充为 `docs/screenshots/desktop-system-maintenance.png`。
 
-系统维护能力包括本地目录探测、SillyTavern HTTP 连接测试、角色卡/聊天/世界书/预设/Regex/Quick Replies 同步，watchdog 文件监听，SQLite 索引重建，手动和自动快照，数据库备份、回收站和路径安全检查。角色卡来源更新监控还可以建立检查目标、运行批量检查并确认来源版本。
+系统维护能力包括本地目录探测、SillyTavern HTTP 连接测试、角色卡/聊天/世界书/预设/Regex/JS-Slash-Runner ST 脚本/Quick Replies 同步，watchdog 文件监听，SQLite 索引重建，手动和自动快照，数据库备份、回收站和路径安全检查。角色卡来源更新监控还可以建立检查目标、运行批量检查并确认来源版本。
 
 ### 移动端
 

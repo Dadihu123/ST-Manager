@@ -32,6 +32,7 @@ BLOCKED_ACTIONS_BY_RESOURCE = {
     'worlds': 'sync_worlds',
     'presets': 'sync_presets',
     'regex': 'sync_regex',
+    'scripts': 'sync_scripts',
     'quick_replies': 'sync_quick_replies',
 }
 
@@ -102,6 +103,8 @@ def _message_for(field: str, resource_type: str) -> str:
         return '当前聊天记录路径与 SillyTavern chats 目录重叠，同步聊天时可能覆盖同名聊天目录，因此聊天同步已被禁用。'
     if field == 'resources_dir':
         return '当前资源根目录与 SillyTavern 核心目录重叠，可能导致 ST-Manager 资源与酒馆运行目录混用。'
+    if resource_type == 'scripts':
+        return '当前 ST 脚本路径与 SillyTavern 用户目录重叠，可能导致脚本导出文件与酒馆设置混用。'
     return f'当前路径与 SillyTavern {resource_type} 目录重叠，ST-Manager 的独立目录结构可能与酒馆目录混用。'
 
 
@@ -165,7 +168,11 @@ def evaluate_st_path_safety(
     resource_targets = {}
     for field, resource_type in FIELD_RESOURCE_TYPES.items():
         try:
-            resource_targets[field] = _clean_path(client.get_st_subdir(resource_type))
+            if resource_type == 'scripts':
+                # JS-Slash-Runner 的全局脚本存于 settings.json，边界是整个用户目录。
+                resource_targets[field] = _clean_path(client.get_user_dir())
+            else:
+                resource_targets[field] = _clean_path(client.get_st_subdir(resource_type))
         except Exception:
             resource_targets[field] = ''
 

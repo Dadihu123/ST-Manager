@@ -294,7 +294,9 @@ Beautify API 的根路径为 `/api/beautify`。文件上传使用 `multipart/for
 
 同步接口根路径为 `/api/st`。服务可以读取本地 SillyTavern 用户目录，也可以按 `st_url` 使用其 HTTP API；`st_data_dir` 和 `st_user_handle` 可以通过 query 或 JSON 临时覆盖配置。
 
-支持的 `resource_type`：`characters`、`chats`、`worlds`、`presets`、`regex`、`quick_replies`。
+支持的 `resource_type`：`characters`、`chats`、`worlds`、`presets`、`regex`、`scripts`、`quick_replies`。
+
+其中 `scripts` 专指 JS-Slash-Runner（Tavern Helper）的全局脚本资源。ST 原生把它们保存在用户 `settings.json` 的 `extension_settings.tavern_helper.script.scripts`；管理器同步时会为每个脚本或脚本文件夹生成一个独立 JSON 文件，并兼容旧版 `TavernHelper.script.scriptsRepository`。
 
 | 方法 | 路径 | 作用 | 请求要点 |
 | --- | --- | --- | --- |
@@ -305,7 +307,7 @@ Beautify API 的根路径为 `/api/beautify`。文件上传使用 `multipart/for
 | `GET` | `/api/st/get/<resource_type>/<resource_id>` | 读取单个 ST 资源 | 路径参数和可选 ST 选择 query |
 | `POST` | `/api/st/sync` | 将资源同步到管理器目录 | JSON `resource_type`、可选 `resource_ids`、`st_data_dir`、`st_user_handle`、`use_api` |
 | `POST` | `/api/st/refresh` | 按最新配置刷新 ST 客户端 | 无 |
-| `GET` | `/api/st/summary` | 获取六类资源数量概览 | query 可覆盖 ST 路径/用户 |
+| `GET` | `/api/st/summary` | 获取七类资源数量概览 | query 可覆盖 ST 路径/用户 |
 | `GET` | `/api/st/regex` | 聚合全局和预设关联正则 | query `presets_path`、`settings_path`、ST 选择参数 |
 
 同步前会执行路径重叠检查；如果管理器目录和 ST 核心目录混用，接口会返回风险评估并拒绝受影响的同步动作，除非用户明确确认。

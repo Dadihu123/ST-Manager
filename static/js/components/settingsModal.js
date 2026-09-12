@@ -1150,6 +1150,12 @@ export default function settingsModal() {
               window.dispatchEvent(new CustomEvent("refresh-chat-list"));
             } else if (resourceType === "worlds") {
               window.dispatchEvent(new CustomEvent("refresh-wi-list"));
+            } else if (["regex", "scripts", "quick_replies"].includes(resourceType)) {
+              window.dispatchEvent(
+                new CustomEvent("refresh-extension-list", {
+                  detail: { mode: resourceType },
+                }),
+              );
             }
           }
         } else {
@@ -1181,6 +1187,7 @@ export default function settingsModal() {
         "worlds",
         "presets",
         "regex",
+        "scripts",
         "quick_replies",
       ];
       let totalSuccess = 0;
@@ -1189,6 +1196,7 @@ export default function settingsModal() {
       let hasCharacters = false;
       let hasChats = false;
       let hasWorlds = false;
+      let hasExtensions = false;
 
       this.syncing = true;
       this.syncStatusIcon = "";
@@ -1228,6 +1236,9 @@ export default function settingsModal() {
             if (type === "worlds" && data.result.success > 0) {
               hasWorlds = true;
             }
+            if (["regex", "scripts", "quick_replies"].includes(type) && data.result.success > 0) {
+              hasExtensions = true;
+            }
           }
         } catch (err) {
           totalFailed++;
@@ -1249,6 +1260,9 @@ export default function settingsModal() {
       }
       if (hasWorlds) {
         window.dispatchEvent(new CustomEvent("refresh-wi-list"));
+      }
+      if (hasExtensions) {
+        window.dispatchEvent(new CustomEvent("refresh-extension-list"));
       }
     },
   };

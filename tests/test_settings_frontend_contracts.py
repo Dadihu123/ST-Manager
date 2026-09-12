@@ -266,6 +266,8 @@ def test_settings_template_exposes_path_safety_warning_and_sync_blocking_binding
     assert 'x-text="getPathConflictMessage(\'resources_dir\')"' in source
     assert 'x-text="getPathConflictMessage(\'st_openai_preset_dir\')"' in source
     assert 'x-text="syncSafetySummary"' in source
+    assert "syncFromST('scripts')" in source
+    assert "isSyncActionBlocked('sync_scripts')" in source
     assert ':disabled="isSyncActionBlocked(\'sync_characters\') || syncing"' in source
     assert ':disabled="isSyncActionBlocked(\'sync_all\') || syncing"' in source
 

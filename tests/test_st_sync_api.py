@@ -33,6 +33,20 @@ class FakeClient:
         return {'success': 2, 'failed': 0, 'skipped': 0, 'errors': [], 'synced': ['a', 'b']}
 
 
+class ScriptListClient:
+    st_user_handle = 'alice'
+
+    def list_scripts(self, use_api=False):
+        return [
+            {
+                'id': 'script-one',
+                'name': 'One',
+                'type': 'script',
+                'data': {'type': 'script', 'id': 'script-one', 'name': 'One'},
+            }
+        ]
+
+
 def test_sync_rejects_blocked_single_resource_before_client_creation(monkeypatch):
     monkeypatch.setattr(st_sync_api, 'load_config', lambda: {'chats_dir': 'data/library/chats'})
     monkeypatch.setattr(
@@ -161,6 +175,27 @@ def test_sync_unknown_resource_type_returns_legacy_400_before_path_safety(monkey
         'success': False,
         'error': '未知资源类型: unknown_resource',
     }
+
+
+def test_script_list_and_detail_routes_expose_js_slash_runner_resources(monkeypatch):
+    fake_client = ScriptListClient()
+    monkeypatch.setattr(st_sync_api, 'STClient', lambda **_kwargs: fake_client)
+
+    client = _make_test_app().test_client()
+    list_response = client.get(
+        '/api/st/list/scripts',
+        query_string={'st_data_dir': 'D:/SillyTavern'},
+    )
+    detail_response = client.get(
+        '/api/st/get/scripts/script-one',
+        query_string={'st_data_dir': 'D:/SillyTavern'},
+    )
+
+    assert list_response.status_code == 200
+    assert list_response.get_json()['count'] == 1
+    assert list_response.get_json()['items'][0]['id'] == 'script-one'
+    assert detail_response.status_code == 200
+    assert detail_response.get_json()['item']['data']['name'] == 'One'
 
 
 def test_sync_safe_request_delegates_to_client_as_before(monkeypatch):

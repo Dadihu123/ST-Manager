@@ -29,6 +29,9 @@ class DummySTClient:
         }
         return mapping.get(resource_type)
 
+    def get_user_dir(self):
+        return os.path.join(self.st_root, 'data', 'default-user')
+
     def _normalize_default_user_dir(self, path: str):
         normalized = os.path.normpath(path)
         if os.path.basename(normalized).lower() == 'default-user':
@@ -208,6 +211,27 @@ def test_evaluate_st_path_safety_marks_manager_inside_st_relation(tmp_path):
     assert result['conflicts'][0]['relation'] == 'manager_inside_st'
     assert result['conflicts'][0]['manager_path'] == os.path.normpath(str(nested_dir))
     assert result['conflicts'][0]['st_path'] == os.path.normpath(str(chats_dir))
+
+
+def test_evaluate_st_path_safety_uses_user_dir_boundary_for_scripts(tmp_path):
+    st_root = tmp_path / 'SillyTavern'
+    user_dir = st_root / 'data' / 'default-user'
+    scripts_export_dir = user_dir / 'manager-scripts'
+    scripts_export_dir.mkdir(parents=True)
+
+    result = evaluate_st_path_safety(
+        {
+            'st_data_dir': str(st_root),
+            'scripts_dir': str(scripts_export_dir),
+        },
+        base_dir=str(tmp_path),
+        st_client_factory=_factory(st_root),
+    )
+
+    assert result['risk_level'] == 'warning'
+    assert result['blocked_actions'] == ['sync_all', 'sync_scripts']
+    assert result['conflicts'][0]['resource_type'] == 'scripts'
+    assert result['conflicts'][0]['st_path'] == os.path.normpath(str(user_dir))
 
 
 def test_evaluate_st_path_safety_marks_st_inside_manager_relation(tmp_path):

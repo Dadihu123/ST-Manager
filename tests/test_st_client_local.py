@@ -51,7 +51,35 @@ def _write_resource_fixture(user_dir: Path):
                         'findRegex': '/settings/g',
                         'replaceString': 'value',
                     }
-                ]
+                ],
+                'tavern_helper': {
+                    'script': {
+                        'scripts': [
+                            {
+                                'type': 'script',
+                                'id': 'script-one',
+                                'name': 'One',
+                                'content': 'console.log("one")',
+                                'button': {'enabled': True, 'buttons': []},
+                                'data': {'scope': 'global'},
+                                'export_with': {'data': True, 'button': True},
+                            },
+                            {
+                                'type': 'folder',
+                                'id': 'folder-one',
+                                'name': 'Folder One',
+                                'scripts': [
+                                    {
+                                        'type': 'script',
+                                        'id': 'script-two',
+                                        'name': 'Two',
+                                        'content': 'console.log("two")',
+                                    }
+                                ],
+                            },
+                        ]
+                    }
+                },
             }
         }),
         encoding='utf-8',
@@ -71,8 +99,139 @@ def test_st_client_reads_configured_user_directory_from_install_root(tmp_path):
     assert [item['id'] for item in client.list_presets()] == ['openai']
     assert [item['id'] for item in client.list_regex_scripts()] == ['global']
     assert [item['id'] for item in client.list_quick_replies()] == ['common']
+    assert [item['id'] for item in client.list_scripts()] == ['script-one', 'folder-one']
+    assert client.list_scripts()[1]['scripts_count'] == 1
     assert [item['id'] for item in client.list_chats()] == ['Alice']
     assert client.get_global_regex()['count'] == 1
+
+
+def test_st_client_exports_js_slash_runner_scripts_and_preserves_conflicts(tmp_path):
+    root, user_dir = _make_st_user(tmp_path)
+    _write_resource_fixture(user_dir)
+    client = STClient(st_data_dir=str(root), st_user_handle='alice')
+    target_dir = tmp_path / 'manager' / 'scripts'
+
+    success, message = client.sync_resource('scripts', 'script-one', str(target_dir))
+
+    assert success is True
+    exported = target_dir / 'script-script-one.json'
+    assert message == str(exported)
+    assert json.loads(exported.read_text(encoding='utf-8'))['content'] == 'console.log("one")'
+
+    unchanged, unchanged_message = client.sync_resource('scripts', 'script-one', str(target_dir))
+    assert unchanged is True
+    assert unchanged_message.startswith('unchanged:')
+
+    exported.write_text('{"manager": true}', encoding='utf-8')
+    conflict, conflict_message = client.sync_resource('scripts', 'script-one', str(target_dir))
+    assert conflict is False
+    assert conflict_message.startswith('conflict:')
+    assert json.loads(exported.read_text(encoding='utf-8')) == {'manager': True}
+
+    result = client.sync_all_resources('scripts', str(target_dir))
+    assert result['success'] == 1
+    assert result['skipped'] == 1
+    assert result['conflicts'][0]['id'] == 'script-one'
+    assert json.loads((target_dir / 'script-folder-one.json').read_text(encoding='utf-8'))['type'] == 'folder'
+
+
+def test_st_client_reads_legacy_tavern_helper_script_repository(tmp_path):
+    root, user_dir = _make_st_user(tmp_path)
+    settings_path = user_dir / 'settings.json'
+    settings_path.write_text(
+        json.dumps({
+            'extension_settings': {
+                'TavernHelper': {
+                    'script': {
+                        'scriptsRepository': [
+                            {
+                                'name': 'Legacy Script',
+                                'content': 'return 1',
+                                'buttons': [{'name': 'Run', 'visible': True}],
+                            }
+                        ]
+                    }
+                }
+            }
+        }),
+        encoding='utf-8',
+    )
+
+    scripts = STClient(st_data_dir=str(root), st_user_handle='alice').list_scripts()
+
+    assert len(scripts) == 1
+    assert scripts[0]['name'] == 'Legacy Script'
+    assert scripts[0]['data']['type'] == 'script'
+    assert scripts[0]['data']['button']['buttons'][0]['name'] == 'Run'
+
+
+def test_st_client_reads_legacy_wrapped_script_repository(tmp_path):
+    root, user_dir = _make_st_user(tmp_path)
+    settings_path = user_dir / 'settings.json'
+    settings_path.write_text(
+        json.dumps({
+            'extension_settings': {
+                'TavernHelper': {
+                    'script': {
+                        'scriptsRepository': [
+                            {
+                                'type': 'script',
+                                'value': {
+                                    'id': 'wrapped-script',
+                                    'name': 'Wrapped Script',
+                                    'content': 'return 2',
+                                    'buttons': [{'name': 'Run', 'visible': True}],
+                                },
+                            }
+                        ]
+                    }
+                }
+            }
+        }),
+        encoding='utf-8',
+    )
+
+    scripts = STClient(st_data_dir=str(root), st_user_handle='alice').list_scripts()
+
+    assert len(scripts) == 1
+    assert scripts[0]['id'] == 'wrapped-script'
+    assert scripts[0]['data']['content'] == 'return 2'
+    assert scripts[0]['data']['button']['buttons'][0]['name'] == 'Run'
+
+
+def test_st_client_reads_js_slash_runner_scripts_from_native_settings_api(tmp_path):
+    client = STClient(st_url='http://127.0.0.1:8000')
+
+    class _Response:
+        ok = True
+
+        def json(self):
+            return {
+                'settings': json.dumps({
+                    'extension_settings': {
+                        'tavern_helper': {
+                            'script': {
+                                'scripts': [
+                                    {
+                                        'type': 'script',
+                                        'id': 'api-script',
+                                        'name': 'API Script',
+                                        'content': 'return 3',
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                })
+            }
+
+    client._api_post = lambda *_args, **_kwargs: _Response()
+
+    scripts = client.list_scripts(use_api=True)
+
+    assert len(scripts) == 1
+    assert scripts[0]['id'] == 'api-script'
+    assert scripts[0]['data']['content'] == 'return 3'
 
 
 def test_st_connection_counts_global_regex_from_settings_without_regex_directory(tmp_path):
@@ -255,3 +414,4 @@ def test_st_validate_path_reports_custom_user_and_resources(tmp_path):
     assert payload['resources']['presets']['count'] == 1
     assert payload['resources']['regex']['script_count'] == 1
     assert payload['resources']['regex']['global_count'] == 1
+    assert payload['resources']['scripts']['count'] == 2

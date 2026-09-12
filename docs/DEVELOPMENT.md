@@ -88,7 +88,7 @@ docs/                          # API、配置、开发和设计说明
 | `extensions` / `resources` | 扩展脚本、角色资源和静态文件 |
 | `beautify` | 主题包、变体、壁纸、头像和预览 |
 | `automation` | 规则集、条件、动作和批量执行 |
-| `st_sync` | SillyTavern 本地/API 连接和资源同步 |
+| `st_sync` | SillyTavern 本地/API 连接、扩展资源和 JS-Slash-Runner 脚本同步 |
 | `system` | 状态、设置、扫描、索引、快照、备份和维护 |
 | `forum` | 来源论坛帖子预览 |
 
@@ -103,6 +103,7 @@ Flask Blueprint 路由
         ▼
 Service / Automation / STClient
         ├─ 文件系统：卡片、世界书、聊天、预设、扩展、主题
+        ├─ ST settings.json：JS-Slash-Runner 全局脚本树
         ├─ SQLite：元数据、UI 关联、索引、任务、监控运行
         └─ 内存状态：ctx.cache、初始化状态、索引唤醒事件
         ▼

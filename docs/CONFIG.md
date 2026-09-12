@@ -22,7 +22,7 @@ ST Manager 使用项目根目录的 `config.json`。文件不存在时，`app.py
 | `presets_dir` | `data/library/presets` | 管理器自己的预设目录 |
 | `st_openai_preset_dir` | `""` | 兼容字段；优先使用 ST 路径探测和 `presets_dir` |
 | `regex_dir` | `data/library/extensions/regex` | 全局 Regex 扩展目录 |
-| `scripts_dir` | `data/library/extensions/tavern_helper` | Tavern Helper/ST 脚本目录 |
+| `scripts_dir` | `data/library/extensions/tavern_helper` | JS-Slash-Runner/Tavern Helper 脚本导出目录；ST 源数据来自用户 `settings.json` |
 | `quick_replies_dir` | `data/library/extensions/quick-replies` | Quick Replies 目录 |
 | `beautify_dir` | `data/library/beautify` | Beautify 包和主题目录 |
 | `resources_dir` | `data/assets/card_assets` | 角色卡资源根目录 |
@@ -48,7 +48,7 @@ ST Manager 使用项目根目录的 `config.json`。文件不存在时，`app.py
 | `st_web_password` | `""` | ST Web 登录密码 |
 | `st_proxy` | `""` | ST HTTP 请求使用的代理地址 |
 
-同步支持 `characters`、`chats`、`worlds`、`presets`、`regex` 和 `quick_replies`。可以使用本地目录同步，也可以根据 ST HTTP 连接能力选择 API 模式。
+同步支持 `characters`、`chats`、`worlds`、`presets`、`regex`、`scripts` 和 `quick_replies`。其中 `scripts` 读取 JS-Slash-Runner 写入 `settings.json` 的全局脚本树，并导出为可再次导入插件的 JSON 文件。可以使用本地目录同步，也可以根据 ST HTTP 连接能力选择 API 模式。
 
 ## 列表与界面
 

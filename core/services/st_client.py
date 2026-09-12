@@ -20,6 +20,7 @@ import shutil
 from typing import Optional, Dict, List, Any, Tuple
 from core.config import load_config, BASE_DIR
 from core.services.st_auth import STAuthError, build_st_http_client
+from core.utils.filesystem import sanitize_filename
 from core.utils.regex import extract_regex_from_preset_data, extract_global_regex_from_settings
 
 logger = logging.getLogger(__name__)
@@ -67,6 +68,7 @@ ST_DATA_STRUCTURE = {
     "worlds": "worlds",
     "presets": "OpenAI Settings",
     "regex": "regex",
+    # JS-Slash-Runner 的正式存储位置是 settings.json；此目录仅用于兼容旧导出。
     "scripts": "scripts",
     "quick_replies": "QuickReplies",
     "settings": "settings.json",
@@ -78,6 +80,7 @@ ST_SYNC_RESOURCE_TYPES = (
     "worlds",
     "presets",
     "regex",
+    "scripts",
     "quick_replies",
 )
 
@@ -604,6 +607,9 @@ class STClient:
             result["local"]["path"] = st_path
             # 检查各资源目录
             for res_type in ST_SYNC_RESOURCE_TYPES:
+                if res_type == "scripts":
+                    result["local"]["resources"][res_type] = len(self.list_scripts())
+                    continue
                 if res_type == "presets":
                     subdir = self.get_presets_dir()
                 elif res_type == "regex":
@@ -1128,7 +1134,236 @@ class STClient:
                 
         logger.info(f"从本地读取 {len(quick_replies)} 个快速回复集")
         return quick_replies
-    
+
+    # ==================== JS-Slash-Runner 脚本读取 ====================
+
+    @staticmethod
+    def _script_value(settings: Any) -> Any:
+        """从 ST settings 中提取 JS-Slash-Runner 的全局脚本数组。"""
+        if not isinstance(settings, dict):
+            return None
+
+        extension_settings = settings.get("extension_settings")
+        if not isinstance(extension_settings, dict):
+            return None
+
+        # 当前版本使用 tavern_helper.script.scripts；旧版本使用
+        # TavernHelper.script.scriptsRepository。两种格式都由插件自身迁移。
+        for extension_key in ("tavern_helper", "TavernHelper"):
+            extension = extension_settings.get(extension_key)
+            if not isinstance(extension, dict):
+                continue
+            script_settings = extension.get("script")
+            if not isinstance(script_settings, dict):
+                continue
+            for key in ("scripts", "scriptsRepository"):
+                value = script_settings.get(key)
+                if isinstance(value, list):
+                    return value
+        return None
+
+    @staticmethod
+    def _script_id(tree: Dict[str, Any], index: int) -> str:
+        """为脚本树生成稳定的资源 ID，兼容旧数据中缺失 id 的情况。"""
+        value = tree.get("id")
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+        name = str(tree.get("name") or "script").strip() or "script"
+        return f"legacy-{index + 1}-{sanitize_filename(name)[:48]}"
+
+    @classmethod
+    def _normalize_script_tree(cls, value: Any, index: int) -> Optional[Dict[str, Any]]:
+        """将新旧 JS-Slash-Runner 脚本树转换为可直接导入的 JSON 对象。"""
+        if not isinstance(value, dict):
+            return None
+
+        tree = dict(value)
+        # 兼容旧版导出中的 {type: "script", value: {...}} 包装格式。
+        if tree.get("type") == "script" and isinstance(tree.get("value"), dict):
+            wrapped = dict(tree["value"])
+            if tree.get("id") and not wrapped.get("id"):
+                wrapped["id"] = tree["id"]
+            tree = wrapped
+
+        is_folder = (
+            tree.get("type") == "folder"
+            or isinstance(tree.get("scripts"), list)
+            or isinstance(tree.get("value"), list)
+        )
+        if is_folder:
+            raw_scripts = tree.get("scripts")
+            if not isinstance(raw_scripts, list):
+                raw_scripts = tree.get("value")
+            if not isinstance(raw_scripts, list):
+                raw_scripts = []
+            scripts = []
+            for child_index, child in enumerate(raw_scripts):
+                normalized = cls._normalize_script_tree(child, child_index)
+                if normalized and normalized.get("type") != "folder":
+                    scripts.append(normalized)
+            tree["type"] = "folder"
+            tree.pop("value", None)
+            tree["scripts"] = scripts
+            tree.setdefault("enabled", False)
+            tree.setdefault("name", "")
+        else:
+            legacy_buttons = tree.pop("buttons", None)
+            button = tree.get("button")
+            if not isinstance(button, dict):
+                button = {"enabled": True, "buttons": legacy_buttons or []}
+            elif "buttons" not in button and isinstance(legacy_buttons, list):
+                button["buttons"] = legacy_buttons
+            tree["type"] = "script"
+            tree["button"] = button
+            tree.setdefault("enabled", False)
+            tree.setdefault("name", "")
+            tree.setdefault("content", "")
+            tree.setdefault("info", "")
+            tree.setdefault("data", {})
+            tree.setdefault("export_with", {"data": True, "button": True})
+
+        tree["id"] = cls._script_id(tree, index)
+        return tree
+
+    @classmethod
+    def _script_resources_from_settings(
+        cls,
+        settings: Any,
+        settings_path: Optional[str] = None,
+        source: str = "settings",
+    ) -> List[Dict[str, Any]]:
+        raw_trees = cls._script_value(settings)
+        if not isinstance(raw_trees, list):
+            return []
+
+        resources = []
+        for index, raw_tree in enumerate(raw_trees):
+            # 兼容旧版导出的 ["scripts", [...]] 块。
+            if (
+                isinstance(raw_tree, list)
+                and len(raw_tree) >= 2
+                and raw_tree[0] == "scripts"
+                and isinstance(raw_tree[1], list)
+            ):
+                nested = raw_tree[1]
+                for nested_index, nested_tree in enumerate(nested):
+                    normalized = cls._normalize_script_tree(nested_tree, nested_index)
+                    if normalized:
+                        resources.append(
+                            cls._build_script_resource(
+                                normalized,
+                                len(resources),
+                                settings_path,
+                                source,
+                            )
+                        )
+                continue
+
+            normalized = cls._normalize_script_tree(raw_tree, index)
+            if normalized:
+                resources.append(
+                    cls._build_script_resource(normalized, index, settings_path, source)
+                )
+        return resources
+
+    @staticmethod
+    def _build_script_resource(
+        tree: Dict[str, Any],
+        index: int,
+        settings_path: Optional[str],
+        source: str,
+    ) -> Dict[str, Any]:
+        resource_id = str(tree.get("id") or f"legacy-{index + 1}")
+        filename = f"script-{sanitize_filename(resource_id)}.json"
+        is_folder = tree.get("type") == "folder"
+        return {
+            "id": resource_id,
+            "filename": filename,
+            "name": tree.get("name") or resource_id,
+            "type": "folder" if is_folder else "script",
+            "scripts_count": len(tree.get("scripts", [])) if is_folder else 1,
+            "filepath": settings_path,
+            "source": source,
+            "data": tree,
+        }
+
+    def list_scripts(self, use_api: bool = False) -> List[Dict[str, Any]]:
+        """列出 JS-Slash-Runner 全局脚本树。"""
+        if use_api:
+            return self._list_scripts_api()
+        return self._list_scripts_local()
+
+    def _list_scripts_local(self) -> List[Dict[str, Any]]:
+        settings_path = self.get_settings_path()
+        resources = self._script_resources_from_settings(
+            self.read_settings(settings_path), settings_path
+        )
+        if resources:
+            logger.info(f"从 ST settings.json 读取 {len(resources)} 个 JS-Slash-Runner 脚本资源")
+            return resources
+
+        # 兼容极早期或第三方实现把导出 JSON 放在 data/<user>/scripts 的情况。
+        scripts_dir = self.get_st_subdir("scripts")
+        if not scripts_dir or not os.path.isdir(scripts_dir):
+            return []
+
+        resources = []
+        for root, _, filenames in os.walk(scripts_dir):
+            for filename in sorted(filenames, key=str.casefold):
+                if not filename.lower().endswith(".json"):
+                    continue
+                filepath = os.path.join(root, filename)
+                try:
+                    with open(filepath, "r", encoding="utf-8") as handle:
+                        data = json.load(handle)
+                    if not isinstance(data, dict):
+                        continue
+                    relative = os.path.relpath(filepath, scripts_dir).replace(os.sep, "/")
+                    resource_id = os.path.splitext(relative)[0]
+                    resources.append({
+                        "id": resource_id,
+                        "filename": relative,
+                        "name": data.get("name") or filename,
+                        "type": data.get("type", "script"),
+                        "scripts_count": (
+                            len(data.get("scripts", []))
+                            if data.get("type") == "folder"
+                            else 1
+                        ),
+                        "filepath": filepath,
+                        "source": "file",
+                        "data": data,
+                    })
+                except (OSError, ValueError) as exc:
+                    logger.warning(f"读取 ST 脚本 {filepath} 失败: {exc}")
+        return resources
+
+    def _list_scripts_api(self) -> List[Dict[str, Any]]:
+        """通过 ST 原生 settings API 读取 JS-Slash-Runner 全局脚本。"""
+        try:
+            response = self._api_post("/api/settings/get", {})
+            if not response.ok:
+                return []
+            payload = response.json()
+            raw_settings = payload.get("settings") if isinstance(payload, dict) else payload
+            if isinstance(raw_settings, str):
+                raw_settings = json.loads(raw_settings)
+            return self._script_resources_from_settings(raw_settings, source="api")
+        except Exception as exc:
+            logger.debug(f"获取 JS-Slash-Runner 脚本列表失败(API): {exc}")
+            return []
+
+    def _find_script_resource(
+        self, resource_id: str, use_api: bool = False
+    ) -> Optional[Dict[str, Any]]:
+        resource_id = str(resource_id or "").strip()
+        if not resource_id:
+            return None
+        return next(
+            (item for item in self.list_scripts(use_api) if item.get("id") == resource_id),
+            None,
+        )
+
     # ==================== 资源同步 ====================
 
     @staticmethod
@@ -1176,7 +1411,79 @@ class STClient:
         if message.startswith("conflict:"):
             return "conflict"
         return None
-    
+
+    def _sync_script_resource(
+        self, resource_id: str, target_dir: str, use_api: bool = False
+    ) -> Tuple[bool, str]:
+        """将 JS-Slash-Runner 设置中的一个脚本树导出为独立 JSON。"""
+        resource = self._find_script_resource(resource_id, use_api)
+        if not resource:
+            return False, f"未找到 ST 脚本资源: {resource_id}"
+
+        relative_filename = str(resource.get("filename") or "").strip()
+        if not relative_filename:
+            return False, f"ST 脚本资源文件名为空: {resource_id}"
+
+        normalized_filename = os.path.normpath(relative_filename.replace("/", os.sep))
+        if (
+            os.path.isabs(normalized_filename)
+            or normalized_filename in {".", ".."}
+            or normalized_filename.startswith(f"..{os.sep}")
+        ):
+            return False, f"ST 脚本资源文件名非法: {relative_filename}"
+
+        target_root = os.path.abspath(target_dir)
+        target_path = os.path.abspath(os.path.join(target_root, normalized_filename))
+        try:
+            if os.path.commonpath([target_root, target_path]) != target_root:
+                return False, f"ST 脚本目标路径非法: {relative_filename}"
+        except ValueError:
+            return False, f"ST 脚本目标路径非法: {relative_filename}"
+
+        source = resource.get("source")
+        source_path = resource.get("filepath")
+        if source == "file" and isinstance(source_path, str):
+            scripts_dir = self.get_st_subdir("scripts")
+            if not scripts_dir or not os.path.isfile(source_path):
+                return False, f"ST 脚本源文件不存在: {source_path}"
+            try:
+                source_root = os.path.abspath(scripts_dir)
+                if os.path.commonpath([source_root, os.path.abspath(source_path)]) != source_root:
+                    return False, f"ST 脚本源路径非法: {source_path}"
+            except ValueError:
+                return False, f"ST 脚本源路径非法: {source_path}"
+            payload = None
+        else:
+            data = resource.get("data")
+            if not isinstance(data, dict):
+                return False, f"ST 脚本资源内容非法: {resource_id}"
+            payload = (json.dumps(data, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
+
+        try:
+            os.makedirs(os.path.dirname(target_path), exist_ok=True)
+            if os.path.exists(target_path):
+                if not os.path.isfile(target_path):
+                    return False, f"conflict:目标已存在且不是文件，已跳过: {target_path}"
+                if payload is None:
+                    unchanged = filecmp.cmp(source_path, target_path, shallow=False)
+                else:
+                    with open(target_path, "rb") as handle:
+                        unchanged = handle.read() == payload
+                if unchanged:
+                    return True, f"unchanged:{target_path}"
+                return False, f"conflict:目标已存在且内容不同，已跳过: {target_path}"
+
+            if payload is None:
+                shutil.copy2(source_path, target_path)
+            else:
+                with open(target_path, "wb") as handle:
+                    handle.write(payload)
+            logger.info("同步 ST 脚本成功: %s -> %s", source_path or resource_id, target_path)
+            return True, target_path
+        except OSError as exc:
+            logger.error("同步 ST 脚本失败: %s", exc)
+            return False, str(exc)
+
     def sync_resource(self, resource_type: str, resource_id: str, 
                       target_dir: str, use_api: bool = False) -> Tuple[bool, str]:
         """
@@ -1192,6 +1499,9 @@ class STClient:
             (成功标志, 消息或目标路径)
         """
         try:
+            if resource_type == "scripts":
+                return self._sync_script_resource(resource_id, target_dir, use_api)
+
             source_dir = self.get_st_subdir(resource_type)
             if not source_dir:
                 return False, f"未找到 {resource_type} 源目录"
@@ -1286,6 +1596,8 @@ class STClient:
             resources = self.list_presets(use_api)
         elif resource_type == "regex":
             resources = self.list_regex_scripts(use_api)
+        elif resource_type == "scripts":
+            resources = self.list_scripts(use_api)
         elif resource_type == "quick_replies":
             resources = self.list_quick_replies(use_api)
         else:

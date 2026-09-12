@@ -379,7 +379,7 @@ def validate_path():
             LAST_VALID_ST_PATH = normalized_path
             LAST_VALID_ST_USER_HANDLE = client.st_user_handle
             # 检查各资源目录，目录边界由 data/<user> 明确决定。
-            for res_type in ['characters', 'chats', 'worlds', 'presets', 'regex', 'quick_replies']:
+            for res_type in ['characters', 'chats', 'worlds', 'presets', 'regex', 'scripts', 'quick_replies']:
                 subdir = client.get_st_subdir(res_type)
                 if res_type == 'regex':
                     script_count = 0
@@ -395,6 +395,16 @@ def validate_path():
                         "count": script_count + global_count,
                         "script_count": script_count,
                         "global_count": global_count
+                    }
+                    continue
+
+                if res_type == 'scripts':
+                    script_items = client.list_scripts()
+                    settings_path = client.get_settings_path()
+                    resources[res_type] = {
+                        'path': settings_path or subdir,
+                        'count': len(script_items),
+                        'source': 'settings.json',
                     }
                     continue
 
@@ -445,7 +455,7 @@ def list_resources(resource_type: str):
     列出指定类型的 SillyTavern 资源
     
     Args:
-        resource_type: 资源类型 (characters/worlds/presets/regex/quick_replies)
+        resource_type: 资源类型 (characters/chats/worlds/presets/regex/scripts/quick_replies)
         
     Query Params:
         use_api: 是否使用 API 模式 (默认 false)
@@ -472,6 +482,8 @@ def list_resources(resource_type: str):
             items = client.list_presets(use_api)
         elif resource_type == 'regex':
             items = client.list_regex_scripts(use_api)
+        elif resource_type == 'scripts':
+            items = client.list_scripts(use_api)
         elif resource_type == 'quick_replies':
             items = client.list_quick_replies(use_api)
         else:
@@ -527,6 +539,9 @@ def get_resource(resource_type: str, resource_id: str):
             item = next((w for w in items if w.get('id') == resource_id), None)
             if item and item.get('filepath'):
                 item['data'] = client._read_world_book_file(item['filepath'])
+        elif resource_type == 'scripts':
+            items = client.list_scripts(use_api)
+            item = next((script for script in items if script.get('id') == resource_id), None)
         else:
             return jsonify({
                 "success": False,
@@ -593,6 +608,7 @@ def sync_resources():
             "worlds": config.get('world_info_dir', 'data/library/lorebooks'),
             "presets": config.get('presets_dir', 'data/library/presets'),
             "regex": config.get('regex_dir', 'data/library/extensions/regex'),
+            "scripts": config.get('scripts_dir', 'data/library/extensions/tavern_helper'),
             "quick_replies": config.get('quick_replies_dir', 'data/library/extensions/quick-replies'),
         }
         
@@ -744,7 +760,7 @@ def get_summary():
         }
         
         # 统计各类资源
-        resource_types = ['characters', 'chats', 'worlds', 'presets', 'regex', 'quick_replies']
+        resource_types = ['characters', 'chats', 'worlds', 'presets', 'regex', 'scripts', 'quick_replies']
         for res_type in resource_types:
             try:
                 if res_type == 'characters':
@@ -757,6 +773,8 @@ def get_summary():
                     items = client.list_presets()
                 elif res_type == 'regex':
                     items = client.list_regex_scripts()
+                elif res_type == 'scripts':
+                    items = client.list_scripts()
                 elif res_type == 'quick_replies':
                     items = client.list_quick_replies()
                 else:
