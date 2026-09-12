@@ -22,11 +22,10 @@ def test_header_and_global_menu_use_semantic_icon_mappings():
     source = read_header_template()
 
     expected_counts = {
-        "icon('file-import'": 2,
+        "icon('file-import'": 1,
         "icon('menu'": 1,
         "icon('close'": 1,
         "icon('filter'": 2,
-        "icon('plus-square'": 2,
         "icon('link-import'": 2,
         "icon('refresh'": 2,
         "icon('header-dark-mode'": 2,

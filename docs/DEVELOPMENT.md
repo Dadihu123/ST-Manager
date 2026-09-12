@@ -141,6 +141,7 @@ API 主要集中在 `core/api/v1/`，按资源域拆分：
 `core/services/` 是主要业务逻辑承载层，包含：
 
 - 文件扫描与缓存刷新
+- 缩略图孤儿缓存清理与 UI 数据维护
 - 索引构建、状态查询、升级恢复与任务 worker
 - 角色卡读写与同步
 - 世界书索引查询
@@ -309,6 +310,14 @@ pytest -v tests/test_chat_list_filters.py::test_chat_list_fav_filter_included
 
 仓库中还包含部分 `.mjs` 运行时回归脚本，主要用于专项验证前端行为。
 
+缩略图维护服务位于 `core/services/maintenance_service.py`，HTTP 入口位于
+`core/api/v1/system.py`。根目录 `clean_ui_data.py` 不依赖 Flask，适合在应用未启动时对
+`ui_data.json` 做 dry-run 或带备份清理。它会根据 `config.json` 中的目录配置检查卡片、世界书、预设、美化资源和共享壁纸引用。
+
+布局相关改动应同时检查 `static/js/components/layout.js`、
+`static/css/modules/layout.css` 以及头部、侧边栏模板。设备类型由视口宽度驱动，切换到
+移动端时关闭抽屉，恢复到平板或桌面宽度时重新显示桌面侧边栏，避免浏览器缩放后状态残留。
+
 ---
 
 ## 9. 常用开发命令
@@ -328,6 +337,9 @@ flake8 app.py core tests
 
 # mypy（可选）
 mypy core
+
+# 预览 UI 数据清理
+python clean_ui_data.py --dry-run
 ```
 
 ---

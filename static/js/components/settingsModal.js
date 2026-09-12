@@ -103,6 +103,7 @@ const SETTINGS_SEARCH_ITEMS = [
   { id: "connection-manager-auth", section: "connection", anchor: "settings-connection-manager-auth", title: "访问认证与失败限制", keywords: "认证 登录 密码 ip 代理 锁定", icon: "shield-key" },
   { id: "connection-external", section: "connection", anchor: "settings-connection-external", title: "外部服务", keywords: "discord cookie token 类脑", icon: "external-link" },
   { id: "maintenance-actions", section: "maintenance", anchor: "settings-maintenance-actions", title: "维护操作", keywords: "扫描 备份 回收站 用户 db 导入 导出", icon: "settings-maintenance" },
+  { id: "maintenance-thumbnails", section: "maintenance", anchor: "settings-maintenance-thumbnails", title: "缩略图缓存", keywords: "缩略图 缓存 清理 原图 webp", icon: "broom" },
   { id: "maintenance-performance", section: "maintenance", anchor: "settings-maintenance-performance", title: "扫描与性能", keywords: "自动扫描 索引 性能", icon: "sliders-settings" },
   { id: "maintenance-import", section: "maintenance", anchor: "settings-maintenance-import", title: "导入行为", keywords: "标签 分隔符 重命名 png", icon: "file-import" },
   { id: "maintenance-worldinfo", section: "maintenance", anchor: "settings-maintenance-worldinfo", title: "世界书预览与历史", keywords: "世界书 条目 字符 历史", icon: "search" },
@@ -600,6 +601,11 @@ export default function settingsModal() {
         });
     },
 
+    cleanupThumbnails() {
+      if (!confirm("确定清理已经没有对应原图的缩略图缓存吗？")) return;
+      this.systemAction("cleanup_thumbnails");
+    },
+
     // === 初始化 ===
     init() {
       if (typeof window !== "undefined") {
@@ -990,15 +996,15 @@ export default function settingsModal() {
 
     getResourceIcon(type) {
       const icons = {
-        characters: "cards-stack",
-        chats: "chat-bubbles",
-        worlds: "book-stack",
-        presets: "preset-stack",
-        regex: "regex-file",
-        quick_replies: "reply-bolt",
-        scripts: "script-brackets",
+        characters: "character-cards",
+        chats: "chat-bubble",
+        worlds: "book-open",
+        presets: "preset",
+        regex: "regex",
+        quick_replies: "quick-reply",
+        scripts: "script-file",
       };
-      return icons[type] || "folder-solid";
+      return icons[type] || "folder";
     },
 
     async detectSTPath() {

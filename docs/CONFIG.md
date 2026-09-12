@@ -59,6 +59,12 @@ Docker 额外注意：
 | `data/system/trash` | 回收站 |
 | `data/temp` | 临时文件 |
 
+缩略图维护规则：
+
+- 设置页的“清理无效缩略图”使用 `cards_dir` 和固定的 `data/system/thumbnails` 目录进行安全比对，只处理没有对应来源的 `.webp` 缓存。
+- 项目根目录的 `clean_ui_data.py` 是独立的 JSON 维护工具，默认读取同级 `config.json`、`data/system/db/ui_data.json` 以及配置中的资源目录。
+- 执行工具前会创建 `ui_data.json.bak`；可先用 `python clean_ui_data.py --dry-run` 查看待清理数量。工具不会删除磁盘文件。
+
 ---
 
 ## 3. 默认配置总览

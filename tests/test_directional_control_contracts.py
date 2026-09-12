@@ -33,8 +33,8 @@ def test_directional_controls_share_one_visual_and_size_contract():
 def test_settings_number_controls_use_automation_arrow_symbols():
     source = read_project_file('templates/modals/settings.html')
 
-    assert source.count("icon('arrow-up', 'ui-icon--xs')") == 6
-    assert source.count("icon('arrow-down', 'ui-icon--xs')") == 6
+    assert source.count("icon('arrow-up', 'ui-icon--xs')") == 12
+    assert source.count("icon('arrow-down', 'ui-icon--xs')") == 12
     assert "icon('chevron-down'" not in source
     assert 'settings-number-stepper-icon' not in source
 

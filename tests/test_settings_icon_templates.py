@@ -37,13 +37,13 @@ SETTINGS_ICON_NAMES = {
 
 
 SETTINGS_SHARED_ICON_SOURCES = {
-    'character-cards': 'static/icons/sidebar.svg',
-    'chat-bubble': 'static/icons/detail.svg',
-    'book-open': 'static/icons/detail.svg',
-    'preset': 'static/icons/detail.svg',
-    'regex': 'static/icons/detail.svg',
-    'quick-reply': 'static/icons/detail.svg',
-    'paint-brush': 'static/icons/sidebar.svg',
+    'character-cards': 'static/icons/ui.svg',
+    'chat-bubble': 'static/icons/ui.svg',
+    'book-open': 'static/icons/ui.svg',
+    'preset': 'static/icons/ui.svg',
+    'regex': 'static/icons/ui.svg',
+    'quick-reply': 'static/icons/ui.svg',
+    'paint-brush': 'static/icons/ui.svg',
 }
 
 
@@ -125,7 +125,7 @@ def test_settings_followup_icon_layout_and_theme_controls():
     assert 'height: 16px;' in settings_css
     assert '--150' not in settings_css
     assert 'settings-section-label-with-icon' in source
-    assert source.count('class="settings-status-icon"') == 4
+    assert source.count('class="settings-status-icon"') == 3
     assert 'settings-help-title-icon--150' not in source
     assert '.settings-help-body h4 > [aria-hidden' in settings_css
     assert 'settings-icon-button--field-centered' in source
@@ -149,10 +149,10 @@ def test_settings_path_trash_and_number_controls_use_shared_visual_contract():
     assert '.settings-trash-open-icon.ui-icon--sm {' in settings_css
     assert 'height: 16px;' in settings_css
 
-    assert source.count('class="settings-number-control') == 6
-    assert source.count('class="settings-number-stepper"') == 6
-    assert source.count('class="settings-number-stepper-btn"') == 12
-    assert source.count('class="form-input settings-number-input"') == 6
+    assert source.count('class="settings-number-control') == 12
+    assert source.count('class="settings-number-stepper"') == 12
+    assert source.count('class="settings-number-stepper-btn"') == 24
+    assert source.count('class="form-input settings-number-input"') == 12
     assert 'adjustNumberSetting(field, delta, min = null, max = null)' in settings_js
     assert 'settings-number-input::-webkit-inner-spin-button' in settings_css
     assert '.settings-number-stepper-btn:hover' in settings_css

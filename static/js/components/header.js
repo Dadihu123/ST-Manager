@@ -20,6 +20,7 @@ import { listChats } from "../api/chat.js";
 const MOBILE_HEADER_UPLOAD_MODES = [
   "cards",
   "worldinfo",
+  "chats",
   "presets",
   "regex",
   "scripts",
@@ -263,6 +264,12 @@ export default function header() {
         : "URL 导入仅支持角色卡模式";
     },
     get showMobileUploadButton() {
+      return (
+        this.deviceType === "mobile" &&
+        MOBILE_HEADER_UPLOAD_MODES.includes(this.currentMode)
+      );
+    },
+    get showMobileRefreshButton() {
       return (
         this.deviceType === "mobile" &&
         MOBILE_HEADER_UPLOAD_MODES.includes(this.currentMode)
@@ -535,6 +542,37 @@ export default function header() {
 
     fetchChats() {
       window.dispatchEvent(new CustomEvent("refresh-chat-list"));
+    },
+
+    refreshCurrentMode() {
+      this.closeMobileMenu();
+      if (this.currentMode === "cards") {
+        this.fetchCards();
+        return;
+      }
+      if (this.currentMode === "worldinfo") {
+        this.fetchWorldInfoList();
+        return;
+      }
+      if (this.currentMode === "chats") {
+        this.fetchChats();
+        return;
+      }
+      if (this.currentMode === "presets") {
+        window.dispatchEvent(new CustomEvent("refresh-preset-list"));
+        return;
+      }
+      if (["regex", "scripts", "quick_replies"].includes(this.currentMode)) {
+        window.dispatchEvent(
+          new CustomEvent("refresh-extension-list", {
+            detail: { mode: this.currentMode },
+          }),
+        );
+        return;
+      }
+      if (this.currentMode === "beautify") {
+        window.dispatchEvent(new CustomEvent("refresh-beautify-list"));
+      }
     },
 
     createWorldInfoBook() {
@@ -929,6 +967,10 @@ export default function header() {
 
     triggerMobileUpload() {
       this.closeMobileMenu();
+      if (this.currentMode === "chats") {
+        this.triggerChatImport();
+        return;
+      }
       window.dispatchEvent(new CustomEvent("request-mobile-upload"));
     },
 

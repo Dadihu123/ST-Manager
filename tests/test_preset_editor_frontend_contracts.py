@@ -85,6 +85,9 @@ def run_preset_editor_runtime_check(script_body):
         const formatDate = (value) => value;
         const clearActiveRuntimeContext = () => {{}};
         const setActiveRuntimeContext = () => {{}};
+        const createMarqueeSelection = () => ({{
+          initMarqueeSelection() {{}},
+        }});
         const PROMPT_MARKER_VISUALS = {{
           scenario: {{ key: 'scenario', label: '场景', paths: ['M4.75 17.5 9.5 12.75 12.25 15.5 16.75 11 19.25 13.5'] }},
           fallback: {{ key: 'marker', label: '预留字段', paths: ['M12 5v14'] }},
@@ -136,6 +139,9 @@ def run_preset_grid_runtime_check(script_body):
         const downloadFileFromApi = async (payload) => {{
           globalThis.downloadCalls.push(payload);
         }};
+        const createMarqueeSelection = () => ({{
+          initMarqueeSelection() {{}},
+        }});
         globalThis.fetchCalls = [];
         globalThis.fetch = async (url, options = {{}}) => {{
           globalThis.fetchCalls.push({{ url, options }});

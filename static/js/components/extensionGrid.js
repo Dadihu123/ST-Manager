@@ -74,6 +74,13 @@ export default function extensionGrid() {
             window.stUploadExtensionFiles = (files, targetType) => {
                 this._uploadExtensionsFiles(files, targetType || this.currentMode);
             };
+
+            window.addEventListener('refresh-extension-list', (event) => {
+                const targetMode = event?.detail?.mode;
+                if (!targetMode || targetMode === this.currentMode) {
+                    this.fetchItems();
+                }
+            });
         },
 
         async uploadInputFiles(event) {

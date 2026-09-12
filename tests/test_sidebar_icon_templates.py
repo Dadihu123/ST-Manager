@@ -7,7 +7,6 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
 SIDEBAR_CONTENT_ICON_NAMES = {
-    'layers',
     'tag-library',
     'directory-tree',
     'folder-solid',
@@ -17,8 +16,16 @@ SIDEBAR_CONTENT_ICON_NAMES = {
     'link-bound',
     'link-unbound',
     'organize',
-    'menu-category',
 }
+
+SHARED_UI_SIDEBAR_ICON_NAMES = {
+    'layers',
+    'menu-category',
+    'character-cards',
+    'paint-brush',
+}
+
+SIDEBAR_SPRITE_ICON_NAMES = SIDEBAR_CONTENT_ICON_NAMES | {'book-stack'}
 
 MODULE_DETAIL_ICON_NAMES = {
     'book-open',
@@ -38,6 +45,8 @@ def test_sidebar_uses_the_sidebar_sprite_for_content_specific_icons():
     source = read_sidebar_template()
 
     for name in SIDEBAR_CONTENT_ICON_NAMES:
+        assert f"sidebar_icon('{name}'" in source, name
+    for name in SHARED_UI_SIDEBAR_ICON_NAMES:
         assert f"sidebar_icon('{name}'" in source, name
 
     assert not re.search(r'[\u2600-\u27bf\U0001f000-\U0001faff]', source)
@@ -62,7 +71,7 @@ def test_module_navigation_reuses_detail_and_sidebar_icon_assets():
 
 
 def test_sidebar_module_icons_use_the_merged_cropped_symbols():
-    asset_source = (PROJECT_ROOT / 'static/icons/sidebar.svg').read_text(encoding='utf-8')
+    asset_source = (PROJECT_ROOT / 'static/icons/ui.svg').read_text(encoding='utf-8')
     beautify_css = (
         PROJECT_ROOT / 'static/css/modules/view-beautify.css'
     ).read_text(encoding='utf-8')
@@ -103,9 +112,10 @@ def test_beautify_refresh_button_matches_extension_list_button_sizing():
 
     expected_button_classes = 'btn-secondary px-3 py-1 text-xs flex items-center gap-1'
     assert expected_button_classes in sidebar_source
-    assert expected_button_classes in extension_source
+    assert 'class="resource-grid-action"' in extension_source
     assert "icon('refresh', 'ui-icon--sm ')" in sidebar_source
     assert "icon('refresh', 'ui-icon--sm ')" in extension_source
+    assert '<span>刷新</span>' in extension_source
 
 
 def test_sidebar_sprite_symbols_are_valid_and_background_free():
@@ -117,18 +127,7 @@ def test_sidebar_sprite_symbols_are_valid_and_background_free():
         if element.tag.rsplit('}', 1)[-1] == 'symbol'
     }
 
-    all_sidebar_icon_names = SIDEBAR_CONTENT_ICON_NAMES | {
-        'cards-stack',
-        'character-cards',
-        'book-stack',
-        'chat-bubbles',
-        'preset-stack',
-        'regex-file',
-        'script-brackets',
-        'reply-bolt',
-        'paint-brush',
-    }
-    assert symbols == {f'icon-{name}' for name in all_sidebar_icon_names}
+    assert symbols == {f'icon-{name}' for name in SIDEBAR_SPRITE_ICON_NAMES}
 
     sprite_source = sprite_path.read_text(encoding='utf-8')
     assert 'background: rgb(255, 255, 255)' not in sprite_source
@@ -200,7 +199,8 @@ def test_sidebar_category_rows_switch_to_the_expanded_folder_icon():
 def test_sidebar_icon_macro_references_the_sidebar_sprite_namespace():
     source = (PROJECT_ROOT / 'templates/components/icon.html').read_text(encoding='utf-8')
 
-    assert 'icons/sidebar.svg' in source
+    assert "else 'sidebar.svg'" in source
+    assert 'sprite_name' in source
     assert '#icon-{{ name }}' in source
 
 

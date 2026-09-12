@@ -163,30 +163,47 @@ export default function layout() {
         window.innerWidth || document.documentElement?.clientWidth || 0;
 
       if (viewportWidth > 0) {
-        if (window.innerWidth < 900) {
-          this.$store.global.deviceType = "mobile";
-          return;
+        if (viewportWidth < 900) deviceType = "mobile";
+        else if (viewportWidth < 1180) deviceType = "tablet";
+      }
+
+      if (viewportWidth <= 0) {
+        // 平板设备检测（iPad 或 Android 平板）
+        if (/iPad|Android/.test(userAgent) && !/Mobile/.test(userAgent)) {
+          deviceType = "tablet";
         }
-        if (window.innerWidth < 1180) {
-          this.$store.global.deviceType = "tablet";
-          return;
+
+        // 手机设备检测
+        if (
+          /Android|webOS|iPhone|iPod|BlackBerry|IEMobile|Opera Mini/.test(
+            userAgent,
+          )
+        ) {
+          deviceType = "mobile";
         }
       }
 
-      // 平板设备检测（iPad 或 Android 平板）
-      if (/iPad|Android/.test(userAgent) && !/Mobile/.test(userAgent)) {
-        deviceType = "tablet";
-      }
-
-      // 手机设备检测
-      if (
-        /Android|webOS|iPhone|iPod|BlackBerry|IEMobile|Opera Mini/.test(
-          userAgent,
-        )
-      ) {
-        deviceType = "mobile";
-      }
+      this.syncSidebarForDeviceChange(
+        this.$store.global.deviceType,
+        deviceType,
+      );
       this.$store.global.deviceType = deviceType;
+    },
+
+    syncSidebarForDeviceChange(previousDeviceType, nextDeviceType) {
+      const global = this.$store.global;
+      if (!global || previousDeviceType === nextDeviceType) return;
+
+      if (nextDeviceType === "mobile") {
+        global.visibleSidebar = false;
+        document.body.style.overflow = "";
+        return;
+      }
+
+      if (previousDeviceType === "mobile") {
+        global.visibleSidebar = true;
+        document.body.style.overflow = "";
+      }
     },
 
     handleBackgroundClick(e) {

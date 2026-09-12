@@ -14,7 +14,7 @@
 </div>
 
 <p align="center">
-  <img src="docs/screenshots/hero.png" alt="ST-Manager 主界面截图占位" width="900">
+  <img src="docs/screenshots/hero.png" alt="ST-Manager 主界面" width="900">
 </p>
 
 
@@ -47,7 +47,7 @@ ST-Manager 是一个本地优先的 SillyTavern 资源管理器。它通过 Flas
 | 美化库 | 管理 SillyTavern 主题 JSON、壁纸、头像、截图与变体，支持 PC / 移动端预览和发送到 ST |
 | ST 同步 | 检测 ST 连接和数据目录，列出角色、聊天、世界书、预设、Regex、Quick Replies 并同步到本地 |
 | 来源联动 | 通过 Discord / 类脑来源链接查看帖子预览，检查来源标题和首帖编辑时间是否更新 |
-| 系统工具 | 自动扫描、手动重建索引、快照备份、回收站、共享壁纸、剪贴板分流导入、外网访问认证和路径安全检查 |
+| 系统工具 | 自动扫描、手动重建索引、快照备份、回收站、缩略图清理、共享壁纸、剪贴板分流导入、外网访问认证和路径安全检查 |
 
 ---
 
@@ -115,35 +115,37 @@ ST-Manager 是一个本地优先的 SillyTavern 资源管理器。它通过 Flas
 
 | 角色卡 | 聊天阅读 |
 | --- | --- |
-| <img src="docs/screenshots/feature-cards.png" alt="角色卡管理截图占位" width="420"> | <img src="docs/screenshots/feature-chats.png" alt="聊天阅读器截图占位" width="420"> |
+| <img src="docs/screenshots/feature-cards.png" alt="角色卡管理" width="420"> | <img src="docs/screenshots/feature-chats.png" alt="聊天阅读器" width="420"> |
 
 | 世界书 | 预设 |
 | --- | --- |
-| <img src="docs/screenshots/feature-wi.png" alt="世界书管理截图占位" width="420"> | <img src="docs/screenshots/feature-presets.png" alt="预设管理截图占位" width="420"> |
+| <img src="docs/screenshots/feature-wi.png" alt="世界书管理" width="420"> | <img src="docs/screenshots/feature-presets.png" alt="预设管理" width="420"> |
 
 | 自动化 | 扩展脚本 |
 | --- | --- |
-| <img src="docs/screenshots/feature-automation.png" alt="自动化规则截图占位" width="420"> | <img src="docs/screenshots/feature-scripts.png" alt="扩展脚本截图占位" width="420"> |
+| <img src="docs/screenshots/feature-automation.png" alt="自动化规则" width="420"> | <img src="docs/screenshots/feature-scripts.png" alt="扩展脚本" width="420"> |
 
 ### 更多界面
 
 | 角色详情 | 世界书编辑 | 设置 |
 | --- | --- | --- |
-| <img src="docs/screenshots/gallery-cards-detail.png" alt="角色详情截图占位" width="280"> | <img src="docs/screenshots/gallery-wi-editor.png" alt="世界书编辑截图占位" width="280"> | <img src="docs/screenshots/gallery-settings.png" alt="设置界面截图占位" width="280"> |
+| <img src="docs/screenshots/gallery-cards-detail.png" alt="角色详情" width="280"> | <img src="docs/screenshots/gallery-wi-editor.png" alt="世界书编辑" width="280"> | <img src="docs/screenshots/gallery-settings.png" alt="设置界面" width="280"> |
 
 | 移动端角色卡 | 移动端聊天 | 移动端设置 |
 | --- | --- | --- |
-| <img src="docs/screenshots/mobile-cards.png" alt="移动端角色卡截图占位" width="240"> | <img src="docs/screenshots/mobile-chat-reader.png" alt="移动端聊天截图占位" width="240"> | <img src="docs/screenshots/mobile-settings.png" alt="移动端设置截图占位" width="240"> |
+| <img src="docs/screenshots/mobile-cards.png" alt="移动端角色卡" width="240"> | <img src="docs/screenshots/mobile-chat-reader.png" alt="移动端聊天" width="240"> | <img src="docs/screenshots/mobile-settings.png" alt="移动端设置" width="240"> |
 
-### 新增能力展示
+### 设置、维护与响应式界面
 
-| 类脑帖子预览 | 来源更新检查 |
+| 设置与维护 | 移动端导航 |
 | --- | --- |
-| <img src="docs/screenshots/feature-forum-preview.png" alt="类脑帖子预览截图占位" width="420"> | <img src="docs/screenshots/feature-source-update.png" alt="来源更新检查截图占位" width="420"> |
+| <img src="docs/screenshots/gallery-settings.png" alt="设置与维护" width="420"> | <img src="docs/screenshots/mobile-sidebar.png" alt="移动端导航" width="420"> |
 
-| 角色详情编辑 | 世界书排序 |
+| 移动端资源列表 | 移动端设置 |
 | --- | --- |
-| <img src="docs/screenshots/feature-card-editor.png" alt="角色详情编辑截图占位" width="420"> | <img src="docs/screenshots/feature-world-info-sort.png" alt="世界书排序截图占位" width="420"> |
+| <img src="docs/screenshots/mobile-cards.png" alt="移动端资源列表" width="420"> | <img src="docs/screenshots/mobile-settings.png" alt="移动端设置" width="420"> |
+
+设置页提供缩略图缓存清理入口，只删除磁盘上已经找不到对应原图的 WebP 缓存；需要批量清理界面数据时，可在项目根目录运行 `clean_ui_data.py`，工具会先备份 `ui_data.json`。
 
 ---
 
@@ -171,6 +173,23 @@ http://127.0.0.1:5000
 ```
 
 首次启动时，如果项目根目录没有 `config.json`，程序会自动生成默认配置，并创建运行所需的数据目录。
+
+### 数据维护工具
+
+先预览无效 UI 数据：
+
+```bash
+python clean_ui_data.py --dry-run
+```
+
+确认输出后执行清理：
+
+```bash
+python clean_ui_data.py
+```
+
+工具默认读取同级 `config.json`，并在写入前创建 `ui_data.json.bak`。详细规则见
+[`docs/CONFIG.md`](docs/CONFIG.md) 和 [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md)。
 
 ### 指定监听地址和端口
 
@@ -317,7 +336,7 @@ ST-Manager/
 │   └── utils/                # 文件、图片、文本、路径等工具
 ├── templates/                # Jinja2 页面和组件模板
 ├── static/                   # 前端 JS、CSS、图片和本地 vendor 资源
-├── docs/                     # 配置、API、开发文档与截图占位
+├── docs/                     # 配置、API、开发文档与截图
 ├── tests/                    # pytest 与前端契约回归测试
 ├── Dockerfile
 └── docker-compose.yaml

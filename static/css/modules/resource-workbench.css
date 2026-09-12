@@ -141,6 +141,12 @@
   height: 1.45rem;
 }
 
+.resource-grid-stat--mobile-source,
+.chat-grid-toolbar-stat--mobile-source,
+.chat-grid-title-mobile {
+  display: none;
+}
+
 .resource-grid-header__rail {
   min-width: 0;
   flex-direction: column;
@@ -1758,6 +1764,59 @@ html.light-mode .resource-grid-view .resource-source-badge.file {
 
   .resource-grid-header__actions {
     grid-template-columns: 1fr;
+  }
+}
+
+/* 移动端资源页只保留模式标题、当前结果和来源；导入/刷新统一由全局头部承载。 */
+@media (max-width: 899px) {
+  .resource-grid-mobile-hide {
+    display: none !important;
+  }
+
+  .resource-grid-view .resource-grid-header__actions--content,
+  .chat-mode-shell.resource-grid-view .chat-grid-toolbar-actions {
+    display: none !important;
+  }
+
+  .resource-grid-header__stats {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    justify-content: stretch;
+  }
+
+  .resource-grid-stat--desktop-secondary,
+  .chat-grid-toolbar-stat--desktop-secondary {
+    display: none;
+  }
+
+  .resource-grid-stat--mobile-source {
+    display: block;
+  }
+
+  .chat-grid-toolbar-stat--mobile-source {
+    display: flex;
+  }
+
+  .resource-grid-view--presets .resource-grid-contextbar,
+  .extension-workbench.resource-grid-view .extension-summary-strip {
+    display: none;
+  }
+
+  .chat-grid-title-full {
+    display: none;
+  }
+
+  .chat-grid-title-mobile {
+    display: inline;
+  }
+
+  .chat-mode-shell.resource-grid-view .chat-grid-toolbar {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+  }
+
+  .chat-mode-shell.resource-grid-view .chat-grid-toolbar-stats {
+    margin-top: 0.6rem;
   }
 }
 

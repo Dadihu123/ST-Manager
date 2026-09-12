@@ -1,11 +1,12 @@
 {% macro icon(name, class_name='') -%}
+{% set icon_name = 'plus-square' if name == 'plus' else name %}
 <svg
   class="ui-icon{% if class_name %} {{ class_name }}{% endif %}"
   viewBox="0 0 24 24"
   aria-hidden="true"
   focusable="false"
 >
-  <use href="{{ url_for('static', filename='icons/ui.svg') }}#icon-{{ name }}"></use>
+  <use href="{{ url_for('static', filename='icons/ui.svg') }}#icon-{{ icon_name }}"></use>
 </svg>
 {%- endmacro %}
 
@@ -20,24 +21,27 @@
 {%- endmacro %}
 
 {% macro sidebar_icon(name, class_name='') -%}
+{% set sprite_name = 'ui.svg' if name in ['layers', 'menu-category', 'character-cards', 'paint-brush'] else 'sidebar.svg' %}
 <svg
   class="ui-icon sidebar-icon{% if class_name %} {{ class_name }}{% endif %}"
   viewBox="0 0 24 24"
   aria-hidden="true"
   focusable="false"
 >
-  <use href="{{ url_for('static', filename='icons/sidebar.svg') }}#icon-{{ name }}"></use>
+  <use href="{{ url_for('static', filename='icons/' ~ sprite_name) }}#icon-{{ name }}"></use>
 </svg>
 {%- endmacro %}
 
 {% macro detail_icon(name, class_name='') -%}
+{% set icon_name = 'layout' if name == 'grid' else name %}
+{% set sprite_name = 'ui.svg' if name in ['version', 'info', 'user', 'grid', 'note', 'tags', 'locate', 'overwrite', 'edit-mode', 'editor', 'quick-reply', 'link-source', 'chat-bubble', 'fullscreen', 'persona', 'clock', 'book-open', 'file-name', 'preset', 'book-read', 'expand', 'regex', 'script-file', 'chat-empty'] else 'detail.svg' %}
 <svg
   class="ui-icon detail-icon{% if class_name %} {{ class_name }}{% endif %}"
   viewBox="0 0 24 24"
   aria-hidden="true"
   focusable="false"
 >
-  <use href="{{ url_for('static', filename='icons/detail.svg') }}#icon-{{ name }}"></use>
+  <use href="{{ url_for('static', filename='icons/' ~ sprite_name) }}#icon-{{ icon_name }}"></use>
 </svg>
 {%- endmacro %}
 

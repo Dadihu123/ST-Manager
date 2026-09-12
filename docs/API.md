@@ -52,12 +52,22 @@
 | `POST` | `/api/list_backups` | 获取备份 / 快照列表 |
 | `POST` | `/api/restore_backup` | 从备份恢复 |
 | `POST` | `/api/cleanup_init_backups` | 清理初始化快照 |
-| `POST` | `/api/system_action` | 执行打开目录等系统动作 |
+| `POST` | `/api/system_action` | 执行打开目录、备份数据、清理缩略图等系统动作 |
 | `POST` | `/api/trash/open` | 打开回收站目录 |
 | `POST` | `/api/trash/empty` | 清空回收站 |
 | `POST` | `/api/read_file_content` | 读取文件内容供差异预览 / 编辑器使用 |
 | `POST` | `/api/user-db-backup/export` | 导出用户数据库包 |
 | `POST` | `/api/user-db-backup/import` | 导入用户数据库包 |
+
+`/api/system_action` 的缩略图清理请求：
+
+```json
+{
+  "action": "cleanup_thumbnails"
+}
+```
+
+接口扫描 `cards_dir` 下仍有来源文件的资源，并清理固定目录 `data/system/thumbnails` 中没有对应来源的 `.webp` 缓存。返回值包含 `scanned`、`kept`、`removed` 和 `errors`；只会删除缩略图缓存，不会删除角色卡或原始资源。
 
 ### 1.4 共享壁纸与背景
 

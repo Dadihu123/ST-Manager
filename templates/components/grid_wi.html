@@ -15,10 +15,10 @@
           {{ icon('book-closed', 'ui-icon--lg') }}
         </div>
         <div class="resource-grid-header__copy">
-          <span class="resource-grid-kicker">RESOURCE LIBRARY</span>
+          <span class="resource-grid-kicker resource-grid-mobile-hide">RESOURCE LIBRARY</span>
           <h1>世界书</h1>
-          <p>按来源与目录管理世界设定，快速预览、编辑、导出或发送到 SillyTavern。</p>
-          <span class="resource-grid-header__context">
+          <p class="resource-grid-mobile-hide">按来源与目录管理世界设定，快速预览、编辑、导出或发送到 SillyTavern。</p>
+          <span class="resource-grid-header__context resource-grid-mobile-hide">
             <span x-text="wiFilterType === 'all' ? '全部来源' : (wiFilterType === 'global' ? '全局世界书' : (wiFilterType === 'embedded' ? '角色内嵌' : '资源世界书'))"></span>
             <span aria-hidden="true">/</span>
             <span x-text="wiFilterCategory ? formatCategoryLabel(wiFilterCategory) : '全部分类'"></span>
@@ -32,16 +32,20 @@
           <span>当前结果</span>
           <strong x-text="wiList.length"></strong>
         </div>
-        <div class="resource-grid-stat">
+        <div class="resource-grid-stat resource-grid-stat--desktop-secondary">
           <span>全部条目</span>
           <strong x-text="wiTotalItems"></strong>
         </div>
-        <div class="resource-grid-stat">
+        <div class="resource-grid-stat resource-grid-stat--desktop-secondary">
           <span>已选择</span>
           <strong x-text="selectedIds.length"></strong>
         </div>
+        <div class="resource-grid-stat resource-grid-stat--mobile-source">
+          <span>来源</span>
+          <strong x-text="wiFilterType === 'all' ? '全部' : (wiFilterType === 'global' ? '全局' : (wiFilterType === 'embedded' ? '角色内嵌' : '资源'))"></strong>
+        </div>
       </div>
-      <div class="resource-grid-header__actions">
+      <div class="resource-grid-header__actions resource-grid-header__actions--content">
         <input
           type="file"
           x-ref="wiImportInput"

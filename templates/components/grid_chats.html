@@ -27,19 +27,24 @@
                     {{ detail_icon('chat-bubble', 'ui-icon--lg') }}
                 </div>
                 <div class="chat-grid-toolbar-copy">
-                    <div class="chat-grid-kicker">SillyTavern Chats</div>
-                    <h2 class="chat-grid-title">按聊天记录管理本地对话</h2>
-                    <p class="chat-grid-desc">聊天与角色卡、世界书平级管理。支持收藏、角色绑定、全文搜索、楼层跳转与本地阅读工作台。</p>
+                    <div class="chat-grid-kicker resource-grid-mobile-hide">SillyTavern Chats</div>
+                    <h2 class="chat-grid-title"><span class="chat-grid-title-full">按聊天记录管理本地对话</span><span class="chat-grid-title-mobile">聊天</span></h2>
+                    <p class="chat-grid-desc resource-grid-mobile-hide">聊天与角色卡、世界书平级管理。支持收藏、角色绑定、全文搜索、楼层跳转与本地阅读工作台。</p>
                     <div class="chat-grid-toolbar-stats" aria-label="聊天统计">
                         <div class="chat-grid-toolbar-stat">
                             <span aria-hidden="true">{{ icon('list', 'ui-icon--sm') }}</span>
                             <span>本页</span>
                             <strong x-text="chatList.length"></strong>
                         </div>
-                        <div class="chat-grid-toolbar-stat">
-                            <span aria-hidden="true">{{ icon('heart', 'ui-icon--sm') }}</span>
-                            <span>总计</span>
-                            <strong x-text="chatTotalItems"></strong>
+                        <div class="chat-grid-toolbar-stat chat-grid-toolbar-stat--desktop-secondary">
+                          <span aria-hidden="true">{{ icon('heart', 'ui-icon--sm') }}</span>
+                          <span>总计</span>
+                          <strong x-text="chatTotalItems"></strong>
+                        </div>
+                        <div class="chat-grid-toolbar-stat chat-grid-toolbar-stat--mobile-source">
+                            <span aria-hidden="true">{{ icon('link-source', 'ui-icon--sm') }}</span>
+                            <span>来源</span>
+                            <strong x-text="chatFilterType === 'all' ? '全部' : (chatFilterType === 'bound' ? '已绑定' : '未绑定')"></strong>
                         </div>
                     </div>
                 </div>
@@ -51,7 +56,7 @@
                         <button type="button" @click="clearLinkedCardFilter()">{{ icon('close-bold', 'ui-icon--xs') }}</button>
                     </div>
 
-                    <div class="chat-inline-actions chat-grid-toolbar-actions-row">
+                    <div class="chat-inline-actions chat-grid-toolbar-actions-row chat-grid-toolbar-actions-row--content">
                         <button @click="triggerChatImport()" class="chat-toolbar-btn chat-toolbar-btn--primary">
                             <span aria-hidden="true">{{ icon('file-import', 'ui-icon--sm ') }}</span>
                             导入聊天

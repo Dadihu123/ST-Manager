@@ -713,6 +713,41 @@ export default function presetEditor() {
       return this.promptItemsCache;
     },
 
+    normalizePromptIdentifiers(prompts = this.editingData?.prompts) {
+      if (!Array.isArray(prompts)) return [];
+
+      const reservedIdentifiers = new Set();
+      prompts.forEach((prompt) => {
+        const identifier = String(prompt?.identifier || "").trim();
+        if (identifier) reservedIdentifiers.add(identifier);
+      });
+
+      const usedIdentifiers = new Set();
+      prompts.forEach((prompt, index) => {
+        if (!prompt || typeof prompt !== "object") return;
+
+        const currentIdentifier = String(prompt.identifier || "").trim();
+        if (currentIdentifier && !usedIdentifiers.has(currentIdentifier)) {
+          usedIdentifiers.add(currentIdentifier);
+          return;
+        }
+
+        let identifier = currentIdentifier || `prompt_${index + 1}`;
+        let suffix = 1;
+        while (
+          usedIdentifiers.has(identifier) ||
+          (!currentIdentifier && reservedIdentifiers.has(identifier))
+        ) {
+          identifier = `${currentIdentifier || `prompt_${index + 1}`}_${suffix}`;
+          suffix += 1;
+        }
+        prompt.identifier = identifier;
+        usedIdentifiers.add(identifier);
+      });
+
+      return prompts;
+    },
+
     normalizePromptOrder() {
       const promptOrder = this.editingData?.prompt_order;
       if (!Array.isArray(promptOrder)) return [];
@@ -949,6 +984,7 @@ export default function presetEditor() {
     },
 
     refreshEditorCollections() {
+      const prompts = this.normalizePromptIdentifiers();
       this.promptItemsCache = Array.isArray(this.editingData?.prompts)
         ? this.editingData.prompts
             .map((prompt, index) => {
@@ -974,7 +1010,15 @@ export default function presetEditor() {
       const promptMap = new Map(
         promptEntries.map((prompt) => [prompt.__identifier, prompt]),
       );
-      const ordered = this.normalizePromptOrder()
+      const normalizedPromptOrder = this.normalizePromptOrder();
+      const orderedEntries = normalizedPromptOrder.length
+        ? normalizedPromptOrder
+        : promptEntries.map((prompt, index) => ({
+            identifier: prompt.__identifier,
+            enabled: null,
+            order_index: index,
+          }));
+      const ordered = orderedEntries
         .map((entry) => {
           const prompt = promptMap.get(entry.identifier);
           if (!prompt) return null;
@@ -1183,6 +1227,7 @@ export default function presetEditor() {
     syncPromptOrder(nextOrderedPrompts = null) {
       if (!this.editingData) return;
       if (this.hasUnsupportedNestedPromptOrder()) return;
+      if (!Array.isArray(this.editingData.prompt_order)) return;
 
       const orderedPrompts = (Array.isArray(nextOrderedPrompts)
         ? nextOrderedPrompts
@@ -1308,14 +1353,45 @@ export default function presetEditor() {
       if (!this.editingData || !Array.isArray(nextOrderedPrompts)) return;
       if (this.hasUnsupportedNestedPromptOrder()) return;
 
-      const orderedEntries = nextOrderedPrompts.filter(
-        (entry) => !entry?.__is_orphan,
-      );
-      const enriched = orderedEntries.map((entry) => ({
+      const enriched = nextOrderedPrompts.map((entry) => ({
         ...entry,
+        __is_orphan: false,
         __enabled: entry.__enabled !== false,
       }));
       this.syncPromptOrder(enriched);
+    },
+
+    reorderPromptDefinitions(orderedPrompts) {
+      if (!this.editingData || !Array.isArray(this.editingData.prompts)) return;
+
+      const sourcePrompts = [...this.editingData.prompts];
+      const seenIndexes = new Set();
+      const reorderedPrompts = [];
+      (orderedPrompts || []).forEach((prompt) => {
+        const promptIndex = Number(prompt?.__prompt_index);
+        if (
+          !Number.isInteger(promptIndex) ||
+          promptIndex < 0 ||
+          promptIndex >= sourcePrompts.length ||
+          seenIndexes.has(promptIndex)
+        ) {
+          return;
+        }
+        seenIndexes.add(promptIndex);
+        reorderedPrompts.push(sourcePrompts[promptIndex]);
+      });
+      sourcePrompts.forEach((prompt, index) => {
+        if (!seenIndexes.has(index)) reorderedPrompts.push(prompt);
+      });
+
+      if (
+        reorderedPrompts.length !== sourcePrompts.length ||
+        reorderedPrompts.some((prompt, index) => prompt !== sourcePrompts[index])
+      ) {
+        this.editingData.prompts = reorderedPrompts;
+        this.markDirtyWithoutRefresh("prompts");
+        this.refreshEditorCollections();
+      }
     },
 
     movePromptItem(fromIndex, toIndex) {
@@ -1330,6 +1406,8 @@ export default function presetEditor() {
         return;
       }
 
+      if (this.hasUnsupportedNestedPromptOrder()) return;
+
       const sourcePrompt = visiblePrompts[fromIndex];
       const targetPrompt = visiblePrompts[toIndex];
       if (
@@ -1341,9 +1419,7 @@ export default function presetEditor() {
         return;
       }
 
-      const orderedPrompts = visiblePrompts.filter(
-        (prompt) => !prompt?.__is_orphan,
-      );
+      const orderedPrompts = [...visiblePrompts];
       const orderedFromIndex = orderedPrompts.findIndex(
         (prompt) => prompt.__identifier === sourcePrompt.__identifier,
       );
@@ -1354,7 +1430,12 @@ export default function presetEditor() {
 
       const [prompt] = orderedPrompts.splice(orderedFromIndex, 1);
       orderedPrompts.splice(orderedToIndex, 0, prompt);
+      const promptOrderExists = Array.isArray(this.editingData.prompt_order);
+      const promptOrderShape = this.getPromptOrderShape();
       this.replacePromptOrder(orderedPrompts);
+      if (!promptOrderExists || promptOrderShape.mode === "strings") {
+        this.reorderPromptDefinitions(orderedPrompts);
+      }
       this.activePromptId = prompt?.__identifier || this.activePromptId;
     },
 

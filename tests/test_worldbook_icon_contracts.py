@@ -131,7 +131,7 @@ def test_worldbook_templates_use_shared_icons_for_functional_controls():
     ):
         assert not any(glyph in source for glyph in LEGACY_FUNCTIONAL_GLYPHS)
 
-    assert "icon('book-save'" in fullscreen_controls
+    assert "icon('book-save-as'" in fullscreen_controls
     assert "icon('entry-rollback'" in fullscreen_controls
     assert "icon('wand'" in fullscreen_controls
     assert "icon('calendar'" in popup_source
@@ -141,7 +141,7 @@ def test_worldbook_templates_use_shared_icons_for_functional_controls():
     assert "icon('upload'" in grid_source
     assert "icon('check'" in grid_source
     assert "icon('folder'" in grid_source
-    assert "icon('sticky-note'" in grid_source
+    assert "detail_icon('note'" in grid_source
     assert "icon('card-send-to-st'" in grid_source
     assert "loading_icon('" in grid_source
     assert "icon('pencil-edit'" in popup_source
@@ -191,7 +191,6 @@ def test_worldbook_help_reuses_shared_icons_without_functional_glyphs():
 
     for name in (
         'settings-save',
-        'book-save',
         'book-save-as',
         'history-rollback',
         'entry-rollback',

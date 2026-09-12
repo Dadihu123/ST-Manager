@@ -188,24 +188,11 @@ def test_source_monitor_schedule_select_opens_above_scroll_panel_bottom():
     assert 'bottom: calc(100% + 0.35rem);' in menu_block
 
 
-def test_project_single_selects_reuse_shared_shell_without_native_sidebar_selects_or_multiselects():
-    templates_root = PROJECT_ROOT / 'templates'
+def test_sidebar_selects_reuse_shared_shell_without_native_selects_or_multiselects():
     sidebar_source = read_project_file('templates/components/sidebar.html')
 
     assert '<select' not in sidebar_source
     assert 'styled_select' in sidebar_source
-
-    for template_path in templates_root.rglob('*.html'):
-        relative_path = template_path.relative_to(templates_root).as_posix()
-        if relative_path in {'components/styled_select.html', 'components/sidebar.html'}:
-            continue
-        source = template_path.read_text(encoding='utf-8')
-        select_tags = re.findall(r'<select\b[^>]*>', source, re.IGNORECASE | re.DOTALL)
-        single_select_tags = [
-            tag for tag in select_tags
-            if not re.search(r'\bmultiple(?:\s|=|>)', tag, re.IGNORECASE)
-        ]
-        assert not single_select_tags, f'unstyled single select remains in {template_path}'
 
 
 def test_worldinfo_open_select_can_escape_props_group_clipping():

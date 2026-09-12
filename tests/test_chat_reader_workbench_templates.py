@@ -1796,8 +1796,8 @@ def test_chat_grid_reader_mobile_mode_is_not_only_ua_driven():
     layout_source = read_project_file('static/js/components/layout.js')
 
     assert 'readerResponsiveMode' in chat_grid_source
-    assert 'window.innerWidth < 900' in layout_source
-    assert 'window.innerWidth < 1180' in layout_source
+    assert 'viewportWidth < 900' in layout_source
+    assert 'viewportWidth < 1180' in layout_source
 
 
 def test_layout_recomputes_global_device_type_on_window_resize():
@@ -1915,6 +1915,31 @@ def test_mobile_header_template_uses_title_block_for_sidebar_and_search_upload_c
     assert 'class="mobile-search-group"' in header_template
     assert 'x-show="showMobileUploadButton"' in header_template
     assert '@click="triggerMobileUpload()"' in header_template
+    assert 'class="mobile-refresh-btn"' in header_template
+    assert '@click="refreshCurrentMode()"' in header_template
+
+
+def test_mobile_resource_grids_keep_only_compact_header_and_top_actions():
+    grid_sources = {
+        'templates/components/grid_wi.html': 'resource-grid-header__actions--content',
+        'templates/components/grid_presets.html': 'resource-grid-header__actions--content',
+        'templates/components/grid_extensions.html': 'resource-grid-header__actions--content',
+        'templates/components/grid_chats.html': 'chat-grid-toolbar-actions-row--content',
+    }
+
+    for relative_path, content_action_class in grid_sources.items():
+        source = read_project_file(relative_path)
+        assert 'resource-grid-mobile-hide' in source, relative_path
+        assert content_action_class in source, relative_path
+
+    extension_source = read_project_file('templates/components/grid_extensions.html')
+    assert 'class="extension-summary-strip resource-grid-mobile-hide"' in extension_source
+    assert '<span>刷新</span>' in extension_source
+
+    compact_css = read_project_file('static/css/modules/resource-workbench.css')
+    assert '@media (max-width: 899px)' in compact_css
+    assert '.resource-grid-stat--mobile-source' in compact_css
+    assert '.chat-grid-title-mobile' in compact_css
 
 
 def test_mobile_sidebar_template_removes_floating_button_group_and_keeps_single_hidden_input():

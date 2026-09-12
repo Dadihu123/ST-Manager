@@ -14,7 +14,7 @@ from flask import Blueprint, request, jsonify
 
 # === 基础设施 ===
 from core.config import (
-    CARDS_FOLDER, DATA_DIR, BASE_DIR, TRASH_FOLDER,
+    CARDS_FOLDER, DATA_DIR, BASE_DIR, THUMB_FOLDER, TRASH_FOLDER,
     load_config, save_config, get_cards_folder
 )
 from core.context import ctx
@@ -38,6 +38,7 @@ from core.services.st_client import refresh_st_client
 from core.services.st_auth import STAuthError, build_st_http_client
 from core.services.st_path_safety import evaluate_st_path_safety
 from core.services.user_db_backup_service import UserDbBackupService
+from core.services.maintenance_service import clean_orphaned_thumbnail_cache
 
 # === 工具函数 ===
 from core.utils.filesystem import (
@@ -529,6 +530,12 @@ def api_system_action():
                 shutil.copy(UI_DATA_FILE, os.path.join(BASE_DIR, bk_name))
                 return jsonify({"success": True, "msg": f"已备份为 {bk_name}"})
             return jsonify({"success": False, "msg": "暂无数据文件"})
+        elif action == 'cleanup_thumbnails':
+            result = clean_orphaned_thumbnail_cache(CARDS_FOLDER, THUMB_FOLDER)
+            message = f"已扫描 {result['scanned']} 个缩略图，清理 {result['removed']} 个无效缓存"
+            if result['errors']:
+                message += f"，{len(result['errors'])} 个文件清理失败"
+            return jsonify({'success': not result['errors'], 'msg': message, **result})
         elif action == 'open_card_dir':
             card_id = request.json.get('card_id')
             if not card_id: return jsonify({"success": False, "msg": "ID missing"})

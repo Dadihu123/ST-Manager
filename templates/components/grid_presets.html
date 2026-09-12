@@ -15,10 +15,10 @@
           {{ detail_icon('preset', 'ui-icon--lg') }}
         </div>
         <div class="resource-grid-header__copy">
-          <span class="resource-grid-kicker">GENERATION PROFILES</span>
+          <span class="resource-grid-kicker resource-grid-mobile-hide">GENERATION PROFILES</span>
           <h1>预设</h1>
-          <p>管理 AI 生成参数、版本族与资源归属，保持全局配置和角色卡配置清晰可追踪。</p>
-          <span class="resource-grid-header__context">
+          <p class="resource-grid-mobile-hide">管理 AI 生成参数、版本族与资源归属，保持全局配置和角色卡配置清晰可追踪。</p>
+          <span class="resource-grid-header__context resource-grid-mobile-hide">
             <span x-text="filterType === 'all' ? '全部来源' : (filterType === 'global' ? '全局预设' : '资源预设')"></span>
             <span aria-hidden="true">/</span>
             <span x-text="filterCategory || '全部分类'"></span>
@@ -32,16 +32,20 @@
           <span>当前结果</span>
           <strong x-text="items.length"></strong>
         </div>
-        <div class="resource-grid-stat">
+        <div class="resource-grid-stat resource-grid-stat--desktop-secondary">
           <span>已选择</span>
           <strong x-text="selectedIds.length"></strong>
         </div>
-        <div class="resource-grid-stat">
+        <div class="resource-grid-stat resource-grid-stat--desktop-secondary">
           <span>上传目标</span>
           <strong x-text="filterCategory || (filterType === 'global' ? '全局' : '资源')"></strong>
         </div>
+        <div class="resource-grid-stat resource-grid-stat--mobile-source">
+          <span>来源</span>
+          <strong x-text="filterType === 'all' ? '全部' : (filterType === 'global' ? '全局' : '资源')"></strong>
+        </div>
       </div>
-      <div class="resource-grid-header__actions">
+      <div class="resource-grid-header__actions resource-grid-header__actions--content">
         <input
           type="file"
           x-ref="presetImportInput"

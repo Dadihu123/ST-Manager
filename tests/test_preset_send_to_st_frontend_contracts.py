@@ -77,6 +77,9 @@ def run_preset_grid_runtime_check(script_body):
           }}
           __presetSendToStInFlightIds.delete(key);
         }};
+        const createMarqueeSelection = () => ({{
+          initMarqueeSelection() {{}},
+        }});
         const downloadFileFromApi = async () => {{}};
         globalThis.window = {{
           __listeners: {{}},
