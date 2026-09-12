@@ -150,6 +150,7 @@ def test_wi_editor_edge_select_menus_align_inward_and_find_replace_can_escape_pa
     assert 'overflow: visible;' in find_replace_block
 
     find_overlay_block = view_wi_css.split('.wi-editor-find-overlay {', 1)[1].split('}', 1)[0]
+    assert 'background: transparent;' in find_overlay_block
     assert 'backdrop-filter: none;' in find_overlay_block
     assert '-webkit-backdrop-filter: none;' in find_overlay_block
 
