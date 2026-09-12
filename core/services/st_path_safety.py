@@ -145,7 +145,14 @@ def evaluate_st_path_safety(
     if not st_data_dir:
         return result
 
-    client = st_client_factory(st_data_dir=st_data_dir)
+    st_user_handle = draft.get('st_user_handle')
+    if st_user_handle is None:
+        client = st_client_factory(st_data_dir=st_data_dir)
+    else:
+        client = st_client_factory(
+            st_data_dir=st_data_dir,
+            st_user_handle=st_user_handle,
+        )
     configured_st_path = _clean_path(getattr(client, 'st_data_dir', '') or st_data_dir)
 
     try:

@@ -55,6 +55,7 @@ DEFAULT_CONFIG = {
     "resources_dir": "data/assets/card_assets",
     "st_url": "http://127.0.0.1:8000",
     "st_data_dir": "",  # SillyTavern 安装目录，留空则自动探测
+    "st_user_handle": "default-user",  # SillyTavern data 目录下的用户目录名
     "st_auth_type": "basic",  # 'basic', 'web' or 'auth_web'
     "st_username": "",
     "st_password": "",

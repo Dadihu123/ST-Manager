@@ -674,6 +674,7 @@ export function initState() {
       show_header_sort: true,
       st_url: "http://127.0.0.1:8000",
       st_data_dir: "",
+      st_user_handle: "default-user",
       st_username: "",
       st_password: "",
       st_basic_username: "",
@@ -881,6 +882,9 @@ export function initState() {
             default_sort: settings.default_sort || "date_desc",
             show_header_sort: settings.show_header_sort !== false,
             st_auth_type: settings.st_auth_type || "basic",
+            st_user_handle:
+              String(settings.st_user_handle || "default-user").trim() ||
+              "default-user",
             st_basic_username: settings.st_basic_username || "",
             st_basic_password: settings.st_basic_password || "",
             st_web_username: settings.st_web_username || "",

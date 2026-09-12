@@ -563,9 +563,12 @@
   "resource_type": "characters",
   "resource_ids": [],
   "use_api": false,
-  "st_data_dir": "D:/SillyTavern"
+  "st_data_dir": "D:/SillyTavern",
+  "st_user_handle": "default-user"
 }
 ```
+
+`st_data_dir` 支持 SillyTavern 安装根目录、`data` 目录、`data/<用户目录>` 或其资源子目录；`st_user_handle` 用于选择 `data/<用户目录>`，省略时默认使用 `default-user`。同步只处理角色卡、聊天、世界书、OpenAI 对话补全预设、全局 Regex 和 Quick Replies；角色卡/预设内的作用域 Regex 不会被拆出，ST 插件脚本也不属于此同步入口。目标中已有同名且内容不同的文件会跳过并在结果的 `conflicts` 中报告。
 
 ---
 

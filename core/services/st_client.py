@@ -15,12 +15,35 @@ import base64
 import struct
 import zlib
 import logging
+import filecmp
+import shutil
 from typing import Optional, Dict, List, Any, Tuple
 from core.config import load_config, BASE_DIR
 from core.services.st_auth import STAuthError, build_st_http_client
 from core.utils.regex import extract_regex_from_preset_data, extract_global_regex_from_settings
 
 logger = logging.getLogger(__name__)
+
+DEFAULT_ST_USER_HANDLE = "default-user"
+
+
+def normalize_st_user_handle(value: Optional[str]) -> str:
+    """将 ST 用户目录名限制为单一安全路径段。"""
+    if value is None:
+        return DEFAULT_ST_USER_HANDLE
+
+    cleaned = str(value).strip()
+    path_like = cleaned.replace("\\", "/")
+    if (
+        not path_like
+        or path_like in {".", ".."}
+        or "/" in path_like
+        or ":" in path_like
+        or os.path.isabs(cleaned)
+    ):
+        logger.warning("无效的 SillyTavern 用户目录名，已回退到 %s", DEFAULT_ST_USER_HANDLE)
+        return DEFAULT_ST_USER_HANDLE
+    return cleaned
 
 # SillyTavern 常见安装路径候选
 ST_PATH_CANDIDATES = [
@@ -37,34 +60,78 @@ ST_PATH_CANDIDATES = [
     "/home/{user}/SillyTavern",
 ]
 
-# SillyTavern 数据目录结构
+# SillyTavern 用户目录内的资源结构。ST 的 data/<user> 是所有资源的边界。
 ST_DATA_STRUCTURE = {
-    "characters": "data/default-user/characters",
-    "chats": "data/default-user/chats",
-    "worlds": "data/default-user/worlds", 
-    "presets": "data/default-user/OpenAI Settings",
-    "regex": "data/default-user/regex",
-    "scripts": "data/default-user/scripts",
-    "quick_replies": "data/default-user/QuickReplies",
-    "settings": "data/default-user/settings.json",
+    "characters": "characters",
+    "chats": "chats",
+    "worlds": "worlds",
+    "presets": "OpenAI Settings",
+    "regex": "regex",
+    "scripts": "scripts",
+    "quick_replies": "QuickReplies",
+    "settings": "settings.json",
+}
+
+ST_SYNC_RESOURCE_TYPES = (
+    "characters",
+    "chats",
+    "worlds",
+    "presets",
+    "regex",
+    "quick_replies",
+)
+
+ST_USER_DIR_MARKERS = (
+    "settings.json",
+    "characters",
+    "chats",
+    "worlds",
+    "OpenAI Settings",
+    "presets",
+    "regex",
+    "QuickReplies",
+    "scripts",
+)
+
+ST_USER_RESOURCE_DIRS = {
+    "characters",
+    "chats",
+    "worlds",
+    "openai settings",
+    "presets",
+    "regex",
+    "quickreplies",
+    "scripts",
 }
 
 
 class STClient:
     """SillyTavern 资源客户端"""
     
-    def __init__(self, st_data_dir: Optional[str] = None, st_url: Optional[str] = None):
+    def __init__(
+        self,
+        st_data_dir: Optional[str] = None,
+        st_url: Optional[str] = None,
+        st_user_handle: Optional[str] = None,
+    ):
         """
         初始化 ST 客户端
         
         Args:
             st_data_dir: SillyTavern 安装目录路径（本地模式）
             st_url: SillyTavern API URL（API 模式）
+            st_user_handle: SillyTavern data 目录下的用户目录名
         """
         config = load_config()
         self.config = config
         self.st_data_dir = st_data_dir or config.get('st_data_dir', '')
         self.st_url = st_url or config.get('st_url', 'http://127.0.0.1:8000')
+        configured_handle = (
+            st_user_handle
+            if st_user_handle is not None
+            else config.get('st_user_handle', DEFAULT_ST_USER_HANDLE)
+        )
+        self.st_user_handle = normalize_st_user_handle(configured_handle)
         self.timeout = 30
         self.cache = {}
         self.cache_ttl = 60  # 缓存60秒
@@ -114,11 +181,36 @@ class STClient:
         if not path or not os.path.exists(path):
             return False
 
-        # 允许传入根目录 / data / default-user
         normalized = os.path.normpath(path)
+        if os.path.isfile(normalized):
+            if os.path.basename(normalized).lower() != "settings.json":
+                return False
+            normalized = os.path.dirname(normalized)
+        if not os.path.isdir(normalized):
+            return False
+
+        base_name = os.path.basename(normalized).lower()
+
+        # 允许直接选择 data/<user>/<resource>，例如 characters 或 OpenAI Settings。
+        if base_name in ST_USER_RESOURCE_DIRS:
+            parent = os.path.dirname(normalized)
+            if os.path.basename(os.path.dirname(parent)).lower() == "data":
+                return True
+
+        # 允许直接选择 data/<user>，即使该用户目录目前为空。
+        parent = os.path.dirname(normalized)
+        if os.path.basename(parent).lower() == "data":
+            return True
+        if self._looks_like_user_dir(normalized) and not os.path.isdir(
+            os.path.join(normalized, "data")
+        ):
+            return True
+
+        # 允许传入根目录 / data。
+        if os.path.basename(normalized).lower() == "data":
+            return True
         indicators = [
             os.path.join(normalized, "data"),
-            os.path.join(normalized, "data", "default-user"),
             os.path.join(normalized, "public"),
             os.path.join(normalized, "server.js"),
             os.path.join(normalized, "start.sh"),
@@ -133,14 +225,7 @@ class STClient:
         if any(os.path.exists(p) for p in indicators):
             return True
 
-        # 允许传入 default-user 直接目录
-        try:
-            if os.path.basename(normalized).lower() == "default-user":
-                return True
-        except Exception:
-            pass
-
-        # 允许传入 data 目录或安装根目录，但用户目录非 default-user
+        # 允许传入 data 目录或安装根目录，并由用户目录名决定实际数据边界。
         data_dir = normalized
         if os.path.basename(normalized).lower() != "data":
             data_dir = os.path.join(normalized, "data")
@@ -157,6 +242,128 @@ class STClient:
             except Exception:
                 pass
         return False
+
+    @staticmethod
+    def _looks_like_user_dir(path: str) -> bool:
+        """判断目录是否具备 ST 用户数据目录的结构特征。"""
+        if not path or not os.path.isdir(path):
+            return False
+        try:
+            return any(os.path.exists(os.path.join(path, marker)) for marker in ST_USER_DIR_MARKERS)
+        except OSError:
+            return False
+
+    def _record_direct_user_dir(self, path: str) -> str:
+        """记录由用户路径直接指定的用户目录，避免随后退回 default-user。"""
+        handle = normalize_st_user_handle(os.path.basename(path))
+        if handle == os.path.basename(path):
+            self.st_user_handle = handle
+        return path
+
+    def _resolve_user_dir(self, path: Optional[str] = None) -> Optional[str]:
+        """将安装根目录、data 目录或用户目录解析为 ST 用户数据目录。"""
+        raw_path = path if path is not None else self.st_data_dir
+        if not raw_path:
+            raw_path = self.detect_st_path()
+        if not raw_path:
+            return None
+
+        try:
+            normalized = os.path.normpath(os.path.expanduser(os.fspath(raw_path)))
+            if os.path.isfile(normalized) and os.path.basename(normalized).lower() == "settings.json":
+                normalized = os.path.dirname(normalized)
+
+            base_name = os.path.basename(normalized).lower()
+            if base_name == "public":
+                normalized = os.path.dirname(normalized)
+                base_name = os.path.basename(normalized).lower()
+
+            # 支持把 characters、worlds 等用户目录内的资源目录直接作为输入。
+            if base_name in ST_USER_RESOURCE_DIRS:
+                parent = os.path.dirname(normalized)
+                if os.path.basename(os.path.dirname(parent)).lower() == "data":
+                    return self._record_direct_user_dir(parent)
+
+            parent = os.path.dirname(normalized)
+            if os.path.basename(parent).lower() == "data":
+                return self._record_direct_user_dir(normalized)
+
+            if base_name == "data":
+                return os.path.join(normalized, self.st_user_handle)
+
+            # 无 data 子目录的兼容布局可以直接使用自身作为用户目录。
+            if self._looks_like_user_dir(normalized) and not os.path.isdir(
+                os.path.join(normalized, "data")
+            ):
+                return self._record_direct_user_dir(normalized)
+
+            return os.path.join(normalized, "data", self.st_user_handle)
+        except (OSError, TypeError, ValueError):
+            return None
+
+    def get_user_dir(self, path: Optional[str] = None) -> Optional[str]:
+        """返回当前 ST 用户数据目录，目录不存在时也返回预期路径。"""
+        return self._resolve_user_dir(path)
+
+    def get_data_dir(self, path: Optional[str] = None) -> Optional[str]:
+        """返回当前 ST 的 data 目录。"""
+        user_dir = self._resolve_user_dir(path)
+        if user_dir:
+            parent = os.path.dirname(user_dir)
+            if os.path.basename(parent).lower() == "data":
+                return parent
+            if self._looks_like_user_dir(user_dir):
+                return parent
+
+        raw_path = path if path is not None else self.st_data_dir
+        if not raw_path:
+            return None
+        try:
+            normalized = os.path.normpath(os.path.expanduser(os.fspath(raw_path)))
+            if os.path.basename(normalized).lower() == "data":
+                return normalized
+            return os.path.join(normalized, "data")
+        except (OSError, TypeError, ValueError):
+            return None
+
+    def get_install_root(self, path: Optional[str] = None) -> Optional[str]:
+        """将任意支持的 ST 路径形式转换为安装根目录。"""
+        raw_path = path if path is not None else self.st_data_dir
+        if not raw_path:
+            raw_path = self.detect_st_path()
+        if not raw_path:
+            return None
+
+        try:
+            normalized = os.path.normpath(os.path.expanduser(os.fspath(raw_path)))
+            if os.path.basename(normalized).lower() == "public":
+                return os.path.dirname(normalized)
+
+            data_dir = self.get_data_dir(normalized)
+            if data_dir and os.path.basename(data_dir).lower() == "data":
+                return os.path.dirname(data_dir)
+
+            user_dir = self._resolve_user_dir(normalized)
+            if user_dir and self._looks_like_user_dir(user_dir):
+                return os.path.dirname(user_dir)
+            return normalized
+        except (OSError, TypeError, ValueError):
+            return None
+
+    def list_user_handles(self, path: Optional[str] = None) -> List[str]:
+        """列出 data 目录下可识别的 ST 用户目录名。"""
+        data_dir = self.get_data_dir(path)
+        if not data_dir or not os.path.isdir(data_dir):
+            return []
+
+        handles = []
+        try:
+            for entry in os.scandir(data_dir):
+                if entry.is_dir() and self._looks_like_user_dir(entry.path):
+                    handles.append(entry.name)
+        except OSError:
+            return []
+        return sorted(handles, key=str.casefold)
 
     def _first_existing_path(self, candidates: List[str], want_dir: bool = True) -> Optional[str]:
         """返回第一个存在的路径（目录/文件）"""
@@ -194,76 +401,35 @@ class STClient:
         if not data_dir or not os.path.exists(data_dir) or not os.path.isdir(data_dir):
             return None
         try:
-            default_user = os.path.join(data_dir, "default-user")
-            if os.path.exists(default_user) and os.path.isdir(default_user):
-                return default_user
-            # 选择最可能的用户目录：优先 settings.json，其次资源子目录数量
-            candidates = []
-            for name in os.listdir(data_dir):
-                user_path = os.path.join(data_dir, name)
-                if not os.path.isdir(user_path):
-                    continue
-                score = 0
-                if os.path.exists(os.path.join(user_path, "settings.json")):
-                    score += 5
-                for sub in ["characters", "chats", "worlds", "OpenAI Settings", "presets", "regex", "QuickReplies", "scripts"]:
-                    if os.path.exists(os.path.join(user_path, sub)):
-                        score += 1
-                if score > 0:
-                    candidates.append((score, user_path))
-            if candidates:
-                candidates.sort(key=lambda x: (-x[0], x[1]))
-                return candidates[0][1]
+            configured_user = os.path.join(data_dir, self.st_user_handle)
+            if os.path.isdir(configured_user):
+                return configured_user
         except Exception:
             return None
         return None
 
     def _normalize_default_user_dir(self, path: str) -> Optional[str]:
-        if not path:
-            return None
-        try:
-            normalized = os.path.normpath(path)
-            parts = normalized.split(os.sep)
-            if "default-user" in parts:
-                idx = parts.index("default-user")
-                return os.sep.join(parts[: idx + 1])
-            base = os.path.basename(normalized).lower()
-            if base == "default-user":
-                return normalized
-            # 已是用户目录（自定义用户名）
-            if os.path.exists(os.path.join(normalized, "settings.json")):
-                return normalized
-            if os.path.exists(os.path.join(normalized, "characters")) or os.path.exists(os.path.join(normalized, "worlds")) or os.path.exists(os.path.join(normalized, "chats")):
-                return normalized
-            if base == "data":
-                detected_user = self._find_user_dir_from_data_dir(normalized)
-                return detected_user or os.path.join(normalized, "default-user")
-            # 视为根目录
-            data_dir = os.path.join(normalized, "data")
-            if not os.path.exists(data_dir):
-                parent = os.path.dirname(normalized)
-                parent_data = os.path.join(parent, "data")
-                if os.path.exists(parent_data):
-                    data_dir = parent_data
-            detected_user = self._find_user_dir_from_data_dir(data_dir)
-            return detected_user or os.path.join(data_dir, "default-user")
-        except Exception:
-            return None
+        return self._resolve_user_dir(path)
 
     def _candidate_user_dirs(self) -> List[str]:
         candidates = []
         for root in self._candidate_roots():
-            user_dir = self._normalize_default_user_dir(root)
+            user_dir = self._resolve_user_dir(root)
             if user_dir:
                 candidates.append(user_dir)
-        candidates.extend([
-            os.path.join(os.getcwd(), "data", "default-user"),
-            os.path.join(os.getcwd(), "..", "data", "default-user"),
-            r"D:\SillyTavern\data\default-user",
-            r"E:\SillyTavern\data\default-user",
-            r"C:\SillyTavern\data\default-user",
-        ])
-        return candidates
+        if not self.st_data_dir:
+            candidates.extend([
+                os.path.join(os.getcwd(), "data", self.st_user_handle),
+                os.path.join(os.getcwd(), "..", "data", self.st_user_handle),
+            ])
+        unique = []
+        seen = set()
+        for candidate in candidates:
+            normalized = os.path.normpath(candidate)
+            if normalized not in seen:
+                seen.add(normalized)
+                unique.append(normalized)
+        return unique
     
     def get_st_subdir(self, resource_type: str) -> Optional[str]:
         """
@@ -282,26 +448,14 @@ class STClient:
         if resource_type == "settings":
             return self.get_settings_path()
 
-        st_path = self.st_data_dir or self.detect_st_path()
-        if not st_path:
-            return None
-
         subdir = ST_DATA_STRUCTURE.get(resource_type)
         if not subdir:
             return None
 
-        # 允许 st_path 指向 data/default-user 或 data
-        user_dir = self._normalize_default_user_dir(st_path)
-        if user_dir:
-            try:
-                prefix = os.path.normpath(os.path.join("data", "default-user"))
-                norm_subdir = os.path.normpath(subdir)
-                rel = os.path.relpath(norm_subdir, prefix) if norm_subdir.startswith(prefix) else subdir
-                full_path = os.path.join(user_dir, rel)
-            except Exception:
-                full_path = os.path.join(user_dir, subdir)
-        else:
-            full_path = os.path.join(st_path, subdir)
+        user_dir = self.get_user_dir()
+        if not user_dir:
+            return None
+        full_path = os.path.join(user_dir, subdir)
 
         if os.path.exists(full_path):
             return full_path
@@ -309,21 +463,18 @@ class STClient:
 
     def get_settings_path(self, custom_path: Optional[str] = None) -> Optional[str]:
         """获取 SillyTavern settings.json 路径"""
-        if custom_path and os.path.exists(custom_path):
+        if custom_path and os.path.isfile(custom_path):
             return custom_path
 
         candidates = []
         for user_dir in self._candidate_user_dirs():
             candidates.append(os.path.join(user_dir, "settings.json"))
 
-        for root in self._candidate_roots():
-            candidates.append(os.path.join(root, "settings.json"))
-
         return self._first_existing_path(candidates, want_dir=False)
 
     def get_presets_dir(self, custom_path: Optional[str] = None) -> Optional[str]:
         """获取 SillyTavern 预设目录路径"""
-        if custom_path and os.path.exists(custom_path):
+        if custom_path and os.path.isdir(custom_path):
             return custom_path
 
         candidates = []
@@ -331,13 +482,6 @@ class STClient:
             candidates.extend([
                 os.path.join(user_dir, "OpenAI Settings"),
                 os.path.join(user_dir, "presets"),
-            ])
-
-        for root in self._candidate_roots():
-            candidates.extend([
-                os.path.join(root, "OpenAI Settings"),
-                os.path.join(root, "presets"),
-                os.path.join(root, "public", "presets"),
             ])
 
         return self._first_existing_path(candidates, want_dir=True)
@@ -396,18 +540,12 @@ class STClient:
 
     def get_regex_dir(self, custom_path: Optional[str] = None) -> Optional[str]:
         """获取 SillyTavern 正则脚本目录路径"""
-        if custom_path and os.path.exists(custom_path):
+        if custom_path and os.path.isdir(custom_path):
             return custom_path
 
         candidates = []
         for user_dir in self._candidate_user_dirs():
             candidates.append(os.path.join(user_dir, "regex"))
-
-        for root in self._candidate_roots():
-            candidates.extend([
-                os.path.join(root, "regex"),
-                os.path.join(root, "public", "scripts", "regex"),
-            ])
 
         return self._first_existing_path(candidates, want_dir=True)
 
@@ -461,25 +599,51 @@ class STClient:
         
         # 测试本地路径
         st_path = self.st_data_dir or self.detect_st_path()
-        if st_path:
+        if st_path and self._validate_st_path(st_path):
             result["local"]["available"] = True
             result["local"]["path"] = st_path
             # 检查各资源目录
-            for res_type in ST_DATA_STRUCTURE.keys():
-                if res_type == "settings":
-                    continue
+            for res_type in ST_SYNC_RESOURCE_TYPES:
                 if res_type == "presets":
                     subdir = self.get_presets_dir()
                 elif res_type == "regex":
                     subdir = self.get_regex_dir()
                 else:
                     subdir = self.get_st_subdir(res_type)
+                if res_type == "regex":
+                    physical_count = 0
+                    if subdir:
+                        try:
+                            physical_count = sum(
+                                1
+                                for entry in os.scandir(subdir)
+                                if entry.is_file() and entry.name.lower().endswith('.json')
+                            )
+                        except OSError:
+                            physical_count = 0
+                    global_count = self.get_global_regex().get("count", 0)
+                    result["local"]["resources"][res_type] = physical_count + global_count
+                    continue
                 if subdir:
                     try:
-                        count = len([f for f in os.listdir(subdir) 
-                                   if f.endswith('.json') or f.endswith('.png')])
+                        if res_type == "chats":
+                            count = sum(
+                                1
+                                for entry in os.scandir(subdir)
+                                if entry.is_dir()
+                                for chat_file in os.scandir(entry.path)
+                                if chat_file.is_file() and chat_file.name.lower().endswith('.jsonl')
+                            )
+                        else:
+                            count = len([
+                                entry
+                                for entry in os.scandir(subdir)
+                                if entry.is_file() and (
+                                    entry.name.endswith('.json') or entry.name.endswith('.png')
+                                )
+                            ])
                         result["local"]["resources"][res_type] = count
-                    except:
+                    except OSError:
                         result["local"]["resources"][res_type] = 0
         
         # 测试 API 连接
@@ -966,6 +1130,52 @@ class STClient:
         return quick_replies
     
     # ==================== 资源同步 ====================
+
+    @staticmethod
+    def _safe_resource_filename(filename: str) -> Optional[str]:
+        """只允许同步源目录的直接子项，避免资源 ID 穿越目录。"""
+        if not isinstance(filename, str) or not filename.strip():
+            return None
+        normalized = os.path.normpath(filename.strip())
+        if (
+            os.path.isabs(normalized)
+            or normalized in {".", ".."}
+            or os.path.basename(normalized) != normalized
+        ):
+            return None
+        return normalized
+
+    @staticmethod
+    def _same_directory_files(source_dir: str, target_dir: str) -> bool:
+        """比较聊天目录中的文件内容，不因 mtime 不同而误判为冲突。"""
+        try:
+            source_files = {}
+            target_files = {}
+            for root, _, files in os.walk(source_dir):
+                for name in files:
+                    path = os.path.join(root, name)
+                    source_files[os.path.relpath(path, source_dir)] = path
+            for root, _, files in os.walk(target_dir):
+                for name in files:
+                    path = os.path.join(root, name)
+                    target_files[os.path.relpath(path, target_dir)] = path
+
+            if set(source_files) != set(target_files):
+                return False
+            return all(
+                filecmp.cmp(source_files[relative], target_files[relative], shallow=False)
+                for relative in source_files
+            )
+        except OSError:
+            return False
+
+    @staticmethod
+    def _sync_message_kind(message: str) -> Optional[str]:
+        if message.startswith("unchanged:"):
+            return "unchanged"
+        if message.startswith("conflict:"):
+            return "conflict"
+        return None
     
     def sync_resource(self, resource_type: str, resource_id: str, 
                       target_dir: str, use_api: bool = False) -> Tuple[bool, str]:
@@ -986,34 +1196,55 @@ class STClient:
             if not source_dir:
                 return False, f"未找到 {resource_type} 源目录"
             
-            # 确定源文件
+            resource_id = str(resource_id or '').strip()
+            if not resource_id:
+                return False, "资源 ID 为空"
+
+            # 确定源文件或目录。聊天和 ST 的目录型世界书都需要完整复制目录。
+            resource_is_dir = False
             if resource_type == "characters":
                 filename = f"{resource_id}.png" if not resource_id.endswith('.png') else resource_id
             elif resource_type == "chats":
                 filename = resource_id
+            elif resource_type == "worlds":
+                directory_name = self._safe_resource_filename(resource_id)
+                if directory_name and os.path.isdir(os.path.join(source_dir, directory_name)):
+                    filename = directory_name
+                    resource_is_dir = True
+                else:
+                    filename = f"{resource_id}.json" if not resource_id.endswith('.json') else resource_id
             else:
                 filename = f"{resource_id}.json" if not resource_id.endswith('.json') else resource_id
-                
+
+            filename = self._safe_resource_filename(filename)
+            if not filename:
+                return False, f"资源 ID 非法: {resource_id}"
+
             source_path = os.path.join(source_dir, filename)
-            if resource_type == "chats":
+            if resource_is_dir or resource_type == "chats":
                 if not os.path.isdir(source_path):
-                    return False, f"聊天目录不存在: {source_path}"
-            elif not os.path.exists(source_path):
+                    label = "世界书目录" if resource_type == "worlds" else "聊天目录"
+                    return False, f"{label}不存在: {source_path}"
+            elif not os.path.isfile(source_path):
                 return False, f"源文件不存在: {source_path}"
-                
+
             # 确保目标目录存在
             os.makedirs(target_dir, exist_ok=True)
-            
-            import shutil
-            if resource_type == "chats":
-                target_path = os.path.join(target_dir, filename)
+            target_path = os.path.join(target_dir, filename)
+
+            if resource_is_dir or resource_type == "chats":
                 if os.path.exists(target_path):
-                    shutil.rmtree(target_path)
+                    if os.path.isdir(target_path) and self._same_directory_files(source_path, target_path):
+                        return True, f"unchanged:{target_path}"
+                    return False, f"conflict:目标已存在且内容不同，已跳过: {target_path}"
                 shutil.copytree(source_path, target_path)
             else:
-                target_path = os.path.join(target_dir, filename)
+                if os.path.exists(target_path):
+                    if os.path.isfile(target_path) and filecmp.cmp(source_path, target_path, shallow=False):
+                        return True, f"unchanged:{target_path}"
+                    return False, f"conflict:目标已存在且内容不同，已跳过: {target_path}"
                 shutil.copy2(source_path, target_path)
-            
+
             logger.info(f"同步资源成功: {source_path} -> {target_path}")
             return True, target_path
             
@@ -1039,6 +1270,9 @@ class STClient:
             "failed": 0,
             "skipped": 0,
             "errors": [],
+            "synced": [],
+            "unchanged": [],
+            "conflicts": [],
         }
         
         # 获取资源列表
@@ -1061,9 +1295,17 @@ class STClient:
         for res in resources:
             res_id = res.get("id") or res.get("filename", "").replace('.json', '').replace('.png', '')
             success, msg = self.sync_resource(resource_type, res_id, target_dir, use_api)
-            
-            if success:
+            kind = self._sync_message_kind(msg)
+
+            if kind == "unchanged":
+                result["skipped"] += 1
+                result["unchanged"].append(res_id)
+            elif kind == "conflict":
+                result["skipped"] += 1
+                result["conflicts"].append({"id": res_id, "message": msg.removeprefix("conflict:")})
+            elif success:
                 result["success"] += 1
+                result["synced"].append(res_id)
             else:
                 result["failed"] += 1
                 result["errors"].append(f"{res_id}: {msg}")

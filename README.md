@@ -64,6 +64,7 @@ ST-Manager 是一个本地优先的 SillyTavern 资源管理器。它通过 Flas
 ### 和 SillyTavern 深度联动
 
 - 支持配置 ST Web 地址和 ST 数据目录
+- 可配置 `data/<用户目录>` 的实际用户名；未填写时使用 `default-user`
 - 支持 Basic / Web 登录等 ST 认证字段归一化
 - 可从 ST 侧列出并同步角色、聊天、世界书、预设、Regex 和 Quick Replies
 - 可把角色卡、世界书、预设和主题美化包发送回 SillyTavern
@@ -289,6 +290,7 @@ config.json
 | `resources_dir` | `data/assets/card_assets` | 角色资源目录 |
 | `st_url` | `http://127.0.0.1:8000` | SillyTavern Web 地址 |
 | `st_data_dir` | `""` | SillyTavern 数据目录，留空时尝试自动探测 |
+| `st_user_handle` | `default-user` | SillyTavern `data/<用户目录>` 名称 |
 | `discord_auth_type` | `token` | Discord 来源更新检查和论坛标签抓取的认证方式，可选 `token` / `cookie` |
 | `discord_bot_token` | `""` | Discord Token 凭据，使用 Token 认证时填写 |
 | `discord_user_cookie` | `""` | Discord 浏览器 Cookie，使用 Cookie 认证时填写 |

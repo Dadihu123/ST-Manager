@@ -121,6 +121,7 @@ Docker 额外注意：
 | --- | --- | --- |
 | `st_url` | `http://127.0.0.1:8000` | ST Web 地址 |
 | `st_data_dir` | `""` | ST 数据目录，留空自动探测 |
+| `st_user_handle` | `default-user` | ST `data/<用户目录>` 名称；多用户安装时填写实际账号 handle |
 | `st_auth_type` | `basic` | ST 认证模式 |
 | `st_username` | `""` | 兼容字段，运行时自动归一化 |
 | `st_password` | `""` | 兼容字段，运行时自动归一化 |

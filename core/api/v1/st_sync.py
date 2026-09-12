@@ -13,7 +13,13 @@ import logging
 from typing import Dict, Any
 from flask import Blueprint, request, jsonify
 from core.config import load_config, BASE_DIR
-from core.services.st_client import get_st_client, refresh_st_client, STClient
+from core.services.st_client import (
+    DEFAULT_ST_USER_HANDLE,
+    STClient,
+    get_st_client,
+    normalize_st_user_handle,
+    refresh_st_client,
+)
 from core.services.st_path_safety import evaluate_st_path_safety
 from core.services.scan_service import request_scan
 from core.services.cache_service import invalidate_wi_list_cache
@@ -24,12 +30,43 @@ logger = logging.getLogger(__name__)
 
 bp = Blueprint('st_sync', __name__, url_prefix='/api/st')
 LAST_VALID_ST_PATH = None
+LAST_VALID_ST_USER_HANDLE = None
 
 def _normalize_input_path(path: str) -> str:
     if not isinstance(path, str):
         return ""
     cleaned = path.strip().strip('"').strip("'")
     return os.path.normpath(cleaned) if cleaned else ""
+
+
+def _build_st_client(st_data_dir: str = '', st_user_handle=None):
+    """按请求参数创建 ST 客户端，未指定参数时复用配置客户端。"""
+    kwargs = {}
+    if st_data_dir:
+        kwargs['st_data_dir'] = st_data_dir
+    if st_user_handle is not None:
+        kwargs['st_user_handle'] = normalize_st_user_handle(st_user_handle)
+    return STClient(**kwargs) if kwargs else get_st_client()
+
+
+def _resolve_st_selection(raw_path=None, raw_user_handle=None):
+    path = _normalize_input_path(raw_path or '')
+    if not path:
+        path = LAST_VALID_ST_PATH or ''
+
+    if raw_user_handle is None:
+        user_handle = LAST_VALID_ST_USER_HANDLE if not raw_path else None
+    else:
+        user_handle = normalize_st_user_handle(raw_user_handle)
+    return path, user_handle
+
+
+def _sync_message_kind(message: str):
+    if isinstance(message, str) and message.startswith('unchanged:'):
+        return 'unchanged'
+    if isinstance(message, str) and message.startswith('conflict:'):
+        return 'conflict'
+    return None
 
 def _normalize_st_root(path: str) -> str:
     if not path:
@@ -74,10 +111,14 @@ def _sync_action_for(resource_type: str, resource_ids: list) -> str:
     return 'sync_all'
 
 
-def _build_sync_path_safety(config: Dict[str, Any], st_data_dir: str) -> Dict[str, Any]:
+def _build_sync_path_safety(
+    config: Dict[str, Any], st_data_dir: str, st_user_handle=None
+) -> Dict[str, Any]:
     draft = dict(config or {})
     if st_data_dir:
         draft['st_data_dir'] = st_data_dir
+    if st_user_handle is not None:
+        draft['st_user_handle'] = normalize_st_user_handle(st_user_handle)
     return evaluate_st_path_safety(draft)
 
 
@@ -91,9 +132,16 @@ def _resolve_blocked_sync_action(resource_type: str, resource_ids: list, blocked
 def _export_global_regex(settings_path: str, target_dir: str) -> Dict[str, Any]:
     """
     将 settings.json 中的全局正则导出为独立脚本文件，便于同步到本地库。
-    返回 { success, failed, files }。
+    返回 { success, failed, skipped, files, unchanged, conflicts }。
     """
-    result = {"success": 0, "failed": 0, "files": []}
+    result = {
+        "success": 0,
+        "failed": 0,
+        "skipped": 0,
+        "files": [],
+        "unchanged": [],
+        "conflicts": [],
+    }
     if not settings_path or not os.path.exists(settings_path):
         return result
 
@@ -167,19 +215,9 @@ def _export_global_regex(settings_path: str, target_dir: str) -> Dict[str, Any]:
     except Exception:
         pass
 
-    def _unique_filename(base_name: str) -> str:
+    def _base_filename(base_name: str) -> str:
         safe_name = sanitize_filename(str(base_name)) or 'global'
-        candidate = f"global__{safe_name}.json"
-        if candidate not in existing_filenames and not os.path.exists(os.path.join(target_dir, candidate)):
-            existing_filenames.add(candidate)
-            return candidate
-        idx = 1
-        while True:
-            candidate = f"global__{safe_name}__{idx}.json"
-            if candidate not in existing_filenames and not os.path.exists(os.path.join(target_dir, candidate)):
-                existing_filenames.add(candidate)
-                return candidate
-            idx += 1
+        return f"global__{safe_name}.json"
 
     for idx, item in enumerate(regex_items):
         try:
@@ -190,20 +228,49 @@ def _export_global_regex(settings_path: str, target_dir: str) -> Dict[str, Any]:
             payload.setdefault('__source', 'settings.json')
             signature = _signature(payload)
 
+            normalized_name = str(name).strip()
+            same_name_exports = existing_exports.get(normalized_name, [])
             file_path = None
-            for entry in existing_exports.get(str(name).strip(), []):
+            for entry in same_name_exports:
                 if entry.get('signature') == signature:
                     file_path = entry.get('path')
                     break
 
-            if not file_path:
-                filename = _unique_filename(name)
-                file_path = os.path.join(target_dir, filename)
+            if file_path:
+                result["skipped"] += 1
+                result["unchanged"].append(os.path.basename(file_path))
+                continue
+
+            if same_name_exports:
+                result["skipped"] += 1
+                result["conflicts"].append({
+                    "name": normalized_name,
+                    "message": f"全局正则同名但内容不同，已跳过: {normalized_name}",
+                })
+                continue
+
+            filename = _base_filename(name)
+            file_path = os.path.join(target_dir, filename)
+            if filename in existing_filenames or os.path.exists(file_path):
+                result["skipped"] += 1
+                result["conflicts"].append({
+                    "name": normalized_name,
+                    "filename": filename,
+                    "message": f"目标文件已存在，已跳过: {filename}",
+                })
+                continue
+
+            existing_filenames.add(filename)
 
             with open(file_path, 'w', encoding='utf-8') as f:
                 json.dump(payload, f, ensure_ascii=False, indent=2)
             result["success"] += 1
             result["files"].append(os.path.basename(file_path))
+            existing_exports.setdefault(normalized_name, []).append({
+                "path": file_path,
+                "filename": filename,
+                "signature": signature,
+            })
         except Exception as e:
             logger.warning(f"写入全局正则文件失败: {e}")
             result["failed"] += 1
@@ -248,11 +315,14 @@ def detect_path():
         
         if detected:
             global LAST_VALID_ST_PATH
-            detected = _normalize_st_root(detected)
+            global LAST_VALID_ST_USER_HANDLE
+            detected = client.get_install_root(detected) or _normalize_st_root(detected)
             LAST_VALID_ST_PATH = detected
+            LAST_VALID_ST_USER_HANDLE = client.st_user_handle
             return jsonify({
                 "success": True,
                 "path": detected,
+                "user_handle": client.st_user_handle,
                 "valid": True
             })
         else:
@@ -290,18 +360,25 @@ def validate_path():
                 "success": False,
                 "error": "请提供路径"
             }), 400
-            
-        client = STClient(st_data_dir=path)
+
+        requested_handle = data.get('st_user_handle') if 'st_user_handle' in data else None
+        client = _build_st_client(path, requested_handle)
         is_valid = client._validate_st_path(path)
-        normalized_path = _normalize_st_root(path) if is_valid else path
+        normalized_path = client.get_install_root(path) if is_valid else path
+        if is_valid and not normalized_path:
+            normalized_path = _normalize_st_root(path)
         if normalized_path and not os.path.exists(normalized_path):
             normalized_path = path
 
         resources = {}
+        user_dir = client.get_user_dir(path) if is_valid else None
+        available_user_handles = client.list_user_handles(path) if is_valid else []
         if is_valid:
             global LAST_VALID_ST_PATH
+            global LAST_VALID_ST_USER_HANDLE
             LAST_VALID_ST_PATH = normalized_path
-            # 检查各资源目录（兼容传入 data/default-user 或根目录）
+            LAST_VALID_ST_USER_HANDLE = client.st_user_handle
+            # 检查各资源目录，目录边界由 data/<user> 明确决定。
             for res_type in ['characters', 'chats', 'worlds', 'presets', 'regex', 'quick_replies']:
                 subdir = client.get_st_subdir(res_type)
                 if res_type == 'regex':
@@ -344,7 +421,15 @@ def validate_path():
             "success": True,
             "valid": is_valid,
             "normalized_path": normalized_path,
-            "resources": resources
+            "resources": resources,
+            "user_handle": getattr(
+                client,
+                'st_user_handle',
+                requested_handle or DEFAULT_ST_USER_HANDLE,
+            ),
+            "user_dir": user_dir,
+            "user_dir_exists": bool(user_dir and os.path.isdir(user_dir)),
+            "available_user_handles": available_user_handles,
         })
     except Exception as e:
         logger.error(f"验证路径失败: {e}")
@@ -371,12 +456,11 @@ def list_resources(resource_type: str):
     """
     try:
         use_api = request.args.get('use_api', 'false').lower() == 'true'
-        st_data_dir = _normalize_input_path(request.args.get('st_data_dir', ''))
-        if not st_data_dir:
-            st_data_dir = LAST_VALID_ST_PATH
-        if st_data_dir:
-            st_data_dir = _normalize_st_root(st_data_dir)
-        client = STClient(st_data_dir=st_data_dir) if st_data_dir else get_st_client()
+        st_data_dir, st_user_handle = _resolve_st_selection(
+            request.args.get('st_data_dir', ''),
+            request.args.get('st_user_handle') if 'st_user_handle' in request.args else None,
+        )
+        client = _build_st_client(st_data_dir, st_user_handle)
         
         if resource_type == 'characters':
             items = client.list_characters(use_api)
@@ -400,7 +484,8 @@ def list_resources(resource_type: str):
             "success": True,
             "resource_type": resource_type,
             "items": items,
-            "count": len(items)
+            "count": len(items),
+            "user_handle": getattr(client, 'st_user_handle', st_user_handle or DEFAULT_ST_USER_HANDLE),
         })
     except Exception as e:
         logger.error(f"列出资源失败: {e}")
@@ -428,12 +513,11 @@ def get_resource(resource_type: str, resource_id: str):
     """
     try:
         use_api = request.args.get('use_api', 'false').lower() == 'true'
-        st_data_dir = _normalize_input_path(request.args.get('st_data_dir', ''))
-        if not st_data_dir:
-            st_data_dir = LAST_VALID_ST_PATH
-        if st_data_dir:
-            st_data_dir = _normalize_st_root(st_data_dir)
-        client = STClient(st_data_dir=st_data_dir) if st_data_dir else get_st_client()
+        st_data_dir, st_user_handle = _resolve_st_selection(
+            request.args.get('st_data_dir', ''),
+            request.args.get('st_user_handle') if 'st_user_handle' in request.args else None,
+        )
+        client = _build_st_client(st_data_dir, st_user_handle)
         
         if resource_type == 'characters':
             item = client.get_character(resource_id, use_api)
@@ -485,15 +569,20 @@ def sync_resources():
         resource_type = data.get('resource_type')
         resource_ids = data.get('resource_ids', [])
         use_api = data.get('use_api', False)
-        st_data_dir = _normalize_input_path(data.get('st_data_dir'))
-        if not st_data_dir:
-            st_data_dir = LAST_VALID_ST_PATH
-        st_data_dir = _normalize_st_root(st_data_dir)
+        st_data_dir, st_user_handle = _resolve_st_selection(
+            data.get('st_data_dir'),
+            data.get('st_user_handle') if 'st_user_handle' in data else None,
+        )
         
         if not resource_type:
             return jsonify({
                 "success": False,
                 "error": "请指定资源类型"
+            }), 400
+        if not isinstance(resource_ids, list):
+            return jsonify({
+                "success": False,
+                "error": "resource_ids 必须是数组"
             }), 400
             
         # 获取目标目录
@@ -514,7 +603,7 @@ def sync_resources():
                 "error": f"未知资源类型: {resource_type}"
             }), 400
 
-        path_safety = _build_sync_path_safety(config, st_data_dir)
+        path_safety = _build_sync_path_safety(config, st_data_dir, st_user_handle)
 
         blocked_actions = set(path_safety.get('blocked_actions') or [])
         requested_action = _sync_action_for(resource_type, resource_ids)
@@ -535,7 +624,7 @@ def sync_resources():
             target_dir = os.path.join(BASE_DIR, target_dir)
             
         # 使用用户提供的路径创建客户端
-        client = STClient(st_data_dir=st_data_dir) if st_data_dir else get_st_client()
+        client = _build_st_client(st_data_dir, st_user_handle)
         
         if resource_ids:
             # 同步指定资源
@@ -544,11 +633,23 @@ def sync_resources():
                 "failed": 0,
                 "skipped": 0,
                 "errors": [],
-                "synced": []
+                "synced": [],
+                "unchanged": [],
+                "conflicts": [],
             }
             for res_id in resource_ids:
                 success, msg = client.sync_resource(resource_type, res_id, target_dir, use_api)
-                if success:
+                kind = _sync_message_kind(msg)
+                if kind == 'unchanged':
+                    result["skipped"] += 1
+                    result["unchanged"].append(res_id)
+                elif kind == 'conflict':
+                    result["skipped"] += 1
+                    result["conflicts"].append({
+                        "id": res_id,
+                        "message": msg.removeprefix('conflict:'),
+                    })
+                elif success:
                     result["success"] += 1
                     result["synced"].append(res_id)
                 else:
@@ -565,8 +666,12 @@ def sync_resources():
             result["global_regex"] = global_result
             if global_result.get("success"):
                 result["success"] += global_result.get("success", 0)
+            if global_result.get("skipped"):
+                result["skipped"] += global_result.get("skipped", 0)
             if global_result.get("failed"):
                 result["failed"] += global_result.get("failed", 0)
+            if global_result.get("conflicts"):
+                result.setdefault("conflicts", []).extend(global_result["conflicts"])
 
         # 同步成功后触发扫描，将新文件导入数据库
         if result.get("success", 0) > 0:
@@ -581,6 +686,7 @@ def sync_resources():
             "success": True,
             "resource_type": resource_type,
             "target_dir": target_dir,
+            "user_handle": getattr(client, 'st_user_handle', st_user_handle or DEFAULT_ST_USER_HANDLE),
             "result": result
         })
     except Exception as e:
@@ -624,15 +730,16 @@ def get_summary():
         各类资源的数量统计
     """
     try:
-        st_data_dir = _normalize_input_path(request.args.get('st_data_dir', ''))
-        if not st_data_dir:
-            st_data_dir = LAST_VALID_ST_PATH
-        if st_data_dir:
-            st_data_dir = _normalize_st_root(st_data_dir)
-        client = STClient(st_data_dir=st_data_dir) if st_data_dir else get_st_client()
+        st_data_dir, st_user_handle = _resolve_st_selection(
+            request.args.get('st_data_dir', ''),
+            request.args.get('st_user_handle') if 'st_user_handle' in request.args else None,
+        )
+        client = _build_st_client(st_data_dir, st_user_handle)
         
         summary = {
-            "st_path": client.st_data_dir or client.detect_st_path(),
+            "st_path": client.get_install_root(),
+            "user_handle": client.st_user_handle,
+            "user_dir": client.get_user_dir(),
             "resources": {}
         }
         
@@ -690,12 +797,17 @@ def get_regex_aggregate():
     try:
         presets_path = request.args.get('presets_path')
         settings_path = request.args.get('settings_path')
-        st_data_dir = _normalize_input_path(request.args.get('st_data_dir', ''))
-        if not st_data_dir:
-            st_data_dir = LAST_VALID_ST_PATH
-        client = STClient(st_data_dir=st_data_dir) if st_data_dir else get_st_client()
+        st_data_dir, st_user_handle = _resolve_st_selection(
+            request.args.get('st_data_dir', ''),
+            request.args.get('st_user_handle') if 'st_user_handle' in request.args else None,
+        )
+        client = _build_st_client(st_data_dir, st_user_handle)
         result = client.aggregate_regex(presets_path, settings_path)
-        return jsonify({"success": True, **result})
+        return jsonify({
+            "success": True,
+            "user_handle": getattr(client, 'st_user_handle', st_user_handle or DEFAULT_ST_USER_HANDLE),
+            **result,
+        })
     except Exception as e:
         logger.error(f"获取正则汇总失败: {e}")
         return jsonify({"success": False, "error": str(e)}), 500

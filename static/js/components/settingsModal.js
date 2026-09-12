@@ -38,6 +38,7 @@ const DEFAULT_SETTINGS = {
   port: 5000,
   st_url: "http://127.0.0.1:8000",
   st_data_dir: "",
+  st_user_handle: "default-user",
   st_auth_type: "basic",
   st_username: "",
   st_password: "",
@@ -652,6 +653,7 @@ export default function settingsModal() {
         "settingsForm.quick_replies_dir",
         "settingsForm.beautify_dir",
         "settingsForm.st_data_dir",
+        "settingsForm.st_user_handle",
         "settingsForm.st_openai_preset_dir",
       ].forEach((expression) => {
         this.$watch(expression, () => {
@@ -994,6 +996,11 @@ export default function settingsModal() {
       return labels[type] || type;
     },
 
+    getSTUserHandle() {
+      const value = this.$store?.global?.settingsForm?.st_user_handle;
+      return String(value || "").trim() || "default-user";
+    },
+
     getResourceIcon(type) {
       const icons = {
         characters: "character-cards",
@@ -1016,6 +1023,9 @@ export default function settingsModal() {
 
         if (data.success && data.path) {
           this.$store.global.settingsForm.st_data_dir = data.path;
+          if (data.user_handle) {
+            this.$store.global.settingsForm.st_user_handle = data.user_handle;
+          }
           this.stPathStatus = `探测到路径: ${data.path}`;
           this.stPathStatusIcon = "check";
           this.stPathValid = true;
@@ -1048,7 +1058,10 @@ export default function settingsModal() {
         const resp = await fetch("/api/st/validate_path", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ path }),
+          body: JSON.stringify({
+            path,
+            st_user_handle: this.getSTUserHandle(),
+          }),
         });
         const data = await resp.json();
 
@@ -1062,6 +1075,12 @@ export default function settingsModal() {
           this.stPathStatusIcon = "check";
           this.stPathValid = true;
           this.stResources = data.resources || {};
+          if (data.user_handle) {
+            this.$store.global.settingsForm.st_user_handle = data.user_handle;
+          }
+          if (data.user_dir_exists === false && data.available_user_handles?.length) {
+            this.stPathStatus = `路径有效，但未找到用户目录 ${data.user_handle || this.getSTUserHandle()}；可用用户：${data.available_user_handles.join(", ")}`;
+          }
           await this.refreshPathSafety();
         } else {
           this.stPathStatus = "路径无效或不是 SillyTavern 安装目录";
@@ -1108,13 +1127,14 @@ export default function settingsModal() {
           body: JSON.stringify({
             resource_type: resourceType,
             st_data_dir: stPath,
+            st_user_handle: this.getSTUserHandle(),
           }),
         });
         const data = await resp.json();
 
         if (data.success) {
           const result = data.result;
-          this.syncStatus = `同步完成: ${result.success} 个成功, ${result.failed} 个失败`;
+          this.syncStatus = `同步完成: ${result.success} 个成功, ${result.skipped || 0} 个跳过, ${result.failed} 个失败`;
           this.syncSuccess = result.failed === 0;
           this.syncStatusIcon = result.failed === 0 ? "check" : "alert-triangle";
 
@@ -1125,7 +1145,7 @@ export default function settingsModal() {
               // 等待后端扫描完成
               await new Promise((r) => setTimeout(r, 1500));
               window.dispatchEvent(new CustomEvent("refresh-card-list"));
-              this.syncStatus = `同步完成: ${result.success} 个成功, ${result.failed} 个失败`;
+              this.syncStatus = `同步完成: ${result.success} 个成功, ${result.skipped || 0} 个跳过, ${result.failed} 个失败`;
             } else if (resourceType === "chats") {
               window.dispatchEvent(new CustomEvent("refresh-chat-list"));
             } else if (resourceType === "worlds") {
@@ -1164,6 +1184,7 @@ export default function settingsModal() {
         "quick_replies",
       ];
       let totalSuccess = 0;
+      let totalSkipped = 0;
       let totalFailed = 0;
       let hasCharacters = false;
       let hasChats = false;
@@ -1186,12 +1207,17 @@ export default function settingsModal() {
           const resp = await fetch("/api/st/sync", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ resource_type: type, st_data_dir: stPath }),
+            body: JSON.stringify({
+              resource_type: type,
+              st_data_dir: stPath,
+              st_user_handle: this.getSTUserHandle(),
+            }),
           });
           const data = await resp.json();
 
           if (data.success) {
             totalSuccess += data.result.success;
+            totalSkipped += data.result.skipped || 0;
             totalFailed += data.result.failed;
             if (type === "characters" && data.result.success > 0) {
               hasCharacters = true;
@@ -1208,7 +1234,7 @@ export default function settingsModal() {
         }
       }
 
-      this.syncStatus = `全部同步完成: ${totalSuccess} 个成功, ${totalFailed} 个失败`;
+      this.syncStatus = `全部同步完成: ${totalSuccess} 个成功, ${totalSkipped} 个跳过, ${totalFailed} 个失败`;
       this.syncSuccess = totalFailed === 0;
       this.syncStatusIcon = totalFailed === 0 ? "check" : "alert-triangle";
       this.syncing = false;

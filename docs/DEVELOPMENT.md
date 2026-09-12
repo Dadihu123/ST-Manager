@@ -131,7 +131,7 @@ API 主要集中在 `core/api/v1/`，按资源域拆分：
 - `extensions.py`：Regex、Quick Replies、Tavern Helper 扩展统一入口
 - `automation.py`：规则集和执行
 - `system.py`：设置、扫描、索引、快照、回收站、系统动作
-- `st_sync.py`：SillyTavern 探测、校验、同步、概览
+- `st_sync.py`：SillyTavern 探测、校验、同步、概览；同步按 `data/<用户目录>` 解析，Regex 仅同步全局来源，冲突资源跳过并返回明细
 - `beautify.py`：主题美化库、壁纸、头像、变体、发送到 ST
 - `resources.py`：缩略图、资源文件、背景图、资源上传与删除
 - `forum.py`：类脑搜索站预览转发（`forum.shimmerday.top`）
