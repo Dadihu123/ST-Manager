@@ -79,7 +79,7 @@ jobs:
           python -m PyInstaller --clean --noconfirm --onedir --windowed \
             --name "ST Manager Pro V102" \
             --target-arch "${{ matrix.arch }}" \
-            --icon "软件图标.ico" \
+            --icon "static/images/brand/stm-mark.png" \
             --add-data "templates:templates" \
             --add-data "static:static" \
             app.py
