@@ -5591,6 +5591,9 @@ def api_upload_commit():
             
             # 读取元数据
             info = extract_card_info(src_path)
+            if not info:
+                logger.warning('Skipping invalid staged character card: %s', src_path)
+                continue
             if info and auto_rename:
                 data_block = info.get('data', {}) if 'data' in info else info
                 c_name = info.get('name') or data_block.get('name')

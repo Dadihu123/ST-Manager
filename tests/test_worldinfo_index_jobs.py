@@ -1211,7 +1211,7 @@ def test_apply_worldinfo_path_increment_uses_resolved_relative_global_dir(monkey
     base_dir = tmp_path / 'runtime'
     global_file = base_dir / 'data' / 'library' / 'lorebooks' / 'main' / 'book.json'
     global_file.parent.mkdir(parents=True)
-    global_file.write_text(json.dumps({'name': 'Global Book'}), encoding='utf-8')
+    global_file.write_text(json.dumps({'name': 'Global Book', 'entries': {}}), encoding='utf-8')
 
     conn = sqlite3.connect(':memory:')
     conn.row_factory = sqlite3.Row
@@ -1247,8 +1247,8 @@ def test_build_worldinfo_generation_uses_resolved_relative_dirs(monkeypatch, tmp
     resource_file = base_dir / 'data' / 'assets' / 'card_assets' / 'shared-pack' / 'lorebooks' / 'resource-book.json'
     global_file.parent.mkdir(parents=True)
     resource_file.parent.mkdir(parents=True)
-    global_file.write_text(json.dumps({'name': 'Global Book'}), encoding='utf-8')
-    resource_file.write_text(json.dumps({'name': 'Resource Book'}), encoding='utf-8')
+    global_file.write_text(json.dumps({'name': 'Global Book', 'entries': {}}), encoding='utf-8')
+    resource_file.write_text(json.dumps({'name': 'Resource Book', 'entries': {}}), encoding='utf-8')
 
     conn = sqlite3.connect(':memory:')
     conn.row_factory = sqlite3.Row
@@ -1315,8 +1315,8 @@ def test_apply_worldinfo_owner_increment_uses_resolved_relative_runtime_dirs(mon
     resource_file = base_dir / 'data' / 'assets' / 'card_assets' / 'shared-pack' / 'lorebooks' / 'resource-book.json'
     global_file.parent.mkdir(parents=True)
     resource_file.parent.mkdir(parents=True)
-    global_file.write_text(json.dumps({'name': 'Global Book'}), encoding='utf-8')
-    resource_file.write_text(json.dumps({'name': 'Resource Book'}), encoding='utf-8')
+    global_file.write_text(json.dumps({'name': 'Global Book', 'entries': {}}), encoding='utf-8')
+    resource_file.write_text(json.dumps({'name': 'Resource Book', 'entries': {}}), encoding='utf-8')
 
     conn = sqlite3.connect(':memory:')
     conn.row_factory = sqlite3.Row
@@ -1401,7 +1401,7 @@ def test_apply_worldinfo_embedded_increment_uses_resolved_relative_global_dir(mo
     base_dir = tmp_path / 'runtime'
     global_file = base_dir / 'data' / 'library' / 'lorebooks' / 'global' / 'book.json'
     global_file.parent.mkdir(parents=True)
-    global_file.write_text(json.dumps({'name': 'Global Book'}), encoding='utf-8')
+    global_file.write_text(json.dumps({'name': 'Global Book', 'entries': {}}), encoding='utf-8')
 
     conn = sqlite3.connect(':memory:')
     conn.row_factory = sqlite3.Row

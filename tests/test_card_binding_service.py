@@ -364,6 +364,85 @@ def test_full_scan_renamed_file_reuses_uuid_and_chat_binding(monkeypatch, tmp_pa
     assert 'old/hero.png' not in saved[-1]
 
 
+def test_full_scan_does_not_index_worldbook_as_character_card(monkeypatch, tmp_path):
+    from core.services import scan_service
+
+    db_path = tmp_path / 'cards_metadata.db'
+    cards_dir = tmp_path / 'cards'
+    cards_dir.mkdir()
+    (cards_dir / 'hero.json').write_text(
+        json.dumps({
+            'name': 'Hero',
+            'description': '',
+            'personality': '',
+            'scenario': '',
+            'first_mes': 'Hello',
+            'mes_example': '',
+        }),
+        encoding='utf-8',
+    )
+    (cards_dir / 'worldbook.json').write_text(
+        json.dumps({'name': 'Book', 'entries': {}}),
+        encoding='utf-8',
+    )
+
+    with sqlite3.connect(db_path) as conn:
+        conn.execute(
+            '''
+            CREATE TABLE card_metadata (
+                id TEXT PRIMARY KEY,
+                char_name TEXT,
+                description TEXT,
+                first_mes TEXT,
+                mes_example TEXT,
+                tags TEXT,
+                category TEXT,
+                creator TEXT,
+                char_version TEXT,
+                last_modified REAL,
+                file_hash TEXT,
+                file_size INTEGER,
+                token_count INTEGER DEFAULT 0,
+                has_character_book INTEGER DEFAULT 0,
+                character_book_name TEXT DEFAULT '',
+                is_favorite INTEGER DEFAULT 0,
+                card_uid TEXT
+            )
+            ''',
+        )
+        conn.execute(
+            'INSERT INTO card_metadata (id, char_name, category, last_modified, file_size, is_favorite) VALUES (?, ?, ?, ?, ?, ?)',
+            ('worldbook.json', 'Book', '', 10.0, 20, 0),
+        )
+        conn.commit()
+
+    monkeypatch.setattr(scan_service, 'DEFAULT_DB_PATH', str(db_path))
+    monkeypatch.setattr(scan_service, 'CARDS_FOLDER', str(cards_dir))
+    monkeypatch.setattr(scan_service, 'load_ui_data', lambda: {})
+    monkeypatch.setattr(scan_service, 'save_ui_data', lambda _payload: True)
+    monkeypatch.setattr(scan_service, 'calculate_token_count', lambda _payload: 1)
+    monkeypatch.setattr(scan_service, 'get_wi_meta', lambda _payload: (False, ''))
+    monkeypatch.setattr(scan_service, '_enqueue_card_reconcile_jobs', lambda *args, **kwargs: None)
+    monkeypatch.setattr(scan_service, 'schedule_reload', lambda **kwargs: None)
+    monkeypatch.setattr(scan_service, 'purge_entry_history_scope', lambda *args, **kwargs: None)
+    monkeypatch.setattr(scan_service, 'purge_orphaned_entry_history', lambda **kwargs: None)
+    monkeypatch.setattr(
+        scan_service,
+        'load_config',
+        lambda: {
+            'world_info_dir': str(tmp_path / 'worldinfo'),
+            'resources_dir': str(tmp_path / 'resources'),
+        },
+    )
+
+    scan_service._perform_scan_logic()
+
+    with sqlite3.connect(db_path) as conn:
+        ids = [row[0] for row in conn.execute('SELECT id FROM card_metadata ORDER BY id')]
+
+    assert ids == ['hero.json']
+
+
 def test_init_database_backfills_card_uid_for_existing_cards(monkeypatch, tmp_path):
     from core.data import db_session
     from core.utils.card_identity import normalize_card_uid

@@ -8,6 +8,7 @@ from PIL import Image, PngImagePlugin
 from core.consts import SIDECAR_EXTENSIONS
 from core.config import INTERNAL_DIR, load_config
 from core.utils.data import normalize_card_v3, deterministic_sort, sanitize_for_utf8
+from core.utils.format_validation import is_valid_character_card_data
 from core.utils.filesystem import save_json_atomic
 
 logger = logging.getLogger(__name__)
@@ -97,6 +98,9 @@ def extract_card_info(filepath):
                 print(msg) 
                 logger.warning(msg)
                 
+            if not is_valid_character_card_data(cleaned_data):
+                return None
+
             return cleaned_data
 
         return None

@@ -34,12 +34,12 @@ def _write_resource_fixture(user_dir: Path):
         encoding='utf-8',
     )
     (user_dir / 'QuickReplies' / 'common.json').write_text(
-        json.dumps({'name': 'Common', 'qrList': []}),
+        json.dumps({'version': 1, 'name': 'Common', 'qrList': []}),
         encoding='utf-8',
     )
     (user_dir / 'chats' / 'Alice').mkdir(parents=True, exist_ok=True)
     (user_dir / 'chats' / 'Alice' / 'session.jsonl').write_text(
-        '{"mes":"hello"}\n',
+        '{"user_name":"User","name":"Alice"}\n{"mes":"hello"}\n',
         encoding='utf-8',
     )
     (user_dir / 'settings.json').write_text(
@@ -103,6 +103,49 @@ def test_st_client_reads_configured_user_directory_from_install_root(tmp_path):
     assert client.list_scripts()[1]['scripts_count'] == 1
     assert [item['id'] for item in client.list_chats()] == ['Alice']
     assert client.get_global_regex()['count'] == 1
+
+
+def test_st_client_filters_invalid_local_resources_before_sync(tmp_path):
+    root, user_dir = _make_st_user(tmp_path)
+    _write_resource_fixture(user_dir)
+
+    (user_dir / 'characters' / 'worldbook.png').write_bytes(b'not a png')
+    (user_dir / 'worlds' / 'not-world.json').write_text(
+        json.dumps({'name': 'Not a world book'}),
+        encoding='utf-8',
+    )
+    (user_dir / 'OpenAI Settings' / 'not-preset.json').write_text(
+        json.dumps({'entries': {}}),
+        encoding='utf-8',
+    )
+    (user_dir / 'regex' / 'not-regex.json').write_text(
+        json.dumps({'name': 'Not a regex'}),
+        encoding='utf-8',
+    )
+    (user_dir / 'QuickReplies' / 'not-quick.json').write_text(
+        json.dumps({'name': 'Not a quick reply', 'qrList': []}),
+        encoding='utf-8',
+    )
+    (user_dir / 'chats' / 'Invalid').mkdir(parents=True, exist_ok=True)
+    (user_dir / 'chats' / 'Invalid' / 'not-chat.jsonl').write_text(
+        '{"mes":"missing ST chat header"}\n',
+        encoding='utf-8',
+    )
+
+    client = STClient(st_data_dir=str(root), st_user_handle='alice')
+
+    assert [item['id'] for item in client.list_characters()] == []
+    assert [item['id'] for item in client.list_world_books()] == ['lore']
+    assert [item['id'] for item in client.list_presets()] == ['openai']
+    assert [item['id'] for item in client.list_regex_scripts()] == ['global']
+    assert [item['id'] for item in client.list_quick_replies()] == ['common']
+    assert [item['id'] for item in client.list_chats()] == ['Alice']
+
+    success, message = client.sync_resource(
+        'worlds', 'not-world', str(tmp_path / 'manager' / 'lorebooks')
+    )
+    assert success is False
+    assert '不是有效的 世界书 格式' in message
 
 
 def test_st_client_exports_js_slash_runner_scripts_and_preserves_conflicts(tmp_path):

@@ -18,6 +18,13 @@ from core.utils.image import (
     extract_card_info, find_sidecar_image, get_default_card_image_path
 )
 from core.utils.filesystem import safe_move_to_trash, sanitize_filename, save_json_atomic
+from core.utils.format_validation import (
+    is_valid_preset_data,
+    is_valid_quick_reply_data,
+    is_valid_regex_data,
+    is_valid_st_script_data,
+    is_valid_world_info_data,
+)
 
 from core.services.card_service import resolve_ui_key
 from core.data.ui_store import load_ui_data, save_ui_data
@@ -30,6 +37,14 @@ bp = Blueprint('resources', __name__)
 GENERIC_RESOURCE_SCAN_SKIP_ROOTS = {
     name.lower() for name in RESERVED_RESOURCE_NAMES
 } | {'extensions', 'presets'}
+
+MANAGED_RESOURCE_VALIDATORS = {
+    'lorebooks': ('世界书', is_valid_world_info_data),
+    'regex': ('正则脚本', is_valid_regex_data),
+    'scripts': ('ST 脚本', is_valid_st_script_data),
+    'quick_replies': ('快速回复', is_valid_quick_reply_data),
+    'presets': ('预设', is_valid_preset_data),
+}
 
 def _is_within_base(path: str, base: str) -> bool:
     """检查路径是否在 base 目录内"""
@@ -105,6 +120,65 @@ def _get_resource_root() -> str:
     cfg = load_config()
     res_dir_conf = cfg.get('resources_dir', 'data/assets/card_assets')
     return res_dir_conf if os.path.isabs(res_dir_conf) else os.path.join(BASE_DIR, res_dir_conf)
+
+
+def _managed_resource_category(relative_path: str):
+    normalized = str(relative_path or '').replace('\\', '/').strip('/').lower()
+    prefixes = {
+        'lorebooks': 'lorebooks',
+        'regex': 'extensions/regex',
+        'scripts': 'extensions/tavern_helper',
+        'quick_replies': 'extensions/quick-replies',
+        'presets': 'presets',
+    }
+    for category, prefix in prefixes.items():
+        prefix_parts = prefix.split('/')
+        path_parts = normalized.split('/')
+        for index in range(len(path_parts) - len(prefix_parts)):
+            if path_parts[index:index + len(prefix_parts)] == prefix_parts:
+                return category
+    return None
+
+
+def _load_json_payload(filepath: str):
+    try:
+        with open(filepath, 'r', encoding='utf-8-sig') as handle:
+            return json.load(handle)
+    except (OSError, UnicodeError, ValueError):
+        return None
+
+
+def _configured_dir(cfg: dict, key: str, default: str) -> str:
+    raw_path = cfg.get(key, default)
+    if not isinstance(raw_path, str) or not raw_path:
+        return ''
+    return os.path.abspath(raw_path if os.path.isabs(raw_path) else os.path.join(BASE_DIR, raw_path))
+
+
+def _typed_json_validator_for_path(filepath: str):
+    """返回已知 JSON 目录对应的校验器，普通资源目录返回 None。"""
+    full_path = os.path.abspath(filepath)
+
+    resource_root = os.path.abspath(_get_resource_root())
+    if _is_within_base(full_path, resource_root):
+        relative_path = os.path.relpath(full_path, resource_root).replace('\\', '/')
+        category = _managed_resource_category(relative_path)
+        if category:
+            return MANAGED_RESOURCE_VALIDATORS[category]
+
+    cfg = load_config() or {}
+    configured_dirs = (
+        ('world_info_dir', 'data/library/lorebooks', 'lorebooks'),
+        ('presets_dir', 'data/library/presets', 'presets'),
+        ('regex_dir', 'data/library/extensions/regex', 'regex'),
+        ('scripts_dir', 'data/library/extensions/tavern_helper', 'scripts'),
+        ('quick_replies_dir', 'data/library/extensions/quick-replies', 'quick_replies'),
+    )
+    for key, default, category in configured_dirs:
+        root = _configured_dir(cfg, key, default)
+        if root and _is_within_base(full_path, root):
+            return MANAGED_RESOURCE_VALIDATORS[category]
+    return None
 
 def _build_unique_resource_folder_name(resource_root: str, preferred_name: str) -> str:
     """基于角色名生成安全且不重名的资源目录名。"""
@@ -397,39 +471,24 @@ def api_upload_card_resource():
                 file.seek(0)
                 try:
                     data = json.loads(content)
-                except:
-                    data = {} # 解析失败，视为普通文件放根目录
+                except (TypeError, ValueError):
+                    data = None # 解析失败，视为普通文件放根目录
 
-                # A. 正则脚本特征: 包含 'findRegex'
-                if isinstance(data, dict) and ('findRegex' in data or 'regex' in data):
+                # 各资源格式使用与对应网格上传器相同的结构校验。
+                if is_valid_regex_data(data):
                     sub_dir = "extensions/regex"
-                
-                # B. ST 脚本 (Tavern Helper)
-                # 兼容旧版 (list) 和 新版 (dict type='script')
-                elif (isinstance(data, dict) and (data.get('type') == 'script' or 'scripts' in data)) or \
-                     (isinstance(data, list) and len(data) > 0 and isinstance(data[0], str) and data[0] == 'scripts'):
+                elif is_valid_st_script_data(data):
                     sub_dir = "extensions/tavern_helper"
-                
-                # C. 世界书
-                elif (isinstance(data, dict) and ('entries' in data)) or \
-                     (isinstance(data, list) and len(data) > 0 and ('keys' in data[0] or 'key' in data[0])):
+                elif is_valid_world_info_data(data):
                     sub_dir = "lorebooks"
                     is_lorebook = True
-                    
-                # D. 快速回复特征: 包含 'qrList'
-                elif (isinstance(data, dict) and 'qrList' in data):
+                elif is_valid_quick_reply_data(data):
                     sub_dir = "extensions/quick-replies"
-                
-                # E. 预设文件特征: 包含 temperature, max_tokens, prompt_order 等预设特有字段
-                elif isinstance(data, dict) and any(key in data for key in ['temperature', 'max_tokens', 'openai_max_tokens', 'max_length', 'prompt_order', 'prompts']):
+                elif is_valid_preset_data(data):
                     sub_dir = "presets"
                     is_preset = True
-                
-                # F. 兜底: 无法识别的 JSON 放在根目录，或者你可以指定一个 'misc' 目录
-                else:
-                    sub_dir = "" 
             except Exception as e:
-                print(f"JSON detection failed: {e}")
+                logger.warning(f"JSON detection failed: {e}")
                 sub_dir = "" 
 
         # 3. 构建最终路径
@@ -486,7 +545,7 @@ def api_save_script_file():
         base_abs = os.path.abspath(BASE_DIR)
         
         # 检查目标路径是否在 BASE_DIR 范围内
-        if not abs_path.startswith(base_abs):
+        if not _is_within_base(abs_path, base_abs):
             return jsonify({"success": False, "msg": "非法路径：禁止访问程序目录之外的文件"})
 
         # 2. 检查文件扩展名
@@ -497,6 +556,12 @@ def api_save_script_file():
         parent_dir = os.path.dirname(abs_path)
         if not os.path.exists(parent_dir):
             return jsonify({"success": False, "msg": f"目标目录不存在: {parent_dir}"})
+
+        validator_info = _typed_json_validator_for_path(abs_path)
+        if validator_info:
+            label, validator = validator_info
+            if not validator(content):
+                return jsonify({"success": False, "msg": f"文件格式无效：不是有效的 {label} 格式"})
 
         # 4. 执行原子写入
         # 使用 save_json_atomic 确保写入过程不会因为中断导致文件损坏
@@ -593,8 +658,11 @@ def api_list_resource_files():
 
                     if in_managed_resource_tree:
                         if category:
-                            item = _build_resource_file_item(full_path, rel_path)
-                            result[category].append(item)
+                            validator_info = MANAGED_RESOURCE_VALIDATORS.get(category)
+                            data = _load_json_payload(full_path)
+                            if validator_info and validator_info[1](data):
+                                item = _build_resource_file_item(full_path, rel_path)
+                                result[category].append(item)
                         continue
 
                     if top_dir in GENERIC_RESOURCE_SCAN_SKIP_ROOTS:

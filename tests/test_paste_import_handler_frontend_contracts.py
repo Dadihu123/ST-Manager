@@ -161,7 +161,7 @@ def test_file_classification_and_dispatch_group_by_resource_type():
           fakeFile('preset.json', JSON.stringify({ temperature: 0.7, prompts: [] })),
           fakeFile('regex.json', JSON.stringify({ findRegex: '/a/' })),
           fakeFile('script.json', JSON.stringify({ type: 'script', scripts: [] })),
-          fakeFile('quick.json', JSON.stringify({ qrList: [] })),
+          fakeFile('quick.json', JSON.stringify({ version: 1, name: 'Quick', qrList: [] })),
           fakeFile('chat.jsonl', '{}\\n'),
         ];
 

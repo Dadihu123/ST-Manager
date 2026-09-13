@@ -215,6 +215,9 @@ def update_card_content(card_id, temp_path, is_bundle_update, keep_ui_data, new_
     
     # A. 提取新文件元数据
     new_info_raw = extract_card_info(temp_path) or {}
+    if not new_info_raw:
+        logger.warning('Update rejected: uploaded file is not a valid character card: %s', temp_path)
+        return {"success": False, "msg": "上传的文件不是有效的角色卡格式 (无法读取角色卡元数据)"}
     
     # 如果上传的是 JSON 文件，必须包含角色卡的关键特征字段，防止误传其他 JSON 覆盖数据
     if new_upload_ext == '.json':

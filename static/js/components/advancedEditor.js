@@ -11,6 +11,7 @@ import {
   extractPresetTavernScripts,
   normalizePresetExtensionsForEditor,
 } from "../utils/extensionCompatibility.js";
+import { isValidRegexData, isValidScriptData } from "./pasteImportHandler.js";
 
 export default function advancedEditor() {
   return {
@@ -630,15 +631,21 @@ export default function advancedEditor() {
       const file = e.target.files[0];
       if (!file) return;
       try {
-        const data = await this._readJsonFile(file);
-        if (!data.findRegex && !data.scriptName)
+        const importedData = await this._readJsonFile(file);
+        if (!isValidRegexData(importedData))
           throw new Error("无效的正则脚本格式");
-        data.id = crypto.randomUUID();
         if (!this.editingData.extensions.regex_scripts)
           this.editingData.extensions.regex_scripts = [];
-        this.editingData.extensions.regex_scripts.push(data);
-        this.activeRegexIndex =
-          this.editingData.extensions.regex_scripts.length - 1;
+        const importedScripts = Array.isArray(importedData)
+          ? importedData
+          : [importedData];
+        importedScripts.forEach((script) => {
+          this.editingData.extensions.regex_scripts.push({
+            ...script,
+            id: crypto.randomUUID(),
+          });
+        });
+        this.activeRegexIndex = this.editingData.extensions.regex_scripts.length - 1;
         this._setEditorFeedback("success", "正则脚本已导入", 3200);
         this.$store.global.showToast("导入成功", 3000, "check");
       } catch (err) {
@@ -662,10 +669,15 @@ export default function advancedEditor() {
       const file = e.target.files[0];
       if (!file) return;
       try {
-        const data = await this._readJsonFile(file);
-        if (data.type !== "script" && !data.content)
+        const importedData = await this._readJsonFile(file);
+        if (!isValidScriptData(importedData) || importedData.type === "folder")
           throw new Error("无效的 ST 脚本格式");
 
+        const data = importedData.type === "script" &&
+          Object.prototype.hasOwnProperty.call(importedData, "value")
+          ? { ...importedData.value }
+          : { ...importedData };
+        data.type = "script";
         data.id = crypto.randomUUID();
 
         // 导入时标准化

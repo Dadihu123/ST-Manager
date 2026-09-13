@@ -6,6 +6,7 @@ import sqlite3
 from core.config import BASE_DIR, CARDS_FOLDER, DEFAULT_DB_PATH, load_config
 from core.data.index_runtime_store import get_active_generation
 from core.data.ui_store import get_import_time, load_ui_data
+from core.utils.format_validation import is_valid_world_info_data
 from core.utils.image import extract_card_info
 from core.utils.source_revision import build_file_source_revision
 
@@ -293,8 +294,18 @@ def apply_worldinfo_path_increment(conn, source_path: str) -> bool:
     _delete_worldinfo_entity_rows(conn, generation, entity_id)
 
     if os.path.isfile(normalized_path):
-        with open(normalized_path, 'r', encoding='utf-8') as handle:
-            data = json.load(handle)
+        try:
+            with open(normalized_path, 'r', encoding='utf-8') as handle:
+                data = json.load(handle)
+        except (OSError, json.JSONDecodeError):
+            logger.warning('Skipping invalid worldinfo file during incremental update: %s', normalized_path)
+            _rebuild_worldinfo_category_stats_v2(conn, generation, normalized_global_dir)
+            conn.commit()
+            return True
+        if not is_valid_world_info_data(data):
+            _rebuild_worldinfo_category_stats_v2(conn, generation, normalized_global_dir)
+            conn.commit()
+            return True
         filename = os.path.basename(normalized_path)
         display_category = rel_path.rsplit('/', 1)[0] if '/' in rel_path else ''
         name = (data.get('name') or '').strip() or filename
@@ -449,6 +460,8 @@ def apply_worldinfo_owner_increment(conn, card_id: str, source_path: str = '', *
                         data = json.load(handle)
                 except (OSError, json.JSONDecodeError):
                     logger.warning('Skipping invalid resource worldinfo file during owner increment: %s', full_path, exc_info=True)
+                    continue
+                if not is_valid_world_info_data(data):
                     continue
 
                 path_key = str(full_path).replace('\\', '/').lower()
@@ -712,6 +725,8 @@ def build_worldinfo_generation(conn, generation: int, inspected_books=None):
                 except (OSError, json.JSONDecodeError):
                     logger.warning('Skipping invalid worldinfo file during v2 rebuild: %s', full_path, exc_info=True)
                     continue
+                if not is_valid_world_info_data(data):
+                    continue
 
                 rel_path = os.path.relpath(full_path, global_dir).replace('\\', '/')
                 display_category = rel_path.rsplit('/', 1)[0] if '/' in rel_path else ''
@@ -770,6 +785,8 @@ def build_worldinfo_generation(conn, generation: int, inspected_books=None):
                             data = json.load(handle)
                     except (OSError, json.JSONDecodeError):
                         logger.warning('Skipping invalid resource worldinfo file during v2 rebuild: %s', full_path, exc_info=True)
+                        continue
+                    if not is_valid_world_info_data(data):
                         continue
 
                     path_key = str(full_path).replace('\\', '/').lower()

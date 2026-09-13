@@ -45,6 +45,7 @@ from core.utils.filesystem import (
     cleanup_old_snapshots, sanitize_filename, write_snapshot_file
 )
 from core.utils.image import extract_card_info, write_card_metadata, find_sidecar_image
+from core.utils.format_validation import is_valid_world_info_data
 
 from core.utils.hash import _calculate_data_hash
 
@@ -1129,6 +1130,16 @@ def api_restore_backup():
         is_book_only_backup = False
         if embedded_worldbook_restore:
             backup_info = extract_card_info(backup_path)
+            # 兼容旧版仅保存世界书对象的快照；这类 JSON 不应被角色卡解析器接受，
+            # 但恢复嵌入式世界书时仍需要按世界书格式读取。
+            if not backup_info and str(backup_path).lower().endswith('.json'):
+                try:
+                    with open(backup_path, 'r', encoding='utf-8') as handle:
+                        candidate = json.load(handle)
+                    if is_valid_world_info_data(candidate):
+                        backup_info = candidate
+                except (OSError, json.JSONDecodeError):
+                    pass
             is_book_only_backup = (
                 isinstance(backup_info, dict)
                 and 'entries' in backup_info

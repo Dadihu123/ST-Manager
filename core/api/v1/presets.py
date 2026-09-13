@@ -48,6 +48,11 @@ from core.services.scan_service import suppress_fs_events
 from core.services.st_auth import STAuthError, build_st_http_client
 from core.api.v1.system import _format_st_auth_error, _format_st_response_error
 from core.utils.filesystem import sanitize_filename
+from core.utils.format_validation import (
+    is_valid_character_card_data,
+    is_valid_legacy_world_info_data,
+    is_valid_preset_data,
+)
 from core.utils.regex import extract_regex_from_preset_data
 from core.utils.source_revision import build_file_source_revision
 
@@ -911,6 +916,11 @@ def _parse_preset_file(file_path, filename):
         with open(file_path, 'r', encoding='utf-8') as f:
             data = json.load(f)
 
+        # A preset directory may contain old arbitrary JSON, but typed card and
+        # world-info payloads must not be rendered as preset entries.
+        if is_valid_character_card_data(data) or is_valid_legacy_world_info_data(data):
+            return None
+
         if not isinstance(data, dict):
             data = {}
         
@@ -1654,25 +1664,7 @@ def upload_preset():
                 data = json.loads(content)
                 file.seek(0)
                 
-                # 验证是否为预设格式 (至少包含一些预设特征字段)
-                is_preset = False
-                
-                # 检测常见的预设字段
-                preset_indicators = [
-                    'temperature', 'max_tokens', 'top_p', 'top_k',
-                    'frequency_penalty', 'presence_penalty',
-                    'prompts', 'prompt_order', 'system_prompt',
-                    'openai_max_tokens', 'openai_model',
-                    'claude_model', 'api_type'
-                ]
-                
-                if isinstance(data, dict):
-                    for indicator in preset_indicators:
-                        if indicator in data:
-                            is_preset = True
-                            break
-                
-                if not is_preset:
+                if not is_valid_preset_data(data):
                     failed_list.append(f"{file.filename} (不是有效的预设格式)")
                     continue
                 
@@ -1990,6 +1982,8 @@ def import_preset_version():
 
         if not isinstance(incoming_raw, dict):
             return jsonify({'success': False, 'msg': 'JSON格式无效'}), 400
+        if not is_valid_preset_data(incoming_raw):
+            return jsonify({'success': False, 'msg': '不是有效的预设格式'}), 400
 
         incoming_kind = _resolve_requested_preset_kind(
             '',

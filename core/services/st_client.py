@@ -11,9 +11,6 @@ ST Client - SillyTavern 资源读取服务
 
 import os
 import json
-import base64
-import struct
-import zlib
 import logging
 import filecmp
 import shutil
@@ -21,6 +18,15 @@ from typing import Optional, Dict, List, Any, Tuple
 from core.config import load_config, BASE_DIR
 from core.services.st_auth import STAuthError, build_st_http_client
 from core.utils.filesystem import sanitize_filename
+from core.utils.format_validation import (
+    is_valid_chat_jsonl_bytes,
+    is_valid_preset_data,
+    is_valid_quick_reply_data,
+    is_valid_regex_data,
+    is_valid_st_script_data,
+    is_valid_world_info_data,
+)
+from core.utils.image import extract_card_info
 from core.utils.regex import extract_regex_from_preset_data, extract_global_regex_from_settings
 
 logger = logging.getLogger(__name__)
@@ -607,50 +613,26 @@ class STClient:
             result["local"]["path"] = st_path
             # 检查各资源目录
             for res_type in ST_SYNC_RESOURCE_TYPES:
-                if res_type == "scripts":
-                    result["local"]["resources"][res_type] = len(self.list_scripts())
-                    continue
-                if res_type == "presets":
-                    subdir = self.get_presets_dir()
-                elif res_type == "regex":
-                    subdir = self.get_regex_dir()
-                else:
-                    subdir = self.get_st_subdir(res_type)
-                if res_type == "regex":
-                    physical_count = 0
-                    if subdir:
-                        try:
-                            physical_count = sum(
-                                1
-                                for entry in os.scandir(subdir)
-                                if entry.is_file() and entry.name.lower().endswith('.json')
-                            )
-                        except OSError:
-                            physical_count = 0
-                    global_count = self.get_global_regex().get("count", 0)
-                    result["local"]["resources"][res_type] = physical_count + global_count
-                    continue
-                if subdir:
-                    try:
-                        if res_type == "chats":
-                            count = sum(
-                                1
-                                for entry in os.scandir(subdir)
-                                if entry.is_dir()
-                                for chat_file in os.scandir(entry.path)
-                                if chat_file.is_file() and chat_file.name.lower().endswith('.jsonl')
-                            )
-                        else:
-                            count = len([
-                                entry
-                                for entry in os.scandir(subdir)
-                                if entry.is_file() and (
-                                    entry.name.endswith('.json') or entry.name.endswith('.png')
-                                )
-                            ])
-                        result["local"]["resources"][res_type] = count
-                    except OSError:
-                        result["local"]["resources"][res_type] = 0
+                try:
+                    if res_type == "characters":
+                        count = len(self.list_characters())
+                    elif res_type == "chats":
+                        count = sum(item.get('chat_count', 0) for item in self.list_chats())
+                    elif res_type == "worlds":
+                        count = len(self.list_world_books())
+                    elif res_type == "presets":
+                        count = len(self.list_presets())
+                    elif res_type == "regex":
+                        count = len(self.list_regex_scripts()) + self.get_global_regex().get("count", 0)
+                    elif res_type == "scripts":
+                        count = len(self.list_scripts())
+                    elif res_type == "quick_replies":
+                        count = len(self.list_quick_replies())
+                    else:
+                        count = 0
+                    result["local"]["resources"][res_type] = count
+                except (OSError, TypeError, ValueError):
+                    result["local"]["resources"][res_type] = 0
         
         # 测试 API 连接
         try:
@@ -724,49 +706,18 @@ class STClient:
     
     def _read_character_card(self, filepath: str) -> Optional[Dict[str, Any]]:
         """从 PNG 文件读取角色卡数据"""
-        try:
-            with open(filepath, 'rb') as f:
-                # 验证 PNG 签名
-                signature = f.read(8)
-                if signature != b'\x89PNG\r\n\x1a\n':
-                    return None
-                    
-                while True:
-                    # 读取 chunk
-                    length_bytes = f.read(4)
-                    if len(length_bytes) < 4:
-                        break
-                        
-                    length = struct.unpack('>I', length_bytes)[0]
-                    chunk_type = f.read(4).decode('ascii', errors='ignore')
-                    chunk_data = f.read(length)
-                    f.read(4)  # CRC
-                    
-                    if chunk_type == 'tEXt':
-                        # 解析 tEXt chunk
-                        null_pos = chunk_data.find(b'\x00')
-                        if null_pos != -1:
-                            keyword = chunk_data[:null_pos].decode('latin-1')
-                            text = chunk_data[null_pos + 1:]
-                            
-                            if keyword in ('chara', 'ccv3'):
-                                try:
-                                    decoded = base64.b64decode(text)
-                                    data = json.loads(decoded.decode('utf-8'))
-                                    # V2 格式
-                                    if 'data' in data:
-                                        return data['data']
-                                    return data
-                                except:
-                                    pass
-                                    
-                    elif chunk_type == 'IEND':
-                        break
-                        
-        except Exception as e:
-            logger.error(f"解析角色卡失败 {filepath}: {e}")
-            
-        return None
+        card_data = extract_card_info(filepath)
+        if not isinstance(card_data, dict):
+            return None
+
+        # The shared parser returns the validated envelope for V2/V3. Keep the
+        # historical ST client return value as the inner character payload.
+        if (
+            card_data.get('spec') in ('chara_card_v2', 'chara_card_v3')
+            and isinstance(card_data.get('data'), dict)
+        ):
+            return card_data['data']
+        return card_data
     
     def _list_characters_api(self) -> List[Dict[str, Any]]:
         """通过 API 读取角色卡列表"""
@@ -872,7 +823,10 @@ class STClient:
         """读取世界书 JSON 文件"""
         try:
             with open(filepath, 'r', encoding='utf-8') as f:
-                return json.load(f)
+                data = json.load(f)
+            if not is_valid_world_info_data(data):
+                return None
+            return data
         except Exception as e:
             logger.error(f"解析世界书失败 {filepath}: {e}")
         return None
@@ -912,6 +866,8 @@ class STClient:
                 filepath = os.path.join(presets_dir, filename)
                 with open(filepath, 'r', encoding='utf-8') as f:
                     data = json.load(f)
+                if not is_valid_preset_data(data):
+                    continue
                 
                 regexes = extract_regex_from_preset_data(data)
                     
@@ -979,6 +935,8 @@ class STClient:
                 filepath = os.path.join(regex_dir, filename)
                 with open(filepath, 'r', encoding='utf-8') as f:
                     data = json.load(f)
+                if not is_valid_regex_data(data):
+                    continue
                     
                 script_id = filename.replace('.json', '')
                 scripts.append({
@@ -1025,9 +983,16 @@ class STClient:
                     chat_count += 1
                     file_path = os.path.join(char_dir, filename)
                     try:
+                        with open(file_path, 'rb') as handle:
+                            if not is_valid_chat_jsonl_bytes(handle.read()):
+                                chat_count -= 1
+                                continue
                         latest_mtime = max(latest_mtime, os.path.getmtime(file_path))
-                    except Exception:
-                        pass
+                    except (OSError, ValueError):
+                        chat_count -= 1
+
+                if chat_count <= 0:
+                    continue
 
                 results.append({
                     "id": entry,
@@ -1119,6 +1084,8 @@ class STClient:
                 filepath = os.path.join(qr_dir, filename)
                 with open(filepath, 'r', encoding='utf-8') as f:
                     data = json.load(f)
+                if not is_valid_quick_reply_data(data):
+                    continue
                     
                 qr_id = filename.replace('.json', '')
                 quick_replies.append({
@@ -1248,7 +1215,7 @@ class STClient:
                 nested = raw_tree[1]
                 for nested_index, nested_tree in enumerate(nested):
                     normalized = cls._normalize_script_tree(nested_tree, nested_index)
-                    if normalized:
+                    if normalized and is_valid_st_script_data(normalized):
                         resources.append(
                             cls._build_script_resource(
                                 normalized,
@@ -1260,7 +1227,7 @@ class STClient:
                 continue
 
             normalized = cls._normalize_script_tree(raw_tree, index)
-            if normalized:
+            if normalized and is_valid_st_script_data(normalized):
                 resources.append(
                     cls._build_script_resource(normalized, index, settings_path, source)
                 )
@@ -1316,7 +1283,7 @@ class STClient:
                 try:
                     with open(filepath, "r", encoding="utf-8") as handle:
                         data = json.load(handle)
-                    if not isinstance(data, dict):
+                    if not is_valid_st_script_data(data):
                         continue
                     relative = os.path.relpath(filepath, scripts_dir).replace(os.sep, "/")
                     resource_id = os.path.splitext(relative)[0]
@@ -1405,6 +1372,67 @@ class STClient:
             return False
 
     @staticmethod
+    def _load_json_file(filepath: str) -> Any:
+        try:
+            with open(filepath, 'r', encoding='utf-8-sig') as handle:
+                return json.load(handle)
+        except (OSError, UnicodeError, ValueError):
+            return None
+
+    @classmethod
+    def _validate_sync_source(
+        cls,
+        resource_type: str,
+        source_path: str,
+        resource_is_dir: bool = False,
+    ) -> Tuple[bool, str]:
+        """校验同步源，避免绕过列表接口直接复制无效资源。"""
+        labels = {
+            'characters': '角色卡',
+            'chats': '聊天记录',
+            'worlds': '世界书',
+            'presets': '预设',
+            'regex': '正则脚本',
+            'quick_replies': '快速回复',
+        }
+        label = labels.get(resource_type, resource_type)
+
+        if resource_type == 'characters':
+            valid = extract_card_info(source_path) is not None
+        elif resource_type == 'chats':
+            valid = False
+            for root, _, filenames in os.walk(source_path):
+                for filename in filenames:
+                    if not filename.lower().endswith('.jsonl'):
+                        continue
+                    try:
+                        with open(os.path.join(root, filename), 'rb') as handle:
+                            if is_valid_chat_jsonl_bytes(handle.read()):
+                                valid = True
+                                break
+                    except OSError:
+                        continue
+                if valid:
+                    break
+        else:
+            data_path = source_path
+            if resource_type == 'worlds' and resource_is_dir:
+                data_path = os.path.join(source_path, 'world_info.json')
+            data = cls._load_json_file(data_path)
+            validators = {
+                'worlds': is_valid_world_info_data,
+                'presets': is_valid_preset_data,
+                'regex': is_valid_regex_data,
+                'quick_replies': is_valid_quick_reply_data,
+            }
+            validator = validators.get(resource_type)
+            valid = validator(data) if validator else True
+
+        if valid:
+            return True, ''
+        return False, f'源文件不是有效的 {label} 格式: {source_path}'
+
+    @staticmethod
     def _sync_message_kind(message: str) -> Optional[str]:
         if message.startswith("unchanged:"):
             return "unchanged"
@@ -1452,10 +1480,13 @@ class STClient:
                     return False, f"ST 脚本源路径非法: {source_path}"
             except ValueError:
                 return False, f"ST 脚本源路径非法: {source_path}"
+            source_data = self._load_json_file(source_path)
+            if not is_valid_st_script_data(source_data):
+                return False, f"ST 脚本源文件格式无效: {source_path}"
             payload = None
         else:
             data = resource.get("data")
-            if not isinstance(data, dict):
+            if not is_valid_st_script_data(data):
                 return False, f"ST 脚本资源内容非法: {resource_id}"
             payload = (json.dumps(data, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
 
@@ -1537,6 +1568,14 @@ class STClient:
                     return False, f"{label}不存在: {source_path}"
             elif not os.path.isfile(source_path):
                 return False, f"源文件不存在: {source_path}"
+
+            valid, validation_message = self._validate_sync_source(
+                resource_type,
+                source_path,
+                resource_is_dir=resource_is_dir,
+            )
+            if not valid:
+                return False, validation_message
 
             # 确保目标目录存在
             os.makedirs(target_dir, exist_ok=True)

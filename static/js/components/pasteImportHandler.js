@@ -65,71 +65,318 @@ function hasAnyKey(source, keys) {
   return keys.some((key) => Object.prototype.hasOwnProperty.call(source, key));
 }
 
+function hasAllKeys(source, keys) {
+  return !!source && keys.every((key) => Object.prototype.hasOwnProperty.call(source, key));
+}
+
+function isJsObject(value) {
+  return value === null || (typeof value === "object" && value !== undefined);
+}
+
 function looksLikeWorldInfo(data) {
-  if (data && typeof data === "object" && !Array.isArray(data) && "entries" in data) {
-    return true;
+  return data && typeof data === "object" && !Array.isArray(data) && "entries" in data;
+}
+
+function isNonEmptyString(value) {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function isValidRegexObject(value) {
+  return (
+    value &&
+    typeof value === "object" &&
+    !Array.isArray(value) &&
+    (isNonEmptyString(value.scriptName) || Object.prototype.hasOwnProperty.call(value, "findRegex"))
+  );
+}
+
+export function isValidRegexData(data) {
+  if (isValidRegexObject(data)) return true;
+  return Array.isArray(data) && data.length > 0 && data.every(isValidRegexObject);
+}
+
+function isScalarForCoerceString(value) {
+  return true;
+}
+
+function isValidScriptButton(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  return "name" in value && isScalarForCoerceString(value.name) && "visible" in value && typeof value.visible === "boolean";
+}
+
+function isValidBackwardScriptButton(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  if ("name" in value && typeof value.name !== "string") return false;
+  return !("visible" in value) || typeof value.visible === "boolean";
+}
+
+function isValidNewScript(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  if ("type" in value && value.type !== "script") return false;
+  if ("enabled" in value && typeof value.enabled !== "boolean") return false;
+  for (const key of ["name", "id", "content", "info"]) {
+    if (key in value && !isScalarForCoerceString(value[key])) return false;
   }
-  if (!Array.isArray(data) || data.length === 0) return false;
-  return data.some(
-    (entry) =>
-      entry &&
-      typeof entry === "object" &&
-      ("keys" in entry || "key" in entry || "content" in entry),
+  if ("button" in value) {
+    const button = value.button;
+    if (!button || typeof button !== "object" || Array.isArray(button)) return false;
+    if ("enabled" in button && typeof button.enabled !== "boolean") return false;
+    if (
+      "buttons" in button &&
+      (!Array.isArray(button.buttons) || !button.buttons.every(isValidScriptButton))
+    ) {
+      return false;
+    }
+  }
+  if ("data" in value && (!value.data || typeof value.data !== "object" || Array.isArray(value.data))) {
+    return false;
+  }
+  if ("export_with" in value) {
+    const exportWith = value.export_with;
+    if (!exportWith || typeof exportWith !== "object" || Array.isArray(exportWith)) return false;
+    for (const key of ["data", "button"]) {
+      if (key in exportWith && typeof exportWith[key] !== "boolean") return false;
+    }
+  }
+  return true;
+}
+
+function isValidBackwardScript(value) {
+  const buttons = value.buttons === undefined ? [] : value.buttons;
+  if (!Array.isArray(buttons) || !buttons.every(isValidBackwardScriptButton) ||
+    ("enabled" in value && typeof value.enabled !== "boolean")) {
+    return false;
+  }
+  for (const key of ["name", "id", "content", "info"]) {
+    if (key in value && typeof value[key] !== "string") return false;
+  }
+  return !("data" in value) || (!!value.data && typeof value.data === "object" && !Array.isArray(value.data));
+}
+
+function isValidScriptFolder(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value) || value.type !== "folder") return false;
+  if ("enabled" in value && typeof value.enabled !== "boolean") return false;
+  for (const key of ["name", "id"]) {
+    if (key in value && !isScalarForCoerceString(value[key])) return false;
+  }
+  for (const key of ["icon", "color"]) {
+    if (key in value && typeof value[key] !== "string") return false;
+  }
+  const scripts = value.scripts === undefined ? [] : value.scripts;
+  return Array.isArray(scripts) && scripts.every(isValidNewScript);
+}
+
+function isValidBackwardScriptTreeItem(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  if (value.type === "script") {
+    return !!value.value && typeof value.value === "object" && !Array.isArray(value.value) &&
+      isValidBackwardScript(value.value);
+  }
+  if (value.type === "folder") {
+    const scripts = value.value === undefined ? [] : value.value;
+    return Array.isArray(scripts) && scripts.every(isValidBackwardScript);
+  }
+  return isValidBackwardScript(value);
+}
+
+export function isValidScriptData(data) {
+  if (!data || typeof data !== "object" || Array.isArray(data)) return false;
+  if (data.type === "script") {
+    if (Object.prototype.hasOwnProperty.call(data, "value")) {
+      return isValidBackwardScriptTreeItem(data);
+    }
+    return isValidNewScript(data);
+  }
+  if (data.type === "folder") {
+    if (Object.prototype.hasOwnProperty.call(data, "value")) {
+      return isValidBackwardScriptTreeItem(data);
+    }
+    return isValidScriptFolder(data);
+  }
+  return data.type === undefined && "buttons" in data && isValidBackwardScript(data);
+}
+
+function isValidQuickReply(data) {
+  return (
+    data &&
+    typeof data === "object" &&
+    !Array.isArray(data) &&
+    typeof data.version === "number" &&
+    Number.isFinite(data.version) &&
+    Number.isInteger(data.version) &&
+    typeof data.name === "string" &&
+    Array.isArray(data.qrList)
   );
 }
 
 function classifyExtensionJson(data) {
-  if (data && typeof data === "object" && !Array.isArray(data)) {
-    if ("findRegex" in data || "regex" in data || "scriptName" in data) {
-      return "regex";
-    }
-    if (data.type === "script" || "scripts" in data) {
-      return "scripts";
-    }
-    if ("qrList" in data || "quickReplies" in data) {
-      return "quick_replies";
-    }
-    if ("entries" in data && ("version" in data || "disableSend" in data)) {
-      return "quick_replies";
-    }
-  }
-
-  if (Array.isArray(data) && data.length > 0 && data[0] === "scripts") {
-    return "scripts";
-  }
+  if (isValidRegexData(data)) return "regex";
+  if (isValidScriptData(data)) return "scripts";
+  if (isValidQuickReply(data)) return "quick_replies";
 
   return "";
 }
 
 function looksLikePreset(data) {
   return hasAnyKey(data, [
+    "name",
+    "title",
+    "description",
+    "note",
     "temperature",
+    "temp",
     "max_tokens",
     "openai_max_tokens",
     "max_length",
+    "min_length",
     "top_p",
     "top_k",
+    "top_a",
+    "min_p",
+    "typical_p",
+    "typical",
+    "tfs",
+    "temperature_last",
+    "dynamic_temperature",
+    "dynatemp",
+    "dynatemp_low",
+    "dynatemp_high",
+    "min_temp",
+    "max_temp",
+    "repetition_penalty",
+    "rep_pen",
+    "frequency_penalty",
+    "freq_pen",
+    "presence_penalty",
+    "pres_pen",
+    "mirostat_mode",
+    "mirostat_tau",
+    "mirostat_eta",
+    "guidance_scale",
+    "negative_prompt",
+    "json_schema",
+    "grammar",
+    "grammar_string",
+    "banned_tokens",
+    "logit_bias",
+    "sampler_order",
+    "samplers",
+    "input_sequence",
+    "output_sequence",
+    "system_sequence",
+    "first_output_sequence",
+    "last_output_sequence",
     "prompts",
     "prompt_order",
     "system_prompt",
+    "post_history_instructions",
     "api_type",
+    "openai_max_context",
+    "stream_openai",
+    "show_thoughts",
+    "reasoning_effort",
+    "verbosity",
+    "chat_completion_source",
+    "openai_model",
+    "openrouter_model",
+    "use_sysprompt",
+    "custom_url",
+    "reverse_proxy",
+    "proxy_password",
+    "names_behavior",
+    "function_calling",
+    "media_inlining",
+    "request_images",
+    "request_image_aspect_ratio",
+    "request_image_resolution",
+    "max_context_unlocked",
+    "group_models",
+    "sort_models",
+    "claude_model",
+    "openrouter_use_fallback",
+    "openrouter_providers",
+    "openrouter_quantizations",
+    "openrouter_allow_fallbacks",
+    "openrouter_middleout",
+    "tool_reasoning_mode",
+    "assistant_prefill",
+    "assistant_impersonation",
+    "impersonation_prompt",
+    "new_chat_prompt",
+    "continue_nudge_prompt",
+    "continue_prefill",
+    "continue_postfix",
+    "bias_preset_selected",
+    "custom_model",
+    "custom_include_body",
+    "custom_exclude_body",
+    "custom_include_headers",
+    "custom_prompt_post_processing",
+    "send_if_empty",
+    "use_system_prompt",
+    "use_stop_strings",
+    "stop_strings",
+    "__st_manager_preset_kind",
   ]);
 }
 
 function looksLikeCharacterCard(data) {
   if (!data || typeof data !== "object" || Array.isArray(data)) return false;
-  if ((data.spec || data.spec_version) && data.data && typeof data.data === "object") {
+  if (hasAllKeys(data, ["name", "description", "personality", "scenario", "first_mes", "mes_example"])) {
     return true;
   }
-  const characterKeys = [
-    "name",
-    "description",
-    "personality",
-    "scenario",
-    "first_mes",
-    "mes_example",
-  ];
-  return characterKeys.filter((key) => key in data).length >= 2;
+
+  const cardData = data.data;
+  if (data.spec === "chara_card_v2" && data.spec_version === "2.0") {
+    if (
+      !cardData ||
+      typeof cardData !== "object" ||
+      Array.isArray(cardData) ||
+      !hasAllKeys(cardData, [
+        "name",
+        "description",
+        "personality",
+        "scenario",
+        "first_mes",
+        "mes_example",
+        "creator_notes",
+        "system_prompt",
+        "post_history_instructions",
+        "alternate_greetings",
+        "tags",
+        "creator",
+        "character_version",
+        "extensions",
+      ]) ||
+      !Array.isArray(cardData.alternate_greetings) ||
+      !Array.isArray(cardData.tags) ||
+      !isJsObject(cardData.extensions)
+    ) {
+      return false;
+    }
+    if (!cardData.character_book) return true;
+    const characterBook = cardData.character_book;
+    return (
+      characterBook &&
+      typeof characterBook === "object" &&
+      !Array.isArray(characterBook) &&
+      hasAllKeys(characterBook, ["extensions", "entries"]) &&
+      Array.isArray(characterBook.entries) &&
+      isJsObject(characterBook.extensions)
+    );
+  }
+
+  const cardVersion = Number(data.spec_version);
+  if (
+    data.spec === "chara_card_v3" &&
+    Number.isFinite(cardVersion) &&
+    cardVersion >= 3 &&
+    cardVersion < 4
+  ) {
+    return !!cardData && typeof cardData === "object" && !Array.isArray(cardData);
+  }
+
+  return false;
 }
 
 async function readJsonFile(file) {
@@ -187,8 +434,8 @@ export async function classifyFile(file) {
   const extensionType = classifyExtensionJson(data);
   if (extensionType) return { type: "extension", extensionType };
   if (looksLikeWorldInfo(data)) return { type: "worldinfo" };
-  if (looksLikePreset(data)) return { type: "preset" };
   if (looksLikeCharacterCard(data)) return { type: "card" };
+  if (looksLikePreset(data)) return { type: "preset" };
 
   return { type: "unknown", reason: "无法识别资源类型" };
 }

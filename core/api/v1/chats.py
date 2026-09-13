@@ -32,6 +32,7 @@ from core.utils.chat_parser import (
     write_chat_jsonl,
 )
 from core.utils.filesystem import safe_move_to_trash, sanitize_filename
+from core.utils.format_validation import is_valid_chat_jsonl_bytes
 from core.utils.image import extract_card_info
 
 
@@ -632,6 +633,12 @@ def _iter_chat_files():
             full_path = os.path.join(dirpath, filename)
             if not _is_under_base(full_path, root):
                 continue
+            try:
+                with open(full_path, 'rb') as handle:
+                    if not is_valid_chat_jsonl_bytes(handle.read()):
+                        continue
+            except OSError:
+                continue
             items.append(full_path)
     return items
 
@@ -1028,6 +1035,17 @@ def api_import_chats():
             filename = sanitize_filename(os.path.basename(file_item.filename or ''))
             if not filename.lower().endswith('.jsonl'):
                 failed.append({'name': file_item.filename, 'msg': '仅支持 .jsonl 聊天记录'})
+                continue
+
+            try:
+                raw_content = file_item.read()
+                file_item.seek(0)
+            except Exception as e:
+                failed.append({'name': file_item.filename, 'msg': f'读取失败: {e}'})
+                continue
+
+            if not is_valid_chat_jsonl_bytes(raw_content):
+                failed.append({'name': file_item.filename, 'msg': '不是有效的 SillyTavern JSONL 聊天记录'})
                 continue
 
             save_path = _build_chat_target_path(target_dir, filename)

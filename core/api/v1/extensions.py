@@ -4,6 +4,11 @@ import logging
 from flask import Blueprint, request, jsonify
 from core.config import BASE_DIR, load_config
 from core.utils.filesystem import sanitize_filename
+from core.utils.format_validation import (
+    is_valid_quick_reply_data,
+    is_valid_regex_data,
+    is_valid_st_script_data,
+)
 
 logger = logging.getLogger(__name__)
 bp = Blueprint('extensions', __name__)
@@ -55,6 +60,17 @@ def _get_paths():
 
     return regex_root, scripts_root, qr_root
 
+
+def _is_valid_extension_payload(data, mode):
+    validators = {
+        'regex': is_valid_regex_data,
+        'scripts': is_valid_st_script_data,
+        'quick_replies': is_valid_quick_reply_data,
+    }
+    validator = validators.get(mode)
+    return validator(data) if validator else False
+
+
 @bp.route('/api/extensions/list', methods=['GET'])
 def list_extensions():
     """
@@ -89,6 +105,8 @@ def list_extensions():
                     try:
                         with open(full_path, 'r', encoding='utf-8') as f_obj:
                             data = json.load(f_obj)
+                            if not _is_valid_extension_payload(data, mode):
+                                continue
                             # 尝试获取脚本名称
                             name = f
                             if isinstance(data, dict):
@@ -130,6 +148,8 @@ def list_extensions():
                                     # 简略读取以获取名称
                                     with open(full_path, 'r', encoding='utf-8') as f_obj:
                                         data = json.load(f_obj)
+                                        if not _is_valid_extension_payload(data, mode):
+                                            continue
                                         name = f
                                         if isinstance(data, dict):
                                             name = data.get('scriptName') or data.get('name') or f
@@ -191,32 +211,11 @@ def upload_extension():
                 file.seek(0) # 重置指针准备保存
 
                 # === 自动检测类型 ===
-                is_regex = False
-                is_script = False
-                is_qr = False
-
-                # 1. 检测 Regex
-                if isinstance(data, dict) and ('findRegex' in data or 'regex' in data or 'scriptName' in data):
-                    is_regex = True
-
-                # 2. 检测 ST Script (Tavern Helper)
-                # 新版: dict with type='script' or has 'scripts' key
-                if isinstance(data, dict) and (data.get('type') == 'script' or 'scripts' in data):
-                    is_script = True
-                # 旧版: list starting with ["scripts", ...]
-                elif isinstance(data, list) and len(data) > 0 and isinstance(data[0], str) and data[0] == 'scripts':
-                    is_script = True
-
-                # 3. 检测 Quick Reply
-                # 格式: dict with qrList/quickReplies/entries array or typical QR fields
-                if isinstance(data, dict):
-                    if any(k in data for k in ['qrList', 'quickReplies', 'entries']):
-                        is_qr = True
-                    # 其他可能的 QR 格式检测 (version, name, disableSend 组合)
-                    elif all(k in data for k in ['version', 'name']) and 'disableSend' in data:
-                        is_qr = True
-                    elif data.get('type') == 'quick_reply' or data.get('setName'):
-                        is_qr = True
+                # 这些判断必须与各自的导入器一致，不能只凭某个字段把任意 JSON
+                # 误归类到扩展目录。
+                is_regex = is_valid_regex_data(data)
+                is_script = is_valid_st_script_data(data)
+                is_qr = is_valid_quick_reply_data(data)
 
                 # 决定保存路径
                 final_dir = None
@@ -230,8 +229,8 @@ def upload_extension():
                     if is_qr: final_dir = qr_root
                 else:
                     # 自动归类模式
-                    if is_script: final_dir = scripts_root
-                    elif is_regex: final_dir = regex_root
+                    if is_regex: final_dir = regex_root
+                    elif is_script: final_dir = scripts_root
                     elif is_qr: final_dir = qr_root
 
                 if not final_dir:

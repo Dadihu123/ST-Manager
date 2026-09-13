@@ -378,16 +378,11 @@ def validate_path():
             global LAST_VALID_ST_USER_HANDLE
             LAST_VALID_ST_PATH = normalized_path
             LAST_VALID_ST_USER_HANDLE = client.st_user_handle
-            # 检查各资源目录，目录边界由 data/<user> 明确决定。
+            # 通过同一批列表读取器统计，避免仅按后缀把无效 JSON 算入资源。
             for res_type in ['characters', 'chats', 'worlds', 'presets', 'regex', 'scripts', 'quick_replies']:
                 subdir = client.get_st_subdir(res_type)
                 if res_type == 'regex':
-                    script_count = 0
-                    if subdir and os.path.exists(subdir):
-                        try:
-                            script_count = len([f for f in os.listdir(subdir) if f.endswith('.json')])
-                        except Exception:
-                            script_count = 0
+                    script_count = len(client.list_regex_scripts())
                     global_info = client.get_global_regex()
                     global_count = global_info.get("count", 0) if isinstance(global_info, dict) else 0
                     resources[res_type] = {
@@ -408,24 +403,30 @@ def validate_path():
                     }
                     continue
 
-                if subdir and os.path.exists(subdir):
-                    try:
-                        if res_type == 'chats':
-                            count = 0
-                            for folder_name in os.listdir(subdir):
-                                folder_path = os.path.join(subdir, folder_name)
-                                if not os.path.isdir(folder_path):
-                                    continue
-                                count += len([f for f in os.listdir(folder_path) if f.endswith('.jsonl')])
-                        else:
-                            count = len([f for f in os.listdir(subdir)
-                                       if f.endswith('.json') or f.endswith('.png')])
-                        resources[res_type] = {
-                            "path": subdir,
-                            "count": count
-                        }
-                    except Exception:
-                        resources[res_type] = {"path": subdir, "count": 0}
+                try:
+                    if res_type == 'characters':
+                        items = client.list_characters()
+                        count = len(items)
+                    elif res_type == 'chats':
+                        items = client.list_chats()
+                        count = sum(item.get('chat_count', 0) for item in items)
+                    elif res_type == 'worlds':
+                        items = client.list_world_books()
+                        count = len(items)
+                    elif res_type == 'presets':
+                        items = client.list_presets()
+                        count = len(items)
+                    elif res_type == 'quick_replies':
+                        items = client.list_quick_replies()
+                        count = len(items)
+                    else:
+                        count = 0
+                    resources[res_type] = {
+                        "path": subdir,
+                        "count": count,
+                    }
+                except Exception:
+                    resources[res_type] = {"path": subdir, "count": 0}
         
         return jsonify({
             "success": True,

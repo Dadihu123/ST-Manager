@@ -1,3 +1,4 @@
+import json
 import sys
 from pathlib import Path
 
@@ -49,10 +50,30 @@ def test_list_resource_files_includes_nested_images_and_unknown_resources(monkey
     _write_file(hero_dir / 'root.webp')
     _write_file(hero_dir / 'portrait.jfif')
     _write_file(hero_dir / 'poses' / 'happy.png')
-    _write_file(hero_dir / 'lorebooks' / 'arc' / 'book.json', '{}')
+    _write_file(
+        hero_dir / 'lorebooks' / 'arc' / 'book.json',
+        '{"name": "Book", "entries": {}}',
+    )
+    _write_file(hero_dir / 'lorebooks' / 'arc' / 'invalid.json', '{"name": "Not a book"}')
     _write_file(hero_dir / 'lorebooks' / 'cover.png')
     _write_file(hero_dir / 'lorebooks' / 'notes.txt')
-    _write_file(hero_dir / 'extensions' / 'regex' / 'cleanup.json', '{}')
+    _write_file(
+        hero_dir / 'extensions' / 'regex' / 'cleanup.json',
+        '{"findRegex": "/hero/"}',
+    )
+    _write_file(hero_dir / 'extensions' / 'regex' / 'invalid.json', '{"name": "Not regex"}')
+    _write_file(
+        hero_dir / 'extensions' / 'tavern_helper' / 'script.json',
+        '{"type": "script", "name": "Script"}',
+    )
+    _write_file(
+        hero_dir / 'extensions' / 'quick-replies' / 'quick.json',
+        '{"version": 1, "name": "Quick", "qrList": []}',
+    )
+    _write_file(
+        hero_dir / 'presets' / 'preset.json',
+        '{"name": "Preset", "temperature": 0.7}',
+    )
     _write_file(hero_dir / 'extensions' / 'regex' / 'preview.png')
     _write_file(hero_dir / 'presets' / 'preview.png')
     _write_file(hero_dir / 'audio' / 'line.wav')
@@ -67,6 +88,18 @@ def test_list_resource_files_includes_nested_images_and_unknown_resources(monkey
     assert payload['files']['skins'] == ['portrait.jfif', 'poses/happy.png', 'root.webp']
     assert {item['relative_path'] for item in payload['files']['lorebooks']} == {
         'lorebooks/arc/book.json'
+    }
+    assert {item['relative_path'] for item in payload['files']['regex']} == {
+        'extensions/regex/cleanup.json'
+    }
+    assert {item['relative_path'] for item in payload['files']['scripts']} == {
+        'extensions/tavern_helper/script.json'
+    }
+    assert {item['relative_path'] for item in payload['files']['quick_replies']} == {
+        'extensions/quick-replies/quick.json'
+    }
+    assert {item['relative_path'] for item in payload['files']['presets']} == {
+        'presets/preset.json'
     }
     assert {item['relative_path'] for item in payload['files']['unknown']} == {
         'audio/line.wav',
@@ -99,3 +132,28 @@ def test_delete_resource_file_accepts_nested_relative_path_and_blocks_traversal(
     assert traversal_res.status_code == 200
     assert traversal_res.get_json()['success'] is False
     assert secret_file.exists() is True
+
+
+def test_save_script_file_rejects_invalid_typed_resource_payload(monkeypatch, tmp_path):
+    resources_root = _configure_resource_api(monkeypatch, tmp_path)
+    target_file = resources_root / 'hero' / 'extensions' / 'regex' / 'cleanup.json'
+    target_file.parent.mkdir(parents=True, exist_ok=True)
+
+    client = _make_test_app().test_client()
+    invalid_res = client.post(
+        '/api/scripts/save',
+        json={'file_path': str(target_file), 'content': {'name': 'not regex'}},
+    )
+
+    assert invalid_res.status_code == 200
+    assert invalid_res.get_json()['success'] is False
+    assert target_file.exists() is False
+
+    valid_res = client.post(
+        '/api/scripts/save',
+        json={'file_path': str(target_file), 'content': {'findRegex': '/hero/'}},
+    )
+
+    assert valid_res.status_code == 200
+    assert valid_res.get_json()['success'] is True
+    assert json.loads(target_file.read_text(encoding='utf-8')) == {'findRegex': '/hero/'}

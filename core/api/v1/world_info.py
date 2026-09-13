@@ -51,6 +51,10 @@ from core.services.wi_entry_history_service import (
 )
 from core.utils.filesystem import safe_move_to_trash
 from core.utils.filesystem import sanitize_filename
+from core.utils.format_validation import (
+    is_valid_legacy_world_info_data,
+    is_valid_world_info_data,
+)
 from core.utils.source_revision import build_file_source_revision
 from core.utils.card_identity import normalize_card_uid
 from core.utils.world_info_sort import (
@@ -417,13 +421,9 @@ def _get_worldinfo_last_sent_to_st(ui_data: dict, source_type: str, file_path: s
 
 
 def _is_sendable_worldinfo_payload(data) -> bool:
-    if isinstance(data, list):
-        return True
-    if not isinstance(data, dict):
-        return False
-
-    entries = data.get('entries')
-    return isinstance(entries, (list, dict))
+    # 发送前会把旧版条目数组转换成 ST 的 {entries: ...} 结构；其他入口
+    # 仍然只接受 SillyTavern 原生的顶层 entries 格式。
+    return is_valid_legacy_world_info_data(data)
 
 
 class _MultipartUploadBuffer(BytesIO):
@@ -804,6 +804,13 @@ def _folder_response(base_dir: str, success_msg: str, warning: str = ''):
             if not name.lower().endswith('.json'):
                 continue
             full_path = os.path.join(root, name)
+            try:
+                with open(full_path, 'r', encoding='utf-8') as handle:
+                    data = json.load(handle)
+            except (OSError, json.JSONDecodeError):
+                continue
+            if not is_valid_world_info_data(data):
+                continue
             rel_path = os.path.relpath(full_path, base_dir).replace('\\', '/')
             physical_category = _get_parent_category(rel_path)
             items.append({'type': 'global', 'display_category': physical_category, 'physical_category': physical_category})
@@ -1264,6 +1271,8 @@ def api_list_world_infos():
                             # 如果文件巨大，可以考虑只读前几KB解析
                             with open(full_path, 'r', encoding='utf-8') as f_obj:
                                 data = json.load(f_obj)
+                                if not is_valid_world_info_data(data):
+                                    continue
                                 # 兼容 list 或 dict
                                 file_name = os.path.basename(f)
                                 base_name = os.path.splitext(file_name)[0]
@@ -1338,6 +1347,8 @@ def api_list_world_infos():
                             try:
                                 with open(full_path, 'r', encoding='utf-8') as f_obj:
                                     data = json.load(f_obj)
+                                    if not is_valid_world_info_data(data):
+                                        continue
                                     file_name = os.path.basename(f)
                                     base_name = os.path.splitext(file_name)[0]
                                     name_source = "filename"
@@ -1755,16 +1766,21 @@ def api_upload_world_info():
                 counter += 1
             
             try:
-                # 尝试验证 JSON 格式
+                # SillyTavern 世界书至少必须包含顶层 entries 字段。
                 content = file.read()
-                json.loads(content) # 校验格式
+                data = json.loads(content)
+                if not is_valid_world_info_data(data):
+                    raise ValueError('不是有效的世界书格式')
                 
                 # 重置指针并保存
                 file.seek(0)
                 file.save(save_path)
                 success_count += 1
                 saved_paths.append(save_path)
-            except Exception:
+            except (ValueError, json.JSONDecodeError):
+                failed_list.append(f'{file.filename} (不是有效的世界书格式)')
+            except Exception as exc:
+                logger.warning('Upload world info failed for %s: %s', file.filename, exc)
                 failed_list.append(file.filename)
 
         msg = f"成功上传 {success_count} 个世界书。"
@@ -1840,6 +1856,8 @@ def api_export_world_info():
 
             with open(file_path, 'r', encoding='utf-8') as handle:
                 book = json.load(handle)
+            if not is_valid_world_info_data(book):
+                return jsonify({'success': False, 'msg': '世界书格式无效'}), 400
 
             payload = _build_export_worldbook_payload(book)
             download_name = os.path.basename(file_path)
@@ -2022,6 +2040,8 @@ def api_get_world_info_detail():
              
         with open(file_path, 'r', encoding='utf-8') as f:
             data = json.load(f)
+        if not is_valid_world_info_data(data):
+            return jsonify({"success": False, "msg": "世界书格式无效"}), 400
 
         resp = _apply_world_info_preview(
             data,
@@ -2197,6 +2217,9 @@ def api_save_world_info():
         
         elif save_mode == 'new_resource':
             return jsonify({"success": False, "msg": "当前阶段暂不支持直接创建 resource 世界书"})
+
+        if not is_valid_world_info_data(content):
+            return jsonify({"success": False, "msg": "世界书格式无效，必须包含 entries 字段"}), 400
 
         if isinstance(content, (dict, list)):
             ensure_entry_uids(content)
@@ -2376,16 +2399,7 @@ def api_migrate_lorebooks():
                                 data = json.load(f_obj)
                             except: continue # JSON 解析失败跳过
 
-                            is_wi = False
-                            # 判定标准
-                            if isinstance(data, dict) and 'entries' in data: is_wi = True
-                            elif isinstance(data, list) and len(data) > 0:
-                                # 检查第一项是否有 keys 或 key，防止把其他配置json误判
-                                first = data[0]
-                                if isinstance(first, dict) and ('keys' in first or 'key' in first):
-                                    is_wi = True
-                            
-                            if is_wi:
+                            if is_valid_legacy_world_info_data(data):
                                 os.makedirs(lore_target_dir, exist_ok=True)
                                 
                                 dst_path = os.path.join(lore_target_dir, f)

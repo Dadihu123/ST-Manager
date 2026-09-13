@@ -43,7 +43,10 @@ def test_list_extensions_paginates_sorted_results(monkeypatch, tmp_path):
 
     for index in range(5):
         path = regex_dir / f'rule-{index}.json'
-        path.write_text(json.dumps({'name': f'Rule {index}'}), encoding='utf-8')
+        path.write_text(
+            json.dumps({'scriptName': f'Rule {index}', 'findRegex': f'/rule-{index}/'}),
+            encoding='utf-8',
+        )
         path.touch()
 
     client = _make_test_app().test_client()

@@ -54,6 +54,7 @@ def test_personalized_save_icon_is_restored_for_all_production_save_calls():
     save_sources = (
         'templates/modals/settings.html',
         'templates/modals/automation.html',
+        'templates/modals/detail_card.html',
         'templates/modals/detail_wi_fullscreen.html',
         'static/js/state.js',
         'static/js/components/advancedEditor.js',
