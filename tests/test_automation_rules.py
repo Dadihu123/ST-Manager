@@ -23,6 +23,7 @@ from core.automation.constants import (
     ACT_REMOVE_TAG,
     ACT_RENAME_FILE_BY_TEMPLATE,
     ACT_SET_CHAR_NAME_FROM_FILENAME,
+    ACT_SET_CREATOR_FROM_SOURCE,
     ACT_SET_FILENAME_FROM_CHAR_NAME,
     ACT_SET_FILENAME_FROM_WI_NAME,
     ACT_SET_FAV,
@@ -353,6 +354,7 @@ def _sample_actions():
         {'type': ACT_SET_FILENAME_FROM_CHAR_NAME},
         {'type': ACT_SET_FILENAME_FROM_WI_NAME},
         {'type': ACT_FETCH_FORUM_TAGS},
+        {'type': ACT_SET_CREATOR_FROM_SOURCE, 'value': {'provider': 'auto'}},
         {'type': ACT_MERGE_TAGS, 'value': {'old': 'new'}},
         {'type': ACT_RENAME_FILE_BY_TEMPLATE, 'value': '{{char_name}}'},
         {'type': ACT_SPLIT_CATEGORY_TO_TAGS},
@@ -370,6 +372,7 @@ def test_normalize_actions_for_manual_run_keeps_new_actions_available():
         ACT_SET_CHAR_NAME_FROM_FILENAME,
         ACT_SET_WI_NAME_FROM_FILENAME,
         ACT_FETCH_FORUM_TAGS,
+        ACT_SET_CREATOR_FROM_SOURCE,
         ACT_MERGE_TAGS,
         ACT_RENAME_FILE_BY_TEMPLATE,
     ]
@@ -448,10 +451,13 @@ def test_normalizer_exports_card_update_context_and_matches_auto_import_allowlis
     }
 
 
-def test_normalize_actions_for_link_update_only_keeps_fetch_forum_tags():
+def test_normalize_actions_for_link_update_keeps_source_actions():
     normalized = normalize_actions_for_context(_sample_actions(), TRIGGER_CONTEXT_LINK_UPDATE)
 
-    assert _action_types(normalized['actions']) == [ACT_FETCH_FORUM_TAGS]
+    assert _action_types(normalized['actions']) == [
+        ACT_FETCH_FORUM_TAGS,
+        ACT_SET_CREATOR_FROM_SOURCE,
+    ]
 
 
 def test_normalize_actions_for_link_update_keeps_source_baseline_action():
