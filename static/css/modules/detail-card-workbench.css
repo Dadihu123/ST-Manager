@@ -3998,3 +3998,78 @@ html.light-mode .ui-detail-modal .detail-modal--workbench .detail-thumb-label {
     transition: none;
   }
 }
+
+/* 管理操作使用与角色卡网格一致的语义色，并优先于通用 secondary 按钮规则。 */
+.ui-detail-modal .detail-modal--workbench .detail-manage-action-btn.detail-source-update-action {
+  background-color: var(--status-warning-surface) !important;
+  border-color: var(--status-warning-border) !important;
+  color: var(--status-warning-text) !important;
+}
+
+.ui-detail-modal .detail-modal--workbench .detail-manage-action-btn.detail-source-update-action:hover:not(:disabled) {
+  background-color: var(--status-warning-solid) !important;
+  border-color: var(--status-warning-solid) !important;
+  color: var(--content-on-status-solid) !important;
+}
+
+.ui-detail-modal .detail-modal--workbench .detail-manage-action-btn.detail-source-acknowledge-action {
+  background-color: var(--status-success-surface) !important;
+  border-color: var(--status-success-border) !important;
+  color: var(--status-success-text) !important;
+}
+
+.ui-detail-modal .detail-modal--workbench .detail-manage-action-btn.detail-source-acknowledge-action:hover:not(:disabled) {
+  background-color: var(--status-success-solid) !important;
+  border-color: var(--status-success-solid) !important;
+  color: var(--content-on-status-solid) !important;
+}
+
+.ui-detail-modal .detail-modal--workbench .detail-manage-action-btn.detail-manage-action-btn--url {
+  background-color: var(--status-info-surface) !important;
+  border-color: var(--status-info-border) !important;
+  color: var(--status-info-text) !important;
+}
+
+.ui-detail-modal .detail-modal--workbench .detail-manage-action-btn.detail-manage-action-btn--url:hover:not(:disabled) {
+  background-color: var(--status-info-solid) !important;
+  border-color: var(--status-info-solid) !important;
+  color: var(--content-on-status-solid) !important;
+}
+
+.ui-detail-modal .detail-modal--workbench .detail-manage-action-btn.detail-manage-action-btn--st {
+  background-color: var(--decoration-violet-surface) !important;
+  border-color: var(--decoration-violet-border) !important;
+  color: var(--decoration-violet-text) !important;
+}
+
+.ui-detail-modal .detail-modal--workbench .detail-manage-action-btn.detail-manage-action-btn--st:hover:not(:disabled) {
+  background-color: var(--decoration-violet-surface-hover) !important;
+  border-color: var(--decoration-violet-text) !important;
+  color: var(--decoration-violet-text) !important;
+}
+
+.ui-detail-modal .detail-modal--workbench .detail-manage-action-btn.detail-manage-action-btn--warn,
+.ui-detail-modal .detail-modal--workbench .detail-manage-tool-btn.warn {
+  background-color: var(--status-warning-surface) !important;
+  border-color: var(--status-warning-border) !important;
+  color: var(--status-warning-text) !important;
+}
+
+.ui-detail-modal .detail-modal--workbench .detail-manage-action-btn.detail-manage-action-btn--warn:hover:not(:disabled),
+.ui-detail-modal .detail-modal--workbench .detail-manage-tool-btn.warn:hover:not(:disabled) {
+  background-color: var(--status-warning-solid) !important;
+  border-color: var(--status-warning-solid) !important;
+  color: var(--content-on-status-solid) !important;
+}
+
+.ui-detail-modal .detail-modal--workbench .detail-manage-action-btn.detail-manage-action-btn--danger {
+  background-color: var(--status-danger-surface) !important;
+  border-color: var(--status-danger-border) !important;
+  color: var(--status-danger-text) !important;
+}
+
+.ui-detail-modal .detail-modal--workbench .detail-manage-action-btn.detail-manage-action-btn--danger:hover:not(:disabled) {
+  background-color: var(--status-danger-hover-solid) !important;
+  border-color: var(--status-danger-hover-solid) !important;
+  color: var(--content-on-status-solid) !important;
+}

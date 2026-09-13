@@ -517,7 +517,8 @@
 }
 
 .resource-grid-view--presets {
-  background: var(--surface-page);
+  /* Let the global manager wallpaper show through the grid gutters. */
+  background: transparent;
 }
 
 .resource-grid-view--presets > .flex-1.flex.flex-col.min-w-0.relative.overflow-hidden {
@@ -591,7 +592,8 @@
 
 .extension-workbench.resource-grid-view {
   overflow: hidden;
-  background: var(--surface-page);
+  /* The page shell owns the wallpaper and its readability overlay. */
+  background: transparent;
 }
 
 .extension-workbench.resource-grid-view .extension-workbench-header {
@@ -627,6 +629,7 @@
 
 .extension-workbench.resource-grid-view .extension-workbench-content {
   padding: 0 1.25rem 1.25rem;
+  background: transparent;
 }
 
 .extension-workbench.resource-grid-view .extension-summary-strip {
@@ -1326,11 +1329,10 @@ html.light-mode .resource-grid-view .resource-source-badge.file {
 .chat-mode-shell.resource-grid-view .chat-grid-toolbar {
   grid-template-columns: auto minmax(0, 1fr) minmax(18rem, auto);
   align-items: center;
-  padding: 0 0 1rem;
-  background: transparent;
-  border: 0;
-  border-bottom: 1px solid var(--border-divider);
-  border-radius: 0;
+  padding: 1.1rem 1.25rem;
+  background: var(--resource-workbench-header);
+  border: 1px solid var(--resource-workbench-border);
+  border-radius: var(--resource-workbench-radius);
 }
 
 .chat-mode-shell.resource-grid-view .chat-grid-toolbar-copy {
