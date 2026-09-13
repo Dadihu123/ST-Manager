@@ -1232,13 +1232,26 @@ html.light-mode .resource-grid-view .resource-source-badge.file {
 }
 
 .resource-grid-view--presets .preset-grid-card {
-  height: 13.5rem;
+  height: auto;
   min-height: 13.5rem;
   padding-top: 4rem;
 }
 
-.resource-grid-view--presets .preset-card-main {
+.resource-grid-view--presets .preset-card-main,
+.resource-grid-view--presets .preset-card-description {
+  flex: 0 0 auto;
   min-width: 0;
+}
+
+.resource-grid-view--presets .preset-card-parameter-row {
+  display: flex;
+  flex: 0 0 auto;
+  align-content: flex-start;
+}
+
+.resource-grid-view--presets .preset-card-stat-icon {
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 
 .resource-grid-view--presets .preset-card-description {
@@ -1625,7 +1638,7 @@ html.light-mode .resource-grid-view .resource-source-badge.file {
   }
 
   .resource-grid-view--presets .preset-grid-card {
-    height: 13.5rem;
+    height: auto;
     min-height: 13.5rem;
     padding-right: 0.75rem;
     padding-left: 0.75rem;

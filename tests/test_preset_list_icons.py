@@ -104,6 +104,11 @@ def test_preset_loading_icon_uses_the_animated_asset_and_shared_size():
     assert 'ui-icon--spin' not in preset_source
     assert 'ui-icon--spin' not in extension_source
 
+    assert re.search(
+        r'html:not\(\.light-mode\) \.ui-loading-icon\s*\{[^}]*filter:\s*brightness\(0\) invert\(1\);',
+        icons_css,
+    )
+
     loading_rule = re.search(
         r'\.preset-list-loading-icon \.ui-icon\s*\{(?P<body>[^}]*)\}',
         cards_css,
@@ -113,3 +118,24 @@ def test_preset_loading_icon_uses_the_animated_asset_and_shared_size():
     assert 'height: 64px;' in loading_rule.group('body')
 
     assert '.ui-icon--spin' not in icons_css
+
+
+def test_preset_card_metadata_growth_does_not_compress_the_footer():
+    workbench_css = read_project_file('static/css/modules/resource-workbench.css')
+
+    card_rules = re.findall(
+        r'\.resource-grid-view--presets \.preset-grid-card\s*\{(?P<body>[^}]*)\}',
+        workbench_css,
+    )
+    assert any('height: auto;' in body and 'min-height: 13.5rem;' in body for body in card_rules)
+    assert '.resource-grid-view--presets .preset-card-parameter-row' in workbench_css
+    assert 'flex: 0 0 auto;' in workbench_css
+    assert 'white-space: nowrap;' in workbench_css
+
+    footer_rule = re.search(
+        r'\.resource-grid-view--presets \.preset-card-footer\s*\{(?P<body>[^}]*)\}',
+        workbench_css,
+    )
+    assert footer_rule is not None
+    assert 'flex: 0 0 2.35rem;' in footer_rule.group('body')
+    assert 'min-height: 2.35rem;' in footer_rule.group('body')
