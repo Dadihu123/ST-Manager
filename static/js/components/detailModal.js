@@ -3284,7 +3284,9 @@ export default function detailModal() {
                 })
                 .finally(() => {
                     this.isSendingToST = false;
-                    if (label) label.textContent = '发送到 ST';
+                    if (label) {
+                        label.textContent = this.$store.global.getSendTargetActionLabel?.() || '发送到 ST';
+                    }
                 });
         },
 

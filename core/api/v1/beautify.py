@@ -12,6 +12,10 @@ from core.data.ui_store import load_ui_data, save_ui_data, set_last_sent_to_st
 from core.api.v1.system import _format_st_auth_error, _format_st_response_error
 from core.services.beautify_service import BeautifyService
 from core.services.st_auth import STAuthError, build_st_http_client
+from core.services.tauri_tavern_client import (
+    TauriTavernClient,
+    is_tauri_tavern_target,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -364,6 +368,28 @@ def send_theme_to_st():
         return _error(str(exc))
 
     cfg = load_config()
+    if is_tauri_tavern_target(cfg):
+        theme_payload = theme_bundle.get('theme_data') if isinstance(theme_bundle.get('theme_data'), dict) else {}
+        try:
+            result = TauriTavernClient.from_config(cfg).send_theme(theme_payload)
+        except (OSError, ValueError) as error:
+            return _error(str(error), status=400)
+
+        theme_name = str(theme_payload.get('name') or '').strip()
+        ui_data = load_ui_data()
+        ui_key = service.get_variant_send_state_key(package_id, variant_id)
+        _, last_sent_to_st = set_last_sent_to_st(ui_data, ui_key, time.time())
+        if not save_ui_data(ui_data):
+            return _error('保存发送时间失败', status=500)
+        return jsonify({
+            'success': True,
+            'target': 'tauritavern',
+            'theme_name': theme_name,
+            'target_path': result['path'],
+            'settings_path': result['settings_path'],
+            'last_sent_to_st': last_sent_to_st,
+        })
+
     auth_type = str(cfg.get('st_auth_type') or 'basic').strip().lower()
     st_client = build_st_http_client(cfg, timeout=10)
     theme_payload = theme_bundle.get('theme_data') if isinstance(theme_bundle.get('theme_data'), dict) else {}

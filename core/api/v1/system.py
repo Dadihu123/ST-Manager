@@ -37,6 +37,10 @@ from core.services.shared_wallpaper_service import SharedWallpaperService
 from core.services.st_client import refresh_st_client
 from core.services.st_auth import STAuthError, build_st_http_client
 from core.services.st_path_safety import evaluate_st_path_safety
+from core.services.tauri_tavern_client import (
+    TauriTavernClient,
+    is_tauri_tavern_target,
+)
 from core.services.user_db_backup_service import UserDbBackupService
 from core.services.maintenance_service import clean_orphaned_thumbnail_cache
 
@@ -312,14 +316,20 @@ def api_scan_now():
 @bp.route('/api/settings_path_safety', methods=['POST'])
 def api_settings_path_safety():
     config, _confirm_risky_paths = _extract_settings_save_payload(request.get_json(silent=True) or {})
-    evaluation = evaluate_st_path_safety(config)
+    safety_config = dict(config or {})
+    if is_tauri_tavern_target(safety_config):
+        safety_config['st_data_dir'] = ''
+    evaluation = evaluate_st_path_safety(safety_config)
     return jsonify({'success': True, **evaluation})
 
 @bp.route('/api/save_settings', methods=['POST'])
 def api_save_settings():
     try:
         new_config, confirm_risky_paths = _extract_settings_save_payload(request.get_json(silent=True) or {})
-        evaluation = evaluate_st_path_safety(new_config)
+        safety_config = dict(new_config or {})
+        if is_tauri_tavern_target(safety_config):
+            safety_config['st_data_dir'] = ''
+        evaluation = evaluate_st_path_safety(safety_config)
         if evaluation['conflicts'] and not confirm_risky_paths:
             return jsonify({'success': False, 'requires_confirmation': True, **evaluation}), 409
 
@@ -396,6 +406,12 @@ def api_get_settings():
         cfg['presets_dir'] = 'data/library/presets'
     if 'st_openai_preset_dir' not in cfg:
         cfg['st_openai_preset_dir'] = ''
+    if 'st_target' not in cfg:
+        cfg['st_target'] = 'sillytavern'
+    if 'tt_data_dir' not in cfg:
+        cfg['tt_data_dir'] = ''
+    if 'tt_user_handle' not in cfg:
+        cfg['tt_user_handle'] = 'default-user'
     if 'quick_replies_dir' not in cfg:
         cfg['quick_replies_dir'] = 'data/library/extensions/quick-replies'
     if 'default_sort' not in cfg:
@@ -1452,6 +1468,27 @@ def api_send_to_st():
         
         if not os.path.exists(file_path):
             return jsonify({"success": False, "msg": "Local file not found"})
+
+        if is_tauri_tavern_target(cfg):
+            try:
+                result = TauriTavernClient.from_config(cfg).send_character(file_path)
+            except (OSError, ValueError) as error:
+                return jsonify({"success": False, "msg": str(error)}), 400
+
+            ui_data = load_ui_data()
+            ui_key = resolve_ui_key(card_id)
+            _, last_sent_to_st = set_last_sent_to_st(ui_data, ui_key, time.time())
+            save_ui_data(ui_data)
+
+            target_id = ctx.cache.bundle_map.get(ui_key, card_id)
+            ctx.cache.update_card_data(target_id, {'last_sent_to_st': last_sent_to_st})
+            return jsonify({
+                'success': True,
+                'target': 'tauritavern',
+                'target_path': result['path'],
+                'last_sent_to_st': last_sent_to_st,
+            })
+
         st_client = build_st_http_client(cfg, timeout=10)
         file_ext = os.path.splitext(file_path)[1].lower()
         with open(file_path, 'rb') as f:

@@ -896,6 +896,10 @@ export default function beautifyGrid() {
       if (!String(this.activeVariant?.theme_data?.name || "").trim()) {
         return "当前变体主题缺少 name，无法发送到 ST";
       }
+      const targetName = this.$store?.global?.getSendTargetName?.() || "ST";
+      if (targetName === "TauriTavern") {
+        return "发送标准主题到 TauriTavern；仅同步主题 JSON，不同步管理器壁纸与包元数据";
+      }
       return "发送当前主题到 ST，并自动切换为该主题；同名主题会覆盖 ST 中现有内容";
     },
 
@@ -937,10 +941,19 @@ export default function beautifyGrid() {
           variant_id: variantId,
         });
         if (!res?.success) {
-          throw new Error(res?.error || '发送主题到 ST 失败');
+          const targetName = this.$store?.global?.getSendTargetName?.() || "ST";
+          if (targetName === "ST") {
+            throw new Error(res?.error || '发送主题到 ST 失败');
+          }
+          throw new Error(res?.error || `发送主题到 ${targetName} 失败`);
         }
         this.applyActiveVariantSentState(res.last_sent_to_st);
-        this.$store.global.showToast("主题已发送到 ST 并设为当前主题", 2200, "card-send-to-st");
+        const targetName = this.$store?.global?.getSendTargetName?.() || "ST";
+        if (targetName === "ST") {
+          this.$store.global.showToast("主题已发送到 ST 并设为当前主题", 2200, "card-send-to-st");
+        } else {
+          this.$store.global.showToast("标准主题已发送到 TauriTavern 并设为当前主题", 2200, "card-send-to-st");
+        }
       } catch (error) {
         this.$store.global.showToast(String(error.message || error), 3200);
       } finally {

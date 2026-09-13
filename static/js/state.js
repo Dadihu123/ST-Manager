@@ -679,8 +679,11 @@ export function initState() {
       default_sort: "date_desc",
       show_header_sort: true,
       st_url: "http://127.0.0.1:8000",
+      st_target: "sillytavern",
       st_data_dir: "",
       st_user_handle: "default-user",
+      tt_data_dir: "",
+      tt_user_handle: "default-user",
       st_username: "",
       st_password: "",
       st_basic_username: "",
@@ -891,6 +894,11 @@ export function initState() {
             allowed_abs_resource_roots: normalizedRoots,
             default_sort: settings.default_sort || "date_desc",
             show_header_sort: settings.show_header_sort !== false,
+            st_target:
+              String(settings.st_target || "sillytavern").toLowerCase() ===
+              "tauritavern"
+                ? "tauritavern"
+                : "sillytavern",
             st_auth_type: settings.st_auth_type || "basic",
             st_user_handle:
               String(settings.st_user_handle || "default-user").trim() ||
@@ -900,6 +908,10 @@ export function initState() {
             st_web_username: settings.st_web_username || "",
             st_web_password: settings.st_web_password || "",
             st_proxy: settings.st_proxy || "",
+            tt_data_dir: settings.tt_data_dir || "",
+            tt_user_handle:
+              String(settings.tt_user_handle || "default-user").trim() ||
+              "default-user",
             items_per_page: localPerPage
               ? parseInt(localPerPage)
               : settings.items_per_page || 0,
@@ -1284,6 +1296,22 @@ export function initState() {
       }
 
       return this.settingsForm.bg_url || "";
+    },
+
+    getSendTargetName() {
+      return this.settingsForm.st_target === "tauritavern" ? "TauriTavern" : "ST";
+    },
+
+    getSendTargetActionLabel() {
+      return `发送到 ${this.getSendTargetName()}`;
+    },
+
+    getSendTargetSuccessMessage() {
+      return `已发送到 ${this.getSendTargetName()}`;
+    },
+
+    isTauriTavernTarget() {
+      return this.settingsForm.st_target === "tauritavern";
     },
 
     // 保存设置

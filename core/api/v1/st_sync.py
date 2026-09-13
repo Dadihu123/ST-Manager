@@ -21,6 +21,7 @@ from core.services.st_client import (
     refresh_st_client,
 )
 from core.services.st_path_safety import evaluate_st_path_safety
+from core.services.tauri_tavern_client import TauriTavernClient
 from core.services.scan_service import request_scan
 from core.services.cache_service import invalidate_wi_list_cache
 from core.utils.filesystem import sanitize_filename
@@ -448,6 +449,25 @@ def validate_path():
             "success": False,
             "error": str(e)
         }), 500
+
+
+@bp.route('/tt/validate_path', methods=['POST'])
+def validate_tauri_tavern_path():
+    """验证 TauriTavern 数据根目录与用户目录。"""
+    try:
+        data = request.get_json(silent=True) or {}
+        path = _normalize_input_path(data.get('path', ''))
+        user_handle = data.get('tt_user_handle', DEFAULT_ST_USER_HANDLE)
+        if not path:
+            return jsonify({'success': False, 'error': '请提供 TauriTavern 数据目录'}), 400
+
+        result = TauriTavernClient(path, user_handle).validate()
+        return jsonify({'success': True, **result})
+    except (OSError, ValueError) as error:
+        return jsonify({'success': False, 'error': str(error)}), 400
+    except Exception as error:
+        logger.error('验证 TauriTavern 路径失败: %s', error)
+        return jsonify({'success': False, 'error': '验证 TauriTavern 路径失败'}), 500
 
 
 @bp.route('/list/<resource_type>', methods=['GET'])

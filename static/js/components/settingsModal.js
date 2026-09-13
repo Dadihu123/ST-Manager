@@ -34,11 +34,14 @@ const DEFAULT_SETTINGS = {
   default_sort: "date_desc",
   show_header_sort: true,
   theme_accent: "blue",
+  st_target: "sillytavern",
   host: "127.0.0.1",
   port: 5000,
   st_url: "http://127.0.0.1:8000",
   st_data_dir: "",
   st_user_handle: "default-user",
+  tt_data_dir: "",
+  tt_user_handle: "default-user",
   st_auth_type: "basic",
   st_username: "",
   st_password: "",
@@ -99,7 +102,7 @@ const SETTINGS_SEARCH_ITEMS = [
   { id: "appearance-layout", section: "appearance", anchor: "settings-appearance-layout", title: "布局与列表", keywords: "卡片 分页 排序 收藏 预设 世界书 脚本 正则 快速回复", icon: "layout" },
   { id: "appearance-isolated", section: "appearance", anchor: "settings-appearance-isolated", title: "隔离分类", keywords: "隔离 隐藏 分类", icon: "folder-search" },
   { id: "appearance-wallpaper", section: "appearance", anchor: "settings-appearance-wallpaper", title: "个性化壁纸", keywords: "壁纸 背景 上传 美化", icon: "wallpaper" },
-  { id: "connection-st", section: "connection", anchor: "settings-connection-st", title: "SillyTavern 连接与同步", keywords: "st 连接 同步 探测 验证", icon: "plug" },
+  { id: "connection-st", section: "connection", anchor: "settings-connection-st", title: "ST / TauriTavern 连接与同步", keywords: "st tauri tavern 连接 同步 探测 验证", icon: "plug" },
   { id: "connection-api", section: "connection", anchor: "settings-connection-api", title: "API 与服务地址", keywords: "api 代理 主机 端口", icon: "plug" },
   { id: "connection-auth", section: "connection", anchor: "settings-connection-auth", title: "ST 认证", keywords: "basic web 用户名 密码", icon: "key" },
   { id: "connection-manager-auth", section: "connection", anchor: "settings-connection-manager-auth", title: "访问认证与失败限制", keywords: "认证 登录 密码 ip 代理 锁定", icon: "shield-key" },
@@ -138,6 +141,10 @@ export default function settingsModal() {
     showAuthPassword: false,
     showStBasicPassword: false,
     showStWebPassword: false,
+    ttPathStatus: "",
+    ttPathStatusIcon: "",
+    ttPathValid: false,
+    ttResources: {},
     pathSafetyState: "idle",
     pathSafetyMessage: "",
     operationLoadingAction: "",
@@ -175,7 +182,7 @@ export default function settingsModal() {
         title: "连接与服务设置帮助",
         label: "连接与服务",
         kicker: "CONNECTIONS & SERVICES",
-        description: "配置 SillyTavern、类脑搜索与 ST-Manager 服务连接。",
+        description: "配置 SillyTavern、TauriTavern、类脑搜索与 ST-Manager 服务连接。",
       },
       maintenance: {
         title: "维护与高级设置帮助",
@@ -452,6 +459,10 @@ export default function settingsModal() {
     },
 
     async refreshPathSafety(evaluationVersion = null) {
+      if (this.settingsForm.st_target === "tauritavern") {
+        this.resetPathSafety();
+        return this.pathSafety;
+      }
       const activeVersion = evaluationVersion ?? this.beginPathSafetyEvaluation();
       if (!this.settingsForm.st_data_dir) {
         if (activeVersion === this.pathSafetyEvaluationVersion) this.resetPathSafety();
@@ -633,7 +644,10 @@ export default function settingsModal() {
       this.$watch("showSettingsModal", (val) => {
         if (val) {
           if (!this.settingsSessionOpen) this.beginEditSession();
-          if (this.settingsForm.st_data_dir) {
+          if (this.settingsForm.st_target === "tauritavern") {
+            this.resetPathSafety();
+            if (this.settingsForm.tt_data_dir) this.validateTauriTavernPath();
+          } else if (this.settingsForm.st_data_dir) {
             this.schedulePathSafetyEvaluation(0);
           } else {
             this.resetPathSafety();
@@ -656,11 +670,29 @@ export default function settingsModal() {
         "settingsForm.st_data_dir",
         "settingsForm.st_user_handle",
         "settingsForm.st_openai_preset_dir",
+        "settingsForm.tt_data_dir",
+        "settingsForm.tt_user_handle",
       ].forEach((expression) => {
         this.$watch(expression, () => {
           if (!this.showSettingsModal) return;
+          if (this.settingsForm.st_target === "tauritavern") {
+            this.resetPathSafety();
+            return;
+          }
           this.schedulePathSafetyEvaluation();
         });
+      });
+
+      this.$watch("settingsForm.st_target", (value) => {
+        if (!this.showSettingsModal) return;
+        if (value === "tauritavern") {
+          this.resetPathSafety();
+          if (this.settingsForm.tt_data_dir) this.validateTauriTavernPath();
+        } else if (this.settingsForm.st_data_dir) {
+          this.schedulePathSafetyEvaluation(0);
+        } else {
+          this.resetPathSafety();
+        }
       });
     },
 
@@ -1096,6 +1128,60 @@ export default function settingsModal() {
         this.stPathValid = false;
         this.stResources = {};
         this.resetPathSafety();
+      }
+    },
+
+    getTTUserHandle() {
+      const value = this.$store?.global?.settingsForm?.tt_user_handle;
+      return String(value || "").trim() || "default-user";
+    },
+
+    async validateTauriTavernPath() {
+      const path = String(
+        this.$store.global.settingsForm.tt_data_dir || "",
+      ).trim();
+      if (!path) {
+        this.ttPathStatus = "请输入 TauriTavern 数据目录";
+        this.ttPathStatusIcon = "close";
+        this.ttPathValid = false;
+        this.ttResources = {};
+        return;
+      }
+
+      try {
+        this.ttPathStatus = "正在验证...";
+        this.ttPathStatusIcon = "";
+        const resp = await fetch("/api/st/tt/validate_path", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            path,
+            tt_user_handle: this.getTTUserHandle(),
+          }),
+        });
+        const data = await resp.json();
+        if (data.success && data.valid) {
+          if (data.normalized_path) {
+            this.$store.global.settingsForm.tt_data_dir = data.normalized_path;
+          }
+          if (data.user_handle) {
+            this.$store.global.settingsForm.tt_user_handle = data.user_handle;
+          }
+          this.ttPathStatus = data.message || "路径有效";
+          this.ttPathStatusIcon = "check";
+          this.ttPathValid = true;
+          this.ttResources = data.resources || {};
+        } else {
+          this.ttPathStatus = data.message || "路径无效或不是 TauriTavern 数据目录";
+          this.ttPathStatusIcon = "close";
+          this.ttPathValid = false;
+          this.ttResources = data.resources || {};
+        }
+      } catch (err) {
+        this.ttPathStatus = "验证失败: " + err.message;
+        this.ttPathStatusIcon = "close";
+        this.ttPathValid = false;
+        this.ttResources = {};
       }
     },
 

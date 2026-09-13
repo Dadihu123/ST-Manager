@@ -2227,7 +2227,8 @@
   justify-content: flex-end;
 }
 
-.settings-status-icon {
+.settings-status-icon,
+.settings-tt-status-icon {
   display: inline-flex;
 }
 

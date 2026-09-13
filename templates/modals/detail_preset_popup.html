@@ -119,12 +119,12 @@
           @click="sendActivePresetToST(); showMobileMoreMenu = false"
           class="btn-secondary py-1.5 px-3 text-xs"
           :title="getActivePresetSendToSTTitle()"
-          title="发送到 ST（对话补全预设，同名将直接覆盖 ST 中现有预设）"
+          :title="getActivePresetSendToSTTitle() || '发送到 ST（对话补全预设，同名将直接覆盖 ST 中现有预设）'"
           :disabled="isSendingPresetToST"
           role="menuitem"
         >
           <span aria-hidden="true">{{ icon('card-send-to-st', 'ui-icon--sm') }}</span>
-          发送到 ST
+          <span x-text="$store.global.getSendTargetActionLabel ? $store.global.getSendTargetActionLabel() : '发送到 ST'"></span>
         </button>
         <button
           type="button"
@@ -212,12 +212,12 @@
           @click="sendActivePresetToST()"
           class="preset-reader-header-icon-button btn-secondary"
           :title="getActivePresetSendToSTTitle()"
-          title="发送到 ST（对话补全预设，同名将直接覆盖 ST 中现有预设）"
-          aria-label="发送到 ST"
+          :title="getActivePresetSendToSTTitle() || '发送到 ST（对话补全预设，同名将直接覆盖 ST 中现有预设）'"
+          :aria-label="$store.global.getSendTargetActionLabel ? $store.global.getSendTargetActionLabel() : '发送到 ST'"
           :disabled="isSendingPresetToST"
         >
           <span aria-hidden="true">{{ icon('card-send-to-st', 'ui-icon--md') }}</span>
-          <span class="sr-only">发送到 ST</span>
+          <span class="sr-only" x-text="$store.global.getSendTargetActionLabel ? $store.global.getSendTargetActionLabel() : '发送到 ST'"></span>
         </button>
         <button
           type="button"

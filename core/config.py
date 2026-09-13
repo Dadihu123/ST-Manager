@@ -53,9 +53,12 @@ DEFAULT_CONFIG = {
     "host": "127.0.0.1",
     "port": 5000,
     "resources_dir": "data/assets/card_assets",
+    "st_target": "sillytavern",  # 一键发送目标：sillytavern 或 tauritavern
     "st_url": "http://127.0.0.1:8000",
     "st_data_dir": "",  # SillyTavern 安装目录，留空则自动探测
     "st_user_handle": "default-user",  # SillyTavern data 目录下的用户目录名
+    "tt_data_dir": "",  # TauriTavern 数据根目录，目录下应包含用户目录
+    "tt_user_handle": "default-user",  # TauriTavern 用户目录名
     "st_auth_type": "basic",  # 'basic', 'web' or 'auth_web'
     "st_username": "",
     "st_password": "",
@@ -153,6 +156,7 @@ DEFAULT_CONFIG = {
 }
 
 VALID_ST_AUTH_TYPES = {'basic', 'web', 'auth_web'}
+VALID_ST_TARGETS = {'sillytavern', 'tauritavern'}
 
 
 RUNTIME_DIR_DEFAULTS = {
@@ -172,6 +176,18 @@ def _normalize_st_auth_type(auth_type):
     if auth_type in VALID_ST_AUTH_TYPES:
         return auth_type
     return 'basic'
+
+
+def _normalize_st_target(target):
+    value = str(target or '').strip().lower()
+    return value if value in VALID_ST_TARGETS else 'sillytavern'
+
+
+def _normalize_tauri_user_handle(handle):
+    value = str(handle or '').strip()
+    if not value or value in {'.', '..'} or '/' in value or '\\' in value:
+        return 'default-user'
+    return value
 
 
 def _normalize_st_credentials(cfg):
@@ -217,7 +233,12 @@ def _normalize_st_credentials(cfg):
 
 
 def normalize_config(cfg=None):
-    return _normalize_st_credentials({**DEFAULT_CONFIG, **(cfg or {})})
+    normalized = _normalize_st_credentials({**DEFAULT_CONFIG, **(cfg or {})})
+    normalized['st_target'] = _normalize_st_target(normalized.get('st_target'))
+    normalized['tt_user_handle'] = _normalize_tauri_user_handle(
+        normalized.get('tt_user_handle')
+    )
+    return normalized
 
 
 def build_default_config(default_overrides=None):

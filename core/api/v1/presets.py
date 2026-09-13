@@ -46,6 +46,10 @@ from core.services.preset_storage import (
 )
 from core.services.scan_service import suppress_fs_events
 from core.services.st_auth import STAuthError, build_st_http_client
+from core.services.tauri_tavern_client import (
+    TauriTavernClient,
+    is_tauri_tavern_target,
+)
 from core.api.v1.system import _format_st_auth_error, _format_st_response_error
 from core.utils.filesystem import sanitize_filename
 from core.utils.format_validation import (
@@ -2143,6 +2147,24 @@ def send_preset_to_st():
             return jsonify({'success': False, 'msg': '仅 OpenAI/对话补全预设可发送到 ST'}), 400
 
         cfg = load_config()
+        if is_tauri_tavern_target(cfg):
+            try:
+                result = TauriTavernClient.from_config(cfg).send_preset(file_path, preset_data)
+            except (OSError, ValueError) as error:
+                return jsonify({'success': False, 'msg': str(error)}), 400
+
+            ui_data = load_ui_data()
+            ui_key = _build_preset_ui_key(preset_type, file_path, preset_id, presets_root)
+            _, last_sent_to_st = set_last_sent_to_st(ui_data, ui_key, time.time())
+            if not save_ui_data(ui_data):
+                return jsonify({'success': False, 'msg': '保存发送时间失败'}), 500
+            return jsonify({
+                'success': True,
+                'target': 'tauritavern',
+                'target_path': result['path'],
+                'last_sent_to_st': last_sent_to_st,
+            })
+
         auth_type = str(cfg.get('st_auth_type') or 'basic').strip().lower()
         st_client = build_st_http_client(cfg, timeout=10)
 

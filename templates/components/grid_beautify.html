@@ -50,7 +50,7 @@
           <template x-if="!(isActionLoading && pendingThemeSendTarget)">
             <span aria-hidden="true">{{ icon('card-send-to-st', 'ui-icon--sm') }}</span>
           </template>
-          <span>发送主题到 ST</span>
+          <span x-text="$store.global.getSendTargetName?.() === 'TauriTavern' ? '发送标准主题到 TauriTavern' : '发送主题到 ST'"></span>
         </button>
       </div>
     </template>

@@ -174,14 +174,18 @@ export default function presetGrid() {
 
     getPresetSendToSTTitle(item) {
       const targetId = this.getPresetActionTargetId(item);
+      const targetLabel = this.$store?.global?.getSendTargetActionLabel?.() || "发送到 ST";
+      const targetName = this.$store?.global?.getSendTargetName?.() || "ST";
       if (!this.canSendPresetToST(item)) {
         return "仅 OpenAI/对话补全预设可发送到 ST";
       }
-      if (this.isSendingPresetToST(targetId)) return "正在发送到 ST";
-      if (Number(item?.last_sent_to_st || 0) > 0) {
-        return `已发送到 ST：${new Date(item.last_sent_to_st * 1000).toLocaleString()}`;
+      if (this.isSendingPresetToST(targetId)) {
+        return targetName === "ST" ? "正在发送到 ST" : `正在发送到 ${targetName}`;
       }
-      return "发送到 ST（对话补全预设，同名将直接覆盖 ST 中现有预设）";
+      if (Number(item?.last_sent_to_st || 0) > 0) {
+        return `已发送到 ${targetName}：${new Date(item.last_sent_to_st * 1000).toLocaleString()}`;
+      }
+      return `${targetLabel}（对话补全预设，同名将直接覆盖 ${targetName} 中现有预设）`;
     },
 
     applyPresetSentState(detail) {
@@ -664,7 +668,11 @@ export default function presetGrid() {
           window.dispatchEvent(new CustomEvent("preset-sent-to-st", {
             detail: sentDetail,
           }));
-          this.$store.global.showToast("已发送到 ST", 1800, "card-send-to-st");
+          this.$store.global.showToast(
+            this.$store.global.getSendTargetSuccessMessage?.() || "已发送到 ST",
+            1800,
+            "card-send-to-st",
+          );
         } else {
           this.$store.global.showToast(res?.msg || "发送失败", 2600, "close");
         }

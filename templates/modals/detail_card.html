@@ -3041,13 +3041,13 @@
                           @click="sendToST()"
                           :disabled="isSendingToST"
                           :aria-busy="isSendingToST.toString()"
-                          :aria-label="isSendingToST ? '正在发送到 ST' : '发送到 ST'"
-                          title="发送当前角色卡到 ST"
+                          :aria-label="isSendingToST ? '正在发送到 ST' : ($store.global.getSendTargetActionLabel ? $store.global.getSendTargetActionLabel() : '发送到 ST')"
+                          :title="($store.global.getSendTargetActionLabel ? $store.global.getSendTargetActionLabel() : '发送到 ST') + '当前角色卡'"
                           class="btn-update-card detail-manage-action-btn detail-manage-action-btn--st"
                         >
                           <span x-show="!isSendingToST">{{ icon('card-send-to-st', 'ui-icon--lg') }}</span>
                           <span x-show="isSendingToST">{{ loading_icon('ui-icon--lg') }}</span>
-                          <span class="detail-send-st-label" x-text="isSendingToST ? '发送中...' : '发送到 ST'"></span>
+                          <span class="detail-send-st-label" x-text="isSendingToST ? '发送中...' : ($store.global.getSendTargetActionLabel ? $store.global.getSendTargetActionLabel() : '发送到 ST')"></span>
                         </button>
                         <button
                           x-show="!activeCard.is_bundle"

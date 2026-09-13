@@ -489,7 +489,7 @@
               :disabled="isSendingWorldInfoToST"
             >
               {{ icon('card-send-to-st', 'ui-icon--md') }}
-              <span class="scale-90">发送到 ST</span>
+              <span class="scale-90" x-text="$store.global.getSendTargetActionLabel ? $store.global.getSendTargetActionLabel() : '发送到 ST'"></span>
             </button>
             <button
               @click="exportActiveWorldInfo()"

@@ -280,12 +280,15 @@ export default function wiGrid() {
     },
 
     getWorldInfoSendToSTTitle(item) {
+      const targetName = this.$store?.global?.getSendTargetName?.() || "ST";
       if (!this.canSendWorldInfoToST(item)) return "仅全局/资源世界书可发送到 ST";
-      if (this.isSendingWorldInfoToST(item?.id)) return "正在发送到 ST";
-      if (Number(item?.last_sent_to_st || 0) > 0) {
-        return `已发送到 ST：${new Date(item.last_sent_to_st * 1000).toLocaleString()}`;
+      if (this.isSendingWorldInfoToST(item?.id)) {
+        return targetName === "ST" ? "正在发送到 ST" : `正在发送到 ${targetName}`;
       }
-      return "发送到 ST";
+      if (Number(item?.last_sent_to_st || 0) > 0) {
+        return `已发送到 ${targetName}：${new Date(item.last_sent_to_st * 1000).toLocaleString()}`;
+      }
+      return targetName === "ST" ? "发送到 ST" : `发送到 ${targetName}`;
     },
 
     applyWorldInfoSentState(detail) {
@@ -331,7 +334,11 @@ export default function wiGrid() {
           window.dispatchEvent(new CustomEvent("wi-sent-to-st", {
             detail: sentDetail,
           }));
-          this.$store.global.showToast("已发送到 ST", 1800, "card-send-to-st");
+          this.$store.global.showToast(
+            this.$store.global.getSendTargetSuccessMessage?.() || "已发送到 ST",
+            1800,
+            "card-send-to-st",
+          );
         } else {
           this.$store.global.showToast(res?.msg || "发送失败", 2600, "close");
         }

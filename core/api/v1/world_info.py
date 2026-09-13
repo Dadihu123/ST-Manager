@@ -36,6 +36,10 @@ from core.services.index_build_service import (
 from core.services.index_job_worker import enqueue_index_job
 from core.services.scan_service import suppress_fs_events
 from core.services.st_auth import STAuthError, build_st_http_client
+from core.services.tauri_tavern_client import (
+    TauriTavernClient,
+    is_tauri_tavern_target,
+)
 from core.services.worldinfo_index_query_service import query_worldinfo_index
 from core.services.wi_entry_history_service import (
     ensure_entry_uids,
@@ -1920,6 +1924,27 @@ def api_send_world_info_to_st():
         with open(file_path, 'rb') as handle:
             raw_bytes = handle.read()
         payload_bytes = _build_send_worldbook_json_bytes(book, raw_bytes)
+
+        if is_tauri_tavern_target(cfg):
+            try:
+                result = TauriTavernClient.from_config(cfg).send_world_info(
+                    file_path,
+                    payload_bytes,
+                )
+            except (OSError, ValueError) as error:
+                return jsonify({'success': False, 'msg': str(error)}), 400
+
+            ui_data = load_ui_data()
+            ui_key = _get_worldinfo_ui_key(source_type, file_path, cfg)
+            _, last_sent_to_st = set_last_sent_to_st(ui_data, ui_key, time.time())
+            save_ui_data(ui_data)
+            invalidate_wi_list_cache()
+            return jsonify({
+                'success': True,
+                'target': 'tauritavern',
+                'target_path': result['path'],
+                'last_sent_to_st': last_sent_to_st,
+            })
 
         st_client = build_st_http_client(cfg, timeout=10)
         payload_file = _MultipartUploadBuffer(payload_bytes)

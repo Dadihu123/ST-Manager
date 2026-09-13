@@ -488,11 +488,14 @@ export default function presetDetailReader() {
     },
 
     getActivePresetSyncLabel() {
-      if (this.isSendingPresetToST) return "正在发送到 ST";
-      if (Number(this.activePresetDetail?.last_sent_to_st || 0) > 0) {
-        return "已发送到 ST";
+      const targetName = this.$store?.global?.getSendTargetName?.() || "ST";
+      if (this.isSendingPresetToST) {
+        return targetName === "ST" ? "正在发送到 ST" : `正在发送到 ${targetName}`;
       }
-      return "尚未发送到 ST";
+      if (Number(this.activePresetDetail?.last_sent_to_st || 0) > 0) {
+        return `已发送到 ${targetName}`;
+      }
+      return targetName === "ST" ? "尚未发送到 ST" : `尚未发送到 ${targetName}`;
     },
 
     getPromptRoleLabel(item) {
@@ -950,14 +953,18 @@ export default function presetDetailReader() {
     },
 
     getActivePresetSendToSTTitle() {
+      const targetLabel = this.$store?.global?.getSendTargetActionLabel?.() || "发送到 ST";
+      const targetName = this.$store?.global?.getSendTargetName?.() || "ST";
       if (!this.canSendActivePresetToST()) {
         return "仅 OpenAI/对话补全预设可发送到 ST";
       }
-      if (this.isSendingPresetToST) return "正在发送到 ST";
-      if (Number(this.activePresetDetail?.last_sent_to_st || 0) > 0) {
-        return `已发送到 ST：${new Date(this.activePresetDetail.last_sent_to_st * 1000).toLocaleString()}`;
+      if (this.isSendingPresetToST) {
+        return targetName === "ST" ? "正在发送到 ST" : `正在发送到 ${targetName}`;
       }
-      return "发送到 ST（对话补全预设，同名将直接覆盖 ST 中现有预设）";
+      if (Number(this.activePresetDetail?.last_sent_to_st || 0) > 0) {
+        return `已发送到 ${targetName}：${new Date(this.activePresetDetail.last_sent_to_st * 1000).toLocaleString()}`;
+      }
+      return `${targetLabel}（对话补全预设，同名将直接覆盖 ${targetName} 中现有预设）`;
     },
 
     async sendActivePresetToST() {
@@ -991,7 +998,11 @@ export default function presetDetailReader() {
               last_sent_to_st: sentAt,
             },
           }));
-          this.$store.global.showToast("已发送到 ST", 1800, "card-send-to-st");
+          this.$store.global.showToast(
+            this.$store.global.getSendTargetSuccessMessage?.() || "已发送到 ST",
+            1800,
+            "card-send-to-st",
+          );
         } else {
           this.$store.global.showToast(res?.msg || "发送失败", 2600, "close");
         }
