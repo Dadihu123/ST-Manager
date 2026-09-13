@@ -100,6 +100,36 @@ def test_source_author_normalization_and_creator_template_rendering():
     ) == '作者显示名/123/标题'
 
 
+def test_source_creator_author_field_selection_maps_to_documented_formats():
+    author = {
+        'id': '123',
+        'username': 'abcd',
+        'display_name': '作者显示名',
+        'global_name': '作者全局名',
+    }
+    expected_values = {
+        'username': 'abcd',
+        'display_name': '作者显示名',
+        'global_name': '作者全局名',
+        'author_id': '123',
+    }
+
+    for author_field, expected in expected_values.items():
+        assert render_source_creator(
+            '{{author}}',
+            source={'title': '标题'},
+            author=author,
+            author_field=author_field,
+        ) == expected
+
+    assert render_source_creator(
+        '{{username}}/{{name}}/{{display_name}}/{{global_name}}/{{author_id}}/{{title}}',
+        source={'title': '标题'},
+        author=author,
+        author_field='global_name',
+    ) == 'abcd/abcd/作者显示名/作者全局名/123/标题'
+
+
 def test_fetch_shimmerday_source_normalizes_author(monkeypatch):
     monkeypatch.setattr(
         shimmerday_forum_service,

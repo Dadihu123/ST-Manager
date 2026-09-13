@@ -17,6 +17,24 @@ const SOURCE_ACTION_TYPES = [
 const DEFAULT_SOURCE_TITLE_PATTERN = '(?:【|\\[)([^】\\]]+)(?:】|\\])';
 const DEFAULT_SOURCE_TITLE_SPLIT_PATTERN = '[/|]';
 const DEFAULT_RULE_TRIGGER_CONTEXTS = ['manual_run', 'auto_import'];
+const SOURCE_CREATOR_FIELD_META = Object.freeze({
+    username: {
+        token: '{{username}}',
+        description: '账号名；优先使用 username，没有时使用 name。'
+    },
+    display_name: {
+        token: '{{display_name}}',
+        description: '对外显示名；没有时回退到全局名或账号名。'
+    },
+    global_name: {
+        token: '{{global_name}}',
+        description: 'Discord 全局显示名；没有时回退到显示名或账号名。'
+    },
+    author_id: {
+        token: '{{author_id}}',
+        description: '来源平台的作者 ID；没有 ID 时为空。'
+    }
+});
 const SUPPORTED_RULE_TRIGGER_CONTEXTS = [
     'manual_run',
     'auto_import',
@@ -920,6 +938,74 @@ export default function automationModal() {
 
         actionTypeLabel(type) {
             return this.actionTypeOptions.find(option => option.value === type)?.label || '选择动作';
+        },
+
+        sourceCreatorFieldToken(field) {
+            return SOURCE_CREATOR_FIELD_META[field]?.token || '{{author}}';
+        },
+
+        sourceCreatorFieldDescription(field) {
+            return SOURCE_CREATOR_FIELD_META[field]?.description
+                || '当前选择的字段会作为 {{author}} 的实际值。';
+        },
+
+        markSourceCreatorFormatEdited(config) {
+            if (!config || typeof config !== 'object') return;
+            config._format_edited = true;
+        },
+
+        syncSourceCreatorFormat(config) {
+            if (!config || typeof config !== 'object') return;
+
+            const field = SOURCE_CREATOR_FIELD_META[config.author_field]
+                ? config.author_field
+                : 'username';
+            const nextToken = this.sourceCreatorFieldToken(field);
+            const previousField = config._auto_format_field;
+            const previousToken = previousField
+                ? this.sourceCreatorFieldToken(previousField)
+                : '{{author}}';
+            const format = typeof config.format === 'string' ? config.format : '';
+
+            // 新建动作默认使用 {{author}}；切换字段时把这个别名或上一次自动生成的
+            // 字段替换掉，保留用户已经写好的前后缀。其他手写字段和文本不覆盖。
+            const formatWithSelectedField = format.replace(/\{\{\s*author\s*\}\}/g, nextToken);
+            if (formatWithSelectedField !== format) {
+                config.format = formatWithSelectedField;
+            } else if (!config._format_edited) {
+                if (!format.trim() || format.trim() === previousToken) {
+                    config.format = nextToken;
+                } else if (previousField && format.includes(previousToken)) {
+                    config.format = format.replaceAll(previousToken, nextToken);
+                }
+            }
+
+            config._auto_format_field = field;
+        },
+
+        insertSourceCreatorToken(config, field) {
+            if (!config || typeof config !== 'object') return;
+
+            const isSelectedField = Boolean(SOURCE_CREATOR_FIELD_META[field]);
+            const token = isSelectedField ? this.sourceCreatorFieldToken(field) : '{{author}}';
+            const format = typeof config.format === 'string' ? config.format : '';
+            const previousToken = config._auto_format_field
+                ? this.sourceCreatorFieldToken(config._auto_format_field)
+                : '{{author}}';
+
+            if (isSelectedField) config.author_field = field;
+
+            const formatWithSelectedField = format.replace(/\{\{\s*author\s*\}\}/g, token);
+            if (!format.trim() || format.trim() === '{{author}}' || format.trim() === previousToken) {
+                config.format = token;
+            } else if (formatWithSelectedField !== format) {
+                config.format = formatWithSelectedField;
+            } else {
+                config.format = `${format}${format.endsWith(' ') ? '' : ' '}${token}`;
+            }
+
+            config._format_edited = false;
+            config._auto_format_field = isSelectedField ? field : config.author_field;
         },
 
         selectActionType(action, type) {
