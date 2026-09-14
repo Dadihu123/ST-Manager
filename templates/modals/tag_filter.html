@@ -296,7 +296,8 @@
             </label>
           </div>
         </div>
-        <div class="tag-filter-mobile-utility">
+        <div class="tag-filter-mobile-content custom-scrollbar">
+          <div class="tag-filter-mobile-utility">
           <label
             class="tag-filter-mobile-search"
             x-show="mobileActiveTab !== 'sort'"
@@ -572,7 +573,7 @@
             <div class="text-xs" style="color: var(--content-muted)">
               可点击标签增减选择，也可用下方分隔符输入批量选中。
             </div>
-            <div class="tag-category-editor-row tag-category-editor-row-main">
+            <div class="tag-category-editor-row tag-category-editor-row-main tag-category-editor-row-main--mobile-selection">
               <input
                 type="text"
                 x-model="categorySelectionInput"
@@ -589,7 +590,7 @@
                 批量选中
               </button>
             </div>
-            <div class="tag-category-editor-row tag-category-editor-row-main">
+            <div class="tag-category-editor-row tag-category-editor-row-main tag-category-editor-row-main--mobile-category">
               <input
                 type="text"
                 x-model="categoryDraftName"
@@ -632,7 +633,7 @@
                 保存分类
               </button>
             </div>
-            <div class="tag-category-quick-list">
+            <div class="tag-category-quick-list" x-show="!showCategoryManager">
               <template
                 x-for="name in availableCategoryNames"
                 :key="'mobile-cat-opt-' + name"
@@ -657,14 +658,17 @@
             <button
               type="button"
               @click="toggleCategoryManager()"
-              class="btn-action-soft text-xs px-3 py-1 rounded font-bold shadow-md"
+              class="btn-action-soft tag-filter-mobile-category-manager-toggle text-xs px-3 py-1 rounded font-bold shadow-md"
+              :aria-expanded="showCategoryManager"
+              aria-controls="tag-filter-mobile-category-manager"
               x-text="showCategoryManager ? '收起分类管理' : '分类管理'"
             ></button>
             <div
               x-show="$store.global.deviceType === 'mobile' && showCategoryManager && mobileActiveTab === 'category'"
+              id="tag-filter-mobile-category-manager"
               class="tag-filter-mobile-category-manager"
             >
-              <div class="tag-category-editor-row tag-category-editor-row-main">
+              <div class="tag-category-editor-row tag-category-editor-row-main tag-category-editor-row-main--mobile-manager-draft">
                 <input
                   type="text"
                   x-model="categoryManagerDraftName"
@@ -735,12 +739,13 @@
                         x-text="item.count + ' 个标签'"
                       ></span>
                     </div>
-                    <div class="tag-category-manager-actions">
+                    <div class="tag-category-manager-controls">
                       <input
                         type="color"
                         :value="item.color"
                         class="tag-category-manager-color"
                         @change="setCategoryColor(item.name, $event.target.value)"
+                        :aria-label="'修改分类颜色：' + item.name"
                         title="修改分类颜色"
                       />
                       <div
@@ -761,14 +766,18 @@
                           x-text="getCategoryOpacity(item.name)"
                         ></span>
                       </div>
+                    </div>
+                    <div class="tag-category-manager-actions">
                       <button
                         type="button"
-                        class="tag-category-manager-btn"
+                        class="tag-category-manager-btn tag-category-manager-btn--icon"
                         @click="setDefaultCategory(item.name)"
                         :disabled="item.isDefault"
                         :style="item.isDefault ? 'opacity:0.45; cursor:not-allowed;' : ''"
+                        title="设为默认分类"
+                        aria-label="设为默认分类"
                       >
-                        设为默认
+                        <span aria-hidden="true">{{ icon('check', 'ui-icon--xs') }}</span>
                       </button>
                       <button
                         type="button"
@@ -794,19 +803,23 @@
                       </button>
                       <button
                         type="button"
-                        class="tag-category-manager-btn"
+                        class="tag-category-manager-btn tag-category-manager-btn--icon"
                         @click="renameCategory(item.name)"
+                        title="重命名"
+                        aria-label="重命名"
                       >
-                        重命名
+                        <span aria-hidden="true">{{ icon('pencil-edit', 'ui-icon--xs') }}</span>
                       </button>
                       <button
                         type="button"
-                        class="tag-category-manager-btn danger"
+                        class="tag-category-manager-btn tag-category-manager-btn--icon danger"
                         @click="deleteCategory(item.name)"
                         :disabled="item.isDefault"
                         :style="item.isDefault ? 'opacity:0.45; cursor:not-allowed;' : ''"
+                        title="删除分类"
+                        aria-label="删除分类"
                       >
-                        删除
+                        <span aria-hidden="true">{{ icon('trash', 'ui-icon--xs') }}</span>
                       </button>
                     </div>
                   </div>
@@ -818,11 +831,9 @@
         <div
           x-show="mobileActiveTab === 'sort' || mobileActiveTab === 'delete' || mobileActiveTab === 'blacklist'"
           class="tag-filter-mobile-category-strip"
+          role="group"
+          aria-label="分类快捷筛选"
         >
-          <div class="tag-filter-mobile-category-strip-heading">
-            <span aria-hidden="true">{{ sidebar_icon('layers', 'ui-icon--xs') }}</span>
-            <span>分类快捷筛选</span>
-          </div>
           <div class="tag-category-filter-row">
             <button
               type="button"
@@ -858,7 +869,7 @@
             <template x-if="isSortMode">
               <div class="tag-filter-mobile-sort-list">
                 <template x-if="mixedCategoryView">
-                  <div>
+                  <div class="tag-filter-mobile-sort-mixed-tags">
                     <template
                       x-for="tag in sortModeMixedTagsPool"
                       :key="'m-sort-' + tag"
@@ -1118,6 +1129,7 @@
               无匹配标签
             </div>
           </div>
+        </div>
         </div>
         <div class="tag-filter-mobile-bottombar">
           <div class="tag-filter-mobile-bottombar-status">
@@ -1525,6 +1537,7 @@
               </div>
               <div
                 class="tag-filter-current-mode-tool-area"
+                :class="desktopWorkspaceMode === 'category-manager' ? 'tag-filter-current-mode-tool-area--category-manager' : ''"
                 x-show="!isWorkspaceHelpOpen"
               >
                 <div class="tag-filter-workspace-tool-area-header">
@@ -1863,7 +1876,7 @@
                       目标分类
                     </div>
                     <div
-                      class="tag-category-editor-row tag-category-editor-row-main"
+                      class="tag-category-editor-row tag-category-editor-row-main tag-category-editor-row-main--selection"
                     >
                       <input
                         type="text"
@@ -1882,7 +1895,7 @@
                       </button>
                     </div>
                     <div
-                      class="tag-category-editor-row tag-category-editor-row-main"
+                      class="tag-category-editor-row tag-category-editor-row-main tag-category-editor-row-main--category"
                     >
                       <input
                         type="text"
@@ -2114,7 +2127,7 @@
                       >
                         <div class="tag-filter-category-manager-draft-area">
                           <div
-                            class="tag-category-editor-row tag-category-editor-row-main"
+                            class="tag-category-editor-row tag-category-editor-row-main tag-category-editor-row-main--manager-draft"
                           >
                             <input
                               type="text"
@@ -2228,12 +2241,14 @@
                                   </div>
                                   <button
                                     type="button"
-                                    class="tag-category-manager-btn"
+                                    class="tag-category-manager-btn tag-category-manager-btn--icon"
                                     @click="setDefaultCategory(item.name)"
                                     :disabled="item.isDefault"
                                     :style="item.isDefault ? 'opacity:0.45; cursor:not-allowed;' : ''"
+                                    title="设为默认"
+                                    aria-label="设为默认"
                                   >
-                                    设为默认
+                                    <span aria-hidden="true">{{ icon('check', 'ui-icon--xs') }}</span>
                                   </button>
                                   <button
                                     type="button"
@@ -2259,19 +2274,23 @@
                                   </button>
                                   <button
                                     type="button"
-                                    class="tag-category-manager-btn"
+                                    class="tag-category-manager-btn tag-category-manager-btn--icon"
                                     @click="renameCategory(item.name)"
+                                    title="重命名"
+                                    aria-label="重命名"
                                   >
-                                    重命名
+                                    <span aria-hidden="true">{{ icon('pencil-edit', 'ui-icon--xs') }}</span>
                                   </button>
                                   <button
                                     type="button"
-                                    class="tag-category-manager-btn danger"
+                                    class="tag-category-manager-btn tag-category-manager-btn--icon danger"
                                     @click="deleteCategory(item.name)"
                                     :disabled="item.isDefault"
                                     :style="item.isDefault ? 'opacity:0.45; cursor:not-allowed;' : ''"
+                                    title="删除分类"
+                                    aria-label="删除分类"
                                   >
-                                    删除
+                                    <span aria-hidden="true">{{ icon('trash', 'ui-icon--xs') }}</span>
                                   </button>
                                 </div>
                               </div>

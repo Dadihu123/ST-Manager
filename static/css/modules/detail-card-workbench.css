@@ -189,9 +189,11 @@ html.light-mode .ui-detail-modal .detail-modal--workbench .detail-visual-header 
   display: flex;
   height: 100%;
   justify-content: center;
+  justify-content: safe center;
   min-height: 0;
   min-width: 0;
   overflow: auto;
+  overflow-anchor: none;
   overscroll-behavior: contain;
   padding: 0;
   scrollbar-color: var(--scrollbar-thumb) transparent;

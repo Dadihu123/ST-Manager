@@ -10,6 +10,342 @@
   box-shadow: 0 20px 25px -5px color-mix(in srgb, var(--content-on-light) 50%, transparent);
 }
 
+/* Keep dense category controls readable when the desktop tool column is narrow. */
+@media (min-width: 900px) {
+  .tag-filter-desktop-shell
+    .tag-filter-current-mode-tool-panel--batch-category
+    .tag-category-editor-row-main--selection {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) max-content;
+    align-items: stretch;
+    min-width: 0;
+  }
+
+  .tag-filter-desktop-shell
+    .tag-filter-current-mode-tool-panel--batch-category
+    .tag-category-editor-row-main--selection
+    > .form-input {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .tag-filter-desktop-shell
+    .tag-filter-current-mode-tool-panel--batch-category
+    .tag-category-editor-row-main--selection
+    > button {
+    min-width: 5rem;
+    white-space: nowrap;
+  }
+
+  .tag-filter-desktop-shell
+    .tag-category-editor-row-main--category,
+  .tag-filter-desktop-shell
+    .tag-category-editor-row-main--manager-draft {
+    display: grid;
+    grid-template-columns: 2.55rem minmax(0, 1fr) max-content;
+    grid-template-areas:
+      'name name name'
+      'color opacity action';
+    align-items: stretch;
+    min-width: 0;
+  }
+
+  .tag-filter-desktop-shell
+    .tag-category-editor-row-main--category
+    > .form-input,
+  .tag-filter-desktop-shell
+    .tag-category-editor-row-main--manager-draft
+    > .form-input {
+    grid-area: name;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .tag-filter-desktop-shell
+    .tag-category-editor-row-main--category
+    > .tag-category-color-input,
+  .tag-filter-desktop-shell
+    .tag-category-editor-row-main--manager-draft
+    > .tag-category-color-input {
+    grid-area: color;
+    width: 2.55rem;
+    height: 2.65rem;
+    min-width: 2.55rem;
+    min-height: 2.65rem;
+    padding: 0.18rem;
+  }
+
+  .tag-filter-desktop-shell
+    .tag-category-editor-row-main--category
+    > .tag-opacity-control,
+  .tag-filter-desktop-shell
+    .tag-category-editor-row-main--manager-draft
+    > .tag-opacity-control {
+    grid-area: opacity;
+    display: flex;
+    min-width: 0;
+    width: 100%;
+    overflow: hidden;
+  }
+
+  .tag-filter-desktop-shell
+    .tag-category-editor-row-main--category
+    > .tag-opacity-control
+    .tag-opacity-slider,
+  .tag-filter-desktop-shell
+    .tag-category-editor-row-main--manager-draft
+    > .tag-opacity-control
+    .tag-opacity-slider {
+    min-width: 0;
+    width: auto;
+    flex: 1 1 auto;
+  }
+
+  .tag-filter-desktop-shell
+    .tag-category-editor-row-main--category
+    > .tag-opacity-control
+    .tag-opacity-number,
+  .tag-filter-desktop-shell
+    .tag-category-editor-row-main--manager-draft
+    > .tag-opacity-control
+    .tag-opacity-number {
+    flex: 0 0 3rem;
+  }
+
+  .tag-filter-desktop-shell
+    .tag-category-editor-row-main--category
+    > button,
+  .tag-filter-desktop-shell
+    .tag-category-editor-row-main--manager-draft
+    > button {
+    grid-area: action;
+    min-width: 5.5rem;
+    white-space: nowrap;
+  }
+
+  .tag-filter-desktop-shell
+    .tag-filter-category-manager-registry-list:not(
+      .tag-category-manager-registry-list--legacy
+    ) {
+    gap: 0.4rem;
+  }
+
+  .tag-filter-desktop-shell
+    .tag-filter-category-manager-registry-list
+    .tag-category-manager-item {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.35rem;
+    min-width: 0;
+    padding: 0.45rem 0.5rem;
+  }
+
+  .tag-filter-desktop-shell
+    .tag-filter-category-manager-registry-list
+    .tag-category-manager-main {
+    min-width: 0;
+    gap: 0.35rem;
+  }
+
+  .tag-filter-desktop-shell
+    .tag-filter-category-manager-registry-list
+    .tag-category-manager-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .tag-filter-desktop-shell
+    .tag-filter-category-manager-registry-list
+    .tag-category-manager-count {
+    flex: 0 0 auto;
+    margin-left: auto;
+    white-space: nowrap;
+  }
+
+  .tag-filter-desktop-shell
+    .tag-filter-category-manager-registry-list
+    .tag-category-manager-actions {
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: 0.25rem;
+    min-width: 0;
+    width: 100%;
+    overflow-x: auto;
+    padding-bottom: 0.1rem;
+    scrollbar-width: thin;
+  }
+
+  .tag-filter-desktop-shell
+    .tag-filter-category-manager-registry-list
+    .tag-category-manager-color {
+    flex: 0 0 2.1rem;
+    width: 2.1rem;
+    height: 2.1rem;
+    min-width: 2.1rem;
+  }
+
+  .tag-filter-desktop-shell
+    .tag-filter-category-manager-registry-list
+    .tag-category-manager-opacity-wrap {
+    flex: 1 1 6rem;
+    min-width: 5.5rem;
+  }
+
+  .tag-filter-desktop-shell
+    .tag-filter-category-manager-registry-list
+    .tag-category-manager-opacity-slider {
+    min-width: 0;
+    width: auto;
+    flex: 1 1 auto;
+  }
+
+  .tag-filter-desktop-shell
+    .tag-filter-category-manager-registry-list
+    .tag-category-manager-opacity-text {
+    flex: 0 0 1.35rem;
+  }
+
+  .tag-filter-desktop-shell
+    .tag-filter-category-manager-registry-list
+    .tag-category-manager-btn {
+    display: inline-flex;
+    flex: 0 0 2.1rem;
+    width: 2.1rem;
+    min-width: 2.1rem;
+    min-height: 2.1rem;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    white-space: nowrap;
+  }
+
+  .tag-filter-desktop-shell
+    .tag-filter-category-manager-registry-list
+    .tag-category-manager-btn .ui-icon {
+    width: 0.9rem;
+    height: 0.9rem;
+  }
+
+  .tag-filter-desktop-shell
+    .tag-filter-current-mode-tool-area--category-manager
+    .tag-filter-current-mode-tool-panel--view {
+    gap: 0.55rem;
+    padding: 0.65rem 0.75rem;
+  }
+
+  .tag-filter-desktop-shell
+    .tag-filter-current-mode-tool-area--category-manager
+    .tag-filter-current-mode-tool-panel--view
+    .tag-filter-current-mode-tool-header {
+    align-items: center;
+    min-height: 1.25rem;
+  }
+
+  .tag-filter-desktop-shell
+    .tag-filter-current-mode-tool-area--category-manager
+    .tag-filter-current-mode-tool-panel--view
+    .tag-filter-current-mode-tool-header
+    .text-xs {
+    display: none;
+  }
+
+  .tag-filter-desktop-shell
+    .tag-filter-current-mode-tool-area--category-manager
+    .tag-filter-current-mode-tool-panel--view
+    .tag-filter-workspace-top-tab {
+    min-height: 1.8rem;
+    padding-block: 0.25rem;
+  }
+
+  .tag-filter-desktop-shell
+    .tag-filter-current-mode-tool-area--category-manager
+    .tag-filter-current-mode-tool-panel--view
+    > .text-xs {
+    display: none;
+  }
+
+  .tag-filter-desktop-shell
+    .tag-category-editor-row-main--manager-draft {
+    gap: 0.35rem;
+  }
+
+  .tag-filter-desktop-shell
+    .tag-category-editor-row-main--manager-draft
+    > .form-input {
+    height: 2.25rem;
+    padding: 0.3rem 0.5rem;
+  }
+
+  .tag-filter-desktop-shell
+    .tag-category-editor-row-main--manager-draft
+    > .tag-category-color-input,
+  .tag-filter-desktop-shell
+    .tag-category-editor-row-main--manager-draft
+    > .tag-opacity-control,
+  .tag-filter-desktop-shell
+    .tag-category-editor-row-main--manager-draft
+    > button {
+    height: 2.25rem;
+    min-height: 2.25rem;
+  }
+
+  .tag-filter-desktop-shell
+    .tag-filter-category-manager-registry-list
+    .tag-category-manager-item {
+    gap: 0.25rem;
+    padding: 0.3rem 0.4rem;
+  }
+
+  .tag-filter-desktop-shell
+    .tag-filter-category-manager-registry-list
+    .tag-category-manager-actions {
+    gap: 0.2rem;
+    min-height: 1.75rem;
+    padding-bottom: 0;
+  }
+
+  .tag-filter-desktop-shell
+    .tag-filter-category-manager-registry-list
+    .tag-category-manager-color {
+    flex-basis: 1.75rem;
+    width: 1.75rem;
+    height: 1.75rem;
+    min-width: 1.75rem;
+  }
+
+  .tag-filter-desktop-shell
+    .tag-filter-category-manager-registry-list
+    .tag-category-manager-opacity-wrap {
+    flex-basis: 4.25rem;
+    min-width: 4.25rem;
+    padding: 0.04rem 0.25rem;
+  }
+
+  .tag-filter-desktop-shell
+    .tag-filter-category-manager-registry-list
+    .tag-category-manager-opacity-text {
+    width: 1.2rem;
+  }
+
+  .tag-filter-desktop-shell
+    .tag-filter-category-manager-registry-list
+    .tag-category-manager-btn {
+    flex-basis: 1.75rem;
+    width: 1.75rem;
+    min-width: 1.75rem;
+    min-height: 1.75rem;
+  }
+
+  .tag-filter-desktop-shell
+    .tag-filter-category-manager-registry-list
+    .tag-category-manager-btn.ui-reorder-button {
+    height: 1.75rem;
+    min-height: 1.75rem;
+  }
+}
+
 .tag-modal-container.tag-modal-container--desktop-fullscreen {
   width: 100%;
   max-width: 100%;
@@ -4153,7 +4489,19 @@ html.light-mode .preview-toggle-inactive {
   }
 
   .tag-filter-desktop-shell .tag-filter-desktop-main {
-    grid-template-columns: minmax(0, 1fr) minmax(16rem, 19rem);
+    grid-template-columns: minmax(0, 1fr) minmax(18rem, 20rem);
+  }
+
+  .tag-filter-desktop-shell
+    .tag-filter-category-manager-registry-list
+    .tag-category-manager-actions {
+    gap: 0.15rem;
+  }
+
+  .tag-filter-desktop-shell
+    .tag-filter-category-manager-registry-list
+    .tag-category-manager-opacity-wrap {
+    min-width: 3.5rem;
   }
 }
 
@@ -5598,5 +5946,355 @@ html.light-mode .preview-toggle-inactive {
     color: var(--content-muted);
     font-size: 0.76rem;
     line-height: 1.6;
+  }
+}
+
+/* Final mobile workbench sizing overrides. */
+@media (max-width: 899px) {
+  .tag-filter-mobile-tabs button,
+  .tag-filter-mobile-tabs button:hover {
+    border-color: transparent;
+  }
+
+  .tag-filter-mobile-content {
+    display: flex;
+    min-width: 0;
+    min-height: 0;
+    flex: 1 1 auto;
+    flex-direction: column;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-gutter: stable;
+    background: var(--surface-page);
+  }
+
+  .tag-filter-mobile-content > .tag-filter-mobile-utility,
+  .tag-filter-mobile-content > .tag-filter-mobile-category-strip,
+  .tag-filter-mobile-content > .tag-filter-mobile-main {
+    flex: 0 0 auto;
+  }
+
+  .tag-filter-mobile-content > .tag-filter-mobile-main {
+    flex: 0 0 auto;
+    min-height: 0;
+    overflow: visible;
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 1.25rem);
+  }
+
+  .tag-filter-mobile-main .tag-cloud-container {
+    overflow: visible;
+  }
+
+  .tag-filter-mobile-category-strip {
+    display: block;
+  }
+
+  .tag-filter-mobile-category-strip .tag-category-filter-row {
+    width: 100%;
+  }
+
+  .tag-filter-mobile-sort-list > .tag-filter-mobile-sort-mixed-tags,
+  .tag-filter-mobile-sort-group-tags {
+    display: flex;
+    min-width: 0;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+  }
+
+  .tag-filter-mobile-main .tag-filter-mobile-sort-row,
+  .tag-filter-mobile-sort-row {
+    box-sizing: border-box;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    flex: 1 1 8.75rem;
+    width: auto;
+    min-width: min(100%, 8.75rem);
+    max-width: 100%;
+    min-height: 2.75rem;
+    align-items: center;
+    gap: 0.3rem;
+    margin: 0;
+    padding: 0.3rem 0.35rem;
+  }
+
+  .tag-filter-mobile-sort-row .tag-chip-drag-handle {
+    display: none;
+  }
+
+  .tag-filter-mobile-sort-row .ui-reorder-button,
+  .tag-filter-mobile-main .ui-reorder-button {
+    width: 2.75rem;
+    height: 2.75rem;
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+    padding: 0;
+    touch-action: manipulation;
+  }
+
+  .tag-filter-mobile-panel--category
+    .tag-category-editor-row-main--mobile-category,
+  .tag-filter-mobile-category-manager
+    .tag-category-editor-row-main--mobile-manager-draft {
+    display: grid;
+    grid-template-columns: 2.75rem minmax(0, 1fr) max-content;
+    grid-template-areas:
+      'name name name'
+      'color opacity action';
+    align-items: stretch;
+    gap: 0.45rem;
+    min-width: 0;
+  }
+
+  .tag-filter-mobile-panel--category
+    .tag-category-editor-row-main--mobile-category
+    > .form-input,
+  .tag-filter-mobile-category-manager
+    .tag-category-editor-row-main--mobile-manager-draft
+    > .form-input {
+    grid-area: name;
+    width: 100%;
+    min-width: 0;
+    min-height: 2.75rem !important;
+    flex: none;
+  }
+
+  .tag-filter-mobile-panel--category
+    .tag-category-editor-row-main--mobile-category
+    > .tag-category-color-input,
+  .tag-filter-mobile-category-manager
+    .tag-category-editor-row-main--mobile-manager-draft
+    > .tag-category-color-input {
+    grid-area: color;
+    width: 2.75rem;
+    height: 2.75rem;
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+    padding: 0.28rem;
+  }
+
+  .tag-filter-mobile-panel--category
+    .tag-category-editor-row-main--mobile-category
+    > .tag-opacity-control,
+  .tag-filter-mobile-category-manager
+    .tag-category-editor-row-main--mobile-manager-draft
+    > .tag-opacity-control {
+    display: flex;
+    grid-area: opacity;
+    width: 100%;
+    min-width: 0;
+    min-height: 2.75rem;
+    overflow: hidden;
+  }
+
+  .tag-filter-mobile-panel--category .tag-opacity-control .tag-opacity-slider,
+  .tag-filter-mobile-category-manager .tag-opacity-control .tag-opacity-slider {
+    width: auto;
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  .tag-filter-mobile-panel--category .tag-opacity-control .tag-opacity-number,
+  .tag-filter-mobile-category-manager .tag-opacity-control .tag-opacity-number {
+    flex: 0 0 3rem;
+  }
+
+  .tag-filter-mobile-panel--category
+    .tag-category-editor-row-main--mobile-category
+    > button,
+  .tag-filter-mobile-category-manager
+    .tag-category-editor-row-main--mobile-manager-draft
+    > button {
+    grid-area: action;
+    min-width: max-content;
+    min-height: 2.75rem;
+    padding-inline: 0.6rem;
+    white-space: nowrap;
+    touch-action: manipulation;
+  }
+
+  .tag-filter-mobile-category-manager-toggle {
+    width: 100%;
+    min-height: 2.75rem;
+    touch-action: manipulation;
+  }
+
+  .tag-filter-mobile-category-manager .tag-category-manager-list {
+    max-height: none;
+    overflow: visible;
+  }
+
+  .tag-filter-mobile-category-manager .tag-category-manager-item {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(10rem, 11rem);
+    grid-template-areas:
+      'main controls'
+      'actions actions';
+    min-height: 2.5rem;
+    gap: 0.35rem;
+    min-width: 0;
+    padding: 0.3rem 0.4rem;
+  }
+
+  .tag-filter-mobile-category-manager .tag-category-manager-main {
+    display: flex;
+    grid-area: main;
+    flex: 1 1 auto;
+    min-width: 0;
+    align-items: center;
+    gap: 0.25rem;
+    overflow: hidden;
+    justify-content: flex-start;
+  }
+
+  .tag-filter-mobile-category-manager .tag-category-manager-name {
+    min-width: 0;
+    overflow: hidden;
+    flex: 0 1 auto;
+    max-width: 100%;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .tag-filter-mobile-category-manager .tag-category-manager-opacity-pill {
+    display: none;
+  }
+
+  .tag-filter-mobile-category-manager .tag-category-manager-default,
+  .tag-filter-mobile-category-manager .tag-category-manager-count {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .tag-filter-mobile-category-manager .tag-category-manager-count {
+    flex: 0 0 auto;
+    margin-left: 0;
+  }
+
+  .tag-filter-mobile-category-manager .tag-category-manager-actions {
+    display: flex;
+    grid-area: actions;
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: 0.2rem;
+    min-width: 0;
+    width: auto;
+    overflow: visible;
+    justify-content: flex-end;
+  }
+
+  .tag-filter-mobile-category-manager .tag-category-manager-controls {
+    display: flex;
+    grid-area: controls;
+    width: 100%;
+    min-width: 0;
+    align-items: center;
+    gap: 0.2rem;
+  }
+
+  .tag-filter-mobile-category-manager .tag-category-manager-controls .tag-category-manager-color {
+    flex: 0 0 1.75rem;
+    width: 1.75rem;
+    height: 1.75rem;
+    min-width: 1.75rem;
+    min-height: 1.75rem;
+    padding: 0.18rem;
+  }
+
+  .tag-filter-mobile-category-manager .tag-category-manager-controls .tag-category-manager-opacity-wrap {
+    display: flex;
+    align-items: center;
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
+    min-height: 2.75rem;
+    gap: 0.12rem;
+    padding: 0.15rem 0.3rem;
+    overflow: hidden;
+  }
+
+  .tag-filter-mobile-category-manager .tag-category-manager-opacity-slider {
+    width: auto;
+    min-width: 4.5rem;
+    height: 2.1rem;
+    flex: 1 1 auto;
+    touch-action: manipulation;
+  }
+
+  .tag-filter-mobile-category-manager .tag-category-manager-opacity-text {
+    flex: 0 0 1.1rem;
+    width: 1.1rem;
+    font-size: 0.58rem;
+  }
+
+  .tag-filter-mobile-category-manager .tag-category-manager-btn {
+    display: inline-flex;
+    flex: 0 0 2.75rem;
+    width: 2.75rem;
+    height: 2.75rem;
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border-radius: 0.42rem;
+    touch-action: manipulation;
+  }
+
+  .tag-filter-mobile-category-manager .tag-category-manager-btn .ui-icon {
+    width: 0.85rem;
+    height: 0.85rem;
+  }
+}
+
+@media (max-width: 420px) {
+  .tag-filter-mobile-category-manager .tag-category-manager-default {
+    display: none;
+  }
+}
+
+@media (max-width: 360px) {
+  .tag-filter-mobile-category-manager .tag-category-manager-item {
+    gap: 0.25rem;
+    padding-inline: 0.3rem;
+  }
+
+  .tag-filter-mobile-category-manager .tag-category-manager-main {
+    gap: 0.18rem;
+  }
+
+  .tag-filter-mobile-category-manager .tag-category-manager-count {
+    display: none;
+  }
+
+  .tag-filter-mobile-category-manager .tag-category-manager-actions {
+    gap: 0.12rem;
+  }
+
+  .tag-filter-mobile-category-manager .tag-category-manager-controls .tag-category-manager-color {
+    flex-basis: 1.6rem;
+    width: 1.6rem;
+    height: 1.6rem;
+    min-width: 1.6rem;
+    min-height: 1.6rem;
+  }
+
+  .tag-filter-mobile-category-manager .tag-category-manager-controls .tag-category-manager-opacity-wrap {
+    flex-basis: auto;
+    width: auto;
+    min-width: 0;
+  }
+
+  .tag-filter-mobile-category-manager .tag-category-manager-opacity-text {
+    display: block;
+  }
+
+  .tag-filter-mobile-category-manager .tag-category-manager-btn .ui-icon {
+    width: 0.78rem;
+    height: 0.78rem;
   }
 }
