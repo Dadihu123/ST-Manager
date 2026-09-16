@@ -27,9 +27,11 @@ def test_worldinfo_grid_js_send_to_st_contracts():
     assert 'isSendingWorldInfoToST(itemId) {' in source
     assert 'getWorldInfoSendToSTTitle(item) {' in source
     assert 'applyWorldInfoSentState(detail) {' in source
+    assert 'getWorldInfoSentFieldName() {' in source
+    assert 'getLastSentFieldName?.() || "last_sent_to_st"' in source
     assert 'window.addEventListener("wi-sent-to-st"' in source
     assert 'detail.id' in source
-    assert 'detail.last_sent_to_st' in source
+    assert 'detail[sentField]' in source
     assert 'this.applyWorldInfoSentState(detail);' in source
 
 
@@ -62,3 +64,6 @@ def test_worldinfo_detail_popup_template_send_to_st_contracts():
     assert '@click="sendActiveWorldInfoToST()"' in source
     assert 'x-show="canSendActiveWorldInfoToST()"' in source
     assert '发送到 ST' in source
+    assert "'send-target-tint': true" in source
+    assert "'has-sent': getActiveWorldInfoSentAt() > 0" in source
+    assert "'is-sending': isSendingWorldInfoToST" in source

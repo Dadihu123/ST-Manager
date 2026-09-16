@@ -79,6 +79,8 @@ const TOAST_ICON_IMAGES = Object.freeze({
 const TOAST_ICON_NAMES = new Set([
   "forbidden",
   "card-send-to-st",
+  "sillytavern",
+  "tauritavern",
   "folder",
   "loading-animation",
   "close",
@@ -1312,6 +1314,26 @@ export function initState() {
 
     isTauriTavernTarget() {
       return this.settingsForm.st_target === "tauritavern";
+    },
+
+    // 发送目标对应的品牌图标与时间戳字段；两套发送记录互相独立，
+    // 因此切换目标后只展示当前目标自己的发送历史。
+    getSendTargetIconName() {
+      return this.isTauriTavernTarget() ? "tauritavern" : "sillytavern";
+    },
+
+    getLastSentFieldName() {
+      return this.isTauriTavernTarget() ? "last_sent_to_tt" : "last_sent_to_st";
+    },
+
+    getLastSentAt(item) {
+      if (!item) return 0;
+
+      return Number(item[this.getLastSentFieldName()] || 0);
+    },
+
+    hasSentToCurrentTarget(item) {
+      return this.getLastSentAt(item) > 0;
     },
 
     // 保存设置

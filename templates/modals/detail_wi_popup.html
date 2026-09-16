@@ -485,6 +485,7 @@
               @click="sendActiveWorldInfoToST()"
               x-show="canSendActiveWorldInfoToST()"
               class="btn-secondary py-1.5 text-xs flex flex-col items-center justify-center gap-0.5"
+              :class="{ 'send-target-tint': true, 'has-sent': getActiveWorldInfoSentAt() > 0, 'is-sending': isSendingWorldInfoToST, 'is-target-tt': $store.global.isTauriTavernTarget?.() }"
               :title="getActiveWorldInfoSendToSTTitle()"
               :disabled="isSendingWorldInfoToST"
             >

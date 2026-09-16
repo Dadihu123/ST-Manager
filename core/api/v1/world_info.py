@@ -15,11 +15,13 @@ from core.context import ctx
 from core.data.db_session import get_db
 from core.data.ui_store import (
     get_last_sent_to_st,
+    get_last_sent_to_tt,
     load_ui_data,
     save_ui_data,
     UI_DATA_FILE,
     get_resource_item_categories,
     set_last_sent_to_st,
+    set_last_sent_to_tt,
     set_resource_item_categories,
     get_worldinfo_note,
     set_worldinfo_note,
@@ -424,6 +426,29 @@ def _get_worldinfo_last_sent_to_st(ui_data: dict, source_type: str, file_path: s
     return get_last_sent_to_st(ui_data, ui_key) if ui_key else 0.0
 
 
+def _get_worldinfo_last_sent_to_tt(ui_data: dict, source_type: str, file_path: str, cfg: dict) -> float:
+    ui_key = _get_worldinfo_ui_key(source_type, file_path, cfg)
+    return get_last_sent_to_tt(ui_data, ui_key) if ui_key else 0.0
+
+
+def _apply_worldinfo_last_sent_fields(
+    target: dict,
+    ui_data: dict,
+    source_type: str,
+    file_path: str,
+    cfg: dict,
+) -> None:
+    """同时写入 ST 与 TauriTavern 两个发送时间戳，便于前端按当前目标区分显示。"""
+    ui_key = _get_worldinfo_ui_key(source_type, file_path, cfg)
+    if not ui_key:
+        target['last_sent_to_st'] = 0.0
+        target['last_sent_to_tt'] = 0.0
+        return
+
+    target['last_sent_to_st'] = get_last_sent_to_st(ui_data, ui_key)
+    target['last_sent_to_tt'] = get_last_sent_to_tt(ui_data, ui_key)
+
+
 def _is_sendable_worldinfo_payload(data) -> bool:
     # 发送前会把旧版条目数组转换成 ST 的 {entries: ...} 结构；其他入口
     # 仍然只接受 SillyTavern 原生的顶层 entries 格式。
@@ -557,7 +582,8 @@ def _enrich_indexed_worldinfo_item(item: dict, card_map: dict, ui_data: dict, cf
         enriched['card_id'] = ''
         enriched['card_name'] = ''
         enriched['ui_summary'] = _get_worldinfo_ui_summary(ui_data, 'global', file_path=str(enriched.get('path') or ''))
-        enriched['last_sent_to_st'] = _get_worldinfo_last_sent_to_st(
+        _apply_worldinfo_last_sent_fields(
+            enriched,
             ui_data,
             'global',
             str(enriched.get('path') or ''),
@@ -567,7 +593,8 @@ def _enrich_indexed_worldinfo_item(item: dict, card_map: dict, ui_data: dict, cf
         enriched['card_id'] = owner_card_id
         enriched['card_name'] = owner_card_name
         enriched['ui_summary'] = _get_worldinfo_ui_summary(ui_data, 'resource', file_path=str(enriched.get('path') or ''))
-        enriched['last_sent_to_st'] = _get_worldinfo_last_sent_to_st(
+        _apply_worldinfo_last_sent_fields(
+            enriched,
             ui_data,
             'resource',
             str(enriched.get('path') or ''),
@@ -579,6 +606,7 @@ def _enrich_indexed_worldinfo_item(item: dict, card_map: dict, ui_data: dict, cf
         enriched['card_uid'] = owner_card_uid
         enriched['ui_summary'] = _get_embedded_worldinfo_ui_summary(ui_data, card_id=owner_card_id)
         enriched['last_sent_to_st'] = 0.0
+        enriched['last_sent_to_tt'] = 0.0
 
     return enriched
 
@@ -1323,6 +1351,7 @@ def api_list_world_infos():
                                     "owner_card_category": "",
                                     "ui_summary": _get_worldinfo_ui_summary(ui_data, 'global', file_path=full_path),
                                     "last_sent_to_st": _get_worldinfo_last_sent_to_st(ui_data, 'global', full_path, cfg),
+                                    "last_sent_to_tt": _get_worldinfo_last_sent_to_tt(ui_data, 'global', full_path, cfg),
                                 })
                         except Exception as e: 
                             print(f"Error reading WI {f}: {e}")
@@ -1390,6 +1419,7 @@ def api_list_world_infos():
                                         "owner_card_category": owner_category,
                                         "ui_summary": _get_worldinfo_ui_summary(ui_data, 'resource', file_path=full_path),
                                         "last_sent_to_st": _get_worldinfo_last_sent_to_st(ui_data, 'resource', full_path, cfg),
+                                        "last_sent_to_tt": _get_worldinfo_last_sent_to_tt(ui_data, 'resource', full_path, cfg),
                                     })
                             except: continue
         # 3. 角色卡内嵌 (Embedded) - 查询数据库
@@ -1424,6 +1454,7 @@ def api_list_world_infos():
                     "owner_card_category": owner_category,
                     "ui_summary": _get_embedded_worldinfo_ui_summary(ui_data, card_id=row['id']),
                     "last_sent_to_st": 0.0,
+                    "last_sent_to_tt": 0.0,
                 })
 
         source_items = list(items)
@@ -1936,14 +1967,14 @@ def api_send_world_info_to_st():
 
             ui_data = load_ui_data()
             ui_key = _get_worldinfo_ui_key(source_type, file_path, cfg)
-            _, last_sent_to_st = set_last_sent_to_st(ui_data, ui_key, time.time())
+            _, last_sent_to_tt = set_last_sent_to_tt(ui_data, ui_key, time.time())
             save_ui_data(ui_data)
             invalidate_wi_list_cache()
             return jsonify({
                 'success': True,
                 'target': 'tauritavern',
                 'target_path': result['path'],
-                'last_sent_to_st': last_sent_to_st,
+                'last_sent_to_tt': last_sent_to_tt,
             })
 
         st_client = build_st_http_client(cfg, timeout=10)
@@ -2079,6 +2110,7 @@ def api_get_world_info_detail():
         resp['ui_summary'] = _get_worldinfo_ui_summary(ui_data, effective_source, file_path=file_path)
         if effective_source in ('global', 'resource'):
             resp['last_sent_to_st'] = _get_worldinfo_last_sent_to_st(ui_data, effective_source, file_path, cfg)
+        resp['last_sent_to_tt'] = _get_worldinfo_last_sent_to_tt(ui_data, effective_source, file_path, cfg)
         resp['source_revision'] = build_file_source_revision(file_path)
         return jsonify(resp)
     except Exception as e:

@@ -2671,10 +2671,24 @@
                       ></span>
                     </div>
                     <div class="detail-manage-kv-row">
-                      <span class="detail-manage-kv-label">上次发送到 ST</span>
+                      <span class="detail-manage-kv-label">
+                        <span class="detail-sent-target-mark" aria-hidden="true">
+                          <svg
+                            class="ui-icon ui-icon--xs"
+                            aria-hidden="true"
+                            focusable="false"
+                            viewBox="0 0 24 24"
+                          >
+                            <use
+                              :href="'/static/icons/ui.svg#icon-' + ($store.global.getSendTargetIconName?.() || 'sillytavern')"
+                            ></use>
+                          </svg>
+                        </span>
+                        <span x-text="getActiveCardLastSentLabel()"></span>
+                      </span>
                       <span
                         class="detail-manage-kv-value"
-                        x-text="formatDateWithYear(activeCard.last_sent_to_st)"
+                        x-text="formatDateWithYear(getActiveCardSentAt())"
                       ></span>
                     </div>
                   </div>
@@ -3043,7 +3057,8 @@
                           :aria-busy="isSendingToST.toString()"
                           :aria-label="isSendingToST ? '正在发送到 ST' : ($store.global.getSendTargetActionLabel ? $store.global.getSendTargetActionLabel() : '发送到 ST')"
                           :title="($store.global.getSendTargetActionLabel ? $store.global.getSendTargetActionLabel() : '发送到 ST') + '当前角色卡'"
-                          class="btn-update-card detail-manage-action-btn detail-manage-action-btn--st"
+                          class="btn-update-card detail-manage-action-btn detail-manage-action-btn--st send-target-tint"
+                          :class="{ 'has-sent': getActiveCardSentAt() > 0, 'is-sending': isSendingToST, 'is-target-tt': $store.global.isTauriTavernTarget?.() }"
                         >
                           <span x-show="!isSendingToST">{{ icon('card-send-to-st', 'ui-icon--lg') }}</span>
                           <span x-show="isSendingToST">{{ loading_icon('ui-icon--lg') }}</span>

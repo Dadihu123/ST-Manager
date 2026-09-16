@@ -1737,6 +1737,22 @@ html.light-mode .skin-gallery-folder-symbol {
   flex-shrink: 0;
 }
 
+/* 发送目标品牌标识：随一键发送目标（ST / TauriTavern）切换。 */
+.detail-sent-target-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  margin-right: 4px;
+  vertical-align: -2px;
+}
+
+.detail-sent-target-mark .ui-icon {
+  width: 14px;
+  height: 14px;
+}
+
 .detail-manage-kv-value {
   font-family:
     ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",

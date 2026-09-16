@@ -104,6 +104,23 @@ def test_card_toolbar_uses_detail_note_and_requested_sprite_icons():
     assert 'background: transparent !important;' in card_css
 
 
+def test_send_button_target_and_sent_states_share_the_target_color_contract():
+    card_css = read_project_file('static/css/color-system.css')
+    detail_template = read_project_file('templates/modals/detail_card.html')
+    detail_js = read_project_file('static/js/components/detailModal.js')
+
+    assert '--send-target-color: var(--send-target-st-tint);' in card_css
+    assert '--send-target-color: var(--send-target-tt-tint);' in card_css
+    assert '.card-send-st-btn:not(.is-sending).has-sent {' in card_css
+    assert '.send-target-tint.has-sent:not(.is-sending) {' in card_css
+    assert 'detail-manage-action-btn--st send-target-tint' in detail_template
+    assert "'has-sent': getActiveCardSentAt() > 0" in detail_template
+    assert "'is-sending': isSendingToST" in detail_template
+    assert "getLastSentFieldName?.() || 'last_sent_to_st'" in detail_js
+    assert 'getSendTargetSuccessMessage?.() || "发送成功"' in detail_js
+    assert 'getSendTargetIconName?.() || "card-send-to-st"' in detail_js
+
+
 def test_card_controls_are_sibling_layer_above_cards_css_effect():
     card_grid_template = read_project_file('templates/components/grid_cards.html')
     card_css = read_project_file('static/css/modules/view-cards.css')

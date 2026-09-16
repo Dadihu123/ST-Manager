@@ -62,17 +62,24 @@
   gap: 0.75rem;
 }
 
+/* Open glyph, no frame: matches the settings header title mark and gives the
+ * mark enough presence to stand on its own without a surrounding chip. */
 .ui-modal-header-icon {
   display: inline-flex;
-  flex: 0 0 2.25rem;
+  flex: 0 0 2.5rem;
   align-items: center;
   justify-content: center;
-  width: 2.25rem;
-  height: 2.25rem;
+  width: 2.5rem;
+  height: 2.5rem;
   color: var(--action-icon);
-  background: var(--action-surface);
-  border: 1px solid var(--action-border);
-  border-radius: var(--ui-radius-sm);
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+}
+
+.ui-modal-header-icon .ui-icon {
+  width: 1.75rem;
+  height: 1.75rem;
 }
 
 .ui-modal-eyebrow {

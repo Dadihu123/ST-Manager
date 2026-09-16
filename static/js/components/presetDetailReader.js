@@ -183,11 +183,14 @@ export default function presetDetailReader() {
       window.addEventListener("preset-sent-to-st", (e) => {
         const detail = e.detail || {};
         if (!detail?.id) return;
-        if (!detail.last_sent_to_st) return;
+        const sentField =
+          this.$store?.global?.getLastSentFieldName?.() || "last_sent_to_st";
+        const sentAt = Number(detail[sentField] ?? detail.last_sent_to_st ?? 0);
+        if (!sentAt) return;
         if (this.activePresetDetail && this.activePresetDetail.id === detail.id) {
           this.activePresetDetail = {
             ...this.activePresetDetail,
-            last_sent_to_st: Number(detail.last_sent_to_st || 0),
+            [sentField]: sentAt,
           };
         }
       });
@@ -492,7 +495,7 @@ export default function presetDetailReader() {
       if (this.isSendingPresetToST) {
         return targetName === "ST" ? "正在发送到 ST" : `正在发送到 ${targetName}`;
       }
-      if (Number(this.activePresetDetail?.last_sent_to_st || 0) > 0) {
+      if (this.getActivePresetSentAt() > 0) {
         return `已发送到 ${targetName}`;
       }
       return targetName === "ST" ? "尚未发送到 ST" : `尚未发送到 ${targetName}`;
@@ -952,6 +955,14 @@ export default function presetDetailReader() {
       }
     },
 
+    getActivePresetSentAt() {
+      return this.$store?.global?.getLastSentAt?.(this.activePresetDetail) || 0;
+    },
+
+    hasActivePresetBeenSentToTarget() {
+      return this.getActivePresetSentAt() > 0;
+    },
+
     getActivePresetSendToSTTitle() {
       const targetLabel = this.$store?.global?.getSendTargetActionLabel?.() || "发送到 ST";
       const targetName = this.$store?.global?.getSendTargetName?.() || "ST";
@@ -961,8 +972,9 @@ export default function presetDetailReader() {
       if (this.isSendingPresetToST) {
         return targetName === "ST" ? "正在发送到 ST" : `正在发送到 ${targetName}`;
       }
-      if (Number(this.activePresetDetail?.last_sent_to_st || 0) > 0) {
-        return `已发送到 ${targetName}：${new Date(this.activePresetDetail.last_sent_to_st * 1000).toLocaleString()}`;
+      const sentAt = this.getActivePresetSentAt();
+      if (sentAt > 0) {
+        return `已发送到 ${targetName}：${new Date(sentAt * 1000).toLocaleString()}`;
       }
       return `${targetLabel}（对话补全预设，同名将直接覆盖 ${targetName} 中现有预设）`;
     },
@@ -985,23 +997,25 @@ export default function presetDetailReader() {
       try {
         const res = await sendPresetToSillyTavern({ id: presetId });
         if (res?.success) {
-          const sentAt = Number(res.last_sent_to_st || Date.now() / 1000);
+          const sentField =
+            this.$store?.global?.getLastSentFieldName?.() || "last_sent_to_st";
+          const sentAt = Number(res[sentField] || Date.now() / 1000);
           if (this.activePresetDetail?.id === presetId) {
             this.activePresetDetail = {
               ...this.activePresetDetail,
-              last_sent_to_st: sentAt,
+              [sentField]: sentAt,
             };
           }
           window.dispatchEvent(new CustomEvent("preset-sent-to-st", {
             detail: {
               id: presetId,
-              last_sent_to_st: sentAt,
+              [sentField]: sentAt,
             },
           }));
           this.$store.global.showToast(
             this.$store.global.getSendTargetSuccessMessage?.() || "已发送到 ST",
             1800,
-            "card-send-to-st",
+            this.$store?.global?.getSendTargetIconName?.() || "card-send-to-st",
           );
         } else {
           this.$store.global.showToast(res?.msg || "发送失败", 2600, "close");

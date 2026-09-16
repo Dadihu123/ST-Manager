@@ -20,6 +20,13 @@ def test_layout_uses_compiled_tailwind_and_guards_empty_toast_icon_href():
     assert "<use :href=\"'{{ url_for('static', filename='icons/') }}' + toastIconHref\"></use>" in source
 
 
+def test_send_target_brand_icons_are_allowed_in_toast_notifications():
+    source = read_project_file('static/js/state.js')
+
+    assert '"sillytavern",' in source
+    assert '"tauritavern",' in source
+
+
 def test_card_detail_help_modal_is_teleported_above_detail_modal_stack():
     source = read_project_file('templates/modals/detail_card.html')
     help_start = source.index('<!-- 字段说明帮助模态框 (Help Modal) -->')

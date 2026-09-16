@@ -189,9 +189,19 @@ def execute_rules():
         if not card_ids:
             return jsonify({"success": False, "msg": "未找到需要处理的卡片"})
 
-        ruleset = rule_manager.get_ruleset(ruleset_id)
-        if not ruleset:
+        raw_ruleset = rule_manager.get_ruleset(ruleset_id)
+        if not raw_ruleset:
             return jsonify({"success": False, "msg": "规则集不存在"})
+
+        # 只执行勾选了「手动执行」触发场景的规则，与导入 / 更新 / 链接更新等
+        # 自动入口保持一致；未勾选该场景的规则不会在手动执行时运行。
+        rule_stats = automation_service.get_ruleset_trigger_stats(
+            raw_ruleset,
+            TRIGGER_CONTEXT_MANUAL_RUN,
+        )
+        ruleset = rule_stats['ruleset']
+        applied_rule_count = rule_stats['eligible_count']
+        skipped_rule_count = rule_stats['skipped_count']
 
         cfg = load_config()
         slash_as_separator = bool(cfg.get('automation_slash_is_tag_separator', False))
@@ -289,11 +299,16 @@ def execute_rules():
             "selected": selected_count,
             "processed": processed_count,
             "skipped": len(skipped_details),
+            "rules_applied": applied_rule_count,
+            "rules_skipped": skipped_rule_count,
             "summary": summary,
             'details': {
                 'skipped': skipped_details,
             },
         }
+
+        if skipped_rule_count:
+            response['msg'] = f'已跳过 {skipped_rule_count} 条不适用于「手动执行」的规则'
 
         return jsonify(response)
 

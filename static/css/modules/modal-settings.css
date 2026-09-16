@@ -1202,6 +1202,36 @@
 }
 
 .settings-choice-card.is-active strong { color: var(--action-text); }
+
+/* Brand marks sit inline with the choice title; they keep their own official
+ * colours, so they must not inherit the muted helper-text span styling. */
+.settings-choice-card-head {
+  align-items: center;
+  display: flex;
+  gap: 7px;
+  min-width: 0;
+  width: 100%;
+}
+
+.settings-choice-card .settings-choice-card-head {
+  color: inherit;
+  font-size: inherit;
+}
+
+.settings-brand-icon {
+  align-items: center;
+  display: inline-flex;
+  flex: 0 0 auto;
+  height: 18px;
+  justify-content: center;
+  width: 18px;
+}
+
+.settings-brand-icon .ui-icon {
+  height: 18px;
+  width: 18px;
+}
+
 .settings-choice-card--sans strong { font-family: ui-sans-serif, system-ui, sans-serif; }
 .settings-choice-card--serif strong { font-family: ui-serif, Georgia, serif; }
 .settings-choice-card--mono strong { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }

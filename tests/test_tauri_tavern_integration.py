@@ -124,6 +124,8 @@ def test_tauri_path_validation_endpoint_reports_user_directory(tmp_path):
 
 def test_beautify_send_route_writes_standard_theme_in_tauri_mode(monkeypatch, tmp_path):
     (tmp_path / 'tauri-data' / 'default-user').mkdir(parents=True)
+    ui_path = tmp_path / 'ui.json'
+    ui_path.write_text('{}', encoding='utf-8')
 
     class FakeBeautifyService:
         def build_sendable_theme_bundle(self, _package_id, _variant_id):
@@ -142,6 +144,8 @@ def test_beautify_send_route_writes_standard_theme_in_tauri_mode(monkeypatch, tm
         'load_config',
         lambda: _make_tauri_config(tmp_path / 'tauri-data'),
     )
+    # The send route persists the send timestamp; keep it off the real ui_data.json.
+    monkeypatch.setattr(ui_store_module, 'UI_DATA_FILE', str(ui_path))
     monkeypatch.setattr(
         beautify_api,
         'build_st_http_client',
@@ -158,6 +162,12 @@ def test_beautify_send_route_writes_standard_theme_in_tauri_mode(monkeypatch, tm
     assert payload['success'] is True
     assert payload['target'] == 'tauritavern'
     assert (tmp_path / 'tauri-data' / 'default-user' / 'themes' / 'Demo.json').exists()
+    # TauriTavern sends stamp their own key so both histories stay distinguishable.
+    assert payload['last_sent_to_tt'] > 0
+    assert 'last_sent_to_st' not in payload
+    saved_ui = json.loads(ui_path.read_text(encoding='utf-8'))
+    assert saved_ui['beautify::pkg::variant']['last_sent_to_tt'] == payload['last_sent_to_tt']
+    assert 'last_sent_to_st' not in saved_ui['beautify::pkg::variant']
 
 
 def test_character_send_route_writes_to_tauri_without_http(monkeypatch, tmp_path):
@@ -194,6 +204,12 @@ def test_character_send_route_writes_to_tauri_without_http(monkeypatch, tmp_path
     assert response.status_code == 200
     assert response.get_json()['target'] == 'tauritavern'
     assert (tauri_root / 'default-user' / 'characters' / 'card.png').exists()
+    payload = response.get_json()
+    assert payload['last_sent_to_tt'] > 0
+    assert 'last_sent_to_st' not in payload
+    saved_ui = json.loads(ui_path.read_text(encoding='utf-8'))
+    assert saved_ui['card.png']['last_sent_to_tt'] == payload['last_sent_to_tt']
+    assert 'last_sent_to_st' not in saved_ui['card.png']
 
 
 def test_world_info_send_route_writes_normalized_payload_to_tauri(monkeypatch, tmp_path):
@@ -234,6 +250,10 @@ def test_world_info_send_route_writes_normalized_payload_to_tauri(monkeypatch, t
     saved = tauri_root / 'default-user' / 'worlds' / 'dragon.json'
     payload = json.loads(saved.read_text(encoding='utf-8'))
     assert payload['entries']['0']['content'] == 'fire'
+    assert response.get_json()['last_sent_to_tt'] > 0
+    saved_ui = json.loads(ui_path.read_text(encoding='utf-8'))
+    assert all('last_sent_to_st' not in entry for entry in saved_ui.values())
+    assert any(entry.get('last_sent_to_tt') for entry in saved_ui.values())
 
 
 def test_openai_preset_send_route_writes_to_tauri_without_http(monkeypatch, tmp_path):
@@ -277,3 +297,7 @@ def test_openai_preset_send_route_writes_to_tauri_without_http(monkeypatch, tmp_
     assert response.get_json()['target'] == 'tauritavern'
     saved = tauri_root / 'default-user' / 'OpenAI Settings' / 'Writing.json'
     assert json.loads(saved.read_text(encoding='utf-8'))['openai_model'] == 'gpt-4.1'
+    assert response.get_json()['last_sent_to_tt'] > 0
+    saved_ui = json.loads(ui_path.read_text(encoding='utf-8'))
+    assert all('last_sent_to_st' not in entry for entry in saved_ui.values())
+    assert any(entry.get('last_sent_to_tt') for entry in saved_ui.values())

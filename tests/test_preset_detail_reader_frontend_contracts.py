@@ -622,7 +622,10 @@ def test_preset_detail_reader_js_exposes_send_to_st_contracts():
     assert 'async sendActivePresetToST() {' in source
     assert 'window.dispatchEvent(new CustomEvent("preset-sent-to-st", {' in source or "window.dispatchEvent(new CustomEvent('preset-sent-to-st', {" in source
     assert 'id:' in source
-    assert 'last_sent_to_st:' in source
+    assert 'getLastSentFieldName?.() || "last_sent_to_st"' in source
+    assert '[sentField]: sentAt,' in source
+    assert 'getActivePresetSentAt() {' in source
+    assert 'getActivePresetSentAt() > 0' in source
 
     assert ('global-alt::' in can_send_block) or ('st_openai_preset_dir' in can_send_block)
     assert (
@@ -643,6 +646,9 @@ def test_preset_detail_reader_template_exposes_send_to_st_buttons_contracts():
     assert '@click="sendActivePresetToST()"' in source
     assert 'x-show="canSendActivePresetToST()"' in source
     assert '发送到 ST（对话补全预设，同名将直接覆盖 ST 中现有预设）' in source
+    assert source.count('send-target-tint') == 2
+    assert source.count("'has-sent': hasActivePresetBeenSentToTarget()") == 2
+    assert source.count("'is-sending': isSendingPresetToST") == 2
 
 
 def test_preset_detail_reader_more_menu_uses_worldbook_collapsed_tools_icon():

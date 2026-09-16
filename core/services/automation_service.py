@@ -15,6 +15,7 @@ from core.automation.engine import AutomationEngine
 from core.automation.executor import AutomationExecutor
 from core.automation.constants import (
     FIELD_MAP,
+    TRIGGER_CONTEXT_ALLOWED_ACTIONS,
     ACT_FETCH_FORUM_TAGS,
     ACT_REFRESH_SOURCE_BASELINE,
     ACT_ADD_TAGS_FROM_SOURCE_TITLE,
@@ -52,6 +53,14 @@ DEEP_AUTOMATION_FIELDS = {
 }
 
 FILE_STAT_FIELDS = {'file_size'}
+
+_TRIGGER_CONTEXT_ORDER = (
+    TRIGGER_CONTEXT_MANUAL_RUN,
+    TRIGGER_CONTEXT_AUTO_IMPORT,
+    TRIGGER_CONTEXT_CARD_UPDATE,
+    TRIGGER_CONTEXT_LINK_UPDATE,
+    TRIGGER_CONTEXT_TAG_EDIT,
+)
 
 
 def _ruleset_uses_fields(ruleset, target_fields):
@@ -157,7 +166,7 @@ def _build_runtime_from_active_ruleset():
     }
 
 
-def has_global_automation_action(action_type):
+def has_global_automation_action(action_type, trigger_context=None):
     """判断当前启用的全局规则集是否包含指定的启用动作。"""
     try:
         runtime = _build_runtime_from_active_ruleset()
@@ -167,6 +176,11 @@ def has_global_automation_action(action_type):
 
         for rule in ruleset.get('rules', []):
             if not isinstance(rule, dict) or not rule.get('enabled', True):
+                continue
+            if (
+                trigger_context is not None
+                and not _rule_has_supported_action(rule, trigger_context)
+            ):
                 continue
             actions = rule.get('actions', [])
             if not isinstance(actions, list):
@@ -182,33 +196,42 @@ def has_global_automation_action(action_type):
         return False
 
 
-def has_global_source_baseline_action():
-    """判断是否配置了启用的全局来源基线刷新动作。"""
-    return has_global_automation_action(ACT_REFRESH_SOURCE_BASELINE)
+def has_global_source_baseline_action(trigger_context=TRIGGER_CONTEXT_LINK_UPDATE):
+    """判断指定触发场景是否配置了启用的全局来源基线刷新动作。"""
+    return has_global_automation_action(
+        ACT_REFRESH_SOURCE_BASELINE,
+        trigger_context=trigger_context,
+    )
+
+
+def _derive_legacy_rule_trigger_contexts(rule):
+    """按动作支持矩阵推导旧规则的触发场景，避免来源动作落入错误入口。"""
+    actions = rule.get('actions', []) if isinstance(rule, dict) else []
+    supported_contexts = set()
+
+    for action in actions:
+        if not isinstance(action, dict):
+            continue
+
+        action_type = action.get('type')
+        for trigger_context, allowed_actions in TRIGGER_CONTEXT_ALLOWED_ACTIONS.items():
+            if action_type in allowed_actions:
+                supported_contexts.add(trigger_context)
+
+    if not supported_contexts:
+        return [TRIGGER_CONTEXT_MANUAL_RUN, TRIGGER_CONTEXT_AUTO_IMPORT]
+
+    return [
+        trigger_context
+        for trigger_context in _TRIGGER_CONTEXT_ORDER
+        if trigger_context in supported_contexts
+    ]
 
 
 def _normalize_rule_trigger_contexts(rule):
     trigger_contexts = rule.get('trigger_contexts') if isinstance(rule, dict) else None
     if not trigger_contexts:
-        legacy_contexts = [TRIGGER_CONTEXT_MANUAL_RUN, TRIGGER_CONTEXT_AUTO_IMPORT]
-        actions = rule.get('actions', []) if isinstance(rule, dict) else []
-
-        for action in actions:
-            if not isinstance(action, dict):
-                continue
-
-            action_type = action.get('type')
-            if action_type in {
-                ACT_FETCH_FORUM_TAGS,
-                ACT_REFRESH_SOURCE_BASELINE,
-                ACT_ADD_TAGS_FROM_SOURCE_TITLE,
-                ACT_SET_CREATOR_FROM_SOURCE,
-            } and TRIGGER_CONTEXT_LINK_UPDATE not in legacy_contexts:
-                legacy_contexts.append(TRIGGER_CONTEXT_LINK_UPDATE)
-            elif action_type == ACT_MERGE_TAGS and TRIGGER_CONTEXT_TAG_EDIT not in legacy_contexts:
-                legacy_contexts.append(TRIGGER_CONTEXT_TAG_EDIT)
-
-        return legacy_contexts
+        return _derive_legacy_rule_trigger_contexts(rule)
 
     if isinstance(trigger_contexts, str):
         trigger_contexts = [trigger_contexts.strip()]
@@ -225,6 +248,21 @@ def _normalize_rule_trigger_contexts(rule):
     return normalized or [TRIGGER_CONTEXT_MANUAL_RUN, TRIGGER_CONTEXT_AUTO_IMPORT]
 
 
+def _rule_has_supported_action(rule, trigger_context):
+    if not isinstance(rule, dict):
+        return False
+
+    allowed_actions = TRIGGER_CONTEXT_ALLOWED_ACTIONS.get(trigger_context, set())
+    actions = rule.get('actions', [])
+    if not isinstance(actions, list):
+        return False
+
+    return any(
+        isinstance(action, dict) and action.get('type') in allowed_actions
+        for action in actions
+    )
+
+
 def _filter_ruleset_by_trigger_context(ruleset, trigger_context):
     if not isinstance(ruleset, dict):
         return {'rules': []}
@@ -234,11 +272,49 @@ def _filter_ruleset_by_trigger_context(ruleset, trigger_context):
         if not isinstance(rule, dict) or not rule.get('enabled', True):
             continue
         if trigger_context in _normalize_rule_trigger_contexts(rule):
-            filtered_rules.append(rule)
+            if _rule_has_supported_action(rule, trigger_context):
+                filtered_rules.append(rule)
 
     filtered_ruleset = dict(ruleset)
     filtered_ruleset['rules'] = filtered_rules
     return filtered_ruleset
+
+
+def get_ruleset_trigger_stats(ruleset, trigger_context):
+    """返回指定入口可执行和被跳过的启用规则统计。"""
+    raw_rules = ruleset.get('rules', []) if isinstance(ruleset, dict) else []
+    if not isinstance(raw_rules, list):
+        raw_rules = []
+
+    eligible_rules = []
+    skipped_rules = []
+    for index, rule in enumerate(raw_rules):
+        if not isinstance(rule, dict) or not rule.get('enabled', True):
+            continue
+
+        contexts = _normalize_rule_trigger_contexts(rule)
+        if trigger_context not in contexts:
+            reason = 'trigger_context_not_enabled'
+        elif not _rule_has_supported_action(rule, trigger_context):
+            reason = 'no_supported_action_for_trigger_context'
+        else:
+            eligible_rules.append(rule)
+            continue
+
+        skipped_rules.append({
+            'index': index,
+            'name': str(rule.get('name') or '').strip() or f'规则 {index + 1}',
+            'reason': reason,
+        })
+
+    filtered_ruleset = dict(ruleset) if isinstance(ruleset, dict) else {'rules': []}
+    filtered_ruleset['rules'] = eligible_rules
+    return {
+        'ruleset': filtered_ruleset,
+        'eligible_count': len(eligible_rules),
+        'skipped_count': len(skipped_rules),
+        'skipped_rules': skipped_rules,
+    }
 
 
 def _empty_exec_plan():

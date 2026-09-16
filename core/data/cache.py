@@ -14,6 +14,7 @@ from core.data.ui_store import (
     get_version_remark,
     get_import_time,
     get_last_sent_to_st,
+    get_last_sent_to_tt,
     get_source_update_state,
     ensure_import_time,
     cleanup_stale_version_remarks,
@@ -403,6 +404,15 @@ class GlobalMetadataCache:
             except Exception:
                 sent_ts = get_last_sent_to_st(ui_data, ui_key)
             new_card_data['last_sent_to_st'] = sent_ts
+
+            sent_tt_ts = new_card_data.get('last_sent_to_tt')
+            try:
+                sent_tt_ts = float(sent_tt_ts)
+                if sent_tt_ts <= 0:
+                    raise ValueError('invalid last_sent_to_tt')
+            except Exception:
+                sent_tt_ts = get_last_sent_to_tt(ui_data, ui_key)
+            new_card_data['last_sent_to_tt'] = sent_tt_ts
             self._sync_source_update_fields(new_card_data, ui_data, overwrite=True)
 
             self.cards.append(new_card_data)
@@ -759,6 +769,7 @@ class GlobalMetadataCache:
         import_time_changed, import_ts = ensure_import_time(ui_data, key, card.get('last_modified', 0))
         card['import_time'] = import_ts
         card['last_sent_to_st'] = get_last_sent_to_st(ui_data, key)
+        card['last_sent_to_tt'] = get_last_sent_to_tt(ui_data, key)
         card['source_update'] = get_source_update_state(ui_data, key)
         card['source_title'] = card['source_update'].get('source_title', '')
 

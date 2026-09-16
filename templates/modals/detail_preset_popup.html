@@ -117,7 +117,8 @@
           type="button"
           x-show="canSendActivePresetToST()"
           @click="sendActivePresetToST(); showMobileMoreMenu = false"
-          class="btn-secondary py-1.5 px-3 text-xs"
+          class="btn-secondary py-1.5 px-3 text-xs send-target-tint"
+          :class="{ 'has-sent': hasActivePresetBeenSentToTarget(), 'is-sending': isSendingPresetToST, 'is-target-tt': $store.global.isTauriTavernTarget?.() }"
           :title="getActivePresetSendToSTTitle()"
           :title="getActivePresetSendToSTTitle() || '发送到 ST（对话补全预设，同名将直接覆盖 ST 中现有预设）'"
           :disabled="isSendingPresetToST"
@@ -186,7 +187,12 @@
         <div
           class="preset-reader-sync-status"
           role="status"
-          :class="isSendingPresetToST ? 'is-pending' : (Number(activePresetDetail?.last_sent_to_st || 0) > 0 ? 'is-synced' : 'is-neutral')"
+          :class="{
+            'is-pending': isSendingPresetToST,
+            'is-synced': !isSendingPresetToST && hasActivePresetBeenSentToTarget(),
+            'is-neutral': !isSendingPresetToST && !hasActivePresetBeenSentToTarget(),
+            'is-target-tt': $store.global.isTauriTavernTarget?.()
+          }"
         >
           <span class="preset-reader-status-dot" aria-hidden="true"></span>
           <span x-text="getActivePresetSyncLabel()"></span>
@@ -210,7 +216,8 @@
           type="button"
           x-show="canSendActivePresetToST()"
           @click="sendActivePresetToST()"
-          class="preset-reader-header-icon-button btn-secondary"
+          class="preset-reader-header-icon-button btn-secondary send-target-tint"
+          :class="{ 'has-sent': hasActivePresetBeenSentToTarget(), 'is-sending': isSendingPresetToST, 'is-target-tt': $store.global.isTauriTavernTarget?.() }"
           :title="getActivePresetSendToSTTitle()"
           :title="getActivePresetSendToSTTitle() || '发送到 ST（对话补全预设，同名将直接覆盖 ST 中现有预设）'"
           :aria-label="$store.global.getSendTargetActionLabel ? $store.global.getSendTargetActionLabel() : '发送到 ST'"

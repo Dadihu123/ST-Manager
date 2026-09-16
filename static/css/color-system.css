@@ -1074,7 +1074,8 @@ html.light-mode .card-tag-filter {
 .tag-chip-btn,
 .tag-category-filter-pill,
 .detail-tag-category-filter-pill,
-.tag-category-quick-btn {
+.tag-category-quick-btn,
+.tag-category-manager-pill {
   --tag-cat-bg-current: var(--tag-default-surface);
   --tag-cat-border-current: var(--tag-default-border);
   --tag-cat-text-current: var(--tag-default-text);
@@ -1089,7 +1090,8 @@ html.light-mode .card-tag-filter {
 html:not(.light-mode) .tag-chip-btn,
 html:not(.light-mode) .tag-category-filter-pill,
 html:not(.light-mode) .detail-tag-category-filter-pill,
-html:not(.light-mode) .tag-category-quick-btn {
+html:not(.light-mode) .tag-category-quick-btn,
+html:not(.light-mode) .tag-category-manager-pill {
   --tag-cat-bg-current: var(--tag-cat-bg-dark, var(--tag-default-surface));
   --tag-cat-border-current: var(--tag-cat-border-dark, var(--tag-default-border));
   --tag-cat-text-current: var(--tag-cat-text-dark, var(--tag-default-text));
@@ -1098,7 +1100,8 @@ html:not(.light-mode) .tag-category-quick-btn {
 html.light-mode .tag-chip-btn,
 html.light-mode .tag-category-filter-pill,
 html.light-mode .detail-tag-category-filter-pill,
-html.light-mode .tag-category-quick-btn {
+html.light-mode .tag-category-quick-btn,
+html.light-mode .tag-category-manager-pill {
   --tag-cat-bg-current: var(--tag-cat-bg-light, var(--tag-default-surface));
   --tag-cat-border-current: var(--tag-cat-border-light, var(--tag-default-border));
   --tag-cat-text-current: var(--tag-cat-text-light, var(--tag-default-text));
@@ -1108,7 +1111,8 @@ html.light-mode .tag-category-quick-btn {
 .tag-chip-categorized:hover,
 .tag-category-filter-pill:hover,
 .detail-tag-category-filter-pill:hover,
-.tag-category-quick-btn:hover {
+.tag-category-quick-btn:hover,
+.tag-category-manager-pill:hover {
   background: var(--tag-cat-hover-bg-current, var(--state-hover-surface)) !important;
   border-color: var(--tag-cat-hover-border-current, var(--accent-outline)) !important;
   color: var(--tag-cat-hover-text-current, var(--content-primary)) !important;
@@ -1117,7 +1121,8 @@ html.light-mode .tag-category-quick-btn {
 html:not(.light-mode) .tag-chip-btn,
 html:not(.light-mode) .tag-category-filter-pill,
 html:not(.light-mode) .detail-tag-category-filter-pill,
-html:not(.light-mode) .tag-category-quick-btn {
+html:not(.light-mode) .tag-category-quick-btn,
+html:not(.light-mode) .tag-category-manager-pill {
   --tag-cat-hover-bg-current: var(--tag-cat-hover-bg-dark, var(--state-hover-surface));
   --tag-cat-hover-border-current: var(--tag-cat-border-dark, var(--accent-outline));
   --tag-cat-hover-text-current: var(--tag-cat-hover-text-dark, var(--content-primary));
@@ -1129,7 +1134,8 @@ html:not(.light-mode) .tag-category-quick-btn {
 html.light-mode .tag-chip-btn,
 html.light-mode .tag-category-filter-pill,
 html.light-mode .detail-tag-category-filter-pill,
-html.light-mode .tag-category-quick-btn {
+html.light-mode .tag-category-quick-btn,
+html.light-mode .tag-category-manager-pill {
   --tag-cat-hover-bg-current: var(--tag-cat-hover-bg-light, var(--state-hover-surface));
   --tag-cat-hover-border-current: var(--tag-cat-border-light, var(--accent-outline));
   --tag-cat-hover-text-current: var(--tag-cat-hover-text-light, var(--content-primary));
@@ -1346,6 +1352,119 @@ html.light-mode .tag-category-quick-btn {
 [class~='shadow-xl'],
 [class~='shadow-2xl'] {
   box-shadow: var(--shadow-elevation) !important;
+}
+
+/* ==========================================================================
+   一键发送目标配色
+   ST 与 TauriTavern 各自使用官方品牌色，切换目标后发送按钮图标随之变色，
+   便于在两种发送目标之间快速区分。
+   ========================================================================== */
+html:not(.light-mode) {
+  --send-target-st-tint: #e2685c;
+  --send-target-tt-tint: #3ec9c0;
+}
+
+html.light-mode {
+  --send-target-st-tint: #a11b1b;
+  --send-target-tt-tint: #128079;
+}
+
+/* 一键发送目标配色只表达目标；has-sent 负责叠加“已发送”状态层。 */
+.card-send-st-btn:not(.is-target-tt),
+.send-target-tint:not(.is-target-tt),
+.preset-reader-sync-status:not(.is-target-tt) {
+  --send-target-color: var(--send-target-st-tint);
+  --send-target-color-muted: color-mix(
+    in srgb,
+    var(--send-target-st-tint) 68%,
+    var(--content-secondary)
+  );
+}
+
+.card-send-st-btn.is-target-tt,
+.send-target-tint.is-target-tt,
+.preset-reader-sync-status.is-target-tt {
+  --send-target-color: var(--send-target-tt-tint);
+  --send-target-color-muted: color-mix(
+    in srgb,
+    var(--send-target-tt-tint) 68%,
+    var(--content-secondary)
+  );
+}
+
+.card-send-st-btn:not(.is-sending):not(.has-sent) {
+  color: var(--send-target-color-muted) !important;
+}
+
+.card-send-st-btn:not(.is-sending):not(.has-sent):hover:not(:disabled),
+.card-send-st-btn:not(.is-sending).has-sent {
+  color: var(--send-target-color) !important;
+}
+
+/* 网格中的无框发送按钮使用稳定的内描边与浅背景，避免增加外边框造成布局变化。 */
+.card-send-st-btn:not(.is-sending).has-sent {
+  color: var(--send-target-color) !important;
+  border-color: color-mix(in srgb, var(--send-target-color) 58%, transparent) !important;
+  background: color-mix(in srgb, var(--send-target-color) 14%, transparent) !important;
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--send-target-color) 30%, transparent) inset,
+    0 0 8px color-mix(in srgb, var(--send-target-color) 16%, transparent) !important;
+}
+
+.card-bottom-toolbar > .card-send-st-btn:not(.is-sending).has-sent,
+.resource-grid-view .card-send-st-btn:not(.is-sending).has-sent {
+  border-color: transparent !important;
+  background: color-mix(in srgb, var(--send-target-color) 12%, transparent) !important;
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--send-target-color) 34%, transparent) inset,
+    0 0 7px color-mix(in srgb, var(--send-target-color) 14%, transparent) !important;
+}
+
+/* 详情页与工作台的发送入口保留按钮自身层级，只给已发送状态增加目标色反馈。 */
+.send-target-tint:not(.has-sent):not(.is-sending) .ui-icon {
+  color: var(--send-target-color-muted);
+}
+
+.send-target-tint.has-sent .ui-icon,
+.send-target-tint:hover:not(:disabled) .ui-icon {
+  color: var(--send-target-color);
+}
+
+.send-target-tint.is-sending {
+  cursor: wait;
+  opacity: 0.9;
+}
+
+.send-target-tint.has-sent:not(.is-sending) {
+  border-color: color-mix(in srgb, var(--send-target-color) 54%, var(--border-default)) !important;
+  background: color-mix(in srgb, var(--send-target-color) 12%, var(--surface-container)) !important;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--send-target-color) 28%, transparent) inset !important;
+}
+
+.send-target-tint.has-sent:not(.is-sending):hover:not(:disabled),
+.send-target-tint.has-sent:not(.is-sending):focus-visible {
+  border-color: color-mix(in srgb, var(--send-target-color) 72%, var(--border-default)) !important;
+  background: color-mix(in srgb, var(--send-target-color) 18%, var(--surface-container)) !important;
+}
+
+.preset-reader-sync-status.is-synced:not(.is-target-tt) {
+  background: color-mix(in srgb, var(--send-target-st-tint) 16%, transparent);
+  border-color: color-mix(in srgb, var(--send-target-st-tint) 58%, transparent);
+  color: var(--send-target-st-tint);
+}
+
+.preset-reader-sync-status.is-synced.is-target-tt {
+  background: color-mix(in srgb, var(--send-target-tt-tint) 16%, transparent);
+  border-color: color-mix(in srgb, var(--send-target-tt-tint) 58%, transparent);
+  color: var(--send-target-tt-tint);
+}
+
+.preset-reader-sync-status.is-synced:not(.is-target-tt) .preset-reader-status-dot {
+  background: var(--send-target-st-tint);
+}
+
+.preset-reader-sync-status.is-synced.is-target-tt .preset-reader-status-dot {
+  background: var(--send-target-tt-tint);
 }
 
 @media (prefers-reduced-motion: reduce) {

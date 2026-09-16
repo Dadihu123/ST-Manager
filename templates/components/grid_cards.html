@@ -363,7 +363,7 @@
                       <button
                         type="button"
                         class="card-send-st-btn"
-                        :class="{ 'has-sent': cardHasBeenSentToST(card), 'is-sending': isSendingToST(card.id) }"
+                        :class="{ 'has-sent': cardHasBeenSentToST(card), 'is-sending': isSendingToST(card.id), 'is-target-tt': $store.global.isTauriTavernTarget?.() }"
                         :disabled="isSendingToST(card.id)"
                         :title="getCardSendToSTTitle(card)"
                         :aria-label="getCardSendToSTTitle(card)"

@@ -279,27 +279,42 @@ export default function wiGrid() {
       return !!this.sendingWorldInfoToStIds[String(itemId)];
     },
 
+    getWorldInfoSentFieldName() {
+      return this.$store?.global?.getLastSentFieldName?.() || "last_sent_to_st";
+    },
+
+    hasWorldInfoBeenSentToTarget(item) {
+      const store = this.$store?.global;
+      if (store?.hasSentToCurrentTarget) {
+        return store.hasSentToCurrentTarget(item);
+      }
+      return Number(item?.last_sent_to_st || 0) > 0;
+    },
+
     getWorldInfoSendToSTTitle(item) {
       const targetName = this.$store?.global?.getSendTargetName?.() || "ST";
       if (!this.canSendWorldInfoToST(item)) return "仅全局/资源世界书可发送到 ST";
       if (this.isSendingWorldInfoToST(item?.id)) {
         return targetName === "ST" ? "正在发送到 ST" : `正在发送到 ${targetName}`;
       }
-      if (Number(item?.last_sent_to_st || 0) > 0) {
-        return `已发送到 ${targetName}：${new Date(item.last_sent_to_st * 1000).toLocaleString()}`;
+      const sentAt = this.$store?.global?.getLastSentAt?.(item) || 0;
+      if (sentAt > 0) {
+        return `已发送到 ${targetName}：${new Date(sentAt * 1000).toLocaleString()}`;
       }
       return targetName === "ST" ? "发送到 ST" : `发送到 ${targetName}`;
     },
 
     applyWorldInfoSentState(detail) {
       if (!detail?.id) return;
+      const sentField = this.getWorldInfoSentFieldName();
+      const sentAt = Number(detail[sentField] || 0);
       const currentItems = Array.isArray(this.wiList) ? [...this.wiList] : [];
       let changed = false;
       currentItems.forEach((item, index) => {
         if (!item || item.id !== detail.id) return;
         currentItems[index] = {
           ...item,
-          last_sent_to_st: Number(detail.last_sent_to_st || 0),
+          [sentField]: sentAt,
         };
         changed = true;
       });
@@ -326,9 +341,10 @@ export default function wiGrid() {
           file_path: item.path,
         });
         if (res?.success) {
+          const sentField = this.getWorldInfoSentFieldName();
           const sentDetail = {
             id: item.id,
-            last_sent_to_st: Number(res.last_sent_to_st || Date.now() / 1000),
+            [sentField]: Number(res[sentField] || Date.now() / 1000),
           };
           this.applyWorldInfoSentState(sentDetail);
           window.dispatchEvent(new CustomEvent("wi-sent-to-st", {
@@ -337,7 +353,7 @@ export default function wiGrid() {
           this.$store.global.showToast(
             this.$store.global.getSendTargetSuccessMessage?.() || "已发送到 ST",
             1800,
-            "card-send-to-st",
+            this.$store?.global?.getSendTargetIconName?.() || "card-send-to-st",
           );
         } else {
           this.$store.global.showToast(res?.msg || "发送失败", 2600, "close");
@@ -758,7 +774,13 @@ export default function wiGrid() {
       window.addEventListener("wi-sent-to-st", (e) => {
         const detail = e.detail || {};
         if (!detail.id) return;
-        if (!detail.last_sent_to_st) return;
+        if (
+          !Number(
+            detail[this.$store?.global?.getLastSentFieldName?.() || "last_sent_to_st"] || 0,
+          )
+        ) {
+          return;
+        }
         this.applyWorldInfoSentState(detail);
       });
 

@@ -316,7 +316,7 @@
                 type="button"
                 x-show="canSendPresetToST(item)"
                 class="card-send-st-btn"
-                :class="{ 'has-sent': Number(item.last_sent_to_st || 0) > 0, 'is-sending': isSendingPresetToST(getPresetActionTargetId(item)) }"
+                :class="{ 'has-sent': hasPresetBeenSentToTarget(item), 'is-sending': isSendingPresetToST(getPresetActionTargetId(item)), 'is-target-tt': $store.global.isTauriTavernTarget?.() }"
                 :disabled="isSendingPresetToST(getPresetActionTargetId(item))"
                 :title="getPresetSendToSTTitle(item)"
                 :aria-label="getPresetSendToSTTitle(item)"

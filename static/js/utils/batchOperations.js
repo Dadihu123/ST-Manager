@@ -145,7 +145,9 @@ export async function runAutomationBatch({ rulesetId, targetPayload, title = "�
         skipped: Number(response.skipped || 0),
         moves: Number(response.summary?.moves || 0),
         tag_changes: Number(response.summary?.tag_changes || 0),
-        message: response.skipped ? "已处理（部分跳过）" : "已完成",
+        message:
+          response.msg ||
+          (response.skipped ? "已处理（部分跳过）" : "已完成"),
       };
     },
   });

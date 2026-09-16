@@ -172,6 +172,18 @@ export default function presetGrid() {
       );
     },
 
+    getPresetSentFieldName() {
+      return this.$store?.global?.getLastSentFieldName?.() || "last_sent_to_st";
+    },
+
+    hasPresetBeenSentToTarget(item) {
+      const store = this.$store?.global;
+      if (store?.hasSentToCurrentTarget) {
+        return store.hasSentToCurrentTarget(item);
+      }
+      return Number(item?.last_sent_to_st || 0) > 0;
+    },
+
     getPresetSendToSTTitle(item) {
       const targetId = this.getPresetActionTargetId(item);
       const targetLabel = this.$store?.global?.getSendTargetActionLabel?.() || "发送到 ST";
@@ -182,15 +194,17 @@ export default function presetGrid() {
       if (this.isSendingPresetToST(targetId)) {
         return targetName === "ST" ? "正在发送到 ST" : `正在发送到 ${targetName}`;
       }
-      if (Number(item?.last_sent_to_st || 0) > 0) {
-        return `已发送到 ${targetName}：${new Date(item.last_sent_to_st * 1000).toLocaleString()}`;
+      const sentAt = this.$store?.global?.getLastSentAt?.(item) || 0;
+      if (sentAt > 0) {
+        return `已发送到 ${targetName}：${new Date(sentAt * 1000).toLocaleString()}`;
       }
       return `${targetLabel}（对话补全预设，同名将直接覆盖 ${targetName} 中现有预设）`;
     },
 
     applyPresetSentState(detail) {
       if (!detail?.id) return;
-      const sentAt = Number(detail.last_sent_to_st || 0);
+      const sentField = this.getPresetSentFieldName();
+      const sentAt = Number(detail[sentField] ?? detail.last_sent_to_st ?? 0);
       const patchItems = (items) => {
         if (!Array.isArray(items)) return items;
         let changed = false;
@@ -205,7 +219,7 @@ export default function presetGrid() {
           changed = true;
           return {
             ...item,
-            last_sent_to_st: sentAt,
+            [sentField]: sentAt,
           };
         });
         return changed ? nextItems : items;
@@ -660,9 +674,10 @@ export default function presetGrid() {
       try {
         const res = await sendPresetToSillyTavern({ id: targetId });
         if (res?.success) {
+          const sentField = this.getPresetSentFieldName();
           const sentDetail = {
             id: key,
-            last_sent_to_st: Number(res.last_sent_to_st || Date.now() / 1000),
+            [sentField]: Number(res[sentField] || Date.now() / 1000),
           };
           this.applyPresetSentState(sentDetail);
           window.dispatchEvent(new CustomEvent("preset-sent-to-st", {
@@ -671,7 +686,7 @@ export default function presetGrid() {
           this.$store.global.showToast(
             this.$store.global.getSendTargetSuccessMessage?.() || "已发送到 ST",
             1800,
-            "card-send-to-st",
+            this.$store?.global?.getSendTargetIconName?.() || "card-send-to-st",
           );
         } else {
           this.$store.global.showToast(res?.msg || "发送失败", 2600, "close");

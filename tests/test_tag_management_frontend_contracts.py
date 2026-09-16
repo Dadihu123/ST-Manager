@@ -92,9 +92,25 @@ def test_automation_modal_trigger_contexts_contract_defaults_normalizes_and_pers
     assert 'deriveLegacyRuleTriggerContexts(rule)' in normalize_section
     assert 'SUPPORTED_RULE_TRIGGER_CONTEXTS.includes(trigger)' in normalize_section
     assert 'normalized.includes(trigger)' in normalize_section
-    assert 'return normalized.length ? normalized : deriveLegacyRuleTriggerContexts(rule);' in normalize_section
+    assert 'const isAllowedForRule = trigger => this.isRuleTriggerSupported(rule, trigger);' in normalize_section
+    assert 'return normalized.length ? normalized : deriveLegacyRuleTriggerContexts(rule);' not in normalize_section
+    assert 'return deriveLegacyRuleTriggerContexts(rule).filter(isAllowedForRule);' in normalize_section
+    assert 'if (normalized.length) {' in normalize_section
     assert "action.type === 'fetch_forum_tags'" in source
     assert "action.type === 'merge_tags'" in source
+
+    # 动作 → 触发场景映射由前端维护，必须与后端 constants.py 保持一致。
+    action_map_section = extract_js_function_block(source, 'getRuleSupportedTriggers(rule) {')
+    assert 'ACTION_TRIGGER_CONTEXTS' in source
+    assert 'ACTION_PREFERRED_TRIGGER_CONTEXTS' in source
+    assert 'getRuleSupportedTriggers(rule) {' in source
+    assert 'isRuleTriggerSupported(rule, trigger) {' in source
+    assert 'ruleTriggerUnsupportedHint(rule, trigger) {' in source
+    assert 'findRuleByAction(action) {' in source
+    assert 'syncRuleTriggerContextsForRule(rule, preferredTriggers = []) {' in source
+    assert 'ACTION_TRIGGER_CONTEXTS[action.type] || []' in action_map_section
+    assert 'SUPPORTED_RULE_TRIGGER_CONTEXTS.filter(trigger => allowed.has(trigger))' in action_map_section
+    assert 'return [...SUPPORTED_RULE_TRIGGER_CONTEXTS];' in action_map_section
 
     assert 'rule.trigger_contexts = this.normalizeRuleTriggerContexts(rule);' in select_section
     assert "trigger_contexts: ['manual_run', 'auto_import']" in add_rule_section
@@ -102,12 +118,56 @@ def test_automation_modal_trigger_contexts_contract_defaults_normalizes_and_pers
 
     assert 'toggleRuleTrigger(rule, trigger) {' in source
     assert 'this.normalizeRuleTriggerContexts(rule)' in toggle_section
+    assert 'if (!this.isRuleTriggerSupported(rule, normalizedTrigger)) return;' in toggle_section
     assert 'if (currentTriggers.length === 1 && currentTriggers[0] === normalizedTrigger) return;' in toggle_section
     assert 'rule.trigger_contexts = nextTriggers;' in toggle_section
     assert 'this.editingRules = [...this.editingRules];' in toggle_section
 
     assert 'ruleHasTrigger(rule, trigger) {' in source
     assert 'return this.normalizeRuleTriggerContexts(rule).includes(trigger);' in has_trigger_section
+
+    # 动作增删/切换后必须重新对齐可用的触发场景。
+    select_action_section = extract_js_function_block(source, 'selectActionType(action, type) {')
+    add_action_section = extract_js_function_block(source, 'addAction(ruleIdx) {')
+    remove_action_section = extract_js_function_block(source, 'removeAction(ruleIdx, actIdx) {')
+    assert 'ACTION_PREFERRED_TRIGGER_CONTEXTS[type] || []' in select_action_section
+    assert 'this.syncRuleTriggerContextsForRule(' in select_action_section
+    assert 'this.syncRuleTriggerContextsForRule(' in add_action_section
+    assert 'this.syncRuleTriggerContextsForRule(this.editingRules[ruleIdx]);' in remove_action_section
+
+
+def test_automation_trigger_help_matches_action_subset_semantics():
+    source = read_project_file('static/js/components/automationModal.js')
+    template = read_project_file('templates/modals/automation.html')
+
+    legacy_section = source[
+        source.index('function deriveLegacyRuleTriggerContexts'):
+        source.index('function normalizeCaptureGroups')
+    ]
+    assert 'ACTION_TRIGGER_CONTEXTS[action.type]' in legacy_section
+    assert 'SUPPORTED_RULE_TRIGGER_CONTEXTS.filter' in legacy_section
+    assert '同一规则包含多个动作时，该入口只执行支持该场景的动作，其余动作会被跳过' in template
+    assert '灰色场景表示规则内没有动作支持该入口' in template
+    assert '不执行来源动作和标签合并；模板重命名、名称同步与分类拆分都属于支持的动作' in template
+    assert '来源标题→标签仅支持更新来源链接后' in template
+
+
+def test_category_manager_drag_adjusts_target_index_after_source_removal():
+    source = read_project_file('static/js/components/tagFilterModal.js')
+    section = extract_js_function_block(
+        source,
+        'moveCategoryToPosition(categoryName, targetName) {'
+    )
+    template = read_project_file('templates/modals/tag_filter.html')
+    styles = read_project_file('static/css/modules/modal-tools.css')
+
+    assert 'const insertAt = from < to ? to - 1 : to;' in section
+    assert 'order.splice(insertAt, 0, source);' in section
+    assert '@drop="onCategoryManagerDrop($event, item.name)"' in template
+    registry_start = styles.index('.tag-filter-category-manager-registry-list {')
+    registry_section = styles[registry_start:styles.index('}', registry_start) + 1]
+    assert 'padding-top: 0.22rem;' in registry_section
+    assert 'padding-left: 0.22rem;' in registry_section
 
 
 def test_automation_modal_split_category_tags_contract_uses_backend_exclude_segments_shape():

@@ -24,6 +24,7 @@ from core.data.ui_store import (
     load_ui_data,
     save_ui_data,
     set_last_sent_to_st,
+    set_last_sent_to_tt,
     set_shared_wallpaper_library,
 )
 from core.consts import SIDECAR_EXTENSIONS, RESERVED_RESOURCE_NAMES
@@ -1477,16 +1478,16 @@ def api_send_to_st():
 
             ui_data = load_ui_data()
             ui_key = resolve_ui_key(card_id)
-            _, last_sent_to_st = set_last_sent_to_st(ui_data, ui_key, time.time())
+            _, last_sent_to_tt = set_last_sent_to_tt(ui_data, ui_key, time.time())
             save_ui_data(ui_data)
 
             target_id = ctx.cache.bundle_map.get(ui_key, card_id)
-            ctx.cache.update_card_data(target_id, {'last_sent_to_st': last_sent_to_st})
+            ctx.cache.update_card_data(target_id, {'last_sent_to_tt': last_sent_to_tt})
             return jsonify({
                 'success': True,
                 'target': 'tauritavern',
                 'target_path': result['path'],
-                'last_sent_to_st': last_sent_to_st,
+                'last_sent_to_tt': last_sent_to_tt,
             })
 
         st_client = build_st_http_client(cfg, timeout=10)

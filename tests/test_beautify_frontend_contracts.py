@@ -662,6 +662,9 @@ def test_beautify_template_exposes_send_theme_to_st_button_contract():
     assert '@click="sendActiveThemeToST()"' in template
     assert ':title="getActiveVariantSendToSTTitle()"' in template
     assert ':disabled="isActionLoading || !canSendActiveVariantToST()"' in template
+    assert "send-target-tint" in template
+    assert "hasActiveVariantBeenSentToTarget()" in template
+    assert "'is-sending': isActionLoading && pendingThemeSendTarget" in template
 
 
 def test_beautify_grid_js_exposes_send_theme_to_st_contracts():
@@ -677,13 +680,17 @@ def test_beautify_grid_js_exposes_send_theme_to_st_contracts():
     for token in (
         'canSendActiveVariantToST()',
         'getActiveVariantSendToSTTitle()',
-        'applyActiveVariantSentState(lastSentToSt)',
+        'getBeautifySentFieldName() {',
+        'applyActiveVariantSentState(lastSentAt)',
         'async sendActiveThemeToST()',
-        'this.$store.global.beautifyActiveVariant.last_sent_to_st = lastSentToSt;',
+        'this.$store.global.beautifyActiveVariant[sentField] = lastSentAt;',
         'sendBeautifyThemeToSt({',
         "throw new Error(res?.error || '发送主题到 ST 失败');",
-        'this.applyActiveVariantSentState(res.last_sent_to_st);',
-        'this.$store.global.showToast("主题已发送到 ST 并设为当前主题", 2200, "card-send-to-st");',
+        'const sentField = this.getBeautifySentFieldName();',
+        'this.applyActiveVariantSentState(res[sentField]);',
+        'getActiveVariantSentAt() {',
+        'hasActiveVariantBeenSentToTarget() {',
+        'this.$store?.global?.getSendTargetIconName?.() || "card-send-to-st",',
     ):
         assert token in grid_source
 

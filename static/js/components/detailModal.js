@@ -214,6 +214,15 @@ export default function detailModal() {
             return checkedAt ? this.formatDateWithYear(checkedAt) : '未检查';
         },
 
+        // 发送历史按目标（ST / TauriTavern）分开存储，因此这里只读取当前目标自己的时间戳。
+        getActiveCardSentAt() {
+            return this.$store?.global?.getLastSentAt?.(this.activeCard) || 0;
+        },
+
+        getActiveCardLastSentLabel() {
+            return `上次发送到 ${this.$store?.global?.getSendTargetName?.() || 'ST'}`;
+        },
+
         buildPreviewRegexConfig() {
             const regexScripts = Array.isArray(this.editingData?.extensions?.regex_scripts)
                 ? this.editingData.extensions.regex_scripts
@@ -2280,6 +2289,7 @@ export default function detailModal() {
                     if (res.card.image_url) this.activeCard.image_url = res.card.image_url;
                     this.activeCard.import_time = Number(res.card.import_time || 0);
                     this.activeCard.last_sent_to_st = Number(res.card.last_sent_to_st || 0);
+                    this.activeCard.last_sent_to_tt = Number(res.card.last_sent_to_tt || 0);
                     this.fetchCardChats(safeCard.id || cardId);
 
                     // 更新 UI 备注字段
@@ -3274,8 +3284,13 @@ export default function detailModal() {
             sendToSillyTavern(this.activeCard.id)
                 .then(res => {
                     if (res.success) {
-                        this.activeCard.last_sent_to_st = Number(res.last_sent_to_st || Date.now() / 1000);
-                        this.$store.global.showToast("发送成功", 2200, "check");
+                        const sentField = this.$store.global.getLastSentFieldName?.() || 'last_sent_to_st';
+                        this.activeCard[sentField] = Number(res[sentField] || Date.now() / 1000);
+                        this.$store.global.showToast(
+                            this.$store.global.getSendTargetSuccessMessage?.() || "发送成功",
+                            2200,
+                            this.$store.global.getSendTargetIconName?.() || "card-send-to-st",
+                        );
                     }
                     else this.$store.global.showToast("发送失败: " + res.msg, 2600, "close");
                 })

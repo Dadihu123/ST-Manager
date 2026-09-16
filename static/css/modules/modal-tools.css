@@ -123,6 +123,26 @@
     white-space: nowrap;
   }
 
+  /* 分类管理的新建行：名称与新建按钮同一行，颜色与透明度换到第二行。 */
+  .tag-filter-desktop-shell
+    .tag-category-editor-row-main--manager-draft {
+    grid-template-columns: max-content minmax(0, 1fr) max-content;
+    grid-template-areas:
+      'name name action'
+      'color opacity opacity';
+    gap: 0.45rem;
+  }
+
+  .tag-filter-desktop-shell
+    .tag-category-editor-row-main--manager-draft
+    > .tag-category-manager-add {
+    grid-area: action;
+    min-width: 2.3rem;
+    /* 与同一行的名称输入框等高：解除桌面外壳给行内按钮的 2.65rem 下限。 */
+    min-height: 0;
+    white-space: nowrap;
+  }
+
   .tag-filter-desktop-shell
     .tag-filter-category-manager-registry-list:not(
       .tag-category-manager-registry-list--legacy
@@ -934,6 +954,179 @@
   color: var(--status-danger-text);
 }
 
+/* ==========================================================================
+   分类管理：新建区 / 选中操作区 / 分类胶囊列表
+   胶囊承载分类本身（颜色由分类色板着色），设为默认/重命名/删除等操作统一
+   放到选中区，避免与"新建分类"的输入行互相干扰。
+   ========================================================================== */
+
+.tag-filter-category-manager-zone {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.tag-filter-category-manager-zone + .tag-filter-category-manager-zone {
+  margin-top: 0.75rem;
+  padding-top: 0.7rem;
+  border-top: 1px solid var(--border-divider);
+}
+
+.tag-filter-category-manager-zone-label {
+  color: var(--content-muted);
+  font-size: 0.66rem;
+  font-weight: 700;
+  line-height: 1.35;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tag-filter-category-manager-zone--selection > .tag-filter-category-manager-zone-label {
+  color: var(--content-secondary);
+}
+
+.tag-category-manager-add {
+  align-items: center;
+  background: var(--action-surface);
+  border: 1px solid var(--action-border);
+  border-radius: 0.42rem;
+  color: var(--action-text);
+  cursor: pointer;
+  display: inline-flex;
+  flex: 0 0 auto;
+  justify-content: center;
+  min-height: 2.1rem;
+  min-width: 2.3rem;
+  padding: 0 0.4rem;
+  transition: all 0.15s ease;
+}
+
+.tag-category-manager-add:hover:not(:disabled) {
+  border-color: var(--action-border-hover);
+  color: var(--action-text);
+  transform: translateY(-1px);
+}
+
+.tag-category-manager-add:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.tag-filter-category-manager-selection-controls,
+.tag-filter-category-manager-action-buttons {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.tag-filter-category-manager-selection-controls .tag-category-manager-color {
+  flex: 0 0 1.9rem;
+  width: 1.9rem;
+  height: 1.9rem;
+}
+
+.tag-filter-category-manager-selection-controls .tag-category-manager-opacity-wrap {
+  flex: 1 1 6rem;
+  min-width: 5rem;
+}
+
+.tag-filter-category-manager-selection-controls
+  .tag-category-manager-opacity-wrap
+  .tag-category-manager-opacity-slider {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: auto;
+}
+
+.tag-category-manager-color:disabled,
+.tag-category-manager-opacity-wrap.is-disabled,
+.tag-category-manager-opacity-slider:disabled,
+.tag-category-manager-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.tag-category-manager-btn:disabled:hover {
+  border-color: var(--border-default);
+  color: var(--content-secondary);
+}
+
+.tag-category-manager-btn.danger:disabled:hover {
+  border-color: color-mix(in srgb, var(--status-danger-solid) 50%, transparent);
+  color: var(--status-danger-text);
+}
+
+.tag-category-manager-pill-list {
+  align-items: flex-start;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.42rem;
+}
+
+.tag-category-manager-pill {
+  align-items: center;
+  border: 1px solid var(--border-default);
+  border-radius: 999px;
+  cursor: grab;
+  display: inline-flex;
+  gap: 0.3rem;
+  max-width: 100%;
+  min-height: 1.9rem;
+  padding: 0.22rem 0.6rem 0.22rem 0.42rem;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.tag-category-manager-pill:active {
+  cursor: grabbing;
+}
+
+.tag-category-manager-pill .tag-chip-drag-handle {
+  margin-right: 0;
+  opacity: 0.55;
+}
+
+.tag-category-manager-pill:focus-visible {
+  outline: 2px solid var(--accent-action);
+  outline-offset: 1px;
+}
+
+/* 选中/拖拽落点用描边表达：胶囊底色由分类色板以 !important 控制。 */
+.tag-category-manager-pill.is-selected {
+  box-shadow: 0 0 0 2px var(--accent-action);
+}
+
+.tag-category-manager-pill.is-drag-over {
+  box-shadow: 0 0 0 2px var(--accent-outline);
+  transform: translateY(-1px);
+}
+
+.tag-category-manager-pill.is-dragging {
+  opacity: 0.5;
+}
+
+.tag-category-manager-pill.is-default .tag-category-manager-name {
+  font-weight: 800;
+}
+
+.tag-category-manager-pill .tag-category-manager-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tag-category-manager-pill-list .tag-category-manager-pill .tag-category-manager-count {
+  flex: 0 0 auto;
+  margin-left: 0.1rem;
+  opacity: 0.8;
+}
+
 .tag-chip-sortable {
   user-select: none;
   cursor: grab;
@@ -1410,6 +1603,8 @@
   min-height: 0;
   flex: 1;
   overflow-y: auto;
+  padding-top: 0.22rem;
+  padding-left: 0.22rem;
   padding-right: 0.15rem;
   padding-bottom: 1rem;
 }

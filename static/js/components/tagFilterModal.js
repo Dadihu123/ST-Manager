@@ -64,6 +64,9 @@ export default function tagFilterModal() {
     categoryManagerDraftName: "",
     categoryManagerDraftColor: DEFAULT_TAG_CATEGORY_COLOR,
     categoryManagerDraftOpacity: DEFAULT_TAG_CATEGORY_OPACITY,
+    categoryManagerSelectedName: "",
+    categoryManagerDragName: "",
+    categoryManagerDragOverName: "",
     selectedBlacklistTags: [],
     blacklistSelectionInput: "",
     categoryFilterInclude: [],
@@ -347,10 +350,21 @@ export default function tagFilterModal() {
       }));
     },
 
+    // 分类管理胶囊的当前选中项；名称失效时自动视为未选中。
+    get categoryManagerSelectedItem() {
+      const name = String(this.categoryManagerSelectedName || "").trim();
+      if (!name) return null;
+
+      return this.categoryManagerItems.find((item) => item.name === name) || null;
+    },
+
+    get hasCategoryManagerSelection() {
+      return !!this.categoryManagerSelectedItem;
+    },
+
     get sortModeTagsPool() {
       return this.sortWorkingTags || [];
     },
-
     get sortModeMixedTagsPool() {
       return this.filterTagsByCurrentCategoryFilters(
         this.sortModeTagsPool || [],
@@ -830,6 +844,7 @@ export default function tagFilterModal() {
       this.categoryManagerDraftName = "";
       this.categoryManagerDraftColor = DEFAULT_TAG_CATEGORY_COLOR;
       this.categoryManagerDraftOpacity = DEFAULT_TAG_CATEGORY_OPACITY;
+      this.resetCategoryManagerSelection();
       this.selectedBlacklistTags = [];
       this.blacklistSelectionInput = "";
       this.categoryFilterInclude = [];
@@ -1358,28 +1373,181 @@ export default function tagFilterModal() {
       ).then((saved) => {
         if (!saved) return;
         this.categoryManagerDraftName = "";
+        this.categoryManagerSelectedName = name;
       });
+    },
+
+    // === 分类管理胶囊：选中、拖拽排序与选中项操作 ===
+
+    resetCategoryManagerSelection() {
+      this.categoryManagerSelectedName = "";
+      this.categoryManagerDragName = "";
+      this.categoryManagerDragOverName = "";
+    },
+
+    isCategoryManagerSelected(categoryName) {
+      const name = String(categoryName || "").trim();
+      if (!name) return false;
+
+      return name === String(this.categoryManagerSelectedName || "").trim();
+    },
+
+    selectCategoryManagerItem(categoryName) {
+      const name = String(categoryName || "").trim();
+      if (!name) return;
+
+      // 再次点击同一胶囊即取消选中，避免误操作。
+      this.categoryManagerSelectedName = this.isCategoryManagerSelected(name)
+        ? ""
+        : name;
+    },
+
+    categoryManagerDraftExists() {
+      const name = String(this.categoryManagerDraftName || "").trim();
+      return !!name && this.availableCategoryNames.includes(name);
+    },
+
+    categoryManagerDraftActionLabel() {
+      const name = String(this.categoryManagerDraftName || "").trim();
+      if (!name) return "请先填写分类名称";
+
+      return this.categoryManagerDraftExists()
+        ? `更新分类「${name}」的颜色与透明度`
+        : `新增分类「${name}」`;
+    },
+
+    categoryManagerPillTitle(item) {
+      if (!item) return "";
+
+      const defaultNote = item.isDefault ? " · 默认分类" : "";
+      return `${item.name} · ${item.count} 个标签${defaultNote}｜点击选中，拖拽调整顺序`;
+    },
+
+    categoryManagerSelectionLabel() {
+      const item = this.categoryManagerSelectedItem;
+      if (!item) return "点击下方分类胶囊后可设为默认、重命名或删除";
+
+      return `已选中「${item.name}」`;
+    },
+
+    setDefaultSelectedCategory() {
+      const item = this.categoryManagerSelectedItem;
+      if (!item) return;
+
+      this.setDefaultCategory(item.name);
+    },
+
+    renameSelectedCategory() {
+      const item = this.categoryManagerSelectedItem;
+      if (!item) return;
+
+      const nextName = this.renameCategory(item.name);
+      if (nextName) {
+        this.categoryManagerSelectedName = nextName;
+      }
+    },
+
+    deleteSelectedCategory() {
+      const item = this.categoryManagerSelectedItem;
+      if (!item) return;
+
+      if (this.deleteCategory(item.name)) {
+        this.categoryManagerSelectedName = "";
+      }
+    },
+
+    setSelectedCategoryColor(color) {
+      const item = this.categoryManagerSelectedItem;
+      if (!item) return;
+
+      this.setCategoryColor(item.name, color);
+    },
+
+    setSelectedCategoryOpacity(opacity) {
+      const item = this.categoryManagerSelectedItem;
+      if (!item) return;
+
+      this.setCategoryOpacity(item.name, opacity);
+    },
+
+    onCategoryManagerDragStart(event, categoryName) {
+      const name = String(categoryName || "").trim();
+      if (!name) return;
+
+      this.categoryManagerDragName = name;
+      if (event?.dataTransfer) {
+        event.dataTransfer.effectAllowed = "move";
+        event.dataTransfer.setData("text/plain", name);
+      }
+    },
+
+    onCategoryManagerDragOver(event, categoryName) {
+      if (!this.categoryManagerDragName) return;
+
+      event?.preventDefault?.();
+      this.categoryManagerDragOverName = String(categoryName || "").trim();
+    },
+
+    onCategoryManagerDrop(event, categoryName) {
+      event?.preventDefault?.();
+
+      const source = String(
+        this.categoryManagerDragName ||
+          event?.dataTransfer?.getData("text/plain") ||
+          "",
+      ).trim();
+      const target = String(categoryName || "").trim();
+
+      this.onCategoryManagerDragEnd();
+      if (!source || !target || source === target) return;
+
+      this.moveCategoryToPosition(source, target);
+    },
+
+    onCategoryManagerDragEnd() {
+      this.categoryManagerDragName = "";
+      this.categoryManagerDragOverName = "";
+    },
+
+    moveCategoryToPosition(categoryName, targetName) {
+      const source = String(categoryName || "").trim();
+      const target = String(targetName || "").trim();
+      if (!source || !target || source === target) return;
+
+      const taxonomy = this.buildTaxonomyPayload();
+      const order = [...taxonomy.category_order];
+      const from = order.indexOf(source);
+      const to = order.indexOf(target);
+      if (from < 0 || to < 0) return;
+
+      // `to` 是移除源项前的索引；源项在目标前时，移除后目标会左移一位。
+      const insertAt = from < to ? to - 1 : to;
+      order.splice(from, 1);
+      order.splice(insertAt, 0, source);
+      taxonomy.category_order = order;
+
+      this.saveTaxonomy(taxonomy, `已调整「${source}」的分类顺序`);
     },
 
     renameCategory(categoryName) {
       const oldName = String(categoryName || "").trim();
-      if (!oldName) return;
+      if (!oldName) return "";
 
       const nextNameRaw = prompt("请输入新的分类名称", oldName);
-      if (nextNameRaw === null) return;
+      if (nextNameRaw === null) return "";
 
       const newName = String(nextNameRaw || "").trim();
-      if (!newName || newName === oldName) return;
+      if (!newName || newName === oldName) return "";
 
       const taxonomy = this.buildTaxonomyPayload();
-      if (!taxonomy.categories[oldName]) return;
+      if (!taxonomy.categories[oldName]) return "";
 
       const targetExists = !!taxonomy.categories[newName];
       if (targetExists) {
         const okMerge = confirm(
           `分类「${newName}」已存在，是否将「${oldName}」合并到它？`,
         );
-        if (!okMerge) return;
+        if (!okMerge) return "";
       }
 
       if (!targetExists) {
@@ -1405,11 +1573,12 @@ export default function tagFilterModal() {
       }
 
       this.saveTaxonomy(taxonomy, `已重命名分类「${oldName}」`);
+      return newName;
     },
 
     deleteCategory(categoryName) {
       const name = String(categoryName || "").trim();
-      if (!name) return;
+      if (!name) return false;
 
       const taxonomy = this.buildTaxonomyPayload();
       const defaultCategory =
@@ -1417,13 +1586,13 @@ export default function tagFilterModal() {
 
       if (name === defaultCategory) {
         alert("默认分类无法删除，请先将其他分类设为默认");
-        return;
+        return false;
       }
 
       const ok = confirm(
         `确定删除分类「${name}」吗？该分类下标签将迁移到「${defaultCategory}」。`,
       );
-      if (!ok) return;
+      if (!ok) return false;
 
       delete taxonomy.categories[name];
       taxonomy.category_order = taxonomy.category_order.filter(
@@ -1437,6 +1606,7 @@ export default function tagFilterModal() {
       });
 
       this.saveTaxonomy(taxonomy, `已删除分类「${name}」`);
+      return true;
     },
 
     setDefaultCategory(categoryName) {

@@ -591,6 +591,13 @@ def test_update_card_from_url_skips_source_refresh_without_global_baseline_actio
         or {'success': False, 'status': 'error'},
     )
     monkeypatch.setattr(
+        cards_api,
+        '_refresh_source_after_update',
+        lambda *args, **kwargs: pytest.fail(
+            'card content update must not invoke source baseline refresh'
+        ),
+    )
+    monkeypatch.setattr(
         automation_service,
         'load_config',
         lambda: {'active_automation_ruleset': None},

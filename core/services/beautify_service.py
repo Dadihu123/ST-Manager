@@ -14,6 +14,7 @@ from core.config import get_beautify_folder
 from core.data.ui_store import (
     get_beautify_library,
     get_last_sent_to_st,
+    get_last_sent_to_tt,
     load_ui_data,
     save_ui_data,
     set_beautify_library,
@@ -296,6 +297,10 @@ class BeautifyService:
         for variant_id, variant in result.get('variants', {}).items():
             variant['theme_data'] = self._load_theme_data(variant.get('theme_file', ''))
             variant['last_sent_to_st'] = get_last_sent_to_st(
+                ui_data,
+                self.get_variant_send_state_key(resolved_package_id, variant_id),
+            )
+            variant['last_sent_to_tt'] = get_last_sent_to_tt(
                 ui_data,
                 self.get_variant_send_state_key(resolved_package_id, variant_id),
             )

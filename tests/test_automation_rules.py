@@ -1,3 +1,4 @@
+import re
 import sys
 import importlib
 from pathlib import Path
@@ -723,9 +724,61 @@ def test_normalize_rule_trigger_contexts_derives_legacy_contexts_from_actions():
         ]
     }) == [
         TRIGGER_CONTEXT_MANUAL_RUN,
-        TRIGGER_CONTEXT_AUTO_IMPORT,
         TRIGGER_CONTEXT_LINK_UPDATE,
         TRIGGER_CONTEXT_TAG_EDIT,
+    ]
+
+
+def test_legacy_source_actions_only_get_supported_trigger_contexts():
+    assert automation_service._normalize_rule_trigger_contexts({
+        'actions': [
+            {'type': ACT_REFRESH_SOURCE_BASELINE},
+        ]
+    }) == [
+        TRIGGER_CONTEXT_MANUAL_RUN,
+        TRIGGER_CONTEXT_LINK_UPDATE,
+    ]
+    assert automation_service._normalize_rule_trigger_contexts({
+        'actions': [
+            {'type': 'add_tags_from_source_title'},
+        ]
+    }) == [TRIGGER_CONTEXT_LINK_UPDATE]
+
+
+def test_trigger_rule_stats_ignore_disabled_rules_and_unsupported_manual_actions():
+    stats = automation_service.get_ruleset_trigger_stats({
+        'rules': [
+            {
+                'name': 'disabled',
+                'enabled': False,
+                'actions': [{'type': ACT_ADD_TAG, 'value': 'disabled'}],
+            },
+            {
+                'name': 'auto-only',
+                'enabled': True,
+                'trigger_contexts': [TRIGGER_CONTEXT_AUTO_IMPORT],
+                'actions': [{'type': ACT_ADD_TAG, 'value': 'auto-only'}],
+            },
+            {
+                'name': 'manual-ready',
+                'enabled': True,
+                'trigger_contexts': [TRIGGER_CONTEXT_MANUAL_RUN],
+                'actions': [{'type': ACT_ADD_TAG, 'value': 'manual-ready'}],
+            },
+            {
+                'name': 'manual-unsupported',
+                'enabled': True,
+                'trigger_contexts': [TRIGGER_CONTEXT_MANUAL_RUN],
+                'actions': [{'type': 'add_tags_from_source_title'}],
+            },
+        ]
+    }, TRIGGER_CONTEXT_MANUAL_RUN)
+
+    assert stats['eligible_count'] == 1
+    assert stats['skipped_count'] == 2
+    assert [item['name'] for item in stats['skipped_rules']] == [
+        'auto-only',
+        'manual-unsupported',
     ]
 
 
@@ -768,6 +821,22 @@ def test_has_global_source_baseline_action_requires_enabled_active_action(monkey
     )
 
     assert automation_service.has_global_source_baseline_action() is True
+
+    monkeypatch.setattr(
+        automation_service.rule_manager,
+        'get_ruleset',
+        lambda _ruleset_id: {
+            'rules': [{
+                'enabled': True,
+                'trigger_contexts': [TRIGGER_CONTEXT_AUTO_IMPORT],
+                'actions': [{'type': ACT_REFRESH_SOURCE_BASELINE}],
+            }]
+        },
+    )
+
+    assert automation_service.has_global_source_baseline_action(
+        trigger_context=TRIGGER_CONTEXT_AUTO_IMPORT,
+    ) is False
 
 
 def test_auto_run_rules_for_trigger_only_evaluates_card_update_rules(monkeypatch):
@@ -2145,6 +2214,8 @@ def test_manual_execute_reuses_shared_rule_context_builder(monkeypatch):
         'selected': 1,
         'processed': 0,
         'skipped': 0,
+        'rules_applied': 1,
+        'rules_skipped': 0,
         'summary': {
             'moves': 0,
             'tag_changes': 0,
@@ -2270,6 +2341,8 @@ def test_manual_execute_uses_shared_normalizer_for_manual_run_and_preserves_merg
         'selected': 1,
         'processed': 1,
         'skipped': 0,
+        'rules_applied': 0,
+        'rules_skipped': 0,
         'summary': {
             'moves': 0,
             'tag_changes': 2,
@@ -2402,6 +2475,8 @@ def test_manual_execute_preserves_batch_snapshot_when_earlier_items_mutate(monke
         'selected': 2,
         'processed': 2,
         'skipped': 0,
+        'rules_applied': 0,
+        'rules_skipped': 0,
         'summary': {
             'moves': 0,
             'tag_changes': 2,
@@ -2537,6 +2612,8 @@ def test_manual_execute_reports_skipped_targets_missing_from_cache(monkeypatch):
         'selected': 2,
         'processed': 1,
         'skipped': 1,
+        'rules_applied': 0,
+        'rules_skipped': 0,
         'summary': {
             'moves': 0,
             'tag_changes': 1,
@@ -3515,6 +3592,8 @@ def test_manual_execute_runs_template_rename_through_executor_plan(monkeypatch):
         'selected': 1,
         'processed': 1,
         'skipped': 0,
+        'rules_applied': 0,
+        'rules_skipped': 0,
         'summary': {
             'moves': 0,
             'tag_changes': 0,
@@ -3886,3 +3965,37 @@ def test_rule_manager_save_ruleset_preserves_group_condition_and_action_order(mo
     assert [cond['value'] for cond in groups[1]['conditions']] == ['tag-2', 'tag-1']
     assert [action['type'] for action in actions] == ['remove_tag', 'add_tag', 'move_folder']
     assert [action['value'] for action in actions] == ['late', 'early', 'Sorted/Folder']
+
+
+def test_frontend_action_trigger_context_map_matches_backend_allow_list():
+    """前端规则编辑器的动作 → 触发场景映射必须与后端允许列表一致。
+
+    后端会用 TRIGGER_CONTEXT_ALLOWED_ACTIONS 丢弃场景不支持的动作，前端据此
+    禁用不可选的场景按钮；两边一旦漂移就会出现"勾了却不执行"的规则。
+    """
+    js_source = (ROOT / 'static' / 'js' / 'components' / 'automationModal.js').read_text(
+        encoding='utf-8'
+    )
+    map_match = re.search(
+        r'const ACTION_TRIGGER_CONTEXTS = \{(.*?)\n\};',
+        js_source,
+        re.DOTALL,
+    )
+    assert map_match, 'ACTION_TRIGGER_CONTEXTS not found in automationModal.js'
+
+    frontend_map = {
+        key: set(re.findall(r"'([^']+)'", value))
+        for key, value in re.findall(r'(\w+): \[([^\]]*)\]', map_match.group(1))
+    }
+
+    action_types = {action for allowed in TRIGGER_CONTEXT_ALLOWED_ACTIONS.values() for action in allowed}
+    backend_map = {
+        action_type: {
+            trigger_context
+            for trigger_context, allowed in TRIGGER_CONTEXT_ALLOWED_ACTIONS.items()
+            if action_type in allowed
+        }
+        for action_type in action_types
+    }
+
+    assert frontend_map == backend_map

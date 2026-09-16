@@ -39,7 +39,8 @@
       <div class="beautify-stage-actions beautify-detail-primary-actions">
         <button
           type="button"
-          class="beautify-primary-btn beautify-send-theme-btn"
+          class="beautify-primary-btn beautify-send-theme-btn send-target-tint"
+          :class="{ 'has-sent': hasActiveVariantBeenSentToTarget(), 'is-sending': isActionLoading && pendingThemeSendTarget, 'is-target-tt': $store.global.isTauriTavernTarget?.() }"
           @click="sendActiveThemeToST()"
           :title="getActiveVariantSendToSTTitle()"
           :disabled="isActionLoading || !canSendActiveVariantToST()"

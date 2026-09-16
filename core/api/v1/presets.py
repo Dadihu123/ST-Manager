@@ -14,10 +14,12 @@ from core.config import BASE_DIR, load_config
 from core.context import ctx
 from core.data.ui_store import (
     get_last_sent_to_st,
+    get_last_sent_to_tt,
     get_resource_item_categories,
     load_ui_data,
     save_ui_data,
     set_last_sent_to_st,
+    set_last_sent_to_tt,
     set_resource_item_categories,
 )
 from core.services.preset_editor_schema import normalize_preset_content_for_save
@@ -453,6 +455,30 @@ def _build_preset_ui_key(preset_type: str, file_path: str, preset_id: str, prese
 def _get_preset_last_sent_to_st(ui_data: dict, preset_type: str, file_path: str, preset_id: str, presets_root: str) -> float:
     ui_key = _build_preset_ui_key(preset_type, file_path, preset_id, presets_root)
     return get_last_sent_to_st(ui_data, ui_key) if ui_key else 0.0
+
+
+def _get_preset_last_sent_to_tt(ui_data: dict, preset_type: str, file_path: str, preset_id: str, presets_root: str) -> float:
+    ui_key = _build_preset_ui_key(preset_type, file_path, preset_id, presets_root)
+    return get_last_sent_to_tt(ui_data, ui_key) if ui_key else 0.0
+
+
+def _apply_preset_last_sent_fields(
+    target: dict,
+    ui_data: dict,
+    preset_type: str,
+    file_path: str,
+    preset_id: str,
+    presets_root: str,
+) -> None:
+    """同时写入 ST 与 TauriTavern 两个发送时间戳，便于前端按当前目标区分显示。"""
+    ui_key = _build_preset_ui_key(preset_type, file_path, preset_id, presets_root)
+    if not ui_key:
+        target['last_sent_to_st'] = 0.0
+        target['last_sent_to_tt'] = 0.0
+        return
+
+    target['last_sent_to_st'] = get_last_sent_to_st(ui_data, ui_key)
+    target['last_sent_to_tt'] = get_last_sent_to_tt(ui_data, ui_key)
 
 
 def _build_st_openai_preset_payload(preset_data, file_path: str = '') -> dict:
@@ -1385,6 +1411,7 @@ def _inherit_family_default_version_fields(grouped_items):
             continue
 
         item['last_sent_to_st'] = default_version.get('last_sent_to_st', item.get('last_sent_to_st', 0))
+        item['last_sent_to_tt'] = default_version.get('last_sent_to_tt', item.get('last_sent_to_tt', 0))
         item['preset_kind'] = default_version.get('preset_kind', item.get('preset_kind', ''))
         item['preset_kind_label'] = default_version.get('preset_kind_label', item.get('preset_kind_label', ''))
 
@@ -1453,7 +1480,8 @@ def list_presets():
                             item['source_folder'] = None
                         item['type'] = 'global'
                         item['source_type'] = 'global'
-                        item['last_sent_to_st'] = _get_preset_last_sent_to_st(
+                        _apply_preset_last_sent_fields(
+                            item,
                             ui_data,
                             'global',
                             full_path,
@@ -1518,7 +1546,8 @@ def list_presets():
                                     owner_card_category=owner_category,
                                 )
                             if item:
-                                item['last_sent_to_st'] = _get_preset_last_sent_to_st(
+                                _apply_preset_last_sent_fields(
+                                    item,
                                     ui_data,
                                     'resource',
                                     full_path,
@@ -1617,7 +1646,14 @@ def get_preset_detail(preset_id):
             details.get('id', preset_id),
             presets_root,
         )
-        
+        details['last_sent_to_tt'] = _get_preset_last_sent_to_tt(
+            load_ui_data(),
+            preset_type,
+            file_path,
+            details.get('id', preset_id),
+            presets_root,
+        )
+
         return jsonify({
             "success": True,
             "preset": details
@@ -2155,14 +2191,14 @@ def send_preset_to_st():
 
             ui_data = load_ui_data()
             ui_key = _build_preset_ui_key(preset_type, file_path, preset_id, presets_root)
-            _, last_sent_to_st = set_last_sent_to_st(ui_data, ui_key, time.time())
+            _, last_sent_to_tt = set_last_sent_to_tt(ui_data, ui_key, time.time())
             if not save_ui_data(ui_data):
                 return jsonify({'success': False, 'msg': '保存发送时间失败'}), 500
             return jsonify({
                 'success': True,
                 'target': 'tauritavern',
                 'target_path': result['path'],
-                'last_sent_to_st': last_sent_to_st,
+                'last_sent_to_tt': last_sent_to_tt,
             })
 
         auth_type = str(cfg.get('st_auth_type') or 'basic').strip().lower()

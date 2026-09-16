@@ -903,16 +903,29 @@ export default function beautifyGrid() {
       return "发送当前主题到 ST，并自动切换为该主题；同名主题会覆盖 ST 中现有内容";
     },
 
-    applyActiveVariantSentState(lastSentToSt) {
+    getBeautifySentFieldName() {
+      return this.$store?.global?.getLastSentFieldName?.() || "last_sent_to_st";
+    },
+
+    getActiveVariantSentAt() {
+      return this.$store?.global?.getLastSentAt?.(this.activeVariant) || 0;
+    },
+
+    hasActiveVariantBeenSentToTarget() {
+      return this.getActiveVariantSentAt() > 0;
+    },
+
+    applyActiveVariantSentState(lastSentAt) {
       const packageId = String(
         this.pendingThemeSendTarget?.packageId || this.selectedPackageId || "",
       ).trim();
       const variantId = String(
         this.pendingThemeSendTarget?.variantId || this.activeVariant?.id || "",
       ).trim();
+      const sentField = this.getBeautifySentFieldName();
 
       if (this.$store.global.beautifyActiveVariant?.id === variantId) {
-        this.$store.global.beautifyActiveVariant.last_sent_to_st = lastSentToSt;
+        this.$store.global.beautifyActiveVariant[sentField] = lastSentAt;
       }
 
       if (
@@ -920,7 +933,7 @@ export default function beautifyGrid() {
         variantId &&
         this.activeDetail?.variants?.[variantId]
       ) {
-        this.activeDetail.variants[variantId].last_sent_to_st = lastSentToSt;
+        this.activeDetail.variants[variantId][sentField] = lastSentAt;
       }
     },
 
@@ -947,13 +960,18 @@ export default function beautifyGrid() {
           }
           throw new Error(res?.error || `发送主题到 ${targetName} 失败`);
         }
-        this.applyActiveVariantSentState(res.last_sent_to_st);
+        const sentField = this.getBeautifySentFieldName();
+        this.applyActiveVariantSentState(res[sentField]);
         const targetName = this.$store?.global?.getSendTargetName?.() || "ST";
-        if (targetName === "ST") {
-          this.$store.global.showToast("主题已发送到 ST 并设为当前主题", 2200, "card-send-to-st");
-        } else {
-          this.$store.global.showToast("标准主题已发送到 TauriTavern 并设为当前主题", 2200, "card-send-to-st");
-        }
+        const successMessage =
+          targetName === "ST"
+            ? "主题已发送到 ST 并设为当前主题"
+            : "标准主题已发送到 TauriTavern 并设为当前主题";
+        this.$store.global.showToast(
+          successMessage,
+          2200,
+          this.$store?.global?.getSendTargetIconName?.() || "card-send-to-st",
+        );
       } catch (error) {
         this.$store.global.showToast(String(error.message || error), 3200);
       } finally {

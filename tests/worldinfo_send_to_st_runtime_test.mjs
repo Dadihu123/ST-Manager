@@ -65,6 +65,10 @@ function testDetailSendSyncsGridWithoutReload() {
     detailSource,
     'getActiveWorldInfoSendToSTTitle() {',
   );
+  const sentAtBlock = extractJsFunctionBlock(
+    detailSource,
+    'getActiveWorldInfoSentAt() {',
+  );
   const sendBlock = extractJsFunctionBlock(
     detailSource,
     'async sendActiveWorldInfoToST() {',
@@ -72,6 +76,10 @@ function testDetailSendSyncsGridWithoutReload() {
   const applyGridSentStateBlock = extractJsFunctionBlock(
     gridSource,
     'applyWorldInfoSentState(detail) {',
+  );
+  const sentFieldBlock = extractJsFunctionBlock(
+    gridSource,
+    'getWorldInfoSentFieldName() {',
   );
 
   const windowStub = createWindowStub();
@@ -151,11 +159,13 @@ function testDetailSendSyncsGridWithoutReload() {
 
   Object.assign(
     detailComponent,
-    eval(`(({ ${detailInitBlock}, ${canSendBlock}, ${titleBlock}, ${sendBlock} }))`),
+    eval(
+      `(({ ${detailInitBlock}, ${canSendBlock}, ${sentAtBlock}, ${titleBlock}, ${sendBlock} }))`,
+    ),
   );
   Object.assign(
     gridComponent,
-    eval(`(({ ${gridInitBlock}, ${applyGridSentStateBlock} }))`),
+    eval(`(({ ${gridInitBlock}, ${sentFieldBlock}, ${applyGridSentStateBlock} }))`),
   );
 
   detailComponent.init();
@@ -254,6 +264,10 @@ function testGridSendSyncsOpenDetailWithoutReload() {
     gridSource,
     'applyWorldInfoSentState(detail) {',
   );
+  const sentFieldBlock = extractJsFunctionBlock(
+    gridSource,
+    'getWorldInfoSentFieldName() {',
+  );
 
   const windowStub = createWindowStub();
   globalThis.window = windowStub;
@@ -305,7 +319,7 @@ function testGridSendSyncsOpenDetailWithoutReload() {
   Object.assign(
     gridComponent,
     eval(
-      `(({ ${canSendGridBlock}, ${isSendingGridBlock}, ${applyGridSentStateBlock}, ${sendGridBlock} }))`,
+      `(({ ${canSendGridBlock}, ${isSendingGridBlock}, ${sentFieldBlock}, ${applyGridSentStateBlock}, ${sendGridBlock} }))`,
     ),
   );
 

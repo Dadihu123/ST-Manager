@@ -2126,54 +2126,124 @@
                         class="tag-filter-category-manager-stack-item tag-filter-category-manager-stack-item--draft"
                       >
                         <div class="tag-filter-category-manager-draft-area">
-                          <div
-                            class="tag-category-editor-row tag-category-editor-row-main tag-category-editor-row-main--manager-draft"
-                          >
-                            <input
-                              type="text"
-                              x-model="categoryManagerDraftName"
-                              placeholder="新增分类名称"
-                              class="form-input"
-                              style="
-                                font-size: 0.82rem;
-                                padding: 0.42rem 0.6rem;
-                              "
-                            />
-                            <input
-                              type="color"
-                              x-model="categoryManagerDraftColor"
-                              class="tag-category-color-input"
-                              title="分类颜色"
-                            />
+                          <div class="tag-filter-category-manager-zone">
+                            <span class="tag-filter-category-manager-zone-label">新建 / 更新分类</span>
                             <div
-                              class="tag-opacity-control"
-                              title="分类透明度（0-100）"
+                              class="tag-category-editor-row tag-category-editor-row-main tag-category-editor-row-main--manager-draft"
                             >
-                              <span class="tag-opacity-label">透明度</span>
                               <input
-                                type="range"
-                                min="0"
-                                max="100"
-                                step="1"
-                                x-model.number="categoryManagerDraftOpacity"
-                                class="tag-opacity-slider"
+                                type="text"
+                                x-model="categoryManagerDraftName"
+                                placeholder="新增分类名称"
+                                class="form-input"
+                                style="font-size: 0.82rem; padding: 0.42rem 0.6rem;"
+                                @keydown.enter.prevent="addCategoryFromManager()"
                               />
+                              <button
+                                type="button"
+                                class="tag-category-manager-add"
+                                @click="addCategoryFromManager()"
+                                :disabled="!categoryManagerDraftName.trim()"
+                                :title="categoryManagerDraftActionLabel()"
+                                :aria-label="categoryManagerDraftActionLabel()"
+                              >
+                                <span aria-hidden="true" x-show="!categoryManagerDraftExists()">{{ icon('plus-square', 'ui-icon--sm') }}</span>
+                                <span aria-hidden="true" x-show="categoryManagerDraftExists()" x-cloak>{{ icon('check', 'ui-icon--sm') }}</span>
+                              </button>
                               <input
-                                type="number"
-                                min="0"
-                                max="100"
-                                step="1"
-                                x-model.number="categoryManagerDraftOpacity"
-                                class="tag-opacity-number"
+                                type="color"
+                                x-model="categoryManagerDraftColor"
+                                class="tag-category-color-input tag-category-manager-color"
+                                title="新分类颜色"
                               />
+                              <div class="tag-opacity-control" title="新分类透明度（0-100）">
+                                <span class="tag-opacity-label">透明度</span>
+                                <input
+                                  type="range"
+                                  min="0"
+                                  max="100"
+                                  step="1"
+                                  x-model.number="categoryManagerDraftOpacity"
+                                  class="tag-opacity-slider"
+                                />
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max="100"
+                                  step="1"
+                                  x-model.number="categoryManagerDraftOpacity"
+                                  class="tag-opacity-number"
+                                />
+                              </div>
                             </div>
-                            <button
-                              type="button"
-                              @click="addCategoryFromManager()"
-                              class="btn-action-soft text-xs px-3 py-1 rounded font-bold shadow-md"
-                            >
-                              新增/更新
-                            </button>
+                          </div>
+
+                          <div
+                            class="tag-filter-category-manager-zone tag-filter-category-manager-zone--selection"
+                          >
+                            <span
+                              class="tag-filter-category-manager-zone-label"
+                              x-text="categoryManagerSelectionLabel()"
+                            ></span>
+                            <div class="tag-filter-category-manager-selection-controls">
+                              <input
+                                type="color"
+                                class="tag-category-manager-color"
+                                :value="categoryManagerSelectedItem ? categoryManagerSelectedItem.color : '#64748b'"
+                                :disabled="!hasCategoryManagerSelection"
+                                @change="setSelectedCategoryColor($event.target.value)"
+                                title="修改选中分类颜色"
+                              />
+                              <div
+                                class="tag-category-manager-opacity-wrap"
+                                :class="{ 'is-disabled': !hasCategoryManagerSelection }"
+                                title="修改选中分类不透明度（0-100）"
+                              >
+                                <input
+                                  type="range"
+                                  min="0"
+                                  max="100"
+                                  step="1"
+                                  :value="categoryManagerSelectedItem ? categoryManagerSelectedItem.opacity : 0"
+                                  :disabled="!hasCategoryManagerSelection"
+                                  @change="setSelectedCategoryOpacity($event.target.value)"
+                                  class="tag-category-manager-opacity-slider"
+                                />
+                                <span
+                                  class="tag-category-manager-opacity-text"
+                                  x-text="categoryManagerSelectedItem ? categoryManagerSelectedItem.opacity : 0"
+                                ></span>
+                              </div>
+                            </div>
+                            <div class="tag-filter-category-manager-action-buttons">
+                              <button
+                                type="button"
+                                class="tag-category-manager-btn"
+                                @click="setDefaultSelectedCategory()"
+                                :disabled="!hasCategoryManagerSelection || (categoryManagerSelectedItem && categoryManagerSelectedItem.isDefault)"
+                                title="将选中分类设为默认分类"
+                              >
+                                设为默认
+                              </button>
+                              <button
+                                type="button"
+                                class="tag-category-manager-btn"
+                                @click="renameSelectedCategory()"
+                                :disabled="!hasCategoryManagerSelection"
+                                title="重命名选中分类"
+                              >
+                                重命名
+                              </button>
+                              <button
+                                type="button"
+                                class="tag-category-manager-btn danger"
+                                @click="deleteSelectedCategory()"
+                                :disabled="!hasCategoryManagerSelection || (categoryManagerSelectedItem && categoryManagerSelectedItem.isDefault)"
+                                title="删除选中分类"
+                              >
+                                删除
+                              </button>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -2181,120 +2251,45 @@
                         class="tag-filter-category-manager-stack-item tag-filter-category-manager-stack-item--registry"
                       >
                         <div class="tag-filter-category-manager-registry-area">
-                          <div
-                            class="tag-filter-category-manager-registry-list custom-scrollbar"
-                          >
-                            <template
-                              x-for="item in categoryManagerItems"
-                              :key="'mgr-' + item.name"
-                            >
-                              <div class="tag-category-manager-item">
-                                <div class="tag-category-manager-main">
-                                  <span
-                                    class="tag-category-manager-dot"
-                                    :style="getCategoryChipStyle(item.name)"
-                                  ></span>
-                                  <span
-                                    class="tag-category-manager-name"
-                                    x-text="item.name"
-                                  ></span>
-                                  <span
-                                    class="tag-category-manager-opacity-pill"
-                                    x-text="item.opacity + '%'"
-                                    title="当前透明度"
-                                  ></span>
-                                  <span
-                                    x-show="item.isDefault"
-                                    class="tag-category-manager-default"
-                                    >默认</span
-                                  >
+                          <div class="tag-filter-category-manager-registry-list custom-scrollbar">
+                            <div class="tag-category-manager-pill-list">
+                              <template
+                                x-for="item in categoryManagerItems"
+                                :key="'mgr-' + item.name"
+                              >
+                                <div
+                                  class="tag-category-manager-pill"
+                                  :class="{
+                                    'is-selected': isCategoryManagerSelected(item.name),
+                                    'is-default': item.isDefault,
+                                    'is-drag-over': categoryManagerDragOverName === item.name,
+                                    'is-dragging': categoryManagerDragName === item.name
+                                  }"
+                                  :style="getCategoryChipStyle(item.name)"
+                                  :title="categoryManagerPillTitle(item)"
+                                  draggable="true"
+                                  role="button"
+                                  tabindex="0"
+                                  :aria-pressed="isCategoryManagerSelected(item.name).toString()"
+                                  @click="selectCategoryManagerItem(item.name)"
+                                  @keydown.enter.prevent="selectCategoryManagerItem(item.name)"
+                                  @keydown.space.prevent="selectCategoryManagerItem(item.name)"
+                                  @dragstart="onCategoryManagerDragStart($event, item.name)"
+                                  @dragover="onCategoryManagerDragOver($event, item.name)"
+                                  @drop="onCategoryManagerDrop($event, item.name)"
+                                  @dragend="onCategoryManagerDragEnd()"
+                                >
+                                  <span class="tag-chip-drag-handle" aria-hidden="true">{{ icon('menu-bold', 'ui-icon--xs') }}</span>
+                                  <span class="tag-category-manager-dot" aria-hidden="true"></span>
+                                  <span class="tag-category-manager-name" x-text="item.name"></span>
+                                  <span x-show="item.isDefault" class="tag-category-manager-default">默认</span>
                                   <span
                                     class="tag-category-manager-count"
-                                    x-text="item.count + ' 个标签'"
+                                    x-text="item.count"
                                   ></span>
                                 </div>
-                                <div class="tag-category-manager-actions">
-                                  <input
-                                    type="color"
-                                    :value="item.color"
-                                    class="tag-category-manager-color"
-                                    @change="setCategoryColor(item.name, $event.target.value)"
-                                    title="修改分类颜色"
-                                  />
-                                  <div
-                                    class="tag-category-manager-opacity-wrap"
-                                    title="修改分类不透明度（0-100）"
-                                  >
-                                    <input
-                                      type="range"
-                                      min="0"
-                                      max="100"
-                                      step="1"
-                                      :value="getCategoryOpacity(item.name)"
-                                      @change="setCategoryOpacity(item.name, $event.target.value)"
-                                      class="tag-category-manager-opacity-slider"
-                                    />
-                                    <span
-                                      class="tag-category-manager-opacity-text"
-                                      x-text="getCategoryOpacity(item.name)"
-                                    ></span>
-                                  </div>
-                                  <button
-                                    type="button"
-                                    class="tag-category-manager-btn tag-category-manager-btn--icon"
-                                    @click="setDefaultCategory(item.name)"
-                                    :disabled="item.isDefault"
-                                    :style="item.isDefault ? 'opacity:0.45; cursor:not-allowed;' : ''"
-                                    title="设为默认"
-                                    aria-label="设为默认"
-                                  >
-                                    <span aria-hidden="true">{{ icon('check', 'ui-icon--xs') }}</span>
-                                  </button>
-                                  <button
-                                    type="button"
-                                    class="tag-category-manager-btn ui-reorder-button"
-                                    @click="moveCategory(item.name, -1)"
-                                    :disabled="item.index===0"
-                                    :style="item.index===0 ? 'opacity:0.45; cursor:not-allowed;' : ''"
-                                    title="上移"
-                                    aria-label="上移"
-                                  >
-                                    {{ icon('arrow-up', 'ui-icon--xs') }}
-                                  </button>
-                                  <button
-                                    type="button"
-                                    class="tag-category-manager-btn ui-reorder-button"
-                                    @click="moveCategory(item.name, 1)"
-                                    :disabled="item.index===categoryManagerItems.length-1"
-                                    :style="item.index===categoryManagerItems.length-1 ? 'opacity:0.45; cursor:not-allowed;' : ''"
-                                    title="下移"
-                                    aria-label="下移"
-                                  >
-                                    {{ icon('arrow-down', 'ui-icon--xs') }}
-                                  </button>
-                                  <button
-                                    type="button"
-                                    class="tag-category-manager-btn tag-category-manager-btn--icon"
-                                    @click="renameCategory(item.name)"
-                                    title="重命名"
-                                    aria-label="重命名"
-                                  >
-                                    <span aria-hidden="true">{{ icon('pencil-edit', 'ui-icon--xs') }}</span>
-                                  </button>
-                                  <button
-                                    type="button"
-                                    class="tag-category-manager-btn tag-category-manager-btn--icon danger"
-                                    @click="deleteCategory(item.name)"
-                                    :disabled="item.isDefault"
-                                    :style="item.isDefault ? 'opacity:0.45; cursor:not-allowed;' : ''"
-                                    title="删除分类"
-                                    aria-label="删除分类"
-                                  >
-                                    <span aria-hidden="true">{{ icon('trash', 'ui-icon--xs') }}</span>
-                                  </button>
-                                </div>
-                              </div>
-                            </template>
+                              </template>
+                            </div>
                           </div>
                         </div>
                       </div>

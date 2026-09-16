@@ -460,7 +460,9 @@ body.automation-workbench-open .main-container {
   flex-direction: column;
   gap: 0.4rem;
   min-height: 0;
-  overflow: auto;
+  /* 只保留纵向滚动：条目悬停/选中的位移不应产生横向滚动条。 */
+  overflow: hidden auto;
+  overscroll-behavior: contain;
   padding: 0.85rem 0.7rem;
 }
 
@@ -570,18 +572,17 @@ body.automation-workbench-open .main-container {
   transform: translateX(2px);
 }
 
+/* 选中态只用左边框强调；此前额外叠加的 width/transform 会让条目比容器宽 4px，
+ * 从而在已保存规则集列表里常驻一条横向滚动条。 */
 .ruleset-item.active {
   background: var(--state-selected-surface);
   border-color: transparent;
   border-left-color: var(--accent-action);
-  transform: translateX(-4px);
-  width: calc(100% + 4px);
 }
 
 .ruleset-item.active:hover,
 .ruleset-item.active:focus-visible {
   border-left-color: var(--accent-action);
-  transform: translateX(-4px);
 }
 
 .ruleset-item .automation-icon-button > .is-global {
@@ -1476,6 +1477,22 @@ kbd {
   color: var(--action-text);
 }
 
+/* 当前动作不支持的触发场景：保持可见但不可勾选，悬停提示可选场景。 */
+.automation-preset-chip:disabled {
+  background: var(--surface-container);
+  border-color: var(--border-subtle);
+  border-style: dashed;
+  color: var(--content-muted);
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.automation-preset-chip:disabled:hover {
+  background: var(--surface-container);
+  border-color: var(--border-subtle);
+  color: var(--content-muted);
+}
+
 .rule-stop-toggle,
 .automation-checkbox-label {
   align-items: center;
@@ -2257,20 +2274,32 @@ kbd {
   gap: 0.85rem;
   min-height: 0;
   overflow: auto;
-  padding: 1rem 1.1rem;
+  overscroll-behavior: contain;
+  /* 顶部留白交给 sticky 导航条自己承担，避免滚动时留白被覆盖造成跳动。 */
+  padding: 0 1.1rem 1rem;
+  /* 内容较高的标签页会出现纵向滚动条；预留槽位避免切换标签时宽度抖动。 */
+  scrollbar-gutter: stable;
 }
 
 .automation-help-tabs {
-  background: transparent;
+  background: var(--surface-container);
   border: 0;
   border-bottom: 1px solid var(--border-divider);
   border-radius: 0;
   display: flex;
   flex-wrap: nowrap;
+  /* 这里是滚动容器的 flex 子项：必须禁止收缩，否则内容较高的标签页会把
+   * 导航条压成 0 高度；sticky 则保证滚动时导航条始终可见。 */
+  flex: 0 0 auto;
   gap: 0.15rem;
   overflow-x: auto;
-  padding: 0 0.15rem;
+  /* 导航只允许横向溢出，避免浏览器为导航内容生成纵向滚动条。 */
+  overflow-y: hidden;
+  padding: 1rem 0.15rem 0;
+  position: sticky;
   scrollbar-width: thin;
+  top: 0;
+  z-index: 2;
 }
 
 .automation-help-tab {

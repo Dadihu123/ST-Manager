@@ -494,16 +494,21 @@ def test_automation_modal_template_exposes_rule_trigger_chip_controls_contract()
     assert len(trigger_chip_blocks) == len(expected_trigger_chips)
 
     for trigger_name, trigger_label in expected_trigger_chips:
-        expected_block = f'''
-        <button type="button" class="automation-preset-chip"
-            :class="ruleHasTrigger(rule, '{trigger_name}') ? 'border-[var(--accent-action)] text-[var(--accent-action)]' : 'text-[var(--content-muted)]'"
-            @click="toggleRuleTrigger(rule, '{trigger_name}')">
-            {trigger_label}
-        </button>
-        '''
-        assert js_contains(template, expected_block)
+        block = next(
+            item
+            for item in trigger_chip_blocks
+            if f"toggleRuleTrigger(rule, '{trigger_name}')" in item
+        )
+        # 场景按钮按当前动作是否支持自动禁用，并给出可选场景提示。
+        assert f":disabled=\"!isRuleTriggerSupported(rule, '{trigger_name}')\"" in block
+        assert f"ruleTriggerUnsupportedHint(rule, '{trigger_name}')" in block
+        assert f"ruleHasTrigger(rule, '{trigger_name}')" in block
+        assert f"@click=\"toggleRuleTrigger(rule, '{trigger_name}')\"" in block
+        assert trigger_label in block
 
-    assert '仅勾选的触发场景会参与该规则。' in template
+    assert '勾选的场景决定规则进入哪些入口；' in template
+    assert '同一规则包含多个动作时，该入口只执行支持该场景的动作，其余动作会被跳过。' in template
+    assert '灰色场景表示规则内没有动作支持该入口。' in template
 
 
 def test_automation_modal_template_updates_trigger_and_rename_help_copy_contract():
@@ -2453,10 +2458,15 @@ def test_automation_help_modal_uses_four_tab_structure_with_new_guidance():
 
     assert 'rename_file_by_template' in automation_template
     assert 'split_category_to_tags' in automation_template
-    assert '不同触发场景只会运行对应的动作子集' in automation_template
-    assert '导入时会跳过抓取论坛标签与标签合并' in automation_template
-    assert '更新链接时只执行抓取论坛标签' in automation_template
-    assert '手动打标时只执行标签合并' in automation_template
+    assert '场景不支持的动作会被自动跳过' in automation_template
+    assert '不执行：抓取论坛标签、刷新来源更新基线、来源标题→标签、来源作者→创作者、标签合并。' in automation_template
+    assert '移动、标签增删、收藏、名称同步、模板重命名和标签合并都不会在这个场景运行。' in automation_template
+    assert '仅支持：标签合并。' in automation_template
+    # 每个触发场景都要列出它支持的动作，并提供动作 → 场景的反查表。
+    assert '动作 × 触发场景对照' in automation_template
+    assert '手动执行、更新来源链接后' in automation_template
+    assert '仅更新来源链接后；该动作不会在手动执行中运行' in automation_template
+    assert '规则必须勾选「手动执行」才会被手动执行入口运行。' in automation_template
     assert '{% raw %}{{char_name}} - {{char_version|version}} - {{modified_date|date:%Y-%m-%d}}{% endraw %}' in automation_template
     assert '支持字段：char_name、char_version、filename、filename_stem、category、import_time、import_date、modified_time、modified_date' in automation_template
     assert '日期字段支持 date 过滤器' in automation_template
@@ -3564,3 +3574,35 @@ def test_card_pagination_mobile_css_compacts_footer_into_single_row():
     assert 'width: auto;' in mobile_cards_css
     assert '.card-page-nav-btn {' in mobile_cards_css
     assert '.card-pagination-page-indicator {' in mobile_cards_css
+
+
+def test_automation_ruleset_list_and_help_tabs_avoid_overflow_regressions():
+    """已保存规则集列表不应常驻横向滚动条；帮助导航条不应被内容压扁。"""
+    workbench_css = read_project_file('static/css/modules/automation-workbench.css')
+
+    library_block = extract_exact_css_block(workbench_css, '.automation-library-list')
+    assert 'overflow: hidden auto;' in library_block
+
+    active_item_block = extract_exact_css_block(workbench_css, '.ruleset-item.active')
+    assert 'width: calc(100% + 4px);' not in active_item_block
+    assert 'transform: translateX(-4px);' not in active_item_block
+
+    tabs_block = extract_exact_css_block(workbench_css, '.automation-help-tabs')
+    assert 'position: sticky;' in tabs_block
+    assert 'top: 0;' in tabs_block
+    assert 'flex: 0 0 auto;' in tabs_block
+    assert 'overflow-x: auto;' in tabs_block
+    assert 'overflow-y: hidden;' in tabs_block
+
+    body_block = extract_exact_css_block(workbench_css, '.automation-help-body')
+    assert 'scrollbar-gutter: stable;' in body_block
+
+
+def test_automation_help_tab_switch_resets_the_scroll_container():
+    automation_js = read_project_file('static/js/components/automationModal.js')
+    automation_template = read_project_file('templates/modals/automation.html')
+    open_help_block = extract_js_function_block(automation_js, 'openHelpTab(tab) {')
+
+    assert 'x-ref="automationHelpBody"' in automation_template
+    assert '$refs?.automationHelpBody' in open_help_block
+    assert 'body.scrollTop = 0;' in open_help_block

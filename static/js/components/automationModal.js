@@ -8,12 +8,6 @@ import { createLocalId } from '../utils/data.js';
 import { splitTagTokens } from '../state.js';
 
 const TEMPLATE_ACTION_TYPES = ['rename_file_by_template', 'split_category_to_tags'];
-const SOURCE_ACTION_TYPES = [
-    'fetch_forum_tags',
-    'refresh_source_baseline',
-    'add_tags_from_source_title',
-    'set_creator_from_source'
-];
 const DEFAULT_SOURCE_TITLE_PATTERN = '(?:【|\\[)([^】\\]]+)(?:】|\\])';
 const DEFAULT_SOURCE_TITLE_SPLIT_PATTERN = '[/|]';
 const DEFAULT_RULE_TRIGGER_CONTEXTS = ['manual_run', 'auto_import'];
@@ -42,6 +36,41 @@ const SUPPORTED_RULE_TRIGGER_CONTEXTS = [
     'link_update',
     'tag_edit'
 ];
+const TRIGGER_CONTEXT_LABELS = {
+    manual_run: '手动执行',
+    auto_import: '导入后',
+    card_update: '更新角色卡后',
+    link_update: '更新来源链接后',
+    tag_edit: '手动打标后'
+};
+// 动作 → 支持的触发场景。必须与 core/automation/constants.py 的
+// TRIGGER_CONTEXT_ALLOWED_ACTIONS 保持一致；后端会丢弃场景不支持的动作，
+// 因此前端只提供真正会生效的场景，避免"勾了却不执行"。
+const ACTION_TRIGGER_CONTEXTS = {
+    move_folder: ['manual_run', 'auto_import', 'card_update'],
+    add_tag: ['manual_run', 'auto_import', 'card_update'],
+    remove_tag: ['manual_run', 'auto_import', 'card_update'],
+    set_favorite: ['manual_run', 'auto_import', 'card_update'],
+    set_char_name_from_filename: ['manual_run', 'auto_import', 'card_update'],
+    set_wi_name_from_filename: ['manual_run', 'auto_import', 'card_update'],
+    set_filename_from_char_name: ['manual_run', 'auto_import', 'card_update'],
+    set_filename_from_wi_name: ['manual_run', 'auto_import', 'card_update'],
+    rename_file_by_template: ['manual_run', 'auto_import', 'card_update'],
+    split_category_to_tags: ['manual_run', 'auto_import', 'card_update'],
+    fetch_forum_tags: ['manual_run', 'link_update'],
+    refresh_source_baseline: ['manual_run', 'link_update'],
+    set_creator_from_source: ['manual_run', 'link_update'],
+    add_tags_from_source_title: ['link_update'],
+    merge_tags: ['manual_run', 'tag_edit']
+};
+// 选中这些动作时顺带勾上的场景；勾选后仍可手动取消。
+const ACTION_PREFERRED_TRIGGER_CONTEXTS = {
+    fetch_forum_tags: ['link_update'],
+    refresh_source_baseline: ['link_update'],
+    add_tags_from_source_title: ['link_update'],
+    set_creator_from_source: ['link_update'],
+    merge_tags: ['tag_edit']
+};
 const AUTOMATION_ACTION_OPTIONS = [
     { value: 'move_folder', label: '移动到...' },
     { value: 'add_tag', label: '添加标签' },
@@ -62,22 +91,19 @@ const AUTOMATION_ACTION_OPTIONS = [
 
 
 function deriveLegacyRuleTriggerContexts(rule) {
-    const normalized = [...DEFAULT_RULE_TRIGGER_CONTEXTS];
     const actions = Array.isArray(rule?.actions) ? rule.actions : [];
+    const supported = new Set();
 
     actions.forEach(action => {
         if (!action || typeof action !== 'object') return;
 
-        if (SOURCE_ACTION_TYPES.includes(action.type) && !normalized.includes('link_update')) {
-            normalized.push('link_update');
-        }
-
-        if (action.type === 'merge_tags' && !normalized.includes('tag_edit')) {
-            normalized.push('tag_edit');
-        }
+        (ACTION_TRIGGER_CONTEXTS[action.type] || []).forEach(trigger => {
+            supported.add(trigger);
+        });
     });
 
-    return normalized;
+    if (!supported.size) return [...DEFAULT_RULE_TRIGGER_CONTEXTS];
+    return SUPPORTED_RULE_TRIGGER_CONTEXTS.filter(trigger => supported.has(trigger));
 }
 
 
@@ -909,6 +935,11 @@ export default function automationModal() {
         openHelpTab(tab) {
             this.helpActiveTab = tab;
             this.showHelpModal = true;
+            // 切换分类时回到顶部，避免上一条目位置残留造成的错位感。
+            this.$nextTick(() => {
+                const body = this.$refs?.automationHelpBody;
+                if (body) body.scrollTop = 0;
+            });
         },
 
         getActionMenuKey(ruleIdx, actionIdx) {
@@ -1018,6 +1049,10 @@ export default function automationModal() {
                 action.value = createSourceCreatorConfig();
             }
             this.initActionConfig(action);
+            this.syncRuleTriggerContextsForRule(
+                this.findRuleByAction(action),
+                ACTION_PREFERRED_TRIGGER_CONTEXTS[type] || []
+            );
             this.openActionMenuKey = null;
         },
 
@@ -1039,9 +1074,10 @@ export default function automationModal() {
 
         normalizeRuleTriggerContexts(rule) {
             const trigger_contexts = Array.isArray(rule?.trigger_contexts) ? rule.trigger_contexts : null;
+            const isAllowedForRule = trigger => this.isRuleTriggerSupported(rule, trigger);
 
             if (!trigger_contexts || trigger_contexts.length === 0) {
-                return deriveLegacyRuleTriggerContexts(rule);
+                return deriveLegacyRuleTriggerContexts(rule).filter(isAllowedForRule);
             }
 
             const normalized = [];
@@ -1049,26 +1085,81 @@ export default function automationModal() {
                 return typeof trigger === 'string' && trigger.trim();
             }).map(trigger => trigger.trim()).filter(trigger => {
                 return SUPPORTED_RULE_TRIGGER_CONTEXTS.includes(trigger);
+            }).filter(trigger => {
+                return isAllowedForRule(trigger);
             }).forEach(trigger => {
                 if (!normalized.includes(trigger)) {
                     normalized.push(trigger);
                 }
             });
 
-            const hasSourceAction = (Array.isArray(rule?.actions) ? rule.actions : [])
-                .some(action => action && SOURCE_ACTION_TYPES.includes(action.type));
-            if (hasSourceAction && !normalized.includes('link_update')) {
-                normalized.push('link_update');
+            if (normalized.length) {
+                return normalized;
             }
 
-            return normalized.length ? normalized : deriveLegacyRuleTriggerContexts(rule);
+            return deriveLegacyRuleTriggerContexts(rule).filter(isAllowedForRule);
+        },
+
+        // 规则内动作共同支持的触发场景；没有动作时不限制，保留全部场景。
+        getRuleSupportedTriggers(rule) {
+            const actions = (Array.isArray(rule?.actions) ? rule.actions : [])
+                .filter(action => action && typeof action.type === 'string' && action.type.trim());
+
+            if (!actions.length) {
+                return [...SUPPORTED_RULE_TRIGGER_CONTEXTS];
+            }
+
+            const allowed = new Set();
+            actions.forEach(action => {
+                (ACTION_TRIGGER_CONTEXTS[action.type] || []).forEach(trigger => allowed.add(trigger));
+            });
+
+            return SUPPORTED_RULE_TRIGGER_CONTEXTS.filter(trigger => allowed.has(trigger));
+        },
+
+        isRuleTriggerSupported(rule, trigger) {
+            return this.getRuleSupportedTriggers(rule).includes(trigger);
+        },
+
+        ruleTriggerUnsupportedHint(rule, trigger) {
+            const supported = this.getRuleSupportedTriggers(rule);
+            const supportedLabels = supported.map(item => TRIGGER_CONTEXT_LABELS[item] || item);
+            const label = TRIGGER_CONTEXT_LABELS[trigger] || trigger;
+            return `当前动作不支持「${label}」，可选场景：${supportedLabels.join('、') || '无'}`;
+        },
+
+        findRuleByAction(action) {
+            if (!action) return null;
+
+            return this.editingRules.find(rule => Array.isArray(rule?.actions) && rule.actions.includes(action)) || null;
+        },
+
+        // 动作变化后重新对齐触发场景：补上该动作的常用场景，并移除已不再支持的场景。
+        syncRuleTriggerContextsForRule(rule, preferredTriggers = []) {
+            if (!rule) return;
+
+            const current = Array.isArray(rule.trigger_contexts) ? rule.trigger_contexts : [];
+            const next = this.normalizeRuleTriggerContexts({
+                ...rule,
+                trigger_contexts: [...current, ...preferredTriggers]
+            });
+
+            if (next.length) {
+                rule.trigger_contexts = next;
+                return;
+            }
+
+            const supported = this.getRuleSupportedTriggers(rule);
+            rule.trigger_contexts = supported.length ? [supported[0]] : ['manual_run'];
         },
 
         toggleRuleTrigger(rule, trigger) {
             if (!rule || typeof trigger !== 'string' || !trigger.trim()) return;
 
-            const currentTriggers = this.normalizeRuleTriggerContexts(rule);
             const normalizedTrigger = trigger.trim();
+            if (!this.isRuleTriggerSupported(rule, normalizedTrigger)) return;
+
+            const currentTriggers = this.normalizeRuleTriggerContexts(rule);
             if (currentTriggers.length === 1 && currentTriggers[0] === normalizedTrigger) return;
 
             const nextTriggers = currentTriggers.includes(normalizedTrigger)
@@ -1197,6 +1288,10 @@ export default function automationModal() {
                 value: ""
             };
             this.editingRules[ruleIdx].actions.push(newAction);
+            this.syncRuleTriggerContextsForRule(
+                this.editingRules[ruleIdx],
+                ACTION_PREFERRED_TRIGGER_CONTEXTS[newAction.type] || []
+            );
             this.editingRules = [...this.editingRules];
         },
 
@@ -1208,6 +1303,7 @@ export default function automationModal() {
 
         removeAction(ruleIdx, actIdx) {
             this.editingRules[ruleIdx].actions.splice(actIdx, 1);
+            this.syncRuleTriggerContextsForRule(this.editingRules[ruleIdx]);
             this.editingRules = [...this.editingRules];
         },
 

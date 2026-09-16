@@ -1433,13 +1433,15 @@ html.light-mode .resource-grid-view .resource-source-badge.file {
   background: var(--advanced-surface) !important;
 }
 
+/* Keep the advanced-extensions header mark open (no frame) so it matches the
+ * settings header treatment; the official glyph provides its own silhouette. */
 .advanced-editor-container .advanced-editor-heading-icon {
   width: 2.5rem;
   height: 2.5rem;
   flex-basis: 2.5rem;
-  background: var(--action-surface);
-  border: 1px solid var(--action-border);
-  border-radius: 7px;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
 }
 
 .advanced-editor-container .advanced-editor-tabs {

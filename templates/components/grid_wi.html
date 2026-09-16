@@ -285,7 +285,7 @@
                       type="button"
                       x-show="canSendWorldInfoToST(item)"
                       class="card-send-st-btn"
-                      :class="{ 'has-sent': Number(item.last_sent_to_st || 0) > 0, 'is-sending': isSendingWorldInfoToST(item.id) }"
+                      :class="{ 'has-sent': hasWorldInfoBeenSentToTarget(item), 'is-sending': isSendingWorldInfoToST(item.id), 'is-target-tt': $store.global.isTauriTavernTarget?.() }"
                       :disabled="isSendingWorldInfoToST(item.id)"
                       :title="getWorldInfoSendToSTTitle(item)"
                       @click.stop="sendWorldInfoToST(item)"

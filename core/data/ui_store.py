@@ -19,6 +19,7 @@ _UI_DATA_LOCK = threading.RLock()
 VERSION_REMARKS_KEY = '_version_remarks'
 IMPORT_TIME_KEY = 'import_time'
 LAST_SENT_TO_ST_KEY = 'last_sent_to_st'
+LAST_SENT_TO_TT_KEY = 'last_sent_to_tt'
 TAG_TAXONOMY_KEY = '_tag_taxonomy_v1'
 TAG_MANAGEMENT_PREFS_KEY = '_tag_management_prefs_v1'
 ISOLATED_CATEGORIES_KEY = '_isolated_categories_v1'
@@ -1263,8 +1264,8 @@ def ensure_import_time(ui_data, ui_key, fallback=None):
     return changed, fallback_ts
 
 
-def get_last_sent_to_st(ui_data, ui_key):
-    """获取上次发送到 ST 的时间戳；不存在则返回 0。"""
+def _get_last_sent_ts(ui_data, ui_key, field_key):
+    """读取指定发送目标的上次发送时间戳；不存在则返回 0。"""
     if not isinstance(ui_data, dict):
         return 0.0
 
@@ -1272,8 +1273,18 @@ def get_last_sent_to_st(ui_data, ui_key):
     if not isinstance(entry, dict):
         return 0.0
 
-    sent_ts = _normalize_timestamp(entry.get(LAST_SENT_TO_ST_KEY))
+    sent_ts = _normalize_timestamp(entry.get(field_key))
     return sent_ts if sent_ts is not None else 0.0
+
+
+def get_last_sent_to_st(ui_data, ui_key):
+    """获取上次发送到 ST 的时间戳；不存在则返回 0。"""
+    return _get_last_sent_ts(ui_data, ui_key, LAST_SENT_TO_ST_KEY)
+
+
+def get_last_sent_to_tt(ui_data, ui_key):
+    """获取上次发送到 TauriTavern 的时间戳；不存在则返回 0。"""
+    return _get_last_sent_ts(ui_data, ui_key, LAST_SENT_TO_TT_KEY)
 
 
 def _normalize_source_update_state(raw):
@@ -1414,8 +1425,8 @@ def save_source_title_state(ui_data, ui_key, title, source_url=None, reset_basel
     return set_source_update_state(ui_data, ui_key, next_state)
 
 
-def set_last_sent_to_st(ui_data, ui_key, timestamp=None):
-    """设置上次发送到 ST 的时间戳。"""
+def _set_last_sent_ts(ui_data, ui_key, field_key, timestamp=None):
+    """写入指定发送目标的上次发送时间戳。"""
     sent_ts = _normalize_timestamp(timestamp)
     if sent_ts is None:
         sent_ts = time.time()
@@ -1430,12 +1441,22 @@ def set_last_sent_to_st(ui_data, ui_key, timestamp=None):
         ui_data[ui_key] = entry
         changed = True
 
-    current_ts = _normalize_timestamp(entry.get(LAST_SENT_TO_ST_KEY))
+    current_ts = _normalize_timestamp(entry.get(field_key))
     if current_ts != sent_ts:
-        entry[LAST_SENT_TO_ST_KEY] = sent_ts
+        entry[field_key] = sent_ts
         changed = True
 
     return changed, sent_ts
+
+
+def set_last_sent_to_st(ui_data, ui_key, timestamp=None):
+    """设置上次发送到 ST 的时间戳。"""
+    return _set_last_sent_ts(ui_data, ui_key, LAST_SENT_TO_ST_KEY, timestamp)
+
+
+def set_last_sent_to_tt(ui_data, ui_key, timestamp=None):
+    """设置上次发送到 TauriTavern 的时间戳。"""
+    return _set_last_sent_ts(ui_data, ui_key, LAST_SENT_TO_TT_KEY, timestamp)
 
 
 def _backup_ui_data_file_path():
@@ -1601,14 +1622,15 @@ def load_ui_data():
                         info[IMPORT_TIME_KEY] = normalized_ts
                         dirty = True
 
-                if LAST_SENT_TO_ST_KEY in info:
-                    normalized_sent_ts = _normalize_timestamp(info.get(LAST_SENT_TO_ST_KEY))
-                    if normalized_sent_ts is None:
-                        del info[LAST_SENT_TO_ST_KEY]
-                        dirty = True
-                    elif info.get(LAST_SENT_TO_ST_KEY) != normalized_sent_ts:
-                        info[LAST_SENT_TO_ST_KEY] = normalized_sent_ts
-                        dirty = True
+                for sent_key in (LAST_SENT_TO_ST_KEY, LAST_SENT_TO_TT_KEY):
+                    if sent_key in info:
+                        normalized_sent_ts = _normalize_timestamp(info.get(sent_key))
+                        if normalized_sent_ts is None:
+                            del info[sent_key]
+                            dirty = True
+                        elif info.get(sent_key) != normalized_sent_ts:
+                            info[sent_key] = normalized_sent_ts
+                            dirty = True
 
             if dirty:
                 # 如果有清理操作，立即回写文件以修正
