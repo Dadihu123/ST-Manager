@@ -409,10 +409,10 @@ def api_get_settings():
         cfg['st_openai_preset_dir'] = ''
     if 'st_target' not in cfg:
         cfg['st_target'] = 'sillytavern'
-    if 'tt_data_dir' not in cfg:
-        cfg['tt_data_dir'] = ''
     if 'tt_user_handle' not in cfg:
         cfg['tt_user_handle'] = 'default-user'
+    if 'tt_api_url' not in cfg:
+        cfg['tt_api_url'] = 'http://127.0.0.1:19999'
     if 'quick_replies_dir' not in cfg:
         cfg['quick_replies_dir'] = 'data/library/extensions/quick-replies'
     if 'default_sort' not in cfg:

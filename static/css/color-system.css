@@ -1401,23 +1401,30 @@ html.light-mode {
   color: var(--send-target-color) !important;
 }
 
-/* 网格中的无框发送按钮使用稳定的内描边与浅背景，避免增加外边框造成布局变化。 */
+/* 已发送状态只改变图标颜色；无框工具栏不再被状态规则重新加上方框背景。 */
 .card-send-st-btn:not(.is-sending).has-sent {
   color: var(--send-target-color) !important;
-  border-color: color-mix(in srgb, var(--send-target-color) 58%, transparent) !important;
-  background: color-mix(in srgb, var(--send-target-color) 14%, transparent) !important;
-  box-shadow:
-    0 0 0 1px color-mix(in srgb, var(--send-target-color) 30%, transparent) inset,
-    0 0 8px color-mix(in srgb, var(--send-target-color) 16%, transparent) !important;
 }
 
 .card-bottom-toolbar > .card-send-st-btn:not(.is-sending).has-sent,
 .resource-grid-view .card-send-st-btn:not(.is-sending).has-sent {
   border-color: transparent !important;
-  background: color-mix(in srgb, var(--send-target-color) 12%, transparent) !important;
-  box-shadow:
-    0 0 0 1px color-mix(in srgb, var(--send-target-color) 34%, transparent) inset,
-    0 0 7px color-mix(in srgb, var(--send-target-color) 14%, transparent) !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.card-send-st-btn > span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  line-height: 0;
+}
+
+.card-send-st-btn > span > .ui-icon {
+  display: block;
+  margin: 0;
 }
 
 /* 详情页与工作台的发送入口保留按钮自身层级，只给已发送状态增加目标色反馈。 */

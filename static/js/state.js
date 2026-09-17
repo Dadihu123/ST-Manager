@@ -684,8 +684,8 @@ export function initState() {
       st_target: "sillytavern",
       st_data_dir: "",
       st_user_handle: "default-user",
-      tt_data_dir: "",
       tt_user_handle: "default-user",
+      tt_api_url: "http://127.0.0.1:19999",
       st_username: "",
       st_password: "",
       st_basic_username: "",
@@ -910,10 +910,10 @@ export function initState() {
             st_web_username: settings.st_web_username || "",
             st_web_password: settings.st_web_password || "",
             st_proxy: settings.st_proxy || "",
-            tt_data_dir: settings.tt_data_dir || "",
             tt_user_handle:
               String(settings.tt_user_handle || "default-user").trim() ||
               "default-user",
+            tt_api_url: settings.tt_api_url || "http://127.0.0.1:19999",
             items_per_page: localPerPage
               ? parseInt(localPerPage)
               : settings.items_per_page || 0,

@@ -57,8 +57,8 @@ DEFAULT_CONFIG = {
     "st_url": "http://127.0.0.1:8000",
     "st_data_dir": "",  # SillyTavern 安装目录，留空则自动探测
     "st_user_handle": "default-user",  # SillyTavern data 目录下的用户目录名
-    "tt_data_dir": "",  # TauriTavern 数据根目录，目录下应包含用户目录
-    "tt_user_handle": "default-user",  # TauriTavern 用户目录名
+    "tt_user_handle": "default-user",  # TauriTavern 集成 API 的目标用户目录名
+    "tt_api_url": "http://127.0.0.1:19999",  # TauriTavern 集成 API 地址
     "st_auth_type": "basic",  # 'basic', 'web' or 'auth_web'
     "st_username": "",
     "st_password": "",
@@ -234,6 +234,7 @@ def _normalize_st_credentials(cfg):
 
 def normalize_config(cfg=None):
     normalized = _normalize_st_credentials({**DEFAULT_CONFIG, **(cfg or {})})
+    normalized.pop('tt_data_dir', None)
     normalized['st_target'] = _normalize_st_target(normalized.get('st_target'))
     normalized['tt_user_handle'] = _normalize_tauri_user_handle(
         normalized.get('tt_user_handle')

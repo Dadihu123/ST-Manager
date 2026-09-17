@@ -40,8 +40,8 @@ const DEFAULT_SETTINGS = {
   st_url: "http://127.0.0.1:8000",
   st_data_dir: "",
   st_user_handle: "default-user",
-  tt_data_dir: "",
   tt_user_handle: "default-user",
+  tt_api_url: "http://127.0.0.1:19999",
   st_auth_type: "basic",
   st_username: "",
   st_password: "",
@@ -141,10 +141,10 @@ export default function settingsModal() {
     showAuthPassword: false,
     showStBasicPassword: false,
     showStWebPassword: false,
-    ttPathStatus: "",
-    ttPathStatusIcon: "",
-    ttPathValid: false,
-    ttResources: {},
+    ttApiStatus: "",
+    ttApiStatusIcon: "",
+    ttApiValid: false,
+    ttApiTestedTarget: "",
     pathSafetyState: "idle",
     pathSafetyMessage: "",
     operationLoadingAction: "",
@@ -646,7 +646,7 @@ export default function settingsModal() {
           if (!this.settingsSessionOpen) this.beginEditSession();
           if (this.settingsForm.st_target === "tauritavern") {
             this.resetPathSafety();
-            if (this.settingsForm.tt_data_dir) this.validateTauriTavernPath();
+            this.resetTauriTavernConnectionStatus();
           } else if (this.settingsForm.st_data_dir) {
             this.schedulePathSafetyEvaluation(0);
           } else {
@@ -670,11 +670,17 @@ export default function settingsModal() {
         "settingsForm.st_data_dir",
         "settingsForm.st_user_handle",
         "settingsForm.st_openai_preset_dir",
-        "settingsForm.tt_data_dir",
+        "settingsForm.tt_api_url",
         "settingsForm.tt_user_handle",
       ].forEach((expression) => {
         this.$watch(expression, () => {
           if (!this.showSettingsModal) return;
+          if (
+            this.settingsForm.st_target === "tauritavern" &&
+            this.getTTConnectionTarget() !== this.ttApiTestedTarget
+          ) {
+            this.resetTauriTavernConnectionStatus();
+          }
           if (this.settingsForm.st_target === "tauritavern") {
             this.resetPathSafety();
             return;
@@ -687,7 +693,7 @@ export default function settingsModal() {
         if (!this.showSettingsModal) return;
         if (value === "tauritavern") {
           this.resetPathSafety();
-          if (this.settingsForm.tt_data_dir) this.validateTauriTavernPath();
+          this.resetTauriTavernConnectionStatus();
         } else if (this.settingsForm.st_data_dir) {
           this.schedulePathSafetyEvaluation(0);
         } else {
@@ -1136,52 +1142,57 @@ export default function settingsModal() {
       return String(value || "").trim() || "default-user";
     },
 
-    async validateTauriTavernPath() {
-      const path = String(
-        this.$store.global.settingsForm.tt_data_dir || "",
-      ).trim();
-      if (!path) {
-        this.ttPathStatus = "请输入 TauriTavern 数据目录";
-        this.ttPathStatusIcon = "close";
-        this.ttPathValid = false;
-        this.ttResources = {};
+    getTTConnectionTarget() {
+      return `${String(this.settingsForm.tt_api_url || "").trim()}\u0000${this.getTTUserHandle()}`;
+    },
+
+    resetTauriTavernConnectionStatus() {
+      this.ttApiStatus = "";
+      this.ttApiStatusIcon = "";
+      this.ttApiValid = false;
+      this.ttApiTestedTarget = "";
+    },
+
+    async checkTauriTavernConnection() {
+      const apiUrl = String(this.settingsForm.tt_api_url || '').trim();
+      const userHandle = this.getTTUserHandle();
+      if (!apiUrl) {
+        this.ttApiStatus = '请输入 TauriTavern 集成 API 地址';
+        this.ttApiStatusIcon = 'close';
+        this.ttApiValid = false;
+        this.ttApiTestedTarget = '';
         return;
       }
 
       try {
-        this.ttPathStatus = "正在验证...";
-        this.ttPathStatusIcon = "";
-        const resp = await fetch("/api/st/tt/validate_path", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
+        this.ttApiStatus = '正在连接...';
+        this.ttApiStatusIcon = '';
+        const resp = await fetch('/api/st/tt/check_connection', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            path,
-            tt_user_handle: this.getTTUserHandle(),
+            tt_api_url: apiUrl,
+            tt_user_handle: userHandle,
           }),
         });
         const data = await resp.json();
-        if (data.success && data.valid) {
-          if (data.normalized_path) {
-            this.$store.global.settingsForm.tt_data_dir = data.normalized_path;
-          }
-          if (data.user_handle) {
-            this.$store.global.settingsForm.tt_user_handle = data.user_handle;
-          }
-          this.ttPathStatus = data.message || "路径有效";
-          this.ttPathStatusIcon = "check";
-          this.ttPathValid = true;
-          this.ttResources = data.resources || {};
+        if (data.success) {
+          if (data.api_url) this.settingsForm.tt_api_url = data.api_url;
+          this.ttApiStatus = data.message || 'TauriTavern 集成 API 已连接';
+          this.ttApiStatusIcon = 'check';
+          this.ttApiValid = true;
+          this.ttApiTestedTarget = this.getTTConnectionTarget();
         } else {
-          this.ttPathStatus = data.message || "路径无效或不是 TauriTavern 数据目录";
-          this.ttPathStatusIcon = "close";
-          this.ttPathValid = false;
-          this.ttResources = data.resources || {};
+          this.ttApiStatus = data.error || data.message || 'TauriTavern 集成 API 不可用';
+          this.ttApiStatusIcon = 'close';
+          this.ttApiValid = false;
+          this.ttApiTestedTarget = '';
         }
       } catch (err) {
-        this.ttPathStatus = "验证失败: " + err.message;
-        this.ttPathStatusIcon = "close";
-        this.ttPathValid = false;
-        this.ttResources = {};
+        this.ttApiStatus = '连接失败: ' + (err?.message || err);
+        this.ttApiStatusIcon = 'close';
+        this.ttApiValid = false;
+        this.ttApiTestedTarget = '';
       }
     },
 

@@ -16,6 +16,7 @@ from core.api.v1 import world_info as world_info_api
 from core.api.v1 import beautify as beautify_api
 from core.config import normalize_config, write_config_file
 from core.data import ui_store as ui_store_module
+from core.services import tauri_tavern_client as tauri_client_module
 from core.services.tauri_tavern_client import TauriTavernClient
 
 
@@ -24,10 +25,9 @@ def _write_json(path: Path, payload):
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding='utf-8')
 
 
-def _make_tauri_config(root: Path):
+def _make_tauri_config(_root: Path):
     return normalize_config({
         'st_target': 'tauritavern',
-        'tt_data_dir': str(root),
         'tt_user_handle': 'default-user',
     })
 
@@ -39,61 +39,223 @@ def _make_app(*blueprints):
     return app
 
 
-def test_tauri_client_writes_supported_resources_to_user_directories(tmp_path):
-    root = tmp_path / 'tauri-data'
-    user_dir = root / 'default-user'
-    user_dir.mkdir(parents=True)
-    character_path = tmp_path / 'card.png'
-    character_path.write_bytes(b'png')
-    world_path = tmp_path / 'lore.json'
-    world_path.write_text('{}', encoding='utf-8')
-    preset_path = tmp_path / 'preset.json'
-    preset_path.write_text('{}', encoding='utf-8')
+class _FakeTauriApiClient:
+    """Route-level double for the native TT API client."""
 
-    client = TauriTavernClient(str(root), 'default-user')
-    character_result = client.send_character(str(character_path))
-    world_result = client.send_world_info(str(world_path), b'{"entries": {}}')
-    preset_result = client.send_preset(
-        str(preset_path),
-        {'name': 'Writing', 'openai_model': 'gpt-4.1', 'prompts': []},
+    def __init__(self):
+        self.character_source = None
+        self.world_payload = None
+        self.preset_payload = None
+        self.theme_payload = None
+
+    def send_character(self, source_path):
+        self.character_source = source_path
+        return {'path': 'api://characters/card.png', 'filename': 'card.png'}
+
+    def send_world_info(self, source_path, payload_bytes):
+        self.world_payload = (source_path, json.loads(payload_bytes.decode('utf-8')))
+        return {'path': 'api://worlds/dragon.json', 'filename': 'dragon.json'}
+
+    def send_preset(self, source_path, preset_data):
+        self.preset_payload = (source_path, preset_data)
+        return {'path': 'api://presets/Writing.json', 'filename': 'Writing.json'}
+
+    def send_theme(self, theme_data):
+        self.theme_payload = theme_data
+        return {
+            'path': 'api://themes/Demo.json',
+            'settings_path': 'api://settings.json',
+            'filename': 'Demo.json',
+        }
+
+
+def test_tauri_client_is_api_only_and_rejects_unsafe_handle():
+    client = TauriTavernClient(
+        api_url='http://127.0.0.1:19999',
+        user_handle='writer-user',
     )
-    theme_result = client.send_theme({'name': 'Midnight', 'custom_css': 'body {}'})
-
-    assert Path(character_result['path']) == user_dir / 'characters' / 'card.png'
-    assert Path(world_result['path']) == user_dir / 'worlds' / 'lore.json'
-    assert Path(preset_result['path']) == user_dir / 'OpenAI Settings' / 'Writing.json'
-    assert Path(theme_result['path']) == user_dir / 'themes' / 'Midnight.json'
-    assert (user_dir / 'characters' / 'card.png').read_bytes() == b'png'
-    assert json.loads((user_dir / 'worlds' / 'lore.json').read_text(encoding='utf-8')) == {
-        'entries': {},
-    }
-    assert json.loads((user_dir / 'OpenAI Settings' / 'Writing.json').read_text(encoding='utf-8'))[
-        'name'
-    ] == 'Writing'
-    settings = json.loads((user_dir / 'settings.json').read_text(encoding='utf-8'))
-    assert settings['power_user']['theme'] == 'Midnight'
-
-
-def test_tauri_client_accepts_user_directory_path_and_rejects_unsafe_handle(tmp_path):
-    user_dir = tmp_path / 'default-user'
-    user_dir.mkdir(parents=True)
-
-    client = TauriTavernClient(str(user_dir), 'default-user')
-    assert client.data_root == str(tmp_path)
-    assert client.validate()['valid'] is True
+    assert client.api_url == 'http://127.0.0.1:19999'
+    assert client.user_handle == 'writer-user'
 
     with pytest.raises(ValueError):
-        TauriTavernClient(str(tmp_path), '../outside')
+        TauriTavernClient(
+            api_url='http://127.0.0.1:19999',
+            user_handle='../outside',
+        )
 
 
-def test_target_switch_preserves_both_tavern_config_sets(tmp_path):
+def test_tauri_client_from_config_uploads_character_to_integration_api(monkeypatch, tmp_path):
+    source_path = tmp_path / 'card.png'
+    source_path.write_bytes(b'png-data')
+
+    class FakeResponse:
+        status_code = 200
+        text = ''
+
+        @staticmethod
+        def json():
+            return {
+                'success': True,
+                'path': 'api://characters/card.png',
+                'filename': 'card.png',
+            }
+
+    class FakeSession:
+        def __init__(self):
+            self.trust_env = None
+            self.call = None
+
+        def request(self, method, url, **kwargs):
+            upload = kwargs['files']['file']
+            self.call = {
+                'method': method,
+                'url': url,
+                'data': kwargs['data'],
+                'filename': upload[0],
+                'content_type': upload[2],
+                'content': upload[1].read(),
+            }
+            return FakeResponse()
+
+    fake_session = FakeSession()
+    monkeypatch.setattr(tauri_client_module.requests, 'Session', lambda: fake_session)
+
+    client = TauriTavernClient.from_config({
+        'tt_api_url': 'http://127.0.0.1:19999',
+        'tt_user_handle': 'writer-user',
+    })
+    result = client.send_character(str(source_path))
+
+    assert result == {'path': 'api://characters/card.png', 'filename': 'card.png'}
+    assert fake_session.trust_env is False
+    assert fake_session.call == {
+        'method': 'POST',
+        'url': 'http://127.0.0.1:19999/api/st-manager/v1/characters/import',
+        'data': {
+            'user_handle': 'writer-user',
+            'preserve_file_name': 'card.png',
+        },
+        'filename': 'card.png',
+        'content_type': 'image/png',
+        'content': b'png-data',
+    }
+
+
+def test_tauri_client_check_connection_sends_configured_user_handle(monkeypatch):
+    class FakeResponse:
+        status_code = 200
+        text = ''
+
+        @staticmethod
+        def json():
+            return {'success': True, 'service': 'tauritavern', 'api_version': 1}
+
+    class FakeSession:
+        def __init__(self):
+            self.trust_env = None
+            self.call = None
+
+        def request(self, method, url, **kwargs):
+            self.call = {'method': method, 'url': url, **kwargs}
+            return FakeResponse()
+
+    fake_session = FakeSession()
+    monkeypatch.setattr(tauri_client_module.requests, 'Session', lambda: fake_session)
+
+    result = TauriTavernClient(
+        api_url='http://127.0.0.1:19999',
+        user_handle='writer-user',
+    ).check_connection()
+
+    assert result['success'] is True
+    assert fake_session.trust_env is False
+    assert fake_session.call['params'] == {'user_handle': 'writer-user'}
+
+
+def test_tauri_client_sends_user_handle_for_json_resources(monkeypatch, tmp_path):
+    source_path = tmp_path / 'writing.json'
+    _write_json(source_path, {'name': 'Writing', 'prompts': []})
+
+    class FakeResponse:
+        status_code = 200
+        text = ''
+
+        @staticmethod
+        def json():
+            return {'success': True, 'path': 'api://resource', 'filename': 'resource.json'}
+
+    class FakeSession:
+        def __init__(self):
+            self.trust_env = None
+            self.calls = []
+
+        def request(self, method, url, **kwargs):
+            self.calls.append({'method': method, 'url': url, **kwargs})
+            return FakeResponse()
+
+    fake_session = FakeSession()
+    monkeypatch.setattr(tauri_client_module.requests, 'Session', lambda: fake_session)
+    client = TauriTavernClient(
+        api_url='http://127.0.0.1:19999',
+        user_handle='writer-user',
+    )
+
+    client.send_world_info(str(source_path), b'{"entries": {}}')
+    client.send_preset(str(source_path), {'name': 'Writing', 'prompts': []})
+    client.send_theme({'name': 'Demo', 'colors': {}})
+
+    assert [call['json']['user_handle'] for call in fake_session.calls] == [
+        'writer-user',
+        'writer-user',
+        'writer-user',
+    ]
+
+
+def test_tauri_connection_endpoint_uses_default_api_url(monkeypatch):
+    captured = {}
+
+    class FakeClient:
+        api_url = 'http://127.0.0.1:19999'
+
+        def __init__(self, *_args, **kwargs):
+            captured.update(kwargs)
+
+        @staticmethod
+        def check_connection():
+            return {'success': True, 'service': 'tauritavern', 'api_version': 1}
+
+    monkeypatch.setattr(st_sync_api, 'TauriTavernClient', FakeClient)
+    monkeypatch.setattr(st_sync_api, 'load_config', lambda: {
+        'tt_user_handle': 'default-user',
+        'tt_api_url': 'http://127.0.0.1:19999',
+    })
+
+    response = _make_app(st_sync_api.bp).test_client().post(
+        '/api/st/tt/check_connection',
+        json={},
+    )
+
+    assert response.status_code == 200
+    assert response.get_json() == {
+        'success': True,
+        'message': 'TauriTavern 集成 API 已连接',
+        'api_url': 'http://127.0.0.1:19999',
+        'service': 'tauritavern',
+        'api_version': 1,
+    }
+    assert captured == {
+        'api_url': 'http://127.0.0.1:19999',
+        'user_handle': 'default-user',
+    }
+
+
+def test_target_switch_preserves_st_config_and_tt_user_config(tmp_path):
     config_path = tmp_path / 'config.json'
     write_config_file(config_path, {
         'st_target': 'tauritavern',
         'st_url': 'http://127.0.0.1:8000',
         'st_data_dir': 'D:/SillyTavern',
         'st_user_handle': 'st-user',
-        'tt_data_dir': 'D:/TauriTavern/data',
         'tt_user_handle': 'default-user',
     })
 
@@ -102,24 +264,17 @@ def test_target_switch_preserves_both_tavern_config_sets(tmp_path):
     assert saved['st_url'] == 'http://127.0.0.1:8000'
     assert saved['st_data_dir'] == 'D:/SillyTavern'
     assert saved['st_user_handle'] == 'st-user'
-    assert saved['tt_data_dir'] == 'D:/TauriTavern/data'
     assert saved['tt_user_handle'] == 'default-user'
+    assert 'tt_data_dir' not in saved
 
 
-def test_tauri_path_validation_endpoint_reports_user_directory(tmp_path):
-    root = tmp_path / 'tauri-data'
-    (root / 'default-user').mkdir(parents=True)
-
+def test_tauri_path_validation_endpoint_is_removed():
     response = _make_app(st_sync_api.bp).test_client().post(
         '/api/st/tt/validate_path',
-        json={'path': str(root), 'tt_user_handle': 'default-user'},
+        json={'path': 'D:/TauriTavern/data', 'tt_user_handle': 'default-user'},
     )
 
-    assert response.status_code == 200
-    payload = response.get_json()
-    assert payload['success'] is True
-    assert payload['valid'] is True
-    assert payload['user_handle'] == 'default-user'
+    assert response.status_code == 404
 
 
 def test_beautify_send_route_writes_standard_theme_in_tauri_mode(monkeypatch, tmp_path):
@@ -144,6 +299,12 @@ def test_beautify_send_route_writes_standard_theme_in_tauri_mode(monkeypatch, tm
         'load_config',
         lambda: _make_tauri_config(tmp_path / 'tauri-data'),
     )
+    fake_client = _FakeTauriApiClient()
+    monkeypatch.setattr(
+        beautify_api.TauriTavernClient,
+        'from_config',
+        lambda _config: fake_client,
+    )
     # The send route persists the send timestamp; keep it off the real ui_data.json.
     monkeypatch.setattr(ui_store_module, 'UI_DATA_FILE', str(ui_path))
     monkeypatch.setattr(
@@ -161,7 +322,7 @@ def test_beautify_send_route_writes_standard_theme_in_tauri_mode(monkeypatch, tm
     payload = response.get_json()
     assert payload['success'] is True
     assert payload['target'] == 'tauritavern'
-    assert (tmp_path / 'tauri-data' / 'default-user' / 'themes' / 'Demo.json').exists()
+    assert fake_client.theme_payload == {'name': 'Demo'}
     # TauriTavern sends stamp their own key so both histories stay distinguishable.
     assert payload['last_sent_to_tt'] > 0
     assert 'last_sent_to_st' not in payload
@@ -188,6 +349,12 @@ def test_character_send_route_writes_to_tauri_without_http(monkeypatch, tmp_path
 
     monkeypatch.setattr(system_api, 'CARDS_FOLDER', str(cards_root))
     monkeypatch.setattr(system_api, 'load_config', lambda: _make_tauri_config(tauri_root))
+    fake_client = _FakeTauriApiClient()
+    monkeypatch.setattr(
+        system_api.TauriTavernClient,
+        'from_config',
+        lambda _config: fake_client,
+    )
     monkeypatch.setattr(ui_store_module, 'UI_DATA_FILE', str(ui_path))
     monkeypatch.setattr(system_api.ctx, 'cache', FakeCache())
     monkeypatch.setattr(
@@ -203,8 +370,9 @@ def test_character_send_route_writes_to_tauri_without_http(monkeypatch, tmp_path
 
     assert response.status_code == 200
     assert response.get_json()['target'] == 'tauritavern'
-    assert (tauri_root / 'default-user' / 'characters' / 'card.png').exists()
     payload = response.get_json()
+    assert payload['target_path'] == 'api://characters/card.png'
+    assert fake_client.character_source == str(cards_root / 'card.png')
     assert payload['last_sent_to_tt'] > 0
     assert 'last_sent_to_st' not in payload
     saved_ui = json.loads(ui_path.read_text(encoding='utf-8'))
@@ -228,10 +396,15 @@ def test_world_info_send_route_writes_normalized_payload_to_tauri(monkeypatch, t
         'load_config',
         lambda: normalize_config({
             'st_target': 'tauritavern',
-            'tt_data_dir': str(tauri_root),
             'world_info_dir': str(lorebooks_root),
             'resources_dir': str(tmp_path / 'resources'),
         }),
+    )
+    fake_client = _FakeTauriApiClient()
+    monkeypatch.setattr(
+        world_info_api.TauriTavernClient,
+        'from_config',
+        lambda _config: fake_client,
     )
     monkeypatch.setattr(ui_store_module, 'UI_DATA_FILE', str(ui_path))
     monkeypatch.setattr(
@@ -247,9 +420,7 @@ def test_world_info_send_route_writes_normalized_payload_to_tauri(monkeypatch, t
 
     assert response.status_code == 200
     assert response.get_json()['target'] == 'tauritavern'
-    saved = tauri_root / 'default-user' / 'worlds' / 'dragon.json'
-    payload = json.loads(saved.read_text(encoding='utf-8'))
-    assert payload['entries']['0']['content'] == 'fire'
+    assert fake_client.world_payload[1]['entries']['0']['content'] == 'fire'
     assert response.get_json()['last_sent_to_tt'] > 0
     saved_ui = json.loads(ui_path.read_text(encoding='utf-8'))
     assert all('last_sent_to_st' not in entry for entry in saved_ui.values())
@@ -276,10 +447,15 @@ def test_openai_preset_send_route_writes_to_tauri_without_http(monkeypatch, tmp_
         'load_config',
         lambda: normalize_config({
             'st_target': 'tauritavern',
-            'tt_data_dir': str(tauri_root),
             'presets_dir': str(presets_root),
             'resources_dir': str(tmp_path / 'resources'),
         }),
+    )
+    fake_client = _FakeTauriApiClient()
+    monkeypatch.setattr(
+        presets_api.TauriTavernClient,
+        'from_config',
+        lambda _config: fake_client,
     )
     monkeypatch.setattr(ui_store_module, 'UI_DATA_FILE', str(ui_path))
     monkeypatch.setattr(
@@ -295,8 +471,7 @@ def test_openai_preset_send_route_writes_to_tauri_without_http(monkeypatch, tmp_
 
     assert response.status_code == 200
     assert response.get_json()['target'] == 'tauritavern'
-    saved = tauri_root / 'default-user' / 'OpenAI Settings' / 'Writing.json'
-    assert json.loads(saved.read_text(encoding='utf-8'))['openai_model'] == 'gpt-4.1'
+    assert fake_client.preset_payload[1]['openai_model'] == 'gpt-4.1'
     assert response.get_json()['last_sent_to_tt'] > 0
     saved_ui = json.loads(ui_path.read_text(encoding='utf-8'))
     assert all('last_sent_to_st' not in entry for entry in saved_ui.values())
