@@ -77,7 +77,7 @@ def _prepare_scan_env(monkeypatch, tmp_path, *, card_count, files=None):
     monkeypatch.setattr(scan_service, 'CARDS_FOLDER', str(cards_dir))
     monkeypatch.setattr(scan_service, 'extract_card_info_with_status', _fake_extract)
     monkeypatch.setattr(scan_service, 'load_ui_data', lambda: {})
-    monkeypatch.setattr(scan_service, 'save_ui_data', lambda _payload: True)
+    monkeypatch.setattr(scan_service, 'save_ui_data', lambda _payload, **_kwargs: True)
     monkeypatch.setattr(scan_service, 'calculate_token_count', lambda _payload: 1)
     monkeypatch.setattr(scan_service, 'get_wi_meta', lambda _payload: (False, ''))
     monkeypatch.setattr(scan_service, '_enqueue_card_reconcile_jobs', lambda *a, **k: None)

@@ -3,7 +3,7 @@ import shutil
 import logging
 import traceback
 import mimetypes
-from flask import Flask
+from flask import Flask, jsonify
 
 # === 基础设施 ===
 from core.config import INTERNAL_DIR, BASE_DIR, TEMP_DIR
@@ -12,6 +12,7 @@ from core.auth import init_auth
 
 # === 数据与服务 ===
 from core.data.db_session import init_database, close_connection
+from core.data.ui_store import UiDataLoadError
 from core.services.index_upgrade_service import run_startup_upgrade_if_needed
 from core.services.scan_service import start_background_scanner
 from core.services.source_update_monitor_service import start_monitor_scheduler
@@ -45,7 +46,17 @@ def create_app():
     
     # 注册数据库连接关闭钩子 (在请求结束时自动调用)
     app.teardown_appcontext(close_connection)
-    
+
+    # 读取 ui_data.json 失败时，统一返回可读错误，避免路由把异常当成空数据继续处理。
+    @app.errorhandler(UiDataLoadError)
+    def _handle_ui_data_load_error(error):
+        logger.error('ui_data.json 读取失败，已中止本次请求: %s', error)
+        return jsonify({
+            'success': False,
+            'msg': '本地数据文件暂时无法读取，已中止本次操作以保护既有数据。请稍后重试。',
+            'error': 'ui_data_unavailable',
+        }), 503
+
     # === 注册蓝图 (Blueprints) ===
     
     # 1. 核心业务 API (V1)

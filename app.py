@@ -114,7 +114,28 @@ if __name__ == '__main__':
     # 3. 启动后台服务 
     # (数据库初始化 -> 加载缓存 -> 启动扫描器)
     # daemon=True 保证主程序退出时线程自动结束，防止僵尸进程
-    
+
+    # 3.0 数据目录独占锁：防止两个进程共用同一份 data/ 互相覆盖 ui_data.json。
+    # 在 Debug 模式下，仅在真正的工作进程 (WERKZEUG_RUN_MAIN="true") 中加锁，
+    # 避免 Watcher 进程与工作进程互相冲突。
+    if not debug_mode or os.environ.get("WERKZEUG_RUN_MAIN") == "true":
+        from core.config import DATA_DIR
+        from core.data.data_dir_lock import acquire_data_directory_lock
+
+        if not acquire_data_directory_lock(DATA_DIR):
+            print(f"\n{'='*60}")
+            print("❌ 启动失败：数据目录已被另一个 ST Manager 实例占用！")
+            print(f"{'='*60}")
+            print(f"数据目录: {DATA_DIR}")
+            print("同时运行多个实例会互相覆盖本地备注、链接与标签分类等数据。")
+            print("\n请尝试：")
+            print(" - 关闭已运行的其他 ST Manager 窗口/进程。")
+            print(" - 若确认没有实例在运行，可删除数据目录下的 st_manager.lock 后重试。")
+            print(f"{'='*60}\n")
+            if platform.system() == "Windows":
+                os.system("pause")
+            sys.exit(1)
+
     # 在 Debug 模式下，仅在 Reload 子进程 (WERKZEUG_RUN_MAIN="true") 中启动后台服务
     # 避免在 Watcher 进程中重复启动
     if not debug_mode or os.environ.get("WERKZEUG_RUN_MAIN") == "true":

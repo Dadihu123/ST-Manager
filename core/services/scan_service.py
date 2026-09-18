@@ -14,7 +14,7 @@ from core.data.index_runtime_store import (
     get_scan_state,
     set_scan_state,
 )
-from core.data.ui_store import load_ui_data, save_ui_data
+from core.data.ui_store import load_ui_data, save_ui_data, UiDataLoadError
 
 # === 业务逻辑引用 ===
 from core.services.card_binding_service import rename_card_ui_references
@@ -765,7 +765,15 @@ def _perform_scan_logic_inner(db_path, cards_root):
         replaced_card_uids = {}
         deleted_card_ids = set()
         fs_found_files = set()
-        ui_data = load_ui_data()
+        # ui_data 读取失败时不中止整轮扫描，只是本次不写回 UI 数据，
+        # 避免把空数据覆盖到磁盘上的真实内容。
+        try:
+            ui_data = load_ui_data()
+            ui_data_readable = True
+        except UiDataLoadError as ui_exc:
+            logger.error('全量扫描: ui_data.json 读取失败，本次跳过 UI 数据写回: %s', ui_exc)
+            ui_data = {}
+            ui_data_readable = False
         ui_changed = False
     
         # 2. 遍历文件系统
@@ -962,8 +970,9 @@ def _perform_scan_logic_inner(db_path, cards_root):
                     remove_owner_ids=[card_id],
                 )
 
-        if ui_changed and not save_ui_data(ui_data):
-            logger.warning('全量扫描后保存角色卡聊天绑定失败')
+        if ui_changed and ui_data_readable:
+            if not save_ui_data(ui_data, allow_shrink=True):
+                logger.warning('全量扫描后保存角色卡聊天绑定失败')
 
         if changed_card_paths or deleted_card_ids:
             logger.info("Background scan detected changes. Updating cache...")

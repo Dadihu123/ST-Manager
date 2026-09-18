@@ -3385,7 +3385,7 @@ def test_sync_card_names_internal_template_rename_reuses_existing_migration_logi
     monkeypatch.setattr(card_service, 'sync_card_index_jobs', lambda **kwargs: sync_calls.append(kwargs) or {})
     monkeypatch.setattr(card_service, 'get_db', lambda: fake_conn)
     monkeypatch.setattr(card_service, 'load_ui_data', lambda: ui_data)
-    monkeypatch.setattr(card_service, 'save_ui_data', lambda payload: saved_ui_snapshots.append({key: (value.copy() if isinstance(value, dict) else value) for key, value in payload.items()}))
+    monkeypatch.setattr(card_service, 'save_ui_data', lambda payload, **_kwargs: saved_ui_snapshots.append({key: (value.copy() if isinstance(value, dict) else value) for key, value in payload.items()}))
     monkeypatch.setattr(card_service.ctx, 'cache', fake_cache, raising=False)
     monkeypatch.setattr(card_service, 'suppress_fs_events', lambda *args, **kwargs: None)
 
@@ -3470,7 +3470,7 @@ def test_sync_card_names_internal_template_rename_keeps_priority_over_legacy_fil
     })
     monkeypatch.setattr(card_service, 'get_db', lambda: type('Conn', (), {'execute': lambda self, *a, **k: self, 'commit': lambda self: None})())
     monkeypatch.setattr(card_service, 'load_ui_data', lambda: {})
-    monkeypatch.setattr(card_service, 'save_ui_data', lambda payload: None)
+    monkeypatch.setattr(card_service, 'save_ui_data', lambda payload, **_kwargs: None)
     monkeypatch.setattr(
         card_service.ctx,
         'cache',
@@ -3683,7 +3683,7 @@ def test_sync_card_names_internal_accepts_structured_template_rename_config(monk
     })
     monkeypatch.setattr(card_service, 'get_db', lambda: type('Conn', (), {'execute': lambda self, *a, **k: self, 'commit': lambda self: None})())
     monkeypatch.setattr(card_service, 'load_ui_data', lambda: {'folder/demo.json': {'import_time': 1704153600}})
-    monkeypatch.setattr(card_service, 'save_ui_data', lambda payload: None)
+    monkeypatch.setattr(card_service, 'save_ui_data', lambda payload, **_kwargs: None)
     monkeypatch.setattr(
         card_service.ctx,
         'cache',

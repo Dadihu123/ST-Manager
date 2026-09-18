@@ -11,6 +11,7 @@ from core.config import CARDS_FOLDER, DEFAULT_DB_PATH
 from core.data.db_session import execute_with_retry
 from core.data.ui_store import (
     load_ui_data,
+    UiDataLoadError,
     get_version_remark,
     get_import_time,
     get_last_sent_to_st,
@@ -30,6 +31,19 @@ from core.utils.card_identity import normalize_card_uid
 from core.utils.filesystem import is_card_file
 
 logger = logging.getLogger(__name__)
+
+
+def _safe_load_ui_data():
+    """读取 ui_data；读取失败时返回空字典。
+
+    仅用于「读不到也不该破坏数据」的富化场景：这些调用点只把结果合并进内存
+    卡片对象，不会据此写回磁盘，因此降级为空字典是安全的。
+    """
+    try:
+        return load_ui_data()
+    except UiDataLoadError as exc:
+        logger.error('读取 ui_data.json 失败，本次仅跳过 UI 字段富化: %s', exc)
+        return {}
 
 class GlobalMetadataCache:
     """
@@ -130,7 +144,7 @@ class GlobalMetadataCache:
                     not isinstance(source_update, dict)
                     or not source_update.get('last_status')
                 ):
-                    self._sync_source_update_fields(card, load_ui_data())
+                    self._sync_source_update_fields(card, _safe_load_ui_data())
 
                 return card
             return None
@@ -380,7 +394,7 @@ class GlobalMetadataCache:
         """[增量更新] 新增卡片"""
         with self.lock:
             new_card_data['tags'] = self._normalize_tags(new_card_data.get('tags'))
-            ui_data = load_ui_data()
+            ui_data = _safe_load_ui_data()
             ui_key = (
                 new_card_data.get('bundle_dir')
                 if new_card_data.get('is_bundle')
@@ -525,7 +539,15 @@ class GlobalMetadataCache:
                     logger.error(f"Scanning physical folders failed: {fs_e}")
 
                 # 1. 加载数据
-                ui_data = load_ui_data()
+                # ui_data 读取失败时不清空缓存：卡片仍从 DB 正常加载，只是本次
+                # 不写回 ui_data（避免把空数据覆盖到磁盘），待下次读取成功后恢复。
+                ui_data_readable = True
+                try:
+                    ui_data = load_ui_data()
+                except UiDataLoadError as ui_exc:
+                    logger.error('缓存重载: ui_data.json 读取失败，本次跳过 UI 数据写回: %s', ui_exc)
+                    ui_data = {}
+                    ui_data_readable = False
                 ui_data_stale_cleaned = False
                 rows, rows_include_uid = execute_with_retry(_do_fetch_all, max_retries=5)
                 
@@ -676,8 +698,9 @@ class GlobalMetadataCache:
                 ):
                     ui_data_stale_cleaned = True
 
-                if ui_data_stale_cleaned:
-                    save_ui_data(ui_data)
+                if ui_data_stale_cleaned and ui_data_readable:
+                    # 重载过程会清理失效条目，体积可能下降，属预期结果。
+                    save_ui_data(ui_data, allow_shrink=True)
 
                 # 3. 统计计数和标签
                 new_global_tags = set()

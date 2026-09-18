@@ -16,6 +16,58 @@ logger = logging.getLogger(__name__)
 
 _UI_DATA_LOCK = threading.RLock()
 
+# 轮转备份代数：.bak 为最近一次可用内容，.bak.1/.bak.2 为更早的世代。
+BACKUP_GENERATIONS = 3
+
+# 读取瞬时失败（Windows 上 os.replace 瞬间、杀毒/索引器短暂独占）的重试参数。
+READ_RETRY_ATTEMPTS = 4
+READ_RETRY_DELAY_SECONDS = 0.05
+
+# 退化写入护栏：当磁盘上的既有文件足够大、而新内容体积骤降时拒绝覆盖。
+SHRINK_GUARD_MIN_BYTES = 32 * 1024
+SHRINK_GUARD_MIN_RATIO = 0.5
+
+
+class UiDataLoadError(RuntimeError):
+    """ui_data.json 读取失败（区别于「文件确实不存在」）。
+
+    抛出此异常表示磁盘上的既有内容可能完好、只是本次读取失败，
+    调用方**不得**把它当作「没有数据」并据此覆盖写回。
+    """
+
+
+class UiDataShrinkError(RuntimeError):
+    """拒绝一次会把 ui_data.json 大幅缩小的写入。"""
+
+
+# 读取降级状态：一旦某次读取失败，在下次成功读取之前禁止保存，
+# 避免把「读失败」误当成「数据为空」并整体覆盖磁盘上的真实数据。
+_degraded_state_lock = threading.Lock()
+_degraded_reason = ''
+
+
+def _mark_ui_data_degraded(reason):
+    global _degraded_reason
+    with _degraded_state_lock:
+        _degraded_reason = str(reason or 'unknown')
+
+
+def _clear_ui_data_degraded():
+    global _degraded_reason
+    with _degraded_state_lock:
+        _degraded_reason = ''
+
+
+def is_ui_data_degraded():
+    """当前 ui_data.json 是否处于「上次读取失败」的降级状态。"""
+    with _degraded_state_lock:
+        return bool(_degraded_reason)
+
+
+def get_ui_data_degraded_reason():
+    with _degraded_state_lock:
+        return _degraded_reason
+
 VERSION_REMARKS_KEY = '_version_remarks'
 IMPORT_TIME_KEY = 'import_time'
 LAST_SENT_TO_ST_KEY = 'last_sent_to_st'
@@ -1473,22 +1525,100 @@ def _read_json_file(path):
         return json.load(f)
 
 
-def _copy_current_primary_to_backup_if_valid():
+def _is_retriable_read_error(exc):
+    """判断读取失败是否属于「可能只是暂时被占用」的瞬时错误。"""
+    if isinstance(exc, json.JSONDecodeError):
+        return False
+    if isinstance(exc, UnicodeDecodeError):
+        # 文件正在被替换时可能读到半截内容；重试一次有机会读到完整内容。
+        return True
+    if isinstance(exc, OSError):
+        return True
+    return False
+
+
+def _read_json_file_with_retry(path, attempts=READ_RETRY_ATTEMPTS):
+    """带重试地读取 JSON。
+
+    Windows 上主文件被 os.replace 替换的瞬间，或杀毒/索引器/同步盘短暂独占
+    文件时，读取会抛出 PermissionError / OSError。这类失败不代表数据损坏，
+    因此先重试，仍失败才向上报告，交由调用方决定（绝不静默当成空数据）。
+    """
+    last_error = None
+    total = max(1, int(attempts))
+    for attempt in range(total):
+        try:
+            return _read_json_file(path)
+        except Exception as exc:  # noqa: BLE001 - 需要区分瞬时/永久以决定重试
+            last_error = exc
+            if not _is_retriable_read_error(exc) or attempt == total - 1:
+                raise
+            time.sleep(READ_RETRY_DELAY_SECONDS * (attempt + 1))
+
+    raise last_error if last_error is not None else OSError(f'无法读取 {path}')
+
+
+def _ui_data_backup_paths():
+    """按新旧顺序返回轮转备份路径：.bak, .bak.1, .bak.2 ..."""
+    base = _backup_ui_data_file_path()
+    return [base] + [f'{base}.{index}' for index in range(1, BACKUP_GENERATIONS)]
+
+
+def _read_valid_ui_data_object(path):
+    """读取并校验一个 ui_data 文件，返回 dict；不可用则返回 None。"""
+    try:
+        data = _read_json_file_with_retry(path)
+    except Exception as exc:  # noqa: BLE001 - 备份不可用不应影响主流程
+        logger.warning(f"备份文件不可用 {path}: {exc}")
+        return None
+
+    if not isinstance(data, dict):
+        logger.warning(f"备份文件内容不是对象，忽略: {path}")
+        return None
+    return data
+
+
+def _rotate_backups():
+    """写入前轮转备份，使 .bak 始终保留最近一次「已确认可用」的内容。
+
+    与旧实现的区别：旧代码在写入后又把主文件复制到 .bak，导致损坏内容
+    立刻覆盖掉唯一的好备份；这里只做世代轮转，不镜像新写入。
+    """
+    paths = _ui_data_backup_paths()
+
+    # 删除最老的一代，然后依次后移
+    oldest = paths[-1]
+    if os.path.exists(oldest):
+        try:
+            os.remove(oldest)
+        except OSError as exc:
+            logger.warning(f"清理旧备份失败 {oldest}: {exc}")
+
+    for source, target in zip(reversed(paths[:-1]), reversed(paths[1:])):
+        if not os.path.exists(source):
+            continue
+        try:
+            os.replace(source, target)
+        except OSError as exc:
+            logger.warning(f"轮转备份失败 {source} -> {target}: {exc}")
+
+
+def _preserve_current_primary_as_backup():
+    """把当前主文件保存为最新备份；仅当其内容可解析为对象时进行。"""
     if not os.path.exists(UI_DATA_FILE):
-        return
+        return False
+
+    if _read_valid_ui_data_object(UI_DATA_FILE) is None:
+        logger.warning("当前 ui_data.json 无法解析为对象，跳过备份并保留既有备份世代。")
+        return False
 
     try:
-        _read_json_file(UI_DATA_FILE)
-    except (OSError, json.JSONDecodeError) as exc:
-        logger.warning(f"当前 ui_data.json 无法作为备份源，跳过预写备份: {exc}")
-        return
-
-    shutil.copy2(UI_DATA_FILE, _backup_ui_data_file_path())
-
-
-def _copy_primary_to_backup():
-    if os.path.exists(UI_DATA_FILE):
+        _rotate_backups()
         shutil.copy2(UI_DATA_FILE, _backup_ui_data_file_path())
+        return True
+    except OSError as exc:
+        logger.warning(f"备份当前 ui_data.json 失败: {exc}")
+        return False
 
 
 def _snapshot_corrupted_ui_data():
@@ -1535,24 +1665,24 @@ def _write_ui_data_file_atomic(data):
 
 
 def _load_backup_ui_data():
-    backup_path = _backup_ui_data_file_path()
-    if not os.path.exists(backup_path):
-        return None
-
-    try:
-        data = _read_json_file(backup_path)
-    except (OSError, json.JSONDecodeError) as exc:
-        logger.error(f"加载 ui_data.json 备份失败: {exc}")
-        return None
-
-    if not isinstance(data, dict):
-        logger.error("ui_data.json 备份内容不是对象，无法恢复。")
-        return None
-
-    return data
+    """按世代从新到旧查找第一个可用的备份，返回 (data, path)。"""
+    for backup_path in _ui_data_backup_paths():
+        if not os.path.exists(backup_path):
+            continue
+        data = _read_valid_ui_data_object(backup_path)
+        if data is None:
+            logger.error(f"加载 ui_data.json 备份失败，尝试更早世代: {backup_path}")
+            continue
+        return data, backup_path
+    return None, ''
 
 
-def _recover_corrupted_ui_data(error):
+def _recover_corrupted_ui_data(error, *, permission_error=False):
+    """主文件不可用时，尝试用轮转备份恢复。
+
+    注意：恢复动作本身也会写主文件，因此内部使用 allow_shrink=True —— 备份
+    可能是较早、较小但完整的真实数据，不应被退化写入护栏拒绝。
+    """
     logger.error(f"ui_data.json 损坏: {error}")
 
     try:
@@ -1562,15 +1692,17 @@ def _recover_corrupted_ui_data(error):
     except Exception as snapshot_error:
         logger.error(f"备份损坏的 ui_data.json 失败: {snapshot_error}")
 
-    backup_data = _load_backup_ui_data()
+    backup_data, backup_path = _load_backup_ui_data()
     if backup_data is None:
+        _mark_ui_data_degraded(f'主文件不可用且无可用备份: {error}')
         return {}
 
-    if save_ui_data(backup_data):
-        logger.warning("已从 ui_data.json.bak 恢复 ui_data.json。")
+    if save_ui_data(backup_data, allow_shrink=True):
+        logger.warning(f"已从备份恢复 ui_data.json: {backup_path}")
     else:
-        logger.error("从 ui_data.json.bak 恢复 ui_data.json 失败，已返回备份数据。")
+        logger.error(f"从备份 {backup_path} 恢复 ui_data.json 失败，已返回备份数据。")
 
+    _clear_ui_data_degraded()
     return backup_data
 
 
@@ -1579,87 +1711,305 @@ def load_ui_data():
     加载 UI 辅助数据 (JSON 格式)。
     包含用户的卡片备注、来源链接、资源文件夹映射等信息。
 
+    关于失败语义：
+        - 文件不存在：返回 {}（首次运行的正常情况）。
+        - 内容损坏（JSONDecodeError / 非对象）：先快照，再尝试用备份恢复。
+        - 读取失败（占用/权限/编码等瞬时错误）：**绝不**返回 {}，而是抛出
+          UiDataLoadError，避免调用方把「读失败」当成「没有数据」后覆盖写回。
+          若存在可用备份，会先尝试恢复。
+
     Returns:
-        dict: UI 数据字典。如果文件不存在或解析失败，返回空字典。
+        dict: UI 数据字典。
+
+    Raises:
+        UiDataLoadError: 磁盘上存在文件但本次无法读取，且没有可用备份。
     """
     with _UI_DATA_LOCK:
-        if os.path.exists(UI_DATA_FILE):
-            try:
-                data = _read_json_file(UI_DATA_FILE)
-            except json.JSONDecodeError as e:
-                return _recover_corrupted_ui_data(e)
-            except Exception as e:
-                logger.error(f"加载 ui_data.json 失败: {e}")
-                return {}
+        if not os.path.exists(UI_DATA_FILE):
+            _clear_ui_data_degraded()
+            return {}
 
-            if not isinstance(data, dict):
-                logger.error("加载 ui_data.json 失败: 根数据不是对象")
-                return {}
+        try:
+            data = _read_json_file_with_retry(UI_DATA_FILE)
+        except json.JSONDecodeError as e:
+            return _recover_corrupted_ui_data(e)
+        except Exception as e:
+            # 读取失败 ≠ 数据为空。先尝试用备份恢复；没有备份就明确报错，
+            # 让调用方中止本次写回，保护磁盘上的既有内容。
+            logger.error(f"加载 ui_data.json 失败(将尝试备份恢复): {e}")
+            recovered = _recover_corrupted_ui_data(e, permission_error=True)
+            if recovered:
+                return recovered
 
-            # === 脏数据清理逻辑 ===
-            # 检查 resource_folder 是否使用了系统保留名称 (如 'cards', 'thumbnails' 等)
-            dirty = False
-            for key, info in data.items():
-                if not isinstance(info, dict):
-                    continue
+            _mark_ui_data_degraded(f'{type(e).__name__}: {e}')
+            raise UiDataLoadError(
+                f'无法读取 ui_data.json ({type(e).__name__}: {e})；'
+                '为避免覆盖磁盘上的既有数据，本次未返回空数据。'
+            ) from e
 
-                rf = info.get('resource_folder', '')
-                if rf:
-                    # 兼容 Windows/Linux 分隔符，取第一层目录名检查
-                    first_part = rf.replace('\\', '/').split('/')[0].lower()
-                    if first_part in RESERVED_RESOURCE_NAMES:
-                        logger.warning(f"检测到非法资源目录配置 '{rf}' (属于保留目录)，已自动移除关联。")
-                        info['resource_folder'] = ""
+        if not isinstance(data, dict):
+            logger.error("加载 ui_data.json 失败: 根数据不是对象")
+            return _recover_corrupted_ui_data(
+                ValueError('根数据不是对象'),
+            )
+
+        _clear_ui_data_degraded()
+
+        # === 脏数据清理逻辑 ===
+        # 检查 resource_folder 是否使用了系统保留名称 (如 'cards', 'thumbnails' 等)
+        dirty = False
+        for key, info in data.items():
+            if not isinstance(info, dict):
+                continue
+
+            rf = info.get('resource_folder', '')
+            if rf:
+                # 兼容 Windows/Linux 分隔符，取第一层目录名检查
+                first_part = rf.replace('\\', '/').split('/')[0].lower()
+                if first_part in RESERVED_RESOURCE_NAMES:
+                    logger.warning(f"检测到非法资源目录配置 '{rf}' (属于保留目录)，已自动移除关联。")
+                    info['resource_folder'] = ""
+                    dirty = True
+
+            # 规范化 import_time，兼容历史字符串/非法值
+            if IMPORT_TIME_KEY in info:
+                normalized_ts = _normalize_timestamp(info.get(IMPORT_TIME_KEY))
+                if normalized_ts is None:
+                    del info[IMPORT_TIME_KEY]
+                    dirty = True
+                elif info.get(IMPORT_TIME_KEY) != normalized_ts:
+                    info[IMPORT_TIME_KEY] = normalized_ts
+                    dirty = True
+
+            for sent_key in (LAST_SENT_TO_ST_KEY, LAST_SENT_TO_TT_KEY):
+                if sent_key in info:
+                    normalized_sent_ts = _normalize_timestamp(info.get(sent_key))
+                    if normalized_sent_ts is None:
+                        del info[sent_key]
+                        dirty = True
+                    elif info.get(sent_key) != normalized_sent_ts:
+                        info[sent_key] = normalized_sent_ts
                         dirty = True
 
-                # 规范化 import_time，兼容历史字符串/非法值
-                if IMPORT_TIME_KEY in info:
-                    normalized_ts = _normalize_timestamp(info.get(IMPORT_TIME_KEY))
-                    if normalized_ts is None:
-                        del info[IMPORT_TIME_KEY]
-                        dirty = True
-                    elif info.get(IMPORT_TIME_KEY) != normalized_ts:
-                        info[IMPORT_TIME_KEY] = normalized_ts
-                        dirty = True
+        if dirty:
+            # 如果有清理操作，立即回写文件以修正。
+            # 这是对同一份刚读取成功的数据做的小幅规范化，可能触发体积下降
+            # （例如删除非法字段），因此显式放行退化护栏。
+            save_ui_data(data, allow_shrink=True)
 
-                for sent_key in (LAST_SENT_TO_ST_KEY, LAST_SENT_TO_TT_KEY):
-                    if sent_key in info:
-                        normalized_sent_ts = _normalize_timestamp(info.get(sent_key))
-                        if normalized_sent_ts is None:
-                            del info[sent_key]
-                            dirty = True
-                        elif info.get(sent_key) != normalized_sent_ts:
-                            info[sent_key] = normalized_sent_ts
-                            dirty = True
-
-            if dirty:
-                # 如果有清理操作，立即回写文件以修正
-                save_ui_data(data)
-
-            return data
-        return {}
+        return data
 
 
-def save_ui_data(data):
+def _count_card_entries(data):
+    """统计 ui_data 中代表卡片的顶层条目数（排除 _ 开头的内部记录）。"""
+    if not isinstance(data, dict):
+        return 0
+    return sum(
+        1
+        for key in data
+        if isinstance(key, str) and key and not key.startswith('_')
+    )
+
+
+def _payload_entry_stats(data):
+    """统计 payload 的条目数，用于判断是否发生灾难性缩水。
+
+    刻意只数键、不序列化：真实文件约 1.75MB，每次保存都做一次完整
+    json.dumps 会带来明显的 CPU 开销，而键数量对这种「退化成空/残缺
+    数据」的故障有足够强的区分度（实测 540 条 -> 1 条）。
+    """
+    if not isinstance(data, dict):
+        return 0, 0
+    total = len(data)
+    return total, _count_card_entries(data)
+
+
+# 缓存「当前磁盘文件」的条目统计，避免每次保存都重新解析大文件。
+# key: (path, mtime_ns, size) -> (total_entries, card_entries)
+_file_stats_cache = {}
+
+
+def _read_existing_entry_stats(path):
+    """读取既有文件的条目统计；带 mtime/size 缓存。"""
+    try:
+        stat = os.stat(path)
+    except OSError:
+        return None
+
+    cache_key = (path, stat.st_mtime_ns, stat.st_size)
+    cached = _file_stats_cache.get(cache_key)
+    if cached is not None:
+        return cached
+
+    try:
+        existing = _read_json_file_with_retry(path)
+    except Exception:  # noqa: BLE001 - 读不到既有内容时不做条目判断
+        return None
+
+    stats = _payload_entry_stats(existing)
+    # 只保留最近若干条，避免无界增长
+    if len(_file_stats_cache) > 8:
+        _file_stats_cache.clear()
+    _file_stats_cache[cache_key] = stats
+    return stats
+
+
+def _check_shrink_guard(data):
+    """判断本次写入是否属于「把既有数据大幅缩小」的可疑退化写入。
+
+    先用便宜的文件体积做初筛，只有体积确实可疑时才解析既有文件补充
+    条目数信息；正常增长路径不会多读文件。
+
+    Returns:
+        tuple[bool, str]: (是否可疑, 说明)
+    """
+    if not os.path.exists(UI_DATA_FILE):
+        return False, ''
+
+    try:
+        existing_size = os.path.getsize(UI_DATA_FILE)
+    except OSError:
+        return False, ''
+
+    if existing_size < SHRINK_GUARD_MIN_BYTES:
+        return False, ''
+
+    new_total, new_cards = _payload_entry_stats(data)
+
+    # 新内容完全没有条目：几乎必然是读取失败后的退化写入。
+    if new_total == 0:
+        return True, f'新内容为空对象 (既有文件 {existing_size} 字节)'
+
+    existing_stats = _read_existing_entry_stats(UI_DATA_FILE)
+    if existing_stats is None:
+        return False, ''
+
+    existing_total, existing_cards = existing_stats
+    if existing_cards <= 0:
+        return False, ''
+
+    if new_cards >= existing_cards * SHRINK_GUARD_MIN_RATIO:
+        return False, ''
+
+    return True, (
+        f'卡片条目从 {existing_cards} 骤降到 {new_cards} '
+        f'(既有文件 {existing_size} 字节)'
+    )
+
+
+def save_ui_data(data, *, allow_shrink=False):
     """
     保存 UI 辅助数据到 JSON 文件。
-    
+
+    写入前会把当前主文件轮转为备份（.bak, .bak.1, ...），因此 .bak 始终是
+    最近一次「已确认可解析」的内容，而不是刚写入内容的镜像。
+
     Args:
         data (dict): 要保存的数据字典。
+        allow_shrink (bool): 显式确认允许大幅缩小文件（删除卡片/文件夹、
+            清空备注等合法批量删除场景需要传 True）。
+
+    Returns:
+        bool: 是否保存成功。
     """
     with _UI_DATA_LOCK:
         try:
+            if not isinstance(data, dict):
+                logger.error("保存 ui_data.json 失败: 数据不是字典")
+                return False
+
+            # 读失败后的降级状态：在成功读取之前拒绝保存，
+            # 否则可能把「读失败」产生的空/残缺字典覆盖到磁盘上。
+            if is_ui_data_degraded():
+                logger.error(
+                    '拒绝保存 ui_data.json: 当前处于读取失败降级状态 (%s)。'
+                    '请先成功读取一次以确认磁盘数据。',
+                    get_ui_data_degraded_reason(),
+                )
+                return False
+
+            if not allow_shrink:
+                suspicious, reason = _check_shrink_guard(data)
+                if suspicious:
+                    logger.error(
+                        '拒绝保存 ui_data.json: 检测到可疑的退化写入 (%s)。'
+                        '若确为批量删除，请传 allow_shrink=True。',
+                        reason,
+                    )
+                    return False
+
             parent_dir = os.path.dirname(UI_DATA_FILE)
             if parent_dir:
                 os.makedirs(parent_dir, exist_ok=True)
 
-            _copy_current_primary_to_backup_if_valid()
+            _preserve_current_primary_as_backup()
             _write_ui_data_file_atomic(data)
-            _copy_primary_to_backup()
             return True
         except Exception as e:
             logger.error(f"保存 ui_data.json 失败: {e}")
             return False
+
+
+def load_ui_data_or_empty():
+    """读取 ui_data；读取失败时返回空字典（不抛异常）。
+
+    仅用于「读不到也不该破坏数据」的场景：调用方只用结果做展示/富化，
+    不会据此写回磁盘。需要写回时必须用 update_ui_data 或自行处理
+    UiDataLoadError。
+    """
+    try:
+        return load_ui_data()
+    except UiDataLoadError as exc:
+        logger.error(f'读取 ui_data.json 失败，本次降级为空数据: {exc}')
+        return {}
+
+
+def update_ui_data(mutator, *, allow_shrink=True, retries=READ_RETRY_ATTEMPTS,
+                   loader=None, saver=None):
+    """在锁内完成一次原子的「读取 -> 修改 -> 保存」。
+
+    这是推荐的写入口：把 load 与 save 收进同一个锁区间，消除并发
+    read-modify-write 导致的 lost update（互相覆盖）。
+
+    Args:
+        mutator: 接收 ui_data dict 的回调。原地修改即可；
+            也可以返回一个新的 dict 来替换整体内容。
+        allow_shrink: 传给保存函数的退化护栏开关。默认 True，
+            因为调用方已经基于「读取成功的完整数据」做了定向修改，
+            体积变化属于预期结果；需要护栏时显式传 False。
+        retries: 保存失败时的重试次数。
+        loader: 可选的读取函数（默认 load_ui_data）。路由层可显式传入
+            模块级名称，以便测试替换后依然生效。
+        saver: 可选的保存函数（默认 save_ui_data），语义同 loader。
+
+    Returns:
+        bool: 是否保存成功（读取失败或保存被拒绝时为 False）。
+    """
+    read = loader or load_ui_data
+    write = saver or save_ui_data
+
+    with _UI_DATA_LOCK:
+        try:
+            data = read()
+        except UiDataLoadError as exc:
+            logger.error(f'update_ui_data 中止: {exc}')
+            return False
+
+        if not isinstance(data, dict):
+            return False
+
+        result = mutator(data)
+        payload = result if isinstance(result, dict) else data
+
+        attempts = max(1, int(retries))
+        for attempt in range(attempts):
+            if write(payload, allow_shrink=allow_shrink):
+                return True
+            if attempt < attempts - 1:
+                time.sleep(READ_RETRY_DELAY_SECONDS * (attempt + 1))
+
+        logger.error('update_ui_data 保存失败，已重试 %s 次。', attempts)
+        return False
 
 
 def get_version_remark(ui_data, ui_key, version_id, cover_id=None):

@@ -66,7 +66,7 @@ def test_update_card_rejects_stale_source_revision(monkeypatch, tmp_path):
     monkeypatch.setattr(cards_api, 'write_card_metadata', lambda *_args, **_kwargs: None)
     monkeypatch.setattr(cards_api, 'update_card_cache', lambda *_args, **_kwargs: None)
     monkeypatch.setattr(cards_api, 'load_ui_data', lambda: {})
-    monkeypatch.setattr(cards_api, 'save_ui_data', lambda _payload: None)
+    monkeypatch.setattr(cards_api, 'save_ui_data', lambda _payload, **_kwargs: None)
     monkeypatch.setattr(cards_api, 'ensure_import_time', lambda *_args, **_kwargs: (False, 0))
 
     client = _make_app().test_client()
@@ -97,7 +97,7 @@ def test_update_card_success_returns_refreshed_source_revision(monkeypatch, tmp_
     monkeypatch.setattr(cards_api, 'extract_card_info', lambda _path: {'data': {'name': 'Hero', 'tags': []}})
     monkeypatch.setattr(cards_api, 'write_card_metadata', lambda *_args, **_kwargs: None)
     monkeypatch.setattr(cards_api, 'load_ui_data', lambda: {'hero.json': {}})
-    monkeypatch.setattr(cards_api, 'save_ui_data', lambda _payload: None)
+    monkeypatch.setattr(cards_api, 'save_ui_data', lambda _payload, **_kwargs: None)
     monkeypatch.setattr(cards_api, 'ensure_import_time', lambda *_args, **_kwargs: (False, 0))
     monkeypatch.setattr(cards_api, 'get_import_time', lambda *_args, **_kwargs: 0)
     monkeypatch.setattr(cards_api, 'calculate_token_count', lambda _data: 0)
@@ -203,7 +203,7 @@ def test_update_embedded_worldbook_writes_history_for_current_entry_uid(monkeypa
     )
     monkeypatch.setattr(cards_api, 'write_card_metadata', lambda *_args, **_kwargs: None)
     monkeypatch.setattr(cards_api, 'load_ui_data', lambda: {'hero.json': {}})
-    monkeypatch.setattr(cards_api, 'save_ui_data', lambda _payload: None)
+    monkeypatch.setattr(cards_api, 'save_ui_data', lambda _payload, **_kwargs: None)
     monkeypatch.setattr(cards_api, 'ensure_import_time', lambda *_args, **_kwargs: (False, 0))
     monkeypatch.setattr(cards_api, 'get_import_time', lambda *_args, **_kwargs: 0)
     monkeypatch.setattr(cards_api, 'calculate_token_count', lambda _data: 0)
@@ -269,7 +269,7 @@ def test_change_image_json_to_png_enqueues_stale_cleanup_with_raw_id(monkeypatch
         'previous_has_embedded_wi': False,
     })
     monkeypatch.setattr(cards_api, 'load_ui_data', lambda: {})
-    monkeypatch.setattr(cards_api, 'save_ui_data', lambda _payload: None)
+    monkeypatch.setattr(cards_api, 'save_ui_data', lambda _payload, **_kwargs: None)
     monkeypatch.setattr(cards_api, 'ensure_import_time', lambda *_args, **_kwargs: (False, 0))
     monkeypatch.setattr(cards_api, 'calculate_token_count', lambda _data: 0)
 

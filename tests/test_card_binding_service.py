@@ -275,7 +275,7 @@ def test_watchdog_card_move_migrates_chat_binding(monkeypatch, tmp_path):
     monkeypatch.setattr(
         scan_service,
         'save_ui_data',
-        lambda payload: saved.append(payload) or True,
+        lambda payload, **_kwargs: saved.append(payload) or True,
     )
 
     assert scan_service._process_card_move_task('old-name.png', str(new_card_path)) is True
@@ -350,7 +350,7 @@ def test_full_scan_renamed_file_reuses_uuid_and_chat_binding(monkeypatch, tmp_pa
     monkeypatch.setattr(
         scan_service,
         'save_ui_data',
-        lambda payload: saved.append(json.loads(json.dumps(payload))) or True,
+        lambda payload, **_kwargs: saved.append(json.loads(json.dumps(payload))) or True,
     )
 
     scan_service._perform_scan_logic()
@@ -419,7 +419,7 @@ def test_full_scan_does_not_index_worldbook_as_character_card(monkeypatch, tmp_p
     monkeypatch.setattr(scan_service, 'DEFAULT_DB_PATH', str(db_path))
     monkeypatch.setattr(scan_service, 'CARDS_FOLDER', str(cards_dir))
     monkeypatch.setattr(scan_service, 'load_ui_data', lambda: {})
-    monkeypatch.setattr(scan_service, 'save_ui_data', lambda _payload: True)
+    monkeypatch.setattr(scan_service, 'save_ui_data', lambda _payload, **_kwargs: True)
     monkeypatch.setattr(scan_service, 'calculate_token_count', lambda _payload: 1)
     monkeypatch.setattr(scan_service, 'get_wi_meta', lambda _payload: (False, ''))
     monkeypatch.setattr(scan_service, '_enqueue_card_reconcile_jobs', lambda *args, **kwargs: None)

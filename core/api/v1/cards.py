@@ -23,6 +23,7 @@ from core.data.db_session import get_db
 from core.data.ui_store import (
     load_ui_data,
     save_ui_data,
+    update_ui_data,
     get_version_remark,
     set_version_remark,
     get_import_time,
@@ -2514,7 +2515,8 @@ def api_delete_cards():
         )
 
         if ui_changed:
-            save_ui_data(ui_data)
+            # 批量删除卡片：体积下降是预期结果，显式放行退化护栏。
+            save_ui_data(ui_data, allow_shrink=True)
         
         return jsonify({
             "success": True, 
@@ -3431,7 +3433,8 @@ def api_toggle_bundle_mode():
                     ui_changed = True
             
             if ui_changed:
-                save_ui_data(ui_data)
+                # 取消聚合会把 bundle 全局条目迁移为版本级条目，体积变化是预期结果。
+                save_ui_data(ui_data, allow_shrink=True)
             for ver_id in version_ids:
                 sync_card_index_jobs(
                     card_id=ver_id,
@@ -4546,7 +4549,8 @@ def api_delete_tags():
         # 如果你有 ui_data['all_tags'] 这种历史字段，可以保留原逻辑；没有也不会影响
         if isinstance(ui_data, dict) and 'all_tags' in ui_data and isinstance(ui_data['all_tags'], list):
             ui_data['all_tags'] = [tag for tag in ui_data['all_tags'] if tag not in fully_removed_tags]
-        save_ui_data(ui_data)
+        # 批量删除标签会同时清理 tag_to_category 映射，体积下降是预期结果。
+        save_ui_data(ui_data, allow_shrink=True)
 
         return jsonify({
             "success": True,
@@ -4959,7 +4963,8 @@ def api_delete_folder():
             if delete_worldinfo_notes_for_card_prefix(ui_data, folder_path):
                 ui_changed = True
             if ui_changed:
-                save_ui_data(ui_data)
+                # 删除整个文件夹：体积下降是预期结果，显式放行退化护栏。
+                save_ui_data(ui_data, allow_shrink=True)
 
             # 4) 内存增量（可见文件夹列表）
             with ctx.cache.lock:
@@ -5358,7 +5363,8 @@ def api_move_folder():
                     source_remarks = source_entry.get('_version_remarks')
                     if not source_remarks:
                         del ui_data[source_path]
-                        save_ui_data(ui_data)
+                        # 合并后清理源条目：体积下降是预期结果。
+                        save_ui_data(ui_data, allow_shrink=True)
                 ctx.cache.reload_from_db()
             except Exception as e:
                 logger.warning(f'Post-merge bundle projection refresh failed: {e}')
@@ -5640,10 +5646,35 @@ def api_upload_commit():
             final_hash, final_size = get_file_hash_and_size(dst_path)
             mtime = os.path.getmtime(dst_path)
 
-            ui_data = load_ui_data()
-            import_time_changed, import_time_val = ensure_import_time(ui_data, rel_id, mtime)
-            if import_time_changed:
-                save_ui_data(ui_data)
+            # 更新 import_time。读取失败时必须中止写入，绝不把空数据覆盖回磁盘
+            # （旧实现 `except Exception: return {}` + 无条件 save 正是数据被清空的根因）。
+            # update_ui_data 把 load/save 收进同一把锁，避免并发 lost update；
+            # 显式传入模块级 load_ui_data/save_ui_data，保证测试替换后依然生效。
+            captured = {}
+
+            def _record_import_time(data):
+                changed, ts = ensure_import_time(data, rel_id, mtime)
+                captured['data'] = data
+                captured['ts'] = ts
+                return data
+
+            # allow_shrink=False：新增一张卡只会让文件变大，若出现体积骤降
+            # 说明数据异常，宁可拒绝写入也不要覆盖用户既有内容。
+            saved = update_ui_data(
+                _record_import_time,
+                allow_shrink=False,
+                loader=load_ui_data,
+                saver=save_ui_data,
+            )
+            if not saved:
+                logger.error(
+                    '导入卡片后写入 import_time 失败，已保留既有 ui_data.json: %s',
+                    rel_id,
+                )
+            ui_data = captured.get('data')
+            if not isinstance(ui_data, dict):
+                ui_data = {}
+            import_time_val = captured.get('ts', mtime)
 
             # 覆盖冲突时保留原卡片的来源链接与来源状态，后续可继续同步标题。
             ui_key_for_import = _safe_source_update_ui_key(rel_id)

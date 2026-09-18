@@ -111,7 +111,7 @@ def test_sync_folder_prefix_after_fs_move_updates_db_ui_cache_and_index(monkeypa
     monkeypatch.setattr(
         card_service,
         'save_ui_data',
-        lambda payload: ((
+        lambda payload, **_kwargs: ((
             events.append('save_ui_data'),
             saved_ui_payloads.append(json.loads(json.dumps(payload, ensure_ascii=False))),
         ), None)[1],
@@ -247,7 +247,7 @@ def test_sync_exact_card_after_fs_move_updates_db_ui_cache_and_index(monkeypatch
     monkeypatch.setattr(
         card_service,
         'save_ui_data',
-        lambda payload: ((
+        lambda payload, **_kwargs: ((
             events.append('save_ui_data'),
             saved_ui_payloads.append(json.loads(json.dumps(payload, ensure_ascii=False))),
         ), None)[1],
@@ -379,7 +379,7 @@ def test_sync_exact_card_after_fs_move_updates_db_ui_cache_and_index_for_png_ren
     monkeypatch.setattr(
         card_service,
         'save_ui_data',
-        lambda payload: ((
+        lambda payload, **_kwargs: ((
             events.append('save_ui_data'),
             saved_ui_payloads.append(json.loads(json.dumps(payload, ensure_ascii=False))),
         ), None)[1],
@@ -491,7 +491,7 @@ def test_sync_exact_card_after_fs_move_cache_failure_stops_after_commit_before_c
     fake_conn = _FakeConn()
 
     monkeypatch.setattr(card_service, 'CARDS_FOLDER', str(cards_root), raising=False)
-    monkeypatch.setattr(card_service, 'save_ui_data', lambda payload: None)
+    monkeypatch.setattr(card_service, 'save_ui_data', lambda payload, **_kwargs: None)
     monkeypatch.setattr(
         card_service,
         'update_card_cache',
@@ -559,7 +559,7 @@ def test_sync_exact_card_after_fs_move_save_ui_failure_skips_commit_and_cache_re
     monkeypatch.setattr(
         card_service,
         'save_ui_data',
-        lambda payload: (_ for _ in ()).throw(RuntimeError('ui save failed')),
+        lambda payload, **_kwargs: (_ for _ in ()).throw(RuntimeError('ui save failed')),
     )
     monkeypatch.setattr(
         card_service,
@@ -682,7 +682,7 @@ def test_sync_exact_card_after_fs_move_updates_bundle_version_projection_for_nes
     monkeypatch.setattr(
         card_service,
         'save_ui_data',
-        lambda payload: None,
+        lambda payload, **_kwargs: None,
     )
     monkeypatch.setattr(
         card_service,
@@ -846,7 +846,7 @@ def test_sync_exact_card_after_fs_move_reprojects_versions_across_bundles(monkey
     fake_cache = _FakeCache()
 
     monkeypatch.setattr(card_service, 'CARDS_FOLDER', str(cards_root), raising=False)
-    monkeypatch.setattr(card_service, 'save_ui_data', lambda payload: None)
+    monkeypatch.setattr(card_service, 'save_ui_data', lambda payload, **_kwargs: None)
     monkeypatch.setattr(
         card_service,
         'update_card_cache',
@@ -1110,7 +1110,7 @@ def test_api_rename_folder_uses_shared_folder_sync_helper(monkeypatch, tmp_path)
     monkeypatch.setattr(cards_api, '_is_safe_rel_path', lambda _value, allow_empty=False: True)
     monkeypatch.setattr(cards_api, '_is_safe_filename', lambda _value: True)
     monkeypatch.setattr(cards_api, 'load_ui_data', lambda: {'src/pack': {'summary': 'folder note'}})
-    monkeypatch.setattr(cards_api, 'save_ui_data', lambda _payload: None)
+    monkeypatch.setattr(cards_api, 'save_ui_data', lambda _payload, **_kwargs: None)
     monkeypatch.setattr(
         cards_api,
         'sqlite3',
@@ -1195,7 +1195,7 @@ def test_api_move_folder_direct_uses_shared_folder_sync_helper(monkeypatch, tmp_
     monkeypatch.setattr(cards_api, 'suppress_fs_events', lambda *_args, **_kwargs: None)
     monkeypatch.setattr(cards_api, '_is_safe_rel_path', lambda _value, allow_empty=False: True)
     monkeypatch.setattr(cards_api, 'load_ui_data', lambda: {'src/pack': {'summary': 'folder note'}})
-    monkeypatch.setattr(cards_api, 'save_ui_data', lambda _payload: None)
+    monkeypatch.setattr(cards_api, 'save_ui_data', lambda _payload, **_kwargs: None)
     monkeypatch.setattr(cards_api, 'rename_folder_in_db', lambda *_args, **_kwargs: None)
     monkeypatch.setattr(cards_api, 'rename_folder_in_ui', lambda *_args, **_kwargs: None)
     monkeypatch.setattr(

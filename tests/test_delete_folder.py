@@ -644,7 +644,7 @@ def test_delete_cards_dispatches_cleanup_after_successful_fs_delete(monkeypatch,
     monkeypatch.setattr(cards_api, 'load_config', lambda: {'resources_dir': 'resources'})
     monkeypatch.setattr(cards_api, 'get_db', lambda: sqlite3.connect(str(db_path)))
     monkeypatch.setattr(cards_api, 'load_ui_data', lambda: {})
-    monkeypatch.setattr(cards_api, 'save_ui_data', lambda _payload: None)
+    monkeypatch.setattr(cards_api, 'save_ui_data', lambda _payload, **_kwargs: None)
     monkeypatch.setattr(cards_api, 'suppress_fs_events', lambda *args, **kwargs: None)
     monkeypatch.setattr(cards_api, 'resolve_ui_key', lambda cid: cid)
     monkeypatch.setattr(

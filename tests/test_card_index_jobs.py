@@ -2077,7 +2077,7 @@ def test_update_card_content_uses_sync_service_with_cleanup_facts(monkeypatch, t
     monkeypatch.setattr(card_service, 'clean_sidecar_images', lambda *_args, **_kwargs: None)
     monkeypatch.setattr(card_service, 'clean_thumbnail_cache', lambda *_args, **_kwargs: None)
     monkeypatch.setattr(card_service, 'load_ui_data', lambda: ui_state)
-    monkeypatch.setattr(card_service, 'save_ui_data', lambda payload: None)
+    monkeypatch.setattr(card_service, 'save_ui_data', lambda payload, **_kwargs: None)
     monkeypatch.setattr(card_service, 'resolve_ui_key', lambda card_id: card_id)
     monkeypatch.setattr(card_service, 'ensure_import_time', lambda *_args, **_kwargs: (False, 123.0))
     monkeypatch.setattr(card_service, 'get_import_time', lambda *_args, **_kwargs: 123.0)

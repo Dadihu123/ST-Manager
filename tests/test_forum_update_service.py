@@ -45,7 +45,7 @@ def _prepare(monkeypatch, *, last_modified=300.0, ui_data=None):
     monkeypatch.setattr(service, 'ctx', SimpleNamespace(cache=cache))
     monkeypatch.setattr(service, 'resolve_ui_key', lambda card_id: card_id)
     monkeypatch.setattr(service, 'load_ui_data', lambda: data)
-    monkeypatch.setattr(service, 'save_ui_data', lambda value: True)
+    monkeypatch.setattr(service, 'save_ui_data', lambda value, **_kwargs: True)
     monkeypatch.setattr(service, 'load_config', lambda: {
         'discord_auth_type': 'token',
         'discord_bot_token': 'bot-token',

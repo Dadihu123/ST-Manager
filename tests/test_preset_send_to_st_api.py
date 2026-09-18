@@ -860,7 +860,7 @@ def test_preset_send_to_st_save_ui_failure_after_st_success_returns_500(monkeypa
     )
 
     monkeypatch.setattr(presets_api, 'build_st_http_client', lambda cfg, timeout=10: fake_http_client, raising=False)
-    monkeypatch.setattr(presets_api, 'save_ui_data', lambda data: False)
+    monkeypatch.setattr(presets_api, 'save_ui_data', lambda data, **_kwargs: False)
 
     client = _make_test_app().test_client()
     res = client.post('/api/presets/send_to_st', json={'id': 'global::chat.json'})

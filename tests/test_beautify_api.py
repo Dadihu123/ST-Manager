@@ -56,7 +56,7 @@ def _install_send_theme_stubs(monkeypatch, fake_http_client, *, ui_data=None, sa
     monkeypatch.setattr(beautify_api, 'load_config', lambda: {'st_auth_type': 'basic'}, raising=False)
     monkeypatch.setattr(beautify_api, 'build_st_http_client', lambda cfg, timeout=10: fake_http_client, raising=False)
     monkeypatch.setattr(beautify_api, 'load_ui_data', lambda: current_ui_data, raising=False)
-    monkeypatch.setattr(beautify_api, 'save_ui_data', lambda payload: saved_payloads.append(dict(payload)) or save_result, raising=False)
+    monkeypatch.setattr(beautify_api, 'save_ui_data', lambda payload, **_kwargs: saved_payloads.append(dict(payload)) or save_result, raising=False)
     monkeypatch.setattr(beautify_api, 'time', types.SimpleNamespace(time=lambda: sent_at), raising=False)
 
     return current_ui_data, saved_payloads, sent_at

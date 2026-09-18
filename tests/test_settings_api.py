@@ -319,7 +319,7 @@ def test_save_settings_persists_manager_wallpaper_id_to_shared_library(monkeypat
     monkeypatch.setattr(system_api, 'BASE_DIR', 'D:/Workspace/MyOwn/ST-Manager')
     monkeypatch.setattr(system_api, '_shared_wallpaper_service', None, raising=False)
     monkeypatch.setattr(system_api, 'load_ui_data', lambda: ui_data)
-    monkeypatch.setattr(system_api, 'save_ui_data', lambda data: True)
+    monkeypatch.setattr(system_api, 'save_ui_data', lambda data, **_kwargs: True)
 
     client = _make_test_app().test_client()
     response = client.post('/api/save_settings', json={'manager_wallpaper_id': '', 'bg_url': '/legacy/background.png'})
@@ -343,7 +343,7 @@ def test_save_settings_preserves_existing_manager_wallpaper_when_field_is_omitte
     monkeypatch.setattr(system_api, 'BASE_DIR', 'D:/Workspace/MyOwn/ST-Manager')
     monkeypatch.setattr(system_api, '_shared_wallpaper_service', None, raising=False)
     monkeypatch.setattr(system_api, 'load_ui_data', lambda: ui_data)
-    monkeypatch.setattr(system_api, 'save_ui_data', lambda data: True)
+    monkeypatch.setattr(system_api, 'save_ui_data', lambda data, **_kwargs: True)
 
     client = _make_test_app().test_client()
     response = client.post('/api/save_settings', json={'bg_url': '/legacy/background.png'})
@@ -360,7 +360,7 @@ def test_save_settings_does_not_forward_shared_wallpaper_ui_fields_to_config(mon
     monkeypatch.setattr(system_api, 'get_cards_folder', lambda: 'cards')
     monkeypatch.setattr(system_api, 'BASE_DIR', 'D:/Workspace/MyOwn/ST-Manager')
     monkeypatch.setattr(system_api, 'load_ui_data', lambda: {})
-    monkeypatch.setattr(system_api, 'save_ui_data', lambda data: True)
+    monkeypatch.setattr(system_api, 'save_ui_data', lambda data, **_kwargs: True)
 
     client = _make_test_app().test_client()
     response = client.post(
@@ -388,7 +388,7 @@ def test_save_settings_drops_removed_legacy_st_preset_directory_keys(monkeypatch
     monkeypatch.setattr(system_api, 'get_cards_folder', lambda: 'cards')
     monkeypatch.setattr(system_api, 'BASE_DIR', 'D:/Workspace/MyOwn/ST-Manager')
     monkeypatch.setattr(system_api, 'load_ui_data', lambda: {})
-    monkeypatch.setattr(system_api, 'save_ui_data', lambda data: True)
+    monkeypatch.setattr(system_api, 'save_ui_data', lambda data, **_kwargs: True)
 
     client = _make_test_app().test_client()
     response = client.post(
@@ -539,7 +539,7 @@ def test_save_settings_confirmed_request_persists_only_nested_config(monkeypatch
     monkeypatch.setattr(system_api, 'get_cards_folder', lambda: str(tmp_path / 'cards'))
     monkeypatch.setattr(system_api, 'BASE_DIR', str(tmp_path))
     monkeypatch.setattr(system_api, 'load_ui_data', lambda: {})
-    monkeypatch.setattr(system_api, 'save_ui_data', lambda data: True)
+    monkeypatch.setattr(system_api, 'save_ui_data', lambda data, **_kwargs: True)
 
     client = _make_test_app().test_client()
     res = client.post(
@@ -582,7 +582,7 @@ def test_save_settings_legacy_flat_payload_does_not_persist_confirm_flag(monkeyp
     monkeypatch.setattr(system_api, 'get_cards_folder', lambda: str(tmp_path / 'cards'))
     monkeypatch.setattr(system_api, 'BASE_DIR', str(tmp_path))
     monkeypatch.setattr(system_api, 'load_ui_data', lambda: {})
-    monkeypatch.setattr(system_api, 'save_ui_data', lambda data: True)
+    monkeypatch.setattr(system_api, 'save_ui_data', lambda data, **_kwargs: True)
 
     client = _make_test_app().test_client()
     res = client.post(

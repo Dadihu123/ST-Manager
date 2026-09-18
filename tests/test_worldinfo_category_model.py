@@ -2199,7 +2199,7 @@ def test_move_worldinfo_global_item_returns_error_when_note_remap_persistence_fa
     monkeypatch.setattr(world_info_api, 'CARDS_FOLDER', str(tmp_path / 'cards'))
     monkeypatch.setattr(world_info_api, 'load_config', lambda: {'world_info_dir': str(lorebooks_dir), 'resources_dir': str(resources_dir)})
     monkeypatch.setattr(world_info_api, 'suppress_fs_events', lambda *_args, **_kwargs: None)
-    monkeypatch.setattr(world_info_api, 'save_ui_data', lambda _data: False)
+    monkeypatch.setattr(world_info_api, 'save_ui_data', lambda _data, **_kwargs: False)
 
     client = _make_test_app().test_client()
     res = client.post(
@@ -2245,7 +2245,7 @@ def test_rename_worldinfo_folder_returns_error_and_rolls_back_when_note_remap_pe
     monkeypatch.setattr(world_info_api, 'BASE_DIR', str(tmp_path))
     monkeypatch.setattr(world_info_api, 'load_config', lambda: {'world_info_dir': str(lorebooks_dir), 'resources_dir': str(resources_dir)})
     monkeypatch.setattr(world_info_api, 'suppress_fs_events', lambda *_args, **_kwargs: None)
-    monkeypatch.setattr(world_info_api, 'save_ui_data', lambda _data: False)
+    monkeypatch.setattr(world_info_api, 'save_ui_data', lambda _data, **_kwargs: False)
 
     client = _make_test_app().test_client()
     res = client.post('/api/world_info/folders/rename', json={'category': '科幻/旧分类', 'new_name': '新分类'})

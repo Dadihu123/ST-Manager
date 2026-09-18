@@ -364,7 +364,7 @@ def test_api_delete_tags_updates_png_and_json_cards_and_syncs_indexes(monkeypatc
     )
     monkeypatch.setattr(cards_api, 'write_card_metadata', lambda *_args, **_kwargs: True)
     monkeypatch.setattr(cards_api, 'load_ui_data', lambda: {})
-    monkeypatch.setattr(cards_api, 'save_ui_data', lambda _payload: None)
+    monkeypatch.setattr(cards_api, 'save_ui_data', lambda _payload, **_kwargs: None)
     monkeypatch.setattr(cards_api, 'force_reload', lambda **_kwargs: None)
     monkeypatch.setattr(cards_api, 'sync_card_index_jobs', lambda **kwargs: index_sync_calls.append(kwargs))
     monkeypatch.setattr(cards_api, '_apply_card_index_increment_now', lambda *_args, **_kwargs: None)
@@ -441,7 +441,7 @@ def test_api_delete_tags_keeps_taxonomy_when_tag_remains_outside_category(monkey
     monkeypatch.setattr(cards_api, 'extract_card_info', lambda path: card_infos[Path(path).name])
     monkeypatch.setattr(cards_api, 'write_card_metadata', lambda *_args, **_kwargs: True)
     monkeypatch.setattr(cards_api, 'load_ui_data', lambda: ui_data)
-    monkeypatch.setattr(cards_api, 'save_ui_data', lambda payload: saved_ui.update(payload))
+    monkeypatch.setattr(cards_api, 'save_ui_data', lambda payload, **_kwargs: saved_ui.update(payload))
     monkeypatch.setattr(cards_api, 'force_reload', lambda **_kwargs: None)
     monkeypatch.setattr(cards_api, 'sync_card_index_jobs', lambda **_kwargs: None)
     monkeypatch.setattr(cards_api, '_apply_card_index_increment_now', lambda *_args, **_kwargs: None)
@@ -492,7 +492,7 @@ def test_api_delete_tags_reports_metadata_write_failures_without_counting_them(m
     monkeypatch.setattr(cards_api, 'extract_card_info', lambda _path: {'data': {'tags': ['remove-me']}})
     monkeypatch.setattr(cards_api, 'write_card_metadata', lambda *_args, **_kwargs: False)
     monkeypatch.setattr(cards_api, 'load_ui_data', lambda: {})
-    monkeypatch.setattr(cards_api, 'save_ui_data', lambda _payload: None)
+    monkeypatch.setattr(cards_api, 'save_ui_data', lambda _payload, **_kwargs: None)
     monkeypatch.setattr(cards_api, 'force_reload', lambda **_kwargs: None)
     monkeypatch.setattr(cards_api.ctx, 'cache', _FakeCache(), raising=False)
 
@@ -561,7 +561,7 @@ def test_api_batch_tags_skips_unknown_and_blacklisted_tags_with_structured_feedb
             },
         },
     })
-    monkeypatch.setattr(cards_api, 'save_ui_data', lambda payload: writes.setdefault('saved_ui', payload))
+    monkeypatch.setattr(cards_api, 'save_ui_data', lambda payload, **_kwargs: writes.setdefault('saved_ui', payload))
     monkeypatch.setattr(cards_api, 'ctx', SimpleNamespace(cache=fake_cache), raising=False)
 
     response = client.post(

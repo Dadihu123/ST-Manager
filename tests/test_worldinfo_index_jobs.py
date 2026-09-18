@@ -695,7 +695,7 @@ def test_change_image_skips_file_driven_card_job_when_cache_write_fails(monkeypa
         },
     )
     monkeypatch.setattr(cards_api, 'load_ui_data', lambda: {})
-    monkeypatch.setattr(cards_api, 'save_ui_data', lambda _payload: None)
+    monkeypatch.setattr(cards_api, 'save_ui_data', lambda _payload, **_kwargs: None)
     monkeypatch.setattr(cards_api, 'ensure_import_time', lambda *_args, **_kwargs: (False, 0))
     monkeypatch.setattr(cards_api, 'calculate_token_count', lambda _data: 0)
 

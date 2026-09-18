@@ -218,7 +218,7 @@ def _setup_update_card_content_test(monkeypatch, tmp_path, *, ui_state=None):
     monkeypatch.setattr(card_service, 'clean_sidecar_images', lambda *_args, **_kwargs: None)
     monkeypatch.setattr(card_service, 'clean_thumbnail_cache', lambda *_args, **_kwargs: None)
     monkeypatch.setattr(card_service, 'load_ui_data', lambda: ui_payload)
-    monkeypatch.setattr(card_service, 'save_ui_data', lambda _payload: None)
+    monkeypatch.setattr(card_service, 'save_ui_data', lambda _payload, **_kwargs: None)
     monkeypatch.setattr(card_service, 'resolve_ui_key', lambda card_id: card_id)
     monkeypatch.setattr(card_service, 'ensure_import_time', lambda *_args, **_kwargs: (False, 123.0))
     monkeypatch.setattr(card_service, 'get_import_time', lambda *_args, **_kwargs: 123.0)
@@ -665,7 +665,7 @@ def test_import_from_url_enqueues_card_and_world_sync_jobs(monkeypatch, tmp_path
     })
     monkeypatch.setattr(cards_api, 'sanitize_filename', lambda value: value)
     monkeypatch.setattr(cards_api, 'load_ui_data', lambda: {})
-    monkeypatch.setattr(cards_api, 'save_ui_data', lambda _payload: None)
+    monkeypatch.setattr(cards_api, 'save_ui_data', lambda _payload, **_kwargs: None)
     monkeypatch.setattr(cards_api, 'ensure_import_time', lambda *_args, **_kwargs: (False, 123.0))
     monkeypatch.setattr(cards_api, 'get_file_hash_and_size', lambda _path: ('hash', 8))
     monkeypatch.setattr(cards_api, 'calculate_token_count', lambda _data: 0)
@@ -744,7 +744,7 @@ def test_upload_commit_enqueues_card_and_world_sync_jobs(monkeypatch, tmp_path):
     })
     monkeypatch.setattr(cards_api, 'sanitize_filename', lambda value: value)
     monkeypatch.setattr(cards_api, 'load_ui_data', lambda: {})
-    monkeypatch.setattr(cards_api, 'save_ui_data', lambda _payload: None)
+    monkeypatch.setattr(cards_api, 'save_ui_data', lambda _payload, **_kwargs: None)
     monkeypatch.setattr(cards_api, 'ensure_import_time', lambda *_args, **_kwargs: (False, 123.0))
     monkeypatch.setattr(cards_api, 'get_import_time', lambda _ui_data, _ui_key, fallback: fallback)
     monkeypatch.setattr(cards_api, 'get_file_hash_and_size', lambda _path: ('hash', 8))
@@ -829,7 +829,7 @@ def test_import_from_url_overwrite_removes_opposite_extension_sibling(monkeypatc
     })
     monkeypatch.setattr(cards_api, 'sanitize_filename', lambda value: value)
     monkeypatch.setattr(cards_api, 'load_ui_data', lambda: {})
-    monkeypatch.setattr(cards_api, 'save_ui_data', lambda _payload: None)
+    monkeypatch.setattr(cards_api, 'save_ui_data', lambda _payload, **_kwargs: None)
     monkeypatch.setattr(cards_api, 'ensure_import_time', lambda *_args, **_kwargs: (False, 123.0))
     monkeypatch.setattr(cards_api, 'get_file_hash_and_size', lambda _path: ('hash', 8))
     monkeypatch.setattr(cards_api, 'calculate_token_count', lambda _data: 0)
@@ -893,7 +893,7 @@ def test_import_from_url_cross_extension_overwrite_preserves_old_tags(monkeypatc
     monkeypatch.setattr(cards_api, 'write_card_metadata', lambda path, info: write_calls.append({'path': str(path), 'info': json.loads(json.dumps(info))}) or True)
     monkeypatch.setattr(cards_api, 'sanitize_filename', lambda value: value)
     monkeypatch.setattr(cards_api, 'load_ui_data', lambda: {})
-    monkeypatch.setattr(cards_api, 'save_ui_data', lambda _payload: None)
+    monkeypatch.setattr(cards_api, 'save_ui_data', lambda _payload, **_kwargs: None)
     monkeypatch.setattr(cards_api, 'ensure_import_time', lambda *_args, **_kwargs: (False, 123.0))
     monkeypatch.setattr(cards_api, 'get_file_hash_and_size', lambda _path: ('hash', 8))
     monkeypatch.setattr(cards_api, 'calculate_token_count', lambda _data: 0)
@@ -967,7 +967,7 @@ def test_import_from_url_overwrite_suppresses_delete_and_move_boundary(monkeypat
     monkeypatch.setattr(cards_api, 'extract_card_info', lambda _path: {'data': {'name': 'Hero', 'tags': ['new']}})
     monkeypatch.setattr(cards_api, 'sanitize_filename', lambda value: value)
     monkeypatch.setattr(cards_api, 'load_ui_data', lambda: {})
-    monkeypatch.setattr(cards_api, 'save_ui_data', lambda _payload: None)
+    monkeypatch.setattr(cards_api, 'save_ui_data', lambda _payload, **_kwargs: None)
     monkeypatch.setattr(cards_api, 'ensure_import_time', lambda *_args, **_kwargs: (False, 123.0))
     monkeypatch.setattr(cards_api, 'get_file_hash_and_size', lambda _path: ('hash', 8))
     monkeypatch.setattr(cards_api, 'calculate_token_count', lambda _data: 0)
@@ -1096,7 +1096,7 @@ def test_import_from_url_suppresses_watchdog_immediately_before_move(monkeypatch
     })
     monkeypatch.setattr(cards_api, 'sanitize_filename', lambda value: value)
     monkeypatch.setattr(cards_api, 'load_ui_data', lambda: {})
-    monkeypatch.setattr(cards_api, 'save_ui_data', lambda _payload: None)
+    monkeypatch.setattr(cards_api, 'save_ui_data', lambda _payload, **_kwargs: None)
     monkeypatch.setattr(cards_api, 'ensure_import_time', lambda *_args, **_kwargs: (False, 123.0))
     monkeypatch.setattr(cards_api, 'get_file_hash_and_size', lambda _path: ('hash', 8))
     monkeypatch.setattr(cards_api, 'calculate_token_count', lambda _data: 0)
@@ -1165,7 +1165,7 @@ def test_upload_commit_overwrite_removes_opposite_extension_sibling(monkeypatch,
     })
     monkeypatch.setattr(cards_api, 'sanitize_filename', lambda value: value)
     monkeypatch.setattr(cards_api, 'load_ui_data', lambda: {})
-    monkeypatch.setattr(cards_api, 'save_ui_data', lambda _payload: None)
+    monkeypatch.setattr(cards_api, 'save_ui_data', lambda _payload, **_kwargs: None)
     monkeypatch.setattr(cards_api, 'ensure_import_time', lambda *_args, **_kwargs: (False, 123.0))
     monkeypatch.setattr(cards_api, 'get_import_time', lambda _ui_data, _ui_key, fallback: fallback)
     monkeypatch.setattr(cards_api, 'get_file_hash_and_size', lambda _path: ('hash', 8))
@@ -1228,7 +1228,7 @@ def test_upload_commit_cross_extension_overwrite_preserves_old_tags(monkeypatch,
     monkeypatch.setattr(cards_api, 'write_card_metadata', lambda path, info: write_calls.append({'path': str(path), 'info': json.loads(json.dumps(info))}) or True)
     monkeypatch.setattr(cards_api, 'sanitize_filename', lambda value: value)
     monkeypatch.setattr(cards_api, 'load_ui_data', lambda: {})
-    monkeypatch.setattr(cards_api, 'save_ui_data', lambda _payload: None)
+    monkeypatch.setattr(cards_api, 'save_ui_data', lambda _payload, **_kwargs: None)
     monkeypatch.setattr(cards_api, 'ensure_import_time', lambda *_args, **_kwargs: (False, 123.0))
     monkeypatch.setattr(cards_api, 'get_import_time', lambda _ui_data, _ui_key, fallback: fallback)
     monkeypatch.setattr(cards_api, 'get_file_hash_and_size', lambda _path: ('hash', 8))
@@ -1301,7 +1301,7 @@ def test_upload_commit_overwrite_suppresses_delete_and_move_boundary(monkeypatch
     monkeypatch.setattr(cards_api, 'extract_card_info', lambda _path: {'data': {'name': 'Hero', 'tags': ['new']}})
     monkeypatch.setattr(cards_api, 'sanitize_filename', lambda value: value)
     monkeypatch.setattr(cards_api, 'load_ui_data', lambda: {})
-    monkeypatch.setattr(cards_api, 'save_ui_data', lambda _payload: None)
+    monkeypatch.setattr(cards_api, 'save_ui_data', lambda _payload, **_kwargs: None)
     monkeypatch.setattr(cards_api, 'ensure_import_time', lambda *_args, **_kwargs: (False, 123.0))
     monkeypatch.setattr(cards_api, 'get_import_time', lambda _ui_data, _ui_key, fallback: fallback)
     monkeypatch.setattr(cards_api, 'get_file_hash_and_size', lambda _path: ('hash', 8))
@@ -1385,7 +1385,7 @@ def test_upload_commit_suppresses_watchdog_for_each_move(monkeypatch, tmp_path):
     monkeypatch.setattr(cards_api, 'extract_card_info', _extract)
     monkeypatch.setattr(cards_api, 'sanitize_filename', lambda value: value)
     monkeypatch.setattr(cards_api, 'load_ui_data', lambda: {})
-    monkeypatch.setattr(cards_api, 'save_ui_data', lambda _payload: None)
+    monkeypatch.setattr(cards_api, 'save_ui_data', lambda _payload, **_kwargs: None)
     monkeypatch.setattr(cards_api, 'ensure_import_time', lambda *_args, **_kwargs: (False, 123.0))
     monkeypatch.setattr(cards_api, 'get_import_time', lambda _ui_data, _ui_key, fallback: fallback)
     monkeypatch.setattr(cards_api, 'get_file_hash_and_size', lambda _path: ('hash', 8))
@@ -1497,7 +1497,7 @@ def test_toggle_bundle_mode_enable_persists_merged_tags_and_enqueues_card_sync(m
     monkeypatch.setattr(
         cards_api,
         'save_ui_data',
-        lambda payload: saved_ui_payloads.append(json.loads(json.dumps(payload, ensure_ascii=False))),
+        lambda payload, **_kwargs: saved_ui_payloads.append(json.loads(json.dumps(payload, ensure_ascii=False))),
     )
     monkeypatch.setattr(cards_api, 'get_import_time', lambda _ui_data, _card_id, fallback: fallback)
     monkeypatch.setattr(cards_api, 'ensure_import_time', lambda *_args, **_kwargs: (False, 0.0))
@@ -1614,7 +1614,7 @@ def test_toggle_bundle_mode_enable_stops_when_metadata_write_fails(monkeypatch, 
     monkeypatch.setattr(
         cards_api,
         'save_ui_data',
-        lambda payload: saved_ui_payloads.append(json.loads(json.dumps(payload, ensure_ascii=False))),
+        lambda payload, **_kwargs: saved_ui_payloads.append(json.loads(json.dumps(payload, ensure_ascii=False))),
     )
     monkeypatch.setattr(cards_api, 'get_import_time', lambda _ui_data, _card_id, fallback: fallback)
     monkeypatch.setattr(cards_api, 'ensure_import_time', lambda *_args, **_kwargs: (False, 0.0))
@@ -1698,7 +1698,7 @@ def test_toggle_bundle_mode_enable_stops_when_cover_metadata_missing(monkeypatch
     monkeypatch.setattr(
         cards_api,
         'save_ui_data',
-        lambda payload: saved_ui_payloads.append(json.loads(json.dumps(payload, ensure_ascii=False))),
+        lambda payload, **_kwargs: saved_ui_payloads.append(json.loads(json.dumps(payload, ensure_ascii=False))),
     )
     monkeypatch.setattr(cards_api, 'get_import_time', lambda _ui_data, _card_id, fallback: fallback)
     monkeypatch.setattr(cards_api, 'ensure_import_time', lambda *_args, **_kwargs: (False, 0.0))
@@ -1780,7 +1780,7 @@ def test_move_card_internal_enqueues_incremental_cleanup_for_single_card(monkeyp
     monkeypatch.setattr(
         card_service,
         'save_ui_data',
-        lambda payload: (events.append('save_ui_data'), saved_ui_payloads.append(dict(payload)))[1],
+        lambda payload, **_kwargs: (events.append('save_ui_data'), saved_ui_payloads.append(dict(payload)))[1],
     )
     monkeypatch.setattr(card_service, 'get_db', lambda: _FakeConn())
     monkeypatch.setattr(card_service, 'update_card_cache', lambda *args, **kwargs: (
@@ -2096,7 +2096,7 @@ def test_move_card_internal_directory_migrates_prefixed_ui_data_and_nested_categ
     monkeypatch.setattr(
         card_service,
         'save_ui_data',
-        lambda payload: saved_ui_payloads.append(json.loads(json.dumps(payload, ensure_ascii=False))),
+        lambda payload, **_kwargs: saved_ui_payloads.append(json.loads(json.dumps(payload, ensure_ascii=False))),
     )
     monkeypatch.setattr(card_service, 'get_db', lambda: fake_conn)
     monkeypatch.setattr(
@@ -2313,7 +2313,7 @@ def test_move_card_internal_bundle_directory_migrates_version_remarks_and_bundle
     monkeypatch.setattr(
         card_service,
         'save_ui_data',
-        lambda payload: saved_ui_payloads.append(json.loads(json.dumps(payload, ensure_ascii=False))),
+        lambda payload, **_kwargs: saved_ui_payloads.append(json.loads(json.dumps(payload, ensure_ascii=False))),
     )
     monkeypatch.setattr(card_service, 'get_db', lambda: fake_conn)
     monkeypatch.setattr(
@@ -2425,7 +2425,7 @@ def test_convert_to_bundle_updates_category_and_enqueues_incremental_sync(monkey
     monkeypatch.setattr(
         cards_api,
         'save_ui_data',
-        lambda payload: saved_ui_payloads.append(json.loads(json.dumps(payload, ensure_ascii=False))),
+        lambda payload, **_kwargs: saved_ui_payloads.append(json.loads(json.dumps(payload, ensure_ascii=False))),
     )
     monkeypatch.setattr(cards_api, 'ensure_import_time', lambda *_args, **_kwargs: (False, 123.0))
     monkeypatch.setattr(
@@ -2661,7 +2661,7 @@ def test_update_card_rename_moves_embedded_worldinfo_note_key(monkeypatch, tmp_p
     monkeypatch.setattr(
         cards_api,
         'save_ui_data',
-        lambda payload: saved_ui_payloads.append(json.loads(json.dumps(payload, ensure_ascii=False))),
+        lambda payload, **_kwargs: saved_ui_payloads.append(json.loads(json.dumps(payload, ensure_ascii=False))),
     )
     monkeypatch.setattr(cards_api, 'ensure_import_time', lambda *_args, **_kwargs: (False, 123.0))
     monkeypatch.setattr(cards_api, 'get_import_time', lambda _ui_data, _ui_key, fallback: fallback)
@@ -2775,7 +2775,7 @@ def test_update_card_import_time_fallback_uses_pre_write_mtime_when_cache_misses
     )
     monkeypatch.setattr(cards_api, 'write_card_metadata', fake_write_card_metadata)
     monkeypatch.setattr(cards_api, 'load_ui_data', lambda: ui_data)
-    monkeypatch.setattr(cards_api, 'save_ui_data', lambda _payload: None)
+    monkeypatch.setattr(cards_api, 'save_ui_data', lambda _payload, **_kwargs: None)
     monkeypatch.setattr(cards_api, 'ensure_import_time', fake_ensure_import_time)
     monkeypatch.setattr(cards_api, 'get_import_time', lambda payload, ui_key, _fallback: payload[ui_key]['import_time'])
     monkeypatch.setattr(cards_api, 'calculate_token_count', lambda _data: 0)
@@ -2878,7 +2878,7 @@ def test_update_card_clears_whitespace_only_text_fields(monkeypatch, tmp_path):
     monkeypatch.setattr(cards_api, 'extract_card_info', lambda _path: card_info)
     monkeypatch.setattr(cards_api, 'write_card_metadata', fake_write_card_metadata)
     monkeypatch.setattr(cards_api, 'load_ui_data', lambda: ui_data)
-    monkeypatch.setattr(cards_api, 'save_ui_data', lambda _payload: None)
+    monkeypatch.setattr(cards_api, 'save_ui_data', lambda _payload, **_kwargs: None)
     monkeypatch.setattr(cards_api, 'ensure_import_time', fake_ensure_import_time)
     monkeypatch.setattr(cards_api, 'get_import_time', lambda payload, ui_key, _fallback: payload[ui_key]['import_time'])
     monkeypatch.setattr(cards_api, 'calculate_token_count', lambda _data: 0)
@@ -3112,7 +3112,7 @@ def test_toggle_bundle_mode_disable_enqueues_incremental_repairs_for_versions(mo
     monkeypatch.setattr(
         cards_api,
         'save_ui_data',
-        lambda payload: saved_ui_payloads.append(json.loads(json.dumps(payload, ensure_ascii=False))),
+        lambda payload, **_kwargs: saved_ui_payloads.append(json.loads(json.dumps(payload, ensure_ascii=False))),
     )
     monkeypatch.setattr(cards_api, 'ensure_import_time', lambda ui_data, ver_id: (ui_data.setdefault(ver_id, {}).update({'import_time': 123.0}) is None, 123.0))
     monkeypatch.setattr(cards_api, 'sync_card_index_jobs', lambda **kwargs: sync_calls.append(kwargs) or {})
@@ -3183,7 +3183,7 @@ def test_toggle_bundle_mode_disable_still_enqueues_incremental_repairs_without_b
     monkeypatch.setattr(
         cards_api,
         'save_ui_data',
-        lambda payload: saved_ui_payloads.append(json.loads(json.dumps(payload, ensure_ascii=False))),
+        lambda payload, **_kwargs: saved_ui_payloads.append(json.loads(json.dumps(payload, ensure_ascii=False))),
     )
     monkeypatch.setattr(cards_api, 'ensure_import_time', lambda *_args, **_kwargs: (False, 0.0))
     monkeypatch.setattr(cards_api, 'sync_card_index_jobs', lambda **kwargs: sync_calls.append(kwargs) or {})

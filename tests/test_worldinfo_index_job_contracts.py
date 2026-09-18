@@ -52,7 +52,7 @@ def test_change_image_runtime_contract_enqueues_cleanup_jobs_from_sync_service(m
         },
     )
     monkeypatch.setattr(cards_api, 'load_ui_data', lambda: {})
-    monkeypatch.setattr(cards_api, 'save_ui_data', lambda _payload: None)
+    monkeypatch.setattr(cards_api, 'save_ui_data', lambda _payload, **_kwargs: None)
     monkeypatch.setattr(cards_api, 'ensure_import_time', lambda *_args, **_kwargs: (False, 0))
     monkeypatch.setattr(cards_api, 'calculate_token_count', lambda _data: 0)
 
