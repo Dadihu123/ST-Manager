@@ -39,7 +39,7 @@ from core.services.st_client import refresh_st_client
 from core.services.st_auth import STAuthError, build_st_http_client
 from core.services.st_path_safety import evaluate_st_path_safety
 from core.services.tauri_tavern_client import (
-    TauriTavernClient,
+    build_tauri_tavern_client,
     is_tauri_tavern_target,
 )
 from core.services.user_db_backup_service import UserDbBackupService
@@ -1472,7 +1472,7 @@ def api_send_to_st():
 
         if is_tauri_tavern_target(cfg):
             try:
-                result = TauriTavernClient.from_config(cfg).send_character(file_path)
+                result = build_tauri_tavern_client(cfg).send_character(file_path)
             except (OSError, ValueError) as error:
                 return jsonify({"success": False, "msg": str(error)}), 400
 

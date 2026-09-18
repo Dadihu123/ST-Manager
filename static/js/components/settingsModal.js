@@ -41,6 +41,8 @@ const DEFAULT_SETTINGS = {
   st_data_dir: "",
   st_user_handle: "default-user",
   tt_user_handle: "default-user",
+  tt_mode: "local",
+  tt_data_dir: "",
   tt_api_url: "http://127.0.0.1:19999",
   st_auth_type: "basic",
   st_username: "",
@@ -673,6 +675,7 @@ export default function settingsModal() {
         "settingsForm.st_user_handle",
         "settingsForm.st_openai_preset_dir",
         "settingsForm.tt_api_url",
+        "settingsForm.tt_data_dir",
         "settingsForm.tt_user_handle",
       ].forEach((expression) => {
         this.$watch(expression, () => {
@@ -701,6 +704,12 @@ export default function settingsModal() {
         } else {
           this.resetPathSafety();
         }
+      });
+
+      // 切换发送方式（本地目录 / 集成 API）后，之前的测试结果不再适用。
+      this.$watch("settingsForm.tt_mode", () => {
+        if (!this.showSettingsModal) return;
+        this.resetTauriTavernConnectionStatus();
       });
     },
 
@@ -1145,7 +1154,12 @@ export default function settingsModal() {
     },
 
     getTTConnectionTarget() {
-      return `${String(this.settingsForm.tt_api_url || "").trim()}\u0000${this.getTTUserHandle()}`;
+      const mode = String(this.settingsForm.tt_mode || "local");
+      const target =
+        mode === "api"
+          ? String(this.settingsForm.tt_api_url || "").trim()
+          : String(this.settingsForm.tt_data_dir || "").trim();
+      return `${mode}\u0000${target}\u0000${this.getTTUserHandle()}`;
     },
 
     resetTauriTavernConnectionStatus() {
@@ -1156,10 +1170,21 @@ export default function settingsModal() {
     },
 
     async checkTauriTavernConnection() {
+      const mode = String(this.settingsForm.tt_mode || "local");
       const apiUrl = String(this.settingsForm.tt_api_url || '').trim();
+      const dataDir = String(this.settingsForm.tt_data_dir || '').trim();
       const userHandle = this.getTTUserHandle();
-      if (!apiUrl) {
+
+      // 本地模式校验数据目录，API 模式校验地址；缺一不可。
+      if (mode === 'api' && !apiUrl) {
         this.ttApiStatus = '请输入 TauriTavern 集成 API 地址';
+        this.ttApiStatusIcon = 'close';
+        this.ttApiValid = false;
+        this.ttApiTestedTarget = '';
+        return;
+      }
+      if (mode !== 'api' && !dataDir) {
+        this.ttApiStatus = '请选择 TauriTavern 数据目录';
         this.ttApiStatusIcon = 'close';
         this.ttApiValid = false;
         this.ttApiTestedTarget = '';
@@ -1173,19 +1198,22 @@ export default function settingsModal() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            tt_mode: mode,
             tt_api_url: apiUrl,
+            tt_data_dir: dataDir,
             tt_user_handle: userHandle,
           }),
         });
         const data = await resp.json();
         if (data.success) {
           if (data.api_url) this.settingsForm.tt_api_url = data.api_url;
-          this.ttApiStatus = data.message || 'TauriTavern 集成 API 已连接';
+          if (data.data_root) this.settingsForm.tt_data_dir = data.data_root;
+          this.ttApiStatus = data.message || 'TauriTavern 目标可用';
           this.ttApiStatusIcon = 'check';
           this.ttApiValid = true;
           this.ttApiTestedTarget = this.getTTConnectionTarget();
         } else {
-          this.ttApiStatus = data.error || data.message || 'TauriTavern 集成 API 不可用';
+          this.ttApiStatus = data.error || data.message || 'TauriTavern 目标不可用';
           this.ttApiStatusIcon = 'close';
           this.ttApiValid = false;
           this.ttApiTestedTarget = '';

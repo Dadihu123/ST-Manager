@@ -57,8 +57,13 @@ DEFAULT_CONFIG = {
     "st_url": "http://127.0.0.1:8000",
     "st_data_dir": "",  # SillyTavern 安装目录，留空则自动探测
     "st_user_handle": "default-user",  # SillyTavern data 目录下的用户目录名
-    "tt_user_handle": "default-user",  # TauriTavern 集成 API 的目标用户目录名
-    "tt_api_url": "http://127.0.0.1:19999",  # TauriTavern 集成 API 地址
+    "tt_user_handle": "default-user",  # TauriTavern 用户目录名
+    # TauriTavern 发送方式：'local' 直接写入数据目录，'api' 调用原生集成 API。
+    # TauriTavern 目前的对外可用形式是本地数据目录（与 SillyTavern 布局一致，
+    # 且其仓储每次都会重新扫描目录），集成 API 仅存在于尚未发布的开发分支。
+    "tt_mode": "local",
+    "tt_data_dir": "",  # TauriTavern 数据根目录（其下包含用户目录）
+    "tt_api_url": "http://127.0.0.1:19999",  # TauriTavern 集成 API 地址（tt_mode=api 时使用）
     "st_auth_type": "basic",  # 'basic', 'web' or 'auth_web'
     "st_username": "",
     "st_password": "",
@@ -164,6 +169,7 @@ DEFAULT_CONFIG = {
 
 VALID_ST_AUTH_TYPES = {'basic', 'web', 'auth_web'}
 VALID_ST_TARGETS = {'sillytavern', 'tauritavern'}
+VALID_TT_MODES = {'local', 'api'}
 
 
 RUNTIME_DIR_DEFAULTS = {
@@ -195,6 +201,11 @@ def _normalize_tauri_user_handle(handle):
     if not value or value in {'.', '..'} or '/' in value or '\\' in value:
         return 'default-user'
     return value
+
+
+def _normalize_tt_mode(mode):
+    value = str(mode or '').strip().lower()
+    return value if value in VALID_TT_MODES else 'local'
 
 
 def _normalize_st_credentials(cfg):
@@ -241,11 +252,13 @@ def _normalize_st_credentials(cfg):
 
 def normalize_config(cfg=None):
     normalized = _normalize_st_credentials({**DEFAULT_CONFIG, **(cfg or {})})
-    normalized.pop('tt_data_dir', None)
     normalized['st_target'] = _normalize_st_target(normalized.get('st_target'))
+    normalized['tt_mode'] = _normalize_tt_mode(normalized.get('tt_mode'))
     normalized['tt_user_handle'] = _normalize_tauri_user_handle(
         normalized.get('tt_user_handle')
     )
+    normalized['tt_data_dir'] = str(normalized.get('tt_data_dir') or '').strip()
+    normalized['tt_api_url'] = str(normalized.get('tt_api_url') or '').strip()
     return normalized
 
 

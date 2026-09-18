@@ -1,4 +1,5 @@
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -82,6 +83,146 @@ def test_tauri_client_is_api_only_and_rejects_unsafe_handle():
             api_url='http://127.0.0.1:19999',
             user_handle='../outside',
         )
+
+
+# === 本地数据目录模式 ===
+# TauriTavern 的用户数据布局与 SillyTavern 一致，且其仓储每次都会重新扫描目录，
+# 因此直接写入文件即可被识别；集成 API 只存在于尚未发布的开发分支。
+
+
+def _make_local_layout(root: Path, handle: str = 'default-user') -> Path:
+    user_dir = root / handle
+    for name in ('characters', 'worlds', 'OpenAI Settings', 'themes'):
+        (user_dir / name).mkdir(parents=True, exist_ok=True)
+    return user_dir
+
+
+def test_build_tauri_tavern_client_defaults_to_local_mode(tmp_path):
+    from core.services.tauri_tavern_client import (
+        TauriTavernLocalClient,
+        build_tauri_tavern_client,
+    )
+
+    root = tmp_path / 'tauri-data'
+    _make_local_layout(root)
+
+    client = build_tauri_tavern_client({'tt_data_dir': str(root)})
+    assert isinstance(client, TauriTavernLocalClient)
+    assert client.user_dir == str(root / 'default-user')
+
+
+def test_build_tauri_tavern_client_uses_api_only_when_requested():
+    from core.services.tauri_tavern_client import TauriTavernClient, build_tauri_tavern_client
+
+    client = build_tauri_tavern_client({
+        'tt_mode': 'api',
+        'tt_api_url': 'http://127.0.0.1:19999',
+    })
+    assert isinstance(client, TauriTavernClient)
+
+
+def test_local_client_accepts_user_dir_as_data_root(tmp_path):
+    from core.services.tauri_tavern_client import TauriTavernLocalClient
+
+    user_dir = _make_local_layout(tmp_path / 'tauri-data')
+
+    # 用户直接选中 <root>/default-user 时应自动回退到其父目录。
+    client = TauriTavernLocalClient(data_root=str(user_dir))
+    assert client.data_root == str(tmp_path / 'tauri-data')
+    assert client.user_dir == str(user_dir)
+    assert client.validate()['valid'] is True
+
+
+def test_local_client_writes_character_into_characters_dir(tmp_path):
+    from core.services.tauri_tavern_client import TauriTavernLocalClient
+
+    root = tmp_path / 'tauri-data'
+    _make_local_layout(root)
+    source = tmp_path / 'Hero.png'
+    source.write_bytes(b'png-card-bytes')
+
+    result = TauriTavernLocalClient(data_root=str(root)).send_character(str(source))
+
+    written = root / 'default-user' / 'characters' / 'Hero.png'
+    assert written.read_bytes() == b'png-card-bytes'
+    assert result['path'] == str(written)
+
+
+def test_local_client_writes_world_info_bytes_verbatim(tmp_path):
+    from core.services.tauri_tavern_client import TauriTavernLocalClient
+
+    root = tmp_path / 'tauri-data'
+    _make_local_layout(root)
+    source = tmp_path / 'dragon.json'
+    source.write_text('{"entries": {}}', encoding='utf-8')
+    payload = json.dumps({'entries': {'0': {'content': 'fire'}}}).encode('utf-8')
+
+    TauriTavernLocalClient(data_root=str(root)).send_world_info(str(source), payload)
+
+    written = root / 'default-user' / 'worlds' / 'dragon.json'
+    assert json.loads(written.read_text(encoding='utf-8')) == {
+        'entries': {'0': {'content': 'fire'}}
+    }
+
+
+def test_local_client_theme_also_activates_it(tmp_path):
+    from core.services.tauri_tavern_client import TauriTavernLocalClient
+
+    root = tmp_path / 'tauri-data'
+    user_dir = _make_local_layout(root)
+    _write_json(user_dir / 'settings.json', {'power_user': {'theme': 'Old'}, 'keep': 1})
+
+    result = TauriTavernLocalClient(data_root=str(root)).send_theme({
+        'name': 'Demo',
+        'main_text_color': 'rgba(1,2,3,1)',
+    })
+
+    theme_file = user_dir / 'themes' / 'Demo.json'
+    assert json.loads(theme_file.read_text(encoding='utf-8'))['name'] == 'Demo'
+    assert result['settings_path'] == str(user_dir / 'settings.json')
+
+    # 已发送的主题应被设为当前主题，同时保留 settings.json 中的其它字段。
+    settings = json.loads((user_dir / 'settings.json').read_text(encoding='utf-8'))
+    assert settings['power_user']['theme'] == 'Demo'
+    assert settings['keep'] == 1
+
+
+def test_local_client_preset_filename_prefers_preset_name(tmp_path):
+    from core.services.tauri_tavern_client import TauriTavernLocalClient
+
+    root = tmp_path / 'tauri-data'
+    _make_local_layout(root)
+    source = tmp_path / 'writing.json'
+    _write_json(source, {'name': 'Writing'})
+
+    TauriTavernLocalClient(data_root=str(root)).send_preset(
+        str(source), {'name': 'Writing', 'openai_model': 'gpt-4.1'}
+    )
+
+    written = root / 'default-user' / 'OpenAI Settings' / 'Writing.json'
+    assert json.loads(written.read_text(encoding='utf-8'))['openai_model'] == 'gpt-4.1'
+
+
+def test_local_client_rejects_missing_layout_and_bad_names(tmp_path):
+    from core.services.tauri_tavern_client import TauriTavernLocalClient
+
+    source = tmp_path / 'card.png'
+    source.write_bytes(b'png')
+
+    # 未配置数据目录时不能静默写入别处。
+    with pytest.raises(ValueError):
+        TauriTavernLocalClient(data_root='').send_character(str(source))
+
+    root = tmp_path / 'tauri-data'
+    _make_local_layout(root)
+    client = TauriTavernLocalClient(data_root=str(root))
+
+    # 路径穿越必须被拦截（sanitize_filename 会把分隔符替换掉）。
+    result = client.send_character(str(source))
+    assert os.path.dirname(result['path']) == str(root / 'default-user' / 'characters')
+
+    with pytest.raises(ValueError):
+        TauriTavernLocalClient(data_root=str(root), user_handle='../escape')
 
 
 def test_tauri_client_from_config_uploads_character_to_integration_api(monkeypatch, tmp_path):
@@ -226,6 +367,7 @@ def test_tauri_connection_endpoint_uses_default_api_url(monkeypatch):
 
     monkeypatch.setattr(st_sync_api, 'TauriTavernClient', FakeClient)
     monkeypatch.setattr(st_sync_api, 'load_config', lambda: {
+        'tt_mode': 'api',
         'tt_user_handle': 'default-user',
         'tt_api_url': 'http://127.0.0.1:19999',
     })
@@ -239,6 +381,7 @@ def test_tauri_connection_endpoint_uses_default_api_url(monkeypatch):
     assert response.get_json() == {
         'success': True,
         'message': 'TauriTavern 集成 API 已连接',
+        'mode': 'api',
         'api_url': 'http://127.0.0.1:19999',
         'service': 'tauritavern',
         'api_version': 1,
@@ -249,6 +392,53 @@ def test_tauri_connection_endpoint_uses_default_api_url(monkeypatch):
     }
 
 
+def test_tt_check_connection_defaults_to_local_data_directory(monkeypatch, tmp_path):
+    """默认（local）模式校验数据目录，而不是去连不存在的集成 API。"""
+    user_dir = tmp_path / 'tauri-data' / 'default-user'
+    (user_dir / 'characters').mkdir(parents=True)
+
+    monkeypatch.setattr(st_sync_api, 'load_config', lambda: {
+        'tt_mode': 'local',
+        'tt_user_handle': 'default-user',
+        'tt_data_dir': str(tmp_path / 'tauri-data'),
+    })
+    monkeypatch.setattr(
+        st_sync_api,
+        'TauriTavernClient',
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError('must not use the API client')),
+    )
+
+    response = _make_app(st_sync_api.bp).test_client().post(
+        '/api/st/tt/check_connection',
+        json={},
+    )
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload['success'] is True
+    assert payload['mode'] == 'local'
+    assert payload['user_dir'] == str(user_dir)
+    assert payload['resources']['characters']['exists'] is True
+
+
+def test_tt_check_connection_reports_missing_user_dir(monkeypatch, tmp_path):
+    (tmp_path / 'tauri-data').mkdir()
+
+    monkeypatch.setattr(st_sync_api, 'load_config', lambda: {
+        'tt_mode': 'local',
+        'tt_user_handle': 'default-user',
+        'tt_data_dir': str(tmp_path / 'tauri-data'),
+    })
+
+    response = _make_app(st_sync_api.bp).test_client().post(
+        '/api/st/tt/check_connection',
+        json={},
+    )
+
+    assert response.status_code == 400
+    assert response.get_json()['success'] is False
+
+
 def test_target_switch_preserves_st_config_and_tt_user_config(tmp_path):
     config_path = tmp_path / 'config.json'
     write_config_file(config_path, {
@@ -257,6 +447,8 @@ def test_target_switch_preserves_st_config_and_tt_user_config(tmp_path):
         'st_data_dir': 'D:/SillyTavern',
         'st_user_handle': 'st-user',
         'tt_user_handle': 'default-user',
+        'tt_mode': 'local',
+        'tt_data_dir': 'D:/TauriTavern/data',
     })
 
     saved = json.loads(config_path.read_text(encoding='utf-8'))
@@ -265,7 +457,9 @@ def test_target_switch_preserves_st_config_and_tt_user_config(tmp_path):
     assert saved['st_data_dir'] == 'D:/SillyTavern'
     assert saved['st_user_handle'] == 'st-user'
     assert saved['tt_user_handle'] == 'default-user'
-    assert 'tt_data_dir' not in saved
+    # 本地目录模式需要保留数据根目录，否则重启后会丢失目标路径。
+    assert saved['tt_mode'] == 'local'
+    assert saved['tt_data_dir'] == 'D:/TauriTavern/data'
 
 
 def test_tauri_path_validation_endpoint_is_removed():
@@ -301,8 +495,8 @@ def test_beautify_send_route_writes_standard_theme_in_tauri_mode(monkeypatch, tm
     )
     fake_client = _FakeTauriApiClient()
     monkeypatch.setattr(
-        beautify_api.TauriTavernClient,
-        'from_config',
+        beautify_api,
+        'build_tauri_tavern_client',
         lambda _config: fake_client,
     )
     # The send route persists the send timestamp; keep it off the real ui_data.json.
@@ -351,8 +545,8 @@ def test_character_send_route_writes_to_tauri_without_http(monkeypatch, tmp_path
     monkeypatch.setattr(system_api, 'load_config', lambda: _make_tauri_config(tauri_root))
     fake_client = _FakeTauriApiClient()
     monkeypatch.setattr(
-        system_api.TauriTavernClient,
-        'from_config',
+        system_api,
+        'build_tauri_tavern_client',
         lambda _config: fake_client,
     )
     monkeypatch.setattr(ui_store_module, 'UI_DATA_FILE', str(ui_path))
@@ -402,8 +596,8 @@ def test_world_info_send_route_writes_normalized_payload_to_tauri(monkeypatch, t
     )
     fake_client = _FakeTauriApiClient()
     monkeypatch.setattr(
-        world_info_api.TauriTavernClient,
-        'from_config',
+        world_info_api,
+        'build_tauri_tavern_client',
         lambda _config: fake_client,
     )
     monkeypatch.setattr(ui_store_module, 'UI_DATA_FILE', str(ui_path))
@@ -453,8 +647,8 @@ def test_openai_preset_send_route_writes_to_tauri_without_http(monkeypatch, tmp_
     )
     fake_client = _FakeTauriApiClient()
     monkeypatch.setattr(
-        presets_api.TauriTavernClient,
-        'from_config',
+        presets_api,
+        'build_tauri_tavern_client',
         lambda _config: fake_client,
     )
     monkeypatch.setattr(ui_store_module, 'UI_DATA_FILE', str(ui_path))

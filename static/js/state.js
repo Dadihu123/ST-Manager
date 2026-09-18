@@ -687,6 +687,8 @@ export function initState() {
       st_data_dir: "",
       st_user_handle: "default-user",
       tt_user_handle: "default-user",
+      tt_mode: "local",
+      tt_data_dir: "",
       tt_api_url: "http://127.0.0.1:19999",
       st_username: "",
       st_password: "",

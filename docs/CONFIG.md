@@ -50,6 +50,25 @@ ST Manager 使用项目根目录的 `config.json`。文件不存在时，`app.py
 
 同步支持 `characters`、`chats`、`worlds`、`presets`、`regex`、`scripts` 和 `quick_replies`。其中 `scripts` 读取 JS-Slash-Runner 写入 `settings.json` 的全局脚本树，并导出为可再次导入插件的 JSON 文件。可以使用本地目录同步，也可以根据 ST HTTP 连接能力选择 API 模式。
 
+## 一键发送到 TauriTavern
+
+`st_target` 设为 `tauritavern` 后，一键发送会改为投递到 TauriTavern。支持 `characters`、`worlds`、`presets`（OpenAI/对话补全预设）和 `themes`。
+
+| 键 | 默认值 | 说明 |
+| --- | --- | --- |
+| `st_target` | `sillytavern` | 一键发送目标：`sillytavern` 或 `tauritavern` |
+| `tt_mode` | `local` | 发送方式：`local` 直接写入数据目录，`api` 调用原生集成 API |
+| `tt_data_dir` | `""` | TauriTavern 数据根目录（其下包含用户目录）；可省略 `/<用户目录>` 后缀 |
+| `tt_user_handle` | `default-user` | TauriTavern 用户目录名，对应 `data/<用户目录>` |
+| `tt_api_url` | `http://127.0.0.1:19999` | 原生集成 API 地址，仅在 `tt_mode = api` 时使用 |
+
+两种方式的取舍：
+
+- **`local`（默认，推荐）**：直接写入 TauriTavern 用户目录。它的用户数据布局与 SillyTavern 完全一致（`characters`、`worlds`、`OpenAI Settings`、`themes`），并且各仓储每次读取都会重新扫描目录、按文件签名校验缓存，因此外部写入的文件会被识别。**不需要 TauriTavern 提供任何额外接口。**
+- **`api`**：调用 TauriTavern 的原生集成 API（默认 `127.0.0.1:19999`）。该接口目前只存在于 TauriTavern 尚未发布的开发分支，官方发行版（含 Canary）**不包含**它，因此这条路径会连接失败；保留它是为了将来官方发布后可以直接切换。
+
+注意：TauriTavern 没有文件系统监听器，写入后需要在其界面刷新列表（或重新进入对应页面）才能看到新资源。
+
 ## 列表与界面
 
 | 键 | 默认值 | 说明 |

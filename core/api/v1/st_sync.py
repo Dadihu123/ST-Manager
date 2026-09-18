@@ -24,7 +24,11 @@ from core.services.st_path_safety import evaluate_st_path_safety
 from core.services.tauri_tavern_client import (
     DEFAULT_TT_API_URL,
     DEFAULT_TT_USER_HANDLE,
+    TT_MODE_API,
+    TT_MODE_LOCAL,
     TauriTavernClient,
+    TauriTavernLocalClient,
+    normalize_tt_mode,
 )
 from core.services.scan_service import request_scan
 from core.services.cache_service import invalidate_wi_list_cache
@@ -457,16 +461,43 @@ def validate_path():
 
 @bp.route('/tt/check_connection', methods=['POST'])
 def check_tauri_tavern_connection():
-    """检查 TauriTavern 原生集成 API 是否可用。"""
+    """检查 TauriTavern 目标是否可用（本地数据目录或原生集成 API）。"""
     try:
         data = request.get_json(silent=True) or {}
         cfg = dict(load_config())
-        api_url = str(
-            data.get('tt_api_url') or cfg.get('tt_api_url') or DEFAULT_TT_API_URL
-        ).strip()
         user_handle = data.get('tt_user_handle') or cfg.get(
             'tt_user_handle', DEFAULT_TT_USER_HANDLE
         )
+        mode = normalize_tt_mode(data.get('tt_mode') or cfg.get('tt_mode'))
+
+        if mode != TT_MODE_API:
+            data_root = data.get('tt_data_dir')
+            if data_root is None:
+                data_root = cfg.get('tt_data_dir') or ''
+            client = TauriTavernLocalClient(
+                data_root=data_root,
+                user_handle=user_handle,
+            )
+            result = client.validate()
+            if not result['valid']:
+                return jsonify({
+                    'success': False,
+                    'error': result['message'],
+                    'mode': TT_MODE_LOCAL,
+                    **result,
+                }), 400
+            return jsonify({
+                'success': True,
+                'message': 'TauriTavern 数据目录可用',
+                'mode': TT_MODE_LOCAL,
+                'data_root': result['normalized_path'],
+                'user_dir': result['user_dir'],
+                'resources': result['resources'],
+            })
+
+        api_url = str(
+            data.get('tt_api_url') or cfg.get('tt_api_url') or DEFAULT_TT_API_URL
+        ).strip()
         client = TauriTavernClient(
             api_url=api_url,
             user_handle=user_handle,
@@ -475,6 +506,7 @@ def check_tauri_tavern_connection():
         return jsonify({
             'success': True,
             'message': 'TauriTavern 集成 API 已连接',
+            'mode': TT_MODE_API,
             'api_url': client.api_url,
             'service': result.get('service', 'tauritavern'),
             'api_version': result.get('api_version', 1),
@@ -482,8 +514,8 @@ def check_tauri_tavern_connection():
     except (OSError, ValueError) as error:
         return jsonify({'success': False, 'error': str(error)}), 400
     except Exception as error:
-        logger.error('检查 TauriTavern 集成 API 失败: %s', error)
-        return jsonify({'success': False, 'error': '检查 TauriTavern 集成 API 失败'}), 500
+        logger.error('检查 TauriTavern 目标失败: %s', error)
+        return jsonify({'success': False, 'error': '检查 TauriTavern 目标失败'}), 500
 
 
 @bp.route('/list/<resource_type>', methods=['GET'])

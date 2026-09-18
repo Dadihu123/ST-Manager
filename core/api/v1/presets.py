@@ -49,7 +49,7 @@ from core.services.preset_storage import (
 from core.services.scan_service import suppress_fs_events
 from core.services.st_auth import STAuthError, build_st_http_client
 from core.services.tauri_tavern_client import (
-    TauriTavernClient,
+    build_tauri_tavern_client,
     is_tauri_tavern_target,
 )
 from core.api.v1.system import _format_st_auth_error, _format_st_response_error
@@ -2185,7 +2185,7 @@ def send_preset_to_st():
         cfg = load_config()
         if is_tauri_tavern_target(cfg):
             try:
-                result = TauriTavernClient.from_config(cfg).send_preset(file_path, preset_data)
+                result = build_tauri_tavern_client(cfg).send_preset(file_path, preset_data)
             except (OSError, ValueError) as error:
                 return jsonify({'success': False, 'msg': str(error)}), 400
 

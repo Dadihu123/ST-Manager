@@ -39,7 +39,7 @@ from core.services.index_job_worker import enqueue_index_job
 from core.services.scan_service import suppress_fs_events
 from core.services.st_auth import STAuthError, build_st_http_client
 from core.services.tauri_tavern_client import (
-    TauriTavernClient,
+    build_tauri_tavern_client,
     is_tauri_tavern_target,
 )
 from core.services.worldinfo_index_query_service import query_worldinfo_index
@@ -1958,7 +1958,7 @@ def api_send_world_info_to_st():
 
         if is_tauri_tavern_target(cfg):
             try:
-                result = TauriTavernClient.from_config(cfg).send_world_info(
+                result = build_tauri_tavern_client(cfg).send_world_info(
                     file_path,
                     payload_bytes,
                 )

@@ -18,7 +18,7 @@ from core.api.v1.system import _format_st_auth_error, _format_st_response_error
 from core.services.beautify_service import BeautifyService
 from core.services.st_auth import STAuthError, build_st_http_client
 from core.services.tauri_tavern_client import (
-    TauriTavernClient,
+    build_tauri_tavern_client,
     is_tauri_tavern_target,
 )
 
@@ -376,7 +376,7 @@ def send_theme_to_st():
     if is_tauri_tavern_target(cfg):
         theme_payload = theme_bundle.get('theme_data') if isinstance(theme_bundle.get('theme_data'), dict) else {}
         try:
-            result = TauriTavernClient.from_config(cfg).send_theme(theme_payload)
+            result = build_tauri_tavern_client(cfg).send_theme(theme_payload)
         except (OSError, ValueError) as error:
             return _error(str(error), status=400)
 
