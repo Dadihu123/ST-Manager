@@ -121,6 +121,37 @@ def test_send_button_target_and_sent_states_share_the_target_color_contract():
     assert 'getSendTargetIconName?.() || "card-send-to-st"' in detail_js
 
 
+def test_unsent_send_icon_matches_neighbouring_icons_and_only_sent_is_tinted():
+    """未发送的发送图标必须与相邻图标同色，只有已发送才叠加目标色。
+
+    历史问题：未发送使用「目标色 68% + 次要文字色」的淡色调，与已发送的
+    目标色差异过小，用户难以区分是否发送过。
+    """
+    card_css = read_project_file('static/css/color-system.css')
+
+    # 未发送：与同级图标一致的次要文字色，不再使用目标色淡化值。
+    unsent_block = card_css.split('.card-send-st-btn:not(.is-sending):not(.has-sent) {', 1)[1].split('}', 1)[0]
+    assert 'color: var(--content-secondary) !important;' in unsent_block
+    assert 'send-target-color' not in unsent_block
+
+    # 淡化变量不再存在，避免再次滑向「两种状态过于接近」。
+    assert '--send-target-color-muted' not in card_css
+
+    # 已发送：常驻目标色。
+    sent_block = card_css.split('.card-send-st-btn:not(.is-sending).has-sent {', 1)[1].split('}', 1)[0]
+    assert 'color: var(--send-target-color) !important;' in sent_block
+
+    # 详情页/工作台入口：未发送沿用按钮文字色，已发送才上目标色。
+    tint_unsent = card_css.split(
+        '.send-target-tint:not(.has-sent):not(.is-sending) .ui-icon {', 1
+    )[1].split('}', 1)[0]
+    assert 'color: inherit;' in tint_unsent
+    assert 'send-target-color' not in tint_unsent
+
+    tint_sent = card_css.split('.send-target-tint.has-sent .ui-icon,', 1)[1].split('}', 1)[0]
+    assert 'color: var(--send-target-color);' in tint_sent
+
+
 def test_card_controls_are_sibling_layer_above_cards_css_effect():
     card_grid_template = read_project_file('templates/components/grid_cards.html')
     card_css = read_project_file('static/css/modules/view-cards.css')
