@@ -328,8 +328,8 @@ def test_full_scan_renamed_file_reuses_uuid_and_chat_binding(monkeypatch, tmp_pa
     monkeypatch.setattr(scan_service, 'CARDS_FOLDER', str(cards_dir))
     monkeypatch.setattr(
         scan_service,
-        'extract_card_info',
-        lambda _path: {'data': {'name': 'Hero', 'tags': ['blue']}},
+        'extract_card_info_with_status',
+        lambda _path: ({'data': {'name': 'Hero', 'tags': ['blue']}}, 'ok'),
     )
     monkeypatch.setattr(scan_service, 'calculate_token_count', lambda _payload: 111)
     monkeypatch.setattr(scan_service, 'get_wi_meta', lambda _payload: (False, ''))

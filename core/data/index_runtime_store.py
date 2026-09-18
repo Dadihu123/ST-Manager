@@ -161,6 +161,17 @@ def ensure_index_runtime_schema(conn: sqlite3.Connection):
     for statement in RUNTIME_SCHEMA_STATEMENTS:
         conn.execute(statement)
 
+    # 扫描器簿记状态（最近一次全量校验时间等），与索引构建状态分开存放。
+    conn.execute(
+        '''
+        CREATE TABLE IF NOT EXISTS scan_runtime_state (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL DEFAULT '',
+            updated_at REAL NOT NULL DEFAULT 0
+        )
+        '''
+    )
+
     conn.execute(
         '''
         INSERT INTO index_schema_state(
@@ -343,3 +354,37 @@ def clear_generation_data(conn: sqlite3.Connection, scope: str, generation: int)
     conn.execute('DELETE FROM index_category_stats_v2 WHERE generation = ? AND scope = ?', (generation, stats_scope))
     conn.execute('DELETE FROM index_facet_stats_v2 WHERE generation = ? AND scope = ?', (generation, stats_scope))
     conn.commit()
+
+
+SCAN_STATE_LAST_FULL_SCAN_AT = 'last_full_scan_at'
+
+
+def get_scan_state(conn: sqlite3.Connection, key: str, default: str = '') -> str:
+    """读取扫描器簿记状态；缺失或表不存在时返回默认值。"""
+    try:
+        row = conn.execute(
+            'SELECT value FROM scan_runtime_state WHERE key = ?',
+            (str(key),),
+        ).fetchone()
+    except sqlite3.Error:
+        return default
+    if not row:
+        return default
+    return str(row[0] if not isinstance(row, sqlite3.Row) else row['value'] or default)
+
+
+def set_scan_state(conn: sqlite3.Connection, key: str, value, *, commit: bool = True) -> None:
+    """写入扫描器簿记状态。"""
+    try:
+        conn.execute(
+            '''
+            INSERT INTO scan_runtime_state(key, value, updated_at) VALUES (?, ?, ?)
+            ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
+            ''',
+            (str(key), str(value), time.time()),
+        )
+        if commit:
+            conn.commit()
+    except sqlite3.Error:
+        pass
+

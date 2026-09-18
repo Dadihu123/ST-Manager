@@ -41,6 +41,10 @@ class IndexState(dict):
             progress=0,
             message='',
             pending_jobs=0,
+            # 全量磁盘校验扫描状态：与索引构建共用展示通道。
+            scan_active=False,
+            scan_message='',
+            scan_progress=0,
         )
 
     def update(self, *args, **kwargs):

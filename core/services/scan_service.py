@@ -8,6 +8,12 @@ import logging
 # === 基础设施 ===
 from core.config import BASE_DIR, CARDS_FOLDER, DEFAULT_DB_PATH, current_config, load_config
 from core.context import ctx
+from core.data.index_runtime_store import (
+    SCAN_STATE_LAST_FULL_SCAN_AT,
+    ensure_index_runtime_schema,
+    get_scan_state,
+    set_scan_state,
+)
 from core.data.ui_store import load_ui_data, save_ui_data
 
 # === 业务逻辑引用 ===
@@ -27,10 +33,15 @@ from core.utils.card_identity import new_card_uid, normalize_card_uid
 
 # === 工具函数 ===
 from core.utils.filesystem import is_card_file
-from core.utils.image import extract_card_info
+from core.utils.image import (
+    CARD_INFO_UNREADABLE,
+    extract_card_info,
+    extract_card_info_with_status,
+)
 from core.utils.hash import get_file_hash_and_size
 from core.utils.text import calculate_token_count
 from core.utils.data import get_wi_meta, sanitize_for_utf8
+from core.utils.format_validation import is_valid_character_card_data
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +51,7 @@ FULL_SCAN_TASK = 'FULL_SCAN'
 CARD_UPSERT_TASK = 'CARD_UPSERT'
 CARD_MOVE_TASK = 'CARD_MOVE'
 CARD_DELETE_TASK = 'CARD_DELETE'
+SCAN_STATE_WORLDBOOK_CLEANUP_DONE = 'worldbook_cleanup_done'
 
 
 def _normalize_watch_path(path):
@@ -458,7 +470,7 @@ def _process_scan_task(task):
         task_type = str(task.get('type') or FULL_SCAN_TASK)
 
     if task_type == FULL_SCAN_TASK:
-        _perform_scan_logic()
+        _perform_scan_logic(reason=str(task.get('reason') or '') if isinstance(task, dict) else '')
         return True
 
     if task_type == CARD_UPSERT_TASK:
@@ -667,11 +679,39 @@ def background_scanner():
             logger.error(f"Background scanner critical error: {e}")
             time.sleep(5)
 
-def _perform_scan_logic():
+def _set_scan_progress(active, *, message='', progress=None):
+    """把全量扫描进度发布到索引状态，让前端能显示「正在扫描」。
+
+    扫描与索引构建共用 ``ctx.index_state`` 的展示通道，前端已有的
+    ``/api/index/status`` 轮询即可直接呈现，无需新增接口。
+    """
+    updates = {'scan_active': bool(active)}
+    if message:
+        updates['scan_message'] = message
+    if progress is not None:
+        updates['scan_progress'] = int(progress)
+    with ctx.index_lock:
+        ctx.index_state.update(updates)
+
+
+def _perform_scan_logic(reason=''):
     """执行具体的数据库同步逻辑"""
     db_path = DEFAULT_DB_PATH
     cards_root = os.path.abspath(os.fspath(CARDS_FOLDER))
-    
+    _set_scan_progress(True, message=reason or 'full_scan', progress=0)
+    try:
+        _perform_scan_logic_inner(db_path, cards_root)
+    except Exception:
+        # 扫描失败时不更新「最近校验时间」，下次启动仍会重试。
+        logger.error('全量扫描失败', exc_info=True)
+        raise
+    else:
+        _record_full_scan_completed()
+    finally:
+        _set_scan_progress(False, progress=100)
+
+
+def _perform_scan_logic_inner(db_path, cards_root):
     # 使用上下文管理器手动连接，不使用 Flask g.db，因为这是后台线程
     with sqlite3.connect(db_path, timeout=60) as conn:
         try:
@@ -680,6 +720,14 @@ def _perform_scan_logic():
             pass
         
         cursor = conn.cursor()
+        
+        # 0. 一次性定向清理：历史版本误把世界书当成角色卡写入的记录。
+        #    该操作只跑一次，且只读取极少量 JSON，不涉及图片解码。
+        try:
+            ensure_index_runtime_schema(conn)
+            _cleanup_misdetected_worldbook_rows(conn, cards_root)
+        except Exception as exc:
+            logger.warning('世界书误识别记录清理失败: %s', exc)
         
         # 1. 获取数据库当前状态 (用于比对)
         try:
@@ -723,6 +771,7 @@ def _perform_scan_logic():
         # 2. 遍历文件系统
         scanned_dir_count = 0
         scanned_file_count = 0
+        progress_step = 0
         for root, dirs, files in os.walk(CARDS_FOLDER):
             scanned_dir_count += 1
             rel_path = os.path.relpath(root, CARDS_FOLDER)
@@ -738,6 +787,14 @@ def _perform_scan_logic():
                     continue
                 scanned_file_count += 1
                 
+                # 让前端能看到扫描确实在进行（每 200 个文件刷新一次）。
+                if scanned_file_count - progress_step >= 200:
+                    progress_step = scanned_file_count
+                    _set_scan_progress(
+                        True,
+                        message=f'scanning:{scanned_file_count}',
+                    )
+                
                 full_path = os.path.join(root, file)
                 
                 # 计算 ID
@@ -752,15 +809,10 @@ def _perform_scan_logic():
                     current_mtime = st.st_mtime
                     current_size = st.st_size
                 except OSError:
+                    # 无法 stat（权限/被占用）：保留既有记录，避免误删用户数据。
+                    fs_found_files.add(file_id)
                     continue
 
-                # 后缀只用于发现候选文件，必须先通过角色卡格式校验，才能进入
-                # 发现集合和数据库。这样被误识别的世界书也会从旧数据库记录中清除。
-                info = extract_card_info(full_path)
-                if not info:
-                    continue
-                fs_found_files.add(file_id)
-                
                 db_info = db_files_map.get(file_id)
                 renamed_from_id = ''
                 if not db_info:
@@ -795,7 +847,26 @@ def _perform_scan_logic():
                 if renamed_from_id:
                     need_update = True
                     file_changed = True
-                
+
+                # 文件未变更且已有记录：只做一次 stat 比对即可，绝不读取文件内容。
+                # 这一步是扫描性能的关键——大型库（数千张卡）绝大多数文件都不会变。
+                if not need_update:
+                    fs_found_files.add(file_id)
+                    continue
+
+                # 仅在确实需要写入时才解析文件内容。
+                info, parse_status = extract_card_info_with_status(full_path)
+                if parse_status == CARD_INFO_UNREADABLE:
+                    # 读取失败（IO 错误/损坏/被占用）：保留既有记录，不当作删除处理。
+                    fs_found_files.add(file_id)
+                    logger.warning('跳过暂时无法读取的文件，保留既有索引记录: %s', full_path)
+                    continue
+                if not info:
+                    # 文件可正常读取但不是角色卡（例如误放进卡目录的世界书）：
+                    # 不加入发现集合，交给下方清理阶段移除旧的错误记录。
+                    continue
+                fs_found_files.add(file_id)
+
                 if need_update:
                     data_block = info.get('data', {}) if 'data' in info else info
                     tags = data_block.get('tags', [])
@@ -941,6 +1012,137 @@ def _perform_scan_logic():
         db_path=DEFAULT_DB_PATH,
     )
 
+def _cleanup_misdetected_worldbook_rows(conn, cards_root):
+    """一次性清理被误当成角色卡索引的世界书记录。
+
+    历史版本仅按后缀识别卡片，导致放进角色卡目录的世界书 JSON 也被写入
+    ``card_metadata``。这里做一次**有界**的定向清理：
+
+    - 只在每个数据库上执行一次（由 ``scan_runtime_state`` 标记）；
+    - 只检查 JSON 后缀且缺失卡片核心字段的记录（世界书没有 description /
+      first_mes / mes_example），因此不会触碰任何正常卡片；
+    - 只读取这些少量文本文件，不做 PNG 解码。
+
+    Returns:
+        set[str]: 被清理掉的卡片 ID 集合。
+    """
+    try:
+        if get_scan_state(conn, SCAN_STATE_WORLDBOOK_CLEANUP_DONE, '') == '1':
+            return set()
+    except Exception:
+        return set()
+
+    try:
+        rows = conn.execute(
+            '''
+            SELECT id FROM card_metadata
+            WHERE lower(id) LIKE '%.json'
+              AND COALESCE(description, '') = ''
+              AND COALESCE(first_mes, '') = ''
+              AND COALESCE(mes_example, '') = ''
+            '''
+        ).fetchall()
+    except sqlite3.Error:
+        return set()
+
+    removed = set()
+    for row in rows:
+        card_id = str(row[0] or '')
+        if not card_id:
+            continue
+        full_path = os.path.join(cards_root, card_id.replace('/', os.sep))
+        if not os.path.isfile(full_path):
+            # 文件确实不存在，交给正常删除流程处理。
+            continue
+        try:
+            with open(full_path, 'r', encoding='utf-8', errors='ignore') as handle:
+                payload = json.load(handle)
+        except (OSError, ValueError, TypeError):
+            continue
+        if is_valid_character_card_data(payload):
+            continue
+        removed.add(card_id)
+
+    if removed:
+        conn.executemany(
+            'DELETE FROM card_metadata WHERE id = ?',
+            [(card_id,) for card_id in sorted(removed)],
+        )
+        conn.commit()
+        logger.info('已清理 %d 条被误识别为角色卡的世界书记录', len(removed))
+
+    set_scan_state(conn, SCAN_STATE_WORLDBOOK_CLEANUP_DONE, '1')
+    return removed
+
+
+def _should_run_startup_scan():
+    """判断本次启动是否需要做一次全量校验扫描。
+
+    全量校验会读取全部卡片文件，资源量大时开销明显。默认策略：
+    - 配置关闭 ``enable_startup_scan`` 时不扫描；
+    - 距上次成功校验不足 ``startup_scan_min_interval_hours`` 小时时不重复扫描；
+    - 数据库里还没有任何卡片记录时（首次运行/新库）仍需扫描以建立索引。
+    """
+    if not current_config.get('enable_startup_scan', True):
+        logger.info('启动全量校验已在配置中关闭 (enable_startup_scan = false).')
+        return False
+
+    try:
+        interval_hours = float(current_config.get('startup_scan_min_interval_hours', 24) or 0)
+    except (TypeError, ValueError):
+        interval_hours = 24.0
+
+    last_scan_at = 0.0
+    card_count = 0
+    try:
+        with sqlite3.connect(DEFAULT_DB_PATH, timeout=30) as conn:
+            conn.execute('PRAGMA journal_mode=WAL;')
+            ensure_index_runtime_schema(conn)
+            last_scan_at = float(
+                get_scan_state(conn, SCAN_STATE_LAST_FULL_SCAN_AT, '0') or 0
+            )
+            try:
+                card_count = int(
+                    conn.execute('SELECT COUNT(*) FROM card_metadata').fetchone()[0] or 0
+                )
+            except sqlite3.Error:
+                card_count = 0
+    except (sqlite3.Error, OSError, ValueError) as exc:
+        logger.warning('读取启动扫描状态失败，本次将执行校验扫描: %s', exc)
+        return True
+
+    if card_count == 0:
+        return True
+
+    if interval_hours <= 0:
+        return True
+
+    if last_scan_at <= 0:
+        return True
+
+    elapsed_hours = (time.time() - last_scan_at) / 3600.0
+    if elapsed_hours < interval_hours:
+        logger.info(
+            '跳过启动全量校验：距上次校验仅 %.1f 小时 (阈值 %.1f 小时)。',
+            elapsed_hours,
+            interval_hours,
+        )
+        return False
+
+    return True
+
+
+def _record_full_scan_completed():
+    """记录一次全量校验完成时间，供下次启动判断是否需要重复扫描。"""
+    try:
+        with sqlite3.connect(DEFAULT_DB_PATH, timeout=30) as conn:
+            conn.execute('PRAGMA journal_mode=WAL;')
+            ensure_index_runtime_schema(conn)
+            set_scan_state(conn, SCAN_STATE_LAST_FULL_SCAN_AT, str(time.time()))
+    except (sqlite3.Error, OSError) as exc:
+        logger.warning('记录全量校验时间失败: %s', exc)
+
+
 def start_background_scanner():
     """启动后台扫描线程与（可选的）文件系统监听"""
     if not ctx.scan_active:
@@ -948,8 +1150,10 @@ def start_background_scanner():
         scanner_thread = threading.Thread(target=background_scanner, daemon=True)
         scanner_thread.start()
         logger.info("Background scanner thread started.")
-        # 启动时主动校验一次磁盘内容，清理历史版本留下的无效卡片记录。
-        ctx.scan_queue.put({'type': FULL_SCAN_TASK, 'reason': 'startup'})
+        # 启动时按需做一次全量校验，清理历史版本留下的无效卡片记录。
+        # 该扫描需要读取全部卡片文件，因此默认有最小间隔限制（见 _should_run_startup_scan）。
+        if _should_run_startup_scan():
+            ctx.scan_queue.put({'type': FULL_SCAN_TASK, 'reason': 'startup'})
         
         # 根据配置决定是否启动自动文件监听
         enable_auto_scan = current_config.get("enable_auto_scan", True)

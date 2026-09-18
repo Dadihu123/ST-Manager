@@ -86,6 +86,13 @@ DEFAULT_CONFIG = {
     # 设为 False 时，仅保留后台扫描线程，手动触发的扫描任务仍然有效
     "enable_auto_scan": True,
 
+    # 启动时是否主动做一次全量磁盘校验扫描。
+    # 全量校验需要读取所有卡片文件，大型资源库（数千张卡）会造成明显的
+    # CPU 与磁盘占用，因此默认改为仅在必要时执行（见 startup_scan_min_interval_hours）。
+    "enable_startup_scan": True,
+    # 两次启动全量校验之间的最小间隔（小时）。0 表示每次启动都校验。
+    "startup_scan_min_interval_hours": 24,
+
     # PNG 元数据是否使用确定性排序（默认关闭，避免改变外部工具的字节级行为）
     "png_deterministic_sort": False,
 

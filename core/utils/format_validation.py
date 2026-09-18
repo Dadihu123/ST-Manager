@@ -5,6 +5,7 @@ import math
 from typing import Any
 
 
+# V1 卡片识别使用全部核心字段（保持历史行为不变）。
 CHARACTER_CARD_V1_FIELDS = (
     'name',
     'description',
@@ -14,21 +15,16 @@ CHARACTER_CARD_V1_FIELDS = (
     'mes_example',
 )
 
-CHARACTER_CARD_V2_DATA_FIELDS = (
+# V2 的 spec 标头本身已是很强的判别信号；data 只需包含任一核心字段即可认定为卡片。
+# creator_notes / system_prompt / post_history_instructions 等属于扩展字段，
+# 大量非官方工具导出的合法卡片并不包含它们，因此不能要求必须存在。
+CHARACTER_CARD_V2_CORE_FIELDS = (
     'name',
     'description',
     'personality',
     'scenario',
     'first_mes',
     'mes_example',
-    'creator_notes',
-    'system_prompt',
-    'post_history_instructions',
-    'alternate_greetings',
-    'tags',
-    'creator',
-    'character_version',
-    'extensions',
 )
 
 PRESET_FORMAT_KEYS = frozenset(
@@ -145,11 +141,13 @@ def _is_valid_character_card_v2(card: dict) -> bool:
     data = card.get('data')
     if not isinstance(data, dict):
         return False
-    if not all(field in data for field in CHARACTER_CARD_V2_DATA_FIELDS):
+    # 只要求出现核心字段，不要求全部扩展字段存在，避免误杀合法的第三方卡片。
+    if not any(field in data for field in CHARACTER_CARD_V2_CORE_FIELDS):
         return False
-    if not isinstance(data.get('alternate_greetings'), list):
+    # 扩展字段若存在则必须类型正确；缺失视为合法。
+    if 'alternate_greetings' in data and not isinstance(data.get('alternate_greetings'), list):
         return False
-    if not isinstance(data.get('tags'), list):
+    if 'tags' in data and not isinstance(data.get('tags'), list):
         return False
     if not _is_js_object(data.get('extensions')):
         return False

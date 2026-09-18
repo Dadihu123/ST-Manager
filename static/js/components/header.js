@@ -245,6 +245,7 @@ export default function header() {
       return "当前：显示全部";
     },
     get indexStatusLabel() {
+      if (this.$store.global.indexStatus?.scan_active) return "正在扫描资源";
       const state = String(this.$store.global.indexStatus?.state || "");
       if (state === "building") return "索引构建中";
       if (state === "error") return "索引异常";

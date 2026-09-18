@@ -157,6 +157,15 @@ def get_index_status() -> dict[str, Any]:
     }
     snapshot['progress'] = int(snapshot.get('progress') or 0)
     snapshot['message'] = str(snapshot.get('message') or '')
+
+    # 全量扫描（磁盘校验）与索引构建共用同一展示通道：
+    # 扫描进行时优先呈现扫描状态，避免用户看到「无任何活动」却持续占用资源。
+    if bool(snapshot.get('scan_active')):
+        snapshot['state'] = 'building'
+        snapshot['scope'] = 'scan'
+        snapshot['message'] = str(snapshot.get('scan_message') or 'scanning')
+    snapshot['scan_active'] = bool(snapshot.get('scan_active'))
+    snapshot['scan_message'] = str(snapshot.get('scan_message') or '')
     return snapshot
 
 

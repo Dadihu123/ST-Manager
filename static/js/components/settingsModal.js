@@ -66,6 +66,8 @@ const DEFAULT_SETTINGS = {
   snapshot_limit_manual: 50,
   snapshot_limit_auto: 5,
   enable_auto_scan: true,
+  enable_startup_scan: true,
+  startup_scan_min_interval_hours: 24,
   png_deterministic_sort: false,
   cards_list_use_index: false,
   fast_search_use_index: false,

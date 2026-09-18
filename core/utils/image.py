@@ -25,7 +25,23 @@ def _should_deterministic_png():
     except Exception:
         return False
 
-def extract_card_info(filepath):
+CARD_INFO_OK = 'ok'
+CARD_INFO_NOT_A_CARD = 'not_a_card'
+CARD_INFO_UNREADABLE = 'unreadable'
+
+
+def extract_card_info_with_status(filepath):
+    """解析卡片元数据，并区分「确认不是卡片」与「暂时读不了」。
+
+    返回值 ``(info, status)``：
+
+    - ``(dict, CARD_INFO_OK)``         成功解析出角色卡
+    - ``(None, CARD_INFO_NOT_A_CARD)`` 文件可正常打开，但内容不是角色卡
+      （例如误放进卡目录的世界书、无关 JSON）。这类文件可以从索引中安全剔除。
+    - ``(None, CARD_INFO_UNREADABLE)`` 文件无法读取（IO 错误、损坏图片、
+      权限问题、正在被写入等）。调用方不应据此删除既有数据库记录，
+      否则一次偶发读取失败就会丢掉用户的收藏与元数据。
+    """
     try:
         data = None
         # 1. 处理 JSON 文件
@@ -37,12 +53,12 @@ def extract_card_info(filepath):
             with Image.open(filepath) as img:
                 # === 强制加载图片数据，确保读取到完整元数据 ===
                 img.load()
-                
+
                 metadata = img.info or {}
                 raw = metadata.get('chara') or metadata.get('ccv3')
-                
+
                 if not raw:
-                    return None
+                    return None, CARD_INFO_NOT_A_CARD
 
                 result = None
 
@@ -53,7 +69,7 @@ def extract_card_info(filepath):
                     if isinstance(raw_str, bytes):
                         raw_str = raw_str.decode('utf-8', errors='ignore')
                     raw_str = str(raw_str).strip()
-                    
+
                     if raw_str.startswith('{') or raw_str.startswith('['):
                         result = json.loads(raw_str)
                 except:
@@ -75,7 +91,7 @@ def extract_card_info(filepath):
                             raw = raw.decode('utf-8', errors='ignore')
                         raw = str(raw).strip()
                         padded = raw + ('=' * (-len(raw) % 4))
-                        
+
                         # 尝试 URL-Safe 解码 (部分 Web 工具生成的卡片)
                         try:
                             decoded = base64.urlsafe_b64decode(padded).decode('utf-8', errors='ignore')
@@ -91,23 +107,29 @@ def extract_card_info(filepath):
         if data:
             dirty_flags = []
             cleaned_data = sanitize_for_utf8(data, dirty_tracker=dirty_flags)
-            
+
             if dirty_flags:
                 # 打印醒目的日志
                 msg = f"⚠️ [自动修复] 检测到元数据编码异常 (Unicode Error)，已过滤非法字符: {filepath}"
-                print(msg) 
+                print(msg)
                 logger.warning(msg)
-                
+
             if not is_valid_character_card_data(cleaned_data):
-                return None
+                return None, CARD_INFO_NOT_A_CARD
 
-            return cleaned_data
+            return cleaned_data, CARD_INFO_OK
 
-        return None
+        return None, CARD_INFO_NOT_A_CARD
 
     except Exception as e:
-        # print(f"Error parsing {filepath}: {e}") # 调试用
-        return None
+        logger.warning('读取角色卡失败，保留已有索引记录: %s (%s)', filepath, e)
+        return None, CARD_INFO_UNREADABLE
+
+
+def extract_card_info(filepath):
+    """兼容旧调用方：解析失败一律返回 ``None``。"""
+    info, _status = extract_card_info_with_status(filepath)
+    return info
 
 def write_card_metadata(filepath, json_data):
     try:

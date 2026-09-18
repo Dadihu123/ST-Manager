@@ -149,10 +149,10 @@ def test_settings_path_trash_and_number_controls_use_shared_visual_contract():
     assert '.settings-trash-open-icon.ui-icon--sm {' in settings_css
     assert 'height: 16px;' in settings_css
 
-    assert source.count('class="settings-number-control') == 12
-    assert source.count('class="settings-number-stepper"') == 12
-    assert source.count('class="settings-number-stepper-btn"') == 24
-    assert source.count('class="form-input settings-number-input"') == 12
+    assert source.count('class="settings-number-control') == 13
+    assert source.count('class="settings-number-stepper"') == 13
+    assert source.count('class="settings-number-stepper-btn"') == 26
+    assert source.count('class="form-input settings-number-input"') == 13
     assert 'adjustNumberSetting(field, delta, min = null, max = null)' in settings_js
     assert 'settings-number-input::-webkit-inner-spin-button' in settings_css
     assert '.settings-number-stepper-btn:hover' in settings_css

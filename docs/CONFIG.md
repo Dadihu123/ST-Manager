@@ -77,6 +77,8 @@ ST Manager 使用项目根目录的 `config.json`。文件不存在时，`app.py
 | `snapshot_limit_manual` | `50` | 每个目标保留的手动快照上限 |
 | `snapshot_limit_auto` | `5` | 每个目标保留的自动快照上限 |
 | `enable_auto_scan` | `true` | 是否启用 watchdog 文件监听；关闭后仍可手动扫描 |
+| `enable_startup_scan` | `true` | 启动时是否做一次全量磁盘校验扫描；关闭可显著降低大型资源库的启动开销 |
+| `startup_scan_min_interval_hours` | `24` | 两次启动全量校验之间的最小间隔（小时）；`0` 表示每次启动都校验 |
 | `png_deterministic_sort` | `false` | 是否对 PNG 元数据做确定性排序；开启可能改变外部工具看到的字节顺序 |
 | `cards_list_use_index` | `false` | 是否允许角色卡列表使用 SQLite 索引 |
 | `fast_search_use_index` | `false` | 是否允许快速搜索使用索引；只有列表索引开启时才有意义 |

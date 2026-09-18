@@ -603,6 +603,8 @@ export function initState() {
       progress: 0,
       message: "",
       pending_jobs: 0,
+      scan_active: false,
+      scan_message: "",
     },
     wiFilterType: "all", // 筛选类型: 'all', 'global', 'resource', 'embedded'
     wiFilterCategory: "",
@@ -717,6 +719,8 @@ export function initState() {
       fast_search_use_index: false,
       worldinfo_list_use_index: false,
       enable_auto_scan: true,
+      enable_startup_scan: true,
+      startup_scan_min_interval_hours: 24,
       index_auto_bootstrap: true,
       allowed_abs_resource_roots: [],
       wi_preview_limit: 300,
