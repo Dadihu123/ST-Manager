@@ -1309,52 +1309,30 @@ export default function automationModal() {
 
         // Initialize action config (for fetch_forum_tags)
         initActionConfig(action) {
-            let normalized = null;
-
             if (action.type === 'fetch_forum_tags') {
-                normalized = createFetchForumTagsConfig(action.config || action.value || {});
+                action.config = createFetchForumTagsConfig(action.config || action.value || {});
             } else if (action.type === 'rename_file_by_template') {
-                normalized = createRenameTemplateConfig(action.config || action.value || {});
+                action.config = createRenameTemplateConfig(action.config || action.value || {});
             } else if (action.type === 'split_category_to_tags') {
-                normalized = createSplitCategoryTagsConfig(action.config || action.value || {});
+                action.config = createSplitCategoryTagsConfig(action.config || action.value || {});
             } else if (action.type === 'add_tags_from_source_title') {
-                normalized = createSourceTitleTagsConfig(action.config || action.value || {});
+                action.config = createSourceTitleTagsConfig(action.config || action.value || {});
             } else if (action.type === 'set_creator_from_source') {
-                normalized = createSourceCreatorConfig(action.config || action.value || {});
+                action.config = createSourceCreatorConfig(action.config || action.value || {});
             } else {
                 // For other action types, remove config if exists
                 if (action.config) {
                     delete action.config;
                 }
-                return null;
             }
 
-            // 必须复用同一个 config 对象：动作行的左右两栏（快捷工具 / 主输入）
-            // 各自持有独立的 x-data 作用域，若这里换成新对象，两栏就会各改各的。
-            // 复用前先清掉属于上一个动作类型的字段（_ 前缀是界面状态，保留），
-            // 这样切换动作类型的语义仍与「整对象替换」一致，不会把旧动作的值带过来。
-            if (action.config && typeof action.config === 'object') {
-                const keep = new Set(Object.keys(normalized));
-                Object.keys(action.config).forEach(key => {
-                    if (!key.startsWith('_') && !keep.has(key)) {
-                        delete action.config[key];
-                    }
-                });
-                Object.assign(action.config, normalized);
-            } else {
-                action.config = normalized;
-            }
-
-            return action.config;
+            return action.config || null;
         },
 
         applyRenameTemplatePreset(action, preset) {
             if (!action || action.type !== 'rename_file_by_template') return;
-            // 就地写入：左侧「套用示例」与中间模板输入各自持有独立的 x-data 作用域，
-            // 只有共用同一个 config 对象，预设才会即时反映到输入框里。
-            const target = this.initActionConfig(action) || (action.config = createRenameTemplateConfig());
-            Object.assign(target, getRenameTemplatePreset(preset));
-            return target;
+            action.config = getRenameTemplatePreset(preset);
+            return action.config;
         },
         
         // Utils
