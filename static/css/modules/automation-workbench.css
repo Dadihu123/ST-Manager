@@ -1626,6 +1626,13 @@ kbd {
   margin-top: 0.7rem;
 }
 
+/* 动作行按「自身可用宽度」重排，而不是按视口宽度。
+ * 弹窗宽度上限 75rem，视口再宽这一行也停在 ~784px；窄窗口下却会缩到 ~370px。
+ * 视口断点无法同时照顾两头，所以这里把动作列表本身设为宽度容器。 */
+.action-list {
+  container-type: inline-size;
+}
+
 .condition-group {
   background: var(--surface-container);
   border: 1px solid var(--border-default);
@@ -1689,6 +1696,39 @@ kbd {
 .action-row-actions {
   align-self: flex-start;
   padding-top: 0;
+}
+
+/* 动作行的左右副栏。
+ * 左栏 = 动作级快捷工具（套用示例 / 插入字段），右栏 = 排序按钮与动作说明。
+ * 两个容器本身不产生盒子，可见的组才参与父级栅格，避免空行被 gap 撑高。 */
+.action-row-tools,
+.action-row-notes {
+  display: contents;
+}
+
+.action-row-tool-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.action-row-aside {
+  display: flex;
+  /* 窄屏沿用原有阅读顺序：先读说明，再看到排序/删除按钮。 */
+  flex-direction: column-reverse;
+  gap: 0.5rem;
+  min-width: 0;
+  width: 100%;
+}
+
+/* 右栏里的按钮组永远贴住右边缘。
+ * 其余动作行的按钮直接挂在行的第 3 列，天然贴右；参与重排的四个动作
+ * 把按钮包进了 .action-row-aside，而该栏比按钮组宽（说明文字需要更多空间），
+ * 于是按钮会被留在左端，与上下相邻的动作行差出 60px 以上。
+ * 这里让按钮组自己靠右，两种结构下按钮的位置就一致了。 */
+.action-row-aside .action-row-actions {
+  align-self: flex-end;
 }
 
 .condition-empty,
@@ -1804,10 +1844,11 @@ kbd {
     width: 100%;
   }
 
-  .action-row-actions {
+  .action-row-aside {
     align-self: center;
     grid-column: 3;
     grid-row: 1;
+    width: auto;
   }
 
   .action-row .automation-action-type-select {
@@ -1820,12 +1861,6 @@ kbd {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .action-row--fetch_forum_tags .action-config-hint {
-    align-self: center;
-    grid-column: 2;
-    grid-row: 2;
-  }
-
   .action-row--fetch_forum_tags .action-config-panel > label:nth-child(3) {
     grid-column: 1;
     grid-row: 2;
@@ -1833,6 +1868,239 @@ kbd {
 
   .action-row--add_tags_from_source_title .action-config-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* 留白较多的长配置动作：按动作列表自身的可用宽度决定排布。
+ *
+ * 之前用视口断点（≥1200px 三栏）判断，但弹窗本身有 75rem 上限：
+ * 视口再宽，动作行也停在 ~784px；而 769px 的窗口下行宽只有 ~370px。
+ * 结果是「窗口很宽时三栏仍显空、窗口略窄时中间栏被压成 0 并横向溢出」。
+ * 改用容器查询后，判断依据就是这一行真实能用的宽度。
+ *
+ * 分三档，两处阈值都是实测出来的：
+ *   行宽 < 34rem（544px） 连两栏都放不下 → 单列堆叠（实测 520px 时创作者下拉溢出 4px）
+ *   34rem ≤ 行宽 < 47rem  放得下两栏     → 左主区 + 右副栏
+ *   行宽 ≥ 47rem（752px） 放得下三栏     → 左工具 / 中输入 / 右说明
+ * 47rem 是中间主输入的下限：两侧栏固定吃掉 15rem + 11rem 与间距，
+ * 行宽低于约 756px 时模板输入框和创作者下拉会开始截断（实测 644px 时溢出 63px）。 */
+@media (min-width: 769px) {
+  /* 档位一：连两栏都放不下 → 单列堆叠，与移动端一致，不再把中间栏压成 0。 */
+  @container (max-width: 33.99rem) {
+    .action-row--set_creator_from_source,
+    .action-row--rename_file_by_template,
+    .action-row--add_tags_from_source_title,
+    .action-row--fetch_forum_tags {
+      align-items: stretch;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .action-row--set_creator_from_source .action-row-main,
+    .action-row--rename_file_by_template .action-row-main,
+    .action-row--add_tags_from_source_title .action-row-main,
+    .action-row--fetch_forum_tags .action-row-main {
+      align-items: stretch;
+      display: flex;
+      flex-direction: column;
+      gap: 0.55rem;
+      width: 100%;
+    }
+
+    .action-row--set_creator_from_source .action-row-aside,
+    .action-row--rename_file_by_template .action-row-aside,
+    .action-row--add_tags_from_source_title .action-row-aside,
+    .action-row--fetch_forum_tags .action-row-aside {
+      align-self: stretch;
+      /* 单列时沿用阅读顺序：先看说明，再看到排序 / 删除按钮。 */
+      flex-direction: column-reverse;
+      width: 100%;
+    }
+  }
+
+  /* 档位二：放得下两栏但放不下三栏 → 左主区（选择器 / 快捷工具 / 主输入）+ 右副栏。
+   * 这一档此前直接塌成单列，四个动作的行高合计从 ~917px 涨到 ~1263px，
+   * 中间的输入框反而比三栏时还窄。 */
+  @container (min-width: 34rem) and (max-width: 46.99rem) {
+    .action-row--set_creator_from_source,
+    .action-row--rename_file_by_template {
+      align-items: start;
+      display: grid;
+      grid-template-areas:
+        'head aside'
+        'tools aside'
+        'detail aside';
+      grid-template-columns: minmax(0, 1fr) minmax(9.5rem, 11rem);
+    }
+
+    /* 左栏没有快捷工具，选择器与主输入各占一行。 */
+    .action-row--add_tags_from_source_title,
+    .action-row--fetch_forum_tags {
+      align-items: start;
+      display: grid;
+      grid-template-areas:
+        'head aside'
+        'detail aside';
+      grid-template-columns: minmax(0, 1fr) minmax(9.5rem, 11rem);
+    }
+
+    .action-row--set_creator_from_source .action-row-main,
+    .action-row--rename_file_by_template .action-row-main,
+    .action-row--add_tags_from_source_title .action-row-main,
+    .action-row--fetch_forum_tags .action-row-main {
+      align-items: start;
+      display: contents;
+    }
+
+    .action-row--set_creator_from_source .automation-action-type-select,
+    .action-row--rename_file_by_template .automation-action-type-select,
+    .action-row--add_tags_from_source_title .automation-action-type-select,
+    .action-row--fetch_forum_tags .automation-action-type-select {
+      grid-area: head;
+    }
+
+    .action-row--set_creator_from_source .action-config,
+    .action-row--rename_file_by_template .action-config,
+    .action-row--add_tags_from_source_title .action-config,
+    .action-row--fetch_forum_tags .action-config {
+      grid-area: detail;
+    }
+
+    .action-row--set_creator_from_source .action-row-tool-group,
+    .action-row--rename_file_by_template .action-row-tool-group {
+      grid-area: tools;
+    }
+
+    /* 右栏贴着本行顶部：副栏与主区同高，说明文字自然跟住动作行。 */
+    .action-row--set_creator_from_source .action-row-aside,
+    .action-row--rename_file_by_template .action-row-aside,
+    .action-row--add_tags_from_source_title .action-row-aside,
+    .action-row--fetch_forum_tags .action-row-aside {
+      align-self: start;
+      /* 两栏时仍按阅读顺序：说明在前、排序按钮在后。 */
+      flex-direction: column-reverse;
+      grid-area: aside;
+    }
+
+    /* 「套用示例」三个按钮在 11rem 时排成三行，比留在单列里更高，故收成两列。 */
+    .action-row--rename_file_by_template .automation-chip-row {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .action-row--rename_file_by_template .automation-preset-chip:last-child {
+      grid-column: 1 / -1;
+    }
+  }
+
+  /* 两档栅格的公共部分：左栏只剩 9.5–15rem，创作者的两个控件必须改窄栏排法。
+   * 这里用 min-width: 34rem 一次覆盖上面两档，避免两处重复维护。
+   * 窄于 34rem 时已退回单列，每一栏都够宽，沿用原来的横排即可。 */
+  @container (min-width: 34rem) {
+    /* 左栏变窄后「插入字段」必须收成两列，否则占位符会被截断。 */
+    .action-row--set_creator_from_source .source-creator-format-tools {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .action-row--set_creator_from_source .source-creator-format-tools-label {
+      grid-column: 1 / -1;
+    }
+
+    .action-row--set_creator_from_source .source-creator-token-button {
+      flex-direction: column;
+      gap: 0.05rem;
+      padding: 0.3rem 0.2rem;
+    }
+  }
+
+  /* 创作者的两个下拉在桌面端始终并排，每列只分到面板宽度的一半；
+   * 而「显示名（display_name） · {{display_name}}」需要 254px，实测各档
+   * 只拿得到 124–176px，不换行就一定被截断或溢出（769px 窗口下溢出 119px）。
+   * 这里允许标签换行，让字段名和占位符都完整可读；
+   * 图标与箭头固定在第一行，避免它们随行数上下跳动。
+   * 不放进容器查询：任何桌面档位都需要它，与行宽无关。 */
+  .action-row--set_creator_from_source .action-config-grid--creator .icon-select-label {
+    overflow: visible;
+    white-space: normal;
+  }
+
+  .action-row--set_creator_from_source .action-config-grid--creator .icon-select-trigger {
+    align-items: flex-start;
+  }
+
+  .action-row--set_creator_from_source .action-config-grid--creator .icon-select-chevron,
+  .action-row--set_creator_from_source .action-config-grid--creator .icon-select-trigger-icon {
+    margin-top: 0.15rem;
+  }
+
+  /* 档位三：放得下三栏：左栏 = 动作选择与快捷工具，中间 = 主输入，右栏 = 排序按钮与动作说明。
+   * 三栏高度互相咬合，中间那一大块不再孤零零地居中。 */
+  @container (min-width: 47rem) {
+    /* 左栏要放快捷工具（套用示例 / 插入字段）。
+     * 「套用示例」三个按钮在 15rem 时正好排成两行，低于这个宽度会掉成三行，
+     * 「模板重命名文件」实测会因此从 152px 长到 190px，所以这里给足 15rem。 */
+    .action-row--set_creator_from_source,
+    .action-row--rename_file_by_template {
+      grid-template-areas:
+        'head detail aside'
+        'tools detail aside';
+      grid-template-columns: minmax(13rem, 15rem) minmax(0, 1fr) minmax(10rem, 11rem);
+    }
+
+    /* 左栏只有选择器：收窄左栏把宽度让给主输入。 */
+    .action-row--add_tags_from_source_title,
+    .action-row--fetch_forum_tags {
+      grid-template-areas: 'head detail aside';
+      grid-template-columns: minmax(11rem, 12rem) minmax(0, 1fr) minmax(10rem, 11rem);
+    }
+
+    /* 主行容器退场，让选择器 / 工具 / 主输入直接落进上面的三栏栅格。 */
+    .action-row--set_creator_from_source .action-row-main,
+    .action-row--rename_file_by_template .action-row-main,
+    .action-row--add_tags_from_source_title .action-row-main,
+    .action-row--fetch_forum_tags .action-row-main {
+      align-items: start;
+      display: contents;
+    }
+
+    .action-row--set_creator_from_source .automation-action-type-select,
+    .action-row--rename_file_by_template .automation-action-type-select,
+    .action-row--add_tags_from_source_title .automation-action-type-select,
+    .action-row--fetch_forum_tags .automation-action-type-select {
+      align-self: start;
+      grid-area: head;
+    }
+
+    /* 左栏只有选择器时让它在本列内垂直居中，避免选择器贴顶、下方留出一个空洞。
+     * 必须排在上面那条 align-self: start 之后：两者选择器权重相同，靠顺序覆盖。 */
+    .action-row--add_tags_from_source_title .automation-action-type-select,
+    .action-row--fetch_forum_tags .automation-action-type-select {
+      align-self: center;
+    }
+
+    .action-row--set_creator_from_source .action-config,
+    .action-row--rename_file_by_template .action-config,
+    .action-row--add_tags_from_source_title .action-config,
+    .action-row--fetch_forum_tags .action-config {
+      align-self: start;
+      grid-area: detail;
+    }
+
+    .action-row--set_creator_from_source .action-row-tool-group,
+    .action-row--rename_file_by_template .action-row-tool-group {
+      grid-area: tools;
+    }
+
+    /* 右栏整体在本行内垂直居中：按钮在上、说明紧随其下，
+     * 上下留白对称，短说明也不会独自贴在顶端。 */
+    .action-row--set_creator_from_source .action-row-aside,
+    .action-row--rename_file_by_template .action-row-aside,
+    .action-row--add_tags_from_source_title .action-row-aside,
+    .action-row--fetch_forum_tags .action-row-aside {
+      align-self: center;
+      flex-direction: column;
+      grid-area: aside;
+    }
   }
 }
 

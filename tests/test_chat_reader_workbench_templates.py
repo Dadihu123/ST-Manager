@@ -2378,9 +2378,14 @@ def test_mobile_tool_and_custom_modal_variants_prefer_dynamic_viewport_height():
 def test_automation_modal_template_exposes_new_action_options_and_structured_inputs():
     automation_template = read_project_file('templates/modals/automation.html')
     automation_js = read_project_file('static/js/components/automationModal.js')
-    rename_block = automation_template.split(
-        '<template x-if="action.type === \'rename_file_by_template\'">', 1
-    )[1].split('</template>', 1)[0]
+    # 同一个动作可能有多段 x-if（左栏快捷工具 + 中间主输入），这里取带输入框的那一段。
+    rename_block = next(
+        block.split('</template>', 1)[0]
+        for block in automation_template.split(
+            '<template x-if="action.type === \'rename_file_by_template\'">'
+        )[1:]
+        if 'x-model="cfg.template"' in block
+    )
     split_block = automation_template.split(
         '<template x-if="action.type === \'split_category_to_tags\'">', 1
     )[1].split('</template>', 1)[0]
