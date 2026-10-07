@@ -48,6 +48,7 @@ BACKEND_GROUPS = [
         'register_job', 'submit_job', 'get_job',
         'cancel_job', 'retry_job', 'pause_job', 'resume_job',
     ]),
+    ('CLI 子命令', 'Stable', ['register_cli']),
     ('数据', 'Stable', [
         ('db', 'Provisional'), 'table_prefix', 'migrate', 'data_dir',
     ]),

@@ -336,6 +336,18 @@ class PluginAPI:
 
         return jobs.resume_job(run_id)
 
+    # ---------------------------------------------------------------- CLI
+
+    def register_cli(self, name: str, handler, description: str = '') -> None:
+        """注册一个 CLI 子命令（N2）：`python app.py plugin <id> <name> [args…]`。
+
+        `handler(namespace)` 接收 `argparse.Namespace`，字段约定见
+        `core/plugins/cli.py` 的模块文档（`args` / `options` 与退出码规则）。
+        """
+        from core.plugins import cli as cli_module
+
+        cli_module.register_cli(self.plugin_id, name, handler, description)
+
     # ---------------------------------------------------------------- 数据
 
     def db(self):

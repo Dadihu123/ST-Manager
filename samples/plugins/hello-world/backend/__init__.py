@@ -61,6 +61,20 @@ def register(api):
 
     api.register_job('demo.count', run_count_job)
 
+    def cli_hello(namespace):
+        """CLI 子命令：python app.py plugin hello-world hello <名字> --times N"""
+        target = namespace.args[0] if namespace.args else 'world'
+        try:
+            times = max(1, int(namespace.options.get('times', 1)))
+        except (TypeError, ValueError):
+            times = 1
+
+        for _ in range(times):
+            print(f'Hello, {target}!')
+        return 0
+
+    api.register_cli('hello', cli_hello, description='打印 Hello 问候（位置参数: 名字；--times N）')
+
     api.migrate([
         '''
         CREATE TABLE IF NOT EXISTS plugin_hello_world_visits (

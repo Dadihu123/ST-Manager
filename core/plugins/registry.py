@@ -226,12 +226,13 @@ def set_enabled_setting(plugin_id: str, enabled: bool) -> bool:
 
 
 def drop_state(plugin_id: str) -> None:
-    """卸载后清理运行时状态与订阅。"""
-    from core.plugins import hooks, jobs
+    """卸载后清理运行时状态与订阅（hooks / 作业处理器 / CLI 子命令）。"""
+    from core.plugins import cli, hooks, jobs
 
     plugin_id = str(plugin_id or '')
     hooks.unregister_plugin(plugin_id)
     jobs.unregister_plugin_handlers(plugin_id)
+    cli.unregister_plugin(plugin_id)
 
     with _states_lock:
         _states.pop(plugin_id, None)

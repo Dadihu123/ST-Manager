@@ -189,7 +189,11 @@ python tools/gen_plugin_api_docs.py --check    # 只校验，不写文件
 # 插件系统测试
 pytest -q tests/test_plugin_manifest.py tests/test_plugin_registry.py tests/test_plugin_jobs.py
 pytest -q tests/test_plugin_dependencies.py tests/test_plugin_installer.py tests/test_plugin_catalog.py
-pytest -q tests/test_plugin_api_docs.py tests/test_plugin_scaffold.py
+pytest -q tests/test_plugin_api_docs.py tests/test_plugin_scaffold.py tests/test_plugin_cli.py
+
+# 运行插件提供的 CLI 子命令（会先获取数据目录独占锁，需关闭正在运行的实例）
+python app.py plugin <plugin-id> --list
+python app.py plugin <plugin-id> <command> [args...] [--key value]
 ```
 
 改动插件契约（`core/plugins/api.py` 或 `static/js/pluginHost.js` 的 `buildApi()`）时：

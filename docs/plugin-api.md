@@ -6,7 +6,7 @@
 > 契约分级与设计背景见 `docs/2026-09-22-plugin-system-design.md` 第 10 部分；
 > 稳定性变更须先在设计文档中修改，再更新代码与本文档。
 
-覆盖 `core/plugins/api.py` 的 `PluginAPI`（35 个公开方法）与 `static/js/pluginHost.js` 的 `buildApi()`（22 个顶层成员）。
+覆盖 `core/plugins/api.py` 的 `PluginAPI`（36 个公开方法）与 `static/js/pluginHost.js` 的 `buildApi()`（22 个顶层成员）。
 
 ## 后端 `PluginAPI`
 
@@ -60,6 +60,12 @@
 | `retry_job()` | `retry_job(run_id: str, *, only_failed: bool = True) -> str` | Stable | 重跑作业；`only_failed=True` 时只重置失败条目，返回新的 run_id。 |
 | `pause_job()` | `pause_job(run_id: str) -> bool` | Stable | 暂停作业（D6 审批流：等待人工处理后由 `resume_job` 恢复）。 |
 | `resume_job()` | `resume_job(run_id: str) -> bool` | Stable | 恢复被暂停的作业，返回是否成功。 |
+
+### CLI 子命令
+
+| 方法 | 签名 | 稳定性 | 说明 |
+|---|---|---|---|
+| `register_cli()` | `register_cli(name: str, handler, description: str = '') -> None` | Stable | 注册一个 CLI 子命令（N2）：`python app.py plugin <id> <name> [args…]`。 |
 
 ### 数据
 

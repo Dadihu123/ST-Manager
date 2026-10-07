@@ -45,6 +45,13 @@ class PluginLoadError(PluginError):
     http_status = 500
 
 
+class PluginCliError(PluginError):
+    """插件 CLI 子命令相关错误（N2）：命令不存在或参数非法。"""
+
+    code = 'plugin_cli_error'
+    http_status = 400
+
+
 class PluginNotFoundError(PluginError):
     """插件不存在。"""
 

@@ -56,6 +56,14 @@ def parse_cli_args(argv=None):
     parser.add_argument('--debug', action='store_true', help='Enable debug mode and auto reload for the current run')
     parser.add_argument('--host', help='Override the server host for the current run only')
     parser.add_argument('--port', type=int, help='Override the server port for the current run only')
+
+    # 插件 CLI 子命令（设计文档 N2）：python app.py plugin <plugin_id> <command> [args…]
+    subparsers = parser.add_subparsers(dest='subcommand')
+    plugin_parser = subparsers.add_parser('plugin', help='Run a plugin-provided CLI subcommand')
+    plugin_parser.add_argument('plugin_id', help='Plugin id')
+    plugin_parser.add_argument('command', nargs='?', default='', help='Subcommand name; omit or use "list" to list them')
+    plugin_parser.add_argument('plugin_args', nargs=argparse.REMAINDER, help='Arguments forwarded to the plugin')
+
     return parser.parse_args(argv)
 
 
@@ -78,6 +86,13 @@ def resolve_server_settings(cfg, cli_args):
 
 if __name__ == '__main__':
     cli_args = parse_cli_args()
+
+    # 插件 CLI 子命令：不启动服务器（也不初始化后台服务），直接分发后退出
+    if getattr(cli_args, 'subcommand', None) == 'plugin':
+        from core.plugins.cli import run_plugin_cli
+
+        sys.exit(run_plugin_cli(cli_args.plugin_id, cli_args.command, cli_args.plugin_args))
+
     in_docker = is_running_in_docker()
 
     try:

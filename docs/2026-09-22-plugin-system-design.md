@@ -1313,6 +1313,16 @@ class PluginAPI:
     def pause_job(self, run_id: str) -> bool: ...                         # Stable（D6 审批流）
     def resume_job(self, run_id: str) -> bool: ...                        # Stable
 
+    # ---- CLI（N2，阶段 3 追加）----
+    def register_cli(self, name: str, handler: Callable[[argparse.Namespace], int | None],
+                     description: str = '') -> None: ...                 # Stable
+        # handler 接收 argparse.Namespace：
+        #   namespace.args    -> 位置参数列表（原样）
+        #   namespace.options -> --key value / --key=value / --flag 的解析结果（dict）
+        #   每个选项同时展开为属性（--model x -> namespace.model == 'x'，连字符转下划线）
+        # 返回值：None → 0、True → 0、False → 1、int → 原样作为进程退出码
+        # 入口：python app.py plugin <plugin_id> <name> [args...]；--list 列出该插件的命令
+
     # ---- 数据 ----
     def db(self) -> sqlite3.Connection: ...              # Provisional（主库；建议只读）
     def migrate(self, statements: list[str]) -> None: ...  # Stable（表名强制 plugin_<id>_ 前缀）
@@ -1564,7 +1574,7 @@ class PluginAPI:
 | # | 项 | 说明 |
 |---|---|---|
 | N1 | **插件间通信** | 自定义事件已限定 `<id>:` 前缀。**允许**跨插件订阅（`api.on("other-plugin:xxx")`），但**不保证送达顺序**，也不检测循环触发（A emit → B 处理 → B emit → A 处理）。文档明确「插件间通信是最佳-effort，禁止依赖顺序」 |
-| N2 | **插件提供 CLI 子命令** | `python app.py plugin <id> <cmd> [args]`，供批处理/无人值守场景。契约：`api.register_cli(name, handler)`，handler 接收 `argparse.Namespace`。**阶段 3 可选** |
+| N2 | **插件提供 CLI 子命令** | **已实现**：`api.register_cli(name, handler, description='')`，入口 `python app.py plugin <plugin_id> <command> [args…]`（省略 command 或传 `list` 列出命令）。`handler` 接收 `argparse.Namespace`（`args` 位置参数 / `options` 解析结果），返回 `int \| None` 作为退出码。执行前获取数据目录独占锁，避免与运行中的实例并发写 `ui_data.json`。详见附录 I |
 | N3 | **插件 i18n** | `manifest.json` 的 `name`/`description` 只支持单语言。后续可加 `name_zh`/`name_en` 或 `i18n/<lang>.json` 目录。当前阶段不实现，但 manifest 规范预留 `i18n` 字段位 |
 | N4 | **`ui_data` 插件命名空间的写入配额** | **已实现**：单插件命名空间上限 256KB（`PLUGIN_DATA_QUOTA_BYTES`），超限 `ui_data_update` 返回 `False` 并**回滚整次写入**（内部信号异常中断 `update_ui_data` 的保存流程，磁盘内容不变），达到 80% 时预警 |
 | N5 | **`config_schema`/`secret_schema` 的 `secret: true` 项写入磁盘前可加密** | 当前明文存 `secrets.json`。后续若引入 OS keychain（如 Windows DPAPI / macOS Keychain），schema 不变、实现层透明升级。**仅预留** |
@@ -1868,3 +1878,20 @@ tests/plugin_sse_parse_test.mjs
 | 6 | 测试 | 新增 `tests/test_security_headers.py`(8)；`test_plugin_assets.py` / `test_plugin_routes.py` / `test_plugin_api.py` 各补 1–5 项断言（含端到端：`create_app()` 的响应确实带安全头、超限写入后磁盘未变） |
 
 **回归确认**：全局头对既有 700+ 前端契约测试零影响（CSP 只落在插件资源上，核心静态文件不带 CSP）。
+
+---
+
+# 附录 I · N2 插件 CLI 子命令
+
+| # | 项 | 结论 |
+|---|---|---|
+| 1 | 契约补充 | `api.register_cli(name, handler, description='')`（10.2 已追加）。原文只写「handler 接收 `argparse.Namespace`」而未定义参数如何声明；本实现取**最小约定**：主程序做通用解析（`--key value` / `--key=value` / `--flag` / 位置参数 + `--` 分隔），插件从 `namespace.args` 与 `namespace.options` 自行解释，**无需声明参数表** |
+| 2 | 命名空间 | 命令按 `(plugin_id, name)` 寻址，天然隔离；`name` 匹配 `^[a-z][a-z0-9-]{0,31}$`。**不新增 manifest 字段**——与 jobs/hooks 不同，CLI 名不构成全局命名空间，所以不需要声明式白名单 |
+| 3 | 退出码 | `None`→0、`True`→0、`False`→1、`int`→原样；命令不存在 → 2；插件不存在 / 被禁用 / 加载失败 / 数据目录被占用 / 处理器抛异常 → 1 |
+| 4 | 入口 | `app.py` 新增 `plugin` 子命令（`argparse` subparsers + `REMAINDER` 透传）；同时保留 `python -m core.plugins.cli <id> [cmd] [args…]` 作为独立入口 |
+| 5 | 并发护栏 | 执行前调用 `acquire_data_directory_lock(DATA_DIR)`，失败即提示「请先关闭正在运行的 ST-Manager」。CLI 不启动服务器、不跑 `init_services`，只加载插件并分发，因此不会与运行中的实例抢端口或覆盖 `ui_data.json` |
+| 6 | 卸载清理 | `registry.drop_state()` 一并调用 `cli.unregister_plugin()`；卸载插件后其命令立即失效 |
+| 7 | 样例 | `hello-world` 新增 `hello` 子命令（位置参数：名字；`--times N`） |
+| 8 | 测试 | `tests/test_plugin_cli.py`（39 项）：注册校验、命名空间隔离、参数解析矩阵（含 `--` 分隔与缺值退化为布尔）、退出码映射、端到端（列出 / 执行 / 转发选项 / 禁用 / 加载失败 / 锁占用 / 未知命令） |
+
+**验收实测**：`python app.py plugin hello-world list` 列出命令；`python app.py plugin hello-world hello 世界 --times 3` 打印三行问候并输出「执行完成（退出码 0）」。

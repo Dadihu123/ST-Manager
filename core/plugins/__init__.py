@@ -3,6 +3,7 @@
 公开入口（设计文档 4.1）：
 - `hooks`：Hook 总线（替代已删除的 `core/event_bus.py`）
 - `registry`：插件发现 / 加载 / 启用禁用 / 失败隔离
+- `cli`：插件 CLI 子命令（N2，`python app.py plugin <id> <cmd>`）
 - `get_api(plugin_id)`：取出已加载插件的 `PluginAPI`
 
 导入策略：包初始化只加载**无内部依赖**的子模块（`errors` / `hooks` /
@@ -30,6 +31,7 @@ _LAZY_MODULES = {
     'catalog': 'core.plugins.catalog',
     'installer': 'core.plugins.installer',
     'routes': 'core.plugins.routes',
+    'cli': 'core.plugins.cli',
 }
 
 _LAZY_ATTRIBUTES = {
@@ -50,6 +52,7 @@ __all__ = [
     'catalog',
     'installer',
     'routes',
+    'cli',
     'PluginAPI',
     'PluginError',
     'get_api',
