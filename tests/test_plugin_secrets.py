@@ -165,3 +165,35 @@ def test_read_failure_blocks_write(secrets_file, monkeypatch):
 def test_redact_masks_known_values():
     assert secrets_module.redact('key=sk-secret-value', 'sk-secret-value') == 'key=***'
     assert secrets_module.redact('nothing to hide', 'ab') == 'nothing to hide'
+
+
+def test_app_section_roundtrip(secrets_file):
+    assert secrets_module.set_app_secret('github_token', 'ghp_abcdef123456') is True
+    assert secrets_module.get_app_secret('github_token') == 'ghp_abcdef123456'
+
+    payload = json.loads(secrets_file.read_text(encoding='utf-8'))
+    assert payload['app']['github_token']['value'] == 'ghp_abcdef123456'
+    assert payload['plugins'] == {}
+
+
+def test_app_section_is_independent_from_plugin_updates(secrets_file):
+    secrets_module.set_app_secret('github_token', 'ghp_keep_me')
+    secrets_module.set_secret('demo', 'api_key', 'sk-1')
+
+    secrets_module.clear_plugin_secrets('demo')
+
+    assert secrets_module.get_app_secret('github_token') == 'ghp_keep_me'
+    assert secrets_module.get_secret('demo', 'api_key') is None
+
+
+def test_app_secret_empty_value_clears(secrets_file):
+    secrets_module.set_app_secret('github_token', 'ghp_x')
+
+    secrets_module.set_app_secret('github_token', '')
+
+    assert secrets_module.get_app_secret('github_token') is None
+
+
+def test_app_env_var_name():
+    assert secrets_module.app_env_var_name('github_token') == 'STM_APP_GITHUB_TOKEN'
+    assert secrets_module.app_env_var_name('github-token') == 'STM_APP_GITHUB_TOKEN'

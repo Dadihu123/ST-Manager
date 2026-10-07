@@ -366,6 +366,55 @@ def delete_secret(plugin_id: str, key: str) -> bool:
     return set_secret(plugin_id, key, None)
 
 
+def app_env_var_name(key: str) -> str:
+    """主程序自身密钥的环境变量名：`STM_APP_<KEY>`。"""
+    normalized = _ENV_SANITIZE_PATTERN.sub('_', str(key or '').strip().lower()).upper()
+    return f'STM_APP_{normalized}'
+
+
+def get_app_secret(key: str, *, default=None):
+    """读取 `app` 段的主程序自身密钥（如 `github_token`）。
+
+    环境变量 `STM_APP_<KEY>` 优先级最高，其余读取 `secrets.json` 的 `app` 段。
+    """
+    env_name = app_env_var_name(key)
+    env_value = os.environ.get(env_name) if env_name else None
+    if env_value:
+        return env_value
+
+    data = load_secrets()
+    section = data.get('app') if isinstance(data.get('app'), dict) else {}
+    entry = section.get(str(key))
+    if isinstance(entry, dict) and entry.get('value') not in (None, ''):
+        return str(entry.get('value'))
+    if isinstance(entry, str) and entry:
+        return entry
+    return default
+
+
+def set_app_secret(key: str, value) -> bool:
+    """写入（或清除）`app` 段的密钥；`None` / 空串表示清除。"""
+    key = str(key or '').strip()
+    if not key:
+        return False
+
+    data = load_secrets()
+    if is_degraded():
+        return False
+
+    section = data.get('app')
+    if not isinstance(section, dict):
+        section = {}
+        data['app'] = section
+
+    if value is None or str(value) == '':
+        section.pop(key, None)
+    else:
+        section[key] = {'value': str(value), 'updated_at': time.time()}
+
+    return save_secrets(data)
+
+
 def clear_plugin_secrets(plugin_id: str) -> bool:
     """清除某个插件的全部密钥（卸载时默认调用）。"""
     plugin_id = str(plugin_id or '').strip()

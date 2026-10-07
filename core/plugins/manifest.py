@@ -283,12 +283,15 @@ class PluginManifest:
         }
 
     @classmethod
-    def load(cls, plugin_dir: str, *, expected_id: str = '') -> 'PluginManifest':
+    def load(cls, plugin_dir: str, *, expected_id: str = '', check_dir_name: bool = True) -> 'PluginManifest':
         """读取并校验 `plugin_dir/manifest.json`。
 
         Args:
             plugin_dir: 插件根目录绝对路径。
             expected_id: 期望的插件 id（安装流程用于防止「清单说装 A、实际装成 B」）。
+            check_dir_name: 是否要求目录名等于 `id`。已安装插件必须为 True；
+                安装阶段解压出的目录名不可控（GitHub 归档顶层是 `repo-branch`），
+                此时传 False —— 安装完成后目录会被重命名为 id，约束自然成立。
 
         Raises:
             PluginManifestError: 结构非法。
@@ -307,7 +310,7 @@ class PluginManifest:
             raise PluginManifestError(f'id 不符合 ^[a-z][a-z0-9-]{{1,63}}$: {raw_id!r}')
 
         dir_name = os.path.basename(plugin_dir.rstrip(os.sep))
-        if plugin_id != dir_name:
+        if check_dir_name and plugin_id != dir_name:
             raise PluginManifestError(f'id ({plugin_id}) 与目录名 ({dir_name}) 不一致')
         if expected_id and plugin_id != expected_id:
             raise PluginManifestError(f'id ({plugin_id}) 与预期 ({expected_id}) 不一致')

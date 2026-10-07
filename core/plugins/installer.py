@@ -9,6 +9,7 @@
 - 供应链：强制 `manifest.id == catalog.id`
 """
 
+import hashlib
 import logging
 import os
 import re
@@ -133,6 +134,29 @@ def _ensure_free_space(path: str, required_bytes: int) -> None:
         )
 
 
+def file_sha256(path: str) -> str:
+    """计算文件 sha256（小写十六进制）。"""
+    digest = hashlib.sha256()
+    with open(path, 'rb') as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b''):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def verify_sha256(path: str, expected: str) -> None:
+    """校验归档 sha256；不匹配时抛 `PluginInstallError`。"""
+    expected = str(expected or '').strip().lower()
+    if not expected:
+        return
+
+    if not re.fullmatch(r'[0-9a-f]{64}', expected):
+        raise PluginInstallError(f'catalog 中的 sha256 格式非法: {expected!r}')
+
+    actual = file_sha256(path)
+    if actual != expected:
+        raise PluginInstallError(f'归档校验和不匹配：期望 {expected}，实际 {actual}')
+
+
 # ------------------------------------------------------------------ 解压
 
 
@@ -251,9 +275,13 @@ def locate_plugin_root(extract_dir: str, subdir: str = '') -> str:
 def install_plugin_dir(
     source_dir: str, *, expected_id: str = '', source_label: str = 'local',
 ) -> dict:
-    """把已解压的插件目录安装到 `data/plugins/<id>/`（原子替换 + 回收站）。"""
+    """把已解压的插件目录安装到 `data/plugins/<id>/`（原子替换 + 回收站）。
+
+    解压出的目录名不可控（GitHub 归档顶层是 `repo-branch`），因此这里不校验
+    目录名与 id 一致；安装完成后目录会被重命名为 id。
+    """
     source_dir = os.path.abspath(source_dir)
-    manifest = PluginManifest.load(source_dir, expected_id=expected_id)
+    manifest = PluginManifest.load(source_dir, expected_id=expected_id, check_dir_name=False)
 
     strip_forbidden_dirs(source_dir)
 
@@ -353,6 +381,10 @@ def install_from_catalog(app, entry: dict, *, ref: str = '', subdir: str = '') -
         url = build_archive_url(repo, effective_ref)
         logger.info('开始下载插件归档: %s', url)
         download_archive(url, archive_path)
+
+        expected_sha = str(source.get('sha256') or '').strip()
+        if expected_sha:
+            verify_sha256(archive_path, expected_sha)
 
         extract_dir = os.path.join(work_dir, 'extracted')
         safe_extract_archive(archive_path, extract_dir)

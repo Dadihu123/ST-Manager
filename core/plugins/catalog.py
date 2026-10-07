@@ -110,6 +110,8 @@ def _normalize_entry(raw) -> dict:
             'ref': str(source.get('ref') or 'main'),
             'subdir': str(source.get('subdir') or ''),
             'release_channel': str(source.get('release_channel') or 'stable'),
+            # 可选：发布方提供归档 sha256 时，安装前做完整性校验（12.2 S5）
+            'sha256': str(source.get('sha256') or '').strip().lower(),
         },
         'version': str(raw.get('version') or ''),
         'api_version': raw.get('api_version'),
@@ -282,10 +284,9 @@ def _github_token() -> str:
     try:
         from core.plugins import secrets as secrets_store
 
-        data = secrets_store.load_secrets()
-        entry = (data.get('app') or {}).get('github_token')
-        if isinstance(entry, dict) and entry.get('value'):
-            return str(entry['value'])
+        value = secrets_store.get_app_secret('github_token')
+        if value:
+            return str(value)
     except Exception:  # noqa: BLE001 - 读取失败按无 Token 处理
         logger.debug('读取 GitHub Token 失败', exc_info=True)
     return ''

@@ -1015,7 +1015,7 @@ CREATE INDEX IF NOT EXISTS idx_plugin_install_log ON plugin_install_log(plugin_i
 ```
 
 - 按 `plugin_id` 命名空间隔离，插件只能读写自己的。
-- `app` 段承载主程序自身的敏感项（如 GitHub Token，用于目录更新检查）。
+- `app` 段承载主程序自身的敏感项（如 GitHub Token，用于目录更新检查）；读写走 `secrets.get_app_secret()` / `set_app_secret()`，环境变量 `STM_APP_<KEY>` 优先级最高。
 - 每项记录 `updated_at` 用于审计与 UI 展示。
 
 ## 7.3 兼容策略（D2 的「注意兼容」）
@@ -1802,3 +1802,17 @@ tests/plugin_sse_parse_test.mjs
 | 9 | 顺带修复 | `job_store._dump_json` 的截断逻辑改为逐字段裁剪（原实现遇到未列入白名单的大字段会撞 `CHECK (length(result_json) <= 262144)`）；`normalize_items` 幂等化，避免 `submit_job → create_job` 双重归一化把 payload 包成 `{"payload": …}` |
 
 **验收实测**（`data/plugins/hello-world`，1000 项作业）：`completed=980 / failed=20 / total=1000`，耗时 2.63s；SSE 首帧 `snapshot`（`id: 0`）与终帧 `done` 正常；`retry(only_failed=True)` 后事件数 1002 → 1024（只重跑 20 个失败项 + 1 条 log + 1 条 done）；取消 → `cancelled`。
+
+---
+
+# 附录 E · 阶段 2 实现记录（安装器与官方目录）
+
+| # | 项 | 结论 |
+|---|---|---|
+| 1 | 归档完整性校验 | catalog `source.sha256`（可选，64 位小写十六进制）在下载后校验；不符即中止，**不落盘**（12.2 S5 的缓解措施落地） |
+| 2 | `app` 段密钥接口 | 新增 `secrets.get_app_secret()` / `set_app_secret()`；GitHub Token 改走该通道，环境变量 `STM_APP_<KEY>` 优先（见 7.2） |
+| 3 | 目录名约束放宽 | `PluginManifest.load(check_dir_name=...)`：安装阶段解压目录名不可控（GitHub 归档顶层是 `repo-branch`），此时不校验目录名；安装完成后目录被重命名为 id，**已安装插件仍强校验**。修复前「从 GitHub 安装」必然失败 |
+| 4 | 测试 | `test_plugin_installer.py`（47：zip-slip / 绝对路径 / 盘符 / 符号链接 / 炸弹 / 体积与条目上限 / 磁盘空间 / 供应链 id / 回收站 / 卸载清理）+ `test_plugin_catalog.py`（28：清单解析与 SSRF 约束 / 远端拉取 / 缓存新鲜期 / 离线降级 / 关闭远端 / 体积上限 / Release 优先与回退 / 24h 缓存 / Token 透传）+ `test_plugin_secrets.py` 新增 app 段 4 项 |
+| 5 | 端到端 | 本地 HTTP 模拟 codeload 走**真实下载路径**：下载 → sha256 → 解压（含 GitHub 风格的 `repo-main/` 顶层目录）→ 安装成功；sha256 不符被拒且目录未创建；安装后 manifest 可被正常重新加载 |
+
+**未覆盖**：真实 GitHub 联调需要你提供插件仓库的 `owner/repo`（当前 `static/plugins/catalog.json` 为空清单）；catalog 的 `release_channel: beta` 分支仅在测试中以远端 manifest 回退路径覆盖。
