@@ -165,6 +165,16 @@ DEFAULT_CONFIG = {
     # False: 仅将 | 视为自动化标签分隔符（保留 / 作为标签字符）
     # True: 将 / 也视为分隔符（更便于批量输入）
     "automation_slash_is_tag_separator": False,
+
+    # 插件系统：官方插件目录（catalog）的远端拉取设置
+    # 清单放在本仓库 static/plugins/catalog.json，用户打开「官方目录」页时才拉取；
+    # 留空或关闭 plugin_catalog_remote_enabled 时只使用包内兜底清单。
+    "plugin_catalog_url": (
+        "https://raw.githubusercontent.com/Dadihu123/ST-Manager/main/static/plugins/catalog.json"
+    ),
+    "plugin_catalog_remote_enabled": True,
+    "plugin_catalog_cache_hours": 6,
+    # 插件目录清单缓存的有效期（小时），过期后重新拉取远端清单
 }
 
 VALID_ST_AUTH_TYPES = {'basic', 'web', 'auth_web'}

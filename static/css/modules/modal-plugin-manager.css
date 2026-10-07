@@ -1,0 +1,431 @@
+/* static/css/modules/modal-plugin-manager.css
+   插件管理弹窗（templates/modals/plugin_manager.html + static/js/components/pluginManager.js）
+   只使用语义颜色 Token，不引入调色板类。 */
+
+.plugin-manager-shell {
+  width: min(64rem, calc(100vw - 2 * var(--ui-modal-gutter))) !important;
+  height: min(52rem, calc(100dvh - 2 * var(--ui-modal-gutter))) !important;
+  max-width: calc(100vw - 2 * var(--ui-modal-gutter));
+  max-height: calc(100dvh - 2 * var(--ui-modal-gutter));
+  border-radius: var(--ui-radius-lg, 0.75rem);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.plugin-manager-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.plugin-manager-subtitle {
+  margin: 0.25rem 0 0;
+  font-size: 0.75rem;
+  color: var(--content-muted);
+}
+
+.plugin-manager-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid var(--border-default);
+  border-radius: var(--ui-radius-sm, 0.5rem);
+  background: var(--action-surface);
+  color: var(--action-text, var(--content-primary));
+  cursor: pointer;
+}
+
+.plugin-manager-icon-button:hover:not(:disabled) {
+  background: var(--action-surface-hover);
+}
+
+.plugin-manager-icon-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.plugin-manager-tabs {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 0.35rem;
+  padding: 0 1rem 0.5rem;
+  border-bottom: 1px solid var(--border-divider);
+}
+
+.plugin-manager-tab {
+  padding: 0.4rem 0.9rem;
+  border: 1px solid transparent;
+  border-radius: var(--ui-radius-sm, 0.5rem);
+  background: transparent;
+  color: var(--content-secondary);
+  font-size: 0.83rem;
+  cursor: pointer;
+}
+
+.plugin-manager-tab:hover {
+  background: var(--state-hover-surface);
+  color: var(--content-primary);
+}
+
+.plugin-manager-tab.is-active {
+  background: var(--accent-soft);
+  border-color: var(--accent-action);
+  color: var(--content-primary);
+}
+
+.plugin-manager-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  padding: 0.9rem 1rem;
+}
+
+.plugin-manager-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.plugin-manager-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.plugin-manager-empty {
+  padding: 1rem;
+  border: 1px dashed var(--border-default);
+  border-radius: var(--ui-radius-sm, 0.5rem);
+  color: var(--content-secondary);
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.plugin-manager-hint {
+  font-size: 0.75rem;
+  color: var(--content-muted);
+  margin: 0;
+}
+
+.plugin-manager-hint code,
+.plugin-card-id {
+  padding: 0.05rem 0.3rem;
+  border-radius: 0.3rem;
+  background: var(--surface-container-sunken, var(--surface-container));
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.72rem;
+}
+
+.plugin-manager-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.5rem 0.7rem;
+  border-radius: var(--ui-radius-sm, 0.5rem);
+  border: 1px solid var(--border-default);
+  background: var(--surface-container-raised);
+  color: var(--content-secondary);
+  font-size: 0.8rem;
+}
+
+.plugin-manager-banner--warning {
+  border-color: var(--status-warning-text);
+  color: var(--status-warning-text);
+}
+
+.plugin-manager-banner--danger {
+  border-color: var(--status-danger-text);
+  color: var(--status-danger-text);
+}
+
+.plugin-manager-banner--info {
+  border-color: var(--border-default);
+  color: var(--content-secondary);
+}
+
+.plugin-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid var(--border-default);
+  border-radius: var(--ui-radius-md, 0.625rem);
+  background: var(--surface-container);
+}
+
+.plugin-card.is-disabled {
+  opacity: 0.72;
+}
+
+.plugin-card.is-failed {
+  border-color: var(--status-danger-text);
+}
+
+.plugin-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.plugin-card-identity {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.plugin-card-status {
+  font-size: 0.8rem;
+  line-height: 1.4rem;
+  color: var(--accent-action);
+}
+
+.plugin-card-name {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--content-primary);
+}
+
+.plugin-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+  margin: 0.2rem 0 0;
+  font-size: 0.75rem;
+  color: var(--content-muted);
+}
+
+.plugin-card-badge {
+  padding: 0.05rem 0.35rem;
+  border: 1px solid var(--border-default);
+  border-radius: 0.35rem;
+  font-size: 0.68rem;
+  color: var(--content-secondary);
+}
+
+.plugin-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.plugin-card-description {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--content-secondary);
+}
+
+.plugin-card-permissions,
+.plugin-card-hint {
+  margin: 0;
+  font-size: 0.74rem;
+  color: var(--content-muted);
+}
+
+.plugin-card-error {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--status-danger-text);
+}
+
+.plugin-button {
+  padding: 0.32rem 0.75rem;
+  border: 1px solid var(--action-border, var(--border-default));
+  border-radius: var(--ui-radius-sm, 0.5rem);
+  background: var(--action-surface);
+  color: var(--action-text, var(--content-primary));
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.plugin-button:hover:not(:disabled) {
+  background: var(--action-surface-hover);
+}
+
+.plugin-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.plugin-button--ghost {
+  background: transparent;
+  border-color: var(--border-default);
+  color: var(--content-secondary);
+}
+
+.plugin-button--ghost:hover:not(:disabled) {
+  background: var(--state-hover-surface);
+  color: var(--content-primary);
+}
+
+.plugin-button--danger {
+  background: transparent;
+  border-color: var(--status-danger-text);
+  color: var(--status-danger-text);
+}
+
+.plugin-button--danger:hover:not(:disabled) {
+  background: var(--state-hover-surface);
+}
+
+.plugin-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.7rem;
+  border: 1px solid var(--border-divider);
+  border-radius: var(--ui-radius-sm, 0.5rem);
+  background: var(--surface-container-sunken, var(--surface-container));
+}
+
+.plugin-form-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--content-primary);
+}
+
+.plugin-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.plugin-form-label {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+  color: var(--content-primary);
+}
+
+.plugin-form-required {
+  color: var(--status-danger-text);
+}
+
+.plugin-form-help {
+  font-size: 0.72rem;
+  color: var(--content-muted);
+}
+
+.plugin-form-field input[type="text"],
+.plugin-form-field input[type="number"],
+.plugin-form-field input[type="password"],
+.plugin-form-field select {
+  width: 100%;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--form-border, var(--border-default));
+  border-radius: var(--ui-radius-xs, 0.375rem);
+  background: var(--form-surface, var(--surface-container));
+  color: var(--content-primary);
+  font-size: 0.82rem;
+}
+
+.plugin-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.4rem;
+}
+
+.plugin-secret-state {
+  padding: 0.02rem 0.35rem;
+  border-radius: 0.35rem;
+  font-size: 0.68rem;
+  border: 1px solid var(--border-default);
+  color: var(--content-muted);
+}
+
+.plugin-secret-state.is-set {
+  border-color: var(--status-success-text);
+  color: var(--status-success-text);
+}
+
+.plugin-secret-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.plugin-inline-button {
+  padding: 0.28rem 0.6rem;
+  border: 1px solid var(--border-default);
+  border-radius: var(--ui-radius-xs, 0.375rem);
+  background: transparent;
+  color: var(--content-secondary);
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.plugin-inline-button:hover {
+  background: var(--state-hover-surface);
+  color: var(--content-primary);
+}
+
+.plugin-upload-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.plugin-update-list {
+  margin: 0.4rem 0 0;
+  padding-left: 1.1rem;
+  font-size: 0.8rem;
+  color: var(--content-secondary);
+}
+
+.plugin-update-list li {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: space-between;
+}
+
+.plugin-manager-footer {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  border-top: 1px solid var(--border-divider);
+}
+
+.plugin-toggle-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+  color: var(--content-secondary);
+}
+
+/* 插件运行时容器（static/js/pluginHost.js 的 createRoot 默认挂载点） */
+.plugin-host-root {
+  position: relative;
+}
+
+.plugin-host-root > [data-plugin] {
+  display: block;
+}

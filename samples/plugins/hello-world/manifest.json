@@ -1,0 +1,51 @@
+{
+  "id": "hello-world",
+  "name": "Hello World 示例插件",
+  "version": "0.1.0",
+  "api_version": 1,
+  "author": "ST-Manager",
+  "description": "阶段 0 验收示例：后端注册一个 /ping 路由，前端注入一个按钮调用它，并演示配置与密钥读取。",
+  "license": "MIT",
+  "backend": {
+    "entry": "backend",
+    "register": "register",
+    "jobs": [],
+    "hooks": ["card.updated"]
+  },
+  "frontend": {
+    "entry": "frontend/plugin.js",
+    "styles": ["frontend/plugin.css"]
+  },
+  "permissions": ["cards.read", "secrets.read"],
+  "config_schema": {
+    "type": "object",
+    "properties": {
+      "greeting": {
+        "type": "string",
+        "title": "问候语",
+        "description": "点击按钮前显示在面板上的文本。",
+        "default": "你好，插件系统"
+      },
+      "show_timestamp": {
+        "type": "boolean",
+        "title": "显示时间戳",
+        "default": true
+      }
+    }
+  },
+  "secret_schema": {
+    "type": "object",
+    "properties": {
+      "api_key": {
+        "type": "string",
+        "title": "示例 API Key",
+        "secret": true
+      },
+      "base_url": {
+        "type": "string",
+        "title": "示例 API 地址",
+        "default": "https://example.com/v1"
+      }
+    }
+  }
+}

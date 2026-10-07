@@ -52,6 +52,7 @@ core/
 ├─ data/                       # SQLite、UI 数据、聊天和索引存储
 ├─ services/                   # 文件扫描、缓存、索引、同步和业务服务
 ├─ automation/                 # 规则引擎、动作执行、模板和标签合并
+├─ plugins/                    # 插件系统：manifest 校验、运行时、作业/SSE、安装器与管理 API
 └─ utils/                      # 图片、路径、解析、哈希和纯函数工具
 templates/                     # Jinja 页面、组件和模态框
 static/
@@ -91,6 +92,7 @@ docs/                          # API、配置、开发和设计说明
 | `st_sync` | SillyTavern 本地/API 连接、扩展资源和 JS-Slash-Runner 脚本同步 |
 | `system` | 状态、设置、扫描、索引、快照、备份和维护 |
 | `forum` | 来源论坛帖子预览 |
+| `plugins` | 插件管理 API、官方目录、安装/卸载/启停、插件密钥与作业 |
 
 ### 数据流
 

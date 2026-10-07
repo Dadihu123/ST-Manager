@@ -27,6 +27,12 @@ except ImportError:  # pragma: no cover - temporary compatibility for Task 3
 from core.api.v1 import cards, world_info, system, resources, automation, extensions, presets, st_sync, chats, beautify, forum
 from core.api import views
 
+# === 插件系统 ===
+from core.plugins import assets as plugin_assets
+from core.plugins import jobs as plugin_jobs
+from core.plugins import registry as plugin_registry
+from core.plugins import routes as plugin_routes
+
 logger = logging.getLogger(__name__)
 
 def create_app():
@@ -74,8 +80,16 @@ def create_app():
     
     # 2. 页面视图
     app.register_blueprint(views.bp)       # 前端页面入口
-    
-    # 3. 初始化外网访问认证
+
+    # 2.5 插件系统：静态资源路由与管理 API
+    # 注册在 init_auth 之前，因此与核心蓝图一样受认证 before_request 保护。
+    app.register_blueprint(plugin_assets.bp)
+    app.register_blueprint(plugin_routes.bp)
+
+    # 3. 加载插件（逐插件 try/except，任何坏插件都不得阻止应用启动）
+    plugin_registry.load_all(app)
+
+    # 4. 初始化外网访问认证
     init_auth(app)
     
     return app
@@ -146,9 +160,23 @@ def init_services():
         # 6. 启动应用内来源监控调度器（自身幂等，且线程为 daemon）
         start_monitor_scheduler()
 
+        # 7. 启动插件作业 worker（幂等；启动时顺带做崩溃恢复，把 running/queued 置为 aborted）
+        try:
+            plugin_jobs.start_plugin_job_worker()
+        except Exception as e:
+            logger.error(f"Plugin job worker failed to start: {e}")
+
         # 初始化完成
         ctx.set_status(status="ready", message="服务已就绪")
         print("✅ 后台服务启动完成")
+
+        # 8. 通知插件：应用已就绪（错误在 hooks 内部逐 handler 隔离）
+        try:
+            from core.plugins import hooks
+
+            hooks.emit('app.ready', {})
+        except Exception as e:
+            logger.error(f"Plugin app.ready dispatch failed: {e}")
         
     except Exception as e:
         logger.error(f"Service initialization failed: {e}")

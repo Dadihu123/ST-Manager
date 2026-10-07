@@ -120,6 +120,22 @@ def _mark_job_status(job_id: int, status: str, error_msg: str = ''):
         )
         _prune_terminal_jobs(conn)
         conn.commit()
+        row = conn.execute(
+            'SELECT job_type, entity_id FROM index_jobs WHERE id = ?',
+            (int(job_id),),
+        ).fetchone()
+
+    # 通知插件：索引作业进入终态（成功/失败都会经过这里）
+    try:
+        from core.plugins import hooks
+
+        hooks.emit('index.job_done', {
+            'job_type': row['job_type'] if row else '',
+            'entity_id': row['entity_id'] if row else '',
+            'status': status,
+        })
+    except Exception:
+        logger.debug('index.job_done hook 派发失败', exc_info=True)
 
 
 def _prune_terminal_jobs(conn):

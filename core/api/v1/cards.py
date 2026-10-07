@@ -2174,6 +2174,17 @@ def api_update_card():
         # 来源动作只由“更新来源链接后”或手动执行入口触发。
         # 卡片内容更新、封面替换和导入完成后不再直接访问来源，避免绕过触发场景配置。
 
+        # 通知插件：卡片已更新（放在 return 之前，仅成功路径派发）
+        try:
+            from core.plugins import hooks
+
+            hooks.emit('card.updated', {
+                'card_id': return_new_id or raw_id,
+                'changed_fields': sorted(data.keys()) if isinstance(data, dict) else [],
+            })
+        except Exception:
+            logger.debug('card.updated hook 派发失败', exc_info=True)
+
         refreshed_source_revision = build_file_source_revision(current_full_path)
         if final_return_obj is not None:
             final_return_obj['source_revision'] = refreshed_source_revision
@@ -2275,6 +2286,20 @@ def api_move_card():
         }
         if failed_details:
             response_payload["failed_details"] = failed_details
+
+        # 通知插件：卡片已移动
+        try:
+            from core.plugins import hooks
+
+            hooks.emit('card.moved', {
+                'moves': [
+                    {'old_id': item.get('old_id'), 'new_id': item.get('new_id')}
+                    for item in moved_details
+                ],
+            })
+        except Exception:
+            logger.debug('card.moved hook 派发失败', exc_info=True)
+
         return jsonify(response_payload)
     except Exception as e:
         return jsonify({"success": False, "msg": str(e)})
@@ -2518,6 +2543,14 @@ def api_delete_cards():
         if ui_changed:
             # 批量删除卡片：体积下降是预期结果，显式放行退化护栏。
             save_ui_data(ui_data, allow_shrink=True)
+
+        # 通知插件：卡片已删除
+        try:
+            from core.plugins import hooks
+
+            hooks.emit('card.deleted', {'card_ids': list(deleted_card_ids)})
+        except Exception:
+            logger.debug('card.deleted hook 派发失败', exc_info=True)
         
         return jsonify({
             "success": True, 
@@ -4545,6 +4578,17 @@ def api_delete_tags():
         # 批量删除标签会同时清理 tag_to_category 映射，体积下降是预期结果。
         save_ui_data(ui_data, allow_shrink=True)
 
+        # 通知插件：标签已删除
+        try:
+            from core.plugins import hooks
+
+            hooks.emit('tag.deleted', {
+                'tags': sorted(list(affected_tags)),
+                'card_ids': [card_id for card_id, _ in changed_cards],
+            })
+        except Exception:
+            logger.debug('tag.deleted hook 派发失败', exc_info=True)
+
         return jsonify({
             "success": True,
             "updated_cards": updated_cards,
@@ -4658,6 +4702,18 @@ def api_batch_tags():
             merged_order = _append_new_tags_to_order(_get_tag_order(ui_data), all_added_tags)
             if _set_tag_order(ui_data, merged_order):
                 save_ui_data(ui_data)
+
+        # 通知插件：批量标签已写入
+        try:
+            from core.plugins import hooks
+
+            hooks.emit('tag.applied', {
+                'card_ids': list(ids),
+                'added': list(all_added_tags),
+                'removed': list(_normalize_tag_list(remove_tags)),
+            })
+        except Exception:
+            logger.debug('tag.applied hook 派发失败', exc_info=True)
 
         return jsonify({
             "success": True,
@@ -5759,6 +5815,19 @@ def api_upload_commit():
         # 清理
         try: shutil.rmtree(stage_dir)
         except: pass
+
+        # 通知插件：导入完成（批量提交入口）
+        try:
+            from core.plugins import hooks
+
+            hooks.emit('card.created', {
+                'card_ids': [
+                    item.get('id') for item in new_cards
+                    if isinstance(item, dict) and item.get('id')
+                ],
+            })
+        except Exception:
+            logger.debug('card.created hook 派发失败', exc_info=True)
 
         return jsonify({
             "success": True,

@@ -2323,6 +2323,19 @@ def api_save_world_info():
             _enqueue_worldinfo_file_refresh(final_path, load_config())
         except Exception as exc:
             logger.warning('Enqueue world info refresh failed for %s: %s', final_path, exc)
+
+        # 通知插件：世界书已保存
+        try:
+            from core.plugins import hooks
+
+            hooks.emit('worldbook.saved', {
+                'source_type': history_source_type,
+                'file_path': final_path,
+                'card_id': '',
+            })
+        except Exception:
+            logger.debug('worldbook.saved hook 派发失败', exc_info=True)
+
         return jsonify({
             "success": True,
             "new_path": final_path,

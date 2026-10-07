@@ -10,6 +10,7 @@ from core.config import CARDS_FOLDER, DEFAULT_DB_PATH
 from core.data.discord_tag_store import ensure_discord_tag_mapping_schema
 from core.data.index_runtime_store import ensure_index_runtime_schema
 from core.data.source_update_monitor_store import ensure_source_update_monitor_schema
+from core.plugins.job_store import ensure_plugin_jobs_schema
 
 # === 工具函数 (用于数据迁移) ===
 from core.utils.image import extract_card_info
@@ -222,6 +223,7 @@ def init_database():
 
     ensure_index_runtime_schema(conn)
     ensure_source_update_monitor_schema(conn)
+    ensure_plugin_jobs_schema(conn)
 
     # === 3. 数据迁移逻辑 ===
     if not is_existing_db:

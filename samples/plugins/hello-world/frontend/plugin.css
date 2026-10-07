@@ -1,0 +1,48 @@
+/* Hello World 示例插件样式。
+   F11：所有选择器必须以 .plugin-hello-world 作用域开头。 */
+
+.plugin-hello-world-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin: 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border-default);
+  border-radius: 0.5rem;
+  background: var(--surface-container);
+}
+
+.plugin-hello-world-title {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--content-primary);
+}
+
+.plugin-hello-world-text {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--content-secondary);
+}
+
+.plugin-hello-world-button {
+  align-self: flex-start;
+  padding: 0.3rem 0.75rem;
+  border: 1px solid var(--action-border, var(--border-default));
+  border-radius: 0.4rem;
+  background: var(--action-surface);
+  color: var(--action-text, var(--content-primary));
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.plugin-hello-world-button:hover {
+  background: var(--action-surface-hover);
+}
+
+.plugin-hello-world-output {
+  margin: 0;
+  max-height: 12rem;
+  overflow: auto;
+  font-size: 0.72rem;
+  color: var(--content-muted);
+}

@@ -698,6 +698,7 @@ def _perform_scan_logic(reason=''):
     """执行具体的数据库同步逻辑"""
     db_path = DEFAULT_DB_PATH
     cards_root = os.path.abspath(os.fspath(CARDS_FOLDER))
+    started_at = time.monotonic()
     _set_scan_progress(True, message=reason or 'full_scan', progress=0)
     try:
         _perform_scan_logic_inner(db_path, cards_root)
@@ -709,6 +710,24 @@ def _perform_scan_logic(reason=''):
         _record_full_scan_completed()
     finally:
         _set_scan_progress(False, progress=100)
+
+    # 通知插件：全量扫描完成（scanned 为扫描后的卡片总数）
+    try:
+        with sqlite3.connect(db_path, timeout=30) as conn:
+            scanned = int(conn.execute('SELECT COUNT(*) FROM card_metadata').fetchone()[0])
+    except Exception:
+        scanned = 0
+
+    try:
+        from core.plugins import hooks
+
+        hooks.emit('scan.completed', {
+            'scanned': scanned,
+            'elapsed': round(time.monotonic() - started_at, 3),
+            'reason': reason or 'full_scan',
+        })
+    except Exception:
+        logger.debug('scan.completed hook 派发失败', exc_info=True)
 
 
 def _perform_scan_logic_inner(db_path, cards_root):

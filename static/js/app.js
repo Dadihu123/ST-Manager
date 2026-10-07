@@ -40,7 +40,9 @@ import beautifyGrid from "./components/beautifyGrid.js";
 import beautifyPreviewFrame from "./components/beautifyPreviewFrame.js";
 import sourceUpdateMonitor from "./components/sourceUpdateMonitor.js";
 import styledSelect from "./components/styledSelect.js";
+import pluginManager from "./components/pluginManager.js";
 import { initPasteImportHandler } from "./components/pasteImportHandler.js";
+import { PluginHost } from "./pluginHost.js";
 import "./utils/numberControl.js";
 
 // 3. 监听 Alpine 初始化事件
@@ -82,7 +84,15 @@ const registerComponents = () => {
   Alpine.data("beautifyPreviewFrame", beautifyPreviewFrame);
   Alpine.data("sourceUpdateMonitor", sourceUpdateMonitor);
   Alpine.data("styledSelect", styledSelect);
+  Alpine.data("pluginManager", pluginManager);
   initPasteImportHandler();
+
+  // 前端插件运行时：懒加载，失败不影响核心 UI
+  try {
+    PluginHost.init();
+  } catch (error) {
+    console.warn("PluginHost init failed:", error);
+  }
   console.log("✅ ST Manager Frontend: Modules Loaded & Alpine Initialized");
 };
 
