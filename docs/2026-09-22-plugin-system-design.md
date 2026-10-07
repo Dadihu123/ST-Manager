@@ -1,6 +1,6 @@
 # ST-Manager 插件系统设计（含官方插件目录与 API 契约）
 
-> 状态：**设计文档，不实现**
+> 状态：**已实现**（阶段 0–3 全部落地，延后项 N2 / N4 亦已完成；逐阶段实现记录、偏差与验收实测见附录 C–I）
 > 日期：2026-09-22
 > 前置阅读：`docs/2026-09-22-plugin-system-and-ai-plugin-analysis.md`（脚本 AI 能力解剖 + 现状盘点）
 > 范围：**只做插件系统本身**。AI 分析/打标/世界书缩减等具体插件功能将在独立仓库实现，本文只定义它们所依赖的 API 契约。
@@ -303,6 +303,8 @@ data/plugins/                   # 只放插件本体（目录名 = plugin id）
 | `plugin_catalog_cache_hours` | `6` | 缓存时长 |
 
 ## 3.2 catalog 格式
+
+**拉取约束**：远端目录清单体积上限 `MAX_CATALOG_BYTES=512KB`，超出直接判定为不可用并回退包内清单；缓存时长由 `plugin_catalog_cache_hours` 控制（默认 6 小时）；`source.sha256`（可选）在下载归档后校验完整性。
 
 ```jsonc
 {
@@ -765,6 +767,7 @@ def worker_loop():
 | **并发控制** | 每个作业内按插件 config 的 `concurrency` 用 `ThreadPoolExecutor`；**每线程自建 SQLite 连接** | `index_job_worker.py:32-39` |
 | **认领去重** | 用 `claim_token` 写入独立列（**不要**像 `index_job_worker.py:97` 那样复用 `error_msg`——那是权宜之计） | — |
 | **单插件并发上限** | `_claim_runnable_jobs` 里 `GROUP BY plugin_id` 各取前 2 个（`MAX_JOBS_PER_PLUGIN=2`），防止插件 A 提交 100 个作业饿死插件 B | — |
+| **单作业条目上限** | `submit_job` 的 items 数量上限 `MAX_ITEMS_PER_RUN=20000`，超出直接拒绝（`plugin_job_error`），避免一次提交撑爆条目表与事件表 | — |
 | **认领原子性** | 用 `UPDATE ... WHERE run_id IN (SELECT ... LIMIT ?)` + `claim_token` 二次过滤（同 `index_job_worker.py:85-107` 模式），保证多 worker 不重复认领 | `index_job_worker.py:85-107` |
 
 **并发与 SQLite**：`sqlite3` 连接不能跨线程共享。每个 worker 线程必须 `sqlite3.connect(DEFAULT_DB_PATH, timeout=60)` 自建连接，并设 `PRAGMA journal_mode=WAL`（参照 `index_job_worker.py:33-36`）。
@@ -1478,16 +1481,25 @@ class PluginAPI:
 
 | `error` | HTTP | 含义 |
 |---|---|---|
+| `plugin_manifest_invalid` | 400 | manifest 缺失或不符合规范 |
+| `api_version_unsupported` | 409 | 插件 API 版本不兼容 |
+| `plugin_load_failed` | 500 | 插件加载失败（`register` 抛异常等） |
 | `plugin_not_found` | 404 | 插件不存在 |
 | `plugin_disabled` | 409 | 插件已禁用 |
-| `plugin_load_failed` | 500 | 插件加载失败 |
+| `plugin_secret_error` | 500 | 密钥读写失败 |
+| `plugin_job_error` | 400 | 作业参数或状态非法 |
 | `job_not_found` | 404 | 作业不存在 |
 | `job_not_running` | 409 | 作业非运行态，无法取消/暂停 |
 | `job_already_running` | 409 | 同插件已有运行中作业 |
 | `sse_limit_reached` | 429 | SSE 连接数超限 |
 | `catalog_offline` | 502 | 目录/仓库不可达 |
-| `install_unsafe_archive` | 400 | 归档未通过安全检查 |
-| `api_version_unsupported` | 409 | 插件 API 版本不兼容 |
+| `plugin_install_failed` | 400 | 安装流程失败（下载 / 解压 / 落盘） |
+| `install_unsafe_archive` | 400 | 归档未通过安全检查（zip-slip / 炸弹 / 链接逃逸） |
+| `plugin_asset_invalid` | 404 | 插件资源路径非法或扩展名不在白名单 |
+| `plugin_cli_error` | 400 | CLI 子命令不存在或参数非法 |
+
+> 基类的 `plugin_error` 仅作兜底，不出现在上表中。
+> 本表与 `core/plugins/errors.py` 的 `code` / `http_status` 由 `tests/test_plugin_error_codes.py` 强制保持一致（含 HTTP 状态码）。
 
 ## 10.5 AI 插件需要的能力（需求侧核对表）
 
@@ -1578,7 +1590,7 @@ class PluginAPI:
 | N3 | **插件 i18n** | `manifest.json` 的 `name`/`description` 只支持单语言。后续可加 `name_zh`/`name_en` 或 `i18n/<lang>.json` 目录。当前阶段不实现，但 manifest 规范预留 `i18n` 字段位 |
 | N4 | **`ui_data` 插件命名空间的写入配额** | **已实现**：单插件命名空间上限 256KB（`PLUGIN_DATA_QUOTA_BYTES`），超限 `ui_data_update` 返回 `False` 并**回滚整次写入**（内部信号异常中断 `update_ui_data` 的保存流程，磁盘内容不变），达到 80% 时预警 |
 | N5 | **`config_schema`/`secret_schema` 的 `secret: true` 项写入磁盘前可加密** | 当前明文存 `secrets.json`。后续若引入 OS keychain（如 Windows DPAPI / macOS Keychain），schema 不变、实现层透明升级。**仅预留** |
-| N6 | **作业 `payload_json` 含 `secret_ref` 的运行时解析** | `submit_job` 约定 payload 里只存 `{"secret_ref": "key_name"}`，worker 启动时 `ctx.api.get_secret()` 解析替换，**密钥值不落 `plugin_jobs` 表** |
+| N6 | **作业 `payload_json` 含 `secret_ref` 的运行时解析** | **已实现**：`submit_job` 约定 payload 里只存 `{"secret_ref": "key_name"}`，worker 运行时用 `JobContext.resolve_secret(key)` 解析，**密钥值不落 `plugin_jobs` 表** |
 
 ---
 
@@ -1895,3 +1907,22 @@ tests/plugin_sse_parse_test.mjs
 | 8 | 测试 | `tests/test_plugin_cli.py`（39 项）：注册校验、命名空间隔离、参数解析矩阵（含 `--` 分隔与缺值退化为布尔）、退出码映射、端到端（列出 / 执行 / 转发选项 / 禁用 / 加载失败 / 锁占用 / 未知命令） |
 
 **验收实测**：`python app.py plugin hello-world list` 列出命令；`python app.py plugin hello-world hello 世界 --times 3` 打印三行问候并输出「执行完成（退出码 0）」。
+
+---
+
+# 附录 J · 契约收尾审计
+
+对设计文档逐条核对「计划值 vs 实现值」的结果与修补：
+
+| # | 审计项 | 结果 |
+|---|---|---|
+| 1 | 文档状态行 | 原为「设计文档，**不实现**」，与当前事实不符；已改为「**已实现**（阶段 0–3 全部落地，延后项 N2 / N4 亦已完成）」并指向附录 C–I |
+| 2 | 统一错误码表（10.4） | 文档只列了 10 个，代码有 16 个。补登 `plugin_manifest_invalid` / `plugin_secret_error` / `plugin_job_error` / `plugin_install_failed` / `plugin_asset_invalid` / `plugin_cli_error`，并按「manifest → 生命周期 → 密钥 → 作业 → SSE → 目录 → 安装 → 资源 → CLI」重排 |
+| 3 | 数值契约 | 50MB 下载 / 200MB 解压 / 100:1 压缩比 / ≤5000 条目 / 15s 心跳 / 4+32 SSE 连接 / 保留 100+50 / 256KB ui_data / 64KB 单项 payload / 262144 表级 CHECK / `MAX_JOBS_PER_PLUGIN=2` —— **全部一致**；**补登**遗漏的 `MAX_ITEMS_PER_RUN=20000`（6.3 表）与 `MAX_CATALOG_BYTES=512KB`（3.2） |
+| 4 | 延后项状态 | N2 / N4 / N6 已在正文标注「**已实现**」；N1（跨插件事件 best-effort）、N3（i18n 字段位预留）、N5（OS keychain 预留）保持原状，属主动不做 |
+| 5 | 防漂移测试（数值） | 新增 `tests/test_plugin_contract_values.py`(16)：**双向**断言——代码常量等于期望值，**且**设计文档含对应人类可读描述（如 `MAX_DOWNLOAD_BYTES` ↔ 文档中的 `max 50MB`），任一侧漂移即失败 |
+| 6 | 防漂移测试（错误码） | 新增 `tests/test_plugin_error_codes.py`(12)：10.4 表 ↔ `errors.py` 的 `code` 与 `http_status` 双向一致；另覆盖 `to_dict()` 输出、`detail` 透传、以及「子类继承但 code/status 独立」（`install_unsafe_archive` vs `plugin_install_failed`） |
+| 7 | 打包路径核对 | `.github/workflows/build-desktop.yml` 仅 `--add-data templates` 与 `static`，因此 `static/plugins/catalog.json` 随包分发；`data/plugins/` 属用户数据，由 `ensure_runtime_dirs` 与安装流程在运行时创建 —— 符合预期，无需改动 |
+| 8 | 交叉引用 | 附录 A（后续工作）与附录 B（重构清单）标记为已闭环；`docs/DEVELOPMENT.md` 的插件小节列出全部插件测试文件 |
+
+**结论**：阶段 0–3 与延后清单中承诺的条目已全部落地或标注为主动不做；文档与代码之间**可机检的部分已全部纳入测试**。
