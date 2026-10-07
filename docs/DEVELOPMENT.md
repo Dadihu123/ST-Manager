@@ -173,6 +173,29 @@ node tests/tag_filter_modal_blacklist_regression_test.mjs
 
 新增行为时，优先补充对应服务/API 测试；涉及模板、图标、Alpine 状态或 iframe 预览时，同时更新前端契约测试。
 
+## 插件开发
+
+插件规范以 `docs/2026-09-22-plugin-system-design.md` 为唯一事实来源，对外 API 参考在
+`docs/plugin-api.md`（由代码生成，请勿手工编辑）。
+
+```bash
+# 生成一个符合规范的插件骨架（默认输出到 data/plugins/，重启后加载）
+python tools/new_plugin.py my-plugin --name "我的插件"
+
+# 重新生成插件 API 参考（新增/删除 API 后必须执行，否则测试会失败）
+python tools/gen_plugin_api_docs.py
+python tools/gen_plugin_api_docs.py --check    # 只校验，不写文件
+
+# 插件系统测试
+pytest -q tests/test_plugin_manifest.py tests/test_plugin_registry.py tests/test_plugin_jobs.py
+pytest -q tests/test_plugin_dependencies.py tests/test_plugin_installer.py tests/test_plugin_catalog.py
+pytest -q tests/test_plugin_api_docs.py tests/test_plugin_scaffold.py
+```
+
+改动插件契约（`core/plugins/api.py` 或 `static/js/pluginHost.js` 的 `buildApi()`）时：
+先在设计中改契约，再改实现，然后跑 `python tools/gen_plugin_api_docs.py` 同步参考文档；
+`tests/test_plugin_api_docs.py` 会断言文档与代码完全一致。
+
 ## 调试与常见检查
 
 ```bash

@@ -1396,7 +1396,9 @@ class PluginAPI:
 
   // ---- 工具 ----
   estimateTokens(text): number,     // Stable（复用 static/js/utils/format.js:60）
-  utils: { ... },                   // Provisional
+  utils: { ... },                   // Provisional（toAbsoluteAssetUrl / parseSSEFrames / parseSSEPayload / formatDate）
+  jobs: { ... },                    // Provisional（get / list / submit / cancel / pause / resume / retry / open）
+  createRoot(tag = 'div'): HTMLElement,  // Stable（容器自动带 data-plugin="<id>"，停用时移除）
 }
 ```
 
@@ -1835,3 +1837,18 @@ tests/plugin_sse_parse_test.mjs
 | 6 | 测试 | `test_plugin_dependencies.py`(39) / `test_plugin_scaffold.py`(12) / `test_plugin_routes.py` 新增 readme 5 项 / 前端契约新增 2 项；`test_plugin_hooks.py` 的耗时告警用例改为注入确定时钟（原实现依赖真实 sleep，在全量运行下受 monotonic 分辨率影响而抖动） |
 
 **验收实测**：脚手架生成的插件可直接被 `load_all()` 加载并响应 `GET /api/plugins/<id>/ping`；依赖测试覆盖 A→B→C 三级拓扑序、循环依赖、禁用依赖、上游加载失败传播。
+
+---
+
+# 附录 G · 阶段 3 收尾（API 文档自动生成）
+
+| # | 项 | 结论 |
+|---|---|---|
+| 1 | 生成器 | 新增 `tools/gen_plugin_api_docs.py`：用 `inspect` 读取 `PluginAPI` 的真实签名与 docstring，并用 AST 静态复核公开方法集合；从 `static/js/pluginHost.js` 的 `buildApi()` 提取前端顶层成员。支持 `--check` 只校验 |
+| 2 | 产出 | `docs/plugin-api.md`（自动生成，文件头标注「勿手工编辑」），覆盖后端 35 个公开方法与前端 21 个顶层成员，标注 Stable / Provisional |
+| 3 | 同步保证 | `tests/test_plugin_api_docs.py`（18 项）断言「磁盘文档 == 当前代码重新渲染的结果」；未登记的新方法、分组表引用的不存在方法、AST 与反射不一致、前端未登记成员都会失败 |
+| 4 | docstring 补全 | 为 `get_job` / `cancel_job` / `retry_job` / `pause_job` / `resume_job` / `table_prefix` 补上 docstring（原先生成的表格只能写「见设计文档 10.2」） |
+| 5 | Windows 控制台 | 两个 tools 脚本在 `main()` 开头把 stdout 切到 UTF-8（`errors='replace'`）：中文 Windows 默认 GBK，直接 `print` 非 ASCII 会抛 `UnicodeEncodeError` |
+| 6 | 文档入口 | `docs/DEVELOPMENT.md` 新增「插件开发」小节（脚手架、文档生成、测试命令、改契约的顺序）；`tools/README.md` 补充两个工具说明 |
+
+**契约维护流程**：改 `core/plugins/api.py` 或 `pluginHost.js` → 先改设计文档第 10 部分 → 改实现 → `python tools/gen_plugin_api_docs.py` → 测试自动校验一致性。

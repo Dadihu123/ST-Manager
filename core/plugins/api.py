@@ -294,26 +294,31 @@ class PluginAPI:
         return jobs.submit_job(self.plugin_id, job_type, items, payload)
 
     def get_job(self, run_id: str):
+        """读取作业详情（含进度、条目与最近事件）；不存在时返回 None。"""
         from core.plugins import jobs
 
         return jobs.get_job_detail(run_id)
 
     def cancel_job(self, run_id: str) -> bool:
+        """请求取消作业（协作式：处理器下次 `should_cancel()` 时退出）。"""
         from core.plugins import jobs
 
         return jobs.cancel_job(run_id)
 
     def retry_job(self, run_id: str, *, only_failed: bool = True) -> str:
+        """重跑作业；`only_failed=True` 时只重置失败条目，返回新的 run_id。"""
         from core.plugins import jobs
 
         return jobs.retry_job(run_id, only_failed=only_failed)
 
     def pause_job(self, run_id: str) -> bool:
+        """暂停作业（D6 审批流：等待人工处理后由 `resume_job` 恢复）。"""
         from core.plugins import jobs
 
         return jobs.pause_job(run_id)
 
     def resume_job(self, run_id: str) -> bool:
+        """恢复被暂停的作业，返回是否成功。"""
         from core.plugins import jobs
 
         return jobs.resume_job(run_id)
@@ -325,6 +330,7 @@ class PluginAPI:
         return job_store.connect(ensure_schema=False)
 
     def table_prefix(self) -> str:
+        """插件私有表的强制前缀：`plugin_<id（连字符转下划线）>_`。"""
         return f"plugin_{self.plugin_id.replace('-', '_')}_"
 
     def migrate(self, statements) -> None:

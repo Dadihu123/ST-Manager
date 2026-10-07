@@ -51,3 +51,18 @@ It writes `manifest.json`, `README.md`, `backend/__init__.py` (registering a
 right away. Flags: `--out` (default `data/plugins/`), `--version`,
 `--no-backend`, `--no-frontend`, `--force`. Restart the app after generating a
 plugin into `data/plugins/`.
+
+# Plugin API reference
+
+`gen_plugin_api_docs.py` renders `docs/plugin-api.md` from the real signatures
+and docstrings of `backend PluginAPI` (via `inspect`, cross-checked with an AST
+pass) and from the top-level keys `buildApi()` exposes in
+`static/js/pluginHost.js`:
+
+```powershell
+python tools/gen_plugin_api_docs.py           # regenerate
+python tools/gen_plugin_api_docs.py --check   # verify only
+```
+
+`tests/test_plugin_api_docs.py` asserts that the file on disk equals a fresh
+render, so rerun the generator whenever the plugin API changes.

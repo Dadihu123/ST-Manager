@@ -288,7 +288,16 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _configure_stdout() -> None:
+    """Windows 控制台默认 GBK，直接打印非 ASCII 会抛 UnicodeEncodeError。"""
+    try:
+        sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+    except (AttributeError, OSError, ValueError):
+        pass
+
+
 def main(argv=None) -> int:
+    _configure_stdout()
     args = build_parser().parse_args(argv)
 
     if args.no_backend and args.no_frontend:
