@@ -3,12 +3,13 @@ import shutil
 import logging
 import traceback
 import mimetypes
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 
 # === 基础设施 ===
 from core.config import INTERNAL_DIR, BASE_DIR, TEMP_DIR
 from core.context import ctx
 from core.auth import init_auth
+from core.utils.security_headers import apply_security_headers
 
 # === 数据与服务 ===
 from core.data.db_session import init_database, close_connection
@@ -52,6 +53,11 @@ def create_app():
     
     # 注册数据库连接关闭钩子 (在请求结束时自动调用)
     app.teardown_appcontext(close_connection)
+
+    # 统一安全响应头：nosniff + Referrer-Policy，插件静态资源额外加严格 CSP
+    @app.after_request
+    def _apply_security_headers(response):
+        return apply_security_headers(response, path=request.path)
 
     # 读取 ui_data.json 失败时，统一返回可读错误，避免路由把异常当成空数据继续处理。
     @app.errorhandler(UiDataLoadError)

@@ -46,6 +46,17 @@ def test_serves_allowlisted_asset(asset_app):
     assert 'activate' in response.get_data(as_text=True)
 
 
+def test_asset_response_carries_security_headers(asset_app):
+    client = asset_app.test_client()
+
+    response = client.get('/api/plugins/demo-plugin/assets/frontend/plugin.js')
+
+    assert response.headers['X-Content-Type-Options'] == 'nosniff'
+    assert "default-src 'none'" in response.headers['Content-Security-Policy']
+    assert 'sandbox' in response.headers['Content-Security-Policy']
+    assert response.headers['Cross-Origin-Resource-Policy'] == 'same-origin'
+
+
 def test_rejects_disallowed_extension(asset_app):
     client = asset_app.test_client()
 

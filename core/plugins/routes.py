@@ -52,6 +52,13 @@ def _require_state(plugin_id: str):
     return state
 
 
+@bp.after_request
+def _no_store_for_management_api(response):
+    """插件管理接口一律不缓存：响应含配置、密钥掩码与运行状态。"""
+    response.headers['Cache-Control'] = 'no-store'
+    return response
+
+
 def _read_config(plugin_id: str) -> dict:
     manifest = registry.get_manifest(plugin_id)
     config = {}

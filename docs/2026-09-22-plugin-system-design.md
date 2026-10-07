@@ -1174,6 +1174,7 @@ GET /api/plugins/<plugin_id>/assets/<path:filename>
 - 扩展名白名单：`.js`、`.mjs`、`.css`、`.svg`、`.png`、`.webp`、`.json`、`.woff2`、`.map`
 - **不提供** `.py`、`.md`、`.env`
 - 响应头：`Cache-Control: no-cache`（开发期）；生产可按 manifest 版本加 `?v=` 查询串
+- 响应头：`Content-Security-Policy: default-src 'none'; … ; sandbox` 与 `Cross-Origin-Resource-Policy: same-origin`（资源可能被直接导航打开，典型是 SVG）；实现见 `core/utils/security_headers.py`
 
 ---
 
@@ -1565,7 +1566,7 @@ class PluginAPI:
 | N1 | **插件间通信** | 自定义事件已限定 `<id>:` 前缀。**允许**跨插件订阅（`api.on("other-plugin:xxx")`），但**不保证送达顺序**，也不检测循环触发（A emit → B 处理 → B emit → A 处理）。文档明确「插件间通信是最佳-effort，禁止依赖顺序」 |
 | N2 | **插件提供 CLI 子命令** | `python app.py plugin <id> <cmd> [args]`，供批处理/无人值守场景。契约：`api.register_cli(name, handler)`，handler 接收 `argparse.Namespace`。**阶段 3 可选** |
 | N3 | **插件 i18n** | `manifest.json` 的 `name`/`description` 只支持单语言。后续可加 `name_zh`/`name_en` 或 `i18n/<lang>.json` 目录。当前阶段不实现，但 manifest 规范预留 `i18n` 字段位 |
-| N4 | **`ui_data` 插件命名空间的写入配额** | `_plugins_v1.<id>` 无大小上限，插件可能塞入大对象拖慢 `load_ui_data()`。建议**单插件命名空间 ≤ 256KB**，超限 `ui_data_update` 返回 `False` 并记 warning。阶段 0 先做约定不实现检查 |
+| N4 | **`ui_data` 插件命名空间的写入配额** | **已实现**：单插件命名空间上限 256KB（`PLUGIN_DATA_QUOTA_BYTES`），超限 `ui_data_update` 返回 `False` 并**回滚整次写入**（内部信号异常中断 `update_ui_data` 的保存流程，磁盘内容不变），达到 80% 时预警 |
 | N5 | **`config_schema`/`secret_schema` 的 `secret: true` 项写入磁盘前可加密** | 当前明文存 `secrets.json`。后续若引入 OS keychain（如 Windows DPAPI / macOS Keychain），schema 不变、实现层透明升级。**仅预留** |
 | N6 | **作业 `payload_json` 含 `secret_ref` 的运行时解析** | `submit_job` 约定 payload 里只存 `{"secret_ref": "key_name"}`，worker 启动时 `ctx.api.get_secret()` 解析替换，**密钥值不落 `plugin_jobs` 表** |
 
@@ -1852,3 +1853,18 @@ tests/plugin_sse_parse_test.mjs
 | 6 | 文档入口 | `docs/DEVELOPMENT.md` 新增「插件开发」小节（脚手架、文档生成、测试命令、改契约的顺序）；`tools/README.md` 补充两个工具说明 |
 
 **契约维护流程**：改 `core/plugins/api.py` 或 `pluginHost.js` → 先改设计文档第 10 部分 → 改实现 → `python tools/gen_plugin_api_docs.py` → 测试自动校验一致性。
+
+---
+
+# 附录 H · 阶段 3 加固（安全响应头 / ui_data 配额）
+
+| # | 项 | 结论 |
+|---|---|---|
+| 1 | 全局安全头 | 新增 `core/utils/security_headers.py` + `create_app` 的 `after_request`：`X-Content-Type-Options: nosniff`、`Referrer-Policy: strict-origin-when-cross-origin`。已有同名头一律不覆盖（`setdefault`） |
+| 2 | 插件资源 CSP | `/api/plugins/<id>/assets/<path>` 额外下发 `default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; font-src 'self'; sandbox` 与 `Cross-Origin-Resource-Policy: same-origin`。该蓝图**自带** `after_request`，被单独挂载时也不失保护 |
+| 3 | 管理接口不缓存 | `core/plugins/routes.py` 蓝图级 `after_request` 统一加 `Cache-Control: no-store`（响应含配置、密钥掩码、作业状态） |
+| 4 | **不做全站 CSP** | 现有页面大量使用内联 `<script>` 与 `onclick`，`default-src 'self'` 会直接破坏功能（阶段 3 已标注该前置条件）。需要时先完成内联脚本外移，再在 `security_headers.py` 中加 `Content-Security-Policy` |
+| 5 | `ui_data` 配额（N4） | 上限 256KB：超限时 `ui_data_update` 返回 `False` 并**整次回滚**——利用 `update_ui_data` 不捕获回调异常的特性抛内部信号中断保存，磁盘内容保持写入前状态；达 80% 预警。避免单个插件把大对象塞进 `ui_data.json` 拖慢每次读取 |
+| 6 | 测试 | 新增 `tests/test_security_headers.py`(8)；`test_plugin_assets.py` / `test_plugin_routes.py` / `test_plugin_api.py` 各补 1–5 项断言（含端到端：`create_app()` 的响应确实带安全头、超限写入后磁盘未变） |
+
+**回归确认**：全局头对既有 700+ 前端契约测试零影响（CSP 只落在插件资源上，核心静态文件不带 CSP）。

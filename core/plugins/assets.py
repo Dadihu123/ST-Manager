@@ -7,6 +7,8 @@
 - 扩展名白名单：`.js/.mjs/.css/.svg/.png/.webp/.json/.woff2/.map`。
   **不提供** `.py`、`.md`、`.env` 等。
 - 响应头 `Cache-Control: no-cache`（开发期语义；生产可按 manifest 版本加 `?v=`）。
+- 响应头 `Content-Security-Policy`（严格 + `sandbox`）与 `Cross-Origin-Resource-Policy`：
+  资源可能被直接导航打开（典型是 SVG），见 `core/utils/security_headers.py`。
 """
 
 import logging
@@ -14,10 +16,11 @@ import mimetypes
 import os
 import re
 
-from flask import Blueprint, jsonify, send_file
+from flask import Blueprint, jsonify, request, send_file
 
 from core.plugins import registry
 from core.utils.paths import is_under_base
+from core.utils.security_headers import apply_security_headers
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +43,12 @@ DEFAULT_MIME_TYPES = {
 }
 
 bp = Blueprint('plugin_assets', __name__)
+
+
+@bp.after_request
+def _asset_security_headers(response):
+    """资源路由自带加固：蓝图被单独挂载（测试或嵌入）时也不失保护。"""
+    return apply_security_headers(response, path=request.path)
 
 
 def _plugin_dir(plugin_id: str) -> str:

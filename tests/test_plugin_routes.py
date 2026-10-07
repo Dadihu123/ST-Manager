@@ -264,6 +264,22 @@ def test_readme_endpoint_requires_known_plugin(client):
     assert client.get('/api/plugins/unknown-plugin/readme').status_code == 404
 
 
+def test_management_api_responses_are_not_cached(client):
+    """管理接口响应含配置与密钥掩码，必须显式禁止缓存。
+
+    全局安全头（nosniff 等）由 `create_app` 的 after_request 统一注入，
+    见 tests/test_security_headers.py 的端到端用例。
+    """
+    for path in (
+        '/api/plugins/list',
+        '/api/plugins/demo-plugin/config',
+        '/api/plugins/demo-plugin/secrets',
+        '/api/plugins/catalog',
+    ):
+        response = client.get(path)
+        assert response.headers['Cache-Control'] == 'no-store', path
+
+
 def test_readme_endpoint_ignores_symlink_escape(client, tmp_path):
     outside = tmp_path / 'outside.md'
     outside.write_text('secret', encoding='utf-8')

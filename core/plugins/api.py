@@ -43,7 +43,20 @@ logger = logging.getLogger(__name__)
 
 PLUGIN_UI_NAMESPACE = '_plugins_v1'
 TAG_ORDER_KEY = '_tag_order_v1'
-PLUGIN_DATA_QUOTA_WARN_BYTES = 256 * 1024
+PLUGIN_DATA_QUOTA_BYTES = 256 * 1024
+PLUGIN_DATA_QUOTA_WARN_BYTES = int(PLUGIN_DATA_QUOTA_BYTES * 0.8)
+
+
+class _PluginDataQuotaExceeded(Exception):
+    """内部信号：插件 ui_data 命名空间超过配额，用于中断本次保存（N4）。"""
+
+
+def _measure_namespace(entry) -> int | None:
+    """命名空间序列化后的字节数；无法序列化时返回 None（不阻断写入）。"""
+    try:
+        return len(json.dumps(entry, ensure_ascii=False).encode('utf-8'))
+    except (TypeError, ValueError):
+        return None
 
 # 允许通过 write_card_fields 改写的卡片字段
 CARD_FIELD_KEYS = frozenset({
@@ -850,9 +863,16 @@ class PluginAPI:
             return dict(entry)
 
     def ui_data_update(self, mutator) -> bool:
-        """在锁内修改本插件的命名空间（禁止直接读写整个 ui_data，避免 lost update）。"""
+        """在锁内修改本插件的命名空间（禁止直接读写整个 ui_data，避免 lost update）。
+
+        超过 `PLUGIN_DATA_QUOTA_BYTES`（N4）时整次写入被拒绝并返回 False：
+        回调抛出的内部信号会中断 `update_ui_data` 的保存流程，磁盘内容保持不变。
+        """
         if not callable(mutator):
             return False
+
+        # `update_ui_data` 不捕获 mutator 异常，因此用它中断保存即可原子回滚
+        rejected = {'reason': ''}
 
         def _inner(ui_data):
             entry = self._plugin_entry(ui_data, create=True)
@@ -861,18 +881,29 @@ class PluginAPI:
                 entry.clear()
                 entry.update(result)
 
-            try:
-                size = len(json.dumps(entry, ensure_ascii=False).encode('utf-8'))
-                if size > PLUGIN_DATA_QUOTA_WARN_BYTES:
-                    logger.warning(
-                        '插件 %s 的 ui_data 命名空间已达 %s 字节（约定上限 %s）',
-                        self.plugin_id, size, PLUGIN_DATA_QUOTA_WARN_BYTES,
-                    )
-            except (TypeError, ValueError):
-                pass
+            size = _measure_namespace(entry)
+            if size is None:
+                return None
+            if size > PLUGIN_DATA_QUOTA_BYTES:
+                rejected['reason'] = (
+                    f'命名空间体积 {size} 字节，超过 {PLUGIN_DATA_QUOTA_BYTES} 字节上限'
+                )
+                raise _PluginDataQuotaExceeded(rejected['reason'])
+            if size > PLUGIN_DATA_QUOTA_WARN_BYTES:
+                logger.warning(
+                    '插件 %s 的 ui_data 命名空间已达 %s 字节（上限 %s），即将被拒绝',
+                    self.plugin_id, size, PLUGIN_DATA_QUOTA_BYTES,
+                )
             return None
 
-        return bool(update_ui_data(_inner))
+        try:
+            saved = bool(update_ui_data(_inner))
+        except _PluginDataQuotaExceeded:
+            saved = False
+
+        if not saved and rejected['reason']:
+            logger.warning('插件 %s 的 ui_data 写入被拒绝：%s', self.plugin_id, rejected['reason'])
+        return saved
 
     # ---- 文件系统 ----
 

@@ -366,3 +366,54 @@ def test_write_worldbook_rejects_stale_revision(plugin_env, monkeypatch):
 
 def test_read_worldbook_returns_none_for_unknown_source(plugin_env):
     assert plugin_env['api'].read_worldbook({'source_type': 'global', 'file_path': ''}) is None
+
+
+# ---------------------------------------------------------------- ui_data 配额（N4）
+
+
+def test_ui_data_update_rejects_oversized_namespace(plugin_env):
+    """超过配额时整次写入被拒绝，磁盘内容回滚到写入前状态。"""
+    api = plugin_env['api']
+    assert api.ui_data_update(lambda entry: entry.update({'blob': 'ok'})) is True
+
+    oversized = 'x' * (api_module.PLUGIN_DATA_QUOTA_BYTES + 4096)
+    assert api.ui_data_update(lambda entry: entry.update({'blob': oversized})) is False
+
+    assert api.ui_data_read().get('blob') == 'ok'
+
+
+def test_ui_data_update_logs_rejection(plugin_env, monkeypatch):
+    warnings = []
+    monkeypatch.setattr(api_module.logger, 'warning', lambda *args, **kwargs: warnings.append(args))
+
+    api = plugin_env['api']
+    oversized = 'x' * (api_module.PLUGIN_DATA_QUOTA_BYTES + 1)
+
+    assert api.ui_data_update(lambda entry: entry.update({'blob': oversized})) is False
+    assert any('写入被拒绝' in str(args[0]) for args in warnings)
+    # 拒绝原因（含实际上限）作为格式化参数传入
+    assert any('超过' in str(arg) for args in warnings for arg in args[1:])
+
+
+def test_ui_data_update_warns_when_near_quota(plugin_env, monkeypatch):
+    warnings = []
+    monkeypatch.setattr(api_module.logger, 'warning', lambda *args, **kwargs: warnings.append(args))
+
+    api = plugin_env['api']
+    nearly = 'x' * (api_module.PLUGIN_DATA_QUOTA_WARN_BYTES + 1024)
+
+    assert api.ui_data_update(lambda entry: entry.update({'blob': nearly})) is True
+    assert any('即将被拒绝' in str(args[0]) for args in warnings)
+
+
+def test_ui_data_update_accepts_payload_within_quota(plugin_env):
+    api = plugin_env['api']
+    payload = 'x' * (api_module.PLUGIN_DATA_QUOTA_BYTES - 4096)
+
+    assert api.ui_data_update(lambda entry: entry.update({'blob': payload})) is True
+    assert api.ui_data_read()['blob'] == payload
+
+
+def test_ui_data_quota_constants_are_reasonable():
+    assert api_module.PLUGIN_DATA_QUOTA_BYTES == 256 * 1024
+    assert api_module.PLUGIN_DATA_QUOTA_WARN_BYTES < api_module.PLUGIN_DATA_QUOTA_BYTES
