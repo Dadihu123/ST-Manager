@@ -21,7 +21,11 @@
         <h2 id="plugin-job-title" class="ui-modal-title plugin-job-title">
           <span aria-hidden="true">{{ icon('package', 'ui-icon--md') }}</span>
           <span x-text="panelTitle || '插件作业'"></span>
-          <span class="plugin-job-status" x-text="statusLabel(job && job.status)"></span>
+          <span
+            class="plugin-job-status"
+            :class="'is-' + (job && job.status ? job.status : 'queued')"
+            x-text="statusLabel(job && job.status)"
+          ></span>
         </h2>
         <p class="plugin-job-subtitle">
           <code x-text="pluginId"></code>
@@ -140,7 +144,7 @@
           <template x-for="(item, index) in items.slice(0, 300)" :key="item.key || index">
             <li class="plugin-job-item" :class="'is-' + (item.status || 'pending')">
               <span class="plugin-job-item-key" x-text="item.key"></span>
-              <span class="plugin-job-item-status" x-text="statusLabel(item.status)"></span>
+              <span class="plugin-job-item-status" x-text="itemStatusLabel(item.status)"></span>
               <span class="plugin-job-item-detail" x-text="itemSummary(item)"></span>
             </li>
           </template>

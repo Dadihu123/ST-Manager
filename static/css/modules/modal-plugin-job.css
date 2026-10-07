@@ -29,6 +29,39 @@
   color: var(--content-secondary);
 }
 
+/* 作业状态徽标：枚举见 core/plugins/job_store.py:JOB_STATUSES */
+.plugin-job-status.is-queued {
+  border-style: dashed;
+  color: var(--content-muted);
+}
+
+.plugin-job-status.is-running {
+  border-color: var(--accent-action);
+  color: var(--accent-action);
+}
+
+.plugin-job-status.is-paused {
+  border-color: var(--status-warning-text);
+  color: var(--status-warning-text);
+}
+
+.plugin-job-status.is-completed {
+  border-color: var(--status-success-text);
+  color: var(--status-success-text);
+}
+
+.plugin-job-status.is-failed {
+  border-color: var(--status-danger-text);
+  color: var(--status-danger-text);
+}
+
+.plugin-job-status.is-cancelled,
+.plugin-job-status.is-aborted {
+  border-style: dashed;
+  border-color: var(--status-danger-text);
+  color: var(--status-danger-text);
+}
+
 .plugin-job-subtitle {
   display: flex;
   align-items: center;
@@ -239,6 +272,27 @@
   color: var(--status-danger-text);
 }
 
+/* 条目状态：pending / running / done / failed / skipped / awaiting_review
+   （枚举见 core/plugins/job_store.py:ITEM_STATUSES） */
+.plugin-job-item.is-pending {
+  opacity: 0.6;
+}
+
+.plugin-job-item.is-running {
+  border-color: var(--accent-action);
+  color: var(--content-primary);
+}
+
+.plugin-job-item.is-skipped {
+  border-style: dashed;
+  opacity: 0.7;
+}
+
+.plugin-job-item.is-awaiting_review {
+  border-color: var(--status-warning-text);
+  color: var(--status-warning-text);
+}
+
 .plugin-job-item-key {
   flex: 0 0 auto;
   max-width: 14rem;
@@ -269,6 +323,13 @@
   color: var(--content-secondary);
 }
 
+/* 日志级别：info（默认样式）/ warning / error / debug
+   （级别来自 JobContext.log 与 jobs.append_log_event） */
+.plugin-job-log.is-info {
+  border-color: var(--border-default);
+  color: var(--content-secondary);
+}
+
 .plugin-job-log.is-warning {
   border-color: var(--status-warning-text);
   color: var(--status-warning-text);
@@ -277,6 +338,11 @@
 .plugin-job-log.is-error {
   border-color: var(--status-danger-text);
   color: var(--status-danger-text);
+}
+
+.plugin-job-log.is-debug {
+  opacity: 0.65;
+  font-size: 0.72rem;
 }
 
 .plugin-job-link {

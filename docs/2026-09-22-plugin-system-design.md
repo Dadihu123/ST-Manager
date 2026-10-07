@@ -1926,3 +1926,25 @@ tests/plugin_sse_parse_test.mjs
 | 8 | 交叉引用 | 附录 A（后续工作）与附录 B（重构清单）标记为已闭环；`docs/DEVELOPMENT.md` 的插件小节列出全部插件测试文件 |
 
 **结论**：阶段 0–3 与延后清单中承诺的条目已全部落地或标注为主动不做；文档与代码之间**可机检的部分已全部纳入测试**。
+
+---
+
+# 附录 K · 前端资产审计
+
+浏览器对以下问题**不报错**，只会静默渲染成坏界面，因此必须静态锁定：
+
+| # | 发现 | 修补 |
+|---|---|---|
+| 1 | **条目状态无样式**：模板用 `'is-' + item.status` 动态拼类名，但 `plugin_job_item` 只定义了 `is-done` / `is-failed`。`pending` / `running` / `skipped` / `awaiting_review` 四种状态的外观与 `done` 完全一致——用户无法区分「待处理」和「已完成」 | `modal-plugin-job.css` 补齐 `ITEM_STATUSES`（`job_store.py:35`）的全部取值 |
+| 2 | **作业状态徽标无状态色**：`.plugin-job-status` 只有基础样式，7 种作业状态视觉相同 | 补齐 `JOB_STATUSES`（`job_store.py:34`）的全部取值，并给模板的徽标补 `:class="'is-' + job.status"` |
+| 3 | **条目状态显示英文**：面板的 `statusLabel()` 同时服务作业与条目，但映射表只有作业状态，条目会 fallback 成原始值 `done` / `pending` / `awaiting_review` | 拆成 `JOB_STATUS_LABELS` 与 `ITEM_STATUS_LABELS`，新增 `itemStatusLabel()` 并在模板中调用 |
+| 4 | 日志级别 `is-info` / `is-debug` 无规则 | 显式定义（原先靠 `.plugin-job-log` 基础样式「碰巧」正确） |
+| 5 | `.plugin-secret-state.is-unset` 无规则 | 显式定义（同上） |
+| 6 | 图标、CSS 变量、x-data 注册 | 核对无误：插件模板引用的 6 个图标都在 `ui.svg`（140 个）中；两个 CSS 文件用到的 48 个变量全部有定义；`pluginManager` / `pluginJobPanel` 均已 `Alpine.data()` 注册并挂进 `index.html` |
+
+**新增 `tests/test_plugin_frontend_assets.py`（17 项）**，并且**用变异测试验证了它真的有效**——逐项制造回归（删样式规则、删标签、改标签值、把标签写成英文、截短终态列表、使用未定义变量），7 个变异全部被抓到：
+
+- 状态覆盖：`ITEM_STATUSES` / `JOB_STATUSES` 的每个取值都必须有 `.plugin-job-item.is-*` / `.plugin-job-status.is-*` 规则（用**复合选择器**匹配，避免 `.a.b` 被拆成 `.a` 与 `.b` 而误判）
+- 标签覆盖：按 `const X = {...}` **块内**提取键值，与后端枚举**顺序**一致；断言值必须是中文且不等于状态名（否则与「映射缺失回退原值」无区别）
+- 终态列表：前端 `TERMINAL_STATUSES` 必须等于后端 `job_store.TERMINAL_STATUSES`
+- 资产存在性：图标在雪碧图中存在、CSS 变量有定义、无 Tailwind 调色板类

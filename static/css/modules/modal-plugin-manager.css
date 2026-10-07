@@ -362,6 +362,11 @@
   color: var(--status-success-text);
 }
 
+.plugin-secret-state.is-unset {
+  border-style: dashed;
+  color: var(--content-muted);
+}
+
 .plugin-secret-row {
   display: flex;
   align-items: center;

@@ -19,9 +19,11 @@ import { PluginHost } from "../pluginHost.js";
 
 const POLL_INTERVAL_MS = 4000;
 const MAX_LOG_LINES = 200;
+// 终态来自 core/plugins/job_store.py:TERMINAL_STATUSES
 const TERMINAL_STATUSES = ["completed", "failed", "cancelled", "aborted"];
 
-const STATUS_LABELS = {
+// 作业状态标签（core/plugins/job_store.py:JOB_STATUSES）
+const JOB_STATUS_LABELS = {
   queued: "排队中",
   running: "运行中",
   paused: "已暂停",
@@ -29,6 +31,17 @@ const STATUS_LABELS = {
   failed: "失败",
   cancelled: "已取消",
   aborted: "已中断",
+};
+
+// 条目状态标签（core/plugins/job_store.py:ITEM_STATUSES）
+// 两类状态的取值有重叠（running/failed），但语义不同，故分开维护
+const ITEM_STATUS_LABELS = {
+  pending: "待处理",
+  running: "处理中",
+  done: "完成",
+  failed: "失败",
+  skipped: "跳过",
+  awaiting_review: "待审批",
 };
 
 export default function pluginJobPanel() {
@@ -190,8 +203,16 @@ export default function pluginJobPanel() {
 
     // ---------------------------------------------------------------- 渲染辅助
 
+    /** 作业状态标签。 */
     statusLabel(status) {
-      return STATUS_LABELS[String(status || "")] || String(status || "-");
+      const key = String(status || "");
+      return JOB_STATUS_LABELS[key] || ITEM_STATUS_LABELS[key] || key || "-";
+    },
+
+    /** 条目状态标签（与作业状态分开，避免 done/failed 等重叠值语义混淆）。 */
+    itemStatusLabel(status) {
+      const key = String(status || "");
+      return ITEM_STATUS_LABELS[key] || JOB_STATUS_LABELS[key] || key || "待处理";
     },
 
     get isTerminal() {
