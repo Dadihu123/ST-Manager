@@ -59,6 +59,30 @@ def test_config_and_secret_forms_are_rendered_from_schema():
     assert 'secret_schema' in component
 
 
+def test_plugin_docs_button_and_dependency_row_exist():
+    template = read_source('templates/modals/plugin_manager.html')
+    component = read_source('static/js/components/pluginManager.js')
+    api_module = read_source('static/js/api/plugins.js')
+
+    assert 'openDocs(item)' in template
+    assert 'requirementLabels(item)' in template
+    assert 'async openDocs(' in component
+    assert 'requirementLabels(item) {' in component
+    assert 'getPluginReadme' in api_module
+
+
+def test_docs_are_rendered_through_markdown_preview():
+    component = read_source('static/js/components/pluginManager.js')
+    editor = read_source('static/js/components/largeEditor.js')
+    preview = read_source('templates/modals/markdown_preview.html')
+
+    assert 'open-markdown-view' in component
+    # detail 支持 { content, title }，且标题可动态切换
+    assert 'payload.title' in editor
+    assert 'markdownModalTitle' in editor
+    assert 'markdownModalTitle' in preview
+
+
 def test_secret_inputs_are_password_with_hint_placeholder():
     template = read_source('templates/modals/plugin_manager.html')
 

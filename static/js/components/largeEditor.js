@@ -30,6 +30,7 @@ export default function largeEditor() {
     // 独立 Markdown 预览弹窗状态
     showMarkdownModal: false,
     markdownModalContent: "",
+    markdownModalTitle: "",
 
     // HTML 预览弹窗状态变量
     showLargePreview: false,
@@ -166,9 +167,15 @@ export default function largeEditor() {
 
     // === 预览功能 ===
 
-    openMarkdownView(content) {
+    openMarkdownView(detail) {
       this.ensurePreviewState();
+
+      // 兼容两种 detail 形态：纯字符串（既有调用）与 { content, title }（插件文档预览）
+      const payload = typeof detail === "string" ? { content: detail } : (detail || {});
+      const content = payload.content || "";
       if (!content) return;
+
+      this.markdownModalTitle = String(payload.title || "");
       this.markdownModalContent = content;
       this.showMarkdownModal = true;
     },

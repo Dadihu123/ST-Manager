@@ -87,22 +87,42 @@ def test_handler_exception_is_swallowed_and_logged(hook_logs):
 def test_slow_handler_logs_warning(monkeypatch):
     """耗时告警：直接观察 logger.warning 的调用。
 
-    不依赖 logging 全局级别（全量测试中其他用例可能改动 root/disable 状态），
-    因此这里替换 `hooks.logger.warning` 来验证「确实记了一条 warning」。
+    不依赖真实时钟，也不依赖 logging 全局级别（全量测试中其他用例可能改动
+    root/disable 状态，且 Windows 的 monotonic 分辨率约 15.6ms 会让
+    「sleep 后 elapsed > 0」变得不确定），这里注入确定的时钟序列。
     """
-    monkeypatch.setattr(hooks, 'SLOW_HANDLER_THRESHOLD', 0.0)
+    monkeypatch.setattr(hooks, 'SLOW_HANDLER_THRESHOLD', 0.5)
 
     warnings = []
     monkeypatch.setattr(hooks.logger, 'warning', lambda *args, **kwargs: warnings.append(args))
 
+    ticks = iter([100.0, 101.5])
+    monkeypatch.setattr(hooks.time, 'monotonic', lambda: next(ticks, 101.5))
+
     def slow(payload):
-        time.sleep(0.01)
+        return None
 
     hooks.register('scan.completed', slow, plugin_id='slow-plugin')
     hooks.emit('scan.completed', {'scanned': 0})
 
     assert warnings
     assert 'slow-plugin' in warnings[0]
+
+
+def test_fast_handler_does_not_log_warning(monkeypatch):
+    """未超过阈值时不产生 warning（同样注入确定时钟）。"""
+    monkeypatch.setattr(hooks, 'SLOW_HANDLER_THRESHOLD', 0.5)
+
+    warnings = []
+    monkeypatch.setattr(hooks.logger, 'warning', lambda *args, **kwargs: warnings.append(args))
+
+    ticks = iter([100.0, 100.1])
+    monkeypatch.setattr(hooks.time, 'monotonic', lambda: next(ticks, 100.1))
+
+    hooks.register('scan.completed', lambda payload: None, plugin_id='fast-plugin')
+    hooks.emit('scan.completed', {})
+
+    assert warnings == []
 
 
 def test_register_rejects_custom_event_without_plugin_prefix():

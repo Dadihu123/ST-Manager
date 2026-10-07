@@ -8,18 +8,24 @@
 
 import functools
 import logging
+import os
 
 from flask import Blueprint, jsonify, request
 
 from core.plugins import catalog, installer, jobs, registry
 from core.plugins import secrets as secrets_store
 from core.plugins.errors import PluginError, PluginNotFoundError
+from core.utils.paths import is_under_base
 
 logger = logging.getLogger(__name__)
 
 bp = Blueprint('plugins', __name__)
 
 RESTART_REQUIRED_HINT = '插件已变更，重启应用后生效'
+
+README_CANDIDATES = ('README.md', 'readme.md', 'README.MD', 'README.txt')
+CHANGELOG_CANDIDATES = ('CHANGELOG.md', 'CHANGELOG.MD', 'changelog.md', 'CHANGELOG.txt')
+MAX_DOCUMENT_BYTES = 256 * 1024
 
 
 def _handle_plugin_errors(func):
@@ -307,6 +313,59 @@ def install_upload():
         'restart_required': True,
         'result': result,
         'msg': f'已安装 {result["id"]} v{result["version"]}，重启应用后生效',
+    })
+
+
+def _read_plugin_document(plugin_dir: str, names) -> dict:
+    """读取插件目录下的文档文件（固定文件名白名单 + realpath 边界检查）。"""
+    plugin_dir = str(plugin_dir or '')
+    if not plugin_dir or not os.path.isdir(plugin_dir):
+        return {'found': False, 'name': '', 'content': '', 'truncated': False, 'msg': ''}
+
+    for name in names:
+        candidate = os.path.realpath(os.path.join(plugin_dir, name))
+        if not is_under_base(candidate, plugin_dir, resolve_symlinks=True):
+            continue
+        if not os.path.isfile(candidate):
+            continue
+
+        try:
+            size = os.path.getsize(candidate)
+        except OSError:
+            continue
+
+        if size > MAX_DOCUMENT_BYTES:
+            return {
+                'found': True, 'name': name, 'content': '', 'truncated': True,
+                'msg': f'文档超过 {MAX_DOCUMENT_BYTES // 1024}KB，已跳过',
+            }
+
+        try:
+            with open(candidate, 'r', encoding='utf-8') as handle:
+                content = handle.read()
+        except (OSError, UnicodeDecodeError) as exc:
+            logger.warning('读取插件文档 %s 失败: %s', candidate, exc)
+            return {'found': False, 'name': name, 'content': '', 'truncated': False, 'msg': str(exc)}
+
+        return {'found': True, 'name': name, 'content': content, 'truncated': False, 'msg': ''}
+
+    return {'found': False, 'name': '', 'content': '', 'truncated': False, 'msg': ''}
+
+
+@bp.route('/api/plugins/<plugin_id>/readme', methods=['GET'])
+@_handle_plugin_errors
+def get_plugin_readme(plugin_id):
+    """插件文档：README 与 CHANGELOG。
+
+    `.md` 不在插件资源路由的白名单内（8.5），因此文档单独提供，
+    只读插件根目录下的固定文件名。
+    """
+    state = _require_state(plugin_id)
+
+    return jsonify({
+        'success': True,
+        'readme': _read_plugin_document(state.plugin_dir, README_CANDIDATES),
+        'changelog': _read_plugin_document(state.plugin_dir, CHANGELOG_CANDIDATES),
     })
 
 

@@ -64,6 +64,10 @@ export function getPluginConfig(id) {
   return request(`/api/plugins/${encodeURIComponent(id)}/config`);
 }
 
+export function getPluginReadme(id) {
+  return request(`/api/plugins/${encodeURIComponent(id)}/readme`);
+}
+
 export function savePluginConfig(id, config) {
   return request(`/api/plugins/${encodeURIComponent(id)}/config`, {
     method: "POST",

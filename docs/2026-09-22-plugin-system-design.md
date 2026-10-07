@@ -233,7 +233,10 @@ data/plugins/                   # 只放插件本体（目录名 = plugin id）
 | `backend.jobs` | 非空字符串、全局唯一（跨插件） | 冲突者拒绝注册该 job |
 | `backend.hooks` | 必须 ∈ 已知事件集合 | 忽略未知项 + 警告 |
 | `permissions` | 白名单校验 | 未知项忽略 + 警告 |
+| `requires` | 对象：插件 id → 版本约束（`>=` `>` `<=` `<` `==` `*`；无操作符视为精确匹配） | 非法项忽略 + 警告；依赖缺失 / 被禁用 / 版本不满足 / 循环依赖 → 该插件拒绝加载并写 `load_error` |
 | `config_schema` / `secret_schema` | 仅支持 JSON Schema 子集 | 非法则回退为「无表单」 |
+
+**依赖加载语义**：`load_all()` 分三阶段——先解析全部 manifest，再做依赖校验与拓扑排序（**被依赖者先加载**），最后按序实例化。依赖链上任何一环失败（manifest 非法、后端注册抛错）都会让下游插件一并记 `依赖链中存在无法加载的插件` 并跳过，不会带着半可用状态启动。
 
 **JSON Schema 子集**（避免引入 `jsonschema` 依赖）：支持 `type`（`string`/`integer`/`number`/`boolean`/`enum`）、`title`、`description`、`default`、`minimum`、`maximum`、`enum`、`secret`、`required`。复杂结构不支持——需要复杂表单的插件自行渲染前端。
 
@@ -1424,6 +1427,7 @@ class PluginAPI:
 | `GET` | `/api/plugins/catalog` | 官方目录 |
 | `POST` | `/api/plugins/catalog/check_updates` | 检查更新 |
 | `GET` | `/api/plugins/<id>/assets/<path>` | 静态资源 |
+| `GET` | `/api/plugins/<id>/readme` | 插件文档（README / CHANGELOG 原文；`.md` 不在资源白名单，故单独提供） |
 
 **`GET /api/plugins/list` 响应示例**：
 ```json
@@ -1816,3 +1820,18 @@ tests/plugin_sse_parse_test.mjs
 | 5 | 端到端 | 本地 HTTP 模拟 codeload 走**真实下载路径**：下载 → sha256 → 解压（含 GitHub 风格的 `repo-main/` 顶层目录）→ 安装成功；sha256 不符被拒且目录未创建；安装后 manifest 可被正常重新加载 |
 
 **未覆盖**：真实 GitHub 联调需要你提供插件仓库的 `owner/repo`（当前 `static/plugins/catalog.json` 为空清单）；catalog 的 `release_channel: beta` 分支仅在测试中以远端 manifest 回退路径覆盖。
+
+---
+
+# 附录 F · 阶段 3 实现记录（依赖声明 / 文档预览 / 脚手架）
+
+| # | 项 | 结论 |
+|---|---|---|
+| 1 | 依赖声明 | manifest 新增 `requires`（`{plugin_id: 版本约束}`）；`manifest.parse_requirement()` / `satisfies_requirement()` 支持 `>= > <= < == =` 与 `*`，无操作符视为精确匹配 |
+| 2 | 三阶段加载 | `registry.load_all()` 改为「解析全部 manifest → 依赖校验 + 拓扑排序 → 按序实例化」；新增 `registry.resolve_dependencies()` 返回 `(顺序, 错误)`；依赖缺失 / 被禁用 / 版本不满足 / 循环依赖 / 上游加载失败都会记入 `load_error` 并跳过 |
+| 3 | 依赖展示 | `GET /api/plugins/list` 的 `manifest.requires` 下发；管理 UI 卡片新增「依赖: …」一行 |
+| 4 | 文档预览 | 新增 `GET /api/plugins/<id>/readme`（只读插件根目录的 `README.md` / `CHANGELOG.md` 等固定文件名，256KB 上限，realpath 边界检查）；管理 UI 新增「详情」按钮，经 `open-markdown-view` 复用既有 Markdown 预览器（事件 detail 扩展为 `{content, title}`，向后兼容纯字符串） |
+| 5 | 脚手架 | 新增 `tools/new_plugin.py`：生成 `manifest.json` / `README.md` / `backend/__init__.py` / `frontend/plugin.js` / `frontend/plugin.css`，支持 `--no-backend` / `--no-frontend` / `--out` / `--force`；生成物保证通过 manifest 校验与 CSS 作用域检查 |
+| 6 | 测试 | `test_plugin_dependencies.py`(39) / `test_plugin_scaffold.py`(12) / `test_plugin_routes.py` 新增 readme 5 项 / 前端契约新增 2 项；`test_plugin_hooks.py` 的耗时告警用例改为注入确定时钟（原实现依赖真实 sleep，在全量运行下受 monotonic 分辨率影响而抖动） |
+
+**验收实测**：脚手架生成的插件可直接被 `load_all()` 加载并响应 `GET /api/plugins/<id>/ping`；依赖测试覆盖 A→B→C 三级拓扑序、循环依赖、禁用依赖、上游加载失败传播。

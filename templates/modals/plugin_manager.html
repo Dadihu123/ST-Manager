@@ -148,6 +148,9 @@
                 >
                   启用
                 </button>
+                <button type="button" class="plugin-button plugin-button--ghost" @click="openDocs(item)">
+                  详情
+                </button>
                 <button type="button" class="plugin-button plugin-button--ghost" @click="openConfig(item)">
                   配置
                 </button>
@@ -167,6 +170,10 @@
 
             <p class="plugin-card-description" x-show="item.description" x-text="item.description"></p>
             <p class="plugin-card-permissions" x-text="'权限: ' + permissionLabels(item)"></p>
+
+            <template x-if="requirementLabels(item)">
+              <p class="plugin-card-permissions" x-text="'依赖: ' + requirementLabels(item)"></p>
+            </template>
 
             <p class="plugin-card-error" x-show="item.load_error" x-cloak>
               <span aria-hidden="true">{{ icon('alert-triangle', 'ui-icon--sm') }}</span>

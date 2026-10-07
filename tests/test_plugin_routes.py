@@ -223,6 +223,63 @@ def test_job_endpoints_require_known_plugin(client):
     assert client.get('/api/plugins/demo-plugin/jobs').get_json()['success'] is True
 
 
+def test_readme_endpoint_returns_readme_and_changelog(client, tmp_path):
+    plugin_dir = tmp_path / 'demo-plugin'
+    (plugin_dir / 'README.md').write_text('# 示例插件\n\n使用说明', encoding='utf-8')
+    (plugin_dir / 'CHANGELOG.md').write_text('## 0.1.0\n\n- 初版', encoding='utf-8')
+
+    data = client.get('/api/plugins/demo-plugin/readme').get_json()
+
+    assert data['success'] is True
+    assert data['readme']['found'] is True
+    assert data['readme']['name'] == 'README.md'
+    assert '# 示例插件' in data['readme']['content']
+    assert data['changelog']['found'] is True
+    assert '初版' in data['changelog']['content']
+
+
+def test_readme_endpoint_reports_missing_documents(client):
+    data = client.get('/api/plugins/demo-plugin/readme').get_json()
+
+    assert data['readme']['found'] is False
+    assert data['changelog']['found'] is False
+    assert data['readme']['content'] == ''
+
+
+def test_readme_endpoint_truncates_oversized_documents(client, tmp_path, monkeypatch):
+    from core.plugins import routes as routes_module
+
+    monkeypatch.setattr(routes_module, 'MAX_DOCUMENT_BYTES', 32)
+    plugin_dir = tmp_path / 'demo-plugin'
+    (plugin_dir / 'README.md').write_text('x' * 1024, encoding='utf-8')
+
+    data = client.get('/api/plugins/demo-plugin/readme').get_json()
+
+    assert data['readme']['found'] is True
+    assert data['readme']['truncated'] is True
+    assert data['readme']['content'] == ''
+
+
+def test_readme_endpoint_requires_known_plugin(client):
+    assert client.get('/api/plugins/unknown-plugin/readme').status_code == 404
+
+
+def test_readme_endpoint_ignores_symlink_escape(client, tmp_path):
+    outside = tmp_path / 'outside.md'
+    outside.write_text('secret', encoding='utf-8')
+    plugin_dir = tmp_path / 'demo-plugin'
+    link = plugin_dir / 'README.md'
+
+    try:
+        os.symlink(str(outside), str(link))
+    except (OSError, NotImplementedError):
+        pytest.skip('当前环境不支持符号链接')
+
+    data = client.get('/api/plugins/demo-plugin/readme').get_json()
+
+    assert data['readme']['found'] is False
+
+
 def test_job_detail_requires_existing_run(client):
     response = client.get('/api/plugins/demo-plugin/jobs/not-a-run-id')
 

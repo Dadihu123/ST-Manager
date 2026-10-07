@@ -33,3 +33,21 @@ The generated `manifest.json` records request order, status, elapsed time,
 response size, selected cache headers, and candidate title/timestamp fields.
 Request authentication headers are never written, and response fields whose
 names look credential-related are redacted.
+
+# Plugin scaffold
+
+`new_plugin.py` generates a minimal plugin skeleton that already satisfies the
+manifest and CSS-scope contracts:
+
+```powershell
+python tools/new_plugin.py my-plugin --name "我的插件"
+python tools/new_plugin.py my-plugin --out samples/plugins --no-backend
+```
+
+It writes `manifest.json`, `README.md`, `backend/__init__.py` (registering a
+`/ping` route) and `frontend/plugin.js` + `frontend/plugin.css` (scoped with
+`.plugin-<id>`). The output passes `PluginManifest.load()` and
+`scan_css_scope()` unchanged, so it can be loaded by `registry.load_all()`
+right away. Flags: `--out` (default `data/plugins/`), `--version`,
+`--no-backend`, `--no-frontend`, `--force`. Restart the app after generating a
+plugin into `data/plugins/`.

@@ -19,7 +19,7 @@ from core.config import DATA_DIR
 from core.data.ui_store import load_ui_data_or_empty, update_ui_data
 from core.plugins.api import PluginAPI
 from core.plugins.errors import PluginApiVersionError, PluginLoadError, PluginManifestError
-from core.plugins.manifest import PLUGIN_ID_PATTERN, PluginManifest
+from core.plugins.manifest import PLUGIN_ID_PATTERN, PluginManifest, satisfies_requirement
 
 logger = logging.getLogger(__name__)
 
@@ -327,8 +327,104 @@ def _mark_failed(plugin_id: str, plugin_dir: str, manifest, error: str) -> None:
     _persist_load_error(plugin_id, error)
 
 
+def _register_disabled_state(plugin_id: str, plugin_dir: str, manifest: PluginManifest) -> None:
+    with _states_lock:
+        state = PluginState(plugin_id, plugin_dir)
+        state.manifest = manifest
+        state.enabled = False
+        state.warnings = list(manifest.warnings or [])
+        state.restart_required = bool(_read_ui_entry(plugin_id).get('restart_required', False))
+        _states[plugin_id] = state
+
+
+def _register_frontend_only_state(plugin_id: str, plugin_dir: str, manifest: PluginManifest) -> None:
+    with _states_lock:
+        state = PluginState(plugin_id, plugin_dir)
+        state.manifest = manifest
+        state.loaded = True
+        state.enabled = True
+        state.warnings = list(manifest.warnings or [])
+        state.restart_required = False
+        _states[plugin_id] = state
+    _persist_load_error(plugin_id, '')
+
+
+def resolve_dependencies(candidates: dict) -> tuple:
+    """校验插件间依赖并给出加载顺序（被依赖者在前）。
+
+    Args:
+        candidates: `{plugin_id: {'dir': str, 'manifest': PluginManifest, 'enabled': bool}}`
+
+    Returns:
+        `(order, errors)`：`order` 是依赖已满足的插件 id（拓扑序），
+        `errors` 记录其余插件无法加载的原因（缺失 / 被禁用 / 版本不满足 / 循环依赖）。
+    """
+    errors = {}
+
+    for plugin_id, item in candidates.items():
+        for dep_id, constraint in (item['manifest'].requires or {}).items():
+            dependency = candidates.get(dep_id)
+            if dependency is None:
+                errors[plugin_id] = f'缺少依赖插件: {dep_id} {constraint}'
+                break
+            if not dependency['enabled']:
+                errors[plugin_id] = f'依赖插件已被禁用: {dep_id}'
+                break
+            if not satisfies_requirement(dependency['manifest'].version, constraint):
+                errors[plugin_id] = (
+                    f'依赖版本不满足: {dep_id} 需要 {constraint}，'
+                    f'已安装 {dependency["manifest"].version}'
+                )
+                break
+
+    order = []
+    resolved = set()
+    visiting = set()
+    stack = []
+
+    def visit(plugin_id: str) -> bool:
+        if plugin_id in resolved:
+            return True
+        if plugin_id in visiting:
+            cycle = stack[stack.index(plugin_id):] + [plugin_id]
+            message = '检测到循环依赖: ' + ' → '.join(cycle)
+            for member in cycle[:-1]:
+                errors.setdefault(member, message)
+            return False
+
+        visiting.add(plugin_id)
+        stack.append(plugin_id)
+        ok = True
+        for dep_id in (candidates[plugin_id]['manifest'].requires or {}):
+            if dep_id not in candidates or dep_id in errors:
+                errors.setdefault(plugin_id, '依赖链中存在无法加载的插件')
+                ok = False
+                continue
+            if not visit(dep_id):
+                errors.setdefault(plugin_id, '依赖链中存在无法加载的插件')
+                ok = False
+        stack.pop()
+        visiting.discard(plugin_id)
+
+        if ok:
+            resolved.add(plugin_id)
+            order.append(plugin_id)
+        return ok
+
+    for plugin_id in sorted(candidates):
+        if plugin_id in errors:
+            continue
+        visit(plugin_id)
+
+    return order, errors
+
+
 def load_all(app=None) -> dict:
-    """发现并加载全部插件；单个插件失败只记录，不抛出。"""
+    """发现并加载全部插件；单个插件失败只记录，不抛出。
+
+    两阶段：先解析全部 manifest，再按依赖顺序加载（被依赖者先加载）。
+    依赖缺失、被禁用、版本不满足或循环依赖都会记入该插件的 `load_error` 并跳过。
+    """
     global _states_initialized
 
     with _states_lock:
@@ -338,9 +434,10 @@ def load_all(app=None) -> dict:
     enabled_map = _read_enabled_map()
     summary = {'loaded': [], 'failed': [], 'disabled': []}
 
+    # === 阶段 1：发现 + manifest 校验 ===
+    candidates = {}
     for plugin_dir in discover_plugin_dirs():
         plugin_id = os.path.basename(plugin_dir.rstrip(os.sep))
-        enabled = enabled_map.get(plugin_id, True)
 
         try:
             manifest = PluginManifest.load(plugin_dir)
@@ -360,29 +457,40 @@ def load_all(app=None) -> dict:
             summary['failed'].append(plugin_id)
             continue
 
-        if not enabled:
-            with _states_lock:
-                state = PluginState(plugin_id, plugin_dir)
-                state.manifest = manifest
-                state.enabled = False
-                state.warnings = list(manifest.warnings or [])
-                state.restart_required = bool(_read_ui_entry(plugin_id).get('restart_required', False))
-                _states[plugin_id] = state
+        candidates[plugin_id] = {
+            'dir': plugin_dir,
+            'manifest': manifest,
+            'enabled': enabled_map.get(plugin_id, True),
+        }
+
+    # === 阶段 2：依赖解析 + 拓扑排序 ===
+    order, dependency_errors = resolve_dependencies(candidates)
+
+    # === 阶段 3：按序加载 ===
+    failed_ids = set()
+    for plugin_id in order:
+        item = candidates[plugin_id]
+        plugin_dir = item['dir']
+        manifest = item['manifest']
+
+        blocked = [dep for dep in (manifest.requires or {}) if dep in failed_ids]
+        if blocked:
+            message = '依赖链中存在无法加载的插件'
+            _mark_failed(plugin_id, plugin_dir, manifest, message)
+            logger.error('插件 %s 的依赖 %s 加载失败，已跳过', plugin_id, blocked)
+            summary['failed'].append(plugin_id)
+            failed_ids.add(plugin_id)
+            continue
+
+        if not item['enabled']:
+            _register_disabled_state(plugin_id, plugin_dir, manifest)
             logger.info('插件 %s 已被禁用，跳过加载', plugin_id)
             summary['disabled'].append(plugin_id)
             continue
 
         if not manifest.has_backend:
             # 纯前端插件：没有后端注册逻辑，但仍然登记状态供前端加载
-            with _states_lock:
-                state = PluginState(plugin_id, plugin_dir)
-                state.manifest = manifest
-                state.loaded = True
-                state.enabled = True
-                state.warnings = list(manifest.warnings or [])
-                state.restart_required = False
-                _states[plugin_id] = state
-            _persist_load_error(plugin_id, '')
+            _register_frontend_only_state(plugin_id, plugin_dir, manifest)
             logger.info('插件 %s 为纯前端插件，等待前端 PluginHost 加载', plugin_id)
             summary['loaded'].append(plugin_id)
             continue
@@ -394,6 +502,7 @@ def load_all(app=None) -> dict:
             _mark_failed(plugin_id, plugin_dir, manifest, error_text.strip().splitlines()[-1])
             logger.exception('插件 %s 加载失败，已跳过', plugin_id)
             summary['failed'].append(plugin_id)
+            failed_ids.add(plugin_id)
             continue
 
         with _states_lock:
@@ -402,6 +511,20 @@ def load_all(app=None) -> dict:
             state.restart_required = bool(_read_ui_entry(plugin_id).get('restart_required', False))
             _states[plugin_id] = state
         summary['loaded'].append(plugin_id)
+
+    # === 依赖未满足 / 被禁用的落后者 ===
+    for plugin_id, item in candidates.items():
+        if plugin_id in order:
+            continue
+        if not item['enabled']:
+            _register_disabled_state(plugin_id, item['dir'], item['manifest'])
+            summary['disabled'].append(plugin_id)
+            continue
+
+        message = dependency_errors.get(plugin_id, '依赖未满足')
+        _mark_failed(plugin_id, item['dir'], item['manifest'], message)
+        logger.error('插件 %s 依赖未满足，已跳过: %s', plugin_id, message)
+        summary['failed'].append(plugin_id)
 
     if summary['loaded'] or summary['failed'] or summary['disabled']:
         logger.info(

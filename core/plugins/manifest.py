@@ -28,6 +28,10 @@ SEMVER_PATTERN = re.compile(r'^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.
 ENTRY_NAME_PATTERN = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*$')
 # 作业类型：小写点分名（如 ai.analyze）
 JOB_TYPE_PATTERN = re.compile(r'^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$')
+# 依赖版本约束：`>=1.0.0` / `>1.0.0` / `<=1.0.0` / `<1.0.0` / `==1.0.0` / `1.0.0` / `*`
+REQUIREMENT_PATTERN = re.compile(
+    r'^(>=|>|<=|<|==|=)?\s*(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?|\*)$'
+)
 
 # 已知事件集合（与 hooks.CORE_EVENTS 保持一致，避免循环导入这里重复声明）
 KNOWN_HOOKS = frozenset({
@@ -85,6 +89,47 @@ def compare_versions(left: str, right: str) -> int:
     if parsed_left < parsed_right:
         return -1
     return 0
+
+
+def parse_requirement(constraint) -> tuple | None:
+    """解析依赖版本约束，返回 `(操作符, 版本)`；`*` 的版本为 `'*'`。
+
+    无操作符视为**精确匹配**（`"1.2.3"` 等价 `"==1.2.3"`）。
+    """
+    text = str(constraint or '').strip()
+    if not text:
+        return None
+    match = REQUIREMENT_PATTERN.match(text)
+    if not match:
+        return None
+    operator = match.group(1) or '=='
+    return operator, match.group(2)
+
+
+def satisfies_requirement(version: str, constraint) -> bool:
+    """判断 `version` 是否满足依赖约束。"""
+    parsed = parse_requirement(constraint)
+    if parsed is None:
+        return False
+
+    operator, target = parsed
+    if target == '*':
+        return parse_semver(version) is not None
+
+    current = parse_semver(version)
+    expected = parse_semver(target)
+    if current is None or expected is None:
+        return False
+
+    if operator == '>=':
+        return current >= expected
+    if operator == '>':
+        return current > expected
+    if operator == '<=':
+        return current <= expected
+    if operator == '<':
+        return current < expected
+    return current == expected
 
 
 def _load_manifest_payload(plugin_dir: str) -> dict:
@@ -234,6 +279,7 @@ class PluginManifest:
     frontend_detail_tab: dict = field(default_factory=dict)
 
     permissions: list = field(default_factory=list)
+    requires: dict = field(default_factory=dict)
     config_schema: dict = field(default_factory=dict)
     secret_schema: dict = field(default_factory=dict)
     warnings: list = field(default_factory=list)
@@ -274,6 +320,7 @@ class PluginManifest:
             'frontend_entry': self.frontend_entry_rel,
             'frontend_styles': list(self.frontend_styles_rel),
             'permissions': list(self.permissions),
+            'requires': dict(self.requires),
             'jobs': list(self.backend_jobs),
             'hooks': list(self.backend_hooks),
             'panels': list(self.frontend_panels),
@@ -408,6 +455,25 @@ class PluginManifest:
                 continue
             permissions.append(permission)
 
+        requires = {}
+        raw_requires = raw.get('requires')
+        if raw_requires is not None and not isinstance(raw_requires, dict):
+            warnings.append('requires 必须是对象（{plugin_id: 版本约束}），已忽略')
+        elif isinstance(raw_requires, dict):
+            for raw_dep_id, raw_constraint in raw_requires.items():
+                dep_id = str(raw_dep_id or '').strip()
+                constraint = str(raw_constraint or '').strip()
+                if not PLUGIN_ID_PATTERN.match(dep_id):
+                    warnings.append(f'忽略非法依赖 id: {raw_dep_id!r}')
+                    continue
+                if dep_id == plugin_id:
+                    warnings.append('忽略对自身的依赖声明')
+                    continue
+                if parse_requirement(constraint) is None:
+                    warnings.append(f'忽略依赖 {dep_id} 的非法版本约束: {constraint!r}')
+                    continue
+                requires[dep_id] = constraint
+
         icon = ''
         raw_icon = raw.get('icon')
         if raw_icon:
@@ -451,6 +517,7 @@ class PluginManifest:
             frontend_settings_tab=dict(settings_tab) if isinstance(settings_tab, dict) else {},
             frontend_detail_tab=dict(detail_tab) if isinstance(detail_tab, dict) else {},
             permissions=permissions,
+            requires=requires,
             config_schema=_validate_schema(raw.get('config_schema'), field_name='config_schema'),
             secret_schema=_validate_schema(raw.get('secret_schema'), field_name='secret_schema'),
             warnings=warnings,

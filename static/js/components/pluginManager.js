@@ -16,6 +16,7 @@ import {
   getPluginCatalog,
   getPluginConfig,
   getPluginList,
+  getPluginReadme,
   getPluginSecrets,
   installPluginFromCatalog,
   savePluginConfig,
@@ -352,6 +353,36 @@ export default function pluginManager() {
       await this.openSecrets({ id: this.secretTargetId, manifest: { secret_schema: this.secretSchema } });
     },
 
+    async openDocs(item) {
+      const data = await getPluginReadme(item.id);
+      if (!data.success) {
+        toast(data.msg || "读取插件文档失败", "error");
+        return;
+      }
+
+      const blocks = [];
+      if (data.readme && data.readme.found && data.readme.content) {
+        blocks.push(data.readme.content.trim());
+      }
+      if (data.changelog && data.changelog.found && data.changelog.content) {
+        blocks.push(`## 更新日志\n\n${data.changelog.content.trim()}`);
+      }
+
+      if (!blocks.length) {
+        toast("该插件没有 README 或 CHANGELOG");
+        return;
+      }
+
+      window.dispatchEvent(
+        new CustomEvent("open-markdown-view", {
+          detail: {
+            content: blocks.join("\n\n---\n\n"),
+            title: `${item.name || item.id} · 文档`,
+          },
+        }),
+      );
+    },
+
     // ---------------------------------------------------------------- 渲染辅助
 
     schemaEntries(schema) {
@@ -380,6 +411,12 @@ export default function pluginManager() {
       const permissions = item.permissions || [];
       if (!permissions.length) return "无声明权限";
       return permissions.map((item) => PERMISSION_LABELS[item] || item).join(" · ");
+    },
+
+    requirementLabels(item) {
+      const requires = (item.manifest && item.manifest.requires) || item.requires || {};
+      const entries = Object.keys(requires).map((dep) => `${dep} ${requires[dep]}`);
+      return entries.join(" · ");
     },
 
     styleScopeWarnings(item) {
