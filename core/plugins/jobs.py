@@ -5,6 +5,8 @@
 - 崩溃恢复：启动时把 `running` / `queued` 作业置为 `aborted`。
 - 并发控制：`MAX_JOBS_PER_PLUGIN` 限制单插件同时占用的作业槽位，避免饿死其他插件。
 - SSE：`plugin_job_events` 按作业内自增 `seq` 增量推送，`snapshot` 不落表。
+- **归属隔离**：所有按 `run_id` 的操作都可选传 `plugin_id` 校验作业归属，
+  越权一律按「作业不存在」处理——不透露他人作业是否存在，也不消耗 SSE 配额。
 """
 
 import json
@@ -257,13 +259,24 @@ def submit_job(plugin_id: str, job_type: str, items, payload: dict | None = None
     return run_id
 
 
-def get_job_detail(run_id: str, *, items_limit: int = 200, items_offset: int = 0):
-    """作业状态 + 条目（分页）。"""
+def get_job_detail(
+    run_id: str, *, items_limit: int = 200, items_offset: int = 0, plugin_id: str = '',
+):
+    """作业状态 + 条目（分页）；`plugin_id` 非空时校验归属（越权按不存在处理）。"""
     conn = job_store.connect(ensure_schema=True)
     try:
         job = job_store.get_job(conn, run_id)
         if not job:
             return None
+
+        owner = str(plugin_id or '').strip()
+        if owner and str(job.get('plugin_id') or '') != owner:
+            logger.warning(
+                '插件 %s 尝试读取非本插件作业 %s（归属 %s），已拒绝',
+                owner, run_id, job.get('plugin_id'),
+            )
+            return None
+
         items = job_store.list_items(conn, run_id, limit=items_limit, offset=items_offset)
         job['items'] = items
         job['items_total'] = job_store.count_items(conn, run_id)
@@ -283,18 +296,33 @@ def list_plugin_jobs(plugin_id: str, *, limit: int = 50, offset: int = 0, status
         conn.close()
 
 
-def _require_job(conn, run_id: str) -> dict:
+def _require_job(conn, run_id: str, *, plugin_id: str = '') -> dict:
+    """取作业；不存在时抛错。
+
+    `plugin_id` 非空时**同时校验归属**——插件只能操作自己的作业。
+    作业 id 由主程序生成（32 位十六进制），但仅靠「不可猜测」不构成隔离：
+    run_id 会出现在 SSE 事件、日志与前端 URL 中，属于可泄漏信息。
+    """
     job = job_store.get_job(conn, run_id)
     if not job:
+        raise PluginJobNotFoundError(f'作业不存在: {run_id}')
+
+    owner = str(plugin_id or '').strip()
+    if owner and str(job.get('plugin_id') or '') != owner:
+        # 不透露目标作业是否存在，统一按「不存在」处理，避免探测
+        logger.warning(
+            '插件 %s 尝试访问非本插件作业 %s（归属 %s），已拒绝',
+            owner, run_id, job.get('plugin_id'),
+        )
         raise PluginJobNotFoundError(f'作业不存在: {run_id}')
     return job
 
 
-def cancel_job(run_id: str) -> bool:
+def cancel_job(run_id: str, *, plugin_id: str = '') -> bool:
     """协作式取消：把作业置为 `cancelled`，worker 在下一个条目边界退出。"""
     conn = job_store.connect(ensure_schema=True)
     try:
-        job = _require_job(conn, run_id)
+        job = _require_job(conn, run_id, plugin_id=plugin_id)
         if job['status'] not in job_store.ACTIVE_STATUSES:
             raise PluginJobStateError(f'作业当前状态无法取消: {job["status"]}')
 
@@ -306,11 +334,11 @@ def cancel_job(run_id: str) -> bool:
         conn.close()
 
 
-def pause_job(run_id: str) -> bool:
+def pause_job(run_id: str, *, plugin_id: str = '') -> bool:
     """暂停作业（D6 逐条审批流的落点）。"""
     conn = job_store.connect(ensure_schema=True)
     try:
-        job = _require_job(conn, run_id)
+        job = _require_job(conn, run_id, plugin_id=plugin_id)
         if job['status'] not in ('queued', 'running'):
             raise PluginJobStateError(f'作业当前状态无法暂停: {job["status"]}')
         job_store.update_job(conn, run_id, status='paused', message='已暂停，等待确认')
@@ -320,10 +348,10 @@ def pause_job(run_id: str) -> bool:
         conn.close()
 
 
-def resume_job(run_id: str) -> bool:
+def resume_job(run_id: str, *, plugin_id: str = '') -> bool:
     conn = job_store.connect(ensure_schema=True)
     try:
-        job = _require_job(conn, run_id)
+        job = _require_job(conn, run_id, plugin_id=plugin_id)
         if job['status'] != 'paused':
             raise PluginJobStateError(f'作业当前状态无法恢复: {job["status"]}')
         job_store.update_job(conn, run_id, status='queued')
@@ -335,11 +363,11 @@ def resume_job(run_id: str) -> bool:
     return True
 
 
-def retry_job(run_id: str, *, only_failed: bool = True) -> str:
+def retry_job(run_id: str, *, only_failed: bool = True, plugin_id: str = '') -> str:
     """重跑失败项：把 `failed` / `awaiting_review` 条目重置为 `pending` 后重新入队。"""
     conn = job_store.connect(ensure_schema=True)
     try:
-        job = _require_job(conn, run_id)
+        job = _require_job(conn, run_id, plugin_id=plugin_id)
         if job['status'] in ('queued', 'running'):
             raise PluginJobStateError(f'作业仍在运行，无法重跑: {job["status"]}')
 
@@ -382,14 +410,16 @@ def retry_job(run_id: str, *, only_failed: bool = True) -> str:
     return run_id
 
 
-def review_item(run_id: str, item_key: str, *, status: str, result=None, error: str = '') -> bool:
+def review_item(
+    run_id: str, item_key: str, *, status: str, result=None, error: str = '', plugin_id: str = '',
+) -> bool:
     """逐条审批（D6）：把 `awaiting_review` 条目改为 `done` / `failed` / `skipped`。"""
     if status not in job_store.ITEM_STATUSES:
         raise PluginJobError(f'非法的条目状态: {status}')
 
     conn = job_store.connect(ensure_schema=True)
     try:
-        _require_job(conn, run_id)
+        _require_job(conn, run_id, plugin_id=plugin_id)
         item = job_store.get_item(conn, run_id, item_key)
         if not item:
             raise PluginJobNotFoundError(f'条目不存在: {item_key}')
@@ -723,8 +753,33 @@ def build_snapshot(conn, run_id: str) -> dict:
     }
 
 
-def stream_job_events(run_id: str, *, last_event_id: int = 0) -> Response:
-    """构造 SSE 响应；`snapshot` 由端点现场合成，不落表。"""
+def stream_job_events(run_id: str, *, last_event_id: int = 0, plugin_id: str = '') -> Response:
+    """构造 SSE 响应；`snapshot` 由端点现场合成，不落表。
+
+    `plugin_id` 非空时校验归属：越权请求返回 `job_not_found` 的 `done` 帧，
+    与「作业真不存在」表现一致（不透露他人作业是否存在）。
+    """
+    # 归属校验放在占用 SSE 槽位之前，避免越权请求消耗连接配额
+    owner = str(plugin_id or '').strip()
+    if owner:
+        conn = job_store.connect(ensure_schema=True)
+        try:
+            job = job_store.get_job(conn, run_id)
+        finally:
+            conn.close()
+
+        if not job or str(job.get('plugin_id') or '') != owner:
+            if job:
+                logger.warning(
+                    '插件 %s 尝试订阅非本插件作业 %s（归属 %s），已拒绝',
+                    owner, run_id, job.get('plugin_id'),
+                )
+
+            def _denied():
+                yield _sse_frame('done', {'status': 'not_found', 'error': 'job_not_found'}, seq=0)
+
+            return Response(_denied(), mimetype='text/event-stream')
+
     if not _acquire_sse_slot(run_id):
         raise PluginSseLimitError('SSE 连接数已达上限')
 

@@ -1948,3 +1948,44 @@ tests/plugin_sse_parse_test.mjs
 - 标签覆盖：按 `const X = {...}` **块内**提取键值，与后端枚举**顺序**一致；断言值必须是中文且不等于状态名（否则与「映射缺失回退原值」无区别）
 - 终态列表：前端 `TERMINAL_STATUSES` 必须等于后端 `job_store.TERMINAL_STATUSES`
 - 资产存在性：图标在雪碧图中存在、CSS 变量有定义、无 Tailwind 调色板类
+
+---
+
+# 附录 L · 跨插件隔离审计
+
+## L.1 发现的高危缺陷
+
+**作业归属完全未校验**。`run_id` 由主程序生成（32 位十六进制），但 `get_job_detail` / `cancel_job` / `pause_job` / `resume_job` / `retry_job` / `review_item` 全都**只按 `run_id` 查询**，不校验作业属于哪个插件。后果：
+
+- 插件 A 只要拿到插件 B 的 `run_id`，就能读取其作业详情（含条目 payload）、**取消**正在跑的作业、**重跑**它、甚至逐条审批改写条目结果与事件流。
+- `run_id` 不是秘密：它会出现在 SSE 帧、作业日志、前端 URL 与 `plugin_jobs` 列表响应里。仅靠「不可猜测」不构成隔离。
+
+路由层的情况是**部分**的：`GET <id>/jobs/<run_id>` 与 SSE 端点各有一处 `detail.get('plugin_id') != plugin_id` 内联判断，但 5 个写操作端点（cancel / pause / resume / retry / review）完全没有。`PluginAPI` 门面则一处都没有。
+
+## L.2 修补
+
+| 层 | 改动 |
+|---|---|
+| `jobs.py` | `_require_job()` 与新增的 `get_job_detail(plugin_id=)` 承担归属校验；`cancel_job` / `pause_job` / `resume_job` / `retry_job` / `review_item` / `stream_job_events` 全部新增 `plugin_id` 关键字参数（默认空 = 不校验，保持 worker 内部调用可用） |
+| `routes.py` | 6 个端点传入 `plugin_id`；删除 2 处内联判断（统一由 jobs 层负责）；**顺带修掉**重构时丢失的 `PluginJobNotFoundError` 导入（原本是函数内局部导入，我改成顶层后漏了） |
+| `api.py` | `get_job` / `cancel_job` / `retry_job` / `pause_job` / `resume_job` 全部传入 `self.plugin_id` |
+
+**两条设计取舍**：
+
+1. **越权一律返回「作业不存在」**，而非「无权限」。后者会让攻击者用响应差异枚举出他人作业是否存在；同时记录 `logger.warning` 供运维审计。
+2. **SSE 归属校验放在占用连接槽位之前**。否则越权请求虽然拿不到数据，却能消耗目标 run 的连接配额（每 run 上限 4），构成一种拒绝服务。
+
+## L.3 测试与有效性验证
+
+新增 `tests/test_plugin_isolation.py`（26 项）：作业读取/取消/重跑/暂停/恢复/条目审批/SSE 订阅共 7 条越权路径逐一断言；错误响应**不可区分性**（越权与不存在必须返回完全相同的 `to_dict()`，且不透露归属插件名）；越权不消耗 SSE 配额；路由层 6 个端点的 404；以及密钥、配置、`ui_data` 命名空间与 `migrate` 表前缀隔离。
+
+**变异测试验证**（脚本一次性、已删除）：移除 `_require_job` / `get_job_detail` / `stream_job_events` 的校验、让路由层或 `PluginAPI` 不传 `plugin_id`，**5 个变异全部被抓到**。
+
+**过程中暴露的两个测试质量问题**（自身也已修补）：
+
+1. 越权 SSE 用例原先用 `list(response.response)` 读流——一旦归属校验退化，流永不结束，测试**挂死**而不是失败:整个套件被拖垮,缺陷反而被掩盖。改为带块数上限的 `_drain()` 辅助函数,并在变异脚本中对子进程设 120s 超时（挂死同样计为「抓到」）。
+2. 变异脚本被强杀时留下了未还原的 `jobs.py`（`if False:` 残留）。改为**每个变异前后都还原**，并在 `finally` 中兜底恢复。
+
+## L.4 未受影响的资源（核对结论）
+
+密钥按 `plugins.<id>` 命名空间读写、配置与 `ui_data` 按 `_plugins_v1.<id>` 隔离、`migrate` 强制 `plugin_<id>_` 表名前缀——审计中均未发现跨插件可达路径。

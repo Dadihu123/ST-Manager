@@ -14,7 +14,7 @@ from flask import Blueprint, jsonify, request
 
 from core.plugins import catalog, installer, jobs, registry
 from core.plugins import secrets as secrets_store
-from core.plugins.errors import PluginError, PluginNotFoundError
+from core.plugins.errors import PluginError, PluginJobNotFoundError, PluginNotFoundError
 from core.utils.paths import is_under_base
 
 logger = logging.getLogger(__name__)
@@ -408,10 +408,8 @@ def create_plugin_job(plugin_id):
 @_handle_plugin_errors
 def get_plugin_job(plugin_id, run_id):
     _require_state(plugin_id)
-    detail = jobs.get_job_detail(run_id)
-    if not detail or detail.get('plugin_id') != plugin_id:
-        from core.plugins.errors import PluginJobNotFoundError
-
+    detail = jobs.get_job_detail(run_id, plugin_id=plugin_id)
+    if detail is None:
         raise PluginJobNotFoundError(f'作业不存在: {run_id}')
     return jsonify({'success': True, 'job': detail})
 
@@ -421,11 +419,6 @@ def get_plugin_job(plugin_id, run_id):
 def stream_plugin_job_events(plugin_id, run_id):
     """SSE 事件流（`Last-Event-ID` 断线续传）。"""
     _require_state(plugin_id)
-    detail = jobs.get_job_detail(run_id, items_limit=1, items_offset=0)
-    if not detail or detail.get('plugin_id') != plugin_id:
-        from core.plugins.errors import PluginJobNotFoundError
-
-        raise PluginJobNotFoundError(f'作业不存在: {run_id}')
 
     raw_last_id = request.headers.get('Last-Event-ID', '0')
     try:
@@ -433,28 +426,29 @@ def stream_plugin_job_events(plugin_id, run_id):
     except (TypeError, ValueError):
         last_event_id = 0
 
-    return jobs.stream_job_events(run_id, last_event_id=last_event_id)
+    # 归属校验在 jobs.stream_job_events 内完成（返回 job_not_found 的 done 帧）
+    return jobs.stream_job_events(run_id, last_event_id=last_event_id, plugin_id=plugin_id)
 
 
 @bp.route('/api/plugins/<plugin_id>/jobs/<run_id>/cancel', methods=['POST'])
 @_handle_plugin_errors
 def cancel_plugin_job(plugin_id, run_id):
     _require_state(plugin_id)
-    return jsonify({'success': jobs.cancel_job(run_id)})
+    return jsonify({'success': jobs.cancel_job(run_id, plugin_id=plugin_id)})
 
 
 @bp.route('/api/plugins/<plugin_id>/jobs/<run_id>/pause', methods=['POST'])
 @_handle_plugin_errors
 def pause_plugin_job(plugin_id, run_id):
     _require_state(plugin_id)
-    return jsonify({'success': jobs.pause_job(run_id)})
+    return jsonify({'success': jobs.pause_job(run_id, plugin_id=plugin_id)})
 
 
 @bp.route('/api/plugins/<plugin_id>/jobs/<run_id>/resume', methods=['POST'])
 @_handle_plugin_errors
 def resume_plugin_job(plugin_id, run_id):
     _require_state(plugin_id)
-    return jsonify({'success': jobs.resume_job(run_id)})
+    return jsonify({'success': jobs.resume_job(run_id, plugin_id=plugin_id)})
 
 
 @bp.route('/api/plugins/<plugin_id>/jobs/<run_id>/retry', methods=['POST'])
@@ -463,7 +457,7 @@ def retry_plugin_job(plugin_id, run_id):
     _require_state(plugin_id)
     body = request.get_json(silent=True) or {}
     only_failed = body.get('only_failed', True)
-    new_run = jobs.retry_job(run_id, only_failed=bool(only_failed))
+    new_run = jobs.retry_job(run_id, only_failed=bool(only_failed), plugin_id=plugin_id)
     return jsonify({'success': True, 'run_id': new_run})
 
 
@@ -479,5 +473,6 @@ def review_plugin_job_item(plugin_id, run_id, item_key):
         status=status,
         result=body.get('result'),
         error=str(body.get('error') or ''),
+        plugin_id=plugin_id,
     )
     return jsonify({'success': True})

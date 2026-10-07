@@ -307,34 +307,37 @@ class PluginAPI:
         return jobs.submit_job(self.plugin_id, job_type, items, payload)
 
     def get_job(self, run_id: str):
-        """读取作业详情（含进度、条目与最近事件）；不存在时返回 None。"""
+        """读取作业详情（含进度、条目与最近事件）；不存在或**非本插件作业**时返回 None。"""
         from core.plugins import jobs
 
-        return jobs.get_job_detail(run_id)
+        return jobs.get_job_detail(run_id, plugin_id=self.plugin_id)
 
     def cancel_job(self, run_id: str) -> bool:
-        """请求取消作业（协作式：处理器下次 `should_cancel()` 时退出）。"""
+        """请求取消本插件的作业（协作式：处理器下次 `should_cancel()` 时退出）。
+
+        非本插件的 run_id 会抛 `job_not_found`——作业按 `plugin_id` 隔离。
+        """
         from core.plugins import jobs
 
-        return jobs.cancel_job(run_id)
+        return jobs.cancel_job(run_id, plugin_id=self.plugin_id)
 
     def retry_job(self, run_id: str, *, only_failed: bool = True) -> str:
-        """重跑作业；`only_failed=True` 时只重置失败条目，返回新的 run_id。"""
+        """重跑本插件的作业；`only_failed=True` 时只重置失败条目，返回 run_id。"""
         from core.plugins import jobs
 
-        return jobs.retry_job(run_id, only_failed=only_failed)
+        return jobs.retry_job(run_id, only_failed=only_failed, plugin_id=self.plugin_id)
 
     def pause_job(self, run_id: str) -> bool:
-        """暂停作业（D6 审批流：等待人工处理后由 `resume_job` 恢复）。"""
+        """暂停本插件的作业（D6 审批流：等待人工处理后由 `resume_job` 恢复）。"""
         from core.plugins import jobs
 
-        return jobs.pause_job(run_id)
+        return jobs.pause_job(run_id, plugin_id=self.plugin_id)
 
     def resume_job(self, run_id: str) -> bool:
-        """恢复被暂停的作业，返回是否成功。"""
+        """恢复本插件被暂停的作业，返回是否成功。"""
         from core.plugins import jobs
 
-        return jobs.resume_job(run_id)
+        return jobs.resume_job(run_id, plugin_id=self.plugin_id)
 
     # ---------------------------------------------------------------- CLI
 

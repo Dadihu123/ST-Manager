@@ -55,11 +55,11 @@
 |---|---|---|---|
 | `register_job()` | `register_job(job_type: str, handler) -> None` | Stable | 注册作业处理器。`job_type` 必须已在 manifest 的 `backend.jobs` 声明。 |
 | `submit_job()` | `submit_job(job_type: str, *, items, payload=None) -> str` | Stable | 提交作业，返回 run_id。 |
-| `get_job()` | `get_job(run_id: str)` | Stable | 读取作业详情（含进度、条目与最近事件）；不存在时返回 None。 |
-| `cancel_job()` | `cancel_job(run_id: str) -> bool` | Stable | 请求取消作业（协作式：处理器下次 `should_cancel()` 时退出）。 |
-| `retry_job()` | `retry_job(run_id: str, *, only_failed: bool = True) -> str` | Stable | 重跑作业；`only_failed=True` 时只重置失败条目，返回新的 run_id。 |
-| `pause_job()` | `pause_job(run_id: str) -> bool` | Stable | 暂停作业（D6 审批流：等待人工处理后由 `resume_job` 恢复）。 |
-| `resume_job()` | `resume_job(run_id: str) -> bool` | Stable | 恢复被暂停的作业，返回是否成功。 |
+| `get_job()` | `get_job(run_id: str)` | Stable | 读取作业详情（含进度、条目与最近事件）；不存在或**非本插件作业**时返回 None。 |
+| `cancel_job()` | `cancel_job(run_id: str) -> bool` | Stable | 请求取消本插件的作业（协作式：处理器下次 `should_cancel()` 时退出）。 |
+| `retry_job()` | `retry_job(run_id: str, *, only_failed: bool = True) -> str` | Stable | 重跑本插件的作业；`only_failed=True` 时只重置失败条目，返回 run_id。 |
+| `pause_job()` | `pause_job(run_id: str) -> bool` | Stable | 暂停本插件的作业（D6 审批流：等待人工处理后由 `resume_job` 恢复）。 |
+| `resume_job()` | `resume_job(run_id: str) -> bool` | Stable | 恢复本插件被暂停的作业，返回是否成功。 |
 
 ### CLI 子命令
 
