@@ -41,6 +41,7 @@ import beautifyPreviewFrame from "./components/beautifyPreviewFrame.js";
 import sourceUpdateMonitor from "./components/sourceUpdateMonitor.js";
 import styledSelect from "./components/styledSelect.js";
 import pluginManager from "./components/pluginManager.js";
+import pluginJobPanel from "./components/pluginJobPanel.js";
 import { initPasteImportHandler } from "./components/pasteImportHandler.js";
 import { PluginHost } from "./pluginHost.js";
 import "./utils/numberControl.js";
@@ -85,6 +86,7 @@ const registerComponents = () => {
   Alpine.data("sourceUpdateMonitor", sourceUpdateMonitor);
   Alpine.data("styledSelect", styledSelect);
   Alpine.data("pluginManager", pluginManager);
+  Alpine.data("pluginJobPanel", pluginJobPanel);
   initPasteImportHandler();
 
   // 前端插件运行时：懒加载，失败不影响核心 UI

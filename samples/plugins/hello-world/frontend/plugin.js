@@ -22,6 +22,12 @@ export async function activate(api) {
   button.textContent = "ping 后端";
   button.dataset.marqueeIgnore = "true";
 
+  const jobButton = document.createElement("button");
+  jobButton.type = "button";
+  jobButton.className = "plugin-hello-world-button";
+  jobButton.textContent = "跑 1000 项批量作业";
+  jobButton.dataset.marqueeIgnore = "true";
+
   const output = document.createElement("pre");
   output.className = "plugin-hello-world-output";
 
@@ -36,7 +42,28 @@ export async function activate(api) {
     output.textContent = JSON.stringify(data, null, 2);
   });
 
-  root.append(title, greeting, button, output);
+  jobButton.addEventListener("click", async () => {
+    const items = Array.from({ length: 1000 }, (_, index) => ({
+      key: `item-${index + 1}`,
+      // 每 50 项制造一个失败，便于演示「只重跑失败项」
+      fail: index % 50 === 0,
+    }));
+
+    jobButton.disabled = true;
+    try {
+      const runId = await api.jobs.submit("demo.count", items, { source: "hello-world" });
+      if (!runId) {
+        api.toast("作业提交失败");
+        return;
+      }
+      api.toast(`作业已创建: ${runId.slice(0, 8)}`);
+      api.jobs.open(runId, { title: "Hello World 批量作业" });
+    } finally {
+      jobButton.disabled = false;
+    }
+  });
+
+  root.append(title, greeting, button, jobButton, output);
 
   // 订阅插件自定义事件（必须以 "<plugin_id>:" 开头）
   api.emit("hello-world:activated", { id: api.id });

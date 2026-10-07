@@ -40,6 +40,27 @@ def register(api):
 
     api.on('card.updated', on_card_updated)
 
+    def run_count_job(ctx):
+        """demo.count：逐项处理，演示进度上报、协作式取消与失败重试。"""
+        total = len(ctx.items)
+        ctx.set_total(total)
+        for index, item in enumerate(ctx.items, start=1):
+            if ctx.should_cancel():
+                ctx.log('warning', f'收到取消请求，已在第 {index - 1}/{total} 项停下')
+                return
+
+            key = item['key']
+            time.sleep(0.002)  # 模拟逐项耗时
+            if item['payload'].get('fail'):
+                ctx.report(key, status='failed', error='示例失败：可在面板里「只重跑失败项」')
+            else:
+                ctx.report(key, status='done', result={'index': index, 'value': key})
+
+        ctx.set_summary({'handled': total})
+        ctx.set_message(f'已处理 {total} 项')
+
+    api.register_job('demo.count', run_count_job)
+
     api.migrate([
         '''
         CREATE TABLE IF NOT EXISTS plugin_hello_world_visits (

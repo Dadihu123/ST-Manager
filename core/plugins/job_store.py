@@ -138,22 +138,29 @@ def new_run_id() -> str:
 
 
 def _dump_json(payload, *, limit: int = 0) -> str:
+    """序列化为 JSON 文本；超过 `limit`（字节）时逐字段裁剪并标注 `_truncated`。"""
     try:
         text = json.dumps(payload if payload is not None else {}, ensure_ascii=False)
     except (TypeError, ValueError):
         text = '{}'
-    if limit and len(text.encode('utf-8')) > limit:
+
+    if not limit or len(text.encode('utf-8')) <= limit:
+        return text
+
+    if not isinstance(payload, dict):
+        return json.dumps({'_truncated': True}, ensure_ascii=False)
+
+    kept = {'_truncated': True}
+    for key, value in payload.items():
+        candidate = dict(kept)
+        candidate[key] = value
         try:
-            trimmed = json.loads(text)
-            if isinstance(trimmed, dict):
-                trimmed = {key: value for key, value in trimmed.items() if key not in ('result', 'payload')}
-                trimmed['_truncated'] = True
-                text = json.dumps(trimmed, ensure_ascii=False)
-            else:
-                text = json.dumps({'_truncated': True}, ensure_ascii=False)
+            encoded = json.dumps(candidate, ensure_ascii=False)
         except (TypeError, ValueError):
-            text = json.dumps({'_truncated': True}, ensure_ascii=False)
-    return text
+            continue
+        if len(encoded.encode('utf-8')) <= limit:
+            kept = candidate
+    return json.dumps(kept, ensure_ascii=False)
 
 
 def _load_json(text, fallback=None):
@@ -176,8 +183,13 @@ def normalize_items(items) -> list:
             key = raw.strip()
             payload = {}
         elif isinstance(raw, dict):
-            key = str(raw.get('key') or '').strip()
-            payload = {k: v for k, v in raw.items() if k != 'key'}
+            # 已经是 `{key, payload}` 形态时直接采用，保证 normalize 幂等
+            if set(raw.keys()) == {'key', 'payload'} and isinstance(raw.get('payload'), dict):
+                key = str(raw.get('key') or '').strip()
+                payload = dict(raw['payload'])
+            else:
+                key = str(raw.get('key') or '').strip()
+                payload = {k: v for k, v in raw.items() if k != 'key'}
         else:
             raise ValueError(f'不支持的 item 类型: {type(raw).__name__}')
 

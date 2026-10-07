@@ -14,9 +14,10 @@
  * - F12：`api.createRoot()` 生成的容器自动带 `data-plugin="<id>"`。
  */
 
+import { parseSSEFrames, parseSSEPayload } from "./utils/sse.js";
+
 const PLUGIN_ROOT_ID = "plugin-host-root";
 const PLUGIN_STORE_NAME = "global";
-
 const CORE_EVENTS = new Set([
   "app.ready",
   "card.created",
@@ -469,11 +470,66 @@ export const PluginHost = {
 
       utils: {
         toAbsoluteAssetUrl: (relativePath) => toAbsoluteAssetUrl(pluginId, relativePath),
+        parseSSEFrames,
+        parseSSEPayload,
         formatDate: (value) => {
           if (!value) return "-";
           const date = new Date(Number(value) * 1000);
           if (Number.isNaN(date.getTime())) return "-";
           return date.toLocaleString("zh-CN");
+        },
+      },
+
+      jobs: {
+        async get(runId) {
+          const data = await api.api(`/jobs/${encodeURIComponent(runId)}`);
+          return data && data.success ? data.job : null;
+        },
+        async list(options = {}) {
+          const query = new URLSearchParams();
+          if (options.limit) query.set("limit", String(options.limit));
+          if (options.offset) query.set("offset", String(options.offset));
+          const suffix = query.toString();
+          const data = await api.api(`/jobs${suffix ? `?${suffix}` : ""}`);
+          return data && data.success ? data.items : [];
+        },
+        async submit(jobType, items, payload = {}) {
+          const data = await api.api("/jobs", {
+            method: "POST",
+            body: { job_type: jobType, items, payload },
+          });
+          return data && data.success ? data.run_id : "";
+        },
+        async cancel(runId) {
+          const data = await api.api(`/jobs/${encodeURIComponent(runId)}/cancel`, { method: "POST" });
+          return Boolean(data && data.success);
+        },
+        async pause(runId) {
+          const data = await api.api(`/jobs/${encodeURIComponent(runId)}/pause`, { method: "POST" });
+          return Boolean(data && data.success);
+        },
+        async resume(runId) {
+          const data = await api.api(`/jobs/${encodeURIComponent(runId)}/resume`, { method: "POST" });
+          return Boolean(data && data.success);
+        },
+        async retry(runId, onlyFailed = true) {
+          const data = await api.api(`/jobs/${encodeURIComponent(runId)}/retry`, {
+            method: "POST",
+            body: { only_failed: onlyFailed },
+          });
+          return data && data.success ? data.run_id : "";
+        },
+        open(runId, options = {}) {
+          if (!runId) return;
+          window.dispatchEvent(
+            new CustomEvent("open-plugin-job-panel", {
+              detail: {
+                pluginId,
+                runId: String(runId),
+                title: String(options.title || ""),
+              },
+            }),
+          );
         },
       },
 

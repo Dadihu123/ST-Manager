@@ -90,3 +90,49 @@ export function deletePluginSecret(id, key) {
     { method: "DELETE" },
   );
 }
+
+// === 作业 ===
+
+export function getPluginJob(id, runId, options = {}) {
+  const query = new URLSearchParams();
+  if (options.itemsLimit) query.set("limit", String(options.itemsLimit));
+  if (options.itemsOffset) query.set("offset", String(options.itemsOffset));
+  const suffix = query.toString();
+  return request(
+    `/api/plugins/${encodeURIComponent(id)}/jobs/${encodeURIComponent(runId)}${suffix ? `?${suffix}` : ""}`,
+  );
+}
+
+export function listPluginJobs(id, options = {}) {
+  const query = new URLSearchParams();
+  if (options.limit) query.set("limit", String(options.limit));
+  if (options.offset) query.set("offset", String(options.offset));
+  const suffix = query.toString();
+  return request(`/api/plugins/${encodeURIComponent(id)}/jobs${suffix ? `?${suffix}` : ""}`);
+}
+
+export function cancelPluginJob(id, runId) {
+  return request(`/api/plugins/${encodeURIComponent(id)}/jobs/${encodeURIComponent(runId)}/cancel`, {
+    method: "POST",
+  });
+}
+
+export function pausePluginJob(id, runId) {
+  return request(`/api/plugins/${encodeURIComponent(id)}/jobs/${encodeURIComponent(runId)}/pause`, {
+    method: "POST",
+  });
+}
+
+export function resumePluginJob(id, runId) {
+  return request(`/api/plugins/${encodeURIComponent(id)}/jobs/${encodeURIComponent(runId)}/resume`, {
+    method: "POST",
+  });
+}
+
+export function retryPluginJob(id, runId, onlyFailed = true) {
+  return request(`/api/plugins/${encodeURIComponent(id)}/jobs/${encodeURIComponent(runId)}/retry`, {
+    method: "POST",
+    headers: JSON_HEADERS,
+    body: JSON.stringify({ only_failed: Boolean(onlyFailed) }),
+  });
+}

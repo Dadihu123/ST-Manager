@@ -1784,3 +1784,21 @@ tests/plugin_sse_parse_test.mjs
 | 12 | 新增前端文件 | 除附录 A 外补 `static/js/api/plugins.js`（管理 API 封装），符合「与后端交互集中在 `static/js/api/`」的既有约定 |
 
 **测试覆盖**：13.1 的 12 个文件全部落地，另加 13.2 的 3 个前端契约测试与 `test_secrets_*` 回归项；命令见 `docs/DEVELOPMENT.md`。
+
+---
+
+# 附录 D · 阶段 1 实现记录
+
+| # | 项 | 结论 |
+|---|---|---|
+| 1 | 作业面板 | 新增 `templates/components/plugin_job_panel.html` + `static/js/components/pluginJobPanel.js` + `static/css/modules/modal-plugin-job.css`；由 `open-plugin-job-panel` 事件打开（`api.jobs.open(runId, {title})`） |
+| 2 | 前端作业辅助 | `PluginAPI.jobs = { get, list, submit, cancel, pause, resume, retry, open }`（Provisional 扩展，10.3 的 `subscribeJob` 仍为 Stable 主通道） |
+| 3 | SSE 解析工具 | 新增 `static/js/utils/sse.js`（`parseSSEFrames` / `parseSSEPayload`，供插件自行消费流与 Node 协议校验），经 `api.utils` 暴露 |
+| 4 | 面板数据通道 | 优先用 `PluginHost.getPluginApi(id).subscribeJob()`（内含 SSE + 轮询降级）；插件未加载时退回 4s 轮询作业详情接口 |
+| 5 | worker 优雅停机 | 新增 `stop_plugin_job_worker()`（幂等，daemon 线程 + 停机信号）；`reset_for_tests()` 会先停机再清状态，避免残留线程与后续用例争抢作业 |
+| 6 | 同类型作业串行化 | `submit_job` 对同 plugin_id + job_type 的活跃作业抛 `job_already_running`（见 6.3） |
+| 7 | 样例插件升级 | `samples/plugins/hello-world` 增加 `demo.count` 作业（逐项上报、`ctx.should_cancel()` 协作取消）与「跑 1000 项批量作业」按钮，串起「提交 → 面板 → 取消 → 只重跑失败项」全链路 |
+| 8 | 新增测试 | `test_plugin_jobs.py`(38) / `test_plugin_sse.py`(15) / `test_plugin_job_order.py`(9) / `test_plugin_sse_seq.py`(9) / `test_plugin_job_panel_contracts.py`(12) + `plugin_sse_parse_test.mjs`（Node） |
+| 9 | 顺带修复 | `job_store._dump_json` 的截断逻辑改为逐字段裁剪（原实现遇到未列入白名单的大字段会撞 `CHECK (length(result_json) <= 262144)`）；`normalize_items` 幂等化，避免 `submit_job → create_job` 双重归一化把 payload 包成 `{"payload": …}` |
+
+**验收实测**（`data/plugins/hello-world`，1000 项作业）：`completed=980 / failed=20 / total=1000`，耗时 2.63s；SSE 首帧 `snapshot`（`id: 0`）与终帧 `done` 正常；`retry(only_failed=True)` 后事件数 1002 → 1024（只重跑 20 个失败项 + 1 条 log + 1 条 done）；取消 → `cancelled`。

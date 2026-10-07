@@ -1,0 +1,181 @@
+{% from "components/icon.html" import icon %}
+
+<!-- 插件作业面板（设计文档 1.7）：由 api.jobs.open(runId) 触发 -->
+<div
+  x-data="pluginJobPanel"
+  x-show="showPluginJobPanel"
+  x-cloak
+  class="modal-overlay ui-modal-overlay ui-refresh-surface z-modal-popover"
+  data-marquee-ignore
+  @click.self="close()"
+  @keydown.escape.window="showPluginJobPanel && close()"
+>
+  <div
+    class="ui-modal-shell plugin-job-shell"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="plugin-job-title"
+  >
+    <div class="ui-modal-header">
+      <div class="ui-modal-header-copy">
+        <h2 id="plugin-job-title" class="ui-modal-title plugin-job-title">
+          <span aria-hidden="true">{{ icon('package', 'ui-icon--md') }}</span>
+          <span x-text="panelTitle || '插件作业'"></span>
+          <span class="plugin-job-status" x-text="statusLabel(job && job.status)"></span>
+        </h2>
+        <p class="plugin-job-subtitle">
+          <code x-text="pluginId"></code>
+          <span aria-hidden="true">·</span>
+          <code x-text="runId"></code>
+        </p>
+      </div>
+      <div class="ui-modal-header-actions">
+        <button
+          type="button"
+          class="plugin-job-icon-button"
+          title="刷新"
+          aria-label="刷新作业状态"
+          @click="refresh(); loadRecentJobs()"
+        >
+          {{ icon('refresh', 'ui-icon--sm') }}
+        </button>
+        <button
+          type="button"
+          class="plugin-job-icon-button"
+          title="关闭"
+          aria-label="关闭作业面板"
+          @click="close()"
+        >
+          {{ icon('close', 'ui-icon--sm') }}
+        </button>
+      </div>
+    </div>
+
+    <div class="ui-modal-body plugin-job-body">
+      <div class="plugin-job-banner plugin-job-banner--danger" x-show="errorMessage" x-cloak>
+        <span aria-hidden="true">{{ icon('alert-triangle', 'ui-icon--sm') }}</span>
+        <span x-text="errorMessage"></span>
+      </div>
+
+      <section class="plugin-job-summary" x-show="job" x-cloak>
+        <div class="plugin-job-progress">
+          <div class="plugin-job-progress-bar" :style="'width: ' + progressPercent + '%'"></div>
+        </div>
+        <p class="plugin-job-counts">
+          <span x-text="'进度 ' + progressPercent + '%'"></span>
+          <span aria-hidden="true">·</span>
+          <span x-text="'完成 ' + counts.completed + '/' + counts.total"></span>
+          <template x-if="counts.failed">
+            <span class="plugin-job-count-failed">
+              <span aria-hidden="true">·</span>
+              <span x-text="'失败 ' + counts.failed"></span>
+            </span>
+          </template>
+          <template x-if="counts.skipped">
+            <span>
+              <span aria-hidden="true">·</span>
+              <span x-text="'跳过 ' + counts.skipped"></span>
+            </span>
+          </template>
+        </p>
+        <p class="plugin-job-message" x-show="job && job.message" x-text="job ? job.message : ''"></p>
+        <p class="plugin-job-error" x-show="job && job.error" x-cloak x-text="job ? job.error : ''"></p>
+
+        <div class="plugin-job-actions">
+          <button
+            type="button"
+            class="plugin-job-button"
+            x-show="job && ['queued', 'running'].includes(job.status)"
+            :disabled="busy"
+            @click="runAction('pause')"
+          >
+            暂停
+          </button>
+          <button
+            type="button"
+            class="plugin-job-button"
+            x-show="job && job.status === 'paused'"
+            :disabled="busy"
+            @click="runAction('resume')"
+          >
+            恢复
+          </button>
+          <button
+            type="button"
+            class="plugin-job-button plugin-job-button--danger"
+            x-show="job && ['queued', 'running', 'paused'].includes(job.status)"
+            :disabled="busy"
+            @click="runAction('cancel')"
+          >
+            取消
+          </button>
+          <button
+            type="button"
+            class="plugin-job-button"
+            x-show="isTerminal && failedCount"
+            :disabled="busy"
+            @click="runAction('retry_failed')"
+          >
+            只重跑失败项
+          </button>
+          <button
+            type="button"
+            class="plugin-job-button plugin-job-button--ghost"
+            x-show="isTerminal"
+            :disabled="busy"
+            @click="runAction('retry_all')"
+          >
+            全部重跑
+          </button>
+        </div>
+      </section>
+
+      <section class="plugin-job-section">
+        <h4 class="plugin-job-section-title">
+          <span>条目</span>
+          <span class="plugin-job-section-count" x-text="items.length"></span>
+        </h4>
+        <div class="plugin-job-empty" x-show="!items.length" x-cloak>暂无条目结果</div>
+        <ul class="plugin-job-items" x-show="items.length" x-cloak>
+          <template x-for="(item, index) in items.slice(0, 300)" :key="item.key || index">
+            <li class="plugin-job-item" :class="'is-' + (item.status || 'pending')">
+              <span class="plugin-job-item-key" x-text="item.key"></span>
+              <span class="plugin-job-item-status" x-text="statusLabel(item.status)"></span>
+              <span class="plugin-job-item-detail" x-text="itemSummary(item)"></span>
+            </li>
+          </template>
+        </ul>
+        <p class="plugin-job-hint" x-show="items.length > 300" x-cloak>
+          仅显示前 300 条，完整结果请通过接口分页读取。
+        </p>
+      </section>
+
+      <section class="plugin-job-section">
+        <h4 class="plugin-job-section-title"><span>日志</span></h4>
+        <div class="plugin-job-empty" x-show="!logs.length" x-cloak>暂无日志</div>
+        <ul class="plugin-job-logs" x-show="logs.length" x-cloak>
+          <template x-for="(entry, index) in logs" :key="index">
+            <li class="plugin-job-log" :class="'is-' + (entry.level || 'info')">
+              <span x-text="entry.message"></span>
+            </li>
+          </template>
+        </ul>
+      </section>
+
+      <section class="plugin-job-section" x-show="recentJobs.length > 1" x-cloak>
+        <h4 class="plugin-job-section-title"><span>同一插件的最近作业</span></h4>
+        <ul class="plugin-job-recent">
+          <template x-for="entry in recentJobs" :key="entry.run_id">
+            <li>
+              <button type="button" class="plugin-job-link" @click="selectJob(entry.run_id)">
+                <code x-text="entry.run_id.slice(0, 8)"></code>
+                <span x-text="entry.job_type"></span>
+                <span x-text="statusLabel(entry.status)"></span>
+              </button>
+            </li>
+          </template>
+        </ul>
+      </section>
+    </div>
+  </div>
+</div>

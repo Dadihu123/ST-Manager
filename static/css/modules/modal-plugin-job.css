@@ -1,0 +1,300 @@
+/* static/css/modules/modal-plugin-job.css
+   插件作业面板（templates/components/plugin_job_panel.html）样式。
+   仅使用语义颜色 Token。 */
+
+.plugin-job-shell {
+  width: min(56rem, calc(100vw - 2 * var(--ui-modal-gutter))) !important;
+  height: min(46rem, calc(100dvh - 2 * var(--ui-modal-gutter))) !important;
+  max-width: calc(100vw - 2 * var(--ui-modal-gutter));
+  max-height: calc(100dvh - 2 * var(--ui-modal-gutter));
+  border-radius: var(--ui-radius-lg, 0.75rem);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.plugin-job-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.plugin-job-status {
+  padding: 0.05rem 0.4rem;
+  border: 1px solid var(--border-default);
+  border-radius: 0.4rem;
+  font-size: 0.7rem;
+  font-weight: 400;
+  color: var(--content-secondary);
+}
+
+.plugin-job-subtitle {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0.25rem 0 0;
+  font-size: 0.72rem;
+  color: var(--content-muted);
+}
+
+.plugin-job-subtitle code {
+  padding: 0.05rem 0.3rem;
+  border-radius: 0.3rem;
+  background: var(--surface-container-sunken, var(--surface-container));
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.plugin-job-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid var(--border-default);
+  border-radius: var(--ui-radius-sm, 0.5rem);
+  background: var(--action-surface);
+  color: var(--action-text, var(--content-primary));
+  cursor: pointer;
+}
+
+.plugin-job-icon-button:hover {
+  background: var(--action-surface-hover);
+}
+
+.plugin-job-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  padding: 0.9rem 1rem;
+}
+
+.plugin-job-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--border-default);
+  border-radius: var(--ui-radius-sm, 0.5rem);
+  font-size: 0.8rem;
+}
+
+.plugin-job-banner--danger {
+  border-color: var(--status-danger-text);
+  color: var(--status-danger-text);
+}
+
+.plugin-job-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border-default);
+  border-radius: var(--ui-radius-md, 0.625rem);
+  background: var(--surface-container);
+}
+
+.plugin-job-progress {
+  height: 0.5rem;
+  border-radius: 999px;
+  background: var(--surface-container-sunken, var(--surface-container-raised));
+  overflow: hidden;
+}
+
+.plugin-job-progress-bar {
+  height: 100%;
+  background: var(--accent-action);
+  transition: width 0.25s ease;
+}
+
+.plugin-job-counts {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--content-secondary);
+}
+
+.plugin-job-count-failed {
+  color: var(--status-danger-text);
+}
+
+.plugin-job-message,
+.plugin-job-error,
+.plugin-job-hint {
+  margin: 0;
+  font-size: 0.76rem;
+  color: var(--content-muted);
+}
+
+.plugin-job-error {
+  color: var(--status-danger-text);
+}
+
+.plugin-job-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.plugin-job-button {
+  padding: 0.32rem 0.75rem;
+  border: 1px solid var(--action-border, var(--border-default));
+  border-radius: var(--ui-radius-sm, 0.5rem);
+  background: var(--action-surface);
+  color: var(--action-text, var(--content-primary));
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.plugin-job-button:hover:not(:disabled) {
+  background: var(--action-surface-hover);
+}
+
+.plugin-job-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.plugin-job-button--ghost {
+  background: transparent;
+  border-color: var(--border-default);
+  color: var(--content-secondary);
+}
+
+.plugin-job-button--danger {
+  background: transparent;
+  border-color: var(--status-danger-text);
+  color: var(--status-danger-text);
+}
+
+.plugin-job-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.plugin-job-section-title {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--content-primary);
+}
+
+.plugin-job-section-count {
+  padding: 0.02rem 0.35rem;
+  border: 1px solid var(--border-default);
+  border-radius: 0.35rem;
+  font-size: 0.7rem;
+  color: var(--content-muted);
+}
+
+.plugin-job-empty {
+  padding: 0.7rem;
+  border: 1px dashed var(--border-default);
+  border-radius: var(--ui-radius-sm, 0.5rem);
+  font-size: 0.78rem;
+  color: var(--content-muted);
+  text-align: center;
+}
+
+.plugin-job-items,
+.plugin-job-logs,
+.plugin-job-recent {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  max-height: 16rem;
+  overflow-y: auto;
+}
+
+.plugin-job-item {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.28rem 0.45rem;
+  border: 1px solid var(--border-subtle, var(--border-divider));
+  border-radius: var(--ui-radius-xs, 0.375rem);
+  font-size: 0.78rem;
+  color: var(--content-secondary);
+}
+
+.plugin-job-item.is-done {
+  border-color: var(--status-success-text);
+}
+
+.plugin-job-item.is-failed {
+  border-color: var(--status-danger-text);
+  color: var(--status-danger-text);
+}
+
+.plugin-job-item-key {
+  flex: 0 0 auto;
+  max-width: 14rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--content-primary);
+}
+
+.plugin-job-item-status {
+  flex: 0 0 auto;
+  font-size: 0.72rem;
+  color: var(--content-muted);
+}
+
+.plugin-job-item-detail {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.plugin-job-log {
+  padding: 0.22rem 0.45rem;
+  border-left: 2px solid var(--border-default);
+  font-size: 0.76rem;
+  color: var(--content-secondary);
+}
+
+.plugin-job-log.is-warning {
+  border-color: var(--status-warning-text);
+  color: var(--status-warning-text);
+}
+
+.plugin-job-log.is-error {
+  border-color: var(--status-danger-text);
+  color: var(--status-danger-text);
+}
+
+.plugin-job-link {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.28rem 0.45rem;
+  border: 1px solid var(--border-divider);
+  border-radius: var(--ui-radius-xs, 0.375rem);
+  background: transparent;
+  color: var(--content-secondary);
+  font-size: 0.76rem;
+  cursor: pointer;
+  text-align: left;
+}
+
+.plugin-job-link:hover {
+  background: var(--state-hover-surface);
+  color: var(--content-primary);
+}

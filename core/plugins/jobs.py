@@ -38,7 +38,9 @@ MAX_ITEMS_PER_RUN = 20000
 
 _worker_lock = threading.Lock()
 _worker_started = False
+_worker_thread = None
 _wakeup = threading.Event()
+_shutdown = threading.Event()
 
 _handlers_lock = threading.RLock()
 _job_handlers = {}
@@ -247,7 +249,7 @@ def submit_job(plugin_id: str, job_type: str, items, payload: dict | None = None
         if existing:
             raise PluginJobDuplicateError(f'同类型作业已在运行: {existing["run_id"]}')
 
-        run_id = job_store.create_job(conn, plugin_id, job_type, normalized, payload or {})
+        run_id = job_store.create_job(conn, plugin_id, job_type, items, payload or {})
     finally:
         conn.close()
 
@@ -570,10 +572,15 @@ def _process_pending_jobs() -> int:
 
 
 def worker_loop() -> None:
-    """worker 主循环：30s 兜底唤醒 + 显式 `_wakeup` 触发。"""
+    """worker 主循环：30s 兜底唤醒 + 显式 `_wakeup` 触发，收到停机信号即退出。"""
     while True:
         _wakeup.wait(WAKEUP_INTERVAL_SECONDS)
         _wakeup.clear()
+
+        if _shutdown.is_set():
+            logger.info('插件作业 worker 收到停机信号，退出循环')
+            return
+
         try:
             _process_pending_jobs()
         except Exception:  # noqa: BLE001 - 循环必须存活
@@ -582,7 +589,7 @@ def worker_loop() -> None:
 
 def start_plugin_job_worker() -> bool:
     """启动 worker（幂等）。启动时顺带做崩溃恢复。"""
-    global _worker_started
+    global _worker_started, _worker_thread
     with _worker_lock:
         if _worker_started:
             return False
@@ -595,9 +602,38 @@ def start_plugin_job_worker() -> bool:
         finally:
             conn.close()
 
+        _shutdown.clear()
         _worker_started = True
-        threading.Thread(target=worker_loop, name='plugin-job-worker', daemon=True).start()
+        _worker_thread = threading.Thread(
+            target=worker_loop, name='plugin-job-worker', daemon=True,
+        )
+        _worker_thread.start()
         return True
+
+
+def stop_plugin_job_worker(*, timeout: float = 3.0) -> bool:
+    """请求 worker 退出并等待其结束（幂等）。
+
+    生产路径不需要调用（线程是 daemon），主要用于进程内重启/测试隔离。
+    """
+    global _worker_started, _worker_thread
+    with _worker_lock:
+        thread = _worker_thread
+        if not _worker_started or thread is None:
+            _worker_started = False
+            _worker_thread = None
+            return True
+        _shutdown.set()
+        _wakeup.set()
+
+    if thread is not threading.current_thread():
+        thread.join(timeout=timeout)
+
+    stopped = not thread.is_alive()
+    with _worker_lock:
+        _worker_started = False
+        _worker_thread = None
+    return stopped
 
 
 def is_worker_started() -> bool:
@@ -752,13 +788,13 @@ def stream_job_events(run_id: str, *, last_event_id: int = 0) -> Response:
 
 
 def reset_for_tests() -> None:
-    """清空处理器注册与 SSE 计数（仅测试用）。"""
-    global _worker_started, _sse_total
+    """清空处理器注册、SSE 计数并停掉后台 worker（仅测试用）。"""
+    global _sse_total
+    stop_plugin_job_worker()
     with _handlers_lock:
         _job_handlers.clear()
     with _sse_lock:
         _sse_per_run.clear()
         _sse_total = 0
-    with _worker_lock:
-        _worker_started = False
     _wakeup.clear()
+    _shutdown.clear()

@@ -9,7 +9,7 @@
   "backend": {
     "entry": "backend",
     "register": "register",
-    "jobs": [],
+    "jobs": ["demo.count"],
     "hooks": ["card.updated"]
   },
   "frontend": {
