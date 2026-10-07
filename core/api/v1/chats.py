@@ -34,6 +34,7 @@ from core.utils.chat_parser import (
 from core.utils.filesystem import safe_move_to_trash, sanitize_filename
 from core.utils.format_validation import is_valid_chat_jsonl_bytes
 from core.utils.image import extract_card_info
+from core.utils.paths import is_under_base
 
 
 logger = logging.getLogger(__name__)
@@ -80,13 +81,6 @@ def _is_safe_chat_rel(chat_id: str) -> bool:
 
 def _chat_abs_path(chat_id: str) -> str:
     return os.path.abspath(os.path.join(_get_chats_root(), _normalize_chat_id(chat_id).replace('/', os.sep)))
-
-
-def _is_under_base(path: str, base: str) -> bool:
-    try:
-        return os.path.commonpath([os.path.abspath(path), os.path.abspath(base)]) == os.path.abspath(base)
-    except Exception:
-        return False
 
 
 def _relative_chat_id(full_path: str) -> str:
@@ -594,7 +588,7 @@ def _cleanup_empty_chat_dirs(start_dir: str):
     root = _get_chats_root()
     current = os.path.abspath(start_dir)
 
-    while current and current != root and _is_under_base(current, root):
+    while current and current != root and is_under_base(current, root):
         try:
             if os.listdir(current):
                 break
@@ -631,7 +625,7 @@ def _iter_chat_files():
             if not str(filename).lower().endswith('.jsonl'):
                 continue
             full_path = os.path.join(dirpath, filename)
-            if not _is_under_base(full_path, root):
+            if not is_under_base(full_path, root):
                 continue
             try:
                 with open(full_path, 'rb') as handle:
@@ -762,7 +756,7 @@ def api_chat_detail():
             return jsonify({'success': False, 'msg': '非法聊天路径'}), 400
 
         full_path = _chat_abs_path(chat_id)
-        if not _is_under_base(full_path, _get_chats_root()) or not os.path.exists(full_path):
+        if not is_under_base(full_path, _get_chats_root()) or not os.path.exists(full_path):
             return jsonify({'success': False, 'msg': '聊天记录不存在'}), 404
 
         chat_data = load_chat_data()
@@ -810,7 +804,7 @@ def api_chat_range():
             return jsonify({'success': False, 'msg': '非法聊天路径'}), 400
 
         full_path = _chat_abs_path(chat_id)
-        if not _is_under_base(full_path, _get_chats_root()) or not os.path.exists(full_path):
+        if not is_under_base(full_path, _get_chats_root()) or not os.path.exists(full_path):
             return jsonify({'success': False, 'msg': '聊天记录不存在'}), 404
 
         try:

@@ -51,6 +51,7 @@ from core.utils.filesystem import (
 )
 from core.utils.image import extract_card_info, write_card_metadata, find_sidecar_image
 from core.utils.format_validation import is_valid_world_info_data
+from core.utils.paths import is_under_base
 
 from core.utils.hash import _calculate_data_hash
 
@@ -136,13 +137,6 @@ def _format_st_response_error(response, auth_type):
 
     return f"ST Error: {response.status_code} - {response.text}"
 
-def _is_under_base(path: str, base: str) -> bool:
-    """检查路径是否在 base 目录内"""
-    try:
-        return os.path.commonpath([os.path.abspath(path), os.path.abspath(base)]) == os.path.abspath(base)
-    except Exception:
-        return False
-
 def _resolve_allowed_roots():
     cfg = load_config()
     raw_chats = cfg.get('chats_dir', 'data/library/chats')
@@ -187,7 +181,7 @@ def _resolve_safe_path(path: str, relative_to_base: bool = False):
         abs_path = os.path.abspath(path if os.path.isabs(path) else os.path.join(BASE_DIR, path))
 
     for root in _resolve_allowed_roots():
-        if _is_under_base(abs_path, root):
+        if is_under_base(abs_path, root):
             return abs_path
     return None
 
@@ -209,10 +203,10 @@ def _is_valid_lorebook_path(path: str) -> bool:
     raw_res = cfg.get('resources_dir', 'data/assets/card_assets')
     res_root = raw_res if os.path.isabs(raw_res) else os.path.join(BASE_DIR, raw_res)
 
-    if _is_under_base(path, wi_root):
+    if is_under_base(path, wi_root):
         return True
 
-    if _is_under_base(path, res_root):
+    if is_under_base(path, res_root):
         rel_path = os.path.relpath(path, res_root).replace('\\', '/')
         return '/lorebooks/' in f"/{rel_path}/"
 
@@ -229,10 +223,10 @@ def _is_valid_preset_path(path: str) -> bool:
     raw_res = cfg.get('resources_dir', 'data/assets/card_assets')
     res_root = raw_res if os.path.isabs(raw_res) else os.path.join(BASE_DIR, raw_res)
 
-    if _is_under_base(path, presets_root):
+    if is_under_base(path, presets_root):
         return True
 
-    if _is_under_base(path, res_root):
+    if is_under_base(path, res_root):
         rel_path = os.path.relpath(path, res_root).replace('\\', '/')
         return '/presets/' in f'/{rel_path}/'
 
@@ -563,7 +557,7 @@ def api_system_action():
 
             full_path = os.path.join(CARDS_FOLDER, card_id.replace('/', os.sep))
             full_path = os.path.abspath(full_path)
-            if not _is_under_base(full_path, str(CARDS_FOLDER)):
+            if not is_under_base(full_path, str(CARDS_FOLDER)):
                 return jsonify({"success": False, "msg": "非法路径"})
             target_dir = os.path.dirname(full_path)
             
@@ -682,7 +676,7 @@ def api_create_snapshot():
                 return jsonify({"success": False, "msg": "非法路径"})
         else:
             src_path = os.path.abspath(src_path)
-            if not _is_under_base(src_path, str(CARDS_FOLDER)):
+            if not is_under_base(src_path, str(CARDS_FOLDER)):
                 return jsonify({"success": False, "msg": "非法路径"})
 
         if not src_path or not os.path.exists(src_path):
@@ -890,7 +884,7 @@ def api_smart_auto_snapshot():
              # 重新构建源路径
              src_path = os.path.join(CARDS_FOLDER, target_id.replace('/', os.sep))
              src_path = os.path.abspath(src_path)
-             if not _is_under_base(src_path, str(CARDS_FOLDER)):
+             if not is_under_base(src_path, str(CARDS_FOLDER)):
                  return jsonify({"success": False, "msg": "非法路径"})
         elif req_data.get('file_path'):
              src_path = req_data.get('file_path')

@@ -63,6 +63,7 @@ from core.utils.format_validation import (
 )
 from core.utils.source_revision import build_file_source_revision
 from core.utils.card_identity import normalize_card_uid
+from core.utils.paths import is_under_base
 from core.utils.world_info_sort import (
     normalize_world_info_sort_mode,
     sort_world_info_entries,
@@ -74,14 +75,6 @@ def _safe_mtime(path: str) -> float:
         return os.path.getmtime(path) if path and os.path.exists(path) else 0.0
     except:
         return 0.0
-
-def _is_under_base(path: str, base: str) -> bool:
-    try:
-        norm_path = os.path.normcase(os.path.normpath(path))
-        norm_base = os.path.normcase(os.path.normpath(base))
-        return os.path.commonpath([norm_path, norm_base]) == norm_base
-    except Exception:
-        return False
 
 def _resolve_wi_dir(cfg: dict) -> str:
     raw_wi_dir = cfg.get('world_info_dir', 'lorebooks')
@@ -97,10 +90,10 @@ def _is_valid_wi_file(path: str, cfg: dict) -> bool:
     global_dir = _resolve_wi_dir(cfg)
     resources_dir = _resolve_resources_dir(cfg)
 
-    if _is_under_base(path, global_dir):
+    if is_under_base(path, global_dir):
         return True
 
-    if _is_under_base(path, resources_dir):
+    if is_under_base(path, resources_dir):
         rel_path = os.path.relpath(path, resources_dir).replace('\\', '/')
         return '/lorebooks/' in f"/{rel_path}/"
 
@@ -757,7 +750,7 @@ def _is_resource_worldinfo_path(file_path: str, cfg: dict) -> bool:
     if not file_path or not _is_valid_wi_file(file_path, cfg):
         return False
     resources_dir = _resolve_resources_dir(cfg)
-    if not _is_under_base(file_path, resources_dir):
+    if not is_under_base(file_path, resources_dir):
         return False
     rel_path = os.path.relpath(file_path, resources_dir).replace('\\', '/')
     return '/lorebooks/' in f'/{rel_path}/'
@@ -796,7 +789,7 @@ def _enqueue_resource_worldinfo_owner_refresh(file_path: str):
 
 def _move_global_worldinfo_file(file_path: str, target_category: str, cfg: dict) -> str:
     global_dir = _resolve_wi_dir(cfg)
-    if not _is_under_base(file_path, global_dir):
+    if not is_under_base(file_path, global_dir):
         raise ValueError('非法路径')
 
     filename = os.path.basename(file_path)
@@ -1292,10 +1285,10 @@ def api_list_world_infos():
                     if f.lower().endswith('.json'):
                         full_path = os.path.join(root, f)
                         # 排除资源目录下的世界书，避免误判为全局
-                        if any(_is_under_base(full_path, lore_dir) for lore_dir in resource_lore_dirs):
+                        if any(is_under_base(full_path, lore_dir) for lore_dir in resource_lore_dirs):
                             continue
-                        if res_root_dir and not _is_under_base(current_wi_folder, res_root_dir):
-                            if _is_under_base(full_path, res_root_dir):
+                        if res_root_dir and not is_under_base(current_wi_folder, res_root_dir):
+                            if is_under_base(full_path, res_root_dir):
                                 continue
                         try:
                             if os.path.getsize(full_path) == 0: continue
@@ -1875,10 +1868,10 @@ def api_export_world_info():
             resources_dir = _resolve_resources_dir(cfg)
 
             if source_type == 'global':
-                if not _is_under_base(file_path, global_dir):
+                if not is_under_base(file_path, global_dir):
                     return jsonify({'success': False, 'msg': '非法路径'}), 400
             elif source_type == 'resource':
-                if not _is_under_base(file_path, resources_dir):
+                if not is_under_base(file_path, resources_dir):
                     return jsonify({'success': False, 'msg': '非法路径'}), 400
                 rel_path = os.path.relpath(file_path, resources_dir).replace('\\', '/')
                 if '/lorebooks/' not in f'/{rel_path}/':
@@ -1933,10 +1926,10 @@ def api_send_world_info_to_st():
             file_path = os.path.normpath(os.path.join(BASE_DIR, file_path))
 
         if source_type == 'global':
-            if not _is_under_base(file_path, global_dir):
+            if not is_under_base(file_path, global_dir):
                 return jsonify({'success': False, 'msg': '非法路径'}), 400
         else:
-            if not _is_under_base(file_path, resources_dir):
+            if not is_under_base(file_path, resources_dir):
                 return jsonify({'success': False, 'msg': '非法路径'}), 400
             rel_path = os.path.relpath(file_path, resources_dir).replace('\\', '/')
             if '/lorebooks/' not in f'/{rel_path}/':
@@ -2076,10 +2069,10 @@ def api_get_world_info_detail():
 
         # 仅允许访问世界书相关目录
         if source_type == 'global':
-            if not _is_under_base(file_path, global_dir):
+            if not is_under_base(file_path, global_dir):
                 return jsonify({"success": False, "msg": "非法路径"}), 400
         elif source_type == 'resource':
-            if not _is_under_base(file_path, resources_dir):
+            if not is_under_base(file_path, resources_dir):
                 return jsonify({"success": False, "msg": "非法路径"}), 400
             rel_path = os.path.relpath(file_path, resources_dir).replace('\\', '/')
             if '/lorebooks/' not in f"/{rel_path}/":
@@ -2088,7 +2081,7 @@ def api_get_world_info_detail():
             return jsonify({"success": False, "msg": "非法路径"}), 400
         else:
             # 兼容老请求：允许全局或资源目录
-            if not (_is_under_base(file_path, global_dir) or _is_under_base(file_path, resources_dir)):
+            if not (is_under_base(file_path, global_dir) or is_under_base(file_path, resources_dir)):
                 return jsonify({"success": False, "msg": "非法路径"}), 400
 
         if not os.path.exists(file_path):
@@ -2106,7 +2099,7 @@ def api_get_world_info_detail():
             force_full=force_full,
             sort_mode=sort_mode,
         )
-        effective_source = source_type if source_type in ('global', 'resource') else ('resource' if _is_under_base(file_path, resources_dir) else 'global')
+        effective_source = source_type if source_type in ('global', 'resource') else ('resource' if is_under_base(file_path, resources_dir) else 'global')
         resp['ui_summary'] = _get_worldinfo_ui_summary(ui_data, effective_source, file_path=file_path)
         if effective_source in ('global', 'resource'):
             resp['last_sent_to_st'] = _get_worldinfo_last_sent_to_st(ui_data, effective_source, file_path, cfg)
@@ -2232,7 +2225,7 @@ def api_save_world_info():
             else:
                 final_path = os.path.normpath(final_path)
             cfg = load_config()
-            if _is_under_base(final_path, str(CARDS_FOLDER)):
+            if is_under_base(final_path, str(CARDS_FOLDER)):
                 return jsonify({"success": False, "msg": "内嵌世界书请通过卡片保存流程更新"})
             if not _is_valid_wi_file(final_path, cfg):
                 return jsonify({"success": False, "msg": "非法路径"})

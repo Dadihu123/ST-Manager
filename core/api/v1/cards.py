@@ -53,6 +53,7 @@ from core.utils.world_info_sort import (
     sort_world_info_mapping,
 )
 from core.utils.card_identity import new_card_uid, normalize_card_uid
+from core.utils.paths import is_under_base
 
 # === 核心服务 ===
 from core.services.scan_service import suppress_fs_events
@@ -3739,16 +3740,8 @@ def api_export_card_json():
         if not card_id or not _is_safe_rel_path(card_id) or not is_card_file(card_id):
             return jsonify({'success': False, 'msg': '非法角色卡路径'}), 400
 
-        cards_root = os.path.realpath(CARDS_FOLDER)
         full_path = os.path.realpath(os.path.join(CARDS_FOLDER, card_id.replace('/', os.sep)))
-        try:
-            inside_cards_root = (
-                os.path.normcase(os.path.commonpath((cards_root, full_path)))
-                == os.path.normcase(cards_root)
-            )
-        except ValueError:
-            inside_cards_root = False
-        if not inside_cards_root:
+        if not is_under_base(full_path, CARDS_FOLDER, resolve_symlinks=True):
             return jsonify({'success': False, 'msg': '非法角色卡路径'}), 400
         if not os.path.isfile(full_path):
             return jsonify({'success': False, 'msg': '角色卡文件不存在'}), 404
