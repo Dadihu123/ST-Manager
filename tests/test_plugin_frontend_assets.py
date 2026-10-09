@@ -253,8 +253,6 @@ def test_x_data_components_are_imported():
         ('templates/components/plugin_job_panel.html', 'pluginJobPanel'),
     ):
         assert f'x-data="{component}"' in _read(relative_path), relative_path
-
-
 def test_plugin_styles_are_imported_by_entry_css():
     entry = _read('static/css/style.css')
 
@@ -265,5 +263,6 @@ def test_plugin_styles_are_imported_by_entry_css():
 def test_plugin_templates_are_included_in_index():
     index = _read('templates/index.html')
 
-    assert 'modals/plugin_manager.html' in index
     assert 'components/plugin_job_panel.html' in index
+    # 插件管理面板已内嵌到设置页，不再由 index.html 直接引入。
+    assert 'modals/plugin_manager.html' in _read('templates/modals/settings.html')

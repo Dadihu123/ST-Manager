@@ -14,13 +14,19 @@ def read_source(relative_path):
         return handle.read()
 
 
-def test_modal_uses_ui_modal_skeleton():
+def test_panel_is_embedded_in_settings_instead_of_a_standalone_modal():
+    """插件管理已并入设置页第五个导航页，因此不能再自带模态框外壳。"""
     template = read_source('templates/modals/plugin_manager.html')
 
-    assert 'ui-modal-shell' in template
-    assert 'modal-overlay' in template
-    assert 'ui-modal-body' in template
-    assert 'role="dialog"' in template
+    assert 'ui-modal-shell' not in template
+    assert 'modal-overlay' not in template
+    assert 'ui-modal-body' not in template
+    assert 'role="dialog"' not in template
+
+    settings_source = read_source('templates/modals/settings.html')
+    assert '{% include "modals/plugin_manager.html" %}' in settings_source
+    assert 'settings-panel-plugins' in settings_source
+    assert "selectSettingTab('plugins')" in settings_source
 
 
 def test_modal_component_is_registered_in_app_entry():
@@ -37,6 +43,9 @@ def test_three_tabs_are_present():
     assert '官方目录' in template
     assert '手动安装' in template
     assert 'role="tablist"' in template
+    # 页签沿用角色卡详情页的 .detail-tabs / .detail-tab 契约。
+    assert 'class="detail-tabs plugin-manager-tabs"' in template
+    assert template.count('class="detail-tab"') == 3
 
 
 def test_four_lifecycle_actions_are_present():

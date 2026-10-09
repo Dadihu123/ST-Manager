@@ -1,7 +1,8 @@
 /**
  * static/js/components/pluginManager.js
- * 插件管理模态框（设计文档第 9 部分）。
+ * 插件管理面板（设计文档第 9 部分）。
  *
+ * 作为「系统设置 → 插件管理」第五个导航页嵌入设置弹窗，不再自带模态框外壳。
  * 三个页签：
  * - 已安装：状态 + 四操作（安装/卸载/禁用/启用）+ 配置与密钥表单
  * - 官方目录：catalog 条目 + 安装 + 检查更新
@@ -38,6 +39,13 @@ const PERMISSION_LABELS = {
   "jobs.run": "运行后台作业",
 };
 
+// 设置页搜索结果的锚点 → 面板页签：让「搜索设置」能直接落到对应插件页签。
+const ANCHOR_TABS = {
+  "plugin-panel-installed": "installed",
+  "plugin-panel-catalog": "catalog",
+  "plugin-panel-upload": "upload",
+};
+
 function toast(message, type = "info") {
   if (window.Alpine && typeof window.Alpine.store === "function") {
     const store = window.Alpine.store("global");
@@ -51,7 +59,6 @@ function toast(message, type = "info") {
 
 export default function pluginManager() {
   return {
-    showPluginManager: false,
     activeTab: "installed",
     loading: false,
     busyAction: "",
@@ -88,24 +95,39 @@ export default function pluginManager() {
     keepDataOnUninstall: false,
 
     init() {
-      this._openHandler = () => this.open();
-      window.addEventListener("open-plugin-manager", this._openHandler);
+      if (typeof window === "undefined") return;
+      // 设置弹窗切换到「插件管理」导航页时由 settingsModal 派发，避免面板在后台空转。
+      this._sectionHandler = (event) => {
+        const detail = (event && event.detail) || {};
+        if (String(detail.section || "") !== "plugins") return;
+        this.activate(detail.anchor);
+      };
+      window.addEventListener("settings-section-changed", this._sectionHandler);
     },
 
     destroy() {
-      window.removeEventListener("open-plugin-manager", this._openHandler);
+      if (typeof window === "undefined" || !this._sectionHandler) return;
+      window.removeEventListener("settings-section-changed", this._sectionHandler);
+      this._sectionHandler = null;
     },
 
-    async open() {
-      this.showPluginManager = true;
+    activate(anchor = "") {
       this.errorMessage = "";
-      await this.loadPlugins();
+      // 从设置页搜索结果跳进来时，锚点决定先落到哪个插件页签。
+      const tab = ANCHOR_TABS[String(anchor || "")];
+      return tab ? this.selectTab(tab) : this.reloadActiveTab();
     },
 
-    close() {
-      this.showPluginManager = false;
-      this.closeConfig();
-      this.closeSecrets();
+    reloadActiveTab() {
+      if (this.activeTab === "catalog") return this.loadCatalog();
+      if (this.activeTab === "upload") return Promise.resolve();
+      return this.loadPlugins();
+    },
+
+    selectTab(tab) {
+      const next = ["installed", "catalog", "upload"].includes(tab) ? tab : "installed";
+      this.activeTab = next;
+      return this.reloadActiveTab();
     },
 
     // ---------------------------------------------------------------- 数据

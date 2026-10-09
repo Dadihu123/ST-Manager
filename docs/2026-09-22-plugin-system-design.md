@@ -1185,6 +1185,11 @@ GET /api/plugins/<plugin_id>/assets/<path:filename>
 
 **新增**：`templates/modals/plugin_manager.html` + `static/js/components/pluginManager.js`
 
+**挂载方式**：面板由 `templates/modals/settings.html` 内联引入，作为系统设置弹窗的第五个导航页
+（`settings-tab-plugins` / `settings-panel-plugins`），不再自带模态框外壳。三个页签使用角色卡详情页
+的 `.detail-tabs` / `.detail-tab` 契约，视觉与详情页 workbench 页签保持一致。`settingsModal` 在切换导航页时
+派发 `settings-section-changed`，插件面板据此按需加载数据。
+
 ## 9.1 三个页签
 
 **① 已安装**（D9：四个操作）
@@ -1807,7 +1812,7 @@ tests/plugin_sse_parse_test.mjs
 | 6 | 重启提示 | 见 9.4：主程序没有重启端点，阶段 0 只做 UI 提示 |
 | 7 | 包内 catalog | `static/plugins/catalog.json` 初始为**空清单**（`plugins: []`），真实条目留待阶段 2 |
 | 8 | 阶段 0 覆盖范围 | 12 个模块全部落地；`job_store.py` / `jobs.py` / `installer.py` / `catalog.py` 已实现完整逻辑（含 4 张表 DDL、作业 HTTP + SSE 端点），阶段 1/2 剩余的是测试与作业面板 UI |
-| 9 | 管理 UI 入口 | `settings.html` 的「维护与高级」tab 内新增 `settings-maintenance-plugins` 区块，按钮派发 `open-plugin-manager` 事件打开模态框 |
+| 9 | 管理 UI 入口 | 插件管理已并入设置弹窗，成为「系统设置」的第五个导航页（`settings.html` 的 `settings-tab-plugins` / `settings-panel-plugins`），面板本体由 `templates/modals/plugin_manager.html` 内联引入；「维护与高级」页保留 `settings-maintenance-plugins` 区块作为快捷跳转 |
 | 10 | 样式作用域检查结果 | 安装时扫描失败的样式写入 `ui_data._plugins_v1.<id>.style_scope_errors`，由 `/api/plugins/list` 下发，前端跳过这些样式的加载 |
 | 11 | 样例插件 | `samples/plugins/hello-world/`（仓库内留档，验收时复制到 `data/plugins/hello-world/`） |
 | 12 | 新增前端文件 | 除附录 A 外补 `static/js/api/plugins.js`（管理 API 封装），符合「与后端交互集中在 `static/js/api/`」的既有约定 |

@@ -117,6 +117,9 @@ const SETTINGS_SEARCH_ITEMS = [
   { id: "maintenance-import", section: "maintenance", anchor: "settings-maintenance-import", title: "导入行为", keywords: "标签 分隔符 重命名 png", icon: "file-import" },
   { id: "maintenance-worldinfo", section: "maintenance", anchor: "settings-maintenance-worldinfo", title: "世界书预览与历史", keywords: "世界书 条目 字符 历史", icon: "search" },
   { id: "maintenance-snapshots", section: "maintenance", anchor: "settings-maintenance-snapshots", title: "快照与自动保存", keywords: "快照 自动保存 保留", icon: "snapshot" },
+  { id: "plugins-installed", section: "plugins", anchor: "plugin-panel-installed", title: "已安装插件", keywords: "插件 plugin 安装 卸载 启用 禁用 配置 密钥", icon: "plugin" },
+  { id: "plugins-catalog", section: "plugins", anchor: "plugin-panel-catalog", title: "官方插件目录", keywords: "插件 目录 catalog 更新 github", icon: "package" },
+  { id: "plugins-upload", section: "plugins", anchor: "plugin-panel-upload", title: "手动安装插件", keywords: "插件 上传 zip github 安装", icon: "upload" },
 ];
 
 export default function settingsModal() {
@@ -193,6 +196,12 @@ export default function settingsModal() {
         label: "维护与高级",
         kicker: "MAINTENANCE & ADVANCED",
         description: "执行扫描、备份、同步与高级数据保留策略。",
+      },
+      plugins: {
+        title: "插件管理帮助",
+        label: "插件管理",
+        kicker: "PLUGINS & EXTENSIONS",
+        description: "安装、启停与配置本地插件，管理插件配置与密钥。",
       },
     },
 
@@ -292,13 +301,21 @@ export default function settingsModal() {
       };
       setTimeout(() => focusSettingsDialog(), 0);
     },
-    selectSettingTab(section) {
+    selectSettingTab(section, anchor = "") {
       if (!this.settingsHelpContent[section]) return;
       this.activeSettingTab = section;
       if (this.$refs?.settingsScroll) this.$refs.settingsScroll.scrollTop = 0;
+      // 通知内嵌面板（如插件管理）按需加载数据，并按锚点切换其内部页签。
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("settings-section-changed", {
+            detail: { section, anchor: String(anchor || "") },
+          }),
+        );
+      }
     },
     jumpToSetting(section, anchor) {
-      this.selectSettingTab(section);
+      this.selectSettingTab(section, anchor);
       this.settingsQuery = "";
       if (typeof document === "undefined") return;
       setTimeout(() => {

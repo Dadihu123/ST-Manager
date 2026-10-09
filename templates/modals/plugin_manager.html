@@ -1,495 +1,506 @@
-{% from "components/icon.html" import icon, sidebar_icon %}
+{% from "components/icon.html" import icon, loading_icon %}
 {% from "components/styled_select.html" import styled_select %}
 
-<!-- 插件管理弹窗（设计文档第 9 部分） -->
+<!--
+  插件管理面板（设计文档第 9 部分）。
+  该面板不再独立成模态框，而是作为「系统设置 → 插件管理」第五个导航页的内容区；
+  顶部页签沿用角色卡详情页的 .detail-tabs / .detail-tab 契约，样式与详情页 workbench 页签一致。
+-->
 <div
   x-data="pluginManager"
-  x-show="showPluginManager"
   x-cloak
-  class="modal-overlay ui-modal-overlay ui-refresh-surface z-modal-std"
+  class="plugin-manager"
   data-marquee-ignore
-  @click.self="close()"
-  @keydown.escape.window="showPluginManager && close()"
 >
-  <div
-    class="ui-modal-shell plugin-manager-shell"
-    role="dialog"
-    aria-modal="true"
-    aria-labelledby="plugin-manager-title"
-  >
-    <div class="ui-modal-header">
-      <div class="ui-modal-header-copy">
-        <h2 id="plugin-manager-title" class="ui-modal-title plugin-manager-title">
-          <span aria-hidden="true">{{ icon('plugin', 'ui-icon--md') }}</span>
-          <span>插件管理</span>
-        </h2>
-        <p class="plugin-manager-subtitle">安装、启停与配置本地插件；后端插件改动需重启应用生效</p>
-      </div>
-      <div class="ui-modal-header-actions">
-        <button
-          type="button"
-          class="plugin-manager-icon-button"
-          title="刷新列表"
-          aria-label="刷新插件列表"
-          :disabled="loading"
-          @click="loadPlugins()"
-        >
-          {{ icon('refresh', 'ui-icon--sm') }}
-        </button>
-        <button
-          type="button"
-          class="plugin-manager-icon-button"
-          title="关闭"
-          aria-label="关闭插件管理"
-          @click="close()"
-        >
-          {{ icon('close', 'ui-icon--sm') }}
-        </button>
-      </div>
+  <nav class="detail-tabs plugin-manager-tabs" role="tablist" aria-label="插件管理页签">
+    <button
+      type="button"
+      class="detail-tab"
+      id="plugin-tab-installed"
+      role="tab"
+      aria-controls="plugin-panel-installed"
+      :aria-selected="(activeTab === 'installed').toString()"
+      :class="activeTab === 'installed' ? 'active' : ''"
+      @click="selectTab('installed')"
+    >
+      <span class="tab-icon">{{ icon('list', 'ui-icon--xs') }}</span>
+      <span class="tab-text">已安装</span>
+      <span class="detail-tab-meta" x-text="plugins.length"></span>
+    </button>
+    <button
+      type="button"
+      class="detail-tab"
+      id="plugin-tab-catalog"
+      role="tab"
+      aria-controls="plugin-panel-catalog"
+      :aria-selected="(activeTab === 'catalog').toString()"
+      :class="activeTab === 'catalog' ? 'active' : ''"
+      @click="selectTab('catalog')"
+    >
+      <span class="tab-icon">{{ icon('package', 'ui-icon--xs') }}</span>
+      <span class="tab-text">官方目录</span>
+      <span class="detail-tab-meta" x-text="catalog.length"></span>
+    </button>
+    <button
+      type="button"
+      class="detail-tab"
+      id="plugin-tab-upload"
+      role="tab"
+      aria-controls="plugin-panel-upload"
+      :aria-selected="(activeTab === 'upload').toString()"
+      :class="activeTab === 'upload' ? 'active' : ''"
+      @click="selectTab('upload')"
+    >
+      <span class="tab-icon">{{ icon('upload', 'ui-icon--xs') }}</span>
+      <span class="tab-text">手动安装</span>
+    </button>
+  </nav>
+
+  <div class="plugin-manager-body">
+    <div class="plugin-manager-banner plugin-manager-banner--warning" x-show="restartHint" x-cloak>
+      <span aria-hidden="true">{{ icon('alert-triangle', 'ui-icon--sm') }}</span>
+      <span x-text="restartNotice()"></span>
     </div>
 
-    <div class="plugin-manager-tabs" role="tablist" aria-label="插件管理页签">
-      <button
-        type="button"
-        role="tab"
-        class="plugin-manager-tab"
-        :class="{ 'is-active': activeTab === 'installed' }"
-        :aria-selected="(activeTab === 'installed').toString()"
-        @click="activeTab = 'installed'; loadPlugins()"
-      >
-        已安装
-      </button>
-      <button
-        type="button"
-        role="tab"
-        class="plugin-manager-tab"
-        :class="{ 'is-active': activeTab === 'catalog' }"
-        :aria-selected="(activeTab === 'catalog').toString()"
-        @click="activeTab = 'catalog'; loadCatalog()"
-      >
-        官方目录
-      </button>
-      <button
-        type="button"
-        role="tab"
-        class="plugin-manager-tab"
-        :class="{ 'is-active': activeTab === 'upload' }"
-        :aria-selected="(activeTab === 'upload').toString()"
-        @click="activeTab = 'upload'"
-      >
-        手动安装
-      </button>
+    <div class="plugin-manager-banner plugin-manager-banner--danger" x-show="errorMessage" x-cloak>
+      <span aria-hidden="true">{{ icon('alert-triangle', 'ui-icon--sm') }}</span>
+      <span x-text="errorMessage"></span>
     </div>
 
-    <div class="ui-modal-body plugin-manager-body">
-      <div class="plugin-manager-banner plugin-manager-banner--warning" x-show="restartHint" x-cloak>
-        <span aria-hidden="true">{{ icon('alert-triangle', 'ui-icon--sm') }}</span>
-        <span x-text="restartNotice()"></span>
-      </div>
-
-      <div class="plugin-manager-banner plugin-manager-banner--danger" x-show="errorMessage" x-cloak>
-        <span aria-hidden="true">{{ icon('alert-triangle', 'ui-icon--sm') }}</span>
-        <span x-text="errorMessage"></span>
-      </div>
-
-      <!-- ① 已安装 -->
-      <section class="plugin-manager-panel" x-show="activeTab === 'installed'" role="tabpanel">
-        <div class="plugin-manager-empty" x-show="!plugins.length && !loading" x-cloak>
-          <p>尚未安装任何插件。</p>
-          <p class="plugin-manager-hint">
-            把插件目录放进 <code x-text="pluginsDir || 'data/plugins/'"></code>，或在「官方目录」页签安装。
-          </p>
-        </div>
-
-        <template x-for="item in plugins" :key="item.id">
-          <article class="plugin-card" :class="{ 'is-disabled': !item.enabled, 'is-failed': !!item.load_error }">
-            <header class="plugin-card-header">
-              <div class="plugin-card-identity">
-                <span class="plugin-card-status" aria-hidden="true" x-text="statusIcon(item)"></span>
-                <div>
-                  <h4 class="plugin-card-name">
-                    <span x-text="item.name || item.id"></span>
-                    <code class="plugin-card-id" x-text="item.id"></code>
-                  </h4>
-                  <p class="plugin-card-meta">
-                    <span x-text="'v' + (item.version || '?')"></span>
-                    <span aria-hidden="true">·</span>
-                    <span x-text="statusLabel(item)"></span>
-                    <template x-if="item.author">
-                      <span>
-                        <span aria-hidden="true">·</span>
-                        <span x-text="item.author"></span>
-                      </span>
-                    </template>
-                    <template x-if="item.backend">
-                      <span class="plugin-card-badge">后端</span>
-                    </template>
-                    <template x-if="item.frontend">
-                      <span class="plugin-card-badge">前端</span>
-                    </template>
-                  </p>
-                </div>
-              </div>
-              <div class="plugin-card-actions">
-                <button
-                  type="button"
-                  class="plugin-button plugin-button--ghost"
-                  x-show="item.enabled"
-                  :disabled="busyAction === 'disable:' + item.id"
-                  @click="toggleEnabled(item)"
-                >
-                  禁用
-                </button>
-                <button
-                  type="button"
-                  class="plugin-button plugin-button--ghost"
-                  x-show="!item.enabled"
-                  :disabled="busyAction === 'enable:' + item.id"
-                  @click="toggleEnabled(item)"
-                >
-                  启用
-                </button>
-                <button type="button" class="plugin-button plugin-button--ghost" @click="openDocs(item)">
-                  详情
-                </button>
-                <button
-                  type="button"
-                  class="plugin-button plugin-button--ghost"
-                  :class="{ 'is-active': configTargetId === item.id }"
-                  @click="openConfig(item)"
-                >
-                  <span x-text="configTargetId === item.id ? '收起配置' : '配置'"></span>
-                </button>
-                <button
-                  type="button"
-                  class="plugin-button plugin-button--ghost"
-                  :class="{ 'is-active': secretTargetId === item.id }"
-                  @click="openSecrets(item)"
-                >
-                  <span x-text="secretTargetId === item.id ? '收起密钥' : '密钥'"></span>
-                </button>
-                <button
-                  type="button"
-                  class="plugin-button plugin-button--danger"
-                  :disabled="busyAction === 'uninstall:' + item.id"
-                  @click="uninstall(item)"
-                >
-                  卸载
-                </button>
-              </div>
-            </header>
-
-            <p class="plugin-card-description" x-show="item.description" x-text="item.description"></p>
-            <p class="plugin-card-permissions" x-text="'权限: ' + permissionLabels(item)"></p>
-
-            <template x-if="requirementLabels(item)">
-              <p class="plugin-card-permissions" x-text="'依赖: ' + requirementLabels(item)"></p>
-            </template>
-
-            <p class="plugin-card-error" x-show="item.load_error" x-cloak>
-              <span aria-hidden="true">{{ icon('alert-triangle', 'ui-icon--sm') }}</span>
-              <span x-text="'加载失败: ' + item.load_error"></span>
-            </p>
-
-            <template x-if="styleScopeWarnings(item).length">
-              <p class="plugin-card-error">
-                <span aria-hidden="true">{{ icon('alert-triangle', 'ui-icon--sm') }}</span>
-                <span>以下样式未通过作用域检查，已拒绝加载: <span x-text="styleScopeWarnings(item).join('、')"></span></span>
-              </p>
-            </template>
-
-            <template x-if="item.restart_required">
-              <p class="plugin-card-hint">已标记变更，重启应用后生效</p>
-            </template>
-
-            <!-- 配置表单 -->
-            <div class="plugin-form" x-show="configTargetId === item.id" x-cloak>
-              <div class="plugin-form-header">
-                <strong>插件配置</strong>
-                <button type="button" class="plugin-inline-button" @click="closeConfig()">收起</button>
-              </div>
-              <p class="plugin-manager-hint" x-show="!schemaEntries(configSchema).length">
-                该插件未声明 config_schema，无自动表单。
-              </p>
-              <template x-for="field in schemaEntries(configSchema)" :key="'cfg-' + field.key">
-                <div class="plugin-form-field">
-                  <span class="plugin-form-label">
-                    <span x-text="field.spec.title || field.key"></span>
-                    <span class="plugin-form-required" x-show="isRequired(configSchema, field.key)" x-cloak>*</span>
-                  </span>
-                  <template x-if="field.spec.type === 'boolean'">
-                    <input type="checkbox" x-model="configDraft[field.key]">
-                  </template>
-                  <template x-if="field.spec.type !== 'boolean' && Array.isArray(field.spec.enum) && field.spec.enum.length">
-                    {% call styled_select('configDraft[field.key]', wrapper_class='plugin-select', aria_label='配置项') %}
-                      <template x-for="option in field.spec.enum" :key="'opt-' + String(option)">
-                        <option :value="option" x-text="option"></option>
-                      </template>
-                    {% endcall %}
-                  </template>
-                  <template x-if="field.spec.type !== 'boolean' && !(Array.isArray(field.spec.enum) && field.spec.enum.length) && (field.spec.type === 'integer' || field.spec.type === 'number')">
-                    <div class="settings-number-control">
-                      <input
-                        type="number"
-                        class="form-input settings-number-input"
-                        x-model.number="configDraft[field.key]"
-                        :min="field.spec.minimum"
-                        :max="field.spec.maximum"
-                        :step="field.spec.type === 'integer' ? 1 : 'any'"
-                        autocomplete="off"
-                      >
-                      <div class="settings-number-stepper" :aria-label="'调整 ' + (field.spec.title || field.key)">
-                        <button
-                          type="button"
-                          class="settings-number-stepper-btn"
-                          tabindex="-1"
-                          aria-label="增加"
-                          @click.prevent="window.stepNumberInput($event.currentTarget, 1)"
-                        >{{ icon('arrow-up', 'ui-icon--xs') }}</button>
-                        <button
-                          type="button"
-                          class="settings-number-stepper-btn"
-                          tabindex="-1"
-                          aria-label="减少"
-                          @click.prevent="window.stepNumberInput($event.currentTarget, -1)"
-                        >{{ icon('arrow-down', 'ui-icon--xs') }}</button>
-                      </div>
-                    </div>
-                  </template>
-                  <template x-if="field.spec.type !== 'boolean' && !(Array.isArray(field.spec.enum) && field.spec.enum.length) && field.spec.type !== 'integer' && field.spec.type !== 'number'">
-                    <input type="text" class="form-input" x-model="configDraft[field.key]">
-                  </template>
-                  <small class="plugin-form-help" x-show="field.spec.description" x-text="field.spec.description"></small>
-                </div>
-              </template>
-              <div class="plugin-form-actions">
-                <button type="button" class="plugin-button" :disabled="configSaving" @click="saveConfig()">
-                  保存配置
-                </button>
-              </div>
-            </div>
-
-            <!-- 密钥表单 -->
-            <div class="plugin-form" x-show="secretTargetId === item.id" x-cloak>
-              <div class="plugin-form-header">
-                <strong>插件密钥</strong>
-                <button type="button" class="plugin-inline-button" @click="closeSecrets()">收起</button>
-              </div>
-              <p class="plugin-manager-banner plugin-manager-banner--info">
-                密钥以明文存储在 <code>data/system/secrets.json</code>，请勿共享该文件。
-              </p>
-              <p class="plugin-manager-hint" x-show="!schemaEntries(secretSchema).length">
-                该插件未声明 secret_schema，无自动表单。
-              </p>
-              <template x-for="field in schemaEntries(secretSchema)" :key="'sec-' + field.key">
-                <div class="plugin-form-field">
-                  <span class="plugin-form-label">
-                    <span x-text="field.spec.title || field.key"></span>
-                    <span
-                      class="plugin-secret-state"
-                      :class="secretMeta[field.key] && secretMeta[field.key].set ? 'is-set' : 'is-unset'"
-                      x-text="secretMeta[field.key] && secretMeta[field.key].set ? '已设置' : '未设置'"
-                    ></span>
-                    <span class="plugin-form-required" x-show="isRequired(secretSchema, field.key)" x-cloak>*</span>
-                  </span>
-                  <template x-if="field.spec.secret">
-                    <div class="plugin-secret-row">
-                      <input
-                        type="password"
-                        autocomplete="new-password"
-                        :placeholder="(secretMeta[field.key] && secretMeta[field.key].hint) || '未设置'"
-                        x-model="secretDraft[field.key]"
-                      >
-                      <button type="button" class="plugin-inline-button" @click="clearSecret(field.key)">清除</button>
-                    </div>
-                  </template>
-                  <template x-if="!field.spec.secret">
-                    <input
-                      type="text"
-                      :placeholder="(secretMeta[field.key] && secretMeta[field.key].value) || field.spec.default || ''"
-                      x-model="secretDraft[field.key]"
-                    >
-                  </template>
-                  <small class="plugin-form-help" x-show="field.spec.description" x-text="field.spec.description"></small>
-                </div>
-              </template>
-              <div class="plugin-form-actions">
-                <button type="button" class="plugin-button" :disabled="secretSaving" @click="saveSecrets()">
-                  保存密钥
-                </button>
-              </div>
-            </div>
-          </article>
-        </template>
-      </section>
-
-      <!-- ② 官方目录 -->
-      <section class="plugin-manager-panel" x-show="activeTab === 'catalog'" role="tabpanel">
-        <div class="plugin-manager-toolbar">
-          <span class="plugin-manager-hint" x-show="catalogMeta.offline" x-cloak x-text="catalogMeta.msg"></span>
-          <span class="plugin-manager-hint" x-show="!catalogMeta.offline && catalogMeta.source" x-cloak
-                x-text="'来源: ' + catalogMeta.source"></span>
-          <button
-            type="button"
-            class="plugin-button plugin-button--ghost"
-            :disabled="busyAction === 'updates'"
-            @click="checkUpdates()"
-          >
-            检查更新
-          </button>
-        </div>
-
-        <div class="plugin-manager-empty" x-show="!catalog.length && !loading" x-cloak>
-          <p>官方目录暂无条目。</p>
-          <p class="plugin-manager-hint">目录清单来自仓库内的 <code>static/plugins/catalog.json</code>。</p>
-        </div>
-
-        <template x-for="entry in catalog" :key="'cat-' + entry.id">
-          <article class="plugin-card">
-            <header class="plugin-card-header">
-              <div class="plugin-card-identity">
-                <span class="plugin-card-status" aria-hidden="true" x-text="entry.installed ? '●' : '○'"></span>
-                <div>
-                  <h4 class="plugin-card-name">
-                    <span x-text="entry.name || entry.id"></span>
-                    <code class="plugin-card-id" x-text="entry.id"></code>
-                  </h4>
-                  <p class="plugin-card-meta">
-                    <span x-text="installStateLabel(entry)"></span>
-                    <template x-if="entry.version">
-                      <span>
-                        <span aria-hidden="true">·</span>
-                        <span x-text="'目录版本 v' + entry.version"></span>
-                      </span>
-                    </template>
-                    <template x-if="entry.author">
-                      <span>
-                        <span aria-hidden="true">·</span>
-                        <span x-text="entry.author"></span>
-                      </span>
-                    </template>
-                  </p>
-                </div>
-              </div>
-              <div class="plugin-card-actions">
-                <a
-                  class="plugin-button plugin-button--ghost"
-                  x-show="entry.homepage"
-                  :href="entry.homepage"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  GitHub
-                </a>
-                <button
-                  type="button"
-                  class="plugin-button"
-                  :disabled="busyAction === 'install:' + entry.id"
-                  @click="installCatalogItem(entry)"
-                >
-                  安装
-                </button>
-              </div>
-            </header>
-            <p class="plugin-card-description" x-show="entry.description" x-text="entry.description"></p>
-            <p class="plugin-card-permissions" x-text="'来源: ' + (entry.source ? entry.source.repo : '')"></p>
-          </article>
-        </template>
-
-        <div class="plugin-manager-empty" x-show="updates.length" x-cloak>
-          <p>可用更新：</p>
-          <ul class="plugin-update-list">
-            <template x-for="update in updates" :key="'upd-' + update.id">
-              <li>
-                <span x-text="update.name || update.id"></span>
-                <span x-text="update.installed + ' → ' + update.available"></span>
-              </li>
-            </template>
-          </ul>
-          <p class="plugin-manager-hint">更新需在「已安装」页签重新安装对应的插件条目。</p>
-        </div>
-      </section>
-
-      <!-- ③ 手动安装 -->
-      <section class="plugin-manager-panel" x-show="activeTab === 'upload'" role="tabpanel">
-        <article class="plugin-card">
-          <h4 class="plugin-card-name">从 GitHub 仓库安装</h4>
-          <p class="plugin-card-description">
-            输入 GitHub 仓库地址（<code>owner/repo</code> 或 <code>https://github.com/owner/repo</code>），
-            可选指定分支 / 子目录；下载后做 zip-slip、符号链接与压缩比检查，安装后需重启应用生效。
-          </p>
-          <div class="plugin-form-field">
-            <span class="plugin-form-label">仓库地址 <span class="plugin-form-required">*</span></span>
-            <input type="text" placeholder="owner/repo 或 https://github.com/owner/repo" x-model="githubRepo">
-          </div>
-          <div class="plugin-github-row">
-            <label class="plugin-form-field plugin-github-ref">
-              <span class="plugin-form-label">分支 / 标签 <small class="plugin-manager-hint">（默认 main）</small></span>
-              <input type="text" placeholder="main" x-model="githubRef">
-            </label>
-            <label class="plugin-form-field plugin-github-subdir">
-              <span class="plugin-form-label">子目录 <small class="plugin-manager-hint">（可选，仓库内插件所在目录）</small></span>
-              <input type="text" placeholder="plugins/my-plugin" x-model="githubSubdir">
-            </label>
-          </div>
-          <div class="plugin-form-actions">
-            <button
-              type="button"
-              class="plugin-button"
-              :disabled="!githubRepo.trim() || githubInstalling"
-              @click="installFromGithub()"
-            >
-              <span x-show="!githubInstalling">从 GitHub 安装</span>
-              <span x-show="githubInstalling" x-cloak>安装中…</span>
-            </button>
-          </div>
-          <div class="plugin-manager-banner plugin-manager-banner--danger" x-show="githubResult && githubResult.success === false" x-cloak>
-            <span aria-hidden="true">{{ icon('alert-triangle', 'ui-icon--sm') }}</span>
-            <span x-text="githubResult ? githubResult.msg : ''"></span>
-          </div>
-          <div class="plugin-manager-banner plugin-manager-banner--info" x-show="githubResult && githubResult.success !== false" x-cloak>
-            <span aria-hidden="true">{{ icon('check', 'ui-icon--sm') }}</span>
-            <span x-text="githubResult ? ('已安装 ' + (githubResult.id || '') + ' v' + (githubResult.version || '')) : ''"></span>
-          </div>
-        </article>
-
-        <article class="plugin-card">
-          <h4 class="plugin-card-name">上传插件压缩包</h4>
-          <p class="plugin-card-description">
-            选择插件 zip 包（根目录或单层子目录需包含 <code>manifest.json</code>）。
-            解压前会做 zip-slip、符号链接、体积与压缩比检查；安装后需重启应用生效。
-          </p>
-          <div class="plugin-upload-row">
-            <label class="plugin-upload-file" for="plugin-upload-input">
-              <span aria-hidden="true">{{ icon('file-import', 'ui-icon--sm') }}</span>
-              <span x-text="uploadFile ? uploadFile.name : '选择 zip 包'"></span>
-            </label>
-            <input id="plugin-upload-input" class="plugin-upload-input" type="file" accept=".zip,application/zip" @change="pickUploadFile($event)">
-            <button type="button" class="plugin-button" :disabled="!uploadFile || uploading" @click="uploadArchive()">
-              <span x-show="!uploading">安装</span>
-              <span x-show="uploading" x-cloak>安装中…</span>
-            </button>
-          </div>
-          <div class="plugin-manager-banner plugin-manager-banner--danger" x-show="uploadResult && uploadResult.success === false" x-cloak>
-            <span aria-hidden="true">{{ icon('alert-triangle', 'ui-icon--sm') }}</span>
-            <span x-text="uploadResult ? uploadResult.msg : ''"></span>
-          </div>
-          <div class="plugin-manager-banner plugin-manager-banner--info" x-show="uploadResult && uploadResult.success !== false" x-cloak>
-            <span aria-hidden="true">{{ icon('check', 'ui-icon--sm') }}</span>
-            <span x-text="uploadResult ? ('已安装 ' + (uploadResult.id || '') + ' v' + (uploadResult.version || '')) : ''"></span>
-          </div>
-        </article>
-      </section>
-    </div>
-
-    <div class="ui-modal-footer plugin-manager-footer">
-      <label class="plugin-toggle-row">
-        <input type="checkbox" x-model="keepDataOnUninstall">
-        <span>卸载时保留配置与密钥</span>
-      </label>
+    <div class="plugin-manager-toolbar">
       <span class="plugin-manager-hint">
         插件目录: <code x-text="pluginsDir || 'data/plugins/'"></code>
+        <template x-if="loading">
+          <span class="plugin-manager-loading">{{ loading_icon('ui-icon--xs') }}<span>读取中…</span></span>
+        </template>
       </span>
+      <button
+        type="button"
+        class="plugin-manager-icon-button"
+        title="刷新列表"
+        aria-label="刷新插件列表"
+        :disabled="loading"
+        @click="reloadActiveTab()"
+      >
+        {{ icon('refresh', 'ui-icon--sm') }}
+      </button>
     </div>
+
+    <!-- ① 已安装 -->
+    <section
+      class="plugin-manager-panel"
+      id="plugin-panel-installed"
+      x-show="activeTab === 'installed'"
+      role="tabpanel"
+      aria-labelledby="plugin-tab-installed"
+    >
+      <div class="plugin-manager-empty" x-show="!plugins.length && !loading" x-cloak>
+        <p>尚未安装任何插件。</p>
+        <p class="plugin-manager-hint">
+          把插件目录放进 <code x-text="pluginsDir || 'data/plugins/'"></code>，或在「官方目录」页签安装。
+        </p>
+      </div>
+
+      <template x-for="item in plugins" :key="item.id">
+        <article class="plugin-card" :class="{ 'is-disabled': !item.enabled, 'is-failed': !!item.load_error }">
+          <header class="plugin-card-header">
+            <div class="plugin-card-identity">
+              <span class="plugin-card-status" aria-hidden="true" x-text="statusIcon(item)"></span>
+              <div>
+                <h4 class="plugin-card-name">
+                  <span x-text="item.name || item.id"></span>
+                  <code class="plugin-card-id" x-text="item.id"></code>
+                </h4>
+                <p class="plugin-card-meta">
+                  <span x-text="'v' + (item.version || '?')"></span>
+                  <span aria-hidden="true">·</span>
+                  <span x-text="statusLabel(item)"></span>
+                  <template x-if="item.author">
+                    <span>
+                      <span aria-hidden="true">·</span>
+                      <span x-text="item.author"></span>
+                    </span>
+                  </template>
+                  <template x-if="item.backend">
+                    <span class="plugin-card-badge">后端</span>
+                  </template>
+                  <template x-if="item.frontend">
+                    <span class="plugin-card-badge">前端</span>
+                  </template>
+                </p>
+              </div>
+            </div>
+            <div class="plugin-card-actions">
+              <button
+                type="button"
+                class="plugin-button plugin-button--ghost"
+                x-show="item.enabled"
+                :disabled="busyAction === 'disable:' + item.id"
+                @click="toggleEnabled(item)"
+              >
+                禁用
+              </button>
+              <button
+                type="button"
+                class="plugin-button plugin-button--ghost"
+                x-show="!item.enabled"
+                :disabled="busyAction === 'enable:' + item.id"
+                @click="toggleEnabled(item)"
+              >
+                启用
+              </button>
+              <button type="button" class="plugin-button plugin-button--ghost" @click="openDocs(item)">
+                详情
+              </button>
+              <button
+                type="button"
+                class="plugin-button plugin-button--ghost"
+                :class="{ 'is-active': configTargetId === item.id }"
+                @click="openConfig(item)"
+              >
+                <span x-text="configTargetId === item.id ? '收起配置' : '配置'"></span>
+              </button>
+              <button
+                type="button"
+                class="plugin-button plugin-button--ghost"
+                :class="{ 'is-active': secretTargetId === item.id }"
+                @click="openSecrets(item)"
+              >
+                <span x-text="secretTargetId === item.id ? '收起密钥' : '密钥'"></span>
+              </button>
+              <button
+                type="button"
+                class="plugin-button plugin-button--danger"
+                :disabled="busyAction === 'uninstall:' + item.id"
+                @click="uninstall(item)"
+              >
+                卸载
+              </button>
+            </div>
+          </header>
+
+          <p class="plugin-card-description" x-show="item.description" x-text="item.description"></p>
+          <p class="plugin-card-permissions" x-text="'权限: ' + permissionLabels(item)"></p>
+
+          <template x-if="requirementLabels(item)">
+            <p class="plugin-card-permissions" x-text="'依赖: ' + requirementLabels(item)"></p>
+          </template>
+
+          <p class="plugin-card-error" x-show="item.load_error" x-cloak>
+            <span aria-hidden="true">{{ icon('alert-triangle', 'ui-icon--sm') }}</span>
+            <span x-text="'加载失败: ' + item.load_error"></span>
+          </p>
+
+          <template x-if="styleScopeWarnings(item).length">
+            <p class="plugin-card-error">
+              <span aria-hidden="true">{{ icon('alert-triangle', 'ui-icon--sm') }}</span>
+              <span>以下样式未通过作用域检查，已拒绝加载: <span x-text="styleScopeWarnings(item).join('、')"></span></span>
+            </p>
+          </template>
+
+          <template x-if="item.restart_required">
+            <p class="plugin-card-hint">已标记变更，重启应用后生效</p>
+          </template>
+
+          <!-- 配置表单 -->
+          <div class="plugin-form" x-show="configTargetId === item.id" x-cloak>
+            <div class="plugin-form-header">
+              <strong>插件配置</strong>
+              <button type="button" class="plugin-inline-button" @click="closeConfig()">收起</button>
+            </div>
+            <p class="plugin-manager-hint" x-show="!schemaEntries(configSchema).length">
+              该插件未声明 config_schema，无自动表单。
+            </p>
+            <template x-for="field in schemaEntries(configSchema)" :key="'cfg-' + field.key">
+              <div class="plugin-form-field">
+                <span class="plugin-form-label">
+                  <span x-text="field.spec.title || field.key"></span>
+                  <span class="plugin-form-required" x-show="isRequired(configSchema, field.key)" x-cloak>*</span>
+                </span>
+                <template x-if="field.spec.type === 'boolean'">
+                  <input type="checkbox" x-model="configDraft[field.key]">
+                </template>
+                <template x-if="field.spec.type !== 'boolean' && Array.isArray(field.spec.enum) && field.spec.enum.length">
+                  {% call styled_select('configDraft[field.key]', wrapper_class='plugin-select', aria_label='配置项') %}
+                    <template x-for="option in field.spec.enum" :key="'opt-' + String(option)">
+                      <option :value="option" x-text="option"></option>
+                    </template>
+                  {% endcall %}
+                </template>
+                <template x-if="field.spec.type !== 'boolean' && !(Array.isArray(field.spec.enum) && field.spec.enum.length) && (field.spec.type === 'integer' || field.spec.type === 'number')">
+                  <div class="settings-number-control">
+                    <input
+                      type="number"
+                      class="form-input settings-number-input"
+                      x-model.number="configDraft[field.key]"
+                      :min="field.spec.minimum"
+                      :max="field.spec.maximum"
+                      :step="field.spec.type === 'integer' ? 1 : 'any'"
+                      autocomplete="off"
+                    >
+                    <div class="settings-number-stepper" :aria-label="'调整 ' + (field.spec.title || field.key)">
+                      <button
+                        type="button"
+                        class="settings-number-stepper-btn"
+                        tabindex="-1"
+                        aria-label="增加"
+                        @click.prevent="window.stepNumberInput($event.currentTarget, 1)"
+                      >{{ icon('arrow-up', 'ui-icon--xs') }}</button>
+                      <button
+                        type="button"
+                        class="settings-number-stepper-btn"
+                        tabindex="-1"
+                        aria-label="减少"
+                        @click.prevent="window.stepNumberInput($event.currentTarget, -1)"
+                      >{{ icon('arrow-down', 'ui-icon--xs') }}</button>
+                    </div>
+                  </div>
+                </template>
+                <template x-if="field.spec.type !== 'boolean' && !(Array.isArray(field.spec.enum) && field.spec.enum.length) && field.spec.type !== 'integer' && field.spec.type !== 'number'">
+                  <input type="text" class="form-input" x-model="configDraft[field.key]">
+                </template>
+                <small class="plugin-form-help" x-show="field.spec.description" x-text="field.spec.description"></small>
+              </div>
+            </template>
+            <div class="plugin-form-actions">
+              <button type="button" class="plugin-button" :disabled="configSaving" @click="saveConfig()">
+                保存配置
+              </button>
+            </div>
+          </div>
+
+          <!-- 密钥表单 -->
+          <div class="plugin-form" x-show="secretTargetId === item.id" x-cloak>
+            <div class="plugin-form-header">
+              <strong>插件密钥</strong>
+              <button type="button" class="plugin-inline-button" @click="closeSecrets()">收起</button>
+            </div>
+            <p class="plugin-manager-banner plugin-manager-banner--info">
+              密钥以明文存储在 <code>data/system/secrets.json</code>，请勿共享该文件。
+            </p>
+            <p class="plugin-manager-hint" x-show="!schemaEntries(secretSchema).length">
+              该插件未声明 secret_schema，无自动表单。
+            </p>
+            <template x-for="field in schemaEntries(secretSchema)" :key="'sec-' + field.key">
+              <div class="plugin-form-field">
+                <span class="plugin-form-label">
+                  <span x-text="field.spec.title || field.key"></span>
+                  <span
+                    class="plugin-secret-state"
+                    :class="secretMeta[field.key] && secretMeta[field.key].set ? 'is-set' : 'is-unset'"
+                    x-text="secretMeta[field.key] && secretMeta[field.key].set ? '已设置' : '未设置'"
+                  ></span>
+                  <span class="plugin-form-required" x-show="isRequired(secretSchema, field.key)" x-cloak>*</span>
+                </span>
+                <template x-if="field.spec.secret">
+                  <div class="plugin-secret-row">
+                    <input
+                      type="password"
+                      autocomplete="new-password"
+                      :placeholder="(secretMeta[field.key] && secretMeta[field.key].hint) || '未设置'"
+                      x-model="secretDraft[field.key]"
+                    >
+                    <button type="button" class="plugin-inline-button" @click="clearSecret(field.key)">清除</button>
+                  </div>
+                </template>
+                <template x-if="!field.spec.secret">
+                  <input
+                    type="text"
+                    :placeholder="(secretMeta[field.key] && secretMeta[field.key].value) || field.spec.default || ''"
+                    x-model="secretDraft[field.key]"
+                  >
+                </template>
+                <small class="plugin-form-help" x-show="field.spec.description" x-text="field.spec.description"></small>
+              </div>
+            </template>
+            <div class="plugin-form-actions">
+              <button type="button" class="plugin-button" :disabled="secretSaving" @click="saveSecrets()">
+                保存密钥
+              </button>
+            </div>
+          </div>
+        </article>
+      </template>
+    </section>
+
+    <!-- ② 官方目录 -->
+    <section
+      class="plugin-manager-panel"
+      id="plugin-panel-catalog"
+      x-show="activeTab === 'catalog'"
+      role="tabpanel"
+      aria-labelledby="plugin-tab-catalog"
+    >
+      <div class="plugin-manager-toolbar">
+        <span class="plugin-manager-hint" x-show="catalogMeta.offline" x-cloak x-text="catalogMeta.msg"></span>
+        <span class="plugin-manager-hint" x-show="!catalogMeta.offline && catalogMeta.source" x-cloak
+              x-text="'来源: ' + catalogMeta.source"></span>
+        <button
+          type="button"
+          class="plugin-button plugin-button--ghost"
+          :disabled="busyAction === 'updates'"
+          @click="checkUpdates()"
+        >
+          检查更新
+        </button>
+      </div>
+
+      <div class="plugin-manager-empty" x-show="!catalog.length && !loading" x-cloak>
+        <p>官方目录暂无条目。</p>
+        <p class="plugin-manager-hint">目录清单来自仓库内的 <code>static/plugins/catalog.json</code>。</p>
+      </div>
+
+      <template x-for="entry in catalog" :key="'cat-' + entry.id">
+        <article class="plugin-card">
+          <header class="plugin-card-header">
+            <div class="plugin-card-identity">
+              <span class="plugin-card-status" aria-hidden="true" x-text="entry.installed ? '●' : '○'"></span>
+              <div>
+                <h4 class="plugin-card-name">
+                  <span x-text="entry.name || entry.id"></span>
+                  <code class="plugin-card-id" x-text="entry.id"></code>
+                </h4>
+                <p class="plugin-card-meta">
+                  <span x-text="installStateLabel(entry)"></span>
+                  <template x-if="entry.version">
+                    <span>
+                      <span aria-hidden="true">·</span>
+                      <span x-text="'目录版本 v' + entry.version"></span>
+                    </span>
+                  </template>
+                  <template x-if="entry.author">
+                    <span>
+                      <span aria-hidden="true">·</span>
+                      <span x-text="entry.author"></span>
+                    </span>
+                  </template>
+                </p>
+              </div>
+            </div>
+            <div class="plugin-card-actions">
+              <a
+                class="plugin-button plugin-button--ghost"
+                x-show="entry.homepage"
+                :href="entry.homepage"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                GitHub
+              </a>
+              <button
+                type="button"
+                class="plugin-button"
+                :disabled="busyAction === 'install:' + entry.id"
+                @click="installCatalogItem(entry)"
+              >
+                安装
+              </button>
+            </div>
+          </header>
+          <p class="plugin-card-description" x-show="entry.description" x-text="entry.description"></p>
+          <p class="plugin-card-permissions" x-text="'来源: ' + (entry.source ? entry.source.repo : '')"></p>
+        </article>
+      </template>
+
+      <div class="plugin-manager-empty" x-show="updates.length" x-cloak>
+        <p>可用更新：</p>
+        <ul class="plugin-update-list">
+          <template x-for="update in updates" :key="'upd-' + update.id">
+            <li>
+              <span x-text="update.name || update.id"></span>
+              <span x-text="update.installed + ' → ' + update.available"></span>
+            </li>
+          </template>
+        </ul>
+        <p class="plugin-manager-hint">更新需在「已安装」页签重新安装对应的插件条目。</p>
+      </div>
+    </section>
+
+    <!-- ③ 手动安装 -->
+    <section
+      class="plugin-manager-panel"
+      id="plugin-panel-upload"
+      x-show="activeTab === 'upload'"
+      role="tabpanel"
+      aria-labelledby="plugin-tab-upload"
+    >
+      <article class="plugin-card">
+        <h4 class="plugin-card-name">从 GitHub 仓库安装</h4>
+        <p class="plugin-card-description">
+          输入 GitHub 仓库地址（<code>owner/repo</code> 或 <code>https://github.com/owner/repo</code>），
+          可选指定分支 / 子目录；下载后做 zip-slip、符号链接与压缩比检查，安装后需重启应用生效。
+        </p>
+        <div class="plugin-form-field">
+          <span class="plugin-form-label">仓库地址 <span class="plugin-form-required">*</span></span>
+          <input type="text" placeholder="owner/repo 或 https://github.com/owner/repo" x-model="githubRepo">
+        </div>
+        <div class="plugin-github-row">
+          <label class="plugin-form-field plugin-github-ref">
+            <span class="plugin-form-label">分支 / 标签 <small class="plugin-manager-hint">（默认 main）</small></span>
+            <input type="text" placeholder="main" x-model="githubRef">
+          </label>
+          <label class="plugin-form-field plugin-github-subdir">
+            <span class="plugin-form-label">子目录 <small class="plugin-manager-hint">（可选，仓库内插件所在目录）</small></span>
+            <input type="text" placeholder="plugins/my-plugin" x-model="githubSubdir">
+          </label>
+        </div>
+        <div class="plugin-form-actions">
+          <button
+            type="button"
+            class="plugin-button"
+            :disabled="!githubRepo.trim() || githubInstalling"
+            @click="installFromGithub()"
+          >
+            <span x-show="!githubInstalling">从 GitHub 安装</span>
+            <span x-show="githubInstalling" x-cloak>安装中…</span>
+          </button>
+        </div>
+        <div class="plugin-manager-banner plugin-manager-banner--danger" x-show="githubResult && githubResult.success === false" x-cloak>
+          <span aria-hidden="true">{{ icon('alert-triangle', 'ui-icon--sm') }}</span>
+          <span x-text="githubResult ? githubResult.msg : ''"></span>
+        </div>
+        <div class="plugin-manager-banner plugin-manager-banner--info" x-show="githubResult && githubResult.success !== false" x-cloak>
+          <span aria-hidden="true">{{ icon('check', 'ui-icon--sm') }}</span>
+          <span x-text="githubResult ? ('已安装 ' + (githubResult.id || '') + ' v' + (githubResult.version || '')) : ''"></span>
+        </div>
+      </article>
+
+      <article class="plugin-card">
+        <h4 class="plugin-card-name">上传插件压缩包</h4>
+        <p class="plugin-card-description">
+          选择插件 zip 包（根目录或单层子目录需包含 <code>manifest.json</code>）。
+          解压前会做 zip-slip、符号链接、体积与压缩比检查；安装后需重启应用生效。
+        </p>
+        <div class="plugin-upload-row">
+          <label class="plugin-upload-file" for="plugin-upload-input">
+            <span aria-hidden="true">{{ icon('file-import', 'ui-icon--sm') }}</span>
+            <span x-text="uploadFile ? uploadFile.name : '选择 zip 包'"></span>
+          </label>
+          <input id="plugin-upload-input" class="plugin-upload-input" type="file" accept=".zip,application/zip" @change="pickUploadFile($event)">
+          <button type="button" class="plugin-button" :disabled="!uploadFile || uploading" @click="uploadArchive()">
+            <span x-show="!uploading">安装</span>
+            <span x-show="uploading" x-cloak>安装中…</span>
+          </button>
+        </div>
+        <div class="plugin-manager-banner plugin-manager-banner--danger" x-show="uploadResult && uploadResult.success === false" x-cloak>
+          <span aria-hidden="true">{{ icon('alert-triangle', 'ui-icon--sm') }}</span>
+          <span x-text="uploadResult ? uploadResult.msg : ''"></span>
+        </div>
+        <div class="plugin-manager-banner plugin-manager-banner--info" x-show="uploadResult && uploadResult.success !== false" x-cloak>
+          <span aria-hidden="true">{{ icon('check', 'ui-icon--sm') }}</span>
+          <span x-text="uploadResult ? ('已安装 ' + (uploadResult.id || '') + ' v' + (uploadResult.version || '')) : ''"></span>
+        </div>
+      </article>
+    </section>
+  </div>
+
+  <div class="plugin-manager-footer">
+    <label class="plugin-toggle-row">
+      <input type="checkbox" x-model="keepDataOnUninstall">
+      <span>卸载时保留配置与密钥</span>
+    </label>
+    <span class="plugin-manager-hint">
+      后端插件改动需重启 ST-Manager 后生效
+    </span>
   </div>
 </div>

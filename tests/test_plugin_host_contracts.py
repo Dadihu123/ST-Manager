@@ -97,14 +97,17 @@ def test_plugin_host_is_initialised_from_app_entry():
     assert 'PluginHost.init()' in app_source
 
 
-def test_layout_registers_plugin_manager_modal():
+def test_plugin_manager_panel_is_registered_through_settings():
     index_source = read_source('templates/index.html')
+    settings_source = read_source('templates/modals/settings.html')
 
-    assert 'modals/plugin_manager.html' in index_source
+    assert 'modals/plugin_manager.html' not in index_source
+    assert 'modals/settings.html' in index_source
+    assert '{% include "modals/plugin_manager.html" %}' in settings_source
 
 
 def test_settings_exposes_plugin_manager_entry():
     settings_source = read_source('templates/modals/settings.html')
 
     assert 'settings-maintenance-plugins' in settings_source
-    assert 'open-plugin-manager' in settings_source
+    assert "selectSettingTab('plugins')" in settings_source

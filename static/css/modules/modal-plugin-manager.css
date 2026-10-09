@@ -1,16 +1,21 @@
 /* static/css/modules/modal-plugin-manager.css
-   插件管理弹窗（templates/modals/plugin_manager.html + static/js/components/pluginManager.js）
+   插件管理面板（templates/modals/plugin_manager.html + static/js/components/pluginManager.js）
+   作为「系统设置 → 插件管理」第五个导航页嵌入设置弹窗。
+   页签沿用角色卡详情页 .detail-tabs / .detail-tab 契约（见 detail-card-workbench.css 的
+   content-space pass），这里只补齐插件面板自身所需的布局与卡片样式。
    只使用语义颜色 Token，不引入调色板类。 */
 
-.plugin-manager-shell {
-  width: min(64rem, calc(100vw - 2 * var(--ui-modal-gutter))) !important;
-  height: min(52rem, calc(100dvh - 2 * var(--ui-modal-gutter))) !important;
-  max-width: calc(100vw - 2 * var(--ui-modal-gutter));
-  max-height: calc(100dvh - 2 * var(--ui-modal-gutter));
-  border-radius: var(--ui-radius-lg, 0.75rem);
+.plugin-manager {
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+/* 插件面板独占设置内容区，内部自行管理纵向布局，不再套 settings-panel 的 grid。 */
+.settings-panel--plugins {
+  display: block;
+  min-width: 0;
 }
 
 .plugin-manager-title {
@@ -47,50 +52,101 @@
   cursor: not-allowed;
 }
 
+/* 页签视觉与角色卡详情页 workbench 页签一致：横排、可横向滚动、
+   选中态为 action-surface 底色 + 底部 2px 强调条。
+   modal-detail.css 里 .detail-tabs 的基础规则带 sticky 定位，这里显式复位。 */
 .plugin-manager-tabs {
-  flex: 0 0 auto;
+  align-content: center;
+  align-items: center;
+  background: var(--surface-container-raised);
+  border: 1px solid var(--border-divider);
+  border-radius: var(--ui-radius-md, 0.85rem);
   display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0.55rem 1rem;
-  border-bottom: 1px solid var(--border-divider);
+  flex: 0 0 auto;
+  flex-direction: row;
+  gap: 0.2rem;
+  max-width: 100%;
+  min-height: 3.2rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.42rem 0.85rem 0.35rem;
+  position: relative;
+  scrollbar-width: thin;
+  top: auto;
+  z-index: auto;
 }
 
-.plugin-manager-tab {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  height: 2rem;
-  padding: 0 0.9rem;
-  border: 1px solid transparent;
-  border-radius: var(--ui-radius-sm, 0.5rem);
+.plugin-manager-tabs .detail-tab {
   background: transparent;
-  color: var(--content-secondary);
-  font-size: 0.83rem;
-  line-height: 1;
-  cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  border-color: transparent;
+  border-radius: 0.55rem;
+  flex: 0 0 auto;
+  justify-content: center;
+  min-height: 2.35rem;
+  min-width: max-content;
+  padding: 0.45rem 0.7rem;
+  position: relative;
+  width: auto;
 }
 
-.plugin-manager-tab:hover {
+.plugin-manager-tabs .detail-tab:hover {
   background: var(--state-hover-surface);
   color: var(--content-primary);
 }
 
-.plugin-manager-tab.is-active {
-  background: var(--accent-soft);
-  border-color: var(--accent-action);
-  color: var(--content-primary);
+.plugin-manager-tabs .detail-tab.active {
+  background: var(--action-surface);
+  border-color: transparent;
+  box-shadow: inset 0 -2px 0 var(--accent-action);
+}
+
+.plugin-manager-tabs .detail-tab:focus-visible {
+  outline: 2px solid var(--state-focus-ring);
+  outline-offset: 2px;
+}
+
+/* modal-detail.css 在 <=480px 时全局隐藏 .tab-text；插件页签保持可读，
+   否则窄屏下三个页签会退化成三个无标签图标。 */
+.plugin-manager-tabs .detail-tab .tab-text {
+  display: inline !important;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.plugin-manager-tabs .detail-tab-meta {
+  color: var(--content-muted);
+  flex: 0 0 auto;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 0.62rem;
+}
+
+.plugin-manager-tabs .detail-tab.active .detail-tab-meta {
+  color: var(--action-text);
+}
+
+@media (max-width: 48rem) {
+  .plugin-manager-tabs .detail-tab-meta {
+    display: none;
+  }
+}
+
+.plugin-manager-loading {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-left: 0.5rem;
+  color: var(--content-secondary);
 }
 
 .plugin-manager-body {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow-y: auto;
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
   gap: 0.7rem;
-  padding: 0.9rem 1rem;
+  min-height: 0;
 }
 
 .plugin-manager-panel {
@@ -563,6 +619,7 @@
   gap: 0.75rem;
   flex-wrap: wrap;
   border-top: 1px solid var(--border-divider);
+  padding-top: 0.7rem;
 }
 
 .plugin-toggle-row {
@@ -571,6 +628,42 @@
   gap: 0.4rem;
   font-size: 0.78rem;
   color: var(--content-secondary);
+}
+
+/* 设置弹窗窄屏：页签横排可滚动，卡片内动作按钮换行显示。 */
+@media (max-width: 48rem) {
+  .plugin-manager-tabs {
+    padding-inline: 0.55rem;
+  }
+
+  .plugin-manager-tabs .detail-tab {
+    padding-inline: 0.58rem;
+  }
+
+  .plugin-manager-toolbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .plugin-card-actions {
+    width: 100%;
+  }
+
+  .plugin-form-actions {
+    justify-content: stretch;
+  }
+
+  .plugin-form-actions .plugin-button {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .plugin-manager *,
+  .plugin-manager *::before,
+  .plugin-manager *::after {
+    transition-duration: 0.01ms !important;
+  }
 }
 
 /* 插件运行时容器（static/js/pluginHost.js 的 createRoot 默认挂载点） */
