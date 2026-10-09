@@ -30,6 +30,14 @@ export function installPluginFromCatalog(id, extra = {}) {
   });
 }
 
+export function installPluginFromGithub({ repo, ref = "", subdir = "" }) {
+  return request("/api/plugins/install_github", {
+    method: "POST",
+    headers: JSON_HEADERS,
+    body: JSON.stringify({ repo, ref, subdir }),
+  });
+}
+
 export function checkPluginUpdates(force = false) {
   return request("/api/plugins/catalog/check_updates", {
     method: "POST",

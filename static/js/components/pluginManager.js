@@ -19,6 +19,7 @@ import {
   getPluginReadme,
   getPluginSecrets,
   installPluginFromCatalog,
+  installPluginFromGithub,
   savePluginConfig,
   savePluginSecrets,
   uninstallPlugin,
@@ -76,6 +77,12 @@ export default function pluginManager() {
     uploadFile: null,
     uploadResult: null,
     uploading: false,
+
+    githubRepo: "",
+    githubRef: "",
+    githubSubdir: "",
+    githubInstalling: false,
+    githubResult: null,
 
     restartHint: false,
     keepDataOnUninstall: false,
@@ -205,6 +212,35 @@ export default function pluginManager() {
       }
     },
 
+    async installFromGithub() {
+      const repo = (this.githubRepo || "").trim();
+      if (!repo) {
+        toast("请输入 GitHub 仓库（owner/repo 或 https://github.com/owner/repo）", "error");
+        return;
+      }
+      if (this.githubInstalling) return;
+      this.githubInstalling = true;
+      this.githubResult = null;
+      try {
+        const data = await installPluginFromGithub({
+          repo,
+          ref: this.githubRef,
+          subdir: this.githubSubdir,
+        });
+        if (!data.success) {
+          this.githubResult = { success: false, msg: data.msg || "安装失败" };
+          toast(data.msg || "安装失败", "error");
+          return;
+        }
+        this.githubResult = data.result || { success: true };
+        this.restartHint = true;
+        toast(data.msg || "安装完成");
+        await this.loadPlugins();
+      } finally {
+        this.githubInstalling = false;
+      }
+    },
+
     async toggleEnabled(item) {
       if (this.busyAction) return;
       const enable = !item.enabled;
@@ -248,6 +284,12 @@ export default function pluginManager() {
     // ---------------------------------------------------------------- 配置
 
     async openConfig(item) {
+      // 再次点击同一插件的「配置」按钮时收起
+      if (this.configTargetId === item.id) {
+        this.closeConfig();
+        return;
+      }
+      this.closeSecrets();
       this.configTargetId = item.id;
       const manifest = item.manifest || {};
       this.configSchema = manifest.config_schema || {};
@@ -280,6 +322,12 @@ export default function pluginManager() {
     // ---------------------------------------------------------------- 密钥
 
     async openSecrets(item) {
+      // 再次点击同一插件的「密钥」按钮时收起
+      if (this.secretTargetId === item.id) {
+        this.closeSecrets();
+        return;
+      }
+      this.closeConfig();
       const manifest = item && item.manifest ? item.manifest : {};
       if (manifest.secret_schema && Object.keys(manifest.secret_schema).length) {
         this.secretSchema = manifest.secret_schema;

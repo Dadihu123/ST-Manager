@@ -334,7 +334,7 @@ def _register_disabled_state(plugin_id: str, plugin_dir: str, manifest: PluginMa
         state.manifest = manifest
         state.enabled = False
         state.warnings = list(manifest.warnings or [])
-        state.restart_required = bool(_read_ui_entry(plugin_id).get('restart_required', False))
+        state.restart_required = False
         _states[plugin_id] = state
 
 
@@ -509,7 +509,7 @@ def load_all(app=None) -> dict:
         with _states_lock:
             state = PluginState(plugin_id, plugin_dir)
             _mark_loaded(state, manifest, api, module)
-            state.restart_required = bool(_read_ui_entry(plugin_id).get('restart_required', False))
+            state.restart_required = False
             _states[plugin_id] = state
         summary['loaded'].append(plugin_id)
 
@@ -532,8 +532,31 @@ def load_all(app=None) -> dict:
             '插件加载完成：成功 %s / 失败 %s / 禁用 %s',
             len(summary['loaded']), len(summary['failed']), len(summary['disabled']),
         )
+
+    # 本轮加载完成后，「重启生效」标记已消费完毕，全部清零
+    # 否则禁用/安装后重启，旧的 restart_required 持久化标志会再次残留
+    _clear_restart_required_flags()
     return summary
 
+
+def _clear_restart_required_flags() -> None:
+    """把 `_plugins_v1.<id>.restart_required` 持久化标志统一清零。
+
+    `load_all()` 是一次新的启动，运行到这里说明「重启生效」的语义已达成。
+    不归零的话：禁用 → 重启 → 标志仍是 true → 管理页继续显示「重启生效」。
+    """
+    def mutator(ui_data):
+        namespace = ui_data.get(PLUGIN_UI_NAMESPACE)
+        if not isinstance(namespace, dict):
+            return
+        for entry in namespace.values():
+            if isinstance(entry, dict) and entry.get('restart_required'):
+                entry['restart_required'] = False
+
+    try:
+        update_ui_data(mutator)
+    except Exception:  # noqa: BLE001 - 标志清理失败不影响主流程
+        logger.warning('清理 restart_required 标志失败', exc_info=True)
 
 def load_single(app, plugin_dir: str) -> PluginState:
     """加载单个插件（安装流程校验用，不登记路由）。"""

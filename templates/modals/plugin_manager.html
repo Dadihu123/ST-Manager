@@ -1,11 +1,12 @@
 {% from "components/icon.html" import icon, sidebar_icon %}
+{% from "components/styled_select.html" import styled_select %}
 
 <!-- 插件管理弹窗（设计文档第 9 部分） -->
 <div
   x-data="pluginManager"
   x-show="showPluginManager"
   x-cloak
-  class="modal-overlay ui-modal-overlay ui-refresh-surface z-modal-popover"
+  class="modal-overlay ui-modal-overlay ui-refresh-surface z-modal-std"
   data-marquee-ignore
   @click.self="close()"
   @keydown.escape.window="showPluginManager && close()"
@@ -19,7 +20,7 @@
     <div class="ui-modal-header">
       <div class="ui-modal-header-copy">
         <h2 id="plugin-manager-title" class="ui-modal-title plugin-manager-title">
-          <span aria-hidden="true">{{ icon('package', 'ui-icon--md') }}</span>
+          <span aria-hidden="true">{{ icon('plugin', 'ui-icon--md') }}</span>
           <span>插件管理</span>
         </h2>
         <p class="plugin-manager-subtitle">安装、启停与配置本地插件；后端插件改动需重启应用生效</p>
@@ -151,11 +152,21 @@
                 <button type="button" class="plugin-button plugin-button--ghost" @click="openDocs(item)">
                   详情
                 </button>
-                <button type="button" class="plugin-button plugin-button--ghost" @click="openConfig(item)">
-                  配置
+                <button
+                  type="button"
+                  class="plugin-button plugin-button--ghost"
+                  :class="{ 'is-active': configTargetId === item.id }"
+                  @click="openConfig(item)"
+                >
+                  <span x-text="configTargetId === item.id ? '收起配置' : '配置'"></span>
                 </button>
-                <button type="button" class="plugin-button plugin-button--ghost" @click="openSecrets(item)">
-                  密钥
+                <button
+                  type="button"
+                  class="plugin-button plugin-button--ghost"
+                  :class="{ 'is-active': secretTargetId === item.id }"
+                  @click="openSecrets(item)"
+                >
+                  <span x-text="secretTargetId === item.id ? '收起密钥' : '密钥'"></span>
                 </button>
                 <button
                   type="button"
@@ -201,7 +212,7 @@
                 该插件未声明 config_schema，无自动表单。
               </p>
               <template x-for="field in schemaEntries(configSchema)" :key="'cfg-' + field.key">
-                <label class="plugin-form-field">
+                <div class="plugin-form-field">
                   <span class="plugin-form-label">
                     <span x-text="field.spec.title || field.key"></span>
                     <span class="plugin-form-required" x-show="isRequired(configSchema, field.key)" x-cloak>*</span>
@@ -210,26 +221,46 @@
                     <input type="checkbox" x-model="configDraft[field.key]">
                   </template>
                   <template x-if="field.spec.type !== 'boolean' && Array.isArray(field.spec.enum) && field.spec.enum.length">
-                    <select x-model="configDraft[field.key]">
+                    {% call styled_select('configDraft[field.key]', wrapper_class='plugin-select', aria_label='配置项') %}
                       <template x-for="option in field.spec.enum" :key="'opt-' + String(option)">
                         <option :value="option" x-text="option"></option>
                       </template>
-                    </select>
+                    {% endcall %}
                   </template>
                   <template x-if="field.spec.type !== 'boolean' && !(Array.isArray(field.spec.enum) && field.spec.enum.length) && (field.spec.type === 'integer' || field.spec.type === 'number')">
-                    <input
-                      type="number"
-                      x-model.number="configDraft[field.key]"
-                      :min="field.spec.minimum"
-                      :max="field.spec.maximum"
-                      :step="field.spec.type === 'integer' ? 1 : 'any'"
-                    >
+                    <div class="settings-number-control">
+                      <input
+                        type="number"
+                        class="form-input settings-number-input"
+                        x-model.number="configDraft[field.key]"
+                        :min="field.spec.minimum"
+                        :max="field.spec.maximum"
+                        :step="field.spec.type === 'integer' ? 1 : 'any'"
+                        autocomplete="off"
+                      >
+                      <div class="settings-number-stepper" :aria-label="'调整 ' + (field.spec.title || field.key)">
+                        <button
+                          type="button"
+                          class="settings-number-stepper-btn"
+                          tabindex="-1"
+                          aria-label="增加"
+                          @click.prevent="window.stepNumberInput($event.currentTarget, 1)"
+                        >{{ icon('arrow-up', 'ui-icon--xs') }}</button>
+                        <button
+                          type="button"
+                          class="settings-number-stepper-btn"
+                          tabindex="-1"
+                          aria-label="减少"
+                          @click.prevent="window.stepNumberInput($event.currentTarget, -1)"
+                        >{{ icon('arrow-down', 'ui-icon--xs') }}</button>
+                      </div>
+                    </div>
                   </template>
                   <template x-if="field.spec.type !== 'boolean' && !(Array.isArray(field.spec.enum) && field.spec.enum.length) && field.spec.type !== 'integer' && field.spec.type !== 'number'">
-                    <input type="text" x-model="configDraft[field.key]">
+                    <input type="text" class="form-input" x-model="configDraft[field.key]">
                   </template>
                   <small class="plugin-form-help" x-show="field.spec.description" x-text="field.spec.description"></small>
-                </label>
+                </div>
               </template>
               <div class="plugin-form-actions">
                 <button type="button" class="plugin-button" :disabled="configSaving" @click="saveConfig()">
@@ -251,7 +282,7 @@
                 该插件未声明 secret_schema，无自动表单。
               </p>
               <template x-for="field in schemaEntries(secretSchema)" :key="'sec-' + field.key">
-                <label class="plugin-form-field">
+                <div class="plugin-form-field">
                   <span class="plugin-form-label">
                     <span x-text="field.spec.title || field.key"></span>
                     <span
@@ -280,7 +311,7 @@
                     >
                   </template>
                   <small class="plugin-form-help" x-show="field.spec.description" x-text="field.spec.description"></small>
-                </label>
+                </div>
               </template>
               <div class="plugin-form-actions">
                 <button type="button" class="plugin-button" :disabled="secretSaving" @click="saveSecrets()">
@@ -382,20 +413,62 @@
       <!-- ③ 手动安装 -->
       <section class="plugin-manager-panel" x-show="activeTab === 'upload'" role="tabpanel">
         <article class="plugin-card">
+          <h4 class="plugin-card-name">从 GitHub 仓库安装</h4>
+          <p class="plugin-card-description">
+            输入 GitHub 仓库地址（<code>owner/repo</code> 或 <code>https://github.com/owner/repo</code>），
+            可选指定分支 / 子目录；下载后做 zip-slip、符号链接与压缩比检查，安装后需重启应用生效。
+          </p>
+          <div class="plugin-form-field">
+            <span class="plugin-form-label">仓库地址 <span class="plugin-form-required">*</span></span>
+            <input type="text" placeholder="owner/repo 或 https://github.com/owner/repo" x-model="githubRepo">
+          </div>
+          <div class="plugin-github-row">
+            <label class="plugin-form-field plugin-github-ref">
+              <span class="plugin-form-label">分支 / 标签 <small class="plugin-manager-hint">（默认 main）</small></span>
+              <input type="text" placeholder="main" x-model="githubRef">
+            </label>
+            <label class="plugin-form-field plugin-github-subdir">
+              <span class="plugin-form-label">子目录 <small class="plugin-manager-hint">（可选，仓库内插件所在目录）</small></span>
+              <input type="text" placeholder="plugins/my-plugin" x-model="githubSubdir">
+            </label>
+          </div>
+          <div class="plugin-form-actions">
+            <button
+              type="button"
+              class="plugin-button"
+              :disabled="!githubRepo.trim() || githubInstalling"
+              @click="installFromGithub()"
+            >
+              <span x-show="!githubInstalling">从 GitHub 安装</span>
+              <span x-show="githubInstalling" x-cloak>安装中…</span>
+            </button>
+          </div>
+          <div class="plugin-manager-banner plugin-manager-banner--danger" x-show="githubResult && githubResult.success === false" x-cloak>
+            <span aria-hidden="true">{{ icon('alert-triangle', 'ui-icon--sm') }}</span>
+            <span x-text="githubResult ? githubResult.msg : ''"></span>
+          </div>
+          <div class="plugin-manager-banner plugin-manager-banner--info" x-show="githubResult && githubResult.success !== false" x-cloak>
+            <span aria-hidden="true">{{ icon('check', 'ui-icon--sm') }}</span>
+            <span x-text="githubResult ? ('已安装 ' + (githubResult.id || '') + ' v' + (githubResult.version || '')) : ''"></span>
+          </div>
+        </article>
+
+        <article class="plugin-card">
           <h4 class="plugin-card-name">上传插件压缩包</h4>
           <p class="plugin-card-description">
             选择插件 zip 包（根目录或单层子目录需包含 <code>manifest.json</code>）。
             解压前会做 zip-slip、符号链接、体积与压缩比检查；安装后需重启应用生效。
           </p>
           <div class="plugin-upload-row">
-            <input type="file" accept=".zip,application/zip" @change="pickUploadFile($event)">
+            <label class="plugin-upload-file" for="plugin-upload-input">
+              <span aria-hidden="true">{{ icon('file-import', 'ui-icon--sm') }}</span>
+              <span x-text="uploadFile ? uploadFile.name : '选择 zip 包'"></span>
+            </label>
+            <input id="plugin-upload-input" class="plugin-upload-input" type="file" accept=".zip,application/zip" @change="pickUploadFile($event)">
             <button type="button" class="plugin-button" :disabled="!uploadFile || uploading" @click="uploadArchive()">
-              安装
+              <span x-show="!uploading">安装</span>
+              <span x-show="uploading" x-cloak>安装中…</span>
             </button>
-          </div>
-          <div class="plugin-manager-banner plugin-manager-banner--info" x-show="uploadFile" x-cloak>
-            <span aria-hidden="true">{{ icon('file-import', 'ui-icon--sm') }}</span>
-            <span x-text="uploadFile ? uploadFile.name : ''"></span>
           </div>
           <div class="plugin-manager-banner plugin-manager-banner--danger" x-show="uploadResult && uploadResult.success === false" x-cloak>
             <span aria-hidden="true">{{ icon('alert-triangle', 'ui-icon--sm') }}</span>

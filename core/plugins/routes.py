@@ -9,6 +9,7 @@
 import functools
 import logging
 import os
+import re
 
 from flask import Blueprint, jsonify, request
 
@@ -321,6 +322,52 @@ def install_upload():
         'result': result,
         'msg': f'已安装 {result["id"]} v{result["version"]}，重启应用后生效',
     })
+
+
+@bp.route('/api/plugins/install_github', methods=['POST'])
+@_handle_plugin_errors
+def install_github():
+    """从 GitHub 仓库安装：接受 `owner/repo` 或完整 https://github.com/owner/repo URL。"""
+    body = request.get_json(silent=True) or {}
+    repo_raw = str(body.get('repo') or '').strip()
+    repo = _normalize_github_repo(repo_raw)
+    ref = str(body.get('ref') or '').strip()
+    subdir = str(body.get('subdir') or '').strip()
+
+    from flask import current_app
+
+    entry = {
+        'id': repo.split('/')[-1],
+        'source': {'type': 'github', 'repo': repo, 'ref': ref or 'main', 'subdir': subdir},
+    }
+    result = installer.install_from_catalog(
+        current_app._get_current_object(),
+        entry,
+        ref=ref,
+        subdir=subdir,
+    )
+    return jsonify({
+        'success': True,
+        'restart_required': True,
+        'result': result,
+        'msg': f'已安装 {result["id"]} v{result["version"]}，重启应用后生效',
+    })
+
+
+_GITHUB_URL_PATTERN = re.compile(
+    r'^(?:https?://(?:www\.)?github\.com/|git@github\.com:)?'
+    r'([A-Za-z0-9._-]+/[A-Za-z0-9._-]+?)(?:\.git)?/?$'
+)
+
+
+def _normalize_github_repo(raw: str) -> str:
+    """把 GitHub URL 或 `owner/repo` 统一归一成 `owner/repo`，其它形式抛错。"""
+    value = str(raw or '').strip()
+    match = _GITHUB_URL_PATTERN.match(value)
+    if match:
+        return match.group(1)
+    # 退到 owner/repo 直接校验（会在 validate_repo 里抛错）
+    return value
 
 
 def _read_plugin_document(plugin_dir: str, names) -> dict:
