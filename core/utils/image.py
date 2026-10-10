@@ -4,12 +4,16 @@ import base64
 import hashlib
 import shutil
 import logging
-from PIL import Image, PngImagePlugin
+from PIL import Image
 from core.consts import SIDECAR_EXTENSIONS
 from core.config import INTERNAL_DIR, load_config
 from core.utils.data import normalize_card_v3, deterministic_sort, sanitize_for_utf8
 from core.utils.format_validation import is_valid_character_card_data
 from core.utils.filesystem import save_json_atomic
+from core.utils.png_metadata import (
+    build_card_pnginfo,
+    iter_card_payloads,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +34,91 @@ CARD_INFO_NOT_A_CARD = 'not_a_card'
 CARD_INFO_UNREADABLE = 'unreadable'
 
 
+def _decode_card_payload(raw):
+    """把单个 PNG 文本块的载荷解析成 JSON 对象，失败返回 ``None``。
+
+    依次尝试三种策略：明文 JSON、标准 Base64、以及兼容缺省 Padding 与
+    URL-Safe 变体的增强 Base64。
+    """
+    if not raw:
+        return None
+
+    # === 策略 A: 尝试直接解析为 JSON (针对某些 V3 卡片直接存明文的情况) ===
+    try:
+        # 某些特殊情况下 raw 可能是 bytes，先尝试转 str 判断是否以 { 开头
+        raw_str = raw
+        if isinstance(raw_str, bytes):
+            raw_str = raw_str.decode('utf-8', errors='ignore')
+        raw_str = str(raw_str).strip()
+
+        if raw_str.startswith('{') or raw_str.startswith('['):
+            return json.loads(raw_str)
+    except Exception:
+        pass
+
+    # === 策略 B: 标准 Base64 解码 (最稳健的旧版逻辑) ===
+    try:
+        decoded = base64.b64decode(raw).decode('utf-8')
+        return json.loads(decoded)
+    except Exception:
+        pass
+
+    # === 策略 C: 增强型 Base64 解码 (处理 Padding 缺失等边缘情况) ===
+    try:
+        payload = raw
+        if isinstance(payload, bytes):
+            payload = payload.decode('utf-8', errors='ignore')
+        payload = str(payload).strip()
+        padded = payload + ('=' * (-len(payload) % 4))
+
+        # 尝试 URL-Safe 解码 (部分 Web 工具生成的卡片)
+        try:
+            decoded = base64.urlsafe_b64decode(padded).decode('utf-8', errors='ignore')
+            return json.loads(decoded)
+        except Exception:
+            # 尝试标准解码 + Padding
+            decoded = base64.b64decode(padded).decode('utf-8', errors='ignore')
+            return json.loads(decoded)
+    except Exception:
+        pass
+
+    return None
+
+
+def _pick_card_payload(metadata):
+    """按 ``ccv3`` > ``chara`` 的优先级挑出角色卡载荷。
+
+    与 SillyTavern 的 ``character-card-parser.js`` ``read()`` 一致：``ccv3``
+    优先。同一张卡片可能同时携带两个块，而 ``chara`` 那份未必合规
+    （例如 V2 的 ``character_book`` 缺 ``extensions``），优先读 ``chara``
+    会把合法卡片误判为「非有效卡片」。
+
+    在此基础上多留一层容错：优先返回第一个「能解析且通过校验」的块；
+    若所有块都通不过校验，则退回第一个「能解析」的块，交由调用方按原有
+    逻辑判定为 ``not_a_card``。这样既修正了优先级，又不会让任何原本
+    可读的卡片变成读不出来。
+
+    返回 ``(cleaned_data, dirty_flags)``；没有任何可解析块时返回 ``(None, [])``。
+    """
+    fallback = None
+    for _key, raw in iter_card_payloads(metadata):
+        decoded = _decode_card_payload(raw)
+        if not decoded:
+            continue
+
+        dirty_flags = []
+        cleaned = sanitize_for_utf8(decoded, dirty_tracker=dirty_flags)
+        if is_valid_character_card_data(cleaned):
+            return cleaned, dirty_flags
+
+        if fallback is None:
+            fallback = (cleaned, dirty_flags)
+
+    if fallback is None:
+        return None, []
+    return fallback
+
+
 def extract_card_info_with_status(filepath):
     """解析卡片元数据，并区分「确认不是卡片」与「暂时读不了」。
 
@@ -44,6 +133,7 @@ def extract_card_info_with_status(filepath):
     """
     try:
         data = None
+        dirty_flags = []
         # 1. 处理 JSON 文件
         if filepath.lower().endswith('.json'):
             with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
@@ -55,58 +145,18 @@ def extract_card_info_with_status(filepath):
                 img.load()
 
                 metadata = img.info or {}
-                raw = metadata.get('chara') or metadata.get('ccv3')
 
-                if not raw:
-                    return None, CARD_INFO_NOT_A_CARD
+                # 与 SillyTavern 的 character-card-parser.js read() 保持一致：
+                # ccv3 优先于 chara，并且只在真正能解析出合法卡片时才采用。
+                data, dirty_flags = _pick_card_payload(metadata)
 
-                result = None
-
-                # === 策略 A: 尝试直接解析为 JSON (针对某些 V3 卡片直接存明文的情况) ===
-                try:
-                    # 某些特殊情况下 raw 可能是 bytes，先尝试转 str 判断是否以 { 开头
-                    raw_str = raw
-                    if isinstance(raw_str, bytes):
-                        raw_str = raw_str.decode('utf-8', errors='ignore')
-                    raw_str = str(raw_str).strip()
-
-                    if raw_str.startswith('{') or raw_str.startswith('['):
-                        result = json.loads(raw_str)
-                except:
-                    pass
-
-                # === 策略 B: 你的旧版逻辑 (最稳健的标准 Base64 解码) ===
-                if result is None:
-                    try:
-                        # 直接交给 b64decode，它能很好地处理 bytes，不需要我们可以转 string
-                        decoded = base64.b64decode(raw).decode('utf-8')
-                        result = json.loads(decoded)
-                    except:
-                        pass
-
-                # === 策略 C: 增强型 Base64 解码 (处理 Padding 缺失等边缘情况) ===
-                if result is None:
-                    try:
-                        if isinstance(raw, bytes):
-                            raw = raw.decode('utf-8', errors='ignore')
-                        raw = str(raw).strip()
-                        padded = raw + ('=' * (-len(raw) % 4))
-
-                        # 尝试 URL-Safe 解码 (部分 Web 工具生成的卡片)
-                        try:
-                            decoded = base64.urlsafe_b64decode(padded).decode('utf-8', errors='ignore')
-                            result = json.loads(decoded)
-                        except:
-                            # 尝试标准解码 + Padding
-                            decoded = base64.b64decode(padded).decode('utf-8', errors='ignore')
-                            result = json.loads(decoded)
-                    except:
-                        pass
-
-                data = result
         if data:
-            dirty_flags = []
-            cleaned_data = sanitize_for_utf8(data, dirty_tracker=dirty_flags)
+            if not isinstance(data, dict):
+                return None, CARD_INFO_NOT_A_CARD
+
+            if not dirty_flags:
+                dirty_flags = []
+                data = sanitize_for_utf8(data, dirty_tracker=dirty_flags)
 
             if dirty_flags:
                 # 打印醒目的日志
@@ -114,10 +164,10 @@ def extract_card_info_with_status(filepath):
                 print(msg)
                 logger.warning(msg)
 
-            if not is_valid_character_card_data(cleaned_data):
+            if not is_valid_character_card_data(data):
                 return None, CARD_INFO_NOT_A_CARD
 
-            return cleaned_data, CARD_INFO_OK
+            return data, CARD_INFO_OK
 
         return None, CARD_INFO_NOT_A_CARD
 
@@ -167,7 +217,6 @@ def write_card_metadata(filepath, json_data):
             json_str = json.dumps(png_payload, ensure_ascii=False, separators=(',', ':'))
         else:
             json_str = json.dumps(png_payload)
-        new_chara_str = base64.b64encode(json_str.encode('utf-8')).decode('utf-8')
         # 2. 打开图片 (此时图片像素已经是新的了)
         img = Image.open(filepath)
 
@@ -175,13 +224,10 @@ def write_card_metadata(filepath, json_data):
         icc_profile = img.info.get('icc_profile')
 
         # 3. 准备 Metadata
-        meta = PngImagePlugin.PngInfo()
-        # 保留原图非角色数据的其他元数据
-        for k, v in img.info.items():
-            if k not in ['chara', 'ccv3'] and isinstance(v, str):
-                meta.add_text(k, v)
-        # 4. 写入核心数据
-        meta.add_text('chara', new_chara_str)
+        # 保留原图非角色数据的其他元数据，并同时写入 chara 与 ccv3
+        # （与 SillyTavern 的 character-card-parser.js write() 行为一致，
+        # 只写 chara 会让 ST 读到的版本与 ST-Manager 自己写的不一致）
+        meta = build_card_pnginfo(json_str, metadata=img.info)
 
         # 保存参数设置
         save_kwargs = {"pnginfo": meta}

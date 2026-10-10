@@ -696,14 +696,13 @@ def swap_skin_to_cover(card_id, skin_filename, save_old_to_resource=False):
         is_json_card = card_full_path.lower().endswith('.json')
         
         # 构造 PngInfo（两种格式都需要）
-        from PIL import PngImagePlugin
-        meta = PngImagePlugin.PngInfo()
-        import json as json_lib, base64
+        import json as json_lib
         from core.utils.data import normalize_card_v3, deterministic_sort
+        from core.utils.png_metadata import build_card_pnginfo
         norm_data = normalize_card_v3(current_info)
         sorted_data = deterministic_sort(norm_data)
-        chara_str = base64.b64encode(json_lib.dumps(sorted_data).encode('utf-8')).decode('utf-8')
-        meta.add_text('chara', chara_str)
+        # 同时写入 chara 与 ccv3，与 SillyTavern 的写入行为保持一致
+        meta = build_card_pnginfo(json_lib.dumps(sorted_data))
         
         if is_json_card:
             # JSON 格式角色卡：转换为 PNG 格式
