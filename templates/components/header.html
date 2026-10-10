@@ -508,6 +508,34 @@
                 </button>
               </div>
             </div>
+
+            <!-- 插件声明的 kind: "batch" 入口（D1 的批量操作落点）。
+                 `when` 由 EntryRegistry 按全局选中集求值；置灰项可见但不可点。 -->
+            <template x-if="pluginBatchEntries.length > 0">
+              <div>
+                <div class="ui-batch-menu-separator" role="separator"></div>
+                <div class="ui-batch-menu-heading">
+                  <span>插件</span>
+                </div>
+                <template
+                  x-for="entry in pluginBatchEntries"
+                  :key="entry.key"
+                >
+                  <button
+                    type="button"
+                    role="menuitem"
+                    :disabled="!entry.enabled"
+                    :title="entry.enabled ? (entry.description || entry.label) : entry.disabledHint"
+                    :aria-label="entry.enabled ? entry.label : entry.label + '：' + entry.disabledHint"
+                    @click="if (runPluginBatchEntry(entry)) { showBatchActionsMenu = false; }"
+                    class="header-batch-menu-item ui-batch-menu-action"
+                  >
+                    <span aria-hidden="true" x-html="pluginBatchEntryIconHtml(entry)"></span>
+                    <span x-text="entry.label"></span>
+                  </button>
+                </template>
+              </div>
+            </template>
           </div>
         </div>
       </div>

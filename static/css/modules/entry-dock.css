@@ -60,10 +60,87 @@
   padding: 0.5rem 0.25rem;
 }
 
+/* 收起态：**仍然可见**（图标竖条），只是收掉文字标签。
+ *
+ * 早先这里写的是 `width: 0`，配合 8px 全透明热区，坞在视觉上完全不存在——
+ * 用户只能靠 Ctrl+K 或快捷键找到插件入口，看起来像「坞没了」。
+ * 现在收起态保留 40px 图标条，入口始终可发现。 */
 .entry-rail.is-collapsed .entry-rail__panel {
+  width: 40px;
+  padding: 0.375rem 0.125rem;
+}
+
+.entry-rail.is-collapsed .entry-rail__label {
+  display: none;
+}
+
+.entry-rail.is-collapsed .entry-rail__slot {
+  width: 32px;
+  min-height: 32px;
+}
+
+/* 收起态不需要 8px 热区（面板本身可见且可点） */
+.entry-rail.is-collapsed .entry-rail__hotzone {
   width: 0;
-  padding: 0;
-  border-left-color: transparent;
+}
+
+/* ---------------------------------------------------------------- 拖拽重排 */
+
+.entry-rail__slot[draggable='true'] {
+  cursor: grab;
+}
+
+.entry-rail__slot.is-dragging {
+  opacity: 0.45;
+  cursor: grabbing;
+}
+
+/* 放置目标：上/下边缘高亮，明确「会插到这里」 */
+.entry-rail__slot.is-drop-target {
+  border-color: var(--accent-action);
+  box-shadow: inset 0 0 0 1px var(--accent-action);
+}
+
+.entry-rail__slot.is-drop-target::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: 10%;
+  right: 10%;
+  height: 2px;
+  border-radius: 1px;
+  background-color: var(--accent-action);
+}
+
+/* ---------------------------------------------------------------- 收起/展开 */
+
+.entry-rail__toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 1.5rem;
+  margin-top: auto;
+  padding: 0.125rem;
+  border: none;
+  border-radius: 0.375rem;
+  background: transparent;
+  color: var(--content-tertiary);
+  cursor: pointer;
+  transition: color var(--ui-transition-fast), background-color var(--ui-transition-fast);
+}
+
+.entry-rail__toggle:hover {
+  color: var(--content-primary);
+  background: var(--state-hover-surface);
+}
+
+.entry-rail__toggle svg {
+  transition: transform 0.18s ease;
+}
+
+.entry-rail.is-expanded .entry-rail__toggle svg {
+  transform: rotate(180deg);
 }
 
 /* ---------------------------------------------------------------- 槽位 */

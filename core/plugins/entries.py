@@ -25,7 +25,7 @@ MAX_ENTRIES_PER_PLUGIN = 16
 # 入口 id：比插件 id 宽松一位，允许单字符
 ENTRY_ID_PATTERN = re.compile(r'^[a-z][a-z0-9-]{0,63}$')
 
-ENTRY_KINDS = frozenset({'dock', 'nav', 'settings', 'context', 'command', 'status'})
+ENTRY_KINDS = frozenset({'dock', 'nav', 'settings', 'context', 'command', 'status', 'batch'})
 SURFACE_TYPES = frozenset({'panel', 'modal', 'page', 'sheet'})
 
 # 入口允许声明的子键（严格校验白名单）
@@ -37,9 +37,12 @@ KNOWN_ENTRY_KEYS = frozenset({
 
 # `when` 条件表达式的允许子键（D7）
 KNOWN_WHEN_KEYS = frozenset({
-    'mode', 'selection', 'indexState', 'config', 'hostVersion', 'feature',
+    'mode', 'selection', 'indexState', 'config', 'hostVersion', 'feature', 'target',
 })
 SELECTION_MODES = frozenset({'none', 'any', 'single', 'multi'})
+
+# `when.target` 的合法值：右键菜单的求值目标类型（仅 context 入口使用）
+TARGET_KINDS = frozenset({'folder', 'card', 'any'})
 
 # 宿主工作模式集合（`contexts` 与 `when.mode` 的合法值）
 KNOWN_MODES = frozenset({
@@ -57,6 +60,7 @@ _KIND_TIER_ALLOWLIST = {
     'context': frozenset({'official', 'verified', 'community'}),
     'settings': frozenset({'official', 'verified', 'community'}),
     'dock': frozenset({'official', 'verified', 'community'}),
+    'batch': frozenset({'official', 'verified', 'community'}),
     'status': frozenset({'official', 'verified'}),
     'nav': frozenset({'official', 'verified'}),
 }
@@ -138,6 +142,14 @@ def _normalize_when(plugin_id: str, raw_when, warnings: list) -> dict:
                 warnings.append(f'忽略非法的 when.selection: {raw_value!r}')
                 continue
             when['selection'] = value
+            continue
+
+        if key == 'target':
+            value = str(raw_value or '').strip()
+            if value not in TARGET_KINDS:
+                warnings.append(f'忽略非法的 when.target: {raw_value!r}')
+                continue
+            when['target'] = value
             continue
 
         if key == 'config':

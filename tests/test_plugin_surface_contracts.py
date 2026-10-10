@@ -318,6 +318,90 @@ def test_register_and_open_mounts_into_host_container():
 
 
 @requires_node
+def test_reopening_an_open_surface_delivers_the_new_ctx():
+    """surface 已打开时再次从别的入口进入，必须把**新的 ctx** 交给插件。
+
+    同一个 surface 常被多个入口复用（本插件的 `workbench` 服务坞 / 右键分类 /
+    批量菜单 / 设置四个入口）。若第二次点击只返回既有容器、不投递新 ctx，
+    「先右键 A 分类、再右键 B 分类」会一直显示 A 的作用域——用户看到的是
+    上一次的分析范围，却以为已经切到 B。
+    """
+    result = run_dom_script(
+        """
+        import assert from 'node:assert/strict';
+        import { PluginSurfaceHost } from './static/js/pluginSurfaceHost.js';
+
+        const seen = [];
+        PluginSurfaceHost.register('demo-plugin', 'workbench', {
+          mount(container, ctx) { seen.push(['mount', ctx.targetPath]); },
+          onOpen(ctx) { seen.push(['onOpen', ctx.targetPath]); },
+        });
+
+        PluginSurfaceHost.openSurface('demo-plugin:workbench', {
+          source: 'context', targetId: 'analyze-folder', targetKind: 'folder',
+          targetPath: 'A',
+        });
+        assert.deepEqual(seen, [['mount', 'A'], ['onOpen', 'A']]);
+
+        // 第二次从另一个入口进入同一个 surface：不重新 mount，但必须投递新 ctx
+        PluginSurfaceHost.openSurface('demo-plugin:workbench', {
+          source: 'context', targetId: 'analyze-folder', targetKind: 'folder',
+          targetPath: 'B',
+        });
+        assert.deepEqual(seen, [
+          ['mount', 'A'], ['onOpen', 'A'], ['onOpen', 'B'],
+        ], '重复打开必须投递新 ctx，且不得重新 mount（会丢用户已填的表单）');
+        """
+    )
+    assert result.returncode == 0, result.stderr or result.stdout
+
+
+@requires_node
+def test_open_surface_forwards_right_click_target_to_mount():
+    """右键目标（targetKind / targetPath / targetIds）必须出现在 mount 的 ctx 里。
+
+    只传 `targetId`（= 入口 id）的话，插件无法知道「分析哪一个分类」，
+    只能退回去读宿主的全局选中集——而右键分类的作用域根本不是选中集。
+    `targetPath` 为 `""` 表示根目录，是**合法值**，因此不能靠真值判断来区分。
+    """
+    result = run_dom_script(
+        """
+        import assert from 'node:assert/strict';
+        import { PluginSurfaceHost } from './static/js/pluginSurfaceHost.js';
+
+        let ctxSeen = null;
+        PluginSurfaceHost.register('demo-plugin', 'workbench', {
+          mount(container, ctx) { ctxSeen = ctx; },
+        });
+
+        PluginSurfaceHost.openSurface('demo-plugin:workbench', {
+          source: 'context',
+          targetId: 'analyze-folder',
+          mode: 'cards',
+          targetKind: 'folder',
+          targetPath: '',
+          targetIds: ['a/b.png', 'a/c.png'],
+        });
+
+        assert.equal(ctxSeen.targetKind, 'folder');
+        assert.equal(ctxSeen.targetPath, '', '根目录是合法的空串，不能被吞掉');
+        assert.deepEqual(ctxSeen.targetIds, ['a/b.png', 'a/c.png']);
+
+        // 不带目标时是空串 / 空数组，而不是 undefined（插件可以无条件读）
+        let plain = null;
+        PluginSurfaceHost.register('demo-plugin', 'plain', {
+          mount(container, ctx) { plain = ctx; },
+        });
+        PluginSurfaceHost.openSurface('demo-plugin:plain', { source: 'dock' });
+        assert.equal(plain.targetKind, '');
+        assert.equal(plain.targetPath, '');
+        assert.deepEqual(plain.targetIds, []);
+        """
+    )
+    assert result.returncode == 0, result.stderr or result.stdout
+
+
+@requires_node
 def test_mount_returned_disposer_runs_on_close():
     """D8：`mount` 返回函数时，宿主在关闭时调用它。"""
     result = run_dom_script(

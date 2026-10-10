@@ -113,6 +113,140 @@ def test_expanded_rail_is_56px():
     assert 'width: 56px;' in css
 
 
+def test_dock_defaults_to_expanded():
+    """坞默认**展开**（问题 2 的修复）。
+
+    旧实现默认折叠，而折叠态的 `.entry-rail__panel` 是 `width: 0`——坞等于
+    完全不可见，用户只能靠一个 8px 的透明热区把它摸出来（用户原话：
+    「怎么目前都没了？」）。设计文档 D6 只要求「社区插件默认进溢出菜单」，
+    从未要求坞本身默认隐藏。
+    """
+    component = read_source(DOCK_JS)
+
+    # 初始 state 是展开。用 `class="entry-rail__toggle"` 式的精确匹配：
+    # `expanded: true` 在 `{ expanded: true, side: "right" }` 里也出现，裸子串断言
+    # 在把 state 改成 false 之后**仍然通过**（等于没测）。
+    assert '\n    expanded: true,\n' in component, 'entryDock() 的初始 state 必须是展开'
+    # 首次运行（无偏好）默认展开
+    assert 'if (!raw) return { expanded: true, side: "right" };' in component
+    # 偏好里缺 expanded 字段时也展开（旧版存过 {side:'right'} 的用户不该被折叠）
+    assert 'parsed.expanded === undefined ? true' in component
+    # 读取异常时的兜底同样展开（不能是「读失败 → 折叠」）
+    assert 'return { expanded: true, side: "right" };' in component
+
+
+def test_dock_prefs_default_expanded_when_read():
+    """真实执行 `init()` 验证三种 localStorage 情形都得到「展开」。"""
+    result = run_node(
+        BROWSER_STUB
+        + """
+        // `init()` 还会读设备类型（`resolveDeviceType`）与主程序版本
+        // （`entryRegistry.hostAppVersion` 查 meta 标签），给一个最小 document
+        globalThis.document = {
+          documentElement: { clientWidth: 1440 },
+          querySelector() { return null; },
+        };
+        globalThis.window.innerWidth = 1440;
+        """
+        + textwrap.dedent(
+            """
+            import assert from 'node:assert/strict';
+
+            const cases = {
+              // 1) 首次运行：没有偏好
+              'no-pref': null,
+              // 2) 旧版偏好：只有 side，没有 expanded 字段
+              'legacy-pref': JSON.stringify({ side: 'right' }),
+              // 3) 偏好损坏
+              'broken-pref': '{not json',
+            };
+
+            for (const [name, stored] of Object.entries(cases)) {
+              globalThis.localStorage = {
+                getItem() { return stored; },
+                setItem() {},
+              };
+              const { default: entryDock } = await import(
+                './static/js/components/entryDock.js?case=' + name
+              );
+              const dock = entryDock();
+              dock.init();
+              assert.equal(dock.expanded, true, name + ' 应默认展开');
+            }
+
+            // 4) 用户显式收起过 → 尊重用户选择
+            globalThis.localStorage = {
+              getItem() { return JSON.stringify({ expanded: false }); },
+              setItem() {},
+            };
+            const { default: entryDock } = await import(
+              './static/js/components/entryDock.js?case=explicit'
+            );
+            const dock = entryDock();
+            dock.init();
+            assert.equal(dock.expanded, false, '用户显式收起必须被尊重');
+            """
+        )
+    )
+    assert result.returncode == 0, result.stderr or result.stdout
+
+
+def test_collapsed_rail_keeps_a_visible_strip():
+    """折叠态仍保留 40px 可见条 + 明确的开合按钮。
+
+    旧实现折叠态 `width: 0`，坞在视觉上彻底消失；现在折叠态保留一条窄边，
+    用户看得见它、也知道点哪里展开。
+    """
+    css = read_source(DOCK_CSS)
+    template = read_source(DOCK_TEMPLATE)
+
+    # 折叠态的可见宽度（不再是 0）
+    collapsed = css.split('.entry-rail.is-collapsed', 1)[1]
+    assert 'width: 40px;' in collapsed.split('}', 1)[0], '折叠态必须保留可见宽度'
+
+    # 明确的开合按钮 + 状态语义
+    assert 'class="entry-rail__toggle"' in template
+    assert ':aria-expanded="expanded' in template
+    assert "'收起入口坞'" in template and "'展开入口坞'" in template
+    # 图标存在（chevron-right 是宿主 sprite 里真实存在的名字）
+    assert 'icon-chevron-right' in template
+
+    # 按钮**自己**接线到 toggle()。必须按块断言：`@click="toggle()"` 在移动端
+    # 触发按钮上也出现，裸子串断言在把这个按钮的 handler 删掉后仍然通过。
+    toggle_block = template.split('class="entry-rail__toggle"', 1)[1].split('</button>', 1)[0]
+    assert '@click="toggle()"' in toggle_block, '开合按钮必须真的接线到 toggle()'
+
+
+def test_dock_slots_are_draggable_and_persist_order():
+    """D6 / 设计文档阶段 5 验收项：**拖拽重排持久化**。
+
+    这是此前唯一真正缺失的坞能力（槽位 / 溢出 / pin / hide 都已实现，拖拽没有）。
+    顺序写进 `layout.order`（走后端 `_entry_layout_v1`），不是 localStorage——
+    `EntryRegistry.list()` 排序时「用户显式排序优先于插件 priority」。
+    """
+    template = read_source(DOCK_TEMPLATE)
+    component = read_source(DOCK_JS)
+
+    # 模板：槽位可拖 + 五个 drag 事件 + 拖拽态 class
+    assert 'draggable="true"' in template
+    for handler in ('onSlotDragStart(entry, $event)', 'onSlotDragOver(entry, $event)',
+                    'onSlotDragLeave(entry)', 'onSlotDragEnd()', 'onSlotDrop(entry, $event)'):
+        assert handler in template, handler
+    assert "'is-dragging': draggingKey === entry.key" in template
+    assert "'is-drop-target': dragOverKey === entry.key" in template
+
+    # 组件：state 与处理函数
+    for name in ('draggingKey', 'dragOverKey'):
+        assert name in component, name
+    for method in ('onSlotDragStart(entry, event) {', 'onSlotDragOver(entry, event) {',
+                   'onSlotDragLeave(entry) {', 'onSlotDragEnd() {', 'async onSlotDrop(targetEntry, event) {'):
+        assert method in component, method
+
+    # 落点计算：在**完整**顺序里搬移（含溢出菜单里的入口），再持久化
+    assert 'EntryRegistry.updateLayout({ order: current })' in component
+    assert 'EntryRegistry.searchable()' in component
+
+
 def test_dock_uses_roving_tabindex_and_toolbar_role():
     template = read_source(DOCK_TEMPLATE)
     component = read_source(DOCK_JS)

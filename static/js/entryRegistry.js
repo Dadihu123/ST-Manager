@@ -26,8 +26,16 @@ export const MAX_DOCK_SLOTS = 8;
 export const MAX_DOCK_ENTRIES_PER_PLUGIN = 2;
 
 /** 入口种类与呈现类型（D1）。 */
-export const ENTRY_KINDS = ["dock", "nav", "settings", "context", "command", "status"];
+export const ENTRY_KINDS = ["dock", "nav", "settings", "context", "command", "status", "batch"];
 export const SURFACE_TYPES = ["panel", "modal", "page", "sheet"];
+
+/**
+ * `when.target` 的合法取值（右键菜单求值目标类型）。
+ *
+ * 只有右键菜单会提供 `targetKind`；其它消费方（入口坞 / 命令面板 / 批量菜单）
+ * 不传该值时 `when.target` **不参与求值**，否则 context 入口会在别处被误置灰。
+ */
+export const TARGET_KINDS = ["folder", "card", "any"];
 
 /** 空布局的形状；`_entry_layout_v1` 缺省时使用。 */
 function emptyLayout() {
@@ -197,6 +205,17 @@ export function evaluateWhen(when, context = {}) {
   if (features.length) {
     const available = new Set(context.feature || []);
     if (features.some((name) => !available.has(name))) reasons.push("feature");
+  }
+
+  // `when.target` 只对右键菜单有意义：只有提供 `targetKind` 的消费方才求值。
+  // 不提供时（入口坞 / 命令面板 / 批量菜单 / 总览页）跳过，避免 context 入口
+  // 在这些地方被误判为不可用。
+  const target = String(when.target || "").trim();
+  if (target) {
+    const actualTarget = String(context.targetKind || "").trim();
+    if (actualTarget && target !== "any" && target !== actualTarget) {
+      reasons.push("target");
+    }
   }
 
   return { ok: reasons.length === 0, reasons };
@@ -649,11 +668,20 @@ export const EntryRegistry = {
    * @param {string} [options.kind] 只取某个 kind
    * @param {boolean} [options.includeHidden] 是否包含用户隐藏项（默认否）
    * @param {boolean} [options.includeDisabled] 是否包含 `when` 未满足项（默认是，置灰展示）
+   * @param {object} [options.contextOverride] 覆盖宿主上下文（部分字段）
+   *
+   * `contextOverride` 的用途：右键菜单要用**右键目标**（`targetKind`）而不是
+   * 全局选中数来求值 `when`，因此必须能覆盖 `context()` 的默认结果。覆盖是
+   * 逐字段合并，未覆盖的字段仍取全局上下文。
    */
   list(options = {}) {
     const kind = String(options.kind || "").trim();
     const includeHidden = Boolean(options.includeHidden);
-    const context = this.context();
+    const override =
+      options.contextOverride && typeof options.contextOverride === "object"
+        ? options.contextOverride
+        : null;
+    const context = override ? { ...this.context(), ...override } : this.context();
     const hidden = new Set(this.layout.hidden || []);
     const order = Array.isArray(this.layout.order) ? this.layout.order : [];
 
@@ -788,6 +816,7 @@ export const EntryRegistry = {
       config: "请先完成插件配置",
       host_version: "需要更高版本的主程序",
       feature: "当前环境不支持所需能力",
+      target: "对当前右键目标不可用",
     };
     return map[reasons[0]] || "当前条件下不可用";
   },

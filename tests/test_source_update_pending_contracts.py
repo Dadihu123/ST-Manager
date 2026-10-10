@@ -77,7 +77,9 @@ def test_selected_card_source_update_actions_use_accessible_dropdowns_on_both_la
     # source-update menus; the mobile bar keeps its source-update menu.
     assert template.count('aria-haspopup="menu"') == 4
     assert template.count(':aria-expanded="showSourceUpdateMenu.toString()"') == 2
-    assert template.count('role="menuitem"') == 6
+    # 静态 menuitem 6 项（桌面 3 + 移动 3）。插件 `kind: "batch"` 入口是**动态**
+    # `x-for` 渲染的，模板里只占 1 个 `role="menuitem"` 字面量，与静态项数量无关。
+    assert template.count('role="menuitem"') == 7
     assert template.count('class="w-full block') == 3
     assert template.count('acknowledgeSelectedSourceUpdates()') == 2
     assert 'async acknowledgeSelectedSourceUpdates() {' in script

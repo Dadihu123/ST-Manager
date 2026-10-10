@@ -15,6 +15,7 @@ from core.plugins.entries import (
     MAX_DOCK_SLOTS,
     MAX_ENTRIES_PER_PLUGIN,
     SURFACE_TYPES,
+    TARGET_KINDS,
     apply_tier,
     build_entry_key,
     entry_kind_allowed,
@@ -66,7 +67,7 @@ def test_split_entry_key_rejects_malformed_keys():
 # --- 归属分级准入（D5） -----------------------------------------------------
 
 
-@pytest.mark.parametrize('kind', ['command', 'context', 'settings', 'dock'])
+@pytest.mark.parametrize('kind', ['command', 'context', 'settings', 'dock', 'batch'])
 @pytest.mark.parametrize('tier', ['official', 'verified', 'community'])
 def test_common_kinds_are_allowed_for_every_tier(kind, tier):
     assert entry_kind_allowed(kind, tier) is True
@@ -82,6 +83,95 @@ def test_status_and_nav_require_official_or_verified(kind):
 def test_unknown_kind_is_never_allowed():
     assert entry_kind_allowed('toolbar', 'official') is False
     assert entry_kind_allowed('', 'official') is False
+
+
+# --- batch kind（批量操作菜单的落点） ---------------------------------------
+
+
+def test_batch_kind_is_accepted_by_the_contract():
+    """`kind: "batch"` 是批量操作菜单的落点（D1）。
+
+    没有它，插件无法把「对选中卡片整体执行」注册到批量菜单——旧版只能挤进
+    右键菜单，而右键菜单的作用域是**右键目标**，与全局选中集不是一回事。
+    """
+    assert 'batch' in ENTRY_KINDS
+
+    entries, warnings = normalize_entries(
+        'demo-plugin', [_entry('analyze-selected', kind='batch')],
+    )
+
+    assert [item['id'] for item in entries] == ['analyze-selected']
+    assert entries[0]['kind'] == 'batch'
+    assert warnings == []
+
+
+@pytest.mark.parametrize('tier', ['official', 'verified', 'community'])
+def test_batch_kind_is_allowed_for_every_tier(tier):
+    """`batch` 对所有 tier 开放（它不是高权限落点，只是菜单项）。"""
+    assert entry_kind_allowed('batch', tier) is True
+
+
+def test_community_batch_entry_survives_tier_filter():
+    """社区插件的 batch 入口不得被 tier 过滤掉（与 status/nav 相反）。"""
+    declared, _ = normalize_entries('demo-plugin', [_entry('bulk', kind='batch')])
+
+    kept, warnings = apply_tier('demo-plugin', declared, tier='community')
+
+    assert [item['id'] for item in kept] == ['bulk']
+    assert warnings == []
+
+
+def test_unknown_kind_is_still_rejected_after_adding_batch():
+    """新增 kind 不能把白名单放宽成「什么都收」。"""
+    entries, warnings = normalize_entries(
+        'demo-plugin', [_entry('x', kind='batch-job')],
+    )
+
+    assert entries == []
+    assert any('batch-job' in item for item in warnings)
+
+
+# --- when.target（右键菜单的求值目标） --------------------------------------
+
+
+def test_when_target_is_normalized_and_kept():
+    """`when.target` 必须被保留——它是 context 入口「只在右键分类时可用」的唯一表达。"""
+    for value in ('folder', 'card', 'any'):
+        entries, warnings = normalize_entries(
+            'demo-plugin', [_entry('a', kind='context', when={'target': value})],
+        )
+
+        assert entries[0]['when'] == {'target': value}, value
+        assert warnings == [], value
+
+
+def test_invalid_when_target_is_rejected_with_warning():
+    """非法值必须被丢弃 + 警告，而不是原样透传给前端求值。"""
+    entries, warnings = normalize_entries(
+        'demo-plugin', [_entry('a', kind='context', when={'target': 'category'})],
+    )
+
+    assert entries[0]['when'] == {}
+    assert any('target' in item for item in warnings)
+
+
+def test_when_target_coexists_with_other_conditions():
+    """`target` 与 `mode` / `selection` 可以并存（右键菜单会一起求值）。"""
+    entries, warnings = normalize_entries(
+        'demo-plugin',
+        [_entry('a', kind='context', when={
+            'mode': ['cards'], 'target': 'folder', 'selection': 'any',
+        })],
+    )
+
+    assert entries[0]['when'] == {
+        'mode': ['cards'], 'target': 'folder', 'selection': 'any',
+    }
+    assert warnings == []
+
+
+def test_target_kinds_are_a_closed_set():
+    assert TARGET_KINDS == frozenset({'folder', 'card', 'any'})
 
 
 def test_community_status_entry_is_dropped_with_warning():
@@ -128,7 +218,9 @@ def test_apply_tier_does_not_mutate_input():
 
 
 def test_entry_kinds_and_surface_types_are_closed_sets():
-    assert ENTRY_KINDS == frozenset({'dock', 'nav', 'settings', 'context', 'command', 'status'})
+    assert ENTRY_KINDS == frozenset({
+        'dock', 'nav', 'settings', 'context', 'command', 'status', 'batch',
+    })
     assert SURFACE_TYPES == frozenset({'panel', 'modal', 'page', 'sheet'})
 
 

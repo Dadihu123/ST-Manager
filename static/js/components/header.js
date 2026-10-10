@@ -16,6 +16,9 @@ import {
   runSourceUpdateBatch,
 } from "../utils/batchOperations.js";
 import { listChats } from "../api/chat.js";
+import { EntryRegistry } from "../entryRegistry.js";
+import { PluginSurfaceHost } from "../pluginSurfaceHost.js";
+import { icon as buildIcon } from "../uiPrimitives.js";
 
 const MOBILE_HEADER_UPLOAD_MODES = [
   "cards",
@@ -31,6 +34,10 @@ const MOBILE_HEADER_UPLOAD_MODES = [
 export default function header() {
   return {
     availableRuleSets: [],
+
+    /** 插件声明的 `kind: "batch"` 入口（批量操作菜单里的插件项）。 */
+    pluginBatchEntries: [],
+    _pluginEntriesHandler: null,
 
     get searchQuery() {
       return this.$store.global.viewState.searchQuery;
@@ -333,6 +340,79 @@ export default function header() {
       window.addEventListener("beforeunload", () => {
         this.stopIndexStatusPolling();
       });
+
+      // 插件 `kind: "batch"` 入口：注册表变更 / 选中变化都要重算
+      this._pluginEntriesHandler = () => this.refreshPluginBatchEntries();
+      window.addEventListener("entries:changed", this._pluginEntriesHandler);
+      window.addEventListener("plugins:loaded", this._pluginEntriesHandler);
+      this.refreshPluginBatchEntries();
+    },
+
+    destroy() {
+      if (this._pluginEntriesHandler) {
+        window.removeEventListener("entries:changed", this._pluginEntriesHandler);
+        window.removeEventListener("plugins:loaded", this._pluginEntriesHandler);
+        this._pluginEntriesHandler = null;
+      }
+    },
+
+    // === 插件 batch 入口（D1：`kind: "batch"` 落到批量操作菜单） ===
+
+    /**
+     * 取当前可用的插件 batch 入口。
+     *
+     * `when` 求值统一由 `EntryRegistry.list()` 完成（这里是全局 selection 语义，
+     * 与右键菜单按右键目标求值不同）——所以不要在这里重复判断条件。
+     */
+    refreshPluginBatchEntries() {
+      try {
+        this.pluginBatchEntries = EntryRegistry.list({ kind: "batch" });
+      } catch (error) {
+        console.warn("[header] 读取插件 batch 入口失败:", error);
+        this.pluginBatchEntries = [];
+      }
+    },
+
+    /** 批量菜单里的插件项图标（资源路径需要 pluginId 才能解析）。 */
+    pluginBatchEntryIconHtml(entry) {
+      return buildIcon(String((entry && entry.icon) || "circle-dot"), {
+        className: "ui-icon--sm",
+        pluginId: String((entry && entry.pluginId) || ""),
+      }).outerHTML;
+    },
+
+    /**
+     * 执行一个插件 batch 入口：选中卡片 id 随 surface ctx 一起交给插件。
+     *
+     * 置灰项不执行（菜单里仍可见并附 `disabledHint`，D7：不是隐藏）。
+     */
+    runPluginBatchEntry(entry) {
+      if (!entry || !entry.enabled) return false;
+
+      const surfaceId = (entry.surface && entry.surface.id) || entry.id;
+      const surfaceKey = `${entry.pluginId}:${surfaceId}`;
+      const targetIds = [...this.selectedIds];
+      const detail = {
+        key: entry.key,
+        entry,
+        source: "batch",
+        targetKind: "selection",
+        targetIds,
+      };
+
+      if (PluginSurfaceHost.has(surfaceKey)) {
+        PluginSurfaceHost.openSurface(surfaceKey, {
+          source: "batch",
+          targetId: entry.id,
+          mode: this.currentMode,
+          targetKind: "selection",
+          targetIds,
+        });
+        return true;
+      }
+
+      window.dispatchEvent(new CustomEvent("entry:activate", { detail }));
+      return true;
     },
 
     // 更新当前页全选状态

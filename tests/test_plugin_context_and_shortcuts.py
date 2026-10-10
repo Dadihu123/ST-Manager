@@ -70,6 +70,70 @@ def test_context_menu_dispatches_to_surface_then_event():
     assert "source: 'context'" in source
 
 
+def test_context_menu_evaluates_when_against_the_right_click_target():
+    """右键菜单的作用域是**右键目标**，不是全局选中集。
+
+    这是「右键分类 → 分析整个分类」与「批量菜单 → 分析选中卡片」分离的根因修复：
+    右键一个分类时，作用域是那个分类（含子分类）的全部卡片，与用户恰好勾选了
+    哪几张卡无关。因此求值 `when` 时必须覆盖 `targetKind` 并把 `selectionCount`
+    归零（右键文件夹）/ 置 1（右键卡片）。
+    """
+    source = read_source('static/js/components/contextMenu.js')
+
+    # 用 contextOverride 覆盖全局上下文
+    assert 'contextOverride: this.pluginEntryContext()' in source
+    assert 'pluginEntryContext()' in source
+    # 两种目标类型都要给出作用域
+    assert "targetKind === 'card' ? 1 : 0" in source
+    assert 'targetKind,' in source
+
+
+def test_context_menu_resolves_folder_scope_host_side():
+    """分类 → 卡片 id 列表必须由**宿主**解析后交给插件。
+
+    插件拿不到主程序的卡片列表接口（只有 `/api/plugins/<id>/*`），也不该去读
+    宿主的内部状态。让插件自己猜作用域的结果就是「右键分类，实际分析的是
+    全局选中集」——这正是重写前的问题 1。
+    """
+    source = read_source('static/js/components/contextMenu.js')
+
+    assert 'resolvePluginEntryTargetIds' in source
+    assert "from '../api/card.js'" in source
+    assert 'listCards(' in source
+    # 解析发生在点击时（右键菜单频繁打开，不该每次都拉列表）
+    assert 'await this.resolvePluginEntryTargetIds(targetKind)' in source
+    # 目标 id 列表随 ctx / 事件一起交给插件
+    assert 'targetIds,' in source
+    assert 'targetPath,' in source
+
+
+def test_batch_menu_consumes_plugin_batch_entries():
+    """D1：`kind: "batch"` 的落点是**批量操作菜单**（`header.html`）。
+
+    用户原话：「对于选中卡片的分析应该注册到批量处理的展开项中，这样才符合
+    当前整个项目的设计。」批量菜单沿用全局 selection 语义求值 `when`。
+    """
+    template = read_source('templates/components/header.html')
+    component = read_source('static/js/components/header.js')
+
+    # 模板：在批量操作菜单内渲染 batch 入口
+    # （断言 x-for 真的遍历 pluginBatchEntries，而不只是「某处提到这个名字」——
+    #  后者在把列表换成空数组时仍然成立，等于没测）
+    assert 'x-for="entry in pluginBatchEntries"' in template
+    assert 'runPluginBatchEntry(entry)' in template
+    assert 'pluginBatchEntryIconHtml(entry)' in template
+    # 置灰项可见但不可点，且带 disabledHint（D7）
+    assert ':disabled="!entry.enabled"' in template
+    assert 'entry.disabledHint' in template
+
+    # 组件：取数与执行
+    assert 'EntryRegistry.list({ kind: "batch" })' in component
+    assert 'refreshPluginBatchEntries' in component
+    assert "entries:changed" in component
+    assert 'targetIds' in component
+    assert "source: \"batch\"" in component
+
+
 # ------------------------------------------------------------------ 快捷键
 
 

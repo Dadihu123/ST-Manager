@@ -62,13 +62,19 @@
           <button
             type="button"
             class="entry-rail__slot"
-            :class="[statusClass(entry), { 'is-disabled': !entry.enabled, 'is-active': activeKey === entry.key }]"
+            :class="[statusClass(entry), { 'is-disabled': !entry.enabled, 'is-active': activeKey === entry.key, 'is-dragging': draggingKey === entry.key, 'is-drop-target': dragOverKey === entry.key }]"
             :data-entry-key="entry.key"
             :tabindex="tabIndexFor(entry)"
             :title="entry.enabled ? (entry.description || entry.label) : entry.disabledHint"
             :aria-disabled="entry.enabled ? 'false' : 'true'"
+            draggable="true"
             @click="entry.enabled ? open(entry.key) : onDisabledClick(entry)"
             @contextmenu.prevent="togglePin(entry)"
+            @dragstart="onSlotDragStart(entry, $event)"
+            @dragover="onSlotDragOver(entry, $event)"
+            @dragleave="onSlotDragLeave(entry)"
+            @dragend="onSlotDragEnd()"
+            @drop="onSlotDrop(entry, $event)"
           >
             <span class="entry-rail__icon" x-html="buildIcon(entry).outerHTML"></span>
             <span class="entry-rail__label" x-text="entry.label"></span>
@@ -108,6 +114,20 @@
             <span class="entry-rail__label">更多</span>
           </button>
         </template>
+
+        <!-- 收起 / 展开（坞现在始终可见，需要一个明确的收起手段） -->
+        <button
+          type="button"
+          class="entry-rail__toggle"
+          :aria-expanded="expanded ? 'true' : 'false'"
+          :title="expanded ? '收起入口坞' : '展开入口坞'"
+          :aria-label="expanded ? '收起入口坞' : '展开入口坞'"
+          @click="toggle()"
+        >
+          <svg class="ui-icon ui-icon--xs" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <use href="/static/icons/ui.svg#icon-chevron-right"></use>
+          </svg>
+        </button>
       </div>
 
       <!-- 溢出菜单弹层 -->

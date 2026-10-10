@@ -72,12 +72,25 @@ def test_kind_and_surface_sets_match_backend_contract():
 
     source = read_source(REGISTRY_PATH)
 
-    assert 'ENTRY_KINDS = ["dock", "nav", "settings", "context", "command", "status"]' in source
+    assert (
+        'ENTRY_KINDS = ["dock", "nav", "settings", "context", "command", "status", "batch"]'
+        in source
+    )
     assert 'SURFACE_TYPES = ["panel", "modal", "page", "sheet"]' in source
 
     # 逐项对齐，防止只改一侧
-    assert set(ENTRY_KINDS) == {'dock', 'nav', 'settings', 'context', 'command', 'status'}
+    assert set(ENTRY_KINDS) == {'dock', 'nav', 'settings', 'context', 'command', 'status', 'batch'}
     assert set(SURFACE_TYPES) == {'panel', 'modal', 'page', 'sheet'}
+
+
+def test_target_kinds_match_backend_contract():
+    """`when.target` 的合法值也必须两侧一致。"""
+    from core.plugins.entries import TARGET_KINDS
+
+    source = read_source(REGISTRY_PATH)
+
+    assert 'export const TARGET_KINDS = ["folder", "card", "any"]' in source
+    assert set(TARGET_KINDS) == {'folder', 'card', 'any'}
 
 
 def test_registry_rebuilds_on_plugins_loaded():
@@ -122,6 +135,150 @@ def test_entry_keys_are_globally_unique_across_plugins():
         assert.equal(isHostEntryKey('core:open-settings'), true);
         assert.equal(isHostEntryKey('plugin-a:open'), false);
         assert.equal(isHostEntryKey(''), false);
+        """
+    )
+    assert result.returncode == 0, result.stderr or result.stdout
+
+
+@requires_node
+def test_when_target_is_evaluated_only_by_consumers_that_supply_it():
+    """`when.target` 只对**右键菜单**有意义。
+
+    两条纪律：
+    1. 提供 `targetKind` 的消费方（右键菜单）按目标类型求值；
+    2. 不提供 `targetKind` 的消费方（入口坞 / 命令面板 / 批量菜单 / 总览页）
+       **跳过**该条件——否则「只在右键分类时可用」的 context 入口会在所有
+       别的地方被误判为不可用。
+    """
+    result = run_node(
+        """
+        import assert from 'node:assert/strict';
+        import { evaluateWhen } from './static/js/entryRegistry.js';
+
+        const base = { mode: 'cards', selectionCount: 0 };
+
+        // 1) 右键分类：targetKind = folder
+        const onFolder = { ...base, targetKind: 'folder' };
+        assert.equal(evaluateWhen({ target: 'folder' }, onFolder).ok, true);
+        assert.equal(evaluateWhen({ target: 'card' }, onFolder).ok, false);
+
+        // 2) 右键卡片：targetKind = card
+        const onCard = { ...base, targetKind: 'card' };
+        assert.equal(evaluateWhen({ target: 'card' }, onCard).ok, true);
+        assert.equal(evaluateWhen({ target: 'folder' }, onCard).ok, false);
+
+        // 3) any：两种目标都可用
+        assert.equal(evaluateWhen({ target: 'any' }, onFolder).ok, true);
+        assert.equal(evaluateWhen({ target: 'any' }, onCard).ok, true);
+
+        // 4) 不提供 targetKind → 跳过（关键：否则 context 入口在坞里会消失）
+        assert.equal(evaluateWhen({ target: 'folder' }, base).ok, true);
+        assert.equal(evaluateWhen({ target: 'folder' }, { ...base, targetKind: '' }).ok, true);
+
+        // 5) 拒绝时给出可用的 reason（供 disabledHint 兜底文案使用）
+        const rejected = evaluateWhen({ target: 'folder' }, onCard);
+        assert.equal(rejected.ok, false);
+        assert.deepEqual(rejected.reasons, ['target']);
+
+        // 6) 与其它条件叠加时各自独立计入 reason
+        const both = evaluateWhen(
+          { target: 'folder', mode: ['chats'] },
+          onCard,
+        );
+        assert.equal(both.ok, false);
+        assert.equal(both.reasons.length, 2);
+        """
+    )
+    assert result.returncode == 0, result.stderr or result.stdout
+
+
+@requires_node
+def test_context_override_replaces_global_selection_for_right_click():
+    """右键菜单用**右键目标**求值，而不是全局选中集。
+
+    这是问题 1 的核心：右键一个分类时，作用域是那个分类，与用户恰好勾选了
+    哪几张卡无关。`list({ contextOverride })` 必须能覆盖 `selectionCount`，
+    否则「右键分类 → 分析整个分类」会被全局选中数误判（勾了 1 张就变 single）。
+    """
+    result = run_node(
+        """
+        import assert from 'node:assert/strict';
+        import { EntryRegistry } from './static/js/entryRegistry.js';
+
+        EntryRegistry.setPlugins([
+          { id: 'p1', enabled: true, manifest: { entries: [
+            { id: 'analyze-folder', kind: 'context', label: '分析此分类',
+              when: { target: 'folder' } },
+            { id: 'analyze-card', kind: 'context', label: '分析这张卡',
+              when: { target: 'card', selection: 'any' } },
+          ] } },
+        ]);
+        EntryRegistry.layout = { order: [], pinned: [], hidden: [], groups: {}, shortcuts: {} };
+
+        // 右键文件夹：只有 folder 入口可用（selection 被覆盖为 0）
+        const onFolder = EntryRegistry.list({
+          kind: 'context',
+          contextOverride: { targetKind: 'folder', selectionCount: 0 },
+        });
+        const folderById = Object.fromEntries(onFolder.map((e) => [e.id, e]));
+        assert.equal(folderById['analyze-folder'].enabled, true);
+        assert.equal(folderById['analyze-card'].enabled, false);
+
+        // 右键卡片：card 入口可用（selection 覆盖为 1）
+        const onCard = EntryRegistry.list({
+          kind: 'context',
+          contextOverride: { targetKind: 'card', selectionCount: 1 },
+        });
+        const cardById = Object.fromEntries(onCard.map((e) => [e.id, e]));
+        assert.equal(cardById['analyze-folder'].enabled, false);
+        assert.equal(cardById['analyze-card'].enabled, true);
+
+        // 覆盖是逐字段合并：未覆盖的字段仍取全局上下文
+        const merged = EntryRegistry.list({
+          kind: 'context',
+          contextOverride: { targetKind: 'folder' },
+        });
+        assert.equal(merged.length, 2, '未覆盖的字段不应导致条目丢失');
+        """
+    )
+    assert result.returncode == 0, result.stderr or result.stdout
+
+
+@requires_node
+def test_batch_kind_entries_are_registered_and_listed():
+    """`kind: "batch"` 必须能进注册表，并能被 `list({kind:'batch'})` 取出。
+
+    批量操作菜单就靠这一次调用拿到菜单项；注册表若不认这个 kind，
+    插件的批量入口会被 `normalizeDeclaredEntry` 静默丢弃（返回 null）。
+    """
+    result = run_node(
+        """
+        import assert from 'node:assert/strict';
+        import { EntryRegistry } from './static/js/entryRegistry.js';
+
+        EntryRegistry.setPlugins([
+          { id: 'p1', enabled: true, manifest: { entries: [
+            { id: 'bulk', kind: 'batch', label: 'AI 分析选中卡片',
+              requires_selection: true, when: { selection: 'any' },
+              disabledHint: '请先选中卡片' },
+            { id: 'dock', kind: 'dock', label: '面板' },
+          ] } },
+        ]);
+        EntryRegistry.layout = { order: [], pinned: [], hidden: [], groups: {}, shortcuts: {} };
+
+        const items = EntryRegistry.list({ kind: 'batch' });
+        assert.equal(items.length, 1, 'batch 入口必须进注册表');
+        assert.equal(items[0].id, 'bulk');
+        assert.equal(items[0].enabled, false, '未选中时应置灰');
+        assert.equal(items[0].disabledHint, '请先选中卡片');
+
+        // 全局选中集满足时可用（批量菜单沿用全局 selection 语义）
+        EntryRegistry.layout = { order: [], pinned: [], hidden: [], groups: {}, shortcuts: {} };
+        const withSelection = EntryRegistry.list({
+          kind: 'batch',
+          contextOverride: { selectionCount: 3 },
+        });
+        assert.equal(withSelection[0].enabled, true);
         """
     )
     assert result.returncode == 0, result.stderr or result.stdout

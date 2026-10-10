@@ -560,16 +560,7 @@
           placeholder="筛选入口…"
           aria-label="筛选入口"
         />
-        <button
-          type="button"
-          class="plugin-manager-icon-button"
-          title="刷新列表"
-          aria-label="刷新入口列表"
-          :disabled="loading"
-          @click="loadEntries()"
-        >
-          {{ icon('refresh', 'ui-icon--sm') }}
-        </button>
+        <!-- 刷新按钮只保留工具栏顶部那一个（它走 reloadActiveTab()，与当前页签语义一致） -->
       </div>
 
       <div class="plugin-manager-empty" x-show="!entryRows.length && !loading" x-cloak>
@@ -589,7 +580,6 @@
               <th scope="col">出现位置</th>
               <th scope="col">当前呈现</th>
               <th scope="col">快捷键</th>
-              <th scope="col">操作</th>
             </tr>
           </thead>
           <tbody>
@@ -609,52 +599,66 @@
                   <span class="plugin-card-tier" :class="tierClass(row)" x-text="tierLabel(row)"></span>
                 </td>
                 <td x-text="entryKindLabel(row)"></td>
-                <td x-text="entryLocationLabel(row)"></td>
+                <td>
+                  <span x-text="entryLocationLabel(row)"></span>
+                  <!-- 如实标注：settings / nav / status 目前没有渲染消费者 -->
+                  <span
+                    class="color-text-muted"
+                    x-show="!entryKindImplemented(row)"
+                    title="宿主尚未实现该 kind 的渲染落点，此入口当前不会出现在任何界面"
+                  >（宿主未实现）</span>
+                </td>
                 <td x-text="entrySurfaceLabel(row)"></td>
                 <td>
-                  <!-- 快捷键：录制中的输入框 / 已绑定的组合键 + 改绑/清除 -->
-                  <input
-                    x-ref="shortcutInput"
-                    x-show="recordingKey === row.key"
-                    type="text"
-                    readonly
-                    class="plugin-entries-search"
-                    placeholder="按下组合键…"
-                    @keydown.prevent="onShortcutKeydown($event)"
-                    @blur="recordingKey = ''"
-                  >
-                  <template x-if="recordingKey !== row.key">
-                    <span class="plugin-entries-shortcut">
-                      <code
-                        x-show="entryShortcut(row)"
-                        :class="{ 'is-custom': entryShortcutIsCustom(row) }"
-                        :title="entryShortcutIsCustom(row) ? '用户自定义快捷键' : '插件建议的快捷键（尚未启用）'"
-                        x-text="entryShortcut(row)"
-                      ></code>
-                      <span x-show="!entryShortcut(row)" class="color-text-muted">—</span>
-                      <button
-                        type="button"
-                        class="plugin-button plugin-button--ghost"
-                        @click="captureEntryShortcut(row)"
-                        x-text="entryShortcutIsCustom(row) ? '改绑' : '设定'"
-                      ></button>
-                      <button
-                        type="button"
-                        class="plugin-button plugin-button--ghost"
-                        x-show="entryShortcutIsCustom(row)"
-                        @click="clearEntryShortcut(row)"
-                      >清除</button>
+                  <!-- 快捷键：录制中的输入框 / 已绑定的组合键 + 改绑/清除。
+                       context 类与「共用同一个 surface 的非首个入口」不提供设置。 -->
+                  <template x-if="!entryShortcutEditable(row)">
+                    <span class="color-text-muted" title="右键菜单入口打开的是同一个面板，设置快捷键没有可用落点">
+                      不适用
                     </span>
                   </template>
-                </td>
-                <td>
-                  <button
-                    type="button"
-                    class="plugin-button plugin-button--ghost"
-                    @click="deepLink(row.pluginId, 'config')"
-                  >
-                    配置
-                  </button>
+                  <template x-if="entryShortcutEditable(row) && !entryHoldsShortcutSlot(row)">
+                    <span class="color-text-muted" title="与同插件中排在前面的入口共用同一个面板，快捷键统一设在那一条上">
+                      共用
+                    </span>
+                  </template>
+                  <template x-if="entryShortcutEditable(row) && entryHoldsShortcutSlot(row)">
+                    <span class="plugin-entries-shortcut">
+                      <input
+                        x-ref="shortcutInput"
+                        x-show="recordingKey === row.key"
+                        type="text"
+                        readonly
+                        class="plugin-entries-search"
+                        placeholder="按下组合键…"
+                        @keydown.prevent="onShortcutKeydown($event)"
+                        @blur="recordingKey = ''"
+                      >
+                      <template x-if="recordingKey !== row.key">
+                        <span class="plugin-entries-shortcut">
+                          <code
+                            x-show="entryShortcut(row)"
+                            :class="{ 'is-custom': entryShortcutIsCustom(row) }"
+                            :title="entryShortcutIsCustom(row) ? '用户自定义快捷键' : '插件建议的快捷键（已生效）'"
+                            x-text="entryShortcut(row)"
+                          ></code>
+                          <span x-show="!entryShortcut(row)" class="color-text-muted">—</span>
+                          <button
+                            type="button"
+                            class="plugin-button plugin-button--ghost"
+                            @click="captureEntryShortcut(row)"
+                            x-text="entryShortcutIsCustom(row) ? '改绑' : '设定'"
+                          ></button>
+                          <button
+                            type="button"
+                            class="plugin-button plugin-button--ghost"
+                            x-show="entryShortcutIsCustom(row)"
+                            @click="clearEntryShortcut(row)"
+                          >清除</button>
+                        </span>
+                      </template>
+                    </span>
+                  </template>
                 </td>
               </tr>
             </template>

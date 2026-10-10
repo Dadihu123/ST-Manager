@@ -14,6 +14,12 @@ def read_source(relative_path):
         return handle.read()
 
 
+def strip_js_comments(source: str) -> str:
+    """去掉 `//` 行注释与 `/* */` 块注释（字符串字面量按原样保留）。"""
+    source = re.sub(r'/\*.*?\*/', '', source, flags=re.S)
+    return re.sub(r'(?m)^\s*//.*$', '', source)
+
+
 def test_panel_is_embedded_in_settings_instead_of_a_standalone_modal():
     """插件管理已并入设置页第五个导航页，因此不能再自带模态框外壳。"""
     template = read_source('templates/modals/plugin_manager.html')
@@ -63,16 +69,98 @@ def test_entry_overview_is_embedded_in_plugin_manager_not_a_new_settings_tab():
 
 
 def test_entry_overview_table_columns_match_contract():
-    """表格列：图标+名称 / 归属 / 类型 / 出现位置 / 当前呈现 / 快捷键 / 操作。"""
+    """表格列：图标+名称 / 归属 / 类型 / 出现位置 / 当前呈现 / 快捷键。
+
+    「操作」列已删除：它只有一个「配置」按钮，而插件卡片上本来就有配置按钮，
+    同一页里出现两处入口属于重复。入口总览是**审计面**，不是操作面。
+    """
     template = read_source('templates/modals/plugin_manager.html')
     component = read_source('static/js/components/pluginManager.js')
 
-    for column in ('名称', '归属', '类型', '出现位置', '当前呈现', '快捷键', '操作'):
+    for column in ('名称', '归属', '类型', '出现位置', '当前呈现', '快捷键'):
         assert f'<th scope="col">{column}</th>' in template, column
+    assert '<th scope="col">操作</th>' not in template, '「操作」列应已删除'
 
     assert 'entryKindLabel(row)' in template
     assert 'entryLocationLabel(row)' in template
     assert 'entrySurfaceLabel(row)' in template
+
+
+def test_entry_overview_labels_unimplemented_kinds_honestly():
+    """`settings` / `nav` / `status` 目前**没有**任何渲染消费者。
+
+    旧文案把出现位置写成「设置页 / 侧栏导航 / 状态栏」，会让用户以为入口已生效。
+    这里锁定「如实描述」：位置标注为宿主未实现，且模板上有显式的未实现标记。
+    """
+    template = read_source('templates/modals/plugin_manager.html')
+    component = read_source('static/js/components/pluginManager.js')
+    # 注释里会**引用**旧文案来说明为什么要改，因此只看代码
+    code = strip_js_comments(component)
+
+    assert 'IMPLEMENTED_ENTRY_KINDS' in code
+    assert 'entryKindImplemented' in code
+    assert 'entryKindImplemented(row)' in template
+
+    # 已实现的 kind 仍在位置表里给出真实落点
+    for kind in ('dock', 'context', 'command', 'batch'):
+        assert f'{kind}: "' in code
+    # 未实现的三种 kind 必须**逐个**标注为未实现（不能靠「整体出现过一次」蒙混）
+    for kind in ('nav', 'settings', 'status'):
+        assert f'{kind}: "宿主未实现"' in code, f'{kind} 必须如实标注为宿主未实现'
+    for stale in ('侧栏导航', '状态栏', '设置页'):
+        assert stale not in code, f'{stale} 是未实现的落点，不应再出现'
+
+
+def test_entry_overview_drops_the_duplicate_refresh_button():
+    """刷新按钮只保留工具栏顶部那一个（走 `reloadActiveTab()`，与当前页签一致）。
+
+    页签内的第二个按钮调 `loadEntries()`，在「已安装」页签下点它会静默什么都不刷新
+    （只重载入口总览的数据），属于误导性控件。
+    """
+    template = read_source('templates/modals/plugin_manager.html')
+
+    assert 'reloadActiveTab()' in template
+    assert '@click="loadEntries()"' not in template
+    # 整个模板只剩一个刷新图标
+    assert template.count("icon('refresh'") == 1
+
+
+def test_entry_shortcut_slot_is_deduplicated_by_surface():
+    """快捷键按 surface 去重，且 context 类不提供设置。
+
+    - 多个入口指向同一 surface 时（本插件 4 个入口都指向 `workbench`），
+      只有第一个入口持有快捷键位，否则总览页会出现多条指向同一面板的重复快捷键；
+    - `context` 类不提供快捷键：右键菜单入口没有「右键目标」这个键盘概念，
+      且所有 context 入口打开的是同一个面板（用户原话：「设了也没用」）。
+    """
+    component = read_source('static/js/components/pluginManager.js')
+    template = read_source('templates/modals/plugin_manager.html')
+    code = strip_js_comments(component)
+
+    # 定义与调用（用定义签名而不是裸名字，避免改名后子串仍然命中）
+    assert 'entryHoldsShortcutSlot(row) {' in code
+    assert 'entryShortcutEditable(row) {' in code
+    assert 'entryHoldsShortcutSlot(row)' in template
+    assert 'entryShortcutEditable(row)' in template
+
+    # 去重依据是 surface，不是 kind 或 priority
+    assert 'surfaceId: (entry.surface && entry.surface.id) || entry.id,' in code, (
+        '行数据必须带上 surfaceId，否则无法按 surface 去重'
+    )
+    assert '`${item.pluginId}:${item.surfaceId || item.id}`' in code
+    assert 'return !first || first.key === row.key;' in code, (
+        '只有排序最靠前的那一个入口持有快捷键位'
+    )
+
+    # context 类被明确排除
+    assert "String((row && row.kind) || \"\") !== \"context\"" in code
+
+    # 两个被拒绝的入口在 UI 上给出说明，而不是静默显示「—」
+    assert '不适用' in template
+    assert '共用' in template
+
+    # 取建议快捷键时也要走去重，否则被抑制的入口仍会显示插件建议值
+    assert 'if (!this.entryHoldsShortcutSlot(row)) return "";' in code
 
 
 def test_deep_link_anchors_support_config_and_secrets():

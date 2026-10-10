@@ -70,17 +70,33 @@ const ENTRY_KIND_LABELS = {
   context: "右键",
   command: "命令",
   status: "状态",
+  batch: "批量",
 };
 
-/** 入口出现位置的说明（总览页「出现位置」列）。 */
+/**
+ * 入口出现位置的说明（总览页「出现位置」列）。
+ *
+ * **必须如实描述**：`settings` / `nav` / `status` 三种 kind 目前宿主**没有任何
+ * 渲染消费者**（`settings` 只有 `manifest.entries` 的声明，没有设置页注入；
+ * `nav` / `status` 更是只在契约里存在）。旧文案写「设置页 / 侧栏导航 / 状态栏」
+ * 会让用户以为入口已经生效，实际点了什么都不会发生。
+ */
 const ENTRY_LOCATION_LABELS = {
   dock: "入口坞",
-  nav: "侧栏导航",
-  settings: "设置页",
+  nav: "宿主未实现",
+  settings: "宿主未实现",
   context: "右键菜单",
   command: "命令面板",
-  status: "状态栏",
+  status: "宿主未实现",
+  batch: "批量操作菜单",
 };
+
+/**
+ * 该 kind 是否有真实的渲染消费者。
+ *
+ * 用于总览页给未实现的 kind 打上「未实现」标记——这比一句文案更难被忽略。
+ */
+const IMPLEMENTED_ENTRY_KINDS = new Set(["dock", "context", "command", "batch"]);
 
 /** 当前呈现方式的说明（总览页「当前呈现」列）。 */
 const SURFACE_LABELS = {
@@ -313,6 +329,9 @@ export default function pluginManager() {
             icon: entry.icon || "",
             shortcut: entry.shortcut || "",
             disabledHint: entry.disabledHint || "",
+            // surface 是「去重」与「呈现方式」两列的公共依据：多个入口可以指向
+            // 同一个 surface（本插件 4 个入口都指向 workbench）。
+            surfaceId: (entry.surface && entry.surface.id) || entry.id,
             surfaceType:
               (entry.surface && entry.surface.type) || "panel",
           });
@@ -373,11 +392,46 @@ export default function pluginManager() {
       return ENTRY_LOCATION_LABELS[String((row && row.kind) || "")] || "—";
     },
 
+    /** 该 kind 是否已有真实渲染消费者（未实现的不该让用户以为已经生效）。 */
+    entryKindImplemented(row) {
+      return IMPLEMENTED_ENTRY_KINDS.has(String((row && row.kind) || ""));
+    },
+
     entrySurfaceLabel(row) {
       return SURFACE_LABELS[String((row && row.surfaceType) || "")] || "—";
     },
 
     // ---------------------------------------------------------------- 快捷键
+
+    /**
+     * 该入口能否设置快捷键。
+     *
+     * `context` 类**不提供**快捷键设置：右键菜单的入口是「对某个右键目标执行」，
+     * 键盘上没有「右键目标」这个概念，所有 context 入口又都开同一个右侧面板，
+     * 设了快捷键也没有可用的落点（用户原话：「都打开同一个右侧面板，设了也没用」）。
+     */
+    entryShortcutEditable(row) {
+      return String((row && row.kind) || "") !== "context";
+    },
+
+    /**
+     * 该入口是否持有本插件的**快捷键位**。
+     *
+     * 去重规则：**按 surface 去重**。同一个 surface 被多个入口复用时（本插件的
+     * `workbench` 就服务 dock / context / batch / settings 四个入口），只有第一个
+     * 入口保留快捷键位——否则总览页会出现四条指向同一面板的重复快捷键，
+     * 用户改绑其中一条会与另一条互相顶掉（`assignEntryShortcut` 里一个组合键
+     * 只能绑一个入口）。
+     */
+    entryHoldsShortcutSlot(row) {
+      if (!this.entryShortcutEditable(row)) return false;
+      const surfaceKey = `${row.pluginId}:${row.surfaceId || row.id}`;
+      const first = this.entryRows.find(
+        (item) => `${item.pluginId}:${item.surfaceId || item.id}` === surfaceKey
+          && this.entryShortcutEditable(item),
+      );
+      return !first || first.key === row.key;
+    },
 
     /**
      * 入口当前生效的快捷键。
@@ -390,7 +444,8 @@ export default function pluginManager() {
       const key = String((row && row.key) || "");
       const hit = Object.keys(shortcuts).find((combo) => shortcuts[combo] === key);
       if (hit) return hit;
-      // 被用户改绑到别处的建议值不再生效
+      // 被用户改绑到别处的建议值不再生效；不持有快捷键位的入口不显示建议值
+      if (!this.entryHoldsShortcutSlot(row)) return "";
       return String((row && row.shortcut) || "");
     },
 
@@ -404,6 +459,14 @@ export default function pluginManager() {
     /** 录制快捷键：按下的组合键写入 `layout.shortcuts`。 */
     async captureEntryShortcut(row) {
       if (this.busyAction) return;
+      if (!this.entryShortcutEditable(row)) {
+        toast("右键菜单入口不支持快捷键：所有 context 入口打开的是同一个面板", "error");
+        return;
+      }
+      if (!this.entryHoldsShortcutSlot(row)) {
+        toast("该入口与同插件的其他入口共用同一个面板，快捷键请设在那一项上", "error");
+        return;
+      }
       this.recordingKey = String((row && row.key) || "");
       this.$nextTick?.(() => {
         const input = this.$refs?.shortcutInput;

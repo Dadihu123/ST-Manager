@@ -5,7 +5,7 @@
 
 import { deleteFolder } from '../api/system.js';
 
-import { toggleBundleMode } from '../api/card.js';
+import { listCards, toggleBundleMode } from '../api/card.js';
 
 import {
     isBatchOperationRunning,
@@ -107,14 +107,33 @@ export default function contextMenu() {
          * `EntryRegistry.list()` 已经做过 `when` 求值（模式、选中项、配置），
          * 返回的每项带 `enabled` 与 `disabledHint`——所以这里不需要自己判断条件，
          * 也不该判断（D7：`when` 统一在注册表求值）。
+         *
+         * 右键菜单的作用域由**右键目标**决定，与全局卡片选中无关：
+         * 右键文件夹 = 对该分类整体操作，右键卡片 = 对那一张操作。
+         * 因此这里用 `contextOverride` 覆盖 `targetKind` / `selectionCount`，
+         * 让 `when.target` 生效、并让 `when.selection` 不再被全局选中数误判。
          */
         refreshPluginEntries() {
             try {
-                this.pluginEntries = EntryRegistry.list({ kind: 'context' });
+                this.pluginEntries = EntryRegistry.list({
+                    kind: 'context',
+                    contextOverride: this.pluginEntryContext(),
+                });
             } catch (error) {
                 console.warn('[contextMenu] 读取插件 context 入口失败:', error);
                 this.pluginEntries = [];
             }
+        },
+
+        /** 右键菜单求值 `when` 用的上下文覆盖（见 `refreshPluginEntries`）。 */
+        pluginEntryContext() {
+            const targetKind = String(this.type || '');
+            return {
+                targetKind,
+                // 右键卡片时作用域是那 1 张；右键文件夹时作用域是分类整体，
+                // 此时全局选中数与本次操作无关，必须归零。
+                selectionCount: targetKind === 'card' ? 1 : 0,
+            };
         },
 
         /** 右键菜单里的插件项图标（资源路径需要 pluginId 才能解析）。 */
@@ -130,31 +149,82 @@ export default function contextMenu() {
         },
 
         /**
+         * 解析右键目标的作用域（要交给插件的具体 id 列表）。
+         *
+         * - 右键**卡片**：作用域就是那一张。
+         * - 右键**文件夹**：作用域是「该分类（含子分类）下的全部卡片」。这个
+         *   解析必须由宿主完成——插件拿不到卡片列表接口，也不该去读宿主的内部
+         *   状态（`viewState.selectedIds` 与右键作用域根本无关）。
+         *
+         * 解析发生在**点击时**而不是菜单打开时：右键菜单会频繁打开，不该每次
+         * 都拉一遍卡片列表。
+         */
+        async resolvePluginEntryTargetIds(targetKind) {
+            if (targetKind === 'card') {
+                return this.target == null ? [] : [String(this.target)];
+            }
+            if (targetKind !== 'folder') return [];
+
+            try {
+                const data = await listCards({
+                    page: 1,
+                    // 作用域是分类整体，与分页无关；给足上限一次取回。
+                    page_size: 100000,
+                    category: this.target == null ? '' : String(this.target),
+                    recursive: true,
+                    search_scope: 'current',
+                });
+                const cards = Array.isArray(data && data.cards) ? data.cards : [];
+                return cards.map((card) => String((card && card.id) || '')).filter(Boolean);
+            } catch (error) {
+                console.warn('[contextMenu] 解析分类卡片列表失败:', error);
+                return [];
+            }
+        },
+
+        /**
          * 执行一个插件 context 入口。
          *
          * 优先打开插件注册的 surface；没有 surface 时派发 `entry:activate`
          * 交给插件自己处理（与坞 / 命令面板同一套约定，见 `entryDock.js:open`）。
          * 置灰项不执行——但菜单里仍可见并附 `disabledHint`（D7：不是隐藏）。
+         *
+         * **右键目标必须一并传下去**：插件要据此知道「分析哪一个分类 / 哪一张卡」。
+         * 只传 `targetId`（= 入口 id）的话，插件只能退回去读全局选中集，
+         * 而右键文件夹的作用域根本不是选中集。
          */
-        runPluginEntry(entry) {
+        async runPluginEntry(entry) {
             if (!entry || !entry.enabled) return false;
 
             const surfaceId = (entry.surface && entry.surface.id) || entry.id;
             const surfaceKey = `${entry.pluginId}:${surfaceId}`;
             this.visible = false;
 
+            const targetKind = String(this.type || '');
+            const targetPath = String(this.target == null ? '' : this.target);
+            const targetIds = await this.resolvePluginEntryTargetIds(targetKind);
+            const detail = {
+                key: entry.key,
+                entry,
+                source: 'context',
+                targetKind,
+                targetPath,
+                targetIds,
+            };
+
             if (PluginSurfaceHost.has(surfaceKey)) {
                 PluginSurfaceHost.openSurface(surfaceKey, {
                     source: 'context',
                     targetId: entry.id,
                     mode: EntryRegistry.context().mode,
+                    targetKind,
+                    targetPath,
+                    targetIds,
                 });
                 return true;
             }
 
-            window.dispatchEvent(
-                new CustomEvent('entry:activate', { detail: { key: entry.key, entry } }),
-            );
+            window.dispatchEvent(new CustomEvent('entry:activate', { detail }));
             return true;
         },
 

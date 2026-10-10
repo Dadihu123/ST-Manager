@@ -114,6 +114,12 @@ export const PluginSurfaceHost = {
    *
    * `mount()` 抛错时：销毁该 surface 并把对应入口置错误态，返回 null —— 错误被
    * 隔离在单个插件内，其他插件与宿主不受影响。
+   *
+   * surface **已经打开**时不再 `mount`（那会重建 DOM、丢掉用户已填的表单），
+   * 但**仍然把新的 `ctx` 交给 `onOpen`**：同一个 surface 常被多个入口复用
+   * （本插件的 `workbench` 就同时服务坞、右键分类、批量菜单、设置四个入口），
+   * 第二次点击带的是**不同的作用域**，插件必须有机会据此更新视图，
+   * 否则「先右键 A 分类、再右键 B 分类」会一直显示 A 的结果。
    */
   openSurface(key, ctx = {}) {
     const record = this.surfaces.get(String(key || ""));
@@ -121,7 +127,17 @@ export const PluginSurfaceHost = {
       console.warn(`[surfaceHost] 未注册的 surface: ${key}`);
       return null;
     }
-    if (this.open.has(record.key)) return this.open.get(record.key).container;
+    if (this.open.has(record.key)) {
+      // 复用既有容器；把新 ctx 重新投递给插件（这是入口切换作用域的唯一通道）
+      if (record.onOpen) {
+        try {
+          record.onOpen({ ...ctx, pluginId: record.pluginId });
+        } catch (error) {
+          console.error(`[surfaceHost] 插件 ${record.pluginId} 的 onOpen 失败:`, error);
+        }
+      }
+      return this.open.get(record.key).container;
+    }
 
     const root = ensureSurfaceRoot();
     const shell = document.createElement("div");
@@ -179,6 +195,14 @@ export const PluginSurfaceHost = {
         source: String(ctx.source || ""),
         targetId: String(ctx.targetId || ""),
         mode: String(ctx.mode || ""),
+        // 右键目标（只有 `source === "context"` 会带）：插件据此知道作用域是
+        // 整个分类还是单张卡片。`targetPath` 为 `""` 表示根目录，是**合法值**，
+        // 因此不能用真值判断来区分「没有目标」——`targetKind` 才是存在性标志。
+        targetKind: String(ctx.targetKind || ""),
+        targetPath: String(ctx.targetPath == null ? "" : ctx.targetPath),
+        // 目标 id 列表（批量入口传选中集，右键卡片传那一张，其余为空数组）。
+        // 有了它，插件不必再去读宿主的 `viewState.selectedIds`（Provisional 耦合）。
+        targetIds: Array.isArray(ctx.targetIds) ? ctx.targetIds.map(String) : [],
         pluginId: record.pluginId,
         surfaceId: record.id,
       });

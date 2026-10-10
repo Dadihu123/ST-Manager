@@ -265,7 +265,7 @@ manifest 采用**严格校验**：顶层出现白名单以外的键即**拒绝�
 | 字段 | 类型 | 必需 | 规则 | 失败处理 |
 |---|---|---|---|---|
 | `id` | string | ✅ | `^[a-z][a-z0-9-]{0,63}$`，插件内唯一 | 丢弃该项 + 警告 |
-| `kind` | enum | ✅ | `dock` / `nav` / `settings` / `context` / `command` / `status` | 丢弃该项 + 警告 |
+| `kind` | enum | ✅ | `dock` / `nav` / `settings` / `context` / `command` / `status` / `batch` | 丢弃该项 + 警告 |
 | `label` | string | ✅ | 非空 | 丢弃该项 + 警告 |
 | `description` | string | | 说明文字 | — |
 | `icon` | string | | 宿主图标名（不含 `/` 与 `.`）或插件内相对路径（含 `/`） | 降级为占位图标 + 警告（不拒绝加载） |
@@ -285,14 +285,35 @@ manifest 采用**严格校验**：顶层出现白名单以外的键即**拒绝�
 | `kind` | 呈现位置 | 消费者 |
 |---|---|---|
 | `dock` | 入口坞槽位（社区插件默认进溢出菜单，D6） | `components/entryDock.js` |
-| `nav` | 侧栏导航项（仅 official / verified，D5） | 侧栏 |
-| `settings` | 设置页插件区 | 设置页插件管理 |
+| `nav` | ⚠️ **宿主未实现**（无渲染消费者） | — |
+| `settings` | ⚠️ **宿主未实现**（无渲染消费者） | — |
 | `context` | **右键菜单** | `components/contextMenu.js` |
 | `command` | 命令面板（`Ctrl+K`） | `components/commandPalette.js` |
-| `status` | 状态栏（仅 official / verified，D5） | 状态栏 |
+| `status` | ⚠️ **宿主未实现**（无渲染消费者） | — |
+| `batch` | **批量操作菜单**（顶部工具栏「批量操作」展开项） | `templates/components/header.html` + `components/header.js` |
 
-`context` / `command` 的入口都同时出现在命令面板；`dock` 入口也能被命令面板搜到
+> **诚实标注**：`nav` / `settings` / `status` 三类 kind 目前**只在契约里存在**，
+> 宿主没有任何渲染落点。入口总览页对它们显示「（宿主未实现）」，不会假装已生效。
+> 实现其中任一者时，需要同时补上消费者与本节表格。
+
+`context` / `command` 的入口都同时出现在命令面板；`dock` / `batch` 入口也能被命令面板搜到
 （`EntryRegistry.searchable()` 返回全部条目 + 宿主内建命令）。
+
+**`context` 与 `batch` 的作用域差异（关键）**：
+
+| kind | 作用域来源 | 求值输入 | 典型语义 |
+|---|---|---|---|
+| `context` | **右键目标**（`targetKind`） | `list({ contextOverride: { targetKind, selectionCount } })` | 右键分类 → 分析该分类（含子分类）的全部卡片 |
+| `batch` | **全局选中集** | `list({ kind: 'batch' })`（走 `EntryRegistry.context()`） | 批量菜单 → 分析选中的卡片 |
+
+两者**不可混用**：右键分类的作用域是那个分类，与用户恰好勾选了哪几张卡无关。
+右键菜单求值时会把 `selectionCount` 覆盖为 `0`（右键文件夹）/ `1`（右键卡片），
+并把 `targetKind` 传进 `when` 求值；`batch` 菜单则沿用全局 `selectionCount`。
+
+**右键目标如何到达插件**：宿主在 `PluginSurfaceHost.openSurface(key, ctx)` 里传
+`targetKind` / `targetPath` / `targetIds`（`targetIds` 由宿主解析——插件拿不到卡片列表接口，
+也不该读宿主内部状态）。`targetPath` 为 `""` 表示根目录，是**合法值**，
+因此存在性判断只能看 `targetKind`，不能靠真值判断。
 
 **`when` 条件表达式（D7）**：求值统一在宿主侧完成，插件只声明。
 
@@ -300,6 +321,7 @@ manifest 采用**严格校验**：顶层出现白名单以外的键即**拒绝�
 "when": {
   "mode": ["cards"],                        // 当前工作模式
   "selection": "any",                       // none | any | single | multi
+  "target": "folder",                       // folder | card | any（**仅右键菜单求值**）
   "indexState": "ready",                    // 索引就绪状态
   "config": { "requireKeys": ["api_key"] }, // 未配置则置灰
   "hostVersion": ">=1.0.0",
@@ -311,6 +333,11 @@ manifest 采用**严格校验**：顶层出现白名单以外的键即**拒绝�
 对应键是否有非空值；不满足时入口**可见但置灰**，`title`/tooltip 显示 `disabledHint`，
 **点击直接跳到该插件的配置/密钥区**（而不是无反应）。
 
+`target` 的语义：**只有右键菜单会提供 `targetKind`**。不提供该值的消费方
+（入口坞 / 命令面板 / 批量菜单 / 总览页）会**跳过** `target` 条件——否则
+「只在右键分类时可用」的入口会在所有别处被误判为不可用。非法值（非
+`folder` / `card` / `any`）在 manifest 解析阶段被忽略 + 警告。
+
 ### 入口 `kind` 准入分级（D5）
 
 tier 由宿主仓库的 catalog 决定（`official` / `verified` / `community`），**插件 manifest 不能声明**。
@@ -318,9 +345,11 @@ tier 由宿主仓库的 catalog 决定（`official` / `verified` / `community`�
 
 | kind | official | verified | community |
 |---|---|---|---|
-| `command` / `context` / `settings` / `dock` | ✅ | ✅ | ✅ |
+| `command` / `context` / `settings` / `dock` / `batch` | ✅ | ✅ | ✅ |
 | `status` | ✅ | ✅ | ❌ |
 | `nav` | ✅ | ✅ | ❌ |
+
+`batch` 对所有 tier 开放：它只是批量菜单里的一个菜单项，不是高权限落点。
 
 不允许的 kind：**忽略该 entry 并记 warning**，不拒绝加载整个插件。
 

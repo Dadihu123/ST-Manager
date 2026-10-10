@@ -31,14 +31,16 @@ const HOVER_EXPAND_DELAY_MS = 150;
 function readPrefs() {
   try {
     const raw = localStorage.getItem(DOCK_PREFS_KEY);
-    if (!raw) return { expanded: false, side: "right" };
+    // 首次运行（无偏好）默认**展开**：收起态在视觉上几乎不存在，若默认收起，
+    // 用户根本发现不了坞——「插件入口只能靠快捷键打开」就是这么来的。
+    if (!raw) return { expanded: true, side: "right" };
     const parsed = JSON.parse(raw);
     return {
-      expanded: Boolean(parsed && parsed.expanded),
+      expanded: parsed && parsed.expanded === undefined ? true : Boolean(parsed.expanded),
       side: parsed && parsed.side === "left" ? "left" : "right",
     };
   } catch (error) {
-    return { expanded: false, side: "right" };
+    return { expanded: true, side: "right" };
   }
 }
 
@@ -58,9 +60,13 @@ export default function entryDock() {
     overflow: [],
     overflowOpen: false,
     overflowQuery: "",
-    expanded: false,
+    expanded: true,
     deviceType: "desktop",
     activeKey: "",
+
+    /** 拖拽重排状态（D6：坞槽位顺序可调，写入 `layout.order`）。 */
+    draggingKey: "",
+    dragOverKey: "",
 
     _hoverTimer: null,
     _entriesHandler: null,
@@ -233,6 +239,81 @@ export default function entryDock() {
         : [];
       if (!hidden.includes(entry.key)) hidden.push(entry.key);
       const ok = await EntryRegistry.updateLayout({ hidden });
+      this.refresh();
+      return ok;
+    },
+
+    // ------------------------------------------------------------ 拖拽重排
+    //
+    // D6：坞槽位顺序由用户决定（文档阶段 5 验收清单里的「拖拽重排持久化」）。
+    // 用原生 HTML5 拖放，不引第三方库。
+    //
+    // 顺序写进 `layout.order`（全局键数组）——`EntryRegistry.list()` 排序时
+    // **用户显式排序优先于插件建议的 priority**，所以这里只要维护 order 即可。
+
+    onSlotDragStart(entry, event) {
+      if (!entry) return;
+      this.draggingKey = entry.key;
+      // Firefox 要求必须 setData 才会真正开始拖拽
+      try {
+        event?.dataTransfer?.setData("text/plain", entry.key);
+        if (event?.dataTransfer) event.dataTransfer.effectAllowed = "move";
+      } catch (error) {
+        /* 某些环境禁用 dataTransfer，忽略即可 */
+      }
+    },
+
+    onSlotDragOver(entry, event) {
+      if (!this.draggingKey || !entry || entry.key === this.draggingKey) return;
+      event?.preventDefault?.();
+      this.dragOverKey = entry.key;
+      if (event?.dataTransfer) event.dataTransfer.dropEffect = "move";
+    },
+
+    onSlotDragLeave(entry) {
+      if (entry && this.dragOverKey === entry.key) this.dragOverKey = "";
+    },
+
+    onSlotDragEnd() {
+      this.draggingKey = "";
+      this.dragOverKey = "";
+    },
+
+    /**
+     * 放下：把被拖的槽位插到目标槽位的位置。
+     *
+     * `layout.order` 是**全局**顺序（含溢出菜单里的入口），所以要在完整顺序里
+     * 搬移，而不是只重排当前可见的坞槽位——否则拖一次会把没进坞的入口顺序打乱。
+     */
+    async onSlotDrop(targetEntry, event) {
+      event?.preventDefault?.();
+      const sourceKey = String(this.draggingKey || "");
+      const targetKey = String((targetEntry && targetEntry.key) || "");
+      this.onSlotDragEnd();
+
+      if (!sourceKey || !targetKey || sourceKey === targetKey) return false;
+
+      const current = Array.isArray(EntryRegistry.layout.order)
+        ? [...EntryRegistry.layout.order]
+        : [];
+
+      // 完整顺序 = 用户已排序的 + 未出现的（按注册表当前顺序补齐）
+      const known = new Set(current);
+      for (const item of EntryRegistry.searchable()) {
+        if (!known.has(item.key)) {
+          current.push(item.key);
+          known.add(item.key);
+        }
+      }
+
+      const from = current.indexOf(sourceKey);
+      const to = current.indexOf(targetKey);
+      if (from === -1 || to === -1) return false;
+
+      current.splice(from, 1);
+      current.splice(to, 0, sourceKey);
+
+      const ok = await EntryRegistry.updateLayout({ order: current });
       this.refresh();
       return ok;
     },
