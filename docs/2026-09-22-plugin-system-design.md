@@ -1672,6 +1672,20 @@ class PluginAPI:
     list(): object[],                             // Stable（当前插件自己的条目）
   },
 
+  // ---- 事件（`api.on(name, handler)`）----
+  // `entries:changed` 在注册表任何变更后广播。插件可以监听它**重放**运行期状态：
+  // 宿主 `loadAll()` 先 `activate()`、后 `setPlugins()` 建表，所以 activate 期间
+  // 调 `entries.setStatus()` 会静默失败（查不到条目就 return），必须重放。
+  //
+  // ★ 重入约定：写入器**只在值真正变化时**广播，所以「写同一个值」不会再次触发
+  //   事件，重放天然收敛。但插件仍应自己记住上次写成功的值再跳过——不要依赖宿主
+  //   的实现细节。宿主侧另有两道兜底：`notifyChange` 做重入合并，并对补发轮数设
+  //   上限（`MAX_NOTIFY_ROUNDS`），病态插件只会被截断并警告，不会栈溢出。
+  //
+  //   反面教材：无条件 `setStatus(...)` + 监听 `entries:changed` 再 `setStatus(...)`
+  //   ⇒ 无限递归、栈溢出、整个前端 JS 崩掉。
+
+
   // ---- Surface（D8）----
   surfaces: {
     register(surfaceId, spec): void,              // Stable，spec = { title, mount(container, ctx), unmount?, onOpen?, onClose? }

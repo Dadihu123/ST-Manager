@@ -44,6 +44,15 @@ function emptyLayout() {
  */
 const SECRET_SET_SENTINEL = "__set__";
 
+/**
+ * `notifyChange` 允许的最大补发轮数。
+ *
+ * 监听器在回调里写运行期状态是推荐模式（插件需重放 activate 期间丢失的状态），
+ * 所以一次重入是**正常**的，补发一次即可收敛。超过这个轮数说明插件在回调里
+ * 反复改写不同值，属于病态行为——停止补发并警告，而不是让页面栈溢出。
+ */
+const MAX_NOTIFY_ROUNDS = 5;
+
 /** 判定 `when.config.requireKeys` 的取值是否算「已配置」。 */
 function hasValue(value) {
   if (value === undefined || value === null) return false;
@@ -243,6 +252,9 @@ export const EntryRegistry = {
   layout: emptyLayout(),
   layoutLoaded: false,
   plugins: [],
+  /** `notifyChange` 重入保护（见该方法注释）。 */
+  _notifying: false,
+  _notifyPending: false,
 
   init() {
     if (this.initialized) return;
@@ -543,11 +555,25 @@ export const EntryRegistry = {
   },
 
   // ------------------------------------------------------------ 运行期状态
+  //
+  // 这一组写入器**只在值真正变化时**广播 `entries:changed`。
+  //
+  // 为什么必须做变更检测：插件按文档推荐的模式写运行期状态——订阅
+  // `entries:changed`，在回调里 `api.entries.setStatus(...)` 重放期望状态
+  // （宿主 `loadAll()` 先 activate、后 setPlugins，activate 期间写入会静默失败，
+  // 所以插件必须重放）。若写入器无条件广播，就形成
+  //
+  //   setStatus → notifyChange → 监听器 → setStatus → …
+  //
+  // 的无限递归（栈溢出，整个前端 JS 崩掉）。而重放写的往往是**同一个值**，
+  // 那本来就是空操作，不该通知任何人。
 
   setBadge(pluginId, entryId, value) {
     const entry = this.entries.get(buildEntryKey(pluginId, entryId));
     if (!entry) return false;
-    entry.badge = value === null || value === undefined ? null : value;
+    const next = value === null || value === undefined ? null : value;
+    if (Object.is(entry.badge, next)) return true;
+    entry.badge = next;
     this.notifyChange();
     return true;
   },
@@ -555,10 +581,17 @@ export const EntryRegistry = {
   setProgress(pluginId, entryId, progress) {
     const entry = this.entries.get(buildEntryKey(pluginId, entryId));
     if (!entry) return false;
-    entry.progress =
+    const next =
       progress && Number.isFinite(Number(progress.total))
         ? { done: Number(progress.done) || 0, total: Number(progress.total) || 0 }
         : null;
+    const current = entry.progress;
+    const same =
+      next === null
+        ? current === null || current === undefined
+        : Boolean(current) && current.done === next.done && current.total === next.total;
+    if (same) return true;
+    entry.progress = next;
     this.notifyChange();
     return true;
   },
@@ -567,7 +600,9 @@ export const EntryRegistry = {
     const entry = this.entries.get(buildEntryKey(pluginId, entryId));
     if (!entry) return false;
     const allowed = ["ok", "warn", "error", "idle"];
-    entry.status = allowed.includes(String(status)) ? String(status) : "idle";
+    const next = allowed.includes(String(status)) ? String(status) : "idle";
+    if (entry.status === next) return true;
+    entry.status = next;
     this.notifyChange();
     return true;
   },
@@ -575,7 +610,9 @@ export const EntryRegistry = {
   setBusy(pluginId, entryId, busy) {
     const entry = this.entries.get(buildEntryKey(pluginId, entryId));
     if (!entry) return false;
-    entry.busy = Boolean(busy);
+    const next = Boolean(busy);
+    if (entry.busy === next) return true;
+    entry.busy = next;
     this.notifyChange();
     return true;
   },
@@ -758,11 +795,41 @@ export const EntryRegistry = {
   /** 广播变更，让坞 / 命令面板 / 总览页刷新。 */
   notifyChange() {
     if (typeof window === "undefined") return;
-    window.dispatchEvent(
-      new CustomEvent("entries:changed", {
-        detail: { count: this.entries.size + this.coreEntries.length },
-      }),
-    );
+
+    // 重入保护。监听器在回调里写运行期状态是**文档推荐的重放模式**（宿主
+    // `loadAll()` 先 activate、后 setPlugins，插件必须在 `entries:changed`
+    // 里补写），因此必须假设监听器会再次调用 notifyChange。
+    //
+    // 直接递归派发会无限递归（栈溢出、整个前端 JS 崩掉）；这里把重入请求
+    // 合并成一次补发，并给补发轮数设上限，避免病态插件持续改写导致死循环。
+    if (this._notifying) {
+      this._notifyPending = true;
+      return;
+    }
+
+    this._notifying = true;
+    let rounds = 0;
+    try {
+      do {
+        this._notifyPending = false;
+        window.dispatchEvent(
+          new CustomEvent("entries:changed", {
+            detail: { count: this.entries.size + this.coreEntries.length },
+          }),
+        );
+        rounds += 1;
+      } while (this._notifyPending && rounds < MAX_NOTIFY_ROUNDS);
+
+      if (this._notifyPending) {
+        console.warn(
+          "[entryRegistry] entries:changed 连续重入过多，已停止补发；" +
+            "插件可能在监听回调里持续改写运行期状态。",
+        );
+      }
+    } finally {
+      this._notifying = false;
+      this._notifyPending = false;
+    }
   },
 };
 
