@@ -338,6 +338,29 @@ def test_install_plugin_dir_persists_style_scope_errors(tmp_path, install_env):
     assert 'frontend/plugin.css' in installer_module.read_style_scope_errors('zip-plugin')
 
 
+def test_install_plugin_dir_scans_css_before_moving_source(tmp_path, install_env):
+    """回归：作用域扫描必须在 `shutil.move` 之前做完。
+
+    安装流程会把源目录整体移动/替换掉（`install_plugin_dir` 里的 `shutil.move`）。
+    如果扫描发生在移动之后，manifest 上记的绝对路径已经失效，扫描只会返回
+    `plugin.css: 读取失败 (...)`；那条假违规会被写进 ui_data，而前端
+    `pluginHost.js:150-158` 会据此拒绝注入该插件的整份 CSS —— 一个完全合规的
+    插件也会因此完全丢失样式。
+    """
+    scoped_css = '.plugin-zip-plugin-overlay { background: var(--surface-scrim); }\n'
+    source = write_plugin(tmp_path / 'stage', 'zip-plugin', css=scoped_css)
+
+    result = installer_module.install_plugin_dir(source)
+
+    assert result['style_scope_errors'] == {}, result['style_scope_errors']
+    assert installer_module.read_style_scope_errors('zip-plugin') == {}
+
+    installed_css = os.path.join(result['path'], 'frontend', 'plugin.css')
+    assert os.path.isfile(installed_css)
+    with open(installed_css, 'r', encoding='utf-8') as handle:
+        assert handle.read() == scoped_css
+
+
 # ------------------------------------------------------------------ 上传与目录安装
 
 

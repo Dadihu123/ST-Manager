@@ -1,4 +1,4 @@
-"""插件安装器（设计文档 3.2–3.6）。
+﻿"""插件安装器（设计文档 3.2–3.6）。
 
 从网络解压归档是**最高风险**的操作，逐项防护（3.4）：
 - zip-slip：逐个 entry 校验 realpath 边界，**不用** `extractall()`
@@ -285,6 +285,11 @@ def install_plugin_dir(
 
     strip_forbidden_dirs(source_dir)
 
+    # 必须在 `shutil.move` **之前**扫描：manifest 里的样式路径指向源目录，目录一旦被
+    # 移走，扫描就只剩「读取失败」，而那条假违规会被持久化，导致前端拒绝注入该插件的
+    # 整份 CSS（pluginHost.js:150-158）。
+    style_errors = scan_style_scope(manifest)
+
     plugins_root = registry.plugins_dir()
     os.makedirs(plugins_root, exist_ok=True)
     target_dir = os.path.join(plugins_root, manifest.plugin_id)
@@ -318,7 +323,6 @@ def install_plugin_dir(
     except OSError:
         pass
 
-    style_errors = scan_style_scope(manifest)
     if style_errors:
         _persist_style_scope_errors(manifest.plugin_id, style_errors)
 
