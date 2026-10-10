@@ -262,6 +262,47 @@ def register_external_state(state: PluginState) -> None:
         _states[state.plugin_id] = state
 
 
+def refresh_manifest(plugin_id: str, plugin_dir: str = '') -> PluginManifest | None:
+    """安装 / 更新 / 卸载后，把**磁盘上的新 manifest** 同步进内存状态。
+
+    为什么必须做：`installer.install_plugin_dir()` 用 `os.replace` 换掉了插件
+    目录，但内存里的 `state.manifest` 还是进程启动时读的那份。不同步的后果是
+    `catalog.check_updates()` 拿陈旧版本去比远端版本，于是**刚更新完仍报有更新**
+    ——用户点一次更新、再检查一次又说有更新，形成死循环（磁盘其实早就是新版）。
+
+    语义：只更新「声明层」信息（manifest / warnings / plugin_dir），
+    **不**重新加载代码——Python 模块已经在 `sys.modules` 里，热重载有类身份变化
+    与蓝图重复注册的陷阱（见设计文档 3.2）。因此这里同时把 `restart_required`
+    置为 True，让 UI 如实提示「需重启生效」。
+
+    Returns:
+        刷新后的 manifest；目录或 manifest 不可读时返回 None（保持原状态不动）。
+    """
+    plugin_id = str(plugin_id or '')
+    directory = str(plugin_dir or '') or os.path.join(plugins_dir(), plugin_id)
+
+    try:
+        manifest = PluginManifest.load(directory, check_dir_name=False)
+    except Exception:  # noqa: BLE001 - 刷新失败不应影响安装结果
+        logger.warning('刷新插件 %s 的内存 manifest 失败', plugin_id, exc_info=True)
+        return None
+
+    with _states_lock:
+        state = _states.get(plugin_id)
+        if state is None:
+            # 首次安装（进程内还没有该插件的状态）→ 登记一个「待重启加载」的状态
+            state = PluginState(plugin_id, directory)
+            state.enabled = True
+            _states[plugin_id] = state
+        state.plugin_dir = directory
+        state.manifest = manifest
+        state.warnings = list(manifest.warnings or [])
+        state.restart_required = True
+
+    _persist_ui_entry(plugin_id, {'restart_required': True})
+    return manifest
+
+
 def reset_for_tests() -> None:
     """清空全部状态（仅测试用）。"""
     global _states_initialized

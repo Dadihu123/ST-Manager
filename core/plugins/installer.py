@@ -355,6 +355,13 @@ def install_plugin_dir(
 
     _persist_style_declaration_warnings(manifest.plugin_id, style_warnings)
 
+    # 关键：把磁盘上的新 manifest 同步进内存状态。
+    # 否则 `state.manifest.version` 会停在进程启动时读的旧值，`check_updates()`
+    # 就会拿陈旧版本比远端版本，导致「刚更新完仍报有更新」的死循环。
+    # 这里不重载代码（模块已在 sys.modules，热重载有类身份/蓝图重复注册的陷阱），
+    # 只刷新声明层并置 `restart_required`，让 UI 如实提示需重启。
+    registry.refresh_manifest(manifest.plugin_id, target_dir)
+
     _log_action(
         manifest.plugin_id,
         'update' if existed else 'install',

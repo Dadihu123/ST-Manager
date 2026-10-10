@@ -497,8 +497,8 @@ POST /api/plugins/catalog/install
   ↓
 1. 从 catalog 查到 source
 2. 构造下载 URL：
-   - 源码归档: https://codeload.github.com/{repo}/zip/refs/heads/{ref}
-              或 .../zip/{sha}（commit 更稳定）
+   - 源码归档: https://codeload.github.com/{repo}/zip/{ref}
+               （裸 ref 形式，分支 / tag / commit sha 都能解析；见 3.3 的实测表）
    - Release:  https://api.github.com/repos/{repo}/releases/latest → asset URL
 3. 下载到 data/temp/（限流：max 50MB，超时 60s，跟随重定向 ≤ 3 次）
 4. 解压到 data/temp/plugin_install_<uuid>/
@@ -507,9 +507,27 @@ POST /api/plugins/catalog/install
 6. 校验 manifest（id 匹配、api_version、min_app_version）
 7. 原子替换：data/plugins/<id> ← 解压目录
    - 若已存在：先移到 data/system/trash/plugin_<id>_<ts>/
-8. 写 plugin_install_log 表（见 6.6）
-9. 返回 { success, id, version, restart_required: true }
+8. **同步内存状态**（`registry.refresh_manifest()`）：把磁盘上的新 manifest
+   写回 `_states[<id>].manifest`，并置 `restart_required = True`
+   ★ 不做这一步会导致「更新后仍报有更新」的死循环，见下方说明
+9. 写 plugin_install_log 表（见 6.6）
+10. 返回 { success, id, version, restart_required: true }
 ```
+
+**第 8 步为什么必需**：`os.replace` 只换了磁盘上的目录，内存里的 `state.manifest`
+仍是**进程启动时读的那份**。而 `catalog.check_updates()` 的「已安装版本」取自
+`state.manifest.version`，于是会拿陈旧版本去比远端版本：
+
+```
+磁盘 manifest.json      → 0.2.0（已是新版）
+state.manifest.version  → 0.1.0（陈旧，进程未重启）
+远端 manifest           → 0.2.0
+⇒ 判定「有更新」→ 用户点更新 → 又覆盖一遍 → 仍报有更新 → 死循环
+```
+
+刷新**只覆盖声明层**（`manifest` / `warnings` / `plugin_dir` / `restart_required`），
+**不重载代码**——`loaded` 保持原值，因为 Python 模块热重载不可靠（见下）。
+首次安装（进程内还没有该插件）也会登记状态，UI 才能显示「需重启加载」。
 
 **为什么需要重启**：后端插件注册 Python 模块、蓝图、作业处理器。Python **无法可靠卸载模块**（`sys.modules` 残留、蓝图无法从 Flask app 移除）。因此：
 

@@ -25,6 +25,7 @@ from core.plugins.errors import (
     PluginInstallError,
     PluginManifestError,
 )
+from core.plugins.manifest import PluginManifest
 from tests.plugins_test_support import clear_plugin_ui_namespace, write_plugin
 
 
@@ -41,6 +42,10 @@ def install_env(tmp_path, monkeypatch):
     monkeypatch.setattr(installer_module, 'TEMP_DIR', str(temp_root))
     monkeypatch.setattr(job_store, 'DEFAULT_DB_PATH', str(tmp_path / 'jobs.db'))
     monkeypatch.setattr(secrets_module, 'SECRETS_FILE', str(tmp_path / 'secrets.json'))
+    # 清空注册表内存状态：`install_plugin_dir()` 现在会登记 state（plugin_dir 指向
+    # 本用例的 plugins_root），不清理的话下个用例的 `uninstall_plugin()` 会从陈旧
+    # state 里读到上一个用例的 tmp_path。其它插件测试文件也都这么做。
+    registry.reset_for_tests()
     clear_plugin_ui_namespace()
     secrets_module._clear_degraded()
 
@@ -51,6 +56,7 @@ def install_env(tmp_path, monkeypatch):
         'tmp_path': tmp_path,
     }
 
+    registry.reset_for_tests()
     clear_plugin_ui_namespace()
     secrets_module._clear_degraded()
 
@@ -349,6 +355,84 @@ def test_install_plugin_dir_enforces_expected_id(tmp_path, install_env):
     with pytest.raises(PluginManifestError, match='预期'):
         installer_module.install_plugin_dir(source, expected_id='another-plugin')
 
+
+# ------------------------------------------- 安装/更新后同步内存 manifest（回归）
+
+
+def _stage_versioned(tmp_path, version, name='stage'):
+    """生成一个指定版本的插件目录，返回其路径。"""
+    from tests.plugins_test_support import base_manifest
+
+    payload = base_manifest('zip-plugin')
+    payload['version'] = version
+    return write_plugin(tmp_path / name, 'zip-plugin', manifest=payload)
+
+
+def _cached_state(install_env, *, loaded=False):
+    """模拟「进程启动时加载过该插件」——注册表缓存了当时的 manifest。"""
+    state = registry.PluginState('zip-plugin', str(install_env['plugins_root'] / 'zip-plugin'))
+    state.manifest = PluginManifest.load(state.plugin_dir, check_dir_name=False)
+    state.loaded = loaded
+    registry._states['zip-plugin'] = state
+    return state
+
+
+def test_install_refreshes_in_memory_manifest_version(tmp_path, install_env):
+    """回归：更新后内存里的 `state.manifest.version` 必须跟着磁盘走。
+
+    此前 `install_plugin_dir()` 只用 `os.replace` 换了目录，**从不刷新**
+    `registry._states` 里的状态。于是 `catalog.check_updates()` 拿进程启动时
+    读的旧版本去比远端版本，导致「刚更新完仍报有更新」的死循环——用户点更新、
+    再检查又说有更新，其实磁盘早就是新版了。
+    """
+
+    installer_module.install_plugin_dir(_stage_versioned(tmp_path, '0.1.0', 'v1'))
+    state = _cached_state(install_env)
+    assert state.manifest.version == '0.1.0'
+
+    result = installer_module.install_plugin_dir(_stage_versioned(tmp_path, '0.2.0', 'v2'))
+
+    assert result['version'] == '0.2.0'
+    assert result['action'] == 'update'
+    assert state.manifest.version == '0.2.0', '内存 manifest 未随磁盘刷新'
+    assert registry.get_state('zip-plugin').manifest.version == '0.2.0'
+
+
+def test_install_marks_restart_required_and_does_not_reload_code(tmp_path, install_env):
+    """刷新只覆盖「声明层」：置 `restart_required`，但不假装代码已热重载。
+
+    设计文档 3.2 明确不进程内热重载（`importlib.reload` 的类身份变化、
+    装饰器重复注册、蓝图路由冲突）。所以 `loaded` 不能被这次刷新改动。
+    """
+
+    installer_module.install_plugin_dir(_stage_versioned(tmp_path, '0.1.0', 'r1'))
+    _cached_state(install_env, loaded=True)
+
+    installer_module.install_plugin_dir(_stage_versioned(tmp_path, '0.2.0', 'r2'))
+
+    refreshed = registry.get_state('zip-plugin')
+    assert refreshed.restart_required is True, '更新后必须提示需重启'
+    assert refreshed.loaded is True, '刷新不应改动 loaded（代码仍是旧的）'
+
+
+def test_first_install_registers_state_for_restart(tmp_path, install_env):
+    """首次安装（进程内无该插件）也要登记状态，UI 才能显示「需重启加载」。"""
+
+    installer_module.install_plugin_dir(_stage_versioned(tmp_path, '0.3.0', 'fresh'))
+
+    state = registry.get_state('zip-plugin')
+    assert state is not None
+    assert state.manifest.version == '0.3.0'
+    assert state.restart_required is True
+
+
+def test_refresh_manifest_survives_unreadable_directory(tmp_path, install_env):
+    """刷新失败不应影响安装结果（目录被外力删掉时只警告，不抛错）。"""
+
+    installer_module.install_plugin_dir(_stage_versioned(tmp_path, '0.1.0', 'x1'))
+
+    assert registry.refresh_manifest('zip-plugin', str(tmp_path / 'does-not-exist')) is None
+    assert registry.get_state('zip-plugin').manifest.version == '0.1.0'
 
 def test_install_plugin_dir_records_audit_log(tmp_path, install_env):
     source = write_plugin(tmp_path / 'stage', 'zip-plugin')
