@@ -273,6 +273,34 @@ def test_get_catalog_reports_http_errors_as_offline(catalog_env, monkeypatch, st
     assert f'HTTP {status_code}' in result['msg']
 
 
+def test_catalog_404_message_points_at_the_real_cause(catalog_env, monkeypatch):
+    """404 要说清「远端没有这个文件」，而不是笼统的 HTTP 错误。
+
+    远端目录是主程序仓库里的一个文件，404 几乎总是「本地改了但没 push」，
+    与网络故障的排查方向完全不同。消息里带上 URL 与判断依据，用户能自查。
+    """
+    _stub_get(monkeypatch, lambda url, kwargs: _FakeResponse(status_code=404, body=b''))
+
+    result = catalog_module.get_catalog()
+
+    assert result['offline'] is True
+    assert '远端目录不存在' in result['msg']
+    # 给出 URL，用户能自己核对
+    assert catalog_env['config']['plugin_catalog_url'] in result['msg']
+    # 指出真实原因
+    assert '推送' in result['msg'] or '默认分支' in result['msg']
+
+
+def test_catalog_404_hint_does_not_leak_into_other_errors(catalog_env, monkeypatch):
+    """500 等其它错误不应带上 404 的「未推送」提示（避免误导排查方向）。"""
+    _stub_get(monkeypatch, lambda url, kwargs: _FakeResponse(status_code=500, body=b''))
+
+    result = catalog_module.get_catalog()
+
+    assert '远端目录不存在' not in result['msg']
+    assert '推送' not in result['msg']
+
+
 def test_get_catalog_rejects_broken_json(catalog_env, monkeypatch):
     _stub_get(monkeypatch, lambda url, kwargs: _FakeResponse(body=b'{not json'))
 

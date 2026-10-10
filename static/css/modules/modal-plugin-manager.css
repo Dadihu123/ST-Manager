@@ -446,6 +446,19 @@
   flex-wrap: wrap;
 }
 
+/* 目录页：已安装最新版本时的静态标记（替代「安装」按钮） */
+.plugin-card-installed-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.6rem;
+  border: 1px solid var(--border-default);
+  border-radius: var(--ui-radius-sm);
+  background: var(--surface-control);
+  color: var(--content-secondary);
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
 /* 快捷键单元格：组合键 + 设定/清除 */.plugin-entries-shortcut {
   display: inline-flex;
   align-items: center;

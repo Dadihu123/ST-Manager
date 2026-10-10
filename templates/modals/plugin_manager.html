@@ -413,14 +413,29 @@
               >
                 GitHub
               </a>
+              <!-- 已安装 → 不再显示「安装」（否则可反复覆盖安装同一个插件）。
+                   目录版本比已装版本新时，改为「更新」。 -->
+              <button
+                type="button"
+                class="plugin-button plugin-button--primary"
+                x-show="catalogAction(entry) === 'update'"
+                :disabled="busyAction === ('update:' + entry.id)"
+                @click="updateCatalogItem(entry)"
+                x-text="busyAction === ('update:' + entry.id) ? '更新中…' : '更新'"
+              ></button>
               <button
                 type="button"
                 class="plugin-button"
-                :disabled="busyAction === 'install:' + entry.id"
+                x-show="catalogAction(entry) === 'install'"
+                :disabled="busyAction === ('install:' + entry.id)"
                 @click="installCatalogItem(entry)"
-              >
-                安装
-              </button>
+                x-text="busyAction === ('install:' + entry.id) ? '安装中…' : '安装'"
+              ></button>
+              <span
+                class="plugin-card-installed-tag"
+                x-show="catalogAction(entry) === 'installed'"
+                title="已安装最新版本，无需操作"
+              >已安装</span>
             </div>
           </header>
           <p class="plugin-card-description" x-show="entry.description" x-text="entry.description"></p>

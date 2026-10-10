@@ -28,7 +28,7 @@ import {
   updatePluginFromCatalog,
 } from "../api/plugins.js";
 import { icon } from "../uiPrimitives.js";
-import { EntryRegistry } from "../entryRegistry.js";
+import { EntryRegistry, compareVersions } from "../entryRegistry.js";
 
 const PERMISSION_LABELS = {
   "cards.read": "读取角色卡",
@@ -549,6 +549,18 @@ export default function pluginManager() {
 
     async installCatalogItem(item) {
       if (this.busyAction) return;
+
+      // 防御：已安装的不走「安装」。UI 已经不渲染该按钮，但函数可能被别处调用，
+      // 这里再挡一次，避免用户被引导去覆盖安装（那会静默降级/升级版本）。
+      const action = this.catalogAction(item);
+      if (action === "update") {
+        return this.updateCatalogItem(item);
+      }
+      if (action === "installed") {
+        toast(`${item.name || item.id} 已安装 v${item.installed_version || ""}，无需重复安装`);
+        return;
+      }
+
       if (!window.confirm(`确认从 GitHub 安装 ${item.name || item.id}？\n\n来源: ${item.source?.repo || ""}`)) {
         return;
       }
@@ -562,7 +574,8 @@ export default function pluginManager() {
         }
         this.restartHint = true;
         toast(data.msg || "安装完成");
-        await this.loadPlugins();
+        // 同时刷新目录，让卡片立刻切到「已安装」
+        await Promise.all([this.loadPlugins(), this.loadCatalog(true)]);
       } finally {
         this.busyAction = "";
       }
@@ -897,6 +910,56 @@ export default function pluginManager() {
     installStateLabel(item) {
       if (item.installed) return `已安装 v${item.installed_version || ""}`;
       return "未安装";
+    },
+
+    /**
+     * 目录条目该给什么操作：`install` / `update` / `installed`。
+     *
+     * 后端 `/api/plugins/catalog` 已经算好 `installed` 与 `installed_version`
+     * （见 `routes.py` 的 `installed = {state.plugin_id: state.header ...}`），
+     * 前端此前完全没用这两个字段——目录页对已安装插件照样显示「安装」，
+     * 于是可以反复覆盖安装同一个插件。这里补上消费。
+     *
+     * 三态而非两态：已安装但目录版本更新时要给「更新」，否则用户只能先去
+     * 「已安装」页签点检查更新，路径太长。
+     */
+    catalogAction(entry) {
+      if (!entry || !entry.installed) return "install";
+
+      const installed = String(entry.installed_version || "").trim();
+      const available = String(entry.version || "").trim();
+
+      // 版本缺失时不猜——当作「已安装」，宁可少给一个按钮也不误导
+      if (!installed || !available) return "installed";
+
+      return compareVersions(available, installed) > 0 ? "update" : "installed";
+    },
+
+    /** 目录页的「更新」：与「已安装」页签的 applyUpdate 同一端点与语义。 */
+    async updateCatalogItem(entry) {
+      if (this.busyAction) return;
+      const id = String((entry && entry.id) || "");
+      if (!id) return;
+
+      const from = (entry && entry.installed_version) || "?";
+      const to = (entry && entry.version) || "?";
+      if (!window.confirm(`把 ${entry.name || id} 从 v${from} 更新到 v${to}？\n\n更新后需要重启应用。`)) {
+        return;
+      }
+
+      this.busyAction = `update:${id}`;
+      try {
+        const data = await updatePluginFromCatalog(id);
+        if (!data.success) {
+          toast(data.msg || "更新失败", "error");
+          return;
+        }
+        toast(data.msg || `已更新到 v${to}，重启应用后生效`);
+        // 刷新目录与已安装列表，让卡片切到「已安装」
+        await Promise.all([this.loadCatalog(true), this.loadPlugins()]);
+      } finally {
+        this.busyAction = "";
+      }
     },
 
     restartNotice() {

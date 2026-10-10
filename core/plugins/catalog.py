@@ -182,6 +182,15 @@ def fetch_remote_catalog(url: str) -> dict:
 
     try:
         if response.status_code != 200:
+            # 404 单独说明：远端目录是「主程序仓库里的一个文件」，404 几乎总是
+            # 因为该文件还没被推送到远端默认分支（本地改了但没 push），而不是
+            # 网络问题。把 URL 一并给出，用户能自己核对。
+            if response.status_code == 404:
+                raise PluginCatalogError(
+                    f'远端目录不存在（HTTP 404）: {url}'
+                    f'（该文件需位于主程序仓库的默认分支；若是本地改动尚未推送，'
+                    f'push 后即可）'
+                )
             raise PluginCatalogError(f'目录拉取失败: HTTP {response.status_code}')
 
         chunks = []
