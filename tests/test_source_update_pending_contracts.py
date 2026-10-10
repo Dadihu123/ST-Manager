@@ -1,4 +1,5 @@
 import json
+import re
 import subprocess
 import textwrap
 from pathlib import Path
@@ -12,9 +13,19 @@ def read_project_file(relative_path):
 
 
 def extract_balanced_tag_block(source, opening_tag):
+    """从 `opening_tag` 起提取配平的 `<div>…</div>` 块。
+
+    比较前先把两边的连续空白折叠成单空格：模板会被格式化器重新缩进，
+    硬编码缩进的断言只会在无关改动后变红，而真正要锁的是**结构**。
+    """
     start = source.find(opening_tag)
     if start == -1:
-        raise AssertionError(f'Opening tag not found: {opening_tag}')
+        collapsed_source = re.sub(r'\s+', ' ', source)
+        collapsed_tag = re.sub(r'\s+', ' ', opening_tag)
+        start = collapsed_source.find(collapsed_tag)
+        if start == -1:
+            raise AssertionError(f'Opening tag not found: {opening_tag}')
+        source = collapsed_source
 
     search_from = start
     depth = 0

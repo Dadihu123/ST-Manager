@@ -2,6 +2,9 @@
 
 每个异常都带一个 `code`，与设计文档 10.4 的「统一错误码」表一一对应，
 便于路由层直接映射为 HTTP 状态码与响应体。
+
+manifest 校验失败走**两层**错误信息（设计文档 2.2「分层错误信息」）：
+机器可读的 `code` / `field`，给作者看的 `hint`，以及给普通用户看的 `user_msg`。
 """
 
 
@@ -12,16 +15,53 @@ class PluginError(Exception):
     code = 'plugin_error'
     http_status = 500
 
-    def __init__(self, message: str = '', *, detail: str = ''):
+    def __init__(
+        self,
+        message: str = '',
+        *,
+        detail: str = '',
+        code: str = '',
+        field: str = '',
+        hint: str = '',
+        user_msg: str = '',
+    ):
         super().__init__(message or self.__class__.__doc__ or 'plugin error')
         self.message = message
         self.detail = detail
+        # 结构化字段（可选）：留空时不进入响应体，保持既有错误载荷形状不变。
+        self.field = field
+        self.hint = hint
+        self.user_msg = user_msg
+        if code:
+            self.code = code
+
+    def __str__(self) -> str:
+        text = self.message or super().__str__()
+        if self.hint:
+            return f'{text}（{self.hint}）'
+        return text
 
     def to_dict(self) -> dict:
         payload = {'success': False, 'msg': self.message, 'error': self.code}
         if self.detail:
             payload['detail'] = self.detail
+        if self.field:
+            payload['field'] = self.field
+        if self.hint:
+            payload['hint'] = self.hint
+        if self.user_msg:
+            payload['user_msg'] = self.user_msg
         return payload
+
+    def as_detail(self) -> dict:
+        """返回可持久化到 `ui_data` 的完整错误结构（供注册表记录 load_error）。"""
+        return {
+            'code': self.code,
+            'field': self.field,
+            'msg': self.message,
+            'hint': self.hint,
+            'user_msg': self.user_msg,
+        }
 
 
 class PluginManifestError(PluginError):

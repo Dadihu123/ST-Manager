@@ -1,4 +1,4 @@
-﻿"""插件安装器（设计文档 3.2–3.6）。
+"""插件安装器（设计文档 3.2–3.6）。
 
 从网络解压归档是**最高风险**的操作，逐项防护（3.4）：
 - zip-slip：逐个 entry 校验 realpath 边界，**不用** `extractall()`
@@ -15,14 +15,15 @@ import os
 import re
 import shutil
 import stat
+import threading
 import time
 import uuid
 import zipfile
 
 import requests
 
-from core.config import TEMP_DIR, TRASH_FOLDER
-from core.data.ui_store import update_ui_data
+from core.config import INTERNAL_DIR, TEMP_DIR, TRASH_FOLDER
+from core.data.ui_store import ENTRY_LAYOUT_KEY, update_ui_data
 from core.plugins import job_store, registry
 from core.plugins import secrets as secrets_store
 from core.plugins.errors import (
@@ -290,6 +291,9 @@ def install_plugin_dir(
     # 整份 CSS（pluginHost.js:150-158）。
     style_errors = scan_style_scope(manifest)
 
+    # 声明层检查（F13 / F15）：只 warning，不阻止安装，因此单独一个命名空间键
+    style_warnings = scan_style_declarations(manifest)
+
     plugins_root = registry.plugins_dir()
     os.makedirs(plugins_root, exist_ok=True)
     target_dir = os.path.join(plugins_root, manifest.plugin_id)
@@ -326,12 +330,18 @@ def install_plugin_dir(
     if style_errors:
         _persist_style_scope_errors(manifest.plugin_id, style_errors)
 
+    _persist_style_declaration_warnings(manifest.plugin_id, style_warnings)
+
     _log_action(
         manifest.plugin_id,
         'update' if existed else 'install',
         version=manifest.version,
         source=source_label,
-        detail={'trash': trash_path, 'style_scope_errors': style_errors},
+        detail={
+            'trash': trash_path,
+            'style_scope_errors': style_errors,
+            'style_declaration_warnings': style_warnings,
+        },
     )
 
     return {
@@ -342,6 +352,7 @@ def install_plugin_dir(
         'action': 'update' if existed else 'install',
         'trash': trash_path,
         'style_scope_errors': style_errors,
+        'style_declaration_warnings': style_warnings,
     }
 
 
@@ -409,8 +420,15 @@ def install_from_catalog(app, entry: dict, *, ref: str = '', subdir: str = '') -
     return result
 
 
-def install_from_upload(file_storage, *, source_label: str = 'upload') -> dict:
-    """手动上传 zip 安装（离线兜底）。"""
+def install_from_upload(
+    file_storage, *, source_label: str = 'upload', expected_id: str = '',
+) -> dict:
+    """手动上传 zip 安装（离线兜底）。
+
+    `expected_id` 由上传界面可选填写：填了就校验归档里的 `manifest.id` 是否一致，
+    不一致时按 `PluginManifest.load(expected_id=...)` 的语义**拒绝**（与 catalog 路径
+    对齐，见 `install_from_catalog`）；留空则完全以归档内的 id 为准。
+    """
     os.makedirs(TEMP_DIR, exist_ok=True)
     work_dir = os.path.join(TEMP_DIR, f'plugin_upload_{uuid.uuid4().hex[:12]}')
     os.makedirs(work_dir, exist_ok=True)
@@ -426,7 +444,11 @@ def install_from_upload(file_storage, *, source_label: str = 'upload') -> dict:
         safe_extract_archive(archive_path, extract_dir)
 
         plugin_root = locate_plugin_root(extract_dir)
-        return install_plugin_dir(plugin_root, source_label=source_label)
+        return install_plugin_dir(
+            plugin_root,
+            expected_id=str(expected_id or '').strip(),
+            source_label=source_label,
+        )
     except Exception as exc:
         _log_action('unknown', 'install', source=source_label, detail={'error': str(exc)}, success=False)
         raise
@@ -489,11 +511,45 @@ def cancel_plugin_jobs(plugin_id: str) -> int:
 
 
 def _clear_ui_namespace(plugin_id: str) -> bool:
-    """卸载时默认清理 `ui_data._plugins_v1.<id>`（D10）。"""
+    """卸载时默认清理 `ui_data._plugins_v1.<id>`（D10）。
+
+    同时剪除入口布局偏好（`ui_data._entry_layout_v1`）中属于该插件的键：
+    禁用只让入口消失、偏好保留；卸载才真正丢弃，避免 `_entry_layout_v1`
+    被已卸载插件的条目永久占位（D6）。
+    """
+    prefix = f'{plugin_id}:'
+
     def mutator(ui_data):
         namespace = ui_data.get('_plugins_v1')
         if isinstance(namespace, dict):
             namespace.pop(plugin_id, None)
+
+        layout = ui_data.get(ENTRY_LAYOUT_KEY)
+        if not isinstance(layout, dict):
+            return
+
+        for key in ('order', 'pinned', 'hidden'):
+            values = layout.get(key)
+            if isinstance(values, list):
+                layout[key] = [
+                    item for item in values
+                    if not (isinstance(item, str) and item.startswith(prefix))
+                ]
+
+        shortcuts = layout.get('shortcuts')
+        if isinstance(shortcuts, dict):
+            layout['shortcuts'] = {
+                combo: target for combo, target in shortcuts.items()
+                if not (isinstance(target, str) and target.startswith(prefix))
+            }
+
+        groups = layout.get('groups')
+        if isinstance(groups, dict):
+            layout['groups'] = {
+                name: [item for item in members if not (isinstance(item, str) and item.startswith(prefix))]
+                if isinstance(members, list) else members
+                for name, members in groups.items()
+            }
 
     return bool(update_ui_data(mutator))
 
@@ -639,3 +695,293 @@ def read_style_scope_errors(plugin_id: str) -> dict:
         return {}
     errors = entry.get('style_scope_errors')
     return errors if isinstance(errors, dict) else {}
+
+
+# --------------------------------------------------------- CSS 声明层静态检查
+
+
+#: 声明层检查的分类（与设计文档 F13 / F15 一一对应；`read_error` 用于读取失败）
+STYLE_DECLARATION_CATEGORIES = (
+    'position_fixed', 'unknown_tokens', 'important', 'hardcoded_sprite', 'read_error',
+)
+
+#: 分组 at-rule：内部选择器**仍需检查**（与 `scan_css_scope` 的 skip_blocks 相反）
+_GROUPING_AT_RULES = ('@media', '@supports', '@layer', '@container')
+
+#: 内部不是选择器的 at-rule：整棵子树跳过
+_OPAQUE_AT_RULES = ('@keyframes', '@font-face')
+
+_VAR_REFERENCE_PATTERN = re.compile(r'var\(')
+
+#: 宿主 sprite 引用（F15）：插件不得硬编码 `url('/static/icons/ui.svg#icon-x')`
+_SPRITE_REFERENCE_PATTERN = re.compile(
+    r'/static/icons/|(?<![\w/-])icons/(?:ui|detail|sidebar|preset)\.svg'
+)
+
+_VARIABLES_PATH = os.path.join('static', 'css', 'modules', 'variables.css')
+
+_known_tokens_cache = None
+_known_tokens_lock = threading.RLock()
+
+
+def _parse_css_blocks(source: str) -> dict:
+    """把 CSS 源码解析成嵌套块树（注释已剔除）。
+
+    每个节点形如 `{'prelude': str, 'at': str, 'children': list, 'decls': list}`；
+    `decls` 是直接位于该块内的 `prop: value` 文本。
+    """
+    root = {'prelude': '', 'at': '', 'children': [], 'decls': []}
+    stack = [root]
+    buffer = []
+    index = 0
+    length = len(source)
+
+    while index < length:
+        char = source[index]
+
+        if char == '/' and index + 1 < length and source[index + 1] == '*':
+            end = source.find('*/', index + 2)
+            index = length if end == -1 else end + 2
+            continue
+
+        if char == '{':
+            prelude = ''.join(buffer).strip()
+            buffer = []
+            head = prelude.split(None, 1)[0].lower() if prelude else ''
+            node = {
+                'prelude': prelude,
+                'at': head if head.startswith('@') else '',
+                'children': [],
+                'decls': [],
+            }
+            stack[-1]['children'].append(node)
+            stack.append(node)
+            index += 1
+            continue
+
+        if char in '};':
+            text = ''.join(buffer).strip()
+            if text:
+                stack[-1]['decls'].append(text)
+            buffer = []
+            if char == '}' and len(stack) > 1:
+                stack.pop()
+            index += 1
+            continue
+
+        buffer.append(char)
+        index += 1
+
+    tail = ''.join(buffer).strip()
+    if tail:
+        stack[-1]['decls'].append(tail)
+    return root
+
+
+def _selector_is_scoped(selector: str, plugin_id: str) -> bool:
+    """选择器是否以插件作用域开头（`.plugin-<id>` 或 `[data-plugin="<id>"]`）。"""
+    tokens = (
+        f'.plugin-{plugin_id}', f'[data-plugin="{plugin_id}"]', f"[data-plugin='{plugin_id}']",
+    )
+    return any(token in selector for token in tokens)
+
+
+def _iter_var_references(value: str):
+    """产出 `var(--x)` 引用：`(名字, 是否有回退值)`。"""
+    text = str(value or '')
+    index = 0
+
+    while True:
+        start = text.find('var(', index)
+        if start == -1:
+            return
+
+        position = start + 4
+        depth = 0
+        has_fallback = False
+        name_chars = []
+        while position < len(text):
+            char = text[position]
+            if char == '(':
+                depth += 1
+            elif char == ')':
+                if depth == 0:
+                    break
+                depth -= 1
+            elif char == ',' and depth == 0:
+                has_fallback = True
+            elif depth == 0 and not has_fallback:
+                name_chars.append(char)
+            position += 1
+
+        name = ''.join(name_chars).strip()
+        if name.startswith('--'):
+            yield name, has_fallback
+        index = max(position + 1, start + 4)
+
+
+def resolve_known_tokens() -> frozenset:
+    """宿主 CSS 令牌清单（从 `variables.css` 解析，进程内缓存）。
+
+    PyInstaller 打包态 `static/` 只读，因此从 `INTERNAL_DIR` 读取。
+    """
+    global _known_tokens_cache
+    with _known_tokens_lock:
+        if _known_tokens_cache is not None:
+            return _known_tokens_cache
+
+        path = os.path.join(str(INTERNAL_DIR), _VARIABLES_PATH)
+        tokens = set()
+        try:
+            with open(path, 'r', encoding='utf-8') as handle:
+                source = handle.read()
+        except OSError as exc:
+            logger.warning('读取宿主 CSS 令牌失败 %s: %s', path, exc)
+            _known_tokens_cache = frozenset()
+            return _known_tokens_cache
+
+        def walk(node):
+            for decl in node['decls']:
+                name = decl.split(':', 1)[0].strip()
+                if name.startswith('--'):
+                    tokens.add(name)
+            for child in node['children']:
+                walk(child)
+
+        walk(_parse_css_blocks(source))
+        _known_tokens_cache = frozenset(tokens)
+        return _known_tokens_cache
+
+
+def reset_known_tokens_for_tests() -> None:
+    """清空令牌缓存（仅测试使用）。"""
+    global _known_tokens_cache
+    with _known_tokens_lock:
+        _known_tokens_cache = None
+
+
+def scan_css_declarations(css_path: str, plugin_id: str, *, known_tokens=None) -> dict:
+    """F13 / F15 静态检查：找出声明层的四类问题（**不拒绝加载**，只 warning）。
+
+    与 `scan_css_scope` 的关键差异：本函数**必须进入** `@media` / `@supports` /
+    `@layer` / `@container` 内部的选择器（移动端与主题分支里的 `position: fixed`
+    同样是浮层，漏掉就等于没检查）；只跳过 `@keyframes` / `@font-face` 内部。
+
+    Returns:
+        `{分类: [人类可读消息]}`，只包含命中的分类；全部合规时返回 `{}`。
+    """
+    plugin_id = str(plugin_id or '')
+    filename = os.path.basename(str(css_path or '')) or 'style.css'
+    try:
+        with open(css_path, 'r', encoding='utf-8') as handle:
+            source = handle.read()
+    except OSError as exc:
+        return {'read_error': [f'{filename}: 读取失败 ({exc})']}
+
+    if not plugin_id:
+        return {'read_error': [f'{filename}: 缺少插件 id']}
+
+    if known_tokens is None:
+        known_tokens = resolve_known_tokens()
+
+    findings = {category: [] for category in STYLE_DECLARATION_CATEGORIES}
+    root = _parse_css_blocks(source)
+
+    def walk(node, selector: str):
+        for decl in node['decls']:
+            prop, _, raw_value = decl.partition(':')
+            prop = prop.strip().lower()
+            value = raw_value.strip()
+            if not prop or not value:
+                continue
+
+            if prop == 'position' and value.split(None, 1)[0].lower() == 'fixed':
+                findings['position_fixed'].append(
+                    f'{selector or "顶层"} 使用 position: fixed，应改用宿主提供的 surface 容器'
+                )
+
+            if '!important' in value.lower() and not _selector_is_scoped(selector, plugin_id):
+                findings['important'].append(
+                    f'{selector or "顶层"} 在非作用域选择器上使用 !important'
+                )
+
+            if _SPRITE_REFERENCE_PATTERN.search(value):
+                findings['hardcoded_sprite'].append(
+                    f'{selector or "顶层"} 硬编码了宿主图标 sprite 路径：{value}'
+                )
+
+            for name, has_fallback in _iter_var_references(value):
+                if has_fallback or name in known_tokens:
+                    continue
+                findings['unknown_tokens'].append(
+                    f'{selector or "顶层"} 引用了未知令牌 {name} 且没有回退值'
+                )
+
+        for child in node['children']:
+            head = child['at']
+            if head in _OPAQUE_AT_RULES:
+                continue
+            if head:
+                # 分组 at-rule：条件不是选择器，继承外层选择器继续下探
+                walk(child, selector)
+            else:
+                walk(child, child['prelude'])
+
+    for child in root['children']:
+        if child['at'] in _OPAQUE_AT_RULES:
+            continue
+        if child['at']:
+            walk(child, '')
+        else:
+            walk(child, child['prelude'])
+
+    return {category: items for category, items in findings.items() if items}
+
+
+def scan_style_declarations(manifest: PluginManifest, *, known_tokens=None) -> dict:
+    """扫描插件声明的全部样式，返回 `{相对路径: {分类: [消息]}}`。"""
+    result = {}
+    for absolute_path in manifest.frontend_styles or []:
+        findings = scan_css_declarations(
+            absolute_path, manifest.plugin_id, known_tokens=known_tokens,
+        )
+        if not findings:
+            continue
+        relative = os.path.relpath(absolute_path, manifest.plugin_dir).replace('\\', '/')
+        result[relative] = findings
+        logger.warning(
+            '插件 %s 的样式 %s 存在声明层问题（不阻止加载）: %s',
+            manifest.plugin_id, relative,
+            {category: len(items) for category, items in findings.items()},
+        )
+    return result
+
+
+def _persist_style_declaration_warnings(plugin_id: str, warnings: dict) -> None:
+    def mutator(ui_data):
+        namespace = ui_data.get('_plugins_v1')
+        if not isinstance(namespace, dict):
+            namespace = {}
+            ui_data['_plugins_v1'] = namespace
+        entry = namespace.get(plugin_id)
+        if not isinstance(entry, dict):
+            entry = {}
+            namespace[plugin_id] = entry
+        entry['style_declaration_warnings'] = warnings
+
+    update_ui_data(mutator)
+
+
+def read_style_declaration_warnings(plugin_id: str) -> dict:
+    """读取某个插件的声明层检查结果（供 `/api/plugins/list` 使用）。"""
+    from core.data.ui_store import load_ui_data_or_empty
+
+    ui_data = load_ui_data_or_empty()
+    namespace = ui_data.get('_plugins_v1')
+    if not isinstance(namespace, dict):
+        return {}
+    entry = namespace.get(str(plugin_id or ''))
+    if not isinstance(entry, dict):
+        return {}
+    warnings = entry.get('style_declaration_warnings')
+    return warnings if isinstance(warnings, dict) else {}

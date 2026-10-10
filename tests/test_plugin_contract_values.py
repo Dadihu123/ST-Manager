@@ -147,6 +147,26 @@ def test_secret_backup_generations_matches_docs():
 def test_supported_api_versions_match_docs():
     from core.version import PLUGIN_API_VERSION, SUPPORTED_PLUGIN_API_VERSIONS
 
-    assert PLUGIN_API_VERSION == 1
-    assert SUPPORTED_PLUGIN_API_VERSIONS == (1,)
-    _assert_documented('当前 `{1}`')
+    assert PLUGIN_API_VERSION == 2
+    assert SUPPORTED_PLUGIN_API_VERSIONS == (2, 1)
+    _assert_documented('当前 `{2, 1}`')
+
+
+def test_supported_manifest_versions_match_docs():
+    from core.plugins.manifest import (
+        DEFAULT_MANIFEST_VERSION,
+        SUPPORTED_MANIFEST_VERSIONS,
+    )
+
+    assert DEFAULT_MANIFEST_VERSION == 1
+    assert SUPPORTED_MANIFEST_VERSIONS == (2, 1)
+    _assert_documented('当前 `{2, 1}`')
+
+
+def test_entry_contract_limits_match_docs():
+    from core.plugins.entries import MAX_DOCK_SLOTS, MAX_ENTRIES_PER_PLUGIN
+
+    assert MAX_ENTRIES_PER_PLUGIN == 16
+    assert MAX_DOCK_SLOTS == 8
+    _assert_documented('上限 **16** 项')
+    _assert_documented('上限 **8**')

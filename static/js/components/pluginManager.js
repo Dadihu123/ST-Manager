@@ -40,10 +40,51 @@ const PERMISSION_LABELS = {
 };
 
 // 设置页搜索结果的锚点 → 面板页签：让「搜索设置」能直接落到对应插件页签。
+// 另支持 `plugin-config-<id>` / `plugin-secrets-<id>` 语义（阶段 6.2 深链）：
+// 切到「已安装」页签 + 自动展开对应表单 + 滚动到位。
 const ANCHOR_TABS = {
   "plugin-panel-installed": "installed",
   "plugin-panel-catalog": "catalog",
   "plugin-panel-upload": "upload",
+  "plugin-panel-entries": "entries",
+};
+
+const CONFIG_ANCHOR_PATTERN = /^plugin-config-(.+)$/;
+const SECRET_ANCHOR_PATTERN = /^plugin-secrets-(.+)$/;
+
+/** 归属分级徽标文案（D5）。 */
+const TIER_LABELS = {
+  official: "官方",
+  verified: "认证",
+  community: "社区",
+};
+
+/** 入口 kind 的中文标签（D1）。 */
+const ENTRY_KIND_LABELS = {
+  dock: "坞",
+  nav: "导航",
+  settings: "设置",
+  context: "右键",
+  command: "命令",
+  status: "状态",
+};
+
+/** 入口出现位置的说明（总览页「出现位置」列）。 */
+const ENTRY_LOCATION_LABELS = {
+  dock: "入口坞",
+  nav: "侧栏导航",
+  settings: "设置页",
+  context: "右键菜单",
+  command: "命令面板",
+  status: "状态栏",
+};
+
+/** 当前呈现方式的说明（总览页「当前呈现」列）。 */
+const SURFACE_LABELS = {
+  panel: "右侧抽屉",
+  modal: "模态框",
+  page: "整页",
+  sheet: "底部面板",
 };
 
 function toast(message, type = "info") {
@@ -85,6 +126,10 @@ export default function pluginManager() {
     uploadResult: null,
     uploading: false,
 
+    /** 入口总览（阶段 6.1）：全部插件的入口声明 + 归属分级。 */
+    entryRows: [],
+    entryQuery: "",
+
     githubRepo: "",
     githubRef: "",
     githubSubdir: "",
@@ -113,19 +158,65 @@ export default function pluginManager() {
 
     activate(anchor = "") {
       this.errorMessage = "";
+      const raw = String(anchor || "");
+
+      // 深链：`plugin-config-<id>` / `plugin-secrets-<id>`（阶段 6.2）
+      const configMatch = CONFIG_ANCHOR_PATTERN.exec(raw);
+      if (configMatch) return this.deepLink(configMatch[1], "config");
+      const secretMatch = SECRET_ANCHOR_PATTERN.exec(raw);
+      if (secretMatch) return this.deepLink(secretMatch[1], "secrets");
+
       // 从设置页搜索结果跳进来时，锚点决定先落到哪个插件页签。
-      const tab = ANCHOR_TABS[String(anchor || "")];
+      const tab = ANCHOR_TABS[raw];
       return tab ? this.selectTab(tab) : this.reloadActiveTab();
+    },
+
+    /**
+     * 深链到某个插件的配置 / 密钥区。
+     *
+     * 必须等 `loadPlugins()` 完成后再展开表单——否则 `item` 还不存在，
+     * `openConfig` 会拿到 undefined 而静默失败。
+     */
+    async deepLink(pluginId, target) {
+      const id = String(pluginId || "").trim();
+      if (!id) return;
+      this.activeTab = "installed";
+      await this.loadPlugins();
+
+      const item = this.plugins.find((plugin) => plugin.id === id);
+      if (!item) {
+        toast(`未找到插件 ${id}`, "error");
+        return;
+      }
+
+      if (target === "secrets") await this.openSecrets(item);
+      else await this.openConfig(item);
+
+      this.scrollToPlugin(id);
+    },
+
+    /** 滚动到插件卡片（深链落地时用户需要看到上下文）。 */
+    scrollToPlugin(pluginId) {
+      if (typeof document === "undefined") return;
+      this.$nextTick?.(() => {
+        const node = document.querySelector(`[data-plugin-card="${CSS.escape(String(pluginId))}"]`);
+        if (node && typeof node.scrollIntoView === "function") {
+          node.scrollIntoView({ block: "start", behavior: "smooth" });
+        }
+      });
     },
 
     reloadActiveTab() {
       if (this.activeTab === "catalog") return this.loadCatalog();
       if (this.activeTab === "upload") return Promise.resolve();
+      if (this.activeTab === "entries") return this.loadEntries();
       return this.loadPlugins();
     },
 
     selectTab(tab) {
-      const next = ["installed", "catalog", "upload"].includes(tab) ? tab : "installed";
+      const next = ["installed", "catalog", "upload", "entries"].includes(tab)
+        ? tab
+        : "installed";
       this.activeTab = next;
       return this.reloadActiveTab();
     },
@@ -170,8 +261,108 @@ export default function pluginManager() {
       }
     },
 
+    // ---------------------------------------------------------------- 入口总览
+
+    /**
+     * 入口总览（阶段 6.1）。
+     *
+     * 挂在既有「插件管理」页内，**不新增设置顶层 tab**——设置页的
+     * `settingsHelpContent` 是硬闸门，新增分区要同时加键，容易静默 no-op。
+     * 这里复用 `loadPlugins()` 的结果，不额外打接口。
+     */
+    async loadEntries() {
+      this.loading = true;
+      try {
+        const data = await getPluginList();
+        if (!data.success) {
+          this.errorMessage = data.msg || "读取插件列表失败";
+          return;
+        }
+        this.plugins = data.items || [];
+        this.pluginsDir = data.plugins_dir || "";
+        this.entryRows = this.buildEntryRows(this.plugins);
+      } catch (error) {
+        this.errorMessage = `读取插件列表失败: ${error}`;
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    /** 把各插件的 `manifest.entries` 摊平成总览表格的行。 */
+    buildEntryRows(plugins) {
+      const rows = [];
+      for (const item of plugins || []) {
+        const entries = (item.manifest && item.manifest.entries) || [];
+        for (const entry of entries) {
+          rows.push({
+            pluginId: item.id,
+            pluginName: item.name || item.id,
+            pluginEnabled: item.enabled !== false,
+            tier: item.tier || "community",
+            id: entry.id,
+            key: `${item.id}:${entry.id}`,
+            kind: entry.kind,
+            label: entry.label,
+            description: entry.description || "",
+            icon: entry.icon || "",
+            shortcut: entry.shortcut || "",
+            disabledHint: entry.disabledHint || "",
+            surfaceType:
+              (entry.surface && entry.surface.type) || "panel",
+          });
+        }
+      }
+      rows.sort((left, right) => {
+        if (left.pluginId !== right.pluginId) return left.pluginId.localeCompare(right.pluginId);
+        return String(left.label).localeCompare(String(right.label));
+      });
+      return rows;
+    },
+
+    get filteredEntryRows() {
+      const query = String(this.entryQuery || "").trim().toLowerCase();
+      if (!query) return this.entryRows;
+      return this.entryRows.filter((row) =>
+        `${row.label} ${row.pluginId} ${row.pluginName} ${row.id} ${row.kind}`
+          .toLowerCase()
+          .includes(query),
+      );
+    },
+
+    tierLabel(item) {
+      const tier = typeof item === "string" ? item : item && item.tier;
+      return TIER_LABELS[String(tier || "community")] || "社区";
+    },
+
+    tierClass(item) {
+      const tier = typeof item === "string" ? item : item && item.tier;
+      return `is-${String(tier || "community")}`;
+    },
+
+    entryKindLabel(row) {
+      return ENTRY_KIND_LABELS[String((row && row.kind) || "")] || "入口";
+    },
+
+    entryLocationLabel(row) {
+      return ENTRY_LOCATION_LABELS[String((row && row.kind) || "")] || "—";
+    },
+
+    entrySurfaceLabel(row) {
+      return SURFACE_LABELS[String((row && row.surfaceType) || "")] || "—";
+    },
+
+    /** 该插件将添加多少个入口（安装期披露，阶段 6.3）。 */
+    entryCountLabel(item) {
+      const entries = (item && item.manifest && item.manifest.entries) || [];
+      return `此插件将添加 ${entries.length} 个入口`;
+    },
+
+    entryCount(item) {
+      const entries = (item && item.manifest && item.manifest.entries) || [];
+      return entries.length;
+    },
+
     async checkUpdates() {
-      if (this.busyAction) return;
       this.busyAction = "updates";
       try {
         const data = await checkPluginUpdates(true);
@@ -275,10 +466,23 @@ export default function pluginManager() {
         }
         this.restartHint = this.restartHint || Boolean(data.restart_required);
         toast(data.msg || (enable ? "已启用" : "已禁用"));
+        if (!enable) {
+          // D8 契约：宿主必须在插件被禁用时**强制**回收其运行时资源
+          // （surface / 入口条目 / 注入的样式），不依赖插件的 deactivate。
+          this.notifyPluginUnloaded(item.id);
+        }
         await this.loadPlugins();
       } finally {
         this.busyAction = "";
       }
+    },
+
+    /** 通知宿主运行时回收某插件的全部资源。 */
+    notifyPluginUnloaded(pluginId) {
+      if (!pluginId) return;
+      window.dispatchEvent(
+        new CustomEvent("plugin:unloaded", { detail: { pluginId: String(pluginId) } }),
+      );
     },
 
     async uninstall(item) {
@@ -297,6 +501,8 @@ export default function pluginManager() {
         }
         this.restartHint = true;
         toast(data.msg || "已卸载");
+        // 卸载同样要回收运行时资源（条目偏好由后端 `_clear_ui_namespace` 剪除）
+        this.notifyPluginUnloaded(item.id);
         await this.loadPlugins();
       } finally {
         this.busyAction = "";
@@ -336,9 +542,23 @@ export default function pluginManager() {
         }
         this.configDraft = data.config || this.configDraft;
         toast("配置已保存");
+        // D10：插件 UI 需要立刻读到新值（`when.config.requireKeys` 也要重算）。
+        // 不复用 `settings-saved`——那是宿主自身设置的事件，消费方在
+        // cardGrid / presetEditor，混用会让插件配置变更误触发宿主重载。
+        this.notifyPluginConfigChanged(this.configTargetId, this.configDraft);
       } finally {
         this.configSaving = false;
       }
+    },
+
+    /** 派发插件配置变更事件（宿主 → 插件单向通知）。 */
+    notifyPluginConfigChanged(pluginId, config) {
+      if (!pluginId) return;
+      window.dispatchEvent(
+        new CustomEvent("plugin-config-changed", {
+          detail: { pluginId: String(pluginId), config: config || {} },
+        }),
+      );
     },
 
     // ---------------------------------------------------------------- 密钥
@@ -405,6 +625,12 @@ export default function pluginManager() {
         this.secretDraft = {};
         await this.openSecrets({ id: this.secretTargetId, manifest: { secret_schema: this.secretSchema } });
         toast("密钥已保存");
+        // D10：密钥变更同样要通知（`when.config.requireKeys` 可能引用密钥键）
+        window.dispatchEvent(
+          new CustomEvent("plugin-secrets-changed", {
+            detail: { pluginId: String(this.secretTargetId), config: { ...payload } },
+          }),
+        );
       } finally {
         this.secretSaving = false;
       }

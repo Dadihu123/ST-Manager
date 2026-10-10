@@ -5,12 +5,15 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="referrer" content="no-referrer" />
+    <!-- 主程序版本：前端 `entryRegistry.js` 的 `when.hostVersion` 求值读这里 -->
+    <meta name="app-version" content="{{ app_version }}" />
+    <meta name="plugin-api-version" content="{{ plugin_api_version }}" />
     <link
       rel="icon"
       type="image/png"
       href="{{ url_for('static', filename='images/brand/stm-mark.png') }}"
     />
-    <title>ST Manager Pro V103</title>
+    <title>ST Manager Pro V{{ app_version|default('', true) }}</title>
 
     <!-- 核心样式 -->
     <link rel="stylesheet" href="/static/lib/cards-css/holo-cards.css" />

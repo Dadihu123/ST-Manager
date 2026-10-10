@@ -1,3 +1,4 @@
+import re
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
@@ -9,6 +10,16 @@ def read_project_file(relative_path):
     return (PROJECT_ROOT / relative_path).read_text(encoding='utf-8')
 
 
+def normalize_markup(source):
+    """折叠空白并去掉标签结束符前的空格，便于断言结构而非排版。
+
+    模板会被格式化器重新折行/缩进（例如把 `>` 单独放到下一行），逐字节断言
+    只会在无关改动后变红，而真正要锁的是**绑定表达式与元素结构**。
+    """
+    collapsed = re.sub(r'\s+', ' ', source)
+    return re.sub(r'\s+>', '>', collapsed)
+
+
 def test_layout_uses_compiled_tailwind_and_guards_empty_toast_icon_href():
     source = read_project_file('templates/layout.html')
 
@@ -17,7 +28,10 @@ def test_layout_uses_compiled_tailwind_and_guards_empty_toast_icon_href():
     assert '<template x-if="toastIcon === \'loading-animation\'">' in source
     assert '<template x-if="toastIcon && toastIcon !== \'loading-animation\'">' in source
     assert 'ui-loading-icon' in source
-    assert "<use :href=\"'{{ url_for('static', filename='icons/') }}' + toastIconHref\"></use>" in source
+    assert (
+        "<use :href=\"'{{ url_for('static', filename='icons/') }}' + toastIconHref\"></use>"
+        in normalize_markup(source)
+    )
 
 
 def test_send_target_brand_icons_are_allowed_in_toast_notifications():

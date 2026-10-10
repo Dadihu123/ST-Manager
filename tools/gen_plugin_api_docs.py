@@ -74,23 +74,62 @@ FRONTEND_MEMBERS = [
     (('store',), '`store`', 'Stable', '主程序的 Alpine `global` store 访问器'),
     (('on', 'off', 'emit'), '`on(event, handler)` / `off()` / `emit()`', 'Stable',
      '插件自定义事件（强制 `<id>:` 前缀）'),
-    (('toast',), '`toast(msg, duration, icon)`', 'Stable', '轻提示；`duration` 必须是数字'),
+    (('onConfigChange',), '`onConfigChange(handler)`', 'Stable',
+     '订阅本插件的配置变更（D10）；返回取消订阅函数'),
+    (('entries',), '`entries.*`', 'Stable',
+     '入口注册表（D8）：`register` / `update` / `remove` / `setBadge` / `setProgress` / '
+     '`setStatus` / `setBusy` / `open` / `list`'),
+    (('surfaces',), '`surfaces.*`', 'Stable',
+     '宿主表面（D8）：`register(id, spec)` / `open(id, ctx)` / `close(id)` / `isOpen(id)`；'
+     '容器由宿主提供（定位、尺寸、滚动、焦点陷阱、ESC 关闭）'),
+    (('ui',), '`ui.*`', 'Stable',
+     '宿主 UI 原语（D8）：`icon` / `panel` / `section` / `card` / `field` / `form` / '
+     '`button` / `toolbar` / `empty` / `error` / `loading` / `badge` / `list` / `table` / '
+     '`grid` / `split` / `confirm` / `prompt`'),
+    (('storage',), '`storage.*`', 'Stable',
+     '插件键值存储（`ui_data._plugins_v1.<id>.storage`）：`get` / `set` / `remove` / `keys`'),
+    (('host',), '`host.*`', 'Stable',
+     '宿主内建能力（D8）：`toast` / `refresh` / `switchMode` / `openDetail` / '
+     '`openSettingsSection` / `notify` / `log`'),
+    (('toast',), '`toast(msg, duration, icon)`', 'Stable',
+     '轻提示；`duration` 必须是数字（旧名，等价于 `host.toast`）'),
     (('progress',), '`progress.*`', 'Stable', '复用主程序批处理进度条（`update` / `finish` 等）'),
-    (('openDetail',), '`openDetail(target, id)`', 'Stable', '打开卡片 / 预设 / 会话详情'),
-    (('refresh',), '`refresh(target)`', 'Stable', '请求主程序刷新视图'),
-    (('switchMode',), '`switchMode(mode)`', 'Stable', '切换主视图模式'),
-    (('openSettingsSection',), '`openSettingsSection(section, anchor)`', 'Stable', '跳转设置页锚点'),
+    (('openDetail',), '`openDetail(target, id)`', 'Stable',
+     '打开卡片 / 预设 / 会话详情（旧名，委托到 `host.openDetail`）'),
+    (('refresh',), '`refresh(target)`', 'Stable',
+     '请求主程序刷新视图（旧名，委托到 `host.refresh`）'),
+    (('switchMode',), '`switchMode(mode)`', 'Stable',
+     '切换主视图模式（旧名，委托到 `host.switchMode`）'),
+    (('openSettingsSection',), '`openSettingsSection(section, anchor)`', 'Stable',
+     '跳转设置页锚点（旧名，委托到 `host.openSettingsSection`）'),
     (('registerAlpineComponent',), '`registerAlpineComponent(name, factory)`', 'Stable',
      '注册 Alpine 组件（名称自动加 `<id>_` 前缀）'),
-    (('registerModal',), '`registerModal(spec)`', 'Provisional', '注册模态框（名称前缀同上）'),
-    (('registerSettingsSection',), '`registerSettingsSection(spec)`', 'Provisional', '在设置页注册区块'),
+    (('registerModal',), '`registerModal(spec)`', 'Deprecated',
+     '注册模态框；改用 `entries.register()` + `surfaces.register()`'),
+    (('registerSettingsSection',), '`registerSettingsSection(spec)`', 'Deprecated',
+     '在设置页注册区块；改用 `entries.register({ kind: \'settings\' })`'),
     (('subscribeJob',), '`subscribeJob(runId, handlers)`', 'Stable', '订阅作业进度（SSE + 轮询降级）'),
     (('estimateTokens',), '`estimateTokens(text)`', 'Stable', '复用主程序的分词估算'),
+    (('setFullscreenScrim',), '`setFullscreenScrim(open, owner)`', 'Stable',
+     '声明全屏遮罩已打开/关闭（宿主据此关掉页面壳的 backdrop-filter，避免 Chromium 画出黑块）'),
     (('utils',), '`utils.*`', 'Provisional',
-     '`toAbsoluteAssetUrl` / `parseSSEFrames` / `parseSSEPayload` / `formatDate`'),
+     '`toAbsoluteAssetUrl` / `parseSSEFrames` / `parseSSEPayload` / `resolveIconUrl` / `formatDate`'),
     (('jobs',), '`jobs.*`', 'Provisional',
      '`get` / `list` / `submit` / `cancel` / `pause` / `resume` / `retry` / `open`'),
     (('createRoot',), '`createRoot(tag)`', 'Stable', '创建带 `data-plugin="<id>"` 的挂载容器'),
+]
+
+# 演进承诺：稳定性分级的含义（写入文档末尾章节）
+STABILITY_PROMISES = [
+    ('Stable', '承诺向后兼容。不会在同一个主版本内删除或改变签名；'
+               '确需变更时先标记 `Deprecated` 并保留至少一个主版本，'
+               '且在 `CHANGELOG` 与设计文档中记录迁移方式。'),
+    ('Provisional', '接口形态已确定但仍在收集反馈。可能新增参数或在主版本内调整；'
+                    '变更会提前一个主版本公告。'),
+    ('Experimental', '可能在任何版本被替换或移除。仅建议在插件里做能力探测后使用，'
+                     '不得作为唯一路径。'),
+    ('Deprecated', '已废弃，保留仅为兼容既有插件。新插件不得使用；'
+                   '文档中给出替代写法，并在下一个主版本移除。'),
 ]
 
 
@@ -255,9 +294,38 @@ def render() -> str:
 
     lines += [
         '',
+        '## 演进承诺',
+        '',
+        '上表每个成员都带一个稳定性分级，含义如下：',
+        '',
+        '| 分级 | 承诺 |',
+        '|---|---|',
+    ]
+    for level, promise in STABILITY_PROMISES:
+        lines.append(f'| {level} | {promise} |')
+
+    lines += [
+        '',
+        '### deprecation 流程',
+        '',
+        '1. 在**设计文档**（`docs/2026-09-22-plugin-system-design.md` 第 10 部分）'
+        '把该成员标为 `Deprecated`，写明替代写法。',
+        '2. 在 `tools/gen_plugin_api_docs.py` 的 `FRONTEND_MEMBERS` / `BACKEND_GROUPS` '
+        '同步改分级，重新生成本文档。',
+        '3. 代码里保留实现，但加 `@deprecated` 注释指向替代写法；调用时记一条 '
+        '`logger.warning`（后端）或 `console.warn`（前端）。',
+        '4. 至少保留一个主版本后，在下一个主版本移除，并在 `CHANGELOG` 记录。',
+        '',
+        '### 图标名',
+        '',
+        '`api.ui.icon(name)` 与 `entries[].icon` 使用的**宿主图标名**整表承诺 `Stable`：',
+        '只增不改，删除或改名走上面的 deprecation 流程。完整清单见 '
+        '`GET /api/plugins/ui-icons`。',
+        '',
         '## 相关文档',
         '',
         '- 插件规范与 manifest 字段：`docs/2026-09-22-plugin-system-design.md` 第 2 部分',
+        '- 入口与 surface 契约：同文档第 8 部分（F11–F15）',
         '- 作业与 SSE：同文档第 6 部分',
         '- 开发脚手架：`python tools/new_plugin.py <plugin-id>`',
         '',

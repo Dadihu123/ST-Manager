@@ -82,6 +82,163 @@ def test_config_rejects_empty_payload(client):
     assert response.get_json()['error'] == 'invalid_payload'
 
 
+# ---------------------------------------------------------------- 存储（D8）
+
+
+def test_storage_roundtrip(client):
+    """`api.storage.*` 的持久化后端：写入 → 读回 → 删除。"""
+    first = client.get('/api/plugins/demo-plugin/storage').get_json()
+    assert first['success'] is True
+    assert first['storage'] == {}
+
+    saved = client.post(
+        '/api/plugins/demo-plugin/storage',
+        json={'storage': {'last_tab': 'prompts', 'count': 3}},
+    ).get_json()
+    assert saved['success'] is True
+    assert saved['storage'] == {'last_tab': 'prompts', 'count': 3}
+
+    again = client.get('/api/plugins/demo-plugin/storage').get_json()
+    assert again['storage'] == {'last_tab': 'prompts', 'count': 3}
+
+    # 整体替换语义：提交空对象即清空
+    cleared = client.post('/api/plugins/demo-plugin/storage', json={'storage': {}}).get_json()
+    assert cleared['storage'] == {}
+
+
+def test_storage_is_isolated_per_plugin(client, monkeypatch, tmp_path):
+    """存储落在各自的 `_plugins_v1.<id>` 命名空间，不串味。"""
+    from core.plugins import registry as registry_module
+
+    other_dir = write_plugin(tmp_path, 'other-plugin')
+    other_state = registry_module.PluginState('other-plugin', other_dir)
+    other_state.manifest = PluginManifest.load(other_dir)
+    other_state.loaded = True
+
+    states = dict(registry_module._states)
+    states['other-plugin'] = other_state
+    monkeypatch.setattr(registry_module, '_states', states)
+
+    client.post('/api/plugins/demo-plugin/storage', json={'storage': {'owner': 'demo'}})
+    client.post('/api/plugins/other-plugin/storage', json={'storage': {'owner': 'other'}})
+
+    assert client.get('/api/plugins/demo-plugin/storage').get_json()['storage'] == {'owner': 'demo'}
+    assert client.get('/api/plugins/other-plugin/storage').get_json()['storage'] == {'owner': 'other'}
+
+
+def test_storage_rejects_non_object_payload(client):
+    response = client.post('/api/plugins/demo-plugin/storage', json={'storage': [1, 2, 3]})
+
+    assert response.status_code == 400
+    assert response.get_json()['error'] == 'invalid_payload'
+
+
+def test_storage_enforces_quota(client):
+    """超过 256KB 上限时拒绝写入（与 `api.ui_data_update` 同一配额）。"""
+    from core.plugins.api import PLUGIN_DATA_QUOTA_BYTES
+
+    oversized = {'blob': 'x' * (PLUGIN_DATA_QUOTA_BYTES + 1024)}
+    response = client.post('/api/plugins/demo-plugin/storage', json={'storage': oversized})
+
+    assert response.status_code == 413
+    assert response.get_json()['error'] == 'quota_exceeded'
+    # 被拒绝后磁盘内容不变
+    assert client.get('/api/plugins/demo-plugin/storage').get_json()['storage'] == {}
+
+
+def test_storage_requires_known_plugin(client):
+    response = client.get('/api/plugins/nope-plugin/storage')
+
+    assert response.status_code == 404
+
+
+# ---------------------------------------------------------------- 图标与令牌
+
+
+def test_ui_icons_endpoint_exports_host_icon_catalog(client):
+    """D4.2：图标名清单导出，供插件作者与设置页查询。"""
+    data = client.get('/api/plugins/ui-icons').get_json()
+
+    assert data['success'] is True
+    icons = data['icons']
+    assert len(icons) >= 100
+
+    names = {item['name'] for item in icons}
+    assert 'wand' in names or 'bolt' in names
+    for item in icons:
+        assert set(item) >= {'name', 'sprite', 'category', 'keywords'}
+        assert item['sprite'].endswith('.svg')
+
+
+def test_ui_tokens_endpoint_exports_host_css_tokens(client):
+    """D12：宿主 CSS 令牌清单导出（插件样式检查依据）。"""
+    data = client.get('/api/plugins/ui-tokens').get_json()
+
+    assert data['success'] is True
+    tokens = data['tokens']
+    assert tokens == sorted(tokens)
+    assert '--content-primary' in tokens
+    assert '--surface-container' in tokens
+
+
+# ---------------------------------------------------------------- 入口布局
+
+
+def test_entry_layout_defaults_to_empty(client):
+    data = client.get('/api/plugins/entries/layout').get_json()
+
+    assert data['success'] is True
+    assert data['layout'] == {}
+
+
+def test_entry_layout_saves_and_merges(client):
+    first = client.post(
+        '/api/plugins/entries/layout',
+        json={'layout': {'pinned': ['demo-plugin:a']}},
+    ).get_json()
+    assert first['success'] is True
+    assert first['layout']['pinned'] == ['demo-plugin:a']
+
+    # 合并语义：第二次提交不清掉第一次的键
+    second = client.post(
+        '/api/plugins/entries/layout',
+        json={'layout': {'hidden': ['demo-plugin:b']}},
+    ).get_json()
+    assert second['layout']['pinned'] == ['demo-plugin:a']
+    assert second['layout']['hidden'] == ['demo-plugin:b']
+
+    assert client.get('/api/plugins/entries/layout').get_json()['layout'] == second['layout']
+
+
+def test_entry_layout_ignores_unknown_keys(client):
+    """只接受已知键，避免畸形前端把任意数据写进 ui_data。"""
+    saved = client.post(
+        '/api/plugins/entries/layout',
+        json={'layout': {'pinned': ['x'], 'evil_key': 'boom'}},
+    ).get_json()
+
+    assert saved['layout'] == {'pinned': ['x']}
+    assert 'evil_key' not in saved['layout']
+
+
+def test_entry_layout_rejects_empty_payload(client):
+    response = client.post('/api/plugins/entries/layout', json={'layout': {}})
+
+    assert response.status_code == 400
+    assert response.get_json()['error'] == 'invalid_payload'
+
+
+def test_entry_layout_rejects_oversized_field(client):
+    from core.plugins.routes import MAX_ENTRY_LAYOUT_BYTES
+
+    response = client.post(
+        '/api/plugins/entries/layout',
+        json={'layout': {'order': ['k' * (MAX_ENTRY_LAYOUT_BYTES + 1)]}},
+    )
+
+    assert response.status_code == 400
+
+
 def test_secrets_never_return_plaintext(client):
     client.post('/api/plugins/demo-plugin/secrets', json={'secrets': {'api_key': 'sk-1234567890abcdef'}})
 

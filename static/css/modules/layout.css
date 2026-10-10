@@ -9,6 +9,27 @@
   }
 }
 
+/*
+ * 页面主壳。
+ *
+ * 这里**不允许**出现 `backdrop-filter` —— 一条也不行，包括退化取值
+ * （`blur(0px)` / `brightness(1)` / `saturate(1)` / `opacity(1)` 等）。
+ *
+ * 原因：`.main-container` 是页面上几乎所有全屏遮罩（`.modal-overlay` 系列、
+ * 各 workbench overlay、插件自绘的 overlay）的**祖先**。Chromium 为带
+ * `backdrop-filter` 的元素计算 backdrop 时，会把它当成一个 backdrop root；
+ * 祖先一旦成为 backdrop root，遮罩自己的 `backdrop-filter` 就只能采样到
+ * 一个不完整的 backdrop —— 实测表现是遮罩下整层内容丢失，极端情况直接
+ * 画成一块纯黑矩形（`rgb(16,23,42)`，即 `--surface-scrim` 合成到黑上）。
+ *
+ * 曾经这里写的是 `backdrop-filter: blur(var(--bg-blur))`：用户没设壁纸时
+ * `--bg-blur` 是 `0px`，于是每台机器都无条件带着一个 `blur(0px)` 的退化
+ * backdrop-filter，等于给所有全屏弹层埋了一个必现的坑。
+ *
+ * 壁纸模糊已改为 `body::before { filter: blur(var(--bg-blur)) }`
+ * （见 static/css/modules/base.css）：`filter` 只影响自己的绘制结果，
+ * 不会让下层内容丢失，也不参与 backdrop root 计算。
+ */
 .main-container {
   display: flex;
   flex: 1;
@@ -20,7 +41,22 @@
     var(--surface-page),
     transparent calc(100% - var(--bg-overlay-opacity) * 100%)
   );
-  backdrop-filter: blur(var(--bg-blur));
+}
+
+/*
+ * 全屏遮罩打开时的通用契约。
+ *
+ * 任何「覆盖整个视口、且自己带 backdrop-filter 的遮罩」打开时，都应当给
+ * `document.body` 加上 `has-fullscreen-scrim`。这条规则是兜底：即使将来
+ * 有人重新给 `.main-container`（或任何祖先）加了 backdrop-filter，遮罩
+ * 打开期间也会被强制关掉，不会再退化成黑块。
+ *
+ * JS 侧统一入口：`setFullscreenScrim(open)`（static/js/utils/dom.js），
+ * 插件侧通过 `api.setFullscreenScrim(open)` 使用同一套实现。
+ */
+body.has-fullscreen-scrim .main-container {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
 
 .content-area {
@@ -2517,34 +2553,6 @@
 .sidebar-close-btn:active {
   background-color: var(--state-hover-surface);
   transform: scale(0.95);
-}
-
-.sidebar-toggle-button {
-  position: fixed;
-  z-index: var(--z-sidebar-overlay);
-  bottom: 3rem;
-  left: 1rem;
-  width: 32px;
-  height: 32px;
-  border-radius: 4px;
-  background: var(--action-surface);
-  border: 1px solid var(--action-border);
-  box-shadow: 0 4px 12px color-mix(in srgb, var(--content-on-light) 30%, transparent);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.3s;
-}
-
-.sidebar-toggle-button:active {
-  transform: scale(0.95);
-}
-
-.sidebar-toggle-button .toggle-icon {
-  color: var(--action-icon);
-  font-size: 1.25rem;
-  font-weight: bold;
 }
 
 .sidebar-content {

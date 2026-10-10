@@ -36,17 +36,77 @@ def test_modal_component_is_registered_in_app_entry():
     assert 'pluginManager.js' in app_source
 
 
-def test_three_tabs_are_present():
+def test_four_tabs_are_present():
     template = read_source('templates/modals/plugin_manager.html')
 
     assert '已安装' in template
     assert '官方目录' in template
     assert '手动安装' in template
+    # 阶段 6.1：入口总览作为第四个页签挂在既有「插件管理」页内
+    # （刻意不新增设置顶层 tab —— settingsHelpContent 是硬闸门）。
+    assert '入口总览' in template
     assert 'role="tablist"' in template
     # 页签沿用角色卡详情页的 .detail-tabs / .detail-tab 契约。
     assert 'class="detail-tabs plugin-manager-tabs"' in template
-    assert template.count('class="detail-tab"') == 3
+    assert template.count('class="detail-tab"') == 4
 
+
+def test_entry_overview_is_embedded_in_plugin_manager_not_a_new_settings_tab():
+    """总览页必须挂在插件管理页内，不能新增设置顶层分区。"""
+    template = read_source('templates/modals/plugin_manager.html')
+    settings_source = read_source('templates/modals/settings.html')
+
+    assert 'id="plugin-panel-entries"' in template
+    assert 'selectTab(\'entries\')' in template
+    # 没有新增设置顶层导航项
+    assert "selectSettingTab('entries')" not in settings_source
+
+
+def test_entry_overview_table_columns_match_contract():
+    """表格列：图标+名称 / 归属 / 类型 / 出现位置 / 当前呈现 / 快捷键 / 操作。"""
+    template = read_source('templates/modals/plugin_manager.html')
+    component = read_source('static/js/components/pluginManager.js')
+
+    for column in ('名称', '归属', '类型', '出现位置', '当前呈现', '快捷键', '操作'):
+        assert f'<th scope="col">{column}</th>' in template, column
+
+    assert 'entryKindLabel(row)' in template
+    assert 'entryLocationLabel(row)' in template
+    assert 'entrySurfaceLabel(row)' in template
+
+
+def test_deep_link_anchors_support_config_and_secrets():
+    """阶段 6.2：`plugin-config-<id>` / `plugin-secrets-<id>` 深链。"""
+    component = read_source('static/js/components/pluginManager.js')
+
+    assert 'CONFIG_ANCHOR_PATTERN' in component
+    assert 'SECRET_ANCHOR_PATTERN' in component
+    assert 'plugin-config-' in component
+    assert 'plugin-secrets-' in component
+    assert 'deepLink(pluginId, target)' in component
+    # 深链必须先加载列表再展开表单，否则拿不到 item
+    assert 'await this.loadPlugins();' in component
+    assert 'scrollToPlugin(id)' in component
+
+
+def test_tier_badge_is_rendered_on_plugin_cards():
+    """阶段 6.3：归属分级徽标（tier 由宿主 catalog 决定）。"""
+    template = read_source('templates/modals/plugin_manager.html')
+    component = read_source('static/js/components/pluginManager.js')
+
+    assert 'plugin-card-tier' in template
+    assert 'tierLabel(item)' in template
+    assert 'TIER_LABELS' in component
+    assert 'official' in component and 'verified' in component and 'community' in component
+
+
+def test_install_disclosure_shows_entry_count():
+    """阶段 6.3：安装期披露「此插件将添加 N 个入口」。"""
+    template = read_source('templates/modals/plugin_manager.html')
+    component = read_source('static/js/components/pluginManager.js')
+
+    assert 'entryCountLabel(item)' in template
+    assert '此插件将添加' in component
 
 def test_four_lifecycle_actions_are_present():
     template = read_source('templates/modals/plugin_manager.html')

@@ -63,10 +63,20 @@ def test_load_rejects_non_semver_version(tmp_path):
 
 
 def test_load_rejects_unsupported_api_version(tmp_path):
-    plugin_dir = write_plugin(tmp_path, 'demo-plugin', manifest=base_manifest('demo-plugin', api_version=2))
+    plugin_dir = write_plugin(tmp_path, 'demo-plugin', manifest=base_manifest('demo-plugin', api_version=99))
 
-    with pytest.raises(PluginApiVersionError):
+    with pytest.raises(PluginApiVersionError) as excinfo:
         PluginManifest.load(plugin_dir)
+
+    assert excinfo.value.field == 'api_version'
+    assert excinfo.value.user_msg
+
+
+def test_load_accepts_legacy_api_version(tmp_path):
+    """api_version 1 是受支持的旧契约（多版本机制的第一个真实用例）。"""
+    plugin_dir = write_plugin(tmp_path, 'demo-plugin', manifest=base_manifest('demo-plugin', api_version=1))
+
+    assert PluginManifest.load(plugin_dir).api_version == 1
 
 
 def test_load_rejects_newer_min_app_version(tmp_path):
@@ -232,3 +242,211 @@ def test_frontend_only_plugin_is_flagged(tmp_path):
     assert manifest.is_frontend_only is True
     assert manifest.to_dict()['frontend_only'] is True
     assert json.loads(json.dumps(manifest.to_dict()))  # to_dict 可 JSON 序列化
+
+
+# --- 结构键严格校验（D3） ---------------------------------------------------
+
+
+def test_unknown_top_level_key_is_rejected(tmp_path):
+    manifest = base_manifest('demo-plugin')
+    manifest['entires'] = []
+    plugin_dir = write_plugin(tmp_path, 'demo-plugin', manifest=manifest)
+
+    with pytest.raises(PluginManifestError) as excinfo:
+        PluginManifest.load(plugin_dir)
+
+    assert excinfo.value.code == 'manifest_unknown_key'
+    assert excinfo.value.field == 'entires'
+    assert excinfo.value.hint
+    assert '插件' in excinfo.value.user_msg
+
+
+def test_unknown_frontend_subkey_is_rejected(tmp_path):
+    manifest = base_manifest('demo-plugin')
+    manifest['frontend']['entrys'] = 'frontend/plugin.js'
+    plugin_dir = write_plugin(tmp_path, 'demo-plugin', manifest=manifest)
+
+    with pytest.raises(PluginManifestError) as excinfo:
+        PluginManifest.load(plugin_dir)
+
+    assert excinfo.value.code == 'manifest_unknown_key'
+    assert excinfo.value.field == 'frontend.entrys'
+    assert 'entry' in excinfo.value.hint and 'entries' in excinfo.value.hint
+
+
+def test_unknown_backend_subkey_is_rejected(tmp_path):
+    manifest = base_manifest('demo-plugin')
+    manifest['backend']['hooks_'] = []
+    plugin_dir = write_plugin(tmp_path, 'demo-plugin', manifest=manifest)
+
+    with pytest.raises(PluginManifestError) as excinfo:
+        PluginManifest.load(plugin_dir)
+
+    assert excinfo.value.code == 'manifest_unknown_key'
+    assert excinfo.value.field == 'backend.hooks_'
+
+
+def test_unknown_entry_subkey_is_rejected(tmp_path):
+    manifest = base_manifest('demo-plugin')
+    manifest['manifest_version'] = 2
+    manifest['frontend']['entries'] = [
+        {'id': 'demo', 'kind': 'dock', 'label': '演示', 'surfaces': {'type': 'panel'}},
+    ]
+    plugin_dir = write_plugin(tmp_path, 'demo-plugin', manifest=manifest)
+
+    with pytest.raises(PluginManifestError) as excinfo:
+        PluginManifest.load(plugin_dir)
+
+    assert excinfo.value.code == 'manifest_unknown_key'
+    assert excinfo.value.field == 'frontend.entries[0].surfaces'
+
+
+def test_legacy_frontend_fields_are_rejected(tmp_path):
+    manifest = base_manifest('demo-plugin')
+    manifest['frontend']['panels'] = [{'id': 'demo'}]
+    plugin_dir = write_plugin(tmp_path, 'demo-plugin', manifest=manifest)
+
+    with pytest.raises(PluginManifestError) as excinfo:
+        PluginManifest.load(plugin_dir)
+
+    assert excinfo.value.code == 'manifest_legacy_key'
+    assert excinfo.value.field == 'frontend.panels'
+    assert 'frontend.entries' in excinfo.value.hint
+
+
+def test_error_message_stays_human_readable(tmp_path):
+    manifest = base_manifest('demo-plugin')
+    manifest['frontend']['settings_tab'] = {'id': 'demo'}
+    plugin_dir = write_plugin(tmp_path, 'demo-plugin', manifest=manifest)
+
+    with pytest.raises(PluginManifestError) as excinfo:
+        PluginManifest.load(plugin_dir)
+
+    text = str(excinfo.value)
+    assert '已废弃字段' in text
+    assert 'frontend.entries' in text
+
+
+# --- manifest_version -------------------------------------------------------
+
+
+def test_manifest_version_defaults_to_one(tmp_path):
+    plugin_dir = write_plugin(tmp_path, 'demo-plugin')
+
+    manifest = PluginManifest.load(plugin_dir)
+
+    assert manifest.manifest_version == 1
+    assert manifest.to_dict()['manifest_version'] == 1
+
+
+def test_manifest_version_two_is_accepted(tmp_path):
+    manifest = base_manifest('demo-plugin')
+    manifest['manifest_version'] = 2
+    plugin_dir = write_plugin(tmp_path, 'demo-plugin', manifest=manifest)
+
+    assert PluginManifest.load(plugin_dir).manifest_version == 2
+
+
+def test_manifest_version_rejects_unsupported_value(tmp_path):
+    manifest = base_manifest('demo-plugin')
+    manifest['manifest_version'] = 99
+    plugin_dir = write_plugin(tmp_path, 'demo-plugin', manifest=manifest)
+
+    with pytest.raises(PluginManifestError) as excinfo:
+        PluginManifest.load(plugin_dir)
+
+    assert excinfo.value.code == 'manifest_version_unsupported'
+    assert excinfo.value.field == 'manifest_version'
+
+
+def test_manifest_version_rejects_non_integer(tmp_path):
+    manifest = base_manifest('demo-plugin')
+    manifest['manifest_version'] = '2'
+    plugin_dir = write_plugin(tmp_path, 'demo-plugin', manifest=manifest)
+
+    with pytest.raises(PluginManifestError, match='manifest_version'):
+        PluginManifest.load(plugin_dir)
+
+
+def test_manifest_requires_array_entries(tmp_path):
+    manifest = base_manifest('demo-plugin')
+    manifest['manifest_version'] = 2
+    manifest['frontend']['entries'] = {'id': 'demo'}
+    plugin_dir = write_plugin(tmp_path, 'demo-plugin', manifest=manifest)
+
+    with pytest.raises(PluginManifestError) as excinfo:
+        PluginManifest.load(plugin_dir)
+
+    assert excinfo.value.field == 'frontend.entries'
+
+
+# --- entries 解析（宽松） ---------------------------------------------------
+
+
+def test_entries_are_normalized_with_host_keys(tmp_path):
+    manifest = base_manifest('demo-plugin')
+    manifest['manifest_version'] = 2
+    manifest['frontend']['entries'] = [
+        {
+            'id': 'open-demo',
+            'kind': 'dock',
+            'label': '打开演示',
+            'icon': 'wand',
+            'contexts': ['cards', 'chats'],
+            'surface': {'type': 'panel'},
+            'priority': 10,
+        },
+    ]
+    plugin_dir = write_plugin(tmp_path, 'demo-plugin', manifest=manifest)
+
+    entry = PluginManifest.load(plugin_dir).frontend_entries[0]
+
+    assert entry['key'] == 'demo-plugin:open-demo'
+    assert entry['plugin_id'] == 'demo-plugin'
+    assert entry['surface'] == {'type': 'panel'}
+    assert entry['contexts'] == ['cards', 'chats']
+    assert entry['priority'] == 10
+    # tier 由 catalog 决定（D5），manifest 解析阶段不写入
+    assert 'tier' not in entry
+
+
+def test_invalid_entries_are_dropped_with_warning(tmp_path):
+    manifest = base_manifest('demo-plugin')
+    manifest['manifest_version'] = 2
+    manifest['frontend']['entries'] = [
+        {'id': 'Bad_Id', 'kind': 'dock', 'label': '非法 id'},
+        {'id': 'bad-kind', 'kind': 'toolbar', 'label': '非法 kind'},
+        {'id': 'no-label', 'kind': 'dock'},
+        {'id': 'ok', 'kind': 'command', 'label': '可用'},
+    ]
+    plugin_dir = write_plugin(tmp_path, 'demo-plugin', manifest=manifest)
+
+    parsed = PluginManifest.load(plugin_dir)
+
+    assert [item['id'] for item in parsed.frontend_entries] == ['ok']
+    assert len(parsed.warnings) >= 3
+
+
+def test_entries_limit_is_enforced(tmp_path):
+    manifest = base_manifest('demo-plugin')
+    manifest['manifest_version'] = 2
+    manifest['frontend']['entries'] = [
+        {'id': f'entry-{index}', 'kind': 'command', 'label': f'入口 {index}'}
+        for index in range(20)
+    ]
+    plugin_dir = write_plugin(tmp_path, 'demo-plugin', manifest=manifest)
+
+    parsed = PluginManifest.load(plugin_dir)
+
+    assert len(parsed.frontend_entries) == 16
+    assert any('上限' in item for item in parsed.warnings)
+
+
+def test_to_dict_has_no_legacy_panel_keys(tmp_path):
+    plugin_dir = write_plugin(tmp_path, 'demo-plugin')
+
+    payload = PluginManifest.load(plugin_dir).to_dict()
+
+    assert 'panels' not in payload
+    assert 'settings_tab' not in payload
+    assert payload['entries'] == []

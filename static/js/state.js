@@ -1277,6 +1277,10 @@ export function initState() {
       if (!url) {
         updateCssVariable("--bg-image-url", "none");
         updateCssVariable("--bg-overlay-opacity", "1");
+        // 必须一起清掉模糊：壁纸没了却留下 `--bg-blur: 12px`，会让
+        // `body::before` 继续对一块透明图层做模糊，白白多一个合成层。
+        // （历史上这里漏了重置，导致删壁纸后模糊值一直是陈旧的。）
+        updateCssVariable("--bg-blur", "0px");
       } else {
         updateCssVariable("--bg-image-url", `url('${url}')`);
         const opacity =
@@ -1284,6 +1288,12 @@ export function initState() {
             ? this.settingsForm.bg_opacity
             : 0.95;
         updateCssVariable("--bg-overlay-opacity", opacity);
+        // 壁纸重新出现时要把用户设置的模糊值应用回来（此前只在启动
+        // 引导阶段写过一次，运行期换壁纸不会更新）。
+        updateCssVariable(
+          "--bg-blur",
+          (this.settingsForm.bg_blur || 0) + "px",
+        );
       }
     },
 

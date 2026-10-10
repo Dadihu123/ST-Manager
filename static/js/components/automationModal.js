@@ -5,6 +5,7 @@
 
 import { listRuleSets, getRuleSet, saveRuleSet, deleteRuleSet, setGlobalRuleset, getGlobalRuleset, importRuleSet, getExportRuleSetUrl } from '../api/automation.js';
 import { createLocalId } from '../utils/data.js';
+import { setFullscreenScrim } from '../utils/dom.js';
 import { splitTagTokens } from '../state.js';
 
 const TEMPLATE_ACTION_TYPES = ['rename_file_by_template', 'split_category_to_tags'];
@@ -311,6 +312,11 @@ export default function automationModal() {
 
             this.$watch('showAutomationModal', (value) => {
                 document.body?.classList.toggle('automation-workbench-open', Boolean(value));
+                // 通用契约（新代码请直接用这一条）：全屏遮罩打开期间关掉页面壳的
+                // backdrop-filter。祖先一旦带 backdrop-filter 就会成为 backdrop root，
+                // 让这个全屏遮罩采样到不完整的 backdrop，Chromium 会画出黑块或一整片
+                // 平坦灰。实现见 static/js/utils/dom.js 的 setFullscreenScrim()。
+                setFullscreenScrim(Boolean(value), 'automation');
             });
 
             this.$watch('editingMeta', () => this.markDirty());

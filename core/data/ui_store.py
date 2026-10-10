@@ -79,6 +79,7 @@ RESOURCE_ITEM_CATEGORIES_KEY = '_resource_item_categories_v1'
 WORLDINFO_NOTES_KEY = '_worldinfo_notes_v1'
 BEAUTIFY_LIBRARY_KEY = '_beautify_library_v1'
 SHARED_WALLPAPER_LIBRARY_KEY = '_shared_wallpaper_library_v1'
+ENTRY_LAYOUT_KEY = '_entry_layout_v1'
 SOURCE_UPDATE_KEY = '_source_update_v1'
 SOURCE_UPDATE_PENDING_STATUSES = frozenset({
     'first_check_updated',

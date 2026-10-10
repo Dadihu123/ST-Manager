@@ -489,6 +489,44 @@ export function updateCssVariable(name, value) {
   document.documentElement.style.setProperty(name, value);
 }
 
+/**
+ * 全屏遮罩打开/关闭的统一切换点。
+ *
+ * 任何「覆盖整个视口、并且自己带 backdrop-filter 的遮罩」在打开时都必须调用
+ * `setFullscreenScrim(true, '<owner>')`，关闭时调用
+ * `setFullscreenScrim(false, '<owner>')`。
+ *
+ * 为什么需要：Chromium 为带 backdrop-filter 的元素计算 backdrop 时，会把它
+ * 当成一个 backdrop root。若页面壳（`.main-container`）等祖先也带着
+ * backdrop-filter，遮罩就只能采样到不完整的 backdrop —— 实测表现为遮罩下
+ * 内容整层丢失（一片平坦灰），极端情况直接画成纯黑矩形。给 body 打上
+ * `has-fullscreen-scrim` 后，`static/css/modules/layout.css` 里的规则会强制
+ * 关掉祖先的 backdrop-filter，从而消除这个渲染瑕疵。
+ *
+ * 按 owner 记账而不是简单布尔量：多层遮罩（例如详情页里再开皮肤预览）
+ * 叠加时只有最后一个 owner 关闭才会摘掉类名；同一个 owner 重复 open 也
+ * 不会把计数抬高（Alpine 的 `$watch` 可能对同一状态重复触发）。
+ */
+const FULLSCREEN_SCRIM_CLASS = "has-fullscreen-scrim";
+const fullscreenScrimOwners = new Set();
+
+export function setFullscreenScrim(open, owner = "default") {
+  if (typeof document === "undefined" || !document.body) return false;
+  const key = String(owner || "default");
+  if (open) {
+    fullscreenScrimOwners.add(key);
+  } else {
+    fullscreenScrimOwners.delete(key);
+  }
+  const active = fullscreenScrimOwners.size > 0;
+  document.body.classList.toggle(FULLSCREEN_SCRIM_CLASS, active);
+  return active;
+}
+
+export function isFullscreenScrimActive() {
+  return fullscreenScrimOwners.size > 0;
+}
+
 export function applyFont(type) {
   let fontVal = "ui-sans-serif, system-ui, sans-serif";
   if (type === "serif")

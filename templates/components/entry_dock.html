@@ -1,0 +1,200 @@
+<!-- templates/components/entry_dock.html -->
+<!--
+  入口坞（设计文档 D6 / 阶段 5）。
+
+  位置：右侧 fixed 竖条，避开在流顶栏与翻页栏。
+  根元素带 data-marquee-ignore，框选不会命中坞。
+  键盘：role="toolbar" + aria-orientation="vertical" + roving tabindex。
+  移动端不渲染侧条，退化为顶栏按钮 + 底部 sheet。
+-->
+<div
+  id="entry-dock-root"
+  x-data="entryDock"
+  data-marquee-ignore
+  class="entry-dock-root"
+>
+  <!-- 移动端：顶栏按钮（不渲染侧条） -->
+  <template x-if="deviceType === 'mobile'">
+    <button
+      type="button"
+      class="entry-dock-mobile-trigger"
+      data-marquee-ignore
+      aria-haspopup="dialog"
+      :aria-expanded="expanded ? 'true' : 'false'"
+      @click="toggle()"
+      title="插件入口"
+    >
+      <svg class="ui-icon ui-icon--sm" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <use href="/static/icons/ui.svg#icon-plugin"></use>
+      </svg>
+      <span class="entry-dock-mobile-trigger__count" x-show="slots.length" x-text="slots.length"></span>
+    </button>
+  </template>
+
+  <!-- 桌面 / 平板：右侧坞 -->
+  <template x-if="deviceType !== 'mobile'">
+    <div
+      class="entry-rail"
+      :class="{ 'is-expanded': expanded, 'is-collapsed': !expanded }"
+      data-marquee-ignore
+    >
+      <!-- 收起态 8px 热区：opacity 0 但 pointer-events auto -->
+      <div
+        class="entry-rail__hotzone"
+        data-marquee-ignore
+        aria-hidden="true"
+        @mouseenter="onHotzoneEnter()"
+        @mouseleave="onHotzoneLeave()"
+        @click="expand()"
+      ></div>
+
+      <div
+        class="entry-rail__panel"
+        role="toolbar"
+        aria-orientation="vertical"
+        aria-label="插件入口坞"
+        @mouseenter="onHotzoneEnter()"
+        @mouseleave="onHotzoneLeave()"
+        @keydown="handleKeydown($event)"
+      >
+        <!-- 坞槽位 -->
+        <template x-for="entry in slots" :key="entry.key">
+          <button
+            type="button"
+            class="entry-rail__slot"
+            :class="[statusClass(entry), { 'is-disabled': !entry.enabled, 'is-active': activeKey === entry.key }]"
+            :data-entry-key="entry.key"
+            :tabindex="tabIndexFor(entry)"
+            :title="entry.enabled ? (entry.description || entry.label) : entry.disabledHint"
+            :aria-disabled="entry.enabled ? 'false' : 'true'"
+            @click="entry.enabled ? open(entry.key) : onDisabledClick(entry)"
+            @contextmenu.prevent="togglePin(entry)"
+          >
+            <span class="entry-rail__icon" x-html="buildIcon(entry).outerHTML"></span>
+            <span class="entry-rail__label" x-text="entry.label"></span>
+
+            <!-- 徽标 / 进度 / 忙碌 -->
+            <span
+              class="entry-rail__badge"
+              x-show="badgeText(entry)"
+              x-text="badgeText(entry)"
+            ></span>
+            <span
+              class="entry-rail__progress"
+              x-show="progressText(entry)"
+              x-text="progressText(entry)"
+            ></span>
+            <span class="entry-rail__busy" x-show="entry.busy" aria-hidden="true"></span>
+          </button>
+        </template>
+
+        <!-- 空态：还没有任何固定入口 -->
+        <template x-if="!slots.length">
+          <p class="entry-rail__empty" x-show="expanded">暂无固定入口</p>
+        </template>
+
+        <!-- 溢出菜单入口 -->
+        <template x-if="overflow.length">
+          <button
+            type="button"
+            class="entry-rail__slot entry-rail__slot--more"
+            :tabindex="slots.length ? -1 : 0"
+            :aria-expanded="overflowOpen ? 'true' : 'false'"
+            aria-haspopup="true"
+            title="更多入口"
+            @click="toggleOverflow()"
+          >
+            <span class="entry-rail__icon" aria-hidden="true">⋯</span>
+            <span class="entry-rail__label">更多</span>
+          </button>
+        </template>
+      </div>
+
+      <!-- 溢出菜单弹层 -->
+      <template x-if="overflowOpen">
+        <div class="entry-overflow" data-marquee-ignore @click.outside="overflowOpen = false">
+          <div class="entry-overflow__header">
+            <input
+              type="search"
+              class="entry-overflow__search"
+              x-ref="overflowSearch"
+              x-model="overflowQuery"
+              placeholder="搜索入口…"
+              aria-label="搜索入口"
+            />
+          </div>
+
+          <div class="entry-overflow__body">
+            <template x-for="group in overflowGroups" :key="group.pluginId">
+              <section class="entry-overflow__group">
+                <h4 class="entry-overflow__group-title" x-text="group.pluginId || '宿主'"></h4>
+                <template x-for="entry in group.items" :key="entry.key">
+                  <div class="entry-overflow__item">
+                    <button
+                      type="button"
+                      class="entry-overflow__action"
+                      :class="{ 'is-disabled': !entry.enabled }"
+                      :title="entry.enabled ? (entry.description || entry.label) : entry.disabledHint"
+                      @click="entry.enabled ? open(entry.key) : onDisabledClick(entry)"
+                    >
+                      <span class="entry-overflow__icon" x-html="buildIcon(entry).outerHTML"></span>
+                      <span class="entry-overflow__text">
+                        <span class="entry-overflow__label" x-text="entry.label"></span>
+                        <span
+                          class="entry-overflow__description color-text-muted"
+                          x-show="entry.description"
+                          x-text="entry.description"
+                        ></span>
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      class="entry-overflow__pin"
+                      title="固定到坞"
+                      aria-label="固定到坞"
+                      @click="togglePin(entry)"
+                    >＋</button>
+                  </div>
+                </template>
+              </section>
+            </template>
+
+            <template x-if="!filteredOverflow.length">
+              <p class="entry-overflow__empty color-text-muted">没有匹配的入口</p>
+            </template>
+          </div>
+        </div>
+      </template>
+    </div>
+  </template>
+
+  <!-- 移动端底部 sheet -->
+  <template x-if="deviceType === 'mobile' && expanded">
+    <div class="entry-sheet" data-marquee-ignore role="dialog" aria-modal="true" aria-label="插件入口">
+      <div class="entry-sheet__backdrop" @click="collapse()"></div>
+      <div class="entry-sheet__panel">
+        <header class="entry-sheet__header">
+          <span class="entry-sheet__title">插件入口</span>
+          <button type="button" class="entry-sheet__close" aria-label="关闭" @click="collapse()">×</button>
+        </header>
+        <div class="entry-sheet__body">
+          <template x-for="entry in entries" :key="entry.key">
+            <button
+              type="button"
+              class="entry-sheet__item"
+              :class="{ 'is-disabled': !entry.enabled }"
+              :title="entry.enabled ? (entry.description || entry.label) : entry.disabledHint"
+              @click="entry.enabled ? (open(entry.key), collapse()) : onDisabledClick(entry)"
+            >
+              <span class="entry-sheet__icon" x-html="buildIcon(entry).outerHTML"></span>
+              <span x-text="entry.label"></span>
+            </button>
+          </template>
+          <template x-if="!entries.length">
+            <p class="color-text-muted">暂无插件入口</p>
+          </template>
+        </div>
+      </div>
+    </div>
+  </template>
+</div>

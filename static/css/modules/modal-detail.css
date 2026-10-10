@@ -3432,7 +3432,7 @@ html.light-mode .note-textarea:focus {
   .detail-preset-full-screen .preset-editor-mobile-header {
     position: sticky;
     top: 0;
-    z-index: 45;
+    z-index: var(--z-preset-editor-mobile-header);
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
@@ -3492,7 +3492,7 @@ html.light-mode .note-textarea:focus {
     position: fixed;
     top: var(--preset-editor-header-height);
     right: 0.75rem;
-    z-index: 46;
+    z-index: var(--z-preset-editor-mobile-menu);
     width: min(16rem, calc(100vw - 1.5rem));
     display: flex;
     flex-direction: column;
@@ -3508,7 +3508,7 @@ html.light-mode .note-textarea:focus {
     top: var(--preset-editor-header-height);
     bottom: 0;
     left: 0;
-    z-index: 44;
+    z-index: var(--z-preset-editor-mobile-panel);
     width: min(22rem, 100vw);
     max-width: 100vw;
     border-right: 1px solid var(--border-subtle);

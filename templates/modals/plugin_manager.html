@@ -54,6 +54,20 @@
       <span class="tab-icon">{{ icon('upload', 'ui-icon--xs') }}</span>
       <span class="tab-text">手动安装</span>
     </button>
+    <button
+      type="button"
+      class="detail-tab"
+      id="plugin-tab-entries"
+      role="tab"
+      aria-controls="plugin-panel-entries"
+      :aria-selected="(activeTab === 'entries').toString()"
+      :class="activeTab === 'entries' ? 'active' : ''"
+      @click="selectTab('entries')"
+    >
+      <span class="tab-icon">{{ icon('data-grid', 'ui-icon--xs') }}</span>
+      <span class="tab-text">入口总览</span>
+      <span class="detail-tab-meta" x-text="entryRows.length"></span>
+    </button>
   </nav>
 
   <div class="plugin-manager-body">
@@ -102,7 +116,7 @@
       </div>
 
       <template x-for="item in plugins" :key="item.id">
-        <article class="plugin-card" :class="{ 'is-disabled': !item.enabled, 'is-failed': !!item.load_error }">
+        <article class="plugin-card" :class="{ 'is-disabled': !item.enabled, 'is-failed': !!item.load_error }" :data-plugin-card="item.id">
           <header class="plugin-card-header">
             <div class="plugin-card-identity">
               <span class="plugin-card-status" aria-hidden="true" x-text="statusIcon(item)"></span>
@@ -127,6 +141,12 @@
                   <template x-if="item.frontend">
                     <span class="plugin-card-badge">前端</span>
                   </template>
+                  <!-- 归属分级徽标（D5）：tier 由宿主 catalog 决定，插件无权声明 -->
+                  <span class="plugin-card-tier" :class="tierClass(item)" x-text="tierLabel(item)"></span>
+                </p>
+                <!-- 安装期披露（阶段 6.3）：让用户在启用前就知道会多出几个入口 -->
+                <p class="plugin-card-entries-hint" x-show="entryCount(item) > 0" x-cloak>
+                  <span x-text="entryCountLabel(item)"></span>
                 </p>
               </div>
             </div>
@@ -491,6 +511,95 @@
           <span x-text="uploadResult ? ('已安装 ' + (uploadResult.id || '') + ' v' + (uploadResult.version || '')) : ''"></span>
         </div>
       </article>
+    </section>
+
+    <!-- ④ 入口总览（阶段 6.1）：契约的可视化审计面 -->
+    <section
+      class="plugin-manager-panel"
+      id="plugin-panel-entries"
+      x-show="activeTab === 'entries'"
+      role="tabpanel"
+      aria-labelledby="plugin-tab-entries"
+    >
+      <div class="plugin-manager-toolbar">
+        <span class="plugin-manager-hint">
+          全部插件声明的入口。坞槽位由宿主分配，社区插件默认进溢出菜单。
+        </span>
+        <input
+          type="search"
+          class="plugin-entries-search"
+          x-model="entryQuery"
+          placeholder="筛选入口…"
+          aria-label="筛选入口"
+        />
+        <button
+          type="button"
+          class="plugin-manager-icon-button"
+          title="刷新列表"
+          aria-label="刷新入口列表"
+          :disabled="loading"
+          @click="loadEntries()"
+        >
+          {{ icon('refresh', 'ui-icon--sm') }}
+        </button>
+      </div>
+
+      <div class="plugin-manager-empty" x-show="!entryRows.length && !loading" x-cloak>
+        <p>当前没有任何插件声明入口。</p>
+        <p class="plugin-manager-hint">
+          插件在 <code>manifest.json</code> 的 <code>frontend.entries</code> 里声明入口后，会出现在这里与入口坞中。
+        </p>
+      </div>
+
+      <div class="plugin-entries-table-wrapper" x-show="entryRows.length" x-cloak>
+        <table class="plugin-entries-table">
+          <thead>
+            <tr>
+              <th scope="col">名称</th>
+              <th scope="col">归属</th>
+              <th scope="col">类型</th>
+              <th scope="col">出现位置</th>
+              <th scope="col">当前呈现</th>
+              <th scope="col">快捷键</th>
+              <th scope="col">操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <template x-for="row in filteredEntryRows" :key="row.key">
+              <tr :class="{ 'is-disabled': !row.pluginEnabled }">
+                <td>
+                  <span class="plugin-entries-name" x-text="row.label"></span>
+                  <code class="plugin-entries-id" x-text="row.id"></code>
+                </td>
+                <td>
+                  <span x-text="row.pluginName"></span>
+                  <span class="plugin-card-tier" :class="tierClass(row)" x-text="tierLabel(row)"></span>
+                </td>
+                <td x-text="entryKindLabel(row)"></td>
+                <td x-text="entryLocationLabel(row)"></td>
+                <td x-text="entrySurfaceLabel(row)"></td>
+                <td>
+                  <code x-show="row.shortcut" x-text="row.shortcut"></code>
+                  <span x-show="!row.shortcut" class="color-text-muted">—</span>
+                </td>
+                <td>
+                  <button
+                    type="button"
+                    class="plugin-button plugin-button--ghost"
+                    @click="deepLink(row.pluginId, 'config')"
+                  >
+                    配置
+                  </button>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
+
+      <p class="plugin-manager-hint" x-show="entryRows.length && !filteredEntryRows.length" x-cloak>
+        没有匹配的入口。
+      </p>
     </section>
   </div>
 

@@ -47,7 +47,7 @@ import {
     formatWiKeys,
     getTopbarTokenLevelClass
 } from '../utils/format.js';
-import { insertAtCursor, updateShadowContent, renderUnifiedPreviewHost, updateMixedPreviewContent } from '../utils/dom.js';
+import { insertAtCursor, updateShadowContent, renderUnifiedPreviewHost, updateMixedPreviewContent, setFullscreenScrim } from '../utils/dom.js';
 import { createAutoSaver } from '../utils/autoSave.js'; 
 import { wiHelpers } from '../utils/wiHelpers.js';
 import { clearActiveRuntimeContext, setActiveRuntimeContext } from '../runtime/runtimeContext.js';
@@ -1482,6 +1482,11 @@ export default function detailModal() {
             // 监听关闭信号
             this.$watch('showDetail', (val) => {
                 document.body?.classList.toggle('detail-card-workbench-open', Boolean(val));
+                // 通用契约（新代码请直接用这一条）：全屏遮罩打开期间关掉页面壳的
+                // backdrop-filter。祖先一旦带 backdrop-filter 就会成为 backdrop root，
+                // 让这个全屏遮罩采样到不完整的 backdrop，Chromium 会画出黑块或一整片
+                // 平坦灰。实现见 static/js/utils/dom.js 的 setFullscreenScrim()。
+                setFullscreenScrim(Boolean(val), 'detail-card');
                 if (!val) {
                     this.stopAutoSave();
                     this._cleanupPendingAdvancedEditorHandlers();

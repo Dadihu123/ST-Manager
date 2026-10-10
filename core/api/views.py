@@ -3,6 +3,7 @@ from flask import Blueprint, render_template, send_from_directory
 
 # === 基础设施 ===
 from core.config import INTERNAL_DIR
+from core.version import APP_VERSION, PLUGIN_API_VERSION
 
 # 定义蓝图
 bp = Blueprint('views', __name__)
@@ -13,7 +14,11 @@ def index():
     渲染单页应用入口 (index.html)。
     Flask 会自动在 App 初始化时配置的 template_folder 中查找此文件。
     """
-    return render_template('index.html')
+    return render_template(
+        'index.html',
+        app_version=APP_VERSION,
+        plugin_api_version=PLUGIN_API_VERSION,
+    )
 
 @bp.route('/favicon.ico')
 def favicon():

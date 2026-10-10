@@ -670,6 +670,23 @@ input[type="range"]::-webkit-slider-runnable-track {
   padding: 0.45rem 0.75rem;
 }
 
+/*
+ * 通用全屏遮罩。
+ *
+ * 这里**不再带 `backdrop-filter`**。全屏遮罩自己带 backdrop-filter 时，
+ * 浏览器必须先对整页做一次离屏快照再模糊 —— 一旦页面上存在其它合成层
+ * （变换过的卡片、滚动的长列表、iframe 预览等），Chromium 的快照就会
+ * 取到不完整的内容：轻则遮罩下整层内容丢失变成一片平坦灰，重则直接
+ * 画出纯黑矩形。这个坑在主程序里已经踩过三次（detail-card workbench、
+ * automation workbench、插件 overlay），所以在这里一次去掉。
+ *
+ * 视觉上 `--surface-scrim` 本身已经是足够重的暗色（rgba(15,23,42,.58)），
+ * 去掉 5px 模糊后遮罩后的页面依旧明显压暗，弹窗对比度不受影响。
+ *
+ * 如果某个遮罩确实需要模糊背景，请改用 `body::before` 那套
+ * `filter: blur()` 思路（filter 不会让下层内容丢失），不要加回
+ * backdrop-filter。
+ */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -677,7 +694,8 @@ input[type="range"]::-webkit-slider-runnable-track {
   width: 100%;
   height: 100%;
   background: var(--surface-scrim);
-  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
   z-index: var(--z-modal-std);
   display: flex;
   justify-content: center;

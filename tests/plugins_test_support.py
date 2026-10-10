@@ -25,11 +25,16 @@ def default_css(plugin_id):
 
 
 def clear_plugin_ui_namespace():
-    """清空 ui_data 中的插件命名空间（测试间隔离，避免 enabled/load_error 互相污染）。"""
-    from core.data.ui_store import update_ui_data
+    """清空 ui_data 中的插件命名空间（测试间隔离，避免 enabled/load_error 互相污染）。
+
+    同时清掉入口布局偏好（`_entry_layout_v1`）：它也是插件系统的宿主持久化状态，
+    若不清会让用例之间互相看到对方的 pinned/hidden，产生顺序依赖的假失败。
+    """
+    from core.data.ui_store import ENTRY_LAYOUT_KEY, update_ui_data
 
     def mutator(ui_data):
         ui_data.pop('_plugins_v1', None)
+        ui_data.pop(ENTRY_LAYOUT_KEY, None)
 
     return update_ui_data(mutator)
 

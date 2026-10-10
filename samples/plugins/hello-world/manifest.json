@@ -1,10 +1,11 @@
 {
   "id": "hello-world",
   "name": "Hello World 示例插件",
-  "version": "0.1.0",
-  "api_version": 1,
+  "version": "0.2.0",
+  "api_version": 2,
+  "manifest_version": 2,
   "author": "ST-Manager",
-  "description": "阶段 0 验收示例：后端注册一个 /ping 路由，前端注入一个按钮调用它，并演示配置与密钥读取。",
+  "description": "契约活体夹具：填满全部 6 种入口 kind（dock/nav/settings/context/command/status），并演示 surfaces、UI 原语、存储与配置通知。",
   "license": "MIT",
   "backend": {
     "entry": "backend",
@@ -14,7 +15,74 @@
   },
   "frontend": {
     "entry": "frontend/plugin.js",
-    "styles": ["frontend/plugin.css"]
+    "styles": ["frontend/plugin.css"],
+    "entries": [
+      {
+        "id": "main-panel",
+        "kind": "dock",
+        "label": "Hello",
+        "description": "打开 Hello World 演示面板",
+        "icon": "wand",
+        "priority": 10,
+        "surface": { "id": "main", "type": "panel" }
+      },
+      {
+        "id": "modal-demo",
+        "kind": "dock",
+        "label": "模态",
+        "description": "演示 modal 类型的宿主表面",
+        "icon": "expand",
+        "priority": 20,
+        "surface": { "id": "modal-demo", "type": "modal" }
+      },
+      {
+        "id": "nav-demo",
+        "kind": "nav",
+        "label": "Hello 导航",
+        "description": "侧栏导航项（仅官方/认证插件可用）",
+        "icon": "layers",
+        "priority": 30
+      },
+      {
+        "id": "settings-demo",
+        "kind": "settings",
+        "label": "Hello 设置",
+        "description": "设置页区块入口",
+        "icon": "settings",
+        "priority": 40
+      },
+      {
+        "id": "context-card",
+        "kind": "context",
+        "label": "Hello 右键项",
+        "description": "卡片右键菜单项，需先选中卡片",
+        "icon": "clipboard",
+        "priority": 50,
+        "requires_selection": true,
+        "when": { "mode": ["cards"], "selection": "any" },
+        "disabledHint": "请先选中至少一张角色卡"
+      },
+      {
+        "id": "summarize",
+        "kind": "command",
+        "label": "Hello 概览",
+        "description": "命令面板命令；未配置 API Key 时置灰",
+        "icon": "bolt",
+        "priority": 60,
+        "shortcut": "Ctrl+Shift+H",
+        "when": { "config": { "requireKeys": ["greeting"] } },
+        "disabledHint": "请先在插件设置中填写问候语"
+      },
+      {
+        "id": "index-status",
+        "kind": "status",
+        "label": "Hello 状态",
+        "description": "状态指示（仅官方/认证插件可用）",
+        "icon": "circle-dot",
+        "priority": 70,
+        "when": { "indexState": "ready" }
+      }
+    ]
   },
   "permissions": ["cards.read", "secrets.read"],
   "config_schema": {
@@ -30,6 +98,13 @@
         "type": "boolean",
         "title": "显示时间戳",
         "default": true
+      },
+      "surface_type": {
+        "type": "enum",
+        "title": "演示面板类型",
+        "description": "演示 D8 的 surface.type 四种取值。",
+        "enum": ["panel", "modal", "page", "sheet"],
+        "default": "panel"
       }
     }
   },

@@ -93,6 +93,25 @@ pytest tests/test_st_auth_flow.py::test_st_http_client_web_performs_login
 pytest -v tests/test_chat_list_filters.py::test_chat_list_fav_filter_included
 ```
 
+## Generated Artifacts
+
+Two files in this repo are **generated**; never hand-edit them, and re-run their
+generator after touching the corresponding source. CI-style tests assert that the
+on-disk file matches the generator output.
+
+| Generated file | Source of truth | Regenerate | Verify |
+|---|---|---|---|
+| `docs/plugin-api.md` | `core/plugins/api.py` (`PluginAPI`) + `static/js/pluginHost.js` (`buildApi()`) | `python tools/gen_plugin_api_docs.py` | `python tools/gen_plugin_api_docs.py --check` |
+| `static/js/utils/iconMap.js` | `static/icons/*.svg` (`id="icon-*"`) | `python tools/gen_plugin_ui_icons.py` | `python tools/gen_plugin_ui_icons.py --check` |
+
+Adding a new public method to `PluginAPI` or a new top-level member to the
+`buildApi()` return object requires registering it in `BACKEND_GROUPS` /
+`FRONTEND_MEMBERS` inside `tools/gen_plugin_api_docs.py`, or
+`tests/test_plugin_api_docs.py` fails.
+
+Adding a new icon to a sprite requires re-running `tools/gen_plugin_ui_icons.py`,
+or `tests/test_plugin_icons.py` fails.
+
 ## Lint And Type Check
 
 No repo-enforced linter, formatter, or type checker config files were found, so keep edits minimal.

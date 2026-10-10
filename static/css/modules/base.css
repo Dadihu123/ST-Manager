@@ -7,6 +7,19 @@ html {
   text-size-adjust: 100%;
 }
 
+/*
+ * 页面底色放在 <html>，壁纸放在 body::before（见下）。
+ *
+ * 这里刻意**不**在 body 上放背景图：壁纸需要 `filter: blur()` 才能模糊，
+ * 而 `filter` 会让元素成为 backdrop root。body 是所有全屏遮罩的祖先，
+ * 一旦 body 自己成为 backdrop root，遮罩的 `backdrop-filter` 就会采样到
+ * 一个不完整的 backdrop（详见 static/css/modules/layout.css 中
+ * `.main-container` 与 `body.has-fullscreen-scrim` 的注释）。
+ */
+html {
+  background-color: var(--surface-page);
+}
+
 body {
   margin: 0;
   font-family:
@@ -19,11 +32,7 @@ body {
     "Helvetica Neue",
     Arial,
     sans-serif;
-  background-color: var(--surface-page);
-  background-image: var(--bg-image-url);
-  background-size: cover;
-  background-position: center;
-  background-attachment: fixed;
+  background-color: transparent;
   color: var(--content-primary);
   overflow: hidden;
   min-height: 100vh;
@@ -32,6 +41,32 @@ body {
   height: 100dvh;
   display: flex;
   flex-direction: column;
+}
+
+/*
+ * 壁纸图层。
+ *
+ * 用 `filter: blur()` 而不是 `backdrop-filter`：`filter` 只影响自己的绘制结果，
+ * 不会让后面的内容丢失；`backdrop-filter` 会强制浏览器把下层内容先做一次
+ * 离屏快照，遇到全屏固定层时 Chromium 会渲染出黑块或一整片平坦灰。
+ *
+ * `z-index: -1` 让壁纸落在 body 内容之下、<html> 底色之上 —— 因此 body 必须是
+ * 透明背景（见上）。`--bg-blur` 为 0px 时 `filter: blur(0px)` 是恒等变换，
+ * 视觉与「没有模糊」一致。
+ */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  /* 向外多铺一个模糊半径，避免模糊把视口边缘采样成透明而出现暗边。
+     写成两条：`--bg-blur` 若意外没有单位，calc 会失效，此时保留上面的 inset: 0。 */
+  inset: calc(-1 * var(--bg-blur));
+  z-index: -1;
+  pointer-events: none;
+  background-image: var(--bg-image-url);
+  background-size: cover;
+  background-position: center;
+  filter: blur(var(--bg-blur));
 }
 
 ::-webkit-scrollbar {

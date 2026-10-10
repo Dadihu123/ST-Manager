@@ -33,7 +33,8 @@ class PluginState:
 
     __slots__ = (
         'plugin_id', 'plugin_dir', 'enabled', 'loaded', 'load_error',
-        'manifest', 'api', 'module', 'restart_required', 'warnings',
+        'load_error_detail', 'manifest', 'api', 'module', 'restart_required',
+        'warnings',
     )
 
     def __init__(self, plugin_id: str, plugin_dir: str = ''):
@@ -42,6 +43,7 @@ class PluginState:
         self.enabled = True
         self.loaded = False
         self.load_error = ''
+        self.load_error_detail = {}
         self.manifest = None
         self.api = None
         self.module = None
@@ -63,13 +65,17 @@ class PluginState:
             'id': self.plugin_id,
             'name': manifest.name if manifest else self.plugin_id,
             'version': manifest.version if manifest else '',
+            'api_version': manifest.api_version if manifest else 0,
+            'manifest_version': manifest.manifest_version if manifest else 0,
             'enabled': bool(self.enabled),
             'loaded': bool(self.loaded),
             'backend': bool(manifest and manifest.has_backend),
             'frontend': bool(manifest and manifest.has_frontend),
             'frontend_only': bool(manifest and manifest.is_frontend_only),
             'permissions': list(manifest.permissions) if manifest else [],
+            'entries': [dict(item) for item in manifest.frontend_entries] if manifest else [],
             'load_error': self.load_error,
+            'load_error_detail': dict(self.load_error_detail or {}),
             'restart_required': bool(self.restart_required),
             'warnings': list(self.warnings or []),
             'author': manifest.author if manifest else '',
@@ -164,11 +170,23 @@ def _persist_ui_entry(plugin_id: str, patch: dict) -> bool:
     return bool(update_ui_data(mutator))
 
 
-def _persist_load_error(plugin_id: str, error: str) -> None:
+def _persist_load_error(plugin_id: str, error: str, detail: dict | None = None) -> None:
+    """持久化加载失败信息。
+
+    `load_error` 保留为人类可读摘要（向后兼容既有 UI 与测试），
+    `load_error_detail` 携带 D3 的结构化字段（code/field/msg/hint/user_msg）。
+    """
+    patch = {}
     current = _read_ui_entry(plugin_id)
-    if current.get('load_error', '') == error:
-        return
-    _persist_ui_entry(plugin_id, {'load_error': error})
+    if current.get('load_error', '') != error:
+        patch['load_error'] = error
+
+    detail = detail or {}
+    if current.get('load_error_detail') != detail:
+        patch['load_error_detail'] = detail
+
+    if patch:
+        _persist_ui_entry(plugin_id, patch)
 
 
 def get_state(plugin_id: str):
@@ -309,23 +327,39 @@ def _mark_loaded(state: PluginState, manifest: PluginManifest, api, module) -> N
     state.module = module
     state.loaded = True
     state.load_error = ''
+    state.load_error_detail = {}
     state.enabled = True
     state.warnings = list(manifest.warnings or [])
     _persist_load_error(state.plugin_id, '')
 
 
-def _mark_failed(plugin_id: str, plugin_dir: str, manifest, error: str) -> None:
+def _mark_failed(plugin_id: str, plugin_dir: str, manifest, error, *,
+                 detail: dict | None = None, prefix: str = '') -> None:
+    """记录加载失败。
+
+    `error` 可以是字符串（摘要）或异常对象；异常对象会同时取出 D3 的结构化字段
+    （`load_error_detail`）。`prefix` 用于给摘要加上既有 UI 依赖的前缀。
+    """
+    if isinstance(error, BaseException):
+        exc = error
+        if detail is None and hasattr(exc, 'as_detail'):
+            detail = exc.as_detail()
+        error_text = f'{prefix}{exc}'
+    else:
+        error_text = f'{prefix}{error}'
+
     with _states_lock:
         state = _states.get(plugin_id) or PluginState(plugin_id, plugin_dir)
         state.plugin_dir = plugin_dir or state.plugin_dir
         state.loaded = False
-        state.load_error = error
+        state.load_error = error_text
+        state.load_error_detail = dict(detail or {})
         if manifest is not None:
             state.manifest = manifest
             state.warnings = list(manifest.warnings or [])
         _states[plugin_id] = state
 
-    _persist_load_error(plugin_id, error)
+    _persist_load_error(plugin_id, error_text, detail)
 
 
 def _register_disabled_state(plugin_id: str, plugin_dir: str, manifest: PluginManifest) -> None:
@@ -443,12 +477,13 @@ def load_all(app=None) -> dict:
         try:
             manifest = PluginManifest.load(plugin_dir)
         except PluginApiVersionError as exc:
-            _mark_failed(plugin_id, plugin_dir, None, str(exc))
+            _mark_failed(plugin_id, plugin_dir, None, exc)
             logger.error('插件 %s 的 API 版本不受支持，已跳过: %s', plugin_id, exc)
             summary['failed'].append(plugin_id)
             continue
         except PluginManifestError as exc:
-            _mark_failed(plugin_id, plugin_dir, None, f'manifest 校验失败: {exc}')
+            # 保留「manifest 校验失败: 」前缀：load_error 是既有 UI 依赖的人类可读摘要
+            _mark_failed(plugin_id, plugin_dir, None, exc, prefix='manifest 校验失败: ')
             logger.error('插件 %s 的 manifest 校验失败，已跳过: %s', plugin_id, exc)
             summary['failed'].append(plugin_id)
             continue
@@ -457,6 +492,9 @@ def load_all(app=None) -> dict:
             logger.exception('插件 %s 的 manifest 解析出现未预期异常', plugin_id)
             summary['failed'].append(plugin_id)
             continue
+
+        # D5：入口准入分级由 catalog 的 tier 决定，manifest 无权声明
+        apply_entry_tiers(manifest)
 
         candidates[plugin_id] = {
             'dir': plugin_dir,
@@ -557,6 +595,34 @@ def _clear_restart_required_flags() -> None:
         update_ui_data(mutator)
     except Exception:  # noqa: BLE001 - 标志清理失败不影响主流程
         logger.warning('清理 restart_required 标志失败', exc_info=True)
+
+
+def apply_entry_tiers(manifest: PluginManifest) -> list:
+    """按 catalog 归属分级过滤入口并写回 manifest（D5）。
+
+    tier 由宿主仓库的 catalog 决定，manifest 无权声明，因此这一步必须在
+    **加载期**完成（manifest 解析阶段还不知道 tier）。返回新增的警告列表。
+
+    这里使用 catalog 的**本地**查询（缓存 + 包内清单，不发网络请求）：
+    插件加载不能为远端目录而阻塞。查不到即 `community`（安全的一侧）。
+    """
+    from core.plugins.catalog import tier_for_plugin  # 局部导入：catalog 反向依赖 registry
+    from core.plugins.entries import apply_tier
+
+    if not manifest.frontend_entries:
+        return []
+
+    try:
+        tier = tier_for_plugin(manifest.plugin_id)
+    except Exception:  # noqa: BLE001 - 目录读取异常不得影响插件加载
+        logger.warning('解析插件 %s 的归属分级失败，按 community 处理', manifest.plugin_id)
+        tier = 'community'
+
+    kept, warnings = apply_tier(manifest.plugin_id, manifest.frontend_entries, tier=tier)
+    manifest.frontend_entries = kept
+    if warnings:
+        manifest.warnings = list(manifest.warnings or []) + warnings
+    return warnings
 
 def load_single(app, plugin_dir: str) -> PluginState:
     """加载单个插件（安装流程校验用，不登记路由）。"""

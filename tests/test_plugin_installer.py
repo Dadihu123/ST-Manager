@@ -338,6 +338,43 @@ def test_install_plugin_dir_persists_style_scope_errors(tmp_path, install_env):
     assert 'frontend/plugin.css' in installer_module.read_style_scope_errors('zip-plugin')
 
 
+def test_install_plugin_dir_persists_style_declaration_warnings(tmp_path, install_env):
+    """F13：`position: fixed` 只记警告，**不拒绝安装**。"""
+    source = write_plugin(
+        tmp_path / 'stage', 'zip-plugin',
+        css='.plugin-zip-plugin-launcher { position: fixed; }\n',
+    )
+
+    result = installer_module.install_plugin_dir(source)
+
+    assert result['style_scope_errors'] == {}
+    warnings = result['style_declaration_warnings']
+    assert warnings['frontend/plugin.css']['position_fixed']
+    assert installer_module.read_style_declaration_warnings('zip-plugin') == warnings
+    # 与作用域错误是两个独立键，不能互相污染
+    assert installer_module.read_style_scope_errors('zip-plugin') == {}
+
+
+def test_install_plugin_dir_records_clean_declaration_warnings(tmp_path, install_env):
+    source = write_plugin(tmp_path / 'stage', 'zip-plugin')
+
+    result = installer_module.install_plugin_dir(source)
+
+    assert result['style_declaration_warnings'] == {}
+    assert installer_module.read_style_declaration_warnings('zip-plugin') == {}
+
+
+def test_install_plugin_dir_scans_declarations_before_moving_source(tmp_path, install_env):
+    """回归：声明层扫描同样必须在 `shutil.move` 之前完成，否则只会读到「读取失败」。"""
+    css = '.plugin-zip-plugin-launcher { position: fixed; }\n'
+    source = write_plugin(tmp_path / 'stage', 'zip-plugin', css=css)
+
+    result = installer_module.install_plugin_dir(source)
+
+    warnings = result['style_declaration_warnings']
+    assert 'read_error' not in warnings.get('frontend/plugin.css', {})
+
+
 def test_install_plugin_dir_scans_css_before_moving_source(tmp_path, install_env):
     """回归：作用域扫描必须在 `shutil.move` 之前做完。
 
@@ -382,6 +419,38 @@ def test_install_from_upload_installs_plugin(tmp_path, install_env):
 
     assert result['id'] == 'upload-plugin'
     assert (install_env['plugins_root'] / 'upload-plugin' / 'manifest.json').is_file()
+
+
+def test_install_from_upload_enforces_expected_id(tmp_path, install_env):
+    """D9.3：上传路径此前不绑定 `expected_id`，与 catalog 路径不一致。"""
+    archive_path = _write_plugin_zip(tmp_path / 'upload.zip', {'extra.txt': 'x'}, plugin_id='upload-plugin')
+
+    with pytest.raises(PluginManifestError, match='预期'):
+        installer_module.install_from_upload(
+            _FakeUpload(str(archive_path)), expected_id='another-plugin',
+        )
+
+    assert not (install_env['plugins_root'] / 'upload-plugin').exists()
+
+
+def test_install_from_upload_accepts_matching_expected_id(tmp_path, install_env):
+    archive_path = _write_plugin_zip(tmp_path / 'upload.zip', {'extra.txt': 'x'}, plugin_id='upload-plugin')
+
+    result = installer_module.install_from_upload(
+        _FakeUpload(str(archive_path)), expected_id='upload-plugin',
+    )
+
+    assert result['id'] == 'upload-plugin'
+
+
+def test_install_from_upload_ignores_blank_expected_id(tmp_path, install_env):
+    archive_path = _write_plugin_zip(tmp_path / 'upload.zip', {'extra.txt': 'x'}, plugin_id='upload-plugin')
+
+    result = installer_module.install_from_upload(
+        _FakeUpload(str(archive_path)), expected_id='   ',
+    )
+
+    assert result['id'] == 'upload-plugin'
 
 
 def test_install_from_upload_rejects_unsafe_archive(tmp_path, install_env):

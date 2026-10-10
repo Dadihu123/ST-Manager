@@ -30,8 +30,18 @@ html.light-mode {
   }
 }
 
+/*
+ * 页面底色挂在 <html> 上，body 必须保持透明。
+ *
+ * 壁纸图层是 `body::before`（见 static/css/modules/base.css）：它带
+ * `filter: blur()` 实现「背景模糊」，而 `filter` 会让元素成为 backdrop root。
+ * 如果 body 自己也有不透明背景，`body::before` 的 `z-index: -1` 会被 body 的
+ * 背景盖住 —— 壁纸直接消失；把底色留在 body 上还会让 body 成为所有全屏遮罩
+ * 的 backdrop root，触发 Chromium 的黑块/平坦灰渲染瑕疵。
+ *
+ * 这里只保留文字颜色，底色由 base.css 的 `html` 规则提供。
+ */
 body {
-  background-color: var(--surface-page);
   color: var(--content-primary);
 }
 

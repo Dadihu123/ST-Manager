@@ -496,7 +496,7 @@
   background: color-mix(in srgb, var(--content-on-light) 45%, transparent);
   display: flex;
   justify-content: flex-end;
-  z-index: 70;
+  z-index: var(--z-beautify-detail-drawer);
 }
 
 .beautify-package-detail-drawer-panel {
@@ -813,7 +813,7 @@
 .beautify-mobile-fullscreen {
   position: fixed;
   inset: 0;
-  z-index: 40;
+  z-index: var(--z-beautify-mobile-fullscreen);
   display: flex;
   flex-direction: column;
   background: color-mix(

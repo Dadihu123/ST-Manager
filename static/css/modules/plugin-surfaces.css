@@ -1,0 +1,178 @@
+/*
+ * static/css/modules/plugin-surfaces.css
+ * 宿主表面容器（设计文档 D8 的 `mount(container, ctx)` 契约）。
+ *
+ * 层级、尺寸、滚动、焦点全部归宿主——插件只在容器内创建 DOM。
+ * 这是「插件声明、宿主渲染」在样式上的落点：插件不再需要自己写
+ * `position: fixed` 浮层、自己算 z-index、自己处理移动端全屏。
+ *
+ * 硬约束：
+ * - **不使用 `backdrop-filter`**：`.main-container` 已带 backdrop-filter，
+ *   Chromium 会把它当 backdrop root，叠加固定定位的大内容会渲染出黑块
+ *   （详见 layout.css 与 data/plugins/stm-ai-assistant/frontend/plugin.css 的实测记录）。
+ * - 只用 `.color-*` 语义类与既有 CSS 变量，不写死颜色。
+ * - 遵守 `prefers-reduced-motion`。
+ */
+
+.plugin-surface-root {
+  position: relative;
+  z-index: var(--z-surface);
+}
+
+.plugin-surface {
+  position: fixed;
+  z-index: var(--z-surface);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background-color: var(--surface-container);
+  color: var(--content-primary);
+  border: 1px solid var(--border-default);
+  box-shadow: 0 20px 60px color-mix(in srgb, var(--content-on-light) 28%, transparent);
+}
+
+/* ---------------------------------------------------------------- 头部 */
+
+.plugin-surface__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.875rem 1rem;
+  border-bottom: 1px solid var(--border-subtle);
+  flex: 0 0 auto;
+}
+
+.plugin-surface__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--content-primary);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.plugin-surface__close {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 0.5rem;
+  background: transparent;
+  color: var(--content-secondary);
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.plugin-surface__close:hover {
+  background-color: var(--state-hover-surface);
+  color: var(--content-primary);
+}
+
+.plugin-surface__close:focus-visible {
+  outline: 2px solid var(--state-focus-ring);
+  outline-offset: 2px;
+}
+
+/* ---------------------------------------------------------------- 内容区 */
+
+.plugin-surface__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  overflow: auto;
+  padding: 1rem;
+  scrollbar-gutter: stable both-edges;
+}
+
+/* ---------------------------------------------------------------- panel */
+
+/* 右侧抽屉：宽度自适应，窄屏退化为全屏 sheet */
+.plugin-surface--panel {
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(420px, 92vw);
+  border-right: none;
+  border-top: none;
+  border-bottom: none;
+}
+
+/* ---------------------------------------------------------------- modal */
+
+.plugin-surface--modal {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(720px, 92vw);
+  max-height: min(80vh, 720px);
+  border-radius: 1rem;
+  z-index: var(--z-modal-popover);
+}
+
+/* ---------------------------------------------------------------- page */
+
+/* 主内容区整页：不遮罩全屏，因此宿主不为它声明 scrim */
+.plugin-surface--page {
+  top: 64px;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  border: none;
+  box-shadow: none;
+}
+
+/* ---------------------------------------------------------------- sheet */
+
+/* 移动端底部 sheet */
+.plugin-surface--sheet {
+  right: 0;
+  bottom: 0;
+  left: 0;
+  max-height: 85vh;
+  border-radius: 1rem 1rem 0 0;
+  border-bottom: none;
+}
+
+/* ---------------------------------------------------------------- 响应式 */
+
+/* ≤900px：抽屉与模态都退化为全屏，避免窄屏上出现「夹缝」式浮层 */
+@media (max-width: 900px) {
+  .plugin-surface--panel,
+  .plugin-surface--modal {
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    width: 100vw;
+    max-width: none;
+    max-height: none;
+    transform: none;
+    border: none;
+    border-radius: 0;
+  }
+}
+
+/* 移动端：底部 sheet 让出安全区，避免被 Home 指示条遮住 */
+@media (max-width: 640px) {
+  .plugin-surface--sheet {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+}
+
+/* ---------------------------------------------------------------- 动效 */
+
+@media (prefers-reduced-motion: reduce) {
+  .plugin-surface,
+  .plugin-surface__close {
+    transition: none;
+  }
+}

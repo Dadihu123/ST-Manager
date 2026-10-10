@@ -162,7 +162,8 @@ data/plugins/                   # 只放插件本体（目录名 = plugin id）
   "id": "stm-ai-assistant",              // 必须等于目录名
   "name": "AI 角色卡分析助手",
   "version": "0.1.0",                    // 语义化版本
-  "api_version": 1,                      // 主程序 API 契约版本（硬闸门）
+  "api_version": 2,                      // 主程序 API 契约版本（硬闸门）
+  "manifest_version": 2,                 // manifest 自身的结构版本（缺省视为 1）
 
   // ---- 建议 ----
   "author": "",
@@ -184,11 +185,32 @@ data/plugins/                   # 只放插件本体（目录名 = plugin id）
   "frontend": {
     "entry": "frontend/plugin.js",
     "styles": ["frontend/plugin.css"],
-    "panels": [
-      { "id": "ai-workbench", "mode": "cards", "label": "AI 分析", "icon": "ai" }
-    ],
-    "settings_tab": { "id": "ai", "label": "AI 助手" },
-    "detail_tab": null                   // 可选：在卡片详情页加 tab
+
+    // 入口声明（D1）：插件只声明「我有什么入口」，渲染与定位由宿主决定
+    "entries": [
+      {
+        "id": "ai-workbench",            // 插件内唯一；全局键 = "<plugin_id>:<id>"
+        "kind": "dock",                  // dock | nav | settings | context | command | status
+        "label": "AI 分析",
+        "description": "为选中卡片生成概览与标签建议",
+        "icon": "sparkles",              // 宿主图标名（不含 / 与 .）或插件内资源路径（含 /）
+        "contexts": ["cards"],           // 等价于 when.mode；两者同时存在时取交集
+        "requires_selection": true,
+        "surface": { "type": "panel", "title": "AI 分析" },  // panel | modal | page | sheet
+        "priority": 50,                  // 建议值；坞槽位由宿主分配
+        "badge": null,
+        "shortcut": "Ctrl+Shift+A",
+        "when": {
+          "mode": ["cards"],
+          "selection": "any",            // none | any | single | multi
+          "indexState": "ready",
+          "config": { "requireKeys": ["api_key"] },
+          "hostVersion": ">=1.0.0",
+          "feature": ["hasNetwork"]
+        },
+        "disabledHint": "请先在插件设置中填写 API Key"
+      }
+    ]
   },
 
   // ---- 声明（D7：审计用，非执行门控）----
@@ -221,20 +243,127 @@ data/plugins/                   # 只放插件本体（目录名 = plugin id）
 }
 ```
 
+### 顶层键白名单
+
+manifest 采用**严格校验**：顶层出现白名单以外的键即**拒绝加载**（`code: manifest_unknown_key`）。
+
+允许的顶层键：`id`、`name`、`version`、`api_version`、`manifest_version`、`author`、`description`、
+`homepage`、`license`、`icon`、`min_app_version`、`backend`、`frontend`、`permissions`、`requires`、
+`config_schema`、`secret_schema`、`i18n`（为 N3 预留）。
+
+`backend.*` 允许键：`entry`、`register`、`jobs`、`hooks`。
+`frontend.*` 允许键：`entry`、`styles`、`entries`。
+`frontend.entries[]` 允许键：`id`、`kind`、`label`、`description`、`icon`、`contexts`、
+`requires_selection`、`surface`、`priority`、`badge`、`shortcut`、`when`、`disabledHint`。
+
+### 入口（entries）规范（D1）
+
+`frontend.entries[]` 取代了早期的 `frontend.panels` / `frontend.settings_tab` / `frontend.detail_tab`
+三字段。**旧三字段已删除，不保留别名**：`manifest_version: 1` 的 manifest 若仍含这三个字段之一，
+一律拒绝加载并提示改用 `frontend.entries`。
+
+| 字段 | 类型 | 必需 | 规则 | 失败处理 |
+|---|---|---|---|---|
+| `id` | string | ✅ | `^[a-z][a-z0-9-]{0,63}$`，插件内唯一 | 丢弃该项 + 警告 |
+| `kind` | enum | ✅ | `dock` / `nav` / `settings` / `context` / `command` / `status` | 丢弃该项 + 警告 |
+| `label` | string | ✅ | 非空 | 丢弃该项 + 警告 |
+| `description` | string | | 说明文字 | — |
+| `icon` | string | | 宿主图标名（不含 `/` 与 `.`）或插件内相对路径（含 `/`） | 降级为占位图标 + 警告（不拒绝加载） |
+| `contexts` | string[] | | 元素 ∈ 已知 mode 集合；等价 `when.mode` | 丢弃非法元素 + 警告 |
+| `requires_selection` | boolean | | 是否需要选中对象 | — |
+| `surface.type` | enum | | `panel` / `modal` / `page` / `sheet` | 丢弃该项 + 警告 |
+| `priority` | integer | | **建议值**，坞槽位由宿主分配（D6） | 非法则用默认值 |
+| `badge` | number\|string\|null | | 初始角标 | — |
+| `shortcut` | string | | 建议快捷键，宿主可覆盖 | — |
+| `when` | object | | 见下方条件表达式 | 非法子键忽略 + 警告 |
+| `disabledHint` | string | | 条件不满足时 tooltip 文案 | — |
+
+单插件 `entries` 上限 **16** 项，超出部分忽略并 warning。
+
+**`when` 条件表达式（D7）**：求值统一在宿主侧完成，插件只声明。
+
+```jsonc
+"when": {
+  "mode": ["cards"],                        // 当前工作模式
+  "selection": "any",                       // none | any | single | multi
+  "indexState": "ready",                    // 索引就绪状态
+  "config": { "requireKeys": ["api_key"] }, // 未配置则置灰
+  "hostVersion": ">=1.0.0",
+  "feature": ["hasNetwork"]
+}
+```
+
+`config.requireKeys` 的语义：检查 `config_schema.properties` 与 `secret_schema.properties` 中
+对应键是否有非空值；不满足时入口**可见但置灰**，`title`/tooltip 显示 `disabledHint`，
+**点击直接跳到该插件的配置/密钥区**（而不是无反应）。
+
+### 入口 `kind` 准入分级（D5）
+
+tier 由宿主仓库的 catalog 决定（`official` / `verified` / `community`），**插件 manifest 不能声明**。
+不在 catalog 中的插件默认 `community`。
+
+| kind | official | verified | community |
+|---|---|---|---|
+| `command` / `context` / `settings` / `dock` | ✅ | ✅ | ✅ |
+| `status` | ✅ | ✅ | ❌ |
+| `nav` | ✅ | ✅ | ❌ |
+
+不允许的 kind：**忽略该 entry 并记 warning**，不拒绝加载整个插件。
+
+### 坞槽位（D6）
+
+- 插件声明的 `priority` 仅作**建议值**。
+- 社区插件的 `dock` 入口**默认进溢出菜单，不进坞槽位**；用户显式拖入才固定。
+- 坞可见槽位上限 **8**；单插件在坞内最多占 **2** 个槽位。
+
+### 图标名契约（D4）
+
+- 插件（含第三方）**允许**在 `entries[].icon` 与 `api.ui.icon()` 中使用**宿主图标名**。
+- 命名空间区分：宿主图标名**不含** `/` 与 `.`；插件自带资源路径**必含** `/`。
+- 图标名清单由后端 `GET /api/plugins/ui-icons` 导出（解析 `static/icons/*.svg` 中的 `id="icon-*"`）。
+- **安装期校验**：`entries[].icon` 若为宿主图标名，校验其存在性；不存在则记 warning 并把图标降级为占位（**不拒绝加载**）。
+- **契约承诺**：图标名整表 `Stable`；允许新增；删除/改名走 deprecation。
+- **新约束**：插件**不得**在自己 CSS 里硬编码 sprite 路径（如 `url('/static/icons/ui.svg#icon-x')`）——安装期静态检查发现即 warning。
+
 ### 校验规则
 
 | 字段 | 规则 | 失败处理 |
 |---|---|---|
+| 顶层键 | 必须 ∈ 顶层键白名单 | **拒绝加载**（`manifest_unknown_key`） |
+| `backend.*` / `frontend.*` 子键 | 必须 ∈ 各自白名单 | **拒绝加载**（`manifest_unknown_key`） |
+| `frontend.entries[].*` 子键 | 必须 ∈ entries 白名单 | **拒绝加载**（`manifest_unknown_key`） |
 | `id` | 正则 + 等于目录名 | 拒绝加载 |
 | `version` | 语义化版本（`X.Y.Z[-pre][+build]`） | 拒绝加载 |
-| `api_version` | 必须 ∈ 主程序支持集合（当前 `{1}`） | 拒绝加载，UI 显示「需要更新主程序」 |
+| `api_version` | 必须 ∈ 主程序支持集合（当前 `{2, 1}`） | 拒绝加载，UI 显示「需要更新主程序」 |
+| `manifest_version` | 必须 ∈ 支持集合（当前 `{2, 1}`）；缺省视为 `1` | 拒绝加载 |
+| `manifest_version: 1` + 旧三字段 | 已废弃字段 | 拒绝加载，提示改用 `frontend.entries` |
 | `min_app_version` | ≤ 当前主程序版本 | 拒绝加载，UI 提示升级 |
 | `backend.entry` | 归一化后必须位于插件目录内 | 拒绝加载 |
 | `backend.jobs` | 非空字符串、全局唯一（跨插件） | 冲突者拒绝注册该 job |
 | `backend.hooks` | 必须 ∈ 已知事件集合 | 忽略未知项 + 警告 |
 | `permissions` | 白名单校验 | 未知项忽略 + 警告 |
 | `requires` | 对象：插件 id → 版本约束（`>=` `>` `<=` `<` `==` `*`；无操作符视为精确匹配） | 非法项忽略 + 警告；依赖缺失 / 被禁用 / 版本不满足 / 循环依赖 → 该插件拒绝加载并写 `load_error` |
+| `frontend.entries` | 见「入口（entries）规范」 | 非法项丢弃 + 警告；上限 16 项 |
 | `config_schema` / `secret_schema` | 仅支持 JSON Schema 子集 | 非法则回退为「无表单」 |
+
+### 分层错误信息（D3）
+
+manifest 校验失败时给出**两层**错误：机器可读的 `code` + 面向作者的 `field`/`hint` +
+面向普通用户的 `user_msg`。注册表把它持久化到 `ui_data._plugins_v1.<id>.load_error`（人类可读摘要），
+并在 `load_error_detail` 中保留完整结构。
+
+```python
+{
+    'code': 'manifest_unknown_key',        # 机器可读
+    'field': 'frontend.entrys',            # 技术细节，给作者/日志
+    'msg': 'manifest 中存在未知字段 frontend.entrys',
+    'hint': 'frontend 支持的字段：entry, styles, entries',
+    'user_msg': '插件「XXX」的清单格式不正确，请联系插件作者更新。',  # 给 UI
+}
+```
+
+其余既有 warning 式宽松（未知 hook / 未知权限 / `requires` 非法项）**保持不动**，
+只对 manifest 结构键与 `entries` 相关字段从严。
 
 **依赖加载语义**：`load_all()` 分三阶段——先解析全部 manifest，再做依赖校验与拓扑排序（**被依赖者先加载**），最后按序实例化。依赖链上任何一环失败（manifest 非法、后端注册抛错）都会让下游插件一并记 `依赖链中存在无法加载的插件` 并跳过，不会带着半可用状态启动。
 
@@ -1148,6 +1277,53 @@ if (window.Alpine) {
 | 后端调用 | `api.api(path, options)` → `/api/plugins/<id>/*`，内部自动加 `X-Requested-With: XMLHttpRequest` 头 + 若存在 `<meta name="csrf-token">` 则自动带 `X-CSRFToken`（**CSRF 预留**，即使现在不实现也先封装，未来加 `after_request` CSRF 时插件零改动） |
 | SSE | `api.subscribeJob(runId, handlers)`（含轮询降级） |
 
+### 8.3.1 入口契约（entries）
+
+插件通过 `manifest.json` 的 `frontend.entries[]` **声明**入口，宿主负责**渲染与定位**。
+
+```
+插件声明：  { id, kind, label, icon, contexts, when, surface, priority, ... }
+              ↓
+宿主入口注册表（entryRegistry）
+              ↓ 按 mode 过滤 + when 求值 + tier 分级 + 排序
+呈现层（入口坞 / 命令面板 / 入口总览页）
+              ↓ 用户点击
+宿主 surface 容器（pluginSurfaceHost）
+              ↓ 宿主完成定位/尺寸/滚动/焦点陷阱/ESC
+插件 mount(container, ctx) —— 只在 container 内创建 DOM
+```
+
+**核心不变量**：插件**不拥有**容器。容器的一切（位置、尺寸、层级、滚动、焦点、关闭）
+由宿主负责；插件只往给定 `container` 里塞内容。这条不变量是「插件不再需要自己写
+`position: fixed` 浮层」的技术前提。
+
+### 8.3.2 Surface 契约
+
+`api.surfaces.register(surfaceId, spec)`：
+
+```js
+api.surfaces.register('ai-workbench', {
+  title: 'AI 分析',
+  mount(container, ctx) {
+    // container 已完成定位/尺寸/滚动/data-marquee-ignore/role=dialog/aria-modal/焦点陷阱
+    // ctx = { entry, mode, selection, config, close }
+    const el = document.createElement('div');
+    el.textContent = '...';
+    container.appendChild(el);
+    return () => { /* 清理；宿主在关闭时调用 */ };
+  },
+  unmount() {},
+  onOpen() {},
+  onClose() {},
+});
+```
+
+宿主必须保证：
+
+- `mount()` **抛错**时销毁该 surface、把对应入口置错误态，**不影响其他插件与宿主本身**。
+- 插件被**禁用/卸载**时，宿主**强制卸载**该插件的所有 surface，**不依赖插件 `deactivate`**。
+- 插件**不得**设置 container 或其祖先的 `position` / `z-index` / `inset`。
+
 ## 8.4 前端硬约束（来自调研，必须遵守）
 
 | # | 约束 | 依据 |
@@ -1164,6 +1340,9 @@ if (window.Alpine) {
 | F10 | `refresh-card-list` 事件覆盖不全 | `cardGrid.js:970,1509,1585,1613,1863,1997` 直接 `fetchCards()` |
 | F11 | **插件 CSS 必须有作用域** | `frontend.styles` 注入的样式**必须**以 `.plugin-<id>` 或 `[data-plugin="<id>"]` 为根选择器，防止污染核心 UI（如 `.card { border: red }`）。安装时做静态检查：扫 CSS 文件，发现顶层裸选择器（非 `@media`/`@keyframes`/`@font-face` 内的）则**警告并拒绝加载该样式**，UI 提示「样式未通过作用域检查」 |
 | F12 | 插件 DOM 容器约定 | 插件注入的面板/模态框根元素应带 `data-plugin="<id>"`，与 F11 的 CSS 作用域配套；`pluginHost` 提供 `api.createRoot(tag)` 辅助函数自动生成带标记的容器。**挂载锚点**：`PluginHost.init()` 在 `document.body` 下创建 `<div id="plugin-host-root">`，`createRoot()` 默认把节点挂到它（该容器同时便于禁用/热卸载时整体清理） |
+| F13 | **插件不得自绘 `position: fixed` 浮层** | 入口与容器都由宿主提供（8.3.1 / 8.3.2）。插件自己写 `position: fixed` 的浮层会绕过宿主层级管理，在 `.main-container` 的 `backdrop-filter` 下渲染异常，且无法被宿主统一卸载。安装期声明层扫描发现 `position: fixed` 即 **warning + UI 标记**（不拒绝加载，留给既有插件过渡期） |
+| F14 | **Surface 容器归宿主** | `mount(container, ctx)` 收到的 container 已完成定位/尺寸/滚动/`data-marquee-ignore`/`role="dialog"`+`aria-modal`/焦点陷阱/ESC 关闭。插件**只能**在 container 内创建 DOM；**不得**设置 container 或其祖先的 `position` / `z-index` / `inset`。宿主必须在插件被禁用/卸载时**强制卸载**其所有 surface，不依赖插件 `deactivate` |
+| F15 | **插件不得硬编码 sprite 路径与无回退的 CSS 令牌** | ① 插件 CSS 里硬编码 `url('/static/icons/ui.svg#icon-x')` 会在宿主换 sprite 时静默失效——应改用 `api.ui.icon(name)`（D4）。② `var(--x)` 引用的 `--x` 若不在宿主令牌清单内且**无回退值**，在宿主主题变化时会解析失败。两项均由安装期声明层扫描给出 warning |
 
 ## 8.5 插件静态资源
 
@@ -1252,6 +1431,24 @@ GET /api/plugins/<plugin_id>/assets/<path:filename>
 **最低成本**：在 `templates/modals/settings.html` 的「维护与高级」tab 内新增一个 `<section class="settings-section-block" id="settings-maintenance-plugins">`。零 JS 改动。
 
 **推荐**：新增第 5 个顶层 tab。需改 4 处（见 `settingsModal.js:172-197` 的 `settingsHelpContent`——**这是硬闸门**，不加键则 `selectSettingTab` 静默失效）。
+
+### 9.3.1 入口总览（挂在「插件管理」页内）
+
+**不新增设置顶层 tab**（避免设置页膨胀），而是在既有「插件管理」面板内追加一个「入口总览」区块，
+列出当前所有已注册入口及其状态：
+
+| 列 | 内容 |
+|---|---|
+| 图标 + 名称 | `api.ui.icon(entry.icon)` + `entry.label` |
+| 归属 | 插件名 + tier 徽标（官方 / 认证 / 社区） |
+| 类型 | `entry.kind`（dock / nav / settings / context / command / status） |
+| 出现位置 | 坞槽位 / 溢出菜单 / 命令面板 / 设置页 / 未固定 |
+| 当前呈现 | 可见 / 置灰（附 `disabledHint`）/ 错误 |
+| 快捷键 | `entry.shortcut`（用户可改） |
+| 操作 | 固定到坞 / 取消固定 / 打开 / 跳转到该插件配置 |
+
+这张表是**契约的可观测面**：用户能看到「谁声明了什么入口、宿主把它放在了哪里」，
+插件作者能用它自查自己的声明是否被接受。
 
 ## 9.4 重启提示
 
@@ -1401,8 +1598,71 @@ class PluginAPI:
 
   // ---- 注册 UI ----
   registerAlpineComponent(name, factory): void,   // Stable
-  registerModal(spec): void,                      // Provisional
-  registerSettingsSection(spec): void,            // Provisional
+  registerModal(spec): void,                      // Provisional（deprecated → surfaces.register）
+  registerSettingsSection(spec): void,            // Provisional（deprecated → entries kind=settings）
+
+  // ---- 入口（D8：名词命名空间）----
+  entries: {
+    register(entry): string,                      // Stable，返回全局键 "<plugin_id>:<entry_id>"
+    update(entryId, patch): void,                 // Stable
+    remove(entryId): void,                        // Stable
+    setBadge(entryId, value): void,               // Stable（number | string | null）
+    setProgress(entryId, ratio): void,            // Stable（0..1 | null）
+    setStatus(entryId, status): void,             // Stable（'idle'|'busy'|'error'）
+    setBusy(entryId, busy): void,                 // Stable
+    open(entryId): void,                          // Stable
+    list(): object[],                             // Stable（当前插件自己的条目）
+  },
+
+  // ---- Surface（D8）----
+  surfaces: {
+    register(surfaceId, spec): void,              // Stable，spec = { title, mount(container, ctx), unmount?, onOpen?, onClose? }
+    open(surfaceId, ctx?): void,                  // Stable
+    close(surfaceId): void,                       // Stable
+    isOpen(surfaceId): boolean,                   // Stable
+  },
+
+  // ---- UI 原语（D8）----
+  ui: {
+    icon(name, options?): string,                 // Stable，返回 <svg><use href="/static/icons/<sprite>.svg#icon-<name>"></use></svg>
+    panel(spec): HTMLElement,                     // Stable
+    section(spec): HTMLElement,                   // Stable
+    card(spec): HTMLElement,                      // Stable
+    field(spec): HTMLElement,                     // Stable
+    form(spec): HTMLElement,                      // Stable
+    button(spec): HTMLElement,                    // Stable，variant: primary|secondary|danger|ghost
+    toolbar(spec): HTMLElement,                   // Stable
+    empty(spec): HTMLElement,                     // Stable
+    error(spec): HTMLElement,                     // Stable
+    loading(spec): HTMLElement,                   // Stable
+    badge(spec): HTMLElement,                     // Stable，tone: neutral|info|success|warning|danger
+    list(spec): HTMLElement,                      // Stable
+    table(spec): HTMLElement,                     // Stable
+    grid(spec): HTMLElement,                      // Stable
+    split(spec): HTMLElement,                     // Stable
+    confirm(spec): Promise<boolean>,              // Stable
+    prompt(spec): Promise<object|null>,           // Stable
+  },
+
+  // ---- 存储（D8）----
+  storage: {
+    get(key, fallback?): any,                     // Stable（底层 ui_data._plugins_v1.<id>.storage）
+    set(key, value): Promise<void>,               // Stable
+    remove(key): Promise<void>,                   // Stable
+    keys(): string[],                             // Stable
+  },
+
+  // ---- 宿主事件 ----
+  onConfigChange(handler): () => void,            // Stable（宿主事件 plugin-config-changed）
+  host: {
+    toast(msg, duration?, icon?): void,           // Stable
+    refresh(target): void,                        // Stable
+    switchMode(mode): void,                       // Stable
+    openDetail(target, id): void,                 // Stable
+    openSettingsSection(section, anchor?): void,  // Stable
+    notify(msg, level?): void,                    // Stable
+    log(...args): void,                           // Stable
+  },
 
   // ---- 后端调用 ----
   async api(path, options = {}): Promise<object>, // Stable
@@ -1420,6 +1680,10 @@ class PluginAPI:
   createRoot(tag = 'div'): HTMLElement,  // Stable（容器自动带 data-plugin="<id>"，停用时移除）
 }
 ```
+
+**旧成员保留策略（D8）**：`registerModal` / `registerSettingsSection` / `openDetail` / `refresh` /
+`switchMode` / `openSettingsSection` / `toast` 等既有成员**不删除**，内部委托到新的命名空间实现，
+并在文档中标注 `deprecated`。第三方插件零改动继续可用；新插件应使用名词命名空间。
 
 ## 10.4 HTTP 契约
 
@@ -1586,6 +1850,27 @@ class PluginAPI:
 - API 文档自动生成
 - 安全响应头（`after_request`）——**注意**：需先清理现有内联脚本依赖，否则 CSP 会破坏现有页面
 
+## 阶段 4 · 插件地基（契约驱动入口）
+
+> 目标：把宿主侧插件系统从「只能给插件一条硬编码模态框通道」改造成「契约驱动 + 宿主提供容器」的地基。
+> **只改主程序，不改任何插件。** 权威决策清单见实施提示词 D1–D12。
+
+| 子阶段 | 产出 | 验收 |
+|---|---|---|
+| 0 冻结与准备 | 本文档 2.2 / 8.3 / 8.4 / 9.3 / 10.3 与 D1–D12 对齐 | 文档一致；`tools/gen_plugin_api_docs.py --check` 通过 |
+| 1 契约层 | `frontend.entries[]` + `manifest_version` + 严格校验 + 分层错误 + `core/plugins/entries.py` | manifest / entries / registry 测试全绿；两个既有插件仍能加载 |
+| 2 校验层 | 声明层静态检查（进入 `@media`）+ `core/plugins/icons.py` + 上传绑定 `expected_id` | css_scope / icons / installer / assets 测试全绿 |
+| 3 运行时层 | `static/js/entryRegistry.js` + `pluginHost` 命名空间与 disposer + `ui-icons`/`ui-tokens` 路由 + API 文档再生成 | host_contracts / api_docs / routes / manager 测试全绿 |
+| 4 界面层 | `pluginSurfaceHost`（panel/modal/page/sheet）+ `api.ui.*` 原语 | surface / color-system 测试全绿 |
+| 5 呈现层 | 入口坞 + 溢出菜单 + 命令面板 + 布局持久化 | 手工端到端：条目出现、点开是宿主抽屉、拖拽重排持久化、禁用即消失 |
+| 6 治理与收尾 | 入口总览页 + 深链 + 安装期披露 + `samples/` 活体夹具 + 死 CSS 清理 | 全局验收标准全绿 |
+
+**地基边界**：契约层 + 校验层 + 运行时层 + 界面层。呈现层（坞/面板）只做最小可用，
+作为**验收装置**——没有它就无法端到端验证 entries 契约。
+
+**关键不变量**：做完之后，第三方插件**不应再需要自己写 `position: fixed` 的浮层**才能暴露入口。
+如果还需要，说明地基没打对。
+
 ### 延后记录（不阻塞当前实现）
 
 | # | 项 | 说明 |
@@ -1606,7 +1891,7 @@ class PluginAPI:
 | # | 风险 | 缓解 |
 |---|---|---|
 | R1 | 坏插件阻止应用启动 | 逐插件 `try/except`（第 4.3） |
-| R2 | 插件线程非 daemon 导致进程不退 | 强制 daemon；提供 `api.spawn_thread()` 封装 |
+| R2 | 插件线程非 daemon 导致进程不退 | 宿主的作业 worker 强制 daemon（`core/plugins/jobs.py`）；插件应通过 `api.register_job()` / `api.submit_job()` 做后台工作，**不要自己起线程**。宿主**不提供** `api.spawn_thread()` 封装 |
 | R3 | 插件污染核心表 | `migrate()` 强制 `plugin_<id>_` 前缀 |
 | R4 | 插件写 ui_data 造成 lost update | 强制走 `update_ui_data()` |
 | R5 | 插件写文件触发扫描风暴 | 门面写方法内部 `suppress_fs_events()` |

@@ -1,0 +1,512 @@
+"""入口坞与命令面板契约测试（设计文档 阶段 5 / D6）。
+
+坞是 `entries` 契约的**第一个消费者**，也是地基的验收装置。这里锁死它必须
+满足的硬约束——尤其是那些「浏览器不会报错但功能静默失效」的点：
+
+- 位置避开在流顶栏与翻页栏
+- 收起态热区仍可命中（`opacity: 0` + `pointer-events: auto`）
+- 根元素带 `data-marquee-ignore`（否则框选会命中坞）
+- 键盘可达（`role="toolbar"` + roving tabindex）
+- 模态打开时自动收起
+- 移动端退化为顶栏按钮 + 底部 sheet
+- 层级走令牌，且不与插件硬编码的 2140/2150 冲突
+"""
+
+import os
+import re
+import shutil
+import subprocess
+import sys
+import textwrap
+
+import pytest
+
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
+DOCK_CSS = 'static/css/modules/entry-dock.css'
+DOCK_JS = 'static/js/components/entryDock.js'
+DOCK_TEMPLATE = 'templates/components/entry_dock.html'
+PALETTE_JS = 'static/js/components/commandPalette.js'
+PALETTE_TEMPLATE = 'templates/components/command_palette.html'
+
+
+def read_source(relative_path):
+    with open(os.path.join(PROJECT_ROOT, relative_path), 'r', encoding='utf-8') as handle:
+        return handle.read()
+
+
+def run_node(script: str) -> subprocess.CompletedProcess:
+    return subprocess.run(
+        ['node', '--input-type=module', '-e', textwrap.dedent(script)],
+        cwd=PROJECT_ROOT,
+        capture_output=True,
+        text=True,
+        encoding='utf-8',
+        errors='replace',
+        check=False,
+    )
+
+
+requires_node = pytest.mark.skipif(
+    shutil.which('node') is None,
+    reason='Node.js is required for entry dock contract checks',
+)
+
+#: 坞与面板依赖的最小浏览器环境（window / localStorage / CustomEvent）。
+#: `dispatchEvent` 必须存在——注册表每次变更都会广播 `entries:changed`。
+BROWSER_STUB = r"""
+const dispatched = [];
+globalThis.CustomEvent = class CustomEvent {
+  constructor(type, init = {}) { this.type = type; this.detail = init.detail; }
+};
+globalThis.window = {
+  addEventListener() {},
+  removeEventListener() {},
+  dispatchEvent(event) { dispatched.push(event); return true; },
+};
+globalThis.localStorage = { getItem() { return null; }, setItem() {} };
+globalThis.__dispatched = dispatched;
+"""
+
+
+def run_browser_script(body: str) -> subprocess.CompletedProcess:
+    """在浏览器垫片之上运行一段测试脚本。"""
+    return run_node(BROWSER_STUB + textwrap.dedent(body))
+
+
+# ------------------------------------------------------------------ 坞的硬约束
+
+
+def test_dock_root_is_marquee_ignored():
+    """坞是 fixed 覆盖层，必须带 `data-marquee-ignore`，否则框选会命中它。"""
+    template = read_source(DOCK_TEMPLATE)
+
+    # 根元素自身带标记
+    assert 'data-marquee-ignore' in template
+    # 关键子元素也带（热区与面板）
+    assert template.count('data-marquee-ignore') >= 4
+
+
+def test_dock_position_avoids_top_and_pagination_bars():
+    """坞的 top/bottom 必须是 64px，避开在流顶栏与翻页栏。"""
+    css = read_source(DOCK_CSS)
+
+    assert 'top: 64px;' in css
+    assert 'bottom: 64px;' in css
+
+
+def test_collapsed_hotzone_is_invisible_but_clickable():
+    """收起态热区：`opacity: 0` 但 `pointer-events: auto`（否则永远展不开）。"""
+    css = read_source(DOCK_CSS)
+    hotzone = css.split('.entry-rail__hotzone {', 1)[1].split('}', 1)[0]
+
+    assert 'width: 8px;' in hotzone
+    assert 'opacity: 0;' in hotzone
+    assert 'pointer-events: auto;' in hotzone
+
+
+def test_expanded_rail_is_56px():
+    css = read_source(DOCK_CSS)
+
+    assert 'width: 56px;' in css
+
+
+def test_dock_uses_roving_tabindex_and_toolbar_role():
+    template = read_source(DOCK_TEMPLATE)
+    component = read_source(DOCK_JS)
+
+    assert 'role="toolbar"' in template
+    assert 'aria-orientation="vertical"' in template
+    # roving tabindex：只有当前项可 Tab 到达
+    assert ':tabindex="tabIndexFor(entry)"' in template
+    assert 'tabIndexFor(entry) {' in component
+
+
+def test_dock_keyboard_bindings_cover_arrows_enter_delete():
+    component = read_source(DOCK_JS)
+
+    for key in ('"ArrowDown"', '"ArrowUp"', '"Enter"', '"Delete"', '"Home"', '"End"'):
+        assert key in component, key
+    assert 'handleKeydown(event) {' in component
+
+
+def test_dock_collapses_when_a_modal_is_open():
+    """纯 CSS 实现：模态/表面打开时自动收起，不需要 JS 协调。"""
+    css = read_source(DOCK_CSS)
+
+    assert 'body:has(.modal-overlay) .entry-rail .entry-rail__panel' in css
+    assert 'body:has(.plugin-surface) .entry-rail .entry-rail__panel' in css
+
+
+def test_dock_hides_sidebar_on_mobile_and_uses_sheet():
+    css = read_source(DOCK_CSS)
+    template = read_source(DOCK_TEMPLATE)
+
+    # ≤900px 不渲染侧条
+    mobile_block = css.split('@media (max-width: 900px) {', 1)[1].split('}', 1)[0]
+    assert '.entry-rail' in mobile_block
+    assert 'display: none;' in mobile_block
+
+    # 移动端走顶栏按钮 + 底部 sheet
+    assert 'entry-dock-mobile-trigger' in template
+    assert 'entry-sheet' in template
+    assert "deviceType === 'mobile'" in template
+
+
+def test_dock_hover_expand_delay_is_150ms():
+    component = read_source(DOCK_JS)
+
+    assert 'HOVER_EXPAND_DELAY_MS = 150' in component
+
+
+def test_dock_avoids_backdrop_filter():
+    css = re.sub(r'/\*.*?\*/', '', read_source(DOCK_CSS), flags=re.S)
+
+    assert 'backdrop-filter' not in css
+
+
+def test_dock_uses_z_index_tokens_only():
+    css = read_source(DOCK_CSS)
+    literals = re.findall(r'z-index:\s*(\d+)', css)
+
+    assert literals == [], f'坞样式出现 z-index 字面量: {literals}'
+    assert 'var(--z-entry-rail)' in css
+    assert 'var(--z-modal-popover)' in css
+
+
+def test_entry_rail_token_does_not_collide_with_plugin_hardcoded_values():
+    """陷阱：插件硬编码 2140/2150，宿主令牌必须避开那个区间。"""
+    from core.plugins.installer import resolve_known_tokens
+
+    tokens = resolve_known_tokens()
+    assert '--z-entry-rail' in tokens
+    assert '--z-surface' in tokens
+
+    css = read_source('static/css/modules/variables.css')
+    for name in ('--z-entry-rail', '--z-surface'):
+        match = re.search(rf'{re.escape(name)}:\s*(\d+)', css)
+        assert match is not None, name
+        value = int(match.group(1))
+        assert not (800 <= value <= 2100), f'{name} 落在插件硬编码区间: {value}'
+
+
+def test_dock_css_has_no_hardcoded_hex_colors():
+    css = read_source(DOCK_CSS)
+    assert not re.search(r'#[0-9a-fA-F]{6}\b', css)
+
+
+def test_dock_and_palette_respect_reduced_motion():
+    for path in (DOCK_CSS,):
+        assert 'prefers-reduced-motion' in read_source(path), path
+
+
+def test_dock_prefs_use_localstorage_with_consistent_naming():
+    """命名参照既有 `st_manager_tag_view_prefs` / `st_manager_per_page`。"""
+    component = read_source(DOCK_JS)
+
+    assert 'st_manager_entry_dock_prefs' in component
+
+
+def test_dock_persists_layout_through_registry():
+    """顺序/固定/隐藏走后端 `_entry_layout_v1`，不是 localStorage。"""
+    component = read_source(DOCK_JS)
+
+    assert 'EntryRegistry.updateLayout(' in component
+    assert 'togglePin(entry)' in component
+    assert 'hide(entry)' in component
+
+
+# ------------------------------------------------------------------ 命令面板
+
+
+def test_command_palette_uses_ctrl_or_cmd_k():
+    component = read_source(PALETTE_JS)
+
+    assert '(event.ctrlKey || event.metaKey)' in component
+    assert 'String(event.key).toLowerCase() === "k"' in component
+
+
+def test_command_palette_searches_registry_and_core_commands():
+    component = read_source(PALETTE_JS)
+
+    assert 'EntryRegistry.searchable()' in component
+    assert 'CORE_ACTIONS' in component
+
+
+def test_command_palette_is_registered_and_included():
+    app_source = read_source('static/js/app.js')
+    index_source = read_source('templates/index.html')
+
+    assert 'Alpine.data("commandPalette"' in app_source
+    assert 'commandPalette.js' in app_source
+    assert 'components/command_palette.html' in index_source
+
+
+def test_dock_is_registered_and_included():
+    app_source = read_source('static/js/app.js')
+    index_source = read_source('templates/index.html')
+
+    assert 'Alpine.data("entryDock"' in app_source
+    assert 'entryDock.js' in app_source
+    assert 'components/entry_dock.html' in index_source
+
+
+def test_dock_and_palette_use_bare_x_data_for_lifecycle():
+    """Alpine v3 自动调用 `init()` / `destroy()`，因此**不得**再写 `x-init` / `x-destroy`。
+
+    `x-destroy` 甚至不是 Alpine 指令；写上它会让 `init()` 被调用两次，
+    window 监听器重复注册（组件销毁后仍会响应事件）。
+    """
+    for path in (DOCK_TEMPLATE, PALETTE_TEMPLATE):
+        template = read_source(path)
+        assert 'x-init=' not in template, path
+        assert 'x-destroy=' not in template, path
+        assert 'x-data="entryDock"' in template or 'x-data="commandPalette"' in template, path
+
+
+def test_new_stylesheet_is_registered_in_entry_css():
+    entry = read_source('static/css/style.css')
+
+    assert 'modules/entry-dock.css' in entry
+
+
+def test_dead_sidebar_toggle_css_was_removed():
+    """阶段 6.5：`.sidebar-toggle-button` 全仓零引用，已删除。"""
+    css = read_source('static/css/modules/layout.css')
+
+    assert '.sidebar-toggle-button' not in css
+
+
+# ------------------------------------------------------------------ 行为契约
+
+
+@requires_node
+def test_overflow_groups_by_plugin():
+    result = run_browser_script(
+        """
+        import assert from 'node:assert/strict';
+
+        const { EntryRegistry } = await import('./static/js/entryRegistry.js');
+        EntryRegistry.setPlugins([
+          {
+            id: 'plugin-a',
+            enabled: true,
+            manifest: { entries: [
+              { id: 'a1', kind: 'dock', label: 'A1' },
+              { id: 'a2', kind: 'dock', label: 'A2' },
+            ] },
+          },
+          {
+            id: 'plugin-b',
+            enabled: true,
+            manifest: { entries: [{ id: 'b1', kind: 'dock', label: 'B1' }] },
+          },
+        ]);
+
+        const { default: entryDock } = await import('./static/js/components/entryDock.js');
+        const dock = entryDock();
+        dock.refresh();
+
+        // community 插件默认全部进溢出菜单
+        assert.equal(dock.overflow.length, 3);
+        const groups = dock.overflowGroups;
+        assert.equal(groups.length, 2);
+        const byId = Object.fromEntries(groups.map((g) => [g.pluginId, g.items.length]));
+        assert.deepEqual(byId, { 'plugin-a': 2, 'plugin-b': 1 });
+        """
+    )
+    assert result.returncode == 0, result.stderr or result.stdout
+
+
+@requires_node
+def test_overflow_search_filters_by_label_and_plugin():
+    result = run_browser_script(
+        """
+        import assert from 'node:assert/strict';
+
+        const { EntryRegistry } = await import('./static/js/entryRegistry.js');
+        EntryRegistry.setPlugins([
+          {
+            id: 'alpha-plugin',
+            enabled: true,
+            manifest: { entries: [
+              { id: 'summarize', kind: 'dock', label: '生成概览' },
+              { id: 'tag', kind: 'dock', label: '打标签' },
+            ] },
+          },
+        ]);
+
+        const { default: entryDock } = await import('./static/js/components/entryDock.js');
+        const dock = entryDock();
+        dock.refresh();
+
+        dock.overflowQuery = '概览';
+        assert.equal(dock.filteredOverflow.length, 1);
+        assert.equal(dock.filteredOverflow[0].id, 'summarize');
+
+        // 按插件 id 也能搜到
+        dock.overflowQuery = 'alpha';
+        assert.equal(dock.filteredOverflow.length, 2);
+
+        dock.overflowQuery = 'zzz';
+        assert.equal(dock.filteredOverflow.length, 0);
+        """
+    )
+    assert result.returncode == 0, result.stderr or result.stdout
+
+
+@requires_node
+def test_disabled_entry_click_opens_plugin_config_instead_of_doing_nothing():
+    """D7：置灰项点击必须跳到配置区，而不是无反应。"""
+    result = run_browser_script(
+        """
+        import assert from 'node:assert/strict';
+
+        const { default: entryDock } = await import('./static/js/components/entryDock.js');
+        const dock = entryDock();
+        dock.onDisabledClick({ pluginId: 'demo-plugin' });
+
+        const events = globalThis.__dispatched;
+        assert.equal(events.length, 1);
+        assert.equal(events[0].type, 'open-settings-section');
+        assert.equal(events[0].detail.section, 'plugins');
+        assert.equal(events[0].detail.anchor, 'plugin-config-demo-plugin');
+        """
+    )
+    assert result.returncode == 0, result.stderr or result.stdout
+
+
+@requires_node
+def test_dock_open_uses_registered_surface():
+    """坞打开入口必须走宿主 surface，而不是自己造浮层。"""
+    from tests.test_plugin_surface_contracts import DOM_SHIM
+
+    result = run_node(
+        BROWSER_STUB + DOM_SHIM + textwrap.dedent(
+            """
+            const { EntryRegistry } = await import('./static/js/entryRegistry.js');
+            const { PluginSurfaceHost } = await import('./static/js/pluginSurfaceHost.js');
+            const { default: entryDock } = await import('./static/js/components/entryDock.js');
+
+            EntryRegistry.setPlugins([
+              {
+                id: 'demo-plugin',
+                enabled: true,
+                manifest: { entries: [{ id: 'panel', kind: 'dock', label: '面板' }] },
+              },
+            ]);
+
+            let mounted = 0;
+            PluginSurfaceHost.register('demo-plugin', 'panel', { mount() { mounted += 1; } });
+
+            const dock = entryDock();
+            dock.refresh();
+
+            assert.equal(dock.open('demo-plugin:panel'), true);
+            assert.equal(mounted, 1, '坞必须通过宿主 surface 打开，而不是自己造浮层');
+            assert.equal(dock.activeKey, 'demo-plugin:panel');
+            """
+        )
+    )
+    assert result.returncode == 0, result.stderr or result.stdout
+
+
+@requires_node
+def test_palette_ranks_prefix_matches_first():
+    result = run_browser_script(
+        """
+        import assert from 'node:assert/strict';
+
+        const { EntryRegistry } = await import('./static/js/entryRegistry.js');
+        EntryRegistry.setPlugins([
+          {
+            id: 'demo-plugin',
+            enabled: true,
+            manifest: { entries: [
+              { id: 'x', kind: 'command', label: '概览生成' },
+              { id: 'y', kind: 'command', label: '生成概览' },
+            ] },
+          },
+        ]);
+
+        const { default: commandPalette } = await import('./static/js/components/commandPalette.js');
+        const palette = commandPalette();
+        palette.query = '生成';
+        palette.rebuild();
+
+        // 前缀命中（"生成概览"）排在包含命中（"概览生成"）之前
+        const pluginItems = palette.items.filter((item) => item.pluginId === 'demo-plugin');
+        assert.equal(pluginItems[0].label, '生成概览');
+        """
+    )
+    assert result.returncode == 0, result.stderr or result.stdout
+
+
+@requires_node
+def test_palette_includes_core_commands_even_without_plugins():
+    result = run_browser_script(
+        """
+        import assert from 'node:assert/strict';
+
+        const { EntryRegistry } = await import('./static/js/entryRegistry.js');
+        EntryRegistry.setPlugins([]);
+
+        const { default: commandPalette } = await import('./static/js/components/commandPalette.js');
+        const palette = commandPalette();
+        palette.rebuild();
+
+        assert.ok(palette.items.length > 0, '没有插件时宿主内建命令仍必须可用');
+        assert.ok(palette.items.every((item) => item.key.startsWith('core:')));
+        """
+    )
+    assert result.returncode == 0, result.stderr or result.stdout
+
+
+@requires_node
+def test_palette_activate_runs_core_action_and_closes():
+    result = run_browser_script(
+        """
+        import assert from 'node:assert/strict';
+
+        const modes = [];
+        globalThis.window.Alpine = {
+          store: () => ({ set currentMode(value) { modes.push(value); } }),
+        };
+
+        const { default: commandPalette } = await import('./static/js/components/commandPalette.js');
+        const palette = commandPalette();
+        palette.open = true;
+        palette.items = [{ key: 'core:switch-chats', label: '切换到会话' }];
+
+        assert.equal(palette.activateIndex(0), true);
+        assert.deepEqual(modes, ['chats']);
+        assert.equal(palette.open, false, '执行后必须关闭面板');
+        """
+    )
+    assert result.returncode == 0, result.stderr or result.stdout
+
+
+@requires_node
+def test_palette_keyboard_navigation_wraps():
+    result = run_browser_script(
+        """
+        import assert from 'node:assert/strict';
+
+        const { default: commandPalette } = await import('./static/js/components/commandPalette.js');
+        const palette = commandPalette();
+        palette.items = [{ key: 'a' }, { key: 'b' }, { key: 'c' }];
+
+        const press = (key) => palette.handleKeydown({ key, preventDefault() {} });
+
+        press('ArrowDown');
+        assert.equal(palette.activeIndex, 1);
+        press('ArrowUp');
+        press('ArrowUp');
+        assert.equal(palette.activeIndex, 2, '向上越界必须回绕到末尾');
+        press('ArrowDown');
+        assert.equal(palette.activeIndex, 0, '向下越界必须回绕到开头');
+        """
+    )
+    assert result.returncode == 0, result.stderr or result.stdout

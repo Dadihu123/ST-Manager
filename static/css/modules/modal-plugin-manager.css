@@ -314,6 +314,106 @@
   color: var(--content-muted);
 }
 
+/*
+ * 归属分级徽标（D5）。
+ * tier 只由宿主仓库的 catalog 决定，插件 manifest 无权声明。
+ */
+.plugin-card-tier {
+  padding: 0.1rem 0.4rem;
+  border: 1px solid var(--border-default);
+  border-radius: 999px;
+  font-size: 0.68rem;
+  line-height: 1.3;
+  color: var(--content-secondary);
+  white-space: nowrap;
+}
+
+.plugin-card-tier.is-official {
+  border-color: var(--accent-action);
+  background: var(--accent-soft);
+  color: var(--accent-action);
+}
+
+.plugin-card-tier.is-verified {
+  border-color: var(--status-info-solid);
+  color: var(--status-info-text);
+}
+
+.plugin-card-tier.is-community {
+  border-color: var(--border-subtle);
+  color: var(--content-muted);
+}
+
+/* 安装期披露：此插件将添加 N 个入口 */
+.plugin-card-entries-hint {
+  margin: 0.25rem 0 0;
+  font-size: 0.75rem;
+  color: var(--content-muted);
+}
+
+/* ---------------------------------------------------------------- 入口总览 */
+
+.plugin-entries-search {
+  flex: 0 1 16rem;
+  min-width: 8rem;
+  padding: 0.3rem 0.5rem;
+  border: 1px solid var(--border-default);
+  border-radius: 0.4rem;
+  background: var(--surface-control);
+  color: var(--content-on-control);
+  font-size: 0.8rem;
+  font-family: inherit;
+}
+
+.plugin-entries-search:focus-visible {
+  outline: 2px solid var(--state-focus-ring);
+  outline-offset: 1px;
+}
+
+.plugin-entries-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.plugin-entries-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+.plugin-entries-table th,
+.plugin-entries-table td {
+  padding: 0.45rem 0.6rem;
+  text-align: left;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.plugin-entries-table th {
+  font-weight: 600;
+  color: var(--content-secondary);
+  white-space: nowrap;
+}
+
+.plugin-entries-table tbody tr:hover {
+  background: var(--state-hover-surface);
+}
+
+.plugin-entries-table tbody tr.is-disabled {
+  color: var(--content-disabled);
+}
+
+.plugin-entries-name {
+  display: block;
+  color: var(--content-primary);
+}
+
+.plugin-entries-id {
+  display: block;
+  font-size: 0.7rem;
+  color: var(--content-muted);
+}
+
 .plugin-card-actions {
   display: flex;
   align-items: center;

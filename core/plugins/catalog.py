@@ -17,12 +17,13 @@ import requests
 
 from core.config import INTERNAL_DIR, SYSTEM_DIR, load_config
 from core.plugins import registry
+from core.plugins.entries import DEFAULT_ENTRY_TIER, normalize_tier
 from core.plugins.errors import PluginCatalogError
 from core.plugins.manifest import compare_versions, parse_semver
 
 logger = logging.getLogger(__name__)
 
-CATALOG_SCHEMA_VERSION = 1
+CATALOG_SCHEMA_VERSION = 2
 CATALOG_RELATIVE_PATH = os.path.join('static', 'plugins', 'catalog.json')
 
 CACHE_DIR = os.path.join(SYSTEM_DIR, 'plugins')
@@ -104,6 +105,9 @@ def _normalize_entry(raw) -> dict:
         'author': str(raw.get('author') or ''),
         'icon': str(raw.get('icon') or ''),
         'tags': [str(tag) for tag in (raw.get('tags') or []) if isinstance(tag, str)],
+        # 归属分级（D5）：决定该插件的入口能用哪些 kind；manifest 无权声明
+        'tier': normalize_tier(raw.get('tier')),
+        'maintainer': str(raw.get('maintainer') or ''),
         'source': {
             'type': str(source.get('type') or 'github'),
             'repo': repo,
@@ -266,6 +270,38 @@ def find_catalog_entry(plugin_id: str) -> dict:
         if item.get('id') == plugin_id:
             return item
     raise PluginCatalogError(f'目录中不存在插件: {plugin_id}')
+
+
+def plugin_tiers() -> dict:
+    """本地解析 `plugin_id → tier` 映射（**不发起网络请求**）。
+
+    归属分级（D5）由宿主仓库的 catalog 决定，而插件加载发生在应用启动阶段，
+    不能为此等待远端。因此只读本地缓存与包内清单：两者都没有该插件时，
+    调用方按 `community` 处理（这是安全的一侧）。
+    """
+    tiers = {}
+
+    cached = _read_cache().get('catalog') or {}
+    for item in cached.get('plugins') or []:
+        if isinstance(item, dict) and item.get('id'):
+            tiers[str(item['id'])] = normalize_tier(item.get('tier'))
+
+    try:
+        bundled = load_bundled_catalog()
+    except Exception:  # noqa: BLE001 - 包内清单损坏不应影响插件加载
+        logger.warning('读取包内插件目录失败，归属分级回退 community', exc_info=True)
+        bundled = {}
+
+    for item in bundled.get('plugins') or []:
+        if isinstance(item, dict) and item.get('id'):
+            tiers.setdefault(str(item['id']), normalize_tier(item.get('tier')))
+
+    return tiers
+
+
+def tier_for_plugin(plugin_id: str) -> str:
+    """单个插件的归属分级；未知一律 `community`（D5）。"""
+    return plugin_tiers().get(str(plugin_id or '').strip(), DEFAULT_ENTRY_TIER)
 
 
 # ------------------------------------------------------------------ 更新检查

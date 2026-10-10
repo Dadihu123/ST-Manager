@@ -3,6 +3,10 @@
 manifest.json 是插件的唯一权威声明；catalog 里的同名元数据只是快照。
 校验失败一律拒绝加载（D8），并把原因交给上层持久化到
 `ui_data._plugins_v1.<id>.load_error` 供 UI 展示。
+
+结构键（顶层 / `backend.*` / `frontend.*` / `frontend.entries[]`）采用**严格校验**：
+出现白名单以外的键即拒绝加载（D3），错误信息分层给出 `code`/`field`/`hint`/`user_msg`。
+入口（entries）内部字段与既有的未知 hook / 权限声明一样保持**宽松**：非法项丢弃 + 警告。
 """
 
 import json
@@ -11,6 +15,10 @@ import os
 import re
 from dataclasses import dataclass, field
 
+from core.plugins.entries import (
+    KNOWN_ENTRY_KEYS,
+    normalize_entries,
+)
 from core.plugins.errors import PluginApiVersionError, PluginManifestError
 from core.utils.paths import is_under_base
 from core.version import APP_VERSION, SUPPORTED_PLUGIN_API_VERSIONS
@@ -19,6 +27,22 @@ logger = logging.getLogger(__name__)
 
 MANIFEST_FILENAME = 'manifest.json'
 MAX_MANIFEST_BYTES = 256 * 1024
+
+# manifest 结构版本：缺省视为 1（老插件不必改清单）
+DEFAULT_MANIFEST_VERSION = 1
+SUPPORTED_MANIFEST_VERSIONS = (2, 1)
+
+# 结构键白名单（D3）：出现白名单以外的键即拒绝加载
+KNOWN_TOP_LEVEL_KEYS = frozenset({
+    'id', 'name', 'version', 'api_version', 'manifest_version', 'author',
+    'description', 'homepage', 'license', 'icon', 'min_app_version',
+    'backend', 'frontend', 'permissions', 'requires', 'config_schema',
+    'secret_schema', 'i18n',
+})
+KNOWN_BACKEND_KEYS = frozenset({'entry', 'register', 'jobs', 'hooks'})
+KNOWN_FRONTEND_KEYS = frozenset({'entry', 'styles', 'entries'})
+# 旧三字段（已废弃，不保留别名）
+LEGACY_FRONTEND_KEYS = ('panels', 'settings_tab', 'detail_tab')
 
 # 目录名 = plugin id：小写、连字符、不以数字开头（路径安全第一道闸门）
 PLUGIN_ID_PATTERN = re.compile(r'^[a-z][a-z0-9-]{1,63}$')
@@ -249,6 +273,50 @@ def _validate_schema(raw_schema, *, field_name: str) -> dict:
     return cleaned
 
 
+def _check_entry_icons(entries: list) -> list:
+    """校验 `entries[].icon` 的宿主图标名（D4：不存在只降级占位，不拒绝加载）。
+
+    含 `/` 或 `.` 的取值视为插件自带资源路径，由宿主按 `assets/` 解析，不在此校验。
+    """
+    from core.plugins.icons import is_host_icon_name, sprite_for_icon
+
+    warnings = []
+    for entry in entries or []:
+        if not isinstance(entry, dict):
+            continue
+        icon = str(entry.get('icon') or '').strip()
+        if not icon or not is_host_icon_name(icon):
+            continue
+        if sprite_for_icon(icon):
+            continue
+        warnings.append(
+            f'入口 {entry.get("id", "")} 引用了不存在的宿主图标 {icon}，将降级为占位图标'
+        )
+        logger.warning('入口 %s 引用了不存在的宿主图标 %s', entry.get('id', ''), icon)
+    return warnings
+
+
+def _plugin_user_msg(plugin_label: str) -> str:
+    """面向普通用户的一句话错误提示（D3）。"""
+    return f'插件「{plugin_label}」的清单格式不正确，请联系插件作者更新。'
+
+
+def _reject_unknown_keys(payload, allowed, *, prefix, plugin_label):
+    """结构键严格校验：出现白名单以外的键即拒绝加载（D3）。"""
+    unknown = sorted(str(key) for key in payload.keys() if str(key) not in allowed)
+    if not unknown:
+        return
+    field = f'{prefix}.{unknown[0]}' if prefix else unknown[0]
+    scope = prefix or '顶层'
+    raise PluginManifestError(
+        f'manifest 中存在未知字段 {field}',
+        field=field,
+        hint=f'{scope} 支持的字段：{", ".join(sorted(allowed))}',
+        user_msg=_plugin_user_msg(plugin_label),
+        code='manifest_unknown_key',
+    )
+
+
 @dataclass
 class PluginManifest:
     """一份已通过校验的插件声明。"""
@@ -264,6 +332,7 @@ class PluginManifest:
     license: str = ''
     icon: str = ''
     min_app_version: str = ''
+    manifest_version: int = DEFAULT_MANIFEST_VERSION
 
     backend_entry: str = ''
     backend_register: str = 'register'
@@ -274,9 +343,7 @@ class PluginManifest:
     frontend_entry_rel: str = ''
     frontend_styles: list = field(default_factory=list)
     frontend_styles_rel: list = field(default_factory=list)
-    frontend_panels: list = field(default_factory=list)
-    frontend_settings_tab: dict = field(default_factory=dict)
-    frontend_detail_tab: dict = field(default_factory=dict)
+    frontend_entries: list = field(default_factory=list)
 
     permissions: list = field(default_factory=list)
     requires: dict = field(default_factory=dict)
@@ -308,6 +375,7 @@ class PluginManifest:
             'name': self.name,
             'version': self.version,
             'api_version': self.api_version,
+            'manifest_version': self.manifest_version,
             'author': self.author,
             'description': self.description,
             'homepage': self.homepage,
@@ -323,8 +391,7 @@ class PluginManifest:
             'requires': dict(self.requires),
             'jobs': list(self.backend_jobs),
             'hooks': list(self.backend_hooks),
-            'panels': list(self.frontend_panels),
-            'settings_tab': dict(self.frontend_settings_tab),
+            'entries': [dict(item) for item in self.frontend_entries],
             'config_schema': dict(self.config_schema),
             'secret_schema': dict(self.secret_schema),
         }
@@ -355,6 +422,55 @@ class PluginManifest:
         plugin_id = str(raw_id or '').strip()
         if not PLUGIN_ID_PATTERN.match(plugin_id):
             raise PluginManifestError(f'id 不符合 ^[a-z][a-z0-9-]{{1,63}}$: {raw_id!r}')
+        plugin_label = str(raw.get('name') or plugin_id).strip() or plugin_id
+
+        # 结构键严格校验（D3）：先于其它校验，保证「拼错字段名」给出最准确的提示
+        _reject_unknown_keys(raw, KNOWN_TOP_LEVEL_KEYS, prefix='', plugin_label=plugin_label)
+
+        manifest_version = raw.get('manifest_version', DEFAULT_MANIFEST_VERSION)
+        if isinstance(manifest_version, bool) or not isinstance(manifest_version, int):
+            raise PluginManifestError(
+                f'manifest_version 必须是整数: {manifest_version!r}',
+                field='manifest_version',
+                hint=f'支持的 manifest 版本：{list(SUPPORTED_MANIFEST_VERSIONS)}',
+                user_msg=_plugin_user_msg(plugin_label),
+                code='manifest_version_unsupported',
+            )
+        if manifest_version not in SUPPORTED_MANIFEST_VERSIONS:
+            raise PluginManifestError(
+                f'manifest_version 不受支持: {manifest_version!r}',
+                field='manifest_version',
+                hint=f'支持的 manifest 版本：{list(SUPPORTED_MANIFEST_VERSIONS)}',
+                user_msg=_plugin_user_msg(plugin_label),
+                code='manifest_version_unsupported',
+            )
+
+        backend = raw.get('backend') or {}
+        if backend and not isinstance(backend, dict):
+            raise PluginManifestError('backend 必须是对象', field='backend')
+        frontend = raw.get('frontend') or {}
+        if frontend and not isinstance(frontend, dict):
+            raise PluginManifestError('frontend 必须是对象', field='frontend')
+
+        if isinstance(backend, dict):
+            _reject_unknown_keys(
+                backend, KNOWN_BACKEND_KEYS, prefix='backend', plugin_label=plugin_label,
+            )
+        if isinstance(frontend, dict):
+            # 旧三字段先于未知键检查，给出更有针对性的提示（D1：不保留别名）
+            legacy = [key for key in LEGACY_FRONTEND_KEYS if key in frontend]
+            if legacy:
+                field = f'frontend.{legacy[0]}'
+                raise PluginManifestError(
+                    f'manifest 中存在已废弃字段 {field}',
+                    field=field,
+                    hint='旧三字段已删除且不保留别名，请改用 frontend.entries',
+                    user_msg=_plugin_user_msg(plugin_label),
+                    code='manifest_legacy_key',
+                )
+            _reject_unknown_keys(
+                frontend, KNOWN_FRONTEND_KEYS, prefix='frontend', plugin_label=plugin_label,
+            )
 
         dir_name = os.path.basename(plugin_dir.rstrip(os.sep))
         if check_dir_name and plugin_id != dir_name:
@@ -368,11 +484,18 @@ class PluginManifest:
 
         api_version = raw.get('api_version')
         if isinstance(api_version, bool) or not isinstance(api_version, int):
-            raise PluginManifestError(f'api_version 必须是整数: {api_version!r}')
+            raise PluginManifestError(
+                f'api_version 必须是整数: {api_version!r}',
+                field='api_version',
+                user_msg=_plugin_user_msg(plugin_label),
+            )
         if api_version not in SUPPORTED_PLUGIN_API_VERSIONS:
             raise PluginApiVersionError(
                 f'插件需要 api_version {api_version}，当前主程序仅支持 '
-                f'{list(SUPPORTED_PLUGIN_API_VERSIONS)}（需更新主程序）'
+                f'{list(SUPPORTED_PLUGIN_API_VERSIONS)}（需更新主程序）',
+                field='api_version',
+                hint=f'当前主程序支持 api_version {list(SUPPORTED_PLUGIN_API_VERSIONS)}',
+                user_msg=f'插件「{plugin_label}」需要更新版本的主程序，请先升级主程序。',
             )
 
         min_app_version = str(raw.get('min_app_version') or '').strip()
@@ -384,12 +507,6 @@ class PluginManifest:
                     f'插件要求主程序 >= {min_app_version}，当前为 {APP_VERSION}（请升级主程序）'
                 )
 
-        backend = raw.get('backend') or {}
-        if backend and not isinstance(backend, dict):
-            raise PluginManifestError('backend 必须是对象')
-        frontend = raw.get('frontend') or {}
-        if frontend and not isinstance(frontend, dict):
-            raise PluginManifestError('frontend 必须是对象')
         if not backend and not frontend:
             raise PluginManifestError('backend 与 frontend 至少要有一个')
 
@@ -483,15 +600,35 @@ class PluginManifest:
                 warnings.append(str(exc))
                 logger.warning('插件 %s 的 icon 不可用: %s', plugin_id, exc)
 
-        panels = []
-        raw_panels = frontend.get('panels') if isinstance(frontend, dict) else None
-        if isinstance(raw_panels, list):
-            for item in raw_panels:
-                if isinstance(item, dict) and str(item.get('id') or '').strip():
-                    panels.append(dict(item))
-
-        settings_tab = frontend.get('settings_tab') if isinstance(frontend, dict) else None
-        detail_tab = frontend.get('detail_tab') if isinstance(frontend, dict) else None
+        entries = []
+        if isinstance(frontend, dict) and frontend.get('entries') is not None:
+            raw_entries = frontend.get('entries')
+            if not isinstance(raw_entries, list):
+                raise PluginManifestError(
+                    'frontend.entries 必须是数组',
+                    field='frontend.entries',
+                    user_msg=_plugin_user_msg(plugin_label),
+                    code='manifest_invalid_field',
+                )
+            # 结构键严格校验（D3）：entries[] 子键也必须 ∈ 白名单
+            for index, raw_entry in enumerate(raw_entries):
+                if not isinstance(raw_entry, dict):
+                    continue
+                unknown = sorted(
+                    str(key) for key in raw_entry.keys() if str(key) not in KNOWN_ENTRY_KEYS
+                )
+                if unknown:
+                    field = f'frontend.entries[{index}].{unknown[0]}'
+                    raise PluginManifestError(
+                        f'manifest 中存在未知字段 {field}',
+                        field=field,
+                        hint=f'entries 支持的字段：{", ".join(sorted(KNOWN_ENTRY_KEYS))}',
+                        user_msg=_plugin_user_msg(plugin_label),
+                        code='manifest_unknown_key',
+                    )
+            entries, entry_warnings = normalize_entries(plugin_id, raw_entries)
+            warnings.extend(entry_warnings)
+            warnings.extend(_check_entry_icons(entries))
 
         return cls(
             plugin_id=plugin_id,
@@ -505,6 +642,7 @@ class PluginManifest:
             license=str(raw.get('license') or ''),
             icon=icon,
             min_app_version=min_app_version,
+            manifest_version=int(manifest_version),
             backend_entry=backend_entry,
             backend_register=backend_register,
             backend_jobs=backend_jobs,
@@ -513,9 +651,7 @@ class PluginManifest:
             frontend_entry_rel=frontend_entry_rel,
             frontend_styles=frontend_styles,
             frontend_styles_rel=frontend_styles_rel,
-            frontend_panels=panels,
-            frontend_settings_tab=dict(settings_tab) if isinstance(settings_tab, dict) else {},
-            frontend_detail_tab=dict(detail_tab) if isinstance(detail_tab, dict) else {},
+            frontend_entries=entries,
             permissions=permissions,
             requires=requires,
             config_schema=_validate_schema(raw.get('config_schema'), field_name='config_schema'),

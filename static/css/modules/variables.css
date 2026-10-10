@@ -20,6 +20,26 @@
   --z-marquee-selection: 45;
   --z-card-selected: 50;
   --z-sticky: 100;
+  /*
+   * 插件入口坞与宿主表面。
+   *
+   * 取值刻意落在 `--z-card-selected: 50` 与 `--z-floating: 100` 之间：坞是
+   * 覆盖层，必须盖住卡片选中态，但又不能盖住下拉菜单（500）与模态（1000+）。
+   *
+   * 800–2100 区间**没有**任何令牌，而插件硬编码的 2140 / 2150 正落在那里，
+   * 因此宿主不往那个区间加东西，避免与既有插件冲突。
+   */
+  --z-surface: 60;
+  --z-entry-rail: 80;
+  /*
+   * 归一到令牌的既有散落字面量（值与原字面量完全一致，纯替换不改变层叠）。
+   * 目的是让「谁盖住谁」可检索、可统一调整，而不是散在各模块里猜。
+   */
+  --z-beautify-mobile-fullscreen: 40;
+  --z-beautify-detail-drawer: 70;
+  --z-preset-editor-mobile-panel: 44;
+  --z-preset-editor-mobile-header: 45;
+  --z-preset-editor-mobile-menu: 46;
   --z-dropdown: 500;
   --z-sidebar-overlay: 999;
   --z-sidebar-mobile: 1000;
@@ -49,6 +69,14 @@
 
 .z-card-selected {
   z-index: var(--z-card-selected) !important;
+}
+
+.z-surface {
+  z-index: var(--z-surface) !important;
+}
+
+.z-entry-rail {
+  z-index: var(--z-entry-rail) !important;
 }
 
 .z-sticky {

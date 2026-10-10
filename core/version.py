@@ -8,6 +8,8 @@
 APP_VERSION = '1.0.0'
 
 # 主程序当前实现的插件 API 契约版本；插件 api_version 不在支持集合内时严格拒绝加载。
-PLUGIN_API_VERSION = 1
+PLUGIN_API_VERSION = 2
 
-SUPPORTED_PLUGIN_API_VERSIONS = (PLUGIN_API_VERSION,)
+# 支持集合按「新 → 旧」排列：集合内的旧版本插件仍能加载，但拿不到新契约能力
+# （见设计文档 2.2 与 D2：api_version 是宿主契约版本，min_app_version 是应用版本，两者独立）。
+SUPPORTED_PLUGIN_API_VERSIONS = (PLUGIN_API_VERSION, 1)

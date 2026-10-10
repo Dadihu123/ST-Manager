@@ -7,13 +7,15 @@
 """
 
 import functools
+import json
 import logging
 import os
 import re
 
 from flask import Blueprint, jsonify, request
 
-from core.plugins import catalog, installer, jobs, registry
+from core.data.ui_store import ENTRY_LAYOUT_KEY
+from core.plugins import catalog, icons, installer, jobs, registry
 from core.plugins import secrets as secrets_store
 from core.plugins.errors import PluginError, PluginJobNotFoundError, PluginNotFoundError
 from core.utils.paths import is_under_base
@@ -27,6 +29,10 @@ RESTART_REQUIRED_HINT = '插件已变更，重启应用后生效'
 README_CANDIDATES = ('README.md', 'readme.md', 'README.MD', 'README.txt')
 CHANGELOG_CANDIDATES = ('CHANGELOG.md', 'CHANGELOG.MD', 'changelog.md', 'CHANGELOG.txt')
 MAX_DOCUMENT_BYTES = 256 * 1024
+
+# 入口布局偏好：单个键与整份布局的体积上限，防止畸形前端撑爆 ui_data。
+MAX_ENTRY_LAYOUT_BYTES = 64 * 1024
+ENTRY_LAYOUT_KEYS = ('order', 'pinned', 'hidden', 'groups', 'shortcuts')
 
 
 def _handle_plugin_errors(func):
@@ -110,11 +116,20 @@ def _write_config(plugin_id: str, patch: dict) -> bool:
 @bp.route('/api/plugins/list', methods=['GET'])
 @_handle_plugin_errors
 def list_plugins():
-    """已安装插件列表（含 enabled / load_error / 是否纯前端 / 重启提示）。"""
+    """已安装插件列表（含 enabled / load_error / 是否纯前端 / 重启提示）。
+
+    条目（`entries`）与归属分级（`tier`）一并带出：前端入口注册表据此建表，
+    不再依赖插件自行渲染浮层（D1 / D5）。
+    """
+    tiers = catalog.plugin_tiers()
     items = []
     for state in registry.list_states():
         payload = state.detail()
         payload['style_scope_errors'] = installer.read_style_scope_errors(state.plugin_id)
+        payload['style_declaration_warnings'] = installer.read_style_declaration_warnings(
+            state.plugin_id,
+        )
+        payload['tier'] = tiers.get(state.plugin_id, 'community')
         if state.load_error:
             payload['load_error'] = state.load_error
         items.append(payload)
@@ -125,6 +140,106 @@ def list_plugins():
         'plugins_dir': registry.plugins_dir(),
         'restart_hint': RESTART_REQUIRED_HINT,
     })
+
+
+@bp.route('/api/plugins/ui-icons', methods=['GET'])
+@_handle_plugin_errors
+def list_ui_icons():
+    """宿主图标名清单（D4）。
+
+    插件用 `api.ui.icon(name)` 引用宿主图标；本接口让插件作者与设置页能查询
+    合法名字。整表承诺 Stable：只增不改，删除/改名走 deprecation。
+    """
+    return jsonify({'success': True, 'icons': icons.list_host_icons()})
+
+
+@bp.route('/api/plugins/ui-tokens', methods=['GET'])
+@_handle_plugin_errors
+def list_ui_tokens():
+    """宿主 CSS 令牌清单（D12）。
+
+    插件样式里 `var(--x)` 引用的令牌若不在本清单内且无回退值，安装期会被记为
+    警告（不拒绝加载）。
+    """
+    return jsonify({'success': True, 'tokens': sorted(installer.resolve_known_tokens())})
+
+
+# ------------------------------------------------------------------ 入口布局
+
+
+def _sanitize_entry_layout(patch: dict) -> dict:
+    """裁剪入口布局补丁：只保留已知键，单键不超过 64KB。"""
+    cleaned = {}
+    for key in ENTRY_LAYOUT_KEYS:
+        if key not in patch:
+            continue
+        value = patch[key]
+        if value is None:
+            cleaned[key] = None
+            continue
+        try:
+            encoded = json.dumps(value, ensure_ascii=False)
+        except (TypeError, ValueError):
+            logger.warning('入口布局字段 %s 无法序列化，已忽略', key)
+            continue
+        if len(encoded.encode('utf-8')) > MAX_ENTRY_LAYOUT_BYTES:
+            logger.warning('入口布局字段 %s 超出体积上限，已忽略', key)
+            continue
+        cleaned[key] = value
+    return cleaned
+
+
+def _read_entry_layout() -> dict:
+    from core.data.ui_store import load_ui_data_or_empty
+
+    layout = load_ui_data_or_empty().get(ENTRY_LAYOUT_KEY)
+    return layout if isinstance(layout, dict) else {}
+
+
+@bp.route('/api/plugins/entries/layout', methods=['GET'])
+@_handle_plugin_errors
+def get_entry_layout():
+    """入口布局偏好（顺序 / 固定 / 隐藏 / 分组 / 快捷键）。
+
+    宿主侧偏好，与插件本身无关：插件被禁用时入口消失但偏好保留，
+    卸载时才由安装器剪除（D6）。
+    """
+    return jsonify({'success': True, 'layout': _read_entry_layout()})
+
+
+@bp.route('/api/plugins/entries/layout', methods=['POST'])
+@_handle_plugin_errors
+def save_entry_layout():
+    """合并写入入口布局偏好。
+
+    只接受字符串键与 JSON 可序列化值；单键上限由 `_sanitize_entry_layout` 裁剪，
+    避免一个畸形前端把 ui_data 撑爆。
+    """
+    body = request.get_json(silent=True) or {}
+    patch = body.get('layout') if isinstance(body.get('layout'), dict) else body
+    if not isinstance(patch, dict) or not patch:
+        return jsonify({
+            'success': False, 'msg': '没有需要保存的布局项', 'error': 'invalid_payload',
+        }), 400
+
+    cleaned = _sanitize_entry_layout(patch)
+    if not cleaned:
+        return jsonify({
+            'success': False, 'msg': '没有需要保存的布局项', 'error': 'invalid_payload',
+        }), 400
+
+    def mutator(ui_data):
+        layout = ui_data.get(ENTRY_LAYOUT_KEY)
+        if not isinstance(layout, dict):
+            layout = {}
+            ui_data[ENTRY_LAYOUT_KEY] = layout
+        layout.update(cleaned)
+
+    from core.data.ui_store import update_ui_data
+
+    if not update_ui_data(mutator):
+        return jsonify({'success': False, 'msg': '布局保存失败', 'error': 'ui_data_write_failed'}), 500
+    return jsonify({'success': True, 'layout': _read_entry_layout()})
 
 
 @bp.route('/api/plugins/<plugin_id>/config', methods=['GET'])
@@ -143,6 +258,84 @@ def save_plugin_config(plugin_id):
     if not _write_config(plugin_id, patch):
         return jsonify({'success': False, 'msg': '没有可保存的配置项', 'error': 'invalid_payload'}), 400
     return jsonify({'success': True, 'config': _read_config(plugin_id)})
+
+
+# ------------------------------------------------------------------ 插件存储
+
+
+def _read_storage(plugin_id: str) -> dict:
+    entry = registry.read_ui_entry(plugin_id)
+    bucket = entry.get('storage')
+    return dict(bucket) if isinstance(bucket, dict) else {}
+
+
+def _write_storage(plugin_id: str, bucket: dict) -> bool:
+    """整体替换本插件的 storage 命名空间（前端已合并好再提交）。"""
+    from core.data.ui_store import update_ui_data
+
+    def mutator(ui_data):
+        namespace = ui_data.get('_plugins_v1')
+        if not isinstance(namespace, dict):
+            namespace = {}
+            ui_data['_plugins_v1'] = namespace
+        entry = namespace.get(plugin_id)
+        if not isinstance(entry, dict):
+            entry = {}
+            namespace[plugin_id] = entry
+        entry['storage'] = dict(bucket)
+
+    return bool(update_ui_data(mutator))
+
+
+@bp.route('/api/plugins/<plugin_id>/storage', methods=['GET'])
+@_handle_plugin_errors
+def get_plugin_storage(plugin_id):
+    """插件键值存储（`api.storage.*` 的持久化后端）。
+
+    落在 `ui_data._plugins_v1.<id>.storage`，与 `config` / 作业数据同一命名空间，
+    卸载时随 `_clear_ui_namespace` 一并清理。
+    """
+    _require_state(plugin_id)
+    return jsonify({'success': True, 'storage': _read_storage(plugin_id)})
+
+
+@bp.route('/api/plugins/<plugin_id>/storage', methods=['POST'])
+@_handle_plugin_errors
+def save_plugin_storage(plugin_id):
+    """整体写入插件存储；受与 `api.ui_data_update` 相同的体积配额约束。
+
+    请求体必须是 `{"storage": {...}}`。这里**不**像 config 那样回退到「整个 body
+    就是载荷」：storage 是插件自由键值空间，回退会让 `{"storage": [1,2]}` 这种
+    畸形请求被当成合法载荷写进去（键名恰好是 `storage`），语义太脆。
+    """
+    from core.plugins.api import PLUGIN_DATA_QUOTA_BYTES
+
+    _require_state(plugin_id)
+    body = request.get_json(silent=True) or {}
+    if not isinstance(body, dict) or 'storage' not in body:
+        return jsonify({
+            'success': False, 'msg': '请求体缺少 storage 字段', 'error': 'invalid_payload',
+        }), 400
+
+    bucket = body.get('storage')
+    if not isinstance(bucket, dict):
+        return jsonify({'success': False, 'msg': '存储内容必须是对象', 'error': 'invalid_payload'}), 400
+
+    try:
+        size = len(json.dumps(bucket, ensure_ascii=False).encode('utf-8'))
+    except (TypeError, ValueError):
+        return jsonify({'success': False, 'msg': '存储内容无法序列化', 'error': 'invalid_payload'}), 400
+
+    if size > PLUGIN_DATA_QUOTA_BYTES:
+        return jsonify({
+            'success': False,
+            'msg': f'存储体积 {size} 字节，超过 {PLUGIN_DATA_QUOTA_BYTES} 字节上限',
+            'error': 'quota_exceeded',
+        }), 413
+
+    if not _write_storage(plugin_id, bucket):
+        return jsonify({'success': False, 'msg': '存储写入失败', 'error': 'ui_data_write_failed'}), 500
+    return jsonify({'success': True, 'storage': _read_storage(plugin_id)})
 
 
 @bp.route('/api/plugins/<plugin_id>/secrets', methods=['GET'])
@@ -310,12 +503,19 @@ def check_catalog_updates():
 @bp.route('/api/plugins/install_upload', methods=['POST'])
 @_handle_plugin_errors
 def install_upload():
-    """手动上传 zip 安装（离线兜底）。"""
+    """手动上传 zip 安装（离线兜底）。
+
+    可选表单字段 `expected_id`：与 catalog 路径一致地绑定插件 id（D9.3）。
+    留空表示不校验。
+    """
     upload = request.files.get('file')
     if upload is None or not upload.filename:
         return jsonify({'success': False, 'msg': '未收到上传文件', 'error': 'invalid_payload'}), 400
 
-    result = installer.install_from_upload(upload, source_label='upload')
+    expected_id = str(request.form.get('expected_id') or '').strip()
+    result = installer.install_from_upload(
+        upload, source_label='upload', expected_id=expected_id,
+    )
     return jsonify({
         'success': True,
         'restart_required': True,
