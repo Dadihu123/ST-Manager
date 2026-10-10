@@ -17,6 +17,7 @@
  */
 
 import { setFullscreenScrim } from "./utils/dom.js";
+import { EntryRegistry } from "./entryRegistry.js";
 
 export const SURFACE_TYPES = ["panel", "modal", "page", "sheet"];
 
@@ -187,6 +188,7 @@ export const PluginSurfaceHost = {
     } catch (error) {
       console.error(`[surfaceHost] 插件 ${record.pluginId} 的 surface ${record.id} 挂载失败:`, error);
       this.close(record.key);
+      this._markEntryError(record, ctx, error);
       window.dispatchEvent(
         new CustomEvent("plugin:surface-error", {
           detail: { pluginId: record.pluginId, surfaceId: record.id, error: String(error) },
@@ -197,6 +199,28 @@ export const PluginSurfaceHost = {
 
     this._trapFocus(shell);
     return body;
+  },
+
+  /**
+   * `mount()` 抛错时把对应入口置错误态（设计文档 8.3：失败被隔离在单个插件内）。
+   *
+   * 错误要反映到**入口**上，用户才能看见「这个插件的面板坏了」而不是点了没反应。
+   * 入口 id 从 `ctx.targetId` 取（坞 / 命令面板都会传）；取不到时按 surfaceId 兜底
+   * ——多数插件让 `surface.id === entry.id`。
+   */
+  _markEntryError(record, ctx, error) {
+    const entryId = String((ctx && ctx.targetId) || record.id || "");
+    if (!entryId) return;
+    try {
+      EntryRegistry.setStatus(record.pluginId, entryId, "error");
+    } catch (exc) {
+      // 注册表还没建表（插件在 setPlugins 之前挂载）时忽略：不影响错误上报本身
+      console.warn("[surfaceHost] 标记入口错误态失败:", exc);
+    }
+    console.error(
+      `[surfaceHost] 入口 ${record.pluginId}:${entryId} 已置错误态：`,
+      String(error),
+    );
   },
 
   close(key) {

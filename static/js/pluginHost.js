@@ -494,7 +494,9 @@ export const PluginHost = {
       },
 
       // ---- D8：宿主 UI 原语 ----
-      ui: buildUiPrimitives(),
+      // 传入 pluginId：`api.ui.icon('assets/logo.svg')` 这类插件自带资源
+      // 需要它才能解析成 `/api/plugins/<id>/assets/…`（D4 允许两种图标取值）。
+      ui: buildUiPrimitives({ pluginId }),
 
       // ---- D8：存储 ----
       storage: {

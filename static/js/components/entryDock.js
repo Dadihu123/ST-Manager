@@ -333,15 +333,19 @@ export default function entryDock() {
 
     // ------------------------------------------------------------ 呈现辅助
 
-    /** 图标：宿主图标名走 sprite，其余交给插件自带资源解析。 */
+    /** 图标取值：宿主图标名，或插件内资源路径（含 `/`，设计文档 2.2）。 */
     iconHref(entry) {
       const name = String((entry && entry.icon) || "").trim();
       if (!name) return "";
       return name;
     },
 
+    /** 图标节点。资源路径需要 `pluginId` 才能解析成 `/api/plugins/<id>/assets/…`。 */
     buildIcon(entry) {
-      return icon(this.iconHref(entry) || "circle-dot", { className: "ui-icon--sm" });
+      return icon(this.iconHref(entry) || "circle-dot", {
+        className: "ui-icon--sm",
+        pluginId: String((entry && entry.pluginId) || ""),
+      });
     },
 
     badgeText(entry) {

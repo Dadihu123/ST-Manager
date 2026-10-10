@@ -120,12 +120,49 @@ def test_validate_subdir_rejects_traversal():
 
 
 def test_build_archive_url_uses_codeload_only():
+    """域名固定为 codeload.github.com（防 SSRF），且用**裸 ref** 形式。
+
+    裸 `zip/<ref>` 是唯一能同时解析分支与 tag 的写法：
+    - `zip/refs/heads/<ref>` 只解析分支（tag 会 404）
+    - `zip/refs/tags/<ref>` 只解析 tag（分支会 404）
+    实测见 `build_archive_url` 的 docstring。
+    """
     assert installer_module.build_archive_url('owner/repo', 'main') == (
-        'https://codeload.github.com/owner/repo/zip/refs/heads/main'
+        'https://codeload.github.com/owner/repo/zip/main'
     )
     assert installer_module.build_archive_url('owner/repo', 'abc1234') == (
         'https://codeload.github.com/owner/repo/zip/abc1234'
     )
+
+
+def test_build_archive_url_resolves_tags_not_only_branches():
+    """回归：tag 必须可用（`stable` 渠道按 Release tag 更新时会传 tag）。
+
+    旧实现无条件拼 `refs/heads/<ref>`，导致传 tag 得到 404——
+    「检查更新说 v0.3.0 可用，点更新却下载失败」。
+    """
+    for ref in ('v0.2.0', '0.2.0', 'release-2026-10'):
+        url = installer_module.build_archive_url('owner/repo', ref)
+
+        assert url == f'https://codeload.github.com/owner/repo/zip/{ref}'
+        assert 'refs/heads' not in url
+        assert 'refs/tags' not in url
+
+
+def test_build_archive_url_rejects_unsafe_refs():
+    """`ref` 会拼进 URL，必须挡住路径穿越、前导斜杠与命令注入形状。"""
+    for bad in (
+        '../main',
+        'main;rm -rf /',
+        '/etc/passwd',        # 前导斜杠会拼出 `zip//etc/passwd`
+        'main/',              # 尾随斜杠
+        'a//b',               # 空段
+        'main?x=1',           # 查询串
+        'main#frag',          # 片段
+        'a' * 201,            # 超长
+    ):
+        with pytest.raises(PluginInstallError):
+            installer_module.build_archive_url('owner/repo', bad)
 
 
 # ------------------------------------------------------------------ 解压安全
@@ -500,7 +537,7 @@ def test_install_from_catalog_downloads_extracts_and_installs(tmp_path, install_
     })
 
     assert result['id'] == 'catalog-plugin'
-    assert calls == ['https://codeload.github.com/owner/repo/zip/refs/heads/main']
+    assert calls == ['https://codeload.github.com/owner/repo/zip/main']
     assert (install_env['plugins_root'] / 'catalog-plugin' / 'manifest.json').is_file()
 
 

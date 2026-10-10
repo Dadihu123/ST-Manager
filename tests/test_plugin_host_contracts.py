@@ -122,7 +122,9 @@ def test_ui_primitives_namespace_covers_the_full_contract():
     primitives = read_source('static/js/uiPrimitives.js')
     host = read_source('static/js/pluginHost.js')
 
-    assert 'ui: buildUiPrimitives()' in host
+    # 原语必须绑定 pluginId：`api.ui.icon('assets/logo.svg')` 这类插件自带资源
+    # 需要它才能解析成 `/api/plugins/<id>/assets/…`（D4 允许两种图标取值）
+    assert 'ui: buildUiPrimitives({ pluginId })' in host
     for name in (
         'icon', 'panel', 'section', 'card', 'field', 'form', 'button', 'toolbar',
         'empty', 'error', 'loading', 'badge', 'list', 'table', 'grid', 'split',
@@ -130,6 +132,23 @@ def test_ui_primitives_namespace_covers_the_full_contract():
     ):
         assert f'export function {name}(' in primitives, name
         assert f'{name},' in primitives or f'{name}:' in primitives, name
+
+
+def test_ui_primitives_icon_binds_owner_plugin_id():
+    """`api.ui.icon()` 与内嵌图标必须把 owner 的 pluginId 传给解析函数。
+
+    否则插件写 `api.ui.icon('assets/logo.svg')` 会拿到空 href（降级占位图标），
+    而它自己无法拼出 `/api/plugins/<id>/assets/…`。
+    """
+    primitives = read_source('static/js/uiPrimitives.js')
+
+    assert 'export function buildUiPrimitives(options = {})' in primitives
+    assert 'const ownerId = String(options.pluginId || "")' in primitives
+    # 内嵌图标的原语（button / empty）也要注入 owner
+    assert 'withOwner(button)' in primitives
+    assert 'withOwner(empty)' in primitives
+    # 两个工厂都要把 pluginId 转发给 icon()
+    assert primitives.count('pluginId: options.pluginId || ""') >= 2
 
 
 def test_storage_and_host_namespaces_are_exposed():

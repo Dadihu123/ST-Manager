@@ -403,6 +403,72 @@
   color: var(--content-disabled);
 }
 
+.plugin-entries-identity {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.plugin-entries-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  color: var(--content-secondary);
+}
+
+.plugin-entries-text {
+  min-width: 0;
+}
+
+/* 可用更新：卡片描边 + 名称高亮 + 版本提示。
+ * 与 SillyTavern 的 `.update_available` / `.btn_update` 同一意图：
+ * 让「有更新」在卡片上就能看见，不必先去点「检查更新」。 */
+.plugin-card.is-update-available {
+  border-color: var(--accent-action);
+}
+
+.plugin-card-name.has-update {
+  color: var(--accent-text, var(--content-primary));
+}
+
+.plugin-card-update {
+  color: var(--accent-text, var(--content-primary));
+  font-weight: 600;
+}
+
+/* 更新列表里的操作按钮 */
+.plugin-update-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+/* 快捷键单元格：组合键 + 设定/清除 */.plugin-entries-shortcut {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.plugin-entries-shortcut code {
+  padding: 0.1rem 0.4rem;
+  border: 1px solid var(--border-default);
+  border-radius: 0.3rem;
+  background: var(--surface-control);
+  color: var(--content-secondary);
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+
+/* 用户显式绑定的快捷键（与「插件建议」区分：建议值只是展示，不生效） */
+.plugin-entries-shortcut code.is-custom {
+  border-color: var(--accent-action);
+  color: var(--content-primary);
+}
+
 .plugin-entries-name {
   display: block;
   color: var(--content-primary);

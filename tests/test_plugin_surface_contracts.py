@@ -381,6 +381,43 @@ def test_mount_error_is_isolated_to_the_failing_surface():
 
 
 @requires_node
+def test_mount_error_marks_the_entry_as_error():
+    """设计文档 8.3：`mount()` 抛错时「把对应入口置错误态」。
+
+    用户要能看见「这个插件的面板坏了」，而不是点了没反应。入口 id 从
+    `ctx.targetId` 取（坞 / 命令面板都会传）。
+    """
+    result = run_dom_script(
+        """
+        import assert from 'node:assert/strict';
+        import { PluginSurfaceHost } from './static/js/pluginSurfaceHost.js';
+        import { EntryRegistry } from './static/js/entryRegistry.js';
+
+        EntryRegistry.setPlugins([
+          { id: 'broken-plugin', enabled: true, manifest: { entries: [
+            { id: 'workbench', kind: 'dock', label: '工作台' },
+          ] } },
+        ]);
+
+        PluginSurfaceHost.register('broken-plugin', 'workbench', {
+          mount() { throw new Error('插件内部炸了'); },
+        });
+
+        const failed = PluginSurfaceHost.openSurface('broken-plugin:workbench', {
+          source: 'dock',
+          targetId: 'workbench',
+        });
+        assert.equal(failed, null);
+
+        const entry = EntryRegistry.get('broken-plugin:workbench');
+        assert.ok(entry, '入口应仍在注册表里');
+        assert.equal(entry.status, 'error', '入口必须被置为 error 态');
+        """
+    )
+    assert result.returncode == 0, result.stderr or result.stdout
+
+
+@requires_node
 def test_disabling_plugin_force_unloads_all_its_surfaces():
     """D8 契约：宿主必须在插件被禁用/卸载时强制卸载 surface，不依赖 deactivate。"""
     result = run_dom_script(

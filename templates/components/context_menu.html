@@ -112,6 +112,34 @@
                     </button>
                 </div>
             </template>
+
+            <!-- 插件声明的 `kind: "context"` 入口（D1：右键菜单是 context 的落点）。
+                 置灰项**可见但不可点**，并显示 disabledHint（D7：不是隐藏、不是无反应）。 -->
+            <template x-if="pluginEntries.length">
+                <div>
+                    <hr :class="isMobile ? 'border-[var(--border-default)] my-1' : 'border-[var(--border-default)] my-1'">
+                    <template x-for="entry in pluginEntries" :key="entry.key">
+                        <button @click="runPluginEntry(entry)"
+                            :disabled="!entry.enabled"
+                            :title="entry.enabled ? (entry.description || entry.label) : (entry.disabledHint || '当前条件下不可用')"
+                            :class="isMobile ? 'w-full text-left px-4 py-3 text-base transition-colors flex items-center gap-2' : 'w-full text-left px-4 py-2 text-sm transition-colors flex items-center gap-2'"
+                            :style="entry.enabled
+                                ? 'color: var(--content-primary);'
+                                : 'color: var(--content-disabled); cursor: not-allowed;'">
+                            <span class="inline-flex" aria-hidden="true" x-html="pluginEntryIconHtml(entry)"></span>
+                            <span class="flex-1 min-w-0">
+                                <span class="block truncate" x-text="entry.label"></span>
+                                <span x-show="!entry.enabled && entry.disabledHint"
+                                    class="block truncate text-[10px] color-text-muted"
+                                    x-text="entry.disabledHint"></span>
+                            </span>
+                            <span x-show="entry.badge !== null && entry.badge !== undefined && entry.badge !== ''"
+                                class="plugin-entries-badge"
+                                x-text="entry.badge"></span>
+                        </button>
+                    </template>
+                </div>
+            </template>
         </div>
     </div>
 

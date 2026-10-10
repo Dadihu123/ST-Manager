@@ -13,6 +13,10 @@ import {
     runSourceUpdateBatch,
 } from '../utils/batchOperations.js';
 
+import { EntryRegistry } from '../entryRegistry.js';
+import { PluginSurfaceHost } from '../pluginSurfaceHost.js';
+import { icon as buildIcon } from '../uiPrimitives.js';
+
 export default function contextMenu() {
     return {
         visible: false,
@@ -21,6 +25,9 @@ export default function contextMenu() {
         target: null, // path
         type: null,   // 'folder' | 'card'
         targetFolder: null, // 文件夹对象引用
+        /** 插件声明的 `kind: "context"` 入口（右键菜单项）。 */
+        pluginEntries: [],
+        _entriesHandler: null,
         // 删除文件夹确认弹窗状态（包含“是否删除子文件”可选项）
         deleteFolderConfirm: {
             visible: false,
@@ -56,8 +63,16 @@ export default function contextMenu() {
                 this.targetFolder = targetFolder;
                 this.visible = true;
 
+                // 插件 context 入口：每次打开时重算（`when` 依赖当前模式与选中项）
+                this.refreshPluginEntries();
+
                 window.dispatchEvent(new CustomEvent('load-rulesets-for-menu'));
             });
+
+            // 入口注册表变更 → 重算（插件加载 / 禁用 / 配置变更都会触发）
+            this._entriesHandler = () => this.refreshPluginEntries();
+            window.addEventListener('entries:changed', this._entriesHandler);
+            window.addEventListener('plugins:loaded', this._entriesHandler);
 
             // 监听隐藏事件
             window.addEventListener('hide-context-menu', () => {
@@ -72,8 +87,75 @@ export default function contextMenu() {
             });
         },
 
+        destroy() {
+            if (this._entriesHandler) {
+                window.removeEventListener('entries:changed', this._entriesHandler);
+                window.removeEventListener('plugins:loaded', this._entriesHandler);
+                this._entriesHandler = null;
+            }
+        },
+
         hideContextMenu() {
             this.visible = false;
+        },
+
+        // === 插件 context 入口（D1：`kind: "context"` 落到右键菜单） ===
+
+        /**
+         * 取当前可用的插件 context 入口。
+         *
+         * `EntryRegistry.list()` 已经做过 `when` 求值（模式、选中项、配置），
+         * 返回的每项带 `enabled` 与 `disabledHint`——所以这里不需要自己判断条件，
+         * 也不该判断（D7：`when` 统一在注册表求值）。
+         */
+        refreshPluginEntries() {
+            try {
+                this.pluginEntries = EntryRegistry.list({ kind: 'context' });
+            } catch (error) {
+                console.warn('[contextMenu] 读取插件 context 入口失败:', error);
+                this.pluginEntries = [];
+            }
+        },
+
+        /** 右键菜单里的插件项图标（资源路径需要 pluginId 才能解析）。 */
+        pluginEntryIcon(entry) {
+            return buildIcon(String((entry && entry.icon) || 'circle-dot'), {
+                className: 'ui-icon--sm',
+                pluginId: String((entry && entry.pluginId) || ''),
+            });
+        },
+
+        pluginEntryIconHtml(entry) {
+            return this.pluginEntryIcon(entry).outerHTML;
+        },
+
+        /**
+         * 执行一个插件 context 入口。
+         *
+         * 优先打开插件注册的 surface；没有 surface 时派发 `entry:activate`
+         * 交给插件自己处理（与坞 / 命令面板同一套约定，见 `entryDock.js:open`）。
+         * 置灰项不执行——但菜单里仍可见并附 `disabledHint`（D7：不是隐藏）。
+         */
+        runPluginEntry(entry) {
+            if (!entry || !entry.enabled) return false;
+
+            const surfaceId = (entry.surface && entry.surface.id) || entry.id;
+            const surfaceKey = `${entry.pluginId}:${surfaceId}`;
+            this.visible = false;
+
+            if (PluginSurfaceHost.has(surfaceKey)) {
+                PluginSurfaceHost.openSurface(surfaceKey, {
+                    source: 'context',
+                    targetId: entry.id,
+                    mode: EntryRegistry.context().mode,
+                });
+                return true;
+            }
+
+            window.dispatchEvent(
+                new CustomEvent('entry:activate', { detail: { key: entry.key, entry } }),
+            );
+            return true;
         },
 
         // === 菜单动作 ===

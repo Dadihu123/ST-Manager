@@ -116,17 +116,23 @@
       </div>
 
       <template x-for="item in plugins" :key="item.id">
-        <article class="plugin-card" :class="{ 'is-disabled': !item.enabled, 'is-failed': !!item.load_error }" :data-plugin-card="item.id">
+        <article class="plugin-card" :class="{ 'is-disabled': !item.enabled, 'is-failed': !!item.load_error, 'is-update-available': !!updateFor(item.id) }" :data-plugin-card="item.id">
           <header class="plugin-card-header">
             <div class="plugin-card-identity">
               <span class="plugin-card-status" aria-hidden="true" x-text="statusIcon(item)"></span>
               <div>
-                <h4 class="plugin-card-name">
+                <h4 class="plugin-card-name" :class="{ 'has-update': !!updateFor(item.id) }">
                   <span x-text="item.name || item.id"></span>
                   <code class="plugin-card-id" x-text="item.id"></code>
                 </h4>
                 <p class="plugin-card-meta">
                   <span x-text="'v' + (item.version || '?')"></span>
+                  <template x-if="updateFor(item.id)">
+                    <span>
+                      <span aria-hidden="true">·</span>
+                      <span class="plugin-card-update" x-text="'可更新到 v' + updateFor(item.id).available"></span>
+                    </span>
+                  </template>
                   <span aria-hidden="true">·</span>
                   <span x-text="statusLabel(item)"></span>
                   <template x-if="item.author">
@@ -429,10 +435,17 @@
             <li>
               <span x-text="update.name || update.id"></span>
               <span x-text="update.installed + ' → ' + update.available"></span>
+              <button
+                type="button"
+                class="plugin-button plugin-button--primary"
+                :disabled="busyAction === ('update:' + update.id)"
+                @click="applyUpdate(update)"
+                x-text="busyAction === ('update:' + update.id) ? '更新中…' : '更新'"
+              ></button>
             </li>
           </template>
         </ul>
-        <p class="plugin-manager-hint">更新需在「已安装」页签重新安装对应的插件条目。</p>
+        <p class="plugin-manager-hint">更新会覆盖安装并原子替换，<strong>重启应用后生效</strong>。</p>
       </div>
     </section>
 
@@ -568,8 +581,13 @@
             <template x-for="row in filteredEntryRows" :key="row.key">
               <tr :class="{ 'is-disabled': !row.pluginEnabled }">
                 <td>
-                  <span class="plugin-entries-name" x-text="row.label"></span>
-                  <code class="plugin-entries-id" x-text="row.id"></code>
+                  <div class="plugin-entries-identity">
+                    <span class="plugin-entries-icon" aria-hidden="true" x-html="entryIconHtml(row)"></span>
+                    <span class="plugin-entries-text">
+                      <span class="plugin-entries-name" x-text="row.label"></span>
+                      <code class="plugin-entries-id" x-text="row.id"></code>
+                    </span>
+                  </div>
                 </td>
                 <td>
                   <span x-text="row.pluginName"></span>
@@ -579,8 +597,40 @@
                 <td x-text="entryLocationLabel(row)"></td>
                 <td x-text="entrySurfaceLabel(row)"></td>
                 <td>
-                  <code x-show="row.shortcut" x-text="row.shortcut"></code>
-                  <span x-show="!row.shortcut" class="color-text-muted">—</span>
+                  <!-- 快捷键：录制中的输入框 / 已绑定的组合键 + 改绑/清除 -->
+                  <input
+                    x-ref="shortcutInput"
+                    x-show="recordingKey === row.key"
+                    type="text"
+                    readonly
+                    class="plugin-entries-search"
+                    placeholder="按下组合键…"
+                    @keydown.prevent="onShortcutKeydown($event)"
+                    @blur="recordingKey = ''"
+                  >
+                  <template x-if="recordingKey !== row.key">
+                    <span class="plugin-entries-shortcut">
+                      <code
+                        x-show="entryShortcut(row)"
+                        :class="{ 'is-custom': entryShortcutIsCustom(row) }"
+                        :title="entryShortcutIsCustom(row) ? '用户自定义快捷键' : '插件建议的快捷键（尚未启用）'"
+                        x-text="entryShortcut(row)"
+                      ></code>
+                      <span x-show="!entryShortcut(row)" class="color-text-muted">—</span>
+                      <button
+                        type="button"
+                        class="plugin-button plugin-button--ghost"
+                        @click="captureEntryShortcut(row)"
+                        x-text="entryShortcutIsCustom(row) ? '改绑' : '设定'"
+                      ></button>
+                      <button
+                        type="button"
+                        class="plugin-button plugin-button--ghost"
+                        x-show="entryShortcutIsCustom(row)"
+                        @click="clearEntryShortcut(row)"
+                      >清除</button>
+                    </span>
+                  </template>
                 </td>
                 <td>
                   <button

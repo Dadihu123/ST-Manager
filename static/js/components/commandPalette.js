@@ -68,7 +68,11 @@ export default function commandPalette() {
         if (event.key === "Escape" && this.open) {
           event.preventDefault();
           this.close();
+          return;
         }
+        // 插件入口快捷键（`layout.shortcuts` → `EntryRegistry.findByShortcut`）。
+        // 放在最后：不要抢掉面板自己的 Ctrl+K / Escape。
+        if (this.handleEntryShortcut(event)) return;
       };
       window.addEventListener("keydown", this._keyHandler);
 
@@ -76,6 +80,100 @@ export default function commandPalette() {
         if (this.open) this.rebuild();
       };
       window.addEventListener("entries:changed", this._entriesHandler);
+    },
+
+    /**
+     * 匹配并执行插件入口快捷键。
+     *
+     * 用户在入口总览页给某个入口配的 `layout.shortcuts[combo] = entryKey`，
+     * `EntryRegistry.findByShortcut(combo)` 负责查表（含宿主内建入口）。
+     *
+     * 三条纪律：
+     * 1. **不在输入框里触发**——否则打字会把字母当快捷键；
+     * 2. 组合键必须**完全匹配**（`Ctrl+Shift+A` 不等于 `Ctrl+A`）；
+     * 3. 置灰的入口不执行，但仍给一条提示（D7：不是无反应）。
+     *
+     * @returns {boolean} 是否已消费该事件。
+     */
+    handleEntryShortcut(event) {
+      if (event.defaultPrevented) return false;
+      if (this.isTypingTarget(event.target)) return false;
+
+      const combo = this.shortcutCombo(event);
+      if (!combo) return false;
+
+      const entry = EntryRegistry.findByShortcut(combo);
+      if (!entry) return false;
+
+      event.preventDefault();
+
+      // 置灰项：不执行，但告诉用户为什么（否则「按了没反应」）
+      const record = EntryRegistry.get(entry.key);
+      if (record && record.enabled === false) {
+        const store = this.$store && this.$store.global;
+        if (store && typeof store.showToast === "function") {
+          store.showToast(record.disabledHint || `「${record.label}」当前不可用`, 3000);
+        }
+        return true;
+      }
+
+      if (isHostEntryKey(entry.key)) {
+        const action = CORE_ACTIONS[entry.key];
+        if (typeof action === "function") action();
+        return true;
+      }
+
+      const surfaceId = entry.surface && entry.surface.id ? entry.surface.id : entry.id;
+      const surfaceKey = `${entry.pluginId}:${surfaceId}`;
+      if (PluginSurfaceHost.has(surfaceKey)) {
+        PluginSurfaceHost.openSurface(surfaceKey, {
+          source: "shortcut",
+          targetId: entry.id,
+          mode: EntryRegistry.context().mode,
+        });
+        return true;
+      }
+
+      window.dispatchEvent(
+        new CustomEvent("entry:activate", { detail: { key: entry.key, entry } }),
+      );
+      return true;
+    },
+
+    /** 焦点是否在可输入元素里（此时不该把按键当快捷键）。 */
+    isTypingTarget(target) {
+      const node = target;
+      if (!node || !node.tagName) return false;
+      const tag = String(node.tagName).toLowerCase();
+      if (tag === "input" || tag === "textarea" || tag === "select") return true;
+      return Boolean(node.isContentEditable);
+    },
+
+    /**
+     * 把键盘事件折算成 `layout.shortcuts` 的键名。
+     *
+     * 规范形如 `Ctrl+Shift+A`：修饰键按 `Ctrl` / `Alt` / `Shift` / `Meta` 的固定顺序，
+     * 主键大写（字母）或原名（`F5`、`ArrowUp`、`Escape` 等）。没有任何修饰键时返回空串
+     * ——避免把裸字母变成全局快捷键（那会破坏正常输入）。
+     */
+    shortcutCombo(event) {
+      const key = String(event.key || "");
+      if (!key || key === "Control" || key === "Alt" || key === "Shift" || key === "Meta") {
+        return "";
+      }
+
+      const parts = [];
+      if (event.ctrlKey) parts.push("Ctrl");
+      if (event.altKey) parts.push("Alt");
+      if (event.shiftKey) parts.push("Shift");
+      if (event.metaKey) parts.push("Meta");
+
+      // 要求至少一个修饰键：裸键不进快捷键表
+      if (!parts.length) return "";
+
+      const main = key.length === 1 ? key.toUpperCase() : key;
+      parts.push(main);
+      return parts.join("+");
     },
 
     destroy() {
@@ -222,7 +320,11 @@ export default function commandPalette() {
 
     buildIcon(entry) {
       const name = String((entry && entry.icon) || "").trim();
-      return icon(name || "circle-dot", { className: "ui-icon--sm" });
+      // 资源路径（含 `/`）需要 pluginId 才能解析（设计文档 2.2 允许两种取值）
+      return icon(name || "circle-dot", {
+        className: "ui-icon--sm",
+        pluginId: String((entry && entry.pluginId) || ""),
+      });
     },
 
     kindLabel(entry) {

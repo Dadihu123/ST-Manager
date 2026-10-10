@@ -170,3 +170,25 @@ def test_entry_contract_limits_match_docs():
     assert MAX_DOCK_SLOTS == 8
     _assert_documented('上限 **16** 项')
     _assert_documented('上限 **8**')
+
+
+# ------------------------------------------------------------------ 归档 URL 形式
+
+
+def test_archive_url_uses_bare_ref_form_documented():
+    """归档 URL 必须用裸 `zip/<ref>`（分支与 tag 都能解析）。
+
+    旧实现无条件拼 `refs/heads/<ref>`，导致按 Release tag 更新时 404。
+    设计文档 3.3 记录了三种形式的实测对照表。
+    """
+    assert installer_module.build_archive_url('owner/repo', 'main') == (
+        'https://codeload.github.com/owner/repo/zip/main'
+    )
+    _assert_documented('| 分支 `main` | 200 | 404 | **200** |')
+    _assert_documented('| tag `v2.31.0` | **404** | 200 | **200** |')
+
+
+def test_catalog_update_endpoint_is_documented():
+    """更新端点是 3.6 生命周期四操作之一，文档必须列出。"""
+    _assert_documented('POST /api/plugins/catalog/update')
+    _assert_documented('| `POST` | `/api/plugins/catalog/update` |')

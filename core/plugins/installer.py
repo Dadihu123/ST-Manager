@@ -46,7 +46,7 @@ DISK_SPACE_FACTOR = 3
 
 REPO_PATTERN = re.compile(r'^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$')
 REF_PATTERN = re.compile(r'^[A-Za-z0-9._/-]{1,200}$')
-SHA_PATTERN = re.compile(r'^[0-9a-f]{7,40}$')
+# 注：不再需要单独的 commit-sha 正则——裸 `zip/<ref>` 同时支持分支 / tag / sha
 
 FORBIDDEN_DIR_NAMES = frozenset({'__pycache__', '.git', 'node_modules', '.venv', 'venv', '.idea', '.vscode'})
 
@@ -65,9 +65,18 @@ def validate_repo(repo: str) -> str:
 
 
 def validate_ref(ref: str, *, default: str = 'main') -> str:
+    """校验分支 / tag / commit sha 名。
+
+    `ref` 会被拼进 codeload URL，因此除了正则白名单还要挡住：
+    - 前导 `/`（会拼出 `zip//etc/passwd` 这样的双斜杠路径）
+    - `..` 路径穿越
+    - 空段（`a//b`）
+    """
     value = str(ref or '').strip() or default
     if not REF_PATTERN.match(value) or '..' in value:
         raise PluginInstallError(f'非法的 ref: {ref!r}')
+    if value.startswith('/') or value.endswith('/') or '//' in value:
+        raise PluginInstallError(f'非法的 ref（路径形状）: {ref!r}')
     return value
 
 
@@ -81,12 +90,26 @@ def validate_subdir(subdir: str) -> str:
 
 
 def build_archive_url(repo: str, ref: str) -> str:
-    """构造 GitHub 源码归档地址（域名固定，不接受任意 URL）。"""
+    """构造 GitHub 源码归档地址（域名固定，不接受任意 URL）。
+
+    **不依赖 git**：走 GitHub 的 codeload 归档接口拿源码 zip，因此无需
+    `git clone`，也不需要 GitHub API（不消耗 API 配额、不受限流影响）。
+
+    三种 URL 形式的实测结果（HEAD 探测，见下表）决定了这里的写法：
+
+    | ref 类型            | `zip/refs/heads/<ref>` | `zip/refs/tags/<ref>` | `zip/<ref>` |
+    |---------------------|------------------------|-----------------------|-------------|
+    | 分支 `main`         | 200                    | 404                   | **200**     |
+    | tag `v2.31.0`       | **404**                | 200                   | **200**     |
+    | commit sha          | —                      | —                     | **200**     |
+
+    `refs/heads/` 只解析分支，`refs/tags/` 只解析 tag，**只有裸 `zip/<ref>`
+    两者都能解析**。此前只用 `refs/heads/<ref>`，导致传 tag 必然 404
+    （`stable` 渠道按 Release tag 更新时会踩到）。
+    """
     repo = validate_repo(repo)
     ref = validate_ref(ref)
-    if SHA_PATTERN.match(ref):
-        return f'{GITHUB_CODELOAD}/{repo}/zip/{ref}'
-    return f'{GITHUB_CODELOAD}/{repo}/zip/refs/heads/{ref}'
+    return f'{GITHUB_CODELOAD}/{repo}/zip/{ref}'
 
 
 # ------------------------------------------------------------------ 下载

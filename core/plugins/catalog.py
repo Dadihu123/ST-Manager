@@ -352,6 +352,17 @@ def _latest_release_version(repo: str) -> str:
 
 
 def _remote_manifest_version(entry: dict) -> str:
+    """读取远端 `manifest.json` 的版本号。
+
+    这是**权威版本源**：catalog 里的 `version` 字段只是发布方写的快照，
+    可能与仓库实际内容不一致（改了 manifest 忘了改 catalog）。因此更新检查
+    以远端 manifest 为准，catalog 的 `version` 只用于目录页展示。
+
+    参考 SillyTavern `src/endpoints/extensions.js`：它更进一步，直接读 git
+    commit hash（`git rev-parse HEAD` + `git fetch` 比较），因为那里插件就是
+    git 仓库工作副本。本项目的插件是**解压后的目录**（无 `.git`），所以用
+    「远端 manifest 版本 + semver 比较」达到同样的目的，且不引入 git 依赖。
+    """
     source = entry.get('source') or {}
     repo = str(source.get('repo') or '')
     ref = str(source.get('ref') or 'main')
@@ -379,7 +390,20 @@ def _remote_manifest_version(entry: dict) -> str:
 
 
 def check_updates(*, force: bool = False) -> dict:
-    """检查已安装插件是否有新版本（只提示，不自动更新）。"""
+    """检查已安装插件是否有新版本。
+
+    只报告，不自动安装——应用更新走 `POST /api/plugins/catalog/update`
+    （内部复用 `installer.install_from_catalog`，原子替换 + 重启生效）。
+
+    版本来源优先级（与 SillyTavern 的「远端优先」一致）：
+    - `release_channel == 'stable'`：先问 GitHub Release（发布方打了 tag 才算发布），
+      没有 Release 时回退读远端 `manifest.json`；
+    - 其它 channel（如 `dev`）：直接读远端 `manifest.json`（跟随分支最新提交）。
+
+    这样做的原因：`stable` 语义是「发布方显式发布」，而直接读 manifest 会让
+    「改了 main 分支但还没发版」也算更新——SillyTavern 靠 git commit 区分
+    「有提交」与「有发布」，这里用 Release/tag 达到同样的区分度。
+    """
     cached = _read_cache().get('updates') or {}
     if not force and _cache_is_fresh(cached, max_age_hours=UPDATES_CACHE_HOURS):
         return {'success': True, 'updates': cached.get('updates') or [], 'source': 'cache', 'msg': ''}
@@ -413,15 +437,19 @@ def check_updates(*, force: bool = False) -> dict:
 
         if parse_semver(available) is None:
             continue
-        if compare_versions(available, installed) > 0:
-            updates.append({
-                'id': state.plugin_id,
-                'name': state.manifest.name,
-                'installed': installed,
-                'available': available,
-                'channel': channel,
-                'repo': entry['source']['repo'],
-            })
+
+        # 无论是否有更新都给出记录，前端才能显示「已是最新 vX.Y.Z」
+        item = {
+            'id': state.plugin_id,
+            'name': state.manifest.name,
+            'installed': installed,
+            'available': available,
+            'channel': channel,
+            'repo': entry['source']['repo'],
+            'has_update': compare_versions(available, installed) > 0,
+        }
+        if item['has_update']:
+            updates.append(item)
 
     cache_payload = _read_cache()
     cache_payload['updates'] = {'updates': updates, 'fetched_at': time.time()}

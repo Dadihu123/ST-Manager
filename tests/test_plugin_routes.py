@@ -375,6 +375,57 @@ def test_check_updates_endpoint(client, monkeypatch):
     assert data['updates'][0]['available'] == '0.2.0'
 
 
+def test_catalog_update_requires_installed_plugin(client, monkeypatch):
+    """更新端点只服务**已安装**插件。
+
+    否则它会变成「安装任意 catalog 条目」的后门——那是 `/catalog/install`
+    的职责（有独立的确认流程）。
+    """
+    monkeypatch.setattr(registry_module, 'get_state', lambda plugin_id: None)
+
+    response = client.post('/api/plugins/catalog/update', json={'id': 'not-installed'})
+
+    assert response.status_code == 404
+    data = response.get_json()
+    assert data['success'] is False
+    assert data['error'] == 'plugin_not_installed'
+
+
+def test_catalog_update_requires_id(client):
+    response = client.post('/api/plugins/catalog/update', json={})
+
+    assert response.status_code == 400
+    assert response.get_json()['error'] == 'invalid_payload'
+
+
+def test_catalog_update_delegates_to_installer_and_reports_version_jump(client, monkeypatch):
+    """更新 = 覆盖安装（原子替换），并回报 `v旧 → v新` 供前端提示。"""
+    state = registry_module.PluginState('demo-plugin', '/tmp/demo-plugin')
+    state.manifest = type('M', (), {'version': '0.1.0', 'name': 'Demo'})()
+    monkeypatch.setattr(registry_module, 'get_state', lambda plugin_id: state)
+    monkeypatch.setattr(
+        catalog_module, 'find_catalog_entry',
+        lambda plugin_id: {'id': plugin_id, 'source': {'repo': 'owner/repo'}},
+    )
+
+    captured = {}
+
+    def fake_install(app, entry, *, ref='', subdir=''):
+        captured['entry'] = entry
+        return {'id': 'demo-plugin', 'version': '0.2.0'}
+
+    monkeypatch.setattr(installer_module, 'install_from_catalog', fake_install)
+
+    data = client.post('/api/plugins/catalog/update', json={'id': 'demo-plugin'}).get_json()
+
+    assert data['success'] is True
+    assert data['restart_required'] is True
+    assert data['previous_version'] == '0.1.0'
+    assert data['result']['version'] == '0.2.0'
+    assert '0.1.0' in data['msg'] and '0.2.0' in data['msg']
+    assert captured['entry']['id'] == 'demo-plugin'
+
+
 def test_job_endpoints_require_known_plugin(client):
     assert client.get('/api/plugins/unknown-plugin/jobs').status_code == 404
     assert client.get('/api/plugins/demo-plugin/jobs').get_json()['success'] is True

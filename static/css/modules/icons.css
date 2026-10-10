@@ -31,6 +31,21 @@
   stroke: none;
 }
 
+/* 插件自带图标（`entries[].icon` 写成插件内资源路径时）。
+ *
+ * 用 CSS mask 抠形 + `background-color: currentColor` 着色，而不是 `<img>`：
+ * 插件 SVG 里的 `currentColor` 在 `<img>` 上下文解析不到页面 CSS 变量，
+ * 会永远渲染成黑色剪影，浅色/深色主题下都会瞎。
+ *
+ * mask 图像 URL 由 `uiPrimitives.js:icon()` 通过 `--ui-icon-mask` 传入。
+ * 这里不写 `fill` / `stroke`（那是给 `<svg>` 的，对 `<span>` 无效）。 */
+.ui-icon.ui-icon--asset {
+  display: block;
+  background-color: currentColor;
+  -webkit-mask: var(--ui-icon-mask) center / contain no-repeat;
+  mask: var(--ui-icon-mask) center / contain no-repeat;
+}
+
 /* 品牌位图自身带颜色，使用 contain 保留裁剪后的完整比例。 */
 .app-brand-mark,
 .loading-brand-logo {

@@ -500,6 +500,57 @@ def check_catalog_updates():
     return jsonify({'success': True, **payload})
 
 
+@bp.route('/api/plugins/catalog/update', methods=['POST'])
+@_handle_plugin_errors
+def update_from_catalog():
+    """把已安装插件更新到 catalog 指向的最新版本。
+
+    实现即「重新安装」：`installer.install_from_catalog` 已经是
+    「下载 → 校验 → 原子替换」，覆盖安装天然就是更新，无需单独的更新路径。
+    参考 SillyTavern `POST /api/extensions/update`：那边用 `git pull`，
+    本项目插件是解压目录（无 `.git`），所以走同一套归档替换。
+
+    安全：`plugin_id` 必须**已安装**且在 catalog 里存在——否则用户可以用这个
+    端点安装任意 catalog 条目（那是 `/catalog/install` 的职责，且它有自己的确认）。
+    """
+    body = request.get_json(silent=True) or {}
+    plugin_id = str(body.get('id') or '').strip()
+    if not plugin_id:
+        return jsonify({'success': False, 'msg': '缺少插件 id', 'error': 'invalid_payload'}), 400
+
+    state = registry.get_state(plugin_id)
+    if state is None or state.manifest is None:
+        return jsonify({
+            'success': False,
+            'msg': f'插件未安装: {plugin_id}',
+            'error': 'plugin_not_installed',
+        }), 404
+
+    entry = catalog.find_catalog_entry(plugin_id)
+
+    # 覆盖安装前记录版本，便于前端提示「vX → vY」
+    previous_version = state.manifest.version
+
+    from flask import current_app
+
+    result = installer.install_from_catalog(
+        current_app._get_current_object(),
+        entry,
+        ref=str(body.get('ref') or ''),
+        subdir=str(body.get('subdir') or ''),
+    )
+    return jsonify({
+        'success': True,
+        'restart_required': True,
+        'result': result,
+        'previous_version': previous_version,
+        'msg': (
+            f'已更新 {result["id"]} v{previous_version} → v{result["version"]}，'
+            f'重启应用后生效'
+        ),
+    })
+
+
 @bp.route('/api/plugins/install_upload', methods=['POST'])
 @_handle_plugin_errors
 def install_upload():

@@ -15,7 +15,7 @@
  * - 遵守 `prefers-reduced-motion`（动效样式在 ui-primitives.css 里统一处理）
  */
 
-import { resolveIconUrl } from "./utils/icons.js";
+import { resolveIcon } from "./utils/icons.js";
 
 /** 创建元素并一次性设置属性 / 类名 / 文本。 */
 function el(tag, options = {}) {
@@ -47,13 +47,34 @@ function el(tag, options = {}) {
 /**
  * 宿主图标元素（D4）。
  *
- * 返回 `<svg><use href="/static/icons/<sprite>.svg#icon-<name>"></use></svg>`，
- * 名字 → sprite 的映射由宿主维护（与 `templates/components/icon.html` 的宏一致）。
- * 未知名字返回占位元素而不是抛错——图标不该拖垮整个界面。
+ * 两种取值都能渲染（设计文档 2.2：`icon` 可以是宿主图标名，也可以是插件内资源路径）：
+ * - **宿主图标名** → `<svg><use href="/static/icons/<sprite>.svg#icon-<name>"></use></svg>`，
+ *   名字 → sprite 的映射由宿主维护（与 `templates/components/icon.html` 的宏一致）。
+ * - **插件自带资源路径**（含 `/`）→ `<span>` + CSS `mask`，由 `background-color: currentColor`
+ *   着色。**不能**塞进 `<use>`：宿主 sprite 是描边式（`fill: none; stroke: currentColor`），
+ *   插件 SVG 通常是填充式（`fill: currentColor`），几何与着色方式都不同，混用会渲染成空图形。
+ *   用 mask 而不是 `<img>`：`<img>` 里的 SVG 解析不到页面 CSS 变量，`currentColor` 永远是黑。
+ *
+ * 未知名字 / 非法资源路径返回占位元素而不是抛错——图标不该拖垮整个界面。
+ *
+ * @param {string} name 宿主图标名，或插件内资源路径（如 `assets/icon.svg`）。
+ * @param {object} [options]
+ * @param {string} [options.className]
+ * @param {string} [options.pluginId] 资源路径必需（解析 `/api/plugins/<id>/assets/…`）。
  */
 export function icon(name, options = {}) {
   const requested = String(name || "").trim();
   const className = ["ui-icon", options.className || ""].filter(Boolean).join(" ");
+  const resolved = resolveIcon(requested, { pluginId: options.pluginId });
+
+  if (resolved.kind === "asset") {
+    const span = el("span", { className: `${className} ui-icon--asset` });
+    span.setAttribute("aria-hidden", "true");
+    span.style.setProperty("--ui-icon-mask", `url("${resolved.url}")`);
+    span.dataset.icon = requested;
+    span.dataset.iconAsset = resolved.url;
+    return span;
+  }
 
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   svg.setAttribute("class", className);
@@ -61,15 +82,14 @@ export function icon(name, options = {}) {
   svg.setAttribute("aria-hidden", "true");
   svg.setAttribute("focusable", "false");
 
-  const href = resolveIconUrl(requested);
-  if (!href) {
-    svg.dataset.iconMissing = requested || "unknown";
+  if (resolved.kind === "missing") {
+    svg.dataset.iconMissing = resolved.name || "unknown";
     svg.classList.add("is-missing");
     return svg;
   }
 
   const use = document.createElementNS("http://www.w3.org/2000/svg", "use");
-  use.setAttribute("href", href);
+  use.setAttribute("href", resolved.href);
   svg.appendChild(use);
   svg.dataset.icon = requested;
   return svg;
@@ -86,7 +106,12 @@ export function button(options = {}) {
     attrs: { type: options.type || "button" },
   });
 
-  if (options.icon) node.appendChild(icon(options.icon, { className: "ui-icon--sm" }));
+  if (options.icon) {
+    node.appendChild(icon(options.icon, {
+      className: "ui-icon--sm",
+      pluginId: options.pluginId || "",
+    }));
+  }
   if (options.label) node.appendChild(el("span", { text: options.label }));
 
   if (options.disabled) node.disabled = true;
@@ -184,7 +209,12 @@ export function badge(options = {}) {
 /** 空态：图标 + 标题 + 说明 + 可选动作。 */
 export function empty(options = {}) {
   const node = el("div", { className: "ui-primitive-empty" });
-  if (options.icon) node.appendChild(icon(options.icon, { className: "ui-primitive-empty__icon" }));
+  if (options.icon) {
+    node.appendChild(icon(options.icon, {
+      className: "ui-primitive-empty__icon",
+      pluginId: options.pluginId || "",
+    }));
+  }
   if (options.title) {
     node.appendChild(el("p", { className: "ui-primitive-empty__title color-text-secondary", text: options.title }));
   }
@@ -585,18 +615,45 @@ export function prompt(options = {}) {
   });
 }
 
-/** 供 `api.ui.*` 一次性挂载。 */
-export function buildUiPrimitives() {
+/**
+ * 供 `api.ui.*` 一次性挂载。
+ *
+ * `pluginId` 由 `pluginHost.js:buildApi()` 传入，用于把**本插件**的相对资源路径
+ * 解析成 `/api/plugins/<id>/assets/…`。插件调用 `api.ui.icon('assets/logo.svg')`
+ * 时不需要自己拼 URL，也不该能引用别的插件的资源——这里把 id 钉死在闭包里，
+ * 调用方传什么 `pluginId` 都会被覆盖。
+ *
+ * @param {object} [options]
+ * @param {string} [options.pluginId] 拥有该 api 门面的插件 id。
+ */
+export function buildUiPrimitives(options = {}) {
+  const ownerId = String(options.pluginId || "");
+
+  /** 绑定了 owner 的图标原语：`api.ui.icon(name, { className })`。 */
+  function boundIcon(name, iconOptions = {}) {
+    return icon(name, {
+      className: iconOptions.className || "",
+      pluginId: ownerId || iconOptions.pluginId || "",
+    });
+  }
+
+  /**
+   * 内嵌图标的原语也要带上 owner：`button({icon})` / `empty({icon})` 的取值同样是
+   * 「宿主图标名或插件资源路径」两种可能，插件不该自己拼 URL。
+   * 这里把 ownerId 注入 `pluginId`，由各工厂转发给 `icon()`。
+   */
+  const withOwner = (factory) => (spec = {}) => factory({ ...spec, pluginId: ownerId });
+
   return {
-    icon,
+    icon: boundIcon,
     panel,
     section,
     card,
     field,
     form,
-    button,
+    button: withOwner(button),
     toolbar,
-    empty,
+    empty: withOwner(empty),
     error,
     loading,
     badge,

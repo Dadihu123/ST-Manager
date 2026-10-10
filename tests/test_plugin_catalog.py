@@ -94,11 +94,51 @@ def _stub_get(monkeypatch, responder):
 
 
 def test_repository_bundled_catalog_is_valid_json():
-    """仓库自带的包内清单必须可解析（阶段 0 起为空清单）。"""
+    """仓库自带的包内清单必须可解析。"""
     bundled = catalog_module.load_bundled_catalog()
 
     assert bundled['schema_version'] == catalog_module.CATALOG_SCHEMA_VERSION
     assert isinstance(bundled['plugins'], list)
+
+
+def test_bundled_catalog_lists_official_ai_assistant():
+    """官方 AI 助手插件必须在包内清单里，且 tier = official。
+
+    `tier` 决定该插件的入口能用哪些 kind（D5），也决定坞是否默认把它放进槽位
+    （D6：community 默认进溢出菜单）。这些**只能由宿主仓库的 catalog 决定**，
+    插件 manifest 无权声明——所以这条断言是「官方」这一事实的唯一落点。
+    """
+    bundled = catalog_module.load_bundled_catalog()
+    entries = {item['id']: item for item in bundled['plugins']}
+
+    assert 'stm-ai-assistant' in entries, '包内清单必须包含官方 AI 助手插件'
+    entry = entries['stm-ai-assistant']
+
+    assert entry['tier'] == 'official'
+    assert entry['source']['repo'] == 'Dadihu123/ST-Manager-AI-Assistant'
+    assert entry['source']['type'] == 'github'
+    # source.repo 必须是 owner/repo（防 SSRF，catalog 不接受任意 URL）
+    assert catalog_module.REPO_PATTERN.match(entry['source']['repo'])
+    assert entry['api_version'] == 2
+
+
+def test_tier_for_plugin_resolves_official_from_bundled_catalog():
+    """加载期只读本地（缓存 + 包内清单），不发起网络请求。"""
+    assert catalog_module.tier_for_plugin('stm-ai-assistant') == 'official'
+    # 未知插件一律 community（安全的一侧）
+    assert catalog_module.tier_for_plugin('nope-not-installed') == 'community'
+
+
+def test_official_tier_keeps_all_entry_kinds_available():
+    """official tier 下 dock/nav/settings/context/command/status 全部准入（D5）。"""
+    from core.plugins.entries import entry_kind_allowed  # noqa: PLC0415
+
+    for kind in ('dock', 'nav', 'settings', 'context', 'command', 'status'):
+        assert entry_kind_allowed(kind, 'official'), kind
+
+    # 对照：community 下 nav / status 不可用（这正是本插件原先受限的两类）
+    for kind in ('nav', 'status'):
+        assert not entry_kind_allowed(kind, 'community'), kind
 
 
 def test_parse_catalog_normalizes_entries():
@@ -364,6 +404,48 @@ def test_check_updates_ignores_same_or_older_versions(catalog_env, monkeypatch):
     _stub_get(monkeypatch, responder)
 
     assert catalog_module.check_updates(force=True)['updates'] == []
+
+
+def test_check_updates_marks_has_update_flag(catalog_env, monkeypatch):
+    """每条记录都带 `has_update`，前端才能区分「有更新」与「已是最新」。"""
+    monkeypatch.setattr(registry, 'list_states', lambda: [_installed_state(catalog_env['tmp_path'])])
+
+    def responder(url, kwargs):
+        if 'api.github.com' in url:
+            return _FakeResponse(payload={'tag_name': 'v0.2.0'})
+        return _FakeResponse(body=json.dumps(BUNDLED_CATALOG).encode('utf-8'))
+
+    _stub_get(monkeypatch, responder)
+
+    update = catalog_module.check_updates(force=True)['updates'][0]
+    assert update['has_update'] is True
+
+
+def test_remote_manifest_is_the_authoritative_version_source(catalog_env, monkeypatch):
+    """版本以**远端 manifest** 为准，catalog 里的 `version` 只是发布方写的快照。
+
+    改了仓库 manifest 但忘了同步 catalog 时，必须以仓库为准——否则用户会
+    永远看不到更新（catalog 是包内/缓存文件，不会自己更新）。
+    """
+    monkeypatch.setattr(registry, 'list_states', lambda: [_installed_state(catalog_env['tmp_path'])])
+
+    # catalog 声明 0.1.0（与已安装相同），但远端 manifest 已经是 0.5.0
+    stale_catalog = json.loads(json.dumps(BUNDLED_CATALOG))
+    stale_catalog['plugins'][0]['version'] = '0.1.0'
+
+    def responder(url, kwargs):
+        if 'api.github.com' in url:
+            return _FakeResponse(status_code=404, payload={})
+        if url.endswith('manifest.json'):
+            return _FakeResponse(payload={'version': '0.5.0'})
+        return _FakeResponse(body=json.dumps(stale_catalog).encode('utf-8'))
+
+    _stub_get(monkeypatch, responder)
+
+    result = catalog_module.check_updates(force=True)
+
+    assert result['updates'][0]['available'] == '0.5.0'
+    assert result['updates'][0]['installed'] == '0.1.0'
 
 
 def test_check_updates_collects_errors_without_failing(catalog_env, monkeypatch):

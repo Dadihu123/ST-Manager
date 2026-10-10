@@ -705,12 +705,41 @@ export const EntryRegistry = {
     return [...this.coreEntries, ...this.all()];
   },
 
-  /** 按快捷键查找入口（`layout.shortcuts` 由用户在总览页配置）。 */
+  /**
+   * 按快捷键查找入口。
+   *
+   * 两级来源（设计文档 2.2：`shortcut` 是「建议快捷键，宿主可覆盖」）：
+   * 1. **用户配置**（`layout.shortcuts`，总览页设定）——优先；
+   * 2. **插件建议**（`entries[].shortcut`）——用户没改时直接生效。
+   *
+   * 返回的是**求值后**的条目（与 `list()` 同形，带 `enabled` / `disabledHint`），
+   * 因为快捷键的消费方需要据此判断「能不能执行」并给出理由。
+   * `get()` 返回的是原始登记项（无 `enabled`），直接用会让置灰判断失效。
+   *
+   * 宿主内建入口（`core:`）没有 `when`，恒为可用。
+   */
   findByShortcut(combo) {
+    const target = String(combo || "").trim();
+    if (!target) return null;
+
     const shortcuts = (this.layout && this.layout.shortcuts) || {};
-    const key = shortcuts[String(combo || "")];
-    if (!key) return null;
-    return this.get(key) || this.coreEntries.find((item) => item.key === key) || null;
+    const all = this.list({ includeHidden: true, includeDisabled: true });
+
+    // 1) 用户配置优先
+    const configuredKey = shortcuts[target];
+    if (configuredKey) {
+      const core = this.coreEntries.find((item) => item.key === configuredKey);
+      if (core) return { ...core, enabled: true, disabledHint: "", pinned: false };
+      const hit = all.find((item) => item.key === configuredKey);
+      if (hit) return hit;
+      // 布局里存了键但条目已不存在（插件被禁用 / 卸载）→ 继续看插件建议
+    }
+
+    // 2) 插件建议的快捷键；被用户改绑到别处的要跳过（用户配置是覆盖语义）
+    const overridden = new Set(Object.values(shortcuts));
+    return all.find((item) => (
+      String(item.shortcut || "").trim() === target && !overridden.has(item.key)
+    )) || null;
   },
 
   _defaultDisabledHint(reasons) {

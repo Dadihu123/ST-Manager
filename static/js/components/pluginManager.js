@@ -25,7 +25,10 @@ import {
   savePluginSecrets,
   uninstallPlugin,
   uploadPluginArchive,
+  updatePluginFromCatalog,
 } from "../api/plugins.js";
+import { icon } from "../uiPrimitives.js";
+import { EntryRegistry } from "../entryRegistry.js";
 
 const PERMISSION_LABELS = {
   "cards.read": "读取角色卡",
@@ -104,6 +107,9 @@ export default function pluginManager() {
     loading: false,
     busyAction: "",
     errorMessage: "",
+
+    /** 正在录制快捷键的入口键（空 = 未录制）。 */
+    recordingKey: "",
 
     plugins: [],
     pluginsDir: "",
@@ -329,6 +335,26 @@ export default function pluginManager() {
       );
     },
 
+    /**
+     * 入口图标节点（设计文档 9.3.1「图标 + 名称」列）。
+     *
+     * 取值可以是宿主图标名，也可以是插件内资源路径（含 `/`）——后者要靠
+     * `pluginId` 才能解析成 `/api/plugins/<id>/assets/…`，所以必须传下去。
+     * 资源路径会渲染成 `<span>` + CSS mask（见 `uiPrimitives.js:icon`）。
+     */
+    entryIconNode(row) {
+      const name = String((row && row.icon) || "").trim();
+      return icon(name || "circle-dot", {
+        className: "ui-icon--sm",
+        pluginId: String((row && row.pluginId) || ""),
+      });
+    },
+
+    /** 图标节点的 HTML（模板用 `x-html` 注入）。 */
+    entryIconHtml(row) {
+      return this.entryIconNode(row).outerHTML;
+    },
+
     tierLabel(item) {
       const tier = typeof item === "string" ? item : item && item.tier;
       return TIER_LABELS[String(tier || "community")] || "社区";
@@ -351,6 +377,102 @@ export default function pluginManager() {
       return SURFACE_LABELS[String((row && row.surfaceType) || "")] || "—";
     },
 
+    // ---------------------------------------------------------------- 快捷键
+
+    /**
+     * 入口当前生效的快捷键。
+     *
+     * 两级来源（设计文档 2.2：`shortcut` 是「建议快捷键，宿主可覆盖」）：
+     * 用户配置（`layout.shortcuts`）优先，否则用插件建议的 `entries[].shortcut`。
+     */
+    entryShortcut(row) {
+      const shortcuts = (EntryRegistry.layout && EntryRegistry.layout.shortcuts) || {};
+      const key = String((row && row.key) || "");
+      const hit = Object.keys(shortcuts).find((combo) => shortcuts[combo] === key);
+      if (hit) return hit;
+      // 被用户改绑到别处的建议值不再生效
+      return String((row && row.shortcut) || "");
+    },
+
+    /** 该入口的快捷键是否为用户显式配置（用于区分「建议」与「已设定」）。 */
+    entryShortcutIsCustom(row) {
+      const shortcuts = (EntryRegistry.layout && EntryRegistry.layout.shortcuts) || {};
+      const key = String((row && row.key) || "");
+      return Object.values(shortcuts).includes(key);
+    },
+
+    /** 录制快捷键：按下的组合键写入 `layout.shortcuts`。 */
+    async captureEntryShortcut(row) {
+      if (this.busyAction) return;
+      this.recordingKey = String((row && row.key) || "");
+      this.$nextTick?.(() => {
+        const input = this.$refs?.shortcutInput;
+        if (input && typeof input.focus === "function") input.focus();
+      });
+    },
+
+    /**
+     * 处理录制框的按键。
+     *
+     * 与 `commandPalette.shortcutCombo` 同一套折算规则（修饰键固定顺序 + 主键大写），
+     * 这样两处对同一个物理按键会得到同一个字符串。
+     */
+    async onShortcutKeydown(event) {
+      const key = String(event.key || "");
+      if (key === "Escape") {
+        this.recordingKey = "";
+        return;
+      }
+      if (["Control", "Alt", "Shift", "Meta"].includes(key)) return;
+      if (!key) return;
+
+      const parts = [];
+      if (event.ctrlKey) parts.push("Ctrl");
+      if (event.altKey) parts.push("Alt");
+      if (event.shiftKey) parts.push("Shift");
+      if (event.metaKey) parts.push("Meta");
+      if (!parts.length) {
+        toast("快捷键必须包含 Ctrl / Alt / Shift / Meta 修饰键", "error");
+        return;
+      }
+      parts.push(key.length === 1 ? key.toUpperCase() : key);
+      const combo = parts.join("+");
+
+      await this.assignEntryShortcut(this.recordingKey, combo);
+      this.recordingKey = "";
+    },
+
+    /** 写入（或清除）某入口的快捷键。空 `combo` 表示清除。 */
+    async assignEntryShortcut(entryKey, combo) {
+      const key = String(entryKey || "");
+      if (!key) return false;
+
+      const shortcuts = { ...((EntryRegistry.layout && EntryRegistry.layout.shortcuts) || {}) };
+      // 一个组合键只能绑一个入口：先摘掉旧绑定，再摘掉该入口的旧组合键
+      for (const existing of Object.keys(shortcuts)) {
+        if (shortcuts[existing] === key) delete shortcuts[existing];
+      }
+      const target = String(combo || "").trim();
+      if (target) {
+        const occupied = shortcuts[target];
+        if (occupied && occupied !== key) {
+          toast(`快捷键 ${target} 已被其他入口占用`, "error");
+          return false;
+        }
+        shortcuts[target] = key;
+      }
+
+      const ok = await EntryRegistry.updateLayout({ shortcuts });
+      if (ok) toast(target ? `已绑定 ${target}` : "已清除快捷键");
+      else toast("保存快捷键失败", "error");
+      return ok;
+    },
+
+    /** 清除该入口的快捷键。 */
+    async clearEntryShortcut(row) {
+      return this.assignEntryShortcut(row && row.key, "");
+    },
+
     /** 该插件将添加多少个入口（安装期披露，阶段 6.3）。 */
     entryCountLabel(item) {
       const entries = (item && item.manifest && item.manifest.entries) || [];
@@ -362,6 +484,13 @@ export default function pluginManager() {
       return entries.length;
     },
 
+    /** 已安装插件对应的可用更新（没有则 null）。 */
+    updateFor(pluginId) {
+      const id = String(pluginId || "");
+      if (!id) return null;
+      return this.updates.find((item) => item.id === id) || null;
+    },
+
     async checkUpdates() {
       this.busyAction = "updates";
       try {
@@ -371,7 +500,46 @@ export default function pluginManager() {
           return;
         }
         this.updates = data.updates || [];
+        const failed = data.errors || [];
+        if (failed.length) {
+          // 部分条目检查失败（网络 / 没有 Release）时要说清楚，否则「已是最新」会误导
+          toast(`发现 ${this.updates.length} 个可用更新；${failed.length} 个检查失败`, "error");
+          return;
+        }
         toast(this.updates.length ? `发现 ${this.updates.length} 个可用更新` : "已是最新版本");
+      } finally {
+        this.busyAction = "";
+      }
+    },
+
+    /**
+     * 应用一个可用更新（覆盖安装 + 重启生效）。
+     *
+     * 与 SillyTavern `POST /api/extensions/update` 同语义：那边是 `git pull`，
+     * 这边是重新下载归档并原子替换（插件目录没有 `.git`）。
+     * 后端会校验「必须已安装且存在于 catalog」，前端这里只做二次确认。
+     */
+    async applyUpdate(update) {
+      if (this.busyAction) return;
+      const id = String((update && update.id) || "");
+      if (!id) return;
+
+      const from = (update && update.installed) || "?";
+      const to = (update && update.available) || "?";
+      if (!window.confirm(`把 ${update.name || id} 从 v${from} 更新到 v${to}？\n\n更新后需要重启应用。`)) {
+        return;
+      }
+
+      this.busyAction = `update:${id}`;
+      try {
+        const data = await updatePluginFromCatalog(id);
+        if (!data.success) {
+          toast(data.msg || "更新失败", "error");
+          return;
+        }
+        toast(data.msg || `已更新到 v${to}，重启应用后生效`);
+        this.updates = this.updates.filter((item) => item.id !== id);
+        await this.loadPlugins();
       } finally {
         this.busyAction = "";
       }

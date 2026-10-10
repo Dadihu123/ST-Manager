@@ -1,5 +1,43 @@
 {
   "schema_version": 2,
-  "updated_at": "2026-09-22T00:00:00Z",
-  "plugins": []
+  "updated_at": "2026-10-11T00:00:00Z",
+  "plugins": [
+    {
+      "id": "stm-ai-assistant",
+      "name": "AI 角色卡分析助手",
+      "description": "为角色卡生成概览与标签建议：服务端 LLM 调用、按模型分档的提示词工程、批量作业与逐条审批、幂等跳过与成本记账。",
+      "author": "ST-Manager",
+      "icon": "wand",
+      "tags": [
+        "ai",
+        "official",
+        "cards"
+      ],
+      "tier": "official",
+      "maintainer": "ST-Manager",
+      "source": {
+        "type": "github",
+        "repo": "Dadihu123/ST-Manager-AI-Assistant",
+        "ref": "main",
+        "subdir": "",
+        "release_channel": "stable",
+        "sha256": ""
+      },
+      "version": "0.2.0",
+      "api_version": 2,
+      "min_app_version": "1.0.0",
+      "permissions": [
+        "cards.read",
+        "cards.write",
+        "worldbook.read",
+        "worldbook.write",
+        "tags.read",
+        "tags.write",
+        "secrets.read",
+        "network.outbound",
+        "jobs.run"
+      ],
+      "homepage": "https://github.com/Dadihu123/ST-Manager-AI-Assistant"
+    }
+  ]
 }

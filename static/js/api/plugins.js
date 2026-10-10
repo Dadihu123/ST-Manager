@@ -46,6 +46,15 @@ export function checkPluginUpdates(force = false) {
   });
 }
 
+/** 把已安装插件更新到 catalog 指向的最新版本（覆盖安装，重启后生效）。 */
+export function updatePluginFromCatalog(id, extra = {}) {
+  return request("/api/plugins/catalog/update", {
+    method: "POST",
+    headers: JSON_HEADERS,
+    body: JSON.stringify({ id, ...extra }),
+  });
+}
+
 export function uploadPluginArchive(file) {
   const form = new FormData();
   form.append("file", file);

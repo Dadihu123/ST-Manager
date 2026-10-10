@@ -274,11 +274,25 @@ manifest 采用**严格校验**：顶层出现白名单以外的键即**拒绝�
 | `surface.type` | enum | | `panel` / `modal` / `page` / `sheet` | 丢弃该项 + 警告 |
 | `priority` | integer | | **建议值**，坞槽位由宿主分配（D6） | 非法则用默认值 |
 | `badge` | number\|string\|null | | 初始角标 | — |
-| `shortcut` | string | | 建议快捷键，宿主可覆盖 | — |
+| `shortcut` | string | | 建议快捷键，宿主可覆盖。用户没改时**直接生效**；格式 `Ctrl+Alt+Shift+Meta` 顺序 + 主键大写 | — |
 | `when` | object | | 见下方条件表达式 | 非法子键忽略 + 警告 |
 | `disabledHint` | string | | 条件不满足时 tooltip 文案 | — |
 
 单插件 `entries` 上限 **16** 项，超出部分忽略并 warning。
+
+**`kind` → 呈现位置**（插件只声明，渲染归宿主）：
+
+| `kind` | 呈现位置 | 消费者 |
+|---|---|---|
+| `dock` | 入口坞槽位（社区插件默认进溢出菜单，D6） | `components/entryDock.js` |
+| `nav` | 侧栏导航项（仅 official / verified，D5） | 侧栏 |
+| `settings` | 设置页插件区 | 设置页插件管理 |
+| `context` | **右键菜单** | `components/contextMenu.js` |
+| `command` | 命令面板（`Ctrl+K`） | `components/commandPalette.js` |
+| `status` | 状态栏（仅 official / verified，D5） | 状态栏 |
+
+`context` / `command` 的入口都同时出现在命令面板；`dock` 入口也能被命令面板搜到
+（`EntryRegistry.searchable()` 返回全部条目 + 宿主内建命令）。
 
 **`when` 条件表达式（D7）**：求值统一在宿主侧完成，插件只声明。
 
@@ -505,11 +519,14 @@ POST /api/plugins/catalog/install
 
 **[推断]** 这是本设计最不优雅但最诚实的部分。替代方案（进程内热重载）会引入 `importlib.reload` 的一系列陷阱（类身份变化、装饰器重复注册、蓝图路由冲突），不值得。
 
-## 3.3 更新检查
+## 3.3 更新检查与应用
 
 ```
 POST /api/plugins/catalog/check_updates
-  → { updates: [{ id, installed: "0.1.0", available: "0.2.0", channel }] }
+  → { updates: [{ id, installed: "0.1.0", available: "0.2.0", channel, repo, has_update }] }
+
+POST /api/plugins/catalog/update      { id }
+  → { result: {id, version}, previous_version, restart_required: true }
 ```
 
 **检查策略**（避免 GitHub API 限流）：
@@ -517,8 +534,25 @@ POST /api/plugins/catalog/check_updates
 - 若 `source.type == "github"`，用 `GET https://api.github.com/repos/{repo}/releases/latest` 取 tag；无 Release 则回退读远端 `manifest.json`（`raw.githubusercontent.com`）。
 - **未认证的 GitHub API 限流 60 次/小时**（按 IP）。若用户在设置里填了 GitHub Token，可用 5000 次/小时——这个 Token 存 `secrets.json`（复用第 7 部分）。
 - 结果缓存 24h（`data/system/plugins/_catalog_cache.json`）。
+- 每条记录都带 `has_update`，前端据此区分「有更新」与「已是最新」；部分条目检查失败时返回 `errors`，前端提示「N 个可用更新；M 个检查失败」而不是笼统的「已是最新」。
 
-**版本比较**：用语义化版本比较，**只提示不自动更新**（D7 本地可信，但供应链风险仍需用户确认）。
+**版本来源**：以**远端 `manifest.json` 为准**，catalog 里的 `version` 只是发布方写的快照。原因：catalog 是包内/缓存文件，改了仓库 manifest 却忘了同步 catalog 时，若以 catalog 为准会让用户永远看不到更新。`stable` 渠道先问 Release（「发布方显式发布」），无 Release 才回退 manifest——这样「改了 main 但没发版」不会被误判为更新。
+
+**应用更新**（`/catalog/update`）：
+- 语义是**覆盖安装**：复用 `installer.install_from_catalog`（下载 → 校验 → 原子替换），插件目录没有 `.git` 所以不走 `git pull`。
+- 安全：`id` 必须**已安装**且在 catalog 中存在。否则该端点会变成「安装任意 catalog 条目」的后门——那是 `/catalog/install` 的职责（有独立确认流程）。
+- 返回 `previous_version`，前端提示 `v旧 → v新`；更新后需重启（与安装一致）。
+
+**版本比较**：用语义化版本比较。用户确认后才应用（D7 本地可信，但供应链风险仍需用户确认）。
+
+**归档 URL 的 ref 形式**（`build_archive_url`）：必须用**裸 `zip/<ref>`**，不能用 `zip/refs/heads/<ref>`。实测：
+
+| ref 类型 | `zip/refs/heads/<ref>` | `zip/refs/tags/<ref>` | `zip/<ref>` |
+|---|---|---|---|
+| 分支 `main` | 200 | 404 | **200** |
+| tag `v2.31.0` | **404** | 200 | **200** |
+
+`refs/heads/` 只解析分支，`refs/tags/` 只解析 tag。若按 Release tag 更新时拼 `refs/heads/`，会得到 404（表现为「说有新版本，点更新却下载失败」）。
 
 ## 3.4 解压安全（**最关键**）
 
@@ -1439,16 +1473,22 @@ GET /api/plugins/<plugin_id>/assets/<path:filename>
 
 | 列 | 内容 |
 |---|---|
-| 图标 + 名称 | `api.ui.icon(entry.icon)` + `entry.label` |
+| 图标 + 名称 | `api.ui.icon(entry.icon)` + `entry.label`（`entry.icon` 可以是宿主图标名或插件内资源路径，含 `/` 时按插件资源解析） |
 | 归属 | 插件名 + tier 徽标（官方 / 认证 / 社区） |
 | 类型 | `entry.kind`（dock / nav / settings / context / command / status） |
 | 出现位置 | 坞槽位 / 溢出菜单 / 命令面板 / 设置页 / 未固定 |
-| 当前呈现 | 可见 / 置灰（附 `disabledHint`）/ 错误 |
-| 快捷键 | `entry.shortcut`（用户可改） |
+| 当前呈现 | 可见 / 置灰（附 `disabledHint`）/ 错误（`mount()` 抛错时由 `PluginSurfaceHost` 置 `status='error'`） |
+| 快捷键 | 生效值（用户配置优先，否则用 `entry.shortcut` 建议值）+ 「设定 / 改绑 / 清除」 |
 | 操作 | 固定到坞 / 取消固定 / 打开 / 跳转到该插件配置 |
 
 这张表是**契约的可观测面**：用户能看到「谁声明了什么入口、宿主把它放在了哪里」，
 插件作者能用它自查自己的声明是否被接受。
+
+**快捷键的写入**：录制框按下的组合键写进 `ui_data._entry_layout_v1.shortcuts`
+（`组合键 → entryKey` 的反查表），复用 `EntryRegistry.updateLayout()`。
+一个组合键只能绑一个入口；改绑时先摘掉旧绑定。格式为
+`Ctrl+Alt+Shift+Meta` 固定顺序 + 主键大写（`Ctrl+Shift+A`），与
+`commandPalette.shortcutCombo()` 的折算规则一致。
 
 ## 9.4 重启提示
 
@@ -1694,6 +1734,7 @@ class PluginAPI:
 | 方法 | 路径 | 说明 | 需重启 |
 |---|---|---|---|
 | `POST` | `/api/plugins/catalog/install` | **安装**（从官方目录） | 是（纯前端否） |
+| `POST` | `/api/plugins/catalog/update` | **更新**（覆盖安装；要求已安装） | 是（纯前端否） |
 | `POST` | `/api/plugins/install_upload` | **安装**（手动上传 zip） | 是（纯前端否） |
 | `POST` | `/api/plugins/uninstall` | **卸载**（含默认清理数据与密钥） | 是 |
 | `POST` | `/api/plugins/<id>/disable` | **禁用**（保留代码，不加载） | 是（纯前端否） |
@@ -1710,7 +1751,8 @@ class PluginAPI:
 | `POST` | `/api/plugins/<id>/secrets` | 写入 |
 | `DELETE` | `/api/plugins/<id>/secrets/<key>` | 清除单项 |
 | `GET` | `/api/plugins/catalog` | 官方目录 |
-| `POST` | `/api/plugins/catalog/check_updates` | 检查更新 |
+| `POST` | `/api/plugins/catalog/check_updates` | 检查更新（只报告） |
+| `POST` | `/api/plugins/catalog/update` | 应用更新（覆盖安装，需重启；要求插件已安装） |
 | `GET` | `/api/plugins/<id>/assets/<path>` | 静态资源 |
 | `GET` | `/api/plugins/<id>/readme` | 插件文档（README / CHANGELOG 原文；`.md` 不在资源白名单，故单独提供） |
 
