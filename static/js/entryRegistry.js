@@ -35,6 +35,23 @@ function emptyLayout() {
 }
 
 /**
+ * 密钥「已设置」的哨兵值。
+ *
+ * `/api/plugins/<id>/config` 只返回 config 段，密钥明文永不回传，因此
+ * `when.config.requireKeys` 里的密钥键要靠 `/secrets` 的 `set` 标志折算。
+ * 这里用非空哨兵而不是 `true`，是为了让 `evaluateWhen` 的「非空」判定
+ * （`String(value).trim() === ''`）对布尔真值也成立。
+ */
+const SECRET_SET_SENTINEL = "__set__";
+
+/** 判定 `when.config.requireKeys` 的取值是否算「已配置」。 */
+function hasValue(value) {
+  if (value === undefined || value === null) return false;
+  if (typeof value === "string") return value.trim() !== "";
+  return true;
+}
+
+/**
  * 宿主内建入口（命令面板的固定项）。
  *
  * 定义在模块顶层而不是 `init()` 里：命令面板与总览页可能在 `init()` 之前就查询
@@ -158,10 +175,7 @@ export function evaluateWhen(when, context = {}) {
       : [];
   if (requireKeys.length) {
     const config = context.config && typeof context.config === "object" ? context.config : {};
-    const missing = requireKeys.filter((key) => {
-      const value = config[key];
-      return value === undefined || value === null || String(value).trim() === "";
-    });
+    const missing = requireKeys.filter((key) => !hasValue(config[key]));
     if (missing.length) reasons.push("config");
   }
 
@@ -250,13 +264,15 @@ export const EntryRegistry = {
     window.addEventListener("plugin-secrets-changed", (event) => {
       const detail = (event && event.detail) || {};
       if (detail.pluginId) {
-        // 密钥也可能参与 requireKeys（如 api_key 写在 secret_schema）
-        const merged = Object.assign(
-          {},
-          this.configs.get(String(detail.pluginId)) || {},
-          detail.config || {},
-        );
-        this.configs.set(String(detail.pluginId), merged);
+        const pluginId = String(detail.pluginId);
+        // 密钥也可能参与 requireKeys（如 api_key 写在 secret_schema）。
+        // 清除密钥时必须把对应键**摘掉**，否则入口会一直停在可用态。
+        const merged = Object.assign({}, this.configs.get(pluginId) || {});
+        for (const key of Array.isArray(detail.removed) ? detail.removed : []) {
+          delete merged[String(key)];
+        }
+        Object.assign(merged, detail.config || {});
+        this.configs.set(pluginId, merged);
       }
       this.notifyChange();
     });
@@ -368,26 +384,62 @@ export const EntryRegistry = {
     this.ensureConfigs().catch(() => null);
   },
 
-  /** 按需拉取参与 `when.config.requireKeys` 的插件配置。 */
+  /**
+   * 按需拉取参与 `when.config.requireKeys` 的插件配置。
+   *
+   * D7 要求 `requireKeys` 同时检查 `config_schema.properties` **与**
+   * `secret_schema.properties`。但 `/api/plugins/<id>/config` 只返回 config 段
+   * （密钥永不回传明文），所以密钥键必须另外查 `/secrets` 的 `set` 标志，
+   * 否则 `requireKeys: ['api_key']` 会让入口**永远置灰**。
+   *
+   * 密钥的「已设置」在这里折算成一个哨兵值，让 `evaluateWhen` 的非空判定成立。
+   */
   async ensureConfigs() {
-    const needed = new Set();
+    const needed = new Map();
     for (const entry of this.entries.values()) {
       const keys = entry.when && entry.when.config ? entry.when.config.requireKeys : null;
-      if (Array.isArray(keys) && keys.length) needed.add(entry.pluginId);
+      if (!Array.isArray(keys) || !keys.length) continue;
+      const pluginId = entry.pluginId;
+      if (!needed.has(pluginId)) needed.set(pluginId, new Set());
+      for (const key of keys) needed.get(pluginId).add(String(key));
     }
 
     await Promise.all(
-      Array.from(needed).map(async (pluginId) => {
+      Array.from(needed.entries()).map(async ([pluginId, keys]) => {
         if (this.configs.has(pluginId)) return;
+
+        const merged = {};
         try {
           const response = await fetch(`/api/plugins/${encodeURIComponent(pluginId)}/config`, {
             headers: { "X-Requested-With": "XMLHttpRequest" },
           });
           const data = await response.json();
-          this.configs.set(pluginId, data && data.success ? data.config || {} : {});
+          if (data && data.success && data.config && typeof data.config === "object") {
+            Object.assign(merged, data.config);
+          }
         } catch (error) {
-          this.configs.set(pluginId, {});
+          // 读不到配置就当作未配置（入口置灰而不是报错）
         }
+
+        // 只有还缺键时才去查密钥，避免无谓请求
+        const missing = Array.from(keys).filter((key) => !hasValue(merged[key]));
+        if (missing.length) {
+          try {
+            const response = await fetch(`/api/plugins/${encodeURIComponent(pluginId)}/secrets`, {
+              headers: { "X-Requested-With": "XMLHttpRequest" },
+            });
+            const data = await response.json();
+            const described = data && data.success ? data.secrets || {} : {};
+            for (const key of missing) {
+              const meta = described[key];
+              if (meta && meta.set) merged[key] = SECRET_SET_SENTINEL;
+            }
+          } catch (error) {
+            // 密钥读不到时保持缺失，入口置灰
+          }
+        }
+
+        this.configs.set(pluginId, merged);
       }),
     );
     this.notifyChange();

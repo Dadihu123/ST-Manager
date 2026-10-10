@@ -647,6 +647,12 @@ export default function pluginManager() {
       }
       toast("已清除");
       await this.openSecrets({ id: this.secretTargetId, manifest: { secret_schema: this.secretSchema } });
+      // 清除同样要通知：`when.config.requireKeys` 引用了该密钥时，入口必须重新置灰
+      window.dispatchEvent(
+        new CustomEvent("plugin-secrets-changed", {
+          detail: { pluginId: String(this.secretTargetId), config: {}, removed: [String(key)] },
+        }),
+      );
     },
 
     async openDocs(item) {

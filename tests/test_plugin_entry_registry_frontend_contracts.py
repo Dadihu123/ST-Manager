@@ -452,6 +452,153 @@ def test_remove_plugin_clears_entries_and_config_cache():
 
 
 @requires_node
+def test_require_keys_consults_secret_schema_too():
+    """D7：`requireKeys` 必须同时看 `config_schema` 与 `secret_schema`。
+
+    `/api/plugins/<id>/config` 只返回 config 段（密钥明文永不回传），因此密钥键
+    必须另外查 `/secrets` 的 `set` 标志。漏了这一步，`requireKeys: ['api_key']`
+    会让入口**永远置灰**——这是最难发现的一类契约 bug（不报错，只是点不动）。
+    """
+    result = run_node(
+        """
+        import assert from 'node:assert/strict';
+        import { EntryRegistry } from './static/js/entryRegistry.js';
+
+        const requested = [];
+        globalThis.window = {
+          dispatchEvent() {},
+          addEventListener() {},
+        };
+        globalThis.fetch = async (url) => {
+          requested.push(String(url));
+          if (String(url).endsWith('/config')) {
+            return { json: async () => ({ success: true, config: { greeting: 'hi' } }) };
+          }
+          if (String(url).endsWith('/secrets')) {
+            return { json: async () => ({ success: true, secrets: { api_key: { set: true } } }) };
+          }
+          return { json: async () => ({ success: false }) };
+        };
+
+        EntryRegistry.configs.clear();
+        EntryRegistry.setPlugins([
+          {
+            id: 'demo',
+            enabled: true,
+            manifest: { entries: [
+              {
+                id: 'needs-secret',
+                kind: 'command',
+                label: 'S',
+                when: { config: { requireKeys: ['api_key'] } },
+              },
+            ] },
+          },
+        ]);
+
+        await EntryRegistry.ensureConfigs();
+
+        // 必须真的去查了 /secrets
+        assert.ok(
+          requested.some((url) => url.endsWith('/secrets')),
+          'requireKeys 引用了密钥键时必须查询 /secrets',
+        );
+
+        // 密钥已设置 → 入口可用
+        const items = EntryRegistry.list();
+        assert.equal(items.length, 1);
+        assert.equal(items[0].enabled, true, '密钥已设置时入口必须可用');
+        """
+    )
+    assert result.returncode == 0, result.stderr or result.stdout
+
+
+@requires_node
+def test_require_keys_greys_out_when_secret_absent():
+    result = run_node(
+        """
+        import assert from 'node:assert/strict';
+        import { EntryRegistry } from './static/js/entryRegistry.js';
+
+        globalThis.window = { dispatchEvent() {}, addEventListener() {} };
+        globalThis.fetch = async (url) => {
+          if (String(url).endsWith('/config')) {
+            return { json: async () => ({ success: true, config: {} }) };
+          }
+          // 密钥未设置
+          return { json: async () => ({ success: true, secrets: { api_key: { set: false } } }) };
+        };
+
+        EntryRegistry.configs.clear();
+        EntryRegistry.setPlugins([
+          {
+            id: 'demo',
+            enabled: true,
+            manifest: { entries: [
+              {
+                id: 'needs-secret',
+                kind: 'command',
+                label: 'S',
+                disabledHint: '请先填写 API Key',
+                when: { config: { requireKeys: ['api_key'] } },
+              },
+            ] },
+          },
+        ]);
+
+        await EntryRegistry.ensureConfigs();
+
+        const item = EntryRegistry.list()[0];
+        assert.equal(item.enabled, false);
+        assert.equal(item.disabledHint, '请先填写 API Key');
+        """
+    )
+    assert result.returncode == 0, result.stderr or result.stdout
+
+
+@requires_node
+def test_clearing_a_secret_regreys_the_entry():
+    """清除密钥后入口必须重新置灰（否则会停在可用态）。"""
+    result = run_node(
+        """
+        import assert from 'node:assert/strict';
+        import { EntryRegistry } from './static/js/entryRegistry.js';
+
+        const listeners = {};
+        globalThis.window = {
+          dispatchEvent() {},
+          addEventListener(type, handler) { (listeners[type] = listeners[type] || []).push(handler); },
+        };
+        globalThis.CustomEvent = class CustomEvent {
+          constructor(type, init = {}) { this.type = type; this.detail = init.detail; }
+        };
+
+        EntryRegistry.init();
+        EntryRegistry.configs.set('demo', { api_key: '__set__' });
+        EntryRegistry.setPlugins([
+          {
+            id: 'demo',
+            enabled: true,
+            manifest: { entries: [
+              { id: 'x', kind: 'command', label: 'X', when: { config: { requireKeys: ['api_key'] } } },
+            ] },
+          },
+        ]);
+        assert.equal(EntryRegistry.list()[0].enabled, true);
+
+        // 宿主清除密钥后派发事件
+        const event = new CustomEvent('plugin-secrets-changed', {
+          detail: { pluginId: 'demo', config: {}, removed: ['api_key'] },
+        });
+        for (const handler of listeners['plugin-secrets-changed'] || []) handler(event);
+
+        assert.equal(EntryRegistry.list()[0].enabled, false, '清除密钥后必须重新置灰');
+        """
+    )
+    assert result.returncode == 0, result.stderr or result.stdout
+
+
+@requires_node
 def test_searchable_includes_core_commands_and_plugin_entries():
     result = run_node(
         """
