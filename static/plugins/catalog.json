@@ -1,6 +1,6 @@
 {
   "schema_version": 2,
-  "updated_at": "2026-10-11T00:00:00Z",
+  "updated_at": "2026-10-11T16:40:00Z",
   "plugins": [
     {
       "id": "stm-ai-assistant",
@@ -38,6 +38,33 @@
         "jobs.run"
       ],
       "homepage": "https://github.com/Dadihu123/ST-Manager-AI-Assistant"
+    },
+    {
+      "id": "stm-pet",
+      "name": "桌面宠物",
+      "description": "常驻界面的宠物：跟随宿主状态活动、可拖动、会下坠与行走、长时间没互动会睡着；支持导入自己的形象图，并在卡片更新与扫描完成时播报。",
+      "author": "ST-Manager",
+      "icon": "heart",
+      "tags": [
+        "official",
+        "desktop",
+        "fun"
+      ],
+      "tier": "official",
+      "maintainer": "ST-Manager",
+      "source": {
+        "type": "github",
+        "repo": "Dadihu123/ST-Manager-Pet",
+        "ref": "main",
+        "subdir": "",
+        "release_channel": "stable",
+        "sha256": ""
+      },
+      "version": "0.1.0",
+      "api_version": 2,
+      "min_app_version": "1.0.0",
+      "permissions": [],
+      "homepage": "https://github.com/Dadihu123/ST-Manager-Pet"
     }
   ]
 }

@@ -122,9 +122,55 @@ def test_bundled_catalog_lists_official_ai_assistant():
     assert entry['api_version'] == 2
 
 
+def test_bundled_catalog_lists_official_pet():
+    """官方桌面宠物插件必须在包内清单里，且 tier = official。
+
+    与 AI 助手同一条信任模型：`tier` 只能由宿主仓库的 catalog 决定。
+    该插件声明**零权限**（不读卡片/世界书/标签、不联网、不跑作业），
+    因此这里同时钉住「permissions 为空」——权限清单是安装前披露给用户的
+    依据（S8），多写一项就等于谎报。
+    """
+    bundled = catalog_module.load_bundled_catalog()
+    entries = {item['id']: item for item in bundled['plugins']}
+
+    assert 'stm-pet' in entries, '包内清单必须包含官方桌面宠物插件'
+    entry = entries['stm-pet']
+
+    assert entry['tier'] == 'official'
+    assert entry['source']['repo'] == 'Dadihu123/ST-Manager-Pet'
+    assert entry['source']['type'] == 'github'
+    assert catalog_module.REPO_PATTERN.match(entry['source']['repo'])
+    assert entry['source']['ref'] == 'main'
+    assert entry['api_version'] == 2
+    assert entry['min_app_version'] == '1.0.0'
+    assert entry['permissions'] == [], '该插件不声明任何权限，catalog 不得多写'
+    assert entry['homepage'] == 'https://github.com/Dadihu123/ST-Manager-Pet'
+    # 归档结构：仓库根目录直接含 manifest.json（无需 subdir）
+    assert entry['source']['subdir'] == ''
+
+
+def test_bundled_catalog_entries_are_all_installable():
+    """每条官方条目都要能被 installer 接受（repo/ref/subdir 形状合法）。
+
+    防止「清单里写了但装不上」：repo 走 `validate_repo`、ref 走 `validate_ref`、
+    subdir 走 `validate_subdir`，三者都是安装路径上的真实校验点。
+    """
+    from core.plugins.installer import validate_ref, validate_repo, validate_subdir
+
+    bundled = catalog_module.load_bundled_catalog()
+    assert bundled['plugins'], '包内清单不应为空'
+
+    for entry in bundled['plugins']:
+        source = entry['source']
+        assert validate_repo(source['repo']) == source['repo'], entry['id']
+        assert validate_ref(source['ref']) == source['ref'], entry['id']
+        assert validate_subdir(source['subdir']) == source['subdir'], entry['id']
+
+
 def test_tier_for_plugin_resolves_official_from_bundled_catalog():
     """加载期只读本地（缓存 + 包内清单），不发起网络请求。"""
     assert catalog_module.tier_for_plugin('stm-ai-assistant') == 'official'
+    assert catalog_module.tier_for_plugin('stm-pet') == 'official'
     # 未知插件一律 community（安全的一侧）
     assert catalog_module.tier_for_plugin('nope-not-installed') == 'community'
 
