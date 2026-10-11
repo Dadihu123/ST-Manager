@@ -288,7 +288,7 @@
         <button
           type="button"
           class="btn-primary preset-rollback-footer-button"
-          :disabled="isLoading || !diffSelection.left || diffSelection.left.is_current"
+          :disabled="isLoading || !diffSelection.left || !!diffSelection.left.is_current"
           @click="performRestore()"
         >
           {{ icon('history-rollback', 'ui-icon--sm') }}

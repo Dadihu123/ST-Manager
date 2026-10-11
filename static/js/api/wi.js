@@ -35,6 +35,25 @@ export async function saveWorldInfo(payload) {
   return res.json();
 }
 
+export async function previewWorldInfoUpdate(payload) {
+  const isFile = payload instanceof FormData;
+  const res = await fetch("/api/world_info/update/preview", {
+    method: "POST",
+    ...(isFile ? {} : { headers: { "Content-Type": "application/json" } }),
+    body: isFile ? payload : JSON.stringify(payload),
+  });
+  return res.json();
+}
+
+export async function commitWorldInfoUpdate(payload) {
+  const res = await fetch("/api/world_info/update/commit", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return res.json();
+}
+
 // 获取世界书条目历史版本
 export async function listWiEntryHistory(payload) {
   // payload: { source_type, source_id, file_path, entry_uid, card_id?, legacy_source_id?, limit? }
