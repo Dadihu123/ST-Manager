@@ -2051,6 +2051,7 @@ def test_worldinfo_save_does_not_enqueue_repair_when_write_fails(monkeypatch, tm
     global_file = lorebooks_dir / 'dragon.json'
     _write_json(global_file, {'name': 'Dragon Lore', 'entries': {}})
 
+    original_bytes = global_file.read_bytes()
     job_calls = []
 
     monkeypatch.setattr(world_info_api, 'BASE_DIR', str(tmp_path))
@@ -2062,7 +2063,7 @@ def test_worldinfo_save_does_not_enqueue_repair_when_write_fails(monkeypatch, tm
     def _boom(*_args, **_kwargs):
         raise OSError('disk full')
 
-    monkeypatch.setattr('builtins.open', _boom)
+    monkeypatch.setattr(world_info_api, 'atomic_write_bytes', _boom)
 
     client = _make_test_app().test_client()
     res = client.post(
@@ -2071,7 +2072,7 @@ def test_worldinfo_save_does_not_enqueue_repair_when_write_fails(monkeypatch, tm
             'save_mode': 'overwrite',
             'file_path': str(global_file),
             'name': 'Dragon Lore',
-            'content': {'name': 'Dragon Lore', 'entries': {}},
+            'content': {'name': 'Dragon Lore Updated', 'entries': {}},
             'source_revision': world_info_api.build_file_source_revision(str(global_file)),
         },
     )
@@ -2079,6 +2080,7 @@ def test_worldinfo_save_does_not_enqueue_repair_when_write_fails(monkeypatch, tm
     assert res.status_code == 200
     payload = res.get_json()
     assert payload['success'] is False
+    assert global_file.read_bytes() == original_bytes
     assert job_calls == []
 
 

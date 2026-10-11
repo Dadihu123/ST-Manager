@@ -33,6 +33,7 @@ from core.consts import SIDECAR_EXTENSIONS, RESERVED_RESOURCE_NAMES
 from core.services.scan_service import request_scan, suppress_fs_events
 from core.services.cache_service import schedule_reload, invalidate_wi_list_cache, update_card_cache
 from core.services.card_service import resolve_ui_key
+from core.services.worldbook_content_update import atomic_write_bytes, worldbook_target_lock
 from core.services.index_service import get_index_status, request_index_rebuild
 from core.services.shared_wallpaper_service import SharedWallpaperService
 from core.services.st_client import refresh_st_client
@@ -1170,6 +1171,10 @@ def api_restore_backup():
             if merged is None:
                 return jsonify({"success": False, "msg": "无法将旧世界书快照合并回宿主角色卡"})
             write_card_metadata(target_path, merged)
+        elif type_ == 'lorebook' and not embedded_worldbook_restore:
+            with worldbook_target_lock(target_path):
+                with open(backup_path, 'rb') as handle:
+                    atomic_write_bytes(target_path, handle.read())
         else:
             shutil.copy2(backup_path, target_path)
         

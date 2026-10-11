@@ -173,6 +173,8 @@ curl -X POST http://127.0.0.1:5000/api/toggle_favorite \
 | `POST` | `/api/world_info/detail` | 读取世界书详情与预览 | JSON 世界书 `id` 或来源路径 |
 | `POST` | `/api/world_info/detail_search` | 在详情条目中搜索 | JSON `data`、`query` |
 | `POST` | `/api/world_info/save` | 保存独立世界书 | JSON `id`、数据、来源修订信息 |
+| `POST` | `/api/world_info/update/preview` | 获取选定书的更新来源并预览完整差异 | `file_path`、`source_type`；multipart `file`，或 JSON `url`／`source_text`，仅选其一 |
+| `POST` | `/api/world_info/update/commit` | 备份后替换选定独立世界书 | JSON `file_path`、`source_type`、预览所得 `source_text`、`source_revision` |
 | `POST` | `/api/world_info/note/save` | 保存内嵌世界书的本地备注 | JSON 来源和 `summary` |
 | `POST` | `/api/world_info/entry_history/list` | 查看条目历史版本 | JSON 世界书来源和条目 UID |
 | `POST` | `/api/world_info/export` | 导出独立或内嵌世界书 | JSON 来源信息；返回 JSON 下载 |
@@ -185,6 +187,18 @@ curl -X POST http://127.0.0.1:5000/api/toggle_favorite \
 | `POST` | `/api/world_info/folders/rename` | 重命名世界书分类目录 | JSON 旧路径和新名称 |
 | `POST` | `/api/world_info/folders/delete` | 删除空世界书分类目录 | JSON 分类路径 |
 | `POST` | `/api/tools/migrate_lorebooks` | 将资源目录中的世界书迁移到约定位置 | 无或 JSON 迁移选项 |
+
+### 更新选定世界书
+
+在独立世界书详情底部选择“更新内容”，上传文件或填写直接返回 JSON 的 HTTP／HTTPS 地址。预览支持只读红绿条目差异和完整 JSON；确认“替换这本世界书”后才写入。此流程仅支持 `global`／`resource`，不支持 `embedded`，也不自动发送到 SillyTavern。列表的“导入世界书”仍用于新增。
+
+`update/preview` 返回 `current_text`、`source_text` 和当前文件的 SHA-256 `source_revision`。提交时原样发送返回的 `source_text`，不要在 JavaScript 中解析后重新序列化，以免大整数丢失精度。文件名、位置、当前书名字段和 Manager 备注保留；其余内容整本替换，不自动合并个人修改。没有书名字段的目标不会从来源新增该字段。
+
+来源上限为 10 MiB，须为 UTF-8 JSON，包含 `entries` 对象或数组，每个条目包含文字 `content`。重复 JSON 字段和无效关键词类型会被拒绝，未知字段保留。URL 最多跟随五次跳转，使用 5 秒连接和 10 秒读取间隔超时；30 秒流块检查预算属于尽力限制，慢滴流不能保证严格的总耗时上限。
+
+`update/commit` 在目标锁内复核强修订，完整备份后原子替换并重读校验，成功返回 `new_path`、普通保存使用的 `source_revision` 和 `backup_path`。预览后目标有改动时返回 HTTP `409`、`code: "source_changed"`，须重新比较并明确提交；备份失败时不替换。普通保存、删除、单书移动和独立书恢复共享目标锁，外部进程或整目录操作不受此锁控制。
+
+更新前快照可在详情的“回滚”中恢复。备份目录沿用现有按文件基础名汇总的规则，不同目录中的同名书可能共用列表，恢复前应核对快照内容。更新入口拒绝文件级符号链接和越界目标；配置根目录本身可以是符号链接。
 
 ### 世界书剪贴板
 
