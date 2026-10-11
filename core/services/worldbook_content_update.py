@@ -116,7 +116,48 @@ def preserve_target_name(text, content, current):
         del content['name']
     else:
         return text, content
-    return json.dumps(content, ensure_ascii=False, indent=2, allow_nan=False), content
+    # Locate the root member in validated JSON, preserving all other source bytes.
+    decoder = json.JSONDecoder()
+    start = text.index('{') + 1
+    cursor, previous_comma, span = start, None, None
+    while True:
+        while text[cursor].isspace():
+            cursor += 1
+        if text[cursor] == '}':
+            break
+        member_start = cursor
+        key, cursor = decoder.raw_decode(text, cursor)
+        while text[cursor].isspace():
+            cursor += 1
+        cursor += 1  # colon
+        while text[cursor].isspace():
+            cursor += 1
+        value_start = cursor
+        _, value_end = decoder.raw_decode(text, cursor)
+        cursor = value_end
+        while text[cursor].isspace():
+            cursor += 1
+        if key == 'name':
+            span = member_start, value_start, value_end, previous_comma, cursor
+            break
+        if text[cursor] == ',':
+            previous_comma = cursor
+            cursor += 1
+    if 'name' in current:
+        replacement = json.dumps(current['name'], ensure_ascii=False, allow_nan=False)
+        if span:
+            serialized = text[:span[1]] + replacement + text[span[2]:]
+        else:
+            serialized = text[:start] + '"name":' + replacement + ',' + text[start:]
+    elif text[span[4]] == ',':
+        serialized = text[:span[0]] + text[span[4] + 1:]
+    elif span[3] is not None:
+        serialized = text[:span[3]] + text[span[2]:]
+    else:
+        serialized = text[:span[0]] + text[span[2]:]
+    if len(serialized.encode('utf-8')) > MAX_SOURCE_BYTES:
+        raise WorldbookUpdateError('保留书名后世界书超过 10 MiB，请缩小来源文件', 'source_too_large', 413)
+    return serialized, content
 
 
 def read_target(path):
@@ -186,7 +227,7 @@ def atomic_write_bytes(path, raw, expected_revision=None):
         path = os.path.realpath(path)
     temp_path = None
     try:
-        fd, temp_path = tempfile.mkstemp(prefix='.' + os.path.basename(path) + '-', suffix='.tmp', dir=os.path.dirname(path))
+        fd, temp_path = tempfile.mkstemp(prefix='.worldbook-', suffix='.tmp', dir=os.path.dirname(path))
         with os.fdopen(fd, 'wb') as handle:
             handle.write(raw)
             handle.flush()
@@ -209,6 +250,8 @@ def write_update_backup(path, raw, data_dir):
     folder = os.path.join(data_dir, 'system', 'backups', 'lorebooks', safe_name)
     os.makedirs(folder, exist_ok=True)
     filename = f'{name}_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S-%f")}__KEY__更新前.json'
+    if len(os.fsencode(filename)) > 240:
+        filename = f'__UPDATE__{datetime.now().strftime("%Y-%m-%d_%H-%M-%S-%f")}__KEY__更新前.json'
     backup_path = os.path.join(folder, filename)
     atomic_write_bytes(backup_path, raw)
     with open(backup_path, 'rb') as handle:
@@ -244,5 +287,5 @@ def commit_update(path, source_text, expected_revision, data_dir, cfg):
         with open(path, 'rb') as handle:
             if handle.read() != incoming:
                 raise OSError('世界书写入校验失败，请从更新前备份恢复')
-        cleanup_old_snapshots(os.path.dirname(backup_path), limit)
+        cleanup_old_snapshots(os.path.dirname(backup_path), limit, protected_path=backup_path)
         return content, backup_path

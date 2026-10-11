@@ -2231,9 +2231,13 @@ def _update_error(exc):
     return jsonify({'success': False, 'msg': str(exc), 'code': exc.code}), exc.status
 
 
-def _update_request_payload():
+def _update_request_payload(*, allow_file=False):
     if request.content_length and request.content_length > MAX_SOURCE_BYTES * 2 + 65536:
         raise WorldbookUpdateError('更新请求过大，来源文件不能超过 10 MiB', 'source_too_large', 413)
+    # Only file previews need multipart; replacement must retain the JSON-only boundary.
+    if not request.is_json and not (
+            allow_file and request.mimetype == 'multipart/form-data' and 'file' in request.files):
+        raise WorldbookUpdateError('请使用 JSON 请求，文件预览须上传文件', 'invalid_request', 415)
     payload = request.form.to_dict() if request.mimetype == 'multipart/form-data' else request.get_json(silent=True)
     if not isinstance(payload, dict):
         raise WorldbookUpdateError('请求必须为 JSON 对象或上传文件')
@@ -2243,7 +2247,7 @@ def _update_request_payload():
 @bp.route('/api/world_info/update/preview', methods=['POST'])
 def api_preview_worldbook_update():
     try:
-        payload = _update_request_payload()
+        payload = _update_request_payload(allow_file=True)
         cfg = load_config()
         path = resolve_update_target(payload.get('file_path'), payload.get('source_type'), cfg, BASE_DIR, CARDS_FOLDER)
         uploaded = request.files.get('file')

@@ -980,7 +980,8 @@ def api_list_backups():
                     continue
                 
                 # 检查文件名是否包含原名主体 (防止目录混用)
-                if name_no_ext not in f:
+                if name_no_ext not in f and not (
+                        snapshot_type == 'lorebook' and f.startswith('__UPDATE__')):
                     continue
 
                 full_p = os.path.join(target_dir, f)

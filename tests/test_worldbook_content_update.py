@@ -422,3 +422,117 @@ def test_update_does_not_follow_file_symlink_inserted_at_write_boundary(fixture,
     assert response.status_code == 400
     assert response.get_json()['code'] == 'invalid_target'
     assert outside.read_bytes() == original
+
+
+@pytest.mark.parametrize('content_type', ['multipart/form-data', 'application/x-www-form-urlencoded'])
+def test_commit_rejects_cross_site_form_even_for_known_target_revision(fixture, content_type):
+    from core.auth import init_auth
+
+    app, path, _, _ = fixture
+    app.secret_key = 'worldbook-update-test-only'
+    init_auth(app)
+    original = path.read_bytes()
+    response = app.test_client().post('/api/world_info/update/commit', data={
+        'file_path': str(path), 'source_type': 'global',
+        'source_text': json.dumps(book('跨站覆盖')),
+        'source_revision': hashlib.sha256(original).hexdigest(),
+    }, content_type=content_type, headers={'Origin': 'https://foreign.example'},
+        environ_overrides={'REMOTE_ADDR': '127.0.0.1'})
+    assert response.status_code == 415
+    assert path.read_bytes() == original
+
+
+@pytest.mark.parametrize('source', ['url', 'source_text'])
+def test_preview_requires_json_for_non_file_sources(fixture, monkeypatch, source):
+    app, path, _, _ = fixture
+    calls = []
+    def fetch(url):
+        calls.append(url)
+        return json.dumps(book('来源内容')).encode()
+    monkeypatch.setattr(api, 'fetch_source', fetch)
+    original = path.read_bytes()
+    response = app.test_client().post('/api/world_info/update/preview', data={
+        'file_path': str(path), 'source_type': 'global',
+        source: 'https://example.com/book.json' if source == 'url' else json.dumps(book('来源内容')),
+    }, content_type='multipart/form-data')
+    assert response.status_code == 415
+    assert calls == []
+    assert path.read_bytes() == original
+
+
+@pytest.mark.parametrize('has_target_name', [True, False])
+def test_name_preservation_keeps_dense_preview_within_commit_limit(fixture, monkeypatch, has_target_name):
+    app, path, _, _ = fixture
+    current = book(name='目标世界书') if has_target_name else book()
+    path.write_text(json.dumps(current, ensure_ascii=False), encoding='utf-8')
+    monkeypatch.setattr(updates, 'MAX_SOURCE_BYTES', 800)
+    source = json.dumps(book(name='来源名称', plugin=[0] * 200), ensure_ascii=False, separators=(',', ':'))
+    assert len(source.encode('utf-8')) < updates.MAX_SOURCE_BYTES
+    client = app.test_client()
+    response = preview(client, path, source)
+    assert response.status_code == 200
+    candidate = response.get_json()
+    assert len(candidate['source_text'].encode('utf-8')) <= updates.MAX_SOURCE_BYTES
+    assert commit(client, path, candidate).get_json()['success']
+    saved = json.loads(path.read_text())
+    assert saved['plugin'] == [0] * 200
+    assert saved.get('name') == current.get('name')
+
+
+@pytest.mark.parametrize('has_target_name', [True, False])
+def test_name_preservation_does_not_roundtrip_unknown_numbers(fixture, has_target_name):
+    app, path, _, _ = fixture
+    current = book(name='保留书名') if has_target_name else book()
+    path.write_text(json.dumps(current, ensure_ascii=False), encoding='utf-8')
+    source = '{"name":"来源", "entries":{}, "plugin":{"precise":0.1234567890123456789012345,"tiny":1e-400}}'
+    candidate = preview(app.test_client(), path, source).get_json()
+    assert '0.1234567890123456789012345' in candidate['source_text']
+    assert '1e-400' in candidate['source_text']
+    assert commit(app.test_client(), path, candidate).get_json()['success']
+    assert '0.1234567890123456789012345' in path.read_text()
+    assert '1e-400' in path.read_text()
+
+
+@pytest.mark.parametrize('stem', ['x' * 237, '长' * 79])
+def test_long_file_name_save_update_list_and_restore(fixture, stem):
+    app, path, _, _ = fixture
+    long_path = path.with_name(stem + '.json')
+    path.rename(long_path)
+    client = app.test_client()
+    response = client.post('/api/world_info/save', json={
+        'save_mode': 'overwrite', 'file_path': str(long_path), 'content': book('游玩修改'),
+        'source_revision': build_file_source_revision(str(long_path)),
+    })
+    assert response.get_json()['success']
+    original = long_path.read_bytes()
+    candidate = preview(client, long_path).get_json()
+    result = commit(client, long_path, candidate).get_json()
+    assert result['success']
+    backups = client.post('/api/list_backups', json={
+        'type': 'lorebook', 'file_path': str(long_path),
+    }).get_json()['backups']
+    assert result['backup_path'] in [item['path'] for item in backups]
+    restored = client.post('/api/restore_backup', json={
+        'type': 'lorebook', 'backup_path': result['backup_path'], 'target_file_path': str(long_path),
+    })
+    assert restored.get_json()['success']
+    assert long_path.read_bytes() == original
+
+
+def test_retention_keeps_current_pre_update_backup_despite_future_snapshot_mtime(fixture):
+    import time
+
+    app, path, cfg, root = fixture
+    cfg['snapshot_limit_manual'] = 1
+    original = path.read_bytes()
+    folder = root / 'data/system/backups/lorebooks' / path.stem
+    folder.mkdir(parents=True)
+    old = folder / f'{path.stem}_old.json'
+    old.write_text(json.dumps(book('另一份旧快照')), encoding='utf-8')
+    future = time.time() + 3600
+    os.utime(old, (future, future))
+    client = app.test_client()
+    result = commit(client, path, preview(client, path).get_json()).get_json()
+    assert result['success']
+    assert Path(result['backup_path']).read_bytes() == original
+    assert len(list(folder.glob('*.json'))) == 1
