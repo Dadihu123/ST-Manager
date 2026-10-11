@@ -9,6 +9,7 @@
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -19,10 +20,24 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
+from core.plugins.assets import ALLOWED_EXTENSIONS as ASSET_ALLOWED_EXTENSIONS
+
 
 def read_source(relative_path):
     with open(os.path.join(PROJECT_ROOT, relative_path), 'r', encoding='utf-8') as handle:
         return handle.read()
+
+
+def _parse_icon_extensions(source: str) -> set:
+    """从 `icons.js` 源码里解析出 `PLUGIN_ICON_EXTENSIONS` 的实际取值。
+
+    解析而不是硬编码第二份字面量：后端加扩展名时这里应当自动跟随判断，
+    而不是让两份字面量各自腐烂。
+    """
+    match = re.search(r'PLUGIN_ICON_EXTENSIONS = new Set\(\[([^\]]*)\]\)', source)
+    assert match is not None, '未解析到 PLUGIN_ICON_EXTENSIONS 定义'
+    return {item.strip().strip('"').strip("'").lower()
+            for item in match.group(1).split(',') if item.strip()}
 
 
 # ------------------------------------------------------------------ 源码契约
@@ -46,14 +61,20 @@ def test_plugin_icon_resolution_enforces_backend_constraints():
 
     真正的边界检查仍在后端路由；这里只是让插件作者早点拿到空结果（占位图标），
     而不是渲染一个必然 404 的 URL。
+
+    与后端 `ALLOWED_EXTENSIONS` 的关系是**真子集**（⊂），不是相等：后端还要放行
+    `.js/.css/.json/.woff2/.map` 等非图标类型，而图标位是 16–24px 的 mask 渲染，
+    动图与 `.avif` 在那里没有意义，所以这里只收静态图。
     """
     source = read_source('static/js/utils/icons.js')
 
-    # 拒绝 `..`（路径穿越）
     assert "relative.split(\"/\").includes(\"..\")" in source
-    # 扩展名白名单与后端 ALLOWED_EXTENSIONS 对齐
-    assert 'PLUGIN_ICON_EXTENSIONS' in source
-    assert '".svg"' in source
+    # 图标扩展名必须是后端白名单的真子集（后端变了这里不能跟着漂）
+    icon_extensions = _parse_icon_extensions(source)
+    assert icon_extensions == {'.svg', '.png', '.webp'}
+    assert icon_extensions < set(ASSET_ALLOWED_EXTENSIONS), (
+        f'图标扩展名不再是后端资产白名单的真子集: {sorted(icon_extensions)}'
+    )
     # 缺少 pluginId 时不猜 URL
     assert 'if (!id) return "";' in source
 
@@ -174,6 +195,25 @@ def test_plugin_asset_paths_are_rejected_when_unsafe_or_unowned():
     ])
 
     assert [item['kind'] for item in results] == ['missing'] * 5, results
+
+
+@pytestmark_node
+def test_dynamic_image_assets_are_not_usable_as_icons():
+    """D5：后端放行 `.gif` / `.avif` 作图片资产，但图标位（mask 渲染）不收它们。
+
+    这是「图标扩展名 ⊂ 后端资产白名单」这条关系的**行为级**证据：`.gif` 作资产可用，
+    作图标一律降级为占位图标。
+    """
+    results = _run_icon_probe([
+        ['assets/pet.gif', 'demo-plugin'],
+        ['assets/pet.avif', 'demo-plugin'],
+        # 同一位置换成静态图则正常产出 URL
+        ['assets/pet.png', 'demo-plugin'],
+    ])
+
+    assert [item['kind'] for item in results] == ['missing', 'missing', 'asset'], results
+    assert results[2]['url'] == '/api/plugins/demo-plugin/assets/assets/pet.png'
+    assert {'.gif', '.avif'} <= set(ASSET_ALLOWED_EXTENSIONS), '后端必须放行 gif/avif 作资产'
 
 
 @pytestmark_node

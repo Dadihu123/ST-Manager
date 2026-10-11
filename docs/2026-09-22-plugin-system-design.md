@@ -715,6 +715,28 @@ POST /api/plugins/<id>/disable
 
 **纯前端插件例外**：只有 `frontend/` 没有 `backend/` 的插件，禁用/启用可立即生效（移除 DOM、取消事件订阅、重新 `import()`）。UI 应区分提示——`GET /api/plugins/list` 响应里需带 `backend: true/false` 供前端判断是否显示「需重启」。
 
+**「更新」保留 `data/`（F16 配套，2026-10-11 补）**
+
+「更新」在本项目里的实现就是**重新安装**（`installer.install_plugin_dir`：下载 → 校验 →
+原子替换），因此它必须显式保住插件的私有数据目录，否则「更新一次丢一次用户数据」。
+
+`api.data_dir()` 是宿主**官方提供**的插件私有数据目录，承诺了却保不住属于契约级缺陷。
+受影响的不只是宠物插件：`data/plugins/stm-ai-assistant/data/providers.json`（该插件自己的
+供应商配置）同样每次更新都丢。
+
+规则（**只在更新路径生效，卸载不受影响**）：
+
+| 情形 | 处理 |
+|---|---|
+| 旧 `target_dir/data/` 存在 | `os.replace` **之前**移出到 staging 同级临时位置，替换完成后**合并**回新目录 |
+| 新包携带的文件与用户数据同名 | **用户数据优先**；新包那份改名备份为 `<name>.plugin-default`，并记入安装日志 |
+| 目录整体移动失败（跨卷 / 权限） | 记 warning 并**继续安装**——数据迁移失败绝不允许阻断安装 |
+| 首次安装（无旧目录） | 行为完全不变 |
+
+`install_plugin_dir` 的返回值与 `_log_action` 的 `detail` 都带 `preserved_data` 计数。
+
+**卸载的 `keep_data` 语义不变**：卸载是用户显式动作，默认清理仍然正确。
+
 ### 卸载实现
 
 ```
@@ -1149,7 +1171,6 @@ def _last_event_id():
 **事件表**：见 6.5。
 
 ### 6.4.4 轮询降级
-
 `EventSource` 在以下情况会失败：企业代理拦截、HTTP/1.0、浏览器策略。前端必须降级：
 
 ```js
@@ -1249,6 +1270,65 @@ CREATE INDEX IF NOT EXISTS idx_plugin_install_log ON plugin_install_log(plugin_i
 ```
 
 **为什么不用 JSON 文件**：并发安装、原子性、无限增长都需要自己处理。并入主库复用 WAL + `execute_with_retry`，与 `plugin_jobs` 同库同连接管理。保留所有记录（不随作业清理），写入方在 `installer.py` / `routes.py` 统一调用 `_log_plugin_action()`。
+
+## 6.7 插件事件流：核心事件的前端通路（2026-10-11 补）
+
+**背景（已实测）**：后端在 9 处核心流程末尾 `hooks.emit(...)` 派发 `CORE_EVENTS`
+（`core/plugins/hooks.py:23-35`，触发点见 `cards.py:2181` `card.updated`、`:2294`
+`card.moved`、`:2551` `card.deleted`、`:4585` `tag.deleted`、`:4710` `tag.applied`、
+`:5823` `card.created`、`world_info.py:2331` `worldbook.saved`、`scan_service.py:724`
+`scan.completed`、`index_job_worker.py:132` `index.job_done`），但前端 `pluginHost.js`
+的 `on()` 只做 `window.addEventListener`，不碰后端；全仓
+`grep 'app\.ready|card\.created|scan\.completed|worldbook\.saved' static/js`
+**只命中白名单本身，零个 dispatch**。
+
+> **结果：`api.on('card.created', h)` 在浏览器里永远不会被调用。**
+
+而「扫描完成」「索引重建完毕」这类**无 UI 触发**的变更，前端更是没有任何其他途径得知。
+这直接卡住 R6（提示播报）。
+
+### 6.7.1 端点
+
+```
+GET /api/plugins/events          # SSE
+```
+
+**复用已验证的 SSE 基础设施**，不另造：`jobs.py:756-838` 的
+`Response(generator, mimetype='text/event-stream')` + `: heartbeat` 帧 + 连接配额。
+
+| 要求 | 说明 |
+|---|---|
+| **只广播 `CORE_EVENTS`** | 插件的自定义事件（`<id>:` 前缀）**不进这条流**——否则插件 A 的噪声会灌给所有插件，且 N1 对插件间通信的「best-effort、不保证顺序」承诺会被误读成强保证 |
+| 连接配额 | 参照 `jobs.SSE_MAX_CONNECTIONS_TOTAL` 的既有做法设全局上限，超限返回**结构化错误**（不静默挂住） |
+| 心跳 | 复用 `jobs.SSE_HEARTBEAT_INTERVAL_SECONDS`（15s）的既有取值风格 |
+| 负载 | `{event, payload, ts}`；**不得**携带插件密钥或卡片正文——这是**广播信道**，只放 `hooks.emit()` 已经给出的 payload 原样 |
+| 计费口径 | **按插件连接数计**：一次 SSE 连接服务该插件的全部订阅，不要把每个 `api.on()` 变成一条连接 |
+
+**广播不得阻塞核心流程（硬要求）**：`hooks.py:6-10` 的「同步派发、异常吞掉、慢 handler
+告警」是核心不变量，新增的广播必须 **fire-and-forget** —— 不得因为某个客户端慢而拖住
+`card.updated` 的调用方。
+
+路由本身遵从蓝图既有约定（`routes.py` 的 `_no_store_for_management_api` 与
+`_handle_plugin_errors`）。
+
+### 6.7.2 前端 `api.on()` 分流
+
+| 事件名 | 通路 |
+|---|---|
+| ∈ `CORE_EVENTS` | **SSE**（**懒连接**：首次订阅核心事件时才建立，零订阅的插件不占连接；同一插件多次 `on()` 复用同一条流） |
+| 其余 | 保持现状（`window.addEventListener`），**行为不变** |
+
+返回的取消订阅函数语义不变。连接生命周期挂到插件 disposer（`pluginHost.js` 的 `own()`），
+与 `subscribeJob` 完全同一个模式。
+
+### 6.7.3 前端 window 事件（Provisional）
+
+前端已经在派发一批 `window` CustomEvent（`card-updated`、`card-created`、`card-deleted`、
+`card-imported`、`refresh-card-list`、`refresh-wi-list`、`refresh-chat-list`、
+`refresh-preset-list`、`refresh-beautify-list`、`refresh-folder-list`、`entry:activate`、
+`theme-mode-changed`、`settings-saved`），但**名字一个都没写进文档**，属于隐性耦合：
+宿主改名插件就静默失效。这些名字在 `docs/plugin-api.md` 里单列一节并标注 **Provisional**
+（形态已定但仍在收集反馈），**不标 Stable**。
 
 ---
 
@@ -1504,6 +1584,75 @@ api.surfaces.register('ai-workbench', {
 - 关闭按钮由宿主渲染，用**宿主通用关闭图标**（`icon('close')`），插件不得自绘
   「×」文字或替换该图标。
 
+### 8.3.3 `ambient` 环境层（常驻 surface，F16）
+
+前述 `panel` / `modal` / `page` / `sheet` 四种全是「**用户打开、可关闭、抢焦点**」的对话框。
+常驻型内容（桌面挂件、宠物、常驻状态徽标）与它们的语义**每一项都相反**，因此单列一层：
+
+| 项 | panel / modal / page / sheet | **ambient** |
+|---|---|---|
+| 触发 | `surfaces.open(id, ctx)` 或入口点击 | **`register()` 即挂载**，无 open/close |
+| 容器 | 带定位的 shell + header + body | `position: fixed; inset: 0` 全屏透明层，**`pointer-events: none`** |
+| 层级 | `--z-surface` / `--z-modal-popover` | **`--z-ambient`** |
+| 对话框语义 | `role="dialog"` + `aria-modal="true"` | **无**（不设 role，或 `role="presentation"`） |
+| 焦点 | 焦点陷阱 + 关闭后恢复焦点 | **完全不碰焦点** |
+| ESC | 关闭 | **忽略** |
+| 全屏遮罩记账 | 非 `page` 一律 `setFullscreenScrim(true)` | **不参与** |
+| 头部 / 关闭按钮 | 渲染 | **不渲染** |
+| `data-marquee-ignore` | 有 | 有（同） |
+| 回收 | `close()` 时 unmount | **插件 disable / unload / destroy 时强制 unmount** |
+
+```js
+api.surfaces.register('desktop-pet', {
+  type: 'ambient',
+  mount(container) {
+    // container 是全屏透明层；它的子元素自行取回 pointer-events（见下）
+    const pet = document.createElement('div');
+    pet.className = 'my-pet';           // 样式须以 .plugin-<id> 作用域
+    container.appendChild(pet);
+    return () => { /* 清理 */ };
+  },
+});
+// 没有 api.surfaces.open('desktop-pet') —— 注册那一刻它已经挂在屏幕上了
+```
+
+**层级**：`--z-ambient: 55`，插在 `--z-card-selected: 50` 与 `--z-surface: 60` 之间——
+这是令牌表里**唯一**的空档（60 / 70 / 80 已被 surface、美化抽屉、入口坞占满）。
+环境层应盖住内容卡片与其选中态，但**必须低于**抽屉、入口坞、下拉与模态：
+**宿主的功能性 UI 绝不能被常驻内容遮挡。**
+
+**`pointer-events` 继承陷阱（必读）**：容器整体是 `pointer-events: none`，而
+`pointer-events` 是**继承**属性——因此每个可交互后代都**必须显式取回 `auto`**：
+
+```css
+.my-pet { pointer-events: auto; }
+```
+
+漏了这一步的表现是「点了没反应」（本仓 `entry-dock.css` 的入口坞踩过同一个坑并留有实测记录）。
+
+**宿主遮挡降级 `is-host-occluded`**：宿主在下列任一条件成立时给 ambient 容器加
+`is-host-occluded`，条件消失时摘掉，**由宿主统一触发，插件不得各自监听**：
+
+- 全屏遮罩处于活跃态（`dom.js` 的 `isFullscreenScrimActive()`）
+- 任何 `panel` / `modal` / `sheet` surface 处于打开态
+- `document.visibilityState !== 'visible'`
+
+插件据此**暂停动画或降频**（常驻图层的性能契约）。这是个可检测的钩子，具体视觉由插件决定。
+
+**移动端不挂载**：移动端屏幕小，常驻图层会遮挡内容且没有「挪开」的手段，因此
+`register()` 直接返回空串并 `console.warn` 说明原因（与入口坞在 `deviceType === 'mobile'`
+时退化为顶栏按钮的既有设计一致）。插件可用 `when: { feature: ['hasAmbient'] }` 让宿主
+替它门控——`hostFeatures()` 仅在非移动端产出 `hasAmbient`。
+
+**回收**：复用既有强制回收链，不另造一套——`unregisterPlugin(pluginId)` / `closePlugin(pluginId)`
+都覆盖 ambient，`pluginHost.js` 的 `destroy()` 与 `plugin:unloaded` 监听链路保持有效。
+**禁用一个带 ambient 的插件后，屏幕上必须立刻什么都不剩，且不依赖插件的 `deactivate`。**
+
+**manifest 里声明 `ambient` 没有意义**：`entries[]` 是「用户可见入口」，而 ambient
+没有用户可见入口（注册即挂载）。因此后端 `core/plugins/entries.py` 的 `SURFACE_TYPES`
+**保持四元组不变**，manifest 里写 `ambient` 自然落到既有的「非法 surface.type → 丢弃该项 + warning」
+路径。宿主前端支持的类型是后端允许声明类型的**超集**。
+
 ## 8.4 前端硬约束（来自调研，必须遵守）
 
 | # | 约束 | 依据 |
@@ -1523,6 +1672,7 @@ api.surfaces.register('ai-workbench', {
 | F13 | **插件不得自绘 `position: fixed` 浮层** | 入口与容器都由宿主提供（8.3.1 / 8.3.2）。插件自己写 `position: fixed` 的浮层会绕过宿主层级管理，在 `.main-container` 的 `backdrop-filter` 下渲染异常，且无法被宿主统一卸载。安装期声明层扫描发现 `position: fixed` 即 **warning + UI 标记**（不拒绝加载，留给既有插件过渡期） |
 | F14 | **Surface 容器归宿主** | `mount(container, ctx)` 收到的 container 已完成定位/尺寸/滚动/`data-marquee-ignore`/`role="dialog"`+`aria-modal`/焦点陷阱/ESC 关闭。插件**只能**在 container 内创建 DOM；**不得**设置 container 或其祖先的 `position` / `z-index` / `inset`。宿主必须在插件被禁用/卸载时**强制卸载**其所有 surface，不依赖插件 `deactivate` |
 | F15 | **插件不得硬编码 sprite 路径与无回退的 CSS 令牌** | ① 插件 CSS 里硬编码 `url('/static/icons/ui.svg#icon-x')` 会在宿主换 sprite 时静默失效——应改用 `api.ui.icon(name)`（D4）。② `var(--x)` 引用的 `--x` 若不在宿主令牌清单内且**无回退值**，在宿主主题变化时会解析失败。两项均由安装期声明层扫描给出 warning |
+| F16 | **常驻内容必须走 `ambient` surface** | 见 8.3.3。`ambient` 是注册即挂载、非模态、不抢焦点的常驻图层（桌面挂件、宠物、状态徽标都吃这一层）。**F13 依然不变且被强化**：插件**仍然不得**自绘 `position: fixed` 浮层——常驻需求由 `ambient` 满足，不需要破例。若做完之后插件还要自绘 `position: fixed` 才能常驻，说明这层契约没做对 |
 
 ## 8.5 插件静态资源
 
@@ -1533,10 +1683,52 @@ GET /api/plugins/<plugin_id>/assets/<path:filename>
 **安全要求**（**不要**再复制第 5 份 `_is_under_base`）：
 - 抽出公共工具 `core/utils/paths.py:is_under_base()`，并重构现有 4 处重复（`chats.py:85`、`world_info.py:78`、`system.py:139` 函数定义 + `cards.py:3742` 内联）**[可选，建议单独提交]**
 - `plugin_id` 正则校验 + `os.path.realpath` 边界检查
-- 扩展名白名单：`.js`、`.mjs`、`.css`、`.svg`、`.png`、`.webp`、`.json`、`.woff2`、`.map`
+- 扩展名白名单：`.js`、`.mjs`、`.css`、`.svg`、`.png`、`.webp`、`.gif`、`.avif`、`.json`、`.woff2`、`.map`
 - **不提供** `.py`、`.md`、`.env`
-- 响应头：`Cache-Control: no-cache`（开发期）；生产可按 manifest 版本加 `?v=` 查询串
 - 响应头：`Content-Security-Policy: default-src 'none'; … ; sandbox` 与 `Cross-Origin-Resource-Policy: same-origin`（资源可能被直接导航打开，典型是 SVG）；实现见 `core/utils/security_headers.py`
+
+**缓存策略（2026-10-11 修订）**
+
+原先用 `send_file(..., conditional=False, max_age=0)` + `Cache-Control: no-cache`。
+实测（Flask test client，`data/plugins/hello-world`）暴露两个问题：
+
+```
+ETag: "1791352479.0715444-2438-208018582"
+If-None-Match: <该 ETag>  →  200（len 2438）   ← 有 ETag 却永不返回 304
+Range: bytes=0-9          →  200（len 2438）   ← 不支持 Range
+```
+
+根因是 `conditional=False` 关掉了条件请求处理。修订为：
+
+| 项 | 取值 | 理由 |
+|---|---|---|
+| 条件请求 | `conditional=True` | 让 ETag 真正生效（零成本修复） |
+| 缓存 | `Cache-Control: private, max-age=31536000, immutable` | 资产 URL 已带 `?v=<插件版本>`，**版本化强缓存反而比 `no-cache` 更安全**：`no-cache` 只保证会发请求，浏览器仍可能用启发式新鲜度给出旧响应 |
+| `Range` | 由 `send_file` 默认行为提供 | 分帧图 / 大图按需取，不必整份重传 |
+
+**必须同步的四处**（改缓存策略时逐一核对）：
+1. `core/utils/security_headers.py` 的 `PLUGIN_ASSET_CSP` —— `img-src 'self' data:`
+   按 scheme 放行，**不需要**逐个列扩展名（已实测确认，见下）。
+2. `tests/test_plugin_assets.py` 的 `Cache-Control` 断言。
+3. `tests/test_security_headers.py` 的端到端 CSP 断言保持绿。
+4. `static/js/utils/icons.js` 的 `PLUGIN_ICON_EXTENSIONS` **保持不变**（图标位是 16–24px
+   的 mask 渲染，`.gif` / `.avif` 作图标无意义），它是后端资源扩展名的**真子集**。
+
+**`img-src` 的实测证据（2026-10-11）**：真实 Chromium + 真实资产路由，文档层用同一份
+`img-src 'self' data:`，`<img>` 指向 5 种格式的真实资产：
+
+| 文档层 `img-src` | 加载 | CSP 违规事件 |
+|---|---|---|
+| `'self' data:`（当前取值） | 5/5（`.svg` `.png` `.webp` `.gif` `.avif`） | 0 |
+| `'none'`（对照） | 0/5 | 5 |
+| `http://example.invalid`（对照） | 0/5 | 5 |
+
+对照组全拦、当前取值全放行 ⇒ 结论确实由 `img-src` 的 scheme 决定，**与扩展名无关**。
+**另需注意**：若给插件资源响应加上 `sandbox`（不带 `allow-same-origin`），文档会拿到
+opaque origin，此时 `'self'` 与 `CORP: same-origin` 都匹配不上，`<img>` 会全部失败——
+这与 `img-src` 无关（`img-src *` 也照样失败），是 `sandbox` 的固有语义。
+本仓的 `sandbox` 只加在**资产自身**的响应上（资源被直接导航打开时的加固），
+不会作用于宿主页面，因此这条不构成本次的风险。
 
 ---
 

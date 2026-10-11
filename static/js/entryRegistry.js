@@ -27,7 +27,15 @@ export const MAX_DOCK_ENTRIES_PER_PLUGIN = 2;
 
 /** 入口种类与呈现类型（D1）。 */
 export const ENTRY_KINDS = ["dock", "nav", "settings", "context", "command", "status", "batch"];
-export const SURFACE_TYPES = ["panel", "modal", "page", "sheet"];
+/**
+ * 宿主前端支持的 surface 类型。
+ *
+ * **不是**后端 `core/plugins/entries.py:SURFACE_TYPES` 的副本：后端那份用于校验
+ * manifest 的 `entries[].surface.type`，而 `ambient`（常驻环境层，注册即挂载）
+ * **没有用户可见入口**，在 manifest 里声明它没有意义，因此后端保持四元组不变。
+ * 这里的集合是后端集合的**超集**（宿主专属类型不进 manifest）。
+ */
+export const SURFACE_TYPES = ["panel", "modal", "page", "sheet", "ambient"];
 
 /**
  * `when.target` 的合法取值（右键菜单求值目标类型）。
@@ -140,7 +148,26 @@ export function hostAppVersion() {
   return meta && meta.content ? String(meta.content) : "";
 }
 
-/** 宿主能力集合（`when.feature` 的取值来源）。 */
+/** 宿主当前设备类型（`store.deviceType`）。取不到 store 时按桌面处理。 */
+export function hostDeviceType() {
+  if (typeof window === "undefined") return "desktop";
+  const alpine = window.Alpine;
+  const store =
+    alpine && typeof alpine.store === "function" ? alpine.store("global") : null;
+  return String((store && store.deviceType) || "desktop");
+}
+
+/** 是否移动端（`ambient` 与高分屏探测共用）。 */
+function isMobileDevice() {
+  return hostDeviceType() === "mobile";
+}
+
+/**
+ * 宿主能力集合（`when.feature` 的取值来源）。
+ *
+ * 插件声明 `when: { feature: ['hasAmbient'] }` 即可让宿主替它门控，
+ * 比插件自己去读 `store.deviceType` 更合规（后者是 Provisional 耦合）。
+ */
 export function hostFeatures() {
   const features = [];
   if (typeof navigator !== "undefined") {
@@ -149,6 +176,13 @@ export function hostFeatures() {
   if (typeof EventSource === "function") features.push("hasSSE");
   if (typeof window !== "undefined" && typeof window.fetch === "function") {
     features.push("hasFetch");
+  }
+  // 常驻环境层只在桌面/平板上挂载：移动端屏幕小，常驻图层会遮挡内容
+  // 且没有「挪开」的手段（与入口坞在 mobile 下退化为顶栏按钮的既有设计一致）。
+  if (!isMobileDevice()) features.push("hasAmbient");
+  // 高分屏探测：留给插件做「2x 帧图」一类的能力门控，省掉它自己去读 window。
+  if (typeof window !== "undefined" && Number(window.devicePixelRatio) >= 1.5) {
+    features.push("hasPixelRatio");
   }
   return features;
 }

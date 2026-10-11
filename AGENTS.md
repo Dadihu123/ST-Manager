@@ -109,6 +109,17 @@ Adding a new public method to `PluginAPI` or a new top-level member to the
 `FRONTEND_MEMBERS` inside `tools/gen_plugin_api_docs.py`, or
 `tests/test_plugin_api_docs.py` fails.
 
+A member nested under an existing namespace (`host.onState`, `entries.*`,
+`surfaces.*`) is documented **inside that namespace's row** — do not add it as a
+separate top-level key, or `test_frontend_declared_members_are_exposed_by_host`
+fails (it checks the declared set against `buildApi()`'s literal top-level keys).
+
+Prose sections of `docs/plugin-api.md` that are not derived from code (for example
+the `前端 window 事件（Provisional）` section) live as constants in
+`tools/gen_plugin_api_docs.py` (see `WINDOW_EVENTS_SECTION`) and are appended in
+`render()`. **Editing `docs/plugin-api.md` by hand is always lost** on the next
+regeneration, including those prose sections.
+
 Adding a new icon to a sprite requires re-running `tools/gen_plugin_ui_icons.py`,
 or `tests/test_plugin_icons.py` fails.
 

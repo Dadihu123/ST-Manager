@@ -202,7 +202,7 @@ def test_surface_host_module_exists():
 
     for fragment in (
         'export const PluginSurfaceHost',
-        'export const SURFACE_TYPES = ["panel", "modal", "page", "sheet"]',
+        'export const SURFACE_TYPES = ["panel", "modal", "page", "sheet", "ambient"]',
         'register(pluginId, surfaceId, spec)',
         'openSurface(key, ctx = {})',
         'close(key)',
@@ -214,11 +214,26 @@ def test_surface_host_module_exists():
 
 
 def test_surface_types_match_backend_contract():
+    """前端 surface 类型必须是**后端可声明类型的超集**。
+
+    真实契约是「宿主前端支持的 surface 类型 ⊇ manifest 允许声明的类型」：
+
+    - 后端 `core/plugins/entries.py:SURFACE_TYPES` 用于校验 manifest 的
+      `entries[].surface.type`，而 `ambient`（常驻环境层）**没有用户可见入口**
+      （注册即挂载），在 manifest 里声明它没有意义，因此后端**保持四元组不变**。
+    - 前端额外支持宿主专属类型 `ambient`，并在本地拒绝后才降级为 `panel`。
+
+    函数名保留（避免无谓变更），但语义是**超集**而不是恒等——原来的写法比较的
+    是从后端 import 的变量与后端自身，是同义反复，并没有真的在查前端。
+    """
     from core.plugins.entries import SURFACE_TYPES
 
     source = read_source(SURFACE_HOST_PATH)
-    assert 'SURFACE_TYPES = ["panel", "modal", "page", "sheet"]' in source
+    assert 'SURFACE_TYPES = ["panel", "modal", "page", "sheet", "ambient"]' in source
+
+    # 后端集合不变（manifest 仍只允许四种），且前端是它的超集
     assert set(SURFACE_TYPES) == {'panel', 'modal', 'page', 'sheet'}
+    assert set(SURFACE_TYPES) <= {'panel', 'modal', 'page', 'sheet', 'ambient'}
 
 
 def test_surface_host_avoids_backdrop_filter():

@@ -50,6 +50,12 @@ REF_PATTERN = re.compile(r'^[A-Za-z0-9._/-]{1,200}$')
 
 FORBIDDEN_DIR_NAMES = frozenset({'__pycache__', '.git', 'node_modules', '.venv', 'venv', '.idea', '.vscode'})
 
+#: 插件私有数据目录名（`PluginAPI.data_dir()` 承诺的位置，更新时必须保留，D4）
+PLUGIN_DATA_DIRNAME = 'data'
+
+#: 新包携带的同名文件与用户数据冲突时的改名备份后缀（D4.2）
+PLUGIN_DEFAULT_SUFFIX = '.plugin-default'
+
 GITHUB_CODELOAD = 'https://codeload.github.com'
 
 
@@ -303,6 +309,12 @@ def install_plugin_dir(
 
     解压出的目录名不可控（GitHub 归档顶层是 `repo-branch`），因此这里不校验
     目录名与 id 一致；安装完成后目录会被重命名为 id。
+
+    **更新保留 `data/`（D4）**：更新在本项目里就是重新安装，旧目录会整体进回收站。
+    插件私有数据目录（`api.data_dir()` 承诺的 `data/plugins/<id>/data/`）因此在
+    `os.replace` **之前**移出、替换后**合并**回来，否则「更新一次丢一次用户数据」。
+    合并规则见 `_merge_preserved_data()`：**用户数据优先**，冲突项备份为新包那份的
+    `<name>.plugin-default`。迁移失败只 warning，**绝不阻断安装**。
     """
     source_dir = os.path.abspath(source_dir)
     manifest = PluginManifest.load(source_dir, expected_id=expected_id, check_dir_name=False)
@@ -329,8 +341,13 @@ def install_plugin_dir(
 
     existed = os.path.isdir(target_dir)
     trash_path = ''
+    preserved = {'preserved': 0, 'conflicts': []}
+    preserved_dir = ''
     try:
         if existed:
+            # 先把用户数据移出待替换的旧目录（D4.2）。必须在 `move_plugin_to_trash`
+            # 之前，否则旧 `data/` 会随旧目录一起进回收站。
+            preserved_dir = _preserve_plugin_data(staging_dir, target_dir)
             trash_path = move_plugin_to_trash(manifest.plugin_id, target_dir=target_dir)
         os.replace(staging_dir, target_dir)
     except OSError as exc:
@@ -340,15 +357,28 @@ def install_plugin_dir(
                 os.replace(staging_dir, target_dir)
             except OSError:
                 logger.error('安装回滚失败，残留目录 %s', staging_dir)
+        if preserved_dir:
+            # 回滚同理优先保数据。只在目录确实回滚成功时合并，避免凭空造出一个
+            # 没有 manifest 的插件目录；否则把临时目录路径留在日志里供手工找回。
+            if os.path.isdir(target_dir):
+                logger.warning('安装失败，尝试把已移出的用户数据合并回 %s', target_dir)
+                _merge_preserved_data(preserved_dir, target_dir)
+            else:
+                logger.error(
+                    '安装失败且目录未回滚，用户数据仍在 %s', preserved_dir,
+                )
         raise PluginInstallError(f'安装目录替换失败: {exc}') from exc
     finally:
         if os.path.isdir(staging_dir):
             shutil.rmtree(staging_dir, ignore_errors=True)
 
     try:
-        os.makedirs(os.path.join(target_dir, 'data'), exist_ok=True)
+        os.makedirs(os.path.join(target_dir, PLUGIN_DATA_DIRNAME), exist_ok=True)
     except OSError:
         pass
+
+    if preserved_dir:
+        preserved = _merge_preserved_data(preserved_dir, target_dir)
 
     if style_errors:
         _persist_style_scope_errors(manifest.plugin_id, style_errors)
@@ -369,6 +399,8 @@ def install_plugin_dir(
         source=source_label,
         detail={
             'trash': trash_path,
+            'preserved_data': preserved['preserved'],
+            'preserved_data_conflicts': preserved['conflicts'],
             'style_scope_errors': style_errors,
             'style_declaration_warnings': style_warnings,
         },
@@ -381,9 +413,172 @@ def install_plugin_dir(
         'path': target_dir,
         'action': 'update' if existed else 'install',
         'trash': trash_path,
+        'preserved_data': preserved['preserved'],
+        'preserved_data_conflicts': preserved['conflicts'],
         'style_scope_errors': style_errors,
         'style_declaration_warnings': style_warnings,
     }
+
+
+def _preserve_plugin_data(staging_dir: str, target_dir: str) -> str:
+    """把旧插件目录的 `data/` 移到 staging 同级临时位置，返回该路径。
+
+    与 staging 同级（同一插件根内）可保证同卷，`os.replace` 不受跨卷限制。
+    旧目录没有 `data/` 时返回 `''`。
+
+    失败（跨卷 / 权限 / 占用）时只记 warning 并返回 `''`——**数据迁移失败不得
+    阻断安装**，最坏情况退化成改动前的行为（用户数据随旧目录进回收站，仍可手工找回）。
+    """
+    source = os.path.join(target_dir, PLUGIN_DATA_DIRNAME)
+    if not os.path.isdir(source):
+        return ''
+
+    preserved_dir = os.path.join(
+        os.path.dirname(staging_dir) or '.',
+        f'.preserved-{os.path.basename(target_dir)}-{uuid.uuid4().hex[:8]}',
+    )
+    try:
+        shutil.move(source, preserved_dir)
+    except OSError as exc:
+        logger.warning('保留插件 %s 的 data 目录失败（继续安装）: %s', target_dir, exc)
+        return ''
+    return preserved_dir
+
+
+def _merge_preserved_data(preserved_dir: str, target_dir: str) -> dict:
+    """把保留的用户数据合并回新插件目录的 `data/`。
+
+    返回 `{'preserved': int, 'conflicts': list}`。
+
+    合并规则（D4.2，**核心是「新包不得静默覆盖用户数据」**）：
+    - 目标不存在同名项 → 用户那份直接移入（计入 `preserved`）。
+    - 两边都是目录 → 递归合并，逐项套用同样的规则。
+    - 目标已存在同名项（文件，或「用户是文件 / 包内是目录」这类形状冲突）→
+      **用户数据优先**：把**包内那份**改名备份为 `<name>.plugin-default`
+      （同名备份已存在时追加数字后缀），再把用户那份放到原名，并记入 `conflicts`。
+
+    迁移失败只记日志，**绝不阻断安装**；此时保留临时目录（里面是尚未搬回的用户
+    数据）并把路径写进日志供手工找回，而不是在失败路径上删除用户数据。
+
+    `conflicts` 里存的是备份项的**相对 `data/` 的名称**（用 `/` 归一），只用于日志。
+    """
+    result = {'preserved': 0, 'conflicts': []}
+    if not os.path.isdir(preserved_dir):
+        return result
+
+    destination = os.path.join(target_dir, PLUGIN_DATA_DIRNAME)
+    try:
+        os.makedirs(destination, exist_ok=True)
+    except OSError as exc:
+        logger.error(
+            '插件 %s 的 data 目录不可用，%s 中的用户数据未迁移: %s',
+            os.path.basename(target_dir), preserved_dir, exc,
+        )
+        return result
+
+    try:
+        merged_preserved, merged_conflicts = _merge_tree(preserved_dir, destination)
+        result['preserved'] = merged_preserved
+        result['conflicts'] = merged_conflicts
+
+        if merged_conflicts:
+            logger.warning(
+                '插件 %s 更新时有 %s 个同名项与包内文件冲突，已保留用户数据并把包内那份备份为 %s',
+                os.path.basename(target_dir), len(merged_conflicts), PLUGIN_DEFAULT_SUFFIX,
+            )
+    except OSError as exc:
+        # 迁移中断：**保留**临时目录（里面是尚未搬回的用户数据），只记路径供手工找回，
+        # 绝不在失败路径上删除用户数据。
+        logger.error(
+            '插件 %s 的用户数据迁移未完成，剩余数据仍在 %s: %s',
+            os.path.basename(target_dir), preserved_dir, exc,
+        )
+        return result
+
+    shutil.rmtree(preserved_dir, ignore_errors=True)
+    return result
+
+
+def _merge_tree(source_dir: str, target_dir: str) -> tuple:
+    """递归合并 `source_dir`（用户数据）到 `target_dir`（新装插件）。
+
+    返回 `(移入的文件数, 冲突备份列表)`；冲突时始终**用户数据留在原名**。
+    """
+    preserved = 0
+    conflicts = []
+
+    for name in sorted(os.listdir(source_dir)):
+        source = os.path.join(source_dir, name)
+        target = os.path.join(target_dir, name)
+        # `lexists`：目标位置有个断链符号链接时也算被占用，避免覆盖式写入
+        occupied = os.path.lexists(target)
+
+        if not occupied:
+            preserved += _move_entry(source, target)
+            continue
+
+        if os.path.isdir(source) and not os.path.islink(source) and os.path.isdir(target):
+            nested_preserved, nested_conflicts = _merge_tree(source, target)
+            preserved += nested_preserved
+            conflicts.extend(nested_conflicts)
+            continue
+
+        # 冲突：先把包内那份备份走，再把用户那份放回原名。
+        # 备份成功但用户那份移动失败时，目标位置会留下缺口——把备份移回去补上，
+        # 避免为了保数据反而弄坏插件目录。
+        backup = _backup_plugin_default(target)
+        conflicts.append(os.path.basename(backup).replace('\\', '/'))
+        try:
+            preserved += _move_entry(source, target)
+        except OSError:
+            _restore_plugin_default(backup, target)
+            raise
+
+    return preserved, conflicts
+
+
+def _restore_plugin_default(backup: str, target: str) -> None:
+    """把已备份的包内文件移回 `target`（用户数据迁移失败时的回补）。"""
+    try:
+        if os.path.exists(target) or not os.path.exists(backup):
+            return
+        shutil.move(backup, target)
+        logger.warning('用户数据迁移失败，已把包内文件还原到 %s', target)
+    except OSError as exc:
+        logger.error('还原包内文件 %s 失败，副本仍在 %s: %s', target, backup, exc)
+
+
+def _move_entry(source: str, target: str) -> int:
+    """移动一个条目（文件或整棵子树），返回其中的文件数（空目录计 1）。"""
+    if os.path.isdir(source) and not os.path.islink(source):
+        count = sum(len(files) for _root, _dirs, files in os.walk(source))
+    else:
+        count = 1
+
+    shutil.move(source, target)
+    return max(1, count)
+
+
+def _backup_plugin_default(target: str) -> str:
+    """把新包携带的冲突项改名备份为 `<target>.plugin-default`，返回备份的完整路径。
+
+    备份名已被占用时追加 `.2` / `.3`…，**任何同名文件都不覆盖**——已经躺在那里的
+    备份同样是磁盘上的数据。
+
+    命名以**原始文件名**为基准（`providers.json.plugin-default` → 下一个是
+    `providers.json.plugin-default.2`），避免连续更新时套娃成
+    `.plugin-default.plugin-default`。
+    """
+    prefix = re.sub(r'(\.plugin-default)(\.\d+)?$', '', str(target))
+    backup = f'{prefix}{PLUGIN_DEFAULT_SUFFIX}'
+    if os.path.lexists(backup):
+        suffix = 2
+        while os.path.lexists(f'{prefix}{PLUGIN_DEFAULT_SUFFIX}.{suffix}'):
+            suffix += 1
+        backup = f'{prefix}{PLUGIN_DEFAULT_SUFFIX}.{suffix}'
+
+    shutil.move(target, backup)
+    return backup
 
 
 def move_plugin_to_trash(plugin_id: str, *, target_dir: str = '') -> str:

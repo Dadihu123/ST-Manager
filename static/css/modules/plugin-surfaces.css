@@ -232,6 +232,53 @@
   border-bottom: none;
 }
 
+/* ---------------------------------------------------------------- ambient */
+
+/* 常驻环境层（`type: 'ambient'`）：桌面挂件、宠物、常驻状态徽标都吃这一层。
+ *
+ * 与其他四种 surface 每一项都相反：注册即挂载、非模态、不抢焦点、无 ESC、
+ * 不参与遮罩记账、无头部与关闭按钮。因此这里**不带**背景、边框、阴影。
+ *
+ * 层级落在 `--z-ambient`（介于卡片选中态 50 与 surface 60 之间）：
+ * 盖住内容卡片，但**必须低于**抽屉、入口坞、下拉与模态——
+ * 宿主的功能性 UI 绝不能被常驻内容遮挡。
+ */
+.plugin-surface--ambient {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-ambient);
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  /* 整体穿透：环境层是背景，不是对话框，不能挡住宿主 UI 的点击。
+   *
+   * **注意 `pointer-events` 是继承属性**——插件在其中放置的**每个**可交互子
+   * 元素都必须显式取回 `pointer-events: auto`，否则表现为「点了没反应」。
+   * 这与入口坞（`entry-dock.css` 的实测记录）踩的是同一个坑。 */
+  pointer-events: none;
+  overflow: visible;
+}
+
+.plugin-surface--ambient .plugin-surface__ambient-body {
+  position: absolute;
+  inset: 0;
+  /* 容器不裁剪：插件的内容可能有意溢出视口边（例如从边缘走进来的挂件），
+   * 裁剪会造成视觉上的突兀截断。 */
+  overflow: visible;
+}
+
+/* 宿主遮挡降级：插件据此**暂停动画或降频**。
+ *
+ * 触发条件是宿主统一判断的（全屏遮罩活跃 / 任一对话框型 surface 打开 /
+ * 页面不可见），插件不得各自监听。这里只给一个可检测的钩子，具体视觉由插件决定——
+ * 默认不改变外观，因此没有任何副作用；插件在自己的作用域样式里覆盖即可，例如：
+ *
+ *   .plugin-<id> .plugin-surface--ambient.is-host-occluded .my-pet { animation-play-state: paused; }
+ */
+.plugin-surface--ambient.is-host-occluded {
+  /* 宿主不预设视觉降级：由插件决定（保持默认值，避免与插件意图冲突）。 */
+}
+
 /* ---------------------------------------------------------------- 响应式 */
 
 /* ≤900px：抽屉与模态都退化为全屏，避免窄屏上出现「夹缝」式浮层。

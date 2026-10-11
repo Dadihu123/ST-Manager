@@ -356,6 +356,238 @@ def test_install_plugin_dir_enforces_expected_id(tmp_path, install_env):
         installer_module.install_plugin_dir(source, expected_id='another-plugin')
 
 
+# ------------------------------------------- 更新保留 data/（D4）
+
+def _write_data_file(target, name, content):
+    """在已安装插件的 `data/` 下写一个用户数据文件。"""
+    data_dir = os.path.join(str(target), 'data')
+    os.makedirs(os.path.dirname(os.path.join(data_dir, name)) or data_dir, exist_ok=True)
+    with open(os.path.join(data_dir, name), 'w', encoding='utf-8') as handle:
+        handle.write(content)
+
+
+def _install_log_detail(plugin_id='zip-plugin'):
+    conn = job_store.connect(ensure_schema=True)
+    try:
+        rows = job_store.list_install_log(conn, plugin_id)
+    finally:
+        conn.close()
+    return rows[0]['detail'] if rows else {}
+
+
+def test_update_preserves_user_data(tmp_path, install_env):
+    """D4：更新（重新安装）后用户写在 `api.data_dir()` 里的数据必须还在。"""
+    installer_module.install_plugin_dir(_stage_versioned(tmp_path, '0.1.0', 'v1'))
+    target = install_env['plugins_root'] / 'zip-plugin'
+    _write_data_file(target, 'providers.json', '{"custom": true}')
+
+    result = installer_module.install_plugin_dir(_stage_versioned(tmp_path, '0.2.0', 'v2'))
+
+    assert result['action'] == 'update'
+    assert result['preserved_data'] == 1
+    assert result['preserved_data_conflicts'] == []
+    preserved = target / 'data' / 'providers.json'
+    assert preserved.is_file()
+    assert preserved.read_text(encoding='utf-8') == '{"custom": true}'
+
+
+def test_update_preserves_nested_user_data_directories(tmp_path, install_env):
+    """嵌套目录整体保留，且计数按文件计。"""
+    installer_module.install_plugin_dir(_stage_versioned(tmp_path, '0.1.0', 'v1'))
+    target = install_env['plugins_root'] / 'zip-plugin'
+    _write_data_file(target, 'avatars/a.png', 'A')
+    _write_data_file(target, 'avatars/deep/b.png', 'B')
+    _write_data_file(target, 'config.json', '{}')
+
+    result = installer_module.install_plugin_dir(_stage_versioned(tmp_path, '0.2.0', 'v2'))
+
+    assert result['preserved_data'] == 3
+    assert (target / 'data' / 'avatars' / 'a.png').read_text(encoding='utf-8') == 'A'
+    assert (target / 'data' / 'avatars' / 'deep' / 'b.png').read_text(encoding='utf-8') == 'B'
+
+
+def test_update_does_not_overwrite_user_data_with_package_file(tmp_path, install_env):
+    """冲突时**用户数据优先**，新包那份改名备份为 `<name>.plugin-default`。"""
+    installer_module.install_plugin_dir(_stage_versioned(tmp_path, '0.1.0', 'v1'))
+    target = install_env['plugins_root'] / 'zip-plugin'
+    _write_data_file(target, 'providers.json', '{"user": true}')
+
+    stage = _stage_versioned(tmp_path, '0.2.0', 'v2')
+    _write_data_file(stage, 'providers.json', '{"default": true}')
+
+    result = installer_module.install_plugin_dir(stage)
+
+    assert (target / 'data' / 'providers.json').read_text(encoding='utf-8') == '{"user": true}'
+    backup = target / 'data' / 'providers.json.plugin-default'
+    assert backup.is_file(), '包内同名文件必须被改名备份，而不是被丢弃'
+    assert backup.read_text(encoding='utf-8') == '{"default": true}'
+
+    assert len(result['preserved_data_conflicts']) == 1
+    assert 'providers.json.plugin-default' in result['preserved_data_conflicts'][0]
+    assert 'providers.json.plugin-default' in _install_log_detail()['preserved_data_conflicts'][0]
+
+
+def test_update_conflict_backup_avoids_overwriting_earlier_backup(tmp_path, install_env):
+    """老备份还在时（三连更新）追加 `.2`，既不覆盖旧备份也不套娃。"""
+    installer_module.install_plugin_dir(_stage_versioned(tmp_path, '0.1.0', 'v1'))
+    target = install_env['plugins_root'] / 'zip-plugin'
+    _write_data_file(target, 'providers.json', '{"generation": 1}')
+
+    first_stage = _stage_versioned(tmp_path, '0.2.0', 'v2')
+    _write_data_file(first_stage, 'providers.json', '{"generation": 2}')
+    installer_module.install_plugin_dir(first_stage)
+
+    second_stage = _stage_versioned(tmp_path, '0.3.0', 'v3')
+    _write_data_file(second_stage, 'providers.json', '{"generation": 3}')
+    result = installer_module.install_plugin_dir(second_stage)
+
+    data_dir = target / 'data'
+    assert (data_dir / 'providers.json').read_text(encoding='utf-8') == '{"generation": 1}'
+    assert (data_dir / 'providers.json.plugin-default').read_text(encoding='utf-8') == '{"generation": 2}'
+    assert (data_dir / 'providers.json.plugin-default.2').read_text(encoding='utf-8') == '{"generation": 3}'
+    assert not (data_dir / 'providers.json.plugin-default.plugin-default').exists()
+
+    # 两条：`providers.json` 撞了包内文件，用户自己上一次留下的
+    # `providers.json.plugin-default` 又撞了刚为包内文件腾出的备份名。
+    # 关键是**三次写入的三个版本都还在**，没有任何一个被覆盖。
+    assert len(result['preserved_data_conflicts']) == 2
+
+
+def test_update_keeps_package_default_when_user_file_absent_in_subdir(tmp_path, install_env):
+    """不同名文件互不影响：用户数据搬回，包内文件保持原样。"""
+    installer_module.install_plugin_dir(_stage_versioned(tmp_path, '0.1.0', 'v1'))
+    target = install_env['plugins_root'] / 'zip-plugin'
+    _write_data_file(target, 'user-only.json', 'user')
+
+    stage = _stage_versioned(tmp_path, '0.2.0', 'v2')
+    _write_data_file(stage, 'package-only.json', 'package')
+
+    result = installer_module.install_plugin_dir(stage)
+
+    assert result['preserved_data'] == 1
+    assert result['preserved_data_conflicts'] == []
+    assert (target / 'data' / 'user-only.json').read_text(encoding='utf-8') == 'user'
+    assert (target / 'data' / 'package-only.json').read_text(encoding='utf-8') == 'package'
+
+
+def test_first_install_has_no_preserved_data(tmp_path, install_env):
+    """首次安装（无旧目录）行为不变：`data/` 建出来，计数为 0。"""
+    source = write_plugin(tmp_path / 'stage', 'zip-plugin')
+
+    result = installer_module.install_plugin_dir(source)
+
+    target = install_env['plugins_root'] / 'zip-plugin'
+    assert result['action'] == 'install'
+    assert result['preserved_data'] == 0
+    assert result['preserved_data_conflicts'] == []
+    assert (target / 'data').is_dir()
+    assert _install_log_detail()['preserved_data'] == 0
+
+
+def test_update_without_old_data_dir_is_unaffected(tmp_path, install_env):
+    """旧目录没有 `data/` 时不产生保留计数，也不残留临时目录。"""
+    installer_module.install_plugin_dir(_stage_versioned(tmp_path, '0.1.0', 'v1'))
+
+    result = installer_module.install_plugin_dir(_stage_versioned(tmp_path, '0.2.0', 'v2'))
+
+    assert result['preserved_data'] == 0
+    assert (install_env['plugins_root'] / 'zip-plugin' / 'data').is_dir()
+    assert not list(install_env['plugins_root'].glob('.preserved-*'))
+
+
+def test_update_survives_data_migration_failure(tmp_path, install_env, monkeypatch):
+    """迁移失败（跨卷 / 权限）**不得阻断安装**，只记 warning。
+
+    替换插件根里的 `shutil.move`：只会命中「移出旧 `data/` + 回收站」这两处，
+    新包目录本身早已用 `shutil.move` 落到 staging，因此安装仍应完整成功。
+    """
+    installer_module.install_plugin_dir(_stage_versioned(tmp_path, '0.1.0', 'v1'))
+    target = install_env['plugins_root'] / 'zip-plugin'
+    _write_data_file(target, 'providers.json', '{"user": true}')
+
+    real_move = installer_module.shutil.move
+
+    def broken_move(source, destination, *args, **kwargs):
+        if os.path.basename(str(source)) == 'data':
+            raise OSError('simulated cross-volume failure')
+        return real_move(source, destination, *args, **kwargs)
+
+    monkeypatch.setattr(installer_module.shutil, 'move', broken_move)
+
+    result = installer_module.install_plugin_dir(_stage_versioned(tmp_path, '0.2.0', 'v2'))
+
+    assert result['action'] == 'update'
+    assert result['version'] == '0.2.0'
+    assert result['preserved_data'] == 0
+
+
+def test_update_merge_failure_does_not_lose_preserved_data(tmp_path, install_env, monkeypatch):
+    """合并阶段失败时不删临时目录——未搬回的用户数据必须原地留着。"""
+    installer_module.install_plugin_dir(_stage_versioned(tmp_path, '0.1.0', 'v1'))
+    target = install_env['plugins_root'] / 'zip-plugin'
+    _write_data_file(target, 'providers.json', '{"user": true}')
+
+    def broken_merge(source_dir, target_dir):
+        raise OSError('simulated merge failure')
+
+    monkeypatch.setattr(installer_module, '_merge_tree', broken_merge)
+
+    result = installer_module.install_plugin_dir(_stage_versioned(tmp_path, '0.2.0', 'v2'))
+
+    assert result['action'] == 'update'
+    assert result['preserved_data'] == 0
+    assert (target / 'manifest.json').is_file()
+
+    leftovers = list(install_env['plugins_root'].glob('.preserved-*'))
+    assert leftovers, '合并失败时临时目录必须保留'
+    assert (leftovers[0] / 'providers.json').read_text(encoding='utf-8') == '{"user": true}'
+
+
+def test_update_leaves_no_preserved_temp_dir_on_success(tmp_path, install_env):
+    installer_module.install_plugin_dir(_stage_versioned(tmp_path, '0.1.0', 'v1'))
+    _write_data_file(install_env['plugins_root'] / 'zip-plugin', 'a.json', '{}')
+
+    installer_module.install_plugin_dir(_stage_versioned(tmp_path, '0.2.0', 'v2'))
+
+    assert not list(install_env['plugins_root'].glob('.preserved-*'))
+    assert not list(install_env['plugins_root'].glob('.install-*'))
+
+
+def test_replace_failure_preserves_data_and_still_raises(tmp_path, install_env, monkeypatch):
+    """替换阶段失败时：安装照旧抛错（既有语义），但用户数据不能凭空丢掉。
+
+    在 `move_plugin_to_trash` 这一步注入 `OSError`：此时用户数据已经从旧目录移出，
+    失败路径必须把它放回去，而不是丢在临时目录里。
+    """
+    installer_module.install_plugin_dir(_stage_versioned(tmp_path, '0.1.0', 'v1'))
+    target = install_env['plugins_root'] / 'zip-plugin'
+    _write_data_file(target, 'providers.json', '{"user": true}')
+
+    def broken_trash(plugin_id, *, target_dir=''):
+        raise OSError('simulated failure between preserve and replace')
+
+    monkeypatch.setattr(installer_module, 'move_plugin_to_trash', broken_trash)
+
+    with pytest.raises(PluginInstallError, match='安装目录替换失败'):
+        installer_module.install_plugin_dir(_stage_versioned(tmp_path, '0.2.0', 'v2'))
+
+    # 回滚把数据合并了回来（而不是随临时目录被删掉）
+    assert (target / 'data' / 'providers.json').read_text(encoding='utf-8') == '{"user": true}'
+    assert not list(install_env['plugins_root'].glob('.preserved-*'))
+
+
+def test_update_audit_log_records_preserved_data_count(tmp_path, install_env):
+    installer_module.install_plugin_dir(_stage_versioned(tmp_path, '0.1.0', 'v1'))
+    _write_data_file(install_env['plugins_root'] / 'zip-plugin', 'a.json', '{}')
+    _write_data_file(install_env['plugins_root'] / 'zip-plugin', 'b.json', '{}')
+
+    installer_module.install_plugin_dir(_stage_versioned(tmp_path, '0.2.0', 'v2'))
+
+    detail = _install_log_detail()
+    assert detail['preserved_data'] == 2
+    assert detail['preserved_data_conflicts'] == []
+
+
 # ------------------------------------------- 安装/更新后同步内存 manifest（回归）
 
 

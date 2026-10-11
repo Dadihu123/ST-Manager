@@ -16,11 +16,11 @@
  * 当 backdrop root，叠加固定定位的大内容会渲染出黑块（详见 layout.css 的实测记录）。
  */
 
-import { setFullscreenScrim } from "./utils/dom.js";
-import { EntryRegistry } from "./entryRegistry.js";
+import { setFullscreenScrim, isFullscreenScrimActive } from "./utils/dom.js";
+import { EntryRegistry, hostDeviceType } from "./entryRegistry.js";
 import { icon as buildIcon } from "./uiPrimitives.js";
 
-export const SURFACE_TYPES = ["panel", "modal", "page", "sheet"];
+export const SURFACE_TYPES = ["panel", "modal", "page", "sheet", "ambient"];
 
 /**
  * 表面尺寸档位（`spec.size`）。
@@ -42,7 +42,21 @@ const SURFACE_CLASSES = {
   modal: "plugin-surface plugin-surface--modal",
   page: "plugin-surface plugin-surface--page",
   sheet: "plugin-surface plugin-surface--sheet",
+  ambient: "plugin-surface plugin-surface--ambient",
 };
+
+/** 常驻环境层被宿主遮挡时容器上的状态类（插件据此暂停动画或降频）。 */
+const AMBIENT_OCCLUDED_CLASS = "is-host-occluded";
+
+/**
+ * `ambient`（常驻环境层）的语义与其他四种**每一项都相反**：
+ * 注册即挂载、非模态、不抢焦点、无 ESC、不参与遮罩记账、不渲染头部与关闭按钮。
+ * 因此它走完全独立的挂载路径，**不复用 `openSurface`**——那条路径会建 header、
+ * 设 `role="dialog"`、装焦点陷阱、调 `setFullscreenScrim`，每一项对常驻图层都是错的。
+ */
+function isAmbient(record) {
+  return record.type === "ambient";
+}
 
 const FOCUSABLE_SELECTOR = [
   "a[href]",
@@ -82,6 +96,17 @@ export const PluginSurfaceHost = {
       event.preventDefault();
       event.stopPropagation();
       this.close(this.activeKey);
+    });
+
+    // 环境层降级：页面不可见时也标记 `is-host-occluded`（插件据此暂停动画）。
+    // 常驻图层的降级由宿主统一触发，插件不得各自监听。
+    document.addEventListener("visibilitychange", () => {
+      this._syncAmbientOcclusion();
+    });
+
+    // 遮罩活跃态翻转（含插件自己调 `api.setFullscreenScrim` 的情形）→ 重算降级态
+    window.addEventListener("host:fullscreen-scrim-changed", () => {
+      this._syncAmbientOcclusion();
     });
 
     // 插件被禁用 / 卸载时，宿主**强制**卸载它的全部 surface（不依赖插件 deactivate）
@@ -125,7 +150,134 @@ export const PluginSurfaceHost = {
       onOpen: typeof spec.onOpen === "function" ? spec.onOpen : null,
       onClose: typeof spec.onClose === "function" ? spec.onClose : null,
     });
+
+    const record = this.surfaces.get(key);
+    // 常驻环境层：**注册即挂载**，没有 open/close 动作。
+    if (isAmbient(record)) {
+      this._mountAmbient(record);
+    }
     return key;
+  },
+
+  /**
+   * 挂载常驻环境层（`type: 'ambient'`）。
+   *
+   * 与 `openSurface` 的差异是**每一项都相反**：无 header / 无关闭按钮 / 不设
+   * `role="dialog"` / 不装焦点陷阱 / 不碰 `setFullscreenScrim` / 不参与 ESC。
+   * 容器是全屏透明层且整体 `pointer-events: none`，可交互子元素自行取回 `auto`。
+   *
+   * 移动端不挂载：屏幕小，常驻图层会遮挡内容且没有「挪开」的手段
+   * （与入口坞在 mobile 下退化为顶栏按钮的既有设计一致）。
+   */
+  _mountAmbient(record) {
+    if (this.open.has(record.key)) return null;
+
+    if (hostDeviceType() === "mobile") {
+      console.warn(
+        `[surfaceHost] 移动端不挂载 ambient surface，已跳过: ${record.key}`,
+      );
+      return null;
+    }
+
+    const root = ensureSurfaceRoot();
+    const shell = document.createElement("div");
+    shell.className = SURFACE_CLASSES.ambient;
+    shell.dataset.plugin = record.pluginId;
+    shell.dataset.surface = record.id;
+    shell.dataset.surfaceType = record.type;
+    // 框选（marqueeSelection）不命中坞与浮层
+    shell.dataset.marqueeIgnore = "true";
+    // 常驻图层**不设** role / aria-modal / aria-label，也不碰焦点：
+    // 它是背景环境，不是对话框。设 role="dialog" 会让屏幕阅读器把整页当成模态。
+
+    const body = document.createElement("div");
+    body.className = "plugin-surface__ambient-body";
+    shell.appendChild(body);
+    root.appendChild(shell);
+
+    const state = {
+      key: record.key,
+      record,
+      container: body,
+      shell,
+      scrimOwner: "",
+      disposer: null,
+      ambient: true,
+    };
+
+    this.open.set(record.key, state);
+
+    try {
+      const returned = record.mount(body, {
+        source: "ambient",
+        targetId: "",
+        mode: "",
+        targetKind: "",
+        targetPath: "",
+        targetIds: [],
+        pluginId: record.pluginId,
+        surfaceId: record.id,
+      });
+      if (typeof returned === "function") state.disposer = returned;
+    } catch (error) {
+      console.error(
+        `[surfaceHost] 插件 ${record.pluginId} 的 ambient ${record.id} 挂载失败:`, error,
+      );
+      this.close(record.key);
+      window.dispatchEvent(
+        new CustomEvent("plugin:surface-error", {
+          detail: { pluginId: record.pluginId, surfaceId: record.id, error: String(error) },
+        }),
+      );
+      return null;
+    }
+
+    this._syncAmbientOcclusion();
+    return body;
+  },
+
+  /**
+   * 同步全部常驻环境层的「被宿主遮挡」状态（D1.4）。
+   *
+   * **由宿主统一触发，插件不得各自监听**——插件只消费 `is-host-occluded` 这个
+   * 可检测钩子并据此暂停动画或降频。触发点为 `_mountAmbient` / 打开或关闭任一
+   * 非 ambient surface / 遮罩变更 / `visibilitychange`。
+   */
+  _syncAmbientOcclusion() {
+    const hidden = typeof document !== "undefined" && document.visibilityState
+      ? document.visibilityState !== "visible"
+      : false;
+    const occluded =
+      hidden || isFullscreenScrimActive() || this._hasBlockingSurfaceOpen();
+
+    for (const state of this.open.values()) {
+      if (!state.ambient || !state.shell || !state.shell.classList) continue;
+      state.shell.classList.toggle(AMBIENT_OCCLUDED_CLASS, occluded);
+    }
+    return occluded;
+  },
+
+  /** 是否有「对话框型」（非 ambient）surface 处于打开态。 */
+  _hasBlockingSurfaceOpen() {
+    for (const state of this.open.values()) {
+      if (!state.ambient) return true;
+    }
+    return false;
+  },
+
+  /** 公开查询：是否有对话框型 surface 打开（`api.host.onState` 的 `surfaceOpen`）。 */
+  hasOpenSurface() {
+    return this._hasBlockingSurfaceOpen();
+  },
+
+  /** 广播对话框开合（宿主内部信号，供状态广播使用）。 */
+  _notifySurfaceState() {
+    if (typeof window === "undefined" || !window.dispatchEvent) return;
+    window.dispatchEvent(
+      new CustomEvent("host:surface-state-changed", {
+        detail: { open: this._hasBlockingSurfaceOpen() },
+      }),
+    );
   },
 
   has(key) {
@@ -153,6 +305,12 @@ export const PluginSurfaceHost = {
     if (!record) {
       console.warn(`[surfaceHost] 未注册的 surface: ${key}`);
       return null;
+    }
+    // 常驻环境层没有「打开」动作——注册那一刻它已经挂在屏幕上了。
+    // 这里返回既有容器（而非再走下面的对话框路径），否则会建 header / 装焦点陷阱。
+    if (isAmbient(record)) {
+      const mounted = this.open.get(record.key);
+      return mounted ? mounted.container : this._mountAmbient(record);
     }
     if (this.open.has(record.key)) {
       // 复用既有容器；把新 ctx 重新投递给插件（这是入口切换作用域的唯一通道）
@@ -299,6 +457,9 @@ export const PluginSurfaceHost = {
     }
 
     this._trapFocus(shell);
+    // 打开任一对话框型 surface → 常驻环境层进入降级态（必须在本记录入表之后）
+    this._syncAmbientOcclusion();
+    this._notifySurfaceState();
     return body;
   },
 
@@ -329,6 +490,7 @@ export const PluginSurfaceHost = {
     const state = this.open.get(target);
     if (!state) return false;
 
+    const wasAmbient = Boolean(state.ambient);
     this.open.delete(target);
     if (this.activeKey === target) this.activeKey = "";
 
@@ -360,8 +522,18 @@ export const PluginSurfaceHost = {
     if (state.shell && state.shell.parentNode) state.shell.parentNode.removeChild(state.shell);
     if (state.scrimOwner) setFullscreenScrim(false, state.scrimOwner);
 
+    // 常驻图层的回收不参与焦点恢复（它从未碰过焦点），但要重算降级状态：
+    // 关掉的若是最后一个对话框型 surface，环境层就该从 `is-host-occluded` 里出来。
+    if (wasAmbient) {
+      this._syncAmbientOcclusion();
+      return true;
+    }
+
     const previous = this.activeKey;
     if (!previous) this._restoreFocus();
+    // 打开/关闭对话框型 surface 会改变环境层的降级条件与 surfaceOpen 状态
+    this._syncAmbientOcclusion();
+    this._notifySurfaceState();
     return true;
   },
 

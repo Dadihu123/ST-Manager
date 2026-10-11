@@ -513,6 +513,7 @@ const fullscreenScrimOwners = new Set();
 export function setFullscreenScrim(open, owner = "default") {
   if (typeof document === "undefined" || !document.body) return false;
   const key = String(owner || "default");
+  const before = fullscreenScrimOwners.size > 0;
   if (open) {
     fullscreenScrimOwners.add(key);
   } else {
@@ -520,6 +521,15 @@ export function setFullscreenScrim(open, owner = "default") {
   }
   const active = fullscreenScrimOwners.size > 0;
   document.body.classList.toggle(FULLSCREEN_SCRIM_CLASS, active);
+
+  // 遮罩活跃态**翻转**时广播一次（宿主内部信号）：常驻环境层据此进入/退出
+  // `is-host-occluded` 降级态。只在真正翻转时派发，避免同一状态被反复记账
+  // （`setFullscreenScrim` 的调用方可能对同一状态重复触发）。
+  if (active !== before && typeof window !== "undefined" && window.dispatchEvent) {
+    window.dispatchEvent(
+      new CustomEvent("host:fullscreen-scrim-changed", { detail: { active } }),
+    );
+  }
   return active;
 }
 

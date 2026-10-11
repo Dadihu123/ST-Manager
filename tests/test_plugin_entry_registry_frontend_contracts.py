@@ -67,7 +67,14 @@ def test_registry_module_exists_and_exports_contract():
 
 
 def test_kind_and_surface_sets_match_backend_contract():
-    """前端集合必须与 `core/plugins/entries.py` 完全一致。"""
+    """前端集合必须是 `core/plugins/entries.py` 的**超集**。
+
+    - `ENTRY_KINDS` 目前两侧恒等。
+    - `SURFACE_TYPES` **不是**恒等：后端那份校验 manifest 的
+      `entries[].surface.type`，而 `ambient`（常驻环境层）注册即挂载、没有用户
+      可见入口，在 manifest 里声明没有意义，因此后端保持四元组不变；前端额外
+      支持宿主专属的 `ambient`。
+    """
     from core.plugins.entries import ENTRY_KINDS, SURFACE_TYPES
 
     source = read_source(REGISTRY_PATH)
@@ -76,11 +83,14 @@ def test_kind_and_surface_sets_match_backend_contract():
         'ENTRY_KINDS = ["dock", "nav", "settings", "context", "command", "status", "batch"]'
         in source
     )
-    assert 'SURFACE_TYPES = ["panel", "modal", "page", "sheet"]' in source
+    assert 'SURFACE_TYPES = ["panel", "modal", "page", "sheet", "ambient"]' in source
 
-    # 逐项对齐，防止只改一侧
+    # 各自断言自己的精确集合，避免任一侧被悄悄增删
     assert set(ENTRY_KINDS) == {'dock', 'nav', 'settings', 'context', 'command', 'status', 'batch'}
     assert set(SURFACE_TYPES) == {'panel', 'modal', 'page', 'sheet'}
+
+    # 前端 ⊇ 后端：新增宿主专属 surface 类型不应打破契约
+    assert {'panel', 'modal', 'page', 'sheet'} <= {'panel', 'modal', 'page', 'sheet', 'ambient'}
 
 
 def test_target_kinds_match_backend_contract():

@@ -76,15 +76,16 @@ const ENTRY_KIND_LABELS = {
 /**
  * 入口出现位置的说明（总览页「出现位置」列）。
  *
- * **必须如实描述**：`settings` / `nav` / `status` 三种 kind 目前宿主**没有任何
- * 渲染消费者**（`settings` 只有 `manifest.entries` 的声明，没有设置页注入；
- * `nav` / `status` 更是只在契约里存在）。旧文案写「设置页 / 侧栏导航 / 状态栏」
- * 会让用户以为入口已经生效，实际点了什么都不会发生。
+ * **必须如实描述**：`nav` / `status` 两种 kind 目前宿主**没有任何渲染消费者**。
+ * 旧文案写「侧栏导航 / 状态栏」会让用户以为入口已经生效，实际点了什么都不会发生。
+ *
+ * `settings` 自本次起**已有消费者**：渲染为插件管理页内的「插件设置入口」区块
+ * （见 `settingsEntries` / `openSettingsEntry`）。
  */
 const ENTRY_LOCATION_LABELS = {
   dock: "入口坞",
   nav: "宿主未实现",
-  settings: "宿主未实现",
+  settings: "插件管理页",
   context: "右键菜单",
   command: "命令面板",
   status: "宿主未实现",
@@ -96,7 +97,7 @@ const ENTRY_LOCATION_LABELS = {
  *
  * 用于总览页给未实现的 kind 打上「未实现」标记——这比一句文案更难被忽略。
  */
-const IMPLEMENTED_ENTRY_KINDS = new Set(["dock", "context", "command", "batch"]);
+const IMPLEMENTED_ENTRY_KINDS = new Set(["dock", "context", "command", "batch", "settings"]);
 
 /** 当前呈现方式的说明（总览页「当前呈现」列）。 */
 const SURFACE_LABELS = {
@@ -454,6 +455,40 @@ export default function pluginManager() {
       const shortcuts = (EntryRegistry.layout && EntryRegistry.layout.shortcuts) || {};
       const key = String((row && row.key) || "");
       return Object.values(shortcuts).includes(key);
+    },
+
+    // ---------------------------------------------------------------- settings 入口
+
+    /**
+     * `kind: 'settings'` 的渲染消费者（设计文档 D7）。
+     *
+     * **为什么挂在插件管理页内、不新增设置顶层 tab**：设置页的
+     * `selectSettingTab` 有硬闸门——`if (!this.settingsHelpContent[section]) return;`
+     * 新增顶层分区必须同时改 `settingsHelpContent` + `COMMAND_PALETTE_ENTRIES` +
+     * 模板，成本远大于收益，且会让设置页持续膨胀。`plugins` 键已存在，因此
+     * 注入到既有分区内即可规避该闸门。
+     *
+     * 只取**已启用**插件的 settings 入口：被禁用的插件不该在设置页留按钮。
+     */
+    get settingsEntries() {
+      return this.entryRows.filter(
+        (row) => String(row.kind || "") === "settings" && row.pluginEnabled,
+      );
+    },
+
+    /** 点击 settings 入口：打开该插件声明的 surface。 */
+    openSettingsEntry(row) {
+      const entry = EntryRegistry.get(String((row && row.key) || ""));
+      if (!entry) {
+        toast("入口已失效，插件可能已被禁用", "error");
+        return false;
+      }
+      // 与坞的打开路径同一契约：优先走插件注册的 surface，
+      // 没有 surface 时派发 `entry:activate` 交给插件自己处理。
+      window.dispatchEvent(
+        new CustomEvent("entry:open", { detail: { key: entry.key } }),
+      );
+      return true;
     },
 
     /** 录制快捷键：按下的组合键写入 `layout.shortcuts`。 */

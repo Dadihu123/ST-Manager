@@ -19,7 +19,12 @@ import { HOST_ICON_COUNT, ICON_ALIASES, ICON_SPRITE_MAP } from "./iconMap.js";
 const STATIC_ICON_BASE = "/static/icons";
 const PLUGIN_ASSET_BASE = "/api/plugins";
 
-/** 与后端 `assets.ALLOWED_EXTENSIONS` 对齐的图标扩展名子集。 */
+/**
+ * 图标扩展名：后端 `assets.ALLOWED_EXTENSIONS` 的**真子集**。
+ *
+ * 不跟随后端全部放行是有意为之——图标位是 16–24px 的 mask 渲染，`.gif` 的动图
+ * 与 `.avif` 在这里没有意义；后端为「图片资产」放行的扩展名比图标需要的多。
+ */
 export const PLUGIN_ICON_EXTENSIONS = new Set([".svg", ".png", ".webp"]);
 
 /** 判断取值是否是宿主图标名（而非插件自带资源路径）。 */
@@ -51,9 +56,9 @@ export function spriteForIcon(value) {
  * 后者必须带上插件 id 才能定位——路径里本身不含 id，所以这里要求调用方
  * 提供 `pluginId`；拿不到 id 时返回空串（降级为占位图标，而不是猜一个 URL）。
  *
- * 安全：与后端 `core/plugins/assets.py` 同一套约束——拒绝绝对路径、拒绝 `..`、
- * 只放行 `ALLOWED_EXTENSIONS`（`.svg` 在内）。这里做的是**前端侧**的提前拒绝，
- * 真正的边界检查仍在后端路由。
+ * 安全：与后端 `core/plugins/assets.py` 同一套约束——拒绝绝对路径、拒绝 `..`，
+ * 扩展名收在 `PLUGIN_ICON_EXTENSIONS`（后端资产白名单的真子集，见上）。这里做的是
+ * **前端侧**的提前拒绝，真正的边界检查仍在后端路由。
  *
  * @param {string} value 资源路径（相对插件根目录）。
  * @param {string} pluginId 插件 id。

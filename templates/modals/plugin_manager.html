@@ -115,6 +115,33 @@
         </p>
       </div>
 
+      <!-- 插件设置入口（`entries[].kind === 'settings'`，D7）：
+           宿主在既有「插件管理」分区内注入区块。**不新增设置顶层 tab**——
+           `settingsHelpContent` 是 `selectSettingTab` 的硬闸门，新增分区要同时改
+           键表、命令面板与模板，成本远大于收益。 -->
+      <section class="plugin-settings-entries" x-show="settingsEntries.length" x-cloak>
+        <h4 class="plugin-settings-entries-title">插件设置入口</h4>
+        <p class="plugin-manager-hint">
+          以下插件在设置页提供了自己的面板入口。
+        </p>
+        <div class="plugin-settings-entries-grid">
+          <template x-for="row in settingsEntries" :key="'settings-' + row.key">
+            <button
+              type="button"
+              class="plugin-settings-entry"
+              :data-plugin-entry="row.key"
+              @click="openSettingsEntry(row)"
+            >
+              <span class="plugin-settings-entry-icon" aria-hidden="true" x-html="entryIconHtml(row)"></span>
+              <span class="plugin-settings-entry-text">
+                <span class="plugin-settings-entry-label" x-text="row.label"></span>
+                <span class="plugin-settings-entry-meta" x-text="row.pluginName"></span>
+              </span>
+            </button>
+          </template>
+        </div>
+      </section>
+
       <template x-for="item in plugins" :key="item.id">
         <article class="plugin-card" :class="{ 'is-disabled': !item.enabled, 'is-failed': !!item.load_error, 'is-update-available': !!updateFor(item.id) }" :data-plugin-card="item.id">
           <header class="plugin-card-header">

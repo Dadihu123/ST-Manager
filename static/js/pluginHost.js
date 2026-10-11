@@ -20,7 +20,11 @@
  */
 
 import { parseSSEFrames, parseSSEPayload } from "./utils/sse.js";
+// 这一行**保持单行原样**：`test_fullscreen_scrim_compositing_contracts.py` 的
+// `test_plugin_host_exposes_the_scrim_contract` 断言的是它的**完整字面量**。
+// 需要 import 同模块的第二个符号时另起一行，不要合并成多行解构。
 import { setFullscreenScrim as applyFullscreenScrim } from "./utils/dom.js";
+import { isFullscreenScrimActive } from "./utils/dom.js";
 import { resolveIconUrl } from "./utils/icons.js";
 import { EntryRegistry } from "./entryRegistry.js";
 import { PluginSurfaceHost } from "./pluginSurfaceHost.js";
@@ -86,9 +90,11 @@ function ensureRootNode() {
 /**
  * D11：资产 URL 追加 `?v=<插件版本>`。
  *
- * 后端 `send_file` 用的是 `Cache-Control: no-cache`（每次都会回源校验），但
- * 「no-cache」只保证会发请求，浏览器仍可能用启发式新鲜度把旧响应给出去；
- * 插件更新后版本号变化会让 URL 变化，从而彻底绕开这个问题。
+ * 后端 `core/plugins/assets.py` 给资产下发
+ * `Cache-Control: private, max-age=31536000, immutable`（版本化强缓存）——
+ * 这只有在 URL 真的随版本变化时才成立，所以这里必须带上 `v=`：
+ * 插件更新后版本号变化会让 URL 变化，从而彻底绕开旧响应的复用问题。
+ * 后端同时支持条件请求（`If-None-Match` → 304），`v=` 未变时也有廉价回源路径。
  */
 function withAssetVersion(url, version) {
   const stamp = String(version || "").trim();
@@ -137,6 +143,363 @@ function removeInjectedStyles(pluginId) {
   return nodes.length;
 }
 
+/**
+ * 核心事件的前端通路（设计文档 6.7.2）。
+ *
+ * **懒连接**：首次订阅核心事件时才建立 SSE；零订阅的插件不占连接配额。
+ * **一条流服务一个插件的全部核心事件订阅**——`api.on()` 调 N 次也只有一个
+ * `EventSource`，因为服务端配额按连接数计。
+ *
+ * 分派在**插件本地**完成（`listeners: Map<event, Set<handler>>`），因此
+ * `?events=` 不需要随订阅变化重连：流一次订阅全部核心事件即可。
+ */
+const coreEventBridge = {
+  /** pluginId → { source, listeners, stopped } */
+  connections: new Map(),
+
+  subscribe(pluginId, event, handler, own) {
+    const key = String(pluginId);
+    let conn = this.connections.get(key);
+    if (!conn) {
+      conn = { source: null, listeners: new Map(), stopped: false, polling: false };
+      this.connections.set(key, conn);
+      this._connect(key, conn);
+      // 连接生命周期挂到插件 disposer，与 subscribeJob 完全同一个模式
+      if (typeof own === "function") {
+        own(() => this.close(key));
+      }
+    }
+
+    if (!conn.listeners.has(event)) conn.listeners.set(event, new Set());
+    conn.listeners.get(event).add(handler);
+
+    return () => {
+      const current = this.connections.get(key);
+      if (!current) return;
+      const bucket = current.listeners.get(event);
+      if (bucket) {
+        bucket.delete(handler);
+        if (!bucket.size) current.listeners.delete(event);
+      }
+      // 零订阅 → 立刻释放连接（零订阅的插件不该占配额）
+      if (!current.listeners.size) this.close(key);
+    };
+  },
+
+  _connect(key, conn) {
+    const url = "/api/plugins/events";
+    const dispatch = (payload) => this._dispatch(key, conn, payload);
+
+    if (typeof EventSource !== "function") {
+      // 无 SSE 能力时不伪装成轮询：核心事件只有这一条通路，编造一个不存在的
+      // 轮询端点只会让插件在 404 里静默失败。明确告警，让插件作者用
+      // `when: { feature: ['hasSSE'] }` 门控（与作业流不同：作业还有可回看的表，
+      // 核心事件是**广播**，没有历史可轮询）。
+      console.warn(
+        `[pluginHost] 当前环境不支持 EventSource，插件 ${key} 的 api.on(核心事件) 将收不到推送`,
+      );
+      return;
+    }
+
+    let source = null;
+    try {
+      source = new EventSource(url);
+    } catch (error) {
+      console.warn(`[pluginHost] 插件 ${key} 的核心事件流建立失败:`, error);
+      return;
+    }
+    conn.source = source;
+
+    source.addEventListener("core", (event) => {
+      let payload = null;
+      try {
+        payload = JSON.parse(event.data);
+      } catch (error) {
+        payload = null;
+      }
+      dispatch(payload);
+    });
+
+    let opened = false;
+    source.addEventListener("open", () => {
+      opened = true;
+    });
+    source.addEventListener("error", () => {
+      if (conn.stopped) return;
+      source.close();
+      if (!opened) {
+        console.warn(`[pluginHost] 插件 ${key} 的核心事件流不可用（连接被拒绝）`);
+        return;
+      }
+      // 已连上过：让浏览器自动重连（EventSource 内置退避）。
+      // 监听不随实例复用，因此重连后必须重新挂一次。
+      try {
+        const next = new EventSource(url);
+        conn.source = next;
+        this._wire(key, conn, next, dispatch);
+      } catch (error) {
+        console.warn(`[pluginHost] 插件 ${key} 的核心事件流重连失败:`, error);
+      }
+    });
+  },
+
+  /** 把帧派发给该插件在当前事件名上的全部监听器。 */
+  _dispatch(key, conn, payload) {
+    const name = String((payload && payload.event) || "");
+    const bucket = conn.listeners.get(name);
+    if (!bucket) return;
+    for (const handler of Array.from(bucket)) {
+      try {
+        handler(payload ? payload.payload : null);
+      } catch (error) {
+        console.warn(`[pluginHost] 插件 ${key} 的 ${name} 处理器抛错:`, error);
+      }
+    }
+  },
+
+  /** 重连后重新挂监听。 */
+  _wire(key, conn, source, dispatch) {
+    source.addEventListener("core", (event) => {
+      let payload = null;
+      try {
+        payload = JSON.parse(event.data);
+      } catch (error) {
+        payload = null;
+      }
+      dispatch(payload);
+    });
+    source.addEventListener("error", () => {
+      if (conn.stopped) return;
+      source.close();
+      try {
+        const next = new EventSource("/api/plugins/events");
+        conn.source = next;
+        this._wire(key, conn, next, dispatch);
+      } catch (error) {
+        console.warn(`[pluginHost] 插件 ${key} 的核心事件流重连失败:`, error);
+      }
+    });
+  },
+
+  close(key) {
+    const conn = this.connections.get(String(key));
+    if (!conn) return false;
+    conn.stopped = true;
+    if (conn.source) conn.source.close();
+    conn.source = null;
+    conn.listeners.clear();
+    this.connections.delete(String(key));
+    return true;
+  },
+
+  closeAll() {
+    for (const key of Array.from(this.connections.keys())) this.close(key);
+  },
+};
+
+/**
+ * 订阅一个核心事件。
+ *
+ * 每次订阅都先**清理该事件上的同名监听**：`api.on()` 的取消函数已经负责摘除，
+ * 这里只保证 `Set<handler>` 的语义成立（同一个函数重复订阅只登记一次）。
+ */
+function subscribeCoreEvent(pluginId, event, handler) {
+  return coreEventBridge.subscribe(
+    pluginId,
+    event,
+    handler,
+    (disposer) => PluginHost.addDisposer(pluginId, disposer),
+  );
+}
+
+/**
+ * 宿主状态广播（`api.host.onState`，设计文档 D6）。
+ *
+ * 插件要「与界面联动」（宠物随视图切换改变行为、忙时安静下来…），此前只能各自
+ * 去读 `window.Alpine.store("global")` —— 那是 Provisional 耦合，宿主改字段名
+ * 插件就静默失效。这里把宿主状态收成**一份**快照并去抖推送。
+ *
+ * 单一订阅源：内部只装一遍监听，多个插件的多个 handler 共用一次计算。
+ */
+const hostStateBroadcaster = {
+  listeners: new Set(),
+  watchersInstalled: false,
+  mediaQuery: null,
+  pending: false,
+  last: null,
+
+  subscribe(handler) {
+    if (typeof handler !== "function") return () => {};
+    this.listeners.add(handler);
+    this.installWatchers();
+
+    // 首次订阅**立即推一次快照**，插件不必自己先探一次。
+    // 同时把它记为「已推送的最后值」，否则随后的第一次去抖 flush 会把同一份
+    // 快照再推一遍（订阅后什么都没变，插件却收到两次回调）。
+    let initial = null;
+    try {
+      initial = this.snapshot();
+    } catch (error) {
+      console.warn("[pluginHost] 读取宿主状态失败:", error);
+    }
+    if (initial) {
+      this.last = JSON.stringify(initial);
+      try {
+        handler(initial);
+      } catch (error) {
+        console.warn("[pluginHost] 插件状态处理器抛错:", error);
+      }
+    }
+
+    return () => {
+      this.listeners.delete(handler);
+    };
+  },
+
+  /** 采集当前快照。字段名以 `static/js/state.js` 为准（不猜）。 */
+  snapshot() {
+    const store = PluginHost.store || null;
+    const batch = (store && store.batchProgress) || {};
+    const index = (store && store.indexStatus) || {};
+
+    // 忙碌 = 批处理在跑，或索引/扫描在建。两者都是既有状态，不新造一套。
+    const busy =
+      String(batch.status || "") === "running" ||
+      String(index.state || "") === "building" ||
+      Boolean(index.scan_active);
+
+    return {
+      mode: String((store && store.currentMode) || ""),
+      deviceType: String((store && store.deviceType) || "desktop"),
+      darkMode: store ? Boolean(store.isDarkMode) : false,
+      scrimActive: Boolean(isFullscreenScrimActive()),
+      surfaceOpen: PluginSurfaceHost.hasOpenSurface(),
+      busy,
+      reducedMotion: Boolean(this.mediaQuery && this.mediaQuery.matches),
+      visible: typeof document !== "undefined" && document.visibilityState
+        ? document.visibilityState === "visible"
+        : true,
+    };
+  },
+
+  /**
+   * 合并去抖推送。
+   *
+   * 一次视图切换会同时改 `currentMode` 与多个无关字段；逐字段各推一次会让插件
+   * 在一帧里收到十几个回调并重复重建 DOM。这里用 rAF（不可用时退 100ms 微批）
+   * 合并成**一次**推送，并且只在快照真的变了才推。
+   */
+  schedule() {
+    if (this.pending) return;
+    this.pending = true;
+    const flush = () => {
+      this.pending = false;
+      this.flush();
+    };
+    if (typeof window !== "undefined" && typeof window.requestAnimationFrame === "function") {
+      window.requestAnimationFrame(flush);
+      return;
+    }
+    setTimeout(flush, 100);
+  },
+
+  flush() {
+    if (!this.listeners.size) return;
+    let next = null;
+    try {
+      next = this.snapshot();
+    } catch (error) {
+      console.warn("[pluginHost] 读取宿主状态失败:", error);
+      return;
+    }
+
+    const serialized = JSON.stringify(next);
+    if (serialized === this.last) return;
+    this.last = serialized;
+
+    for (const handler of Array.from(this.listeners)) {
+      try {
+        handler(next);
+      } catch (error) {
+        console.warn("[pluginHost] 插件状态处理器抛错:", error);
+      }
+    }
+  },
+
+  installWatchers() {
+    if (this.watchersInstalled) return;
+    this.watchersInstalled = true;
+
+    // `reducedMotion` **必须**监听 change：用户可以在系统设置里改，
+    // 不改页面就变，只读一次会永远停在初始值。
+    if (typeof window !== "undefined" && typeof window.matchMedia === "function") {
+      try {
+        this.mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+        const onChange = () => this.schedule();
+        if (typeof this.mediaQuery.addEventListener === "function") {
+          this.mediaQuery.addEventListener("change", onChange);
+        } else if (typeof this.mediaQuery.addListener === "function") {
+          // Safari < 14 的旧签名
+          this.mediaQuery.addListener(onChange);
+        }
+      } catch (error) {
+        console.warn("[pluginHost] reduced-motion 监听安装失败:", error);
+      }
+    }
+
+    if (typeof window === "undefined") return;
+
+    // 宿主内部的显式信号
+    window.addEventListener("host:surface-state-changed", () => this.schedule());
+    window.addEventListener("host:fullscreen-scrim-changed", () => this.schedule());
+    window.addEventListener("entries:changed", () => this.schedule());
+    ["mode-changed", "theme-mode-changed", "settings-saved"].forEach((name) => {
+      window.addEventListener(name, () => this.schedule());
+    });
+
+    if (typeof document !== "undefined") {
+      document.addEventListener("visibilitychange", () => this.schedule());
+    }
+
+    // 其余字段（`batchProgress` / `indexStatus` / `deviceType`）走 Alpine 响应式：
+    // 它们有多个写入点，逐个补 dispatchEvent 迟早漏一个（`entryRegistry` 对
+    // `viewState.selectedIds` 用了同一个判断与同一个做法）。
+    const installAlpineWatcher = () => {
+      const alpine = window.Alpine;
+      if (!alpine || typeof alpine.effect !== "function") return false;
+      try {
+        alpine.effect(() => {
+          const store = PluginHost.store;
+          if (!store) return;
+          // 只为建立依赖：读到的值不影响计算，变化时靠 schedule() 去抖合并
+          void String(store.currentMode || "");
+          void String(store.deviceType || "");
+          void Boolean(store.isDarkMode);
+          void String((store.batchProgress || {}).status || "");
+          void Number((store.batchProgress || {}).current || 0);
+          void String((store.indexStatus || {}).state || "");
+          void Boolean((store.indexStatus || {}).scan_active);
+          this.schedule();
+        });
+        return true;
+      } catch (error) {
+        console.warn("[pluginHost] 宿主状态监听安装失败:", error);
+        return false;
+      }
+    };
+
+    if (!installAlpineWatcher()) {
+      if (typeof document !== "undefined" && document.addEventListener) {
+        document.addEventListener("alpine:initialized", () => {
+          installAlpineWatcher();
+        });
+      }
+    }
+  },
+};
+
+
+
 export const PluginHost = {
   initialized: false,
   loading: false,
@@ -145,6 +508,15 @@ export const PluginHost = {
   failed: new Map(),
   /** 插件 id → 该插件的 disposer 列表（activate 返回值 + 内部注册的清理函数） */
   disposers: new Map(),
+
+  /** 主程序 store（`Alpine.store("global")`）。宿主内部与状态广播共用同一个取法。 */
+  get store() {
+    const alpine = window.Alpine || window.__ALPINE__;
+    if (alpine && typeof alpine.store === "function") {
+      return alpine.store(PLUGIN_STORE_NAME) || null;
+    }
+    return null;
+  },
 
   init() {
     if (this.initialized) return;
@@ -307,17 +679,20 @@ export const PluginHost = {
       state,
 
       get store() {
-        const alpine = window.Alpine || window.__ALPINE__;
-        if (alpine && typeof alpine.store === "function") {
-          return alpine.store(PLUGIN_STORE_NAME) || null;
-        }
-        return null;
+        return host.store;
       },
 
       // ---- 事件 ----
+      //
+      // 核心事件（`CORE_EVENTS`）走后端 SSE 流：后端在关键流程末尾 `hooks.emit(...)`，
+      // 前端 `window.addEventListener` 是**收不到**的（那是两条独立的总线）。
+      // 其余事件名保持既有行为（`window` CustomEvent），语义不变。
       on(event, handler) {
         const name = String(event || "").trim();
         if (!name || typeof handler !== "function") return () => {};
+        if (CORE_EVENTS.has(name)) {
+          return subscribeCoreEvent(pluginId, name, handler);
+        }
         const wrapped = (domEvent) => handler(domEvent.detail);
         window.addEventListener(name, wrapped);
         return () => window.removeEventListener(name, wrapped);
@@ -436,6 +811,26 @@ export const PluginHost = {
           else if (level === "warning") console.warn(text);
           else console.log(text);
         },
+
+        /**
+         * 订阅宿主状态快照（D6）。
+         *
+         * 首次订阅**立即**收到一次快照，之后变化时推送（已合并去抖，一帧一次）。
+         * 返回取消订阅函数，与其他订阅 API 一致。
+         *
+         * 快照形状（字段名取自 `static/js/state.js`，不猜）：
+         * `{mode, deviceType, darkMode, scrimActive, surfaceOpen, busy,
+         *   reducedMotion, visible}`。
+         *
+         * 用途：插件要「与界面联动」时不用再去读 `store`（那是 Provisional 耦合，
+         * 宿主改字段名插件就静默失效）。
+         */
+        onState(handler) {
+          if (typeof handler !== "function") return () => {};
+          const unsubscribe = hostStateBroadcaster.subscribe(handler);
+          own(unsubscribe);
+          return unsubscribe;
+        },
       },
 
       // ---- D8：入口 ----
@@ -477,6 +872,14 @@ export const PluginHost = {
       },
 
       // ---- D8：表面 ----
+      //
+      // `ambient` 是**常驻型** surface，与其余四种语义相反：注册即挂载、
+      // 非模态、不抢焦点、忽略 ESC、不参与遮罩记账、不渲染头部与关闭按钮。
+      // 容器是全屏透明层且整体 `pointer-events: none`——插件在其中的
+      // **每个可交互子元素都必须显式取回 `pointer-events: auto`**
+      // （该属性可继承，漏掉的表现是「点了没反应」）。
+      // 宿主在判定被遮挡时给容器加 `is-host-occluded`，插件据此暂停动画或降频。
+      // 移动端不挂载（`register()` 返回空串并 console.warn）。
       surfaces: {
         register(surfaceId, spec) {
           return PluginSurfaceHost.register(pluginId, surfaceId, spec);
@@ -863,6 +1266,9 @@ export const PluginHost = {
 
     // 强制卸载该插件的全部 surface（不依赖插件的 deactivate）
     PluginSurfaceHost.unregisterPlugin(key);
+    // 核心事件流连接一并断开（与 subscribeJob 的 disposer 同一模式，
+    // 但 dispose 只在有记录时才跑，这里保证即便插件已消失也不残留连接）
+    coreEventBridge.close(key);
     // 注册表条目一并移除
     EntryRegistry.removePlugin(key);
 
@@ -903,6 +1309,7 @@ export const PluginHost = {
   destroyAll() {
     const ids = new Set([...this.loaded.keys(), ...this.disposers.keys()]);
     for (const id of ids) this.destroy(id);
+    coreEventBridge.closeAll();
     return ids.size;
   },
 };

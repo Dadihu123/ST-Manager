@@ -8,9 +8,15 @@
 - **异常吞掉**：插件 handler 抛错只记日志，绝不影响核心流程。
 - **耗时告警**：单个 handler 超过 `SLOW_HANDLER_THRESHOLD` 记 warning。
 - 不提供返回值聚合，避免插件之间的隐式顺序依赖。
+
+另有一条**只读广播**通路（设计文档 6.7）：核心事件同时被喂给
+`GET /api/plugins/events` 的 SSE 流，让浏览器侧的 `api.on('card.updated', …)`
+真的能收到。广播严格 **fire-and-forget**——上面三条派发语义是核心不变量，
+不得因为某个慢客户端而拖住 `card.updated` 的调用方。
 """
 
 import logging
+import queue
 import threading
 import time
 
@@ -34,10 +40,33 @@ CORE_EVENTS = frozenset({
     'index.job_done',
 })
 
+# ---- SSE 广播参数（取值风格对齐 core/plugins/jobs.py）----------------------
+
+#: 单条连接的待发缓冲上限。慢客户端撑满后**丢弃最旧事件**而不是阻塞派发方。
+EVENT_STREAM_QUEUE_SIZE = 256
+
+#: 事件流连接的全局上限（与 jobs.SSE_MAX_CONNECTIONS_TOTAL 同量级）。
+EVENT_STREAM_MAX_CONNECTIONS = 32
+
+#: 心跳间隔（秒），对齐 jobs.SSE_HEARTBEAT_INTERVAL_SECONDS。
+EVENT_STREAM_HEARTBEAT_INTERVAL_SECONDS = 15
+
+#: 生成器轮询缓冲的间隔（秒），对齐 jobs.SSE_POLL_INTERVAL_SECONDS。
+EVENT_STREAM_POLL_INTERVAL_SECONDS = 1.0
+
+#: 广播帧的 SSE 事件名。前端 `EventSource` 用同名监听（设计文档 6.7.1）。
+EVENT_STREAM_FRAME_NAME = 'core'
+
 _handlers_lock = threading.RLock()
 
 # event -> list[_Handler]，保序派发
 _handlers = {}
+
+_stream_lock = threading.Lock()
+#: 已连接的事件流缓冲队列集合
+_stream_subscribers = set()
+#: 当前事件流连接数（全局配额）
+_stream_total = 0
 
 
 class _Handler:
@@ -132,6 +161,11 @@ def emit(event: str, payload: dict | None = None) -> None:
         return
 
     data = payload if isinstance(payload, dict) else {}
+
+    # 广播是 fire-and-forget：只入队，不做任何等待。放在 handler 派发**之前**，
+    # 这样即便某个 handler 很慢，浏览器侧也仍是「事件一发生就收到」。
+    publish_core_event(event, data)
+
     with _handlers_lock:
         handlers = list(_handlers.get(event, ()))
 
@@ -170,3 +204,74 @@ def reset() -> None:
     """清空全部订阅。仅用于测试隔离或进程内重新加载。"""
     with _handlers_lock:
         _handlers.clear()
+
+
+# ------------------------------------------------------------------ 核心事件广播
+
+
+def publish_core_event(event: str, payload: dict) -> int:
+    """把一条**核心事件**投递给所有事件流订阅者，返回投递到的连接数。
+
+    只广播 `CORE_EVENTS`：插件的自定义事件（`<plugin_id>:` 前缀）**不进这条流**，
+    否则插件 A 的噪声会灌给所有插件，且 N1 对插件间通信的「best-effort、不保证
+    顺序」承诺会被误读成强保证。
+
+    **绝不阻塞**：只做 `put_nowait`。队列满（慢客户端）时丢弃最旧事件并记 debug，
+    而不是让核心流程（`card.updated` 的调用方）等一个不读缓冲的浏览器。
+    """
+    if not is_core_event(event):
+        return 0
+
+    record = {'event': event, 'payload': payload, 'ts': time.time()}
+    delivered = 0
+    with _stream_lock:
+        subscribers = list(_stream_subscribers)
+
+    for bucket in subscribers:
+        try:
+            bucket.put_nowait(record)
+            delivered += 1
+        except queue.Full:
+            # 慢客户端：丢最旧的那条，保证最新事件能被看到（新事件比旧事件有用）
+            try:
+                bucket.get_nowait()
+                bucket.put_nowait(record)
+                delivered += 1
+            except (queue.Empty, queue.Full):
+                logger.debug('插件事件流缓冲已满，丢弃事件 %s', event)
+    return delivered
+
+
+def subscribe_core_events() -> queue.Queue | None:
+    """登记一条事件流连接；超出全局配额时返回 None（由路由层转成结构化错误）。"""
+    global _stream_total
+    with _stream_lock:
+        if _stream_total >= EVENT_STREAM_MAX_CONNECTIONS:
+            return None
+        bucket: queue.Queue = queue.Queue(maxsize=EVENT_STREAM_QUEUE_SIZE)
+        _stream_subscribers.add(bucket)
+        _stream_total += 1
+        return bucket
+
+
+def unsubscribe_core_events(bucket: queue.Queue) -> None:
+    """注销一条事件流连接。重复调用是安全的。"""
+    global _stream_total
+    with _stream_lock:
+        if bucket in _stream_subscribers:
+            _stream_subscribers.discard(bucket)
+            _stream_total = max(0, _stream_total - 1)
+
+
+def event_stream_stats() -> dict:
+    """当前事件流连接数（供测试与诊断）。"""
+    with _stream_lock:
+        return {'connections': _stream_total, 'max': EVENT_STREAM_MAX_CONNECTIONS}
+
+
+def reset_event_stream_for_tests() -> None:
+    """清空事件流订阅与计数。仅用于测试隔离（对齐 `reset()`）。"""
+    global _stream_total
+    with _stream_lock:
+        _stream_subscribers.clear()
+        _stream_total = 0

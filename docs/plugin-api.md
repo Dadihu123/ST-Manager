@@ -120,13 +120,13 @@
 | `api(path, options)` | Stable | 调用插件后端：自动前缀 `/api/plugins/<id>`、`X-CSRFToken`，以 `data.success` 判定成败 |
 | `state` | Stable | 插件私有状态对象（随启用/停用生命周期） |
 | `store` | Stable | 主程序的 Alpine `global` store 访问器 |
-| `on(event, handler)` / `off()` / `emit()` | Stable | 插件自定义事件（强制 `<id>:` 前缀） |
+| `on(event, handler)` / `off()` / `emit()` | Stable | 插件自定义事件（强制 `<id>:` 前缀）。**核心事件（`card.updated` / `scan.completed` 等）走宿主 SSE 流**（`GET /api/plugins/events`）：首次订阅时懒建立，同一插件复用同一条连接；其余事件名走 `window` CustomEvent（行为不变） |
 | `onConfigChange(handler)` | Stable | 订阅本插件的配置变更（D10）；返回取消订阅函数 |
 | `entries.*` | Stable | 入口注册表（D8）：`register` / `update` / `remove` / `setBadge` / `setProgress` / `setStatus` / `setBusy` / `open` / `list` |
-| `surfaces.*` | Stable | 宿主表面（D8）：`register(id, spec)` / `open(id, ctx)` / `close(id)` / `isOpen(id)`；容器由宿主提供（定位、尺寸、滚动、焦点陷阱、ESC 关闭） |
+| `surfaces.*` | Stable | 宿主表面（D8）：`register(id, spec)` / `open(id, ctx)` / `close(id)` / `isOpen(id)`；容器由宿主提供（定位、尺寸、滚动、焦点陷阱、ESC 关闭）。`type: 'ambient'` 是**常驻环境层**（F16）：注册即挂载、非模态、不抢焦点、忽略 ESC、不参与遮罩记账；容器全屏透明且 `pointer-events: none`，**其中的可交互子元素必须自行取回 `pointer-events: auto`**（该属性可继承）；被遮挡时宿主加 `is-host-occluded`；移动端不挂载 |
 | `ui.*` | Stable | 宿主 UI 原语（D8）：`icon` / `panel` / `section` / `card` / `field` / `form` / `button` / `toolbar` / `empty` / `error` / `loading` / `badge` / `list` / `table` / `grid` / `split` / `confirm` / `prompt` |
 | `storage.*` | Stable | 插件键值存储（`ui_data._plugins_v1.<id>.storage`）：`get` / `set` / `remove` / `keys` |
-| `host.*` | Stable | 宿主内建能力（D8）：`toast` / `refresh` / `switchMode` / `openDetail` / `openSettingsSection` / `notify` / `log` |
+| `host.*` | Stable | 宿主内建能力（D8）：`toast` / `refresh` / `switchMode` / `openDetail` / `openSettingsSection` / `notify` / `log` / `onState`。其中 `host.onState(handler)` 订阅宿主状态快照（D6）：首次订阅**立即**推一次，之后变化时推送（已合并去抖）；返回取消订阅函数。形状 `{mode, deviceType, darkMode, scrimActive, surfaceOpen, busy, reducedMotion, visible}`——插件要「与界面联动」时用它，不必再去读 `store`（那是 Provisional 耦合） |
 | `toast(msg, duration, icon)` | Stable | 轻提示；`duration` 必须是数字（旧名，等价于 `host.toast`） |
 | `progress.*` | Stable | 复用主程序批处理进度条（`update` / `finish` 等） |
 | `openDetail(target, id)` | Stable | 打开卡片 / 预设 / 会话详情（旧名，委托到 `host.openDetail`） |
@@ -166,9 +166,144 @@
 `api.ui.icon(name)` 与 `entries[].icon` 使用的**宿主图标名**整表承诺 `Stable`：
 只增不改，删除或改名走上面的 deprecation 流程。完整清单见 `GET /api/plugins/ui-icons`。
 
+## 前端 `window` 事件（Provisional）
+
+前端有一批**宿主自己派发**的 `window` CustomEvent。这批名字此前**一个都没写进
+文档**，属于隐性耦合：宿主改名，插件就静默失效，且没有任何编译期或运行期的提示。
+
+因此这里把实际在派发的名字列出来，**分级为 Provisional**（形态已定但仍在收集反馈），
+**不是 Stable** —— 宿主保留在改动时提前一个主版本公告的权利。
+
+订阅方式与其他 `window` 事件一致：
+
+```js
+const handler = (event) => {
+  const detail = event.detail || {};
+  // …
+};
+window.addEventListener("card-updated", handler);
+window.removeEventListener("card-updated", handler);  // 插件销毁时务必摘下
+```
+
+### 刷新类（最常用）
+
+宿主各视图的「重新拉取列表」信号。`api.host.refresh(target)` 就是它们的封装，
+**优先用它**而不是手写事件名：
+
+| 事件名 | `detail` | 说明 |
+|---|---|---|
+| `refresh-card-list` | `{}` | 角色卡列表需要刷新 |
+| `refresh-wi-list` | `{}` | 世界书列表需要刷新 |
+| `refresh-chat-list` | `{}` | 会话列表需要刷新 |
+| `refresh-preset-list` | `{}` | 预设列表需要刷新 |
+| `refresh-beautify-list` | `{}` | 美化资源列表需要刷新 |
+| `refresh-folder-list` | `{}` | 文件夹树需要刷新 |
+| `refresh-detail-chats` | `{}` | 详情页内的会话列表需要刷新 |
+
+`api.host.refresh("cards" | "worldinfo" | "chats" | "presets" | "beautify")`
+会派发上表对应项。
+
+> **注意**：`refresh-card-list` 的覆盖**并不完整**——`cardGrid` 有多处直接
+> `fetchCards()` 而不派发该事件（设计文档 F10 已记录）。它不是「数据变了」的
+> 可靠信号，只应作为「顺手刷新一下」的提示。
+
+### 数据变更类
+
+| 事件名 | `detail` | 说明 |
+|---|---|---|
+| `card-updated` | `{ id }` | 某张角色卡已被编辑保存 |
+| `card-imported` | 视调用点而定 | 单张卡片导入完成 |
+| `batch-cards-imported` | 视调用点而定 | 批量导入完成 |
+| `tags-deleted` | 视调用点而定 | 标签被删除 |
+| `wi-note-updated` | 视调用点而定 | 世界书备注变更 |
+
+**后端核心事件请走 `api.on(...)`，不要用这些 `window` 事件。**
+`api.on("card.updated", h)` 现在经 SSE 从后端直达（见下节），
+信息比这些 UI 本地信号更完整、更权威。
+
+### 入口与视图类
+
+| 事件名 | `detail` | 说明 |
+|---|---|---|
+| `entry:activate` | `{ key, entry }` | 宿主请插件激活某个入口（没有对应 surface 时） |
+| `entry:open` | `{ key }` | 请求宿主打开某个入口 |
+| `switch-mode` | `{ mode }` | 视图模式切换 |
+| `theme-mode-changed` | `{ mode }`（`"dark"` / `"light"`） | 明暗主题切换 |
+| `settings-saved` | `{}` | 主程序设置已保存 |
+| `settings-section-changed` | `{ section, anchor }` | 设置弹窗切换导航页 |
+
+### 插件命名空间事件（宿主派发）
+
+这些由宿主在插件管理流程中派发，插件的**生命周期**实际上依赖它们：
+
+| 事件名 | `detail` | 说明 |
+|---|---|---|
+| `plugins:loaded` | `{ loaded: [id], failed: [id] }` | 插件列表加载完成 |
+| `plugin:unloaded` | `{ pluginId }` | 插件被禁用 / 卸载 / 重载（宿主据此强制回收） |
+| `plugin:<id>:ready` | `{ id }` | 某个插件 `activate()` 完成 |
+| `plugin:surface-error` | `{ pluginId, surfaceId, error }` | 某 surface 的 `mount()` 抛错 |
+| `plugin-config-changed` | `{ pluginId, config }` | 插件配置变更（也可用 `api.onConfigChange`） |
+| `plugin-secrets-changed` | `{ pluginId, config, removed }` | 插件密钥变更 |
+| `entries:changed` | `{ count }` | 入口注册表变化（也可用 `api.entries.*`） |
+
+### 后端核心事件（经 SSE，**推荐**）
+
+`api.on(event, handler)` 对**核心事件**走宿主的 SSE 流
+（`GET /api/plugins/events`），而不是 `window` 事件：
+
+```js
+// 后端在关键流程末尾 hooks.emit(...)，经 SSE 直达浏览器
+const off = api.on("card.updated", (payload) => {
+  console.log("卡片变了", payload.card_id, payload.changed_fields);
+});
+```
+
+| 项 | 说明 |
+|---|---|
+| 懒连接 | 首次订阅核心事件时才建立连接；零订阅的插件不占连接配额 |
+| 每插件一条流 | 同一插件多次 `api.on()` 复用同一条连接（服务端按**连接数**计配额） |
+| 自动回收 | 连接随插件销毁自动断开，无需手动清理 |
+| 无降级轮询 | 核心事件是**广播**，没有历史可回查；`EventSource` 不可用时宿主会
+  `console.warn` 提示（插件可用 `when: { feature: ["hasSSE"] }` 门控） |
+
+**只广播核心事件**：插件的自定义事件（`<id>:` 前缀）**不进**这条流——那是插件间
+通信，语义是 best-effort、不保证顺序，不能靠广播流给强保证。`api.emit()` 的
+自定义事件仍在**同一个页面内**经 `window` CustomEvent 分发。
+
+可用事件名：`app.ready`、`card.created`、`card.updated`、`card.deleted`、
+`card.moved`、`tag.applied`、`tag.deleted`、`worldbook.saved`、
+`worldbook.entry_changed`、`scan.completed`、`index.job_done`。
+
+其中 `scan.completed` / `index.job_done` 尤其值得注意：它们**没有任何 UI 动作触发**，
+在这条通路之前前端无从得知操作已经完成。
+
+### 宿主状态快照（`api.host.onState`）
+
+要「与界面联动」时用它，**不要**去读 `api.store`（那是 Provisional 耦合）：
+
+```js
+const off = api.host.onState((state) => {
+  if (state.busy || !state.visible) pet.rest();  // 忙 / 页面不可见时安静下来
+  pet.setDarkMode(state.darkMode);
+  pet.setPaused(state.reducedMotion);            // 尊重「减少动效」
+});
+```
+
+快照形状：`{mode, deviceType, darkMode, scrimActive, surfaceOpen, busy,
+reducedMotion, visible}`。
+
+- `mode` 当前视图；`deviceType` 设备类型；`darkMode` 明暗主题。
+- `scrimActive` 全屏遮罩是否活跃；`surfaceOpen` 是否有**对话框型** surface 打开
+  （常驻环境层 `ambient` 不算）。
+- `busy` 批处理 / 索引构建 / 全量扫描进行中。
+- `reducedMotion` 系统「减少动效」偏好；`visible` 页面可见性。
+
+首次订阅**立即**收到一次快照，之后变化时推送（已合并去抖，一帧一次）。
+`reducedMotion` 会在用户改系统设置时**立即**推送，无需刷新页面。
+
 ## 相关文档
 
 - 插件规范与 manifest 字段：`docs/2026-09-22-plugin-system-design.md` 第 2 部分
-- 入口与 surface 契约：同文档第 8 部分（F11–F15）
+- 入口与 surface 契约：同文档第 8 部分（F11–F16）
 - 作业与 SSE：同文档第 6 部分
 - 开发脚手架：`python tools/new_plugin.py <plugin-id>`

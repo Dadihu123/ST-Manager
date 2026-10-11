@@ -32,6 +32,16 @@
   --z-surface: 60;
   --z-entry-rail: 80;
   /*
+   * 环境层（ambient）：常驻型插件图层的层级。
+   *
+   * 介于卡片选中态（50）与 surface（60）之间——这是令牌表里唯一的空档，
+   * 60 / 70 / 80 已被 surface、美化抽屉、入口坞占满。
+   *
+   * 环境层应盖住内容卡片与其选中态，但**必须低于**抽屉、入口坞、下拉与模态：
+   * 宿主的功能性 UI 绝不能被常驻内容遮挡。
+   */
+  --z-ambient: 55;
+  /*
    * 归一到令牌的既有散落字面量（值与原字面量完全一致，纯替换不改变层叠）。
    * 目的是让「谁盖住谁」可检索、可统一调整，而不是散在各模块里猜。
    */
@@ -69,6 +79,10 @@
 
 .z-card-selected {
   z-index: var(--z-card-selected) !important;
+}
+
+.z-ambient {
+  z-index: var(--z-ambient) !important;
 }
 
 .z-surface {

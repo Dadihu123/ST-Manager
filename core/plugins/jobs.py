@@ -678,7 +678,11 @@ def wake_worker() -> None:
 
 
 def _sse_frame(event: str, data: dict, *, seq=None) -> str:
-    """SSE 帧：`id: <seq>` + `event:` + 多行 `data:`。"""
+    """SSE 帧：`id: <seq>` + `event:` + 多行 `data:`。
+
+    公开给 `core.plugins.routes` 的核心事件流复用（`sse_frame` 是同一实现的公开别名），
+    避免第二份帧构造逻辑漂移。
+    """
     lines = []
     if seq is not None:
         lines.append(f'id: {int(seq)}')
@@ -687,6 +691,10 @@ def _sse_frame(event: str, data: dict, *, seq=None) -> str:
     for line in text.split('\n'):
         lines.append(f'data: {line}')
     return '\n'.join(lines) + '\n\n'
+
+
+#: 公开别名：核心事件流与作业流共用同一份帧构造（设计文档 6.7.1）。
+sse_frame = _sse_frame
 
 
 def _acquire_sse_slot(run_id: str) -> bool:

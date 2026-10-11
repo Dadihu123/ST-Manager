@@ -87,10 +87,14 @@ def test_entry_overview_table_columns_match_contract():
 
 
 def test_entry_overview_labels_unimplemented_kinds_honestly():
-    """`settings` / `nav` / `status` 目前**没有**任何渲染消费者。
+    """`nav` / `status` 目前**没有**任何渲染消费者。
 
     旧文案把出现位置写成「设置页 / 侧栏导航 / 状态栏」，会让用户以为入口已生效。
-    这里锁定「如实描述」：位置标注为宿主未实现，且模板上有显式的未实现标记。
+    这里锁定「如实描述」：未实现的位置标注为宿主未实现，且模板上有显式的未实现标记。
+
+    `settings` 自 D7 起**已实现**（渲染为插件管理页内的「插件设置入口」区块），
+    因此它必须从「未实现」名单里移出，并给出真实落点——否则总览页会与
+    `IMPLEMENTED_ENTRY_KINDS` 自相矛盾。
     """
     template = read_source('templates/modals/plugin_manager.html')
     component = read_source('static/js/components/pluginManager.js')
@@ -102,13 +106,22 @@ def test_entry_overview_labels_unimplemented_kinds_honestly():
     assert 'entryKindImplemented(row)' in template
 
     # 已实现的 kind 仍在位置表里给出真实落点
-    for kind in ('dock', 'context', 'command', 'batch'):
+    for kind in ('dock', 'context', 'command', 'batch', 'settings'):
         assert f'{kind}: "' in code
-    # 未实现的三种 kind 必须**逐个**标注为未实现（不能靠「整体出现过一次」蒙混）
-    for kind in ('nav', 'settings', 'status'):
+
+    # `settings` 必须给出真实落点，且被登记为已实现
+    assert 'settings: "插件管理页"' in code
+    assert '"settings"' in code.split('IMPLEMENTED_ENTRY_KINDS', 1)[1].split(')', 1)[0], (
+        'settings 必须登记进 IMPLEMENTED_ENTRY_KINDS'
+    )
+
+    # 仍未实现的两种 kind 必须**逐个**标注为未实现（不能靠「整体出现过一次」蒙混）
+    for kind in ('nav', 'status'):
         assert f'{kind}: "宿主未实现"' in code, f'{kind} 必须如实标注为宿主未实现'
-    for stale in ('侧栏导航', '状态栏', '设置页'):
+    for stale in ('侧栏导航', '状态栏'):
         assert stale not in code, f'{stale} 是未实现的落点，不应再出现'
+    # 旧文案把 settings 说成「设置页」（一个不存在的落点入口）——已改成「插件管理页」
+    assert 'settings: "设置页"' not in code
 
 
 def test_entry_overview_drops_the_duplicate_refresh_button():
@@ -258,6 +271,64 @@ def test_style_module_is_registered_in_entry_css():
     style_entry = read_source('static/css/style.css')
 
     assert 'modules/modal-plugin-manager.css' in style_entry
+
+
+# ------------------------------------------------------------------ settings 入口（D7）
+
+
+def test_settings_entry_kind_has_a_real_render_consumer():
+    """`kind: 'settings'` 的入口必须渲染出可点的落点（D7）。
+
+    此前 `settings` 只存在于契约里、**没有任何渲染消费者**，用户在总览页看到它
+    却没处可点。现在渲染为插件管理页内的「插件设置入口」区块。
+    """
+    template = read_source('templates/modals/plugin_manager.html')
+    component = strip_js_comments(read_source('static/js/components/pluginManager.js'))
+
+    assert 'settingsEntries' in component
+    assert 'settingsEntries' in template
+    assert 'openSettingsEntry(row)' in template
+    assert '@click="openSettingsEntry(row)"' in template
+
+
+def test_settings_block_is_injected_into_the_existing_plugins_section():
+    """必须挂在既有 `plugins` 分区内，**不新增设置顶层 tab**。
+
+    `settingsModal.selectSettingTab` 有硬闸门 `if (!this.settingsHelpContent[section]) return;`，
+    新增顶层分区要同时改 `settingsHelpContent` + 命令面板 + 模板。`plugins` 键已存在，
+    因此注入到既有分区内即可规避该闸门。
+    """
+    template = read_source('templates/modals/plugin_manager.html')
+    settings_source = read_source('templates/modals/settings.html')
+    settings_modal = read_source('static/js/components/settingsModal.js')
+
+    # 区块留在插件管理模板内（该模板被 settings.html 的 plugins 分区 include）
+    assert 'plugin-settings-entries' in template
+    assert '{% include "modals/plugin_manager.html" %}' in settings_source
+
+    # 没有新增顶层设置分区
+    help_block = settings_modal.split('settingsHelpContent:', 1)[1].split('\n    },', 1)[0]
+    for section in ('general', 'appearance', 'connection', 'maintenance', 'plugins'):
+        assert f'{section}:' in help_block, section
+
+
+def test_settings_entries_only_include_enabled_plugins():
+    """被禁用的插件不该在设置页留按钮。"""
+    component = strip_js_comments(read_source('static/js/components/pluginManager.js'))
+
+    section = component.split('get settingsEntries()', 1)[1].split('}', 1)[0]
+    assert 'row.pluginEnabled' in section
+    assert '"settings"' in section
+
+
+def test_settings_entries_render_uses_plugin_icon_resolution():
+    """图标必须走 `entryIconHtml`（宿主图标名 / 插件内资源路径两种取值都能解析）。"""
+    template = read_source('templates/modals/plugin_manager.html')
+
+    section = template.split('plugin-settings-entries', 1)[1].split('</section>', 1)[0]
+    assert 'entryIconHtml(row)' in section
+    assert 'row.label' in section
+    assert 'row.pluginName' in section
 
 
 def test_no_tailwind_palette_utilities_in_plugin_manager_sources():

@@ -10,14 +10,21 @@ import functools
 import json
 import logging
 import os
+import queue
 import re
+import time
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, Response, jsonify, request
 
 from core.data.ui_store import ENTRY_LAYOUT_KEY
-from core.plugins import catalog, icons, installer, jobs, registry
+from core.plugins import catalog, hooks, icons, installer, jobs, registry
 from core.plugins import secrets as secrets_store
-from core.plugins.errors import PluginError, PluginJobNotFoundError, PluginNotFoundError
+from core.plugins.errors import (
+    PluginError,
+    PluginJobNotFoundError,
+    PluginNotFoundError,
+    PluginSseLimitError,
+)
 from core.utils.paths import is_under_base
 
 logger = logging.getLogger(__name__)
@@ -162,6 +169,91 @@ def list_ui_tokens():
     警告（不拒绝加载）。
     """
     return jsonify({'success': True, 'tokens': sorted(installer.resolve_known_tokens())})
+
+
+# ------------------------------------------------------------------ 核心事件流
+
+
+@bp.route('/api/plugins/events', methods=['GET'])
+@_handle_plugin_errors
+def stream_core_events():
+    """核心事件的 SSE 流（设计文档 6.7）。
+
+    背景：后端在 9 处核心流程末尾 `hooks.emit(...)`，但前端 `api.on()` 只做
+    `window.addEventListener`，因此 `api.on('card.updated', h)` **永远不会被调用**；
+    「扫描完成」「索引重建完毕」这类无 UI 触发的变更前端更是无从得知。
+
+    约定：
+    - **只广播 `CORE_EVENTS`**。插件的自定义事件（`<id>:` 前缀）不进这条流：
+      那是插件间通信，语义是 best-effort、不保证顺序，不能靠广播流给强保证。
+    - 一次连接服务一个插件的**全部**订阅（前端 `api.on()` 复用同一条流），
+      因此配额按**连接数**计，与订阅数量无关。
+    - 负载为 `{event, payload, ts}`，payload **原样**来自 `hooks.emit()`——
+      这是广播信道，**不放**任何插件密钥或额外拼装的敏感内容。
+    - 非核心事件名不接受（返回结构化 400，便于插件作者发现拼写错误）。
+    """
+    # 可选的事件名过滤：`?events=card.updated,scan.completed`（缺省 = 全部核心事件）
+    raw_events = str(request.args.get('events') or '').strip()
+    if raw_events:
+        requested = [item.strip() for item in raw_events.split(',') if item.strip()]
+        unknown = [item for item in requested if not hooks.is_core_event(item)]
+        if unknown:
+            return jsonify({
+                'success': False,
+                'msg': f'事件名不在核心事件集合内: {unknown}',
+                'error': 'invalid_payload',
+                'events': sorted(hooks.CORE_EVENTS),
+            }), 400
+        wanted = frozenset(requested)
+    else:
+        wanted = hooks.CORE_EVENTS
+
+    bucket = hooks.subscribe_core_events()
+    if bucket is None:
+        # 超限时给结构化错误（429），**不静默挂住**——否则前端只会看到连接不动。
+        stats = hooks.event_stream_stats()
+        raise PluginSseLimitError(
+            f'核心事件流连接数已达上限 {stats["max"]}，请稍后重试'
+        )
+
+    def generate():
+        last_heartbeat = time.monotonic()
+        try:
+            # 首帧告诉客户端流已就绪（前端据此把「降级」提示收起来）
+            yield jobs.sse_frame('ready', {
+                'events': sorted(wanted),
+                'heartbeat': hooks.EVENT_STREAM_HEARTBEAT_INTERVAL_SECONDS,
+            })
+
+            while True:
+                try:
+                    record = bucket.get(timeout=hooks.EVENT_STREAM_POLL_INTERVAL_SECONDS)
+                except queue.Empty:
+                    record = None
+
+                # 被过滤掉的事件不提前 `continue`：否则该连接在高频无关事件下
+                # 会一直有数据可取，心跳永远轮不到。
+                if record is not None and record['event'] in wanted:
+                    yield jobs.sse_frame(hooks.EVENT_STREAM_FRAME_NAME, record)
+                    last_heartbeat = time.monotonic()
+                    continue
+
+                now = time.monotonic()
+                if now - last_heartbeat >= hooks.EVENT_STREAM_HEARTBEAT_INTERVAL_SECONDS:
+                    last_heartbeat = now
+                    yield ': heartbeat\n\n'
+        except GeneratorExit:  # 客户端断开
+            raise
+        except Exception:  # noqa: BLE001 - 流内异常不能让响应挂死
+            logger.exception('核心事件流异常')
+        finally:
+            hooks.unsubscribe_core_events(bucket)
+
+    return Response(generate(), mimetype='text/event-stream', headers={
+        'Cache-Control': 'no-cache',
+        'X-Accel-Buffering': 'no',
+        'Connection': 'keep-alive',
+    })
 
 
 # ------------------------------------------------------------------ 入口布局

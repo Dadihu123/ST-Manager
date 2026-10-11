@@ -422,6 +422,89 @@
   min-width: 0;
 }
 
+/* ---------------------------------------------------------------- settings 入口区块
+ *
+ * `entries[].kind === 'settings'` 的渲染落点（D7）。挂在「插件管理」分区内，
+ * 不新增设置顶层 tab。只用语义色变量，不写字面量颜色。
+ */
+.plugin-settings-entries {
+  margin-bottom: 1rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--ui-radius-sm);
+  background: var(--surface-control);
+}
+
+.plugin-settings-entries-title {
+  margin: 0 0 0.35rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--content-primary);
+}
+
+.plugin-settings-entries-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.6rem;
+}
+
+.plugin-settings-entry {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.7rem;
+  min-width: 0;
+  border: 1px solid var(--border-default);
+  border-radius: var(--ui-radius-sm);
+  background: transparent;
+  color: var(--content-primary);
+  font-family: inherit;
+  font-size: 0.8rem;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.plugin-settings-entry:hover {
+  background: var(--state-hover-surface);
+  border-color: var(--accent-action);
+}
+
+.plugin-settings-entry:focus-visible {
+  outline: 2px solid var(--state-focus-ring);
+  outline-offset: 2px;
+}
+
+.plugin-settings-entry-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  color: var(--content-secondary);
+}
+
+.plugin-settings-entry-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.plugin-settings-entry-label {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.plugin-settings-entry-meta {
+  color: var(--content-muted);
+  font-size: 0.7rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* 可用更新：卡片描边 + 名称高亮 + 版本提示。
  * 与 SillyTavern 的 `.update_available` / `.btn_update` 同一意图：
  * 让「有更新」在卡片上就能看见，不必先去点「检查更新」。 */
