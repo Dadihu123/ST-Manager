@@ -1958,6 +1958,17 @@ html.light-mode .skin-gallery-folder-symbol {
     transform 0.18s ease;
 }
 
+.detail-update-dropzone[aria-disabled="true"] {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.detail-update-dropzone:focus-visible {
+  outline: 2px solid var(--accent-action);
+  outline-offset: 2px;
+}
+
 .detail-update-dropzone:hover {
   transform: translateY(-1px);
   border-color: var(--content-muted);
@@ -1974,6 +1985,7 @@ html.light-mode .skin-gallery-folder-symbol {
   font-size: 18px;
   font-weight: 900;
   color: var(--content-primary);
+  overflow-wrap: anywhere;
 }
 
 .detail-update-dropzone-icon {
@@ -1997,6 +2009,8 @@ html.light-mode .skin-gallery-folder-symbol {
   font-size: 11px;
   line-height: 1.5;
   color: var(--content-muted);
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 
 .detail-update-dropzone.drag-over .detail-update-dropzone-note {
@@ -4481,7 +4495,7 @@ html.light-mode .note-textarea:focus {
 .detail-icon-scope .detail-manage-tool-btn .ui-icon,
 .detail-icon-scope .detail-manage-action-btn .ui-icon,
 .detail-icon-scope .detail-manage-advanced-btn .ui-icon,
-.detail-icon-scope .detail-update-dropzone-icon .ui-icon {
+.detail-update-dropzone-icon .ui-icon {
   width: 24px;
   height: 24px;
 }

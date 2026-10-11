@@ -26,6 +26,7 @@ import importModal from "./components/importModal.js";
 import contextMenu from "./components/contextMenu.js";
 import folderOperations from "./components/folderOperations.js";
 import wiDetailPopup from "./components/wiDetailPopup.js";
+import worldbookUpdate from "./components/worldbookUpdate.js";
 import batchImportModal from "./components/batchImportModal.js";
 import automationModal from "./components/automationModal.js";
 import moveCardsModal from "./components/moveCardsModal.js";
@@ -73,6 +74,7 @@ const registerComponents = () => {
   Alpine.data("contextMenu", contextMenu);
   Alpine.data("folderOperations", folderOperations);
   Alpine.data("wiDetailPopup", wiDetailPopup);
+  Alpine.data("worldbookUpdate", worldbookUpdate);
   Alpine.data("batchImportModal", batchImportModal);
   Alpine.data("automationModal", automationModal);
   Alpine.data("moveCardsModal", moveCardsModal);

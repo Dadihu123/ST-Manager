@@ -13,6 +13,30 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 
+def test_restore_button_binding_always_returns_boolean_for_backup_without_current_flag():
+    template = (ROOT / 'templates' / 'modals' / 'rollback.html').read_text(encoding='utf-8')
+    expression = re.search(
+        r':disabled="([^"]+)"\s+@click="performRestore\(\)"', template
+    ).group(1)
+    script = f'''
+        const assert = require('node:assert/strict');
+        const disabled = new Function('isLoading', 'diffSelection', 'return ({expression})');
+        for (const [loading, left, expected] of [
+          [false, null, true],
+          [true, {{label: '更新前'}}, true],
+          [false, {{label: '更新前'}}, false],
+          [false, {{is_current: false}}, false],
+          [false, {{is_current: true}}, true],
+        ]) {{
+          const result = disabled(loading, {{left}});
+          assert.equal(typeof result, 'boolean');
+          assert.equal(result, expected);
+        }}
+    '''
+    result = subprocess.run(['node', '-e', script], capture_output=True, text=True)
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
 def _make_system_app():
     from core.api.v1 import system as system_api
 

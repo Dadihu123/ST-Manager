@@ -134,12 +134,13 @@ def safe_delete_card_file(file_path):
             print(f"Error deleting {file_path}: {e}")
 
 # 清理旧快照
-def cleanup_old_snapshots(target_dir, max_limit, prefix_filter=None):
+def cleanup_old_snapshots(target_dir, max_limit, prefix_filter=None, *, protected_path=None):
     """
     清理目标目录下过期的快照文件。
     :param target_dir: 备份目录
     :param max_limit: 最大保留数量
     :param prefix_filter: 如果提供，只清理包含此前缀的文件 (用于区分 AUTO 和 普通备份)
+    :param protected_path: 优先保留本次刚创建的快照，避免时钟变化导致其被删除
     """
     if not os.path.exists(target_dir): return
     
@@ -157,8 +158,8 @@ def cleanup_old_snapshots(target_dir, max_limit, prefix_filter=None):
                 full_path = os.path.join(target_dir, f)
                 all_files.append((full_path, os.path.getmtime(full_path)))
         
-        # 按时间倒序排列 (新的在前)
-        all_files.sort(key=lambda x: x[1], reverse=True)
+        # 优先保留受保护快照，其他按时间倒序排列。
+        all_files.sort(key=lambda x: (x[0] == protected_path, x[1]), reverse=True)
         
         # 如果超过限制，删除旧的
         if len(all_files) > max_limit:
@@ -235,4 +236,3 @@ def write_snapshot_file(src_path, dst_path, data, is_png, compact=False):
         except:
             pass
         return False
-

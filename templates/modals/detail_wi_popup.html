@@ -482,6 +482,15 @@
 
           <div class="grid grid-cols-3 gap-1.5">
             <button
+              x-show="canUpdateWorldInfo()"
+              @click="openWorldbookUpdate()"
+              class="btn-secondary py-1.5 text-xs flex flex-col items-center justify-center gap-0.5"
+              title="通过 URL 或文件替换这本独立世界书，更新前自动备份"
+            >
+              {{ icon('refresh', 'ui-icon--md') }}
+              <span class="scale-90">更新内容</span>
+            </button>
+            <button
               @click="sendActiveWorldInfoToST()"
               x-show="canSendActiveWorldInfoToST()"
               class="btn-secondary py-1.5 text-xs flex flex-col items-center justify-center gap-0.5"

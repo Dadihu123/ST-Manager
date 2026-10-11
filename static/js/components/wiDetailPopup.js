@@ -149,6 +149,12 @@ export default function wiDetailPopup() {
         }
       });
 
+      window.addEventListener("wi-content-updated", (e) => {
+        if (this.activeWiDetail?.path === e.detail?.path) {
+          this.loadContent(this.activeWiDetail.id);
+        }
+      });
+
       this.$watch("searchTerm", () => {
         this.resetEntryRenderLimits();
         this.runDetailSearch();
@@ -168,6 +174,17 @@ export default function wiDetailPopup() {
           this.loadContent(this.activeWiDetail.id);
         }
       });
+    },
+
+    canUpdateWorldInfo() {
+      return ["global", "resource"].includes(this.activeWiDetail?.type);
+    },
+
+    openWorldbookUpdate() {
+      if (!this.canUpdateWorldInfo()) return;
+      window.dispatchEvent(new CustomEvent("open-worldbook-update", {
+        detail: { ...this.activeWiDetail },
+      }));
     },
 
     // === 计算属性 ===

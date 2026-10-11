@@ -7,10 +7,11 @@ import sqlite3
 import hashlib
 import re
 from io import BytesIO
+from functools import wraps
 from flask import Blueprint, request, jsonify, send_file
 
 # === 基础设施 ===
-from core.config import BASE_DIR, load_config, DEFAULT_DB_PATH, CARDS_FOLDER, TRASH_FOLDER 
+from core.config import BASE_DIR, DATA_DIR, load_config, DEFAULT_DB_PATH, CARDS_FOLDER, TRASH_FOLDER
 from core.context import ctx
 from core.data.db_session import get_db
 from core.data.ui_store import (
@@ -27,6 +28,11 @@ from core.data.ui_store import (
     set_worldinfo_note,
     delete_worldinfo_note,
     rename_global_worldinfo_note_path_prefix,
+)
+from core.services.worldbook_content_update import (
+    MAX_SOURCE_BYTES, WorldbookUpdateError, atomic_write_bytes, commit_update,
+    fetch_source, parse_worldbook, preserve_target_name, read_target, resolve_update_target,
+    worldbook_target_lock,
 )
 from core.services.card_service import resolve_ui_key
 from core.services.cache_service import invalidate_wi_list_cache
@@ -69,6 +75,19 @@ from core.utils.world_info_sort import (
     sort_world_info_entries,
     sort_world_info_mapping,
 )
+
+def _serialize_worldbook_write(handler):
+    @wraps(handler)
+    def locked_handler(*args, **kwargs):
+        payload = request.get_json(silent=True) or {}
+        path = payload.get('file_path') if isinstance(payload, dict) else ''
+        if path and isinstance(path, str) and not os.path.isabs(path):
+            path = os.path.join(BASE_DIR, path)
+        with worldbook_target_lock(path if isinstance(path, str) else ''):
+            return handler(*args, **kwargs)
+    return locked_handler
+
+
 
 def _safe_mtime(path: str) -> float:
     try:
@@ -1563,6 +1582,7 @@ def api_create_world_info():
 
 
 @bp.route('/api/world_info/category/move', methods=['POST'])
+@_serialize_worldbook_write
 def api_move_world_info_category():
     try:
         req = request.get_json(silent=True) or {}
@@ -2199,7 +2219,89 @@ def api_save_world_info_note():
         logger.error(f'Save worldinfo note error: {e}')
         return jsonify({'success': False, 'msg': str(e)})
 
+
+def _update_error(exc):
+    return jsonify({'success': False, 'msg': str(exc), 'code': exc.code}), exc.status
+
+
+def _update_request_payload(*, allow_file=False):
+    if request.content_length and request.content_length > MAX_SOURCE_BYTES * 2 + 65536:
+        raise WorldbookUpdateError('更新请求过大，来源文件不能超过 10 MiB', 'source_too_large', 413)
+    # Only file previews need multipart; replacement must retain the JSON-only boundary.
+    if not request.is_json and not (
+            allow_file and request.mimetype == 'multipart/form-data' and 'file' in request.files):
+        raise WorldbookUpdateError('请使用 JSON 请求，文件预览须上传文件', 'invalid_request', 415)
+    payload = request.form.to_dict() if request.mimetype == 'multipart/form-data' else request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        raise WorldbookUpdateError('请求必须为 JSON 对象或上传文件')
+    return payload
+
+
+@bp.route('/api/world_info/update/preview', methods=['POST'])
+def api_preview_worldbook_update():
+    try:
+        payload = _update_request_payload(allow_file=True)
+        cfg = load_config()
+        path = resolve_update_target(payload.get('file_path'), payload.get('source_type'), cfg, BASE_DIR, CARDS_FOLDER)
+        uploaded = request.files.get('file')
+        sources = int(uploaded is not None) + int('url' in payload) + int('source_text' in payload)
+        if sources != 1:
+            raise WorldbookUpdateError('请仅选择一个文件或 URL 来源')
+        if uploaded is not None:
+            raw_source = uploaded.stream.read(MAX_SOURCE_BYTES + 1)
+        elif 'url' in payload:
+            raw_source = fetch_source(payload['url'])
+        else:
+            raw_source = payload['source_text']
+            if not isinstance(raw_source, str):
+                raise WorldbookUpdateError('世界书来源必须为 JSON 文本')
+        source_text, incoming = parse_worldbook(raw_source)
+        with worldbook_target_lock(path):
+            resolve_update_target(path, payload.get('source_type'), cfg, BASE_DIR, CARDS_FOLDER)
+            _, current_text, current, revision = read_target(path)
+            source_text, _ = preserve_target_name(source_text, incoming, current)
+        return jsonify({'success': True, 'current_text': current_text, 'source_text': source_text,
+                        'source_revision': revision, 'target_name': os.path.basename(path)})
+    except WorldbookUpdateError as exc:
+        return _update_error(exc)
+    except Exception:
+        logger.exception('Preview worldbook update failed')
+        return jsonify({'success': False, 'msg': '无法读取世界书，请重试', 'code': 'preview_failed'}), 500
+
+
+@bp.route('/api/world_info/update/commit', methods=['POST'])
+def api_commit_worldbook_update():
+    try:
+        payload = _update_request_payload()
+        cfg = load_config()
+        path = resolve_update_target(payload.get('file_path'), payload.get('source_type'), cfg, BASE_DIR, CARDS_FOLDER)
+        with worldbook_target_lock(path):
+            resolve_update_target(path, payload.get('source_type'), cfg, BASE_DIR, CARDS_FOLDER)
+            suppress_fs_events(2.5)
+            content, backup_path = commit_update(path, payload.get('source_text'), payload.get('source_revision'), DATA_DIR, cfg)
+            # Entry history is ancillary: the full rollback snapshot is already verified.
+            try:
+                reconcile_entry_history_scope(source_type=payload['source_type'], source_id='',
+                                              file_path=path, active_entry_uids=get_entry_uids(content),
+                                              fallback_contexts=[{'source_type': 'lorebook', 'file_path': path}])
+            except Exception as exc:
+                logger.warning('Reconcile updated worldbook history failed: %s', exc)
+            invalidate_wi_list_cache()
+            try:
+                _enqueue_worldinfo_file_refresh(path, cfg)
+            except Exception as exc:
+                logger.warning('Enqueue updated worldbook refresh failed: %s', exc)
+            return jsonify({'success': True, 'new_path': path,
+                            'source_revision': build_file_source_revision(path), 'backup_path': backup_path})
+    except WorldbookUpdateError as exc:
+        return _update_error(exc)
+    except Exception:
+        logger.exception('Commit worldbook update failed')
+        return jsonify({'success': False, 'msg': '更新失败，请刷新检查；可通过更新前备份恢复', 'code': 'update_failed'}), 500
+
+
 @bp.route('/api/world_info/save', methods=['POST'])
+@_serialize_worldbook_write
 def api_save_world_info():
     try:
         req = request.get_json(silent=True)
@@ -2278,11 +2380,8 @@ def api_save_world_info():
         # 写入
         compact = bool(req.get('compact', False))
         suppress_fs_events(2.5)
-        with open(final_path, 'w', encoding='utf-8') as f:
-            if compact:
-                json.dump(content, f, ensure_ascii=False, separators=(',', ':'))
-            else:
-                json.dump(content, f, ensure_ascii=False, indent=2)
+        serialized = json.dumps(content, ensure_ascii=False, separators=(',', ':')) if compact else json.dumps(content, ensure_ascii=False, indent=2)
+        atomic_write_bytes(final_path, serialized.encode('utf-8'))
 
         move_entry_history_scope(
             source_type=history_source_type,
@@ -2625,6 +2724,7 @@ def api_wi_clipboard_reorder():
     
 # 删除世界书
 @bp.route('/api/world_info/delete', methods=['POST'])
+@_serialize_worldbook_write
 def api_delete_world_info():
     try:
         source_type = str((request.json or {}).get('source_type') or '').strip().lower()

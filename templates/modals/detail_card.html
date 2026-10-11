@@ -1,5 +1,6 @@
 {% from "components/icon.html" import icon, loading_icon, sidebar_icon %}
 {% from "components/icon.html" import detail_icon %}
+{% from "components/file_update_dropzone.html" import file_update_dropzone %}
 
 <!-- 详情页模态框 (Refactored) -->
 <div
@@ -2839,38 +2840,17 @@
                     <span>更新角色卡</span>
                   </div>
                   <div class="detail-manage-update-grid">
-                    <div
-                      class="detail-update-dropzone"
-                      :class="dragOverUpdate ? 'drag-over' : ''"
-                      @click="triggerCardUpdate()"
-                      @dragover.prevent="dragOverUpdate = true"
-                      @dragleave.prevent="dragOverUpdate = false"
-                      @drop.prevent="handleUpdateDrop($event)"
-                    >
-                      <div
-                        class="detail-update-dropzone-icon"
-                        :class="dragOverUpdate ? 'drag-over' : ''"
-                      >
-                        {{ sidebar_icon('folder-open', 'ui-icon--lg') }}
-                      </div>
-                      <div class="detail-update-dropzone-title">
-                        文件覆盖升级
-                      </div>
-                      <div class="detail-update-dropzone-note">
-                        <span x-show="!dragOverUpdate" class="inline-flex items-center gap-1">
-                          {{ icon('file-import', 'ui-icon--xs') }}
-                          <span>点击选择，或拖拽 PNG / JSON 到这里</span>
-                        </span>
-                        <span x-show="dragOverUpdate">松开后更新当前角色卡</span>
-                      </div>
-                      <input
-                        type="file"
-                        x-ref="cardUpdateInput"
-                        @change="handleCardUpdate"
-                        accept=".png,.json"
-                        style="display: none"
-                      />
-                    </div>
+                    {{ file_update_dropzone(
+                      title="文件覆盖升级",
+                      hint="点击选择，或拖拽 PNG / JSON 到这里",
+                      drop_hint="松开后更新当前角色卡",
+                      input_ref="cardUpdateInput",
+                      on_select="handleCardUpdate",
+                      on_drop="handleUpdateDrop($event)",
+                      on_click="triggerCardUpdate()",
+                      drag_over="dragOverUpdate",
+                      accept=".png,.json"
+                    ) }}
 
                     <div class="detail-manage-update-side">
                       <div class="detail-manage-policy-box">

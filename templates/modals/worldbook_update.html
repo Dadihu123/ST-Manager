@@ -1,0 +1,74 @@
+{% from "components/file_update_dropzone.html" import file_update_dropzone %}
+
+<div
+  x-data="worldbookUpdate"
+  x-show="show"
+  x-cloak
+  class="modal-overlay ui-modal-overlay wb-update-overlay"
+  @keydown.escape.window.capture="if (show) { $event.preventDefault(); $event.stopImmediatePropagation(); close(); }"
+  @keydown.tab="trapFocus($event)"
+>
+  <section x-ref="dialog" class="wb-update-modal ui-modal-shell" :class="{ 'wb-update-preview': step === 'preview' }" role="dialog" aria-modal="true" aria-labelledby="wb-update-title" :aria-busy="busy">
+    <header class="wb-update-header">
+      <div>
+        <h3 id="wb-update-title">更新世界书内容</h3>
+        <p x-text="target?.name || ''"></p>
+      </div>
+      <button type="button" class="btn-secondary wb-update-close" x-ref="close" @click="close()" :disabled="busy" aria-label="关闭世界书更新">✕</button>
+    </header>
+    <div class="wb-update-target">
+      <strong>替换当前这本书</strong>
+      <span x-text="target?.path || ''"></span>
+      <small>保留现有文件名、位置和 Manager 备注；来源文件名不会另建一本书。</small>
+    </div>
+
+    <div class="wb-update-body">
+      <div x-show="step === 'source'" class="wb-update-source">
+        <div class="wb-update-tabs" role="group" aria-label="选择更新来源">
+          <button type="button" class="btn-secondary" :aria-pressed="source === 'file'" :disabled="busy" @click="source = 'file'; error = ''">上传文件</button>
+          <button type="button" class="btn-secondary" :aria-pressed="source === 'url'" :disabled="busy" @click="source = 'url'; error = ''">通过 URL</button>
+        </div>
+        <div x-show="source === 'file'" class="wb-update-file">
+          {{ file_update_dropzone(
+            title="从文件更新",
+            hint="点击选择，或拖拽 JSON 到这里",
+            drop_hint="松开后选择此文件",
+            input_ref="file",
+            on_select="selectFile($event.target.files[0])",
+            on_drop="selectFile($event.dataTransfer.files[0])",
+            on_click="$refs.file.click()",
+            drag_over="dragOverFile",
+            disabled="busy",
+            file_name="file?.name || ''"
+          ) }}
+        </div>
+        <div x-show="source === 'url'" class="wb-update-url">
+          <label for="wb-update-url">世界书下载地址</label>
+          <input id="wb-update-url" type="url" class="input-field" x-model="url" :disabled="busy" placeholder="https://example.com/worldbook.json" @keydown.enter.prevent="preview()" />
+          <small>填写可直接取得 JSON 的 HTTP／HTTPS 地址；网页或无效文件会提示错误。</small>
+        </div>
+      </div>
+      <div x-show="step === 'preview'" class="wb-update-preview-content">
+        <div class="wb-update-tabs" role="group" aria-label="选择差异视图">
+          <button type="button" class="btn-secondary" :aria-pressed="view === 'readable'" :disabled="busy" @click="switchView('readable')">条目与正文</button>
+          <button type="button" class="btn-secondary" :aria-pressed="view === 'json'" :disabled="busy" @click="switchView('json')">完整 JSON</button>
+        </div>
+        <p class="wb-update-diff-help">红色为当前内容，绿色为导入内容。条目视图展示关键词、启用状态和正文；其他设置及扩展字段可在完整 JSON 中检查。</p>
+        <div x-ref="diff" class="wb-update-diff"></div>
+      </div>
+      <div x-show="error" class="wb-update-error" role="alert">
+        <span x-text="error"></span>
+        <button x-show="stale" type="button" class="btn-secondary" :disabled="busy" @click="preview(true)">重新比较</button>
+      </div>
+      <p x-show="busy" role="status" class="wb-update-progress" x-text="step === 'source' ? '正在获取并检查世界书…' : '正在处理，请稍候…'"></p>
+    </div>
+    <footer class="wb-update-footer">
+      <p x-show="step === 'preview'">采用导入的完整内容，旧内容中的个人修改不会自动合并。更新前自动备份，可从原详情的“回滚”恢复。</p>
+      <div class="wb-update-actions">
+        <button x-show="step === 'preview'" type="button" class="btn-secondary" @click="changeSource()" :disabled="busy">换个来源</button>
+        <button type="button" class="btn-secondary" @click="close()" :disabled="busy">取消</button>
+        <button type="button" class="btn-primary" x-ref="primary" :disabled="busy || (step === 'preview' && (stale || !previewReady))" @click="step === 'source' ? preview() : commit()" x-text="busy ? '处理中…' : step === 'source' ? '获取并查看差异' : '替换这本世界书'"></button>
+      </div>
+    </footer>
+  </section>
+</div>
