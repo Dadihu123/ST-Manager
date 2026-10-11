@@ -51,13 +51,18 @@
    * `scrollWidth` 51 > `clientWidth` 50 —— 差 1px，肉眼可见缺角）。
    *
    * 面板宽 = 槽位宽 + 左右内边距(4+4) + 左右边框(1+1) = 槽位宽 + 10。
-   * 桌面 40 → 50px；平板 36 → 46px（见文末 `@media (max-width: 1180px)`）。 */
+   * 桌面 44 → 54px；平板 40 → 50px（见文末 `@media (max-width: 1180px)`）。
+   *
+   * ⚠️ `--dock-icon-size` 要**跟槽位配套**：图标是槽位里唯一的内容，
+   * 图标/槽位比过小会让按钮显得空荡（实测旧值 16/40 = 0.40，用户反馈
+   * 「占比很小、没必要」）。现在 26/44 ≈ 0.59，四周留 9px 的命中余量。 */
   --dock-handle-width: 1.375rem;
   --dock-handle-height: 2.5rem;
   --dock-panel-gap: 0.375rem;
-  --dock-slot-size: 2.5rem;
-  --dock-panel-width: 3.125rem;
+  --dock-slot-size: 2.75rem;
+  --dock-panel-width: 3.375rem;
   --dock-panel-padding: 0.25rem;
+  --dock-icon-size: 1.625rem;
 }
 
 /* ---------------------------------------------------------------- 侧栏坞 */
@@ -242,13 +247,45 @@
   outline-offset: 2px;
 }
 
+/*
+ * 箭头上的入口数量数字标。
+ *
+ * 放在箭头**左上角**（而不是右上角）：右上角贴着屏幕边缘，会被视口裁掉。
+ * 收起态箭头只有 22×40px，徽标用绝对定位挂在角上不占布局。
+ */
+.entry-rail__toggle-count {
+  position: absolute;
+  top: -4px;
+  left: -6px;
+  min-width: 1rem;
+  padding: 0 0.25rem;
+  border-radius: 999px;
+  background-color: var(--status-danger-solid);
+  color: var(--content-on-status-solid);
+  font-size: 0.5625rem;
+  font-weight: 600;
+  line-height: 1.35;
+  text-align: center;
+  pointer-events: none;
+}
+
+/*
+ * 箭头朝向：**始终指向"点它会去的方向"**。
+ *
+ * - 收起态：指向**左侧内容区**（`rotate(180deg)`）—— 点它会把浮层往这个方向拉出来；
+ * - 展开态：转而指向**右侧屏幕边缘**（`rotate(0)`）—— 点它会把浮层往这个方向收回。
+ *
+ * sprite 里只有 `icon-chevron-right`（没有 left 变体），所以用 180° 旋转得到左向。
+ * 早先这里写反了：收起态朝右（指向屏幕边缘、无视了浮层将要出现的方向），
+ * 展开态朝左，用户反馈「方向反了」。
+ */
 .entry-rail__toggle svg {
+  transform: rotate(180deg);
   transition: transform 0.18s ease;
 }
 
-/* 展开时箭头翻向左侧（语义变成"收回"） */
 .entry-rail.is-expanded .entry-rail__toggle svg {
-  transform: rotate(180deg);
+  transform: rotate(0deg);
 }
 
 /* ---------------------------------------------------------------- 槽位 */
@@ -317,13 +354,31 @@
   color: var(--status-success-text);
 }
 
+/*
+ * 坞内图标容器。给足尺寸，让图标撑满槽位的合理比例（见 `--dock-icon-size`）。
+ *
+ * 图标节点有两种形态（见 `uiPrimitives.js:icon()`）：
+ * - 宿主图标 → `<svg class="ui-icon ui-icon--sm">`
+ * - 插件资源图标 → `<span class="ui-icon ui-icon--sm ui-icon--asset">`
+ * 两者都带尺寸类 `ui-icon--sm`，直接撑满容器即可。
+ *
+ * 选择器要**同时压过** `.ui-icon--sm`（特异度 0,1,0），所以这里用
+ * `.entry-rail__icon > svg`（0,1,1）与 `.entry-rail__icon > .ui-icon`（0,2,0），
+ * 不能只写 `> *`（0,1,0 会与尺寸类同分，靠源序取胜，太脆弱）。
+ */
 .entry-rail__icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.25rem;
-  height: 1.25rem;
+  width: var(--dock-icon-size);
+  height: var(--dock-icon-size);
   flex: 0 0 auto;
+}
+
+.entry-rail__icon > svg,
+.entry-rail__icon > .ui-icon {
+  width: 100%;
+  height: 100%;
 }
 
 /*
@@ -577,29 +632,77 @@ body:has(.plugin-surface--sheet) .entry-rail .entry-rail__panel {
 
 /* ---------------------------------------------------------------- 移动端 */
 
+/*
+ * 移动端触发器：**卡在底部翻页栏上的向上箭头**。
+ *
+ * 旧实现是 `position: relative` 的普通块级按钮，于是 `.entry-dock-root`
+ * 在 body 的 column flex 里**独占一行**（实测：根节点高 32px、把翻页栏顶上去
+ * 32px，`y=848`），屏幕底部白多一条。用户反馈「单独占据了一行没有必要」。
+ *
+ * 现在改为 `position: fixed` 贴视口右下角：
+ * - 根节点不再有在流内容，高度塌成 0，翻页栏得以贴住真正的屏幕底边；
+ * - 箭头落在翻页栏那一条带子里（栏高 60px，箭头 36px + 4px 下边距），
+ *   视觉上就是「卡在翻页栏上」。
+ *
+ * ⚠️ 必须给翻页栏留出横向空间，否则会盖住「下一页」按钮（实测 420px 下
+ * 翻页控件右边缘正好顶到 404px，而栏内容区右边界也是 404px，一点空位都没有）。
+ * 预留由 JS 在 body 上挂的 `entry-dock-mobile-docked` 类驱动 —— 见
+ * `entryDock.js:syncMobileDockedClass()`。用 JS 而不是 CSS `:has()`：
+ * `:has()` 只看元素是否存在，而 `x-show` 只切 `display`，元素一直在 DOM 里，
+ * 于是「没有入口」时也会白白留出一段空隙（这个坑本仓已踩过，见 §7.1 遮挡处理）。
+ */
 .entry-dock-mobile-trigger {
-  position: relative;
+  position: fixed;
+  right: 0.25rem;
+  bottom: 0.25rem;
+  z-index: var(--z-entry-rail);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2rem;
-  height: 2rem;
-  border: 1px solid var(--border-subtle);
-  border-radius: 0.5rem;
-  background: transparent;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  border: 1px solid var(--glass-border);
+  border-radius: 0.625rem;
+
+  /* 毛玻璃：与坞浮层同一配方 */
+  background-color: var(--dock-glass-surface);
+  -webkit-backdrop-filter: var(--dock-glass-blur);
+  backdrop-filter: var(--dock-glass-blur);
+  box-shadow: var(--dock-glass-shadow);
+
   color: var(--content-secondary);
   cursor: pointer;
 }
 
+/*
+ * 箭头朝向：向上（点击向上弹出 sheet）。
+ * 收起态指向上方（浮层将向上出现），展开态翻成向下（点击收回）。
+ * 与 PC 端同一套「指向点它会去的方向」语义。
+ */
+.entry-dock-mobile-trigger svg {
+  transform: rotate(-90deg);
+  transition: transform 0.18s ease;
+}
+
+.entry-dock-mobile-trigger[aria-expanded='true'] svg {
+  transform: rotate(90deg);
+}
+
 .entry-dock-mobile-trigger:focus-visible {
   outline: 2px solid var(--state-focus-ring);
-  outline-offset: 1px;
+  outline-offset: 2px;
+}
+
+/* 为箭头让位：只有坞真的显示箭头时才补右内边距（由 JS 挂类）。 */
+body.entry-dock-mobile-docked .pagination-bar {
+  padding-right: 2.75rem;
 }
 
 .entry-dock-mobile-trigger__count {
   position: absolute;
   top: -4px;
-  right: -4px;
+  left: -4px;
   min-width: 1rem;
   padding: 0 0.25rem;
   border-radius: 999px;
@@ -609,6 +712,7 @@ body:has(.plugin-surface--sheet) .entry-rail .entry-rail__panel {
   font-weight: 600;
   line-height: 1.35;
   text-align: center;
+  pointer-events: none;
 }
 
 /* 底部 sheet */
@@ -859,9 +963,10 @@ body:has(.plugin-surface--sheet) .entry-rail .entry-rail__panel {
  * 收起态**不再需要**单独的窄条尺寸：收起态只有箭头，与主题无关。 */
 @media (max-width: 1180px) {
   .entry-dock-root {
-    /* 36 + 8 + 2 = 46px，与上面的配套公式保持一致 */
-    --dock-panel-width: 2.875rem;
-    --dock-slot-size: 2.25rem;
+    /* 40 + 8 + 2 = 50px，与上面的配套公式保持一致；图标同步略小一档。 */
+    --dock-panel-width: 3.125rem;
+    --dock-slot-size: 2.5rem;
+    --dock-icon-size: 1.5rem;
   }
 }
 

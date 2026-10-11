@@ -104,10 +104,33 @@ export default function entryDock() {
         if (next === this.deviceType) return;
         this.deviceType = next;
         if (next !== "desktop") this.collapse();
+        this.syncMobileDockedClass();
       };
       window.addEventListener("resize", this._resizeHandler);
 
+      this.syncMobileDockedClass();
       this.ready = true;
+    },
+
+    /**
+     * 在 `<body>` 上同步 `entry-dock-mobile-docked`：移动端底部箭头可见时为真。
+     *
+     * 用途：`.pagination-bar` 需要为贴在其上的箭头让出右侧空间，否则箭头会盖住
+     * 「下一页」按钮（实测 420px 视口下翻页控件右边缘 404px 正好顶满栏内容区）。
+     *
+     * ⚠️ 为什么用 JS 挂类而不是 CSS `:has(.entry-dock-mobile-trigger)`：
+     * `:has()` 只看元素**是否存在于 DOM**，不看可见性；模板里箭头是
+     * `<template x-if="deviceType === 'mobile'">` 包着的，Alpine 一旦克隆它就常驻，
+     * `x-show="hasEntries"` 只切 `display` —— 于是「一个入口都没有」时
+     * `:has()` 依然成立，翻页栏会白白留出一段空隙。本仓在坞的遮挡规则上
+     * 已经踩过同一个坑（见设计文档 §7.1「遮挡处理」）。
+     */
+    syncMobileDockedClass() {
+      if (typeof document === "undefined") return;
+      // 某些宿主/测试环境只有残缺的 document 存根（没有 body）
+      if (!document.body || !document.body.classList) return;
+      const docked = this.deviceType === "mobile" && this.hasEntries;
+      document.body.classList.toggle("entry-dock-mobile-docked", docked);
     },
 
     destroy() {
@@ -126,6 +149,10 @@ export default function entryDock() {
         this._resizeHandler = null;
       }
       this.cancelHoverTimer();
+      // 组件销毁时摘掉 body 上的停靠类，否则翻页栏会永远留一段空隙
+      if (typeof document !== "undefined" && document.body && document.body.classList) {
+        document.body.classList.remove("entry-dock-mobile-docked");
+      }
     },
 
     /** 与 `layout.js:reDeviceType()` 同一套断点，保证坞与侧栏判定一致。 */
@@ -147,6 +174,39 @@ export default function entryDock() {
       this.overflow = EntryRegistry.overflowEntries();
       this.entries = EntryRegistry.list({ kind: "dock" });
       if (!this.slots.some((entry) => entry.key === this.activeKey)) this.activeKey = "";
+      this.syncMobileDockedClass();
+    },
+
+    /**
+     * 坞里是否有任何东西可展示（槽位或溢出菜单里的入口）。
+     *
+     * 用来决定「右侧箭头 / 移动端顶栏按钮」要不要出现。宿主内建命令全部是
+     * `kind: "command"`（见 `entryRegistry.js` 的 `CORE_ENTRIES`），**不进坞**——
+     * `dockSlots()` / `overflowEntries()` 都只取 `kind: "dock"`。所以这两个数组
+     * 同时为空 ⇔ 当前没有任何插件声明了 dock 入口。
+     *
+     * ⚠️ 不能用 `entries.length` 代替：`entries` 是 `list({kind:"dock"})`，
+     * 它按设计**排除用户隐藏项**，但**保留 `when` 未满足的置灰项**——后者仍然要
+     * 展示（D7：置灰可见 + disabledHint），所以它就是"有没有东西可看"的正解，
+     * 与 slots/overflow 同源、不会出现两者不一致的分歧。
+     */
+    get hasEntries() {
+      return this.slots.length > 0 || this.overflow.length > 0;
+    },
+
+    /**
+     * 当前坞里有几个入口（槽位 + 溢出菜单），供箭头/移动端按钮上的数字标使用。
+     *
+     * 用 `entries.length`（= `list({kind:"dock"})`）而不是 `slots.length`：
+     * `slots` 只含**已固定**的入口（且受 `MAX_DOCK_SLOTS` / 每插件上限裁剪），
+     * 社区插件默认进溢出菜单不进槽位 —— 只看 slots 会让「只装了社区插件」时
+     * 数字标不显示（实测：`slots=0, overflow=1` 时旧代码的
+     * `x-show="slots.length"` 判假，徽标凭空消失，而入口明明有 1 个）。
+     *
+     * `entries` 已按设计排除用户隐藏项，因此这个数就是「用户看得见的入口数」。
+     */
+    get entryCount() {
+      return this.entries.length;
     },
 
     // ------------------------------------------------------------ 展开/收起

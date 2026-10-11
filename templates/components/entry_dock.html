@@ -7,7 +7,7 @@
   一只毛玻璃浮层小框（`.entry-rail__panel`），框高随入口数量自适应。
   根元素带 data-marquee-ignore，框选不会命中坞。
   键盘：role="toolbar" + aria-orientation="vertical" + roving tabindex。
-  移动端不渲染侧条，退化为顶栏按钮 + 底部 sheet。
+  移动端不渲染侧条，退化为**贴在底部翻页栏上的向上箭头** + 底部 sheet。
 -->
 <div
   id="entry-dock-root"
@@ -15,30 +15,56 @@
   data-marquee-ignore
   class="entry-dock-root"
 >
-  <!-- 移动端：顶栏按钮（不渲染侧条） -->
+  <!-- 移动端：卡在底部翻页栏上的向上箭头
+       —— 不再是独占一行的顶栏按钮。
+
+       位置：`position: fixed` 贴视口右下角，落进翻页栏那条带子里；
+       翻页栏通过 body 上的 `entry-dock-mobile-docked` 类让出右侧内边距（见 CSS）。
+       点击向上弹出底部 sheet。
+       `hasEntries` 为假时整个按钮不出现（没有插件 dock 入口时点开只会是空 sheet）。 -->
   <template x-if="deviceType === 'mobile'">
     <button
       type="button"
       class="entry-dock-mobile-trigger"
       data-marquee-ignore
+      x-show="hasEntries"
       aria-haspopup="dialog"
       :aria-expanded="expanded ? 'true' : 'false'"
+      :title="expanded ? '收起插件入口' : '展开插件入口'"
+      :aria-label="expanded ? '收起插件入口' : '展开插件入口'"
       @click="toggle()"
-      title="插件入口"
     >
       <svg class="ui-icon ui-icon--sm" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <use href="/static/icons/ui.svg#icon-plugin"></use>
+        <use href="/static/icons/ui.svg#icon-chevron-right"></use>
       </svg>
-      <span class="entry-dock-mobile-trigger__count" x-show="slots.length" x-text="slots.length"></span>
+      <!-- 入口数量数字标（与 PC 端箭头同一套） -->
+      <span
+        class="entry-dock-mobile-trigger__count"
+        x-show="entryCount > 0"
+        x-text="entryCount"
+        aria-hidden="true"
+      ></span>
     </button>
   </template>
 
-  <!-- 桌面 / 平板：右侧坞 -->
+  <!-- 桌面 / 平板：右侧坞
+       坞完全由插件 dock 入口填充（宿主内建命令是 kind:"command"，不进坞），
+       一个都没有时右侧不该常驻一枚点了没用的箭头，因此浮层与箭头都按
+       `hasEntries` 门控。
+
+       用 `x-show` 而不是把 `hasEntries` 塞进外层 `x-if`：外层的 `x-if` 只在
+       deviceType 变化时重建整棵子树，把 `hasEntries` 并进去会让「插件装卸」
+       也触发整树销毁重建 —— 实测这会在清空注册表时额外抛出
+       `Cannot read properties of undefined (reading 'length')`（Alpine 的
+       x-for 在宿主 x-if 拆除子树时重入 reconcile）。`x-show` 只切
+       `display`，不动 x-for 的生命周期，因此没有这个问题。
+       首帧闪现不存在：`<template x-if>` 的内容在 Alpine 克隆前是 inert 的。 -->
   <template x-if="deviceType !== 'mobile'">
     <div
       class="entry-rail"
       :class="{ 'is-expanded': expanded, 'is-collapsed': !expanded }"
       data-marquee-ignore
+      x-show="hasEntries"
     >
       <!-- 收起态热区：只覆盖箭头周围一小块（不再是整屏高度的透明死区） -->
       <div
@@ -137,9 +163,16 @@
         @mouseleave="onHotzoneLeave()"
         @click="toggle()"
       >
-        <svg class="ui-icon ui-icon--xs" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <svg class="ui-icon ui-icon--sm" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
           <use href="/static/icons/ui.svg#icon-chevron-right"></use>
         </svg>
+        <!-- 入口数量数字标：让收起态也能一眼看出坞里有多少入口 -->
+        <span
+          class="entry-rail__toggle-count"
+          x-show="entryCount > 0"
+          x-text="entryCount"
+          aria-hidden="true"
+        ></span>
       </button>
 
       <!-- 溢出菜单弹层 -->
@@ -207,8 +240,10 @@
     </div>
   </template>
 
-  <!-- 移动端底部 sheet -->
-  <template x-if="deviceType === 'mobile' && expanded">
+  <!-- 移动端底部 sheet
+       `hasEntries` 一并门控：`expanded` 是持久化偏好，若用户上次开着 sheet
+       关掉页面、之后又卸载了全部插件，重新打开会弹出一个空 sheet。 -->
+  <template x-if="deviceType === 'mobile' && expanded && hasEntries">
     <div class="entry-sheet" data-marquee-ignore role="dialog" aria-modal="true" aria-label="插件入口">
       <div class="entry-sheet__backdrop" @click="collapse()"></div>
       <div class="entry-sheet__panel">

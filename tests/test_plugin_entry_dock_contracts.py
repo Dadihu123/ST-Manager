@@ -586,6 +586,174 @@ def test_dock_reduced_motion_also_covers_the_toggle_arrow():
     assert '.entry-rail__slot' in block
 
 
+def test_dock_is_hidden_when_no_plugin_registered_a_dock_entry():
+    """一个插件 dock 入口都没有时，坞**整体不出现**（右侧不留死箭头）。
+
+    坞只由插件的 `kind: "dock"` 入口填充 —— 宿主内建命令全是 `kind: "command"`
+    （见 `entryRegistry.js` 的 `CORE_ENTRIES`），而 `dockSlots()` /
+    `overflowEntries()` 都只取 `kind: "dock"`。所以「没装任何带 dock 入口的插件」
+    是完全正常的状态（新装的主程序就是这样），此时右侧不该常驻一枚点了没用的箭头、
+    移动端也不该有一个点开是空 sheet 的顶栏按钮。
+
+    实测过的错误行为：一个入口都没有时，desktop/tablet 仍渲染
+    `.entry-rail__toggle`，mobile 仍渲染 `.entry-dock-mobile-trigger`。
+
+    门控方式必须是 `x-show`（切 `display`）而**不是**把 `hasEntries` 并进外层
+    `x-if`：外层的 `x-if` 只在 deviceType 变化时重建子树，把 `hasEntries` 并进去
+    会让「插件装卸」也触发整树销毁重建，实测在清空注册表时会多抛
+    `Cannot read properties of undefined (reading 'length')`
+    （Alpine 的 x-for 在宿主 x-if 拆除子树时重入 reconcile）。
+    真实 Chromium 对照：HEAD 6 次 pageerror，`x-if` 方案 10 次，`x-show` 方案 6 次。
+    """
+    component = read_source(DOCK_JS)
+    template = read_source(DOCK_TEMPLATE)
+
+    # 1) 计算属性：槽位与溢出都为空才算「没有入口」
+    assert 'get hasEntries() {' in component
+    has_entries = component.split('get hasEntries() {', 1)[1].split('\n    },', 1)[0]
+    assert 'this.slots.length > 0 || this.overflow.length > 0' in has_entries, (
+        'hasEntries 必须同时看 slots 与 overflow：只有 overflow（社区插件默认不固定）'
+        '时箭头同样要出现'
+    )
+
+    # 2) 桌面坞 + 移动端按钮都按 hasEntries 门控
+    rail_block = template.split('<template x-if="deviceType !== \'mobile\'">', 1)[1].split('>', 1)[0]
+    assert 'x-show="hasEntries"' in rail_block, '坞必须按 hasEntries 门控'
+
+    trigger_block = template.split('class="entry-dock-mobile-trigger"', 1)[1].split('>', 1)[0]
+    assert 'x-show="hasEntries"' in trigger_block, '移动端按钮同样要门控'
+
+    # 3) 门控不得并进外层 x-if（会引入额外的 Alpine reconcile 报错）
+    assert "deviceType !== 'mobile' && hasEntries" not in template, (
+        'hasEntries 不得并进外层 x-if：那会让插件装卸触发整树重建并多抛 pageerror'
+    )
+
+    # 4) 移动端 sheet 也要门控：`expanded` 是持久化偏好，用户上次开着 sheet 关掉
+    #    页面、之后卸载了全部插件时，重新打开不该弹出一个空 sheet
+    sheet_block = template.split('<!-- 移动端底部 sheet', 1)[1].split('>', 1)[0]
+    assert 'hasEntries' in sheet_block, '空态下不该弹出空 sheet'
+    assert 'expanded' in sheet_block
+
+
+def test_dock_toggle_arrow_points_where_it_will_go():
+    """箭头朝向必须"指向点击后会去的方向"：收起朝**内**，展开朝**外**。
+
+    sprite 里只有 `icon-chevron-right`（无 left 变体），所以收起态的"朝左"= 180°。
+
+    旧实现写反了（收起 `rotate(0)` 朝右 = 指向屏幕边缘、无视浮层将要出现的方向；
+    展开才 `rotate(180deg)` 朝左），用户反馈「展开不是向外而是向内，方向反了」。
+
+    这里同时断言"基准"与"展开"两个分支都存在，且基准是 180°：
+    只断言展开分支会让整个规则被删掉后仍然通过。
+    """
+    css = read_source(DOCK_CSS)
+
+    base = css.split('.entry-rail__toggle svg {', 1)[1].split('}', 1)[0]
+    assert 'rotate(180deg)' in base, '收起态箭头必须朝内（左）'
+
+    expanded = css.split(
+        '.entry-rail.is-expanded .entry-rail__toggle svg {', 1
+    )[1].split('}', 1)[0]
+    assert 'rotate(0deg)' in expanded, '展开态箭头必须朝外（右）'
+
+
+def test_dock_slot_icon_fills_a_sane_share_of_the_slot():
+    """图标必须撑满槽位的合理比例 —— 不能只有一小撮。
+
+    实测旧值：槽位 40px、内层 `<svg>` 16px，`iconToSlotRatio` 只有 **0.40**，
+    按钮四周全是空白（用户反馈「图标占比按钮比例很小，感觉上没有必要」）。
+
+    这里锁住三件互相咬合的事：
+    1. 图标尺寸走 `--dock-icon-size` 令牌（不再写死 1.25rem）；
+    2. 尺寸令牌与槽位令牌成比例（用数字断言区间，防止有人只改其中一个）；
+    3. 尺寸规则要能**压过** `ui-icon--sm`（`uiPrimitives.js:icon()` 总会带上它）。
+       裸 `> *`（特异度 0,1,0）与尺寸类同分、只能靠源序取胜，太脆弱。
+    """
+    css = read_source(DOCK_CSS)
+
+    root = css.split('.entry-dock-root {', 1)[1].split('}', 1)[0]
+    slot = float(re.search(r'--dock-slot-size:\s*([\d.]+)rem', root).group(1))
+    icon = float(re.search(r'--dock-icon-size:\s*([\d.]+)rem', root).group(1))
+    ratio = icon / slot
+    assert 0.5 <= ratio <= 0.72, f'图标/槽位比 {ratio:.2f} 不在合理区间（0.40 太小）'
+
+    # 注意锚点要带换行：裸 `.entry-rail__icon {` 会先匹配到
+    # `.entry-rail__slot.is-warn .entry-rail__icon {` 这类组合选择器。
+    block = css.split('\n.entry-rail__icon {', 1)[1].split('}', 1)[0]
+    assert 'var(--dock-icon-size)' in block
+
+    # 传给 icon() 的尺寸类必须被坞自己的规则盖过。
+    # ⚠️ 断言前必须剥掉注释：上面的解释性注释里逐字写了这两个选择器，
+    # 于是把真正的规则删掉后断言依然通过（变异测试抓出来的假绿）。
+    code = re.sub(r'/\*.*?\*/', '', css, flags=re.S)
+    assert '.entry-rail__icon > svg' in code
+    assert '.entry-rail__icon > .ui-icon' in code
+
+
+def test_dock_entry_count_badge_sits_on_the_arrow_on_both_layouts():
+    """入口数量数字标必须挂在**箭头**上，而不是面板里的槽位（PC 与移动端都要）。
+
+    移动端旧 badge 挂在 `.entry-dock-mobile-trigger` 上但用 `x-show="slots.length"`：
+    社区插件默认不固定、只进溢出菜单，此时 `slots.length === 0` 而入口明明有，
+    徽标凭空消失。所以两端都改用 `entryCount`。
+    """
+    component = read_source(DOCK_JS)
+    template = read_source(DOCK_TEMPLATE)
+
+    count = component.split('get entryCount() {', 1)[1].split('\n    },', 1)[0]
+    assert 'this.entries.length' in count, 'entryCount 必须用 entries（含未固定的入口）'
+
+    # PC：徽标在开合按钮内部
+    toggle_block = template.split('class="entry-rail__toggle"', 1)[1].split('</button>', 1)[0]
+    assert 'entry-rail__toggle-count' in toggle_block
+    assert 'x-text="entryCount"' in toggle_block
+
+    # 移动端：徽标在底部箭头内部，且不再用 slots.length
+    trigger_block = template.split('class="entry-dock-mobile-trigger"', 1)[1].split('</button>', 1)[0]
+    assert 'entry-dock-mobile-trigger__count' in trigger_block
+    assert 'x-text="entryCount"' in trigger_block
+    assert 'x-text="slots.length"' not in template, (
+        'slots.length 会在"只有社区插件"时把徽标判成不可见'
+    )
+
+
+def test_mobile_trigger_is_docked_into_the_bottom_bar_not_its_own_row():
+    """移动端触发器必须是**底部栏上的浮动箭头**，不能独占一行。
+
+    旧实现 `position: relative` + 普通块级按钮 ⇒ `.entry-dock-root` 在 body 的
+    column flex 里占掉一整行（实测根节点高 32px、把翻页栏顶上去，
+    触发按钮落在 `y=848` 而翻页栏 `y=788..848`）。用户反馈「单独占据了一行没有必要」。
+
+    现在 `position: fixed` 贴视口右下角：根节点高度塌成 0，箭头落进翻页栏那条带子里。
+    """
+    css = read_source(DOCK_CSS)
+    component = read_source(DOCK_JS)
+
+    trigger = css.split('.entry-dock-mobile-trigger {', 1)[1].split('}', 1)[0]
+    assert 'position: fixed;' in trigger, '必须是 fixed，否则根节点会独占一行'
+    assert 'bottom:' in trigger and 'right:' in trigger
+    assert 'var(--z-entry-rail)' in trigger
+
+    # 箭头朝上（收起）→ 朝下（展开），与 PC 端同一套语义。
+    # 两个分支都要断到**角度值**：只断选择器存在的话，把展开态的角度改回
+    # `rotate(-90deg)`（箭头永远朝上、点了不知道有没有生效）测试仍然通过。
+    collapsed = css.split('\n.entry-dock-mobile-trigger svg {', 1)[1].split('}', 1)[0]
+    assert 'rotate(-90deg)' in collapsed, '收起态箭头必须朝上'
+
+    expanded = css.split(
+        ".entry-dock-mobile-trigger[aria-expanded='true'] svg {", 1
+    )[1].split('}', 1)[0]
+    assert 'rotate(90deg)' in expanded, '展开态箭头必须朝下'
+
+    # 为箭头让位的规则必须由 JS 挂类驱动，而不是 CSS `:has()`
+    assert 'entry-dock-mobile-docked' in component
+    assert 'syncMobileDockedClass' in component
+    assert 'classList.toggle("entry-dock-mobile-docked", docked)' in component
+    assert ':has(.entry-dock-mobile-trigger)' not in css, (
+        ':has() 只看元素是否存在，x-show 只切 display ⇒ 空态下也会白留一段空隙'
+    )
+
+
 def test_dock_uses_z_index_tokens_only():
     css = read_source(DOCK_CSS)
     literals = re.findall(r'z-index:\s*(\d+)', css)

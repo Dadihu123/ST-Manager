@@ -442,18 +442,22 @@ api.ui.toolbar(container, buttons)           // 统一的按钮排布
 | 项 | 规格 |
 |---|---|
 | 位置 | `position: fixed; right: 0; top: 64px（顶栏高度）; bottom: 64px（避开在流翻页栏）`；坞是**不可见**定位带（`pointer-events: none`），自身不绘制任何东西 |
-| 收起态（默认） | 右边缘**垂直居中**一枚毛玻璃小箭头（22×40px，`--dock-handle-*` 令牌）。浮层 `width: 0`、`border-width: 0`、`background: transparent`，**不占内容区宽度**，屏幕上没有常驻竖条 |
+| 空态门控 | 坞只由插件的 `kind: "dock"` 入口填充（宿主内建命令是 `kind: "command"`，不进坞）。`slots` 与 `overflow` **同时为空**时坞整体不渲染（`hasEntries`），移动端顶栏按钮与底部 sheet 同样门控 —— 没装带 dock 入口的插件时，右侧不留一枚点了没用的箭头。门控用 `x-show` 而非并进外层 `x-if`（后者会让插件装卸触发整树销毁重建，实测多抛 Alpine reconcile 报错） |
+| 收起态（默认） | 右边缘**垂直居中**一枚毛玻璃小箭头（22×40px，`--dock-handle-*` 令牌），角上带入口数量数字标。浮层 `width: 0`、`border-width: 0`、`background: transparent`，**不占内容区宽度**，屏幕上没有常驻竖条 |
+| 箭头朝向 | **指向"点它会去的方向"**：收起态朝**内**（左，`rotate(180deg)`），展开态朝**外**（右，`rotate(0deg)`）。sprite 只有 `icon-chevron-right`，左向由 180° 旋转得到 |
 | 展开态 | 箭头左侧弹出毛玻璃浮层，宽 `--dock-panel-width`（= 槽位宽 + 10px 内边距与边框），**高度 `auto` 随入口数量塌缩**，仅 `max-height: 100%` 兜底滚动。展开触发 = hover 箭头/热区停留 150ms，或点击箭头 |
 | 悬停热区 | 箭头周围一圈窄环（`calc(var(--dock-handle-width) + .5rem)`），**不再贯穿整屏高度** —— 旧的全高 8px 透明热区会在内容区右侧形成看不见的鼠标死区 |
 | 收起动作 | 点击箭头。`collapse()` **必须取消挂起的 hover 展开定时器**，否则指针移向箭头触发的 150ms 定时器会在收起后把坞重新弹开（实测为必现竞态） |
-| 槽位内容 | **只保留图标**（24px）+ 可选徽标/进度/忙碌点。文字标签已从坞内移除；名称改由 `title` tooltip 与 `aria-label` 提供，溢出菜单里仍有完整文字 |
+| 槽位内容 | **只保留图标** + 可选徽标/进度/忙碌点。文字标签已从坞内移除；名称改由 `title` tooltip 与 `aria-label` 提供，溢出菜单里仍有完整文字 |
+| 图标尺寸 | `--dock-icon-size`，与槽位配套：桌面 26/44 ≈ **0.59**、平板 24/40 = 0.60。覆盖规则用 `.entry-rail__icon > svg` / `> .ui-icon`（要压过 `icon()` 必带的 `ui-icon--sm`） |
+| 数量数字标 | PC 挂在**箭头**左上角（`.entry-rail__toggle-count`），移动端挂在底部箭头上（`entry-dock-mobile-trigger__count`）。取值 `entryCount = entries.length` —— **不能**用 `slots.length`：社区插件默认不固定、只进溢出菜单，那样会让「只装了社区插件」时徽标凭空消失。挂左上角是因为右上角贴屏幕边缘会被裁掉 |
 | 固定 | 点击坞顶部「📌」进入 pinned 态（不自动收起），存 localStorage |
 | 键盘 | `role="toolbar"`，`aria-orientation="vertical"`，roving tabindex；`ArrowUp/Down` 移动、`Enter` 打开、`Delete` 取消固定。参照 `static/js/components/sidebar.js:214-235` 的 `handleModuleMenuKeydown` 模式 |
 | 层级 | 令牌 `--z-entry-rail: 80`（在 `--z-card-selected:50` 之上、`--z-floating:100` 之下） |
 | 遮挡处理 | **只有真正与坞重叠**的 surface（`panel` / `sheet`）打开时才收起：`body:has(.plugin-surface--panel) …`。**不得**写 `body:has(.modal-overlay)`：`:has()` 只看元素存在不看可见性，而主程序 28 个模态框全部用 `x-show` 常驻 DOM，那条规则几乎永久成立，会把坞永久压成不可见 |
 | 溢出菜单 | `.entry-rail` 整体 `pointer-events: none`，因此**每个**可交互后代（`__panel` / `__toggle` / `__overflow`）都必须显式取回 `auto`；开合走事件身份守卫，Escape 由菜单自己处理（见下方「溢出菜单」小节） |
 | 框选 | 坞根元素带 `data-marquee-ignore`（`static/js/utils/marqueeSelection.js:11`） |
-| 移动端 | 无 hover。`deviceType === 'mobile'`（`static/js/components/layout.js:159-191`）时坞不渲染为侧条，改为：顶栏右侧一个「入口」按钮 → 打开底部 sheet 列出全部入口 |
+| 移动端 | 无 hover。`deviceType === 'mobile'` 时坞不渲染为侧条，改为：**贴底部翻页栏**的向上箭头（`position: fixed`，36×36px，`bottom/right: 0.25rem`）→ 打开底部 sheet 列出全部入口。箭头收起态朝上（`rotate(-90deg)`）、展开态朝下（`rotate(90deg)`），与 PC 同一套语义 |
 | 平板 | `deviceType === 'tablet'` 时坞默认收起且不自动展开（避免误触），点击展开；浮层与槽位各窄一档 |
 | 主题 | 只用 `.color-*` 语义类与既有 CSS 变量（F2：`tests/test_color_system_contracts.py:117-137` 禁止 `bg-red-*`/`text-blue-*`） |
 | 动效 | 遵守 `prefers-reduced-motion`（含箭头旋转） |
@@ -506,6 +510,131 @@ api.ui.toolbar(container, buttons)           // 统一的按钮排布
    `.entry-overflow` 是它的**兄弟**节点；菜单打开后焦点自动落在搜索框，
    面板的 keydown 树根本收不到。修法：菜单自己处理
    `@keydown.escape.stop="closeOverflow()"`（`.stop` 防止冒泡到坞根去收起整个坞）。
+
+**空态门控（2026-10 补充）**
+
+原先坞**无条件渲染**（只按 `deviceType` 分桌面/移动两套），因此一个插件 dock
+入口都没有时，右侧仍常驻一枚箭头、移动端仍有一个点开是空 sheet 的顶栏按钮。
+坞只由插件的 `kind: "dock"` 入口填充（`CORE_ENTRIES` 全是 `kind: "command"`，
+`dockSlots()` / `overflowEntries()` 都只取 `dock`），所以「完全没有入口」是
+新装主程序的正常状态，不该有这个死控件。
+
+修法：JS 侧加 `get hasEntries() { return slots.length > 0 || overflow.length > 0; }`，
+模板侧桌面坞、移动端按钮、底部 sheet 三处都用 `x-show="hasEntries"` 门控。
+
+⚠️ 两个实现细节（都有实测依据）：
+
+- 必须同时看 `slots` **与** `overflow`。社区插件默认不进槽位、只进溢出菜单
+  （`isPinned()` 对 `tier === "community"` 返回 false），只看 `slots` 会让
+  「只装了社区插件」的用户看不到入口。
+- 必须用 `x-show`（切 `display`），**不要**把 `hasEntries` 并进外层
+  `x-if="deviceType !== 'mobile'"`。外层 `x-if` 本意是「按设备类型重建子树」，
+  并进 `hasEntries` 会让「插件装卸」也触发整树销毁重建。真实 Chromium 对照
+  （同一序列：装入 → 清空 → 重装 → 清空，走真实 `plugins:loaded` 路径）：
+
+  | 实现 | pageerror 次数 |
+  |---|---|
+  | HEAD（无门控） | 6 |
+  | `x-if="… && hasEntries"` | 10 |
+  | `x-show="hasEntries"` | **6** |
+
+  多出来的报错是 `Cannot read properties of undefined (reading 'length')`
+  （Alpine 的 x-for 在宿主 x-if 拆除子树时重入 reconcile）。`x-show` 只切
+  `display`，不动 x-for 生命周期，因此与 HEAD 持平。
+
+  > 附带发现：该 pageerror **本身是既有缺陷**，与坞无关 —— 把坞整块 DOM 从页面
+  > 删掉后它照样出现（对照实验：`neither` 组仍 1 次）。它来自**别处**同样
+  > 结构的 `x-if` + `x-for`（如 `header.html` 的 `pluginBatchEntries` 区块），
+  > 触发条件是注册表在运行期变化。这属于独立问题，本次未处理，仅确保**不因本次
+  > 改动而增多**。
+
+**第二轮外观修正（2026-10 补充）**
+
+四处调整，全部有真实浏览器实测依据（Playwright + Chromium，真实页面 + 真插件）：
+
+**① 箭头朝向原本是反的。** 旧实现收起态 `rotate(0)`（`chevron-right`，指向**屏幕
+边缘**）、展开态 `rotate(180deg)`（指向**内容区**）。用户反馈「展开不是向外而是向内，
+收起不是向内而是向外，请调换」。
+
+改为「**朝向 = 点它会去的方向**」：收起态朝内（左，`rotate(180deg)`），展开态朝外
+（右，`rotate(0deg)`）。sprite 里只有 `icon-chevron-right`（无 left 变体），左向靠
+180° 旋转取得。
+
+实测（`getComputedStyle(svg).transform` 解成角度）：
+
+| 状态 | 旧 | 新 |
+|---|---|---|
+| 收起 | `matrix(1,0,0,1,0,0)` = 0° 朝右 | `matrix(-1,0,0,-1,0,0)` = **180°** 朝左 |
+| 展开 | `matrix(-1,0,0,-1,0,0)` = 180° 朝左 | `matrix(1,0,0,1,0,0)` = **0°** 朝右 |
+
+**② 图标占槽位比例过小。** 实测旧值：槽位 40×40，而内层 `<svg>` 只有 **16×16**
+（`buildIcon()` 的 `icon()` 调用带 `ui-icon--sm`，坞自己的 `.entry-rail__icon`
+容器是 20px，内层 svg 仍由尺寸类决定），`iconToSlotRatio` = **0.40** —— 按钮四周
+一圈空白。用户反馈「图标占比按钮比例很小，感觉上没有必要」。
+
+改为令牌化并配套放大：新增 `--dock-icon-size`，与 `--dock-slot-size` 成比例。
+
+| | 槽位 | 图标 | 占比 |
+|---|---|---|---|
+| 桌面 | 40 → **44** | 16 → **26** | 0.40 → **0.59** |
+| 平板 | 36 → **40** | 16 → **24** | 0.44 → 0.60 |
+
+⚠️ 覆盖规则必须写成 `.entry-rail__icon > svg` / `.entry-rail__icon > .ui-icon`，
+**不能**用 `.entry-rail__icon > *`：后者特异度 0,1,0 与 `.ui-icon--sm` 同分，
+只能靠源序取胜，改动引入顺序就会静默失效。图标节点有两种形态（`uiPrimitives.js:icon()`
+对宿主图标返回 `<svg>`、对插件资源图标返回 `<span class="ui-icon--asset">`），
+两条选择器都要写。
+
+**③ 移动端触发器不再独占一行。** 旧实现是 `position: relative` 的普通块级按钮，
+而 `.entry-dock-root` 处在 `body` 的 column flex 流里 ⇒ 根节点**独占一整行**。
+实测根节点高 32px、把翻页栏整体顶上去（翻页栏 `y=788..848`、按钮 `y=848`），
+屏幕底部白多一条。用户反馈「单独占据了一行没有必要了」。
+
+改为贴视口右下角的 `position: fixed` 箭头（36×36px，`bottom/right: 0.25rem`，
+层级 `--z-entry-rail`），落到翻页栏那条带子里。
+
+实测对照（420×880 与 360×880 两种视口都测）：
+
+| | 旧 | 新 |
+|---|---|---|
+| `.entry-dock-root` 高度 | 32px（占一行） | **0** |
+| 触发按钮 | `relative`，`y=848` | `fixed`，`y=840..876` |
+| 翻页栏 | `y=788..848` | `y=820..880`（贴住真正底边） |
+| 箭头中心 `elementFromPoint` | — | `entry-dock-mobile-trigger` |
+
+⚠️ 必须给箭头留出横向空间。实测 420px 视口下翻页控件右边缘**正好** 404px =
+栏内容区右边界，一点空位都没有，直接叠上去会盖住「下一页」。因此在 `<body>` 上挂
+`entry-dock-mobile-docked` 类，由 `.pagination-bar { padding-right: 2.75rem }` 让位。
+
+- 让位后：控件右边缘 404 → **376**，箭头左边缘 380 ⇒ 不重叠（实测
+  `overlapWithControls: false`）。
+- **不能**用 CSS `body:has(.entry-dock-mobile-trigger)`：`:has()` 只看元素是否存在于
+  DOM，而模板里箭头被 `<template x-if>` 包着，Alpine 克隆后常驻，`x-show="hasEntries"`
+  只切 `display` ⇒ 空态下 `:has()` 依然成立，会白留一段空隙。实测空态
+  `padding-right` 正确回到 16px、`bodyHasDockedClass: false`。这与「遮挡处理」小节里
+  `:has()` 的坑是同一个。
+
+**④ 数量数字标移到箭头上（PC + 移动端）。** 旧实现在移动端按钮上已有徽标，但用
+`x-show="slots.length"`；PC 端完全没有。用户要求「放到箭头按钮上，PC 端也是」。
+
+统一改为 `entryCount`（= `entries.length`），PC 挂 `.entry-rail__toggle-count`、
+移动端挂 `.entry-dock-mobile-trigger__count`。取值理由：`slots` 只含**已固定**的入口
+且受 `MAX_DOCK_SLOTS` / 每插件上限裁剪，社区插件默认不进槽位 —— 只看 `slots` 会让
+「只装了社区插件」时徽标凭空消失（实测 `slots=0, overflow=1` 时旧判据为假）。
+
+徽标挂**左上角**：右上角贴着屏幕边缘（PC 箭头 `right: 0`），会被视口裁掉。
+
+实测：PC 收起/展开态徽标均在箭头内（`x=1413, y=427, 16×12`）；移动端徽标
+`x=377, y=837` 在箭头（`x=380..416`）左上角外沿，不越界。
+
+⚠️ 这四处契约已由 4 个新测试锁定，并经**变异测试**验证真的会失败（10/10）：
+把箭头角度调回旧值、图标缩回 1rem、覆盖选择器退回裸 `> *`、`entryCount` 退回
+`slots.length`、触发器退回 `relative`、让位规则退回 `:has()`、删掉任一端徽标 ——
+每一项都能让对应测试变红。
+
+> 变异测试顺带抓出一个**假绿**：图标覆盖规则的断言原本写成
+> `assert '.entry-rail__icon > svg' in css`，而上面那段解释性注释里逐字写了这两个
+> 选择器，于是把真正的规则删掉后断言依然通过。现已改为先剥掉注释再断言。
 
 **槽位内容**
 
