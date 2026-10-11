@@ -274,6 +274,8 @@ export const EntryRegistry = {
   /** `notifyChange` 重入保护（见该方法注释）。 */
   _notifying: false,
   _notifyPending: false,
+  /** 选中集响应式监听是否已安装（幂等，见 `installSelectionWatcher`）。 */
+  _selectionWatcherInstalled: false,
 
   init() {
     if (this.initialized) return;
@@ -313,14 +315,77 @@ export const EntryRegistry = {
       window.addEventListener(name, () => this.notifyChange());
     });
 
+    // **选中集变化必须让 `when` 重算**（否则置灰状态永远停在首次求值的快照）。
+    //
+    // 上面那三个事件名只是**候选触发源**：全仓没有任何地方 `dispatchEvent`
+    // `selection-changed`（`cardGrid` 直接写 `viewState.selectedIds`，不发事件），
+    // 所以「选中卡片后批量菜单项仍显示『请先选中至少一张卡片』」。
+    //
+    // 修法用 Alpine 的响应式 effect 直接观察 `viewState.selectedIds`——
+    // 这是**唯一**可靠的做法：选中集有 6 个写入点（cardGrid 的框选、全选、
+    // 单卡切换、清空…），逐个补 `dispatchEvent` 迟早漏一个。
+    //
+    // 时机：`alpine:init` 触发时 `window.Alpine` **还没挂上**（实测：该事件在
+    // bundle 的 1385 字节处派发，`window.Alpine=` 在 43389 字节处），所以不能
+    // 在这里同步取；`alpine:initialized` 在挂载后派发，用它做首次安装。
+    // 两个事件都监听 + 幂等安装，任何加载顺序都能装上。
+    // `document` 可能不存在（纯逻辑单测只垫了 `window`），因此不假设它在。
+    if (!this.installSelectionWatcher()) {
+      if (typeof document !== "undefined" && document.addEventListener) {
+        document.addEventListener("alpine:initialized", () => {
+          this.installSelectionWatcher();
+        });
+      }
+    }
+
     this.loadLayout().catch(() => null);
+  },
+
+  /**
+   * 观察 `viewState.selectedIds`，变化时广播 `entries:changed`。
+   *
+   * 幂等：重复调用只装一次。拿不到 Alpine（或它还没就绪）时返回 false，
+   * 由 `alpine:initialized` 再试一次。
+   */
+  installSelectionWatcher() {
+    if (this._selectionWatcherInstalled) return true;
+    if (typeof window === "undefined") return false;
+
+    const alpine = window.Alpine;
+    if (!alpine || typeof alpine.effect !== "function") return false;
+
+    const readIds = () => {
+      const store =
+        typeof alpine.store === "function" ? alpine.store("global") : null;
+      const viewState = (store && store.viewState) || {};
+      return Array.isArray(viewState.selectedIds) ? viewState.selectedIds : [];
+    };
+
+    // 变化检测放在**注册表侧**而不是依赖调用方：Alpine effect 会在依赖变化时
+    // 重跑，但 `notifyChange` 有重入合并，这里再做一层「值真的变了才广播」，
+    // 避免把 effect 的其它依赖（同一 store 上的无关字段）也算成选中集变化。
+    let last = readIds().join("\u0000");
+
+    try {
+      alpine.effect(() => {
+        const next = readIds().join("\u0000");
+        if (next === last) return;
+        last = next;
+        this.notifyChange();
+      });
+    } catch (error) {
+      console.warn("[entryRegistry] 安装选中集监听失败:", error);
+      return false;
+    }
+
+    this._selectionWatcherInstalled = true;
+    return true;
   },
 
   /** 宿主内建入口：命令面板的固定项。 */
   registerCoreEntries() {
     this.coreEntries = [...CORE_ENTRIES];
   },
-
   // ------------------------------------------------------------ 偏好层
 
   async loadLayout() {

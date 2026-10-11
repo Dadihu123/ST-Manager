@@ -363,10 +363,18 @@ export default function header() {
      *
      * `when` 求值统一由 `EntryRegistry.list()` 完成（这里是全局 selection 语义，
      * 与右键菜单按右键目标求值不同）——所以不要在这里重复判断条件。
+     *
+     * 只返回**可用**的入口：批量菜单的宿主内建项都靠 `x-show="currentMode === ..."`
+     * 自己管可见性，插件项没有等价条件，因此「不适用」的入口不该出现在菜单里
+     * （例如 AI 助手只处理角色卡，在世界书/会话视图下这个菜单项就是噪声）。
+     * 与右键菜单不同：那里 `when` 不满足要**可见但置灰**（D7），因为用户是在
+     * 「对某个目标操作」的语境下期待看到它；批量菜单是动作清单，不适用就该收起。
      */
     refreshPluginBatchEntries() {
       try {
-        this.pluginBatchEntries = EntryRegistry.list({ kind: "batch" });
+        this.pluginBatchEntries = EntryRegistry
+          .list({ kind: "batch" })
+          .filter((entry) => entry.enabled);
       } catch (error) {
         console.warn("[header] 读取插件 batch 入口失败:", error);
         this.pluginBatchEntries = [];

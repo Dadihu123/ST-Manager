@@ -9,6 +9,7 @@
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -127,11 +128,35 @@ def test_batch_menu_consumes_plugin_batch_entries():
     assert 'entry.disabledHint' in template
 
     # 组件：取数与执行
-    assert 'EntryRegistry.list({ kind: "batch" })' in component
+    assert 'EntryRegistry' in component
+    assert '.list({ kind: "batch" })' in component
     assert 'refreshPluginBatchEntries' in component
     assert "entries:changed" in component
     assert 'targetIds' in component
     assert "source: \"batch\"" in component
+
+
+def test_batch_entries_are_hidden_when_not_applicable():
+    """批量菜单只列出**可用**的 batch 入口（问题 5）。
+
+    批量菜单的宿主内建项都靠 `x-show="currentMode === ..."` 自己管可见性，
+    插件项没有等价条件。AI 助手只处理角色卡，因此在世界书 / 会话 / 预设视图下
+    这个菜单项不该出现（用户原话：「在世界书等其他视图，这个批量处理菜单就
+    不应该注册了」）。
+
+    与右键菜单的区别：右键菜单里 `when` 不满足要**可见但置灰**（D7），因为用户
+    是在「对某个目标操作」的语境下期待看到它；批量菜单是**动作清单**，
+    不适用就该收起，而不是留一条永远点不动的灰项。
+    """
+    component = read_source('static/js/components/header.js')
+    # 只看 `refreshPluginBatchEntries` 的定义体（注释里也提到了这个写法，先剥注释）
+    code = re.sub(r'/\*.*?\*/', '', component, flags=re.S)
+    body = code.split('refreshPluginBatchEntries() {', 1)[1].split('\n    },', 1)[0]
+
+    assert '.filter((entry) => entry.enabled)' in body, (
+        '批量入口必须过滤掉 when 不满足的项'
+    )
+    assert '.list({ kind: "batch" })' in body
 
 
 # ------------------------------------------------------------------ 快捷键

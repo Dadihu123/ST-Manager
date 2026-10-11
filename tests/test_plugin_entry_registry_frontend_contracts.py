@@ -285,6 +285,197 @@ def test_batch_kind_entries_are_registered_and_listed():
 
 
 @requires_node
+def test_selection_change_reevaluates_when():
+    """选中集变化必须让 `when` 重算（问题 2）。
+
+    症状：在角色卡视图勾选卡片后，批量菜单里的插件项仍显示「请先在角色卡视图里
+    选中至少一张卡片」。
+
+    根因：`entryRegistry` 只**监听** `selection-changed` / `mode-changed`，
+    而全仓没有任何地方 `dispatchEvent` 它们——`cardGrid` 直接写
+    `viewState.selectedIds`（有 6 个写入点），不发事件。于是 `when` 的求值结果
+    永远停在首次快照。
+
+    修法：用 Alpine 的响应式 effect 直接观察 `viewState.selectedIds`，
+    而不是逐个给写入点补 `dispatchEvent`（那样迟早漏一个）。
+    """
+    result = run_node(
+        """
+        import assert from 'node:assert/strict';
+
+        // 最小 Alpine 垫片：effect 立即执行一次并把依赖记下来，供测试手动触发
+        const store = { currentMode: 'cards', viewState: { selectedIds: [] } };
+        const effects = [];
+        globalThis.CustomEvent = class CustomEvent {
+          constructor(type, init = {}) { this.type = type; this.detail = init.detail; }
+        };
+        globalThis.window = {
+          addEventListener() {},
+          removeEventListener() {},
+          dispatchEvent() { return true; },
+          Alpine: {
+            store: (name) => (name === 'global' ? store : null),
+            effect(fn) { effects.push(fn); fn(); },
+          },
+        };
+        globalThis.document = { addEventListener() {}, querySelector() { return null; } };
+
+        const { EntryRegistry } = await import('./static/js/entryRegistry.js');
+        EntryRegistry.setPlugins([
+          { id: 'p1', enabled: true, manifest: { entries: [
+            { id: 'bulk', kind: 'batch', label: 'AI 分析选中卡片',
+              when: { mode: ['cards'], selection: 'any' }, disabledHint: '请先选中卡片' },
+          ] } },
+        ]);
+        EntryRegistry.layout = { order: [], pinned: [], hidden: [], groups: {}, shortcuts: {} };
+        EntryRegistry.init();
+
+        const read = () => EntryRegistry.list({ kind: 'batch' })[0];
+        assert.equal(effects.length > 0, true, 'init 必须安装选中集 effect');
+        assert.equal(read().enabled, false, '初始未选中应置灰');
+
+        // cardGrid 直接写 store（不发任何事件）→ effect 重跑 → 必须变为可用
+        store.viewState.selectedIds = ['a.png'];
+        for (const fn of effects) fn();
+        assert.equal(read().enabled, true, '选中后必须变为可用');
+
+        // 清空 → 回到置灰
+        store.viewState.selectedIds = [];
+        for (const fn of effects) fn();
+        assert.equal(read().enabled, false, '清空后必须回到置灰');
+
+        // 换一批不同的 id（长度相同）→ 也必须重算（不能只比长度）
+        store.viewState.selectedIds = ['x.png', 'y.png'];
+        for (const fn of effects) fn();
+        assert.equal(read().enabled, true);
+        store.viewState.selectedIds = ['z.png', 'w.png'];
+        for (const fn of effects) fn();
+        assert.equal(read().enabled, true, '同长度的不同 id 也必须被识别为变化');
+
+        // 幂等：重复安装不叠加 effect
+        const before = effects.length;
+        EntryRegistry.installSelectionWatcher();
+        assert.equal(effects.length, before, '重复安装必须幂等');
+        """
+    )
+    assert result.returncode == 0, result.stderr or result.stdout
+
+
+@requires_node
+def test_selection_watcher_broadcasts_entries_changed():
+    """选中集变化必须**真的广播** `entries:changed`。
+
+    只安装 effect 而不广播，坞 / 批量菜单 / 右键菜单都不会重算——effect 变成
+    一个只读的观察者。这里直接数广播次数。
+    """
+    result = run_node(
+        """
+        import assert from 'node:assert/strict';
+
+        const store = { currentMode: 'cards', viewState: { selectedIds: [] } };
+        const effects = [];
+        let broadcasts = 0;
+
+        globalThis.CustomEvent = class CustomEvent {
+          constructor(type, init = {}) { this.type = type; this.detail = init.detail; }
+        };
+        globalThis.window = {
+          addEventListener() {},
+          removeEventListener() {},
+          dispatchEvent(event) {
+            if (event && event.type === 'entries:changed') broadcasts += 1;
+            return true;
+          },
+          Alpine: {
+            store: (name) => (name === 'global' ? store : null),
+            effect(fn) { effects.push(fn); fn(); },
+          },
+        };
+        globalThis.document = { addEventListener() {}, querySelector() { return null; } };
+
+        const { EntryRegistry } = await import('./static/js/entryRegistry.js');
+        EntryRegistry.init();
+
+        const baseline = broadcasts;
+        store.viewState.selectedIds = ['a.png'];
+        for (const fn of effects) fn();
+        assert.equal(broadcasts > baseline, true, '选中变化必须广播 entries:changed');
+
+        // 值没变时不该重复广播（避免无谓重算）
+        const afterChange = broadcasts;
+        for (const fn of effects) fn();
+        assert.equal(broadcasts, afterChange, '值未变化时不应重复广播');
+
+        // **同长度的不同 id 也必须算变化**：只比长度会漏判
+        // （`when.selection` 只看数量，但注册表广播是通用的——其它 `when` 条件
+        //  与插件监听者都依赖「选中集真的变了」这个信号）
+        store.viewState.selectedIds = ['b.png', 'c.png'];
+        for (const fn of effects) fn();
+        const afterTwo = broadcasts;
+        assert.equal(afterTwo > afterChange, true, '变为两个 id 必须广播');
+
+        store.viewState.selectedIds = ['d.png', 'e.png'];
+        for (const fn of effects) fn();
+        assert.equal(
+          broadcasts > afterTwo, true,
+          '同长度的不同 id 必须被识别为变化（不能只比较数量）',
+        );
+        """
+    )
+    assert result.returncode == 0, result.stderr or result.stdout
+
+
+@requires_node
+def test_selection_watcher_retries_after_alpine_becomes_available():
+    """`init()` 时 Alpine 还没就绪 → 必须在 `alpine:initialized` 后补装。
+
+    实测：`alpine:init` 派发时 `window.Alpine` **还没挂上**
+    （bundle 里该事件在 1385 字节处派发，`window.Alpine=` 在 43389 字节处）。
+    因此不能在 `init()` 里同步取 `window.Alpine`，必须留一条重试路径。
+    """
+    result = run_node(
+        """
+        import assert from 'node:assert/strict';
+
+        const listeners = {};
+        const store = { currentMode: 'cards', viewState: { selectedIds: [] } };
+        const effects = [];
+
+        globalThis.CustomEvent = class CustomEvent {
+          constructor(type, init = {}) { this.type = type; this.detail = init.detail; }
+        };
+        globalThis.window = {
+          addEventListener() {},
+          removeEventListener() {},
+          dispatchEvent() { return true; },
+        };
+        globalThis.document = {
+          addEventListener(name, fn) { (listeners[name] = listeners[name] || []).push(fn); },
+          querySelector() { return null; },
+        };
+
+        const { EntryRegistry } = await import('./static/js/entryRegistry.js');
+        EntryRegistry.init();
+
+        // Alpine 尚未就绪 → 没装上，但已登记重试
+        assert.equal(EntryRegistry._selectionWatcherInstalled, false);
+        assert.ok(listeners['alpine:initialized'], '必须监听 alpine:initialized 以便补装');
+
+        // Alpine 就绪后补装
+        globalThis.window.Alpine = {
+          store: (name) => (name === 'global' ? store : null),
+          effect(fn) { effects.push(fn); fn(); },
+        };
+        for (const fn of listeners['alpine:initialized']) fn();
+
+        assert.equal(EntryRegistry._selectionWatcherInstalled, true);
+        assert.equal(effects.length, 1, '补装后应恰好有一个 effect');
+        """
+    )
+    assert result.returncode == 0, result.stderr or result.stdout
+
+
+@requires_node
 def test_when_condition_evaluation():
     """D7：`when` 的每种条件都必须按契约求值。"""
     result = run_node(

@@ -18,8 +18,21 @@
 
 import { setFullscreenScrim } from "./utils/dom.js";
 import { EntryRegistry } from "./entryRegistry.js";
+import { icon as buildIcon } from "./uiPrimitives.js";
 
 export const SURFACE_TYPES = ["panel", "modal", "page", "sheet"];
+
+/**
+ * 表面尺寸档位（`spec.size`）。
+ *
+ * **为什么需要它**：`modal` 早先用 `max-height` + 内容自适应高度，插件切换页签时
+ * 内容长度变化 → 弹层高度跟着跳，看起来像「窗口在自己缩放」。给一个**固定尺寸**
+ * 档位让容器在打开期间恒定，切换页签只换内部内容。
+ *
+ * `md` 是默认档；`lg` 对应旧版插件自绘 shell 的 `min(1080px, 94vw) × min(760px, 90vh)`。
+ */
+export const SURFACE_SIZES = ["sm", "md", "lg", "xl"];
+const DEFAULT_SURFACE_SIZE = "md";
 
 const SURFACE_ROOT_ID = "plugin-surface-root";
 
@@ -93,6 +106,20 @@ export const PluginSurfaceHost = {
       pluginId: String(pluginId),
       title: String(spec.title || id),
       type: SURFACE_TYPES.includes(String(spec.type || "")) ? String(spec.type) : "panel",
+      // 尺寸档位（仅对 modal 生效）：让容器在打开期间保持恒定高度。
+      size: SURFACE_SIZES.includes(String(spec.size || ""))
+        ? String(spec.size)
+        : DEFAULT_SURFACE_SIZE,
+      // 头部图标：宿主图标名，或插件内资源路径（需 `pluginId` 才能解析）。
+      // 传入后标题栏左侧渲染一个图标位——与主程序模态框（`.ui-modal-header-icon`）
+      // 的设计元素对齐，插件不必自绘标题。
+      icon: String(spec.icon || ""),
+      // 头部副标题（主程序模态框的 `.ui-modal-eyebrow` / description 位）。
+      description: String(spec.description || ""),
+      // 头部附加槽：宿主在「标题块」与「关闭按钮」之间留一个空容器，
+      // 调用 `headerExtra(container)` 让插件把自己的状态胶囊放进去。
+      // 这样插件的状态信息与宿主标题处于**同一行**，不必自绘第二条状态栏。
+      headerExtra: typeof spec.headerExtra === "function" ? spec.headerExtra : null,
       mount: spec.mount,
       unmount: typeof spec.unmount === "function" ? spec.unmount : null,
       onOpen: typeof spec.onOpen === "function" ? spec.onOpen : null,
@@ -145,6 +172,8 @@ export const PluginSurfaceHost = {
     shell.dataset.plugin = record.pluginId;
     shell.dataset.surface = record.id;
     shell.dataset.surfaceType = record.type;
+    // 尺寸档位落到 `data-size`，由 CSS 决定具体宽高（modal 用固定高度）。
+    shell.dataset.surfaceSize = record.size;
     // 框选（marqueeSelection）不命中坞与浮层
     shell.dataset.marqueeIgnore = "true";
     shell.setAttribute("role", "dialog");
@@ -154,16 +183,64 @@ export const PluginSurfaceHost = {
     const header = document.createElement("header");
     header.className = "plugin-surface__header";
 
+    // 标题块：图标 + （可选副标题 + 标题）。
+    // 与主程序模态框的 `.ui-modal-header-copy` / `.ui-modal-header-icon` /
+    // `.ui-modal-eyebrow` 同一套设计元素，让插件弹层与宿主弹层观感一致。
+    const headerCopy = document.createElement("div");
+    headerCopy.className = "plugin-surface__header-copy";
+
+    if (record.icon) {
+      const iconSlot = document.createElement("span");
+      iconSlot.className = "plugin-surface__header-icon";
+      iconSlot.setAttribute("aria-hidden", "true");
+      iconSlot.appendChild(buildIcon(record.icon, {
+        className: "ui-icon--md",
+        pluginId: record.pluginId,
+      }));
+      headerCopy.appendChild(iconSlot);
+    }
+
+    const titleBlock = document.createElement("div");
+    titleBlock.className = "plugin-surface__title-block";
+
+    if (record.description) {
+      const eyebrow = document.createElement("p");
+      eyebrow.className = "plugin-surface__eyebrow";
+      eyebrow.textContent = record.description;
+      titleBlock.appendChild(eyebrow);
+    }
+
     const title = document.createElement("h2");
     title.className = "plugin-surface__title";
     title.textContent = record.title;
-    header.appendChild(title);
+    titleBlock.appendChild(title);
 
+    headerCopy.appendChild(titleBlock);
+    header.appendChild(headerCopy);
+
+    // 头部附加槽（`spec.headerExtra`）：插件把状态胶囊放进宿主标题行，
+    // 与主程序「标题 + 状态」同行的做法一致，插件不必自绘第二条状态栏。
+    const headerExtra = document.createElement("div");
+    headerExtra.className = "plugin-surface__header-extra";
+    if (record.headerExtra) {
+      try {
+        record.headerExtra(headerExtra);
+      } catch (error) {
+        console.error(
+          `[surfaceHost] 插件 ${record.pluginId} 的 headerExtra 失败:`, error,
+        );
+      }
+    }
+    header.appendChild(headerExtra);
+
+    // 关闭按钮：用宿主的通用关闭图标（与设置弹窗、详情页一致），
+    // 而不是文字「×」——文字字形随字体变化，且与主程序图标体系不一致。
     const closeButton = document.createElement("button");
     closeButton.type = "button";
     closeButton.className = "plugin-surface__close";
     closeButton.setAttribute("aria-label", "关闭");
-    closeButton.textContent = "×";
+    closeButton.setAttribute("title", "关闭");
+    closeButton.appendChild(buildIcon("close", { className: "ui-icon--md" }));
     closeButton.addEventListener("click", () => this.close(record.key));
     header.appendChild(closeButton);
 

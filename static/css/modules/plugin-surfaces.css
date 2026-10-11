@@ -43,6 +43,53 @@
   flex: 0 0 auto;
 }
 
+/* 标题块：图标 + 文字（与主程序 `.ui-modal-header-copy` 同一套设计元素）。 */
+.plugin-surface__header-copy {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+/* 图标位：**无边框无底色**，与设置弹窗的 `.ui-modal-header-icon` 一致
+ * （早期插件版本把品牌图标画在一个胶囊里，与主程序弹层的开放字形不符）。 */
+.plugin-surface__header-icon {
+  display: inline-flex;
+  flex: 0 0 2.5rem;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  color: var(--action-icon, var(--accent-text, var(--content-primary)));
+  background: transparent;
+  border: 0;
+}
+
+.plugin-surface__header-icon .ui-icon {
+  width: 1.75rem;
+  height: 1.75rem;
+}
+
+.plugin-surface__title-block {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* 副标题（主程序模态框的 `.ui-modal-eyebrow` 位）：小号、字重高、弱色。 */
+.plugin-surface__eyebrow {
+  margin: 0 0 0.18rem;
+  color: var(--content-muted);
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .plugin-surface__title {
   margin: 0;
   font-size: 1rem;
@@ -52,6 +99,18 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* 头部附加槽：插件放状态胶囊的位置。`margin-left: auto` 把它推到关闭按钮前，
+ * 与标题块拉开距离；自身不占位时（无内容）宽度为 0，不影响观感。 */
+.plugin-surface__header-extra {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1 1 auto;
+  justify-content: flex-end;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .plugin-surface__close {
@@ -66,7 +125,6 @@
   border-radius: 0.5rem;
   background: transparent;
   color: var(--content-secondary);
-  font-size: 1.25rem;
   line-height: 1;
   cursor: pointer;
   transition: background-color 0.15s ease, color 0.15s ease;
@@ -108,14 +166,46 @@
 
 /* ---------------------------------------------------------------- modal */
 
+/* 居中弹层。**高度固定**（不是 `max-height` + 内容自适应）：
+ *
+ * 早先用 `max-height: min(80vh, 720px)` + 内容撑高，插件切换页签时内容长度变化
+ * → 弹层高度跟着跳，看起来像「窗口在自己缩放」。这里改为按尺寸档位给出
+ * **确定的高度**，切换页签只换内部内容，容器纹丝不动。
+ *
+ * 高度用 `height` 而非 `max-height`，并配 `min-height: 0` 让内部滚动区正常收缩。
+ * 小屏仍走下面的 `@media` 全屏规则。 */
 .plugin-surface--modal {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: min(720px, 92vw);
-  max-height: min(80vh, 720px);
   border-radius: 1rem;
   z-index: var(--z-modal-popover);
+  overflow: hidden;
+}
+
+/* sm：小确认框 */
+.plugin-surface--modal[data-surface-size='sm'] {
+  width: min(440px, 92vw);
+  height: min(360px, 80vh);
+}
+
+/* md：默认档（多数插件弹层） */
+.plugin-surface--modal[data-surface-size='md'] {
+  width: min(720px, 92vw);
+  height: min(560px, 80vh);
+}
+
+/* lg：主工作台（表单 + 列表 + 页签）。对应旧版插件自绘 shell 的
+ * `min(1080px, 94vw) × min(760px, 90vh)`。 */
+.plugin-surface--modal[data-surface-size='lg'] {
+  width: min(1080px, 94vw);
+  height: min(760px, 90vh);
+}
+
+/* xl：接近全屏的复杂工作台 */
+.plugin-surface--modal[data-surface-size='xl'] {
+  width: min(1320px, 96vw);
+  height: min(880px, 92vh);
 }
 
 /* ---------------------------------------------------------------- page */
@@ -144,7 +234,9 @@
 
 /* ---------------------------------------------------------------- 响应式 */
 
-/* ≤900px：抽屉与模态都退化为全屏，避免窄屏上出现「夹缝」式浮层 */
+/* ≤900px：抽屉与模态都退化为全屏，避免窄屏上出现「夹缝」式浮层。
+ * 尺寸档位也要一并重置，否则 `[data-surface-size]` 的固定宽高会盖住这里的规则
+ * （属性选择器与类选择器同为 0,1,0 权重，靠源码顺序决定胜负）。 */
 @media (max-width: 900px) {
   .plugin-surface--panel,
   .plugin-surface--modal {
@@ -154,10 +246,17 @@
     left: 0;
     width: 100vw;
     max-width: none;
+    height: auto;
     max-height: none;
     transform: none;
     border: none;
     border-radius: 0;
+  }
+
+  .plugin-surface--modal[data-surface-size] {
+    width: 100vw;
+    height: auto;
+    max-height: none;
   }
 }
 

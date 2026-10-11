@@ -266,12 +266,28 @@ def test_dock_keyboard_bindings_cover_arrows_enter_delete():
     assert 'handleKeydown(event) {' in component
 
 
-def test_dock_collapses_when_a_modal_is_open():
-    """纯 CSS 实现：模态/表面打开时自动收起，不需要 JS 协调。"""
-    css = read_source(DOCK_CSS)
+def test_dock_collapses_only_for_surfaces_that_actually_overlap_it():
+    """只有**真正与坞重叠**的 surface 打开时才收起（纯 CSS，不需要 JS 协调）。
 
-    assert 'body:has(.modal-overlay) .entry-rail .entry-rail__panel' in css
-    assert 'body:has(.plugin-surface) .entry-rail .entry-rail__panel' in css
+    ⚠️ 这里**不能**用 `body:has(.modal-overlay)`：`:has()` 只看元素是否存在，
+    不看可见性，而主程序 28 个模态框全部用 `x-show`（常驻 DOM，仅 `display:none`）。
+    因此那条规则**几乎永久成立**，坞会被永久压成 `width: 0` —— 用户完全找不到
+    插件入口（实测症状：右键菜单与批量菜单都能找到，就是找不到固定入口）。
+
+    `panel` / `sheet` 贴着屏幕右侧/底部，与坞抢空间，需要收起；
+    `modal` 居中且 `z-index` 远高于坞，天然盖住坞，不需要也不该收起。
+    """
+    css = read_source(DOCK_CSS)
+    # 注释里会引用旧写法说明原因，只看代码
+    code = re.sub(r'/\*.*?\*/', '', css, flags=re.S)
+
+    assert '.modal-overlay' not in code, (
+        'modal-overlay 常驻 DOM，`:has()` 会永久成立 → 坞永久不可见'
+    )
+    assert 'body:has(.plugin-surface--panel) .entry-rail .entry-rail__panel' in code
+    assert 'body:has(.plugin-surface--sheet) .entry-rail .entry-rail__panel' in code
+    # 宽泛的 `.plugin-surface` 会连 modal 一起收起，也不该出现
+    assert 'body:has(.plugin-surface) ' not in code
 
 
 def test_dock_hides_sidebar_on_mobile_and_uses_sheet():

@@ -338,6 +338,36 @@ manifest 采用**严格校验**：顶层出现白名单以外的键即**拒绝�
 「只在右键分类时可用」的入口会在所有别处被误判为不可用。非法值（非
 `folder` / `card` / `any`）在 manifest 解析阶段被忽略 + 警告。
 
+### `when` 的求值时机（响应式契约）
+
+`when` 的求值结果**必须随宿主上下文实时变化**。注册表为此监听三类来源：
+
+| 来源 | 触发 | 说明 |
+|---|---|---|
+| `entries:changed` 广播 | 注册表自身 | 插件加载 / 禁用 / 配置变更 |
+| `plugin-config-changed` / `plugin-secrets-changed` | 设置页 | 让 `when.config.requireKeys` 立即重算 |
+| **`viewState.selectedIds` 响应式观察** | 卡片勾选 / 全选 / 框选 | 让 `when.selection` 立即重算 |
+
+> **为什么选中集必须用响应式观察（`Alpine.effect`）而不是事件**：
+> `entryRegistry` 早期只**监听** `selection-changed` / `mode-changed`，
+> 但全仓没有任何地方 `dispatchEvent` 它们——`cardGrid` 直接写
+> `viewState.selectedIds`（有 6 个写入点），不发事件。结果是 `when` 的求值结果
+> 永远停在首次快照，症状为「已勾选卡片，批量菜单项仍显示『请先选中至少一张卡片』」。
+> 逐个给写入点补 `dispatchEvent` 迟早漏一个，因此改为在注册表侧用 Alpine 的
+> 响应式 effect 直接观察 `viewState.selectedIds`（值变化才广播 `entries:changed`）。
+>
+> **时机陷阱**：`alpine:init` 派发时 `window.Alpine` **还没挂上**
+> （bundle 里该事件在 1385 字节处派发，`window.Alpine=` 在 43389 字节处）。
+> 因此 `init()` 里同步取 `window.Alpine` 会拿到 `undefined`，必须留一条
+> `alpine:initialized` 重试路径（安装是幂等的）。
+
+**置灰 vs 隐藏**：`when` 不满足时，入口**默认可见但置灰**（D7：不是无反应）。
+但**动作清单类**的消费方可以只列可用项——批量操作菜单就是如此：它的宿主内建项
+都靠 `x-show="currentMode === ..."` 自己管可见性，插件项没有等价条件，因此
+「不适用」的 batch 入口**不出现**在菜单里（例如只处理角色卡的插件在世界书视图下
+不该留一条永远点不动的灰项）。右键菜单相反：用户是在「对某个目标操作」的语境下
+期待看到它，所以保持可见 + 置灰 + `disabledHint`。
+
 ### 入口 `kind` 准入分级（D5）
 
 tier 由宿主仓库的 catalog 决定（`official` / `verified` / `community`），**插件 manifest 不能声明**。
@@ -358,6 +388,20 @@ tier 由宿主仓库的 catalog 决定（`official` / `verified` / `community`�
 - 插件声明的 `priority` 仅作**建议值**。
 - 社区插件的 `dock` 入口**默认进溢出菜单，不进坞槽位**；用户显式拖入才固定。
 - 坞可见槽位上限 **8**；单插件在坞内最多占 **2** 个槽位。
+- **坞默认展开**，且折叠态仍保留可见的窄边（不是 `width: 0`）。坞是插件入口的
+  主要发现路径，默认隐藏会让用户「找不到插件入口」。
+- 坞槽位顺序可**拖拽重排**，顺序持久化到 `layout.order`（后端 `_entry_layout_v1`），
+  不是 localStorage。`EntryRegistry.list()` 排序时**用户显式排序优先于插件 priority**。
+
+> **`body:has(...)` 折叠坞的陷阱（已修）**：早期用 `body:has(.modal-overlay)`
+> 在弹窗打开时自动收起坞。但 `:has()` 只看元素**是否存在于 DOM**，不看可见性，
+> 而主程序 28 个模态框全部用 `x-show`（常驻 DOM，仅 `display: none`）——
+> 该选择器**几乎永久成立**，坞被永久压成 `width: 0`，用户完全找不到插件入口。
+> 现在只对**真正与坞重叠**的 surface 类型收起：
+> `body:has(.plugin-surface--panel)` / `body:has(.plugin-surface--sheet)`。
+> 这两个类型没有该问题——surface 宿主在关闭时会把整个 shell 从 DOM 摘掉，
+> 所以「元素存在」恰好等价于「surface 打开」。`modal` 居中且 `z-index`
+> 远高于坞，天然盖住坞，不需要也不该收起。
 
 ### 图标名契约（D4）
 
@@ -367,6 +411,15 @@ tier 由宿主仓库的 catalog 决定（`official` / `verified` / `community`�
 - **安装期校验**：`entries[].icon` 若为宿主图标名，校验其存在性；不存在则记 warning 并把图标降级为占位（**不拒绝加载**）。
 - **契约承诺**：图标名整表 `Stable`；允许新增；删除/改名走 deprecation。
 - **新约束**：插件**不得**在自己 CSS 里硬编码 sprite 路径（如 `url('/static/icons/ui.svg#icon-x')`）——安装期静态检查发现即 warning。
+- **同一插件应使用同一个图标**：`entries[].icon` 与 `surfaces.register().icon`
+  建议都写**插件自己的品牌资源**（如 `frontend/assets/icon.svg`）。宿主
+  `utils/icons.js:resolveIcon()` 三态解析：含 `/` 或 `.` 的值 →
+  `/api/plugins/<id>/assets/<path>`，`uiPrimitives.js:icon()` 对资源路径渲染
+  `<span>` + CSS `mask`（不能用 `<use>`：插件 SVG 是填充式，宿主 sprite 是描边式）。
+  这样坞、右键菜单、批量菜单、入口总览与弹层标题显示**同一个图标**，辨识度一致。
+  注意这条路径是 `Stable` 的：早期 `resolveIconUrl` 只支持宿主图标名，插件只好
+  在不同落点用不同的宿主图标名（`wand` / `tags` / `folder` / `settings-gear`），
+  同一插件看起来像四个插件。
 
 ### 校验规则
 
@@ -1385,25 +1438,71 @@ if (window.Alpine) {
 ```js
 api.surfaces.register('ai-workbench', {
   title: 'AI 分析',
+  // 可选：标题行左侧的图标。取值同 `entries[].icon`（宿主图标名，或插件内
+  // 相对路径如 `frontend/assets/icon.svg`）。**推荐用插件自己的品牌图标**——
+  // 同一个插件在坞 / 右键菜单 / 批量菜单 / 入口总览 / 弹层标题用同一个图标，
+  // 辨识度一致。
+  icon: 'frontend/assets/icon.svg',
+  // 可选：标题上方的副标题（对应主程序 `.ui-modal-eyebrow` 位）。
+  description: '角色卡分析工作台',
+  // 可选：尺寸档位（见下表）。仅对 modal 生效。
+  size: 'lg',
+  // 可选：把插件自己的状态胶囊注入宿主标题行（与图标、标题、关闭按钮**同行**）。
+  // 这是「插件弹层不再比宿主弹窗多一行」的关键：插件不该自绘第二条状态栏。
+  headerExtra(container) { container.append(myStatusPills); },
   mount(container, ctx) {
     // container 已完成定位/尺寸/滚动/data-marquee-ignore/role=dialog/aria-modal/焦点陷阱
-    // ctx = { entry, mode, selection, config, close }
     const el = document.createElement('div');
     el.textContent = '...';
     container.appendChild(el);
     return () => { /* 清理；宿主在关闭时调用 */ };
   },
   unmount() {},
-  onOpen() {},
+  onOpen(ctx) {},
   onClose() {},
 });
 ```
 
+**`spec` 字段全表**：
+
+| 字段 | 类型 | 必需 | 说明 |
+|---|---|---|---|
+| `title` | string | ✅ | 标题行文字（缺省用 surfaceId） |
+| `mount` | function | ✅ | `mount(container, ctx)`；返回函数时宿主在关闭时调用 |
+| `type` | enum | | `panel` / `modal` / `page` / `sheet`（默认 `panel`） |
+| `size` | enum | | `sm` / `md` / `lg` / `xl`（默认 `md`）。**仅 modal 生效** |
+| `icon` | string | | 标题行图标（宿主图标名或插件内相对路径） |
+| `description` | string | | 标题上方的副标题 |
+| `headerExtra` | function | | `headerExtra(container)`，往标题行注入插件自己的内容 |
+| `unmount` / `onOpen` / `onClose` | function | | 生命周期钩子 |
+
+**`size` 档位与固定尺寸（重要）**：
+
+| 档位 | 宽 | 高 |
+|---|---|---|
+| `sm` | `min(440px, 92vw)` | `min(360px, 80vh)` |
+| `md`（默认） | `min(720px, 92vw)` | `min(560px, 80vh)` |
+| `lg` | `min(1080px, 94vw)` | `min(760px, 90vh)` |
+| `xl` | `min(1320px, 96vw)` | `min(880px, 92vh)` |
+
+高度是**确定的 `height`**，不是 `max-height` + 内容自适应。原因：后者会让弹层高度
+随内容长度变化——插件切换页签时看起来像「窗口在自己缩放」。固定档位让容器在
+打开期间恒定，切换页签只换内部内容。≤900px 时所有档位退化为全屏。
+
+**`onOpen` 与「surface 已打开」**：surface 已打开时宿主**不会**重新 `mount`
+（那会重建 DOM、丢掉用户已填的表单），只把新 `ctx` 交给 `onOpen`。同一个 surface
+被多个入口复用时（本插件的 `workbench` 服务坞 / 右键分类 / 批量菜单 / 设置四个
+入口），插件**必须**同时实现 `mount` 与 `onOpen` 并走同一条应用逻辑，否则
+「先右键 A 分类、再右键 B 分类」会一直显示 A 的作用域。
+
 宿主必须保证：
 
 - `mount()` **抛错**时销毁该 surface、把对应入口置错误态，**不影响其他插件与宿主本身**。
+- `headerExtra()` **抛错**时只记日志，不阻断 surface 打开（附加槽是增强，不是必需）。
 - 插件被**禁用/卸载**时，宿主**强制卸载**该插件的所有 surface，**不依赖插件 `deactivate`**。
 - 插件**不得**设置 container 或其祖先的 `position` / `z-index` / `inset`。
+- 关闭按钮由宿主渲染，用**宿主通用关闭图标**（`icon('close')`），插件不得自绘
+  「×」文字或替换该图标。
 
 ## 8.4 前端硬约束（来自调研，必须遵守）
 

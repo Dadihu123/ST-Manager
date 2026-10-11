@@ -13,6 +13,7 @@
 """
 
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -132,6 +133,11 @@ class ShimNode {
       if (part === 'select') return node.tagName === 'SELECT';
       if (part === 'textarea') return node.tagName === 'TEXTAREA';
       if (part === 'a') return node.tagName === 'A';
+      // 通用标签名回退（`svg` / `span` / `header` / `h2` …）。
+      // 没有这一条，断言「图标位里有 svg」会恒为 0 —— 不是代码错，是垫片不够用。
+      if (/^[a-zA-Z][a-zA-Z0-9-]*$/.test(part)) {
+        return node.tagName === part.toUpperCase();
+      }
       return false;
     });
     const found = [];
@@ -399,6 +405,139 @@ def test_open_surface_forwards_right_click_target_to_mount():
         """
     )
     assert result.returncode == 0, result.stderr or result.stdout
+
+
+@requires_node
+def test_surface_header_renders_icon_title_and_generic_close():
+    """标题行：图标 + 副标题 + 标题 + 通用关闭图标（问题 3）。
+
+    旧版头部只有纯文本标题 + 文字「×」，插件不得不在自己内容区**再画一条**
+    状态栏放品牌图标与状态胶囊 → 弹层顶部出现两行，比主程序自己的弹窗「多一层」。
+    现在图标归标题行（`.plugin-surface__header-icon`，与主程序
+    `.ui-modal-header-icon` 同款开放字形），状态胶囊走 `headerExtra` 同行显示。
+    """
+    result = run_dom_script(
+        """
+        import assert from 'node:assert/strict';
+        import { PluginSurfaceHost } from './static/js/pluginSurfaceHost.js';
+
+        let extraContainer = null;
+        PluginSurfaceHost.register('demo-plugin', 'workbench', {
+          title: 'AI 助手',
+          description: '角色卡分析工作台',
+          icon: 'wand',
+          headerExtra(container) { extraContainer = container; },
+          mount() {},
+        });
+        PluginSurfaceHost.openSurface('demo-plugin:workbench');
+
+        const shell = globalThis.__shim.document.body
+          .querySelectorAll('.plugin-surface')[0];
+        const header = shell.querySelectorAll('.plugin-surface__header')[0];
+
+        // 图标位存在，且是**开放字形**（无边框无底色由 CSS 保证）
+        const iconSlot = header.querySelectorAll('.plugin-surface__header-icon')[0];
+        assert.ok(iconSlot, '标题行必须有图标位');
+        assert.equal(iconSlot.querySelectorAll('svg').length, 1, '图标位里应有 svg');
+
+        // 副标题 + 标题
+        const eyebrow = header.querySelectorAll('.plugin-surface__eyebrow')[0];
+        assert.equal(eyebrow.textContent, '角色卡分析工作台');
+        const title = header.querySelectorAll('.plugin-surface__title')[0];
+        assert.equal(title.textContent, 'AI 助手');
+
+        // 附加槽交给插件（状态胶囊同行显示）
+        assert.ok(extraContainer, 'headerExtra 必须被调用');
+        assert.equal(extraContainer.className, 'plugin-surface__header-extra');
+
+        // 关闭按钮用宿主通用图标，而不是文字「×」
+        const close = header.querySelectorAll('.plugin-surface__close')[0];
+        assert.equal(close.textContent, '', '关闭按钮不该是文字 ×');
+        assert.equal(close.querySelectorAll('svg').length, 1, '关闭按钮应是图标');
+        assert.equal(close.getAttribute('aria-label'), '关闭');
+        """
+    )
+    assert result.returncode == 0, result.stderr or result.stdout
+
+
+@requires_node
+def test_modal_size_tier_is_fixed_and_reflected_on_the_shell():
+    """modal 的尺寸档位落到 `data-surface-size`，由 CSS 给出**固定**宽高。
+
+    早先用 `max-height` + 内容自适应高度：插件切换页签时内容长度变化 →
+    弹层高度跟着跳，看起来像「窗口在自己缩放」。固定档位让容器在打开期间恒定。
+    """
+    result = run_dom_script(
+        """
+        import assert from 'node:assert/strict';
+        import { PluginSurfaceHost, SURFACE_SIZES } from './static/js/pluginSurfaceHost.js';
+
+        assert.deepEqual(SURFACE_SIZES, ['sm', 'md', 'lg', 'xl']);
+
+        const sizes = [];
+        for (const size of ['lg', 'sm']) {
+          PluginSurfaceHost.register('demo-plugin', 's-' + size, {
+            title: size, type: 'modal', size, mount() {},
+          });
+          PluginSurfaceHost.openSurface('demo-plugin:s-' + size);
+          const shell = globalThis.__shim.document.body
+            .querySelectorAll('.plugin-surface--modal')
+            .find((node) => node.dataset.surfaceSize === size);
+          assert.ok(shell, size + ' 档位必须落到 data-surface-size');
+          sizes.push(shell.dataset.surfaceSize);
+          PluginSurfaceHost.close('demo-plugin:s-' + size);
+        }
+        assert.deepEqual(sizes, ['lg', 'sm']);
+
+        // 非法档位回退默认（md），不抛错
+        PluginSurfaceHost.register('demo-plugin', 'bad', {
+          title: 'bad', type: 'modal', size: 'huge', mount() {},
+        });
+        PluginSurfaceHost.openSurface('demo-plugin:bad');
+        const badShell = globalThis.__shim.document.body
+          .querySelectorAll('.plugin-surface--modal')
+          .find((node) => node.dataset.surface === 'bad');
+        assert.equal(badShell.dataset.surfaceSize, 'md');
+        """
+    )
+    assert result.returncode == 0, result.stderr or result.stdout
+
+
+def test_modal_css_uses_fixed_height_not_content_sized():
+    """CSS 侧：modal 用 `height` 固定档位，且没有 `max-height` 内容自适应残留。"""
+    css = read_source(SURFACE_CSS_PATH)
+    code = re.sub(r'/\*.*?\*/', '', css, flags=re.S)
+
+    for size in ('sm', 'md', 'lg', 'xl'):
+        assert f"[data-surface-size='{size}']" in code, size
+
+    modal_block = code.split('.plugin-surface--modal {', 1)[1].split('}', 1)[0]
+    assert 'height' not in modal_block or 'max-height' not in modal_block, (
+        '基础 modal 规则不该再靠 max-height 自适应内容高度'
+    )
+    # 每个档位都给出确定高度。
+    # 注意用正则而不是 `'height:' in block`——`max-height:` 也包含 `height:` 子串，
+    # 那样写的话「把 height 换回 max-height」仍然通过，等于没测。
+    for size in ('sm', 'md', 'lg', 'xl'):
+        block = code.split(f"[data-surface-size='{size}'] {{", 1)[1].split('}', 1)[0]
+        assert re.search(r'(?<!max-)height:\s*\S', block), (
+            f'{size} 档位必须给出固定 height（不是 max-height 自适应）'
+        )
+        assert 'max-height' not in block, (
+            f'{size} 档位不得用 max-height 撑高，否则切换页签时弹层会跳动'
+        )
+        assert re.search(r'(?<!max-)width:\s*\S', block), f'{size} 档位必须给出固定 width'
+
+
+def test_surface_css_has_no_hardcoded_close_glyph():
+    """关闭按钮不再依赖文字「×」（字形随字体变化，且与宿主图标体系不一致）。"""
+    css = read_source(SURFACE_CSS_PATH)
+    code = re.sub(r'/\*.*?\*/', '', css, flags=re.S)
+
+    close_block = code.split('.plugin-surface__close {', 1)[1].split('}', 1)[0]
+    assert 'font-size' not in close_block, (
+        '关闭按钮现在是图标，不该再靠 font-size 撑文字字形'
+    )
 
 
 @requires_node

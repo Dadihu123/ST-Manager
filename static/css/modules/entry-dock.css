@@ -275,14 +275,23 @@
   text-align: center;
 }
 
-/* 任何模态 / 抽屉打开时自动收起（纯 CSS，不需要 JS 协调） */
-body:has(.modal-overlay) .entry-rail .entry-rail__panel {
-  width: 0;
-  padding: 0;
-  border-left-color: transparent;
-}
-
-body:has(.plugin-surface) .entry-rail .entry-rail__panel {
+/* 与坞**真正重叠**的 surface 打开时自动收起（纯 CSS，不需要 JS 协调）。
+ *
+ * 只针对 `panel` / `sheet`：这两个类型贴着屏幕右侧/底部，与坞抢同一块空间。
+ * `modal` 居中、`page` 占满主内容区，两者都不与坞重叠，且 modal 的
+ * `z-index` 是 `--z-modal-popover`(3400) 远高于坞的 `--z-entry-rail`(80)，
+ * 天然盖住坞，不需要收起。
+ *
+ * ⚠️ 这里**不能**写 `body:has(.modal-overlay)`。`:has()` 只看元素是否存在于
+ * DOM，不看可见性；而主程序 28 个模态框全部用 `x-show`（常驻 DOM，仅
+ * `display: none`），因此 `body:has(.modal-overlay)` **几乎永久成立**，
+ * 坞会被永久压成 `width: 0` —— 用户完全找不到插件入口。
+ *
+ * `.plugin-surface--panel` / `--sheet` 没有这个问题：surface 宿主在关闭时会
+ * 把整个 shell 从 DOM 摘掉（`pluginSurfaceHost.js:close`），所以
+ * 「元素存在」恰好等价于「surface 打开」。 */
+body:has(.plugin-surface--panel) .entry-rail .entry-rail__panel,
+body:has(.plugin-surface--sheet) .entry-rail .entry-rail__panel {
   width: 0;
   padding: 0;
   border-left-color: transparent;
