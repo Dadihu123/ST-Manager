@@ -6,9 +6,12 @@
  * 入口就没有落地的地方，也就无法端到端验证契约真的可用。
  *
  * 设计要点：
- * - 位置：`position: fixed; right: 0; top: 64px; bottom: 64px`，避开在流顶栏与
- *   翻页栏（`layout.css` 的顶栏与 `.pagination-bar`）。
- * - 收起态 8px 热区（`opacity: 0` 但 `pointer-events: auto`），展开态 56px 图标列。
+ * - 位置：`position: fixed; right: 0; top: 64px; bottom: 64px` 的一条**不可见**
+ *   定位带，避开在流顶栏与翻页栏（`layout.css` 的顶栏与 `.pagination-bar`）。
+ * - 收起态（默认）：右边缘垂直居中一枚毛玻璃小箭头，坞不占内容区宽度。
+ * - 展开态：箭头左侧弹出毛玻璃浮层，**高度随入口数量自适应**。
+ * - 坞内槽位只显示图标，名称走 `title` tooltip 与 `aria-label`。
+ * - 悬停箭头停留 150ms 自动展开；点击箭头显式开合（收起会取消挂起的悬停展开）。
  * - 根元素带 `data-marquee-ignore`，框选不会命中坞。
  * - 键盘：`role="toolbar"` + `aria-orientation="vertical"` + roving tabindex，
  *   `ArrowUp/Down` 移动、`Enter` 打开、`Delete` 取消固定。
@@ -31,16 +34,17 @@ const HOVER_EXPAND_DELAY_MS = 150;
 function readPrefs() {
   try {
     const raw = localStorage.getItem(DOCK_PREFS_KEY);
-    // 首次运行（无偏好）默认**展开**：收起态在视觉上几乎不存在，若默认收起，
-    // 用户根本发现不了坞——「插件入口只能靠快捷键打开」就是这么来的。
-    if (!raw) return { expanded: true, side: "right" };
+    // 首次运行（无偏好）默认**收起**：收起态现在是右边缘一枚常驻可见、
+    // 垂直居中的毛玻璃箭头，可发现性由箭头自己承担，不再需要靠展开状态
+    // 才能被看见。默认收起同时保证坞不占用内容区宽度。
+    if (!raw) return { expanded: false, side: "right" };
     const parsed = JSON.parse(raw);
     return {
-      expanded: parsed && parsed.expanded === undefined ? true : Boolean(parsed.expanded),
+      expanded: parsed && parsed.expanded === undefined ? false : Boolean(parsed.expanded),
       side: parsed && parsed.side === "left" ? "left" : "right",
     };
   } catch (error) {
-    return { expanded: true, side: "right" };
+    return { expanded: false, side: "right" };
   }
 }
 
@@ -60,7 +64,9 @@ export default function entryDock() {
     overflow: [],
     overflowOpen: false,
     overflowQuery: "",
-    expanded: true,
+    /** 打开溢出菜单的那次点击事件；`@click.outside` 必须忽略它（见 closeOverflow）。 */
+    _overflowOpenedByEvent: null,
+    expanded: false,
     deviceType: "desktop",
     activeKey: "",
 
@@ -119,7 +125,7 @@ export default function entryDock() {
         window.removeEventListener("resize", this._resizeHandler);
         this._resizeHandler = null;
       }
-      if (this._hoverTimer) clearTimeout(this._hoverTimer);
+      this.cancelHoverTimer();
     },
 
     /** 与 `layout.js:reDeviceType()` 同一套断点，保证坞与侧栏判定一致。 */
@@ -145,13 +151,29 @@ export default function entryDock() {
 
     // ------------------------------------------------------------ 展开/收起
 
+    /**
+     * 展开。
+     *
+     * ⚠️ 这里**不能**写 `if (this.deviceType === "mobile") return;`。
+     * 移动端的顶栏按钮走的是 `toggle()` → `expand()`，同时 `expanded` 又是
+     * 底部 sheet 的开关（`x-if="deviceType === 'mobile' && expanded"`）。
+     * 旧实现在这里对 mobile 提前 return，顶栏按钮因此永远打不开 sheet。
+     * 之前之所以没暴露，是因为旧默认值是「展开」—— 静默地把 bug 盖住了。
+     *
+     * hover 展开（真正的误触来源）在 `onHotzoneEnter()` 里按 deviceType 判断，
+     * 那里才是该拦的地方。
+     */
     expand() {
-      if (this.deviceType === "mobile") return;
       this.expanded = true;
       writePrefs({ expanded: true });
     },
 
     collapse() {
+      // ⚠️ 必须先取消挂起的 hover 展开定时器。
+      // 收起态下指针要移到箭头上去点「收起」，这个进入动作会重新排一次 150ms
+      // 的展开定时器；不清掉的话，用户点击收起后 150ms 坞又自己弹开 ——
+      // 实测症状就是「点了收起没反应」。
+      this.cancelHoverTimer();
       this.expanded = false;
       this.overflowOpen = false;
       writePrefs({ expanded: false });
@@ -161,17 +183,25 @@ export default function entryDock() {
       return this.expanded ? this.collapse() : this.expand();
     },
 
-    onHotzoneEnter() {
-      if (this.deviceType !== "desktop") return;
-      if (this._hoverTimer) clearTimeout(this._hoverTimer);
-      this._hoverTimer = setTimeout(() => this.expand(), HOVER_EXPAND_DELAY_MS);
-    },
-
-    onHotzoneLeave() {
+    /** 取消挂起的 hover 展开（收起、离开热区、销毁时都要调用）。 */
+    cancelHoverTimer() {
       if (this._hoverTimer) {
         clearTimeout(this._hoverTimer);
         this._hoverTimer = null;
       }
+    },
+
+    onHotzoneEnter() {
+      if (this.deviceType !== "desktop") return;
+      this.cancelHoverTimer();
+      this._hoverTimer = setTimeout(() => {
+        this._hoverTimer = null;
+        this.expand();
+      }, HOVER_EXPAND_DELAY_MS);
+    },
+
+    onHotzoneLeave() {
+      this.cancelHoverTimer();
     },
 
     // ------------------------------------------------------------ 打开入口
@@ -320,14 +350,52 @@ export default function entryDock() {
 
     // ------------------------------------------------------------ 溢出菜单
 
-    toggleOverflow() {
-      this.overflowOpen = !this.overflowOpen;
+    /**
+     * 开合溢出菜单。
+     *
+     * ⚠️ 必须把**打开菜单的那次点击事件**记下来（`_overflowOpenedByEvent`），
+     * 交给 `closeOverflow()` 去忽略它。原因见 `closeOverflow()` 的注释。
+     */
+    toggleOverflow(event) {
       if (this.overflowOpen) {
-        this.$nextTick?.(() => {
-          const input = this.$refs?.overflowSearch;
-          if (input && typeof input.focus === "function") input.focus();
-        });
+        this.closeOverflow();
+        return;
       }
+
+      this._overflowOpenedByEvent = event || null;
+      this.overflowOpen = true;
+      this.$nextTick?.(() => {
+        const input = this.$refs?.overflowSearch;
+        if (input && typeof input.focus === "function") input.focus();
+      });
+    },
+
+    /**
+     * 关闭溢出菜单（`@click.outside` 与 Escape 都走这里）。
+     *
+     * ⚠️ 这里必须忽略「打开菜单的那一次点击」，否则菜单**根本打不开**。
+     *
+     * 机制（已在真实 Chromium 里逐帧确认）：
+     * 1. 用户点 `⋯`，点击事件 E 开始派发；
+     * 2. Alpine 的 `@click` 先把 `overflowOpen` 置为 true，响应式副作用随即
+     *    把 `.entry-overflow` 插入 DOM，并给它挂上 document 级的
+     *    `@click.outside` 监听器；
+     * 3. 此时 E **仍在冒泡**。按 DOM 规范，「派发过程中新注册的监听器」会对
+     *    尚未访问到的祖先节点生效 —— 于是这个刚挂上的 `@click.outside`
+     *    在同一轮派发里收到 E，发现 target 不在菜单内，立刻把菜单关掉。
+     *
+     * 实测症状：点 `⋯` 后 `overflowOpen` 在同一帧内 true→false，
+     * DOM 里 `.entry-overflow` 数量始终为 0，即菜单闪都不闪一下。
+     *
+     * 修法选择：**事件身份守卫**，而不是在按钮上加 `@click.stop`。
+     * `stopPropagation` 会让这次点击再也到不了 document，从而连带破坏仓库里
+     * 「点任意处关闭其它浮层」的既有约定（如 `contextMenu.js:83` 的全局监听）。
+     * 守卫只精确跳过"我们自己那一次"点击，其余行为完全不变。
+     */
+    closeOverflow(event) {
+      if (event && event === this._overflowOpenedByEvent) return;
+      this._overflowOpenedByEvent = null;
+      this.overflowOpen = false;
     },
 
     get filteredOverflow() {

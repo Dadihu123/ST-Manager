@@ -4,10 +4,13 @@
 满足的硬约束——尤其是那些「浏览器不会报错但功能静默失效」的点：
 
 - 位置避开在流顶栏与翻页栏
-- 收起态热区仍可命中（`opacity: 0` + `pointer-events: auto`）
+- 收起态只有右边缘垂直居中的毛玻璃箭头，不占内容区宽度
+- 展开态是垂直居中、**高度随入口数量自适应**的毛玻璃浮层
+- 坞内入口只有图标，没有文字标签
 - 根元素带 `data-marquee-ignore`（否则框选会命中坞）
 - 键盘可达（`role="toolbar"` + roving tabindex）
-- 模态打开时自动收起
+- 与坞重叠的 surface 打开时自动收起
+- 溢出菜单**真的能点开**（曾因 `@click.outside` 竞态与 `pointer-events` 继承而完全不可用）
 - 移动端退化为顶栏按钮 + 底部 sheet
 - 层级走令牌，且不与插件硬编码的 2140/2150 冲突
 """
@@ -98,45 +101,159 @@ def test_dock_position_avoids_top_and_pagination_bars():
 
 
 def test_collapsed_hotzone_is_invisible_but_clickable():
-    """收起态热区：`opacity: 0` 但 `pointer-events: auto`（否则永远展不开）。"""
+    """收起态热区：`opacity: 0` 但 `pointer-events: auto`（否则永远展不开）。
+
+    热区的**尺寸**已随「毛玻璃箭头」改版收敛：不再是贯穿整屏高度的 8px 竖条
+    （那会在内容区右侧形成一条看不见的鼠标死区），而是箭头周围一圈窄环。
+    """
     css = read_source(DOCK_CSS)
     hotzone = css.split('.entry-rail__hotzone {', 1)[1].split('}', 1)[0]
 
-    assert 'width: 8px;' in hotzone
     assert 'opacity: 0;' in hotzone
     assert 'pointer-events: auto;' in hotzone
+    # 收敛到箭头尺寸附近（用令牌 + calc，而不是写死 8px / height: 100%）
+    assert 'width: calc(var(--dock-handle-width)' in hotzone
+    assert 'height: calc(var(--dock-handle-height)' in hotzone
+    assert 'height: 100%;' not in hotzone, (
+        '热区不得再贯穿整屏高度：那是一条看不见的鼠标死区'
+    )
 
 
-def test_expanded_rail_is_56px():
+def test_collapsed_dock_is_only_a_vertically_centered_glass_arrow():
+    """收起态 = 右边缘**垂直居中**的毛玻璃小箭头，屏幕上没有常驻竖白条。
+
+    这是用户明确要求的形态：旧实现收起态保留 40px 图标竖条，展开态 56px，
+    视觉上就是一条从顶栏通到翻页栏的白条。
+    """
+    css = read_source(DOCK_CSS)
+    code = re.sub(r'/\*.*?\*/', '', css, flags=re.S)
+
+    # 定位带垂直居中：`align-items: center` 是浮层与箭头居中的唯一实现方式
+    rail = code.split('.entry-rail {', 1)[1].split('}', 1)[0]
+    assert 'align-items: center;' in rail, '坞必须垂直居中'
+    assert 'justify-content: flex-end;' in rail, '坞必须贴住右边缘'
+
+    # 收起态不再有可见宽度（旧的 40px 图标竖条必须消失）
+    assert 'width: 40px;' not in code, '收起态不得再保留 40px 竖条'
+    assert 'width: 56px;' not in code, '展开态宽度已改用 --dock-panel-width 令牌'
+
+    # 收起态浮层彻底归零：宽度、边框、底色一起清掉
+    collapsed = code.split('.entry-rail.is-collapsed .entry-rail__panel {', 1)[1].split('}', 1)[0]
+    assert 'width: 0;' in collapsed
+    assert 'border-width: 0;' in collapsed, 'box-sizing:border-box 下残留边框会形成可见残影'
+    assert 'background-color: transparent;' in collapsed
+
+    # 箭头自身是毛玻璃（半透明底 + backdrop-filter），且尺寸走令牌
+    toggle = code.split('.entry-rail__toggle {', 1)[1].split('}', 1)[0]
+    assert 'width: var(--dock-handle-width);' in toggle
+    assert 'height: var(--dock-handle-height);' in toggle
+    assert '-webkit-backdrop-filter: var(--dock-glass-blur);' in toggle
+    assert 'backdrop-filter: var(--dock-glass-blur);' in toggle
+
+
+def test_expanded_panel_height_follows_entry_count():
+    """展开态浮层**高度随入口数量自适应**，不得撑满或留有空白。
+
+    旧实现 `top: 64px; bottom: 64px` + `align-items: stretch` 会把浮层拉到
+    整屏高度 —— 入口只有一两个时下方是一大片空白（用户明确否掉的形态）。
+    """
+    css = read_source(DOCK_CSS)
+    code = re.sub(r'/\*.*?\*/', '', css, flags=re.S)
+
+    rail = code.split('.entry-rail {', 1)[1].split('}', 1)[0]
+    assert 'align-items: stretch;' not in rail, (
+        'stretch 会让浮层长到整屏高度，入口少时留下大片空白'
+    )
+
+    panel = code.split('.entry-rail__panel {', 1)[1].split('}', 1)[0]
+    assert 'height: auto;' in panel, '浮层高度必须由内容决定'
+    assert 'max-height: 100%;' in panel, '入口过多时用 max-height 兜底滚动'
+    # 不得出现"撑满父容器"的高度声明（`max-height: 100%` 是允许的兜底，
+    # 所以必须排除 `max-` 前缀，否则断言会被自己的兜底规则误伤）
+    assert not re.search(r'(?<!max-)height:\s*(100%|100vh|stretch)', panel), (
+        '浮层不得撑满父容器高度，否则入口少时就是一条贯穿的竖条'
+    )
+    assert 'flex: 1 1' not in panel
+    assert 'flex: 1;' not in panel
+
+    # 展开态宽度走令牌，并与槽位宽度配套（装得下才不会被 overflow-x 裁掉）
+    assert 'width: var(--dock-panel-width);' in code
+    assert '--dock-panel-width:' in code
+    assert '--dock-slot-size:' in code
+
+
+def test_dock_entries_render_icons_only():
+    """坞内入口**只保留图标**，不再渲染文字标签（用户要求 2）。
+
+    标签信息不丢：槽位仍带 `title` tooltip 与 `aria-label`，溢出菜单里也有完整
+    文字。因此这里断言的粒度是「坞槽位内不再出现 `.entry-rail__label` 节点」。
+    """
+    template = read_source(DOCK_TEMPLATE)
     css = read_source(DOCK_CSS)
 
-    assert 'width: 56px;' in css
+    # 模板：坞槽位按钮内部不再有标签 span
+    slot_block = template.split('class="entry-rail__slot"', 1)[1].split('</button>', 1)[0]
+    assert 'entry-rail__label' not in slot_block, '坞槽位内不得再渲染文字标签'
+    assert 'x-text="entry.label"' not in slot_block
+
+    # 「更多」按钮同样只有图标
+    more_block = template.split('entry-rail__slot--more', 1)[1].split('</button>', 1)[0]
+    assert 'entry-rail__label' not in more_block
+
+    # 标签信息改由 aria-label + title 提供（可发现性不能丢）
+    assert ':aria-label="entry.label"' in slot_block
+    assert ':title="entry.enabled ? (entry.description || entry.label) : entry.disabledHint"' in slot_block
+
+    # CSS 侧保留防回归规则：万一有人把标签塞回来，也不会把浮层撑高
+    assert '.entry-rail__label {' in css
+    label_block = css.split('.entry-rail__label {', 1)[1].split('}', 1)[0]
+    assert 'display: none;' in label_block
 
 
-def test_dock_defaults_to_expanded():
-    """坞默认**展开**（问题 2 的修复）。
+def test_dock_uses_glass_surface_tokens():
+    """毛玻璃观感必须由既有令牌推导，不得写死颜色。
 
-    旧实现默认折叠，而折叠态的 `.entry-rail__panel` 是 `width: 0`——坞等于
-    完全不可见，用户只能靠一个 8px 的透明热区把它摸出来（用户原话：
-    「怎么目前都没了？」）。设计文档 D6 只要求「社区插件默认进溢出菜单」，
-    从未要求坞本身默认隐藏。
+    `backdrop-filter` 的启用理由与其安全性证据见
+    `test_dock_backdrop_filter_is_allowed_and_justified`。
+    """
+    css = read_source(DOCK_CSS)
+
+    # 玻璃参数定义在坞根节点上，箭头/浮层/溢出菜单共用同一套
+    assert '--dock-glass-surface:' in css
+    assert '--dock-glass-blur:' in css
+    assert 'color-mix(in srgb,' in css, '半透明底应从既有令牌 color-mix 推导'
+    assert 'var(--glass-border)' in css
+
+    # 三个玻璃面板都真的用上了这套配方
+    for selector in ('.entry-rail__panel {', '.entry-rail__toggle {', '.entry-overflow {'):
+        block = css.split(selector, 1)[1].split('}', 1)[0]
+        assert 'var(--dock-glass-surface)' in block, selector
+        assert 'var(--dock-glass-blur)' in block, selector
+
+
+def test_dock_defaults_to_collapsed():
+    """坞默认**收起**（毛玻璃箭头改版）。
+
+    旧实现默认展开，因为收起态的 `.entry-rail__panel` 是 `width: 0` + 8px 全透明
+    热区，坞在视觉上完全不存在，默认收起等于用户永远发现不了插件入口。
+
+    改版后收起态是右边缘一枚**常驻可见、垂直居中、可点击**的毛玻璃箭头，
+    可发现性由箭头自己承担；同时收起态不占用内容区宽度，所以默认收起是更好的选择。
     """
     component = read_source(DOCK_JS)
 
-    # 初始 state 是展开。用 `class="entry-rail__toggle"` 式的精确匹配：
-    # `expanded: true` 在 `{ expanded: true, side: "right" }` 里也出现，裸子串断言
-    # 在把 state 改成 false 之后**仍然通过**（等于没测）。
-    assert '\n    expanded: true,\n' in component, 'entryDock() 的初始 state 必须是展开'
-    # 首次运行（无偏好）默认展开
-    assert 'if (!raw) return { expanded: true, side: "right" };' in component
-    # 偏好里缺 expanded 字段时也展开（旧版存过 {side:'right'} 的用户不该被折叠）
-    assert 'parsed.expanded === undefined ? true' in component
-    # 读取异常时的兜底同样展开（不能是「读失败 → 折叠」）
-    assert 'return { expanded: true, side: "right" };' in component
+    # 初始 state 是收起。用精确匹配：裸子串断言在把 state 改成 true 之后仍然通过。
+    assert '\n    expanded: false,\n' in component, 'entryDock() 的初始 state 必须是收起'
+    # 首次运行（无偏好）默认收起
+    assert 'if (!raw) return { expanded: false, side: "right" };' in component
+    # 偏好里缺 expanded 字段时也收起
+    assert 'parsed.expanded === undefined ? false' in component
+    # 读取异常时的兜底同样收起（不能是「读失败 → 展开」）
+    assert 'return { expanded: false, side: "right" };' in component
 
 
-def test_dock_prefs_default_expanded_when_read():
-    """真实执行 `init()` 验证三种 localStorage 情形都得到「展开」。"""
+def test_dock_prefs_default_collapsed_when_read():
+    """真实执行 `init()` 验证三种 localStorage 情形都得到「收起」。"""
     result = run_node(
         BROWSER_STUB
         + """
@@ -171,12 +288,12 @@ def test_dock_prefs_default_expanded_when_read():
               );
               const dock = entryDock();
               dock.init();
-              assert.equal(dock.expanded, true, name + ' 应默认展开');
+              assert.equal(dock.expanded, false, name + ' 应默认收起');
             }
 
-            // 4) 用户显式收起过 → 尊重用户选择
+            // 4) 用户显式展开过 → 尊重用户选择（刷新后仍展开）
             globalThis.localStorage = {
-              getItem() { return JSON.stringify({ expanded: false }); },
+              getItem() { return JSON.stringify({ expanded: true }); },
               setItem() {},
             };
             const { default: entryDock } = await import(
@@ -184,25 +301,25 @@ def test_dock_prefs_default_expanded_when_read():
             );
             const dock = entryDock();
             dock.init();
-            assert.equal(dock.expanded, false, '用户显式收起必须被尊重');
+            assert.equal(dock.expanded, true, '用户显式展开必须被尊重');
             """
         )
     )
     assert result.returncode == 0, result.stderr or result.stdout
 
 
-def test_collapsed_rail_keeps_a_visible_strip():
-    """折叠态仍保留 40px 可见条 + 明确的开合按钮。
+def test_collapsed_rail_keeps_a_visible_arrow_and_toggle_button():
+    """收起态仍有一个**明确可见、可点**的开合入口（毛玻璃箭头）。
 
-    旧实现折叠态 `width: 0`，坞在视觉上彻底消失；现在折叠态保留一条窄边，
-    用户看得见它、也知道点哪里展开。
+    旧实现收起态 `width: 0`，坞在视觉上彻底消失（可发现性靠 40px 竖条）；
+    改版后靠常驻箭头，因此箭头必须：可见、有状态语义、真的接线到 `toggle()`。
     """
     css = read_source(DOCK_CSS)
     template = read_source(DOCK_TEMPLATE)
 
-    # 折叠态的可见宽度（不再是 0）
-    collapsed = css.split('.entry-rail.is-collapsed', 1)[1]
-    assert 'width: 40px;' in collapsed.split('}', 1)[0], '折叠态必须保留可见宽度'
+    # 箭头不是靠"面板本身可见"来暴露的，它是坞里唯一的常驻元素
+    toggle = css.split('.entry-rail__toggle {', 1)[1].split('}', 1)[0]
+    assert 'pointer-events: auto;' in toggle
 
     # 明确的开合按钮 + 状态语义
     assert 'class="entry-rail__toggle"' in template
@@ -215,6 +332,56 @@ def test_collapsed_rail_keeps_a_visible_strip():
     # 触发按钮上也出现，裸子串断言在把这个按钮的 handler 删掉后仍然通过。
     toggle_block = template.split('class="entry-rail__toggle"', 1)[1].split('</button>', 1)[0]
     assert '@click="toggle()"' in toggle_block, '开合按钮必须真的接线到 toggle()'
+
+
+def test_collapse_cancels_pending_hover_expand():
+    """点击收起必须取消挂起的 hover 展开定时器（否则「点了收起没反应」）。
+
+    实测复现（Playwright + Chromium，真实页面）：收起态下指针要移到箭头上去点
+    「收起」，这个 entering 动作会排一次 150ms 的展开定时器；若 `collapse()`
+    不清掉它，150ms 后 `expand()` 又触发，坞自己弹回来。事件日志：
+
+        onHotzoneEnter @4155 → expand @4305 → collapse @4664 → expand @4814(+150ms)
+
+    因此 `collapse()` 必须先取消定时器，且取消逻辑要收敛到一个方法里复用。
+    """
+    component = read_source(DOCK_JS)
+
+    assert 'cancelHoverTimer() {' in component, '取消定时器必须是可复用的方法'
+    assert 'clearTimeout(this._hoverTimer)' in component
+
+    # collapse() 自己在自己的块里取消定时器
+    collapse_block = component.split('collapse() {', 1)[1].split('\n    },', 1)[0]
+    assert 'this.cancelHoverTimer();' in collapse_block, (
+        'collapse() 必须取消挂起的 hover 展开，否则 150ms 后又弹开'
+    )
+    # 取消要发生在改变状态**之前**，否则仍有窗口期
+    assert collapse_block.index('this.cancelHoverTimer();') < collapse_block.index('this.expanded = false;')
+
+    # 离开热区与销毁也要取消（复用同一个方法，不再各写一份）
+    for name in ('onHotzoneLeave() {', 'destroy() {'):
+        block = component.split(name, 1)[1].split('\n    },', 1)[0]
+        assert 'this.cancelHoverTimer();' in block, name
+
+    # 定时器回调里清空句柄，避免留下一个已触发的陈旧 id
+    enter_block = component.split('onHotzoneEnter() {', 1)[1].split('\n    },', 1)[0]
+    assert 'this._hoverTimer = null;' in enter_block
+
+
+def test_surfaces_overlapping_the_dock_also_zero_its_glass_edges():
+    """与坞重叠的 surface 打开时，玻璃框的**边框与底色**也要一起归零。
+
+    `box-sizing: border-box` 下 `width: 0` 仍会留下 1px 边框的可见残影，
+    因此在宽度归零之外还要清掉 `border-width` 与 `background-color`。
+    """
+    css = read_source(DOCK_CSS)
+    code = re.sub(r'/\*.*?\*/', '', css, flags=re.S)
+
+    for selector in ('body:has(.plugin-surface--panel)', 'body:has(.plugin-surface--sheet)'):
+        block = code.split(selector, 1)[1].split('}', 1)[0]
+        assert 'width: 0;' in block, selector
+        assert 'border-width: 0;' in block, selector
+        assert 'background-color: transparent;' in block, selector
 
 
 def test_dock_slots_are_draggable_and_persist_order():
@@ -305,16 +472,118 @@ def test_dock_hides_sidebar_on_mobile_and_uses_sheet():
     assert "deviceType === 'mobile'" in template
 
 
+def test_dock_expand_works_on_mobile_so_the_sheet_can_open():
+    """`expand()` **不得**对 mobile 提前 return —— 否则移动端 sheet 永远打不开。
+
+    移动端顶栏按钮走 `toggle()` → `expand()`，而 `expanded` 同时是底部 sheet 的
+    开关（模板里 `x-if="deviceType === 'mobile' && expanded"`）。旧实现在
+    `expand()` 里写 `if (this.deviceType === "mobile") return;`，移动端按钮因此
+    是死键。之前没暴露，是因为旧默认值是「展开」—— 静默盖住了这个缺陷；
+    默认改成收起后它会变成必现回归。
+
+    hover 展开（真正的误触来源）在 `onHotzoneEnter()` 里按 deviceType 判断，
+    那里才是该拦的地方，本测试同时锁住这一点。
+    """
+    component = read_source(DOCK_JS)
+    template = read_source(DOCK_TEMPLATE)
+
+    expand_block = component.split('expand() {', 1)[1].split('\n    },', 1)[0]
+    assert 'deviceType' not in expand_block, (
+        'expand() 不得按 deviceType 拦截：移动端顶栏按钮要靠它打开 sheet'
+    )
+    assert 'this.expanded = true;' in expand_block
+
+    # 移动端按钮确实接线到 toggle()，而 toggle() 走 expand()
+    trigger_block = template.split('class="entry-dock-mobile-trigger"', 1)[1].split('</button>', 1)[0]
+    assert '@click="toggle()"' in trigger_block
+
+    # sheet 的存在条件确实是 expanded
+    assert "deviceType === 'mobile' && expanded" in template
+
+    # hover 展开仍然只对 desktop 生效（误触来源在这里拦）
+    enter_block = component.split('onHotzoneEnter() {', 1)[1].split('\n    },', 1)[0]
+    assert 'if (this.deviceType !== "desktop") return;' in enter_block
+
+
 def test_dock_hover_expand_delay_is_150ms():
     component = read_source(DOCK_JS)
 
     assert 'HOVER_EXPAND_DELAY_MS = 150' in component
 
 
-def test_dock_avoids_backdrop_filter():
-    css = re.sub(r'/\*.*?\*/', '', read_source(DOCK_CSS), flags=re.S)
+def test_dock_backdrop_filter_is_allowed_and_justified():
+    """契约反转：坞**可以**用 `backdrop-filter`（原禁令的根因已消失）。
 
-    assert 'backdrop-filter' not in css
+    旧契约是 `assert 'backdrop-filter' not in css`，理由是 `.main-container`
+    的 backdrop root 黑块问题：它曾是几乎所有全屏遮罩的祖先，一旦自己成为
+    backdrop root，遮罩的 `backdrop-filter` 就只能采样到不完整的 backdrop，
+    实测会把遮罩下的整层画成纯黑矩形。
+
+    该根因**已被修复**，且坞从来不在那条祖先链上：
+
+    1. `.main-container` 现在完全不带 `backdrop-filter`（壁纸模糊改走
+       `body::before { filter: blur() }`），见 layout.css / base.css；
+    2. 坞是 `.main-container` 的**兄弟**节点（`templates/index.html`），
+       不是任何全屏遮罩的祖先，因此不可能成为遮罩的 backdrop root。
+
+    真实浏览器实测（Playwright + Chromium，1440×900，真实页面 + 真插件）：
+
+    - `getComputedStyle(.entry-rail__panel).backdropFilter` 取回
+      `blur(14px) saturate(1.45)`，彩虹底图下可见明显磨砂混色 → 玻璃真的生效；
+    - 打开全屏「系统设置」模态时，坞被遮罩正常盖住
+      （`elementFromPoint` 命中 `.modal-overlay`，z 1100 > 坞 z 80），
+      坞所在区域**没有黑块**，遮罩上的控件交互正常；
+    - 关闭模态后坞恢复可交互（`elementFromPoint` 重新命中坞）。
+
+    因此这里把契约改成「坞的玻璃层必须带 backdrop-filter，且必须带退化取值」，
+    并用「坞不得成为遮罩祖先」这条不变量守住原来的坑。
+    """
+    css = read_source(DOCK_CSS)
+    template = read_source(DOCK_TEMPLATE)
+    index_source = read_source('templates/index.html')
+    layout_css = read_source('static/css/modules/layout.css')
+
+    # 1) 三块玻璃面板都必须真的带 backdrop-filter（否则就只是"半透明"，不是毛玻璃）
+    for selector in ('.entry-rail__panel {', '.entry-rail__toggle {', '.entry-overflow {'):
+        block = css.split(selector, 1)[1].split('}', 1)[0]
+        assert 'backdrop-filter: var(--dock-glass-blur);' in block, selector
+
+    # 2) 保留 `-webkit-` 前缀（Safari）
+    assert '-webkit-backdrop-filter: var(--dock-glass-blur);' in css
+
+    # 3) 守住原坑的不变量：坞**不在**遮挡整屏的遮罩祖先链上。
+    #    index.html 里坞与 `.main-container` 是兄弟 —— 坞必须在 `.main-container`
+    #    之后、且不在其内部出现。
+    main_start = index_source.index('class="main-container"')
+    # 坞的 include 必须排在 .main-container 之后（兄弟，而不是嵌套在内）
+    assert index_source.index('components/entry_dock.html') > main_start, (
+        '坞必须是 .main-container 的兄弟节点；嵌进去就可能成为遮罩的 backdrop root'
+    )
+    # 坞不得自带任何 `.modal-overlay` / 全屏遮罩节点
+    assert 'modal-overlay' not in template
+
+    # 4) `.main-container` 必须仍然**没有** backdrop-filter（这条禁令继续生效）
+    main_block = re.sub(r'/\*.*?\*/', '', layout_css, flags=re.S)
+    main_block = main_block.split('.main-container {', 1)[1].split('}', 1)[0]
+    assert 'backdrop-filter' not in main_block, (
+        '.main-container 一旦带 backdrop-filter 就会变成 backdrop root，'
+        '全屏遮罩会退化成黑块 —— 这正是坞旧禁令要防的坑'
+    )
+
+
+def test_dock_and_palette_respect_reduced_motion():
+    for path in (DOCK_CSS,):
+        assert 'prefers-reduced-motion' in read_source(path), path
+
+
+def test_dock_reduced_motion_also_covers_the_toggle_arrow():
+    """箭头旋转也是动效，必须在 `prefers-reduced-motion` 里一起关掉。"""
+    css = read_source(DOCK_CSS)
+
+    block = css.split('@media (prefers-reduced-motion: reduce) {', 1)[1]
+    assert '.entry-rail__toggle svg' in block, '箭头旋转动画漏了 reduced-motion'
+    assert '.entry-rail__panel' in block
+    assert '.entry-rail__slot' in block
 
 
 def test_dock_uses_z_index_tokens_only():
@@ -345,11 +614,6 @@ def test_entry_rail_token_does_not_collide_with_plugin_hardcoded_values():
 def test_dock_css_has_no_hardcoded_hex_colors():
     css = read_source(DOCK_CSS)
     assert not re.search(r'#[0-9a-fA-F]{6}\b', css)
-
-
-def test_dock_and_palette_respect_reduced_motion():
-    for path in (DOCK_CSS,):
-        assert 'prefers-reduced-motion' in read_source(path), path
 
 
 def test_dock_prefs_use_localstorage_with_consistent_naming():
@@ -427,6 +691,109 @@ def test_dead_sidebar_toggle_css_was_removed():
     css = read_source('static/css/modules/layout.css')
 
     assert '.sidebar-toggle-button' not in css
+
+
+# --------------------------------------------------- 溢出菜单可用性（曾完全不可用）
+
+
+def test_overflow_menu_opts_back_into_pointer_events():
+    """溢出菜单必须显式取回 `pointer-events: auto`，否则**画出来却点不到**。
+
+    `pointer-events` 是**继承**属性。坞根节点整体 `pointer-events: none`
+    （`.entry-rail` 是跨越整屏高度的定位带，不这么做内容区右侧会多出一条
+    看不见的鼠标死区），而 `.entry-overflow` 是它的后代，于是继承了 `none`。
+
+    实测症状（真实 Chromium）：菜单视觉上正常渲染，但
+    `document.elementFromPoint(菜单内一点)` 返回的是**下面的 `.card-grid`** ——
+    搜索框输不进字、条目点不动、固定按钮无效，整块菜单是死的。
+    坞自己的 `.entry-rail__panel` / `.entry-rail__toggle` 一直有
+    `pointer-events: auto`，只有后来加的溢出菜单漏了。
+    """
+    css = read_source(DOCK_CSS)
+    code = re.sub(r'/\*.*?\*/', '', css, flags=re.S)
+
+    rail = code.split('.entry-rail {', 1)[1].split('}', 1)[0]
+    assert 'pointer-events: none;' in rail, '坞定位带必须整体放行鼠标'
+
+    # 坞里每一个**可交互**的后代都必须自己取回 auto，不能靠继承
+    for selector in ('.entry-rail__panel {', '.entry-rail__toggle {', '.entry-overflow {'):
+        block = code.split(selector, 1)[1].split('}', 1)[0]
+        assert 'pointer-events: auto;' in block, (
+            f'{selector} 必须显式 pointer-events: auto；'
+            '否则会继承 .entry-rail 的 none 而点不动'
+        )
+
+
+def test_overflow_toggle_ignores_the_click_that_opened_it():
+    """打开溢出菜单的那次点击必须被 `@click.outside` 忽略，否则菜单**根本打不开**。
+
+    机制（已在真实 Chromium 里逐步确认）：
+    1. 用户点 `⋯`，点击事件 E 开始派发；
+    2. Alpine 的 `@click` 先把 `overflowOpen` 置为 true，响应式副作用随即把
+       `.entry-overflow` 插入 DOM，并给它挂上 document 级的 `@click.outside`；
+    3. 此时 E **仍在冒泡**。按 DOM 规范，「派发过程中新注册的监听器」会对尚未
+       访问到的祖先节点生效 —— 于是这个刚挂上的 `@click.outside` 在同一轮派发里
+       收到 E，发现 target 不在菜单内，立刻把菜单关掉。
+
+    实测症状：`overflowOpen` 在同一帧内 true→false，DOM 里 `.entry-overflow`
+    数量始终为 0，菜单闪都不闪一下。
+
+    修法用**事件身份守卫**而不是在按钮上加 `@click.stop`：后者会让这次点击再也
+    到不了 document，从而破坏仓库里「点任意处关闭其它浮层」的既有约定
+    （如 `contextMenu.js` 的全局 click 监听）。
+    """
+    component = read_source(DOCK_JS)
+    template = read_source(DOCK_TEMPLATE)
+
+    # 1) 打开时记住触发事件
+    toggle_block = component.split('toggleOverflow(event) {', 1)[1].split('\n    },', 1)[0]
+    assert 'this._overflowOpenedByEvent = event || null;' in toggle_block
+    assert '_overflowOpenedByEvent: null,' in component, 'state 必须初始化该字段'
+
+    # 2) 关闭时跳过那一次事件
+    close_block = component.split('closeOverflow(event) {', 1)[1].split('\n    },', 1)[0]
+    assert 'if (event && event === this._overflowOpenedByEvent) return;' in close_block, (
+        '必须按事件身份守卫；少了它菜单会被自己那次点击关掉'
+    )
+    assert 'this.overflowOpen = false;' in close_block
+
+    # 3) 模板接线：按钮传 $event，浮层调 closeOverflow($event)
+    more_block = template.split('entry-rail__slot--more', 1)[1].split('</button>', 1)[0]
+    assert '@click="toggleOverflow($event)"' in more_block
+
+    overflow_block = template.split('class="entry-overflow"', 1)[1].split('>', 1)[0]
+    assert '@click.outside="closeOverflow($event)"' in overflow_block, (
+        '浮层必须把事件传给 closeOverflow 才能做身份比对'
+    )
+    # 不能退回"直接赋值"的写法（那正是竞态的源头）
+    assert '@click.outside="overflowOpen = false"' not in template
+
+    # 4) 不能靠 stopPropagation 解决（会破坏全局 click 关闭其它浮层的约定）
+    assert '.stop' not in more_block, (
+        '不得用 @click.stop：那次点击必须继续冒泡，否则点空白处关不掉其它浮层'
+    )
+
+
+def test_overflow_menu_closes_on_escape_from_its_own_focus():
+    """焦点在溢出菜单内部时，Escape 必须能关闭它。
+
+    坞的 `handleKeydown` 挂在 `.entry-rail__panel` 上，而 `.entry-overflow` 是
+    面板的**兄弟**节点（同为 `.entry-rail` 的子元素），并不在它的 keydown 树里。
+    菜单打开后焦点会自动落到搜索框（`toggleOverflow` 里 `$nextTick` 聚焦
+    `overflowSearch`），所以面板上的 keydown 永远收不到 —— Escape 会完全失灵。
+    """
+    template = read_source(DOCK_TEMPLATE)
+    component = read_source(DOCK_JS)
+
+    overflow_block = template.split('class="entry-overflow"', 1)[1].split('>', 1)[0]
+    assert '@keydown.escape.stop="closeOverflow()"' in overflow_block, (
+        '溢出菜单必须自己处理 Escape：它的 keydown 不在 .entry-rail__panel 的树里'
+    )
+    # 面板之外的节点 → 必须用 .stop 防止事件继续冒泡到坞根（那里会收起整个坞）
+    assert '.escape.stop' in overflow_block
+
+    # 打开时聚焦搜索框（正因如此 Escape 必须在菜单内部处理）
+    assert 'this.$refs?.overflowSearch' in component
 
 
 # ------------------------------------------------------------------ 行为契约

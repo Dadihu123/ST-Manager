@@ -2,22 +2,76 @@
  * static/css/modules/entry-dock.css
  * 入口坞与命令面板（设计文档 D6 / 阶段 5）。
  *
+ * 形态（「入口坞美化」）：
+ * - 收起态：右边缘、**垂直居中**的一枚毛玻璃小箭头（`.entry-rail__toggle`）。
+ *   不再是贯穿顶栏到翻页栏的竖白条。
+ * - 展开态：箭头**左侧**弹出一只毛玻璃浮层小框（`.entry-rail__panel`），
+ *   高度**由入口数量决定**（内容驱动，不写死 `height`），因此不会有空白。
+ * - 坞内入口只保留图标，文字标签退化为 `title` tooltip + `aria-label`
+ *   （见 `templates/components/entry_dock.html`）。
+ *
  * 坞位置：`position: fixed; right: 0; top: 64px; bottom: 64px`
  * —— 避开在流顶栏与翻页栏（`layout.css` 的顶栏与 `.pagination-bar`）。
+ * 这条带宽同时充当浮层的 `max-height` 上限：浮层再高也不会压到顶栏或翻页栏。
+ *
+ * 关于 `backdrop-filter`（原本这里写着「禁止使用」）：
+ * 禁用它的理由是 `.main-container` 的 backdrop root 黑块问题。那条根因**已经消失**：
+ * 1. `.main-container` 现在完全不带 `backdrop-filter`（壁纸模糊改走
+ *    `body::before { filter: blur() }`，见 layout.css / base.css）；
+ * 2. 坞本身**不在**任何全屏遮罩的祖先链上 —— 它是 `.main-container` 的**兄弟**
+ *    节点（`templates/index.html`），因此不会成为遮罩的 backdrop root。
+ * 实测（Playwright / Chromium，1440×900，真实页面）：
+ * - 坞上 `backdrop-filter` 正常生效（`getComputedStyle` 取回 `blur(14px)…`，
+ *   彩虹底图下可见明显磨砂混色）；
+ * - 打开全屏「系统设置」模态时，坞被遮罩正常盖住（遮罩 z 1100 > 坞 z 80），
+ *   坞所在区域**没有黑块**，控件交互正常。
+ * 结论：坞上使用 `backdrop-filter` 是安全的，测试契约据此改写。
  *
  * 硬约束：
- * - 不使用 `backdrop-filter`（Chromium backdrop root 黑块问题，见 layout.css）。
- * - 只用 `.color-*` 语义类与既有 CSS 变量。
+ * - 只用 `.color-*` 语义类与既有 CSS 变量（不写硬编码 hex）。
+ * - z-index 只用 `--z-*` 令牌。
  * - 遵守 `prefers-reduced-motion`。
  */
 
 .entry-dock-root {
   position: relative;
   z-index: var(--z-entry-rail);
+
+  /* 毛玻璃参数：用 `color-mix` 从既有令牌推导，深浅主题各自成立。 */
+  --dock-glass-surface: color-mix(in srgb, var(--surface-container) 58%, transparent);
+  --dock-glass-surface-hover: color-mix(in srgb, var(--surface-container) 86%, transparent);
+  --dock-glass-blur: blur(14px) saturate(1.45);
+  --dock-glass-shadow: 0 10px 28px color-mix(in srgb, var(--content-on-light) 20%, transparent);
+
+  /* 尺寸：收起态箭头 / 展开态槽位 / 两者之间的间隙。
+   *
+   * ⚠️ `--dock-panel-width` 必须**正好装下槽位**：`overflow-x: hidden` 会把
+   * 多出来的槽位切掉，`is-drop-target` 的描边与悬停底色就会被切边
+   * （实测面板宽 52 / 内边距 6 时，40px 槽位落在 38px 内容盒里，
+   * `scrollWidth` 51 > `clientWidth` 50 —— 差 1px，肉眼可见缺角）。
+   *
+   * 面板宽 = 槽位宽 + 左右内边距(4+4) + 左右边框(1+1) = 槽位宽 + 10。
+   * 桌面 40 → 50px；平板 36 → 46px（见文末 `@media (max-width: 1180px)`）。 */
+  --dock-handle-width: 1.375rem;
+  --dock-handle-height: 2.5rem;
+  --dock-panel-gap: 0.375rem;
+  --dock-slot-size: 2.5rem;
+  --dock-panel-width: 3.125rem;
+  --dock-panel-padding: 0.25rem;
 }
 
 /* ---------------------------------------------------------------- 侧栏坞 */
 
+/*
+ * 坞容器：一条**不可见**的固定带子，只负责定位，自身不画任何东西。
+ *
+ * `align-items: center` 让浮层与箭头都**垂直居中**；`justify-content: flex-end`
+ * 让它们贴住右边缘。带子的上下边界（64px）同时是浮层 `max-height` 的依据，
+ * 所以浮层永远不会长到压住顶栏或翻页栏。
+ *
+ * `pointer-events: none`：带子跨越整个视口高度，必须整体放行鼠标，
+ * 否则右侧会多出一条看不见的"死区"。子元素各自 `pointer-events: auto`。
+ */
 .entry-rail {
   position: fixed;
   top: 64px;
@@ -25,63 +79,70 @@
   right: 0;
   z-index: var(--z-entry-rail);
   display: flex;
-  align-items: stretch;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--dock-panel-gap);
   pointer-events: none;
 }
 
-/* 收起态 8px 热区：透明但可命中，保证鼠标能"发现"坞 */
-.entry-rail__hotzone {
-  width: 8px;
-  height: 100%;
-  flex: 0 0 auto;
-  opacity: 0;
-  pointer-events: auto;
-  cursor: pointer;
-}
-
+/*
+ * 展开态浮层：一只毛玻璃小框，宽度固定、**高度由内容决定**。
+ *
+ * 高度不能用 `height: 100%` / `align-items: stretch` —— 那会重新画出贯穿
+ * 整屏的竖条（用户明确否掉的形态），入口少时下方留一大片空白。
+ * 这里让高度自然塌缩到内容高度，只在入口过多时用 `max-height` 兜底滚动。
+ */
 .entry-rail__panel {
-  width: 0;
+  position: relative;
   flex: 0 0 auto;
+  width: 0;
+  height: auto;
+  max-height: 100%;
   display: flex;
   flex-direction: column;
-  align-items: stretch;
+  align-items: center;
   gap: 0.25rem;
   padding: 0;
   overflow-x: hidden;
   overflow-y: auto;
   pointer-events: auto;
-  background-color: var(--surface-container);
-  border-left: 1px solid var(--border-subtle);
-  transition: width 0.18s ease, padding 0.18s ease;
+  border: 1px solid transparent;
+  border-radius: 0.75rem;
+
+  /* 毛玻璃：半透明底 + 背景模糊 + 细边 + 阴影（见文件头关于 backdrop-filter 的说明）。 */
+  background-color: var(--dock-glass-surface);
+  -webkit-backdrop-filter: var(--dock-glass-blur);
+  backdrop-filter: var(--dock-glass-blur);
+  box-shadow: var(--dock-glass-shadow);
+  transition: width 0.18s ease, padding 0.18s ease, border-color 0.18s ease;
 }
 
 .entry-rail.is-expanded .entry-rail__panel {
-  width: 56px;
-  padding: 0.5rem 0.25rem;
+  width: var(--dock-panel-width);
+  padding: var(--dock-panel-padding);
+  border-color: var(--glass-border);
 }
 
-/* 收起态：**仍然可见**（图标竖条），只是收掉文字标签。
+/*
+ * 收起态：浮层**完全收掉**（`width: 0`，边框与底色同时清零），
+ * 坞在屏幕上只剩右侧那枚毛玻璃箭头。
  *
- * 早先这里写的是 `width: 0`，配合 8px 全透明热区，坞在视觉上完全不存在——
- * 用户只能靠 Ctrl+K 或快捷键找到插件入口，看起来像「坞没了」。
- * 现在收起态保留 40px 图标条，入口始终可发现。 */
+ * 旧实现收起态保留 40px 图标竖条，因为当时唯一的开合入口是一个 8px 的全透明
+ * 热区 —— 收干净等于用户再也找不到插件入口。现在箭头本身常驻可见且可点，
+ * 可发现性由箭头承担，因此收起态可以真正为零，不再占用内容区宽度。
+ *
+ * `border-width: 0` / `background-color: transparent` 不能省：`box-sizing`
+ * 是 `border-box`，`width: 0` 仍会留下 1px 边框的可见残影。
+ */
 .entry-rail.is-collapsed .entry-rail__panel {
-  width: 40px;
-  padding: 0.375rem 0.125rem;
-}
-
-.entry-rail.is-collapsed .entry-rail__label {
-  display: none;
-}
-
-.entry-rail.is-collapsed .entry-rail__slot {
-  width: 32px;
-  min-height: 32px;
-}
-
-/* 收起态不需要 8px 热区（面板本身可见且可点） */
-.entry-rail.is-collapsed .entry-rail__hotzone {
   width: 0;
+  padding: 0;
+  border-width: 0;
+  background-color: transparent;
+  box-shadow: none;
+  /* 宽度归零后也不参与命中测试，避免边缘留下 0 宽但可点的鬼影 */
+  pointer-events: none;
 }
 
 /* ---------------------------------------------------------------- 拖拽重排 */
@@ -114,31 +175,78 @@
 
 /* ---------------------------------------------------------------- 收起/展开 */
 
+/*
+ * 悬停热区：箭头周围一圈**透明但可命中**的窄环，承担"鼠标推到右边缘就把坞带出来"。
+ *
+ * 两个要点：
+ * - 它只有箭头大小多一点（不再是贯穿整屏高度的 8px 竖条），因此不会在内容区
+ *   右侧形成一条看不见的鼠标死区；
+ * - 它在 DOM 里排在箭头**前面**，箭头是 `position: relative` 的定位元素，
+ *   按绘制顺序覆盖在热区之上，所以点击永远落在箭头自己身上，
+ *   不会有"点了没反应"。热区只负责 hover，不接管 click。
+ */
+.entry-rail__hotzone {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: calc(var(--dock-handle-width) + 0.5rem);
+  height: calc(var(--dock-handle-height) + 1rem);
+  flex: 0 0 auto;
+  opacity: 0;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+/*
+ * 开合箭头：收起态**唯一**的常驻可见元素。
+ *
+ * 毛玻璃小圆角把手 + chevron，贴住右边缘、垂直居中。展开态它**不动**
+ * （`.entry-rail` 用 `justify-content: flex-end` 把它钉在右边），浮层在它
+ * 左侧长出/收起，因此点击目标不会在展开瞬间跑掉。
+ */
 .entry-rail__toggle {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 100%;
-  min-height: 1.5rem;
-  margin-top: auto;
-  padding: 0.125rem;
-  border: none;
-  border-radius: 0.375rem;
-  background: transparent;
-  color: var(--content-tertiary);
+  width: var(--dock-handle-width);
+  height: var(--dock-handle-height);
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 0;
+  /* 只留左、上、下三边边框：贴边的一侧不该有一道竖线 */
+  border: 1px solid var(--glass-border);
+  border-right: none;
+  border-radius: 0.625rem 0 0 0.625rem;
+  pointer-events: auto;
+  color: var(--content-secondary);
   cursor: pointer;
+
+  /* 与浮层同一套毛玻璃配方 */
+  background-color: var(--dock-glass-surface);
+  -webkit-backdrop-filter: var(--dock-glass-blur);
+  backdrop-filter: var(--dock-glass-blur);
+  box-shadow: var(--dock-glass-shadow);
   transition: color var(--ui-transition-fast), background-color var(--ui-transition-fast);
 }
 
+/* 悬停展开的触发在模板层做（`@mouseenter`），这里只做视觉反馈。 */
 .entry-rail__toggle:hover {
+  background-color: var(--dock-glass-surface-hover);
   color: var(--content-primary);
-  background: var(--state-hover-surface);
+}
+
+.entry-rail__toggle:focus-visible {
+  outline: 2px solid var(--state-focus-ring);
+  outline-offset: 2px;
 }
 
 .entry-rail__toggle svg {
   transition: transform 0.18s ease;
 }
 
+/* 展开时箭头翻向左侧（语义变成"收回"） */
 .entry-rail.is-expanded .entry-rail__toggle svg {
   transform: rotate(180deg);
 }
@@ -151,11 +259,11 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.125rem;
-  width: 48px;
-  min-height: 48px;
-  margin: 0 auto;
-  padding: 0.375rem 0.125rem;
+  gap: 0;
+  width: var(--dock-slot-size);
+  min-height: var(--dock-slot-size);
+  margin: 0;
+  padding: 0;
   flex: 0 0 auto;
   border: 1px solid transparent;
   border-radius: 0.5rem;
@@ -218,14 +326,13 @@
   flex: 0 0 auto;
 }
 
+/*
+ * 坞内入口**只保留图标**，文字标签已从模板移除（用户要求）。
+ * 名称通过 `title` tooltip 与 `aria-label` 提供，可发现性不受影响。
+ * 这里保留一条防回归规则：万一将来有人把标签塞回槽位，它也不会把浮层撑高。
+ */
 .entry-rail__label {
-  font-size: 0.625rem;
-  line-height: 1.1;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  text-align: center;
+  display: none;
 }
 
 /* 徽标：右上角 */
@@ -294,25 +401,49 @@ body:has(.plugin-surface--panel) .entry-rail .entry-rail__panel,
 body:has(.plugin-surface--sheet) .entry-rail .entry-rail__panel {
   width: 0;
   padding: 0;
-  border-left-color: transparent;
+  border-width: 0;
+  background-color: transparent;
+  box-shadow: none;
 }
 
 /* ---------------------------------------------------------------- 溢出菜单 */
 
+/*
+ * 溢出菜单：与浮层同一套毛玻璃观感，同样**垂直居中 + 高度随内容**。
+ *
+ * 旧实现是 `top: 64px; bottom: 64px;` 的贯穿竖栏 —— 和坞一样在入口少时
+ * 留一大片空白。现在改成 `top: 50%` + `translateY(-50%)` 居中，高度由内容
+ * 决定，只在内容过多时用 `max-height` 兜底（滚动交给 `.entry-overflow__body`）。
+ */
 .entry-overflow {
   position: fixed;
-  top: 64px;
-  right: 56px;
-  bottom: 64px;
+  top: 50%;
+  /* 溢出菜单只会在**展开态**打开（按钮在浮层内），因此让开箭头 + 间隙 + 浮层 */
+  right: calc(
+    var(--dock-handle-width) + var(--dock-panel-gap) + var(--dock-panel-width) + 0.5rem
+  );
+  transform: translateY(-50%);
+  max-height: calc(100vh - 8rem);
   width: min(320px, 80vw);
   z-index: var(--z-entry-rail);
   display: flex;
   flex-direction: column;
-  background-color: var(--surface-overlay);
-  border: 1px solid var(--border-default);
+  border: 1px solid var(--glass-border);
   border-radius: 0.75rem;
-  box-shadow: 0 20px 50px color-mix(in srgb, var(--content-on-light) 28%, transparent);
   overflow: hidden;
+
+  /* ⚠️ `pointer-events` 是**继承**属性。溢出菜单是 `.entry-rail` 的后代
+   * （坞根节点整体 `pointer-events: none`，否则那条跨越整屏的定位带会变成
+   * 鼠标死区），所以这里必须显式取回 `auto` —— 否则菜单能画出来却点不到：
+   * `elementFromPoint` 会穿过它命中下面的内容区，搜索框、条目、固定按钮全部失效。
+   * 实测症状：菜单可见但点不动，且 `elementFromPoint` 返回 `card-grid`。 */
+  pointer-events: auto;
+
+  /* 毛玻璃：与坞浮层同一配方 */
+  background-color: var(--dock-glass-surface);
+  -webkit-backdrop-filter: var(--dock-glass-blur);
+  backdrop-filter: var(--dock-glass-blur);
+  box-shadow: var(--dock-glass-shadow);
 }
 
 .entry-overflow__header {
@@ -724,10 +855,13 @@ body:has(.plugin-surface--sheet) .entry-rail .entry-rail__panel {
 
 /* ---------------------------------------------------------------- 响应式 */
 
-/* 平板默认收起且不自动展开（JS 侧也据此禁用 hover 展开） */
+/* 平板（<1180px）：浮层改窄一档；JS 侧同时禁用 hover 自动展开。
+ * 收起态**不再需要**单独的窄条尺寸：收起态只有箭头，与主题无关。 */
 @media (max-width: 1180px) {
-  .entry-rail.is-expanded .entry-rail__panel {
-    width: 48px;
+  .entry-dock-root {
+    /* 36 + 8 + 2 = 46px，与上面的配套公式保持一致 */
+    --dock-panel-width: 2.875rem;
+    --dock-slot-size: 2.25rem;
   }
 }
 
@@ -741,6 +875,7 @@ body:has(.plugin-surface--sheet) .entry-rail .entry-rail__panel {
 
 @media (prefers-reduced-motion: reduce) {
   .entry-rail__panel,
+  .entry-rail__toggle svg,
   .entry-rail__slot {
     transition: none;
   }

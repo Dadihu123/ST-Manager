@@ -418,23 +418,22 @@ api.ui.toolbar(container, buttons)           // 统一的按钮排布
 
 ### 7.1 入口坞（默认摆法）
 
-**结构**
+> **2026 改版（「入口坞美化」）**：坞从「贯穿整屏的竖条」改成「垂直居中的毛玻璃
+> 箭头 + 高自适应浮层」，收起态为默认。下方表格已同步更新；小节末尾记录改版理由。
+
+**结构**（收起态 = 右边缘一枚毛玻璃小箭头；展开态 = 箭头左侧的毛玻璃浮层）
 
 ```
-                                  ┌── 热区 8px（透明，hover 触发）
-                                  │
-  ┌────────────────────────┐      ▼
-  │                        │   ┌────┐
-  │                        │   │ ▣  │ ← 槽位（56×56），图标 + 可选徽标
-  │      .content-area     │   ├────┤
-  │                        │   │ ▣  │
-  │                        │   ├────┤
-  │                        │   │ ▣  │
-  │                        │   ├────┤
-  │                        │   │ ⋯  │ ← 溢出：未固定的入口（弹层）
-  │                        │   ├────┤
-  │                        │   │ ⚙  │ ← 坞设置（进入入口总览）
-  │                        │   └────┘
+  ┌────────────────────────┐
+  │                        │
+  │                        │   ┌──────┐
+  │                        │   │  ▣   │ ╮
+  │      .content-area     │   ├──────┤ │ 浮层：毛玻璃、垂直居中、
+  │                        │   │  ▣   │ │ 高度随入口数量塌缩
+  │                        │   ├──────┤ │（入口少时框就矮，不留空白）
+  │                        │   │  ⋯   │ ╯
+  │                        │   └──────┘◀── 毛玻璃箭头（常驻、垂直居中）
+  │                        │
   └────────────────────────┘
 ```
 
@@ -442,25 +441,77 @@ api.ui.toolbar(container, buttons)           // 统一的按钮排布
 
 | 项 | 规格 |
 |---|---|
-| 位置 | `position: fixed; right: 0; top: 64px（顶栏高度）; bottom: 64px（避开在流翻页栏）` |
-| 收起态 | 宽 8px 热区，`opacity: 0`，`pointer-events: auto`（否则 hover 收不到） |
-| 展开态 | 宽 56px 图标列；展开触发 = hover 停留 150ms 或点击热区 |
+| 位置 | `position: fixed; right: 0; top: 64px（顶栏高度）; bottom: 64px（避开在流翻页栏）`；坞是**不可见**定位带（`pointer-events: none`），自身不绘制任何东西 |
+| 收起态（默认） | 右边缘**垂直居中**一枚毛玻璃小箭头（22×40px，`--dock-handle-*` 令牌）。浮层 `width: 0`、`border-width: 0`、`background: transparent`，**不占内容区宽度**，屏幕上没有常驻竖条 |
+| 展开态 | 箭头左侧弹出毛玻璃浮层，宽 `--dock-panel-width`（= 槽位宽 + 10px 内边距与边框），**高度 `auto` 随入口数量塌缩**，仅 `max-height: 100%` 兜底滚动。展开触发 = hover 箭头/热区停留 150ms，或点击箭头 |
+| 悬停热区 | 箭头周围一圈窄环（`calc(var(--dock-handle-width) + .5rem)`），**不再贯穿整屏高度** —— 旧的全高 8px 透明热区会在内容区右侧形成看不见的鼠标死区 |
+| 收起动作 | 点击箭头。`collapse()` **必须取消挂起的 hover 展开定时器**，否则指针移向箭头触发的 150ms 定时器会在收起后把坞重新弹开（实测为必现竞态） |
+| 槽位内容 | **只保留图标**（24px）+ 可选徽标/进度/忙碌点。文字标签已从坞内移除；名称改由 `title` tooltip 与 `aria-label` 提供，溢出菜单里仍有完整文字 |
 | 固定 | 点击坞顶部「📌」进入 pinned 态（不自动收起），存 localStorage |
 | 键盘 | `role="toolbar"`，`aria-orientation="vertical"`，roving tabindex；`ArrowUp/Down` 移动、`Enter` 打开、`Delete` 取消固定。参照 `static/js/components/sidebar.js:214-235` 的 `handleModuleMenuKeydown` 模式 |
-| 层级 | 新增令牌 `--z-entry-rail: 80`（在 `--z-card-selected:50` 之上、`--z-floating:100` 之下）。**必须低于**美化包抽屉的字面量 `70`？——**不**：应同时把 `view-beautify.css:494` 的 `70` 与 `:814` 的 `40` 归一到令牌，再定坞为 80 与抽屉为 `--z-modal` 档（§12） |
-| 遮挡处理 | 任何模态/抽屉打开时坞自动收起：`body:has(.modal-overlay) .entry-rail { … }`（`body:has(...)` 已有先例，`data/plugins/stm-ai-assistant/frontend/plugin.css:146-149`） |
+| 层级 | 令牌 `--z-entry-rail: 80`（在 `--z-card-selected:50` 之上、`--z-floating:100` 之下） |
+| 遮挡处理 | **只有真正与坞重叠**的 surface（`panel` / `sheet`）打开时才收起：`body:has(.plugin-surface--panel) …`。**不得**写 `body:has(.modal-overlay)`：`:has()` 只看元素存在不看可见性，而主程序 28 个模态框全部用 `x-show` 常驻 DOM，那条规则几乎永久成立，会把坞永久压成不可见 |
+| 溢出菜单 | `.entry-rail` 整体 `pointer-events: none`，因此**每个**可交互后代（`__panel` / `__toggle` / `__overflow`）都必须显式取回 `auto`；开合走事件身份守卫，Escape 由菜单自己处理（见下方「溢出菜单」小节） |
 | 框选 | 坞根元素带 `data-marquee-ignore`（`static/js/utils/marqueeSelection.js:11`） |
 | 移动端 | 无 hover。`deviceType === 'mobile'`（`static/js/components/layout.js:159-191`）时坞不渲染为侧条，改为：顶栏右侧一个「入口」按钮 → 打开底部 sheet 列出全部入口 |
-| 平板 | `deviceType === 'tablet'` 时坞默认收起且不自动展开（避免误触），点击展开 |
+| 平板 | `deviceType === 'tablet'` 时坞默认收起且不自动展开（避免误触），点击展开；浮层与槽位各窄一档 |
 | 主题 | 只用 `.color-*` 语义类与既有 CSS 变量（F2：`tests/test_color_system_contracts.py:117-137` 禁止 `bg-red-*`/`text-blue-*`） |
-| 动效 | 遵守 `prefers-reduced-motion`（仓库已有 33 处该媒体查询） |
-| backdrop-filter | **坞不使用 `backdrop-filter`**。理由：`data/plugins/stm-ai-assistant/frontend/plugin.css:89-145` 记录的 Chromium 合成器缺陷——identity `backdrop-filter` 也会成为 backdrop root，配合高内容会渲染出黑块。坞用不透明 `var(--surface-container)` |
+| 动效 | 遵守 `prefers-reduced-motion`（含箭头旋转） |
+| backdrop-filter | **坞使用 `backdrop-filter`**（见下方改版说明）。契约由 `tests/test_plugin_entry_dock_contracts.py::test_dock_backdrop_filter_is_allowed_and_justified` 锁定 |
+
+**改版说明（为什么推翻了旧的两条硬约束）**
+
+1. **旧形态不可接受**：收起态 40px / 展开态 56px 的 `top:64px; bottom:64px` 竖条，
+   视觉上是一条从顶栏通到翻页栏的白条；入口只有一两个时，浮层下方是大片空白。
+   现改为「垂直居中 + 高度自适应」，两处都用 `align-items: center` +
+   `height: auto`（`align-items: stretch` 会把浮层重新拉满整屏）。
+
+2. **`backdrop-filter` 禁令的依据已经消失**。原禁令来自 `.main-container` 的
+   backdrop root 黑块缺陷：它曾是几乎所有全屏遮罩的**祖先**，一旦自己成为
+   backdrop root，遮罩的 `backdrop-filter` 就只能采样到不完整的 backdrop，
+   极端情况画成纯黑矩形。现状：
+   - `.main-container` 现在完全不带 `backdrop-filter`（壁纸模糊改走
+     `body::before { filter: blur() }`），见 `layout.css` / `base.css`；
+   - 坞是 `.main-container` 的**兄弟**节点（`templates/index.html`），
+     不在任何全屏遮罩的祖先链上，不可能成为遮罩的 backdrop root。
+
+   实测（Playwright + Chromium，1440×900，真实页面 + 真插件）：
+   `getComputedStyle(.entry-rail__panel).backdropFilter` 取回
+   `blur(14px) saturate(1.45)`，彩虹底图下可见明显磨砂混色；
+   打开全屏「系统设置」模态时坞被遮罩正常盖住（`elementFromPoint` 命中
+   `.modal-overlay`，z 1100 > 坞 z 80），坞所在区域**无黑块**，遮罩控件交互正常。
+
+   因此坞启用 `backdrop-filter`，同时把「`.main-container` 不得带
+   backdrop-filter」「坞不得成为遮罩祖先」这两条**真正的不变量**写进契约测试。
+
+**溢出菜单（2026 修复的三处「画得出但用不了」）**
+
+改版顺带查出溢出菜单**一直是完全不可用的**（既有缺陷，非改版引入，已用 HEAD
+对照回放确认），三处都已修复并被契约锁定：
+
+1. **打不开**：`@click.outside` 会捕获「打开菜单的那一次点击」。Alpine 的
+   `@click` 先置 `overflowOpen = true`，响应式副作用随即把 `.entry-overflow`
+   插入 DOM 并挂上 document 级 `@click.outside`；此时原点击**仍在冒泡**，按 DOM
+   规范「派发中新增的监听器」会对尚未访问的祖先生效，于是菜单在同一轮派发里被
+   自己那次点击关掉（`overflowOpen` 同帧 true→false，DOM 里数量恒为 0）。
+   修法：事件身份守卫 `_overflowOpenedByEvent`，`closeOverflow($event)` 跳过它。
+   **不用 `@click.stop`** —— 那会让点击到不了 document，破坏仓库里「点任意处
+   关闭其它浮层」的既有约定（`contextMenu.js` 的全局 click 监听）。
+2. **点不动**：`pointer-events` 是**继承**属性，`.entry-rail` 整体
+   `pointer-events: none`（避免整屏定位带变成鼠标死区），而 `.entry-overflow`
+   没像 `__panel` / `__toggle` 那样取回 `auto`。症状是菜单正常渲染但
+   `elementFromPoint` 穿过它命中下面的 `.card-grid`，搜索框、条目、固定按钮全失效。
+   修法：`.entry-overflow` 显式 `pointer-events: auto`。
+3. **Escape 失灵**：坞的 `handleKeydown` 挂在 `.entry-rail__panel` 上，而
+   `.entry-overflow` 是它的**兄弟**节点；菜单打开后焦点自动落在搜索框，
+   面板的 keydown 树根本收不到。修法：菜单自己处理
+   `@keydown.escape.stop="closeOverflow()"`（`.stop` 防止冒泡到坞根去收起整个坞）。
 
 **槽位内容**
 
 - 主图标（24px）
 - 可选徽标（右上角圆点或数字，`api.entries.setBadge`）
-- hover tooltip：`label` + `description` + 归属插件名（`<small>来自 AI 角色卡分析助手</small>`）
+- hover tooltip：`title` 带 `label` + `description`（坞内不再有常驻文字）
 - 右键/长按上下文菜单：`打开`、`固定/取消固定`、`移到溢出`、`配置`（深链到设置，§7.4）、`隐藏`、`关于此插件`
 
 ### 7.2 溢出与命令面板（解决「3 个 → 30 个」）

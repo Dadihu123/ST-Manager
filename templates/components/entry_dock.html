@@ -2,7 +2,9 @@
 <!--
   入口坞（设计文档 D6 / 阶段 5）。
 
-  位置：右侧 fixed 竖条，避开在流顶栏与翻页栏。
+  位置：右侧 fixed 覆盖层，**垂直居中**，不占用内容区宽度。
+  收起态只有一枚毛玻璃小箭头（`.entry-rail__toggle`），点击后向左弹出
+  一只毛玻璃浮层小框（`.entry-rail__panel`），框高随入口数量自适应。
   根元素带 data-marquee-ignore，框选不会命中坞。
   键盘：role="toolbar" + aria-orientation="vertical" + roving tabindex。
   移动端不渲染侧条，退化为顶栏按钮 + 底部 sheet。
@@ -38,7 +40,7 @@
       :class="{ 'is-expanded': expanded, 'is-collapsed': !expanded }"
       data-marquee-ignore
     >
-      <!-- 收起态 8px 热区：opacity 0 但 pointer-events auto -->
+      <!-- 收起态热区：只覆盖箭头周围一小块（不再是整屏高度的透明死区） -->
       <div
         class="entry-rail__hotzone"
         data-marquee-ignore
@@ -48,6 +50,7 @@
         @click="expand()"
       ></div>
 
+      <!-- 浮层：展开时向左长出，高度由入口数量决定 -->
       <div
         class="entry-rail__panel"
         role="toolbar"
@@ -57,7 +60,7 @@
         @mouseleave="onHotzoneLeave()"
         @keydown="handleKeydown($event)"
       >
-        <!-- 坞槽位 -->
+        <!-- 坞槽位：**只保留图标**，名称走 title tooltip -->
         <template x-for="entry in slots" :key="entry.key">
           <button
             type="button"
@@ -66,6 +69,7 @@
             :data-entry-key="entry.key"
             :tabindex="tabIndexFor(entry)"
             :title="entry.enabled ? (entry.description || entry.label) : entry.disabledHint"
+            :aria-label="entry.label"
             :aria-disabled="entry.enabled ? 'false' : 'true'"
             draggable="true"
             @click="entry.enabled ? open(entry.key) : onDisabledClick(entry)"
@@ -77,7 +81,6 @@
             @drop="onSlotDrop(entry, $event)"
           >
             <span class="entry-rail__icon" x-html="buildIcon(entry).outerHTML"></span>
-            <span class="entry-rail__label" x-text="entry.label"></span>
 
             <!-- 徽标 / 进度 / 忙碌 -->
             <span
@@ -107,32 +110,48 @@
             :tabindex="slots.length ? -1 : 0"
             :aria-expanded="overflowOpen ? 'true' : 'false'"
             aria-haspopup="true"
+            aria-label="更多入口"
             title="更多入口"
-            @click="toggleOverflow()"
+            @click="toggleOverflow($event)"
           >
             <span class="entry-rail__icon" aria-hidden="true">⋯</span>
-            <span class="entry-rail__label">更多</span>
           </button>
         </template>
-
-        <!-- 收起 / 展开（坞现在始终可见，需要一个明确的收起手段） -->
-        <button
-          type="button"
-          class="entry-rail__toggle"
-          :aria-expanded="expanded ? 'true' : 'false'"
-          :title="expanded ? '收起入口坞' : '展开入口坞'"
-          :aria-label="expanded ? '收起入口坞' : '展开入口坞'"
-          @click="toggle()"
-        >
-          <svg class="ui-icon ui-icon--xs" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <use href="/static/icons/ui.svg#icon-chevron-right"></use>
-          </svg>
-        </button>
       </div>
+
+      <!--
+        开合箭头：放在 `__panel` **之外**，与浮层并列。
+        这样浮层无论展开还是收起，箭头都钉在右边缘垂直居中的同一位置，
+        点击目标不会在展开瞬间移动；浮层则向左长出。
+
+        hover 展开要挂在箭头**自己**身上：热区是它的兄弟节点且有重叠，
+        指针落在箭头（绘制在上）时热区收不到 `mouseenter`。
+      -->
+      <button
+        type="button"
+        class="entry-rail__toggle"
+        :aria-expanded="expanded ? 'true' : 'false'"
+        :title="expanded ? '收起入口坞' : '展开入口坞'"
+        :aria-label="expanded ? '收起入口坞' : '展开入口坞'"
+        @mouseenter="onHotzoneEnter()"
+        @mouseleave="onHotzoneLeave()"
+        @click="toggle()"
+      >
+        <svg class="ui-icon ui-icon--xs" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <use href="/static/icons/ui.svg#icon-chevron-right"></use>
+        </svg>
+      </button>
 
       <!-- 溢出菜单弹层 -->
       <template x-if="overflowOpen">
-        <div class="entry-overflow" data-marquee-ignore @click.outside="overflowOpen = false">
+        <div
+          class="entry-overflow"
+          data-marquee-ignore
+          role="dialog"
+          aria-label="更多入口"
+          @click.outside="closeOverflow($event)"
+          @keydown.escape.stop="closeOverflow()"
+        >
           <div class="entry-overflow__header">
             <input
               type="search"
