@@ -1730,6 +1730,26 @@ opaque origin，此时 `'self'` 与 `CORP: same-origin` 都匹配不上，`<img>
 本仓的 `sandbox` 只加在**资产自身**的响应上（资源被直接导航打开时的加固），
 不会作用于宿主页面，因此这条不构成本次的风险。
 
+**CSP 的确切作用域（2026-10-11 实测，写插件文档时要据此说准）**
+
+`PLUGIN_ASSET_CSP` 的触发条件是「路径以 `/api/plugins/` 开头**且含 `/assets/`**」
+（`security_headers.py:43`）。实测三类响应：
+
+| 路径 | `Content-Security-Policy` | `Cross-Origin-Resource-Policy` |
+|---|---|---|
+| `/api/plugins/<id>/assets/...` | 有（`default-src 'none'; img-src 'self' data:; …; sandbox`） | `same-origin` |
+| `/api/plugins/<id>/config`（插件自有路由） | **无** | **无** |
+| `/`（宿主主页面） | **无** | **无** |
+
+对插件作者的后果（`docs/2026-10-11-pet-plugin-implementation-prompt.md` §2.5 有同样记录）：
+
+- **`<img src>` 与 CSS `background-image` 不受影响**——图片按**宿主页面**的策略加载，
+  而宿主页面本身无 CSP。这是主路径。
+- **`fetch()` + `innerHTML` 内联 `.svg` 会踩到 `sandbox`**（opaque origin）。需要内联
+  SVG 时用 `api.ui.icon(name)` 或 `<img>`。
+- **`sandbox` 不含 `allow-scripts`**：资产里的 JS 不会执行，插件逻辑必须写在
+  `frontend.entry` 里。
+
 ---
 
 # 第 9 部分 · 插件管理 UI
