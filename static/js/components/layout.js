@@ -25,8 +25,14 @@ export default function layout() {
     get toastIcon() {
       return this.$store.global.toastIcon;
     },
+    get toastIconKind() {
+      return this.$store.global.toastIconKind;
+    },
     get toastIconHref() {
       return this.$store.global.toastIconHref;
+    },
+    get toastIconMask() {
+      return this.$store.global.toastIconMask;
     },
     get showToastState() {
       return this.$store.global.showToastState;

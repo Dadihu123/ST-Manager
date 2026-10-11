@@ -150,7 +150,6 @@ def test_automation_execution_notifications_use_shared_svg_icons():
     mobile_js = read_project_file('static/js/components/executeRulesMobileModal.js')
     context_menu_js = read_project_file('static/js/components/contextMenu.js')
     header_js = read_project_file('static/js/components/header.js')
-    state_js = read_project_file('static/js/state.js')
 
     for fragment in (
         "showToast(`导入成功: ${res.name}`, 3000, 'check')",
@@ -164,8 +163,16 @@ def test_automation_execution_notifications_use_shared_svg_icons():
     assert "showToast('执行完成！', 2400, 'check')" in context_menu_js
     assert 'showToast("执行完成！", 2400, "check")' in header_js
     assert 'showToast(error?.message || "批量执行失败", 3600, "close")' in header_js
-    assert '"forbidden"' in state_js
-    assert '"settings-save"' in state_js
+
+    # 这两行原先断言的是 `state.js` 里那份 **toast 专属白名单** 的两个字面量。
+    # 白名单已退休（toast 图标位改用通用 `resolveToastIcon()`，见
+    # `test_frontend_icon_runtime_contracts.py`），但**意图不变**：
+    # `forbidden` / `settings-save` 这两个被自动化流程用到的名字必须仍是可解析的宿主图标。
+    # 断言从「白名单里有这两个字面量」改为「名字→sprite 映射里有它们」——
+    # 映射由 `tools/gen_plugin_ui_icons.py` 从 `static/icons/*.svg` 生成，与后端同源。
+    icon_map = read_project_file('static/js/utils/iconMap.js')
+    for icon_name in ('forbidden', 'settings-save'):
+        assert f'"{icon_name}":' in icon_map, f'{icon_name} 必须是可解析的宿主图标名'
 
 
 def test_advanced_editor_custom_symbols_are_theme_safe():

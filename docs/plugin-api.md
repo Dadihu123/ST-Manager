@@ -127,7 +127,7 @@
 | `ui.*` | Stable | 宿主 UI 原语（D8）：`icon` / `panel` / `section` / `card` / `field` / `form` / `button` / `toolbar` / `empty` / `error` / `loading` / `badge` / `list` / `table` / `grid` / `split` / `confirm` / `prompt` |
 | `storage.*` | Stable | 插件键值存储（`ui_data._plugins_v1.<id>.storage`）：`get` / `set` / `remove` / `keys` |
 | `host.*` | Stable | 宿主内建能力（D8）：`toast` / `refresh` / `switchMode` / `openDetail` / `openSettingsSection` / `notify` / `log` / `onState`。其中 `host.onState(handler)` 订阅宿主状态快照（D6）：首次订阅**立即**推一次，之后变化时推送（已合并去抖）；返回取消订阅函数。形状 `{mode, deviceType, darkMode, scrimActive, surfaceOpen, busy, reducedMotion, visible}`——插件要「与界面联动」时用它，不必再去读 `store`（那是 Provisional 耦合） |
-| `toast(msg, duration, icon)` | Stable | 轻提示；`duration` 必须是数字（旧名，等价于 `host.toast`） |
+| `toast(msg, duration, icon)` | Stable | 轻提示；`duration` 必须是数字（旧名，等价于 `host.toast`）。`icon` 与 `api.ui.icon(name)` 走**同一套解析**：宿主图标名，或插件内资源路径（如 `frontend/assets/icon.svg`，宿主自动带上本插件 id）。解析不出来时只留空图标位并 `console.warn`，**文案照常显示** |
 | `progress.*` | Stable | 复用主程序批处理进度条（`update` / `finish` 等） |
 | `openDetail(target, id)` | Stable | 打开卡片 / 预设 / 会话详情（旧名，委托到 `host.openDetail`） |
 | `refresh(target)` | Stable | 请求主程序刷新视图（旧名，委托到 `host.refresh`） |
@@ -165,6 +165,21 @@
 
 `api.ui.icon(name)` 与 `entries[].icon` 使用的**宿主图标名**整表承诺 `Stable`：
 只增不改，删除或改名走上面的 deprecation 流程。完整清单见 `GET /api/plugins/ui-icons`。
+
+**所有图标位共用一套解析**（`static/js/utils/icons.js` 的 `resolveIcon()`）：
+`api.ui.icon()` / `entries[].icon` / `api.toast()` 的 `icon` 参数取值规则相同 ——
+不含 `/` 与 `.` 的当作宿主图标名，含 `/` 的当作插件内资源路径。
+宿主图标名走 sprite `<use>` 引用，插件资源路径走 CSS `mask`（插件 SVG 通常是
+填充式、宿主 sprite 是描边式，两者**不可互换**）。
+因此通知里可以直接用插件自己的品牌图标：
+
+```js
+api.toast('扫描完成', 3000, 'check');                    // 宿主图标名
+api.toast('扫描完成', 3000, 'frontend/assets/icon.svg');  // 插件自带图标
+```
+
+取不到（名字拼错 / 路径非法）时**不会静默失败**：图标位留空并在控制台记一条
+`[toast] …` 警告，通知文案不受影响。
 
 ## 前端 `window` 事件（Provisional）
 

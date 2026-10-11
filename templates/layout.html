@@ -45,28 +45,35 @@
     <!-- 2. 主内容插槽 -->
     {% block content %}{% endblock %}
 
-    <!-- 3. 全局 Toast 通知 -->
+    <!-- 3. 全局 Toast 通知
+         图标位按 `resolveToastIcon()` 的 kind 分三条渲染路径（与 uiPrimitives.js 同源契约）：
+         ① 独立动效 SVG 走 <img>；② 插件自带资源走 CSS mask（填充式图形，塞进 <use> 会是空图形）；
+         ③ 宿主图标名走 sprite <use>（描边式图形，用 mask 会变实心块）。 -->
     <div class="toast-notification" :class="{'show': showToastState}">
       <span x-show="toastIcon" aria-hidden="true">
-        <template x-if="toastIcon === 'loading-animation'">
+        <template x-if="toastIconKind === 'image'">
           <img
             class="ui-icon ui-icon--sm ui-loading-icon"
-            :src="'{{ url_for('static', filename='icons/') }}' + toastIconHref"
+            :src="toastIconHref"
             alt=""
             aria-hidden="true"
             draggable="false"
           />
         </template>
-        <template x-if="toastIcon && toastIcon !== 'loading-animation'">
+        <template x-if="toastIconKind === 'asset'">
+          <span
+            class="ui-icon ui-icon--sm ui-icon--asset"
+            :style="{ '--ui-icon-mask': toastIconMask }"
+          ></span>
+        </template>
+        <template x-if="toastIconKind === 'host'">
           <svg
             class="ui-icon ui-icon--sm"
             viewBox="0 0 24 24"
             aria-hidden="true"
             focusable="false"
           >
-            <use
-              :href="'{{ url_for('static', filename='icons/') }}' + toastIconHref"
-            ></use>
+            <use :href="toastIconHref"></use>
           </svg>
         </template>
       </span>

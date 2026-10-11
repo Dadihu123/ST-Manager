@@ -734,11 +734,15 @@ export const PluginHost = {
       },
 
       // ---- 通知与进度 ----
+      // `pluginId` 透传给宿主 store，让插件能在图标位写**自己的资源路径**
+      // （如 `frontend/assets/icon.svg`）。宿主自身的既有调用不传第 4 参，
+      // 行为不变；拿不到 id 时 `resolveIcon()` 返回 missing（只留空白图标位 + warn），
+      // 不会去猜一个 URL。
       toast(msg, duration = 3000, icon = "") {
         const store = storeRef();
         if (store && typeof store.showToast === "function") {
           const safeDuration = typeof duration === "string" ? 3000 : duration;
-          store.showToast(String(msg ?? ""), safeDuration, icon);
+          store.showToast(String(msg ?? ""), safeDuration, icon, { pluginId });
         }
       },
 

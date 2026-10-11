@@ -13,6 +13,10 @@ import {
 
 import { updateCssVariable, applyFont } from "./utils/dom.js";
 
+// 图标解析（设计文档 D4）：toast 与 `api.ui.icon()` / `entries[].icon` 共用同一套契约，
+// 不再各自维护白名单。
+import { resolveIcon } from "./utils/icons.js";
+
 import {
   getIsolatedCategories,
   saveIsolatedCategories as saveIsolatedCategoriesRequest,
@@ -68,31 +72,62 @@ export const DEFAULT_TAG_CATEGORY = "未分类";
 export const DEFAULT_TAG_CATEGORY_COLOR = "#64748b";
 export const DEFAULT_TAG_CATEGORY_OPACITY = 16;
 const TAG_VIEW_PREFS_STORAGE_KEY = "st_manager_tag_view_prefs";
-const TOAST_ICON_SPRITES = Object.freeze({
-  "backup-rollback": "detail.svg#icon-backup-rollback",
-  "tags": "detail.svg#icon-tags",
-  "link-source": "detail.svg#icon-link-source",
+/**
+ * toast 图标位里**独立动效 SVG** 的特例白名单（目前仅 `loading-animation`）。
+ *
+ * 这一个名字不在宿主 sprite 表（`./utils/iconMap.js`）里——`loading-animation.svg`
+ * 自带 `<style>` 与 `viewBox="0 0 100 100"`，没有任何 `id="icon-*"` symbol，
+ * 因此**永远解析不出 `<use>` 引用**，必须继续用 `<img>` 渲染。
+ *
+ * 除此之外 toast **不再维护图标名白名单**：图标名与插件自带资源路径的解析统一交给
+ * `resolveIcon()`（设计文档 D4），它与 `api.ui.icon()`、`entries[].icon` 同源。
+ * 旧实现的 16 项白名单曾让宿主自身 176 个图标与全部插件图标静默失效。
+ */
+const TOAST_IMAGE_ICONS = Object.freeze({
+  "loading-animation": "/static/icons/loading-animation.svg",
 });
-const TOAST_ICON_IMAGES = Object.freeze({
-  "loading-animation": "loading-animation.svg",
-});
-const TOAST_ICON_NAMES = new Set([
-  "forbidden",
-  "card-send-to-st",
-  "sillytavern",
-  "tauritavern",
-  "folder",
-  "loading-animation",
-  "close",
-  "trash",
-  "check",
-  "settings-help-entry",
-  "settings-save",
-  "alert-triangle",
-  "clipboard",
-  "snapshot",
-  ...Object.keys(TOAST_ICON_SPRITES),
-]);
+
+/**
+ * 解析 toast 图标位的取值，产出模板直接可用的渲染描述。
+ *
+ * 与 `uiPrimitives.icon()` 的三种渲染分支一一对应，宿主与插件共用同一套图标契约：
+ * - `kind: 'image'`：独立动效 SVG（`TOAST_IMAGE_ICONS`）→ `<img>`；
+ * - `kind: 'host'`：宿主图标名 → `<use href="/static/icons/<sprite>#icon-<name>">`。
+ *   宿主 sprite 是**描边式**（`fill: none; stroke: currentColor`），**不能**用 mask，
+ *   否则渲染成实心块；
+ * - `kind: 'asset'`：插件自带资源路径 → `<span>` + CSS `mask`。插件 SVG 通常是
+ *   **填充式**，塞进 `<use>` 会渲染成空图形（见 `uiPrimitives.js:53-56` 的同款注释）；
+ * - `kind: 'missing'`：未知名字 / 非法资源路径 → 图标位留空，由调用方决定是否告警。
+ *
+ * @param {string} iconName toast 第三参的原始取值。
+ * @param {object} [options]
+ * @param {string} [options.pluginId] 插件资源路径必需（解析 `/api/plugins/<id>/assets/…`）。
+ * @returns {{requested: string, kind: string, href: string, mask: string}}
+ */
+export function resolveToastIcon(iconName, options = {}) {
+  const requested = String(iconName || "").trim();
+  if (!requested) return { requested: "", kind: "", href: "", mask: "" };
+
+  // ① 独立动效 SVG 特例：先于通用解析判定，否则会被判成 missing 并误报 warning。
+  const imageHref = TOAST_IMAGE_ICONS[requested];
+  if (imageHref) {
+    return { requested, kind: "image", href: imageHref, mask: "" };
+  }
+
+  const resolved = resolveIcon(requested, {
+    pluginId: String((options && options.pluginId) || ""),
+  });
+
+  if (resolved.kind === "host") {
+    return { requested, kind: "host", href: resolved.href, mask: "" };
+  }
+  if (resolved.kind === "asset") {
+    // mask 图像 URL 由模板经 `--ui-icon-mask` 传给 `.ui-icon--asset`（icons.css）。
+    // URL 已按段 encodeURIComponent，不含引号，可直接用双引号包裹。
+    return { requested, kind: "asset", href: "", mask: `url("${resolved.url}")` };
+  }
+  return { requested, kind: "missing", href: "", mask: "" };
+}
 
 function buildDefaultTagViewPrefs() {
   return {
@@ -545,7 +580,11 @@ export function initState() {
     windowWidth: window.innerWidth,
     toastMessage: "",
     toastIcon: "",
+    // 图标位的解析结果（`resolveToastIcon()` 的返回值）：模板按 `toastIconKind`
+    // 在 `<img>` / `<use>` / mask 三条分支里选一条渲染。解析失败时为空串。
+    toastIconKind: "",
     toastIconHref: "",
+    toastIconMask: "",
     showToastState: false,
     toastTimer: null,
     batchProgress: {
@@ -1683,25 +1722,40 @@ export function initState() {
     },
 
     // 显示 Toast 通知
-    showToast(msg, duration = 3000, iconName = "") {
+    // 第 4 参为可选：`{ pluginId }`。插件经 `api.toast` 调用时会自动带上，
+    // 宿主自身的既有调用（只传 3 个参数）行为完全不变。
+    showToast(msg, duration = 3000, iconName = "", options = {}) {
       if (typeof duration === "string") {
         duration = 3000;
       }
       this.toastMessage = msg;
-      const normalizedIconName = String(iconName || "").trim();
-      const hasIcon = TOAST_ICON_NAMES.has(normalizedIconName);
-      this.toastIcon = hasIcon ? normalizedIconName : "";
-      this.toastIconHref = hasIcon
-        ? TOAST_ICON_IMAGES[normalizedIconName] ||
-          TOAST_ICON_SPRITES[normalizedIconName] ||
-          `ui.svg#icon-${normalizedIconName}`
+      // 解析统一走 `resolveToastIcon()`（= 通用 `resolveIcon()` + 动效 SVG 特例）。
+      // `options.pluginId` 由 `pluginHost.js` 的 `api.toast` 透传，插件才能用自己
+      // 的资源路径；宿主自身调用不传，含 `/` 的取值会降级为 missing 而不是猜 URL。
+      const resolved = resolveToastIcon(iconName, {
+        pluginId: options && options.pluginId,
+      });
+      this.toastIcon = resolved.kind && resolved.kind !== "missing"
+        ? resolved.requested
         : "";
+      this.toastIconKind = resolved.kind;
+      this.toastIconHref = resolved.href;
+      this.toastIconMask = resolved.mask;
+      if (resolved.kind === "missing") {
+        // 旧实现是**完全静默**的：插件作者看不出图标名没生效（本次缺口就是这样被埋住的）。
+        // 把静默失效变成可见是这次修复的一半价值。图标位只影响图标，文案照常显示。
+        console.warn(
+          `[toast] 未知的图标名或非法资源路径，图标位已留空: ${resolved.requested}`,
+        );
+      }
       this.showToastState = true;
       if (this.toastTimer) clearTimeout(this.toastTimer);
       this.toastTimer = setTimeout(() => {
         this.showToastState = false;
         this.toastIcon = "";
+        this.toastIconKind = "";
         this.toastIconHref = "";
+        this.toastIconMask = "";
       }, duration);
     },
 
