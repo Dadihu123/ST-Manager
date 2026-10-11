@@ -6,9 +6,24 @@
   不再新增第 5 份 `_is_under_base`。
 - 扩展名白名单：`.js/.mjs/.css/.svg/.png/.webp/.gif/.avif/.json/.woff2/.map`。
   **不提供** `.py`、`.md`、`.env` 等。
-- 响应头 `Cache-Control: private, max-age=31536000, immutable`：资产 URL 由宿主带
-  `?v=<插件版本>`（`static/js/pluginHost.js:withAssetVersion`），版本变化即 URL 变化，
-  因此可以给强缓存；不再依赖 `no-cache` 的启发式新鲜度。
+- 响应头 `Cache-Control: private, no-cache`：**必须先向服务器校验**才能复用。
+  这里刻意**不用** `immutable` / 长 `max-age`（曾经是
+  `private, max-age=31536000, immutable`），因为那个策略的前提不成立：
+
+  版本参数 `?v=<插件版本>` 由 `pluginHost.js:withAssetVersion` 加在**入口** URL 上，
+  但 ES 模块的相对 import **不继承查询串**：
+
+      new URL('./panel.js', '.../plugin.js?v=0.1.0').href  →  '.../panel.js'
+
+  实测（真实 Chrome）插件 6 个子模块的请求 URL 全都不带 `?v=`：
+  `panel.js` / `petview.js` / `announce.js` / `clock.js` / `physics.js` /
+  `statemachine.js`。这些 URL **恒定不变**，一旦给了 `immutable` 就是永久缓存 ——
+  改代码、**重装插件**、甚至硬刷新都可能仍执行旧模块（实测复现：改磁盘代码后
+  普通刷新仍是旧代码）。
+
+  改成 `no-cache` 后：`conditional=True` + ETag / Last-Modified 仍然生效，
+  内容未变时返回 **304 无响应体**，代价只有一次条件请求 —— 对本地桌面应用
+  可以忽略，而正确性拿回来了。
 - `conditional=True` 让 ETag / `Last-Modified` 真正生效（`If-None-Match` → 304），
   并顺带支持 `Range` 请求（`Accept-Ranges: bytes`）。
 - 响应头 `Content-Security-Policy`（严格 + `sandbox`）与 `Cross-Origin-Resource-Policy`：
@@ -48,8 +63,17 @@ DEFAULT_MIME_TYPES = {
     '.map': 'application/json; charset=utf-8',
 }
 
-# 资产 URL 带 `?v=<插件版本>`，可以安全地给版本化强缓存（见模块 docstring）。
-ASSET_CACHE_CONTROL = 'private, max-age=31536000, immutable'
+# 资产必须**先校验**才能复用（`no-cache`）。
+#
+# 曾经是 `private, max-age=31536000, immutable`，前提是「URL 带 `?v=<插件版本>`，
+# 版本变化即 URL 变化」。但该前提对 **ES 模块的子导入不成立** —— 查询串不会被
+# 相对 import 继承（`new URL('./panel.js', '.../plugin.js?v=0.1.0')` → `'.../panel.js'`），
+# 实测插件 6 个子模块的请求 URL 全都不带 `?v=` 且恒定不变。
+# 于是 `immutable` 让它们**永久缓存**：改代码、重装插件、硬刷新都可能仍跑旧模块。
+#
+# 改 `no-cache` 后配合 `conditional=True`，内容未变时仍是 **304 无响应体**，
+# 代价只有一次条件请求；本地桌面应用完全可以忽略，正确性则是必须的。
+ASSET_CACHE_CONTROL = 'private, no-cache'
 
 bp = Blueprint('plugin_assets', __name__)
 

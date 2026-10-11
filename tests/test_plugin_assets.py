@@ -42,31 +42,46 @@ def test_serves_allowlisted_asset(asset_app):
     response = client.get('/api/plugins/demo-plugin/assets/frontend/plugin.js')
 
     assert response.status_code == 200
-    assert response.headers['Cache-Control'] == 'private, max-age=31536000, immutable'
+    assert response.headers['Cache-Control'] == 'private, no-cache'
     assert 'activate' in response.get_data(as_text=True)
 
 
-def test_asset_cache_control_is_versioned_strong_cache(asset_app):
-    """D5：URL 带 `?v=<插件版本>`，因此是版本化强缓存而非 `no-cache`。
+def test_asset_cache_control_forces_revalidation(asset_app):
+    """资产必须**先校验**（`no-cache`），不得给 `immutable` / 长 `max-age`。
 
-    这里断言**字面量**取值（而不是只跟 `ASSET_CACHE_CONTROL` 比），否则把常量改成
-    `no-cache` 测试也照样绿——策略本身必须被钉住。
+    ⚠️ 这里断言**字面量**取值（而不是只跟 `ASSET_CACHE_CONTROL` 比），
+    否则把常量改回强缓存测试也照样绿 —— 策略本身必须被钉住。
+
+    **为什么不能是强缓存**（真实踩过，有复现脚本）：版本参数 `?v=<插件版本>`
+    只加在**入口** URL 上，而 ES 模块的相对 import **不继承查询串**：
+
+        new URL('./panel.js', '.../plugin.js?v=0.1.0').href  →  '.../panel.js'
+
+    实测插件 6 个子模块（`panel.js` / `petview.js` / `announce.js` / `clock.js` /
+    `physics.js` / `statemachine.js`）的请求 URL 全都不带 `?v=`，因此**恒定不变**。
+    给它们 `immutable` + 一年 `max-age` 就等于永久缓存：改代码、**重装插件**、
+    甚至硬刷新都可能仍执行旧模块（实测：改磁盘代码后普通刷新仍是旧代码）。
+
+    这正是「修好 bug 并重装插件，用户却仍看到旧行为」的根因。
     """
     client = asset_app.test_client()
 
     cache_control = client.get('/api/plugins/demo-plugin/assets/frontend/plugin.js').headers['Cache-Control']
 
-    assert cache_control == 'private, max-age=31536000, immutable'
-    assert assets_module.ASSET_CACHE_CONTROL == 'private, max-age=31536000, immutable'
+    assert cache_control == 'private, no-cache'
+    assert assets_module.ASSET_CACHE_CONTROL == 'private, no-cache'
     directives = {item.strip() for item in cache_control.split(',')}
 
-    assert 'immutable' in directives, cache_control
-    assert 'no-cache' not in directives, cache_control
-    assert 'no-store' not in directives, cache_control
     # private：资产与登录态同源，不允许中间代理缓存
     assert 'private' in directives, cache_control
-    max_age = next(item for item in directives if item.startswith('max-age='))
-    assert int(max_age.split('=', 1)[1]) >= 86400, cache_control
+    # 必须校验
+    assert 'no-cache' in directives, cache_control
+    # 不得永久缓存（子模块 URL 不带版本，强缓存会导致插件更新不生效）
+    assert 'immutable' not in directives, cache_control
+    assert 'no-store' not in directives, cache_control
+    assert not any(item.startswith('max-age=') for item in directives), (
+        f'不得给 max-age（子模块 URL 恒定，长缓存会导致更新不生效）: {cache_control}'
+    )
 
 
 def test_conditional_request_returns_304(asset_app):
@@ -83,7 +98,7 @@ def test_conditional_request_returns_304(asset_app):
     assert revalidate.status_code == 304, '条件请求必须回 304（修复前恒为 200）'
     assert revalidate.get_data() == b''
     # 304 也必须带缓存策略，否则浏览器会退回启发式新鲜度
-    assert revalidate.headers['Cache-Control'] == 'private, max-age=31536000, immutable'
+    assert revalidate.headers['Cache-Control'] == 'private, no-cache'
 
     by_date = client.get(url, headers={'If-Modified-Since': first.headers['Last-Modified']})
 

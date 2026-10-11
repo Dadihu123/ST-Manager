@@ -90,11 +90,24 @@ function ensureRootNode() {
 /**
  * D11：资产 URL 追加 `?v=<插件版本>`。
  *
- * 后端 `core/plugins/assets.py` 给资产下发
- * `Cache-Control: private, max-age=31536000, immutable`（版本化强缓存）——
- * 这只有在 URL 真的随版本变化时才成立，所以这里必须带上 `v=`：
- * 插件更新后版本号变化会让 URL 变化，从而彻底绕开旧响应的复用问题。
- * 后端同时支持条件请求（`If-None-Match` → 304），`v=` 未变时也有廉价回源路径。
+ * ⚠️ **这个 `v=` 只对入口 URL 有效，不能当作「子模块也会随版本失效」的依据。**
+ *
+ * 后端 `core/plugins/assets.py` 现在下发 `Cache-Control: private, no-cache`
+ * （必须先校验）。这里刻意记录曾经的错误假设，避免有人再改回强缓存：
+ *
+ * 早先后端发 `private, max-age=31536000, immutable`，理由是「URL 带 `?v=`，
+ * 版本变化即 URL 变化」。但该理由**对 ES 模块的子导入不成立** ——
+ * 查询串不会被相对 import 继承：
+ *
+ *     new URL('./panel.js', '.../plugin.js?v=0.1.0').href  →  '.../panel.js'
+ *
+ * 实测插件 6 个子模块（`panel.js` / `petview.js` / `announce.js` / `clock.js` /
+ * `physics.js` / `statemachine.js`）的请求 URL 全都不带 `?v=`，恒定不变。
+ * 于是 `immutable` 让它们永久缓存：改代码、**重装插件**、甚至硬刷新都可能
+ * 仍执行旧模块（真实踩过：修好 bug 并重装插件，用户仍看到旧行为）。
+ *
+ * 因此 `v=` 的作用是「让入口多一条廉价回源路径」，**不是**强缓存的许可证。
+ * 后端同时支持条件请求（`If-None-Match` → 304），内容未变时无响应体开销。
  */
 function withAssetVersion(url, version) {
   const stamp = String(version || "").trim();
