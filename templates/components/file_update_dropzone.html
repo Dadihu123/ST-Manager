@@ -1,0 +1,42 @@
+{% from "components/icon.html" import icon, sidebar_icon %}
+
+{% macro file_update_dropzone(title, hint, drop_hint, input_ref, on_select, on_drop, on_click, drag_over, accept='', disabled='false', file_name='') %}
+<div
+  class="detail-update-dropzone"
+  :class="{{ drag_over }} ? 'drag-over' : ''"
+  role="button"
+  aria-label="{{ title }}"
+  :tabindex="{{ disabled }} ? -1 : 0"
+  :aria-disabled="{{ disabled }}"
+  @click="if (!({{ disabled }})) { {{ on_click }} }"
+  @keydown.enter.prevent="if (!({{ disabled }})) { {{ on_click }} }"
+  @keydown.space.prevent="if (!({{ disabled }})) { {{ on_click }} }"
+  @dragover.prevent="if (!({{ disabled }})) {{ drag_over }} = true"
+  @dragleave.prevent="{{ drag_over }} = false"
+  @drop.prevent="{{ drag_over }} = false; if (!({{ disabled }})) { {{ on_drop }} }"
+>
+  <div class="detail-update-dropzone-icon" :class="{{ drag_over }} ? 'drag-over' : ''">
+    {{ sidebar_icon('folder-open', 'ui-icon--lg') }}
+  </div>
+  <div class="detail-update-dropzone-title">{{ title }}</div>
+  <div class="detail-update-dropzone-note">
+    <span x-show="!{{ drag_over }}" class="inline-flex items-center gap-1">
+      {{ icon('file-import', 'ui-icon--xs') }}
+      <span>{{ hint }}</span>
+    </span>
+    <span x-show="{{ drag_over }}">{{ drop_hint }}</span>
+  </div>
+  {% if file_name %}
+  <div class="detail-update-dropzone-note" x-show="{{ file_name }}" x-text="{{ file_name }}"></div>
+  {% endif %}
+  <input
+    type="file"
+    x-ref="{{ input_ref }}"
+    @click.stop
+    @change="{{ on_select }}"
+    {% if accept %}accept="{{ accept }}"{% endif %}
+    :disabled="{{ disabled }}"
+    style="display: none"
+  />
+</div>
+{% endmacro %}

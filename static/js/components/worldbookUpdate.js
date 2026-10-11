@@ -13,6 +13,7 @@ export default function worldbookUpdate() {
     source: "file",
     url: "",
     file: null,
+    dragOverFile: false,
     busy: false,
     error: "",
     stale: false,
@@ -33,6 +34,7 @@ export default function worldbookUpdate() {
         this.source = "file";
         this.url = "";
         this.file = null;
+        this.dragOverFile = false;
         this.currentText = this.sourceText = this.revision = this.error = "";
         this.stale = false;
         this.view = "readable";
@@ -70,6 +72,7 @@ export default function worldbookUpdate() {
 
     selectFile(file) {
       if (this.busy) return;
+      this.dragOverFile = false;
       this.file = file || null;
       this.error = "";
     },

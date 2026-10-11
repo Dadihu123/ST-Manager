@@ -666,7 +666,7 @@
 
 .ui-detail-modal .detail-manage-panel,
 .ui-detail-modal .detail-manage-subpanel,
-.ui-detail-modal .detail-update-dropzone {
+.detail-update-dropzone {
   border-color: var(--border-subtle);
   border-radius: var(--ui-radius-md);
 }

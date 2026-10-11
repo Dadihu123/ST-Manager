@@ -1,3 +1,5 @@
+{% from "components/file_update_dropzone.html" import file_update_dropzone %}
+
 <div
   x-data="worldbookUpdate"
   x-show="show"
@@ -26,11 +28,19 @@
           <button type="button" class="btn-secondary" :aria-pressed="source === 'file'" :disabled="busy" @click="source = 'file'; error = ''">上传文件</button>
           <button type="button" class="btn-secondary" :aria-pressed="source === 'url'" :disabled="busy" @click="source = 'url'; error = ''">通过 URL</button>
         </div>
-        <div x-show="source === 'file'" class="wb-update-file" @dragover.prevent @drop.prevent="selectFile($event.dataTransfer.files[0])">
-          <label for="wb-update-file">选择或拖入世界书 JSON 文件</label>
-          <input type="file" id="wb-update-file" x-ref="file" :disabled="busy" @change="selectFile($event.target.files[0])" />
-          <p x-show="file" x-text="file?.name || ''"></p>
-          <small>仅更新独立 Global／Resource 世界书；不支持角色卡内嵌世界书。</small>
+        <div x-show="source === 'file'" class="wb-update-file">
+          {{ file_update_dropzone(
+            title="从文件更新",
+            hint="点击选择，或拖拽 JSON 到这里",
+            drop_hint="松开后选择此文件",
+            input_ref="file",
+            on_select="selectFile($event.target.files[0])",
+            on_drop="selectFile($event.dataTransfer.files[0])",
+            on_click="$refs.file.click()",
+            drag_over="dragOverFile",
+            disabled="busy",
+            file_name="file?.name || ''"
+          ) }}
         </div>
         <div x-show="source === 'url'" class="wb-update-url">
           <label for="wb-update-url">世界书下载地址</label>
