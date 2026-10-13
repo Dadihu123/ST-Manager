@@ -33,6 +33,15 @@ const CORE_ACTIONS = {
       }),
     );
   },
+  "core:open-about": () => {
+    const store = window.Alpine && window.Alpine.store("global");
+    if (store) store.showSettingsModal = true;
+    window.dispatchEvent(
+      new CustomEvent("open-settings-section", {
+        detail: { section: "about", anchor: "settings-about-links" },
+      }),
+    );
+  },
   "core:switch-cards": () => setMode("cards"),
   "core:switch-worldinfo": () => setMode("worldinfo"),
   "core:switch-chats": () => setMode("chats"),

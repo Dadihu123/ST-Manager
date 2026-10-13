@@ -61,6 +61,17 @@ export async function setResourceFolder(payload) {
   return res.json();
 }
 
+// 重命名角色资源目录
+export async function renameResourceFolder(payload) {
+  // payload: { card_id, new_name }
+  const res = await fetch("/api/rename_resource_folder", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return res.json();
+}
+
 // 打开资源目录
 export async function openResourceFolder(payload) {
   // payload: { card_id }

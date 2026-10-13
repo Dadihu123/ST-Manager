@@ -17,15 +17,20 @@
 
 | 文件 | 用途 | symbol 数量 |
 | --- | --- | ---: |
-| `static/icons/ui.svg` | 通用操作、状态、设置和系统工具 | 138 |
+| `static/icons/ui.svg` | 通用操作、状态、设置和系统工具 | 143 |
 | `static/icons/detail.svg` | 详情、阅读器和资源详情 | 26 |
 | `static/icons/sidebar.svg` | 侧边栏导航与分类 | 10 |
 | `static/icons/preset.svg` | 预设字段与 marker | 13 |
-| **精灵合计** |  | **187** |
+| **精灵合计** |  | **192** |
 | `static/icons/forum-preview/*.svg` | CSS mask | 6 个独立文件 |
 
 设置页的缩略图清理动作使用 `ui.svg#icon-broom`。图标来源为
 `tmp/其他/扫帚.svg`，路径颜色改为 `currentColor`，可以跟随主题和按钮状态变化。
+
+设置页「关于」分区的官方品牌入口使用 `ui.svg#icon-github`（GitHub octicon
+`mark-github`）和 `ui.svg#icon-discord`（Discord 官方标志）。两者都只保留单条
+`currentColor` 路径，品牌色由 `modal-settings.css` 的
+`.settings-about-link-icon--*` 提供，不写死在精灵里。
 
 ## 3. 通用化和兼容映射
 

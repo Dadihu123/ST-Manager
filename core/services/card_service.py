@@ -20,7 +20,10 @@ from core.data.ui_store import (
     ensure_import_time,
     get_import_time,
     rename_embedded_worldinfo_note_card_prefix,
+    rename_resource_item_category_path_prefix,
+    rename_resource_worldinfo_note_path_prefix,
 )
+from core.consts import RESERVED_RESOURCE_NAMES
 from core.services.card_operation_lock import card_operation_locked
 from core.services.card_binding_service import ensure_card_ui_uid, rename_card_ui_references
 
@@ -155,7 +158,15 @@ def _ensure_resource_folder_exists(card_id, hint_name):
     return new_folder_name, full_path, True
 
 @card_operation_locked
-def update_card_content(card_id, temp_path, is_bundle_update, keep_ui_data, new_upload_ext, image_policy='overwrite'):
+def update_card_content(
+    card_id,
+    temp_path,
+    is_bundle_update,
+    keep_ui_data,
+    new_upload_ext,
+    image_policy='overwrite',
+    creator_policy='preserve',
+):
     """
     核心卡片更新逻辑。
     处理文件上传、覆盖、版本新增、格式转换 (JSON<->PNG) 以及元数据合并。
@@ -171,6 +182,9 @@ def update_card_content(card_id, temp_path, is_bundle_update, keep_ui_data, new_
             - 'keep_image': 保留原图像素，只更新元数据
             - 'archive_old': 覆盖前，将原图存入资源目录
             - 'archive_new': 保留原图像素，将新上传的图存入资源目录
+        creator_policy (str): 创作者字段处理策略
+            - 'preserve': 旧卡已有创作者时保留旧值 (默认)
+            - 'overwrite': 采用上传文件里的创作者
         
     Returns:
         dict: 更新结果，包含新的 ID、URL 和更新后的卡片对象。
@@ -252,8 +266,17 @@ def update_card_content(card_id, temp_path, is_bundle_update, keep_ui_data, new_
     target_block = get_data_ref(final_info)
     source_block = get_data_ref(new_info_raw)
 
+    # 升级前先记住旧卡片的创作者。上传文件里的 creator 往往为空或是作者的原始署名，
+    # 直接覆盖会把用户在「来源作者→创作者」动作里设置的值顶掉。
+    previous_creator = str(target_block.get('creator') or '').strip()
+    if not previous_creator and isinstance(cache_entry, dict):
+        previous_creator = str(cache_entry.get('creator') or '').strip()
+
     target_block.update(source_block)
-    
+
+    # 上传文件单独会写出的创作者值，用于判断保护策略是否真的改变了结果。
+    uploaded_creator = str(target_block.get('creator') or '').strip()
+
     # 特殊处理顶层 name
     if 'name' in source_block:
         if 'name' in final_info: 
@@ -262,7 +285,18 @@ def update_card_content(card_id, temp_path, is_bundle_update, keep_ui_data, new_
     # 应用前端传递的 Tags (优先级最高)
     if 'tags' in keep_ui_data:
         target_block['tags'] = keep_ui_data['tags']
-    
+
+    # 创作者字段保护：默认保留已有值，避免覆盖升级顶掉来源作者设置。
+    # 空字符串视为「没有意见」，不会被当成显式清空。
+    creator_preserved_from = ''
+    if creator_policy != 'overwrite':
+        requested_creator = str(keep_ui_data.get('creator') or '').strip()
+        desired_creator = requested_creator or previous_creator
+        if desired_creator and desired_creator != uploaded_creator:
+            target_block['creator'] = desired_creator
+            if desired_creator == previous_creator:
+                creator_preserved_from = previous_creator
+
     # 提取 card_name 用于自动命名资源文件夹
     # 优先用新数据的名字，其次旧数据的名字，最后文件名
     hint_name_for_folder = ""
@@ -629,6 +663,9 @@ def update_card_content(card_id, temp_path, is_bundle_update, keep_ui_data, new_
         "source_revision": refreshed_source_revision,
         "import_time": get_import_time(load_ui_data(), final_rel_id, new_mtime)
     }
+
+    if creator_preserved_from:
+        result['creator_preserved'] = creator_preserved_from
 
     if warning_message:
         result['warning'] = warning_message
@@ -1680,3 +1717,149 @@ def modify_card_attributes_internal(
     except Exception as e:
         logger.error(f"Modify attributes error: {e}")
         return False
+
+
+def _resolve_resource_folder_path(folder_value, resources_root):
+    """把资源目录配置值解析为绝对路径（兼容绝对路径与相对 resources 根）。"""
+    normalized = str(folder_value or '').strip()
+    if not normalized:
+        return ''
+    if os.path.isabs(normalized):
+        return os.path.normpath(normalized)
+    return os.path.normpath(os.path.join(resources_root, normalized))
+
+
+def _iter_resource_worldbook_paths(folder_path):
+    """枚举资源目录下 ``lorebooks`` 子树里的世界书 JSON。"""
+    lorebook_root = os.path.join(folder_path, 'lorebooks')
+    if not os.path.isdir(lorebook_root):
+        return
+    for root, _dirs, files in os.walk(lorebook_root):
+        for filename in files:
+            if filename.lower().endswith('.json'):
+                yield os.path.join(root, filename)
+
+
+@card_operation_locked
+def rename_card_resource_folder(card_id, new_name):
+    """
+    重命名角色卡的资源目录（含磁盘目录与 ui_data 绑定）。
+
+    只改最后一级目录名，因此要求资源目录位于 resources 根之下且不能是根目录本身；
+    绝对路径绑定的资源目录同样支持，只要目标位置不与现有目录冲突。
+
+    Returns:
+        dict: 成功时返回新的资源目录标识，失败时返回 ``msg``。
+    """
+    normalized_card_id = str(card_id or '').strip().replace('\\', '/').strip('/')
+    if not normalized_card_id:
+        return {'success': False, 'msg': '角色卡ID缺失'}
+
+    requested_name = str(new_name or '').strip()
+    if not requested_name:
+        return {'success': False, 'msg': '资源目录名不能为空'}
+    if os.path.basename(requested_name) != requested_name or requested_name in ('.', '..'):
+        return {'success': False, 'msg': '资源目录名不能包含路径分隔符'}
+    if requested_name.lower() in RESERVED_RESOURCE_NAMES:
+        return {'success': False, 'msg': f"无法使用 '{requested_name}' 作为资源目录，这是系统保留名称。"}
+
+    ui_data = load_ui_data()
+    ui_key = resolve_ui_key(normalized_card_id)
+    entry = ui_data.get(ui_key)
+    if not isinstance(entry, dict):
+        return {'success': False, 'msg': '未设置资源目录'}
+
+    current_value = str(entry.get('resource_folder') or '').strip()
+    if not current_value:
+        return {'success': False, 'msg': '未设置资源目录'}
+
+    cfg = load_config()
+    resources_root = _resolve_resource_folder_path(
+        cfg.get('resources_dir', 'data/assets/card_assets'),
+        BASE_DIR,
+    )
+    current_path = _resolve_resource_folder_path(current_value, resources_root)
+
+    if os.path.normcase(os.path.dirname(current_path)) == os.path.normcase(resources_root):
+        new_value = requested_name
+    elif os.path.isabs(current_value):
+        new_value = requested_name
+    else:
+        return {'success': False, 'msg': '资源目录名不能包含路径分隔符'}
+
+    new_path = os.path.join(os.path.dirname(current_path), requested_name)
+    if os.path.normcase(new_path) == os.path.normcase(current_path):
+        return {
+            'success': True,
+            'resource_folder': current_value,
+            'resource_path': current_path,
+            'renamed': False,
+        }
+
+    if not os.path.isdir(current_path):
+        return {'success': False, 'msg': f'资源目录不存在: {current_path}'}
+    if os.path.exists(new_path):
+        return {'success': False, 'msg': f'目标目录已存在: {requested_name}'}
+
+    suppress_fs_events(3.0)
+
+    # 资源世界书的条目历史按绝对路径归档，目录改名后需要一并迁移。
+    history_scopes = [
+        {
+            'source_type': 'resource',
+            'file_path': os.path.join(new_path, os.path.relpath(path, current_path)),
+            'old_file_path': path,
+        }
+        for path in _iter_resource_worldbook_paths(current_path)
+    ]
+
+    try:
+        os.rename(current_path, new_path)
+    except OSError as exc:
+        logger.error('Rename resource folder failed (%s -> %s): %s', current_path, new_path, exc)
+        return {'success': False, 'msg': f'重命名资源目录失败: {exc}'}
+
+    entry['resource_folder'] = new_value
+    ui_changed = True
+    if rename_resource_worldinfo_note_path_prefix(ui_data, current_path, new_path):
+        ui_changed = True
+    if rename_resource_item_category_path_prefix(ui_data, current_path, new_path):
+        ui_changed = True
+    if ui_changed:
+        save_ui_data(ui_data)
+
+    for scope in history_scopes:
+        move_entry_history_scope(
+            source_type='resource',
+            file_path=scope['old_file_path'],
+            target_source_type='resource',
+            target_file_path=scope['file_path'],
+            fallback_contexts=[
+                {
+                    'source_type': 'lorebook',
+                    'file_path': scope['old_file_path'],
+                },
+            ],
+            db_path=DEFAULT_DB_PATH,
+        )
+
+    target_id = normalized_card_id
+    if ctx.cache:
+        bundle_main_id = ctx.cache.bundle_map.get(ui_key)
+        if bundle_main_id:
+            target_id = bundle_main_id
+        ctx.cache.update_card_data(target_id, {'resource_folder': new_value})
+
+    card_full_path = os.path.join(CARDS_FOLDER, normalized_card_id.replace('/', os.sep))
+    sync_card_index_jobs(
+        card_id=normalized_card_id,
+        source_path=card_full_path,
+        resource_folder_changed=True,
+    )
+
+    return {
+        'success': True,
+        'resource_folder': new_value,
+        'resource_path': new_path,
+        'renamed': True,
+    }

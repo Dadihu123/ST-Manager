@@ -120,7 +120,15 @@ const SETTINGS_SEARCH_ITEMS = [
   { id: "plugins-installed", section: "plugins", anchor: "plugin-panel-installed", title: "已安装插件", keywords: "插件 plugin 安装 卸载 启用 禁用 配置 密钥", icon: "plugin" },
   { id: "plugins-catalog", section: "plugins", anchor: "plugin-panel-catalog", title: "官方插件目录", keywords: "插件 目录 catalog 更新 github", icon: "package" },
   { id: "plugins-upload", section: "plugins", anchor: "plugin-panel-upload", title: "手动安装插件", keywords: "插件 上传 zip github 安装", icon: "upload" },
+  { id: "about-links", section: "about", anchor: "settings-about-links", title: "反馈与社区", keywords: "反馈 社区 github issue discord 类脑 讨论帖 链接", icon: "discord" },
+  { id: "about-project", section: "about", anchor: "settings-about-project", title: "关于 ST-Manager", keywords: "关于 版本 许可 agpl 开源 项目", icon: "info" },
 ];
+
+/** 关于页里的外部链接，与 README「反馈与贡献」保持一致。 */
+export const ABOUT_LINKS = Object.freeze({
+  githubIssues: "https://github.com/Dadihu123/ST-Manager/issues",
+  discordThread: "https://discord.com/channels/1134557553011998840/1448353646596325578",
+});
 
 export default function settingsModal() {
   const EMPTY_PATH_SAFETY = {
@@ -203,6 +211,20 @@ export default function settingsModal() {
         kicker: "PLUGINS & EXTENSIONS",
         description: "安装、启停与配置本地插件，管理插件配置与密钥。",
       },
+      about: {
+        title: "关于 ST-Manager",
+        label: "关于",
+        kicker: "ABOUT & COMMUNITY",
+        description: "版本信息、开源许可与反馈渠道。",
+      },
+    },
+
+    /** 关于页展示的外部链接（README「反馈与贡献」同源）。 */
+    aboutLinks: ABOUT_LINKS,
+    aboutAppVersion: "",
+
+    get aboutVersionLabel() {
+      return this.aboutAppVersion ? `V${this.aboutAppVersion}` : "未知版本";
     },
 
     get settingsForm() {
@@ -642,6 +664,13 @@ export default function settingsModal() {
 
     // === 初始化 ===
     init() {
+      // 版本号由模板写入 <meta name="app-version">，与页头徽标同源。
+      if (typeof document !== "undefined") {
+        this.aboutAppVersion = String(
+          document.querySelector('meta[name="app-version"]')?.getAttribute("content") || "",
+        ).trim();
+      }
+
       if (typeof window !== "undefined") {
         window.addEventListener("open-settings-section", (event) => {
           const detail = event.detail || {};

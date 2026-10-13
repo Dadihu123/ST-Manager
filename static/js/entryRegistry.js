@@ -86,6 +86,7 @@ const CORE_ENTRIES = Object.freeze(
   [
     { key: `${CORE_ENTRY_PREFIX}open-settings`, kind: "command", label: "打开设置", icon: "settings" },
     { key: `${CORE_ENTRY_PREFIX}open-plugin-manager`, kind: "command", label: "打开插件管理", icon: "plugin" },
+    { key: `${CORE_ENTRY_PREFIX}open-about`, kind: "command", label: "关于与反馈", icon: "info" },
     { key: `${CORE_ENTRY_PREFIX}switch-cards`, kind: "command", label: "切换到角色卡", icon: "character-cards" },
     { key: `${CORE_ENTRY_PREFIX}switch-worldinfo`, kind: "command", label: "切换到世界书", icon: "book-open" },
     { key: `${CORE_ENTRY_PREFIX}switch-chats`, kind: "command", label: "切换到会话", icon: "chat-bubble" },

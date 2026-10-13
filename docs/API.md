@@ -57,6 +57,7 @@ curl -X POST http://127.0.0.1:5000/api/toggle_favorite \
 | --- | --- | --- | --- |
 | `POST` | `/api/create_resource_folder` | 创建角色资源目录 | JSON 角色 ID/目录名 |
 | `POST` | `/api/set_resource_folder` | 绑定角色资源目录 | JSON `card_id`、`folder_name` |
+| `POST` | `/api/rename_resource_folder` | 重命名已绑定的角色资源目录 | JSON `card_id`、`new_name`（仅目录名，不含路径分隔符） |
 | `POST` | `/api/open_resource_folder` | 打开角色资源目录 | JSON `card_id` |
 | `POST` | `/api/list_resource_skins` | 列出角色资源中的可用皮肤/图片 | JSON `card_id` |
 

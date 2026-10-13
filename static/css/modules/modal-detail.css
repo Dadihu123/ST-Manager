@@ -867,6 +867,30 @@ html.light-mode .skin-gallery-folder-symbol {
   font-size: 12px;
 }
 
+.detail-resource-rename-current {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.detail-resource-rename-label {
+  color: var(--content-muted);
+  font-size: 12px;
+  flex: 0 0 auto;
+}
+
+.detail-resource-rename-current .detail-chip {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.detail-resource-rename-error {
+  color: var(--status-danger-text);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
 .detail-resource-actions {
   display: flex;
   gap: 8px;

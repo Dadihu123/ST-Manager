@@ -1107,6 +1107,25 @@ def rename_embedded_worldinfo_note_card_prefix(ui_data, old_card_prefix, new_car
 
 
 def rename_global_worldinfo_note_path_prefix(ui_data, old_path_prefix, new_path_prefix):
+    return _rename_worldinfo_note_path_prefix(
+        ui_data,
+        old_path_prefix,
+        new_path_prefix,
+        source_types=('global',),
+    )
+
+
+def rename_resource_worldinfo_note_path_prefix(ui_data, old_path_prefix, new_path_prefix):
+    """资源目录改名后，重挂该目录下世界书备注的 ``resource::`` 前缀。"""
+    return _rename_worldinfo_note_path_prefix(
+        ui_data,
+        old_path_prefix,
+        new_path_prefix,
+        source_types=('resource',),
+    )
+
+
+def _rename_worldinfo_note_path_prefix(ui_data, old_path_prefix, new_path_prefix, *, source_types):
     if not isinstance(ui_data, dict):
         return False
 
@@ -1121,20 +1140,21 @@ def rename_global_worldinfo_note_path_prefix(ui_data, old_path_prefix, new_path_
 
     changed = False
     remapped = {}
-    exact_old_key = build_worldinfo_note_key('global', file_path=normalized_old)
-    nested_old_prefix = f'global::{normalized_old}/'
-
     for note_key, note_value in raw_notes.items():
-        if note_key == exact_old_key:
-            remapped[build_worldinfo_note_key('global', file_path=normalized_new)] = note_value
-            changed = True
-            continue
-        if note_key.startswith(nested_old_prefix):
-            suffix = note_key[len(exact_old_key):]
-            remapped[f'global::{normalized_new}{suffix}'] = note_value
-            changed = True
-            continue
-        remapped[note_key] = note_value
+        remapped_key = note_key
+        for source_type in source_types:
+            exact_old_key = build_worldinfo_note_key(source_type, file_path=normalized_old)
+            nested_old_prefix = f'{source_type}::{normalized_old}/'
+            if note_key == exact_old_key:
+                remapped_key = build_worldinfo_note_key(source_type, file_path=normalized_new)
+                changed = True
+                break
+            if note_key.startswith(nested_old_prefix):
+                suffix = note_key[len(exact_old_key):]
+                remapped_key = f'{source_type}::{normalized_new}{suffix}'
+                changed = True
+                break
+        remapped[remapped_key] = note_value
 
     if not changed:
         return False
@@ -1156,6 +1176,41 @@ def set_resource_item_categories(ui_data, payload):
 
     next_norm['updated_at'] = int(time.time())
     ui_data[RESOURCE_ITEM_CATEGORIES_KEY] = next_norm
+    return True
+
+
+def rename_resource_item_category_path_prefix(ui_data, old_path_prefix, new_path_prefix):
+    """资源目录改名后，重挂按绝对路径记录的资源条目分类覆盖。"""
+    if not isinstance(ui_data, dict):
+        return False
+
+    normalized_old = _normalize_resource_item_category_path(old_path_prefix)
+    normalized_new = _normalize_resource_item_category_path(new_path_prefix)
+    if not normalized_old or not normalized_new or normalized_old == normalized_new:
+        return False
+
+    current = get_resource_item_categories(ui_data)
+    changed = False
+
+    for mode in ('worldinfo', 'presets'):
+        items = current.get(mode) or {}
+        remapped = {}
+        for path_key, config in items.items():
+            new_key = path_key
+            if path_key == normalized_old:
+                new_key = normalized_new
+            elif path_key.startswith(normalized_old + '/'):
+                new_key = normalized_new + path_key[len(normalized_old):]
+            if new_key != path_key:
+                changed = True
+            remapped[new_key] = config
+        current[mode] = dict(sorted(remapped.items(), key=lambda item: item[0]))
+
+    if not changed:
+        return False
+
+    current['updated_at'] = int(time.time())
+    ui_data[RESOURCE_ITEM_CATEGORIES_KEY] = current
     return True
 
 

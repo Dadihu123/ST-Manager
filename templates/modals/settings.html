@@ -64,6 +64,7 @@
           <button type="button" role="tab" id="settings-tab-connection" aria-controls="settings-panel-connection" :aria-selected="activeSettingTab === 'connection'" :class="{ 'is-active': activeSettingTab === 'connection' }" class="settings-nav-item" @click="selectSettingTab('connection')"><span class="settings-nav-icon" aria-hidden="true">{{ icon('settings-connection-service', 'ui-icon--md') }}</span><span class="settings-nav-copy"><strong>连接与服务</strong><small>ST、TauriTavern 与外部服务</small></span><span class="settings-nav-index">03</span></button>
           <button type="button" role="tab" id="settings-tab-maintenance" aria-controls="settings-panel-maintenance" :aria-selected="activeSettingTab === 'maintenance'" :class="{ 'is-active': activeSettingTab === 'maintenance' }" class="settings-nav-item" @click="selectSettingTab('maintenance')"><span class="settings-nav-icon" aria-hidden="true">{{ icon('settings-maintenance-advanced', 'ui-icon--md') }}</span><span class="settings-nav-copy"><strong>维护与高级</strong><small>扫描、备份与性能</small></span><span class="settings-nav-index">04</span></button>
           <button type="button" role="tab" id="settings-tab-plugins" aria-controls="settings-panel-plugins" :aria-selected="activeSettingTab === 'plugins'" :class="{ 'is-active': activeSettingTab === 'plugins' }" class="settings-nav-item" @click="selectSettingTab('plugins')"><span class="settings-nav-icon" aria-hidden="true">{{ icon('plugin', 'ui-icon--md') }}</span><span class="settings-nav-copy"><strong>插件管理</strong><small>安装、启停与配置</small></span><span class="settings-nav-index">05</span></button>
+          <button type="button" role="tab" id="settings-tab-about" aria-controls="settings-panel-about" :aria-selected="activeSettingTab === 'about'" :class="{ 'is-active': activeSettingTab === 'about' }" class="settings-nav-item" @click="selectSettingTab('about')"><span class="settings-nav-icon" aria-hidden="true">{{ icon('info', 'ui-icon--md') }}</span><span class="settings-nav-copy"><strong>关于</strong><small>版本、许可与反馈</small></span><span class="settings-nav-index">06</span></button>
         </nav>
 
         <div class="settings-search-results" x-show="settingsQuery" x-cloak>
@@ -77,7 +78,7 @@
 
       <main class="settings-content custom-scrollbar" x-ref="settingsScroll" role="tabpanel" :aria-labelledby="'settings-tab-' + activeSettingTab" tabindex="0">
         <div class="settings-content-intro">
-          <div class="settings-content-intro-icon" aria-hidden="true"><template x-if="activeSettingTab === 'general'">{{ icon('directory-root', 'ui-icon--md') }}</template><template x-if="activeSettingTab === 'appearance'">{{ sidebar_icon('paint-brush', 'ui-icon--md') }}</template><template x-if="activeSettingTab === 'connection'">{{ icon('settings-connection-service', 'ui-icon--md') }}</template><template x-if="activeSettingTab === 'maintenance'">{{ icon('settings-maintenance-advanced', 'ui-icon--md') }}</template><template x-if="activeSettingTab === 'plugins'">{{ icon('plugin', 'ui-icon--md') }}</template></div>
+          <div class="settings-content-intro-icon" aria-hidden="true"><template x-if="activeSettingTab === 'general'">{{ icon('directory-root', 'ui-icon--md') }}</template><template x-if="activeSettingTab === 'appearance'">{{ sidebar_icon('paint-brush', 'ui-icon--md') }}</template><template x-if="activeSettingTab === 'connection'">{{ icon('settings-connection-service', 'ui-icon--md') }}</template><template x-if="activeSettingTab === 'maintenance'">{{ icon('settings-maintenance-advanced', 'ui-icon--md') }}</template><template x-if="activeSettingTab === 'plugins'">{{ icon('plugin', 'ui-icon--md') }}</template><template x-if="activeSettingTab === 'about'">{{ icon('info', 'ui-icon--md') }}</template></div>
           <div><div class="settings-content-kicker" x-text="settingsHelpContent[activeSettingTab]?.kicker || 'SETTINGS'"></div><h3 class="settings-content-title" x-text="settingsHelpContent[activeSettingTab]?.label || '系统设置'"></h3><p class="settings-content-description" x-text="settingsHelpContent[activeSettingTab]?.description || ''"></p></div>
         </div>
 
@@ -208,6 +209,35 @@
         <div id="settings-panel-plugins" x-show="activeSettingTab === 'plugins'" role="tabpanel" aria-labelledby="settings-tab-plugins" class="settings-panel settings-panel--plugins">
           {% include "modals/plugin_manager.html" %}
         </div>
+
+        <div id="settings-panel-about" x-show="activeSettingTab === 'about'" role="tabpanel" aria-labelledby="settings-tab-about" class="settings-panel">
+          <section id="settings-about-project" class="settings-section-block">
+            <div class="settings-section-heading"><div class="settings-section-heading-icon" aria-hidden="true">{{ icon('info', 'ui-icon--sm') }}</div><div><h4>关于 ST-Manager</h4><p>本地优先的 SillyTavern 资源管理器，角色卡、世界书、会话与预设统一管理。</p></div><span class="settings-section-status settings-section-status--ready"><span class="settings-section-status-dot" aria-hidden="true"></span><span x-text="aboutVersionLabel"></span></span></div>
+            <div class="settings-about-meta">
+              <div class="settings-about-meta-item"><span class="settings-about-meta-label">版本</span><span class="settings-about-meta-value" x-text="aboutVersionLabel"></span></div>
+              <div class="settings-about-meta-item"><span class="settings-about-meta-label">许可</span><span class="settings-about-meta-value">GNU AGPL-3.0</span></div>
+              <div class="settings-about-meta-item"><span class="settings-about-meta-label">仓库</span><span class="settings-about-meta-value">Dadihu123/ST-Manager</span></div>
+            </div>
+            <div class="settings-info-callout settings-info-callout--info">{{ detail_icon('info', 'ui-icon--sm') }}<span>项目代码按 AGPL-3.0 发布；仓库中的 SillyTavern vendored 资源、<code>cards-css</code> 与前端库保留各自的上游许可。</span></div>
+          </section>
+
+          <section id="settings-about-links" class="settings-section-block">
+            <div class="settings-section-heading"><div class="settings-section-heading-icon" aria-hidden="true">{{ icon('external-link', 'ui-icon--sm') }}</div><div><h4>反馈与社区</h4><p>问题反馈、功能建议和讨论都在下面两个入口进行。</p></div></div>
+            <div class="settings-about-link-grid">
+              <a class="settings-about-link-card" :href="aboutLinks.githubIssues" target="_blank" rel="noopener noreferrer" aria-label="打开 GitHub Issues">
+                <span class="settings-about-link-icon settings-about-link-icon--github" aria-hidden="true">{{ icon('github', 'ui-icon--lg') }}</span>
+                <span class="settings-about-link-copy"><strong>GitHub Issues</strong><small>反馈 Bug、提交功能建议</small></span>
+                <span class="settings-about-link-arrow" aria-hidden="true">{{ icon('external-link', 'ui-icon--xs') }}</span>
+              </a>
+              <a class="settings-about-link-card" :href="aboutLinks.discordThread" target="_blank" rel="noopener noreferrer" aria-label="打开 Discord 讨论帖">
+                <span class="settings-about-link-icon settings-about-link-icon--discord" aria-hidden="true">{{ icon('discord', 'ui-icon--lg') }}</span>
+                <span class="settings-about-link-copy"><strong>Discord 讨论帖</strong><small>类脑社区讨论与使用交流</small></span>
+                <span class="settings-about-link-arrow" aria-hidden="true">{{ icon('external-link', 'ui-icon--xs') }}</span>
+              </a>
+            </div>
+            <div class="settings-info-callout"><span aria-hidden="true">{{ icon('shield-check', 'ui-icon--sm') }}</span><span>链接会在系统默认浏览器中打开；这些入口只用于跳转，不会上传任何本地数据。</span></div>
+          </section>
+        </div>
       </main>
     </div>
 
@@ -323,6 +353,19 @@ iframe.remove();</pre>
             <h4 class="font-bold color-text-accent mb-2"><span aria-hidden="true">{{ icon('sliders-settings', 'ui-icon--sm') }}</span><span>扫描、索引与快照</span></h4>
             <p>自动扫描和启动索引适合文件经常在外部修改的场景；列表索引可以改善大型库的加载和搜索。世界书预览上限、历史条数、自动保存和快照保留数量会在保存后生效。</p>
             <div class="settings-help-callout"><span aria-hidden="true">{{ icon('info', 'ui-icon--sm') }}</span><span>修改高级策略后建议观察一次扫描或快照状态，确认磁盘空间和响应速度符合预期。</span></div>
+          </article>
+
+          <article class="settings-help-card" x-show="activeSettingTab === 'about'">
+            <h4 class="font-bold color-text-accent mb-2"><span aria-hidden="true">{{ icon('info', 'ui-icon--sm') }}</span><span>版本与许可</span></h4>
+            <p>版本号取自当前运行的主程序，和页头的版本徽标一致。项目代码按 GNU AGPL-3.0 发布；仓库内的 SillyTavern vendored 资源、<code>cards-css</code> 和前端库保留各自的上游许可，分发时请同时遵守对应目录的 notice 文件。</p>
+          </article>
+          <article class="settings-help-card" x-show="activeSettingTab === 'about'">
+            <h4 class="font-bold color-text-violet mb-2"><span aria-hidden="true">{{ icon('external-link', 'ui-icon--sm') }}</span><span>反馈渠道</span></h4>
+            <ul class="settings-help-list">
+              <li><strong>GitHub Issues：</strong>适合可复现的 Bug 与功能建议，便于跟踪处理进度。</li>
+              <li><strong>Discord 讨论帖：</strong>类脑社区的讨论入口，适合使用交流与临时问题。</li>
+            </ul>
+            <div class="settings-help-callout"><span aria-hidden="true">{{ icon('shield-check', 'ui-icon--sm') }}</span><span>两个链接都只做页面跳转，不会附带本机路径、卡片内容或认证信息。</span></div>
           </article>
         </div>
       </div>

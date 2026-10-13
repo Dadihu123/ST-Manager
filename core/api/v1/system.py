@@ -32,7 +32,7 @@ from core.consts import SIDECAR_EXTENSIONS, RESERVED_RESOURCE_NAMES
 # === 核心服务 ===
 from core.services.scan_service import request_scan, suppress_fs_events
 from core.services.cache_service import schedule_reload, invalidate_wi_list_cache, update_card_cache
-from core.services.card_service import resolve_ui_key
+from core.services.card_service import rename_card_resource_folder, resolve_ui_key
 from core.services.worldbook_content_update import atomic_write_bytes, worldbook_target_lock
 from core.services.index_service import get_index_status, request_index_rebuild
 from core.services.shared_wallpaper_service import SharedWallpaperService
@@ -1381,6 +1381,29 @@ def api_set_resource_folder():
     except Exception as e:
         logger.error(f"Set resource folder error: {e}")
         return jsonify({"success": False, "msg": str(e)})
+
+@bp.route('/api/rename_resource_folder', methods=['POST'])
+def api_rename_resource_folder():
+    """重命名角色卡资源目录（磁盘目录 + ui_data 绑定一起迁移）。"""
+    try:
+        data = request.get_json(silent=True) or {}
+        card_id = str(data.get('card_id') or '').strip()
+        new_name = str(data.get('new_name') or '').strip()
+
+        if not card_id:
+            return jsonify({"success": False, "msg": "角色卡ID缺失"}), 400
+        if not _is_safe_card_rel(card_id):
+            return jsonify({"success": False, "msg": "非法路径"}), 400
+        if not new_name:
+            return jsonify({"success": False, "msg": "资源目录名不能为空"}), 400
+
+        result = rename_card_resource_folder(card_id, new_name)
+        status = 200 if result.get('success') else 400
+        return jsonify(result), status
+    except Exception as e:
+        logger.error(f"Rename resource folder error: {e}")
+        return jsonify({"success": False, "msg": str(e)}), 500
+
 
 @bp.route('/api/open_resource_folder', methods=['POST'])
 def api_open_resource_folder():

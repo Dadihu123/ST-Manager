@@ -34,6 +34,7 @@ import {
     uploadCardResource,
     uploadNoteImage,
     listResourceFiles,
+    renameResourceFolder as apiRenameResourceFolder,
     setResourceFolder as apiSetResourceFolder, 
     openResourceFolder as apiOpenResourceFolder, 
     createResourceFolder as apiCreateResourceFolder 
@@ -84,6 +85,7 @@ export default function detailModal() {
         _basicSplitPointerMoveHandler: null,
         _basicSplitPointerUpHandler: null,
         updateImagePolicy: 'overwrite', // 默认策略
+        updateCreatorPolicy: 'preserve', // 覆盖升级时默认保留已有创作者
         syncSourceTitleOnUpdate: true,
         sourceUpdateChecking: false,
         sourceUpdateAcknowledging: false,
@@ -182,6 +184,10 @@ export default function detailModal() {
         originalDataJson: '', // 基准快照
 
         showSetResourceFolderModal: false,
+        showRenameResourceFolderModal: false,
+        resourceFolderRenameDraft: '',
+        resourceFolderRenaming: false,
+        resourceFolderRenameError: '',
         resourceFolderCreationPromise: null,
 
         formatDate,
@@ -1267,6 +1273,10 @@ export default function detailModal() {
                 this.showSetResourceFolderModal = false;
                 return false;
             }
+            if (this.showRenameResourceFolderModal) {
+                this.closeRenameResourceFolderModal();
+                return false;
+            }
             if (this.showGreetingListModal) {
                 this.closeGreetingList();
                 return false;
@@ -1509,6 +1519,7 @@ export default function detailModal() {
                     this.detailLoadError = '';
                     this.isSendingToST = false;
                     this.updateImagePolicy = 'overwrite';
+                    this.updateCreatorPolicy = 'preserve';
                     this.syncSourceTitleOnUpdate = this.$store?.global?.settingsForm?.sync_source_title_on_update !== false;
                     this.sourceUpdateChecking = false;
                     this.sourceUpdateAcknowledging = false;
@@ -2542,8 +2553,10 @@ export default function detailModal() {
                 ui_summary: isBundleUpdate ? '' : this.editingData.ui_summary,
                 source_link: this.editingData.source_link,
                 resource_folder: this.editingData.resource_folder,
-                tags: this.editingData.tags
+                tags: this.editingData.tags,
+                creator: this.editingData.creator
             }));
+            formData.append('creator_policy', this.updateCreatorPolicy || 'preserve');
 
             this.performUpdate(formData, '/api/update_card_file', inputElement);
         },
@@ -2623,11 +2636,13 @@ export default function detailModal() {
                 is_bundle_update: isBundleUpdate,
                 image_policy: finalPolicy,
                 sync_source_title: this.syncSourceTitleOnUpdate,
+                creator_policy: this.updateCreatorPolicy || 'preserve',
                 keep_ui_data: {
                     ui_summary: isBundleUpdate ? '' : this.editingData.ui_summary,
                     source_link: this.editingData.source_link,
                     resource_folder: this.editingData.resource_folder,
-                    tags: this.editingData.tags
+                    tags: this.editingData.tags,
+                    creator: this.editingData.creator
                 }
             }).then(res => this.handleUpdateResponse(res))
               .catch(err => { this.isSaving = false; alert(err); });
@@ -3269,6 +3284,58 @@ export default function detailModal() {
                     alert(res.msg);
                 }
             });
+        },
+
+        // === 资源目录改名 ===
+
+        openRenameResourceFolderModal() {
+            if (!this.editingData.resource_folder) return;
+            // 绝对路径绑定只允许改最后一级目录名，因此草稿取 basename。
+            const current = String(this.editingData.resource_folder || '').replace(/\\/g, '/');
+            this.resourceFolderRenameDraft = current.split('/').filter(Boolean).pop() || '';
+            this.resourceFolderRenameError = '';
+            this.resourceFolderRenaming = false;
+            this.showRenameResourceFolderModal = true;
+        },
+
+        closeRenameResourceFolderModal() {
+            if (this.resourceFolderRenaming) return;
+            this.showRenameResourceFolderModal = false;
+            this.resourceFolderRenameError = '';
+        },
+
+        async confirmRenameResourceFolder() {
+            if (this.resourceFolderRenaming) return;
+            const newName = String(this.resourceFolderRenameDraft || '').trim();
+            if (!newName) {
+                this.resourceFolderRenameError = '资源目录名不能为空';
+                return;
+            }
+
+            this.resourceFolderRenaming = true;
+            this.resourceFolderRenameError = '';
+            try {
+                const res = await apiRenameResourceFolder({
+                    card_id: this.editingData.id,
+                    new_name: newName,
+                });
+                if (!res.success) {
+                    this.resourceFolderRenameError = res.msg || '重命名失败';
+                    return;
+                }
+
+                this.editingData.resource_folder = res.resource_folder;
+                this.activeCard.resource_folder = res.resource_folder;
+                this._syncPersistedBaseline(['resource_folder']);
+                this.showRenameResourceFolderModal = false;
+                this.fetchResourceFiles(res.resource_folder);
+                this.fetchSkins(res.resource_folder);
+                this.$store.global.showToast('资源目录已改名', 1800, 'folder');
+            } catch (error) {
+                this.resourceFolderRenameError = error?.message || '重命名失败';
+            } finally {
+                this.resourceFolderRenaming = false;
+            }
         },
 
         async createResourceFolder(options = {}) {

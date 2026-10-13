@@ -70,6 +70,7 @@ export const ICON_SPRITE_MAP = Object.freeze({
   "dialog": "detail.svg",
   "directory-root": "ui.svg",
   "directory-tree": "sidebar.svg",
+  "discord": "ui.svg",
   "display": "ui.svg",
   "edit-mode": "ui.svg",
   "editor": "ui.svg",
@@ -100,6 +101,7 @@ export const ICON_SPRITE_MAP = Object.freeze({
   "folder-sync": "ui.svg",
   "forbidden": "ui.svg",
   "fullscreen": "ui.svg",
+  "github": "ui.svg",
   "header-dark-mode": "ui.svg",
   "header-light-mode": "ui.svg",
   "heart": "ui.svg",
@@ -207,5 +209,5 @@ export const ICON_ALIASES = Object.freeze({
   "plus": "plus-square",
 });
 
-/** 宿主图标总数（190）。 */
-export const HOST_ICON_COUNT = 190;
+/** 宿主图标总数（192）。 */
+export const HOST_ICON_COUNT = 192;

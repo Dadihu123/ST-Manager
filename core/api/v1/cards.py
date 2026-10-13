@@ -547,6 +547,22 @@ def _source_title_sync_enabled(payload=None):
         return True
 
 
+CREATOR_POLICY_PRESERVE = 'preserve'
+CREATOR_POLICY_OVERWRITE = 'overwrite'
+
+
+def _normalize_creator_policy(value) -> str:
+    """规范化覆盖升级时的创作者字段策略，默认保留旧值。
+
+    上传的角色卡里 `creator` 常常为空或是原作者署名；直接覆盖会把用户在
+    「来源作者→创作者」动作里写入的值顶掉，所以默认走 preserve。
+    """
+    normalized = str(value or '').strip().lower()
+    if normalized == CREATOR_POLICY_OVERWRITE:
+        return CREATOR_POLICY_OVERWRITE
+    return CREATOR_POLICY_PRESERVE
+
+
 def _refresh_source_after_update(
     card_id,
     payload=None,
@@ -3283,6 +3299,7 @@ def api_update_card_from_url():
         is_bundle_update = data.get('is_bundle_update', False)
         keep_ui_data = data.get('keep_ui_data', {})
         image_policy = data.get('image_policy', 'overwrite')
+        creator_policy = _normalize_creator_policy(data.get('creator_policy'))
         if not url: return jsonify({"success": False, "msg": "URL不能为空"})
         if not _is_safe_rel_path(card_id):
             return jsonify({"success": False, "msg": "非法路径"}), 400
@@ -3317,7 +3334,8 @@ def api_update_card_from_url():
             is_bundle_update, 
             keep_ui_data, 
             temp_ext,
-            image_policy
+            image_policy,
+            creator_policy
         )
 
         if result.get('success'):
@@ -4760,6 +4778,7 @@ def api_update_card_file():
         new_card_file = request.files.get('new_card')
         is_bundle_update = request.form.get('is_bundle_update') == 'true'
         image_policy = request.form.get('image_policy', 'overwrite')
+        creator_policy = _normalize_creator_policy(request.form.get('creator_policy'))
         if not new_card_file: return jsonify({"success": False, "msg": "未提供文件"})
         if not _is_safe_rel_path(card_id):
             return jsonify({"success": False, "msg": "非法路径"}), 400
@@ -4770,7 +4789,15 @@ def api_update_card_file():
         new_card_file.save(temp_path)
         
         # 调用通用逻辑
-        result = update_card_content(card_id, temp_path, is_bundle_update, keep_ui_data, new_upload_ext, image_policy)
+        result = update_card_content(
+            card_id,
+            temp_path,
+            is_bundle_update,
+            keep_ui_data,
+            new_upload_ext,
+            image_policy,
+            creator_policy,
+        )
 
         if result.get('success'):
             result['import_time'] = get_import_time(load_ui_data(), result.get('new_id') or card_id, time.time())

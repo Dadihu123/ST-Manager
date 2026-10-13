@@ -1227,6 +1227,111 @@
   width: 18px;
 }
 
+/* 关于页：版本元信息与官方品牌链接入口。 */
+.settings-about-meta {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+
+.settings-about-meta-item {
+  background: var(--settings-surface-sunken);
+  border: 1px solid var(--settings-border);
+  border-radius: 10px;
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding: 10px 12px;
+}
+
+.settings-about-meta-label {
+  color: var(--settings-text-muted);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.settings-about-meta-value {
+  color: var(--settings-text);
+  font-size: 12px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.settings-about-link-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.settings-about-link-card {
+  align-items: center;
+  background: var(--settings-surface-raised);
+  border: 1px solid var(--settings-border);
+  border-radius: 12px;
+  color: inherit;
+  display: flex;
+  gap: 12px;
+  min-height: 62px;
+  min-width: 0;
+  padding: 12px 14px;
+  text-decoration: none;
+  transition: background-color 160ms ease, border-color 160ms ease, transform 160ms ease;
+}
+
+.settings-about-link-card:hover {
+  background: var(--settings-surface-hover);
+  border-color: var(--settings-accent);
+  transform: translateY(-1px);
+}
+
+.settings-about-link-card:focus-visible {
+  border-color: var(--settings-accent);
+  outline: 2px solid var(--settings-accent);
+  outline-offset: 2px;
+}
+
+.settings-about-link-icon {
+  align-items: center;
+  background: var(--settings-surface-sunken);
+  border: 1px solid var(--settings-border-strong);
+  border-radius: 10px;
+  color: var(--settings-text-secondary);
+  display: inline-flex;
+  flex: 0 0 auto;
+  height: 38px;
+  justify-content: center;
+  width: 38px;
+}
+
+/* 官方品牌色只用于图标本身，避免跟随主题被冲淡。 */
+.settings-about-link-icon--github { color: #181717; }
+.settings-about-link-icon--discord { color: #5865f2; }
+
+.settings-about-link-copy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.settings-about-link-copy strong {
+  color: var(--settings-text);
+  font-size: 12px;
+}
+
+.settings-about-link-copy small {
+  color: var(--settings-text-muted);
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.settings-about-link-arrow {
+  color: var(--settings-text-muted);
+  display: inline-flex;
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
 .settings-brand-icon .ui-icon {
   height: 18px;
   width: 18px;
