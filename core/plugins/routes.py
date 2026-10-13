@@ -129,9 +129,10 @@ def list_plugins():
     不再依赖插件自行渲染浮层（D1 / D5）。
     """
     tiers = catalog.plugin_tiers()
+    install_sources = registry.read_install_sources()
     items = []
     for state in registry.list_states():
-        payload = state.detail()
+        payload = state.detail(install_sources.get(state.plugin_id, {}))
         payload['style_scope_errors'] = installer.read_style_scope_errors(state.plugin_id)
         payload['style_declaration_warnings'] = installer.read_style_declaration_warnings(
             state.plugin_id,
@@ -541,7 +542,11 @@ def get_catalog():
     """官方插件目录（远端优先，失败回退包内清单）。"""
     refresh = str(request.args.get('refresh') or '').lower() in ('1', 'true', 'yes')
     payload = catalog.get_catalog(refresh=refresh)
-    installed = {state.plugin_id: state.header for state in registry.list_states()}
+    install_sources = registry.read_install_sources()
+    installed = {
+        state.plugin_id: state.build_header(install_sources.get(state.plugin_id, {}))
+        for state in registry.list_states()
+    }
 
     items = []
     for entry in payload.get('items') or []:
@@ -688,6 +693,9 @@ def install_github():
         entry,
         ref=ref,
         subdir=subdir,
+        # 来源分类与 catalog 安装区分开：这条路径是用户直接填仓库地址。
+        # 网页地址由 `owner/repo` 派生（`build_repo_url`），不再丢掉原始 URL。
+        kind='github',
     )
     return jsonify({
         'success': True,

@@ -1789,6 +1789,29 @@ opaque origin，此时 `'self'` 与 `CORP: same-origin` 都匹配不上，`<img>
 | **禁用** | 「已安装」页签 | 当前已启用时 |
 | **启用** | 「已安装」页签 | 当前已禁用时 |
 
+**「来源」外链**：已安装卡片的操作行里还有一个「来源」链接（新窗口打开），指向该插件的
+**安装来源网页**（通常是 GitHub 仓库页）。与目录卡片的 GitHub 链接同款样式，**只在 URL
+已知时渲染**——解析不出就不显示按钮，而不是给一个点不开的链接。
+
+URL 解析优先级（`core/plugins/registry.py:_resolve_source_url`）：
+
+1. `ui_data._plugins_v1.<id>.install_source.url` —— 安装时写下的来源记录（最可信：
+   记录的是用户实际执行的那次安装）；
+2. `manifest.homepage` —— 插件作者声明的项目主页（**复用既有键**，不新增 manifest 字段，
+   否则 `_reject_unknown_keys` 会让所有老插件加载失败）；
+3. 已知 repo 时派生 `https://github.com/<repo>` —— 老安装记录只有 repo 时的兜底。
+
+安装来源记录的形状（`core/plugins/installer.py:build_install_source`）：
+
+```json
+{ "kind": "catalog", "repo": "owner/repo", "url": "https://github.com/owner/repo",
+  "ref": "main", "subdir": "", "installed_at": 1700000000.0 }
+```
+
+`kind` 取 `catalog`（官方目录条目）/ `github`（用户直接填仓库地址）/ `upload`（本地 zip）。
+上传路径**没有**来源网址，`url` 留空，卡片上不出现「来源」按钮。记录按插件 id 覆盖写，
+重装 / 更新只刷新同一条，不累积。
+
 **禁用/启用需重启**（后端插件），UI 需明确提示；纯前端插件即时生效。安装/卸载后显示持久横幅：「插件已变更，重启应用后生效」+「立即重启」按钮。
 
 **② 官方目录**（D1 核心）
@@ -2116,7 +2139,7 @@ class PluginAPI:
 
 | 方法 | 路径 | 说明 |
 |---|---|---|
-| `GET` | `/api/plugins/list` | 已安装插件（含 enabled / load_error / 是否纯前端） |
+| `GET` | `/api/plugins/list` | 已安装插件（含 enabled / load_error / 是否纯前端 / 解析后的 `source_url` 与结构化 `install_source`） |
 | `GET` | `/api/plugins/<id>/config` | 读取配置（schema 默认值 + 已保存值） |
 | `POST` | `/api/plugins/<id>/config` | 保存配置 |
 | `GET` | `/api/plugins/<id>/secrets` | 读取（掩码） |
@@ -2136,7 +2159,11 @@ class PluginAPI:
     { "id": "stm-ai-assistant", "name": "AI 角色卡分析助手", "version": "0.1.0",
       "enabled": true, "loaded": true, "backend": true, "frontend": true,
       "permissions": ["cards.read", "tags.write", "secrets.read"],
-      "load_error": "", "restart_required": false }
+      "load_error": "", "restart_required": false,
+      "source_url": "https://github.com/Dadihu123/ST-Manager-AI-Assistant",
+      "install_source": { "kind": "catalog", "repo": "Dadihu123/ST-Manager-AI-Assistant",
+        "url": "https://github.com/Dadihu123/ST-Manager-AI-Assistant", "ref": "main",
+        "subdir": "", "installed_at": 1700000000.0 } }
   ]
 }
 

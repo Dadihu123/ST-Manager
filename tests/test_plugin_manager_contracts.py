@@ -241,6 +241,27 @@ def test_plugin_docs_button_and_dependency_row_exist():
     assert 'getPluginReadme' in api_module
 
 
+def test_installed_card_has_a_source_link_alongside_the_other_actions():
+    """已安装卡片的操作行里要有「来源」外链，且与目录卡片的 GitHub 链接同款。
+
+    门控在 `item.source_url` 上：后端解析不出来源时（本地目录 / 上传安装且 manifest
+    没有 `homepage`）字段是空串，按钮随之消失——不渲染一个点不开的链接。
+    """
+    template = read_source('templates/modals/plugin_manager.html')
+
+    actions = template.split('<div class="plugin-card-actions">', 1)[1].split(
+        '</div>', 1,
+    )[0]
+
+    assert 'x-show="item.source_url"' in actions
+    assert ':href="item.source_url"' in actions
+    assert 'target="_blank"' in actions
+    assert 'rel="noopener noreferrer"' in actions
+    assert '来源' in actions
+    # 外链用与相邻按钮同一套 class，样式才不会跑偏
+    assert 'class="plugin-button plugin-button--ghost"' in actions
+
+
 def test_docs_are_rendered_through_markdown_preview():
     component = read_source('static/js/components/pluginManager.js')
     editor = read_source('static/js/components/largeEditor.js')

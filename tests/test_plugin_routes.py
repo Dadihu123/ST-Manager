@@ -60,6 +60,36 @@ def test_list_returns_manifest_and_flags(client):
     assert item['manifest']['config_schema']
     assert 'style_scope_errors' in item
     assert data['plugins_dir']
+    # 安装来源（D9）：解析后的外链 + 结构化记录，前端「来源」按钮据此渲染。
+    # 夹具既没有安装记录也没有 homepage，因此这里是空值（详见
+    # tests/test_plugin_install_source.py 的各条优先级用例）。
+    assert item['source_url'] == ''
+    assert item['install_source'] == {}
+
+
+def test_install_github_marks_source_kind_and_keeps_the_repo(client, monkeypatch):
+    """`/api/plugins/install_github` 走同一安装路径，但来源分类是 `github`。
+
+    这条路径此前**丢弃**了用户填的仓库地址（只把它塞进合成的 catalog 条目），
+    已安装卡片因此拿不到任何来源链接。
+    """
+    captured = {}
+
+    def fake_install(app, entry, *, ref='', subdir='', kind='catalog'):
+        captured['entry'] = entry
+        captured['kind'] = kind
+        return {'id': 'demo-plugin', 'version': '0.2.0'}
+
+    monkeypatch.setattr(installer_module, 'install_from_catalog', fake_install)
+
+    data = client.post(
+        '/api/plugins/install_github',
+        json={'repo': 'https://github.com/owner/repo', 'ref': 'main'},
+    ).get_json()
+
+    assert data['success'] is True
+    assert captured['entry']['source']['repo'] == 'owner/repo'
+    assert captured['kind'] == 'github'
 
 
 def test_config_get_and_post_roundtrip(client):

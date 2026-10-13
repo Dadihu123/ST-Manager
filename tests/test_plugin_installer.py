@@ -682,6 +682,33 @@ def test_install_plugin_dir_records_audit_log(tmp_path, install_env):
     assert rows[0]['success'] is True
 
 
+def test_install_plugin_dir_without_install_source_writes_nothing(tmp_path, install_env):
+    """未传 `install_source` 时不写该键——避免把「本地目录安装」记成有来源。
+
+    （`install_plugin_dir` 的调用方只有 catalog / 上传两条网络路径会传这个参数，
+    测试与工具直接调用时留空，此时 `source_url` 会回退到 manifest 的 homepage。）
+    """
+    source = write_plugin(tmp_path / 'stage', 'zip-plugin')
+
+    result = installer_module.install_plugin_dir(source)
+
+    assert result['install_source'] == {}
+    assert 'install_source' not in registry.read_ui_entry('zip-plugin')
+
+
+def test_install_plugin_dir_persists_install_source(tmp_path, install_env):
+    """传了 `install_source` 就落盘到 `_plugins_v1.<id>`，并原样回报。"""
+    source = write_plugin(tmp_path / 'stage', 'zip-plugin')
+    record = installer_module.build_install_source(
+        kind='catalog', repo='owner/repo', ref='main', installed_at=1700000000.0,
+    )
+
+    result = installer_module.install_plugin_dir(source, install_source=record)
+
+    assert result['install_source'] == record
+    assert registry.read_install_source('zip-plugin') == record
+
+
 def test_install_plugin_dir_persists_style_scope_errors(tmp_path, install_env):
     source = write_plugin(tmp_path / 'stage', 'zip-plugin', css='.card { border: 1px solid red; }\n')
 
@@ -855,6 +882,9 @@ def test_install_from_catalog_downloads_extracts_and_installs(tmp_path, install_
     assert result['id'] == 'catalog-plugin'
     assert calls == ['https://codeload.github.com/owner/repo/zip/main']
     assert (install_env['plugins_root'] / 'catalog-plugin' / 'manifest.json').is_file()
+    # 下载地址是 codeload 的归档；**来源外链**必须是人类可读的仓库页。
+    assert result['install_source']['url'] == 'https://github.com/owner/repo'
+    assert registry.read_install_source('catalog-plugin')['url'] == 'https://github.com/owner/repo'
 
 
 def test_install_from_catalog_verifies_sha256(tmp_path, install_env, monkeypatch):

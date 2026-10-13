@@ -57,6 +57,7 @@ PLUGIN_DATA_DIRNAME = 'data'
 PLUGIN_DEFAULT_SUFFIX = '.plugin-default'
 
 GITHUB_CODELOAD = 'https://codeload.github.com'
+GITHUB_WEB = 'https://github.com'
 
 
 # ------------------------------------------------------------------ 输入校验
@@ -116,6 +117,47 @@ def build_archive_url(repo: str, ref: str) -> str:
     repo = validate_repo(repo)
     ref = validate_ref(ref)
     return f'{GITHUB_CODELOAD}/{repo}/zip/{ref}'
+
+
+def build_repo_url(repo: str) -> str:
+    """把 `owner/repo` 转成**人类可读的仓库网页**地址。
+
+    注意与 `build_archive_url` 的区别：那个指向 codeload 的 zip 归档（机器用），
+    这个指向 GitHub 仓库页（用户点开看的）。非法 repo 一律返回空串——不造链接，
+    让调用方（UI）自己决定不渲染。
+    """
+    try:
+        return f'{GITHUB_WEB}/{validate_repo(repo)}'
+    except PluginInstallError:
+        return ''
+
+
+def build_install_source(
+    *, kind: str, repo: str = '', url: str = '', ref: str = '', subdir: str = '',
+    installed_at: float | None = None,
+) -> dict:
+    """构造 `install_source` 记录（写入 `_plugins_v1.<id>.install_source`）。
+
+    `url` 是**面向用户的网页地址**，不是 codeload 的 zip 地址；拿不到就留空串，
+    绝不猜一个可能 404 的链接。`installed_at` 为 epoch 秒。
+    """
+    record = {
+        'kind': str(kind or '').strip() or 'upload',
+        'repo': str(repo or '').strip(),
+        'url': str(url or '').strip(),
+        'ref': str(ref or '').strip(),
+        'subdir': str(subdir or '').strip(),
+        'installed_at': float(time.time() if installed_at is None else installed_at),
+    }
+    # repo 已知但没给 url 时补一个仓库页地址（`install_github` 那条路径的兜底）
+    if not record['url'] and record['repo']:
+        record['url'] = build_repo_url(record['repo'])
+    return record
+
+
+def _persist_install_source(plugin_id: str, record: dict) -> None:
+    """把安装来源写进 `_plugins_v1.<id>`（覆盖同键，重装不产生重复记录）。"""
+    registry.persist_install_source(plugin_id, record)
 
 
 # ------------------------------------------------------------------ 下载
@@ -304,11 +346,16 @@ def locate_plugin_root(extract_dir: str, subdir: str = '') -> str:
 
 def install_plugin_dir(
     source_dir: str, *, expected_id: str = '', source_label: str = 'local',
+    install_source: dict | None = None,
 ) -> dict:
     """把已解压的插件目录安装到 `data/plugins/<id>/`（原子替换 + 回收站）。
 
     解压出的目录名不可控（GitHub 归档顶层是 `repo-branch`），因此这里不校验
     目录名与 id 一致；安装完成后目录会被重命名为 id。
+
+    `install_source` 为可选的安装来源记录（见 `build_install_source`）：给了就写进
+    `ui_data._plugins_v1.<id>.install_source`，供管理 UI 渲染「来源」外链。**覆盖写**，
+    因此重装 / 更新只会刷新同一条记录，不会累积。
 
     **更新保留 `data/`（D4）**：更新在本项目里就是重新安装，旧目录会整体进回收站。
     插件私有数据目录（`api.data_dir()` 承诺的 `data/plugins/<id>/data/`）因此在
@@ -385,6 +432,11 @@ def install_plugin_dir(
 
     _persist_style_declaration_warnings(manifest.plugin_id, style_warnings)
 
+    # 安装来源（D9）：供管理 UI 渲染「来源」外链。写失败不影响安装结果——
+    # 最坏情况只是卡片上少一个按钮，而 `homepage` 兜底仍在。
+    if install_source:
+        _persist_install_source(manifest.plugin_id, install_source)
+
     # 关键：把磁盘上的新 manifest 同步进内存状态。
     # 否则 `state.manifest.version` 会停在进程启动时读的旧值，`check_updates()`
     # 就会拿陈旧版本比远端版本，导致「刚更新完仍报有更新」的死循环。
@@ -417,6 +469,7 @@ def install_plugin_dir(
         'preserved_data_conflicts': preserved['conflicts'],
         'style_scope_errors': style_errors,
         'style_declaration_warnings': style_warnings,
+        'install_source': dict(install_source or {}),
     }
 
 
@@ -599,8 +652,15 @@ def move_plugin_to_trash(plugin_id: str, *, target_dir: str = '') -> str:
     return destination
 
 
-def install_from_catalog(app, entry: dict, *, ref: str = '', subdir: str = '') -> dict:
-    """从 catalog 条目安装：下载 → 解压 → 校验 → 原子替换。"""
+def install_from_catalog(
+    app, entry: dict, *, ref: str = '', subdir: str = '', kind: str = 'catalog',
+) -> dict:
+    """从 catalog 条目安装：下载 → 解压 → 校验 → 原子替换。
+
+    `kind` 只影响写入 `install_source` 的来源分类：`catalog`（官方目录条目）与
+    `github`（用户直接填仓库地址，见 `/api/plugins/install_github`）。两者走同一套
+    下载与安装逻辑，`ref` / `subdir` 语义完全一致。
+    """
     source = entry.get('source') if isinstance(entry, dict) else None
     if not isinstance(source, dict):
         raise PluginInstallError('catalog 条目缺少 source')
@@ -611,6 +671,16 @@ def install_from_catalog(app, entry: dict, *, ref: str = '', subdir: str = '') -
     effective_ref = validate_ref(ref or source.get('ref') or 'main')
     effective_subdir = validate_subdir(subdir or source.get('subdir') or '')
     expected_id = str(entry.get('id') or '').strip()
+
+    # 安装来源（D9）：优先用发布方在 catalog 里声明的 `homepage`（面向用户的项目主页），
+    # 没有就由 `owner/repo` 派生仓库页地址。两者都是网页地址，**不是** codeload 的 zip。
+    install_source = build_install_source(
+        kind=kind,
+        repo=repo,
+        url=str(entry.get('homepage') or ''),
+        ref=effective_ref,
+        subdir=effective_subdir,
+    )
 
     os.makedirs(TEMP_DIR, exist_ok=True)
     work_dir = os.path.join(TEMP_DIR, f'plugin_install_{uuid.uuid4().hex[:12]}')
@@ -632,6 +702,7 @@ def install_from_catalog(app, entry: dict, *, ref: str = '', subdir: str = '') -
         plugin_root = locate_plugin_root(extract_dir, effective_subdir)
         result = install_plugin_dir(
             plugin_root, expected_id=expected_id, source_label=f'catalog:{repo}',
+            install_source=install_source,
         )
     except Exception as exc:
         _log_action(
@@ -653,6 +724,9 @@ def install_from_upload(
     `expected_id` 由上传界面可选填写：填了就校验归档里的 `manifest.id` 是否一致，
     不一致时按 `PluginManifest.load(expected_id=...)` 的语义**拒绝**（与 catalog 路径
     对齐，见 `install_from_catalog`）；留空则完全以归档内的 id 为准。
+
+    上传路径**没有**来源网址（zip 是用户本地文件），因此 `install_source` 只记
+    `kind: 'upload'` 且 `url` 留空——UI 据此不渲染来源按钮。
     """
     os.makedirs(TEMP_DIR, exist_ok=True)
     work_dir = os.path.join(TEMP_DIR, f'plugin_upload_{uuid.uuid4().hex[:12]}')
@@ -673,6 +747,7 @@ def install_from_upload(
             plugin_root,
             expected_id=str(expected_id or '').strip(),
             source_label=source_label,
+            install_source=build_install_source(kind='upload'),
         )
     except Exception as exc:
         _log_action('unknown', 'install', source=source_label, detail={'error': str(exc)}, success=False)

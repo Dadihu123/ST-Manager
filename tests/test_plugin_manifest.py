@@ -221,6 +221,38 @@ def test_to_dict_exposes_frontend_relative_paths(tmp_path):
     assert payload['frontend'] is True
 
 
+def test_homepage_is_the_only_source_url_key(tmp_path):
+    """「安装来源」外链**复用** `homepage`，不新增 manifest 键。
+
+    未知顶层键会被 `_reject_unknown_keys` 拒绝加载（而不是忽略），因此新增一个
+    例如 `source_url` 的键会让所有老插件直接加载失败。这里把「只用 homepage」
+    钉成契约：声明了 `homepage` 能解析，声明了 `source_url` 会被拒绝。
+    """
+    plugin_dir = write_plugin(
+        tmp_path, 'demo-plugin',
+        manifest=base_manifest('demo-plugin', homepage='https://github.com/owner/repo'),
+    )
+
+    manifest = PluginManifest.load(plugin_dir)
+    assert manifest.homepage == 'https://github.com/owner/repo'
+    assert manifest.to_dict()['homepage'] == 'https://github.com/owner/repo'
+
+    # 缺省仍是空串（两个已安装的官方插件都没写 homepage）
+    plain_dir = write_plugin(tmp_path, 'plain-plugin')
+    assert PluginManifest.load(plain_dir).homepage == ''
+    assert PluginManifest.load(plain_dir).to_dict()['homepage'] == ''
+
+    # 另起一个键名会被拒（回归：不要把来源另存为独立 manifest 字段）
+    bad_dir = write_plugin(
+        tmp_path, 'bad-plugin',
+        manifest=base_manifest('bad-plugin', source_url='https://github.com/owner/repo'),
+    )
+    with pytest.raises(PluginManifestError) as excinfo:
+        PluginManifest.load(bad_dir)
+    assert excinfo.value.code == 'manifest_unknown_key'
+    assert excinfo.value.field == 'source_url'
+
+
 def test_semver_helpers():
     assert parse_semver('1.2.3') == (1, 2, 3)
     assert parse_semver('1.2.3-beta.1+build') == (1, 2, 3)

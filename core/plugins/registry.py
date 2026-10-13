@@ -27,6 +27,9 @@ MODULE_PREFIX = 'st_plugin_'
 PLUGINS_DIRNAME = 'plugins'
 PLUGIN_UI_NAMESPACE = '_plugins_v1'
 
+#: 安装来源记录在 `_plugins_v1.<id>` 下的键名（写入见 `installer.build_install_source`）。
+INSTALL_SOURCE_KEY = 'install_source'
+
 
 class PluginState:
     """单个插件的运行时状态（供管理 UI 与内部查询）。"""
@@ -60,6 +63,15 @@ class PluginState:
 
     @property
     def header(self) -> dict:
+        return self.build_header(read_install_source(self.plugin_id))
+
+    def build_header(self, install_source: dict) -> dict:
+        """构造列表载荷。
+
+        `install_source` 由调用方传入（而不是在这里读 ui_data）：`/api/plugins/list`
+        与 `/api/plugins/catalog` 都是**按插件循环**的，逐次读取会把整个 ui_data.json
+        重复解析 N 遍。批量路径请用 `read_install_sources()` 一次读好后传进来。
+        """
         manifest = self.manifest
         return {
             'id': self.plugin_id,
@@ -81,12 +93,21 @@ class PluginState:
             'author': manifest.author if manifest else '',
             'description': manifest.description if manifest else '',
             'homepage': manifest.homepage if manifest else '',
+            # 安装来源外链：已解析的网页地址 + 结构化记录，供管理 UI 展示。
+            # 解析优先级见 `_resolve_source_url`；解析不出时为空串，前端据此不渲染按钮。
+            'source_url': _resolve_source_url(install_source, manifest),
+            'install_source': dict(install_source or {}),
             'icon': manifest.icon if manifest else '',
             'installed': bool(manifest),
         }
 
-    def detail(self) -> dict:
-        payload = self.header
+    def detail(self, install_source: dict | None = None) -> dict:
+        """列表载荷 + 完整 manifest 快照。
+
+        `install_source` 留空表示「自己读一次」（单插件路径）；批量路径应显式传入，
+        避免每个插件重复解析 ui_data.json。
+        """
+        payload = self.header if install_source is None else self.build_header(install_source)
         if self.manifest:
             payload['manifest'] = self.manifest.to_dict()
         return payload
@@ -197,6 +218,72 @@ def get_state(plugin_id: str):
 def read_ui_entry(plugin_id: str) -> dict:
     """读取 `ui_data._plugins_v1.<id>`（公开入口，供路由层复用）。"""
     return _read_ui_entry(str(plugin_id or ''))
+
+
+def read_install_source(plugin_id: str) -> dict:
+    """读取 `_plugins_v1.<id>.install_source`；缺失或畸形时返回空字典。"""
+    record = _read_ui_entry(str(plugin_id or '')).get(INSTALL_SOURCE_KEY)
+    return dict(record) if isinstance(record, dict) else {}
+
+
+def read_install_sources() -> dict:
+    """一次性读取全部插件的安装来源记录 `{plugin_id: record}`。
+
+    批量渲染（`/api/plugins/list`、`/api/plugins/catalog`）用这个，避免按插件重复
+    解析整个 ui_data.json。
+    """
+    ui_data = load_ui_data_or_empty()
+    namespace = ui_data.get(PLUGIN_UI_NAMESPACE)
+    if not isinstance(namespace, dict):
+        return {}
+
+    result = {}
+    for plugin_id, entry in namespace.items():
+        if not isinstance(entry, dict):
+            continue
+        record = entry.get(INSTALL_SOURCE_KEY)
+        if isinstance(record, dict):
+            result[str(plugin_id)] = dict(record)
+    return result
+
+
+def persist_install_source(plugin_id: str, record: dict) -> bool:
+    """写入安装来源记录（保留同命名空间下的其它键）。
+
+    覆盖式写入：重装 / 更新同一插件只刷新这一条记录，不会产生重复项。
+    """
+    plugin_id = str(plugin_id or '')
+    if not plugin_id or not isinstance(record, dict) or not record:
+        return False
+    return _persist_ui_entry(plugin_id, {INSTALL_SOURCE_KEY: dict(record)})
+
+
+def _resolve_source_url(record: dict, manifest) -> str:
+    """按优先级解析「安装来源」网页地址。
+
+    1. 持久化的安装来源 `install_source.url`——最可信，记录的是用户实际执行的那次安装；
+    2. manifest 的 `homepage`——插件作者声明的项目主页；
+    3. 已知 repo 时派生的 `https://github.com/<repo>`（老安装记录只有 repo 时兜底）。
+
+    都没有则返回空串：UI 据此**不渲染按钮**，而不是造一个点不开的链接。
+    """
+    url = str((record or {}).get('url') or '').strip()
+    if url:
+        return url
+
+    homepage = str(getattr(manifest, 'homepage', '') or '').strip()
+    if homepage:
+        return homepage
+
+    # 局部导入：installer 顶层 `from core.plugins import registry`，这里反向依赖会成环。
+    from core.plugins.installer import build_repo_url
+
+    return build_repo_url(str((record or {}).get('repo') or ''))
+
+
+def resolve_source_url(plugin_id: str, manifest=None) -> str:
+    """解析插件「安装来源」网页地址（供管理 UI 渲染外链，无来源时返回空串）。"""
+    return _resolve_source_url(read_install_source(plugin_id), manifest)
 
 
 def get_api(plugin_id: str):

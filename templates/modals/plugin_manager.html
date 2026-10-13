@@ -205,6 +205,18 @@
               <button type="button" class="plugin-button plugin-button--ghost" @click="openDocs(item)">
                 详情
               </button>
+              <!-- 安装来源外链：`source_url` 由后端解析（安装记录 → manifest.homepage
+                   → 由 owner/repo 派生），解析不出时为空串，此时**不渲染**按钮。 -->
+              <a
+                class="plugin-button plugin-button--ghost"
+                x-show="item.source_url"
+                :href="item.source_url"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                来源
+                <span aria-hidden="true">{{ icon('external-link', 'ui-icon--xs') }}</span>
+              </a>
               <button
                 type="button"
                 class="plugin-button plugin-button--ghost"
