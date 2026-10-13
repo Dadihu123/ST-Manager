@@ -45,7 +45,7 @@
               x-show="currentMode === 'worldinfo'"
               type="text"
               x-model.debounce.300ms="wiSearchQuery"
-              placeholder="搜索..."
+              :placeholder="wiSearchField === 'name' ? '搜索世界书名...' : (wiSearchField === 'filename' ? '搜索文件名...' : (wiSearchField === 'owner' ? '搜索所属角色卡...' : '搜索...'))"
               class="mobile-search-input"
             />
             <input
@@ -573,6 +573,23 @@
           {% endcall %}
         </div>
 
+        <div
+          x-show="currentMode === 'worldinfo'"
+          class="search-type-inline"
+          title="决定搜索匹配的字段范围"
+        >
+          <span class="search-type-label">搜索分类</span>
+          {% call styled_select( "wiSearchField",
+          wrapper_class="search-type-select",
+          trigger_class="icon-select-trigger--compact",
+          menu_class="icon-select-menu--fit", aria_label="搜索分类" ) %}
+          <option value="smart">智能搜索</option>
+          <option value="name">世界书名</option>
+          <option value="filename">文件名</option>
+          <option value="owner">所属角色卡</option>
+          {% endcall %}
+        </div>
+
         <span class="header-search-icon" aria-hidden="true">
           {{ icon('search', 'ui-icon--sm') }}
         </span>
@@ -589,7 +606,7 @@
           x-show="currentMode === 'worldinfo'"
           type="text"
           x-model.debounce.300ms="wiSearchQuery"
-          placeholder="搜索世界书名称..."
+          :placeholder="wiSearchField === 'name' ? '搜索世界书名...' : (wiSearchField === 'filename' ? '搜索文件名...' : (wiSearchField === 'owner' ? '搜索所属角色卡...' : '搜索世界书名称或内容...'))"
           class="search-input"
           :class="currentMode === 'cards' ? 'search-input-with-type' : 'search-input-standalone'"
         />

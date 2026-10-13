@@ -3,12 +3,43 @@ import sqlite3
 
 from core.config import DEFAULT_DB_PATH
 from core.data.index_runtime_store import get_active_generation
+from core.utils.search_text import build_fts_match_query, escape_like
+
+
+# 世界书实体类型。用 IN 而不是 LIKE 'world_%'：LIKE 前缀通配会让
+# idx_index_entities_v2_gen_type_sort 失效，退化成扫描全部实体（含角色卡）。
+WORLD_ENTITY_TYPES = ('world_global', 'world_resource', 'world_embedded')
+WORLD_ENTITY_TYPE_FILTER = 'e.entity_type IN ' + repr(WORLD_ENTITY_TYPES)
+
+# 搜索字段分类，与前端 search_field 参数一一对应。
+SEARCH_FIELD_SMART = 'smart'
+SEARCH_FIELD_NAME = 'name'
+SEARCH_FIELD_FILENAME = 'filename'
+SEARCH_FIELD_OWNER = 'owner'
+SEARCH_FIELDS = (
+    SEARCH_FIELD_SMART,
+    SEARCH_FIELD_NAME,
+    SEARCH_FIELD_FILENAME,
+    SEARCH_FIELD_OWNER,
+)
+
+# 精确分类直接命中索引列，不需要 FTS 子查询，也不受分词器限制。
+_FIELD_LIKE_COLUMNS = {
+    SEARCH_FIELD_NAME: 'e.name',
+    SEARCH_FIELD_FILENAME: 'e.filename',
+    SEARCH_FIELD_OWNER: 'e.owner_entity_id',
+}
 
 
 def _connect(db_path=None):
     conn = sqlite3.connect(db_path or DEFAULT_DB_PATH, timeout=30)
     conn.row_factory = sqlite3.Row
     return conn
+
+
+def _normalized_search_field(value) -> str:
+    field = str(value or '').strip().lower()
+    return field if field in SEARCH_FIELDS else SEARCH_FIELD_SMART
 
 
 def _is_malformed_match_error(exc):
@@ -35,6 +66,14 @@ def _world_entity_type(requested_type: str) -> str:
         'embedded': 'world_embedded',
     }
     return type_map.get(str(requested_type or '').strip().lower(), 'world_all')
+
+
+def _build_field_clause(field: str, search: str):
+    """精确分类的 WHERE 片段；智能搜索返回 ``(None, [])`` 交给调用方处理。"""
+    column = _FIELD_LIKE_COLUMNS.get(field)
+    if not column:
+        return None, []
+    return f'LOWER({column}) LIKE ?', [f'%{search.lower()}%']
 
 
 def _build_folder_capabilities(all_folders, folder_semantics=None):
@@ -72,7 +111,7 @@ def _iter_category_ancestors(category: str):
 
 
 def _fallback_folder_metadata(conn, requested_entity_type: str, generation: int):
-    where = ['generation = ?', "entity_type LIKE 'world_%'"]
+    where = ['generation = ?', 'entity_type IN ' + repr(WORLD_ENTITY_TYPES)]
     params = [generation]
     if requested_entity_type != 'world_all':
         where.append('entity_type = ?')
@@ -209,8 +248,86 @@ def _category_stats_metadata(conn, requested_entity_type: str, generation: int):
     return all_folders, category_counts, empty_physical_folders, folder_semantics
 
 
+def _build_search_clause(search, search_mode, search_field, generation, extras, *, literal_only=False):
+    """构造搜索 WHERE 片段。
+
+    ``extras`` 是 ``[(sql_fragment, [params...]), ...]``，会与名称/内容条件一起
+    OR 进同一个括号组 —— 这是既有语义：备注摘要命中或所属角色卡命中都算搜索命中。
+
+    返回 ``(clause, params, degraded)``。``degraded`` 为 True 表示当前模式
+    无法表达该输入，已退化为名称匹配（前端据此提示用户）。
+
+    关键性能点：FTS 子查询里的 ``generation`` 必须用占位符传参，不能写成
+    ``generation = e.generation``。后者会让 SQLite 生成 CORRELATED LIST SUBQUERY，
+    对每一行外层记录重跑一次 FTS 扫描，实测慢约 380 倍。
+    """
+    field = _normalized_search_field(search_field)
+    field_clause, field_params = _build_field_clause(field, search)
+
+    if field_clause:
+        # 精确分类：只在该列上匹配，附加来源不再参与 OR（用户明确限定了范围）。
+        return field_clause, field_params, False
+
+    # 智能搜索：名称 + 内容 + 备注/角色卡等附加来源。
+    terms = ['LOWER(e.name) LIKE ?']
+    params = [f'%{search.lower()}%']
+    degraded = False
+
+    if not literal_only:
+        if search_mode == 'fulltext':
+            match_query = build_fts_match_query(search)
+            if match_query:
+                terms.insert(
+                    0,
+                    'e.entity_id IN (SELECT entity_id FROM index_search_full_v2'
+                    ' WHERE generation = ? AND index_search_full_v2 MATCH ?)',
+                )
+                params.insert(0, match_query)
+                params.insert(0, generation)
+            else:
+                # 输入只剩标点，FTS 无法表达；不带词地 MATCH 会命中 0 行。
+                degraded = True
+        else:
+            terms.insert(
+                0,
+                'e.entity_id IN (SELECT entity_id FROM index_search_fast_v2'
+                " WHERE generation = ? AND content LIKE ? ESCAPE '\\')",
+            )
+            params.insert(0, f'%{escape_like(search.lower())}%')
+            params.insert(0, generation)
+
+    for fragment, fragment_params in extras or []:
+        terms.append(fragment)
+        params.extend(fragment_params)
+
+    return '(' + ' OR '.join(terms) + ')', params, degraded
+
+
+def _build_search_extras(filters):
+    """搜索 OR 组里的附加来源条件：世界书备注路径与所属角色卡。"""
+    extras = []
+
+    extra_source_paths = [str(path) for path in (filters.get('source_paths') or []) if str(path).strip()]
+    if extra_source_paths:
+        placeholders = ', '.join('?' for _ in extra_source_paths)
+        extras.append((
+            f"LOWER(REPLACE(e.source_path, '\\', '/')) IN ({placeholders})",
+            [str(path).replace('\\', '/').lower() for path in extra_source_paths],
+        ))
+
+    extra_owner_entity_ids = [str(value) for value in (filters.get('owner_entity_ids') or []) if str(value).strip()]
+    if extra_owner_entity_ids:
+        placeholders = ', '.join('?' for _ in extra_owner_entity_ids)
+        extras.append((
+            f'e.owner_entity_id IN ({placeholders})',
+            extra_owner_entity_ids,
+        ))
+
+    return extras
+
+
 def _build_query_parts(filters, generation: int, *, literal_only=False):
-    where = ['e.generation = ?', "e.entity_type LIKE 'world_%'"]
+    where = ['e.generation = ?', WORLD_ENTITY_TYPE_FILTER]
     params = [generation]
     search_mode = str(filters.get('search_mode') or 'fast').strip().lower()
     if search_mode not in ('fast', 'fulltext'):
@@ -227,33 +344,36 @@ def _build_query_parts(filters, generation: int, *, literal_only=False):
         where.append('(e.display_category = ? OR e.display_category LIKE ?)')
         params.extend([category, f'{category}/%'])
 
+    search_field = _normalized_search_field(filters.get('search_field'))
+    degraded = False
     search = str(filters.get('search') or '').strip()
     if search:
-        search_terms = ['LOWER(e.name) LIKE ?']
-        search_params = [f'%{search.lower()}%']
-
-        if not literal_only and search_mode == 'fulltext':
-            search_terms.insert(0, 'e.entity_id IN (SELECT entity_id FROM index_search_full_v2 WHERE generation = e.generation AND index_search_full_v2 MATCH ?)')
-            search_params.insert(0, search)
-        elif not literal_only:
-            search_terms.insert(0, 'e.entity_id IN (SELECT entity_id FROM index_search_fast_v2 WHERE generation = e.generation AND content LIKE ? ESCAPE \'\\\')')
-            escaped = search.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
-            search_params.insert(0, f'%{escaped.lower()}%')
+        clause, search_params, degraded = _build_search_clause(
+            search,
+            search_mode,
+            search_field,
+            generation,
+            _build_search_extras(filters),
+            literal_only=literal_only,
+        )
+        if clause:
+            where.append(clause)
+            params.extend(search_params)
+        else:
+            # 输入无法表达为有效查询时不放宽到「全部结果」，直接返回空集。
+            where.append('0 = 1')
 
         extra_source_paths = [str(path) for path in (filters.get('source_paths') or []) if str(path).strip()]
         if extra_source_paths:
             placeholders = ', '.join('?' for _ in extra_source_paths)
-            search_terms.append(f"LOWER(REPLACE(e.source_path, '\\', '/')) IN ({placeholders})")
-            search_params.extend(str(path).replace('\\', '/').lower() for path in extra_source_paths)
+            where.append(f"LOWER(REPLACE(e.source_path, '\\', '/')) IN ({placeholders})")
+            params.extend(str(path).replace('\\', '/').lower() for path in extra_source_paths)
 
         extra_owner_entity_ids = [str(value) for value in (filters.get('owner_entity_ids') or []) if str(value).strip()]
         if extra_owner_entity_ids:
             placeholders = ', '.join('?' for _ in extra_owner_entity_ids)
-            search_terms.append(f'e.owner_entity_id IN ({placeholders})')
-            search_params.extend(extra_owner_entity_ids)
-
-        where.append('(' + ' OR '.join(search_terms) + ')')
-        params.extend(search_params)
+            where.append(f'e.owner_entity_id IN ({placeholders})')
+            params.extend(extra_owner_entity_ids)
 
     sql = f'''
         SELECT
@@ -282,11 +402,19 @@ def _build_query_parts(filters, generation: int, *, literal_only=False):
         WHERE {' AND '.join(where)}
         ORDER BY e.sort_mtime DESC, e.sort_name ASC
     '''
-    return requested_entity_type, search, sql, where, params
+    return requested_entity_type, search, search_field, degraded, sql, where, params
 
 
 def _run_query(conn, filters, generation: int, *, literal_only=False):
-    requested_entity_type, search, sql, where, params = _build_query_parts(filters, generation, literal_only=literal_only)
+    (
+        requested_entity_type,
+        search,
+        search_field,
+        search_degraded,
+        sql,
+        where,
+        params,
+    ) = _build_query_parts(filters, generation, literal_only=literal_only)
     paginate = bool(filters.get('paginate', True))
     query_params = list(params)
     if paginate:
@@ -300,7 +428,30 @@ def _run_query(conn, filters, generation: int, *, literal_only=False):
         f"SELECT COUNT(*) FROM index_entities_v2 e WHERE {' AND '.join(where)}",
         params,
     ).fetchone()[0]
-    return requested_entity_type, search, items, int(total)
+    return (
+        requested_entity_type,
+        search,
+        search_field,
+        search_degraded,
+        items,
+        int(total),
+    )
+
+
+def _not_ready_result():
+    """索引未就绪时的返回值。
+
+    键集合被 tests/test_worldinfo_index_list_api.py 的闭等值断言锁定，
+    不要在这里追加新键。
+    """
+    return {
+        'items': [],
+        'total': 0,
+        'all_folders': [],
+        'category_counts': {},
+        'folder_capabilities': {},
+        'index_ready': False,
+    }
 
 
 def query_worldinfo_index(filters):
@@ -309,16 +460,11 @@ def query_worldinfo_index(filters):
         with _connect(filters.get('db_path')) as conn:
             generation = get_active_generation(conn, 'worldinfo')
             if generation <= 0:
-                return {
-                    'items': [],
-                    'total': 0,
-                    'all_folders': [],
-                    'category_counts': {},
-                    'folder_capabilities': {},
-                    'index_ready': False,
-                }
+                return _not_ready_result()
 
-            requested_entity_type, search, items, total = _run_query(conn, filters, generation, literal_only=False)
+            requested_entity_type, search, search_field, search_degraded, items, total = _run_query(
+                conn, filters, generation, literal_only=False
+            )
             stats_result = _category_stats_metadata(conn, requested_entity_type, generation)
             if stats_result is None:
                 all_folders, category_counts, empty_physical_folders, folder_semantics = _fallback_folder_metadata(conn, requested_entity_type, generation)
@@ -329,15 +475,17 @@ def query_worldinfo_index(filters):
             with _connect(filters.get('db_path')) as conn:
                 generation = get_active_generation(conn, 'worldinfo')
                 if generation <= 0:
-                    return {
-                        'items': [],
-                        'total': 0,
-                        'all_folders': [],
-                        'category_counts': {},
-                        'folder_capabilities': {},
-                        'index_ready': False,
-                    }
-                requested_entity_type, _search, items, total = _run_query(conn, filters, generation, literal_only=True)
+                    return _not_ready_result()
+                (
+                    requested_entity_type,
+                    _search,
+                    search_field,
+                    _degraded,
+                    items,
+                    total,
+                ) = _run_query(conn, filters, generation, literal_only=True)
+                # 退化到名称匹配，明确告诉调用方这次搜索不完整。
+                search_degraded = True
                 stats_result = _category_stats_metadata(conn, requested_entity_type, generation)
                 if stats_result is None:
                     all_folders, category_counts, empty_physical_folders, folder_semantics = _fallback_folder_metadata(conn, requested_entity_type, generation)
@@ -359,4 +507,6 @@ def query_worldinfo_index(filters):
             for path, caps in _build_folder_capabilities(all_folders, folder_semantics).items()
         },
         'index_ready': True,
+        'search_field': search_field,
+        'search_degraded': bool(search_degraded),
     }

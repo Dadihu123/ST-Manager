@@ -8,10 +8,19 @@ from core.data.index_runtime_store import get_active_generation
 from core.data.ui_store import get_import_time, load_ui_data
 from core.utils.format_validation import is_valid_world_info_data
 from core.utils.image import extract_card_info
+from core.utils.search_text import split_cjk_for_index
 from core.utils.source_revision import build_file_source_revision
 
 
 logger = logging.getLogger(__name__)
+
+
+# 单本世界书写入全文索引的条目正文上限。超出后只截断正文，标题/关键词仍全部收录，
+# 避免个别超大世界书把 FTS 索引撑大几个数量级。
+WORLDBOOK_FULLTEXT_MAX_CHARS = 200000
+
+# 单条条目正文的收录上限。
+WORLDBOOK_FULLTEXT_ENTRY_MAX_CHARS = 20000
 
 
 def _normalize_category_path(value: str) -> str:
@@ -70,16 +79,87 @@ def _resolve_card_ui_meta(ui_data: dict, card_id: str) -> dict:
     return {}
 
 
-def _insert_worldinfo_search(conn, generation: int, entity_id: str, *parts):
-    content = ' '.join(str(part or '').strip() for part in parts if str(part or '').strip())
+def _iter_book_entries(book_data):
+    """遍历世界书条目（兼容 entries 为对象或数组、以及裸数组格式）。"""
+    if isinstance(book_data, list):
+        candidates = book_data
+    elif isinstance(book_data, dict):
+        entries = book_data.get('entries')
+        if isinstance(entries, dict):
+            candidates = list(entries.values())
+        elif isinstance(entries, list):
+            candidates = entries
+        else:
+            return
+    else:
+        return
+
+    for entry in candidates:
+        if isinstance(entry, dict):
+            yield entry
+
+
+def collect_worldbook_fulltext(book_data) -> str:
+    """汇总世界书的条目正文与关键词，供全文索引使用。
+
+    只收录文本字段，并用 ``WORLDBOOK_FULLTEXT_*`` 上限截断，避免超大世界书
+    让索引体积失控。调用方传入的是已经解析好的 JSON，因此没有额外磁盘开销。
+    """
+    if not book_data:
+        return ''
+
+    chunks = []
+    total = 0
+    for entry in _iter_book_entries(book_data):
+        parts = []
+        comment = entry.get('comment')
+        if isinstance(comment, str) and comment.strip():
+            parts.append(comment)
+        content = entry.get('content')
+        if isinstance(content, str) and content.strip():
+            parts.append(content[:WORLDBOOK_FULLTEXT_ENTRY_MAX_CHARS])
+        for key_field in ('key', 'keys', 'keysecondary', 'secondary_keys'):
+            value = entry.get(key_field)
+            if isinstance(value, list):
+                parts.extend(item for item in value if isinstance(item, str) and item.strip())
+            elif isinstance(value, str) and value.strip():
+                parts.append(value)
+        if not parts:
+            continue
+
+        chunk = ' '.join(parts)
+        chunks.append(chunk)
+        total += len(chunk)
+        if total >= WORLDBOOK_FULLTEXT_MAX_CHARS:
+            break
+
+    return ' '.join(chunks)[:WORLDBOOK_FULLTEXT_MAX_CHARS]
+
+
+def _insert_search_rows(conn, generation: int, entity_id: str, content: str, fulltext_extra: str = ''):
+    """写入两张搜索表。
+
+    - ``fast`` 表保存**原文**：查询侧用 ``LIKE`` 做子串匹配，中文子串本来就成立，
+      无需分词，索引体积也最小。
+    - ``full`` 表保存**逐字切分后的 CJK**（``split_cjk_for_index``）：``unicode61``
+      不切分汉字，存原文会让中文子串永远命中 0 条；切分后查询侧用短语
+      ``"血 族"`` 匹配相邻 token，得到真正的子串语义。``fulltext_extra``
+      额外携带世界书条目正文。
+    """
     conn.execute(
         'INSERT INTO index_search_fast_v2(generation, entity_id, content) VALUES (?, ?, ?)',
         (generation, entity_id, content),
     )
+    fulltext = f'{content} {fulltext_extra}' if fulltext_extra else content
     conn.execute(
         'INSERT INTO index_search_full_v2(generation, entity_id, content) VALUES (?, ?, ?)',
-        (generation, entity_id, content),
+        (generation, entity_id, split_cjk_for_index(fulltext)),
     )
+
+
+def _insert_worldinfo_search(conn, generation: int, entity_id: str, *parts, fulltext_extra=''):
+    content = ' '.join(str(part or '').strip() for part in parts if str(part or '').strip())
+    _insert_search_rows(conn, generation, entity_id, content, fulltext_extra)
 
 
 def _delete_card_entity_rows(conn, generation: int, entity_id: str):
@@ -195,7 +275,7 @@ def _rebuild_worldinfo_category_stats_v2(conn, generation: int, global_dir: str)
     subtree_counts = {}
 
     rows = conn.execute(
-        "SELECT entity_type, display_category FROM index_entities_v2 WHERE generation = ? AND entity_type LIKE 'world_%'",
+        "SELECT entity_type, display_category FROM index_entities_v2 WHERE generation = ? AND entity_type IN ('world_global', 'world_resource', 'world_embedded')",
         (generation,),
     ).fetchall()
     for row in rows:
@@ -341,7 +421,16 @@ def apply_worldinfo_path_increment(conn, source_path: str) -> bool:
                 build_file_source_revision(normalized_path),
             ),
         )
-        _insert_worldinfo_search(conn, generation, entity_id, name, filename, display_category, summary)
+        _insert_worldinfo_search(
+            conn,
+            generation,
+            entity_id,
+            name,
+            filename,
+            display_category,
+            summary,
+            fulltext_extra=collect_worldbook_fulltext(data),
+        )
 
     _rebuild_worldinfo_category_stats_v2(conn, generation, normalized_global_dir)
     conn.commit()
@@ -403,7 +492,17 @@ def apply_worldinfo_embedded_increment(conn, card_id: str, source_path: str = ''
                     build_file_source_revision(card_path),
                 ),
             )
-            _insert_worldinfo_search(conn, generation, entity_id, name, os.path.basename(card_path), category, summary, str(row['char_name'] or ''))
+            _insert_worldinfo_search(
+                conn,
+                generation,
+                entity_id,
+                name,
+                os.path.basename(card_path),
+                category,
+                summary,
+                str(row['char_name'] or ''),
+                fulltext_extra=collect_worldbook_fulltext(book),
+            )
 
     cfg = load_config()
     global_dir, _resources_dir = _resolve_worldinfo_runtime_dirs(cfg)
@@ -511,6 +610,7 @@ def apply_worldinfo_owner_increment(conn, card_id: str, source_path: str = '', *
                     display_category,
                     summary,
                     str(row['char_name'] or ''),
+                    fulltext_extra=collect_worldbook_fulltext(data),
                 )
 
     _rebuild_worldinfo_category_stats_v2(conn, generation, global_dir)
@@ -614,14 +714,7 @@ def apply_card_increment(conn, card_id: str, source_path: str = '', *, remove_en
         summary,
         ' '.join(str(tag) for tag in tags),
     ]).strip()
-    conn.execute(
-        'INSERT INTO index_search_fast_v2(generation, entity_id, content) VALUES (?, ?, ?)',
-        (generation, entity_id, content),
-    )
-    conn.execute(
-        'INSERT INTO index_search_full_v2(generation, entity_id, content) VALUES (?, ?, ?)',
-        (generation, entity_id, content),
-    )
+    _insert_search_rows(conn, generation, entity_id, content)
     conn.commit()
     return True
 
@@ -686,14 +779,7 @@ def build_cards_generation(conn, generation: int):
             summary,
             ' '.join(str(tag) for tag in tags),
         ]).strip()
-        conn.execute(
-            'INSERT INTO index_search_fast_v2(generation, entity_id, content) VALUES (?, ?, ?)',
-            (generation, entity_id, content),
-        )
-        conn.execute(
-            'INSERT INTO index_search_full_v2(generation, entity_id, content) VALUES (?, ?, ?)',
-            (generation, entity_id, content),
-        )
+        _insert_search_rows(conn, generation, entity_id, content)
 
     conn.commit()
     return len(rows)
@@ -764,7 +850,16 @@ def build_worldinfo_generation(conn, generation: int, inspected_books=None):
                         build_file_source_revision(full_path),
                     ),
                 )
-                _insert_worldinfo_search(conn, generation, entity_id, name, filename, display_category, summary)
+                _insert_worldinfo_search(
+                    conn,
+                    generation,
+                    entity_id,
+                    name,
+                    filename,
+                    display_category,
+                    summary,
+                    fulltext_extra=collect_worldbook_fulltext(data),
+                )
                 items_written += 1
 
     resource_item_categories = ((ui_data.get('_resource_item_categories_v1') or {}).get('worldinfo') or {})
@@ -836,6 +931,7 @@ def build_worldinfo_generation(conn, generation: int, inspected_books=None):
                         display_category,
                         summary,
                         str(row['char_name'] or ''),
+                        fulltext_extra=collect_worldbook_fulltext(data),
                     )
                     items_written += 1
 
@@ -885,7 +981,17 @@ def build_worldinfo_generation(conn, generation: int, inspected_books=None):
                 build_file_source_revision(card_path),
             ),
         )
-        _insert_worldinfo_search(conn, generation, entity_id, name, os.path.basename(card_path), category, summary, str(row['char_name'] or ''))
+        _insert_worldinfo_search(
+            conn,
+            generation,
+            entity_id,
+            name,
+            os.path.basename(card_path),
+            category,
+            summary,
+            str(row['char_name'] or ''),
+            fulltext_extra=collect_worldbook_fulltext(book),
+        )
         items_written += 1
 
     _rebuild_worldinfo_category_stats_v2(conn, generation, global_dir)

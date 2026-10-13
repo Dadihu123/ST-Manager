@@ -383,7 +383,10 @@
       class="text-center py-20 text-[var(--content-muted)]"
     >
       <p class="text-lg">没有找到世界书</p>
-      <p class="text-sm mt-2">（拖拽 .json 文件到此处添加）</p>
+      <p class="text-sm mt-2" x-show="wiSearchDegraded">
+        搜索词没有可用的关键字（可能全是符号），请换一个词试试
+      </p>
+      <p class="text-sm mt-2" x-show="!wiSearchDegraded">（拖拽 .json 文件到此处添加）</p>
     </div>
   </div>
 

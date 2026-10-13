@@ -7,10 +7,12 @@ import time
 from core.config import CARDS_FOLDER, DEFAULT_DB_PATH
 from core.context import ctx
 from core.data.index_runtime_store import (
+    SEARCH_CONTENT_FORMAT_VERSION,
     activate_generation,
     allocate_build_generation,
     clear_generation_data,
     ensure_index_runtime_schema,
+    get_search_content_format_version,
     update_build_state,
 )
 from core.services.index_build_service import (
@@ -170,6 +172,7 @@ def rebuild_scope_generation(scope: str, reason: str = 'bootstrap'):
             'UPDATE index_build_state SET phase = ? WHERE scope = ?',
             ('activate_generation', scope),
         )
+        # activate_generation 会在同一事务里记录搜索内容格式版本。
         activate_generation(conn, scope, generation, items_written=items_written)
         _print_and_log(f'{scope} 索引构建完成，已激活 generation={generation}')
 
@@ -195,8 +198,23 @@ def run_startup_upgrade_if_needed(index_auto_bootstrap: bool = True):
         rows = conn.execute(
             'SELECT scope, state, active_generation FROM index_build_state ORDER BY scope'
         ).fetchall()
+        # 每个 scope 已建索引的搜索内容格式版本（0 表示没有记录，即历史格式）。
+        built_formats = {
+            str(row['scope']): get_search_content_format_version(conn, str(row['scope']))
+            for row in rows
+        }
 
     for row in rows:
+        scope = str(row['scope'])
         if row['state'] == 'ready' and int(row['active_generation'] or 0) > 0:
+            # 索引本身是就绪的，但内容格式可能已过时（例如本次升级引入了
+            # CJK 切分）。此时必须重建，否则搜索会静默失效。
+            if built_formats.get(scope, 0) >= SEARCH_CONTENT_FORMAT_VERSION:
+                continue
+            _print_and_log(
+                f'{scope} 索引的搜索内容格式为 v{built_formats.get(scope, 0)}，'
+                f'需要升级到 v{SEARCH_CONTENT_FORMAT_VERSION}，正在重建'
+            )
+            rebuild_scope_generation(scope, reason='search_content_format_upgrade')
             continue
-        rebuild_scope_generation(str(row['scope']), reason='bootstrap')
+        rebuild_scope_generation(scope, reason='bootstrap')

@@ -636,6 +636,8 @@ export function initState() {
     wiSearchQuery: "", // 搜索关键词
     cardSearchMode: "fast",
     wiSearchMode: "fast",
+    // 世界书搜索分类：smart(智能) / name(世界书名) / filename(文件名) / owner(所属角色卡)
+    wiSearchField: "smart",
     indexStatus: {
       state: "empty",
       scope: "cards",
@@ -654,6 +656,8 @@ export function initState() {
     wiCurrentPage: 1,
     wiTotalItems: 0,
     wiTotalPages: 1,
+    // 后端无法把搜索词表达为有效全文查询时置位，用于提示结果可能不完整
+    wiSearchDegraded: false,
 
     // 聊天记录共享状态
     chatList: [],

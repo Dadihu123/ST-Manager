@@ -128,7 +128,7 @@ RUNTIME_SCHEMA_STATEMENTS = [
 def _scope_generation_filters(scope: str) -> tuple[str, str, str]:
     if scope == 'cards':
         return "entity_type = 'card'", 'card::%', 'cards'
-    return "entity_type LIKE 'world_%'", 'world::%', 'worldinfo'
+    return "entity_type IN ('world_global', 'world_resource', 'world_embedded')", 'world::%', 'worldinfo'
 
 
 def _find_obsolete_generations(conn: sqlite3.Connection, scope: str, active_generation: int) -> list[int]:
@@ -303,6 +303,10 @@ def activate_generation(conn: sqlite3.Connection, scope: str, generation: int, *
         conn.rollback()
         return False
 
+    # 与激活同一个事务写入搜索内容格式版本：若中途崩溃，两者一起回滚，
+    # 下次启动会重新构建，而不会出现「已激活但版本未记录」导致的反复重建。
+    set_search_content_format_version(conn, scope, SEARCH_CONTENT_FORMAT_VERSION, commit=False)
+
     conn.commit()
     for obsolete_generation in obsolete_generations:
         clear_generation_data(conn, scope, obsolete_generation)
@@ -357,6 +361,36 @@ def clear_generation_data(conn: sqlite3.Connection, scope: str, generation: int)
 
 
 SCAN_STATE_LAST_FULL_SCAN_AT = 'last_full_scan_at'
+
+# FTS 搜索内容列的格式版本。写入侧改变内容形态时必须 +1，否则老索引不会重建，
+# 搜索会静默失效（例如中文子串在未切分的旧内容上永远命中 0 条）。
+#   1 = 原文（历史格式，CJK 未切分）
+#   2 = CJK 逐字切分 + 世界书条目正文
+SEARCH_CONTENT_FORMAT_VERSION = 2
+
+
+def search_content_format_state_key(scope: str) -> str:
+    """记录某个 scope 的搜索内容格式版本所用的 scan_runtime_state 键。"""
+    return f'search_content_format::{str(scope or "").strip() or "unknown"}'
+
+
+def get_search_content_format_version(conn: sqlite3.Connection, scope: str) -> int:
+    """读取该 scope 已建索引的搜索内容格式版本；未知返回 0。"""
+    raw = get_scan_state(conn, search_content_format_state_key(scope), '')
+    try:
+        return int(str(raw or '0') or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def set_search_content_format_version(
+    conn: sqlite3.Connection,
+    scope: str,
+    version: int = SEARCH_CONTENT_FORMAT_VERSION,
+    *,
+    commit: bool = True,
+) -> None:
+    set_scan_state(conn, search_content_format_state_key(scope), str(int(version)), commit=commit)
 
 
 def get_scan_state(conn: sqlite3.Connection, key: str, default: str = '') -> str:

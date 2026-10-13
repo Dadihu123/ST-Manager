@@ -2,6 +2,7 @@ import sqlite3
 
 from core.config import DEFAULT_DB_PATH
 from core.data.index_runtime_store import get_active_generation
+from core.utils.search_text import build_fts_match_query, escape_like
 
 
 def _is_malformed_match_error(exc):
@@ -77,16 +78,24 @@ def query_indexed_cards(filters):
 
             if search:
                 if filters.get('search_mode') == 'fulltext':
-                    where.append(
-                        'e.entity_id IN (SELECT entity_id FROM index_search_full_v2 WHERE generation = e.generation AND index_search_full_v2 MATCH ?)'
-                    )
-                    params.append(search)
+                    # MATCH 需要语法合法的表达式；原始输入里的 . - : 等字符
+                    # 会触发 fts5 语法错误或 "no such column"，因此先规范化。
+                    match_query = build_fts_match_query(search)
+                    if match_query:
+                        where.append(
+                            'e.entity_id IN (SELECT entity_id FROM index_search_full_v2'
+                            ' WHERE generation = ? AND index_search_full_v2 MATCH ?)'
+                        )
+                        params.extend([generation, match_query])
+                    else:
+                        # 输入里没有可搜索的词，直接返回空集而不是全部卡片。
+                        where.append('0 = 1')
                 else:
                     where.append(
-                        'e.entity_id IN (SELECT entity_id FROM index_search_fast_v2 WHERE generation = e.generation AND content LIKE ? ESCAPE \'\\\')'
+                        'e.entity_id IN (SELECT entity_id FROM index_search_fast_v2'
+                        " WHERE generation = ? AND content LIKE ? ESCAPE '\\')"
                     )
-                    escaped = search.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
-                    params.append(f'%{escaped}%')
+                    params.extend([generation, f'%{escape_like(search.lower())}%'])
 
             sql = f'''
                 SELECT

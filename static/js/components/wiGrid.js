@@ -79,6 +79,12 @@ export default function wiGrid() {
     set wiTotalPages(val) {
       this.$store.global.wiTotalPages = val;
     },
+    get wiSearchDegraded() {
+      return this.$store.global.wiSearchDegraded;
+    },
+    set wiSearchDegraded(val) {
+      this.$store.global.wiSearchDegraded = val;
+    },
     get wiSearchQuery() {
       return this.$store.global.wiSearchQuery;
     },
@@ -721,6 +727,12 @@ export default function wiGrid() {
         this.scheduleFetchWorldInfoList();
       });
 
+      // 切换搜索分类（智能/世界书名/文件名/所属角色卡）需要重新请求。
+      this.$watch("$store.global.wiSearchField", () => {
+        this.wiCurrentPage = 1;
+        this.scheduleFetchWorldInfoList();
+      });
+
       this.$watch("$store.global.wiFilterType", () => {
         this.wiCurrentPage = 1;
         this.scheduleFetchWorldInfoList();
@@ -784,12 +796,9 @@ export default function wiGrid() {
         this.applyWorldInfoSentState(detail);
       });
 
-      // 监听搜索框输入
-      window.addEventListener("wi-search-changed", (e) => {
-        this.wiSearchQuery = e.detail;
-        this.wiCurrentPage = 1;
-        this.scheduleFetchWorldInfoList();
-      });
+      // 搜索由 $store.global.wiSearchQuery 的 watcher 驱动（见下方 $watch），
+      // 这里曾有一个 "wi-search-changed" 监听，但全仓库没有任何 dispatchEvent，
+      // 属于永远不会触发的死代码，已移除。
 
       // 提供给外部（例如侧边栏导入按钮）复用的全局上传入口
       window.stUploadWorldInfoFiles = (files) => {
@@ -867,6 +876,7 @@ export default function wiGrid() {
         page: this.wiCurrentPage,
         page_size: pageSize,
         search_mode: this.$store.global.wiSearchMode || "fast",
+        search_field: this.$store.global.wiSearchField || "smart",
       };
 
       listWorldInfo(params, requestController.signal)
@@ -885,6 +895,8 @@ export default function wiGrid() {
 
             this.wiTotalItems = res.total || 0;
             this.wiTotalPages = Math.ceil(this.wiTotalItems / pageSize) || 1;
+            // 输入无法表达为有效全文查询时后端会降级，需要提示用户结果可能不完整。
+            this.wiSearchDegraded = Boolean(res.search_degraded);
             this.$nextTick(() => {
               this.syncWiWindowRange();
             });

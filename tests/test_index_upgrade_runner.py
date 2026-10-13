@@ -10,7 +10,10 @@ if str(ROOT) not in sys.path:
 
 from core import init_services
 from core.context import ctx
-from core.data.index_runtime_store import ensure_index_runtime_schema
+from core.data.index_runtime_store import (
+    ensure_index_runtime_schema,
+    set_search_content_format_version,
+)
 from core.services import index_build_service
 from core.services import index_upgrade_service
 
@@ -26,6 +29,9 @@ def test_run_startup_upgrade_skips_ready_scopes(monkeypatch, tmp_path):
         conn.execute(
             "UPDATE index_build_state SET active_generation = 3, state = 'ready', phase = 'ready' WHERE scope = 'worldinfo'"
         )
+        # 就绪且搜索内容格式已是最新，才应该跳过重建。
+        for scope in ('cards', 'worldinfo'):
+            set_search_content_format_version(conn, scope)
         conn.commit()
 
     monkeypatch.setattr(index_upgrade_service, 'DEFAULT_DB_PATH', str(db_path))
@@ -40,6 +46,96 @@ def test_run_startup_upgrade_skips_ready_scopes(monkeypatch, tmp_path):
     index_upgrade_service.run_startup_upgrade_if_needed(index_auto_bootstrap=True)
 
     assert calls == []
+
+
+def test_run_startup_upgrade_rebuilds_ready_scope_with_stale_search_format(monkeypatch, tmp_path):
+    """索引就绪但内容格式过时时必须重建，否则搜索会静默失效。
+
+    这正是「先关掉再打开 worldinfo_list_use_index」的场景：开关只影响读路径，
+    索引本身仍是旧的，需要靠格式版本比对来触发重建。
+    """
+    db_path = tmp_path / 'cards_metadata.db'
+
+    with sqlite3.connect(db_path) as conn:
+        ensure_index_runtime_schema(conn)
+        conn.execute(
+            "UPDATE index_build_state SET active_generation = 3, state = 'ready', phase = 'ready' WHERE scope = 'worldinfo'"
+        )
+        conn.execute(
+            "UPDATE index_build_state SET active_generation = 2, state = 'ready', phase = 'ready' WHERE scope = 'cards'"
+        )
+        # cards 已是最新格式，worldinfo 停留在历史格式（未记录 -> v0）。
+        set_search_content_format_version(conn, 'cards')
+        conn.commit()
+
+    monkeypatch.setattr(index_upgrade_service, 'DEFAULT_DB_PATH', str(db_path))
+
+    calls = []
+    monkeypatch.setattr(
+        index_upgrade_service,
+        'rebuild_scope_generation',
+        lambda scope, reason='bootstrap': calls.append((scope, reason)),
+    )
+
+    index_upgrade_service.run_startup_upgrade_if_needed(index_auto_bootstrap=True)
+
+    assert calls == [('worldinfo', 'search_content_format_upgrade')]
+
+
+def test_run_startup_upgrade_skips_format_rebuild_when_bootstrap_disabled(monkeypatch, tmp_path):
+    """关闭自动引导时不应因为格式过时而重建（交给用户手动触发）。"""
+    db_path = tmp_path / 'cards_metadata.db'
+
+    with sqlite3.connect(db_path) as conn:
+        ensure_index_runtime_schema(conn)
+        conn.execute(
+            "UPDATE index_build_state SET active_generation = 3, state = 'ready', phase = 'ready' WHERE scope = 'worldinfo'"
+        )
+        conn.commit()
+
+    monkeypatch.setattr(index_upgrade_service, 'DEFAULT_DB_PATH', str(db_path))
+
+    calls = []
+    monkeypatch.setattr(
+        index_upgrade_service,
+        'rebuild_scope_generation',
+        lambda scope, reason='bootstrap': calls.append((scope, reason)),
+    )
+
+    index_upgrade_service.run_startup_upgrade_if_needed(index_auto_bootstrap=False)
+
+    assert calls == []
+
+
+def test_format_version_survives_second_startup_without_rebuilding(monkeypatch, tmp_path):
+    """记录格式版本后，第二次启动不应再因格式问题重建（避免每次启动都重建）。
+
+    注意 cards scope 在本用例里从未构建过，因此它会走正常的 bootstrap；
+    这里只断言 worldinfo 不会因**格式过时**而重建。
+    """
+    db_path = tmp_path / 'cards_metadata.db'
+
+    with sqlite3.connect(db_path) as conn:
+        ensure_index_runtime_schema(conn)
+        conn.execute(
+            "UPDATE index_build_state SET active_generation = 3, state = 'ready', phase = 'ready' WHERE scope = 'worldinfo'"
+        )
+        set_search_content_format_version(conn, 'worldinfo')
+        conn.commit()
+
+    monkeypatch.setattr(index_upgrade_service, 'DEFAULT_DB_PATH', str(db_path))
+
+    calls = []
+    monkeypatch.setattr(
+        index_upgrade_service,
+        'rebuild_scope_generation',
+        lambda scope, reason='bootstrap': calls.append((scope, reason)),
+    )
+
+    index_upgrade_service.run_startup_upgrade_if_needed(index_auto_bootstrap=True)
+    index_upgrade_service.run_startup_upgrade_if_needed(index_auto_bootstrap=True)
+
+    assert [call for call in calls if call[0] == 'worldinfo'] == []
 
 
 def test_run_startup_upgrade_recovers_interrupted_worldinfo_build(monkeypatch, tmp_path):

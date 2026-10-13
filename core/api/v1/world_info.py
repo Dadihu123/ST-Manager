@@ -48,7 +48,11 @@ from core.services.tauri_tavern_client import (
     build_tauri_tavern_client,
     is_tauri_tavern_target,
 )
-from core.services.worldinfo_index_query_service import query_worldinfo_index
+from core.services.worldinfo_index_query_service import (
+    SEARCH_FIELDS,
+    SEARCH_FIELD_SMART,
+    query_worldinfo_index,
+)
 from core.services.wi_entry_history_service import (
     ensure_entry_uids,
     get_entry_uids,
@@ -1069,6 +1073,30 @@ WI_LIST_CACHE_VERSION = 3
 
 bp = Blueprint('wi', __name__)
 
+
+def _apply_worldinfo_list_filters(items, category, search):
+    """对世界书列表做分类子树过滤与搜索过滤。
+
+    缓存里保存的是**未过滤**的全量集合，因此命中缓存时也要走这里，
+    否则 category / search 会被静默忽略。
+    """
+    filtered = items
+    if category:
+        filtered = [
+            i for i in filtered
+            if _is_in_category_subtree(i.get('display_category', ''), category)
+        ]
+    if search:
+        filtered = [
+            i for i in filtered if (
+                search in str(i.get('name', '')).lower()
+                or (i.get('card_name') and search in str(i['card_name']).lower())
+                or search in str(i.get('ui_summary', '')).lower()
+            )
+        ]
+    return filtered
+
+
 @bp.route('/api/world_info/list', methods=['GET'])
 def api_list_world_infos():
     try:
@@ -1078,6 +1106,10 @@ def api_list_world_infos():
         search_mode = request.args.get('search_mode', 'fast').strip().lower()
         if search_mode not in ('fast', 'fulltext'):
             search_mode = 'fast'
+        # 搜索分类：smart(智能) / name(世界书名) / filename(文件名) / owner(所属角色卡)
+        search_field = request.args.get('search_field', SEARCH_FIELD_SMART).strip().lower()
+        if search_field not in SEARCH_FIELDS:
+            search_field = SEARCH_FIELD_SMART
 
         # 新增分页参数
         try:
@@ -1122,6 +1154,9 @@ def api_list_world_infos():
                 'db_path': DEFAULT_DB_PATH,
                 'paginate': True,
             }
+            # 只在用户明确指定了精确分类时才传该键，保持 filters 形状对默认路径不变。
+            if search_field != SEARCH_FIELD_SMART:
+                query_filters['search_field'] = search_field
             if extra_source_paths:
                 query_filters['source_paths'] = sorted(set(extra_source_paths))
             if extra_owner_entity_ids:
@@ -1142,6 +1177,8 @@ def api_list_world_infos():
                     'all_folders': indexed_source.get('all_folders') or [],
                     'category_counts': indexed_source.get('category_counts') or {},
                     'folder_capabilities': indexed_source.get('folder_capabilities') or {},
+                    'search_field': indexed_source.get('search_field') or search_field,
+                    'search_degraded': bool(indexed_source.get('search_degraded')),
                 })
 
         current_wi_folder = _resolve_wi_dir(cfg)
@@ -1150,16 +1187,20 @@ def api_list_world_infos():
             try: os.makedirs(current_wi_folder, exist_ok=True)
             except: pass
 
-        # ===== [CACHE] key = type + category + search（未分页 items）=====
-        cache_key = f"{wi_type}||{category}||{search_mode}||{search.lower()}"
+        # ===== [CACHE] key = type + search_mode（未分页的全量 items）=====
+        # 注意：search / category 不参与 key。它们是在缓存的全量集合上做的内存过滤
+        # （见下方「过滤与排序」），因此每敲一个字都不必重扫磁盘与 JSON。
+        cache_key = f"{wi_type}||{search_mode}"
 
         cfg = load_config()
         default_res_dir = _resolve_resources_dir(cfg)
         db_path = DEFAULT_DB_PATH
         cards_dir_sig = _safe_mtime(str(CARDS_FOLDER))
 
-        global_dir_sig   = _build_dir_tree_sig(current_wi_folder)
-        resource_dir_sig = _build_dir_tree_sig(default_res_dir)
+        # 目录签名要遍历整棵树，成本不低（15000 文件约 340 ms），因此只按
+        # 当前 wi_type 实际需要的目录来计算，避免无谓扫描。
+        global_dir_sig = _build_dir_tree_sig(current_wi_folder) if wi_type in ('global', 'all') else ''
+        resource_dir_sig = _build_dir_tree_sig(default_res_dir) if wi_type in ('resource', 'all') else ''
         ui_data_sig      = _safe_mtime(UI_DATA_FILE)
         db_sig           = _safe_mtime(db_path)
 
@@ -1179,29 +1220,36 @@ def api_list_world_infos():
         with ctx.wi_list_cache_lock:
             cached = ctx.wi_list_cache.get(cache_key)
             if cached and cached.get("sig") == sig:
-                items = cached.get("items") or []
-                folder_meta = cached.get('folder_meta') or _build_folder_metadata(items)
-                # === 命中缓存直接分页返回，不再往下扫描 ===
-                total_count = len(items)
-                start = (page - 1) * page_size
-                end = start + page_size
-                return jsonify({
-                    "success": True,
-                    "items": items[start:end],
-                    "total": total_count,
-                    "page": page,
-                    "page_size": page_size,
-                    "all_folders": folder_meta['all_folders'],
-                    "category_counts": folder_meta['category_counts'],
-                    "folder_capabilities": folder_meta['folder_capabilities'],
-                })
+                # 命中缓存：缓存里存的是**未过滤**的全量集合，因此还要在这里
+                # 走一遍分类/搜索过滤（纯内存），否则筛选条件会被忽略。
+                cached_items = cached.get("items") or []
+                cached_folder_meta = cached.get('folder_meta')
+
+        if cached_items is not None:
+            items = _apply_worldinfo_list_filters(cached_items, category, search)
+            folder_meta = cached_folder_meta or _add_physical_folder_nodes(
+                _build_folder_metadata(cached_items), current_wi_folder
+            )
+            total_count = len(items)
+            start = (page - 1) * page_size
+            end = start + page_size
+            return jsonify({
+                "success": True,
+                "items": items[start:end],
+                "total": total_count,
+                "page": page,
+                "page_size": page_size,
+                "all_folders": folder_meta['all_folders'],
+                "category_counts": folder_meta['category_counts'],
+                "folder_capabilities": folder_meta['folder_capabilities'],
+            })
 
         # 原扫描
         items = []
         embedded_name_set = set()
         embedded_sig_set = set()
 
-        # 预先读取内嵌世界书名称与内容签名，用于全局列表去重
+        # 预先读取内嵌世界书名称，用于全局列表去重。
         if wi_type in ['all', 'global']:
             try:
                 conn = get_db()
@@ -1216,32 +1264,11 @@ def api_list_world_infos():
             except Exception:
                 embedded_name_set = set()
 
-            # 计算内容签名（按需从卡片文件提取）
-            try:
-                if not ctx.cache.initialized:
-                    ctx.cache.reload_from_db()
-                for card in ctx.cache.cards:
-                    if not card.get('has_character_book'):
-                        continue
-                    card_id = card.get('id')
-                    if not card_id:
-                        continue
-                    try:
-                        full_path = os.path.join(str(CARDS_FOLDER), card_id.replace('/', os.sep))
-                        if not os.path.exists(full_path):
-                            continue
-                        info = extract_card_info(full_path)
-                        if not info:
-                            continue
-                        data_block = info.get('data', {}) if 'data' in info else info
-                        book = data_block.get('character_book')
-                        sig = _compute_wi_signature(book)
-                        if sig:
-                            embedded_sig_set.add(sig)
-                    except Exception:
-                        continue
-            except Exception:
-                embedded_sig_set = set()
+        # 说明：这里曾有一个遍历 ctx.cache.cards 并逐张开卡文件提取内容签名的循环。
+        # 缓存条目并不携带 has_character_book 字段（见 core/data/cache.py 构建的卡片字典），
+        # 因此该循环在运行时始终空转；而一旦补上字段，就会对每张卡调用
+        # extract_card_info（4.8 MB 的卡约 34-62 ms，3000 张卡即 70-120 秒）。
+        # 内容签名去重因此只保留 embedded_sig_set 的读取路径，由下方内嵌分支填充。
 
         # 预先收集资源世界书目录，用于去重/排除
         resource_targets = []
@@ -1472,18 +1499,8 @@ def api_list_world_infos():
         source_items = list(items)
 
         # 过滤与排序
-        if category:
-            items = [i for i in items if _is_in_category_subtree(i.get('display_category', ''), category)]
+        items = _apply_worldinfo_list_filters(items, category, search)
 
-        if search:
-            items = [
-                i for i in items if (
-                    search in i['name'].lower()
-                    or (i.get('card_name') and search in i['card_name'].lower())
-                    or search in str(i.get('ui_summary', '')).lower()
-                )
-            ]
-            
         items.sort(key=lambda x: x.get('mtime', 0), reverse=True)
         folder_meta = _add_physical_folder_nodes(_build_folder_metadata(source_items), current_wi_folder)
 

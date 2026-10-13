@@ -135,6 +135,21 @@ export default function header() {
       return false;
     },
 
+    // 世界书搜索分类：智能搜索会同时匹配名称、内容、备注与所属角色卡；
+    // 其余三项只查对应索引列，因此更快也更精确。
+    get wiSearchField() {
+      return this.$store.global.wiSearchField || "smart";
+    },
+    set wiSearchField(val) {
+      const allowed = ["smart", "name", "filename", "owner"];
+      this.$store.global.wiSearchField = allowed.includes(val) ? val : "smart";
+    },
+
+    // 精确分类绕开全文索引，因此不受「全文」开关限制。
+    get wiSearchFieldIsPrecise() {
+      return this.wiSearchField !== "smart";
+    },
+
     ensureSearchModeAllowed() {
       if (this.searchMode !== "fulltext" || this.canUseFulltextSearch) return;
       this.searchMode = "fast";
