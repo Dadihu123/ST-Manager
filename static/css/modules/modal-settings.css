@@ -14,6 +14,14 @@
   --settings-accent-hover: var(--accent-action-hover);
   --settings-accent-soft: var(--accent-soft);
   --settings-focus: var(--state-focus-ring);
+  /*
+   * 品牌图标底板固定为浅色：GitHub 官方图标是近黑色，落在深色卡片上不可见。
+   * 两个品牌图标共用同一块底板，深/浅色主题只微调底板明度，图标始终用品牌色。
+   */
+  --settings-brand-plate: #f1f5f9;
+  --settings-brand-plate-hover: #ffffff;
+  --settings-brand-plate-border: color-mix(in srgb, var(--content-on-light) 16%, transparent);
+  --settings-brand-plate-border-hover: color-mix(in srgb, var(--content-on-light) 28%, transparent);
   align-items: center;
   background: var(--surface-scrim);
   box-sizing: border-box;
@@ -29,6 +37,12 @@
 .settings-modal-overlay *::before,
 .settings-modal-overlay *::after {
   box-sizing: border-box;
+}
+
+/* 浅色主题里卡片自身已是浅色，底板改用中性灰，保证两个品牌图标轮廓依旧清晰。 */
+html.light-mode .settings-modal-overlay {
+  --settings-brand-plate: #e8eef6;
+  --settings-brand-plate-hover: #dee6f0;
 }
 
 /* Shared icon alignment contract used by the settings header and help entry. */
@@ -1291,10 +1305,14 @@
   outline-offset: 2px;
 }
 
+/*
+ * 品牌图标底板：GitHub 官方黑标落在深色卡片上几乎看不见，Discord 蓝紫也需要同一块底板，
+ * 所以两个图标共用一块固定的浅色底板（不随主题反转），只有品牌色跟随各自品牌。
+ */
 .settings-about-link-icon {
   align-items: center;
-  background: var(--settings-surface-sunken);
-  border: 1px solid var(--settings-border-strong);
+  background: var(--settings-brand-plate);
+  border: 1px solid var(--settings-brand-plate-border);
   border-radius: 10px;
   color: var(--settings-text-secondary);
   display: inline-flex;
@@ -1302,6 +1320,11 @@
   height: 38px;
   justify-content: center;
   width: 38px;
+}
+
+.settings-about-link-card:hover .settings-about-link-icon {
+  background: var(--settings-brand-plate-hover);
+  border-color: var(--settings-brand-plate-border-hover);
 }
 
 /* 官方品牌色只用于图标本身，避免跟随主题被冲淡。 */

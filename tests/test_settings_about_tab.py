@@ -83,6 +83,28 @@ def test_about_brand_icons_are_resolvable_host_icon_names():
     assert '"discord": "ui.svg"' in icon_map
 
 
+def test_about_brand_icons_share_a_fixed_light_plate():
+    """GitHub 官方图标是近黑色，深色主题下必须有固定浅色底板，两个品牌图标共用同一块。"""
+    css = read_project_file('static/css/modules/modal-settings.css')
+    plate_block = css.split('.settings-about-link-icon {', 1)[1].split('}', 1)[0]
+
+    assert '--settings-brand-plate: #f1f5f9;' in css
+    assert 'background: var(--settings-brand-plate);' in plate_block
+    assert 'border: 1px solid var(--settings-brand-plate-border);' in plate_block
+
+    # 底板不跟随主题反转：深色主题的变量仍保持浅色值，只有浅色主题单独微调。
+    overlay_block = css.split('.settings-modal-overlay {', 1)[1].split('}', 1)[0]
+    assert '--settings-brand-plate: #f1f5f9;' in overlay_block
+    light_block = css.split('html.light-mode .settings-modal-overlay {', 1)[1].split('}', 1)[0]
+    assert '--settings-brand-plate: #e8eef6;' in light_block
+
+    # 两个品牌图标除品牌色外不引入任何差异化的背景/边框覆盖。
+    brand_rules = css.split('/* 官方品牌色只用于图标本身，避免跟随主题被冲淡。 */', 1)[1].split('\n\n', 1)[0]
+    assert '.settings-about-link-icon--github { color: #181717; }' in brand_rules
+    assert '.settings-about-link-icon--discord { color: #5865f2; }' in brand_rules
+    assert 'background' not in brand_rules
+
+
 def test_about_version_comes_from_the_shared_meta_tag():
     settings_modal = read_project_file('static/js/components/settingsModal.js')
     layout = read_project_file('templates/layout.html')
