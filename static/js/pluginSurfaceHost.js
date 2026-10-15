@@ -485,9 +485,23 @@ export const PluginSurfaceHost = {
     );
   },
 
+  /**
+   * 已注册 surface 的类型（`panel` / `modal` / `page` / `sheet` / `ambient`）。
+   *
+   * **以 `register()` 的 `spec.type` 为准，而不是 manifest 的 `surface.type`**——
+   * 真正决定容器类名与层级的是前者，两者不一致时 manifest 只是声明。
+   * 未注册时返回空串，调用方据此区分「没这个 surface」与「类型是空」。
+   *
+   * 宿主调用方用它与 `--z-*` 令牌的语义对齐：`page` 刻意落在模态层之下
+   * （见 `plugin-surfaces.css`），从模态里点开它需要先让出位置。
+   */
+  typeOf(key) {
+    const record = this.surfaces.get(String(key || ""));
+    return record ? String(record.type || "") : "";
+  },
+
   close(key) {
-    const target = String(key || "");
-    const state = this.open.get(target);
+    const target = String(key || "");    const state = this.open.get(target);
     if (!state) return false;
 
     const wasAmbient = Boolean(state.ambient);

@@ -687,6 +687,24 @@ export default function settingsModal() {
             }, 0);
           }
         });
+
+        /*
+         * 插件管理页请求让出位置。
+         *
+         * 只有 `page` 型插件 surface 会走这条路：它的层级刻意低于模态
+         * （`plugin-surfaces.css`：page 是「替换主内容区」，不是浮层），
+         * 从设置弹窗里点开时会被设置页盖住，必须先关设置页。
+         *
+         * 走 `requestClose()` 而不是 `closeSettings()`：用户在设置页可能还有
+         * 未保存的修改，那个分支要弹丢弃确认，不能替他丢掉。未保存时确认框
+         * 在设置页内、层级高于 page surface，用户处理完设置页才让位，顺序正确。
+         */
+        window.addEventListener("settings:request-close", (event) => {
+          const detail = (event && event.detail) || {};
+          if (detail.reason !== "plugin-page-surface") return;
+          if (!this.showSettingsModal) return;
+          this.requestClose();
+        });
       }
 
       // 设置数据直接绑定到 $store.global.settingsForm

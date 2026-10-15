@@ -269,6 +269,61 @@ def test_surface_css_has_no_hardcoded_hex_colors():
     assert not re.search(r'#[0-9a-fA-F]{6}\b', css), '表面样式不应写死十六进制颜色'
 
 
+def test_surface_root_does_not_create_a_stacking_context():
+    """回归：挂载根上的 `z-index` 会创建层叠上下文，把所有 surface 锁在下层。
+
+    `position` + 非 `auto` 的 `z-index` 触发层叠上下文；根节点一旦被锁在
+    `--z-surface`(60)，它内部 surface 声明的 `--z-modal-popover`(3400) 就只在
+    60 层**内部**比较，对外一律被宿主模态（设置页 1100 / 详情页 3000）盖住。
+    表现：从设置页的「插件设置入口」点开插件面板，面板开了却完全看不见。
+
+    实测（Playwright/Chromium，`tools/verify_plugin_surface_layering.py`）：
+    加回根节点的 `z-index` 后，声明 3400 的 modal/panel/sheet 全部被 z-index 1100
+    的设置页盖住；移除后三者都正常压住设置页。
+    """
+    css = read_source(SURFACE_CSS_PATH)
+    declarations = re.sub(r'/\*.*?\*/', '', css, flags=re.S)
+
+    root_block = declarations.split('.plugin-surface-root {', 1)[1].split('}', 1)[0]
+    assert 'position: relative;' in root_block
+    assert 'z-index' not in root_block, (
+        '.plugin-surface-root 不得设 z-index：它会创建层叠上下文，'
+        '把内部所有 surface 锁在下层（宿主模态一开就全被盖住）'
+    )
+    # 也不能用其他会触发层叠上下文的属性代替
+    for trigger in ('opacity', 'transform', 'filter', 'isolation', 'contain',
+                    'will-change', 'perspective'):
+        assert trigger not in root_block, trigger
+
+
+def test_dialog_type_surfaces_sit_above_host_modals():
+    """`modal` / `panel` / `sheet` 是用户主动打开的浮层，必须在对话框层。
+
+    `panel` 还是 `entries[].surface.type` 缺省时的回退值
+    （`entryRegistry.js:normalizeDeclaredEntry`），因此它必须与 `modal` 一样
+    能盖住唤起它的宿主模态，否则「插件声明了 settings 入口但没写 type」就会重现
+    「点了看不见」的问题。
+
+    `page` 刻意例外：它替换主内容区，不是浮层，宿主模态打开时就该压在它上面；
+    因此它从设置页被点开时由 `pluginManager.openSettingsEntry` 先请设置页让位。
+    """
+    css = read_source(SURFACE_CSS_PATH)
+    declarations = re.sub(r'/\*.*?\*/', '', css, flags=re.S)
+
+    for selector in ('.plugin-surface--modal', '.plugin-surface--panel',
+                     '.plugin-surface--sheet'):
+        block = declarations.split(selector + ' {', 1)[1].split('}', 1)[0]
+        assert 'z-index: var(--z-modal-popover);' in block, (
+            f'{selector} 必须在对话框层（--z-modal-popover），否则会被宿主模态盖住'
+        )
+
+    page_block = declarations.split('.plugin-surface--page {', 1)[1].split('}', 1)[0]
+    assert 'z-index' not in page_block, 'page 型刻意保持低层，不要抬到对话框层'
+
+    ambient_block = declarations.split('.plugin-surface--ambient {', 1)[1].split('}', 1)[0]
+    assert 'z-index: var(--z-ambient);' in ambient_block
+
+
 def test_plugin_stylesheets_are_registered_in_entry_css():
     entry = read_source('static/css/style.css')
 

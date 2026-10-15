@@ -29,6 +29,7 @@ import {
 } from "../api/plugins.js";
 import { icon } from "../uiPrimitives.js";
 import { EntryRegistry, compareVersions } from "../entryRegistry.js";
+import { PluginSurfaceHost } from "../pluginSurfaceHost.js";
 
 const PERMISSION_LABELS = {
   "cards.read": "读取角色卡",
@@ -257,6 +258,15 @@ export default function pluginManager() {
         this.plugins = data.items || [];
         this.pluginsDir = data.plugins_dir || "";
         this.restartHint = this.plugins.some((item) => item.restart_required);
+        /*
+         * 「已安装」页签上也要有「插件设置入口」区块，而 `settingsEntries`
+         * 是从 `entryRows` 派生的。此前只有 `loadEntries()` 会填 `entryRows`，
+         * 于是必须先点一次「入口总览」页签，设置在入口才会出现——
+         * 用户从设置页搜索「插件设置入口」跳进来时看到的是空区块。
+         * `loadPlugins()` 已经拿到 `manifest.entries`，这里顺手同源派生，
+         * 不额外打接口。
+         */
+        this.entryRows = this.buildEntryRows(this.plugins);
       } catch (error) {
         this.errorMessage = `读取插件列表失败: ${error}`;
       } finally {
@@ -483,6 +493,32 @@ export default function pluginManager() {
         toast("入口已失效，插件可能已被禁用", "error");
         return false;
       }
+
+      const surfaceKey = `${entry.pluginId}:${
+        (entry.surface && entry.surface.id) || entry.id
+      }`;
+
+      /*
+       * 层级协调：`page` 型 surface 刻意落在模态层之下（它是「替换主内容区」，
+       * 不是浮层，见 plugin-surfaces.css），因此从设置弹窗里点开它必须先让出位置，
+       * 否则用户只会看到设置页，面板开在背后。
+       *
+       * 其余类型（`modal` / `panel` / `sheet`）都落在对话框层，能正常盖住设置页，
+       * **不需要**关设置页——保留用户所在的设置位置本身就是更好的体验，
+       * 关掉还会撞上「未保存修改」的丢弃确认。
+       *
+       * 类型以 `register()` 的 `spec.type` 为准：那才是决定容器类名与层级的值。
+       */
+      if (PluginSurfaceHost.typeOf(surfaceKey) === "page") {
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(
+            new CustomEvent("settings:request-close", {
+              detail: { reason: "plugin-page-surface", surfaceKey },
+            }),
+          );
+        }
+      }
+
       // 与坞的打开路径同一契约：优先走插件注册的 surface，
       // 没有 surface 时派发 `entry:activate` 交给插件自己处理。
       window.dispatchEvent(

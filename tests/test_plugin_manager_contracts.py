@@ -374,3 +374,179 @@ def test_css_uses_semantic_tokens_only():
     assert 'var(--content-' in css
     assert 'var(--surface-' in css
     assert not re.search(r'#[0-9a-fA-F]{6}\b', css), '模块样式不应写死十六进制颜色'
+
+
+# ------------------------------------------------- 深色模式的底色 / 文字配对
+
+
+def _css_rule(css, selector):
+    """取出 `selector { ... }` 的声明块（第一个匹配）。"""
+    return css.split(selector + ' {', 1)[1].split('}', 1)[0]
+
+
+def test_surface_control_is_only_used_as_a_form_control_fill():
+    """回归：`--surface-control` 在深色模式下接近白色，不得当作容器/输入框底色。
+
+    它曾经出现在三处：
+    1. 「插件设置入口」区块（`--content-primary` 文字 → 近白底 + 近白字，1.13:1）；
+    2. 「已安装」胶囊（`--content-secondary` 文字 → 1.20:1）；
+    3. 快捷键代码块（`--content-secondary` → 1.20:1）。
+    「入口总览」的筛选输入框虽然与 `--content-on-control` 配对了、文字可读，
+    但它会在一片深色面板里留下一块刺眼的近白方块，与同文件
+    `.plugin-form-field input` / `.form-input` 的 `--form-surface` 约定不一致。
+
+    最终结论：**整个插件管理面板都不该使用 `--surface-control`**——
+    表单填充统一走 `--form-surface`，容器底色走内容层级。
+    因此这里改成扫描**声明块**（注释里保留的说明文字不算）。
+    """
+    css = read_source('static/css/modules/modal-plugin-manager.css')
+    declarations = re.sub(r'/\*.*?\*/', '', css, flags=re.S)
+
+    assert 'var(--surface-control' not in declarations, (
+        '插件管理面板不应使用 --surface-control（深色模式下接近白色，只适合配 '
+        '--content-on-control 的表单控件）；请改用 --form-surface 或内容层级底色'
+    )
+
+    # 筛选输入框走本仓统一的表单约定
+    search_block = _css_rule(css, '.plugin-entries-search')
+    assert 'background: var(--form-surface, var(--surface-container-sunken));' in search_block
+    assert 'color: var(--content-primary);' in search_block
+    assert 'border: 1px solid var(--form-border, var(--border-default));' in search_block
+
+    # 其余输入框与它同一套约定
+    form_input_block = css.split('.plugin-github-row input[type="text"] {', 1)[1].split('}', 1)[0]
+    assert 'background: var(--form-surface, var(--surface-container));' in form_input_block
+    assert 'color: var(--content-primary);' in form_input_block
+
+
+def test_plugin_settings_entries_block_uses_an_inset_surface():
+    """「插件设置入口」区块改为内容层级的下沉面板，标题/按钮文字因此可读。"""
+    css = read_source('static/css/modules/modal-plugin-manager.css')
+
+    block = _css_rule(css, '.plugin-settings-entries')
+    assert 'background: var(--surface-container-sunken);' in block
+    assert 'border: 1px solid var(--border-subtle);' in block
+
+    # 下沉面板上的入口项用抬升面，形成「可点卡片」的反差
+    entry_block = _css_rule(css, '.plugin-settings-entry')
+    assert 'background: var(--surface-container-raised);' in entry_block
+    assert 'color: var(--content-primary);' in entry_block
+
+
+def test_installed_pill_uses_success_status_tokens():
+    """「已安装」胶囊改用 success 三件套，并与同排按钮等高、全圆角。"""
+    css = read_source('static/css/modules/modal-plugin-manager.css')
+
+    block = _css_rule(css, '.plugin-card-installed-tag')
+    assert 'background: var(--status-success-surface);' in block
+    assert 'border: 1px solid var(--status-success-border);' in block
+    assert 'color: var(--status-success-text);' in block
+    assert 'border-radius: 999px;' in block
+    # 与 .plugin-button 的 height: 2rem 对齐，动作行不会高低不齐
+    assert 'min-height: 2rem;' in block
+
+    # 失败态仍走 danger，两者不共用底色
+    failed_block = _css_rule(css, '.plugin-card.is-failed')
+    assert 'var(--status-danger-text)' in failed_block
+
+
+def test_installed_pill_ships_a_check_icon_before_its_label():
+    template = read_source('templates/modals/plugin_manager.html')
+
+    pill = template.split('class="plugin-card-installed-tag"', 1)[1].split('</span>', 1)[0]
+    assert "icon('check'" in pill
+    assert '已安装' in pill
+
+
+# ------------------------------------------------- 入口总览筛选框 / surface 层级
+
+
+def test_entry_filter_search_is_a_native_search_input_with_themed_clear_button():
+    """深色模式下 `type="search"` 的原生清除按钮默认是黑叉，必须反色。"""
+    css = read_source('static/css/modules/modal-plugin-manager.css')
+    template = read_source('templates/modals/plugin_manager.html')
+
+    assert 'type="search"' in template
+    assert 'class="plugin-entries-search"' in template
+
+    assert '.plugin-entries-search::-webkit-search-cancel-button' in css
+    assert 'html:not(.light-mode) .plugin-entries-search::-webkit-search-cancel-button' in css
+    cancel_block = css.split('html:not(.light-mode) .plugin-entries-search::-webkit-search-cancel-button {', 1)[1].split('}', 1)[0]
+    assert 'filter: brightness(0) invert(1);' in cancel_block
+
+    # 聚焦态与同文件的 .plugin-form-field input 一致
+    focus_block = css.split('.plugin-entries-search:focus {', 1)[1].split('}', 1)[0]
+    assert 'border-color: var(--accent-action);' in focus_block
+    assert 'box-shadow: 0 0 0 2px var(--accent-soft);' in focus_block
+
+    # 占位文字复用全局规则，不重复造轮子
+    assert '.plugin-entries-search::placeholder' not in css
+    assert ':where(input, textarea, select)::placeholder' in read_source('static/css/color-system.css')
+
+
+def test_surface_root_does_not_create_a_stacking_context():
+    """回归：挂在`.plugin-surface-root` 上的 `z-index` 会把所有 surface 锁死在低层。
+
+    `position` + 非 `auto` 的 `z-index` 触发**层叠上下文**；根节点一旦被锁在
+    `--z-surface`(60)，它内部 surface 的 `--z-modal-popover`(3400) 也只在 60 层内部
+    比较，对外一律被宿主模态（设置页 1100 / 详情页 3000）盖住。
+    表现：从设置页的「插件设置入口」打开插件面板，面板开了却完全看不见。
+    """
+    css = read_source('static/css/modules/plugin-surfaces.css')
+    declarations = re.sub(r'/\*.*?\*/', '', css, flags=re.S)
+
+    root_block = _css_rule(declarations, '.plugin-surface-root')
+    assert 'position: relative;' in root_block
+    assert 'z-index' not in root_block, (
+        '根节点不得设 z-index：它会创建层叠上下文，把内部所有 surface 锁在下层'
+    )
+    # 没有其他会触发层叠上下文的属性
+    for trigger in ('opacity', 'transform', 'filter', 'isolation', 'contain', 'will-change'):
+        assert trigger not in root_block, trigger
+
+
+def test_dialog_type_surfaces_sit_above_host_modals():
+    """`modal` / `panel` / `sheet` 是用户主动打开的浮层，必须在对话框层。
+
+    `panel` 还是 `entries[].surface.type` 缺省时的回退值（`entryRegistry.js`），
+    因此它必须和 `modal` 一样能盖住唤起它的宿主模态。
+    """
+    css = read_source('static/css/modules/plugin-surfaces.css')
+    declarations = re.sub(r'/\*.*?\*/', '', css, flags=re.S)
+
+    for selector in ('.plugin-surface--modal', '.plugin-surface--panel', '.plugin-surface--sheet'):
+        block = _css_rule(declarations, selector)
+        assert 'z-index: var(--z-modal-popover);' in block, selector
+
+    # `page` 刻意留在常态层：它是「替换主内容区」，不是浮层
+    page_block = _css_rule(declarations, '.plugin-surface--page')
+    assert 'z-index' not in page_block
+
+
+def test_page_type_surface_makes_the_settings_modal_stand_down_first():
+    """`page` 型 surface 盖不住设置弹窗，因此从设置页点开时先请设置页让位。
+
+    其余类型都在对话框层，能正常盖住设置页——那种情况下**不**关设置页，
+    这样关闭插件面板后用户还留在原来的位置。
+    """
+    component = strip_js_comments(read_source('static/js/components/pluginManager.js'))
+    host = strip_js_comments(read_source('static/js/pluginSurfaceHost.js'))
+    settings_modal = strip_js_comments(read_source('static/js/components/settingsModal.js'))
+
+    # 类型判定只认 register() 的 spec.type
+    assert 'typeOf(key) {' in host
+    assert 'this.surfaces.get(String(key || ""))' in host
+
+    open_entry = component.split('openSettingsEntry(row) {', 1)[1].split('\n    },', 1)[0]
+    assert 'PluginSurfaceHost.typeOf(surfaceKey)' in open_entry
+    assert '=== "page"' in open_entry
+    assert 'settings:request-close' in open_entry
+    # 只在 page 分支关设置页：不能无条件关
+    assert open_entry.count('settings:request-close') == 1
+
+    # 宿主侧监听并走带「未保存修改」确认的关闭路径
+    assert 'settings:request-close' in settings_modal
+    assert 'detail.reason !== "plugin-page-surface"' in settings_modal
+    listener = settings_modal.split('"settings:request-close"', 1)[1].split('});', 1)[0]
+    assert 'this.requestClose()' in listener
+    assert 'this.closeSettings()' not in listener

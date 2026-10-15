@@ -474,7 +474,10 @@
                 class="plugin-card-installed-tag"
                 x-show="catalogAction(entry) === 'installed'"
                 title="已安装最新版本，无需操作"
-              >已安装</span>
+              >
+                <span aria-hidden="true">{{ icon('check', 'ui-icon--xs') }}</span>
+                <span>已安装</span>
+              </span>
             </div>
           </header>
           <p class="plugin-card-description" x-show="entry.description" x-text="entry.description"></p>

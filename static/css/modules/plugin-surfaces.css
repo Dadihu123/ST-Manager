@@ -10,13 +10,38 @@
  * - **不使用 `backdrop-filter`**：`.main-container` 已带 backdrop-filter，
  *   Chromium 会把它当 backdrop root，叠加固定定位的大内容会渲染出黑块
  *   （详见 layout.css 与 data/plugins/stm-ai-assistant/frontend/plugin.css 的实测记录）。
+ * - **挂载根不得设 `z-index`**：它会创建层叠上下文，把内部所有 surface 锁在下层
+ *   （见下方 `.plugin-surface-root` 的实测记录与
+ *   `tools/verify_plugin_surface_layering.py`）。
  * - 只用 `.color-*` 语义类与既有 CSS 变量，不写死颜色。
  * - 遵守 `prefers-reduced-motion`。
+ *
+ * 层级分工（`--z-*` 令牌）：
+ * | type      | z-index                 | 语义 |
+ * |-----------|-------------------------|------|
+ * | `modal`   | `--z-modal-popover`     | 居中弹层，盖住宿主模态 |
+ * | `panel`   | `--z-modal-popover`     | 右侧抽屉，同上（也是 `surface.type` 缺省回退值） |
+ * | `sheet`   | `--z-modal-popover`     | 移动端底部 sheet，同上 |
+ * | `page`    | `--z-surface`           | **刻意低层**：替换主内容区，不是浮层 |
+ * | `ambient` | `--z-ambient`           | 常驻背景层，必须低于一切宿主 UI |
  */
 
+/* 挂载根：**刻意不设 `z-index`**。
+ *
+ * 这里曾经写着 `position: relative; z-index: var(--z-surface)`。`position` 加
+ * 非 `auto` 的 `z-index` 会创建**层叠上下文**，于是根节点把自己锁在 60 层，
+ * 它内部所有 surface 的 `z-index`（哪怕是 `--z-modal-popover` 3400）都只在
+ * 这 60 层**内部**比较，对外一律被宿主模态（设置页 1100、详情页 3000）盖住。
+ * 表现就是：从设置页的「插件设置入口」点开插件面板，面板确实打开了，
+ * 却完全看不见——它被压在设置弹窗下面。
+ *
+ * `position: relative` + `z-index: auto` **不**创建层叠上下文（本元素没有
+ * `opacity` / `transform` / `filter` / `contain` / `isolation` 等触发属性），
+ * 因此各个 `.plugin-surface` 改为直接在根层叠上下文里用各自的令牌竞争层级，
+ * 语义与 `--z-*` 令牌表的定义一致。
+ */
 .plugin-surface-root {
   position: relative;
-  z-index: var(--z-surface);
 }
 
 .plugin-surface {
@@ -153,11 +178,18 @@
 
 /* ---------------------------------------------------------------- panel */
 
-/* 右侧抽屉：宽度自适应，窄屏退化为全屏 sheet */
+/* 右侧抽屉：宽度自适应，窄屏退化为全屏 sheet。
+ *
+ * 层级走对话框层（`--z-modal-popover`）：抽屉是**用户主动打开的浮层**，
+ * 必须盖住唤起它的那层宿主 UI（设置弹窗、详情页、右键菜单所在的模态）。
+ * `--z-surface`(60) 只够盖住卡片，任何模态一开就把抽屉埋掉。
+ * 与坞的重叠由 `entry-dock.css` 的 `body:has(.plugin-surface--panel)` 收起规则处理，
+ * 这条层级不会让坞「被盖住却还占着位置」。 */
 .plugin-surface--panel {
   top: 0;
   right: 0;
   bottom: 0;
+  z-index: var(--z-modal-popover);
   width: min(420px, 92vw);
   border-right: none;
   border-top: none;
@@ -210,7 +242,12 @@
 
 /* ---------------------------------------------------------------- page */
 
-/* 主内容区整页：不遮罩全屏，因此宿主不为它声明 scrim */
+/* 主内容区整页：不遮罩全屏，因此宿主不为它声明 scrim。
+ *
+ * 层级**刻意保持**在 `--z-surface`(60)：page 是「替换主内容区」的语义，
+ * 不是浮层，宿主模态打开时就该压在它上面。
+ * 正因如此，`page` 型 surface 若从设置弹窗里被点开，会看不见——
+ * `pluginManager.openSettingsEntry` 针对这一种类型先关设置页再打开（见该函数）。 */
 .plugin-surface--page {
   top: 64px;
   right: 0;
@@ -222,11 +259,12 @@
 
 /* ---------------------------------------------------------------- sheet */
 
-/* 移动端底部 sheet */
+/* 移动端底部 sheet。与 panel 同理：用户主动打开的浮层，必须能盖住宿主模态。 */
 .plugin-surface--sheet {
   right: 0;
   bottom: 0;
   left: 0;
+  z-index: var(--z-modal-popover);
   max-height: 85vh;
   border-radius: 1rem 1rem 0 0;
   border-bottom: none;

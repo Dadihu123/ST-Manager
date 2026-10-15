@@ -353,21 +353,42 @@
 
 /* ---------------------------------------------------------------- 入口总览 */
 
+/* 筛选输入框。
+ *
+ * 底色契约：这里原本用 `--surface-control`（深色模式下接近白色）当输入框填充。
+ * 它虽然在语法上与 `--content-on-control` 配对、文字可读，但会在整片深色面板里
+ * 留下一块刺眼的近白方块——插件管理页其余控件（`.plugin-form-field input`、
+ * `.form-input`）走的都是 `--form-surface` + `--content-primary`。
+ * 这里向本仓的表单约定对齐，两种主题下都是「下沉底 + 主文字」。 */
 .plugin-entries-search {
   flex: 0 1 16rem;
   min-width: 8rem;
   padding: 0.3rem 0.5rem;
-  border: 1px solid var(--border-default);
+  border: 1px solid var(--form-border, var(--border-default));
   border-radius: 0.4rem;
-  background: var(--surface-control);
-  color: var(--content-on-control);
+  background: var(--form-surface, var(--surface-container-sunken));
+  color: var(--content-primary);
   font-size: 0.8rem;
   font-family: inherit;
 }
 
-.plugin-entries-search:focus-visible {
-  outline: 2px solid var(--state-focus-ring);
-  outline-offset: 1px;
+/* type="search" 的原生清除按钮跟随主题反色，否则深色底上是个黑叉。 */
+.plugin-entries-search::-webkit-search-cancel-button {
+  cursor: pointer;
+}
+
+html:not(.light-mode) .plugin-entries-search::-webkit-search-cancel-button {
+  filter: brightness(0) invert(1);
+  opacity: 0.7;
+}
+
+/* 聚焦态与同文件的 `.plugin-form-field input` 逐字对齐，不另造一套。
+   （占位文字无需局部规则：color-system.css 的
+   `:where(input, textarea, select)::placeholder` 已给出 `--content-muted`。） */
+.plugin-entries-search:focus {
+  border-color: var(--accent-action);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+  outline: 0;
 }
 
 .plugin-entries-table-wrapper {
@@ -426,13 +447,19 @@
  *
  * `entries[].kind === 'settings'` 的渲染落点（D7）。挂在「插件管理」分区内，
  * 不新增设置顶层 tab。只用语义色变量，不写字面量颜色。
+ *
+ * 底色契约：`--surface-control` 是**表单控件填充**（深色模式下接近白色），
+ * 只与 `--content-on-control` 配对使用。此区块在它之上写的是
+ * `--content-primary` / `--content-secondary` 等内容层级文字，
+ * 深色模式会退化成「近白底 + 近白字」；浅色模式下它又与 settings-content 同为白色，
+ * 区块本身也看不出来。因此改为内容层级里的下沉面板（与卡片内 .plugin-form 同层）。
  */
 .plugin-settings-entries {
   margin-bottom: 1rem;
   padding: 0.85rem 1rem;
   border: 1px solid var(--border-subtle);
   border-radius: var(--ui-radius-sm);
-  background: var(--surface-control);
+  background: var(--surface-container-sunken);
 }
 
 .plugin-settings-entries-title {
@@ -449,6 +476,8 @@
   margin-top: 0.6rem;
 }
 
+/* 入口项落在下沉面板上，因此用抬升面做「可点卡片」的反差；
+   描边取 --border-default 而非 --border-subtle，两种主题下都能看出边界。 */
 .plugin-settings-entry {
   display: inline-flex;
   align-items: center;
@@ -457,7 +486,7 @@
   min-width: 0;
   border: 1px solid var(--border-default);
   border-radius: var(--ui-radius-sm);
-  background: transparent;
+  background: var(--surface-container-raised);
   color: var(--content-primary);
   font-family: inherit;
   font-size: 0.8rem;
@@ -481,7 +510,7 @@
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  color: var(--content-secondary);
+  color: var(--accent-action);
 }
 
 .plugin-settings-entry-text {
@@ -529,31 +558,43 @@
   flex-wrap: wrap;
 }
 
-/* 目录页：已安装最新版本时的静态标记（替代「安装」按钮） */
+/* 目录页：已安装最新版本时的静态标记（替代「安装」按钮）。
+ *
+ * 底色契约同上：原实现用 `--surface-control` + `--content-secondary`，
+ * 深色模式下是「近白底 + 近白字」，胶囊直接糊掉。改用 success 状态三件套
+ * （surface / border / text），与 .plugin-secret-state.is-set、.plugin-card-tier
+ * 同一套语义，两种主题下都自洽。
+ * 全圆角 + 与 .plugin-button 等高的盒模型：它是「胶囊」，且要和同一排按钮对齐。 */
 .plugin-card-installed-tag {
   display: inline-flex;
   align-items: center;
-  padding: 0.2rem 0.6rem;
-  border: 1px solid var(--border-default);
-  border-radius: var(--ui-radius-sm);
-  background: var(--surface-control);
-  color: var(--content-secondary);
+  gap: 0.25rem;
+  min-height: 2rem;
+  padding: 0 0.7rem;
+  border: 1px solid var(--status-success-border);
+  border-radius: 999px;
+  background: var(--status-success-surface);
+  color: var(--status-success-text);
   font-size: 0.75rem;
+  line-height: 1;
   white-space: nowrap;
 }
 
-/* 快捷键单元格：组合键 + 设定/清除 */.plugin-entries-shortcut {
+/* 快捷键单元格：组合键 + 设定/清除 */
+.plugin-entries-shortcut {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
   flex-wrap: wrap;
 }
 
+/* 同一处底色契约：代码片段是内容层级的下沉块，与 .plugin-card-id /
+   .plugin-manager-hint code 保持一致，不再借用表单控件的 --surface-control。 */
 .plugin-entries-shortcut code {
   padding: 0.1rem 0.4rem;
   border: 1px solid var(--border-default);
   border-radius: 0.3rem;
-  background: var(--surface-control);
+  background: var(--surface-container-sunken, var(--surface-container));
   color: var(--content-secondary);
   font-size: 0.72rem;
   white-space: nowrap;
