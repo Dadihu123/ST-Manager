@@ -37,6 +37,7 @@
 @import "modules/resource-workbench.css";
 @import "modules/modal-plugin-manager.css";
 @import "modules/modal-plugin-job.css";
+@import "modules/modal-gacha.css";
 @import "modules/ui-primitives.css";
 @import "modules/plugin-surfaces.css";
 @import "modules/entry-dock.css";

@@ -17,11 +17,25 @@
 
     <!-- 核心样式 -->
     <link rel="stylesheet" href="/static/lib/cards-css/holo-cards.css" />
+    <!-- 抽卡稀有度层：作用域限定在 .gacha-reveal，必须排在 holo-cards.css 之后 -->
+    <link rel="stylesheet" href="/static/lib/pokemon-cards-css/css/cards.css" />
+    <link rel="stylesheet" href="/static/lib/pokemon-cards-css/css/cards/radiant-holo.css" />
+    <link rel="stylesheet" href="/static/lib/pokemon-cards-css/css/cards/secret-rare.css" />
+    <link rel="stylesheet" href="/static/lib/pokemon-cards-css/css/cards/rainbow-holo.css" />
     <link rel="stylesheet" href="/static/css/style.css" />
     <link rel="stylesheet" href="/static/css/tailwind.css" />
     <link rel="stylesheet" href="/static/css/color-system.css" />
     <link rel="stylesheet" href="/static/css/worldbook-update.css" />
 
+    <!-- pack-opener 的 dist 只裸导入 "pixi.js"；用 import map 指到自包含 ESM，免打包器。
+         必须在任何 module script 之前声明。 -->
+    <script type="importmap">
+      {
+        "imports": {
+          "pixi.js": "/static/lib/pack-opener/pixi.min.mjs"
+        }
+      }
+    </script>
     <script type="module" src="/static/js/app.js"></script>
     <!-- 第三方库 (Phase 1 归档位置) -->
     <script src="/static/lib/alpine-collapse.js"></script>

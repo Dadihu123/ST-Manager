@@ -3,10 +3,7 @@
  * 顶部导航栏组件
  */
 
-import {
-  addSourceUpdateMonitorEntries,
-  getRandomCard,
-} from "../api/card.js";
+import { addSourceUpdateMonitorEntries } from "../api/card.js";
 import { batchUpdateTags, getIndexStatus } from "../api/system.js";
 import { listRuleSets } from "../api/automation.js";
 import {
@@ -883,46 +880,22 @@ export default function header() {
       });
     },
 
-    // 随机抽取角色卡
+    // 随机抽取角色卡 —— 已由抽卡弹窗（单抽 / 十连）取代。
+    // 保留一个显式转发，避免外部（插件 / 快捷键）调用 randomCard() 时静默失效。
     randomCard() {
-      if (this.$store.global.isLoading) return;
-      this.$store.global.isLoading = true;
+      this.openGachaDraw();
+    },
 
-      const vs = this.$store.global.viewState;
-
-      // 使用 layout 中的筛选条件
-      const params = {
-        category: vs.filterCategory, // 访问父级 scope
-        tags: vs.filterTags,
-        search: vs.searchQuery,
-        search_type: vs.searchType,
-        search_scope: vs.searchScope || "current",
-        all_dirs_only_with_filters:
-          vs.allDirsOnlyWithFilters === true && vs.recursiveFilter !== false,
-        recursive: vs.recursiveFilter !== false,
-      };
-
-      getRandomCard(params)
-        .then((res) => {
-          this.$store.global.isLoading = false;
-          if (res.success && res.card) {
-            // 触发打开详情页事件
-            window.dispatchEvent(
-              new CustomEvent("open-detail", { detail: res.card }),
-            );
-
-            // 高亮逻辑交给 Grid 监听
-            window.dispatchEvent(
-              new CustomEvent("highlight-card", { detail: res.card.id }),
-            );
-          } else {
-            alert("抽取失败: " + (res.msg || "未知错误"));
-          }
-        })
-        .catch((err) => {
-          this.$store.global.isLoading = false;
-          alert("网络错误: " + err);
-        });
+    // 抽卡：单抽 / 十连（弹窗自身管理抽取与动画）
+    openGachaDraw(mode = "multi") {
+      if (this.currentMode !== "cards") {
+        return;
+      }
+      window.dispatchEvent(
+        new CustomEvent("open-gacha-draw", {
+          detail: { mode: mode === "single" ? "single" : "multi" },
+        }),
+      );
     },
 
     randomByMode() {

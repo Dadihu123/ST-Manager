@@ -40,6 +40,7 @@ import presetVersionMergeModal from './components/presetVersionMergeModal.js';
 import beautifyGrid from "./components/beautifyGrid.js";
 import beautifyPreviewFrame from "./components/beautifyPreviewFrame.js";
 import sourceUpdateMonitor from "./components/sourceUpdateMonitor.js";
+import gachaDraw from "./components/gachaDraw.js";
 import styledSelect from "./components/styledSelect.js";
 import pluginManager from "./components/pluginManager.js";
 import pluginJobPanel from "./components/pluginJobPanel.js";
@@ -88,6 +89,7 @@ const registerComponents = () => {
   Alpine.data("beautifyGrid", beautifyGrid);
   Alpine.data("beautifyPreviewFrame", beautifyPreviewFrame);
   Alpine.data("sourceUpdateMonitor", sourceUpdateMonitor);
+  Alpine.data("gachaDraw", gachaDraw);
   Alpine.data("styledSelect", styledSelect);
   Alpine.data("pluginManager", pluginManager);
   Alpine.data("pluginJobPanel", pluginJobPanel);

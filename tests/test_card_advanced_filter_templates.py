@@ -29,8 +29,14 @@ def test_header_js_exposes_drawer_opener_and_limits_favorite_button_to_chats():
     assert 'get cardAdvancedFilterCount() {' in header_source
     assert 'openCardAdvancedFilter() {' in header_source
     assert 'return this.currentMode === "chats";' in header_source
-    assert 'vs.allDirsOnlyWithFilters === true && vs.recursiveFilter !== false' in header_source
-    assert 'recursive: vs.recursiveFilter !== false' in header_source
+
+    # 「手气不错」在角色卡模块已被抽卡弹窗取代（单抽 / 十连），
+    # 构造抽取筛选参数的那段逻辑随之搬到 gachaDraw.js。
+    # 契约不变：抽取必须沿用与卡片网格一致的筛选参数。
+    gacha_source = read_project_file('static/js/components/gachaDraw.js')
+
+    assert 'vs.allDirsOnlyWithFilters === true && vs.recursiveFilter !== false' in gacha_source
+    assert 'recursive: vs.recursiveFilter !== false' in gacha_source
 
 
 def test_index_template_includes_card_advanced_filter_drawer_and_app_registers_component():

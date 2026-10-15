@@ -91,6 +91,7 @@ curl -X POST http://127.0.0.1:5000/api/toggle_favorite \
 | `POST` | `/api/normalize_card_data` | 按写入规则清洗原始卡片数据，用于 Diff/预览 | JSON 原始卡片数据 |
 | `POST` | `/api/find_card_page` | 计算卡片在当前筛选条件下的页码 | JSON `card_id`、`category`、`sort`、`page_size` |
 | `POST` | `/api/random_card` | 在当前筛选条件中随机返回角色卡 | JSON 分类、标签、搜索条件 |
+| `POST` | `/api/draw_cards` | 抽卡：单抽（`count=1`）或十连（`count=10`） | JSON `count`、可选 `pity`，以及同 `list_cards` 的筛选条件 |
 | `POST` | `/api/toggle_favorite` | 切换收藏状态 | JSON `id` |
 | `POST` | `/api/update_card` | 保存卡片字段、UI 备注或聚合包封面 | JSON 角色卡 ID 与字段；`set_as_cover` 用于版本封面 |
 | `POST` | `/api/set_skin_cover` | 将角色资源中的皮肤图片设为卡片封面 | JSON `card_id`、`skin_filename`、可选 `save_old` |
@@ -105,6 +106,38 @@ curl -X POST http://127.0.0.1:5000/api/toggle_favorite \
 | `POST` | `/api/delete_cards` | 将卡片移入回收站 | JSON `card_ids`、可选 `delete_resources` |
 | `POST` | `/api/move_card` | 移动一张或多张卡片 | JSON `card_ids`、`target_category` |
 | `POST` | `/api/check_resource_folders` | 检查卡片资源目录 | JSON `card_ids` |
+
+### 抽卡接口
+
+`POST /api/draw_cards` 在「当前筛选条件」内抽取 1 张（单抽）或 10 张（十连）。筛选参数与 `/api/list_cards` 对齐，因此抽到的卡一定在当前视图范围内。
+
+| 入参 | 说明 |
+| --- | --- |
+| `count` | 抽取张数，规整到 `1..10`；非法值回落为 1 |
+| `pity` | 可选，默认 `true`。多连时保证至少 1 张 SR 及以上 |
+| `category` / `tags` / `excluded_tags` / `search` / `search_type` / `search_scope` | 同列表接口 |
+| `fav_filter` / `import_date_*` / `modified_date_*` / `token_min` / `token_max` / `recursive` | 同列表接口 |
+
+稀有度由现有字段派生，不额外持久化：收藏 → `UR`；其余按 `token_count` 分档（`>100000` → `SSR`，`>20000` → `SR`，`>5000` → `R`，否则 `N`）。
+
+响应：
+
+```json
+{
+  "success": true,
+  "cards": [{ "...card": "…", "rarity": "SSR", "duplicate": true }],
+  "count": 10,
+  "pool_size": 4,
+  "pool_exhausted": true,
+  "pity_applied": false
+}
+```
+
+- `pool_exhausted` 为 `true` 表示候选不足 `count`，本次使用有放回抽取，重复项带 `duplicate: true`。
+- `pity_applied` 为 `false` 可能是未请求保底，或卡池里没有 SR 及以上（此时静默跳过，不报错）。
+- 候选为空时返回 `{"success": false, "code": "EMPTY_POOL", "pool_size": 0}`（HTTP 200），前端据此不开抽卡动画、直接提示。
+
+`POST /api/random_card` 复用同一套筛选逻辑；历史上它遗漏了收藏筛选、排除标签、时间与 Token 范围，现已对齐。
 
 ### 上传分阶段接口
 

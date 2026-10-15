@@ -8,6 +8,8 @@ This repository contains third-party components. Their original notices and lice
 
 - static/vendor/sillytavern/: SillyTavern vendor snapshot, licensed under AGPL-3.0. See static/vendor/sillytavern/LICENSE.
 - static/lib/cards-css/: cards-css, licensed under the MIT License. See static/lib/cards-css/LICENSE.
+- static/lib/pack-opener/: pack-opener-js, licensed under the MIT License; its bundled sound cues are CC0. See static/lib/pack-opener/LICENSE and static/lib/pack-opener/SOUNDS-CREDITS.md.
+- static/lib/pokemon-cards-css/: pokemon-cards-css, licensed under the GNU General Public License version 3.0 (the vendored CSS is scoped under `.gacha-reveal` and its image paths are rewritten). See static/lib/pokemon-cards-css/LICENSE.
 - static/lib/, static/vendor/ and node_modules/: bundled or installed dependencies may have their own licenses; retain the applicable upstream notices when redistributing.
 
 The complete GNU Affero General Public License version 3.0 follows.

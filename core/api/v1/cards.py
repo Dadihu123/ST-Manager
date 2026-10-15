@@ -119,6 +119,7 @@ from core.services.source_update_monitor_service import (
     check_monitored_card,
 )
 from core.services.card_operation_lock import request_card_locks
+from core.services.gacha_service import draw_cards, normalize_count
 
 # === 工具函数 ===
 from core.utils.image import (
@@ -3357,78 +3358,287 @@ def api_update_card_from_url():
                 pass
         return jsonify({"success": False, "msg": str(e)})
 
-@bp.route('/api/random_card', methods=['POST'])
-def api_random_card():
-    try:
-        # 获取筛选参数，确保随机范围与当前视图一致
-        data = request.json or {}
-        category = data.get('category', '')
-        tags_param = data.get('tags', []) # 前端传数组过来
-        search = data.get('search', '').lower().strip()
-        search_type = data.get('search_type', 'mix')
-        search_scope = data.get('search_scope', 'current')
-        if search_scope not in ('current', 'all_dirs', 'full'):
-            search_scope = 'current'
-        all_dirs_only_with_filters = _coerce_request_bool(
-            data.get('all_dirs_only_with_filters', False)
-        )
-        is_recursive = _coerce_request_bool(data.get('recursive', True))
-        random_include_tags = tags_param if isinstance(tags_param, list) else []
-        effective_search_scope = _resolve_card_list_search_scope(
-            search_scope,
-            all_dirs_only_with_filters and is_recursive,
-            bool(search or random_include_tags),
-        )
-        
-        # 1. 获取所有卡片
-        if not ctx.cache.initialized:
-            ctx.cache.reload_from_db()
-        
-        candidates = ctx.cache.cards
+def _parse_date_filter_value(raw_value, param_name: str):
+    """从任意来源（JSON 体 / query 字符串）解析 YYYY-MM-DD 日期筛选值。"""
+    if raw_value is None:
+        return None
+    raw = str(raw_value).strip()
+    if not raw:
+        return None
 
-        # 2. 分类过滤
-        if effective_search_scope == 'current':
-            if category and category != "根目录":
-                target_cat_lower = category.lower()
-                target_cat_prefix = target_cat_lower + '/'
+    try:
+        return datetime.strptime(raw, '%Y-%m-%d').replace(tzinfo=timezone.utc).timestamp()
+    except ValueError as exc:
+        raise ValueError(f'{param_name} 格式无效，应为 YYYY-MM-DD') from exc
+
+
+def _parse_int_filter_value(raw_value, param_name: str):
+    """从任意来源解析整数筛选值。"""
+    if raw_value is None:
+        return None
+    raw = str(raw_value).strip()
+    if not raw:
+        return None
+
+    try:
+        return int(raw)
+    except ValueError as exc:
+        raise ValueError(f'{param_name} 必须是整数') from exc
+
+
+def _normalize_tag_param(raw_value):
+    """标签参数兼容 JSON 数组与 ``|||`` 分隔字符串两种来源。"""
+    if isinstance(raw_value, (list, tuple, set)):
+        return [str(tag).strip() for tag in raw_value if str(tag).strip()]
+    if not raw_value:
+        return []
+    return [tag.strip() for tag in str(raw_value).split('|||') if tag.strip()]
+
+
+def _collect_draw_candidates(data):
+    """按当前视图的筛选条件收集抽卡候选卡片。
+
+    与 ``api_list_cards`` 的过滤顺序保持一致：分类 → 隔离目录 → 收藏 →
+    搜索 → 排除标签 → 包含标签 → 时间范围 → Token 范围。
+
+    ``data`` 可以是 POST 的 JSON 体，也可以是 ``request.args``；两种来源的
+    取值方式（数组 vs ``|||`` 字符串）由本函数统一归一。
+    """
+    def raw(key, default=''):
+        try:
+            value = data.get(key, default)
+        except AttributeError:
+            return default
+        return default if value is None else value
+
+    category = str(raw('category', '') or '')
+    current_category = _normalize_rel_category_path(category)
+    search = str(raw('search', '') or '').lower().strip()
+    search_type = str(raw('search_type', 'mix') or 'mix')
+    search_scope = str(raw('search_scope', 'current') or 'current')
+    if search_scope not in ('current', 'all_dirs', 'full'):
+        search_scope = 'current'
+
+    include_tags = _normalize_tag_param(raw('tags', []))
+    exclude_tags = _normalize_tag_param(raw('excluded_tags', []))
+    fav_filter = str(raw('fav_filter', 'none') or 'none')
+    if fav_filter not in ('included', 'excluded', 'none'):
+        fav_filter = 'none'
+
+    all_dirs_only_with_filters = _coerce_request_bool(raw('all_dirs_only_with_filters', False))
+    is_recursive = _coerce_request_bool(raw('recursive', True))
+
+    import_date_from = _parse_date_filter_value(raw('import_date_from', ''), 'import_date_from')
+    import_date_to = _parse_date_filter_value(raw('import_date_to', ''), 'import_date_to')
+    if import_date_to is not None:
+        import_date_to = (
+            datetime.fromtimestamp(import_date_to, tz=timezone.utc) + timedelta(days=1)
+        ).timestamp()
+
+    modified_date_from = _parse_date_filter_value(raw('modified_date_from', ''), 'modified_date_from')
+    modified_date_to = _parse_date_filter_value(raw('modified_date_to', ''), 'modified_date_to')
+    if modified_date_to is not None:
+        modified_date_to = (
+            datetime.fromtimestamp(modified_date_to, tz=timezone.utc) + timedelta(days=1)
+        ).timestamp()
+
+    token_min = _parse_int_filter_value(raw('token_min', ''), 'token_min')
+    token_max = _parse_int_filter_value(raw('token_max', ''), 'token_max')
+
+    if token_min is not None and token_max is not None and token_min > token_max:
+        raise ValueError('token_min 不能大于 token_max')
+
+    has_active_filters = _has_active_card_list_filters(
+        search=search,
+        fav_filter=fav_filter,
+        include_tags=include_tags,
+        exclude_tags=exclude_tags,
+        import_date_from=import_date_from,
+        import_date_to=import_date_to,
+        modified_date_from=modified_date_from,
+        modified_date_to=modified_date_to,
+        token_min=token_min,
+        token_max=token_max,
+    )
+    effective_search_scope = _resolve_card_list_search_scope(
+        search_scope,
+        all_dirs_only_with_filters and is_recursive,
+        has_active_filters,
+    )
+
+    if not ctx.cache.initialized:
+        ctx.cache.reload_from_db()
+
+    with ctx.cache.lock:
+        candidates = list(ctx.cache.cards)
+
+    # 分类过滤（支持递归子分类）
+    if effective_search_scope == 'current':
+        if category and category != '根目录':
+            target_cat_lower = category.lower()
+            target_cat_prefix = target_cat_lower + '/'
+            if is_recursive:
                 candidates = [
                     c for c in candidates
-                    if c['category'].lower() == target_cat_lower or c['category'].lower().startswith(target_cat_prefix)
+                    if c['category'].lower() == target_cat_lower
+                    or c['category'].lower().startswith(target_cat_prefix)
                 ]
+            else:
+                candidates = [
+                    c for c in candidates if c['category'].lower() == target_cat_lower
+                ]
+        elif not is_recursive:
+            candidates = [c for c in candidates if c['category'] == '']
 
-        # 3. 搜索过滤
-        if search:
-            if search_type == 'name':
-                candidates = [c for c in candidates if search in c['char_name'].lower()]
-            elif search_type == 'filename':
-                candidates = [c for c in candidates if search in c['filename'].lower()]
-            elif search_type == 'tags':
-                candidates = [c for c in candidates if any(search in t.lower() for t in c['tags'])]
-            elif search_type == 'creator':
-                candidates = [c for c in candidates if search in c['creator'].lower()]
-            else: # mix
-                candidates = [c for c in candidates if (
-                    search in c['char_name'].lower() or 
-                    search in c['filename'].lower() or 
-                    search in c['ui_summary'].lower() or
-                    any(search in t.lower() for t in c['tags'])
-                )]
+    ui_data = load_ui_data()
+    isolated_paths = (get_isolated_categories(ui_data).get('paths') or [])
+    if isolated_paths:
+        candidates = [
+            c for c in candidates
+            if not _should_hide_card_from_view(
+                c.get('category', ''), current_category, isolated_paths
+            )
+        ]
 
-        # 4. 标签过滤
-        if effective_search_scope != 'full' and random_include_tags:
-            # 确保 tags_param 是列表
-            target_tags = random_include_tags
-            if target_tags:
-                candidates = [c for c in candidates if all(t in c['tags'] for t in target_tags)]
+    if effective_search_scope != 'full':
+        if fav_filter == 'included':
+            candidates = [c for c in candidates if c.get('is_favorite')]
+        elif fav_filter == 'excluded':
+            candidates = [c for c in candidates if not c.get('is_favorite')]
 
-        # 5. 随机抽取
+    if search:
+        def safe_lower(val):
+            return str(val).lower() if val is not None else ''
+
+        if search_type == 'name':
+            candidates = [c for c in candidates if search in safe_lower(c.get('char_name', ''))]
+        elif search_type == 'filename':
+            candidates = [c for c in candidates if search in safe_lower(c.get('filename', ''))]
+        elif search_type == 'tags':
+            candidates = [
+                c for c in candidates
+                if isinstance(c.get('tags'), list)
+                and any(search in safe_lower(t) for t in c['tags'])
+            ]
+        elif search_type == 'creator':
+            candidates = [c for c in candidates if search in safe_lower(c.get('creator', ''))]
+        else:
+            candidates = [
+                c for c in candidates if (
+                    search in safe_lower(c.get('char_name', ''))
+                    or search in safe_lower(c.get('filename', ''))
+                    or search in safe_lower(c.get('ui_summary', ''))
+                    or (isinstance(c.get('tags'), list)
+                        and any(search in safe_lower(t) for t in c['tags']))
+                )
+            ]
+
+    if effective_search_scope != 'full':
+        if exclude_tags:
+            candidates = [
+                c for c in candidates
+                if not any(t in (c.get('tags') or []) for t in exclude_tags)
+            ]
+        if include_tags:
+            candidates = [
+                c for c in candidates
+                if all(t in (c.get('tags') or []) for t in include_tags)
+            ]
+
+    if import_date_from is not None:
+        candidates = [
+            c for c in candidates
+            if float(c.get('import_time') or 0) >= import_date_from
+        ]
+    if import_date_to is not None:
+        candidates = [
+            c for c in candidates
+            if float(c.get('import_time') or 0) < import_date_to
+        ]
+
+    if modified_date_from is not None:
+        candidates = [
+            c for c in candidates
+            if float(c.get('last_modified') or 0) >= modified_date_from
+        ]
+    if modified_date_to is not None:
+        candidates = [
+            c for c in candidates
+            if float(c.get('last_modified') or 0) < modified_date_to
+        ]
+
+    if token_min is not None:
+        candidates = [c for c in candidates if int(c.get('token_count') or 0) >= token_min]
+    if token_max is not None:
+        candidates = [c for c in candidates if int(c.get('token_count') or 0) <= token_max]
+
+    return candidates
+
+
+@bp.route('/api/draw_cards', methods=['POST'])
+def api_draw_cards():
+    """抽卡接口：单抽（count=1）或十连（count=10）。
+
+    与 ``/api/random_card`` 的区别：
+    - 支持一次抽多张（十连），卡池不足时允许重复并标记 ``duplicate``；
+    - 返回派生的 ``rarity``（收藏 → UR，其余按 Token 分四档）；
+    - 十连默认带保底（至少一张 SR+，卡池无高稀有度时静默跳过）；
+    - 筛选条件与 ``/api/list_cards`` 对齐（含收藏、排除标签、时间与 Token 范围），
+      避免抽到当前视图里看不见的卡。
+    """
+    try:
+        data = request.json or {}
+        count = normalize_count(data.get('count', 1))
+        apply_pity = _coerce_request_bool(data.get('pity', True))
+
+        candidates = _collect_draw_candidates(data)
+        if not candidates:
+            return jsonify({
+                'success': False,
+                'code': 'EMPTY_POOL',
+                'msg': '当前筛选条件下没有角色卡',
+                'pool_size': 0,
+            })
+
+        result = draw_cards(candidates, count, apply_pity=apply_pity)
+        return jsonify({
+            'success': True,
+            'cards': result['cards'],
+            'count': len(result['cards']),
+            'pool_size': result['pool_size'],
+            'pool_exhausted': result['pool_exhausted'],
+            'pity_applied': result['pity_applied'],
+        })
+
+    except ValueError as exc:
+        return jsonify({'success': False, 'msg': str(exc)}), 400
+    except Exception as e:
+        logger.error(f'抽卡失败: {e}')
+        return jsonify({'success': False, 'msg': str(e)})
+
+
+@bp.route('/api/random_card', methods=['POST'])
+def api_random_card():
+    """随机返回一张卡。
+
+    筛选条件复用 ``_collect_draw_candidates``，与 ``/api/list_cards`` 对齐：
+    此前这里只处理了分类/搜索/包含标签，遗漏了收藏筛选、排除标签、导入与修改
+    时间范围、Token 范围，也不尊重 ``recursive=False``，导致随机结果可能落在
+    当前视图看不见的卡片上。
+    """
+    try:
+        data = request.json or {}
+        candidates = _collect_draw_candidates(data)
+
         if not candidates:
             return jsonify({"success": False, "msg": "当前范围内没有卡片"})
-            
+
         picked_card = random.choice(candidates)
-        
+
         return jsonify({"success": True, "card": picked_card})
 
+    except ValueError as exc:
+        return jsonify({"success": False, "msg": str(exc)}), 400
     except Exception as e:
         return jsonify({"success": False, "msg": str(e)})
 

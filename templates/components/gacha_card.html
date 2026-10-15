@@ -1,0 +1,110 @@
+{#
+  抽卡结果用的「完整角色卡」。
+
+  刻意**不**复用 templates/components/grid_cards.html：那份模板被多个字符串契约测试
+  精确断言（元素顺序、类名、绑定），抽卡需求不应该牵动它。这里用同一套 CSS 类名
+  （.st-card / .card-effect-shell / .card-image-*）复刻同样的视觉，交互绑定则换成
+  gachaDraw 自己的方法。
+
+  参数：
+  - card：Alpine 表达式，例如 `singleCard` 或 `card`
+  - compact：十连网格里用紧凑尺寸（顶栏/工具条留白收窄）
+#}
+{% from "components/icon.html" import icon %}
+
+{% macro gacha_card(card, compact=False) -%}
+<div
+  class="st-card card-effect-host gacha-full-card{% if compact %} gacha-full-card--compact{% endif %}"
+  :data-card-id="{{ card }}.id"
+  :class="{'is-favorite': {{ card }}.is_favorite, 'gacha-full-card--plain': !effectsEnabled}"
+>
+  <div
+    class="card-effect-shell holo-card gacha-holo"
+    :data-effect="rarityEffect({{ card }})"
+    :data-rarity="rarityDataset({{ card }})"
+  >
+    <div class="holo-card__translater">
+      <div class="holo-card__rotator">
+        <div class="holo-card__front">
+          <div class="holo-card__content">
+            <div class="card-flip-inner">
+              <div class="card-face card-front">
+                <div class="card-front-topbar card-front-topbar-surface" aria-hidden="true"></div>
+                <div class="card-image-container">
+                  <img
+                    class="card-image-media"
+                    :src="cardImageUrl({{ card }})"
+                    :alt="cardName({{ card }})"
+                    loading="lazy"
+                    @error="onCardImageError($event)"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div class="card-toolbar-layout-spacer" aria-hidden="true"></div>
+          </div>
+
+          <div class="card-effect-controls-layer holo-card__content">
+            <div class="card-front-topbar card-effect-controls-topbar">
+              <div class="card-front-meta-left">
+                <div
+                  class="card-meta-chip card-meta-token"
+                  :class="tokenChipClass({{ card }})"
+                  title="Token 估算"
+                >
+                  <span x-text="{{ card }}.token_count"></span>
+                  <span class="card-meta-token-unit">T</span>
+                </div>
+              </div>
+
+              <div class="card-front-meta-right">
+                <div
+                  class="card-meta-chip gacha-rarity-badge"
+                  :class="rarityChipClass({{ card }})"
+                  :style="rarityStyle({{ card }})"
+                  :title="rarityLabel({{ card }})"
+                  x-text="rarityOf({{ card }})"
+                ></div>
+
+                <div
+                  x-show="{{ card }}.char_version"
+                  class="card-meta-chip card-meta-version"
+                  :title="'版本：' + ({{ card }}.char_version || '')"
+                >
+                  <span x-text="{{ card }}.char_version"></span>
+                </div>
+              </div>
+            </div>
+
+            <div class="card-effect-controls-image-layer">
+              <div class="card-effect-controls-front-info">
+                <div class="card-image-overlay">
+                  <div class="card-tags-wrap card-image-tags-wrap">
+                    <div class="card-tags-row">
+                      <template x-for="(tag, idx) in cardTags({{ card }})" :key="'tag-' + idx">
+                        <span class="card-tag" x-text="tag"></span>
+                      </template>
+                    </div>
+                    <div
+                      x-show="cardTagOverflow({{ card }}) > 0"
+                      class="card-tags-more"
+                    >
+                      +<span x-text="cardTagOverflow({{ card }})"></span> 个标签
+                    </div>
+                  </div>
+
+                  <h3 class="card-image-char-name" x-text="cardName({{ card }})"></h3>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="holo-card__shine card__shine" aria-hidden="true"></div>
+          <div class="holo-card__glare card__glare" aria-hidden="true"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{%- endmacro %}

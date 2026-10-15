@@ -1,0 +1,289 @@
+<!-- templates/modals/gacha_draw.html -->
+<!--
+  抽卡弹窗：单抽（pack-opener 开包动画）+ 十连（发牌 / 翻牌）。
+
+  交互约定：
+  - 起手只有两个大按钮，点哪个就**直接开始**对应抽取（不再需要二次确认）。
+  - 抽完之后左下角提供「再抽一次」和「重新选择」。
+  - 关闭只有右上角一个入口，不重复。
+  - 揭晓后的卡是**完整角色卡**（与网格同一套 CSS），点卡面进详情页。
+
+  稀有度只在卡背 hover / focus-visible / .is-peeking 时通过 `--rarity-color` 显影，
+  不悬浮时十张卡背完全一致，保留逐个翻开的悬念。
+-->
+{% from "components/icon.html" import icon %}
+{% from "components/dice_icon.html" import dice_icon %}
+{% from "components/styled_select.html" import styled_select %}
+{% from "components/gacha_card.html" import gacha_card %}
+
+<div
+  x-show="showGachaModal"
+  x-data="gachaDraw"
+  x-cloak
+  class="modal-overlay gacha-overlay"
+  :class="gachaOverlayClass"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="gacha-modal-title"
+  @keydown.escape.window="requestClose()"
+>
+  <div class="gacha-shell" @click.away="requestClose()">
+    <header class="gacha-header">
+      <div class="gacha-heading">
+        <span class="gacha-heading-icon" aria-hidden="true">
+          {{ dice_icon('ui-dice-icon--header') }}
+        </span>
+        <div>
+          <div class="gacha-eyebrow" x-text="modeLabel"></div>
+          <h2 class="gacha-title" id="gacha-modal-title" x-text="viewTitle"></h2>
+        </div>
+      </div>
+
+      <div class="gacha-header-actions">
+        <!-- 单抽：动画方式（复用主题化下拉框，键盘可达） -->
+        <div
+          x-show="gachaMode === 'single' && gachaPhase === 'ceremony'"
+          class="gacha-variant-select"
+        >
+          {% call styled_select(
+              "gachaVariant",
+              wrapper_class="icon-select--compact",
+              trigger_class="icon-select-trigger--compact",
+              menu_class="icon-select-menu--fit icon-select-menu--align-right",
+              aria_label="单抽动画方式"
+          ) %}
+            <option value="slice">划开封条</option>
+            <option value="burst">长按蓄力</option>
+            <option value="carousel">转盘选包</option>
+          {% endcall %}
+        </div>
+
+        <!-- 十连：全部翻开 -->
+        <button
+          type="button"
+          x-show="gachaMode === 'multi' && gachaPhase === 'result' && !allRevealed"
+          @click="revealAll()"
+          class="gacha-action-btn gacha-action-btn--ghost"
+        >
+          {{ icon('eye', 'ui-icon--sm') }}
+          <span>全部翻开</span>
+        </button>
+
+        <!-- 音量开关（状态存 localStorage，不进后端配置） -->
+        <button
+          type="button"
+          @click="toggleSound()"
+          class="gacha-icon-btn"
+          :class="soundEnabled ? 'is-on' : 'is-off'"
+          :title="soundEnabled ? '关闭音效' : '开启音效'"
+          :aria-label="soundEnabled ? '关闭音效' : '开启音效'"
+          :aria-pressed="soundEnabled ? 'true' : 'false'"
+        >
+          <span x-show="soundEnabled" aria-hidden="true">
+            {{ icon('volume-on', 'ui-icon--md') }}
+          </span>
+          <span x-show="!soundEnabled" aria-hidden="true">
+            {{ icon('volume-off', 'ui-icon--md') }}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          @click="requestClose()"
+          class="gacha-icon-btn"
+          title="关闭"
+          aria-label="关闭抽卡弹窗"
+        >
+          {{ icon('close', 'ui-icon--sm') }}
+        </button>
+      </div>
+    </header>
+
+    <!-- === 起手：点哪个就直接抽哪个 === -->
+    <div x-show="gachaPhase === 'idle'" class="gacha-chooser">
+      <p class="gacha-chooser-note">
+        抽取范围跟随当前筛选条件；稀有度由收藏与 Token 数派生。
+      </p>
+      <div class="gacha-chooser-actions">
+        <button
+          type="button"
+          @click="startDraw('single')"
+          class="gacha-choice"
+        >
+          <span class="gacha-choice-icon" aria-hidden="true">{{ icon('package', 'ui-icon--xl') }}</span>
+          <span class="gacha-choice-label">单抽</span>
+          <span class="gacha-choice-desc">开包动画揭晓一张</span>
+        </button>
+        <button
+          type="button"
+          @click="startDraw('multi')"
+          class="gacha-choice"
+        >
+          <span class="gacha-choice-icon" aria-hidden="true">{{ icon('data-grid', 'ui-icon--xl') }}</span>
+          <span class="gacha-choice-label">十连抽</span>
+          <span class="gacha-choice-desc">发牌十张，逐张翻开</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- === 加载中 === -->
+    <div x-show="gachaPhase === 'loading'" class="gacha-stage-hint gacha-stage-hint--solo">
+      <span class="gacha-loading-dot"></span>
+      <span>正在抽取…</span>
+    </div>
+
+    <!-- 卡池提示（仅十连且卡池不足时） -->
+    <div
+      x-show="gachaMode === 'multi' && gachaPhase !== 'idle' && poolNotice"
+      class="gacha-notice"
+      role="status"
+    >
+      {{ icon('info', 'ui-icon--xs') }}
+      <span x-text="poolNotice"></span>
+    </div>
+
+    <!-- === 单抽：pack-opener 舞台（中间流程只出图，不铺完整卡） === -->
+    <div
+      x-show="gachaMode === 'single' && gachaPhase === 'ceremony'"
+      class="gacha-single-stage"
+      :class="'gacha-single-stage--' + gachaVariant"
+    >
+      <div class="gacha-canvas-host" x-ref="stage" aria-hidden="true"></div>
+
+      <div class="gacha-stage-hint gacha-stage-hint--bottom">
+        <span x-text="ceremonyHint"></span>
+      </div>
+
+      <button
+        type="button"
+        @click="skipCeremony()"
+        class="gacha-action-btn gacha-action-btn--ghost gacha-skip-btn"
+      >
+        跳过动画
+      </button>
+    </div>
+
+    <!-- === 单抽结果：完整角色卡 === -->
+    <div
+      x-show="gachaMode === 'single' && gachaPhase === 'result'"
+      class="gacha-result"
+    >
+      <button
+        type="button"
+        class="gacha-result-hit"
+        @click="openDetail(singleCard)"
+        :aria-label="'查看 ' + cardName(singleCard) + ' 的详情'"
+        :title="'查看 ' + cardName(singleCard) + ' 的详情'"
+      >
+        <div class="gacha-result-card">
+          {{ gacha_card('singleCard') }}
+        </div>
+      </button>
+
+      <div class="gacha-result-hint">
+        <span x-text="rarityLabel(singleCard)"></span>
+        <span aria-hidden="true">·</span>
+        <span x-text="cardName(singleCard)"></span>
+        <span aria-hidden="true">·</span>
+        <span>点击卡面查看详情</span>
+      </div>
+    </div>
+
+    <!-- === 十连：发牌网格（翻牌后是完整角色卡） === -->
+    <div
+      x-show="gachaMode === 'multi' && gachaPhase === 'result'"
+      class="gacha-grid-wrap"
+    >
+      <div
+        class="gacha-grid"
+        x-ref="grid"
+        :class="{'is-dealing': isDealing}"
+        @pointerdown="onGridPointerDown($event)"
+        @pointermove="onGridPointerMove($event)"
+        @pointerup="onGridPointerUp($event)"
+        @pointercancel="onGridPointerUp($event)"
+        @pointerleave="onGridPointerUp($event)"
+      >
+        <template x-for="(card, index) in drawnCards" :key="'multi-' + index">
+          <div
+            class="gacha-card"
+            :data-index="index"
+            :class="{
+              'is-flipped': card.revealed,
+              'is-duplicate': card.duplicate === true,
+              'is-revealing': card.revealing === true,
+            }"
+            :style="cardStyle(card, index)"
+            :data-rarity="rarityDataset(card)"
+            :data-rarity-key="rarityKey(card)"
+            tabindex="0"
+            role="button"
+            :aria-label="card.revealed ? ('查看 ' + cardName(card) + ' 的详情') : '翻开这张卡'"
+            @click="onCardClick(index)"
+            @keydown.enter.prevent="onCardClick(index)"
+            @keydown.space.prevent="onCardClick(index)"
+          >
+            <div class="gacha-card-inner">
+              <div class="gacha-card-face gacha-card-face--back">
+                <div class="gacha-card-back-art"></div>
+                <div class="gacha-card-back-glow" aria-hidden="true"></div>
+                <div class="gacha-card-back-rarity" aria-hidden="true">
+                  <span class="gacha-card-back-rarity-label" x-text="rarityOf(card)"></span>
+                </div>
+                <div
+                  x-show="card.duplicate === true"
+                  class="gacha-card-duplicate"
+                  title="重复卡片"
+                >
+                  重复
+                </div>
+              </div>
+
+              <div class="gacha-card-face gacha-card-face--front">
+                <div
+                  class="gacha-reveal gacha-reveal--grid"
+                  :class="[card.revealed ? 'is-active' : '', gachaRevealClass]"
+                >
+                  <div x-show="card.revealed" class="gacha-full-card-host">
+                    {{ gacha_card('card', compact=True) }}
+                  </div>
+                </div>
+                <!-- 稀有度揭晓特效：不同档位的颜色/强度不同 -->
+                <div class="gacha-reveal-fx" aria-hidden="true">
+                  <div class="gacha-reveal-fx-flash"></div>
+                  <div class="gacha-reveal-fx-ring"></div>
+                  <div class="gacha-reveal-fx-rays"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </template>
+      </div>
+    </div>
+
+    <footer class="gacha-footer">
+      <div class="gacha-footer-status" role="status" aria-live="polite">
+        <span x-text="footerStatus"></span>
+      </div>
+
+      <div class="gacha-footer-actions">
+        <button
+          type="button"
+          x-show="gachaPhase !== 'idle'"
+          @click="backToChooser()"
+          class="gacha-action-btn gacha-action-btn--ghost"
+        >
+          重新选择
+        </button>
+        <button
+          type="button"
+          x-show="gachaPhase !== 'idle'"
+          @click="startDraw()"
+          class="gacha-action-btn gacha-action-btn--primary"
+          :disabled="isDrawing"
+          x-text="gachaMode === 'single' ? '再抽一次' : '再来一发'"
+        ></button>
+      </div>
+    </footer>
+  </div>
+</div>

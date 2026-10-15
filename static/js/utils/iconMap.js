@@ -198,6 +198,8 @@ export const ICON_SPRITE_MAP = Object.freeze({
   "user": "ui.svg",
   "version": "ui.svg",
   "vertical-flip": "ui.svg",
+  "volume-off": "ui.svg",
+  "volume-on": "ui.svg",
   "wallpaper": "ui.svg",
   "wand": "ui.svg",
   "workflow": "ui.svg",
@@ -209,5 +211,5 @@ export const ICON_ALIASES = Object.freeze({
   "plus": "plus-square",
 });
 
-/** 宿主图标总数（192）。 */
-export const HOST_ICON_COUNT = 192;
+/** 宿主图标总数（194）。 */
+export const HOST_ICON_COUNT = 194;

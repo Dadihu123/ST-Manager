@@ -725,9 +725,9 @@
     <!-- 工具按钮组 -->
     <div class="tool-buttons header-tool-buttons">
       <button
-        @click="randomByMode()"
-        :title="currentMode === 'cards' ? '手气不错，随机角色' : (currentMode === 'worldinfo' ? '手气不错，随机世界书' : '手气不错，随机聊天')"
-        :aria-label="currentMode === 'cards' ? '随机角色' : (currentMode === 'worldinfo' ? '随机世界书' : '随机聊天')"
+        @click="currentMode === 'cards' ? openGachaDraw() : randomByMode()"
+        :title="currentMode === 'cards' ? '抽卡：单抽 / 十连抽' : (currentMode === 'worldinfo' ? '手气不错，随机世界书' : '手气不错，随机聊天')"
+        :aria-label="currentMode === 'cards' ? '抽卡' : (currentMode === 'worldinfo' ? '随机世界书' : '随机聊天')"
         class="header-tool-btn header-tool-btn--random"
       >
         {{ dice_icon('ui-dice-icon--header') }}
@@ -1046,13 +1046,13 @@
     <!-- 工具按钮（移动端） -->
     <div class="mobile-menu-grid">
       <button
-        @click="randomByMode(); closeMobileMenu()"
+        @click="currentMode === 'cards' ? (openGachaDraw(), closeMobileMenu()) : (randomByMode(), closeMobileMenu())"
         class="mobile-menu-btn-item"
       >
         <div class="menu-icon" aria-hidden="true">
           {{ dice_icon('ui-icon--xl') }}
         </div>
-        <div class="menu-label">随机</div>
+        <div class="menu-label" x-text="currentMode === 'cards' ? '抽卡' : '随机'"></div>
       </button>
       <button
         @click="openUrlImport(); closeMobileMenu()"
