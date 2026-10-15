@@ -3531,8 +3531,11 @@ html.light-mode .wi-card-back {
   backdrop-filter: blur(4px);
 }
 
+/* `title` 运行时会迁移为 `data-tooltip`（见 static/js/utils/tooltip.js），
+   两条选择器必须并列，否则悬停后关闭按钮会掉尺寸与危险色。 */
 .wi-editor-modal-overlay .ui-close-button,
-.wi-editor-modal-overlay button[title*="关闭"] {
+.wi-editor-modal-overlay button[title*="关闭"],
+.wi-editor-modal-overlay button[data-tooltip*="关闭"] {
   display: inline-flex;
   min-width: 2.5rem;
   min-height: 2.5rem;
@@ -3545,7 +3548,9 @@ html.light-mode .wi-card-back {
 .wi-editor-modal-overlay .ui-close-button:hover,
 .wi-editor-modal-overlay .ui-close-button:focus-visible,
 .wi-editor-modal-overlay button[title*="关闭"]:hover,
-.wi-editor-modal-overlay button[title*="关闭"]:focus-visible {
+.wi-editor-modal-overlay button[title*="关闭"]:focus-visible,
+.wi-editor-modal-overlay button[data-tooltip*="关闭"]:hover,
+.wi-editor-modal-overlay button[data-tooltip*="关闭"]:focus-visible {
   background: var(--status-danger-surface);
   color: var(--status-danger-text);
 }

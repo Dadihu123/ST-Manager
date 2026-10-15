@@ -1,0 +1,154 @@
+/*
+ * static/css/modules/tooltip.css
+ * 全局悬浮提示（tooltip）样式。
+ *
+ * 为什么需要这一层：全仓 500+ 处提示都走原生 `title` 属性，浏览器画出来的是
+ * 系统默认的白底方框黑字，与本项目的深色玻璃面板体系完全脱节，浅色主题下
+ * 也同样是系统配色而不是项目配色。
+ *
+ * 分工：
+ * - 结构与文案由 `static/js/utils/tooltip.js` 负责（把 `title` 迁移为
+ *   `data-tooltip`，再用 `.ui-tooltip` 浮层呈现）；
+ * - 视觉只在这里定义，宿主与插件共用同一套外观。
+ *
+ * 硬约束：
+ * - 只用 `.color-*` 语义类与既有 CSS 变量，不写死颜色。
+ * - z-index 只用 `--z-*` 令牌。
+ * - 遵守 `prefers-reduced-motion`。
+ * - 浮层本体**不能**带 `overflow: hidden`，否则会裁掉自己伸出去的箭头；
+ *   高度上限交给内层 `.ui-tooltip__text`。
+ */
+
+.ui-tooltip {
+  /* 玻璃质感与入口坞同源：半透明浮层底 + 背景模糊 + 细边 + 抬升阴影。 */
+  --ui-tooltip-surface: color-mix(
+    in srgb,
+    var(--surface-overlay) 92%,
+    transparent
+  );
+  --ui-tooltip-border: var(--glass-border);
+  --ui-tooltip-blur: blur(14px) saturate(1.4);
+  --ui-tooltip-enter-x: 0px;
+  --ui-tooltip-enter-y: 0px;
+  --ui-tooltip-arrow-offset: 50%;
+
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: var(--z-tooltip);
+  box-sizing: border-box;
+  max-width: min(22rem, calc(100vw - 1rem));
+  padding: 0.45rem 0.7rem;
+  border: 1px solid var(--ui-tooltip-border);
+  border-radius: var(--ui-radius-sm);
+  background-color: var(--ui-tooltip-surface);
+  -webkit-backdrop-filter: var(--ui-tooltip-blur);
+  backdrop-filter: var(--ui-tooltip-blur);
+  box-shadow: var(--shadow-elevation);
+  color: var(--content-primary);
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.5;
+  letter-spacing: 0.01em;
+  text-align: left;
+  pointer-events: none;
+  visibility: hidden;
+  opacity: 0;
+  transform: translate(var(--ui-tooltip-enter-x), var(--ui-tooltip-enter-y));
+  transition:
+    opacity 140ms ease,
+    transform 140ms cubic-bezier(0.22, 1, 0.36, 1),
+    visibility 0s linear 140ms;
+}
+
+.ui-tooltip.is-visible {
+  visibility: visible;
+  opacity: 1;
+  transform: translate(0, 0);
+  transition-delay: 0s;
+}
+
+/*
+ * 入场方向：贴着锚点那一侧出发，避免浮层「从别处飞过来」。
+ * 取值按 data-placement 决定，与下方箭头规则一一对应。
+ */
+.ui-tooltip[data-placement="top"] {
+  --ui-tooltip-enter-y: 4px;
+}
+
+.ui-tooltip[data-placement="bottom"] {
+  --ui-tooltip-enter-y: -4px;
+}
+
+.ui-tooltip[data-placement="left"] {
+  --ui-tooltip-enter-x: 4px;
+}
+
+.ui-tooltip[data-placement="right"] {
+  --ui-tooltip-enter-x: -4px;
+}
+
+.ui-tooltip__text {
+  display: block;
+  max-height: min(70vh, 24rem);
+  overflow: hidden;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/*
+ * 箭头：一个旋转 45° 的小方块，只留朝外的两条边，与浮层底色同源。
+ *
+ * 旋转 45° 后四条边分别指向四个方向：原 `bottom` + `right` 两条边合成
+ * 「向下」的顶点，`top` + `left` 合成「向上」，依此类推 —— 因此每个方向
+ * 保留哪两条边是固定的，不能随手改。
+ *
+ * 箭头不带 `backdrop-filter`：它有一半压在浮层本体上，再叠一层模糊会与本体
+ * 出现色差；底色已足够接近。
+ */
+.ui-tooltip__arrow {
+  position: absolute;
+  width: 0.5rem;
+  height: 0.5rem;
+  background-color: var(--ui-tooltip-surface);
+  border: 0 solid var(--ui-tooltip-border);
+  transform: rotate(45deg);
+  pointer-events: none;
+}
+
+.ui-tooltip[data-placement="top"] .ui-tooltip__arrow {
+  bottom: -0.25rem;
+  left: calc(var(--ui-tooltip-arrow-offset) - 0.25rem);
+  border-right-width: 1px;
+  border-bottom-width: 1px;
+}
+
+.ui-tooltip[data-placement="bottom"] .ui-tooltip__arrow {
+  top: -0.25rem;
+  left: calc(var(--ui-tooltip-arrow-offset) - 0.25rem);
+  border-top-width: 1px;
+  border-left-width: 1px;
+}
+
+.ui-tooltip[data-placement="left"] .ui-tooltip__arrow {
+  right: -0.25rem;
+  top: calc(var(--ui-tooltip-arrow-offset) - 0.25rem);
+  border-top-width: 1px;
+  border-right-width: 1px;
+}
+
+.ui-tooltip[data-placement="right"] .ui-tooltip__arrow {
+  left: -0.25rem;
+  top: calc(var(--ui-tooltip-arrow-offset) - 0.25rem);
+  border-bottom-width: 1px;
+  border-left-width: 1px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-tooltip,
+  .ui-tooltip.is-visible {
+    transition: none;
+    transform: none;
+  }
+}

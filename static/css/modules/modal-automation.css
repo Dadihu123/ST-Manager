@@ -604,8 +604,14 @@
     width: 100%;
     text-align: center;
   }
+  /*
+   * `title` 在运行时会被 tooltip 接管迁移为 `data-tooltip`（见
+   * static/js/utils/tooltip.js），两条选择器必须并列，否则悬停后按钮会掉样式。
+   */
   .automation-content > button[title="关闭"],
-  .automation-container > div[class*="flex-1"] > button[title="关闭"] {
+  .automation-content > button[data-tooltip="关闭"],
+  .automation-container > div[class*="flex-1"] > button[title="关闭"],
+  .automation-container > div[class*="flex-1"] > button[data-tooltip="关闭"] {
     top: 0.5rem;
     right: 0.5rem;
     width: 2rem;

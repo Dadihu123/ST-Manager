@@ -47,6 +47,7 @@ import pluginJobPanel from "./components/pluginJobPanel.js";
 import entryDock from "./components/entryDock.js";
 import commandPalette from "./components/commandPalette.js";
 import { initPasteImportHandler } from "./components/pasteImportHandler.js";
+import { initTooltipSystem } from "./utils/tooltip.js";
 import { PluginHost } from "./pluginHost.js";
 import "./utils/numberControl.js";
 
@@ -114,6 +115,10 @@ if (window.Alpine) {
   // 如果 app.js 加载早，等待 Alpine 初始化事件
   document.addEventListener("alpine:init", registerComponents);
 }
+
+// 3.5 全局悬浮提示：接管全仓的 `title` 属性，改用宿主浮层渲染。
+// 与 Alpine 状态无关，因此独立安装 —— Alpine 加载失败也不该丢掉提示。
+initTooltipSystem();
 
 // 4. 全局错误处理 (可选)
 window.addEventListener("unhandledrejection", (event) => {

@@ -60,6 +60,12 @@
   --z-chat-reader: 3200;
   --z-modal-popover: 3400;
   --z-context-menu: 9000;
+  /*
+   * 悬浮提示必须能盖住所有模态、阅读器与弹出层（最高 3400），否则模态内的
+   * 图标按钮提示会被自己的遮罩吃掉。仍留在右键菜单之上、Toast 之下：
+   * 提示是被动浮层，不该遮挡这两个主动反馈。
+   */
+  --z-tooltip: 9200;
   --z-toast: 9500;
   --z-loading: 9999;
   --z-topmost: 10000;
@@ -135,6 +141,10 @@
 
 .z-context-menu {
   z-index: var(--z-context-menu) !important;
+}
+
+.z-tooltip {
+  z-index: var(--z-tooltip) !important;
 }
 
 .z-toast {

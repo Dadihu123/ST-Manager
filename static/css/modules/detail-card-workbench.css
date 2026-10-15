@@ -1304,7 +1304,9 @@ html.light-mode .ui-detail-modal .detail-modal--workbench .detail-visual-header 
   max-width: 100%;
 }
 
-.ui-detail-modal .detail-modal--workbench .detail-resource-grid button[title^='删除'] {
+/* `title` 运行时会迁移为 `data-tooltip`（见 static/js/utils/tooltip.js）。 */
+.ui-detail-modal .detail-modal--workbench .detail-resource-grid button[title^='删除'],
+.ui-detail-modal .detail-modal--workbench .detail-resource-grid button[data-tooltip^='删除'] {
   align-items: center;
   display: inline-flex;
   justify-content: center;

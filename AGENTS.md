@@ -157,6 +157,7 @@ mypy core
 - File-system-triggered rescans should go through scan/cache services, not ad hoc logic
 - Chat module styles live in `static/css/modules/view-chats.css` (entry) with partials under `static/css/modules/view-chats/` (`tokens.css`, `grid.css`, `reader-shell.css`, etc.)
 - Beautify module styles live in `static/css/modules/view-beautify.css` (flat tokens aligned with chat module)
+- Hover hints are global: keep writing `title="..."`, and `static/js/utils/tooltip.js` migrates it to `data-tooltip` at hover time so `static/css/modules/tooltip.css` can render the host tooltip. Any CSS selector or read-back that keys off `title` text must also match `data-tooltip`; `data-tooltip-placement` / `data-tooltip-disabled` are the opt-in extras
 
 ## Build And Packaging
 

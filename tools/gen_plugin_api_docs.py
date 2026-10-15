@@ -231,6 +231,33 @@ def collect_frontend_members() -> list:
     return keys
 
 
+TOOLTIP_SECTION = [
+    '## 悬浮提示（tooltip）',
+    '',
+    '宿主有一套**全局**悬浮提示：`static/js/utils/tooltip.js` 在运行时接管页面上的',
+    '`title` 属性，改由宿主的玻璃浮层（`static/css/modules/tooltip.css` 的 `.ui-tooltip`）',
+    '渲染，跟随明暗主题、层级令牌与「减少动效」偏好。',
+    '',
+    '插件**不需要引入任何模块**：只要按平常的写法给元素加 `title`，悬停时就会自动走宿主样式。',
+    '`api.ui.*` 原语（`button` / `card` / `panel` …）的 `title` 选项同样自动生效。',
+    '',
+    '| 写法 | 作用 |',
+    '|---|---|',
+    '| `title="文案"` | 常规写法，运行时迁移为 `data-tooltip` 并关掉浏览器自带提示 |',
+    '| `data-tooltip="文案"` | 直接声明，不依赖 `title`（两者同时存在时以 `title` 为准） |',
+    '| `data-tooltip-placement="top\\|bottom\\|left\\|right"` | 指定方向；默认按可用空间自动选，空间不足时自动夹取到视口内 |',
+    '| `data-tooltip-disabled` | 该元素不做提示 |',
+    '',
+    '需要注意的三点：',
+    '',
+    '1. **`title` 会被摘掉**。悬停过一次之后，该元素上只剩 `data-tooltip`；',
+    '   任何依赖 `title` 的 CSS 选择器或 `getAttribute("title")` 读回都要同时兼容',
+    '   `data-tooltip`（宿主自己的样式就是这么改的）。',
+    '2. **提示是纯文本**。文案经 `textContent` 写入，不会解析任何标记。',
+    '3. **触摸不触发**。`pointerType === "touch"` 直接跳过，避免点一下就闪出读不完的提示。',
+    '',
+]
+
 WINDOW_EVENTS_SECTION = [
     '## 前端 `window` 事件（Provisional）',
     '',
@@ -489,6 +516,7 @@ def render() -> str:
         '`[toast] …` 警告，通知文案不受影响。',
         '',
     ]
+    lines += TOOLTIP_SECTION
     lines += WINDOW_EVENTS_SECTION
     lines += [
         '## 相关文档',
