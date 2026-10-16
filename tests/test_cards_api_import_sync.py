@@ -26,6 +26,7 @@ from core.data.index_runtime_store import ensure_index_runtime_schema
 from core.services import automation_service
 from core.services import card_service
 from core.services import cache_service
+from core.services import forum_update_service
 from core.services import index_build_service
 from core.services import index_job_worker
 from core.utils.image import write_card_metadata
@@ -550,7 +551,8 @@ def test_update_card_content_automation_exception_returns_warning(monkeypatch, t
     assert '自动化' in result['warning']
 
 
-def test_update_card_from_url_skips_source_refresh_without_global_baseline_action(monkeypatch, tmp_path):
+def test_update_card_from_url_clears_pending_source_update_without_network(monkeypatch, tmp_path):
+    """URL 更新是真拉齐动作：撤销待处理标记，且不发起来源网络请求。"""
     class _FakeResponse:
         def raise_for_status(self):
             return None
@@ -559,7 +561,21 @@ def test_update_card_from_url_skips_source_refresh_without_global_baseline_actio
             del chunk_size
             yield b'fake-card'
 
-    refresh_calls = []
+    ui_data = {
+        'hero.png': {
+            'link': 'https://discord.com/channels/1/2/threads/3',
+            '_source_update_v1': {
+                'source_url': 'https://discord.com/channels/1/2/threads/3',
+                'source_title': '标题 A',
+                'first_message_revision_at': 400.0,
+                'baseline_established': True,
+                'pending_update': True,
+                'pending_status': 'updated',
+                'pending_since': 450.0,
+            },
+        }
+    }
+    saved = []
 
     monkeypatch.setattr(cards_api, 'BASE_DIR', str(tmp_path))
     monkeypatch.setattr(
@@ -568,9 +584,14 @@ def test_update_card_from_url_skips_source_refresh_without_global_baseline_actio
         type('Requests', (), {'get': staticmethod(lambda *_args, **_kwargs: _FakeResponse())})(),
     )
     monkeypatch.setattr(cards_api, 'extract_card_info', lambda _path: {'data': {'name': 'Hero'}})
-    monkeypatch.setattr(cards_api, 'load_ui_data', lambda: {
-        'hero.png': {'link': 'https://discord.com/channels/1/2/threads/3'},
-    })
+    monkeypatch.setattr(cards_api, 'load_ui_data', lambda: ui_data)
+    monkeypatch.setattr(cards_api, 'save_ui_data', lambda payload, **_kwargs: saved.append(payload) or True)
+    # 来源状态由 forum_update_service 自己读写 ui_data，落盘钩子要打在它那一侧。
+    monkeypatch.setattr(
+        forum_update_service,
+        'save_ui_data',
+        lambda payload, **_kwargs: saved.append(payload) or True,
+    )
     monkeypatch.setattr(cards_api, 'get_import_time', lambda *_args, **_kwargs: 123.0)
     monkeypatch.setattr(
         cards_api,
@@ -581,21 +602,90 @@ def test_update_card_from_url_skips_source_refresh_without_global_baseline_actio
             'updated_card': {
                 'id': 'hero.png',
                 'image_url': '/cards_file/hero.png',
+                'last_modified': 500.0,
             },
         },
     )
+
+    def fail_source_request(*_args, **_kwargs):
+        raise AssertionError('URL 更新不应再联网刷新来源基线')
+
+    # 离线拉齐路径不允许触达 Discord；检查阶段的观测值已经够用。
+    monkeypatch.setattr(forum_update_service, 'fetch_discord_source', fail_source_request)
     monkeypatch.setattr(
-        cards_api,
-        'refresh_card_source_baseline',
-        lambda *args, **kwargs: refresh_calls.append((args, kwargs))
-        or {'success': False, 'status': 'error'},
+        automation_service,
+        'load_config',
+        lambda: {'active_automation_ruleset': None},
     )
+
+    response = _make_app().test_client().post(
+        '/api/update_card_from_url',
+        json={
+            'card_id': 'hero.png',
+            'url': 'https://example.com/hero.png',
+            'keep_ui_data': {
+                'source_link': 'https://discord.com/channels/1/2/threads/3',
+            },
+        },
+    )
+
+    payload = response.get_json()
+    assert response.status_code == 200
+    assert payload['success'] is True
+    assert payload['source_title_sync']['status'] == 'baseline_refreshed'
+    assert payload['updated_card']['source_update']['pending_update'] is False
+    assert ui_data['hero.png']['_source_update_v1']['pending_update'] is False
+    # 基线本身保留，帖子再次更新时仍能报出新变化。
+    assert ui_data['hero.png']['_source_update_v1']['first_message_revision_at'] == 400.0
+    assert saved
+
+
+def test_update_card_from_url_keeps_pending_when_local_copy_is_older(monkeypatch, tmp_path):
+    """落盘版本早于已观测的远端修订时不撤销标记，避免把误报清成「已拉齐」。"""
+    class _FakeResponse:
+        def raise_for_status(self):
+            return None
+
+        def iter_content(self, chunk_size=8192):
+            del chunk_size
+            yield b'fake-card'
+
+    ui_data = {
+        'hero.png': {
+            'link': 'https://discord.com/channels/1/2/threads/3',
+            '_source_update_v1': {
+                'source_url': 'https://discord.com/channels/1/2/threads/3',
+                'first_message_revision_at': 400.0,
+                'baseline_established': True,
+                'pending_update': True,
+                'pending_status': 'updated',
+                'pending_since': 450.0,
+            },
+        }
+    }
+
+    monkeypatch.setattr(cards_api, 'BASE_DIR', str(tmp_path))
     monkeypatch.setattr(
         cards_api,
-        '_refresh_source_after_update',
-        lambda *args, **kwargs: pytest.fail(
-            'card content update must not invoke source baseline refresh'
-        ),
+        'requests',
+        type('Requests', (), {'get': staticmethod(lambda *_args, **_kwargs: _FakeResponse())})(),
+    )
+    monkeypatch.setattr(cards_api, 'extract_card_info', lambda _path: {'data': {'name': 'Hero'}})
+    monkeypatch.setattr(cards_api, 'load_ui_data', lambda: ui_data)
+    monkeypatch.setattr(cards_api, 'save_ui_data', lambda *_args, **_kwargs: True)
+    monkeypatch.setattr(cards_api, 'get_import_time', lambda *_args, **_kwargs: 123.0)
+    monkeypatch.setattr(
+        cards_api,
+        'update_card_content',
+        lambda *_args, **_kwargs: {
+            'success': True,
+            'new_id': 'hero.png',
+            'updated_card': {
+                'id': 'hero.png',
+                'image_url': '/cards_file/hero.png',
+                'last_modified': 100.0,
+            },
+        },
     )
     monkeypatch.setattr(
         automation_service,
@@ -608,7 +698,6 @@ def test_update_card_from_url_skips_source_refresh_without_global_baseline_actio
         json={
             'card_id': 'hero.png',
             'url': 'https://example.com/hero.png',
-            'sync_source_title': True,
             'keep_ui_data': {
                 'source_link': 'https://discord.com/channels/1/2/threads/3',
             },
@@ -616,10 +705,9 @@ def test_update_card_from_url_skips_source_refresh_without_global_baseline_actio
     )
 
     payload = response.get_json()
-    assert response.status_code == 200
     assert payload['success'] is True
     assert payload['source_title_sync'] is None
-    assert refresh_calls == []
+    assert ui_data['hero.png']['_source_update_v1']['pending_update'] is True
 
 
 def test_import_from_url_enqueues_card_and_world_sync_jobs(monkeypatch, tmp_path):

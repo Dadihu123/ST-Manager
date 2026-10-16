@@ -2985,8 +2985,8 @@
                         <div class="detail-manage-helper">
                           文件覆盖和 URL 更新会共用这个策略。
                         </div>
-                        <div class="detail-source-title-sync-options">
-                          <label class="detail-source-title-sync-toggle">
+                        <div class="detail-manage-option-group">
+                          <label class="detail-manage-option-toggle">
                             <input
                               type="checkbox"
                               x-model="updateCreatorPolicy"
@@ -2997,21 +2997,6 @@
                           </label>
                           <div class="detail-manage-helper">
                             开启后，升级文件里的创作者不会顶掉当前值；来源作者动作写入的创作者也不会因覆盖而丢失。
-                          </div>
-                        </div>
-                        <div
-                          x-show="canCheckSourceUpdate()"
-                          class="detail-source-title-sync-options"
-                        >
-                          <label class="detail-source-title-sync-toggle">
-                            <input
-                              type="checkbox"
-                              x-model="syncSourceTitleOnUpdate"
-                            />
-                            <span>更新后刷新来源标题与首帖基线</span>
-                          </label>
-                          <div class="detail-manage-helper">
-                            仅在实际文件、URL 更新或覆盖导入成功后执行；保存链接本身不会检查。不会修改角色卡名称。
                           </div>
                         </div>
                       </div>

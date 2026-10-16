@@ -60,9 +60,25 @@ def test_load_config_warns_when_existing_file_is_invalid(tmp_path, monkeypatch, 
     assert 'falling back to defaults for the current process' in caplog.text
 
 
+def test_normalize_config_drops_removed_keys_from_legacy_files(tmp_path, monkeypatch):
+    """旧 config.json 里的下线键在读取时被剔除，不会继续流回前端设置页。"""
+    target = tmp_path / 'config.json'
+    target.write_text(
+        json.dumps({'host': '1.2.3.4', 'sync_source_title_on_update': False}),
+        encoding='utf-8',
+    )
+    monkeypatch.setattr(config_module, 'CONFIG_FILE', str(target))
+
+    cfg = config_module.load_config()
+
+    assert cfg['host'] == '1.2.3.4'
+    for key in config_module.REMOVED_CONFIG_KEYS:
+        assert key not in cfg
+    assert 'sync_source_title_on_update' not in config_module.DEFAULT_CONFIG
+
+
 def test_get_default_config_overrides_uses_docker_host():
     assert app_module.get_default_config_overrides(True) == {'host': '0.0.0.0'}
-
 
 def test_get_default_config_overrides_uses_localhost_outside_docker():
     assert app_module.get_default_config_overrides(False) is None

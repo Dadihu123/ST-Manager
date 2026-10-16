@@ -150,7 +150,6 @@ ST Manager 使用项目根目录的 `config.json`。文件不存在时，`app.py
 | `discord_bot_token` | `""` | Discord Bot Token；需要访问目标论坛的权限 |
 | `discord_user_cookie` | `""` | 浏览器复制的 Discord Cookie |
 | `shimmerday_forum_cookie` | `""` | 类脑搜索站帖子预览使用的会话 Cookie |
-| `sync_source_title_on_update` | `true` | 更新角色卡时是否同步来源贴标题 |
 | `automation_slash_is_tag_separator` | `false` | 自动化标签分割时是否把 `/` 与 `|` 都视为分隔符 |
 
 Discord Token、Cookie 和论坛 Cookie 都属于敏感凭据。建议只写入本机配置或通过部署密钥管理，不要放入截图、日志和版本库。

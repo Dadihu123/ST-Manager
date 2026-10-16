@@ -36,6 +36,13 @@ for d in [DATA_DIR, SYSTEM_DIR, DB_FOLDER, THUMB_FOLDER, TRASH_FOLDER, TEMP_DIR]
         try: os.makedirs(d)
         except: pass
 
+# 已下线的配置键：读取时统一剔除，避免旧 config.json 里继续残留。
+# sync_source_title_on_update 曾用于控制「更新卡片后是否联网抓来源标题」，
+# 该联网行为已改为离线复用检查阶段的观测值，开关随之取消。
+REMOVED_CONFIG_KEYS = (
+    'sync_source_title_on_update',
+)
+
 # 默认配置
 DEFAULT_CONFIG = {
     "cards_dir": "data/library/characters",
@@ -158,8 +165,6 @@ DEFAULT_CONFIG = {
     "discord_user_cookie": "",     # 浏览器Cookie字符串
     # 类脑搜索站 forum.shimmerday.top 的会话 Cookie（帖子预览专用）
     "shimmerday_forum_cookie": "",
-    # 更新角色卡时，是否默认同步 Discord 来源贴标题
-    "sync_source_title_on_update": True,
 
     # 标签分隔规则
     # False: 仅将 | 视为自动化标签分隔符（保留 / 作为标签字符）
@@ -269,6 +274,8 @@ def normalize_config(cfg=None):
     )
     normalized['tt_data_dir'] = str(normalized.get('tt_data_dir') or '').strip()
     normalized['tt_api_url'] = str(normalized.get('tt_api_url') or '').strip()
+    for key in REMOVED_CONFIG_KEYS:
+        normalized.pop(key, None)
     return normalized
 
 

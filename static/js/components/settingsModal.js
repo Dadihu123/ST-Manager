@@ -93,7 +93,6 @@ const DEFAULT_SETTINGS = {
   discord_bot_token: "",
   discord_user_cookie: "",
   shimmerday_forum_cookie: "",
-  sync_source_title_on_update: true,
   automation_slash_is_tag_separator: false,
   silent_snapshot: false,
 };

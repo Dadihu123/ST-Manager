@@ -209,7 +209,6 @@ def test_update_embedded_worldbook_writes_history_for_current_entry_uid(monkeypa
     monkeypatch.setattr(cards_api, 'calculate_token_count', lambda _data: 0)
     monkeypatch.setattr(cards_api, 'sync_card_index_jobs', lambda **_kwargs: {})
     monkeypatch.setattr(cards_api, '_apply_card_index_increment_now', lambda *_args, **_kwargs: None)
-    monkeypatch.setattr(cards_api, '_refresh_source_after_update', lambda *_args, **_kwargs: None)
     monkeypatch.setattr(cards_api, 'auto_run_forum_tags_on_link_update', lambda _card_id: None)
 
     class _FakeCache:

@@ -86,7 +86,6 @@ export default function detailModal() {
         _basicSplitPointerUpHandler: null,
         updateImagePolicy: 'overwrite', // 默认策略
         updateCreatorPolicy: 'preserve', // 覆盖升级时默认保留已有创作者
-        syncSourceTitleOnUpdate: true,
         sourceUpdateChecking: false,
         sourceUpdateAcknowledging: false,
         saveOldCoverOnSwap: false,      // 皮肤换封时是否保留旧图
@@ -1520,7 +1519,6 @@ export default function detailModal() {
                     this.isSendingToST = false;
                     this.updateImagePolicy = 'overwrite';
                     this.updateCreatorPolicy = 'preserve';
-                    this.syncSourceTitleOnUpdate = this.$store?.global?.settingsForm?.sync_source_title_on_update !== false;
                     this.sourceUpdateChecking = false;
                     this.sourceUpdateAcknowledging = false;
                     this.saveOldCoverOnSwap = false;
@@ -1534,15 +1532,6 @@ export default function detailModal() {
                     this.showGreetingListModal = false;
                     this.greetingListSearch = '';
                 }
-            });
-
-            // 标题同步开关是常驻偏好，沿用全局设置接口持久化。
-            this.$watch('syncSourceTitleOnUpdate', (value) => {
-                if (!this.showDetail || !this.$store?.global?.settingsForm) return;
-                const normalized = value !== false;
-                if (this.$store.global.settingsForm.sync_source_title_on_update === normalized) return;
-                this.$store.global.settingsForm.sync_source_title_on_update = normalized;
-                Promise.resolve(this.$store.global.saveSettings(false)).catch(() => {});
             });
 
             this.$watch('$store.global.deviceType', (deviceType) => {
@@ -2137,7 +2126,6 @@ export default function detailModal() {
             this.detailLoading = true;
             this.detailLoadError = '';
             this.activeCard = c;
-            this.syncSourceTitleOnUpdate = this.$store?.global?.settingsForm?.sync_source_title_on_update !== false;
             this.sourceUpdateChecking = false;
             this.skinImages = [];
             this.currentSkinIndex = -1;
@@ -2547,7 +2535,6 @@ export default function detailModal() {
             formData.append('card_id', this.editingData.id);
             formData.append('is_bundle_update', isBundleUpdate);
             formData.append('image_policy', finalPolicy);
-            formData.append('sync_source_title', this.syncSourceTitleOnUpdate ? 'true' : 'false');
             // Bundle 新增版本时，不传递 ui_summary（新版本应该无备注）
             formData.append('keep_ui_data', JSON.stringify({
                 ui_summary: isBundleUpdate ? '' : this.editingData.ui_summary,
@@ -2635,7 +2622,6 @@ export default function detailModal() {
                 url: url,
                 is_bundle_update: isBundleUpdate,
                 image_policy: finalPolicy,
-                sync_source_title: this.syncSourceTitleOnUpdate,
                 creator_policy: this.updateCreatorPolicy || 'preserve',
                 keep_ui_data: {
                     ui_summary: isBundleUpdate ? '' : this.editingData.ui_summary,
@@ -2672,6 +2658,13 @@ export default function detailModal() {
                 if (updatedCard) {
                     const responseRevision = updatedCard.source_revision || res.source_revision || "";
                     if (responseRevision) updatedCard.source_revision = responseRevision;
+                    // 真更新落盘后后端会撤销待处理来源标记；把新状态带上，避免徽标
+                    // 继续显示已被拉齐的「有更新」。链接变更的基线刷新也走这里。
+                    const sourceSync = res.source_title_sync;
+                    if (sourceSync?.source_update) {
+                        updatedCard.source_update = sourceSync.source_update;
+                        updatedCard.source_title = sourceSync.source_update.source_title || "";
+                    }
                     const ts = new Date().getTime();
                     if (updatedCard.image_url) updatedCard.image_url += `?t=${ts}`;
                     
@@ -3702,7 +3695,7 @@ export default function detailModal() {
             return {
                 title_synced: '来源标题已同步，尚未建立检查基线',
                 baseline_established: '已建立基线，下一次才能判断',
-                baseline_refreshed: '角色卡更新后，来源标题和首帖基线已刷新',
+                baseline_refreshed: '角色卡已更新，来源检查基线已对齐',
                 first_check_updated: '首次检查发现来源首帖晚于本地角色卡，已标记为待处理更新',
                 updated: '检测到来源首帖已更新',
                 title_changed: '检测到来源标题已变化',

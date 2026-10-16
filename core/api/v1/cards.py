@@ -18,7 +18,6 @@ from flask import Blueprint, request, jsonify, send_file, send_from_directory
 # === 基础设施 ===
 from core.config import CARDS_FOLDER, DATA_DIR, BASE_DIR, THUMB_FOLDER, TRASH_FOLDER, DEFAULT_DB_PATH, TEMP_DIR, load_config, current_config
 from core.context import ctx
-from core.automation.constants import TRIGGER_CONTEXT_LINK_UPDATE
 from core.data.db_session import get_db
 from core.data.ui_store import (
     load_ui_data,
@@ -81,7 +80,6 @@ from core.services.automation_service import (
     auto_run_forum_tags_on_link_update,
     auto_run_tag_merge_on_tagging,
     get_global_tag_merge_runtime,
-    has_global_source_baseline_action,
 )
 from core.services.wi_entry_history_service import (
     ensure_entry_uids,
@@ -94,10 +92,10 @@ from core.services.wi_entry_history_service import (
     resolve_card_uid,
 )
 from core.services.forum_update_service import (
+    accept_local_source_baseline,
     acknowledge_card_source_update,
     check_card_source_update,
     prepare_source_link_for_card,
-    refresh_card_source_baseline,
 )
 from core.services.source_update_monitor_service import (
     add_monitor_entries,
@@ -538,16 +536,6 @@ def _coerce_request_bool(value) -> bool:
     return bool(value)
 
 
-def _source_title_sync_enabled(payload=None):
-    """读取卡片实际更新后刷新来源信息的常驻开关，默认开启。"""
-    if isinstance(payload, dict) and 'sync_source_title' in payload:
-        return _coerce_request_bool(payload.get('sync_source_title'))
-    try:
-        return bool(load_config().get('sync_source_title_on_update', True))
-    except Exception:
-        return True
-
-
 CREATOR_POLICY_PRESERVE = 'preserve'
 CREATOR_POLICY_OVERWRITE = 'overwrite'
 
@@ -564,31 +552,46 @@ def _normalize_creator_policy(value) -> str:
     return CREATOR_POLICY_PRESERVE
 
 
-def _refresh_source_after_update(
-    card_id,
-    payload=None,
-    source_link=None,
-    ui_data=None,
-    trigger_context=None,
-):
-    """仅允许来源链接更新入口调用来源基线刷新。"""
-    if not card_id or not _source_title_sync_enabled(payload):
+def _accept_local_source_update(result, *, ui_data=None, card_ids=None, local_mtime=None):
+    """真更新落盘后撤销待处理来源标记，并把新状态回传给前端。
+
+    只有「帖主更新了角色卡、用户把新版本取回本地」这类入口才调用：URL 更新、
+    文件覆盖更新和覆盖导入。判定完全离线，复用检查阶段已保存的远端修订时间，
+    不发起网络请求，因此不会因为网络失败被误记成「检查失败」。
+    ``card_ids`` 用于覆盖导入时目标可能同时存在 ``.json``/``.png`` 两种 ID 的情况；
+    ``local_mtime`` 传入刚落盘的文件时间，避免读到尚未刷新的缓存旧值。
+    """
+    if not isinstance(result, dict) or not result.get('success'):
         return None
-    if trigger_context != TRIGGER_CONTEXT_LINK_UPDATE:
-        return None
-    # 只有全局规则实际配置了链接更新场景的基线动作时，才允许自动访问来源。
-    # 否则保持无基线状态，避免网络失败被误记为“检查失败”。
-    if not has_global_source_baseline_action(trigger_context=trigger_context):
-        return None
-    try:
-        return refresh_card_source_baseline(
-            card_id,
-            source_link=source_link,
-            ui_data=ui_data,
+
+    candidates = [
+        str(card_id).strip()
+        for card_id in (
+            card_ids if card_ids is not None else [result.get('new_id') or result.get('id')]
         )
-    except Exception as exc:
-        logger.warning('刷新来源基线失败 (%s): %s', card_id, exc)
-        return {'success': False, 'status': 'error', 'error': str(exc)}
+        if card_id
+    ]
+    if not candidates:
+        return None
+
+    accepted = None
+    for card_id in candidates:
+        try:
+            accepted = accept_local_source_baseline(
+                card_id,
+                ui_data=ui_data,
+                local_mtime=local_mtime,
+            )
+        except Exception as exc:
+            logger.warning('撤销待处理来源标记失败 (%s): %s', card_id, exc)
+            accepted = None
+        if accepted:
+            break
+
+    if accepted and isinstance(result.get('updated_card'), dict):
+        result['updated_card']['source_update'] = accepted['source_update']
+        result['updated_card']['source_title'] = accepted['source_update'].get('source_title', '')
+    return accepted
 
 
 def _safe_source_update_ui_key(card_id):
@@ -2791,6 +2794,16 @@ def api_import_from_url():
         import_time_changed, import_time_val = ensure_import_time(ui_data, rel_path, mtime)
         if import_time_changed:
             save_ui_data(ui_data)
+
+        # 覆盖导入是「把帖主的新版本取回本地」的拉齐动作：撤销待处理标记。
+        overwritten_source_update = None
+        if resolution == 'overwrite' and overwritten_card_id:
+            overwritten_source_update = _accept_local_source_update(
+                {'success': True, 'new_id': rel_path},
+                ui_data=ui_data,
+                card_ids=[overwritten_card_id, rel_path],
+                local_mtime=mtime,
+            )
         
         # === 6. 更新缓存与返回 ===
         cache_result = update_card_cache(rel_path, target_save_path)
@@ -2848,6 +2861,17 @@ def api_import_from_url():
             "file_hash": final_hash,
             "is_bundle": False
         }
+
+        if resolution == 'overwrite':
+            # 覆盖导入沿用原卡片的来源链接；拉齐后的来源状态一并回传给前端。
+            ui_key_for_import = _safe_source_update_ui_key(rel_path)
+            existing_ui_entry = ui_data.get(ui_key_for_import)
+            if isinstance(existing_ui_entry, dict):
+                new_card['source_link'] = existing_ui_entry.get('link', '')
+                new_card['ui_summary'] = existing_ui_entry.get('summary', '')
+            import_source_state = get_source_update_state(ui_data, ui_key_for_import)
+            new_card['source_update'] = import_source_state
+            new_card['source_title'] = import_source_state.get('source_title', '')
         
         ctx.cache.add_card_update(new_card)
         
@@ -3340,12 +3364,18 @@ def api_update_card_from_url():
         )
 
         if result.get('success'):
-            result['import_time'] = get_import_time(load_ui_data(), result.get('new_id') or card_id, result.get('last_modified', time.time()))
+            ui_data = load_ui_data()
+            result['import_time'] = get_import_time(ui_data, result.get('new_id') or card_id, result.get('last_modified', time.time()))
             updated_card = result.get('updated_card')
             if isinstance(updated_card, dict):
                 updated_card['import_time'] = result['import_time']
-            # 来源基线由“更新来源链接后”或手动规则执行负责，内容更新不触发来源访问。
-            result['source_title_sync'] = None
+            # 从来源帖取回新版本就是拉齐动作：撤销待处理标记，不发起网络请求。
+            # 链接变更的基线刷新仍由“更新来源链接后”的来源动作负责。
+            result['source_title_sync'] = _accept_local_source_update(
+                result,
+                ui_data=ui_data,
+                local_mtime=(updated_card or {}).get('last_modified'),
+            )
 
         if os.path.exists(temp_path): os.remove(temp_path)
         return jsonify(result)
@@ -5010,12 +5040,18 @@ def api_update_card_file():
         )
 
         if result.get('success'):
-            result['import_time'] = get_import_time(load_ui_data(), result.get('new_id') or card_id, time.time())
+            ui_data = load_ui_data()
+            result['import_time'] = get_import_time(ui_data, result.get('new_id') or card_id, time.time())
             updated_card = result.get('updated_card')
             if isinstance(updated_card, dict):
                 updated_card['import_time'] = result['import_time']
-            # 文件更新不是来源链接更新，不执行来源基线/论坛标签/作者动作。
-            result['source_title_sync'] = None
+            # 文件覆盖更新同样是拉齐动作：撤销待处理标记，不发起网络请求。
+            # 来源链接本身的变更仍由链接更新入口负责刷新基线。
+            result['source_title_sync'] = _accept_local_source_update(
+                result,
+                ui_data=ui_data,
+                local_mtime=(updated_card or {}).get('last_modified'),
+            )
         
         if os.path.exists(temp_path): os.remove(temp_path)
         return jsonify(result)
@@ -5967,6 +6003,21 @@ def api_upload_commit():
             existing_ui_entry = ui_data.get(ui_key_for_import, {})
             if not isinstance(existing_ui_entry, dict):
                 existing_ui_entry = {}
+
+            # 覆盖导入是「把帖主的新版本取回本地」的拉齐动作：撤销待处理标记。
+            # 新增卡片（非覆盖）没有既有来源状态，函数会直接返回 None。
+            if action == 'overwrite' and filename == target_filename and has_conflict:
+                overwrite_accepted = _accept_local_source_update(
+                    {'success': True, 'new_id': rel_id},
+                    ui_data=ui_data,
+                    card_ids=[ui_key_for_import, rel_id],
+                    local_mtime=mtime,
+                )
+                if overwrite_accepted:
+                    ui_key_for_import = _safe_source_update_ui_key(overwrite_accepted['card_id'])
+                    existing_ui_entry = ui_data.get(ui_key_for_import, {})
+                    if not isinstance(existing_ui_entry, dict):
+                        existing_ui_entry = {}
             
             cache_result = update_card_cache(rel_id, dst_path, parsed_info=info, file_hash=final_hash, file_size=final_size, mtime=mtime)
             sync_card_index_jobs(

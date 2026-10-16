@@ -53,9 +53,17 @@ def test_detail_management_gates_source_controls_and_exposes_acknowledge_action(
     template = read_project_file('templates/modals/detail_card.html')
     script = read_project_file('static/js/components/detailModal.js')
 
-    assert 'class="detail-source-title-sync-options"' in template
     assert 'x-show="canCheckSourceUpdate()"' in template
-    assert 'x-model="syncSourceTitleOnUpdate"' in template
+    # 真更新后的基线拉齐不再有独立开关，更新入口无条件执行。
+    assert 'syncSourceTitleOnUpdate' not in template
+    assert 'sync_source_title' not in template
+    assert 'syncSourceTitleOnUpdate' not in script
+    assert 'sync_source_title_on_update' not in script
+    # 「来源标题同步」下线后，原先承载它的样式类改名为中性的更新选项类，
+    # 留着旧名会让后来者以为界面里仍有来源标题开关。
+    assert 'detail-source-title-sync-options' not in template
+    assert 'detail-source-title-sync-toggle' not in template
+    assert 'class="detail-manage-option-group"' in template
     assert 'x-show="hasPendingSourceUpdate()"' in template
     assert '@click="acknowledgeSourceUpdate()"' in template
     assert '确认无需更新' in template

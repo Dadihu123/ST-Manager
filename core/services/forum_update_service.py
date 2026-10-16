@@ -377,6 +377,7 @@ def is_supported_source_url(source_url):
 
 
 def _local_last_modified(card_id, card):
+    """返回本地角色卡的修改时间；缓存缺失时退回文件 mtime。"""
     if isinstance(card, dict):
         try:
             value = float(card.get('last_modified') or 0)
@@ -454,6 +455,79 @@ def prepare_source_link_for_card(card_id, source_link=None, *, ui_data=None):
     }
 
 
+def accept_local_source_baseline(card_id, *, ui_data=None, now=None, local_mtime=None):
+    """真更新落盘后判定本地是否已拉齐来源，并清掉待处理标记。
+
+    只用于「帖主更新了角色卡，用户把新版本取回本地」这类更新入口（URL 更新、
+    文件覆盖更新、覆盖导入）。检查阶段已经把远端首帖的修订时间写进状态，所以
+    这里不需要再次联网：本地文件 mtime 不早于已观测到的远端修订时间，就说明
+    这次落盘的内容就是那个版本，待处理标记可以撤销。手动编辑、自动化改名等
+    不经过本函数，不会隐式清除待处理状态。
+
+    ``local_mtime`` 供调用方传入刚刚落盘的文件时间，避免在缓存尚未刷新时读到
+    旧值导致判定失败。
+    """
+    card, ui_key, link, data = _resolve_card_and_source(card_id, ui_data=ui_data)
+    if not ui_key:
+        return None
+
+    state = _state_for_card(data, ui_key)
+    if not state.get('pending_update'):
+        return None
+    if not link or not _parse_discord_parts(link):
+        return None
+    if state.get('source_url') != link:
+        # 链接已经换过：新来源要重新建立基线，旧的待处理标记由链接入口负责。
+        return None
+
+    revision = state.get('first_message_revision_at')
+    if revision is None:
+        # 基线缺失（例如无法取得首帖编辑时间）时无法判定，保留待处理状态。
+        return None
+    try:
+        revision_value = float(revision)
+    except (TypeError, ValueError):
+        return None
+
+    if local_mtime is not None:
+        try:
+            observed_mtime = float(local_mtime)
+        except (TypeError, ValueError):
+            observed_mtime = 0.0
+    else:
+        observed_mtime = _local_last_modified(card_id, card)
+
+    if observed_mtime + 0.001 < revision_value:
+        # 本地文件仍早于已观测到的远端修订，说明落盘的不是这个来源的版本。
+        return None
+
+    next_state = dict(state)
+    next_state.update({
+        'pending_update': False,
+        'pending_status': '',
+        'pending_since': None,
+        'last_checked_at': float(now if now is not None else time.time()),
+        'last_status': 'baseline_refreshed',
+        'last_error': '',
+    })
+    changed, normalized_state = set_source_update_state(data, ui_key, next_state)
+    if changed:
+        save_ui_data(data)
+    _sync_card_source_update(card, normalized_state)
+
+    return {
+        'success': True,
+        'supported': True,
+        'status': 'baseline_refreshed',
+        'message': _status_message('baseline_refreshed'),
+        'card_id': card_id,
+        'baseline_established': True,
+        'source_update': normalized_state,
+        'accepted_local_update': True,
+        'checked_at': next_state['last_checked_at'],
+    }
+
+
 def _status_message(status, detail=''):
     message = {
         'no_source': '未配置来源链接',
@@ -461,7 +535,7 @@ def _status_message(status, detail=''):
         'never_checked': '尚未检查来源',
         'baseline_established': '已建立基线，下一次才能判断',
         'title_synced': '来源标题已同步，尚未建立检查基线',
-        'baseline_refreshed': '角色卡更新后，已刷新来源标题和首帖时间基线',
+        'baseline_refreshed': '角色卡已更新，来源检查基线已按已保存的帖子修订时间对齐',
         'first_check_updated': '首次检查发现来源首帖晚于本地角色卡，已标记为待处理更新',
         'updated': '检测到来源帖子已更新',
         'title_changed': '检测到来源标题已变化',

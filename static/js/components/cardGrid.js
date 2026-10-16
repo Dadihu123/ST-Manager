@@ -1054,7 +1054,7 @@ export default function cardGrid() {
       return {
         title_synced: '来源标题已同步，尚未建立检查基线',
         baseline_established: '已建立基线，下一次才能判断',
-        baseline_refreshed: '角色卡更新后，来源标题和首帖基线已刷新',
+        baseline_refreshed: '角色卡已更新，来源检查基线已对齐',
         first_check_updated: '首次检查发现来源首帖晚于本地角色卡，已标记为待处理更新',
         updated: '检测到来源首帖已更新',
         title_changed: '检测到来源标题已变化',

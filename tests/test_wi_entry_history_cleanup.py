@@ -311,7 +311,6 @@ def test_card_update_removing_embedded_worldbook_clears_history(monkeypatch, tmp
     )
     monkeypatch.setattr(cards_api, 'sync_card_index_jobs', lambda **_kwargs: {})
     monkeypatch.setattr(cards_api, '_apply_card_index_increment_now', lambda *_args, **_kwargs: None)
-    monkeypatch.setattr(cards_api, '_refresh_source_after_update', lambda *_args, **_kwargs: None)
     monkeypatch.setattr(cards_api, 'auto_run_forum_tags_on_link_update', lambda _card_id: None)
     monkeypatch.setattr(cards_api.ctx, 'cache', _FakeCache())
 

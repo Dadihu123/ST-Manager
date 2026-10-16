@@ -492,7 +492,7 @@ def test_refresh_after_card_update_adopts_remote_revision_as_new_baseline(monkey
     )
 
     assert result['status'] == 'baseline_refreshed'
-    assert result['message'] == '角色卡更新后，已刷新来源标题和首帖时间基线'
+    assert result['message'] == '角色卡已更新，来源检查基线已按已保存的帖子修订时间对齐'
     assert result['baseline_established'] is True
     assert result['source_update']['source_title'] == '新标题'
     assert result['source_update']['first_message_revision_at'] == 400.0
@@ -527,4 +527,98 @@ def test_refresh_after_card_update_keeps_pending_when_starter_message_is_unavail
 
     assert result['status'] == 'first_message_unavailable'
     assert result['source_update']['pending_update'] is True
-    assert result['source_update']['pending_status'] == 'updated'
+
+
+def _pending_state(revision=400.0):
+    return {
+        'source_url': 'https://discord.com/channels/1/2/threads/3',
+        'source_title': '标题 A',
+        'first_message_revision_at': revision,
+        'baseline_established': True,
+        'pending_update': True,
+        'pending_status': 'updated',
+        'pending_since': 450.0,
+    }
+
+
+def test_accept_local_baseline_clears_pending_without_network_request(monkeypatch):
+    """真更新落盘后直接复用已保存的远端修订时间，不再联网抓取。"""
+    data, cache = _prepare(monkeypatch, last_modified=500.0)
+    data['cards/demo.png']['_source_update_v1'] = _pending_state()
+
+    def fail_get(*_args, **_kwargs):
+        raise AssertionError('accept_local_source_baseline must not perform network requests')
+
+    monkeypatch.setattr(service, 'fetch_discord_source', fail_get)
+
+    result = service.accept_local_source_baseline('cards/demo.png', ui_data=data, now=600.0)
+
+    assert result['status'] == 'baseline_refreshed'
+    assert result['accepted_local_update'] is True
+    assert result['source_update']['pending_update'] is False
+    assert result['source_update']['pending_status'] == ''
+    assert result['source_update']['pending_since'] is None
+    assert result['source_update']['last_status'] == 'baseline_refreshed'
+    # 基线本身不被改写，后续检查仍能发现帖子又更新了一次。
+    assert result['source_update']['first_message_revision_at'] == 400.0
+    assert cache.id_map['cards/demo.png']['source_update']['pending_update'] is False
+
+
+def test_accept_local_baseline_keeps_pending_when_local_file_is_older(monkeypatch):
+    """本地落盘的版本早于已观测的远端修订时不撤销标记。"""
+    data, _ = _prepare(monkeypatch, last_modified=100.0)
+    data['cards/demo.png']['_source_update_v1'] = _pending_state()
+
+    result = service.accept_local_source_baseline('cards/demo.png', ui_data=data, now=600.0)
+
+    assert result is None
+    assert data['cards/demo.png']['_source_update_v1']['pending_update'] is True
+
+
+def test_accept_local_baseline_ignores_cards_without_pending_update(monkeypatch):
+    data, _ = _prepare(monkeypatch, last_modified=500.0)
+    state = _pending_state()
+    state.update({'pending_update': False, 'pending_status': '', 'pending_since': None})
+    data['cards/demo.png']['_source_update_v1'] = state
+
+    assert service.accept_local_source_baseline('cards/demo.png', ui_data=data) is None
+
+
+def test_accept_local_baseline_keeps_pending_when_baseline_is_missing(monkeypatch):
+    """无法取得首帖编辑时间时没有可对齐的修订，保留待处理状态。"""
+    data, _ = _prepare(monkeypatch, last_modified=500.0)
+    state = _pending_state()
+    state['first_message_revision_at'] = None
+    data['cards/demo.png']['_source_update_v1'] = state
+
+    assert service.accept_local_source_baseline('cards/demo.png', ui_data=data) is None
+    assert data['cards/demo.png']['_source_update_v1']['pending_update'] is True
+
+
+def test_accept_local_baseline_ignores_source_link_change(monkeypatch):
+    """链接已换过时不撤销标记，交给链接更新入口重建基线。"""
+    data, _ = _prepare(monkeypatch, last_modified=500.0)
+    state = _pending_state()
+    state['source_url'] = 'https://discord.com/channels/1/2/threads/9'
+    data['cards/demo.png']['_source_update_v1'] = state
+
+    assert service.accept_local_source_baseline('cards/demo.png', ui_data=data) is None
+    assert data['cards/demo.png']['_source_update_v1']['pending_update'] is True
+
+
+def test_accept_local_baseline_uses_explicit_local_mtime(monkeypatch):
+    """缓存尚未刷新时，调用方传入的落盘时间优先于缓存里的旧 mtime。"""
+    data, _ = _prepare(monkeypatch, last_modified=100.0)
+    data['cards/demo.png']['_source_update_v1'] = _pending_state()
+
+    result = service.accept_local_source_baseline(
+        'cards/demo.png',
+        ui_data=data,
+        local_mtime=500.0,
+        now=600.0,
+    )
+
+    assert result['accepted_local_update'] is True
+    assert result['source_update']['pending_update'] is False
+    assert result['source_update']['pending_status'] == ''
+    assert result['source_update']['last_status'] == 'baseline_refreshed'

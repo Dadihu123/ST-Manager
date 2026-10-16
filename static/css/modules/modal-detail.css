@@ -1836,7 +1836,7 @@ html.light-mode .skin-gallery-folder-symbol {
   color: var(--content-muted);
 }
 
-.detail-source-title-sync-toggle {
+.detail-manage-option-toggle {
   display: inline-flex;
   align-items: center;
   gap: 7px;
@@ -1846,13 +1846,13 @@ html.light-mode .skin-gallery-folder-symbol {
   cursor: pointer;
 }
 
-.detail-source-title-sync-options {
+.detail-manage-option-group {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
-.detail-source-title-sync-toggle input {
+.detail-manage-option-toggle input {
   accent-color: var(--accent-action);
 }
 
