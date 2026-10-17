@@ -210,11 +210,11 @@ class JobContext:
         """按 `secret_ref` 解析密钥值（密钥不落 `plugin_jobs.payload_json`）。"""
         if self._api is None:
             return None
-        return self._api.get_secret(key)
+        return self._api.secrets.get(key)
 
     def log(self, level: str, message: str) -> None:
         if self._api is not None:
-            self._api.notify(level, message)
+            self._api._write_log(level, message)
         else:
             logger.log(getattr(logging, str(level or 'info').upper(), logging.INFO), message)
 

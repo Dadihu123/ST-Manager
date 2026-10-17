@@ -1,4 +1,4 @@
-"""插件 CLI 子命令测试（设计文档 N2 与附录 I）。"""
+﻿"""插件 CLI 子命令测试（设计文档 N2 与附录 I）。"""
 
 import os
 import sys
@@ -31,10 +31,10 @@ def register(api):
         print(f"model={namespace.options.get('model')} force={namespace.options.get('force')}")
         return 0
 
-    api.register_cli("hello", hello, description="打招呼")
-    api.register_cli("counting", counting)
-    api.register_cli("boom", boom)
-    api.register_cli("optional", optional)
+    api.cli.register("hello", hello, description="打招呼")
+    api.cli.register("counting", counting)
+    api.cli.register("boom", boom)
+    api.cli.register("optional", optional)
 '''
 
 

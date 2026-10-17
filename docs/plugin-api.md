@@ -6,34 +6,60 @@
 > 契约分级与设计背景见 `docs/2026-09-22-plugin-system-design.md` 第 10 部分；
 > 稳定性变更须先在设计文档中修改，再更新代码与本文档。
 
-覆盖 `core/plugins/api.py` 的 `PluginAPI`（36 个公开方法）与 `static/js/pluginHost.js` 的 `buildApi()`（29 个顶层成员）。
+覆盖 `core/plugins/api.py` 的 `PluginAPI`（3 个顶层成员 + 63 个域方法）与 `static/js/pluginHost.js` 的 `buildApi()`（29 个顶层成员）。
 
 ## 后端 `PluginAPI`
 
-`register(api)` 收到的对象；方法可直接调用，实例属性只读。
+`register(api)` 收到的对象。能力按**域命名空间**组织：
 
-### 身份
+| 域 | 说明 |
+|---|---|
+| `api.cards.*` | 卡片读写、本地备注、移动与分类、结构化查询 |
+| `api.tags.*` | 标签库读取、分类体系与治理偏好、标签创建与合并 |
+| `api.worldbook.*` | 世界书读取、写回与条目历史 |
+| `api.backups.*` | 卡片快照的创建、列举与回滚 |
+| `api.jobs.*` | 后台作业的注册、提交、查询与生命周期 |
+| `api.private.*` | 私有命名空间、私有目录、私有表与只读查询 |
+| `api.config.*` | 插件配置读写（`config_schema` 声明过的键） |
+| `api.secrets.*` | 插件密钥读写（按插件 id 命名空间隔离） |
+| `api.http.*` | HTTP 路由注册（前缀强制 `/api/plugins/<id>`） |
+| `api.cli.*` | CLI 子命令注册 |
+| `api.log.*` | 带插件前缀的具名 level 日志 |
+| `api.index.*` | 宿主索引的状态、搜索与重建 |
+| `api.chats.*` | 会话列表与元数据（只读） |
+| `api.presets.*` | ST 预设读取（只读） |
+| `api.extensions.*` | 全局正则脚本与脚本库（只读） |
+
+域对象是**实例属性**（`api.cards is api.cards` 恒为真）：不要在插件里缓存整个 `PluginAPI` 之外的东西，也不要做 `isinstance` 之外的形状假设。
+
+顶层只保留三件事：`on` / `emit`（EventEmitter 惯用法，与前端 `api.on` / `api.off` / `api.emit` 对齐）与 `estimate_tokens`（跨域工具）。
+
+> **本地备注不在卡片文件里**：`api.cards.read_note()` / `write_note()` 读写的是`ui_data` 的备注字段，`api.cards.write_fields()` 的字段白名单**不含** `summary`。
+
+> **破坏性操作强制快照先行**：删除/批量覆盖类域方法在内部先创建快照；插件也可以主动用 `api.backups.snapshot_card()` 给自己的批量操作打快照，事后用 `api.backups.restore_card_snapshot()` 回滚。
+
+### 身份与域
 
 | 成员 | 类型 | 稳定性 | 说明 |
 |---|---|---|---|
 | `plugin_id` | `str` | Stable | 插件 id（等于 `manifest.id`，也等于目录名） |
 | `manifest` | `dict` | Stable | 插件清单的只读快照（见设计文档 2.2） |
 | `app_version` | `str` | Stable | 主程序版本（用于能力判断） |
-
-### 配置（`ui_data._plugins_v1.<id>.config`）
-
-| 方法 | 签名 | 稳定性 | 说明 |
-|---|---|---|---|
-| `get_config()` | `get_config() -> dict` | Stable | 读取插件配置：`config_schema` 默认值打底 + 用户保存值。 |
-| `set_config()` | `set_config(patch: dict) -> bool` | Stable | 浅合并写入插件配置（只接受 `config_schema` 声明过的键）。 |
-
-### 密钥（`secrets.json`）
-
-| 方法 | 签名 | 稳定性 | 说明 |
-|---|---|---|---|
-| `get_secret()` | `get_secret(key: str)` | Stable | 读取密钥：环境变量 > `secrets.json` > 非 secret 项的 schema 默认值。 |
-| `set_secret()` | `set_secret(key: str, value) -> bool` | Stable | 写入密钥；`None` / 空串表示清除该项。 |
-| `list_secrets()` | `list_secrets() -> dict` | Stable | 返回 `{key: {set, hint, updated_at}}`，secret 项永不返回明文。 |
+| `cards` | `CardDomain` | Stable | 卡片域，见下方 `api.cards.*` |
+| `tags` | `TagDomain` | Stable | 标签域，见下方 `api.tags.*` |
+| `worldbook` | `WorldbookDomain` | Stable | 世界书域，见下方 `api.worldbook.*` |
+| `backups` | `BackupDomain` | Stable | 备份域，见下方 `api.backups.*` |
+| `jobs` | `JobDomain` | Stable | 作业域，见下方 `api.jobs.*` |
+| `private` | `PrivateDomain` | Stable | 私有数据域，见下方 `api.private.*`；配额 256KB/命名空间 |
+| `config` | `ConfigDomain` | Stable | 配置域，见下方 `api.config.*` |
+| `secrets` | `SecretDomain` | Stable | 密钥域，见下方 `api.secrets.*` |
+| `http` | `HttpDomain` | Stable | HTTP 域，见下方 `api.http.*` |
+| `cli` | `CliDomain` | Stable | CLI 域，见下方 `api.cli.*` |
+| `log` | `LogDomain` | Stable | 日志域，见下方 `api.log.*` |
+| `index` | `IndexDomain` | Stable | 索引域，见下方 `api.index.*` |
+| `chats` | `ChatDomain` | Stable | 会话域（只读），见下方 `api.chats.*` |
+| `presets` | `PresetDomain` | Stable | 预设域（只读），见下方 `api.presets.*` |
+| `extensions` | `ExtensionDomain` | Stable | 全局扩展资源域（只读），见下方 `api.extensions.*` |
 
 ### 事件
 
@@ -42,67 +68,149 @@
 | `on()` | `on(event: str, handler) -> None` | Stable | 订阅事件（核心事件或本插件的自定义事件）。 |
 | `emit()` | `emit(event: str, payload: dict) -> None` | Stable | 派发事件；插件自定义事件必须以 `<plugin_id>:` 开头。 |
 
-### HTTP 路由
+### 工具
 
 | 方法 | 签名 | 稳定性 | 说明 |
 |---|---|---|---|
-| `blueprint()` | `blueprint(bp: flask.blueprints.Blueprint) -> bool` | Stable | 注册插件蓝图（自动加 `/api/plugins/<id>` 前缀 + 冲突检查）。 |
-| `route()` | `route(rule: str, methods=None)` | Stable | 装饰器：把视图函数注册到本插件的默认蓝图。 |
+| `estimate_tokens()` | `estimate_tokens(text) -> int` | Stable | 通用文本 token 估算，与前端 `api.estimateTokens` **同一公式**。 |
 
-### 作业
-
-| 方法 | 签名 | 稳定性 | 说明 |
-|---|---|---|---|
-| `register_job()` | `register_job(job_type: str, handler) -> None` | Stable | 注册作业处理器。`job_type` 必须已在 manifest 的 `backend.jobs` 声明。 |
-| `submit_job()` | `submit_job(job_type: str, *, items, payload=None) -> str` | Stable | 提交作业，返回 run_id。 |
-| `get_job()` | `get_job(run_id: str)` | Stable | 读取作业详情（含进度、条目与最近事件）；不存在或**非本插件作业**时返回 None。 |
-| `cancel_job()` | `cancel_job(run_id: str) -> bool` | Stable | 请求取消本插件的作业（协作式：处理器下次 `should_cancel()` 时退出）。 |
-| `retry_job()` | `retry_job(run_id: str, *, only_failed: bool = True) -> str` | Stable | 重跑本插件的作业；`only_failed=True` 时只重置失败条目，返回 run_id。 |
-| `pause_job()` | `pause_job(run_id: str) -> bool` | Stable | 暂停本插件的作业（D6 审批流：等待人工处理后由 `resume_job` 恢复）。 |
-| `resume_job()` | `resume_job(run_id: str) -> bool` | Stable | 恢复本插件被暂停的作业，返回是否成功。 |
-
-### CLI 子命令
+### `api.cards.*`
 
 | 方法 | 签名 | 稳定性 | 说明 |
 |---|---|---|---|
-| `register_cli()` | `register_cli(name: str, handler, description: str = '') -> None` | Stable | 注册一个 CLI 子命令（N2）：`python app.py plugin <id> <name> [args…]`。 |
+| `api.cards.read()` | `read(card_id: str)` | Stable | 读取角色卡完整数据（含内嵌世界书）。 |
+| `api.cards.read_many()` | `read_many(card_ids) -> dict` | Stable | 批量读取角色卡，返回 `{card_id: card\|None}`。 |
+| `api.cards.write_fields()` | `write_fields(card_id: str, patch: dict) -> bool` | Stable | 改写角色卡字段（内部：卡片锁 + `suppress_fs_events` + 缓存/索引同步）。 |
+| `api.cards.apply_tags()` | `apply_tags(card_ids, *, add=(), remove=(), replace: bool = False) -> dict` | Stable | 批量写入标签。 |
+| `api.cards.read_note()` | `read_note(card_id: str) -> str` | Stable | 读本地备注（卡片网格里「本地备注」那一栏）；无备注返回空串。 |
+| `api.cards.read_notes()` | `read_notes(card_ids) -> dict` | Stable | 批量读本地备注，返回 `{card_id: text}`（无备注为 `''`）。 |
+| `api.cards.write_note()` | `write_note(card_id: str, text: str) -> bool` | Stable | 写本地备注（走 `ui_data` 的锁内合并，不会与宿主 UI 的并发写丢更新）。 |
+| `api.cards.move()` | `move(card_ids, target_category: str) -> dict` | Stable | 批量移动卡片到分类（空串表示根目录）。 |
+| `api.cards.list_categories()` | `list_categories() -> list` | Stable | 全部分类路径（含子分类），相对 `CARDS_FOLDER`，升序。 |
+| `api.cards.create_category()` | `create_category(name: str, *, parent: str = '') -> bool` | Stable | 创建分类目录（已存在时返回 `True`，幂等）。 |
+| `api.cards.rename_category()` | `rename_category(old_path: str, new_path: str) -> bool` | Stable | 重命名 / 移动分类（含 DB 与 `ui_data` 前缀迁移）。 |
+| `api.cards.list()` | `list(*, query: str = '', category: str = '', tags=(), exclude_tags=(), limit: int = 100, offset: int = 0, sort: str = '', **filters) -> dict` | Stable | 结构化查询卡片（走索引，不用裸 SQL、不做全表扫）。 |
+| `api.cards.count()` | `count(**filters) -> int` | Stable | 按与 `list()` 相同的筛选条件计数（只取总数，不拉数据）。 |
+| `api.cards.read_extensions()` | `read_extensions(card_id: str) -> dict` | Stable | 读取卡片扩展字段的**归一化**视图。 |
 
-### 数据
-
-| 方法 | 签名 | 稳定性 | 说明 |
-|---|---|---|---|
-| `db()` | `db()` | Provisional | 主库连接（Provisional，建议只读）。 |
-| `table_prefix()` | `table_prefix() -> str` | Stable | 插件私有表的强制前缀：`plugin_<id（连字符转下划线）>_`。 |
-| `migrate()` | `migrate(statements) -> None` | Stable | 执行建表语句；表名与索引名强制 `plugin_<id>_` 前缀。 |
-| `data_dir()` | `data_dir() -> str` | Stable | 插件私有数据目录 `data/plugins/<id>/data/`（不存在时创建）。 |
-
-### 核心能力
-
-| 方法 | 签名 | 稳定性 | 说明 |
-|---|---|---|---|
-| `read_card()` | `read_card(card_id: str)` | Stable | 读取角色卡完整数据（含内嵌世界书）。 |
-| `read_cards()` | `read_cards(card_ids) -> dict` | Stable | 批量读取角色卡，返回 `{card_id: card|None}`。 |
-| `write_card_fields()` | `write_card_fields(card_id: str, patch: dict) -> bool` | Stable | 改写角色卡字段（内部：卡片锁 + `suppress_fs_events` + 缓存/索引同步）。 |
-| `apply_tags()` | `apply_tags(card_ids, *, add=(), remove=(), replace: bool = False) -> dict` | Stable | 批量写入标签。 |
-| `read_tag_library()` | `read_tag_library() -> dict` | Stable | 读取标签库：全部标签、排序、分类体系与治理偏好。 |
-| `read_worldbook()` | `read_worldbook(source: dict)` | Stable | 读取世界书内容（global / resource / embedded 三类来源）。 |
-| `write_worldbook()` | `write_worldbook(source: dict, data: dict, *, expected_revision: str = '') -> dict` | Stable | 写回世界书（含 `source_revision` 乐观锁与条目历史记账）。 |
-| `snapshot_card()` | `snapshot_card(card_id: str, *, remark: str = '') -> str | None` | Stable | 为角色卡创建快照，返回快照文件绝对路径。 |
-| `ui_data_read()` | `ui_data_read() -> dict` | Stable | 只读快照：仅本插件的 `_plugins_v1.<id>` 命名空间。 |
-| `ui_data_update()` | `ui_data_update(mutator) -> bool` | Stable | 在锁内修改本插件的命名空间（禁止直接读写整个 ui_data，避免 lost update）。 |
-
-### 文件系统抑制
+### `api.tags.*`
 
 | 方法 | 签名 | 稳定性 | 说明 |
 |---|---|---|---|
-| `suppress_fs_events()` | `suppress_fs_events(seconds: float = 1.5)` | Stable | 抑制文件系统事件的上下文管理器。 |
+| `api.tags.library()` | `library() -> dict` | Stable | 读取标签库：全部标签、排序、分类体系与治理偏好。 |
+| `api.tags.taxonomy()` | `taxonomy() -> dict` | Stable | 读取标签分类体系（`ui_data` 里的 `tag_to_category` / `category_tag_order`）。 |
+| `api.tags.update_taxonomy()` | `update_taxonomy(patch: dict) -> bool` | Stable | 更新标签分类体系。 |
+| `api.tags.prefs()` | `prefs() -> dict` | Stable | 读取标签治理偏好（`tag_blacklist` / `lock_tag_library` 等）。 |
+| `api.tags.update_prefs()` | `update_prefs(patch: dict) -> bool` | Stable | 更新标签治理偏好（浅合并）。 |
+| `api.tags.create()` | `create(tags) -> dict` | Stable | 把标签加入分类体系（**不写任何卡片**）。 |
+| `api.tags.merge()` | `merge(replace_rules) -> dict` | Stable | 按规则合并标签（复用 `core/automation/tag_merge.py`，含链式解析与环检测）。 |
 
-### 通知与日志
+### `api.worldbook.*`
 
 | 方法 | 签名 | 稳定性 | 说明 |
 |---|---|---|---|
-| `notify()` | `notify(level: str, message: str) -> None` | Stable | 写入日志，并在有活跃作业时追加一条 `log` 事件（供前端实时展示）。 |
-| `log()` | `log(level: str, message: str, **extra) -> None` | Stable | 带插件前缀的日志。 |
+| `api.worldbook.read()` | `read(source: dict)` | Stable | 读取世界书内容（global / resource / embedded 三类来源）。 |
+| `api.worldbook.write()` | `write(source: dict, data: dict, *, expected_revision: str = '') -> dict` | Stable | 写回世界书（含 `source_revision` 乐观锁与条目历史记账）。 |
+| `api.worldbook.list_entries()` | `list_entries(source: dict) -> list` | Stable | 列出世界书条目（读取的便捷投影，只返回 `entries` 列表）。 |
+| `api.worldbook.history()` | `history(source: dict, entry_uid) -> list` | Stable | 读取某个世界书条目的历史版本（最新在前）。 |
+
+### `api.backups.*`
+
+| 方法 | 签名 | 稳定性 | 说明 |
+|---|---|---|---|
+| `api.backups.snapshot_card()` | `snapshot_card(card_id: str, *, remark: str = '') -> str \| None` | Stable | 为角色卡创建快照，返回快照文件绝对路径（失败返回 None）。 |
+| `api.backups.list_card_snapshots()` | `list_card_snapshots(card_id: str) -> list` | Stable | 列出该卡片的全部快照（最新在前）。 |
+| `api.backups.restore_card_snapshot()` | `restore_card_snapshot(card_id: str, snapshot_path: str) -> dict` | Stable | 恢复快照（**恢复前自动再快照一次当前状态**，因此可回滚恢复本身）。 |
+
+### `api.jobs.*`
+
+| 方法 | 签名 | 稳定性 | 说明 |
+|---|---|---|---|
+| `api.jobs.register()` | `register(job_type: str, handler) -> None` | Stable | 注册作业处理器。`job_type` 必须已在 manifest 的 `backend.jobs` 声明。 |
+| `api.jobs.submit()` | `submit(job_type: str, *, items, payload=None) -> str` | Stable | 提交作业，返回 run_id。 |
+| `api.jobs.get()` | `get(run_id: str)` | Stable | 读取作业详情（含进度、条目与最近事件）；不存在或**非本插件作业**时返回 None。 |
+| `api.jobs.items()` | `items(run_id: str, *, status=None, limit: int = 0, offset: int = 0) -> list` | Stable | 读取作业条目（分页取全量，不受 `get()` 的条目上限约束）。 |
+| `api.jobs.cancel()` | `cancel(run_id: str) -> bool` | Stable | 请求取消本插件的作业（协作式：处理器下次 `should_cancel()` 时退出）。 |
+| `api.jobs.retry()` | `retry(run_id: str, *, only_failed: bool = True) -> str` | Stable | 重跑本插件的作业；`only_failed=True` 时只重置失败条目，返回 run_id。 |
+| `api.jobs.pause()` | `pause(run_id: str) -> bool` | Stable | 暂停本插件的作业（等待人工处理后由 `resume` 恢复）。 |
+| `api.jobs.resume()` | `resume(run_id: str) -> bool` | Stable | 恢复本插件被暂停的作业，返回是否成功。 |
+
+### `api.private.*`
+
+| 方法 | 签名 | 稳定性 | 说明 |
+|---|---|---|---|
+| `api.private.read()` | `read() -> dict` | Stable | 只读快照：仅本插件的 `_plugins_v1.<id>` 命名空间。 |
+| `api.private.update()` | `update(mutator) -> bool` | Stable | 在锁内修改本插件的命名空间（禁止直接读写整个 ui_data，避免 lost update）。 |
+| `api.private.dir()` | `dir() -> str` | Stable | 插件私有数据目录 `data/plugins/<id>/data/`（不存在时创建）。 |
+| `api.private.query()` | `query(sql: str, params=()) -> list` | Stable | 执行**只读** SQL（主库），返回 `list[dict]`。 |
+| `api.private.migrate()` | `migrate(statements) -> None` | Stable | 执行建表语句；表名与索引名强制 `plugin_<id>_` 前缀。 |
+| `api.private.table_prefix()` | `table_prefix() -> str` | Stable | 插件私有表的强制前缀：`plugin_<id（连字符转下划线）>_`。 |
+
+### `api.config.*`
+
+| 方法 | 签名 | 稳定性 | 说明 |
+|---|---|---|---|
+| `api.config.get()` | `get() -> dict` | Stable | 读取插件配置：`config_schema` 默认值打底 + 用户保存值。 |
+| `api.config.set()` | `set(patch: dict) -> bool` | Stable | 浅合并写入插件配置（只接受 `config_schema` 声明过的键）。 |
+
+### `api.secrets.*`
+
+| 方法 | 签名 | 稳定性 | 说明 |
+|---|---|---|---|
+| `api.secrets.get()` | `get(key: str)` | Stable | 读取密钥：环境变量 > `secrets.json` > 非 secret 项的 schema 默认值。 |
+| `api.secrets.set()` | `set(key: str, value) -> bool` | Stable | 写入密钥；`None` / 空串表示清除该项。 |
+| `api.secrets.list()` | `list() -> dict` | Stable | 返回 `{key: {set, hint, updated_at}}`，secret 项永不返回明文。 |
+
+### `api.http.*`
+
+| 方法 | 签名 | 稳定性 | 说明 |
+|---|---|---|---|
+| `api.http.route()` | `route(rule: str, methods=None)` | Stable | 装饰器：把视图函数注册到本插件的默认蓝图。 |
+| `api.http.blueprint()` | `blueprint(bp: flask.blueprints.Blueprint) -> bool` | Stable | 注册插件蓝图（自动加 `/api/plugins/<id>` 前缀 + 冲突检查）。 |
+
+### `api.cli.*`
+
+| 方法 | 签名 | 稳定性 | 说明 |
+|---|---|---|---|
+| `api.cli.register()` | `register(name: str, handler, description: str = '') -> None` | Stable | 注册一个 CLI 子命令。 |
+
+### `api.log.*`
+
+| 方法 | 签名 | 稳定性 | 说明 |
+|---|---|---|---|
+| `api.log.debug()` | `debug(message: str, **extra) -> None` | Stable | 写一条 debug 日志。 |
+| `api.log.info()` | `info(message: str, **extra) -> None` | Stable | 写一条 info 日志。 |
+| `api.log.warn()` | `warn(message: str, **extra) -> None` | Stable | 写一条 warning 日志。 |
+| `api.log.error()` | `error(message: str, **extra) -> None` | Stable | 写一条 error 日志。 |
+
+### `api.index.*`
+
+| 方法 | 签名 | 稳定性 | 说明 |
+|---|---|---|---|
+| `api.index.status()` | `status() -> dict` | Stable | 读取索引状态。 |
+| `api.index.search()` | `search(query: str, *, scope: str = 'cards', limit: int = 50, offset: int = 0, category: str = '', tags=(), search_mode: str = 'fast') -> dict` | Stable | 在宿主索引里搜索实体。 |
+| `api.index.rebuild()` | `rebuild(*, scope: str = 'cards') -> str` | Stable | 触发索引重建，返回作业 id（进度走 `status()`）。 |
+
+### `api.chats.*`
+
+| 方法 | 签名 | 稳定性 | 说明 |
+|---|---|---|---|
+| `api.chats.list()` | `list(*, search: str = '', favorite=None, limit: int = 0) -> list` | Stable | 列出会话条目（主程序 `chat_data.json` 的归一化结果）。 |
+| `api.chats.get()` | `get(chat_id: str)` | Stable | 读取单个会话条目；不存在返回 `None`。 |
+
+### `api.presets.*`
+
+| 方法 | 签名 | 稳定性 | 说明 |
+|---|---|---|---|
+| `api.presets.list()` | `list(*, search: str = '', limit: int = 0) -> list` | Stable | 列出 ST 预设（名称 / 文件名 / 路径）。 |
+| `api.presets.read()` | `read(file_path: str)` | Stable | 读取预设文件内容（原始 JSON）。 |
+
+### `api.extensions.*`
+
+| 方法 | 签名 | 稳定性 | 说明 |
+|---|---|---|---|
+| `api.extensions.regex_scripts()` | `regex_scripts() -> list` | Stable | 列出 ST 全局正则脚本。 |
+| `api.extensions.scripts()` | `scripts() -> list` | Stable | 列出 Tavern Helper 脚本资源。 |
 
 ### 内部方法（插件不应调用）
 
@@ -157,7 +265,7 @@
 ### deprecation 流程
 
 1. 在**设计文档**（`docs/2026-09-22-plugin-system-design.md` 第 10 部分）把该成员标为 `Deprecated`，写明替代写法。
-2. 在 `tools/gen_plugin_api_docs.py` 的 `FRONTEND_MEMBERS` / `BACKEND_GROUPS` 同步改分级，重新生成本文档。
+2. 在 `tools/gen_plugin_api_docs.py` 的 `FRONTEND_MEMBERS` / `BACKEND_GROUPS` / `BACKEND_DOMAINS` 同步改分级，重新生成本文档。
 3. 代码里保留实现，但加 `@deprecated` 注释指向替代写法；调用时记一条 `logger.warning`（后端）或 `console.warn`（前端）。
 4. 至少保留一个主版本后，在下一个主版本移除，并在 `CHANGELOG` 记录。
 

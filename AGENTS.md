@@ -101,18 +101,48 @@ on-disk file matches the generator output.
 
 | Generated file | Source of truth | Regenerate | Verify |
 |---|---|---|---|
-| `docs/plugin-api.md` | `core/plugins/api.py` (`PluginAPI`) + `static/js/pluginHost.js` (`buildApi()`) | `python tools/gen_plugin_api_docs.py` | `python tools/gen_plugin_api_docs.py --check` |
+| `docs/plugin-api.md` | `core/plugins/api.py` (`PluginAPI`) + `core/plugins/domains/*` + `static/js/pluginHost.js` (`buildApi()`) | `python tools/gen_plugin_api_docs.py` | `python tools/gen_plugin_api_docs.py --check` |
 | `static/js/utils/iconMap.js` | `static/icons/*.svg` (`id="icon-*"`) | `python tools/gen_plugin_ui_icons.py` | `python tools/gen_plugin_ui_icons.py --check` |
 
-Adding a new public method to `PluginAPI` or a new top-level member to the
-`buildApi()` return object requires registering it in `BACKEND_GROUPS` /
-`FRONTEND_MEMBERS` inside `tools/gen_plugin_api_docs.py`, or
-`tests/test_plugin_api_docs.py` fails.
+`PluginAPI` is a **domain-namespace facade**: its class body only holds `on` /
+`emit` / `estimate_tokens` (plus the internal `finalize` / `bind_job`), and every
+other capability hangs off domain objects (`api.cards.*`, `api.tags.*`,
+`api.worldbook.*`, `api.backups.*`, `api.jobs.*`, `api.private.*`, …) created in
+`__init__`. See `docs/2026-10-12-plugin-api-expansion.md` for the full design and
+`docs/plugin-api.md` for the generated reference.
+
+Registration rules for the API docs generator:
+
+- a new **top-level** member of `PluginAPI` → `BACKEND_GROUPS`;
+- a new **domain method** → `BACKEND_DOMAINS` (`('domain', '说明', 'Stable', ['method', …])`);
+- a new **domain** → add a row to `DOMAIN_CLASSES` in `core/plugins/domains/__init__.py`,
+  then register it in `BACKEND_DOMAINS` **and** `BACKEND_ATTRIBUTES`;
+- an internal/non-contract method → `BACKEND_INTERNAL`.
+
+Three hard constraints that fail tests immediately if violated:
+
+1. **Domains must be instance attributes, never `@property`.** The generator
+   collects public methods through two independent paths (AST parse of the class
+   body vs. runtime `inspect.getmembers`), and `@property` makes them disagree —
+   `test_ast_and_introspection_agree_on_public_methods` fails.
+2. **Domain methods must not go into `BACKEND_GROUPS`** (`test_grouped_methods_actually_exist`
+   checks `hasattr(PluginAPI, name)`, which is false for domain methods), and
+   conversely must not collide with top-level names.
+3. **`DOMAIN_CLASSES` is the single source of truth for domain names.**
+   `PluginAPI.__init__` builds domains from it, and the generator/tests enumerate
+   the same table, so a domain missing from it fails
+   `test_domain_classes_match_backend_domains_registry`.
 
 A member nested under an existing namespace (`host.onState`, `entries.*`,
 `surfaces.*`) is documented **inside that namespace's row** — do not add it as a
 separate top-level key, or `test_frontend_declared_members_are_exposed_by_host`
 fails (it checks the declared set against `buildApi()`'s literal top-level keys).
+
+Consistency mechanisms (card locks, `suppress_fs_events`, cache/DB/index
+synchronisation, path-boundary checks) live **once** in `core/plugins/api.py` as
+underscore-prefixed members, and domains reach them through
+`core/plugins/domains/_base.py`. Never re-implement them in a domain — that is how
+"card list doesn't refresh after a plugin moves a card" bugs get introduced.
 
 Prose sections of `docs/plugin-api.md` that are not derived from code (for example
 the `前端 window 事件（Provisional）` section) live as constants in

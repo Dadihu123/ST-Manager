@@ -1,4 +1,4 @@
-"""D4 回归保护：`apply_tags` 默认合并、不清空既有标签（设计文档 13.3）。"""
+﻿"""D4 回归保护：`apply_tags` 默认合并、不清空既有标签（设计文档 13.3）。"""
 
 import os
 import sys
@@ -37,13 +37,13 @@ def api_env(tmp_path, monkeypatch):
 
 
 def _tags(api, card_id='card.json'):
-    return api.read_card(card_id)['data']['tags']
+    return api.cards.read(card_id)['data']['tags']
 
 
 def test_default_call_merges_without_clearing(api_env):
     write_card(api_env['cards'], 'card.json', tags=['原有A', '原有B'])
 
-    api_env['api'].apply_tags(['card.json'], add=['新增C'])
+    api_env['api'].cards.apply_tags(['card.json'], add=['新增C'])
 
     assert _tags(api_env['api']) == ['原有A', '原有B', '新增C']
 
@@ -51,7 +51,7 @@ def test_default_call_merges_without_clearing(api_env):
 def test_default_is_merge_even_when_add_is_empty(api_env):
     write_card(api_env['cards'], 'card.json', tags=['原有A'])
 
-    api_env['api'].apply_tags(['card.json'], add=[])
+    api_env['api'].cards.apply_tags(['card.json'], add=[])
 
     assert _tags(api_env['api']) == ['原有A']
 
@@ -59,7 +59,7 @@ def test_default_is_merge_even_when_add_is_empty(api_env):
 def test_replace_requires_explicit_flag(api_env):
     write_card(api_env['cards'], 'card.json', tags=['原有A'])
 
-    api_env['api'].apply_tags(['card.json'], add=['仅此一个'], replace=True)
+    api_env['api'].cards.apply_tags(['card.json'], add=['仅此一个'], replace=True)
 
     assert _tags(api_env['api']) == ['仅此一个']
 
@@ -67,7 +67,7 @@ def test_replace_requires_explicit_flag(api_env):
 def test_remove_only_keeps_other_tags(api_env):
     write_card(api_env['cards'], 'card.json', tags=['A', 'B', 'C'])
 
-    result = api_env['api'].apply_tags(['card.json'], remove=['B'])
+    result = api_env['api'].cards.apply_tags(['card.json'], remove=['B'])
 
     assert _tags(api_env['api']) == ['A', 'C']
     assert result['removed'] == ['B']
@@ -77,7 +77,7 @@ def test_remove_only_keeps_other_tags(api_env):
 def test_duplicate_add_is_deduplicated(api_env):
     write_card(api_env['cards'], 'card.json', tags=['A'])
 
-    api_env['api'].apply_tags(['card.json'], add=['A', 'A', 'B', 'B'])
+    api_env['api'].cards.apply_tags(['card.json'], add=['A', 'A', 'B', 'B'])
 
     assert _tags(api_env['api']) == ['A', 'B']
 
@@ -85,7 +85,7 @@ def test_duplicate_add_is_deduplicated(api_env):
 def test_replace_then_remove_order(api_env):
     write_card(api_env['cards'], 'card.json', tags=['A'])
 
-    api_env['api'].apply_tags(['card.json'], add=['X', 'Y'], remove=['X'], replace=True)
+    api_env['api'].cards.apply_tags(['card.json'], add=['X', 'Y'], remove=['X'], replace=True)
 
     assert _tags(api_env['api']) == ['Y']
 
@@ -94,7 +94,7 @@ def test_apply_tags_reports_counts(api_env):
     write_card(api_env['cards'], 'one.json', tags=['A'])
     write_card(api_env['cards'], 'two.json', tags=['A'])
 
-    result = api_env['api'].apply_tags(['one.json', 'two.json'], add=['B'])
+    result = api_env['api'].cards.apply_tags(['one.json', 'two.json'], add=['B'])
 
     assert result['updated'] == 2
     assert result['added'] == ['B']

@@ -1,4 +1,4 @@
-"""`ui_data._plugins_v1.<id>` 命名空间隔离（设计文档 13.3 回归保护）。"""
+﻿"""`ui_data._plugins_v1.<id>` 命名空间隔离（设计文档 13.3 回归保护）。"""
 
 import os
 import sys
@@ -43,7 +43,7 @@ def _seed_existing_ui_data():
 def test_plugin_namespace_write_keeps_existing_keys(plugin_api):
     _seed_existing_ui_data()
 
-    assert plugin_api.ui_data_update(lambda entry: entry.update({'counter': 1})) is True
+    assert plugin_api.private.update(lambda entry: entry.update({'counter': 1})) is True
 
     data = load_ui_data()
     assert data['card-a.json'] == {'summary': '原有备注'}
@@ -54,26 +54,26 @@ def test_plugin_namespace_write_keeps_existing_keys(plugin_api):
 
 def test_ui_data_read_only_returns_own_namespace(plugin_api):
     _seed_existing_ui_data()
-    plugin_api.ui_data_update(lambda entry: entry.update({'value': 'mine'}))
+    plugin_api.private.update(lambda entry: entry.update({'value': 'mine'}))
 
-    snapshot = plugin_api.ui_data_read()
+    snapshot = plugin_api.private.read()
 
     assert snapshot == {'value': 'mine'}
     assert 'card-a.json' not in snapshot
 
 
 def test_ui_data_read_returns_empty_for_unknown_plugin(plugin_api):
-    assert plugin_api.ui_data_read() == {}
+    assert plugin_api.private.read() == {}
 
 
 def test_ui_data_update_rejects_non_callable(plugin_api):
-    assert plugin_api.ui_data_update({'not': 'callable'}) is False
+    assert plugin_api.private.update({'not': 'callable'}) is False
 
 
 def test_ui_data_update_supports_returning_new_dict(plugin_api):
-    plugin_api.ui_data_update(lambda entry: {'replaced': True})
+    plugin_api.private.update(lambda entry: {'replaced': True})
 
-    assert plugin_api.ui_data_read() == {'replaced': True}
+    assert plugin_api.private.read() == {'replaced': True}
 
 
 def test_clear_ui_namespace_only_removes_target_plugin():
@@ -96,7 +96,7 @@ def test_clear_ui_namespace_is_idempotent():
 def test_other_plugin_namespace_is_not_touched_by_config_writes(plugin_api):
     _seed_existing_ui_data()
 
-    plugin_api.set_config({'greeting': 'hello'})
+    plugin_api.config.set({'greeting': 'hello'})
 
     data = load_ui_data()
     assert data['_plugins_v1']['other-plugin'] == {'config': {'x': 1}}

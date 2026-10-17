@@ -36,29 +36,72 @@ BACKEND_ATTRIBUTES = [
     ('plugin_id', '`str`', 'Stable', '插件 id（等于 `manifest.id`，也等于目录名）'),
     ('manifest', '`dict`', 'Stable', '插件清单的只读快照（见设计文档 2.2）'),
     ('app_version', '`str`', 'Stable', '主程序版本（用于能力判断）'),
+    ('cards', '`CardDomain`', 'Stable', '卡片域，见下方 `api.cards.*`'),
+    ('tags', '`TagDomain`', 'Stable', '标签域，见下方 `api.tags.*`'),
+    ('worldbook', '`WorldbookDomain`', 'Stable', '世界书域，见下方 `api.worldbook.*`'),
+    ('backups', '`BackupDomain`', 'Stable', '备份域，见下方 `api.backups.*`'),
+    ('jobs', '`JobDomain`', 'Stable', '作业域，见下方 `api.jobs.*`'),
+    ('private', '`PrivateDomain`', 'Stable',
+     '私有数据域，见下方 `api.private.*`；配额 256KB/命名空间'),
+    ('config', '`ConfigDomain`', 'Stable', '配置域，见下方 `api.config.*`'),
+    ('secrets', '`SecretDomain`', 'Stable', '密钥域，见下方 `api.secrets.*`'),
+    ('http', '`HttpDomain`', 'Stable', 'HTTP 域，见下方 `api.http.*`'),
+    ('cli', '`CliDomain`', 'Stable', 'CLI 域，见下方 `api.cli.*`'),
+    ('log', '`LogDomain`', 'Stable', '日志域，见下方 `api.log.*`'),
+    ('index', '`IndexDomain`', 'Stable', '索引域，见下方 `api.index.*`'),
+    ('chats', '`ChatDomain`', 'Stable', '会话域（只读），见下方 `api.chats.*`'),
+    ('presets', '`PresetDomain`', 'Stable', '预设域（只读），见下方 `api.presets.*`'),
+    ('extensions', '`ExtensionDomain`', 'Stable',
+     '全局扩展资源域（只读），见下方 `api.extensions.*`'),
 ]
 
 # 方法分组：组名 → (稳定性, [方法名…])；未列出的公开方法会被测试判为失败
+#
+# 域命名空间改造后，`PluginAPI` 类体只剩下跨域惯用法（`on` / `emit`）与
+# 跨域工具（`estimate_tokens`），其余能力全部挪进 `BACKEND_DOMAINS`。
 BACKEND_GROUPS = [
-    ('配置（`ui_data._plugins_v1.<id>.config`）', 'Stable', ['get_config', 'set_config']),
-    ('密钥（`secrets.json`）', 'Stable', ['get_secret', 'set_secret', 'list_secrets']),
     ('事件', 'Stable', ['on', 'emit']),
-    ('HTTP 路由', 'Stable', ['blueprint', 'route']),
-    ('作业', 'Stable', [
-        'register_job', 'submit_job', 'get_job',
-        'cancel_job', 'retry_job', 'pause_job', 'resume_job',
+    ('工具', 'Stable', ['estimate_tokens']),
+]
+
+# 域分组：(域属性名, 一句说明, 稳定性, [方法名…])
+#
+# 域方法挂在域对象上而不是 `PluginAPI` 上，因此**不能**写进 `BACKEND_GROUPS`
+# （那条路用 `hasattr(PluginAPI, name)` 校验）。域属性本身登记在
+# `BACKEND_ATTRIBUTES` 里，这里登记的是域方法。
+BACKEND_DOMAINS = [
+    ('cards', '卡片读写、本地备注、移动与分类、结构化查询', 'Stable', [
+        'read', 'read_many', 'write_fields', 'apply_tags',
+        'read_note', 'read_notes', 'write_note',
+        'move', 'list_categories', 'create_category', 'rename_category',
+        'list', 'count', 'read_extensions',
     ]),
-    ('CLI 子命令', 'Stable', ['register_cli']),
-    ('数据', 'Stable', [
-        ('db', 'Provisional'), 'table_prefix', 'migrate', 'data_dir',
+    ('tags', '标签库读取、分类体系与治理偏好、标签创建与合并', 'Stable', [
+        'library', 'taxonomy', 'update_taxonomy', 'prefs', 'update_prefs',
+        'create', 'merge',
     ]),
-    ('核心能力', 'Stable', [
-        'read_card', 'read_cards', 'write_card_fields', 'apply_tags', 'read_tag_library',
-        'read_worldbook', 'write_worldbook', 'snapshot_card',
-        'ui_data_read', 'ui_data_update',
+    ('worldbook', '世界书读取、写回与条目历史', 'Stable', [
+        'read', 'write', 'list_entries', 'history',
     ]),
-    ('文件系统抑制', 'Stable', ['suppress_fs_events']),
-    ('通知与日志', 'Stable', ['notify', 'log']),
+    ('backups', '卡片快照的创建、列举与回滚', 'Stable', [
+        'snapshot_card', 'list_card_snapshots', 'restore_card_snapshot',
+    ]),
+    ('jobs', '后台作业的注册、提交、查询与生命周期', 'Stable', [
+        'register', 'submit', 'get', 'items',
+        'cancel', 'retry', 'pause', 'resume',
+    ]),
+    ('private', '私有命名空间、私有目录、私有表与只读查询', 'Stable', [
+        'read', 'update', 'dir', 'query', 'migrate', 'table_prefix',
+    ]),
+    ('config', '插件配置读写（`config_schema` 声明过的键）', 'Stable', ['get', 'set']),
+    ('secrets', '插件密钥读写（按插件 id 命名空间隔离）', 'Stable', ['get', 'set', 'list']),
+    ('http', 'HTTP 路由注册（前缀强制 `/api/plugins/<id>`）', 'Stable', ['route', 'blueprint']),
+    ('cli', 'CLI 子命令注册', 'Stable', ['register']),
+    ('log', '带插件前缀的具名 level 日志', 'Stable', ['debug', 'info', 'warn', 'error']),
+    ('index', '宿主索引的状态、搜索与重建', 'Stable', ['status', 'search', 'rebuild']),
+    ('chats', '会话列表与元数据（只读）', 'Stable', ['list', 'get']),
+    ('presets', 'ST 预设读取（只读）', 'Stable', ['list', 'read']),
+    ('extensions', '全局正则脚本与脚本库（只读）', 'Stable', ['regex_scripts', 'scripts']),
 ]
 
 # 内部/钩子方法：不属于插件可调用契约，但仍需显式登记（避免被当成「漏分组」）
@@ -150,7 +193,16 @@ def _first_doc_line(obj) -> str:
     doc = (getattr(obj, '__doc__', '') or '').strip()
     if not doc:
         return ''
-    return doc.splitlines()[0].strip()
+    return _escape_table_cell(doc.splitlines()[0].strip())
+
+
+def _escape_table_cell(text: str) -> str:
+    """转义 markdown 表格里的竖线。
+
+    签名与说明里会出现 `str | None` 这类联合类型；不转义会把一行拆成多列，
+    表格整体错位。
+    """
+    return str(text or '').replace('|', '\\|')
 
 
 def _format_signature(name: str, func) -> str:
@@ -163,11 +215,61 @@ def _format_signature(name: str, func) -> str:
     parameters = list(signature.parameters.values())
     if parameters and parameters[0].name in ('self', 'cls'):
         signature = signature.replace(parameters=parameters[1:])
-    return f'{name}{signature}'
+    return _escape_table_cell(f'{name}{signature}')
+
+
+def _domain_class(domain: str):
+    """取域类。
+
+    域在 `PluginAPI` 上是**实例属性**（不是 `@property`，见方案 §3.5），
+    因此 `getattr(PluginAPI, domain)` 拿不到。域类清单的唯一来源是
+    `core.plugins.domains.DOMAIN_CLASSES`。
+    """
+    from core.plugins.domains import DOMAIN_CLASSES
+
+    return DOMAIN_CLASSES.get(domain)
+
+
+def _collect_domain_groups(declared: set) -> list:
+    """收集域分组：把域类上的方法当作契约成员。
+
+    域方法挂在域类上而不是 `PluginAPI` 上，因此：
+    - 不能写进 `BACKEND_GROUPS`（那条路用 `hasattr(PluginAPI, name)` 校验，
+      域方法在 `PluginAPI` 上取不到）；
+    - 也不会出现在 `collect_backend_api()['public']` 里（反射只看到类成员），
+      所以不会触发 `test_every_public_method_is_grouped`。
+
+    登记键用 `'<域>.<方法>'`——与顶层扁平名不会撞车，`test_grouped_domain_methods_
+    actually_exist` 会逐条反查域类上是否真实存在。
+    """
+    groups = []
+    for domain, summary, stability, methods in BACKEND_DOMAINS:
+        domain_cls = _domain_class(domain)
+        rows = []
+        for name in methods:
+            func = getattr(domain_cls, name, None) if domain_cls is not None else None
+            if func is None:
+                continue
+            declared.add(f'{domain}.{name}')
+            rows.append({
+                'name': name,
+                'signature': _format_signature(name, func),
+                'stability': stability,
+                'doc': _first_doc_line(func),
+            })
+        groups.append({
+            'domain': domain,
+            'title': f'`api.{domain}.*`',
+            'summary': summary,
+            'attribute': domain,
+            'stability': stability,
+            'rows': rows,
+        })
+    return groups
 
 
 def collect_backend_api() -> dict:
-    """返回 `{'attributes': [...], 'groups': [...], 'internal': [...], 'public': [...]}`。"""
+    """返回 `{'attributes', 'groups', 'domains', 'internal', 'public', 'declared'}`。"""
     from core.plugins.api import PluginAPI
 
     public = sorted(
@@ -196,9 +298,12 @@ def collect_backend_api() -> dict:
             })
         groups.append({'title': title, 'stability': default_stability, 'rows': rows})
 
+    domains = _collect_domain_groups(declared)
+
     return {
         'attributes': list(BACKEND_ATTRIBUTES),
         'groups': groups,
+        'domains': domains,
         'internal': list(BACKEND_INTERNAL),
         'public': public,
         'declared': sorted(declared),
@@ -409,21 +514,45 @@ def render() -> str:
         '> 契约分级与设计背景见 `docs/2026-09-22-plugin-system-design.md` 第 10 部分；',
         '> 稳定性变更须先在设计文档中修改，再更新代码与本文档。',
         '',
-        f'覆盖 `core/plugins/api.py` 的 `PluginAPI`（{len(backend["public"])} 个公开方法）'
+        f'覆盖 `core/plugins/api.py` 的 `PluginAPI`（'
+        f'{len([n for n in backend["public"] if n not in BACKEND_INTERNAL])} 个顶层成员 + '
+        f'{sum(len(group["rows"]) for group in backend["domains"])} 个域方法）'
         f'与 `static/js/pluginHost.js` 的 `buildApi()`（{len(frontend_keys)} 个顶层成员）。',
         '',
         '## 后端 `PluginAPI`',
         '',
-        '`register(api)` 收到的对象；方法可直接调用，实例属性只读。',
+        '`register(api)` 收到的对象。能力按**域命名空间**组织：',
         '',
-        '### 身份',
+        '| 域 | 说明 |',
+        '|---|---|',
+    ]
+
+    for domain in backend['domains']:
+        lines.append(f'| `api.{domain["attribute"]}.*` | {domain["summary"]} |')
+
+    lines += [
+        '',
+        '域对象是**实例属性**（`api.cards is api.cards` 恒为真）：不要在插件里缓存'
+        '整个 `PluginAPI` 之外的东西，也不要做 `isinstance` 之外的形状假设。',
+        '',
+        '顶层只保留三件事：`on` / `emit`（EventEmitter 惯用法，与前端 `api.on` / '
+        '`api.off` / `api.emit` 对齐）与 `estimate_tokens`（跨域工具）。',
+        '',
+        '> **本地备注不在卡片文件里**：`api.cards.read_note()` / `write_note()` 读写的是'
+        '`ui_data` 的备注字段，`api.cards.write_fields()` 的字段白名单**不含** `summary`。',
+        '',
+        '> **破坏性操作强制快照先行**：删除/批量覆盖类域方法在内部先创建快照；'
+        '插件也可以主动用 `api.backups.snapshot_card()` 给自己的批量操作打快照，'
+        '事后用 `api.backups.restore_card_snapshot()` 回滚。',
+        '',
+        '### 身份与域',
         '',
         '| 成员 | 类型 | 稳定性 | 说明 |',
         '|---|---|---|---|',
     ]
 
     for name, type_hint, stability, doc in backend['attributes']:
-        lines.append(f'| `{name}` | {type_hint} | {stability} | {doc} |')
+        lines.append(f'| `{name}` | {_escape_table_cell(type_hint)} | {stability} | {doc} |')
 
     for group in backend['groups']:
         if not group['rows']:
@@ -439,6 +568,23 @@ def render() -> str:
             doc = row['doc'] or '（见设计文档 10.2）'
             lines.append(
                 f'| `{row["name"]}()` | `{row["signature"]}` | {row["stability"]} | {doc} |'
+            )
+
+    for domain in backend['domains']:
+        if not domain['rows']:
+            continue
+        lines += [
+            '',
+            f'### {domain["title"]}',
+            '',
+            '| 方法 | 签名 | 稳定性 | 说明 |',
+            '|---|---|---|---|',
+        ]
+        for row in domain['rows']:
+            doc = row['doc'] or '（见设计文档 10.2）'
+            lines.append(
+                f'| `api.{domain["attribute"]}.{row["name"]}()` | `{row["signature"]}` | '
+                f'{row["stability"]} | {doc} |'
             )
 
     lines += [
@@ -488,8 +634,8 @@ def render() -> str:
         '',
         '1. 在**设计文档**（`docs/2026-09-22-plugin-system-design.md` 第 10 部分）'
         '把该成员标为 `Deprecated`，写明替代写法。',
-        '2. 在 `tools/gen_plugin_api_docs.py` 的 `FRONTEND_MEMBERS` / `BACKEND_GROUPS` '
-        '同步改分级，重新生成本文档。',
+        '2. 在 `tools/gen_plugin_api_docs.py` 的 `FRONTEND_MEMBERS` / `BACKEND_GROUPS` / '
+        '`BACKEND_DOMAINS` 同步改分级，重新生成本文档。',
         '3. 代码里保留实现，但加 `@deprecated` 注释指向替代写法；调用时记一条 '
         '`logger.warning`（后端）或 `console.warn`（前端）。',
         '4. 至少保留一个主版本后，在下一个主版本移除，并在 `CHANGELOG` 记录。',

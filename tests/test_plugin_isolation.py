@@ -63,13 +63,13 @@ def two_plugins(tmp_path):
 
 
 def test_plugin_cannot_read_other_plugins_job(two_plugins):
-    assert two_plugins['a'].get_job(two_plugins['run_a'])['run_id'] == two_plugins['run_a']
-    assert two_plugins['a'].get_job(two_plugins['run_b']) is None
+    assert two_plugins['a'].jobs.get(two_plugins['run_a'])['run_id'] == two_plugins['run_a']
+    assert two_plugins['a'].jobs.get(two_plugins['run_b']) is None
 
 
 def test_plugin_cannot_cancel_other_plugins_job(two_plugins):
     with pytest.raises(PluginJobNotFoundError):
-        two_plugins['a'].cancel_job(two_plugins['run_b'])
+        two_plugins['a'].jobs.cancel(two_plugins['run_b'])
 
     conn = job_store.connect(ensure_schema=True)
     try:
@@ -80,17 +80,23 @@ def test_plugin_cannot_cancel_other_plugins_job(two_plugins):
 
 def test_plugin_cannot_retry_other_plugins_job(two_plugins):
     with pytest.raises(PluginJobNotFoundError):
-        two_plugins['a'].retry_job(two_plugins['run_b'])
+        two_plugins['a'].jobs.retry(two_plugins['run_b'])
 
 
 def test_plugin_cannot_pause_other_plugins_job(two_plugins):
     with pytest.raises(PluginJobNotFoundError):
-        two_plugins['a'].pause_job(two_plugins['run_b'])
+        two_plugins['a'].jobs.pause(two_plugins['run_b'])
 
 
 def test_plugin_cannot_resume_other_plugins_job(two_plugins):
     with pytest.raises(PluginJobNotFoundError):
-        two_plugins['a'].resume_job(two_plugins['run_b'])
+        two_plugins['a'].jobs.resume(two_plugins['run_b'])
+
+
+def test_plugin_cannot_list_other_plugins_job_items(two_plugins):
+    """`jobs.items()` 同样按作业归属隔离（它是补齐裸 SQL 缺口的新入口）。"""
+    with pytest.raises(PluginJobNotFoundError):
+        two_plugins['a'].jobs.items(two_plugins['run_b'])
 
 
 def test_ownership_error_does_not_leak_existence(two_plugins):
@@ -99,12 +105,12 @@ def test_ownership_error_does_not_leak_existence(two_plugins):
     nonexistent = None
 
     try:
-        two_plugins['a'].cancel_job(two_plugins['run_b'])
+        two_plugins['a'].jobs.cancel(two_plugins['run_b'])
     except PluginJobNotFoundError as exc:
         cross_tenant = exc.to_dict()
 
     try:
-        two_plugins['a'].cancel_job('nonexistent-run-id')
+        two_plugins['a'].jobs.cancel('nonexistent-run-id')
     except PluginJobNotFoundError as exc:
         nonexistent = exc.to_dict()
 
@@ -119,13 +125,13 @@ def test_ownership_violation_is_logged(two_plugins, monkeypatch):
     monkeypatch.setattr(jobs.logger, 'warning', lambda *args, **kwargs: warnings.append(args))
 
     with pytest.raises(PluginJobNotFoundError):
-        two_plugins['a'].cancel_job(two_plugins['run_b'])
+        two_plugins['a'].jobs.cancel(two_plugins['run_b'])
 
     assert any('非本插件作业' in str(args[0]) for args in warnings)
 
 
 def test_plugin_can_operate_its_own_job(two_plugins):
-    assert two_plugins['a'].cancel_job(two_plugins['run_a']) is True
+    assert two_plugins['a'].jobs.cancel(two_plugins['run_a']) is True
 
     conn = job_store.connect(ensure_schema=True)
     try:
@@ -271,49 +277,55 @@ def test_route_blocks_cross_plugin_event_stream(route_client):
 
 
 def test_plugin_cannot_read_other_plugins_secret(two_plugins):
-    two_plugins['b'].set_secret('api_key', 'sk-beta-secret')
+    two_plugins['b'].secrets.set('api_key', 'sk-beta-secret')
 
-    assert two_plugins['b'].get_secret('api_key') == 'sk-beta-secret'
-    assert two_plugins['a'].get_secret('api_key') is None
+    assert two_plugins['b'].secrets.get('api_key') == 'sk-beta-secret'
+    assert two_plugins['a'].secrets.get('api_key') is None
 
 
 def test_plugin_secret_listing_is_namespaced(two_plugins):
-    two_plugins['a'].set_secret('api_key', 'sk-alpha')
-    two_plugins['b'].set_secret('api_key', 'sk-beta')
+    two_plugins['a'].secrets.set('api_key', 'sk-alpha')
+    two_plugins['b'].secrets.set('api_key', 'sk-beta')
 
-    listed_a = two_plugins['a'].list_secrets()
+    listed_a = two_plugins['a'].secrets.list()
 
     assert 'api_key' in listed_a
     assert 'sk-beta' not in str(listed_a)
 
 
 def test_plugin_cannot_clear_other_plugins_secrets(two_plugins):
-    two_plugins['b'].set_secret('api_key', 'sk-beta')
+    two_plugins['b'].secrets.set('api_key', 'sk-beta')
 
     secrets_module.clear_plugin_secrets('alpha-plugin')
 
-    assert two_plugins['b'].get_secret('api_key') == 'sk-beta'
+    assert two_plugins['b'].secrets.get('api_key') == 'sk-beta'
 
 
 def test_plugin_config_namespaces_are_isolated(two_plugins):
-    two_plugins['a'].set_config({'greeting': 'alpha'})
-    two_plugins['b'].set_config({'greeting': 'beta'})
+    two_plugins['a'].config.set({'greeting': 'alpha'})
+    two_plugins['b'].config.set({'greeting': 'beta'})
 
-    assert two_plugins['a'].get_config()['greeting'] == 'alpha'
-    assert two_plugins['b'].get_config()['greeting'] == 'beta'
+    assert two_plugins['a'].config.get()['greeting'] == 'alpha'
+    assert two_plugins['b'].config.get()['greeting'] == 'beta'
 
 
 def test_plugin_ui_data_namespaces_are_isolated(two_plugins):
-    two_plugins['a'].ui_data_update(lambda entry: entry.update({'n': 1}))
-    two_plugins['b'].ui_data_update(lambda entry: entry.update({'n': 2}))
+    two_plugins['a'].private.update(lambda entry: entry.update({'n': 1}))
+    two_plugins['b'].private.update(lambda entry: entry.update({'n': 2}))
 
-    assert two_plugins['a'].ui_data_read()['n'] == 1
-    assert two_plugins['b'].ui_data_read()['n'] == 2
+    assert two_plugins['a'].private.read()['n'] == 1
+    assert two_plugins['b'].private.read()['n'] == 2
 
 
 def test_plugin_migrate_prefix_cannot_target_other_plugin_table(two_plugins):
     """表名前缀强制按插件 id，防止插件写到其他插件的表。"""
-    assert two_plugins['a'].table_prefix() == 'plugin_alpha_plugin_'
+    assert two_plugins['a'].private.table_prefix() == 'plugin_alpha_plugin_'
 
     with pytest.raises(Exception):
-        two_plugins['a'].migrate(['CREATE TABLE plugin_beta_plugin_data (id INTEGER)'])
+        two_plugins['a'].private.migrate(['CREATE TABLE plugin_beta_plugin_data (id INTEGER)'])
+
+
+def test_plugin_query_cannot_write_other_plugins_table(two_plugins):
+    """只读查询是能力放开，但**写入**必须走域方法：写 SQL 一律被拒。"""
+    with pytest.raises(ValueError):
+        two_plugins['a'].private.query('DELETE FROM plugin_beta_plugin_data')

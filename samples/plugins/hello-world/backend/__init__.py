@@ -1,10 +1,11 @@
 """Hello World 示例插件（阶段 0 验收夹具）。
 
-演示 PluginAPI 的基本用法：
-- `api.route()` 注册插件路由（自动加 `/api/plugins/hello-world` 前缀）
-- `api.on()` 订阅核心事件
-- `api.migrate()` 建一张带 `plugin_hello-world_` 前缀的私有表
-- `api.get_config()` / `api.get_secret()` 读取配置与密钥
+演示 PluginAPI 的域命名空间用法：
+- `api.http.route()` 注册插件路由（自动加 `/api/plugins/hello-world` 前缀）
+- `api.on()` 订阅核心事件（事件是跨域惯用法，保持顶层扁平）
+- `api.private.migrate()` 建一张带 `plugin_hello-world_` 前缀的私有表
+- `api.config.get()` / `api.secrets.get()` 读取配置与密钥
+- `api.log.info()` 写日志
 
 注意：插件内部只能使用相对导入，不要写 `import backend`。
 """
@@ -17,26 +18,26 @@ from flask import jsonify, request
 def register(api):
     """插件入口（manifest.backend.register 指定的函数名）。"""
 
-    @api.route('/ping', ['GET'])
+    @api.http.route('/ping', ['GET'])
     def ping():
-        config = api.get_config()
+        config = api.config.get()
         return jsonify({
             'success': True,
             'pong': True,
             'plugin': api.plugin_id,
             'version': api.manifest.get('version', ''),
             'greeting': config.get('greeting', ''),
-            'has_api_key': bool(api.get_secret('api_key')),
+            'has_api_key': bool(api.secrets.get('api_key')),
             'timestamp': time.time(),
         })
 
-    @api.route('/echo', ['POST'])
+    @api.http.route('/echo', ['POST'])
     def echo():
         payload = request.get_json(silent=True) or {}
         return jsonify({'success': True, 'echo': payload})
 
     def on_card_updated(payload):
-        api.log('info', f"收到 card.updated: {payload.get('card_id', '')}")
+        api.log.info(f"收到 card.updated: {payload.get('card_id', '')}")
 
     api.on('card.updated', on_card_updated)
 
@@ -59,7 +60,7 @@ def register(api):
         ctx.set_summary({'handled': total})
         ctx.set_message(f'已处理 {total} 项')
 
-    api.register_job('demo.count', run_count_job)
+    api.jobs.register('demo.count', run_count_job)
 
     def cli_hello(namespace):
         """CLI 子命令：python app.py plugin hello-world hello <名字> --times N"""
@@ -73,9 +74,9 @@ def register(api):
             print(f'Hello, {target}!')
         return 0
 
-    api.register_cli('hello', cli_hello, description='打印 Hello 问候（位置参数: 名字；--times N）')
+    api.cli.register('hello', cli_hello, description='打印 Hello 问候（位置参数: 名字；--times N）')
 
-    api.migrate([
+    api.private.migrate([
         '''
         CREATE TABLE IF NOT EXISTS plugin_hello_world_visits (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -84,4 +85,4 @@ def register(api):
         ''',
     ])
 
-    api.log('info', 'hello-world 插件已注册')
+    api.log.info('hello-world 插件已注册')

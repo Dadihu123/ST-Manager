@@ -86,7 +86,10 @@ README_TEMPLATE = """# {name}
 
 - 插件内部导入自己的子模块必须用相对导入（`from . import service`），不要写 `import backend`
 - 样式必须以 `.plugin-{plugin_id}` 或 `[data-plugin="{plugin_id}"]` 作用域开头
-- 需要长任务时用 `api.submit_job()`；密钥用 `api.set_secret()`（不要写进 manifest）
+- 能力按**域命名空间**组织：`api.cards.*` / `api.tags.*` / `api.worldbook.*` /
+  `api.jobs.*` / `api.private.*` / `api.backups.*` / `api.index.*` 等；
+  完整清单见 `docs/plugin-api.md`
+- 需要长任务时用 `api.jobs.submit()`；密钥用 `api.secrets.set()`（不要写进 manifest）
 - 修改后端代码后重启应用生效
 """
 
@@ -99,15 +102,15 @@ from flask import jsonify
 def register(api):
     """插件入口（manifest.backend.register 指向本函数）。"""
 
-    @api.route('/ping', ['GET'])
+    @api.http.route('/ping', ['GET'])
     def ping():
         return jsonify({
             'success': True,
             'plugin': api.plugin_id,
-            'greeting': api.get_config().get('greeting', ''),
+            'greeting': api.config.get().get('greeting', ''),
         })
 
-    api.log('info', '{plugin_id} 已注册')
+    api.log.info('{plugin_id} 已注册')
 '''
 
 FRONTEND_TEMPLATE = '''\

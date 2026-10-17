@@ -8,7 +8,7 @@ from flask import jsonify
 
 
 def register(api):
-    @api.route('/ping', ['GET'])
+    @api.http.route('/ping', ['GET'])
     def ping():
         return jsonify({'success': True, 'pong': True, 'plugin': api.plugin_id})
 '''

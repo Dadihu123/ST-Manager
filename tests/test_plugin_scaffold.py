@@ -66,13 +66,20 @@ def test_generated_css_passes_scope_check(tmp_path):
     assert violations == []
 
 
-def test_generated_backend_uses_api_route_not_absolute_import(tmp_path):
+def test_generated_backend_uses_domain_namespaces(tmp_path):
+    """脚手架必须产出**域命名空间**写法，旧扁平名会误导插件作者。"""
     target = scaffold_plugin('scaffold-demo', out_dir=str(tmp_path))
 
     source = open(os.path.join(target, 'backend', '__init__.py'), encoding='utf-8').read()
 
     assert 'import backend' not in source
-    assert '@api.route' in source
+    assert '@api.http.route' in source
+    assert 'api.config.get()' in source
+    assert 'api.log.info(' in source
+
+    # 旧扁平名不应该再出现在脚手架里
+    for legacy in ('@api.route', 'api.get_config(', "api.log('", 'api.set_secret('):
+        assert legacy not in source, legacy
 
 
 def test_generated_plugin_loads_and_serves_route(tmp_path, monkeypatch):

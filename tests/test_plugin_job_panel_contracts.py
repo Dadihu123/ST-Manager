@@ -1,4 +1,4 @@
-"""插件作业面板契约测试（设计文档 1.7 / 13.2）。"""
+﻿"""插件作业面板契约测试（设计文档 1.7 / 13.2）。"""
 
 import os
 import sys
@@ -113,7 +113,7 @@ def test_sample_plugin_demonstrates_job_flow():
     frontend = read_source('samples/plugins/hello-world/frontend/plugin.js')
 
     assert '"demo.count"' in manifest
-    assert "api.register_job('demo.count'" in backend
+    assert "api.jobs.register('demo.count'" in backend
     assert 'ctx.should_cancel()' in backend
     assert 'api.jobs.submit' in frontend
     assert 'api.jobs.open' in frontend
