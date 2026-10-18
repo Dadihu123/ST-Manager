@@ -1,9 +1,21 @@
+import logging
 import sqlite3
 import time
 
 
+logger = logging.getLogger(__name__)
+
+
 DB_SCHEMA_VERSION = 1
 INDEX_RUNTIME_SCHEMA_VERSION = 1
+
+
+# 构建进度列：老库用 ALTER TABLE 补齐（CREATE TABLE IF NOT EXISTS 不会加列）。
+# 有了这两列，前端才能显示「已处理 / 总数」，而不是只有一个不确定的 phase。
+BUILD_STATE_PROGRESS_COLUMNS = (
+    ('progress_done', 'INTEGER NOT NULL DEFAULT 0'),
+    ('progress_total', 'INTEGER NOT NULL DEFAULT 0'),
+)
 
 
 RUNTIME_SCHEMA_STATEMENTS = [
@@ -157,9 +169,36 @@ def _find_obsolete_generations(conn: sqlite3.Connection, scope: str, active_gene
     ]
 
 
+def _ensure_build_state_progress_columns(conn: sqlite3.Connection):
+    """给历史数据库补上进度列。
+
+    ``CREATE TABLE IF NOT EXISTS`` 只负责建新表，不会给已有表加列，因此升级
+    路径必须单独 ALTER。列已存在时静默跳过。
+    """
+    try:
+        cursor = conn.execute('PRAGMA table_info(index_build_state)')
+        rows = cursor.fetchall() if cursor is not None else []
+        existing = {str(row[1]) for row in rows}
+    except sqlite3.Error:
+        return
+    except (AttributeError, TypeError, IndexError):
+        # 某些测试替身会返回非游标对象；进度列是可选增强，读不到就跳过。
+        return
+
+    for column, definition in BUILD_STATE_PROGRESS_COLUMNS:
+        if column in existing:
+            continue
+        try:
+            conn.execute(f'ALTER TABLE index_build_state ADD COLUMN {column} {definition}')
+        except sqlite3.OperationalError as exc:
+            logger.warning('补建索引构建进度列失败 (%s): %s', column, exc)
+
+
 def ensure_index_runtime_schema(conn: sqlite3.Connection):
     for statement in RUNTIME_SCHEMA_STATEMENTS:
         conn.execute(statement)
+
+    _ensure_build_state_progress_columns(conn)
 
     # 扫描器簿记状态（最近一次全量校验时间等），与索引构建状态分开存放。
     conn.execute(
@@ -243,7 +282,9 @@ def allocate_build_generation(conn: sqlite3.Connection, scope: str) -> int:
             started_at = ?,
             finished_at = 0,
             last_error = ?,
-            items_written = 0
+            items_written = 0,
+            progress_done = 0,
+            progress_total = 0
         WHERE scope = ?
         ''',
         (next_generation, 'running', 'prepare_generation', time.time(), '', scope),
@@ -263,6 +304,68 @@ def get_active_generation(conn: sqlite3.Connection, scope: str) -> int:
             return 0
         raise
     return int((row or [0])[0] or 0)
+
+
+def update_build_progress(
+    conn: sqlite3.Connection,
+    scope: str,
+    *,
+    phase: str | None = None,
+    done: int | None = None,
+    total: int | None = None,
+    commit: bool = False,
+):
+    """记录构建进度，供前端显示「已处理 / 总数」。
+
+    默认不提交：调用方通常正处在自己的写事务里（分批提交点），把进度与数据
+    一起落盘即可，避免额外的事务开销。
+    """
+    assignments = []
+    params = []
+    if phase is not None:
+        assignments.append('phase = ?')
+        params.append(str(phase))
+    if done is not None:
+        assignments.append('progress_done = ?')
+        params.append(int(done))
+    if total is not None:
+        assignments.append('progress_total = ?')
+        params.append(int(total))
+    if not assignments:
+        return
+
+    params.append(scope)
+    try:
+        conn.execute(
+            f"UPDATE index_build_state SET {', '.join(assignments)} WHERE scope = ?",
+            params,
+        )
+    except sqlite3.OperationalError as exc:
+        # 进度是纯展示信息，列缺失不应中断构建本身。
+        logger.debug('写入索引构建进度失败 (%s): %s', scope, exc)
+        return
+    except (AttributeError, TypeError):
+        # 测试替身连接没有真实游标时同样只跳过进度写入。
+        return
+    if commit:
+        conn.commit()
+
+
+def get_build_progress(conn: sqlite3.Connection, scope: str) -> dict:
+    """读取某个 scope 的构建进度；表/列缺失时返回全 0。"""
+    try:
+        cursor = conn.execute(
+            'SELECT progress_done, progress_total FROM index_build_state WHERE scope = ?',
+            (scope,),
+        )
+        row = cursor.fetchone() if cursor is not None else None
+    except sqlite3.OperationalError:
+        return {'done': 0, 'total': 0}
+    except (AttributeError, TypeError):
+        return {'done': 0, 'total': 0}
+    if not row:
+        return {'done': 0, 'total': 0}
+    return {'done': int(row[0] or 0), 'total': int(row[1] or 0)}
 
 
 def update_build_state(conn: sqlite3.Connection, scope: str, **updates):
@@ -294,7 +397,8 @@ def activate_generation(conn: sqlite3.Connection, scope: str, generation: int, *
             phase = 'ready',
             finished_at = ?,
             last_error = '',
-            items_written = ?
+            items_written = ?,
+            progress_done = CASE WHEN progress_total > 0 THEN progress_total ELSE progress_done END
         WHERE scope = ? AND building_generation = ?
         ''',
         (generation, time.time(), int(items_written), scope, generation),

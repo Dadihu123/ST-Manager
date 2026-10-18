@@ -670,6 +670,23 @@ def background_scanner():
                 ctx.scan_queue.task_done()
                 continue
 
+            # 启动全量校验要读全部卡片文件，与后台索引重建是同一批 I/O。
+            # 升级期间先让路，等它结束再跑（事件驱动，不占 CPU 空转）。
+            if (
+                getattr(ctx, 'index_upgrade_active', False)
+                and isinstance(task, dict)
+                and task.get('type') == FULL_SCAN_TASK
+                and task.get('reason') == 'startup'
+            ):
+                upgrade_done = getattr(ctx, 'index_upgrade_done', None)
+                if upgrade_done is not None:
+                    upgrade_done.wait(60)
+                else:
+                    time.sleep(2)
+                ctx.scan_queue.put(task)
+                ctx.scan_queue.task_done()
+                continue
+
             # 开始扫描逻辑
             _process_scan_task(task)
             

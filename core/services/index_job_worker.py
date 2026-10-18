@@ -182,6 +182,18 @@ def worker_loop():
         ctx.index_wakeup.wait(30)
         ctx.index_wakeup.clear()
 
+        # 后台索引升级（首次引导 / 搜索内容格式升级）期间暂停领取作业：
+        # 重建正在写新 generation，此时跑增量作业既抢写锁，写入的又是旧
+        # generation，激活后会被丢弃。作业留在队列里，升级结束再处理。
+        if ctx.index_upgrade_active:
+            _set_jobs_state(worker_state='waiting')
+            upgrade_done = getattr(ctx, 'index_upgrade_done', None)
+            if upgrade_done is not None:
+                upgrade_done.wait(30)
+            else:
+                time.sleep(2)
+            continue
+
         rows, pending = _claim_pending_jobs(50)
         _set_jobs_state(worker_state='processing' if rows else 'idle', pending_jobs=int(pending))
 

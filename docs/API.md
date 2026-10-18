@@ -29,7 +29,7 @@ curl -X POST http://127.0.0.1:5000/api/toggle_favorite \
 | 方法 | 路径 | 作用 | 请求要点 |
 | --- | --- | --- | --- |
 | `GET` | `/api/status` | 获取启动/后台服务状态 | 无 |
-| `GET` | `/api/index/status` | 获取卡片与世界书索引、构建任务状态 | 无 |
+| `GET` | `/api/index/status` | 获取卡片与世界书索引、构建任务状态（含后台重建进度） | 无 |
 | `POST` | `/api/index/rebuild` | 请求重建索引 | JSON `scope`: `cards` 或 `worldinfo` |
 | `POST` | `/api/scan_now` | 请求一次文件系统扫描 | 无 |
 | `POST` | `/api/settings_path_safety` | 评估管理器目录和 ST 目录是否重叠 | JSON 配置对象，或 `{ "config": {...} }` |

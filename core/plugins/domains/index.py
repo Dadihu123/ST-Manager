@@ -16,12 +16,17 @@ class IndexDomain(DomainBase):
     def status(self) -> dict:
         """读取索引状态。
 
+        启动时的索引重建已改为后台执行，因此 `status()` 可能在应用就绪后
+        仍然返回 `state='building'`；`upgrade_active` 表示这次构建是否属于
+        「首次引导 / 搜索内容格式升级」的后台重建。
+
         Returns:
             `{'state', 'scope', 'progress', 'message', 'pending_jobs',
               'schema': {...}, 'cards': {...}, 'worldinfo': {...},
-              'scan_active', 'scan_message'}`
+              'scan_active', 'scan_message', 'upgrade_active'}`
             其中每个 scope 块含 `state` / `phase` / `active_generation` /
-            `building_generation` / `items_written` / `last_error`。
+            `building_generation` / `items_written` / `last_error` /
+            `progress_done` / `progress_total`。
         """
         return self._api._index_status()
 

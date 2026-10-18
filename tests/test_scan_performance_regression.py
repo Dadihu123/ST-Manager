@@ -246,3 +246,52 @@ def test_startup_scan_runs_for_empty_database(monkeypatch, tmp_path):
     )
 
     assert scan_service._should_run_startup_scan() is True
+
+
+def test_background_scanner_defers_startup_full_scan_during_index_upgrade(monkeypatch):
+    """后台索引重建期间，启动全量扫描必须让路（同一批磁盘 I/O，且都要写库）。
+
+    回归保护：索引升级被移到后台后，启动扫描不再天然排在它后面。
+    """
+    from core.context import ctx
+
+    # 用 BaseException 子类：background_scanner 内部 `except Exception` 会把普通
+    # 异常吞掉并继续循环，测试就会挂住。
+    class _StopLoop(BaseException):
+        pass
+
+    processed = []
+    requeued = []
+
+    monkeypatch.setattr(scan_service, '_process_scan_task', lambda task: processed.append(task))
+    monkeypatch.setattr(ctx.scan_queue, 'put', lambda task: requeued.append(task))
+    monkeypatch.setattr(ctx.scan_queue, 'task_done', lambda: None)
+    ctx.init_status['status'] = 'ready'
+
+    calls = {'n': 0}
+    tasks = [
+        {'type': scan_service.FULL_SCAN_TASK, 'reason': 'startup'},
+        {'type': scan_service.FULL_SCAN_TASK, 'reason': 'manual'},
+    ]
+
+    def fake_get():
+        if not tasks:
+            raise _StopLoop()
+        return tasks.pop(0)
+
+    monkeypatch.setattr(ctx.scan_queue, 'get', fake_get)
+    monkeypatch.setattr(ctx, 'index_upgrade_active', True)
+    monkeypatch.setattr(ctx.index_upgrade_done, 'wait', lambda timeout: calls.__setitem__('n', calls['n'] + 1))
+
+    try:
+        scan_service.background_scanner()
+    except _StopLoop:
+        pass
+    finally:
+        ctx.index_upgrade_active = False
+        ctx.index_upgrade_done.set()
+
+    # startup 扫描被重新入队等待升级结束，manual 扫描照常执行。
+    assert requeued == [{'type': scan_service.FULL_SCAN_TASK, 'reason': 'startup'}]
+    assert processed == [{'type': scan_service.FULL_SCAN_TASK, 'reason': 'manual'}]
+    assert calls['n'] == 1

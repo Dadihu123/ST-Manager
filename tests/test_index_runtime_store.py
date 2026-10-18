@@ -12,7 +12,77 @@ from core.data.index_runtime_store import (
     allocate_build_generation,
     clear_generation_data,
     ensure_index_runtime_schema,
+    get_build_progress,
+    update_build_progress,
 )
+
+
+def test_ensure_schema_adds_build_progress_columns_to_existing_database(tmp_path):
+    """老库的 index_build_state 没有进度列，升级时必须补上，否则前端没有进度。"""
+    db_path = tmp_path / 'cards_metadata.db'
+
+    with sqlite3.connect(db_path) as conn:
+        conn.execute(
+            '''
+            CREATE TABLE index_build_state (
+                scope TEXT PRIMARY KEY,
+                active_generation INTEGER NOT NULL DEFAULT 0,
+                building_generation INTEGER NOT NULL DEFAULT 0,
+                state TEXT NOT NULL DEFAULT 'empty',
+                phase TEXT NOT NULL DEFAULT '',
+                build_reason TEXT NOT NULL DEFAULT '',
+                started_at REAL NOT NULL DEFAULT 0,
+                finished_at REAL NOT NULL DEFAULT 0,
+                last_error TEXT DEFAULT '',
+                owner_token TEXT DEFAULT '',
+                items_written INTEGER NOT NULL DEFAULT 0
+            )
+            '''
+        )
+        conn.execute(
+            "INSERT INTO index_build_state(scope) VALUES ('worldinfo')"
+        )
+        conn.commit()
+
+        ensure_index_runtime_schema(conn)
+        # 再跑一次必须幂等（列已存在时不报错）。
+        ensure_index_runtime_schema(conn)
+
+        columns = {
+            row[1] for row in conn.execute('PRAGMA table_info(index_build_state)').fetchall()
+        }
+
+    assert 'progress_done' in columns
+    assert 'progress_total' in columns
+
+
+def test_update_build_progress_roundtrip(tmp_path):
+    db_path = tmp_path / 'cards_metadata.db'
+
+    with sqlite3.connect(db_path) as conn:
+        ensure_index_runtime_schema(conn)
+        update_build_progress(
+            conn, 'worldinfo', phase='build_entities', done=12, total=40, commit=True
+        )
+        progress = get_build_progress(conn, 'worldinfo')
+        phase = conn.execute(
+            "SELECT phase FROM index_build_state WHERE scope = 'worldinfo'"
+        ).fetchone()[0]
+
+    assert progress == {'done': 12, 'total': 40}
+    assert phase == 'build_entities'
+
+
+def test_allocate_build_generation_resets_progress(tmp_path):
+    db_path = tmp_path / 'cards_metadata.db'
+
+    with sqlite3.connect(db_path) as conn:
+        ensure_index_runtime_schema(conn)
+        update_build_progress(conn, 'cards', phase='build_entities', done=99, total=99, commit=True)
+        allocate_build_generation(conn, 'cards')
+
+    with sqlite3.connect(db_path) as conn:
+        assert get_build_progress(conn, 'cards') == {'done': 0, 'total': 0}
 
 
 def test_allocate_build_generation_increments_from_active(tmp_path):
@@ -451,6 +521,8 @@ def test_app_context_exposes_richer_index_runtime_state():
         'building_generation': 0,
         'items_written': 0,
         'last_error': '',
+        'progress_done': 0,
+        'progress_total': 0,
     }
     assert ctx.index_state['worldinfo'] == {
         'state': 'empty',
@@ -459,6 +531,8 @@ def test_app_context_exposes_richer_index_runtime_state():
         'building_generation': 0,
         'items_written': 0,
         'last_error': '',
+        'progress_done': 0,
+        'progress_total': 0,
     }
     assert ctx.index_state['jobs'] == {
         'pending_jobs': 0,

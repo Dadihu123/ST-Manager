@@ -106,7 +106,8 @@ def get_index_status() -> dict[str, Any]:
             }
 
             build_rows = conn.execute(
-                'SELECT scope, active_generation, building_generation, state, phase, items_written, last_error FROM index_build_state'
+                'SELECT scope, active_generation, building_generation, state, phase, items_written, last_error, '
+                'progress_done, progress_total FROM index_build_state'
             ).fetchall()
     except sqlite3.OperationalError:
         return snapshot
@@ -123,11 +124,22 @@ def get_index_status() -> dict[str, Any]:
             'building_generation': int(row['building_generation'] or 0),
             'items_written': int(row['items_written'] or 0),
             'last_error': str(row['last_error'] or ''),
+            'progress_done': int(row['progress_done'] or 0),
+            'progress_total': int(row['progress_total'] or 0),
         }
 
     for scope in ('cards', 'worldinfo'):
         if scope in persisted_scopes:
-            snapshot[scope] = persisted_scopes[scope]
+            # 内存里可能刚上报了更新的进度（下一次分批提交前），这里取两者较大值，
+            # 避免前端看到数字回退。
+            in_memory = snapshot.get(scope) or {}
+            merged = dict(persisted_scopes[scope])
+            if int(in_memory.get('progress_done') or 0) > merged['progress_done']:
+                merged['progress_done'] = int(in_memory.get('progress_done') or 0)
+                merged['phase'] = str(in_memory.get('phase') or merged['phase'])
+            if int(in_memory.get('progress_total') or 0) > merged['progress_total']:
+                merged['progress_total'] = int(in_memory.get('progress_total') or 0)
+            snapshot[scope] = merged
 
     pending_jobs = int(snapshot.get('jobs', {}).get('pending_jobs') or snapshot.get('pending_jobs') or 0)
     worker_state = str(snapshot.get('jobs', {}).get('worker_state') or 'idle')
@@ -135,20 +147,49 @@ def get_index_status() -> dict[str, Any]:
     if active_scope not in ('cards', 'worldinfo'):
         active_scope = 'cards'
 
-    if pending_jobs > 0 or worker_state in ('waiting', 'processing'):
+    upgrade_active = bool(getattr(ctx, 'index_upgrade_active', False))
+    building_scope = next(
+        (
+            scope
+            for scope in ('worldinfo', 'cards')
+            if str(snapshot.get(scope, {}).get('state') or '') == 'running'
+        ),
+        '',
+    )
+
+    if upgrade_active or building_scope:
+        # 后台启动升级期间，索引作业线程处于「让路等待」状态，pending_jobs 可能
+        # 为 0；此时仍然应该显示构建中，否则前端会以为没有任何活动。
+        snapshot['state'] = 'building'
+        snapshot['scope'] = building_scope or active_scope
+    elif pending_jobs > 0 or worker_state in ('waiting', 'processing'):
         snapshot['state'] = 'building' if pending_jobs > 0 or worker_state == 'processing' else 'idle'
         snapshot['scope'] = active_scope
     else:
-        ready_scope = next(
+        failed_scope = next(
             (
                 scope
-                for scope in ('cards', 'worldinfo')
-                if str(snapshot.get(scope, {}).get('state') or '') == 'ready'
+                for scope in ('worldinfo', 'cards')
+                if str(snapshot.get(scope, {}).get('state') or '') == 'failed'
             ),
-            active_scope,
+            '',
         )
-        snapshot['scope'] = ready_scope
-        snapshot['state'] = str(snapshot.get(ready_scope, {}).get('state') or snapshot['schema']['state'] or 'empty')
+        if failed_scope:
+            # 后台重建失败时不能伪装成 ready：否则用户看到「一切正常」，
+            # 实际搜索仍在用旧索引。状态条会显示「索引异常」。
+            snapshot['state'] = 'error'
+            snapshot['scope'] = failed_scope
+        else:
+            ready_scope = next(
+                (
+                    scope
+                    for scope in ('cards', 'worldinfo')
+                    if str(snapshot.get(scope, {}).get('state') or '') == 'ready'
+                ),
+                active_scope,
+            )
+            snapshot['scope'] = ready_scope
+            snapshot['state'] = str(snapshot.get(ready_scope, {}).get('state') or snapshot['schema']['state'] or 'empty')
 
     snapshot['pending_jobs'] = pending_jobs
     snapshot['jobs'] = {
@@ -166,6 +207,8 @@ def get_index_status() -> dict[str, Any]:
         snapshot['message'] = str(snapshot.get('scan_message') or 'scanning')
     snapshot['scan_active'] = bool(snapshot.get('scan_active'))
     snapshot['scan_message'] = str(snapshot.get('scan_message') or '')
+    # 后台启动升级是否仍在进行：前端据此把「首次升级」和普通增量构建区分开。
+    snapshot['upgrade_active'] = bool(getattr(ctx, 'index_upgrade_active', False))
     return snapshot
 
 

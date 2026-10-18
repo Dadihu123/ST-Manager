@@ -35,7 +35,9 @@ pip install pytest
 5. 通过 `core.create_app()` 创建 Flask 应用，注册 API 蓝图、页面蓝图和认证钩子。
 6. 非 debug 模式下自动打开浏览器；debug 模式只在 Werkzeug 子进程启动后台服务。
 
-`init_services()` 的顺序是：清理 `data/temp`、初始化/迁移 SQLite、恢复或引导索引、加载内存缓存、启动文件扫描器、启动索引任务 worker、启动来源更新监控调度器，最后把全局状态切换为 `ready`。
+`init_services()` 的顺序是：清理 `data/temp`、初始化/迁移 SQLite、检查索引升级计划、加载内存缓存、启动文件扫描器、启动索引任务 worker、启动来源更新监控调度器，把全局状态切换为 `ready`，最后在后台 daemon 线程里执行索引重建。
+
+索引重建（首次引导、搜索内容格式升级）**不在启动路径上同步执行**：旧库世界书多时要逐张开卡文件，同步跑会让页面一直停在「正在初始化资源库」。`plan_startup_upgrade()` 只做表结构补齐、中断恢复和「哪些 scope 需要重建」的判定；真正的 `rebuild_scope_generation()` 由 `start_background_index_upgrade()` 起线程执行。期间 `ctx.index_upgrade_active` 为真，索引任务 worker 与启动全量扫描都会让路（避免写进即将被丢弃的旧 generation、也避免长事务抢写锁），前端通过 `/api/index/status` 的 `progress_done` / `progress_total` 显示进度，完成后自动刷新列表。
 
 ## 项目结构
 
@@ -217,6 +219,8 @@ curl http://127.0.0.1:5000/api/index/status
 ```
 
 如果页面停留在初始化遮罩，先查看 `/api/status`，再检查 `data/system/db/cards_metadata.db` 是否可写、索引任务是否报错、配置目录是否有效。不要通过删除数据库解决普通数据问题；优先使用扫描、索引重建、备份和回滚能力。
+
+遮罩消失后仍在重建索引属于正常情况：`/api/index/status` 的 `state` 会是 `building`、`upgrade_active` 为 `true`，`worldinfo`/`cards` 块里的 `phase` 说明当前阶段（`backfill_embedded_worldinfo_metadata` → `build_entities` → `activate_generation`），`progress_done` / `progress_total` 是进度分子分母。此时列表会走磁盘回退路径或旧索引，重建完成后自动切到新索引。
 
 ## Docker 与桌面打包
 

@@ -1,4 +1,6 @@
 <!-- Loading 遮罩 -->
+<!-- 只覆盖「启动必需」的快速阶段（建库/迁移/加载缓存）。索引重建已经移到后台，
+     由 header 的索引状态条显示进度，不再阻塞进入应用。 -->
 <div x-show="serverStatus && serverStatus.status !== 'ready'"
     class="fixed inset-0 z-topmost flex flex-col items-center justify-center"
     style="background-color: var(--surface-page); color: var(--content-primary);" x-transition.opacity>

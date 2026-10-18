@@ -132,6 +132,20 @@
     </div>
   </div>
 
+  <!-- 移动端：索引构建进度（后台重建不阻塞启动，需要一处持续可见的提示） -->
+  <div
+    x-show="deviceType === 'mobile' && ($store.global.indexStatus.state === 'building' || $store.global.indexStatus.state === 'error')"
+    class="index-status-chip index-status-chip--mobile"
+    :class="$store.global.indexStatus.state"
+    :title="indexStatusTitle"
+  >
+    <span class="index-status-label" x-text="indexStatusLabel"></span>
+    <span class="index-status-track" x-show="indexStatusPercent !== null">
+      <span class="index-status-fill" :style="'width: ' + indexStatusPercent + '%'"></span>
+    </span>
+    <span class="index-status-count" x-show="indexStatusCountText" x-text="indexStatusCountText"></span>
+  </div>
+
   <!-- 移动端：第二行 - 筛选标签（递归开关已移到菜单中） -->
   <div
     x-show="deviceType === 'mobile' && currentMode === 'cards' && (filterTags.length > 0 || $store.global.viewState.excludedTags.length > 0)"
@@ -201,9 +215,14 @@
       x-show="$store.global.indexStatus.state === 'building' || $store.global.indexStatus.state === 'error'"
       class="index-status-chip"
       :class="$store.global.indexStatus.state"
+      :title="indexStatusTitle"
     >
-      <span x-text="indexStatusLabel"></span>
-      <span x-text="$store.global.indexStatus.pending_jobs"></span>
+      <span class="index-status-label" x-text="indexStatusLabel"></span>
+      <span class="index-status-track" x-show="indexStatusPercent !== null">
+        <span class="index-status-fill" :style="'width: ' + indexStatusPercent + '%'"></span>
+      </span>
+      <span class="index-status-count" x-show="indexStatusCountText" x-text="indexStatusCountText"></span>
+      <span class="index-status-count" x-show="$store.global.indexStatus.pending_jobs > 0" x-text="'队列 ' + $store.global.indexStatus.pending_jobs"></span>
     </div>
 
     <!-- 桌面端：筛选标签云 -->

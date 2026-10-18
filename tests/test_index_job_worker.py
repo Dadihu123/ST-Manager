@@ -57,6 +57,82 @@ def test_worker_waits_on_event_before_querying_jobs(monkeypatch, tmp_path):
     assert waits == [30]
 
 
+def test_worker_skips_claiming_jobs_while_background_upgrade_runs(monkeypatch, tmp_path):
+    """后台索引升级期间不得领取增量作业（否则会写进即将被丢弃的 generation）。"""
+    db_path = tmp_path / 'cards_metadata.db'
+
+    with sqlite3.connect(db_path) as conn:
+        ensure_index_runtime_schema(conn)
+        conn.execute(
+            "INSERT INTO index_jobs(job_type, payload_json) VALUES ('upsert_card', '{}')"
+        )
+        conn.commit()
+
+    monkeypatch.setattr(index_job_worker, 'DEFAULT_DB_PATH', str(db_path))
+
+    claimed = []
+    monkeypatch.setattr(
+        index_job_worker, '_claim_pending_jobs', lambda limit=50: (claimed.append(limit), ([], 0))[1]
+    )
+
+    class _StopLoop(Exception):
+        pass
+
+    state = {'waits': 0}
+
+    def fake_wakeup_wait(timeout):
+        state['waits'] += 1
+        return True
+
+    def fake_upgrade_wait(timeout):
+        raise _StopLoop()
+
+    monkeypatch.setattr(ctx.index_wakeup, 'wait', fake_wakeup_wait)
+    monkeypatch.setattr(ctx.index_upgrade_done, 'wait', fake_upgrade_wait)
+    ctx.index_upgrade_active = True
+
+    try:
+        index_job_worker.worker_loop()
+    except _StopLoop:
+        pass
+    finally:
+        ctx.index_upgrade_active = False
+        ctx.index_upgrade_done.set()
+
+    assert claimed == []
+    assert ctx.index_state['jobs']['worker_state'] == 'waiting'
+
+
+def test_worker_resumes_claiming_after_upgrade_finishes(monkeypatch, tmp_path):
+    db_path = tmp_path / 'cards_metadata.db'
+
+    with sqlite3.connect(db_path) as conn:
+        ensure_index_runtime_schema(conn)
+
+    monkeypatch.setattr(index_job_worker, 'DEFAULT_DB_PATH', str(db_path))
+
+    claimed = []
+
+    class _StopLoop(Exception):
+        pass
+
+    def fake_claim(limit=50):
+        claimed.append(limit)
+        raise _StopLoop()
+
+    monkeypatch.setattr(index_job_worker, '_claim_pending_jobs', fake_claim)
+    monkeypatch.setattr(ctx.index_wakeup, 'wait', lambda timeout: True)
+    ctx.index_upgrade_active = False
+    ctx.index_upgrade_done.set()
+
+    try:
+        index_job_worker.worker_loop()
+    except _StopLoop:
+        pass
+
+    assert claimed == [50]
+
+
 def test_enqueue_index_job_updates_visible_pending_jobs_immediately(monkeypatch, tmp_path):
     db_path = tmp_path / 'cards_metadata.db'
 

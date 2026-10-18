@@ -14,7 +14,10 @@ from core.utils.security_headers import apply_security_headers
 # === 数据与服务 ===
 from core.data.db_session import init_database, close_connection
 from core.data.ui_store import UiDataLoadError
-from core.services.index_upgrade_service import run_startup_upgrade_if_needed
+from core.services.index_upgrade_service import (
+    plan_startup_upgrade,
+    start_background_index_upgrade,
+)
 from core.services.scan_service import start_background_scanner
 from core.services.source_update_monitor_service import start_monitor_scheduler
 
@@ -141,10 +144,13 @@ def init_services():
         # 1. 数据库初始化 (建表、迁移)
         init_database()
 
-        # 2. 启动索引升级恢复/引导
+        # 2. 检查索引升级状态（只做恢复与判定，不做重建）
+        # 真正的重建可能很慢（旧库世界书多时要逐张读卡片文件），因此放到后台
+        # 线程执行：启动流程不再卡在「正在初始化资源库」，前端用
+        # /api/index/status 显示进度。
         print('正在检查索引升级状态...')
         ctx.set_status(status='initializing', message='正在检查索引升级状态...')
-        run_startup_upgrade_if_needed(index_auto_bootstrap=True)
+        upgrade_plan = plan_startup_upgrade(index_auto_bootstrap=True)
 
         # 3. 缓存加载
         # 数据库就绪后，将数据全量加载到内存缓存中，加速后续查询
@@ -156,17 +162,28 @@ def init_services():
         else:
             logger.error("Cache component not initialized in Context!")
         
-        # 4. 启动文件系统扫描器
+        # 4. 启动索引升级重建（daemon 线程，不阻塞启动）
+        # 必须排在扫描器与索引作业 worker 之前：先置位 ctx.index_upgrade_active，
+        # 扫描器才不会立刻开始读全部卡片做启动全量校验，worker 也不会在重建窗口
+        # 里把增量作业写进即将被丢弃的旧 generation。
+        if upgrade_plan:
+            print(
+                '索引需要后台重建: '
+                + ', '.join(f"{item['scope']}({item['reason']})" for item in upgrade_plan)
+            )
+            start_background_index_upgrade(upgrade_plan)
+
+        # 5. 启动文件系统扫描器
         # 负责监听文件变动并同步到数据库
         start_background_scanner()
 
-        # 5. 启动索引工作线程
+        # 6. 启动索引工作线程
         start_index_job_worker()
 
-        # 6. 启动应用内来源监控调度器（自身幂等，且线程为 daemon）
+        # 7. 启动应用内来源监控调度器（自身幂等，且线程为 daemon）
         start_monitor_scheduler()
 
-        # 7. 启动插件作业 worker（幂等；启动时顺带做崩溃恢复，把 running/queued 置为 aborted）
+        # 8. 启动插件作业 worker（幂等；启动时顺带做崩溃恢复，把 running/queued 置为 aborted）
         try:
             plugin_jobs.start_plugin_job_worker()
         except Exception as e:
@@ -176,7 +193,7 @@ def init_services():
         ctx.set_status(status="ready", message="服务已就绪")
         print("✅ 后台服务启动完成")
 
-        # 8. 通知插件：应用已就绪（错误在 hooks 内部逐 handler 隔离）
+        # 9. 通知插件：应用已就绪（错误在 hooks 内部逐 handler 隔离）
         try:
             from core.plugins import hooks
 

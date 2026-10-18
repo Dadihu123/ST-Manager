@@ -360,7 +360,59 @@ def test_rebuild_worldinfo_generation_writes_full_v2_rows_before_ready(monkeypat
     assert metadata_row == (1, 'Book', 1)
 
 
-def test_worldinfo_rebuild_rolls_back_backfill_when_projection_build_fails(monkeypatch, tmp_path):
+def test_rebuild_publishes_progress_into_index_state(monkeypatch, tmp_path):
+    """重建过程中必须把进度写进 ctx.index_state，前端才能显示百分比。"""
+    db_path = tmp_path / 'cards_metadata.db'
+    cards_dir = tmp_path / 'cards'
+    cards_dir.mkdir()
+    (cards_dir / 'hero.png').write_bytes(b'hero')
+
+    with sqlite3.connect(db_path) as conn:
+        ensure_index_runtime_schema(conn)
+        conn.execute(
+            "CREATE TABLE card_metadata (id TEXT PRIMARY KEY, char_name TEXT, description TEXT, first_mes TEXT, mes_example TEXT, tags TEXT, category TEXT, creator TEXT, char_version TEXT, last_modified REAL, file_hash TEXT, file_size INTEGER, token_count INTEGER DEFAULT 0, has_character_book INTEGER DEFAULT 0, character_book_name TEXT DEFAULT '', is_favorite INTEGER DEFAULT 0, wi_metadata_scanned INTEGER DEFAULT 0)"
+        )
+        conn.execute(
+            "INSERT INTO card_metadata(id, char_name, category, last_modified, wi_metadata_scanned) VALUES ('hero.png', 'Hero', '', 1.0, 0)"
+        )
+        conn.commit()
+
+    monkeypatch.setattr(index_upgrade_service, 'DEFAULT_DB_PATH', str(db_path))
+    monkeypatch.setattr(index_upgrade_service, 'CARDS_FOLDER', str(cards_dir))
+    monkeypatch.setattr(index_build_service, 'CARDS_FOLDER', str(cards_dir))
+    monkeypatch.setattr(
+        index_build_service,
+        'load_config',
+        lambda: {'world_info_dir': str(tmp_path / 'wi'), 'resources_dir': str(tmp_path / 'res')},
+    )
+    monkeypatch.setattr(index_build_service, 'load_ui_data', lambda: {})
+    monkeypatch.setattr(index_upgrade_service, 'extract_card_info', lambda _path: {'data': {}})
+    monkeypatch.setattr(index_build_service, 'extract_card_info', lambda _path: {'data': {}})
+    monkeypatch.setattr(index_upgrade_service, 'get_wi_meta', lambda _data: (False, ''))
+
+    ctx.index_state['worldinfo']['progress_done'] = 0
+    ctx.index_state['worldinfo']['progress_total'] = 0
+
+    index_upgrade_service.rebuild_scope_generation('worldinfo')
+
+    with sqlite3.connect(db_path) as conn:
+        progress = conn.execute(
+            "SELECT progress_done, progress_total, phase, state FROM index_build_state WHERE scope = 'worldinfo'"
+        ).fetchone()
+
+    assert progress[3] == 'ready'
+    # 激活时会把 done 顶到 total，避免进度条停在 99%。
+    assert progress[0] == progress[1] or progress[1] == 0
+    assert ctx.index_state['worldinfo']['progress_total'] >= 1
+
+
+def test_worldinfo_rebuild_keeps_backfill_but_rolls_back_projection_when_build_fails(monkeypatch, tmp_path):
+    """构建失败时：索引行整体回滚，但「已扫描世界书元数据」这一事实保留。
+
+    回填会逐张开卡文件（大库可达数分钟），且带 ``wi_metadata_scanned`` 幂等
+    标记；如果跟着构建一起回滚，每次重试都要把全部卡片再读一遍，正是启动慢
+    的根源。索引行本身仍由 generation 机制整体丢弃，不会出现半成品数据。
+    """
     db_path = tmp_path / 'cards_metadata.db'
     cards_dir = tmp_path / 'cards'
     cards_dir.mkdir()
@@ -390,7 +442,7 @@ def test_worldinfo_rebuild_rolls_back_backfill_when_projection_build_fails(monke
     monkeypatch.setattr(index_upgrade_service, 'extract_card_info', _extract)
     monkeypatch.setattr(index_build_service, 'extract_card_info', _extract)
     monkeypatch.setattr(index_upgrade_service, 'get_wi_meta', lambda _data: (True, 'Book'))
-    monkeypatch.setattr(index_upgrade_service, 'build_worldinfo_generation', lambda conn, generation, inspected_books=None: (_ for _ in ()).throw(RuntimeError('projection build failed')))
+    monkeypatch.setattr(index_upgrade_service, 'build_worldinfo_generation', lambda conn, generation, inspected_books=None, progress_cb=None: (_ for _ in ()).throw(RuntimeError('projection build failed')))
 
     try:
         index_upgrade_service.rebuild_scope_generation('worldinfo')
@@ -410,7 +462,7 @@ def test_worldinfo_rebuild_rolls_back_backfill_when_projection_build_fails(monke
             "SELECT active_generation, building_generation, state FROM index_build_state WHERE scope = 'worldinfo'"
         ).fetchone()
 
-    assert metadata_row == (0, '', 0)
+    assert metadata_row == (1, 'Book', 1)
     assert entity_rows == []
     assert state_row == (0, 1, 'running')
 
@@ -441,7 +493,7 @@ def test_worldinfo_rebuild_does_not_activate_ready_when_backfill_identified_owne
         lambda _path: {'data': {'character_book': {'name': 'Book', 'entries': {'0': {'content': 'hello'}}}}},
     )
     monkeypatch.setattr(index_upgrade_service, 'get_wi_meta', lambda _data: (True, 'Book'))
-    monkeypatch.setattr(index_upgrade_service, 'build_worldinfo_generation', lambda conn, generation, inspected_books=None: 0)
+    monkeypatch.setattr(index_upgrade_service, 'build_worldinfo_generation', lambda conn, generation, inspected_books=None, progress_cb=None: 0)
 
     try:
         index_upgrade_service.rebuild_scope_generation('worldinfo')
@@ -463,21 +515,34 @@ def test_worldinfo_rebuild_does_not_activate_ready_when_backfill_identified_owne
 
     assert state_row == (0, 1, 'running')
     assert entity_rows == []
-    assert metadata_row == (0, '', 0)
+    assert metadata_row == (1, 'Book', 1)
 
 
-def test_init_services_runs_upgrade_before_cache_scanner_and_worker(monkeypatch):
+def test_init_services_plans_upgrade_before_cache_and_defers_rebuild(monkeypatch):
+    """启动流程只在同步阶段「判定」要不要重建，重建本身必须丢到后台线程。
+
+    这是「旧库世界书多时卡在正在初始化资源库」的回归保护：init_services
+    返回时不应已经跑完 rebuild_scope_generation。后台重建必须排在索引作业
+    worker 之前启动，否则 worker 会先跑起来、在重建窗口里写旧 generation。
+    """
     calls = []
 
     monkeypatch.setattr('core.cleanup_temp_files', lambda: calls.append('cleanup'))
     monkeypatch.setattr('core.init_database', lambda: calls.append('init_database'))
     monkeypatch.setattr(
-        'core.run_startup_upgrade_if_needed',
-        lambda index_auto_bootstrap=True: calls.append(('run_startup_upgrade_if_needed', index_auto_bootstrap)),
+        'core.plan_startup_upgrade',
+        lambda index_auto_bootstrap=True: (
+            calls.append(('plan_startup_upgrade', index_auto_bootstrap)),
+            [{'scope': 'worldinfo', 'reason': 'search_content_format_upgrade'}],
+        )[1],
     )
     monkeypatch.setattr(ctx, 'cache', type('CacheStub', (), {'reload_from_db': lambda self: calls.append('cache_reload')})())
     monkeypatch.setattr('core.start_background_scanner', lambda: calls.append('start_background_scanner'))
     monkeypatch.setattr('core.start_index_job_worker', lambda: calls.append('start_index_job_worker'))
+    monkeypatch.setattr(
+        'core.start_background_index_upgrade',
+        lambda plan: calls.append(('start_background_index_upgrade', list(plan))),
+    )
     monkeypatch.setattr(ctx, 'set_status', lambda **kwargs: None)
 
     init_services()
@@ -485,8 +550,136 @@ def test_init_services_runs_upgrade_before_cache_scanner_and_worker(monkeypatch)
     assert calls == [
         'cleanup',
         'init_database',
-        ('run_startup_upgrade_if_needed', True),
+        ('plan_startup_upgrade', True),
         'cache_reload',
+        ('start_background_index_upgrade', [{'scope': 'worldinfo', 'reason': 'search_content_format_upgrade'}]),
         'start_background_scanner',
         'start_index_job_worker',
     ]
+
+
+def test_init_services_marks_ready_without_waiting_for_index_rebuild(monkeypatch):
+    """init_services 结束时必须已经是 ready —— 后台重建不允许阻塞启动。"""
+    statuses = []
+
+    monkeypatch.setattr('core.cleanup_temp_files', lambda: None)
+    monkeypatch.setattr('core.init_database', lambda: None)
+    monkeypatch.setattr('core.plan_startup_upgrade', lambda index_auto_bootstrap=True: [{'scope': 'cards', 'reason': 'bootstrap'}])
+    monkeypatch.setattr(ctx, 'cache', type('CacheStub', (), {'reload_from_db': lambda self: None})())
+    monkeypatch.setattr('core.start_background_scanner', lambda: None)
+    monkeypatch.setattr('core.start_index_job_worker', lambda: None)
+    monkeypatch.setattr(ctx, 'set_status', lambda **kwargs: statuses.append(kwargs.get('status')))
+    # 后台线程用桩替换，避免测试真的去读磁盘建索引。
+    monkeypatch.setattr('core.start_background_index_upgrade', lambda plan: None)
+
+    init_services()
+
+    assert statuses[-1] == 'ready'
+
+
+def test_plan_startup_upgrade_returns_plan_without_rebuilding(monkeypatch, tmp_path):
+    """计划阶段只做判定：返回待重建 scope，绝不真的跑重建。"""
+    db_path = tmp_path / 'cards_metadata.db'
+
+    with sqlite3.connect(db_path) as conn:
+        ensure_index_runtime_schema(conn)
+        conn.execute(
+            "UPDATE index_build_state SET active_generation = 3, state = 'ready', phase = 'ready' WHERE scope = 'worldinfo'"
+        )
+        set_search_content_format_version(conn, 'worldinfo')
+        conn.commit()
+
+    monkeypatch.setattr(index_upgrade_service, 'DEFAULT_DB_PATH', str(db_path))
+
+    rebuilt = []
+    monkeypatch.setattr(
+        index_upgrade_service,
+        'rebuild_scope_generation',
+        lambda scope, reason='bootstrap': rebuilt.append((scope, reason)),
+    )
+
+    plan = index_upgrade_service.plan_startup_upgrade(index_auto_bootstrap=True)
+
+    # worldinfo 已就绪且格式最新 → 不需要重建；cards 从未建过 → bootstrap。
+    assert plan == [{'scope': 'cards', 'reason': 'bootstrap'}]
+    assert rebuilt == []
+
+
+def test_start_background_index_upgrade_returns_immediately_and_sets_flags(monkeypatch):
+    """后台升级必须立刻返回，且期间 index_upgrade_active 为真、结束时置位 done。"""
+    import threading
+
+    release = threading.Event()
+    started = threading.Event()
+
+    def fake_rebuild(scope, reason='bootstrap'):
+        started.set()
+        release.wait(5)
+
+    monkeypatch.setattr(index_upgrade_service, 'rebuild_scope_generation', fake_rebuild)
+    monkeypatch.setattr(index_upgrade_service, '_refresh_after_upgrade', lambda: None)
+    monkeypatch.setattr(index_upgrade_service, 'ctx', ctx)
+
+    ctx.index_upgrade_active = False
+    ctx.index_upgrade_done.set()
+
+    thread = index_upgrade_service.start_background_index_upgrade(
+        [{'scope': 'worldinfo', 'reason': 'bootstrap'}]
+    )
+
+    try:
+        assert thread is not None
+        assert started.wait(5) is True
+        # 线程已在跑重建，但调用方（启动流程）早已继续往下走。
+        assert ctx.index_upgrade_active is True
+        assert ctx.index_upgrade_done.is_set() is False
+    finally:
+        release.set()
+        thread.join(5)
+
+    assert ctx.index_upgrade_active is False
+    assert ctx.index_upgrade_done.is_set() is True
+
+
+def test_start_background_index_upgrade_with_empty_plan_is_noop():
+    ctx.index_upgrade_active = True
+    ctx.index_upgrade_done.clear()
+
+    assert index_upgrade_service.start_background_index_upgrade([]) is None
+    assert ctx.index_upgrade_active is True  # 空计划不应改动既有状态
+    assert ctx.index_upgrade_done.is_set() is True
+
+
+def test_background_upgrade_failure_marks_scope_failed_and_clears_flag(monkeypatch, tmp_path):
+    db_path = tmp_path / 'cards_metadata.db'
+
+    with sqlite3.connect(db_path) as conn:
+        ensure_index_runtime_schema(conn)
+        conn.commit()
+
+    monkeypatch.setattr(index_upgrade_service, 'DEFAULT_DB_PATH', str(db_path))
+    monkeypatch.setattr(
+        index_upgrade_service,
+        'rebuild_scope_generation',
+        lambda scope, reason='bootstrap': (_ for _ in ()).throw(RuntimeError('boom')),
+    )
+    monkeypatch.setattr(index_upgrade_service, '_refresh_after_upgrade', lambda: None)
+    monkeypatch.setattr(index_upgrade_service, 'ctx', ctx)
+
+    ctx.index_upgrade_active = False
+    ctx.index_upgrade_done.set()
+
+    thread = index_upgrade_service.start_background_index_upgrade(
+        [{'scope': 'worldinfo', 'reason': 'bootstrap'}]
+    )
+    thread.join(10)
+
+    with sqlite3.connect(db_path) as conn:
+        row = conn.execute(
+            "SELECT state, last_error FROM index_build_state WHERE scope = 'worldinfo'"
+        ).fetchone()
+
+    assert row[0] == 'failed'
+    assert 'boom' in row[1]
+    assert ctx.index_upgrade_active is False
+    assert ctx.index_upgrade_done.is_set() is True

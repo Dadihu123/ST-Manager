@@ -606,6 +606,119 @@ def test_get_index_status_reads_persisted_runtime_build_state(monkeypatch, tmp_p
     assert snapshot['worldinfo']['items_written'] == 7
 
 
+def test_get_index_status_exposes_build_progress(monkeypatch, tmp_path):
+    """后台重建进度必须能从 /api/index/status 读到，前端才画得出进度条。"""
+    db_path = tmp_path / 'cards_metadata.db'
+    monkeypatch.setattr(index_service, 'DEFAULT_DB_PATH', str(db_path))
+
+    with sqlite3.connect(db_path) as conn:
+        ensure_index_runtime_schema(conn)
+        conn.execute(
+            "UPDATE index_build_state SET active_generation = 1, building_generation = 2, "
+            "state = 'running', phase = 'build_entities', progress_done = 30, progress_total = 120 "
+            "WHERE scope = 'worldinfo'"
+        )
+        conn.commit()
+
+    ctx.index_state.clear()
+    ctx.index_state.update(type(ctx.index_state)())
+
+    snapshot = index_service.get_index_status()
+
+    assert snapshot['worldinfo']['progress_done'] == 30
+    assert snapshot['worldinfo']['progress_total'] == 120
+    assert snapshot['worldinfo']['phase'] == 'build_entities'
+    assert 'upgrade_active' in snapshot
+
+
+def test_get_index_status_reports_building_while_upgrade_active_with_no_pending_jobs(monkeypatch, tmp_path):
+    """后台升级期间索引作业线程在让路，pending_jobs 可能为 0；状态仍须是 building。
+
+    否则前端进度条会在「重建正跑着」的时候消失。
+    """
+    db_path = tmp_path / 'cards_metadata.db'
+    monkeypatch.setattr(index_service, 'DEFAULT_DB_PATH', str(db_path))
+
+    with sqlite3.connect(db_path) as conn:
+        ensure_index_runtime_schema(conn)
+        conn.execute(
+            "UPDATE index_build_state SET active_generation = 1, building_generation = 2, "
+            "state = 'running', phase = 'backfill_embedded_worldinfo_metadata', "
+            "progress_done = 5, progress_total = 200 WHERE scope = 'worldinfo'"
+        )
+        conn.commit()
+
+    ctx.index_state.clear()
+    ctx.index_state.update(type(ctx.index_state)())
+    ctx.index_upgrade_active = True
+
+    try:
+        snapshot = index_service.get_index_status()
+    finally:
+        ctx.index_upgrade_active = False
+
+    assert snapshot['state'] == 'building'
+    assert snapshot['scope'] == 'worldinfo'
+    assert snapshot['upgrade_active'] is True
+    assert snapshot['worldinfo']['progress_done'] == 5
+    assert snapshot['worldinfo']['progress_total'] == 200
+
+
+def test_get_index_status_surfaces_failed_scope_instead_of_ready(monkeypatch, tmp_path):
+    """后台重建失败后不能报 ready：否则用户以为一切正常，实际还在用旧索引。"""
+    db_path = tmp_path / 'cards_metadata.db'
+    monkeypatch.setattr(index_service, 'DEFAULT_DB_PATH', str(db_path))
+
+    with sqlite3.connect(db_path) as conn:
+        ensure_index_runtime_schema(conn)
+        conn.execute(
+            "UPDATE index_build_state SET active_generation = 1, building_generation = 0, "
+            "state = 'failed', phase = 'background_upgrade', last_error = 'boom' "
+            "WHERE scope = 'worldinfo'"
+        )
+        conn.execute(
+            "UPDATE index_build_state SET active_generation = 1, state = 'ready', phase = 'ready' "
+            "WHERE scope = 'cards'"
+        )
+        conn.commit()
+
+    ctx.index_state.clear()
+    ctx.index_state.update(type(ctx.index_state)())
+    ctx.index_upgrade_active = False
+
+    snapshot = index_service.get_index_status()
+
+    assert snapshot['state'] == 'error'
+    assert snapshot['scope'] == 'worldinfo'
+    assert snapshot['worldinfo']['last_error'] == 'boom'
+
+
+def test_get_index_status_prefers_newer_in_memory_progress(monkeypatch, tmp_path):
+    """内存进度比持久化列更新时取较大值，避免进度条数字回退。"""
+    db_path = tmp_path / 'cards_metadata.db'
+    monkeypatch.setattr(index_service, 'DEFAULT_DB_PATH', str(db_path))
+
+    with sqlite3.connect(db_path) as conn:
+        ensure_index_runtime_schema(conn)
+        conn.execute(
+            "UPDATE index_build_state SET active_generation = 1, building_generation = 2, "
+            "state = 'running', phase = 'build_entities', progress_done = 10, progress_total = 100 "
+            "WHERE scope = 'cards'"
+        )
+        conn.commit()
+
+    ctx.index_state.clear()
+    ctx.index_state.update(type(ctx.index_state)())
+    ctx.index_state['cards']['progress_done'] = 55
+    ctx.index_state['cards']['phase'] = 'activate_generation'
+
+    snapshot = index_service.get_index_status()
+
+    assert snapshot['cards']['progress_done'] == 55
+    assert snapshot['cards']['phase'] == 'activate_generation'
+    assert snapshot['cards']['progress_total'] == 100
+
+
 def test_index_rebuild_endpoint_enqueues_scope(monkeypatch):
     captured = {}
 

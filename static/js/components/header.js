@@ -153,10 +153,12 @@ export default function header() {
     },
 
     refreshIndexStatus() {
+      const previous = this.$store.global.indexStatus || {};
       return getIndexStatus()
         .then((res) => {
           if (res && res.success && res.status) {
             this.$store.global.indexStatus = res.status;
+            this.handleIndexStatusTransition(previous, res.status);
           }
           this.ensureSearchModeAllowed();
           return res;
@@ -172,17 +174,51 @@ export default function header() {
         });
     },
 
+    // 后台索引升级结束（building → ready）时刷新列表：
+    // 升级前列表走的是旧索引/磁盘回退路径，新索引生效后需要重取一次。
+    handleIndexStatusTransition(previous, next) {
+      const wasBuilding =
+        String(previous.state || "") === "building" ||
+        Boolean(previous.upgrade_active);
+      const isBuilding =
+        String(next.state || "") === "building" || Boolean(next.upgrade_active);
+      if (!wasBuilding || isBuilding) return;
+
+      window.dispatchEvent(new CustomEvent("refresh-wi-list", { detail: { resetPage: false } }));
+      window.dispatchEvent(new CustomEvent("refresh-card-list"));
+
+      // 升级是在后台悄悄完成的，明确告诉用户一声，否则「进度条怎么没了」很容易
+      // 被当成构建失败。
+      if (previous.upgrade_active && typeof this.$store.global.showToast === "function") {
+        this.$store.global.showToast("索引升级完成，列表已刷新", 3000, "check");
+      }
+    },
+
     startIndexStatusPolling() {
       this.stopIndexStatusPolling();
-      this.refreshIndexStatus();
-      this.$store.global.indexStatusPollTimer = window.setInterval(() => {
-        this.refreshIndexStatus();
-      }, 5000);
+      const tick = () => {
+        this.refreshIndexStatus().finally(() => {
+          // 用链式 setTimeout 而不是固定 interval：构建中要更快（1.5s），
+          // 空闲时放慢到 5s，避免无谓轮询。
+          this.$store.global.indexStatusPollTimer = window.setTimeout(
+            tick,
+            this.indexStatusPollInterval,
+          );
+        });
+      };
+      tick();
+    },
+
+    get indexStatusPollInterval() {
+      const status = this.$store.global.indexStatus || {};
+      const busy =
+        String(status.state || "") === "building" || Boolean(status.upgrade_active);
+      return busy ? 1500 : 5000;
     },
 
     stopIndexStatusPolling() {
       if (this.$store.global.indexStatusPollTimer) {
-        window.clearInterval(this.$store.global.indexStatusPollTimer);
+        window.clearTimeout(this.$store.global.indexStatusPollTimer);
         this.$store.global.indexStatusPollTimer = null;
       }
     },
@@ -264,11 +300,62 @@ export default function header() {
       return "当前：显示全部";
     },
     get indexStatusLabel() {
-      if (this.$store.global.indexStatus?.scan_active) return "正在扫描资源";
-      const state = String(this.$store.global.indexStatus?.state || "");
-      if (state === "building") return "索引构建中";
+      const status = this.$store.global.indexStatus || {};
+      if (status.scan_active) return "正在扫描资源";
+      const state = String(status.state || "");
+      if (state === "building") return this.indexStatusPhaseLabel;
       if (state === "error") return "索引异常";
       return "";
+    },
+
+    // 索引构建阶段 → 人话。后台重建不再阻塞启动，用户需要知道现在在干什么。
+    get indexStatusPhaseLabel() {
+      const status = this.$store.global.indexStatus || {};
+      const scope = String(status.scope || "");
+      const phase = String((status[scope] || {}).phase || status.phase || "");
+      const scopeLabel = scope === "worldinfo" ? "世界书" : "角色卡";
+      if (phase === "backfill_embedded_worldinfo_metadata") {
+        return "正在扫描内嵌世界书";
+      }
+      if (phase === "build_entities") return `正在重建${scopeLabel}索引`;
+      if (phase === "activate_generation") return `正在启用${scopeLabel}索引`;
+      if (phase === "prepare_generation") return `准备重建${scopeLabel}索引`;
+      // 升级线程已起但还没分配 generation：scope 行仍是上一次的 ready，
+      // 别让用户看到「已就绪」而整体状态是构建中。
+      return `准备重建${scopeLabel}索引`;
+    },
+
+    // 当前构建 scope 的进度：有 total 才算百分比，否则返回 null 表示"不确定"。
+    get indexStatusProgress() {
+      const status = this.$store.global.indexStatus || {};
+      const scope = String(status.scope || "");
+      const block = status[scope] || {};
+      const done = Number(block.progress_done || 0);
+      const total = Number(block.progress_total || 0);
+      return { done, total };
+    },
+
+    get indexStatusPercent() {
+      const { done, total } = this.indexStatusProgress;
+      if (!total || total <= 0) return null;
+      return Math.max(0, Math.min(100, Math.round((done / total) * 100)));
+    },
+
+    get indexStatusCountText() {
+      const { done, total } = this.indexStatusProgress;
+      if (!total || total <= 0) return "";
+      return `${Math.min(done, total)} / ${total}`;
+    },
+
+    get indexStatusTitle() {
+      const status = this.$store.global.indexStatus || {};
+      if (String(status.state || "") === "error") {
+        return String(status.message || "索引构建失败，可在设置里手动重建");
+      }
+      if (status.scan_active) {
+        return `正在校验磁盘资源：${String(status.scan_message || "")}`;
+      }
+      return "索引在后台构建，期间可正常浏览；重建完成后会自动刷新列表";
     },
     get favoriteFilterLabel() {
       if (this.activeFavFilter === "included") return "只看收藏";

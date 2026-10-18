@@ -69,9 +69,13 @@ def test_header_source_maps_index_status_to_human_readable_labels():
     header_source = read_project_file('static/js/components/header.js')
 
     assert 'get indexStatusLabel() {' in header_source
-    assert 'const state = String(this.$store.global.indexStatus?.state || "")' in header_source
-    assert 'if (state === "building") return "索引构建中";' in header_source
+    assert 'const state = String(status.state || "")' in header_source
+    assert 'if (state === "building") return this.indexStatusPhaseLabel;' in header_source
     assert 'if (state === "error") return "索引异常";' in header_source
+    # 后台重建不阻塞启动，因此 chip 需要展示阶段 + 百分比 + 计数。
+    assert 'get indexStatusPhaseLabel() {' in header_source
+    assert 'get indexStatusPercent() {' in header_source
+    assert 'get indexStatusCountText() {' in header_source
 
 
 def test_grid_sources_propagate_search_mode_contracts():

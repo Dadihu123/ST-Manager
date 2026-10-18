@@ -22,6 +22,11 @@ WORLDBOOK_FULLTEXT_MAX_CHARS = 200000
 # 单条条目正文的收录上限。
 WORLDBOOK_FULLTEXT_ENTRY_MAX_CHARS = 20000
 
+# 重建过程中每隔多少条提交一次事务。
+# 两个作用：① 让前端能持续看到进度；② 不把整个重建压进一个长写事务里，
+# 否则后台重建期间其它写入（扫描器、增量索引作业）会长时间拿不到写锁。
+BUILD_COMMIT_BATCH_SIZE = 200
+
 
 def _normalize_category_path(value: str) -> str:
     path = str(value or '').replace('\\', '/').strip().strip('/')
@@ -134,6 +139,29 @@ def collect_worldbook_fulltext(book_data) -> str:
             break
 
     return ' '.join(chunks)[:WORLDBOOK_FULLTEXT_MAX_CHARS]
+
+
+def _report_progress(progress_cb, done: int, total: int):
+    """把「已处理 / 总数」上报给调用方；进度是展示信息，绝不能影响构建本身。"""
+    if not progress_cb:
+        return
+    try:
+        progress_cb(int(done), int(total))
+    except Exception:
+        logger.debug('索引构建进度回调失败', exc_info=True)
+
+
+def _commit_and_report(conn, progress_cb, done: int, total: int):
+    """分批提交 + 上报进度。
+
+    重建不能把所有写入压进一个长事务：后台重建期间扫描器与增量索引作业仍在
+    写同一个库，长写事务会让它们拿不到写锁。每 ``BUILD_COMMIT_BATCH_SIZE``
+    条提交一次，顺便把进度刷新给前端。
+    """
+    if done % BUILD_COMMIT_BATCH_SIZE != 0:
+        return
+    conn.commit()
+    _report_progress(progress_cb, done, total)
 
 
 def _insert_search_rows(conn, generation: int, entity_id: str, content: str, fulltext_extra: str = ''):
@@ -719,13 +747,15 @@ def apply_card_increment(conn, card_id: str, source_path: str = '', *, remove_en
     return True
 
 
-def build_cards_generation(conn, generation: int):
+def build_cards_generation(conn, generation: int, progress_cb=None):
     ui_data = load_ui_data()
     rows = conn.execute(
         'SELECT id, char_name, tags, category, last_modified, token_count, is_favorite FROM card_metadata'
     ).fetchall()
+    total = len(rows)
+    _report_progress(progress_cb, 0, total)
 
-    for row in rows:
+    for index, row in enumerate(rows, start=1):
         entity_id = f"card::{row['id']}"
         tags = json.loads(row['tags'] or '[]') if row['tags'] else []
         summary = str((ui_data.get(row['id']) or {}).get('summary', ''))
@@ -781,11 +811,16 @@ def build_cards_generation(conn, generation: int):
         ]).strip()
         _insert_search_rows(conn, generation, entity_id, content)
 
+        if index % BUILD_COMMIT_BATCH_SIZE == 0:
+            conn.commit()
+            _report_progress(progress_cb, index, total)
+
     conn.commit()
+    _report_progress(progress_cb, total, total)
     return len(rows)
 
 
-def build_worldinfo_generation(conn, generation: int, inspected_books=None):
+def build_worldinfo_generation(conn, generation: int, inspected_books=None, progress_cb=None):
     cfg = load_config()
     ui_data = load_ui_data()
     global_dir, resources_dir = _resolve_worldinfo_runtime_dirs(cfg)
@@ -798,69 +833,83 @@ def build_worldinfo_generation(conn, generation: int, inspected_books=None):
     inspected_books = inspected_books or {}
 
     items_written = 0
+    done = 0
 
+    # 进度总数 = 全局世界书文件数 + 角色卡数（每张卡最多再带一批资源世界书，
+    # 那部分数量无法预知，因此按「卡片已处理」计数，超出的进度在展示侧截断）。
+    global_files = []
     if global_dir and os.path.isdir(global_dir):
         for root, _dirs, files in os.walk(global_dir):
             for filename in files:
-                if not filename.lower().endswith('.json'):
-                    continue
-                full_path = os.path.join(root, filename)
-                try:
-                    with open(full_path, 'r', encoding='utf-8') as handle:
-                        data = json.load(handle)
-                except (OSError, json.JSONDecodeError):
-                    logger.warning('Skipping invalid worldinfo file during v2 rebuild: %s', full_path, exc_info=True)
-                    continue
-                if not is_valid_world_info_data(data):
-                    continue
+                if filename.lower().endswith('.json'):
+                    global_files.append((root, filename))
+    total = len(global_files) + len(rows)
+    _report_progress(progress_cb, 0, total)
 
-                rel_path = os.path.relpath(full_path, global_dir).replace('\\', '/')
-                display_category = rel_path.rsplit('/', 1)[0] if '/' in rel_path else ''
-                name = (data.get('name') or '').strip() or filename
-                entity_id = f'world::global::{rel_path}'
-                summary = _worldinfo_note_summary(ui_data, 'global', file_path=full_path)
-                mtime = float(os.path.getmtime(full_path))
-                conn.execute(
-                    '''
-                    INSERT OR REPLACE INTO index_entities_v2(
-                        generation, entity_id, entity_type, source_path, owner_entity_id, name, filename,
-                        display_category, physical_category, category_mode, favorite, summary_preview,
-                        updated_at, import_time, token_count, sort_name, sort_mtime, thumb_url, source_revision
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    ''',
-                    (
-                        generation,
-                        entity_id,
-                        'world_global',
-                        full_path,
-                        '',
-                        name,
-                        filename,
-                        display_category,
-                        display_category,
-                        'physical',
-                        0,
-                        summary,
-                        mtime,
-                        0,
-                        0,
-                        name.lower(),
-                        mtime,
-                        '',
-                        build_file_source_revision(full_path),
-                    ),
-                )
-                _insert_worldinfo_search(
-                    conn,
-                    generation,
-                    entity_id,
-                    name,
-                    filename,
-                    display_category,
-                    summary,
-                    fulltext_extra=collect_worldbook_fulltext(data),
-                )
-                items_written += 1
+    for root, filename in global_files:
+        full_path = os.path.join(root, filename)
+        try:
+            with open(full_path, 'r', encoding='utf-8') as handle:
+                data = json.load(handle)
+        except (OSError, json.JSONDecodeError):
+            logger.warning('Skipping invalid worldinfo file during v2 rebuild: %s', full_path, exc_info=True)
+            done += 1
+            continue
+        if not is_valid_world_info_data(data):
+            done += 1
+            continue
+
+        rel_path = os.path.relpath(full_path, global_dir).replace('\\', '/')
+        display_category = rel_path.rsplit('/', 1)[0] if '/' in rel_path else ''
+        name = (data.get('name') or '').strip() or filename
+        entity_id = f'world::global::{rel_path}'
+        summary = _worldinfo_note_summary(ui_data, 'global', file_path=full_path)
+        mtime = float(os.path.getmtime(full_path))
+        conn.execute(
+            '''
+            INSERT OR REPLACE INTO index_entities_v2(
+                generation, entity_id, entity_type, source_path, owner_entity_id, name, filename,
+                display_category, physical_category, category_mode, favorite, summary_preview,
+                updated_at, import_time, token_count, sort_name, sort_mtime, thumb_url, source_revision
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''',
+            (
+                generation,
+                entity_id,
+                'world_global',
+                full_path,
+                '',
+                name,
+                filename,
+                display_category,
+                display_category,
+                'physical',
+                0,
+                summary,
+                mtime,
+                0,
+                0,
+                name.lower(),
+                mtime,
+                '',
+                build_file_source_revision(full_path),
+            ),
+        )
+        _insert_worldinfo_search(
+            conn,
+            generation,
+            entity_id,
+            name,
+            filename,
+            display_category,
+            summary,
+            fulltext_extra=collect_worldbook_fulltext(data),
+        )
+        items_written += 1
+        done += 1
+        if done % BUILD_COMMIT_BATCH_SIZE == 0:
+            conn.commit()
+            _report_progress(progress_cb, done, total)
 
     resource_item_categories = ((ui_data.get('_resource_item_categories_v1') or {}).get('worldinfo') or {})
     for row in rows:
@@ -939,11 +988,15 @@ def build_worldinfo_generation(conn, generation: int, inspected_books=None):
         if book is None:
             info = extract_card_info(card_path)
             if not info:
+                done += 1
+                _commit_and_report(conn, progress_cb, done, total)
                 continue
 
             data = info.get('data', {}) if isinstance(info, dict) and 'data' in info else info
             book = data.get('character_book') if isinstance(data, dict) else None
         if not isinstance(book, dict):
+            done += 1
+            _commit_and_report(conn, progress_cb, done, total)
             continue
 
         name = str(book.get('name') or row['character_book_name'] or f"{row['char_name']}'s WI").strip()
@@ -993,7 +1046,10 @@ def build_worldinfo_generation(conn, generation: int, inspected_books=None):
             fulltext_extra=collect_worldbook_fulltext(book),
         )
         items_written += 1
+        done += 1
+        _commit_and_report(conn, progress_cb, done, total)
 
     _rebuild_worldinfo_category_stats_v2(conn, generation, global_dir)
     conn.commit()
+    _report_progress(progress_cb, max(done, total), max(total, done))
     return items_written

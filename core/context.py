@@ -23,6 +23,9 @@ class IndexState(dict):
                 'building_generation': 0,
                 'items_written': 0,
                 'last_error': '',
+                # 构建进度：前端用它显示「已处理 / 总数」，而不是只有一个阶段名。
+                'progress_done': 0,
+                'progress_total': 0,
             },
             worldinfo={
                 'state': 'empty',
@@ -31,6 +34,8 @@ class IndexState(dict):
                 'building_generation': 0,
                 'items_written': 0,
                 'last_error': '',
+                'progress_done': 0,
+                'progress_total': 0,
             },
             jobs={
                 'pending_jobs': 0,
@@ -130,7 +135,12 @@ class AppContext:
         self.index_state = IndexState()
         self.index_owner_token = ''
         self.index_wakeup = threading.Event()
+        # 后台索引升级进行中：索引作业线程与启动全量扫描在此期间让路，
+        # 避免与重建并发写同一批索引行。初始为 False，表示没有升级在跑。
         self.index_upgrade_active = False
+        # 升级结束（完成或失败）时置位；等待方据此恢复自己的工作。
+        self.index_upgrade_done = threading.Event()
+        self.index_upgrade_done.set()
         self.index_worker_started = False
 
         # 角色卡级别锁：来源检查和文件写入只互相阻塞同一张卡。
