@@ -76,7 +76,7 @@
 
 ### 3.2 z-index 令牌表存在，且留了空档
 
-- 令牌定义：`static/css/modules/variables.css:17-35`，取值 `--z-base:0`、`--z-card-highlight:40`、`--z-marquee-selection:45`、`--z-card-selected:50`、`--z-floating:100`、`--z-sticky:100`、`--z-dropdown:500`、`--z-sidebar-overlay:999`、`--z-sidebar-mobile:1000`、`--z-modal:1000`、`--z-modal-std:1100`、`--z-modal-editor:2000`、`--z-modal-detail:3000`、`--z-chat-reader:3200`、`--z-modal-popover:3400`、`--z-context-menu:9000`、`--z-toast:9500`、`--z-loading:9999`、`--z-topmost:10000`；配套 `!important` 工具类在 `variables.css:38-108`。
+- 令牌定义：`static/css/modules/variables.css:17-35`，取值 `--z-base:0`、`--z-card-highlight:40`、`--z-marquee-selection:45`、`--z-card-selected:50`、`--z-floating:100`、`--z-sticky:100`、`--z-dropdown:500`、`--z-sidebar-overlay:999`、`--z-sidebar-mobile:1000`、`--z-modal:1000`、`--z-modal-std:1100`、`--z-modal-editor:2000`、`--z-modal-detail:3000`、`--z-chat-reader:3200`、`--z-modal-popover:3400`、`--z-modal-alert:3600`、`--z-context-menu:9000`、`--z-toast:9500`、`--z-loading:9999`、`--z-topmost:10000`；配套 `!important` 工具类在 `variables.css:38-108`。
 - **800–2100 区间无任何令牌**；已装插件 `stm-ai-assistant` 硬编码的 2140/2150 正好落在这个空档。
 - `static/js` 全仓**零** z-index 引用（grep `z-floating|z-modal|z-dropdown|z-toast` 无命中）——层级完全由 CSS 侧掌控。
 - 特征文件里另有散落字面量：`view-beautify.css:494` `z-index:70`、`view-beautify.css:814` `z-index:40`、`modal-detail.css:3492` `46`、`modal-detail.css:3507` `44`、`detail-card-workbench.css:3356` `105`、`:3375` `110`、`modal-preset-workbench.css:2933` `20`、`layout.css:1719` `20`。

@@ -448,7 +448,20 @@
 
 /* ---------------------------------------------------------------- 对话框 */
 
-.ui-primitive-overlay {
+/* 确认 / 输入对话框的遮罩。
+ *
+ * 层级**必须显式取 `--z-modal-alert`**，不能沿用 `.modal-overlay` 的缺省
+ * `--z-modal-std`(1100)：插件 surface 的 modal / panel / sheet 都在
+ * `--z-modal-popover`(3400)，`api.ui.confirm` 在插件面板里弹出时会画在面板
+ * **下面**——看得见却点不到。
+ *
+ * 选择器写成 `.modal-overlay.ui-primitive-overlay`（权重 0,2,0）而不是单类：
+ * 一是不依赖 `style.css` 的 `@import` 先后顺序（components.css 先于本文件，
+ * 单类同权重只能靠源序取胜），二是不会被别处后加的 `.modal-overlay` 规则
+ * 偶然压过去。
+ */
+.modal-overlay.ui-primitive-overlay {
+  z-index: var(--z-modal-alert);
   display: flex;
   align-items: center;
   justify-content: center;

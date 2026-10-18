@@ -28,6 +28,7 @@ if PROJECT_ROOT not in sys.path:
 SURFACE_HOST_PATH = 'static/js/pluginSurfaceHost.js'
 SURFACE_CSS_PATH = 'static/css/modules/plugin-surfaces.css'
 PRIMITIVES_CSS_PATH = 'static/css/modules/ui-primitives.css'
+VARIABLES_CSS_PATH = 'static/css/modules/variables.css'
 
 
 def read_source(relative_path):
@@ -344,6 +345,40 @@ def test_primitive_css_avoids_palette_utilities():
 
     for pattern in (r'\bbg-(red|blue|green|purple)-\d', r'\btext-(red|blue|green|purple)-\d'):
         assert not re.search(pattern, css), pattern
+
+
+def test_primitive_dialog_overlay_sits_above_plugin_surfaces():
+    """回归：`api.ui.confirm` / `api.ui.prompt` 的遮罩必须盖得住插件 surface。
+
+    实测现场：AI 助手工作台是 `modal` 型 surface（`--z-modal-popover` 3400），
+    而原语遮罩带 `.modal-overlay` 的缺省 `--z-modal-std`(1100)。首次打开设置页时
+    弹出的「出站内容提示」就画在工作台**下面**：看得见、点不到，用户报「层级在
+    模态框之下」。
+
+    因此这里锁死三件事：遮罩显式取 `--z-modal-alert`；令牌严格高于
+    `--z-modal-popover`；且仍低于提示 / Toast，不抢更靠前的反馈层。
+    """
+    import re
+
+    css = re.sub(r'/\*.*?\*/', '', read_source(PRIMITIVES_CSS_PATH), flags=re.S)
+    block = css.split('.modal-overlay.ui-primitive-overlay {', 1)[1].split('}', 1)[0]
+    assert 'z-index: var(--z-modal-alert);' in block, (
+        '原语对话框遮罩必须显式取 --z-modal-alert，否则会被插件 surface 盖住'
+    )
+
+    variables = re.sub(r'/\*.*?\*/', '', read_source(VARIABLES_CSS_PATH), flags=re.S)
+
+    def token(name):
+        match = re.search(rf'--{name}:\s*(\d+)', variables)
+        assert match is not None, name
+        return int(match.group(1))
+
+    assert token('z-modal-popover') < token('z-modal-alert') < token('z-context-menu'), (
+        '--z-modal-alert 必须夹在插件对话框层与右键菜单层之间'
+    )
+    assert token('z-modal-alert') < token('z-tooltip')
+    assert token('z-modal-alert') < token('z-toast')
+    assert '.z-modal-alert {' in variables, '令牌要配 !important 工具类（与其它 --z-* 一致）'
 
 
 # ------------------------------------------------------------------ 行为契约

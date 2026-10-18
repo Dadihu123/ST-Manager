@@ -59,6 +59,19 @@
   --z-modal-detail: 3000;
   --z-chat-reader: 3200;
   --z-modal-popover: 3400;
+  /*
+   * 宿主确认 / 输入对话框（`api.ui.confirm` / `api.ui.prompt`）。
+   *
+   * 必须高于 `--z-modal-popover`：插件 surface 的 modal / panel / sheet 就站在
+   * 那一层，而确认框的遮罩继承 `.modal-overlay` 的缺省 `--z-modal-std`(1100)。
+   * 两者一叠加，确认框会渲染在插件面板**下面**——看得见却点不到，用户以为
+   * 按钮坏了（实测：出站内容提示弹在 AI 助手工作台之下，elementFromPoint
+   * 命中的是面板 body）。
+   *
+   * 也不能抬到 `--z-context-menu`(9000) 以上：右键菜单 / 悬浮提示 / Toast 是
+   * 更靠前的反馈层，对话框不该盖住它们。
+   */
+  --z-modal-alert: 3600;
   --z-context-menu: 9000;
   /*
    * 悬浮提示必须能盖住所有模态、阅读器与弹出层（最高 3400），否则模态内的
@@ -133,6 +146,10 @@
 
 .z-modal-popover {
   z-index: var(--z-modal-popover) !important;
+}
+
+.z-modal-alert {
+  z-index: var(--z-modal-alert) !important;
 }
 
 .z-modal-detail {

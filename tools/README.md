@@ -66,3 +66,27 @@ python tools/gen_plugin_api_docs.py --check   # verify only
 
 `tests/test_plugin_api_docs.py` asserts that the file on disk equals a fresh
 render, so rerun the generator whenever the plugin API changes.
+
+# Layering verification
+
+Two Playwright scripts check the parts of the plugin host that only a real
+browser can prove. Both need the app running (`python app.py`) and Playwright
+installed as a local dev tool (`pip install playwright` +
+`playwright install chromium`); neither touches user data.
+
+```powershell
+python tools/verify_plugin_surface_layering.py   # surfaces vs. host modals
+python tools/verify_primitive_dialog_layering.py # api.ui.confirm vs. plugin surfaces
+```
+
+`verify_plugin_surface_layering.py` mounts probe surfaces over the settings
+modal and asserts that `modal` / `panel` / `sheet` sit above it while `page`
+stays below.
+
+`verify_primitive_dialog_layering.py` replays the AI assistant's outbound
+consent prompt by intercepting `/api/plugins/stm-ai-assistant/status` and
+forcing `outbound_acknowledged: false`, so the real ack flag is never flipped.
+It asserts that the confirm overlay carries `--z-modal-alert` (3600, above
+plugin surfaces at `--z-modal-popover` 3400), that a real click lands on the
+确定 button and triggers `POST /outbound/ack`, and that Escape closes the
+dialog without also closing the plugin panel behind it.

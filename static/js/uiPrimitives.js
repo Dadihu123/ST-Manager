@@ -520,6 +520,9 @@ export function confirm(options = {}) {
 
     const actions = el("div", { className: "ui-primitive-dialog__actions" });
     const finish = (result) => {
+      // ESC 监听必须在这里摘掉：点按钮结束的对话框不会走 onKeydown，
+      // 旧写法把监听留在 document 上——每弹一次确认就多一个永不释放的处理器。
+      document.removeEventListener("keydown", onKeydown, true);
       if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
       resolve(result);
     };
@@ -538,13 +541,23 @@ export function confirm(options = {}) {
     overlay.appendChild(shell);
     document.body.appendChild(overlay);
 
-    const onKeydown = (event) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        document.removeEventListener("keydown", onKeydown, true);
-        finish(false);
-      }
-    };
+    // 键盘用户：把焦点送进对话框。插件表面的焦点陷阱装在 shell 上，鼠标能点到
+    // 这两个按钮，Tab 却被锁在面板里转圈，永远到不了这里。
+    // 危险操作聚焦「取消」，避免一个回车就把东西删了；其余聚焦确认钮。
+    const focusTarget = actions.querySelector(
+      options.danger ? ".ui-primitive-button--ghost" : ".ui-primitive-button--primary",
+    );
+    if (focusTarget && typeof focusTarget.focus === "function") focusTarget.focus();
+
+    function onKeydown(event) {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      // 捕获阶段吃掉 ESC：`pluginSurfaceHost.js` 在 document 上也有一个 ESC
+      // 监听（关闭当前 surface）。不 stopPropagation 的话，按一次 ESC 会
+      // **同时**关掉对话框和它下面的插件面板，像是「取消却把整个工作台弄没了」。
+      event.stopPropagation();
+      finish(false);
+    }
     document.addEventListener("keydown", onKeydown, true);
   });
 }
@@ -608,6 +621,8 @@ export function prompt(options = {}) {
     function onKeydown(event) {
       if (event.key === "Escape") {
         event.preventDefault();
+        // 与 confirm 同理：别让一次 ESC 连带关掉弹它的插件 surface。
+        event.stopPropagation();
         finish(null);
       }
     }
