@@ -33,6 +33,11 @@ from core.consts import SIDECAR_EXTENSIONS, RESERVED_RESOURCE_NAMES
 from core.services.scan_service import request_scan, suppress_fs_events
 from core.services.cache_service import schedule_reload, invalidate_wi_list_cache, update_card_cache
 from core.services.card_service import rename_card_resource_folder, resolve_ui_key
+from core.services.card_resource_binding_service import (
+    bind_card_resource_folder,
+    find_recoverable_resource_folder,
+    read_card_resource_folder,
+)
 from core.services.worldbook_content_update import atomic_write_bytes, worldbook_target_lock
 from core.services.index_service import get_index_status, request_index_rebuild
 from core.services.shared_wallpaper_service import SharedWallpaperService
@@ -1244,9 +1249,8 @@ def api_create_resource_folder():
         if not card_id:
             return jsonify({"success": False, "msg": "角色卡ID缺失"})
 
-        ui_data = load_ui_data()
         key = resolve_ui_key(card_id)
-        existing_folder = ui_data.get(key, {}).get('resource_folder')
+        existing_folder = read_card_resource_folder(key)
 
         # 获取资源目录配置
         config = load_config()
@@ -1274,7 +1278,29 @@ def api_create_resource_folder():
         # 获取角色名称
         data_block = info.get('data', {}) if 'data' in info else info
         char_name = info.get('name') or data_block.get('name') or os.path.splitext(os.path.basename(card_path))[0]
-        
+
+        # 绑定丢失但磁盘上还留着同名目录时优先接管，避免建出「角色名_1」空目录。
+        recovered_name = find_recoverable_resource_folder(
+            char_name,
+            card_ui_key=key,
+            resources_root=resources_dir,
+        )
+        if recovered_name:
+            bind_result = bind_card_resource_folder(key, recovered_name, allow_existing=True)
+            if bind_result.get('ok'):
+                bound_folder = bind_result.get('resource_folder') or recovered_name
+                resource_path = os.path.join(resources_dir, bound_folder)
+                target_id = card_id
+                if key in ctx.cache.bundle_map:
+                    target_id = ctx.cache.bundle_map[key]
+                ctx.cache.update_card_data(target_id, {"resource_folder": bound_folder})
+                return jsonify({
+                    "success": True,
+                    "resource_folder": bound_folder,
+                    "resource_path": resource_path,
+                    "binding_restored": True,
+                })
+
         # 创建资源目录（与角色卡同名）
         resource_folder_name = sanitize_filename(char_name or 'untitled').strip() or 'untitled'
         if resource_folder_name.lower() in RESERVED_RESOURCE_NAMES:
@@ -1291,12 +1317,20 @@ def api_create_resource_folder():
         
         # 创建目录
         os.makedirs(resource_folder_path)
-        
-        # 更新ui_data
-        if key not in ui_data:
-            ui_data[key] = {}
-        ui_data[key]['resource_folder'] = resource_folder_name
-        save_ui_data(ui_data)
+
+        # 更新ui_data：必须确认写入成功，否则不更新内存缓存（否则重启后绑定会消失）
+        bind_result = bind_card_resource_folder(key, resource_folder_name)
+        if not bind_result.get('ok'):
+            # 绑定没写进去就清理刚建的空目录，避免磁盘上留下无主目录
+            try:
+                os.rmdir(resource_folder_path)
+            except OSError:
+                pass
+            return jsonify({
+                "success": False,
+                "msg": bind_result.get('msg') or "资源目录绑定保存失败",
+                "binding_failed": True,
+            }), 500
 
         # 更新缓存
         target_id = card_id
@@ -1356,15 +1390,17 @@ def api_set_resource_folder():
         # 检查目录是否存在，不存在则创建
         if not os.path.exists(final_path):
             os.makedirs(final_path)
-        
+
         # 更新ui_data
-        ui_data = load_ui_data()
         key = resolve_ui_key(card_id) # 使用智能 Key 解析
 
-        if key not in ui_data:
-            ui_data[key] = {}
-        ui_data[key]['resource_folder'] = resource_folder_name
-        save_ui_data(ui_data)
+        bind_result = bind_card_resource_folder(key, resource_folder_name)
+        if not bind_result.get('ok'):
+            return jsonify({
+                "success": False,
+                "msg": bind_result.get('msg') or "资源目录绑定保存失败",
+                "binding_failed": True,
+            }), 500
 
         # 更新缓存
         target_id = card_id

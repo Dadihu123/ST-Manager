@@ -138,6 +138,12 @@ export default function wiEditor() {
     // 拖拽状态
     wiDraggingIndex: null,
     wiDraggingEntryKey: "",
+    // 插入位置指示：存放在组件状态而不是 DOM class 上。
+    // 旧实现用 classList 直接写节点，只有「当前指针所在元素」和「drop 落点」
+    // 会被清理，指针离开后边框会残留（见拖拽高亮残留分析文档）。
+    wiDragOverIndex: -1,
+    wiDragOverPosition: "", // 'top' | 'bottom'
+    _wiDragCleanupHandler: null,
 
     formatWiKeys,
     estimateTokens,
@@ -766,6 +772,18 @@ export default function wiEditor() {
                 this.embeddedWorldbookLastSavedJson,
               );
             }
+            // 编辑器保存时已经改写了卡片文件，宿主详情页必须拿到新的修订号
+            // （以及可能变化的 id/filename），否则它下一次保存会被乐观锁拒绝。
+            // 见 docs/2026-10-19-wi-editor-save-revision-mismatch-analysis.md
+            if (this.editingData?.source_revision) {
+              closeDetail.source_revision = this.editingData.source_revision;
+            }
+            if (this.editingData?.id) {
+              closeDetail.card_id = this.editingData.id;
+            }
+            if (this.editingData?.filename) {
+              closeDetail.filename = this.editingData.filename;
+            }
             window.dispatchEvent(
               new CustomEvent("wi-editor-closed", {
                 detail: closeDetail,
@@ -780,6 +798,7 @@ export default function wiEditor() {
           this.editorLastSavedAt = "";
           this._cleanupInitBackupsOnExit();
           autoSaver.stop();
+          this.resetWiDragIndicators();
           this.isEditingClipboard = false;
           this.currentWiIndex = 0;
           this.currentWiEntryKey = "";
@@ -2969,8 +2988,19 @@ export default function wiEditor() {
           if (res.success) {
             this.editingData.source_revision =
               res.updated_card?.source_revision ||
+              res.source_revision ||
               this.editingData.source_revision ||
               "";
+            // 后端可能因为格式转换/重命名换了 ID，编辑器必须跟上，
+            // 否则下一次保存会拿着已不存在的旧 ID。
+            const nextId = res.new_id || res.updated_card?.id;
+            if (nextId && nextId !== this.editingData.id) {
+              this.editingData.id = nextId;
+              this.editingWiFile = { ...(this.editingWiFile || {}), id: nextId };
+            }
+            if (res.updated_card?.filename) {
+              this.editingData.filename = res.updated_card.filename;
+            }
             if (withSnapshot) {
               this.$store.global.showToast("已保存整本并生成回滚版本", 2200, "settings-save");
             } else {
@@ -3823,6 +3853,32 @@ export default function wiEditor() {
 
     // === 拖拽排序逻辑 ===
 
+    // 清空插入位置指示。所有退出路径（drop / dragend / 拖出窗口 / ESC）都必须调它，
+    // 这样无论指针最后停在哪，都不会有残留的插入边框。
+    resetWiDragIndicators() {
+      this.wiDragOverIndex = -1;
+      this.wiDragOverPosition = "";
+      this.wiDraggingIndex = null;
+      this.wiDraggingEntryKey = "";
+      if (this._wiDragCleanupHandler) {
+        window.removeEventListener("dragend", this._wiDragCleanupHandler, true);
+        window.removeEventListener("drop", this._wiDragCleanupHandler, true);
+        this._wiDragCleanupHandler = null;
+      }
+    },
+
+    _ensureWiDragCleanupListeners() {
+      if (this._wiDragCleanupHandler) return;
+      const handler = () => {
+        // dragend / drop 之后浏览器不会再发 dragover，这里统一收尾。
+        // 用 setTimeout 让 wiDrop 先读到状态再清理。
+        setTimeout(() => this.resetWiDragIndicators(), 0);
+      };
+      this._wiDragCleanupHandler = handler;
+      window.addEventListener("dragend", handler, true);
+      window.addEventListener("drop", handler, true);
+    },
+
     // 1. 主列表拖拽
     wiDragStart(e, index) {
       if (
@@ -3835,6 +3891,8 @@ export default function wiEditor() {
       }
 
       this.wiDraggingIndex = index;
+      this.wiDragOverIndex = -1;
+      this.wiDragOverPosition = "";
       const visibleEntries = this.getSortedWIEntries();
       const item = visibleEntries[index];
       this.wiDraggingEntryKey = item
@@ -3853,14 +3911,9 @@ export default function wiEditor() {
           JSON.stringify(exportItem, null, 2),
         );
       }
-      const target = e.target;
-      target.classList.add("dragging");
-      const cleanup = () => {
-        target.classList.remove("dragging");
-        this.wiDraggingIndex = null;
-        this.wiDraggingEntryKey = "";
-      };
-      target.addEventListener("dragend", cleanup, { once: true });
+      const target = e.currentTarget || e.target;
+      if (target?.classList) target.classList.add("dragging");
+      this._ensureWiDragCleanupListeners();
     },
 
     wiDragOver(e, index) {
@@ -3868,7 +3921,8 @@ export default function wiEditor() {
         typeof this.isWiEntryFilterActive === "function" &&
         this.isWiEntryFilterActive()
       ) {
-        e.currentTarget?.classList?.remove("drag-over-top", "drag-over-bottom");
+        this.wiDragOverIndex = -1;
+        this.wiDragOverPosition = "";
         return;
       }
 
@@ -3876,14 +3930,16 @@ export default function wiEditor() {
       const target = e.currentTarget;
       const rect = target.getBoundingClientRect();
       const midY = rect.top + rect.height / 2;
-
-      target.classList.remove("drag-over-top", "drag-over-bottom");
-      if (e.clientY < midY) target.classList.add("drag-over-top");
-      else target.classList.add("drag-over-bottom");
+      this.wiDragOverIndex = index;
+      this.wiDragOverPosition = e.clientY < midY ? "top" : "bottom";
     },
 
     wiDragLeave(e) {
-      e.currentTarget.classList.remove("drag-over-top", "drag-over-bottom");
+      // 子元素之间移动也会触发 dragleave，只有真正离开条目时才清空指南。
+      const nextTarget = e?.relatedTarget;
+      if (nextTarget && e?.currentTarget?.contains?.(nextTarget)) return;
+      this.wiDragOverIndex = -1;
+      this.wiDragOverPosition = "";
     },
 
     wiDrop(e, targetIndex) {
@@ -3893,18 +3949,14 @@ export default function wiEditor() {
       ) {
         e.preventDefault();
         e.stopPropagation();
-        e.currentTarget?.classList?.remove(
-          "drag-over-top",
-          "drag-over-bottom",
-          "dragging",
-        );
+        this.resetWiDragIndicators();
         return false;
       }
 
       e.preventDefault();
       e.stopPropagation();
       const el = e.currentTarget;
-      el.classList.remove("drag-over-top", "drag-over-bottom", "dragging");
+      el?.classList?.remove?.("drag-over-top", "drag-over-bottom", "dragging");
 
       // A. 从剪切板拖入
       const clipData = e.dataTransfer.getData("application/x-wi-clipboard");

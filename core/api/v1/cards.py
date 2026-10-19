@@ -1519,6 +1519,7 @@ def api_update_card():
         if requested_revision and current_revision and requested_revision != current_revision:
             return jsonify({
                 'success': False,
+                'status': 409,
                 'msg': f'source_revision mismatch: expected {current_revision}',
                 'current_source_revision': current_revision,
             }), 409
@@ -1722,12 +1723,20 @@ def api_update_card():
             new_resource_folder = data.get('resource_folder', '')
             raw_ui_only_fields = data.get('ui_only_fields') or []
             ui_only_fields = {str(field).strip() for field in raw_ui_only_fields if str(field).strip()}
+            # 显式清空白名单：resource_folder 传空默认视为「未修改」，
+            # 只有显式声明才允许解绑。否则任何持有旧编辑态的组件（全屏世界书编辑器、
+            # 内嵌世界书弹窗等）保存时都会顺手把资源目录绑定清掉。
+            raw_clear_fields = data.get('clear_ui_fields') or []
+            clear_ui_fields = ui_only_fields | {
+                str(field).strip() for field in raw_clear_fields if str(field).strip()
+            }
 
             if ui_only:
                 if not new_link and 'source_link' not in ui_only_fields:
                     new_link = existing_ui_entry.get('link', '')
-                if new_resource_folder == '' and 'resource_folder' not in ui_only_fields:
-                    new_resource_folder = existing_ui_entry.get('resource_folder', '')
+
+            if new_resource_folder == '' and 'resource_folder' not in clear_ui_fields:
+                new_resource_folder = existing_ui_entry.get('resource_folder', '')
 
             if data.get('save_ui_to_bundle') and data.get('bundle_dir'):
                 # For bundle mode, link is stored in bundle global (not version remark)
@@ -1774,7 +1783,13 @@ def api_update_card():
                     ui_changed = True
 
         if ui_changed:
-            save_ui_data(ui_data)
+            if save_ui_data(ui_data) is False:
+                logger.error('更新卡片 UI 数据写入失败: card=%s', final_rel_path_id)
+                return jsonify({
+                    'success': False,
+                    'msg': '本地 UI 数据（备注/链接/资源目录）保存失败，请重试',
+                    'ui_data_save_failed': True,
+                }), 500
 
         # 4. 强制更新修改时间 & 数据库
         current_mtime = 0

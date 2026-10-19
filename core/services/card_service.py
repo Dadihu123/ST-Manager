@@ -26,6 +26,11 @@ from core.data.ui_store import (
 from core.consts import RESERVED_RESOURCE_NAMES
 from core.services.card_operation_lock import card_operation_locked
 from core.services.card_binding_service import ensure_card_ui_uid, rename_card_ui_references
+from core.services.card_resource_binding_service import (
+    bind_card_resource_folder,
+    find_recoverable_resource_folder,
+    read_card_resource_folder,
+)
 
 # === 服务依赖 ===
 from core.services.cache_service import update_card_cache
@@ -51,6 +56,14 @@ from core.utils.source_revision import build_file_source_revision
 from core.utils.card_identity import normalize_card_uid
 
 logger = logging.getLogger(__name__)
+
+
+class ResourceFolderBindingError(RuntimeError):
+    """资源目录绑定写入 ui_data 失败。
+
+    归档/上传链路宁可中止，也不要在磁盘上留下一个没有绑定记录的资源目录
+    （那会让用户在重启后丢失整批图片的归属）。
+    """
 
 
 def cleanup_embedded_worldbook_history(
@@ -101,16 +114,18 @@ def _apply_card_index_increment_now(card_id, source_path, remove_entity_ids=None
 def _ensure_resource_folder_exists(card_id, hint_name):
     """
     确保卡片有资源目录。如果未设置，则基于 hint_name 自动创建并绑定。
+
     返回: (folder_name, full_path, is_newly_created)
+    绑定写入失败时抛 ``ResourceFolderBindingError``，由调用方决定如何收尾
+    （归档类操作不能吞掉失败，否则磁盘上出现无主目录）。
     """
-    ui_data = load_ui_data()
     ui_key = resolve_ui_key(card_id)
-    
-    current_val = ui_data.get(ui_key, {}).get('resource_folder')
-    
+    current_val = read_card_resource_folder(ui_key, loader=load_ui_data)
+
     cfg = load_config()
-    res_root = os.path.join(BASE_DIR, cfg.get('resources_dir', 'data/assets/card_assets'))
-    
+    raw_res = cfg.get('resources_dir', 'data/assets/card_assets')
+    res_root = raw_res if os.path.isabs(raw_res) else os.path.join(BASE_DIR, raw_res)
+
     # 情况 A: 已配置，确保物理目录存在
     if current_val:
         # 处理绝对路径
@@ -128,25 +143,59 @@ def _ensure_resource_folder_exists(card_id, hint_name):
     safe_name = sanitize_filename(hint_name)
     if not safe_name or safe_name == 'undefined':
         safe_name = "untitled_card"
-        
+
+    recovered_name = find_recoverable_resource_folder(
+        safe_name,
+        card_ui_key=ui_key,
+        resources_root=res_root,
+        loader=load_ui_data,
+    )
+    if recovered_name:
+        bind_result = bind_card_resource_folder(
+            ui_key,
+            recovered_name,
+            allow_existing=True,
+            loader=load_ui_data,
+            saver=save_ui_data,
+        )
+        if bind_result.get('ok'):
+            bound_name = bind_result.get('resource_folder') or recovered_name
+            full_path = _resolve_resource_folder_path(bound_name, res_root)
+            if ctx.cache:
+                target_id = card_id
+                if ui_key in ctx.cache.bundle_map:
+                    target_id = ctx.cache.bundle_map[ui_key]
+                ctx.cache.update_card_data(target_id, {"resource_folder": bound_name})
+            return bound_name, full_path, False
+        logger.warning('接管既有资源目录失败，回退为新建: %s', bind_result.get('msg'))
+
     new_folder_name = safe_name
     full_path = os.path.join(res_root, new_folder_name)
-    
+
     # 防重名
     counter = 1
     while os.path.exists(full_path):
         new_folder_name = f"{safe_name}_{counter}"
         full_path = os.path.join(res_root, new_folder_name)
         counter += 1
-        
+
     # 创建物理目录
     os.makedirs(full_path)
-    
-    # 绑定数据 (UI Data)
-    if ui_key not in ui_data: ui_data[ui_key] = {}
-    ui_data[ui_key]['resource_folder'] = new_folder_name
-    save_ui_data(ui_data)
-    
+
+    # 绑定数据 (UI Data)：必须确认写入成功，否则宁可清理空目录也不要留下无主目录
+    bind_result = bind_card_resource_folder(
+        ui_key,
+        new_folder_name,
+        loader=load_ui_data,
+        saver=save_ui_data,
+    )
+    if not bind_result.get('ok'):
+        try:
+            os.rmdir(full_path)
+        except OSError:
+            pass
+        raise ResourceFolderBindingError(bind_result.get('msg') or '资源目录绑定保存失败')
+
     # 绑定数据 (Cache) - 确保前端能即时感知
     target_id = card_id
     if ctx.cache and ui_key in ctx.cache.bundle_map:
@@ -333,6 +382,9 @@ def update_card_content(
             shutil.copy2(src_path, os.path.join(res_full_path, dst_name))
             
             return res_name # 返回目录名供后续使用
+        except ResourceFolderBindingError:
+            # 绑定写入失败是硬错误：不能当成「归档失败但继续覆盖」处理。
+            raise
         except Exception as e:
             logger.error(f"Archive failed: {e}")
             return None
@@ -397,17 +449,23 @@ def update_card_content(
     else:
         # 2.1 执行归档策略
         if image_policy == 'archive_old' and os.path.exists(original_full_path):
-            if old_ext == '.json':
-                sidecar = find_sidecar_image(original_full_path)
-                if sidecar and not _archive_file(sidecar, 'archived_cover', preserve_original_name=True):
-                    return {'success': False, 'msg': '归档旧封面失败，已取消覆盖更新'}
-            else:
-                if not _archive_file(original_full_path, 'archived_cover', preserve_original_name=True):
-                    return {'success': False, 'msg': '归档旧封面失败，已取消覆盖更新'}
-        
+            try:
+                if old_ext == '.json':
+                    sidecar = find_sidecar_image(original_full_path)
+                    if sidecar and not _archive_file(sidecar, 'archived_cover', preserve_original_name=True):
+                        return {'success': False, 'msg': '归档旧封面失败，已取消覆盖更新'}
+                else:
+                    if not _archive_file(original_full_path, 'archived_cover', preserve_original_name=True):
+                        return {'success': False, 'msg': '归档旧封面失败，已取消覆盖更新'}
+            except ResourceFolderBindingError as exc:
+                return {'success': False, 'msg': f'资源目录绑定保存失败，已取消覆盖更新: {exc}'}
+
         elif image_policy == 'archive_new':
             if new_upload_ext == '.png':
-                _archive_file(temp_path, "archived_upload")
+                try:
+                    _archive_file(temp_path, "archived_upload")
+                except ResourceFolderBindingError as exc:
+                    return {'success': False, 'msg': f'资源目录绑定保存失败，已取消更新: {exc}'}
 
         # 2.2 确定图片源 (Pixel Source)
         # 默认使用新上传的图片
@@ -485,7 +543,8 @@ def update_card_content(
         import_time_fallback if (isinstance(import_time_fallback, (int, float)) and import_time_fallback > 0) else time.time()
     )
     
-    # 如果 keep_ui_data 里有值（即前端传来 或者 上面 _archive_file 注入的），使用它
+    # 如果 keep_ui_data 里有值（即前端传来 或者 上面 _archive_file 注入的），使用它。
+    # 注意：空值不再覆盖既有绑定（旧实现会让持有旧编辑态的组件顺手清掉资源目录）。
     current_res_folder = keep_ui_data.get('resource_folder')
     if current_res_folder:
         ui_data[ui_key]['resource_folder'] = str(current_res_folder).strip()
@@ -507,7 +566,9 @@ def update_card_content(
                     ui_data[ui_key][db_field] = ""
     # Bundle 模式下：link 和 resource_folder 是共享的，summary 应存储在版本级别
     # 新增版本时，前端不应传递 ui_summary，保持新版本无备注
-    save_ui_data(ui_data)
+    if save_ui_data(ui_data) is False:
+        logger.error('卡片更新后保存 ui_data 失败: card=%s', final_rel_id)
+        return {'success': False, 'msg': '本地 UI 数据（备注/链接/资源目录）保存失败，请重试'}
     
     # 2. 更新 mtime 和 清理缩略图
     try: os.utime(target_save_path, None)
@@ -791,8 +852,11 @@ def swap_skin_to_cover(card_id, skin_filename, save_old_to_resource=False):
             ui_changed = False
             if rename_card_ui_references(ui_data, card_id, new_card_id):
                 ui_changed = True
-            if ui_changed:
-                save_ui_data(ui_data)
+            if ui_changed and save_ui_data(ui_data) is False:
+                return {
+                    "success": False,
+                    "msg": "封面已替换，但本地 UI 数据迁移失败，请重新打开详情页确认资源目录",
+                }
             
             # 5.7 更新缓存
             if ctx.cache:
@@ -805,12 +869,12 @@ def swap_skin_to_cover(card_id, skin_filename, save_old_to_resource=False):
             clean_thumbnail_cache(card_id, THUMB_FOLDER)
             clean_thumbnail_cache(new_card_id, THUMB_FOLDER)
             
-            return {
-                "success": True, 
-                "new_hash": f_hash,
-                "new_card_id": new_card_id,
-                "converted_to_png": True
-            }
+            return _build_skin_cover_result(
+                card_id=new_card_id,
+                full_path=new_full_path,
+                file_hash=f_hash,
+                converted_to_png=True,
+            )
             
         else:
             # PNG 格式角色卡：传统方式，替换原文件并嵌入元数据
@@ -830,10 +894,63 @@ def swap_skin_to_cover(card_id, skin_filename, save_old_to_resource=False):
             # 清理缩略图
             clean_thumbnail_cache(card_id, THUMB_FOLDER)
             
-            return {"success": True, "new_hash": f_hash}
+            return _build_skin_cover_result(
+                card_id=card_id,
+                full_path=card_full_path,
+                file_hash=f_hash,
+                converted_to_png=False,
+            )
         
     except Exception as e:
         return {"success": False, "msg": str(e)}
+
+
+def _build_skin_cover_result(*, card_id, full_path, file_hash, converted_to_png):
+    """换封成功后统一返回「新修订号 + 最新卡片对象」。
+
+    前端必须拿到 ``source_revision`` 与可能变化的 ``id``，否则下一次保存会被
+    ``api_update_card`` 的乐观锁以 409 拒绝（详见 docs 中的换图/换封分析）。
+    """
+    try:
+        mtime = os.path.getmtime(full_path)
+    except OSError:
+        mtime = time.time()
+
+    source_revision = build_file_source_revision(full_path)
+    ts = int(mtime)
+    encoded_id = quote(card_id)
+    image_url = f"/cards_file/{encoded_id}?t={ts}"
+    thumb_url = f"/api/thumbnail/{encoded_id}?t={ts}"
+
+    updated_card = None
+    if ctx.cache:
+        updated_card = ctx.cache.id_map.get(card_id)
+    if updated_card is not None:
+        try:
+            ctx.cache.update_card_data(card_id, {
+                'last_modified': mtime,
+                'image_url': image_url,
+                'thumb_url': thumb_url,
+                'source_revision': source_revision,
+            })
+            updated_card = ctx.cache.id_map.get(card_id) or updated_card
+        except Exception as exc:  # noqa: BLE001 - 缓存更新失败不影响磁盘结果
+            logger.warning('换封后更新内存缓存失败: %s', exc)
+
+    result = {
+        "success": True,
+        "new_hash": file_hash,
+        "new_card_id": card_id,
+        "new_filename": os.path.basename(card_id),
+        "converted_to_png": bool(converted_to_png),
+        "last_modified": mtime,
+        "source_revision": source_revision,
+        "new_image_url": image_url,
+        "new_thumb_url": thumb_url,
+    }
+    if isinstance(updated_card, dict):
+        result['updated_card'] = updated_card
+    return result
 
 def resolve_ui_key(card_id):
     """

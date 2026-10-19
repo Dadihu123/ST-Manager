@@ -512,9 +512,14 @@
               @dragstart="wiDragStart($event, index)"
               @drop="wiDrop($event, index)"
               @dragover="wiDragOver($event, index)"
+              @dragleave="wiDragLeave($event)"
               class="wi-list-item p-2 rounded cursor-pointer group relative text-xs select-none border border-transparent"
               :data-type="entry.constant ? 'const' : (entry.vectorized ? 'vector' : 'normal')"
-              :class="isCurrentWiEntry(entry, index) ? 'active' : ''"
+              :class="[
+                isCurrentWiEntry(entry, index) ? 'active' : '',
+                wiDragOverIndex === index && wiDragOverPosition === 'top' ? 'drag-over-top' : '',
+                wiDragOverIndex === index && wiDragOverPosition === 'bottom' ? 'drag-over-bottom' : ''
+              ]"
             >
               <div class="flex justify-between items-center mb-1">
                 <div class="wi-entry-title-group flex items-center gap-2 overflow-hidden flex-1">

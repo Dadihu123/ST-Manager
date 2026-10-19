@@ -27,6 +27,12 @@ from core.utils.format_validation import (
 )
 
 from core.services.card_service import resolve_ui_key
+from core.services.card_resource_binding_service import (
+    bind_card_resource_folder,
+    build_unique_resource_folder_name,
+    find_recoverable_resource_folder,
+    read_card_resource_folder,
+)
 from core.data.ui_store import load_ui_data, save_ui_data
 from core.services.wi_entry_history_service import purge_entry_history_scope
 
@@ -182,22 +188,17 @@ def _typed_json_validator_for_path(filepath: str):
 
 def _build_unique_resource_folder_name(resource_root: str, preferred_name: str) -> str:
     """基于角色名生成安全且不重名的资源目录名。"""
-    base_name = sanitize_filename(preferred_name or 'untitled').strip() or 'untitled'
-    if base_name.lower() in RESERVED_RESOURCE_NAMES:
-        base_name = f'card_{base_name}'
-
-    candidate = base_name
-    counter = 1
-    while os.path.exists(os.path.join(resource_root, candidate)):
-        candidate = f'{base_name}_{counter}'
-        counter += 1
-    return candidate
+    return build_unique_resource_folder_name(resource_root, preferred_name)
 
 def _ensure_card_resource_folder(card_id: str):
-    """确保角色卡已绑定资源目录；若未绑定则自动创建。"""
-    ui_data = load_ui_data()
+    """确保角色卡已绑定资源目录；若未绑定则自动创建。
+
+    绑定写入通过 ``bind_card_resource_folder`` 在 ui_data 锁内完成，并且**必须**
+    确认写入成功后才更新内存缓存。旧实现忽略 ``save_ui_data`` 返回值，写入失败时
+    会出现「界面上有资源目录、磁盘上没有」的不一致（重启后绑定消失）。
+    """
     ui_key = resolve_ui_key(card_id)
-    existing_folder = ui_data.get(ui_key, {}).get('resource_folder')
+    existing_folder = read_card_resource_folder(ui_key)
     if existing_folder:
         return existing_folder, False, None
 
@@ -216,18 +217,45 @@ def _ensure_card_resource_folder(card_id: str):
     resource_root = _get_resource_root()
     os.makedirs(resource_root, exist_ok=True)
 
+    # 绑定丢失但磁盘上还留着同名目录时优先接管，避免建出「角色名_1」空目录
+    # 让原有皮肤图变成孤儿（对应「重启后绑定消失、但目录和图片都在」的现象）。
+    recovered_name = find_recoverable_resource_folder(
+        char_name,
+        card_ui_key=ui_key,
+        resources_root=resource_root,
+    )
+    if recovered_name:
+        bind_result = bind_card_resource_folder(ui_key, recovered_name, allow_existing=True)
+        if bind_result.get('ok'):
+            bound_folder = bind_result.get('resource_folder') or recovered_name
+            target_id = card_id
+            if ui_key in ctx.cache.bundle_map:
+                target_id = ctx.cache.bundle_map[ui_key]
+            ctx.cache.update_card_data(target_id, {'resource_folder': bound_folder})
+            return bound_folder, False, None
+        # 接管失败要继续新建，但要把失败原因留痕；新建若也失败则由下面统一返回错误。
+        logger.warning('接管既有资源目录失败，回退为新建: %s', bind_result.get('msg'))
+
     resource_folder_name = _build_unique_resource_folder_name(resource_root, char_name)
-    os.makedirs(os.path.join(resource_root, resource_folder_name), exist_ok=True)
+    resource_folder_path = os.path.join(resource_root, resource_folder_name)
+    os.makedirs(resource_folder_path, exist_ok=True)
 
-    if ui_key not in ui_data:
-        ui_data[ui_key] = {}
-    ui_data[ui_key]['resource_folder'] = resource_folder_name
-    save_ui_data(ui_data)
+    bind_result = bind_card_resource_folder(ui_key, resource_folder_name)
+    if not bind_result.get('ok'):
+        # 绑定没写进去就把刚建的空目录清掉，避免磁盘上留下无主目录
+        try:
+            os.rmdir(resource_folder_path)
+        except OSError:
+            pass
+        return None, False, bind_result.get('msg') or '资源目录绑定保存失败'
+    bound_folder = bind_result.get('resource_folder') or resource_folder_name
 
-    target_id = ctx.cache.bundle_map.get(ui_key, card_id) if ui_key in ctx.cache.bundle_map else card_id
-    ctx.cache.update_card_data(target_id, {'resource_folder': resource_folder_name})
+    target_id = card_id
+    if ui_key in ctx.cache.bundle_map:
+        target_id = ctx.cache.bundle_map[ui_key]
+    ctx.cache.update_card_data(target_id, {'resource_folder': bound_folder})
 
-    return resource_folder_name, True, None
+    return bound_folder, True, None
 
 @bp.route('/cards_file/<path:filename>')
 def serve_card_image(filename):

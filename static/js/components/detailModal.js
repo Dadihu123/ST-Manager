@@ -130,6 +130,13 @@ export default function detailModal() {
         detailLoading: false,
         detailLoadError: '',
         detailRequestToken: 0,
+        // 详情页当前编辑态对应的文件修订号；用于识别乱序到达的陈旧响应。
+        // 见 docs/2026-10-19-card-resource-binding-and-save-failure-analysis.md
+        editingRevision: '',
+        // 最近一次「由其他组件持久化」的字段值，避免陈旧响应把它们覆盖回去。
+        lastPersistedResourceFolder: '',
+        // 409 冲突是否已经自动重试过一次（避免无限覆盖）。
+        _saveConflictRetried: false,
         isCardFlipped: false,
         zoomLevel: 100,
         altIdx: 0,
@@ -380,6 +387,152 @@ export default function detailModal() {
             } else {
                 autoSaver.initBaseline(this.editingData);
             }
+        },
+
+        // 吸收「其他入口已把卡片文件写回磁盘」的结果。
+        //
+        // 换图、换封、覆盖更新等操作会改写卡文件（JSON→PNG 时还会换 ID），
+        // 前端必须把新的 source_revision / id / filename 同步进本地编辑态，
+        // 否则下一次保存会被 api_update_card 的乐观锁以 409 拒绝。
+        _applyPersistedCardMutation(res, { refreshListEvent = '' } = {}) {
+            if (!res || res.success === false) return;
+            const updatedCard = res.updated_card || null;
+            const newId = res.new_card_id || res.new_id || '';
+            const newFilename = res.new_filename || (newId ? String(newId).split('/').pop() : '');
+
+            if (updatedCard && typeof updatedCard === 'object') {
+                Object.assign(this.activeCard, updatedCard);
+            }
+            if (newId && newId !== this.editingData.id) {
+                this.activeCard.id = newId;
+                this.editingData.id = newId;
+            }
+            if (newFilename) {
+                this.activeCard.filename = newFilename;
+                this.editingData.filename = newFilename;
+            }
+
+            const revision = String(
+                res.source_revision || updatedCard?.source_revision || this.editingData.source_revision || ''
+            ).trim();
+            if (revision && this._isRevisionNewer(revision, this.editingRevision)) {
+                this.editingRevision = revision;
+                this.editingData.source_revision = revision;
+                this.activeCard.source_revision = revision;
+            } else if (revision && !this.editingRevision) {
+                this.editingRevision = revision;
+                this.editingData.source_revision = revision;
+                this.activeCard.source_revision = revision;
+            }
+            if (updatedCard?.resource_folder !== undefined) {
+                this.lastPersistedResourceFolder = String(updatedCard.resource_folder || '').trim();
+            }
+
+            // 强制刷新图片缓存（query 时间戳）
+            const imageUrl = res.new_image_url || updatedCard?.image_url;
+            if (imageUrl) {
+                const ts = Date.now();
+                this.activeCard.image_url = `${imageUrl}${imageUrl.includes('?') ? '&' : '?'}t=${ts}`;
+            }
+            if (res.new_thumb_url || updatedCard?.thumb_url) {
+                this.activeCard.thumb_url = res.new_thumb_url || updatedCard.thumb_url;
+            }
+            if (res.import_time) {
+                this.activeCard.import_time = res.import_time;
+                this.editingData.import_time = res.import_time;
+            }
+
+            this._syncPersistedBaseline(
+                ['id', 'filename', 'source_revision', 'image_url', 'thumb_url'],
+                {
+                    id: this.editingData.id,
+                    filename: this.editingData.filename,
+                    source_revision: this.editingData.source_revision,
+                    image_url: this.activeCard.image_url,
+                    thumb_url: this.activeCard.thumb_url,
+                },
+            );
+
+            if (updatedCard && typeof updatedCard === 'object') {
+                window.dispatchEvent(new CustomEvent('card-updated', { detail: updatedCard }));
+            } else if (refreshListEvent) {
+                window.dispatchEvent(new Event(refreshListEvent));
+            }
+            return true;
+        },
+
+        // source_revision 形如 "<mtime_ns>:<size>"，用时间戳部分比较新旧。
+        _parseRevisionTimestamp(revision) {
+            const text = String(revision || '').trim();
+            if (!text) return null;
+            const head = text.includes(':') ? text.slice(0, text.indexOf(':')) : text;
+            const value = Number(head);
+            return Number.isFinite(value) ? value : null;
+        },
+
+        // 判断 incoming 是否比 current 新（用于丢弃乱序到达的陈旧响应/事件）。
+        _isRevisionNewer(incoming, current) {
+            const incomingText = String(incoming || '').trim();
+            if (!incomingText) return false;
+            const currentText = String(current || '').trim();
+            if (!currentText) return true;
+            if (incomingText === currentText) return false;
+            const incomingTs = this._parseRevisionTimestamp(incomingText);
+            const currentTs = this._parseRevisionTimestamp(currentText);
+            if (incomingTs === null || currentTs === null) return true;
+            return incomingTs >= currentTs;
+        },
+
+        // 吸收外部 card-updated 中的「文件级」字段。
+        //
+        // 只接受与当前卡片同一 ID（或同一 bundle）的事件，且只合并
+        // source_revision / id / filename / image_url / resource_folder 等
+        // 非编辑内容字段，避免把用户正在编辑的正文冲掉。
+        _absorbExternalCardUpdate(detail) {
+            if (!detail || typeof detail !== 'object') return false;
+            const currentId = this.editingData?.id || this.activeCard?.id || '';
+            const incomingId = detail.id || '';
+            const isBundleMatch = Boolean(
+                this.activeCard?.is_bundle
+                && detail.bundle_dir
+                && this.activeCard.bundle_dir
+                && detail.bundle_dir === this.activeCard.bundle_dir
+            );
+            if (!incomingId && !isBundleMatch) return false;
+            if (incomingId && currentId && incomingId !== currentId && !isBundleMatch) return false;
+
+            let absorbed = false;
+            const incomingRevision = String(detail.source_revision || '').trim();
+            if (this._isRevisionNewer(incomingRevision, this.editingRevision)) {
+                this.editingRevision = incomingRevision;
+                this.editingData.source_revision = incomingRevision;
+                this.activeCard.source_revision = incomingRevision;
+                this._syncPersistedBaseline(['source_revision']);
+                absorbed = true;
+            }
+            if (detail.filename && detail.filename !== this.editingData.filename) {
+                this.editingData.filename = detail.filename;
+                this.activeCard.filename = detail.filename;
+                this._syncPersistedBaseline(['filename']);
+                absorbed = true;
+            }
+            if (detail.image_url) {
+                this.activeCard.image_url = detail.image_url;
+                absorbed = true;
+            }
+            if (detail.resource_folder !== undefined) {
+                const incomingFolder = String(detail.resource_folder || '').trim();
+                if (incomingFolder && incomingFolder !== String(this.editingData.resource_folder || '').trim()) {
+                    this.lastPersistedResourceFolder = incomingFolder;
+                    this.editingData.resource_folder = incomingFolder;
+                    this.activeCard.resource_folder = incomingFolder;
+                    this._syncPersistedBaseline(['resource_folder']);
+                    absorbed = true;
+                } else if (incomingFolder) {
+                    this.lastPersistedResourceFolder = incomingFolder;
+                }
+            }
+            return absorbed;
         },
 
         _normalizeEditingDataShape(source = {}) {
@@ -1531,7 +1684,18 @@ export default function detailModal() {
                     this.detailCategoryFilterExclude = [];
                     this.showGreetingListModal = false;
                     this.greetingListSearch = '';
+                    this.editingRevision = '';
+                    this.lastPersistedResourceFolder = '';
+                    this._saveConflictRetried = false;
                 }
+            });
+
+            // 任何组件把卡片文件写回磁盘后都会发 card-updated；详情页只吸收
+            // 「文件级」字段（修订号 / ID / 文件名 / 图片地址），不碰用户正在编辑的内容。
+            // 这样换图、换封、世界书保存、插件写入都能自动收敛，不必逐个入口补。
+            window.addEventListener('card-updated', (event) => {
+                if (!this.showDetail) return;
+                this._absorbExternalCardUpdate(event?.detail);
             });
 
             this.$watch('$store.global.deviceType', (deviceType) => {
@@ -1623,7 +1787,15 @@ export default function detailModal() {
                     if (res.resource_folder) {
                         this.editingData.resource_folder = res.resource_folder;
                         this.activeCard.resource_folder = res.resource_folder;
+                        // 记录「已落盘」的绑定，供陈旧响应保护判断
+                        this.lastPersistedResourceFolder = String(res.resource_folder || '').trim();
                         this._syncPersistedBaseline(['resource_folder']);
+                        window.dispatchEvent(new CustomEvent('card-updated', {
+                            detail: {
+                                id: this.activeCard.id,
+                                resource_folder: res.resource_folder,
+                            },
+                        }));
                     }
                     this.$store.global.showToast(`${file.name} 上传成功`, 3000, "check");
                     return res;
@@ -1659,8 +1831,15 @@ export default function detailModal() {
 
                     this.editingData.resource_folder = res.resource_folder;
                     this.activeCard.resource_folder = res.resource_folder;
+                    this.lastPersistedResourceFolder = String(res.resource_folder || '').trim();
                     this._syncPersistedBaseline(['resource_folder']);
                     this.fetchResourceFiles(res.resource_folder);
+                    window.dispatchEvent(new CustomEvent('card-updated', {
+                        detail: {
+                            id: this.activeCard.id,
+                            resource_folder: res.resource_folder,
+                        },
+                    }));
 
                     if (auto) {
                         this.$store.global.showToast('已自动创建资源目录', 1800, 'folder');
@@ -1958,6 +2137,29 @@ export default function detailModal() {
                         this.$store.global.showToast('世界书数据已同步', 1500);
                     }
                 }
+
+                // 编辑器保存会改写卡文件：必须吸收新的修订号/ID，否则详情页下一次
+                // 保存必然撞上乐观锁（source_revision mismatch）。
+                // 见 docs/2026-10-19-wi-editor-save-revision-mismatch-analysis.md
+                const closedRevision = String(detail.source_revision || '').trim();
+                if (closedRevision) {
+                    this.editingRevision = closedRevision;
+                    this.editingData.source_revision = closedRevision;
+                    this.activeCard.source_revision = closedRevision;
+                    this._syncPersistedBaseline(['source_revision']);
+                }
+                if (detail.card_id) {
+                    this.editingData.id = detail.card_id;
+                    this.activeCard.id = detail.card_id;
+                }
+                if (detail.filename) {
+                    this.editingData.filename = detail.filename;
+                    this.activeCard.filename = detail.filename;
+                }
+                if (detail.card_id || detail.filename) {
+                    this._syncPersistedBaseline(['id', 'filename']);
+                }
+
                 // 无论是否有内容变化都移除监听，避免重复。
                 window.removeEventListener('wi-editor-closed', handleEditorClosed);
             };
@@ -2127,6 +2329,8 @@ export default function detailModal() {
             this.detailLoadError = '';
             this.activeCard = c;
             this.sourceUpdateChecking = false;
+            this.editingRevision = String(c?.source_revision || '').trim();
+            this.lastPersistedResourceFolder = String(c?.resource_folder || '').trim();
             this.skinImages = [];
             this.currentSkinIndex = -1;
             this.currentSkinDirectory = '';
@@ -2231,6 +2435,11 @@ export default function detailModal() {
         // 刷新当前卡片数据 (从后端)
         refreshActiveCardDetail(cardId) {
             const requestToken = ++this.detailRequestToken;
+            // 记录本次请求发出前本地已持久化的资源目录/修订号，用于识别乱序响应。
+            const requestedResourceFolder = String(
+                this.editingData?.resource_folder || this.activeCard?.resource_folder || ''
+            ).trim();
+            const requestedRevision = String(this.editingRevision || '').trim();
             if (!cardId) {
                 this.detailLoading = false;
                 this.detailLoadError = '缺少角色卡标识，无法载入最新详情';
@@ -2249,6 +2458,24 @@ export default function detailModal() {
                         Object.assign(safeCard, safeCard.data);
                         delete safeCard.data;
                     }
+
+                    const incomingRevision = String(safeCard.source_revision || '').trim();
+                    const incomingResourceFolder = String(safeCard.resource_folder || '').trim();
+                    // 陈旧响应保护：请求发出时本地已有绑定/修订号，而响应却是空/旧值，
+                    // 说明这份快照早于本地已经落盘的变更，不能拿它覆盖本地状态
+                    // （旧实现会因此把刚创建的资源目录"闪回"成空，见资源绑定分析文档 3.2）。
+                    const staleResourceFolder = Boolean(
+                        requestedResourceFolder
+                        && !incomingResourceFolder
+                        && this.lastPersistedResourceFolder
+                        && this.lastPersistedResourceFolder === requestedResourceFolder
+                    );
+                    const staleRevision = Boolean(
+                        requestedRevision
+                        && incomingRevision
+                        && incomingRevision !== requestedRevision
+                        && !this._isRevisionNewer(incomingRevision, requestedRevision)
+                    );
 
                     // 更新核心字段
                     this.editingData.description = safeCard.description || "";
@@ -2301,10 +2528,19 @@ export default function detailModal() {
                     this.editingData.source_link = safeCard.source_link || "";
                     this.editingData.source_title = safeCard.source_title ?? "";
                     this.editingData.source_update = safeCard.source_update ?? null;
-                    this.editingData.resource_folder = safeCard.resource_folder || "";
-                    this.editingData.source_revision = safeCard.source_revision || "";
+                    if (!staleResourceFolder) {
+                        this.editingData.resource_folder = incomingResourceFolder;
+                    }
+                    if (!staleRevision || !this.editingRevision) {
+                        this.editingData.source_revision = incomingRevision;
+                        this.editingRevision = incomingRevision;
+                    }
                     this.activeCard.source_update = safeCard.source_update ?? this.activeCard.source_update ?? null;
                     this.activeCard.source_title = safeCard.source_title ?? this.activeCard.source_title ?? "";
+                    this.activeCard.source_revision = this.editingRevision || this.activeCard.source_revision || "";
+                    if (!staleResourceFolder && incomingResourceFolder) {
+                        this.activeCard.resource_folder = incomingResourceFolder;
+                    }
                     this.editingData = this._normalizeEditingDataShape(this.editingData);
                     this.syncDialogState();
                     setActiveRuntimeContext({
@@ -2389,7 +2625,10 @@ export default function detailModal() {
                 // UI 专用字段
                 ui_summary: this.editingData.ui_summary,
                 source_link: this.editingData.source_link,
-                resource_folder: this.editingData.resource_folder,
+                resource_folder: this.editingData.resource_folder || "",
+                // 资源目录绑定只在用户显式解绑时才允许清空；空值默认视为「未修改」，
+                // 避免持有旧编辑态的保存把绑定冲掉（见资源绑定分析文档 3.4 路径③）。
+                clear_ui_fields: this.editingData.resource_folder ? [] : ['resource_folder'],
                 source_revision: this.editingData.source_revision || "",
 
                 // Bundle 标记
@@ -2405,6 +2644,10 @@ export default function detailModal() {
                 this.isSaving = false;
                 if (res.success) {
                     this.editingData.source_revision = res.updated_card?.source_revision || this.editingData.source_revision || "";
+                    this.editingRevision = this.editingData.source_revision;
+                    if (res.updated_card?.resource_folder !== undefined) {
+                        this.lastPersistedResourceFolder = String(res.updated_card.resource_folder || '').trim();
+                    }
                     // 更新基准
                     this.originalDataJson = JSON.stringify(this.editingData);
                     const ts = new Date().getTime();
@@ -2474,14 +2717,65 @@ export default function detailModal() {
                     autoSaver.initBaseline(this.editingData); // 手动保存后，重置自动保存
                     return true;
                 } else {
-                    alert("保存失败: " + res.msg);
-                    return false;
+                    return this.handleSaveConflict(res);
                 }
             }).catch(e => {
                 this.isSaving = false;
                 alert("请求错误: " + e);
                 return false;
             });
+        },
+
+        // 保存冲突（乐观锁 409）的统一处理：
+        // 卡片文件已被其他组件/窗口改写时，直接让用户重试只会反复失败，
+        // 这里给出「重新载入 / 用最新修订号覆盖保存」两个明确选项。
+        async handleSaveConflict(res) {
+            const conflict = res && (res.status === 409 || res.current_source_revision);
+            if (!conflict) {
+                alert("保存失败: " + (res?.msg || '未知错误'));
+                return false;
+            }
+
+            const latestRevision = String(res.current_source_revision || '').trim();
+            // 只自动重试一次：若磁盘在两次保存之间又被改写，继续自动重试会变成
+            // 「覆盖别人刚写入的内容」，这里交回用户显式决定。
+            const alreadyRetried = this._saveConflictRetried === true;
+            this._saveConflictRetried = false;
+
+            const confirmReload = confirm(
+                '保存失败：角色卡文件已在其他窗口或编辑器中被修改。\n\n'
+                + '[确定] = 重新载入最新内容（放弃本次改动）\n'
+                + (alreadyRetried
+                    ? '（用最新修订号覆盖保存也已失败，请重新载入后再保存）'
+                    : '[取消] = 用最新修订号覆盖保存（保留本次改动）')
+            );
+
+            if (confirmReload) {
+                await this.reloadActiveCardFromDisk();
+                return false;
+            }
+
+            if (alreadyRetried) {
+                await this.reloadActiveCardFromDisk();
+                return false;
+            }
+
+            if (latestRevision) {
+                this.editingRevision = latestRevision;
+                this.editingData.source_revision = latestRevision;
+            }
+            this._saveConflictRetried = true;
+            return this.saveChanges();
+        },
+
+        // 与磁盘对齐：重新拉取详情并刷新基线，避免继续在旧修订号上保存。
+        async reloadActiveCardFromDisk() {
+            const cardId = this.editingData?.id || this.activeCard?.id;
+            if (!cardId) return;
+            this.editingRevision = '';
+            this.lastPersistedResourceFolder = '';
+            this.refreshActiveCardDetail(cardId);
+            this.$store?.global?.showToast?.('已重新载入最新内容', 2200, 'refresh');
         },
 
         // === 图片与文件更新 ===
@@ -2572,14 +2866,11 @@ export default function detailModal() {
                 this.isSaving = false;
                 if (res.success) {
                 this.$store.global.showToast("封面已切换", 3000, "check");
-                    
-                    // 强制刷新图片显示
-                    const ts = new Date().getTime();
-                    this.activeCard.image_url += (this.activeCard.image_url.includes('?') ? '&' : '?') + `t=${ts}`;
-                    
-                    // 刷新列表
-                    window.dispatchEvent(new CustomEvent('refresh-card-list'));
-                    
+
+                    // 换封会改写卡文件（JSON 卡还会换 ID），必须把新 ID 与新修订号
+                    // 同步进编辑态，否则下一次保存会被乐观锁拒绝。见换封分析文档 4.3。
+                    this._applyPersistedCardMutation(res, { refreshListEvent: 'refresh-card-list' });
+
                     // 刷新皮肤列表 (如果保存了旧图，皮肤列表会增加)
                     if (this.editingData.resource_folder) {
                         this.fetchResourceFiles(this.editingData.resource_folder);
@@ -2670,6 +2961,12 @@ export default function detailModal() {
                     
                     this.activeCard = updatedCard;
                     this.editingData = this._normalizeEditingDataShape(JSON.parse(JSON.stringify(updatedCard)));
+                    this.editingRevision = String(
+                        updatedCard.source_revision || res.source_revision || ''
+                    ).trim();
+                    if (updatedCard.resource_folder !== undefined) {
+                        this.lastPersistedResourceFolder = String(updatedCard.resource_folder || '').trim();
+                    }
                     this.syncDialogState();
                     
                     window.dispatchEvent(new CustomEvent('card-updated', { detail: updatedCard }));
@@ -3270,6 +3567,7 @@ export default function detailModal() {
                     // 更新 activeCard 以同步视图
                     this.editingData.resource_folder = res.resource_folder;
                     this.activeCard.resource_folder = res.resource_folder;
+                    this.lastPersistedResourceFolder = String(res.resource_folder || '').trim();
                     this.fetchResourceFiles(res.resource_folder);
                     this._syncPersistedBaseline(['resource_folder']);
                     this.$store.global.showToast('资源目录已设置', 1800, 'folder');
@@ -3395,37 +3693,9 @@ export default function detailModal() {
             changeCardImage(formData).then(res => {
                 this.isSaving = false;
                 if (res.success) {
-                    const updatedCard = res.updated_card || null;
-                    const refreshedRevision = res.updated_card?.source_revision || res.source_revision || "";
-                    if (updatedCard) {
-                        Object.assign(this.activeCard, updatedCard);
-                    }
-                    // 处理 ID 变更 (JSON -> PNG)
-                    if (res.new_id && res.new_id !== this.editingData.id) {
-                        this.activeCard.id = res.new_id;
-                        this.editingData.id = res.new_id;
-                        this.activeCard.filename = res.new_id.split('/').pop();
-                        this.editingData.filename = this.activeCard.filename;
-                    }
-                    if (updatedCard?.filename) {
-                        this.activeCard.filename = updatedCard.filename;
-                        this.editingData.filename = updatedCard.filename;
-                    }
-                    if (res.new_image_url) this.activeCard.image_url = res.new_image_url;
-                    if (res.import_time) {
-                        this.activeCard.import_time = res.import_time;
-                    }
-                    this.editingData.source_revision = refreshedRevision || this.editingData.source_revision || "";
-                    if (this.editingData.source_revision) {
-                        this.activeCard.source_revision = this.editingData.source_revision;
-                    }
-                    this._syncPersistedBaseline(['id', 'filename', 'source_revision']);
-                    
-                    if (updatedCard) {
-                        window.dispatchEvent(new CustomEvent('card-updated', { detail: updatedCard }));
-                    } else {
-                        window.dispatchEvent(new CustomEvent('refresh-card-list'));
-                    }
+                    // 换图会改写卡文件（JSON→PNG 还会换 ID），统一走持久化结果吸收逻辑，
+                    // 保证编辑态的 id / filename / source_revision 与磁盘一致。
+                    this._applyPersistedCardMutation(res, { refreshListEvent: 'refresh-card-list' });
                     e.target.value = '';
                 } else alert(res.msg);
             });

@@ -22,7 +22,9 @@ def run_detail_modal_runtime_check(script_body):
         const getCardDetail = async (...args) => globalThis.__getCardDetail
           ? globalThis.__getCardDetail(...args)
           : ({{ success: true, card: {{}} }});
-        const updateCard = async () => ({{ success: true }});
+        const updateCard = async (payload) => globalThis.__updateCard
+          ? globalThis.__updateCard(payload)
+          : ({{ success: true }});
         const previewMergedTags = async () => ({{ success: true }});
         const updateCardFile = async () => ({{ success: true }});
         const updateCardFileFromUrl = async () => ({{ success: true }});
@@ -109,6 +111,238 @@ def run_detail_modal_runtime_check(script_body):
         check=False,
     )
     assert result.returncode == 0, result.stderr or result.stdout
+
+
+def test_detail_modal_runtime_absorbs_newer_revision_only():
+    run_detail_modal_runtime_check(
+        """
+        modal.editingData = { id: 'hero.png', filename: 'hero.png', resource_folder: 'hero' };
+        modal.activeCard = { id: 'hero.png', resource_folder: 'hero' };
+        modal.editingRevision = '100:10';
+        modal.lastPersistedResourceFolder = 'hero';
+
+        modal._syncPersistedBaseline = () => {};
+
+        // 相同 revision 不重复吸收
+        const sameAbsorbed = modal._absorbExternalCardUpdate({
+          id: 'hero.png',
+          source_revision: '100:10',
+          resource_folder: 'hero',
+        });
+        if (sameAbsorbed) {
+          throw new Error('same revision must not count as absorbed');
+        }
+
+        // 更新的 revision 必须吸收
+        const newerAbsorbed = modal._absorbExternalCardUpdate({
+          id: 'hero.png',
+          source_revision: '200:12',
+        });
+        if (!newerAbsorbed || modal.editingRevision !== '200:12') {
+          throw new Error(`expected newer revision absorbed, got ${modal.editingRevision}`);
+        }
+        if (modal.editingData.source_revision !== '200:12') {
+          throw new Error('editingData revision should follow');
+        }
+
+        // 更旧的 revision 必须被忽略
+        const staleAbsorbed = modal._absorbExternalCardUpdate({
+          id: 'hero.png',
+          source_revision: '50:1',
+        });
+        if (staleAbsorbed || modal.editingRevision !== '200:12') {
+          throw new Error('stale revision must be ignored');
+        }
+
+        // 其他卡片的更新必须完全忽略
+        const otherAbsorbed = modal._absorbExternalCardUpdate({
+          id: 'other.png',
+          source_revision: '999:99',
+        });
+        if (otherAbsorbed || modal.editingRevision !== '200:12') {
+          throw new Error('other card update must be ignored');
+        }
+      """
+    )
+
+
+def test_detail_modal_runtime_apply_persisted_mutation_syncs_id_and_revision():
+    run_detail_modal_runtime_check(
+        """
+        modal.editingData = {
+          id: 'hero.json',
+          filename: 'hero.json',
+          source_revision: '10:1',
+          resource_folder: 'hero',
+        };
+        modal.activeCard = { id: 'hero.json', image_url: '/cards_file/hero.json' };
+        modal.editingRevision = '10:1';
+        modal._syncPersistedBaseline = () => {};
+
+        modal._applyPersistedCardMutation({
+          success: true,
+          new_card_id: 'hero.png',
+          new_filename: 'hero.png',
+          source_revision: '20:2',
+          new_image_url: '/cards_file/hero.png',
+          converted_to_png: true,
+        }, { refreshListEvent: 'refresh-card-list' });
+
+        if (modal.editingData.id !== 'hero.png') {
+          throw new Error(`editingData.id should follow the conversion, got ${modal.editingData.id}`);
+        }
+        if (modal.editingData.filename !== 'hero.png') {
+          throw new Error('editingData.filename should follow the conversion');
+        }
+        if (modal.editingRevision !== '20:2' || modal.editingData.source_revision !== '20:2') {
+          throw new Error('revision should be absorbed after cover swap');
+        }
+        if (!modal.activeCard.image_url.includes('t=')) {
+          throw new Error('image url should be cache-busted');
+        }
+      """
+    )
+
+
+def test_detail_modal_runtime_save_sends_clear_ui_fields_only_when_unbound():
+    """保存时只有「本来就没有绑定」才声明清空，避免误清资源目录。"""
+    run_detail_modal_runtime_check(
+        """
+        const sentPayloads = [];
+        globalThis.__updateCard = async (payload) => {
+          sentPayloads.push(payload);
+          return { success: true, updated_card: { id: payload.id, source_revision: '30:3' } };
+        };
+        globalThis.autoSaver = { initBaseline() {}, start() {}, stop() {} };
+        modal.activeCard = { id: 'hero.png', is_bundle: false, filename: 'hero.png' };
+        modal.editingData = {
+          ...modal._normalizeEditingDataShape({}),
+          id: 'hero.png',
+          filename: 'hero.png',
+          char_name: 'Hero',
+          resource_folder: 'hero-assets',
+          source_revision: '10:1',
+        };
+        modal.editingRevision = '10:1';
+        modal.originalDataJson = JSON.stringify(modal.editingData);
+        modal._syncPersistedBaseline = () => {};
+
+        await modal.saveChanges();
+        const boundPayload = sentPayloads[sentPayloads.length - 1];
+        if (boundPayload.resource_folder !== 'hero-assets') {
+          throw new Error(`bound payload should keep the folder, got ${boundPayload.resource_folder}`);
+        }
+        if (Array.isArray(boundPayload.clear_ui_fields) && boundPayload.clear_ui_fields.length > 0) {
+          throw new Error(`bound payload must not clear ui fields, got ${JSON.stringify(boundPayload.clear_ui_fields)}`);
+        }
+
+        // 原本就没有绑定时才显式声明清除，语义与旧行为保持一致
+        modal.editingData.resource_folder = '';
+        modal.originalDataJson = JSON.stringify(modal.editingData);
+        await modal.saveChanges();
+        const unboundPayload = sentPayloads[sentPayloads.length - 1];
+        if (!Array.isArray(unboundPayload.clear_ui_fields) || unboundPayload.clear_ui_fields.length === 0) {
+          throw new Error('unbound card should declare clear_ui_fields explicitly');
+        }
+      """
+    )
+
+
+def test_detail_modal_runtime_conflict_offers_reload_or_retry_with_latest_revision():
+    """409 冲突时不能只弹一句「保存失败」，必须能重新载入或带最新修订号重试。"""
+    run_detail_modal_runtime_check(
+        """
+        let confirmAnswer = true;
+        let confirmMessage = '';
+        globalThis.confirm = (message) => { confirmMessage = String(message || ''); return confirmAnswer; };
+
+        const sentPayloads = [];
+        let callCount = 0;
+        globalThis.__updateCard = async (payload) => {
+          sentPayloads.push({ ...payload });
+          callCount += 1;
+          if (callCount === 1) {
+            return {
+              success: false,
+              status: 409,
+              msg: 'source_revision mismatch: expected 200:2',
+              current_source_revision: '200:2',
+            };
+          }
+          return { success: true, updated_card: { id: payload.id, source_revision: '200:2' } };
+        };
+        globalThis.autoSaver = { initBaseline() {}, start() {}, stop() {} };
+        modal.$store = { global: { showToast() {}, setTagTaxonomy() {} } };
+
+        const refreshed = [];
+        modal.refreshActiveCardDetail = (cardId) => { refreshed.push(cardId); };
+        modal.activeCard = { id: 'hero.png', is_bundle: false };
+        modal.editingData = {
+          ...modal._normalizeEditingDataShape({}),
+          id: 'hero.png',
+          char_name: 'Hero',
+          resource_folder: 'hero-assets',
+          source_revision: '100:1',
+        };
+        modal.editingRevision = '100:1';
+        modal.originalDataJson = JSON.stringify(modal.editingData);
+        modal._syncPersistedBaseline = () => {};
+
+        // 选「取消」= 用最新修订号覆盖保存
+        confirmAnswer = false;
+        const retried = await modal.saveChanges();
+        if (!confirmMessage.includes('重新载入')) {
+          throw new Error(`conflict dialog should explain the choices, got: ${confirmMessage}`);
+        }
+        if (sentPayloads.length !== 2) {
+          throw new Error(`expected one retry after conflict, got ${sentPayloads.length} attempts`);
+        }
+        if (sentPayloads[1].source_revision !== '200:2') {
+          throw new Error(`retry must use the latest revision, got ${sentPayloads[1].source_revision}`);
+        }
+        if (retried !== true) {
+          throw new Error('retry should report success');
+        }
+
+        // 选「确定」= 重新载入
+        callCount = 0;
+        confirmAnswer = true;
+        modal._saveConflictRetried = false;
+        modal.editingRevision = '300:3';
+        modal.editingData.source_revision = '50:1';
+        await modal.saveChanges();
+        if (!refreshed.length) {
+          throw new Error('reload branch should refresh the detail from disk');
+        }
+
+        // 连续两次冲突时不能无限自动覆盖：第二次应放弃重试并转为重新载入
+        callCount = 0;
+        confirmAnswer = false;
+        refreshed.length = 0;
+        globalThis.__updateCard = async (payload) => {
+          sentPayloads.push({ ...payload });
+          return {
+            success: false,
+            status: 409,
+            msg: 'source_revision mismatch: expected 400:4',
+            current_source_revision: '400:4',
+          };
+        };
+        modal._saveConflictRetried = false;
+        modal.editingRevision = '100:1';
+        modal.editingData.source_revision = '100:1';
+        const repeated = await modal.saveChanges();
+        if (repeated !== false) {
+          throw new Error('repeated conflict must not keep retrying forever');
+        }
+        if (sentPayloads.filter((p) => p.source_revision === '400:4').length > 1) {
+          throw new Error('should retry at most once with the latest revision');
+        }
+        if (!refreshed.length) {
+          throw new Error('second conflict should fall back to reloading from disk');
+        }
+      """
+    )
 
 
 def test_detail_modal_runtime_whitespace_only_fields_do_not_count_as_view_content():

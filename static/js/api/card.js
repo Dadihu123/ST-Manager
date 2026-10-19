@@ -184,13 +184,19 @@ export async function cancelSourceUpdateMonitorRun(runId) {
 }
 
 // 更新角色卡 (Save)
+// 409（乐观锁冲突）时把状态码与最新修订号带回前端，便于做「重新载入/覆盖保存」决策；
+// 其余情况保持原有「直接返回 JSON」的行为，避免破坏调用方的 success 判断。
 export async function updateCard(payload) {
     const res = await fetch('/api/update_card', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
     });
-    return res.json();
+    const data = await res.json();
+    if (!res.ok && data && typeof data === 'object') {
+        return { ...data, status: data.status || res.status, http_status: res.status };
+    }
+    return data;
 }
 
 // 预览全局标签合并（不写入文件）

@@ -1721,11 +1721,12 @@ def test_wi_editor_runtime_blocks_clipboard_insert_and_main_list_drag_while_filt
         let toast = '';
         let prevented = false;
         let stopped = false;
-        let classRemoved = false;
+        let reset = false;
         const component = {{
           isWiEntryFilterActive() {{ return true; }},
           $store: {{ global: {{ showToast(message) {{ toast = message; }} }} }},
           getWIArrayRef() {{ throw new Error('filtered insert should stop before reading entries'); }},
+          resetWiDragIndicators() {{ reset = true; }},
           {add_block},
           {drag_start_block},
           {drop_block},
@@ -1740,17 +1741,20 @@ def test_wi_editor_runtime_blocks_clipboard_insert_and_main_list_drag_while_filt
         const event = {{
           preventDefault() {{ prevented = true; }},
           stopPropagation() {{ stopped = true; }},
+          dataTransfer: {{ getData: () => '', types: [] }},
           currentTarget: {{
             classList: {{
-              remove() {{ classRemoved = true; }},
+              remove() {{}},
             }},
           }},
         }};
         if (component.wiDrop(event, 0) !== false) throw new Error('filtered drop should be rejected');
-        if (!prevented || !stopped || !classRemoved) throw new Error('filtered drop should be cancelled cleanly');
+        if (!prevented || !stopped) throw new Error('filtered drop should be cancelled cleanly');
+        if (!reset) throw new Error('filtered drop should clear drag indicators');
         '''
     )
 
+    assert 'resetWiDragIndicators() {' in source
     run_js(script)
 
 
@@ -1807,6 +1811,118 @@ def test_wi_editor_runtime_previous_find_wraps_across_entries():
         }}
         '''
     )
+
+    run_js(script)
+
+
+def test_wi_editor_close_payload_carries_revision_and_identity():
+    """全屏世界书编辑器保存后关闭时，必须把新修订号/ID 交还给宿主详情页。
+
+    背景：编辑器保存已经改写卡文件，但旧实现关闭事件里没有 source_revision，
+    详情页继续用旧修订号保存就会被 409 拒绝
+    （见 docs/2026-10-19-wi-editor-save-revision-mismatch-analysis.md）。
+    """
+    source = read_project_file('static/js/components/wiEditor.js')
+
+    assert 'closeDetail.source_revision = this.editingData.source_revision;' in source
+    assert 'closeDetail.card_id = this.editingData.id;' in source
+    assert 'closeDetail.filename = this.editingData.filename;' in source
+
+    # 编辑器自身保存成功后要跟上后端可能变更的 ID
+    assert 'const nextId = res.new_id || res.updated_card?.id;' in source
+
+    detail_source = read_project_file('static/js/components/detailModal.js')
+    assert 'const closedRevision = String(detail.source_revision || \'\').trim();' in detail_source
+    assert 'if (detail.filename) {' in detail_source
+
+
+def test_wi_editor_runtime_drag_indicator_state_is_cleared_and_never_lingers():
+    """拖拽插入指示必须是组件状态，且离开/放下后不残留。
+
+    背景：旧实现用 classList 直接写 DOM，只有当前悬停项和 drop 落点会被清理，
+    指针离开后边框会残留（见 docs/2026-10-19-wi-editor-drag-indicator-residue-analysis.md）。
+    """
+    source = read_project_file('static/js/components/wiEditor.js')
+
+    drag_over_block = extract_js_function_block(source, 'wiDragOver(e, index) {')
+    drag_leave_block = extract_js_function_block(source, 'wiDragLeave(e) {')
+    reset_block = extract_js_function_block(source, 'resetWiDragIndicators() {')
+
+    script = textwrap.dedent(
+        f'''
+        const component = {{
+          wiDragOverIndex: -1,
+          wiDragOverPosition: '',
+          wiDraggingIndex: null,
+          wiDraggingEntryKey: '',
+          _wiDragCleanupHandler: null,
+          isWiEntryFilterActive() {{ return false; }},
+          {reset_block},
+          {drag_over_block},
+          {drag_leave_block},
+        }};
+        globalThis.window = {{
+          addEventListener() {{}},
+          removeEventListener() {{}},
+        }};
+
+        const row = (top, height) => ({{
+          currentTarget: {{
+            getBoundingClientRect() {{ return {{ top, height }}; }},
+            contains() {{ return false; }},
+          }},
+        }});
+
+        let prevented = false;
+        component.wiDragOver({{
+          preventDefault() {{ prevented = true; }},
+          clientY: 10,
+          ...row(0, 40),
+        }}, 2);
+        if (!prevented) throw new Error('dragover should preventDefault');
+        if (component.wiDragOverIndex !== 2 || component.wiDragOverPosition !== 'top') {{
+          throw new Error(`unexpected indicator state: ${{component.wiDragOverIndex}}/${{component.wiDragOverPosition}}`);
+        }}
+
+        component.wiDragOver({{ preventDefault() {{}}, clientY: 35, ...row(0, 40) }}, 2);
+        if (component.wiDragOverPosition !== 'bottom') {{
+          throw new Error('lower half should mark bottom');
+        }}
+
+        // 指针离开任意条目后必须清空（旧实现不会）
+        component.wiDragLeave({{ currentTarget: {{ contains() {{ return false; }} }}, relatedTarget: null }});
+        if (component.wiDragOverIndex !== -1 || component.wiDragOverPosition !== '') {{
+          throw new Error('dragleave should clear indicator');
+        }}
+
+        // 拖拽结束/放下后统一收尾
+        component.wiDragOverIndex = 3;
+        component.wiDragOverPosition = 'bottom';
+        component.wiDraggingEntryKey = 'manager:x';
+        component.resetWiDragIndicators();
+        if (component.wiDragOverIndex !== -1 || component.wiDragOverPosition !== '' || component.wiDraggingEntryKey !== '') {{
+          throw new Error('reset should clear every drag field');
+        }}
+
+        // 子元素之间移动不算离开
+        component.wiDragOverIndex = 1;
+        component.wiDragOverPosition = 'top';
+        const child = {{}};
+        component.wiDragLeave({{
+          currentTarget: {{ contains: (node) => node === child }},
+          relatedTarget: child,
+        }});
+        if (component.wiDragOverIndex !== 1) {{
+          throw new Error('dragleave inside the same row must not clear the indicator');
+        }}
+        '''
+    )
+
+    # 模板必须由状态驱动，而不是依赖残留的 DOM class
+    template = read_project_file('templates/modals/detail_wi_fullscreen.html')
+    assert "@dragleave=\"wiDragLeave($event)\"" in template
+    assert "wiDragOverIndex === index && wiDragOverPosition === 'top'" in template
+    assert "wiDragOverIndex === index && wiDragOverPosition === 'bottom'" in template
 
     run_js(script)
 
