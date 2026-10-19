@@ -422,9 +422,6 @@
   background: var(--surface-page);
 }
 
-.chat-reader-message-list {
-  padding: 0.75rem var(--chat-reader-stream-gutter) 4rem;
-}
 
 .chat-reader-loading {
   min-height: 14rem;
@@ -827,9 +824,6 @@
     scrollbar-width: none;
   }
 
-  .chat-reader-header-tools::-webkit-scrollbar {
-    display: none;
-  }
 
   .chat-reader-header-actions {
     min-width: 0;
@@ -912,11 +906,6 @@
     height: 1.05rem;
   }
 
-  .chat-reader-message-list {
-    padding-right: 0.85rem;
-    padding-bottom: 1.25rem;
-    padding-left: 0.85rem;
-  }
 
   .chat-reader-app-stage {
     min-height: calc(100dvh - var(--chat-reader-header-height));

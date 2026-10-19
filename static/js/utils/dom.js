@@ -828,6 +828,32 @@ export function updateShadowContent(el, content, options = {}) {
                     /* 代码块样式修复 */
                     pre { background: var(--surface-code); border: 1px solid var(--border-subtle); padding: 1em; border-radius: 6px; overflow-x: auto; }
                     code { font-family: monospace; }
+
+                    /* 滚动条。Shadow DOM **不继承**宿主文档的全局
+                       ::-webkit-scrollbar（见 static/css/modules/base.css），所以这里
+                       不写就退回浏览器默认滚动条：深色模式下是一条中灰轨道 + 亮灰滑块，
+                       嵌在深色预览面板里非常突兀；浅色模式恰好接近白底，所以看不出问题。
+                       颜色直接取宿主滚动条契约 Token，两种主题都与应用其余滚动条一致。 */
+                    .scroll-wrapper::-webkit-scrollbar,
+                    pre::-webkit-scrollbar {
+                        width: 8px;
+                        height: 8px;
+                    }
+                    .scroll-wrapper::-webkit-scrollbar-track,
+                    pre::-webkit-scrollbar-track {
+                        background: transparent;
+                    }
+                    .scroll-wrapper::-webkit-scrollbar-thumb,
+                    pre::-webkit-scrollbar-thumb {
+                        border-radius: 999px;
+                        border: 2px solid transparent;
+                        background-color: var(--scrollbar-thumb);
+                        background-clip: padding-box;
+                    }
+                    .scroll-wrapper::-webkit-scrollbar-thumb:hover,
+                    pre::-webkit-scrollbar-thumb:hover {
+                        background-color: var(--accent-text);
+                    }
                 </style>
             `;
 

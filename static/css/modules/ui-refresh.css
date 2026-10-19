@@ -8,16 +8,86 @@
  */
 
 :root {
-  --ui-radius-xs: 0.45rem;
-  --ui-radius-sm: 0.65rem;
-  --ui-radius-md: 0.85rem;
-  --ui-radius-lg: 1rem;
+  /* ---------------------------------------------------------------- 圆角
+   * 唯一圆角标尺：4 / 8 / 12 / 16，四档。
+   *
+   * 小圆角偏中性、大圆角偏俏皮、无圆角偏正式 —— 同一界面里混用方角和
+   * 圆角一定更难看，所以这里只给四个值，其余家族一律别名指向它们。
+   */
+  --radius-sm: 0.25rem;      /* 4px  — 小标签、色块 */
+  --radius-md: 0.5rem;       /* 8px  — 按钮、输入框 */
+  --radius-lg: 0.75rem;      /* 12px — 卡片、面板 */
+  --radius-xl: 1rem;         /* 16px — 模态、大容器 */
+  --radius-pill: 999px;
+  /*
+   * `--ui-radius-*` 收敛到同一套四档。此前是 7.2 / 10.4 / 13.6 / 16px，
+   * 与 Tailwind 默认的 4 / 8 / 12 / 16 互不相干，同一个界面里因此并存
+   * 两套肉眼难辨的圆角。现在两者一致：`rounded`(4)=xs、`rounded-lg`(8)=sm、
+   * `rounded-xl`(12)=md、`rounded-2xl`(16)=lg。
+   */
+  --ui-radius-xs: var(--radius-sm);
+  --ui-radius-sm: var(--radius-md);
+  --ui-radius-md: var(--radius-lg);
+  --ui-radius-lg: var(--radius-xl);
+
+  /* ---------------------------------------------------------------- 字号
+   * 12 / 14 / 16 / 18 / 20 / 24 / 30，七档覆盖全部 UI。
+   * 一律用 rem，不用 em（em 相对父字号，嵌套后会产生标尺外的值）。
+   */
+  --text-xs: 0.75rem;        /* 12px — 脚注、元信息 */
+  --text-sm: 0.875rem;       /* 14px — 次要正文、紧凑控件 */
+  --text-md: 1rem;           /* 16px — 正文 */
+  --text-lg: 1.125rem;       /* 18px — 小节标题 */
+  --text-xl: 1.25rem;        /* 20px — 区块标题 */
+  --text-2xl: 1.5rem;        /* 24px — 界面标题 */
+  --text-3xl: 1.875rem;      /* 30px — 页面主标题 */
+
+  /* ---------------------------------------------------------------- 间距
+   * 4 / 8 / 12 / 16 / 24 / 32 / 48 / 64，相邻值差距均 ≥ 25%。
+   */
+  --space-1: 0.25rem;        /* 4px */
+  --space-2: 0.5rem;         /* 8px */
+  --space-3: 0.75rem;        /* 12px */
+  --space-4: 1rem;           /* 16px */
+  --space-5: 1.5rem;         /* 24px */
+  --space-6: 2rem;           /* 32px */
+  --space-7: 3rem;           /* 48px */
+  --space-8: 4rem;           /* 64px */
+
+  /* ---------------------------------------------------------------- 字重
+   * 只有两档语义：常规与强调。UI 里不使用 < 400 的字重。
+   * 要弱化就用颜色或字号，不要减字重。
+   */
+  --weight-regular: 500;
+  --weight-strong: 700;
+
+  /* ---------------------------------------------------------------- 控制尺寸 */
   --ui-control-height: 2.75rem;
   --ui-control-height-compact: 2.25rem;
   --ui-panel-gutter: clamp(0.85rem, 2vw, 1.5rem);
   --ui-modal-gutter: clamp(0.75rem, 2vw, 2rem);
   --ui-transition-fast: 180ms ease;
   --ui-transition-panel: 240ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ---------------------------------------------------------------- 层级
+ * 五档 elevation，按「离用户多近」选，而不是按「哪个阴影好看」选。
+ * 深色模式下阴影几乎登记不上，抬升主要靠更亮的表面 + 发丝边框，
+ * 阴影只作补充。
+ */
+:root {
+  --elevation-1: 0 1px 3px hsla(0, 0%, 0%, 0.2);   /* 几乎没抬起 — 按钮 */
+  --elevation-2: 0 4px 6px hsla(0, 0%, 0%, 0.2);   /* 下拉菜单 */
+  --elevation-3: 0 5px 15px hsla(0, 0%, 0%, 0.2);
+  --elevation-4: 0 10px 24px hsla(0, 0%, 0%, 0.2);
+  --elevation-5: 0 15px 35px hsla(0, 0%, 0%, 0.2); /* 模态 */
+  --elevation-ring: inset 0 0 0 1px color-mix(in srgb, var(--content-on-dark) 8%, transparent);
+
+  /* 旧名兼容：既有模块仍在用 --shadow-sm/md/lg/xl（此前只有 fallback 生效）。 */
+  --shadow-sm: var(--elevation-1);
+  --shadow-md: var(--elevation-2);
+  --shadow-lg: var(--elevation-3);
+  --shadow-xl: var(--elevation-5);
 }
 
 /* Shared dialog primitives ------------------------------------------------ */
@@ -46,7 +116,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  padding: 0.9rem var(--ui-panel-gutter);
+  padding: 1rem var(--ui-panel-gutter);
   background: var(--surface-container-raised);
   border-bottom: 1px solid var(--border-divider);
 }
@@ -85,7 +155,7 @@
 .ui-modal-eyebrow {
   margin-bottom: 0.18rem;
   color: var(--content-muted);
-  font-size: 0.64rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.08em;
   line-height: 1.2;
@@ -100,12 +170,6 @@
   line-height: 1.25;
 }
 
-.ui-modal-subtitle {
-  margin: 0.25rem 0 0;
-  color: var(--content-muted);
-  font-size: 0.74rem;
-  line-height: 1.45;
-}
 
 .ui-modal-header-actions,
 .ui-modal-actions {
@@ -130,7 +194,7 @@
   min-height: 4.25rem;
   align-items: center;
   justify-content: flex-end;
-  gap: 0.6rem;
+  gap: 0.5rem;
   padding: 0.75rem var(--ui-panel-gutter);
   background: var(--surface-container-raised);
   border-top: 1px solid var(--border-divider);
@@ -194,7 +258,7 @@
   min-height: var(--ui-control-height);
   align-items: center;
   justify-content: center;
-  gap: 0.45rem;
+  gap: 0.5rem;
   border-radius: var(--ui-radius-sm);
   font-weight: 650;
   line-height: 1.2;
@@ -235,44 +299,9 @@
   border-radius: var(--ui-radius-md);
 }
 
-.ui-section-heading {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 0.85rem;
-}
 
-.ui-section-heading h3,
-.ui-section-heading h4 {
-  margin: 0;
-  color: var(--content-primary);
-  font-size: 0.92rem;
-  font-weight: 700;
-  line-height: 1.3;
-}
 
-.ui-section-heading p {
-  margin: 0.3rem 0 0;
-  color: var(--content-muted);
-  font-size: 0.74rem;
-  line-height: 1.5;
-}
 
-.ui-status-chip {
-  display: inline-flex;
-  min-height: 1.65rem;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0.25rem 0.55rem;
-  color: var(--content-secondary);
-  background: var(--status-neutral-surface);
-  border: 1px solid var(--status-neutral-border);
-  border-radius: 999px;
-  font-size: 0.68rem;
-  font-weight: 650;
-  line-height: 1.2;
-}
 
 .ui-status-chip.is-success {
   color: var(--status-success-text);
@@ -332,7 +361,7 @@
 .execute-rules-modal-actions {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr);
-  gap: 0.65rem;
+  gap: 0.75rem;
   padding-top: 0.35rem;
 }
 
@@ -349,7 +378,7 @@
 .import-modal-conflict-note {
   margin: 0;
   color: var(--content-secondary);
-  font-size: 0.82rem;
+  font-size: 0.875rem;
   line-height: 1.6;
   text-align: center;
 }
@@ -391,7 +420,7 @@
 .import-modal-conflict-label {
   align-self: stretch;
   color: var(--content-muted);
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -444,15 +473,15 @@
 .import-modal-conflict-stats {
   display: flex;
   justify-content: center;
-  gap: 0.4rem;
+  gap: 0.5rem;
   margin-top: 0.4rem;
   color: var(--content-muted);
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   flex-wrap: wrap;
 }
 
 .import-modal-conflict-stat {
-  padding: 0.18rem 0.42rem;
+  padding: 0.25rem 0.42rem;
   background: var(--surface-container);
   border: 1px solid var(--border-subtle);
   border-radius: var(--ui-radius-xs);
@@ -461,7 +490,7 @@
 .import-modal-conflict-actions {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.65rem;
+  gap: 0.75rem;
 }
 
 /* Settings --------------------------------------------------------------- */
@@ -477,7 +506,7 @@
 
 .settings-header {
   min-height: 4.5rem;
-  padding: 0.85rem var(--ui-panel-gutter);
+  padding: 0.75rem var(--ui-panel-gutter);
   background: var(--surface-container-raised);
   border-bottom-color: var(--border-divider);
 }
@@ -500,7 +529,7 @@
 .settings-title-copy h3 {
   margin: 0;
   color: var(--content-primary);
-  font-size: 1.05rem;
+  font-size: 1rem;
   line-height: 1.25;
 }
 
@@ -538,7 +567,7 @@
 
 .settings-nav-item {
   min-height: 2.75rem;
-  padding: 0.65rem 0.85rem;
+  padding: 0.75rem 0.85rem;
   border-radius: var(--ui-radius-sm);
 }
 
@@ -562,17 +591,7 @@
   border-bottom-color: var(--border-divider);
 }
 
-.settings-row {
-  margin-bottom: 1.25rem;
-  padding: 1rem;
-  background: color-mix(in srgb, var(--surface-container-raised), transparent 8%);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--ui-radius-md);
-}
 
-.settings-row:last-child {
-  margin-bottom: 0;
-}
 
 .settings-footer {
   min-height: 4.5rem;
@@ -614,13 +633,13 @@
 
 .ui-detail-modal .detail-card-head {
   min-height: 3rem;
-  padding: 0.7rem 0.85rem;
+  padding: 0.75rem 0.85rem;
   background: color-mix(in srgb, var(--surface-container), transparent 18%);
   border-bottom-color: var(--border-subtle);
 }
 
 .ui-detail-modal .detail-tabs {
-  gap: 0.35rem;
+  gap: 0.25rem;
   padding: 0.5rem var(--ui-panel-gutter);
   background: var(--surface-container);
   border-bottom-color: var(--border-divider);
@@ -628,7 +647,7 @@
 
 .ui-detail-modal .detail-tab {
   min-height: 2.5rem;
-  padding: 0.55rem 0.8rem;
+  padding: 0.5rem 0.8rem;
   border: 1px solid transparent;
   border-radius: var(--ui-radius-sm);
 }
@@ -648,7 +667,6 @@
 }
 
 .ui-detail-modal .detail-section {
-  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
 }
 
 .ui-detail-modal .detail-tag,
@@ -773,7 +791,7 @@
 }
 
 .wi-editor-container .wi-editor-top-actions {
-  gap: 0.4rem;
+  gap: 0.5rem;
 }
 
 .wi-editor-container .btn-primary,
@@ -916,7 +934,7 @@
 
 .automation-container .rule-header {
   min-height: 3.2rem;
-  padding: 0.7rem 0.85rem;
+  padding: 0.75rem 0.85rem;
   background: var(--surface-container-raised);
   border-bottom-color: var(--border-subtle);
 }
@@ -927,7 +945,7 @@
 
 .automation-container .logic-row {
   min-height: var(--ui-control-height-compact);
-  padding: 0.3rem;
+  padding: 0.25rem;
   background: var(--surface-container-raised);
   border-color: var(--border-subtle);
   border-radius: var(--ui-radius-xs);
@@ -996,7 +1014,7 @@
 }
 
 .batch-import-toolbar {
-  padding: 0.55rem 0.65rem;
+  padding: 0.5rem 0.65rem;
   background: var(--surface-container);
   border: 1px solid var(--border-default);
   border-radius: var(--ui-radius-sm);
@@ -1023,8 +1041,8 @@
   display: flex;
   min-width: 0;
   align-items: center;
-  gap: 0.4rem;
-  padding: 0.3rem;
+  gap: 0.5rem;
+  padding: 0.25rem;
   color: var(--content-primary);
   background: var(--surface-container);
   border: 1px solid var(--border-subtle) !important;
@@ -1046,7 +1064,7 @@
   display: inline-flex;
   flex: 0 0 auto;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.5rem;
   min-height: var(--ui-control-height-compact);
   padding: 0.25rem 0.55rem 0.25rem 0.45rem;
   color: var(--action-text);
@@ -1071,7 +1089,7 @@
 
 .ui-batch-selection-label {
   color: var(--action-text);
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   font-weight: 650;
 }
 
@@ -1086,7 +1104,7 @@
   display: inline-flex;
   min-width: 0;
   align-items: center;
-  gap: 0.3rem;
+  gap: 0.25rem;
 }
 
 .ui-batch-action-button,
@@ -1096,14 +1114,14 @@
   align-items: center;
   justify-content: center;
   min-height: var(--ui-control-height-compact);
-  padding: 0.35rem 0.6rem;
+  padding: 0.25rem 0.6rem;
   border: 1px solid var(--border-default);
   border-radius: var(--ui-radius-xs);
   color: var(--content-secondary);
   font: inherit;
   font-size: 0.72rem;
   font-weight: 650;
-  gap: 0.35rem;
+  gap: 0.25rem;
   line-height: 1.15;
   white-space: nowrap;
   cursor: pointer;
@@ -1210,8 +1228,8 @@
   width: 100%;
   margin-top: 0.5rem;
   flex-wrap: wrap;
-  gap: 0.4rem;
-  padding: 0.35rem;
+  gap: 0.5rem;
+  padding: 0.25rem;
   border-radius: var(--ui-radius-md);
 }
 
@@ -1224,7 +1242,7 @@
 .ui-batch-action-strip--mobile .ui-batch-action-clear {
   min-width: 2.75rem;
   min-height: var(--ui-control-height);
-  padding: 0.45rem 0.65rem;
+  padding: 0.5rem 0.65rem;
   border-radius: var(--ui-radius-sm);
   font-size: 0.75rem;
 }
@@ -1235,7 +1253,7 @@
 
 .header-batch-menu {
   width: min(18rem, calc(100vw - 1.5rem));
-  padding: 0.35rem;
+  padding: 0.25rem;
   background: var(--surface-container) !important;
   border-color: var(--border-default) !important;
   border-radius: var(--ui-radius-md) !important;
@@ -1244,7 +1262,7 @@
 
 .header-batch-menu-item {
   min-height: var(--ui-control-height-compact);
-  padding: 0.55rem 0.7rem !important;
+  padding: 0.5rem 0.7rem !important;
   border-radius: var(--ui-radius-xs);
   color: var(--content-primary) !important;
   transition:
@@ -1267,9 +1285,9 @@
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
-  padding: 0.45rem 0.7rem 0.5rem;
+  padding: 0.5rem 0.7rem 0.5rem;
   color: var(--content-muted);
-  font-size: 0.66rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -1322,7 +1340,7 @@
 }
 
 .ui-batch-menu-empty {
-  padding: 0.55rem 0.7rem;
+  padding: 0.5rem 0.7rem;
   color: var(--content-muted);
   font-size: 0.72rem;
 }
@@ -1381,7 +1399,7 @@
 
 .advanced-editor-container .adv-tab {
   min-height: 3.25rem;
-  padding: 0.7rem 0.9rem;
+  padding: 0.75rem 0.9rem;
   border-radius: var(--ui-radius-xs) var(--ui-radius-xs) 0 0;
 }
 
@@ -1398,7 +1416,7 @@
 
 .advanced-editor-container .adv-list-item {
   min-height: 3.4rem;
-  padding: 0.7rem 0.85rem;
+  padding: 0.75rem 0.85rem;
   border-bottom-color: var(--border-subtle);
 }
 
@@ -1456,7 +1474,7 @@
 }
 
 .large-editor-topbar {
-  padding: 0.85rem var(--ui-panel-gutter);
+  padding: 0.75rem var(--ui-panel-gutter);
   background: var(--surface-container-raised);
   border-bottom-color: var(--border-divider);
 }
@@ -1541,7 +1559,7 @@
 
 .ui-small-dialog .ui-small-dialog-actions {
   display: flex;
-  gap: 0.6rem;
+  gap: 0.5rem;
   padding-top: 0.85rem;
 }
 
@@ -1595,11 +1613,11 @@
   align-items: center;
   justify-content: center;
   min-width: 1.25rem;
-  padding: 0.0625rem 0.4rem;
+  padding: 0 0.4rem;
   border-radius: 999px;
   background-color: var(--status-info-solid);
   color: var(--content-on-status-solid);
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 600;
 }
 
@@ -1709,7 +1727,7 @@
   .settings-sidebar {
     width: 100%;
     flex-direction: row;
-    gap: 0.35rem;
+    gap: 0.25rem;
     padding: 0.5rem;
     overflow-x: auto;
     overflow-y: hidden;
@@ -1723,8 +1741,8 @@
     flex: 1 1 0;
     flex-direction: column;
     justify-content: center;
-    gap: 0.2rem;
-    padding: 0.4rem 0.25rem;
+    gap: 0.25rem;
+    padding: 0.5rem 0.25rem;
     text-align: center;
   }
 
@@ -1739,14 +1757,11 @@
     display: block;
     max-width: 100%;
     overflow: hidden;
-    font-size: 0.68rem;
+    font-size: 0.75rem;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
-  .settings-row {
-    gap: 0.75rem;
-  }
 
   .settings-theme-toggle {
     flex: 0 0 auto;
@@ -1762,9 +1777,6 @@
     padding: 1rem;
   }
 
-  .settings-row {
-    padding: 0.85rem;
-  }
 
   .import-modal-conflict-actions {
     grid-template-columns: 1fr;
@@ -1775,19 +1787,19 @@
   }
 
   .large-editor-content {
-    padding: 0.85rem;
+    padding: 0.75rem;
   }
 }
 
 @media (max-width: 520px) {
   .ui-modal-header,
   .ui-modal-footer {
-    gap: 0.65rem;
+    gap: 0.75rem;
     padding-inline: 0.85rem;
   }
 
   .ui-modal-header-copy {
-    gap: 0.55rem;
+    gap: 0.5rem;
   }
 
   .ui-modal-header-icon {
@@ -1796,9 +1808,6 @@
     flex-basis: 2rem;
   }
 
-  .ui-modal-subtitle {
-    display: none;
-  }
 
   .import-modal-conflict-grid {
     grid-template-columns: 1fr;
@@ -1817,7 +1826,7 @@
     display: grid;
     grid-template-columns: 4.5rem minmax(0, 1fr);
     align-items: center;
-    gap: 0.7rem;
+    gap: 0.75rem;
     text-align: left;
   }
 
@@ -1844,13 +1853,9 @@
   }
 
   .advanced-editor-container .adv-editor-pane {
-    padding: 0.85rem;
+    padding: 0.75rem;
   }
 
-  .test-bench-grid {
-    height: auto;
-    grid-template-columns: 1fr;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {

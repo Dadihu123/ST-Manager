@@ -167,10 +167,14 @@ def test_sidebar_icon_layout_styles_cover_custom_aspect_ratio_and_labels():
     assert 'width: 20px;' in icons_css
     assert '.sidebar .ui-icon--md {' in icons_css
     assert 'width: 24px;' in icons_css
-    assert '.sidebar .sidebar-filter-label .ui-icon--sm {' in icons_css
+    # 筛选行 / 一级导航 / 根目录入口的图标统一到 24px 一档。
+    # 此前是四层独立覆写（filter-label 的 xs/sm/md/lg + nav-icon-slot +
+    # category-root），实测产出值本来就都是 24px，属冗余，已合并为一层。
+    assert '.sidebar .sidebar-filter-label .ui-icon,' in icons_css
+    assert '.sidebar .sidebar-nav-icon-slot .ui-icon,' in icons_css
+    assert '.sidebar .sidebar-category-root-icon {' in icons_css
     assert 'width: 24px;' in icons_css
     assert "sidebar_icon('link-unbound', 'ui-icon--sm')" in source
-    assert '.sidebar .sidebar-category-root-icon.ui-icon--sm {' in icons_css
     assert 'sidebar-category-root-icon' in source
     assert '.sidebar .sidebar-tag-library-label {' in icons_css
     assert 'gap: 0.25rem;' in icons_css

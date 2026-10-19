@@ -142,8 +142,9 @@ html.light-mode .btn-danger-xs:hover {
 
 .form-label {
   font-size: 0.75rem;
-  font-weight: bold;
+  font-weight: 600;
   text-transform: uppercase;
+  letter-spacing: 0.05em;
   margin-bottom: 0.25rem;
   display: block;
   color: var(--content-secondary);
@@ -474,25 +475,8 @@ input[type="range"]::-webkit-slider-runnable-track {
   border-color: var(--accent-action);
 }
 
-.search-select {
-  background: transparent;
-  color: var(--content-secondary);
-  border: none;
-  border-right: 1px solid var(--border-default);
-  padding: 0.5rem;
-  outline: none;
-  font-size: 0.875rem;
-  cursor: pointer;
-}
 
-.search-select:hover {
-  color: var(--content-primary);
-}
 
-.search-select option {
-  background-color: var(--surface-container);
-  color: var(--content-primary);
-}
 
 .search-input {
   background: transparent;
@@ -752,25 +736,7 @@ input[type="range"]::-webkit-slider-runnable-track {
   gap: 1px;
 }
 
-.sort-btn-xs {
-  width: 18px;
-  height: 14px;
-  font-size: 8px;
-  line-height: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--surface-container-raised);
-  border: 1px solid var(--border-default);
-  color: var(--content-secondary);
-  cursor: pointer;
-  transition: all 0.2s;
-}
 
-.sort-btn-xs:hover {
-  background: var(--state-hover-surface);
-  color: var(--content-primary);
-}
 
 .expand-btn {
   background: transparent;

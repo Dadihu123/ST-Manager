@@ -73,7 +73,7 @@
   flex: 0 0 auto;
   color: var(--accent-text);
   font-size: 0.62rem;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: 0.1em;
   line-height: 1.2;
   text-transform: uppercase;
@@ -118,7 +118,7 @@
 .preset-reader-desktop-header .btn-primary:hover,
 .preset-reader-mobile-header .btn-primary:hover {
   background: var(--action-surface-hover);
-  color: var(--action-text-hover);
+  color: var(--action-text);
 }
 
 .preset-reader-desktop-header .btn-secondary,
@@ -327,7 +327,7 @@
   overflow: hidden;
   color: var(--content-primary);
   font-size: 0.88rem;
-  font-weight: 800;
+  font-weight: 700;
   line-height: 1.25;
   overflow-wrap: anywhere;
   -webkit-box-orient: vertical;
@@ -435,7 +435,7 @@
   gap: 0.38rem;
   color: var(--content-secondary);
   font-size: 0.68rem;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: 0.07em;
   line-height: 1.3;
   text-transform: uppercase;
@@ -628,7 +628,7 @@
   background: var(--action-surface);
   color: var(--action-text);
   font-size: 0.72rem;
-  font-weight: 800;
+  font-weight: 700;
   transition:
     border-color 180ms ease,
     background-color 180ms ease,
@@ -639,7 +639,7 @@
 .preset-reader-extension-action:hover {
   border-color: var(--action-border-hover);
   background: var(--action-surface-hover);
-  color: var(--action-text-hover);
+  color: var(--action-text);
   transform: translateY(-1px);
 }
 
@@ -703,23 +703,15 @@
 }
 
 .preset-reader-modal section > .flex-1.min-h-0 > .h-full {
-  scrollbar-color: var(--scrollbar-thumb) transparent;
   scrollbar-gutter: stable;
   overscroll-behavior: contain;
 }
 
 .preset-reader-modal section > .flex-1.min-h-0 > .h-full::-webkit-scrollbar,
 .preset-reader-mobile-detail-body::-webkit-scrollbar,
-.preset-reader-workbench-sidebar > .flex-1::-webkit-scrollbar {
-  width: 0.45rem;
-}
 
 .preset-reader-modal section > .flex-1.min-h-0 > .h-full::-webkit-scrollbar-thumb,
 .preset-reader-mobile-detail-body::-webkit-scrollbar-thumb,
-.preset-reader-workbench-sidebar > .flex-1::-webkit-scrollbar-thumb {
-  border-radius: 999px;
-  background: var(--scrollbar-thumb);
-}
 
 .preset-reader-content-card,
 .preset-reader-prompt-card {
@@ -927,7 +919,7 @@
   gap: 0.35rem;
   color: var(--content-muted);
   font-size: 0.64rem;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -1203,7 +1195,7 @@
   margin-bottom: 0.5rem;
   color: var(--content-muted);
   font-size: 0.68rem;
-  font-weight: 800;
+  font-weight: 700;
 }
 
 .preset-reader-content-icon-button {
@@ -1963,7 +1955,7 @@
 .preset-editor-workbench {
   --preset-editor-sidebar-width: 18.5rem;
   --preset-editor-inspector-width: 19.5rem;
-  --preset-editor-panel-radius: 8px;
+  --preset-editor-panel-radius: var(--radius-md);
   --preset-editor-control-height: 2.625rem;
   isolation: isolate;
   overflow: hidden;
@@ -2025,10 +2017,6 @@
   background: color-mix(in srgb, var(--accent-action) 12%, var(--surface-container));
 }
 
-.preset-editor-inspector-heading-icon {
-  width: 2.25rem;
-  height: 2.25rem;
-}
 
 .preset-editor-sidebar-intro-icon {
   width: 2.15rem;
@@ -2071,9 +2059,6 @@
   white-space: nowrap;
 }
 
-.preset-editor-file-title {
-  max-width: 22rem;
-}
 
 .preset-editor-file-path {
   max-width: 24rem;
@@ -2305,9 +2290,6 @@
   text-align: center;
 }
 
-.preset-editor-extension-strip {
-  padding: 0.8rem;
-}
 
 .preset-editor-extension-strip-head,
 .preset-editor-inspector-section-head,
@@ -2318,25 +2300,11 @@
   gap: 0.6rem;
 }
 
-.preset-editor-extension-state {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.22rem;
-  color: var(--content-muted);
-  font-size: 0.64rem;
-}
 
 .preset-editor-extension-state.is-on {
   color: var(--status-success-text);
 }
 
-.preset-editor-extension-grid,
-.preset-editor-inspector-metrics {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.45rem;
-  margin-top: 0.7rem;
-}
 
 .preset-editor-extension-metric,
 .preset-editor-inspector-metrics > div {
@@ -2356,60 +2324,12 @@
   color: var(--accent-action);
 }
 
-.preset-editor-extension-metric-copy,
-.preset-editor-inspector-metrics > div {
-  flex-direction: column;
-  align-items: flex-start;
-}
 
-.preset-editor-extension-metric-copy {
-  display: flex;
-  min-width: 0;
-  gap: 0.1rem;
-}
 
-.preset-editor-extension-metric-copy strong,
-.preset-editor-inspector-metrics strong {
-  color: var(--content-primary);
-  font-size: 0.9rem;
-  line-height: 1;
-}
 
-.preset-editor-extension-metric-copy span,
-.preset-editor-inspector-metrics span {
-  overflow: hidden;
-  color: var(--content-muted);
-  font-size: 0.62rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 
-.preset-editor-extension-action {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 0.45rem;
-  width: 100%;
-  min-height: 2.5rem;
-  margin-top: 0.65rem;
-  padding: 0.5rem 0.55rem;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  color: var(--content-secondary);
-  background: transparent;
-  font-size: 0.7rem;
-  text-align: left;
-}
 
-.preset-editor-extension-action span:nth-child(2) {
-  flex: 1 1 auto;
-}
 
-.preset-editor-extension-action:hover {
-  border-color: var(--border-default);
-  color: var(--content-primary);
-  background: var(--surface-container-raised);
-}
 
 .preset-editor-workbench .preset-editor-sidebar .rounded-2xl {
   padding: 0.8rem;
@@ -2464,7 +2384,7 @@
   overflow: hidden;
   color: var(--content-primary);
   font-size: clamp(1.05rem, 1.45vw, 1.45rem);
-  font-weight: 750;
+  font-weight: 700;
   line-height: 1.25;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2606,30 +2526,9 @@
   border-radius: 6px;
 }
 
-.preset-editor-inspector-inner {
-  display: flex;
-  flex-direction: column;
-}
 
-.preset-editor-inspector-heading {
-  align-items: center;
-  gap: 0.65rem;
-  padding-bottom: 0.8rem;
-  border-bottom: 1px solid var(--border-subtle);
-}
 
-.preset-editor-inspector-status {
-  padding: 0.8rem;
-  border: 1px solid var(--border-default);
-  border-radius: var(--preset-editor-panel-radius);
-  background: var(--surface-container);
-}
 
-.preset-editor-inspector-status-main {
-  justify-content: flex-start;
-  color: var(--content-primary);
-  font-size: 0.76rem;
-}
 
 .preset-editor-inspector-status-detail {
   margin-top: 0.45rem;
@@ -2638,13 +2537,7 @@
   line-height: 1.45;
 }
 
-.preset-editor-inspector-section {
-  border-radius: var(--preset-editor-panel-radius) !important;
-}
 
-.preset-editor-inspector-section-head {
-  align-items: flex-start;
-}
 
 .preset-editor-inspector-section-title {
   margin-top: 0.18rem;
@@ -2658,11 +2551,6 @@
   color: var(--accent-action);
 }
 
-.preset-editor-inspector-action {
-  width: 100%;
-  margin-top: 0.7rem;
-  border-radius: 6px;
-}
 
 .preset-editor-loading-layer {
   position: absolute;
@@ -2752,7 +2640,7 @@
 
 @media (max-width: 767px) {
   .preset-editor-workbench {
-    --preset-editor-panel-radius: 8px;
+    --preset-editor-panel-radius: var(--radius-md);
     --preset-editor-control-height: 2.75rem;
   }
 
@@ -2924,7 +2812,7 @@
    compact controls that keep the full data model available on small screens. */
 .preset-editor-workbench {
   --preset-editor-sidebar-width: 17rem;
-  --preset-editor-panel-radius: 8px;
+  --preset-editor-panel-radius: var(--radius-md);
   --preset-editor-control-height: 2.75rem;
   overflow: hidden;
 }
@@ -3332,7 +3220,7 @@
 .preset-editor-workbench {
   --preset-editor-sidebar-width: 15.5rem;
   --preset-editor-inspector-width: 14.5rem;
-  --preset-editor-panel-radius: 6px;
+  --preset-editor-panel-radius: var(--radius-md);
   --preset-editor-control-height: 2.75rem;
 }
 
@@ -3429,7 +3317,7 @@
   .preset-editor-workbench {
     --preset-editor-sidebar-width: min(20rem, calc(100vw - 0.75rem));
     --preset-editor-inspector-width: 100vw;
-    --preset-editor-panel-radius: 6px;
+    --preset-editor-panel-radius: var(--radius-md);
   }
 
   .preset-editor-workbench .preset-editor-main-inner section.rounded-2xl,
@@ -3471,7 +3359,7 @@
   border-radius: 0.55rem;
   color: var(--content-primary);
   background: transparent;
-  font-weight: 800;
+  font-weight: 700;
   outline: none;
   transition:
     background-color 140ms ease,

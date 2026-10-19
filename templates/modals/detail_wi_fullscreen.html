@@ -59,6 +59,7 @@
             <input
               type="text"
               x-model="editingData.character_book.name"
+              aria-label="世界书名称"
               class="wi-editor-book-name bg-transparent text-sm font-bold border-b border-transparent color-hover-border-neutral color-focus-border-accent outline-none transition-colors w-40 md:w-64"
               placeholder="世界书名称..."
             />
@@ -536,6 +537,7 @@
                   type="checkbox"
                   x-model="entry.enabled"
                   @click.stop
+                  aria-label="筛选世界书条目"
                   class="cursor-pointer color-accent-primary"
                 />
               </div>
@@ -636,6 +638,7 @@
                 <input
                   type="text"
                   x-model="activeEditorEntry.comment"
+                  aria-label="筛选世界书条目"
                   class="wi-editor-comment-input w-full bg-transparent text-lg font-bold border-b outline-none transition-colors p-1"
                   :class="isEditingClipboard 
                     ? 'color-border-violet color-focus-border-accent color-placeholder-muted'
@@ -722,6 +725,7 @@
                 <textarea
                   x-model="activeEditorEntry.content"
                   x-ref="wiContentTextarea"
+                  aria-label="筛选世界书条目"
                   class="wi-main-textarea wi-editor-content-input custom-scrollbar"
                   placeholder="在此输入世界书内容..."
                 ></textarea>
@@ -1122,6 +1126,7 @@
                 </div>
                 <textarea
                   x-model="editingData.ui_summary"
+                  aria-label="延迟递归"
                   class="w-full bg-[var(--surface-page)] border border-[var(--border-default)] rounded p-2 text-xs text-[var(--content-primary)] color-focus-border-accent outline-none resize-y min-h-[9rem] wi-editor-note-textarea"
                   :placeholder="editingWiFile?.type === 'embedded' ? '这是仅存储在角色卡中的私有备注，不会写入世界书文件...' : '这是仅存储在本地的私有备注，不会写入世界书文件...'"
                 ></textarea>
@@ -1537,6 +1542,7 @@
                       type="text"
                       x-model="activeEditorEntry.group"
                       placeholder="逗号分隔多个组"
+                      aria-label="匹配创作者备注"
                       class="flex-1 bg-[var(--surface-page)] border border-[var(--border-default)] rounded px-2 py-1 text-xs"
                     />
                   </div>
@@ -1612,6 +1618,7 @@
                       type="text"
                       x-model="activeEditorEntry.automationId"
                       placeholder="可选"
+                      aria-label="组优先 (Prioritize)"
                       class="flex-1 bg-[var(--surface-page)] border border-[var(--border-default)] rounded px-2 py-1 text-xs"
                     />
                   </div>
@@ -1622,6 +1629,7 @@
                     <select
                       multiple
                       @change="setMultiSelectField(activeEditorEntry, 'triggers', $event.target)"
+                      aria-label="组优先 (Prioritize)"
                       class="bg-[var(--surface-page)] border border-[var(--border-default)] rounded px-2 py-1 text-xs min-h-[96px]"
                     >
                       <option
@@ -1688,6 +1696,7 @@
                         :value="getCharacterFilterCsv(activeEditorEntry, 'names')"
                         @input="setCharacterFilterCsv(activeEditorEntry, 'names', $event.target.value)"
                         placeholder="逗号分隔"
+                        aria-label="Character Filter Exclude"
                         class="flex-1 bg-[var(--surface-page)] border border-[var(--border-default)] rounded px-2 py-1 text-xs"
                       />
                     </div>
@@ -1700,6 +1709,7 @@
                         :value="getCharacterFilterCsv(activeEditorEntry, 'tags')"
                         @input="setCharacterFilterCsv(activeEditorEntry, 'tags', $event.target.value)"
                         placeholder="逗号分隔"
+                        aria-label="Character Filter Exclude"
                         class="flex-1 bg-[var(--surface-page)] border border-[var(--border-default)] rounded px-2 py-1 text-xs"
                       />
                     </div>

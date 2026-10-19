@@ -231,6 +231,48 @@ def test_advanced_editor_footer_distinguishes_file_mode_from_buffered_apply_and_
     assert 'advanced-editor-save' not in advanced_editor_template
 
 
+def test_shadow_preview_scroll_containers_style_their_own_scrollbar():
+    """Shadow DOM 里的滚动容器必须自带滚动条样式。
+
+    回归：插件管理页「详情」打开的是 `markdown_preview.html`，内容经
+    `updateShadowContent()` 渲染进 shadow root。全局 `::-webkit-scrollbar`
+    （static/css/modules/base.css）**不会穿透 shadow 边界**，而 `shadow.innerHTML`
+    里又没有自己的滚动条规则，于是退回浏览器默认滚动条：深色模式下是一条
+    中灰轨道 + 亮灰滑块，嵌在深色预览面板里非常突兀。浅色模式恰好接近白底，
+    所以只有深色模式看起来像没适配。
+
+    修法沿用宿主既有契约：颜色取 `--scrollbar-thumb` / `--accent-text`，
+    与 base.css 及 `.mixed-preview-scroll` 同一套语义 Token。
+    """
+    dom_source = read_project_file('static/js/utils/dom.js')
+
+    scrollbar_style = dom_source.split('.scroll-wrapper::-webkit-scrollbar,', 1)
+    assert len(scrollbar_style) == 2, 'updateShadowContent 的 shadow 样式必须声明滚动条规则'
+
+    # 纵向滚动容器与代码块（横向滚动）都要覆盖到
+    assert '.scroll-wrapper::-webkit-scrollbar,' in dom_source
+    assert 'pre::-webkit-scrollbar {' in dom_source
+
+    track_block = dom_source.split('pre::-webkit-scrollbar-track {', 1)[1].split('}', 1)[0]
+    assert 'background: transparent;' in track_block
+
+    thumb_block = dom_source.split('pre::-webkit-scrollbar-thumb {', 1)[1].split('}', 1)[0]
+    assert 'var(--scrollbar-thumb)' in thumb_block
+    assert 'border-radius' in thumb_block
+
+    hover_block = dom_source.split('pre::-webkit-scrollbar-thumb:hover {', 1)[1].split('}', 1)[0]
+    assert 'var(--accent-text)' in hover_block
+
+    # 宿主的全局滚动条规则已不再存在 —— 用户要求滚动条呈现浏览器原生经典样式
+    # （上下带箭头）。实测：任何 ::-webkit-scrollbar 声明都会让 Chrome 切到
+    # 自定义模式，箭头消失。所以 Shadow DOM 必须自带样式，这正是本测试的由来。
+    base_css = read_project_file('static/css/modules/base.css')
+    assert '::-webkit-scrollbar' not in base_css, (
+        'base.css 不应再有全局 ::-webkit-scrollbar 规则，否则会禁用原生滚动条箭头。'
+        'Shadow DOM 的滚动条样式在 static/js/utils/dom.js 里独立定义（本测试上半部分已覆盖）。'
+    )
+
+
 def test_chat_reader_css_enables_content_visibility_and_intrinsic_size_placeholder_strategy():
     css_source = read_css_module_bundle('static/css/modules/view-chats.css')
 

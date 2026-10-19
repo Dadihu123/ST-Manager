@@ -1,0 +1,938 @@
+/* ==========================================================================
+ * 跨页面组件一致性层
+ *
+ * 背景：同类功能在不同页面各写了一套（关闭按钮 35 种 class 字符串、
+ * 徽章 4 套并行实现、图标按钮 15 个家族）。因为都是各自模块里写死的，
+ * 同一功能在不同页面的尺寸、圆角、hover 颜色都不一样，视觉上很违和。
+ *
+ * 实现要点 —— 为什么不用 `:where()`：
+ * 第一版用了 `:where()`（特异性 0），结果**压不过任何模块规则**。
+ * 例：`.ui-detail-modal .detail-modal--workbench .detail-topbar-icon-action`
+ * 的特异性是 (0,3,0)，会直接盖掉 `:where(...) { border-radius: ... }`。
+ * 所以这里改用**普通类选择器 + 双写根选择器**把特异性抬到 (0,2,0) 以上，
+ * 只在确实需要压过模块 `!important` 的地方才加 `!important`。
+ *
+ * 为什么不删掉原类名：`tests/` 里有 47 个文件断言 CSS 字符串，
+ * 删类名会大面积撞契约测试。保留类名、只统一观感，是成本最低的路径。
+ * ========================================================================== */
+
+/* ---------------------------------------------------------------- 图标按钮（裁决 Q-01：分层规则）
+ *
+ * 全站图标按钮有两种语汇，实测 11:4 分布。裁决为**分层保留**：
+ *
+ *   L1 标准层 —— 无边框透明 + hover 才显现边界
+ *     适用：绝大多数模态、视图、工具条。这是项目的主力语汇。
+ *
+ *   L2 强主题层 —— 有边框 + 实底
+ *     适用：抽卡（M-11）、插件管理（M-12）、插件任务（G-06）。
+ *     依据：gacha-shell 用 border-radius:14px（在标尺外）+ 独立稀有度视觉层；
+ *          plugin-manager-icon-button 用 --action-surface 底 + --action-text 字。
+ *     这两个模块本身就与外层不同，按钮有边框是它们的语言，不是疏漏。
+ *
+ * 因此 L2 的三个类**保持原样**，不并入 L1。任何新增的图标按钮默认走 L1。
+ */
+
+/* L2 强主题层：显式声明为「有意保留」，防止后人误当疏漏改掉。 */
+.gacha-icon-btn,
+.plugin-manager-icon-button,
+.plugin-job-icon-button {
+  /* 有边框 + 实底是这三个模块的语言，见上方说明。 */
+  border-style: solid;
+}
+/* L1 标准层里查出的漏网者（实测：有实底但无边框，与 L1 的无底色语汇不符）。
+ *   .automation-icon-button--small  automation.html 内 7 处，属 M-09 自动化
+ *   .detail-mini-btn                detail_card.html 内 7 处，属 M-01 详情
+ * 两者都在 L1，收回无边框透明。 */
+.automation-icon-button--small,
+.detail-mini-btn {
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--content-muted);
+}
+
+.automation-icon-button--small:hover,
+.automation-icon-button--small:focus-visible,
+.detail-mini-btn:hover,
+.detail-mini-btn:focus-visible {
+  color: var(--content-primary);
+  background: var(--state-hover-surface);
+  border-color: var(--border-default);
+}
+/* ---------------------------------------------------------------- 图标按钮
+ * 尺寸分三档，按容器密度选，而不是一刀切：
+ * - 标准 44px：模态 header、工具条 —— 主要交互面，够到 24px 触控下限。
+ * - 紧凑 36px：紧凑工具条、卡片角标。
+ * - 微缩 32px：浮层内（批量进度卡等），空间由外部卡片决定。
+ *
+ * 不一刀切成 44px 的原因：`.batch-progress-close` 原本 2rem，它所在的
+ * 批量进度卡 padding 只有 0.9rem，拉到 44px 会把卡片撑变形。
+ */
+
+/* 状态语言：所有图标按钮共享同一套透明底 + hover 抬升。 */
+.ui-close-button,
+.ui-icon-button,
+.source-monitor-close-button,
+.advanced-editor-close-btn,
+.advanced-icon-button,
+.beautify-icon-button,
+.chat-reader-icon-button,
+.chat-reader-modal-close-button,
+.settings-icon-button,
+.settings-icon-button--close,
+.settings-inline-icon-button,
+.detail-icon-btn,
+.detail-topbar-icon-action,
+.detail-icon-btn--borderless,
+.wi-reader-close-button,
+.preset-rollback-close,
+.tag-filter-workspace-close-btn,
+.forum-preview-close,
+.plugin-surface__close,
+.sidebar-close-btn,
+.batch-progress-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  color: var(--content-muted);
+  cursor: pointer;
+  transition:
+    color var(--ui-transition-fast),
+    background-color var(--ui-transition-fast),
+    border-color var(--ui-transition-fast);
+}
+
+/* 标准档 44px —— 双写 `.ui-modal-shell` 前缀把特异性抬到 (0,2,0)，
+   足以压过 `.detail-topbar-icon-action` 这类 (0,1,0) 规则。 */
+.ui-close-button,
+.ui-icon-button,
+.source-monitor-close-button,
+.advanced-editor-close-btn,
+.beautify-icon-button,
+.chat-reader-modal-close-button,
+.detail-icon-btn:not(.detail-zoom-btn):not(.detail-persona-icon-btn),
+.detail-topbar-icon-action,
+.wi-reader-close-button,
+.preset-rollback-close,
+.tag-filter-workspace-close-btn,
+.forum-preview-close,
+.sidebar-close-btn {
+  width: 2.75rem;
+  height: 2.75rem;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+}
+
+/* 详情页顶栏：原本 2.5rem + 999px pill，与设置页 44px 方形不一致。
+   这里连同圆角一起统一。 */
+.ui-detail-modal .detail-modal--workbench .detail-topbar-icon-action,
+.ui-detail-modal .detail-modal--workbench .detail-icon-btn--borderless {
+  width: 2.75rem;
+  height: 2.75rem;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  border-radius: var(--radius-md) !important;
+}
+
+/* 紧凑档 36px */
+.settings-icon-button,
+.settings-icon-button--close,
+.settings-inline-icon-button,
+.chat-reader-icon-button,
+.advanced-icon-button,
+.detail-persona-icon-btn {
+  width: 2.25rem;
+  height: 2.25rem;
+  min-width: 2.25rem;
+  min-height: 2.25rem;
+}
+
+/* 微缩档 32px：浮层内，保持原有紧凑尺寸，只统一状态语言。 */
+.batch-progress-close {
+  width: 2rem;
+  height: 2rem;
+  min-width: 2rem;
+  min-height: 2rem;
+}
+
+/* hover：中性图标按钮 -> 中性抬升 */
+.ui-icon-button:hover,
+.ui-icon-button:focus-visible,
+.source-monitor-close-button:hover,
+.source-monitor-close-button:focus-visible,
+.advanced-editor-close-btn:hover,
+.advanced-editor-close-btn:focus-visible,
+.advanced-icon-button:hover,
+.advanced-icon-button:focus-visible,
+.beautify-icon-button:hover,
+.beautify-icon-button:focus-visible,
+.chat-reader-icon-button:hover,
+.chat-reader-icon-button:focus-visible,
+.settings-icon-button:hover,
+.settings-icon-button:focus-visible,
+.settings-inline-icon-button:hover,
+.settings-inline-icon-button:focus-visible,
+.detail-icon-btn:hover,
+.detail-icon-btn:focus-visible,
+.batch-progress-close:hover,
+.batch-progress-close:focus-visible,
+.sidebar-close-btn:hover,
+.sidebar-close-btn:focus-visible,
+.forum-preview-close:hover,
+.forum-preview-close:focus-visible {
+  color: var(--content-primary);
+  background: var(--state-hover-surface);
+  border-color: var(--border-default);
+}
+
+/* 详情页顶栏的 hover 原本被 (0,2,0) 的模块规则锁死，这里对齐。 */
+.ui-detail-modal .detail-modal--workbench .detail-topbar-icon-action:hover,
+.ui-detail-modal .detail-modal--workbench .detail-topbar-icon-action:focus-visible {
+  background: var(--state-hover-surface) !important;
+  color: var(--content-primary) !important;
+}
+
+/* 关闭语义统一：所有"关闭"按钮 hover 都是危险反馈。 */
+.ui-close-button:hover,
+.ui-close-button:focus-visible,
+.chat-reader-modal-close-button:hover,
+.chat-reader-modal-close-button:focus-visible,
+.batch-progress-close:hover,
+.batch-progress-close:focus-visible,
+.forum-preview-close:hover,
+.forum-preview-close:focus-visible,
+.plugin-surface__close:hover,
+.plugin-surface__close:focus-visible,
+.detail-topbar-close-action:hover,
+.detail-topbar-close-action:focus-visible,
+.detail-greeting-manage-btn--danger:hover,
+.detail-greeting-manage-btn--danger:focus-visible,
+.wi-reader-close-button:hover,
+.wi-reader-close-button:focus-visible,
+.preset-rollback-close:hover,
+.preset-rollback-close:focus-visible,
+.tag-filter-workspace-close-btn:hover,
+.tag-filter-workspace-close-btn:focus-visible,
+.settings-icon-button--close:hover,
+.settings-icon-button--close:focus-visible {
+
+  color: var(--status-danger-text);
+  background: var(--status-danger-surface);
+  border-color: var(--status-danger-border);
+}
+
+/* 图标尺寸统一到 20px，与全站 ui-icon--md 对齐。 */
+.ui-close-button .ui-icon,
+.ui-icon-button .ui-icon,
+.source-monitor-close-button .ui-icon,
+.advanced-editor-close-btn .ui-icon,
+.beautify-icon-button .ui-icon,
+.settings-icon-button .ui-icon,
+.detail-topbar-icon-action .ui-icon,
+.detail-icon-btn .ui-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+/* ---------------------------------------------------------------- 图标按钮（裁决 Q-01：分层规则）
+ *
+ * 全站图标按钮有两种语汇，实测 11:4 分布。裁决为**分层保留**：
+ *
+ *   L1 标准层 —— 无边框透明 + hover 才显现边界
+ *     适用：绝大多数模态、视图、工具条。这是项目的主力语汇。
+ *
+ *   L2 强主题层 —— 有边框 + 实底
+ *     适用：抽卡（M-11）、插件管理（M-12）、插件任务（G-06）。
+ *     依据：gacha-shell 用 border-radius:14px（在标尺外）+ 独立稀有度视觉层；
+ *          plugin-manager-icon-button 用 --action-surface 底 + --action-text 字。
+ *     这两个模块本身就与外层不同，按钮有边框是它们的语言，不是疏漏。
+ *
+ * 因此 L2 的三个类**保持原样**，不并入 L1。任何新增的图标按钮默认走 L1。
+ */
+
+/* L2 强主题层：显式声明为「有意保留」，防止后人误当疏漏改掉。 */
+.gacha-icon-btn,
+.plugin-manager-icon-button,
+.plugin-job-icon-button {
+  /* 有边框 + 实底是这三个模块的语言，见上方说明。 */
+  border-style: solid;
+}
+/* L1 标准层里查出的漏网者（实测：有实底但无边框，与 L1 的无底色语汇不符）。
+ *   .automation-icon-button--small  automation.html 内 7 处，属 M-09 自动化
+ *   .detail-mini-btn                detail_card.html 内 7 处，属 M-01 详情
+ * 两者都在 L1，收回无边框透明。 */
+.automation-icon-button--small,
+.detail-mini-btn {
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--content-muted);
+}
+
+.automation-icon-button--small:hover,
+.automation-icon-button--small:focus-visible,
+.detail-mini-btn:hover,
+.detail-mini-btn:focus-visible {
+  color: var(--content-primary);
+  background: var(--state-hover-surface);
+  border-color: var(--border-default);
+}
+/* ---------------------------------------------------------------- 图标按钮不得被文字语义污染
+ * `.btn-primary` / `.btn-secondary` 是为「图标 + 文字」设计的：它们会给
+ * 按钮上底色与文字色。当同一个类被挂到纯图标按钮上、而该按钮又被模块
+ * 规则强制成透明底时，只剩文字色生效 —— 一旦文字色接近表面色，图标
+ * 就完全隐形。
+ *
+ * 实测事故：预设阅览的全屏按钮同时带 `.preset-reader-header-icon-button`
+ * （模块强制 `background: transparent !important`）和 `.btn-primary`。
+ * 当 primary 文字色是 `--content-on-accent`（近白 #f8fafc）时，
+ * 浅色模式下压在近白 header（#f8fafc）上，对比度 **1.00:1**，
+ * 必须悬浮才可见。
+ */
+/* 特异性说明：`.preset-reader-desktop-header .preset-reader-header-icon-button.btn-primary`
+ * 是 (0,3,0)，所以这里必须也抬到 (0,3,0) 以上才能覆盖。
+ * 用 `[class]` 属性选择器补一位，得到 (0,3,0) + 末尾源序 = 赢。 */
+.preset-reader-desktop-header .preset-reader-header-icon-button.btn-primary,
+.preset-reader-mobile-header .preset-reader-header-icon-button.btn-primary,
+.preset-reader-header-icon-button.btn-primary[class],
+.preset-reader-content-icon-button.btn-primary,
+.preset-reader-mobile-header-button.btn-primary,
+.chat-reader-icon-button.btn-primary,
+.detail-icon-btn.btn-primary,
+.settings-icon-button.btn-primary {
+  color: var(--accent-text) !important;
+  background: transparent !important;
+}
+
+.preset-reader-desktop-header .preset-reader-header-icon-button.btn-primary:hover,
+.preset-reader-desktop-header .preset-reader-header-icon-button.btn-primary:focus-visible,
+.preset-reader-mobile-header .preset-reader-header-icon-button.btn-primary:hover,
+.preset-reader-mobile-header .preset-reader-header-icon-button.btn-primary:focus-visible,
+.preset-reader-header-icon-button.btn-primary[class]:hover,
+.preset-reader-header-icon-button.btn-primary[class]:focus-visible,
+.preset-reader-content-icon-button.btn-primary:hover,
+.preset-reader-content-icon-button.btn-primary:focus-visible,
+.chat-reader-icon-button.btn-primary:hover,
+.chat-reader-icon-button.btn-primary:focus-visible,
+.detail-icon-btn.btn-primary:hover,
+.detail-icon-btn.btn-primary:focus-visible {
+  color: var(--accent-text) !important;
+  background: var(--action-surface) !important;
+}
+
+/* ---------------------------------------------------------------- 相邻按钮
+ * 同一容器里相邻的两个按钮必须属于同一套视觉体系。
+ *
+ * 实测最刺眼的一处：聊天阅读器「解析规则」头部
+ * `detail_chat_reader.html:770-771`：
+ *   左「保存」= `.chat-reader-regex-save-pill` -> border-radius: 999px 胶囊 + 实心底
+ *   右「关闭」= `.chat-reader-modal-close-button` -> border-radius: 4px 方角 + 全透明
+ * 同一行、间隔 0.5rem，一个胶囊一个方角，重复 5 处。
+ *
+ * 修正：把保存胶囊收回圆角标尺（不再用 999px pill），并让左右统一高度。
+ */
+.chat-reader-regex-save-pill {
+  min-height: 2.25rem;
+  padding: 0.4rem 0.85rem;
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+/* 同一行的保存/关闭统一高度，避免高低不齐。 */
+.chat-reader-regex-header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.chat-reader-regex-header-actions > .chat-toolbar-btn,
+.chat-reader-regex-header-actions > .chat-reader-icon-button {
+  min-height: 2.25rem;
+  height: 2.25rem;
+}
+
+/* ---------------------------------------------------------------- 徽章
+ * 世界书来源徽章在「世界书列表 / 世界书卡片 / 世界书全屏编辑」三处出现，
+ * 此前分别是 .wi-badge（圆角 999px、0.58rem）、.resource-source-badge
+ * （圆角 5px、0.62rem），且 grid_wi.html:143 同时挂了两个类。
+ * 这里统一为一套尺寸 + 一套语义配色。
+ */
+.wi-badge,
+.resource-source-badge,
+.preset-card-source-badge,
+.extension-file-source-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  min-height: 1.375rem;
+  max-width: 100%;
+  overflow: hidden;
+  padding: 0.125rem 0.5rem;
+  border: 1px solid var(--border-default);
+  /* 裁决 Q-03：四档圆角（5px / 8px / 12px / 999px）统一到 8px = --radius-md。
+     与按钮、输入框同档，既不方也不过分圆。 */
+  border-radius: var(--radius-md) !important;
+  background: var(--surface-container-sunken);
+  color: var(--content-secondary);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  line-height: 1.45;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+/* 徽章里图标与文字同尺寸，避免"图标比字大"的落差错觉。 */
+.wi-badge .ui-icon,
+.resource-source-badge .ui-icon,
+.preset-card-source-badge .ui-icon {
+  width: 0.75rem;
+  height: 0.75rem;
+  flex: 0 0 auto;
+}
+
+/* 四类来源用同一套「tint 底 + 同色相深文字 + 同色相描边」，
+   不再出现「实心高饱和底 + 浅色字」 vs 「浅 tint 底 + 深色字」两种写法。 */
+/* 特异性说明：`.resource-grid-view .resource-source-badge.embedded` 是 (0,3,0)，
+   而 `html.light-mode .resource-grid-view ...` 更是 (0,4,0)。
+   所以这里的每条都必须抬到 (0,4,0) 以上 —— 用 `[class]` 补属性位，
+   再配 `html.light-mode` 前缀兜住浅色模式的更高特异性规则。
+   否则会出现「卡片里是 60% 实心、弹窗里是 16% tint」的两套配方。 */
+.wi-badge.global[class],
+.resource-source-badge.global[class],
+html.light-mode .wi-badge.global[class],
+html.light-mode .resource-source-badge.global[class] {
+  background: var(--action-surface) !important;
+  color: var(--accent-text) !important;
+  border-color: var(--action-border) !important;
+}
+
+.wi-badge.resource[class],
+.resource-source-badge.resource[class],
+html.light-mode .wi-badge.resource[class],
+html.light-mode .resource-source-badge.resource[class] {
+  background: var(--status-success-surface) !important;
+  color: var(--status-success-text) !important;
+  border-color: var(--status-success-border) !important;
+}
+
+.wi-badge.embedded[class],
+.resource-source-badge.embedded[class],
+html.light-mode .wi-badge.embedded[class],
+html.light-mode .resource-source-badge.embedded[class] {
+  background: var(--decoration-violet-surface) !important;
+  color: var(--decoration-violet-text) !important;
+  border-color: var(--decoration-violet-border) !important;
+}
+
+.wi-badge.file[class],
+.resource-source-badge.file[class],
+html.light-mode .wi-badge.file[class],
+html.light-mode .resource-source-badge.file[class] {
+  background: var(--surface-container-raised) !important;
+  color: var(--content-secondary) !important;
+  border-color: var(--border-default) !important;
+}
+
+/* ---------------------------------------------------------------- 空状态（裁决 Q-04：按场景分级）
+ * 全站有 74 个 `*empty*` 类、6 档标题字号、3 种结构。裁决为两档：
+ *
+ *   L-完整（整页 / 整列表空态）：图标 + 标题 + 描述 + 动作按钮
+ *     -> 用户第一次进来看到的就是它，需要引导下一步。
+ *   L-精简（内联 / 小节空态）：图标 + 单行文字
+ *     -> 面板里的一小块区域，塞满结构会把版面撑空。
+ *
+ * 判定口径：容器里有"操作入口"（新建/导入/刷新按钮）的走完整档。
+ */
+
+/* L-完整档：整页与列表空态 */
+.chat-empty-state,
+.extension-empty-state,
+.automation-empty-state,
+.plugin-manager-empty,
+.plugin-job-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-6) var(--space-4);
+  text-align: center;
+  color: var(--content-secondary);
+}
+
+/* 标题统一到 --text-md / 700（标签级，不用大字号抢戏）。 */
+.chat-empty-state h2,
+.chat-empty-state h3,
+.extension-empty-state strong,
+.automation-empty-state h2,
+.automation-empty-state h3,
+.plugin-manager-empty strong,
+.plugin-job-empty strong {
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: var(--weight-strong);
+  color: var(--content-primary);
+  line-height: 1.4;
+}
+
+/* 描述文字统一到 --text-sm + 行宽上限。 */
+.chat-empty-state p,
+.extension-empty-state p,
+.automation-empty-state p,
+.plugin-manager-empty p,
+.plugin-job-empty p {
+  max-width: 55ch;
+  margin-inline: auto;
+  font-size: var(--text-sm);
+  line-height: 1.6;
+  color: var(--content-secondary);
+}
+
+/* L-精简档：内联 / 小节空态，只用图标 + 单行文字。 */
+/* 注意：这几个类**不收进来** —— 它们各自已有完整的、经过调校的定义：
+     .advanced-editor-empty-pane  整页主面板空态，自带 padding:1.5rem!important
+     .advanced-list-empty         flex-direction:column + padding:1.5rem 1rem
+     .advanced-inline-empty       min-height:2rem 的行内提示
+   强行并进本层会把 flex-direction 改成默认 row、把 padding 换成 1rem，
+   结果是文案从竖排变横排、可用宽度缩窄，出现孤字成行的排版瑕疵。 */
+.action-empty,
+.detail-empty-state,
+.settings-empty-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  text-align: center;
+  color: var(--content-muted);
+  font-size: var(--text-sm);
+  line-height: 1.45;
+}
+
+/* ---------------------------------------------------------------- 工具条
+
+ * 相邻的工具条按钮统一高度与间距，避免"左边一组紧、右边一组松"。
+ */
+.ui-primitive-toolbar,
+.automation-toolbar,
+.beautify-toolbar,
+.chat-grid-toolbar,
+.wi-grid-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+/* 同一行里的按钮统一高度档，避免高低不齐。 */
+.automation-toolbar button,
+.beautify-toolbar button,
+.chat-grid-toolbar button,
+.wi-grid-toolbar button {
+  min-height: 2.25rem;
+}
+
+/* ---------------------------------------------------------------- 表单标签
+ * 全站 label 统一为「次级内容色 + 常规字重 + 全大写 + 0.05em 字距」，
+ * 不再出现粗体大写 / 常规小写 / 主色三种写法混用。
+ */
+.form-label,
+.ui-primitive-field__label,
+.field-label {
+  color: var(--content-secondary);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-regular);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  line-height: 1.4;
+}
+
+/* ---------------------------------------------------------------- 行宽（measure）
+ * Refactoring UI 的硬性规则：正文行宽 45–75 字符（20em–35em）。
+ * 本项目此前**完全没有**行宽限制（全站 0 处 max-width 落在 20em–35em）：
+ * 在 1600px 宽屏上聊天消息会被拉成 150+ 字符，眼睛换行时容易串行。
+ *
+ * 注意：这**不是**要限制容器宽度，而是限制段落本身。容器仍铺满，
+ * 段落收窄 —— 同一内容区出现混合宽度反而更精致。
+ * `em`/`ch` 在这里是正确单位：行宽应随字号缩放。
+ */
+.chat-message-content,
+.reader-message-body,
+.wi-entry-content,
+.markdown-body > p,
+.markdown-body > li,
+.detail-description-text,
+.preset-reader-structured-text {
+  max-width: 70ch;
+}
+
+/* ---------------------------------------------------------------- 行高
+ * 正文一律 1.5–1.75（小字取上界，大字取下界）。此前 line-height 有
+ * 22 个不同值，同一段文字在不同模块里松紧不一。
+ */
+.form-textarea,
+.large-editor-textarea,
+.ui-primitive-section__description,
+.markdown-body,
+.chat-message-content,
+.wi-entry-content {
+  line-height: 1.6;
+}
+
+/* 小字（12–14px）需要更松的行高，否则密集文本糊成一片。 */
+.ui-primitive-card__meta,
+.wi-badge,
+.resource-source-badge,
+.ui-primitive-badge,
+.detail-mtime-badge,
+.app-version-badge {
+  line-height: 1.45;
+}
+
+/* 大标题需要更紧的行高（行高与字号成反比）。 */
+.ui-modal-title,
+.settings-section-title,
+.ui-primitive-panel__title {
+  line-height: 1.25;
+}
+
+/* ---------------------------------------------------------------- 破坏性动作
+ * Refactoring UI：破坏性 ≠ 大红按钮。如果"删除"不是这一屏的主操作，
+ * 给它次级/三级待遇；真正的大红按钮留到**确认对话框**里，那里它确实
+ * 是唯一的主操作。
+ */
+.btn-danger-xs {
+  background: transparent !important;
+  border-color: transparent !important;
+  color: var(--content-muted) !important;
+}
+
+.btn-danger-xs:hover,
+.btn-danger-xs:focus-visible {
+  background: var(--status-danger-surface) !important;
+  border-color: var(--status-danger-border) !important;
+  color: var(--status-danger-text) !important;
+}
+
+/* 确认对话框内的危险动作 = 那一刻的主操作，给实心红。 */
+.settings-confirm-dialog .btn-danger,
+.ui-primitive-dialog .btn-danger,
+.ui-primitive-dialog button[data-tone='danger'] {
+  background: var(--status-danger-solid) !important;
+  border-color: var(--status-danger-solid) !important;
+  color: var(--content-on-status-solid) !important;
+}
+
+/* ---------------------------------------------------------------- 颜色不是唯一信号
+ * 状态点/状态灯这类纯色指示器对色盲用户等于不存在。补 1px 内描边，
+ * 让边界本身也携带信息，而不只有色相。
+ */
+.status-dot,
+.wi-status-normal,
+.wi-status-vector {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--content-on-dark) 22%, transparent);
+}
+
+/* ---------------------------------------------------------------- 等宽数字
+ * 表格与计数列的数字必须等宽，否则纵向无法比对。
+ */
+.ui-primitive-table td,
+.ui-primitive-table th,
+.resource-grid-view table td,
+.resource-grid-view table th {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------------------------------------------------------------- 动效收敛
+ * 全站过渡时长统一 160ms，此前 0.15s/0.18s/0.2s/0.25s/0.3s 五档并存。
+ */
+.btn-primary,
+.btn-secondary,
+.btn-tertiary,
+.btn-danger,
+.ui-close-button,
+.ui-icon-button {
+  transition-duration: 160ms;
+  transition-timing-function: ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn-primary,
+  .btn-secondary,
+  .btn-tertiary,
+  .btn-danger,
+  .ui-close-button,
+  .ui-icon-button {
+    transition: none;
+  }
+}
+
+/* ---------------------------------------------------------------- 触控目标（WCAG 2.2 AA 2.5.8）
+ * 运行时实测发现 4 类交互元素的点击区小于 24×24：
+ *
+ *   w-5 h-5（20×20）        侧栏标签索引折叠箭头
+ *   .entry-rail__toggle     插件坞箭头，22×40（宽度不足）
+ *   .card-sidebar-splitter  侧栏拖拽条，高度仅 10px
+ *   .text-xs（52×20）       行内文字按钮
+ *
+ * 修法：用 ::before 伪元素把热区向外扩到 24×24，**视觉尺寸完全不变**。
+ * 直接改 width/height 会破坏原有布局（侧栏箭头会把标题行撑高）。
+ */
+/* 限定在侧栏内 —— 20×20 的组合类在别处可能是有意的（如缩略图角标）。 */
+.sidebar .w-5.h-5 {
+  position: relative;
+}
+
+.sidebar .w-5.h-5::before {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  min-width: 24px;
+  min-height: 24px;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.entry-rail__toggle {
+  position: relative;
+}
+
+.entry-rail__toggle::before {
+  content: "";
+  position: absolute;
+  inset: 0 -1px;
+  min-width: 24px;
+}
+
+/* 拖拽条：视觉上保持 10px，热区扩到 24px。 */
+.card-sidebar-splitter {
+  position: relative;
+}
+
+.card-sidebar-splitter::before {
+  content: "";
+  position: absolute;
+  inset: -7px 0;
+  min-height: 24px;
+}
+
+/* 行内文字按钮（如「全部标签索引」）高度不足，扩到 24。 */
+.sidebar-section-header button.text-xs,
+.sidebar .sidebar-section-header > button {
+  min-height: 24px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar .w-5.h-5,
+  .entry-rail__toggle,
+  .card-sidebar-splitter {
+    transition: none;
+  }
+}
+
+/* ---------------------------------------------------------------- 焦点可见性（WCAG 2.4.7 AA）
+ * 运行时实测：1164 条 CSS 规则里只有 20 条处理 focus，且全局那条写在
+ * `:where(button, a, input, ...)` 里 —— 特异性为 0，会被任何局部的
+ * `outline: none` 覆盖。实测两个搜索输入框（`.search-input`、
+ * `.sidebar-category-search-input`）完全没有焦点反馈，键盘用户会"丢失位置"。
+ *
+ * 修法：不用 :where()，用元素级选择器 + 明确的 !important 兜底，
+ * 保证键盘焦点在任何控件上都可见。鼠标点击不会触发 :focus-visible，
+ * 所以不会给鼠标用户增加视觉噪音。
+ */
+button:focus-visible,
+a[href]:focus-visible,
+input:not([type='checkbox']):not([type='radio']):focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+summary:focus-visible,
+[tabindex]:not([tabindex='-1']):focus-visible {
+  outline: 2px solid var(--state-focus-ring) !important;
+  outline-offset: 2px !important;
+}
+
+/* 输入框类控件：除 outline 外再给一层内阴影，视觉上更贴合"输入态"。 */
+input:not([type='checkbox']):not([type='radio']):focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  border-color: var(--form-border-focus) !important;
+  box-shadow: var(--state-focus-shadow) !important;
+}
+
+/* 复选框 / 单选：焦点环贴得更近，避免被相邻项遮挡。 */
+input[type='checkbox']:focus-visible,
+input[type='radio']:focus-visible {
+  outline: 2px solid var(--state-focus-ring) !important;
+  outline-offset: 1px !important;
+}
+
+/* 减动效偏好下焦点环必须保持可见（它不依赖动画，无需降级）。 */
+@media (forced-colors: active) {
+  button:focus-visible,
+  a[href]:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible {
+    outline: 2px solid CanvasText !important;
+  }
+}
+
+/* ---------------------------------------------------------------- 主操作统一（裁决 R-05-B）
+ * 实测全站主操作有 **10 套独立实现**，背后是 3 种配方：
+ *
+ *   柔和  --action-surface + --action-text      聊天工具条 / 抽卡 / 侧栏
+ *   实心  --accent-action + --content-on-accent 资源网格 / 扩展
+ *   染色  --action-surface-hover + --accent-text .btn-primary（统一体系）
+ *
+ * 裁决为**染色 24%（配方 B）**：比次操作明显突出，但不刺眼，
+ * 保留深色玻璃质感（实心方案会像贴纸一样浮在表面）。
+ *
+ * 这里把其余 9 族统一到同一配方。保留原类名（模板契约不破），只统一观感。
+ * 用 `!important` 是因为各族定义分散在不同模块且部分带 !important。
+ */
+.settings-primary-button,
+.resource-grid-action--primary,
+.extension-action-button--primary,
+.chat-toolbar-btn--primary,
+.gacha-action-btn--primary,
+.sidebar-action-button--primary,
+.source-monitor-primary-button,
+.plugin-button--primary {
+  background: var(--action-surface-hover) !important;
+  border: 1px solid var(--action-border-hover) !important;
+  color: var(--accent-text) !important;
+}
+
+.settings-primary-button:hover:not(:disabled),
+.resource-grid-action--primary:hover:not(:disabled),
+.extension-action-button--primary:hover:not(:disabled),
+.chat-toolbar-btn--primary:hover:not(:disabled),
+.gacha-action-btn--primary:hover:not(:disabled),
+.sidebar-action-button--primary:hover:not(:disabled),
+.source-monitor-primary-button:hover:not(:disabled),
+.plugin-button--primary:hover:not(:disabled) {
+  background: var(--action-surface-active) !important;
+  border-color: var(--accent-text) !important;
+  color: var(--accent-text) !important;
+}
+
+/* 美化面板的主按钮此前用中性色（--beautify-control-bg + --content-primary），
+ * 根本不是主操作外观。裁决：统一为主操作。 */
+.beautify-primary-btn {
+  background: var(--action-surface-hover) !important;
+  border: 1px solid var(--action-border-hover) !important;
+  color: var(--accent-text) !important;
+}
+
+.beautify-primary-btn:hover:not(:disabled) {
+  background: var(--action-surface-active) !important;
+  border-color: var(--accent-text) !important;
+  color: var(--accent-text) !important;
+}
+
+/* 统一主操作的圆角与字重，避免同样语义在不同页面形状不一。 */
+.settings-primary-button,
+.resource-grid-action--primary,
+.extension-action-button--primary,
+.chat-toolbar-btn--primary,
+.gacha-action-btn--primary,
+.sidebar-action-button--primary,
+.source-monitor-primary-button,
+.plugin-button--primary,
+.beautify-primary-btn {
+  border-radius: var(--radius-md) !important;
+  font-weight: 600 !important;
+}
+
+/* ---------------------------------------------------------------- 开关（toggle）统一
+ * 用户反馈：预设全屏编辑器的「条目开启」开关不如规则集的开关好看，要求对齐。
+ *
+ * 实测两者差异（深色主题）：
+ *
+ *   规则集 .automation-switch      36.8×21.6px  圆点 13.6px
+ *     开启：轨道 --status-success-surface，圆点 --status-success-solid（绿色）
+ *     关闭：轨道 --surface-container-hover，圆点 --content-muted（灰色）
+ *
+ *   预设 .prompt-toggle-input      36×20px      圆点 16px
+ *     开启：轨道 success，圆点 --surface-control（纯白）
+ *     关闭：轨道 raised，圆点 --surface-control（纯白，过亮）
+ *
+ * 关键差异不是尺寸，而是**圆点是否跟随状态变色**。规则集的圆点在开启时
+ * 变绿、关闭时变灰，状态信息完整；预设的圆点始终纯白，关闭态尤其抢眼。
+ *
+ * 这里不改模板结构（模板里那些 Tailwind 类被 4 条契约测试锁定），
+ * 只用 CSS 把预设开关的圆点对齐到规则集的语义。
+ */
+.preset-editor-workbench .prompt-toggle-input ~ .pointer-events-none {
+  /* 圆点：关闭态用中性灰，与规则集一致 */
+  background: var(--content-muted) !important;
+  box-shadow: none !important;
+}
+
+.preset-editor-workbench .prompt-toggle-input:checked ~ .pointer-events-none {
+  /* 圆点：开启态用状态成功色，与规则集一致 */
+  background: var(--status-success-solid) !important;
+}
+
+/* 轨道尺寸对齐到规则集的 1.35rem × 2.3rem（36.8×21.6）。 */
+.preset-editor-workbench label:has(> span > .prompt-toggle-input) > span {
+  width: 2.3rem;
+  height: 1.35rem;
+}
+
+/* 圆点尺寸对齐到规则集的 0.85rem（13.6px），并重算位移。 */
+.preset-editor-workbench label:has(> span > .prompt-toggle-input) > span > .pointer-events-none {
+  width: 0.85rem;
+  height: 0.85rem;
+  left: 0.18rem;
+  top: 0.19rem;
+  transform: translateX(0);
+}
+
+.preset-editor-workbench label:has(> span > .prompt-toggle-input) > span > .prompt-toggle-input:checked
+  ~ .pointer-events-none {
+  /* 2.3 - 0.85 - 0.18*2 ≈ 1.09rem */
+  transform: translateX(1.09rem) !important;
+}
+
+/* ---------------------------------------------------------------- 滚动条配色
+ * 用户要求：保留浏览器原生滚动条的**上下箭头**，但颜色要与应用一致
+ * （系统默认的深灰在深色界面里很突兀）。
+ *
+ * 实测结论（headed Chromium，这是唯一能渲染箭头的模式）：
+ *
+ *   方案                              占宽    箭头   颜色可控
+ *   ------------------------------------------------------------
+ *   什么都不写                        15px    ✓     ✗
+ *   scrollbar-color ✓                 15px    ✓     ✓
+ *   scrollbar-color + width:auto      15px    ✓     ✓
+ *   ::-webkit-scrollbar {...}          8px    ✗     ✓
+ *
+ * 也就是说：`:::-webkit-scrollbar` 系列**任何一条**都会让 Chrome 切到
+ * "自定义滚动条"模式，箭头必然消失；而 `scrollbar-color` 不会 ——
+ * 它只改配色，保留原生结构和箭头。
+ *
+ * 所以正确做法是：**不写 ::-webkit-scrollbar，只写 scrollbar-color**。
+ * （此前我把 scrollbar-color 当成障碍一并清掉，是判断错误。）
+ */
+* {
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+/* 刻意隐藏滚动条的横向滚动行保持原样。 */
+.automation-editor-actions,
+.chat-reader-header-tools,
+.mobile-tags-scroll,
+.wi-editor-actions {
+  scrollbar-width: none;
+}

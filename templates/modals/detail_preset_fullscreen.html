@@ -1050,6 +1050,7 @@
                                   <span x-show="activePromptItem?.marker">这是 SillyTavern 的运行时来源字段，正文不可编辑。</span>
                                 </div>
                                 <textarea
+                                  aria-label="版本"
                                   class="form-textarea min-h-[320px] w-full max-w-full custom-scrollbar"
                                   :disabled="!isPromptContentEditable(activePromptItem)"
                                   :value="activePromptItem?.content || ''"
@@ -1536,6 +1537,7 @@
                                 <span x-show="activePromptItem?.marker">这是 SillyTavern 的运行时来源字段，正文不可编辑。</span>
                               </div>
                               <textarea
+                                aria-label="版本"
                                 class="form-textarea min-h-[320px] w-full max-w-full custom-scrollbar"
                                 :disabled="!isPromptContentEditable(activePromptItem)"
                                 :value="activePromptItem?.content || ''"
@@ -1628,6 +1630,7 @@
                           <input
                             type="number"
                             step="0.01"
+                            aria-label="版本"
                             class="form-input"
                             :value="getScalarWorkspaceFieldValue(field.storage_key) ?? 0"
                             @input="setScalarWorkspaceFieldValue(field.storage_key, Number($event.target.value))"
@@ -1636,6 +1639,7 @@
 
                         <template x-if="field.editor === 'textarea'">
                           <textarea
+                            aria-label="版本"
                             class="form-textarea min-h-[180px] w-full max-w-full min-w-0 custom-scrollbar"
                             :value="getScalarWorkspaceFieldValue(field.storage_key) || ''"
                             @input="setScalarWorkspaceFieldValue(field.storage_key, $event.target.value)"
@@ -1654,6 +1658,7 @@
                                 class="rounded-xl border border-[var(--border-default)] bg-[var(--surface-container)] p-3 flex items-center gap-2"
                               >
                                 <input
+                                  aria-label="版本"
                                   class="form-input flex-1"
                                   :value="entry || ''"
                                   @input="updateStringListItem(field.storage_key, index, $event.target.value)"
@@ -1705,6 +1710,7 @@
                                 class="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_8rem_auto] gap-2 rounded-xl border border-[var(--border-default)] bg-[var(--surface-container)] p-3"
                               >
                                 <input
+                                  aria-label="版本"
                                   class="form-input"
                                   :value="entry.text || ''"
                                   @input="updateBiasEntry(index, 'text', $event.target.value)"
@@ -1712,6 +1718,7 @@
                                 <input
                                   type="number"
                                   step="0.1"
+                                  aria-label="版本"
                                   class="form-input"
                                   :value="entry.value ?? 0"
                                   @input="updateBiasEntry(index, 'value', $event.target.value)"
@@ -1861,6 +1868,7 @@
                           <div class="space-y-2">
                             <input
                               type="range"
+                              aria-label="版本"
                               class="preset-editor-range w-full"
                               :min="field.min ?? 0"
                               :max="resolveProfileFieldMax(field) ?? (field.min ?? 0)"
@@ -1880,6 +1888,7 @@
                         <template x-if="field.control === 'number'">
                           <input
                             type="number"
+                            aria-label="版本"
                             class="form-input"
                             :min="field.min ?? 0"
                             :max="resolveProfileFieldMax(field) ?? undefined"
@@ -1892,6 +1901,7 @@
                         <template x-if="field.control === 'text' || field.control === 'password'">
                           <input
                             :type="field.control === 'password' ? 'password' : 'text'"
+                            aria-label="版本"
                             class="form-input"
                             :value="getProfileFieldValue(field.id) ?? ''"
                             @input="setProfileFieldValue(field.id, $event.target.value)"
@@ -1919,6 +1929,7 @@
 
                         <template x-if="field.control === 'textarea'">
                           <textarea
+                            aria-label="版本"
                             class="form-input min-h-[8rem]"
                             :value="getProfileFieldValue(field.id) || ''"
                             @input="setProfileFieldValue(field.id, $event.target.value)"
@@ -1937,6 +1948,7 @@
                                 class="rounded-xl border border-[var(--border-default)] bg-[var(--surface-container)] p-3 flex items-center gap-2"
                               >
                                 <input
+                                  aria-label="版本"
                                   class="form-input flex-1"
                                   :value="entry || ''"
                                   @input="updateStringListItem(field.storage_key || field.id, index, $event.target.value)"
@@ -2005,6 +2017,7 @@
                                 class="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_8rem_auto] gap-2 rounded-xl border border-[var(--border-default)] bg-[var(--surface-container)] p-3"
                               >
                                 <input
+                                  aria-label="版本"
                                   class="form-input"
                                   :value="entry.text || ''"
                                   @input="updateBiasEntry(index, 'text', $event.target.value)"
@@ -2012,6 +2025,7 @@
                                 <input
                                   type="number"
                                   step="0.1"
+                                  aria-label="版本"
                                   class="form-input"
                                   :value="entry.value ?? 0"
                                   @input="updateBiasEntry(index, 'value', $event.target.value)"
@@ -2041,6 +2055,7 @@
 
                         <template x-if="field.control === 'raw_json' && field.id !== 'extensions'">
                           <textarea
+                            aria-label="版本"
                             class="form-input min-h-[10rem] font-mono"
                             :value="getProfileFieldTextValue(field.id)"
                             @input="setProfileFieldJsonValue(field.id, $event.target.value)"
@@ -2210,6 +2225,7 @@
                                 class="rounded-xl border border-[var(--border-default)] bg-[var(--surface-container)] p-3 flex items-center gap-2"
                               >
                                 <input
+                                  aria-label="版本"
                                   class="form-input flex-1"
                                   :value="entry || ''"
                                   @input="updateStringListItem(activeItem.value_path, index, $event.target.value)"
@@ -2279,6 +2295,7 @@
                                 class="rounded-xl border border-[var(--border-default)] bg-[var(--surface-container)] p-3 flex items-center gap-2"
                               >
                                 <input
+                                  aria-label="版本"
                                   class="form-input flex-1"
                                   :value="entry || ''"
                                   @input="updateStringListItem(activeItem.value_path, index, $event.target.value)"
@@ -2328,6 +2345,7 @@
                                 class="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_8rem_auto] gap-2 rounded-xl border border-[var(--border-default)] bg-[var(--surface-container)] p-3"
                               >
                                 <input
+                                  aria-label="版本"
                                   class="form-input"
                                   :value="entry.text || ''"
                                   @input="updateBiasEntry(index, 'text', $event.target.value)"
@@ -2335,6 +2353,7 @@
                                 <input
                                   type="number"
                                   step="0.1"
+                                  aria-label="版本"
                                   class="form-input"
                                   :value="entry.value ?? 0"
                                   @input="updateBiasEntry(index, 'value', $event.target.value)"
@@ -2356,6 +2375,7 @@
                           class="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-page)] p-4 space-y-3"
                         >
                           <textarea
+                            aria-label="版本"
                             class="form-textarea min-h-[280px] w-full max-w-full min-w-0 custom-scrollbar"
                             :value="getFieldValue(activeItem) || ''"
                             @input="setFieldValue(activeItem, $event.target.value)"
@@ -2400,6 +2420,7 @@
                           <input
                             type="number"
                             step="0.01"
+                            aria-label="版本"
                             class="form-input"
                             :value="getFieldValue(activeItem) ?? 0"
                             @input="setFieldValue(activeItem, Number($event.target.value))"
@@ -2438,6 +2459,7 @@
                         >
                           <input
                             type="text"
+                            aria-label="版本"
                             class="form-input"
                             :value="getFieldValue(activeItem) || ''"
                             @input="setFieldValue(activeItem, $event.target.value)"

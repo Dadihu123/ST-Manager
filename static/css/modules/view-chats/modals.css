@@ -158,14 +158,6 @@
   padding: 0.25rem;
 }
 
-.chat-reader-editor-section--split {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1rem;
-  align-items: start;
-  min-width: 0;
-  min-height: 0;
-}
 
 .chat-reader-editor-section--stack {
   gap: 1rem;
@@ -184,12 +176,6 @@
   min-width: 0;
 }
 
-.chat-reader-tab-row {
-  display: flex;
-  gap: 0.6rem;
-  padding: 0 0.1rem;
-  flex-wrap: wrap;
-}
 
 .chat-reader-regex-header {
   align-items: flex-start;
@@ -677,25 +663,7 @@
   padding-right: 0.2rem;
 }
 
-.chat-reader-rule-summary {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  width: 100%;
-  border: 0;
-  background: transparent;
-  color: inherit;
-  cursor: pointer;
-  text-align: left;
-  padding: 0;
-}
 
-.chat-reader-rule-summary strong {
-  display: block;
-  color: var(--content-primary);
-  font-size: 0.92rem;
-}
 
 .chat-reader-rule-title-row {
   display: flex;
@@ -735,11 +703,6 @@
   background: color-mix(in srgb, var(--accent-action) 8%, transparent);
 }
 
-.chat-reader-rule-summary span {
-  color: var(--content-muted);
-  font-size: 0.78rem;
-  line-height: 1.5;
-}
 
 .chat-reader-rule-summary--static {
   cursor: default;
@@ -921,23 +884,12 @@
 
 .chat-reader-floor-preview .markdown-body pre::-webkit-scrollbar,
 .chat-reader-sideblock-card .markdown-body pre::-webkit-scrollbar,
-.chat-message-content.markdown-body pre::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
 
 .chat-reader-floor-preview .markdown-body pre::-webkit-scrollbar-track,
 .chat-reader-sideblock-card .markdown-body pre::-webkit-scrollbar-track,
-.chat-message-content.markdown-body pre::-webkit-scrollbar-track {
-  background: transparent;
-}
 
 .chat-reader-floor-preview .markdown-body pre::-webkit-scrollbar-thumb,
 .chat-reader-sideblock-card .markdown-body pre::-webkit-scrollbar-thumb,
-.chat-message-content.markdown-body pre::-webkit-scrollbar-thumb {
-  border-radius: 999px;
-  background: var(--chat-reader-code-scrollbar);
-}
 
 .chat-reader-floor-preview .markdown-body img,
 .chat-reader-sideblock-card .markdown-body img,
@@ -972,34 +924,11 @@
   overflow: auto;
   padding-right: 0.2rem;
   scrollbar-gutter: stable both-edges;
-  scrollbar-width: thin;
-  scrollbar-color: color-mix(
-      in srgb,
-      var(--accent-action) 48%,
-      var(--border-default)
-    )
-    transparent;
 }
 
-.chat-reader-regex-preview::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
 
-.chat-reader-regex-preview::-webkit-scrollbar-track {
-  background: transparent;
-}
 
-.chat-reader-regex-preview::-webkit-scrollbar-thumb {
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--accent-action) 42%, var(--border-default));
-  border: 2px solid transparent;
-  background-clip: padding-box;
-}
 
-.chat-reader-regex-preview::-webkit-scrollbar-thumb:hover {
-  background: color-mix(in srgb, var(--accent-action) 62%, var(--border-default));
-}
 
 .chat-reader-regex-preview pre,
 .chat-reader-regex-preview code,

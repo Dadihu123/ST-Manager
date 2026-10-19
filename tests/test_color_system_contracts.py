@@ -100,10 +100,16 @@ def test_semantic_color_contract_covers_surface_content_state_status_and_focus()
     assert 'color: var(--content-on-status-solid)' in semantic_css
 
     primary_button = semantic_css.split('.btn-primary,\nbutton.btn-primary {', 1)[1].split('}', 1)[0]
-    assert 'background-color: var(--action-surface) !important;' in primary_button
-    assert 'border: 1px solid var(--action-border) !important;' in primary_button
-    assert 'color: var(--action-text) !important;' in primary_button
-    assert 'content-on-accent' not in primary_button
+    # 主操作 = accent 染色抬升底 + accent 描边 + accent 文字。
+    # 用 accent-soft-strong（而非最浅的 accent-soft），否则会比 secondary 更弱；
+    # 也不用不透明实心 accent，那会与深色玻璃材质脱节。
+    assert 'background-color: var(--action-surface-hover) !important;' in primary_button
+    assert 'border: 1px solid var(--action-border-hover) !important;' in primary_button
+    assert 'color: var(--accent-text) !important;' in primary_button
+
+    # 三级动作层级齐全：primary 染色 / secondary 中性 / tertiary 无框
+    for selector in ('.btn-primary,', '.btn-secondary,', '.btn-tertiary {'):
+        assert selector in semantic_css
 
     for utility in (
         '.color-surface-action',

@@ -495,6 +495,11 @@ def test_name_preservation_does_not_roundtrip_unknown_numbers(fixture, has_targe
 
 @pytest.mark.parametrize('stem', ['x' * 237, '长' * 79])
 def test_long_file_name_save_update_list_and_restore(fixture, stem):
+    # Windows 的 MAX_PATH(260) 限制：242 字符的文件名 + tmp_path 前缀会越界，
+    # rename 直接 FileNotFoundError。这是平台限制，不是产品缺陷；
+    # 中文 stem（79 字符）路径短得多，在 Windows 上照常验证长名逻辑。
+    if sys.platform == 'win32' and len(str(fixture[3])) + len(stem) + 20 > 250:
+        pytest.skip('完整路径将超过 Windows MAX_PATH(260)，该参数在类 Unix 上才成立')
     app, path, _, _ = fixture
     long_path = path.with_name(stem + '.json')
     path.rename(long_path)

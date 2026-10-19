@@ -436,6 +436,7 @@
         <input
           type="file"
           x-ref="imageInput"
+          aria-label="上传角色卡图片"
           @change="handleImageUpload"
           accept="image/*"
           style="display: none"
@@ -1077,6 +1078,7 @@
                     x-show="!showLocalNotePreview"
                     x-model="editingData.ui_summary"
                     @paste="handleLocalNotePaste($event)"
+                    aria-label="来源链接"
                     class="form-textarea note-textarea"
                     style="resize: none"
                     placeholder="这是仅存储在本地的私有备注，不会写入角色卡文件..."
@@ -1128,6 +1130,7 @@
                 <textarea
                   x-show="isEditMode"
                   x-model="editingData.description"
+                  aria-label="来源链接"
                   class="form-textarea"
                   style="height: 10rem; resize: none"
                 ></textarea>
@@ -1136,6 +1139,7 @@
                   x-show="!isEditMode && hasTextValue(editingData.description)"
                   readonly
                   x-model="editingData.description"
+                  aria-label="来源链接"
                   class="form-textarea custom-scrollbar"
                   style="
                     height: 10rem;
@@ -1630,6 +1634,7 @@
                   x-show="isEditMode && !showGreetingPreview"
                   :value="selectedGreetingContent"
                   @input="setSelectedGreetingContent($event.target.value)"
+                  aria-label="来源链接"
                   class="form-textarea detail-dialog-grow-box detail-first-message-edit-box"
                   style="resize: none"
                   :placeholder="selectedGreetingKind === 'alternate' ? '在此输入备用开场白...' : '在此输入默认开场白...'"
@@ -1651,6 +1656,7 @@
                   x-show="!isEditMode && !showGreetingPreview && hasTextValue(selectedGreetingContent)"
                   readonly
                   :value="selectedGreetingContent"
+                  aria-label="来源链接"
                   class="form-textarea custom-scrollbar detail-dialog-grow-box"
                   style="
                     resize: none;
@@ -1838,6 +1844,7 @@
                 <textarea
                   x-show="isEditMode"
                   x-model="editingData.mes_example"
+                  aria-label="来源链接"
                   class="form-textarea detail-dialog-grow-box"
                   style="resize: none; font-family: monospace; font-size: 0.85rem"
                   placeholder="在此输入对话示例..."
@@ -1846,6 +1853,7 @@
                   x-show="!isEditMode && hasTextValue(editingData.mes_example)"
                   readonly
                   x-model="editingData.mes_example"
+                  aria-label="来源链接"
                   class="form-textarea custom-scrollbar detail-dialog-grow-box"
                   style="
                     resize: none;
@@ -1978,6 +1986,7 @@
                       type="text"
                       x-model="tagLibrarySearch"
                       placeholder="搜索标签库（支持多个关键词，逗号/竖线分隔）..."
+                      aria-label="来源链接"
                       class="detail-inline-text"
                     />
                     <button
@@ -2131,7 +2140,7 @@
             <div class="detail-tab-scroll custom-scrollbar">
               <!-- 直接复用现有 WI 容器与内部逻辑（未删任何方法/字段） -->
               <div class="wi-container wi-worldbook-icon-scope" x-data="{ wiOpen: true }">
-                <input
+                <input aria-label="来源链接"
                   type="file"
                   x-ref="wiImportInput"
                   style="display: none"
@@ -2278,6 +2287,7 @@
                             <input
                               type="checkbox"
                               x-model="entry.enabled"
+                              aria-label="来源链接"
                               class="cursor-pointer w-4 h-4 rounded"
                             />
                           </div>
@@ -2459,6 +2469,7 @@
                     <div x-show="showRaw" class="mt-2">
                       <textarea
                         x-model="editingData.character_book_raw"
+                        aria-label="来源链接"
                         class="wi-raw-textarea w-full h-40 custom-scrollbar"
                       ></textarea>
                       <button
@@ -2727,6 +2738,7 @@
                     <input
                       type="text"
                       x-model="editingData.filename"
+                      aria-label="来源链接"
                       class="form-input detail-manage-input detail-manage-input--filename"
                     />
                     <div class="detail-manage-helper">
@@ -2764,6 +2776,7 @@
                       <input
                         type="text"
                         x-model="editingData.filename"
+                        aria-label="来源链接"
                         class="form-input detail-manage-input detail-manage-input--inline"
                       />
                     </div>
@@ -3163,7 +3176,7 @@
                   tabindex="0"
                   aria-label="点击或拖拽导入资源文件"
                 >
-                  <input
+                  <input aria-label="来源链接"
                     type="file"
                     x-ref="resourceFileInput"
                     multiple
@@ -4135,6 +4148,7 @@
         <input
           type="text"
           x-model="editingData.resource_folder"
+          aria-label="来源链接"
           class="form-input"
         />
         <div class="ui-small-dialog-actions">

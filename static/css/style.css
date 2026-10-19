@@ -42,3 +42,6 @@
 @import "modules/plugin-surfaces.css";
 @import "modules/entry-dock.css";
 @import "modules/tooltip.css";
+
+/* 跨页面组件一致性层：必须在所有模块之后加载，否则同特异性的规则会被模块靠源序压过。 */
+@import "modules/consistency.css";

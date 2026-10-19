@@ -71,7 +71,6 @@
   overflow-y: hidden;
   padding: 0.42rem 0.85rem 0.35rem;
   position: relative;
-  scrollbar-width: thin;
   top: auto;
   z-index: auto;
 }

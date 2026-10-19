@@ -29,7 +29,7 @@
   {% if file_name %}
   <div class="detail-update-dropzone-note" x-show="{{ file_name }}" x-text="{{ file_name }}"></div>
   {% endif %}
-  <input
+  <input aria-label="选择要更新的文件"
     type="file"
     x-ref="{{ input_ref }}"
     @click.stop

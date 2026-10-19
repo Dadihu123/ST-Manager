@@ -188,7 +188,7 @@
                         <div class="chat-reader-option-group">
                             <div class="chat-reader-option-group-label">快捷跳转</div>
                             <div class="chat-inline-actions">
-                                <input type="text" x-model="jumpFloorInput" class="chat-inline-input chat-inline-input--compact" placeholder="#856" @keydown.enter.prevent="jumpToInputFloor()">
+                                <input aria-label="本地备注" type="text" x-model="jumpFloorInput" class="chat-inline-input chat-inline-input--compact" placeholder="#856" @keydown.enter.prevent="jumpToInputFloor()">
                                 <button type="button" class="chat-toolbar-btn" @click="jumpToInputFloor()">{{ icon('arrow-right', 'ui-icon--sm') }}<span>跳转</span></button>
                             </div>
                         </div>
@@ -204,7 +204,7 @@
                     <div class="chat-reader-panel chat-reader-panel--quiet">
                         <div class="chat-reader-panel-title">{{ icon('heart', 'ui-icon--sm') }}<span>收藏楼层</span></div>
                         <div class="chat-reader-bookmark-input">
-                            <input type="text" x-model="bookmarkDraft" class="form-input" placeholder="收藏标签（可选）">
+                            <input aria-label="本地备注" type="text" x-model="bookmarkDraft" class="form-input" placeholder="收藏标签（可选）">
                             <button type="button" class="chat-toolbar-btn" @click="detailBookmarkedOnly = !detailBookmarkedOnly"
                                 :class="detailBookmarkedOnly ? 'chat-toolbar-btn--primary' : ''">{{ icon('heart', 'ui-icon--sm') }}<span>只看收藏</span></button>
                         </div>
@@ -227,8 +227,8 @@
                     <div class="chat-reader-panel chat-reader-panel--quiet">
                         <div class="chat-reader-panel-title">{{ icon('replace', 'ui-icon--sm') }}<span>本地编辑模式</span></div>
                         <div class="chat-inline-actions chat-inline-actions--stack">
-                            <input type="text" x-model="replaceQuery" class="chat-inline-input chat-inline-input--wide" placeholder="查找内容">
-                            <input type="text" x-model="replaceReplacement" class="chat-inline-input chat-inline-input--wide" placeholder="替换为">
+                            <input aria-label="本地备注" type="text" x-model="replaceQuery" class="chat-inline-input chat-inline-input--wide" placeholder="查找内容">
+                            <input aria-label="本地备注" type="text" x-model="replaceReplacement" class="chat-inline-input chat-inline-input--wide" placeholder="替换为">
                         </div>
                         <div class="chat-inline-actions chat-inline-actions--controls">
                             <label class="chat-inline-checkbox">
@@ -475,7 +475,7 @@
                         <div class="chat-reader-option-group">
                             <div class="chat-reader-option-group-label">快捷跳转</div>
                             <div class="chat-inline-actions">
-                                <input type="text" x-model="jumpFloorInput" class="chat-inline-input chat-inline-input--compact" placeholder="#856" @keydown.enter.prevent="jumpToInputFloor()">
+                                <input aria-label="本地备注" type="text" x-model="jumpFloorInput" class="chat-inline-input chat-inline-input--compact" placeholder="#856" @keydown.enter.prevent="jumpToInputFloor()">
                                 <button class="chat-toolbar-btn" @click="jumpToInputFloor()">跳转</button>
                             </div>
                         </div>
@@ -491,7 +491,7 @@
                     <div class="chat-reader-panel chat-reader-panel--quiet" x-show="activeChat">
                         <div class="chat-reader-panel-title">{{ icon('heart', 'ui-icon--sm') }}<span>收藏楼层</span></div>
                         <div class="chat-reader-bookmark-input">
-                            <input type="text" x-model="bookmarkDraft" class="form-input" placeholder="收藏标签（可选）">
+                            <input aria-label="本地备注" type="text" x-model="bookmarkDraft" class="form-input" placeholder="收藏标签（可选）">
                             <button class="chat-toolbar-btn" @click="detailBookmarkedOnly = !detailBookmarkedOnly"
                                 :class="detailBookmarkedOnly ? 'chat-toolbar-btn--primary' : ''">只看收藏</button>
                         </div>
@@ -509,8 +509,8 @@
                     <div class="chat-reader-panel chat-reader-panel--quiet" x-show="activeChat">
                         <div class="chat-reader-panel-title">{{ icon('replace', 'ui-icon--sm') }}<span>本地编辑模式</span></div>
                         <div class="chat-inline-actions chat-inline-actions--stack">
-                            <input type="text" x-model="replaceQuery" class="chat-inline-input chat-inline-input--wide" placeholder="查找内容">
-                            <input type="text" x-model="replaceReplacement" class="chat-inline-input chat-inline-input--wide" placeholder="替换为">
+                            <input aria-label="本地备注" type="text" x-model="replaceQuery" class="chat-inline-input chat-inline-input--wide" placeholder="查找内容">
+                            <input aria-label="本地备注" type="text" x-model="replaceReplacement" class="chat-inline-input chat-inline-input--wide" placeholder="替换为">
                         </div>
                         <div class="chat-inline-actions chat-inline-actions--controls">
                             <label class="chat-inline-checkbox">
@@ -872,7 +872,7 @@
                                 </div>
                                 <div class="chat-reader-regex-inspector-section">
                                     <div class="chat-reader-regex-inspector-label">标准正则</div>
-                                    <textarea readonly spellcheck="false" class="form-textarea chat-reader-regex-inspector-code chat-reader-regex-inspector-code--pattern custom-scrollbar" :value="selectedActiveRegexRuleDetail.standardPattern"></textarea>
+                                    <textarea aria-label="导入 JSON" readonly spellcheck="false" class="form-textarea chat-reader-regex-inspector-code chat-reader-regex-inspector-code--pattern custom-scrollbar" :value="selectedActiveRegexRuleDetail.standardPattern"></textarea>
                                 </div>
                             </div>
                         </div>
@@ -950,7 +950,7 @@
                 <div class="chat-reader-regex-test-grid">
                     <div class="chat-reader-sideblock-card chat-reader-sideblock-card--stretch">
                         <div class="chat-message-sideblock-title">测试输入</div>
-                        <textarea x-model="regexTestInput" class="form-textarea chat-reader-floor-editor chat-reader-floor-editor--raw chat-reader-regex-test-input" placeholder="手动粘贴原始消息文本，或点击上方按钮载入当前定位楼层"></textarea>
+                        <textarea aria-label="正则测试文本" x-model="regexTestInput" class="form-textarea chat-reader-floor-editor chat-reader-floor-editor--raw chat-reader-regex-test-input" placeholder="手动粘贴原始消息文本，或点击上方按钮载入当前定位楼层"></textarea>
                     </div>
                     <div class="chat-reader-sideblock-card chat-reader-sideblock-card--stretch">
                         <div class="chat-message-sideblock-title">渲染预览</div>
@@ -1032,7 +1032,7 @@
 
                                         <div class="chat-reader-regex-inspector-section">
                                             <div class="chat-reader-regex-inspector-label">标准正则</div>
-                                            <textarea readonly spellcheck="false" class="form-textarea chat-reader-regex-inspector-code chat-reader-regex-inspector-code--pattern custom-scrollbar" :value="selectedActiveRegexRuleDetail.standardPattern"></textarea>
+                                            <textarea aria-label="匹配正则" readonly spellcheck="false" class="form-textarea chat-reader-regex-inspector-code chat-reader-regex-inspector-code--pattern custom-scrollbar" :value="selectedActiveRegexRuleDetail.standardPattern"></textarea>
                                             <div class="chat-reader-replace-status" x-show="selectedActiveRegexRuleDetail.regexError" x-text="'编译提示：' + selectedActiveRegexRuleDetail.regexError"></div>
                                         </div>
 
@@ -1117,12 +1117,12 @@
 
                                         <div class="chat-reader-regex-inspector-section" x-show="selectedActiveRegexRuleDetail.showRawPattern">
                                             <div class="chat-reader-regex-inspector-label">原始配置</div>
-                                            <textarea readonly spellcheck="false" class="form-textarea chat-reader-regex-inspector-code chat-reader-regex-inspector-code--raw custom-scrollbar" :value="selectedActiveRegexRuleDetail.rawPattern"></textarea>
+                                            <textarea aria-label="原始正则内容" readonly spellcheck="false" class="form-textarea chat-reader-regex-inspector-code chat-reader-regex-inspector-code--raw custom-scrollbar" :value="selectedActiveRegexRuleDetail.rawPattern"></textarea>
                                         </div>
 
                                         <div class="chat-reader-regex-inspector-section" x-show="selectedActiveRegexRuleDetail.hasTrimStrings">
                                             <div class="chat-reader-regex-inspector-label">Trim Strings</div>
-                                            <textarea readonly spellcheck="false" class="form-textarea chat-reader-regex-inspector-code chat-reader-regex-inspector-code--trim custom-scrollbar" :value="selectedActiveRegexRuleDetail.trimPreview"></textarea>
+                                            <textarea aria-label="Trim Strings 内容" readonly spellcheck="false" class="form-textarea chat-reader-regex-inspector-code chat-reader-regex-inspector-code--trim custom-scrollbar" :value="selectedActiveRegexRuleDetail.trimPreview"></textarea>
                                         </div>
                                     </div>
                                 </div>
@@ -1194,7 +1194,7 @@
 
                                         <div class="chat-reader-regex-inspector-section">
                                             <div class="chat-reader-regex-inspector-label">标准正则</div>
-                                            <textarea readonly spellcheck="false" class="form-textarea chat-reader-regex-inspector-code chat-reader-regex-inspector-code--pattern custom-scrollbar" :value="selectedDraftRegexRuleDetail.standardPattern"></textarea>
+                                            <textarea aria-label="匹配正则" readonly spellcheck="false" class="form-textarea chat-reader-regex-inspector-code chat-reader-regex-inspector-code--pattern custom-scrollbar" :value="selectedDraftRegexRuleDetail.standardPattern"></textarea>
                                             <div class="chat-reader-replace-status" x-show="selectedDraftRegexRuleDetail.regexError" x-text="'编译提示：' + selectedDraftRegexRuleDetail.regexError"></div>
                                         </div>
 
@@ -1279,12 +1279,12 @@
 
                                         <div class="chat-reader-regex-inspector-section" x-show="selectedDraftRegexRuleDetail.showRawPattern">
                                             <div class="chat-reader-regex-inspector-label">原始配置</div>
-                                            <textarea readonly spellcheck="false" class="form-textarea chat-reader-regex-inspector-code chat-reader-regex-inspector-code--raw custom-scrollbar" :value="selectedDraftRegexRuleDetail.rawPattern"></textarea>
+                                            <textarea aria-label="正则匹配内容" readonly spellcheck="false" class="form-textarea chat-reader-regex-inspector-code chat-reader-regex-inspector-code--raw custom-scrollbar" :value="selectedDraftRegexRuleDetail.rawPattern"></textarea>
                                         </div>
 
                                         <div class="chat-reader-regex-inspector-section" x-show="selectedDraftRegexRuleDetail.hasTrimStrings">
                                             <div class="chat-reader-regex-inspector-label">Trim Strings</div>
-                                            <textarea readonly spellcheck="false" class="form-textarea chat-reader-regex-inspector-code chat-reader-regex-inspector-code--trim custom-scrollbar" :value="selectedDraftRegexRuleDetail.trimPreview"></textarea>
+                                            <textarea aria-label="Trim Strings 内容" readonly spellcheck="false" class="form-textarea chat-reader-regex-inspector-code chat-reader-regex-inspector-code--trim custom-scrollbar" :value="selectedDraftRegexRuleDetail.trimPreview"></textarea>
                                         </div>
                                     </div>
                                 </div>
@@ -1308,7 +1308,7 @@
                     <div class="chat-reader-regex-test-grid">
                         <div class="chat-reader-sideblock-card chat-reader-sideblock-card--stretch">
                             <div class="chat-message-sideblock-title">测试输入</div>
-                            <textarea x-model="regexTestInput" class="form-textarea chat-reader-floor-editor chat-reader-floor-editor--raw chat-reader-regex-test-input" placeholder="手动粘贴原始消息文本，或点击上方按钮载入当前定位楼层"></textarea>
+                            <textarea aria-label="正则测试文本" x-model="regexTestInput" class="form-textarea chat-reader-floor-editor chat-reader-floor-editor--raw chat-reader-regex-test-input" placeholder="手动粘贴原始消息文本，或点击上方按钮载入当前定位楼层"></textarea>
                         </div>
                         <div class="chat-reader-sideblock-card chat-reader-sideblock-card--stretch">
                             <div class="chat-message-sideblock-title">渲染预览</div>
@@ -1385,7 +1385,7 @@
                     <div class="chat-reader-panel-title">原始正文</div>
                 </div>
 
-                <textarea x-model="editingMessageRawDraft" @input="editingMessageDraft = extractDisplayContent($event.target.value)" class="form-textarea chat-reader-floor-editor"></textarea>
+                <textarea aria-label="原始消息内容" x-model="editingMessageRawDraft" @input="editingMessageDraft = extractDisplayContent($event.target.value)" class="form-textarea chat-reader-floor-editor"></textarea>
                 <div class="chat-reader-replace-status chat-reader-editor-note">左侧直接编辑原始消息；保存后会重新触发显示替换与渲染。右侧继续用于查看解析后的显示预览，必要时仍可反向用显示内容覆盖正文。</div>
             </div>
 
@@ -1399,7 +1399,7 @@
                     <button class="chat-toolbar-btn" @click="editingMessageDraft = extractDisplayContent(editingMessageRawDraft)">重新解析显示内容</button>
                     <button class="chat-toolbar-btn" :class="editingMessagePreviewMode === 'parsed' ? 'chat-toolbar-btn--primary' : ''" @click="editingMessagePreviewMode = 'parsed'">解析预览</button>
                 </div>
-                <textarea x-model="editingMessageDraft" readonly class="form-textarea chat-reader-floor-editor chat-reader-floor-editor--raw"></textarea>
+                <textarea aria-label="显示预览内容" x-model="editingMessageDraft" readonly class="form-textarea chat-reader-floor-editor chat-reader-floor-editor--raw"></textarea>
                 <div x-show="editingMessagePreviewMode === 'source'" class="chat-reader-floor-preview markdown-body st-reader-floor-edit-source" x-html="editingMessageSourcePreviewHtml"></div>
                 <div x-show="editingMessagePreviewMode === 'parsed'" class="chat-reader-floor-preview markdown-body st-reader-floor-edit-preview" x-html="editingMessageParsedPreviewHtml"></div>
                 <div class="chat-reader-floor-diff">
@@ -1428,7 +1428,7 @@
         </div>
 
         <div class="chat-inline-actions chat-reader-nested-toolbar">
-            <input type="text" x-model="bindPickerSearch" class="chat-inline-input chat-inline-input--wide" placeholder="搜索角色卡名称" @keydown.enter.prevent="fetchBindPickerResults()">
+            <input aria-label="搜索可绑定条目" type="text" x-model="bindPickerSearch" class="chat-inline-input chat-inline-input--wide" placeholder="搜索角色卡名称" @keydown.enter.prevent="fetchBindPickerResults()">
             <button class="chat-toolbar-btn" @click="fetchBindPickerResults()">搜索</button>
         </div>
 
@@ -1465,7 +1465,7 @@
         </div>
 
         <div class="chat-inline-actions chat-reader-nested-toolbar">
-            <input type="text" x-model="regexRulePickerSearch" class="chat-inline-input chat-inline-input--wide" placeholder="搜索规则名称或文件名" @keydown.enter.prevent="fetchRegexRulePickerResults()">
+            <input aria-label="搜索正则规则" type="text" x-model="regexRulePickerSearch" class="chat-inline-input chat-inline-input--wide" placeholder="搜索规则名称或文件名" @keydown.enter.prevent="fetchRegexRulePickerResults()">
             <button class="chat-toolbar-btn" :class="regexRulePickerFilter === 'all' ? 'chat-toolbar-btn--primary' : ''" @click="regexRulePickerFilter = 'all'; fetchRegexRulePickerResults()">全部</button>
             <button class="chat-toolbar-btn" :class="regexRulePickerFilter === 'global' ? 'chat-toolbar-btn--primary' : ''" @click="regexRulePickerFilter = 'global'; fetchRegexRulePickerResults()">全局库</button>
             <button class="chat-toolbar-btn" :class="regexRulePickerFilter === 'resource' ? 'chat-toolbar-btn--primary' : ''" @click="regexRulePickerFilter = 'resource'; fetchRegexRulePickerResults()">资源库</button>
@@ -1505,7 +1505,7 @@
         </div>
 
         <div class="chat-inline-actions chat-reader-nested-toolbar">
-            <input type="text" x-model="regexPresetPickerSearch" class="chat-inline-input chat-inline-input--wide" placeholder="搜索预设名称" @keydown.enter.prevent="fetchRegexPresetPickerResults()">
+            <input aria-label="搜索正则预设" type="text" x-model="regexPresetPickerSearch" class="chat-inline-input chat-inline-input--wide" placeholder="搜索预设名称" @keydown.enter.prevent="fetchRegexPresetPickerResults()">
             <button class="chat-toolbar-btn" :class="regexPresetPickerFilter === 'all' ? 'chat-toolbar-btn--primary' : ''" @click="regexPresetPickerFilter = 'all'; fetchRegexPresetPickerResults()">全部</button>
             <button class="chat-toolbar-btn" :class="regexPresetPickerFilter === 'global' ? 'chat-toolbar-btn--primary' : ''" @click="regexPresetPickerFilter = 'global'; fetchRegexPresetPickerResults()">全局库</button>
             <button class="chat-toolbar-btn" :class="regexPresetPickerFilter === 'resource' ? 'chat-toolbar-btn--primary' : ''" @click="regexPresetPickerFilter = 'resource'; fetchRegexPresetPickerResults()">资源库</button>

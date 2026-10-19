@@ -64,7 +64,13 @@
          图标位按 `resolveToastIcon()` 的 kind 分三条渲染路径（与 uiPrimitives.js 同源契约）：
          ① 独立动效 SVG 走 <img>；② 插件自带资源走 CSS mask（填充式图形，塞进 <use> 会是空图形）；
          ③ 宿主图标名走 sprite <use>（描边式图形，用 mask 会变实心块）。 -->
-    <div class="toast-notification" :class="{'show': showToastState}">
+    <div
+      class="toast-notification"
+      :class="{'show': showToastState}"
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
+    >
       <span x-show="toastIcon" aria-hidden="true">
         <template x-if="toastIconKind === 'image'">
           <img

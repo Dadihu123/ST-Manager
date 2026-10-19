@@ -39,6 +39,7 @@
               type="text"
               x-model.debounce.300ms="searchQuery"
               placeholder="搜索..."
+              aria-label="搜索角色卡"
               class="mobile-search-input"
             />
             <input
@@ -46,6 +47,7 @@
               type="text"
               x-model.debounce.300ms="wiSearchQuery"
               :placeholder="wiSearchField === 'name' ? '搜索世界书名...' : (wiSearchField === 'filename' ? '搜索文件名...' : (wiSearchField === 'owner' ? '搜索所属角色卡...' : '搜索...'))"
+              aria-label="搜索世界书"
               class="mobile-search-input"
             />
             <input
@@ -53,6 +55,7 @@
               type="text"
               x-model.debounce.300ms="chatSearchQuery"
               placeholder="搜索聊天..."
+              aria-label="搜索聊天记录"
               class="mobile-search-input"
             />
             <input
@@ -60,6 +63,7 @@
               type="text"
               x-model.debounce.300ms="presetSearch"
               placeholder="搜索预设..."
+              aria-label="搜索预设"
               class="mobile-search-input"
             />
             <input
@@ -67,6 +71,7 @@
               type="text"
               x-model.debounce.300ms="extensionSearch"
               :placeholder="currentMode === 'regex' ? '搜索正则...' : (currentMode === 'scripts' ? '搜索 ST 脚本...' : '搜索快速回复...')"
+              aria-label="搜索扩展"
               class="mobile-search-input"
             />
             <input
@@ -74,6 +79,7 @@
               type="text"
               x-model.debounce.300ms="beautifySearch"
               placeholder="搜索美化包..."
+              aria-label="搜索美化资源"
               class="mobile-search-input"
             />
           </div>
@@ -618,6 +624,7 @@
           type="text"
           x-model.debounce.300ms="searchQuery"
           :placeholder="searchScope === 'full' ? '全量搜索（已忽略筛选）...' : '搜索角色卡...'"
+          aria-label="搜索角色卡"
           class="search-input"
           :class="currentMode === 'cards' ? 'search-input-with-type' : 'search-input-standalone'"
         />
@@ -626,6 +633,7 @@
           type="text"
           x-model.debounce.300ms="wiSearchQuery"
           :placeholder="wiSearchField === 'name' ? '搜索世界书名...' : (wiSearchField === 'filename' ? '搜索文件名...' : (wiSearchField === 'owner' ? '搜索所属角色卡...' : '搜索世界书名称或内容...'))"
+          aria-label="搜索世界书"
           class="search-input"
           :class="currentMode === 'cards' ? 'search-input-with-type' : 'search-input-standalone'"
         />
@@ -634,6 +642,7 @@
           type="text"
           x-model.debounce.300ms="chatSearchQuery"
           placeholder="搜索聊天标题、角色或预览..."
+          aria-label="搜索聊天记录"
           class="search-input"
           :class="currentMode === 'cards' ? 'search-input-with-type' : 'search-input-standalone'"
         />
@@ -642,6 +651,7 @@
           type="text"
           x-model.debounce.300ms="presetSearch"
           placeholder="搜索预设名称..."
+          aria-label="搜索预设"
           class="search-input"
           :class="currentMode === 'cards' ? 'search-input-with-type' : 'search-input-standalone'"
         />
@@ -650,6 +660,7 @@
           type="text"
           x-model.debounce.300ms="extensionSearch"
           :placeholder="currentMode === 'regex' ? '搜索正则脚本...' : (currentMode === 'scripts' ? '搜索 ST 脚本...' : '搜索快速回复...')"
+          aria-label="搜索扩展"
           class="search-input"
           :class="currentMode === 'cards' ? 'search-input-with-type' : 'search-input-standalone'"
         />
@@ -658,6 +669,7 @@
           type="text"
           x-model.debounce.300ms="beautifySearch"
           placeholder="搜索美化包、作者或主题名..."
+          aria-label="搜索美化资源"
           class="search-input"
           :class="currentMode === 'cards' ? 'search-input-with-type' : 'search-input-standalone'"
         />

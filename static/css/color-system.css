@@ -256,17 +256,11 @@ a:hover {
   background-color: var(--decoration-violet-solid) !important;
 }
 
-.color-surface-cyan-solid {
-  background-color: var(--decoration-cyan-solid) !important;
-}
 
 .color-surface-rose-solid {
   background-color: var(--decoration-rose-solid) !important;
 }
 
-.color-surface-amber-solid {
-  background-color: var(--decoration-amber-solid) !important;
-}
 
 .color-border-subtle {
   border-color: var(--border-subtle) !important;
@@ -533,10 +527,6 @@ a:hover {
   box-shadow: var(--state-focus-shadow) !important;
 }
 
-.color-focus-text-primary:focus,
-.color-focus-text-primary:focus-visible {
-  color: var(--content-primary) !important;
-}
 
 .color-group-hover-text-secondary {
   color: var(--content-secondary) !important;
@@ -709,36 +699,11 @@ a:hover {
   color: var(--status-neutral-text) !important;
 }
 
-.status-dot-success,
-.status-dot-info,
-.status-dot-warning,
-.status-dot-danger,
-.status-dot-neutral {
-  width: 0.5rem;
-  height: 0.5rem;
-  flex: 0 0 auto;
-  border-radius: 999px;
-}
 
-.status-dot-success {
-  background: var(--status-success-solid);
-}
 
-.status-dot-info {
-  background: var(--status-info-solid);
-}
 
-.status-dot-warning {
-  background: var(--status-warning-solid);
-}
 
-.status-dot-danger {
-  background: var(--status-danger-solid);
-}
 
-.status-dot-neutral {
-  background: var(--status-neutral-solid);
-}
 
 .decoration-violet {
   color: var(--decoration-violet) !important;
@@ -757,25 +722,48 @@ a:hover {
 }
 
 /* Consistent controls, overlays, and keyboard navigation. */
+
+/*
+ * 动作层级（三级）
+ *
+ * primary   —— 本项目的"主操作"语言：**accent 染色的抬升底 + 描边 + accent 文字**，
+ *              hover 再抬一档并上浮 1px。这是设置页"保存并应用"已经在用的样式，
+ *              也是全站视觉一致性的基准。
+ * secondary —— 中性底 + 描边。
+ * tertiary  —— 无底无框，像链接。
+ *
+ * 为什么不用 Refactoring UI 建议的"实心 accent + 白字"：
+ * 本项目是深色玻璃质感界面（surface 层层抬升 + 半透明 + 发丝边框），
+ * 一块不透明的高饱和实心色在这里会像贴纸一样浮在表面，与整体材质脱节。
+ * Skill 说的是"primary 必须是这一屏视觉权重最高的操作"，而"实心"只是达成
+ * 它的其中一种手段。在这里更贴合的实现是：**更大的 accent 染色浓度 + 描边
+ * + 轻微上浮**，既压过 secondary，又仍然属于这套材质语言。
+ *
+ * 视觉权重的实际差距（深色）：
+ *   primary   bg = accent 24% 混 surface（明显偏蓝）+ accent 描边 + accent 亮文字
+ *   secondary bg = 中性抬升面 + 中性描边 + 中性灰文字
+ * 两者在色相与饱和上已经拉开，不需要靠不透明实心来区分。
+ */
 .btn-primary,
 button.btn-primary {
-  background-color: var(--action-surface) !important;
-  border: 1px solid var(--action-border) !important;
-  color: var(--action-text) !important;
+  background-color: var(--action-surface-hover) !important;
+  border: 1px solid var(--action-border-hover) !important;
+  color: var(--accent-text) !important;
 }
 
 .btn-primary:hover:not(:disabled),
 button.btn-primary:hover:not(:disabled) {
-  background-color: var(--action-surface-hover) !important;
-  border-color: var(--action-border-hover) !important;
-  color: var(--action-text) !important;
+  background-color: var(--action-surface-active) !important;
+  border-color: var(--accent-text) !important;
+  color: var(--accent-text) !important;
 }
 
 .btn-primary:active:not(:disabled),
 button.btn-primary:active:not(:disabled) {
   background-color: var(--action-surface-active) !important;
-  border-color: var(--action-border-hover) !important;
-  color: var(--action-text) !important;
+  border-color: var(--accent-text) !important;
+  color: var(--accent-text) !important;
+  transform: translateY(1px);
 }
 
 .btn-secondary,
@@ -792,6 +780,28 @@ button.btn-primary:active:not(:disabled) {
   background-color: var(--state-hover-surface) !important;
   border-color: var(--accent-outline) !important;
   color: var(--content-primary) !important;
+}
+
+/* tertiary —— 无底无框，只靠文字与图标。用「弱化」表达次要，而不是减字重。 */
+.btn-tertiary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  background-color: transparent !important;
+  border: 1px solid transparent !important;
+  color: var(--content-secondary) !important;
+  cursor: pointer;
+}
+
+.btn-tertiary:hover:not(:disabled) {
+  background-color: var(--state-hover-surface) !important;
+  color: var(--content-primary) !important;
+}
+
+.btn-tertiary:disabled {
+  color: var(--content-disabled) !important;
+  cursor: not-allowed;
 }
 
 /* Explicit modifier for non-primary controls that need the soft action treatment. */
@@ -878,25 +888,9 @@ button[data-tone='danger']:hover:not(:disabled) {
   color: var(--content-on-status-solid) !important;
 }
 
-.btn-cyan {
-  background-color: var(--decoration-cyan-solid) !important;
-  border-color: var(--decoration-cyan) !important;
-}
 
-.btn-cyan:hover:not(:disabled) {
-  background-color: var(--decoration-cyan-hover-solid) !important;
-  color: var(--content-on-decoration-solid) !important;
-}
 
-.btn-violet {
-  background-color: var(--decoration-violet-solid) !important;
-  border-color: var(--decoration-violet) !important;
-}
 
-.btn-violet:hover:not(:disabled) {
-  background-color: var(--decoration-violet-hover-solid) !important;
-  color: var(--content-on-decoration-solid) !important;
-}
 
 .btn-soft-purple {
   background-color: var(--decoration-violet-surface) !important;

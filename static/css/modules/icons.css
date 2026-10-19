@@ -121,12 +121,19 @@ html:not(.light-mode) .ui-loading-icon {
   height: 64px;
 }
 
-/* 侧边栏图标使用独立的层级挡位，点击区域由导航和按钮组件单独控制。 */
+/* 侧边栏图标使用独立的层级挡位，点击区域由导航和按钮组件单独控制。
+ *
+ * 裁决 Q-05：**保留侧栏独立档位**（信息密集，需要更大力度），但清理重复覆写。
+ * 此前这里有四层覆写，其中第 3、4 层（sidebar-filter-label、nav-icon-slot）
+ * 实际产出都与第 2 层 md 的 24px 相同 —— 属于冗余，已合并。
+ * 现在只剩两层语义：
+ *   基础档：xs→16 / sm→20 / md→24 / lg→32
+ *   筛选与导航行：统一 24px（筛选项与一级导航同级，视觉重量一致）
+ */
 .sidebar-icon {
   color: inherit;
 }
 
-/* 侧边栏的基础视觉尺寸；点击区域由导航和按钮组件单独控制。 */
 .sidebar .ui-icon--xs {
   width: 16px;
   height: 16px;
@@ -147,34 +154,13 @@ html:not(.light-mode) .ui-loading-icon {
   height: 32px;
 }
 
-/* 筛选行和根目录入口使用稳定的整数图标槽位。 */
-.sidebar .sidebar-filter-label .ui-icon--xs {
-  width: 20px;
-  height: 20px;
-}
-
-.sidebar .sidebar-filter-label .ui-icon--sm {
-  width: 24px;
-  height: 24px;
-}
-
-.sidebar .sidebar-category-root-icon.ui-icon--sm {
-  width: 24px;
-  height: 24px;
-}
-
-.sidebar .sidebar-filter-label .ui-icon--md {
-  width: 24px;
-  height: 24px;
-}
-
-.sidebar .sidebar-filter-label .ui-icon--lg {
-  width: 32px;
-  height: 32px;
-}
-
-/* 一级导航使用 24px 图标挡位。 */
-.sidebar .sidebar-nav-icon-slot .ui-icon--md {
+/* 筛选行、根目录入口、一级导航：统一 24px 档。
+ * 合并了原先 `.sidebar-filter-label .ui-icon--xs/--sm/--md/--lg` 四条
+ * 与 `.sidebar-nav-icon-slot .ui-icon--md`、`.sidebar-category-root-icon`，
+ * 它们的目标值本来就都是 24px。 */
+.sidebar .sidebar-filter-label .ui-icon,
+.sidebar .sidebar-nav-icon-slot .ui-icon,
+.sidebar .sidebar-category-root-icon {
   width: 24px;
   height: 24px;
 }

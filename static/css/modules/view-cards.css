@@ -230,12 +230,6 @@
   letter-spacing: 0.04em;
 }
 
-.card-meta-category {
-  max-width: 4.6rem;
-  justify-content: flex-start;
-  color: color-mix(in srgb, var(--content-secondary), var(--content-on-dark) 18%);
-  border-color: color-mix(in srgb, var(--border-default), var(--content-on-dark) 18%);
-}
 
 .card-meta-category,
 .card-meta-version,
@@ -254,14 +248,6 @@ html.light-mode .card-bottom-toolbar {
   background: color-mix(in srgb, var(--content-on-dark) 42%, transparent) !important;
 }
 
-.card-meta-category span {
-  display: block;
-  min-width: 0;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 
 .card-token-level-extreme {
   color: var(--status-danger-text);
@@ -1745,32 +1731,7 @@ html.light-mode .card-flip-count {
   font-style: italic;
 }
 
-.btn-note-preview {
-  margin-left: auto;
-  width: 1.25rem;
-  height: 1.25rem;
-  flex-shrink: 0;
-  border-radius: 4px;
-  background-color: var(--surface-container-raised);
-  border: 1px solid var(--border-default);
-  color: var(--content-secondary);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.75rem;
-  line-height: 1;
-  cursor: pointer;
-  transition: all 0.2s;
-  opacity: 0.8;
-}
 
-.btn-note-preview:hover {
-  background-color: var(--state-hover-surface);
-  border-color: var(--accent-action);
-  color: var(--accent-action);
-  opacity: 1;
-  transform: scale(1.1);
-}
 
 html.light-mode .btn-note-preview {
   color: var(--content-secondary);
@@ -1952,9 +1913,6 @@ html.light-mode .btn-note-preview:hover {
   }
   .card-front-meta-right {
     gap: 0.18rem;
-  }
-  .card-meta-category {
-    max-width: 3.2rem;
   }
   .card-meta-chip {
     max-width: 4.7rem;

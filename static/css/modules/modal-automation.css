@@ -45,12 +45,6 @@
   color: var(--content-muted);
 }
 
-.auto-header {
-  padding: 1rem;
-  border-bottom: 1px solid var(--border-default);
-  background: var(--surface-container-raised);
-  display: flex;
-}
 
 .auto-body {
   flex: 1;
@@ -97,20 +91,7 @@
   gap: 1rem;
 }
 
-.logic-block {
-  display: flex;
-  gap: 1rem;
-}
 
-.logic-label {
-  width: 60px;
-  text-align: right;
-  font-weight: 900;
-  font-size: 0.9rem;
-  padding-top: 1rem;
-  color: var(--content-muted);
-  text-transform: uppercase;
-}
 
 .logic-label.if {
   color: var(--status-warning-solid);
@@ -120,12 +101,6 @@
   color: var(--status-success-solid);
 }
 
-.logic-content {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
 
 .logic-row {
   display: flex;
@@ -223,15 +198,7 @@
   min-width: fit-content;
 }
 
-.drag-handle {
-  cursor: grab;
-  color: var(--content-muted);
-  padding: 0 4px;
-}
 
-.drag-handle:active {
-  cursor: grabbing;
-}
 
 .auto-input {
   background: var(--surface-container);
@@ -262,21 +229,7 @@
   border-color: var(--accent-action);
 }
 
-.btn-icon-sm {
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 4px;
-  color: var(--content-muted);
-  cursor: pointer;
-}
 
-.btn-icon-sm:hover {
-  background: var(--state-hover-surface);
-  color: var(--content-primary);
-}
 
 .btn-icon-sm.delete:hover {
   color: var(--status-danger-solid);
@@ -382,23 +335,7 @@
   color: var(--accent-action);
 }
 
-.automation-performance-notice {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.65rem;
-  margin: 0 0 1rem;
-  padding: 0.75rem 0.9rem;
-  border: 1px solid color-mix(in srgb, var(--status-warning-text), transparent 45%);
-  border-radius: 0.65rem;
-  background: color-mix(in srgb, var(--status-warning-text), transparent 90%);
-  color: var(--content-primary);
-  font-size: 0.78rem;
-  line-height: 1.55;
-}
 
-.automation-performance-notice strong {
-  color: var(--status-warning-text);
-}
 
 .automation-performance-notice-icon {
   flex: 0 0 auto;
@@ -433,11 +370,6 @@
     min-height: 0;
     position: relative;
   }
-  .auto-header {
-    padding: 0.75rem;
-    flex-direction: column;
-    gap: 0.75rem;
-  }
   .automation-header-content {
     flex-direction: column;
     gap: 0.75rem;
@@ -454,15 +386,6 @@
   }
   .automation-global-btn {
     flex-shrink: 0;
-  }
-  .automation-meta-inputs {
-    width: 100%;
-    flex-direction: row;
-    gap: 0.5rem;
-  }
-  .automation-header-actions {
-    width: 100%;
-    gap: 0.5rem;
   }
   .ruleset-item {
     padding: 0.75rem;
@@ -481,20 +404,6 @@
     padding: 0.75rem;
     gap: 0.75rem;
   }
-  .logic-block {
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-  .logic-label {
-    width: 100%;
-    text-align: left;
-    padding-top: 0;
-    font-size: 0.875rem;
-    padding-bottom: 0.25rem;
-  }
-  .logic-content {
-    width: 100%;
-  }
   .logic-row {
     flex-direction: column;
     align-items: stretch;
@@ -505,11 +414,6 @@
     width: 100%;
     justify-content: flex-start;
   }
-  .btn-icon-sm {
-    width: 32px;
-    height: 32px;
-    font-size: 0.875rem;
-  }
   .auto-body {
     padding: 0.75rem;
   }
@@ -518,13 +422,6 @@
     font-size: 0.8125rem;
     padding: 0.5rem;
     width: 100%;
-  }
-  .automation-meta-inputs > input {
-    flex: 1;
-  }
-  .automation-header-actions > button {
-    flex: 1;
-    justify-content: center;
   }
   .ruleset-item > div:first-child {
     flex-direction: column;
@@ -546,21 +443,6 @@
     width: 100%;
     max-width: 100%;
   }
-  .logic-content > div[class*="border"] {
-    padding: 0.75rem;
-  }
-  .logic-content > div:first-child {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0.5rem;
-    padding: 0.75rem;
-  }
-  .auto-header > div:first-child {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0.5rem;
-    padding: 0.75rem;
-  }
   .ruleset-item > div:first-child > button {
     width: 100%;
     justify-content: center;
@@ -569,21 +451,8 @@
     width: 100%;
     max-width: 100%;
   }
-  .logic-content > div[class*="border"] > div:first-child {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0.5rem;
-    padding-bottom: 0.5rem;
-  }
-  .logic-content > div:first-child > select {
-    width: 100%;
-  }
   .logic-content > div:first-child > .icon-select {
     width: 100%;
-  }
-  .auto-header > div:first-child > div:last-child {
-    width: 100%;
-    justify-content: flex-start;
   }
   .logic-row > select,
   .logic-row > div,
@@ -593,16 +462,6 @@
 
   .automation-action-type-select {
     flex-basis: auto;
-  }
-  .logic-content > div[class*="border"] > div:first-child > div:first-child {
-    width: 100%;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.5rem;
-  }
-  .logic-content > div[class*="border"] > div:first-child > button {
-    width: 100%;
-    text-align: center;
   }
   /*
    * `title` 在运行时会被 tooltip 接管迁移为 `data-tooltip`（见

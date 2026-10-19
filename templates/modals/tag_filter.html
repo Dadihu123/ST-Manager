@@ -579,6 +579,7 @@
                 x-model="categorySelectionInput"
                 @keydown.enter.prevent="applyCategorySelectionInput()"
                 placeholder="输入标签名，使用 |、逗号或换行批量选中当前可见标签"
+                aria-label="搜索标签"
                 class="form-input"
                 style="font-size: 0.82rem; padding: 0.45rem 0.6rem"
               />
@@ -595,6 +596,7 @@
                 type="text"
                 x-model="categoryDraftName"
                 placeholder="分类名称（例如：角色 / 题材）"
+                aria-label="搜索标签"
                 class="form-input"
                 style="font-size: 0.82rem; padding: 0.45rem 0.6rem"
               />
@@ -612,6 +614,7 @@
                   max="100"
                   step="1"
                   x-model.number="categoryDraftOpacity"
+                  aria-label="搜索标签"
                   class="tag-opacity-slider"
                 />
                 <input
@@ -620,6 +623,7 @@
                   max="100"
                   step="1"
                   x-model.number="categoryDraftOpacity"
+                  aria-label="搜索标签"
                   class="tag-opacity-number"
                 />
               </div>
@@ -673,6 +677,7 @@
                   type="text"
                   x-model="categoryManagerDraftName"
                   placeholder="新增分类名称"
+                  aria-label="搜索标签"
                   class="form-input"
                   style="font-size: 0.82rem; padding: 0.42rem 0.6rem"
                 />
@@ -690,6 +695,7 @@
                     max="100"
                     step="1"
                     x-model.number="categoryManagerDraftOpacity"
+                    aria-label="搜索标签"
                     class="tag-opacity-slider"
                   />
                   <input
@@ -698,6 +704,7 @@
                     max="100"
                     step="1"
                     x-model.number="categoryManagerDraftOpacity"
+                    aria-label="搜索标签"
                     class="tag-opacity-number"
                   />
                 </div>
@@ -759,6 +766,7 @@
                           step="1"
                           :value="getCategoryOpacity(item.name)"
                           @change="setCategoryOpacity(item.name, $event.target.value)"
+                          aria-label="搜索标签"
                           class="tag-category-manager-opacity-slider"
                         />
                         <span
@@ -1883,6 +1891,7 @@
                         x-model="categorySelectionInput"
                         @keydown.enter.prevent="applyCategorySelectionInput()"
                         placeholder="输入标签名，使用 |、逗号或换行批量选中当前可见标签"
+                        aria-label="拒绝新增未知标签（自动/批量来源）"
                         class="form-input"
                         style="font-size: 0.82rem; padding: 0.45rem 0.6rem"
                       />
@@ -1901,6 +1910,7 @@
                         type="text"
                         x-model="categoryDraftName"
                         placeholder="分类名称（例如：角色 / 题材）"
+                        aria-label="拒绝新增未知标签（自动/批量来源）"
                         class="form-input"
                         style="font-size: 0.82rem; padding: 0.45rem 0.6rem"
                       />
@@ -1921,6 +1931,7 @@
                           max="100"
                           step="1"
                           x-model.number="categoryDraftOpacity"
+                          aria-label="拒绝新增未知标签（自动/批量来源）"
                           class="tag-opacity-slider"
                         />
                         <input
@@ -1929,6 +1940,7 @@
                           max="100"
                           step="1"
                           x-model.number="categoryDraftOpacity"
+                          aria-label="拒绝新增未知标签（自动/批量来源）"
                           class="tag-opacity-number"
                         />
                       </div>
@@ -2010,6 +2022,7 @@
                         x-model="blacklistSelectionInput"
                         @keydown.enter.prevent="applyBlacklistSelectionInput()"
                         placeholder="输入任意标签名，使用 |、逗号或换行批量加入黑名单选择"
+                        aria-label="拒绝新增未知标签（自动/批量来源）"
                         class="form-input"
                         style="font-size: 0.82rem; padding: 0.45rem 0.6rem"
                       />
@@ -2135,6 +2148,7 @@
                                 type="text"
                                 x-model="categoryManagerDraftName"
                                 placeholder="新增分类名称"
+                                aria-label="拒绝新增未知标签（自动/批量来源）"
                                 class="form-input"
                                 style="font-size: 0.82rem; padding: 0.42rem 0.6rem;"
                                 @keydown.enter.prevent="addCategoryFromManager()"
@@ -2164,6 +2178,7 @@
                                   max="100"
                                   step="1"
                                   x-model.number="categoryManagerDraftOpacity"
+                                  aria-label="拒绝新增未知标签（自动/批量来源）"
                                   class="tag-opacity-slider"
                                 />
                                 <input
@@ -2172,6 +2187,7 @@
                                   max="100"
                                   step="1"
                                   x-model.number="categoryManagerDraftOpacity"
+                                  aria-label="拒绝新增未知标签（自动/批量来源）"
                                   class="tag-opacity-number"
                                 />
                               </div>
@@ -2207,6 +2223,7 @@
                                   :value="categoryManagerSelectedItem ? categoryManagerSelectedItem.opacity : 0"
                                   :disabled="!hasCategoryManagerSelection"
                                   @change="setSelectedCategoryOpacity($event.target.value)"
+                                  aria-label="拒绝新增未知标签（自动/批量来源）"
                                   class="tag-category-manager-opacity-slider"
                                 />
                                 <span

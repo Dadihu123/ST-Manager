@@ -196,23 +196,13 @@ html.light-mode .ui-detail-modal .detail-modal--workbench .detail-visual-header 
   overflow-anchor: none;
   overscroll-behavior: contain;
   padding: 0;
-  scrollbar-color: var(--scrollbar-thumb) transparent;
-  scrollbar-width: thin;
 }
 
 .ui-detail-modal .detail-modal--workbench .detail-image-scroll:active {
   cursor: grabbing;
 }
 
-.ui-detail-modal .detail-modal--workbench .detail-image-scroll::-webkit-scrollbar {
-  height: 0.45rem;
-  width: 0.45rem;
-}
 
-.ui-detail-modal .detail-modal--workbench .detail-image-scroll::-webkit-scrollbar-thumb {
-  background: var(--scrollbar-thumb);
-  border-radius: 999px;
-}
 
 .ui-detail-modal .detail-modal--workbench .detail-image {
   align-self: auto;
@@ -362,14 +352,13 @@ html.light-mode .ui-detail-modal .detail-modal--workbench .detail-visual-header 
   min-height: 5.5rem;
   overflow-x: auto;
   padding: 0.6rem 0.9rem;
-  scrollbar-width: thin;
 }
 
 .ui-detail-modal .detail-modal--workbench .detail-versions-title {
   color: var(--content-muted);
   flex: 0 0 auto;
   font-size: 0.62rem;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: 0.1em;
   writing-mode: vertical-rl;
 }
@@ -631,7 +620,7 @@ html.light-mode .ui-detail-modal .detail-modal--workbench .detail-visual-header 
   color: var(--content-muted);
   display: flex;
   font-size: 0.58rem;
-  font-weight: 800;
+  font-weight: 700;
   gap: 0.45rem;
   letter-spacing: 0.12em;
   line-height: 1.2;
@@ -679,7 +668,7 @@ html.light-mode .ui-detail-modal .detail-modal--workbench .detail-visual-header 
 .ui-detail-modal .detail-modal--workbench .detail-title-input {
   color: var(--content-primary);
   font-size: clamp(1.05rem, 1.7vw, 1.35rem);
-  font-weight: 800;
+  font-weight: 700;
   line-height: 1.25;
   margin: 0;
   min-width: 0;
@@ -752,7 +741,7 @@ html.light-mode .ui-detail-modal .detail-modal--workbench .detail-visual-header 
   color: var(--accent-text);
   font-family: var(--font-mono, ui-monospace, SFMono-Regular, Consolas, monospace);
   font-size: 0.8rem;
-  font-weight: 800;
+  font-weight: 700;
 }
 
 /* Keep the four token levels visible above the workbench's generic accent color. */
@@ -862,7 +851,6 @@ html.light-mode .ui-detail-modal .detail-modal--workbench .detail-visual-header 
   overflow-x: hidden;
   overflow-y: auto;
   padding: 0.75rem;
-  scrollbar-width: thin;
 }
 
 .ui-detail-modal .detail-modal--workbench .detail-tab {
@@ -892,7 +880,7 @@ html.light-mode .ui-detail-modal .detail-modal--workbench .detail-visual-header 
   background: var(--action-surface);
   border-color: var(--action-border);
   color: var(--action-text);
-  font-weight: 800;
+  font-weight: 700;
 }
 
 .ui-detail-modal .detail-modal--workbench .detail-tab:focus-visible,
@@ -938,8 +926,6 @@ html.light-mode .ui-detail-modal .detail-modal--workbench .detail-visual-header 
   overflow-x: hidden;
   overflow-y: auto;
   padding: clamp(1rem, 1.8vw, 1.5rem);
-  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
-  scrollbar-width: thin;
 }
 
 .ui-detail-modal .detail-modal--workbench .detail-loading-banner,
@@ -1037,7 +1023,7 @@ html.light-mode .ui-detail-modal .detail-modal--workbench .detail-visual-header 
 .ui-detail-modal .detail-modal--workbench .detail-manage-panel-title {
   color: var(--content-primary);
   font-size: 0.82rem;
-  font-weight: 800;
+  font-weight: 700;
   line-height: 1.35;
 }
 
@@ -1172,7 +1158,7 @@ html.light-mode .ui-detail-modal .detail-modal--workbench .detail-visual-header 
 
 .ui-detail-modal .detail-modal--workbench .detail-greeting-card-label {
   font-size: 0.75rem;
-  font-weight: 800;
+  font-weight: 700;
 }
 
 .ui-detail-modal .detail-modal--workbench .detail-greeting-drag-handle {
@@ -1367,7 +1353,7 @@ html.light-mode .ui-detail-modal .detail-modal--workbench .detail-visual-header 
 .ui-detail-modal .detail-modal--workbench .detail-filmstrip-title {
   color: var(--content-muted);
   font-size: 0.55rem;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: 0.1em;
   text-align: center;
 }
@@ -1567,7 +1553,6 @@ html.light-mode .ui-detail-modal .detail-modal--workbench .detail-thumb-label {
     overflow-x: auto;
     overflow-y: hidden;
     padding: 0.45rem 0.65rem;
-    scrollbar-width: thin;
   }
 
   .ui-detail-modal .detail-modal--workbench .detail-tab {
@@ -1770,7 +1755,7 @@ html.light-mode .ui-detail-modal .detail-modal--workbench .detail-thumb-label {
   .ui-detail-modal .detail-modal--workbench .detail-mobile-info-heading-title {
     color: var(--content-primary);
     font-size: 1rem;
-    font-weight: 900;
+    font-weight: 700;
     min-width: 0;
   }
 
@@ -1792,7 +1777,7 @@ html.light-mode .ui-detail-modal .detail-modal--workbench .detail-thumb-label {
   .ui-detail-modal .detail-modal--workbench .detail-mobile-info-token-label {
     color: var(--content-muted);
     font-size: 0.55rem;
-    font-weight: 800;
+    font-weight: 700;
     letter-spacing: 0.08em;
     line-height: 1.1;
     text-transform: uppercase;
@@ -1802,7 +1787,7 @@ html.light-mode .ui-detail-modal .detail-modal--workbench .detail-thumb-label {
     color: var(--accent-text);
     font-family: var(--font-mono, ui-monospace, SFMono-Regular, Consolas, monospace);
     font-size: 0.8rem;
-    font-weight: 900;
+    font-weight: 700;
     line-height: 1.1;
   }
 
@@ -1873,7 +1858,7 @@ html.light-mode .ui-detail-modal .detail-modal--workbench .detail-thumb-label {
   .ui-detail-modal .detail-modal--workbench .detail-mobile-info-field-label {
     color: var(--content-muted);
     font-size: 0.68rem;
-    font-weight: 800;
+    font-weight: 700;
     line-height: 1.2;
   }
 
@@ -2001,7 +1986,6 @@ html.light-mode .ui-detail-modal .detail-modal--workbench .detail-thumb-label {
   overflow-y: hidden;
   padding: 0.42rem 0.85rem 0.35rem;
   position: relative !important;
-  scrollbar-width: thin;
   top: auto !important;
 }
 
@@ -2048,8 +2032,6 @@ html.light-mode .ui-detail-modal .detail-modal--workbench .detail-thumb-label {
   overflow-x: hidden;
   overflow-y: auto;
   padding: clamp(0.85rem, 1.35vw, 1.25rem) !important;
-  scrollbar-color: var(--scrollbar-thumb) transparent;
-  scrollbar-width: thin;
 }
 
 .ui-detail-modal .detail-modal--workbench .detail-content > section[role='tabpanel'] > .detail-tab-scroll {
@@ -2329,8 +2311,6 @@ html.light-mode .ui-detail-modal .detail-modal--workbench .detail-thumb-label {
   overflow-x: hidden;
   overflow-y: auto;
   padding: clamp(0.85rem, 1.35vw, 1.25rem);
-  scrollbar-color: var(--scrollbar-thumb) transparent;
-  scrollbar-width: thin;
 }
 
 .ui-detail-modal .detail-modal--workbench #detail-panel-manage .detail-manage-layout {
@@ -3005,7 +2985,7 @@ html.light-mode .ui-detail-modal .detail-modal--workbench .detail-thumb-label {
     display: inline-flex;
     flex: 1 1 0;
     font-size: 0.78rem;
-    font-weight: 800;
+    font-weight: 700;
     gap: 0.3rem;
     justify-content: center;
     min-height: 2.75rem;
@@ -3178,7 +3158,7 @@ html.light-mode .ui-detail-modal .detail-modal--workbench .detail-thumb-label {
   .ui-detail-modal .detail-mobile-image-nav-name {
     color: var(--content-primary);
     font-size: 0.72rem;
-    font-weight: 800;
+    font-weight: 700;
   }
 
   .ui-detail-modal .detail-mobile-image-nav-count {
@@ -3198,7 +3178,7 @@ html.light-mode .ui-detail-modal .detail-modal--workbench .detail-thumb-label {
 
   .ui-detail-modal .detail-mobile-image-gallery-button span {
     font-size: 0.68rem;
-    font-weight: 800;
+    font-weight: 700;
   }
 
   .ui-detail-modal .detail-modal--workbench .detail-versions {
@@ -3806,14 +3786,14 @@ html.light-mode .ui-detail-modal .detail-modal--workbench .detail-thumb-label {
 .ui-detail-modal .detail-greeting-list-kicker {
   color: var(--content-muted);
   font-size: 0.62rem;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: 0.1em;
 }
 
 .ui-detail-modal .detail-greeting-list-heading h2 {
   color: var(--content-primary);
   font-size: 1.05rem;
-  font-weight: 850;
+  font-weight: 700;
   line-height: 1.25;
   margin: 0;
 }
@@ -3857,7 +3837,7 @@ html.light-mode .ui-detail-modal .detail-modal--workbench .detail-thumb-label {
   color: var(--content-secondary);
   display: block;
   font-size: 0.7rem;
-  font-weight: 750;
+  font-weight: 700;
   margin-bottom: 0.35rem;
 }
 
@@ -3943,7 +3923,7 @@ html.light-mode .ui-detail-modal .detail-modal--workbench .detail-thumb-label {
 .ui-detail-modal .detail-greeting-list-item-title {
   color: var(--content-primary);
   font-size: 0.75rem;
-  font-weight: 800;
+  font-weight: 700;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -3954,7 +3934,7 @@ html.light-mode .ui-detail-modal .detail-modal--workbench .detail-thumb-label {
   color: var(--action-text);
   flex: 0 0 auto;
   font-size: 0.62rem;
-  font-weight: 800;
+  font-weight: 700;
 }
 
 .ui-detail-modal .detail-greeting-list-item-excerpt {

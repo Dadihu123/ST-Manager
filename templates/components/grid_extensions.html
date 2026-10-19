@@ -49,7 +49,7 @@
         </div>
     </header>
 
-    <section class="extension-workbench-content" @dragover.prevent="dragOver = true"
+    <section class="extension-workbench-content custom-scrollbar" @dragover.prevent="dragOver = true"
         @dragleave.prevent="dragOver = false" @drop.prevent="handleDrop($event)" :aria-busy="isLoading.toString()">
         <div x-show="dragOver" class="extension-drop-overlay" role="status">
             <div class="extension-drop-icon" aria-hidden="true">{{ icon('file-import', 'ui-icon--xl ') }}</div>

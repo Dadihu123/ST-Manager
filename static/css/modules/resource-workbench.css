@@ -21,7 +21,7 @@
     var(--border-default) 78%,
     var(--surface-page)
   );
-  --resource-workbench-radius: 8px;
+  --resource-workbench-radius: var(--radius-md);
   --resource-workbench-control-height: 2.75rem;
 }
 
@@ -93,7 +93,7 @@
   overflow: hidden;
   color: var(--content-primary);
   font-size: clamp(1.1rem, 1.4vw, 1.45rem);
-  font-weight: 760;
+  font-weight: 700;
   line-height: 1.2;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -206,7 +206,7 @@
   border-radius: var(--resource-workbench-radius);
   cursor: pointer;
   font-size: 0.76rem;
-  font-weight: 650;
+  font-weight: 600;
   line-height: 1;
   transition:
     background-color 0.18s ease,
@@ -273,7 +273,7 @@
 .resource-grid-contextbar__item strong {
   overflow: hidden;
   color: var(--content-secondary);
-  font-weight: 650;
+  font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -656,7 +656,7 @@
   margin-top: 0.24rem;
   color: var(--content-secondary);
   font-size: 0.72rem;
-  font-weight: 650;
+  font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -893,7 +893,7 @@
   border-radius: 5px;
   box-shadow: none;
   font-size: 0.62rem;
-  font-weight: 750;
+  font-weight: 700;
   letter-spacing: 0.08em;
   line-height: 1;
   text-overflow: ellipsis;

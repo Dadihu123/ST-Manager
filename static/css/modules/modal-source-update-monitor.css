@@ -76,7 +76,7 @@
 .source-monitor-section-kicker {
   color: var(--content-muted);
   font-size: 0.65rem;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: 0.12em;
   line-height: 1.25;
   text-transform: uppercase;
@@ -395,7 +395,7 @@
   border-color: var(--action-border);
   background: var(--action-surface);
   color: var(--action-text);
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .source-monitor-primary-button:hover {

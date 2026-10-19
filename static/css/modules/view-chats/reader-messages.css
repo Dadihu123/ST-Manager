@@ -260,14 +260,7 @@
   display: none;
 }
 
-.chat-message-display {
-  width: 100%;
-  min-width: 0;
-}
 
-.chat-message-display + .chat-message-display {
-  margin-top: 0.9rem;
-}
 
 .chat-message-display--app {
   border-radius: var(--chat-radius-md);
@@ -281,9 +274,6 @@
   gap: 0.9rem;
 }
 
-.chat-message-segment {
-  min-width: 0;
-}
 
 .chat-message-segment.is-sideblock {
   margin-left: 0.55rem;
@@ -370,15 +360,7 @@
   gap: 0.55rem;
 }
 
-.chat-choice-item {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-}
 
-.chat-choice-item strong {
-  color: var(--content-primary);
-}
 
 .chat-floor-nav-item,
 .chat-bind-card-item {

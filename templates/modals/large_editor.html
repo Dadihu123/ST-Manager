@@ -123,6 +123,7 @@
         x-show="!markdownPreview"
         x-model="largeEditorContent"
         @paste="handleNotePaste($event)"
+        aria-label="大编辑器内容"
         class="large-editor-textarea custom-scrollbar"
         :style="largeEditorField === 'mes_example' ? 'font-family: monospace; font-size: 0.9rem;' : ''"
         placeholder="在此输入内容... (本地备注支持粘贴图片)"

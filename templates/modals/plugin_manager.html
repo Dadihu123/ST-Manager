@@ -283,7 +283,7 @@
                   <span class="plugin-form-required" x-show="isRequired(configSchema, field.key)" x-cloak>*</span>
                 </span>
                 <template x-if="field.spec.type === 'boolean'">
-                  <input type="checkbox" x-model="configDraft[field.key]">
+                  <input type="checkbox" x-model="configDraft[field.key]" :aria-label="field.spec.title || field.key">
                 </template>
                 <template x-if="field.spec.type !== 'boolean' && Array.isArray(field.spec.enum) && field.spec.enum.length">
                   {% call styled_select('configDraft[field.key]', wrapper_class='plugin-select', aria_label='配置项') %}
@@ -298,6 +298,7 @@
                       type="number"
                       class="form-input settings-number-input"
                       x-model.number="configDraft[field.key]"
+                      :aria-label="field.spec.title || field.key"
                       :min="field.spec.minimum"
                       :max="field.spec.maximum"
                       :step="field.spec.type === 'integer' ? 1 : 'any'"
@@ -322,7 +323,7 @@
                   </div>
                 </template>
                 <template x-if="field.spec.type !== 'boolean' && !(Array.isArray(field.spec.enum) && field.spec.enum.length) && field.spec.type !== 'integer' && field.spec.type !== 'number'">
-                  <input type="text" class="form-input" x-model="configDraft[field.key]">
+                  <input type="text" class="form-input" x-model="configDraft[field.key]" :aria-label="field.spec.title || field.key">
                 </template>
                 <small class="plugin-form-help" x-show="field.spec.description" x-text="field.spec.description"></small>
               </div>
@@ -362,6 +363,7 @@
                     <input
                       type="password"
                       autocomplete="new-password"
+                      :aria-label="field.spec.title || field.key"
                       :placeholder="(secretMeta[field.key] && secretMeta[field.key].hint) || '未设置'"
                       x-model="secretDraft[field.key]"
                     >
@@ -371,6 +373,7 @@
                 <template x-if="!field.spec.secret">
                   <input
                     type="text"
+                    :aria-label="field.spec.title || field.key"
                     :placeholder="(secretMeta[field.key] && secretMeta[field.key].value) || field.spec.default || ''"
                     x-model="secretDraft[field.key]"
                   >
@@ -522,7 +525,7 @@
         </p>
         <div class="plugin-form-field">
           <span class="plugin-form-label">仓库地址 <span class="plugin-form-required">*</span></span>
-          <input type="text" placeholder="owner/repo 或 https://github.com/owner/repo" x-model="githubRepo">
+          <input aria-label="仓库地址" type="text" placeholder="owner/repo 或 https://github.com/owner/repo" x-model="githubRepo">
         </div>
         <div class="plugin-github-row">
           <label class="plugin-form-field plugin-github-ref">
@@ -671,6 +674,7 @@
                         x-show="recordingKey === row.key"
                         type="text"
                         readonly
+                        aria-label="子目录 （可选，仓库内插件所在目录）"
                         class="plugin-entries-search"
                         placeholder="按下组合键…"
                         @keydown.prevent="onShortcutKeydown($event)"

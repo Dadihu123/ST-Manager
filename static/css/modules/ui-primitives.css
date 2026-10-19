@@ -57,16 +57,7 @@
   border-color: var(--accent-action-hover);
 }
 
-.ui-primitive-button--danger {
-  background-color: var(--status-danger-solid);
-  border-color: var(--status-danger-solid);
-  color: var(--content-on-status-solid);
-}
 
-.ui-primitive-button--danger:hover:not(:disabled) {
-  background-color: var(--status-danger-hover-solid);
-  border-color: var(--status-danger-hover-solid);
-}
 
 .ui-primitive-button--ghost {
   background-color: transparent;
@@ -258,7 +249,7 @@
 }
 
 .ui-primitive-error {
-  border: 1px solid var(--border-danger);
+  border: 1px solid var(--status-danger-border);
   border-radius: 0.625rem;
   background-color: var(--surface-container);
 }

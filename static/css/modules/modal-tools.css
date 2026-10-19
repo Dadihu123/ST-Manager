@@ -194,7 +194,6 @@
     width: 100%;
     overflow-x: auto;
     padding-bottom: 0.1rem;
-    scrollbar-width: thin;
   }
 
   .tag-filter-desktop-shell
@@ -1111,7 +1110,7 @@
 }
 
 .tag-category-manager-pill.is-default .tag-category-manager-name {
-  font-weight: 800;
+  font-weight: 700;
 }
 
 .tag-category-manager-pill .tag-category-manager-name {
@@ -1224,7 +1223,7 @@
 
 .tag-filter-workspace-eyebrow {
   font-size: 0.7rem;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: color-mix(in srgb, var(--content-muted), var(--content-on-dark) 8%);
@@ -1234,7 +1233,7 @@
   margin: 0;
   font-size: clamp(1.18rem, 1.1rem + 0.25vw, 1.42rem);
   line-height: 1.2;
-  font-weight: 800;
+  font-weight: 700;
   color: var(--content-primary);
 }
 
@@ -1966,7 +1965,7 @@
 
 .tag-filter-workspace-help-eyebrow {
   font-size: 0.72rem;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--accent-text);
@@ -1976,7 +1975,7 @@
 .tag-filter-workspace-help-hero h4 {
   margin: 0;
   font-size: 1.1rem;
-  font-weight: 800;
+  font-weight: 700;
   color: var(--content-primary);
 }
 
@@ -2022,7 +2021,7 @@
 .tag-filter-workspace-help-nav-title {
   margin-bottom: 0.7rem;
   font-size: 0.74rem;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--content-muted);
@@ -2126,7 +2125,7 @@
 .tag-filter-workspace-help-card-title {
   margin-bottom: 0.65rem;
   font-size: 0.88rem;
-  font-weight: 800;
+  font-weight: 700;
   color: var(--content-primary);
 }
 
@@ -2200,17 +2199,7 @@
   flex-shrink: 0;
 }
 
-.adv-list-item {
-  padding: 0.75rem 1rem;
-  border-bottom: 1px solid var(--border-default);
-  cursor: pointer;
-  transition: background 0.2s;
-  border-left: 3px solid transparent;
-}
 
-.adv-list-item:hover {
-  background-color: var(--state-hover-surface);
-}
 
 .adv-list-item.active {
   background-color: var(--surface-container);
@@ -2234,63 +2223,15 @@
   padding: 1rem;
 }
 
-.adv-section-title {
-  font-size: 0.75rem;
-  font-weight: 800;
-  text-transform: uppercase;
-  color: var(--content-muted);
-  margin-bottom: 0.75rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
 
 .advanced-settings-panel {
   background-color: var(--surface-container);
   border: 1px solid var(--border-default);
 }
 
-.test-bench-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1rem;
-  height: 200px;
-}
 
-.test-io-box {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  border: 1px solid var(--border-default);
-  border-radius: 0.375rem;
-  overflow: hidden;
-  background: var(--surface-code);
-}
 
-.test-io-header {
-  background: var(--surface-container-raised);
-  padding: 0.25rem 0.5rem;
-  font-size: 0.75rem;
-  color: var(--content-muted);
-  border-bottom: 1px solid var(--border-default);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
 
-.test-io-content {
-  flex: 1;
-  padding: 0.5rem;
-  font-family: monospace;
-  font-size: 0.8rem;
-  color: var(--content-code);
-  overflow: auto;
-  white-space: pre-wrap;
-  outline: none;
-  border: none;
-  background: transparent;
-  resize: none;
-}
 
 .test-io-render-box {
   flex: 1 1 auto;
@@ -2301,22 +2242,7 @@
   background: var(--surface-container-raised);
 }
 
-.toggle-pill {
-  display: flex;
-  background: var(--surface-container);
-  border-radius: 4px;
-  padding: 2px;
-  border: 1px solid var(--border-default);
-}
 
-.toggle-pill-btn {
-  font-size: 10px;
-  padding: 2px 8px;
-  cursor: pointer;
-  border-radius: 2px;
-  color: var(--content-muted);
-  transition: all 0.2s;
-}
 
 .toggle-pill-btn.active {
   background: var(--action-surface);
@@ -2334,22 +2260,8 @@
   color: var(--content-code);
 }
 
-.diff-pane {
-  flex: 1;
-  overflow-y: scroll;
-  overflow-x: auto;
-  padding: 10px 0;
-  border-right: 1px solid var(--border-default);
-}
 
-.diff-pane:last-child {
-  border-right: none;
-}
 
-.diff-pane::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
 
 .diff-row {
   display: flex;
@@ -2386,7 +2298,7 @@
 .diff-header {
   display: flex;
   font-size: 12px;
-  font-weight: bold;
+  font-weight: 600;
   border-bottom: 1px solid var(--border-default);
   background-color: var(--surface-container-raised);
   flex-shrink: 0;
@@ -2400,28 +2312,7 @@
   border-right: 1px solid var(--border-default);
 }
 
-.rollback-modal-container {
-  width: 95vw;
-  height: 90vh;
-  background: var(--surface-container);
-  border-radius: 12px;
-  border: 1px solid var(--border-default);
-  box-shadow: 0 25px 50px -12px color-mix(in srgb, var(--content-on-light) 80%, transparent);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  color: var(--content-primary);
-}
 
-.rb-header {
-  padding: 1rem 1.5rem;
-  background: var(--surface-container-raised);
-  border-bottom: 1px solid var(--border-default);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-shrink: 0;
-}
 
 .rb-body {
   display: flex;
@@ -2429,37 +2320,9 @@
   overflow: hidden;
 }
 
-.rb-sidebar {
-  width: 380px;
-  background: var(--surface-container-raised);
-  border-right: 1px solid var(--border-default);
-  display: flex;
-  flex-direction: column;
-  overflow-y: auto;
-  flex-shrink: 0;
-}
 
-.rb-sidebar-header {
-  display: flex;
-  padding: 0.5rem;
-  border-bottom: 1px solid var(--border-default);
-  background: var(--surface-container);
-  position: sticky;
-  top: 0;
-  z-index: 10;
-}
 
-.rb-item {
-  display: flex;
-  align-items: center;
-  border-bottom: 1px solid var(--border-default);
-  transition: background 0.2s;
-  padding-right: 0.5rem;
-}
 
-.rb-item:hover {
-  background-color: var(--state-hover-surface);
-}
 
 .rb-diff-area {
   flex: 1;
@@ -2496,14 +2359,7 @@ html.light-mode .diff-removed {
   border-left: 2px solid color-mix(in srgb, var(--status-danger-solid) 50%, transparent);
 }
 
-.toggle-checkbox:checked {
-  right: 0;
-  border-color: var(--status-success-text);
-}
 
-.toggle-checkbox:checked + .toggle-label {
-  background-color: var(--status-success-text);
-}
 
 .large-editor-nav-btn {
   background: var(--surface-container-raised);
@@ -2578,7 +2434,7 @@ html.light-mode .diff-removed {
 
 .large-editor-title {
   font-size: 1.125rem;
-  font-weight: bold;
+  font-weight: 600;
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -2712,21 +2568,11 @@ html.light-mode .diff-removed {
   cursor: pointer;
 }
 
-.btn-toggle-mode-normal {
-  background-color: color-mix(in srgb, var(--accent-action) 15%, transparent);
-  border-color: color-mix(in srgb, var(--accent-action) 40%, transparent);
-  color: var(--accent-text);
-}
 
 html.light-mode .btn-toggle-mode-normal {
   color: var(--accent-action);
 }
 
-.btn-toggle-mode-delete {
-  background-color: color-mix(in srgb, var(--status-danger-solid) 15%, transparent);
-  border-color: color-mix(in srgb, var(--status-danger-solid) 40%, transparent);
-  color: var(--status-danger-text);
-}
 
 html.light-mode .btn-toggle-mode-delete {
   color: var(--status-danger-solid);
@@ -2761,7 +2607,7 @@ html.light-mode .btn-toggle-mode-delete {
 }
 
 .status-header {
-  font-weight: bold;
+  font-weight: 600;
   color: var(--content-primary);
   border-bottom: 1px solid var(--state-hover-surface);
   margin-bottom: 8px;
@@ -2781,34 +2627,15 @@ html.light-mode .btn-toggle-mode-delete {
   border-left: 2px solid var(--accent-action);
 }
 
-.field-label {
-  font-size: 10px;
-  color: var(--content-muted);
-  text-transform: uppercase;
-}
 
 .field-value {
   font-size: 12px;
   color: var(--content-primary);
-  font-weight: bold;
+  font-weight: 600;
 }
 
-.preview-toggle-active {
-  background-color: var(--action-surface) !important;
-  color: var(--action-text) !important;
-  border: 1px solid var(--action-border);
-}
 
-.preview-toggle-inactive {
-  background-color: transparent !important;
-  color: var(--content-muted) !important;
-  border: 1px solid transparent;
-}
 
-.preview-toggle-inactive:hover {
-  color: var(--content-primary) !important;
-  background-color: var(--state-hover-surface) !important;
-}
 
 html.light-mode .preview-toggle-active {
   background-color: var(--action-surface) !important;
@@ -2830,18 +2657,7 @@ html.light-mode .preview-toggle-inactive {
   flex-direction: column;
 }
 
-.rollback-list-item {
-  padding: 10px;
-  border-bottom: 1px solid var(--border-default);
-  cursor: pointer;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
 
-.rollback-list-item:hover {
-  background: var(--state-hover-surface);
-}
 
 .rollback-list-item.active {
   background: var(--accent-soft-strong);
@@ -2859,7 +2675,7 @@ html.light-mode .preview-toggle-inactive {
   font-size: 10px;
   padding: 1px 4px;
   border-radius: 4px;
-  font-weight: bold;
+  font-weight: 600;
   margin-left: 8px;
 }
 
@@ -3112,45 +2928,12 @@ html.light-mode .preview-toggle-inactive {
   .adv-section {
     padding: 0.75rem !important;
   }
-  .adv-section-title {
-    font-size: 0.6875rem !important;
-    margin-bottom: 0.5rem !important;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-  }
-  .test-bench-grid {
-    grid-template-columns: 1fr !important;
-    height: auto !important;
-    min-height: 300px;
-    gap: 0.75rem !important;
-  }
-  .test-io-box {
-    min-height: 150px;
-    height: 200px;
-  }
-  .test-io-header {
-    padding: 0.375rem 0.5rem !important;
-    font-size: 0.6875rem !important;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-  }
-  .test-io-content {
-    padding: 0.375rem !important;
-    font-size: 0.75rem !important;
-  }
   .advanced-editor-footer {
     padding: 0.75rem !important;
     padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 0.75rem) !important;
   }
   label {
     font-size: 0.8125rem !important;
-  }
-  .toggle-pill {
-    padding: 1px !important;
-  }
-  .toggle-pill-btn {
-    font-size: 0.625rem !important;
-    padding: 2px 6px !important;
   }
   .tag-filter-mobile-topbar button {
     min-width: 44px;
@@ -3353,7 +3136,7 @@ html.light-mode .preview-toggle-inactive {
 .tag-filter-mobile-eyebrow {
   color: var(--content-muted);
   font-size: 0.67rem;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: 0.08em;
   line-height: 1.2;
   text-transform: uppercase;
@@ -3431,7 +3214,7 @@ html.light-mode .preview-toggle-inactive {
 .tag-filter-workspace-stat-value {
   color: var(--action-text);
   font-size: 0.9rem;
-  font-weight: 800;
+  font-weight: 700;
 }
 
 .tag-filter-workspace-order-badge {
@@ -3608,7 +3391,7 @@ html.light-mode .preview-toggle-inactive {
   gap: 0.38rem;
   color: var(--content-primary);
   font-size: 0.76rem;
-  font-weight: 800;
+  font-weight: 700;
 }
 
 .tag-filter-workspace-tool-area-icon,
@@ -3706,7 +3489,7 @@ html.light-mode .preview-toggle-inactive {
 .tag-filter-workspace-pool-meta > span:first-child {
   color: var(--action-text);
   font-size: 0.85rem;
-  font-weight: 800;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
 
@@ -3933,7 +3716,7 @@ html.light-mode .preview-toggle-inactive {
     margin-top: 0.15rem;
     color: var(--content-primary);
     font-size: 1rem;
-    font-weight: 800;
+    font-weight: 700;
     line-height: 1.25;
   }
 
@@ -3976,7 +3759,7 @@ html.light-mode .preview-toggle-inactive {
     background: var(--surface-container-raised);
     color: var(--content-secondary);
     font-size: 0.78rem;
-    font-weight: 800;
+    font-weight: 700;
   }
 
   .tag-filter-mobile-tabs button[aria-selected="true"] {
@@ -4201,8 +3984,13 @@ html.light-mode .preview-toggle-inactive {
 }
 
 .tag-filter-workspace-topbar-search .tag-filter-workspace-search-input {
-  min-height: 2.8rem !important;
-  padding: 0.65rem 2.7rem 0.65rem 2.55rem !important;
+  /* 与该工具栏里同排的按钮（top-tab / fullscreen / close）保持 44px 同高。
+     高度由内容决定：16px 字号的行盒 24px + 上下 padding + 2px 边框。
+     padding-block 取 0.55rem(8.8px) → 24 + 17.6 + 2 = 43.6px，再靠
+     min-height 兜到 44px。原先 0.65rem(10.4px) 会算出 46.8px，
+     同一行里搜索框比按钮高出 2.8px。 */
+  min-height: 2.75rem !important;
+  padding: 0.55rem 2.7rem 0.55rem 2.55rem !important;
   border-color: var(--form-border);
   border-radius: 0.65rem;
   background: var(--form-surface);
@@ -4591,7 +4379,6 @@ html.light-mode .preview-toggle-inactive {
   margin-bottom: 0;
   overflow-x: auto;
   overscroll-behavior-x: contain;
-  scrollbar-width: thin;
 }
 
 .tag-filter-desktop-shell .tag-category-filter-pill--workspace {
@@ -4754,20 +4541,7 @@ html.light-mode .preview-toggle-inactive {
     line-height: 1.3;
   }
 
-  .tag-filter-mobile-context {
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
-    margin-top: 0.2rem;
-    color: var(--content-muted);
-    font-size: 0.7rem;
-    font-variant-numeric: tabular-nums;
-  }
 
-  .tag-filter-mobile-context > span:first-child {
-    color: var(--action-text);
-    font-weight: 800;
-  }
 
   .tag-filter-mobile-close-btn {
     width: 2.75rem;
@@ -4875,7 +4649,6 @@ html.light-mode .preview-toggle-inactive {
     padding-bottom: 0.15rem;
     overflow-x: auto;
     overscroll-behavior-x: contain;
-    scrollbar-width: thin;
   }
 
   .tag-filter-mobile-utility .tag-category-filter-pill {
@@ -5265,7 +5038,7 @@ html.light-mode .preview-toggle-inactive {
     gap: 0.3rem;
     color: var(--content-secondary);
     font-size: 0.72rem;
-    font-weight: 800;
+    font-weight: 700;
     white-space: nowrap;
   }
 
@@ -5445,7 +5218,7 @@ html.light-mode .preview-toggle-inactive {
     border-radius: 0.5rem;
     cursor: pointer;
     font-size: 0.7rem;
-    font-weight: 800;
+    font-weight: 700;
     white-space: nowrap;
   }
 
@@ -5476,7 +5249,7 @@ html.light-mode .preview-toggle-inactive {
     gap: 0.5rem;
     color: var(--action-text);
     font-size: 0.7rem;
-    font-weight: 800;
+    font-weight: 700;
   }
 
   .tag-filter-mobile-selection-header > span:first-child,
@@ -5838,11 +5611,6 @@ html.light-mode .preview-toggle-inactive {
     grid-template-columns: 1fr;
   }
 
-  .tag-filter-mobile-category-strip-heading {
-    max-width: 4.2rem;
-    white-space: normal;
-    line-height: 1.2;
-  }
 
   .tag-filter-mobile-bottombar-status {
     flex-basis: 4.5rem;
@@ -6004,7 +5772,7 @@ html.light-mode .preview-toggle-inactive {
   .tag-filter-mobile-help-eyebrow {
     color: var(--content-muted);
     font-size: 0.62rem;
-    font-weight: 800;
+    font-weight: 700;
     letter-spacing: 0.08em;
     line-height: 1.2;
     text-transform: uppercase;
@@ -6014,7 +5782,7 @@ html.light-mode .preview-toggle-inactive {
     margin: 0.15rem 0 0;
     color: var(--content-primary);
     font-size: 1rem;
-    font-weight: 800;
+    font-weight: 700;
     line-height: 1.25;
   }
 
@@ -6062,7 +5830,6 @@ html.light-mode .preview-toggle-inactive {
     padding: 0.45rem 0.55rem 0.35rem;
     border-bottom: 1px solid var(--border-divider);
     background: var(--surface-container);
-    scrollbar-width: thin;
   }
 
   .tag-filter-mobile-help-nav-item {
@@ -6079,7 +5846,7 @@ html.light-mode .preview-toggle-inactive {
     color: var(--content-secondary);
     cursor: pointer;
     font-size: 0.7rem;
-    font-weight: 800;
+    font-weight: 700;
     white-space: nowrap;
   }
 
@@ -6109,7 +5876,6 @@ html.light-mode .preview-toggle-inactive {
     overflow-x: hidden;
     overflow-y: auto;
     padding: 0.85rem;
-    scrollbar-color: var(--scrollbar-thumb) transparent;
   }
 
   .tag-filter-mobile-help-card {
@@ -6125,7 +5891,7 @@ html.light-mode .preview-toggle-inactive {
     gap: 0.42rem;
     color: var(--content-primary);
     font-size: 0.86rem;
-    font-weight: 800;
+    font-weight: 700;
   }
 
   .tag-filter-mobile-help-card-icon {

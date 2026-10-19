@@ -359,35 +359,8 @@
   flex-wrap: wrap;
 }
 
-.chat-reader-mini-stat,
-.chat-reader-signal-pill {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 0.18rem;
-  min-width: 88px;
-  padding: 0.52rem 0.72rem;
-  border-radius: var(--chat-radius-md);
-  border: 1px solid var(--border-default);
-  background: color-mix(in srgb, var(--surface-container), transparent 2%);
-}
 
-.chat-reader-mini-stat span,
-.chat-reader-signal-pill span {
-  font-size: 0.68rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--content-muted);
-}
 
-.chat-reader-mini-stat strong,
-.chat-reader-signal-pill strong {
-  color: var(--content-primary);
-  font-size: 0.88rem;
-  line-height: 1.15;
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-}
 
 .chat-reader-signal-pill.is-hot {
   border-color: color-mix(in srgb, var(--decoration-rose-solid), transparent 56%);

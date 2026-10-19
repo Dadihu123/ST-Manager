@@ -136,6 +136,7 @@
         <input
           type="text"
           x-model="searchTerm"
+          aria-label="搜索世界书条目"
           class="w-full bg-[var(--surface-container)] border border-[var(--border-default)] rounded-full pl-9 pr-8 py-1.5 text-sm color-focus-border-accent outline-none transition-all shadow-sm"
           placeholder="搜索关键词、内容或备注..."
         />
@@ -164,6 +165,7 @@
         <input
           type="text"
           x-model="searchTerm"
+          aria-label="搜索世界书条目"
           class="w-full bg-[var(--surface-container)] border border-[var(--border-default)] rounded-full pl-9 pr-8 py-1.5 text-sm color-focus-border-accent outline-none transition-all shadow-sm"
           placeholder="搜索关键词、内容或备注..."
         />
@@ -333,6 +335,7 @@
             >
               <textarea
                 x-model="activeWiNoteDraft"
+                aria-label="条目备注"
                 class="w-full min-h-[7rem] bg-[var(--surface-page)] border border-[var(--border-default)] rounded p-2 text-xs text-[var(--content-primary)] resize-y color-focus-border-accent outline-none"
                 :placeholder="activeWiDetail?.type === 'embedded' ? '这是仅存储在角色卡中的私有备注，不会写入世界书文件...' : '这是仅存储在本地的私有备注，不会写入世界书文件...'"
               ></textarea>

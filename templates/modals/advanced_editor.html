@@ -43,7 +43,7 @@
             </div>
         </header>
 
-        <nav class="advanced-editor-tabs" role="tablist" aria-label="扩展类型">
+        <nav class="advanced-editor-tabs custom-scrollbar" role="tablist" aria-label="扩展类型">
             <button type="button" role="tab" class="advanced-editor-tab" id="advanced-tab-regex"
                 aria-controls="advanced-panel-regex" :aria-selected="(activeTab === 'regex').toString()"
                 :class="{ 'is-active': activeTab === 'regex' }"
@@ -185,7 +185,7 @@
 
                 <template x-if="activeRegexIndex !== -1 && editingData.extensions?.regex_scripts?.[activeRegexIndex]">
                     <section class="adv-editor-pane custom-scrollbar" aria-label="正则脚本编辑器">
-                        <div class="advanced-editor-scroll">
+                        <div class="advanced-editor-scroll custom-scrollbar">
                             <div class="advanced-editor-pane-heading">
                                 <div>
                                     <span class="advanced-section-eyebrow color-text-accent">REGEX RULE</span>
@@ -505,7 +505,7 @@
 
                 <template x-if="activeScriptIndex !== -1 && getTavernScripts()[activeScriptIndex]">
                     <section class="adv-editor-pane custom-scrollbar" aria-label="ST 脚本编辑器">
-                        <div class="advanced-editor-scroll">
+                        <div class="advanced-editor-scroll custom-scrollbar">
                             <div class="advanced-editor-pane-heading">
                                 <div>
                                     <span class="advanced-section-eyebrow color-text-violet">TAVERN HELPER</span>
@@ -589,6 +589,7 @@
                                     <span class="advanced-section-note">Executed by STHelper</span>
                                 </div>
                                 <textarea x-model="getTavernScripts()[activeScriptIndex].content"
+                                    aria-label="作者 / 备注信息 Info"
                                     class="form-textarea advanced-code-editor custom-scrollbar" spellcheck="false"
                                     placeholder="// write your code here..."></textarea>
                             </section>
@@ -788,7 +789,7 @@
                 </aside>
 
                 <section class="adv-editor-pane custom-scrollbar" aria-label="快速回复编辑器">
-                    <div class="advanced-editor-scroll" x-show="editingData.quick_reply">
+                    <div class="advanced-editor-scroll custom-scrollbar" x-show="editingData.quick_reply">
                         <div class="advanced-editor-pane-heading">
                             <div>
                                 <span class="advanced-section-eyebrow color-text-warning">QUICK REPLY SET</span>
@@ -861,6 +862,7 @@
                                         <span class="advanced-section-note">支持宏与 /commands</span>
                                     </div>
                                     <textarea x-model="editingData.quick_reply.qrList[activeQrIndex].message"
+                                        aria-label="标题 / 提示 Title"
                                         class="form-textarea advanced-code-editor advanced-message-editor custom-scrollbar"
                                         placeholder="输入发送给酒馆的内容" spellcheck="false"></textarea>
                                 </section>

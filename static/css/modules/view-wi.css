@@ -94,7 +94,7 @@
 
 .wi-entry-keys {
   color: var(--status-warning-text);
-  font-weight: bold;
+  font-weight: 600;
   margin-bottom: 0.25rem;
   word-break: break-all;
 }
@@ -355,9 +355,12 @@ html.light-mode .wi-badge.resource {
 }
 
 html.light-mode .wi-badge.embedded {
-  background: var(--decoration-violet);
+  /* 此前这里是 background: --decoration-violet + color: --decoration-violet-solid，
+     而浅色模式下两者取值完全相同（#6d28d9），对比度 1.00:1 —— 文字完全隐形。
+     改为与其他徽章一致的配方：浅 tint 底 + 深色文字 + 同色相描边。 */
+  background: var(--decoration-violet-surface);
   color: var(--decoration-violet-solid);
-  border-color: var(--decoration-violet);
+  border-color: var(--decoration-violet-solid);
 }
 
 html.light-mode .wi-badge.file {
@@ -380,17 +383,6 @@ html.light-mode .wi-status-disabled {
   background-color: var(--content-muted);
 }
 
-.wi-clipboard-sidebar {
-  width: 280px;
-  background-color: var(--surface-container-raised);
-  border-left: 1px solid var(--border-default);
-  color: var(--content-primary);
-  display: flex;
-  flex-direction: column;
-  flex-shrink: 0;
-  transition: width 0.3s ease;
-  overflow: hidden;
-}
 
 .wi-clipboard-sidebar.closed {
   width: 0;
@@ -451,22 +443,11 @@ html.light-mode .clipboard-item.editing {
   background-color: color-mix(in srgb, var(--decoration-violet-solid) 20%, transparent);
 }
 
-.clipboard-action-btn {
-  opacity: 0.6;
-  transition: opacity 0.2s;
-  cursor: pointer;
-  padding: 2px 6px;
-  border-radius: 4px;
-}
 
 .clipboard-item:hover .clipboard-action-btn {
   opacity: 1;
 }
 
-.clipboard-action-btn:hover {
-  background-color: var(--state-hover-surface);
-  color: var(--accent-action);
-}
 
 .wi-status-normal {
   background-color: var(--status-success-solid);
@@ -496,7 +477,7 @@ html.light-mode .clipboard-item.editing {
 
 .editor-section-title {
   font-size: 0.7rem;
-  font-weight: bold;
+  font-weight: 600;
   color: var(--content-muted);
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -519,24 +500,6 @@ html.light-mode .clipboard-item.editing {
   min-width: 4rem;
 }
 
-.edge-toggle-btn {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: var(--z-card-highlight);
-  width: 24px;
-  height: 60px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: var(--surface-container-raised);
-  border: 1px solid var(--border-default);
-  color: var(--content-muted);
-  cursor: pointer;
-  box-shadow: 0 4px 6px -1px color-mix(in srgb, var(--content-on-light) 30%, transparent);
-  transition: all 0.3s ease;
-  opacity: 0.3;
-}
 
 .edge-toggle-btn:hover,
 .edge-hover-zone:hover .edge-toggle-btn {
@@ -557,26 +520,7 @@ html.light-mode .clipboard-item.editing {
   border-right: none;
 }
 
-.wi-settings-toggle-bar {
-  width: 100%;
-  height: 24px;
-  background-color: var(--surface-container-raised);
-  border-top: 1px solid var(--border-default);
-  border-bottom: 1px solid var(--border-default);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  cursor: pointer;
-  color: var(--content-muted);
-  font-size: 12px;
-  transition: background 0.2s;
-  user-select: none;
-}
 
-.wi-settings-toggle-bar:hover {
-  background-color: var(--state-hover-surface);
-  color: var(--content-primary);
-}
 
 .help-icon {
   cursor: help;
@@ -714,7 +658,7 @@ html.light-mode .clipboard-item.editing {
   gap: 0.35rem;
   padding: 0.75rem 0.5rem;
   font-size: 0.75rem;
-  font-weight: bold;
+  font-weight: 600;
   text-align: center;
   color: var(--content-muted);
   border-bottom: 2px solid transparent;
@@ -1096,47 +1040,24 @@ input[type="checkbox"]:checked::after {
   transform: translate(-50%, -60%) rotate(45deg);
 }
 
-.custom-scrollbar::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
+/* 全站统一滚动条 —— 对齐角色卡详情页「管理」tab（.detail-section）的样式。
+ *
+ * 关键：**不要在这里或任何滚动容器上写 scrollbar-width**。
+ * 该标准属性一旦出现，Chrome 会忽略全部 ::-webkit-scrollbar-* 样式，
+ * 改用系统原生细滚动条（无箭头、颜色不受控），深色模式下表现为一条灰带。
+ *
+ * 当前配置（8px + 不写 scrollbar-width）会让浏览器渲染原生经典滚动条，
+ * 上下各带一个小箭头 —— 这是用户明确指定的目标样式。
+ */
 
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
-}
 
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background: var(--border-default);
-  border-radius: 3px;
-  transition: background 0.2s;
-}
 
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: var(--accent-action);
-}
 
 .font-mono {
   font-variant-numeric: tabular-nums;
 }
 
-.wi-inspect-card {
-  background: var(--surface-container);
-  border: 1px solid var(--border-default);
-  position: relative;
-  overflow: hidden;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  height: 120px;
-  display: flex;
-  cursor: pointer;
-  user-select: none;
-  border-radius: 8px;
-}
 
-.wi-inspect-card:hover {
-  border-color: var(--accent-text);
-  transform: translateY(-3px);
-  box-shadow: 0 8px 16px color-mix(in srgb, var(--content-on-light) 15%, transparent);
-}
 
 .wi-inspect-card.active {
   border-color: var(--accent-action);
@@ -1147,44 +1068,25 @@ input[type="checkbox"]:checked::after {
   z-index: 5;
 }
 
-.wi-inspect-status-bar {
-  transition: all 0.3s ease;
-  width: 4px;
-  height: 100%;
-  flex-shrink: 0;
-  opacity: 0.8;
-}
 
-.wi-inspect-card[data-status="constant"] .wi-inspect-status-bar {
-  background: linear-gradient(to bottom, var(--accent-action), transparent);
-}
 
 .wi-inspect-card.active[data-status="constant"] .wi-inspect-status-bar {
   background: linear-gradient(to bottom, var(--accent-text), color-mix(in srgb, var(--accent-text) 40%, transparent));
   box-shadow: 0 0 10px color-mix(in srgb, var(--accent-action) 60%, transparent);
 }
 
-.wi-inspect-card[data-status="vector"] .wi-inspect-status-bar {
-  background: linear-gradient(to bottom, var(--decoration-violet-solid), transparent);
-}
 
 .wi-inspect-card.active[data-status="vector"] .wi-inspect-status-bar {
   background: linear-gradient(to bottom, var(--decoration-violet), color-mix(in srgb, var(--decoration-violet) 40%, transparent));
   box-shadow: 0 0 10px color-mix(in srgb, var(--decoration-violet-solid) 60%, transparent);
 }
 
-.wi-inspect-card[data-status="normal"] .wi-inspect-status-bar {
-  background: linear-gradient(to bottom, var(--status-success-solid), transparent);
-}
 
 .wi-inspect-card.active[data-status="normal"] .wi-inspect-status-bar {
   background: linear-gradient(to bottom, var(--status-success-text), color-mix(in srgb, var(--status-success-text) 40%, transparent));
   box-shadow: 0 0 10px color-mix(in srgb, var(--status-success-solid) 60%, transparent);
 }
 
-.wi-inspect-card[data-status="disabled"] .wi-inspect-status-bar {
-  background: linear-gradient(to bottom, var(--content-muted), transparent);
-}
 
 .wi-inspect-card.active[data-status="disabled"] .wi-inspect-status-bar {
   background: linear-gradient(to bottom, var(--content-muted), color-mix(in srgb, var(--content-muted) 40%, transparent));
@@ -1301,16 +1203,7 @@ input:focus {
   white-space: nowrap;
 }
 
-.wi-sort-control-inline {
-  min-height: 30px;
-  font-size: 0.7rem;
-}
 
-.wi-sort-label {
-  color: var(--content-muted);
-  font-size: 0.65rem;
-  font-weight: 700;
-}
 
 .wi-sort-control select {
   min-width: 6.4rem;
@@ -1503,7 +1396,7 @@ html.light-mode .wi-reader-entry:hover {
 
 .wi-reader-keys {
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 700;
   color: color-mix(in srgb, var(--accent-action), var(--status-warning-text) 45%);
   line-height: 1.3;
   word-break: break-word;
@@ -1989,7 +1882,7 @@ html.light-mode .wi-help-modal-content {
   margin: 0;
   color: var(--content-primary);
   font-size: 0.98rem;
-  font-weight: 750;
+  font-weight: 700;
   line-height: 1.18;
   letter-spacing: 0.01em;
   display: -webkit-box;
@@ -2549,13 +2442,6 @@ html.light-mode .wi-card-back {
     max-height: min(60dvh, 24rem);
     overflow-y: auto;
   }
-  .wi-sort-control-inline {
-    flex: 1;
-  }
-  .wi-sort-control-inline select {
-    min-width: 0;
-    width: 100%;
-  }
   .wi-sort-control-inline .icon-select {
     min-width: 0;
     width: 100%;
@@ -2919,8 +2805,6 @@ html.light-mode .wi-card-back {
   max-width: 100%;
   overflow-x: auto;
   overflow-y: visible;
-  scrollbar-width: thin;
-  scrollbar-color: var(--border-default) transparent;
 }
 
 .wi-editor-actions > * {
@@ -3142,7 +3026,7 @@ html.light-mode .wi-card-back {
   display: inline-block;
   color: var(--content-muted);
   font-size: 0.64rem;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: 0.08em;
   line-height: 1.3;
   text-transform: uppercase;
@@ -4134,9 +4018,6 @@ html.light-mode .wi-card-back {
   scrollbar-width: none;
 }
 
-.wi-editor-workbench .wi-editor-actions::-webkit-scrollbar {
-  display: none;
-}
 
 /* 展开后的工具组只在实际挤压到操作栏时折叠；视口断点只调整布局尺寸。 */
 .wi-editor-workbench .wi-editor-actions[data-action-density="compact"] .wi-editor-metrics-group,
@@ -4218,7 +4099,7 @@ html.light-mode .wi-card-back {
 
 .wi-editor-workbench .wi-editor-tool-button--import:hover,
 .wi-editor-workbench .wi-editor-tool-button--import:focus-visible {
-  background: var(--surface-violet) !important;
+  background: var(--decoration-violet-surface) !important;
   color: var(--decoration-violet) !important;
 }
 
@@ -4259,7 +4140,7 @@ html.light-mode .wi-card-back {
   padding: 0.45rem 0.7rem 0.35rem;
   color: var(--content-muted);
   font-size: 0.64rem;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }

@@ -334,20 +334,12 @@ html.light-mode .chat-reader-danger-copy {
   .chat-reader-editor-grid {
     grid-template-columns: 1fr;
   }
-  .chat-reader-tab-row {
-    flex-direction: column;
-  }
   .chat-reader-rail-tabs {
     grid-template-columns: 1fr;
   }
   .chat-grid-toolbar-actions {
     border-radius: var(--chat-radius-sm);
     padding: 0.4rem 0.6rem;
-  }
-  .chat-reader-mini-stat {
-    flex-direction: row;
-    align-items: center;
-    gap: 0.45rem;
   }
   .chat-pill {
     min-height: 30px;
@@ -376,10 +368,6 @@ html.light-mode .chat-reader-danger-copy {
     width: min(100vw - 1rem, 100%);
     height: min(94dvh, 1100px);
     max-height: min(94dvh, 1100px);
-  }
-  .chat-reader-mini-stat,
-  .chat-reader-signal-pill {
-    min-width: 0;
   }
   .chat-grid-toolbar-actions,
   .chat-reader-header-main {

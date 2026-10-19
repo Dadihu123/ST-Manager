@@ -47,7 +47,7 @@
 
 .detail-filmstrip-title {
   font-size: 10px;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: 0.08em;
   color: color-mix(in srgb, var(--content-on-dark) 65%, transparent);
   text-align: center;
@@ -107,7 +107,7 @@
 
 .detail-thumb--nav .detail-thumb-symbol {
   font-size: 24px;
-  font-weight: 800;
+  font-weight: 700;
 }
 
 .detail-thumb-symbol .ui-icon {
@@ -248,7 +248,7 @@ html.light-mode .detail-thumb-label {
 .skin-gallery-kicker {
   color: var(--content-muted);
   font-size: 10px;
-  font-weight: 900;
+  font-weight: 700;
   letter-spacing: 0.08em;
 }
 
@@ -258,7 +258,7 @@ html.light-mode .detail-thumb-label {
   align-items: baseline;
   gap: 10px;
   font-size: 20px;
-  font-weight: 900;
+  font-weight: 700;
 }
 
 .skin-gallery-count {
@@ -289,7 +289,7 @@ html.light-mode .detail-thumb-label {
 .skin-gallery-control {
   padding: 0 11px;
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 700;
 }
 
 .skin-gallery-close {
@@ -462,7 +462,7 @@ html.light-mode .detail-thumb-label {
   min-width: 0;
   color: color-mix(in srgb, var(--content-on-dark) 88%, transparent);
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 700;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -568,38 +568,8 @@ html.light-mode .skin-gallery-folder-symbol {
   min-width: 0;
 }
 
-.detail-close-floating {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  padding: 0;
-  font-size: 16px;
-  z-index: 30;
-}
 
-.detail-edit-mode-floating {
-  position: absolute;
-  top: 12px;
-  right: 100px;
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  padding: 0;
-  font-size: 18px;
-  z-index: var(--z-card-selected);
-  color: var(--content-muted);
-  border: 1px solid var(--border-default);
-  transition: all 0.2s ease;
-}
 
-.detail-edit-mode-floating:hover {
-  color: var(--accent-action);
-  border-color: var(--accent-action);
-  background-color: var(--state-hover-surface);
-}
 
 .detail-edit-mode-floating.active {
   color: var(--status-warning-text);
@@ -608,26 +578,7 @@ html.light-mode .skin-gallery-folder-symbol {
   box-shadow: 0 0 12px color-mix(in srgb, var(--status-warning-text) 30%, transparent);
 }
 
-.detail-help-floating {
-  position: absolute;
-  top: 12px;
-  right: 56px;
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  padding: 0;
-  font-size: 16px;
-  font-weight: bold;
-  z-index: var(--z-card-selected);
-  color: var(--content-muted);
-  border: 1px solid var(--border-default);
-}
 
-.detail-help-floating:hover {
-  color: var(--accent-action);
-  border-color: var(--accent-action);
-  background-color: var(--state-hover-surface);
-}
 
 /* 角色详情中的阅读/编辑、帮助与关闭按钮只保留图标，不显示按钮外框。 */
 .detail-icon-btn--borderless,
@@ -657,7 +608,7 @@ html.light-mode .skin-gallery-folder-symbol {
 
 .detail-title-label {
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--content-muted);
@@ -666,7 +617,7 @@ html.light-mode .skin-gallery-folder-symbol {
 .detail-title-input {
   width: 100%;
   font-size: 22px;
-  font-weight: 900;
+  font-weight: 700;
   border: 1px solid transparent;
   background: transparent;
   color: var(--content-primary);
@@ -730,20 +681,7 @@ html.light-mode .skin-gallery-folder-symbol {
   background: var(--accent-soft-strong);
 }
 
-.detail-top-actions {
-  display: flex;
-  align-items: flex-end;
-  justify-content: flex-end;
-  flex-shrink: 0;
-  min-width: 340px;
-}
 
-.detail-actions-row {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  justify-content: flex-end;
-}
 
 .detail-circle-btn,
 .detail-square-btn,
@@ -752,11 +690,6 @@ html.light-mode .skin-gallery-folder-symbol {
   height: 36px;
 }
 
-.detail-circle-btn {
-  width: 36px;
-  border-radius: 999px;
-  padding: 0;
-}
 
 .detail-token {
   padding: 8px 10px;
@@ -768,17 +701,12 @@ html.light-mode .skin-gallery-folder-symbol {
 
 .detail-token-label {
   font-size: 10px;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--content-muted);
 }
 
-.detail-token-value {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 18px;
-  font-weight: 900;
-}
 
 .detail-token-value.ok {
   color: var(--status-success-text);
@@ -806,31 +734,18 @@ html.light-mode .skin-gallery-folder-symbol {
   background: var(--surface-container-raised);
 }
 
-.detail-square-btn {
-  width: 36px;
-  height: 36px;
-  padding: 0;
-  border-radius: 10px;
-}
 
 .detail-action-btn {
   height: 36px;
   padding: 0 12px;
   border-radius: 10px;
-  font-weight: 800;
+  font-weight: 700;
 }
 
 .detail-save-btn {
   box-shadow: 0 8px 20px color-mix(in srgb, var(--content-on-light) 25%, transparent);
 }
 
-.detail-close-btn {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  padding: 0;
-  font-size: 16px;
-}
 
 .detail-resourcebar {
   display: flex;
@@ -844,7 +759,7 @@ html.light-mode .skin-gallery-folder-symbol {
 
 .detail-resource-title {
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 700;
   color: var(--status-success-text);
 }
 
@@ -922,7 +837,7 @@ html.light-mode .skin-gallery-folder-symbol {
   border-radius: 12px;
   cursor: pointer;
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 700;
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
@@ -971,22 +886,9 @@ html.light-mode .skin-gallery-folder-symbol {
   overflow-x: hidden;
 }
 
-.detail-section::-webkit-scrollbar {
-  width: 8px;
-}
 
-.detail-section::-webkit-scrollbar-track {
-  background: transparent;
-}
 
-.detail-section::-webkit-scrollbar-thumb {
-  background: var(--scrollbar-thumb);
-  border-radius: 4px;
-}
 
-.detail-section::-webkit-scrollbar-thumb:hover {
-  background: var(--accent-text);
-}
 
 .detail-section-fill {
   flex: 1;
@@ -1014,11 +916,6 @@ html.light-mode .skin-gallery-folder-symbol {
   overflow: auto;
 }
 
-.detail-grid-2 {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
 
 .detail-card {
   border: 1px solid var(--border-default);
@@ -1041,7 +938,7 @@ html.light-mode .skin-gallery-folder-symbol {
 
 .detail-card-title {
   font-size: 13px;
-  font-weight: 900;
+  font-weight: 700;
   color: var(--content-primary);
 }
 
@@ -1066,7 +963,7 @@ html.light-mode .skin-gallery-folder-symbol {
   border: none;
   background: transparent;
   color: var(--content-primary);
-  font-weight: 900;
+  font-weight: 700;
   cursor: pointer;
 }
 
@@ -1126,7 +1023,7 @@ html.light-mode .skin-gallery-folder-symbol {
   width: 30px;
   padding: 0;
   font-size: 18px;
-  font-weight: 900;
+  font-weight: 700;
   line-height: 1;
 }
 
@@ -1137,7 +1034,7 @@ html.light-mode .skin-gallery-folder-symbol {
   min-width: 42px;
   padding: 0 8px;
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 700;
 }
 
 .detail-dialog-page-count {
@@ -1308,7 +1205,7 @@ html.light-mode .skin-gallery-folder-symbol {
   white-space: nowrap;
   color: var(--content-primary);
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 700;
 }
 
 .detail-greeting-card-excerpt {
@@ -1325,7 +1222,7 @@ html.light-mode .skin-gallery-folder-symbol {
   margin-top: auto;
   color: var(--accent-text);
   font-size: 10px;
-  font-weight: 900;
+  font-weight: 700;
 }
 
 .detail-greeting-drag-handle {
@@ -1338,7 +1235,7 @@ html.light-mode .skin-gallery-folder-symbol {
   color: var(--content-muted);
   cursor: grab;
   font-size: 16px;
-  font-weight: 900;
+  font-weight: 700;
   line-height: 1;
   touch-action: none;
   user-select: none;
@@ -1371,7 +1268,7 @@ html.light-mode .skin-gallery-folder-symbol {
   padding: 0 11px;
   border-radius: 9px;
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 700;
 }
 
 .detail-greeting-manage--side .detail-greeting-manage-btn {
@@ -1729,7 +1626,7 @@ html.light-mode .skin-gallery-folder-symbol {
   align-items: center;
   gap: 0.4rem;
   font-size: 13px;
-  font-weight: 900;
+  font-weight: 700;
   color: var(--content-primary);
   letter-spacing: 0.01em;
   margin-bottom: 12px;
@@ -1873,7 +1770,7 @@ html.light-mode .skin-gallery-folder-symbol {
   align-items: center;
   gap: 0.35rem;
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 700;
   color: var(--content-muted);
 }
 
@@ -1906,7 +1803,7 @@ html.light-mode .skin-gallery-folder-symbol {
   padding: 0 14px;
   border-radius: 0.375rem;
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 700;
   white-space: nowrap;
 }
 
@@ -1934,7 +1831,7 @@ html.light-mode .skin-gallery-folder-symbol {
 
 .detail-manage-subtitle {
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 700;
   color: var(--content-primary);
 }
 
@@ -2007,7 +1904,7 @@ html.light-mode .skin-gallery-folder-symbol {
 
 .detail-update-dropzone-title {
   font-size: 18px;
-  font-weight: 900;
+  font-weight: 700;
   color: var(--content-primary);
   overflow-wrap: anywhere;
 }
@@ -2120,7 +2017,7 @@ html.light-mode .skin-gallery-folder-symbol {
   min-height: 46px;
   padding: 0.75rem 0.9rem;
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 700;
   border-radius: 0.5rem;
   justify-content: center;
   transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -2197,7 +2094,7 @@ html.light-mode .skin-gallery-folder-symbol {
   min-height: 44px;
   padding: 0.7rem 1rem;
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 700;
   border-radius: 12px;
 }
 
@@ -2209,7 +2106,7 @@ html.light-mode .skin-gallery-folder-symbol {
   border-color: color-mix(in srgb, var(--status-warning-solid) 55%, transparent);
   color: var(--status-warning-text);
   background: color-mix(in srgb, var(--surface-container-raised), color-mix(in srgb, var(--status-warning-solid) 12%, transparent));
-  font-weight: 800;
+  font-weight: 700;
 }
 
 .detail-snapshot-btn:hover {
@@ -2337,17 +2234,12 @@ html.light-mode .skin-gallery-folder-symbol {
 
 .toolbox-title {
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 700;
   color: var(--content-muted);
   margin-bottom: 8px;
   letter-spacing: 0.04em;
 }
 
-.toolbox-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-}
 
 .toolbox-btn {
   height: 38px;
@@ -2355,7 +2247,7 @@ html.light-mode .skin-gallery-folder-symbol {
   border: 1px solid var(--border-default);
   background: var(--surface-container-raised);
   color: var(--content-primary);
-  font-weight: 800;
+  font-weight: 700;
   font-size: 13px;
   cursor: pointer;
   transition:
@@ -2523,7 +2415,7 @@ html.light-mode .toolbox-btn.purple {
   background: transparent;
   color: color-mix(in srgb, var(--content-on-dark) 70%, transparent);
   cursor: pointer;
-  font-weight: bold;
+  font-weight: 600;
 }
 
 .detail-zoom-reset:hover {
@@ -2567,19 +2459,6 @@ html.light-mode .toolbox-btn.purple {
   line-height: 1.5;
 }
 
-.detail-mtime-badge {
-  font-size: 10px;
-  font-family: ui-monospace, monospace;
-  padding: 2px 6px;
-  border-radius: 4px;
-  background: var(--surface-container-raised);
-  border: 1px solid var(--border-default);
-  color: var(--content-muted);
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  height: 100%;
-}
 
 .detail-versions {
   height: 90px !important;
@@ -2598,7 +2477,7 @@ html.light-mode .toolbox-btn.purple {
 .detail-versions-title {
   font-size: 10px;
   letter-spacing: 0.08em;
-  font-weight: 800;
+  font-weight: 700;
   color: var(--status-warning-text);
   opacity: 0.9;
   writing-mode: vertical-rl;
@@ -2753,7 +2632,8 @@ html.light-mode .toolbox-btn.purple {
   font-size: 9px;
   color: var(--content-muted);
   text-transform: uppercase;
-  font-weight: 800;
+  letter-spacing: 0.05em;
+  font-weight: 700;
   line-height: 1;
   margin-bottom: 2px;
 }
@@ -2761,7 +2641,7 @@ html.light-mode .toolbox-btn.purple {
 .topbar-token-value {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 15px;
-  font-weight: 900;
+  font-weight: 700;
   line-height: 1;
 }
 
@@ -2903,9 +2783,6 @@ html.light-mode .note-textarea:focus {
     top: 0;
     position: sticky;
   }
-  .detail-grid-2 {
-    grid-template-columns: 1fr;
-  }
   .detail-filmstrip-outside {
     display: none !important;
   }
@@ -2932,44 +2809,6 @@ html.light-mode .note-textarea:focus {
     padding-right: 90px !important;
     position: sticky;
     top: 0;
-  }
-  .detail-top-actions {
-    margin-left: auto;
-  }
-  .detail-close-floating {
-    position: absolute !important;
-    top: 10px !important;
-    right: 10px !important;
-    width: 32px;
-    height: 32px;
-    margin: 0 !important;
-  }
-  .detail-edit-mode-floating {
-    position: absolute !important;
-    top: 10px !important;
-    right: 90px !important;
-    width: 32px;
-    height: 32px;
-    margin: 0 !important;
-    font-size: 16px;
-  }
-  .detail-help-floating {
-    position: absolute !important;
-    top: 10px !important;
-    right: 50px !important;
-    width: 32px;
-    height: 32px;
-    margin: 0 !important;
-  }
-  .detail-close-floating,
-  .detail-edit-mode-floating,
-  .detail-help-floating {
-    position: relative;
-    top: auto;
-    right: auto;
-    width: 32px;
-    height: 32px;
-    margin-left: 0;
   }
 }
 
@@ -3046,18 +2885,6 @@ html.light-mode .note-textarea:focus {
   }
   .detail-topbar {
     padding-right: 14px;
-  }
-  .detail-close-floating {
-    position: relative;
-    top: auto;
-    right: auto;
-    margin-left: auto;
-  }
-  .detail-help-floating {
-    position: relative;
-    top: auto;
-    right: auto;
-    margin-right: 8px;
   }
 }
 
@@ -3194,39 +3021,11 @@ html.light-mode .note-textarea:focus {
   .topbar-token-value {
     font-size: 0.9375rem;
   }
-  .detail-top-actions {
-    min-width: 0;
-    width: 100%;
-  }
-  .detail-actions-row {
-    width: 100%;
-    gap: 0.5rem;
-  }
   .detail-action-btn {
     flex: 1;
     font-size: 0.8125rem;
     padding: 0.5rem 0.75rem;
     height: auto;
-  }
-  .detail-close-floating {
-    position: absolute;
-    top: 0.5rem;
-    right: 0.5rem;
-    width: 32px;
-    height: 32px;
-    font-size: 1.125rem;
-  }
-  .detail-help-floating {
-    position: absolute;
-    top: 0.5rem;
-    right: 3rem;
-    width: 32px;
-    height: 32px;
-    font-size: 1rem;
-    padding: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
   }
   .detail-resource-left {
     width: 100%;
@@ -3383,10 +3182,6 @@ html.light-mode .note-textarea:focus {
   }
   .detail-update-dropzone-title {
     font-size: 1rem;
-  }
-  .toolbox-grid {
-    grid-template-columns: 1fr;
-    gap: 0.5rem;
   }
   .toolbox-btn {
     font-size: 0.8125rem;
@@ -3695,10 +3490,6 @@ html.light-mode .note-textarea:focus {
   .detail-title-input {
     font-size: 18px;
   }
-  .detail-top-actions {
-    min-width: 0 !important;
-    flex: 0 0 auto;
-  }
   .detail-action-btn {
     padding: 0 10px;
   }
@@ -3714,9 +3505,6 @@ html.light-mode .note-textarea:focus {
 @media (min-width: 769px) and (max-width: 850px) {
   .detail-title-block {
     min-width: 150px;
-  }
-  .detail-actions-row {
-    gap: 4px;
   }
   .detail-action-btn {
     padding: 0 8px;
@@ -3740,10 +3528,6 @@ html.light-mode .note-textarea:focus {
   }
   .topbar-token:last-of-type {
     display: none !important;
-  }
-  .detail-top-actions {
-    min-width: 0 !important;
-    flex: 0 0 auto;
   }
 }
 
@@ -3850,7 +3634,7 @@ html.light-mode .note-textarea:focus {
   gap: 9px;
   color: var(--content-primary);
   font-size: 15px;
-  font-weight: 850;
+  font-weight: 700;
 }
 
 .detail-persona-toolbar-title span {
@@ -3985,7 +3769,7 @@ html.light-mode .note-textarea:focus {
   overflow: hidden;
   color: var(--content-primary);
   font-size: 14px;
-  font-weight: 850;
+  font-weight: 700;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -4054,7 +3838,7 @@ html.light-mode .note-textarea:focus {
   border-radius: 999px;
   color: var(--content-muted);
   font-size: 10px;
-  font-weight: 800;
+  font-weight: 700;
   line-height: 1.2;
   white-space: nowrap;
 }
@@ -4225,7 +4009,7 @@ html.light-mode .note-textarea:focus {
 .detail-persona-preview-kicker {
   color: var(--content-muted);
   font-size: 10px;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: 0.1em;
 }
 
@@ -4233,7 +4017,7 @@ html.light-mode .note-textarea:focus {
   margin: 0;
   color: var(--content-primary);
   font-size: 17px;
-  font-weight: 850;
+  font-weight: 700;
 }
 
 .detail-persona-preview-heading > span:last-child {
@@ -4350,7 +4134,7 @@ html.light-mode .note-textarea:focus {
   border-radius: 6px;
   cursor: pointer;
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 700;
 }
 
 .detail-persona-preview-btn--secondary {

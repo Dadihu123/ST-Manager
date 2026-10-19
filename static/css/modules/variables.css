@@ -10,6 +10,8 @@
   --card-min-width: 200px;
   --card-height: 24rem;
   --app-font-family: ui-sans-serif, system-ui, sans-serif;
+  /* 等宽字体栈：代码块、路径、正则等需要字形对齐的地方使用。 */
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
   --accent-main-rgb: 37, 99, 235;
   --bg-image-url: none;
   --bg-overlay-opacity: 0.95;

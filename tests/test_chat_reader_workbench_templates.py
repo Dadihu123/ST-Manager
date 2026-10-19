@@ -1684,9 +1684,26 @@ def test_chat_reader_template_uses_raw_message_as_floor_editor_primary_input():
     floor_editor_block = template_source.split('<div class="chat-bind-modal chat-reader-editor-modal chat-reader-nested-modal chat-reader-transition-surface chat-reader-editor-modal--floor"', 1)[1].split('</div>\n</div>\n\n<div x-show="bindPickerOpen"', 1)[0]
 
     assert '<div class="chat-reader-panel-title">原始正文</div>' in floor_editor_block
-    assert '<textarea x-model="editingMessageRawDraft" @input="editingMessageDraft = extractDisplayContent($event.target.value)" class="form-textarea chat-reader-floor-editor"></textarea>' in floor_editor_block
+    # 用正则而非整串相等：允许额外属性（如 aria-label）插在标签里，
+    # 但仍要求关键属性同时存在且值不变。
+    raw_editor = re.search(
+        r'<textarea\b[^>]*x-model="editingMessageRawDraft"[^>]*>', floor_editor_block
+    )
+    assert raw_editor is not None, '原始正文编辑框应以 editingMessageRawDraft 为主输入'
+    raw_tag = raw_editor.group(0)
+    assert (
+        '@input="editingMessageDraft = extractDisplayContent($event.target.value)"' in raw_tag
+    ), '原始正文编辑框应把输入同步到显示草稿'
+    assert 'class="form-textarea chat-reader-floor-editor"' in raw_tag
+
     assert '<div class="chat-reader-panel-title">显示预览</div>' in floor_editor_block
-    assert '<textarea x-model="editingMessageDraft" readonly class="form-textarea chat-reader-floor-editor chat-reader-floor-editor--raw"></textarea>' in floor_editor_block
+    preview_editor = re.search(
+        r'<textarea\b[^>]*x-model="editingMessageDraft"[^>]*>', floor_editor_block
+    )
+    assert preview_editor is not None, '显示预览框应绑定 editingMessageDraft'
+    preview_tag = preview_editor.group(0)
+    assert 'readonly' in preview_tag, '显示预览框应只读'
+    assert 'class="form-textarea chat-reader-floor-editor chat-reader-floor-editor--raw"' in preview_tag
 
 
 def test_chat_grid_open_floor_editor_seeds_primary_editor_from_raw_message_only():

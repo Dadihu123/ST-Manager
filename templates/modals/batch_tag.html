@@ -16,7 +16,7 @@
             <div style="margin-bottom:1rem;">
                 <label class="text-sm" style="color: var(--content-secondary);">添加标签到所有选中卡片</label>
                 <div class="flex gap-2 mt-1">
-                    <input type="text" x-model="batchTagInputAdd" class="form-input" placeholder="输入标签…">
+                    <input aria-label="添加标签到所有选中卡片" type="text" x-model="batchTagInputAdd" class="form-input" placeholder="输入标签…">
                     <button @click="batchAddTag(batchTagInputAdd)"
                         class="color-surface-success-solid color-hover-surface-success px-3 py-1 rounded color-text-on-dark whitespace-nowrap">添加</button>
                 </div>
@@ -25,14 +25,14 @@
             <div>
                 <label class="text-sm" style="color: var(--content-secondary);">从所有选中卡片删除标签</label>
                 <div class="flex gap-2 mt-1">
-                    <input type="text" x-model="batchTagInputRemove" class="form-input" placeholder="输入标签…">
+                    <input aria-label="从所有选中卡片删除标签" type="text" x-model="batchTagInputRemove" class="form-input" placeholder="输入标签…">
                     <button @click="batchRemoveTag(batchTagInputRemove)"
                         class="color-surface-danger-solid color-hover-surface-danger px-3 py-1 rounded color-text-on-dark whitespace-nowrap">删除</button>
                 </div>
             </div>
             <div style="margin-top:1.5rem;">
                 <h4 class="text-sm font-bold color-text-violet mb-2">从现有标签池选择（多选）</h4>
-                <input type="text" x-model="batchTagPickerSearch" placeholder="搜索标签（支持多个关键词，逗号/竖线分隔）…" class="form-input mb-2">
+                <input aria-label="从所有选中卡片删除标签" type="text" x-model="batchTagPickerSearch" placeholder="搜索标签（支持多个关键词，逗号/竖线分隔）…" class="form-input mb-2">
                 <div class="tag-category-filter-row" style="margin-bottom: 0.45rem;">
                     <button type="button" class="tag-category-filter-pill"
                         :class="isBatchCategoryFilterAllMixed ? 'active-mixed' : ''"

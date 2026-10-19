@@ -61,7 +61,7 @@
 .preset-rollback-side-label {
   color: var(--content-muted);
   font-size: 0.68rem;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: 0.06em;
   line-height: 1.25;
   text-transform: uppercase;
@@ -71,7 +71,7 @@
   margin: 0.16rem 0 0;
   color: var(--content-primary);
   font-size: 1.08rem;
-  font-weight: 800;
+  font-weight: 700;
   line-height: 1.25;
 }
 
@@ -101,7 +101,7 @@
   color: var(--content-secondary);
   background: var(--surface-container);
   font-size: 0.68rem;
-  font-weight: 800;
+  font-weight: 700;
   white-space: nowrap;
 }
 
@@ -272,7 +272,7 @@
 .preset-rollback-version-title {
   color: var(--content-primary);
   font-size: 0.76rem;
-  font-weight: 750;
+  font-weight: 700;
 }
 
 .preset-rollback-version-meta {
@@ -586,7 +586,7 @@
   color: var(--status-warning-text);
   background: var(--status-warning-surface);
   font-size: 0.61rem;
-  font-weight: 800;
+  font-weight: 700;
 }
 
 .preset-rollback-field-diff-values {
@@ -615,7 +615,7 @@
   margin-bottom: 0.35rem;
   color: var(--content-muted);
   font-size: 0.64rem;
-  font-weight: 800;
+  font-weight: 700;
 }
 
 .preset-rollback-field-value {

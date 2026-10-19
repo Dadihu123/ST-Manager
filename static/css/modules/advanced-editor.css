@@ -32,7 +32,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  padding: 0.85rem 1.15rem;
+  padding: 0.75rem 1.15rem;
   background: var(--surface-container-raised) !important;
   border-bottom: 1px solid var(--border-divider) !important;
 }
@@ -96,7 +96,7 @@
   flex-direction: column;
   align-items: flex-start;
   justify-content: center;
-  gap: 0.12rem;
+  gap: 0;
   min-width: 0;
 }
 
@@ -107,7 +107,7 @@
 .extension-summary-label {
   display: block;
   color: var(--content-muted);
-  font-size: 0.62rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.08em;
   line-height: 1.2;
@@ -128,10 +128,10 @@
 }
 
 .advanced-editor-heading-copy h2 {
-  margin-top: 0.16rem;
+  margin-top: 0.25rem;
   color: var(--content-primary);
-  font-size: 1.05rem;
-  font-weight: 750;
+  font-size: 1rem;
+  font-weight: 700;
   line-height: 1.25;
 }
 
@@ -140,10 +140,10 @@
   min-width: 0;
   max-width: min(42rem, 58vw);
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.25rem;
   overflow: hidden;
   color: var(--content-muted);
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   line-height: 1.3;
   white-space: nowrap;
 }
@@ -160,7 +160,7 @@
 
 .advanced-editor-header-meta {
   flex: 0 0 auto;
-  gap: 0.6rem;
+  gap: 0.5rem;
 }
 
 .advanced-editor-mode-badge,
@@ -170,14 +170,14 @@
   display: inline-flex;
   min-height: 1.55rem;
   align-items: center;
-  gap: 0.35rem;
-  padding: 0.18rem 0.5rem;
+  gap: 0.25rem;
+  padding: 0.25rem 0.5rem;
   color: var(--content-muted);
   background: var(--status-neutral-surface);
   border: 1px solid var(--status-neutral-border);
   border-radius: var(--ui-radius-xs);
-  font-size: 0.64rem;
-  font-weight: 650;
+  font-size: 0.75rem;
+  font-weight: 600;
   line-height: 1.2;
   white-space: nowrap;
 }
@@ -225,12 +225,12 @@
   min-height: 4.15rem;
   flex: 0 0 auto;
   align-items: stretch;
-  gap: 0.45rem;
+  gap: 0.5rem;
   overflow-x: auto;
-  padding: 0.55rem 1rem 0.4rem;
+  padding: 0.5rem 1rem 0.4rem;
   background: var(--surface-container);
   border-bottom: 1px solid var(--border-divider);
-  scrollbar-width: thin;
+  /* 不要在这里写 scrollbar-width: thin —— 该标准属性一旦出现，Chrome 会忽略全部 ::-webkit-scrollbar-* 样式，改用系统原生滚动条，深色模式下无法控制颜色。统一用 .custom-scrollbar。 */
 }
 
 .advanced-editor-tab {
@@ -239,8 +239,8 @@
   min-height: 3.2rem;
   flex: 1 1 0;
   justify-content: flex-start;
-  gap: 0.6rem;
-  padding: 0.55rem 0.8rem;
+  gap: 0.5rem;
+  padding: 0.5rem 0.8rem;
   color: var(--content-muted);
   text-align: left;
   background: transparent;
@@ -295,7 +295,7 @@
   min-width: 0;
   flex-direction: column;
   align-items: flex-start;
-  gap: 0.08rem;
+  gap: 0;
 }
 
 .advanced-editor-tab-copy strong {
@@ -309,7 +309,7 @@
 
 .advanced-editor-tab-copy small {
   color: var(--content-muted);
-  font-size: 0.61rem;
+  font-size: 0.75rem;
   font-weight: 500;
   line-height: 1.2;
 }
@@ -320,14 +320,14 @@
 .advanced-row-index {
   color: var(--content-muted);
   font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
-  font-size: 0.62rem;
+  font-size: 0.75rem;
   font-variant-numeric: tabular-nums;
 }
 
 .advanced-editor-tab-count {
   min-width: 1.45rem;
   margin-left: auto;
-  padding: 0.2rem 0.36rem;
+  padding: 0.25rem 0.36rem;
   color: var(--action-text);
   text-align: center;
   background: var(--surface-container-raised);
@@ -337,8 +337,8 @@
 .advanced-editor-feedback {
   min-height: 2.6rem;
   flex: 0 0 auto;
-  gap: 0.55rem;
-  padding: 0.55rem 1rem;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
   color: var(--status-info-text);
   background: var(--status-info-surface);
   border-bottom: 1px solid var(--status-info-border);
@@ -420,23 +420,23 @@
   flex: 0 0 auto;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 0.65rem;
+  gap: 0.75rem;
   padding: 1rem 0.95rem 0.85rem;
   background: var(--sidebar-nav-surface);
   border-bottom: 1px solid var(--border-divider);
 }
 
 .advanced-list-header h3 {
-  margin-top: 0.2rem;
+  margin-top: 0.25rem;
   color: var(--content-primary);
   font-size: 0.86rem;
-  font-weight: 750;
+  font-weight: 700;
 }
 
 .advanced-list-header p {
   margin-top: 0.25rem;
   color: var(--content-muted);
-  font-size: 0.64rem;
+  font-size: 0.75rem;
   line-height: 1.35;
 }
 
@@ -444,12 +444,12 @@
   flex: 0 0 auto;
   flex-wrap: wrap;
   justify-content: flex-end;
-  gap: 0.3rem;
+  gap: 0.25rem;
 }
 
 .advanced-entry-list {
   min-width: 0;
-  padding: 0.55rem 0.45rem 1rem;
+  padding: 0.5rem 0.45rem 1rem;
 }
 
 .advanced-entry {
@@ -459,8 +459,8 @@
   min-height: 4.6rem;
   align-items: center;
   gap: 0.5rem;
-  margin: 0.18rem 0;
-  padding: 0.7rem 0.55rem 0.7rem 0.75rem;
+  margin: 0.25rem 0;
+  padding: 0.75rem 0.55rem 0.7rem 0.75rem;
   color: var(--content-secondary);
   text-align: left;
   background: transparent;
@@ -503,7 +503,7 @@ button.advanced-entry {
   min-width: 0;
   align-items: baseline;
   justify-content: space-between;
-  gap: 0.35rem;
+  gap: 0.25rem;
 }
 
 .advanced-entry-title,
@@ -523,7 +523,7 @@ button.advanced-entry {
 .advanced-entry-preview {
   color: var(--content-muted);
   font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
-  font-size: 0.62rem;
+  font-size: 0.75rem;
   line-height: 1.35;
 }
 
@@ -536,11 +536,11 @@ button.advanced-entry {
 
 .advanced-status-chip {
   min-height: 1.25rem;
-  padding: 0.12rem 0.32rem;
+  padding: 0 0.32rem;
   color: var(--content-muted);
   background: var(--status-neutral-surface);
   border-color: var(--status-neutral-border);
-  font-size: 0.58rem;
+  font-size: 0.75rem;
 }
 
 .advanced-status-chip.is-accent,
@@ -578,7 +578,7 @@ button.advanced-entry {
   flex: 0 0 auto;
   color: var(--content-muted);
   font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
-  font-size: 0.58rem;
+  font-size: 0.75rem;
   font-variant-numeric: tabular-nums;
 }
 
@@ -595,7 +595,7 @@ button.advanced-entry {
   flex: 0 0 auto;
   grid-template-columns: repeat(2, 1.72rem);
   grid-template-rows: repeat(2, 1.72rem);
-  gap: 0.12rem 0.22rem;
+  gap: 0 0.22rem;
   opacity: 0;
   pointer-events: none;
   transition: opacity 140ms ease;
@@ -705,10 +705,10 @@ button.advanced-entry {
   min-height: 2.25rem;
   align-items: center;
   justify-content: center;
-  gap: 0.38rem;
-  padding: 0.42rem 0.7rem;
+  gap: 0.5rem;
+  padding: 0.5rem 0.7rem;
   color: var(--content-secondary);
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   font-weight: 700;
   line-height: 1.2;
   background: var(--surface-container-raised);
@@ -767,18 +767,7 @@ button.advanced-entry {
   border-color: var(--status-success-solid);
 }
 
-.advanced-text-button--warning {
-  color: var(--status-warning-text);
-  background: var(--status-warning-surface);
-  border-color: var(--status-warning-border);
-}
 
-.advanced-text-button--warning:hover,
-.advanced-text-button--warning:focus-visible {
-  color: var(--status-warning-text);
-  background: color-mix(in srgb, var(--status-warning-surface) 72%, var(--state-hover-surface));
-  border-color: var(--status-warning-text);
-}
 
 .advanced-editor-container .advanced-macro-select-menu {
   font-size: 0.72rem;
@@ -786,7 +775,7 @@ button.advanced-entry {
 
 .advanced-editor-container .advanced-macro-select-menu .icon-select-option {
   min-height: 1.9rem;
-  padding: 0.32rem 0.5rem;
+  padding: 0.25rem 0.5rem;
 }
 
 .advanced-text-button--danger {
@@ -824,7 +813,7 @@ button.advanced-entry {
   overflow-x: hidden;
   overflow-y: auto;
   padding: 1.15rem 1.25rem 2rem;
-  scrollbar-width: thin;
+  /* 不要在这里写 scrollbar-width: thin —— 该标准属性一旦出现，Chrome 会忽略全部 ::-webkit-scrollbar-* 样式，改用系统原生滚动条，深色模式下无法控制颜色。统一用 .custom-scrollbar。 */
 }
 
 .advanced-editor-pane-heading {
@@ -837,11 +826,11 @@ button.advanced-entry {
 }
 
 .advanced-editor-pane-heading h3 {
-  margin-top: 0.2rem;
+  margin-top: 0.25rem;
   overflow: hidden;
   color: var(--content-primary);
-  font-size: 1.06rem;
-  font-weight: 750;
+  font-size: 1rem;
+  font-weight: 700;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -855,7 +844,7 @@ button.advanced-entry {
 
 .advanced-editor-container .adv-section {
   min-width: 0;
-  margin-bottom: 0.85rem;
+  margin-bottom: 0.75rem;
   padding: 1rem;
   color: var(--content-primary);
   background: var(--surface-container) !important;
@@ -866,8 +855,8 @@ button.advanced-entry {
 .advanced-section-heading {
   min-width: 0;
   justify-content: space-between;
-  gap: 0.8rem;
-  margin-bottom: 0.9rem;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
 }
 
 .advanced-section-heading > div:first-child {
@@ -877,11 +866,11 @@ button.advanced-entry {
 .advanced-section-heading h4 {
   display: flex;
   align-items: center;
-  gap: 0.38rem;
-  margin-top: 0.18rem;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
   color: var(--content-primary);
   font-size: 0.86rem;
-  font-weight: 750;
+  font-weight: 700;
   line-height: 1.3;
 }
 
@@ -891,14 +880,14 @@ button.advanced-entry {
 
 .advanced-section-note {
   color: var(--content-muted);
-  font-size: 0.64rem;
+  font-size: 0.75rem;
   line-height: 1.4;
 }
 
 .advanced-form-grid {
   display: grid;
   min-width: 0;
-  gap: 0.85rem;
+  gap: 0.75rem;
 }
 
 .advanced-form-grid--identity {
@@ -913,11 +902,11 @@ button.advanced-entry {
   display: flex;
   min-width: 0;
   flex-direction: column;
-  gap: 0.42rem;
+  gap: 0.5rem;
 }
 
 .advanced-field--full {
-  margin-top: 0.85rem;
+  margin-top: 0.75rem;
 }
 
 .advanced-field--row {
@@ -936,14 +925,14 @@ button.advanced-entry {
   justify-content: space-between;
   gap: 0.5rem;
   color: var(--content-secondary);
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   font-weight: 700;
   line-height: 1.3;
 }
 
 .advanced-editor-container .form-label small {
   color: var(--content-muted);
-  font-size: 0.58rem;
+  font-size: 0.75rem;
   font-weight: 500;
 }
 
@@ -951,7 +940,7 @@ button.advanced-entry {
   display: inline-flex;
   min-width: 0;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.25rem;
 }
 
 .advanced-editor-container .form-input,
@@ -960,7 +949,7 @@ button.advanced-entry {
   width: 100%;
   min-width: 0;
   min-height: 2.45rem;
-  padding: 0.56rem 0.65rem;
+  padding: 0.5rem 0.65rem;
   color: var(--content-primary);
   font-size: 0.75rem;
   line-height: 1.4;
@@ -1040,15 +1029,15 @@ button.advanced-entry {
   align-items: center;
   gap: 0.48rem;
   color: var(--content-secondary);
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   line-height: 1.3;
   cursor: pointer;
 }
 
 .advanced-check-row small {
-  margin-left: 0.2rem;
+  margin-left: 0.25rem;
   color: var(--content-muted);
-  font-size: 0.58rem;
+  font-size: 0.75rem;
   font-weight: 500;
 }
 
@@ -1067,8 +1056,8 @@ button.advanced-entry {
   display: flex;
   min-width: 0;
   align-items: flex-start;
-  gap: 0.55rem;
-  padding: 0.65rem 0.7rem;
+  gap: 0.5rem;
+  padding: 0.75rem 0.7rem;
   color: var(--content-secondary);
   background: var(--surface-container-raised);
   border: 1px solid var(--border-subtle);
@@ -1102,13 +1091,13 @@ button.advanced-entry {
   display: flex;
   min-width: 0;
   flex-direction: column;
-  gap: 0.15rem;
+  gap: 0.25rem;
 }
 
 .advanced-toggle-copy strong,
 .advanced-choice-card strong {
   color: var(--content-primary);
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   font-weight: 700;
   line-height: 1.25;
 }
@@ -1117,14 +1106,14 @@ button.advanced-entry {
 .advanced-choice-card small {
   overflow-wrap: anywhere;
   color: var(--content-muted);
-  font-size: 0.59rem;
+  font-size: 0.75rem;
   line-height: 1.35;
 }
 
 .advanced-choice-grid {
   display: grid;
   min-width: 0;
-  gap: 0.55rem;
+  gap: 0.5rem;
 }
 
 .advanced-choice-grid--placement {
@@ -1144,18 +1133,18 @@ button.advanced-entry {
 }
 
 .advanced-choice-card input {
-  margin-top: 0.12rem;
+  margin-top: 0;
 }
 
 .advanced-scope-limits {
-  margin-top: 0.9rem;
+  margin-top: 1rem;
 }
 
 .advanced-number-pair {
   display: grid;
   min-width: 0;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.55rem;
+  gap: 0.5rem;
 }
 
 .ui-number-control {
@@ -1169,7 +1158,7 @@ button.advanced-entry {
   top: 0.64rem;
   left: 0.62rem;
   color: var(--content-muted);
-  font-size: 0.6rem;
+  font-size: 0.75rem;
   pointer-events: none;
 }
 
@@ -1238,10 +1227,10 @@ button.advanced-entry {
   min-height: 2.35rem;
   align-items: center;
   justify-content: space-between;
-  gap: 0.6rem;
+  gap: 0.5rem;
   padding: 0.48rem 0.65rem;
   color: var(--content-secondary);
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   font-weight: 700;
   background: var(--surface-container-raised);
   border-bottom: 1px solid var(--border-subtle);
@@ -1249,7 +1238,7 @@ button.advanced-entry {
 
 .advanced-test-panel-heading small {
   color: var(--content-muted);
-  font-size: 0.57rem;
+  font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.08em;
 }
@@ -1260,11 +1249,11 @@ button.advanced-entry {
   width: 100%;
   min-height: 12.6rem;
   flex: 1 1 auto;
-  padding: 0.7rem;
+  padding: 0.75rem;
   overflow: auto;
   color: var(--content-code);
   font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   line-height: 1.55;
   white-space: pre-wrap;
   word-break: break-word;
@@ -1279,7 +1268,7 @@ button.advanced-entry {
 
 .advanced-segmented-control {
   display: inline-flex;
-  padding: 0.15rem;
+  padding: 0.25rem;
   background: var(--surface-container);
   border: 1px solid var(--border-default);
   border-radius: var(--ui-radius-xs);
@@ -1289,7 +1278,7 @@ button.advanced-entry {
   min-height: 1.65rem;
   padding: 0.25rem 0.48rem;
   color: var(--content-muted);
-  font-size: 0.6rem;
+  font-size: 0.75rem;
   font-weight: 700;
   background: transparent;
   border: 0;
@@ -1307,15 +1296,15 @@ button.advanced-entry {
   display: flex;
   min-width: 0;
   flex-direction: column;
-  gap: 0.45rem;
+  gap: 0.5rem;
 }
 
 .advanced-script-button-row {
   display: flex;
   min-width: 0;
   align-items: center;
-  gap: 0.45rem;
-  padding: 0.4rem;
+  gap: 0.5rem;
+  padding: 0.5rem;
   background: var(--surface-container-raised);
   border: 1px solid var(--border-subtle);
   border-radius: var(--ui-radius-sm);
@@ -1330,8 +1319,8 @@ button.advanced-entry {
 .advanced-check-row--compact {
   min-height: 2rem;
   flex: 0 0 auto;
-  padding: 0.2rem 0.3rem;
-  font-size: 0.62rem;
+  padding: 0.25rem 0.3rem;
+  font-size: 0.75rem;
 }
 
 .advanced-code-section,
@@ -1348,7 +1337,7 @@ button.advanced-entry {
   resize: vertical !important;
   color: var(--status-warning-text) !important;
   font-family: ui-monospace, SFMono-Regular, Consolas, monospace !important;
-  font-size: 0.7rem !important;
+  font-size: 0.75rem !important;
   line-height: 1.55 !important;
 }
 
@@ -1362,9 +1351,9 @@ button.advanced-entry {
   min-height: 2rem;
   align-items: center;
   justify-content: center;
-  gap: 0.4rem;
+  gap: 0.5rem;
   color: var(--content-muted);
-  font-size: 0.64rem;
+  font-size: 0.75rem;
   line-height: 1.35;
 }
 
@@ -1376,7 +1365,7 @@ button.advanced-entry {
   display: grid;
   min-width: 0;
   grid-template-columns: minmax(0, 1.25fr) minmax(14rem, 0.75fr);
-  gap: 0.8rem;
+  gap: 0.75rem;
 }
 
 .advanced-runtime-main,
@@ -1385,18 +1374,18 @@ button.advanced-entry {
   min-width: 0;
   min-height: 0;
   flex-direction: column;
-  gap: 0.65rem;
+  gap: 0.75rem;
 }
 
 .advanced-runtime-actions {
   flex-wrap: wrap;
   justify-content: flex-end;
-  gap: 0.35rem;
+  gap: 0.25rem;
 }
 
 .advanced-runtime-status-row {
   flex-wrap: wrap;
-  gap: 0.45rem;
+  gap: 0.5rem;
 }
 
 .advanced-runtime-status.is-running {
@@ -1422,7 +1411,7 @@ button.advanced-entry {
   overflow: hidden;
   color: var(--content-muted);
   font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
-  font-size: 0.6rem;
+  font-size: 0.75rem;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1431,13 +1420,13 @@ button.advanced-entry {
   display: flex;
   min-width: 0;
   flex-direction: column;
-  gap: 0.35rem;
-  padding: 0.6rem 0.7rem;
+  gap: 0.25rem;
+  padding: 0.5rem 0.7rem;
   color: var(--content-muted);
   background: var(--surface-container-raised);
   border: 1px solid var(--border-subtle);
   border-radius: var(--ui-radius-sm);
-  font-size: 0.61rem;
+  font-size: 0.75rem;
   line-height: 1.45;
 }
 
@@ -1450,7 +1439,7 @@ button.advanced-entry {
 .advanced-runtime-info strong {
   flex: 0 0 6.2rem;
   color: var(--status-success-text);
-  font-size: 0.61rem;
+  font-size: 0.75rem;
 }
 
 .advanced-runtime-info span {
@@ -1463,13 +1452,13 @@ button.advanced-entry {
   display: flex;
   min-width: 0;
   align-items: flex-start;
-  gap: 0.4rem;
-  padding: 0.55rem 0.65rem;
+  gap: 0.5rem;
+  padding: 0.5rem 0.65rem;
   color: var(--status-danger-text);
   background: var(--status-danger-surface);
   border: 1px solid var(--status-danger-border);
   border-radius: var(--ui-radius-sm);
-  font-size: 0.64rem;
+  font-size: 0.75rem;
   line-height: 1.4;
   overflow-wrap: anywhere;
 }
@@ -1494,9 +1483,9 @@ button.advanced-entry {
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
-  padding: 0.45rem 0.65rem;
+  padding: 0.5rem 0.65rem;
   color: var(--content-secondary);
-  font-size: 0.64rem;
+  font-size: 0.75rem;
   font-weight: 700;
   background: var(--surface-container-raised);
   border-bottom: 1px solid var(--border-subtle);
@@ -1504,7 +1493,7 @@ button.advanced-entry {
 
 .advanced-runtime-stage-heading small {
   color: var(--content-muted);
-  font-size: 0.56rem;
+  font-size: 0.75rem;
   letter-spacing: 0.08em;
 }
 
@@ -1515,15 +1504,15 @@ button.advanced-entry {
 }
 
 .advanced-runtime-buttons {
-  padding: 0.65rem;
+  padding: 0.75rem;
 }
 
 .advanced-runtime-subheading {
   min-width: 0;
   justify-content: space-between;
-  gap: 0.55rem;
+  gap: 0.5rem;
   color: var(--content-secondary);
-  font-size: 0.66rem;
+  font-size: 0.75rem;
   font-weight: 700;
 }
 
@@ -1531,19 +1520,19 @@ button.advanced-entry {
   display: inline-flex;
   min-width: 0;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.25rem;
 }
 
 .advanced-runtime-button-list {
   flex-direction: row;
   flex-wrap: wrap;
-  margin-top: 0.55rem;
+  margin-top: 0.5rem;
 }
 
 .advanced-runtime-trigger {
   min-height: 2.15rem;
   max-width: 100%;
-  padding: 0.35rem 0.6rem;
+  padding: 0.25rem 0.6rem;
   overflow: hidden;
   color: var(--action-text);
   text-overflow: ellipsis;
@@ -1570,19 +1559,19 @@ button.advanced-entry {
   min-height: 14rem;
   max-height: 26rem;
   overflow: auto;
-  padding: 0.45rem 0.6rem;
+  padding: 0.5rem 0.6rem;
 }
 
 .advanced-log-entry {
   display: grid;
   min-width: 0;
   grid-template-columns: 4.9rem 3.3rem minmax(0, 1fr);
-  gap: 0.4rem;
-  padding: 0.38rem 0;
+  gap: 0.5rem;
+  padding: 0.5rem 0;
   color: var(--content-secondary);
   border-bottom: 1px solid var(--border-subtle);
   font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
-  font-size: 0.6rem;
+  font-size: 0.75rem;
   line-height: 1.4;
 }
 
@@ -1596,8 +1585,9 @@ button.advanced-entry {
 
 .advanced-log-entry strong {
   color: var(--content-muted);
-  font-size: 0.57rem;
+  font-size: 0.75rem;
   text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .advanced-log-entry span {
@@ -1622,18 +1612,18 @@ button.advanced-entry {
 }
 
 .advanced-data-section .advanced-section-note {
-  margin: 0.45rem 0 0;
+  margin: 0.5rem 0 0;
 }
 
 .advanced-inline-callout {
-  gap: 0.45rem;
-  margin-top: 0.85rem;
-  padding: 0.6rem 0.7rem;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  padding: 0.5rem 0.7rem;
   color: var(--content-muted);
   background: var(--status-warning-surface);
   border: 1px solid var(--status-warning-border);
   border-radius: var(--ui-radius-sm);
-  font-size: 0.64rem;
+  font-size: 0.75rem;
   line-height: 1.4;
 }
 
@@ -1655,12 +1645,14 @@ button.advanced-entry {
 
 .advanced-empty-state {
   display: flex;
-  max-width: 22rem;
+  /* 24rem：字号统一到 12px 下限后，22rem 装不下「导入已有规则，或从空白规则开始」，
+     会出现孤字成行（widow）。行宽上限应随字号一起调整。 */
+  max-width: 24rem;
   flex-direction: column;
   align-items: center;
-  gap: 0.65rem;
+  gap: 0.75rem;
   color: var(--content-muted);
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   line-height: 1.45;
 }
 
@@ -1674,7 +1666,7 @@ button.advanced-entry {
 
 .advanced-empty-state strong {
   color: var(--content-secondary);
-  font-size: 0.82rem;
+  font-size: 0.875rem;
 }
 
 .advanced-empty-state p {
@@ -1687,11 +1679,11 @@ button.advanced-entry {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.45rem;
+  gap: 0.5rem;
   padding: 1.5rem 1rem;
   color: var(--content-muted);
   text-align: center;
-  font-size: 0.65rem;
+  font-size: 0.75rem;
   line-height: 1.4;
 }
 
@@ -1709,8 +1701,8 @@ button.advanced-entry {
   min-height: 2.25rem;
   align-items: center;
   justify-content: center;
-  gap: 0.35rem;
-  padding: 0.35rem 0.55rem;
+  gap: 0.25rem;
+  padding: 0.25rem 0.55rem;
   flex: 0 0 auto;
   color: var(--action-text);
   background: var(--action-surface);
@@ -1754,7 +1746,7 @@ button.advanced-entry {
   flex-wrap: wrap;
   gap: 0.28rem 0.65rem;
   color: var(--content-muted);
-  font-size: 0.64rem;
+  font-size: 0.75rem;
   line-height: 1.4;
 }
 
@@ -1769,7 +1761,7 @@ button.advanced-entry {
   overflow: hidden;
   color: var(--content-muted);
   font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
-  font-size: 0.58rem;
+  font-size: 0.75rem;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1778,7 +1770,7 @@ button.advanced-entry {
   flex: 0 0 auto;
   flex-wrap: wrap;
   justify-content: flex-end;
-  gap: 0.45rem;
+  gap: 0.5rem;
 }
 
 .advanced-footer-actions .advanced-text-button {
@@ -1799,8 +1791,8 @@ button.advanced-entry {
   display: grid;
   width: min(30rem, 100%);
   grid-template-columns: auto minmax(0, 1fr);
-  gap: 0.8rem 0.9rem;
-  padding: 1.1rem;
+  gap: 0.75rem 0.9rem;
+  padding: 1rem;
   background: var(--surface-container-raised);
   border: 1px solid var(--status-danger-border);
   border-radius: var(--ui-radius-md);
@@ -1822,23 +1814,23 @@ button.advanced-entry {
 }
 
 .advanced-delete-content h3 {
-  margin: 0.2rem 0 0;
+  margin: 0.25rem 0 0;
   color: var(--content-primary);
   font-size: 0.9rem;
 }
 
 .advanced-delete-content p {
-  margin: 0.45rem 0 0;
+  margin: 0.5rem 0 0;
   color: var(--content-secondary);
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   line-height: 1.5;
 }
 
 .advanced-delete-actions {
   grid-column: 1 / -1;
   justify-content: flex-end;
-  gap: 0.45rem;
-  margin-top: 0.3rem;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
 }
 
 /* Extension file workbench --------------------------------------------- */
@@ -1868,7 +1860,7 @@ button.advanced-entry {
 
 .extension-workbench-title-group {
   min-width: 0;
-  gap: 0.8rem;
+  gap: 0.75rem;
 }
 
 .extension-workbench-title-icon {
@@ -1888,11 +1880,11 @@ button.advanced-entry {
 }
 
 .extension-workbench-title-group h1 {
-  margin-top: 0.16rem;
+  margin-top: 0.25rem;
   overflow: hidden;
   color: var(--content-primary);
   font-size: 1.1rem;
-  font-weight: 750;
+  font-weight: 700;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1902,7 +1894,7 @@ button.advanced-entry {
   margin-top: 0.24rem;
   overflow: hidden;
   color: var(--content-muted);
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   line-height: 1.35;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1912,23 +1904,10 @@ button.advanced-entry {
   flex: 0 0 auto;
   flex-wrap: wrap;
   justify-content: flex-end;
-  gap: 0.45rem;
+  gap: 0.5rem;
 }
 
-.extension-workbench-count {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 0.28rem;
-  padding: 0.3rem 0.5rem;
-  color: var(--content-muted);
-  font-size: 0.64rem;
-}
 
-.extension-workbench-count strong {
-  color: var(--content-primary);
-  font-size: 0.92rem;
-  font-variant-numeric: tabular-nums;
-}
 
 .extension-workbench-content {
   position: relative;
@@ -1939,14 +1918,14 @@ button.advanced-entry {
   overflow-y: auto;
   padding: 0 1.25rem 1.25rem;
   background: var(--surface-page);
-  scrollbar-width: thin;
+  /* 不要在这里写 scrollbar-width: thin —— 该标准属性一旦出现，Chrome 会忽略全部 ::-webkit-scrollbar-* 样式，改用系统原生滚动条，深色模式下无法控制颜色。统一用 .custom-scrollbar。 */
 }
 
 .extension-summary-strip {
   min-width: 0;
   flex-wrap: wrap;
   gap: 0.75rem 2rem;
-  padding: 0.8rem 0 0.9rem;
+  padding: 0.75rem 0 0.9rem;
   color: var(--content-muted);
   border-bottom: 1px solid var(--border-divider);
 }
@@ -1957,11 +1936,11 @@ button.advanced-entry {
 
 .extension-summary-strip strong {
   display: block;
-  margin-top: 0.18rem;
+  margin-top: 0.25rem;
   overflow: hidden;
   color: var(--content-secondary);
-  font-size: 0.67rem;
-  font-weight: 650;
+  font-size: 0.75rem;
+  font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1979,8 +1958,8 @@ button.advanced-entry {
   min-width: 0;
   min-height: 9.3rem;
   flex-direction: column;
-  gap: 0.8rem;
-  padding: 0.9rem;
+  gap: 0.75rem;
+  padding: 1rem;
   color: var(--content-primary);
   background: var(--surface-container);
   border: 1px solid var(--border-subtle);
@@ -2004,7 +1983,7 @@ button.advanced-entry {
 .extension-file-card-header {
   min-width: 0;
   align-items: flex-start;
-  gap: 0.65rem;
+  gap: 0.75rem;
 }
 
 .extension-list-entry-icon {
@@ -2025,7 +2004,7 @@ button.advanced-entry {
 .extension-file-card-title-row {
   min-width: 0;
   align-items: flex-start;
-  gap: 0.35rem;
+  gap: 0.25rem;
 }
 
 .extension-file-card-title-row h2 {
@@ -2033,7 +2012,7 @@ button.advanced-entry {
   flex: 1 1 auto;
   overflow: hidden;
   font-size: 0.78rem;
-  font-weight: 750;
+  font-weight: 700;
   line-height: 1.35;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2044,7 +2023,7 @@ button.advanced-entry {
   overflow: hidden;
   color: var(--content-muted);
   font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
-  font-size: 0.6rem;
+  font-size: 0.75rem;
   line-height: 1.4;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2053,11 +2032,11 @@ button.advanced-entry {
 .extension-file-source-badge {
   min-height: 1.35rem;
   flex: 0 0 auto;
-  padding: 0.12rem 0.34rem;
+  padding: 0 0.34rem;
   color: var(--status-success-text);
   background: var(--status-success-surface);
   border-color: var(--status-success-border);
-  font-size: 0.53rem;
+  font-size: 0.75rem;
   letter-spacing: 0.05em;
 }
 
@@ -2067,14 +2046,6 @@ button.advanced-entry {
   border-color: var(--action-border);
 }
 
-.extension-file-open-icon {
-  display: grid;
-  width: 1.75rem;
-  height: 1.75rem;
-  flex: 0 0 1.75rem;
-  place-items: center;
-  color: var(--icon-muted);
-}
 
 .extension-file-card:hover .extension-file-open-icon,
 .extension-file-card:focus-visible .extension-file-open-icon {
@@ -2084,18 +2055,18 @@ button.advanced-entry {
 .extension-file-card-footer {
   min-width: 0;
   justify-content: space-between;
-  gap: 0.6rem;
+  gap: 0.5rem;
   margin-top: auto;
   padding-top: 0.7rem;
   color: var(--content-muted);
   border-top: 1px solid var(--border-subtle);
-  font-size: 0.6rem;
+  font-size: 0.75rem;
 }
 
 .extension-file-source {
   min-width: 0;
   flex: 1 1 auto;
-  gap: 0.3rem;
+  gap: 0.25rem;
   color: var(--status-success-text);
 }
 
@@ -2121,7 +2092,7 @@ button.advanced-entry {
   inset: 0.7rem;
   flex-direction: column;
   justify-content: center;
-  gap: 0.55rem;
+  gap: 0.5rem;
   color: var(--content-on-dark);
   text-align: center;
   background: color-mix(in srgb, var(--accent-action) 86%, var(--surface-page));
@@ -2143,7 +2114,7 @@ button.advanced-entry {
 
 .extension-drop-overlay span {
   color: color-mix(in srgb, var(--content-on-dark) 76%, transparent);
-  font-size: 0.68rem;
+  font-size: 0.75rem;
 }
 
 .extension-loading-state,
@@ -2154,7 +2125,7 @@ button.advanced-entry {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.65rem;
+  gap: 0.75rem;
   padding: 2rem 1rem;
   color: var(--content-muted);
   text-align: center;
@@ -2172,8 +2143,8 @@ button.advanced-entry {
   display: flex;
   min-height: 8.8rem;
   flex-direction: column;
-  gap: 0.7rem;
-  padding: 0.9rem;
+  gap: 0.75rem;
+  padding: 1rem;
   background: var(--surface-container);
   border: 1px solid var(--border-subtle);
   border-radius: var(--ui-radius-md);
@@ -2201,7 +2172,7 @@ button.advanced-entry {
 }
 
 .extension-loading-label {
-  gap: 0.45rem;
+  gap: 0.5rem;
   color: var(--content-secondary);
   font-size: 0.72rem;
 }
@@ -2226,7 +2197,7 @@ button.advanced-entry {
   max-width: 28rem;
   margin: 0;
   color: var(--content-muted);
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   line-height: 1.5;
 }
 
@@ -2273,7 +2244,7 @@ button.advanced-entry {
   }
 
   .advanced-editor-heading {
-    gap: 0.55rem;
+    gap: 0.5rem;
   }
 
   .advanced-editor-heading-icon--desktop {
@@ -2305,13 +2276,13 @@ button.advanced-entry {
 
   .advanced-editor-tabs {
     min-height: 3.65rem;
-    padding: 0.35rem 0.55rem 0.3rem;
+    padding: 0.25rem 0.55rem 0.3rem;
   }
 
   .advanced-editor-tab {
     min-height: 3rem;
-    gap: 0.35rem;
-    padding: 0.45rem 0.45rem;
+    gap: 0.25rem;
+    padding: 0.5rem 0.45rem;
   }
 
   .advanced-editor-tab::after {
@@ -2320,7 +2291,7 @@ button.advanced-entry {
   }
 
   .advanced-editor-tab-copy strong {
-    font-size: 0.68rem;
+    font-size: 0.75rem;
   }
 
   .advanced-editor-tab-copy small {
@@ -2330,7 +2301,7 @@ button.advanced-entry {
   .advanced-editor-tab-count {
     min-width: 1.25rem;
     padding-inline: 0.25rem;
-    font-size: 0.56rem;
+    font-size: 0.75rem;
   }
 
   .advanced-editor-container .adv-list-pane {
@@ -2362,7 +2333,7 @@ button.advanced-entry {
   }
 
   .advanced-editor-scroll {
-    padding: 0.9rem 0.8rem 1.75rem;
+    padding: 1rem 0.8rem 1.75rem;
   }
 
   .advanced-form-grid--identity,
@@ -2398,8 +2369,8 @@ button.advanced-entry {
     min-height: 5rem;
     align-items: stretch;
     flex-direction: column;
-    gap: 0.55rem;
-    padding: 0.65rem 0.8rem;
+    gap: 0.5rem;
+    padding: 0.75rem 0.8rem;
   }
 
   .advanced-footer-note {
@@ -2437,8 +2408,8 @@ button.advanced-entry {
   .extension-workbench-header {
     align-items: flex-start;
     flex-direction: column;
-    gap: 0.8rem;
-    padding: 0.85rem 0.9rem;
+    gap: 0.75rem;
+    padding: 0.75rem 0.9rem;
   }
 
   .extension-workbench-header-actions {
@@ -2451,7 +2422,7 @@ button.advanced-entry {
   }
 
   .extension-summary-strip {
-    gap: 0.7rem;
+    gap: 0.75rem;
   }
 
   .extension-summary-strip > div {
@@ -2499,7 +2470,7 @@ button.advanced-entry {
   }
 
   .advanced-editor-heading-copy h2 {
-    font-size: 0.94rem;
+    font-size: 1rem;
   }
 
   .advanced-editor-heading-copy p {
@@ -2523,7 +2494,7 @@ button.advanced-entry {
   }
 
   .advanced-editor-tab-copy strong {
-    font-size: 0.63rem;
+    font-size: 0.75rem;
   }
 
   .advanced-editor-tab-count {
@@ -2585,9 +2556,6 @@ button.advanced-entry {
     white-space: normal;
   }
 
-  .extension-workbench-count {
-    margin-right: auto;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
