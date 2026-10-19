@@ -11,6 +11,15 @@ import {
 } from "../utils/dom.js";
 import { uploadNoteImage } from "../api/resource.js";
 
+/**
+ * Markdown 预览弹窗的默认底部提示。
+ *
+ * 该弹窗最初只服务「本地备注预览」，所以文案默认按本地备注写：备注只在详情页
+ * 可编辑，这里提示用户去哪儿改。其它内容来源必须通过 `detail.footerHint`
+ * 显式覆盖，否则会把「去详情页编辑」这句无关的话继承过去。
+ */
+export const MARKDOWN_VIEW_DEFAULT_FOOTER_HINT = "只读模式，如需编辑请进入详情页";
+
 export default function largeEditor() {
   return {
     // === 本地状态 ===
@@ -31,6 +40,9 @@ export default function largeEditor() {
     showMarkdownModal: false,
     markdownModalContent: "",
     markdownModalTitle: "",
+    // 底部只读提示。默认沿用「本地备注」语义（预览弹窗最初只服务本地备注），
+    // 其它来源（如插件文档）可通过 detail.footerHint 覆盖成如实的说明。
+    markdownModalFooterHint: MARKDOWN_VIEW_DEFAULT_FOOTER_HINT,
 
     // HTML 预览弹窗状态变量
     showLargePreview: false,
@@ -170,13 +182,19 @@ export default function largeEditor() {
     openMarkdownView(detail) {
       this.ensurePreviewState();
 
-      // 兼容两种 detail 形态：纯字符串（既有调用）与 { content, title }（插件文档预览）
+      // 兼容两种 detail 形态：纯字符串（既有调用）与
+      // { content, title, footerHint }（插件文档预览）
       const payload = typeof detail === "string" ? { content: detail } : (detail || {});
       const content = payload.content || "";
       if (!content) return;
 
       this.markdownModalTitle = String(payload.title || "");
       this.markdownModalContent = content;
+      // 未显式给出就退回本地备注语义；给空串等于不显示底部提示
+      this.markdownModalFooterHint =
+        payload.footerHint === undefined
+          ? MARKDOWN_VIEW_DEFAULT_FOOTER_HINT
+          : String(payload.footerHint || "");
       this.showMarkdownModal = true;
     },
 

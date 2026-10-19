@@ -21,9 +21,10 @@
             x-effect="updateShadowContent($el, showMarkdownModal ? renderMarkdown(markdownModalContent) : null, { scroll: true })">
         </div>
 
-        <!-- 底部 -->
-        <div class="ui-modal-footer markdown-preview-footer">
-            只读模式，如需编辑请进入详情页
-        </div>
+        <!-- 底部只读提示。文案由调用方按内容来源给出（默认是「本地备注」语义），
+             插件文档这类与详情页无关的来源不能再继承「如需编辑请进入详情页」。 -->
+        <div class="ui-modal-footer markdown-preview-footer"
+            x-show="markdownModalFooterHint" x-cloak
+            x-text="markdownModalFooterHint"></div>
     </div>
 </div>

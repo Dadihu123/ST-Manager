@@ -995,6 +995,10 @@ export default function pluginManager() {
           detail: {
             content: blocks.join("\n\n---\n\n"),
             title: `${item.name || item.id} · 文档`,
+            // 插件文档不存在「去详情页编辑」这条路径：内容直接来自插件目录里的
+            // README.md / CHANGELOG.md，要改只能改插件本身。这里如实说明来源，
+            // 不要继承本地备注弹窗的默认提示。
+            footerHint: `只读模式 · 内容来自插件目录中的 README.md / CHANGELOG.md`,
           },
         }),
       );

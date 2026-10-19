@@ -274,6 +274,43 @@ def test_docs_are_rendered_through_markdown_preview():
     assert 'markdownModalTitle' in preview
 
 
+def test_docs_footer_does_not_inherit_the_local_note_hint():
+    """插件文档不能继承「本地备注」弹窗的「如需编辑请进入详情页」。
+
+    该预览弹窗最初只服务本地备注（`markdownModalTitle` 的兜底值就是
+    「本地备注预览」），底部提示写的是「去详情页编辑」。插件文档是从
+    `data/plugins/<id>/` 里的 README.md / CHANGELOG.md 读出来的，
+    不存在「进入详情页编辑」这条路径，沿用原文案会指向一个不存在的操作。
+    """
+    component = strip_js_comments(read_source('static/js/components/pluginManager.js'))
+    editor = strip_js_comments(read_source('static/js/components/largeEditor.js'))
+    preview = read_source('templates/modals/markdown_preview.html')
+
+    # ① 弹窗底部提示改为按来源注入，不再是模板里写死的整句话
+    assert 'markdownModalFooterHint' in preview
+    assert 'x-text="markdownModalFooterHint"' in preview
+    assert '只读模式，如需编辑请进入详情页' not in preview
+
+    # ② 默认值仍保留本地备注语义（纯字符串 detail 的老调用方行为不变）
+    assert 'MARKDOWN_VIEW_DEFAULT_FOOTER_HINT' in editor
+    default_block = editor.split('export const MARKDOWN_VIEW_DEFAULT_FOOTER_HINT', 1)[1]
+    default_block = default_block.split(';', 1)[0]
+    assert '只读模式，如需编辑请进入详情页' in default_block
+
+    # ③ footerHint 缺省才回退默认值，显式给空串表示不显示
+    open_block = editor.split('openMarkdownView(detail) {', 1)[1].split('\n    },', 1)[0]
+    assert 'payload.footerHint === undefined' in open_block
+    assert 'MARKDOWN_VIEW_DEFAULT_FOOTER_HINT' in open_block
+
+    # ④ 插件文档显式覆盖，且文案指向真实来源而不是详情页
+    docs_block = component.split('async openDocs(', 1)[1]
+    assert 'footerHint:' in docs_block
+    footer_hint_block = docs_block.split('footerHint:', 1)[1].split(',', 1)[0]
+    assert 'README.md' in footer_hint_block
+    assert 'CHANGELOG.md' in footer_hint_block
+    assert '进入详情页' not in footer_hint_block
+
+
 def test_secret_inputs_are_password_with_hint_placeholder():
     template = read_source('templates/modals/plugin_manager.html')
 
