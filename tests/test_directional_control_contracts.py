@@ -92,3 +92,32 @@ def test_world_info_sort_labels_do_not_use_raw_direction_glyphs():
     assert '↓' not in source
     assert 'Token 升序' in source
     assert 'Token 降序' in source
+
+
+def test_chat_reader_prev_next_pairs_share_one_arrow_glyph():
+    """阅读器「上一批/下一批」「上一实例/下一实例」必须成对使用同一套箭头。
+
+    `arrow-right` / `arrow-up` / `arrow-down` 是实心粗箭头一套；`arrow-left-outline`
+    是空心长柄箭头（世界书回退图标），两者风格不同、并排会明显不搭。成对按钮统一用
+    `chevron-right`：上一侧 `rotate-180` 镜像，下一侧正向。
+    """
+    reader = read_project_file('templates/modals/detail_chat_reader.html')
+
+    assert "{{ icon('chevron-right', 'ui-icon--sm rotate-180') }}<span>上一批</span>" in reader
+    assert "{{ icon('chevron-right', 'ui-icon--sm') }}<span>下一批</span>" in reader
+    assert "{{ icon('chevron-right', 'ui-icon--sm rotate-180') }}<span>上一实例</span>" in reader
+    assert "{{ icon('chevron-right', 'ui-icon--sm') }}<span>下一实例</span>" in reader
+
+
+def test_arrow_icon_names_expose_their_glyph_family():
+    """箭头图标名要能看出图形家族，避免再被当成左右镜像对混用。"""
+    sprite = read_project_file('static/icons/ui.svg')
+
+    assert 'id="icon-arrow-left-outline"' in sprite
+    assert 'id="icon-arrow-left"' not in sprite
+    for name in ('arrow-right', 'arrow-up', 'arrow-down'):
+        assert f'id="icon-{name}"' in sprite
+
+    # D4 契约：图标改名走 deprecation，旧名保留为别名，插件写旧名仍能解析
+    generator = read_project_file('tools/gen_plugin_ui_icons.py')
+    assert "'arrow-left': 'arrow-left-outline'" in generator

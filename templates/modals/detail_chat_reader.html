@@ -305,8 +305,8 @@
                             <div class="chat-reader-app-stage-tools">
                                 <div class="chat-reader-replace-status" role="status" aria-live="polite" x-text="'来源楼层 #' + activeAppMessage.floor"></div>
                                 <div class="chat-inline-actions" x-show="hasAppFloorNavigation">
-                                    <button type="button" class="chat-toolbar-btn" @click="stepReaderAppFloor(-1)">{{ icon('arrow-left', 'ui-icon--sm') }}<span>上一实例</span></button>
-                                    <button type="button" class="chat-toolbar-btn" @click="stepReaderAppFloor(1)">{{ icon('arrow-right', 'ui-icon--sm') }}<span>下一实例</span></button>
+                                    <button type="button" class="chat-toolbar-btn" @click="stepReaderAppFloor(-1)">{{ icon('chevron-right', 'ui-icon--sm rotate-180') }}<span>上一实例</span></button>
+                                    <button type="button" class="chat-toolbar-btn" @click="stepReaderAppFloor(1)">{{ icon('chevron-right', 'ui-icon--sm') }}<span>下一实例</span></button>
                                 </div>
                             </div>
                         </div>

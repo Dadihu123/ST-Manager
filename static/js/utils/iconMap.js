@@ -13,7 +13,7 @@ export const ICON_SPRITE_MAP = Object.freeze({
   "archive-new": "detail.svg",
   "archive-old": "detail.svg",
   "arrow-down": "ui.svg",
-  "arrow-left": "ui.svg",
+  "arrow-left-outline": "ui.svg",
   "arrow-right": "ui.svg",
   "arrow-up": "ui.svg",
   "arrow-up-left": "detail.svg",
@@ -207,6 +207,7 @@ export const ICON_SPRITE_MAP = Object.freeze({
 
 /** 模板宏里的别名，插件写别名也能解析。 */
 export const ICON_ALIASES = Object.freeze({
+  "arrow-left": "arrow-left-outline",
   "grid": "layout",
   "plus": "plus-square",
 });

@@ -410,7 +410,7 @@ def test_rollback_card_diff_uses_symmetric_direction_icon_and_structured_value_r
         encoding='utf-8'
     )
 
-    assert "icon('arrow-left', 'ui-icon--xs rotate-180')" in template
+    assert "icon('arrow-left-outline', 'ui-icon--xs rotate-180')" in template
     assert 'preset-rollback-line-diff-row' in js_source
     assert '.preset-rollback-field-value .preset-rollback-line-diff-row' in css_source
     assert 'align-items: start;' in css_source

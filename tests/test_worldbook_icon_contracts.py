@@ -7,7 +7,7 @@ WORLD_BOOK_SYMBOLS = (
     'book-save',
     'book-backup',
     'entry-rollback',
-    'arrow-left',
+    'arrow-left-outline',
     'history-rollback',
     'clipboard',
     'snapshot',

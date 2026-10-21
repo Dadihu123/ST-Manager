@@ -49,9 +49,14 @@ _ICON_ID_PATTERN = re.compile(r'id="icon-([^"]+)"')
 # - `icon()` 宏把 `plus` 映射为 `plus-square`
 # - `detail_icon()` 宏把 `grid` 映射为 `layout`
 # 插件写别名时必须能解析，否则「宿主图标名」这层契约就漏了最常见的两个。
+#
+# 历史改名（D4 契约：图标名改名走 deprecation，旧名保留为别名）：
+# - `arrow-left` → `arrow-left-outline`：空心长柄箭头，与实心粗箭头 arrow-right
+#   不是同一套图形；改名是让名字自己说清楚，避免再被当成左右镜像对使用。
 ICON_ALIASES = {
     'plus': 'plus-square',
     'grid': 'layout',
+    'arrow-left': 'arrow-left-outline',
 }
 
 
