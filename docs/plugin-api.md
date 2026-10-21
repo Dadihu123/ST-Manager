@@ -6,7 +6,7 @@
 > 契约分级与设计背景见 `docs/2026-09-22-plugin-system-design.md` 第 10 部分；
 > 稳定性变更须先在设计文档中修改，再更新代码与本文档。
 
-覆盖 `core/plugins/api.py` 的 `PluginAPI`（3 个顶层成员 + 63 个域方法）与 `static/js/pluginHost.js` 的 `buildApi()`（29 个顶层成员）。
+覆盖 `core/plugins/api.py` 的 `PluginAPI`（3 个顶层成员 + 63 个域方法）与 `static/js/pluginHost.js` 的 `buildApi()`（30 个顶层成员）。
 
 ## 后端 `PluginAPI`
 
@@ -234,7 +234,7 @@
 | `surfaces.*` | Stable | 宿主表面（D8）：`register(id, spec)` / `open(id, ctx)` / `close(id)` / `isOpen(id)`；容器由宿主提供（定位、尺寸、滚动、焦点陷阱、ESC 关闭）。`type: 'ambient'` 是**常驻环境层**（F16）：注册即挂载、非模态、不抢焦点、忽略 ESC、不参与遮罩记账；容器全屏透明且 `pointer-events: none`，**其中的可交互子元素必须自行取回 `pointer-events: auto`**（该属性可继承）；被遮挡时宿主加 `is-host-occluded`；移动端不挂载 |
 | `ui.*` | Stable | 宿主 UI 原语（D8）：`icon` / `panel` / `section` / `card` / `field` / `form` / `button` / `toolbar` / `empty` / `error` / `loading` / `badge` / `list` / `table` / `grid` / `split` / `confirm` / `prompt` |
 | `storage.*` | Stable | 插件键值存储（`ui_data._plugins_v1.<id>.storage`）：`get` / `set` / `remove` / `keys` |
-| `host.*` | Stable | 宿主内建能力（D8）：`toast` / `refresh` / `switchMode` / `openDetail` / `openSettingsSection` / `notify` / `log` / `onState`。其中 `host.onState(handler)` 订阅宿主状态快照（D6）：首次订阅**立即**推一次，之后变化时推送（已合并去抖）；返回取消订阅函数。形状 `{mode, deviceType, darkMode, scrimActive, surfaceOpen, busy, reducedMotion, visible}`——插件要「与界面联动」时用它，不必再去读 `store`（那是 Provisional 耦合） |
+| `host.*` | Stable | 宿主内建能力（D8）：`toast` / `refresh` / `switchMode` / `openDetail` / `openSettingsSection` / `notify` / `log` / `onState` / `selection`。其中 `host.onState(handler)` 订阅宿主状态快照（D6）：首次订阅**立即**推一次，之后变化时推送（已合并去抖）；返回取消订阅函数。形状 `{mode, deviceType, darkMode, scrimActive, surfaceOpen, busy, reducedMotion, visible}`——插件要「与界面联动」时用它，不必再去读 `store`（那是 Provisional 耦合）。`host.selection()` 返回 `{mode, ids}`（当前视图 + 选中 id 列表），是读取选中集的**契约入口**；它给的是数据，`onState` 只给界面字段 |
 | `toast(msg, duration, icon)` | Stable | 轻提示；`duration` 必须是数字（旧名，等价于 `host.toast`）。`icon` 与 `api.ui.icon(name)` 走**同一套解析**：宿主图标名，或插件内资源路径（如 `frontend/assets/icon.svg`，宿主自动带上本插件 id）。解析不出来时只留空图标位并 `console.warn`，**文案照常显示** |
 | `progress.*` | Stable | 复用主程序批处理进度条（`update` / `finish` 等） |
 | `openDetail(target, id)` | Stable | 打开卡片 / 预设 / 会话详情（旧名，委托到 `host.openDetail`） |
@@ -248,7 +248,8 @@
 | `estimateTokens(text)` | Stable | 复用主程序的分词估算 |
 | `setFullscreenScrim(open, owner)` | Stable | 声明全屏遮罩已打开/关闭（宿主据此关掉页面壳的 backdrop-filter，避免 Chromium 画出黑块） |
 | `utils.*` | Provisional | `toAbsoluteAssetUrl` / `parseSSEFrames` / `parseSSEPayload` / `resolveIconUrl` / `formatDate` |
-| `jobs.*` | Provisional | `get` / `list` / `submit` / `cancel` / `pause` / `resume` / `retry` / `open` |
+| `jobs.*` | Provisional | `get` / `list` / `submit` / `cancel` / `pause` / `resume` / `retry` / `open` / `review` / `reviewBatch`。`review(runId, itemKey, status)` 审批单个作业条目；`reviewBatch(runId, updates)` 逐条审批并返回 `{total, failed}`（单条失败不影响其余条目） |
+| `worldbook.sources(options)` | Stable | 列出世界书来源（文件级）：`{source_type, file_path, card_id, category, name, entry_count}`。数据取自世界书视图的列表缓存（`store.wiList`），因此**只覆盖当前已加载的条目**；需要全量时用 `api.index.search("", {scope: "worldinfo"})`。`options.category` 按路径段过滤（含子分类），`options.sourceType` 取 `global` / `resource` / `embedded`。注意这是**前端**同名命名空间，与后端 `api.worldbook.*`（Python 侧读写域）不是同一个对象 |
 | `createRoot(tag)` | Stable | 创建带 `data-plugin="<id>"` 的挂载容器 |
 
 ## 演进承诺

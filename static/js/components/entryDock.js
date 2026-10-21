@@ -277,6 +277,8 @@ export default function entryDock() {
           source: "dock",
           targetId: entry.id,
           mode: EntryRegistry.context().mode,
+          // 坞入口没有作用域：显式传 null，不继承上一次点击的目标
+          target: null,
         });
         this.activeKey = entry.key;
         return true;
@@ -284,7 +286,9 @@ export default function entryDock() {
 
       // 没有对应 surface：交给插件自己监听（例如 command 类入口）
       window.dispatchEvent(
-        new CustomEvent(`entry:activate`, { detail: { key: entry.key, entry } }),
+        new CustomEvent(`entry:activate`, {
+          detail: { key: entry.key, entry, source: "dock", target: null },
+        }),
       );
       this.activeKey = entry.key;
       return true;

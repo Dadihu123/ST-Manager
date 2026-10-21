@@ -33,6 +33,9 @@ KNOWN_ENTRY_KEYS = frozenset({
     'id', 'kind', 'label', 'description', 'icon', 'contexts',
     'requires_selection', 'surface', 'priority', 'badge', 'shortcut',
     'when', 'disabledHint',
+    # 菜单分组：同一 `group` 的入口在右键/批量菜单里折叠成一个父项，
+    # 父项文案取该值（如「AI 助手」）。同插件不同组互不影响。
+    'group',
 })
 
 # `when` 条件表达式的允许子键（D7）
@@ -293,6 +296,8 @@ def normalize_entries(plugin_id: str, raw_entries) -> tuple[list, list]:
             'shortcut': str(raw_entry.get('shortcut') or '').strip(),
             'when': _normalize_when(plugin_id, raw_entry.get('when'), warnings),
             'disabledHint': str(raw_entry.get('disabledHint') or '').strip(),
+            # 菜单分组标签（可选）：同一插件里同名的入口会折叠成一个父项
+            'group': str(raw_entry.get('group') or '').strip(),
         })
 
     return entries, warnings

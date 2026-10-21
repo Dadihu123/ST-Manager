@@ -14,6 +14,7 @@
 
 import { EntryRegistry, isHostEntryKey } from "../entryRegistry.js";
 import { PluginSurfaceHost } from "../pluginSurfaceHost.js";
+import { readSelectionSnapshot } from "./selectionSnapshot.js";
 import { icon } from "../uiPrimitives.js";
 
 const MAX_RESULTS = 40;
@@ -134,19 +135,45 @@ export default function commandPalette() {
 
       const surfaceId = entry.surface && entry.surface.id ? entry.surface.id : entry.id;
       const surfaceKey = `${entry.pluginId}:${surfaceId}`;
+      const target = this.buildCommandTarget(entry);
       if (PluginSurfaceHost.has(surfaceKey)) {
         PluginSurfaceHost.openSurface(surfaceKey, {
           source: "shortcut",
           targetId: entry.id,
           mode: EntryRegistry.context().mode,
+          target,
         });
         return true;
       }
 
       window.dispatchEvent(
-        new CustomEvent("entry:activate", { detail: { key: entry.key, entry } }),
+        new CustomEvent("entry:activate", {
+          detail: { key: entry.key, entry, source: "shortcut", target },
+        }),
       );
       return true;
+    },
+
+    /**
+     * 命令面板的作用域：**只有 `batch` 入口有**（当前选中集）。
+     *
+     * 面板没有「右键目标」，但用户可能已经勾选了一批卡片，此时执行批量入口
+     * 就该作用在选中集上。`dock` / `command` / `settings` 类入口没有作用域，
+     * 返回 `null`（而不是空 `selection`，那会被读成「作用域是空集」）。
+     *
+     * `context` 类入口已在 `rebuild()` 里排除：它们的语义依赖右键目标，
+     * 在面板里根本不存在。
+     */
+    buildCommandTarget(entry) {
+      if (!entry || entry.kind !== "batch") return null;
+      const snapshot = readSelectionSnapshot();
+      return {
+        kind: "selection",
+        mode: snapshot.mode,
+        path: "",
+        id: "",
+        ids: snapshot.ids,
+      };
     },
 
     /** 焦点是否在可输入元素里（此时不该把按键当快捷键）。 */
@@ -218,14 +245,26 @@ export default function commandPalette() {
       this.activeIndex = 0;
     },
 
+    /**
+     * 重建结果列表。
+     *
+     * **排除 `context` 类入口**：它们的语义依赖「右键目标」（右键哪个分类 /
+     * 哪张卡），而命令面板没有右键目标，激活后只会得到一个没有作用域的面板。
+     * `EntryRegistry.searchable()` 保持不变——它服务于「入口总览」等其它消费者。
+     */
     rebuild() {
-      this.items = this.filter(EntryRegistry.searchable());
+      this.items = this.filter(this.commandCandidates());
       this.activeIndex = 0;
     },
 
     onQueryInput() {
-      this.items = this.filter(EntryRegistry.searchable());
+      this.items = this.filter(this.commandCandidates());
       this.activeIndex = 0;
+    },
+
+    /** 命令面板的候选集（`searchable()` 去掉 `context` 类入口）。 */
+    commandCandidates() {
+      return EntryRegistry.searchable().filter((entry) => entry.kind !== "context");
     },
 
     /** 简单子串匹配（含中文），按「前缀命中优先、其次标签长度」排序。 */
@@ -308,18 +347,22 @@ export default function commandPalette() {
 
       const surfaceId = entry.surface && entry.surface.id ? entry.surface.id : entry.id;
       const surfaceKey = `${entry.pluginId}:${surfaceId}`;
+      const target = this.buildCommandTarget(entry);
       if (PluginSurfaceHost.has(surfaceKey)) {
         PluginSurfaceHost.openSurface(surfaceKey, {
           source: "command",
           targetId: entry.id,
           mode: EntryRegistry.context().mode,
+          target,
         });
         this.close();
         return true;
       }
 
       window.dispatchEvent(
-        new CustomEvent("entry:activate", { detail: { key: entry.key, entry } }),
+        new CustomEvent("entry:activate", {
+          detail: { key: entry.key, entry, source: "command", target },
+        }),
       );
       this.close();
       return true;
@@ -344,6 +387,7 @@ export default function commandPalette() {
         context: "右键",
         command: "命令",
         status: "状态",
+        batch: "批量",
       };
       return labels[String((entry && entry.kind) || "")] || "入口";
     },

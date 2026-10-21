@@ -412,7 +412,7 @@ def test_register_and_open_mounts_into_host_container():
         assert.equal(ctxSeen.pluginId, 'demo-plugin');
         assert.equal(ctxSeen.surfaceId, 'main');
         assert.equal(ctxSeen.source, 'dock');
-        assert.equal(ctxSeen.targetId, 'card-1');
+        assert.equal(ctxSeen.entryId, 'card-1');
         assert.equal(ctxSeen.mode, 'cards');
 
         // 容器带 data-plugin（F12）与 data-marquee-ignore（框选不命中）
@@ -444,20 +444,20 @@ def test_reopening_an_open_surface_delivers_the_new_ctx():
 
         const seen = [];
         PluginSurfaceHost.register('demo-plugin', 'workbench', {
-          mount(container, ctx) { seen.push(['mount', ctx.targetPath]); },
-          onOpen(ctx) { seen.push(['onOpen', ctx.targetPath]); },
+          mount(container, ctx) { seen.push(['mount', ctx.target.path]); },
+          onOpen(ctx) { seen.push(['onOpen', ctx.target.path]); },
         });
 
         PluginSurfaceHost.openSurface('demo-plugin:workbench', {
-          source: 'context', targetId: 'analyze-folder', targetKind: 'folder',
-          targetPath: 'A',
+          source: 'context', targetId: 'analyze-folder',
+          target: { kind: 'folder', path: 'A' },
         });
         assert.deepEqual(seen, [['mount', 'A'], ['onOpen', 'A']]);
 
         // 第二次从另一个入口进入同一个 surface：不重新 mount，但必须投递新 ctx
         PluginSurfaceHost.openSurface('demo-plugin:workbench', {
-          source: 'context', targetId: 'analyze-folder', targetKind: 'folder',
-          targetPath: 'B',
+          source: 'context', targetId: 'analyze-folder',
+          target: { kind: 'folder', path: 'B' },
         });
         assert.deepEqual(seen, [
           ['mount', 'A'], ['onOpen', 'A'], ['onOpen', 'B'],
@@ -469,11 +469,13 @@ def test_reopening_an_open_surface_delivers_the_new_ctx():
 
 @requires_node
 def test_open_surface_forwards_right_click_target_to_mount():
-    """右键目标（targetKind / targetPath / targetIds）必须出现在 mount 的 ctx 里。
+    """右键目标必须出现在 mount 的 ctx 里，形状是 `ctx.target`。
 
-    只传 `targetId`（= 入口 id）的话，插件无法知道「分析哪一个分类」，
-    只能退回去读宿主的全局选中集——而右键分类的作用域根本不是选中集。
-    `targetPath` 为 `""` 表示根目录，是**合法值**，因此不能靠真值判断来区分。
+    只传 `entryId`（= 入口 id）的话，插件无法知道「分析哪一个分类」，只能退回去
+    读宿主的全局选中集——而右键分类的作用域根本不是选中集。
+
+    `target.path` 为 `""` 表示根目录，是**合法值**，因此不能靠真值判断来区分
+    「没有目标」：存在性由 `ctx.target === null` 表达。
     """
     result = run_dom_script(
         """
@@ -489,24 +491,54 @@ def test_open_surface_forwards_right_click_target_to_mount():
           source: 'context',
           targetId: 'analyze-folder',
           mode: 'cards',
-          targetKind: 'folder',
-          targetPath: '',
-          targetIds: ['a/b.png', 'a/c.png'],
+          target: { kind: 'folder', path: '', ids: ['a/b.png', 'a/c.png'] },
         });
 
-        assert.equal(ctxSeen.targetKind, 'folder');
-        assert.equal(ctxSeen.targetPath, '', '根目录是合法的空串，不能被吞掉');
-        assert.deepEqual(ctxSeen.targetIds, ['a/b.png', 'a/c.png']);
+        assert.deepEqual(ctxSeen.target, {
+          kind: 'folder',
+          mode: 'cards',
+          path: '',
+          id: '',
+          ids: ['a/b.png', 'a/c.png'],
+        });
+        // 旧扁平字段已删除：留着会诱导插件继续读旧形状
+        assert.equal('targetKind' in ctxSeen, false);
+        assert.equal('targetPath' in ctxSeen, false);
+        assert.equal('targetIds' in ctxSeen, false);
+        // 入口 id 改名为 entryId（旧名 targetId 容易被读成「目标卡片 id」）
+        assert.equal(ctxSeen.entryId, 'analyze-folder');
 
-        // 不带目标时是空串 / 空数组，而不是 undefined（插件可以无条件读）
+        // 不带目标时 `target` 是 null，而不是「一个字段全空的 target」
         let plain = null;
         PluginSurfaceHost.register('demo-plugin', 'plain', {
           mount(container, ctx) { plain = ctx; },
         });
-        PluginSurfaceHost.openSurface('demo-plugin:plain', { source: 'dock' });
-        assert.equal(plain.targetKind, '');
-        assert.equal(plain.targetPath, '');
-        assert.deepEqual(plain.targetIds, []);
+        PluginSurfaceHost.openSurface('demo-plugin:plain', { source: 'dock', target: null });
+        assert.equal(plain.target, null);
+        assert.equal(plain.entryId, '');
+
+        // 旧扁平字段即便被调用方传进来也要被丢弃——否则第三方插件仍能读到旧形状，
+        // 「删除旧字段」就只是宿主自己的口头约定。
+        let legacy = null;
+        PluginSurfaceHost.register('demo-plugin', 'legacy', {
+          mount(container, ctx) { legacy = ctx; },
+        });
+        PluginSurfaceHost.openSurface('demo-plugin:legacy', {
+          source: 'context',
+          targetId: 'entry-x',
+          targetKind: 'folder',
+          targetPath: 'A',
+          targetIds: ['c1'],
+          target: { kind: 'folder', path: 'A' },
+          myCustomField: 'kept',
+        });
+        assert.equal('targetKind' in legacy, false);
+        assert.equal('targetPath' in legacy, false);
+        assert.equal('targetIds' in legacy, false);
+        assert.equal('targetId' in legacy, false);
+        assert.equal(legacy.entryId, 'entry-x');
+        // 插件自定义字段仍然原样透传
+        assert.equal(legacy.myCustomField, 'kept');
         """
     )
     assert result.returncode == 0, result.stderr or result.stdout

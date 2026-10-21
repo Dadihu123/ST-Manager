@@ -28,6 +28,7 @@ import { isFullscreenScrimActive } from "./utils/dom.js";
 import { resolveIconUrl } from "./utils/icons.js";
 import { EntryRegistry } from "./entryRegistry.js";
 import { PluginSurfaceHost } from "./pluginSurfaceHost.js";
+import { listWorldInfo } from "./api/wi.js";
 import { buildUiPrimitives } from "./uiPrimitives.js";
 
 const PLUGIN_ROOT_ID = "plugin-host-root";
@@ -66,6 +67,96 @@ const KNOWN_MODES = new Set([
   "quick_replies",
   "beautify",
 ]);
+
+/**
+ * 分类路径是否等于 `prefix` 或在它之下（按路径段匹配）。
+ *
+ * 不能用裸 `startsWith`：`科幻` 会命中 `科幻短片`，把两个不相干的分类混在一起。
+ * 与 `sidebar.isInsideIsolatedBranch` / `cardGrid` 的递归判断保持同一套语义。
+ */
+function isSameOrDescendantCategory(path, prefix) {
+  const normalized = String(path || "").replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
+  const base = String(prefix || "").replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
+  if (!base) return true;
+  return normalized === base || normalized.startsWith(`${base}/`);
+}
+
+/**
+ * 世界书来源的全量枚举（`api.worldbook.sources({ all: true })`）。
+ *
+ * 为什么需要它：`sources()` 读的是世界书视图的列表缓存（`store.wiList`），
+ * 那是**当前页**——右键「精简此分类全部世界书」时，分类里第 21 本以后的
+ * 书根本不在缓存里，作用域会静默不全。
+ *
+ * 为什么不能一口气拉：一个分类上千本世界书时，一次 `page_size=10000` 会把
+ * 主线程和响应体一起拖爆。所以这里：
+ * - 按 `pageSize`（默认 500）**分页**请求，每页之间让出事件循环；
+ * - 总量封顶 `limit`（默认 2000 本），超出的用 `truncated` 明确告知调用方，
+ *   由插件决定是提示用户缩小范围还是分批处理——**绝不静默截断**；
+ * - 顺带把 `total` 返回，插件可以直接显示「该分类共 N 本」。
+ *
+ * @returns {Promise<{items: Array, total: number, truncated: boolean}>}
+ */
+const WORLDBOOK_SOURCES_HARD_LIMIT = 2000;
+
+async function listAllWorldbookSources({ category = "", sourceType = "", pageSize = 500, limit = 0 } = {}) {
+  const size = Math.min(Math.max(Number(pageSize) || 500, 50), 1000);
+  const cap = Math.min(Math.max(Number(limit) || WORLDBOOK_SOURCES_HARD_LIMIT, 1), WORLDBOOK_SOURCES_HARD_LIMIT);
+  const prefix = String(category || "").replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
+
+  const items = [];
+  let total = 0;
+  let page = 1;
+  // 最多翻 cap/size + 1 页：分类再大也不会无限翻下去
+  const maxPages = Math.ceil(cap / size) + 1;
+
+  while (page <= maxPages && items.length < cap) {
+    let data;
+    try {
+      data = await listWorldInfo({ type: "all", page: String(page), page_size: String(size) });
+    } catch (error) {
+      console.warn("[pluginHost] 列举世界书失败:", error);
+      break;
+    }
+    if (!data || data.success === false) break;
+
+    const batch = Array.isArray(data.items) ? data.items : [];
+    total = Number(data.total || total || 0) || total;
+    if (!batch.length) break;
+
+    for (const raw of batch) {
+      const sourceType_ = String(raw.source_type || raw.type || "global");
+      if (sourceType && sourceType_ !== sourceType) continue;
+      const category_ = String(raw.display_category || raw.physical_category || "");
+      if (!isSameOrDescendantCategory(category_, prefix)) continue;
+      const id = String(raw.id || "");
+      const filePath = sourceType_ === "embedded" ? "" : id.split("::").slice(1).join("::");
+      items.push({
+        source_type: sourceType_,
+        file_path: filePath,
+        card_id: String(raw.card_id || raw.owner_card_id || ""),
+        category: category_,
+        name: String(raw.name || ""),
+        entry_count: Number(raw.entry_count || raw.entries_count || 0) || 0,
+      });
+      if (items.length >= cap) break;
+    }
+
+    // 已经翻完
+    if (total && page * size >= total) break;
+    if (batch.length < size) break;
+    page += 1;
+    // 让出事件循环：分页期间 UI 仍可响应
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
+
+  return {
+    items,
+    total: total || items.length,
+    // 只有「还有没取到的」才算截断
+    truncated: Boolean(total && total > items.length) || items.length >= cap,
+  };
+}
 
 function scheduleIdle(callback) {
   if (typeof window.requestIdleCallback === "function") {
@@ -848,6 +939,25 @@ export const PluginHost = {
           own(unsubscribe);
           return unsubscribe;
         },
+
+        /**
+         * 读取主程序当前的选中集（视图 + id 列表）。
+         *
+         * 返回 `{ mode: 'cards' | 'worldinfo' | 'presets' | …, ids: string[] }`。
+         * 与 `onState()` 不同：这个接口给的是**数据**，状态快照只给界面字段。
+         *
+         * 这是读取选中集的**契约入口**——不要直接读 `store.viewState.selectedIds`
+         * （那是 Provisional 耦合，宿主改字段名时插件会静默拿到空数组）。
+         */
+        selection() {
+          const store = storeRef();
+          const viewState = (store && store.viewState) || {};
+          const ids = Array.isArray(viewState.selectedIds) ? viewState.selectedIds : [];
+          return {
+            mode: String((store && store.currentMode) || ""),
+            ids: ids.map((item) => String(item || "")).filter(Boolean),
+          };
+        },
       },
 
       // ---- D8：入口 ----
@@ -937,6 +1047,47 @@ export const PluginHost = {
         },
         keys() {
           return Object.keys(storageCache || {});
+        },
+      },
+
+      // ---- 世界书来源（文件级） ----
+      //
+      // 世界书任务的作用域是「世界书文件」，但宿主此前只把「条目」暴露给前端，
+      // 插件要枚举「某个分类下有哪些书」只能去读 `store.wiList`（Provisional 耦合）。
+      // 这里把那份缓存包成契约接口，字段名与宿主的列表项一致。
+      worldbook: {
+        /**
+         * 世界书来源列表。
+         *
+         * 两条路径，**语义不同、返回类型也不同**，调用方要明确：
+         * - 默认（`all: false`）：同步返回数组，读 `store.wiList` 缓存，只覆盖
+         *   **当前已加载的那一页**，适合「右键的那个分类正好在视图里」；
+         * - `all: true`：返回 `Promise<{items, total, truncated}>`，走
+         *   `/api/world_info/list` 分页拉全量（每页让步、总量封顶 2000）。
+         *   分类可能上千本时必须用它，否则作用域会静默少书。
+         *
+         * `truncated: true` 表示「还有没取到的」——插件必须告知用户，
+         * 不能当成完整集合作业。
+         */
+        sources({ category = "", sourceType = "", all = false, pageSize = 500 } = {}) {
+          if (all) return listAllWorldbookSources({ category, sourceType, pageSize });
+          const store = storeRef();
+          const list = (store && store.wiList) || [];
+          const prefix = String(category || "").replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
+          return (Array.isArray(list) ? list : [])
+            .filter((item) => !prefix || isSameOrDescendantCategory(
+              String(item && (item.display_category || item.physical_category) || ""),
+              prefix,
+            ))
+            .filter((item) => !sourceType || String(item.source_type || item.type) === sourceType)
+            .map((item) => ({
+              source_type: String((item && (item.source_type || item.type)) || "global"),
+              file_path: String((item && item.path) || ""),
+              card_id: String((item && item.owner_card_id) || ""),
+              category: String((item && (item.display_category || item.physical_category)) || ""),
+              name: String((item && item.name) || ""),
+              entry_count: Number((item && (item.entry_count || item.entries_count)) || 0) || 0,
+            }));
         },
       },
 
@@ -1222,6 +1373,37 @@ export const PluginHost = {
             body: { only_failed: onlyFailed },
           });
           return data && data.success ? data.run_id : "";
+        },
+        /**
+         * 审批一个作业条目（`status`：`done` / `skipped` / …）。
+         *
+         * 插件此前要手拼 `/jobs/<id>/items/<key>/review` 路径调宿主端点；这里
+         * 与其它 `jobs.*` 对称，形状确定后不必再记路由。
+         */
+        async review(runId, itemKey, status) {
+          const data = await api.api(
+            `/jobs/${encodeURIComponent(runId)}/items/${encodeURIComponent(itemKey)}/review`,
+            { method: "POST", body: { status } },
+          );
+          return Boolean(data && data.success);
+        },
+        /**
+         * 批量审批：逐条走 `review()`，**单条失败不影响其余条目**。
+         *
+         * 返回 `{ total, failed }`——审批是「尽量都落库」，一条失败就整体抛错会
+         * 让用户不知道该重试哪条。
+         */
+        async reviewBatch(runId, updates) {
+          const list = Array.isArray(updates) ? updates : [];
+          const results = await Promise.allSettled(
+            list.map((item) => api.jobs.review(runId, item.key, item.status)),
+          );
+          // `review()` 网络失败不抛错而是返回 `false`，所以两种失败都要算进去，
+          // 否则 `failed` 在「端点返回 success: false」时恒为 0。
+          const failed = results.filter(
+            (item) => item.status === "rejected" || item.value === false,
+          ).length;
+          return { total: list.length, failed };
         },
         open(runId, options = {}) {
           if (!runId) return;

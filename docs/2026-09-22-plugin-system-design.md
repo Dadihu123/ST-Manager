@@ -307,13 +307,19 @@ manifest 采用**严格校验**：顶层出现白名单以外的键即**拒绝�
 | `batch` | **全局选中集** | `list({ kind: 'batch' })`（走 `EntryRegistry.context()`） | 批量菜单 → 分析选中的卡片 |
 
 两者**不可混用**：右键分类的作用域是那个分类，与用户恰好勾选了哪几张卡无关。
-右键菜单求值时会把 `selectionCount` 覆盖为 `0`（右键文件夹）/ `1`（右键卡片），
+右键菜单求值时会把 `selectionCount` 覆盖为 `0`（右键不是「选中集」语境），
 并把 `targetKind` 传进 `when` 求值；`batch` 菜单则沿用全局 `selectionCount`。
 
-**右键目标如何到达插件**：宿主在 `PluginSurfaceHost.openSurface(key, ctx)` 里传
-`targetKind` / `targetPath` / `targetIds`（`targetIds` 由宿主解析——插件拿不到卡片列表接口，
-也不该读宿主内部状态）。`targetPath` 为 `""` 表示根目录，是**合法值**，
-因此存在性判断只能看 `targetKind`，不能靠真值判断。
+**右键目标如何到达插件**：宿主在 `PluginSurfaceHost.openSurface(key, ctx)` 里只传
+**语义目标** `ctx.target = { kind, mode, path, id, ids }`（`kind` 取
+`'selection' | 'folder' | 'card' | 'none'`）。**解析作用域归插件**——它有
+`api.cards.list` / `api.worldbook.sources` 可用，宿主不在点击瞬间拉卡片列表
+（右键上万张卡片的分类时那会让菜单点不动）。`target.path` 为 `""` 表示根目录，
+是**合法值**，因此存在性判断只能看 `ctx.target` 是否为 `null`，不能靠真值判断。
+
+> 该形状由 `pluginSurfaceHost.js` 的 `buildOpenContext()` **单点构造**，mount 与
+> `onOpen` 两处共用。旧的扁平字段 `targetKind` / `targetPath` / `targetIds`
+> 已删除（迁移记录见 `docs/2026-10-19-host-patch.md` §1）。
 
 **`when` 条件表达式（D7）**：求值统一在宿主侧完成，插件只声明。
 

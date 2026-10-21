@@ -5,7 +5,7 @@
 
 import { deleteFolder } from '../api/system.js';
 
-import { listCards, toggleBundleMode } from '../api/card.js';
+import { toggleBundleMode } from '../api/card.js';
 
 import {
     isBatchOperationRunning,
@@ -16,6 +16,7 @@ import {
 import { EntryRegistry } from '../entryRegistry.js';
 import { PluginSurfaceHost } from '../pluginSurfaceHost.js';
 import { icon as buildIcon } from '../uiPrimitives.js';
+import { positionFlyoutElement, resolveAnchorElement } from '../utils/flyoutPosition.js';
 
 export default function contextMenu() {
     return {
@@ -27,7 +28,29 @@ export default function contextMenu() {
         targetFolder: null, // 文件夹对象引用
         /** 插件声明的 `kind: "context"` 入口（右键菜单项）。 */
         pluginEntries: [],
+        /**
+         * 当前展开的二级菜单：`''` = 没有，`'ruleset'` = 运行自动化的规则集，
+         * 其余是插件分组的 key（形如 `p1::AI 助手`）。
+         *
+         * 桌面端是一个**独立的 fixed 浮层**（`[data-plugin-group-flyout]` /
+         * `[data-context-ruleset-flyout]`），**固定向右展开**，纵向按剩余空间
+         * 自适应（放不下就向上延申）。不能就地展开，也不能用 `absolute left-full`：
+         * 菜单盒有 `max-height + overflow:auto`（CSS 里还有 overflow:hidden），
+         * 子元素会被裁掉——「运行自动化」的规则集子菜单就是这么坏的。
+         *
+         * 移动端插件分组退化为「弹层内的第二屏」（点父项切内容 + 返回行）。
+         */
+        activeSubmenu: '',
+        /**
+         * 菜单内容的最大高度（px）：插件入口较多时菜单会变高，
+         * 不钳住就会顶出视口底部，最后几项永远点不到。留 12px 边距。
+         */
+        menuMaxHeight: 0,
+        /** 二级浮层的锚点（父项按钮元素），只用于定位，不参与渲染。 */
+        _submenuAnchor: null,
         _entriesHandler: null,
+        _keyHandler: null,
+        _scrollHandler: null,
         // 删除文件夹确认弹窗状态（包含“是否删除子文件”可选项）
         deleteFolderConfirm: {
             visible: false,
@@ -57,14 +80,18 @@ export default function contextMenu() {
 
                 this.x = (x + menuWidth > window.innerWidth) ? x - menuWidth : x;
                 this.y = (y + menuHeight > window.innerHeight) ? y - menuHeight : y;
+                // 分组展开会让菜单变高：按落点算出可用的最大高度，内部滚动
+                this.menuMaxHeight = Math.max(200, window.innerHeight - this.y - 12);
 
                 this.type = type;
                 this.target = target;
                 this.targetFolder = targetFolder;
                 this.visible = true;
 
-                // 插件 context 入口：每次打开时重算（`when` 依赖当前模式与选中项）
+                // 插件 context 入口：每次打开时重算（`when` 依赖当前模式与选中项），
+                // 并收起上次展开的插件分组
                 this.refreshPluginEntries();
+                this.resetPluginGroups();
 
                 window.dispatchEvent(new CustomEvent('load-rulesets-for-menu'));
             });
@@ -76,14 +103,34 @@ export default function contextMenu() {
 
             // 监听隐藏事件
             window.addEventListener('hide-context-menu', () => {
-                this.visible = false;
+                this.hideContextMenu();
             });
+
+            // Escape 只关二级浮层（没有二级时交给其它处理器，比如弹窗关闭）
+            this._keyHandler = (event) => {
+                if (event.key !== 'Escape' || !this.activeSubmenu) return;
+                event.stopPropagation();
+                this.closeSubmenu();
+            };
+            window.addEventListener('keydown', this._keyHandler, true);
+
+            // 宿主页面 / 菜单盒滚动时父项会跑位，二级浮层直接收起。
+            // 浮层自身滚动不算（长列表要能在浮层里滚）。
+            this._scrollHandler = (event) => {
+                if (!this.activeSubmenu) return;
+                const flyout = this.submenuFlyoutEl(
+                    this.activeSubmenu === 'ruleset' ? 'ruleset' : 'plugin',
+                );
+                if (flyout && event.target instanceof Node && flyout.contains(event.target)) return;
+                this.closeSubmenu();
+            };
+            window.addEventListener('scroll', this._scrollHandler, true);
 
             // 点击外部自动关闭
             window.addEventListener('click', () => {
                 // 弹窗打开时不要被全局 click 立刻关闭，确保可切换复选框并点确认
                 if (this.deleteFolderConfirm && this.deleteFolderConfirm.visible) return;
-                this.visible = false;
+                this.hideContextMenu();
             });
         },
 
@@ -93,10 +140,19 @@ export default function contextMenu() {
                 window.removeEventListener('plugins:loaded', this._entriesHandler);
                 this._entriesHandler = null;
             }
+            if (this._keyHandler) {
+                window.removeEventListener('keydown', this._keyHandler, true);
+                this._keyHandler = null;
+            }
+            if (this._scrollHandler) {
+                window.removeEventListener('scroll', this._scrollHandler, true);
+                this._scrollHandler = null;
+            }
         },
 
         hideContextMenu() {
             this.visible = false;
+            this.closeSubmenu();
         },
 
         // === 插件 context 入口（D1：`kind: "context"` 落到右键菜单） ===
@@ -110,12 +166,17 @@ export default function contextMenu() {
          *
          * 右键菜单的作用域由**右键目标**决定，与全局卡片选中无关：
          * 右键文件夹 = 对该分类整体操作，右键卡片 = 对那一张操作。
-         * 因此这里用 `contextOverride` 覆盖 `targetKind` / `selectionCount`，
-         * 让 `when.target` 生效、并让 `when.selection` 不再被全局选中数误判。
+         * 因此这里用 `contextOverride` 覆盖 `targetKind`，让 `when.target` 生效。
+         * `selectionCount` 不再推导：右键上下文里 `when.selection` 恒为 none，
+         * 把它归零即可（右键卡片的作用域是「右键目标」，不是「选中集」）。
          */
         refreshPluginEntries() {
             try {
-                this.pluginEntries = EntryRegistry.list({
+                // `menuGroups` 只返回 `when` 通过的入口，并按插件分组折叠：
+                // 右键分类时菜单里只出现一个「AI 助手」，子项是打标/归类/精简。
+                // 不适用的动作（比如世界书专用的精简在角色卡视图里）直接不出现，
+                // 不再渲染成点不动的灰项。
+                this.pluginEntries = EntryRegistry.menuGroups({
                     kind: 'context',
                     contextOverride: this.pluginEntryContext(),
                 });
@@ -125,14 +186,31 @@ export default function contextMenu() {
             }
         },
 
+        /** 菜单每次打开都收起二级浮层（避免沿用上次的分组）。 */
+        resetPluginGroups() {
+            this.closeSubmenu();
+        },
+
+        /**
+         * 取二级浮层元素。
+         *
+         * **不能用 `this.$el`**：Alpine 的 `$el` magic 绑定的是「当前表达式所在元素」，
+         * 在 `@click` 处理器里发起、`$nextTick` / `requestAnimationFrame` 回调里读取时，
+         * 它指向被点的那个按钮（实测拿到 BUTTON，`querySelector` 自然找不到浮层）。
+         * 用 data 属性从 document 找：页面上只有一个右键菜单实例。
+         */
+        submenuFlyoutEl(kind) {
+            if (typeof document === 'undefined') return null;
+            const attr = kind === 'ruleset' ? 'data-context-ruleset-flyout' : 'data-plugin-group-flyout';
+            return document.querySelector(`[${attr}]`);
+        },
+
         /** 右键菜单求值 `when` 用的上下文覆盖（见 `refreshPluginEntries`）。 */
         pluginEntryContext() {
-            const targetKind = String(this.type || '');
             return {
-                targetKind,
-                // 右键卡片时作用域是那 1 张；右键文件夹时作用域是分类整体，
-                // 此时全局选中数与本次操作无关，必须归零。
-                selectionCount: targetKind === 'card' ? 1 : 0,
+                targetKind: String(this.type || ''),
+                // 右键不是「选中集」语境：全局选中数与本操作无关，必须归零。
+                selectionCount: 0,
             };
         },
 
@@ -144,42 +222,117 @@ export default function contextMenu() {
             });
         },
 
+        /** 兼容父项（group）与单条入口：父项同样带 icon / pluginId。 */
         pluginEntryIconHtml(entry) {
-            return this.pluginEntryIcon(entry).outerHTML;
+            const node = entry && entry.type === 'group' ? entry : entry;
+            return buildIcon(String((node && node.icon) || 'circle-dot'), {
+                className: 'ui-icon--sm',
+                pluginId: String((node && node.pluginId) || ''),
+            }).outerHTML;
         },
 
-        /**
-         * 解析右键目标的作用域（要交给插件的具体 id 列表）。
-         *
-         * - 右键**卡片**：作用域就是那一张。
-         * - 右键**文件夹**：作用域是「该分类（含子分类）下的全部卡片」。这个
-         *   解析必须由宿主完成——插件拿不到卡片列表接口，也不该去读宿主的内部
-         *   状态（`viewState.selectedIds` 与右键作用域根本无关）。
-         *
-         * 解析发生在**点击时**而不是菜单打开时：右键菜单会频繁打开，不该每次
-         * 都拉一遍卡片列表。
-         */
-        async resolvePluginEntryTargetIds(targetKind) {
-            if (targetKind === 'card') {
-                return this.target == null ? [] : [String(this.target)];
-            }
-            if (targetKind !== 'folder') return [];
+        // === 二级浮层（「运行自动化」规则集 / 插件分组共用一套） ===
 
-            try {
-                const data = await listCards({
-                    page: 1,
-                    // 作用域是分类整体，与分页无关；给足上限一次取回。
-                    page_size: 100000,
-                    category: this.target == null ? '' : String(this.target),
-                    recursive: true,
-                    search_scope: 'current',
+        /**
+         * 打开一个二级浮层（同时只开一个）。
+         *
+         * 浮层固定向右展开、纵向按剩余空间自适应（见 `utils/flyoutPosition.js`）。
+         * 坐标在**渲染后**测量：先让 x-show 生效，再在下一帧量高度。
+         *
+         * @param {'ruleset'|string} kind `'ruleset'` 或插件分组的 key
+         * @param {Event|Element} anchorEl 父项按钮（模板传 `$event.currentTarget`）
+         */
+        openSubmenu(kind, anchorEl) {
+            const target = String(kind || '');
+            if (!target) return;
+            this.activeSubmenu = target;
+            this._submenuAnchor = resolveAnchorElement(anchorEl);
+            // 移动端走「弹层第二屏」/ 直接开弹窗，没有浮层可定位
+            if (this.isMobile) return;
+            const flyoutKind = target === 'ruleset' ? 'ruleset' : 'plugin';
+            this.$nextTick(() => {
+                requestAnimationFrame(() => {
+                    const flyout = this.submenuFlyoutEl(flyoutKind);
+                    if (!flyout || !this._submenuAnchor) return;
+                    if (!positionFlyoutElement(flyout, this._submenuAnchor)) {
+                        // 首帧还没完成布局，下一帧重试。
+                        requestAnimationFrame(() => {
+                            const retry = this.submenuFlyoutEl(flyoutKind);
+                            if (retry && this._submenuAnchor) {
+                                positionFlyoutElement(retry, this._submenuAnchor);
+                            }
+                        });
+                    }
                 });
-                const cards = Array.isArray(data && data.cards) ? data.cards : [];
-                return cards.map((card) => String((card && card.id) || '')).filter(Boolean);
-            } catch (error) {
-                console.warn('[contextMenu] 解析分类卡片列表失败:', error);
-                return [];
+            });
+        },
+
+        /** 关闭二级浮层。 */
+        closeSubmenu() {
+            this.activeSubmenu = '';
+            this._submenuAnchor = null;
+        },
+
+        /** 同一个父项再点一次就收起（其它情况切到新的那一项）。 */
+        toggleSubmenu(kind, anchorEl) {
+            const target = String(kind || '');
+            if (!target) return;
+            if (String(this.activeSubmenu || '') === target) {
+                this.closeSubmenu();
+                return;
             }
+            this.openSubmenu(target, anchorEl);
+        },
+
+        /** 「运行自动化」的规则集子菜单开关（桌面端）。 */
+        toggleRuleSetSubmenu(anchorEl) {
+            window.dispatchEvent(new CustomEvent('load-rulesets-for-menu'));
+            this.toggleSubmenu('ruleset', anchorEl);
+        },
+
+        /** 插件分组父项的开关。 */
+        togglePluginGroup(key, anchorEl) {
+            this.toggleSubmenu(String(key || ''), anchorEl);
+        },
+
+        /** 某个插件分组是否正在显示二级浮层。 */
+        isPluginGroupOpen(key) {
+            const target = String(key || '');
+            return Boolean(target) && String(this.activeSubmenu || '') === target;
+        },
+
+        /** 移动端第二屏的返回行。 */
+        backFromPluginGroup() {
+            this.closeSubmenu();
+        },
+
+        /** 当前显示二级菜单的插件分组单元（找不到时返回 null）。 */
+        activePluginGroupUnit() {
+            const key = String(this.activeSubmenu || '');
+            if (!key || key === 'ruleset') return null;
+            return (this.pluginEntries || []).find(
+                (unit) => unit && unit.type === 'group' && unit.key === key,
+            ) || null;
+        },
+
+        /** 分组父项的角标：取组内入口角标之和（只有一个带角标时用它）。 */
+        pluginGroupBadge(group) {
+            const list = (group && group.entries) || [];
+            let total = 0;
+            let hasNumeric = false;
+            for (const entry of list) {
+                const raw = entry && entry.badge;
+                if (raw === null || raw === undefined || raw === '') continue;
+                const num = Number(raw);
+                if (Number.isFinite(num)) {
+                    total += num;
+                    hasNumeric = true;
+                } else {
+                    return String(raw);
+                }
+            }
+            if (!hasNumeric) return '';
+            return total > 99 ? '99+' : String(total);
         },
 
         /**
@@ -189,42 +342,44 @@ export default function contextMenu() {
          * 交给插件自己处理（与坞 / 命令面板同一套约定，见 `entryDock.js:open`）。
          * 置灰项不执行——但菜单里仍可见并附 `disabledHint`（D7：不是隐藏）。
          *
-         * **右键目标必须一并传下去**：插件要据此知道「分析哪一个分类 / 哪一张卡」。
-         * 只传 `targetId`（= 入口 id）的话，插件只能退回去读全局选中集，
-         * 而右键文件夹的作用域根本不是选中集。
+         * **只传语义目标**：作用域的解析归插件（它有 `api.cards.list` /
+         * `api.worldbook.sources`）。宿主在这里同步拉一遍分类卡片列表会让右键
+         * 上万张卡片的分类时菜单点不动，而且解析失败与「分类确实为空」都会变成
+         * 空数组，插件无法如实报错。
          */
-        async runPluginEntry(entry) {
+        runPluginEntry(entry) {
             if (!entry || !entry.enabled) return false;
 
             const surfaceId = (entry.surface && entry.surface.id) || entry.id;
             const surfaceKey = `${entry.pluginId}:${surfaceId}`;
+            this.closeSubmenu();
             this.visible = false;
 
-            const targetKind = String(this.type || '');
-            const targetPath = String(this.target == null ? '' : this.target);
-            const targetIds = await this.resolvePluginEntryTargetIds(targetKind);
-            const detail = {
-                key: entry.key,
-                entry,
-                source: 'context',
-                targetKind,
-                targetPath,
-                targetIds,
+            const kind = String(this.type || '');
+            const rawTarget = String(this.target == null ? '' : this.target);
+            const target = {
+                kind: kind === 'card' ? 'card' : 'folder',
+                mode: EntryRegistry.context().mode,
+                // `''` 表示根目录，是**合法值**：不能用真值判断来区分「没有目标」，
+                // `kind` 才是存在性标志。
+                path: kind === 'folder' ? rawTarget : '',
+                id: kind === 'card' ? rawTarget : '',
+                ids: [],
             };
 
             if (PluginSurfaceHost.has(surfaceKey)) {
                 PluginSurfaceHost.openSurface(surfaceKey, {
                     source: 'context',
                     targetId: entry.id,
-                    mode: EntryRegistry.context().mode,
-                    targetKind,
-                    targetPath,
-                    targetIds,
+                    mode: target.mode,
+                    target,
                 });
                 return true;
             }
 
-            window.dispatchEvent(new CustomEvent('entry:activate', { detail }));
+            window.dispatchEvent(new CustomEvent('entry:activate', {
+                detail: { key: entry.key, entry, source: 'context', target },
+            }));
             return true;
         },
 

@@ -266,3 +266,99 @@ def test_settings_exposes_plugin_manager_entry():
 
     assert 'settings-maintenance-plugins' in settings_source
     assert "selectSettingTab('plugins')" in settings_source
+
+
+# ---------------------------------------------------------------- 宿主侧补丁
+
+
+def test_host_selection_exposes_current_selection():
+    """`api.host.selection()`：读选中集的**契约入口**（§2）。
+
+    此前插件只能直接读 `store.viewState.selectedIds`（文档标为 Provisional 耦合），
+    宿主改字段名时插件会静默拿到空数组。
+    """
+    source = read_source('static/js/pluginHost.js')
+
+    assert 'selection() {' in source
+    assert 'viewState.selectedIds' in source
+    # 形状：{mode, ids}，且 ids 已规范成非空字符串
+    assert 'mode: String((store && store.currentMode) || "")' in source
+    assert '.filter(Boolean)' in source
+
+
+def test_selection_snapshot_module_is_the_single_host_reader():
+    """宿主内部的选中集读取抽成模块，命令面板复用它（§2）。
+
+    「怎么读选中集」只应该有一份实现，否则宿主改字段名时会漏掉某一处。
+    """
+    snapshot = read_source('static/js/components/selectionSnapshot.js')
+    palette = read_source('static/js/components/commandPalette.js')
+
+    assert 'export function readSelectionSnapshot()' in snapshot
+    assert 'viewState.selectedIds' in snapshot
+    assert 'mode: String((store && store.currentMode) || "")' in snapshot
+
+    assert "from \"./selectionSnapshot.js\"" in palette
+    assert 'readSelectionSnapshot()' in palette
+
+
+def test_worldbook_sources_lists_file_level_sources():
+    """`api.worldbook.sources()`：世界书任务的作用域是「文件」（§3）。
+
+    前端 `worldbook` 域此前只有 `read` / `write` / `list_entries` / `history`，
+    插件要枚举「某分类下有哪些书」只能读 `store.wiList`。
+    """
+    source = read_source('static/js/pluginHost.js')
+
+    # 默认（缓存）路径仍然同步；`all: true` 走分页全量枚举（返回 Promise）
+    assert 'sources({ category = "", sourceType = "", all = false' in source
+    assert 'listAllWorldbookSources(' in source
+    assert 'store.wiList' in source
+    # 字段名与宿主世界书列表项一致
+    for field in ('source_type', 'file_path', 'card_id', 'category', 'name', 'entry_count'):
+        assert f'{field}:' in source, field
+    # 分类过滤按路径段匹配：`科幻` 不能命中 `科幻短片`
+    assert 'isSameOrDescendantCategory' in source
+    assert 'normalized.startsWith(`${base}/`)' in source
+
+
+def test_jobs_review_methods_are_exposed():
+    """`api.jobs.review()` / `reviewBatch()`（§6）：插件不必再手拼审批路由。"""
+    source = read_source('static/js/pluginHost.js')
+
+    assert 'async review(runId, itemKey, status) {' in source
+    assert '/items/${encodeURIComponent(itemKey)}/review' in source
+    assert 'async reviewBatch(runId, updates) {' in source
+    assert 'Promise.allSettled' in source
+    # 单条失败不阻断其余条目；`review()` 返回 false 也要计入 failed
+    assert 'item.value === false' in source
+    assert '{ total: list.length, failed }' in source
+
+
+def test_command_palette_excludes_context_entries():
+    """命令面板没有右键目标，`context` 类入口在里面语义不成立（§5.1）。
+
+    用户在面板里搜到「AI 打标此分类全部卡片」并激活，只会得到一个没有作用域的
+    面板。`EntryRegistry.searchable()` 保持不变（它服务于入口总览等其它消费者）。
+    """
+    palette = read_source('static/js/components/commandPalette.js')
+    registry = read_source('static/js/entryRegistry.js')
+
+    assert 'commandCandidates()' in palette
+    assert 'entry.kind !== "context"' in palette
+    # 两处重建入口都要走候选集过滤
+    assert palette.count('this.filter(this.commandCandidates())') == 2
+    # searchable() 本身不收缩
+    assert 'searchable() {' in registry
+    assert 'return [...this.coreEntries, ...this.all()];' in registry
+
+
+def test_command_palette_labels_and_targets_batch_entries():
+    """§5.2 / §5.3：`batch` 入口要带选中集，且有自己的 kindLabel。"""
+    palette = read_source('static/js/components/commandPalette.js')
+
+    assert 'buildCommandTarget(entry)' in palette
+    assert 'entry.kind !== "batch"' in palette
+    assert 'batch: "批量",' in palette
+    # 两条执行路径（命令面板激活 / 快捷键）都要带 target
+    assert palette.count('const target = this.buildCommandTarget(entry);') == 2

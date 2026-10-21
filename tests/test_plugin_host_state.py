@@ -626,3 +626,117 @@ def test_non_function_handler_is_ignored():
         """
     )
     assert result.returncode == 0, result.stderr or result.stdout
+
+
+# ------------------------------------------------------------------ 选中集 / 世界书来源
+
+
+@requires_node
+def test_host_selection_reads_view_state():
+    """`api.host.selection()` 返回 `{mode, ids}`，且 id 规范成非空字符串。"""
+    result = run_dom_script(
+        """
+        import assert from 'node:assert/strict';
+        import { PluginHost } from './static/js/pluginHost.js';
+
+        __setStore({ currentMode: 'worldinfo', viewState: { selectedIds: [1, '', 'a', null] } });
+        const api = PluginHost.buildApi({ id: 'demo-plugin', manifest: {} }, {});
+        assert.deepEqual(api.host.selection(), { mode: 'worldinfo', ids: ['1', 'a'] });
+
+        // 没有选中集时是空数组，不是 undefined（插件可以无条件读）
+        __setStore({ currentMode: 'cards', viewState: {} });
+        assert.deepEqual(api.host.selection(), { mode: 'cards', ids: [] });
+        """
+    )
+    assert result.returncode == 0, result.stderr or result.stdout
+
+
+@requires_node
+def test_worldbook_sources_filters_by_category_and_source_type():
+    """`api.worldbook.sources()` 按**路径段**过滤分类，不会把 `科幻短片` 算进 `科幻`。"""
+    result = run_dom_script(
+        """
+        import assert from 'node:assert/strict';
+        import { PluginHost } from './static/js/pluginHost.js';
+
+        __setStore({ wiList: [
+          { source_type: 'global', path: '/wi/a.json', display_category: '科幻',
+            name: 'A', owner_card_id: '', entry_count: 3 },
+          { source_type: 'global', path: '/wi/b.json', display_category: '科幻/太空',
+            name: 'B', owner_card_id: '', entry_count: 5 },
+          { source_type: 'global', path: '/wi/c.json', display_category: '科幻短片',
+            name: 'C', owner_card_id: '', entry_count: 7 },
+          { source_type: 'embedded', path: '', display_category: '科幻',
+            name: 'D', owner_card_id: 'card-1' },
+        ] });
+
+        const api = PluginHost.buildApi({ id: 'demo-plugin', manifest: {} }, {});
+
+        // 全部：字段规范化
+        const all = api.worldbook.sources();
+        assert.equal(all.length, 4);
+        assert.deepEqual(all[0], {
+          source_type: 'global', file_path: '/wi/a.json', card_id: '',
+          category: '科幻', name: 'A', entry_count: 3,
+        });
+        // 缺 entry_count 时归 0，不是 NaN
+        assert.equal(all[3].entry_count, 0);
+        assert.equal(all[3].card_id, 'card-1');
+
+        // 分类过滤：含子分类，但 `科幻短片` 不算（按路径段匹配）
+        const scoped = api.worldbook.sources({ category: '科幻' });
+        assert.deepEqual(scoped.map((item) => item.name), ['A', 'B', 'D']);
+
+        // 来源类型过滤
+        const embedded = api.worldbook.sources({ category: '科幻', sourceType: 'embedded' });
+        assert.deepEqual(embedded.map((item) => item.name), ['D']);
+
+        // 空列表时返回空数组
+        __setStore({ wiList: [] });
+        assert.deepEqual(api.worldbook.sources(), []);
+        """
+    )
+    assert result.returncode == 0, result.stderr or result.stdout
+
+
+@requires_node
+def test_jobs_review_batch_counts_both_failure_modes():
+    """`reviewBatch` 的 `failed` 必须同时算上「抛错」与「端点返回 success:false」。
+
+    只数 `rejected` 会让端点返回 `{success: false}` 时 `failed` 恒为 0，
+    用户看到「0 条失败」却一条也没审批成功。
+    """
+    result = run_dom_script(
+        """
+        import assert from 'node:assert/strict';
+        import { PluginHost } from './static/js/pluginHost.js';
+
+        const api = PluginHost.buildApi({ id: 'demo-plugin', manifest: {} }, {});
+
+        const calls = [];
+        api.api = async (path, options = {}) => {
+          calls.push(path);
+          if (path.includes('boom')) throw new Error('网络炸了');
+          if (path.includes('nope')) return { success: false };
+          return { success: true };
+        };
+
+        const out = await api.jobs.reviewBatch('run-1', [
+          { key: 'ok', status: 'done' },
+          { key: 'nope', status: 'done' },
+          { key: 'boom', status: 'done' },
+        ]);
+
+        assert.deepEqual(out, { total: 3, failed: 2 });
+        assert.equal(calls.length, 3, '单条失败不得中断其余条目');
+        assert.ok(calls[0].endsWith('/jobs/run-1/items/ok/review'), calls[0]);
+
+        // 单条 review 的返回值：以 data.success 判定，不抛错
+        assert.equal(await api.jobs.review('run-1', 'ok', 'done'), true);
+        assert.equal(await api.jobs.review('run-1', 'nope', 'done'), false);
+
+        // 非数组入参退化为空批次
+        assert.deepEqual(await api.jobs.reviewBatch('run-1', null), { total: 0, failed: 0 });
+        """
+    )
+    assert result.returncode == 0, result.stderr or result.stdout

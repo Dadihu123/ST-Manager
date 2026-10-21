@@ -36,6 +36,67 @@ const DEFAULT_SURFACE_SIZE = "md";
 
 const SURFACE_ROOT_ID = "plugin-surface-root";
 
+/**
+ * 入口上下文 → 交给插件的打开上下文（**唯一**构造点）。
+ *
+ * `openSurface` 有两处把 ctx 交给插件：复用已打开 surface 时的 `onOpen`、
+ * 首次 mount 时的 `mount(body, ctx)`。两处必须走同一个 helper，否则形状会分叉
+ * （一处有 `target`、另一处还是旧的扁平字段，插件只能两套都读）。
+ *
+ * 形状：
+ * ```
+ * {
+ *   ...ctx,            // 插件自定义字段原样透传
+ *   source, surfaceId, pluginId, entryId, mode,
+ *   target: { kind, mode, path, id, ids } | null,
+ * }
+ * ```
+ *
+ * `target.kind` 取 `'selection' | 'folder' | 'card' | 'none'`：
+ * - `folder` 时 `path` 有效，`''` 表示根目录（**合法值**，不能靠真值判断）；
+ * - `card` 时 `id` 有效；
+ * - `selection` 时 `ids` 是选中集；
+ * - `none` 表示没有作用域（坞 / 命令 / 设置类入口）。
+ *
+ * **解析作用域是插件的事**：宿主只传语义目标，不在这里拉卡片列表
+ * （右键上万张卡片的分类时那会卡住菜单点击），插件用 `api.cards.list` /
+ * `api.worldbook.sources` 自己解析。
+ *
+ * 旧的扁平字段（`targetKind` / `targetPath` / `targetIds`）与 `targetId`
+ * **已删除**：它们与 `target` / `entryId` 表达同一件事，留着会诱导插件继续读
+ * 旧形状。这里在构造点把它们**主动丢弃**（而不是依赖调用方不传）。
+ */
+function buildOpenContext(ctx = {}, record = {}) {
+  const target = ctx.target && typeof ctx.target === "object" ? ctx.target : null;
+  // 旧的扁平目标字段与 `targetId` 一律丢弃：它们与 `target` / `entryId` 表达同一
+  // 件事，透传出去会诱导插件继续读旧形状（§1 的目标是让旧形状**彻底消失**）。
+  const {
+    targetKind: _legacyKind,
+    targetPath: _legacyPath,
+    targetIds: _legacyIds,
+    targetId: _legacyEntryId,
+    ...passthrough
+  } = ctx;
+  return {
+    // 其余字段原样透传（插件自定义上下文）
+    ...passthrough,
+    source: String(ctx.source || ""),
+    surfaceId: record.id || "",
+    pluginId: record.pluginId || "",
+    entryId: String(ctx.targetId || ctx.entryId || ""),
+    mode: String(ctx.mode || (target && target.mode) || ""),
+    target: target
+      ? {
+        kind: String(target.kind || "none"),
+        mode: String(target.mode || ctx.mode || ""),
+        path: String(target.path == null ? "" : target.path),
+        id: String(target.id || ""),
+        ids: Array.isArray(target.ids) ? target.ids.map(String) : [],
+      }
+      : null,
+  };
+}
+
 /** 每种类型的容器类名与无障碍角色。 */
 const SURFACE_CLASSES = {
   panel: "plugin-surface plugin-surface--panel",
@@ -208,16 +269,7 @@ export const PluginSurfaceHost = {
     this.open.set(record.key, state);
 
     try {
-      const returned = record.mount(body, {
-        source: "ambient",
-        targetId: "",
-        mode: "",
-        targetKind: "",
-        targetPath: "",
-        targetIds: [],
-        pluginId: record.pluginId,
-        surfaceId: record.id,
-      });
+      const returned = record.mount(body, buildOpenContext({ source: "ambient" }, record));
       if (typeof returned === "function") state.disposer = returned;
     } catch (error) {
       console.error(
@@ -316,7 +368,7 @@ export const PluginSurfaceHost = {
       // 复用既有容器；把新 ctx 重新投递给插件（这是入口切换作用域的唯一通道）
       if (record.onOpen) {
         try {
-          record.onOpen({ ...ctx, pluginId: record.pluginId });
+          record.onOpen(buildOpenContext(ctx, record));
         } catch (error) {
           console.error(`[surfaceHost] 插件 ${record.pluginId} 的 onOpen 失败:`, error);
         }
@@ -426,24 +478,11 @@ export const PluginSurfaceHost = {
     this.activeKey = record.key;
 
     try {
-      const returned = record.mount(body, {
-        source: String(ctx.source || ""),
-        targetId: String(ctx.targetId || ""),
-        mode: String(ctx.mode || ""),
-        // 右键目标（只有 `source === "context"` 会带）：插件据此知道作用域是
-        // 整个分类还是单张卡片。`targetPath` 为 `""` 表示根目录，是**合法值**，
-        // 因此不能用真值判断来区分「没有目标」——`targetKind` 才是存在性标志。
-        targetKind: String(ctx.targetKind || ""),
-        targetPath: String(ctx.targetPath == null ? "" : ctx.targetPath),
-        // 目标 id 列表（批量入口传选中集，右键卡片传那一张，其余为空数组）。
-        // 有了它，插件不必再去读宿主的 `viewState.selectedIds`（Provisional 耦合）。
-        targetIds: Array.isArray(ctx.targetIds) ? ctx.targetIds.map(String) : [],
-        pluginId: record.pluginId,
-        surfaceId: record.id,
-      });
+      const mountContext = buildOpenContext(ctx, record);
+      const returned = record.mount(body, mountContext);
       // mount 返回函数时，宿主在关闭时调用它（D8 契约）
       if (typeof returned === "function") state.disposer = returned;
-      if (record.onOpen) record.onOpen({ ...ctx, pluginId: record.pluginId });
+      if (record.onOpen) record.onOpen(mountContext);
     } catch (error) {
       console.error(`[surfaceHost] 插件 ${record.pluginId} 的 surface ${record.id} 挂载失败:`, error);
       this.close(record.key);
@@ -467,11 +506,11 @@ export const PluginSurfaceHost = {
    * `mount()` 抛错时把对应入口置错误态（设计文档 8.3：失败被隔离在单个插件内）。
    *
    * 错误要反映到**入口**上，用户才能看见「这个插件的面板坏了」而不是点了没反应。
-   * 入口 id 从 `ctx.targetId` 取（坞 / 命令面板都会传）；取不到时按 surfaceId 兜底
-   * ——多数插件让 `surface.id === entry.id`。
+   * 入口 id 从 `ctx.entryId`（新名）/ `ctx.targetId`（旧名）取；取不到时按
+   * surfaceId 兜底——多数插件让 `surface.id === entry.id`。
    */
   _markEntryError(record, ctx, error) {
-    const entryId = String((ctx && ctx.targetId) || record.id || "");
+    const entryId = String((ctx && (ctx.entryId || ctx.targetId)) || record.id || "");
     if (!entryId) return;
     try {
       EntryRegistry.setStatus(record.pluginId, entryId, "error");

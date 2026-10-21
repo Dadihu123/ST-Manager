@@ -12,7 +12,9 @@
     <div x-show="isMobile" @click="hideContextMenu()" class="absolute inset-0 color-surface-scrim backdrop-blur-sm"></div>
 
     <!-- 菜单内容容器：根据设备类型调整样式 -->
-    <div class="ui-context-menu" :class="isMobile ? 'w-64 max-w-[90vw] rounded-xl shadow-2xl overflow-hidden relative z-10' : 'shadow-xl rounded-lg py-1 w-56'"
+    <div class="ui-context-menu" @click="closeSubmenu()"
+        :class="isMobile ? 'w-64 max-w-[90vw] rounded-xl shadow-2xl overflow-hidden relative z-10' : 'shadow-xl rounded-lg py-1 w-56'"
+        :style="{ maxHeight: menuMaxHeight ? menuMaxHeight + 'px' : 'none', overflowY: 'auto' }"
         style="background: var(--surface-container); border: 1px solid var(--border-default);">
 
         <!-- 移动端：标题栏 -->
@@ -68,40 +70,18 @@
                         <span aria-hidden="true">{{ icon('card-update-check', 'ui-icon--sm context-menu-icon') }}</span> 检查分类更新
                     </button>
                     <!-- 运行自动化 -->
-                    <!-- 桌面端：悬停显示子菜单 -->
-                    <div x-show="targetMode === 'cards' && !isMobile" x-data="{ showSub: false }" class="relative"
-                        @mouseenter="showSub=true; $dispatch('load-rulesets-for-menu')" @mouseleave="showSub=false">
-                        <button
+                    <!-- 桌面端：向右弹出规则集浮层（fixed，不在一级菜单盒里，
+                         否则会被 overflow 裁掉）；再点一次收起 -->
+                    <div x-show="targetMode === 'cards' && !isMobile">
+                        <button type="button"
+                            @click.stop="toggleRuleSetSubmenu($event.currentTarget)"
+                            aria-haspopup="menu"
+                            :aria-expanded="(activeSubmenu === 'ruleset').toString()"
                             class="w-full text-left px-4 py-2 text-sm hover:bg-[var(--state-hover-surface)] transition-colors flex items-center justify-between"
                             style="color: var(--content-primary);">
                             <span class="flex items-center gap-2"><span aria-hidden="true">{{ icon('workflow', 'ui-icon--sm context-menu-icon') }}</span> 运行自动化</span>
                             <span class="inline-flex" aria-hidden="true">{{ icon('chevron-right', 'ui-icon--xs') }}</span>
                         </button>
-
-                        <!-- 子菜单：选择规则集 -->
-                        <div x-show="showSub" x-transition:enter="transition ease-out duration-100"
-                            x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
-                            class="absolute left-full top-0 ml-1 w-48 bg-[var(--surface-container)] border border-[var(--border-default)] rounded shadow-xl py-1 custom-scrollbar"
-                            style="max-height: 300px; overflow-y: auto;"
-                            @mouseenter="showSub=true" @mouseleave="showSub=false">
-
-                            <div
-                                class="px-3 py-1 text-[10px] text-[var(--content-muted)] border-b border-[var(--border-default)] bg-[var(--surface-container-raised)]">
-                                选择规则集:
-                            </div>
-
-                            <template x-for="rs in $store.global.availableRuleSets" :key="rs.id">
-                                <button @click.stop="handleRunAuto(rs.id)"
-                                    class="w-full text-left px-3 py-2 text-xs hover:bg-[var(--state-hover-surface)] text-[var(--content-primary)] truncate block">
-                                    <span x-text="rs.meta.name"></span>
-                                </button>
-                            </template>
-
-                            <div x-show="!$store.global.availableRuleSets || $store.global.availableRuleSets.length===0"
-                                class="px-3 py-2 text-xs text-[var(--content-muted)] text-center">
-                                (无规则集)
-                            </div>
-                        </div>
                     </div>
 
                     <!-- 移动端：直接打开执行规则弹窗 -->
@@ -114,33 +94,113 @@
             </template>
 
             <!-- 插件声明的 `kind: "context"` 入口（D1：右键菜单是 context 的落点）。
-                 置灰项**可见但不可点**，并显示 disabledHint（D7：不是隐藏、不是无反应）。 -->
+                 `EntryRegistry.menuGroups()` 已过滤 `when` 不通过的入口并按 `group` 折叠：
+                 一级菜单只有一个「AI 助手」父项，点开后是**二级菜单**（各任务）。
+                 不适用的动作直接不出现（不是置灰）。
+
+                 二级菜单桌面端是 `.ui-context-menu` 之外的独立 fixed 浮层，
+                 **固定向右展开**，纵向放不下时向上延申（见 utils/flyoutPosition.js）。
+                 再点一次父项收起。移动端退化为同一弹层里的第二屏（切内容 + 返回行）。 -->
             <template x-if="pluginEntries.length">
                 <div>
-                    <hr :class="isMobile ? 'border-[var(--border-default)] my-1' : 'border-[var(--border-default)] my-1'">
-                    <template x-for="entry in pluginEntries" :key="entry.key">
-                        <button @click="runPluginEntry(entry)"
-                            :disabled="!entry.enabled"
-                            :title="entry.enabled ? (entry.description || entry.label) : (entry.disabledHint || '当前条件下不可用')"
-                            :class="isMobile ? 'w-full text-left px-4 py-3 text-base transition-colors flex items-center gap-2' : 'w-full text-left px-4 py-2 text-sm transition-colors flex items-center gap-2'"
-                            :style="entry.enabled
-                                ? 'color: var(--content-primary);'
-                                : 'color: var(--content-disabled); cursor: not-allowed;'">
-                            <span class="inline-flex" aria-hidden="true" x-html="pluginEntryIconHtml(entry)"></span>
-                            <span class="flex-1 min-w-0">
-                                <span class="block truncate" x-text="entry.label"></span>
-                                <span x-show="!entry.enabled && entry.disabledHint"
-                                    class="block truncate text-[10px] color-text-muted"
-                                    x-text="entry.disabledHint"></span>
-                            </span>
-                            <span x-show="entry.badge !== null && entry.badge !== undefined && entry.badge !== ''"
-                                class="plugin-entries-badge"
-                                x-text="entry.badge"></span>
-                        </button>
-                    </template>
+                    <hr class="border-[var(--border-default)] my-1">
+
+                    <!-- 一级：分组父项 / 未分组条目（移动端进入二级后隐藏） -->
+                    <div x-show="!isMobile || !activePluginGroupUnit()">
+                            <template x-for="unit in pluginEntries" :key="unit.type === 'group' ? unit.key : unit.entry.key">
+                                <div x-show="unit.type === 'group'">
+                                    <button type="button" @click.stop="togglePluginGroup(unit.key, $event.currentTarget)"
+                                        aria-haspopup="menu"
+                                        :aria-expanded="isPluginGroupOpen(unit.key).toString()"
+                                        :class="isMobile ? 'w-full text-left px-4 py-3 text-base transition-colors flex items-center gap-2' : 'w-full text-left px-4 py-2 text-sm hover:bg-[var(--state-hover-surface)] transition-colors flex items-center gap-2'"
+                                        style="color: var(--content-primary);">
+                                        <span class="inline-flex" aria-hidden="true" x-html="pluginEntryIconHtml(unit)"></span>
+                                        <span class="flex-1 min-w-0 truncate" x-text="unit.label"></span>
+                                        <span class="plugin-entries-badge" x-show="pluginGroupBadge(unit)"
+                                            x-text="pluginGroupBadge(unit)"></span>
+                                        <span class="inline-flex" aria-hidden="true">{{ icon('chevron-right', 'ui-icon--xs') }}</span>
+                                    </button>
+                                </div>
+
+                                <button x-show="unit.type === 'entry'" type="button" @click="runPluginEntry(unit.entry)"
+                                    :title="unit.entry.description || unit.entry.label"
+                                    :class="isMobile ? 'w-full text-left px-4 py-3 text-base transition-colors flex items-center gap-2' : 'w-full text-left px-4 py-2 text-sm transition-colors flex items-center gap-2'"
+                                    style="color: var(--content-primary);">
+                                    <span class="inline-flex" aria-hidden="true" x-html="pluginEntryIconHtml(unit.entry)"></span>
+                                    <span class="flex-1 min-w-0 truncate" x-text="unit.entry.label"></span>
+                                    <span class="plugin-entries-badge"
+                                        x-show="unit.entry.badge !== null && unit.entry.badge !== undefined && unit.entry.badge !== ''"
+                                        x-text="unit.entry.badge"></span>
+                                </button>
+                            </template>
+                    </div>
+
+                    <!-- 移动端二级：同一弹层里的第二屏（桌面端走下面的 fixed 浮层） -->
+                    <div x-show="isMobile && activePluginGroupUnit()">
+                            <button type="button" @click.stop="backFromPluginGroup()"
+                                :class="isMobile ? 'w-full text-left px-4 py-2 text-xs transition-colors flex items-center gap-1' : 'w-full text-left px-4 py-1.5 text-xs transition-colors flex items-center gap-1'"
+                                class="hover:bg-[var(--state-hover-surface)]"
+                                style="color: var(--content-muted);">
+                                <span class="inline-flex rotate-180" aria-hidden="true">{{ icon('chevron-right', 'ui-icon--xs') }}</span>
+                                <span x-text="activePluginGroupUnit().label"></span>
+                            </button>
+                            <template x-for="entry in activePluginGroupUnit().entries" :key="entry.key">
+                                <button type="button" @click.stop="runPluginEntry(entry)"
+                                    :title="entry.description || entry.label"
+                                    :class="isMobile ? 'w-full text-left px-4 py-3 text-base transition-colors flex items-center gap-2' : 'w-full text-left px-4 py-2 text-sm transition-colors flex items-center gap-2'"
+                                    class="hover:bg-[var(--state-hover-surface)]"
+                                    style="color: var(--content-primary);">
+                                    <span class="inline-flex" aria-hidden="true" x-html="pluginEntryIconHtml(entry)"></span>
+                                    <span class="flex-1 min-w-0 truncate" x-text="entry.label"></span>
+                                    <span class="plugin-entries-badge"
+                                        x-show="entry.badge !== null && entry.badge !== undefined && entry.badge !== ''"
+                                        x-text="entry.badge"></span>
+                                </button>
+                            </template>
+                    </div>
                 </div>
             </template>
         </div>
+    </div>
+
+    <!-- 桌面端「运行自动化」的规则集二级菜单：独立 fixed 浮层。
+         固定在父项右边展开；纵向放不下时向上延申（utils/flyoutPosition.js）。
+         放在 `.ui-context-menu` 之外是必须的——菜单盒的 overflow 会把它裁掉。 -->
+    <div data-context-ruleset-flyout x-show="!isMobile && activeSubmenu === 'ruleset'"
+        x-cloak role="menu" class="plugin-menu-flyout plugin-menu-flyout--ruleset"
+        style="position: fixed; top: -9999px; left: -9999px;" @click.stop>
+        <div class="plugin-menu-flyout-title">选择规则集</div>
+        <template x-for="rs in $store.global.availableRuleSets" :key="rs.id">
+            <button type="button" @click.stop="handleRunAuto(rs.id)" class="plugin-menu-flyout-item">
+                <span class="flex-1 min-w-0 truncate" x-text="rs.meta.name"></span>
+            </button>
+        </template>
+        <div x-show="!$store.global.availableRuleSets || $store.global.availableRuleSets.length===0"
+            class="plugin-menu-flyout-empty">(无规则集)</div>
+    </div>
+
+    <!-- 桌面端插件分组的二级菜单：独立 fixed 浮层。
+         挂在 `.ui-context-menu` 之外（菜单盒的 overflow 会裁掉子元素），
+         位置由 `openSubmenu()` 在渲染后测量并写入 top/left；
+         初始放在视口外，避免首帧闪在错误位置。 -->
+    <div data-plugin-group-flyout x-show="!isMobile && activePluginGroupUnit()"
+        x-cloak role="menu" class="plugin-menu-flyout" style="position: fixed; top: -9999px; left: -9999px;"
+        @click.stop>
+        <template x-if="activePluginGroupUnit()">
+            <div>
+                <div class="plugin-menu-flyout-title" x-text="activePluginGroupUnit().label"></div>
+                <template x-for="entry in activePluginGroupUnit().entries" :key="entry.key">
+                    <button type="button" @click.stop="runPluginEntry(entry)"
+                        :title="entry.description || entry.label" class="plugin-menu-flyout-item">
+                        <span class="inline-flex" aria-hidden="true" x-html="pluginEntryIconHtml(entry)"></span>
+                        <span class="flex-1 min-w-0 truncate" x-text="entry.label"></span>
+                        <span class="plugin-entries-badge"
+                            x-show="entry.badge !== null && entry.badge !== undefined && entry.badge !== ''"
+                            x-text="entry.badge"></span>
+                    </button>
+                </template>
+            </div>
+        </template>
     </div>
 
     <!-- 删除文件夹确认弹窗 -->

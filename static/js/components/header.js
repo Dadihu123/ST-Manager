@@ -16,6 +16,7 @@ import { listChats } from "../api/chat.js";
 import { EntryRegistry } from "../entryRegistry.js";
 import { PluginSurfaceHost } from "../pluginSurfaceHost.js";
 import { icon as buildIcon } from "../uiPrimitives.js";
+import { positionFlyoutElement, resolveAnchorElement } from "../utils/flyoutPosition.js";
 
 const MOBILE_HEADER_UPLOAD_MODES = [
   "cards",
@@ -34,7 +35,19 @@ export default function header() {
 
     /** 插件声明的 `kind: "batch"` 入口（批量操作菜单里的插件项）。 */
     pluginBatchEntries: [],
+    /**
+     * 当前打开的插件分组 key（`''` = 没有二级菜单）。
+     *
+     * 与右键菜单同一套：桌面端点父项弹一个 **fixed 浮层**（`.plugin-menu-flyout`），
+     * 不能就地展开——批量菜单盒同样有高度钳制，`pl-6` 子项块会被裁掉。
+     * 状态放组件上而不是 `x-for` 克隆里的局部 `x-data`：后者会丢绑定。
+     */
+    activePluginBatchGroup: "",
+    /** 二级浮层的锚点（父项按钮），只用于定位。 */
+    _pluginBatchGroupAnchor: null,
     _pluginEntriesHandler: null,
+    _pluginFlyoutKeyHandler: null,
+    _pluginFlyoutScrollHandler: null,
 
     get searchQuery() {
       return this.$store.global.viewState.searchQuery;
@@ -445,6 +458,22 @@ export default function header() {
       window.addEventListener("entries:changed", this._pluginEntriesHandler);
       window.addEventListener("plugins:loaded", this._pluginEntriesHandler);
       this.refreshPluginBatchEntries();
+
+      // 二级浮层：Escape 关闭；宿主页面 / 菜单滚动时父项会跑位，也收起。
+      // 浮层自身滚动不算（长列表要能在浮层里滚）。
+      this._pluginFlyoutKeyHandler = (event) => {
+        if (event.key !== "Escape" || !this.activePluginBatchGroup) return;
+        event.stopPropagation();
+        this.closePluginBatchGroup();
+      };
+      window.addEventListener("keydown", this._pluginFlyoutKeyHandler, true);
+      this._pluginFlyoutScrollHandler = (event) => {
+        if (!this.activePluginBatchGroup) return;
+        const flyout = this.pluginBatchFlyoutEl();
+        if (flyout && event.target instanceof Node && flyout.contains(event.target)) return;
+        this.closePluginBatchGroup();
+      };
+      window.addEventListener("scroll", this._pluginFlyoutScrollHandler, true);
     },
 
     destroy() {
@@ -453,27 +482,31 @@ export default function header() {
         window.removeEventListener("plugins:loaded", this._pluginEntriesHandler);
         this._pluginEntriesHandler = null;
       }
+      if (this._pluginFlyoutKeyHandler) {
+        window.removeEventListener("keydown", this._pluginFlyoutKeyHandler, true);
+        this._pluginFlyoutKeyHandler = null;
+      }
+      if (this._pluginFlyoutScrollHandler) {
+        window.removeEventListener("scroll", this._pluginFlyoutScrollHandler, true);
+        this._pluginFlyoutScrollHandler = null;
+      }
     },
 
     // === 插件 batch 入口（D1：`kind: "batch"` 落到批量操作菜单） ===
 
     /**
-     * 取当前可用的插件 batch 入口。
+     * 批量菜单里的插件入口。
      *
-     * `when` 求值统一由 `EntryRegistry.list()` 完成（这里是全局 selection 语义，
-     * 与右键菜单按右键目标求值不同）——所以不要在这里重复判断条件。
-     *
-     * 只返回**可用**的入口：批量菜单的宿主内建项都靠 `x-show="currentMode === ..."`
-     * 自己管可见性，插件项没有等价条件，因此「不适用」的入口不该出现在菜单里
-     * （例如 AI 助手只处理角色卡，在世界书/会话视图下这个菜单项就是噪声）。
-     * 与右键菜单不同：那里 `when` 不满足要**可见但置灰**（D7），因为用户是在
-     * 「对某个目标操作」的语境下期待看到它；批量菜单是动作清单，不适用就该收起。
+     * `when` 不满足的入口**不出现**（与右键菜单同一规则）：批量菜单是动作清单，
+     * 不适用的动作收起来比置灰更省心。声明了 `group` 的入口折叠成一个父项，
+     * 子项才是各任务。
      */
     refreshPluginBatchEntries() {
       try {
-        this.pluginBatchEntries = EntryRegistry
-          .list({ kind: "batch" })
-          .filter((entry) => entry.enabled);
+        // 与右键菜单同一套：只取可用入口，并按插件 `group` 折叠成一个
+        // 「AI 助手」父项，子项才是各任务。
+        this.pluginBatchEntries = EntryRegistry.menuGroups({ kind: "batch" });
+        this.closePluginBatchGroup();
       } catch (error) {
         console.warn("[header] 读取插件 batch 入口失败:", error);
         this.pluginBatchEntries = [];
@@ -489,7 +522,136 @@ export default function header() {
     },
 
     /**
-     * 执行一个插件 batch 入口：选中卡片 id 随 surface ctx 一起交给插件。
+     * 移动端选中条用：把分组单元拍平成入口数组。
+     *
+     * 移动端是一排图标按钮，没有悬停子菜单的位置，所以不折叠——直接平铺
+     * 每个任务的按钮（都已经是 `when` 通过的）。
+     */
+    get pluginBatchFlatEntries() {
+      const out = [];
+      for (const unit of this.pluginBatchEntries || []) {
+        if (unit && unit.type === "group") out.push(...(unit.entries || []));
+        else if (unit && unit.entry) out.push(unit.entry);
+      }
+      return out;
+    },
+
+    /**
+     * 二级浮层元素。
+     *
+     * 浮层被 `x-teleport` 移到了 `body`（`.header-bar` 的 backdrop-filter 会给
+     * fixed 后代造包含块，留在 header 里定位会以 header 为基准），所以不能在
+     * `this.$el` 里找，也不能靠 x-ref。
+     */
+    pluginBatchFlyoutEl() {
+      if (typeof document === "undefined") return null;
+      return document.querySelector("[data-plugin-batch-flyout]");
+    },
+
+    /**
+     * 打开某个插件分组的二级菜单（fixed 浮层，固定向右展开、纵向自适应）。
+     *
+     * `anchorEl` 是父项按钮：坐标按它的 `getBoundingClientRect()` 计算。
+     */
+    openPluginBatchGroup(key, anchorEl) {
+      const target = String(key || "");
+      if (!target) return;
+      this.activePluginBatchGroup = target;
+      // 模板可能传 `$event`（Alpine 的事件对象），统一归一化成元素
+      this._pluginBatchGroupAnchor = resolveAnchorElement(anchorEl);
+      this.$nextTick(() => {
+        requestAnimationFrame(() => {
+          const flyout = this.pluginBatchFlyoutEl();
+          if (!flyout || !this._pluginBatchGroupAnchor) return;
+          if (!positionFlyoutElement(flyout, this._pluginBatchGroupAnchor)) {
+            requestAnimationFrame(() => {
+              const retry = this.pluginBatchFlyoutEl();
+              if (retry && this._pluginBatchGroupAnchor) {
+                positionFlyoutElement(retry, this._pluginBatchGroupAnchor);
+              }
+            });
+          }
+        });
+      });
+    },
+
+    /** 同一个父项再点一次就收起（与「自动处理 / 来源更新」的交互一致）。 */
+    togglePluginBatchGroup(key, anchorEl) {
+      const target = String(key || "");
+      if (!target) return;
+      if (String(this.activePluginBatchGroup || "") === target) {
+        this.closePluginBatchGroup();
+        return;
+      }
+      this.openPluginBatchGroup(target, anchorEl);
+    },
+
+    /** 收起二级菜单。 */
+    closePluginBatchGroup() {
+      this.activePluginBatchGroup = "";
+      this._pluginBatchGroupAnchor = null;
+    },
+
+    /** 二级菜单当前展示的分组单元（找不到时返回 null）。 */
+    activePluginBatchGroupUnit() {
+      const key = String(this.activePluginBatchGroup || "");
+      if (!key) return null;
+      return (
+        (this.pluginBatchEntries || []).find(
+          (unit) => unit && unit.type === "group" && unit.key === key,
+        ) || null
+      );
+    },
+
+    isPluginBatchGroupOpen(key) {
+      return String(this.activePluginBatchGroup || "") === String(key || "");
+    },
+
+    /** 分组父项的角标：组内入口角标求和（非数字角标原样返回）。 */
+    pluginBatchGroupBadge(group) {
+      const list = (group && group.entries) || [];
+      let total = 0;
+      let hasNumeric = false;
+      for (const entry of list) {
+        const raw = entry && entry.badge;
+        if (raw === null || raw === undefined || raw === "") continue;
+        const num = Number(raw);
+        if (Number.isFinite(num)) {
+          total += num;
+          hasNumeric = true;
+        } else {
+          return String(raw);
+        }
+      }
+      if (!hasNumeric) return "";
+      return total > 99 ? "99+" : String(total);
+    },
+
+    /**
+     * 入口进度条的百分比（`entry.progress` 是 `{done, total}`，不是百分数）。
+     *
+     * 返回 `null` 表示「没有进度可画」，让模板用 `x-if` 整块跳过——
+     * 返回 0 会画出一条 0% 的空槽，看起来像「卡住了」。
+     */
+    pluginBatchEntryProgressPercent(entry) {
+      const progress = entry && entry.progress;
+      if (!progress) return null;
+      const total = Number(progress.total || 0);
+      if (!Number.isFinite(total) || total <= 0) return null;
+      const done = Number(progress.done || 0);
+      const ratio = Number.isFinite(done) ? done / total : 0;
+      return Math.max(0, Math.min(100, Math.round(ratio * 100)));
+    },
+
+    /** 入口角标文案（`null` / `undefined` / `''` 都表示不画角标）。 */
+    pluginBatchEntryBadge(entry) {
+      const value = entry && entry.badge;
+      if (value === null || value === undefined || value === "") return "";
+      return String(value);
+    },
+
+    /**
+     * 执行一个插件 batch 入口：选中集随 surface ctx 一起交给插件。
      *
      * 置灰项不执行（菜单里仍可见并附 `disabledHint`，D7：不是隐藏）。
      */
@@ -498,13 +660,12 @@ export default function header() {
 
       const surfaceId = (entry.surface && entry.surface.id) || entry.id;
       const surfaceKey = `${entry.pluginId}:${surfaceId}`;
-      const targetIds = [...this.selectedIds];
-      const detail = {
-        key: entry.key,
-        entry,
-        source: "batch",
-        targetKind: "selection",
-        targetIds,
+      const target = {
+        kind: "selection",
+        mode: String(this.currentMode || ""),
+        path: "",
+        id: "",
+        ids: [...this.selectedIds],
       };
 
       if (PluginSurfaceHost.has(surfaceKey)) {
@@ -512,13 +673,14 @@ export default function header() {
           source: "batch",
           targetId: entry.id,
           mode: this.currentMode,
-          targetKind: "selection",
-          targetIds,
+          target,
         });
         return true;
       }
 
-      window.dispatchEvent(new CustomEvent("entry:activate", { detail }));
+      window.dispatchEvent(new CustomEvent("entry:activate", {
+        detail: { key: entry.key, entry, source: "batch", target },
+      }));
       return true;
     },
 

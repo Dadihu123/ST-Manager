@@ -40,6 +40,10 @@ export const SURFACE_TYPES = ["panel", "modal", "page", "sheet", "ambient"];
 /**
  * `when.target` 的合法取值（右键菜单求值目标类型）。
  *
+ * 注意这是 **`when` 求值上下文**里的字段（由右键菜单通过 `contextOverride`
+ * 提供），与交给插件的 `ctx.target.kind`（`pluginSurfaceHost.js` 的
+ * `buildOpenContext`）是两回事：前者只用于判断入口是否可用，后者是作用域数据。
+ *
  * 只有右键菜单会提供 `targetKind`；其它消费方（入口坞 / 命令面板 / 批量菜单）
  * 不传该值时 `when.target` **不参与求值**，否则 context 入口会在别处被误置灰。
  */
@@ -245,6 +249,9 @@ export function evaluateWhen(when, context = {}) {
   // `when.target` 只对右键菜单有意义：只有提供 `targetKind` 的消费方才求值。
   // 不提供时（入口坞 / 命令面板 / 批量菜单 / 总览页）跳过，避免 context 入口
   // 在这些地方被误判为不可用。
+  //
+  // 这里的 `context.targetKind` 是**求值上下文**字段（`contextOverride` 传入），
+  // 不是交给插件的 `ctx.target`——后者由 `buildOpenContext` 构造。
   const target = String(when.target || "").trim();
   if (target) {
     const actualTarget = String(context.targetKind || "").trim();
@@ -286,6 +293,8 @@ function normalizeDeclaredEntry(raw, pluginId) {
     shortcut: String(raw.shortcut || ""),
     when: raw.when && typeof raw.when === "object" ? raw.when : {},
     disabledHint: String(raw.disabledHint || ""),
+    // 菜单分组标签：同插件同名分组的入口折叠成一个父项（空 = 不分组）
+    group: String(raw.group || ""),
     tier: String(raw.tier || "community"),
     source: "manifest",
     // 运行期状态（由 api.entries.* 维护，不属于声明层）
@@ -777,6 +786,10 @@ export const EntryRegistry = {
   list(options = {}) {
     const kind = String(options.kind || "").trim();
     const includeHidden = Boolean(options.includeHidden);
+    // `enabledOnly`：只返回 `when` 通过、且 `contexts` 命中的入口。
+    // 右键菜单 / 批量菜单用它——「这个动作在这里不适用」就不该出现在菜单里，
+    // 而不是显示成一条点不动的灰项（置灰只保留给命令面板 / 总览页的检索场景）。
+    const enabledOnly = Boolean(options.enabledOnly);
     const override =
       options.contextOverride && typeof options.contextOverride === "object"
         ? options.contextOverride
@@ -802,6 +815,7 @@ export const EntryRegistry = {
       }
 
       const enabled = when.ok && contextsOk;
+      if (enabledOnly && !enabled) continue;
       items.push({
         ...entry,
         enabled,
@@ -824,6 +838,54 @@ export const EntryRegistry = {
     });
 
     return items;
+  },
+
+  /**
+   * 菜单条目 → 渲染单元（右键菜单 / 批量菜单共用）。
+   *
+   * 规则：
+   * - 只取 `when` 通过且 `contexts` 命中的入口（不适用的动作不出现在菜单里）；
+   * - 声明了 `group` 的入口按「插件 + 分组标签」折叠成一个父项，
+   *   父项下是该组的全部入口（顺序按 priority）；
+   * - 没声明 `group` 的入口保持一条一条平铺，避免把单入口插件包成一层。
+   *
+   * @returns {Array<{type:'entry', entry:object} | {type:'group', key:string,
+   *   pluginId:string, label:string, icon:string, entries:object[]}>}
+   */
+  menuGroups(options = {}) {
+    const entries = this.list({
+      kind: options.kind,
+      contextOverride: options.contextOverride,
+      enabledOnly: true,
+    });
+
+    const out = [];
+    const groups = new Map();
+    for (const entry of entries) {
+      const label = String(entry.group || "").trim();
+      if (!label) {
+        out.push({ type: "entry", entry });
+        continue;
+      }
+      const key = `${entry.pluginId}::${label}`;
+      let group = groups.get(key);
+      if (!group) {
+        group = {
+          type: "group",
+          key,
+          pluginId: entry.pluginId,
+          label,
+          // 父项图标取组内第一个入口的图标（同一插件通常一致）
+          icon: String(entry.icon || ""),
+          entries: [],
+        };
+        groups.set(key, group);
+        out.push(group);
+      }
+      group.entries.push(entry);
+      if (!group.icon) group.icon = String(entry.icon || "");
+    }
+    return out;
   },
 
   /** 全部条目（含隐藏），供总览页使用。 */

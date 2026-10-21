@@ -1621,6 +1621,100 @@
   font-weight: 600;
 }
 
+/* 插件入口的进度条（`api.entries.setProgress` 的 `{done, total}`）。
+   与角标同处一行，宽度固定避免菜单项随进度抖动。 */
+.plugin-entry-progress {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  width: 3rem;
+  height: 0.25rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background-color: var(--surface-container-sunken);
+}
+
+.plugin-entry-progress-bar {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background-color: var(--status-info-solid);
+  transition: width 160ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .plugin-entry-progress-bar {
+    transition: none;
+  }
+}
+
+/* 二级菜单浮层（右键菜单 / 批量菜单共用）。
+ *
+ * 必须是 `position: fixed`：一级菜单盒带 `max-height + overflow:auto`
+ * （`.ui-context-menu` 还是 `overflow:hidden`），absolute 子元素会被裁掉——
+ * 「运行自动化」的规则集子菜单原先就是 `absolute left-full`，被裁得看不见。
+ * 展开方向固定向右（与批量菜单里「自动处理 / 来源更新」一致）；top/left 由
+ * `utils/flyoutPosition.js` 在渲染后按父项位置测量写入，纵向放不下时向上延申。
+ * z-index 要压过菜单盒本身：浮层是菜单盒的兄弟节点。 */
+.plugin-menu-flyout {
+  position: fixed;
+  z-index: calc(var(--z-context-menu) + 1);
+  display: flex;
+  flex-direction: column;
+  width: 14rem;
+  max-width: calc(100vw - 16px);
+  padding: 0.25rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--surface-container);
+  border: 1px solid var(--border-default);
+  border-radius: var(--ui-radius-md);
+  box-shadow: var(--shadow-elevation);
+}
+
+/* 规则集列表偏窄一些（与原来的 w-48 一致）。 */
+.plugin-menu-flyout--ruleset {
+  width: 12rem;
+}
+
+.plugin-menu-flyout-title {
+  padding: 0.375rem 0.7rem;
+  color: var(--content-muted);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  border-bottom: 1px solid var(--border-subtle);
+  margin-bottom: 0.125rem;
+}
+
+.plugin-menu-flyout-empty {
+  padding: 0.5rem 0.7rem;
+  color: var(--content-muted);
+  font-size: 0.75rem;
+  text-align: center;
+}
+
+.plugin-menu-flyout-item {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: var(--ui-control-height-compact);
+  padding: 0.5rem 0.7rem;
+  text-align: left;
+  color: var(--content-primary);
+  border-radius: var(--ui-radius-xs);
+  transition:
+    color var(--ui-transition-fast),
+    background-color var(--ui-transition-fast);
+}
+
+.plugin-menu-flyout-item:hover,
+.plugin-menu-flyout-item:focus-visible {
+  color: var(--accent-text);
+  background: var(--state-hover-surface);
+}
+
 /* Supporting readers and history surfaces -------------------------------- */
 .ui-refresh-surface .forum-preview-panel {
   max-height: min(88dvh, 52rem);

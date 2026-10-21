@@ -285,7 +285,7 @@
     <div
       x-show="selectedIds.length > 0"
       x-data="{ showBatchActionsMenu: false, showRuleMenu: false, showSourceUpdateMenu: false }"
-      @keydown.escape.window="if (showRuleMenu) { showRuleMenu = false; } else if (showSourceUpdateMenu) { showSourceUpdateMenu = false; } else if (showBatchActionsMenu) { showBatchActionsMenu = false; $refs.batchActionsMenuButton.focus(); }"
+      @keydown.escape.window="if (activePluginBatchGroup) { closePluginBatchGroup(); } else if (showRuleMenu) { showRuleMenu = false; } else if (showSourceUpdateMenu) { showSourceUpdateMenu = false; } else if (showBatchActionsMenu) { showBatchActionsMenu = false; $refs.batchActionsMenuButton.focus(); }"
       class="selection-bar ui-batch-action-strip ui-batch-action-strip--desktop"
       role="toolbar"
       aria-label="批量操作"
@@ -320,7 +320,7 @@
           <button
             x-ref="batchActionsMenuButton"
             type="button"
-            @click="showBatchActionsMenu = !showBatchActionsMenu; if (!showBatchActionsMenu) { showRuleMenu = false; showSourceUpdateMenu = false; }"
+            @click="showBatchActionsMenu = !showBatchActionsMenu; if (!showBatchActionsMenu) { showRuleMenu = false; showSourceUpdateMenu = false; closePluginBatchGroup(); }"
             class="ui-batch-action-button ui-batch-action-button--accent ui-batch-action-button--icon-only"
             aria-haspopup="menu"
             :aria-expanded="showBatchActionsMenu.toString()"
@@ -334,7 +334,7 @@
           <div
             x-show="showBatchActionsMenu"
             x-cloak
-            @click.away="showBatchActionsMenu = false; showRuleMenu = false; showSourceUpdateMenu = false"
+            @click.away="showBatchActionsMenu = false; showRuleMenu = false; showSourceUpdateMenu = false; closePluginBatchGroup()"
             x-transition:enter="transition ease-out duration-100"
             x-transition:enter-start="opacity-0 scale-95"
             x-transition:enter-end="opacity-100 scale-100"
@@ -534,35 +534,107 @@
               </div>
             </div>
 
-            <!-- 插件声明的 kind: "batch" 入口（D1 的批量操作落点）。
-                 `when` 由 EntryRegistry 按全局选中集求值；置灰项可见但不可点。 -->
+            <!-- 插件声明的 `kind: "batch"` 入口（D1 的批量操作落点）。
+                 `EntryRegistry.menuGroups()` 已过滤 `when` 不通过的入口并按 `group` 折叠：
+                 一级菜单只有一个「AI 助手」父项（带角标与右箭头），点开后是**二级浮层**
+                 （见文件末尾的 `[data-plugin-batch-flyout]`），不是就地展开——
+                 批量菜单盒高度被钳住，缩进子项块会被裁掉。 -->
             <template x-if="pluginBatchEntries.length > 0">
               <div>
                 <div class="ui-batch-menu-separator" role="separator"></div>
-                <div class="ui-batch-menu-heading">
-                  <span>插件</span>
-                </div>
-                <template
-                  x-for="entry in pluginBatchEntries"
-                  :key="entry.key"
-                >
-                  <button
-                    type="button"
-                    role="menuitem"
-                    :disabled="!entry.enabled"
-                    :title="entry.enabled ? (entry.description || entry.label) : entry.disabledHint"
-                    :aria-label="entry.enabled ? entry.label : entry.label + '：' + entry.disabledHint"
-                    @click="if (runPluginBatchEntry(entry)) { showBatchActionsMenu = false; }"
-                    class="header-batch-menu-item ui-batch-menu-action"
-                  >
-                    <span aria-hidden="true" x-html="pluginBatchEntryIconHtml(entry)"></span>
-                    <span x-text="entry.label"></span>
-                  </button>
+                <template x-for="unit in pluginBatchEntries" :key="unit.type === 'group' ? unit.key : unit.entry.key">
+                  <div>
+                    <!-- 父项（分组）：点开二级浮层 -->
+                    <button
+                      x-show="unit.type === 'group'"
+                      type="button"
+                      role="menuitem"
+                      aria-haspopup="menu"
+                      :aria-expanded="isPluginBatchGroupOpen(unit.key).toString()"
+                      @click.stop="togglePluginBatchGroup(unit.key, $event.currentTarget)"
+                      class="header-batch-menu-item ui-batch-menu-action"
+                    >
+                      <span aria-hidden="true" x-html="pluginBatchEntryIconHtml(unit)"></span>
+                      <span class="flex-1 min-w-0 truncate" x-text="unit.label"></span>
+                      <span class="plugin-entries-badge" x-show="pluginBatchGroupBadge(unit)"
+                        x-text="pluginBatchGroupBadge(unit)"></span>
+                      <span class="inline-flex" aria-hidden="true">{{ icon('chevron-right', 'ui-icon--xs') }}</span>
+                    </button>
+
+                    <!-- 未分组：平铺 -->
+                    <button
+                      x-show="unit.type === 'entry'"
+                      type="button"
+                      role="menuitem"
+                      :title="unit.entry.description || unit.entry.label"
+                      @click="if (runPluginBatchEntry(unit.entry)) { showBatchActionsMenu = false; closePluginBatchGroup(); }"
+                      class="header-batch-menu-item ui-batch-menu-action"
+                    >
+                      <span aria-hidden="true" x-html="pluginBatchEntryIconHtml(unit.entry)"></span>
+                      <span class="flex-1 min-w-0 truncate" x-text="unit.entry.label"></span>
+                      <span class="plugin-entries-badge" x-show="pluginBatchEntryBadge(unit.entry)"
+                        x-text="pluginBatchEntryBadge(unit.entry)"></span>
+                      <span class="plugin-entry-progress"
+                        x-show="pluginBatchEntryProgressPercent(unit.entry) !== null"
+                        role="progressbar"
+                        :aria-valuenow="pluginBatchEntryProgressPercent(unit.entry)"
+                        aria-valuemin="0" aria-valuemax="100">
+                        <span class="plugin-entry-progress-bar"
+                          :style="'width:' + pluginBatchEntryProgressPercent(unit.entry) + '%'"></span>
+                      </span>
+                    </button>
+                  </div>
                 </template>
               </div>
             </template>
           </div>
         </div>
+
+        <!-- 插件分组的二级菜单：独立 fixed 浮层。
+             必须 teleport 到 body：`.header-bar` 有 `backdrop-filter`，它会给 fixed
+             后代造一个包含块，浮层就会以 header 为基准定位而不是视口。
+             也必须挂在批量菜单盒之外：菜单盒的 overflow 会裁掉子元素。
+             位置由 openPluginBatchGroup() 在渲染后测量，下方放不下就向上翻；
+             初始放在视口外，避免首帧闪在错误位置。 -->
+        <template x-teleport="body">
+          <div
+            data-plugin-batch-flyout
+            x-show="showBatchActionsMenu && activePluginBatchGroupUnit()"
+            x-cloak
+            role="menu"
+            class="plugin-menu-flyout"
+            style="position: fixed; top: -9999px; left: -9999px;"
+            @click.stop
+          >
+            <template x-if="activePluginBatchGroupUnit()">
+              <div>
+                <div class="plugin-menu-flyout-title" x-text="activePluginBatchGroupUnit().label"></div>
+                <template x-for="entry in activePluginBatchGroupUnit().entries" :key="entry.key">
+                  <button
+                    type="button"
+                    role="menuitem"
+                    :title="entry.description || entry.label"
+                    @click.stop="if (runPluginBatchEntry(entry)) { showBatchActionsMenu = false; closePluginBatchGroup(); }"
+                    class="plugin-menu-flyout-item"
+                  >
+                    <span aria-hidden="true" x-html="pluginBatchEntryIconHtml(entry)"></span>
+                    <span class="flex-1 min-w-0 truncate" x-text="entry.label"></span>
+                    <span class="plugin-entries-badge" x-show="pluginBatchEntryBadge(entry)"
+                      x-text="pluginBatchEntryBadge(entry)"></span>
+                    <span class="plugin-entry-progress"
+                      x-show="pluginBatchEntryProgressPercent(entry) !== null"
+                      role="progressbar"
+                      :aria-valuenow="pluginBatchEntryProgressPercent(entry)"
+                      aria-valuemin="0" aria-valuemax="100">
+                      <span class="plugin-entry-progress-bar"
+                        :style="'width:' + pluginBatchEntryProgressPercent(entry) + '%'"></span>
+                    </span>
+                  </button>
+                </template>
+              </div>
+            </template>
+          </div>
+        </template>
       </div>
       <span class="ui-batch-action-divider" aria-hidden="true"></span>
       <button
@@ -980,6 +1052,20 @@
         <span aria-hidden="true">{{ icon('trash', 'ui-icon--sm') }}</span>
         <span class="sr-only">删除</span>
       </button>
+      <!-- 插件声明的 `kind: "batch"` 入口（与桌面批量菜单同一份数据，
+           由 refreshPluginBatchEntries() 在 init 里监听 entries:changed 维护）。 -->
+      <template x-for="entry in pluginBatchFlatEntries" :key="'mobile-' + entry.key">
+        <button
+          type="button"
+          class="ui-batch-action-button ui-batch-action-button--accent"
+          :title="entry.description || entry.label"
+          :aria-label="entry.label"
+          @click="runPluginBatchEntry(entry)"
+        >
+          <span aria-hidden="true" x-html="pluginBatchEntryIconHtml(entry)"></span>
+          <span class="sr-only" x-text="entry.label"></span>
+        </button>
+      </template>
       <button
         x-show="currentMode === 'cards'"
         type="button"

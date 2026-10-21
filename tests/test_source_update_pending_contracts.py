@@ -82,12 +82,15 @@ def test_selected_card_source_update_actions_use_accessible_dropdowns_on_both_la
     assert template.count('x-data="{ showSourceUpdateMenu: false }"') == 1
     assert 'showSourceUpdateMenu: false' in template
     # The desktop batch bar exposes one action menu plus nested automation and
-    # source-update menus; the mobile bar keeps its source-update menu.
-    assert template.count('aria-haspopup="menu"') == 4
+    # source-update menus, plus the plugin group parent (its children live in a
+    # separate fixed flyout, so only the parent is a popup trigger here);
+    # the mobile bar keeps its source-update menu.
+    assert template.count('aria-haspopup="menu"') == 5
     assert template.count(':aria-expanded="showSourceUpdateMenu.toString()"') == 2
     # 静态 menuitem 6 项（桌面 3 + 移动 3）。插件 `kind: "batch"` 入口是**动态**
-    # `x-for` 渲染的，模板里只占 1 个 `role="menuitem"` 字面量，与静态项数量无关。
-    assert template.count('role="menuitem"') == 7
+    # `x-for` 渲染的，模板里只占 `role="menuitem"` 字面量，与静态项数量无关。
+    # 7 个内建项 + 插件分组的父项、未分组项、二级浮层项各一个模板行
+    assert template.count('role="menuitem"') == 9
     assert template.count('class="w-full block') == 3
     assert template.count('acknowledgeSelectedSourceUpdates()') == 2
     assert 'async acknowledgeSelectedSourceUpdates() {' in script
