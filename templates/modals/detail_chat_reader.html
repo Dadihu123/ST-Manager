@@ -589,9 +589,9 @@
                     <div class="chat-reader-search-meta" role="status" aria-live="polite" x-text="readerNavBatchSummaryText"></div>
                     <div class="chat-reader-search-meta" x-show="activeChat?.message_index_truncated" role="note">Long chat uses batched floor index loading</div>
                     <div class="chat-window-switcher">
-                        <button type="button" class="chat-toolbar-btn" @click="stepReaderNavBatch(-1)" :disabled="!hasPreviousReaderNavBatch || readerNavBatchLoading">{{ icon('arrow-left', 'ui-icon--sm') }}<span>上一批</span></button>
+                        <button type="button" class="chat-toolbar-btn" @click="stepReaderNavBatch(-1)" :disabled="!hasPreviousReaderNavBatch || readerNavBatchLoading">{{ icon('chevron-right', 'ui-icon--sm rotate-180') }}<span>上一批</span></button>
                         <span role="status" aria-live="polite" x-text="readerNavBatchStatusText"></span>
-                        <button type="button" class="chat-toolbar-btn" @click="stepReaderNavBatch(1)" :disabled="!hasNextReaderNavBatch || readerNavBatchLoading">{{ icon('arrow-right', 'ui-icon--sm') }}<span>下一批</span></button>
+                        <button type="button" class="chat-toolbar-btn" @click="stepReaderNavBatch(1)" :disabled="!hasNextReaderNavBatch || readerNavBatchLoading">{{ icon('chevron-right', 'ui-icon--sm') }}<span>下一批</span></button>
                     </div>
                     <div class="chat-floor-nav-list">
                         <div x-show="readerNavBatchLoading" class="chat-reader-search-meta" role="status" aria-live="polite">Loading batch index...</div>
