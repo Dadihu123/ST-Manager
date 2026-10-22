@@ -794,6 +794,68 @@ def test_import_from_url_enqueues_card_and_world_sync_jobs(monkeypatch, tmp_path
     assert downloaded_path.exists() is False
 
 
+def test_stage_upload_accepts_v2_card_without_character_book_extensions(monkeypatch, tmp_path):
+    """回归：character_book 缺 extensions 的合法卡片不应在暂存阶段报「无法读取卡片元数据」。
+
+    SillyTavern 的 importFromPng 只要求 PNG 文本块是带 spec 标头的 JSON；
+    宿主此前按 V2 规范要求 character_book.extensions 必须存在，导致用户
+    反馈的 v0.4.png 无法导入。
+    """
+    cards_dir = tmp_path / 'cards'
+    temp_dir = tmp_path / 'temp'
+    cards_dir.mkdir()
+    temp_dir.mkdir()
+
+    monkeypatch.setattr(cards_api, 'CARDS_FOLDER', str(cards_dir))
+    monkeypatch.setattr(cards_api, 'TEMP_DIR', str(temp_dir))
+
+    card = {
+        'spec': 'chara_card_v2',
+        'spec_version': '2.0',
+        'data': {
+            'name': 'Hero',
+            'description': 'A character',
+            'personality': 'Calm',
+            'scenario': 'A test',
+            'first_mes': 'Hello',
+            'mes_example': '<START>',
+            'creator_notes': '',
+            'system_prompt': '',
+            'post_history_instructions': '',
+            'alternate_greetings': [],
+            'tags': ['hero'],
+            'creator': '',
+            'character_version': '',
+            'extensions': {},
+            'character_book': {
+                'name': 'Embedded Book',
+                'entries': [
+                    {'keys': ['hero'], 'content': 'A hero.', 'enabled': True},
+                ],
+            },
+        },
+    }
+    source = tmp_path / 'v0.4.png'
+    Image.new('RGBA', (16, 16), (0, 0, 0, 0)).save(source)
+    assert write_card_metadata(str(source), card) is True
+
+    client = _make_app().test_client()
+    with source.open('rb') as handle:
+        response = client.post(
+            '/api/upload/stage',
+            data={'category': '', 'files': (handle, 'v0.4.png')},
+            content_type='multipart/form-data',
+        )
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload['success'] is True
+    report = payload['report']
+    assert len(report) == 1
+    assert report[0]['status'] == 'ok', report
+    assert report[0]['new_info']['char_name'] == 'Hero'
+
+
 def test_upload_commit_enqueues_card_and_world_sync_jobs(monkeypatch, tmp_path):
     cards_dir = tmp_path / 'cards'
     temp_dir = tmp_path / 'temp'

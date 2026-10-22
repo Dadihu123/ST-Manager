@@ -45,8 +45,6 @@ def test_character_card_validator_matches_v1_v2_v3_and_rejects_worldbook():
     assert is_valid_character_card_data(v2)
     assert is_valid_character_card_data(v3)
     assert not is_valid_character_card_data({'entries': {}})
-    assert not is_valid_character_card_data({**v2, 'data': {**v2['data'], 'tags': {}}})
-    assert not is_valid_character_card_data({**v2, 'data': {**v2['data'], 'character_book': {}}})
 
 
 def test_character_card_validator_rejects_cross_type_payloads():
@@ -102,20 +100,61 @@ def test_character_card_validator_accepts_v2_without_extension_fields():
     assert get_character_card_version(legacy) == 2
 
 
-def test_character_card_validator_still_checks_present_extension_types():
-    """扩展字段缺失可以接受，但存在时类型必须正确。"""
-    from core.utils.format_validation import is_valid_character_card_data
+def test_character_card_validator_accepts_character_book_without_extensions():
+    """回归：character_book 缺 extensions 的 V2 卡片必须被接受。
+
+    SillyTavern 的 importFromPng / importFromJson 只认 ``spec`` 标头，不校验
+    ``character_book``；实际导出的卡片里 ``character_book.extensions`` 经常缺失。
+    宿主曾按 V2 规范要求它必须存在，导致这类卡片（例如用户反馈的 v0.4.png）
+    被判定为「无法读取卡片元数据」。
+    """
+    from core.utils.format_validation import get_character_card_version
+
+    card = _v2_card()
+    card['data']['character_book'] = {
+        'name': 'Embedded Book',
+        'entries': [
+            {'keys': ['hero'], 'content': 'A hero.', 'enabled': True},
+        ],
+    }
+
+    assert get_character_card_version(card) == 2
+
+    # 兼容旧式数组型 character_book、空对象，以及缺失 entries 的对象。
+    assert get_character_card_version(
+        {**card, 'data': {**card['data'], 'character_book': card['data']['character_book']['entries']}}
+    ) == 2
+    assert get_character_card_version(
+        {**card, 'data': {**card['data'], 'character_book': {}}}
+    ) == 2
+    assert get_character_card_version(
+        {**card, 'data': {**card['data'], 'character_book': {'name': 'Embedded Book'}}}
+    ) == 2
+
+
+def test_character_card_validator_follows_sillytavern_import_header_semantics():
+    """spec 标头是 ST 导入时的唯一判别信号，内容字段类型不参与卡片识别。"""
+    from core.utils.format_validation import get_character_card_version
 
     base = {
         'spec': 'chara_card_v2',
-        'spec_version': '2.0',
         'data': {'name': 'Hero', 'first_mes': 'Hi'},
     }
-    assert is_valid_character_card_data(base)
-    assert not is_valid_character_card_data({**base, 'data': {**base['data'], 'tags': {}}})
-    assert not is_valid_character_card_data(
-        {**base, 'data': {**base['data'], 'alternate_greetings': 'nope'}}
-    )
+
+    # ST 不校验 spec_version：缺失或非 2.0 的字串仍按 V2 导入。
+    assert get_character_card_version(base) == 2
+    assert get_character_card_version({**base, 'spec_version': '2.0.0'}) == 2
+    assert get_character_card_version({**base, 'data': {**base['data'], 'tags': 'hero'}}) == 2
+    assert get_character_card_version(
+        {**base, 'data': {**base['data'], 'alternate_greetings': 'Hi there'}}
+    ) == 2
+
+    assert get_character_card_version({'spec': 'chara_card_v3', 'data': {'name': 'Hero'}}) == 3
+
+    # 但纯标头 / 空 data 的 JSON 仍不是卡片，避免污染卡片索引。
+    assert get_character_card_version({'spec': 'chara_card_v2'}) is None
+    assert get_character_card_version({'spec': 'chara_card_v2', 'data': {}}) is None
+    assert get_character_card_version({'spec': 'chara_card_v2', 'data': 'nope'}) is None
 
 
 def test_extract_card_info_status_distinguishes_unreadable_from_not_a_card(tmp_path):

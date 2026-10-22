@@ -261,6 +261,57 @@ def test_single_resource_paste_syncs_workspace_mode_before_uploading():
     )
 
 
+def test_json_card_classification_matches_sillytavern_spec_header_semantics():
+    """JSON 卡片分类与后端/SillyTavern 的 spec 标头判定保持一致。"""
+    run_node(
+        """
+        const v1Fields = {
+          name: 'Hero',
+          description: 'A character',
+          personality: 'Calm',
+          scenario: 'A test',
+          first_mes: 'Hello',
+          mes_example: '<START>',
+        };
+        const v2WithoutBookExtensions = {
+          spec: 'chara_card_v2',
+          spec_version: '2.0',
+          data: {
+            ...v1Fields,
+            alternate_greetings: [],
+            tags: [],
+            extensions: {},
+            character_book: { name: 'Book', entries: [] },
+          },
+        };
+        const v2WithoutSpecVersion = { spec: 'chara_card_v2', data: { name: 'Hero' } };
+        const v3 = { spec: 'chara_card_v3', data: { name: 'Hero' } };
+        const bareSpec = { spec: 'chara_card_v2', data: {} };
+
+        const files = [
+          fakeFile('v1.json', JSON.stringify(v1Fields)),
+          fakeFile('v2.json', JSON.stringify(v2WithoutBookExtensions)),
+          fakeFile('v2-no-version.json', JSON.stringify(v2WithoutSpecVersion)),
+          fakeFile('v3.json', JSON.stringify(v3)),
+          fakeFile('bare-spec.json', JSON.stringify(bareSpec)),
+          fakeFile('book.json', JSON.stringify({ name: 'Book', entries: {} })),
+        ];
+
+        const groups = await module.classifyFiles(files);
+        const cardNames = groups.card.map((file) => file.name).join(',');
+        if (cardNames !== 'v1.json,v2.json,v2-no-version.json,v3.json') {
+          throw new Error(`bad card group: ${cardNames}`);
+        }
+        if (groups.worldinfo.map((file) => file.name).join(',') !== 'book.json') {
+          throw new Error(`bad worldinfo group: ${groups.worldinfo.map((file) => file.name)}`);
+        }
+        if (!groups.unknown.some((entry) => entry.file.name === 'bare-spec.json')) {
+          throw new Error(`bare spec envelope should stay unknown: ${JSON.stringify(groups.unknown)}`);
+        }
+        """
+    )
+
+
 def test_unknown_files_are_reported_without_uploading():
     run_node(
         """

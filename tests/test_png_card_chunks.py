@@ -1,10 +1,13 @@
 """PNG 角色卡 ``chara`` / ``ccv3`` 块的读写规则。
 
-回归背景：同一张卡片同时携带 ``chara``（V2）与 ``ccv3``（V3）两个块时，
+回归背景一：同一张卡片同时携带 ``chara``（V2）与 ``ccv3``（V3）两个块时，
 SillyTavern 的 ``character-card-parser.js read()`` 优先读 ``ccv3``，
-而 ST-Manager 曾优先读 ``chara``，导致 ``chara`` 那份不合规
-（例如 ``character_book`` 缺 ``extensions``）的合法卡片被判为
-「非有效卡片」而导入失败。
+而 ST-Manager 曾优先读 ``chara``，导致 ``chara`` 那份不合规的卡片
+被判为「非有效卡片」而导入失败。
+
+回归背景二：``character_book`` 缺 ``extensions`` 的 V2 卡片 ST 可以正常导入，
+宿主曾按 V2 规范把它判为非卡片，见
+``test_v2_card_with_character_book_missing_extensions_is_readable``。
 """
 import base64
 import json
@@ -62,7 +65,7 @@ def _v3_card(name='Hero', with_book_extensions=True):
 
 
 def _v2_card_without_book_extensions(name='Hero'):
-    """``character_book`` 缺 ``extensions`` 的 V2 卡片，格式校验不通过。"""
+    """``character_book`` 缺 ``extensions`` 的 V2 卡片（SillyTavern 可正常导入）。"""
     card = _v3_card(name, with_book_extensions=False)
     card['spec'] = 'chara_card_v2'
     card['spec_version'] = '2.0'
@@ -113,16 +116,38 @@ def _pnginfo_keys(meta):
 
 
 def test_ccv3_wins_over_chara_when_both_present(tmp_path):
-    """ccv3 可解析时优先采用它，即使 chara 那份不合规。"""
+    """两个块都可解析时，按 SillyTavern 的优先级采用 ccv3。"""
     path = _write_png(
         tmp_path / 'both.png',
-        [('chara', _b64(_v2_card_without_book_extensions())), ('ccv3', _b64(_v3_card()))],
+        [
+            ('chara', _b64(_v2_card_without_book_extensions('FromChara'))),
+            ('ccv3', _b64(_v3_card(name='FromCcv3'))),
+        ],
     )
 
     info, status = extract_card_info_with_status(str(path))
 
     assert status == 'ok'
-    assert _name_of(info) == 'Hero'
+    assert _name_of(info) == 'FromCcv3'
+
+
+def test_v2_card_with_character_book_missing_extensions_is_readable(tmp_path):
+    """回归：chara 块里 character_book 缺 extensions 的 V2 卡片应被判为有效。
+
+    SillyTavern 的 importFromPng 只要求 PNG 文本块里是合法 JSON 且带 ``spec``
+    标头；``character_book.extensions`` 在实际卡片里经常缺失。宿主曾要求它
+    必须存在，导致这类卡片（例如用户反馈的 v0.4.png）导入时报
+    「无法读取卡片元数据」。
+    """
+    card = _v2_card_without_book_extensions('FromChara')
+    path = _write_png(tmp_path / 'v2_no_book_extensions.png', [('chara', _b64(card))])
+
+    info, status = extract_card_info_with_status(str(path))
+
+    assert status == 'ok'
+    assert _name_of(info) == 'FromChara'
+    assert info['data']['character_book']['name'] == 'Book'
+    assert 'extensions' not in info['data']['character_book']
 
 
 def test_chunk_file_order_does_not_affect_precedence(tmp_path):

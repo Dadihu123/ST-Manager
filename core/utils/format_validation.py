@@ -129,73 +129,53 @@ PRESET_FORMAT_KEYS = frozenset(
 CHAT_HEADER_FIELDS = ('user_name', 'name', 'chat_metadata')
 
 
-def _is_js_object(value: Any) -> bool:
-    """Match JavaScript's object check for JSON values closely enough for import validation."""
-    return value is None or isinstance(value, (dict, list))
-
-
 def _is_valid_character_card_v2(card: dict) -> bool:
-    if card.get('spec') != 'chara_card_v2' or card.get('spec_version') != '2.0':
-        return False
+    """是否是可被 SillyTavern 导入的 V2 角色卡。
 
+    SillyTavern 的 ``importFromPng`` / ``importFromJson``（``src/endpoints/characters.js``）
+    只以 ``spec`` 标头判定卡片：``spec`` 存在即按 V2/V3 信封读取，**不**校验
+    ``spec_version``、``data`` 字段类型，也不校验 ``character_book``。宿主此前按
+    V2 规范逐字段校验，导致 ST 能导入的合法卡片被判为「非有效卡片」
+    （典型：``character_book`` 缺 ``extensions``；该字段在实际导出的卡片里
+    普遍缺失）。这里对齐 ST 的判定，只保留两个最小约束：
+
+    - ``data`` 必须是对象（宿主的下游解析/编辑器都按 V2 信封读取 ``data``）；
+    - ``data`` 至少出现一个 V1 核心字段（ST 生成文件名同样依赖角色名字段）。
+
+    V1 没有 ``spec`` 标头，判定仍保持严格，见 ``get_character_card_version``。
+    """
+    if card.get('spec') != 'chara_card_v2':
+        return False
     data = card.get('data')
     if not isinstance(data, dict):
         return False
-    # 只要求出现核心字段，不要求全部扩展字段存在，避免误杀合法的第三方卡片。
-    if not any(field in data for field in CHARACTER_CARD_V2_CORE_FIELDS):
-        return False
-    # 扩展字段若存在则必须类型正确；缺失视为合法。
-    if 'alternate_greetings' in data and not isinstance(data.get('alternate_greetings'), list):
-        return False
-    if 'tags' in data and not isinstance(data.get('tags'), list):
-        return False
-    if not _is_js_object(data.get('extensions')):
-        return False
-
-    character_book = data.get('character_book')
-    if character_book is None or character_book is False or character_book == 0 or character_book == '':
-        return True
-    if not isinstance(character_book, dict):
-        return False
-    if not all(field in character_book for field in ('extensions', 'entries')):
-        return False
-    return (
-        isinstance(character_book.get('entries'), list)
-        and _is_js_object(character_book.get('extensions'))
-    )
-
-
-def _coerce_card_version(value: Any):
-    if isinstance(value, bool) or value is None:
-        return None
-    try:
-        number = float(value)
-    except (OverflowError, TypeError, ValueError):
-        return None
-    if not math.isfinite(number) or number < 3.0 or number >= 4.0:
-        return None
-    return number
+    return any(field in data for field in CHARACTER_CARD_V2_CORE_FIELDS)
 
 
 def _is_valid_character_card_v3(card: dict) -> bool:
+    """V3 标头 + 对象型 ``data`` 即视为卡片（与 ST 的导入判定一致）。"""
     if card.get('spec') != 'chara_card_v3':
-        return False
-    if _coerce_card_version(card.get('spec_version')) is None:
         return False
     return isinstance(card.get('data'), dict)
 
 
 def get_character_card_version(card: Any):
-    """Return the SillyTavern character card version, or ``None`` for other JSON."""
+    """Return the SillyTavern character card version, or ``None`` for other JSON.
+
+    判定顺序与 SillyTavern 的导入逻辑一致：先看 ``spec`` 标头，再退回 V1 字段。
+    V1 仍要求全部核心字段——V1 没有标头，而世界书 / 预设 / 聊天头也常带
+    ``name``，放宽会把它们误识别成卡片（见
+    ``test_character_card_validator_rejects_cross_type_payloads``）。
+    """
     if not isinstance(card, dict):
         return None
 
-    if all(field in card for field in CHARACTER_CARD_V1_FIELDS):
-        return 1
-    if _is_valid_character_card_v2(card):
-        return 2
     if _is_valid_character_card_v3(card):
         return 3
+    if _is_valid_character_card_v2(card):
+        return 2
+    if all(field in card for field in CHARACTER_CARD_V1_FIELDS):
+        return 1
     return None
 
 

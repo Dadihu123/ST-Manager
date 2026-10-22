@@ -13,6 +13,16 @@ const EXTENSION_IMPORT_TYPES = Object.freeze([
   "quick_replies",
 ]);
 
+// V1 卡片识别依赖全部核心字段（与后端 format_validation.py 一致）。
+const CHARACTER_CARD_V1_FIELDS = Object.freeze([
+  "name",
+  "description",
+  "personality",
+  "scenario",
+  "first_mes",
+  "mes_example",
+]);
+
 const EDITABLE_SELECTOR = [
   "input",
   "textarea",
@@ -67,10 +77,6 @@ function hasAnyKey(source, keys) {
 
 function hasAllKeys(source, keys) {
   return !!source && keys.every((key) => Object.prototype.hasOwnProperty.call(source, key));
-}
-
-function isJsObject(value) {
-  return value === null || (typeof value === "object" && value !== undefined);
 }
 
 function looksLikeWorldInfo(data) {
@@ -322,61 +328,27 @@ function looksLikePreset(data) {
 
 function looksLikeCharacterCard(data) {
   if (!data || typeof data !== "object" || Array.isArray(data)) return false;
-  if (hasAllKeys(data, ["name", "description", "personality", "scenario", "first_mes", "mes_example"])) {
-    return true;
-  }
 
+  // 与后端 core/utils/format_validation.py 以及 SillyTavern 的
+  // importFromPng / importFromJson（src/endpoints/characters.js）保持一致：
+  // 带 spec 标头的 JSON 直接视为 V2/V3 角色卡，不校验 spec_version、
+  // data 内部字段类型，也不校验 character_book——ST 导入时同样不校验，
+  // 否则 character_book 缺 extensions 的合法卡片会被判成「未知资源」。
   const cardData = data.data;
-  if (data.spec === "chara_card_v2" && data.spec_version === "2.0") {
-    if (
-      !cardData ||
-      typeof cardData !== "object" ||
-      Array.isArray(cardData) ||
-      !hasAllKeys(cardData, [
-        "name",
-        "description",
-        "personality",
-        "scenario",
-        "first_mes",
-        "mes_example",
-        "creator_notes",
-        "system_prompt",
-        "post_history_instructions",
-        "alternate_greetings",
-        "tags",
-        "creator",
-        "character_version",
-        "extensions",
-      ]) ||
-      !Array.isArray(cardData.alternate_greetings) ||
-      !Array.isArray(cardData.tags) ||
-      !isJsObject(cardData.extensions)
-    ) {
-      return false;
-    }
-    if (!cardData.character_book) return true;
-    const characterBook = cardData.character_book;
-    return (
-      characterBook &&
-      typeof characterBook === "object" &&
-      !Array.isArray(characterBook) &&
-      hasAllKeys(characterBook, ["extensions", "entries"]) &&
-      Array.isArray(characterBook.entries) &&
-      isJsObject(characterBook.extensions)
-    );
+  const hasCardData =
+    !!cardData && typeof cardData === "object" && !Array.isArray(cardData);
+
+  if (data.spec === "chara_card_v2") {
+    return hasCardData && hasAnyKey(cardData, CHARACTER_CARD_V1_FIELDS);
   }
 
-  const cardVersion = Number(data.spec_version);
-  if (
-    data.spec === "chara_card_v3" &&
-    Number.isFinite(cardVersion) &&
-    cardVersion >= 3 &&
-    cardVersion < 4
-  ) {
-    return !!cardData && typeof cardData === "object" && !Array.isArray(cardData);
+  if (data.spec === "chara_card_v3") {
+    return hasCardData;
   }
 
-  return false;
+  // V1 没有 spec 标头，继续要求全部核心字段，避免把同名世界书 / 预设
+  // 误判成卡片（与后端 get_character_card_version 的取舍一致）。
+  return hasAllKeys(data, CHARACTER_CARD_V1_FIELDS);
 }
 
 async function readJsonFile(file) {
