@@ -1,162 +1,68 @@
-"""插件 manifest 解析与校验（设计文档第 2 部分）。
+"""插件 manifest v3 解析与校验（设计文档 §4 / §4.9 / §11.1）。
 
-manifest.json 是插件的唯一权威声明；catalog 里的同名元数据只是快照。
+`manifest.json` 是插件的唯一权威声明；catalog 里的同名元数据只是快照。
 校验失败一律拒绝加载（D8），并把原因交给上层持久化到
 `ui_data._plugins_v1.<id>.load_error` 供 UI 展示。
 
-结构键（顶层 / `backend.*` / `frontend.*` / `frontend.entries[]`）采用**严格校验**：
-出现白名单以外的键即拒绝加载（D3），错误信息分层给出 `code`/`field`/`hint`/`user_msg`。
-入口（entries）内部字段与既有的未知 hook / 权限声明一样保持**宽松**：非法项丢弃 + 警告。
+职责边界（S1）：**规则本体在 `core/plugins/contract.py`**（纯标准库、可被
+`stm-plugin-check` 原样嵌入）；本模块是宿主侧的薄封装：
+
+1. 读取 manifest 文件（缺失 / 超过 256KB / 非法 JSON 的 IO 级错误）；
+2. 调 `contract.validate_manifest(strict=False)`（宿主宽容模式）；
+3. 把契约 issue 转成 `PluginManifestError` / `PluginApiVersionError`（带 code/field/hint/user_msg）；
+4. 解析插件内路径（backend 包、frontend entry/styles、global_styles、插件图标）；
+5. 组装 `PluginManifest` 快照（`to_dict()` 形状见实现日志 S2）。
+
+两级校验：宿主宽容（节点级问题丢弃 + 警告），CLI 严格（同样问题升级为错误）。
 """
 
 import json
 import logging
 import os
-import re
 from dataclasses import dataclass, field
 
-from core.plugins.entries import (
-    KNOWN_ENTRY_KEYS,
-    normalize_entries,
+from core.plugins import contract
+from core.plugins import contributions as contributions_module
+from core.plugins.contract import (  # noqa: F401 - 供其它模块/测试沿用 manifest 的公开符号
+    compare_versions,
+    parse_requirement,
+    parse_semver,
+    satisfies_requirement,
 )
 from core.plugins.errors import PluginApiVersionError, PluginManifestError
+from core.plugins.icons import is_host_icon_name, sprite_for_icon
 from core.utils.paths import is_under_base
-from core.version import APP_VERSION, SUPPORTED_PLUGIN_API_VERSIONS
+from core.version import APP_VERSION
 
 logger = logging.getLogger(__name__)
 
 MANIFEST_FILENAME = 'manifest.json'
-MAX_MANIFEST_BYTES = 256 * 1024
+MAX_MANIFEST_BYTES = contract.MAX_MANIFEST_BYTES
 
-# manifest 结构版本：缺省视为 1（老插件不必改清单）
-DEFAULT_MANIFEST_VERSION = 1
-SUPPORTED_MANIFEST_VERSIONS = (2, 1)
+DEFAULT_MANIFEST_VERSION = contract.MANIFEST_VERSION
+SUPPORTED_MANIFEST_VERSIONS = contract.SUPPORTED_MANIFEST_VERSIONS
 
-# 结构键白名单（D3）：出现白名单以外的键即拒绝加载
-KNOWN_TOP_LEVEL_KEYS = frozenset({
-    'id', 'name', 'version', 'api_version', 'manifest_version', 'author',
-    'description', 'homepage', 'license', 'icon', 'min_app_version',
-    'backend', 'frontend', 'permissions', 'requires', 'config_schema',
-    'secret_schema', 'i18n',
-})
-KNOWN_BACKEND_KEYS = frozenset({'entry', 'register', 'jobs', 'hooks'})
-KNOWN_FRONTEND_KEYS = frozenset({'entry', 'styles', 'entries'})
-# 旧三字段（已废弃，不保留别名）
-LEGACY_FRONTEND_KEYS = ('panels', 'settings_tab', 'detail_tab')
+# 结构键白名单（D3）：出现白名单以外的键即拒绝加载（契约侧定义，非 `x-` 前缀）
+KNOWN_TOP_LEVEL_KEYS = contract.KNOWN_TOP_LEVEL_KEYS
+KNOWN_BACKEND_KEYS = contract.KNOWN_BACKEND_KEYS
+KNOWN_FRONTEND_KEYS = contract.KNOWN_FRONTEND_KEYS
+LEGACY_FRONTEND_KEYS = contract.LEGACY_FRONTEND_KEYS
 
-# 目录名 = plugin id：小写、连字符、不以数字开头（路径安全第一道闸门）
-PLUGIN_ID_PATTERN = re.compile(r'^[a-z][a-z0-9-]{1,63}$')
-# 语义化版本 X.Y.Z[-pre][+build]
-SEMVER_PATTERN = re.compile(r'^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$')
-# 后端入口包名 / 模块名
-ENTRY_NAME_PATTERN = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*$')
-# 作业类型：小写点分名（如 ai.analyze）
-JOB_TYPE_PATTERN = re.compile(r'^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$')
-# 依赖版本约束：`>=1.0.0` / `>1.0.0` / `<=1.0.0` / `<1.0.0` / `==1.0.0` / `1.0.0` / `*`
-REQUIREMENT_PATTERN = re.compile(
-    r'^(>=|>|<=|<|==|=)?\s*(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?|\*)$'
-)
-
-# 已知事件集合（与 hooks.CORE_EVENTS 保持一致，避免循环导入这里重复声明）
-KNOWN_HOOKS = frozenset({
-    'app.ready',
-    'card.created',
-    'card.updated',
-    'card.deleted',
-    'card.moved',
-    'tag.applied',
-    'tag.deleted',
-    'worldbook.saved',
-    'worldbook.entry_changed',
-    'scan.completed',
-    'index.job_done',
-})
-
-# 权限白名单（D7：只做声明与审计，不做执行门控）
-KNOWN_PERMISSIONS = frozenset({
-    'cards.read', 'cards.write',
-    'worldbook.read', 'worldbook.write',
-    'tags.read', 'tags.write',
-    'secrets.read', 'network.outbound', 'jobs.run',
-})
-
-_SCHEMA_TYPES = frozenset({'string', 'integer', 'number', 'boolean', 'enum'})
-_SCHEMA_ALLOWED_KEYS = frozenset({
-    'type', 'title', 'description', 'default', 'minimum', 'maximum',
-    'enum', 'secret', 'required', 'properties',
-})
+PLUGIN_ID_PATTERN = contract.PLUGIN_ID_PATTERN
+SEMVER_PATTERN = contract.SEMVER_PATTERN
+ENTRY_NAME_PATTERN = contract.ENTRY_NAME_PATTERN
+JOB_TYPE_PATTERN = contract.JOB_TYPE_PATTERN
+REQUIREMENT_PATTERN = contract.REQUIREMENT_PATTERN
+KNOWN_HOOKS = contract.KNOWN_HOOKS
 
 
-def parse_semver(value) -> tuple | None:
-    """把语义化版本解析为可比较的元组；非法返回 None。"""
-    if not isinstance(value, str) or not SEMVER_PATTERN.match(value.strip()):
-        return None
-    core = value.strip().split('+', 1)[0].split('-', 1)[0]
-    parts = core.split('.')
-    try:
-        return tuple(int(part) for part in parts)
-    except ValueError:
-        return None
-
-
-def compare_versions(left: str, right: str) -> int:
-    """比较两个语义化版本：left > right 返回 1，相等返回 0，更小返回 -1。
-
-    无法解析的一侧按 -1 处理（调用方应先做格式校验）。
-    """
-    parsed_left = parse_semver(left)
-    parsed_right = parse_semver(right)
-    if parsed_left is None or parsed_right is None:
-        return -1
-    if parsed_left > parsed_right:
-        return 1
-    if parsed_left < parsed_right:
-        return -1
-    return 0
-
-
-def parse_requirement(constraint) -> tuple | None:
-    """解析依赖版本约束，返回 `(操作符, 版本)`；`*` 的版本为 `'*'`。
-
-    无操作符视为**精确匹配**（`"1.2.3"` 等价 `"==1.2.3"`）。
-    """
-    text = str(constraint or '').strip()
-    if not text:
-        return None
-    match = REQUIREMENT_PATTERN.match(text)
-    if not match:
-        return None
-    operator = match.group(1) or '=='
-    return operator, match.group(2)
-
-
-def satisfies_requirement(version: str, constraint) -> bool:
-    """判断 `version` 是否满足依赖约束。"""
-    parsed = parse_requirement(constraint)
-    if parsed is None:
-        return False
-
-    operator, target = parsed
-    if target == '*':
-        return parse_semver(version) is not None
-
-    current = parse_semver(version)
-    expected = parse_semver(target)
-    if current is None or expected is None:
-        return False
-
-    if operator == '>=':
-        return current >= expected
-    if operator == '>':
-        return current > expected
-    if operator == '<=':
-        return current <= expected
-    if operator == '<':
-        return current < expected
-    return current == expected
+def _plugin_user_msg(plugin_label: str) -> str:
+    """面向普通用户的一句话错误提示（D3）。"""
+    return f'插件「{plugin_label}」的清单格式不正确，请联系插件作者更新。'
 
 
 def _load_manifest_payload(plugin_dir: str) -> dict:
+    """读取 manifest.json（IO / 大小 / JSON 层错误由宿主负责）。"""
     manifest_path = os.path.join(plugin_dir, MANIFEST_FILENAME)
     if not os.path.isfile(manifest_path):
         raise PluginManifestError(f'缺少 {MANIFEST_FILENAME}')
@@ -167,7 +73,7 @@ def _load_manifest_payload(plugin_dir: str) -> dict:
         raise PluginManifestError(f'无法读取 manifest: {exc}') from exc
 
     if size > MAX_MANIFEST_BYTES:
-        raise PluginManifestError(f'manifest 过大（{size} 字节）')
+        raise PluginManifestError(f'manifest 过大（{size} 字节，上限 {MAX_MANIFEST_BYTES}）')
 
     try:
         with open(manifest_path, 'r', encoding='utf-8') as handle:
@@ -186,140 +92,112 @@ def _resolve_plugin_path(plugin_dir: str, raw_value, *, field_name: str, must_ex
     """把插件内的相对路径解析为绝对路径，并校验未越出插件目录。"""
     value = str(raw_value or '').replace('\\', '/').strip()
     if not value:
-        raise PluginManifestError(f'{field_name} 不能为空')
+        raise PluginManifestError(f'{field_name} 不能为空', field=field_name)
     if value.startswith('/') or os.path.isabs(value):
-        raise PluginManifestError(f'{field_name} 必须是插件内相对路径: {value}')
+        raise PluginManifestError(f'{field_name} 必须是插件内相对路径: {value}', field=field_name)
     drive, _ = os.path.splitdrive(value)
     if drive:
-        raise PluginManifestError(f'{field_name} 不能包含盘符: {value}')
+        raise PluginManifestError(f'{field_name} 不能包含盘符: {value}', field=field_name)
     if '..' in value.split('/'):
-        raise PluginManifestError(f'{field_name} 不能包含上级目录: {value}')
+        raise PluginManifestError(f'{field_name} 不能包含上级目录: {value}', field=field_name)
 
     target = os.path.realpath(os.path.join(plugin_dir, value.replace('/', os.sep)))
     if not is_under_base(target, plugin_dir, resolve_symlinks=True):
-        raise PluginManifestError(f'{field_name} 越出插件目录: {value}')
+        raise PluginManifestError(f'{field_name} 越出插件目录: {value}', field=field_name)
     if must_exist and not os.path.exists(target):
-        raise PluginManifestError(f'{field_name} 指向的路径不存在: {value}')
+        raise PluginManifestError(f'{field_name} 指向的路径不存在: {value}', field=field_name)
     return target
 
 
-def _normalize_string_list(raw_value, *, field_name: str) -> list:
-    if raw_value in (None, ''):
-        return []
-    if not isinstance(raw_value, list):
-        raise PluginManifestError(f'{field_name} 必须是数组')
-    normalized = []
-    for item in raw_value:
-        if not isinstance(item, str) or not item.strip():
-            raise PluginManifestError(f'{field_name} 只能是非空字符串')
-        value = item.strip()
-        if value not in normalized:
-            normalized.append(value)
-    return normalized
+def _normalize_rel_path(plugin_dir: str, raw_value, *, field_name: str) -> str:
+    """解析路径并返回归一化的相对路径（正斜杠、去掉前导 `/`）。"""
+    _resolve_plugin_path(plugin_dir, raw_value, field_name=field_name)
+    return str(raw_value or '').replace('\\', '/').strip().lstrip('/')
 
 
-def _validate_schema(raw_schema, *, field_name: str) -> dict:
-    """校验 JSON Schema 子集，非法则回退为空表单（不阻断加载，见 2.2）。"""
-    if not raw_schema:
-        return {}
-    if not isinstance(raw_schema, dict) or raw_schema.get('type') != 'object':
-        logger.warning('%s 不是 object 结构，已回退为空表单', field_name)
-        return {}
+def _select_error(raw: dict, issues: list):
+    """从契约 issues 里挑出要抛出的第一条错误。
 
-    properties = raw_schema.get('properties') or {}
-    if not isinstance(properties, dict):
-        logger.warning('%s.properties 不是对象，已回退为空表单', field_name)
-        return {}
-
-    cleaned_properties = {}
-    for key, spec in properties.items():
-        name = str(key or '').strip()
-        if not name or not isinstance(spec, dict):
-            logger.warning('%s 中的字段 %r 非法，已忽略', field_name, key)
-            continue
-
-        schema_type = spec.get('type')
-        if schema_type not in _SCHEMA_TYPES:
-            logger.warning('%s.%s 的 type=%r 不受支持，已忽略该字段', field_name, name, schema_type)
-            continue
-
-        entry = {'type': schema_type}
-        for option in ('title', 'description'):
-            if isinstance(spec.get(option), str):
-                entry[option] = spec[option]
-        for option in ('minimum', 'maximum'):
-            if isinstance(spec.get(option), (int, float)) and not isinstance(spec.get(option), bool):
-                entry[option] = spec[option]
-        if isinstance(spec.get('default'), (str, int, float, bool)):
-            entry['default'] = spec['default']
-        if isinstance(spec.get('enum'), list) and spec['enum']:
-            entry['enum'] = [item for item in spec['enum'] if isinstance(item, (str, int, float, bool))]
-        if bool(spec.get('secret')):
-            entry['secret'] = True
-
-        unknown = set(spec.keys()) - _SCHEMA_ALLOWED_KEYS
-        if unknown:
-            logger.warning('%s.%s 含未支持的属性 %s，已忽略', field_name, name, sorted(unknown))
-
-        cleaned_properties[name] = entry
-
-    cleaned = {'type': 'object', 'properties': cleaned_properties}
-    required = raw_schema.get('required')
-    if isinstance(required, list):
-        cleaned['required'] = [
-            str(item) for item in required
-            if isinstance(item, str) and item in cleaned_properties
-        ]
-    return cleaned
-
-
-def _check_entry_icons(entries: list) -> list:
-    """校验 `entries[].icon` 的宿主图标名（D4：不存在只降级占位，不拒绝加载）。
-
-    含 `/` 或 `.` 的取值视为插件自带资源路径，由宿主按 `assets/` 解析，不在此校验。
+    v2 manifest 会同时触发「未知顶层键 permissions」「manifest_version=2」
+    「api_version=2」「frontend.entries 已废弃」等多个错误；为了让用户看到
+    最可行动的提示，**显式声明了整数 api_version 且不受支持**时优先报版本错误
+    （`PluginApiVersionError`，路由层映射 409 + 「升级主程序」）。
+    其余情况按契约产出顺序取第一条。
     """
-    from core.plugins.icons import is_host_icon_name, sprite_for_icon
+    errors = [issue for issue in issues if issue.get('severity') == contract.SEVERITY_ERROR]
+    if not errors:
+        return None
 
-    warnings = []
-    for entry in entries or []:
-        if not isinstance(entry, dict):
-            continue
-        icon = str(entry.get('icon') or '').strip()
-        if not icon or not is_host_icon_name(icon):
-            continue
-        if sprite_for_icon(icon):
-            continue
-        warnings.append(
-            f'入口 {entry.get("id", "")} 引用了不存在的宿主图标 {icon}，将降级为占位图标'
+    raw_api_version = raw.get('api_version')
+    if (
+        isinstance(raw_api_version, int)
+        and not isinstance(raw_api_version, bool)
+        and raw_api_version not in contract.SUPPORTED_API_VERSIONS
+    ):
+        for issue in errors:
+            if issue.get('code') == 'api_version_unsupported':
+                return issue
+    return errors[0]
+
+
+def _raise_for_issue(issue, plugin_label: str):
+    """把一条契约 error issue 转成宿主异常（保留 code/field/hint/user_msg）。"""
+    message = str(issue.get('message') or issue.get('code') or 'manifest 校验失败')
+    code = str(issue.get('code') or '')
+    field_name = str(issue.get('field') or '')
+    hint = str(issue.get('hint') or '')
+
+    if code == 'api_version_unsupported':
+        raise PluginApiVersionError(
+            message,
+            field=field_name or 'api_version',
+            hint=hint,
+            user_msg=f'插件「{plugin_label}」需要更新版本的主程序，请先升级主程序。',
         )
-        logger.warning('入口 %s 引用了不存在的宿主图标 %s', entry.get('id', ''), icon)
+    raise PluginManifestError(
+        message,
+        field=field_name,
+        hint=hint,
+        user_msg=_plugin_user_msg(plugin_label),
+        code=code,
+    )
+
+
+def _warnings_from_issues(issues: list) -> list:
+    """把契约 warning issues 转成人类可读文本（宿主宽松：全部只警告）。"""
+    warnings = []
+    for issue in issues or []:
+        if issue.get('severity') != contract.SEVERITY_WARNING:
+            continue
+        text = contributions_module.issue_to_warning(issue)
+        if text:
+            warnings.append(text)
     return warnings
 
 
-def _plugin_user_msg(plugin_label: str) -> str:
-    """面向普通用户的一句话错误提示（D3）。"""
-    return f'插件「{plugin_label}」的清单格式不正确，请联系插件作者更新。'
+def _resolve_plugin_icon(plugin_dir: str, raw_icon: str, warnings: list) -> str:
+    """插件图标：宿主图标名（`wand`）或插件内资源路径（`frontend/assets/icon.svg`）。
 
-
-def _reject_unknown_keys(payload, allowed, *, prefix, plugin_label):
-    """结构键严格校验：出现白名单以外的键即拒绝加载（D3）。"""
-    unknown = sorted(str(key) for key in payload.keys() if str(key) not in allowed)
-    if not unknown:
-        return
-    field = f'{prefix}.{unknown[0]}' if prefix else unknown[0]
-    scope = prefix or '顶层'
-    raise PluginManifestError(
-        f'manifest 中存在未知字段 {field}',
-        field=field,
-        hint=f'{scope} 支持的字段：{", ".join(sorted(allowed))}',
-        user_msg=_plugin_user_msg(plugin_label),
-        code='manifest_unknown_key',
-    )
+    与 `entries[].icon` 同源规则（D4）：不合法只警告 + 返回空串，不拒绝加载。
+    """
+    if not raw_icon:
+        return ''
+    if is_host_icon_name(raw_icon):
+        if sprite_for_icon(raw_icon):
+            return raw_icon
+        warnings.append(f'icon: 引用了不存在的宿主图标 {raw_icon}，已忽略')
+        return ''
+    try:
+        return _resolve_plugin_path(plugin_dir, raw_icon, field_name='icon')
+    except PluginManifestError as exc:
+        warnings.append(f'icon: {exc}')
+        logger.warning('插件 %s 的 icon 不可用: %s', plugin_dir, exc)
+        return ''
 
 
 @dataclass
 class PluginManifest:
-    """一份已通过校验的插件声明。"""
+    """一份已通过校验的插件声明（v3 契约快照）。"""
 
     plugin_id: str
     name: str
@@ -343,9 +221,12 @@ class PluginManifest:
     frontend_entry_rel: str = ''
     frontend_styles: list = field(default_factory=list)
     frontend_styles_rel: list = field(default_factory=list)
-    frontend_entries: list = field(default_factory=list)
+    frontend_global_styles: list = field(default_factory=list)
+    frontend_global_styles_rel: list = field(default_factory=list)
+    frontend_render_mode: str = contract.DEFAULT_RENDER_MODE
+    frontend_contributions: dict = field(default_factory=contributions_module.empty_contributions)
 
-    permissions: list = field(default_factory=list)
+    capabilities: list = field(default_factory=list)
     requires: dict = field(default_factory=dict)
     config_schema: dict = field(default_factory=dict)
     secret_schema: dict = field(default_factory=dict)
@@ -358,7 +239,12 @@ class PluginManifest:
 
     @property
     def has_frontend(self) -> bool:
-        return bool(self.frontend_entry)
+        if self.frontend_entry or self.frontend_styles or self.frontend_global_styles:
+            return True
+        contributions = self.frontend_contributions or {}
+        if any(contributions.get(kind) for kind in ('menus', 'slots', 'commands')):
+            return True
+        return self.frontend_render_mode == 'custom'
 
     @property
     def is_frontend_only(self) -> bool:
@@ -369,7 +255,7 @@ class PluginManifest:
         return os.path.join(self.plugin_dir, 'data')
 
     def to_dict(self) -> dict:
-        """返回给前端的只读快照。"""
+        """返回给前端的只读快照（S2 定稿形状；无 `entries` / `permissions` 别名）。"""
         return {
             'id': self.plugin_id,
             'name': self.name,
@@ -387,11 +273,13 @@ class PluginManifest:
             'frontend_only': self.is_frontend_only,
             'frontend_entry': self.frontend_entry_rel,
             'frontend_styles': list(self.frontend_styles_rel),
-            'permissions': list(self.permissions),
+            'frontend_global_styles': list(self.frontend_global_styles_rel),
+            'render_mode': self.frontend_render_mode,
+            'capabilities': list(self.capabilities),
             'requires': dict(self.requires),
             'jobs': list(self.backend_jobs),
             'hooks': list(self.backend_hooks),
-            'entries': [dict(item) for item in self.frontend_entries],
+            'contributions': contributions_module.snapshot(self.frontend_contributions),
             'config_schema': dict(self.config_schema),
             'secret_schema': dict(self.secret_schema),
         }
@@ -416,246 +304,132 @@ class PluginManifest:
             raise PluginManifestError(f'插件目录不存在: {plugin_dir}')
 
         raw = _load_manifest_payload(plugin_dir)
-        warnings = []
+        normalized, issues = contract.validate_manifest(raw, strict=False)
 
-        raw_id = raw.get('id')
-        plugin_id = str(raw_id or '').strip()
-        if not PLUGIN_ID_PATTERN.match(plugin_id):
-            raise PluginManifestError(f'id 不符合 ^[a-z][a-z0-9-]{{1,63}}$: {raw_id!r}')
-        plugin_label = str(raw.get('name') or plugin_id).strip() or plugin_id
+        error = _select_error(raw, issues)
+        if error is not None:
+            plugin_label = str(raw.get('name') or raw.get('id') or '').strip() or '未知插件'
+            _raise_for_issue(error, plugin_label)
 
-        # 结构键严格校验（D3）：先于其它校验，保证「拼错字段名」给出最准确的提示
-        _reject_unknown_keys(raw, KNOWN_TOP_LEVEL_KEYS, prefix='', plugin_label=plugin_label)
-
-        manifest_version = raw.get('manifest_version', DEFAULT_MANIFEST_VERSION)
-        if isinstance(manifest_version, bool) or not isinstance(manifest_version, int):
-            raise PluginManifestError(
-                f'manifest_version 必须是整数: {manifest_version!r}',
-                field='manifest_version',
-                hint=f'支持的 manifest 版本：{list(SUPPORTED_MANIFEST_VERSIONS)}',
-                user_msg=_plugin_user_msg(plugin_label),
-                code='manifest_version_unsupported',
-            )
-        if manifest_version not in SUPPORTED_MANIFEST_VERSIONS:
-            raise PluginManifestError(
-                f'manifest_version 不受支持: {manifest_version!r}',
-                field='manifest_version',
-                hint=f'支持的 manifest 版本：{list(SUPPORTED_MANIFEST_VERSIONS)}',
-                user_msg=_plugin_user_msg(plugin_label),
-                code='manifest_version_unsupported',
-            )
-
-        backend = raw.get('backend') or {}
-        if backend and not isinstance(backend, dict):
-            raise PluginManifestError('backend 必须是对象', field='backend')
-        frontend = raw.get('frontend') or {}
-        if frontend and not isinstance(frontend, dict):
-            raise PluginManifestError('frontend 必须是对象', field='frontend')
-
-        if isinstance(backend, dict):
-            _reject_unknown_keys(
-                backend, KNOWN_BACKEND_KEYS, prefix='backend', plugin_label=plugin_label,
-            )
-        if isinstance(frontend, dict):
-            # 旧三字段先于未知键检查，给出更有针对性的提示（D1：不保留别名）
-            legacy = [key for key in LEGACY_FRONTEND_KEYS if key in frontend]
-            if legacy:
-                field = f'frontend.{legacy[0]}'
-                raise PluginManifestError(
-                    f'manifest 中存在已废弃字段 {field}',
-                    field=field,
-                    hint='旧三字段已删除且不保留别名，请改用 frontend.entries',
-                    user_msg=_plugin_user_msg(plugin_label),
-                    code='manifest_legacy_key',
-                )
-            _reject_unknown_keys(
-                frontend, KNOWN_FRONTEND_KEYS, prefix='frontend', plugin_label=plugin_label,
-            )
+        plugin_id = normalized['id']
+        warnings = _warnings_from_issues(issues)
 
         dir_name = os.path.basename(plugin_dir.rstrip(os.sep))
         if check_dir_name and plugin_id != dir_name:
-            raise PluginManifestError(f'id ({plugin_id}) 与目录名 ({dir_name}) 不一致')
-        if expected_id and plugin_id != expected_id:
-            raise PluginManifestError(f'id ({plugin_id}) 与预期 ({expected_id}) 不一致')
-
-        version = raw.get('version')
-        if parse_semver(version) is None:
-            raise PluginManifestError(f'version 不是合法语义化版本: {version!r}')
-
-        api_version = raw.get('api_version')
-        if isinstance(api_version, bool) or not isinstance(api_version, int):
             raise PluginManifestError(
-                f'api_version 必须是整数: {api_version!r}',
-                field='api_version',
-                user_msg=_plugin_user_msg(plugin_label),
+                f'id ({plugin_id}) 与目录名 ({dir_name}) 不一致',
+                field='id',
+                hint='已安装插件的目录名必须等于 manifest 的 id；安装流程会自动重命名目录。',
             )
-        if api_version not in SUPPORTED_PLUGIN_API_VERSIONS:
-            raise PluginApiVersionError(
-                f'插件需要 api_version {api_version}，当前主程序仅支持 '
-                f'{list(SUPPORTED_PLUGIN_API_VERSIONS)}（需更新主程序）',
-                field='api_version',
-                hint=f'当前主程序支持 api_version {list(SUPPORTED_PLUGIN_API_VERSIONS)}',
-                user_msg=f'插件「{plugin_label}」需要更新版本的主程序，请先升级主程序。',
+        if expected_id and plugin_id != expected_id:
+            raise PluginManifestError(
+                f'id ({plugin_id}) 与预期 ({expected_id}) 不一致',
+                field='id',
             )
 
-        min_app_version = str(raw.get('min_app_version') or '').strip()
-        if min_app_version:
-            if parse_semver(min_app_version) is None:
-                raise PluginManifestError(f'min_app_version 不是合法语义化版本: {min_app_version!r}')
-            if compare_versions(APP_VERSION, min_app_version) < 0:
-                raise PluginManifestError(
-                    f'插件要求主程序 >= {min_app_version}，当前为 {APP_VERSION}（请升级主程序）'
-                )
+        min_app_version = normalized['min_app_version']
+        if min_app_version and compare_versions(APP_VERSION, min_app_version) < 0:
+            raise PluginManifestError(
+                f'插件要求主程序 >= {min_app_version}，当前为 {APP_VERSION}（请升级主程序）',
+                field='min_app_version',
+                user_msg=f'插件「{normalized["name"]}」需要更高版本的主程序，请先升级主程序。',
+            )
 
-        if not backend and not frontend:
-            raise PluginManifestError('backend 与 frontend 至少要有一个')
-
+        # ---------------- backend ----------------
         backend_entry = ''
         backend_register = 'register'
-        if backend:
-            raw_entry = backend.get('entry') or ''
-            entry_name = str(raw_entry).replace('\\', '/').strip().strip('/')
-            if not entry_name or not all(
-                ENTRY_NAME_PATTERN.match(part) for part in entry_name.split('/')
-            ):
-                raise PluginManifestError(f'backend.entry 非法: {raw_entry!r}')
+        raw_backend = normalized['backend']
+        if raw_backend:
+            entry_name = raw_backend['entry']
             backend_entry = _resolve_plugin_path(
                 plugin_dir, entry_name, field_name='backend.entry', must_exist=False,
             )
             init_py = os.path.join(backend_entry, '__init__.py')
             if not os.path.isfile(init_py):
-                raise PluginManifestError(f'backend.entry 缺少 __init__.py: {entry_name}')
+                raise PluginManifestError(
+                    f'backend.entry 缺少 __init__.py: {entry_name}', field='backend.entry',
+                )
+            backend_register = raw_backend['register']
 
-            raw_register = str(backend.get('register') or 'register').strip()
-            if not ENTRY_NAME_PATTERN.match(raw_register):
-                raise PluginManifestError(f'backend.register 非法: {raw_register!r}')
-            backend_register = raw_register
-
-        backend_jobs = []
-        for job_type in _normalize_string_list(backend.get('jobs'), field_name='backend.jobs'):
-            if not JOB_TYPE_PATTERN.match(job_type):
-                raise PluginManifestError(f'backend.jobs 项非法: {job_type!r}')
-            backend_jobs.append(job_type)
-
-        backend_hooks = []
-        for hook_name in _normalize_string_list(backend.get('hooks'), field_name='backend.hooks'):
-            if hook_name not in KNOWN_HOOKS:
-                warnings.append(f'忽略未知 hook: {hook_name}')
-                logger.warning('插件 %s 声明了未知 hook %s，已忽略', plugin_id, hook_name)
-                continue
-            backend_hooks.append(hook_name)
-
+        # ---------------- frontend ----------------
         frontend_entry = ''
         frontend_entry_rel = ''
         frontend_styles = []
         frontend_styles_rel = []
-        if frontend:
-            raw_frontend_entry = frontend.get('entry') or ''
-            if raw_frontend_entry:
+        frontend_global_styles = []
+        frontend_global_styles_rel = []
+        frontend_render_mode = contract.DEFAULT_RENDER_MODE
+        frontend_contributions = contributions_module.empty_contributions()
+
+        raw_frontend = normalized['frontend']
+        if raw_frontend:
+            frontend_render_mode = raw_frontend['render_mode']
+            frontend_contributions = raw_frontend['contributions']
+
+            if raw_frontend['entry']:
                 frontend_entry = _resolve_plugin_path(
-                    plugin_dir, raw_frontend_entry, field_name='frontend.entry',
+                    plugin_dir, raw_frontend['entry'], field_name='frontend.entry',
                 )
-                frontend_entry_rel = str(raw_frontend_entry).replace('\\', '/').strip().lstrip('/')
-            for style in _normalize_string_list(frontend.get('styles'), field_name='frontend.styles'):
-                frontend_styles.append(
-                    _resolve_plugin_path(plugin_dir, style, field_name='frontend.styles')
+                frontend_entry_rel = _normalize_rel_path(
+                    plugin_dir, raw_frontend['entry'], field_name='frontend.entry',
                 )
-                frontend_styles_rel.append(str(style).replace('\\', '/').strip().lstrip('/'))
-            if not frontend_entry and not frontend_styles:
-                warnings.append('frontend 段未声明 entry 与 styles')
+            for index, style in enumerate(raw_frontend['styles']):
+                frontend_styles.append(_resolve_plugin_path(
+                    plugin_dir, style, field_name=f'frontend.styles[{index}]',
+                ))
+                frontend_styles_rel.append(_normalize_rel_path(
+                    plugin_dir, style, field_name=f'frontend.styles[{index}]',
+                ))
 
-        permissions = []
-        for permission in _normalize_string_list(raw.get('permissions'), field_name='permissions'):
-            if permission not in KNOWN_PERMISSIONS:
-                warnings.append(f'忽略未知权限声明: {permission}')
-                logger.warning('插件 %s 声明了未知权限 %s，已忽略', plugin_id, permission)
-                continue
-            permissions.append(permission)
+            # global_styles 受能力位门控：没声明 ui.global_styles 时宿主拒绝注入
+            if contract.CAPABILITY_UI_GLOBAL_STYLES in normalized['capabilities']:
+                for index, style in enumerate(raw_frontend['global_styles']):
+                    frontend_global_styles.append(_resolve_plugin_path(
+                        plugin_dir, style, field_name=f'frontend.global_styles[{index}]',
+                    ))
+                    frontend_global_styles_rel.append(_normalize_rel_path(
+                        plugin_dir, style, field_name=f'frontend.global_styles[{index}]',
+                    ))
 
-        requires = {}
-        raw_requires = raw.get('requires')
-        if raw_requires is not None and not isinstance(raw_requires, dict):
-            warnings.append('requires 必须是对象（{plugin_id: 版本约束}），已忽略')
-        elif isinstance(raw_requires, dict):
-            for raw_dep_id, raw_constraint in raw_requires.items():
-                dep_id = str(raw_dep_id or '').strip()
-                constraint = str(raw_constraint or '').strip()
-                if not PLUGIN_ID_PATTERN.match(dep_id):
-                    warnings.append(f'忽略非法依赖 id: {raw_dep_id!r}')
-                    continue
-                if dep_id == plugin_id:
-                    warnings.append('忽略对自身的依赖声明')
-                    continue
-                if parse_requirement(constraint) is None:
-                    warnings.append(f'忽略依赖 {dep_id} 的非法版本约束: {constraint!r}')
-                    continue
-                requires[dep_id] = constraint
+            if not (
+                frontend_entry or frontend_styles or frontend_global_styles_rel
+                or any(frontend_contributions.get(kind) for kind in ('menus', 'slots', 'commands'))
+            ):
+                warnings.append('frontend 段未声明 entry / styles / contributions')
 
-        icon = ''
-        raw_icon = raw.get('icon')
-        if raw_icon:
-            try:
-                icon = _resolve_plugin_path(plugin_dir, raw_icon, field_name='icon')
-            except PluginManifestError as exc:
-                warnings.append(str(exc))
-                logger.warning('插件 %s 的 icon 不可用: %s', plugin_id, exc)
-
-        entries = []
-        if isinstance(frontend, dict) and frontend.get('entries') is not None:
-            raw_entries = frontend.get('entries')
-            if not isinstance(raw_entries, list):
-                raise PluginManifestError(
-                    'frontend.entries 必须是数组',
-                    field='frontend.entries',
-                    user_msg=_plugin_user_msg(plugin_label),
-                    code='manifest_invalid_field',
-                )
-            # 结构键严格校验（D3）：entries[] 子键也必须 ∈ 白名单
-            for index, raw_entry in enumerate(raw_entries):
-                if not isinstance(raw_entry, dict):
-                    continue
-                unknown = sorted(
-                    str(key) for key in raw_entry.keys() if str(key) not in KNOWN_ENTRY_KEYS
-                )
-                if unknown:
-                    field = f'frontend.entries[{index}].{unknown[0]}'
-                    raise PluginManifestError(
-                        f'manifest 中存在未知字段 {field}',
-                        field=field,
-                        hint=f'entries 支持的字段：{", ".join(sorted(KNOWN_ENTRY_KEYS))}',
-                        user_msg=_plugin_user_msg(plugin_label),
-                        code='manifest_unknown_key',
-                    )
-            entries, entry_warnings = normalize_entries(plugin_id, raw_entries)
-            warnings.extend(entry_warnings)
-            warnings.extend(_check_entry_icons(entries))
+        # 图标检查：宿主图标名需存在；插件资源路径需存在于插件目录内
+        warnings.extend(contributions_module.check_contribution_icons(frontend_contributions))
+        icon = _resolve_plugin_icon(plugin_dir, normalized['icon'], warnings)
 
         return cls(
             plugin_id=plugin_id,
-            name=str(raw.get('name') or plugin_id),
-            version=str(version),
-            api_version=int(api_version),
+            name=normalized['name'],
+            version=normalized['version'],
+            api_version=normalized['api_version'],
             plugin_dir=plugin_dir,
-            author=str(raw.get('author') or ''),
-            description=str(raw.get('description') or ''),
-            homepage=str(raw.get('homepage') or ''),
-            license=str(raw.get('license') or ''),
+            author=normalized['author'],
+            description=normalized['description'],
+            homepage=normalized['homepage'],
+            license=normalized['license'],
             icon=icon,
             min_app_version=min_app_version,
-            manifest_version=int(manifest_version),
+            manifest_version=normalized['manifest_version'],
             backend_entry=backend_entry,
             backend_register=backend_register,
-            backend_jobs=backend_jobs,
-            backend_hooks=backend_hooks,
+            backend_jobs=list(raw_backend['jobs']) if raw_backend else [],
+            backend_hooks=list(raw_backend['hooks']) if raw_backend else [],
             frontend_entry=frontend_entry,
             frontend_entry_rel=frontend_entry_rel,
             frontend_styles=frontend_styles,
             frontend_styles_rel=frontend_styles_rel,
-            frontend_entries=entries,
-            permissions=permissions,
-            requires=requires,
-            config_schema=_validate_schema(raw.get('config_schema'), field_name='config_schema'),
-            secret_schema=_validate_schema(raw.get('secret_schema'), field_name='secret_schema'),
+            frontend_global_styles=frontend_global_styles,
+            frontend_global_styles_rel=frontend_global_styles_rel,
+            frontend_render_mode=frontend_render_mode,
+            frontend_contributions=frontend_contributions,
+            capabilities=list(normalized['capabilities']),
+            requires=dict(normalized['requires']),
+            config_schema=dict(normalized['config_schema']),
+            secret_schema=dict(normalized['secret_schema']),
             warnings=warnings,
             raw=raw,
         )

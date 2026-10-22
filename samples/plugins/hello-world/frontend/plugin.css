@@ -46,3 +46,16 @@
   font-size: 0.72rem;
   color: var(--content-muted);
 }
+
+/* settings.section 插槽渲染器（frontend/views/settingsSection.js）。
+   容器由宿主创建；插件只负责容器内的内容与作用域内的样式。 */
+.plugin-hello-world-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.75rem;
+  border: 1px dashed var(--border-default);
+  border-radius: 0.5rem;
+  background: var(--surface-container);
+}
+

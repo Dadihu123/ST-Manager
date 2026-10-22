@@ -1,23 +1,11 @@
-"""`entries:changed` 重入安全（回归：栈溢出）。
+"""`contributions:changed` 广播的重入保护测试（S3 / 原 entries:notify-reentry 的 v3 版本）。
 
-背景：插件按宿主文档推荐的模式写运行期状态——订阅 `entries:changed`，在回调里
-`api.entries.setStatus(...)` 重放期望状态（因为宿主 `loadAll()` 先 activate、
-后 setPlugins，activate 期间写入会静默失败）。
+背景：插件常在自己的 `contributions:changed` 监听里调用 `api.contributions.update()`
+（例如「处理中」→「完成」）。若每次 update 都同步再广播，就会栈溢出。注册表的约定：
 
-若写入器无条件广播，就形成
-
-    setStatus → notifyChange → 监听器 → setStatus → …
-
-的无限递归，栈溢出并让整个前端 JS 崩掉。用户实测报错栈：
-
-    notifyChange (entryRegistry:761)
-    ← setStatus (entryRegistry:571)
-    ← setStatus (pluginHost:459)
-    ← apply (plugin.js:36)
-    ← wrapped (pluginHost:321)
-    ← notifyChange (entryRegistry:761)
-
-这里既做源码契约断言，也在 node 可用时**真实执行**注册表验证重入行为。
+- 同值写入不广播（`Object.is` 判等，打断最常见的自触发）；
+- 广播期间发生的 update 记入 pending，当前一轮结束后最多再补一轮；
+- 连续轮次以 `MAX_NOTIFY_ROUNDS` 封顶，超过后放弃并警告，而不是无限递归。
 """
 
 import json
@@ -25,6 +13,7 @@ import os
 import shutil
 import subprocess
 import sys
+import textwrap
 
 import pytest
 
@@ -32,7 +21,7 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-REGISTRY_JS = os.path.join(PROJECT_ROOT, 'static', 'js', 'entryRegistry.js')
+REGISTRY_PATH = 'static/js/contributionRegistry.js'
 
 
 def read_source(relative_path):
@@ -40,236 +29,213 @@ def read_source(relative_path):
         return handle.read()
 
 
-# ------------------------------------------------------------------ 源码契约
+def run_node(script: str) -> subprocess.CompletedProcess:
+    return subprocess.run(
+        ['node', '--input-type=module', '-e', textwrap.dedent(script)],
+        cwd=PROJECT_ROOT,
+        capture_output=True,
+        text=True,
+        encoding='utf-8',
+        errors='replace',
+        check=False,
+    )
 
 
-def test_runtime_state_writers_detect_no_op_writes():
-    """运行期写入器必须做变更检测：同值不广播。
+requires_node = pytest.mark.skipif(
+    shutil.which('node') is None,
+    reason='Node.js is required for contribution registry contract checks',
+)
 
-    这是打断递归的根本手段——重放写的通常就是同一个值，那本来就是空操作。
-    """
-    source = read_source('static/js/entryRegistry.js')
-
-    start = source.index('  setBadge(pluginId, entryId, value) {')
-    end = source.index('  // ------------------------------------------------------------ 查询')
-    block = source[start:end]
-
-    for method in ('setBadge', 'setProgress', 'setStatus', 'setBusy'):
-        assert f'{method}(pluginId, entryId' in block, f'{method} 应在运行期状态区'
-
-    # 每个写入器都要有「相同就 return」的早退
-    assert block.count('return true;') >= 4, '四个写入器都应有同值早退'
-    assert 'if (entry.status === next) return true;' in block
-    assert 'if (entry.busy === next) return true;' in block
-    assert 'if (Object.is(entry.badge, next)) return true;' in block
-
-
-def test_notify_change_has_reentry_guard():
-    """`notifyChange` 必须有重入合并与轮数上限，不能直接递归派发。"""
-    source = read_source('static/js/entryRegistry.js')
-
-    assert 'MAX_NOTIFY_ROUNDS' in source
-    assert 'this._notifying' in source
-    assert 'this._notifyPending' in source
-
-    start = source.index('  notifyChange() {')
-    body = source[start:start + 1600]
-    # 重入时只登记待补发，不再递归派发
-    assert 'if (this._notifying) {' in body
-    assert 'this._notifyPending = true;' in body
-    assert 'return;' in body
-
-
-def test_plugin_host_event_wrapper_matches_documented_shape():
-    """宿主 `api.on` 把 DOM 事件拆成 detail 后交给插件（插件据此重放）。"""
-    source = read_source('static/js/pluginHost.js')
-
-    assert 'const wrapped = (domEvent) => handler(domEvent.detail);' in source
-
-
-# ------------------------------------------------------------------ 真实执行
-
-NODE = shutil.which('node')
-requires_node = pytest.mark.skipif(NODE is None, reason='node 不可用')
-
-
-def _run_registry(script_body: str):
-    """在 node 里以最小 window 桩执行 entryRegistry，返回其打印的 JSON。"""
-    script = f"""
-const g = globalThis;
-g.window = {{
+SHIM = r"""
+const dispatched = [];
+globalThis.__dispatched = dispatched;
+globalThis.window = {
   listeners: new Map(),
-  addEventListener(name, fn) {{
+  addEventListener(name, fn) {
     if (!this.listeners.has(name)) this.listeners.set(name, new Set());
     this.listeners.get(name).add(fn);
-  }},
-  removeEventListener(name, fn) {{ this.listeners.get(name)?.delete(fn); }},
-  dispatchEvent(event) {{
-    for (const fn of [...(this.listeners.get(event.type) || [])]) fn(event);
-  }},
-  CustomEvent: class CustomEvent {{
-    constructor(type, init) {{ this.type = type; this.detail = init?.detail; }}
-  }},
-}};
-g.CustomEvent = g.window.CustomEvent;
-
-const {{ default: EntryRegistry }} = await import('file:///{REGISTRY_JS.replace(os.sep, "/")}');
-{script_body}
-"""
-    result = subprocess.run(
-        [NODE, '--input-type=module', '-e', script],
-        capture_output=True, text=True, encoding='utf-8', timeout=90,
-    )
-    if result.returncode != 0:
-        pytest.fail(f'node 执行失败（可能是栈溢出）:\n{result.stderr[:1500]}')
-    return json.loads(result.stdout)
-
-
-@requires_node
-def test_replay_does_not_recurse_infinitely():
-    """回归：插件在 `entries:changed` 回调里重放状态，不得无限递归。"""
-    out = _run_registry("""
-const pluginId = 'stm-ai-assistant';
-let applyCount = 0;
-let status = '';
-
-const api = {
-  on(event, handler) {
-    const wrapped = (e) => handler(e.detail);
-    window.addEventListener(event, wrapped);
-    return () => window.removeEventListener(event, wrapped);
   },
-  entries: {
-    setStatus: (id, s) => EntryRegistry.setStatus(pluginId, id, s),
+  removeEventListener(name, fn) { this.listeners.get(name)?.delete(fn); },
+  dispatchEvent(event) {
+    dispatched.push(event);
+    for (const fn of [...(this.listeners.get(event.type) || [])]) fn(event);
   },
 };
+globalThis.CustomEvent = class CustomEvent {
+  constructor(type, init) { this.type = type; this.detail = init && init.detail; }
+};
+globalThis.window.CustomEvent = globalThis.CustomEvent;
+globalThis.__store = {
+  currentMode: 'cards',
+  deviceType: 'desktop',
+  viewState: { selectedIds: [] },
+  indexStatus: { state: 'idle' },
+};
+globalThis.window.Alpine = {
+  store: () => globalThis.__store,
+  effect: () => () => {},
+  reactive: (value) => value,
+};
 
-const apply = () => { applyCount += 1; if (status) api.entries.setStatus('workbench', status); };
-
-status = 'ok';
-apply();                                   // activate 期间：注册表空，静默失败
-api.on('entries:changed', apply);          // 订阅重放
-
-EntryRegistry.setPlugins([
-  { id: pluginId, enabled: true, manifest: {
-      entries: [{ id: 'workbench', kind: 'dock', label: 'AI 助手' }] } },
-]);
-
-process.stdout.write(JSON.stringify({
-  applyCount,
-  status: EntryRegistry.get(pluginId + ':workbench')?.status || null,
-}));
-""")
-
-    assert out['status'] == 'ok', '重放必须让状态落地（功能不能被修坏）'
-    assert out['applyCount'] < 10, f'重放次数应有限，实际 {out["applyCount"]}'
+globalThis.__makePlugins = () => [
+  {
+    id: 'demo',
+    enabled: true,
+    manifest: {
+      contributions: {
+        menus: [
+          { id: 'node-a', placement: 'dock', type: 'item', label: 'A',
+            action: { type: 'url', url: 'https://example.com/a' } },
+          { id: 'node-b', placement: 'dock', type: 'item', label: 'B',
+            action: { type: 'url', url: 'https://example.com/b' } },
+        ],
+      },
+    },
+  },
+];
+"""
 
 
-@requires_node
-def test_same_value_writes_do_not_broadcast():
-    """同值写入不广播；真实变更仍广播。"""
-    out = _run_registry("""
-const pluginId = 'p1';
-EntryRegistry.setPlugins([
-  { id: pluginId, enabled: true, manifest: {
-      entries: [
-        { id: 'dock', kind: 'dock', label: 'D' },
-        { id: 'cmd', kind: 'command', label: 'C' },
-      ] } },
-]);
+def run_script(body: str) -> subprocess.CompletedProcess:
+    return run_node(SHIM + textwrap.dedent(body))
 
-let events = 0;
-window.addEventListener('entries:changed', () => { events += 1; });
 
-const marks = {};
-EntryRegistry.setStatus(pluginId, 'dock', 'error');
-marks.afterFirstStatus = events;
-EntryRegistry.setStatus(pluginId, 'dock', 'error');       // 同值
-marks.afterSameStatus = events;
-EntryRegistry.setBadge(pluginId, 'cmd', 3);
-marks.afterBadge = events;
-EntryRegistry.setBadge(pluginId, 'cmd', 3);               // 同值
-marks.afterSameBadge = events;
-EntryRegistry.setBusy(pluginId, 'dock', true);
-marks.afterBusy = events;
-EntryRegistry.setBusy(pluginId, 'dock', true);            // 同值
-marks.afterSameBusy = events;
-EntryRegistry.setProgress(pluginId, 'dock', { done: 1, total: 4 });
-marks.afterProgress = events;
-EntryRegistry.setProgress(pluginId, 'dock', { done: 1, total: 4 });  // 同值
-marks.afterSameProgress = events;
+def run_json(body: str) -> dict:
+    result = run_script(body)
+    assert result.returncode == 0, result.stderr or result.stdout
+    lines = [line for line in (result.stdout or '').strip().splitlines() if line.strip()]
+    assert lines, result.stderr or result.stdout
+    return json.loads(lines[-1])
 
-process.stdout.write(JSON.stringify(marks));
-""")
 
-    assert out['afterFirstStatus'] == 1, 'status 变化应广播一次'
-    assert out['afterSameStatus'] == 1, '同值 status 不应再广播'
-    assert out['afterBadge'] == 2, 'badge 变化应广播'
-    assert out['afterSameBadge'] == 2, '同值 badge 不应再广播'
-    assert out['afterBusy'] == 3, 'busy 变化应广播'
-    assert out['afterSameBusy'] == 3, '同值 busy 不应再广播'
-    assert out['afterProgress'] == 4, 'progress 变化应广播'
-    assert out['afterSameProgress'] == 4, '同值 progress 不应再广播'
+# ------------------------------------------------------------------ 静态契约
+
+
+def test_registry_declares_reentry_guard():
+    source = read_source(REGISTRY_PATH)
+
+    assert 'MAX_NOTIFY_ROUNDS' in source
+    assert 'const MAX_NOTIFY_ROUNDS = 5' in source
+    assert '_notifying' in source
+    assert '_notifyPending' in source
+    assert 'new CustomEvent("contributions:changed"' in source
+
+
+# ------------------------------------------------------------------ 行为
 
 
 @requires_node
-def test_pathological_listener_is_capped_not_crashed():
-    """病态插件（每轮回调都改不同值）应被轮数上限截断，而不是栈溢出。"""
-    out = _run_registry("""
-const pluginId = 'p1';
-EntryRegistry.setPlugins([
-  { id: pluginId, enabled: true, manifest: {
-      entries: [{ id: 'dock', kind: 'dock', label: 'D' }] } },
-]);
+def test_noop_update_does_not_broadcast():
+    payload = run_json(
+        """
+        import { ContributionRegistry } from './static/js/contributionRegistry.js';
 
-let rounds = 0;
-window.addEventListener('entries:changed', () => {
-  rounds += 1;
-  EntryRegistry.setStatus(pluginId, 'dock', rounds % 2 === 0 ? 'warn' : 'error');
-});
+        ContributionRegistry.setPlugins(globalThis.__makePlugins());
+        globalThis.__dispatched.length = 0;
 
-EntryRegistry.setStatus(pluginId, 'dock', 'ok');   // 触发递归链
+        const node = ContributionRegistry.get('demo', 'node-b');
+        const label = node.label;
+        ContributionRegistry.update('demo', 'node-b', { label });
 
-process.stdout.write(JSON.stringify({ rounds, survived: true }));
-""")
-
-    assert out['survived'] is True
-    assert out['rounds'] <= 12, f'轮数应被上限截断，实际 {out["rounds"]}'
+        process.stdout.write(JSON.stringify({
+          events: globalThis.__dispatched.filter(
+            (event) => event.type === 'contributions:changed'
+          ).length,
+        }));
+        """
+    )
+    assert payload['events'] == 0
 
 
 @requires_node
-def test_listener_exception_does_not_break_registry():
-    """监听器抛错不应让注册表卡在「正在广播」状态（否则后续通知全丢）。"""
-    out = _run_registry("""
-const pluginId = 'p1';
-EntryRegistry.setPlugins([
-  { id: pluginId, enabled: true, manifest: {
-      entries: [{ id: 'dock', kind: 'dock', label: 'D' }] } },
-]);
+def test_update_from_listener_does_not_infinitely_recurse():
+    payload = run_json(
+        """
+        import { ContributionRegistry } from './static/js/contributionRegistry.js';
 
-const boom = () => { throw new Error('listener blew up'); };
-window.addEventListener('entries:changed', boom);
+        ContributionRegistry.setPlugins(globalThis.__makePlugins());
+        globalThis.__dispatched.length = 0;
 
-// 宿主 dispatchEvent 里监听器抛错会向上冒泡——这里模拟「抛错后仍能用」
-let threw = false;
-try {
-  EntryRegistry.setStatus(pluginId, 'dock', 'error');
-} catch (error) {
-  threw = true;
-}
+        let events = 0;
+        let depth = 0;
+        let maxDepth = 0;
+        let pendingUpdates = 0;
 
-window.removeEventListener('entries:changed', boom);
+        window.addEventListener('contributions:changed', () => {
+          events += 1;
+          depth += 1;
+          maxDepth = Math.max(maxDepth, depth);
+          // 典型的插件用法：收到变更后同步改自己的节点（同值 → 不广播）
+          const node = ContributionRegistry.get('demo', 'node-a');
+          if (node && node.label !== 'A-updated') {
+            pendingUpdates += 1;
+            ContributionRegistry.update('demo', 'node-a', { label: 'A-updated' });
+          }
+          depth -= 1;
+        });
 
-let events = 0;
-window.addEventListener('entries:changed', () => { events += 1; });
-EntryRegistry.setStatus(pluginId, 'dock', 'warn');
+        ContributionRegistry.update('demo', 'node-b', { badge: 1 });
+        ContributionRegistry.update('demo', 'node-b', { badge: 2 });
 
-process.stdout.write(JSON.stringify({
-  threw,
-  recoveredEvents: events,
-  notifyingFlag: EntryRegistry._notifying,
-}));
-""")
+        process.stdout.write(JSON.stringify({
+          events, maxDepth, pendingUpdates,
+          label: ContributionRegistry.get('demo', 'node-a').label,
+          badge: ContributionRegistry.get('demo', 'node-b').badge,
+        }));
+        """
+    )
+    # 两次显式 update 各广播一次；监听内的 label 更新是真实变化，但被记为 pending
+    # 在**当前一轮之后**补发一轮（所以共 3 次），而不是在监听里套娃。
+    assert payload['events'] == 3
+    assert payload['maxDepth'] == 1, '监听回调里同步 update 不得套娃递归'
+    assert payload['pendingUpdates'] == 1
+    assert payload['label'] == 'A-updated'
+    assert payload['badge'] == 2
 
-    assert out['notifyingFlag'] is False, '抛错后 _notifying 必须复位'
-    assert out['recoveredEvents'] >= 1, '抛错后注册表必须仍能广播'
+
+@requires_node
+def test_always_changing_listener_is_capped_by_max_rounds():
+    payload = run_json(
+        """
+        import { ContributionRegistry, MAX_NOTIFY_ROUNDS } from './static/js/contributionRegistry.js';
+
+        ContributionRegistry.setPlugins(globalThis.__makePlugins());
+        globalThis.__dispatched.length = 0;
+
+        let events = 0;
+        window.addEventListener('contributions:changed', () => {
+          events += 1;
+          // 每次监听都写入一个必然变化的值：触发 pending → 下一轮，直到轮次封顶
+          ContributionRegistry.update('demo', 'node-b', { progress: events / 100 });
+        });
+
+        ContributionRegistry.update('demo', 'node-b', { progress: 0.01 });
+
+        process.stdout.write(JSON.stringify({
+          events,
+          maxRounds: MAX_NOTIFY_ROUNDS,
+          // 封顶后仍能继续接受外部 update（状态没被锁死）
+          after: ContributionRegistry.update('demo', 'node-b', { progress: 0.99 }),
+        }));
+        """
+    )
+    assert payload['maxRounds'] == 5
+    # 初始 1 轮 + 最多 5 轮补发，且不能无限增长
+    assert 1 <= payload['events'] <= 6
+    assert payload['after'] is True
+
+
+@requires_node
+def test_removed_node_ignores_late_updates():
+    payload = run_json(
+        """
+        import { ContributionRegistry } from './static/js/contributionRegistry.js';
+
+        ContributionRegistry.setPlugins(globalThis.__makePlugins());
+        const removed = ContributionRegistry.remove('demo', 'node-a');
+        const updateAfterRemove = ContributionRegistry.update('demo', 'node-a', { label: 'X' });
+        process.stdout.write(JSON.stringify({ removed, updateAfterRemove }));
+        """
+    )
+    assert payload['removed'] is True
+    assert payload['updateAfterRemove'] is False

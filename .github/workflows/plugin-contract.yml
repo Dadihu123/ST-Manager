@@ -1,0 +1,105 @@
+name: Plugin Contract
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'core/plugins/**'
+      - 'static/js/pluginHost.js'
+      - 'static/js/pluginSurfaceHost.js'
+      - 'static/js/pluginOverlayHost.js'
+      - 'static/js/utils/icons.js'
+      - 'static/js/utils/iconMap.js'
+      - 'docs/plugin-api.md'
+      - 'docs/plugin-manifest.schema.json'
+      - 'docs/plugin-api.d.ts'
+      - 'docs/2026-10-21-plugin-contract-v3-design.md'
+      - 'tools/gen_plugin_api_docs.py'
+      - 'tools/gen_plugin_ui_icons.py'
+      - 'tools/stm_plugin_check.py'
+      - 'tools/new_plugin.py'
+      - 'samples/plugins/**'
+      - 'data/plugins/**'
+      - 'tests/test_plugin_*.py'
+      - '.github/workflows/plugin-contract.yml'
+  pull_request:
+    paths:
+      - 'core/plugins/**'
+      - 'static/js/pluginHost.js'
+      - 'static/js/pluginSurfaceHost.js'
+      - 'static/js/pluginOverlayHost.js'
+      - 'static/js/utils/icons.js'
+      - 'static/js/utils/iconMap.js'
+      - 'docs/plugin-api.md'
+      - 'docs/plugin-manifest.schema.json'
+      - 'docs/plugin-api.d.ts'
+      - 'docs/2026-10-21-plugin-contract-v3-design.md'
+      - 'tools/gen_plugin_api_docs.py'
+      - 'tools/gen_plugin_ui_icons.py'
+      - 'tools/stm_plugin_check.py'
+      - 'tools/new_plugin.py'
+      - 'samples/plugins/**'
+      - 'data/plugins/**'
+      - 'tests/test_plugin_*.py'
+      - '.github/workflows/plugin-contract.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    name: Generated artifacts + stm-plugin-check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt pytest
+
+      - name: Verify generated contract artifacts are in sync
+        run: python tools/gen_plugin_api_docs.py --check
+
+      - name: Verify generated icon map is in sync
+        run: python tools/gen_plugin_ui_icons.py --check
+
+      - name: Run plugin contract toolchain tests
+        run: >
+          python -m pytest -q
+          tests/test_plugin_api_docs.py
+          tests/test_plugin_manifest_schema.py
+          tests/test_plugin_stm_plugin_check.py
+          tests/test_plugin_scaffold.py
+          tests/test_plugin_icons.py
+
+      # 官方插件必须通过严格校验（ADR-0010）；找不到任何插件目录视为配置错误。
+      - name: Run stm-plugin-check on bundled plugins
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          plugins=()
+          for dir in samples/plugins/* data/plugins/*; do
+            if [ -f "$dir/manifest.json" ]; then
+              plugins+=("$dir")
+            fi
+          done
+          if [ ${#plugins[@]} -eq 0 ]; then
+            echo "没有找到可校验的插件目录（samples/plugins/* 或 data/plugins/*）" >&2
+            exit 1
+          fi
+          for dir in "${plugins[@]}"; do
+            echo "::group::stm-plugin-check $dir"
+            python tools/stm_plugin_check.py "$dir"
+            echo "::endgroup::"
+          done

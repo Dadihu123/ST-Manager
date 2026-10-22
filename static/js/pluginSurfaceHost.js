@@ -17,7 +17,7 @@
  */
 
 import { setFullscreenScrim, isFullscreenScrimActive } from "./utils/dom.js";
-import { EntryRegistry, hostDeviceType } from "./entryRegistry.js";
+import { ContributionRegistry, hostDeviceType } from "./contributionRegistry.js";
 import { icon as buildIcon } from "./uiPrimitives.js";
 
 export const SURFACE_TYPES = ["panel", "modal", "page", "sheet", "ambient"];
@@ -513,7 +513,8 @@ export const PluginSurfaceHost = {
     const entryId = String((ctx && (ctx.entryId || ctx.targetId)) || record.id || "");
     if (!entryId) return;
     try {
-      EntryRegistry.setStatus(record.pluginId, entryId, "error");
+      // v3：入口错误态走贡献节点的运行期状态（status 在 update 白名单内）。
+      ContributionRegistry.update(record.pluginId, entryId, { status: "error" });
     } catch (exc) {
       // 注册表还没建表（插件在 setPlugins 之前挂载）时忽略：不影响错误上报本身
       console.warn("[surfaceHost] 标记入口错误态失败:", exc);
@@ -522,6 +523,21 @@ export const PluginSurfaceHost = {
       `[surfaceHost] 入口 ${record.pluginId}:${entryId} 已置错误态：`,
       String(error),
     );
+    // 统一运行期异常上报：pluginHost 据此做「5 次/分钟 → 降级」计数。
+    try {
+      window.dispatchEvent(
+        new CustomEvent("plugin:runtime-error", {
+          detail: {
+            pluginId: record.pluginId,
+            error,
+            source: "surface.mount",
+            surfaceId: record.id,
+          },
+        }),
+      );
+    } catch (reportError) {
+      console.warn("[surfaceHost] 上报运行期异常失败:", reportError);
+    }
   },
 
   /**

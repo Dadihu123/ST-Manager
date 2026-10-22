@@ -49,6 +49,7 @@ import commandPalette from "./components/commandPalette.js";
 import { initPasteImportHandler } from "./components/pasteImportHandler.js";
 import { initTooltipSystem } from "./utils/tooltip.js";
 import { PluginHost } from "./pluginHost.js";
+import { PluginSlotHost } from "./pluginSlotHost.js";
 import "./utils/numberControl.js";
 
 // 3. 监听 Alpine 初始化事件
@@ -103,6 +104,21 @@ const registerComponents = () => {
     PluginHost.init();
   } catch (error) {
     console.warn("PluginHost init failed:", error);
+  }
+
+  // 插件插槽宿主（S7）：模板里的 `[data-plugin-slot]` 锚点由它挂载插件内容。
+  // 幂等：PluginHost.init() 内部也会调一次并注入 loadModule/getApi，
+  // 这里的无参调用保证「运行时装了但锚点先渲染」的时序也不会丢挂载。
+  try {
+    PluginSlotHost.init();
+    // 页面首次渲染 + 插件装载完成后各刷一次；后续由
+    // contributions:changed / mode-changed / plugins:loaded / plugin:unloaded
+    // 事件自动驱动（见 pluginSlotHost.js 的 SLOT_REFRESH_EVENTS）。
+    PluginSlotHost.refreshAll();
+    window.addEventListener("plugins:loaded", () => PluginSlotHost.refreshAll());
+    window.addEventListener("contributions:changed", () => PluginSlotHost.refreshAll());
+  } catch (error) {
+    console.warn("PluginSlotHost init failed:", error);
   }
   console.log("✅ ST Manager Frontend: Modules Loaded & Alpine Initialized");
 };

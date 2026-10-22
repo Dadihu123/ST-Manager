@@ -1,4 +1,4 @@
-﻿"""插件 API 文档同步测试（设计文档阶段 3「API 文档自动生成」）。
+"""插件 API 文档同步测试（设计文档阶段 3「API 文档自动生成」）。
 
 核心断言：`docs/plugin-api.md` 必须与 `PluginAPI` / `pluginHost.js` 的当前实现一致。
 新增或删除 API 后忘记重跑 `python tools/gen_plugin_api_docs.py`，这里会直接失败。
@@ -166,9 +166,86 @@ def test_frontend_declared_members_are_exposed_by_host():
     for keys, _display, _stability, _doc in FRONTEND_MEMBERS:
         declared.update(keys)
 
-    # 允许声明但暂未实现（例如保留位），但必须显式说明；此处只检查常见漏写
+    # v3 之后 buildApi() 的顶层键应全部登记（不再有「声明但未实现」的保留位）
     missing = sorted(declared - exposed)
     assert missing == [], f'文档声明了 pluginHost.js 未暴露的成员: {missing}'
+    assert declared == exposed
+
+
+def test_frontend_v2_members_are_removed_in_v3():
+    content = render()
+    declared = set()
+    for keys, _display, _stability, _doc in FRONTEND_MEMBERS:
+        declared.update(keys)
+
+    for removed in ('entries', 'registerModal', 'registerSettingsSection'):
+        assert removed not in declared, removed
+
+    assert 'contributions' in declared
+    assert 'overlays' in declared
+    assert '`entries.*`' not in content
+    assert '`registerModal(' not in content
+    assert '`registerSettingsSection(' not in content
+
+
+def test_rendered_document_contains_v3_sections():
+    content = render()
+
+    for title in (
+        '## 贡献（menus / slots / commands）',
+        '## 根节点 `api.createRoot`（内容层 / portal 层）',
+        '## overlays 登记（`api.overlays`）',
+        '## 共存与 kill switch',
+        '## 契约工具链（生成物）',
+    ):
+        assert title in content, title
+
+    # kill switch / 崩溃隔离 / 事件收紧的关键事实
+    assert 'overlays:force-closed' in content
+    assert 'contributions:changed' in content
+    assert 'plugin:degraded' in content
+    assert '不登记也能运行' in content
+    assert 'pointer-events: auto' in content
+
+
+def test_rendered_document_documents_all_placements_and_slots():
+    content = render()
+    from core.plugins import contract
+
+    for placement in contract.MENU_PLACEMENTS:
+        assert f'`{placement}`' in content, placement
+    for slot in contract.SLOT_NAMES:
+        assert f'`{slot}`' in content, slot
+    assert '`empty.<mode>`' in content
+    for when_key in contract.KNOWN_WHEN_KEYS:
+        assert f'| `{when_key}` |' in content, when_key
+    for capability in contract.KNOWN_CAPABILITIES:
+        assert f'`{capability}`' in content, capability
+    for action_type in contract.ACTION_TYPES:
+        assert f'| `{action_type}` |' in content, action_type
+
+
+def test_rendered_document_lists_generated_artifacts():
+    content = render()
+
+    for artifact in (
+        'docs/plugin-manifest.schema.json',
+        'docs/plugin-api.d.ts',
+        'tools/stm_plugin_check.py',
+        'python tools/gen_plugin_api_docs.py --check',
+    ):
+        assert artifact in content, artifact
+
+
+def test_doc_registries_fail_loudly_on_contract_drift(monkeypatch):
+    from tools import gen_plugin_api_docs as module
+
+    broken = dict(module.PLACEMENT_DOCS)
+    broken.pop(next(iter(broken)))
+    monkeypatch.setattr(module, 'PLACEMENT_DOCS', broken)
+
+    with pytest.raises(RuntimeError, match='PLACEMENT_DOCS'):
+        module.render()
 
 
 def test_rendered_document_contains_key_sections():
@@ -260,6 +337,9 @@ def test_missing_document_fails_check(tmp_path, monkeypatch):
     'api.private.query',
     'api.cards.read_note',
     'api.backups.restore_card_snapshot',
+    'api.contributions.update',
+    'api.createRoot',
+    'api.overlays.register',
 ])
 def test_document_mentions_critical_contracts(fragment):
     assert fragment in render()

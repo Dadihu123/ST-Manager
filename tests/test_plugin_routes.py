@@ -58,6 +58,13 @@ def test_list_returns_manifest_and_flags(client):
     assert item['loaded'] is True
     assert item['enabled'] is True
     assert item['manifest']['config_schema']
+    # v3：列表项直接带贡献快照 / 渲染方式 / 能力位，不再有 entries/permissions
+    assert item['capabilities'] == ['cards.read']
+    assert item['render_mode'] == 'declarative'
+    assert item['contributions'] == {'menus': [], 'slots': [], 'commands': []}
+    assert 'entries' not in item and 'permissions' not in item
+    assert item['manifest']['contributions'] == {'menus': [], 'slots': [], 'commands': []}
+    assert item['manifest']['capabilities'] == ['cards.read']
     assert 'style_scope_errors' in item
     assert data['plugins_dir']
     # 安装来源（D9）：解析后的外链 + 结构化记录，前端「来源」按钮据此渲染。

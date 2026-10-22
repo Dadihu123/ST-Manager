@@ -630,6 +630,347 @@ export function prompt(options = {}) {
   });
 }
 
+// ---------------------------------------------------------------- 菜单 / 浮层
+
+/**
+ * 菜单结构：`{ element, close(), focusFirst() }`。
+ *
+ * 与插件贡献菜单（`ContributionRegistry.menuTree()` 返回的树）**同构**：
+ * `items` = `[{type:'item'|'submenu'|'separator', id, label, icon, description,
+ * badge, disabled, disabledHint, children}]`。渲染器负责把手势映射成
+ * `onSelect(item)`，本原语只保证键盘 / 焦点 / 关闭行为与宿主右键菜单一致。
+ *
+ * @param {object} [options]
+ * @param {Array} [options.items]
+ * @param {string} [options.label] `role="menu"` 的无障碍名称
+ * @param {string} [options.pluginId]
+ * @param {boolean} [options.closeOnSelect=true]
+ * @param {Function} [options.onSelect] `(item, event) => void`
+ */
+export function menu(options = {}) {
+  const closeOnSelect = options.closeOnSelect !== false;
+  const node = el("div", {
+    className: "ui-primitive-menu color-surface-overlay",
+    attrs: { role: "menu", tabindex: "-1" },
+  });
+  if (options.label) node.setAttribute("aria-label", String(options.label));
+
+  const api = { element: node, closed: false };
+
+  function close() {
+    if (api.closed) return;
+    api.closed = true;
+    node.dispatchEvent(new CustomEvent("ui:menu-close", { bubbles: true }));
+  }
+
+  function focusables() {
+    return Array.from(node.querySelectorAll('[role="menuitem"]:not([aria-disabled="true"])'));
+  }
+
+  function appendItems(container, specs) {
+    for (const spec of specs || []) {
+      if (!spec) continue;
+      if (spec.type === "separator") {
+        container.appendChild(
+          el("div", { className: "ui-primitive-menu__separator", attrs: { role: "separator" } }),
+        );
+        continue;
+      }
+
+      const hasSubmenu = Array.isArray(spec.children) && spec.children.length > 0;
+      const item = el("button", {
+        className: "ui-primitive-menu__item",
+        attrs: { type: "button", role: hasSubmenu ? "menuitem" : "menuitem" },
+      });
+      if (spec.id) item.dataset.nodeId = String(spec.id);
+
+      if (spec.icon) {
+        item.appendChild(
+          icon(spec.icon, {
+            className: "ui-icon--sm",
+            pluginId: spec.pluginId || options.pluginId || "",
+          }),
+        );
+      }
+
+      const copy = el("span", { className: "ui-primitive-menu__copy" });
+      copy.appendChild(el("span", { className: "ui-primitive-menu__label", text: spec.label || "" }));
+      if (spec.description) {
+        copy.appendChild(
+          el("span", { className: "ui-primitive-menu__description", text: spec.description }),
+        );
+      }
+      item.appendChild(copy);
+
+      if (spec.badge !== undefined && spec.badge !== null && spec.badge !== "") {
+        item.appendChild(el("span", { className: "ui-primitive-menu__badge", text: String(spec.badge) }));
+      }
+      if (hasSubmenu) {
+        item.setAttribute("aria-haspopup", "menu");
+        item.setAttribute("aria-expanded", "false");
+        item.classList.add("is-submenu");
+        item.appendChild(icon("chevron-right", { className: "ui-icon--xs" }));
+      }
+
+      const disabled = Boolean(spec.disabled);
+      if (disabled) {
+        item.setAttribute("aria-disabled", "true");
+        item.classList.add("is-disabled");
+        if (spec.disabledHint) item.title = String(spec.disabledHint);
+      }
+
+      if (hasSubmenu) {
+        const submenu = el("div", {
+          className: "ui-primitive-menu__submenu",
+          attrs: { role: "menu" },
+        });
+        submenu.hidden = true;
+        appendItems(submenu, spec.children);
+        const row = el("div", { className: "ui-primitive-menu__row" });
+        row.appendChild(item);
+        row.appendChild(submenu);
+        container.appendChild(row);
+
+        item.addEventListener("click", (event) => {
+          event.stopPropagation();
+          if (disabled) return;
+          const open = submenu.hidden;
+          closeOpenSubmenus(container, submenu);
+          if (open) {
+            submenu.hidden = false;
+            item.setAttribute("aria-expanded", "true");
+            const first = submenu.querySelector('[role="menuitem"]:not([aria-disabled="true"])');
+            if (first && first.focus) first.focus();
+          }
+        });
+      } else {
+        item.addEventListener("click", (event) => {
+          if (disabled) return;
+          if (typeof options.onSelect === "function") options.onSelect(spec, event);
+          if (closeOnSelect) close();
+        });
+        container.appendChild(item);
+      }
+    }
+  }
+
+  function closeOpenSubmenus(container, keep) {
+    for (const submenu of Array.from(container.querySelectorAll(".ui-primitive-menu__submenu"))) {
+      if (submenu === keep) continue;
+      submenu.hidden = true;
+      const trigger = submenu.parentNode && submenu.parentNode.querySelector('[aria-haspopup="menu"]');
+      if (trigger) trigger.setAttribute("aria-expanded", "false");
+    }
+  }
+
+  appendItems(node, Array.isArray(options.items) ? options.items : []);
+
+  node.addEventListener("keydown", (event) => {
+    const items = focusables();
+    if (!items.length) return;
+    const current = document.activeElement;
+    let index = items.indexOf(current);
+
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      index = index < 0 ? 0 : (index + 1) % items.length;
+      if (items[index].focus) items[index].focus();
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      index = index <= 0 ? items.length - 1 : index - 1;
+      if (items[index].focus) items[index].focus();
+    } else if (event.key === "Home") {
+      event.preventDefault();
+      if (items[0].focus) items[0].focus();
+    } else if (event.key === "End") {
+      event.preventDefault();
+      if (items[items.length - 1].focus) items[items.length - 1].focus();
+    } else if (event.key === "Escape") {
+      event.preventDefault();
+      event.stopPropagation();
+      close();
+    }
+  });
+
+  api.close = close;
+  api.focusFirst = () => {
+    const items = focusables();
+    if (items[0] && items[0].focus) items[0].focus();
+  };
+  return api;
+}
+
+/**
+ * 浮层：把一个已构建好的节点定位到锚点旁，处理外部点击 / ESC / 焦点恢复。
+ *
+ * 定位复用宿主 flyout 规范（`positionFlyoutElement`），因此插件浮层与宿主
+ * 下拉菜单的翻转 / 贴边行为一致。
+ *
+ * @param {object} [options]
+ * @param {HTMLElement} [options.anchor] 锚点元素
+ * @param {HTMLElement|Node} [options.content] 浮层内容
+ * @param {Array<Node>} [options.children]
+ * @param {"bottom-start"|"right-start"} [options.placement] 首选方向
+ * @returns {{element: HTMLElement, close: Function, destroy: Function}}
+ */
+export function popover(options = {}) {
+  const wrapper = el("div", {
+    className: "ui-primitive-popover color-surface-overlay",
+    attrs: { role: "dialog", tabindex: "-1" },
+  });
+  if (options.className) wrapper.classList.add(String(options.className));
+
+  if (options.content instanceof Node) wrapper.appendChild(options.content);
+  for (const child of options.children || []) {
+    if (child instanceof Node) wrapper.appendChild(child);
+  }
+
+  document.body.appendChild(wrapper);
+
+  const anchor = options.anchor instanceof Element ? options.anchor : null;
+  const api = { element: wrapper, closed: false };
+
+  const position = () => {
+    if (!anchor) return;
+    try {
+      const rect = anchor.getBoundingClientRect();
+      const size = { width: wrapper.offsetWidth, height: wrapper.offsetHeight };
+      const viewport = { width: window.innerWidth, height: window.innerHeight };
+      const preferBelow = options.placement !== "right-start";
+      const gap = 6;
+      let top = preferBelow ? rect.bottom + gap : rect.top;
+      let left = preferBelow ? rect.left : rect.right + gap;
+      if (left + size.width > viewport.width - 8) left = Math.max(8, rect.right - size.width);
+      if (top + size.height > viewport.height - 8) top = Math.max(8, rect.top - size.height - gap);
+      wrapper.style.position = "fixed";
+      wrapper.style.top = `${Math.round(top)}px`;
+      wrapper.style.left = `${Math.round(left)}px`;
+      wrapper.style.zIndex = "var(--z-plugin-popover)";
+    } catch (error) {
+      console.warn("[uiPrimitives] popover 定位失败:", error);
+    }
+  };
+
+  position();
+  if (!wrapper.style.position) {
+    wrapper.style.position = "fixed";
+    wrapper.style.zIndex = "var(--z-plugin-popover)";
+  }
+
+  const onPointerDown = (event) => {
+    if (wrapper.contains(event.target)) return;
+    if (anchor && anchor.contains(event.target)) return;
+    api.close();
+  };
+  const onKeydown = (event) => {
+    if (event.key !== "Escape") return;
+    event.preventDefault();
+    // 与宿主一致：一次 ESC 只关最上层，别连带关掉插件 surface。
+    event.stopPropagation();
+    api.close();
+  };
+  const onResize = () => position();
+
+  function close() {
+    if (api.closed) return;
+    api.closed = true;
+    document.removeEventListener("pointerdown", onPointerDown, true);
+    document.removeEventListener("keydown", onKeydown, true);
+    window.removeEventListener("resize", onResize);
+    if (wrapper.parentNode) wrapper.parentNode.removeChild(wrapper);
+    if (anchor && anchor.focus) anchor.focus();
+    wrapper.dispatchEvent(new CustomEvent("ui:popover-close", { bubbles: true }));
+  }
+
+  document.addEventListener("pointerdown", onPointerDown, true);
+  document.addEventListener("keydown", onKeydown, true);
+  window.addEventListener("resize", onResize);
+
+  api.close = close;
+  api.destroy = close;
+  api.reposition = position;
+  return api;
+}
+
+/**
+ * 标签栏：`{ element, setActive(key), active }`。
+ *
+ * @param {object} [options]
+ * @param {Array} [options.items] `[{key,label,icon,badge,disabled}]`
+ * @param {string} [options.active] 初始 key
+ * @param {Function} [options.onChange] `(key) => void`
+ */
+export function tabs(options = {}) {
+  const items = Array.isArray(options.items) ? options.items : [];
+  const wrapper = el("div", {
+    className: "ui-primitive-tabs",
+    attrs: { role: "tablist" },
+  });
+  const api = { element: wrapper, active: String(options.active || (items[0] && items[0].key) || "") };
+
+  const buttons = new Map();
+  for (const item of items) {
+    const key = String(item.key || "");
+    if (!key) continue;
+    const button = el("button", {
+      className: "ui-primitive-tabs__tab",
+      attrs: { type: "button", role: "tab" },
+    });
+    button.dataset.tabKey = key;
+    if (item.icon) button.appendChild(icon(item.icon, { className: "ui-icon--sm" }));
+    button.appendChild(el("span", { text: item.label || key }));
+    if (item.badge !== undefined && item.badge !== null && item.badge !== "") {
+      button.appendChild(el("span", { className: "ui-primitive-tabs__badge", text: String(item.badge) }));
+    }
+    if (item.disabled) {
+      button.disabled = true;
+      button.setAttribute("aria-disabled", "true");
+    }
+    button.addEventListener("click", () => {
+      if (button.disabled) return;
+      api.setActive(key);
+    });
+    buttons.set(key, button);
+    wrapper.appendChild(button);
+  }
+
+  function sync() {
+    for (const [key, button] of buttons) {
+      const selected = key === api.active;
+      button.classList.toggle("is-active", selected);
+      button.setAttribute("aria-selected", selected ? "true" : "false");
+    }
+  }
+
+  api.setActive = (key) => {
+    const next = String(key || "");
+    if (!buttons.has(next) || next === api.active) return;
+    api.active = next;
+    sync();
+    if (typeof options.onChange === "function") options.onChange(next);
+  };
+
+  sync();
+  return api;
+}
+
+/**
+ * 布局容器：`direction` ∈ row | column，`gap` / `wrap` / `align` / `justify`。
+ * 插件用它在宿主内容区排布自己的卡片，避免各写一套内联样式。
+ */
+export function layout(options = {}) {
+  const direction = options.direction === "column" ? "column" : "row";
+  const node = el("div", { className: `ui-primitive-layout ui-primitive-layout--${direction}` });
+  if (options.wrap) node.classList.add("ui-primitive-layout--wrap");
+  if (options.gap !== undefined) node.style.gap = typeof options.gap === "number" ? `${options.gap}px` : String(options.gap);
+  if (options.align) node.style.alignItems = String(options.align);
+  if (options.justify) node.style.justifyContent = String(options.justify);
+  for (const child of options.children || []) {
+    if (child instanceof Node) node.appendChild(child);
+  }
+  return node;
+}
+
 /**
  * 供 `api.ui.*` 一次性挂载。
  *
@@ -676,6 +1017,11 @@ export function buildUiPrimitives(options = {}) {
     table,
     grid,
     split,
+    // v3 新增：菜单树 / 浮层 / 标签栏 / 布局容器（与贡献树同构）。
+    menu: withOwner(menu),
+    popover,
+    tabs,
+    layout,
     confirm,
     prompt,
   };

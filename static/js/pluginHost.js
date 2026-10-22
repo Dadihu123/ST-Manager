@@ -26,13 +26,34 @@ import { parseSSEFrames, parseSSEPayload } from "./utils/sse.js";
 import { setFullscreenScrim as applyFullscreenScrim } from "./utils/dom.js";
 import { isFullscreenScrimActive } from "./utils/dom.js";
 import { resolveIconUrl } from "./utils/icons.js";
-import { EntryRegistry } from "./entryRegistry.js";
+import {
+  ContributionRegistry,
+  CORE_PLUGIN_ID,
+  KILL_SWITCH_COMMAND_ID,
+} from "./contributionRegistry.js";
+import { PluginRootHost } from "./pluginRootHost.js";
+import { PluginOverlayHost } from "./pluginOverlayHost.js";
+import { PluginSlotHost } from "./pluginSlotHost.js";
 import { PluginSurfaceHost } from "./pluginSurfaceHost.js";
 import { listWorldInfo } from "./api/wi.js";
 import { buildUiPrimitives } from "./uiPrimitives.js";
 
 const PLUGIN_ROOT_ID = "plugin-host-root";
 const PLUGIN_STORE_NAME = "global";
+/** 插件 emit 核心事件时的警告文案（§6.6：核心事件只能宿主发出）。 */
+const CORE_EVENT_EMIT_WARNING = "核心事件只能由宿主发出，插件 emit 已被忽略";
+/** 贡献触发事件（渲染层 → 运行时的唯一通道，S4）。 */
+const CONTRIBUTION_TRIGGER_EVENT = "contribution:trigger";
+/** kill switch 事件（命令面板内置命令 / 管理器按钮都派发它，S6）。 */
+const PLUGINS_CLOSE_OVERLAYS_EVENT = "plugins:close-overlays";
+/** 单插件重试事件（管理器「重试」按钮；与 reloadPlugin() 等价）。 */
+const PLUGIN_RELOAD_EVENT = "plugin:reload";
+/** 运行期异常上报事件（surface / slot / overlay / command 捕获后统一上报）。 */
+const PLUGIN_RUNTIME_ERROR_EVENT = "plugin:runtime-error";
+/** 降级阈值：同一插件每分钟连续错误 N 次 → 标记降级（设计 §7.2 建议值）。 */
+const DEGRADED_ERROR_LIMIT = 5;
+const DEGRADED_WINDOW_MS = 60 * 1000;
+
 const CORE_EVENTS = new Set([
   "app.ready",
   "card.created",
@@ -238,13 +259,61 @@ function injectStyle(pluginId, relativePath, version = "") {
   return true;
 }
 
+/**
+ * 注入**免作用域**的全局样式（设计 §7.4）。
+ *
+ * 只有声明了 `ui.global_styles` 能力位才允许注入；注入的 `<link>` 带
+ * `data-plugin-style="<id>"`，停用 / 卸载时整体移除。调用方（`loadPlugin`）
+ * 负责能力位门控——本函数只做注入。
+ */
+function injectGlobalStyle(pluginId, relativePath, version = "") {
+  const url = toAbsoluteAssetUrl(pluginId, relativePath, version);
+  if (!url) return false;
+
+  const styleId = `plugin-global-style-${pluginId}-${String(relativePath).replace(/[^a-zA-Z0-9]+/g, "-")}`;
+  if (document.getElementById(styleId)) return true;
+
+  const link = document.createElement("link");
+  link.id = styleId;
+  link.rel = "stylesheet";
+  link.href = url;
+  link.dataset.plugin = pluginId;
+  // §7.4：全局样式注入带 data-plugin-style="<id>"（调试面板 / 卸载定位用）。
+  link.dataset.pluginStyle = pluginId;
+  document.head.appendChild(link);
+  return true;
+}
+
 /** 移除插件注入的样式（destroy 时调用，避免残留影响宿主）。 */
 function removeInjectedStyles(pluginId) {
-  const nodes = document.querySelectorAll(`link[data-plugin="${pluginId}"]`);
+  const nodes = document.querySelectorAll(
+    `link[data-plugin="${pluginId}"], link[data-plugin-style="${pluginId}"]`,
+  );
   for (const node of nodes) {
     if (node.parentNode) node.parentNode.removeChild(node);
   }
   return nodes.length;
+}
+
+/**
+ * 贡献模块缓存（S5）：按 `(pluginId, path)` 缓存动态 `import()`。
+ *
+ * 插槽渲染器与命令处理器共用同一份缓存：激活期预加载一次，运行期直接用，
+ * 避免用户每次点命令都重新拉模块。失败不缓存（重试要能重新拉）。
+ */
+const contributionModuleCache = new Map();
+
+/** 清掉某个插件的模块缓存（禁用 / 卸载 / 重载时调用）。 */
+function clearContributionModuleCache(pluginId) {
+  const prefix = `${String(pluginId || "")}:`;
+  let removed = 0;
+  for (const key of Array.from(contributionModuleCache.keys())) {
+    if (key.startsWith(prefix)) {
+      contributionModuleCache.delete(key);
+      removed += 1;
+    }
+  }
+  return removed;
 }
 
 /**
@@ -556,7 +625,7 @@ const hostStateBroadcaster = {
     // 宿主内部的显式信号
     window.addEventListener("host:surface-state-changed", () => this.schedule());
     window.addEventListener("host:fullscreen-scrim-changed", () => this.schedule());
-    window.addEventListener("entries:changed", () => this.schedule());
+    window.addEventListener("contributions:changed", () => this.schedule());
     ["mode-changed", "theme-mode-changed", "settings-saved"].forEach((name) => {
       window.addEventListener(name, () => this.schedule());
     });
@@ -566,7 +635,7 @@ const hostStateBroadcaster = {
     }
 
     // 其余字段（`batchProgress` / `indexStatus` / `deviceType`）走 Alpine 响应式：
-    // 它们有多个写入点，逐个补 dispatchEvent 迟早漏一个（`entryRegistry` 对
+    // 它们有多个写入点，逐个补 dispatchEvent 迟早漏一个（`contributionRegistry` 对
     // `viewState.selectedIds` 用了同一个判断与同一个做法）。
     const installAlpineWatcher = () => {
       const alpine = window.Alpine;
@@ -610,6 +679,10 @@ export const PluginHost = {
   root: null,
   loaded: new Map(),
   failed: new Map(),
+  /** 已标记降级的插件（5 次/分钟阈值，见 `reportRuntimeError`）。 */
+  degraded: new Set(),
+  /** pluginId → `{count, windowStart}`（降级阈值的滑动窗口）。 */
+  errorStats: new Map(),
   /** 插件 id → 该插件的 disposer 列表（activate 返回值 + 内部注册的清理函数） */
   disposers: new Map(),
 
@@ -627,13 +700,56 @@ export const PluginHost = {
     this.initialized = true;
     this.root = ensureRootNode();
 
-    EntryRegistry.init();
+    // 自绘/共存宿主（S6/S7）：先建层与 ESC 监听，再初始化消费端。
+    PluginRootHost.ensureLayers();
+    PluginOverlayHost.init();
+    ContributionRegistry.init();
+    // 插槽宿主不 import 本模块（避免循环）：模块加载与 api 从这里注入。
+    PluginSlotHost.init({
+      loadModule: (pluginId, modulePath, record) =>
+        this.loadContributionModule(pluginId, modulePath, record),
+      getApi: (pluginId) => this.getPluginApi(pluginId),
+    });
+    // `api.contributions.update({children})` 的 surface 引用要按「已注册」校验。
+    ContributionRegistry.setActionValidator((pluginId, action) =>
+      this.isContributionActionAllowed(pluginId, action),
+    );
     PluginSurfaceHost.init();
 
     // 插件被禁用 / 卸载时，宿主**强制**回收其运行时资源（D8 契约）
     window.addEventListener("plugin:unloaded", (event) => {
       const detail = (event && event.detail) || {};
       if (detail.pluginId) this.destroy(String(detail.pluginId));
+    });
+
+    // 单插件重试（管理器「重试」按钮 / 事件两条入口等价）。
+    window.addEventListener(PLUGIN_RELOAD_EVENT, (event) => {
+      const detail = (event && event.detail) || {};
+      if (detail.pluginId) {
+        this.reloadPlugin(String(detail.pluginId)).catch((error) => {
+          console.warn("[pluginHost] 插件重试失败:", error);
+        });
+      }
+    });
+
+    // S4：渲染层 → 运行时的唯一触发通道（渲染层不 import 本模块）。
+    window.addEventListener(CONTRIBUTION_TRIGGER_EVENT, (event) => {
+      const detail = (event && event.detail) || {};
+      this.executeContribution(
+        String(detail.pluginId || ""),
+        String(detail.nodeId || ""),
+        String(detail.trigger || "menu"),
+        detail.ctx && typeof detail.ctx === "object" ? detail.ctx : {},
+      );
+    });
+
+    // S6：kill switch（命令面板内置命令 / 管理器按钮都派发这个事件）。
+    window.addEventListener(PLUGINS_CLOSE_OVERLAYS_EVENT, () => this.killSwitch());
+
+    // S6：运行期异常统一上报（surface / slot / overlay / command 捕获后派发）。
+    window.addEventListener(PLUGIN_RUNTIME_ERROR_EVENT, (event) => {
+      const detail = (event && event.detail) || {};
+      this.reportRuntimeError(detail.pluginId, detail.error, detail.source);
     });
 
     // 懒加载：首屏渲染完成后（或空闲时）再拉取插件，避免拖慢首屏。
@@ -659,33 +775,54 @@ export const PluginHost = {
       for (const entry of items) {
         if (!entry || entry.enabled === false) continue;
         const manifest = entry.manifest || {};
-        if (!manifest.frontend || !manifest.frontend_entry) continue;
+        // S2 定稿快照：`frontend` 是 boolean，入口/样式/贡献都在扁平字段上，
+        // 不能再用 v2 的 `manifest.frontend` 对象守卫（会把真实插件全部跳过）。
+        if (!this.needsFrontendActivation(manifest)) continue;
+        // 幂等：重复 loadAll（初始懒加载 + 手动刷新）不得重复 activate，
+        // 否则插件的根节点 / 监听器会被注册两遍，disposer 也会重复。
+        if (this.loaded.has(String(entry.id || ""))) continue;
         await this.loadPlugin(entry, manifest).catch((error) => {
-          this.failed.set(entry.id, String(error));
+          const message = String((error && error.message) || error);
+          this.failed.set(entry.id, message);
           console.warn(`[pluginHost] 插件 ${entry.id} 加载失败:`, error);
         });
       }
 
-      // 注册表从同一份列表快照建表（含只有 entries、没有前端入口的纯声明插件）
-      EntryRegistry.setPlugins(items);
-
-      window.dispatchEvent(
-        new CustomEvent("plugins:loaded", {
-          detail: {
-            loaded: Array.from(this.loaded.keys()),
-            failed: Array.from(this.failed.keys()),
-          },
-        }),
-      );
+      // 注册表从同一份列表快照建表（含只有菜单/命令声明、没有前端入口的纯声明插件）
+      ContributionRegistry.setPlugins(items);
+      this.notifyPluginsLoaded(items);
     } finally {
       this.loading = false;
     }
   },
 
+  /**
+   * 该插件是否需要前端激活（加载入口模块 / 预加载贡献模块）。
+   *
+   * S2 定稿快照里 `frontend` 是**布尔**（"有前端"的摘要标记），入口路径等都在
+   * 扁平字段上：`frontend_entry` / `frontend_styles` / `frontend_global_styles` /
+   * `render_mode` / `contributions`。不要再假设 `manifest.frontend` 是对象。
+   *
+   * 纯声明式插件（只有 menus / slots / commands 且没有 `frontend_entry`）不需要
+   * `activate()`；但**有 slot/command 模块**时必须激活——否则渲染器拿不到 `ctx.api`。
+   */
+  needsFrontendActivation(manifest) {
+    if (!manifest || typeof manifest !== "object") return false;
+    if (String(manifest.frontend_entry || "").trim()) return true;
+    const contributions = manifest.contributions;
+    if (!contributions || typeof contributions !== "object") return false;
+    return (
+      (Array.isArray(contributions.slots) && contributions.slots.length > 0) ||
+      (Array.isArray(contributions.commands) && contributions.commands.length > 0)
+    );
+  },
+
   async loadPlugin(entry, manifest) {
     const pluginId = entry.id;
     const version = String(manifest.version || "");
+    const capabilities = Array.isArray(manifest.capabilities) ? manifest.capabilities : [];
 
+    // ---- 样式：受作用域约束的 styles[] 走扫描结果，global_styles[] 要能力位 ----
     const styleErrors = entry.style_scope_errors || {};
     for (const stylePath of manifest.frontend_styles || []) {
       if (styleErrors[stylePath]) {
@@ -697,30 +834,158 @@ export const PluginHost = {
       }
       injectStyle(pluginId, stylePath, version);
     }
-
-    const entryUrl = toAbsoluteAssetUrl(pluginId, manifest.frontend_entry, version);
-    if (!entryUrl) return;
-
-    const module = await import(entryUrl);
-    const api = this.buildApi(entry, manifest);
-    const root = api.createRoot("div");
-    root.classList.add(`plugin-${pluginId}`);
-
-    // D9.1：activate() 的返回值可能是清理函数，记录下来在 destroy 时调用。
-    // 此前这里直接丢弃返回值，插件无法在停用时回收定时器 / 事件监听。
-    if (module && typeof module.activate === "function") {
-      const disposer = await module.activate(api);
-      if (typeof disposer === "function") {
-        this.addDisposer(pluginId, disposer);
-      } else if (disposer && typeof disposer.dispose === "function") {
-        this.addDisposer(pluginId, () => disposer.dispose());
+    const globalStyles = Array.isArray(manifest.frontend_global_styles)
+      ? manifest.frontend_global_styles
+      : [];
+    for (const stylePath of globalStyles) {
+      // §4.7 / §7.4：只有声明 `ui.global_styles` 才允许注入；后端已把未声明能力位
+      // 的 global_styles 置空，这里再门控一层，前端绝不绕过能力位。
+      if (!capabilities.includes("ui.global_styles")) {
+        console.warn(
+          `[pluginHost] 插件 ${pluginId} 声明了 global_styles 但缺少 ui.global_styles 能力位，` +
+            "已拒绝注入:",
+          stylePath,
+        );
+        continue;
       }
+      injectGlobalStyle(pluginId, stylePath, version);
     }
 
-    this.loaded.set(pluginId, { entry, manifest, api, module, root });
-    window.dispatchEvent(
-      new CustomEvent(`plugin:${pluginId}:ready`, { detail: { id: pluginId } }),
-    );
+    // ---- S5 激活期静态校验 + 入口模块 + activate ----
+    // 任一环节失败 → 该插件前端激活失败（PluginHost.failed + 管理器重试），
+    // 后端继续运行（设计 §4.9）；已经注入的样式 / 建好的 root 一并回滚。
+    try {
+      await this.preloadContributionModules(pluginId, manifest, version);
+
+      // 入口模块（可选：纯插槽/命令的插件可以没有 activate）
+      const entryUrl = toAbsoluteAssetUrl(pluginId, manifest.frontend_entry, version);
+      const module = entryUrl ? await import(entryUrl) : null;
+
+      const api = this.buildApi(entry, manifest);
+      // 兼容既有插件：仍先给一个插件级根容器；v3 的 createRoot 已按内容层/portal 分层。
+      const root = api.createRoot("div");
+      if (root) root.classList.add(`plugin-${pluginId}`);
+
+      // D9.1：activate() 的返回值可能是清理函数，记录下来在 destroy 时调用。
+      if (module && typeof module.activate === "function") {
+        const disposer = await module.activate(api);
+        if (typeof disposer === "function") {
+          this.addDisposer(pluginId, disposer);
+        } else if (disposer && typeof disposer.dispose === "function") {
+          this.addDisposer(pluginId, () => disposer.dispose());
+        }
+      }
+
+      this.loaded.set(pluginId, { entry, manifest, api, module, root, version });
+      // 激活成功：清掉上一次的失败记录（重试路径）。
+      this.failed.delete(pluginId);
+      this.clearDegraded(pluginId);
+      window.dispatchEvent(
+        new CustomEvent(`plugin:${pluginId}:ready`, { detail: { id: pluginId } }),
+      );
+    } catch (error) {
+      // 半成品清理：不留下残留样式 / 根节点 / 已注册的 disposer。
+      PluginRootHost.clear(pluginId);
+      removeInjectedStyles(pluginId);
+      for (const dispose of this.disposers.get(pluginId) || []) {
+        try {
+          dispose();
+        } catch (disposeError) {
+          console.warn(`[pluginHost] 插件 ${pluginId} 激活回滚时 disposer 抛错:`, disposeError);
+        }
+      }
+      this.disposers.delete(pluginId);
+      this.loaded.delete(pluginId);
+      this.failed.set(pluginId, String((error && error.message) || error));
+      throw error;
+    }
+  },
+
+  /** 预加载 `contributions.slots[]` / `commands[]` 的模块并校验导出（S5）。 */
+  async preloadContributionModules(pluginId, manifest, version = "") {
+    const contributions =
+      manifest && manifest.contributions && typeof manifest.contributions === "object"
+        ? manifest.contributions
+        : {};
+    const expected = [];
+    for (const slot of Array.isArray(contributions.slots) ? contributions.slots : []) {
+      if (!slot || !slot.module || !slot.export) continue;
+      expected.push({
+        path: String(slot.module),
+        export: String(slot.export),
+        kind: "slot",
+        id: slot.id,
+        version,
+      });
+    }
+    for (const command of Array.isArray(contributions.commands) ? contributions.commands : []) {
+      if (!command || !command.module || !command.export) continue;
+      expected.push({
+        path: String(command.module),
+        export: String(command.export),
+        kind: "command",
+        id: command.id,
+        version,
+      });
+    }
+    if (!expected.length) return true;
+
+    for (const item of expected) {
+      const module = await this.loadContributionModule(pluginId, item.path, item);
+      const exported = module ? module[item.export] : null;
+      if (typeof exported !== "function") {
+        throw new Error(
+          `贡献模块 ${item.path} 缺少导出函数 ${item.export}（${item.kind} ${item.id}）`,
+        );
+      }
+    }
+    return true;
+  },
+
+  /**
+   * 动态 import 一个贡献模块（S5，按 `(pluginId, path)` 缓存）。
+   *
+   * `modulePath` 是相对插件根目录的路径；URL 走既有 `toAbsoluteAssetUrl()`。
+   */
+  loadContributionModule(pluginId, modulePath, record = null) {
+    const plugin = String(pluginId || "");
+    const path = String(modulePath || "").trim();
+    if (!plugin || !path) return Promise.reject(new Error("贡献模块路径为空"));
+
+    const key = `${plugin}:${path}`;
+    if (contributionModuleCache.has(key)) return contributionModuleCache.get(key);
+
+    const loaded = this.loaded.get(plugin);
+    const version = loaded
+      ? String(loaded.version || (loaded.manifest && loaded.manifest.version) || "")
+      : String((record && record.version) || "");
+    const url = toAbsoluteAssetUrl(plugin, path, version);
+    const promise = import(url).catch((error) => {
+      // 失败不缓存：管理器重试 / 下次触发要能重新拉。
+      contributionModuleCache.delete(key);
+      throw error;
+    });
+    contributionModuleCache.set(key, promise);
+    return promise;
+  },
+
+  /** action 里的 surface 引用是否合法（已由 `api.surfaces.register` 注册）。 */
+  isContributionActionAllowed(pluginId, action) {
+    if (!action || typeof action !== "object") return false;
+    const type = String(action.type || "");
+    if (type === "command") {
+      return Boolean(ContributionRegistry.getCommand(pluginId, action.id));
+    }
+    if (type === "url") {
+      return /^https?:\/\//i.test(String(action.url || ""));
+    }
+    if (type === "surface") {
+      const surfaceId = String(action.id || "");
+      if (!surfaceId) return false;
+      const key = `${String(pluginId || "")}:${surfaceId}`;
+      return PluginSurfaceHost.has(key) || PluginSurfaceHost.isOpen(key);
+    }
+    return false;
   },
 
   /** 登记一个插件级 disposer（activate 返回值 / api 内部注册）。 */
@@ -811,7 +1076,15 @@ export const PluginHost = {
       emit(event, detail) {
         const name = String(event || "").trim();
         if (!name) return;
-        if (!CORE_EVENTS.has(name) && !name.startsWith(`${pluginId}:`)) {
+        // §6.6 / S8：核心事件只能宿主发出——插件 emit 一律警告并忽略，
+        // 不再允许伪造 `card.updated` 这类事件干扰其他插件。
+        if (CORE_EVENTS.has(name)) {
+          console.warn(
+            `[pluginHost] ${CORE_EVENT_EMIT_WARNING}: ${name}（插件 ${pluginId}）`,
+          );
+          return;
+        }
+        if (!name.startsWith(`${pluginId}:`)) {
           console.warn(
             `[pluginHost] 插件自定义事件必须以 "${pluginId}:" 开头，已忽略: ${name}`,
           );
@@ -960,41 +1233,48 @@ export const PluginHost = {
         },
       },
 
-      // ---- D8：入口 ----
-      entries: {
-        register(spec) {
-          return EntryRegistry.register(pluginId, spec);
+      // ---- v3：贡献（`api.contributions`，设计 §6.1 / S3） ----
+      //
+      // 静态声明是唯一的结构来源（ADR-0015）：运行期只能更新 / 移除节点，
+      // 不能新增落点、节点类型或贡献（`register` 已删除）。
+      contributions: {
+        update(id, patch) {
+          return ContributionRegistry.update(pluginId, id, patch);
         },
-        update(entryId, patch) {
-          return EntryRegistry.update(pluginId, entryId, patch);
+        remove(id) {
+          return ContributionRegistry.remove(pluginId, id);
         },
-        remove(entryId) {
-          return EntryRegistry.remove(pluginId, entryId);
-        },
-        setBadge(entryId, value) {
-          return EntryRegistry.setBadge(pluginId, entryId, value);
-        },
-        setProgress(entryId, progress) {
-          return EntryRegistry.setProgress(pluginId, entryId, progress);
-        },
-        setStatus(entryId, status) {
-          return EntryRegistry.setStatus(pluginId, entryId, status);
-        },
-        setBusy(entryId, busy) {
-          return EntryRegistry.setBusy(pluginId, entryId, busy);
-        },
-        open(entryId) {
-          const entryRecord = EntryRegistry.get(`${pluginId}:${entryId}`);
-          if (!entryRecord) return false;
-          window.dispatchEvent(
-            new CustomEvent("entry:open", { detail: { key: entryRecord.key } }),
-          );
-          return true;
+        get(id) {
+          return ContributionRegistry.get(pluginId, id);
         },
         list() {
-          return EntryRegistry.list({ includeHidden: true }).filter(
-            (item) => item.pluginId === pluginId,
-          );
+          return ContributionRegistry.list(pluginId);
+        },
+        // 走与 `contribution:trigger` 完全相同的执行器；节点不存在或被 when
+        // 过滤时返回 false。
+        trigger(id, ctx = {}) {
+          return host.executeContribution(pluginId, id, "api", ctx);
+        },
+      },
+
+      // ---- v3：浮层登记（`api.overlays`，设计 §6.3 / 可选协调） ----
+      //
+      // 未登记的浮层宿主不干预；登记且 modal 的浮层由宿主处理 ESC 与焦点归还。
+      overlays: {
+        register(spec = {}) {
+          const unregister = PluginOverlayHost.register(pluginId, spec);
+          // 随插件销毁自动撤销登记（kill switch 已经关掉的再撤销是空操作）。
+          own(() => unregister());
+          return unregister;
+        },
+        unregister(id) {
+          return PluginOverlayHost.unregister(pluginId, id);
+        },
+        list() {
+          return PluginOverlayHost.list(pluginId);
+        },
+        closeAll() {
+          return PluginOverlayHost.closeAll(pluginId);
         },
       },
 
@@ -1136,28 +1416,6 @@ export const PluginHost = {
         } else {
           document.addEventListener("alpine:init", register, { once: true });
         }
-      },
-
-      /**
-       * @deprecated 用 `api.entries.register({ kind: 'context', surface: {...} })`
-       * + `api.surfaces.register()` 替代。保留仅为兼容既有插件。
-       */
-      registerModal(spec) {
-        if (!spec || !spec.id) return "";
-        host.modals = host.modals || new Map();
-        host.modals.set(String(spec.id), spec);
-        return String(spec.id);
-      },
-
-      /**
-       * @deprecated 用 `api.entries.register({ kind: 'settings' })` 替代。
-       * 保留仅为兼容既有插件。
-       */
-      registerSettingsSection(spec) {
-        if (!spec || !spec.id) return "";
-        host.settingsSections = host.settingsSections || new Map();
-        host.settingsSections.set(String(spec.id), spec);
-        return String(spec.id);
       },
 
       // ---- 后端调用 ----
@@ -1419,12 +1677,28 @@ export const PluginHost = {
         },
       },
 
-      // F12：插件容器统一带 data-plugin 标记，与 F11 的 CSS 作用域配套。
-      createRoot(tag = "div") {
-        const node = document.createElement(tag);
-        node.dataset.plugin = pluginId;
-        node.classList.add(`plugin-${pluginId}`);
-        ensureRootNode().appendChild(node);
+      /**
+       * v3 自绘根节点（设计 §6.2 / S6）。
+       *
+       * - `createRoot()` / `createRoot("div")`：内容层（宿主内容之上、宿主模态之下）；
+       * - `createRoot({ portal: true })`：body 级 portal 层（宿主模态之上、告警之下），
+       *   用于绕开 `backdrop-filter` / `transform` 的层叠上下文陷阱；
+       * - `createRoot({ tag: "button" })`：指定标签名。
+       *
+       * 返回元素由宿主创建、带 `data-plugin` 与 `plugin-<id>`，并登记在
+       * `PluginRootHost.roots` 下：插件停用 / 卸载 / kill switch 时整体移除。
+       */
+      createRoot(tagOrOptions = "div") {
+        let options = {};
+        if (typeof tagOrOptions === "string") {
+          options = { tag: tagOrOptions };
+        } else if (tagOrOptions && typeof tagOrOptions === "object") {
+          options = tagOrOptions;
+        }
+        const node = PluginRootHost.create(pluginId, {
+          tag: String(options.tag || "div"),
+          portal: Boolean(options.portal),
+        });
         return node;
       },
     };
@@ -1451,6 +1725,283 @@ export const PluginHost = {
   },
 
   /**
+   * 贡献执行器（S4）：渲染层 / `api.contributions.trigger` 的唯一动作出口。
+   *
+   * 按节点 `action` 执行：
+   * - `surface` → `PluginSurfaceHost.openSurface("<pluginId>:<id>", ctx)`；
+   * - `command` → 动态 import 命令模块并调用 `handler(ctx)`（异常被捕获 + 降级计数）；
+   * - `url` → 新标签页打开（不继承插件权限）；
+   * - 核心命令（kill switch）→ `killSwitch()`。
+   *
+   * 节点不存在、被 `remove` 或被 `when` 过滤 → 返回 false。
+   *
+   * @returns {boolean} 是否派发了动作（命令处理器异步执行）
+   */
+  executeContribution(pluginId, nodeId, trigger = "menu", ctx = {}) {
+    const plugin = String(pluginId || "");
+    const node = String(nodeId || "");
+    if (!node) return false;
+
+    // 核心命令：kill switch（`core:plugins:close-overlays`）。
+    const isCoreKillSwitch =
+      node === KILL_SWITCH_COMMAND_ID ||
+      (plugin === CORE_PLUGIN_ID && node === "plugins:close-overlays");
+    if (isCoreKillSwitch) {
+      this.killSwitch();
+      return true;
+    }
+
+    const record = ContributionRegistry.get(plugin, node);
+    if (!record) return false;
+    if (!record.ok || record.enabled === false) return false;
+    const action = record.action;
+    if (!action) return false;
+
+    if (action.type === "surface") {
+      const surfaceId = String(action.id || "");
+      const surfaceKey = `${plugin}:${surfaceId}`;
+      // 静态声明只校验格式（设计 §4.3），运行期点击时未注册 → 警告并忽略，
+      // 不抛错、不影响菜单其余项（surfaceHost 也会记录同一条警告）。
+      const opened = PluginSurfaceHost.openSurface(surfaceKey, ctx);
+      if (!opened) {
+        console.warn(
+          `[pluginHost] 插件 ${plugin} 的 surface 未注册或无法打开，点击已忽略: ${surfaceId}`,
+        );
+        return false;
+      }
+      return true;
+    }
+    if (action.type === "command") {
+      return this._executeCommand(plugin, action.id, record, trigger, ctx);
+    }
+    if (action.type === "url") {
+      const url = String(action.url || "");
+      if (!/^https?:\/\//i.test(url)) {
+        console.warn(`[pluginHost] 插件 ${plugin} 节点的 url 非法，已忽略: ${url}`);
+        return false;
+      }
+      try {
+        window.open(url, "_blank", "noopener");
+        return true;
+      } catch (error) {
+        console.warn("[pluginHost] 打开插件 url 失败:", error);
+        return false;
+      }
+    }
+    return false;
+  },
+
+  /** 执行一个命令贡献的处理器（异步；异常被捕获并计入降级）。 */
+  _executeCommand(pluginId, commandId, node, trigger, ctx = {}) {
+    const plugin = String(pluginId || "");
+    const command = ContributionRegistry.getCommand(plugin, commandId);
+    if (!command) {
+      console.warn(`[pluginHost] 插件 ${plugin} 引用了未声明的命令: ${commandId}`);
+      return false;
+    }
+    if (!command.ok || command.enabled === false) return false;
+
+    const loaded = this.loaded.get(plugin);
+    if (!loaded) {
+      console.warn(`[pluginHost] 插件 ${plugin} 的前端未激活，命令 ${commandId} 已忽略`);
+      return false;
+    }
+
+    const commandCtx = this.buildCommandContext(loaded, command, node, trigger, ctx);
+    Promise.resolve()
+      .then(() => this.loadContributionModule(plugin, command.module))
+      .then((module) => {
+        const handler = module ? module[command.export] : null;
+        if (typeof handler !== "function") {
+          throw new Error(
+            `命令处理器导出不存在或不是函数: ${command.export}（${command.module}）`,
+          );
+        }
+        return handler(commandCtx);
+      })
+      .catch((error) => {
+        console.error(`[pluginHost] 插件 ${plugin} 的命令 ${commandId} 执行失败:`, error);
+        this.reportRuntimeError(plugin, error, `command:${commandId}`);
+      });
+    return true;
+  },
+
+  /** 构造命令处理器 ctx（设计 §4.6）：`{api, pluginId, mode, target, selection, trigger}`。 */
+  buildCommandContext(loaded, command, node, trigger, ctx = {}) {
+    const source = ctx && typeof ctx === "object" ? ctx : {};
+    const context = ContributionRegistry.context();
+    const selection =
+      source.selection && typeof source.selection === "object"
+        ? source.selection
+        : { mode: context.mode, ids: [] };
+    return {
+      ...source,
+      api: loaded ? loaded.api : null,
+      pluginId: command.pluginId,
+      mode: String(source.mode || context.mode || ""),
+      target: source.target && typeof source.target === "object" ? source.target : null,
+      selection,
+      trigger: {
+        kind: String(trigger || "menu"),
+        nodeId: node ? String(node.id || "") : "",
+      },
+    };
+  },
+
+  /**
+   * 上报一个运行期异常（S6 崩溃隔离）：日志 + toast + 降级计数。
+   *
+   * 同一插件在 1 分钟内累计 5 次 → 标记 `degraded`，广播 `plugin:degraded`
+   * （管理器展示「降级」与一键停用）；**不卸载插件、不影响后端**。
+   *
+   * @returns {boolean} 该插件当前是否已降级
+   */
+  reportRuntimeError(pluginId, error, source = "") {
+    const key = String(pluginId || "");
+    if (!key) return false;
+
+    console.error(`[pluginHost] 插件 ${key} 运行期异常（${source || "unknown"}）:`, error);
+
+    const now = Date.now();
+    let stat = this.errorStats.get(key);
+    if (!stat || now - stat.windowStart > DEGRADED_WINDOW_MS) {
+      stat = { count: 0, windowStart: now };
+      this.errorStats.set(key, stat);
+    }
+    stat.count += 1;
+
+    // 用户可感知的错误提示（拿不到 store 时静默：日志已经写了）。
+    try {
+      const store = this.store;
+      if (store && typeof store.showToast === "function") {
+        store.showToast(`插件 ${key} 运行出错，已隔离`, 4200, "", { pluginId: key });
+      }
+    } catch (toastError) {
+      console.warn("[pluginHost] 运行期错误提示失败:", toastError);
+    }
+
+    if (stat.count >= DEGRADED_ERROR_LIMIT && !this.degraded.has(key)) {
+      this.degraded.add(key);
+      console.warn(
+        `[pluginHost] 插件 ${key} 在 ${DEGRADED_ERROR_LIMIT} 次/分钟阈值内连续出错，已标记降级`,
+      );
+      window.dispatchEvent(
+        new CustomEvent("plugin:degraded", {
+          detail: { pluginId: key, count: stat.count, source: String(source || "") },
+        }),
+      );
+    }
+    return this.degraded.has(key);
+  },
+
+  /** 该插件是否已降级（管理器展示 / 一键停用入口）。 */
+  isDegraded(pluginId) {
+    return this.degraded.has(String(pluginId || ""));
+  },
+
+  /** 清除降级标记（重试成功后调用）。 */
+  clearDegraded(pluginId) {
+    const key = String(pluginId || "");
+    this.degraded.delete(key);
+    this.errorStats.delete(key);
+    return true;
+  },
+
+  /**
+   * kill switch（设计 §7.3 / S6）：不卸载、不停用插件，只回收界面。
+   *
+   * 对每个插件依次：①已登记浮层逐个 `onDismiss`；②广播 `overlays:force-closed`
+   * `{pluginId}`；③清空并移除该插件全部 root（内容层 + portal 层）。
+   *
+   * @returns {number} 处理过的插件数量
+   */
+  killSwitch() {
+    const ids = new Set([
+      ...this.loaded.keys(),
+      ...this.disposers.keys(),
+      ...PluginRootHost.pluginIds(),
+      ...PluginOverlayHost.pluginIds(),
+      // 已声明的插件也纳入：没有 root/overlay 的插件同样可以据 broadcast 重置
+      // 自己的 UI 状态（事件本身无副作用）。
+      ...ContributionRegistry.plugins.map((item) => String((item && item.id) || "")),
+    ]);
+    ids.delete("");
+    if (!ids.size) return 0;
+
+    for (const pluginId of ids) {
+      // `PluginOverlayHost.killSwitch([id])` 完成 ①关闭 ②广播；顺序由设计规定。
+      PluginOverlayHost.killSwitch([pluginId]);
+      // ③ 清空并移除 root（未登记浮层只能靠这一步回收）。
+      PluginRootHost.clear(pluginId);
+    }
+    return ids.size;
+  },
+
+  /**
+   * 单插件重试（管理器「前端激活失败 + 重试」，设计 §4.9）。
+   *
+   * 销毁该插件的运行时资源，重新拉列表并尝试激活；更新 `failed` 后广播
+   * `plugins:loaded`（detail 带快照）与 `contributions:changed`。
+   */
+  async reloadPlugin(pluginId) {
+    const key = String(pluginId || "");
+    if (!key) return false;
+
+    this.destroy(key);
+
+    const data = await this.request("/api/plugins/list");
+    if (!data || data.success !== true) {
+      this.failed.set(key, "插件列表读取失败");
+      this.notifyPluginsLoaded([]);
+      return false;
+    }
+
+    const items = Array.isArray(data.items) ? data.items : [];
+    const entry = items.find((item) => item && String(item.id) === key);
+    if (!entry || entry.enabled === false) {
+      this.failed.set(key, "插件不存在或未启用");
+      this.notifyPluginsLoaded(items);
+      return false;
+    }
+
+    const manifest = entry.manifest || {};
+    let ok = true;
+    if (this.needsFrontendActivation(manifest)) {
+      try {
+        await this.loadPlugin(entry, manifest);
+      } catch (error) {
+        ok = false;
+        this.failed.set(key, String((error && error.message) || error));
+        console.warn(`[pluginHost] 插件 ${key} 重试失败:`, error);
+      }
+    }
+
+    ContributionRegistry.setPlugins(items);
+    this.notifyPluginsLoaded(items);
+    return ok;
+  },
+
+  /** 广播 `plugins:loaded`（detail 带当前 loaded/failed 与列表快照）。 */
+  notifyPluginsLoaded(items = []) {
+    const failed = Array.from(this.failed.keys());
+    window.dispatchEvent(
+      new CustomEvent("plugins:loaded", {
+        detail: {
+          loaded: Array.from(this.loaded.keys()),
+          failed,
+          items: Array.isArray(items) ? items : [],
+        },
+      }),
+    );
+    if (failed.length) {
+      window.dispatchEvent(
+        new CustomEvent("plugins:frontend-failed", { detail: { failed } }),
+      );
+    }
+    return failed;
+  },
+
+  /**
    * 销毁插件运行时（D9.2：本方法有真实调用方）。
    *
    * 调用方：
@@ -1463,19 +2014,28 @@ export const PluginHost = {
   destroy(pluginId) {
     const key = String(pluginId || "");
 
-    // 强制卸载该插件的全部 surface（不依赖插件的 deactivate）
+    // 强制卸载该插件的全部 surface / 浮层 / 根节点（不依赖插件的 deactivate）
     PluginSurfaceHost.unregisterPlugin(key);
+    PluginOverlayHost.clearPlugin(key);
+    PluginRootHost.clear(key);
+    PluginSlotHost.clearPlugin(key);
     // 核心事件流连接一并断开（与 subscribeJob 的 disposer 同一模式，
     // 但 dispose 只在有记录时才跑，这里保证即便插件已消失也不残留连接）
     coreEventBridge.close(key);
-    // 注册表条目一并移除
-    EntryRegistry.removePlugin(key);
+    // 注册表条目与模块缓存一并移除（重载时要拿到新版本模块）
+    ContributionRegistry.removePlugin(key);
+    clearContributionModuleCache(key);
 
     const record = this.loaded.get(key);
     const disposers = this.disposers.get(key) || [];
     this.disposers.delete(key);
 
-    if (!record && !disposers.length) return false;
+    if (!record && !disposers.length) {
+      removeInjectedStyles(key);
+      this.failed.delete(key);
+      this.clearDegraded(key);
+      return false;
+    }
 
     for (const dispose of disposers) {
       try {
@@ -1500,6 +2060,7 @@ export const PluginHost = {
       removeInjectedStyles(key);
       this.loaded.delete(key);
       this.failed.delete(key);
+      this.clearDegraded(key);
     }
     return true;
   },
@@ -1509,6 +2070,9 @@ export const PluginHost = {
     const ids = new Set([...this.loaded.keys(), ...this.disposers.keys()]);
     for (const id of ids) this.destroy(id);
     coreEventBridge.closeAll();
+    PluginOverlayHost.overlays.clear();
+    PluginRootHost.clearAll();
+    PluginSlotHost.reset();
     return ids.size;
   },
 };

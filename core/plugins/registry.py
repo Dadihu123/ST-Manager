@@ -17,6 +17,8 @@ import traceback
 
 from core.config import DATA_DIR
 from core.data.ui_store import load_ui_data_or_empty, update_ui_data
+from core.plugins import contract
+from core.plugins import contributions as contributions_module
 from core.plugins.api import PluginAPI
 from core.plugins.errors import PluginApiVersionError, PluginLoadError, PluginManifestError
 from core.plugins.manifest import PLUGIN_ID_PATTERN, PluginManifest, satisfies_requirement
@@ -73,6 +75,8 @@ class PluginState:
         重复解析 N 遍。批量路径请用 `read_install_sources()` 一次读好后传进来。
         """
         manifest = self.manifest
+        # 失败插件的贡献不进列表载荷（S2）：否则前端会为一个加载失败的插件渲染入口。
+        contributes = manifest is not None and not self.load_error
         return {
             'id': self.plugin_id,
             'name': manifest.name if manifest else self.plugin_id,
@@ -84,8 +88,14 @@ class PluginState:
             'backend': bool(manifest and manifest.has_backend),
             'frontend': bool(manifest and manifest.has_frontend),
             'frontend_only': bool(manifest and manifest.is_frontend_only),
-            'permissions': list(manifest.permissions) if manifest else [],
-            'entries': [dict(item) for item in manifest.frontend_entries] if manifest else [],
+            'capabilities': list(manifest.capabilities) if contributes else [],
+            'contributions': (
+                contributions_module.snapshot(manifest.frontend_contributions) if contributes
+                else contributions_module.empty_contributions()
+            ),
+            'render_mode': (
+                manifest.frontend_render_mode if contributes else contract.DEFAULT_RENDER_MODE
+            ),
             'load_error': self.load_error,
             'load_error_detail': dict(self.load_error_detail or {}),
             'restart_required': bool(self.restart_required),
@@ -621,9 +631,6 @@ def load_all(app=None) -> dict:
             summary['failed'].append(plugin_id)
             continue
 
-        # D5：入口准入分级由 catalog 的 tier 决定，manifest 无权声明
-        apply_entry_tiers(manifest)
-
         candidates[plugin_id] = {
             'dir': plugin_dir,
             'manifest': manifest,
@@ -724,33 +731,6 @@ def _clear_restart_required_flags() -> None:
     except Exception:  # noqa: BLE001 - 标志清理失败不影响主流程
         logger.warning('清理 restart_required 标志失败', exc_info=True)
 
-
-def apply_entry_tiers(manifest: PluginManifest) -> list:
-    """按 catalog 归属分级过滤入口并写回 manifest（D5）。
-
-    tier 由宿主仓库的 catalog 决定，manifest 无权声明，因此这一步必须在
-    **加载期**完成（manifest 解析阶段还不知道 tier）。返回新增的警告列表。
-
-    这里使用 catalog 的**本地**查询（缓存 + 包内清单，不发网络请求）：
-    插件加载不能为远端目录而阻塞。查不到即 `community`（安全的一侧）。
-    """
-    from core.plugins.catalog import tier_for_plugin  # 局部导入：catalog 反向依赖 registry
-    from core.plugins.entries import apply_tier
-
-    if not manifest.frontend_entries:
-        return []
-
-    try:
-        tier = tier_for_plugin(manifest.plugin_id)
-    except Exception:  # noqa: BLE001 - 目录读取异常不得影响插件加载
-        logger.warning('解析插件 %s 的归属分级失败，按 community 处理', manifest.plugin_id)
-        tier = 'community'
-
-    kept, warnings = apply_tier(manifest.plugin_id, manifest.frontend_entries, tier=tier)
-    manifest.frontend_entries = kept
-    if warnings:
-        manifest.warnings = list(manifest.warnings or []) + warnings
-    return warnings
 
 def load_single(app, plugin_dir: str) -> PluginState:
     """加载单个插件（安装流程校验用，不登记路由）。"""

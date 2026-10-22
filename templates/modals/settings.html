@@ -64,6 +64,54 @@
           <button type="button" role="tab" id="settings-tab-connection" aria-controls="settings-panel-connection" :aria-selected="activeSettingTab === 'connection'" :class="{ 'is-active': activeSettingTab === 'connection' }" class="settings-nav-item" @click="selectSettingTab('connection')"><span class="settings-nav-icon" aria-hidden="true">{{ icon('settings-connection-service', 'ui-icon--md') }}</span><span class="settings-nav-copy"><strong>连接与服务</strong><small>ST、TauriTavern 与外部服务</small></span><span class="settings-nav-index">03</span></button>
           <button type="button" role="tab" id="settings-tab-maintenance" aria-controls="settings-panel-maintenance" :aria-selected="activeSettingTab === 'maintenance'" :class="{ 'is-active': activeSettingTab === 'maintenance' }" class="settings-nav-item" @click="selectSettingTab('maintenance')"><span class="settings-nav-icon" aria-hidden="true">{{ icon('settings-maintenance-advanced', 'ui-icon--md') }}</span><span class="settings-nav-copy"><strong>维护与高级</strong><small>扫描、备份与性能</small></span><span class="settings-nav-index">04</span></button>
           <button type="button" role="tab" id="settings-tab-plugins" aria-controls="settings-panel-plugins" :aria-selected="activeSettingTab === 'plugins'" :class="{ 'is-active': activeSettingTab === 'plugins' }" class="settings-nav-item" @click="selectSettingTab('plugins')"><span class="settings-nav-icon" aria-hidden="true">{{ icon('plugin', 'ui-icon--md') }}</span><span class="settings-nav-copy"><strong>插件管理</strong><small>安装、启停与配置</small></span><span class="settings-nav-index">05</span></button>
+          <!-- 插件声明的 `settings.nav` 贡献（设计 §4.4.7）。
+               点击统一派发 contribution:trigger 打开插件声明设置 surface；
+               置灰节点仍然可见（D7：不可点但给原因，不是凭空消失）。 -->
+          <template x-if="pluginNavEntries.length > 0">
+            <div class="settings-nav-divider" role="separator" aria-label="插件设置"></div>
+          </template>
+          <template x-for="node in pluginNavEntries" :key="pluginNavKey(node)">
+            <div class="settings-nav-plugin-group">
+              <button
+                type="button"
+                class="settings-nav-item settings-nav-item--plugin"
+                :class="{ 'is-disabled': isMenuNodeDisabled(node), 'is-active': isPluginNavGroupOpen(node) }"
+                :title="menuNodeHint(node)"
+                :aria-disabled="isMenuNodeDisabled(node) ? 'true' : 'false'"
+                :aria-expanded="hasMenuChildren(node) ? isPluginNavGroupOpen(node).toString() : null"
+                @click="openPluginNavEntry(node, $event)"
+              >
+                <span class="settings-nav-icon" aria-hidden="true" x-html="menuNodeIconHtml(node)"></span>
+                <span class="settings-nav-copy">
+                  <strong x-text="node.label"></strong>
+                  <small x-show="node.description" x-text="node.description"></small>
+                </span>
+                <span
+                  class="settings-nav-chevron"
+                  x-show="hasMenuChildren(node)"
+                  aria-hidden="true"
+                  x-text="isPluginNavGroupOpen(node) ? '⌄' : '›'"
+                ></span>
+              </button>
+              <template x-if="hasMenuChildren(node) && isPluginNavGroupOpen(node)">
+                <div class="settings-nav-subitems" role="group" :aria-label="node.label">
+                  <template x-for="child in node.children" :key="pluginNavKey(child)">
+                    <button
+                      type="button"
+                      class="settings-nav-item settings-nav-item--plugin settings-nav-item--sub"
+                      :class="{ 'is-disabled': isMenuNodeDisabled(child) }"
+                      :title="menuNodeHint(child)"
+                      :aria-disabled="isMenuNodeDisabled(child) ? 'true' : 'false'"
+                      @click="openPluginNavEntry(child, $event)"
+                    >
+                      <span class="settings-nav-icon" aria-hidden="true" x-html="menuNodeIconHtml(child)"></span>
+                      <span class="settings-nav-copy"><strong x-text="child.label"></strong></span>
+                    </button>
+                  </template>
+                </div>
+              </template>
+            </div>
+          </template>
           <button type="button" role="tab" id="settings-tab-about" aria-controls="settings-panel-about" :aria-selected="activeSettingTab === 'about'" :class="{ 'is-active': activeSettingTab === 'about' }" class="settings-nav-item" @click="selectSettingTab('about')"><span class="settings-nav-icon" aria-hidden="true">{{ icon('info', 'ui-icon--md') }}</span><span class="settings-nav-copy"><strong>关于</strong><small>版本、许可与反馈</small></span><span class="settings-nav-index">06</span></button>
         </nav>
 
@@ -208,6 +256,12 @@
 
         <div id="settings-panel-plugins" x-show="activeSettingTab === 'plugins'" role="tabpanel" aria-labelledby="settings-tab-plugins" class="settings-panel settings-panel--plugins">
           {% include "modals/plugin_manager.html" %}
+
+          <!-- 插件设置面板插槽（S7 `settings.section`）。
+               锚点必须是**空容器**：内容由 PluginSlotHost 挂载 `div.plugin-slot`，
+               宿主只负责位置。插件通过 `contributions.slots[].slot = "settings.section"`
+               把自己的设置 UI 插到这里（例如密钥 / 参数配置）。 -->
+          <div class="settings-plugin-slot" data-plugin-slot="settings.section"></div>
         </div>
 
         <div id="settings-panel-about" x-show="activeSettingTab === 'about'" role="tabpanel" aria-labelledby="settings-tab-about" class="settings-panel">

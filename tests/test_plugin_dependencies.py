@@ -268,7 +268,7 @@ def test_resolve_dependencies_returns_topological_order(tmp_path):
 def test_frontend_only_plugin_can_be_a_dependency(tmp_path, monkeypatch, _isolate_registry):
     write_plugin(
         tmp_path, 'theme-plugin',
-        manifest=base_manifest('theme-plugin', backend={}),
+        manifest=base_manifest('theme-plugin', backend=None),
         backend=None,
         css=default_css('theme-plugin'),
     )

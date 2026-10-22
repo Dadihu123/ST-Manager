@@ -1,25 +1,37 @@
 /**
  * static/js/components/commandPalette.js
- * 命令面板（设计文档 阶段 5）。
+ * 命令面板（设计文档 §4.4.6 / §6.3）。
  *
- * 搜索范围 = **全部注册表条目 + 宿主内建命令**（`EntryRegistry.searchable()`），
- * 因此插件声明的 `command` / `dock` / `nav` 等入口自动进入面板，不需要插件
- * 自己实现任何 UI。
+ * 数据来源：
+ * - `ContributionRegistry.paletteEntries()`：插件命令 + `commandPalette` 落点的菜单
+ *   根节点（注册表已做 `when` 过滤，`enabledOnly` 等价语义）；
+ * - `ContributionRegistry.coreCommands`：宿主内建命令（kill switch）；
+ * - 宿主内建的导航动作（打开设置 / 插件管理 / 切换模式）由本文件维护。
  *
- * 快捷键：`Ctrl/Cmd+K`（全仓 grep 确认零占用）。
+ * 触发：所有插件条目统一派发 `contribution:trigger`（S4），渲染层不知道
+ * surface / command / url 的差别；宿主内建命令自己执行或派发 `plugins:close-overlays`。
  *
- * 与坞的关系：坞是「固定入口的常驻位置」，面板是「全部入口的检索入口」。
- * 两者都只是 `EntryRegistry` 的消费者——这就是地基该有的样子。
+ * 快捷键：`Ctrl/Cmd+K` 开合面板；插件声明的 `shortcut` 在 keydown 时
+ * 通过 `ContributionRegistry.findByShortcut()` 查表（设计 §4.6：与 `when` 无关，
+ * 按下时求值，置灰项不执行但给提示）。
  */
 
-import { EntryRegistry, isHostEntryKey } from "../entryRegistry.js";
-import { PluginSurfaceHost } from "../pluginSurfaceHost.js";
-import { readSelectionSnapshot } from "./selectionSnapshot.js";
+import { ContributionRegistry, KILL_SWITCH_COMMAND_ID, CORE_PLUGIN_ID } from "../contributionRegistry.js";
 import { icon } from "../uiPrimitives.js";
 
 const MAX_RESULTS = 40;
 
-/** 宿主内建命令的键 → 实际动作。 */
+/**
+ * 命令面板消费的菜单落点：`ContributionRegistry.paletteEntries()` 内部固定读取
+ * 该落点并合并进结果，这里保留常量作为「落点有渲染消费者」的契约锚点
+ * （`dock` / `settings.nav` 等其它落点不在这里渲染）。
+ */
+const PALETTE_PLACEMENT = "commandPalette";
+
+/** kill switch 的展示文案（与 `ContributionRegistry.CORE_COMMANDS` 保持一致）。 */
+const KILL_SWITCH_TITLE = "插件：关闭所有浮动界面";
+
+/** 宿主内建命令（不属于插件契约，只服务宿主导航）。 */
 const CORE_ACTIONS = {
   "core:open-settings": () => {
     const store = window.Alpine && window.Alpine.store("global");
@@ -49,9 +61,42 @@ const CORE_ACTIONS = {
   "core:switch-presets": () => setMode("presets"),
 };
 
+/** 宿主内建命令的面板视图（调用 CORE_ACTIONS，走同一套渲染）。 */
+const HOST_COMMANDS = [
+  { key: "core:open-settings", label: "打开设置", description: "打开设置面板", icon: "settings", kind: "host" },
+  { key: "core:open-plugin-manager", label: "插件管理", description: "打开插件管理面板", icon: "plugin", kind: "host" },
+  { key: "core:open-about", label: "关于 ST-Manager", description: "查看版本与链接", icon: "info", kind: "host" },
+  { key: "core:switch-cards", label: "切换到角色卡", description: "进入角色卡视图", icon: "cards", kind: "host" },
+  { key: "core:switch-worldinfo", label: "切换到世界书", description: "进入世界书视图", icon: "book", kind: "host" },
+  { key: "core:switch-chats", label: "切换到聊天", description: "进入聊天视图", icon: "chat", kind: "host" },
+  { key: "core:switch-presets", label: "切换到预设", description: "进入预设视图", icon: "sliders", kind: "host" },
+];
+
 function setMode(mode) {
   const store = window.Alpine && window.Alpine.store("global");
   if (store) store.currentMode = mode;
+}
+
+/** 触发上下文：命令面板没有右键目标，`target` 为 null。 */
+function buildTriggerContext() {
+  let mode = "";
+  let ids = [];
+  try {
+    const store = window.Alpine && window.Alpine.store("global");
+    if (store) mode = String(store.currentMode || "");
+    const viewState = (store && store.viewState) || {};
+    ids = Array.isArray(viewState.selectedIds) ? viewState.selectedIds : [];
+  } catch (error) {
+    ids = [];
+  }
+  return {
+    mode,
+    target: null,
+    selection: {
+      mode: ids.length === 0 ? "none" : ids.length > 1 ? "multi" : "single",
+      ids: ids.map((id) => String(id)).filter(Boolean),
+    },
+  };
 }
 
 export default function commandPalette() {
@@ -80,100 +125,97 @@ export default function commandPalette() {
           this.close();
           return;
         }
-        // 插件入口快捷键（`layout.shortcuts` → `EntryRegistry.findByShortcut`）。
-        // 放在最后：不要抢掉面板自己的 Ctrl+K / Escape。
-        if (this.handleEntryShortcut(event)) return;
+        // 插件快捷键放在最后：不要抢掉面板自己的 Ctrl+K / Escape。
+        if (this.handleContributionShortcut(event)) return;
       };
       window.addEventListener("keydown", this._keyHandler);
 
       this._entriesHandler = () => {
         if (this.open) this.rebuild();
       };
-      window.addEventListener("entries:changed", this._entriesHandler);
+      window.addEventListener("contributions:changed", this._entriesHandler);
+      window.addEventListener("plugins:loaded", this._entriesHandler);
     },
 
     /**
-     * 匹配并执行插件入口快捷键。
+     * 匹配并执行贡献快捷键。
      *
-     * 用户在入口总览页给某个入口配的 `layout.shortcuts[combo] = entryKey`，
-     * `EntryRegistry.findByShortcut(combo)` 负责查表（含宿主内建入口）。
+     * 设计 §4.6：快捷键与 `when` **无关**（声明里没有 `when`），按下时求值；
+     * `findByShortcut()` 只返回 `ok:true` 的记录，因此不满足条件的组合直接忽略。
      *
      * 三条纪律：
      * 1. **不在输入框里触发**——否则打字会把字母当快捷键；
      * 2. 组合键必须**完全匹配**（`Ctrl+Shift+A` 不等于 `Ctrl+A`）；
-     * 3. 置灰的入口不执行，但仍给一条提示（D7：不是无反应）。
+     * 3. 置灰的贡献不执行，但给一条提示（D7：不是无反应）。
      *
      * @returns {boolean} 是否已消费该事件。
      */
-    handleEntryShortcut(event) {
+    handleContributionShortcut(event) {
       if (event.defaultPrevented) return false;
       if (this.isTypingTarget(event.target)) return false;
 
       const combo = this.shortcutCombo(event);
       if (!combo) return false;
 
-      const entry = EntryRegistry.findByShortcut(combo);
-      if (!entry) return false;
+      const node = ContributionRegistry.findByShortcut(combo);
+      if (!node) return false;
 
       event.preventDefault();
 
-      // 置灰项：不执行，但告诉用户为什么（否则「按了没反应」）
-      const record = EntryRegistry.get(entry.key);
-      if (record && record.enabled === false) {
-        const store = this.$store && this.$store.global;
-        if (store && typeof store.showToast === "function") {
-          store.showToast(record.disabledHint || `「${record.label}」当前不可用`, 3000);
-        }
+      if (node.enabled === false || node.ok === false) {
+        const hint = node.disabledHint || `「${node.label || node.title || node.id}」当前不可用`;
+        this.showToast(hint);
         return true;
       }
 
-      if (isHostEntryKey(entry.key)) {
-        const action = CORE_ACTIONS[entry.key];
-        if (typeof action === "function") action();
-        return true;
-      }
+      this.triggerNode(node, "shortcut");
+      return true;
+    },
 
-      const surfaceId = entry.surface && entry.surface.id ? entry.surface.id : entry.id;
-      const surfaceKey = `${entry.pluginId}:${surfaceId}`;
-      const target = this.buildCommandTarget(entry);
-      if (PluginSurfaceHost.has(surfaceKey)) {
-        PluginSurfaceHost.openSurface(surfaceKey, {
-          source: "shortcut",
-          targetId: entry.id,
-          mode: EntryRegistry.context().mode,
-          target,
-        });
+    /** 派发统一触发事件；宿主内建（kill switch）直接执行对应窗口事件。 */
+    triggerNode(node, trigger) {
+      if (!node) return false;
+
+      if (String(node.pluginId || "") === CORE_PLUGIN_ID || node.key === KILL_SWITCH_COMMAND_ID) {
+        this.runCoreCommand(node);
         return true;
       }
 
       window.dispatchEvent(
-        new CustomEvent("entry:activate", {
-          detail: { key: entry.key, entry, source: "shortcut", target },
+        new CustomEvent("contribution:trigger", {
+          detail: {
+            pluginId: String(node.pluginId || ""),
+            nodeId: String(node.id || ""),
+            trigger: trigger || "palette",
+            ctx: buildTriggerContext(),
+          },
         }),
       );
       return true;
     },
 
-    /**
-     * 命令面板的作用域：**只有 `batch` 入口有**（当前选中集）。
-     *
-     * 面板没有「右键目标」，但用户可能已经勾选了一批卡片，此时执行批量入口
-     * 就该作用在选中集上。`dock` / `command` / `settings` 类入口没有作用域，
-     * 返回 `null`（而不是空 `selection`，那会被读成「作用域是空集」）。
-     *
-     * `context` 类入口已在 `rebuild()` 里排除：它们的语义依赖右键目标，
-     * 在面板里根本不存在。
-     */
-    buildCommandTarget(entry) {
-      if (!entry || entry.kind !== "batch") return null;
-      const snapshot = readSelectionSnapshot();
-      return {
-        kind: "selection",
-        mode: snapshot.mode,
-        path: "",
-        id: "",
-        ids: snapshot.ids,
-      };
+    /** 宿主内建命令（kill switch）：只派发 `plugins:close-overlays`，由 PluginHost 处理。 */
+    runCoreCommand(node) {
+      const key = String((node && (node.key || node.id)) || "");
+      if (key === KILL_SWITCH_COMMAND_ID || key === "plugins:close-overlays") {
+        window.dispatchEvent(new CustomEvent("plugins:close-overlays"));
+        return true;
+      }
+      const action = CORE_ACTIONS[key];
+      if (typeof action === "function") {
+        action();
+        return true;
+      }
+      return false;
+    },
+
+    showToast(message) {
+      try {
+        const store = this.$store && this.$store.global;
+        if (store && typeof store.showToast === "function") store.showToast(message, 3000);
+      } catch (error) {
+        console.warn("[commandPalette]", message);
+      }
     },
 
     /** 焦点是否在可输入元素里（此时不该把按键当快捷键）。 */
@@ -186,7 +228,7 @@ export default function commandPalette() {
     },
 
     /**
-     * 把键盘事件折算成 `layout.shortcuts` 的键名。
+     * 把键盘事件折算成契约的快捷键键名。
      *
      * 规范形如 `Ctrl+Shift+A`：修饰键按 `Ctrl` / `Alt` / `Shift` / `Meta` 的固定顺序，
      * 主键大写（字母）或原名（`F5`、`ArrowUp`、`Escape` 等）。没有任何修饰键时返回空串
@@ -219,7 +261,8 @@ export default function commandPalette() {
         this._keyHandler = null;
       }
       if (this._entriesHandler) {
-        window.removeEventListener("entries:changed", this._entriesHandler);
+        window.removeEventListener("contributions:changed", this._entriesHandler);
+        window.removeEventListener("plugins:loaded", this._entriesHandler);
         this._entriesHandler = null;
       }
     },
@@ -245,13 +288,6 @@ export default function commandPalette() {
       this.activeIndex = 0;
     },
 
-    /**
-     * 重建结果列表。
-     *
-     * **排除 `context` 类入口**：它们的语义依赖「右键目标」（右键哪个分类 /
-     * 哪张卡），而命令面板没有右键目标，激活后只会得到一个没有作用域的面板。
-     * `EntryRegistry.searchable()` 保持不变——它服务于「入口总览」等其它消费者。
-     */
     rebuild() {
       this.items = this.filter(this.commandCandidates());
       this.activeIndex = 0;
@@ -262,9 +298,38 @@ export default function commandPalette() {
       this.activeIndex = 0;
     },
 
-    /** 命令面板的候选集（`searchable()` 去掉 `context` 类入口）。 */
+    /**
+     * 面板候选集：注册表命令/落点项 + 宿主内建命令。
+     *
+     * 面板不展示 `context.*` 落点：它们的语义依赖右键目标，面板里没有目标。
+     * `paletteEntries()` 只返回 `commandPalette` 落点，天然满足。
+     */
     commandCandidates() {
-      return EntryRegistry.searchable().filter((entry) => entry.kind !== "context");
+      let entries = [];
+      try {
+        entries = ContributionRegistry.paletteEntries() || [];
+      } catch (error) {
+        console.warn("[commandPalette] 读取贡献失败:", error);
+        entries = [];
+      }
+
+      const normalized = entries.map((entry) => ({
+        ...entry,
+        label: String(entry.label || entry.title || entry.id || ""),
+        kind: entry.kind === "menu" ? "menu" : "command",
+        source: String(entry.pluginId || ""),
+      }));
+
+      const core = ((ContributionRegistry.coreCommands || []) || []).map((entry) => ({
+        ...entry,
+        label: String(entry.title || entry.label || entry.id || KILL_SWITCH_TITLE),
+        kind: "core",
+        source: "宿主",
+      }));
+
+      const host = HOST_COMMANDS.map((entry) => ({ ...entry, source: "宿主" }));
+
+      return [...core, ...normalized, ...host];
     },
 
     /** 简单子串匹配（含中文），按「前缀命中优先、其次标签长度」排序。 */
@@ -305,21 +370,18 @@ export default function commandPalette() {
     handleKeydown(event) {
       if (event.key === "ArrowDown") {
         event.preventDefault();
-        if (this.items.length) {
-          this.activeIndex = (this.activeIndex + 1) % this.items.length;
-        }
+        this.move(1);
         return;
       }
       if (event.key === "ArrowUp") {
         event.preventDefault();
-        if (this.items.length) {
-          this.activeIndex = (this.activeIndex - 1 + this.items.length) % this.items.length;
-        }
+        this.move(-1);
         return;
       }
       if (event.key === "Enter") {
         event.preventDefault();
-        this.activateIndex(this.activeIndex);
+        const item = this.items[this.activeIndex];
+        if (item) this.activate(item);
         return;
       }
       if (event.key === "Escape") {
@@ -328,88 +390,72 @@ export default function commandPalette() {
       }
     },
 
-    activateIndex(index) {
-      const entry = this.items[index];
-      if (!entry) return false;
-      return this.activate(entry);
+    move(offset) {
+      if (!this.items.length) return;
+      const next = (this.activeIndex + offset + this.items.length) % this.items.length;
+      this.activeIndex = next;
     },
 
-    /** 执行一个入口：宿主内建走内建动作，插件入口走 surface 或事件。 */
-    activate(entry) {
-      if (!entry) return false;
-
-      if (isHostEntryKey(entry.key)) {
-        const action = CORE_ACTIONS[entry.key];
-        if (typeof action === "function") action();
-        this.close();
-        return true;
-      }
-
-      const surfaceId = entry.surface && entry.surface.id ? entry.surface.id : entry.id;
-      const surfaceKey = `${entry.pluginId}:${surfaceId}`;
-      const target = this.buildCommandTarget(entry);
-      if (PluginSurfaceHost.has(surfaceKey)) {
-        PluginSurfaceHost.openSurface(surfaceKey, {
-          source: "command",
-          targetId: entry.id,
-          mode: EntryRegistry.context().mode,
-          target,
-        });
-        this.close();
-        return true;
-      }
-
-      window.dispatchEvent(
-        new CustomEvent("entry:activate", {
-          detail: { key: entry.key, entry, source: "command", target },
-        }),
-      );
+    /** 执行一条面板项：宿主动作 / kill switch / 统一触发通道。 */
+    activate(item) {
+      if (!item) return false;
       this.close();
-      return true;
+
+      if (item.kind === "host" || item.kind === "core") {
+        return this.runCoreCommand(item);
+      }
+
+      if (item.enabled === false || item.ok === false) {
+        this.showToast(item.disabledHint || `「${this.labelOf(item)}」当前不可用`);
+        return false;
+      }
+
+      return this.triggerNode(item, "palette");
     },
 
     // ------------------------------------------------------------ 呈现辅助
 
-    buildIcon(entry) {
-      const name = String((entry && entry.icon) || "").trim();
-      // 资源路径（含 `/`）需要 pluginId 才能解析（设计文档 2.2 允许两种取值）
-      return icon(name || "circle-dot", {
+    labelOf(item) {
+      return String((item && (item.label || item.title)) || "");
+    },
+
+    iconHtml(item) {
+      const name = String((item && item.icon) || "circle-dot");
+      return icon(name, {
         className: "ui-icon--sm",
-        pluginId: String((entry && entry.pluginId) || ""),
-      });
+        pluginId: String((item && item.pluginId) || ""),
+      }).outerHTML;
     },
 
-    kindLabel(entry) {
-      const labels = {
-        dock: "坞",
-        nav: "导航",
-        settings: "设置",
-        context: "右键",
-        command: "命令",
-        status: "状态",
-        batch: "批量",
-      };
-      return labels[String((entry && entry.kind) || "")] || "入口";
+    kindLabel(item) {
+      if (!item) return "";
+      if (item.kind === "host" || item.kind === "core") return "宿主";
+      if (item.kind === "menu") return "菜单";
+      return "命令";
     },
 
-    tierLabel(entry) {
+    tierLabel(item) {
       const labels = { official: "官方", verified: "认证", community: "社区" };
-      return labels[String((entry && entry.tier) || "")] || "";
+      return labels[String((item && item.tier) || "")] || "";
     },
 
-    originLabel(entry) {
-      if (isHostEntryKey(entry && entry.key)) return "宿主";
-      return String((entry && entry.pluginId) || "");
+    originLabel(item) {
+      if (!item) return "";
+      if (item.kind === "host" || item.kind === "core") return "宿主";
+      return String(item.pluginId || "");
     },
 
-    statusClass(entry) {
-      return `is-${String((entry && entry.status) || "idle")}`;
+    statusClass(item) {
+      if (!item) return "is-idle";
+      const raw = item.status;
+      const status = typeof raw === "string" ? raw : String((raw && raw.kind) || "idle");
+      return `is-${status}`;
     },
 
-    isDisabled(entry) {
-      // 内建命令始终可用；插件入口看 `when` 求值结果
-      if (isHostEntryKey(entry && entry.key)) return false;
-      return entry && entry.enabled === false;
+    isDisabled(item) {
+      if (!item) return true;
+      if (item.kind === "host" || item.kind === "core") return false;
+      return item.enabled === false || item.ok === false;
     },
   };
 }

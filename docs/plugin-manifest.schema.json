@@ -1,0 +1,1195 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://st-manager.local/schemas/plugin-manifest.schema.json",
+  "title": "ST-Manager 插件清单（manifest v3）",
+  "description": "ST-Manager 插件清单 v3 的 JSON Schema（生成物，勿手改）。契约事实源：core/plugins/contract.py。结构键与节点级子键一律 additionalProperties: false（与宿主拒绝/丢弃语义一致）；所有层级允许 `x-` 前缀实验键。",
+  "x-generated-by": "tools/gen_plugin_api_docs.py",
+  "x-contract-version": 3,
+  "$comment": "未知顶层/backend/frontend/contributions 键 → 宿主拒绝加载；节点级未知子键 → 宿主忽略并警告、stm-plugin-check 严格模式报错。`x-` 前缀键在所有层级静默忽略。additionalProperties: false 只约束未命中 properties / patternProperties 的键。",
+  "type": "object",
+  "properties": {
+    "manifest_version": {
+      "const": 3,
+      "description": "固定 3，宿主只支持 [3]"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{1,63}$",
+      "description": "插件 id，必须等于插件目录名"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "展示名；缺省回退为 id（建议显式填写）"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?$",
+      "description": "插件语义化版本"
+    },
+    "api_version": {
+      "const": 3,
+      "description": "固定 3，宿主只支持 [3]"
+    },
+    "min_app_version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?$",
+      "description": "最低主程序版本（普通语义化版本，不带比较符）"
+    },
+    "author": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "homepage": {
+      "type": "string"
+    },
+    "license": {
+      "type": "string"
+    },
+    "icon": {
+      "type": "string",
+      "description": "宿主图标名或插件内相对资源路径"
+    },
+    "backend": {
+      "$ref": "#/$defs/backend"
+    },
+    "frontend": {
+      "$ref": "#/$defs/frontend"
+    },
+    "capabilities": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "x-known-capabilities": [
+        "cards.read",
+        "cards.write",
+        "chats.read",
+        "chats.write",
+        "cli.run",
+        "hooks.subscribe",
+        "jobs.run",
+        "network.outbound",
+        "presets.read",
+        "presets.write",
+        "secrets.read",
+        "tags.read",
+        "tags.write",
+        "ui.custom",
+        "ui.global_styles",
+        "worldbook.read",
+        "worldbook.write"
+      ],
+      "description": "能力披露（不是权限/强制拦截）。未知能力位宿主保留并标注「未知名」，strict CLI 只警告；已知能力位见 x-known-capabilities"
+    },
+    "requires": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9-]{1,63}$"
+      },
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^(>=|>|<=|<|==|=)?\\s*(\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?|\\*)$"
+      },
+      "description": "插件依赖：{插件 id: 版本约束（如 >=1.2.0 或 *）}"
+    },
+    "config_schema": {
+      "$ref": "#/$defs/formSchema"
+    },
+    "secret_schema": {
+      "$ref": "#/$defs/formSchema"
+    },
+    "i18n": {
+      "type": "object",
+      "description": "国际化文案表（语义与 v2 一致）"
+    }
+  },
+  "required": [
+    "manifest_version",
+    "id",
+    "version",
+    "api_version"
+  ],
+  "additionalProperties": false,
+  "patternProperties": {
+    "^x-": {
+      "description": "实验键（`x-` 前缀）：宿主静默忽略（设计 §4.9）"
+    }
+  },
+  "anyOf": [
+    {
+      "required": [
+        "backend"
+      ]
+    },
+    {
+      "required": [
+        "frontend"
+      ]
+    }
+  ],
+  "$defs": {
+    "nodeId": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{0,63}$",
+      "description": "节点 / 贡献 id：小写字母开头，插件内唯一"
+    },
+    "relativePath": {
+      "type": "string",
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\\\]+$",
+      "description": "插件内相对路径（正斜杠）；不允许绝对路径、`..` 段或反斜杠"
+    },
+    "action": {
+      "description": "菜单项动作：`surface`（打开插件注册的 surface，安装期只校验格式）/ `command`（必须存在于 contributions.commands，安装期校验）/ `url`（仅 http(s)）",
+      "oneOf": [
+        {
+          "description": "id 对应运行期 api.surfaces.register() 注册的 surface",
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "surface"
+            },
+            "id": {
+              "$ref": "#/$defs/nodeId"
+            }
+          },
+          "required": [
+            "type",
+            "id"
+          ],
+          "additionalProperties": false,
+          "patternProperties": {
+            "^x-": {
+              "description": "实验键（`x-` 前缀）：宿主静默忽略（设计 §4.9）"
+            }
+          }
+        },
+        {
+          "description": "触发 contributions.commands[] 中的命令",
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "command"
+            },
+            "id": {
+              "$ref": "#/$defs/nodeId"
+            }
+          },
+          "required": [
+            "type",
+            "id"
+          ],
+          "additionalProperties": false,
+          "patternProperties": {
+            "^x-": {
+              "description": "实验键（`x-` 前缀）：宿主静默忽略（设计 §4.9）"
+            }
+          }
+        },
+        {
+          "description": "浏览器新标签页打开 http(s) 链接",
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "url"
+            },
+            "url": {
+              "type": "string",
+              "pattern": "^https?://"
+            }
+          },
+          "required": [
+            "type",
+            "url"
+          ],
+          "additionalProperties": false,
+          "patternProperties": {
+            "^x-": {
+              "description": "实验键（`x-` 前缀）：宿主静默忽略（设计 §4.9）"
+            }
+          }
+        }
+      ]
+    },
+    "when": {
+      "description": "全部条件 AND；旧字段 contexts / when.target 已删除（设计 §4.4.3）",
+      "type": "object",
+      "properties": {
+        "mode": {
+          "description": "命中任一工作模式即成立",
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "beautify",
+              "cards",
+              "chats",
+              "presets",
+              "quick_replies",
+              "regex",
+              "scripts",
+              "worldinfo"
+            ]
+          }
+        },
+        "selection": {
+          "enum": [
+            "any",
+            "multi",
+            "none",
+            "single"
+          ]
+        },
+        "config": {
+          "description": "这些配置键都存在且非空",
+          "type": "object",
+          "properties": {
+            "requireKeys": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "additionalProperties": false,
+          "patternProperties": {
+            "^x-": {
+              "description": "实验键（`x-` 前缀）：宿主静默忽略（设计 §4.9）"
+            }
+          }
+        },
+        "hostVersion": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?$",
+          "description": "主程序版本门槛（普通语义化版本，主程序 ≥ 该版本时成立）"
+        },
+        "feature": {
+          "description": "宿主 feature flag 全部开启",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "indexState": {
+          "enum": [
+            "idle",
+            "running"
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "patternProperties": {
+        "^x-": {
+          "description": "实验键（`x-` 前缀）：宿主静默忽略（设计 §4.9）"
+        }
+      }
+    },
+    "menuRootItem": {
+      "description": "根节点，菜单项：`action` 必填；`children` 会被宿主丢弃（strict CLI 报错）",
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/nodeId"
+        },
+        "type": {
+          "enum": [
+            "item",
+            "submenu",
+            "separator"
+          ]
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "description": "`item` / `submenu` 必填；`separator` 不使用"
+        },
+        "description": {
+          "type": "string"
+        },
+        "icon": {
+          "type": "string",
+          "description": "宿主图标名（如 `wand`）或插件内相对资源路径（如 `frontend/assets/icon.svg`）"
+        },
+        "order": {
+          "type": "integer",
+          "default": 100,
+          "description": "同落点内升序建议值；默认 100"
+        },
+        "when": {
+          "$ref": "#/$defs/when"
+        },
+        "badge": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "description": "静态徽标；动态值通过 api.contributions.update() 更新"
+        },
+        "disabledHint": {
+          "type": "string",
+          "description": "被 when 拦下时展示的提示"
+        },
+        "placement": {
+          "enum": [
+            "context.folder",
+            "context.card",
+            "context.footer",
+            "batch.actions",
+            "commandPalette",
+            "dock",
+            "settings.nav"
+          ],
+          "description": "仅根节点必填；子节点由根节点决定落点（写 placement 会被丢弃）"
+        },
+        "action": {
+          "$ref": "#/$defs/action"
+        }
+      },
+      "required": [
+        "id",
+        "placement",
+        "type",
+        "label",
+        "action"
+      ],
+      "additionalProperties": false,
+      "patternProperties": {
+        "^x-": {
+          "description": "实验键（`x-` 前缀）：宿主静默忽略（设计 §4.9）"
+        }
+      }
+    },
+    "menuRootSubmenu": {
+      "description": "根节点，子菜单：`children` 必填；`action` 会被宿主丢弃（strict CLI 报错）",
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/nodeId"
+        },
+        "type": {
+          "enum": [
+            "item",
+            "submenu",
+            "separator"
+          ]
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "description": "`item` / `submenu` 必填；`separator` 不使用"
+        },
+        "description": {
+          "type": "string"
+        },
+        "icon": {
+          "type": "string",
+          "description": "宿主图标名（如 `wand`）或插件内相对资源路径（如 `frontend/assets/icon.svg`）"
+        },
+        "order": {
+          "type": "integer",
+          "default": 100,
+          "description": "同落点内升序建议值；默认 100"
+        },
+        "when": {
+          "$ref": "#/$defs/when"
+        },
+        "badge": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "description": "静态徽标；动态值通过 api.contributions.update() 更新"
+        },
+        "disabledHint": {
+          "type": "string",
+          "description": "被 when 拦下时展示的提示"
+        },
+        "placement": {
+          "enum": [
+            "context.folder",
+            "context.card",
+            "context.footer",
+            "batch.actions",
+            "commandPalette",
+            "dock",
+            "settings.nav"
+          ],
+          "description": "仅根节点必填；子节点由根节点决定落点（写 placement 会被丢弃）"
+        },
+        "children": {
+          "description": "子节点；整棵树最多 3 层（含根节点）",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "oneOf": [
+              {
+                "$ref": "#/$defs/menuChildItem"
+              },
+              {
+                "$ref": "#/$defs/menuChildSubmenu"
+              },
+              {
+                "$ref": "#/$defs/menuChildSeparator"
+              }
+            ]
+          }
+        }
+      },
+      "required": [
+        "id",
+        "placement",
+        "type",
+        "label",
+        "children"
+      ],
+      "additionalProperties": false,
+      "patternProperties": {
+        "^x-": {
+          "description": "实验键（`x-` 前缀）：宿主静默忽略（设计 §4.9）"
+        }
+      }
+    },
+    "menuRootSeparator": {
+      "description": "根节点，分隔符：只有 id / type（根节点另需 placement）；label/action/children 会被丢弃",
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/nodeId"
+        },
+        "type": {
+          "enum": [
+            "item",
+            "submenu",
+            "separator"
+          ]
+        },
+        "description": {
+          "type": "string"
+        },
+        "icon": {
+          "type": "string",
+          "description": "宿主图标名（如 `wand`）或插件内相对资源路径（如 `frontend/assets/icon.svg`）"
+        },
+        "order": {
+          "type": "integer",
+          "default": 100,
+          "description": "同落点内升序建议值；默认 100"
+        },
+        "when": {
+          "$ref": "#/$defs/when"
+        },
+        "badge": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "description": "静态徽标；动态值通过 api.contributions.update() 更新"
+        },
+        "disabledHint": {
+          "type": "string",
+          "description": "被 when 拦下时展示的提示"
+        },
+        "placement": {
+          "enum": [
+            "context.folder",
+            "context.card",
+            "context.footer",
+            "batch.actions",
+            "commandPalette",
+            "dock",
+            "settings.nav"
+          ],
+          "description": "仅根节点必填；子节点由根节点决定落点（写 placement 会被丢弃）"
+        }
+      },
+      "required": [
+        "id",
+        "placement",
+        "type"
+      ],
+      "additionalProperties": false,
+      "patternProperties": {
+        "^x-": {
+          "description": "实验键（`x-` 前缀）：宿主静默忽略（设计 §4.9）"
+        }
+      }
+    },
+    "menuChildItem": {
+      "description": "菜单项：`action` 必填；`children` 会被宿主丢弃（strict CLI 报错）",
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/nodeId"
+        },
+        "type": {
+          "enum": [
+            "item",
+            "submenu",
+            "separator"
+          ]
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "description": "`item` / `submenu` 必填；`separator` 不使用"
+        },
+        "description": {
+          "type": "string"
+        },
+        "icon": {
+          "type": "string",
+          "description": "宿主图标名（如 `wand`）或插件内相对资源路径（如 `frontend/assets/icon.svg`）"
+        },
+        "order": {
+          "type": "integer",
+          "default": 100,
+          "description": "同落点内升序建议值；默认 100"
+        },
+        "when": {
+          "$ref": "#/$defs/when"
+        },
+        "badge": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "description": "静态徽标；动态值通过 api.contributions.update() 更新"
+        },
+        "disabledHint": {
+          "type": "string",
+          "description": "被 when 拦下时展示的提示"
+        },
+        "action": {
+          "$ref": "#/$defs/action"
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "label",
+        "action"
+      ],
+      "additionalProperties": false,
+      "patternProperties": {
+        "^x-": {
+          "description": "实验键（`x-` 前缀）：宿主静默忽略（设计 §4.9）"
+        }
+      }
+    },
+    "menuChildSubmenu": {
+      "description": "子菜单：`children` 必填；`action` 会被宿主丢弃（strict CLI 报错）",
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/nodeId"
+        },
+        "type": {
+          "enum": [
+            "item",
+            "submenu",
+            "separator"
+          ]
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "description": "`item` / `submenu` 必填；`separator` 不使用"
+        },
+        "description": {
+          "type": "string"
+        },
+        "icon": {
+          "type": "string",
+          "description": "宿主图标名（如 `wand`）或插件内相对资源路径（如 `frontend/assets/icon.svg`）"
+        },
+        "order": {
+          "type": "integer",
+          "default": 100,
+          "description": "同落点内升序建议值；默认 100"
+        },
+        "when": {
+          "$ref": "#/$defs/when"
+        },
+        "badge": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "description": "静态徽标；动态值通过 api.contributions.update() 更新"
+        },
+        "disabledHint": {
+          "type": "string",
+          "description": "被 when 拦下时展示的提示"
+        },
+        "children": {
+          "description": "子节点；整棵树最多 3 层（含根节点）",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "oneOf": [
+              {
+                "$ref": "#/$defs/menuGrandchildItem"
+              },
+              {
+                "$ref": "#/$defs/menuGrandchildSeparator"
+              }
+            ]
+          }
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "label",
+        "children"
+      ],
+      "additionalProperties": false,
+      "patternProperties": {
+        "^x-": {
+          "description": "实验键（`x-` 前缀）：宿主静默忽略（设计 §4.9）"
+        }
+      }
+    },
+    "menuChildSeparator": {
+      "description": "分隔符：只有 id / type（根节点另需 placement）；label/action/children 会被丢弃",
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/nodeId"
+        },
+        "type": {
+          "enum": [
+            "item",
+            "submenu",
+            "separator"
+          ]
+        },
+        "description": {
+          "type": "string"
+        },
+        "icon": {
+          "type": "string",
+          "description": "宿主图标名（如 `wand`）或插件内相对资源路径（如 `frontend/assets/icon.svg`）"
+        },
+        "order": {
+          "type": "integer",
+          "default": 100,
+          "description": "同落点内升序建议值；默认 100"
+        },
+        "when": {
+          "$ref": "#/$defs/when"
+        },
+        "badge": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "description": "静态徽标；动态值通过 api.contributions.update() 更新"
+        },
+        "disabledHint": {
+          "type": "string",
+          "description": "被 when 拦下时展示的提示"
+        }
+      },
+      "required": [
+        "id",
+        "type"
+      ],
+      "additionalProperties": false,
+      "patternProperties": {
+        "^x-": {
+          "description": "实验键（`x-` 前缀）：宿主静默忽略（设计 §4.9）"
+        }
+      }
+    },
+    "menuGrandchildItem": {
+      "description": "菜单项：`action` 必填；`children` 会被宿主丢弃（strict CLI 报错）",
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/nodeId"
+        },
+        "type": {
+          "enum": [
+            "item",
+            "submenu",
+            "separator"
+          ]
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "description": "`item` / `submenu` 必填；`separator` 不使用"
+        },
+        "description": {
+          "type": "string"
+        },
+        "icon": {
+          "type": "string",
+          "description": "宿主图标名（如 `wand`）或插件内相对资源路径（如 `frontend/assets/icon.svg`）"
+        },
+        "order": {
+          "type": "integer",
+          "default": 100,
+          "description": "同落点内升序建议值；默认 100"
+        },
+        "when": {
+          "$ref": "#/$defs/when"
+        },
+        "badge": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "description": "静态徽标；动态值通过 api.contributions.update() 更新"
+        },
+        "disabledHint": {
+          "type": "string",
+          "description": "被 when 拦下时展示的提示"
+        },
+        "action": {
+          "$ref": "#/$defs/action"
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "label",
+        "action"
+      ],
+      "additionalProperties": false,
+      "patternProperties": {
+        "^x-": {
+          "description": "实验键（`x-` 前缀）：宿主静默忽略（设计 §4.9）"
+        }
+      }
+    },
+    "menuGrandchildSeparator": {
+      "description": "分隔符：只有 id / type（根节点另需 placement）；label/action/children 会被丢弃",
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/nodeId"
+        },
+        "type": {
+          "enum": [
+            "item",
+            "submenu",
+            "separator"
+          ]
+        },
+        "description": {
+          "type": "string"
+        },
+        "icon": {
+          "type": "string",
+          "description": "宿主图标名（如 `wand`）或插件内相对资源路径（如 `frontend/assets/icon.svg`）"
+        },
+        "order": {
+          "type": "integer",
+          "default": 100,
+          "description": "同落点内升序建议值；默认 100"
+        },
+        "when": {
+          "$ref": "#/$defs/when"
+        },
+        "badge": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "description": "静态徽标；动态值通过 api.contributions.update() 更新"
+        },
+        "disabledHint": {
+          "type": "string",
+          "description": "被 when 拦下时展示的提示"
+        }
+      },
+      "required": [
+        "id",
+        "type"
+      ],
+      "additionalProperties": false,
+      "patternProperties": {
+        "^x-": {
+          "description": "实验键（`x-` 前缀）：宿主静默忽略（设计 §4.9）"
+        }
+      }
+    },
+    "slot": {
+      "description": "插槽渲染器：module 导出 export(container, ctx)，可返回清理函数；单插件最多 16 个",
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/nodeId"
+        },
+        "slot": {
+          "enum": [
+            "settings.section",
+            "header.actions",
+            "card.detail.tabs",
+            "page.cards.toolbar",
+            "page.worldinfo.toolbar",
+            "empty.beautify",
+            "empty.cards",
+            "empty.chats",
+            "empty.presets",
+            "empty.quick_replies",
+            "empty.regex",
+            "empty.scripts",
+            "empty.worldinfo"
+          ],
+          "description": "命名插槽，或 `empty.<mode>` 空状态插槽"
+        },
+        "title": {
+          "type": "string"
+        },
+        "order": {
+          "type": "integer",
+          "default": 100
+        },
+        "when": {
+          "$ref": "#/$defs/when"
+        },
+        "module": {
+          "$ref": "#/$defs/relativePath"
+        },
+        "export": {
+          "type": "string",
+          "pattern": "^[A-Za-z_$][A-Za-z0-9_$]*$"
+        }
+      },
+      "required": [
+        "id",
+        "slot",
+        "module",
+        "export"
+      ],
+      "additionalProperties": false,
+      "patternProperties": {
+        "^x-": {
+          "description": "实验键（`x-` 前缀）：宿主静默忽略（设计 §4.9）"
+        }
+      }
+    },
+    "command": {
+      "description": "命令：菜单 action 与命令面板都可触发；module 导出 export(ctx)；单插件最多 32 个",
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/nodeId"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": {
+          "type": "string"
+        },
+        "icon": {
+          "type": "string"
+        },
+        "shortcut": {
+          "type": "string",
+          "pattern": "^(?:Ctrl|Control|Alt|Option|Meta|Cmd|Command|Super|Win|Shift)(?:\\+(?:Ctrl|Control|Alt|Option|Meta|Cmd|Command|Super|Win|Shift))*\\+(?:[A-Za-z0-9]|F(?:[1-9]|1[0-2])|Escape|Enter|Space|Tab|Backspace|Delete|Home|End|PageUp|PageDown|ArrowUp|ArrowDown|ArrowLeft|ArrowRight)$",
+          "description": "形如 Ctrl+Shift+D；必须含 Ctrl/Alt/Meta 之一（Shift 单独不算），同插件内不得重复"
+        },
+        "when": {
+          "$ref": "#/$defs/when"
+        },
+        "module": {
+          "$ref": "#/$defs/relativePath"
+        },
+        "export": {
+          "type": "string",
+          "pattern": "^[A-Za-z_$][A-Za-z0-9_$]*$"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "module",
+        "export"
+      ],
+      "additionalProperties": false,
+      "patternProperties": {
+        "^x-": {
+          "description": "实验键（`x-` 前缀）：宿主静默忽略（设计 §4.9）"
+        }
+      }
+    },
+    "contributions": {
+      "description": "三原语：菜单树（menus）/ 插槽（slots）/ 命令（commands）",
+      "type": "object",
+      "properties": {
+        "menus": {
+          "description": "菜单树根节点。宿主按**节点总数**计数：单插件最多 64 个节点（含子节点）、最多 3 层",
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "oneOf": [
+              {
+                "$ref": "#/$defs/menuRootItem"
+              },
+              {
+                "$ref": "#/$defs/menuRootSubmenu"
+              },
+              {
+                "$ref": "#/$defs/menuRootSeparator"
+              }
+            ]
+          }
+        },
+        "slots": {
+          "type": "array",
+          "maxItems": 16,
+          "items": {
+            "$ref": "#/$defs/slot"
+          }
+        },
+        "commands": {
+          "type": "array",
+          "maxItems": 32,
+          "items": {
+            "$ref": "#/$defs/command"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "patternProperties": {
+        "^x-": {
+          "description": "实验键（`x-` 前缀）：宿主静默忽略（设计 §4.9）"
+        }
+      }
+    },
+    "backend": {
+      "description": "后端入口声明（与 v2 语义一致）",
+      "type": "object",
+      "properties": {
+        "entry": {
+          "type": "string",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]*(?:/[A-Za-z_][A-Za-z0-9_]*)*$",
+          "description": "后端包相对路径（如 backend）"
+        },
+        "register": {
+          "type": "string",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]*$",
+          "default": "register"
+        },
+        "jobs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$"
+          }
+        },
+        "hooks": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "x-known-hooks": [
+              "app.ready",
+              "card.created",
+              "card.deleted",
+              "card.moved",
+              "card.updated",
+              "index.job_done",
+              "scan.completed",
+              "tag.applied",
+              "tag.deleted",
+              "worldbook.entry_changed",
+              "worldbook.saved"
+            ],
+            "description": "未知 hook 宿主忽略并警告（strict CLI 也允许）"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "patternProperties": {
+        "^x-": {
+          "description": "实验键（`x-` 前缀）：宿主静默忽略（设计 §4.9）"
+        }
+      }
+    },
+    "frontend": {
+      "description": "前端声明；frontend.entries 与 permissions 已删除（不保留别名）",
+      "type": "object",
+      "properties": {
+        "entry": {
+          "type": "string",
+          "description": "前端入口模块（ES module，导出 activate(api)，可选 deactivate(api)）"
+        },
+        "styles": {
+          "description": "受作用域约束的样式（.plugin-<id> 或 [data-plugin=\"<id>\"] 根作用域）",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/relativePath"
+          }
+        },
+        "global_styles": {
+          "description": "免作用域全局样式；需要 ui.global_styles 能力位（宿主拒绝注入）",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/relativePath"
+          }
+        },
+        "render_mode": {
+          "enum": [
+            "declarative",
+            "custom"
+          ],
+          "default": "declarative",
+          "description": "custom 表示插件自绘界面；需要 ui.custom 能力位（披露，非审批）"
+        },
+        "contributions": {
+          "$ref": "#/$defs/contributions"
+        }
+      },
+      "additionalProperties": false,
+      "patternProperties": {
+        "^x-": {
+          "description": "实验键（`x-` 前缀）：宿主静默忽略（设计 §4.9）"
+        }
+      }
+    },
+    "formField": {
+      "description": "表单字段；允许键 = contract.SCHEMA_ALLOWED_KEYS（10 个）",
+      "type": "object",
+      "properties": {
+        "type": {
+          "enum": [
+            "boolean",
+            "enum",
+            "integer",
+            "number",
+            "string"
+          ]
+        },
+        "title": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "default": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "boolean"
+            }
+          ]
+        },
+        "minimum": {
+          "type": "number"
+        },
+        "maximum": {
+          "type": "number"
+        },
+        "enum": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              }
+            ]
+          }
+        },
+        "secret": {
+          "type": "boolean"
+        },
+        "required": {
+          "description": "保留键（宿主当前不处理）",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "properties": {
+          "type": "object",
+          "description": "保留键（宿主当前不处理）"
+        }
+      },
+      "additionalProperties": false,
+      "patternProperties": {
+        "^x-": {
+          "description": "实验键（`x-` 前缀）：宿主静默忽略（设计 §4.9）"
+        }
+      }
+    },
+    "formSchema": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "object"
+        },
+        "properties": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/formField"
+          }
+        },
+        "required": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "description": "config_schema / secret_schema 的简化表单 schema；未知顶层键宿主静默忽略，因此这里不设 additionalProperties: false"
+    }
+  }
+}

@@ -1,6 +1,10 @@
 <!-- templates/components/entry_dock.html -->
 <!--
-  入口坞（设计文档 D6 / 阶段 5）。
+  入口坞（设计文档 §4.4.4 / §5.1 的 `dock` 落点）。
+
+  数据来源：`ContributionRegistry.dockItems()`（槽位）与 `dockOverflow()`（溢出）。
+  容量上限（全局 8 / 每插件 2）由注册表统一裁剪，坞只负责渲染：
+  槽位图标 + 「更多」溢出浮层（搜索 + 按插件分组）。
 
   位置：右侧 fixed 覆盖层，**垂直居中**，不占用内容区宽度。
   收起态只有一枚毛玻璃小箭头（`.entry-rail__toggle`），点击后向左弹出
@@ -8,6 +12,7 @@
   根元素带 data-marquee-ignore，框选不会命中坞。
   键盘：role="toolbar" + aria-orientation="vertical" + roving tabindex。
   移动端不渲染侧条，退化为**贴在底部翻页栏上的向上箭头** + 底部 sheet。
+  坞不再有 pinned / hidden / order / 拖拽：排序由注册表 `order → pluginId → id` 决定。
 -->
 <div
   id="entry-dock-root"
@@ -15,13 +20,11 @@
   data-marquee-ignore
   class="entry-dock-root"
 >
-  <!-- 移动端：卡在底部翻页栏上的向上箭头
-       —— 不再是独占一行的顶栏按钮。
-
+  <!-- 移动端：卡在底部翻页栏上的向上箭头。
        位置：`position: fixed` 贴视口右下角，落进翻页栏那条带子里；
        翻页栏通过 body 上的 `entry-dock-mobile-docked` 类让出右侧内边距（见 CSS）。
        点击向上弹出底部 sheet。
-       `hasEntries` 为假时整个按钮不出现（没有插件 dock 入口时点开只会是空 sheet）。 -->
+       `hasEntries` 为假时整个按钮不出现（没有 dock 贡献时点开只会是空 sheet）。 -->
   <template x-if="deviceType === 'mobile'">
     <button
       type="button"
@@ -37,7 +40,6 @@
       <svg class="ui-icon ui-icon--sm" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
         <use href="/static/icons/ui.svg#icon-chevron-right"></use>
       </svg>
-      <!-- 入口数量数字标（与 PC 端箭头同一套） -->
       <span
         class="entry-dock-mobile-trigger__count"
         x-show="entryCount > 0"
@@ -48,17 +50,12 @@
   </template>
 
   <!-- 桌面 / 平板：右侧坞
-       坞完全由插件 dock 入口填充（宿主内建命令是 kind:"command"，不进坞），
-       一个都没有时右侧不该常驻一枚点了没用的箭头，因此浮层与箭头都按
-       `hasEntries` 门控。
+       坞完全由插件 dock 贡献填充（宿主内建命令不进坞），一个都没有时右侧
+       不该常驻一枚点了没用的箭头，因此浮层与箭头都按 `hasEntries` 门控。
 
        用 `x-show` 而不是把 `hasEntries` 塞进外层 `x-if`：外层的 `x-if` 只在
        deviceType 变化时重建整棵子树，把 `hasEntries` 并进去会让「插件装卸」
-       也触发整树销毁重建 —— 实测这会在清空注册表时额外抛出
-       `Cannot read properties of undefined (reading 'length')`（Alpine 的
-       x-for 在宿主 x-if 拆除子树时重入 reconcile）。`x-show` 只切
-       `display`，不动 x-for 的生命周期，因此没有这个问题。
-       首帧闪现不存在：`<template x-if>` 的内容在 Alpine 克隆前是 inert 的。 -->
+       也触发整树销毁重建。`x-show` 只切 `display`，不动 x-for 的生命周期。 -->
   <template x-if="deviceType !== 'mobile'">
     <div
       class="entry-rail"
@@ -87,24 +84,17 @@
         @keydown="handleKeydown($event)"
       >
         <!-- 坞槽位：**只保留图标**，名称走 title tooltip -->
-        <template x-for="entry in slots" :key="entry.key">
+        <template x-for="entry in slots" :key="entryKey(entry)">
           <button
             type="button"
             class="entry-rail__slot"
-            :class="[statusClass(entry), { 'is-disabled': !entry.enabled, 'is-active': activeKey === entry.key, 'is-dragging': draggingKey === entry.key, 'is-drop-target': dragOverKey === entry.key }]"
-            :data-entry-key="entry.key"
+            :class="[statusClass(entry), { 'is-disabled': !entry.enabled, 'is-active': activeKey === entryKey(entry) }]"
+            :data-entry-key="entryKey(entry)"
             :tabindex="tabIndexFor(entry)"
-            :title="entry.enabled ? (entry.description || entry.label) : entry.disabledHint"
+            :title="menuNodeHint(entry)"
             :aria-label="entry.label"
             :aria-disabled="entry.enabled ? 'false' : 'true'"
-            draggable="true"
-            @click="entry.enabled ? open(entry.key) : onDisabledClick(entry)"
-            @contextmenu.prevent="togglePin(entry)"
-            @dragstart="onSlotDragStart(entry, $event)"
-            @dragover="onSlotDragOver(entry, $event)"
-            @dragleave="onSlotDragLeave(entry)"
-            @dragend="onSlotDragEnd()"
-            @drop="onSlotDrop(entry, $event)"
+            @click="entry.enabled ? open(entry) : onDisabledClick(entry)"
           >
             <span class="entry-rail__icon" x-html="buildIcon(entry).outerHTML"></span>
 
@@ -123,12 +113,12 @@
           </button>
         </template>
 
-        <!-- 空态：还没有任何固定入口 -->
+        <!-- 空态：全部 dock 贡献都进了溢出菜单 -->
         <template x-if="!slots.length">
           <p class="entry-rail__empty" x-show="expanded">暂无固定入口</p>
         </template>
 
-        <!-- 溢出菜单入口 -->
+        <!-- 溢出菜单入口（「更多」） -->
         <template x-if="overflow.length">
           <button
             type="button"
@@ -149,9 +139,6 @@
         开合箭头：放在 `__panel` **之外**，与浮层并列。
         这样浮层无论展开还是收起，箭头都钉在右边缘垂直居中的同一位置，
         点击目标不会在展开瞬间移动；浮层则向左长出。
-
-        hover 展开要挂在箭头**自己**身上：热区是它的兄弟节点且有重叠，
-        指针落在箭头（绘制在上）时热区收不到 `mouseenter`。
       -->
       <button
         type="button"
@@ -166,7 +153,6 @@
         <svg class="ui-icon ui-icon--sm" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
           <use href="/static/icons/ui.svg#icon-chevron-right"></use>
         </svg>
-        <!-- 入口数量数字标：让收起态也能一眼看出坞里有多少入口 -->
         <span
           class="entry-rail__toggle-count"
           x-show="entryCount > 0"
@@ -175,7 +161,7 @@
         ></span>
       </button>
 
-      <!-- 溢出菜单弹层 -->
+      <!-- 溢出菜单弹层（「更多」）：搜索 + 按插件分组 -->
       <template x-if="overflowOpen">
         <div
           class="entry-overflow"
@@ -200,14 +186,14 @@
             <template x-for="group in overflowGroups" :key="group.pluginId">
               <section class="entry-overflow__group">
                 <h4 class="entry-overflow__group-title" x-text="group.pluginId || '宿主'"></h4>
-                <template x-for="entry in group.items" :key="entry.key">
+                <template x-for="entry in group.items" :key="entryKey(entry)">
                   <div class="entry-overflow__item">
                     <button
                       type="button"
                       class="entry-overflow__action"
                       :class="{ 'is-disabled': !entry.enabled }"
-                      :title="entry.enabled ? (entry.description || entry.label) : entry.disabledHint"
-                      @click="entry.enabled ? open(entry.key) : onDisabledClick(entry)"
+                      :title="menuNodeHint(entry)"
+                      @click="entry.enabled ? open(entry) : onDisabledClick(entry)"
                     >
                       <span class="entry-overflow__icon" x-html="buildIcon(entry).outerHTML"></span>
                       <span class="entry-overflow__text">
@@ -219,13 +205,6 @@
                         ></span>
                       </span>
                     </button>
-                    <button
-                      type="button"
-                      class="entry-overflow__pin"
-                      title="固定到坞"
-                      aria-label="固定到坞"
-                      @click="togglePin(entry)"
-                    >＋</button>
                   </div>
                 </template>
               </section>
@@ -252,13 +231,13 @@
           <button type="button" class="entry-sheet__close" aria-label="关闭" @click="collapse()">×</button>
         </header>
         <div class="entry-sheet__body">
-          <template x-for="entry in entries" :key="entry.key">
+          <template x-for="entry in entries" :key="entryKey(entry)">
             <button
               type="button"
               class="entry-sheet__item"
               :class="{ 'is-disabled': !entry.enabled }"
-              :title="entry.enabled ? (entry.description || entry.label) : entry.disabledHint"
-              @click="entry.enabled ? (open(entry.key), collapse()) : onDisabledClick(entry)"
+              :title="menuNodeHint(entry)"
+              @click="entry.enabled ? (open(entry), collapse()) : onDisabledClick(entry)"
             >
               <span class="entry-sheet__icon" x-html="buildIcon(entry).outerHTML"></span>
               <span x-text="entry.label"></span>

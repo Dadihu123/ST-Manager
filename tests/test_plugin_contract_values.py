@@ -6,6 +6,8 @@
 2. 设计文档里出现对应的**人类可读描述**（防止改了代码不更新文档）。
 
 任何一处漂移都会失败——这是「文档是唯一事实来源」在数值上的落地。
+v2 时代的限值（安装器/作业/SSE/密钥）仍以旧设计文档为事实源；
+v3 新增的契约版本与贡献容量以 `docs/2026-10-21-plugin-contract-v3-design.md` 为准。
 """
 
 import os
@@ -17,10 +19,12 @@ if PROJECT_ROOT not in sys.path:
 
 from core.plugins import api as api_module
 from core.plugins import catalog as catalog_module
+from core.plugins import contract as contract_module
 from core.plugins import installer as installer_module
 from core.plugins import job_store, jobs
 
 DESIGN_DOC = os.path.join(PROJECT_ROOT, 'docs', '2026-09-22-plugin-system-design.md')
+DESIGN_DOC_V3 = os.path.join(PROJECT_ROOT, 'docs', '2026-10-21-plugin-contract-v3-design.md')
 
 
 def _doc_text() -> str:
@@ -28,8 +32,109 @@ def _doc_text() -> str:
         return handle.read()
 
 
+def _doc_text_v3() -> str:
+    with open(DESIGN_DOC_V3, 'r', encoding='utf-8') as handle:
+        return handle.read()
+
+
 def _assert_documented(fragment: str) -> None:
     assert fragment in _doc_text(), f'设计文档缺少对应描述: {fragment!r}'
+
+
+def _assert_v3_documented(fragment: str) -> None:
+    assert fragment in _doc_text_v3(), f'v3 设计文档缺少对应描述: {fragment!r}'
+
+
+# ------------------------------------------------------------------ 契约版本（S1）
+
+
+def test_plugin_api_version_is_three():
+    from core.version import PLUGIN_API_VERSION, SUPPORTED_PLUGIN_API_VERSIONS
+
+    assert PLUGIN_API_VERSION == 3
+    assert SUPPORTED_PLUGIN_API_VERSIONS == (3,)
+    _assert_v3_documented('| `api_version` | `3` |')
+    _assert_v3_documented('`manifest_version` / `api_version` 不在 `(3,)`')
+
+
+def test_manifest_api_versions_agree_with_core_version():
+    """S1：`core/version.py` 与 `contract.py` 的版本常量必须一致（两处不能漂移）。"""
+    from core.version import (
+        PLUGIN_API_VERSION,
+        SUPPORTED_PLUGIN_API_VERSIONS,
+    )
+    from core.plugins import contract as contract
+
+    assert contract.API_VERSION == PLUGIN_API_VERSION
+    assert contract.SUPPORTED_API_VERSIONS == SUPPORTED_PLUGIN_API_VERSIONS
+    assert contract.MANIFEST_VERSION == 3
+    assert contract.SUPPORTED_MANIFEST_VERSIONS == (3,)
+
+
+def test_supported_manifest_versions_match_docs():
+    from core.plugins.manifest import (
+        DEFAULT_MANIFEST_VERSION,
+        SUPPORTED_MANIFEST_VERSIONS,
+    )
+
+    assert DEFAULT_MANIFEST_VERSION == 3
+    assert SUPPORTED_MANIFEST_VERSIONS == (3,)
+    _assert_v3_documented('| `manifest_version` | `3` |')
+
+
+# ------------------------------------------------------------------ 贡献容量 / 落点
+
+
+def test_contribution_limits_match_docs():
+    assert contract_module.MAX_MENU_NODES_PER_PLUGIN == 64
+    assert contract_module.MAX_MENU_DEPTH == 3
+    assert contract_module.MAX_COMMANDS_PER_PLUGIN == 32
+    assert contract_module.MAX_SLOTS_PER_PLUGIN == 16
+    assert contract_module.MAX_DOCK_SLOTS == 8
+    assert contract_module.MAX_DOCK_PER_PLUGIN == 2
+    _assert_v3_documented('单插件菜单节点上限 **64**（含子节点）')
+    _assert_v3_documented('菜单树最大深度 **3**')
+    _assert_v3_documented('全局 8 个槽位，单插件最多 2 个')
+    _assert_v3_documented('64 节点、深度 3、dock 2/8、命令 32、插槽 16')
+
+
+def test_menu_placements_match_docs():
+    expected = (
+        'context.folder',
+        'context.card',
+        'context.footer',
+        'batch.actions',
+        'commandPalette',
+        'dock',
+        'settings.nav',
+    )
+
+    assert contract_module.MENU_PLACEMENTS == expected
+    for placement in expected:
+        _assert_v3_documented(f'| `{placement}` |')
+
+
+def test_slots_match_docs():
+    expected = (
+        'settings.section',
+        'header.actions',
+        'card.detail.tabs',
+        'page.cards.toolbar',
+        'page.worldinfo.toolbar',
+    )
+
+    assert contract_module.SLOT_NAMES == expected
+    for slot in expected:
+        _assert_v3_documented(f'| `{slot}` |')
+    _assert_v3_documented('`empty.<mode>`')
+
+
+def test_capability_bits_match_docs():
+    assert contract_module.CAPABILITY_UI_CUSTOM == 'ui.custom'
+    assert contract_module.CAPABILITY_UI_GLOBAL_STYLES == 'ui.global_styles'
+    assert 'ui.custom' in contract_module.KNOWN_CAPABILITIES
+    assert 'ui.global_styles' in contract_module.KNOWN_CAPABILITIES
+    _assert_v3_documented('`ui.custom` `ui.global_styles`')
 
 
 # ------------------------------------------------------------------ 安装器限值
@@ -142,34 +247,6 @@ def test_secret_backup_generations_matches_docs():
 
     assert secrets_module.BACKUP_GENERATIONS == 3
     _assert_documented('3 代')
-
-
-def test_supported_api_versions_match_docs():
-    from core.version import PLUGIN_API_VERSION, SUPPORTED_PLUGIN_API_VERSIONS
-
-    assert PLUGIN_API_VERSION == 2
-    assert SUPPORTED_PLUGIN_API_VERSIONS == (2, 1)
-    _assert_documented('当前 `{2, 1}`')
-
-
-def test_supported_manifest_versions_match_docs():
-    from core.plugins.manifest import (
-        DEFAULT_MANIFEST_VERSION,
-        SUPPORTED_MANIFEST_VERSIONS,
-    )
-
-    assert DEFAULT_MANIFEST_VERSION == 1
-    assert SUPPORTED_MANIFEST_VERSIONS == (2, 1)
-    _assert_documented('当前 `{2, 1}`')
-
-
-def test_entry_contract_limits_match_docs():
-    from core.plugins.entries import MAX_DOCK_SLOTS, MAX_ENTRIES_PER_PLUGIN
-
-    assert MAX_ENTRIES_PER_PLUGIN == 16
-    assert MAX_DOCK_SLOTS == 8
-    _assert_documented('上限 **16** 项')
-    _assert_documented('上限 **8**')
 
 
 # ------------------------------------------------------------------ 归档 URL 形式

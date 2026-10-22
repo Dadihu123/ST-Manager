@@ -1,6 +1,6 @@
 {
-  "schema_version": 2,
-  "updated_at": "2026-10-11T16:40:00Z",
+  "schema_version": 3,
+  "updated_at": "2026-10-21T00:00:00Z",
   "plugins": [
     {
       "id": "stm-ai-assistant",
@@ -23,10 +23,10 @@
         "release_channel": "stable",
         "sha256": ""
       },
-      "version": "0.2.0",
-      "api_version": 2,
+      "version": "0.3.0",
+      "api_version": 3,
       "min_app_version": "1.0.0",
-      "permissions": [
+      "capabilities": [
         "cards.read",
         "cards.write",
         "worldbook.read",
@@ -60,10 +60,12 @@
         "release_channel": "stable",
         "sha256": ""
       },
-      "version": "0.1.0",
-      "api_version": 2,
+      "version": "0.4.0",
+      "api_version": 3,
       "min_app_version": "1.0.0",
-      "permissions": [],
+      "capabilities": [
+        "ui.custom"
+      ],
       "homepage": "https://github.com/Dadihu123/ST-Manager-Pet"
     }
   ]

@@ -1547,6 +1547,34 @@ export default function cardGrid() {
       window.dispatchEvent(new CustomEvent("open-detail", { detail: card }));
     },
 
+    /**
+     * 角色卡右键菜单（v3 `context.card` 落点）。
+     *
+     * 复用 `sidebar.js` 的 `show-context-menu` 通道（`contextMenu.js` 消费）：
+     * 事件带 `type: "card"` 与整张卡片的快照，`contextMenu.js` 据此构造
+     * `{mode, target: {type:'card', id, name, path}, selection}` 上下文；
+     * 插件节点由注册表按 `context.card` 落点求值后渲染。
+     *
+     * 注意：不直接调用插件表面，也不 import 运行时——渲染层只负责"把菜单叫出来"，
+     * 真正的触发由 `contextMenu.js` 派发 `contribution:trigger`（S4）。
+     */
+    showCardContextMenu(event, card) {
+      if (!event || !card) return;
+      event.preventDefault?.();
+      event.stopPropagation?.();
+      window.dispatchEvent(
+        new CustomEvent("show-context-menu", {
+          detail: {
+            x: event.clientX,
+            y: event.clientY,
+            type: "card",
+            target: String(card.id || ""),
+            targetCard: card,
+          },
+        }),
+      );
+    },
+
     toggleSelection(card) {
       let ids = [...this.selectedIds];
       if (ids.includes(card.id)) {

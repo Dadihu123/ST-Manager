@@ -262,13 +262,13 @@ def test_subscribers_share_one_watcher():
 def test_alpine_effect_bridges_multi_writer_fields():
     """`batchProgress` / `indexStatus` 有多个写入点，走响应式观察而非逐个补事件。"""
     source = read_source(HOST_PATH)
-    registry = read_source('static/js/entryRegistry.js')
+    registry = read_source('static/js/contributionRegistry.js')
 
     assert 'alpine.effect(' in source
-    # 与 entryRegistry 对 viewState.selectedIds 的既有判断同源
+    # 与 contributionRegistry 对 viewState.selectedIds 的既有判断同源（v3 顶替 entryRegistry）
     assert 'installAlpineWatcher' in source
     assert 'alpine:initialized' in source
-    assert 'Alpine.effect' in registry or 'alpine.effect' in registry
+    assert 'alpine.effect(' in registry
 
 
 def test_host_exposes_shared_store_accessor():

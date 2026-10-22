@@ -1715,6 +1715,39 @@
   background: var(--state-hover-surface);
 }
 
+/* 深度 3 子菜单在浮层内折叠（设计 §4.4.4 深度 ≤ 3，不再开新浮层）。 */
+.plugin-menu-flyout-details {
+  display: flex;
+  flex-direction: column;
+}
+
+.plugin-menu-flyout-details > summary {
+  list-style: none;
+  cursor: pointer;
+}
+
+.plugin-menu-flyout-details > summary::-webkit-details-marker {
+  display: none;
+}
+
+.plugin-menu-flyout-details > summary::after {
+  content: "›";
+  margin-left: auto;
+  color: var(--content-muted);
+  font-size: 0.875rem;
+  line-height: 1;
+}
+
+.plugin-menu-flyout-details[open] > summary::after {
+  content: "⌄";
+}
+
+.plugin-menu-flyout-details > .plugin-menu-flyout-item {
+  margin-left: 1rem;
+  padding-left: 0.5rem;
+  border-left: 1px solid var(--border-subtle);
+}
+
 /* Supporting readers and history surfaces -------------------------------- */
 .ui-refresh-surface .forum-preview-panel {
   max-height: min(88dvh, 52rem);

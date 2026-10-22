@@ -119,16 +119,23 @@ def test_bundled_catalog_lists_official_ai_assistant():
     assert entry['source']['type'] == 'github'
     # source.repo 必须是 owner/repo（防 SSRF，catalog 不接受任意 URL）
     assert catalog_module.REPO_PATTERN.match(entry['source']['repo'])
-    assert entry['api_version'] == 2
+    assert entry['api_version'] == 3
+    # 能力披露取代 v2 的 permissions：官方 AI 助手的能力位与旧权限一一对应
+    assert entry['capabilities'] == [
+        'cards.read', 'cards.write',
+        'worldbook.read', 'worldbook.write',
+        'tags.read', 'tags.write',
+        'secrets.read', 'network.outbound', 'jobs.run',
+    ]
+    assert 'permissions' not in entry, 'v3 catalog 不再有 permissions 键'
 
 
 def test_bundled_catalog_lists_official_pet():
     """官方桌面宠物插件必须在包内清单里，且 tier = official。
 
     与 AI 助手同一条信任模型：`tier` 只能由宿主仓库的 catalog 决定。
-    该插件声明**零权限**（不读卡片/世界书/标签、不联网、不跑作业），
-    因此这里同时钉住「permissions 为空」——权限清单是安装前披露给用户的
-    依据（S8），多写一项就等于谎报。
+    该插件走自绘渲染（`render_mode: custom`），因此能力位只有 `ui.custom`；
+    这里钉住「catalog 不得多写」——能力位是安装前披露给用户的依据。
     """
     bundled = catalog_module.load_bundled_catalog()
     entries = {item['id']: item for item in bundled['plugins']}
@@ -141,9 +148,9 @@ def test_bundled_catalog_lists_official_pet():
     assert entry['source']['type'] == 'github'
     assert catalog_module.REPO_PATTERN.match(entry['source']['repo'])
     assert entry['source']['ref'] == 'main'
-    assert entry['api_version'] == 2
+    assert entry['api_version'] == 3
     assert entry['min_app_version'] == '1.0.0'
-    assert entry['permissions'] == [], '该插件不声明任何权限，catalog 不得多写'
+    assert entry['capabilities'] == ['ui.custom']
     assert entry['homepage'] == 'https://github.com/Dadihu123/ST-Manager-Pet'
     # 归档结构：仓库根目录直接含 manifest.json（无需 subdir）
     assert entry['source']['subdir'] == ''
@@ -175,16 +182,18 @@ def test_tier_for_plugin_resolves_official_from_bundled_catalog():
     assert catalog_module.tier_for_plugin('nope-not-installed') == 'community'
 
 
-def test_official_tier_keeps_all_entry_kinds_available():
-    """official tier 下 dock/nav/settings/context/command/status 全部准入（D5）。"""
-    from core.plugins.entries import entry_kind_allowed  # noqa: PLC0415
+def test_tier_is_disclosure_only():
+    """ADR-0008：tier 只做信任披露，不再限制贡献类型。
 
-    for kind in ('dock', 'nav', 'settings', 'context', 'command', 'status'):
-        assert entry_kind_allowed(kind, 'official'), kind
-
-    # 对照：community 下 nav / status 不可用（这正是本插件原先受限的两类）
-    for kind in ('nav', 'status'):
-        assert not entry_kind_allowed(kind, 'community'), kind
+    v2 的「community 不能声明 nav/status」准入规则已随 `entries` 一起删除；
+    这里钉住 tier 归一化行为（未知值按 community）与合法分级集合。
+    """
+    assert catalog_module.PLUGIN_TIERS == ('official', 'verified', 'community')
+    assert catalog_module.DEFAULT_PLUGIN_TIER == 'community'
+    assert catalog_module.normalize_tier('official') == 'official'
+    assert catalog_module.normalize_tier('VERIFIED') == 'verified'
+    assert catalog_module.normalize_tier('unknown-tier') == 'community'
+    assert catalog_module.normalize_tier(None) == 'community'
 
 
 def test_parse_catalog_normalizes_entries():
@@ -251,6 +260,29 @@ def test_parse_catalog_keeps_optional_sha256():
     entry = catalog_module.parse_catalog(payload)['plugins'][0]
 
     assert entry['source']['sha256'] == 'a' * 64
+
+
+def test_parse_catalog_discloses_capabilities_not_permissions():
+    """v3：catalog 用 `capabilities` 披露能力位（取代 v2 的 `permissions`）。"""
+    payload = {'schema_version': 3, 'plugins': [{
+        'id': 'demo-plugin',
+        'source': {'repo': 'owner/demo'},
+        'api_version': 3,
+        'capabilities': ['cards.read', 'ui.custom'],
+    }]}
+
+    entry = catalog_module.parse_catalog(payload)['plugins'][0]
+
+    assert entry['api_version'] == 3
+    assert entry['capabilities'] == ['cards.read', 'ui.custom']
+    assert 'permissions' not in entry
+
+
+def test_bundled_catalog_schema_version_is_three():
+    bundled = catalog_module.load_bundled_catalog()
+
+    assert bundled['schema_version'] == 3
+    assert catalog_module.CATALOG_SCHEMA_VERSION == 3
 
 
 # ------------------------------------------------------------------ 拉取与缓存

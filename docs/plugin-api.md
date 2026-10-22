@@ -6,7 +6,11 @@
 > 契约分级与设计背景见 `docs/2026-09-22-plugin-system-design.md` 第 10 部分；
 > 稳定性变更须先在设计文档中修改，再更新代码与本文档。
 
-覆盖 `core/plugins/api.py` 的 `PluginAPI`（3 个顶层成员 + 63 个域方法）与 `static/js/pluginHost.js` 的 `buildApi()`（30 个顶层成员）。
+覆盖 `core/plugins/api.py` 的 `PluginAPI`（3 个顶层成员 + 63 个域方法）与 `static/js/pluginHost.js` 的 `buildApi()`（29 个顶层成员）。
+
+> **契约版本 v3**：`manifest_version` 与 `api_version` 都固定为 **3**。v2 的 `permissions` 改名 `capabilities`，`frontend.entries[]` 由 `frontend.contributions`（菜单树 / 插槽 / 命令）取代，`api.entries.*` / `api.registerModal` / `api.registerSettingsSection` **已删除**，不保留兼容别名。manifest 形状见 `docs/plugin-manifest.schema.json`，前端类型见 `docs/plugin-api.d.ts`，本机校验见 `tools/stm_plugin_check.py`。
+
+后端能力按**域命名空间**组织；前端在贡献之外还保留 `surfaces` / `ui` / `host` 等稳定通道。v3 新增的三块（`contributions` 运行期接口、`createRoot` 两层、`overlays` 登记）见「贡献」「根节点」「overlays」章节。
 
 ## 后端 `PluginAPI`
 
@@ -230,7 +234,8 @@
 | `store` | Stable | 主程序的 Alpine `global` store 访问器 |
 | `on(event, handler)` / `off()` / `emit()` | Stable | 插件自定义事件（强制 `<id>:` 前缀）。**核心事件（`card.updated` / `scan.completed` 等）走宿主 SSE 流**（`GET /api/plugins/events`）：首次订阅时懒建立，同一插件复用同一条连接；其余事件名走 `window` CustomEvent（行为不变） |
 | `onConfigChange(handler)` | Stable | 订阅本插件的配置变更（D10）；返回取消订阅函数 |
-| `entries.*` | Stable | 入口注册表（D8）：`register` / `update` / `remove` / `setBadge` / `setProgress` / `setStatus` / `setBusy` / `open` / `list` |
+| `contributions.*` | Stable | 贡献树运行期接口（ADR-0015：结构只能静态声明，运行期只允许更新/移除）：`update(id, patch)` / `remove(id)` / `get(id)` / `list()` / `trigger(id, ctx?)`。`patch` 白名单：`label` / `description` / `icon` / `badge` / `progress` / `status` / `enabled` / `disabledHint` / `busy` / `children`（`children` 仅 `submenu`，整组替换）。声明形状见本文「贡献」章节；`api.entries.*` 已删除 |
+| `overlays.*` | Stable | 自绘浮层的**可选**登记（ADR-0007 / 0016）：`register(spec) -> unregister` / `unregister(id)` / `list()` / `closeAll()`。登记后宿主参与 ESC / 焦点 / 遮挡协调；不登记也能运行（只是没有宿主级协调，kill switch 只能靠清 root 回收）。`register` 返回取消函数，停用时务必调用 |
 | `surfaces.*` | Stable | 宿主表面（D8）：`register(id, spec)` / `open(id, ctx)` / `close(id)` / `isOpen(id)`；容器由宿主提供（定位、尺寸、滚动、焦点陷阱、ESC 关闭）。`type: 'ambient'` 是**常驻环境层**（F16）：注册即挂载、非模态、不抢焦点、忽略 ESC、不参与遮罩记账；容器全屏透明且 `pointer-events: none`，**其中的可交互子元素必须自行取回 `pointer-events: auto`**（该属性可继承）；被遮挡时宿主加 `is-host-occluded`；移动端不挂载 |
 | `ui.*` | Stable | 宿主 UI 原语（D8）：`icon` / `panel` / `section` / `card` / `field` / `form` / `button` / `toolbar` / `empty` / `error` / `loading` / `badge` / `list` / `table` / `grid` / `split` / `confirm` / `prompt` |
 | `storage.*` | Stable | 插件键值存储（`ui_data._plugins_v1.<id>.storage`）：`get` / `set` / `remove` / `keys` |
@@ -242,15 +247,381 @@
 | `switchMode(mode)` | Stable | 切换主视图模式（旧名，委托到 `host.switchMode`） |
 | `openSettingsSection(section, anchor)` | Stable | 跳转设置页锚点（旧名，委托到 `host.openSettingsSection`） |
 | `registerAlpineComponent(name, factory)` | Stable | 注册 Alpine 组件（名称自动加 `<id>_` 前缀） |
-| `registerModal(spec)` | Deprecated | 注册模态框；改用 `entries.register()` + `surfaces.register()` |
-| `registerSettingsSection(spec)` | Deprecated | 在设置页注册区块；改用 `entries.register({ kind: 'settings' })` |
 | `subscribeJob(runId, handlers)` | Stable | 订阅作业进度（SSE + 轮询降级） |
 | `estimateTokens(text)` | Stable | 复用主程序的分词估算 |
 | `setFullscreenScrim(open, owner)` | Stable | 声明全屏遮罩已打开/关闭（宿主据此关掉页面壳的 backdrop-filter，避免 Chromium 画出黑块） |
 | `utils.*` | Provisional | `toAbsoluteAssetUrl` / `parseSSEFrames` / `parseSSEPayload` / `resolveIconUrl` / `formatDate` |
 | `jobs.*` | Provisional | `get` / `list` / `submit` / `cancel` / `pause` / `resume` / `retry` / `open` / `review` / `reviewBatch`。`review(runId, itemKey, status)` 审批单个作业条目；`reviewBatch(runId, updates)` 逐条审批并返回 `{total, failed}`（单条失败不影响其余条目） |
 | `worldbook.sources(options)` | Stable | 列出世界书来源（文件级）：`{source_type, file_path, card_id, category, name, entry_count}`。数据取自世界书视图的列表缓存（`store.wiList`），因此**只覆盖当前已加载的条目**；需要全量时用 `api.index.search("", {scope: "worldinfo"})`。`options.category` 按路径段过滤（含子分类），`options.sourceType` 取 `global` / `resource` / `embedded`。注意这是**前端**同名命名空间，与后端 `api.worldbook.*`（Python 侧读写域）不是同一个对象 |
-| `createRoot(tag)` | Stable | 创建带 `data-plugin="<id>"` 的挂载容器 |
+| `createRoot(options)` | Stable | 创建插件根节点（宿主创建、跟踪并**强制回收**；插件只能往里挂内容）：`createRoot()` / `createRoot('section')` / `createRoot({ portal: true })`。返回元素带 `data-plugin="<id>"`；内容层挂宿主内容带，`portal: true` 挂 body 级 portal 层（自绘浮层用）。两层都 `position: fixed; inset: 0; pointer-events: none`，其中的可交互子元素必须自行 `pointer-events: auto`。详见「根节点」章节 |
+## 贡献（menus / slots / commands）
+
+v3 里插件扩展宿主界面**只有三种原语**（ADR-0009 / 0015）：菜单树、插槽、命令。
+结构必须**静态声明**在 manifest 的 `frontend.contributions` 里；运行期只能
+`api.contributions.update()` / `remove()`（不能新增结构，也不能改节点类型）。
+这是为了让宿主在**安装期**就能校验、排序、折叠，并在插件崩溃时安全回收。
+
+清单形状与校验规则见 `docs/plugin-manifest.schema.json`（生成物），
+本机自检用 `python tools/stm_plugin_check.py <插件目录>`。
+
+### 菜单树（`contributions.menus[]`）
+
+菜单是「根节点列表 + 显式树」：根节点带 `placement`，子节点放在 `children` 里
+（v2 的隐式 `group` 由显式 `submenu` 取代；`menu` / `card` / `group` 这些 v2 `kind`
+已删除）。`separator` 只有 `id` / `type`（根节点另需 `placement`）。
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `id` | `string` | 根节点与子节点都必填；`^[a-z][a-z0-9-]{0,63}$`，插件内唯一 |
+| `placement` | `string` | **仅根节点必填**，取值见落点表；子节点禁止（写了会被丢弃） |
+| `type` | `"item" \| "submenu" \| "separator"` | 节点类型 |
+| `label` | `string` | `item` / `submenu` 必填；`separator` 不使用 |
+| `description` | `string` | 命令面板与悬浮提示使用 |
+| `icon` | `string` | 宿主图标名，或插件内相对资源路径（如 `frontend/assets/icon.svg`） |
+| `order` | `number` | 升序建议值，默认 100；宿主只当建议 |
+| `when` | `object` | 声明式显示条件，见下表 |
+| `badge` | `string \| number` | 静态徽标；动态值用 `api.contributions.update()` |
+| `disabledHint` | `string` | 被 `when` 拦下时展示的提示 |
+| `action` | `object` | `item` 必填；见 action 表 |
+| `children` | `array` | `submenu` 必填；子节点字段同上（不含 `placement`） |
+
+| 约束 | 值 |
+|---|---|
+| 单插件菜单节点总数（含子节点） | `64`，超出截断 + 警告 |
+| 最大嵌套深度（含根节点） | `3`，孙节点不能再当 `submenu` |
+| `order` 默认值 | `100` |
+| `dock` 落点单插件上限 | `2`（超出的进坞栏「更多」浮层） |
+| 宿主坞栏总槽位 | `8` |
+
+#### 落点（`placement`，仅根节点）
+
+| 落点 | 宿主位置 | 上下文 `ctx` | 备注 |
+|---|---|---|---|
+| `context.folder` | 文件夹 / 分类右键菜单 | `{mode, target: {type: "folder", id, name}, selection}` | 移动端使用长按菜单 |
+| `context.card` | 卡片右键菜单 | `{mode, target: {type: "card", id, name}, selection}` | 需要宿主为卡片网格补右键入口 |
+| `context.footer` | 右键菜单尾部分区 | 同 `context.card` | 渲染在分隔线之后 |
+| `batch.actions` | 批量操作菜单 / 选中栏动作 | `{mode, selection}` | 选中数量由宿主提供 |
+| `commandPalette` | 命令面板（Ctrl+K） | `{mode, selection}` | 通常是 `action.type: "command"` 的项 |
+| `dock` | 左侧 / 顶部坞栏按钮 | `{mode}` | 支持 `badge` / `progress` / `status` / `busy` 动态更新 |
+| `settings.nav` | 设置页导航项 | `{}` | 通常 `action.type: "surface"` 打开插件设置 |
+
+移动端：宿主渲染的落点自动适配（折叠进「更多」/ 长按菜单）；**自绘插件自行适配**。
+
+#### `action`
+
+| `action.type` | 必需字段 | 说明 |
+|---|---|---|
+| `surface` | `id` | 打开插件注册的 surface（`api.surfaces.register`；安装期只校验格式） |
+| `command` | `id` | 触发 `contributions.commands[]` 里的命令（安装期校验存在性） |
+| `url` | `url` | 浏览器新标签页打开 http(s) 链接 |
+
+`command` 必须引用 `contributions.commands[]` 里声明过的命令 id
+（`stm-plugin-check` 会做存在性检查）；`url` 只接受 `http` / `https`。
+
+#### `when`（声明式显示条件）
+
+根节点与子节点都可以带 `when`；**全部条件 AND**。条件不满足时节点不渲染，
+而不是渲染成置灰项（置灰用运行期 `enabled: false` / `disabledHint`）。
+
+| 键 | 类型 | 说明 |
+|---|---|---|
+| `mode` | `string[]` | 命中任一工作模式即成立 |
+| `selection` | `"none" \| "any" \| "single" \| "multi"` | 当前选中集状态 |
+| `config` | `{requireKeys: string[]}` | 这些配置键都存在且非空 |
+| `hostVersion` | `string` | 主程序版本门槛（普通语义化版本，主程序 ≥ 该版本时成立） |
+| `feature` | `string[]` | 宿主 feature flag 全部开启 |
+| `indexState` | `"idle" \| "running"` | 索引作业状态 |
+
+`when` 每帧求值一次（模式 / 选中集变化后由宿主重新计算），不要在 `when` 里做
+任何有副作用的判断；需要动态数据时用 `api.contributions.update()` 更新字段。
+
+#### 示例
+
+```json
+"contributions": {
+  "menus": [
+    {
+      "id": "workbench",
+      "placement": "dock",
+      "type": "item",
+      "label": "工作台",
+      "icon": "wand",
+      "order": 40,
+      "action": { "type": "command", "id": "open-workbench" }
+    },
+    {
+      "id": "ai-assistant",
+      "placement": "batch.actions",
+      "type": "submenu",
+      "label": "AI 助手",
+      "when": { "mode": ["cards"], "selection": "single" },
+      "children": [
+        { "id": "analyze", "type": "item", "label": "分析选中卡片",
+          "action": { "type": "command", "id": "analyze-selected" } },
+        { "id": "divider", "type": "separator" }
+      ]
+    }
+  ]
+}
+```
+
+### 插槽（`contributions.slots[]`）
+
+宿主在固定锚点留一个容器，插件模块向容器里渲染内容（v2 的 `registerSettingsSection`
+由 `settings.section` 插槽取代）。渲染器是普通模块，**不经过** `api.surfaces`：
+宿主负责容器定位与回收，插件只负责填内容。
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `id` | `string` | 插件内唯一（`^[a-z][a-z0-9-]{0,63}$`） |
+| `slot` | `string` | 命名插槽或 `empty.<mode>` 空状态插槽，见下表 |
+| `title` | `string` | 可选；插槽容器需要标题时使用 |
+| `order` | `number` | 升序建议值，默认 100 |
+| `when` | `object` | 同上 |
+| `module` | `string` | 渲染器模块路径（相对插件根目录，ES module） |
+| `export` | `string` | 模块里的导出名，必须是函数 |
+
+导出签名：
+
+```js
+// frontend/views/settingsSection.js
+export function mountSettingsSection(container, ctx) {
+  container.textContent = `当前模式：${ctx.mode}`;
+  // 可选：返回清理函数，插槽卸载 / 插件停用时调用
+  return () => { container.textContent = ""; };
+}
+```
+
+`ctx` 至少包含 `{api, pluginId, slot, mode, target, selection}`（完整形状见
+`docs/plugin-api.d.ts` 的 `SlotContext`）。渲染器抛错会被宿主捕获并只降级该插槽，
+不影响其他插件。
+
+| 插槽 | 宿主位置 | 上下文 `ctx` | 备注 |
+|---|---|---|---|
+| `settings.section` | 设置页内容区 | `{config}` | 把插件设置内联到宿主设置页 |
+| `header.actions` | 顶栏动作区 | `{mode}` | 移动端折叠进「更多」 |
+| `card.detail.tabs` | 卡片详情页标签页 | `{target: {type: "card", id}}` | 适合详情页自绘面板 |
+| `page.cards.toolbar` | 角色卡视图工具栏 | `{mode, selection}` |  |
+| `page.worldinfo.toolbar` | 世界书视图工具栏 | `{mode, selection}` |  |
+| `empty.<mode>` | 各视图空状态区 | `{mode}` | `<mode>` ∈ 8 个工作模式，如 `empty.cards` |
+
+单插件最多 `16` 个插槽；同一插槽可以注册多个渲染器，
+按 `order` 排序渲染。
+
+### 命令（`contributions.commands[]`）
+
+命令是「可被多处触发的动作」：菜单 action、命令面板（`commandPalette`）、
+快捷键都指向同一条命令。命令处理器与插槽一样是普通模块导出，**不占用**
+`api.surfaces` 的容器。
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `id` | `string` | 插件内唯一；菜单 action 用它引用 |
+| `title` | `string` | 必填，命令面板展示 |
+| `description` | `string` | 可选 |
+| `icon` | `string` | 可选，解析规则同菜单 |
+| `shortcut` | `string` | 形如 `Ctrl+Shift+D`；**必须含 `Ctrl` / `Alt` / `Meta` 之一**，同插件内不得重复 |
+| `when` | `object` | 同上；条件不满足时命令不可触发 |
+| `module` | `string` | 处理器模块路径 |
+| `export` | `string` | 模块里的导出名，必须是函数 |
+
+```js
+// frontend/commands.js
+export async function openWorkbench(ctx) {
+  const root = ctx.api.createRoot({ portal: true });
+  // …渲染面板…
+}
+```
+
+`ctx` 形状见 `docs/plugin-api.d.ts` 的 `CommandContext`；`ctx.trigger.kind` 是
+`menu` / `palette` / `shortcut`，可用于埋点。命令执行抛错只影响该次调用。
+
+单插件最多 `32` 条命令。
+
+### 能力位（`capabilities`）
+
+v3 把 v2 的 `permissions` 改名为 `capabilities`：它是一份**披露**，不是强制拦截。
+宿主在插件管理器展示「此插件会读写卡片」「此插件会修改全局样式」，
+由用户决定是否启用；运行期不做逐调用鉴权（保持 v2 的信任模型，见设计 §4.7）。
+
+| 分组 | 能力位 |
+|---|---|
+| 数据 | `cards.read` / `cards.write` / `worldbook.read` / `worldbook.write` / `tags.read` / `tags.write` / `chats.read` / `chats.write` / `presets.read` / `presets.write` |
+| 运行时 | `secrets.read` / `network.outbound` / `jobs.run` / `hooks.subscribe` / `cli.run` |
+| UI | `ui.custom` / `ui.global_styles` |
+
+两个 UI 能力位有额外一致性要求（`stm-plugin-check` 会检查）：
+
+- `ui.global_styles`：声明 `frontend.global_styles` 时必须同时声明它；
+  声明了它但没写 `global_styles` 只是「预留」，不报错。
+- `ui.custom`：`frontend.render_mode: "custom"` 时必须声明它；
+  声明了它但 `render_mode` 是 `declarative` 不报错（插件可能只在部分界面自绘）。
+
+未知能力位：宿主**保留并标注「未知名」**（便于用户看到插件在用新能力），
+`stm-plugin-check` 严格模式只警告，不失败——这样新能力位可以先于宿主版本落地。
+
+### 渲染模式（`frontend.render_mode`）
+
+| 取值 | 说明 |
+|---|---|
+| `declarative`（默认） | 插件主要用 `contributions` + `api.ui` 原语，界面由宿主渲染 |
+| `custom` | 插件自绘界面（`api.createRoot` / `api.overlays`），需声明 `ui.custom` |
+
+`custom` 不是「绕过契约」：自绘插件仍必须遵守 CSS 作用域、根节点生命周期、
+kill switch 回收；只是内容由插件自己画。官方插件走推荐通道（ADR-0010），
+自绘属于登记在案的例外。
+
+## 根节点 `api.createRoot`（内容层 / portal 层）
+
+自绘插件**不能**直接往 `document.body` 或宿主页面里插节点：必须通过
+`api.createRoot()` 让宿主创建并跟踪根节点。宿主在插件停用 / 卸载 / kill switch 时
+统一清空并移除这些根节点，这是崩溃隔离与资源回收的基础。
+
+```js
+export function activate(api) {
+  const inline = api.createRoot();                  // 内容层，<div data-plugin="demo-plugin">
+  const panel = api.createRoot({ portal: true });   // portal 层，body 级
+  const button = api.createRoot("button");          // 指定标签名
+  button.type = "button";
+  button.textContent = "打开";
+  inline.appendChild(button);
+  inline.style.pointerEvents = "auto";              // 需要交互时自行取回
+
+  return () => { /* 宿主会回收 root，这里只清自己的定时器/监听 */ };
+}
+```
+
+| 项 | 内容层（默认） | portal 层（`portal: true`） |
+|---|---|---|
+| 挂载位置 | 宿主内容带 | body 直接子元素 |
+| 用途 | 插件在宿主页面内的自绘内容 | 浮层 / 弹层 / 菜单 |
+| 层叠位置 | 宿主内容之上、宿主模态之下 | 宿主模态之上、宿主提示 / 告警之下 |
+| 建议 token | `--z-plugin-content` | `--z-plugin-portal` |
+
+两层的容器都是 `position: fixed; inset: 0; pointer-events: none`，**可交互子元素
+必须自行 `pointer-events: auto`**（该属性会继承，所以挂在根节点上会连成一片，
+按需给每个可交互元素加）。
+
+- 返回的根节点带 `data-plugin="<id>"`，CSS 作用域扫描以它为根；
+- 插件只能往里挂内容，**不能替换或移除根节点本身**；
+- 一个插件可以有多个 root，宿主全部跟踪；重复调用不会复用节点；
+- 宿主销毁 root 后，插件继续往旧节点写内容不会报错，但内容不可见（应在清理函数里停掉）。
+
+需要「浮层参与 ESC / 焦点 / 遮挡协调」时，再把元素登记给 `api.overlays`（见下节）。
+
+## overlays 登记（`api.overlays`）
+
+`api.createRoot({ portal: true })` 只解决「挂在哪」，不解决「谁是最上层、ESC 关谁、
+焦点还给谁」。这些需要宿主参与的行为通过 `api.overlays.register()` **可选**登记。
+**不登记也能运行**（宿主不干预，kill switch 只能靠清 root 回收）。
+
+```js
+const root = api.createRoot({ portal: true });
+// …渲染面板…
+const unregister = api.overlays.register({
+  id: "preview",
+  element: root,
+  layer: "popover",
+  modal: true,
+  label: "预览",
+  onDismiss: () => closePreview(),
+});
+// 停用 / 关闭时：
+unregister();
+```
+
+| 方法 | 说明 |
+|---|---|
+| `register(spec) -> () => void` | 登记浮层，返回取消函数 |
+| `unregister(id) -> boolean` | 取消登记 |
+| `list() -> array` | 本插件已登记浮层元数据（不含 DOM 引用） |
+| `closeAll() -> number` | 关闭本插件全部已登记浮层（逐个调用 `onDismiss`），返回数量 |
+
+`spec` 字段：`id`（必填）、`element`（必填，通常是 root 或其子元素）、
+`layer`（建议层级，见下表）、`modal`（是否参与 ESC / 焦点陷阱）、`label`、
+`onDismiss`。
+
+| `layer` | 建议用途 | token |
+|---|---|---|
+| `content` | 页面内插件内容 | `--z-plugin-content` |
+| `ambient` | 常驻环境层（宠物等） | `--z-plugin-ambient` |
+| `surface` | 插件宿主容器 | `--z-plugin-surface` |
+| `dock` | 坞栏浮层 | `--z-plugin-dock` |
+| `popover` | 插件弹层 / 菜单 | `--z-plugin-popover` |
+| `tooltip` | 插件提示 | `--z-plugin-tooltip` |
+| `alert` | 需要立刻被看见的插件告警 | `--z-plugin-alert` |
+
+`layer` 是**建议值**：宿主用它在调试面板展示层级与遮挡关系，不改变插件元素的
+z-index（插件自绘样式自己负责）。宿主自身的提示 / 确认框 / 告警始终在插件之上。
+
+宿主行为：
+
+1. 已登记且 `modal: true` 的浮层：ESC 关闭最上层，关闭后焦点归还给打开前的元素；
+2. `modal: false` 的浮层不参与 ESC / 焦点陷阱，只参与 `list()` 与 kill switch；
+3. **kill switch** 关闭该插件全部浮层后统一广播 `overlays:force-closed`
+   （`detail = {pluginId}`），插件据此重置自绘 UI 状态。
+
+`api.on("overlays:force-closed", handler)` 走普通 `window` 事件订阅（不是 SSE），
+因为它是宿主 → 插件的本地信号：
+
+```js
+api.on("overlays:force-closed", ({ pluginId }) => {
+  if (pluginId === api.id) resetPanels();
+});
+```
+
+## 共存与 kill switch
+
+多个插件、以及插件与宿主会同时画界面。v3 的共存契约由三部分组成：层级带、
+崩溃隔离、kill switch。完整设计见设计文档 §7。
+
+### 层级带
+
+层叠顺序是**约定**（建议值 + CSS token），不是强制：冲突由插件与用户承担，
+kill switch 与调试面板用于止损。宿主自身的提示 / 确认框 / 告警始终在插件之上。
+
+层级从低到高：`content` < `ambient` < `dock` < `surface` < `popover` < `tooltip` < `alert`
+（含义与 token 见上一节表格）。
+
+### 崩溃隔离
+
+- 贡献渲染、插槽渲染器、命令处理器、overlay 回调中的异常都由宿主捕获：记日志 +
+  用户可感知的错误提示，**不扩散到其他插件**；
+- 同一插件前端异常连续超过阈值（5 次/分钟）→ 标记「降级」，可一键停用；
+  并发派发 `plugin:degraded` 事件；后端不受影响；
+- 不能捕获的情形（如死循环）由浏览器资源限制兜底；kill switch 是最后手段。
+
+### kill switch
+
+入口两个：命令面板「插件：关闭所有浮动界面」、插件管理器页面「关闭所有插件浮层」。
+
+对每个插件依次：
+
+1. 调用已登记浮层的 `onDismiss` 并关闭；
+2. 广播 `overlays:force-closed`（`detail = {pluginId}`）；
+3. 清空并移除该插件的所有 root（内容层 + portal 层）。
+
+**不卸载插件、不停用插件、不丢插件状态。** 未登记的浮层只能被第 3 步回收；
+插件若把节点挂到 root 之外，属于违反契约，宿主不保证回收。
+
+### CSS 作用域与全局样式
+
+- `frontend.styles[]`：选择器必须以 `.plugin-<id>` 或 `[data-plugin="<id>"]` 为根，
+  否则安装失败；宿主注入的插槽容器与 root 都带 `data-plugin`；
+- `frontend.global_styles[]`：免扫描，但**必须**同时声明 `ui.global_styles` 能力位，
+  否则宿主拒绝注入；安装 / 启用时明确提示「此插件会修改全局样式」；
+- 样式注入带 `data-plugin-style="<id>"`，停用 / 卸载时整体移除；
+- 自绘插件同样受作用域约束；想改全局必须走 `global_styles` + 能力位。
+
+安装期 / CI 用 `python tools/stm_plugin_check.py <插件目录>` 做同样的扫描；
+`global_styles` 文件豁免扫描。
+
+### 移动端
+
+- 宿主渲染的落点：宿主负责响应式（折叠进「更多」/ 长按菜单 / 全屏 sheet）；
+- 自绘插件：自行负责；宿主只提供 `api.host.onState().deviceType` 与断点 token，
+  不做降级容器、不替插件隐藏浮层（ADR-0006）。
+
 
 ## 演进承诺
 
@@ -270,13 +641,15 @@
 3. 代码里保留实现，但加 `@deprecated` 注释指向替代写法；调用时记一条 `logger.warning`（后端）或 `console.warn`（前端）。
 4. 至少保留一个主版本后，在下一个主版本移除，并在 `CHANGELOG` 记录。
 
+> v3 是一次**主版本**变更，因此直接删除了 v2 的 `api.entries.*` / `api.registerModal` / `api.registerSettingsSection` 与 manifest 的 `frontend.entries[]` / `permissions`，没有走「先 Deprecated 再移除」流程；迁移对照表见设计文档 §6.5。
+
 ### 图标名
 
-`api.ui.icon(name)` 与 `entries[].icon` 使用的**宿主图标名**整表承诺 `Stable`：
-只增不改，删除或改名走上面的 deprecation 流程。完整清单见 `GET /api/plugins/ui-icons`。
+`api.ui.icon(name)` 与 `contributions.menus[].icon` 使用的**宿主图标名**整表承诺 `Stable`：只增不改，删除或改名走上面的 deprecation 流程。完整清单见 `GET /api/plugins/ui-icons`；生成物 `docs/plugin-manifest.schema.json` 里以描述形式
+标注解析规则，`tools/stm_plugin_check.py` 会校验名字是否存在。
 
 **所有图标位共用一套解析**（`static/js/utils/icons.js` 的 `resolveIcon()`）：
-`api.ui.icon()` / `entries[].icon` / `api.toast()` 的 `icon` 参数取值规则相同 ——
+`api.ui.icon()` / `contributions.menus[].icon` / `api.toast()` 的 `icon` 参数取值规则相同 ——
 不含 `/` 与 `.` 的当作宿主图标名，含 `/` 的当作插件内资源路径。
 宿主图标名走 sprite `<use>` 引用，插件资源路径走 CSS `mask`（插件 SVG 通常是
 填充式、宿主 sprite 是描边式，两者**不可互换**）。
@@ -369,12 +742,10 @@ window.removeEventListener("card-updated", handler);  // 插件销毁时务必�
 `api.on("card.updated", h)` 现在经 SSE 从后端直达（见下节），
 信息比这些 UI 本地信号更完整、更权威。
 
-### 入口与视图类
+### 宿主界面事件
 
 | 事件名 | `detail` | 说明 |
 |---|---|---|
-| `entry:activate` | `{ key, entry }` | 宿主请插件激活某个入口（没有对应 surface 时） |
-| `entry:open` | `{ key }` | 请求宿主打开某个入口 |
 | `switch-mode` | `{ mode }` | 视图模式切换 |
 | `theme-mode-changed` | `{ mode }`（`"dark"` / `"light"`） | 明暗主题切换 |
 | `settings-saved` | `{}` | 主程序设置已保存 |
@@ -392,7 +763,12 @@ window.removeEventListener("card-updated", handler);  // 插件销毁时务必�
 | `plugin:surface-error` | `{ pluginId, surfaceId, error }` | 某 surface 的 `mount()` 抛错 |
 | `plugin-config-changed` | `{ pluginId, config }` | 插件配置变更（也可用 `api.onConfigChange`） |
 | `plugin-secrets-changed` | `{ pluginId, config, removed }` | 插件密钥变更 |
-| `entries:changed` | `{ count }` | 入口注册表变化（也可用 `api.entries.*`） |
+| `contributions:changed` | `{ pluginId? }` | 贡献树或宿主状态（模式 / 选中）变化后重新求值 |
+| `contribution:trigger` | `{ pluginId, nodeId, action, ctx }` | 宿主触发了一个菜单节点（宿主已执行 action） |
+| `overlays:force-closed` | `{ pluginId }` | **kill switch** 已关闭该插件全部已登记浮层并清空 root；插件据此重置自绘 UI 状态 |
+| `plugin:degraded` | `{ pluginId, reason, count }` | 某插件前端异常次数超阈值被标记「降级」（可一键停用；后端不受影响） |
+
+> `entries:changed` 是 v2 遗留名，v3 已删除，改用 `contributions:changed`。
 
 ### 后端核心事件（经 SSE，**推荐**）
 
@@ -449,9 +825,48 @@ reducedMotion, visible}`。
 首次订阅**立即**收到一次快照，之后变化时推送（已合并去抖，一帧一次）。
 `reducedMotion` 会在用户改系统设置时**立即**推送，无需刷新页面。
 
+## 契约工具链（生成物）
+
+契约的事实源是宿主代码（`core/plugins/contract.py` + `core/plugins/api.py` +
+`static/js/pluginHost.js` 的 `buildApi()`），文档与 schema 都是生成物，
+**不要手改**。
+
+| 生成物 | 用途 | 生成 / 校验 |
+|---|---|---|
+| `docs/plugin-api.md` | 本文档 | `python tools/gen_plugin_api_docs.py` |
+| `docs/plugin-manifest.schema.json` | manifest v3 JSON Schema（编辑器补全 / 第三方校验 / CI） | 同上 |
+| `docs/plugin-api.d.ts` | 前端 TypeScript 类型（插件仓库类型提示） | 同上 |
+| `tools/stm_plugin_check.py` | 独立校验器（9 项检查，可复制到插件仓库） | 同上 |
+
+同步检查（CI 用，未同步时非零退出）：
+
+```bash
+python tools/gen_plugin_api_docs.py --check
+```
+
+校验器的用法与检查项：
+
+```bash
+python tools/stm_plugin_check.py path/to/plugin          # 人类可读报告，错误非零退出
+python tools/stm_plugin_check.py path/to/plugin --json   # 机器可读 JSON
+```
+
+9 项检查：manifest 白名单与版本 → 落点 / 插槽 / 容量 / 深度 → action 引用 →
+模块与导出存在性 → `when` / `shortcut` → `render_mode` / 能力位一致性 →
+CSS 作用域 → 图标与资源 → 契约版本提示。
+
+`tools/stm_plugin_check.py` 的 `contract.py` 编码与宿主事实（主程序版本、合法图标名）
+是**内嵌生成区**（marker 包围），由生成器逐字写入；改 `contract.py` 后必须重跑
+`python tools/gen_plugin_api_docs.py`，否则 `--check` 失败。
+
+开发者脚手架：`python tools/new_plugin.py <plugin-id>` 生成 v3 起始插件。
+
 ## 相关文档
 
-- 插件规范与 manifest 字段：`docs/2026-09-22-plugin-system-design.md` 第 2 部分
-- 入口与 surface 契约：同文档第 8 部分（F11–F16）
-- 作业与 SSE：同文档第 6 部分
+- 插件契约 v3 设计（manifest / 贡献 / 共存 / 工具链）：`docs/2026-10-21-plugin-contract-v3-design.md`
+- 契约实现记录（宿主行为对照）：`docs/2026-10-21-plugin-contract-v3-implementation-log.md`
+- 决策记录（ADR-0001–0016）：`docs/adr/`
+- 插件规范与 manifest 字段历史：`docs/2026-09-22-plugin-system-design.md` 第 2 部分
+- surface 契约：`docs/plugin-api.d.ts` 的 `SurfaceSpec`；宿主行为见 `static/js/pluginSurfaceHost.js`
+- 作业与 SSE：`docs/2026-09-22-plugin-system-design.md` 第 6 部分
 - 开发脚手架：`python tools/new_plugin.py <plugin-id>`

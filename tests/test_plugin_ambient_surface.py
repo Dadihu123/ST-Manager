@@ -35,7 +35,7 @@ if PROJECT_ROOT not in sys.path:
 SURFACE_HOST_PATH = 'static/js/pluginSurfaceHost.js'
 SURFACE_CSS_PATH = 'static/css/modules/plugin-surfaces.css'
 VARIABLES_CSS_PATH = 'static/css/modules/variables.css'
-REGISTRY_PATH = 'static/js/entryRegistry.js'
+REGISTRY_PATH = 'static/js/contributionRegistry.js'
 
 
 def read_source(relative_path):
@@ -225,13 +225,14 @@ def run_dom_script(body: str) -> subprocess.CompletedProcess:
 
 
 def test_ambient_is_a_registered_surface_type():
-    """两份 `SURFACE_TYPES` 必须同步，否则运行期注册会被注册表静默降级成 panel。"""
+    """v3 起 surface 类型只由 `PluginSurfaceHost.SURFACE_TYPES` 定义（运行期注册）。"""
     host = read_source(SURFACE_HOST_PATH)
     registry = read_source(REGISTRY_PATH)
 
     expected = 'SURFACE_TYPES = ["panel", "modal", "page", "sheet", "ambient"]'
     assert expected in host
-    assert expected in registry
+    # 注册表不再定义第二份 SURFACE_TYPES（v2 的双份同步问题随 entries 契约删除）
+    assert 'SURFACE_TYPES' not in registry
 
 
 def test_host_features_expose_ambient_and_pixel_ratio():
@@ -774,7 +775,7 @@ def test_host_filters_ambient_by_device_feature():
     result = run_dom_script(
         """
         import assert from 'node:assert/strict';
-        import { hostFeatures } from './static/js/entryRegistry.js';
+        import { hostFeatures } from './static/js/contributionRegistry.js';
 
         globalThis.__setStore({ deviceType: 'desktop' });
         const desktop = hostFeatures();
@@ -794,7 +795,7 @@ def test_host_features_report_high_dpi():
     result = run_dom_script(
         """
         import assert from 'node:assert/strict';
-        import { hostFeatures } from './static/js/entryRegistry.js';
+        import { hostFeatures } from './static/js/contributionRegistry.js';
 
         globalThis.window.devicePixelRatio = 1;
         assert.ok(!hostFeatures().includes('hasPixelRatio'));

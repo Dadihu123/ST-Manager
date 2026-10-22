@@ -2590,3 +2590,73 @@ html.light-mode .settings-modal-overlay {
     display: none;
   }
 }
+
+
+/* ------------------------------------------------------------------ */
+/* Plugin contributions: settings.nav (v3 contract S7)                */
+/* ------------------------------------------------------------------ */
+
+.settings-nav-divider {
+  height: 1px;
+  margin: 6px 10px;
+  background-color: var(--border-subtle);
+}
+
+.settings-nav-plugin-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.settings-nav-item--plugin {
+  width: 100%;
+}
+
+.settings-nav-item--plugin .settings-nav-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+}
+
+.settings-nav-chevron {
+  margin-left: auto;
+  color: var(--content-muted);
+  font-size: 0.75rem;
+  line-height: 1;
+}
+
+.settings-nav-subitems {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 2px 0 4px 18px;
+  padding-left: 8px;
+  border-left: 1px solid var(--border-subtle);
+}
+
+.settings-nav-item--sub {
+  min-height: 34px;
+  padding-block: 4px;
+}
+
+.settings-nav-item.is-disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.settings-nav-item.is-disabled:hover {
+  background-color: transparent;
+}
+
+.settings-plugin-slot {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.settings-plugin-slot:empty {
+  display: none;
+}

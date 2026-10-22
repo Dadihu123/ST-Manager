@@ -17,14 +17,18 @@ import requests
 
 from core.config import INTERNAL_DIR, SYSTEM_DIR, load_config
 from core.plugins import registry
-from core.plugins.entries import DEFAULT_ENTRY_TIER, normalize_tier
 from core.plugins.errors import PluginCatalogError
 from core.plugins.manifest import compare_versions, parse_semver
 
 logger = logging.getLogger(__name__)
 
-CATALOG_SCHEMA_VERSION = 2
+CATALOG_SCHEMA_VERSION = 3
 CATALOG_RELATIVE_PATH = os.path.join('static', 'plugins', 'catalog.json')
+
+# 归属分级（D5 / ADR-0008）：只披露信任级别，不再限制贡献类型。
+# tier 只能由宿主仓库的 catalog 决定，插件 manifest 无权声明。
+PLUGIN_TIERS = ('official', 'verified', 'community')
+DEFAULT_PLUGIN_TIER = 'community'
 
 CACHE_DIR = os.path.join(SYSTEM_DIR, 'plugins')
 CACHE_FILE = os.path.join(CACHE_DIR, '_catalog_cache.json')
@@ -36,6 +40,16 @@ MAX_CATALOG_BYTES = 512 * 1024
 
 REPO_PATTERN = re.compile(r'^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$')
 TAG_PATTERN = re.compile(r'^v?\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?')
+
+
+def normalize_tier(raw_tier) -> str:
+    """把 catalog 的 `tier` 归一化为已知分级；未知值按 `community`（安全的一侧）。"""
+    value = str(raw_tier or '').strip().lower()
+    if value in PLUGIN_TIERS:
+        return value
+    if value:
+        logger.warning('忽略未知的插件归属分级 %r（按 community 处理）', raw_tier)
+    return DEFAULT_PLUGIN_TIER
 
 
 def bundled_catalog_path() -> str:
@@ -105,7 +119,7 @@ def _normalize_entry(raw) -> dict:
         'author': str(raw.get('author') or ''),
         'icon': str(raw.get('icon') or ''),
         'tags': [str(tag) for tag in (raw.get('tags') or []) if isinstance(tag, str)],
-        # 归属分级（D5）：决定该插件的入口能用哪些 kind；manifest 无权声明
+        # 归属分级（D5）：只做信任级别披露；manifest 无权声明
         'tier': normalize_tier(raw.get('tier')),
         'maintainer': str(raw.get('maintainer') or ''),
         'source': {
@@ -118,9 +132,13 @@ def _normalize_entry(raw) -> dict:
             'sha256': str(source.get('sha256') or '').strip().lower(),
         },
         'version': str(raw.get('version') or ''),
+        # 目录里的 api_version / capabilities 是安装前披露：v3 契约只接受 3
         'api_version': raw.get('api_version'),
         'min_app_version': str(raw.get('min_app_version') or ''),
-        'permissions': [str(item) for item in (raw.get('permissions') or []) if isinstance(item, str)],
+        # 能力披露（取代 v2 的 permissions）：仅用于安装前展示
+        'capabilities': [
+            str(item) for item in (raw.get('capabilities') or []) if isinstance(item, str)
+        ],
         'homepage': str(raw.get('homepage') or ''),
     }
 
@@ -310,7 +328,7 @@ def plugin_tiers() -> dict:
 
 def tier_for_plugin(plugin_id: str) -> str:
     """单个插件的归属分级；未知一律 `community`（D5）。"""
-    return plugin_tiers().get(str(plugin_id or '').strip(), DEFAULT_ENTRY_TIER)
+    return plugin_tiers().get(str(plugin_id or '').strip(), DEFAULT_PLUGIN_TIER)
 
 
 # ------------------------------------------------------------------ 更新检查

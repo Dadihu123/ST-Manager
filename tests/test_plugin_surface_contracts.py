@@ -214,27 +214,17 @@ def test_surface_host_module_exists():
         assert fragment in source, fragment
 
 
-def test_surface_types_match_backend_contract():
-    """前端 surface 类型必须是**后端可声明类型的超集**。
+def test_surface_types_are_frontend_only_in_v3():
+    """v3 起 surface 由运行期 `api.surfaces.register()` 决定类型，manifest 不再声明。
 
-    真实契约是「宿主前端支持的 surface 类型 ⊇ manifest 允许声明的类型」：
-
-    - 后端 `core/plugins/entries.py:SURFACE_TYPES` 用于校验 manifest 的
-      `entries[].surface.type`，而 `ambient`（常驻环境层）**没有用户可见入口**
-      （注册即挂载），在 manifest 里声明它没有意义，因此后端**保持四元组不变**。
-    - 前端额外支持宿主专属类型 `ambient`，并在本地拒绝后才降级为 `panel`。
-
-    函数名保留（避免无谓变更），但语义是**超集**而不是恒等——原来的写法比较的
-    是从后端 import 的变量与后端自身，是同义反复，并没有真的在查前端。
+    v2 的 `core/plugins/entries.py:SURFACE_TYPES`（校验 `entries[].surface.type`）
+    已随 entries 契约删除；前端 `PluginSurfaceHost` 仍支持五种容器类型，其中
+    `ambient` 是宿主专属（注册即挂载、无用户可见入口）。
     """
-    from core.plugins.entries import SURFACE_TYPES
-
     source = read_source(SURFACE_HOST_PATH)
     assert 'SURFACE_TYPES = ["panel", "modal", "page", "sheet", "ambient"]' in source
-
-    # 后端集合不变（manifest 仍只允许四种），且前端是它的超集
-    assert set(SURFACE_TYPES) == {'panel', 'modal', 'page', 'sheet'}
-    assert set(SURFACE_TYPES) <= {'panel', 'modal', 'page', 'sheet', 'ambient'}
+    # v3 的 manifest 不再声明 surface 类型：注册表侧不应再出现第二份 SURFACE_TYPES
+    assert 'SURFACE_TYPES' not in read_source('static/js/contributionRegistry.js')
 
 
 def test_surface_host_avoids_backdrop_filter():
@@ -300,8 +290,8 @@ def test_surface_root_does_not_create_a_stacking_context():
 def test_dialog_type_surfaces_sit_above_host_modals():
     """`modal` / `panel` / `sheet` 是用户主动打开的浮层，必须在对话框层。
 
-    `panel` 还是 `entries[].surface.type` 缺省时的回退值
-    （`entryRegistry.js:normalizeDeclaredEntry`），因此它必须与 `modal` 一样
+    `panel` 还是 `api.surfaces.register()` 未写 type 时的回退值
+    （`pluginSurfaceHost.js` 的 `spec.type` 缺省分支），因此它必须与 `modal` 一样
     能盖住唤起它的宿主模态，否则「插件声明了 settings 入口但没写 type」就会重现
     「点了看不见」的问题。
 
@@ -741,23 +731,32 @@ def test_mount_error_is_isolated_to_the_failing_surface():
 
 
 @requires_node
-def test_mount_error_marks_the_entry_as_error():
+def test_mount_error_marks_the_contribution_as_error():
     """设计文档 8.3：`mount()` 抛错时「把对应入口置错误态」。
 
     用户要能看见「这个插件的面板坏了」，而不是点了没反应。入口 id 从
-    `ctx.targetId` 取（坞 / 命令面板都会传）。
+    `ctx.targetId` 取（坞 / 命令面板都会传）；v3 里入口是贡献节点，
+    错误态通过 `ContributionRegistry.update(status)` 落到节点上。
     """
     result = run_dom_script(
         """
         import assert from 'node:assert/strict';
         import { PluginSurfaceHost } from './static/js/pluginSurfaceHost.js';
-        import { EntryRegistry } from './static/js/entryRegistry.js';
+        import { ContributionRegistry } from './static/js/contributionRegistry.js';
 
-        EntryRegistry.setPlugins([
-          { id: 'broken-plugin', enabled: true, manifest: { entries: [
-            { id: 'workbench', kind: 'dock', label: '工作台' },
-          ] } },
+        ContributionRegistry.setPlugins([
+          { id: 'broken-plugin', enabled: true, manifest: { contributions: { menus: [
+            { id: 'workbench', placement: 'dock', type: 'item', label: '工作台',
+              action: { type: 'surface', id: 'workbench' } },
+          ] } } },
         ]);
+
+        const runtimeErrors = [];
+        globalThis.window.dispatchEvent = (event) => {
+          if (event && event.type === 'plugin:runtime-error') {
+            runtimeErrors.push(event.detail);
+          }
+        };
 
         PluginSurfaceHost.register('broken-plugin', 'workbench', {
           mount() { throw new Error('插件内部炸了'); },
@@ -769,9 +768,12 @@ def test_mount_error_marks_the_entry_as_error():
         });
         assert.equal(failed, null);
 
-        const entry = EntryRegistry.get('broken-plugin:workbench');
-        assert.ok(entry, '入口应仍在注册表里');
-        assert.equal(entry.status, 'error', '入口必须被置为 error 态');
+        const node = ContributionRegistry.get('broken-plugin', 'workbench');
+        assert.ok(node, '贡献节点应仍在注册表里');
+        assert.equal(node.status, 'error', '节点必须被置为 error 态');
+        assert.equal(runtimeErrors.length, 1, '必须上报 plugin:runtime-error');
+        assert.equal(runtimeErrors[0].pluginId, 'broken-plugin');
+        assert.equal(runtimeErrors[0].source, 'surface.mount');
         """
     )
     assert result.returncode == 0, result.stderr or result.stdout

@@ -109,17 +109,19 @@ def test_entry_renderers_pass_plugin_id_for_asset_icons():
     """坞 / 命令面板 / 入口总览渲染图标时必须把 pluginId 传下去。
 
     资源路径本身不含插件 id，拿不到 id 就只能降级成占位图标。
+    v3 各渲染器的数据源不同（坞 = entry、命令面板 = item、总览 = row），
+    因此分别断言各自的 marker。
     """
     for path, marker in (
         ('static/js/components/entryDock.js', 'pluginId: String((entry && entry.pluginId) || "")'),
-        ('static/js/components/commandPalette.js', 'pluginId: String((entry && entry.pluginId) || "")'),
+        ('static/js/components/commandPalette.js', 'pluginId: String((item && item.pluginId) || "")'),
     ):
         source = read_source(path)
         assert marker in source, path
 
-    # 入口总览（插件管理）也要渲染图标列
+    # 贡献总览（插件管理）也要渲染图标列
     manager = read_source('static/js/components/pluginManager.js')
-    assert 'entryIconHtml(row)' in manager
+    assert 'contributionIconHtml(row)' in manager
     assert 'pluginId: String((row && row.pluginId) || "")' in manager
 
 
@@ -128,7 +130,7 @@ def test_entry_overview_template_has_icon_column():
     template = read_source('templates/modals/plugin_manager.html')
 
     assert 'plugin-entries-icon' in template
-    assert 'entryIconHtml(row)' in template
+    assert 'contributionIconHtml(row)' in template
 
 
 # ------------------------------------------------------------------ 真实执行

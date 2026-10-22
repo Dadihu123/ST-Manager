@@ -36,36 +36,54 @@ names look credential-related are redacted.
 
 # Plugin scaffold
 
-`new_plugin.py` generates a minimal plugin skeleton that already satisfies the
-manifest and CSS-scope contracts:
+`new_plugin.py` generates a minimal **contract v3** plugin skeleton whose
+manifest and CSS already satisfy the strict checks:
 
 ```powershell
 python tools/new_plugin.py my-plugin --name "我的插件"
 python tools/new_plugin.py my-plugin --out samples/plugins --no-backend
 ```
 
-It writes `manifest.json`, `README.md`, `backend/__init__.py` (registering a
-`/ping` route) and `frontend/plugin.js` + `frontend/plugin.css` (scoped with
-`.plugin-<id>`). The output passes `PluginManifest.load()` and
-`scan_css_scope()` unchanged, so it can be loaded by `registry.load_all()`
+It writes `manifest.json` (v3: `frontend.contributions` with a menu tree,
+a slot and a command; `capabilities`; `render_mode`), `README.md`,
+`backend/__init__.py` (registers a `/ping` route), and
+`frontend/plugin.js` + `frontend/plugin.css` + `frontend/commands/ping.js` +
+`frontend/slots/settingsSection.js` (scoped with `.plugin-<id>`). The output
+passes `PluginManifest.load()`, `scan_css_scope()` and the full
+`stm_plugin_check.py` strict mode, so it can be loaded by `registry.load_all()`
 right away. Flags: `--out` (default `data/plugins/`), `--version`,
 `--no-backend`, `--no-frontend`, `--force`. Restart the app after generating a
 plugin into `data/plugins/`.
 
-# Plugin API reference
+# Plugin contract artifacts
 
-`gen_plugin_api_docs.py` renders `docs/plugin-api.md` from the real signatures
-and docstrings of `backend PluginAPI` (via `inspect`, cross-checked with an AST
-pass) and from the top-level keys `buildApi()` exposes in
-`static/js/pluginHost.js`:
+`core/plugins/contract.py` is the single source of truth for the manifest
+contract (version numbers, enums, limits, regexes and validation). Everything
+below is generated from it — never hand-edit these files:
+
+| Artifact | Purpose |
+|---|---|
+| `docs/plugin-api.md` | API reference (backend `PluginAPI` signatures/docstrings + `buildApi()` members + v3 contribution/overlay prose) |
+| `docs/plugin-manifest.schema.json` | JSON Schema for `manifest` v3 (editor completion, third-party validation, CI) |
+| `docs/plugin-api.d.ts` | TypeScript types for the frontend plugin API (`activate(api: PluginApiV3)`) |
+| `tools/stm_plugin_check.py` | Standalone strict checker; embeds `contract.py` + host facts in marker regions so it can be copied into any plugin repo |
 
 ```powershell
-python tools/gen_plugin_api_docs.py           # regenerate
-python tools/gen_plugin_api_docs.py --check   # verify only
+python tools/gen_plugin_api_docs.py           # regenerate all four artifacts
+python tools/gen_plugin_api_docs.py --check   # verify only (non-zero on drift)
 ```
 
-`tests/test_plugin_api_docs.py` asserts that the file on disk equals a fresh
-render, so rerun the generator whenever the plugin API changes.
+The checker runs 9 checks and exits non-zero on errors:
+
+```powershell
+python tools/stm_plugin_check.py path/to/plugin          # human-readable report
+python tools/stm_plugin_check.py path/to/plugin --json   # machine-readable JSON
+```
+
+`tests/test_plugin_api_docs.py`, `tests/test_plugin_manifest_schema.py` and
+`tests/test_plugin_stm_plugin_check.py` assert that every artifact on disk
+equals a fresh render and that the checker rejects the documented negative
+cases, so rerun the generator whenever the plugin contract changes.
 
 # Layering verification
 

@@ -21,6 +21,7 @@ import {
 } from '../api/card.js';
 import { listChats } from '../api/chat.js';
 import { canPreviewForumThread } from '../utils/discordUrl.js';
+import { PluginSlotHost } from '../pluginSlotHost.js';
 
 import { 
     renameFolder, 
@@ -1611,6 +1612,13 @@ export default function detailModal() {
 
         // === 初始化 ===
         init() {
+            // 插件插槽（S7）：`card.detail.tabs` 锚点在模板里声明
+            // `:data-target-id="activeCard && activeCard.id"`，切换卡片 / 打开详情
+            // 时都要让插槽宿主重新求值，把插件页签刷新到新卡片上。
+            this.$watch('activeCard.id', () => {
+                PluginSlotHost.scheduleRefresh?.();
+            });
+
             // 监听打开详情页事件
             window.addEventListener('open-detail', (e) => {
                 this.openDetail(e.detail);

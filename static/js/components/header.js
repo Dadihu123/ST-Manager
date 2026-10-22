@@ -13,8 +13,7 @@ import {
   runSourceUpdateBatch,
 } from "../utils/batchOperations.js";
 import { listChats } from "../api/chat.js";
-import { EntryRegistry } from "../entryRegistry.js";
-import { PluginSurfaceHost } from "../pluginSurfaceHost.js";
+import { ContributionRegistry } from "../contributionRegistry.js";
 import { icon as buildIcon } from "../uiPrimitives.js";
 import { positionFlyoutElement, resolveAnchorElement } from "../utils/flyoutPosition.js";
 
@@ -33,10 +32,10 @@ export default function header() {
   return {
     availableRuleSets: [],
 
-    /** 插件声明的 `kind: "batch"` 入口（批量操作菜单里的插件项）。 */
-    pluginBatchEntries: [],
+    /** 批量菜单里的贡献节点（`menuTree("batch.actions")` 产物，可含子菜单）。 */
+    pluginBatchNodes: [],
     /**
-     * 当前打开的插件分组 key（`''` = 没有二级菜单）。
+     * 当前展开的贡献子菜单 id（`''` = 没有二级菜单）。
      *
      * 与右键菜单同一套：桌面端点父项弹一个 **fixed 浮层**（`.plugin-menu-flyout`），
      * 不能就地展开——批量菜单盒同样有高度钳制，`pl-6` 子项块会被裁掉。
@@ -453,9 +452,9 @@ export default function header() {
         this.stopIndexStatusPolling();
       });
 
-      // 插件 `kind: "batch"` 入口：注册表变更 / 选中变化都要重算
+      // 插件 `batch.actions` 落点：注册表变更 / 选中变化都要重算
       this._pluginEntriesHandler = () => this.refreshPluginBatchEntries();
-      window.addEventListener("entries:changed", this._pluginEntriesHandler);
+      window.addEventListener("contributions:changed", this._pluginEntriesHandler);
       window.addEventListener("plugins:loaded", this._pluginEntriesHandler);
       this.refreshPluginBatchEntries();
 
@@ -478,7 +477,7 @@ export default function header() {
 
     destroy() {
       if (this._pluginEntriesHandler) {
-        window.removeEventListener("entries:changed", this._pluginEntriesHandler);
+        window.removeEventListener("contributions:changed", this._pluginEntriesHandler);
         window.removeEventListener("plugins:loaded", this._pluginEntriesHandler);
         this._pluginEntriesHandler = null;
       }
@@ -492,48 +491,99 @@ export default function header() {
       }
     },
 
-    // === 插件 batch 入口（D1：`kind: "batch"` 落到批量操作菜单） ===
+    // === 插件批量落点（v3：batch.actions） ===
+
+    /** 批量菜单求值用的贡献上下文（设计 §5.1：`{mode, target, selection}`）。 */
+    contributionContext() {
+      const mode = String(this.currentMode || "");
+      const ids = Array.isArray(this.selectedIds)
+        ? this.selectedIds.map((id) => String(id)).filter(Boolean)
+        : [];
+      return {
+        mode,
+        target: { type: "selection", kind: "selection", mode, id: "", path: "", ids },
+        selection: {
+          mode: ids.length === 0 ? "none" : ids.length > 1 ? "multi" : "single",
+          ids,
+        },
+      };
+    },
 
     /**
-     * 批量菜单里的插件入口。
+     * 批量菜单里的贡献节点（注册表 `menuTree("batch.actions")`）。
      *
-     * `when` 不满足的入口**不出现**（与右键菜单同一规则）：批量菜单是动作清单，
-     * 不适用的动作收起来比置灰更省心。声明了 `group` 的入口折叠成一个父项，
-     * 子项才是各任务。
+     * `when` 不通过的节点**仍然返回**，但 `enabled === false`——渲染层把
+     * 「不适用」表达成置灰 + `disabledHint`（设计 §4.4.3），不再自己过滤：
+     * 过滤会让插件作者无从解释「为什么我的动作不见了」。
      */
     refreshPluginBatchEntries() {
       try {
-        // 与右键菜单同一套：只取可用入口，并按插件 `group` 折叠成一个
-        // 「AI 助手」父项，子项才是各任务。
-        this.pluginBatchEntries = EntryRegistry.menuGroups({ kind: "batch" });
-        this.closePluginBatchGroup();
+        const ctx = this.contributionContext();
+        this.pluginBatchNodes =
+          ContributionRegistry.menuTree("batch.actions", {
+            context: ctx,
+            contextOverride: ctx,
+          }) || [];
       } catch (error) {
-        console.warn("[header] 读取插件 batch 入口失败:", error);
-        this.pluginBatchEntries = [];
+        console.warn("[header] 读取插件 batch 菜单失败:", error);
+        this.pluginBatchNodes = [];
       }
+      this.closePluginBatchGroup();
     },
 
-    /** 批量菜单里的插件项图标（资源路径需要 pluginId 才能解析）。 */
-    pluginBatchEntryIconHtml(entry) {
-      return buildIcon(String((entry && entry.icon) || "circle-dot"), {
+    /** 贡献节点图标（资源路径需要 pluginId 才能解析）。 */
+    menuNodeIconHtml(node) {
+      return buildIcon(String((node && node.icon) || "circle-dot"), {
         className: "ui-icon--sm",
-        pluginId: String((entry && entry.pluginId) || ""),
+        pluginId: String((node && node.pluginId) || ""),
       }).outerHTML;
     },
 
+    /** 节点是否是子菜单（有 children）。 */
+    hasMenuChildren(node) {
+      return Boolean(node && Array.isArray(node.children) && node.children.length);
+    },
+
+    /** 节点是否不可执行（`when` 不通过或被插件置为不可用）。 */
+    isMenuNodeDisabled(node) {
+      return Boolean(node) && (node.enabled === false || node.ok === false);
+    },
+
+    /** 节点角标文案：数字超 99 折成 `99+`；对象形态取 `text/inner/value`。 */
+    menuNodeBadge(node) {
+      const badge = node && node.badge;
+      if (badge === null || badge === undefined || badge === "") return "";
+      if (typeof badge === "object") {
+        return String(badge.text ?? badge.inner ?? badge.value ?? "");
+      }
+      const num = Number(badge);
+      if (Number.isFinite(num)) return num > 99 ? "99+" : String(num);
+      return String(badge);
+    },
+
+    /** 置灰项的悬浮说明（可见但不可点，给原因）。 */
+    menuNodeHint(node) {
+      if (!node) return "";
+      return String(node.disabledHint || node.description || "");
+    },
+
     /**
-     * 移动端选中条用：把分组单元拍平成入口数组。
+     * 移动端选中条用：把贡献树拍平成可执行节点数组。
      *
      * 移动端是一排图标按钮，没有悬停子菜单的位置，所以不折叠——直接平铺
-     * 每个任务的按钮（都已经是 `when` 通过的）。
+     * 每个任务按钮。置灰节点不放进移动端扁平栏（那里没法展示 disabledHint）。
      */
     get pluginBatchFlatEntries() {
-      const out = [];
-      for (const unit of this.pluginBatchEntries || []) {
-        if (unit && unit.type === "group") out.push(...(unit.entries || []));
-        else if (unit && unit.entry) out.push(unit.entry);
-      }
-      return out;
+      const rows = [];
+      const walk = (nodes) => {
+        for (const node of nodes || []) {
+          if (!node || node.type === "separator") continue;
+          if (this.hasMenuChildren(node)) walk(node.children);
+          else if (!this.isMenuNodeDisabled(node)) rows.push(node);
+        }
+      };
+      walk(this.pluginBatchNodes);
+      return rows;
     },
 
     /**
@@ -549,12 +599,12 @@ export default function header() {
     },
 
     /**
-     * 打开某个插件分组的二级菜单（fixed 浮层，固定向右展开、纵向自适应）。
+     * 打开某个贡献子菜单的二级浮层（fixed，固定向右展开、纵向自适应）。
      *
      * `anchorEl` 是父项按钮：坐标按它的 `getBoundingClientRect()` 计算。
      */
-    openPluginBatchGroup(key, anchorEl) {
-      const target = String(key || "");
+    openPluginBatchGroup(nodeId, anchorEl) {
+      const target = String(nodeId || "");
       if (!target) return;
       this.activePluginBatchGroup = target;
       // 模板可能传 `$event`（Alpine 的事件对象），统一归一化成元素
@@ -576,8 +626,9 @@ export default function header() {
     },
 
     /** 同一个父项再点一次就收起（与「自动处理 / 来源更新」的交互一致）。 */
-    togglePluginBatchGroup(key, anchorEl) {
-      const target = String(key || "");
+    togglePluginBatchGroup(node, anchorEl) {
+      if (!node || this.isMenuNodeDisabled(node)) return;
+      const target = String(node.id || "");
       if (!target) return;
       if (String(this.activePluginBatchGroup || "") === target) {
         this.closePluginBatchGroup();
@@ -592,95 +643,67 @@ export default function header() {
       this._pluginBatchGroupAnchor = null;
     },
 
-    /** 二级菜单当前展示的分组单元（找不到时返回 null）。 */
+    /** 二级菜单当前展示的贡献节点（找不到时返回 null）。 */
     activePluginBatchGroupUnit() {
       const key = String(this.activePluginBatchGroup || "");
       if (!key) return null;
-      return (
-        (this.pluginBatchEntries || []).find(
-          (unit) => unit && unit.type === "group" && unit.key === key,
-        ) || null
-      );
+      return (this.pluginBatchNodes || []).find((node) => node && String(node.id || "") === key) || null;
     },
 
-    isPluginBatchGroupOpen(key) {
-      return String(this.activePluginBatchGroup || "") === String(key || "");
-    },
-
-    /** 分组父项的角标：组内入口角标求和（非数字角标原样返回）。 */
-    pluginBatchGroupBadge(group) {
-      const list = (group && group.entries) || [];
-      let total = 0;
-      let hasNumeric = false;
-      for (const entry of list) {
-        const raw = entry && entry.badge;
-        if (raw === null || raw === undefined || raw === "") continue;
-        const num = Number(raw);
-        if (Number.isFinite(num)) {
-          total += num;
-          hasNumeric = true;
-        } else {
-          return String(raw);
-        }
-      }
-      if (!hasNumeric) return "";
-      return total > 99 ? "99+" : String(total);
+    /** 某个贡献子菜单是否展开。 */
+    isPluginBatchGroupOpen(node) {
+      const target = String((node && node.id) || node || "");
+      return Boolean(target) && String(this.activePluginBatchGroup || "") === target;
     },
 
     /**
-     * 入口进度条的百分比（`entry.progress` 是 `{done, total}`，不是百分数）。
+     * 入口进度百分比（`node.progress` 是 0–1 的比例，设计 §4.4.5）。
      *
-     * 返回 `null` 表示「没有进度可画」，让模板用 `x-if` 整块跳过——
-     * 返回 0 会画出一条 0% 的空槽，看起来像「卡住了」。
+     * 兼容旧形态 `{done,total}`：两者都归一化到 0–100。
+     * 返回 `null` 表示「没有进度可画」，让模板整块跳过——返回 0 会画出一条
+     * 0% 的空槽，看起来像「卡住了」。
      */
-    pluginBatchEntryProgressPercent(entry) {
-      const progress = entry && entry.progress;
-      if (!progress) return null;
-      const total = Number(progress.total || 0);
-      if (!Number.isFinite(total) || total <= 0) return null;
-      const done = Number(progress.done || 0);
-      const ratio = Number.isFinite(done) ? done / total : 0;
-      return Math.max(0, Math.min(100, Math.round(ratio * 100)));
+    pluginBatchEntryProgressPercent(node) {
+      const progress = node && node.progress;
+      if (progress === null || progress === undefined) return null;
+      if (typeof progress === "number") {
+        if (!Number.isFinite(progress)) return null;
+        return Math.max(0, Math.min(100, Math.round(progress * 100)));
+      }
+      if (typeof progress === "object") {
+        const total = Number(progress.total || 0);
+        if (!Number.isFinite(total) || total <= 0) return null;
+        const done = Number(progress.done || 0);
+        const ratio = Number.isFinite(done) ? done / total : 0;
+        return Math.max(0, Math.min(100, Math.round(ratio * 100)));
+      }
+      return null;
     },
 
     /** 入口角标文案（`null` / `undefined` / `''` 都表示不画角标）。 */
-    pluginBatchEntryBadge(entry) {
-      const value = entry && entry.badge;
-      if (value === null || value === undefined || value === "") return "";
-      return String(value);
+    pluginBatchEntryBadge(node) {
+      return this.menuNodeBadge(node);
     },
 
     /**
-     * 执行一个插件 batch 入口：选中集随 surface ctx 一起交给插件。
+     * 执行一个批量入口：选中集随 ctx 一起交给运行时（S4 统一触发通道）。
      *
-     * 置灰项不执行（菜单里仍可见并附 `disabledHint`，D7：不是隐藏）。
+     * 置灰项不执行（菜单里仍可见并附 `disabledHint`）。
      */
-    runPluginBatchEntry(entry) {
-      if (!entry || !entry.enabled) return false;
+    runPluginBatchEntry(node) {
+      if (!node || node.type === "separator" || this.hasMenuChildren(node)) return false;
+      if (this.isMenuNodeDisabled(node)) return false;
 
-      const surfaceId = (entry.surface && entry.surface.id) || entry.id;
-      const surfaceKey = `${entry.pluginId}:${surfaceId}`;
-      const target = {
-        kind: "selection",
-        mode: String(this.currentMode || ""),
-        path: "",
-        id: "",
-        ids: [...this.selectedIds],
-      };
-
-      if (PluginSurfaceHost.has(surfaceKey)) {
-        PluginSurfaceHost.openSurface(surfaceKey, {
-          source: "batch",
-          targetId: entry.id,
-          mode: this.currentMode,
-          target,
-        });
-        return true;
-      }
-
-      window.dispatchEvent(new CustomEvent("entry:activate", {
-        detail: { key: entry.key, entry, source: "batch", target },
-      }));
+      window.dispatchEvent(
+        new CustomEvent("contribution:trigger", {
+          detail: {
+            pluginId: String(node.pluginId || ""),
+            nodeId: String(node.id || ""),
+            trigger: "menu",
+            ctx: this.contributionContext(),
+          },
+        }),
+      );
       return true;
     },
 

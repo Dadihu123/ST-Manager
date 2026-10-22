@@ -14,6 +14,9 @@ import {
   importUserDbBackup,
 } from "../api/system.js";
 import { updateCssVariable, applyFont as applyFontDom } from "../utils/dom.js";
+import { ContributionRegistry } from "../contributionRegistry.js";
+import { PluginSurfaceHost } from "../pluginSurfaceHost.js";
+import { icon } from "../uiPrimitives.js";
 import sharedWallpaperPicker from "./sharedWallpaperPicker.js";
 
 if (typeof window !== "undefined") {
@@ -140,6 +143,11 @@ export default function settingsModal() {
   return {
     // === 本地状态 ===
     activeSettingTab: "general",
+    /** 插件贡献的 `settings.nav` 落点（菜单节点树，含 children）。 */
+    pluginNavEntries: [],
+    /** `settings.nav` 里带子节点的分组展开状态（节点 key 数组）。 */
+    expandedPluginNavNodes: [],
+    _pluginNavHandler: null,
     allowedAbsRootsText: "",
     authTrustedProxiesText: "",
     settingsQuery: "",
@@ -322,6 +330,128 @@ export default function settingsModal() {
       };
       setTimeout(() => focusSettingsDialog(), 0);
     },
+    /**
+     * 刷新 `settings.nav` 贡献（插件装载 / 配置变化时）。
+     *
+     * 菜单节点带 `ok` / `enabled`：`when` 不满足的节点仍然渲染，但置灰 +
+     * `disabledHint`（D7）；点击交给 `openPluginNavEntry()` 判断。
+     */
+    refreshPluginNav() {
+      try {
+        this.pluginNavEntries =
+          ContributionRegistry.menuTree("settings.nav", {
+            context: ContributionRegistry.context(),
+          }) || [];
+      } catch (error) {
+        console.warn("[settingsModal] 读取 settings.nav 贡献失败:", error);
+        this.pluginNavEntries = [];
+      }
+    },
+
+    /** 贡献节点的稳定键（用于 x-for :key 与展开状态）。 */
+    pluginNavKey(node) {
+      if (!node) return "";
+      if (node.key) return String(node.key);
+      return `${String(node.pluginId || "")}:${String(node.id || "")}`;
+    },
+
+    hasMenuChildren(node) {
+      return Boolean(node && Array.isArray(node.children) && node.children.length > 0);
+    },
+
+    isMenuNodeDisabled(node) {
+      return Boolean(node) && (node.enabled === false || node.ok === false);
+    },
+
+    menuNodeHint(node) {
+      if (!node) return "";
+      return String(node.disabledHint || node.description || node.label || "");
+    },
+
+    menuNodeIconHtml(node) {
+      const name = String((node && node.icon) || "circle-dot");
+      try {
+        return icon(name, {
+          className: "ui-icon--sm",
+          pluginId: String((node && node.pluginId) || ""),
+        }).outerHTML;
+      } catch (error) {
+        return "";
+      }
+    },
+
+    /** `settings.nav` 节点的二级分组展开状态（菜单树 depth ≤ 3）。 */
+    togglePluginNavGroup(node) {
+      if (!node) return false;
+      const key = this.pluginNavKey(node);
+      if (!key) return false;
+      const current = Array.isArray(this.expandedPluginNavNodes) ? this.expandedPluginNavNodes : [];
+      this.expandedPluginNavNodes = current.includes(key)
+        ? current.filter((item) => item !== key)
+        : [...current, key];
+      return true;
+    },
+
+    isPluginNavGroupOpen(node) {
+      return Boolean(
+        node &&
+          Array.isArray(this.expandedPluginNavNodes) &&
+          this.expandedPluginNavNodes.includes(this.pluginNavKey(node)),
+      );
+    },
+
+    /**
+     * 点击 `settings.nav` 贡献：统一派发 `contribution:trigger`（S4）。
+     *
+     * 设置页的 nav 语义是「打开插件声明的设置面板 surface」：
+     * - 置灰项不执行，但给提示；
+     * - 有子节点的项只展开分组；
+     * - 无 surface 的节点（host 侧尚未注册）warn + 忽略，**不抛错**。
+     */
+    openPluginNavEntry(node, event) {
+      if (!node) return false;
+      if (this.hasMenuChildren(node)) {
+        this.togglePluginNavGroup(node);
+        return true;
+      }
+      if (this.isMenuNodeDisabled(node)) {
+        const store = this.$store && this.$store.global;
+        if (store && typeof store.showToast === "function") {
+          store.showToast(node.disabledHint || `「${node.label}」当前不可用`, 3000);
+        }
+        return false;
+      }
+
+      const pluginId = String(node.pluginId || "");
+      const action = node.action && typeof node.action === "object" ? node.action : {};
+      if (String(action.type || node.action || "") === "surface") {
+        const surfaceId = String(action.id || node.id || "");
+        const surfaceKey = `${pluginId}:${surfaceId}`;
+        if (!PluginSurfaceHost.has(surfaceKey)) {
+          console.warn(
+            `[settingsModal] 插件 ${pluginId} 的 settings.nav 节点 ${node.id} 声明的 surface 不存在，已忽略`,
+          );
+          return false;
+        }
+      }
+
+      window.dispatchEvent(
+        new CustomEvent("contribution:trigger", {
+          detail: {
+            pluginId,
+            nodeId: String(node.id || ""),
+            trigger: "menu",
+            ctx: {
+              mode: String((this.$store && this.$store.global && this.$store.global.currentMode) || ""),
+              target: null,
+              selection: { mode: "none", ids: [] },
+            },
+          },
+        }),
+      );
+      return true;
+    },
+
     selectSettingTab(section, anchor = "") {
       if (!this.settingsHelpContent[section]) return;
       this.activeSettingTab = section;
@@ -671,6 +801,12 @@ export default function settingsModal() {
       }
 
       if (typeof window !== "undefined") {
+        // `settings.nav` 贡献：插件装载 / 贡献变更 / 配置变更都可能改菜单内容。
+        this.refreshPluginNav();
+        this._pluginNavHandler = () => this.refreshPluginNav();
+        window.addEventListener("contributions:changed", this._pluginNavHandler);
+        window.addEventListener("plugins:loaded", this._pluginNavHandler);
+
         window.addEventListener("open-settings-section", (event) => {
           const detail = event.detail || {};
           const section = detail.section || "maintenance";
@@ -774,6 +910,15 @@ export default function settingsModal() {
         if (!this.showSettingsModal) return;
         this.resetTauriTavernConnectionStatus();
       });
+    },
+
+    destroy() {
+      if (typeof window === "undefined") return;
+      if (this._pluginNavHandler) {
+        window.removeEventListener("contributions:changed", this._pluginNavHandler);
+        window.removeEventListener("plugins:loaded", this._pluginNavHandler);
+        this._pluginNavHandler = null;
+      }
     },
 
     openSettings() {

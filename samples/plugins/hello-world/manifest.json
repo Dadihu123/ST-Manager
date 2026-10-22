@@ -1,11 +1,11 @@
 {
   "id": "hello-world",
   "name": "Hello World 示例插件",
-  "version": "0.2.0",
-  "api_version": 2,
-  "manifest_version": 2,
+  "version": "0.3.0",
+  "api_version": 3,
+  "manifest_version": 3,
   "author": "ST-Manager",
-  "description": "契约活体夹具：填满全部 6 种入口 kind（dock/nav/settings/context/command/status），并演示 surfaces、UI 原语、存储与配置通知。",
+  "description": "插件契约 v3 活体夹具：用贡献通道（菜单树 / 插槽 / 命令）声明宿主 UI 的 5 个落点与 1 个插槽，并演示 surfaces、UI 原语、存储、配置通知与作业面板。",
   "license": "MIT",
   "backend": {
     "entry": "backend",
@@ -16,75 +16,176 @@
   "frontend": {
     "entry": "frontend/plugin.js",
     "styles": ["frontend/plugin.css"],
-    "entries": [
-      {
-        "id": "main-panel",
-        "kind": "dock",
-        "label": "Hello",
-        "description": "打开 Hello World 演示面板",
-        "icon": "wand",
-        "priority": 10,
-        "surface": { "id": "main", "type": "panel" }
-      },
-      {
-        "id": "modal-demo",
-        "kind": "dock",
-        "label": "模态",
-        "description": "演示 modal 类型的宿主表面",
-        "icon": "expand",
-        "priority": 20,
-        "surface": { "id": "modal-demo", "type": "modal" }
-      },
-      {
-        "id": "nav-demo",
-        "kind": "nav",
-        "label": "Hello 导航",
-        "description": "侧栏导航项（仅官方/认证插件可用）",
-        "icon": "layers",
-        "priority": 30
-      },
-      {
-        "id": "settings-demo",
-        "kind": "settings",
-        "label": "Hello 设置",
-        "description": "设置页区块入口",
-        "icon": "settings",
-        "priority": 40
-      },
-      {
-        "id": "context-card",
-        "kind": "context",
-        "label": "Hello 右键项",
-        "description": "卡片右键菜单项，需先选中卡片",
-        "icon": "clipboard",
-        "priority": 50,
-        "requires_selection": true,
-        "when": { "mode": ["cards"], "selection": "any" },
-        "disabledHint": "请先选中至少一张角色卡"
-      },
-      {
-        "id": "summarize",
-        "kind": "command",
-        "label": "Hello 概览",
-        "description": "命令面板命令；未配置 API Key 时置灰",
-        "icon": "bolt",
-        "priority": 60,
-        "shortcut": "Ctrl+Shift+H",
-        "when": { "config": { "requireKeys": ["greeting"] } },
-        "disabledHint": "请先在插件设置中填写问候语"
-      },
-      {
-        "id": "index-status",
-        "kind": "status",
-        "label": "Hello 状态",
-        "description": "状态指示（仅官方/认证插件可用）",
-        "icon": "circle-dot",
-        "priority": 70,
-        "when": { "indexState": "ready" }
-      }
-    ]
+    "render_mode": "declarative",
+    "contributions": {
+      "menus": [
+        {
+          "id": "main-panel",
+          "placement": "dock",
+          "type": "item",
+          "label": "Hello",
+          "description": "打开 Hello World 演示面板",
+          "icon": "wand",
+          "order": 10,
+          "action": {
+            "type": "surface",
+            "id": "main"
+          }
+        },
+        {
+          "id": "modal-demo",
+          "placement": "dock",
+          "type": "item",
+          "label": "模态",
+          "description": "演示 modal 类型的宿主表面",
+          "icon": "expand",
+          "order": 20,
+          "action": {
+            "type": "surface",
+            "id": "modal-demo"
+          }
+        },
+        {
+          "id": "context-card",
+          "placement": "context.card",
+          "type": "item",
+          "label": "Hello 右键项",
+          "description": "卡片右键菜单项，需先在卡片网格里选中至少一张卡片",
+          "icon": "clipboard",
+          "order": 50,
+          "when": {
+            "mode": ["cards"],
+            "selection": "any"
+          },
+          "disabledHint": "请先选中至少一张角色卡",
+          "action": {
+            "type": "surface",
+            "id": "main"
+          }
+        },
+        {
+          "id": "hello-batch",
+          "placement": "batch.actions",
+          "type": "submenu",
+          "label": "Hello 批量",
+          "description": "演示显式二级菜单（v2 的隐式 group 已删除）",
+          "icon": "layers",
+          "order": 60,
+          "children": [
+            {
+              "id": "batch-ping",
+              "type": "item",
+              "label": "Hello 批量 ping",
+              "description": "对选中项执行一次 ping（action 引用本插件声明的命令）",
+              "icon": "bolt",
+              "when": {
+                "mode": ["cards"],
+                "selection": "any"
+              },
+              "disabledHint": "请先选中至少一张角色卡",
+              "action": {
+                "type": "command",
+                "id": "batch-ping"
+              }
+            },
+            {
+              "id": "batch-separator",
+              "type": "separator"
+            },
+            {
+              "id": "batch-refresh",
+              "type": "item",
+              "label": "请求宿主刷新角色卡列表",
+              "icon": "refresh",
+              "action": {
+                "type": "command",
+                "id": "refresh-list"
+              }
+            }
+          ]
+        },
+        {
+          "id": "hello-palette",
+          "placement": "commandPalette",
+          "type": "item",
+          "label": "Hello 概览",
+          "description": "命令面板命令；未配置问候语时置灰",
+          "icon": "bolt",
+          "order": 60,
+          "when": {
+            "config": {
+              "requireKeys": ["greeting"]
+            }
+          },
+          "disabledHint": "请先在插件设置中填写问候语",
+          "action": {
+            "type": "command",
+            "id": "summarize"
+          }
+        },
+        {
+          "id": "settings-demo",
+          "placement": "settings.nav",
+          "type": "item",
+          "label": "Hello 设置",
+          "description": "设置页导航项：演示宿主设置页入口",
+          "icon": "settings",
+          "order": 40,
+          "action": {
+            "type": "surface",
+            "id": "modal-demo"
+          }
+        }
+      ],
+      "slots": [
+        {
+          "id": "settings-inline",
+          "slot": "settings.section",
+          "title": "Hello World 设置",
+          "order": 80,
+          "module": "frontend/views/settingsSection.js",
+          "export": "mountSettingsSection"
+        }
+      ],
+      "commands": [
+        {
+          "id": "summarize",
+          "title": "Hello 概览",
+          "description": "命令面板命令；未配置问候语时置灰",
+          "icon": "bolt",
+          "shortcut": "Ctrl+Shift+H",
+          "when": {
+            "config": {
+              "requireKeys": ["greeting"]
+            }
+          },
+          "module": "frontend/commands.js",
+          "export": "summarize"
+        },
+        {
+          "id": "batch-ping",
+          "title": "Hello 批量 ping",
+          "description": "对选中项执行一次 ping",
+          "icon": "bolt",
+          "when": {
+            "mode": ["cards"],
+            "selection": "any"
+          },
+          "module": "frontend/commands.js",
+          "export": "batchPing"
+        },
+        {
+          "id": "refresh-list",
+          "title": "Hello 刷新角色卡列表",
+          "description": "请求宿主刷新角色卡列表",
+          "icon": "refresh",
+          "module": "frontend/commands.js",
+          "export": "refreshList"
+        }
+      ]
+    }
   },
-  "permissions": ["cards.read", "secrets.read"],
+  "capabilities": ["cards.read", "secrets.read"],
   "config_schema": {
     "type": "object",
     "properties": {
@@ -102,7 +203,7 @@
       "surface_type": {
         "type": "enum",
         "title": "演示面板类型",
-        "description": "演示 D8 的 surface.type 四种取值。",
+        "description": "演示宿主 surface 的四种 type（panel/modal/page/sheet，由 api.surfaces.register 决定）。",
         "enum": ["panel", "modal", "page", "sheet"],
         "default": "panel"
       }

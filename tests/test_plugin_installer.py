@@ -71,10 +71,11 @@ def _write_plugin_zip(path, entries, *, plugin_id='zip-plugin'):
             archive.writestr(name, content)
         if not archived and 'manifest.json' not in entries:
             archive.writestr('manifest.json', json.dumps({
+                'manifest_version': 3,
                 'id': plugin_id,
                 'name': plugin_id,
                 'version': '0.1.0',
-                'api_version': 1,
+                'api_version': 3,
                 'backend': {'entry': 'backend', 'register': 'register'},
             }))
             archive.writestr('backend/__init__.py', 'def register(api):\n    return None\n')

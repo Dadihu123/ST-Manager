@@ -57,16 +57,28 @@
     <button
       type="button"
       class="detail-tab"
-      id="plugin-tab-entries"
+      id="plugin-tab-contributions"
       role="tab"
-      aria-controls="plugin-panel-entries"
-      :aria-selected="(activeTab === 'entries').toString()"
-      :class="activeTab === 'entries' ? 'active' : ''"
-      @click="selectTab('entries')"
+      aria-controls="plugin-panel-contributions"
+      :aria-selected="(activeTab === 'contributions').toString()"
+      :class="activeTab === 'contributions' ? 'active' : ''"
+      @click="selectTab('contributions')"
     >
       <span class="tab-icon">{{ icon('data-grid', 'ui-icon--xs') }}</span>
-      <span class="tab-text">入口总览</span>
-      <span class="detail-tab-meta" x-text="entryRows.length"></span>
+      <span class="tab-text">贡献总览</span>
+      <span class="detail-tab-meta" x-text="contributionRows.length"></span>
+    </button>
+    <!-- kill switch（设计 §4.10）：插件浮层关不掉时的逃生口。
+         与命令面板「插件：关闭所有浮动界面」走同一条 `plugins:close-overlays` 通道。 -->
+    <button
+      type="button"
+      class="detail-tab plugin-manager-kill-switch"
+      title="强制关闭全部插件浮层 / 自绘界面（kill switch）"
+      aria-label="关闭所有插件浮层"
+      @click="closeAllPluginOverlays()"
+    >
+      <span class="tab-icon">{{ icon('close', 'ui-icon--xs') }}</span>
+      <span class="tab-text">关闭所有插件浮层</span>
     </button>
   </nav>
 
@@ -115,35 +127,33 @@
         </p>
       </div>
 
-      <!-- 插件设置入口（`entries[].kind === 'settings'`，D7）：
-           宿主在既有「插件管理」分区内注入区块。**不新增设置顶层 tab**——
-           `settingsHelpContent` 是 `selectSettingTab` 的硬闸门，新增分区要同时改
-           键表、命令面板与模板，成本远大于收益。 -->
-      <section class="plugin-settings-entries" x-show="settingsEntries.length" x-cloak>
-        <h4 class="plugin-settings-entries-title">插件设置入口</h4>
+      <!-- 前端激活失败（运行时 `plugins:loaded` 广播的 failed 名单）：
+           清单加载成功但 `activate()` / 模块加载失败 → 插件功能不生效。
+           给「重试」派发 `plugin:reload`，由运行时等价 `reloadPlugin()` 重新激活；
+           渲染层不 import 运行时模块。 -->
+      <section class="plugin-activation-failures" x-show="failedPluginIds.length" x-cloak role="alert">
+        <h4 class="plugin-activation-failures-title">前端激活失败</h4>
         <p class="plugin-manager-hint">
-          以下插件在设置页提供了自己的面板入口。
+          以下插件已加载清单，但前端激活失败，声明的界面不会出现。可以重试；仍失败请查看日志。
         </p>
-        <div class="plugin-settings-entries-grid">
-          <template x-for="row in settingsEntries" :key="'settings-' + row.key">
-            <button
-              type="button"
-              class="plugin-settings-entry"
-              :data-plugin-entry="row.key"
-              @click="openSettingsEntry(row)"
-            >
-              <span class="plugin-settings-entry-icon" aria-hidden="true" x-html="entryIconHtml(row)"></span>
-              <span class="plugin-settings-entry-text">
-                <span class="plugin-settings-entry-label" x-text="row.label"></span>
-                <span class="plugin-settings-entry-meta" x-text="row.pluginName"></span>
-              </span>
-            </button>
+        <div class="plugin-activation-failure-list">
+          <template x-for="pluginId in failedPluginIds" :key="'failed-' + pluginId">
+            <div class="plugin-activation-failure">
+              <code class="plugin-activation-failure-id" x-text="pluginId"></code>
+              <button
+                type="button"
+                class="plugin-button plugin-button--ghost"
+                @click="retryPluginActivation({ id: pluginId, name: pluginId })"
+              >
+                重试
+              </button>
+            </div>
           </template>
         </div>
       </section>
 
       <template x-for="item in plugins" :key="item.id">
-        <article class="plugin-card" :class="{ 'is-disabled': !item.enabled, 'is-failed': !!item.load_error, 'is-update-available': !!updateFor(item.id) }" :data-plugin-card="item.id">
+        <article class="plugin-card" :class="{ 'is-disabled': !item.enabled, 'is-failed': !!item.load_error || isPluginFailed(item), 'is-update-available': !!updateFor(item.id) }" :data-plugin-card="item.id">
           <header class="plugin-card-header">
             <div class="plugin-card-identity">
               <span class="plugin-card-status" aria-hidden="true" x-text="statusIcon(item)"></span>
@@ -176,6 +186,13 @@
                   </template>
                   <!-- 归属分级徽标（D5）：tier 由宿主 catalog 决定，插件无权声明 -->
                   <span class="plugin-card-tier" :class="tierClass(item)" x-text="tierLabel(item)"></span>
+                  <!-- 呈现方式徽标（v3）：declarative（声明式）/ custom（自绘） -->
+                  <span
+                    class="plugin-card-badge plugin-card-render-mode"
+                    :class="renderModeClass(item)"
+                    x-text="'渲染: ' + renderModeLabel(item)"
+                    :title="renderModeWarning(item) || '插件界面的渲染方式'"
+                  ></span>
                 </p>
                 <!-- 安装期披露（阶段 6.3）：让用户在启用前就知道会多出几个入口 -->
                 <p class="plugin-card-entries-hint" x-show="entryCount(item) > 0" x-cloak>
@@ -245,10 +262,36 @@
           </header>
 
           <p class="plugin-card-description" x-show="item.description" x-text="item.description"></p>
-          <p class="plugin-card-permissions" x-text="'权限: ' + permissionLabels(item)"></p>
+          <!-- 能力位（v3，披露性）：取代 v2 的权限声明；未知能力位显示「未知名」 -->
+          <p class="plugin-card-detail-line" x-text="'能力位: ' + capabilityLabels(item)"></p>
+
+          <!-- 自绘模式未声明 `ui.custom` 能力位：只警告，不阻止（能力位是披露性的） -->
+          <template x-if="renderModeWarning(item)">
+            <p class="plugin-card-error" role="alert">
+              <span aria-hidden="true">{{ icon('alert-triangle', 'ui-icon--sm') }}</span>
+              <span x-text="renderModeWarning(item) + '：插件声明了自绘界面，但未声明 ui.custom 能力位'"></span>
+            </p>
+          </template>
+
+          <!-- 全局样式风险提示 -->
+          <template x-if="globalStylesWarning(item)">
+            <p class="plugin-card-warning">
+              <span aria-hidden="true">{{ icon('alert-triangle', 'ui-icon--sm') }}</span>
+              <span x-text="globalStylesWarning(item)"></span>
+            </p>
+          </template>
+
+          <!-- 前端激活失败 + 重试（运行时 failed 名单） -->
+          <template x-if="isPluginFailed(item)">
+            <p class="plugin-card-error" role="alert">
+              <span aria-hidden="true">{{ icon('alert-triangle', 'ui-icon--sm') }}</span>
+              <span x-text="pluginFailReason(item)"></span>
+              <button type="button" class="plugin-button plugin-button--ghost" @click="retryPluginActivation(item)">重试</button>
+            </p>
+          </template>
 
           <template x-if="requirementLabels(item)">
-            <p class="plugin-card-permissions" x-text="'依赖: ' + requirementLabels(item)"></p>
+            <p class="plugin-card-detail-line" x-text="'依赖: ' + requirementLabels(item)"></p>
           </template>
 
           <p class="plugin-card-error" x-show="item.load_error" x-cloak>
@@ -484,7 +527,7 @@
             </div>
           </header>
           <p class="plugin-card-description" x-show="entry.description" x-text="entry.description"></p>
-          <p class="plugin-card-permissions" x-text="'来源: ' + (entry.source ? entry.source.repo : '')"></p>
+          <p class="plugin-card-detail-line" x-text="'来源: ' + (entry.source ? entry.source.repo : '')"></p>
         </article>
       </template>
 
@@ -586,36 +629,37 @@
       </article>
     </section>
 
-    <!-- ④ 入口总览（阶段 6.1）：契约的可视化审计面 -->
+    <!-- ④ 贡献总览（v3 只读审计面）：菜单 / 插槽 / 命令的声明结构 -->
     <section
       class="plugin-manager-panel"
-      id="plugin-panel-entries"
-      x-show="activeTab === 'entries'"
+      id="plugin-panel-contributions"
+      x-show="activeTab === 'contributions'"
       role="tabpanel"
-      aria-labelledby="plugin-tab-entries"
+      aria-labelledby="plugin-tab-contributions"
     >
       <div class="plugin-manager-toolbar">
         <span class="plugin-manager-hint">
-          全部插件声明的入口。坞槽位由宿主分配，社区插件默认进溢出菜单。
+          全部插件声明的贡献（菜单 / 插槽 / 命令）。这里是只读视图：
+          运行时通过 <code>api.contributions.update()</code> 动态调整的内容不在此列表。
         </span>
         <input
           type="search"
           class="plugin-entries-search"
-          x-model="entryQuery"
-          placeholder="筛选入口…"
-          aria-label="筛选入口"
+          x-model="contributionQuery"
+          placeholder="筛选贡献…"
+          aria-label="筛选贡献"
         />
-        <!-- 刷新按钮只保留工具栏顶部那一个（它走 reloadActiveTab()，与当前页签语义一致） -->
       </div>
 
-      <div class="plugin-manager-empty" x-show="!entryRows.length && !loading" x-cloak>
-        <p>当前没有任何插件声明入口。</p>
+      <div class="plugin-manager-empty" x-show="!contributionRows.length && !loading" x-cloak>
+        <p>当前没有任何插件声明贡献。</p>
         <p class="plugin-manager-hint">
-          插件在 <code>manifest.json</code> 的 <code>frontend.entries</code> 里声明入口后，会出现在这里与入口坞中。
+          插件在 <code>manifest.json</code> 的 <code>frontend.contributions</code>
+          里声明菜单 / 插槽 / 命令后，会出现在这里，并由宿主对应区域渲染。
         </p>
       </div>
 
-      <div class="plugin-entries-table-wrapper" x-show="entryRows.length" x-cloak>
+      <div class="plugin-entries-table-wrapper" x-show="contributionRows.length" x-cloak>
         <table class="plugin-entries-table">
           <thead>
             <tr>
@@ -623,19 +667,18 @@
               <th scope="col">归属</th>
               <th scope="col">类型</th>
               <th scope="col">出现位置</th>
-              <th scope="col">当前呈现</th>
               <th scope="col">快捷键</th>
             </tr>
           </thead>
           <tbody>
-            <template x-for="row in filteredEntryRows" :key="row.key">
+            <template x-for="row in filteredContributionRows" :key="row.pluginId + ':' + row.kind + ':' + row.id">
               <tr :class="{ 'is-disabled': !row.pluginEnabled }">
                 <td>
-                  <div class="plugin-entries-identity">
-                    <span class="plugin-entries-icon" aria-hidden="true" x-html="entryIconHtml(row)"></span>
+                  <div class="plugin-entries-identity" :style="'padding-left: ' + contributionIndent(row)">
+                    <span class="plugin-entries-icon" aria-hidden="true" x-html="contributionIconHtml(row)"></span>
                     <span class="plugin-entries-text">
                       <span class="plugin-entries-name" x-text="row.label"></span>
-                      <code class="plugin-entries-id" x-text="row.id"></code>
+                      <code class="plugin-entries-id" x-text="row.pluginId + ':' + row.id"></code>
                     </span>
                   </div>
                 </td>
@@ -643,68 +686,12 @@
                   <span x-text="row.pluginName"></span>
                   <span class="plugin-card-tier" :class="tierClass(row)" x-text="tierLabel(row)"></span>
                 </td>
-                <td x-text="entryKindLabel(row)"></td>
+                <td x-text="contributionKindLabel(row)"></td>
+                <td x-text="contributionLocationLabel(row)"></td>
                 <td>
-                  <span x-text="entryLocationLabel(row)"></span>
-                  <!-- 如实标注：settings / nav / status 目前没有渲染消费者 -->
-                  <span
-                    class="color-text-muted"
-                    x-show="!entryKindImplemented(row)"
-                    title="宿主尚未实现该 kind 的渲染落点，此入口当前不会出现在任何界面"
-                  >（宿主未实现）</span>
-                </td>
-                <td x-text="entrySurfaceLabel(row)"></td>
-                <td>
-                  <!-- 快捷键：录制中的输入框 / 已绑定的组合键 + 改绑/清除。
-                       context 类与「共用同一个 surface 的非首个入口」不提供设置。 -->
-                  <template x-if="!entryShortcutEditable(row)">
-                    <span class="color-text-muted" title="右键菜单入口打开的是同一个面板，设置快捷键没有可用落点">
-                      不适用
-                    </span>
-                  </template>
-                  <template x-if="entryShortcutEditable(row) && !entryHoldsShortcutSlot(row)">
-                    <span class="color-text-muted" title="与同插件中排在前面的入口共用同一个面板，快捷键统一设在那一条上">
-                      共用
-                    </span>
-                  </template>
-                  <template x-if="entryShortcutEditable(row) && entryHoldsShortcutSlot(row)">
-                    <span class="plugin-entries-shortcut">
-                      <input
-                        x-ref="shortcutInput"
-                        x-show="recordingKey === row.key"
-                        type="text"
-                        readonly
-                        aria-label="子目录 （可选，仓库内插件所在目录）"
-                        class="plugin-entries-search"
-                        placeholder="按下组合键…"
-                        @keydown.prevent="onShortcutKeydown($event)"
-                        @blur="recordingKey = ''"
-                      >
-                      <template x-if="recordingKey !== row.key">
-                        <span class="plugin-entries-shortcut">
-                          <code
-                            x-show="entryShortcut(row)"
-                            :class="{ 'is-custom': entryShortcutIsCustom(row) }"
-                            :title="entryShortcutIsCustom(row) ? '用户自定义快捷键' : '插件建议的快捷键（已生效）'"
-                            x-text="entryShortcut(row)"
-                          ></code>
-                          <span x-show="!entryShortcut(row)" class="color-text-muted">—</span>
-                          <button
-                            type="button"
-                            class="plugin-button plugin-button--ghost"
-                            @click="captureEntryShortcut(row)"
-                            x-text="entryShortcutIsCustom(row) ? '改绑' : '设定'"
-                          ></button>
-                          <button
-                            type="button"
-                            class="plugin-button plugin-button--ghost"
-                            x-show="entryShortcutIsCustom(row)"
-                            @click="clearEntryShortcut(row)"
-                          >清除</button>
-                        </span>
-                      </template>
-                    </span>
-                  </template>
+                  <!-- v3：快捷键由命令静态声明，宿主不再支持用户改绑（无 layout 持久化）。 -->
+                  <code x-show="row.shortcut" class="plugin-entries-shortcut" x-text="row.shortcut"></code>
+                  <span x-show="!row.shortcut" class="color-text-muted">—</span>
                 </td>
               </tr>
             </template>
@@ -712,8 +699,8 @@
         </table>
       </div>
 
-      <p class="plugin-manager-hint" x-show="entryRows.length && !filteredEntryRows.length" x-cloak>
-        没有匹配的入口。
+      <p class="plugin-manager-hint" x-show="contributionRows.length && !filteredContributionRows.length" x-cloak>
+        没有匹配的贡献。
       </p>
     </section>
   </div>
@@ -723,6 +710,14 @@
       <input type="checkbox" x-model="keepDataOnUninstall">
       <span>卸载时保留配置与密钥</span>
     </label>
+    <button
+      type="button"
+      class="plugin-button plugin-button--danger plugin-manager-kill-switch-footer"
+      title="强制关闭全部插件浮层 / 自绘界面（kill switch）"
+      @click="closeAllPluginOverlays()"
+    >
+      关闭所有插件浮层
+    </button>
     <span class="plugin-manager-hint">
       后端插件改动需重启 ST-Manager 后生效
     </span>

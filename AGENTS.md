@@ -1,5 +1,19 @@
 # AGENTS.md
 
+## Agent skills
+
+### Issue tracker
+
+GitHub Issues via the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Five canonical triage roles with default label strings (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+This repo is single-context: one `GLOSSARY.md` at the repo root, architecture decisions in `docs/adr/`. See `docs/agents/domain.md`.
+
 ## Project Snapshot
 
 - Stack: Python 3.10+, Flask, SQLite, Pillow, requests, watchdog
@@ -93,16 +107,74 @@ pytest tests/test_st_auth_flow.py::test_st_http_client_web_performs_login
 pytest -v tests/test_chat_list_filters.py::test_chat_list_fav_filter_included
 ```
 
+## Plugin Contract v3
+
+The plugin contract is **v3** (implemented in a single release — ADR-0014). Plugins
+declare host UI through `frontend.contributions` (menu tree / slots / commands)
+and/or self-render through `api.createRoot`; `frontend.entries[]`, `api.entries.*`,
+`permissions` and `api_version 2` are **deleted with no compatibility shim**
+(ADR-0012).
+
+- Source of truth: `docs/2026-10-21-plugin-contract-v3-design.md`; implementation
+  record: `docs/2026-10-21-plugin-contract-v3-implementation-log.md`; decisions
+  `docs/adr/0001`–`0016`; vocabulary `GLOSSARY.md`; third-party migration:
+  `docs/plugin-migration-v2-to-v3.md`.
+- Manifest: `manifest_version: 3` and `api_version: 3` only; `capabilities`
+  replaces `permissions` and is **disclosure-only** (ADR-0008);
+  `frontend.render_mode` is `declarative` (default) or `custom`;
+  `frontend.global_styles` is injected only when `ui.global_styles` is declared.
+  Unknown top-level / `backend` / `frontend` keys reject the manifest; invalid
+  contribution nodes are dropped with warnings; `x-` keys are silently ignored.
+- Frontend API: `api.contributions.update/remove/get/list/trigger` (static
+  structure + dynamic content, ADR-0015), `api.createRoot([tag|{tag,portal}])` for
+  self-rendered roots, optional `api.overlays.register`. `api.emit` warns and
+  ignores core event names. Host events: `contributions:changed`,
+  `contribution:trigger`, `overlays:force-closed`, `plugin:degraded`; kill switch
+  is `plugins:close-overlays`.
+- Host UI consumes declared contributions only: 7 menu placements
+  (`context.folder`, `context.card`, `context.footer`, `batch.actions`,
+  `commandPalette`, `dock`, `settings.nav`), slots (`settings.section`,
+  `header.actions`, `card.detail.tabs`, `page.cards.toolbar`,
+  `page.worldinfo.toolbar`, `empty.<mode>`) anchored by `[data-plugin-slot]`, and
+  commands bound to `module` / `export` handlers. No cross-plugin composition
+  (ADR-0003).
+- Toolchain: contract-as-code lives in `core/plugins/contract.py`; the generated
+  JSON Schema / TypeScript types / standalone checker are listed in the Generated
+  Artifacts table. `python tools/stm_plugin_check.py <plugin-dir>` is the strict
+  plugin self-check used by `.github/workflows/plugin-contract.yml` and by official
+  plugin repositories (ADR-0010). Official plugins (`data/plugins/*`,
+  `samples/plugins/hello-world`, external official repos) must pass it and prefer
+  the recommended contribution channels.
+
 ## Generated Artifacts
 
-Two files in this repo are **generated**; never hand-edit them, and re-run their
+Five files in this repo are **generated**; never hand-edit them, and re-run their
 generator after touching the corresponding source. CI-style tests assert that the
 on-disk file matches the generator output.
 
 | Generated file | Source of truth | Regenerate | Verify |
 |---|---|---|---|
-| `docs/plugin-api.md` | `core/plugins/api.py` (`PluginAPI`) + `core/plugins/domains/*` + `static/js/pluginHost.js` (`buildApi()`) | `python tools/gen_plugin_api_docs.py` | `python tools/gen_plugin_api_docs.py --check` |
+| `docs/plugin-api.md` | `core/plugins/api.py` (`PluginAPI`) + `core/plugins/domains/*` + `static/js/pluginHost.js` (`buildApi()`) + `core/plugins/contract.py` (v3 contribution prose) | `python tools/gen_plugin_api_docs.py` | `python tools/gen_plugin_api_docs.py --check` |
+| `docs/plugin-manifest.schema.json` | `core/plugins/contract.py` (versions / enums / limits / regexes) | `python tools/gen_plugin_api_docs.py` | `python tools/gen_plugin_api_docs.py --check` |
+| `docs/plugin-api.d.ts` | `core/plugins/contract.py` + `buildApi()` + design §5–§7 | `python tools/gen_plugin_api_docs.py` | `python tools/gen_plugin_api_docs.py --check` |
+| `tools/stm_plugin_check.py` | `core/plugins/contract.py` (embedded verbatim) + host facts (`APP_VERSION`, icon names) | `python tools/gen_plugin_api_docs.py` | `python tools/gen_plugin_api_docs.py --check` |
 | `static/js/utils/iconMap.js` | `static/icons/*.svg` (`id="icon-*"`) | `python tools/gen_plugin_ui_icons.py` | `python tools/gen_plugin_ui_icons.py --check` |
+
+`docs/plugin-manifest.schema.json`, `docs/plugin-api.d.ts` and
+`tools/stm_plugin_check.py` let plugin authors (and third-party plugin repos)
+get completion, type hints and strict validation without importing the host.
+`tools/stm_plugin_check.py` must stay **standalone**: don't import `core.*` from
+it — the contract rules are **embedded verbatim** inside marker regions
+(`CHECKER_CONTRACT_BEGIN/END`, `CHECKER_HOST_BEGIN/END`) written by the
+generator, and `--check` fails when those regions drift. Everywhere else,
+contract facts (enums, limits, regexes) must be imported/referenced from
+`core/plugins/contract.py` — never copy them.
+
+The prose tables in the generated docs (`PLACEMENT_DOCS`, `SLOT_DOCS`,
+`WHEN_DOCS`, `NODE_FIELD_DOCS`, `ACTION_DOCS`, `CAPABILITY_GROUPS`,
+`OVERLAY_LAYER_DOCS`) are validated against the contract at generation time:
+add a placement / slot / action / `when` key / capability to `contract.py`
+without updating them and the generator raises instead of silently omitting a row.
 
 `PluginAPI` is a **domain-namespace facade**: its class body only holds `on` /
 `emit` / `estimate_tokens` (plus the internal `finalize` / `bind_job`), and every
@@ -133,7 +205,7 @@ Three hard constraints that fail tests immediately if violated:
    the same table, so a domain missing from it fails
    `test_domain_classes_match_backend_domains_registry`.
 
-A member nested under an existing namespace (`host.onState`, `entries.*`,
+A member nested under an existing namespace (`host.onState`, `contributions.*`,
 `surfaces.*`) is documented **inside that namespace's row** — do not add it as a
 separate top-level key, or `test_frontend_declared_members_are_exposed_by_host`
 fails (it checks the declared set against `buildApi()`'s literal top-level keys).
@@ -195,8 +267,9 @@ mypy core
 - Compose file: `docker-compose.yaml`
 - Docker image runs `python app.py` and exposes port `5000`
 - Data/config are expected to be mounted into `/app/data` and `/app/config.json`
-- Desktop packaging workflow: `.github/workflows/build-desktop.yaml`
+- Desktop packaging workflow: `.github/workflows/build-desktop.yml`
 - Desktop builds run on pushes to `main`, `v*` tags, or manual dispatch, and upload Windows, macOS arm64, and macOS x86_64 artifacts
+- Plugin contract workflow: `.github/workflows/plugin-contract.yml` — runs the generated-artifact `--check` commands, the plugin toolchain tests, and strict `stm-plugin-check` on `samples/plugins/*` and `data/plugins/*`; official plugins must pass it (ADR-0010)
 
 ## Imports
 

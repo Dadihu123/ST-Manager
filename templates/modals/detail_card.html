@@ -868,6 +868,16 @@
               x-text="resourceLorebooks.length + resourceRegex.length + resourceScripts.length + resourceQuickReplies.length + resourcePresets.length + resourceUnknown.length"
             ></span>
           </button>
+          <!-- 插件贡献的详情页页签（S7 `card.detail.tabs`）。
+               锚点必须是空容器：内容由 PluginSlotHost 挂载。目标卡片通过
+               `data-target-type` / `data-target-id` 声明，打开详情时刷新。
+               >宿主页签之后、`</nav>` 之前 = 插件页签永远排在宿主页签右侧。 -->
+          <div
+            class="plugin-slot-tab"
+            data-plugin-slot="card.detail.tabs"
+            :data-target-type="'card'"
+            :data-target-id="activeCard && activeCard.id"
+          ></div>
           </nav>
 
           <!-- 内容区：详情页唯一主滚动容器 -->

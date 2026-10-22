@@ -11,12 +11,14 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
+from core.plugins import contract
 from core.plugins import registry as registry_module
 from core.plugins.installer import scan_css_scope
 from core.plugins.manifest import PluginManifest
 from tests.plugins_test_support import clear_plugin_ui_namespace
 from tools.new_plugin import main as scaffold_main
 from tools.new_plugin import scaffold_plugin, validate_plugin_id
+from tools.stm_plugin_check import validate_plugin
 
 
 @pytest.fixture(autouse=True)
@@ -41,6 +43,8 @@ def test_scaffold_generates_expected_files(tmp_path):
         'backend/__init__.py',
         'frontend/plugin.js',
         'frontend/plugin.css',
+        'frontend/commands/ping.js',
+        'frontend/slots/settingsSection.js',
     ):
         assert os.path.isfile(os.path.join(target, relative)), relative
 
@@ -53,9 +57,49 @@ def test_generated_manifest_passes_validation(tmp_path):
     assert manifest.plugin_id == 'scaffold-demo'
     assert manifest.name == '脚手架示例'
     assert manifest.version == '0.1.0'
-    assert manifest.api_version == 1
+    assert manifest.api_version == contract.API_VERSION
     assert manifest.has_backend and manifest.has_frontend
     assert manifest.warnings == []
+
+
+def test_generated_manifest_is_v3_contributions(tmp_path):
+    target = scaffold_plugin('scaffold-demo', out_dir=str(tmp_path))
+
+    payload = json.loads(open(os.path.join(target, 'manifest.json'), encoding='utf-8').read())
+
+    assert payload['manifest_version'] == contract.MANIFEST_VERSION
+    assert payload['api_version'] == contract.API_VERSION
+    assert 'permissions' not in payload
+    assert payload['capabilities'] == []
+
+    frontend = payload['frontend']
+    assert 'entries' not in frontend
+    assert frontend['render_mode'] == contract.DEFAULT_RENDER_MODE
+
+    contributions = frontend['contributions']
+    assert set(contributions) == set(contract.KNOWN_CONTRIBUTION_KEYS)
+
+    placements = {node['placement'] for node in contributions['menus']}
+    assert 'settings.nav' in placements
+    assert 'commandPalette' in placements
+    command_ids = {command['id'] for command in contributions['commands']}
+    assert any(
+        node.get('action', {}).get('type') == 'command'
+        and node['action']['id'] in command_ids
+        for node in contributions['menus']
+    )
+
+
+def test_generated_plugin_passes_strict_checker(tmp_path):
+    """脚手架必须能直接通过 `stm-plugin-check` 的全部 9 项检查。"""
+    target = scaffold_plugin('scaffold-demo', name='脚手架示例', out_dir=str(tmp_path))
+
+    result = validate_plugin(target)
+
+    assert result['ok'] is True, result['issues']
+    assert result['error_count'] == 0
+    assert result['warning_count'] == 0
+    assert len(result['checks']) == 9
 
 
 def test_generated_css_passes_scope_check(tmp_path):

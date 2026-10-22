@@ -28,19 +28,71 @@ import {
   updatePluginFromCatalog,
 } from "../api/plugins.js";
 import { icon } from "../uiPrimitives.js";
-import { EntryRegistry, compareVersions } from "../entryRegistry.js";
-import { PluginSurfaceHost } from "../pluginSurfaceHost.js";
+import { compareVersions } from "../contributionRegistry.js";
 
-const PERMISSION_LABELS = {
+/**
+ * 能力位（capability）中文标签（设计 §4.7，v3 用 `capabilities` 取代 `permissions`）。
+ *
+ * 能力位是**披露性**的（ADR-0008）：宿主不据此拦截调用，只用于让用户知道
+ * 「这个插件会碰什么」。未知能力位显示为「未知名」，而不是静默丢弃——
+ * 未来新增能力位时，旧版管理页也能如实展示。
+ */
+const CAPABILITY_LABELS = {
   "cards.read": "读取角色卡",
   "cards.write": "修改角色卡",
   "worldbook.read": "读取世界书",
   "worldbook.write": "修改世界书",
   "tags.read": "读取标签",
   "tags.write": "写入标签",
+  "chats.read": "读取聊天",
+  "chats.write": "修改聊天",
+  "presets.read": "读取预设",
+  "presets.write": "修改预设",
   "secrets.read": "读取密钥",
   "network.outbound": "访问网络",
   "jobs.run": "运行后台作业",
+  "hooks.subscribe": "订阅后端事件",
+  "cli.run": "执行命令行",
+  "ui.custom": "自绘 UI",
+  "ui.global_styles": "修改全局样式",
+};
+
+/** 菜单落点中文标签（设计 §4.4.1 的 7 个落点）。 */
+const MENU_PLACEMENT_LABELS = {
+  "context.folder": "文件夹右键",
+  "context.card": "角色卡右键",
+  "context.footer": "右键菜单尾部",
+  "batch.actions": "批量操作",
+  "commandPalette": "命令面板",
+  dock: "入口坞",
+  "settings.nav": "设置侧栏",
+};
+
+/** 插槽中文标签（设计 §4.4.2）。 */
+const SLOT_LABELS = {
+  "settings.section": "设置分区",
+  "header.actions": "顶栏动作",
+  "card.detail.tabs": "详情页签",
+  "page.cards.toolbar": "角色卡工具栏",
+  "page.worldinfo.toolbar": "世界书工具栏",
+};
+
+/** 空状态插槽（`empty.<mode>`）的 mode 中文标签。 */
+const EMPTY_SLOT_MODE_LABELS = {
+  cards: "角色卡",
+  worldinfo: "世界书",
+  chats: "聊天",
+  presets: "预设",
+  regex: "正则",
+  scripts: "脚本",
+  quick_replies: "快速回复",
+  beautify: "美化",
+};
+
+/** 呈现方式（`render_mode`，manifest 顶层扁平快照；设计 §4.5）。 */
+const RENDER_MODE_LABELS = {
+  declarative: "声明式",
+  custom: "自绘",
 };
 
 // 设置页搜索结果的锚点 → 面板页签：让「搜索设置」能直接落到对应插件页签。
@@ -50,7 +102,7 @@ const ANCHOR_TABS = {
   "plugin-panel-installed": "installed",
   "plugin-panel-catalog": "catalog",
   "plugin-panel-upload": "upload",
-  "plugin-panel-entries": "entries",
+  "plugin-panel-contributions": "contributions",
 };
 
 const CONFIG_ANCHOR_PATTERN = /^plugin-config-(.+)$/;
@@ -61,51 +113,6 @@ const TIER_LABELS = {
   official: "官方",
   verified: "认证",
   community: "社区",
-};
-
-/** 入口 kind 的中文标签（D1）。 */
-const ENTRY_KIND_LABELS = {
-  dock: "坞",
-  nav: "导航",
-  settings: "设置",
-  context: "右键",
-  command: "命令",
-  status: "状态",
-  batch: "批量",
-};
-
-/**
- * 入口出现位置的说明（总览页「出现位置」列）。
- *
- * **必须如实描述**：`nav` / `status` 两种 kind 目前宿主**没有任何渲染消费者**。
- * 旧文案写「侧栏导航 / 状态栏」会让用户以为入口已经生效，实际点了什么都不会发生。
- *
- * `settings` 自本次起**已有消费者**：渲染为插件管理页内的「插件设置入口」区块
- * （见 `settingsEntries` / `openSettingsEntry`）。
- */
-const ENTRY_LOCATION_LABELS = {
-  dock: "入口坞",
-  nav: "宿主未实现",
-  settings: "插件管理页",
-  context: "右键菜单",
-  command: "命令面板",
-  status: "宿主未实现",
-  batch: "批量操作菜单",
-};
-
-/**
- * 该 kind 是否有真实的渲染消费者。
- *
- * 用于总览页给未实现的 kind 打上「未实现」标记——这比一句文案更难被忽略。
- */
-const IMPLEMENTED_ENTRY_KINDS = new Set(["dock", "context", "command", "batch", "settings"]);
-
-/** 当前呈现方式的说明（总览页「当前呈现」列）。 */
-const SURFACE_LABELS = {
-  panel: "右侧抽屉",
-  modal: "模态框",
-  page: "整页",
-  sheet: "底部面板",
 };
 
 function toast(message, type = "info") {
@@ -125,9 +132,6 @@ export default function pluginManager() {
     loading: false,
     busyAction: "",
     errorMessage: "",
-
-    /** 正在录制快捷键的入口键（空 = 未录制）。 */
-    recordingKey: "",
 
     plugins: [],
     pluginsDir: "",
@@ -150,9 +154,12 @@ export default function pluginManager() {
     uploadResult: null,
     uploading: false,
 
-    /** 入口总览（阶段 6.1）：全部插件的入口声明 + 归属分级。 */
-    entryRows: [],
-    entryQuery: "",
+    /** 贡献总览（只读）：菜单 / 插槽 / 命令 + 归属分级。 */
+    contributionRows: [],
+    contributionQuery: "",
+
+    /** 前端激活失败的插件 id（来自运行时 `plugins:loaded` 事件）。 */
+    failedPluginIds: [],
 
     githubRepo: "",
     githubRef: "",
@@ -172,12 +179,26 @@ export default function pluginManager() {
         this.activate(detail.anchor);
       };
       window.addEventListener("settings-section-changed", this._sectionHandler);
+
+      // 运行时广播加载结果：`failed` 是 id 数组，用于在已安装列表里标出
+      // 「前端激活失败」并给「重试」。重试走 `plugin:reload`（运行时等价 reloadPlugin）。
+      this._loadedHandler = (event) => {
+        const detail = (event && event.detail) || {};
+        this.failedPluginIds = Array.isArray(detail.failed) ? detail.failed.map(String) : [];
+      };
+      window.addEventListener("plugins:loaded", this._loadedHandler);
     },
 
     destroy() {
-      if (typeof window === "undefined" || !this._sectionHandler) return;
-      window.removeEventListener("settings-section-changed", this._sectionHandler);
-      this._sectionHandler = null;
+      if (typeof window === "undefined") return;
+      if (this._sectionHandler) {
+        window.removeEventListener("settings-section-changed", this._sectionHandler);
+        this._sectionHandler = null;
+      }
+      if (this._loadedHandler) {
+        window.removeEventListener("plugins:loaded", this._loadedHandler);
+        this._loadedHandler = null;
+      }
     },
 
     activate(anchor = "") {
@@ -233,12 +254,12 @@ export default function pluginManager() {
     reloadActiveTab() {
       if (this.activeTab === "catalog") return this.loadCatalog();
       if (this.activeTab === "upload") return Promise.resolve();
-      if (this.activeTab === "entries") return this.loadEntries();
+      if (this.activeTab === "contributions") return this.loadContributions();
       return this.loadPlugins();
     },
 
     selectTab(tab) {
-      const next = ["installed", "catalog", "upload", "entries"].includes(tab)
+      const next = ["installed", "catalog", "upload", "contributions"].includes(tab)
         ? tab
         : "installed";
       this.activeTab = next;
@@ -258,15 +279,8 @@ export default function pluginManager() {
         this.plugins = data.items || [];
         this.pluginsDir = data.plugins_dir || "";
         this.restartHint = this.plugins.some((item) => item.restart_required);
-        /*
-         * 「已安装」页签上也要有「插件设置入口」区块，而 `settingsEntries`
-         * 是从 `entryRows` 派生的。此前只有 `loadEntries()` 会填 `entryRows`，
-         * 于是必须先点一次「入口总览」页签，设置在入口才会出现——
-         * 用户从设置页搜索「插件设置入口」跳进来时看到的是空区块。
-         * `loadPlugins()` 已经拿到 `manifest.entries`，这里顺手同源派生，
-         * 不额外打接口。
-         */
-        this.entryRows = this.buildEntryRows(this.plugins);
+        // 「已安装」页签也要能显示贡献数量（只读总览的数据同源派生）。
+        this.contributionRows = this.buildContributionRows(this.plugins);
       } catch (error) {
         this.errorMessage = `读取插件列表失败: ${error}`;
       } finally {
@@ -294,16 +308,18 @@ export default function pluginManager() {
       }
     },
 
-    // ---------------------------------------------------------------- 入口总览
+    // ---------------------------------------------------------------- 贡献总览
 
     /**
-     * 入口总览（阶段 6.1）。
+     * 贡献总览（v3 只读视图）。
      *
      * 挂在既有「插件管理」页内，**不新增设置顶层 tab**——设置页的
      * `settingsHelpContent` 是硬闸门，新增分区要同时加键，容易静默 no-op。
-     * 这里复用 `loadPlugins()` 的结果，不额外打接口。
+     * 这里复用 `loadPlugins()` 的结果，不额外打接口；数据源是 manifest 里
+     * 静态声明的 `contributions`（不含运行时 `api.contributions.update`
+     * 动态浮现的内容——那是插件自身状态，宿主只读展示声明结构）。
      */
-    async loadEntries() {
+    async loadContributions() {
       this.loading = true;
       try {
         const data = await getPluginList();
@@ -313,7 +329,7 @@ export default function pluginManager() {
         }
         this.plugins = data.items || [];
         this.pluginsDir = data.plugins_dir || "";
-        this.entryRows = this.buildEntryRows(this.plugins);
+        this.contributionRows = this.buildContributionRows(this.plugins);
       } catch (error) {
         this.errorMessage = `读取插件列表失败: ${error}`;
       } finally {
@@ -321,58 +337,127 @@ export default function pluginManager() {
       }
     },
 
-    /** 把各插件的 `manifest.entries` 摊平成总览表格的行。 */
-    buildEntryRows(plugins) {
+    /**
+     * 插件 manifest 的 `contributions`（v3 结构，缺省空对象）。
+     *
+     * `/api/plugins/list` 返回的是 S2 定稿的**扁平快照**：`frontend` 是布尔、
+     * `render_mode` / `contributions` / `frontend_global_styles` 都在 manifest
+     * 顶层，**不是** v2 的 nested `frontend` 对象。
+     */
+    contributionsOf(item) {
+      const manifest = (item && item.manifest) || {};
+      const contributions = manifest.contributions;
+      return contributions && typeof contributions === "object" ? contributions : {};
+    },
+
+    /** 把各插件声明的贡献摊平成总览表格的行（菜单树递归展开，插槽/命令各一行）。 */
+    buildContributionRows(plugins) {
       const rows = [];
+
+      const walkMenus = (plugin, nodes, depth) => {
+        for (const node of Array.isArray(nodes) ? nodes : []) {
+          if (!node || typeof node !== "object") continue;
+          const placement = String(node.placement || "");
+          rows.push({
+            pluginId: plugin.id,
+            pluginName: plugin.name || plugin.id,
+            pluginEnabled: plugin.enabled !== false,
+            tier: plugin.tier || "community",
+            kind: "menu",
+            id: String(node.id || ""),
+            label: String(node.label || node.id || ""),
+            description: String(node.description || ""),
+            icon: String(node.icon || ""),
+            location: MENU_PLACEMENT_LABELS[placement] || placement || "—",
+            placement,
+            depth,
+            when: node.when || {},
+          });
+          walkMenus(plugin, node.children, depth + 1);
+        }
+      };
+
       for (const item of plugins || []) {
-        const entries = (item.manifest && item.manifest.entries) || [];
-        for (const entry of entries) {
+        const contributions = this.contributionsOf(item);
+        walkMenus(item, contributions.menus, 0);
+
+        for (const slot of Array.isArray(contributions.slots) ? contributions.slots : []) {
+          if (!slot || typeof slot !== "object") continue;
+          const name = String(slot.slot || "");
+          let location = SLOT_LABELS[name] || name || "—";
+          if (name.startsWith("empty.")) {
+            const mode = name.slice("empty.".length);
+            location = `空状态 · ${EMPTY_SLOT_MODE_LABELS[mode] || mode}`;
+          }
           rows.push({
             pluginId: item.id,
             pluginName: item.name || item.id,
             pluginEnabled: item.enabled !== false,
             tier: item.tier || "community",
-            id: entry.id,
-            key: `${item.id}:${entry.id}`,
-            kind: entry.kind,
-            label: entry.label,
-            description: entry.description || "",
-            icon: entry.icon || "",
-            shortcut: entry.shortcut || "",
-            disabledHint: entry.disabledHint || "",
-            // surface 是「去重」与「呈现方式」两列的公共依据：多个入口可以指向
-            // 同一个 surface（本插件 4 个入口都指向 workbench）。
-            surfaceId: (entry.surface && entry.surface.id) || entry.id,
-            surfaceType:
-              (entry.surface && entry.surface.type) || "panel",
+            kind: "slot",
+            id: String(slot.id || ""),
+            label: String(slot.title || slot.id || ""),
+            description: String(slot.description || ""),
+            icon: String(slot.icon || ""),
+            location,
+            placement: name,
+            depth: 0,
+            module: String(slot.module || ""),
+            exportName: String(slot.export || ""),
+            when: slot.when || {},
+          });
+        }
+
+        for (const command of Array.isArray(contributions.commands) ? contributions.commands : []) {
+          if (!command || typeof command !== "object") continue;
+          rows.push({
+            pluginId: item.id,
+            pluginName: item.name || item.id,
+            pluginEnabled: item.enabled !== false,
+            tier: item.tier || "community",
+            kind: "command",
+            id: String(command.id || ""),
+            label: String(command.title || command.id || ""),
+            description: String(command.description || ""),
+            icon: String(command.icon || ""),
+            location: "命令面板 / 快捷键",
+            placement: "command",
+            depth: 0,
+            shortcut: String(command.shortcut || ""),
+            module: String(command.module || ""),
+            exportName: String(command.export || ""),
+            when: command.when || {},
           });
         }
       }
+
+      const kindOrder = { menu: 0, slot: 1, command: 2 };
       rows.sort((left, right) => {
         if (left.pluginId !== right.pluginId) return left.pluginId.localeCompare(right.pluginId);
+        const kindDiff = (kindOrder[left.kind] || 0) - (kindOrder[right.kind] || 0);
+        if (kindDiff !== 0) return kindDiff;
         return String(left.label).localeCompare(String(right.label));
       });
       return rows;
     },
 
-    get filteredEntryRows() {
-      const query = String(this.entryQuery || "").trim().toLowerCase();
-      if (!query) return this.entryRows;
-      return this.entryRows.filter((row) =>
-        `${row.label} ${row.pluginId} ${row.pluginName} ${row.id} ${row.kind}`
+    get filteredContributionRows() {
+      const query = String(this.contributionQuery || "").trim().toLowerCase();
+      if (!query) return this.contributionRows;
+      return this.contributionRows.filter((row) =>
+        `${row.label} ${row.pluginId} ${row.pluginName} ${row.id} ${row.kind} ${row.location}`
           .toLowerCase()
           .includes(query),
       );
     },
 
     /**
-     * 入口图标节点（设计文档 9.3.1「图标 + 名称」列）。
+     * 贡献图标节点（总览页「图标 + 名称」列）。
      *
      * 取值可以是宿主图标名，也可以是插件内资源路径（含 `/`）——后者要靠
      * `pluginId` 才能解析成 `/api/plugins/<id>/assets/…`，所以必须传下去。
-     * 资源路径会渲染成 `<span>` + CSS mask（见 `uiPrimitives.js:icon`）。
      */
-    entryIconNode(row) {
+    contributionIconNode(row) {
       const name = String((row && row.icon) || "").trim();
       return icon(name || "circle-dot", {
         className: "ui-icon--sm",
@@ -381,8 +466,8 @@ export default function pluginManager() {
     },
 
     /** 图标节点的 HTML（模板用 `x-html` 注入）。 */
-    entryIconHtml(row) {
-      return this.entryIconNode(row).outerHTML;
+    contributionIconHtml(row) {
+      return this.contributionIconNode(row).outerHTML;
     },
 
     tierLabel(item) {
@@ -395,227 +480,176 @@ export default function pluginManager() {
       return `is-${String(tier || "community")}`;
     },
 
-    entryKindLabel(row) {
-      return ENTRY_KIND_LABELS[String((row && row.kind) || "")] || "入口";
+    /** 贡献 kind 的中文标签。 */
+    contributionKindLabel(row) {
+      const kind = String((row && row.kind) || "");
+      if (kind === "menu") return "菜单";
+      if (kind === "slot") return "插槽";
+      if (kind === "command") return "命令";
+      return "贡献";
     },
 
-    entryLocationLabel(row) {
-      return ENTRY_LOCATION_LABELS[String((row && row.kind) || "")] || "—";
+    /** 贡献出现位置（落点 / 插槽名 / 命令面板）。 */
+    contributionLocationLabel(row) {
+      return String((row && row.location) || "—");
     },
 
-    /** 该 kind 是否已有真实渲染消费者（未实现的不该让用户以为已经生效）。 */
-    entryKindImplemented(row) {
-      return IMPLEMENTED_ENTRY_KINDS.has(String((row && row.kind) || ""));
+    /** 菜单树缩进（只对菜单节点生效，插槽/命令不缩进）。 */
+    contributionIndent(row) {
+      const depth = Number((row && row.depth) || 0);
+      return row && row.kind === "menu" && depth > 0 ? `${depth * 14}px` : "0px";
     },
 
-    entrySurfaceLabel(row) {
-      return SURFACE_LABELS[String((row && row.surfaceType) || "")] || "—";
-    },
-
-    // ---------------------------------------------------------------- 快捷键
+    // ---------------------------------------------------------------- 能力 / 呈现方式
 
     /**
-     * 该入口能否设置快捷键。
+     * 插件声明的能力位数组（v3 `manifest.capabilities`，缺省空数组）。
      *
-     * `context` 类**不提供**快捷键设置：右键菜单的入口是「对某个右键目标执行」，
-     * 键盘上没有「右键目标」这个概念，所有 context 入口又都开同一个右侧面板，
-     * 设了快捷键也没有可用的落点（用户原话：「都打开同一个右侧面板，设了也没用」）。
+     * 能力位是**披露性**的（ADR-0008）：宿主不会据此拦截调用，但必须如实展示，
+     * 让用户知道插件会碰哪些数据。未知值显示「未知名」，不静默丢弃。
      */
-    entryShortcutEditable(row) {
-      return String((row && row.kind) || "") !== "context";
+    capabilitiesOf(item) {
+      const direct = item && item.capabilities;
+      if (Array.isArray(direct)) return direct.map(String);
+      const manifest = (item && item.manifest) || {};
+      return Array.isArray(manifest.capabilities) ? manifest.capabilities.map(String) : [];
+    },
+
+    /** 能力位文案：已知能力位用中文名，未知值显示「未知名」。 */
+    capabilityLabel(capability) {
+      const key = String(capability || "");
+      return CAPABILITY_LABELS[key] || "未知名";
+    },
+
+    /** 能力位列表文案（卡片与配置区共用）。 */
+    capabilityLabels(item) {
+      const capabilities = this.capabilitiesOf(item);
+      if (!capabilities.length) return "无能力位声明";
+      return capabilities.map((capability) => this.capabilityLabel(capability)).join(" · ");
+    },
+
+    /** 能力位个数（安装在安装/卸载提示里披露影响面）。 */
+    capabilityCount(item) {
+      return this.capabilitiesOf(item).length;
+    },
+
+    /** 该能力位是否为已知值（未知能力位在卡片上加「未知名」标记）。 */
+    capabilityIsKnown(capability) {
+      return Boolean(CAPABILITY_LABELS[String(capability || "")]);
+    },
+
+    /** `render_mode`（manifest 顶层的 S2 扁平快照，缺省 `declarative`）。 */
+    renderMode(item) {
+      const direct = item && item.render_mode;
+      if (direct) return String(direct);
+      const manifest = (item && item.manifest) || {};
+      return String(manifest.render_mode || "declarative");
+    },
+
+    renderModeLabel(item) {
+      return RENDER_MODE_LABELS[this.renderMode(item)] || this.renderMode(item);
+    },
+
+    renderModeClass(item) {
+      return `is-${this.renderMode(item)}`;
     },
 
     /**
-     * 该入口是否持有本插件的**快捷键位**。
-     *
-     * 去重规则：**按 surface 去重**。同一个 surface 被多个入口复用时（本插件的
-     * `workbench` 就服务 dock / context / batch / settings 四个入口），只有第一个
-     * 入口保留快捷键位——否则总览页会出现四条指向同一面板的重复快捷键，
-     * 用户改绑其中一条会与另一条互相顶掉（`assignEntryShortcut` 里一个组合键
-     * 只能绑一个入口）。
+     * 自绘模式的提示：声明 `render_mode: custom` 必须同时声明 `ui.custom`
+     * 能力位（设计 §4.7 / §7.4）。没声明时给出可见警告，但不阻止使用——
+     * 能力位是披露性的，宿主不做硬拦截。
      */
-    entryHoldsShortcutSlot(row) {
-      if (!this.entryShortcutEditable(row)) return false;
-      const surfaceKey = `${row.pluginId}:${row.surfaceId || row.id}`;
-      const first = this.entryRows.find(
-        (item) => `${item.pluginId}:${item.surfaceId || item.id}` === surfaceKey
-          && this.entryShortcutEditable(item),
-      );
-      return !first || first.key === row.key;
+    renderModeWarning(item) {
+      if (this.renderMode(item) !== "custom") return "";
+      if (this.capabilitiesOf(item).includes("ui.custom")) return "";
+      return "未声明自绘";
     },
 
     /**
-     * 入口当前生效的快捷键。
+     * `frontend_global_styles`（manifest 顶层的 S2 扁平快照；未声明返回空）。
      *
-     * 两级来源（设计文档 2.2：`shortcut` 是「建议快捷键，宿主可覆盖」）：
-     * 用户配置（`layout.shortcuts`）优先，否则用插件建议的 `entries[].shortcut`。
+     * 是否真的注入仍由运行时按 `ui.global_styles` 能力位二次门控。
      */
-    entryShortcut(row) {
-      const shortcuts = (EntryRegistry.layout && EntryRegistry.layout.shortcuts) || {};
-      const key = String((row && row.key) || "");
-      const hit = Object.keys(shortcuts).find((combo) => shortcuts[combo] === key);
-      if (hit) return hit;
-      // 被用户改绑到别处的建议值不再生效；不持有快捷键位的入口不显示建议值
-      if (!this.entryHoldsShortcutSlot(row)) return "";
-      return String((row && row.shortcut) || "");
+    globalStylesOf(item) {
+      const direct = item && item.frontend_global_styles;
+      if (Array.isArray(direct)) return direct;
+      const manifest = (item && item.manifest) || {};
+      return Array.isArray(manifest.frontend_global_styles) ? manifest.frontend_global_styles : [];
     },
-
-    /** 该入口的快捷键是否为用户显式配置（用于区分「建议」与「已设定」）。 */
-    entryShortcutIsCustom(row) {
-      const shortcuts = (EntryRegistry.layout && EntryRegistry.layout.shortcuts) || {};
-      const key = String((row && row.key) || "");
-      return Object.values(shortcuts).includes(key);
-    },
-
-    // ---------------------------------------------------------------- settings 入口
 
     /**
-     * `kind: 'settings'` 的渲染消费者（设计文档 D7）。
+     * 全局样式提示：会修改全局样式的插件必须显式声明，让用户知道风险。
      *
-     * **为什么挂在插件管理页内、不新增设置顶层 tab**：设置页的
-     * `selectSettingTab` 有硬闸门——`if (!this.settingsHelpContent[section]) return;`
-     * 新增顶层分区必须同时改 `settingsHelpContent` + `COMMAND_PALETTE_ENTRIES` +
-     * 模板，成本远大于收益，且会让设置页持续膨胀。`plugins` 键已存在，因此
-     * 注入到既有分区内即可规避该闸门。
-     *
-     * 只取**已启用**插件的 settings 入口：被禁用的插件不该在设置页留按钮。
+     * 是否真的注入了样式由运行时按 `ui.global_styles` 能力位二次门控；
+     * 这里只负责在管理面板上把风险说清楚。
      */
-    get settingsEntries() {
-      return this.entryRows.filter(
-        (row) => String(row.kind || "") === "settings" && row.pluginEnabled,
-      );
+    globalStylesWarning(item) {
+      if (!this.globalStylesOf(item).length) return "";
+      return "此插件会修改全局样式";
     },
 
-    /** 点击 settings 入口：打开该插件声明的 surface。 */
-    openSettingsEntry(row) {
-      const entry = EntryRegistry.get(String((row && row.key) || ""));
-      if (!entry) {
-        toast("入口已失效，插件可能已被禁用", "error");
-        return false;
-      }
+    /** 该插件前端激活失败（运行时 `plugins:loaded` 广播的 failed 名单）。 */
+    isPluginFailed(item) {
+      const id = String((item && item.id) || "");
+      if (!id) return false;
+      return (this.failedPluginIds || []).includes(id);
+    },
 
-      const surfaceKey = `${entry.pluginId}:${
-        (entry.surface && entry.surface.id) || entry.id
-      }`;
+    /** 前端激活失败的原因（运行时只广播 id；后端扫描的加载错误可能有详情）。 */
+    pluginFailReason(item) {
+      return String((item && item.load_error) || "插件前端激活失败，功能未生效");
+    },
 
-      /*
-       * 层级协调：`page` 型 surface 刻意落在模态层之下（它是「替换主内容区」，
-       * 不是浮层，见 plugin-surfaces.css），因此从设置弹窗里点开它必须先让出位置，
-       * 否则用户只会看到设置页，面板开在背后。
-       *
-       * 其余类型（`modal` / `panel` / `sheet`）都落在对话框层，能正常盖住设置页，
-       * **不需要**关设置页——保留用户所在的设置位置本身就是更好的体验，
-       * 关掉还会撞上「未保存修改」的丢弃确认。
-       *
-       * 类型以 `register()` 的 `spec.type` 为准：那才是决定容器类名与层级的值。
-       */
-      if (PluginSurfaceHost.typeOf(surfaceKey) === "page") {
-        if (typeof window !== "undefined") {
-          window.dispatchEvent(
-            new CustomEvent("settings:request-close", {
-              detail: { reason: "plugin-page-surface", surfaceKey },
-            }),
-          );
-        }
-      }
-
-      // 与坞的打开路径同一契约：优先走插件注册的 surface，
-      // 没有 surface 时派发 `entry:activate` 交给插件自己处理。
-      window.dispatchEvent(
-        new CustomEvent("entry:open", { detail: { key: entry.key } }),
-      );
+    /**
+     * 重试前端激活：派发 `plugin:reload`，运行时重新拉取 manifest 并 activate。
+     *
+     * 不直接 import 运行时模块：渲染层只通过事件与运行时通信（S4 同一原则），
+     * 这样管理面板在运行时懒加载失败时也能正常渲染。
+     */
+    retryPluginActivation(item) {
+      const pluginId = String((item && item.id) || "");
+      if (!pluginId) return false;
+      window.dispatchEvent(new CustomEvent("plugin:reload", { detail: { pluginId } }));
+      toast(`正在重新激活 ${item.name || pluginId}…`);
       return true;
     },
 
-    /** 录制快捷键：按下的组合键写入 `layout.shortcuts`。 */
-    async captureEntryShortcut(row) {
-      if (this.busyAction) return;
-      if (!this.entryShortcutEditable(row)) {
-        toast("右键菜单入口不支持快捷键：所有 context 入口打开的是同一个面板", "error");
-        return;
-      }
-      if (!this.entryHoldsShortcutSlot(row)) {
-        toast("该入口与同插件的其他入口共用同一个面板，快捷键请设在那一项上", "error");
-        return;
-      }
-      this.recordingKey = String((row && row.key) || "");
-      this.$nextTick?.(() => {
-        const input = this.$refs?.shortcutInput;
-        if (input && typeof input.focus === "function") input.focus();
-      });
+    /** 该插件声明了多少条贡献（菜单 / 插槽 / 命令），安装期披露用。 */
+    contributionCounts(item) {
+      const contributions = this.contributionsOf(item);
+      return {
+        menus: Array.isArray(contributions.menus) ? contributions.menus.length : 0,
+        slots: Array.isArray(contributions.slots) ? contributions.slots.length : 0,
+        commands: Array.isArray(contributions.commands) ? contributions.commands.length : 0,
+      };
     },
+
+    /** 「此插件将添加 N 个入口」文案（安装/上传确认页披露）。 */
+    entryCountLabel(item) {
+      const counts = this.contributionCounts(item);
+      const total = counts.menus + counts.slots + counts.commands;
+      return `此插件将添加 ${total} 条贡献（菜单 ${counts.menus} · 插槽 ${counts.slots} · 命令 ${counts.commands}）`;
+    },
+
+    /** 贡献总条数。 */
+    entryCount(item) {
+      const counts = this.contributionCounts(item);
+      return counts.menus + counts.slots + counts.commands;
+    },
+
+    // ---------------------------------------------------------------- kill switch
 
     /**
-     * 处理录制框的按键。
+     * 关闭所有插件浮层（kill switch，设计 §4.10）。
      *
-     * 与 `commandPalette.shortcutCombo` 同一套折算规则（修饰键固定顺序 + 主键大写），
-     * 这样两处对同一个物理按键会得到同一个字符串。
+     * 与命令面板的「插件：关闭所有浮动界面」同一条通道：派发
+     * `plugins:close-overlays`，由 `PluginHost.killSwitch()` 强制清理全部
+     * overlay / surface / 自绘根节点。渲染层不直接碰运行时。
      */
-    async onShortcutKeydown(event) {
-      const key = String(event.key || "");
-      if (key === "Escape") {
-        this.recordingKey = "";
-        return;
-      }
-      if (["Control", "Alt", "Shift", "Meta"].includes(key)) return;
-      if (!key) return;
-
-      const parts = [];
-      if (event.ctrlKey) parts.push("Ctrl");
-      if (event.altKey) parts.push("Alt");
-      if (event.shiftKey) parts.push("Shift");
-      if (event.metaKey) parts.push("Meta");
-      if (!parts.length) {
-        toast("快捷键必须包含 Ctrl / Alt / Shift / Meta 修饰键", "error");
-        return;
-      }
-      parts.push(key.length === 1 ? key.toUpperCase() : key);
-      const combo = parts.join("+");
-
-      await this.assignEntryShortcut(this.recordingKey, combo);
-      this.recordingKey = "";
-    },
-
-    /** 写入（或清除）某入口的快捷键。空 `combo` 表示清除。 */
-    async assignEntryShortcut(entryKey, combo) {
-      const key = String(entryKey || "");
-      if (!key) return false;
-
-      const shortcuts = { ...((EntryRegistry.layout && EntryRegistry.layout.shortcuts) || {}) };
-      // 一个组合键只能绑一个入口：先摘掉旧绑定，再摘掉该入口的旧组合键
-      for (const existing of Object.keys(shortcuts)) {
-        if (shortcuts[existing] === key) delete shortcuts[existing];
-      }
-      const target = String(combo || "").trim();
-      if (target) {
-        const occupied = shortcuts[target];
-        if (occupied && occupied !== key) {
-          toast(`快捷键 ${target} 已被其他入口占用`, "error");
-          return false;
-        }
-        shortcuts[target] = key;
-      }
-
-      const ok = await EntryRegistry.updateLayout({ shortcuts });
-      if (ok) toast(target ? `已绑定 ${target}` : "已清除快捷键");
-      else toast("保存快捷键失败", "error");
-      return ok;
-    },
-
-    /** 清除该入口的快捷键。 */
-    async clearEntryShortcut(row) {
-      return this.assignEntryShortcut(row && row.key, "");
-    },
-
-    /** 该插件将添加多少个入口（安装期披露，阶段 6.3）。 */
-    entryCountLabel(item) {
-      const entries = (item && item.manifest && item.manifest.entries) || [];
-      return `此插件将添加 ${entries.length} 个入口`;
-    },
-
-    entryCount(item) {
-      const entries = (item && item.manifest && item.manifest.entries) || [];
-      return entries.length;
+    closeAllPluginOverlays() {
+      window.dispatchEvent(new CustomEvent("plugins:close-overlays"));
+      toast("已关闭所有插件浮层");
+      return true;
     },
 
     /** 已安装插件对应的可用更新（没有则 null）。 */
@@ -1028,10 +1062,9 @@ export default function pluginManager() {
       return item.enabled ? "已启用" : "已禁用";
     },
 
-    permissionLabels(item) {
-      const permissions = item.permissions || [];
-      if (!permissions.length) return "无声明权限";
-      return permissions.map((item) => PERMISSION_LABELS[item] || item).join(" · ");
+    /** 能力位文案（卡片与配置区共用；未知能力位显示「未知名」）。 */
+    capabilitySummary(item) {
+      return this.capabilityLabels(item);
     },
 
     requirementLabels(item) {

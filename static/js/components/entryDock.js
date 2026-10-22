@@ -1,9 +1,8 @@
 /**
  * static/js/components/entryDock.js
- * 入口坞（设计文档 D6 / 阶段 5）。
+ * 入口坞（设计文档 §4.4.4 / §5.1 / D6 的 v3 实现）。
  *
- * 这是 `entries` 契约的**第一个消费者**，也是地基的验收装置：没有坞，插件声明的
- * 入口就没有落地的地方，也就无法端到端验证契约真的可用。
+ * 坞是插件贡献里 `dock` 落点的宿主渲染器，也是「插件 UI 能不能落地」的验收装置。
  *
  * 设计要点：
  * - 位置：`position: fixed; right: 0; top: 64px; bottom: 64px` 的一条**不可见**
@@ -14,15 +13,16 @@
  * - 悬停箭头停留 150ms 自动展开；点击箭头显式开合（收起会取消挂起的悬停展开）。
  * - 根元素带 `data-marquee-ignore`，框选不会命中坞。
  * - 键盘：`role="toolbar"` + `aria-orientation="vertical"` + roving tabindex，
- *   `ArrowUp/Down` 移动、`Enter` 打开、`Delete` 取消固定。
+ *   `ArrowUp/Down` 移动、`Enter` 打开。
  * - 移动端不渲染侧条，退化为顶栏按钮 + 底部 sheet。
- * - 平板默认收起且不自动展开。
  *
- * 状态来源：`EntryRegistry`（条目）+ `ui_data._entry_layout_v1`（偏好）。
+ * 状态来源：`ContributionRegistry.dockItems()` / `dockOverflow()`。
+ * 排序由注册表决定（`order → pluginId → id`），坞**不再维护** pinned / hidden /
+ * order / 拖拽 —— 那是 v2 的入口布局偏好，v3 由插件 `order` + 宿主容量裁剪决定。
+ * 全局 8 / 每插件 2 的上限也由注册表统一裁剪（§4.4.4），坞只负责渲染。
  */
 
-import { EntryRegistry } from "../entryRegistry.js";
-import { PluginSurfaceHost } from "../pluginSurfaceHost.js";
+import { ContributionRegistry } from "../contributionRegistry.js";
 import { icon } from "../uiPrimitives.js";
 
 const DOCK_ROOT_ID = "entry-dock-root";
@@ -59,9 +59,12 @@ function writePrefs(patch) {
 export default function entryDock() {
   return {
     ready: false,
-    entries: [],
+    /** 坞内槽位（注册表按全局 8 / 每插件 2 裁剪后的结果）。 */
     slots: [],
+    /** 溢出菜单条目（未进槽位但仍可用的 dock 贡献）。 */
     overflow: [],
+    /** 槽位 + 溢出的全部 dock 贡献（移动端 sheet / 数量标用）。 */
+    entries: [],
     overflowOpen: false,
     overflowQuery: "",
     /** 打开溢出菜单的那次点击事件；`@click.outside` 必须忽略它（见 closeOverflow）。 */
@@ -69,10 +72,6 @@ export default function entryDock() {
     expanded: false,
     deviceType: "desktop",
     activeKey: "",
-
-    /** 拖拽重排状态（D6：坞槽位顺序可调，写入 `layout.order`）。 */
-    draggingKey: "",
-    dragOverKey: "",
 
     _hoverTimer: null,
     _entriesHandler: null,
@@ -86,17 +85,10 @@ export default function entryDock() {
 
       this.refresh();
 
-      // 注册表变更 → 重新渲染（插件加载 / 禁用 / 配置变更都会触发）
+      // 贡献注册表变更 → 重新渲染（插件加载 / 禁用 / 配置变更都会触发）
       this._entriesHandler = () => this.refresh();
-      window.addEventListener("entries:changed", this._entriesHandler);
+      window.addEventListener("contributions:changed", this._entriesHandler);
       window.addEventListener("plugins:loaded", this._entriesHandler);
-
-      // 入口打开请求（命令面板 / 插件 API 也会派发）
-      this._openHandler = (event) => {
-        const detail = (event && event.detail) || {};
-        if (detail.key) this.open(detail.key);
-      };
-      window.addEventListener("entry:open", this._openHandler);
 
       // 设备类型变化（平板默认收起且不自动展开）
       this._resizeHandler = () => {
@@ -136,13 +128,9 @@ export default function entryDock() {
     destroy() {
       if (typeof window === "undefined") return;
       if (this._entriesHandler) {
-        window.removeEventListener("entries:changed", this._entriesHandler);
+        window.removeEventListener("contributions:changed", this._entriesHandler);
         window.removeEventListener("plugins:loaded", this._entriesHandler);
         this._entriesHandler = null;
-      }
-      if (this._openHandler) {
-        window.removeEventListener("entry:open", this._openHandler);
-        this._openHandler = null;
       }
       if (this._resizeHandler) {
         window.removeEventListener("resize", this._resizeHandler);
@@ -169,42 +157,62 @@ export default function entryDock() {
       return "desktop";
     },
 
+    /** 贡献节点的稳定键（注册表给 `key`；回退到 `pluginId:id`）。 */
+    entryKey(node) {
+      if (!node) return "";
+      if (node.key) return String(node.key);
+      return `${String(node.pluginId || "")}:${String(node.id || "")}`;
+    },
+
+    /**
+     * 把注册表节点归一成坞渲染需要的形态。
+     *
+     * - `enabled`：`when` 通过且未被插件 `update` 关掉；置灰项仍要渲染（D7）。
+     * - `progress`：设计 §4.4.5 是 0–1 比例，这里原样保留，渲染时归一成百分比。
+     */
+    normalizeNode(node) {
+      if (!node || typeof node !== "object") return null;
+      if (node.type === "separator") return null;
+      return {
+        ...node,
+        key: this.entryKey(node),
+        label: String(node.label || node.id || ""),
+        enabled: node.enabled !== false && node.ok !== false,
+      };
+    },
+
     refresh() {
-      this.slots = EntryRegistry.dockSlots();
-      this.overflow = EntryRegistry.overflowEntries();
-      this.entries = EntryRegistry.list({ kind: "dock" });
-      if (!this.slots.some((entry) => entry.key === this.activeKey)) this.activeKey = "";
+      try {
+        const slots = Array.isArray(ContributionRegistry.dockItems())
+          ? ContributionRegistry.dockItems()
+          : [];
+        const overflow = Array.isArray(ContributionRegistry.dockOverflow())
+          ? ContributionRegistry.dockOverflow()
+          : [];
+        this.slots = slots.map((node) => this.normalizeNode(node)).filter(Boolean);
+        this.overflow = overflow.map((node) => this.normalizeNode(node)).filter(Boolean);
+      } catch (error) {
+        console.warn("[entryDock] 读取 dock 贡献失败:", error);
+        this.slots = [];
+        this.overflow = [];
+      }
+      this.entries = [...this.slots, ...this.overflow];
+      if (!this.entries.some((entry) => entry.key === this.activeKey)) this.activeKey = "";
       this.syncMobileDockedClass();
     },
 
     /**
      * 坞里是否有任何东西可展示（槽位或溢出菜单里的入口）。
      *
-     * 用来决定「右侧箭头 / 移动端顶栏按钮」要不要出现。宿主内建命令全部是
-     * `kind: "command"`（见 `entryRegistry.js` 的 `CORE_ENTRIES`），**不进坞**——
-     * `dockSlots()` / `overflowEntries()` 都只取 `kind: "dock"`。所以这两个数组
-     * 同时为空 ⇔ 当前没有任何插件声明了 dock 入口。
-     *
-     * ⚠️ 不能用 `entries.length` 代替：`entries` 是 `list({kind:"dock"})`，
-     * 它按设计**排除用户隐藏项**，但**保留 `when` 未满足的置灰项**——后者仍然要
-     * 展示（D7：置灰可见 + disabledHint），所以它就是"有没有东西可看"的正解，
-     * 与 slots/overflow 同源、不会出现两者不一致的分歧。
+     * 宿主内建命令（kill switch 等）不是 dock 贡献，**不进坞**——`dockItems()` /
+     * `dockOverflow()` 都只取 `dock` 落点。所以两者同时为空 ⇔ 当前没有插件
+     * 声明了 dock 入口，箭头整个不出现。
      */
     get hasEntries() {
       return this.slots.length > 0 || this.overflow.length > 0;
     },
 
-    /**
-     * 当前坞里有几个入口（槽位 + 溢出菜单），供箭头/移动端按钮上的数字标使用。
-     *
-     * 用 `entries.length`（= `list({kind:"dock"})`）而不是 `slots.length`：
-     * `slots` 只含**已固定**的入口（且受 `MAX_DOCK_SLOTS` / 每插件上限裁剪），
-     * 社区插件默认进溢出菜单不进槽位 —— 只看 slots 会让「只装了社区插件」时
-     * 数字标不显示（实测：`slots=0, overflow=1` 时旧代码的
-     * `x-show="slots.length"` 判假，徽标凭空消失，而入口明明有 1 个）。
-     *
-     * `entries` 已按设计排除用户隐藏项，因此这个数就是「用户看得见的入口数」。
-     */
+    /** 坞里可见入口数（槽位 + 溢出），用于箭头 / 移动端按钮上的数字标。 */
     get entryCount() {
       return this.entries.length;
     },
@@ -218,7 +226,6 @@ export default function entryDock() {
      * 移动端的顶栏按钮走的是 `toggle()` → `expand()`，同时 `expanded` 又是
      * 底部 sheet 的开关（`x-if="deviceType === 'mobile' && expanded"`）。
      * 旧实现在这里对 mobile 提前 return，顶栏按钮因此永远打不开 sheet。
-     * 之前之所以没暴露，是因为旧默认值是「展开」—— 静默地把 bug 盖住了。
      *
      * hover 展开（真正的误触来源）在 `onHotzoneEnter()` 里按 deviceType 判断，
      * 那里才是该拦的地方。
@@ -264,152 +271,57 @@ export default function entryDock() {
       this.cancelHoverTimer();
     },
 
-    // ------------------------------------------------------------ 打开入口
+    // ------------------------------------------------------------ 打开贡献
 
-    /** 打开入口：优先走插件注册的 surface，其次派发事件让宿主自己处理。 */
-    open(key) {
-      const entry = EntryRegistry.get(String(key || ""));
-      if (!entry) return false;
-
-      const surfaceKey = `${entry.pluginId}:${entry.surface && entry.surface.id ? entry.surface.id : entry.id}`;
-      if (PluginSurfaceHost.has(surfaceKey)) {
-        PluginSurfaceHost.openSurface(surfaceKey, {
-          source: "dock",
-          targetId: entry.id,
-          mode: EntryRegistry.context().mode,
-          // 坞入口没有作用域：显式传 null，不继承上一次点击的目标
-          target: null,
-        });
-        this.activeKey = entry.key;
-        return true;
-      }
-
-      // 没有对应 surface：交给插件自己监听（例如 command 类入口）
-      window.dispatchEvent(
-        new CustomEvent(`entry:activate`, {
-          detail: { key: entry.key, entry, source: "dock", target: null },
-        }),
-      );
-      this.activeKey = entry.key;
-      return true;
-    },
-
-    // ------------------------------------------------------------ 坞槽位
-
-    /** 用户显式固定 / 取消固定（D6：坞槽位是宿主分配的资源）。 */
-    async togglePin(entry) {
-      if (!entry) return false;
-      const pinned = Array.isArray(EntryRegistry.layout.pinned)
-        ? [...EntryRegistry.layout.pinned]
-        : [];
-      const unpinned = Array.isArray(EntryRegistry.layout.unpinned)
-        ? [...EntryRegistry.layout.unpinned]
-        : [];
-
-      const isPinned = pinned.includes(entry.key);
-      let nextPinned = pinned;
-      let nextUnpinned = unpinned;
-
-      if (isPinned) {
-        nextPinned = pinned.filter((key) => key !== entry.key);
-        if (!nextUnpinned.includes(entry.key)) nextUnpinned.push(entry.key);
-      } else {
-        nextUnpinned = unpinned.filter((key) => key !== entry.key);
-        if (!nextPinned.includes(entry.key)) nextPinned.push(entry.key);
-      }
-
-      const ok = await EntryRegistry.updateLayout({
-        pinned: nextPinned,
-        unpinned: nextUnpinned,
-      });
-      this.refresh();
-      return ok;
-    },
-
-    async hide(entry) {
-      if (!entry) return false;
-      const hidden = Array.isArray(EntryRegistry.layout.hidden)
-        ? [...EntryRegistry.layout.hidden]
-        : [];
-      if (!hidden.includes(entry.key)) hidden.push(entry.key);
-      const ok = await EntryRegistry.updateLayout({ hidden });
-      this.refresh();
-      return ok;
-    },
-
-    // ------------------------------------------------------------ 拖拽重排
-    //
-    // D6：坞槽位顺序由用户决定（文档阶段 5 验收清单里的「拖拽重排持久化」）。
-    // 用原生 HTML5 拖放，不引第三方库。
-    //
-    // 顺序写进 `layout.order`（全局键数组）——`EntryRegistry.list()` 排序时
-    // **用户显式排序优先于插件建议的 priority**，所以这里只要维护 order 即可。
-
-    onSlotDragStart(entry, event) {
-      if (!entry) return;
-      this.draggingKey = entry.key;
-      // Firefox 要求必须 setData 才会真正开始拖拽
+    /** 坞的贡献上下文（§5.1：dock 落点 `{mode, selection}`，没有 target）。 */
+    contributionContext() {
+      let mode = "";
+      let ids = [];
       try {
-        event?.dataTransfer?.setData("text/plain", entry.key);
-        if (event?.dataTransfer) event.dataTransfer.effectAllowed = "move";
+        mode = String(ContributionRegistry.context().mode || "");
       } catch (error) {
-        /* 某些环境禁用 dataTransfer，忽略即可 */
+        mode = "";
       }
-    },
-
-    onSlotDragOver(entry, event) {
-      if (!this.draggingKey || !entry || entry.key === this.draggingKey) return;
-      event?.preventDefault?.();
-      this.dragOverKey = entry.key;
-      if (event?.dataTransfer) event.dataTransfer.dropEffect = "move";
-    },
-
-    onSlotDragLeave(entry) {
-      if (entry && this.dragOverKey === entry.key) this.dragOverKey = "";
-    },
-
-    onSlotDragEnd() {
-      this.draggingKey = "";
-      this.dragOverKey = "";
+      try {
+        const store = this.$store && this.$store.global;
+        const viewState = (store && store.viewState) || {};
+        if (!mode && store && store.currentMode) mode = String(store.currentMode);
+        ids = Array.isArray(viewState.selectedIds) ? viewState.selectedIds : [];
+      } catch (error) {
+        ids = [];
+      }
+      return {
+        mode,
+        target: null,
+        selection: {
+          mode: ids.length === 0 ? "none" : ids.length > 1 ? "multi" : "single",
+          ids: ids.map((id) => String(id)).filter(Boolean),
+        },
+      };
     },
 
     /**
-     * 放下：把被拖的槽位插到目标槽位的位置。
+     * 打开一个 dock 贡献：统一派发 `contribution:trigger`（S4）。
      *
-     * `layout.order` 是**全局**顺序（含溢出菜单里的入口），所以要在完整顺序里
-     * 搬移，而不是只重排当前可见的坞槽位——否则拖一次会把没进坞的入口顺序打乱。
+     * 渲染层不知道 surface / command 的区别——由运行时按节点 `action` 分派。
+     * 置灰项不执行，改用 `onDisabledClick` 引导到插件配置（D7：不是无反应）。
      */
-    async onSlotDrop(targetEntry, event) {
-      event?.preventDefault?.();
-      const sourceKey = String(this.draggingKey || "");
-      const targetKey = String((targetEntry && targetEntry.key) || "");
-      this.onSlotDragEnd();
+    open(node) {
+      const item = typeof node === "string" ? this.entries.find((entry) => entry.key === node) : node;
+      if (!item || item.enabled === false) return false;
 
-      if (!sourceKey || !targetKey || sourceKey === targetKey) return false;
-
-      const current = Array.isArray(EntryRegistry.layout.order)
-        ? [...EntryRegistry.layout.order]
-        : [];
-
-      // 完整顺序 = 用户已排序的 + 未出现的（按注册表当前顺序补齐）
-      const known = new Set(current);
-      for (const item of EntryRegistry.searchable()) {
-        if (!known.has(item.key)) {
-          current.push(item.key);
-          known.add(item.key);
-        }
-      }
-
-      const from = current.indexOf(sourceKey);
-      const to = current.indexOf(targetKey);
-      if (from === -1 || to === -1) return false;
-
-      current.splice(from, 1);
-      current.splice(to, 0, sourceKey);
-
-      const ok = await EntryRegistry.updateLayout({ order: current });
-      this.refresh();
-      return ok;
+      window.dispatchEvent(
+        new CustomEvent("contribution:trigger", {
+          detail: {
+            pluginId: String(item.pluginId || ""),
+            nodeId: String(item.id || ""),
+            trigger: "dock",
+            ctx: this.contributionContext(),
+          },
+        }),
+      );
+      this.activeKey = item.key;
+      return true;
     },
 
     // ------------------------------------------------------------ 溢出菜单
@@ -519,13 +431,7 @@ export default function entryDock() {
 
       if (event.key === "Enter" || event.key === " ") {
         event.preventDefault();
-        this.open(items[currentIndex].key);
-        return;
-      }
-
-      if (event.key === "Delete") {
-        event.preventDefault();
-        this.togglePin(items[currentIndex]);
+        this.open(items[currentIndex]);
         return;
       }
 
@@ -564,18 +470,42 @@ export default function entryDock() {
     badgeText(entry) {
       const value = entry && entry.badge;
       if (value === null || value === undefined || value === "") return "";
+      if (typeof value === "object") {
+        return String(value.text ?? value.inner ?? value.value ?? "");
+      }
       return String(value);
     },
 
+    /**
+     * 进度文案：设计 §4.4.5 的 `progress` 是 **0–1 比例**；同时兼容
+     * `{done,total}` 旧形态（宿主内部面板用后者）。
+     */
     progressText(entry) {
       const progress = entry && entry.progress;
-      if (!progress) return "";
-      return `${progress.done}/${progress.total}`;
+      if (progress === null || progress === undefined) return "";
+      if (typeof progress === "number") {
+        if (!Number.isFinite(progress)) return "";
+        return `${Math.max(0, Math.min(100, Math.round(progress * 100)))}%`;
+      }
+      if (typeof progress === "object") {
+        const total = Number(progress.total || 0);
+        if (!Number.isFinite(total) || total <= 0) return "";
+        return `${Number(progress.done || 0)}/${total}`;
+      }
+      return "";
     },
 
+    /** 节点状态类名（`idle` / `running` / `error`…，设计 §4.4.5）。 */
     statusClass(entry) {
-      const status = String((entry && entry.status) || "idle");
+      const raw = entry && entry.status;
+      const status = typeof raw === "string" ? raw : String((raw && raw.kind) || "idle");
       return `is-${status}`;
+    },
+
+    /** 置灰项的悬浮说明（可见但不可点，给原因）。 */
+    menuNodeHint(entry) {
+      if (!entry) return "";
+      return String(entry.disabledHint || entry.description || "");
     },
 
     /** 置灰项点击时跳到该插件的配置/密钥区（D7：不是无反应）。 */

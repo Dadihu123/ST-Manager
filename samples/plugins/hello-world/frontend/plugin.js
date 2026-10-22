@@ -1,14 +1,18 @@
 /**
- * Hello World 示例插件前端入口 —— 契约活体夹具。
+ * Hello World 示例插件前端入口 —— 插件契约 v3 活体夹具。
  *
- * 这个文件是 `docs/plugin-api.md` 的**可运行对照**：它刻意用到 D8 的全部命名
- * 空间（`entries` / `surfaces` / `ui` / `storage` / `host` / `onConfigChange`），
- * 以及 `mount(container, ctx)` 的容器契约。
+ * 界面结构（菜单树 / 插槽 / 命令）全部来自 `manifest.frontend.contributions`，
+ * 本文件只做三件事：
  *
- * 重点观察：这里**没有**任何 `position: fixed`、`z-index`、焦点陷阱或 ESC 处理
- * —— 那些全部由宿主承担。插件只往宿主给的 container 里画东西。
+ * 1. 用 `api.surfaces.register()` 注册宿主容器（定位、尺寸、焦点、ESC 全归宿主）；
+ * 2. 用 `api.contributions.update()` 更新贡献项的**运行期状态**（徽标/状态/进度/忙碌）；
+ * 3. 用 `api.ui` / `api.host` / `api.storage` / `api.jobs` 做业务演示。
  *
- * 契约：导出 `activate(api)`，可选导出 `deactivate(api)`。
+ * v3 已删除 `manifest.frontend.entries[]` 与旧的 `api.entries` 命名空间：结构必须静态声明
+ * （ADR-0015「静态结构 + 动态内容」），运行期只能 update / remove / trigger。
+ * 旧插件迁移见 `docs/plugin-migration-v2-to-v3.md`。
+ *
+ * 契约：导出 `activate(api)`，可选导出 `deactivate(api)`；
  * `activate` 的返回值若是函数，宿主会在停用时调用（D9.1）。
  */
 
@@ -31,11 +35,10 @@ export async function activate(api) {
   api.surfaces.register("modal-demo", {
     title: "模态表面演示",
     type: "modal",
-    mount(container, ctx) {
+    mount(container) {
       container.appendChild(
         api.ui.panel({
           title: "modal 类型",
-          subtitle: `来源：${ctx.source || "未知"}`,
           children: [
             api.ui.section({
               title: "容器由宿主提供",
@@ -48,21 +51,25 @@ export async function activate(api) {
     },
   });
 
-  // ---- 命令面板入口（D8）：动态注册一个 command ----
-  api.entries.register({
-    id: "runtime-hello",
-    kind: "command",
-    label: "Hello 运行期命令",
-    description: "由 api.entries.register() 在运行期注册",
-    icon: "bolt",
-  });
-  disposers.push(() => api.entries.remove("runtime-hello"));
+  // ---- 贡献项运行期状态（v3）：静态声明 + update() 动态内容 ----
+  //
+  // `PluginHost.loadAll()` 先调用 `activate()`，之后才把 manifest.contributions
+  // 装进注册表；因此激活期间的 update() 可能因查不到节点而返回 false。
+  // 这里记住期望值，并在 `contributions:changed` 时重放（幂等）。
+  const runtime = { status: "ok", badge: null };
+  const applyRuntime = () => {
+    api.contributions.update("main-panel", { status: runtime.status });
+    api.contributions.update("hello-palette", { badge: runtime.badge });
+  };
+  applyRuntime();
+  disposers.push(api.on("contributions:changed", applyRuntime));
 
   // ---- 配置通知（D10）：宿主保存配置后立即拿到新值 ----
   disposers.push(
     api.onConfigChange((config) => {
       api.host.log(`配置已更新: ${JSON.stringify(config)}`, "info");
-      api.entries.setBadge("summarize", config.greeting ? "✓" : null);
+      runtime.badge = config.greeting ? "✓" : null;
+      applyRuntime();
     }),
   );
 
@@ -70,20 +77,10 @@ export async function activate(api) {
   const launches = Number(api.storage.get("launches") || 0) + 1;
   await api.storage.set("launches", launches);
 
-  // ---- 入口运行期状态（D8）----
-  api.entries.setStatus("main-panel", "ok");
-  api.entries.setProgress("modal-demo", { done: 1, total: 1 });
-
-  // 保留旧写法仍可用（别名委托到新实现）
-  const legacyRoot = api.createRoot("div");
-  legacyRoot.classList.add("plugin-hello-world-panel");
-  legacyRoot.append(buildLegacyPanel(api));
-
-  // 订阅插件自定义事件（必须以 "<plugin_id>:" 开头）
+  // 订阅插件自定义事件（必须以 "<plugin_id>:" 开头；核心事件只能宿主发出）
   api.emit("hello-world:activated", { id: api.id, launches });
 
   return () => {
-    legacyRoot.remove();
     for (const dispose of disposers.reverse()) {
       try {
         dispose();
@@ -135,6 +132,8 @@ function buildPanel(api, ctx) {
       }));
 
       jobButton.disabled = true;
+      // 演示坞栏运行期状态：busy / progress（0–1）/ status 由宿主渲染
+      api.contributions.update("modal-demo", { busy: true, progress: 0.5, status: "作业进行中" });
       try {
         const runId = await api.jobs.submit("demo.count", items, { source: "hello-world" });
         if (!runId) {
@@ -145,6 +144,7 @@ function buildPanel(api, ctx) {
         api.jobs.open(runId, { title: "Hello World 批量作业" });
       } finally {
         jobButton.disabled = false;
+        api.contributions.update("modal-demo", { busy: false, progress: null, status: "" });
       }
     },
   });
@@ -161,6 +161,18 @@ function buildPanel(api, ctx) {
     },
   });
 
+  // 演示 `api.contributions.trigger()`：以编程方式执行菜单节点的 action。
+  // 节点被 `when` 过滤时返回 false（本示例的 summarize 要求配置里有 greeting）。
+  const triggerButton = api.ui.button({
+    label: "以编程方式触发命令",
+    variant: "secondary",
+    icon: "play",
+    onClick: () => {
+      const ok = api.contributions.trigger("summarize", { source: "panel" });
+      api.host.toast(ok ? "已触发 summarize 命令" : "当前上下文不满足命令条件");
+    },
+  });
+
   return api.ui.panel({
     title: `Hello World（来源：${ctx.source || "直接打开"}）`,
     subtitle: `插件 ${api.id} · API v${api.manifest.api_version}`,
@@ -168,33 +180,15 @@ function buildPanel(api, ctx) {
     children: [
       title,
       greeting,
-      api.ui.toolbar([pingButton, jobButton]),
+      api.ui.toolbar([pingButton, jobButton, triggerButton]),
       api.ui.section({
-        title: "入口契约演示",
+        title: "贡献通道演示（v3）",
         description:
-          "本插件声明了 dock / nav / settings / context / command / status 六种入口。nav 与 status 仅官方、认证插件可用，社区插件会被宿主忽略并记警告（D5）。",
+          "manifest 用 contributions 声明了 dock / context.card / batch.actions（含二级菜单与分隔线）/ commandPalette / settings.nav 五个菜单落点、一个 settings.section 插槽与三条命令；宿主按声明渲染，插件不再运行期注册入口。",
       }),
       output,
     ],
   });
-}
-
-/** 旧写法演示：`api.createRoot()` + 裸动词仍然可用（别名）。 */
-function buildLegacyPanel(api) {
-  const fragment = document.createDocumentFragment();
-
-  const button = document.createElement("button");
-  button.type = "button";
-  button.className = "plugin-hello-world-button";
-  button.textContent = "刷新角色卡列表（旧 API）";
-  button.dataset.marqueeIgnore = "true";
-  button.addEventListener("click", () => {
-    api.refresh("cards");
-    api.toast("已请求刷新");
-  });
-
-  fragment.appendChild(button);
-  return fragment;
 }
 
 export function deactivate(api) {

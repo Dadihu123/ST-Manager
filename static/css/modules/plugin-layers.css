@@ -1,0 +1,239 @@
+/*
+ * static/css/modules/plugin-layers.css
+ * 插件共存图层 / 插槽容器（设计文档 §6.2、§7.1；实现日志 S6 + S7）。
+ *
+ * 负责三件事：
+ * 1. 两个 body 级插件层（内容层 / portal 层）的层级——定位由 `pluginRootHost`
+ *    写成 inline（fixed + inset + pointer-events:none），本文件只管 z-index；
+ * 2. 宿主插槽容器（`.plugin-slot`）的布局与边界：容器由宿主创建与定位，
+ *    插件只在容器内自绘，**不得**改祖先的 position / z-index / inset；
+ * 3. 渲染器抛错时的错误占位（`.plugin-slot__error`）。
+ *
+ * 层级数值全部来自 `variables.css` 的 `--z-plugin-*` token：内容层在宿主模态
+ * 之下，portal 层在宿主模态之上但低于宿主提示 / 告警，避免插件盖住宿主反馈。
+ */
+
+/* ---------------------------------------------------------------- 插件层 */
+
+.plugin-layer {
+  /*
+   * 兜底：`pluginRootHost.ensureLayers()` 已写成 inline 的 fixed/inset/
+   * pointer-events，这里重复声明只是为了让「层是什么」在 CSS 里可检索，
+   * 并覆盖运行时尚未建层时的首帧（避免层参与文档流）。
+   */
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+
+.plugin-layer--content {
+  z-index: var(--z-plugin-content);
+}
+
+.plugin-layer--portal {
+  z-index: var(--z-plugin-portal);
+}
+
+/* 根节点：插件内容的唯一挂载点。交互子元素必须自己取回 pointer-events。 */
+.plugin-root {
+  pointer-events: none;
+  min-width: 0;
+}
+
+.plugin-root--portal {
+  pointer-events: none;
+}
+
+/*
+ * `ambient` 类常驻根节点允许落在更低的层级（设计 §7.1 的 ambient 带）。
+ * `pluginRootHost` 不写 z-index，插件通过 `[data-plugin-root]` 的 ambient
+ * 变体走这里；未声明时仍保持内容层层级。
+ */
+.plugin-root--content.plugin-root--ambient {
+  z-index: var(--z-plugin-ambient);
+}
+
+/* ---------------------------------------------------------------- 插槽 */
+
+/*
+ * 插槽包装：`div.plugin-slot[data-plugin][data-slot]`，由 `pluginSlotHost` 创建。
+ * 宿主负责外框尺寸与位置；挑选型（inline）插槽走 flex，块级插槽撑满宽度。
+ */
+.plugin-slot {
+  min-width: 0;
+  max-width: 100%;
+  pointer-events: auto;
+  color: var(--content-primary);
+  font-size: 0.875rem;
+}
+
+/* 顶栏动作区：一排紧凑图标 / 按钮，不换行。 */
+.plugin-slot[data-slot="header.actions"] {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+/* 各视图工具栏：与宿主工具栏按钮同排。 */
+.plugin-slot[data-slot="page.cards.toolbar"],
+.plugin-slot[data-slot="page.worldinfo.toolbar"] {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* 卡片详情标签页：作为一枚/多枚宿主 tab 追加进 `.detail-tabs`。 */
+.plugin-slot[data-slot="card.detail.tabs"] {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+/* 设置页内容区：整块分区，与宿主设置分区同宽。 */
+.plugin-slot[data-slot="settings.section"] {
+  display: block;
+  width: 100%;
+  margin-top: 1rem;
+}
+
+/* 空状态区：居中，与宿主空状态视觉一致。 */
+.plugin-slot[data-slot^="empty."] {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 1.5rem 1rem;
+  width: 100%;
+  text-align: center;
+  color: var(--content-secondary);
+}
+
+/* ------------------------------------------------------------ 插槽错误占位 */
+
+.plugin-slot.is-error {
+  display: block;
+  width: 100%;
+}
+
+.plugin-slot__error {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--status-danger-border);
+  border-radius: 0.5rem;
+  background: var(--status-danger-surface);
+  color: var(--status-danger-text);
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+
+.plugin-slot__error::before {
+  content: "!";
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 9999px;
+  background: var(--status-danger-text);
+  color: var(--surface-container);
+  font-size: 0.6875rem;
+  font-weight: 700;
+}
+
+/* ------------------------------------------------------------ 锚点折叠容器 */
+
+/*
+ * 宿主渲染的落点负责响应式（设计 §5.3 / §7.5）：移动端空间不足时，
+ * 插槽折叠进「更多」。
+ *
+ * 用原生 `<details>` 实现：桌面端由 Alpine 把 `open` 置真且隐藏 summary；
+ * 移动端 summary 变成一枚「更多」按钮，点开展开同一批锚点。锚点始终在 DOM
+ * 里（closed 只做 display 折叠），`PluginSlotHost` 不需要因折叠重挂。
+ */
+.plugin-slot-fold {
+  display: inline-flex;
+  align-items: center;
+}
+
+.plugin-slot-fold > summary {
+  list-style: none;
+}
+
+.plugin-slot-fold > summary::-webkit-details-marker {
+  display: none;
+}
+
+.plugin-slot-fold__summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--border-default);
+  border-radius: 0.5rem;
+  background: var(--surface-container);
+  color: var(--content-secondary);
+  font-size: 0.8125rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.plugin-slot-fold__summary:hover,
+.plugin-slot-fold__summary:focus-visible {
+  background: var(--surface-container-hover);
+  color: var(--content-primary);
+}
+
+.plugin-slot-fold__body {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+/* 桌面端：summary 隐藏，body 直接与宿主工具栏同排。 */
+@media (min-width: 769px) {
+  .plugin-slot-fold > summary {
+    display: none;
+  }
+}
+
+/* 移动端：默认收起，展开后作为一行独立面板出现。 */
+@media (max-width: 768px) {
+  .plugin-slot-fold:not([open]) > .plugin-slot-fold__body {
+    display: none;
+  }
+
+  .plugin-slot-fold[open] > .plugin-slot-fold__body {
+    display: flex;
+    flex-wrap: wrap;
+    padding: 0.375rem 0;
+  }
+}
+
+/*
+ * 空锚点行：没有任何插件贡献时整行不占位（避免工具栏多出一条空隙）。
+ * `:empty` 对属性节点不敏感，因此 `data-plugin-slot` 锚点为空时命中。
+ */
+.plugin-slot-row:has(> [data-plugin-slot]:empty) {
+  display: none;
+}
+
+.plugin-slot-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0 1rem 0.5rem;
+  min-height: 0;
+}
+
+/* 插件插槽渲染内容遵循 reduced motion（与宿主 UI 原语一致）。 */
+@media (prefers-reduced-motion: reduce) {
+  .plugin-slot,
+  .plugin-slot__error {
+    transition: none !important;
+    animation: none !important;
+  }
+}

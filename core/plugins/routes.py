@@ -125,8 +125,9 @@ def _write_config(plugin_id: str, patch: dict) -> bool:
 def list_plugins():
     """已安装插件列表（含 enabled / load_error / 是否纯前端 / 重启提示）。
 
-    条目（`entries`）与归属分级（`tier`）一并带出：前端入口注册表据此建表，
-    不再依赖插件自行渲染浮层（D1 / D5）。
+    贡献快照（`contributions`）、渲染方式（`render_mode`）与能力位
+    （`capabilities`）在 `build_header()` 里已经就位；这里再补宿主侧样式扫描
+    结果与归属分级（`tier`，只做信任披露，ADR-0008）。
     """
     tiers = catalog.plugin_tiers()
     install_sources = registry.read_install_sources()
@@ -137,7 +138,7 @@ def list_plugins():
         payload['style_declaration_warnings'] = installer.read_style_declaration_warnings(
             state.plugin_id,
         )
-        payload['tier'] = tiers.get(state.plugin_id, 'community')
+        payload['tier'] = tiers.get(state.plugin_id, catalog.DEFAULT_PLUGIN_TIER)
         if state.load_error:
             payload['load_error'] = state.load_error
         items.append(payload)

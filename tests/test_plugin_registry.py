@@ -70,7 +70,8 @@ def test_disabled_plugin_is_not_loaded(tmp_path, monkeypatch):
 def test_frontend_only_plugin_is_marked_loaded_without_backend(tmp_path, monkeypatch):
     write_plugin(
         tmp_path, 'demo-plugin',
-        manifest=base_manifest('demo-plugin', backend={}),
+        # 纯前端插件必须整个省略 backend：`backend: {}` 在 v3 里是契约错误
+        manifest=base_manifest('demo-plugin', backend=None),
         backend=None,
     )
     _patch_plugins_dir(monkeypatch, tmp_path)
@@ -84,53 +85,134 @@ def test_frontend_only_plugin_is_marked_loaded_without_backend(tmp_path, monkeyp
     assert state.has_frontend is True
 
 
-# --- 入口契约在注册表侧的暴露（阶段 1） ------------------------------------
+# --- 贡献契约在注册表侧的暴露（阶段 1） ------------------------------------
 
 
-def _entries_manifest(plugin_id, entries):
+def _contributions_manifest(plugin_id, contributions):
     manifest = base_manifest(plugin_id)
-    manifest['manifest_version'] = 2
-    manifest['frontend']['entries'] = entries
+    manifest['frontend']['contributions'] = contributions
     return manifest
 
 
-def test_header_exposes_entries(tmp_path, monkeypatch):
+def test_header_exposes_contributions_and_render_mode(tmp_path, monkeypatch):
     write_plugin(
         tmp_path, 'demo-plugin',
-        manifest=_entries_manifest('demo-plugin', [
-            {'id': 'open-demo', 'kind': 'dock', 'label': '打开演示', 'icon': 'wand'},
-        ]),
-    )
-    _patch_plugins_dir(monkeypatch, tmp_path)
-
-    registry_module.load_all(Flask('registry-test'))
-
-    header = registry_module.get_state('demo-plugin').header
-    assert [item['key'] for item in header['entries']] == ['demo-plugin:open-demo']
-    assert header['api_version'] == 1
-    assert header['manifest_version'] == 2
-    # detail() 也应带出，前端 /api/plugins/list 直接消费
-    assert registry_module.get_state('demo-plugin').detail()['entries'][0]['label'] == '打开演示'
-
-
-def test_entries_have_no_tier_until_catalog_resolves_it(tmp_path, monkeypatch):
-    """D5：tier 由 catalog 决定；不在 catalog 中即 community。"""
-    write_plugin(
-        tmp_path, 'demo-plugin',
-        manifest=_entries_manifest('demo-plugin', [
-            {'id': 'badge', 'kind': 'status', 'label': '状态徽标'},
-            {'id': 'open', 'kind': 'command', 'label': '打开'},
-        ]),
+        manifest=_contributions_manifest('demo-plugin', {
+            'menus': [{
+                'id': 'open-demo',
+                'placement': 'dock',
+                'type': 'item',
+                'label': '打开演示',
+                'icon': 'wand',
+                'action': {'type': 'url', 'url': 'https://example.com'},
+            }],
+            'slots': [{
+                'id': 'settings-body',
+                'slot': 'settings.section',
+                'module': 'frontend/views/settingsSection.js',
+                'export': 'mountSettingsSection',
+            }],
+            'commands': [{
+                'id': 'open',
+                'title': '打开',
+                'module': 'frontend/commands.js',
+                'export': 'open',
+            }],
+        }),
     )
     _patch_plugins_dir(monkeypatch, tmp_path)
 
     registry_module.load_all(Flask('registry-test'))
 
     state = registry_module.get_state('demo-plugin')
-    # community 插件不得声明 status，该项被忽略并记 warning
-    assert [item['id'] for item in state.manifest.frontend_entries] == ['open']
-    assert all(item['tier'] == 'community' for item in state.manifest.frontend_entries)
-    assert any('status' in item for item in state.warnings)
+    header = state.header
+    assert header['capabilities'] == ['cards.read']
+    assert header['render_mode'] == 'declarative'
+    assert header['api_version'] == 3
+    assert header['manifest_version'] == 3
+    assert [item['id'] for item in header['contributions']['menus']] == ['open-demo']
+    assert header['contributions']['slots'][0]['slot'] == 'settings.section'
+    assert header['contributions']['commands'][0]['id'] == 'open'
+    # detail() 也应带出完整快照（前端 /api/plugins/list 直接消费）
+    detail = state.detail()
+    assert detail['manifest']['contributions']['menus'][0]['label'] == '打开演示'
+    assert detail['manifest']['capabilities'] == ['cards.read']
+    assert detail['manifest']['render_mode'] == 'declarative'
+
+
+def test_failed_plugin_header_has_empty_contributions(tmp_path, monkeypatch):
+    manifest = base_manifest('demo-plugin')
+    manifest['frontend']['entrys'] = 'frontend/plugin.js'
+    write_plugin(tmp_path, 'demo-plugin', manifest=manifest)
+    _patch_plugins_dir(monkeypatch, tmp_path)
+
+    registry_module.load_all(Flask('registry-test'))
+
+    header = registry_module.get_state('demo-plugin').header
+    assert header['contributions'] == {'menus': [], 'slots': [], 'commands': []}
+    assert header['capabilities'] == []
+    assert header['render_mode'] == 'declarative'
+
+
+def test_backend_failure_also_hides_contributions(tmp_path, monkeypatch):
+    """后端代码加载失败时 manifest 已解析成功，但贡献仍不进列表载荷（S2）。"""
+    manifest = _contributions_manifest('demo-plugin', {
+        'menus': [{
+            'id': 'dock-open', 'placement': 'dock', 'type': 'item', 'label': '坞',
+            'action': {'type': 'url', 'url': 'https://example.com'},
+        }],
+    })
+    write_plugin(tmp_path, 'demo-plugin', manifest=manifest, backend='raise RuntimeError("boom")\n')
+    _patch_plugins_dir(monkeypatch, tmp_path)
+
+    registry_module.load_all(Flask('registry-test'))
+
+    state = registry_module.get_state('demo-plugin')
+    assert state.loaded is False
+    assert state.manifest is not None
+    assert state.header['contributions'] == {'menus': [], 'slots': [], 'commands': []}
+    # detail() 的 manifest 快照仍完整（便于管理页展示「它本来想挂什么」）
+    assert state.detail()['manifest']['contributions']['menus'][0]['id'] == 'dock-open'
+
+
+def test_tier_is_disclosure_only_and_does_not_filter_contributions(tmp_path, monkeypatch):
+    """ADR-0008：tier 只披露，不再限制贡献类型（删除 `apply_entry_tiers`）。
+
+    插件声明 dock / commandPalette / settings.nav 全部落点，加载后一个都不能少；
+    注册表也不再提供按 tier 过滤入口的函数。
+    """
+    assert not hasattr(registry_module, 'apply_entry_tiers')
+
+    write_plugin(
+        tmp_path, 'demo-plugin',
+        manifest=_contributions_manifest('demo-plugin', {
+            'menus': [
+                {
+                    'id': 'dock-open', 'placement': 'dock', 'type': 'item', 'label': '坞',
+                    'action': {'type': 'url', 'url': 'https://example.com'},
+                },
+                {
+                    'id': 'palette-open', 'placement': 'commandPalette', 'type': 'item',
+                    'label': '命令面板',
+                    'action': {'type': 'url', 'url': 'https://example.com'},
+                },
+                {
+                    'id': 'settings-open', 'placement': 'settings.nav', 'type': 'item',
+                    'label': '设置入口',
+                    'action': {'type': 'url', 'url': 'https://example.com'},
+                },
+            ],
+        }),
+    )
+    _patch_plugins_dir(monkeypatch, tmp_path)
+
+    registry_module.load_all(Flask('registry-test'))
+
+    state = registry_module.get_state('demo-plugin')
+    assert [item['id'] for item in state.manifest.frontend_contributions['menus']] == [
+        'dock-open', 'palette-open', 'settings-open',
+    ]
+    assert state.warnings == []
 
 
 def test_structured_load_error_is_persisted(tmp_path, monkeypatch):

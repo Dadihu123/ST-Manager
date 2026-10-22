@@ -21,7 +21,7 @@ api.chats.*      api.presets.*    api.extensions.*
    一律留在本文件与各域内部，插件看不到也不该看到。
 2. 核心能力一律复用既有服务层，不重复实现；一致性机制**只此一份**，
    各域通过转发调用（见 `core/plugins/domains/_base.py`）。
-3. `permissions` 只做声明与审计（D7），不做执行门控。
+3. `capabilities` 只做披露与审计（ADR-0008），不做执行门控。
 4. `migrate()` 强制 `plugin_<id>_` 表名前缀，防止插件污染核心 schema。
 
 > **域必须是实例属性，不能是 `@property`**：`tools/gen_plugin_api_docs.py` 用

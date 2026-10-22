@@ -123,6 +123,14 @@
                 @click="$refs.extensionImportInput.click()">
                 {{ icon('file-import', 'ui-icon--sm ') }}<span>导入文件</span>
             </button>
+            <!-- 空状态插槽（S7 `empty.<mode>`）：扩展模板同时服务正则 / 脚本 /
+                 快速回复三个模式，按当前 mode 只激活一个锚点。 -->
+            <div class="plugin-slot-empty" data-plugin-slot="empty.regex"
+                x-show="$store.global.currentMode === 'regex'"></div>
+            <div class="plugin-slot-empty" data-plugin-slot="empty.scripts"
+                x-show="$store.global.currentMode === 'scripts'"></div>
+            <div class="plugin-slot-empty" data-plugin-slot="empty.quick_replies"
+                x-show="$store.global.currentMode === 'quick_replies'"></div>
         </div>
     </section>
 

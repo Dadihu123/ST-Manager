@@ -66,6 +66,12 @@
     </div>
   </header>
 
+  <!-- 插件声明的页面工具栏插槽（S7 `page.worldinfo.toolbar`）。
+       锚点必须是空容器：内容由 PluginSlotHost 挂载；`:empty` 时整行隐藏。 -->
+  <div class="plugin-slot-row" data-marquee-ignore>
+    <div data-plugin-slot="page.worldinfo.toolbar"></div>
+  </div>
+
   <!-- 滚动区域 -->
   <div
     id="wi-scroll-area"
@@ -387,6 +393,8 @@
         搜索词没有可用的关键字（可能全是符号），请换一个词试试
       </p>
       <p class="text-sm mt-2" x-show="!wiSearchDegraded">（拖拽 .json 文件到此处添加）</p>
+      <!-- 空状态插槽（S7 `empty.worldinfo`）。 -->
+      <div class="plugin-slot-empty" data-plugin-slot="empty.worldinfo"></div>
     </div>
   </div>
 

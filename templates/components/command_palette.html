@@ -1,8 +1,9 @@
 <!-- templates/components/command_palette.html -->
 <!--
-  命令面板（阶段 5）。
+  命令面板（设计文档 §4.4.6 / §6.3）。
 
-  搜索范围 = 全部注册表条目 + 宿主内建命令。
+  搜索范围 = 插件命令 + `commandPalette` 落点贡献 + 宿主内建命令
+  （`ContributionRegistry.paletteEntries()` + `coreCommands`）。
   快捷键 Ctrl/Cmd+K；挂载在 body 层级，由 Alpine 组件 commandPalette 驱动。
 -->
 <div
@@ -31,8 +32,8 @@
             x-ref="paletteInput"
             x-model="query"
             @input="onQueryInput()"
-            placeholder="搜索入口或命令…"
-            aria-label="搜索入口或命令"
+            placeholder="搜索命令或贡献…"
+            aria-label="搜索命令或贡献"
             autocomplete="off"
           />
           <kbd class="command-palette__hint">Esc</kbd>
@@ -49,10 +50,12 @@
                 'is-disabled': isDisabled(entry),
               }"
               :aria-selected="index === activeIndex ? 'true' : 'false'"
+              :aria-disabled="isDisabled(entry) ? 'true' : 'false'"
+              :title="entry.disabledHint || entry.description || ''"
               @click="activate(entry)"
               @mouseenter="activeIndex = index"
             >
-              <span class="command-palette__icon" x-html="buildIcon(entry).outerHTML"></span>
+              <span class="command-palette__icon" x-html="iconHtml(entry)"></span>
               <span class="command-palette__text">
                 <span class="command-palette__label" x-text="entry.label"></span>
                 <span
@@ -68,13 +71,18 @@
                   x-show="tierLabel(entry)"
                   x-text="tierLabel(entry)"
                 ></span>
+                <span
+                  class="command-palette__shortcut"
+                  x-show="entry.shortcut"
+                  x-text="entry.shortcut"
+                ></span>
                 <span class="command-palette__origin color-text-muted" x-text="originLabel(entry)"></span>
               </span>
             </button>
           </template>
 
           <template x-if="!items.length">
-            <p class="command-palette__empty color-text-muted">没有匹配的入口</p>
+            <p class="command-palette__empty color-text-muted">没有匹配的命令</p>
           </template>
         </div>
       </div>

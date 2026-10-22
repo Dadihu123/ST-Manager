@@ -44,6 +44,27 @@
    */
   --z-ambient: 55;
   /*
+   * 插件共存图层（设计文档 §6.2 / §7.1；实现日志 S6）。
+   *
+   * 两段式设计，对应插件根节点的两个层：
+   * - 内容层（content / ambient / dock）落在宿主内容之上、宿主模态之下
+   *   （`--z-floating` 100 / `--z-modal` 1000 之间）；
+   * - portal 层（portal / surface / popover / tooltip / alert）落在宿主模态带
+   *   （最高 `--z-modal-alert` 3600）之上、宿主提示 / 右键菜单 / Toast
+   *   （9200 / 9000 / 9500）之下——宿主反馈层永远盖住插件。
+   *
+   * 这些 token 只描述**插件自身**的层带顺序；`api.overlays.register({layer})`
+   * 的 layer 字段是建议值，宿主不改插件元素的 z-index（设计 §6.3）。
+   */
+  --z-plugin-content: 90;
+  --z-plugin-ambient: 95;
+  --z-plugin-dock: 98;
+  --z-plugin-portal: 3700;
+  --z-plugin-surface: 3710;
+  --z-plugin-popover: 3720;
+  --z-plugin-tooltip: 3730;
+  --z-plugin-alert: 3740;
+  /*
    * 归一到令牌的既有散落字面量（值与原字面量完全一致，纯替换不改变层叠）。
    * 目的是让「谁盖住谁」可检索、可统一调整，而不是散在各模块里猜。
    */

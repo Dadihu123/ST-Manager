@@ -40,11 +40,17 @@ def clear_plugin_ui_namespace():
 
 
 def base_manifest(plugin_id, **overrides):
+    """manifest v3 最小合法夹具。
+
+    `overrides` 里值为 `None` 的键会**从 payload 中删除**（而不是写成 JSON null），
+    便于用例表达「不声明 backend / frontend / capabilities」这类链缺失。
+    """
     payload = {
+        'manifest_version': 3,
         'id': plugin_id,
         'name': f'{plugin_id} 测试插件',
         'version': '0.1.0',
-        'api_version': 1,
+        'api_version': 3,
         'author': 'tests',
         'description': '单元测试夹具',
         'backend': {
@@ -57,7 +63,7 @@ def base_manifest(plugin_id, **overrides):
             'entry': 'frontend/plugin.js',
             'styles': ['frontend/plugin.css'],
         },
-        'permissions': ['cards.read'],
+        'capabilities': ['cards.read'],
         'config_schema': {
             'type': 'object',
             'properties': {
@@ -73,6 +79,17 @@ def base_manifest(plugin_id, **overrides):
             },
         },
     }
+    for key, value in overrides.items():
+        if value is None:
+            payload.pop(key, None)
+        else:
+            payload[key] = value
+    return payload
+
+
+def contributions(**overrides):
+    """contributions 最小合法夹具（默认空三原语）。"""
+    payload = {'menus': [], 'slots': [], 'commands': []}
     payload.update(overrides)
     return payload
 

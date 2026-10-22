@@ -49,6 +49,12 @@
     </button>
   </div>
 
+  <!-- 插件声明的页面工具栏插槽（S7 `page.cards.toolbar`）。
+       锚点必须是空容器：内容由 PluginSlotHost 挂载；`:empty` 时整行隐藏。 -->
+  <div class="plugin-slot-row" data-marquee-ignore>
+    <div data-plugin-slot="page.cards.toolbar"></div>
+  </div>
+
   <!-- 滚动区域 -->
   <div
     class="card-scroll-area custom-scrollbar relative flex-1"
@@ -111,6 +117,7 @@
           x-init="syncCardEffect($el, card)"
           x-effect="syncCardEffect($el, card); if(highlightId === card.id) $el.scrollIntoView({ behavior: 'smooth', block: 'start' })"
           @click.stop="handleCardClick($event, card)"
+          @contextmenu.prevent.stop="showCardContextMenu($event, card)"
           @mouseenter="handleCardMouseEnter(card.id)"
           @mouseleave="handleCardMouseLeave(card.id)"
           draggable="true"
@@ -431,6 +438,8 @@
     >
       <p style="font-size: 1.125rem">未找到卡片</p>
       <p class="text-sm mt-2">（也可以直接拖拽文件到这里上传）</p>
+      <!-- 空状态插槽（S7 `empty.cards`）：插件可以在此投放提示/快捷动作。 -->
+      <div class="plugin-slot-empty" data-plugin-slot="empty.cards"></div>
     </div>
   </div>
 

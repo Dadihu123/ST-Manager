@@ -93,71 +93,95 @@
                 </div>
             </template>
 
-            <!-- 插件声明的 `kind: "context"` 入口（D1：右键菜单是 context 的落点）。
-                 `EntryRegistry.menuGroups()` 已过滤 `when` 不通过的入口并按 `group` 折叠：
-                 一级菜单只有一个「AI 助手」父项，点开后是**二级菜单**（各任务）。
-                 不适用的动作直接不出现（不是置灰）。
-
-                 二级菜单桌面端是 `.ui-context-menu` 之外的独立 fixed 浮层，
-                 **固定向右展开**，纵向放不下时向上延申（见 utils/flyoutPosition.js）。
-                 再点一次父项收起。移动端退化为同一弹层里的第二屏（切内容 + 返回行）。 -->
-            <template x-if="pluginEntries.length">
+            <!-- 插件贡献菜单（v3 三落点，设计 §5.1）。
+                 一级菜单直接铺开：`context.folder` 只在右键目录时出现、
+                 `context.card` 只在右键卡片时出现（由 refreshPluginEntries 过滤），
+                 `context.footer` 固定收在菜单最尾部（最后一条分隔线之后）。
+                 `when` 不通过的节点仍渲染，但置灰 + title 显示 disabledHint（不隐藏）。 -->
+            <template x-if="pluginContextNodes.length">
                 <div>
                     <hr class="border-[var(--border-default)] my-1">
 
-                    <!-- 一级：分组父项 / 未分组条目（移动端进入二级后隐藏） -->
-                    <div x-show="!isMobile || !activePluginGroupUnit()">
-                            <template x-for="unit in pluginEntries" :key="unit.type === 'group' ? unit.key : unit.entry.key">
-                                <div x-show="unit.type === 'group'">
-                                    <button type="button" @click.stop="togglePluginGroup(unit.key, $event.currentTarget)"
-                                        aria-haspopup="menu"
-                                        :aria-expanded="isPluginGroupOpen(unit.key).toString()"
-                                        :class="isMobile ? 'w-full text-left px-4 py-3 text-base transition-colors flex items-center gap-2' : 'w-full text-left px-4 py-2 text-sm hover:bg-[var(--state-hover-surface)] transition-colors flex items-center gap-2'"
-                                        style="color: var(--content-primary);">
-                                        <span class="inline-flex" aria-hidden="true" x-html="pluginEntryIconHtml(unit)"></span>
-                                        <span class="flex-1 min-w-0 truncate" x-text="unit.label"></span>
-                                        <span class="plugin-entries-badge" x-show="pluginGroupBadge(unit)"
-                                            x-text="pluginGroupBadge(unit)"></span>
-                                        <span class="inline-flex" aria-hidden="true">{{ icon('chevron-right', 'ui-icon--xs') }}</span>
-                                    </button>
-                                </div>
-
-                                <button x-show="unit.type === 'entry'" type="button" @click="runPluginEntry(unit.entry)"
-                                    :title="unit.entry.description || unit.entry.label"
-                                    :class="isMobile ? 'w-full text-left px-4 py-3 text-base transition-colors flex items-center gap-2' : 'w-full text-left px-4 py-2 text-sm transition-colors flex items-center gap-2'"
+                    <!-- 一级：普通节点 / 子菜单父项（移动端进入第二屏后隐藏） -->
+                    <div x-show="!isMobile || !activeContributionNode()">
+                        <template x-for="node in pluginContextNodes" :key="node.id">
+                            <div>
+                                <hr x-show="node.type === 'separator'"
+                                    class="border-[var(--border-default)] my-1">
+                                <button x-show="node.type !== 'separator' && hasMenuChildren(node)" type="button"
+                                    @click.stop="toggleContributionSubmenu(node, $event.currentTarget)"
+                                    aria-haspopup="menu"
+                                    :aria-expanded="isContributionsubmenuOpen(node).toString()"
+                                    :title="menuNodeHint(node)"
+                                    :disabled="isMenuNodeDisabled(node)"
+                                    :class="[(isMobile ? 'w-full text-left px-4 py-3 text-base' : 'w-full text-left px-4 py-2 text-sm') + ' transition-colors flex items-center gap-2', isMenuNodeDisabled(node) ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[var(--state-hover-surface)]']"
                                     style="color: var(--content-primary);">
-                                    <span class="inline-flex" aria-hidden="true" x-html="pluginEntryIconHtml(unit.entry)"></span>
-                                    <span class="flex-1 min-w-0 truncate" x-text="unit.entry.label"></span>
-                                    <span class="plugin-entries-badge"
-                                        x-show="unit.entry.badge !== null && unit.entry.badge !== undefined && unit.entry.badge !== ''"
-                                        x-text="unit.entry.badge"></span>
+                                    <span class="inline-flex" aria-hidden="true" x-html="menuNodeIconHtml(node)"></span>
+                                    <span class="flex-1 min-w-0 truncate" x-text="node.label"></span>
+                                    <span class="plugin-entries-badge" x-show="menuNodeBadge(node)"
+                                        x-text="menuNodeBadge(node)"></span>
+                                    <span class="inline-flex" aria-hidden="true">{{ icon('chevron-right', 'ui-icon--xs') }}</span>
                                 </button>
-                            </template>
+                                <button x-show="node.type !== 'separator' && !hasMenuChildren(node)" type="button"
+                                    @click="runPluginNode(node)"
+                                    :title="menuNodeHint(node)"
+                                    :disabled="isMenuNodeDisabled(node)"
+                                    :class="[(isMobile ? 'w-full text-left px-4 py-3 text-base' : 'w-full text-left px-4 py-2 text-sm') + ' transition-colors flex items-center gap-2', isMenuNodeDisabled(node) ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[var(--state-hover-surface)]']"
+                                    style="color: var(--content-primary);">
+                                    <span class="inline-flex" aria-hidden="true" x-html="menuNodeIconHtml(node)"></span>
+                                    <span class="flex-1 min-w-0 truncate" x-text="node.label"></span>
+                                    <span class="plugin-entries-badge" x-show="menuNodeBadge(node)"
+                                        x-text="menuNodeBadge(node)"></span>
+                                </button>
+                            </div>
+                        </template>
                     </div>
 
-                    <!-- 移动端二级：同一弹层里的第二屏（桌面端走下面的 fixed 浮层） -->
-                    <div x-show="isMobile && activePluginGroupUnit()">
-                            <button type="button" @click.stop="backFromPluginGroup()"
-                                :class="isMobile ? 'w-full text-left px-4 py-2 text-xs transition-colors flex items-center gap-1' : 'w-full text-left px-4 py-1.5 text-xs transition-colors flex items-center gap-1'"
-                                class="hover:bg-[var(--state-hover-surface)]"
-                                style="color: var(--content-muted);">
-                                <span class="inline-flex rotate-180" aria-hidden="true">{{ icon('chevron-right', 'ui-icon--xs') }}</span>
-                                <span x-text="activePluginGroupUnit().label"></span>
+                    <!-- 移动端第二屏：同一弹层里展开子菜单（桌面端走下面的 fixed 浮层） -->
+                    <div x-show="isMobile && activeContributionNode()">
+                        <button type="button" @click.stop="backFromContributionSubmenu()"
+                            class="w-full text-left px-4 py-2 text-xs transition-colors flex items-center gap-1 hover:bg-[var(--state-hover-surface)]"
+                            style="color: var(--content-muted);">
+                            <span class="inline-flex rotate-180" aria-hidden="true">{{ icon('chevron-right', 'ui-icon--xs') }}</span>
+                            <span x-text="activeContributionNode() && activeContributionNode().label"></span>
+                        </button>
+                        <template x-for="child in (activeContributionNode() ? activeContributionNode().children : [])" :key="child.id">
+                            <button type="button" @click="runPluginNode(child)"
+                                :title="menuNodeHint(child)"
+                                :disabled="isMenuNodeDisabled(child)"
+                                :class="['w-full text-left px-4 py-3 text-base transition-colors flex items-center gap-2', isMenuNodeDisabled(child) ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[var(--state-hover-surface)]']"
+                                style="color: var(--content-primary);">
+                                <span class="inline-flex" aria-hidden="true" x-html="menuNodeIconHtml(child)"></span>
+                                <span class="flex-1 min-w-0 truncate" x-text="child.label"></span>
+                                <span class="plugin-entries-badge" x-show="menuNodeBadge(child)"
+                                    x-text="menuNodeBadge(child)"></span>
                             </button>
-                            <template x-for="entry in activePluginGroupUnit().entries" :key="entry.key">
-                                <button type="button" @click.stop="runPluginEntry(entry)"
-                                    :title="entry.description || entry.label"
-                                    :class="isMobile ? 'w-full text-left px-4 py-3 text-base transition-colors flex items-center gap-2' : 'w-full text-left px-4 py-2 text-sm transition-colors flex items-center gap-2'"
-                                    class="hover:bg-[var(--state-hover-surface)]"
-                                    style="color: var(--content-primary);">
-                                    <span class="inline-flex" aria-hidden="true" x-html="pluginEntryIconHtml(entry)"></span>
-                                    <span class="flex-1 min-w-0 truncate" x-text="entry.label"></span>
-                                    <span class="plugin-entries-badge"
-                                        x-show="entry.badge !== null && entry.badge !== undefined && entry.badge !== ''"
-                                        x-text="entry.badge"></span>
-                                </button>
-                            </template>
+                        </template>
                     </div>
+                </div>
+            </template>
+
+            <!-- `context.footer`：右键菜单底部（folder / card 共用），固定收尾 -->
+            <template x-if="pluginFooterNodes.length">
+                <div>
+                    <hr class="border-[var(--border-default)] my-1">
+                    <template x-for="node in pluginFooterNodes" :key="node.id">
+                        <div>
+                            <hr x-show="node.type === 'separator'"
+                                class="border-[var(--border-default)] my-1">
+                            <button x-show="node.type !== 'separator'" type="button"
+                                @click="runPluginNode(node)"
+                                :title="menuNodeHint(node)"
+                                :disabled="isMenuNodeDisabled(node)"
+                                :class="[(isMobile ? 'w-full text-left px-4 py-3 text-base' : 'w-full text-left px-4 py-2 text-sm') + ' transition-colors flex items-center gap-2', isMenuNodeDisabled(node) ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[var(--state-hover-surface)]']"
+                                style="color: var(--content-primary);">
+                                <span class="inline-flex" aria-hidden="true" x-html="menuNodeIconHtml(node)"></span>
+                                <span class="flex-1 min-w-0 truncate" x-text="node.label"></span>
+                                <span class="plugin-entries-badge" x-show="menuNodeBadge(node)"
+                                    x-text="menuNodeBadge(node)"></span>
+                            </button>
+                        </div>
+                    </template>
                 </div>
             </template>
         </div>
@@ -179,25 +203,49 @@
             class="plugin-menu-flyout-empty">(无规则集)</div>
     </div>
 
-    <!-- 桌面端插件分组的二级菜单：独立 fixed 浮层。
+    <!-- 桌面端贡献子菜单：独立 fixed 浮层。
          挂在 `.ui-context-menu` 之外（菜单盒的 overflow 会裁掉子元素），
          位置由 `openSubmenu()` 在渲染后测量并写入 top/left；
-         初始放在视口外，避免首帧闪在错误位置。 -->
-    <div data-plugin-group-flyout x-show="!isMobile && activePluginGroupUnit()"
+         初始放在视口外，避免首帧闪在错误位置。
+         第三层（深度 3）退化为浮层内 `<details>`，避免再开一层浮层。 -->
+    <div data-plugin-contribution-flyout x-show="!isMobile && activeContributionNode()"
         x-cloak role="menu" class="plugin-menu-flyout" style="position: fixed; top: -9999px; left: -9999px;"
         @click.stop>
-        <template x-if="activePluginGroupUnit()">
+        <template x-if="activeContributionNode()">
             <div>
-                <div class="plugin-menu-flyout-title" x-text="activePluginGroupUnit().label"></div>
-                <template x-for="entry in activePluginGroupUnit().entries" :key="entry.key">
-                    <button type="button" @click.stop="runPluginEntry(entry)"
-                        :title="entry.description || entry.label" class="plugin-menu-flyout-item">
-                        <span class="inline-flex" aria-hidden="true" x-html="pluginEntryIconHtml(entry)"></span>
-                        <span class="flex-1 min-w-0 truncate" x-text="entry.label"></span>
-                        <span class="plugin-entries-badge"
-                            x-show="entry.badge !== null && entry.badge !== undefined && entry.badge !== ''"
-                            x-text="entry.badge"></span>
-                    </button>
+                <div class="plugin-menu-flyout-title" x-text="activeContributionNode().label"></div>
+                <template x-for="child in activeContributionNode().children" :key="child.id">
+                    <div>
+                        <hr x-show="child.type === 'separator'" class="border-[var(--border-default)] my-1">
+                        <button x-show="child.type !== 'separator' && !hasMenuChildren(child)" type="button"
+                            @click.stop="runPluginNode(child)"
+                            :title="menuNodeHint(child)" :disabled="isMenuNodeDisabled(child)"
+                            :class="['plugin-menu-flyout-item', isMenuNodeDisabled(child) ? 'opacity-50 cursor-not-allowed' : '']">
+                            <span class="inline-flex" aria-hidden="true" x-html="menuNodeIconHtml(child)"></span>
+                            <span class="flex-1 min-w-0 truncate" x-text="child.label"></span>
+                            <span class="plugin-entries-badge" x-show="menuNodeBadge(child)"
+                                x-text="menuNodeBadge(child)"></span>
+                        </button>
+                        <!-- 深度 3：浮层内折叠，不再新开一层浮层（设计 §4.4.4 深度 ≤ 3） -->
+                        <details x-show="child.type !== 'separator' && hasMenuChildren(child)"
+                            class="plugin-menu-flyout-details">
+                            <summary class="plugin-menu-flyout-item">
+                                <span class="inline-flex" aria-hidden="true" x-html="menuNodeIconHtml(child)"></span>
+                                <span class="flex-1 min-w-0 truncate" x-text="child.label"></span>
+                                <span class="plugin-entries-badge" x-show="menuNodeBadge(child)"
+                                    x-text="menuNodeBadge(child)"></span>
+                            </summary>
+                            <template x-for="grandchild in child.children" :key="grandchild.id">
+                                <button type="button" @click.stop="runPluginNode(grandchild)"
+                                    :title="menuNodeHint(grandchild)"
+                                    :disabled="isMenuNodeDisabled(grandchild)"
+                                    :class="['plugin-menu-flyout-item', isMenuNodeDisabled(grandchild) ? 'opacity-50 cursor-not-allowed' : '']">
+                                    <span class="inline-flex" aria-hidden="true" x-html="menuNodeIconHtml(grandchild)"></span>
+                                    <span class="flex-1 min-w-0 truncate" x-text="grandchild.label"></span>
+                                </button>
+                            </template>
+                        </details>
+                    </div>
                 </template>
             </div>
         </template>

@@ -534,53 +534,60 @@
               </div>
             </div>
 
-            <!-- 插件声明的 `kind: "batch"` 入口（D1 的批量操作落点）。
-                 `EntryRegistry.menuGroups()` 已过滤 `when` 不通过的入口并按 `group` 折叠：
-                 一级菜单只有一个「AI 助手」父项（带角标与右箭头），点开后是**二级浮层**
-                 （见文件末尾的 `[data-plugin-batch-flyout]`），不是就地展开——
-                 批量菜单盒高度被钳住，缩进子项块会被裁掉。 -->
-            <template x-if="pluginBatchEntries.length > 0">
+            <!-- 插件贡献批量菜单（v3 `batch.actions`）。
+                 `when` 不通过的节点仍然出现，但置灰 + title 显示 disabledHint；
+                 有 children 的节点点开**二级浮层**（见文件末尾的 `[data-plugin-batch-flyout]`），
+                 不就地展开——批量菜单盒高度被钳住，缩进子项块会被裁掉。 -->
+            <template x-if="pluginBatchNodes.length > 0">
               <div>
                 <div class="ui-batch-menu-separator" role="separator"></div>
-                <template x-for="unit in pluginBatchEntries" :key="unit.type === 'group' ? unit.key : unit.entry.key">
+                <template x-for="node in pluginBatchNodes" :key="node.id">
                   <div>
-                    <!-- 父项（分组）：点开二级浮层 -->
+                    <hr
+                      x-show="node.type === 'separator'"
+                      class="ui-batch-menu-separator"
+                      role="separator"
+                    />
+                    <!-- 子菜单父项：点开二级浮层 -->
                     <button
-                      x-show="unit.type === 'group'"
+                      x-show="node.type !== 'separator' && hasMenuChildren(node)"
                       type="button"
                       role="menuitem"
                       aria-haspopup="menu"
-                      :aria-expanded="isPluginBatchGroupOpen(unit.key).toString()"
-                      @click.stop="togglePluginBatchGroup(unit.key, $event.currentTarget)"
-                      class="header-batch-menu-item ui-batch-menu-action"
+                      :aria-expanded="isPluginBatchGroupOpen(node).toString()"
+                      :title="menuNodeHint(node)"
+                      :disabled="isMenuNodeDisabled(node)"
+                      @click.stop="togglePluginBatchGroup(node, $event.currentTarget)"
+                      :class="['header-batch-menu-item ui-batch-menu-action', isMenuNodeDisabled(node) ? 'opacity-50 cursor-not-allowed' : '']"
                     >
-                      <span aria-hidden="true" x-html="pluginBatchEntryIconHtml(unit)"></span>
-                      <span class="flex-1 min-w-0 truncate" x-text="unit.label"></span>
-                      <span class="plugin-entries-badge" x-show="pluginBatchGroupBadge(unit)"
-                        x-text="pluginBatchGroupBadge(unit)"></span>
+                      <span aria-hidden="true" x-html="menuNodeIconHtml(node)"></span>
+                      <span class="flex-1 min-w-0 truncate" x-text="node.label"></span>
+                      <span class="plugin-entries-badge" x-show="menuNodeBadge(node)"
+                        x-text="menuNodeBadge(node)"></span>
                       <span class="inline-flex" aria-hidden="true">{{ icon('chevron-right', 'ui-icon--xs') }}</span>
                     </button>
 
-                    <!-- 未分组：平铺 -->
+                    <!-- 普通节点：直接执行（走统一触发通道） -->
                     <button
-                      x-show="unit.type === 'entry'"
+                      x-show="node.type !== 'separator' && !hasMenuChildren(node)"
                       type="button"
                       role="menuitem"
-                      :title="unit.entry.description || unit.entry.label"
-                      @click="if (runPluginBatchEntry(unit.entry)) { showBatchActionsMenu = false; closePluginBatchGroup(); }"
-                      class="header-batch-menu-item ui-batch-menu-action"
+                      :title="menuNodeHint(node)"
+                      :disabled="isMenuNodeDisabled(node)"
+                      @click="if (runPluginBatchEntry(node)) { showBatchActionsMenu = false; closePluginBatchGroup(); }"
+                      :class="['header-batch-menu-item ui-batch-menu-action', isMenuNodeDisabled(node) ? 'opacity-50 cursor-not-allowed' : '']"
                     >
-                      <span aria-hidden="true" x-html="pluginBatchEntryIconHtml(unit.entry)"></span>
-                      <span class="flex-1 min-w-0 truncate" x-text="unit.entry.label"></span>
-                      <span class="plugin-entries-badge" x-show="pluginBatchEntryBadge(unit.entry)"
-                        x-text="pluginBatchEntryBadge(unit.entry)"></span>
+                      <span aria-hidden="true" x-html="menuNodeIconHtml(node)"></span>
+                      <span class="flex-1 min-w-0 truncate" x-text="node.label"></span>
+                      <span class="plugin-entries-badge" x-show="menuNodeBadge(node)"
+                        x-text="menuNodeBadge(node)"></span>
                       <span class="plugin-entry-progress"
-                        x-show="pluginBatchEntryProgressPercent(unit.entry) !== null"
+                        x-show="pluginBatchEntryProgressPercent(node) !== null"
                         role="progressbar"
-                        :aria-valuenow="pluginBatchEntryProgressPercent(unit.entry)"
+                        :aria-valuenow="pluginBatchEntryProgressPercent(node)"
                         aria-valuemin="0" aria-valuemax="100">
                         <span class="plugin-entry-progress-bar"
-                          :style="'width:' + pluginBatchEntryProgressPercent(unit.entry) + '%'"></span>
+                          :style="'width:' + pluginBatchEntryProgressPercent(node) + '%'"></span>
                       </span>
                     </button>
                   </div>
@@ -590,12 +597,13 @@
           </div>
         </div>
 
-        <!-- 插件分组的二级菜单：独立 fixed 浮层。
+        <!-- 贡献子菜单的二级浮层：独立 fixed 浮层。
              必须 teleport 到 body：`.header-bar` 有 `backdrop-filter`，它会给 fixed
              后代造一个包含块，浮层就会以 header 为基准定位而不是视口。
              也必须挂在批量菜单盒之外：菜单盒的 overflow 会裁掉子元素。
              位置由 openPluginBatchGroup() 在渲染后测量，下方放不下就向上翻；
-             初始放在视口外，避免首帧闪在错误位置。 -->
+             初始放在视口外，避免首帧闪在错误位置。
+             深度 3 在浮层内用 `<details>` 折叠，不再开新浮层。 -->
         <template x-teleport="body">
           <div
             data-plugin-batch-flyout
@@ -609,27 +617,58 @@
             <template x-if="activePluginBatchGroupUnit()">
               <div>
                 <div class="plugin-menu-flyout-title" x-text="activePluginBatchGroupUnit().label"></div>
-                <template x-for="entry in activePluginBatchGroupUnit().entries" :key="entry.key">
-                  <button
-                    type="button"
-                    role="menuitem"
-                    :title="entry.description || entry.label"
-                    @click.stop="if (runPluginBatchEntry(entry)) { showBatchActionsMenu = false; closePluginBatchGroup(); }"
-                    class="plugin-menu-flyout-item"
-                  >
-                    <span aria-hidden="true" x-html="pluginBatchEntryIconHtml(entry)"></span>
-                    <span class="flex-1 min-w-0 truncate" x-text="entry.label"></span>
-                    <span class="plugin-entries-badge" x-show="pluginBatchEntryBadge(entry)"
-                      x-text="pluginBatchEntryBadge(entry)"></span>
-                    <span class="plugin-entry-progress"
-                      x-show="pluginBatchEntryProgressPercent(entry) !== null"
-                      role="progressbar"
-                      :aria-valuenow="pluginBatchEntryProgressPercent(entry)"
-                      aria-valuemin="0" aria-valuemax="100">
-                      <span class="plugin-entry-progress-bar"
-                        :style="'width:' + pluginBatchEntryProgressPercent(entry) + '%'"></span>
-                    </span>
-                  </button>
+                <template x-for="child in activePluginBatchGroupUnit().children" :key="child.id">
+                  <div>
+                    <hr
+                      x-show="child.type === 'separator'"
+                      class="ui-batch-menu-separator"
+                      role="separator"
+                    />
+                    <button
+                      x-show="child.type !== 'separator' && !hasMenuChildren(child)"
+                      type="button"
+                      role="menuitem"
+                      :title="menuNodeHint(child)"
+                      :disabled="isMenuNodeDisabled(child)"
+                      @click.stop="if (runPluginBatchEntry(child)) { showBatchActionsMenu = false; closePluginBatchGroup(); }"
+                      :class="['plugin-menu-flyout-item', isMenuNodeDisabled(child) ? 'opacity-50 cursor-not-allowed' : '']"
+                    >
+                      <span aria-hidden="true" x-html="menuNodeIconHtml(child)"></span>
+                      <span class="flex-1 min-w-0 truncate" x-text="child.label"></span>
+                      <span class="plugin-entries-badge" x-show="menuNodeBadge(child)"
+                        x-text="menuNodeBadge(child)"></span>
+                      <span class="plugin-entry-progress"
+                        x-show="pluginBatchEntryProgressPercent(child) !== null"
+                        role="progressbar"
+                        :aria-valuenow="pluginBatchEntryProgressPercent(child)"
+                        aria-valuemin="0" aria-valuemax="100">
+                        <span class="plugin-entry-progress-bar"
+                          :style="'width:' + pluginBatchEntryProgressPercent(child) + '%'"></span>
+                      </span>
+                    </button>
+                    <details
+                      x-show="child.type !== 'separator' && hasMenuChildren(child)"
+                      class="plugin-menu-flyout-details"
+                    >
+                      <summary class="plugin-menu-flyout-item">
+                        <span aria-hidden="true" x-html="menuNodeIconHtml(child)"></span>
+                        <span class="flex-1 min-w-0 truncate" x-text="child.label"></span>
+                      </summary>
+                      <template x-for="grandchild in child.children" :key="grandchild.id">
+                        <button
+                          type="button"
+                          role="menuitem"
+                          :title="menuNodeHint(grandchild)"
+                          :disabled="isMenuNodeDisabled(grandchild)"
+                          @click.stop="if (runPluginBatchEntry(grandchild)) { showBatchActionsMenu = false; closePluginBatchGroup(); }"
+                          :class="['plugin-menu-flyout-item', isMenuNodeDisabled(grandchild) ? 'opacity-50 cursor-not-allowed' : '']"
+                        >
+                          <span aria-hidden="true" x-html="menuNodeIconHtml(grandchild)"></span>
+                          <span class="flex-1 min-w-0 truncate" x-text="grandchild.label"></span>
+                        </button>
+                      </template>
+                    </details>
+                  </div>
                 </template>
               </div>
             </template>
@@ -824,6 +863,19 @@
       class="header-toolbar-divider h-6 w-[1px] bg-[var(--border-default)]"
       aria-hidden="true"
     ></div>
+
+    <!-- 插件顶栏动作区（S7 `header.actions`）。
+         锚点必须是空容器：内容由 PluginSlotHost 挂载（宿主只负责位置与折叠）。
+         桌面端与工具按钮同排；移动端折叠进「更多」，不挤占顶栏。 -->
+    <details class="plugin-slot-fold" :open="$store.global.deviceType !== 'mobile'">
+      <summary class="plugin-slot-fold__summary" aria-label="更多插件动作">
+        <span aria-hidden="true">{{ icon('plugin', 'ui-icon--sm') }}</span>
+        <span>更多</span>
+      </summary>
+      <div class="plugin-slot-fold__body">
+        <div data-plugin-slot="header.actions"></div>
+      </div>
+    </details>
 
     <!-- 工具按钮组 -->
     <div class="tool-buttons header-tool-buttons">
@@ -1052,18 +1104,19 @@
         <span aria-hidden="true">{{ icon('trash', 'ui-icon--sm') }}</span>
         <span class="sr-only">删除</span>
       </button>
-      <!-- 插件声明的 `kind: "batch"` 入口（与桌面批量菜单同一份数据，
-           由 refreshPluginBatchEntries() 在 init 里监听 entries:changed 维护）。 -->
-      <template x-for="entry in pluginBatchFlatEntries" :key="'mobile-' + entry.key">
+      <!-- 插件 `batch.actions` 贡献（与桌面批量菜单同一份数据，
+           由 refreshPluginBatchEntries() 在 init 里监听 contributions:changed 维护）。
+           移动端没有悬停子菜单的位置：只平铺可执行叶子节点。 -->
+      <template x-for="node in pluginBatchFlatEntries" :key="'mobile-' + node.id">
         <button
           type="button"
           class="ui-batch-action-button ui-batch-action-button--accent"
-          :title="entry.description || entry.label"
-          :aria-label="entry.label"
-          @click="runPluginBatchEntry(entry)"
+          :title="menuNodeHint(node)"
+          :aria-label="node.label"
+          @click="runPluginBatchEntry(node)"
         >
-          <span aria-hidden="true" x-html="pluginBatchEntryIconHtml(entry)"></span>
-          <span class="sr-only" x-text="entry.label"></span>
+          <span aria-hidden="true" x-html="menuNodeIconHtml(node)"></span>
+          <span class="sr-only" x-text="node.label"></span>
         </button>
       </template>
       <button

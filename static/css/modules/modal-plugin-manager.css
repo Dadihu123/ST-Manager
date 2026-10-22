@@ -629,7 +629,7 @@ html:not(.light-mode) .plugin-entries-search::-webkit-search-cancel-button {
   color: var(--content-secondary);
 }
 
-.plugin-card-permissions,
+.plugin-card-detail-line,
 .plugin-card-hint {
   margin: 0;
   font-size: 0.74rem;
@@ -975,4 +975,69 @@ html:not(.light-mode) .plugin-entries-search::-webkit-search-cancel-button {
 
 .plugin-host-root > [data-plugin] {
   display: block;
+}
+
+
+/* ---------------------------------------------------------------- */
+/* Plugin contract v3 additions: render mode, capabilities, kill switch */
+/* ---------------------------------------------------------------- */
+
+.plugin-card-warning {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  margin: 0.25rem 0 0;
+  font-size: 0.75rem;
+  color: var(--status-warning-text, var(--content-secondary));
+}
+
+.plugin-card-render-mode.is-custom {
+  border-color: var(--status-warning-border, var(--border-default));
+}
+
+.plugin-activation-failures {
+  margin-bottom: 0.75rem;
+  padding: 0.75rem 0.875rem;
+  border: 1px solid var(--status-danger-border);
+  border-radius: 0.5rem;
+  background-color: var(--status-danger-surface);
+}
+
+.plugin-activation-failures-title {
+  margin: 0 0 0.25rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--status-danger-text);
+}
+
+.plugin-activation-failure-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  margin-top: 0.5rem;
+}
+
+.plugin-activation-failure {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.plugin-activation-failure-id {
+  font-size: 0.75rem;
+  color: var(--content-secondary);
+}
+
+.plugin-manager-kill-switch {
+  margin-left: auto;
+  color: var(--status-danger-text);
+}
+
+.plugin-manager-kill-switch:hover {
+  background-color: var(--status-danger-surface);
+}
+
+.plugin-manager-kill-switch-footer {
+  margin-left: auto;
 }
