@@ -776,7 +776,9 @@ body.entry-dock-mobile-docked .pagination-bar {
 .command-palette {
   position: fixed;
   inset: 0;
-  z-index: var(--z-modal-popover);
+  /* 专用令牌：必须盖得住插件 portal 层带（3700–3740），否则打开插件面板后
+     Ctrl+K 会被整块遮住；仍低于宿主反馈层（右键菜单 9000 / Toast 9500）。 */
+  z-index: var(--z-command-palette);
   display: flex;
   align-items: flex-start;
   justify-content: center;

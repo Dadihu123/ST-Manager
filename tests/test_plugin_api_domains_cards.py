@@ -306,6 +306,22 @@ def test_create_category_with_parent(env):
     assert os.path.isdir(os.path.join(str(env['cards']), '父', '子'))
 
 
+def test_create_category_accepts_nested_path(env):
+    """`同人/动漫`：父级已存在则复用，只建叶子；多级缺失父级则一并补齐。"""
+    root = str(env['cards'])
+    os.makedirs(os.path.join(root, '同人'))
+
+    assert env['api'].cards.create_category('同人/动漫') is True
+    assert os.listdir(os.path.join(root, '同人')) == ['动漫']
+    assert env['api'].cards.create_category('同人/动漫') is True
+
+    assert env['api'].cards.create_category('a/b/c') is True
+    assert os.path.isdir(os.path.join(root, 'a', 'b', 'c'))
+
+    # 新建的每一级都进入可见集合（`_list_categories` 按路径逐条合并）
+    assert {'同人/动漫', 'a', 'a/b', 'a/b/c'} <= set(env['cache'].visible_folders)
+
+
 def test_create_category_registers_in_visible_folders(env):
     env['api'].cards.create_category('可见分类')
 
@@ -313,7 +329,8 @@ def test_create_category_registers_in_visible_folders(env):
 
 
 @pytest.mark.parametrize('bad_name', [
-    '..', '.', '', 'a/b', 'a\\b', 'bad:name', 'q?mark', 'star*', 'quote"',
+    '..', '.', '', '../x', '/abs/path', '同人//动漫', 'a/./b', 'a/../b',
+    'bad:name', 'q?mark', 'star*', 'quote"',
     'lt<gt>', 'pipe|', 'notes', 'backups', 'lorebooks', 'thumbnails', 'cards', 'trash',
     'x' * 65,
 ])
@@ -331,14 +348,18 @@ def test_create_category_rejects_unsafe_parent(env):
     assert env['api'].cards.create_category('leaf', parent='bad:parent') is False
 
 
-def test_list_categories_returns_nested_paths(env):
+def test_list_categories_returns_objects_with_counts(env):
     write_card(env['cards'], 'a/card.json')
     write_card(env['cards'], 'a/b/card.json')
+    env['cache'].category_counts['a'] = 3
 
     categories = env['api'].cards.list_categories()
 
-    assert 'a' in categories
-    assert 'a/b' in categories
+    # 形状固定为 {path, name, count}；count 直接取 `category_counts` 的值（无则 0）
+    assert categories == [
+        {'path': 'a', 'name': 'a', 'count': 3},
+        {'path': 'a/b', 'name': 'b', 'count': 0},
+    ]
 
 
 def test_rename_category_migrates_db_prefix(env):

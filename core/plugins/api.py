@@ -925,7 +925,11 @@ class PluginAPI:
         }
 
     def _list_categories(self) -> list:
-        """全部分类路径（含子分类），相对 `CARDS_FOLDER`。"""
+        """全部分类（含子分类），相对 `CARDS_FOLDER`，按路径升序。
+
+        每项为 `{'path': 完整相对路径, 'name': 叶子名, 'count': 卡片数}`；
+        `count` 直接取自缓存索引的 `category_counts`（没有则 0），不在这里做递归累加。
+        """
         root = str(CARDS_FOLDER)
         found = set()
 
@@ -950,14 +954,27 @@ class PluginAPI:
         except OSError:
             logger.debug('插件 %s 遍历卡片目录失败', self.plugin_id, exc_info=True)
 
-        return sorted(found)
+        counts = dict(getattr(cache, 'category_counts', {}) or {}) if cache else {}
+        return [
+            {
+                'path': path,
+                'name': path.rsplit('/', 1)[-1],
+                'count': int(counts.get(path, 0) or 0),
+            }
+            for path in sorted(found)
+        ]
 
     def _create_category(self, name: str, *, parent: str = '') -> bool:
-        """创建分类目录（幂等）；分类名与父路径都强制白名单校验。"""
-        leaf = str(name or '').strip()
-        if not _is_valid_category_name(leaf):
+        """创建分类目录（幂等）；`name` 支持 `a/b` 相对路径，缺失父级自动补齐。
+
+        分类名与父路径都逐段走白名单校验（拒绝 `..`、绝对路径、空段、非法字符）。
+        """
+        raw_name = str(name or '').strip().replace('\\', '/')
+        # 校验前不 strip('/')：绝对路径必须被拒绝，而不是被归一成相对路径
+        if not _is_valid_category_path(raw_name):
             self._write_log('warning', f'拒绝创建非法分类名: {name!r}')
             return False
+        rel_name = raw_name.strip('/')
 
         parent_raw = str(parent or '').strip().replace('\\', '/')
         if parent_raw == '根目录':
@@ -968,13 +985,22 @@ class PluginAPI:
             return False
         parent_path = parent_raw.strip('/')
 
-        rel_path = f'{parent_path}/{leaf}' if parent_path else leaf
+        rel_path = f'{parent_path}/{rel_name}' if parent_path else rel_name
         target = os.path.join(str(CARDS_FOLDER), rel_path.replace('/', os.sep))
         if not is_under_base(os.path.realpath(target), str(CARDS_FOLDER), resolve_symlinks=True):
             return False
 
         if os.path.isdir(target):
             return True
+
+        # 记下尚不存在的各级目录：`同人/动漫` 时 `同人` 不存在也要一并建出来
+        root = str(CARDS_FOLDER)
+        missing = []
+        prefix = ''
+        for part in rel_path.split('/'):
+            prefix = f'{prefix}/{part}' if prefix else part
+            if not os.path.isdir(os.path.join(root, prefix.replace('/', os.sep))):
+                missing.append(prefix)
 
         try:
             with self._suppress_fs_events():
@@ -985,8 +1011,11 @@ class PluginAPI:
 
         cache = getattr(ctx, 'cache', None)
         visible = getattr(cache, 'visible_folders', None) if cache else None
-        if isinstance(visible, list) and rel_path not in visible:
-            visible.append(rel_path)
+        if isinstance(visible, list):
+            # `_list_categories` 的可见集合按路径逐条记，新建的每一级都补进去
+            for path in missing or [rel_path]:
+                if path not in visible:
+                    visible.append(path)
             visible.sort()
         return True
 

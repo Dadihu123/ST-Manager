@@ -424,10 +424,16 @@ def review_item(
         if not item:
             raise PluginJobNotFoundError(f'条目不存在: {item_key}')
 
-        job_store.update_item(conn, run_id, item_key, status=status, result=result, error=error)
+        # 前端只发 `{status}` 时 result 为 None：沿用条目原有的 result，
+        # 不能交给 `update_item` 的 `None → {}` 语义清空候选（后续 apply 会变成空操作）。
+        effective_result = result if result is not None else item.get('result')
+        job_store.update_item(
+            conn, run_id, item_key, status=status, result=effective_result, error=error,
+        )
         job_store.append_event(
             conn, run_id, 'item',
-            {'item_key': str(item_key), 'status': status, 'result': result or {}, 'error': error},
+            {'item_key': str(item_key), 'status': status,
+             'result': effective_result or {}, 'error': error},
         )
 
         counters = conn.execute(

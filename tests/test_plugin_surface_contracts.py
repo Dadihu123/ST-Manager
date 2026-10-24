@@ -29,6 +29,7 @@ SURFACE_HOST_PATH = 'static/js/pluginSurfaceHost.js'
 SURFACE_CSS_PATH = 'static/css/modules/plugin-surfaces.css'
 PRIMITIVES_CSS_PATH = 'static/css/modules/ui-primitives.css'
 VARIABLES_CSS_PATH = 'static/css/modules/variables.css'
+ENTRY_DOCK_CSS_PATH = 'static/css/modules/entry-dock.css'
 
 
 def read_source(relative_path):
@@ -369,6 +370,38 @@ def test_primitive_dialog_overlay_sits_above_plugin_surfaces():
     assert token('z-modal-alert') < token('z-tooltip')
     assert token('z-modal-alert') < token('z-toast')
     assert '.z-modal-alert {' in variables, '令牌要配 !important 工具类（与其它 --z-* 一致）'
+
+
+def test_command_palette_sits_above_plugin_layers():
+    """回归：打开插件面板后 Ctrl+K 命令面板不能被整块盖住。
+
+    插件 portal 层带是 3700–3740（`--z-plugin-portal` … `--z-plugin-alert`），
+    而命令面板原先与插件 surface 同取 `--z-modal-popover`(3400)：层级更低 +
+    DOM 顺序在后，结果命令面板被插件面板盖住（实测 Ctrl+K 弹不出来）。
+    插件侧改不了这件事（插件被禁止写 z-index），只能在宿主令牌表里给它更高层级。
+    """
+    import re
+
+    variables = re.sub(r'/\*.*?\*/', '', read_source(VARIABLES_CSS_PATH), flags=re.S)
+
+    def token(name):
+        match = re.search(rf'--{name}:\s*(\d+)', variables)
+        assert match is not None, name
+        return int(match.group(1))
+
+    assert token('z-command-palette') > token('z-plugin-alert'), (
+        '命令面板必须高于整个插件 portal 层带（最高 --z-plugin-alert）'
+    )
+    assert token('z-command-palette') < token('z-context-menu'), (
+        '命令面板不能盖住右键菜单 / 提示 / Toast 这些反馈层'
+    )
+    assert '.z-command-palette {' in variables, '令牌要配 !important 工具类'
+
+    entry_dock = re.sub(r'/\*.*?\*/', '', read_source(ENTRY_DOCK_CSS_PATH), flags=re.S)
+    block = entry_dock.split('.command-palette {', 1)[1].split('}', 1)[0]
+    assert 'z-index: var(--z-command-palette);' in block, (
+        '命令面板必须用专用令牌，否则会再次和插件 surface 撞层'
+    )
 
 
 # ------------------------------------------------------------------ 行为契约

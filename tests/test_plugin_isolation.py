@@ -262,6 +262,29 @@ def test_route_blocks_cross_plugin_item_review(route_client):
     assert response.get_json()['error'] == 'job_not_found'
 
 
+def test_route_reviews_item_key_containing_slash(route_client):
+    """作业条目 key 就是卡片 id（`原创/都市日常/xxx.png`），路由必须吃下斜杠。"""
+    key = '原创/都市日常/xxx.png'
+
+    def handler(ctx):
+        ctx.report(key, status='awaiting_review', result={'suggestion': 'x'})
+
+    jobs.register_job_handler('alpha-plugin', 'alpha.review', handler)
+    run_id = jobs.submit_job('alpha-plugin', 'alpha.review', [key])
+    jobs._process_pending_jobs()
+
+    response = route_client.post(
+        f'/api/plugins/alpha-plugin/jobs/{run_id}/items/{key}/review',
+        json={'status': 'done'},
+    )
+
+    assert response.status_code == 200, response.get_data(as_text=True)
+    detail = jobs.get_job_detail(run_id)
+    assert detail['items'][0]['status'] == 'done'
+    # 只发 status 时保留批次里的候选 result
+    assert detail['items'][0]['result'] == {'suggestion': 'x'}
+
+
 def test_route_blocks_cross_plugin_event_stream(route_client):
     jobs.register_job_handler('beta-plugin', 'beta.run', lambda ctx: None)
     run_b = jobs.submit_job('beta-plugin', 'beta.run', ['y'])

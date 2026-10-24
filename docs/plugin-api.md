@@ -90,7 +90,7 @@
 | `api.cards.read_notes()` | `read_notes(card_ids) -> dict` | Stable | 批量读本地备注，返回 `{card_id: text}`（无备注为 `''`）。 |
 | `api.cards.write_note()` | `write_note(card_id: str, text: str) -> bool` | Stable | 写本地备注（走 `ui_data` 的锁内合并，不会与宿主 UI 的并发写丢更新）。 |
 | `api.cards.move()` | `move(card_ids, target_category: str) -> dict` | Stable | 批量移动卡片到分类（空串表示根目录）。 |
-| `api.cards.list_categories()` | `list_categories() -> list` | Stable | 全部分类路径（含子分类），相对 `CARDS_FOLDER`，升序。 |
+| `api.cards.list_categories()` | `list_categories() -> list` | Stable | 全部分类（含子分类），相对 `CARDS_FOLDER`，按路径升序。 |
 | `api.cards.create_category()` | `create_category(name: str, *, parent: str = '') -> bool` | Stable | 创建分类目录（已存在时返回 `True`，幂等）。 |
 | `api.cards.rename_category()` | `rename_category(old_path: str, new_path: str) -> bool` | Stable | 重命名 / 移动分类（含 DB 与 `ui_data` 前缀迁移）。 |
 | `api.cards.list()` | `list(*, query: str = '', category: str = '', tags=(), exclude_tags=(), limit: int = 100, offset: int = 0, sort: str = '', **filters) -> dict` | Stable | 结构化查询卡片（走索引，不用裸 SQL、不做全表扫）。 |

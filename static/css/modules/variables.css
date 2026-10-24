@@ -65,6 +65,21 @@
   --z-plugin-tooltip: 3730;
   --z-plugin-alert: 3740;
   /*
+   * 命令面板（Ctrl+K）。
+   *
+   * 必须高于整个插件 portal 层带（3700–3740）：插件 surface 的 panel / sheet /
+   * modal 就站在 `--z-modal-popover`(3400) 之上，而命令面板原先也取 3400 ——
+   * 两者同层，DOM 顺序在后的插件面板就把命令面板整块盖住了（实测：打开 AI
+   * 助手面板后 Ctrl+K 弹不出来，报「被面板遮住」）。
+   *
+   * 仍要低于宿主反馈层：`--z-context-menu`(9000) / `--z-tooltip`(9200) /
+   * `--z-toast`(9500) 更靠前，右键菜单与提示不该被命令面板挡住。
+   *
+   * 取 3750 = 插件层带（3700–3740）之上、反馈层之下；插件侧改不了这件事
+   * （插件被禁止写 z-index），只能在宿主令牌表里给它一个更高的层级。
+   */
+  --z-command-palette: 3750;
+  /*
    * 归一到令牌的既有散落字面量（值与原字面量完全一致，纯替换不改变层叠）。
    * 目的是让「谁盖住谁」可检索、可统一调整，而不是散在各模块里猜。
    */
@@ -173,6 +188,10 @@
 
 .z-modal-alert {
   z-index: var(--z-modal-alert) !important;
+}
+
+.z-command-palette {
+  z-index: var(--z-command-palette) !important;
 }
 
 .z-modal-detail {

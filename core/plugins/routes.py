@@ -860,7 +860,7 @@ def retry_plugin_job(plugin_id, run_id):
     return jsonify({'success': True, 'run_id': new_run})
 
 
-@bp.route('/api/plugins/<plugin_id>/jobs/<run_id>/items/<item_key>/review', methods=['POST'])
+@bp.route('/api/plugins/<plugin_id>/jobs/<run_id>/items/<path:item_key>/review', methods=['POST'])
 @_handle_plugin_errors
 def review_plugin_job_item(plugin_id, run_id, item_key):
     """逐条审批（D6）。"""

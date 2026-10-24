@@ -536,7 +536,33 @@ def test_review_item_resolves_awaiting_review(job_env):
 
     detail = jobs.get_job_detail(run_id)
     assert detail['items'][0]['status'] == 'done'
+    assert detail['items'][0]['result'] == {'applied': True}
     assert detail['completed'] == 1
+
+
+def test_review_item_keeps_pending_result_when_omitted(job_env):
+    """审批只发 `{status}` 时不能把 `awaiting_review` 的候选 result 清空。"""
+    def handler(ctx):
+        ctx.report(ctx.items[0]['key'], status='awaiting_review', result={'suggestion': 'x'})
+
+    jobs.register_job_handler('demo-plugin', 'demo.review', handler)
+    run_id = jobs.submit_job('demo-plugin', 'demo.review', ['a'])
+    _run_one(run_id)
+
+    assert jobs.review_item(run_id, 'a', status='done') is True
+
+    detail = jobs.get_job_detail(run_id)
+    assert detail['items'][0]['status'] == 'done'
+    assert detail['items'][0]['result'] == {'suggestion': 'x'}
+
+    conn = job_store.connect(ensure_schema=True)
+    try:
+        events = job_store.read_events(conn, run_id)
+    finally:
+        conn.close()
+    item_events = [event for event in events if event['type'] == 'item']
+    # SSE 事件里回传的 result 必须与落库一致
+    assert item_events[-1]['data']['result'] == {'suggestion': 'x'}
 
 
 def test_review_item_rejects_unknown_item(job_env):

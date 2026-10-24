@@ -138,14 +138,19 @@ class CardDomain(DomainBase):
         return self._api._move_cards(card_ids, target_category)
 
     def list_categories(self) -> list:
-        """全部分类路径（含子分类），相对 `CARDS_FOLDER`，升序。"""
+        """全部分类（含子分类），相对 `CARDS_FOLDER`，按路径升序。
+
+        每项为 `{'path': str, 'name': str, 'count': int}`：`path` 是完整相对路径，
+        `name` 是叶子名，`count` 直接取缓存索引 `category_counts` 里该 path 的值（没有则 0）。
+        """
         return self._api._list_categories()
 
     def create_category(self, name: str, *, parent: str = '') -> bool:
         """创建分类目录（已存在时返回 `True`，幂等）。
 
-        分类名来自调用方（很可能是 AI 输出），因此在这里强制做**白名单校验**：
-        拒绝 `..`、绝对路径、路径分隔符、Windows 非法字符（`\\/:*?"<>|`）、
+        `name` 允许 `a/b` 形式的相对路径，缺失的父级目录会自动补齐；`parent` 是
+        相对父路径。分类名来自调用方（很可能是 AI 输出），因此逐段做**白名单校验**：
+        拒绝 `..`、绝对路径、空段、Windows 非法字符（`/:*?"<>|`；`\\` 先归一成 `/`）、
         超长名（>64）与保留名（`notes` / `backups` / `lorebooks` / `thumbnails` /
         `cards` / `trash`）。非法时返回 `False`，不落盘。
         """
