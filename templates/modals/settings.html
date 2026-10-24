@@ -371,17 +371,23 @@ enableUserAccounts: true</pre>
             <ol class="settings-help-list settings-help-list--ordered">
               <li>在浏览器打开 Discord 网页版并登录，进入可访问类脑帖子的频道。</li>
               <li>按 <code>F12</code> 打开开发者工具，切换到 <strong>Console（控制台）</strong>。</li>
-              <li>如果 Chrome 阻止粘贴，先手动输入 <code>allow pasting</code> 并回车。</li>
-              <li>粘贴下面的代码并执行，在控制台显示 Token 后复制结果。</li>
+              <li>如果 Chrome 拦截粘贴并提示不要粘贴代码，先手动输入 <code>'allow pasting'</code>（<strong>连同两侧单引号一起输入</strong>，新版本 Chrome 里不带引号直接输入会报错）并回车，之后即可正常粘贴。</li>
+              <li>粘贴下面的代码并回车执行，它会自动把 Token 复制到剪贴板（控制台不会显示 Token 内容），随后直接粘贴到 Discord Token 输入框即可。</li>
             </ol>
-            <pre class="settings-help-code">const iframe = document.createElement('iframe');
-console.log(
-  'Token: %c%s',
-  'font-size:16px;',
-  JSON.parse(document.body.appendChild(iframe).contentWindow.localStorage.token)
-);
-iframe.remove();</pre>
-            <div class="settings-help-callout settings-help-callout--warning"><span aria-hidden="true">{{ icon('shield-key', 'ui-icon--sm') }}</span><span>Token 可能过期；遇到 401 时请重新获取。认证信息只保存在本机，并且需要 Discord 账号具备对应服务器权限。</span></div>
+            <pre class="settings-help-code">window.webpackChunkdiscord_app.push([[Symbol()],{},req=>{
+  if(!req.c)return;
+  for(let m of Object.values(req.c)){
+    try{
+      if(!m.exports||m.exports===window)continue;
+      if(m.exports?.getToken)return copy(m.exports.getToken());
+      for(let ex in m.exports){
+        if(m.exports?.[ex]?.getToken&&m.exports[ex][Symbol.toStringTag]!=='IntlMessagesProxy')return copy(m.exports[ex].getToken());
+      }
+    }catch{}
+  }
+},]);
+window.webpackChunkdiscord_app.pop();</pre>
+            <div class="settings-help-callout settings-help-callout--warning"><span aria-hidden="true">{{ icon('shield-key', 'ui-icon--sm') }}</span><span>这段代码只负责把 Token 写入剪贴板，不会在控制台显示 Token；若粘贴不出内容，先刷新 Discord 页面再执行一次。Token 可能过期，遇到 401 时请重新获取。认证信息只保存在本机，并且需要 Discord 账号具备对应服务器权限。</span></div>
           </article>
           <article class="settings-help-card" x-show="activeSettingTab === 'connection'">
             <h4 class="font-bold color-text-violet mb-2"><span aria-hidden="true">{{ icon('key', 'ui-icon--sm') }}</span><span>类脑 Cookie 预览</span></h4>
