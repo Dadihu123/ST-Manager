@@ -629,20 +629,85 @@ def test_preset_prompt_toggle_matches_automation_switch():
     assert 'width: 0.85rem;' in thumb_block[1].split('}', 1)[0]
 
 
-def test_no_webkit_scrollbar_styling_in_stylesheets():
-    """CSS 里不得出现 ::-webkit-scrollbar 规则（刻意隐藏的 width:0 除外）。
+def test_text_editors_keep_native_scrollbar_with_arrows():
+    """文本编辑框（textarea / 可编辑区）保留原生经典滚动条（带上下箭头）。
 
-    实测（headed Chromium，Windows）：
-        完全不写 ::-webkit-scrollbar -> 滚动条 15px 宽，上下带箭头
-        写任意 ::-webkit-scrollbar -> 滚动条 8px，无箭头
+    2026-10-25 用户裁决：原生经典滚动条只适合编辑框类的地方，其余界面回退到
+    Refactoring UI 重构（c0fbaf2）之前的细滚动条。
 
-    用户明确要求：滚动条要上下各有一个小箭头、稍微宽一些，即以浏览器
-    **原生经典滚动条**为准。实现方式就是**不做任何自定义**。
+    机制（headed Chromium 实测）：元素上只要出现**非 auto 的 scrollbar-color**，
+    Chrome 就用原生经典滚动条渲染，并忽略该元素的 ::-webkit-scrollbar 规则。
+    所以编辑框必须显式写 scrollbar-color，且自定义规则必须用 :not 把它们排除。
+    """
+    css = _read(CONSISTENCY_CSS)
 
-    注意 shadow DOM：::-webkit-scrollbar 穿透不了 shadow 边界，所以
-    static/js/utils/dom.js 里的 markdown 预览必须自带样式（见
-    test_shadow_preview_scroll_containers_style_their_own_scrollbar），
-    那是刻意的例外，不在此断言范围。
+    block = re.search(r'(?m)^textarea,\s*\n\[contenteditable\]\s*\{([^}]*)\}', css)
+    assert block, '缺少编辑框规则（textarea, [contenteditable]）'
+    assert 'scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);' in block.group(1), (
+        '编辑框必须写 scrollbar-color，否则拿不到原生经典滚动条（带箭头）'
+    )
+
+
+def test_non_editor_scrollbars_use_pre_refactor_thin_style():
+    """编辑框之外的界面回退到重构前的主界面滚动条。
+
+    - 全局默认：8px、实色轨道、圆角滑块（重构前 base.css 的配置）
+    - .custom-scrollbar：6px、透明轨道（重构前 view-wi.css 的配置）
+    """
+    css = _read(CONSISTENCY_CSS)
+
+    def rule_body(selector):
+        match = re.search(re.escape(selector) + r'\s*\{([^}]*)\}', css, flags=re.S)
+        return match.group(1) if match else None
+
+    global_selector = '*:not(textarea):not([contenteditable])'
+    expectations = {
+        global_selector + '::-webkit-scrollbar': ('width: 8px;', 'height: 8px;'),
+        global_selector + '::-webkit-scrollbar-track': ('background: var(--scrollbar-track);',),
+        global_selector + '::-webkit-scrollbar-thumb': (
+            'background: var(--scrollbar-thumb);',
+            'border-radius: 4px;',
+            'border: 2px solid var(--scrollbar-track);',
+        ),
+    }
+    for selector, needles in expectations.items():
+        body = rule_body(selector)
+        assert body is not None, f'缺少规则：{selector}'
+        for needle in needles:
+            assert needle in body, f'{selector} 缺少 {needle}'
+
+    # 非编辑框必须显式把 scrollbar-color 重置为 auto ——
+    # 否则（继承或残留的）配色会让 Chrome 退回原生渲染，::-webkit-scrollbar 规则失效
+    reset = rule_body(global_selector)
+    assert reset is not None and 'scrollbar-color: auto;' in reset, (
+        '非编辑框必须写 scrollbar-color: auto，否则自定义滚动条规则会被 Chrome 忽略'
+    )
+
+    custom_selector = '.custom-scrollbar:not(textarea):not([contenteditable])'
+    thumb_selector = custom_selector + '::-webkit-scrollbar-thumb'
+    track_selector = custom_selector + '::-webkit-scrollbar-track'
+    size = rule_body(custom_selector + '::-webkit-scrollbar')
+    track = rule_body(track_selector)
+    thumb = rule_body(thumb_selector)
+    assert size is not None and 'width: 6px;' in size and 'height: 6px;' in size, (
+        '.custom-scrollbar 必须回到重构前的 6px'
+    )
+    assert track is not None and 'background: transparent;' in track, (
+        '.custom-scrollbar 的轨道必须是透明的'
+    )
+    assert thumb is not None and 'background: var(--border-default);' in thumb, (
+        '.custom-scrollbar 的滑块色必须回到重构前的 --border-default'
+    )
+
+
+def test_webkit_scrollbar_rules_stay_out_of_editors():
+    """::-webkit-scrollbar 规则只能出现在 consistency.css，且必须排除编辑框。
+
+    全站统一在 consistency.css 里定义一次；其它文件里再写自定义滚动条规则
+    = 局部宿主又会出现"细滚动条/箭头丢失"的碎片化。选择器还必须带
+    :not(textarea)，否则编辑框会被一起改成细滚动条。
+
+    刻意隐藏滚动条的规则（width:0 + height:0）保留，不受此限。
     """
     import re as _re
 
@@ -652,84 +717,38 @@ def test_no_webkit_scrollbar_styling_in_stylesheets():
             continue
         stripped = _re.sub(r'/\*.*?\*/', '', _read(path), flags=_re.S)
         for m in _re.finditer(
-            r'(?m)^[ \t]*[^{}\n]*-webkit-scrollbar[^{}\n]*\{[^{}]*\}', stripped
+            r'(?m)^[ \t]*([^{}\n]*(?:-webkit-scrollbar)[^{}\n]*)\{([^{}]*)\}', stripped
         ):
-            body = m.group(0)
-            # 刻意隐藏（横向滚动行）保留
+            selectors, body = m.group(1), m.group(2)
             if _re.search(r'width\s*:\s*0(?:px)?\s*;', body) and _re.search(
                 r'height\s*:\s*0(?:px)?\s*;', body
             ):
                 continue
             line = stripped[: m.start()].count('\n') + 1
-            offenders.append(f'{path.name}:{line} ' + body.split('{')[0].strip()[:50])
+            if path.name != 'consistency.css':
+                offenders.append(f'{path.name}:{line} 在 consistency.css 之外自定义滚动条')
+                continue
+            if ':not(textarea)' not in selectors:
+                offenders.append(f'{path.name}:{line} 未排除编辑框：{selectors.strip()[:60]}')
 
     assert not offenders, (
-        'CSS 里不应自定义 ::-webkit-scrollbar —— 那会让原生滚动条（带上下箭头）'
-        '退化成无箭头的自定义样式：\n' + '\n'.join(offenders[:12])
+        '::-webkit-scrollbar 只能在 consistency.css 定义，且必须用 :not 排除编辑框：\n'
+        + '\n'.join(offenders[:12])
     )
 
-
-def test_scrollbar_uses_native_arrows_with_themed_color():
-    """滚动条必须同时满足：保留原生箭头 + 使用项目配色。
-
-    实测（headed Chromium，唯一能渲染箭头的模式）：
-
-        方案                            占宽    箭头   颜色可控
-        ------------------------------------------------------
-        什么都不写                      15px    ✓     ✗（系统深灰）
-        scrollbar-color ✓               15px    ✓     ✓  <-- 正解
-        ::-webkit-scrollbar {...}        8px    ✗     ✓
-
-    所以：
-      - CSS 里**不得**出现 `::-webkit-scrollbar`（会让箭头消失），
-        刻意隐藏滚动条的 `width:0` 规则除外
-      - **必须**有 `scrollbar-color`（否则深色下是系统默认灰）
-      - `scrollbar-width` 只能是 `none`（刻意隐藏），不能是 thin/auto
-
-    注：shadow DOM 见 test_shadow_preview_scroll_containers_style_their_own_scrollbar
-    —— `::-webkit-scrollbar` 穿透不了 shadow 边界，那里必须自带样式，管不到本测试。
-    """
-    import re as _re
-
+    # scrollbar-width 只能是 none（刻意隐藏），不能是 thin/auto：
+    # 标准属性一旦出现，Chrome 会忽略该元素上的全部 ::-webkit-scrollbar 规则
     violations = []
-
     for path in sorted(CSS_DIR.rglob('*.css')):
         if path.name in ('tailwind.css', 'tailwind-input.css'):
             continue
         stripped = _re.sub(r'/\*.*?\*/', '', _read(path), flags=_re.S)
-
-        # 1) 不允许 ::-webkit-scrollbar（width:0 的刻意隐藏除外）
-        for m in _re.finditer(
-            r'(?m)^[ \t]*[^{}\n]*-webkit-scrollbar[^{}\n]*\{[^{}]*\}', stripped
-        ):
-            body = m.group(0)
-            hide = _re.search(r'width\s*:\s*0(?:px)?\s*;', body) and _re.search(
-                r'height\s*:\s*0(?:px)?\s*;', body
-            )
-            if hide:
-                continue
-            line = stripped[: m.start()].count('\n') + 1
-            violations.append(
-                f'{path.name}:{line} 有 ::-webkit-scrollbar 规则（会让原生箭头消失）'
-            )
-
-        # 2) scrollbar-width 只能是 none
         for m in _re.finditer(r'(?m)^[ \t]*scrollbar-width\s*:\s*([^;]+);', stripped):
-            val = m.group(1).strip()
-            if val == 'none':
+            value = m.group(1).strip()
+            if value == 'none':
                 continue
             line = stripped[: m.start()].count('\n') + 1
-            violations.append(f'{path.name}:{line} scrollbar-width: {val}')
-
+            violations.append(f'{path.name}:{line} scrollbar-width: {value}')
     assert not violations, (
-        '滚动条必须保留原生箭头（不写 ::-webkit-scrollbar）：\n'
-        + '\n'.join(violations[:10])
+        'scrollbar-width 只能是 none（刻意隐藏滚动条）：\n' + '\n'.join(violations[:10])
     )
-
-    # 3) 必须有全局 scrollbar-color，否则深色下是系统默认灰
-    consistency = _read(CONSISTENCY_CSS)
-    assert 'scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);' in consistency, (
-        '缺少全局 scrollbar-color —— 没有它滚动条会退回系统默认配色'
-    )
-    # 4) 它必须覆盖所有元素（通配符）
-    assert '* {' in consistency and 'scrollbar-color' in consistency.split('* {', 1)[1].split('}', 1)[0]

@@ -236,13 +236,13 @@ def test_shadow_preview_scroll_containers_style_their_own_scrollbar():
 
     回归：插件管理页「详情」打开的是 `markdown_preview.html`，内容经
     `updateShadowContent()` 渲染进 shadow root。全局 `::-webkit-scrollbar`
-    （static/css/modules/base.css）**不会穿透 shadow 边界**，而 `shadow.innerHTML`
-    里又没有自己的滚动条规则，于是退回浏览器默认滚动条：深色模式下是一条
-    中灰轨道 + 亮灰滑块，嵌在深色预览面板里非常突兀。浅色模式恰好接近白底，
-    所以只有深色模式看起来像没适配。
+    （现位于 `static/css/modules/consistency.css`）**不会穿透 shadow 边界**，而
+    `shadow.innerHTML` 里又没有自己的滚动条规则，于是退回浏览器默认滚动条：
+    深色模式下是一条中灰轨道 + 亮灰滑块，嵌在深色预览面板里非常突兀。
+    浅色模式恰好接近白底，所以只有深色模式看起来像没适配。
 
     修法沿用宿主既有契约：颜色取 `--scrollbar-thumb` / `--accent-text`，
-    与 base.css 及 `.mixed-preview-scroll` 同一套语义 Token。
+    与全局滚动条（consistency.css）及 `.mixed-preview-scroll` 同一套语义 Token。
     """
     dom_source = read_project_file('static/js/utils/dom.js')
 
@@ -263,12 +263,12 @@ def test_shadow_preview_scroll_containers_style_their_own_scrollbar():
     hover_block = dom_source.split('pre::-webkit-scrollbar-thumb:hover {', 1)[1].split('}', 1)[0]
     assert 'var(--accent-text)' in hover_block
 
-    # 宿主的全局滚动条规则已不再存在 —— 用户要求滚动条呈现浏览器原生经典样式
-    # （上下带箭头）。实测：任何 ::-webkit-scrollbar 声明都会让 Chrome 切到
-    # 自定义模式，箭头消失。所以 Shadow DOM 必须自带样式，这正是本测试的由来。
+    # 宿主的全局滚动条规则已挪到 consistency.css（最后加载），且按元素分流：
+    # 编辑框保留原生经典滚动条，其余界面用自定义细滚动条。::-webkit-scrollbar
+    # 不穿透 shadow 边界，所以 Shadow DOM 必须自带样式，这正是本测试的由来。
     base_css = read_project_file('static/css/modules/base.css')
     assert '::-webkit-scrollbar' not in base_css, (
-        'base.css 不应再有全局 ::-webkit-scrollbar 规则，否则会禁用原生滚动条箭头。'
+        'base.css 不应有全局 ::-webkit-scrollbar 规则（统一配置在 consistency.css）。'
         'Shadow DOM 的滚动条样式在 static/js/utils/dom.js 里独立定义（本测试上半部分已覆盖）。'
     )
 

@@ -2440,3 +2440,97 @@ headless 模式对「浏览器原生控件外观」这类问题给出的是近�
 另外一条：`scrollbar-color` 与 `::-webkit-scrollbar` 不是"互斥的坏属性"，
 而是**两种不同层次的控制手段** —— 前者保结构只改色，后者完全接管。
 在需要保留原生控件结构时，前者才是正确工具。
+
+---
+
+# 第二十六部分：滚动条按场景分流（2026-10-25）
+
+## 26.1 用户反馈
+
+> 请整体搜索项目的滚动条样式，当前的默认样式提供给哪些文本编辑的框，
+> 其他的回退回之前主界面用的那个，目前看这个滚动条只适合在编辑框类的地方用
+
+即：原生经典滚动条（15-17px、带上下箭头）只保留在**文本编辑框**里；
+其余界面回退到 `c0fbaf2`「按 Refactoring UI 规范全站重构视觉系统」之前的
+主界面滚动条。
+
+## 26.2 补充机制：`scrollbar-color` 也会压制 `::-webkit-scrollbar`
+
+第二十五部分只把 `scrollbar-width` 当成开关。这次在 headed Chromium 里补测出，
+`scrollbar-color` 同样是一条「渲染路径开关」，不只是配色：
+
+| 元素上的配置 | 渲染结果 | 占宽 |
+|---|---|---|
+| 非 auto 的 `scrollbar-color`（不写 scrollbar-width） | 原生经典滚动条，**带上下箭头** | 15-17px |
+| `scrollbar-color: auto` + `::-webkit-scrollbar-*` | 自定义细滚动条，无箭头 | 6 / 8px |
+| 非 auto 的 `scrollbar-color` + `::-webkit-scrollbar-*` | **原生经典滚动条**（webkit 规则被忽略） | 15-17px |
+
+所以第二十五部分的全局 `* { scrollbar-color: ... }` 只要还在，任何
+`::-webkit-scrollbar` 规则都不会生效 —— 这正是「编辑框保留箭头 / 其余用细滚动条」
+必须按元素分流、而不能只改一处的机制原因。
+
+## 26.3 方案：按元素分流
+
+`static/css/modules/consistency.css` 的「滚动条」段落（最后加载，覆盖全站）：
+
+| 场景 | 样式 | 选择器 |
+|---|---|---|
+| 文本编辑框（`<textarea>` / 可编辑区） | 原生经典滚动条 + 项目配色（保留箭头） | `textarea, [contenteditable]` 写 `scrollbar-color` |
+| 其余界面默认 | 8px、实色轨道、圆角滑块（重构前 `base.css` 的配置） | `*:not(textarea):not([contenteditable])` + `::-webkit-scrollbar-*` |
+| 显式 `.custom-scrollbar` 的主界面容器 | 6px、透明轨道、`--border-default` 滑块（重构前 `view-wi.css` 的配置） | `.custom-scrollbar:not(textarea):not([contenteditable])` |
+
+关键点：
+
+1. 非编辑框必须显式写 `scrollbar-color: auto` —— 否则残留/继承的配色会让
+   Chrome 继续走原生渲染，`::-webkit-scrollbar` 规则被静默忽略；
+2. 自定义规则一律带 `:not(textarea):not([contenteditable])` ——
+   `::-webkit-scrollbar` 按元素匹配，不继承，排除后编辑框才会留在原生渲染路径；
+3. 模板里大量 textarea 带 `custom-scrollbar` 类（历史遗留），类名不动
+   （被模板契约测试锁定），靠 `:not` 排除。
+
+## 26.4 「文本编辑框」的范围
+
+全站 61 个 `<textarea>`，全部归入编辑框阵营：
+
+- `.form-textarea`：详情页设定 / 开场白 / 备注、世界书、自动化表单
+- `.advanced-code-editor` / `.advanced-code-area` / `.advanced-test-editor`：正则与 ST 脚本
+- `.large-editor-textarea`：大编辑器
+- `.wi-main-textarea` / `.wi-raw-textarea`：世界书条目
+- `.chat-reader-*-textarea` / `.chat-reader-regex-inspector-code`：聊天阅读器与正则检查器
+- `.preset-editor-*` 的提示词正文、`.settings-large-textarea`、`.note-textarea`
+
+`[contenteditable]` 一并纳入，避免以后加富文本编辑区时退化。
+
+## 26.5 顺带清理：两处孤儿 `::-webkit-scrollbar` 选择器
+
+第二十四部分批量删规则时，`modal-preset-workbench.css` 与
+`view-chats/modals.css` 各留下一组悬空选择器（后面跟着空行，实际粘在了
+`.preset-reader-content-card` 和 `.chat-reader-*.markdown-body img` 规则上）。
+它会让 `display: block; max-width: …` 一并套到滚动条伪元素上，已删除。
+
+## 26.6 验证（headed Chromium，静态资源强刷）
+
+| 元素 | 占宽 | 形态 |
+|---|---|---|
+| `#main-scroll.card-scroll-area.custom-scrollbar` | 6px | 自定义，透明轨道，无箭头 |
+| `textarea.form-textarea`（内容溢出时） | 15px | 原生经典，上下箭头 + 项目配色 |
+| `.local-note-preview.custom-scrollbar` | 6px（+2px 边框） | 自定义，透明轨道 |
+
+深色 / 浅色主题都已截图确认；全量测试 **3992 通过 / 1 跳过 / 0 失败**。
+
+## 26.7 测试变更
+
+| 原测试 | 变更 |
+|---|---|
+| `test_no_webkit_scrollbar_styling_in_stylesheets` | 删除（前提反转：现在需要 `::-webkit-scrollbar`） |
+| `test_scrollbar_uses_native_arrows_with_themed_color` | 删除 |
+| `test_text_editors_keep_native_scrollbar_with_arrows` | 新增：编辑框必须写 `scrollbar-color` |
+| `test_non_editor_scrollbars_use_pre_refactor_thin_style` | 新增：8px 默认 + 6px `.custom-scrollbar` + 非编辑框的 `auto` 重置 |
+| `test_webkit_scrollbar_rules_stay_out_of_editors` | 新增：`::-webkit-scrollbar` 只能出现在 `consistency.css` 且必须排除编辑框；`scrollbar-width` 只能是 `none` |
+
+## 26.8 备注
+
+- 预览 iframe（ST 美化预览）与 shadow DOM（`static/js/utils/dom.js` 的
+  markdown 预览）不受全局 CSS 影响，各自保留滚动条样式，属刻意例外。
+- 若之后想只保留一种细滚动条，删掉 `consistency.css` 里第 2 组或第 3 组规则即可。
+

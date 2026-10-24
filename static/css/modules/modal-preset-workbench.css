@@ -707,12 +707,6 @@
   overscroll-behavior: contain;
 }
 
-.preset-reader-modal section > .flex-1.min-h-0 > .h-full::-webkit-scrollbar,
-.preset-reader-mobile-detail-body::-webkit-scrollbar,
-
-.preset-reader-modal section > .flex-1.min-h-0 > .h-full::-webkit-scrollbar-thumb,
-.preset-reader-mobile-detail-body::-webkit-scrollbar-thumb,
-
 .preset-reader-content-card,
 .preset-reader-prompt-card {
   border-color: var(--border-subtle) !important;

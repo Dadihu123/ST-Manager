@@ -905,28 +905,72 @@ input[type='radio']:focus-visible {
   transform: translateX(1.09rem) !important;
 }
 
-/* ---------------------------------------------------------------- 滚动条配色
- * 用户要求：保留浏览器原生滚动条的**上下箭头**，但颜色要与应用一致
- * （系统默认的深灰在深色界面里很突兀）。
+/* ---------------------------------------------------------------- 滚动条
+ * 用户裁决（2026-10-25）：原生经典滚动条（15-17px、上下带箭头）只留给
+ * **文本编辑框**（textarea / 可编辑区）；其余界面回退到 Refactoring UI
+ * 重构（c0fbaf2）之前的「主界面」样式。
  *
- * 实测结论（headed Chromium，这是唯一能渲染箭头的模式）：
+ * 机制（headed Chromium 实测 2026-10-25，补充了第二十五部分的结论）：
  *
- *   方案                              占宽    箭头   颜色可控
- *   ------------------------------------------------------------
- *   什么都不写                        15px    ✓     ✗
- *   scrollbar-color ✓                 15px    ✓     ✓
- *   scrollbar-color + width:auto      15px    ✓     ✓
- *   ::-webkit-scrollbar {...}          8px    ✗     ✓
+ *   1. 元素上只要出现**非 auto 的 `scrollbar-color`**，Chrome 就用
+ *      **原生经典滚动条**（保留上下箭头），并**忽略该元素的
+ *      `::-webkit-scrollbar` 规则**；
+ *   2. 元素上 `scrollbar-color: auto` + `::-webkit-scrollbar` 规则 →
+ *      **自定义细滚动条**（无箭头）。
  *
- * 也就是说：`:::-webkit-scrollbar` 系列**任何一条**都会让 Chrome 切到
- * "自定义滚动条"模式，箭头必然消失；而 `scrollbar-color` 不会 ——
- * 它只改配色，保留原生结构和箭头。
- *
- * 所以正确做法是：**不写 ::-webkit-scrollbar，只写 scrollbar-color**。
- * （此前我把 scrollbar-color 当成障碍一并清掉，是判断错误。）
+ * 也就是说 scrollbar-color 和 scrollbar-width 一样，是「走哪条渲染路径」
+ * 的开关，不只是配色。所以编辑框写 scrollbar-color，其余元素写 auto +
+ * 自定义规则，并用 :not 把编辑框排除在自定义规则之外。
  */
-* {
+
+/* 1) 文本编辑框：原生经典滚动条 + 项目配色（保留上下箭头） */
+textarea,
+[contenteditable] {
   scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+/* 2) 其余界面：回退到重构前的全局默认（8px、实色轨道、圆角滑块） */
+*:not(textarea):not([contenteditable]) {
+  scrollbar-color: auto;
+}
+
+*:not(textarea):not([contenteditable])::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*:not(textarea):not([contenteditable])::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+
+*:not(textarea):not([contenteditable])::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 4px;
+  border: 2px solid var(--scrollbar-track);
+}
+
+*:not(textarea):not([contenteditable])::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-text);
+}
+
+/* 3) 显式带 .custom-scrollbar 的主界面容器：重构前的 6px / 透明轨道版本 */
+.custom-scrollbar:not(textarea):not([contenteditable])::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.custom-scrollbar:not(textarea):not([contenteditable])::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar:not(textarea):not([contenteditable])::-webkit-scrollbar-thumb {
+  background: var(--border-default);
+  border-radius: 3px;
+  transition: background 0.2s;
+}
+
+.custom-scrollbar:not(textarea):not([contenteditable])::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-action);
 }
 
 /* 刻意隐藏滚动条的横向滚动行保持原样。 */

@@ -1040,15 +1040,13 @@ input[type="checkbox"]:checked::after {
   transform: translate(-50%, -60%) rotate(45deg);
 }
 
-/* 全站统一滚动条 —— 对齐角色卡详情页「管理」tab（.detail-section）的样式。
+/* 滚动条样式统一在 consistency.css 的「滚动条」段落（最后加载，覆盖全站）：
+ * 文本编辑框（textarea / [contenteditable]）保留原生经典滚动条（带上下箭头），
+ * 其余界面用全局 8px；带 .custom-scrollbar 的主界面容器用 6px / 透明轨道。
  *
- * 关键：**不要在这里或任何滚动容器上写 scrollbar-width**。
- * 该标准属性一旦出现，Chrome 会忽略全部 ::-webkit-scrollbar-* 样式，
- * 改用系统原生细滚动条（无箭头、颜色不受控），深色模式下表现为一条灰带。
- *
- * 当前配置（8px + 不写 scrollbar-width）会让浏览器渲染原生经典滚动条，
- * 上下各带一个小箭头 —— 这是用户明确指定的目标样式。
- */
+ * 这里不要再写 ::-webkit-scrollbar 或 scrollbar-width ——
+ * 写了 scrollbar-width: thin 会让 Chrome 忽略全部 ::-webkit-scrollbar 规则，
+ * 写了 scrollbar-color 又会让元素退回原生滚动条，两者都会盖掉统一配置。 */
 
 
 

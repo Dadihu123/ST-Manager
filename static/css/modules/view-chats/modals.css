@@ -882,15 +882,6 @@
   line-height: 1.72;
 }
 
-.chat-reader-floor-preview .markdown-body pre::-webkit-scrollbar,
-.chat-reader-sideblock-card .markdown-body pre::-webkit-scrollbar,
-
-.chat-reader-floor-preview .markdown-body pre::-webkit-scrollbar-track,
-.chat-reader-sideblock-card .markdown-body pre::-webkit-scrollbar-track,
-
-.chat-reader-floor-preview .markdown-body pre::-webkit-scrollbar-thumb,
-.chat-reader-sideblock-card .markdown-body pre::-webkit-scrollbar-thumb,
-
 .chat-reader-floor-preview .markdown-body img,
 .chat-reader-sideblock-card .markdown-body img,
 .chat-message-content.markdown-body img {
