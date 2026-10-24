@@ -71,6 +71,7 @@ async function runSequentialBatch({
     failed: 0,
     moves: 0,
     tag_changes: 0,
+    text_replacements: 0,
     acknowledged: 0,
     cancelled: false,
     items,
@@ -106,6 +107,7 @@ async function runSequentialBatch({
     summary.failed += Number(item.failed || 0);
     summary.moves += Number(item.moves || 0);
     summary.tag_changes += Number(item.tag_changes || 0);
+    summary.text_replacements += Number(item.text_replacements || 0);
     summary.acknowledged += Number(item.acknowledged || 0);
 
     if (typeof onItem === "function") {
@@ -145,6 +147,7 @@ export async function runAutomationBatch({ rulesetId, targetPayload, title = "�
         skipped: Number(response.skipped || 0),
         moves: Number(response.summary?.moves || 0),
         tag_changes: Number(response.summary?.tag_changes || 0),
+        text_replacements: Number(response.summary?.text_replacements || 0),
         message:
           response.msg ||
           (response.skipped ? "已处理（部分跳过）" : "已完成"),

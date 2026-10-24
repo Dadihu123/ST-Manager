@@ -54,6 +54,7 @@ from core.utils.text import calculate_token_count
 from core.utils.hash import get_file_hash_and_size
 from core.utils.source_revision import build_file_source_revision
 from core.utils.card_identity import normalize_card_uid
+from core.automation.replace_text import apply_replace_text
 
 logger = logging.getLogger(__name__)
 
@@ -1834,6 +1835,86 @@ def modify_card_attributes_internal(
     except Exception as e:
         logger.error(f"Modify attributes error: {e}")
         return False
+
+
+@card_operation_locked
+def replace_card_text_internal(card_id, replacements):
+    """在卡片正文与内嵌世界书上执行「替换文本」动作，必要时写回文件。
+
+    Args:
+        card_id: 卡片相对路径 ID。
+        replacements: 动作 ``value`` 列表（按规则里的动作顺序）。
+
+    Returns:
+        dict: 结构化结果。``changed`` 为假时**不写盘**——不重写 PNG，也不产生
+        mtime/hash 变化；配置错误时 ``success`` 为假且整卡不做任何修改。
+    """
+    result = {
+        'success': False,
+        'changed': False,
+        'total': 0,
+        'per_target': {},
+        'per_action': [],
+        'errors': [],
+        'card_id': card_id,
+    }
+
+    try:
+        full_path = os.path.join(CARDS_FOLDER, card_id.replace('/', os.sep))
+        if not os.path.exists(full_path):
+            result['errors'].append({'index': None, 'error': '角色卡文件不存在'})
+            return result
+
+        info = extract_card_info(full_path)
+        if not info:
+            result['errors'].append({'index': None, 'error': '无法读取角色卡元数据'})
+            return result
+
+        applied = apply_replace_text(info, replacements)
+        for key in ('changed', 'total', 'per_target', 'per_action', 'errors'):
+            result[key] = applied[key]
+        result['success'] = applied['success']
+        if not applied['success']:
+            # 配置错误：整卡跳过，绝不写盘。
+            return result
+        if not applied['changed']:
+            return result
+
+        suppress_fs_events(2.5)
+        if not write_card_metadata(full_path, info):
+            result['success'] = False
+            result['changed'] = False
+            result['errors'].append({'index': None, 'error': '角色卡元数据写入失败'})
+            return result
+
+        # 写盘后重新解析：write_card_metadata 会做 V3 标准化与字段排序。
+        parsed_info = extract_card_info(full_path) or info
+        try:
+            current_mtime = os.path.getmtime(full_path)
+        except OSError:
+            current_mtime = time.time()
+
+        cache_result = update_card_cache(
+            card_id,
+            full_path,
+            parsed_info=parsed_info,
+            mtime=current_mtime,
+        )
+        # token_count 由 update_card_cache 按新文件重算，这里不另行写库。
+        sync_card_index_jobs(
+            card_id=card_id,
+            source_path=full_path,
+            cache_updated=bool(cache_result.get('cache_updated')),
+            file_content_changed=True,
+            has_embedded_wi=bool(cache_result.get('has_embedded_wi')),
+            previous_has_embedded_wi=bool(cache_result.get('previous_has_embedded_wi')),
+        )
+        result['success'] = True
+        return result
+
+    except Exception as e:
+        logger.error(f"Replace card text error: {e}")
+        return result
 
 
 def _resolve_resource_folder_path(folder_value, resources_root):

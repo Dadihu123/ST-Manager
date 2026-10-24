@@ -22,6 +22,7 @@ from core.automation.constants import (
     ACT_SET_CREATOR_FROM_SOURCE,
     ACT_MERGE_TAGS,
     ACT_RENAME_FILE_BY_TEMPLATE,
+    ACT_REPLACE_TEXT,
     ACT_SET_CHAR_NAME_FROM_FILENAME,
     ACT_SET_WI_NAME_FROM_FILENAME,
     ACT_SET_FILENAME_FROM_CHAR_NAME,
@@ -34,6 +35,7 @@ from core.services.card_service import modify_card_attributes_internal, resolve_
 from core.services.tag_management_service import build_governance_feedback
 from core.utils.tag_parser import split_action_tags
 from core.utils.image import extract_card_info
+from core.utils.text import calculate_all_worldbook_token_count
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +51,9 @@ DEEP_AUTOMATION_FIELDS = {
     'description', 'first_mes', 'mes_example', 'alternate_greetings',
     'personality', 'scenario', 'creator_notes',
     'system_prompt', 'post_history_instructions',
-    'char_version', 'metadata'
+    'char_version', 'metadata',
+    # 「Token 数（含未启用条目）」必须读卡文件才能拿到全部条目，因此也属于深字段。
+    'token_all_wi',
 }
 
 FILE_STAT_FIELDS = {'file_size'}
@@ -108,6 +112,11 @@ def _build_rule_context(card_id, card_obj, ruleset, ui_data=None, tags=None):
         except OSError:
             context_data['file_size'] = 0
 
+    uses_all_wi = _ruleset_uses_fields(ruleset, {'token_all_wi'})
+    if uses_all_wi:
+        # 先落 0：读卡失败时条件拿到的是数值而不是 None（None 会让所有比较都判假）。
+        context_data['token_all_wi'] = 0
+
     if not _ruleset_uses_fields(ruleset, DEEP_AUTOMATION_FIELDS):
         return context_data, ui_data
 
@@ -127,6 +136,10 @@ def _build_rule_context(card_id, card_obj, ruleset, ui_data=None, tags=None):
         # 元数据条件直接面向文件中的原始 JSON，保留 V2/V3 外层结构。
         if _ruleset_uses_fields(ruleset, {'metadata'}):
             context_data['metadata'] = info if isinstance(info, dict) else data_block
+
+        # 「Token 数（含未启用条目）」：按当前文件现算，世界书条目不做启用过滤。
+        if uses_all_wi:
+            context_data['token_all_wi'] = calculate_all_worldbook_token_count(data_block)
 
         fields_to_patch = [
             'character_book', 'extensions',
@@ -333,6 +346,8 @@ def _empty_exec_plan():
         'set_wi_name_from_filename': False,
         'set_filename_from_char_name': False,
         'set_filename_from_wi_name': False,
+        # 替换文本按动作顺序累积（不像 move_folder 那样 last-wins）
+        'text_replacements': [],
     }
 
 
@@ -374,6 +389,10 @@ def _build_exec_plan_from_actions(actions, slash_as_separator=False):
             exec_plan['refresh_source_baseline'] = action_value if isinstance(action_value, dict) else {}
         elif action_type == ACT_ADD_TAGS_FROM_SOURCE_TITLE:
             exec_plan[ACT_ADD_TAGS_FROM_SOURCE_TITLE] = action_value if isinstance(action_value, dict) else {}
+        elif action_type == ACT_REPLACE_TEXT:
+            exec_plan['text_replacements'].append(
+                action_value if isinstance(action_value, dict) else {}
+            )
         elif action_type == ACT_SET_CREATOR_FROM_SOURCE:
             exec_plan[ACT_SET_CREATOR_FROM_SOURCE] = action_value if isinstance(action_value, dict) else {}
 

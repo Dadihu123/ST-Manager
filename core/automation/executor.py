@@ -2,6 +2,7 @@ import logging
 from core.services.card_service import (
     move_card_internal,
     modify_card_attributes_internal,
+    replace_card_text_internal,
     resolve_ui_key,
     sync_card_names_internal,
 )
@@ -51,6 +52,7 @@ class AutomationExecutor:
             "fav_changed": False,
             "name_sync": None,
             "forum_tags_fetched": None,  # 论坛标签抓取结果
+            "text_replacements": None,  # 替换文本执行结果
         }
         
         current_id = card_id
@@ -293,6 +295,22 @@ class AutomationExecutor:
                 result['creator_sync']['success'] = False
                 result['creator_sync']['changed'] = False
                 result['creator_sync']['error'] = '角色卡元数据写入失败'
+
+        # 1.2 替换文本（必须早于名称/文件名同步）
+        # 替换可能改动角色名，若排在名称同步之后，「角色名→文件名」「模板重命名」
+        # 会基于替换前的旧名字计算。
+        text_replacements = plan.get('text_replacements') or []
+        if text_replacements:
+            replace_result = replace_card_text_internal(current_id, text_replacements)
+            result['text_replacements'] = replace_result
+            if not replace_result.get('success'):
+                # 配置错误或写盘失败：不再继续改 ID 的步骤，避免"半套用"。
+                logger.warning(
+                    f"Automation replace text failed for {card_id}: "
+                    f"{replace_result.get('errors')}"
+                )
+                result["final_id"] = current_id
+                return result
 
         # 1.5 同步名称/文件名（可能改变 ID）
         sync_flags = {

@@ -62,7 +62,9 @@ const ACTION_TRIGGER_CONTEXTS = {
     refresh_source_baseline: ['manual_run', 'link_update'],
     set_creator_from_source: ['manual_run', 'link_update'],
     add_tags_from_source_title: ['link_update'],
-    merge_tags: ['manual_run', 'tag_edit']
+    merge_tags: ['manual_run', 'tag_edit'],
+    // 替换文本会直接改写卡文件且不可撤销，因此只开放手动执行。
+    replace_text: ['manual_run']
 };
 // 选中这些动作时顺带勾上的场景；勾选后仍可手动取消。
 const ACTION_PREFERRED_TRIGGER_CONTEXTS = {
@@ -78,6 +80,7 @@ const AUTOMATION_ACTION_OPTIONS = [
     { value: 'remove_tag', label: '移除标签' },
     { value: 'set_favorite', label: '设为收藏' },
     { value: 'merge_tags', label: '标签合并' },
+    { value: 'replace_text', label: '替换文本' },
     { value: 'fetch_forum_tags', label: '抓取论坛标签' },
     { value: 'refresh_source_baseline', label: '刷新来源更新基线' },
     { value: 'add_tags_from_source_title', label: '来源标题→标签' },
@@ -89,6 +92,85 @@ const AUTOMATION_ACTION_OPTIONS = [
     { value: 'set_filename_from_char_name', label: '角色名→文件名' },
     { value: 'set_filename_from_wi_name', label: '世界书名→文件名' }
 ];
+
+// 结构化 value（对象）的动作：切换动作类型时需要在这些类型与普通字符串之间清理 value，
+// 否则普通动作的「参数」输入框会显示 [object Object] 并把对象写进规则集。
+const STRUCTURED_ACTION_TYPES = [
+    'fetch_forum_tags',
+    'add_tags_from_source_title',
+    'set_creator_from_source',
+    'rename_file_by_template',
+    'split_category_to_tags',
+    'replace_text'
+];
+
+// 替换文本的目标字段。数组顺序即执行顺序。
+// 默认勾选 name / wi_keys 以外的全部字段：
+// - name 会连带影响「角色名→文件名」与列表显示；
+// - wi_keys 是触发词，替换成 {{user}} 不会被 SillyTavern 展开，条目会静默失效。
+const REPLACE_TARGET_OPTIONS = [
+    { value: 'description', label: '简介', hint: 'description' },
+    { value: 'personality', label: '人格设定', hint: 'personality' },
+    { value: 'scenario', label: '场景设定', hint: 'scenario' },
+    { value: 'first_mes', label: '开场白', hint: 'first_mes' },
+    { value: 'mes_example', label: '对话示例', hint: 'mes_example' },
+    { value: 'alternate_greetings', label: '备用开场白', hint: 'alternate_greetings，逐条替换' },
+    { value: 'creator_notes', label: '作者注释', hint: 'creator_notes' },
+    { value: 'system_prompt', label: '系统提示词', hint: 'system_prompt' },
+    { value: 'post_history_instructions', label: '历史指令', hint: 'post_history_instructions' },
+    { value: 'character_version', label: '版本', hint: 'character_version' },
+    { value: 'wi_content', label: '世界书内容', hint: '内嵌世界书条目的 content' },
+    { value: 'wi_comment', label: '世界书标题', hint: '内嵌世界书条目的 comment/title' },
+    { value: 'name', label: '角色名', hint: '会连带影响文件名与列表显示，默认关闭' },
+    { value: 'wi_keys', label: '世界书触发词', hint: '替换成 {{user}} 后该条目将不再触发，默认关闭' }
+];
+
+const DEFAULT_REPLACE_TARGETS = REPLACE_TARGET_OPTIONS
+    .map(option => option.value)
+    .filter(value => value !== 'name' && value !== 'wi_keys');
+
+
+function createReplaceTextConfig(value = {}) {
+    const source = value && typeof value === 'object' ? value : {};
+    const flags = typeof source.flags === 'string' ? source.flags : '';
+    const rawTargets = Array.isArray(source.targets) ? source.targets : null;
+    const normalizedTargets = [];
+    (rawTargets || DEFAULT_REPLACE_TARGETS).forEach(item => {
+        const target = item === null || item === undefined ? '' : String(item).trim();
+        if (!REPLACE_TARGET_OPTIONS.some(option => option.value === target)) return;
+        if (normalizedTargets.includes(target)) return;
+        normalizedTargets.push(target);
+    });
+
+    return {
+        find: typeof source.find === 'string'
+            ? source.find
+            : (typeof source.pattern === 'string' ? source.pattern : ''),
+        replace: typeof source.replace === 'string'
+            ? source.replace
+            : (typeof source.replacement === 'string' ? source.replacement : ''),
+        regex: source.regex === true,
+        case_sensitive: source.case_sensitive === true,
+        multiline: flags.includes('m'),
+        dotall: flags.includes('s'),
+        first_only: source.first_only === true,
+        // 显式清空目标时保留空数组，避免"取消全部勾选后又被默认值填回来"。
+        targets: rawTargets ? normalizedTargets : [...DEFAULT_REPLACE_TARGETS],
+    };
+}
+
+function serializeReplaceTextConfig(config) {
+    const normalized = createReplaceTextConfig(config || {});
+    return {
+        find: normalized.find,
+        replace: normalized.replace,
+        regex: normalized.regex,
+        case_sensitive: normalized.case_sensitive,
+        flags: `${normalized.multiline ? 'm' : ''}${normalized.dotall ? 's' : ''}`,
+        first_only: normalized.first_only,
+        targets: [...normalized.targets],
+    };
+}
 
 
 function deriveLegacyRuleTriggerContexts(rule) {
@@ -226,6 +308,7 @@ export default function automationModal() {
         activeRuleSet: null,
         globalRulesetId: null,
         actionTypeOptions: AUTOMATION_ACTION_OPTIONS,
+        replaceTargetOptions: REPLACE_TARGET_OPTIONS,
         openActionMenuKey: null,
         rulesetQuery: '',
         loadingRuleSetId: null,
@@ -743,6 +826,11 @@ export default function automationModal() {
                             action.value = (action.value || '').toString().trim();
                         }
 
+                        if (action.type === 'replace_text') {
+                            action.value = serializeReplaceTextConfig(action.config || action.value || {});
+                            delete action.config;
+                        }
+
                         if (TEMPLATE_ACTION_TYPES.includes(action.type)) {
                             const config = action.type === 'rename_file_by_template'
                                 ? createRenameTemplateConfig(action.config || action.value || {})
@@ -1049,6 +1137,14 @@ export default function automationModal() {
             if (!action || !this.actionTypeOptions.some(option => option.value === type)) return;
 
             action.type = type;
+            if (STRUCTURED_ACTION_TYPES.includes(type)) {
+                if (!action.value || typeof action.value !== 'object') {
+                    action.value = {};
+                }
+            } else if (action.value && typeof action.value === 'object') {
+                action.value = '';
+            }
+
             if (type === 'add_tags_from_source_title') {
                 action.value = createSourceTitleTagsConfig();
             } else if (type === 'set_creator_from_source') {
@@ -1074,6 +1170,22 @@ export default function automationModal() {
 
         editingUsesMetadata() {
             return this.editingRules.some(rule => this.ruleUsesMetadata(rule));
+        },
+
+        // 需要读取角色卡文件的条件：「原始元数据」与「Token 数（含未启用条目）」。
+        // 批量执行时每张卡都要开一次文件，因此编辑器顶部要给出提示。
+        conditionUsesHeavyFields(condition) {
+            return this.conditionUsesMetadata(condition) || condition?.field === 'token_all_wi';
+        },
+
+        ruleUsesHeavyFields(rule) {
+            return (rule?.groups || []).some(group =>
+                (group?.conditions || []).some(condition => this.conditionUsesHeavyFields(condition))
+            );
+        },
+
+        editingUsesHeavyFields() {
+            return this.editingRules.some(rule => this.ruleUsesHeavyFields(rule));
         },
 
         // === 规则编辑器逻辑 ===
@@ -1325,6 +1437,8 @@ export default function automationModal() {
                 action.config = createSourceTitleTagsConfig(action.config || action.value || {});
             } else if (action.type === 'set_creator_from_source') {
                 action.config = createSourceCreatorConfig(action.config || action.value || {});
+            } else if (action.type === 'replace_text') {
+                action.config = createReplaceTextConfig(action.config || action.value || {});
             } else {
                 // For other action types, remove config if exists
                 if (action.config) {
@@ -1339,6 +1453,19 @@ export default function automationModal() {
             if (!action || action.type !== 'rename_file_by_template') return;
             action.config = getRenameTemplatePreset(preset);
             return action.config;
+        },
+
+        // 替换文本的目标字段是复选标签：点击切换，顺序即执行顺序。
+        toggleReplaceTarget(config, target) {
+            if (!config || typeof config !== 'object') return;
+            const current = Array.isArray(config.targets) ? [...config.targets] : [];
+            const index = current.indexOf(target);
+            if (index === -1) {
+                current.push(target);
+            } else {
+                current.splice(index, 1);
+            }
+            config.targets = current;
         },
         
         // Utils

@@ -1701,6 +1701,14 @@ kbd {
   grid-column: 1 / -1;
 }
 
+/* 字段级说明（例如「含未启用条目」会读取卡文件），整行占位、不挤字段列。 */
+.condition-note {
+  color: var(--content-muted);
+  font-size: 0.72rem;
+  grid-column: 1 / -1;
+  line-height: 1.5;
+}
+
 .condition-row-actions {
   padding-top: 1.1rem;
 }

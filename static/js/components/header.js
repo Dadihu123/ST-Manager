@@ -799,7 +799,7 @@ export default function header() {
         return `确认完成！\n已确认无需更新: ${result.acknowledged || 0} 张\n跳过: ${result.skipped || 0} 张\n失败: ${result.failed || 0} 张`;
       }
 
-      return `执行完成！\n已处理: ${result.processed || 0} 张\n移动: ${result.moves || 0} 张\n标签变更: ${result.tag_changes || 0} 次\n跳过: ${result.skipped || 0} 张\n失败: ${result.failed || 0} 张`;
+      return `执行完成！\n已处理: ${result.processed || 0} 张\n移动: ${result.moves || 0} 张\n标签变更: ${result.tag_changes || 0} 次\n替换: ${result.text_replacements || 0} 处\n跳过: ${result.skipped || 0} 张\n失败: ${result.failed || 0} 张`;
     },
 
     async executeRuleSet(rulesetId) {

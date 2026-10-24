@@ -212,7 +212,8 @@ def execute_rules():
         # 统计结果
         summary = {
             "moves": 0,
-            "tag_changes": 0
+            "tag_changes": 0,
+            "text_replacements": 0,
         }
 
         if not ctx.cache.initialized: ctx.cache.reload_from_db()
@@ -293,6 +294,9 @@ def execute_rules():
             processed_count += 1
             if res['moved_to']: summary['moves'] += 1
             if res['tags_added'] or res['tags_removed']: summary['tag_changes'] += 1
+            replace_payload = res.get('text_replacements') or {}
+            if replace_payload.get('total'):
+                summary['text_replacements'] += int(replace_payload['total'])
 
         response = {
             "success": True, 

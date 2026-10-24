@@ -2219,6 +2219,7 @@ def test_manual_execute_reuses_shared_rule_context_builder(monkeypatch):
         'summary': {
             'moves': 0,
             'tag_changes': 0,
+            'text_replacements': 0,
         },
         'details': {
             'skipped': [],
@@ -2346,6 +2347,7 @@ def test_manual_execute_uses_shared_normalizer_for_manual_run_and_preserves_merg
         'summary': {
             'moves': 0,
             'tag_changes': 2,
+            'text_replacements': 0,
         },
         'details': {
             'skipped': [],
@@ -2480,6 +2482,7 @@ def test_manual_execute_preserves_batch_snapshot_when_earlier_items_mutate(monke
         'summary': {
             'moves': 0,
             'tag_changes': 2,
+            'text_replacements': 0,
         },
         'details': {
             'skipped': [],
@@ -2617,6 +2620,7 @@ def test_manual_execute_reports_skipped_targets_missing_from_cache(monkeypatch):
         'summary': {
             'moves': 0,
             'tag_changes': 1,
+            'text_replacements': 0,
         },
         'details': {
             'skipped': [
@@ -2893,6 +2897,7 @@ def test_executor_apply_plan_runs_template_rename_before_move(monkeypatch):
             'new_id': 'folder/renamed.json',
         },
         'forum_tags_fetched': None,
+        'text_replacements': None,
         'final_id': 'moved/renamed.json',
     }
 
@@ -3597,6 +3602,7 @@ def test_manual_execute_runs_template_rename_through_executor_plan(monkeypatch):
         'summary': {
             'moves': 0,
             'tag_changes': 0,
+            'text_replacements': 0,
         },
         'details': {
             'skipped': [],

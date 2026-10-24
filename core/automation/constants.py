@@ -16,7 +16,8 @@ FIELD_MAP = {
     # 系统/统计
     "ui_summary": "ui_summary", # 来自 ui_data
     "is_favorite": "is_favorite", # Boolean
-    "token_count": "token_count", # Int
+    "token_count": "token_count", # Int（只统计默认启用的世界书条目）
+    "token_all_wi": "token_all_wi", # Int（世界书全部条目都计入，含未启用）
     "file_size": "file_size", # Int (bytes)
 
     # 原始卡片元数据（可选 metadata_path 读取嵌套字段）
@@ -72,6 +73,9 @@ ACT_SET_CREATOR_FROM_SOURCE = "set_creator_from_source"
 # 标签合并动作
 ACT_MERGE_TAGS = "merge_tags"
 
+# 正文替换动作（查找/替换，可选正则）
+ACT_REPLACE_TEXT = "replace_text"
+
 # 新增动作
 ACT_RENAME_FILE_BY_TEMPLATE = "rename_file_by_template"
 ACT_SPLIT_CATEGORY_TO_TAGS = "split_category_to_tags"
@@ -100,6 +104,8 @@ TRIGGER_CONTEXT_ALLOWED_ACTIONS = {
         ACT_MERGE_TAGS,
         ACT_RENAME_FILE_BY_TEMPLATE,
         ACT_SPLIT_CATEGORY_TO_TAGS,
+        # 替换文本会直接改写卡文件且不可撤销，因此只开放手动执行。
+        ACT_REPLACE_TEXT,
     },
     TRIGGER_CONTEXT_AUTO_IMPORT: {
         ACT_MOVE,
