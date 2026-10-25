@@ -106,6 +106,8 @@ ST Manager 使用项目根目录的 `config.json`。文件不存在时，`app.py
 
 索引不是资源的唯一来源。关闭索引或索引不可用时，列表会回退到缓存/文件扫描路径；启用索引可以改善大型资源库的查询响应。
 
+索引重建（首次引导、搜索内容格式升级）不在启动路径上同步执行：启动只做表结构补齐与「哪些 scope 需要重建」的判定，真正的重建交给后台线程，期间前端状态条显示进度，索引作业与启动全量扫描都会让路。所以「遮罩已消失但索引仍在重建」属于正常情况，不需要手动干预；进度可通过 `/api/index/status` 的 `upgrade_active`、`phase`、`progress_done` / `progress_total` 观察。
+
 ## 世界书预览
 
 | 键 | 默认值 | 说明 |
@@ -150,9 +152,29 @@ ST Manager 使用项目根目录的 `config.json`。文件不存在时，`app.py
 | `discord_bot_token` | `""` | Discord Bot Token；需要访问目标论坛的权限 |
 | `discord_user_cookie` | `""` | 浏览器复制的 Discord Cookie |
 | `shimmerday_forum_cookie` | `""` | 类脑搜索站帖子预览使用的会话 Cookie |
-| `automation_slash_is_tag_separator` | `false` | 自动化标签分割时是否把 `/` 与 `|` 都视为分隔符 |
+| `automation_slash_is_tag_separator` | `false` | 自动化标签分割时是否把 `/` 与 `\|` 都视为分隔符 |
 
 Discord Token、Cookie 和论坛 Cookie 都属于敏感凭据。建议只写入本机配置或通过部署密钥管理，不要放入截图、日志和版本库。
+
+## 插件系统
+
+插件代码放在 `data/plugins/<插件 id>/`，插件配置、存储与密钥都不写进 `config.json`（分别落在 `ui_data._plugins_v1.<id>` 与 `data/system/secrets.json`）。下面三项只控制「官方目录」页如何拉取清单：
+
+| 键 | 默认值 | 说明 |
+| --- | --- | --- |
+| `plugin_catalog_url` | `https://raw.githubusercontent.com/Dadihu123/ST-Manager/main/static/plugins/catalog.json` | 官方插件清单地址；留空则只使用包内兜底清单 |
+| `plugin_catalog_remote_enabled` | `true` | 是否允许从远端拉取清单；关闭后一律使用包内清单 |
+| `plugin_catalog_cache_hours` | `6` | 清单缓存有效期（小时）；过期后再次打开目录页才重新拉取 |
+
+远端不可达时会静默回退到随包分发的 `static/plugins/catalog.json`，目录页会显示「离线」提示而不是报错。`?refresh=1` 可以强制跳过缓存。已安装插件的更新检查有独立的 24 小时缓存，不受 `plugin_catalog_cache_hours` 影响。
+
+## 已下线的配置项
+
+以下键不再生效，读取配置时会自动从 `normalize_config()` 的结果中剔除；旧 `config.json` 里的残留值不会流回设置页：
+
+| 键 | 原用途 | 现状 |
+| --- | --- | --- |
+| `sync_source_title_on_update` | 更新角色卡时是否联网抓取来源贴标题 | 该联网行为已改为离线复用检查阶段的观测值，开关失去意义 |
 
 ## 运行时目录
 
@@ -161,7 +183,8 @@ Discord Token、Cookie 和论坛 Cookie 都属于敏感凭据。建议只写入�
 ```text
 data/
 ├─ system/
-│  ├─ db/cards_metadata.db      # SQLite 元数据、索引和任务状态
+│  ├─ db/cards_metadata.db       # SQLite 元数据、索引和任务状态
+│  ├─ secrets.json               # 插件密钥（明文 JSON，权限受操作系统保护）
 │  ├─ thumbnails/                # 按需生成的 WebP 缩略图
 │  ├─ trash/                     # 删除操作的可恢复回收站
 │  └─ ...
@@ -169,3 +192,5 @@ data/
 ```
 
 UI 关联数据主要保存在 `data/system/db/ui_data.json`，聊天关联数据保存在同一运行时数据库目录。备份和恢复接口会对这些用户数据提供导出/导入能力。
+
+`data/plugins/` 存放插件代码，与 `data/` 下的其它运行时数据一样被 Git 忽略。插件更新采用「下载 → 校验 → 原子替换」，替换前会先把插件自己的 `data/` 子目录移到临时位置再合并回来，因此插件的私有数据不会随更新丢失（冲突项以用户数据为准，新包那份改名为 `<name>.plugin-default`）。插件密钥在 `data/system/secrets.json`，属于敏感文件，不要随配置一起分享或截图。

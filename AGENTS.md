@@ -284,6 +284,8 @@ mypy core
 - Chat module styles live in `static/css/modules/view-chats.css` (entry) with partials under `static/css/modules/view-chats/` (`tokens.css`, `grid.css`, `reader-shell.css`, etc.)
 - Beautify module styles live in `static/css/modules/view-beautify.css` (flat tokens aligned with chat module)
 - Hover hints are global: keep writing `title="..."`, and `static/js/utils/tooltip.js` migrates it to `data-tooltip` at hover time so `static/css/modules/tooltip.css` can render the host tooltip. Any CSS selector or read-back that keys off `title` text must also match `data-tooltip`; `data-tooltip-placement` / `data-tooltip-disabled` are the opt-in extras
+- README screenshots in `docs/screenshots/` are **generated**, not hand-cropped: run `python tools/seed_screenshot_data.py` once (deterministic sample cards/worldbooks/chats/presets) and then `python tools/screenshot_readme.py` with the app running on `:5000` and Playwright installed. Desktop shots are 1920x1000, mobile shots 390x844 @2x; the shooter also hides the toast host and the resident pet plugin root. Never re-crop by hand — edit the shooter so the whole set stays consistent
+- Mobile-only surfaces (settings nav drawer, entry dock sheet, command palette trigger) follow one rule: **reuse the desktop component and change only the container**. The settings nav is a left drawer built from the same `.settings-nav-item` markup as desktop; do not reintroduce a compressed grid that eats half the screen
 
 ## Build And Packaging
 

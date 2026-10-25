@@ -51,15 +51,30 @@ curl -X POST http://127.0.0.1:5000/api/toggle_favorite \
 | `POST` | `/api/read_file_content` | 读取允许范围内的文本文件 | JSON `file_path` |
 | `POST` | `/api/open_path` | 在本机打开文件或目录 | JSON `path` |
 
+### 索引状态与后台重建
+
+索引重建（首次引导、搜索内容格式升级）不在启动路径上同步执行，因此 `/api/index/status` 除了 `state`、`pending_jobs`，还会给出进度字段：
+
+| 字段 | 说明 |
+| --- | --- |
+| `state` | `building` 表示正在建库或后台重建；`error` 表示重建失败（此时搜索仍在用旧索引）；其余为 `ready` / `empty` 等 |
+| `upgrade_active` | `true` 表示启动期后台重建仍在进行 |
+| `<scope>.phase` | 当前阶段：`backfill_embedded_worldinfo_metadata` → `build_entities` → `activate_generation` |
+| `<scope>.progress_done` / `progress_total` | 进度分子分母，取持久化值与内存值的较大者，避免数字回退 |
+
+`scope` 为 `running` 时即使 `pending_jobs` 为 0 也会报 `building`。重建期间索引作业线程与启动全量扫描都会让路，列表走磁盘回退路径或旧索引，完成后自动切到新索引。
+
 ### 文件夹和资源根
 
 | 方法 | 路径 | 作用 | 请求要点 |
 | --- | --- | --- | --- |
-| `POST` | `/api/create_resource_folder` | 创建角色资源目录 | JSON 角色 ID/目录名 |
-| `POST` | `/api/set_resource_folder` | 绑定角色资源目录 | JSON `card_id`、`folder_name` |
-| `POST` | `/api/rename_resource_folder` | 重命名已绑定的角色资源目录 | JSON `card_id`、`new_name`（仅目录名，不含路径分隔符） |
+| `POST` | `/api/create_resource_folder` | 创建角色资源目录 | JSON 角色 ID/目录名；绑定丢失但目录仍在时自动接管并返回 `binding_restored: true` |
+| `POST` | `/api/set_resource_folder` | 绑定角色资源目录 | JSON `card_id`、`folder_name`；写失败返回 500 与 `binding_failed: true` |
+| `POST` | `/api/rename_resource_folder` | 重命名已绑定的角色资源目录 | JSON `card_id`、`new_name`（仅目录名，不含路径分隔符；保留名与同名冲突会被拒绝） |
 | `POST` | `/api/open_resource_folder` | 打开角色资源目录 | JSON `card_id` |
 | `POST` | `/api/list_resource_skins` | 列出角色资源中的可用皮肤/图片 | JSON `card_id` |
+
+重命名会连带迁移磁盘目录、`ui_data` 绑定、世界书备注里的 `resource::` 前缀、资源条目分类覆盖、条目历史、内存缓存与索引归属。绝对路径绑定的目录同样支持。
 
 ## 角色卡、标签与文件
 
@@ -74,7 +89,7 @@ curl -X POST http://127.0.0.1:5000/api/toggle_favorite \
 | `search`、`search_type` | 搜索词；类型可为 `mix`、`name`、`filename`、`tags`、`creator` |
 | `search_mode` | `fast` 或 `fulltext` |
 | `search_scope` | `current`、`all_dirs`、`full` |
-| `tags`、`excluded_tags` | 多个标签使用 `|||` 分隔 |
+| `tags`、`excluded_tags` | 多个标签使用 `\|\|\|` 分隔 |
 | `fav_filter`、`favorites_first` | 收藏过滤和置顶收藏 |
 | `sort` | 如 `date_desc`，默认取 `default_sort` |
 | `import_date_from`、`import_date_to` | 导入时间范围 |
@@ -93,11 +108,11 @@ curl -X POST http://127.0.0.1:5000/api/toggle_favorite \
 | `POST` | `/api/random_card` | 在当前筛选条件中随机返回角色卡 | JSON 分类、标签、搜索条件 |
 | `POST` | `/api/draw_cards` | 抽卡：单抽（`count=1`）或十连（`count=10`） | JSON `count`、可选 `pity`，以及同 `list_cards` 的筛选条件 |
 | `POST` | `/api/toggle_favorite` | 切换收藏状态 | JSON `id` |
-| `POST` | `/api/update_card` | 保存卡片字段、UI 备注或聚合包封面 | JSON 角色卡 ID 与字段；`set_as_cover` 用于版本封面 |
+| `POST` | `/api/update_card` | 保存卡片字段、UI 备注或聚合包封面 | JSON 角色卡 ID 与字段；`set_as_cover` 用于版本封面；`clear_ui_fields` 显式解绑 |
 | `POST` | `/api/set_skin_cover` | 将角色资源中的皮肤图片设为卡片封面 | JSON `card_id`、`skin_filename`、可选 `save_old` |
-| `POST` | `/api/update_card_file` | 上传并替换角色卡文件 | multipart 卡片文件和目标参数 |
-| `POST` | `/api/update_card_from_url` | 从 URL 更新现有角色卡 | JSON `card_id`、`url`、可选 `is_bundle_update`、`keep_ui_data` |
-| `POST` | `/api/import_from_url` | 从 URL 导入新角色卡 | JSON `url`、`category` |
+| `POST` | `/api/update_card_file` | 上传并替换角色卡文件 | multipart 卡片文件、`image_policy`、可选 `keep_ui_data`、`creator_policy` |
+| `POST` | `/api/update_card_from_url` | 从 URL 更新现有角色卡 | JSON `card_id`、`url`、可选 `is_bundle_update`、`keep_ui_data`、`creator_policy` |
+| `POST` | `/api/import_from_url` | 从 URL 导入新角色卡 | JSON `url`、`category`；`overwrite` 时可带 `creator_policy` |
 | `POST` | `/api/change_image` | 更换卡片图片 | multipart 图片和卡片 ID |
 | `POST` | `/api/cards/export` | 导出角色卡 JSON | JSON `id`；返回下载文件 |
 | `POST` | `/api/send_to_st` | 将角色卡发送到 SillyTavern | JSON `card_id` |
@@ -138,6 +153,21 @@ curl -X POST http://127.0.0.1:5000/api/toggle_favorite \
 - 候选为空时返回 `{"success": false, "code": "EMPTY_POOL", "pool_size": 0}`（HTTP 200），前端据此不开抽卡动画、直接提示。
 
 `POST /api/random_card` 复用同一套筛选逻辑；历史上它遗漏了收藏筛选、排除标签、时间与 Token 范围，现已对齐。
+
+### 覆盖更新与资源目录绑定
+
+覆盖类接口（`/api/update_card_file`、`/api/update_card_from_url`、`/api/import_from_url` 的 `overwrite`、`/api/upload/commit` 的 `action=overwrite`）都接受 `creator_policy`：
+
+| 取值 | 行为 |
+| --- | --- |
+| `preserve`（默认） | 覆盖前记住旧卡 `creator`，上传文件把它冲掉时还原。空字符串视为「没有意见」，不会被当成显式清空 |
+| `overwrite` | 采用上传文件里的 `creator` 原值 |
+
+资源目录绑定不再随任意保存动作被清空：
+
+- `/api/update_card` 的 `resource_folder` 传空字符串默认视为「未修改」；只有显式传 `clear_ui_fields: ["resource_folder"]` 才解绑。
+- 绑定写入失败时接口返回 HTTP 500 且带 `binding_failed: true`，此时**不会**更新内存缓存，也不会留下刚建好的空目录。
+- `/api/create_resource_folder` 在绑定丢失但磁盘上仍有同名目录时优先接管，返回 `binding_restored: true`，不再建出「角色名_1」这样的新空目录。
 
 ### 上传分阶段接口
 
@@ -199,9 +229,18 @@ curl -X POST http://127.0.0.1:5000/api/toggle_favorite \
 
 世界书列表将来源区分为 `global`（全局目录）、`resource`（角色卡资源目录）和 `embedded`（角色卡内嵌）。内嵌世界书跟随所属角色卡移动，不能像独立文件一样直接删除或发送。
 
+搜索相关参数：
+
+| 参数 | 取值 | 说明 |
+| --- | --- | --- |
+| `search_mode` | `fast`（默认）、`fulltext` | 快速子串匹配或全文索引检索 |
+| `search_field` | `smart`（默认）、`name`、`filename`、`owner` | 搜索范围。后三项直接查索引列，绕开分词器，因此更快也不受中文分词限制 |
+
+中文全文搜索在写入侧逐字切分、查询侧按短语匹配，两字及以上的中文关键词都可以命中。查询含标点或语法错误时返回空集并置 `search_degraded`，不再返回 HTTP 500。
+
 | 方法 | 路径 | 作用 | 请求要点 |
 | --- | --- | --- | --- |
-| `GET` | `/api/world_info/list` | 分页列出世界书 | query `page`、`page_size`、`category`、`search`、`source_type`、`recursive`、排序参数 |
+| `GET` | `/api/world_info/list` | 分页列出世界书 | query `page`、`page_size`、`category`、`search`、`search_mode`、`search_field`、`source_type`、`recursive`、排序参数 |
 | `POST` | `/api/world_info/create` | 创建全局世界书 | JSON 名称和分类 |
 | `POST` | `/api/upload_world_info` | 上传一个或多个世界书 | multipart `files`/`file`、可选分类 |
 | `POST` | `/api/world_info/detail` | 读取世界书详情与预览 | JSON 世界书 `id` 或来源路径 |
@@ -342,6 +381,22 @@ Beautify API 的根路径为 `/api/beautify`。文件上传使用 `multipart/for
 | `GET` | `/api/automation/rulesets/<ruleset_id>/export` | 导出规则集 JSON | 返回文件流 |
 | `POST` | `/api/automation/rulesets/import` | 导入规则集 JSON | multipart `file` |
 
+### 条件与动作
+
+条件字段新增 `token_all_wi`：从卡片正文（名称、简介、开场白、对话示例）算起，叠加内嵌世界书的**全部**条目（含未启用）。评估时读取卡文件现算，不落库、不进列表筛选，读不到卡时为 0；旧 `token_count` 口径不变（只统计默认启用的世界书条目）。
+
+动作新增 `replace_text`（查找 / 替换文本），**只在手动执行时开放**——它会直接改写卡文件且不可撤销：
+
+| 字段 | 说明 |
+| --- | --- |
+| `find` / `replace` | 查找与替换内容；可选 `regex: true` 使用正则 |
+| `flags` | 正则标记，支持 `m` / `s` / `i` |
+| `case_sensitive` | 是否区分大小写 |
+| `first_only` | 是否只替换首次命中 |
+| `targets` | 目标字段，共 14 个可选字段；默认排除角色名与世界书触发词（`keys` 里写 `{{user}}` 不会被 ST 展开，条目会静默失效） |
+
+替换支持字面量与正则、`\1` 与 `$1` 反向引用。无命中不写盘；配置错误时整卡跳过，绝不写半成品。执行位置在名称/文件名同步之前，失败即中止后续会改 ID 的动作。结果通过 `summary.text_replacements` 与批量 toast 汇总。
+
 ## SillyTavern 同步
 
 同步接口根路径为 `/api/st`。服务可以读取本地 SillyTavern 用户目录，也可以按 `st_url` 使用其 HTTP API；`st_data_dir` 和 `st_user_handle` 可以通过 query 或 JSON 临时覆盖配置。
@@ -361,8 +416,142 @@ Beautify API 的根路径为 `/api/beautify`。文件上传使用 `multipart/for
 | `POST` | `/api/st/refresh` | 按最新配置刷新 ST 客户端 | 无 |
 | `GET` | `/api/st/summary` | 获取七类资源数量概览 | query 可覆盖 ST 路径/用户 |
 | `GET` | `/api/st/regex` | 聚合全局和预设关联正则 | query `presets_path`、`settings_path`、ST 选择参数 |
+| `POST` | `/api/st/tt/check_connection` | 检查 TauriTavern 目标是否可用（本地数据目录或原生集成 API） | JSON 可覆盖 `tt_mode`、`tt_data_dir`、`tt_user_handle`、`tt_api_url` |
 
 同步前会执行路径重叠检查；如果管理器目录和 ST 核心目录混用，接口会返回风险评估并拒绝受影响的同步动作，除非用户明确确认。
+
+## 插件系统
+
+插件接口位于 `/api/plugins`，没有单独的版本前缀。插件清单、校验规则与前端 API 参考见 [plugin-api.md](plugin-api.md)，迁移到 v3 契约的说明见 [plugin-migration-v2-to-v3.md](plugin-migration-v2-to-v3.md)。
+
+### 统一响应与错误码
+
+插件接口的成功响应一律为 `{"success": true, ...}`；失败响应为：
+
+```json
+{ "success": false, "msg": "…", "error": "<code>", "detail": "…", "field": "…", "hint": "…", "user_msg": "…" }
+```
+
+`detail` / `field` / `hint` / `user_msg` 只在有值时出现。常用错误码：
+
+| `error` | HTTP | 含义 |
+| --- | --- | --- |
+| `plugin_not_found` | 404 | 插件不存在 |
+| `plugin_manifest_invalid` | 400 | manifest 缺失或不符合规范 |
+| `api_version_unsupported` | 409 | 插件 `api_version` 与主程序不兼容（严格拒绝加载） |
+| `plugin_load_failed` | 500 | 插件代码加载或注册阶段失败 |
+| `plugin_disabled` | 409 | 插件已被禁用 |
+| `job_not_found` | 404 | 作业不存在（跨插件越权也走这个码） |
+| `job_not_running` | 409 | 作业当前状态不允许该操作 |
+| `job_already_running` | 409 | 同插件已有运行中的作业 |
+| `sse_limit_reached` | 429 | SSE 连接数超限 |
+| `catalog_offline` | 502 | 官方目录不可达或格式非法 |
+| `plugin_install_failed` | 400 | 安装流程失败 |
+| `install_unsafe_archive` | 400 | 归档未通过安全检查（zip-slip / 解压炸弹 / 链接逃逸） |
+| `plugin_asset_invalid` | 404 | 插件静态资源路径非法 |
+| `plugin_secret_error` | 500 | 密钥读写失败 |
+| `plugin_cli_error` | 400 | 插件 CLI 子命令不存在或参数非法 |
+
+路由层另有 `invalid_payload`(400)、`quota_exceeded`(413)、`ui_data_write_failed`(500)、`secret_read_failed`(503)、`secret_write_failed`(500)、`plugin_not_installed`(404)、`internal_error`(500)。成功一律返回 HTTP 200 + JSON，不使用 201/204。所有管理接口带 `Cache-Control: no-store`。
+
+### 列表与宿主信息
+
+| 方法 | 路径 | 作用 | 请求要点 |
+| --- | --- | --- | --- |
+| `GET` | `/api/plugins/list` | 已安装插件列表 | 无。每项含 `enabled`、`loaded`、`backend`、`frontend`、`capabilities`、`contributions`、`render_mode`、`tier`、`load_error`、`source_url` 等；响应另含 `plugins_dir`、`restart_hint` |
+| `GET` | `/api/plugins/ui-icons` | 宿主图标名清单 | 无。整表承诺 Stable：只增不改，删除或改名要走 deprecation |
+| `GET` | `/api/plugins/ui-tokens` | 宿主 CSS 令牌清单 | 无。插件样式引用了清单外且无回退值的令牌时，安装期会记录警告（不拒绝加载） |
+
+### 配置与存储
+
+| 方法 | 路径 | 作用 | 请求要点 |
+| --- | --- | --- | --- |
+| `GET` | `/api/plugins/<plugin_id>/config` | 读取插件配置 | 无。返回 schema 默认值与已存值的合并结果 |
+| `POST` | `/api/plugins/<plugin_id>/config` | **合并**写入插件配置 | JSON `{"config": {...}}` 或裸对象；只接受 `config_schema.properties` 声明的键；空补丁返回 400 |
+| `GET` | `/api/plugins/<plugin_id>/storage` | 插件键值存储 | 无。对应 `api.storage.*` 的持久化后端 |
+| `POST` | `/api/plugins/<plugin_id>/storage` | **整体替换**插件存储 | 必须 `{"storage": {...}}`；超过 262144 字节返回 413 `quota_exceeded` |
+
+`config` 按 schema 过滤键并合并写入，`storage` 是插件自由键值空间、整体替换。两者与作业数据、`install_source`、启停状态同存于 `ui_data._plugins_v1.<id>`，卸载时随命名空间清理（`keep_data: true` 可保留）。
+
+### 密钥
+
+| 方法 | 路径 | 作用 | 请求要点 |
+| --- | --- | --- | --- |
+| `GET` | `/api/plugins/<plugin_id>/secrets` | 密钥表单元数据 | 无。`secret: true` 的项只返回 `{set, hint, updated_at, source}`，永不返回明文 |
+| `POST` | `/api/plugins/<plugin_id>/secrets` | 批量写入密钥 | JSON `{"secrets": {...}}` 或裸对象；值传 `null` 或 `""` 表示清除该项；密钥文件处于降级态时返回 503 `secret_read_failed` |
+| `DELETE` | `/api/plugins/<plugin_id>/secrets/<key>` | 清除单个密钥项 | 路径参数 `key` 不含 `/` |
+
+密钥落盘在 `data/system/secrets.json`，**明文 JSON、不加密**；防护靠原子写（`mkstemp` → `fsync` → `os.replace`）、写前轮转 3 代 `.bak`，以及 POSIX 下的 `0600` / `0700` 权限。读取遇到 IO 失败会进入降级态并拒绝一切写入，避免覆盖掉仅存的有效密钥。环境变量 `STM_PLUGIN_<ID>_<KEY>` 优先级最高（大写，非字母数字转下划线）。
+
+### 生命周期
+
+| 方法 | 路径 | 作用 | 请求要点 |
+| --- | --- | --- | --- |
+| `POST` | `/api/plugins/<plugin_id>/enable` | 启用插件 | 无 body。`restart_required` 取决于该插件是否有后端代码 |
+| `POST` | `/api/plugins/<plugin_id>/disable` | 禁用插件（保留代码，重启后完全不加载） | 无 body。额外返回被取消的作业数 `cancelled_jobs` |
+| `POST` | `/api/plugins/uninstall` | 卸载插件（目录进回收站） | JSON `{"id": "<plugin_id>", "keep_data": false}`。**`id` 在请求体里，不在路径里** |
+
+### 官方目录与安装
+
+| 方法 | 路径 | 作用 | 请求要点 |
+| --- | --- | --- | --- |
+| `GET` | `/api/plugins/catalog` | 官方插件目录（远端优先，失败回退包内清单） | `?refresh=1` 强制刷新。响应含 `source`（`cache`/`remote`/`bundled`）、`offline`、`updated_at`，每项补 `installed` 与 `installed_version` |
+| `POST` | `/api/plugins/catalog/install` | 从官方目录安装 | JSON `{"id", "ref"?, "subdir"?}`；`id` 不在目录里返回 502 `catalog_offline` |
+| `POST` | `/api/plugins/catalog/check_updates` | 检查已安装插件是否有新版本 | JSON `{"force": false}`；只报告，不自动安装 |
+| `POST` | `/api/plugins/catalog/update` | 更新已安装插件到目录指向的版本 | JSON `{"id", "ref"?, "subdir"?}`；未安装返回 404 `plugin_not_installed`；返回 `previous_version` |
+| `POST` | `/api/plugins/install_upload` | 手动上传 zip 安装（离线兜底） | `multipart/form-data`：`file` + 可选 `expected_id` |
+| `POST` | `/api/plugins/install_github` | 从 GitHub 仓库安装 | JSON `{"repo", "ref"?, "subdir"?}`；`repo` 接受 `owner/repo` 或完整 GitHub URL |
+
+安装链路的安全边界：
+
+- 归档体积上限 50MB，解压后上限 200MB，压缩比上限 100:1，条目数上限 5000。
+- 只从 `https://codeload.github.com/<repo>/zip/<ref>` 下载，不接受任意 URL（防 SSRF）；`ref` 与 `subdir` 都会校验 `..` 与前导/尾随斜杠。
+- 逐条校验解压路径的绝对路径、盘符、`..` 与符号链接，不使用 `extractall()`。
+- 官方目录条目带 `source.sha256` 时会校验下载归档的哈希；哈希为空则跳过校验，格式非法直接拒绝。
+- 插件 id 必须匹配 `^[a-z][a-z0-9-]{1,63}$`，安装后目录名必须等于 `manifest.id`。
+- 通过 `/api/plugins/install_github` 安装时，归档里的 `manifest.id` 必须等于仓库名，否则返回 400 `plugin_manifest_invalid`。
+
+### 作业与 SSE
+
+| 方法 | 路径 | 作用 | 请求要点 |
+| --- | --- | --- | --- |
+| `GET` | `/api/plugins/<plugin_id>/jobs` | 列出该插件作业 | `?limit`（1–200，默认 50）、`?offset`、`?status`（逗号分隔） |
+| `POST` | `/api/plugins/<plugin_id>/jobs` | 创建作业 | JSON `{"job_type", "items", "payload"?}` |
+| `GET` | `/api/plugins/<plugin_id>/jobs/<run_id>` | 作业详情 | 无 query；条目固定返回 200 条 |
+| `GET` | `/api/plugins/<plugin_id>/jobs/<run_id>/events` | 作业 SSE 事件流 | 请求头 `Last-Event-ID` 断线续传；事件名 `snapshot`、`item`、`log`、`done` |
+| `POST` | `/api/plugins/<plugin_id>/jobs/<run_id>/cancel` | 协作式取消 | 无 body |
+| `POST` | `/api/plugins/<plugin_id>/jobs/<run_id>/pause` | 暂停（逐条审批流的落点） | 无 body；仅 `queued` / `running` 可暂停 |
+| `POST` | `/api/plugins/<plugin_id>/jobs/<run_id>/resume` | 恢复被暂停的作业 | 无 body；仅 `paused` 可恢复 |
+| `POST` | `/api/plugins/<plugin_id>/jobs/<run_id>/retry` | 重跑失败项 | JSON `{"only_failed": true}`；返回的 `run_id` 与原作业相同 |
+| `POST` | `/api/plugins/<plugin_id>/jobs/<run_id>/items/<path:item_key>/review` | 逐条审批 | JSON `{"status", "result"?, "error"?}`；省略 `result` 时沿用条目原值；`item_key` 用 `<path:...>`，可以包含 `/` |
+
+作业状态为 `queued` / `running` / `paused` / `completed` / `failed` / `cancelled` / `aborted`，条目状态为 `pending` / `running` / `done` / `failed` / `skipped` / `awaiting_review`。单次作业条目上限 20000；单条 `payload` 上限 64KB、`result` 上限 256KB，超限会被裁剪并标记 `_truncated: true`。
+
+SSE 配额按连接计：每个作业最多 4 条、全局最多 32 条，超限返回 429 `sse_limit_reached`；心跳 15 秒。所有按 `run_id` 的端点都会用路径里的 `plugin_id` 校验归属，越权统一按「作业不存在」处理。
+
+### 文档与资产
+
+| 方法 | 路径 | 作用 | 请求要点 |
+| --- | --- | --- | --- |
+| `GET` | `/api/plugins/<plugin_id>/readme` | 读取插件 README 与 CHANGELOG | 无。各为 `{found, name, content, truncated, msg}`；超过 256KB 时 `found: true` 但 `content` 为空、`truncated: true` |
+| `GET` | `/api/plugins/<plugin_id>/assets/<path:filename>` | 返回插件内静态资源 | 扩展名白名单：`.js .mjs .css .svg .png .webp .gif .avif .json .woff2 .map`；支持 `If-None-Match` → 304 与 `Range` |
+
+资源响应头是 `Cache-Control: private, no-cache`（配合 ETag / `Last-Modified`，内容未变时仍是 304 无响应体），不是长 `max-age`：ES 模块的相对 import 不继承 `?v=` 查询串，长缓存会让重装插件后仍执行旧代码。`.md` 不在资源白名单内，README 必须走 `/readme`。
+
+### 入口布局
+
+| 方法 | 路径 | 作用 | 请求要点 |
+| --- | --- | --- | --- |
+| `GET` | `/api/plugins/entries/layout` | 读取入口布局偏好 | 无。返回 `layout`，单键为 `null` 表示显式清空 |
+| `POST` | `/api/plugins/entries/layout` | 合并写入入口布局偏好 | JSON `{"layout": {...}}` 或裸对象；只认 `order`、`pinned`、`hidden`、`groups`、`shortcuts`，未知键静默丢弃；单键超过 64KB 也静默丢弃 |
+
+### 核心事件流
+
+| 方法 | 路径 | 作用 | 请求要点 |
+| --- | --- | --- | --- |
+| `GET` | `/api/plugins/events` | 核心事件 SSE 流 | `?events=card.updated,scan.completed` 可选过滤；未知事件名返回 400；连接上限 32 条，超限返回 429 |
+
+只广播核心事件：`app.ready`、`card.created`、`card.updated`、`card.deleted`、`card.moved`、`tag.applied`、`tag.deleted`、`worldbook.saved`、`worldbook.entry_changed`、`scan.completed`、`index.job_done`。插件自定义事件（带 `<plugin_id>:` 前缀）不进这条流。帧事件名为 `core`，首帧 `event: ready`，负载为 `{event, payload, ts}`，心跳 15 秒。
 
 ## 论坛预览
 
