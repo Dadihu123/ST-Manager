@@ -1851,31 +1851,19 @@
     padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
   }
 
+  /* 设置页的移动端导航已改为左侧抽屉（见 modal-settings.css）。
+     这里不要再把 .settings-sidebar 变成横向滚动条，否则会覆盖抽屉定位。 */
   .settings-sidebar {
-    width: 100%;
-    flex-direction: row;
-    gap: 0.25rem;
-    padding: 0.5rem;
-    overflow-x: auto;
-    overflow-y: hidden;
-    border-right: 0;
-    border-bottom: 1px solid var(--border-divider);
+    flex-direction: column;
   }
 
   .settings-nav-item {
-    min-width: 4.9rem;
-    min-height: 4.25rem;
-    flex: 1 1 0;
-    flex-direction: column;
-    justify-content: center;
-    gap: 0.25rem;
-    padding: 0.5rem 0.25rem;
-    text-align: center;
+    min-height: 3.5rem;
   }
 
   .settings-nav-item .nav-icon {
-    width: 2.475rem;
-    height: 2.475rem;
+    width: 2.375rem;
+    height: 2.375rem;
     border: 0;
     background: transparent;
   }
@@ -1884,7 +1872,7 @@
     display: block;
     max-width: 100%;
     overflow: hidden;
-    font-size: 0.75rem;
+    font-size: 0.8125rem;
     text-overflow: ellipsis;
     white-space: nowrap;
   }

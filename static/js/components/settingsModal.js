@@ -154,6 +154,8 @@ export default function settingsModal() {
     settingsSnapshot: null,
     settingsSnapshotDarkMode: null,
     settingsSessionOpen: false,
+    /** 移动端设置导航抽屉：桌面端恒为 false，不影响布局。 */
+    settingsNavOpen: false,
     lastFocusedElement: null,
     lastHelpTrigger: null,
     saving: false,
@@ -455,6 +457,8 @@ export default function settingsModal() {
     selectSettingTab(section, anchor = "") {
       if (!this.settingsHelpContent[section]) return;
       this.activeSettingTab = section;
+      // 移动端抽屉：选完分区即收起，把整块屏幕还给内容。
+      this.closeSettingsNav();
       if (this.$refs?.settingsScroll) this.$refs.settingsScroll.scrollTop = 0;
       // 通知内嵌面板（如插件管理）按需加载数据，并按锚点切换其内部页签。
       if (typeof window !== "undefined") {
@@ -503,6 +507,13 @@ export default function settingsModal() {
     keepEditing() {
       this.showDiscardConfirm = false;
     },
+    /** 移动端抽屉开合。桌面端抽屉容器 display:none，这里只切换状态不产生副作用。 */
+    toggleSettingsNav() {
+      this.settingsNavOpen = !this.settingsNavOpen;
+    },
+    closeSettingsNav() {
+      if (this.settingsNavOpen) this.settingsNavOpen = false;
+    },
     handleEscape() {
       if (this.showDiscardConfirm) {
         this.keepEditing();
@@ -510,6 +521,10 @@ export default function settingsModal() {
       }
       if (this.showSettingsHelpModal) {
         this.closeSettingsHelp();
+        return;
+      }
+      if (this.settingsNavOpen) {
+        this.closeSettingsNav();
         return;
       }
       if (this.showSettingsModal) this.requestClose();
@@ -525,6 +540,7 @@ export default function settingsModal() {
     closeSettings() {
       this.showSettingsHelpModal = false;
       this.showDiscardConfirm = false;
+      this.settingsNavOpen = false;
       this.showSettingsModal = false;
       this.settingsSessionOpen = false;
       const focusTarget = this.lastFocusedElement;

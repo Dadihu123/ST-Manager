@@ -35,6 +35,9 @@
         </div>
       </div>
       <div class="settings-header-actions">
+        <!-- 移动端：设置导航改为左侧抽屉，这里给一个显式唤起按钮。
+             抽屉与 PC 端共用同一套 .settings-nav-item，不再压成两列网格。 -->
+        <button type="button" class="settings-icon-button settings-nav-trigger" title="设置分类" aria-label="打开设置分类导航" aria-controls="settings-nav-panel" :aria-expanded="settingsNavOpen ? 'true' : 'false'" @click="toggleSettingsNav()">{{ icon('menu', 'ui-icon--md') }}</button>
         <div class="settings-save-state" :class="'settings-save-state--' + saveState" role="status" aria-live="polite">
           <template x-if="saveState === 'saving'">{{ loading_icon('ui-icon--sm settings-status-icon') }}</template>
           <template x-if="saveState !== 'saving' && saveStatusIcon"><svg class="ui-icon ui-icon--sm settings-status-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use :href="'/static/icons/ui.svg#icon-' + saveStatusIcon"></use></svg></template>
@@ -56,7 +59,15 @@
     </div>
 
     <div class="settings-layout">
-      <aside class="settings-sidebar" aria-label="设置分类">
+      <!-- 移动端抽屉遮罩：点击关闭；桌面端 display:none，不参与布局。 -->
+      <div class="settings-nav-scrim" x-show="settingsNavOpen" x-cloak aria-hidden="true" @click="closeSettingsNav()"></div>
+      <aside
+        id="settings-nav-panel"
+        class="settings-sidebar"
+        :class="{ 'is-open': settingsNavOpen }"
+        aria-label="设置分类"
+        @keydown.escape.stop="closeSettingsNav()"
+      >
         <div class="settings-sidebar-heading"><span>配置目录</span><span class="settings-sidebar-count" x-text="Object.keys(settingsHelpContent).length"></span></div>
         <nav class="settings-nav" role="tablist" aria-label="设置分类导航">
           <button type="button" role="tab" id="settings-tab-general" aria-controls="settings-panel-general" :aria-selected="activeSettingTab === 'general'" :class="{ 'is-active': activeSettingTab === 'general' }" class="settings-nav-item" @click="selectSettingTab('general')"><span class="settings-nav-icon" aria-hidden="true">{{ icon('directory-root', 'ui-icon--md') }}</span><span class="settings-nav-copy"><strong>常规路径</strong><small>文件与存储位置</small></span><span class="settings-nav-index">01</span></button>

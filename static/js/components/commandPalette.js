@@ -14,6 +14,11 @@
  * 快捷键：`Ctrl/Cmd+K` 开合面板；插件声明的 `shortcut` 在 keydown 时
  * 通过 `ContributionRegistry.findByShortcut()` 查表（设计 §4.6：与 `when` 无关，
  * 按下时求值，置灰项不执行但给提示）。
+ *
+ * 触屏入口：软键盘打不出 `Ctrl/Cmd+K`，因此移动端另有一条事件通道 ——
+ * 任意位置 `window.dispatchEvent(new CustomEvent('open-command-palette'))`
+ * 即可唤出面板（目前由顶栏移动端菜单的「命令」按钮派发）。该通道与快捷键
+ * 走同一个 `show()`，不区分设备，桌面端同样可用。
  */
 
 import { ContributionRegistry, KILL_SWITCH_COMMAND_ID, CORE_PLUGIN_ID } from "../contributionRegistry.js";
@@ -108,6 +113,7 @@ export default function commandPalette() {
 
     _keyHandler: null,
     _entriesHandler: null,
+    _openHandler: null,
 
     init() {
       if (typeof window === "undefined") return;
@@ -129,6 +135,10 @@ export default function commandPalette() {
         if (this.handleContributionShortcut(event)) return;
       };
       window.addEventListener("keydown", this._keyHandler);
+
+      // 触屏入口：软键盘没有 Ctrl/Cmd，由界面按钮派发该事件唤出面板。
+      this._openHandler = () => this.show();
+      window.addEventListener("open-command-palette", this._openHandler);
 
       this._entriesHandler = () => {
         if (this.open) this.rebuild();
@@ -259,6 +269,10 @@ export default function commandPalette() {
       if (this._keyHandler) {
         window.removeEventListener("keydown", this._keyHandler);
         this._keyHandler = null;
+      }
+      if (this._openHandler) {
+        window.removeEventListener("open-command-palette", this._openHandler);
+        this._openHandler = null;
       }
       if (this._entriesHandler) {
         window.removeEventListener("contributions:changed", this._entriesHandler);
@@ -441,7 +455,9 @@ export default function commandPalette() {
 
     originLabel(item) {
       if (!item) return "";
-      if (item.kind === "host" || item.kind === "core") return "宿主";
+      // 宿主内建命令的「来源」就是宿主本身，右侧已经有 `kindLabel` 的「宿主」徽标，
+      // 这里再重复一次只会得到「宿主 宿主」两枚一样的胶囊。
+      if (item.kind === "host" || item.kind === "core") return "";
       return String(item.pluginId || "");
     },
 

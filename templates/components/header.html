@@ -1276,6 +1276,19 @@
         </div>
         <div class="menu-label">设置</div>
       </button>
+      <!-- 命令面板：软键盘打不出 Ctrl/Cmd+K，这里给触屏一个显式入口。
+           面板自身监听 `open-command-palette` 事件（commandPalette.js:init）。 -->
+      <button
+        @click="$dispatch('open-command-palette'); closeMobileMenu()"
+        class="mobile-menu-btn-item"
+        title="打开命令面板"
+        aria-label="打开命令面板"
+      >
+        <div class="menu-icon" aria-hidden="true">
+          {{ icon('keyboard', 'ui-icon--lg ') }}
+        </div>
+        <div class="menu-label">命令</div>
+      </button>
     </div>
 
     <!-- 收藏筛选（移动端） -->
