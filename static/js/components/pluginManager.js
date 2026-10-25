@@ -3,10 +3,11 @@
  * 插件管理面板（设计文档第 9 部分）。
  *
  * 作为「系统设置 → 插件管理」第五个导航页嵌入设置弹窗，不再自带模态框外壳。
- * 三个页签：
+ * 四个页签：
  * - 已安装：状态 + 四操作（安装/卸载/禁用/启用）+ 配置与密钥表单
  * - 官方目录：catalog 条目 + 安装 + 检查更新
  * - 手动安装：zip 上传 + 元数据确认
+ * - 贡献总览：按插件分组折叠查看菜单 / 插槽 / 命令声明
  */
 
 import {
@@ -157,6 +158,13 @@ export default function pluginManager() {
     /** 贡献总览（只读）：菜单 / 插槽 / 命令 + 归属分级。 */
     contributionRows: [],
     contributionQuery: "",
+    /**
+     * 贡献总览里已展开的插件分组 id。
+     *
+     * 默认空数组 = 全部折叠：一个插件往往声明十几条贡献，平铺会淹没
+     * 其他插件；先看「插件 + 数量」，需要时再展开具体条目。
+     */
+    expandedContributionPlugins: [],
 
     /** 前端激活失败的插件 id（来自运行时 `plugins:loaded` 事件）。 */
     failedPluginIds: [],
@@ -187,6 +195,13 @@ export default function pluginManager() {
         this.failedPluginIds = Array.isArray(detail.failed) ? detail.failed.map(String) : [];
       };
       window.addEventListener("plugins:loaded", this._loadedHandler);
+
+      // 筛选时自动展开命中分组：搜索的目的就是直接看到条目，不再要求二次点击。
+      // 清空筛选回到「全部折叠」的默认态，避免留下与当前视图无关的展开状态。
+      this.$watch("contributionQuery", (value) => {
+        if (String(value || "").trim()) this.expandMatchingContributionGroups();
+        else this.collapseAllContributionGroups();
+      });
     },
 
     destroy() {
@@ -350,19 +365,22 @@ export default function pluginManager() {
       return contributions && typeof contributions === "object" ? contributions : {};
     },
 
-    /** 把各插件声明的贡献摊平成总览表格的行（菜单树递归展开，插槽/命令各一行）。 */
+    /** 把各插件声明的贡献摊平成总览的行（菜单树递归展开，插槽/命令各一行）。 */
     buildContributionRows(plugins) {
       const rows = [];
 
-      const walkMenus = (plugin, nodes, depth) => {
+      // 子节点不重复声明 `placement`，落点由父节点继承（右键子菜单的项都落在同一处）。
+      const walkMenus = (plugin, nodes, depth, inheritedPlacement) => {
         for (const node of Array.isArray(nodes) ? nodes : []) {
           if (!node || typeof node !== "object") continue;
-          const placement = String(node.placement || "");
+          const ownPlacement = String(node.placement || "");
+          const placement = ownPlacement || String(inheritedPlacement || "");
           rows.push({
             pluginId: plugin.id,
             pluginName: plugin.name || plugin.id,
             pluginEnabled: plugin.enabled !== false,
             tier: plugin.tier || "community",
+            pluginIcon: String(plugin.icon || ""),
             kind: "menu",
             id: String(node.id || ""),
             label: String(node.label || node.id || ""),
@@ -373,13 +391,13 @@ export default function pluginManager() {
             depth,
             when: node.when || {},
           });
-          walkMenus(plugin, node.children, depth + 1);
+          walkMenus(plugin, node.children, depth + 1, placement);
         }
       };
 
       for (const item of plugins || []) {
         const contributions = this.contributionsOf(item);
-        walkMenus(item, contributions.menus, 0);
+        walkMenus(item, contributions.menus, 0, "");
 
         for (const slot of Array.isArray(contributions.slots) ? contributions.slots : []) {
           if (!slot || typeof slot !== "object") continue;
@@ -394,6 +412,7 @@ export default function pluginManager() {
             pluginName: item.name || item.id,
             pluginEnabled: item.enabled !== false,
             tier: item.tier || "community",
+            pluginIcon: String(item.icon || ""),
             kind: "slot",
             id: String(slot.id || ""),
             label: String(slot.title || slot.id || ""),
@@ -415,6 +434,7 @@ export default function pluginManager() {
             pluginName: item.name || item.id,
             pluginEnabled: item.enabled !== false,
             tier: item.tier || "community",
+            pluginIcon: String(item.icon || ""),
             kind: "command",
             id: String(command.id || ""),
             label: String(command.title || command.id || ""),
@@ -441,14 +461,126 @@ export default function pluginManager() {
       return rows;
     },
 
-    get filteredContributionRows() {
+    /**
+     * 按插件聚合贡献行（保持 `buildContributionRows` 的插件排序）。
+     *
+     * 分组是纯派生数据，不额外打接口：`loadPlugins()` / `loadContributions()`
+     * 已经把 manifest 快照摊平成 `contributionRows`。折叠状态只记插件 id，
+     * 默认空数组即「全部折叠」。
+     */
+    get contributionGroups() {
+      const groups = new Map();
+      for (const row of this.contributionRows || []) {
+        const pluginId = String(row.pluginId || "");
+        let group = groups.get(pluginId);
+        if (!group) {
+          group = {
+            pluginId,
+            pluginName: row.pluginName,
+            pluginEnabled: row.pluginEnabled,
+            tier: row.tier,
+            pluginIcon: row.pluginIcon || "",
+            rows: [],
+            counts: { menu: 0, slot: 0, command: 0 },
+            total: 0,
+          };
+          groups.set(pluginId, group);
+        }
+        group.rows.push(row);
+        if (group.counts[row.kind] !== undefined) group.counts[row.kind] += 1;
+        group.total += 1;
+      }
+      return Array.from(groups.values());
+    },
+
+    get filteredContributionGroups() {
       const query = String(this.contributionQuery || "").trim().toLowerCase();
-      if (!query) return this.contributionRows;
-      return this.contributionRows.filter((row) =>
-        `${row.label} ${row.pluginId} ${row.pluginName} ${row.id} ${row.kind} ${row.location}`
-          .toLowerCase()
-          .includes(query),
-      );
+      if (!query) return this.contributionGroups;
+      return this.contributionGroups
+        .map((group) => {
+          const rows = group.rows.filter((row) => this.contributionRowMatches(row, query));
+          if (!rows.length) return null;
+          const counts = { menu: 0, slot: 0, command: 0 };
+          for (const row of rows) {
+            if (counts[row.kind] !== undefined) counts[row.kind] += 1;
+          }
+          return { ...group, rows, counts, total: rows.length };
+        })
+        .filter(Boolean);
+    },
+
+    /** 单行是否命中筛选词（插件名 / 名称 / id / 落点 / 描述）。 */
+    contributionRowMatches(row, query) {
+      const needle = String(query || "").trim().toLowerCase();
+      if (!needle) return true;
+      return `${row.label} ${row.pluginId} ${row.pluginName} ${row.id} ${row.kind} ${row.location} ${row.shortcut || ""} ${row.description || ""}`
+        .toLowerCase()
+        .includes(needle);
+    },
+
+    /** 分组是否展开（默认折叠；筛选时由 watcher 统一展开命中分组）。 */
+    isContributionGroupOpen(pluginId) {
+      const id = String(pluginId || "");
+      if (!id) return false;
+      return (this.expandedContributionPlugins || []).includes(id);
+    },
+
+    toggleContributionGroup(pluginId) {
+      const id = String(pluginId || "");
+      if (!id) return false;
+      const current = Array.isArray(this.expandedContributionPlugins)
+        ? this.expandedContributionPlugins
+        : [];
+      this.expandedContributionPlugins = current.includes(id)
+        ? current.filter((item) => item !== id)
+        : [...current, id];
+      return true;
+    },
+
+    /** 展开全部插件分组（工具栏「全部展开」）。 */
+    expandAllContributionGroups() {
+      this.expandedContributionPlugins = this.contributionGroups.map((group) => group.pluginId);
+      return true;
+    },
+
+    /** 只展开筛选命中的分组（搜索后直接看到条目）。 */
+    expandMatchingContributionGroups() {
+      this.expandedContributionPlugins = this.filteredContributionGroups.map((group) => group.pluginId);
+      return true;
+    },
+
+    collapseAllContributionGroups() {
+      this.expandedContributionPlugins = [];
+      return true;
+    },
+
+    /** 组内按「菜单 → 插槽 → 命令」分节，空分节不渲染。 */
+    contributionGroupSections(group) {
+      const sections = ["menu", "slot", "command"].map((kind) => ({
+        kind,
+        label: this.contributionKindLabel({ kind }),
+        rows: [],
+      }));
+      const byKind = new Map(sections.map((section) => [section.kind, section]));
+      for (const row of (group && group.rows) || []) {
+        const section = byKind.get(row.kind);
+        if (section) section.rows.push(row);
+      }
+      return sections.filter((section) => section.rows.length);
+    },
+
+    /** 工具栏摘要：N 个插件 · M 条贡献（菜单 / 插槽 / 命令）；筛选时只统计命中项。 */
+    contributionOverviewSummary() {
+      const filtering = Boolean(String(this.contributionQuery || "").trim());
+      const groups = this.filteredContributionGroups;
+      const rows = groups.flatMap((group) => group.rows);
+      if (!rows.length) return "";
+      const counts = { menu: 0, slot: 0, command: 0 };
+      for (const row of rows) {
+        if (counts[row.kind] !== undefined) counts[row.kind] += 1;
+      }
+      const head = `${filtering ? "匹配 " : ""}${groups.length} 个插件 · ${rows.length} 条贡献`;
+      return `${head}（菜单 ${counts.menu} · 插槽 ${counts.slot} · 命令 ${counts.command}）`;
     },
 
     /**
@@ -468,6 +600,15 @@ export default function pluginManager() {
     /** 图标节点的 HTML（模板用 `x-html` 注入）。 */
     contributionIconHtml(row) {
       return this.contributionIconNode(row).outerHTML;
+    },
+
+    /** 插件分组图标（manifest 顶层 `icon`；缺省用宿主 plugin 图标）。 */
+    contributionGroupIconHtml(group) {
+      const name = String((group && group.pluginIcon) || "").trim();
+      return icon(name || "plugin", {
+        className: "ui-icon--sm",
+        pluginId: String((group && group.pluginId) || ""),
+      }).outerHTML;
     },
 
     tierLabel(item) {

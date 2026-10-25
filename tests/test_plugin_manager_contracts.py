@@ -161,11 +161,58 @@ def test_contribution_overview_is_read_only_and_has_no_v2_shortcut_recorder():
         assert forbidden not in source, f"插件管理仍残留 v2: {forbidden}"
     template = read(MANAGER_TMPL)
     assert "contributionRows" in template
-    assert "filteredContributionRows" in template
+    assert "filteredContributionGroups" in template
     assert "contributionIndent(row)" in template
     assert "row.shortcut" in template
     for forbidden in ("entryRows", "recordingKey", "captureEntryShortcut", "openSettingsEntry"):
         assert forbidden not in template
+
+
+def test_contribution_overview_groups_by_plugin_and_defaults_collapsed():
+    source = read(MANAGER_JS)
+    # 分组是派生数据：插件 -> 具体贡献，折叠状态只记插件 id，默认空数组。
+    assert "get contributionGroups()" in source
+    assert "get filteredContributionGroups()" in source
+    assert "expandedContributionPlugins: []" in source
+    assert "isContributionGroupOpen(pluginId)" in source
+    assert "toggleContributionGroup(pluginId)" in source
+    assert "contributionGroupSections(group)" in source
+    assert "contributionOverviewSummary()" in source
+    # 组内分节复用 kind 文案（菜单 / 插槽 / 命令），不另造一套标签。
+    assert '["menu", "slot", "command"]' in source
+    assert "this.contributionKindLabel({ kind })" in source
+    # 筛选时自动展开命中分组（否则搜索后还要逐组点击）；清空后回到全折叠。
+    assert 'this.$watch("contributionQuery"' in source
+    assert "expandMatchingContributionGroups()" in source
+    assert "collapseAllContributionGroups()" in source
+
+    template = read(MANAGER_TMPL)
+    assert "plugin-contribution-group" in template
+    assert "plugin-contribution-summary" in template
+    assert "plugin-contribution-body" in template
+    assert 'x-for="group in filteredContributionGroups"' in template
+    assert 'x-for="section in contributionGroupSections(group)"' in template
+    assert '@click="toggleContributionGroup(group.pluginId)"' in template
+    assert ':aria-expanded="isContributionGroupOpen(group.pluginId).toString()"' in template
+    assert "全部展开" in template
+    assert "全部折叠" in template
+    # 旧的平铺表格已移除。
+    assert "plugin-entries-table" not in template
+
+
+def test_contribution_group_panel_styles_exist():
+    css = read(MANAGER_CSS)
+    for selector in (
+        ".plugin-contribution-group",
+        ".plugin-contribution-summary",
+        ".plugin-contribution-chevron.is-open",
+        ".plugin-contribution-body",
+        ".plugin-contribution-section",
+        ".plugin-contribution-row",
+        ".plugin-contribution-location",
+        ".plugin-contribution-description",
+    ):
+        assert selector in css, f"贡献分组样式缺少 {selector}"
 
 
 def test_contribution_counts_are_disclosed_before_enable():

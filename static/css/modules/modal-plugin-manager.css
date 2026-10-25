@@ -350,7 +350,7 @@
   color: var(--content-muted);
 }
 
-/* ---------------------------------------------------------------- 入口总览 */
+/* ---------------------------------------------------------------- 贡献总览 */
 
 /* 筛选输入框。
  *
@@ -390,37 +390,236 @@ html:not(.light-mode) .plugin-entries-search::-webkit-search-cancel-button {
   outline: 0;
 }
 
-.plugin-entries-table-wrapper {
-  width: 100%;
-  overflow-x: auto;
+/* 按插件分组的折叠面板：默认收起，只露出插件名 + 各类贡献数量。 */
+.plugin-contribution-overview {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  flex-wrap: wrap;
 }
 
-.plugin-entries-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.8rem;
+.plugin-contribution-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
 }
 
-.plugin-entries-table th,
-.plugin-entries-table td {
-  padding: 0.45rem 0.6rem;
+.plugin-contribution-action {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--accent-action);
+  font: inherit;
+  font-size: 0.72rem;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.plugin-contribution-action:hover {
+  color: var(--content-primary);
+}
+
+.plugin-contribution-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.plugin-contribution-group {
+  border: 1px solid var(--border-default);
+  border-radius: var(--ui-radius-md, 0.625rem);
+  background: var(--surface-container);
+  overflow: hidden;
+  transition: border-color 0.15s ease;
+}
+
+.plugin-contribution-group.is-open {
+  border-color: var(--border-strong, var(--accent-action));
+}
+
+.plugin-contribution-group.is-disabled {
+  opacity: 0.72;
+}
+
+.plugin-contribution-summary {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
   text-align: left;
-  vertical-align: middle;
-  border-bottom: 1px solid var(--border-subtle);
+  cursor: pointer;
 }
 
-.plugin-entries-table th {
-  font-weight: 600;
-  color: var(--content-secondary);
-  white-space: nowrap;
-}
-
-.plugin-entries-table tbody tr:hover {
+.plugin-contribution-summary:hover {
   background: var(--state-hover-surface);
 }
 
-.plugin-entries-table tbody tr.is-disabled {
+.plugin-contribution-summary:focus-visible {
+  outline: 2px solid var(--accent-action);
+  outline-offset: -2px;
+}
+
+.plugin-contribution-chevron {
+  display: inline-flex;
+  flex: 0 0 auto;
+  color: var(--content-muted);
+  transition: transform 0.15s ease;
+}
+
+.plugin-contribution-chevron.is-open {
+  transform: rotate(180deg);
+}
+
+.plugin-contribution-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1 1 14rem;
+  min-width: 0;
+}
+
+.plugin-contribution-name {
+  display: block;
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--content-primary);
+}
+
+.plugin-contribution-state {
+  padding: 0.05rem 0.4rem;
+  border: 1px solid var(--status-warning-border, var(--border-default));
+  border-radius: 999px;
+  background: var(--status-warning-surface, transparent);
+  color: var(--status-warning-text, var(--content-muted));
+  font-size: 0.68rem;
+  white-space: nowrap;
+}
+
+.plugin-contribution-counts {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+
+.plugin-contribution-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.08rem 0.45rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  background: var(--surface-container-sunken, var(--surface-container));
+  color: var(--content-muted);
+  font-size: 0.7rem;
+  white-space: nowrap;
+}
+
+.plugin-contribution-count b {
+  color: var(--content-secondary);
+  font-weight: 600;
+}
+
+.plugin-contribution-body {
+  padding: 0.15rem 0.75rem 0.7rem;
+  border-top: 1px solid var(--border-subtle);
+  background: var(--surface-container-sunken, var(--surface-container));
+}
+
+.plugin-contribution-section + .plugin-contribution-section {
+  margin-top: 0.55rem;
+}
+
+.plugin-contribution-section-title {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0.5rem 0 0.2rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--content-muted);
+}
+
+.plugin-contribution-section-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.1rem;
+  height: 1.1rem;
+  padding: 0 0.3rem;
+  border-radius: 999px;
+  background: var(--surface-container-raised);
+  color: var(--content-secondary);
+  font-size: 0.66rem;
+  line-height: 1;
+}
+
+.plugin-contribution-rows {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.plugin-contribution-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-areas:
+    "identity location shortcut"
+    "description description description";
+  gap: 0.15rem 0.6rem;
+  align-items: center;
+  padding: 0.35rem 0.45rem;
+  border-radius: var(--ui-radius-sm, 0.5rem);
+  font-size: 0.8rem;
+}
+
+.plugin-contribution-row:hover {
+  background: var(--state-hover-surface);
+}
+
+.plugin-contribution-row.is-disabled {
   color: var(--content-disabled);
+}
+
+.plugin-contribution-row > .plugin-entries-identity {
+  grid-area: identity;
+}
+
+.plugin-contribution-row > .plugin-entries-shortcut {
+  grid-area: shortcut;
+  justify-self: end;
+}
+
+.plugin-contribution-location {
+  grid-area: location;
+  justify-self: end;
+  padding: 0.05rem 0.4rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  background: var(--surface-container-raised);
+  color: var(--content-secondary);
+  font-size: 0.7rem;
+  white-space: nowrap;
+}
+
+.plugin-contribution-description {
+  grid-area: description;
+  overflow: hidden;
+  color: var(--content-muted);
+  font-size: 0.72rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .plugin-entries-identity {
@@ -957,6 +1156,26 @@ html:not(.light-mode) .plugin-entries-search::-webkit-search-cancel-button {
 
   .plugin-form-actions .plugin-button {
     width: 100%;
+  }
+
+  .plugin-contribution-heading {
+    flex-basis: 100%;
+  }
+
+  .plugin-contribution-counts {
+    margin-left: 0;
+  }
+
+  .plugin-contribution-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "identity location"
+      "description description"
+      "shortcut shortcut";
+  }
+
+  .plugin-contribution-row > .plugin-entries-shortcut {
+    justify-self: start;
   }
 }
 
