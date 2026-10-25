@@ -107,6 +107,30 @@ pytest tests/test_st_auth_flow.py::test_st_http_client_web_performs_login
 pytest -v tests/test_chat_list_filters.py::test_chat_list_fav_filter_included
 ```
 
+## Docs Tracking Policy
+
+`docs/` is **excluded wholesale** in `.gitignore` and only a small allowlist is
+tracked. Design drafts, plans, feasibility analyses, audits, implementation logs
+and prompts are **local-only** — do not commit them, and do not assume they exist
+in a clean clone.
+
+- Tracked (allowlist in `.gitignore`): `docs/readme-icons/**`,
+  `docs/screenshots/**`, `docs/API.md`, `docs/CONFIG.md`, `docs/DEVELOPMENT.md`,
+  `docs/plugin-api.md`, `docs/svg-icon-system.md`,
+  `docs/plugin-manifest.schema.json`, `docs/plugin-api.d.ts`, `docs/adr/**`,
+  `docs/agents/**`, `docs/plugin-migration-v2-to-v3.md`.
+- Everything else under `docs/` (including the dated `docs/2026-*.md` designs) is
+  local-only. Adding a new long-lived doc means adding an explicit `!` allowlist
+  line in `.gitignore` — Git cannot re-include files inside an excluded directory,
+  so allow the directory first (`!docs/xxx/`) and then its contents (`!docs/xxx/**`).
+- Because local-only docs are absent from clean clones, any test or tool that
+  **reads** one must guard on existence (`pytest.mark.skipif(not os.path.isfile(...))`
+  or `pytest.skip`) instead of failing. Tests that merely *mention* a design doc in
+  a comment/docstring are fine.
+- The generated artifacts (`plugin-api.md`, `plugin-manifest.schema.json`,
+  `plugin-api.d.ts`) stay tracked: CI's `--check` and the artifact tests assert
+  they exist on disk.
+
 ## Plugin Contract v3
 
 The plugin contract is **v3** (implemented in a single release — ADR-0014). Plugins

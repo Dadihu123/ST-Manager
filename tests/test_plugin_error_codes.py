@@ -8,12 +8,16 @@ import os
 import re
 import sys
 
+import pytest
+
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
 from core.plugins import errors as errors_module
 
+# 设计文档属于本地留存的临时产物，不进 Git（见 .gitignore 的 docs/ 段）。
+# 本地有文档时双向校验照常生效；干净克隆里没有文档则跳过，不误报失败。
 DESIGN_DOC = os.path.join(PROJECT_ROOT, 'docs', '2026-09-22-plugin-system-design.md')
 TABLE_HEADER = '**统一错误码**'
 ROW_PATTERN = re.compile(r'^\| `([a-z][a-z0-9_]*)` \| (\d{3}) \| (.+) \|$', re.MULTILINE)
@@ -47,6 +51,10 @@ def _implemented_codes() -> dict:
     return result
 
 
+@pytest.mark.skipif(
+    not os.path.isfile(DESIGN_DOC),
+    reason='设计文档为本地留存产物，未纳入版本控制',
+)
 def test_documentation_table_is_parseable():
     documented = _documented_codes()
 
@@ -54,18 +62,30 @@ def test_documentation_table_is_parseable():
     assert documented['plugin_not_found'] == 404
 
 
+@pytest.mark.skipif(
+    not os.path.isfile(DESIGN_DOC),
+    reason='设计文档为本地留存产物，未纳入版本控制',
+)
 def test_every_implemented_code_is_documented():
     undocumented = sorted(set(_implemented_codes()) - set(_documented_codes()))
 
     assert undocumented == [], f'以下错误码未登记到设计文档 10.4: {undocumented}'
 
 
+@pytest.mark.skipif(
+    not os.path.isfile(DESIGN_DOC),
+    reason='设计文档为本地留存产物，未纳入版本控制',
+)
 def test_every_documented_code_is_implemented():
     missing = sorted(set(_documented_codes()) - set(_implemented_codes()))
 
     assert missing == [], f'设计文档登记了但代码中不存在的错误码: {missing}'
 
 
+@pytest.mark.skipif(
+    not os.path.isfile(DESIGN_DOC),
+    reason='设计文档为本地留存产物，未纳入版本控制',
+)
 def test_http_status_matches_documentation():
     documented = _documented_codes()
     implemented = _implemented_codes()
@@ -79,6 +99,10 @@ def test_http_status_matches_documentation():
     assert mismatches == {}, f'HTTP 状态码不一致: {mismatches}'
 
 
+@pytest.mark.skipif(
+    not os.path.isfile(DESIGN_DOC),
+    reason='设计文档为本地留存产物，未纳入版本控制',
+)
 def test_base_error_code_is_not_documented():
     assert errors_module.PluginError.code not in _documented_codes()
 

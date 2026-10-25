@@ -41,3 +41,35 @@ discord/
 .worktrees/
 .superpowers/
 docs/superpowers
+
+# ---------------------------------------------------------------------------
+# docs/：默认整体不跟踪，只单独放行长期维护的文档。
+#
+# 约定：设计稿、方案、可行性分析、审计、实现日志、prompt 这类临时产物
+# 只保留在本地，不进 Git（文件名带日期的 `docs/2026-*.md` 基本都是这一类）。
+# 需要跟踪的只有下面这些「对外文档 + 生成物 + 治理文档」。
+#
+# 注意：Git 无法重新包含已被排除目录中的文件，所以放行目录时必须
+# 先放行目录本身（`!docs/xxx/`），再放行其内容（`!docs/xxx/**`）。
+# ---------------------------------------------------------------------------
+docs/*
+# README 用的图标与截图
+!docs/readme-icons/
+!docs/readme-icons/**
+!docs/screenshots/
+!docs/screenshots/**
+# 长期维护的手写文档
+!docs/API.md
+!docs/CONFIG.md
+!docs/DEVELOPMENT.md
+!docs/plugin-api.md
+!docs/svg-icon-system.md
+# 生成物：CI 与测试断言其存在，且 `--check` 必须能比对
+!docs/plugin-manifest.schema.json
+!docs/plugin-api.d.ts
+# 治理文档：AGENTS.md 与 plugin-api.md 指向这里
+!docs/adr/
+!docs/adr/**
+!docs/agents/
+!docs/agents/**
+!docs/plugin-migration-v2-to-v3.md

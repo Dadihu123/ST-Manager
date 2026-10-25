@@ -13,6 +13,8 @@ v3 新增的契约版本与贡献容量以 `docs/2026-10-21-plugin-contract-v3-d
 import os
 import sys
 
+import pytest
+
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
@@ -23,8 +25,12 @@ from core.plugins import contract as contract_module
 from core.plugins import installer as installer_module
 from core.plugins import job_store, jobs
 
+# 设计文档属于本地留存的临时产物，不进 Git（见 .gitignore 的 docs/ 段）。
+# 本地有文档时双向校验照常生效；干净克隆里没有文档则跳过文档侧断言。
 DESIGN_DOC = os.path.join(PROJECT_ROOT, 'docs', '2026-09-22-plugin-system-design.md')
 DESIGN_DOC_V3 = os.path.join(PROJECT_ROOT, 'docs', '2026-10-21-plugin-contract-v3-design.md')
+
+_DOC_MISSING_REASON = '设计文档为本地留存产物，未纳入版本控制'
 
 
 def _doc_text() -> str:
@@ -38,10 +44,14 @@ def _doc_text_v3() -> str:
 
 
 def _assert_documented(fragment: str) -> None:
+    if not os.path.isfile(DESIGN_DOC):
+        pytest.skip(_DOC_MISSING_REASON)
     assert fragment in _doc_text(), f'设计文档缺少对应描述: {fragment!r}'
 
 
 def _assert_v3_documented(fragment: str) -> None:
+    if not os.path.isfile(DESIGN_DOC_V3):
+        pytest.skip(_DOC_MISSING_REASON)
     assert fragment in _doc_text_v3(), f'v3 设计文档缺少对应描述: {fragment!r}'
 
 
