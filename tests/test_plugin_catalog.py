@@ -119,6 +119,9 @@ def test_bundled_catalog_lists_official_ai_assistant():
     assert entry['source']['type'] == 'github'
     # source.repo 必须是 owner/repo（防 SSRF，catalog 不接受任意 URL）
     assert catalog_module.REPO_PATTERN.match(entry['source']['repo'])
+    # 发布后钉 tag + sha256：安装拿到的必须是显式发布过的归档，而不是分支最新代码
+    assert entry['source']['ref'] == 'v0.3.0'
+    assert len(entry['source']['sha256']) == 64
     assert entry['api_version'] == 3
     # 能力披露取代 v2 的 permissions：官方 AI 助手的能力位与旧权限一一对应
     assert entry['capabilities'] == [
@@ -147,7 +150,9 @@ def test_bundled_catalog_lists_official_pet():
     assert entry['source']['repo'] == 'Dadihu123/ST-Manager-Pet'
     assert entry['source']['type'] == 'github'
     assert catalog_module.REPO_PATTERN.match(entry['source']['repo'])
-    assert entry['source']['ref'] == 'main'
+    # 发布后钉 tag + sha256：安装拿到的必须是显式发布过的归档，而不是分支最新代码
+    assert entry['source']['ref'] == 'v0.4.0'
+    assert len(entry['source']['sha256']) == 64
     assert entry['api_version'] == 3
     assert entry['min_app_version'] == '1.0.0'
     assert entry['capabilities'] == ['ui.custom']
