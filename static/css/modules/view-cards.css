@@ -2259,6 +2259,61 @@ html.light-mode .card-bottom-toolbar
   object-position: center center;
 }
 
+/*
+ * 卡片合成稳定性：修「打开设置弹窗后 hover 按钮，露在弹窗边缘的角色卡整块内容
+ * 闪一帧（只剩卡框；深色主题闪黑、浅色主题闪白）」。
+ *
+ * cards-css 默认给每张卡都挂 `translate3d(..., 150px)` + `transform-style:
+ * preserve-3d` 的 3D 合成链，于是每张未激活的卡也是一个大型 3D 合成面；设置弹窗里
+ * hover 任一按钮都会让合成树重排，这些合成面会被整帧丢弃，卡片内容就消失一帧，
+ * 露出 `.st-card` 的卡框底色。只有被鼠标激活（HoloCard 实例加了
+ * `.holo-card--interactive`）的卡片才真的需要 3D，其余保持平面即可。
+ */
+
+/* ① 网格里未激活的卡片保持平面：没有 3D 合成面，就没有可被丢弃的那一帧。
+ *    只作用于 `.card-grid`，抽卡揭晓卡始终挂真实实例（`.holo-card--interactive`），
+ *    按原样保留 3D。 */
+.card-grid .card-effect-shell.holo-card:not(.holo-card--interactive) {
+  transform: none;
+  transform-style: flat;
+}
+
+.card-grid .card-effect-shell.holo-card:not(.holo-card--interactive) .holo-card__translater,
+.card-grid .card-effect-shell.holo-card:not(.holo-card--interactive) .holo-card__rotator {
+  transform: none;
+  transform-style: flat;
+}
+
+/* 静止卡片的微光/眩光本来就是全透明的（`--card-opacity` 默认 0），
+ * 但 `mix-blend-mode` 仍会拉高合成成本；未激活时直接不画。 */
+.card-grid .card-effect-shell.holo-card:not(.holo-card--interactive) .holo-card__shine,
+.card-grid .card-effect-shell.holo-card:not(.holo-card--interactive) .holo-card__glare {
+  display: none;
+}
+
+/*
+ * ② 封面包装层 / 封面图片永远正面朝屏幕，不需要 0.01px 深度，也不需要背面剔除
+ * （cards-css 的 `.holo-card__front *` 会把整棵子树标成
+ * `backface-visibility: hidden`）。去掉后它们回到卡片正面的普通绘制里，
+ * 不再各自成为合成层，激活态的 3D 链也只剩真正需要的那两层。
+ */
+.card-effect-shell .holo-card__front {
+  transform: none;
+}
+
+.card-effect-shell .holo-card__content img:not(.holo-card__back) {
+  transform: none;
+}
+
+/*
+ * ③ 静止（未翻转）的正面不保留 identity 3D 变换：没有 3D 变换就不会参与背面剔除。
+ * 翻转时 `.is-flipped` 恢复 rotateY 矩阵，过渡过程中的插值矩阵仍带
+ * `backface-visibility: hidden`，翻面观感与原来一致。
+ */
+.card-flip-inner:not(.is-flipped) .card-front {
+  transform: none;
+}
+
 .card-effect-shell .holo-card__content .card-image-overlay,
 .card-effect-shell .holo-card__content .card-overlay-actions,
 .card-effect-shell .holo-card__content .card-tags-wrap,

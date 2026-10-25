@@ -450,3 +450,79 @@ def test_card_favorite_uses_solid_theme_aware_svg_with_existing_state_colors():
     assert 'color: var(--decoration-rose);' in card_css
     assert 'color: var(--status-danger-text);' in card_css
     assert 'drop-shadow(0 1px 3px color-mix(in srgb, var(--surface-page) 32%, transparent))' in card_css
+
+
+def test_card_cover_layers_do_not_participate_in_backface_culling():
+    """封面闪黑回归：150% 缩放下卡片封面会整块闪一帧卡片底色。
+
+    cards-css 给 `.holo-card__front` 与封面图片都加了 `translate3d(0, 0, 0.01px)`
+    的 0.01px 深度微调，同时用 `.holo-card__front *` 把这棵子树标成
+    `backface-visibility: hidden`。设置弹窗里 hover 按钮会让合成树重排，
+    Chromium 在重排时会把这一层浮点深度判成「背面」，于是整块封面（视觉上就是
+    图片区域）被剔除一帧：深色主题露出深色卡片底、浅色主题露出浅色卡片底。
+    这两层永远正面朝屏幕，必须保持 2D；只有翻转面需要背面剔除。
+    """
+    card_css = read_project_file('static/css/modules/view-cards.css')
+
+    assert re.search(
+        r'\.card-effect-shell \.holo-card__front\s*\{[^}]*transform: none;',
+        card_css,
+    ), 'holo 封面层必须去掉 0.01px 的 translateZ，否则会参与背面剔除'
+    assert re.search(
+        r'\.card-effect-shell \.holo-card__content img:not\(\.holo-card__back\)\s*'
+        r'\{[^}]*transform: none;',
+        card_css,
+    ), '封面图片层必须去掉 0.01px 的 translateZ，否则会参与背面剔除'
+    assert re.search(
+        r'\.card-flip-inner:not\(\.is-flipped\) \.card-front\s*\{[^}]*transform: none;',
+        card_css,
+    ), '静止状态的翻转正面不应保留 identity 3D 变换'
+
+    # 翻转面保持原有观感：仍然圆角裁剪、仍然在翻到背面时被剔除。
+    card_front_css = card_css.split('.card-front {', 1)[1].split('}', 1)[0]
+    assert 'overflow: hidden;' in card_front_css
+    assert 'backface-visibility: hidden;' in card_front_css
+    assert '.card-flip-inner.is-flipped .card-front {' in card_css
+
+
+def test_grid_cards_stay_flat_until_holo_effect_activates():
+    """合成层回归：未激活的网格卡片不能保留 3D 合成面。
+
+    cards-css 让每张卡都挂 `translate3d(..., 150px)` + `preserve-3d`，整张卡因此
+    是一个大型 3D 合成面。设置弹窗里 hover 按钮会重排合成树，这些合成面会被整帧
+    丢弃，卡片内容闪一帧消失（只剩卡框；深色主题闪黑、浅色主题闪白）。
+    网格卡片只有被 HoloCard 实例激活（`.holo-card--interactive`）时才需要 3D。
+    """
+    card_css = read_project_file('static/css/modules/view-cards.css')
+
+    assert re.search(
+        r'\.card-grid \.card-effect-shell\.holo-card:not\(\.holo-card--interactive\)\s*'
+        r'\{[^}]*transform: none;[^}]*transform-style: flat;',
+        card_css,
+    ), '未激活的网格卡片必须去掉 3D 变换与 preserve-3d'
+    assert re.search(
+        r'\.card-grid \.card-effect-shell\.holo-card:not\(\.holo-card--interactive\)'
+        r' \.holo-card__translater,\s*'
+        r'\.card-grid \.card-effect-shell\.holo-card:not\(\.holo-card--interactive\)'
+        r' \.holo-card__rotator\s*\{[^}]*transform: none;[^}]*transform-style: flat;',
+        card_css,
+    ), '未激活卡片的 3D 旋转层必须保持平面'
+    assert re.search(
+        r'\.card-grid \.card-effect-shell\.holo-card:not\(\.holo-card--interactive\)'
+        r' \.holo-card__shine,\s*'
+        r'\.card-grid \.card-effect-shell\.holo-card:not\(\.holo-card--interactive\)'
+        r' \.holo-card__glare\s*\{[^}]*display: none;',
+        card_css,
+    ), '未激活卡片的微光/眩光层不应参与混合与合成'
+
+    # 全部规则都要挂在 `.card-grid` + `:not(.holo-card--interactive)` 上：
+    # 抽卡揭晓卡始终挂真实实例，3D 链必须原样保留。
+    assert not re.search(
+        r'(?m)^\.card-effect-shell\.holo-card:not\(', card_css
+    ), '未激活即扁平化的规则不能脱离 .card-grid 作用域'
+    holo_css = read_project_file('static/lib/cards-css/holo-cards.css')
+    assert re.search(
+        r'\.holo-card--interactive \.holo-card__translater,\s*'
+        r'\.holo-card--interactive \.holo-card__rotator \{\s*will-change: transform;',
+        holo_css,
+    ), '激活态的 3D 层需要保留 cards-css 的 will-change 契约'
