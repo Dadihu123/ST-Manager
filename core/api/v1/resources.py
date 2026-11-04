@@ -319,14 +319,14 @@ def serve_thumbnail(filename):
             original_mtime = os.path.getmtime(original_path)
             thumb_mtime = os.path.getmtime(thumb_path)
             if thumb_mtime >= original_mtime:
-                return send_from_directory(THUMB_FOLDER, thumb_hash_name)
+                return send_from_directory(THUMB_FOLDER, thumb_hash_name, mimetype='image/webp')
 
         # 3. 生成缩略图 (限制并发)
         # 如果获取不到信号量（当前满载），阻塞等待
         with ctx.thumb_semaphore:
             # 再次检查（防止排队期间被别的线程生成了）
             if os.path.exists(thumb_path) and os.path.getmtime(thumb_path) >= os.path.getmtime(original_path):
-                return send_from_directory(THUMB_FOLDER, thumb_hash_name)
+                return send_from_directory(THUMB_FOLDER, thumb_hash_name, mimetype='image/webp')
 
             with Image.open(original_path) as img:
                 # 优化：使用 draft 模式加速加载
@@ -349,7 +349,7 @@ def serve_thumbnail(filename):
                 # 优化：生成 WebP，质量 75
                 img.save(thumb_path, 'WEBP', quality=75, method=3)
 
-        return send_from_directory(THUMB_FOLDER, thumb_hash_name)
+        return send_from_directory(THUMB_FOLDER, thumb_hash_name, mimetype='image/webp')
 
     except Exception as e:
         logger.error(f"Thumbnail generation failed for {filename}: {e}")
