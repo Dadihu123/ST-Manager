@@ -1439,7 +1439,8 @@ export function initState() {
       const userSetting = parseInt(this.settingsForm.items_per_page) || 0;
 
       if (userSetting > 0) {
-        this.itemsPerPage = Math.min(Math.max(userSetting, 10), 500);
+        // 上限放宽到 2000：大库一次翻页就能看更多，配合分页条的页码输入与滑条使用
+        this.itemsPerPage = Math.min(Math.max(userSetting, 1), 2000);
       } else {
         const availableWidth = window.innerWidth - 300 - 48; // Sidebar + Padding
         const availableHeight = window.innerHeight - 64 - 60; // Header + Footer

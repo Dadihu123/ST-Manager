@@ -63,6 +63,9 @@ export default function cardGrid() {
     currentPage: 1,
     totalItems: 0,
     totalPages: 1,
+    // 分页跳转：页码输入框与翻页滑条的显示值
+    pageInputValue: "1",
+    pageSliderValue: 1,
     highlightId: null,
     windowRange: {
       startIndex: 0,
@@ -1423,6 +1426,7 @@ export default function cardGrid() {
             this.totalItems = nextTotalItems;
             this.totalPages = nextTotalPages;
             this.currentPage = nextTotalPages;
+            this.syncPageControls();
             window.dispatchEvent(
               new CustomEvent("card-page-changed", { detail: { page: nextTotalPages } }),
             );
@@ -1464,6 +1468,7 @@ export default function cardGrid() {
           // 更新分页
           this.totalItems = nextTotalItems;
           this.totalPages = nextTotalPages;
+          this.syncPageControls();
 
           store.isLoading = false;
           this.$nextTick(() => {
@@ -1500,6 +1505,7 @@ export default function cardGrid() {
     changePage(p) {
       if (p >= 1 && p <= this.totalPages) {
         this.currentPage = p;
+        this.syncPageControls();
         const el = document.getElementById("main-scroll");
         if (el) el.scrollTop = 0;
         // 派发分页变化事件，通知 header 更新全选状态
@@ -1508,6 +1514,77 @@ export default function cardGrid() {
         );
         this.fetchCards();
       }
+    },
+
+    // 把当前页同步回页码框与滑条（翻页、筛选、请求返回后都会调用）
+    syncPageControls() {
+      const page = Math.max(1, Math.round(Number(this.currentPage) || 1));
+      this.pageSliderValue = page;
+      this.pageInputValue = String(page);
+    },
+
+    // 手输页码后回车/失焦跳转；越界自动钳到 1..totalPages
+    jumpToPageInput() {
+      const parsed = parseInt(this.pageInputValue, 10);
+      if (!Number.isFinite(parsed)) {
+        this.syncPageControls();
+        return;
+      }
+      const maxPage = Math.max(1, this.totalPages);
+      const target = Math.min(Math.max(parsed, 1), maxPage);
+      if (target === this.currentPage) {
+        this.syncPageControls();
+        return;
+      }
+      this.changePage(target);
+    },
+
+    // 拖动滑条时只更新读数（页码框跟着变），不发请求
+    onPageSliderInput(event) {
+      const value = Math.round(
+        Number(event && event.target ? event.target.value : 0),
+      );
+      if (!Number.isFinite(value)) return;
+      this.pageSliderValue = value;
+      this.pageInputValue = String(value);
+    },
+
+    // 松开滑条才真正跳页
+    onPageSliderCommit() {
+      const target = Math.round(Number(this.pageSliderValue));
+      if (!Number.isFinite(target) || target === this.currentPage) {
+        this.syncPageControls();
+        return;
+      }
+      this.changePage(target);
+    },
+
+    // 每页数量：0 或非法值 = 自动；其余夹在 1..2000
+    setCardsPerPage(rawValue) {
+      const store = Alpine.store("global");
+      const parsed = parseInt(rawValue, 10);
+      let next;
+      if (!Number.isFinite(parsed) || parsed <= 0) {
+        next = 0;
+      } else {
+        next = Math.min(Math.max(parsed, 1), 2000);
+      }
+
+      try {
+        localStorage.setItem("st_manager_per_page", String(next));
+      } catch (e) {
+        /* 隐私模式下 localStorage 可能不可写，忽略 */
+      }
+
+      if (store.settingsForm) {
+        store.settingsForm.items_per_page = next;
+      }
+      // updateItemsPerPage 会写 store.itemsPerPage，其 watcher 负责回到第 1 页并重新拉数据
+      if (typeof store.updateItemsPerPage === "function") {
+        store.updateItemsPerPage();
+      }
+      this.currentPage = 1;
+      this.syncPageControls();
     },
 
     // === 交互逻辑 ===

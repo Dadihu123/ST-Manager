@@ -480,6 +480,16 @@
     <div class="card-pagination-controls card-pagination-page-cluster">
       <button
         type="button"
+        @click="changePage(1)"
+        :disabled="currentPage===1"
+        aria-label="第一页"
+        title="第一页"
+        class="btn-secondary card-page-nav-btn card-page-edge-btn"
+      >
+        &laquo;
+      </button>
+      <button
+        type="button"
         @click="changePage(currentPage-1)"
         :disabled="currentPage===1"
         aria-label="上一页"
@@ -488,9 +498,26 @@
       >
         {{ icon('chevron-right', 'ui-icon--sm rotate-180') }}
       </button>
+      <label class="card-page-jump" title="输入页码后按回车跳转">
+        <span>第</span>
+        <input
+          type="number"
+          class="form-input card-page-jump-input"
+          x-model="pageInputValue"
+          min="1"
+          :max="totalPages"
+          step="1"
+          inputmode="numeric"
+          @keydown.enter.prevent="jumpToPageInput()"
+          @blur="jumpToPageInput()"
+          :aria-label="'跳到第几页，共 ' + totalPages + ' 页'"
+        >
+        <span>/ <span x-text="totalPages"></span> 页</span>
+      </label>
       <span
-        class="card-pagination-page-indicator"
-        x-text="currentPage + '/' + totalPages"
+        class="card-pagination-page-indicator sr-only"
+        aria-live="polite"
+        x-text="'第 ' + currentPage + ' 页，共 ' + totalPages + ' 页'"
       ></span>
       <button
         type="button"
@@ -502,6 +529,56 @@
       >
         {{ icon('chevron-right', 'ui-icon--sm') }}
       </button>
+      <button
+        type="button"
+        @click="changePage(totalPages)"
+        :disabled="currentPage===totalPages"
+        aria-label="最后一页"
+        title="最后一页"
+        class="btn-secondary card-page-nav-btn card-page-edge-btn"
+      >
+        &raquo;
+      </button>
+    </div>
+
+    <div class="card-page-size" title="每页显示多少张卡片（1–2000）">
+      <span>每页</span>
+      <input
+        type="number"
+        class="form-input card-page-size-input"
+        :value="$store.global.itemsPerPage"
+        min="1"
+        max="2000"
+        step="1"
+        inputmode="numeric"
+        @keydown.enter.prevent="$event.target.blur()"
+        @blur="setCardsPerPage($event.target.value)"
+        aria-label="每页显示多少张卡片"
+      >
+      <span>张</span>
+      <button
+        type="button"
+        class="card-page-size-double"
+        @click="setCardsPerPage(($store.global.itemsPerPage || 20) * 2)"
+        title="每页数量翻倍"
+        aria-label="每页数量翻倍"
+      >
+        &times;2
+      </button>
+    </div>
+
+    <div class="card-pagination-scrubber" x-show="totalPages > 1">
+      <input
+        type="range"
+        class="card-page-scrubber"
+        min="1"
+        :max="totalPages"
+        step="1"
+        :value="pageSliderValue"
+        @input="onPageSliderInput($event)"
+        @change="onPageSliderCommit()"
+        :aria-label="'翻页滑条，共 ' + totalPages + ' 页'"
+      >
     </div>
   </div>
 </div>
