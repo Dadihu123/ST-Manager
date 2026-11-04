@@ -420,6 +420,27 @@ Beautify API 的根路径为 `/api/beautify`。文件上传使用 `multipart/for
 
 同步前会执行路径重叠检查；如果管理器目录和 ST 核心目录混用，接口会返回风险评估并拒绝受影响的同步动作，除非用户明确确认。
 
+## 酒馆待定桥接（st_bridge）
+
+与上一节的「同步」方向相反：`st_bridge` 让 **SillyTavern 反过来浏览 ST-Manager 的卡库**，把选中的卡复制进 ST 的角色目录使用。库里的原卡始终只读，只有显式「提交」才写回。
+
+根路径 `/api/st_bridge`。接口只面向本机：CORS 仅对 `127.0.0.1` / `localhost` 来源放行，其它来源不下发跨域头。
+
+| 方法 | 路径 | 作用 | 请求要点 |
+| --- | --- | --- | --- |
+| `GET` | `/api/st_bridge/status` | 待定清单概览 | query `verify=1` 逐张比对原卡哈希（慢，按需用） |
+| `GET` | `/api/st_bridge/public_tree` | 库目录树 + 每个文件夹的卡片数 | 无 |
+| `POST` | `/api/st_bridge/checkout` | 把库卡复制进 ST 角色目录并登记 | JSON `card_id`（相对 `cards_dir`） |
+| `POST` | `/api/st_bridge/commit` | 把待定副本写回原卡（先备份、先查冲突） | JSON `staged_name`，可选 `force` |
+| `POST` | `/api/st_bridge/discard` | 丢弃待定副本（原卡不动） | JSON `staged_name` |
+
+约定：
+
+- 装载把文件复制到 `st_data_dir/<st_user_handle>/characters`；同名文件自动加 `__1` 后缀，同一张卡重复装载会复用已有副本。
+- `commit` 之前会比对「装载时记录的源文件哈希」。原卡在装载后被改过则返回 `409` 且带 `conflict: true`；确认要覆盖时带 `force: true`。写回前的旧版本备份在 `data/system/backups/st_bridge/`。
+- 待定清单落在 `data/system/db/st_bridge.json`，只记录 `staged_name` / `source_id` / `source_hash`，不复制卡片内容。
+- 角色目录允许位于库目录内部（例如用目录联结把库的某个子目录当作 ST 的角色目录）；桥接只往角色目录写，并且只在登记项存在时才删文件，不会碰库里未登记的卡。
+
 ## 插件系统
 
 插件接口位于 `/api/plugins`，没有单独的版本前缀。插件清单、校验规则与前端 API 参考见 [plugin-api.md](plugin-api.md)，迁移到 v3 契约的说明见 [plugin-migration-v2-to-v3.md](plugin-migration-v2-to-v3.md)。
