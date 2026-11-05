@@ -1332,6 +1332,22 @@ export default function cardGrid() {
       return `height:${this.windowRange.bottomPadding}px`;
     },
 
+    // 滑条已走过的百分比，供 CSS 渐变填充使用（与预设编辑器的滑条观感一致）
+    get pageScrubberPercent() {
+      const total = Math.max(1, Number(this.totalPages) || 1);
+      const page = Math.min(
+        total,
+        Math.max(1, Math.round(Number(this.pageSliderValue) || 1)),
+      );
+      if (total <= 1) return 0;
+      return Math.round(((page - 1) / (total - 1)) * 10000) / 100;
+    },
+
+    // 设置里可关闭翻页滑条；未设置过的老配置视为开启
+    get showPageScrubber() {
+      return this.$store.global.settingsForm.show_pagination_scrubber !== false;
+    },
+
     syncCardWindowRange() {
       const host = document.getElementById("main-scroll");
       if (!host) return;

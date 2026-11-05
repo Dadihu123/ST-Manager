@@ -2767,70 +2767,98 @@ html.light-mode .card-effect-shell .card-toolbar-layout-spacer {
   background: var(--state-hover-surface, rgba(255, 255, 255, 0.06));
 }
 
-/* 全宽换页滑条：横跨整个页面底部 */
+/* 全宽换页滑条：横跨整个页面底部。
+   观感对齐「预设阅览 → 编辑工作台」的生成参数滑条：
+   轨道本身就是一条渐变进度条，滑块是带描边的圆形。 */
 .card-pagination-scrubber {
   display: flex;
   align-items: center;
   flex: 1 1 100%;
   order: 10;
   width: 100%;
-  padding-top: 0.1rem;
+  padding-top: 0.15rem;
 }
 
-.card-page-scrubber {
+/* 注意：components.css 里的 `input[type="range"] { background: transparent }`
+   特异性是 (0,1,1)，高于单个类选择器 (0,1,0)，会把这里的渐变背景吃掉。
+   因此统一用 `.card-pagination-scrubber .card-page-scrubber`（0,2,0）压过它，
+   与预设编辑器 `.preset-editor-workbench .preset-editor-range` 的写法一致。 */
+.card-pagination-scrubber .card-page-scrubber {
   -webkit-appearance: none;
   appearance: none;
   width: 100%;
-  height: 1.15rem;
+  height: 1.1rem;
   margin: 0;
-  background: transparent;
-  cursor: pointer;
-  accent-color: var(--accent-action);
-}
-
-.card-page-scrubber::-webkit-slider-runnable-track {
-  height: 0.3rem;
+  /* 轨道用渐变绘制：已走过部分填强调色，剩余部分填容器色 */
   border-radius: 999px;
-  background: color-mix(in srgb, var(--content-primary), transparent 82%);
+  background: linear-gradient(
+    to right,
+    var(--accent-action) 0 var(--card-scrubber-progress, 0%),
+    color-mix(in srgb, var(--content-primary), transparent 86%)
+      var(--card-scrubber-progress, 0%) 100%
+  );
+  cursor: pointer;
 }
 
-.card-page-scrubber::-webkit-slider-thumb {
+.card-pagination-scrubber .card-page-scrubber::-webkit-slider-runnable-track {
+  height: 1.1rem;
+  border-radius: 999px;
+  background: transparent;
+}
+
+.card-pagination-scrubber .card-page-scrubber::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
   width: 1rem;
   height: 1rem;
-  margin-top: -0.35rem;
+  margin-top: 0.05rem;
   border-radius: 50%;
-  border: 2px solid var(--surface-container, #1b1b1f);
+  border: 2px solid var(--surface-page, #1b1b1f);
   background: var(--accent-action);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 0 0 1px var(--accent-action);
   transition: transform 0.12s ease;
 }
 
-.card-page-scrubber:active::-webkit-slider-thumb {
-  transform: scale(1.15);
+.card-pagination-scrubber .card-page-scrubber:hover::-webkit-slider-thumb {
+  transform: scale(1.08);
 }
 
-.card-page-scrubber::-moz-range-track {
-  height: 0.3rem;
+.card-pagination-scrubber .card-page-scrubber:active::-webkit-slider-thumb {
+  transform: scale(1.18);
+}
+
+.card-pagination-scrubber .card-page-scrubber:focus-visible {
+  outline: 2px solid var(--accent-action);
+  outline-offset: 4px;
+}
+
+.card-pagination-scrubber .card-page-scrubber::-moz-range-track {
+  height: 1.1rem;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--content-primary), transparent 82%);
+  background: transparent;
 }
 
-.card-page-scrubber::-moz-range-thumb {
+.card-pagination-scrubber .card-page-scrubber::-moz-range-thumb {
   width: 1rem;
   height: 1rem;
-  border: 2px solid var(--surface-container, #1b1b1f);
+  border: 2px solid var(--surface-page, #1b1b1f);
   border-radius: 50%;
   background: var(--accent-action);
+  box-shadow: 0 0 0 1px var(--accent-action);
 }
 
-/* 手机：保留两行结构（控件行 + 滑条行），去掉不常用的大跨度控件 */
+/* 手机：底部翻页栏必须保持单行。
+   滑条在移动端恒不显示；空间不够时依次去掉首尾页与每页数量，
+   只保留「上一页 / 页码输入 / 下一页」。 */
 @media (max-width: 768px) {
   .card-pagination-bar {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0.25rem;
+    /* 覆盖上文 1841 行的 row/nowrap，这里显式锁定单行且不换行 */
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.3rem;
     padding-left: 0.6rem;
     padding-right: 0.6rem;
   }
@@ -2839,8 +2867,15 @@ html.light-mode .card-effect-shell .card-toolbar-layout-spacer {
     justify-content: flex-end;
     gap: 0.2rem;
     flex-wrap: nowrap;
+    min-width: 0;
   }
 
+  /* 移动端不显示滑条（无论设置里是否开启） */
+  .card-pagination-scrubber {
+    display: none !important;
+  }
+
+  /* 精简掉大跨度控件，保证单行放得下 */
   .card-page-edge-btn {
     display: none;
   }
@@ -2850,16 +2885,34 @@ html.light-mode .card-effect-shell .card-toolbar-layout-spacer {
   }
 
   .card-page-jump-input {
-    width: 3.1rem;
-    min-width: 2.6rem;
-    padding: 0.15rem 0.25rem;
+    width: 2.9rem;
+    min-width: 2.4rem;
+    padding: 0.15rem 0.2rem;
   }
 
-  .card-pagination-scrubber {
-    padding-top: 0;
+  .card-page-jump > span:last-child {
+    /* “/ N 页”在窄屏可省略，页码输入本身已带 aria-label */
+    display: none;
+  }
+}
+
+/* 超窄屏：进一步收紧，仍保持单行 */
+@media (max-width: 420px) {
+  .card-page-jump {
+    gap: 0.15rem;
   }
 
-  .card-page-scrubber {
-    height: 1rem;
+  .card-page-jump > span:first-child {
+    display: none;
+  }
+
+  .card-page-jump-input {
+    width: 2.4rem;
+    min-width: 2.1rem;
+  }
+
+  .card-page-nav-btn {
+    min-width: 2.2rem;
+    padding: 0.2rem 0.3rem !important;
   }
 }

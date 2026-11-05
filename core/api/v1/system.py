@@ -419,6 +419,8 @@ def api_get_settings():
         cfg['default_sort'] = 'date_desc'
     if 'show_header_sort' not in cfg:
         cfg['show_header_sort'] = True
+    if 'show_pagination_scrubber' not in cfg:
+        cfg['show_pagination_scrubber'] = True
 
     shared_wallpaper_library = get_shared_wallpaper_service().migrate_legacy_backgrounds({
         'bg_url': cfg.get('bg_url', ''),

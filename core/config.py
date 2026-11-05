@@ -56,6 +56,9 @@ DEFAULT_CONFIG = {
     "beautify_dir": "data/library/beautify",
     "default_sort": "date_desc",
     "show_header_sort": True,
+    # 底部翻页滑条：部分用户觉得多余，允许在设置里关闭。
+    # 移动端无论此项如何都不会显示滑条（见 view-cards.css 的移动端断点）。
+    "show_pagination_scrubber": True,
     "theme_accent": "blue",
     "host": "127.0.0.1",
     "port": 5000,
@@ -265,6 +268,22 @@ def _normalize_st_credentials(cfg):
     return normalized
 
 
+def _normalize_flag(value, default=True):
+    """把配置里的布尔开关归一化；手改 config.json 写成字符串也不至于反向生效。"""
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return default
+    if isinstance(value, (int, float)):
+        return bool(value)
+    text = str(value).strip().lower()
+    if text in ('1', 'true', 'yes', 'on'):
+        return True
+    if text in ('0', 'false', 'no', 'off', ''):
+        return False
+    return default
+
+
 def normalize_config(cfg=None):
     normalized = _normalize_st_credentials({**DEFAULT_CONFIG, **(cfg or {})})
     normalized['st_target'] = _normalize_st_target(normalized.get('st_target'))
@@ -274,6 +293,9 @@ def normalize_config(cfg=None):
     )
     normalized['tt_data_dir'] = str(normalized.get('tt_data_dir') or '').strip()
     normalized['tt_api_url'] = str(normalized.get('tt_api_url') or '').strip()
+    normalized['show_pagination_scrubber'] = _normalize_flag(
+        normalized.get('show_pagination_scrubber'), True
+    )
     for key in REMOVED_CONFIG_KEYS:
         normalized.pop(key, None)
     return normalized

@@ -567,7 +567,11 @@
       </button>
     </div>
 
-    <div class="card-pagination-scrubber" x-show="totalPages > 1">
+    <!-- 翻页滑条：可在「设置 → 布局与列表」关闭；移动端恒不显示 -->
+    <div
+      class="card-pagination-scrubber"
+      x-show="totalPages > 1 && showPageScrubber"
+    >
       <input
         type="range"
         class="card-page-scrubber"
@@ -575,6 +579,7 @@
         :max="totalPages"
         step="1"
         :value="pageSliderValue"
+        :style="'--card-scrubber-progress: ' + pageScrubberPercent + '%'"
         @input="onPageSliderInput($event)"
         @change="onPageSliderCommit()"
         :aria-label="'翻页滑条，共 ' + totalPages + ' 页'"

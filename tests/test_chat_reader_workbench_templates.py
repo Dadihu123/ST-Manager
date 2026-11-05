@@ -3567,7 +3567,10 @@ def test_card_pagination_template_uses_mobile_short_labels_and_hides_flip_count(
     cards_template = read_project_file('templates/components/grid_cards.html')
     compact_cards_template = re.sub(r'\s+', ' ', cards_template)
 
-    assert 'class="card-pagination-page-indicator"' in cards_template
+    # 页码指示器自 #29 起改为仅屏幕阅读器可见（sr-only + aria-live），
+    # 可见的页码由 .card-page-jump 输入框承担。
+    assert 'card-pagination-page-indicator sr-only' in cards_template
+    assert 'aria-live="polite"' in cards_template
     assert 'class="btn-secondary card-page-nav-btn"' in cards_template
     assert "x-show=\"$store.global.deviceType === 'mobile' && !bulkBackMode\"" in compact_cards_template
     assert "x-show=\"$store.global.deviceType === 'mobile' && bulkBackMode\"" in compact_cards_template

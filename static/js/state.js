@@ -725,6 +725,7 @@ export function initState() {
       resources_dir: "data/assets/card_assets",
       default_sort: "date_desc",
       show_header_sort: true,
+      show_pagination_scrubber: true,
       st_url: "http://127.0.0.1:8000",
       st_target: "sillytavern",
       st_data_dir: "",
@@ -943,6 +944,8 @@ export function initState() {
             allowed_abs_resource_roots: normalizedRoots,
             default_sort: settings.default_sort || "date_desc",
             show_header_sort: settings.show_header_sort !== false,
+            show_pagination_scrubber:
+              settings.show_pagination_scrubber !== false,
             st_target:
               String(settings.st_target || "sillytavern").toLowerCase() ===
               "tauritavern"

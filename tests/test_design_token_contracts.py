@@ -122,6 +122,8 @@ def test_no_undefined_css_variable_references():
         '--rarity-color',
         '--rarity-gradient',
         '--preset-editor-range-progress',
+        # cardGrid.js 的 pageScrubberPercent 按当前页写入的滑条进度
+        '--card-scrubber-progress',
         '--beautify-active-shadow',
         # state.js 的 buildTagColorStyle() 逐次注入明/暗两套标签颜色
         '--tag-cat-color',

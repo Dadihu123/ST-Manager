@@ -36,6 +36,7 @@ const DEFAULT_SETTINGS = {
   resources_dir: "data/assets/card_assets",
   default_sort: "date_desc",
   show_header_sort: true,
+  show_pagination_scrubber: true,
   theme_accent: "blue",
   st_target: "sillytavern",
   host: "127.0.0.1",
