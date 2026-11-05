@@ -2709,3 +2709,157 @@ html.light-mode .card-effect-shell .card-toolbar-layout-spacer {
     transition: none !important;
   }
 }
+
+/* === 分页跳转：页码输入 + 每页数量 + 全宽换页滑条 === */
+
+/* 滑条独占一行，所以分页条要允许换行 */
+.card-pagination-bar {
+  flex-wrap: wrap;
+  row-gap: 0.15rem;
+}
+
+.card-page-jump,
+.card-page-size {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.8125rem;
+  color: var(--content-muted);
+  white-space: nowrap;
+}
+
+.card-page-jump-input,
+.card-page-size-input {
+  width: 4.25rem;
+  min-width: 3.25rem;
+  padding: 0.2rem 0.35rem;
+  text-align: center;
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+  -moz-appearance: textfield;
+}
+
+.card-page-jump-input::-webkit-outer-spin-button,
+.card-page-jump-input::-webkit-inner-spin-button,
+.card-page-size-input::-webkit-outer-spin-button,
+.card-page-size-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.card-page-edge-btn,
+.card-page-size-double {
+  font-size: 0.8125rem;
+  line-height: 1;
+  padding: 0.3rem 0.45rem;
+}
+
+.card-page-size-double {
+  border-radius: 0.375rem;
+  border: 1px solid var(--border-subtle);
+  background: transparent;
+  color: var(--content-muted);
+  cursor: pointer;
+}
+
+.card-page-size-double:hover {
+  color: var(--content-primary);
+  background: var(--state-hover-surface, rgba(255, 255, 255, 0.06));
+}
+
+/* 全宽换页滑条：横跨整个页面底部 */
+.card-pagination-scrubber {
+  display: flex;
+  align-items: center;
+  flex: 1 1 100%;
+  order: 10;
+  width: 100%;
+  padding-top: 0.1rem;
+}
+
+.card-page-scrubber {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 1.15rem;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+  accent-color: var(--accent-action);
+}
+
+.card-page-scrubber::-webkit-slider-runnable-track {
+  height: 0.3rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--content-primary), transparent 82%);
+}
+
+.card-page-scrubber::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 1rem;
+  height: 1rem;
+  margin-top: -0.35rem;
+  border-radius: 50%;
+  border: 2px solid var(--surface-container, #1b1b1f);
+  background: var(--accent-action);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+  transition: transform 0.12s ease;
+}
+
+.card-page-scrubber:active::-webkit-slider-thumb {
+  transform: scale(1.15);
+}
+
+.card-page-scrubber::-moz-range-track {
+  height: 0.3rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--content-primary), transparent 82%);
+}
+
+.card-page-scrubber::-moz-range-thumb {
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid var(--surface-container, #1b1b1f);
+  border-radius: 50%;
+  background: var(--accent-action);
+}
+
+/* 手机：保留两行结构（控件行 + 滑条行），去掉不常用的大跨度控件 */
+@media (max-width: 768px) {
+  .card-pagination-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.25rem;
+    padding-left: 0.6rem;
+    padding-right: 0.6rem;
+  }
+
+  .card-pagination-page-cluster {
+    justify-content: flex-end;
+    gap: 0.2rem;
+    flex-wrap: nowrap;
+  }
+
+  .card-page-edge-btn {
+    display: none;
+  }
+
+  .card-page-size {
+    display: none;
+  }
+
+  .card-page-jump-input {
+    width: 3.1rem;
+    min-width: 2.6rem;
+    padding: 0.15rem 0.25rem;
+  }
+
+  .card-pagination-scrubber {
+    padding-top: 0;
+  }
+
+  .card-page-scrubber {
+    height: 1rem;
+  }
+}
