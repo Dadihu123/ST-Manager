@@ -6,6 +6,7 @@
 
 import json
 import os
+import re
 import sys
 import time
 
@@ -119,9 +120,17 @@ def test_bundled_catalog_lists_official_ai_assistant():
     assert entry['source']['type'] == 'github'
     # source.repo 必须是 owner/repo（防 SSRF，catalog 不接受任意 URL）
     assert catalog_module.REPO_PATTERN.match(entry['source']['repo'])
-    # 发布后钉 tag + sha256：安装拿到的必须是显式发布过的归档，而不是分支最新代码
-    assert entry['source']['ref'] == 'v0.3.0'
+    # 发布后钉 tag + sha256：安装拿到的必须是显式发布过的归档，而不是分支最新代码。
+    # 不写死具体版本号（每次发版都要改，反而容易漏）；断言的是**一致性**：
+    # ref 必须是 vX.Y.Z 形式的 tag，且与条目 version 对齐——两者错位时，
+    # 「检查更新」会报有新版本、真正安装却按旧 ref 拉到旧代码。
+    ref = entry['source']['ref']
+    assert catalog_module.TAG_PATTERN.match(ref), f'ref 必须是发布 tag: {ref!r}'
+    assert ref.lstrip('v') == entry['version'], (
+        f'source.ref ({ref}) 必须与条目 version ({entry["version"]}) 对齐'
+    )
     assert len(entry['source']['sha256']) == 64
+    assert re.fullmatch(r'[0-9a-f]{64}', entry['source']['sha256']), 'sha256 必须是小写十六进制'
     assert entry['api_version'] == 3
     # 能力披露取代 v2 的 permissions：官方 AI 助手的能力位与旧权限一一对应
     assert entry['capabilities'] == [
