@@ -202,9 +202,14 @@ FRONTEND_MEMBERS = [
      '`reviewBatch(runId, updates)` 逐条审批并返回 `{total, failed}`'
      '（单条失败不影响其余条目）'),
     (('worldbook',), '`worldbook.sources(options)`', 'Stable',
-     '列出世界书来源（文件级）：`{source_type, file_path, card_id, category, name, '
-     'entry_count}`。数据取自世界书视图的列表缓存（`store.wiList`），因此**只覆盖'
-     '当前已加载的条目**；需要全量时用 `api.index.search("", {scope: "worldinfo"})`。'
+     '列出世界书来源（文件级）：`{id, source_type, file_path, card_id, category, '
+     'name, entry_count}`。`id` 是世界书列表项 id（`global::<相对路径>` / '
+     '`resource::<key>::<文件名>` / `embedded::<card_id>`），与 '
+     '`api.host.selection()` 的选中集**同源**——判断「选中的是哪几本书」必须用它，'
+     '不要拿 `source_type` + `file_path` 自己拼。`file_path` 是**绝对**路径'
+     '（`embedded` 为空串），可直接交给后端 `api.worldbook.read/write`。'
+     '默认数据取自世界书视图的列表缓存（`store.wiList`），因此**只覆盖当前已加载的'
+     '条目**；需要全量时传 `{all: true}`，返回 `Promise<{items, total, truncated}>`。'
      '`options.category` 按路径段过滤（含子分类），`options.sourceType` 取 '
      '`global` / `resource` / `embedded`。注意这是**前端**同名命名空间，'
      '与后端 `api.worldbook.*`（Python 侧读写域）不是同一个对象'),

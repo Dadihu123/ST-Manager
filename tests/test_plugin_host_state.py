@@ -660,13 +660,13 @@ def test_worldbook_sources_filters_by_category_and_source_type():
         import { PluginHost } from './static/js/pluginHost.js';
 
         __setStore({ wiList: [
-          { source_type: 'global', path: '/wi/a.json', display_category: '科幻',
+          { id: 'global::a.json', source_type: 'global', path: '/wi/a.json', display_category: '科幻',
             name: 'A', owner_card_id: '', entry_count: 3 },
-          { source_type: 'global', path: '/wi/b.json', display_category: '科幻/太空',
+          { id: 'global::sub/b.json', source_type: 'global', path: '/wi/sub/b.json', display_category: '科幻/太空',
             name: 'B', owner_card_id: '', entry_count: 5 },
-          { source_type: 'global', path: '/wi/c.json', display_category: '科幻短片',
+          { id: 'global::c.json', source_type: 'global', path: '/wi/c.json', display_category: '科幻短片',
             name: 'C', owner_card_id: '', entry_count: 7 },
-          { source_type: 'embedded', path: '', display_category: '科幻',
+          { id: 'embedded::card-1', source_type: 'embedded', path: '', display_category: '科幻',
             name: 'D', owner_card_id: 'card-1' },
         ] });
 
@@ -676,8 +676,8 @@ def test_worldbook_sources_filters_by_category_and_source_type():
         const all = api.worldbook.sources();
         assert.equal(all.length, 4);
         assert.deepEqual(all[0], {
-          source_type: 'global', file_path: '/wi/a.json', card_id: '',
-          category: '科幻', name: 'A', entry_count: 3,
+          id: 'global::a.json', source_type: 'global', file_path: '/wi/a.json',
+          card_id: '', category: '科幻', name: 'A', entry_count: 3,
         });
         // 缺 entry_count 时归 0，不是 NaN
         assert.equal(all[3].entry_count, 0);
@@ -694,6 +694,66 @@ def test_worldbook_sources_filters_by_category_and_source_type():
         // 空列表时返回空数组
         __setStore({ wiList: [] });
         assert.deepEqual(api.worldbook.sources(), []);
+        """
+    )
+    assert result.returncode == 0, result.stderr or result.stdout
+
+
+@requires_node
+def test_worldbook_sources_id_matches_host_selection():
+    """`sources()` 的 `id` 必须与 `api.host.selection()` 的选中集同源。
+
+    插件判断「选中的是哪几本书」靠的是
+    `sources().filter(b => selectedIds.has(b.id))`。宿主一侧两个来源必须是同一个
+    id：世界书列表项 id（`global::<相对路径>` / `resource::<key>::<文件名>` /
+    `embedded::<card_id>`）。
+
+    回归的是一个真实故障：插件曾用 `source_type` + `file_path`（**绝对**路径）
+    自己拼 id，而选中集存的是列表项 id，于是全局/资源书永远匹配不上，
+    「精简选中的世界书」报「无法识别选中的世界书（宿主接口版本不一致）」。
+    """
+    result = run_dom_script(
+        """
+        import assert from 'node:assert/strict';
+        import { PluginHost } from './static/js/pluginHost.js';
+
+        __setStore({
+          currentMode: 'worldinfo',
+          wiList: [
+            { id: 'global::sub/太空歌剧.json', source_type: 'global',
+              path: '/abs/wi/sub/太空歌剧.json', display_category: 'sub',
+              name: '太空歌剧', owner_card_id: '' },
+            { id: 'resource::cardA::lore.json', source_type: 'resource',
+              path: '/abs/assets/cardA/lorebooks/lore.json', display_category: '',
+              name: 'lore', owner_card_id: 'cardA' },
+            { id: 'embedded::card-uuid-1', source_type: 'embedded',
+              path: '', display_category: '', name: '内嵌书',
+              owner_card_id: 'card-uuid-1' },
+          ],
+          viewState: { selectedIds: [
+            'global::sub/太空歌剧.json',
+            'resource::cardA::lore.json',
+            'embedded::card-uuid-1',
+          ] },
+        });
+
+        const api = PluginHost.buildApi({ id: 'demo-plugin', manifest: {} }, {});
+        const wanted = new Set(api.host.selection().ids);
+        const sources = api.worldbook.sources();
+
+        // 三本书都能被选中集认出来（原 bug 只有 embedded 能通过）
+        assert.equal(sources.length, 3);
+        for (const book of sources) {
+          assert.equal(wanted.has(book.id), true, `${book.source_type} 的 id 对不上选中集: ${book.id}`);
+        }
+        // 子集语义仍然成立：只选一本时只命中一本
+        __setStore({ currentMode: 'worldinfo',
+          viewState: { selectedIds: ['global::sub/太空歌剧.json'] } });
+        const one = new Set(api.host.selection().ids);
+        assert.deepEqual(
+          sources.filter((book) => one.has(book.id)).map((book) => book.name),
+          ['太空歌剧'],
+        );
         """
     )
     assert result.returncode == 0, result.stderr or result.stdout

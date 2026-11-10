@@ -150,11 +150,16 @@ async function listAllWorldbookSources({ category = "", sourceType = "", pageSiz
       if (sourceType && sourceType_ !== sourceType) continue;
       const category_ = String(raw.display_category || raw.physical_category || "");
       if (!isSameOrDescendantCategory(category_, prefix)) continue;
-      const id = String(raw.id || "");
-      const filePath = sourceType_ === "embedded" ? "" : id.split("::").slice(1).join("::");
+      // `id` / `file_path` 必须与缓存路径（`sources()` 默认分支）同形状：
+      // - `id` 是插件与 `api.host.selection()` 求交集的唯一依据；
+      // - `file_path` 必须是**绝对**路径。以前这里从 id 后缀拼出相对路径
+      //   （`global::sub/a.json` → `sub/a.json`），而宿主的
+      //   `_resolve_worldbook_source` 把相对路径按 BASE_DIR 解析，结果落在世界书根目录
+      //   之外，来源解析成空 → 插件读不到任何书。
       items.push({
+        id: String(raw.id || ""),
         source_type: sourceType_,
-        file_path: filePath,
+        file_path: sourceType_ === "embedded" ? "" : String(raw.path || ""),
         card_id: String(raw.card_id || raw.owner_card_id || ""),
         category: category_,
         name: String(raw.name || ""),
@@ -1348,6 +1353,17 @@ export const PluginHost = {
          *
          * `truncated: true` 表示「还有没取到的」——插件必须告知用户，
          * 不能当成完整集合作业。
+         *
+         * 两条路径返回的**每一项字段完全相同**：
+         * `{id, source_type, file_path, card_id, category, name, entry_count}`。
+         * - `id`：宿主世界书列表项 id（`global::<相对路径>` /
+         *   `resource::<key>::<文件名>` / `embedded::<card_id>`），与
+         *   `api.host.selection()` 的选中集**同源**。插件要判断「选中的是哪几本书」，
+         *   只能用它对交集——拿 `source_type` + `file_path` 自己拼是对不上的
+         *   （`file_path` 是绝对路径，id 里带的是相对世界书根的路径）。
+         * - `file_path`：**绝对**路径（`embedded` 为空串）。把 source 原样交给后端
+         *   `api.worldbook.read/write` 时必须给这个形状：相对路径会被按 BASE_DIR
+         *   解析，落到世界书根目录之外，来源解析成空。
          */
         sources({ category = "", sourceType = "", all = false, pageSize = 500 } = {}) {
           if (all) return listAllWorldbookSources({ category, sourceType, pageSize });
@@ -1361,6 +1377,7 @@ export const PluginHost = {
             ))
             .filter((item) => !sourceType || String(item.source_type || item.type) === sourceType)
             .map((item) => ({
+              id: String((item && item.id) || ""),
               source_type: String((item && (item.source_type || item.type)) || "global"),
               file_path: String((item && item.path) || ""),
               card_id: String((item && item.owner_card_id) || ""),
