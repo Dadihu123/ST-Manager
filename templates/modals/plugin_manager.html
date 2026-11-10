@@ -504,17 +504,19 @@
                 type="button"
                 class="plugin-button plugin-button--primary"
                 x-show="catalogAction(entry) === 'update'"
-                :disabled="busyAction === ('update:' + entry.id)"
+                :disabled="busyAction === ('update:' + entry.id) || requiresAppUpdate(entry)"
+                :title="requiresAppUpdate(entry) ? requiresAppUpdateHint(entry) : ''"
                 @click="updateCatalogItem(entry)"
-                x-text="busyAction === ('update:' + entry.id) ? '更新中…' : '更新'"
+                x-text="requiresAppUpdate(entry) ? '需先升级主程序' : (busyAction === ('update:' + entry.id) ? '更新中…' : '更新')"
               ></button>
               <button
                 type="button"
                 class="plugin-button"
                 x-show="catalogAction(entry) === 'install'"
-                :disabled="busyAction === ('install:' + entry.id)"
+                :disabled="busyAction === ('install:' + entry.id) || requiresAppUpdate(entry)"
+                :title="requiresAppUpdate(entry) ? requiresAppUpdateHint(entry) : ''"
                 @click="installCatalogItem(entry)"
-                x-text="busyAction === ('install:' + entry.id) ? '安装中…' : '安装'"
+                x-text="requiresAppUpdate(entry) ? '需先升级主程序' : (busyAction === ('install:' + entry.id) ? '安装中…' : '安装')"
               ></button>
               <span
                 class="plugin-card-installed-tag"
@@ -528,6 +530,11 @@
           </header>
           <p class="plugin-card-description" x-show="entry.description" x-text="entry.description"></p>
           <p class="plugin-card-detail-line" x-text="'来源: ' + (entry.source ? entry.source.repo : '')"></p>
+          <p
+            class="plugin-card-detail-line"
+            x-show="requiresAppUpdate(entry)"
+            x-text="requiresAppUpdateHint(entry)"
+          ></p>
         </article>
       </template>
 
@@ -541,9 +548,10 @@
               <button
                 type="button"
                 class="plugin-button plugin-button--primary"
-                :disabled="busyAction === ('update:' + update.id)"
+                :disabled="busyAction === ('update:' + update.id) || requiresAppUpdate(update)"
+                :title="requiresAppUpdate(update) ? requiresAppUpdateHint(update) : ''"
                 @click="applyUpdate(update)"
-                x-text="busyAction === ('update:' + update.id) ? '更新中…' : '更新'"
+                x-text="requiresAppUpdate(update) ? '需先升级主程序' : (busyAction === ('update:' + update.id) ? '更新中…' : '更新')"
               ></button>
             </li>
           </template>

@@ -19,6 +19,7 @@ from core.config import INTERNAL_DIR, SYSTEM_DIR, load_config
 from core.plugins import registry
 from core.plugins.errors import PluginCatalogError
 from core.plugins.manifest import compare_versions, parse_semver
+from core.version import APP_VERSION
 
 logger = logging.getLogger(__name__)
 
@@ -378,12 +379,15 @@ def _latest_release_version(repo: str) -> str:
     return tag.lstrip('v')
 
 
-def _remote_manifest_version(entry: dict) -> str:
-    """读取远端 `manifest.json` 的版本号。
+def _remote_manifest_payload(entry: dict) -> dict:
+    """读取远端 `manifest.json` 的完整内容（版本 + 主程序门槛）。
 
     这是**权威版本源**：catalog 里的 `version` 字段只是发布方写的快照，
     可能与仓库实际内容不一致（改了 manifest 忘了改 catalog）。因此更新检查
     以远端 manifest 为准，catalog 的 `version` 只用于目录页展示。
+
+    更新检查也不只看版本号：还要知道这版要求的**最低主程序版本**
+    （`min_app_version`），否则旧主程序会先被告知「有更新」、点下去才装不上。
 
     参考 SillyTavern `src/endpoints/extensions.js`：它更进一步，直接读 git
     commit hash（`git rev-parse HEAD` + `git fetch` 比较），因为那里插件就是
@@ -409,11 +413,13 @@ def _remote_manifest_version(entry: dict) -> str:
         payload = response.json()
     except ValueError as exc:
         raise PluginCatalogError(f'远端 manifest 不是 JSON: {exc}') from exc
+    if not isinstance(payload, dict):
+        raise PluginCatalogError('远端 manifest 不是对象')
 
     version = str(payload.get('version') or '').strip()
     if parse_semver(version) is None:
         raise PluginCatalogError(f'远端 manifest 版本号非法: {version!r}')
-    return version
+    return payload
 
 
 def check_updates(*, force: bool = False) -> dict:
@@ -450,20 +456,32 @@ def check_updates(*, force: bool = False) -> dict:
         installed = state.manifest.version
         available = ''
         channel = entry['source'].get('release_channel', 'stable')
+        remote_manifest = None
         try:
             if channel == 'stable':
                 try:
                     available = _latest_release_version(entry['source']['repo'])
                 except PluginCatalogError:
-                    available = _remote_manifest_version(entry)
+                    remote_manifest = _remote_manifest_payload(entry)
+                    available = str(remote_manifest.get('version') or '').strip()
             else:
-                available = _remote_manifest_version(entry)
+                remote_manifest = _remote_manifest_payload(entry)
+                available = str(remote_manifest.get('version') or '').strip()
         except PluginCatalogError as exc:
             errors.append({'id': state.plugin_id, 'msg': str(exc)})
             continue
 
         if parse_semver(available) is None:
             continue
+
+        # 主程序版本门槛：默认用 catalog 的声明（发布时与 ref/sha256 一起更新），
+        # 远端 manifest 里给了就以远端为准——那才是发布方对「这版要哪个主程序」的声明。
+        required_app = str(entry.get('min_app_version') or '').strip()
+        if remote_manifest is not None:
+            remote_required = str(remote_manifest.get('min_app_version') or '').strip()
+            if remote_required:
+                required_app = remote_required
+        requires_app_update = bool(required_app) and compare_versions(APP_VERSION, required_app) < 0
 
         # 无论是否有更新都给出记录，前端才能显示「已是最新 vX.Y.Z」
         item = {
@@ -474,6 +492,9 @@ def check_updates(*, force: bool = False) -> dict:
             'channel': channel,
             'repo': entry['source']['repo'],
             'has_update': compare_versions(available, installed) > 0,
+            # 装不上就别只说「有更新」：前端据此置灰按钮并提示先升级主程序。
+            'min_app_version': required_app,
+            'requires_app_update': requires_app_update,
         }
         if item['has_update']:
             updates.append(item)

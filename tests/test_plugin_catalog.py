@@ -541,6 +541,70 @@ def test_check_updates_marks_has_update_flag(catalog_env, monkeypatch):
     assert update['has_update'] is True
 
 
+def _stub_catalog_entry(monkeypatch, *, min_app_version=''):
+    """把官方目录换成一条带 `min_app_version` 的条目（`check_updates` 只读 `get_catalog`）。"""
+    entry = {
+        'id': 'demo-plugin',
+        'name': '示例插件',
+        'source': {'type': 'github', 'repo': 'owner/demo-plugin', 'ref': 'main'},
+        'version': '0.2.0',
+        'min_app_version': min_app_version,
+    }
+    monkeypatch.setattr(
+        catalog_module,
+        'get_catalog',
+        lambda **kwargs: {
+            'success': True,
+            'items': [entry],
+            'source': 'remote',
+            'offline': False,
+            'updated_at': '',
+            'msg': '',
+        },
+    )
+
+
+def test_check_updates_flags_plugins_needing_a_newer_host(catalog_env, monkeypatch):
+    """要求更高主程序版本的更新必须标出来，前端才能置灰按钮并说明原因。
+
+    不标的话，旧主程序会先看到「发现 1 个可用更新」，点下去才被安装阶段的
+    `min_app_version` 校验拒掉——用户看到的是「更新失败」，像 bug 而不像
+    「前置条件没满足」。
+    """
+    monkeypatch.setattr(registry, 'list_states', lambda: [_installed_state(catalog_env['tmp_path'])])
+    _stub_catalog_entry(monkeypatch, min_app_version='99.0.0')
+
+    def responder(url, kwargs):
+        if 'api.github.com' in url:
+            return _FakeResponse(payload={'tag_name': 'v0.2.0'})
+        return requests.ConnectionError('unexpected')
+
+    _stub_get(monkeypatch, responder)
+
+    update = catalog_module.check_updates(force=True)['updates'][0]
+    assert update['min_app_version'] == '99.0.0'
+    assert update['requires_app_update'] is True
+
+
+def test_check_updates_does_not_flag_satisfied_host_requirement(catalog_env, monkeypatch):
+    """门槛已被当前主程序满足时不能误报，否则更新按钮会被无谓置灰。"""
+    from core.version import APP_VERSION
+
+    monkeypatch.setattr(registry, 'list_states', lambda: [_installed_state(catalog_env['tmp_path'])])
+    _stub_catalog_entry(monkeypatch, min_app_version=APP_VERSION)
+
+    def responder(url, kwargs):
+        if 'api.github.com' in url:
+            return _FakeResponse(payload={'tag_name': 'v0.2.0'})
+        return requests.ConnectionError('unexpected')
+
+    _stub_get(monkeypatch, responder)
+
+    update = catalog_module.check_updates(force=True)['updates'][0]
+    assert update['min_app_version'] == APP_VERSION
+    assert update['requires_app_update'] is False
+
+
 def test_remote_manifest_is_the_authoritative_version_source(catalog_env, monkeypatch):
     """版本以**远端 manifest** 为准，catalog 里的 `version` 只是发布方写的快照。
 

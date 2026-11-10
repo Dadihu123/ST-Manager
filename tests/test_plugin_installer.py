@@ -933,6 +933,50 @@ def test_install_from_catalog_rejects_unsupported_source_type(tmp_path, install_
         })
 
 
+def test_install_from_catalog_rejects_newer_min_app_version_before_download(
+    tmp_path, install_env, monkeypatch,
+):
+    """catalog 声明的最低主程序版本高于当前宿主时，必须在**下载之前**拒绝。
+
+    `install_plugin_dir` 里的 `PluginManifest.load` 也拦得住，但那时归档已经下载、
+    解压完了：旧主程序上「检测到有更新 → 点更新」要白等一整趟 50MB 下载才看到错误。
+    所以在 catalog 声明可信的这一步先挡一次，并把错误做成 manifest 门槛同款
+    （带 `user_msg`，前端能直接展示）。
+    """
+    downloaded = []
+    archive_path = _write_plugin_zip(tmp_path / 'never.zip', {'x': 'y'}, plugin_id='catalog-plugin')
+    _stub_download(archive_path, monkeypatch, downloaded)
+
+    with pytest.raises(PluginManifestError) as excinfo:
+        installer_module.install_from_catalog(None, {
+            'id': 'catalog-plugin',
+            'name': '示例插件',
+            'source': {'type': 'github', 'repo': 'owner/repo', 'ref': 'main'},
+            'min_app_version': '99.0.0',
+        })
+
+    assert excinfo.value.field == 'min_app_version'
+    assert '请先升级主程序' in excinfo.value.user_msg
+    assert downloaded == [], '不应该开始下载归档'
+    assert not (install_env['plugins_root'] / 'catalog-plugin').exists()
+
+
+def test_install_from_catalog_accepts_satisfied_min_app_version(tmp_path, install_env, monkeypatch):
+    """门槛 <= 当前主程序版本时照常安装（默认值不写就不校验）。"""
+    from core.version import APP_VERSION
+
+    archive_path = _write_plugin_zip(tmp_path / 'ok.zip', {'x': 'y'}, plugin_id='catalog-plugin')
+    _stub_download(archive_path, monkeypatch)
+
+    result = installer_module.install_from_catalog(None, {
+        'id': 'catalog-plugin',
+        'source': {'type': 'github', 'repo': 'owner/repo', 'ref': 'main'},
+        'min_app_version': APP_VERSION,
+    })
+
+    assert result['id'] == 'catalog-plugin'
+
+
 def test_install_from_catalog_uses_subdir(tmp_path, install_env, monkeypatch):
     stage = tmp_path / 'stage'
     write_plugin(os.path.join(stage, 'packages', 'pack-a'), 'pack-a')

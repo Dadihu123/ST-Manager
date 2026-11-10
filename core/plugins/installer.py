@@ -31,8 +31,9 @@ from core.plugins.errors import (
     PluginInstallError,
     PluginManifestError,
 )
-from core.plugins.manifest import MANIFEST_FILENAME, PluginManifest
+from core.plugins.manifest import MANIFEST_FILENAME, PluginManifest, compare_versions
 from core.utils.paths import is_under_base
+from core.version import APP_VERSION
 
 logger = logging.getLogger(__name__)
 
@@ -671,6 +672,18 @@ def install_from_catalog(
     effective_ref = validate_ref(ref or source.get('ref') or 'main')
     effective_subdir = validate_subdir(subdir or source.get('subdir') or '')
     expected_id = str(entry.get('id') or '').strip()
+
+    # 主程序版本门槛的**快速失败**：catalog 已声明就不必先下载 50MB 归档、
+    # 解压完再被 `PluginManifest.load` 拒掉。权威校验仍在 install_plugin_dir
+    # （远端 manifest 才是最终事实），这里只是让旧主程序少走一趟来回。
+    required_app = str(entry.get('min_app_version') or '').strip()
+    if required_app and compare_versions(APP_VERSION, required_app) < 0:
+        plugin_label = str(entry.get('name') or expected_id or '').strip() or '该插件'
+        raise PluginManifestError(
+            f'插件要求主程序 >= {required_app}，当前为 {APP_VERSION}（请升级主程序）',
+            field='min_app_version',
+            user_msg=f'插件「{plugin_label}」需要更高版本的主程序，请先升级主程序。',
+        )
 
     # 安装来源（D9）：优先用发布方在 catalog 里声明的 `homepage`（面向用户的项目主页），
     # 没有就由 `owner/repo` 派生仓库页地址。两者都是网页地址，**不是** codeload 的 zip。

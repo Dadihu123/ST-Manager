@@ -832,6 +832,10 @@ export default function pluginManager() {
       if (this.busyAction) return;
       const id = String((update && update.id) || "");
       if (!id) return;
+      if (this.requiresAppUpdate(update)) {
+        toast(this.requiresAppUpdateHint(update), "error");
+        return;
+      }
 
       const from = (update && update.installed) || "?";
       const to = (update && update.available) || "?";
@@ -867,6 +871,10 @@ export default function pluginManager() {
       }
       if (action === "installed") {
         toast(`${item.name || item.id} 已安装 v${item.installed_version || ""}，无需重复安装`);
+        return;
+      }
+      if (this.requiresAppUpdate(item)) {
+        toast(this.requiresAppUpdateHint(item), "error");
         return;
       }
 
@@ -1247,11 +1255,53 @@ export default function pluginManager() {
       return compareVersions(available, installed) > 0 ? "update" : "installed";
     },
 
+    /**
+     * 当前主程序版本（`templates/layout.html` 的 `<meta name="app-version">`）。
+     */
+    appVersion() {
+      const meta = document.querySelector('meta[name="app-version"]');
+      return String((meta && meta.content) || "").trim();
+    },
+
+    /**
+     * 这条更新 / 安装是否要求更高版本的主程序。
+     *
+     * 安装时宿主**会**拒绝（`PluginManifest.load` 校验 `min_app_version`，且在
+     * 移动任何文件之前），但那时归档已经下载、解压完了，用户看到的是一句
+     * 「更新失败」——像 bug，而不像「前置条件没满足」。所以检测阶段就标出来。
+     *
+     * 优先后端算好的 `requires_app_update`（`check_updates` 已比对过 APP_VERSION）；
+     * 目录条目没有该字段时用 `min_app_version` 自己比。
+     */
+    requiresAppUpdate(item) {
+      if (!item) return false;
+      if (typeof item.requires_app_update === "boolean") return item.requires_app_update;
+      const required = String(item.min_app_version || "").trim();
+      if (!required) return false;
+      const current = this.appVersion();
+      if (!current) return false;
+      return compareVersions(required, current) > 0;
+    },
+
+    /** 需要先升级主程序时给用户看的说明。 */
+    requiresAppUpdateHint(item) {
+      const required = String((item && item.min_app_version) || "").trim();
+      const current = this.appVersion();
+      if (required && current) {
+        return `需要主程序 ≥ v${required}，当前 v${current}：请先升级主程序`;
+      }
+      return "需要更高版本的主程序：请先升级主程序";
+    },
+
     /** 目录页的「更新」：与「已安装」页签的 applyUpdate 同一端点与语义。 */
     async updateCatalogItem(entry) {
       if (this.busyAction) return;
       const id = String((entry && entry.id) || "");
       if (!id) return;
+      if (this.requiresAppUpdate(entry)) {
+        toast(this.requiresAppUpdateHint(entry), "error");
+        return;
+      }
 
       const from = (entry && entry.installed_version) || "?";
       const to = (entry && entry.version) || "?";
