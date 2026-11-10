@@ -783,4 +783,132 @@
       后端插件改动需重启 ST-Manager 后生效
     </span>
   </div>
+
+  <!--
+    更新确认弹层（取代原先零内容的 window.confirm）。
+    `x-teleport="body"`：面板嵌在设置弹窗里，留在原地会被 `.ui-modal-shell` 的
+    `overflow: hidden` 裁掉。层级走 `.z-modal-popover`（3400）：设置弹窗自身是
+    `--z-modal-std`（1100），必须盖住它。
+
+    正文渲染**只能**走 `updateShadowContent()`：`release_notes` 是插件作者写的
+    外部内容，`updateShadowContent` 内部有 `looksLikeTrustedHtml` 直插分支，
+    所以 `updateConfirmNotes()` 先在 `pluginReleaseNotes.js` 里净化过。
+  -->
+  <template x-teleport="body">
+    <div
+      x-show="updateConfirm"
+      x-cloak
+      class="modal-overlay ui-modal-overlay ui-refresh-surface z-modal-popover plugin-update-overlay"
+      role="presentation"
+      @click.self="cancelUpdateConfirm()"
+    >
+      <!-- ESC 只在弹层内部生效（`.stop`）：设置弹窗自身在 window 上监听
+           Escape 并会直接关闭，弹层必须先把这键拦下来，否则关掉的是设置面板。 -->
+      <section
+        id="plugin-update-dialog"
+        class="modal-container ui-modal-shell plugin-update-dialog"
+        tabindex="-1"
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="plugin-update-dialog-title"
+        aria-describedby="plugin-update-dialog-intro"
+        x-effect="focusUpdateConfirm($el, Boolean(updateConfirm))"
+        @click.stop
+        @keydown.escape.stop="cancelUpdateConfirm()"
+      >
+        <header class="ui-modal-header ui-modal-header--compact">
+          <div class="ui-modal-header-copy">
+            <span class="ui-modal-header-icon" aria-hidden="true">{{ icon('package', 'ui-icon--md') }}</span>
+            <div>
+              <p class="ui-modal-eyebrow">PLUGIN UPDATE</p>
+              <h3 id="plugin-update-dialog-title" class="ui-modal-title">
+                更新 <span x-text="updateConfirm ? updateConfirm.name : ''"></span>
+              </h3>
+            </div>
+          </div>
+          <button
+            type="button"
+            class="ui-close-button"
+            title="取消更新"
+            aria-label="取消更新"
+            @click="cancelUpdateConfirm()"
+          >
+            {{ icon('close', 'ui-icon--md') }}
+          </button>
+        </header>
+
+        <div class="ui-modal-body plugin-update-body">
+          <!-- 纯文本行（x-text，不走 HTML） -->
+          <div id="plugin-update-dialog-intro" class="plugin-update-intro">
+            <template x-for="line in (updateConfirm ? updateConfirm.introLines : [])" :key="'intro-' + line">
+              <p class="plugin-update-intro-line" x-text="line"></p>
+            </template>
+          </div>
+
+          <div class="plugin-update-notes-header">
+            <span class="plugin-update-notes-title">本次更新内容</span>
+            <span
+              class="plugin-update-source-badge"
+              x-show="updateConfirm && updateConfirm.sourceLabel"
+              x-cloak
+              x-text="updateConfirm ? updateConfirm.sourceLabel : ''"
+            ></span>
+          </div>
+
+          <!-- 有说明：shadow-DOM 渲染（内容已在 JS 侧净化，且先经 marked 转义）。
+               必须传 updateConfirmHtml() 而不是 updateConfirmNotes()：
+               updateShadowContent 会嗅探裸 `<script` 并路由到无 sandbox 的同源
+               iframe，先经 marked 才能保证代码围栏里的 `<script>` 只是惰性文本。 -->
+          <div
+            class="plugin-update-notes"
+            x-show="updateConfirm && updateConfirm.hasNotes"
+            x-effect="updateShadowContent($el, updateConfirm ? updateConfirmHtml() : null, { scroll: true, minHeight: 160, maxHeight: 420 })"
+          ></div>
+
+          <!--
+            无说明兜底：必须区分「查过但确实为空」与「这条路径没去取」。
+            目录页（catalog 入口）不请求 check_updates，条目里也没有
+            release_notes —— 把「我们没查」说成「插件没写」是在凭空断言
+            一个没验证过的事实，用户会以为插件作者偷懒。
+          -->
+          <div
+            class="plugin-update-notes-empty"
+            x-show="updateConfirm && !updateConfirm.hasNotes && updateConfirm.notesFetched"
+            x-cloak
+          >
+            <span aria-hidden="true">{{ icon('info', 'ui-icon--sm') }}</span>
+            <span>这个插件的发布方没有提供更新说明。</span>
+          </div>
+          <div
+            class="plugin-update-notes-empty"
+            x-show="updateConfirm && !updateConfirm.hasNotes && !updateConfirm.notesFetched"
+            x-cloak
+          >
+            <span aria-hidden="true">{{ icon('info', 'ui-icon--sm') }}</span>
+            <span>从目录页更新时不获取更新说明；到「已安装」页签点「检查更新」可以看到本次更新内容。</span>
+          </div>
+
+          <!-- 截断提示 -->
+          <p class="plugin-update-truncated" x-show="updateConfirm && updateConfirm.truncated" x-cloak>
+            <span aria-hidden="true">{{ icon('alert-triangle', 'ui-icon--sm') }}</span>
+            <span>说明较长，已截断显示。</span>
+          </p>
+        </div>
+
+        <footer class="ui-modal-footer plugin-update-footer">
+          <button type="button" class="plugin-button plugin-button--ghost" @click="cancelUpdateConfirm()">
+            取消
+          </button>
+          <button
+            type="button"
+            class="plugin-button plugin-button--primary"
+            :disabled="updateConfirmBusy()"
+            @click="confirmUpdateConfirm()"
+          >
+            <span x-text="updateConfirmBusy() ? '更新中…' : '确认更新'"></span>
+          </button>
+        </footer>
+      </section>
+    </div>
+  </template>
 </div>

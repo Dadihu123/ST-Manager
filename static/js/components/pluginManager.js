@@ -30,6 +30,13 @@ import {
 } from "../api/plugins.js";
 import { icon } from "../uiPrimitives.js";
 import { compareVersions } from "../contributionRegistry.js";
+import { updateShadowContent } from "../utils/dom.js";
+import {
+  dialogIntroLines,
+  renderNotesHtml,
+  sanitizeNotesMarkdown,
+  updateSummary,
+} from "../utils/pluginReleaseNotes.js";
 
 /**
  * 能力位（capability）中文标签（设计 §4.7，v3 用 `capabilities` 取代 `permissions`）。
@@ -127,6 +134,25 @@ function toast(message, type = "info") {
   console.log("[pluginManager]", message);
 }
 
+/**
+ * 打开更新确认弹层前的焦点位置（关闭时还回去）。
+ *
+ * 放在模块级而不是 Alpine 组件对象上：`focusUpdateConfirm()` 由 `x-effect`
+ * 调用，往响应式 state 里写字段会让该 effect 自依赖、多跑一轮。
+ */
+let updateConfirmReturnFocus = null;
+
+function restoreUpdateConfirmFocus() {
+  const previous = updateConfirmReturnFocus;
+  updateConfirmReturnFocus = null;
+  if (!previous || typeof previous.focus !== "function") return;
+  try {
+    previous.focus();
+  } catch (_error) {
+    /* 元素已从 DOM 移除：忽略 */
+  }
+}
+
 export default function pluginManager() {
   return {
     activeTab: "installed",
@@ -139,6 +165,19 @@ export default function pluginManager() {
     catalog: [],
     catalogMeta: { source: "", offline: false, msg: "", updated_at: "" },
     updates: [],
+
+    /**
+     * 更新确认弹层状态：`null` = 关闭，否则是 `updateSummary()` 的结果 +
+     * `mode`（`'installed'` 已安装页签 / `'catalog'` 官方目录）。
+     *
+     * 取代原先零内容的 `window.confirm`：更新的关键信息是「这次改了什么」，
+     * 而 `window.confirm` 既不能渲染 markdown，也没法承载来源 / 截断提示。
+     */
+    updateConfirm: null,
+
+    // shadow-DOM 渲染入口：更新说明正文是外部内容，必须走这条路径而不是
+    // 直接 innerHTML（模板里用 `x-effect="updateShadowContent($el, …)"`）。
+    updateShadowContent,
 
     configTargetId: "",
     configDraft: {},
@@ -826,7 +865,9 @@ export default function pluginManager() {
      *
      * 与 SillyTavern `POST /api/extensions/update` 同语义：那边是 `git pull`，
      * 这边是重新下载归档并原子替换（插件目录没有 `.git`）。
-     * 后端会校验「必须已安装且存在于 catalog」，前端这里只做二次确认。
+     * 后端会校验「必须已安装且存在于 catalog」，前端这里只做二次确认——
+     * 但确认框要带上 `check_updates` 带回的 `release_notes`，否则用户只能
+     * 盲签一个「从 0.3.0 到 0.4.1」。
      */
     async applyUpdate(update) {
       if (this.busyAction) return;
@@ -837,12 +878,114 @@ export default function pluginManager() {
         return;
       }
 
-      const from = (update && update.installed) || "?";
-      const to = (update && update.available) || "?";
-      if (!window.confirm(`把 ${update.name || id} 从 v${from} 更新到 v${to}？\n\n更新后需要重启应用。`)) {
+      this.openUpdateConfirm(update, "installed");
+    },
+
+    // ---------------------------------------------------------------- 更新确认弹层
+
+    /**
+     * 打开更新确认弹层（两个入口共用）。
+     *
+     * `updateSummary()` 内部已做净化：`notes` 是不能直接进 innerHTML 的外部
+     * 内容，模板必须经由 `updateConfirmNotes()` + `updateShadowContent()` 渲染。
+     *
+     * `mode` 同时决定**要不要声称「插件没写说明」**：`catalog` 入口不请求
+     * `check_updates`（目录条目里没有 `release_notes`），所以必须如实说
+     * 「这条路径没去取」，不能把「我们没查」写成「插件没提供」。
+     */
+    openUpdateConfirm(item, mode) {
+      const normalizedMode = mode === "catalog" ? "catalog" : "installed";
+      const summary = updateSummary(item, { origin: normalizedMode });
+      if (!summary.id) return;
+      this.updateConfirm = {
+        ...summary,
+        mode: normalizedMode,
+        introLines: dialogIntroLines(summary),
+      };
+      return this.updateConfirm;
+    },
+
+    cancelUpdateConfirm() {
+      this.updateConfirm = null;
+    },
+
+    /**
+     * 弹层开关时切换焦点。
+     *
+     * 没有 `@alpinejs/focus` 插件（layout.html 只加载了 collapse），所以这里
+     * 手写：打开时记住 `document.activeElement` 并把焦点移进 `role="alertdialog"`，
+     * 关闭时还回去。
+     *
+     * 焦点暂存放在模块级变量而非组件 state：本方法由 `x-effect` 调用，
+     * 往响应式对象上写字段会让该 effect 自依赖、多跑一轮。
+     *
+     * @param {HTMLElement} dialogEl 弹层根节点
+     * @param {boolean} open 当前是否打开
+     */
+    focusUpdateConfirm(dialogEl, open) {
+      if (!open) {
+        restoreUpdateConfirmFocus();
         return;
       }
+      if (!dialogEl || typeof document === "undefined") return;
+      if (updateConfirmReturnFocus) return;
+      const active = document.activeElement;
+      updateConfirmReturnFocus = active && active !== dialogEl ? active : null;
+      this.$nextTick?.(() => {
+        try {
+          dialogEl.focus({ preventScroll: true });
+        } catch (_error) {
+          /* 老浏览器不认 focus options */
+        }
+      });
+    },
 
+    /** 弹层正文（已净化 markdown）；`x-effect` 每轮求值都会走一次，必须幂等。 */
+    updateConfirmNotes() {
+      return sanitizeNotesMarkdown(this.updateConfirm?.notes || "");
+    },
+
+    /**
+     * 弹层正文的**渲染入口**：先 `marked.parse()` 再交给 `updateShadowContent()`。
+     *
+     * 这一步是安全边界：`updateShadowContent()` 会嗅探裸 `<script` / `<html` /
+     * `<!DOCTYPE`（`dom.js:738-743`），命中就把原文当 HTML 载荷塞进
+     * `renderIsolatedHtml()` 的 iframe，而那个 iframe 没有 `sandbox`、blob URL
+     * 又与宿主同源 —— 代码围栏里演示的 `<script>` 会真的执行。
+     * 先经 marked 后，代码段内容变成 `&lt;script&gt;` 惰性文本，嗅探看不到裸标签，
+     * 永远走 markdown 分支，代码内容对用户仍然完整可见。
+     *
+     * 与 `templates/modals/markdown_preview.html:21` 的既有做法一致。
+     */
+    updateConfirmHtml() {
+      return renderNotesHtml(this.updateConfirmNotes());
+    },
+
+    /**
+     * 弹层里的「确认更新」是否正在执行。
+     *
+     * 写成方法而不是模板内联 `busyAction === ('update:' + updateConfirm.id)`：
+     * 弹层关闭后 `updateConfirm` 是 null，内联表达式会取 `null.id` 抛错
+     * （`x-show` 不阻止子节点绑定求值）。
+     */
+    updateConfirmBusy() {
+      const confirm = this.updateConfirm;
+      if (!confirm || !confirm.id) return false;
+      return this.busyAction === `update:${confirm.id}`;
+    },
+
+    /**
+     * 确认更新：按打开弹层的入口决定刷新范围。
+     *
+     * - `installed`：只 `loadPlugins()`，并把该条从 `this.updates` 移除（沿用旧行为）；
+     * - `catalog`：`loadCatalog(true)` + `loadPlugins()`，让目录卡片切到「已安装」。
+     */
+    async confirmUpdateConfirm() {
+      const confirm = this.updateConfirm;
+      if (!confirm || !confirm.id) return;
+      if (this.busyAction) return;
+
+      const id = String(confirm.id);
       this.busyAction = `update:${id}`;
       try {
         const data = await updatePluginFromCatalog(id);
@@ -850,9 +993,15 @@ export default function pluginManager() {
           toast(data.msg || "更新失败", "error");
           return;
         }
-        toast(data.msg || `已更新到 v${to}，重启应用后生效`);
-        this.updates = this.updates.filter((item) => item.id !== id);
-        await this.loadPlugins();
+        toast(data.msg || `已更新到 v${confirm.to || ""}，重启应用后生效`);
+        this.cancelUpdateConfirm();
+
+        if (confirm.mode === "catalog") {
+          await Promise.all([this.loadCatalog(true), this.loadPlugins()]);
+        } else {
+          this.updates = this.updates.filter((item) => item.id !== id);
+          await this.loadPlugins();
+        }
       } finally {
         this.busyAction = "";
       }
@@ -1303,25 +1452,9 @@ export default function pluginManager() {
         return;
       }
 
-      const from = (entry && entry.installed_version) || "?";
-      const to = (entry && entry.version) || "?";
-      if (!window.confirm(`把 ${entry.name || id} 从 v${from} 更新到 v${to}？\n\n更新后需要重启应用。`)) {
-        return;
-      }
-
-      this.busyAction = `update:${id}`;
-      try {
-        const data = await updatePluginFromCatalog(id);
-        if (!data.success) {
-          toast(data.msg || "更新失败", "error");
-          return;
-        }
-        toast(data.msg || `已更新到 v${to}，重启应用后生效`);
-        // 刷新目录与已安装列表，让卡片切到「已安装」
-        await Promise.all([this.loadCatalog(true), this.loadPlugins()]);
-      } finally {
-        this.busyAction = "";
-      }
+      // 目录条目没有 `release_notes`（只有 checker 的 check_updates 才带回），
+      // 因此走同一个弹层的「无说明」分支：至少让版本变化与重启提示一致可见。
+      this.openUpdateConfirm(entry, "catalog");
     },
 
     restartNotice() {

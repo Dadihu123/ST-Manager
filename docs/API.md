@@ -497,7 +497,7 @@ Beautify API 的根路径为 `/api/beautify`。文件上传使用 `multipart/for
 | --- | --- | --- | --- |
 | `GET` | `/api/plugins/catalog` | 官方插件目录（远端优先，失败回退包内清单） | `?refresh=1` 强制刷新。响应含 `source`（`cache`/`remote`/`bundled`）、`offline`、`updated_at`，每项补 `installed` 与 `installed_version` |
 | `POST` | `/api/plugins/catalog/install` | 从官方目录安装 | JSON `{"id", "ref"?, "subdir"?}`；`id` 不在目录里返回 502 `catalog_offline` |
-| `POST` | `/api/plugins/catalog/check_updates` | 检查已安装插件是否有新版本 | JSON `{"force": false}`；只报告，不自动安装 |
+| `POST` | `/api/plugins/catalog/check_updates` | 检查已安装插件是否有新版本 | JSON `{"force": false}`；只报告，不自动安装。每条 update 记录带 `release_notes`（markdown 正文，可能为空串）、`release_notes_source`（`release` / `changelog` / `""`）、`release_notes_truncated` |
 | `POST` | `/api/plugins/catalog/update` | 更新已安装插件到目录指向的版本 | JSON `{"id", "ref"?, "subdir"?}`；未安装返回 404 `plugin_not_installed`；返回 `previous_version` |
 | `POST` | `/api/plugins/install_upload` | 手动上传 zip 安装（离线兜底） | `multipart/form-data`：`file` + 可选 `expected_id` |
 | `POST` | `/api/plugins/install_github` | 从 GitHub 仓库安装 | JSON `{"repo", "ref"?, "subdir"?}`；`repo` 接受 `owner/repo` 或完整 GitHub URL |

@@ -16,6 +16,7 @@ import time
 import requests
 
 from core.config import INTERNAL_DIR, SYSTEM_DIR, load_config
+from core.plugins import changelog as changelog_module
 from core.plugins import registry
 from core.plugins.errors import PluginCatalogError
 from core.plugins.manifest import compare_versions, parse_semver
@@ -38,6 +39,14 @@ DEFAULT_CACHE_HOURS = 6
 UPDATES_CACHE_HOURS = 24
 REQUEST_TIMEOUT = (10, 30)
 MAX_CATALOG_BYTES = 512 * 1024
+# 远端 CHANGELOG 的体积上限：只用来切「本次更新说明」，不需要整本历史
+MAX_CHANGELOG_BYTES = 256 * 1024
+# 单条更新说明的体积上限（进缓存文件，也进接口响应）：按 UTF-8 字节算。
+# 16KB 而不是 8KB：实测真实插件「上一版→这一版」的说明是 11.5KB（0.4.0→0.4.1，
+# 最常见的升级路径），8KB 只能覆盖 71%，用户读到的就是半句话。缓存文件里只放
+# 「已安装且目录里有更新」的插件（当前 2 个官方插件），16KB × 2 = 32KB，对
+# `_catalog_cache.json` 完全可接受。
+MAX_RELEASE_NOTES_BYTES = 16 * 1024
 
 REPO_PATTERN = re.compile(r'^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$')
 TAG_PATTERN = re.compile(r'^v?\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?')
@@ -356,7 +365,46 @@ def _github_token() -> str:
     return ''
 
 
-def _latest_release_version(repo: str) -> str:
+def _truncate_notes(text) -> tuple:
+    """把更新说明按 **UTF-8 字节**截断到 `MAX_RELEASE_NOTES_BYTES`，返回 `(text, truncated)`。
+
+    按字节而不是字符数：这份正文会进接口响应与 24h 缓存文件，膨胀要按落盘体积控制；
+    纯中文时字符数与字节数差 3 倍，只看字符数会放过 48KB 的正文。
+
+    截断点退到**自然边界**：在预算内找最后一个 `\\n` 并从那里切开，结果总是完整的行。
+    纯字节切会把句子、markdown 列表项乃至行内代码断在中间，而弹层的全部意义就是让用户
+    读懂「这次改了什么」——读半句等于没读到。`\\n` 是 ASCII，绝不会落在多字节字符
+    内部，所以在它上面切一定不切坏字符；只有整段就是一行超长文本（预算内没有换行）时
+    才退回按字节切，并用 `errors='ignore'` 解掉可能被切掉一半的尾字符。
+
+    已知边界：markdown 的硬换行（80 列折行）在源文件里也是 `\\n`，所以切点仍可能落在
+    一个**逻辑段落**的中间——行是完整的，句子未必。实测插件仓库的 CHANGELOG 就是硬换行
+    的（310 行里 158 行是续行），要再退到空行切会少留 190 字节（71% → 70%），换来的收益
+    不值得多一层规则；真正的解法是 16KB 上限让常见升级路径（11.5KB）根本不触发截断。
+
+    不在正文里拼「已截断」之类的提示：弹层有独立的截断提示行，后端拼会重复。
+    """
+    if not isinstance(text, str) or not text:
+        return '', False
+
+    encoded = text.encode('utf-8')
+    if len(encoded) <= MAX_RELEASE_NOTES_BYTES:
+        return text, False
+
+    prefix = encoded[:MAX_RELEASE_NOTES_BYTES]
+    last_newline = prefix.rfind(b'\n')
+    if last_newline > 0:
+        return prefix[:last_newline].decode('utf-8'), True
+
+    return prefix.decode('utf-8', errors='ignore'), True
+
+
+def _latest_release(repo: str) -> dict:
+    """读取最新 Release：版本号 + 正文（正文即「本次更新说明」的候选来源之一）。
+
+    错误文案是对外契约的一部分：`仓库没有 Release` 这条会被 `check_updates`
+    捕获并触发「回退读远端 manifest」，改写会让 `stable` 渠道直接失去回退链。
+    """
     url = f'https://api.github.com/repos/{repo}/releases/latest'
     try:
         response = requests.get(url, timeout=REQUEST_TIMEOUT, headers=_github_headers())
@@ -376,7 +424,14 @@ def _latest_release_version(repo: str) -> str:
     tag = str(payload.get('tag_name') or '').strip()
     if not tag:
         raise PluginCatalogError('Release 缺少 tag_name')
-    return tag.lstrip('v')
+
+    raw_body = payload.get('body')
+    notes, notes_truncated = _truncate_notes(raw_body if isinstance(raw_body, str) else '')
+    return {
+        'version': tag.lstrip('v'),
+        'notes': notes,
+        'notes_truncated': notes_truncated,
+    }
 
 
 def _remote_manifest_payload(entry: dict) -> dict:
@@ -422,6 +477,120 @@ def _remote_manifest_payload(entry: dict) -> dict:
     return payload
 
 
+def _close_quietly(response) -> None:
+    """关闭响应，忽略关闭阶段的异常（释放连接失败不该影响已经拿到的正文）。"""
+    try:
+        response.close()
+    except Exception:  # noqa: BLE001 - 关闭失败无可补救
+        logger.debug('关闭 HTTP 响应失败', exc_info=True)
+
+
+def _remote_changelog_text(entry: dict, *, available: str = '') -> str:
+    """读取远端仓库根目录下的 `CHANGELOG.md` 原文。
+
+    **绝不抛异常**：这是更新说明的次要来源，任何一环失败都只能降级为「无说明」，
+    不能让「取说明」这一步把已经成功的更新检查拖成失败。
+
+    ref 候选按「最可能命中」排序并去重保序：发布 tag `vX.Y.Z` → 裸版本号
+    `X.Y.Z` → catalog 的 ref → `main`。发布方打 tag 的风格不统一（有的带 `v`
+    有的不带），两种都试；最后一个 200 命中即停。
+    """
+    source = entry.get('source') or {}
+    repo = str(source.get('repo') or '').strip()
+    if not REPO_PATTERN.match(repo) or '..' in repo:
+        return ''
+
+    subdir = str(source.get('subdir') or '').strip('/')
+    prefix = f'{subdir}/' if subdir else ''
+    version = str(available or '').strip()
+
+    candidates = []
+    for raw in (f'v{version}' if version else '', version, source.get('ref'), 'main'):
+        value = str(raw or '').strip()
+        if value and value not in candidates:
+            candidates.append(value)
+
+    for ref in candidates:
+        url = f'https://raw.githubusercontent.com/{repo}/{ref}/{prefix}CHANGELOG.md'
+        try:
+            response = requests.get(url, timeout=REQUEST_TIMEOUT, stream=True)
+        except requests.RequestException as exc:
+            logger.debug('读取远端 CHANGELOG 失败 %s: %s', url, exc)
+            continue
+
+        if response.status_code != 200:
+            logger.debug('读取远端 CHANGELOG 失败 %s: HTTP %s', url, response.status_code)
+            _close_quietly(response)
+            continue
+
+        raw_body = None
+        oversized = False
+        try:
+            chunks = []
+            total = 0
+            for chunk in response.iter_content(chunk_size=65536):
+                if not chunk:
+                    continue
+                total += len(chunk)
+                if total > MAX_CHANGELOG_BYTES:
+                    oversized = True
+                    break
+                chunks.append(chunk)
+            raw_body = b''.join(chunks)
+        except Exception:  # noqa: BLE001 - 拿不到正文就换下一个 ref
+            logger.debug('读取远端 CHANGELOG 正文失败 %s', url, exc_info=True)
+        finally:
+            _close_quietly(response)
+
+        if oversized:
+            logger.debug('远端 CHANGELOG 超过体积上限，忽略 %s', url)
+            return ''
+        if raw_body is None:
+            continue
+
+        try:
+            return raw_body.decode('utf-8')
+        except UnicodeDecodeError:
+            logger.debug('远端 CHANGELOG 不是 UTF-8，忽略 %s', url)
+            return ''
+
+    return ''
+
+
+def _release_notes_for(entry: dict, *, installed: str, available: str, release) -> tuple:
+    """逐级回退取「本次更新说明」，返回 `(notes, source, truncated)`。
+
+    ① 有 Release 正文就用它——发布方写的就是这次发布的说明，且不额外发请求；
+    ② 否则读远端 CHANGELOG，按锚点切出 `(installed, available]` 区间
+       （跨多个版本时全部带上，新的在前）；
+    ③ 都没有就返回空说明，前端显示「本次更新没有提供说明」。
+    """
+    notes = ''
+    source = ''
+
+    if isinstance(release, dict) and str(release.get('notes') or '').strip():
+        notes = str(release['notes']).strip()
+        source = 'release'
+    else:
+        text = _remote_changelog_text(entry, available=available)
+        if text:
+            composed = changelog_module.compose_release_notes(
+                text,
+                from_version=installed,
+                to_version=available,
+            )
+            if composed.strip():
+                notes = composed.strip()
+                source = 'changelog'
+
+    if not source:
+        return '', '', False
+
+    truncated = bool(release.get('notes_truncated')) if source == 'release' else False
+    notes, clipped = _truncate_notes(notes)
+    return notes, source, truncated or clipped
+
+
 def check_updates(*, force: bool = False) -> dict:
     """检查已安装插件是否有新版本。
 
@@ -457,10 +626,12 @@ def check_updates(*, force: bool = False) -> dict:
         available = ''
         channel = entry['source'].get('release_channel', 'stable')
         remote_manifest = None
+        release = None
         try:
             if channel == 'stable':
                 try:
-                    available = _latest_release_version(entry['source']['repo'])
+                    release = _latest_release(entry['source']['repo'])
+                    available = release['version']
                 except PluginCatalogError:
                     remote_manifest = _remote_manifest_payload(entry)
                     available = str(remote_manifest.get('version') or '').strip()
@@ -484,6 +655,7 @@ def check_updates(*, force: bool = False) -> dict:
         requires_app_update = bool(required_app) and compare_versions(APP_VERSION, required_app) < 0
 
         # 无论是否有更新都给出记录，前端才能显示「已是最新 vX.Y.Z」
+        has_update = compare_versions(available, installed) > 0
         item = {
             'id': state.plugin_id,
             'name': state.manifest.name,
@@ -491,12 +663,25 @@ def check_updates(*, force: bool = False) -> dict:
             'available': available,
             'channel': channel,
             'repo': entry['source']['repo'],
-            'has_update': compare_versions(available, installed) > 0,
+            'has_update': has_update,
             # 装不上就别只说「有更新」：前端据此置灰按钮并提示先升级主程序。
             'min_app_version': required_app,
             'requires_app_update': requires_app_update,
+            # 本次更新说明给前端更新确认弹层用；没有更新就不去取（省一次网络请求）。
+            'release_notes': '',
+            'release_notes_source': '',
+            'release_notes_truncated': False,
         }
-        if item['has_update']:
+        if has_update:
+            notes, notes_source, notes_truncated = _release_notes_for(
+                entry,
+                installed=installed,
+                available=available,
+                release=release,
+            )
+            item['release_notes'] = notes
+            item['release_notes_source'] = notes_source
+            item['release_notes_truncated'] = notes_truncated
             updates.append(item)
 
     cache_payload = _read_cache()

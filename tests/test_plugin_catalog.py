@@ -541,12 +541,18 @@ def test_check_updates_marks_has_update_flag(catalog_env, monkeypatch):
     assert update['has_update'] is True
 
 
-def _stub_catalog_entry(monkeypatch, *, min_app_version=''):
+def _stub_catalog_entry(monkeypatch, *, min_app_version='', release_channel='', subdir=''):
     """把官方目录换成一条带 `min_app_version` 的条目（`check_updates` 只读 `get_catalog`）。"""
     entry = {
         'id': 'demo-plugin',
         'name': '示例插件',
-        'source': {'type': 'github', 'repo': 'owner/demo-plugin', 'ref': 'main'},
+        'source': {
+            'type': 'github',
+            'repo': 'owner/demo-plugin',
+            'ref': 'main',
+            'subdir': subdir,
+            'release_channel': release_channel or 'stable',
+        },
         'version': '0.2.0',
         'min_app_version': min_app_version,
     }
@@ -723,3 +729,272 @@ def test_reset_cache_for_tests(catalog_env):
     catalog_module.reset_cache_for_tests()
 
     assert not cache_path.exists()
+
+
+# ------------------------------------------------------------------ 更新说明
+
+
+CHANGELOG_WITH_ANCHORS = '\n\n'.join([
+    '# 插件变更日志',
+    '没有锚点的旧内容（必须被忽略）',
+    '\n'.join(['<!-- release: 0.3.0 -->', '## 0.3.0（2026-09-01）', '- 0.3.0 的改动', '<!-- /release -->']),
+    '\n'.join(['<!-- release: 0.2.0 -->', '## 0.2.0（2026-08-01）', '- 0.2.0 的改动', '<!-- /release -->']),
+    '\n'.join(['<!-- release: 0.1.0 -->', '## 0.1.0（2026-07-01）', '- 0.1.0 的改动', '<!-- /release -->']),
+])
+
+
+def _release_notes_responder(*, tag='v0.2.0', body=None, changelog=CHANGELOG_WITH_ANCHORS, calls=None):
+    """stable 渠道的标准 responder：Release + 远端 CHANGELOG.md。"""
+    def responder(url, kwargs):
+        if calls is not None:
+            calls.append(url)
+        if 'api.github.com' in url:
+            payload = {'tag_name': tag}
+            if body is not None:
+                payload['body'] = body
+            return _FakeResponse(payload=payload)
+        if url.endswith('CHANGELOG.md'):
+            if isinstance(changelog, Exception):
+                return changelog
+            return _FakeResponse(body=changelog.encode('utf-8'))
+        if url.endswith('manifest.json'):
+            return _FakeResponse(status_code=404, payload={})
+        return _FakeResponse(body=json.dumps(BUNDLED_CATALOG).encode('utf-8'))
+
+    return responder
+
+
+def test_check_updates_returns_release_body_as_notes(catalog_env, monkeypatch):
+    """Release 正文就是「本次更新说明」，且不额外发请求（复用同一个响应体）。"""
+    monkeypatch.setattr(registry, 'list_states', lambda: [_installed_state(catalog_env['tmp_path'])])
+    calls = []
+    _stub_get(monkeypatch, _release_notes_responder(body='## 本次修复\n- 修好了 X', calls=calls))
+
+    update = catalog_module.check_updates(force=True)['updates'][0]
+
+    assert update['release_notes_source'] == 'release'
+    assert '修好了 X' in update['release_notes']
+    assert update['release_notes_truncated'] is False
+    assert not [url for url in calls if url.endswith('CHANGELOG.md')], '有 Release 正文时不该再拉 CHANGELOG'
+
+
+def test_check_updates_falls_back_to_remote_changelog(catalog_env, monkeypatch):
+    """Release 没有正文时回退远端 CHANGELOG，且只切出 `(installed, available]`。"""
+    monkeypatch.setattr(registry, 'list_states', lambda: [_installed_state(catalog_env['tmp_path'])])
+    _stub_get(monkeypatch, _release_notes_responder(body=''))
+
+    update = catalog_module.check_updates(force=True)['updates'][0]
+
+    assert update['available'] == '0.2.0'
+    assert update['release_notes_source'] == 'changelog'
+    notes = update['release_notes']
+    assert '## 0.2.0' in notes and '0.2.0 的改动' in notes
+    # 已安装的版本不该重复展示，比目标更新的版本更不该出现
+    assert '## 0.1.0' not in notes
+    assert '## 0.3.0' not in notes
+    # 无锚点旧内容永远不进说明
+    assert '没有锚点的旧内容' not in notes
+
+
+def test_check_updates_requests_changelog_at_release_tag_first(catalog_env, monkeypatch):
+    """CHANGELOG 优先按发布 tag 取（vX.Y.Z → X.Y.Z → ref → main）。"""
+    monkeypatch.setattr(registry, 'list_states', lambda: [_installed_state(catalog_env['tmp_path'])])
+    calls = []
+    _stub_get(monkeypatch, _release_notes_responder(body='', calls=calls))
+
+    catalog_module.check_updates(force=True)
+
+    changelog_calls = [url for url in calls if url.endswith('CHANGELOG.md')]
+    assert changelog_calls, '应请求远端 CHANGELOG.md'
+    assert '/v0.2.0/' in changelog_calls[0]
+
+
+def test_check_updates_dev_channel_skips_release_and_uses_changelog(catalog_env, monkeypatch):
+    """dev 渠道直接读远端 manifest，不该请求 Release；说明来自 CHANGELOG。"""
+    monkeypatch.setattr(registry, 'list_states', lambda: [_installed_state(catalog_env['tmp_path'])])
+    _stub_catalog_entry(monkeypatch, release_channel='dev')
+    calls = []
+
+    def responder(url, kwargs):
+        calls.append(url)
+        if url.endswith('CHANGELOG.md'):
+            return _FakeResponse(body=CHANGELOG_WITH_ANCHORS.encode('utf-8'))
+        if url.endswith('manifest.json'):
+            return _FakeResponse(payload={'version': '0.2.0'})
+        return requests.ConnectionError('unexpected')
+
+    _stub_get(monkeypatch, responder)
+
+    update = catalog_module.check_updates(force=True)['updates'][0]
+
+    assert not [url for url in calls if 'api.github.com' in url], 'dev 渠道不该请求 Release API'
+    assert update['release_notes_source'] == 'changelog'
+    assert '0.2.0 的改动' in update['release_notes']
+
+
+def test_check_updates_survives_unreachable_changelog(catalog_env, monkeypatch):
+    """CHANGELOG 连不上不能让更新检查失败，记录也要在（说明为空）。"""
+    monkeypatch.setattr(registry, 'list_states', lambda: [_installed_state(catalog_env['tmp_path'])])
+    _stub_get(monkeypatch, _release_notes_responder(body='', changelog=requests.ConnectionError('offline')))
+
+    result = catalog_module.check_updates(force=True)
+
+    assert result['success'] is True
+    assert len(result['updates']) == 1
+    update = result['updates'][0]
+    assert update['has_update'] is True
+    assert update['release_notes'] == ''
+    assert update['release_notes_source'] == ''
+    assert update['release_notes_truncated'] is False
+
+
+def test_check_updates_marks_oversized_notes_as_truncated(catalog_env, monkeypatch):
+    """超长说明按 UTF-8 字节截断并标记 truncated。"""
+    monkeypatch.setattr(registry, 'list_states', lambda: [_installed_state(catalog_env['tmp_path'])])
+    # 中文 3 字节/字：超上限，且必须切在多字节边界上
+    _stub_get(monkeypatch, _release_notes_responder(body='中' * 20000))
+
+    update = catalog_module.check_updates(force=True)['updates'][0]
+
+    assert update['release_notes_truncated'] is True
+    encoded = update['release_notes'].encode('utf-8')
+    assert len(encoded) <= catalog_module.MAX_RELEASE_NOTES_BYTES
+    assert encoded.decode('utf-8') == update['release_notes'], '截断不能切坏多字节字符'
+
+
+def test_truncate_notes_cuts_at_a_line_boundary(monkeypatch):
+    """截断点必须退到换行：至少不能把某一行切一半。
+
+    注意边界：markdown 的硬换行（80 列折行）在源文件里也是 `\\n`，所以「完整行」
+    不等于「完整句子」——真实插件的 CHANGELOG 就是硬换行的。这里只钉住行级完整，
+    句子级覆盖靠 16KB 上限让常见升级路径不触发截断（见下面的覆盖率用例）。
+    """
+    line = '中' * 40  # 120 字节
+    text = '\n'.join(f'{line}-{index}' for index in range(400))
+
+    notes, truncated = catalog_module._truncate_notes(text)
+
+    assert truncated is True
+    assert len(notes.encode('utf-8')) <= catalog_module.MAX_RELEASE_NOTES_BYTES
+    # 结果总是完整的行：notes + '\n' 是原文的前缀（说明切在某个换行处）
+    assert text.startswith(notes + '\n'), '截断结果必须以完整行结尾'
+    assert not notes.endswith('\n'), '不该把切点所在的那个换行留在正文末尾'
+    # 被留下的每一行都还是完整行
+    assert all(item in text for item in notes.split('\n'))
+
+
+def test_truncate_notes_falls_back_to_bytes_for_single_long_line():
+    """整段是一整行超长文本时没有换行可用，退回按字节切且不抛异常。"""
+    text = '中' * 20000  # 单行，60000 字节
+
+    notes, truncated = catalog_module._truncate_notes(text)
+
+    assert truncated is True
+    assert notes
+    assert len(notes.encode('utf-8')) <= catalog_module.MAX_RELEASE_NOTES_BYTES
+    assert notes.encode('utf-8').decode('utf-8') == notes, '不能切坏多字节字符'
+
+
+def test_truncate_notes_leaves_content_at_limit_untouched():
+    """恰好等于上限时原样返回（不 strip、不加尾巴），且不标记截断。"""
+    head = '前' * 100 + '\n' + '后' * 100
+    exact = head.encode('utf-8')
+    # 用 ASCII 空格补齐到恰好等于上限（空格 1 字节，不影响多字节边界）
+    at_limit = (exact + b' ' * (catalog_module.MAX_RELEASE_NOTES_BYTES - len(exact))).decode('utf-8')
+
+    notes, truncated = catalog_module._truncate_notes(at_limit)
+
+    assert truncated is False
+    assert notes == at_limit, '未超限必须原样返回'
+
+
+def test_release_notes_cover_the_typical_previous_to_latest_upgrade(catalog_env):
+    """最常见的升级路径（上一版 → 最新版）必须能完整放进上限。
+
+    实测真实插件 0.4.0 → 0.4.1 的说明是 11501 字节；8KB 只能覆盖 71%，
+    用户读到的是半句话。这里按同量级（~11.5KB）造夹具钉住「能完整覆盖」。
+    """
+    line = '- 第 0 条修复说明，描述一个具体问题'  # 50 字节/行
+    # 230 行 ≈ 11.7KB，对齐实测的 0.4.0 → 0.4.1（11501 字节）
+    body = '\n'.join(f'{line}{index}' for index in range(230))
+    body_bytes = len(body.encode('utf-8'))
+    assert 8 * 1024 < body_bytes <= catalog_module.MAX_RELEASE_NOTES_BYTES, (
+        f'夹具要落进 (8KB, 上限] 区间才验得出回归，实际 {body_bytes} 字节'
+    )
+
+    notes, truncated = catalog_module._truncate_notes(body)
+
+    assert truncated is False, f'{body_bytes} 字节的常规说明不该被截断'
+    assert notes == body
+
+
+def test_check_updates_covers_typical_upgrade_end_to_end(catalog_env, monkeypatch):
+    """端到端：0.4.0 → 0.4.1 这类真实升级的说明要能完整落到 release_notes。"""
+    monkeypatch.setattr(registry, 'list_states', lambda: [_installed_state(catalog_env['tmp_path'])])
+    body = '\n'.join(f'- 第 {index} 条修复说明，描述一个具体问题' for index in range(230))
+
+    _stub_get(monkeypatch, _release_notes_responder(body=body))
+
+    update = catalog_module.check_updates(force=True)['updates'][0]
+
+    assert update['release_notes_truncated'] is False
+    assert update['release_notes'] == body
+
+
+def test_check_updates_skips_changelog_request_when_no_update(catalog_env, monkeypatch):
+    """没有更新时不去取说明——否则每轮检查都白多一次网络请求。"""
+    monkeypatch.setattr(registry, 'list_states', lambda: [_installed_state(catalog_env['tmp_path'], '0.9.0')])
+    calls = []
+    _stub_get(monkeypatch, _release_notes_responder(body='', calls=calls))
+
+    assert catalog_module.check_updates(force=True)['updates'] == []
+    assert not [url for url in calls if url.endswith('CHANGELOG.md')]
+
+
+def test_cache_stores_truncated_notes_only(catalog_env, monkeypatch):
+    """缓存里存的必须是截断后的说明：24h 缓存文件不能被更新说明撑大。"""
+    monkeypatch.setattr(registry, 'list_states', lambda: [_installed_state(catalog_env['tmp_path'])])
+    _stub_get(monkeypatch, _release_notes_responder(body='x' * 40000))
+
+    catalog_module.check_updates(force=True)
+
+    with open(catalog_env['tmp_path'] / '_catalog_cache.json', 'r', encoding='utf-8') as handle:
+        cached = json.load(handle)
+    cached_note = cached['updates']['updates'][0]['release_notes']
+    assert len(cached_note.encode('utf-8')) <= catalog_module.MAX_RELEASE_NOTES_BYTES
+
+
+def test_latest_release_keeps_the_documented_error_messages(catalog_env, monkeypatch):
+    """`仓库没有 Release` 是回退链的触发条件，文案不能漂。"""
+    _stub_get(monkeypatch, lambda url, kwargs: _FakeResponse(status_code=404, payload={}))
+    with pytest.raises(PluginCatalogError, match='仓库没有 Release'):
+        catalog_module._latest_release('owner/demo-plugin')
+
+    _stub_get(monkeypatch, lambda url, kwargs: _FakeResponse(status_code=500, payload={}))
+    with pytest.raises(PluginCatalogError, match='HTTP 500'):
+        catalog_module._latest_release('owner/demo-plugin')
+
+    _stub_get(monkeypatch, lambda url, kwargs: _FakeResponse(payload={'tag_name': ''}))
+    with pytest.raises(PluginCatalogError, match='tag_name'):
+        catalog_module._latest_release('owner/demo-plugin')
+
+
+def test_latest_release_returns_version_and_body(catalog_env, monkeypatch):
+    _stub_get(monkeypatch, lambda url, kwargs: _FakeResponse(
+        payload={'tag_name': 'v0.4.1', 'body': '### 修复\n- 一条'},
+    ))
+
+    release = catalog_module._latest_release('owner/demo-plugin')
+
+    assert release == {'version': '0.4.1', 'notes': '### 修复\n- 一条', 'notes_truncated': False}
+
+
+def test_latest_release_treats_missing_body_as_empty(catalog_env, monkeypatch):
+    """Release 没有 body / body 不是字符串时按空处理，绝不抛异常。"""
+    for payload in ({'tag_name': 'v0.4.1'}, {'tag_name': 'v0.4.1', 'body': None}, {'tag_name': 'v0.4.1', 'body': 42}):
+        _stub_get(monkeypatch, lambda url, kwargs, payload=payload: _FakeResponse(payload=payload))
+
+        release = catalog_module._latest_release('owner/demo-plugin')
+
+        assert release['notes'] == ''
+        assert release['notes_truncated'] is False
