@@ -1564,7 +1564,7 @@ def validate_manifest(payload, *, strict=False):
 # 生成区：宿主事实（CLI 脱离宿主仓库运行时的参照，勿手改）。
 # 来源：`core/version.py` 的 APP_VERSION、`static/icons/*.svg` 的 `id="icon-*"`
 # 与模板别名表（与 `static/js/utils/iconMap.js` 同一份来源）。
-HOST_APP_VERSION = '1.1.0'
+HOST_APP_VERSION = '1.2.0'
 
 # 合法宿主图标名（含模板别名）；未知名字只算 warning：宿主会渲染占位图标。
 HOST_ICON_NAMES = frozenset({

@@ -8,7 +8,7 @@
 contract**，避免循环导入。`tests/test_plugin_contract_values.py` 断言两处版本一致（S1）。
 """
 
-APP_VERSION = '1.1.0'
+APP_VERSION = '1.2.0'
 
 # 主程序当前实现的插件 API 契约版本；插件 api_version 不在支持集合内时严格拒绝加载。
 PLUGIN_API_VERSION = 3
