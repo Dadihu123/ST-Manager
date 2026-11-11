@@ -96,3 +96,64 @@ jobs:
           name: ST-Manager-Pro-macos-${{ matrix.arch }}
           path: ST-Manager-Pro-macos-${{ matrix.arch }}.zip
           if-no-files-found: error
+
+  # 把桌面产物挂到 GitHub Release 资产上（只对 tag 生效）。
+  #
+  # 之前这里只做 `upload-artifact`，产物只留在 Actions 页面、90 天后过期，
+  # Release 页面一直是空的——v1.0.0 的三个包是发布后两小时**手工**补传的，
+  # v1.2.0 就漏了。Release 才是用户下载安装包的入口，不能靠记性。
+  publish-release:
+    name: Publish release assets
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build-windows, build-macos]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          pattern: ST-Manager-Pro-*
+          merge-multiple: false
+
+      - name: Normalize asset names
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          mkdir -p release
+
+          # 按文件名找而不是写死目录层级：`download-artifact` 的落盘结构
+          # 会随 artifact 数量与 path 形状变化，写死路径是下一个静默失败点。
+          exe="$(find artifacts -type f -name 'ST Manager Pro.exe' | head -n1)"
+          arm="$(find artifacts -type f -name 'ST-Manager-Pro-macos-arm64.zip' | head -n1)"
+          intel="$(find artifacts -type f -name 'ST-Manager-Pro-macos-x86_64.zip' | head -n1)"
+
+          for pair in "exe:$exe" "arm64:$arm" "x86_64:$intel"; do
+            if [ -z "${pair#*:}" ]; then
+              echo "缺少构建产物: ${pair%%:*}" >&2
+              exit 1
+            fi
+          done
+
+          cp "$exe" "release/ST-Manager-Pro-${version}-windows-x86_64.exe"
+          cp "$arm" "release/ST-Manager-Pro-${version}-macos-arm64.zip"
+          cp "$intel" "release/ST-Manager-Pro-${version}-macos-x86_64.zip"
+          ls -l release
+
+      - name: Upload assets to GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          tag="$GITHUB_REF_NAME"
+
+          # Release 可能已手工建过（带正文）：只在缺失时创建，绝不覆盖已有正文。
+          if ! gh release view "$tag" >/dev/null 2>&1; then
+            gh release create "$tag" --verify-tag --title "$tag" --generate-notes
+          fi
+
+          gh release upload "$tag" release/* --clobber
+          gh release view "$tag" --json assets --jq '.assets[].name'
