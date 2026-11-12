@@ -74,6 +74,59 @@ def test_submit_job_requires_registered_handler(job_env):
         jobs.submit_job('demo-plugin', 'missing.type', ['a'])
 
 
+def test_submit_job_hints_restart_when_plugin_pending_restart(job_env, monkeypatch):
+    """插件「已变更、待重启」时，报错必须让用户知道该重启，而不是只说未注册。
+
+    `未注册的作业类型: <type>` 对用户没有任何可操作性。真实场景：用户刚卸载并
+    重装/更新了插件，内存里还没有新代码（`restart_required=True`），此时插件路由
+    往往仍在响应、面板看起来完全正常，只有提交作业会失败。这条文案是该状态下
+    唯一的出口，所以必须显式指向「重启」。
+    """
+    from core.plugins import registry as registry_module
+
+    class _FakeState:
+        restart_required = True
+
+        class manifest:  # noqa: N801 - 模拟 manifest 对象
+            version = '9.9.9'
+            backend_jobs = ['demo.echo']
+
+    monkeypatch.setattr(registry_module, 'get_state', lambda pid: _FakeState())
+
+    with pytest.raises(PluginJobError) as excinfo:
+        jobs.submit_job('demo-plugin', 'demo.echo', ['a'])
+
+    error = excinfo.value
+    assert error.code == 'plugin_restart_required'
+    assert '重启' in str(error)
+    assert '9.9.9' in (error.hint or '')
+    # user_msg 是给普通用户看的那一层，必须是可执行的动作描述
+    assert '重启' in (error.user_msg or '')
+
+
+def test_submit_job_reports_declared_types_without_restart(job_env, monkeypatch):
+    """不是待重启状态时，报错要指出插件到底声明了哪些作业类型（帮作者自查）。"""
+    from core.plugins import registry as registry_module
+
+    class _FakeState:
+        restart_required = False
+
+        class manifest:  # noqa: N801
+            version = '1.0.0'
+            backend_jobs = ['demo.echo', 'demo.count']
+
+    monkeypatch.setattr(registry_module, 'get_state', lambda pid: _FakeState())
+
+    with pytest.raises(PluginJobError) as excinfo:
+        jobs.submit_job('demo-plugin', 'missing.type', ['a'])
+
+    error = excinfo.value
+    assert error.code == 'job_type_not_registered'
+    assert '未注册的作业类型: missing.type' in str(error)
+    assert 'demo.echo' in (error.hint or '')
+    assert 'demo.count' in (error.hint or '')
+
+
 def test_submit_job_rejects_empty_items(job_env):
     _register_echo()
 

@@ -346,6 +346,46 @@ def test_drop_state_removes_hook_subscriptions(tmp_path, monkeypatch):
     assert hooks.subscriber_count('card.updated') == 0
 
 
+def test_drop_state_purges_routes(tmp_path, monkeypatch):
+    """卸载后必须摘除插件路由，否则留下「僵尸插件」。
+
+    Flask 3.1 没有 `deregister_blueprint`，`register_blueprint()` 注册的规则会活到
+    进程退出。只清作业处理器不清路由时，插件已卸载但接口仍 200 可访问、仍能读写
+    用户数据；而处理器为空导致一提交就报「未注册的作业类型」，用户看到的是
+    「面板正常、一点就失败」，极难自查。
+    """
+    write_plugin(tmp_path, 'demo-plugin')
+    _patch_plugins_dir(monkeypatch, tmp_path)
+    app = Flask('registry-test')
+    registry_module.load_all(app)
+    client = app.test_client()
+
+    url = '/api/plugins/demo-plugin/ping'
+    assert client.get(url).status_code == 200
+
+    registry_module.drop_state('demo-plugin')
+
+    remaining = [rule.rule for rule in app.url_map.iter_rules() if 'demo-plugin' in rule.rule]
+    assert remaining == [], f'卸载后仍残留路由: {remaining}'
+    # 关键：必须是 404（路由不存在），不能是 500（命中已摘除的视图函数）
+    assert client.get(url).status_code == 404
+
+
+def test_drop_state_purge_keeps_other_plugins(tmp_path, monkeypatch):
+    """摘除只针对目标插件，其它插件的路由与处理器必须完好。"""
+    write_plugin(tmp_path, 'demo-plugin')
+    write_plugin(tmp_path, 'other-plugin')
+    _patch_plugins_dir(monkeypatch, tmp_path)
+    app = Flask('registry-test')
+    registry_module.load_all(app)
+    client = app.test_client()
+
+    registry_module.drop_state('demo-plugin')
+
+    assert client.get('/api/plugins/other-plugin/ping').status_code == 200
+    assert client.get('/api/plugins/demo-plugin/ping').status_code == 404
+
+
 def test_restart_required_persisted_in_list_header(tmp_path, monkeypatch):
     write_plugin(tmp_path, 'demo-plugin')
     _patch_plugins_dir(monkeypatch, tmp_path)

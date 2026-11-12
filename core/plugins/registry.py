@@ -341,16 +341,133 @@ def set_enabled_setting(plugin_id: str, enabled: bool) -> bool:
 
 
 def drop_state(plugin_id: str) -> None:
-    """卸载后清理运行时状态与订阅（hooks / 作业处理器 / CLI 子命令）。"""
+    """卸载后清理运行时状态与订阅（hooks / 作业处理器 / CLI 子命令 / 路由）。
+
+    **必须同时摘除路由**：Flask 3.1 仍没有 `deregister_blueprint`
+    （`hasattr(Flask, 'deregister_blueprint')` 为 False），所以
+    `register_blueprint()` 注册过的规则会活到进程退出。只清处理器不清路由会留下
+    「僵尸插件」：插件已卸载，它的 HTTP 接口仍 200 可访问、仍能读写用户数据，
+    而作业处理器已被清空 —— 表现为面板能列数据、一提交就报
+    「未注册的作业类型」。见 `_purge_plugin_routes()`。
+    """
     from core.plugins import cli, hooks, jobs
 
     plugin_id = str(plugin_id or '')
     hooks.unregister_plugin(plugin_id)
     jobs.unregister_plugin_handlers(plugin_id)
     cli.unregister_plugin(plugin_id)
+    _purge_plugin_routes(plugin_id)
 
     with _states_lock:
         _states.pop(plugin_id, None)
+
+
+def plugin_route_prefix(plugin_id: str) -> str:
+    """插件业务路由的 URL 前缀（与 `PluginAPI._register_blueprint` 保持同一口径）。"""
+    return f'/api/plugins/{plugin_id}'
+
+
+def _purge_plugin_routes(plugin_id: str) -> int:
+    """从 Flask 应用上摘除某插件的全部路由规则，返回摘除条数。
+
+    Flask 没有公开的「注销蓝图」API，但规则本来就存放在两个可写的容器里：
+
+    - `app.url_map`（`Map._rules`，同时维护 `_rules_by_endpoint` 索引）
+    - `app.view_functions`
+
+    这里按 URL 前缀筛出该插件的规则，把它们从两者中移除并重建
+    `_rules_by_endpoint` 索引。**只用于卸载**：进程重启后一切重新构建，
+    因此不必考虑 Flask 内部结构变化带来的长期兼容性——摘除失败也只是退化成
+    修复前的行为（路由残留），所以整段用 try/except 兜住并记 warning。
+
+    Returns:
+        摘除的规则条数；无法访问应用或内部结构时不抛异常，返回 0。
+    """
+    api_map = _apis_by_plugin_id()
+    app = None
+    for api in api_map.values():
+        app = getattr(api, '_app', None)
+        if app is not None:
+            break
+    if app is None:
+        return 0
+
+    prefix = plugin_route_prefix(plugin_id)
+    prefix_slash = f'{prefix}/'
+    try:
+        url_map = app.url_map
+        doomed = [
+            rule for rule in list(url_map.iter_rules())
+            if rule.rule == prefix or rule.rule.startswith(prefix_slash)
+        ]
+        if not doomed:
+            return 0
+
+        endpoints = {rule.endpoint for rule in doomed}
+
+        # 顺序很重要：**先摘规则、重建匹配器，最后摘视图函数**。
+        #
+        # 三步缺一不可，否则请求会命中已删除的规则、再在
+        # `app.view_functions[endpoint]` 上抛 KeyError —— 表现成 500
+        # （「服务器内部错误」）而不是期望的 404（「路由不存在」）。
+        #
+        # 需要一并维护的 Werkzeug 内部结构：
+        # - `url_map._rules` / `_rules_by_endpoint`：规则本体与端点索引
+        # - `url_map._matcher`：增量累积的状态机，**没有删除入口**
+        for rule in doomed:
+            try:
+                url_map._rules.remove(rule)  # noqa: SLF001 - Werkzeug 无公开摘除 API
+            except ValueError:
+                pass
+            try:
+                url_map._rules_by_endpoint.pop(rule.endpoint, None)  # noqa: SLF001
+            except AttributeError:
+                pass
+
+        # 重建匹配器。
+        #
+        # Werkzeug 的 `StateMachineMatcher` 是**增量累积**的：`Map.add()` 往里
+        # 塞规则，**没有任何删除入口**，`update()` 只对已有状态排序、不重建。
+        # 因此删掉规则后必须新建一个空匹配器、把所有**幸存**规则重新喂一遍，
+        # 否则旧 URL 仍能匹配到已删除的规则，然后撞上已摘除的端点 →
+        # `KeyError: '<endpoint>'` → 500（而不是期望的 404）。
+        #
+        # 顺序：先摘规则/索引 → 重建匹配器 → 最后摘 view_functions。
+        try:
+            from werkzeug.routing.matcher import StateMachineMatcher
+
+            survivors = list(url_map.iter_rules())
+            matcher = StateMachineMatcher(
+                merge_slashes=getattr(url_map, 'merge_slashes', True),
+            )
+            for rule in survivors:
+                if not rule.build_only:
+                    matcher.add(rule)
+            url_map._matcher = matcher  # noqa: SLF001 - Werkzeug 无公开重建入口
+            url_map._remap = True       # noqa: SLF001 - 让下次 update() 重新排序
+            url_map.update()
+        except Exception:  # noqa: BLE001 - 重建失败则退化为「规则残留」
+            logger.warning('重建插件 %s 的 url_map 匹配器失败', plugin_id, exc_info=True)
+
+        # 视图函数最后摘：此时匹配器已不再引用这些端点
+        for endpoint in endpoints:
+            app.view_functions.pop(endpoint, None)
+
+        logger.info('已摘除插件 %s 的 %s 条路由', plugin_id, len(doomed))
+        return len(doomed)
+    except Exception:  # noqa: BLE001 - 摘除失败退化为既有行为（路由残留）
+        logger.warning('摘除插件 %s 的路由失败', plugin_id, exc_info=True)
+        return 0
+
+
+def _apis_by_plugin_id() -> dict:
+    """当前进程内已加载插件的 `PluginAPI` 快照（plugin_id → api）。"""
+    with _states_lock:
+        return {
+            plugin_id: state.api
+            for plugin_id, state in _states.items()
+            if getattr(state, 'api', None) is not None
+        }
 
 
 def register_external_state(state: PluginState) -> None:

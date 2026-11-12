@@ -222,6 +222,62 @@ class JobContext:
 # ------------------------------------------------------------------ 提交与查询
 
 
+def _handler_missing_error(plugin_id: str, job_type: str) -> PluginJobError:
+    """处理器缺失时的错误：区分「插件已变更待重启」与「真的没声明这个作业」。
+
+    `未注册的作业类型: <type>` 对用户毫无可操作性，也把排查者带偏——它既可能是
+    插件写了但没在 `manifest.backend.jobs` 声明（作者问题），也可能是用户刚
+    卸载/重装/更新了插件、内存里还没有新代码（`restart_required=True`，
+    此时插件路由往往仍在响应，面板看起来完全正常）。后者重启即可解决，
+    所以必须给出「重启」这个动作，而不是一句状态描述。
+    """
+    state = None
+    try:
+        from core.plugins import registry
+
+        state = registry.get_state(plugin_id)
+    except Exception:  # noqa: BLE001 - 取状态失败不应改变错误类型
+        logger.debug('读取插件状态失败', plugin_id, exc_info=True)
+
+    restart_hint = _restart_required_hint(state)
+    if restart_hint:
+        return PluginJobError(
+            '插件已变更，重启应用后重试',
+            code='plugin_restart_required',
+            hint=restart_hint,
+            user_msg='这个插件刚刚被安装、更新或重装过，主程序需要重启才能加载它的新代码。'
+                     '请重启 ST-Manager 后再试一次。',
+        )
+
+    known = ''
+    try:
+        declared = list((state.manifest.backend_jobs if state and state.manifest else []) or [])
+        if declared:
+            known = '；该插件声明的作业类型：' + '、'.join(declared)
+    except Exception:  # noqa: BLE001
+        known = ''
+    return PluginJobError(
+        f'未注册的作业类型: {job_type}',
+        code='job_type_not_registered',
+        hint=f'插件 {plugin_id} 没有注册作业类型 {job_type!r}{known}',
+        user_msg='该插件的这个功能当前不可用（可能是插件版本与主程序不匹配，或插件未正确加载）。',
+    )
+
+
+def _restart_required_hint(state) -> str:
+    """插件是否处于「已变更、待重启」状态；是则返回给用户看的说明。"""
+    if state is None:
+        return ''
+    try:
+        if getattr(state, 'restart_required', False):
+            version = getattr(getattr(state, 'manifest', None), 'version', '') or ''
+            suffix = f'，磁盘上已是 v{version}' if version else ''
+            return f'插件代码已更新但尚未加载{suffix}；重启应用后生效。'
+    except Exception:  # noqa: BLE001
+        return ''
+    return ''
+
+
 def submit_job(plugin_id: str, job_type: str, items, payload: dict | None = None) -> str:
     """创建作业并唤醒 worker，返回 run_id。"""
     plugin_id = str(plugin_id or '').strip()
@@ -229,7 +285,7 @@ def submit_job(plugin_id: str, job_type: str, items, payload: dict | None = None
     if not plugin_id or not job_type:
         raise PluginJobError('plugin_id 与 job_type 不能为空')
     if get_job_handler(plugin_id, job_type) is None:
-        raise PluginJobError(f'未注册的作业类型: {job_type}')
+        raise _handler_missing_error(plugin_id, job_type)
 
     normalized = job_store.normalize_items(items)
     if not normalized:
