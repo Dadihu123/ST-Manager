@@ -1,6 +1,6 @@
 {
   "schema_version": 3,
-  "updated_at": "2026-11-11T02:39:15Z",
+  "updated_at": "2026-11-12T04:10:00Z",
   "plugins": [
     {
       "id": "stm-ai-assistant",
@@ -18,12 +18,12 @@
       "source": {
         "type": "github",
         "repo": "Dadihu123/ST-Manager-AI-Assistant",
-        "ref": "v0.5.0",
+        "ref": "v0.5.1",
         "subdir": "",
         "release_channel": "stable",
-        "sha256": "59425bcc45f440a02a7bca6068766a0fc7a4c1f29b33b3606c8e860eb047215f"
+        "sha256": "2975a71ab4be37540b9f795a3c7cb99814e611a2f889fe992c13ad59c47dd611"
       },
-      "version": "0.5.0",
+      "version": "0.5.1",
       "api_version": 3,
       "min_app_version": "1.1.0",
       "capabilities": [
