@@ -10,12 +10,13 @@ from typing import Any
 from core.config import CARDS_FOLDER, DEFAULT_DB_PATH, load_config
 from core.context import ctx
 from core.data.index_runtime_store import ensure_index_runtime_schema
+from core.data.sqlite_capabilities import supports_fts5
 from core.data.ui_store import load_ui_data
 from core.services import index_build_service
 from core.services.index_job_worker import enqueue_index_job as enqueue_index_job
 from core.services.index_job_worker import start_index_job_worker
 from core.services.index_upgrade_service import rebuild_scope_generation
-from core.utils.image import extract_card_info
+from core.utils.image import extract_card_info_strict as extract_card_info
 
 
 logger = logging.getLogger(__name__)
@@ -78,6 +79,11 @@ def get_index_status() -> dict[str, Any]:
     with ctx.index_lock:
         snapshot = deepcopy(dict(ctx.index_state))
 
+    # 平台能力对前端可见：无 FTS5 的平台（如 iOS）前端据此隐藏/置灰「全文搜索」。
+    snapshot['capabilities'] = {'fts5': supports_fts5()}
+    if snapshot.get('scan_error') and not snapshot.get('scan_active'):
+        snapshot.update(state='error', scope='scan', message=snapshot['scan_error'])
+
     try:
         with sqlite3.connect(DEFAULT_DB_PATH, timeout=60) as conn:
             conn.row_factory = sqlite3.Row
@@ -134,10 +140,10 @@ def get_index_status() -> dict[str, Any]:
             # 避免前端看到数字回退。
             in_memory = snapshot.get(scope) or {}
             merged = dict(persisted_scopes[scope])
-            if int(in_memory.get('progress_done') or 0) > merged['progress_done']:
+            if merged['state'] == 'running' and int(in_memory.get('progress_done') or 0) > merged['progress_done']:
                 merged['progress_done'] = int(in_memory.get('progress_done') or 0)
                 merged['phase'] = str(in_memory.get('phase') or merged['phase'])
-            if int(in_memory.get('progress_total') or 0) > merged['progress_total']:
+            if merged['state'] == 'running' and int(in_memory.get('progress_total') or 0) > merged['progress_total']:
                 merged['progress_total'] = int(in_memory.get('progress_total') or 0)
             snapshot[scope] = merged
 
@@ -205,6 +211,10 @@ def get_index_status() -> dict[str, Any]:
         snapshot['state'] = 'building'
         snapshot['scope'] = 'scan'
         snapshot['message'] = str(snapshot.get('scan_message') or 'scanning')
+    elif snapshot.get('scan_error'):
+        snapshot['state'] = 'error'
+        snapshot['scope'] = 'scan'
+        snapshot['message'] = snapshot['scan_error']
     snapshot['scan_active'] = bool(snapshot.get('scan_active'))
     snapshot['scan_message'] = str(snapshot.get('scan_message') or '')
     # 后台启动升级是否仍在进行：前端据此把「首次升级」和普通增量构建区分开。

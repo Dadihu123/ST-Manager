@@ -73,3 +73,28 @@ docs/*
 !docs/agents/
 !docs/agents/**
 !docs/plugin-migration-v2-to-v3.md
+
+# ---------------------------------------------------------------------------
+# Android 壳工程（android/）：仓库跟踪源码与配置，忽略构建产物
+# ---------------------------------------------------------------------------
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/.idea/
+android/*.iml
+android/app/src/main/python/**/__pycache__/
+android/captures/
+*.apk
+*.aab
+
+# pip 在 android/app 下留下的临时工作目录（Chaquopy 调 pip 安装依赖时产生）。
+# 里面是 wheel/metadata 的临时副本，每次构建都会重建，绝不能提交。
+android/app/pip-*/
+
+# 离线依赖 wheelhouse：由 tools/build_android_wheelhouse.py 生成。
+# 不入库的原因：15 个 wheel 共 2.4 MB 二进制，且**可完全重建**；
+# 提交二进制会让仓库膨胀且难以审阅。CI 在构建前跑该脚本自动生成。
+# 本地首次构建前也先跑一次：
+#   python tools/build_android_wheelhouse.py
+android/wheelhouse/

@@ -108,6 +108,7 @@
         </button>
         <button
           @click="createSnapshot(false)"
+          data-long-press-menu
           @contextmenu.prevent="createSnapshot(true)"
           class="btn-secondary preset-editor-action-button preset-editor-tool-button"
           title="左键创建普通快照，右键创建关键快照"

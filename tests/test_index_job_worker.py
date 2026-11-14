@@ -329,6 +329,12 @@ def test_worker_routes_legacy_resource_worldinfo_path_job_via_shared_classifier(
         def execute(self, *_args, **_kwargs):
             return _FakeResult()
 
+        def commit(self):
+            calls.append(('commit',))
+
+        def rollback(self):
+            calls.append(('rollback',))
+
     monkeypatch.setattr(index_job_worker.ctx.index_wakeup, 'wait', fake_wait)
     monkeypatch.setattr(index_job_worker.ctx.index_wakeup, 'clear', lambda: None)
 
@@ -345,15 +351,16 @@ def test_worker_routes_legacy_resource_worldinfo_path_job_via_shared_classifier(
         lambda source_path: {'kind': 'resource', 'source_path': source_path},
     )
     monkeypatch.setattr(index_job_worker, 'apply_worldinfo_path_increment', lambda _conn, _source_path: calls.append(('global', _source_path)) or True)
-    monkeypatch.setattr(index_job_worker, 'apply_worldinfo_owner_increment', lambda _conn, entity_id, source_path='': calls.append(('owner', entity_id, source_path)) or True)
+    monkeypatch.setattr(index_job_worker, 'apply_worldinfo_owner_increment', lambda _conn, entity_id, source_path='', *, commit=True: calls.append(('owner', entity_id, source_path, commit)) or True)
     monkeypatch.setattr(index_job_worker, 'resolve_resource_worldinfo_owner_card_ids', lambda source_path: ['cards/alpha.png', 'cards/zeta.png'] if 'hero-assets' in source_path else [], raising=False)
 
     with pytest.raises(_StopLoop):
         index_job_worker.worker_loop()
 
     assert calls == [
-        ('owner', 'cards/alpha.png', 'D:/data/resources/hero-assets/lorebooks/book.json'),
-        ('owner', 'cards/zeta.png', 'D:/data/resources/hero-assets/lorebooks/book.json'),
+        ('owner', 'cards/alpha.png', 'D:/data/resources/hero-assets/lorebooks/book.json', False),
+        ('owner', 'cards/zeta.png', 'D:/data/resources/hero-assets/lorebooks/book.json', False),
+        ('commit',),
         ('mark', 1, 'done', ''),
     ]
 
@@ -397,6 +404,12 @@ def test_worker_routes_relative_resource_worldinfo_path_via_real_classifier(monk
         def execute(self, *_args, **_kwargs):
             return _FakeResult()
 
+        def commit(self):
+            calls.append(('commit',))
+
+        def rollback(self):
+            calls.append(('rollback',))
+
     monkeypatch.setattr(index_job_worker.ctx.index_wakeup, 'wait', fake_wait)
     monkeypatch.setattr(index_job_worker.ctx.index_wakeup, 'clear', lambda: None)
     monkeypatch.setattr(index_job_worker, '_claim_pending_jobs', lambda _limit: (rows.pop(0), 0))
@@ -404,7 +417,7 @@ def test_worker_routes_relative_resource_worldinfo_path_via_real_classifier(monk
     monkeypatch.setattr(index_job_worker, '_mark_job_status', lambda job_id, status, error_msg='': calls.append(('mark', job_id, status, error_msg)))
     monkeypatch.setattr(index_job_worker, '_connect', lambda: _FakeConn())
     monkeypatch.setattr(index_job_worker, 'apply_worldinfo_path_increment', lambda _conn, _source_path: calls.append(('global', _source_path)) or True)
-    monkeypatch.setattr(index_job_worker, 'apply_worldinfo_owner_increment', lambda _conn, entity_id, source_path='': calls.append(('owner', entity_id, source_path)) or True)
+    monkeypatch.setattr(index_job_worker, 'apply_worldinfo_owner_increment', lambda _conn, entity_id, source_path='', *, commit=True: calls.append(('owner', entity_id, source_path, commit)) or True)
     monkeypatch.setattr(index_job_worker, 'resolve_resource_worldinfo_owner_card_ids', lambda source_path: ['cards/alpha.png'] if str(resource_file) == source_path else [], raising=False)
     monkeypatch.setattr(index_job_worker, 'load_config', lambda: {
         'world_info_dir': 'data/library/lorebooks',
@@ -421,7 +434,8 @@ def test_worker_routes_relative_resource_worldinfo_path_via_real_classifier(monk
         index_job_worker.worker_loop()
 
     assert calls == [
-        ('owner', 'cards/alpha.png', str(resource_file)),
+        ('owner', 'cards/alpha.png', str(resource_file), False),
+        ('commit',),
         ('mark', 1, 'done', ''),
     ]
 

@@ -89,6 +89,16 @@ Pytest tests exist in `tests/`; do not assume the repo is untested.
 pytest tests/
 ```
 
+- Android Kotlin behavior tests and debug build (from `android/`; Windows uses `gradlew.bat`):
+
+```bash
+./gradlew :app:testDebugUnitTest :app:assembleDebug
+```
+
+`DownloadWriterTest` covers output streams and MediaStore failure cleanup on the JVM.
+System document selection, storage permissions and Activity lifecycle still require an Android device
+or emulator; frontend bridge mocks and source matching do not verify those system behaviors.
+
 - Run a single test file:
 
 ```bash
@@ -281,11 +291,37 @@ mypy core
 - Use `core/data/db_session.py` for SQLite connection patterns and retry helpers
 - Background workers should be daemon threads
 - File-system-triggered rescans should go through scan/cache services, not ad hoc logic
+- An inaccessible directory is not a deleted file. Destructive scan reconciliation and orphan-history
+  cleanup require complete enumeration of every relevant root and child directory; enumeration errors
+  must abort and roll back the scan's metadata/history transaction, preserve favorites, and expose an
+  inaccessible-directory status. Use `walk_directory_strict`, never a silent `os.walk` for deletion decisions.
+- Incomplete enumeration or resource I/O must never activate a rebuilt index. Worldbook rebuilds use
+  strict enumeration and propagate access errors separately from invalid JSON; discard the failed
+  generation, retain the active generation and its search format version, and expose a retryable error.
+- Active worldbook increments must also be atomic. Access failures roll back entity/search/category
+  changes, including nested embedded updates and every owner of a shared-resource job. Inner updates
+  defer commits to the enclosing transaction; only invalid format or confirmed deletion may remove rows.
+- External resource access must not block basic service startup or recovery entry points. History schema
+  creation is SQL-only; path conversion is isolated in a savepoint, retains its prior roots on access
+  failure, and retries on history access/scans. Orphan cleanup must wait for conversion to complete.
+- Business content sandboxes must not inherit native host capabilities. Android uses an origin-limited
+  WebMessage listener and verifies `sourceOrigin` plus `isMainFrame` before dispatch; do not use
+  `addJavascriptInterface` or accept iframe `postMessage` as a proxy for native requests. Unsupported
+  WebViews must fail closed with an update message.
 - Chat module styles live in `static/css/modules/view-chats.css` (entry) with partials under `static/css/modules/view-chats/` (`tokens.css`, `grid.css`, `reader-shell.css`, etc.)
 - Beautify module styles live in `static/css/modules/view-beautify.css` (flat tokens aligned with chat module)
 - Hover hints are global: keep writing `title="..."`, and `static/js/utils/tooltip.js` migrates it to `data-tooltip` at hover time so `static/css/modules/tooltip.css` can render the host tooltip. Any CSS selector or read-back that keys off `title` text must also match `data-tooltip`; `data-tooltip-placement` / `data-tooltip-disabled` are the opt-in extras
 - README screenshots in `docs/screenshots/` are **generated**, not hand-cropped: run `python tools/seed_screenshot_data.py` once (deterministic sample cards/worldbooks/chats/presets) and then `python tools/screenshot_readme.py` with the app running on `:5000` and Playwright installed. Desktop shots are 1920x1000, mobile shots 390x844 @2x; the shooter also hides the toast host and the resident pet plugin root. Never re-crop by hand — edit the shooter so the whole set stays consistent
 - Mobile-only surfaces (settings nav drawer, entry dock sheet, command palette trigger) follow one rule: **reuse the desktop component and change only the container**. The settings nav is a left drawer built from the same `.settings-nav-item` markup as desktop; do not reintroduce a compressed grid that eats half the screen
+- Back gesture (`static/js/utils/viewStack.js` + `hostBridge.js`): every overlay that opens must be registered in the `layers` table in `layout.js:_installBackGestureSupport`, or the Android back key exits the app instead of closing it. Preserve these invariants (the original three have device verification recorded in `docs/2026-11-12-three-platform-refactor-plan.md` §4.1.1):
+  1. **Registration defines fixed close priority** — later entries close first (not temporal LIFO). Order the table from bottom-most to top-most visual layer.
+  2. **"Does this overlay participate in back" is decided by whether it is a floating layer, not by device type.** The sidebar is a slide-in drawer only at `deviceType === 'mobile'` (matches `sidebar.html`); at tablet/desktop widths it is always-present chrome and must NOT consume the back key.
+  3. **Never let a layer be `active` unconditionally.** `entryDock.expanded` defaults to true on mobile, so an unconditional `isActive` silently eats a back press without closing anything visible.
+  4. **Children must share their actual visibility constraints.** Gate them on the parent, current
+     workspace when applicable, and responsive layout. Reuse component close methods so cleanup and
+     unsaved-change confirmation run. Named local Alpine scopes use `data-back-scope` for the same table.
+  - Debugging: `window.__stmViewStack()` reports `{registered: [{key, active, error}], depth, installed, hasActiveLayer}`, which distinguishes "layer never registered" from "`isActive` always false" from "DOM observer not installed".
+- Touch long-press: only business targets marked `[data-long-press-menu]` in `static/js/utils/longPress.js` **take over** the native `contextmenu` (`preventDefault` + re-dispatch at the recorded finger coordinates) while inputs, editable content and ordinary text keep native behavior. Android WebView fires its own `contextmenu` at ~500 ms with system coordinates; yielding means no menu ever appears.
 
 ## Build And Packaging
 

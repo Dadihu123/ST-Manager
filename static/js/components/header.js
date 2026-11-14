@@ -132,6 +132,11 @@ export default function header() {
     },
 
     get canUseFulltextSearch() {
+      // 平台能力：无 FTS5 的平台（如 iOS）没有全文索引表，全文搜索不可用。
+      // 能力未知（还没拿到索引状态）时按可用处理，由后端兜底降级为 fast。
+      const capabilities = (this.$store.global.indexStatus || {}).capabilities;
+      if (capabilities && capabilities.fts5 === false) return false;
+
       if (this.currentMode === "worldinfo") {
         return !!this.$store.global.settingsForm.worldinfo_list_use_index;
       }
@@ -314,6 +319,7 @@ export default function header() {
     get indexStatusLabel() {
       const status = this.$store.global.indexStatus || {};
       if (status.scan_active) return "正在扫描资源";
+      if (status.scan_error) return "资源目录不可访问";
       const state = String(status.state || "");
       if (state === "building") return this.indexStatusPhaseLabel;
       if (state === "error") return "索引异常";

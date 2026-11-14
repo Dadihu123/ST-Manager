@@ -2715,6 +2715,7 @@ def test_convert_to_bundle_rebuilds_new_owner_projection_after_old_cleanup(monke
     monkeypatch.setattr(cache_service, 'get_file_hash_and_size', lambda _path: ('new-hash', 12))
     monkeypatch.setattr(cache_service, 'calculate_token_count', lambda _data: 22)
     monkeypatch.setattr(cache_service, 'get_wi_meta', lambda _data: (False, ''))
+    (tmp_path / 'global-lorebooks').mkdir(exist_ok=True)
     monkeypatch.setattr(index_build_service, 'load_config', lambda: {'world_info_dir': str(tmp_path / 'global-lorebooks'), 'resources_dir': str(resources_dir)})
     monkeypatch.setattr(cards_api, 'ensure_import_time', lambda *_args, **_kwargs: (False, 123.0))
     monkeypatch.setattr(cards_api, 'force_reload', lambda **_kwargs: None)
@@ -3475,6 +3476,7 @@ def test_api_move_folder_merge_bundle_preserves_version_remarks_and_rebuilds_pro
     )
     monkeypatch.setattr(cache_service, 'calculate_token_count', lambda _data: 77)
     monkeypatch.setattr(cache_service, 'get_wi_meta', lambda _data: (False, ''))
+    (tmp_path / 'global-lorebooks').mkdir(exist_ok=True)
     monkeypatch.setattr(index_build_service, 'load_config', lambda: {'world_info_dir': str(tmp_path / 'global-lorebooks'), 'resources_dir': str(tmp_path / 'resources')})
     monkeypatch.setattr(cards_api.ctx, 'cache', cache, raising=False)
 

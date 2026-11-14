@@ -5,6 +5,7 @@
 
 // 1. 导入全局状态初始化
 import { initState } from "./state.js";
+import { installNativeHost } from "./utils/nativeHost.js";
 
 // 2. 导入 UI 组件
 import layout from "./components/layout.js";
@@ -51,6 +52,8 @@ import { initTooltipSystem } from "./utils/tooltip.js";
 import { PluginHost } from "./pluginHost.js";
 import { PluginSlotHost } from "./pluginSlotHost.js";
 import "./utils/numberControl.js";
+
+installNativeHost();
 
 // 3. 监听 Alpine 初始化事件
 const registerComponents = () => {

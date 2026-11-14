@@ -1,0 +1,95 @@
+name: Build Android APK
+
+# 独立工作流，**不加入** build-desktop.yml 的 publish-release.needs
+# （否则移动端失败会拦住桌面端 Release，与「保留桌面发布」冲突）。
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - 'android/**'
+      - 'core/**'
+      - 'static/**'
+      - 'templates/**'
+      - 'tools/build_android_wheelhouse.py'
+      - '.github/workflows/build-android.yml'
+  pull_request:
+    paths:
+      - 'android/**'
+      - 'core/**'
+      - 'static/**'
+      - 'templates/**'
+      - 'tools/build_android_wheelhouse.py'
+      - '.github/workflows/build-android.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build-apk:
+    name: Build debug APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Chaquopy 编译字节码要求构建机有**同版本** Python（app 里写的是 3.13）。
+      # 必须放在 Gradle 之前，否则 Chaquopy 会报「找不到匹配的 Python」。
+      - name: Set up Python 3.13 (must match chaquopy version in app/build.gradle.kts)
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      # Chaquopy 在 Linux 上按 python3.13 -> python3 -> python 的顺序查找。
+      # setup-python 会提供 python3.13，这里显式兜底并打印，便于排查。
+      - name: Verify build Python matches app Python
+        run: |
+          python --version
+          python3 --version || true
+          if ! command -v python3.13 >/dev/null 2>&1; then
+            echo "python3.13 不在 PATH，创建别名指向当前 python"
+            ln -sf "$(command -v python)" "$(dirname "$(command -v python)")/python3.13"
+          fi
+          python3.13 --version
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      # Chaquopy 依赖走 android/wheelhouse 离线安装（app/build.gradle.kts 里
+      # 传了 --no-index）。wheelhouse 不入库（2.4 MB 二进制，可完全重建），
+      # 因此这里先生成。脚本自己会做「--no-index 能否解析全部依赖」的校验，
+      # 失败即非零退出，不会带着残缺的 wheelhouse 继续构建。
+      - name: Generate offline wheelhouse
+        run: python tools/build_android_wheelhouse.py
+
+      - name: Make gradlew executable
+        working-directory: android
+        run: chmod +x ./gradlew
+
+      # 先验证 Kotlin 编译和下载写入的失败回收，再打包。
+      - name: Kotlin compile and unit tests
+        working-directory: android
+        run: ./gradlew :app:compileDebugKotlin :app:testDebugUnitTest --no-daemon --stacktrace
+
+      - name: Build debug APK
+        working-directory: android
+        run: ./gradlew :app:assembleDebug --no-daemon --stacktrace
+
+      - name: Show APK size
+        working-directory: android
+        run: ls -lh app/build/outputs/apk/debug/ || true
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ST-Manager-Android-debug
+          path: android/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error

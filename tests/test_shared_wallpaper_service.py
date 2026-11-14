@@ -46,6 +46,7 @@ def test_load_library_merges_builtin_and_persisted_items(tmp_path):
 
     service = SharedWallpaperService(
         project_root=str(tmp_path),
+        internal_root=str(tmp_path),
         ui_data_loader=lambda: ui_data,
         ui_data_saver=lambda data: True,
     )
@@ -83,6 +84,7 @@ def test_load_library_preserves_builtin_selection_ids(tmp_path):
 
     service = SharedWallpaperService(
         project_root=str(tmp_path),
+        internal_root=str(tmp_path),
         ui_data_loader=lambda: ui_data,
         ui_data_saver=lambda data: True,
     )
@@ -113,6 +115,7 @@ def test_import_wallpaper_preserves_existing_builtin_manager_selection(tmp_path)
 
     service = SharedWallpaperService(
         project_root=str(tmp_path),
+        internal_root=str(tmp_path),
         ui_data_loader=lambda: ui_data,
         ui_data_saver=lambda data: True,
     )
@@ -155,6 +158,7 @@ def test_select_wallpaper_preserves_existing_builtin_manager_selection(tmp_path)
 
     service = SharedWallpaperService(
         project_root=str(tmp_path),
+        internal_root=str(tmp_path),
         ui_data_loader=lambda: ui_data,
         ui_data_saver=lambda data: True,
     )
@@ -186,6 +190,7 @@ def test_select_builtin_wallpaper_persists_to_existing_store(tmp_path):
 
     service = SharedWallpaperService(
         project_root=str(tmp_path),
+        internal_root=str(tmp_path),
         ui_data_loader=lambda: ui_data,
         ui_data_saver=save_ui_data,
     )
@@ -228,6 +233,7 @@ def test_select_wallpaper_replaces_existing_builtin_manager_selection_with_impor
 
     service = SharedWallpaperService(
         project_root=str(tmp_path),
+        internal_root=str(tmp_path),
         ui_data_loader=lambda: ui_data,
         ui_data_saver=lambda data: True,
     )
@@ -254,6 +260,7 @@ def test_import_wallpaper_replaces_existing_builtin_manager_selection_with_impor
 
     service = SharedWallpaperService(
         project_root=str(tmp_path),
+        internal_root=str(tmp_path),
         ui_data_loader=lambda: ui_data,
         ui_data_saver=lambda data: True,
     )
@@ -279,6 +286,7 @@ def test_import_wallpaper_copies_manager_asset_and_updates_selection(tmp_path):
 
     service = SharedWallpaperService(
         project_root=str(tmp_path),
+        internal_root=str(tmp_path),
         ui_data_loader=lambda: ui_data,
         ui_data_saver=save_ui_data,
     )
@@ -307,6 +315,7 @@ def test_import_wallpaper_removes_invalid_copied_file(tmp_path):
 
     service = SharedWallpaperService(
         project_root=str(tmp_path),
+        internal_root=str(tmp_path),
         ui_data_loader=lambda: {},
         ui_data_saver=lambda data: True,
     )
@@ -334,6 +343,7 @@ def test_import_wallpaper_copies_package_asset_and_updates_preview_selection(tmp
     ui_data = {}
     service = SharedWallpaperService(
         project_root=str(tmp_path),
+        internal_root=str(tmp_path),
         ui_data_loader=lambda: ui_data,
         ui_data_saver=lambda data: True,
     )
@@ -365,6 +375,7 @@ def test_migrate_legacy_backgrounds_registers_existing_manager_background(tmp_pa
 
     service = SharedWallpaperService(
         project_root=str(tmp_path),
+        internal_root=str(tmp_path),
         ui_data_loader=lambda: ui_data,
         ui_data_saver=lambda data: True,
     )
@@ -417,6 +428,7 @@ def test_migrate_legacy_backgrounds_reads_nested_settings_bg_url_and_preserves_p
 
     service = SharedWallpaperService(
         project_root=str(tmp_path),
+        internal_root=str(tmp_path),
         ui_data_loader=lambda: ui_data,
         ui_data_saver=lambda data: True,
     )
@@ -449,6 +461,7 @@ def test_migrate_legacy_backgrounds_does_not_override_existing_manager_selection
 
     service = SharedWallpaperService(
         project_root=str(tmp_path),
+        internal_root=str(tmp_path),
         ui_data_loader=lambda: ui_data,
         ui_data_saver=lambda data: True,
     )
@@ -476,6 +489,7 @@ def test_migrate_legacy_backgrounds_is_idempotent_for_same_legacy_file(tmp_path)
 
     service = SharedWallpaperService(
         project_root=str(tmp_path),
+        internal_root=str(tmp_path),
         ui_data_loader=lambda: ui_data,
         ui_data_saver=lambda data: True,
     )
@@ -505,6 +519,7 @@ def test_migrate_legacy_backgrounds_is_idempotent_when_first_import_uses_suffixe
 
     service = SharedWallpaperService(
         project_root=str(tmp_path),
+        internal_root=str(tmp_path),
         ui_data_loader=lambda: ui_data,
         ui_data_saver=lambda data: True,
     )
@@ -550,6 +565,7 @@ def test_load_library_clears_stale_raw_selection_ids_without_restoring_them(tmp_
 
     service = SharedWallpaperService(
         project_root=str(tmp_path),
+        internal_root=str(tmp_path),
         ui_data_loader=lambda: ui_data,
         ui_data_saver=lambda data: True,
     )

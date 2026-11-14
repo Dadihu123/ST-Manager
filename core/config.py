@@ -6,16 +6,81 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# --- 智能判断根目录 (兼容 PyInstaller) ---
-if getattr(sys, 'frozen', False):
-    # PyInstaller 打包后的环境
-    BASE_DIR = os.path.dirname(sys.executable)
-    INTERNAL_DIR = sys._MEIPASS
-else:
-    # 如果是正常的 Python 脚本运行环境
-    _current_dir = os.path.dirname(os.path.abspath(__file__))
-    BASE_DIR = os.path.dirname(_current_dir)
-    INTERNAL_DIR = BASE_DIR
+
+# --- 平台判定 ---
+# 注意：不要用 platform.system() 的字符串到处判断。
+# iOS 上 platform.system() == 'iOS'，Android 上 PEP 738 规定返回 'Android'
+# （部分运行时/旧解释器也可能是 'Linux'），两者都不匹配 Windows/Darwin。
+# 这里集中判定，其余模块一律引用本模块的函数/常量。
+
+def is_ios_platform() -> bool:
+    """当前是否运行在 iOS 上（PEP 730：sys.platform == 'ios'）。"""
+    return sys.platform == 'ios' or hasattr(sys, 'getiosversion')
+
+
+def is_android_platform() -> bool:
+    """当前是否运行在 Android 上（PEP 738：sys.platform == 'android'）。
+
+    Chaquopy 等嵌入方案下 sys.platform 可能仍是 'linux'，因此补一个
+    ANDROID_ROOT 环境变量兜底（Android 系统总会设置它）。
+    """
+    if sys.platform == 'android':
+        return True
+    if sys.platform == 'ios':
+        return False
+    return 'ANDROID_ROOT' in os.environ
+
+
+def is_frozen() -> bool:
+    """是否运行在 PyInstaller 打包态。"""
+    return bool(getattr(sys, 'frozen', False))
+
+
+def is_embedded_android() -> bool:
+    """Android 壳显式声明；Termux 源码运行保留桌面路径与能力。"""
+    return os.environ.get('STM_ANDROID_SHELL') == '1'
+
+
+def resolve_base_dir() -> str:
+    """可写数据根：config.json 与 data/ 所在目录。
+
+    三种形态的取值必须与历史行为**逐字节一致**，否则桌面端老用户的数据
+    会静默失联（尤其 macOS：数据写在 .app/Contents/MacOS 里）：
+
+    - 打包态：``dirname(sys.executable)``（与 exe / .app 同级，持久可写）
+    - 源码态：仓库根
+    - 移动端：应用内部存储的可写目录（iOS 用 Documents/，Android 用 HOME）
+    """
+    if is_embedded_android() and os.environ.get('STM_DATA_ROOT'):
+        return os.path.abspath(os.environ['STM_DATA_ROOT'])
+    if is_ios_platform() or is_embedded_android():
+        # 移动端：``~`` 即应用沙盒的可写根。iOS 上为 <sandbox>/Documents
+        # （需壳层配 UIFileSharingEnabled 才能在 Files app 看到），
+        # Android 上为 /data/data/<pkg>/files。
+        home = os.environ.get('HOME') or os.path.expanduser('~')
+        if home:
+            return os.path.abspath(home)
+    if is_frozen():
+        return os.path.dirname(sys.executable)
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    return os.path.dirname(current_dir)
+
+
+def resolve_internal_dir(base_dir: str) -> str:
+    """只读资源根：static/、templates/ 等包内资源所在目录。
+
+    打包态必须与 ``BASE_DIR`` 分开：onefile 下 ``sys._MEIPASS`` 是每次启动
+    都会重建的临时目录，往里写数据会丢；源码态二者同值。
+    """
+    if is_embedded_android() and os.environ.get('STM_INTERNAL_ROOT'):
+        return os.path.abspath(os.environ['STM_INTERNAL_ROOT'])
+    if is_frozen():
+        return sys._MEIPASS
+    return base_dir
+
+
+BASE_DIR = resolve_base_dir()
+INTERNAL_DIR = resolve_internal_dir(BASE_DIR)
 
 CONFIG_FILE = os.path.join(BASE_DIR, 'config.json')
 
@@ -30,11 +95,15 @@ THUMB_FOLDER = os.path.join(SYSTEM_DIR, 'thumbnails')
 TRASH_FOLDER = os.path.join(SYSTEM_DIR, 'trash')
 TEMP_DIR = os.path.join(DATA_DIR, 'temp')
 
-# 确保核心系统目录存在
-for d in [DATA_DIR, SYSTEM_DIR, DB_FOLDER, THUMB_FOLDER, TRASH_FOLDER, TEMP_DIR]:
-    if not os.path.exists(d):
-        try: os.makedirs(d)
-        except: pass
+# 确保核心系统目录存在。
+# 这里刻意**不抛异常**：core.config 一旦在 import 期抛错，app.py 连日志都打不出来。
+# 但也不能像以前那样裸吞——失败必须留下可定位的日志，否则移动端权限问题无从排查。
+for _dir in (DATA_DIR, SYSTEM_DIR, DB_FOLDER, THUMB_FOLDER, TRASH_FOLDER, TEMP_DIR):
+    if not os.path.exists(_dir):
+        try:
+            os.makedirs(_dir)
+        except OSError as _exc:
+            logger.error('创建运行时目录失败: %s (%s)', _dir, _exc)
 
 # 已下线的配置键：读取时统一剔除，避免旧 config.json 里继续残留。
 # sync_source_title_on_update 曾用于控制「更新卡片后是否联网抓来源标题」，

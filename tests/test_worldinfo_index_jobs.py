@@ -768,40 +768,39 @@ def test_change_image_skips_file_driven_card_job_when_cache_write_fails(monkeypa
     ]
 
 
-def test_background_scanner_enqueues_targeted_card_reconcile_when_changes_detected(monkeypatch):
+def test_background_scanner_enqueues_targeted_card_reconcile_when_changes_detected(monkeypatch, tmp_path):
+    from test_scan_performance_regression import _create_card_metadata_table
+
     calls = []
+    db_path = tmp_path / 'cards_metadata.db'
+    cards_dir = tmp_path / 'cards'
+    cards_dir.mkdir()
+    world_dir = tmp_path / 'worldinfo'
+    world_dir.mkdir()
+    resources_dir = tmp_path / 'resources'
+    resources_dir.mkdir()
+    _create_card_metadata_table(db_path)
+    with sqlite3.connect(db_path) as conn:
+        conn.execute('INSERT INTO card_metadata (id) VALUES (?)', ('gone.png',))
 
-    class _FakeConn:
-        def __enter__(self):
-            return self
-
-        def __exit__(self, exc_type, exc, tb):
-            return False
-
-        def execute(self, *_args, **_kwargs):
-            return None
-
-        def cursor(self):
-            return self
-
-        def fetchall(self):
-            return [('gone.png', 10.0, 100, 0, 'hash', 0)]
-
-        def commit(self):
-            return None
-
-    monkeypatch.setattr(scan_service.sqlite3, 'connect', lambda *_args, **_kwargs: _FakeConn())
-    monkeypatch.setattr(scan_service, 'CARDS_FOLDER', 'D:/cards')
+    monkeypatch.setattr(scan_service, 'DEFAULT_DB_PATH', str(db_path))
+    monkeypatch.setattr(scan_service, 'CARDS_FOLDER', str(cards_dir))
+    monkeypatch.setattr(scan_service, 'load_config', lambda: {
+        'world_info_dir': str(world_dir), 'resources_dir': str(resources_dir),
+    })
+    monkeypatch.setattr(scan_service, 'load_ui_data', lambda: {})
     monkeypatch.setattr(scan_service, 'enqueue_index_job', lambda *args, **kwargs: calls.append((args, kwargs)))
     monkeypatch.setattr(scan_service, 'schedule_reload', lambda **_kwargs: None)
-    monkeypatch.setattr(scan_service.os, 'walk', lambda _root: iter([('D:/cards', [], [])]))
 
     scan_service._perform_scan_logic()
 
+    deleted_path = str(cards_dir / 'gone.png')
     assert calls == [
-        (('upsert_card',), {'entity_id': 'gone.png', 'source_path': 'D:\\cards\\gone.png'}),
-        (('upsert_world_owner',), {'entity_id': 'gone.png', 'source_path': 'D:\\cards\\gone.png', 'payload': {'remove_owner_ids': ['gone.png']}}),
+        (('upsert_card',), {'entity_id': 'gone.png', 'source_path': deleted_path}),
+        (('upsert_world_owner',), {'entity_id': 'gone.png', 'source_path': deleted_path, 'payload': {'remove_owner_ids': ['gone.png']}}),
     ]
+    with sqlite3.connect(db_path) as conn:
+        assert conn.execute('SELECT COUNT(*) FROM card_metadata').fetchone() == (0,)
 
 
 def test_process_card_upsert_task_updates_metadata_and_enqueues_targeted_jobs(monkeypatch, tmp_path):

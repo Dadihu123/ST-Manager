@@ -21,6 +21,7 @@ def _build_service(tmp_path, ui_data):
     library_root = tmp_path / 'data' / 'library' / 'beautify'
     return BeautifyService(
         library_root=library_root,
+        internal_root=str(tmp_path),
         ui_data_loader=lambda: ui_data,
         ui_data_saver=lambda data: ui_data.clear() or ui_data.update(data),
     )
@@ -365,6 +366,7 @@ def test_import_theme_creates_package_from_theme_name_and_detects_mobile_platfor
 
     service = BeautifyService(
         library_root=library_root,
+        internal_root=str(tmp_path),
         ui_data_loader=lambda: ui_data,
         ui_data_saver=lambda data: saved_payloads.append(json.loads(json.dumps(data, ensure_ascii=False))),
     )
@@ -405,6 +407,7 @@ def test_import_theme_defaults_to_dual_and_marks_platform_review_when_guess_is_u
 
     service = BeautifyService(
         library_root=library_root,
+        internal_root=str(tmp_path),
         ui_data_loader=lambda: ui_data,
         ui_data_saver=lambda data: ui_data.clear() or ui_data.update(data),
     )
@@ -528,6 +531,7 @@ def test_import_wallpaper_registers_shared_variant_wallpaper_and_selects_it(tmp_
 
     service = BeautifyService(
         library_root=library_root,
+        internal_root=str(tmp_path),
         ui_data_loader=lambda: ui_data,
         ui_data_saver=lambda data: ui_data.clear() or ui_data.update(data),
     )
@@ -2148,6 +2152,7 @@ def test_beautify_package_shape_no_longer_requires_install_state(tmp_path):
 
     service = BeautifyService(
         library_root=library_root,
+        internal_root=str(tmp_path),
         ui_data_loader=lambda: ui_data,
         ui_data_saver=lambda data: ui_data.clear() or ui_data.update(data),
     )

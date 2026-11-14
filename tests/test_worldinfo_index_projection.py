@@ -79,6 +79,10 @@ def test_rebuild_worldinfo_index_preserves_resource_override_category(monkeypatc
     res_dir = tmp_path / 'resources'
     cards_dir = tmp_path / 'cards'
     cards_dir.mkdir()
+    from PIL import Image
+    (cards_dir / 'cards').mkdir()
+    Image.new('RGB', (1, 1)).save(cards_dir / 'cards' / 'lucy.png')
+    (tmp_path / 'lorebooks').mkdir()
     target = res_dir / 'lucy' / 'lorebooks' / 'companion.json'
     _write_json(target, {'name': 'Companion Lore', 'entries': {}})
 
@@ -156,6 +160,7 @@ def test_rebuild_worldinfo_index_skips_bad_files_without_erasing_valid_rows(monk
 
 def test_rebuild_worldinfo_index_uses_configured_cards_dir_for_embedded_books(monkeypatch, tmp_path):
     db_path = tmp_path / 'cards_metadata.db'
+    (tmp_path / 'lorebooks').mkdir()
     configured_cards_dir = tmp_path / 'configured-cards'
     configured_cards_dir.mkdir()
     fallback_cards_dir = tmp_path / 'fallback-cards'

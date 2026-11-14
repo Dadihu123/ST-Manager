@@ -5,16 +5,24 @@ import uuid
 import hashlib
 import logging
 import sqlite3
+import stat
+from contextlib import nullcontext
 
 from core.config import BASE_DIR, DEFAULT_DB_PATH, load_config
 from core.config import CARDS_FOLDER
 from core.utils.card_identity import normalize_card_uid
+from core.utils.filesystem import walk_directory_strict
 
 logger = logging.getLogger(__name__)
 
 ENTRY_UID_FIELD = 'st_manager_uid'
 DEFAULT_HISTORY_LIMIT = 7
 MAX_HISTORY_LIMIT = 100
+
+
+def ensure_entry_history_schema(conn):
+    """只准备数据库结构，不访问可能暂时失权的资源目录。"""
+    _ensure_table(conn)
 
 
 def _ensure_table(conn):
@@ -33,6 +41,89 @@ def _ensure_table(conn):
         CREATE INDEX IF NOT EXISTS idx_wi_entry_history_scope_uid_time
         ON wi_entry_history(scope_key, entry_uid, created_at DESC, id DESC)
     ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS wi_history_roots (
+            id INTEGER PRIMARY KEY, roots_json TEXT NOT NULL
+        )
+    ''')
+
+
+def migrate_entry_history_paths(conn):
+    """尝试转换旧历史；失权时回滚本次转换，保留旧根供下次扫描/访问重试。"""
+    ensure_entry_history_schema(conn)
+    conn.execute('SAVEPOINT wi_history_path_migration')
+    try:
+        _migrate_path_scopes(conn)
+    except Exception as exc:
+        conn.execute('ROLLBACK TO wi_history_path_migration')
+        if not isinstance(exc, OSError):
+            raise
+        logger.warning('资源目录暂不可访问，历史路径转换待重试，已保留历史: %s', exc)
+        return False
+    finally:
+        conn.execute('RELEASE wi_history_path_migration')
+    return True
+
+
+def _prepare_history(conn):
+    # 常规历史操作也可重试；转换失败不影响兼容 key 的读取与新历史写入。
+    return migrate_entry_history_paths(conn)
+
+
+def _history_roots():
+    cfg = load_config()
+    return {
+        'base': os.path.abspath(BASE_DIR),
+        'world_info_dir': os.path.abspath(os.path.join(BASE_DIR, cfg.get('world_info_dir') or 'data/library/lorebooks')),
+        'resources_dir': os.path.abspath(os.path.join(BASE_DIR, cfg.get('resources_dir') or 'data/assets/card_assets')),
+    }
+
+
+def _scope_path(file_path, roots=None):
+    path = _normalize_path(file_path)
+    if not path:
+        return ''
+    roots = roots or _history_roots()
+    for key in ('world_info_dir', 'resources_dir', 'base'):
+        root = roots[key]
+        try:
+            if os.path.commonpath([os.path.abspath(path), root]) == root:
+                return f'{key}:{os.path.relpath(path, root).replace(chr(92), "/")}'
+        except ValueError:
+            continue
+    return path
+
+
+def _legacy_path_scope(source_type, file_path):
+    return hashlib.sha1(f'{source_type}|{file_path}'.encode('utf-8')).hexdigest()
+
+
+def _migrate_path_scopes(conn):
+    """在孤儿清理前将旧绝对路径哈希迁移；根信息随 SQLite 快照一起搬迁。"""
+    row = conn.execute('SELECT roots_json FROM wi_history_roots WHERE id = 1').fetchone()
+    current = _history_roots()
+    previous = json.loads(row[0]) if row else current
+    if row and previous == current:
+        return
+    for root_key, types in (('world_info_dir', ('global', 'lorebook')),
+                            ('resources_dir', ('resource', 'lorebook'))):
+        root = current[root_key]
+        if not stat.S_ISDIR(os.stat(root).st_mode):
+            raise NotADirectoryError(root)
+        for directory, _, filenames in walk_directory_strict(root):
+            for filename in filenames:
+                if not filename.lower().endswith('.json'):
+                    continue
+                path = os.path.join(directory, filename)
+                relative = os.path.relpath(path, root)
+                old_path = os.path.normpath(os.path.join(previous[root_key], relative)).replace('\\', '/')
+                for stype in types:
+                    target = hashlib.sha1(f'{stype}|{_scope_path(path, current)}'.encode('utf-8')).hexdigest()
+                    for old in (_legacy_path_scope(stype, old_path),
+                                _legacy_path_scope(stype, _normalize_path(path))):
+                        conn.execute('UPDATE wi_entry_history SET scope_key = ? WHERE scope_key = ?', (target, old))
+    conn.execute('INSERT OR REPLACE INTO wi_history_roots VALUES (1, ?)',
+                 (json.dumps(current, ensure_ascii=False),))
 
 
 def _build_scope_keys(source_type, source_id='', file_path='', fallback_contexts=None):
@@ -53,6 +144,10 @@ def _build_scope_keys(source_type, source_id='', file_path='', fallback_contexts
         scope_key = build_scope_key(*context)
         if scope_key and scope_key not in scope_keys:
             scope_keys.append(scope_key)
+        if context[2]:
+            legacy = _legacy_path_scope(str(context[0]).strip().lower(), _normalize_path(context[2]))
+            if legacy not in scope_keys:
+                scope_keys.append(legacy)
     return scope_keys
 
 
@@ -70,7 +165,7 @@ def build_scope_key(source_type: str, source_id: str = '', file_path: str = '') 
     sid = str(source_id or '').strip().replace('\\', '/')
     if stype == 'embedded':
         sid = normalize_card_uid(sid) or sid
-    npath = _normalize_path(file_path)
+    npath = _scope_path(file_path)
     if npath:
         raw = f'{stype}|{npath}'
     else:
@@ -243,7 +338,7 @@ def purge_entry_history_scope(
 
     try:
         with sqlite3.connect(db_path or DEFAULT_DB_PATH, timeout=30) as conn:
-            _ensure_table(conn)
+            _prepare_history(conn)
             placeholders = ', '.join('?' for _ in scope_keys)
             cursor = conn.execute(
                 f'DELETE FROM wi_entry_history WHERE scope_key IN ({placeholders})',
@@ -282,7 +377,7 @@ def reconcile_entry_history_scope(
 
     try:
         with sqlite3.connect(db_path or DEFAULT_DB_PATH, timeout=30) as conn:
-            _ensure_table(conn)
+            _prepare_history(conn)
             if not active_uids:
                 placeholders = ', '.join('?' for _ in scope_keys)
                 cursor = conn.execute(
@@ -373,7 +468,7 @@ def move_entry_history_scope(
 
     try:
         with sqlite3.connect(db_path or DEFAULT_DB_PATH, timeout=30) as conn:
-            _ensure_table(conn)
+            _prepare_history(conn)
             placeholders = ', '.join('?' for _ in old_scope_keys)
             cursor = conn.execute(
                 f'''
@@ -397,6 +492,8 @@ def purge_orphaned_entry_history(
     world_info_root=None,
     resources_root=None,
     db_path=None,
+    conn=None,
+    retained_card_ids=(),
 ) -> int:
     """Remove history scopes that no longer map to an existing source file."""
     cards_root = os.path.abspath(os.fspath(cards_root or CARDS_FOLDER))
@@ -404,17 +501,25 @@ def purge_orphaned_entry_history(
     resources_root = os.path.abspath(os.fspath(resources_root or '')) if resources_root else ''
 
     roots = [cards_root, world_info_root, resources_root]
-    if any(not root or not os.path.isdir(root) for root in roots):
+    if any(not root for root in roots):
         return 0
+    for root in roots:
+        try:
+            if not stat.S_ISDIR(os.stat(root).st_mode):
+                raise NotADirectoryError(root)
+        except FileNotFoundError:
+            # 尚未创建的可选资源根不参与孤儿清理。
+            return 0
 
-    valid_scope_keys = set()
+    # 重命名历史在扫描提交后迁移；此前必须保留旧相对路径的兼容 scope。
+    valid_scope_keys = {build_scope_key('embedded', source_id=card_id) for card_id in retained_card_ids}
     card_uid_map = {}
     try:
-        with sqlite3.connect(db_path or DEFAULT_DB_PATH, timeout=30) as conn:
+        with nullcontext(conn) if conn is not None else sqlite3.connect(db_path or DEFAULT_DB_PATH, timeout=30) as reader:
             try:
                 card_uid_map = {
                     str(row[0]).replace('\\', '/').strip('/'): normalize_card_uid(row[1])
-                    for row in conn.execute('SELECT id, card_uid FROM card_metadata').fetchall()
+                    for row in reader.execute('SELECT id, card_uid FROM card_metadata').fetchall()
                 }
             except sqlite3.Error:
                 card_uid_map = {}
@@ -422,16 +527,16 @@ def purge_orphaned_entry_history(
         card_uid_map = {}
 
     def add_worldbook_scopes(path, source_type):
-        valid_scope_keys.add(build_scope_key(source_type, file_path=path))
+        valid_scope_keys.update(_build_scope_keys(source_type, file_path=path))
         # History written before source_type was corrected used lorebook for all files.
-        valid_scope_keys.add(build_scope_key('lorebook', file_path=path))
+        valid_scope_keys.update(_build_scope_keys('lorebook', file_path=path))
 
-    for root, _dirs, files in os.walk(world_info_root):
+    for root, _dirs, files in walk_directory_strict(world_info_root):
         for name in files:
             if name.lower().endswith('.json'):
                 add_worldbook_scopes(os.path.join(root, name), 'global')
 
-    for root, _dirs, files in os.walk(resources_root):
+    for root, _dirs, files in walk_directory_strict(resources_root):
         for name in files:
             if not name.lower().endswith('.json'):
                 continue
@@ -441,7 +546,7 @@ def purge_orphaned_entry_history(
                 continue
             add_worldbook_scopes(path, 'resource')
 
-    for root, _dirs, files in os.walk(cards_root):
+    for root, _dirs, files in walk_directory_strict(cards_root):
         for name in files:
             if not name.lower().endswith(('.json', '.png')):
                 continue
@@ -453,28 +558,33 @@ def purge_orphaned_entry_history(
                 valid_scope_keys.add(build_scope_key('embedded', source_id=card_uid))
 
     try:
-        with sqlite3.connect(db_path or DEFAULT_DB_PATH, timeout=30) as conn:
-            _ensure_table(conn)
+        with nullcontext(conn) if conn is not None else sqlite3.connect(db_path or DEFAULT_DB_PATH, timeout=30) as writer:
+            if not migrate_entry_history_paths(writer):
+                # 未转换完的绝对路径 scope 不能参与孤儿判定。
+                return 0
             if valid_scope_keys:
-                conn.execute(
+                writer.execute(
                     'CREATE TEMP TABLE IF NOT EXISTS wi_valid_history_scopes (scope_key TEXT PRIMARY KEY)'
                 )
-                conn.execute('DELETE FROM wi_valid_history_scopes')
-                conn.executemany(
+                writer.execute('DELETE FROM wi_valid_history_scopes')
+                writer.executemany(
                     'INSERT OR IGNORE INTO wi_valid_history_scopes (scope_key) VALUES (?)',
                     [(scope_key,) for scope_key in valid_scope_keys],
                 )
-                cursor = conn.execute(
+                cursor = writer.execute(
                     '''
                     DELETE FROM wi_entry_history
                     WHERE scope_key NOT IN (SELECT scope_key FROM wi_valid_history_scopes)
                     '''
                 )
             else:
-                cursor = conn.execute('DELETE FROM wi_entry_history')
-            conn.commit()
+                cursor = writer.execute('DELETE FROM wi_entry_history')
+            if conn is None:
+                writer.commit()
             return max(int(cursor.rowcount or 0), 0)
     except Exception as e:
+        if conn is not None:
+            raise
         logger.warning(f'Purge orphaned WI entry history failed: {e}')
         return 0
 
@@ -503,7 +613,7 @@ def append_entry_history_records(source_type: str, source_id: str, file_path: st
 
     try:
         with sqlite3.connect(DEFAULT_DB_PATH, timeout=30) as conn:
-            _ensure_table(conn)
+            _prepare_history(conn)
             cursor = conn.cursor()
 
             for entry_uid, snapshot in clean_records:
@@ -581,7 +691,7 @@ def list_entry_history_records(
 
     try:
         with sqlite3.connect(DEFAULT_DB_PATH, timeout=30) as conn:
-            _ensure_table(conn)
+            _prepare_history(conn)
             cursor = conn.cursor()
             placeholders = ', '.join('?' for _ in scope_keys)
             cursor.execute(

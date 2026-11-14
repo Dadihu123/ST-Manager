@@ -2,12 +2,15 @@ import logging
 import sqlite3
 import time
 
+from core.data.sqlite_capabilities import supports_fts5
+
 
 logger = logging.getLogger(__name__)
 
 
 DB_SCHEMA_VERSION = 1
-INDEX_RUNTIME_SCHEMA_VERSION = 1
+#: 2 = ``index_search_fast_v2`` 由 FTS5 虚拟表改为普通表（见 ``_migrate_fast_search_table``）。
+INDEX_RUNTIME_SCHEMA_VERSION = 2
 
 
 # 构建进度列：老库用 ALTER TABLE 补齐（CREATE TABLE IF NOT EXISTS 不会加列）。
@@ -79,17 +82,11 @@ RUNTIME_SCHEMA_STATEMENTS = [
     )
     ''',
     '''
-    CREATE VIRTUAL TABLE IF NOT EXISTS index_search_fast_v2 USING fts5(
-        generation UNINDEXED,
-        entity_id UNINDEXED,
-        content
-    )
-    ''',
-    '''
-    CREATE VIRTUAL TABLE IF NOT EXISTS index_search_full_v2 USING fts5(
-        generation UNINDEXED,
-        entity_id UNINDEXED,
-        content
+    CREATE TABLE IF NOT EXISTS index_search_fast_v2 (
+        generation INTEGER NOT NULL,
+        entity_id TEXT NOT NULL,
+        content TEXT,
+        PRIMARY KEY (generation, entity_id)
     )
     ''',
     '''
@@ -134,6 +131,21 @@ RUNTIME_SCHEMA_STATEMENTS = [
     'CREATE INDEX IF NOT EXISTS idx_index_entities_v2_gen_category ON index_entities_v2(generation, display_category)',
     'CREATE INDEX IF NOT EXISTS idx_index_entities_v2_gen_owner ON index_entities_v2(generation, owner_entity_id)',
     'CREATE INDEX IF NOT EXISTS idx_index_entity_tags_v2_gen_tag_entity ON index_entity_tags_v2(generation, tag, entity_id)',
+    'CREATE INDEX IF NOT EXISTS idx_index_search_fast_v2_gen_entity ON index_search_fast_v2(generation, entity_id)',
+]
+
+
+#: 仅在 SQLite 支持 FTS5 时才建的语句。
+#: ``index_search_full_v2`` 是唯一真正依赖 FTS5 的表（查询侧用 ``MATCH``）；
+#: ``index_search_fast_v2`` 只用 ``LIKE``，因此已是普通表，不在此列。
+FTS5_SCHEMA_STATEMENTS = [
+    '''
+    CREATE VIRTUAL TABLE IF NOT EXISTS index_search_full_v2 USING fts5(
+        generation UNINDEXED,
+        entity_id UNINDEXED,
+        content
+    )
+    ''',
 ]
 
 
@@ -145,6 +157,17 @@ def _scope_generation_filters(scope: str) -> tuple[str, str, str]:
 
 def _find_obsolete_generations(conn: sqlite3.Connection, scope: str, active_generation: int) -> list[int]:
     entity_where, entity_id_pattern, stats_scope = _scope_generation_filters(scope)
+    # full 表只在支持 FTS5 时存在；无 FTS5 时把它从 UNION 里去掉，
+    # 否则整条查询会因为「no such table」失败，连带让所有过期代清理失效。
+    full_union = (
+        'UNION\n        SELECT generation FROM index_search_full_v2 WHERE entity_id LIKE ?'
+        if supports_fts5()
+        else ''
+    )
+    params = [entity_id_pattern, entity_id_pattern]
+    if supports_fts5():
+        params.append(entity_id_pattern)
+    params.extend([stats_scope, stats_scope])
     rows = conn.execute(
         f'''
         SELECT generation FROM index_entities_v2 WHERE {entity_where}
@@ -152,15 +175,14 @@ def _find_obsolete_generations(conn: sqlite3.Connection, scope: str, active_gene
         SELECT generation FROM index_entity_tags_v2 WHERE entity_id LIKE ?
         UNION
         SELECT generation FROM index_search_fast_v2 WHERE entity_id LIKE ?
-        UNION
-        SELECT generation FROM index_search_full_v2 WHERE entity_id LIKE ?
+        {full_union}
         UNION
         SELECT generation FROM index_category_stats_v2 WHERE scope = ?
         UNION
         SELECT generation FROM index_facet_stats_v2 WHERE scope = ?
         ORDER BY generation
         ''',
-        (entity_id_pattern, entity_id_pattern, entity_id_pattern, stats_scope, stats_scope),
+        params,
     ).fetchall()
     return [
         int(row[0] or 0)
@@ -194,9 +216,71 @@ def _ensure_build_state_progress_columns(conn: sqlite3.Connection):
             logger.warning('补建索引构建进度列失败 (%s): %s', column, exc)
 
 
+def _table_sql(conn: sqlite3.Connection, table: str) -> str:
+    """读取某表的建表 SQL；表不存在或连接是测试替身时返回空串。"""
+    try:
+        cursor = conn.execute(
+            "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?",
+            (table,),
+        )
+        row = cursor.fetchone() if cursor is not None else None
+    except sqlite3.Error:
+        return ''
+    except (AttributeError, TypeError, IndexError):
+        # 测试替身连接可能返回非游标对象；迁移是可选的，读不到就跳过。
+        return ''
+    if not row:
+        return ''
+    return str(row[0] or '')
+
+
+def _migrate_fast_search_table(conn: sqlite3.Connection) -> bool:
+    """把历史库里的 fts5 ``index_search_fast_v2`` 改成普通表。
+
+    ``index_search_fast_v2`` 的查询全部是 ``content LIKE``，从不用 ``MATCH``，
+    因此不需要 FTS5。改成普通表后 iOS 等无 FTS5 平台也能正常搜索，且（实测）
+    在 ``LIKE`` 场景下不慢于 fts5 表。
+
+    在事务内搬运三列内容，保留当前 generation 在后台重建期间的查询能力。
+
+    返回 True 表示发生了迁移（调用方据此记录 schema 版本）。
+    """
+    existing = _table_sql(conn, 'index_search_fast_v2')
+    if not existing:
+        # 表不存在：交给 CREATE TABLE IF NOT EXISTS 建普通表，无需迁移。
+        return False
+    if 'USING FTS5' not in existing.upper():
+        return False
+
+    logger.info('检测到 fts5 版 index_search_fast_v2，正在保留内容迁移为普通表')
+    conn.execute('SAVEPOINT migrate_fast_search')
+    try:
+        conn.execute('''CREATE TABLE index_search_fast_plain (
+            generation INTEGER NOT NULL, entity_id TEXT NOT NULL, content TEXT,
+            PRIMARY KEY (generation, entity_id))''')
+        conn.execute('''INSERT OR REPLACE INTO index_search_fast_plain
+            SELECT generation, entity_id, content FROM index_search_fast_v2''')
+        conn.execute('DROP TABLE index_search_fast_v2')
+        conn.execute('ALTER TABLE index_search_fast_plain RENAME TO index_search_fast_v2')
+        conn.execute('RELEASE migrate_fast_search')
+    except sqlite3.Error:
+        conn.execute('ROLLBACK TO migrate_fast_search')
+        conn.execute('RELEASE migrate_fast_search')
+        raise
+    return True
+
+
 def ensure_index_runtime_schema(conn: sqlite3.Connection):
+    # 先迁移历史 fts5 fast 表，后面的 CREATE TABLE IF NOT EXISTS 才能建出普通表。
+    _migrate_fast_search_table(conn)
+
     for statement in RUNTIME_SCHEMA_STATEMENTS:
         conn.execute(statement)
+
+    # full 表是唯一真正依赖 FTS5 的表：无 FTS5 的平台上不建，搜索降级为 fast。
+    if supports_fts5():
+        for statement in FTS5_SCHEMA_STATEMENTS:
+            conn.execute(statement)
 
     _ensure_build_state_progress_columns(conn)
 
@@ -440,10 +524,11 @@ def clear_generation_data(conn: sqlite3.Connection, scope: str, generation: int)
         'DELETE FROM index_search_fast_v2 WHERE generation = ? AND entity_id LIKE ?',
         (generation, entity_id_pattern),
     )
-    conn.execute(
-        'DELETE FROM index_search_full_v2 WHERE generation = ? AND entity_id LIKE ?',
-        (generation, entity_id_pattern),
-    )
+    if supports_fts5():
+        conn.execute(
+            'DELETE FROM index_search_full_v2 WHERE generation = ? AND entity_id LIKE ?',
+            (generation, entity_id_pattern),
+        )
 
     for entity_id in entity_ids:
         conn.execute(
@@ -454,10 +539,11 @@ def clear_generation_data(conn: sqlite3.Connection, scope: str, generation: int)
             'DELETE FROM index_search_fast_v2 WHERE generation = ? AND entity_id = ?',
             (generation, entity_id),
         )
-        conn.execute(
-            'DELETE FROM index_search_full_v2 WHERE generation = ? AND entity_id = ?',
-            (generation, entity_id),
-        )
+        if supports_fts5():
+            conn.execute(
+                'DELETE FROM index_search_full_v2 WHERE generation = ? AND entity_id = ?',
+                (generation, entity_id),
+            )
 
     conn.execute('DELETE FROM index_category_stats_v2 WHERE generation = ? AND scope = ?', (generation, stats_scope))
     conn.execute('DELETE FROM index_facet_stats_v2 WHERE generation = ? AND scope = ?', (generation, stats_scope))
@@ -470,7 +556,8 @@ SCAN_STATE_LAST_FULL_SCAN_AT = 'last_full_scan_at'
 # 搜索会静默失效（例如中文子串在未切分的旧内容上永远命中 0 条）。
 #   1 = 原文（历史格式，CJK 未切分）
 #   2 = CJK 逐字切分 + 世界书条目正文
-SEARCH_CONTENT_FORMAT_VERSION = 2
+#   3 = index_search_fast_v2 由 fts5 改为普通表（迁移后必须重建索引才能回填内容）
+SEARCH_CONTENT_FORMAT_VERSION = 3
 
 
 def search_content_format_state_key(scope: str) -> str:

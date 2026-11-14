@@ -10,7 +10,7 @@ from typing import Callable, Dict, Optional
 from PIL import Image
 from PIL import UnidentifiedImageError
 
-from core.config import get_beautify_folder
+from core.config import INTERNAL_DIR, get_beautify_folder
 from core.data.ui_store import (
     get_beautify_library,
     get_last_sent_to_st,
@@ -34,7 +34,9 @@ class BeautifyService:
         library_root: Optional[str] = None,
         ui_data_loader: Optional[Callable[[], Dict]] = None,
         ui_data_saver: Optional[Callable[[Dict], bool]] = None,
+        internal_root: Optional[str] = None,
     ):
+        self.internal_root = os.path.abspath(internal_root or INTERNAL_DIR)
         self.library_root = os.path.abspath(library_root or get_beautify_folder())
         self._ui_data_loader = ui_data_loader or load_ui_data
         self._ui_data_saver = ui_data_saver or save_ui_data
@@ -118,6 +120,7 @@ class BeautifyService:
     def _load_shared_wallpaper_library(self, ui_data: Dict):
         return SharedWallpaperService(
             project_root=self._project_root_for_library(),
+            internal_root=self.internal_root,
             ui_data_loader=lambda: ui_data,
             ui_data_saver=lambda data: True,
         ).load_library()
@@ -163,6 +166,7 @@ class BeautifyService:
     ):
         shared_service = SharedWallpaperService(
             project_root=self._project_root_for_library(),
+            internal_root=self.internal_root,
             ui_data_loader=lambda: ui_data,
             ui_data_saver=self._ui_data_saver,
         )
@@ -237,6 +241,7 @@ class BeautifyService:
         settings = copy.deepcopy(self._load_library_state(ui_data).get('global_settings', {}))
         shared_wallpaper_library = SharedWallpaperService(
             project_root=self._project_root_for_library(),
+            internal_root=self.internal_root,
             ui_data_loader=lambda: ui_data,
             ui_data_saver=lambda data: True,
         ).load_library()
@@ -473,6 +478,7 @@ class BeautifyService:
         try:
             wallpaper = SharedWallpaperService(
                 project_root=self._project_root_for_library(),
+                internal_root=self.internal_root,
                 ui_data_loader=lambda: ui_data,
                 ui_data_saver=lambda data: True,
             ).import_wallpaper(
@@ -515,6 +521,7 @@ class BeautifyService:
             global_settings['wallpaper'] = {}
             shared_service = SharedWallpaperService(
                 project_root=self._project_root_for_library(),
+                internal_root=self.internal_root,
                 ui_data_loader=lambda: ui_data,
                 ui_data_saver=lambda data: True,
             )
@@ -722,7 +729,10 @@ class BeautifyService:
         candidates = [
             (self.library_root, normalized),
         ]
-        if normalized.startswith('static/') or normalized.startswith('data/library/wallpapers/'):
+        if normalized.startswith('static/'):
+            candidates = []
+            candidates.append((self.internal_root, normalized))
+        elif normalized.startswith('data/library/wallpapers/'):
             candidates.append((project_root, normalized))
 
         for root, relative_path in candidates:

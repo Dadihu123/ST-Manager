@@ -397,6 +397,96 @@ function onKeyDown(event) {
 }
 
 /**
+ * 触摸设备上的长按提示。
+ *
+ * 触摸没有 hover，而 `pointerover` 里显式跳过了 `pointerType === "touch"`
+ * （否则点一下按钮就会闪出一个提示）。结果是**所有 `title=` 提示在手机上永远不显示**。
+ * 这里补一条通道：长按 500ms 显示提示，松手/滚动即隐藏。
+ *
+ * 只对**没有更优先长按语义**的元素生效：带 `data-long-press-menu`（或位于
+ * `[data-no-long-press]` 内）的元素优先走右键菜单，避免一次长按弹出两个浮层。
+ */
+const TOUCH_LONG_PRESS_MS = 500;
+
+/**
+ * 是否为「触摸优先」设备（需要长按替代 hover）。
+ *
+ * 判定要严：`maxTouchPoints > 0` 在带触屏的桌面笔记本上也成立，但那些设备
+ * 用鼠标时 hover 完全正常，若据此开启长按通道会让「鼠标悬停 + 长按」两套
+ * 提示互相打架。因此以 `pointer: coarse`（主指针是手指）为准，
+ * `ontouchstart` 作为老浏览器兜底。
+ */
+function supportsTouchInput() {
+  if (typeof window === "undefined") return false;
+  try {
+    if (window.matchMedia) {
+      const coarse = window.matchMedia("(pointer: coarse)");
+      const fine = window.matchMedia("(any-pointer: fine)");
+      if (coarse.matches && !fine.matches) return true;
+      if (coarse.matches) return true;
+    }
+  } catch (err) {
+    // matchMedia 缺失时继续用下面的兜底。
+  }
+  // 老浏览器：有 ontouchstart 且拿不到 matchMedia 结论时才认定触摸优先。
+  return typeof window.ontouchstart === "function";
+}
+
+let touchTimer = 0;
+let touchAnchor = null;
+
+function isTooltipEligibleForTouch(node) {
+  let el = node;
+  while (el && el.nodeType === 1) {
+    if (el.hasAttribute && el.hasAttribute("data-no-long-press")) return false;
+    if (el.hasAttribute && el.hasAttribute("data-long-press-menu")) return false;
+    el = el.parentElement;
+  }
+  return true;
+}
+
+function onTouchStart(event) {
+  if (!event.touches || event.touches.length !== 1) {
+    cancelTouchTimer();
+    return;
+  }
+  cancelTouchTimer();
+  const node = event.target;
+  if (!node || !isTooltipEligibleForTouch(node)) return;
+
+  touchTimer = window.setTimeout(() => {
+    touchTimer = 0;
+    const anchor = resolveAnchor(node);
+    if (!anchor) return;
+    const text = readTooltipText(anchor);
+    if (!text) return;
+    touchAnchor = anchor;
+    anchorEl = anchor;
+    renderTooltip(anchor, text);
+  }, TOUCH_LONG_PRESS_MS);
+}
+
+function cancelTouchTimer() {
+  if (touchTimer) {
+    window.clearTimeout(touchTimer);
+    touchTimer = 0;
+  }
+}
+
+function onTouchEnd() {
+  cancelTouchTimer();
+  if (touchAnchor) {
+    touchAnchor = null;
+    hideTooltip();
+  }
+}
+
+function onTouchMove() {
+  // 手指一移动就说明是在滚动，不是长按。
+  cancelTouchTimer();
+}
+
+/**
  * 安装全局提示接管（幂等）。
  *
  * 挂在 `document` 上用捕获阶段做事件委托：DOM 由 Alpine 大量重渲染，逐元素
@@ -420,6 +510,15 @@ export function initTooltipSystem() {
     window.addEventListener("scroll", hideTooltip, true);
     window.addEventListener("resize", hideTooltip);
     window.addEventListener("blur", hideTooltip);
+
+    // 触摸设备：长按显示提示（touch 下 hover 不存在）。
+    // 判定与长按菜单共用同一处逻辑，避免两套标准不一致。
+    if (supportsTouchInput()) {
+      document.addEventListener("touchstart", onTouchStart, { capture: true, passive: true });
+      document.addEventListener("touchmove", onTouchMove, { capture: true, passive: true });
+      document.addEventListener("touchend", onTouchEnd, { capture: true, passive: true });
+      document.addEventListener("touchcancel", onTouchEnd, { capture: true, passive: true });
+    }
   };
 
   if (document.readyState === "loading") {

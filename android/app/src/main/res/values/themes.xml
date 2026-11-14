@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      AppCompatActivity 要求主题继承自 Theme.AppCompat 系列；若沿用
+      android:Theme.Material，运行时会在 setContentView 前抛
+      "You need to use a Theme.AppCompat theme (or descendant) with this activity"。
+      这里用 NoActionBar 变体：外壳是全屏 WebView，不需要 ActionBar。
+    -->
+    <style name="Theme.StManager" parent="Theme.AppCompat.NoActionBar">
+        <item name="android:statusBarColor">#00000000</item>
+        <item name="android:navigationBarColor">#00000000</item>
+        <item name="android:windowBackground">@android:color/black</item>
+    </style>
+</resources>

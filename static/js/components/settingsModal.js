@@ -4,6 +4,7 @@
  */
 
 import { uploadBackground } from "../api/resource.js";
+import { authorizeAndroidDirectories } from "../utils/androidStorage.js";
 import {
   evaluateSettingsPathSafety,
   openTrash,
@@ -853,9 +854,13 @@ export default function settingsModal() {
          */
         window.addEventListener("settings:request-close", (event) => {
           const detail = (event && event.detail) || {};
-          if (detail.reason !== "plugin-page-surface") return;
+          // back-gesture：Android 返回键 / iOS 侧滑 / Alt+← 触发的返回。
+          if (detail.reason !== "plugin-page-surface" && detail.reason !== "back-gesture") return;
           if (!this.showSettingsModal) return;
-          this.requestClose();
+          if (detail.reason === "back-gesture") {
+            if (this.$store.global.deviceType !== 'mobile') this.settingsNavOpen = false;
+            this.handleEscape();
+          } else this.requestClose();
         });
       }
 
@@ -957,6 +962,7 @@ export default function settingsModal() {
       this.saveMessage = "";
 
       try {
+        await authorizeAndroidDirectories(this.settingsForm, this.settingsSnapshot?.form || {});
         const res = await this.$store.global.saveSettings(closeModal, options);
         if (res?.path_safety) this.applyPathSafety(res.path_safety);
 

@@ -49,6 +49,7 @@ class IndexState(dict):
             # 全量磁盘校验扫描状态：与索引构建共用展示通道。
             scan_active=False,
             scan_message='',
+            scan_error='',
             scan_progress=0,
         )
 

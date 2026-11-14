@@ -5,6 +5,10 @@
 
 import { moveFolder } from "../api/system.js";
 import { moveCard } from "../api/card.js";
+import { installHostBridge } from "../utils/hostBridge.js";
+import { installLongPressContextMenu } from "../utils/longPress.js";
+import { installNativeDownloads } from "../utils/download.js";
+import { register as registerViewLayer } from "../utils/viewStack.js";
 
 export default function layout() {
   return {
@@ -103,7 +107,17 @@ export default function layout() {
         this.reDeviceType();
       });
 
-      // 监听全局快捷键或事件
+      // === 返回手势支持（Android 返回键 / iOS 侧滑 / Alt+←）===
+      // 只新增通道：既有 Escape / 拖拽取消等行为保持不变。
+      this._installBackGestureSupport();
+
+      // === 触摸长按 → 合成 contextmenu ===
+      // 让 11 处既有的 @contextmenu 右键入口在触摸设备上可复用；
+      // 桌面鼠标路径不受影响（模块内部只在触摸设备上挂钩子）。
+      installLongPressContextMenu();
+      installNativeDownloads();
+
+
       window.addEventListener("keydown", (e) => {
         if (
           e.key === "Escape" &&
@@ -194,6 +208,272 @@ export default function layout() {
         deviceType,
       );
       this.$store.global.deviceType = deviceType;
+    },
+
+    // === 返回手势支持 ===
+    // 把「当前有哪些层可以返回」注册给 viewStack，返回手势按 LIFO 关闭。
+    // 这里刻意**不改动**任何既有的 Escape 处理逻辑：Escape 仍由各组件自己处理，
+    // 本方法只是额外提供一条给 Android 返回键 / iOS 侧滑 / Alt+← 用的通道。
+    //
+    // ⚠️ 新增浮层时**必须**往下面 `layers` 表里加一行，否则按返回键会直接退出应用
+    //（真机反馈过：左侧导航、右侧 dock、抽屉类都是这样被漏掉的）。
+    _installBackGestureSupport() {
+      const store = this.$store.global;
+
+      const componentElement = name => document.querySelector(
+        `[x-data="${name}"], [x-data="${name}()"], [data-back-scope="${name}"]`);
+      const getField = (object, path) => path.split('.').reduce((value, key) => value?.[key], object);
+      const componentParents = {
+        detailModal: 'showDetail', wiEditor: 'showFullScreenWI', presetEditor: 'showPresetEditor',
+        advancedEditor: 'showAdvancedModal', automationModal: 'showAutomationModal',
+        batchImportModal: 'showBatchImportModal', importModal: 'showImportUrlModal',
+        moveCardsModal: 'showMoveCardsModal', wiDetailPopup: 'showWiDetailModal',
+        presetDetailReader: 'showModal', tagFilterModal: 'showTagFilterModal',
+      };
+      const mobileFields = new Set(['mobileNavOpen', 'showMobileSidebar', 'showMobilePromptDetailView',
+        'showMobileHeaderMoreMenu', 'showMobileDetailView', 'showMobileMoreMenu', 'isMobileToolsOpen',
+        'showMobileMenu']);
+
+      // 读组件或具名局部作用域；所有子层都受父层和布局约束。
+      const readComponent = (xDataName, field) => {
+        if (typeof window.Alpine === "undefined") return null;
+        const el = componentElement(xDataName);
+        if (!el) return null;
+        try {
+          return getField(window.Alpine.$data(el), field);
+        } catch (err) {
+          return null;
+        }
+      };
+      const componentLayer = (name, field, method, isVisible = () => true, isOpen = Boolean) => ({
+        key: `${name}:${field}`,
+        isActive: () => {
+          const parent = componentParents[name];
+          return isVisible() && (!parent || field === parent || !!readComponent(name, parent)) &&
+            (!mobileFields.has(field) || store.deviceType === 'mobile') && isOpen(readComponent(name, field));
+        },
+        close: () => {
+          const el = componentElement(name);
+          const component = el && window.Alpine?.$data(el);
+          if (!component) return;
+          if (method) component[method]();
+          else {
+            const keys = field.split('.');
+            const key = keys.pop();
+            const owner = keys.reduce((value, part) => value[part], component);
+            owner[key] = typeof owner[key] === 'object' ? null :
+              typeof owner[key] === 'string' ? '' : false;
+          }
+        },
+      });
+      const chatReaderVisible = () =>
+        store.currentMode === "chats" && readComponent("chatGrid", "detailOpen") === true;
+
+      // 声明式浮层表：**顺序即优先级，靠后的先被返回键关闭**。
+      // 因此列表从「最底层」写到「最顶层」。
+      //
+      // 排序原则：视觉上越靠前/越像"页面主体"的越靠前（越晚被关）。
+      //   底部 sheet / 边栏 → 抽屉 → 弹窗 → 菜单 → 设置
+      const layers = [
+        // ---- 导航类（最早被关：它们是"页面外观"而非内容）----
+        {
+          key: "card-advanced-filter-drawer",
+          isActive: () => store.currentMode === 'cards' && !!store.showCardAdvancedFilterDrawer,
+          close: () => {
+            store.showCardAdvancedFilterDrawer = false;
+          },
+        },
+        {
+          key: "beautify-package-detail-drawer",
+          isActive: () => store.currentMode === 'beautify' && !!store.beautifyPackageDetailDrawerOpen,
+          close: () => {
+            store.beautifyPackageDetailDrawerOpen = false;
+          },
+        },
+        {
+          key: "beautify-mobile-fullscreen",
+          isActive: () => store.currentMode === 'beautify' && store.deviceType === 'mobile' &&
+            !!store.beautifyMobileFullscreenOpen,
+          close: () => {
+            store.beautifyMobileFullscreenOpen = false;
+          },
+        },
+        // 右侧入口坞（移动端展开为底部 sheet）
+        //
+        // ⚠️ 只在移动端**展开**时才算一层。桌面的竖排坞是常驻边栏，
+        // 若把它列为活动层，返回键会先去「收起坞」而不是回上一级，
+        // 且桌面端坞可能默认展开 → 返回键永远被它吃掉。
+        {
+          key: "entry-dock",
+          isActive: () =>
+            store.deviceType === "mobile" &&
+            readComponent("entryDock", "hasEntries") === true &&
+            readComponent("entryDock", "expanded") === true,
+          close: () => {
+            const el = document.querySelector('[x-data="entryDock"]');
+            if (el && typeof window.Alpine !== "undefined") {
+              try {
+                window.Alpine.$data(el).collapse();
+                return;
+              } catch (err) {
+                // 拿不到组件就退回事件通道
+              }
+            }
+            window.dispatchEvent(new CustomEvent("entry-dock:collapse"));
+          },
+        },
+        // 左侧导航栏。
+        //
+        // ⚠️ 判定原则是「**侧栏是否常驻**」，不是设备类型本身：
+        //   - mobile（窄屏）：侧栏是带遮罩的滑入抽屉 → **参与返回**
+        //   - tablet / desktop（宽屏）：侧栏常驻占位，不是浮层 → **不参与返回**
+        // 否则宽屏下按返回会先去"收边栏"，而用户根本看不出它被关过。
+        //
+        // 这条判据与模板一致：`sidebar.html` 用
+        // `deviceType === 'mobile'` 决定是否渲染遮罩与 `sidebar-mobile` 类。
+        // 真机验证过 392 CSS（mobile）和 1098 CSS（tablet）两档，
+        // 且 mobile→tablet 过渡时哨兵项会自动退掉，不留历史残留。
+        {
+          key: "sidebar",
+          isActive: () =>
+            store.deviceType === "mobile" && !!store.visibleSidebar,
+          close: () => {
+            store.visibleSidebar = false;
+            document.body.style.overflow = "";
+          },
+        },
+
+        // ---- 弹窗类 ----
+        componentLayer('sidebar', 'moduleMenuOpen', 'closeModuleMenu', () => !!store.visibleSidebar),
+        componentLayer('entryDock', 'overflowOpen', 'closeOverflow', () =>
+          store.deviceType !== 'mobile' && readComponent('entryDock', 'hasEntries') === true),
+        componentLayer('gachaDraw', 'showGachaModal', 'requestClose'),
+        componentLayer("chatGrid", "detailOpen", "closeChatDetail", chatReaderVisible),
+        componentLayer("chatGrid", "readerMobilePanel", "closeReaderRightPanel", () =>
+          chatReaderVisible() && readComponent("chatGrid", "readerResponsiveMode") === "mobile"),
+        componentLayer("chatGrid", "readerViewSettingsOpen", null, chatReaderVisible),
+        componentLayer("chatGrid", "regexConfigOpen", "closeRegexConfig", chatReaderVisible),
+        componentLayer("chatGrid", "regexHelpOpen", "closeRegexHelp", chatReaderVisible),
+        componentLayer("chatGrid", "editingFloor", "closeFloorEditor", chatReaderVisible),
+        componentLayer("chatGrid", "bindPickerOpen", "closeBindPicker", chatReaderVisible),
+        componentLayer("chatGrid", "regexRulePickerOpen", "closeRegexRulePicker", chatReaderVisible),
+        componentLayer("chatGrid", "regexPresetPickerOpen", "closeRegexPresetPicker", chatReaderVisible),
+        componentLayer("chatGrid", "readerDeleteConfirmOpen", "cancelDeleteChat", chatReaderVisible),
+        componentLayer("detailModal", "showDetail", "requestClose"),
+        componentLayer("detailModal", "mobileNavOpen", "closeMobileNav"),
+        componentLayer("detailModal", "showGreetingListModal", "closeGreetingList"),
+        componentLayer("detailModal", "showSetResourceFolderModal"),
+        componentLayer("detailModal", "showRenameResourceFolderModal", "closeRenameResourceFolderModal"),
+        componentLayer("detailModal", "showSkinGallery", "closeSkinGallery"),
+        componentLayer("detailModal", "skinGalleryPreviewPath", "closeSkinGalleryPreview"),
+        componentLayer("detailModal", "mainImagePreviewUrl", "closeMainImagePreview"),
+        componentLayer("detailModal", "personaPreviewField", "closePersonaPreview"),
+        componentLayer("detailModal", "showHelpModal"),
+        componentLayer('wiDetailPopup', 'showWiDetailModal'),
+        componentLayer('wiDetailPopup', 'showMobileSidebar'),
+        componentLayer('wiDetailPopup', 'activeEntry', null, () => store.deviceType === 'mobile'),
+        componentLayer('wiDetailPopup', 'showWiSortMenu'),
+        componentLayer('presetDetailReader', 'showModal', 'closeModal'),
+        componentLayer('presetDetailReader', 'showMobileDetailView', 'closeMobileDetailView'),
+        componentLayer('presetDetailReader', 'showMobileSidebar'),
+        componentLayer('presetDetailReader', 'showMobileMoreMenu', null, () =>
+          !readComponent('presetDetailReader', 'showMobileDetailView')),
+        componentLayer("wiEditor", "showFullScreenWI", "requestCloseEditor"),
+        componentLayer("wiEditor", "showWiSortMenu"),
+        componentLayer('wi-editor-tools', 'showWiEditorToolsMenu', null, () =>
+          !!readComponent('wiEditor', 'showFullScreenWI') &&
+          readComponent('wiEditor', 'wiEditorActionRailMode') === 'compact'),
+        componentLayer("wiEditor", "showFindReplaceModal", "closeFindReplaceModal"),
+        componentLayer("wiEditor", "showTaggedImportModal", "closeTaggedImportModal"),
+        componentLayer("wiEditor", "showEntryHistoryModal"),
+        componentLayer("wiEditor", "showHelpModal"),
+        componentLayer("presetEditor", "showPresetEditor", "closeEditor"),
+        componentLayer("presetEditor", "showMobileSidebar", "closeMobileSidebar"),
+        componentLayer("presetEditor", "showMobilePromptDetailView", "closeMobilePromptDetailView"),
+        componentLayer("presetEditor", "showMobileHeaderMoreMenu"),
+        componentLayer('presetVersionMergeModal', 'showModal', 'close'),
+        componentLayer('worldbookUpdate', 'show', 'close'),
+        componentLayer('rollbackModal', 'showRollbackModal'),
+        componentLayer('tagFilterModal', 'showTagFilterModal', 'requestCloseModal'),
+        componentLayer('tagFilterModal', 'isGovernanceDrawerOpen', 'closeGovernanceDrawer', () =>
+          store.deviceType !== 'mobile'),
+        componentLayer('tagFilterModal', 'isMobileToolsOpen', 'closeMobileTools'),
+        componentLayer('tagFilterModal', 'isWorkspaceHelpOpen', 'closeWorkspaceHelp'),
+        componentLayer('batchTagModal', 'showBatchTagModal'),
+        componentLayer('folderOperations', 'showCreateFolder'),
+        componentLayer('folderOperations', 'folderRenameModal.visible'),
+        componentLayer('folderOperations', 'folderCreateSubModal.visible'),
+        componentLayer('importModal', 'showImportUrlModal'),
+        componentLayer('importModal', 'categoryMenuOpen'),
+        componentLayer('moveCardsModal', 'showMoveCardsModal'),
+        componentLayer('moveCardsModal', 'categoryMenuOpen'),
+        componentLayer('executeRulesMobileModal', 'showExecuteRulesModal'),
+        componentLayer('automationModal', 'showAutomationModal', 'closeModal'),
+        componentLayer('automationModal', 'showMobileSidebar'),
+        componentLayer('automationModal', 'openActionMenuKey', 'closeActionMenu'),
+        componentLayer('automationModal', 'showHelpModal', 'closeHelpModal'),
+        componentLayer('automationModal', 'showCreateModal', 'closeCreateModal'),
+        componentLayer('automationModal', 'showConfirmModal', 'cancelConfirmation'),
+        componentLayer('batchImportModal', 'showBatchImportModal', 'cancelImport'),
+        componentLayer('batchImportModal', 'openConflictActionKey', 'closeConflictActionMenu',
+          () => true, value => value != null),
+        componentLayer('forumThreadPreview', 'visible', 'close'),
+        componentLayer('sourceUpdateMonitor', 'visible', 'close'),
+        componentLayer('pluginJobPanel', 'showPluginJobPanel', 'close'),
+        // 右键 / 长按菜单：组件不在 layout 作用域内，通过既有事件收口。
+        componentLayer("advancedEditor", "showAdvancedModal", "requestClose"),
+        componentLayer("advancedEditor", "showMobileSidebar"),
+        componentLayer('advancedEditor', 'showDeleteConfirm', 'cancelDeleteConfirmation'),
+        componentLayer("largeEditor", "showLargeEditor"),
+        componentLayer("largeEditor", "showMarkdownModal"),
+        componentLayer("largeEditor", "showLargePreview"),
+        componentLayer('header', 'showMobileMenu', 'closeMobileMenu'),
+        componentLayer('header-batch-actions', 'showBatchActionsMenu', null, () =>
+          store.deviceType !== 'mobile' && !!store.viewState?.selectedIds?.length),
+        componentLayer('header-batch-actions', 'showSourceUpdateMenu', null, () =>
+          store.deviceType !== 'mobile' && !!store.viewState?.selectedIds?.length),
+        componentLayer('header-batch-actions', 'showRuleMenu', null, () =>
+          store.deviceType !== 'mobile' && !!store.viewState?.selectedIds?.length &&
+          !!readComponent('header-batch-actions', 'showBatchActionsMenu')),
+        componentLayer('header', 'activePluginBatchGroup', 'closePluginBatchGroup', () =>
+          store.deviceType !== 'mobile' && !!store.viewState?.selectedIds?.length &&
+          !!readComponent('header-batch-actions', 'showBatchActionsMenu')),
+        {
+          key: "context-menu",
+          isActive: () => readComponent("contextMenu", "visible") === true,
+          close: () => {
+            window.dispatchEvent(new CustomEvent("hide-context-menu"));
+          },
+        },
+        // 设置弹窗（最上层）：复用 Escape 的子层顺序与未保存确认。
+        {
+          key: "settings-modal",
+          isActive: () => !!store.showSettingsModal,
+          close: () => {
+            window.dispatchEvent(
+              new CustomEvent("settings:request-close", {
+                detail: { reason: "back-gesture" },
+              }),
+            );
+          },
+        },
+        componentLayer('pluginManager', 'updateConfirm', 'cancelUpdateConfirm'),
+        componentLayer('commandPalette', 'open', 'close'),
+      ];
+
+      const disposers = layers.map((layer) => registerViewLayer(layer));
+
+      // 工作区：非默认模式时返回默认模式
+      const disposeBridge = installHostBridge({
+        getMode: () => store.currentMode,
+        getHomeMode: () => "cards",
+        setMode: (mode) => this.switchMode(mode),
+      });
+
+      this._disposeBackGestureSupport = () => {
+        disposers.forEach((fn) => fn());
+        disposeBridge();
+      };
     },
 
     syncSidebarForDeviceChange(previousDeviceType, nextDeviceType) {

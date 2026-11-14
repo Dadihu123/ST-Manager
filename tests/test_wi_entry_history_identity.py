@@ -20,6 +20,41 @@ CARD_UID = '12345678-1234-4234-8234-123456789abc'
 CARD_ID = 'cards/hero.json'
 
 
+def test_root_move_keeps_history_and_remaps_legacy_before_purge(tmp_path, monkeypatch):
+    import hashlib
+    import shutil
+
+    old = tmp_path / 'old'
+    new = tmp_path / 'new'
+    relative = 'data/library/lorebooks/book.json'
+    book = old / relative
+    book.parent.mkdir(parents=True)
+    book.write_text('{}')
+    (old / 'resources').mkdir()
+    (old / 'cards').mkdir()
+    db = old / 'history.db'
+    monkeypatch.setattr(history_service, 'BASE_DIR', str(old))
+    monkeypatch.setattr(history_service, 'DEFAULT_DB_PATH', str(db))
+    monkeypatch.setattr(history_service, 'load_config', lambda: {
+        'world_info_dir': 'data/library/lorebooks', 'resources_dir': 'resources'})
+    stable = history_service.build_scope_key('global', file_path=str(book))
+    history_service.append_entry_history_records('global', '', str(book), [
+        {'entry_uid': 'one', 'snapshot': {'content': 'saved'}}])
+    # 模拟迁移前版本仍遗留的绝对路径 scope（根信息已记入数据库）。
+    legacy = hashlib.sha1(('global|' + str(book).replace('\\', '/')).encode()).hexdigest()
+    with sqlite3.connect(db) as conn:
+        conn.execute('UPDATE wi_entry_history SET scope_key = ?', (legacy,))
+    shutil.copytree(old, new)
+    monkeypatch.setattr(history_service, 'BASE_DIR', str(new))
+    monkeypatch.setattr(history_service, 'DEFAULT_DB_PATH', str(new / 'history.db'))
+    assert history_service.build_scope_key('global', file_path=str(new / relative)) == stable
+    history_service.purge_orphaned_entry_history(cards_root=new / 'cards',
+        world_info_root=new / 'data/library/lorebooks', resources_root=new / 'resources')
+    records = history_service.list_entry_history_records('global', '', str(new / relative), 'one')
+    assert records[0]['snapshot']['content'] == 'saved'
+    assert db.is_file(), '迁移不得删除原数据库'
+
+
 def test_resolve_card_uid_prefers_cache_and_falls_back_to_metadata_db(tmp_path):
     cache = SimpleNamespace(
         id_map={CARD_ID: {'card_uid': CARD_UID.upper()}},

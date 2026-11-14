@@ -9,7 +9,7 @@ if str(ROOT) not in sys.path:
 
 
 from core.data import db_session
-from core.data.index_runtime_store import ensure_index_runtime_schema
+from core.data.index_runtime_store import INDEX_RUNTIME_SCHEMA_VERSION, ensure_index_runtime_schema
 
 
 def test_init_database_creates_runtime_index_v2_tables(monkeypatch, tmp_path):
@@ -20,6 +20,14 @@ def test_init_database_creates_runtime_index_v2_tables(monkeypatch, tmp_path):
     monkeypatch.setattr(db_session, 'DEFAULT_DB_PATH', str(db_path))
     monkeypatch.setattr(db_session, 'CARDS_FOLDER', str(cards_dir))
     monkeypatch.setattr(db_session, '_migrate_existing_data', lambda conn: None)
+    from core.services import wi_entry_history_service as history
+    world = tmp_path / 'worldinfo'
+    resources = tmp_path / 'resources'
+    world.mkdir()
+    resources.mkdir()
+    monkeypatch.setattr(history, 'load_config', lambda: {
+        'world_info_dir': str(world), 'resources_dir': str(resources),
+    })
 
     db_session.init_database()
 
@@ -37,6 +45,9 @@ def test_init_database_creates_runtime_index_v2_tables(monkeypatch, tmp_path):
     assert 'index_search_full_v2' in names
     assert 'index_category_stats_v2' in names
     assert 'index_facet_stats_v2' in names
+    assert 'wi_history_roots' in names
+    with sqlite3.connect(db_path) as conn:
+        assert conn.execute('SELECT roots_json FROM wi_history_roots WHERE id = 1').fetchone()
 
 
 def test_init_database_adds_wi_metadata_scanned_column(monkeypatch, tmp_path):
@@ -78,7 +89,10 @@ def test_init_database_seeds_schema_and_build_state_rows(monkeypatch, tmp_path):
             'SELECT scope, active_generation, building_generation, state FROM index_build_state ORDER BY scope'
         ).fetchall()
 
-    assert schema_rows == [('db', 1, 'ready'), ('index_runtime', 1, 'ready')]
+    assert schema_rows == [
+        ('db', 1, 'ready'),
+        ('index_runtime', INDEX_RUNTIME_SCHEMA_VERSION, 'ready'),
+    ]
     assert build_rows == [('cards', 0, 0, 'empty'), ('worldinfo', 0, 0, 'empty')]
 
 
@@ -197,5 +211,5 @@ def test_ensure_index_runtime_schema_refreshes_existing_schema_state_versions(tm
             ('db',),
         ).fetchone()
 
-    assert runtime_row == (1, 1, 'ready')
+    assert runtime_row == (INDEX_RUNTIME_SCHEMA_VERSION, INDEX_RUNTIME_SCHEMA_VERSION, 'ready')
     assert db_row == (1, 1, 'ready')

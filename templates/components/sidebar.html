@@ -237,6 +237,7 @@
           @dragover.prevent="handleDragOverRoot($event)"
           @dragleave="handleDragLeaveRoot($event)"
           @drop.prevent="handleDropOnRoot($event)"
+          data-long-press-menu
           @contextmenu.prevent="showFolderContextMenu($event, {path: '', name: '根目录'})"
           :class="[filterCategory==='' ? 'active' : '', dragOverCat==='根目录' ? 'drag-over' : '']"
           class="folder-item flex items-center px-3 py-2 rounded-lg cursor-pointer text-sm mb-1"
@@ -266,6 +267,7 @@
           <div x-show="folder.visible">
             <div
               @click="setCategory(folder.path)"
+              data-long-press-menu
               @contextmenu.prevent="showFolderContextMenu($event, folder)"
               @dragover.prevent="folderDragOver($event, folder)"
               @dragleave="folderDragLeave($event, folder)"
@@ -566,6 +568,7 @@
             @dragover.prevent="handleDragOverRoot($event)"
             @dragleave="handleDragLeaveRoot($event)"
             @drop.prevent="handleDropOnRoot($event)"
+            data-long-press-menu
             @contextmenu.prevent="getFolderCapabilities('', 'worldinfo').can_create_child_folder ? showFolderContextMenu($event, { path: '', name: '根目录', mode: 'worldinfo' }) : null"
             :class="wiFilterCategory === '' ? 'is-active' : ''"
             class="sidebar-category-root sidebar-category-option"
@@ -586,6 +589,7 @@
                 @dragover.prevent="folderDragOver($event, { ...folder, mode: 'worldinfo' })"
                 @dragleave="folderDragLeave($event, { ...folder, mode: 'worldinfo' })"
                 @drop.prevent="folderDrop($event, { ...folder, mode: 'worldinfo' })"
+                data-long-press-menu
                 @contextmenu.prevent="showFolderContextMenu($event, { ...folder, mode: 'worldinfo' })"
                 :class="['pl-level-' + Math.min(folder.level, 3), wiFilterCategory === folder.path ? 'active is-active' : '', dragOverFolder === folder.path ? 'drag-over' : '']"
                 class="folder-item sidebar-category-option flex items-center py-1.5 pr-2 rounded-lg cursor-pointer text-sm mb-0.5 group"
@@ -786,6 +790,7 @@
             @dragover.prevent="presetRootDragOver($event)"
             @dragleave="presetRootDragLeave($event)"
             @drop.prevent="presetRootDrop($event)"
+            data-long-press-menu
             @contextmenu.prevent="getFolderCapabilities('', 'presets').can_create_child_folder ? showFolderContextMenu($event, { path: '', name: '根目录', mode: 'presets' }) : null"
             :class="[presetFilterCategory === '' ? 'is-active' : '', dragOverFolder === '根目录' ? 'drag-over' : '']"
             class="sidebar-category-root sidebar-category-option"
@@ -809,6 +814,7 @@
                 @dragover.prevent="folderDragOver($event, { ...folder, mode: 'presets' })"
                 @dragleave="folderDragLeave($event, { ...folder, mode: 'presets' })"
                 @drop.prevent="folderDrop($event, { ...folder, mode: 'presets' })"
+                data-long-press-menu
                 @contextmenu.prevent="showFolderContextMenu($event, { ...folder, mode: 'presets' })"
                 :class="['pl-level-' + Math.min(folder.level, 3), presetFilterCategory === folder.path ? 'active is-active' : '', dragOverFolder === folder.path ? 'drag-over' : '']"
                 class="folder-item sidebar-category-option flex items-center py-1.5 pr-2 rounded-lg cursor-pointer text-sm mb-0.5 group"

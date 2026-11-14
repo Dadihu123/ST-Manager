@@ -15,6 +15,7 @@ from core.data.index_runtime_store import (
     set_scan_state,
 )
 from core.data.ui_store import load_ui_data, save_ui_data, UiDataLoadError
+from core.utils.host_capabilities import CAN_WATCH_FILESYSTEM
 
 # === 业务逻辑引用 ===
 from core.services.card_binding_service import rename_card_ui_references
@@ -32,7 +33,7 @@ from core.services.wi_entry_history_service import (
 from core.utils.card_identity import new_card_uid, normalize_card_uid
 
 # === 工具函数 ===
-from core.utils.filesystem import is_card_file
+from core.utils.filesystem import is_card_file, walk_directory_strict
 from core.utils.image import (
     CARD_INFO_UNREADABLE,
     extract_card_info,
@@ -644,8 +645,20 @@ def start_fs_watcher():
             logger.warning('Watch path does not exist yet, skipping watchdog registration: %s', watch_path)
         except OSError as e:
             logger.warning('Failed to register watchdog path %s: %s', watch_path, e)
-    observer.daemon = True
-    observer.start()
+
+    # observer.start() 在 FUSE / 受限文件系统上会抛异常。这里必须兜住：
+    # 否则异常会一路冒到 init_services 的最外层 try，导致其后的索引 worker、
+    # 监控调度器与插件 job worker 全部不启动，并把 ctx 置为 error。
+    try:
+        observer.daemon = True
+        observer.start()
+    except Exception as e:
+        logger.warning('文件系统监听启动失败，自动扫描已跳过（不影响手动扫描）: %s', e)
+        try:
+            observer.stop()
+        except Exception:
+            pass
+        return
     logger.info("File system watcher (watchdog) started.")
 
 def background_scanner():
@@ -696,7 +709,7 @@ def background_scanner():
             logger.error(f"Background scanner critical error: {e}")
             time.sleep(5)
 
-def _set_scan_progress(active, *, message='', progress=None):
+def _set_scan_progress(active, *, message='', progress=None, error=None):
     """把全量扫描进度发布到索引状态，让前端能显示「正在扫描」。
 
     扫描与索引构建共用 ``ctx.index_state`` 的展示通道，前端已有的
@@ -707,6 +720,8 @@ def _set_scan_progress(active, *, message='', progress=None):
         updates['scan_message'] = message
     if progress is not None:
         updates['scan_progress'] = int(progress)
+    if error is not None:
+        updates['scan_error'] = error
     with ctx.index_lock:
         ctx.index_state.update(updates)
 
@@ -716,9 +731,14 @@ def _perform_scan_logic(reason=''):
     db_path = DEFAULT_DB_PATH
     cards_root = os.path.abspath(os.fspath(CARDS_FOLDER))
     started_at = time.monotonic()
-    _set_scan_progress(True, message=reason or 'full_scan', progress=0)
+    _set_scan_progress(True, message=reason or 'full_scan', progress=0, error='')
     try:
         _perform_scan_logic_inner(db_path, cards_root)
+    except OSError as exc:
+        message = f'目录不可访问，已保留原有数据：{exc.filename or cards_root}'
+        _set_scan_progress(False, message=message, error=message)
+        logger.warning('%s (%s)', message, exc)
+        raise
     except Exception:
         # 扫描失败时不更新「最近校验时间」，下次启动仍会重试。
         logger.error('全量扫描失败', exc_info=True)
@@ -757,11 +777,9 @@ def _perform_scan_logic_inner(db_path, cards_root):
         
         cursor = conn.cursor()
         
-        # 0. 一次性定向清理：历史版本误把世界书当成角色卡写入的记录。
-        #    该操作只跑一次，且只读取极少量 JSON，不涉及图片解码。
+        # 0. 准备运行时表；业务数据在完整枚举后统一提交。
         try:
             ensure_index_runtime_schema(conn)
-            _cleanup_misdetected_worldbook_rows(conn, cards_root)
         except Exception as exc:
             logger.warning('世界书误识别记录清理失败: %s', exc)
         
@@ -816,7 +834,7 @@ def _perform_scan_logic_inner(db_path, cards_root):
         scanned_dir_count = 0
         scanned_file_count = 0
         progress_step = 0
-        for root, dirs, files in os.walk(CARDS_FOLDER):
+        for root, dirs, files in walk_directory_strict(cards_root):
             scanned_dir_count += 1
             rel_path = os.path.relpath(root, CARDS_FOLDER)
             
@@ -980,6 +998,18 @@ def _perform_scan_logic_inner(db_path, cards_root):
                             db_info.get('card_uid')
                         )
 
+        # 三个资源根都必须完整枚举，历史与元数据共用事务，失败时一起回滚。
+        cfg = load_config()
+        purge_orphaned_entry_history(
+            cards_root=cards_root,
+            world_info_root=_resolve_runtime_dir(cfg.get('world_info_dir'), ''),
+            resources_root=_resolve_runtime_dir(cfg.get('resources_dir'), ''),
+            db_path=db_path,
+            conn=conn,
+            retained_card_ids=renamed_card_ids,
+        )
+        _cleanup_misdetected_worldbook_rows(conn, cards_root)
+
         # 3. 清理已删除文件
         for db_id in list(db_files_map.keys()):
             if db_id not in fs_found_files:
@@ -1049,13 +1079,6 @@ def _perform_scan_logic_inner(db_path, cards_root):
             db_path=DEFAULT_DB_PATH,
         )
 
-    cfg = load_config()
-    purge_orphaned_entry_history(
-        cards_root=cards_root,
-        world_info_root=_resolve_runtime_dir(cfg.get('world_info_dir'), ''),
-        resources_root=_resolve_runtime_dir(cfg.get('resources_dir'), ''),
-        db_path=DEFAULT_DB_PATH,
-    )
 
 def _cleanup_misdetected_worldbook_rows(conn, cards_root):
     """一次性清理被误当成角色卡索引的世界书记录。
@@ -1113,10 +1136,9 @@ def _cleanup_misdetected_worldbook_rows(conn, cards_root):
             'DELETE FROM card_metadata WHERE id = ?',
             [(card_id,) for card_id in sorted(removed)],
         )
-        conn.commit()
         logger.info('已清理 %d 条被误识别为角色卡的世界书记录', len(removed))
 
-    set_scan_state(conn, SCAN_STATE_WORLDBOOK_CLEANUP_DONE, '1')
+    set_scan_state(conn, SCAN_STATE_WORLDBOOK_CLEANUP_DONE, '1', commit=False)
     return removed
 
 
@@ -1200,9 +1222,13 @@ def start_background_scanner():
         if _should_run_startup_scan():
             ctx.scan_queue.put({'type': FULL_SCAN_TASK, 'reason': 'startup'})
         
-        # 根据配置决定是否启动自动文件监听
+        # 根据配置决定是否启动自动文件监听。
+        # 移动端（Android FUSE 不投递 inotify / iOS 只退化为轮询且后台不运行）
+        # 一律不启用：靠手动扫描与启动校验维持一致性。
         enable_auto_scan = current_config.get("enable_auto_scan", True)
-        if enable_auto_scan:
+        if not CAN_WATCH_FILESYSTEM:
+            logger.info("File system watcher is unavailable on this platform; auto scan disabled.")
+        elif enable_auto_scan:
             start_fs_watcher()
         else:
             logger.info("Auto file system watcher is disabled by config (enable_auto_scan = false).")

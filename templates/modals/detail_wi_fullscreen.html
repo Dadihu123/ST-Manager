@@ -166,6 +166,7 @@
         <div
           class="wi-editor-tool-actions"
           x-data="{ showWiEditorToolsMenu: false }"
+          data-back-scope="wi-editor-tools"
           @keydown.escape.window.capture="if (showWiEditorToolsMenu) { $event.preventDefault(); $event.stopImmediatePropagation(); showWiEditorToolsMenu = false; $refs.wiEditorToolsMenuButton.focus(); }"
         >
           <div class="wi-editor-tool-icons" role="group" aria-label="世界书工具">
@@ -365,6 +366,7 @@
               <button
                 type="button"
                 @click="createSnapshot('lorebook')"
+                data-long-press-menu
                 @contextmenu.prevent="createKeySnapshot('lorebook')"
                 class="wi-action-btn wi-editor-tool-button wi-editor-tool-button--snapshot wi-editor-save-button wi-editor-save-icon-button wi-editor-save-icon-button--snapshot"
                 :title="(!editingWiFile || editingWiFile.type === 'embedded') ? '备份当前角色 (左键: 普通 | 右键: 关键节点)' : '备份当前世界书 (左键: 普通 | 右键: 关键节点)'"
@@ -393,6 +395,7 @@
               <button
                 type="button"
                 @click="createSnapshot('lorebook')"
+                data-long-press-menu
                 @contextmenu.prevent="createKeySnapshot('lorebook')"
                 class="wi-action-btn wi-editor-tool-button wi-editor-tool-button--snapshot wi-editor-save-button wi-editor-save-icon-button wi-editor-save-icon-button--snapshot"
                 :title="(!editingWiFile || editingWiFile.type === 'embedded') ? '备份当前角色 (左键: 普通 | 右键: 关键节点)' : '备份当前世界书 (左键: 普通 | 右键: 关键节点)'"

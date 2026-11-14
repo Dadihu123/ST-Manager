@@ -2,6 +2,7 @@ import sqlite3
 
 from core.config import DEFAULT_DB_PATH
 from core.data.index_runtime_store import get_active_generation
+from core.data.sqlite_capabilities import supports_fts5
 from core.utils.search_text import build_fts_match_query, escape_like
 
 
@@ -77,7 +78,9 @@ def query_indexed_cards(filters):
                 params.append(int(token_max))
 
             if search:
-                if filters.get('search_mode') == 'fulltext':
+                # 无 FTS5 的平台（如 iOS）没有 index_search_full_v2 表，
+                # 全文搜索降级为 fast 的 LIKE 路径：语义同为子串匹配，结果同样正确。
+                if filters.get('search_mode') == 'fulltext' and supports_fts5():
                     # MATCH 需要语法合法的表达式；原始输入里的 . - : 等字符
                     # 会触发 fts5 语法错误或 "no such column"，因此先规范化。
                     match_query = build_fts_match_query(search)

@@ -119,7 +119,7 @@ def _pick_card_payload(metadata):
     return fallback
 
 
-def extract_card_info_with_status(filepath):
+def extract_card_info_with_status(filepath, *, raise_access_errors=False):
     """解析卡片元数据，并区分「确认不是卡片」与「暂时读不了」。
 
     返回值 ``(info, status)``：
@@ -130,6 +130,8 @@ def extract_card_info_with_status(filepath):
     - ``(None, CARD_INFO_UNREADABLE)`` 文件无法读取（IO 错误、损坏图片、
       权限问题、正在被写入等）。调用方不应据此删除既有数据库记录，
       否则一次偶发读取失败就会丢掉用户的收藏与元数据。
+
+    ``raise_access_errors`` 供完整索引重建使用：保留 OSError，让调用方终止新 generation。
     """
     try:
         data = None
@@ -172,6 +174,8 @@ def extract_card_info_with_status(filepath):
         return None, CARD_INFO_NOT_A_CARD
 
     except Exception as e:
+        if raise_access_errors and isinstance(e, OSError):
+            raise
         logger.warning('读取角色卡失败，保留已有索引记录: %s (%s)', filepath, e)
         return None, CARD_INFO_UNREADABLE
 
@@ -180,6 +184,12 @@ def extract_card_info(filepath):
     """兼容旧调用方：解析失败一律返回 ``None``。"""
     info, _status = extract_card_info_with_status(filepath)
     return info
+
+def extract_card_info_strict(filepath):
+    """索引重建使用：文件访问失败必须中止，不能伪装成没有内嵌世界书。"""
+    info, _status = extract_card_info_with_status(filepath, raise_access_errors=True)
+    return info
+
 
 def write_card_metadata(filepath, json_data):
     try:

@@ -2,12 +2,16 @@ import json
 import logging
 import os
 import sqlite3
+import stat
+from functools import wraps
 
 from core.config import BASE_DIR, CARDS_FOLDER, DEFAULT_DB_PATH, load_config
 from core.data.index_runtime_store import get_active_generation
+from core.data.sqlite_capabilities import supports_fts5
 from core.data.ui_store import get_import_time, load_ui_data
 from core.utils.format_validation import is_valid_world_info_data
-from core.utils.image import extract_card_info
+from core.utils.filesystem import walk_directory_strict
+from core.utils.image import extract_card_info_strict as extract_card_info
 from core.utils.search_text import split_cjk_for_index
 from core.utils.source_revision import build_file_source_revision
 
@@ -168,16 +172,21 @@ def _insert_search_rows(conn, generation: int, entity_id: str, content: str, ful
     """写入两张搜索表。
 
     - ``fast`` 表保存**原文**：查询侧用 ``LIKE`` 做子串匹配，中文子串本来就成立，
-      无需分词，索引体积也最小。
+      无需分词，索引体积也最小。该表是**普通表**（不需要 FTS5）。
     - ``full`` 表保存**逐字切分后的 CJK**（``split_cjk_for_index``）：``unicode61``
       不切分汉字，存原文会让中文子串永远命中 0 条；切分后查询侧用短语
       ``"血 族"`` 匹配相邻 token，得到真正的子串语义。``fulltext_extra``
       额外携带世界书条目正文。
+
+    无 FTS5 的平台（如 iOS）不会创建 ``full`` 表，此时跳过写入而不是报错，
+    全文搜索在查询侧降级为 ``fast``。
     """
     conn.execute(
         'INSERT INTO index_search_fast_v2(generation, entity_id, content) VALUES (?, ?, ?)',
         (generation, entity_id, content),
     )
+    if not supports_fts5():
+        return
     fulltext = f'{content} {fulltext_extra}' if fulltext_extra else content
     conn.execute(
         'INSERT INTO index_search_full_v2(generation, entity_id, content) VALUES (?, ?, ?)',
@@ -203,10 +212,11 @@ def _delete_card_entity_rows(conn, generation: int, entity_id: str):
         'DELETE FROM index_search_fast_v2 WHERE generation = ? AND entity_id = ?',
         (generation, entity_id),
     )
-    conn.execute(
-        'DELETE FROM index_search_full_v2 WHERE generation = ? AND entity_id = ?',
-        (generation, entity_id),
-    )
+    if supports_fts5():
+        conn.execute(
+            'DELETE FROM index_search_full_v2 WHERE generation = ? AND entity_id = ?',
+            (generation, entity_id),
+        )
 
 
 def _resolve_runtime_dir(raw_path: str, default: str) -> str:
@@ -293,7 +303,7 @@ def resolve_resource_worldinfo_owner_card_ids(source_path: str) -> list[str]:
     return sorted(set(owner_card_ids))
 
 
-def _rebuild_worldinfo_category_stats_v2(conn, generation: int, global_dir: str):
+def _rebuild_worldinfo_category_stats_v2(conn, generation: int, global_dir: str, *, strict=False):
     conn.execute(
         'DELETE FROM index_category_stats_v2 WHERE generation = ? AND scope = ?',
         (generation, 'worldinfo'),
@@ -320,8 +330,9 @@ def _rebuild_worldinfo_category_stats_v2(conn, generation: int, global_dir: str)
             subtree_counts[('world_all', path)] = subtree_counts.get(('world_all', path), 0) + 1
 
     physical_paths = set()
-    if global_dir and os.path.isdir(global_dir):
-        for root, _dirs, _files in os.walk(global_dir):
+    if global_dir and (strict or os.path.isdir(global_dir)):
+        walker = walk_directory_strict if strict else os.walk
+        for root, _dirs, _files in walker(global_dir):
             rel_root = os.path.relpath(root, global_dir).replace('\\', '/')
             current_category = '' if rel_root == '.' else _normalize_category_path(rel_root)
             if not current_category:
@@ -360,10 +371,11 @@ def _delete_worldinfo_entity_rows(conn, generation: int, entity_id: str):
         'DELETE FROM index_search_fast_v2 WHERE generation = ? AND entity_id = ?',
         (generation, entity_id),
     )
-    conn.execute(
-        'DELETE FROM index_search_full_v2 WHERE generation = ? AND entity_id = ?',
-        (generation, entity_id),
-    )
+    if supports_fts5():
+        conn.execute(
+            'DELETE FROM index_search_full_v2 WHERE generation = ? AND entity_id = ?',
+            (generation, entity_id),
+        )
 
 
 def _delete_worldinfo_owner_rows(conn, generation: int, card_id: str):
@@ -378,6 +390,45 @@ def _delete_worldinfo_owner_rows(conn, generation: int, card_id: str):
         _delete_worldinfo_entity_rows(conn, generation, str(existing_row['entity_id'] or ''))
 
 
+def _atomic_worldinfo_increment(operation):
+    """每个增量调用失败即回滚；嵌套嵌入更新可把提交权交给 owner。"""
+    @wraps(operation)
+    def wrapped(conn, *args, **kwargs):
+        started_transaction = not conn.in_transaction
+        if started_transaction:
+            conn.execute('BEGIN')
+        conn.execute('SAVEPOINT worldinfo_increment')
+        try:
+            result = operation(conn, *args, **kwargs)
+        except BaseException:
+            conn.execute('ROLLBACK TO worldinfo_increment')
+            conn.execute('RELEASE worldinfo_increment')
+            if started_transaction:
+                conn.rollback()
+            raise
+        conn.execute('RELEASE worldinfo_increment')
+        if kwargs.get('commit', True):
+            conn.commit()
+        return result
+
+    return wrapped
+
+
+def _resource_lore_dir(resources_dir, resource_folder):
+    # 根失权必须抛出；尚未创建或确实已删除的 lorebooks 子目录可以为空。
+    if not stat.S_ISDIR(os.stat(resources_dir).st_mode):
+        raise NotADirectoryError(resources_dir)
+    lore_dir = os.path.join(resources_dir, resource_folder, 'lorebooks')
+    try:
+        mode = os.stat(lore_dir).st_mode
+    except FileNotFoundError:
+        return ''
+    if not stat.S_ISDIR(mode):
+        raise NotADirectoryError(lore_dir)
+    return lore_dir
+
+
+@_atomic_worldinfo_increment
 def apply_worldinfo_path_increment(conn, source_path: str) -> bool:
     generation = get_active_generation(conn, 'worldinfo')
     if generation <= 0:
@@ -401,18 +452,20 @@ def apply_worldinfo_path_increment(conn, source_path: str) -> bool:
     entity_id = f'world::global::{rel_path}'
     _delete_worldinfo_entity_rows(conn, generation, entity_id)
 
-    if os.path.isfile(normalized_path):
+    try:
+        is_file = stat.S_ISREG(os.stat(normalized_path).st_mode)
+    except FileNotFoundError:
+        is_file = False
+    if is_file:
         try:
             with open(normalized_path, 'r', encoding='utf-8') as handle:
                 data = json.load(handle)
-        except (OSError, json.JSONDecodeError):
+        except (json.JSONDecodeError, UnicodeError):
             logger.warning('Skipping invalid worldinfo file during incremental update: %s', normalized_path)
-            _rebuild_worldinfo_category_stats_v2(conn, generation, normalized_global_dir)
-            conn.commit()
+            _rebuild_worldinfo_category_stats_v2(conn, generation, normalized_global_dir, strict=True)
             return True
         if not is_valid_world_info_data(data):
-            _rebuild_worldinfo_category_stats_v2(conn, generation, normalized_global_dir)
-            conn.commit()
+            _rebuild_worldinfo_category_stats_v2(conn, generation, normalized_global_dir, strict=True)
             return True
         filename = os.path.basename(normalized_path)
         display_category = rel_path.rsplit('/', 1)[0] if '/' in rel_path else ''
@@ -460,12 +513,12 @@ def apply_worldinfo_path_increment(conn, source_path: str) -> bool:
             fulltext_extra=collect_worldbook_fulltext(data),
         )
 
-    _rebuild_worldinfo_category_stats_v2(conn, generation, normalized_global_dir)
-    conn.commit()
+    _rebuild_worldinfo_category_stats_v2(conn, generation, normalized_global_dir, strict=True)
     return True
 
 
-def apply_worldinfo_embedded_increment(conn, card_id: str, source_path: str = '') -> bool:
+@_atomic_worldinfo_increment
+def apply_worldinfo_embedded_increment(conn, card_id: str, source_path: str = '', *, commit=True) -> bool:
     generation = get_active_generation(conn, 'worldinfo')
     if generation <= 0:
         raise RuntimeError('worldinfo active generation missing')
@@ -534,12 +587,13 @@ def apply_worldinfo_embedded_increment(conn, card_id: str, source_path: str = ''
 
     cfg = load_config()
     global_dir, _resources_dir = _resolve_worldinfo_runtime_dirs(cfg)
-    _rebuild_worldinfo_category_stats_v2(conn, generation, global_dir)
-    conn.commit()
+    _rebuild_worldinfo_category_stats_v2(conn, generation, global_dir, strict=True)
     return True
 
 
-def apply_worldinfo_owner_increment(conn, card_id: str, source_path: str = '', *, remove_owner_ids: list[str] | None = None) -> bool:
+@_atomic_worldinfo_increment
+def apply_worldinfo_owner_increment(conn, card_id: str, source_path: str = '', *,
+                                   remove_owner_ids: list[str] | None = None, commit=True) -> bool:
     generation = get_active_generation(conn, 'worldinfo')
     if generation <= 0:
         raise RuntimeError('worldinfo active generation missing')
@@ -560,13 +614,14 @@ def apply_worldinfo_owner_increment(conn, card_id: str, source_path: str = '', *
         if cleanup_only:
             cfg = load_config()
             global_dir, _resources_dir = _resolve_worldinfo_runtime_dirs(cfg)
-            _rebuild_worldinfo_category_stats_v2(conn, generation, global_dir)
-            conn.commit()
+            _rebuild_worldinfo_category_stats_v2(conn, generation, global_dir, strict=True)
             return True
         raise RuntimeError(f'worldinfo owner card missing: {card_id}')
 
     _delete_worldinfo_owner_rows(conn, generation, card_id)
-    apply_worldinfo_embedded_increment(conn, card_id, source_path)
+    # 资源文件事件携带的是世界书路径，不能把它当作所属角色卡读取。
+    card_source = '' if classify_worldinfo_path(source_path).get('kind') == 'resource' else source_path
+    apply_worldinfo_embedded_increment(conn, card_id, card_source, commit=False)
 
     cfg = load_config()
     ui_data = load_ui_data()
@@ -576,8 +631,8 @@ def apply_worldinfo_owner_increment(conn, card_id: str, source_path: str = '', *
     resource_folder = str((_resolve_card_ui_meta(ui_data, card_id).get('resource_folder') or '')).strip()
     resource_item_categories = ((ui_data.get('_resource_item_categories_v1') or {}).get('worldinfo') or {})
     if resource_folder:
-        lore_dir = os.path.join(resources_dir, resource_folder, 'lorebooks')
-        if os.path.isdir(lore_dir):
+        lore_dir = _resource_lore_dir(resources_dir, resource_folder)
+        if lore_dir:
             for filename in os.listdir(lore_dir):
                 if not filename.lower().endswith('.json'):
                     continue
@@ -585,7 +640,7 @@ def apply_worldinfo_owner_increment(conn, card_id: str, source_path: str = '', *
                 try:
                     with open(full_path, 'r', encoding='utf-8') as handle:
                         data = json.load(handle)
-                except (OSError, json.JSONDecodeError):
+                except (json.JSONDecodeError, UnicodeError):
                     logger.warning('Skipping invalid resource worldinfo file during owner increment: %s', full_path, exc_info=True)
                     continue
                 if not is_valid_world_info_data(data):
@@ -641,8 +696,7 @@ def apply_worldinfo_owner_increment(conn, card_id: str, source_path: str = '', *
                     fulltext_extra=collect_worldbook_fulltext(data),
                 )
 
-    _rebuild_worldinfo_category_stats_v2(conn, generation, global_dir)
-    conn.commit()
+    _rebuild_worldinfo_category_stats_v2(conn, generation, global_dir, strict=True)
     return True
 
 
@@ -838,8 +892,8 @@ def build_worldinfo_generation(conn, generation: int, inspected_books=None, prog
     # 进度总数 = 全局世界书文件数 + 角色卡数（每张卡最多再带一批资源世界书，
     # 那部分数量无法预知，因此按「卡片已处理」计数，超出的进度在展示侧截断）。
     global_files = []
-    if global_dir and os.path.isdir(global_dir):
-        for root, _dirs, files in os.walk(global_dir):
+    if global_dir:
+        for root, _dirs, files in walk_directory_strict(global_dir):
             for filename in files:
                 if filename.lower().endswith('.json'):
                     global_files.append((root, filename))
@@ -851,7 +905,7 @@ def build_worldinfo_generation(conn, generation: int, inspected_books=None, prog
         try:
             with open(full_path, 'r', encoding='utf-8') as handle:
                 data = json.load(handle)
-        except (OSError, json.JSONDecodeError):
+        except (json.JSONDecodeError, UnicodeError):
             logger.warning('Skipping invalid worldinfo file during v2 rebuild: %s', full_path, exc_info=True)
             done += 1
             continue
@@ -918,8 +972,8 @@ def build_worldinfo_generation(conn, generation: int, inspected_books=None, prog
         owner_entity_id = f'card::{card_id}'
         resource_folder = str((_resolve_card_ui_meta(ui_data, card_id).get('resource_folder') or '')).strip()
         if resource_folder:
-            lore_dir = os.path.join(resources_dir, resource_folder, 'lorebooks')
-            if os.path.isdir(lore_dir):
+            lore_dir = _resource_lore_dir(resources_dir, resource_folder)
+            if lore_dir:
                 for filename in os.listdir(lore_dir):
                     if not filename.lower().endswith('.json'):
                         continue
@@ -927,7 +981,7 @@ def build_worldinfo_generation(conn, generation: int, inspected_books=None, prog
                     try:
                         with open(full_path, 'r', encoding='utf-8') as handle:
                             data = json.load(handle)
-                    except (OSError, json.JSONDecodeError):
+                    except (json.JSONDecodeError, UnicodeError):
                         logger.warning('Skipping invalid resource worldinfo file during v2 rebuild: %s', full_path, exc_info=True)
                         continue
                     if not is_valid_world_info_data(data):
@@ -1049,7 +1103,7 @@ def build_worldinfo_generation(conn, generation: int, inspected_books=None, prog
         done += 1
         _commit_and_report(conn, progress_cb, done, total)
 
-    _rebuild_worldinfo_category_stats_v2(conn, generation, global_dir)
+    _rebuild_worldinfo_category_stats_v2(conn, generation, global_dir, strict=True)
     conn.commit()
     _report_progress(progress_cb, max(done, total), max(total, done))
     return items_written

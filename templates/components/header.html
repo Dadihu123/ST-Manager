@@ -285,6 +285,7 @@
     <div
       x-show="selectedIds.length > 0"
       x-data="{ showBatchActionsMenu: false, showRuleMenu: false, showSourceUpdateMenu: false }"
+      data-back-scope="header-batch-actions"
       @keydown.escape.window="if (activePluginBatchGroup) { closePluginBatchGroup(); } else if (showRuleMenu) { showRuleMenu = false; } else if (showSourceUpdateMenu) { showSourceUpdateMenu = false; } else if (showBatchActionsMenu) { showBatchActionsMenu = false; $refs.batchActionsMenuButton.focus(); }"
       class="selection-bar ui-batch-action-strip ui-batch-action-strip--desktop"
       role="toolbar"

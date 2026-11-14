@@ -86,6 +86,18 @@ def init_database():
     # 创建临时连接进行初始化 (不使用 Flask g，因为此时可能不在请求上下文中)
     conn = sqlite3.connect(db_path, timeout=30)
     try:
+        _initialize_database(conn, is_existing_db=is_existing_db)
+    finally:
+        conn.close()
+
+    ctx.set_status(status="ready")
+    print("数据库初始化和表结构检查完成")
+
+
+def _initialize_database(conn, *, is_existing_db):
+    from core.context import ctx
+
+    try:
         conn.execute("PRAGMA journal_mode=WAL;")
     except:
         pass
@@ -224,6 +236,15 @@ def init_database():
     ensure_index_runtime_schema(conn)
     ensure_source_update_monitor_schema(conn)
     ensure_plugin_jobs_schema(conn)
+    from core.services.wi_entry_history_service import (
+        ensure_entry_history_schema, migrate_entry_history_paths,
+    )
+    ensure_entry_history_schema(conn)
+    conn.commit()
+
+    # 路径转换属于可重试的资源工作，不能阻断扫描器和恢复入口启动。
+    migrate_entry_history_paths(conn)
+    conn.commit()
 
     # === 3. 数据迁移逻辑 ===
     if not is_existing_db:
@@ -233,10 +254,6 @@ def init_database():
         # 已有数据库：标记为就绪
         ctx.set_status(status="ready", message="启动完成", progress=100)
 
-    conn.close()
-    
-    ctx.set_status(status="ready")
-    print("数据库初始化和表结构检查完成")
 
 def _migrate_existing_data(conn):
     """

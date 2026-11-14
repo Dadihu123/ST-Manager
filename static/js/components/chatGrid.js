@@ -8224,7 +8224,9 @@ export default function chatGrid() {
       const link = document.createElement("a");
       link.href = url;
       link.download = `${filenamePrefix}-${Date.now()}.json`;
+      document.body.appendChild(link);
       link.click();
+      link.remove();
       URL.revokeObjectURL(url);
       this.regexConfigStatus = statusMessage;
     },

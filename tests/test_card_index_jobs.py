@@ -1412,6 +1412,7 @@ def test_worker_loop_updates_owner_worldinfo_in_active_generation_without_full_r
 
     monkeypatch.setattr(index_job_worker, 'rebuild_scope_generation', fake_rebuild_scope_generation)
     monkeypatch.setattr(index_build_service, 'CARDS_FOLDER', str(cards_dir))
+    (tmp_path / 'global-lorebooks').mkdir(exist_ok=True)
     monkeypatch.setattr(index_build_service, 'load_config', lambda: {'world_info_dir': str(tmp_path / 'global-lorebooks'), 'resources_dir': str(resources_dir)})
     monkeypatch.setattr(index_build_service, 'extract_card_info', lambda _path: {'data': {'character_book': {'name': 'New Embedded', 'entries': {'0': {'content': 'hello'}}}}})
     monkeypatch.setattr(index_build_service, 'load_ui_data', lambda: {
@@ -1510,6 +1511,7 @@ def test_worker_loop_upsert_world_owner_removes_stale_old_owner_rows(monkeypatch
 
     monkeypatch.setattr(index_job_worker, 'rebuild_scope_generation', fake_rebuild_scope_generation)
     monkeypatch.setattr(index_build_service, 'CARDS_FOLDER', str(cards_dir))
+    (tmp_path / 'global-lorebooks').mkdir(exist_ok=True)
     monkeypatch.setattr(index_build_service, 'load_config', lambda: {'world_info_dir': str(tmp_path / 'global-lorebooks'), 'resources_dir': str(resources_dir)})
     monkeypatch.setattr(index_build_service, 'extract_card_info', lambda _path: {'data': {'character_book': {'name': 'Embedded New', 'entries': {'0': {'content': 'hello'}}}}})
     monkeypatch.setattr(index_build_service, 'load_ui_data', lambda: {'new-hero.png': {'resource_folder': 'hero-assets', 'summary': 'embedded summary'}})
@@ -1575,6 +1577,7 @@ def test_worker_loop_upsert_world_owner_allows_cleanup_only_for_deleted_card(mon
         return True
 
     monkeypatch.setattr(index_job_worker, 'rebuild_scope_generation', fake_rebuild_scope_generation)
+    (tmp_path / 'global-lorebooks').mkdir(exist_ok=True)
     monkeypatch.setattr(index_build_service, 'load_config', lambda: {'world_info_dir': str(tmp_path / 'global-lorebooks'), 'resources_dir': str(tmp_path / 'resources')})
     monkeypatch.setattr(index_build_service, 'load_ui_data', lambda: {})
     monkeypatch.setattr(ctx.index_wakeup, 'wait', fake_wait)
@@ -1708,6 +1711,7 @@ def test_update_card_route_real_save_updates_runtime_projections_without_cards_r
     monkeypatch.setattr(cache_service, 'calculate_token_count', lambda _payload: 42)
     monkeypatch.setattr(cache_service, 'get_wi_meta', lambda _payload: (True, 'Fresh Embedded'))
     monkeypatch.setattr(index_job_worker, 'DEFAULT_DB_PATH', str(db_path))
+    (tmp_path / 'global-lorebooks').mkdir(exist_ok=True)
     monkeypatch.setattr(index_build_service, 'load_config', lambda: {'world_info_dir': str(tmp_path / 'global-lorebooks'), 'resources_dir': str(resources_dir)})
     monkeypatch.setattr(cards_api.ctx, 'cache', _FakeCache())
 
@@ -2081,6 +2085,7 @@ def test_change_image_route_rename_cleans_old_card_and_worldinfo_projections(mon
     monkeypatch.setattr(cache_service, 'get_wi_meta', lambda _payload: (True, 'Fresh Embedded'))
     monkeypatch.setattr(cards_api, 'calculate_token_count', lambda _data: 42)
     monkeypatch.setattr(index_job_worker, 'DEFAULT_DB_PATH', str(db_path))
+    (tmp_path / 'global-lorebooks').mkdir(exist_ok=True)
     monkeypatch.setattr(index_build_service, 'load_config', lambda: {'world_info_dir': str(tmp_path / 'global-lorebooks'), 'resources_dir': str(resources_dir)})
     monkeypatch.setattr(cards_api.ctx, 'cache', _FakeCache())
 

@@ -18,6 +18,7 @@ from core.config import (
     load_config, save_config, get_cards_folder
 )
 from core.context import ctx
+from core.utils.host_capabilities import CAN_OPEN_SYSTEM_FILE_MANAGER
 from core.data.ui_store import (
     UI_DATA_FILE,
     get_shared_wallpaper_library,
@@ -327,6 +328,8 @@ def api_settings_path_safety():
 def api_save_settings():
     try:
         new_config, confirm_risky_paths = _extract_settings_save_payload(request.get_json(silent=True) or {})
+        from core.services.android_path_service import validate_changed_directories
+        validate_changed_directories(new_config)
         safety_config = dict(new_config or {})
         if is_tauri_tavern_target(safety_config):
             safety_config['st_data_dir'] = ''
@@ -509,23 +512,59 @@ def api_select_shared_wallpaper():
     except ValueError as exc:
         return jsonify({'success': False, 'msg': str(exc)}), 400
 
+def _open_in_system_file_manager(path, *, reveal_file=None):
+    """把路径交给系统文件管理器打开。
+
+    桌面端行为与历史实现完全一致（Windows ``os.startfile`` / macOS ``open`` /
+    其它 ``xdg-open``）。移动端没有对应物，且 iOS 上 ``subprocess`` 会直接抛异常，
+    因此先按宿主能力判定，不支持时抛出可读的 ``_FileManagerUnavailable``。
+
+    ``reveal_file`` 用于「在资源管理器中显示并选中某个文件」：
+    Windows 用 ``explorer /select,``，macOS 用 ``open -R``。
+    """
+    if not CAN_OPEN_SYSTEM_FILE_MANAGER:
+        raise _FileManagerUnavailable()
+
+    system = platform.system()
+    if reveal_file:
+        if system == "Windows":
+            subprocess.Popen(f'explorer /select,"{reveal_file}"')
+        elif system == "Darwin":
+            subprocess.Popen(["open", "-R", reveal_file])
+        else:
+            subprocess.Popen(["xdg-open", path])
+        return
+
+    if system == "Windows":
+        os.startfile(path)
+    elif system == "Darwin":
+        subprocess.Popen(["open", path])
+    else:
+        # Termux 下用 termux-open 调起安卓选择器；APK/iOS 已在上面被能力判定拦下。
+        if "ANDROID_ROOT" in os.environ:
+            subprocess.Popen(["termux-open", "--choose", path])
+        else:
+            subprocess.Popen(["xdg-open", path])
+
+
+class _FileManagerUnavailable(Exception):
+    """当前平台没有可用的系统文件管理器。"""
+
+
+def _file_manager_unsupported_response():
+    return jsonify({
+        'success': False,
+        'error': 'unsupported_on_platform',
+        'msg': '当前平台不支持打开系统文件管理器，请在应用内浏览。',
+    })
+
+
 @bp.route('/api/system_action', methods=['POST'])
 def api_system_action():
     action = request.json.get('action')
     try:
         if action == 'open_folder':
-            path = CARDS_FOLDER
-            if platform.system() == "Windows":
-                os.startfile(path)
-            elif platform.system() == "Darwin":
-                subprocess.Popen(["open", path])
-            else:
-                # === Termux 适配 ===
-                if "ANDROID_ROOT" in os.environ:
-                    # 使用 termux-open 调用安卓系统选择器
-                    subprocess.Popen(["termux-open", "--choose", path])
-                else:
-                    subprocess.Popen(["xdg-open", path])
+            _open_in_system_file_manager(CARDS_FOLDER)
             return jsonify({"success": True})
         # === 打开 Notes 目录 ===
         elif action == 'open_notes':
@@ -535,13 +574,7 @@ def api_system_action():
             if not os.path.exists(notes_dir):
                 os.makedirs(notes_dir)
                 
-            path = notes_dir
-            if platform.system() == "Windows":
-                os.startfile(path)
-            elif platform.system() == "Darwin":
-                subprocess.Popen(["open", path])
-            else:
-                subprocess.Popen(["xdg-open", path])
+            _open_in_system_file_manager(notes_dir)
             return jsonify({"success": True})
         elif action == 'backup_data':
             # 简单备份 ui_data.json
@@ -573,14 +606,10 @@ def api_system_action():
                 # 如果文件在根目录，target_dir 就是 CARDS_FOLDER
                 target_dir = CARDS_FOLDER
                 
-            if platform.system() == "Windows":
-                # Windows explorer /select 可以选中文件
-                subprocess.Popen(f'explorer /select,"{full_path}"')
-            elif platform.system() == "Darwin":
-                subprocess.Popen(["open", "-R", full_path])
-            else:
-                subprocess.Popen(["xdg-open", target_dir])
+            _open_in_system_file_manager(target_dir, reveal_file=full_path)
             return jsonify({"success": True})
+    except _FileManagerUnavailable:
+        return _file_manager_unsupported_response()
     except Exception as e:
         return jsonify({"success": False, "msg": str(e)})
     return jsonify({"success": False, "msg": "Unknown action"})
@@ -592,14 +621,10 @@ def api_open_trash():
         if not os.path.exists(TRASH_FOLDER):
             os.makedirs(TRASH_FOLDER)
             
-        path = TRASH_FOLDER
-        if platform.system() == "Windows":
-            os.startfile(path)
-        elif platform.system() == "Darwin":
-            subprocess.Popen(["open", path])
-        else:
-            subprocess.Popen(["xdg-open", path])
+        _open_in_system_file_manager(TRASH_FOLDER)
         return jsonify({"success": True})
+    except _FileManagerUnavailable:
+        return _file_manager_unsupported_response()
     except Exception as e:
         return jsonify({"success": False, "msg": str(e)})
 
@@ -1480,14 +1505,11 @@ def api_open_resource_folder():
             return jsonify({"success": False, "msg": f"资源目录不存在: {resource_path}"})
         
         # 打开目录
-        if platform.system() == "Windows":
-            os.startfile(resource_path)
-        elif platform.system() == "Darwin":
-            subprocess.Popen(["open", resource_path])
-        else:
-            subprocess.Popen(["xdg-open", resource_path])
+        _open_in_system_file_manager(resource_path)
         
         return jsonify({"success": True})
+    except _FileManagerUnavailable:
+        return _file_manager_unsupported_response()
     except Exception as e:
         logger.error(f"Open resource folder error: {e}")
         return jsonify({"success": False, "msg": str(e)})
@@ -1746,14 +1768,11 @@ def api_open_path():
         if not os.path.exists(target_open):
             return jsonify({"success": False, "msg": f"路径不存在: {target_open}"})
 
-        if platform.system() == "Windows":
-            os.startfile(target_open)
-        elif platform.system() == "Darwin":
-            subprocess.Popen(["open", target_open])
-        else:
-            subprocess.Popen(["xdg-open", target_open])
+        _open_in_system_file_manager(target_open)
             
         return jsonify({"success": True})
+    except _FileManagerUnavailable:
+        return _file_manager_unsupported_response()
     except Exception as e:
         return jsonify({"success": False, "msg": str(e)})
 

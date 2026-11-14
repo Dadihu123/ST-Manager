@@ -117,6 +117,7 @@
           x-init="syncCardEffect($el, card)"
           x-effect="syncCardEffect($el, card); if(highlightId === card.id) $el.scrollIntoView({ behavior: 'smooth', block: 'start' })"
           @click.stop="handleCardClick($event, card)"
+          data-long-press-menu
           @contextmenu.prevent.stop="showCardContextMenu($event, card)"
           @mouseenter="handleCardMouseEnter(card.id)"
           @mouseleave="handleCardMouseLeave(card.id)"

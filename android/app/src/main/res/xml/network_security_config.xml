@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  明文 HTTP 放行（targetSdk >= 28 起默认禁止）。
+  只对 loopback 开口子，不用全局 usesCleartextTraffic：
+  WebView 加载 http://127.0.0.1:<port> 需要它，别的域名不该被顺带放开。
+-->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">127.0.0.1</domain>
+        <domain includeSubdomains="false">localhost</domain>
+    </domain-config>
+</network-security-config>

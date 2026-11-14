@@ -136,6 +136,7 @@ def run_settings_modal_runtime_check(script_body):
             };
         """
     )
+    stub_source += read_project_file('static/js/utils/androidStorage.js').replace('export async function', 'async function')
     module_suffix = '\nexport default settingsModal;'
     node_script = textwrap.dedent(
         f"""

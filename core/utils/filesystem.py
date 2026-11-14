@@ -12,6 +12,15 @@ from core.utils.png_metadata import build_card_pnginfo
 
 logger = logging.getLogger(__name__)
 
+
+def walk_directory_strict(root):
+    """枚举失败必须中止，不能把未读到的目录内容当成空目录。"""
+    def onerror(error):
+        raise error
+
+    yield from os.walk(root, onerror=onerror)
+
+
 def sanitize_filename(filename: str, replacement: str = '_') -> str:
     """
     清理文件名，移除不安全字符

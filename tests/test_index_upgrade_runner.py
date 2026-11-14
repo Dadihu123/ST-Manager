@@ -365,6 +365,7 @@ def test_rebuild_publishes_progress_into_index_state(monkeypatch, tmp_path):
     db_path = tmp_path / 'cards_metadata.db'
     cards_dir = tmp_path / 'cards'
     cards_dir.mkdir()
+    (tmp_path / 'wi').mkdir()
     (cards_dir / 'hero.png').write_bytes(b'hero')
 
     with sqlite3.connect(db_path) as conn:

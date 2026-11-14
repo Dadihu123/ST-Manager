@@ -100,6 +100,10 @@ export default function entryDock() {
       };
       window.addEventListener("resize", this._resizeHandler);
 
+      // 返回手势兜底通道：layout 的 viewStack 拿不到组件实例时用它收起。
+      this._collapseHandler = () => this.collapse();
+      window.addEventListener("entry-dock:collapse", this._collapseHandler);
+
       this.syncMobileDockedClass();
       this.ready = true;
     },
@@ -135,6 +139,10 @@ export default function entryDock() {
       if (this._resizeHandler) {
         window.removeEventListener("resize", this._resizeHandler);
         this._resizeHandler = null;
+      }
+      if (this._collapseHandler) {
+        window.removeEventListener("entry-dock:collapse", this._collapseHandler);
+        this._collapseHandler = null;
       }
       this.cancelHoverTimer();
       // 组件销毁时摘掉 body 上的停靠类，否则翻页栏会永远留一段空隙

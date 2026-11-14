@@ -6,7 +6,7 @@ import time
 
 from PIL import Image, UnidentifiedImageError
 
-from core.config import BASE_DIR
+from core.config import BASE_DIR, INTERNAL_DIR
 from core.data.ui_store import (
     get_shared_wallpaper_library,
     load_ui_data,
@@ -19,8 +19,12 @@ logger = logging.getLogger(__name__)
 
 
 class SharedWallpaperService:
-    def __init__(self, project_root=None, ui_data_loader=None, ui_data_saver=None):
+    def __init__(self, project_root=None, ui_data_loader=None, ui_data_saver=None, internal_root=None):
+        # 用户数据根（data/ 下）→ BASE_DIR；随包只读资源 → INTERNAL_DIR。
         self.project_root = os.path.abspath(project_root or BASE_DIR)
+        # 内置壁纸是随包资源，打包态必须从 INTERNAL_DIR 读：frozen 下 BASE_DIR 是
+        # exe/.app 所在目录，其中并没有 static/，用 BASE_DIR 会静默读到空目录。
+        self.internal_root = os.path.abspath(internal_root or INTERNAL_DIR)
         self.ui_data_loader = ui_data_loader or load_ui_data
         self.ui_data_saver = ui_data_saver or save_ui_data
 
@@ -198,7 +202,9 @@ class SharedWallpaperService:
         return self.load_library()
 
     def _load_builtin_items(self):
-        builtin_root = os.path.join(self.project_root, 'static', 'assets', 'wallpapers', 'builtin')
+        # 内置壁纸随包分发，走 internal_root（frozen 下 = sys._MEIPASS），
+        # 不能用 project_root（frozen 下是 exe 同级，没有 static/）。
+        builtin_root = os.path.join(self.internal_root, 'static', 'assets', 'wallpapers', 'builtin')
         if not os.path.isdir(builtin_root):
             return {}
 
@@ -299,7 +305,8 @@ class SharedWallpaperService:
         return {
             'id': wallpaper_id,
             'source_type': source_type,
-            'file': self._relative_path(path),
+            'file': (os.path.relpath(path, self.internal_root).replace('\\', '/')
+                     if source_type == 'builtin' else self._relative_path(path)),
             'filename': os.path.basename(path),
             'width': metadata['width'],
             'height': metadata['height'],

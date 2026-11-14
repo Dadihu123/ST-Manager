@@ -171,8 +171,13 @@ def _retry_resource_worldinfo_job(conn, source_path: str) -> bool:
     owner_card_ids = resolve_resource_worldinfo_owner_card_ids(source_path)
     if not owner_card_ids:
         return False
-    for owner_card_id in owner_card_ids:
-        apply_worldinfo_owner_increment(conn, owner_card_id, source_path)
+    try:
+        for owner_card_id in owner_card_ids:
+            apply_worldinfo_owner_increment(conn, owner_card_id, source_path, commit=False)
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
     return True
 
 

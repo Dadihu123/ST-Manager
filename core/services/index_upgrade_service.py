@@ -23,7 +23,7 @@ from core.services.index_build_service import (
     connect_index_db,
 )
 from core.utils.data import get_wi_meta
-from core.utils.image import extract_card_info
+from core.utils.image import extract_card_info_strict as extract_card_info
 
 
 logger = logging.getLogger(__name__)
@@ -99,11 +99,10 @@ def backfill_embedded_worldinfo_metadata(conn=None, progress_cb=None):
 
         for done, (card_id,) in enumerate(rows, start=1):
             full_path = os.path.join(CARDS_FOLDER, str(card_id).replace('/', os.sep))
-            if not os.path.exists(full_path):
-                continue
-
             try:
                 info = extract_card_info(full_path)
+            except OSError:
+                raise
             except Exception:
                 logger.warning('Failed to inspect embedded worldinfo metadata: %s', full_path, exc_info=True)
                 continue
@@ -203,62 +202,82 @@ def _make_progress_callback(conn, scope: str, phase: str):
     return _callback
 
 
+def _resource_access_error(exc):
+    return f'资源不可访问，已保留原索引；恢复访问后请重试：{exc.filename or str(exc)}'
+
+
 def rebuild_scope_generation(scope: str, reason: str = 'bootstrap'):
     with connect_index_db(DEFAULT_DB_PATH) as conn:
         generation = allocate_build_generation(conn, scope)
-        update_build_state(
-            conn,
-            scope,
-            state='running',
-            phase='build_entities',
-            build_reason=reason,
-            owner_token=ensure_owner_token(),
-        )
+        try:
+            _build_and_activate_generation(conn, scope, generation, reason)
+        except OSError as exc:
+            conn.rollback()
+            # 分批提交的半成品也必须删除；旧活动 generation 与格式版本保持不变。
+            clear_generation_data(conn, scope, generation)
+            message = _resource_access_error(exc)
+            update_build_state(conn, scope, state='failed', phase='resource_access',
+                               building_generation=0, last_error=message[:500])
+            with ctx.index_lock:
+                ctx.index_state.update(state='error', scope=scope, message=message)
+            logger.warning('%s', message)
+            raise
 
-        if scope == 'worldinfo':
-            conn.execute(
-                'UPDATE index_build_state SET phase = ? WHERE scope = ?',
-                (PHASE_BACKFILL, scope),
-            )
-            conn.commit()
-            _publish_build_progress(scope, phase=PHASE_BACKFILL, done=0, total=0)
-            inspected_books = backfill_embedded_worldinfo_metadata(
-                conn,
-                progress_cb=_make_progress_callback(conn, scope, PHASE_BACKFILL),
-            )
-            # 「已扫描过世界书元数据」是独立于索引构建的事实：单独提交。
-            # 否则一次构建失败就要在下次启动重新逐张读全部卡片（大库可达数分钟），
-            # 而这正是启动慢的主因。索引行本身仍整体回滚，由 generation 机制保证。
-            conn.commit()
-            conn.execute(
-                'UPDATE index_build_state SET phase = ? WHERE scope = ?',
-                (PHASE_BUILD, scope),
-            )
-            conn.commit()
-            _publish_build_progress(scope, phase=PHASE_BUILD, done=0, total=0)
-            items_written = build_worldinfo_generation(
-                conn,
-                generation,
-                inspected_books=inspected_books,
-                progress_cb=_make_progress_callback(conn, scope, PHASE_BUILD),
-            )
-            _ensure_worldinfo_projection_complete(conn, generation, inspected_books)
-        else:
-            items_written = build_cards_generation(
-                conn,
-                generation,
-                progress_cb=_make_progress_callback(conn, scope, PHASE_BUILD),
-            )
 
+def _build_and_activate_generation(conn, scope, generation, reason):
+    update_build_state(
+        conn,
+        scope,
+        state='running',
+        phase='build_entities',
+        build_reason=reason,
+        owner_token=ensure_owner_token(),
+    )
+
+    if scope == 'worldinfo':
         conn.execute(
             'UPDATE index_build_state SET phase = ? WHERE scope = ?',
-            (PHASE_ACTIVATE, scope),
+            (PHASE_BACKFILL, scope),
         )
         conn.commit()
-        _publish_build_progress(scope, phase=PHASE_ACTIVATE)
-        # activate_generation 会在同一事务里记录搜索内容格式版本。
-        activate_generation(conn, scope, generation, items_written=items_written)
-        _print_and_log(f'{scope} 索引构建完成，已激活 generation={generation}')
+        _publish_build_progress(scope, phase=PHASE_BACKFILL, done=0, total=0)
+        inspected_books = backfill_embedded_worldinfo_metadata(
+            conn,
+            progress_cb=_make_progress_callback(conn, scope, PHASE_BACKFILL),
+        )
+        # 「已扫描过世界书元数据」是独立于索引构建的事实：单独提交。
+        # 否则一次构建失败就要在下次启动重新逐张读全部卡片（大库可达数分钟），
+        # 而这正是启动慢的主因。索引行本身仍整体回滚，由 generation 机制保证。
+        conn.commit()
+        conn.execute(
+            'UPDATE index_build_state SET phase = ? WHERE scope = ?',
+            (PHASE_BUILD, scope),
+        )
+        conn.commit()
+        _publish_build_progress(scope, phase=PHASE_BUILD, done=0, total=0)
+        items_written = build_worldinfo_generation(
+            conn,
+            generation,
+            inspected_books=inspected_books,
+            progress_cb=_make_progress_callback(conn, scope, PHASE_BUILD),
+        )
+        _ensure_worldinfo_projection_complete(conn, generation, inspected_books)
+    else:
+        items_written = build_cards_generation(
+            conn,
+            generation,
+            progress_cb=_make_progress_callback(conn, scope, PHASE_BUILD),
+        )
+
+    conn.execute(
+        'UPDATE index_build_state SET phase = ? WHERE scope = ?',
+        (PHASE_ACTIVATE, scope),
+    )
+    conn.commit()
+    _publish_build_progress(scope, phase=PHASE_ACTIVATE)
+    # activate_generation 会在同一事务里记录搜索内容格式版本。
+    activate_generation(conn, scope, generation, items_written=items_written)
+    _print_and_log(f'{scope} 索引构建完成，已激活 generation={generation}')
 
 
 def plan_startup_upgrade(index_auto_bootstrap: bool = True) -> list[dict]:
@@ -357,6 +376,7 @@ def _settle_index_state():
 
 
 def _background_upgrade_worker(plan: list[dict]):
+    scope = None
     try:
         # 串行化靠**启动顺序**保证，不靠锁：init_services 先调用
         # start_background_index_upgrade（置位 index_upgrade_active）再启动索引
@@ -371,18 +391,20 @@ def _background_upgrade_worker(plan: list[dict]):
         _print_and_log('后台索引升级完成')
     except Exception as exc:
         logger.error('后台索引升级失败: %s', exc, exc_info=True)
+        message = _resource_access_error(exc) if isinstance(exc, OSError) else f'索引升级失败: {exc}'
         with ctx.index_lock:
             ctx.index_state['state'] = 'error'
-            ctx.index_state['message'] = f'索引升级失败: {exc}'
-        for item in plan:
+            ctx.index_state['message'] = message
+        # 只标记失败的 scope，已完成或尚未处理的 scope 保留自身状态。
+        if scope is not None:
             try:
                 with connect_index_db(DEFAULT_DB_PATH) as conn:
                     update_build_state(
                         conn,
-                        item['scope'],
+                        scope,
                         state='failed',
-                        phase='background_upgrade',
-                        last_error=str(exc)[:500],
+                        phase='resource_access' if isinstance(exc, OSError) else 'background_upgrade',
+                        last_error=message[:500],
                     )
             except Exception:
                 logger.debug('记录后台升级失败状态时出错', exc_info=True)
