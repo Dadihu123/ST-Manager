@@ -1,7 +1,7 @@
 import os
 import hashlib
 import logging
-from PIL import Image
+from PIL import Image, features
 import json
 from flask import Blueprint, request, jsonify, send_from_directory
 
@@ -283,13 +283,15 @@ def serve_card_image(filename):
 def serve_thumbnail(filename):
     """
     按需生成并提供卡片缩略图。
-    - 检查 WebP 缓存是否存在且有效。
-    - 如果无效，则生成并保存为 WebP 格式。
+    - 检查缩略图缓存是否存在且有效。
+    - 优先 WebP；缺少编码器的平台（如 Android）使用 JPEG。
     - 使用 ctx.thumb_semaphore 限制并发生成数量。
     """
     try:
         # 1. 构造原始文件和缩略图缓存的路径
         original_path = os.path.join(CARDS_FOLDER, filename.replace('/', os.sep))
+        if not _is_within_base(os.path.realpath(original_path), os.path.realpath(CARDS_FOLDER)):
+            return 'Invalid card path', 403
 
         # 如果是 JSON，切换目标到其 Sidecar 图片
         if filename.lower().endswith('.json'):
@@ -301,7 +303,7 @@ def serve_thumbnail(filename):
                 return "No image found", 404
             original_path = sidecar
             # 使用图片文件名做 hash，避免 JSON 内容变了但图片没变导致重算
-            filename = os.path.basename(sidecar)
+            filename = os.path.relpath(sidecar, CARDS_FOLDER).replace('\\', '/')
 
         if not os.path.exists(original_path):
             default_img = get_default_card_image_path()
@@ -311,7 +313,10 @@ def serve_thumbnail(filename):
 
         # 使用原始路径的 hash 作为缓存文件名
         normalized_name = filename.replace('\\', '/')
-        thumb_hash_name = hashlib.md5(normalized_name.encode('utf-8')).hexdigest() + ".webp"
+        use_webp = features.check('webp')
+        thumb_extension = '.webp' if use_webp else '.jpg'
+        thumb_mimetype = 'image/webp' if use_webp else 'image/jpeg'
+        thumb_hash_name = hashlib.md5(normalized_name.encode('utf-8')).hexdigest() + thumb_extension
         thumb_path = os.path.join(THUMB_FOLDER, thumb_hash_name)
 
         # 2. 检查缓存是否有效（文件存在且比原图新）
@@ -319,14 +324,14 @@ def serve_thumbnail(filename):
             original_mtime = os.path.getmtime(original_path)
             thumb_mtime = os.path.getmtime(thumb_path)
             if thumb_mtime >= original_mtime:
-                return send_from_directory(THUMB_FOLDER, thumb_hash_name)
+                return send_from_directory(THUMB_FOLDER, thumb_hash_name, mimetype=thumb_mimetype)
 
         # 3. 生成缩略图 (限制并发)
         # 如果获取不到信号量（当前满载），阻塞等待
         with ctx.thumb_semaphore:
             # 再次检查（防止排队期间被别的线程生成了）
             if os.path.exists(thumb_path) and os.path.getmtime(thumb_path) >= os.path.getmtime(original_path):
-                return send_from_directory(THUMB_FOLDER, thumb_hash_name)
+                return send_from_directory(THUMB_FOLDER, thumb_hash_name, mimetype=thumb_mimetype)
 
             with Image.open(original_path) as img:
                 # 优化：使用 draft 模式加速加载
@@ -346,10 +351,12 @@ def serve_thumbnail(filename):
                     # 使用 BILINEAR 平衡速度和质量
                     img = img.resize((300, new_height), Image.Resampling.BILINEAR)
                 
-                # 优化：生成 WebP，质量 75
-                img.save(thumb_path, 'WEBP', quality=75, method=3)
+                if use_webp:
+                    img.save(thumb_path, 'WEBP', quality=75, method=3)
+                else:
+                    img.save(thumb_path, 'JPEG', quality=75)
 
-        return send_from_directory(THUMB_FOLDER, thumb_hash_name)
+        return send_from_directory(THUMB_FOLDER, thumb_hash_name, mimetype=thumb_mimetype)
 
     except Exception as e:
         logger.error(f"Thumbnail generation failed for {filename}: {e}")

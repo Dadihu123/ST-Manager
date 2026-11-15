@@ -297,24 +297,25 @@ def clean_sidecar_images(json_path, exclude_ext=None):
 
 def clean_thumbnail_cache(rel_path, thumb_folder):
     """
-    主动删除指定卡片 ID 对应的 WebP 缩略图缓存。
+    主动删除指定卡片 ID 对应的 WebP/JPEG 缩略图缓存。
     确保下次请求时，服务器会重新从原图生成最新的缩略图。
     """
     try:
         # 逻辑必须与 serve_thumbnail 中的 hash 逻辑一致
+        rel_path = rel_path.replace('\\', '/')
         filename = os.path.basename(rel_path)
         
         # 如果是 JSON 卡片，serve_thumbnail 是根据同名图片生成的 hash
         # 而 api_update_card_file 中我们通常已经把它转成了 .png 或本身就是 .png
         # 简单起见，尝试清理 .png 后缀对应的缓存
         base_name = os.path.splitext(filename)[0]
-        potential_names = [filename, base_name + ".png"]
+        potential_names = {rel_path, filename, base_name + '.png', os.path.splitext(rel_path)[0] + '.png'}
         
         for name in potential_names:
-            thumb_hash_name = hashlib.md5(name.encode('utf-8')).hexdigest() + ".webp"
-            thumb_path = os.path.join(thumb_folder, thumb_hash_name)
-            if os.path.exists(thumb_path):
-                os.remove(thumb_path)
-                # print(f"DEBUG: 已清理缩略图缓存 {thumb_path}")    
+            thumb_hash = hashlib.md5(name.encode('utf-8')).hexdigest()
+            for extension in ('.webp', '.jpg'):
+                thumb_path = os.path.join(thumb_folder, thumb_hash + extension)
+                if os.path.exists(thumb_path):
+                    os.remove(thumb_path)
     except Exception as e:
         print(f"清理缩略图失败: {e}")

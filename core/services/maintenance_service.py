@@ -4,6 +4,7 @@ import hashlib
 import os
 
 from core.consts import SIDECAR_EXTENSIONS
+from core.utils.filesystem import walk_directory_strict
 
 
 def _cache_name(source_name):
@@ -26,9 +27,7 @@ def _valid_thumbnail_cache_names(cards_folder):
         raise FileNotFoundError(f'角色卡目录不存在: {cards_root}')
 
     valid_names = set()
-    for current_root, _directory_names, file_names in os.walk(
-        cards_root, followlinks=False
-    ):
+    for current_root, _directory_names, file_names in walk_directory_strict(cards_root):
         for file_name in file_names:
             extension = os.path.splitext(file_name)[1].lower()
             if extension == '.json':
@@ -46,11 +45,13 @@ def _valid_thumbnail_cache_names(cards_folder):
                 valid_names.add(_cache_name(rel_path))
                 # Keep compatibility with caches created before nested paths were normalized.
                 valid_names.add(_cache_name(file_name))
+    # JPEG 是无 WebP 编码器平台的缓存格式；两种格式共用源路径哈希。
+    valid_names.update(name[:-5] + '.jpg' for name in tuple(valid_names))
     return valid_names
 
 
 def clean_orphaned_thumbnail_cache(cards_folder, thumb_folder):
-    """Remove WebP thumbnails whose source image is no longer on disk."""
+    """Remove WebP/JPEG thumbnails whose source image is no longer on disk."""
     valid_names = _valid_thumbnail_cache_names(cards_folder)
     thumbnail_root = os.path.abspath(os.fspath(thumb_folder))
     if not os.path.isdir(thumbnail_root):
@@ -62,7 +63,7 @@ def clean_orphaned_thumbnail_cache(cards_folder, thumb_folder):
     errors = []
     for entry in os.scandir(thumbnail_root):
         if (
-            not entry.name.lower().endswith('.webp')
+            not entry.name.lower().endswith(('.webp', '.jpg'))
             or not entry.is_file(follow_symlinks=False)
         ):
             continue
