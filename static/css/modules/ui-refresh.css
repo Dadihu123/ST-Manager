@@ -94,6 +94,8 @@
 
 .ui-modal-overlay {
   padding: var(--ui-modal-gutter);
+  justify-content: center;
+  align-items: center;
 }
 
 .ui-modal-shell {

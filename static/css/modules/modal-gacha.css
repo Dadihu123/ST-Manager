@@ -21,6 +21,8 @@
      后出现者胜，详情页会被抽卡弹窗盖住。抽卡弹窗要能在打开详情后继续留在
      下层，用户才能逐张点开十连的结果。 */
   z-index: var(--z-modal);
+  justify-content: center;
+  align-items: center;
   overflow: hidden;
   overscroll-behavior: contain;
 }
@@ -962,6 +964,15 @@
     border-radius: 0;
     border-left: 0;
     border-right: 0;
+  }
+
+  /* 起手选择是小弹窗；抽取舞台和结果仍使用完整视口。 */
+  .gacha-overlay--chooser .gacha-shell {
+    width: min(420px, calc(100vw - 1.5rem));
+    height: auto;
+    max-height: calc(100dvh - 1.5rem);
+    border: 1px solid var(--border-default);
+    border-radius: 14px;
   }
 
   .gacha-grid {
