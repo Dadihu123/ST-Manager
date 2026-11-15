@@ -145,7 +145,7 @@ python --version   # 必须是 3.13.x
 |---|---|---|
 | 1 | **本轮修复待真机复验** | 既有 Mi 10 Pro / Android 14 验证不覆盖本轮改动及 Android 15 超时 |
 | 2 | **`openFolder` 是占位实现** | 受信任顶层的 `openFolder` 消息目前跳系统存储设置页；真机上应换成 `ACTION_VIEW` + `content://` 或 SAF 目录选择器 |
-| 3 | **拖放降级未做** | `draggable` 9 处 / `@drop` 24 处在触摸下仍失效，需真机先验收交互再改 |
+| 3 | **触摸拖放采用替代操作** | 触摸端关闭原生拖拽，避免与长按冲突；角色卡移动使用批量操作，其他拖放场景仍需逐项适配 |
 | 4 | **`MANAGE_EXTERNAL_STORAGE` 不能上 Google Play** | 本项目走侧载分发；若将来要上架需重做文件层（不推荐） |
 | 5 | **API 30 以下的存储权限** | `minSdk 24` 时 Android 10 及以下还需 `READ/WRITE_EXTERNAL_STORAGE` 运行时权限，变更外部路径时按需申请；默认私有目录无需授权 |
 | 6 | **首次启动要解包 38 MB assets** | `BackendService.extractAssetsToFiles` 把 assets 解到 `$HOME/.shell-resources`，首次启动会慢几秒（按内容摘要缓存，完整解包才写标记） |

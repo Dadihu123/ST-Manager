@@ -8,10 +8,14 @@ import { moveCard } from "../api/card.js";
 import { installHostBridge } from "../utils/hostBridge.js";
 import { installLongPressContextMenu } from "../utils/longPress.js";
 import { installNativeDownloads } from "../utils/download.js";
-import { register as registerViewLayer } from "../utils/viewStack.js";
+import { register as registerViewLayer, createComponentLookup } from "../utils/viewStack.js";
 
 export default function layout() {
   return {
+    destroy() {
+      this._backComponentLookup?.disconnect();
+    },
+
     // === 代理状态 (为了兼容 HTML 中可能存在的引用) ===
     // === 1. 映射全局状态 (Global Store Proxies) ===
     get serverStatus() {
@@ -220,8 +224,8 @@ export default function layout() {
     _installBackGestureSupport() {
       const store = this.$store.global;
 
-      const componentElement = name => document.querySelector(
-        `[x-data="${name}"], [x-data="${name}()"], [data-back-scope="${name}"]`);
+      const componentElement = createComponentLookup(document);
+      this._backComponentLookup = componentElement;
       const getField = (object, path) => path.split('.').reduce((value, key) => value?.[key], object);
       const componentParents = {
         detailModal: 'showDetail', wiEditor: 'showFullScreenWI', presetEditor: 'showPresetEditor',
@@ -310,7 +314,7 @@ export default function layout() {
             readComponent("entryDock", "hasEntries") === true &&
             readComponent("entryDock", "expanded") === true,
           close: () => {
-            const el = document.querySelector('[x-data="entryDock"]');
+            const el = componentElement('entryDock');
             if (el && typeof window.Alpine !== "undefined") {
               try {
                 window.Alpine.$data(el).collapse();

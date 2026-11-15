@@ -984,7 +984,7 @@
       >
         <span aria-hidden="true">{{ icon('check', 'ui-icon--sm') }}</span>
         <span x-show="!isCurrentPageAllSelected">全选</span>
-        <span x-show="isCurrentPageAllSelected">取消全选</span>
+        <span x-show="isCurrentPageAllSelected">全不选</span>
       </button>
       <button
         x-show="selectedIds.length > 0 && currentMode === 'cards'"
@@ -1008,7 +1008,7 @@
         aria-label="移动选中角色卡"
       >
         <span aria-hidden="true">{{ icon('folder', 'ui-icon--sm') }}</span>
-        <span class="sr-only">移动</span>
+        <span>移动</span>
       </button>
       <button
         x-show="selectedIds.length > 0 && currentMode === 'cards'"
@@ -1019,7 +1019,7 @@
         aria-label="运行自动化规则"
       >
         <span aria-hidden="true">{{ icon('workflow', 'ui-icon--sm') }}</span>
-        <span class="sr-only">自动处理</span>
+        <span>自动</span>
       </button>
       <div
         x-show="selectedIds.length > 0 && currentMode === 'cards'"
@@ -1092,7 +1092,7 @@
         aria-label="移动选中预设"
       >
         <span aria-hidden="true">{{ icon('folder', 'ui-icon--sm') }}</span>
-        <span class="sr-only">移动</span>
+        <span>移动</span>
       </button>
       <button
         x-show="selectedIds.length > 0 && currentMode === 'presets' && canDeletePresetSelection()"
@@ -1103,7 +1103,7 @@
         aria-label="删除选中预设"
       >
         <span aria-hidden="true">{{ icon('trash', 'ui-icon--sm') }}</span>
-        <span class="sr-only">删除</span>
+        <span>删除</span>
       </button>
       <!-- 插件 `batch.actions` 贡献（与桌面批量菜单同一份数据，
            由 refreshPluginBatchEntries() 在 init 里监听 contributions:changed 维护）。
@@ -1117,7 +1117,7 @@
           @click="runPluginBatchEntry(node)"
         >
           <span aria-hidden="true" x-html="menuNodeIconHtml(node)"></span>
-          <span class="sr-only" x-text="node.label"></span>
+          <span x-text="node.label"></span>
         </button>
       </template>
       <button
@@ -1129,7 +1129,7 @@
         aria-label="删除选中角色卡"
       >
         <span aria-hidden="true">{{ icon('trash', 'ui-icon--sm') }}</span>
-        <span class="sr-only">删除</span>
+        <span>删除</span>
       </button>
     </div>
     <button

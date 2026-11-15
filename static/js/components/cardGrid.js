@@ -19,6 +19,7 @@ import { formatDate, getCardGridTokenBadgeClass } from "../utils/format.js";
 import { createMarqueeSelection } from "../utils/marqueeSelection.js";
 import { buildWindowedGridState } from "../utils/windowing.js";
 import { canPreviewForumThread } from "../utils/discordUrl.js";
+import { isTouchDevice } from "../utils/longPress.js";
 import {
   attachHoloCard,
   prepareHoloCard,
@@ -230,11 +231,12 @@ export default function cardGrid() {
       });
       this.$watch(
         "$store.global.settingsForm.card_effects_enabled",
-        (enabled) => {
-          this.syncCardEffectsEnabled(enabled !== false);
+        () => {
+          this.syncCardEffectsEnabled();
         },
       );
       this.$watch("$store.global.deviceType", (deviceType) => {
+        this.syncCardEffectsEnabled();
         if (deviceType === "mobile") {
           this.clearAllAutoFlipBackTimers();
         }
@@ -623,7 +625,9 @@ export default function cardGrid() {
     },
 
     isCardEffectsEnabled() {
-      return this.$store?.global?.settingsForm?.card_effects_enabled !== false;
+      return this.$store?.global?.deviceType !== "mobile" &&
+        !isTouchDevice() &&
+        this.$store?.global?.settingsForm?.card_effects_enabled !== false;
     },
 
     disableCardEffect(shell) {
@@ -1607,7 +1611,7 @@ export default function cardGrid() {
 
     handleCardClick(e, card) {
       // 处理 Ctrl/Meta (多选/反选)
-      if (e.ctrlKey || e.metaKey) {
+      if (e.ctrlKey || e.metaKey || (isTouchDevice() && this.selectedIds.length > 0)) {
         this.toggleSelection(card);
         return;
       }
@@ -1655,6 +1659,11 @@ export default function cardGrid() {
       if (!event || !card) return;
       event.preventDefault?.();
       event.stopPropagation?.();
+      // 触摸长按进入批量选择；桌面右键保留插件贡献菜单。
+      if (event.stmLongPress || event.pointerType === "touch" || isTouchDevice()) {
+        this.toggleSelection(card);
+        return;
+      }
       window.dispatchEvent(
         new CustomEvent("show-context-menu", {
           detail: {

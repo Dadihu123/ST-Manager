@@ -29,6 +29,35 @@ let installed = false;
 let closing = false;
 let cleanupPending = false;
 let nativeBack = false;
+let lastNotifiedDepth = -1;
+
+/** 按作用域名索引组件；DOM 结构变化后再重建，避免逐层扫描整页。 */
+export function createComponentLookup(root) {
+  let index = null;
+  const observer = typeof MutationObserver === 'function'
+    ? new MutationObserver(() => { index = null; }) : null;
+  observer?.observe(root, {
+    subtree: true,
+    childList: true,
+    attributes: true,
+    attributeFilter: ['x-data', 'data-back-scope'],
+  });
+  const lookup = name => {
+    if (!index || !observer) {
+      index = new Map();
+      root.querySelectorAll('[x-data], [data-back-scope]').forEach(element => {
+        const data = element.getAttribute('x-data') || '';
+        const names = [data.replace(/\(\)$/, ''), element.getAttribute('data-back-scope')];
+        for (const key of names) {
+          if (key && !index.has(key)) index.set(key, element);
+        }
+      });
+    }
+    return index.get(name) || null;
+  };
+  lookup.disconnect = () => { observer?.disconnect(); index = null; };
+  return lookup;
+}
 
 function activeLayers() {
   const active = [];
@@ -156,9 +185,12 @@ export function sync() {
     }
   }
 
-  window.dispatchEvent(
-    new CustomEvent(VIEW_STACK_EVENT, { detail: { depth: activeCount } })
-  );
+  if (activeCount !== lastNotifiedDepth) {
+    lastNotifiedDepth = activeCount;
+    window.dispatchEvent(
+      new CustomEvent(VIEW_STACK_EVENT, { detail: { depth: activeCount } })
+    );
+  }
 }
 
 /**
@@ -229,12 +261,19 @@ export function install(options = {}) {
   // DOM 变化兜底：x-show 切换会改 style.display，属于属性变更。
   if (typeof MutationObserver === 'function' && typeof document !== 'undefined') {
     try {
+      let scheduled = false;
       const observer = new MutationObserver(() => {
-        // 只在深度边界可能变化时才需要动 history；sync() 内部已做增量判断。
-        sync();
+        if (scheduled) return;
+        scheduled = true;
+        const schedule = window.requestAnimationFrame || queueMicrotask;
+        schedule(() => {
+          scheduled = false;
+          sync();
+        });
       });
       observer.observe(document.body || document.documentElement, {
         subtree: true,
+        childList: true,
         attributes: true,
         attributeFilter: ['style', 'class', 'hidden'],
       });
@@ -252,4 +291,5 @@ export function __resetForTests() {
   closing = false;
   cleanupPending = false;
   nativeBack = false;
+  lastNotifiedDepth = -1;
 }

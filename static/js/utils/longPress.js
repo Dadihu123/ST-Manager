@@ -32,6 +32,9 @@ let pending = null;
 
 /** 最近一次浏览器自己投递 contextmenu 的时间，用于去重。 */
 let endedPress = null;
+
+/** 触摸设备上摘掉原生 draggable 的观察器（见 disableNativeDragForTouch）。 */
+let dragObserver = null;
 const syntheticEvents = new WeakSet();
 
 /** 判定当前是否为「触摸优先」设备。 */
@@ -93,6 +96,7 @@ function synthesizeContextMenu(node, touch) {
     return false;
   }
   syntheticEvents.add(event);
+  event.stmLongPress = true;
   node.dispatchEvent(event);
   return event.defaultPrevented;
 }
@@ -131,7 +135,7 @@ function onTouchStart(event) {
     const current = pending;
     // 保留按压对象到 touchend，用 fired 抑制定时器之后到达的原生事件。
     current.fired = true;
-    synthesizeContextMenu(current.node, current);
+    current.handled = synthesizeContextMenu(current.node, current);
   }, LONG_PRESS_MS);
 }
 
@@ -156,7 +160,32 @@ function onTouchEnd() {
 }
 
 function onTouchCancel() {
-  clearPending();
+  onTouchEnd();
+}
+
+// img/a 即使没有 draggable 属性也可原生拖拽。只摘掉卡片外层的
+// draggable 不够：WebView 仍会从图片发起 dragstart 并取消触摸序列。
+function onNativeDragStart(event) {
+  if (isExcluded(event.target)) return;
+  let node = event.target;
+  while (node) {
+    if (node.hasAttribute?.('data-long-press-menu') || node.hasAttribute?.('data-drag-disabled')) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+    node = node.parentElement;
+  }
+}
+
+// 长按已执行操作时，松手产生的 click 不能再打开详情或反选。
+function onClickAfterLongPress(event) {
+  const current = endedPress?.expires > Date.now() ? endedPress : null;
+  if (!current?.handled || !event.target ||
+      (event.target !== current.node && !current.node.contains?.(event.target))) return;
+  endedPress = null;
+  event.preventDefault();
+  event.stopImmediatePropagation();
 }
 
 /**
@@ -192,8 +221,78 @@ function onNativeContextMenu(event) {
 
   if (!current.fired) {
     current.fired = true;
-    synthesizeContextMenu(current.node, current);
+    current.handled = synthesizeContextMenu(current.node, current);
   }
+}
+
+/**
+ * 在触摸设备上关掉 HTML5 原生拖拽。
+ *
+ * 为什么必须关：`draggable="true"` 的元素（卡片、侧栏文件夹）在触屏上长按时，
+ * 浏览器会进入**原生拖拽**（半透明拖影 + `dragstart` 系列事件）。这与我们
+ * 用 touchstart 计时 500ms 合成的 contextmenu 完全抢同一时段：
+ * 原生拖拽先起来后，手指一移动就会触发 `touchcancel`，我们的计时被清掉，
+ * 长按菜单永远不出现；反过来若菜单先弹出，拖拽又会卡住不结束。
+ * 实测真机上表现为「长按卡片有时弹菜单、有时没反应」。
+ *
+ * 触摸端本就没有可用的拖放（HTML5 DnD 不接收 touch 事件），
+ * 因此这里把 draggable 摘掉不会损失任何已有能力；
+ * 「移动到文件夹」的等价操作在批量操作栏里（header 的「移动」按钮），
+ * 桌面端鼠标拖放不受影响（本函数只在触摸设备上执行）。
+ *
+ * 用 `attribute` 过滤器观察，Alpine 重新渲染后新出现的 draggable 也会被摘掉。
+ *
+ * ⚠️ 必须同时观察 `childList`：只配 `attributes` 时，**新插入的节点**完全不在
+ * 观察范围内（Alpine 的 x-for 渲染卡片就是 appendChild），真机验证时
+ * 动态注入的 draggable 元素不会被摘掉。两个都要开。
+ */
+function disableNativeDragForTouch() {
+  if (typeof document === 'undefined') return null;
+
+  const strip = (root) => {
+    if (!root || !root.querySelectorAll) return;
+    root.querySelectorAll('[draggable="true"]').forEach((el) => {
+      // 记原值，便于测试或将来恢复（也让排查时能看出是被主动摘掉的）。
+      if (el.getAttribute('data-drag-disabled') !== '1') {
+        el.setAttribute('data-drag-disabled', '1');
+      }
+      el.setAttribute('draggable', 'false');
+    });
+  };
+
+  strip(document);
+
+  if (typeof MutationObserver !== 'function') return null;
+  const observer = new MutationObserver((records) => {
+    for (const record of records) {
+      if (record.type === 'attributes') {
+        const el = record.target;
+        if (el && el.getAttribute && el.getAttribute('draggable') === 'true') {
+          el.setAttribute('data-drag-disabled', '1');
+          el.setAttribute('draggable', 'false');
+        }
+        continue;
+      }
+      // 新增子树：逐个检查新节点及其后代。
+      if (record.type === 'childList') {
+        record.addedNodes.forEach((node) => {
+          if (!node || node.nodeType !== 1) return;
+          if (node.getAttribute && node.getAttribute('draggable') === 'true') {
+            node.setAttribute('data-drag-disabled', '1');
+            node.setAttribute('draggable', 'false');
+          }
+          strip(node);
+        });
+      }
+    }
+  });
+  observer.observe(document.documentElement || document.body, {
+    subtree: true,
+    childList: true,
+    attributes: true,
+    attributeFilter: ['draggable'],
+  });
+  return observer;
 }
 
 /**
@@ -212,12 +311,17 @@ export function installLongPressContextMenu() {
 
   window[INSTALL_FLAG] = true;
 
+  // 摘掉原生拖拽，避免它与长按菜单抢同一时段。
+  dragObserver = disableNativeDragForTouch();
+
   // 用捕获阶段，避免业务代码 stopPropagation 让长按失效。
   document.addEventListener('touchstart', onTouchStart, { capture: true, passive: true });
   document.addEventListener('touchmove', onTouchMove, { capture: true, passive: true });
   document.addEventListener('touchend', onTouchEnd, { capture: true, passive: true });
   document.addEventListener('touchcancel', onTouchCancel, { capture: true, passive: true });
   document.addEventListener('contextmenu', onNativeContextMenu, { capture: true });
+  document.addEventListener('click', onClickAfterLongPress, { capture: true });
+  document.addEventListener('dragstart', onNativeDragStart, { capture: true });
 
   return true;
 }
@@ -226,6 +330,14 @@ export function installLongPressContextMenu() {
 export function __resetForTests() {
   clearPending();
   endedPress = null;
+  if (dragObserver) {
+    try {
+      dragObserver.disconnect();
+    } catch (err) {
+      // 忽略：测试环境可能没有 disconnect。
+    }
+    dragObserver = null;
+  }
   if (typeof window !== 'undefined') {
     try {
       delete window[INSTALL_FLAG];
@@ -239,5 +351,7 @@ export function __resetForTests() {
     document.removeEventListener('touchend', onTouchEnd, { capture: true });
     document.removeEventListener('touchcancel', onTouchCancel, { capture: true });
     document.removeEventListener('contextmenu', onNativeContextMenu, { capture: true });
+    document.removeEventListener('click', onClickAfterLongPress, { capture: true });
+    document.removeEventListener('dragstart', onNativeDragStart, { capture: true });
   }
 }

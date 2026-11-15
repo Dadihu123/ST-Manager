@@ -16,6 +16,43 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 LONG_PRESS = PROJECT_ROOT / 'static/js/utils/longPress.js'
 
 
+def test_consumed_long_press_suppresses_release_click_only_on_its_target():
+    out = run_node(_prelude() + """
+        lp.installLongPressContextMenu();
+        const node = makeElement();
+        const touch = {clientX:50, clientY:80, screenX:50, screenY:80};
+        fireDoc('touchstart', {target:node, touches:[touch]});
+        await new Promise(r=>setTimeout(r, lp.LONG_PRESS_MS + 20));
+        fireDoc('touchend', {});
+        let prevented = 0, stopped = 0;
+        const click = target => ({target, preventDefault(){prevented++;}, stopImmediatePropagation(){stopped++;}});
+        fireDoc('click', click(makeElement()));
+        results.push(prevented);
+        fireDoc('click', click(node));
+        fireDoc('click', click(node));
+        results.push({prevented, stopped});
+        lp.__resetForTests();
+    """)
+    assert out == [0, {'prevented': 1, 'stopped': 1}]
+
+
+def test_implicit_image_drag_is_blocked_only_inside_business_targets():
+    out = run_node(_prelude() + """
+        lp.installLongPressContextMenu();
+        const card = makeElement();
+        const image = makeElement({});
+        image.parentElement = card;
+        let prevented = 0, stopped = 0;
+        const drag = target => ({target, preventDefault(){prevented++;}, stopPropagation(){stopped++;}});
+        fireDoc('dragstart', drag(makeElement({})));
+        results.push(prevented);
+        fireDoc('dragstart', drag(image));
+        results.push({prevented,stopped});
+        lp.__resetForTests();
+    """)
+    assert out == [0, {'prevented': 1, 'stopped': 1}]
+
+
 def run_node(script_body, touch=True):
     """在 stub 出的 DOM 环境里跑一段 ESM 脚本。"""
     node_script = textwrap.dedent(
@@ -54,6 +91,20 @@ def run_node(script_body, touch=True):
           preventDefault() {{ this.defaultPrevented = true; }}
         }};
 
+        // 触摸设备上 disableNativeDragForTouch 会扫 [draggable="true"]，
+        // 这里提供一个可注入的假节点列表，让测试能断言「被摘掉了」。
+        globalThis.__dragCandidates = [];
+        globalThis.__observed = [];
+        globalThis.__observerCallbacks = [];
+        globalThis.MutationObserver = class MutationObserver {{
+          constructor(cb) {{
+            this._cb = cb;
+            globalThis.__observerCallbacks.push(cb);
+          }}
+          observe(target, opts) {{ globalThis.__observed.push({{ target, opts }}); }}
+          disconnect() {{ globalThis.__observed.push('disconnected'); }}
+        }};
+
         globalThis.document = {{
           addEventListener(type, handler) {{
             (docListeners[type] = docListeners[type] || []).push(handler);
@@ -63,6 +114,11 @@ def run_node(script_body, touch=True):
             const i = arr.indexOf(handler);
             if (i >= 0) arr.splice(i, 1);
           }},
+          querySelectorAll(selector) {{
+            if (selector === '[draggable="true"]') return globalThis.__dragCandidates;
+            return [];
+          }},
+          documentElement: {{}},
         }};
 
         // Node 新版把 navigator 暴露成只读 getter，必须用 defineProperty 覆盖。
@@ -381,3 +437,146 @@ def test_tooltip_has_touch_channel():
     source = (PROJECT_ROOT / 'static/js/utils/tooltip.js').read_text(encoding='utf-8')
     assert 'onTouchStart' in source
     assert 'TOUCH_LONG_PRESS_MS' in source
+
+
+# ---------------------------------------------------------------------------
+# 原生拖拽与长按菜单的冲突
+#
+# 真机上 `draggable="true"` 的元素（卡片、侧栏文件夹）长按时，浏览器会进入
+# 原生拖拽并抢占这个时段，导致长按菜单「有时弹、有时不弹」。
+# 触摸端本就没有可用的 HTML5 拖放，因此安装长按桥时把 draggable 摘掉。
+# ---------------------------------------------------------------------------
+
+
+def test_touch_install_strips_native_draggable():
+    """触摸设备上安装长按桥时，必须把现有 draggable=true 摘成 false。"""
+    body = (
+        _prelude()
+        + textwrap.dedent(
+            """
+        const el = {
+          nodeType: 1,
+          attributes: { draggable: 'true' },
+          getAttribute(n) { return this.attributes[n] ?? null; },
+          setAttribute(n, v) { this.attributes[n] = v; },
+        };
+        globalThis.__dragCandidates.push(el);
+
+        lp.installLongPressContextMenu();
+
+        results.push({ draggable: el.getAttribute('draggable'), marked: el.getAttribute('data-drag-disabled') });
+        """
+        )
+    )
+    out = run_node(body)[0]
+
+    assert out['draggable'] == 'false', (
+        '触摸设备上必须摘掉原生 draggable，否则会与长按菜单抢时段'
+    )
+    assert out['marked'] == '1', '应记录 data-drag-disabled 便于排查'
+
+
+def test_touch_install_observes_later_draggable():
+    """Alpine 重新渲染后新出现的 draggable 也要被摘掉（靠 MutationObserver）。
+
+    必须同时观察 `childList` 与 `attributes`：只配 attributes 时新插入的节点
+    完全不在观察范围内，而 Alpine 的 x-for 渲染卡片正是 appendChild。
+    这个漏配在真机上验证时才暴露（注入的 draggable 元素没被摘掉）。
+    """
+    body = (
+        _prelude()
+        + textwrap.dedent(
+            """
+        lp.installLongPressContextMenu();
+
+        const calls = globalThis.__observed.filter((o) => typeof o === 'object');
+        const opts = calls[0] ? calls[0].opts : {};
+        results.push({
+          observed: calls.length,
+          filter: opts.attributeFilter,
+          childList: opts.childList,
+          subtree: opts.subtree,
+        });
+        """
+        )
+    )
+    out = run_node(body)[0]
+
+    assert out['observed'] >= 1, '应安装 MutationObserver 观察后续变化'
+    assert out['filter'] == ['draggable'], '应只观察 draggable 属性，避免无谓开销'
+    assert out['childList'] is True, (
+        '必须观察 childList，否则新插入的卡片（Alpine x-for）不会被摘掉'
+    )
+    assert out['subtree'] is True, '需要 subtree 才能覆盖深层节点'
+
+
+def test_observer_strips_newly_added_nodes():
+    """新增的 draggable 节点（appendChild）必须被摘掉。
+
+    真机验证发现的缺陷：只监听 attributes 时，动态插入的节点漏掉了。
+    """
+    body = (
+        _prelude()
+        + textwrap.dedent(
+            """
+        lp.installLongPressContextMenu();
+
+        // 取出注册的回调，模拟一条 childList 记录
+        const calls = globalThis.__observed.filter((o) => typeof o === 'object');
+        const cb = globalThis.__observerCallbacks[0];
+
+        const added = {
+          nodeType: 1,
+          attributes: { draggable: 'true' },
+          getAttribute(n) { return this.attributes[n] ?? null; },
+          setAttribute(n, v) { this.attributes[n] = v; },
+          querySelectorAll() { return []; },
+        };
+        cb([{ type: 'childList', addedNodes: [added] }]);
+
+        results.push({ draggable: added.getAttribute('draggable'), marked: added.getAttribute('data-drag-disabled') });
+        """
+        )
+    )
+    out = run_node(body)[0]
+
+    assert out['draggable'] == 'false', (
+        'childList 新增的 draggable 节点必须被摘掉'
+    )
+    assert out['marked'] == '1'
+
+
+def test_desktop_install_does_not_touch_draggable():
+    """桌面端必须保持原生拖放不变——鼠标拖放是主交互，不能动。"""
+    body = (
+        _prelude()
+        + textwrap.dedent(
+            """
+        const el = {
+          nodeType: 1,
+          attributes: { draggable: 'true' },
+          getAttribute(n) { return this.attributes[n] ?? null; },
+          setAttribute(n, v) { this.attributes[n] = v; },
+        };
+        globalThis.__dragCandidates.push(el);
+
+        lp.installLongPressContextMenu();
+
+        results.push({ draggable: el.getAttribute('draggable') });
+        """
+        )
+    )
+    out = run_node(body, touch=False)[0]
+
+    assert out['draggable'] == 'true', (
+        '桌面端不得改动 draggable；本模块只在触摸设备生效'
+    )
+
+
+def test_drag_toggle_is_documented():
+    """摘 draggable 是「损失能力」的决定，源码里必须写明为什么可接受。"""
+    source = LONG_PRESS.read_text(encoding='utf-8')
+    assert 'disableNativeDragForTouch' in source
+    # 必须说明触摸端本就没有 HTML5 拖放、以及等价入口在哪
+    assert 'touch' in source.lower()
+    assert 'draggable' in source

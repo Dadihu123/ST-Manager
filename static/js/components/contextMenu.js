@@ -99,14 +99,17 @@ export default function contextMenu() {
                 this.target = target;
                 this.targetFolder = targetFolder || null;
                 this.targetCard = targetCard || null;
-                this.visible = true;
 
                 // 插件贡献菜单：每次打开时重算（`when` 依赖当前模式与右键目标），
                 // 并收起上次展开的子菜单
                 this.refreshPluginEntries();
                 this.resetContributionSubmenu();
+                // 卡片没有内置菜单项，只有分隔线或空贡献时不打开空壳。
+                this.visible = type === 'folder' || this.hasCardMenuItems();
 
-                window.dispatchEvent(new CustomEvent('load-rulesets-for-menu'));
+                if (type === 'folder') {
+                    window.dispatchEvent(new CustomEvent('load-rulesets-for-menu'));
+                }
             });
 
             // 贡献注册表变更 → 重算（插件加载 / 禁用 / 配置变更都会触发）
@@ -181,6 +184,13 @@ export default function contextMenu() {
             return this.type === 'card' ? 'context.card' : 'context.folder';
         },
 
+        hasCardMenuItems() {
+            const hasItems = nodes => nodes.some(node =>
+                node.type !== 'separator' &&
+                (node.type !== 'submenu' || hasItems(node.children || [])));
+            return hasItems(this.pluginCardNodes) || hasItems(this.pluginFooterNodes);
+        },
+
         // === 插件贡献菜单（v3：context.folder / context.card / context.footer） ===
 
         /** 当前右键目标的贡献上下文（设计 §5.1：`{mode, target, selection}`）。 */
@@ -248,6 +258,9 @@ export default function contextMenu() {
             this.pluginMenuNodes = this.type === 'card' ? [] : read('context.folder');
             this.pluginCardNodes = this.type === 'card' ? read('context.card') : [];
             this.pluginFooterNodes = read('context.footer');
+            if (this.visible && this.type === 'card' && !this.hasCardMenuItems()) {
+                this.hideContextMenu();
+            }
         },
 
         /** 菜单每次打开都收起二级浮层（避免沿用上次的展开项）。 */

@@ -87,6 +87,52 @@ def _prelude():
     )
 
 
+def test_component_lookup_reuses_index_and_tracks_dynamic_scopes():
+    out = run_node(_prelude() + """
+        let invalidate, scans = 0;
+        globalThis.MutationObserver = class {
+          constructor(callback) { invalidate = callback; }
+          observe() {}
+          disconnect() {}
+        };
+        const element = attrs => ({ getAttribute: key => attrs[key] || null });
+        const first = element({'x-data': 'detailModal()'});
+        const nested = element({'data-back-scope': 'header-batch-actions'});
+        let elements = [first, nested];
+        const lookup = vs.createComponentLookup({
+          querySelectorAll() { scans++; return elements; },
+        });
+        results.push(lookup('detailModal') === first);
+        results.push(lookup('header-batch-actions') === nested);
+        for (let i = 0; i < 100; i++) lookup('not-mounted');
+        results.push(scans);
+        const replacement = element({'x-data': 'detailModal'});
+        elements = [replacement];
+        invalidate();
+        results.push(lookup('detailModal') === replacement);
+        results.push(lookup('header-batch-actions') === null);
+        results.push(scans);
+        lookup.disconnect();
+    """)
+    assert out == [True, True, 1, True, True, 2]
+
+
+def test_unchanged_depth_does_not_repeat_host_notifications():
+    out = run_node(_prelude() + """
+        const notifications = [];
+        window.addEventListener(vs.VIEW_STACK_EVENT, e => notifications.push(e.detail.depth));
+        let open = false;
+        vs.register({key:'overlay', isActive:()=>open, close:()=>{open=false;}});
+        for (let i = 0; i < 100; i++) vs.sync();
+        open = true;
+        vs.sync();
+        vs.sync();
+        vs.closeTop();
+        results.push(notifications);
+    """)
+    assert out == [[0, 1, 0]]
+
+
 def test_close_top_is_lifo():
     """后注册的层先被关闭（LIFO）。"""
     body = (
