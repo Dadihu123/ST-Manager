@@ -99,6 +99,18 @@ pytest tests/
 System document selection, storage permissions and Activity lifecycle still require an Android device
 or emulator; frontend bridge mocks and source matching do not verify those system behaviors.
 
+- Android artifact tests need an APK to exist first (`assembleDebug` above), then assert on the
+  **real** zip contents (does `app.imy` actually contain `core/`? are assets layered? is it signed?)
+  and on the real `aapt2`-reported version. Missing SDK → `skip`, not fail.
+  Two `slow`-marked cases actually shell out to Gradle to prove the signing chain end-to-end
+  (generate throwaway keystore → `assembleRelease` → `apksigner verify`, plus the unsigned
+  degradation path):
+
+```bash
+pytest tests/test_android_build_artifacts.py            # fast: inspects existing APK
+pytest tests/test_android_build_artifacts.py -m slow    # slow: real Gradle (~2 min)
+```
+
 - Run a single test file:
 
 ```bash
@@ -331,6 +343,10 @@ mypy core
 - Data/config are expected to be mounted into `/app/data` and `/app/config.json`
 - Desktop packaging workflow: `.github/workflows/build-desktop.yml`
 - Desktop builds run on pushes to `main`, `v*` tags, or manual dispatch, and upload Windows, macOS arm64, and macOS x86_64 artifacts
+- Android packaging workflow: `.github/workflows/build-android.yml`. Debug APK on push/PR; **signed** release APK on `v*` tags only, uploaded to the same GitHub Release as `ST-Manager-Pro-<ver>-android-arm64.apk`. Android's `publish-release` is a separate job from the desktop one — a desktop failure must not block Android release and vice versa.
+  - Android `versionName`/`versionCode` are **derived from `core/version.py:APP_VERSION`** at Gradle configuration time (`versionCode = major*10000 + minor*100 + patch`); never hardcode them in `android/app/build.gradle.kts`. Bump `core/version.py` and tag — nothing else.
+  - Signing material comes only from env vars `ANDROID_KEYSTORE_PATH` / `ANDROID_KEYSTORE_PASSWORD` / `ANDROID_KEY_ALIAS` / `ANDROID_KEY_PASSWORD` (+ `ANDROID_KEYSTORE_BASE64` secret in CI). All four present ⇒ release is signed; absent ⇒ `app-release-unsigned.apk` and a warning, so local `assembleDebug` is never blocked. CI fails loudly instead of publishing an uninstallable APK.
+  - When declaring a `dependsOn` for a `Sync`/`Copy` task whose output is consumed as assets or Python sources, match **every** consuming task pattern (`merge*Assets`, `lint*`, `package*`, `generate*PythonBuildAssets`, `merge*PythonSources`). Gradle 8 treats an undeclared task dependency as a build **failure**, and a debug-only CI run will not catch a release-only breakage.
 - Plugin contract workflow: `.github/workflows/plugin-contract.yml` — runs the generated-artifact `--check` commands, the plugin toolchain tests, and strict `stm-plugin-check` on `samples/plugins/*` and `data/plugins/*`; official plugins must pass it (ADR-0010)
 
 ## Imports

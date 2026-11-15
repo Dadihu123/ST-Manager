@@ -215,16 +215,32 @@ def test_python_shell_actually_imports():
 
 
 def test_ci_workflow_is_separate_from_desktop_release():
-    """移动端工作流不得加入桌面的 publish-release.needs，否则会拦住桌面 Release。"""
+    """Android 与桌面的发布链路必须**互相独立**，任一方失败不阻断另一方。
+
+    注意断言的是「解耦」，不是「禁止 publish-release」：Android 需要有
+    自己的 publish-release 才能把 APK 挂到 Release（否则用户下不到安装包），
+    但它必须跑在**自己的 job 图**里，不能与桌面共用 needs。
+    """
     desktop = read(PROJECT_ROOT / '.github' / 'workflows' / 'build-desktop.yml')
     android = read(PROJECT_ROOT / '.github' / 'workflows' / 'build-android.yml')
 
+    # 1) 桌面工作流绝不能被移动端拖累
     assert 'build-android' not in desktop, '桌面工作流不应依赖移动端'
-    # 检查是否真的定义了 publish-release job（而不是注释里提了一句）
-    android_jobs = re.findall(r'^\s{2}([a-zA-Z][\w-]*):\s*$', android, re.MULTILINE)
-    assert 'publish-release' not in android_jobs, (
-        f'移动端不应定义 publish-release job；实际 jobs={android_jobs}'
-    )
+
+    # 2) 两边各自定义自己的 publish-release，而不是共用同一个 job
+    android_rel = android.split('publish-release:', 1)
+    assert len(android_rel) == 2, 'Android 应有自己的 publish-release job'
+    android_job = android_rel[1]
+
+    # 3) Android 的 publish-release 只依赖 Android 自己的构建 job
+    needs = re.search(r'needs:\s*\[([^\]]+)\]', android_job)
+    assert needs, 'Android publish-release 应声明 needs'
+    assert 'build-apk' in needs.group(1), '应依赖自己的 build-apk'
+    assert 'build-windows' not in needs.group(1), '不得依赖桌面 job'
+    assert 'build-macos' not in needs.group(1), '不得依赖桌面 job'
+
+    # 4) 只在 tag 上发布，避免每次 push 都动 Release
+    assert 'startsWith(github.ref, ' in android_job, 'publish-release 应限定 tag'
 
 
 def test_ci_apk_artifact_name_not_colliding_with_desktop():

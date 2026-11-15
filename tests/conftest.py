@@ -18,6 +18,8 @@ import sys
 import tempfile
 from pathlib import Path
 
+import pytest
+
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -90,3 +92,41 @@ def pytest_sessionfinish(session, exitstatus):  # noqa: ARG001 - pytest hook sig
 @atexit.register
 def _cleanup_isolation_dir():
     shutil.rmtree(_ISOLATION_DIR, ignore_errors=True)
+
+
+def pytest_configure(config):
+    """注册自定义 marker，避免 `PytestUnknownMarkWarning`。
+
+    `slow`：需要跑完整 Gradle 构建或访问真实 SDK 的用例。
+    默认跳过，用 `pytest -m slow` 或 `STM_RUN_SLOW=1 pytest` 显式开启
+    —— 它们单次可能几分钟，不该拖慢日常回归。
+    """
+    config.addinivalue_line(
+        'markers',
+        'slow: 需要真实 Gradle 构建 / Android SDK，默认跳过（-m slow 或 STM_RUN_SLOW=1 开启）',
+    )
+
+
+def pytest_collection_modifyitems(config, items):
+    """默认跳过 `slow` 用例，除非显式要求。
+
+    为什么不用 `skipif` 表达式：那样会和 `-m slow` 打架——用户已经用 `-m`
+    明确点名要跑，再被 skipif 拦掉就永远跑不起来了。
+    这里只在「用户没提 slow」时补 skip，`-m slow` / `STM_RUN_SLOW=1`
+    两种显式意图都能正常放行。
+    """
+    import os
+
+    explicitly_requested = (
+        'slow' in (config.getoption('-m') or '')
+        or os.environ.get('STM_RUN_SLOW') == '1'
+    )
+    if explicitly_requested:
+        return
+
+    skip_slow = pytest.mark.skip(
+        reason='slow 用例默认跳过；用 -m slow 或 STM_RUN_SLOW=1 开启'
+    )
+    for item in items:
+        if 'slow' in item.keywords:
+            item.add_marker(skip_slow)

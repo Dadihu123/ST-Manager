@@ -2,11 +2,18 @@ name: Build Android APK
 
 # 独立工作流，**不加入** build-desktop.yml 的 publish-release.needs
 # （否则移动端失败会拦住桌面端 Release，与「保留桌面发布」冲突）。
+#
+# 两种产物：
+#   - debug   ：每次 push/PR 都出，使用调试密钥签名，用于验证构建与真机自测。
+#   - release ：仅在 tag（v*）上出，需要签名密钥；产出可直接分发的 APK。
+# 两者都上传为 artifact；tag 上额外的 release 包会挂到 GitHub Release。
 on:
   workflow_dispatch:
   push:
     branches:
       - main
+    tags:
+      - 'v*'
     paths:
       - 'android/**'
       - 'core/**'
@@ -28,7 +35,7 @@ permissions:
 
 jobs:
   build-apk:
-    name: Build debug APK
+    name: Build Android APK
     runs-on: ubuntu-latest
 
     steps:
@@ -83,13 +90,138 @@ jobs:
         working-directory: android
         run: ./gradlew :app:assembleDebug --no-daemon --stacktrace
 
-      - name: Show APK size
-        working-directory: android
-        run: ls -lh app/build/outputs/apk/debug/ || true
+      # ---------------------------------------------------------------------
+      # 以下只在 tag 上跑：签出可分发的 release APK。
+      #
+      # 四个 Secret 缺一不可，缺失时**直接失败**而不是悄悄出 unsigned 包
+      # —— 一个装不上的 APK 混进 Release 比构建失败更糟。
+      # ---------------------------------------------------------------------
+      - name: Decode release keystore
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          set -euo pipefail
+          if [ -z "${ANDROID_KEYSTORE_BASE64:-}" ]; then
+            echo "::error::缺少 secret ANDROID_KEYSTORE_BASE64，无法签出可安装包" >&2
+            exit 1
+          fi
+          # 解码到 runner 临时目录；权限收紧，避免被其他步骤读到。
+          keystore="$RUNNER_TEMP/release.keystore"
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$keystore"
+          chmod 600 "$keystore"
+          echo "ANDROID_KEYSTORE_PATH=$keystore" >> "$GITHUB_ENV"
+          ls -l "$keystore"
 
-      - name: Upload APK
+      - name: Build signed release APK
+        if: startsWith(github.ref, 'refs/tags/v')
+        working-directory: android
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          for v in ANDROID_KEYSTORE_PATH ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
+            if [ -z "${!v:-}" ]; then
+              echo "::error::缺少签名变量 $v" >&2
+              exit 1
+            fi
+          done
+          ./gradlew :app:assembleRelease --no-daemon --stacktrace
+
+      # 用 apksigner 校验产物真的被签过，并把指纹打进日志。
+      # 没有这一步，签名配置写错时会一路绿灯到用户安装失败。
+      - name: Verify release APK is signed
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          set -euo pipefail
+          apk="android/app/build/outputs/apk/release/app-release.apk"
+          if [ ! -f "$apk" ]; then
+            echo "::error::未产出 $apk（可能仍是 unsigned 包名）" >&2
+            ls -l android/app/build/outputs/apk/release/ || true
+            exit 1
+          fi
+          signer="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort | tail -n1)"
+          "$signer" verify --verbose --print-certs "$apk"
+
+      - name: Show APK sizes
+        run: |
+          ls -lh android/app/build/outputs/apk/debug/ || true
+          ls -lh android/app/build/outputs/apk/release/ || true
+
+      - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
           name: ST-Manager-Android-debug
           path: android/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
+
+      # 版本号放在产物文件名里，便于用户区分：
+      #   ST-Manager-Pro-1.2.0-android-arm64.apk
+      # 命名与桌面端对齐（ST-Manager-Pro-<ver>-<platform>-<arch>.<ext>）。
+      - name: Normalize release APK name
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          src="android/app/build/outputs/apk/release/app-release.apk"
+          mkdir -p release
+          dst="release/ST-Manager-Pro-${version}-android-arm64.apk"
+          cp "$src" "$dst"
+          ls -l release
+
+      - name: Upload release APK
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: actions/upload-artifact@v4
+        with:
+          # artifact 名不带 ST-Manager-Pro- 前缀：桌面 publish-release 会按
+          # 该前缀下载 artifact，同名会互相污染。Release 资产名在下一步
+          # 才规范成 ST-Manager-Pro-<ver>-android-arm64.apk。
+          name: ST-Manager-Android-release
+          path: release/*.apk
+          if-no-files-found: error
+
+  # 把 Android 的 release 包挂到同一个 GitHub Release 上。
+  #
+  # 与 build-desktop.yml 的 publish-release 是**两个独立 job**：
+  # 桌面端失败不应该阻断 Android 发布，反之亦然。
+  # 两边都用 `gh release upload --clobber`，谁先跑到谁先传，互不覆盖别人。
+  publish-release:
+    name: Publish Android release asset
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build-apk]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download release artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ST-Manager-Android-release
+          path: release
+
+      - name: Upload asset to GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          tag="$GITHUB_REF_NAME"
+
+          ls -l release
+          # 必须确认真的有 APK：空目录会让 gh 报一个难懂的错误。
+          if ! ls release/*.apk >/dev/null 2>&1; then
+            echo "::error::release 目录里没有 APK" >&2
+            exit 1
+          fi
+
+          # Release 可能已由桌面端 job 建过（带正文）：只在缺失时创建，
+          # 绝不覆盖已有正文——与 build-desktop.yml 的约定保持一致。
+          if ! gh release view "$tag" >/dev/null 2>&1; then
+            gh release create "$tag" --verify-tag --title "$tag" --generate-notes
+          fi
+
+          gh release upload "$tag" release/*.apk --clobber
+          gh release view "$tag" --json assets --jq '.assets[].name'

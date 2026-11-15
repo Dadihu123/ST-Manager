@@ -144,12 +144,75 @@ python --version   # 必须是 3.13.x
 | # | 项 | 说明 |
 |---|---|---|
 | 1 | **本轮修复待真机复验** | 既有 Mi 10 Pro / Android 14 验证不覆盖本轮改动及 Android 15 超时 |
-| 2 | **未接签名** | 只出 debug 包。正式分发要补 `signingConfigs` + 侧载说明 |
-| 3 | **`openFolder` 是占位实现** | 受信任顶层的 `openFolder` 消息目前跳系统存储设置页；真机上应换成 `ACTION_VIEW` + `content://` 或 SAF 目录选择器 |
-| 4 | **拖放降级未做** | `draggable` 9 处 / `@drop` 24 处在触摸下仍失效，需真机先验收交互再改 |
-| 5 | **`MANAGE_EXTERNAL_STORAGE` 不能上 Google Play** | 本项目走侧载分发；若将来要上架需重做文件层（不推荐） |
-| 6 | **API 30 以下的存储权限** | `minSdk 24` 时 Android 10 及以下还需 `READ/WRITE_EXTERNAL_STORAGE` 运行时权限，变更外部路径时按需申请；默认私有目录无需授权 |
-| 7 | **首次启动要解包 38 MB assets** | `BackendService.extractAssetsToFiles` 把 assets 解到 `$HOME/.shell-resources`，首次启动会慢几秒（按内容摘要缓存，完整解包才写标记） |
+| 2 | **`openFolder` 是占位实现** | 受信任顶层的 `openFolder` 消息目前跳系统存储设置页；真机上应换成 `ACTION_VIEW` + `content://` 或 SAF 目录选择器 |
+| 3 | **拖放降级未做** | `draggable` 9 处 / `@drop` 24 处在触摸下仍失效，需真机先验收交互再改 |
+| 4 | **`MANAGE_EXTERNAL_STORAGE` 不能上 Google Play** | 本项目走侧载分发；若将来要上架需重做文件层（不推荐） |
+| 5 | **API 30 以下的存储权限** | `minSdk 24` 时 Android 10 及以下还需 `READ/WRITE_EXTERNAL_STORAGE` 运行时权限，变更外部路径时按需申请；默认私有目录无需授权 |
+| 6 | **首次启动要解包 38 MB assets** | `BackendService.extractAssetsToFiles` 把 assets 解到 `$HOME/.shell-resources`，首次启动会慢几秒（按内容摘要缓存，完整解包才写标记） |
+
+## 3.5 发布流程（签名 + Release）
+
+### 版本号
+
+**单一来源是仓库根的 `core/version.py` 的 `APP_VERSION`**，桌面端也用它。
+`app/build.gradle.kts` 在配置阶段读取并推导：
+
+| 字段 | 来源 |
+|---|---|
+| `versionName` | `APP_VERSION` 原值（如 `1.2.0`） |
+| `versionCode` | `major*10000 + minor*100 + patch`（`1.2.0` → `10200`） |
+
+`versionCode` 必须严格递增，否则覆盖安装失败；因此 gradle 里有
+`minor < 100 && patch < 100` 的守卫，避免 `1.100.0` 与 `2.0.0` 撞车。
+
+发版时**只需改 `core/version.py` 并打 tag**，Android 版本自动跟上。
+`tests/test_android_version.py` 断言这两处不会漂移。
+
+### 签名
+
+密钥材料**全部来自环境变量，绝不入库**：
+
+| 变量 | 用途 |
+|---|---|
+| `ANDROID_KEYSTORE_PATH` | keystore 文件路径 |
+| `ANDROID_KEYSTORE_PASSWORD` | keystore 口令 |
+| `ANDROID_KEY_ALIAS` | key 别名 |
+| `ANDROID_KEY_PASSWORD` | key 口令 |
+
+四个**全有且文件存在**才启用签名；缺任何一个时 release 变体产出
+`app-release-unsigned.apk` 并打印提示——本地只跑 debug 时不会被拦住。
+
+本地签一次：
+
+```bash
+export ANDROID_KEYSTORE_PATH=/path/to/release.keystore
+export ANDROID_KEYSTORE_PASSWORD=...
+export ANDROID_KEY_ALIAS=...
+export ANDROID_KEY_PASSWORD=...
+cd android && ./gradlew :app:assembleRelease
+# 产物：app/build/outputs/apk/release/app-release.apk
+```
+
+> ⚠️ 变量名刻意与 `SigningConfig` 属性名不同（`envKeyAlias` vs `keyAlias`）。
+> 写成同名会让 `this.keyAlias = keyAlias` 静默丢赋值，
+> 报错是 `SigningConfig "release" is missing required property "keyPassword"`。
+
+### CI
+
+`.github/workflows/build-android.yml`：
+
+- **push / PR**：只出 debug 包，验证编译与单测。
+- **tag（`v*`）**：额外签出 release 包，`apksigner verify` 校验后
+  命名为 `ST-Manager-Pro-<ver>-android-arm64.apk` 并挂到 GitHub Release。
+
+所需 4 个 Secret：`ANDROID_KEYSTORE_PASSWORD`、`ANDROID_KEY_ALIAS`、
+`ANDROID_KEY_PASSWORD`、`ANDROID_KEYSTORE_BASE64`。
+最后一个是 keystore 的 base64；CI 解码到 `$RUNNER_TEMP` 并 `chmod 600`，自动设置 `ANDROID_KEYSTORE_PATH`。
+**缺任何 secret 直接失败**，绝不悄悄产出装不上的包。
+
+Android 的 `publish-release` 与桌面端是**两个独立 job**：
+桌面失败不阻断 Android 发布，反之亦然。两边都用 `--clobber` 上传，
+谁先跑到谁先传，互不覆盖。
 
 ## 4.1 构建系统里几个「踩过才知道」的点
 
@@ -161,6 +224,7 @@ python --version   # 必须是 3.13.x
 | wrapper 走官方源 | `timeout (10000ms)` 下载失败 | 国内实测官方 0.13 MB/s（130 MB 要 17 分钟），改用腾讯云镜像 + `networkTimeout=120000` |
 | `assets.srcDirs("../../static")` | APK 里出现 `assets/index.html`、`assets/assets/wallpapers/...`（目录被摊平） | 用 `Sync` 任务按目录名复制到 `build/android-shell-assets/{static,templates}` |
 | 缺 `androidx.appcompat` 依赖 | 几十条 `Unresolved reference: appcompat / activity` | `dependencies { implementation("androidx.appcompat:appcompat") ... }` |
+| `syncShellAssets` 只挂 `merge*Assets` | `assembleRelease` 直接失败：`Task ':app:lintVitalAnalyzeRelease' uses this output of task ':app:syncShellAssets' without declaring an explicit or implicit dependency` | Gradle 8 把未声明的任务依赖当**构建失败**。要把 `lint*`、`package*`、`generate*PythonBuildAssets` 等所有消费该目录的任务都 `dependsOn` 上。CI 只跑 debug 时会漏掉这个坑 |
 | 主题用 `android:Theme.Material` | 运行时崩：`You need to use a Theme.AppCompat theme` | 继承 `Theme.AppCompat.NoActionBar` |
 | pip 联网装 Chaquopy 依赖 | 卡 30+ 分钟无输出 | 预下载到 `android/wheelhouse/`，`--no-index --find-links` 离线装 |
 | APK 里 assets 不是普通文件 | `render_template` / `send_from_directory` 读不到 | 壳把 assets 解包到 `$HOME/.shell-resources`，再把 `INTERNAL_DIR` 指过去 |
