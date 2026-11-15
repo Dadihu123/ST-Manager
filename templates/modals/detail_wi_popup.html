@@ -529,7 +529,7 @@
               <span class="scale-90">回滚</span>
             </button>
             <button
-              @click="openBackupFolder('lorebook')"
+              x-cloak x-show="$store.global.canOpenSystemFileManager" @click="openBackupFolder('lorebook')"
               class="btn-secondary py-1.5 text-xs flex flex-col items-center justify-center gap-0.5"
               title="打开备份文件夹"
             >

@@ -29,6 +29,7 @@ def run_state_runtime_check(script_body):
         const triggerScan = async () => ({{ success: true }});
         const updateCssVariable = () => {{}};
         const applyFont = () => {{}};
+        const canUseSystemFileManager = () => true;
         const getIsolatedCategories = async () => ({{ isolated_categories: {{ paths: [] }} }});
         const saveIsolatedCategoriesRequest = async () => ({{ success: true, isolated_categories: {{ paths: [] }} }});
         globalThis.window = {{

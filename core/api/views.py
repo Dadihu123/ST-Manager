@@ -4,6 +4,7 @@ from flask import Blueprint, render_template, send_from_directory
 # === 基础设施 ===
 from core.config import INTERNAL_DIR
 from core.version import APP_VERSION, PLUGIN_API_VERSION
+from core.utils import host_capabilities
 
 # 定义蓝图
 bp = Blueprint('views', __name__)
@@ -18,6 +19,7 @@ def index():
         'index.html',
         app_version=APP_VERSION,
         plugin_api_version=PLUGIN_API_VERSION,
+        can_open_system_file_manager=host_capabilities.CAN_OPEN_SYSTEM_FILE_MANAGER,
     )
 
 @bp.route('/favicon.ico')

@@ -134,7 +134,7 @@
                             <button type="button" class="chat-card-action" @click.stop="openImmersive(item)" @keydown.stop>
                                 {{ detail_icon('book-read', 'ui-icon--sm') }}<span>沉浸阅读</span>
                             </button>
-                            <button type="button" class="chat-card-action" @click.stop="openChatFolder(item)" @keydown.stop>
+                            <button type="button" class="chat-card-action" x-cloak x-show="$store.global.canOpenSystemFileManager" @click.stop="openChatFolder(item)" @keydown.stop>
                                 {{ sidebar_icon('folder-open', 'ui-icon--sm') }}<span>打开文件夹</span>
                             </button>
                             <button type="button" class="chat-card-action" @click.stop="openBindPicker(item)" @keydown.stop>

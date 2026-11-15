@@ -134,7 +134,7 @@
                             <button type="button" class="chat-toolbar-btn" @click="activeChat && openBindPicker(activeChat)" :disabled="!activeChat">
                                 {{ icon('link-import', 'ui-icon--sm') }}<span>修改绑定</span>
                             </button>
-                            <button type="button" class="chat-toolbar-btn" @click="activeChat && openChatFolder(activeChat)" :disabled="!activeChat">
+                            <button type="button" class="chat-toolbar-btn" x-cloak x-show="$store.global.canOpenSystemFileManager" @click="activeChat && openChatFolder(activeChat)" :disabled="!activeChat">
                                 {{ icon('folder', 'ui-icon--sm') }}<span>打开目录</span>
                             </button>
                         </div>
@@ -430,7 +430,7 @@
                         <div class="chat-reader-actions">
                             <button class="chat-toolbar-btn" @click="activeChat && jumpToBoundCard(activeChat)" :disabled="!activeChat || !activeChat.bound_card_id">{{ sidebar_icon('character-cards', 'ui-icon--sm') }}<span>跳到角色卡</span></button>
                             <button class="chat-toolbar-btn" @click="activeChat && openBindPicker(activeChat)" :disabled="!activeChat">{{ icon('link-import', 'ui-icon--sm') }}<span>修改绑定</span></button>
-                            <button class="chat-toolbar-btn" @click="activeChat && openChatFolder(activeChat)" :disabled="!activeChat">{{ icon('folder', 'ui-icon--sm') }}<span>打开目录</span></button>
+                            <button class="chat-toolbar-btn" x-cloak x-show="$store.global.canOpenSystemFileManager" @click="activeChat && openChatFolder(activeChat)" :disabled="!activeChat">{{ icon('folder', 'ui-icon--sm') }}<span>打开目录</span></button>
                         </div>
                     </div>
 

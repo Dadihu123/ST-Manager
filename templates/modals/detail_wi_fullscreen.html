@@ -184,7 +184,7 @@
             <!-- 2. 打开备份文件夹 -->
             <button
               type="button"
-              @click="openBackupFolder('lorebook')"
+              x-cloak x-show="$store.global.canOpenSystemFileManager" @click="openBackupFolder('lorebook')"
               class="wi-action-btn wi-action-btn--bright wi-editor-tool-button wi-editor-tool-button--backup"
               title="打开备份文件夹"
               aria-label="打开备份文件夹"
@@ -277,7 +277,7 @@
               <button
                 type="button"
                 role="menuitem"
-                @click="openBackupFolder('lorebook'); showWiEditorToolsMenu = false"
+                x-cloak x-show="$store.global.canOpenSystemFileManager" @click="openBackupFolder('lorebook'); showWiEditorToolsMenu = false"
                 class="wi-editor-menu-action"
               >
                 {{ icon('book-backup', 'ui-icon--sm') }}

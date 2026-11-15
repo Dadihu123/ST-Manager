@@ -5,8 +5,9 @@
 > `docs/2026-11-12-multi-target-release-addendum.md`、
 > `docs/2026-11-12-three-platform-refactor-plan.md`。
 >
-> **状态（2026-11-14）：已完成本机 APK 构建；既有记录包含 Mi 10 Pro / Android 14 的返回手势验证。**
-> 本轮修复通过 Kotlin 编译、APK 打包与 Chromium 回归测试，未重新执行真机验收。
+> **状态（2026-11-15）：已完成本机 APK 构建及 Mi 10 Pro / Android 14 的目录操作真机复验。**
+> 系统目录入口显隐、应用内资源浏览、配置与用户 DB 备份实际落盘均已验证；既有记录包含返回手势验证。
+> Kotlin 测试、APK 打包与 Chromium 回归测试通过；Android 7–9 保存选择器和 Android 15 行为仍需对应设备覆盖。
 > CI 工作流为 `.github/workflows/build-android.yml`。
 
 ---
@@ -61,7 +62,7 @@
 | JDK 17 | ✅ 有 |
 | Gradle | ✅ 使用仓库 wrapper |
 | Android SDK | ✅ 有；API 35 |
-| adb | SDK 提供；连接到 Mi 10 Pro，尚未执行本轮设备验收 |
+| adb | SDK 提供；Mi 10 Pro / Android 14 已完成本轮目录操作与备份导出验收 |
 
 构建验证使用 `gradlew.bat :app:testDebugUnitTest :app:assembleDebug`。
 Kotlin 单元测试覆盖下载失败回收、消息来源与主框架门禁、非法路径失败和重试。
@@ -143,12 +144,40 @@ python --version   # 必须是 3.13.x
 
 | # | 项 | 说明 |
 |---|---|---|
-| 1 | **本轮修复待真机复验** | 既有 Mi 10 Pro / Android 14 验证不覆盖本轮改动及 Android 15 超时 |
-| 2 | **`openFolder` 是占位实现** | 受信任顶层的 `openFolder` 消息目前跳系统存储设置页；真机上应换成 `ACTION_VIEW` + `content://` 或 SAF 目录选择器 |
+| 1 | **设备覆盖尚不完整** | Mi 10 Pro / Android 14 已验证目录入口、应用内浏览与备份导出；Android 7–9 系统保存页面及 Android 15 超时仍需对应设备验收 |
+| 2 | **系统目录浏览有边界** | 已删除旧 `openFolder` 跳存储设置的占位逻辑；不支持的系统目录入口隐藏，私有资源通过应用内浏览与导出访问，见下表 |
 | 3 | **触摸拖放采用替代操作** | 触摸端关闭原生拖拽，避免与长按冲突；角色卡移动使用批量操作，其他拖放场景仍需逐项适配 |
 | 4 | **`MANAGE_EXTERNAL_STORAGE` 不能上 Google Play** | 本项目走侧载分发；若将来要上架需重做文件层（不推荐） |
 | 5 | **API 30 以下的存储权限** | `minSdk 24` 时 Android 10 及以下还需 `READ/WRITE_EXTERNAL_STORAGE` 运行时权限，变更外部路径时按需申请；默认私有目录无需授权 |
 | 6 | **首次启动要解包 38 MB assets** | `BackendService.extractAssetsToFiles` 把 assets 解到 `$HOME/.shell-resources`，首次启动会慢几秒（按内容摘要缓存，完整解包才写标记） |
+| 7 | **只出 arm64-v8a** | 老设备（armeabi-v7a）装不了。加 ABI 会让 APK 接近翻倍，属有意取舍 |
+| 8 | **未开 R8/混淆** | `isMinifyEnabled = false`。Chaquopy 对 R8 有额外要求，且 APK 体积主要来自 Python 运行时与 assets，收益有限 |
+
+### 移动端文件操作
+
+系统目录按钮由后端能力与客户端环境共同决定，不使用屏幕宽度判断：本机桌面保留；Android/iOS 客户端、平板和远程浏览器访问隐藏，避免在服务端电脑上意外打开窗口。
+
+| 操作 | 移动端行为 |
+|---|---|
+| 角色卡、世界书、聊天等浏览与编辑 | 复用应用内工作区，支持应用私有目录 |
+| 角色卡资源栏“浏览” | 进入已有的应用内资源页；系统目录另设桌面按钮 |
+| 文件导入、导出 | 保留系统文件选择与下载；Android 10+ 导出写系统下载目录，Android 7–9 选择保存位置 |
+| 配置备份、用户 DB 备份 | 直接下载 JSON，不要求进入后端目录取文件；不包含角色卡等资源原文件 |
+| 时光机 | 保留查看、比较与恢复；隐藏“打开备份目录” |
+| 回收站 | 保留清空；隐藏“打开”；当前没有应用内逐项浏览/恢复入口 |
+| 设置中的路径与外部目录 | 保留路径配置及按需授权；隐藏系统目录快捷按钮。SAF 文档 URI 不能直接填入真实路径字段 |
+
+2026-11-15 真机复验：13 个系统目录入口均隐藏，卡片“浏览”进入应用内资源页；
+配置与用户 DB 的 JSON 备份均收到原生成功回调，并在系统 Download 目录确认落盘，
+文件大小和 SHA-256 与 HTTP 附件一致。
+
+应用能读写自己的 `filesDir`，不代表外部文件管理器有权限进入 `/data/user/0/<包名>/files`。
+`ACTION_OPEN_DOCUMENT_TREE` 用于选择并授权共享文档目录，不是浏览应用私有目录的替代方案；
+`content://` 需要 URI 授权及 Provider 支持，不能把文件路径换个前缀就打开。
+当前不提供通用文件管理器或 DocumentsProvider；私有目录里的业务文件通过各工作区使用，需带出应用时导出。
+若将来需要把整个私有资源库暴露给系统“文件”，应单独实现 DocumentsProvider，并处理目录授权与文件操作。
+参见 Android 官方的[应用专属存储](https://developer.android.com/training/data-storage/app-specific)与
+[共享文档访问](https://developer.android.com/training/data-storage/shared/documents-files)。
 
 ## 3.5 发布流程（签名 + Release）
 

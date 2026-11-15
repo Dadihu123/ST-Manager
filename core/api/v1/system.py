@@ -10,7 +10,7 @@ import time
 import re
 import uuid
 from datetime import datetime
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, send_file
 
 # === 基础设施 ===
 from core.config import (
@@ -465,6 +465,13 @@ def api_import_shared_wallpaper():
 def api_export_user_db_backup():
     try:
         result = get_user_db_backup_service().export_backup()
+        if request.args.get('download') == '1':
+            return send_file(
+                os.path.join(BASE_DIR, result['file_path']),
+                as_attachment=True,
+                download_name=result['file_name'],
+                mimetype='application/json',
+            )
         return jsonify({'success': True, 'msg': '已备份用户 DB 数据', **result})
     except ValueError as exc:
         return jsonify({'success': False, 'msg': str(exc)}), 400
@@ -551,12 +558,33 @@ class _FileManagerUnavailable(Exception):
     """当前平台没有可用的系统文件管理器。"""
 
 
-def _file_manager_unsupported_response():
-    return jsonify({
+def _file_manager_unsupported_response(path=None):
+    """保留结构化错误与诊断路径；私有目录不能由外部文件管理器访问。"""
+    payload = {
         'success': False,
         'error': 'unsupported_on_platform',
-        'msg': '当前平台不支持打开系统文件管理器，请在应用内浏览。',
-    })
+        'msg': '当前环境无法打开系统目录，请使用应用内资源浏览或导出。',
+    }
+    if path:
+        payload['path'] = str(path)
+        # 相对位置仅用于诊断，不代表系统文件管理器可访问。
+        try:
+            payload['display_path'] = _friendly_path(str(path))
+        except Exception:
+            payload['display_path'] = str(path)
+    return jsonify(payload)
+
+
+def _friendly_path(absolute_path):
+    """把绝对路径折成「应用内相对位置」，例如 data/library/characters。"""
+    try:
+        relative = os.path.relpath(absolute_path, BASE_DIR)
+    except (ValueError, OSError):
+        return absolute_path
+    # relpath 可能跑出 BASE_DIR（../ 开头），那种情况直接给绝对路径。
+    if relative.startswith('..'):
+        return absolute_path
+    return relative.replace('\\', '/')
 
 
 @bp.route('/api/system_action', methods=['POST'])
@@ -564,8 +592,19 @@ def api_system_action():
     action = request.json.get('action')
     try:
         if action == 'open_folder':
-            _open_in_system_file_manager(CARDS_FOLDER)
+            try:
+                _open_in_system_file_manager(CARDS_FOLDER)
+            except _FileManagerUnavailable:
+                return _file_manager_unsupported_response(CARDS_FOLDER)
             return jsonify({"success": True})
+        elif action == 'open_resources':
+            raw_path = load_config().get('resources_dir', 'data/assets/card_assets')
+            resource_dir = raw_path if os.path.isabs(raw_path) else os.path.join(BASE_DIR, raw_path)
+            try:
+                _open_in_system_file_manager(resource_dir)
+            except _FileManagerUnavailable:
+                return _file_manager_unsupported_response(resource_dir)
+            return jsonify({'success': True})
         # === 打开 Notes 目录 ===
         elif action == 'open_notes':
             notes_dir = os.path.join(DATA_DIR, 'assets', 'notes_images')
@@ -574,12 +613,22 @@ def api_system_action():
             if not os.path.exists(notes_dir):
                 os.makedirs(notes_dir)
                 
-            _open_in_system_file_manager(notes_dir)
+            try:
+                _open_in_system_file_manager(notes_dir)
+            except _FileManagerUnavailable:
+                return _file_manager_unsupported_response(notes_dir)
             return jsonify({"success": True})
         elif action == 'backup_data':
             # 简单备份 ui_data.json
             if os.path.exists(UI_DATA_FILE):
                 bk_name = f"ui_data_backup_{int(time.time())}.json"
+                if request.json.get('download') is True:
+                    return send_file(
+                        UI_DATA_FILE,
+                        as_attachment=True,
+                        download_name=bk_name,
+                        mimetype='application/json',
+                    )
                 shutil.copy(UI_DATA_FILE, os.path.join(BASE_DIR, bk_name))
                 return jsonify({"success": True, "msg": f"已备份为 {bk_name}"})
             return jsonify({"success": False, "msg": "暂无数据文件"})
@@ -609,7 +658,7 @@ def api_system_action():
             _open_in_system_file_manager(target_dir, reveal_file=full_path)
             return jsonify({"success": True})
     except _FileManagerUnavailable:
-        return _file_manager_unsupported_response()
+        return _file_manager_unsupported_response(target_dir)
     except Exception as e:
         return jsonify({"success": False, "msg": str(e)})
     return jsonify({"success": False, "msg": "Unknown action"})
@@ -624,7 +673,7 @@ def api_open_trash():
         _open_in_system_file_manager(TRASH_FOLDER)
         return jsonify({"success": True})
     except _FileManagerUnavailable:
-        return _file_manager_unsupported_response()
+        return _file_manager_unsupported_response(TRASH_FOLDER)
     except Exception as e:
         return jsonify({"success": False, "msg": str(e)})
 
@@ -1509,7 +1558,7 @@ def api_open_resource_folder():
         
         return jsonify({"success": True})
     except _FileManagerUnavailable:
-        return _file_manager_unsupported_response()
+        return _file_manager_unsupported_response(resource_path)
     except Exception as e:
         logger.error(f"Open resource folder error: {e}")
         return jsonify({"success": False, "msg": str(e)})
@@ -1772,7 +1821,7 @@ def api_open_path():
             
         return jsonify({"success": True})
     except _FileManagerUnavailable:
-        return _file_manager_unsupported_response()
+        return _file_manager_unsupported_response(target_open)
     except Exception as e:
         return jsonify({"success": False, "msg": str(e)})
 

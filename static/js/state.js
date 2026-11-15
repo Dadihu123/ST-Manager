@@ -12,6 +12,7 @@ import {
 } from "./api/system.js";
 
 import { updateCssVariable, applyFont } from "./utils/dom.js";
+import { canUseSystemFileManager } from "./utils/fileManager.js";
 
 // 图标解析（设计文档 D4）：toast 与 `api.ui.icon()` / `entries[].icon` 共用同一套契约，
 // 不再各自维护白名单。
@@ -558,6 +559,7 @@ export function initState() {
 
     // 设备类型: 'desktop' | 'mobile'
     deviceType: "desktop",
+    canOpenSystemFileManager: canUseSystemFileManager(),
 
     // 模式: 'cards' | 'worldinfo' | 'chats'
     currentMode: "cards",

@@ -50,7 +50,7 @@ export async function downloadFileFromApi({
   if (hasNativeDownloads()) {
     await saveBlobToHost(blob, filename);
     if (successMessage && typeof showToast === 'function') showToast(successMessage, 1800);
-    return;
+    return filename;
   }
   const blobUrl = URL.createObjectURL(blob);
   const link = document.createElement("a");
@@ -65,6 +65,7 @@ export async function downloadFileFromApi({
   if (successMessage && typeof showToast === "function") {
     showToast(successMessage, 1800);
   }
+  return filename;
 }
 
 export async function saveBlobToHost(blob, filename) {

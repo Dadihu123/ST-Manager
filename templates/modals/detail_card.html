@@ -677,7 +677,7 @@
           <div class="detail-resource-actions">
             <button
               type="button"
-              @click="openResourceFolder()"
+              @click="browseResourceFolder()"
               x-show="editingData.resource_folder"
               class="btn-secondary detail-mini-btn"
               title="浏览资源目录"
@@ -685,6 +685,17 @@
             >
               {{ icon('search', 'ui-icon--sm') }}
               <span>浏览</span>
+            </button>
+            <button
+              type="button"
+              @click="openResourceFolder()"
+              x-cloak x-show="$store.global.canOpenSystemFileManager && editingData.resource_folder"
+              class="btn-secondary detail-mini-btn"
+              title="在系统文件管理器中打开资源目录"
+              aria-label="在系统文件管理器中打开资源目录"
+            >
+              {{ icon('folder-resources', 'ui-icon--sm') }}
+              <span>打开目录</span>
             </button>
             <button
               type="button"
@@ -2823,7 +2834,7 @@
                           <span>跳转定位</span>
                         </button>
                         <button
-                          @click="openCardLocation()"
+                          x-cloak x-show="$store.global.canOpenSystemFileManager" @click="openCardLocation()"
                           class="toolbox-btn detail-manage-tool-btn"
                         >
                           {{ sidebar_icon('folder-open', 'ui-icon--lg') }}
@@ -2854,7 +2865,7 @@
                           <span>时光机</span>
                         </button>
                         <button
-                          @click="openBackupFolder('card')"
+                          x-cloak x-show="$store.global.canOpenSystemFileManager" @click="openBackupFolder('card')"
                           class="toolbox-btn detail-manage-tool-btn"
                         >
                           {{ icon('book-backup', 'ui-icon--lg') }}

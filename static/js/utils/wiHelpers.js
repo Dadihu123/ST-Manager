@@ -418,6 +418,7 @@ export const wiHelpers = {
 
   // 通用打开备份目录
   openBackupFolder() {
+    if (!this.$store.global.canOpenSystemFileManager) return;
     let isEmbedded = false;
     let isCard = false;
     let targetName = "";

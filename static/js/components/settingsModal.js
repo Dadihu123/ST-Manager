@@ -5,6 +5,7 @@
 
 import { uploadBackground } from "../api/resource.js";
 import { authorizeAndroidDirectories } from "../utils/androidStorage.js";
+import { downloadFileFromApi } from "../utils/download.js";
 import {
   evaluateSettingsPathSafety,
   openTrash,
@@ -780,18 +781,27 @@ export default function settingsModal() {
 
     // 4. 系统操作 (systemAction: 打开文件夹、备份等)
     systemAction(action) {
+      if (action.startsWith('open_') && !this.$store.global.canOpenSystemFileManager) return;
       this.operationLoadingAction = action;
       this.operationState = "loading";
       this.operationMessage = "正在执行操作...";
-      performSystemAction(action)
+      const operation = action === 'backup_data'
+        ? downloadFileFromApi({
+            url: '/api/system_action',
+            body: { action, download: true },
+            defaultFilename: 'ui_data_backup.json',
+          }).then(() => ({ success: true, msg: '配置备份已导出' }))
+        : performSystemAction(action);
+      return operation
         .then((res) => {
           if (!res.success) {
             this.operationState = "error";
             this.operationMessage = res.msg || "操作失败";
-          } else {
-            this.operationState = "success";
-            this.operationMessage = res.msg || "操作已完成";
+            alert(this.operationMessage);
+            return;
           }
+          this.operationState = "success";
+          this.operationMessage = res.msg || "操作已完成";
           if (res.msg) alert(res.msg);
         })
         .catch((err) => {
@@ -1121,6 +1131,7 @@ export default function settingsModal() {
     // === 回收站操作 ===
 
     openTrashFolder() {
+      if (!this.$store.global.canOpenSystemFileManager) return;
       this.operationLoadingAction = "open_trash";
       this.operationState = "loading";
       this.operationMessage = "正在打开回收站...";
@@ -1174,7 +1185,7 @@ export default function settingsModal() {
       this.operationState = "loading";
       this.operationMessage = "正在导出用户 DB 数据...";
       try {
-        const res = await exportUserDbBackup();
+        const res = await exportUserDbBackup({ download: true });
         if (!res.success) {
           this.operationState = "error";
           this.operationMessage = "导出失败: " + (res.msg || "unknown");

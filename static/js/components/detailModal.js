@@ -2259,8 +2259,11 @@ export default function detailModal() {
 
         // 打开所在文件夹
         openCardLocation() {
+            if (!this.$store.global.canOpenSystemFileManager) return;
             if (!this.activeCard || !this.activeCard.id) return;
-            performSystemAction('open_card_dir', { card_id: this.activeCard.id });
+            performSystemAction('open_card_dir', { card_id: this.activeCard.id }).then(res => {
+                if (!res.success) alert(res.msg || '打开失败');
+            });
         },
 
         // 时光机
@@ -3559,7 +3562,13 @@ export default function detailModal() {
 
         // === 系统与工具 ===
 
+        browseResourceFolder() {
+            this.mobilePanel = 'content';
+            this.selectDetailTab('resources');
+        },
+
         openResourceFolder() {
+            if (!this.$store.global.canOpenSystemFileManager) return;
             apiOpenResourceFolder({ card_id: this.editingData.id }).then(res => {
                 if(!res.success) alert(res.msg);
             });

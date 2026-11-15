@@ -1,3 +1,5 @@
+import { downloadFileFromApi } from '../utils/download.js';
+
 /**
  * static/js/api/system.js
  * 系统、文件、标签与备份 API
@@ -237,7 +239,14 @@ export async function smartAutoSnapshot(payload) {
   return res.json();
 }
 
-export async function exportUserDbBackup() {
+export async function exportUserDbBackup({ download = false } = {}) {
+  if (download) {
+    const fileName = await downloadFileFromApi({
+      url: '/api/user-db-backup/export?download=1',
+      defaultFilename: 'user_db_backup.json',
+    });
+    return { success: true, file_name: fileName };
+  }
   const res = await fetch("/api/user-db-backup/export", {
     method: "POST",
   });

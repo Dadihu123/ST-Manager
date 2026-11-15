@@ -1491,6 +1491,7 @@ export default function rollbackModal() {
 
     // 打开备份文件夹
     openBackupFolder() {
+      if (!this.$store.global.canOpenSystemFileManager) return;
       const type = this.rollbackTargetType; // 'card' | 'lorebook' | 'preset'
       const id = this.rollbackTargetId; // e.g. "group/name.png" or "embedded::group/name.png"
       const path = this.rollbackTargetPath; // e.g. "data/..." (only for standalone WI)

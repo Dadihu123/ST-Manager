@@ -32,6 +32,7 @@ def run_state_runtime_check(script_body):
         const triggerScan = async () => ({{ success: true }});
         const updateCssVariable = () => {{}};
         const applyFont = () => {{}};
+        const canUseSystemFileManager = () => true;
         const getIsolatedCategories = async () => ({{ isolated_categories: {{ paths: [] }} }});
         const saveIsolatedCategoriesRequest = async () => ({{ success: true, isolated_categories: {{ paths: [] }} }});
         globalThis.window = {{
@@ -423,7 +424,7 @@ def test_store_save_settings_returns_requires_confirmation_without_alert():
 def test_system_api_exposes_user_db_backup_helpers():
     source = read_project_file('static/js/api/system.js')
 
-    assert 'export async function exportUserDbBackup()' in source
+    assert 'export async function exportUserDbBackup({ download = false } = {})' in source
     assert 'fetch("/api/user-db-backup/export", {' in source
     assert 'export async function importUserDbBackup(formData)' in source
     assert 'fetch("/api/user-db-backup/import", {' in source
@@ -574,10 +575,13 @@ def test_settings_modal_export_user_db_data_alerts_success_with_filename():
         """
         const alerts = [];
         globalThis.alert = (message) => alerts.push(message);
-        globalThis.__exportUserDbBackupStub = async () => ({
+        globalThis.__exportUserDbBackupStub = async (options) => {
+          if (options?.download !== true) throw new Error('export must download the backup');
+          return ({
           success: true,
           file_name: 'user-db-backup-20260426.json',
-        });
+          });
+        };
 
         await component.exportUserDbData();
 

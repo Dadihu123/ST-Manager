@@ -9266,6 +9266,7 @@ export default function chatGrid() {
     },
 
     openChatFolder(item) {
+      if (!this.$store.global.canOpenSystemFileManager) return;
       if (!item || !item.file_path) return;
       openPath({ path: item.file_path, is_file: true }).then((res) => {
         if (!res.success) {

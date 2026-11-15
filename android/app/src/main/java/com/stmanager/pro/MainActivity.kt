@@ -571,7 +571,11 @@ class MainActivity : AppCompatActivity() {
                 "storage" -> requestStorageAccess(message.getString("id"), message.getString("pathsJson"))
                 "download" -> saveBase64FileAsync(message.getString("id"), message.getString("base64"),
                     message.getString("fileName"), message.getString("mimeType"))
-                "openFolder" -> startActivity(Intent(Settings.ACTION_INTERNAL_STORAGE_SETTINGS))
+                // 注意：不要在这里加「打开文件夹」。
+                // 壳层无法凭一个路径让外部文件管理器进入应用私有目录。
+                // 系统目录入口按能力隐藏；应用内浏览与导出复用业务文件接口。
+                // 早先这里用 Settings.ACTION_INTERNAL_STORAGE_SETTINGS 跳系统存储设置页，
+                // 但 Web 侧从来没有发过这个消息，属于死代码，已删除。
             }
         } catch (e: Exception) {
             Log.w(TAG, "宿主消息无效", e)

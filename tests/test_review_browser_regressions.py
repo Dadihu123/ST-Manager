@@ -122,6 +122,45 @@ def test_native_blob_export_survives_immediate_revoke(page):
     assert result['mime'] == 'application/json'
 
 
+def test_private_resources_browse_inside_app_without_system_requests(page):
+    result = page.evaluate("""async () => {
+      const detail = (await import('/static/js/components/detailModal.js')).default();
+      detail.$store = {global:{canOpenSystemFileManager:false}};
+      detail.mobilePanel = 'image'; detail.tab = 'basic'; detail.mobileNavOpen = true;
+      const chats = (await import('/static/js/components/chatGrid.js')).default();
+      const rollback = (await import('/static/js/components/rollbackModal.js')).default();
+      const settings = (await import('/static/js/components/settingsModal.js')).default();
+      for (const component of [chats,rollback,settings]) component.$store = detail.$store;
+      window.fetch = () => { throw new Error('no system-directory request allowed'); };
+      detail.browseResourceFolder();
+      detail.openResourceFolder(); detail.openCardLocation(); detail.openBackupFolder();
+      chats.openChatFolder({file_path:'/data/private/chat.jsonl'});
+      rollback.openBackupFolder(); settings.openTrashFolder(); settings.systemAction('open_folder');
+      return {tab:detail.tab,panel:detail.mobilePanel,nav:detail.mobileNavOpen};
+    }""")
+    assert result == {'tab': 'resources', 'panel': 'content', 'nav': False}
+
+
+def test_user_db_download_waits_for_native_completion_and_returns_filename(page):
+    page.evaluate("""async () => {
+      window.exportResult = null;
+      window.stmHost = {saveBase64FileAsync:(id,bytes,name,mime)=>{window.saveRequest={id,bytes,name,mime}}};
+      const api = await import('/static/js/api/system.js');
+      window.fetch = async url => {
+        if (url !== '/api/user-db-backup/export?download=1') throw new Error('expected download request');
+        return new Response('{"schema_version":1}', {headers:{
+          'Content-Type':'application/json', 'Content-Disposition':'attachment; filename="backup.json"'}});
+      };
+      api.exportUserDbBackup({download:true}).then(result=>window.exportResult=result);
+    }""")
+    page.wait_for_function('!!window.saveRequest')
+    assert page.evaluate('exportResult') is None
+    page.evaluate("""() => window.dispatchEvent(new CustomEvent('host:download-result',
+      {detail:{id:saveRequest.id,success:true}}))""")
+    page.wait_for_function('!!window.exportResult')
+    assert page.evaluate('exportResult') == {'success': True, 'file_name': 'backup.json'}
+
+
 def test_long_press_preserves_editing_and_deduplicates_late_menu(page):
     page.evaluate("""async () => {
       window.matchMedia = () => ({matches:true});

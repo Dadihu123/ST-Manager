@@ -654,6 +654,57 @@ def test_user_db_backup_import_endpoint_rejects_missing_json_file(monkeypatch):
     assert fake_service.calls == []
 
 
+def test_user_db_backup_can_download_real_json_attachment(monkeypatch, tmp_path):
+    backup_dir = tmp_path / 'data' / 'system' / 'backups' / 'user_db'
+    backup_dir.mkdir(parents=True)
+    backup_file = backup_dir / 'user_db_backup_test.json'
+    content = b'{"schema_version":1,"data":{"favorites":[]}}'
+    backup_file.write_bytes(content)
+    fake_service = FakeUserDbBackupService()
+    fake_service.export_backup = lambda: {
+        'file_name': backup_file.name,
+        'file_path': backup_file.relative_to(tmp_path).as_posix(),
+    }
+    monkeypatch.setattr(system_api, 'BASE_DIR', str(tmp_path))
+    monkeypatch.setattr(system_api, 'get_user_db_backup_service', lambda: fake_service)
+    with _make_test_app().test_client().post('/api/user-db-backup/export?download=1') as response:
+        assert response.status_code == 200
+        assert response.data == content
+        assert response.mimetype == 'application/json'
+        assert 'attachment;' in response.headers['Content-Disposition']
+        assert backup_file.name in response.headers['Content-Disposition']
+
+
+def test_configuration_backup_download_does_not_require_browsing_backend(monkeypatch, tmp_path):
+    ui_file = tmp_path / 'ui_data.json'
+    content = '{"notes":"测试"}'.encode('utf-8')
+    ui_file.write_bytes(content)
+    monkeypatch.setattr(system_api, 'UI_DATA_FILE', str(ui_file))
+    monkeypatch.setattr(system_api, 'BASE_DIR', str(tmp_path))
+    monkeypatch.setattr(system_api, 'CAN_OPEN_SYSTEM_FILE_MANAGER', False)
+    client = _make_test_app().test_client()
+    with client.post('/api/system_action', json={'action': 'backup_data', 'download': True}) as response:
+        assert response.status_code == 200
+        assert response.data == content
+        assert 'attachment;' in response.headers['Content-Disposition']
+        assert 'ui_data_backup_' in response.headers['Content-Disposition']
+    assert list(tmp_path.glob('ui_data_backup_*.json')) == []
+    response = client.post('/api/system_action', json={'action': 'backup_data'})
+    assert response.get_json()['success'] is True
+    assert next(tmp_path.glob('ui_data_backup_*.json')).read_bytes() == content
+
+
+def test_resources_shortcut_opens_configured_root_instead_of_notes(monkeypatch, tmp_path):
+    opened = []
+    monkeypatch.setattr(system_api, 'BASE_DIR', str(tmp_path))
+    monkeypatch.setattr(system_api, 'load_config', lambda: {'resources_dir': 'custom-resources'})
+    monkeypatch.setattr(system_api, '_open_in_system_file_manager', lambda path: opened.append(path))
+    response = _make_test_app().test_client().post(
+        '/api/system_action', json={'action': 'open_resources'})
+    assert response.get_json()['success'] is True
+    assert opened == [str(tmp_path / 'custom-resources')]
+
+
 def test_user_db_backup_import_endpoint_delegates_to_service_with_original_filename(monkeypatch):
     fake_service = FakeUserDbBackupService()
     monkeypatch.setattr(system_api, 'get_user_db_backup_service', lambda: fake_service, raising=False)

@@ -38,9 +38,9 @@ curl -X POST http://127.0.0.1:5000/api/toggle_favorite \
 | `POST` | `/api/shared-wallpapers/import` | 导入共享壁纸 | multipart `file`；可选 `selection_target`: `manager`/`preview` |
 | `POST` | `/api/shared-wallpapers/select` | 选择管理器或预览壁纸 | JSON `wallpaper_id`、`selection_target` |
 | `POST` | `/api/upload_background` | 上传管理器背景图 | multipart 图片字段 `file` |
-| `POST` | `/api/user-db-backup/export` | 导出用户 UI/聊天等数据库关联数据 | 无；返回备份信息 |
+| `POST` | `/api/user-db-backup/export` | 导出用户 UI/聊天等数据库关联数据 | 默认返回备份信息；查询参数 `download=1` 返回 JSON 附件 |
 | `POST` | `/api/user-db-backup/import` | 导入用户数据库备份 | multipart 备份文件 |
-| `POST` | `/api/system_action` | 执行维护动作 | JSON `action` 与动作参数 |
+| `POST` | `/api/system_action` | 执行维护动作 | JSON `action` 与动作参数；`backup_data` 可加 `download: true` 下载配置备份；`open_resources` 打开配置的资源根目录 |
 | `POST` | `/api/trash/open` | 打开回收站目录 | 无；桌面环境下调用系统打开动作 |
 | `POST` | `/api/trash/empty` | 清空回收站 | 无；会永久删除回收站内容 |
 | `POST` | `/api/create_snapshot` | 创建角色卡或预设快照 | JSON 目标类型、ID 和快照备注 |
