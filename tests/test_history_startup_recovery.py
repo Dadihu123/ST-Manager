@@ -116,6 +116,24 @@ def test_schema_creation_has_no_filesystem_dependency(monkeypatch):
         assert conn.execute('SELECT * FROM wi_history_roots').fetchall() == []
 
 
+def test_inaccessible_external_root_aborts_history_cleanup(library, monkeypatch, tmp_path):
+    db, cards, world, resources, _ = library
+    external = tmp_path / 'external-history'
+    external.mkdir()
+    before = rows(db)
+    original_walk = history.walk_directory_strict
+    def walk(root):
+        if os.path.abspath(root) == str(external):
+            raise PermissionError(errno.EACCES, 'external permission revoked', str(external))
+        yield from original_walk(root)
+    monkeypatch.setattr(history, 'walk_directory_strict', walk)
+    with pytest.raises(PermissionError):
+        history.purge_orphaned_entry_history(cards_root=cards, world_info_root=world,
+                                             resources_root=resources,
+                                             external_resource_roots=[external])
+    assert rows(db) == before
+
+
 def test_pending_migration_blocks_orphan_cleanup_and_preserves_previous_roots(library, monkeypatch):
     db, cards, world, resources, _ = library
     previous = deepcopy(history._history_roots())

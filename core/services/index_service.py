@@ -1,3 +1,4 @@
+from core.services.maintenance_gate import coordinated
 import json
 import logging
 import os
@@ -258,6 +259,7 @@ def rebuild_worldinfo_index():
         rebuild_scope_generation('worldinfo', reason='legacy_rebuild_compat')
 
 
+@coordinated
 def _bootstrap_index():
     cfg = load_config()
     if cfg.get('index_auto_bootstrap', True):

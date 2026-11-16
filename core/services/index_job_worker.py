@@ -1,3 +1,4 @@
+from core.services.maintenance_gate import gate
 import json
 import logging
 import sqlite3
@@ -199,91 +200,92 @@ def worker_loop():
                 time.sleep(2)
             continue
 
-        rows, pending = _claim_pending_jobs(50)
-        _set_jobs_state(worker_state='processing' if rows else 'idle', pending_jobs=int(pending))
+        with gate.activity():
+            rows, pending = _claim_pending_jobs(50)
+            _set_jobs_state(worker_state='processing' if rows else 'idle', pending_jobs=int(pending))
 
-        processed_worldinfo_reconcile = False
+            processed_worldinfo_reconcile = False
 
-        for row in rows:
-            try:
-                payload = json.loads(row['payload_json'] or '{}')
-                if row['job_type'] == 'rebuild_scope':
-                    rebuild_scope_generation(payload.get('scope') or 'cards', reason='manual_rebuild')
-                elif row['job_type'] == 'upsert_card':
-                    with _connect() as conn:
-                        apply_card_increment(
-                            conn,
-                            row['entity_id'],
-                            row['source_path'],
-                            remove_entity_ids=payload.get('remove_entity_ids') or [],
-                        )
-                elif row['job_type'] == 'upsert_worldinfo_path':
-                    classification = classify_worldinfo_path(row['source_path'])
-                    try:
-                        if classification.get('kind') == 'resource':
-                            with _connect() as conn:
-                                if _retry_resource_worldinfo_job(conn, row['source_path']):
-                                    processed_worldinfo_reconcile = True
-                                    _mark_job_status(row['id'], 'done', '')
-                                    continue
-                            raise RuntimeError('resource worldinfo path has no owner cards')
+            for row in rows:
+                try:
+                    payload = json.loads(row['payload_json'] or '{}')
+                    if row['job_type'] == 'rebuild_scope':
+                        rebuild_scope_generation(payload.get('scope') or 'cards', reason='manual_rebuild')
+                    elif row['job_type'] == 'upsert_card':
                         with _connect() as conn:
-                            apply_worldinfo_path_increment(conn, row['source_path'])
-                    except RuntimeError as exc:
-                        if 'active generation missing' not in str(exc):
-                            raise
-                        if not processed_worldinfo_reconcile:
-                            rebuild_scope_generation('worldinfo', reason='incremental_reconcile')
-                            processed_worldinfo_reconcile = True
-                    else:
-                        processed_worldinfo_reconcile = True
-                elif row['job_type'] == 'upsert_world_embedded':
-                    try:
-                        with _connect() as conn:
-                            apply_worldinfo_embedded_increment(conn, row['entity_id'], row['source_path'])
-                    except RuntimeError as exc:
-                        if 'active generation missing' not in str(exc):
-                            raise
-                        if not processed_worldinfo_reconcile:
-                            rebuild_scope_generation('worldinfo', reason='incremental_reconcile')
-                            processed_worldinfo_reconcile = True
-                    else:
-                        processed_worldinfo_reconcile = True
-                elif row['job_type'] == 'upsert_world_owner':
-                    try:
-                        with _connect() as conn:
-                            apply_worldinfo_owner_increment(
+                            apply_card_increment(
                                 conn,
                                 row['entity_id'],
                                 row['source_path'],
-                                remove_owner_ids=payload.get('remove_owner_ids') or [],
+                                remove_entity_ids=payload.get('remove_entity_ids') or [],
                             )
-                    except RuntimeError as exc:
-                        if 'active generation missing' not in str(exc):
-                            raise
+                    elif row['job_type'] == 'upsert_worldinfo_path':
+                        classification = classify_worldinfo_path(row['source_path'])
+                        try:
+                            if classification.get('kind') == 'resource':
+                                with _connect() as conn:
+                                    if _retry_resource_worldinfo_job(conn, row['source_path']):
+                                        processed_worldinfo_reconcile = True
+                                        _mark_job_status(row['id'], 'done', '')
+                                        continue
+                                raise RuntimeError('resource worldinfo path has no owner cards')
+                            with _connect() as conn:
+                                apply_worldinfo_path_increment(conn, row['source_path'])
+                        except RuntimeError as exc:
+                            if 'active generation missing' not in str(exc):
+                                raise
+                            if not processed_worldinfo_reconcile:
+                                rebuild_scope_generation('worldinfo', reason='incremental_reconcile')
+                                processed_worldinfo_reconcile = True
+                        else:
+                            processed_worldinfo_reconcile = True
+                    elif row['job_type'] == 'upsert_world_embedded':
+                        try:
+                            with _connect() as conn:
+                                apply_worldinfo_embedded_increment(conn, row['entity_id'], row['source_path'])
+                        except RuntimeError as exc:
+                            if 'active generation missing' not in str(exc):
+                                raise
+                            if not processed_worldinfo_reconcile:
+                                rebuild_scope_generation('worldinfo', reason='incremental_reconcile')
+                                processed_worldinfo_reconcile = True
+                        else:
+                            processed_worldinfo_reconcile = True
+                    elif row['job_type'] == 'upsert_world_owner':
+                        try:
+                            with _connect() as conn:
+                                apply_worldinfo_owner_increment(
+                                    conn,
+                                    row['entity_id'],
+                                    row['source_path'],
+                                    remove_owner_ids=payload.get('remove_owner_ids') or [],
+                                )
+                        except RuntimeError as exc:
+                            if 'active generation missing' not in str(exc):
+                                raise
+                            if not processed_worldinfo_reconcile:
+                                rebuild_scope_generation('worldinfo', reason='incremental_reconcile')
+                                processed_worldinfo_reconcile = True
+                        else:
+                            processed_worldinfo_reconcile = True
+                    elif row['job_type'] in WORLDINFO_RECONCILE_JOB_TYPES:
                         if not processed_worldinfo_reconcile:
                             rebuild_scope_generation('worldinfo', reason='incremental_reconcile')
                             processed_worldinfo_reconcile = True
                     else:
-                        processed_worldinfo_reconcile = True
-                elif row['job_type'] in WORLDINFO_RECONCILE_JOB_TYPES:
-                    if not processed_worldinfo_reconcile:
-                        rebuild_scope_generation('worldinfo', reason='incremental_reconcile')
-                        processed_worldinfo_reconcile = True
-                else:
-                    raise ValueError(f"unsupported index job type: {row['job_type']}")
+                        raise ValueError(f"unsupported index job type: {row['job_type']}")
 
-                _mark_job_status(row['id'], 'done', '')
-            except Exception as exc:
-                logger.warning('Index job failed %s', row['id'], exc_info=True)
-                _mark_job_status(row['id'], 'failed', str(exc))
+                    _mark_job_status(row['id'], 'done', '')
+                except Exception as exc:
+                    logger.warning('Index job failed %s', row['id'], exc_info=True)
+                    _mark_job_status(row['id'], 'failed', str(exc))
 
-        if rows:
-            with _connect() as conn:
-                pending = conn.execute(
-                    "SELECT COUNT(*) FROM index_jobs WHERE status = 'pending'"
-                ).fetchone()[0]
-            _set_jobs_state(worker_state='idle', pending_jobs=int(pending))
+            if rows:
+                with _connect() as conn:
+                    pending = conn.execute(
+                        "SELECT COUNT(*) FROM index_jobs WHERE status = 'pending'"
+                    ).fetchone()[0]
+                _set_jobs_state(worker_state='idle', pending_jobs=int(pending))
 
 
 def start_index_job_worker():

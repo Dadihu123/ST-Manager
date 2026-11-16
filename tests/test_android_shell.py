@@ -622,7 +622,7 @@ def test_kotlin_classes_declared_once():
     """每个 Kotlin 文件只应有一个顶层 class（避免误删导致类丢失）。"""
     for kt in APP_SRC.rglob('*.kt'):
         source = kt.read_text(encoding='utf-8')
-        classes = re.findall(r'^(?:private )?(?:inner )?class\s+(\w+)', source, re.MULTILINE)
+        classes = re.findall(r'^(?:private )?(?:inner )?(?:class|object)\s+(\w+)', source, re.MULTILINE)
         assert classes, f'{kt.name} 没有 class 声明'
         assert len(classes) == 1, f'{kt.name} 有多个 class: {classes}'
 

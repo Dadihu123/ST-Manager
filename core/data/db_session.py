@@ -94,7 +94,7 @@ def init_database():
     print("数据库初始化和表结构检查完成")
 
 
-def _initialize_database(conn, *, is_existing_db):
+def _initialize_database(conn, *, is_existing_db, schema_only=False):
     from core.context import ctx
 
     try:
@@ -242,6 +242,9 @@ def _initialize_database(conn, *, is_existing_db):
     ensure_entry_history_schema(conn)
     conn.commit()
 
+    if schema_only:
+        return
+
     # 路径转换属于可重试的资源工作，不能阻断扫描器和恢复入口启动。
     migrate_entry_history_paths(conn)
     conn.commit()
@@ -253,6 +256,30 @@ def _initialize_database(conn, *, is_existing_db):
     else:
         # 已有数据库：标记为就绪
         ctx.set_status(status="ready", message="启动完成", progress=100)
+
+
+def validate_migration_database(conn):
+    """在隔离连接上运行实际 SQL 升级，并核对当前业务表的列、类型和主键。"""
+    from contextlib import closing
+
+    try:
+        _initialize_database(conn, is_existing_db=True, schema_only=True)
+    except sqlite3.DatabaseError as exc:
+        raise ValueError('备份数据库结构无法升级: ' + str(exc)) from exc
+    with closing(sqlite3.connect(':memory:')) as expected:
+        _initialize_database(expected, is_existing_db=True, schema_only=True)
+        tables = expected.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
+        for (table,) in tables:
+            if table.startswith('sqlite_'):
+                continue
+            quoted = '"' + table.replace('"', '""') + '"'
+            actual_columns = {row[1]: row for row in conn.execute('PRAGMA table_info(' + quoted + ')')}
+            for column in expected.execute('PRAGMA table_info(' + quoted + ')'):
+                actual = actual_columns.get(column[1])
+                if actual is None or actual[2].upper() != column[2].upper() or actual[5] != column[5]:
+                    raise ValueError(f'备份数据库结构不兼容: {table}.{column[1]}')
+        if conn.execute('PRAGMA integrity_check').fetchone()[0] != 'ok':
+            raise ValueError('备份数据库完整性检查失败')
 
 
 def _migrate_existing_data(conn):

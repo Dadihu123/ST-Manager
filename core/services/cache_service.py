@@ -1,3 +1,4 @@
+from core.services.maintenance_gate import coordinated
 import threading
 import time
 import sqlite3
@@ -55,6 +56,7 @@ def _load_card_identity(cursor, card_id):
         )
         return cursor.fetchone()
 
+@coordinated
 def _do_reload_now():
     """Timer 回调：执行重载"""
     with ctx.reload_lock:

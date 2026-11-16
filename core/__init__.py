@@ -3,13 +3,16 @@ import shutil
 import logging
 import traceback
 import mimetypes
-from flask import Flask, jsonify, request
+import json
+from flask import Flask, jsonify, request, g
+from core.services.maintenance_gate import gate, coordinated
 
 # === 基础设施 ===
 from core.config import INTERNAL_DIR, BASE_DIR, TEMP_DIR
 from core.context import ctx
 from core.auth import init_auth
 from core.utils.security_headers import apply_security_headers
+from core.utils.backup_recovery import awaiting_startup, confirm_pending, rollback_pending
 
 # === 数据与服务 ===
 from core.data.db_session import init_database, close_connection
@@ -54,6 +57,32 @@ def create_app():
                 static_folder=os.path.join(INTERNAL_DIR, 'static'),
                 template_folder=os.path.join(INTERNAL_DIR, 'templates'))
     
+    # 备份独占窗口等待已有请求结束，新业务请求等待快照完成。
+    @app.before_request
+    def _enter_data_activity():
+        if not request.path.startswith(('/api/migration/', '/static/')):
+            lease = gate.activity()
+            lease.__enter__()
+            g.data_activity = lease
+            # 确认恢复后暂停所有业务写请求，覆盖旧接口及插件路由；读取与认证仍可用。
+            if (request.method not in ('GET', 'HEAD', 'OPTIONS') and
+                    not request.path.startswith('/auth/') and
+                    os.path.exists(os.path.join(BASE_DIR, 'data', 'migration', 'pending.json'))):
+                return jsonify(success=False, error='restore_pending',
+                               msg='恢复已准备好，业务写入已暂停，请完全退出并重启应用'), 409
+
+    @app.teardown_request
+    def _leave_data_activity(error):
+        lease = g.pop('data_activity', None)
+        if lease:
+            try:
+                close_connection(error)
+            finally:
+                lease.__exit__(None, None, None)
+
+    from core.api.v1 import migration
+    app.register_blueprint(migration.bp)
+
     # 注册数据库连接关闭钩子 (在请求结束时自动调用)
     app.teardown_appcontext(close_connection)
 
@@ -129,6 +158,7 @@ def cleanup_temp_files():
     except Exception as e:
         logger.warning(f"Error during temp directory cleanup: {e}")
 
+@coordinated
 def init_services():
     """
     后台服务初始化函数。
@@ -141,6 +171,19 @@ def init_services():
     cleanup_temp_files()
     
     try:
+        restoring = awaiting_startup(BASE_DIR)
+        if restoring:
+            from core.config import normalize_config, CONFIG_FILE, RUNTIME_DIR_DEFAULTS
+            from core.data.db_session import validate_migration_database, DEFAULT_DB_PATH
+            import sqlite3
+            from contextlib import closing
+            with open(CONFIG_FILE, encoding='utf-8') as handle:
+                restored_config = normalize_config(json.load(handle))
+            for key in RUNTIME_DIR_DEFAULTS:
+                if not os.path.isdir(os.path.join(BASE_DIR, restored_config[key])):
+                    raise ValueError('恢复目录不可访问: ' + key)
+            with closing(sqlite3.connect(DEFAULT_DB_PATH)) as connection:
+                validate_migration_database(connection)
         # 1. 数据库初始化 (建表、迁移)
         init_database()
 
@@ -158,9 +201,14 @@ def init_services():
         ctx.set_status(status="initializing", message="正在加载缓存...")
         
         if ctx.cache:
-            ctx.cache.reload_from_db()
+            if restoring:
+                ctx.cache.reload_from_db(strict=True)
+            else:
+                ctx.cache.reload_from_db()
         else:
-            logger.error("Cache component not initialized in Context!")
+            raise RuntimeError('Cache component not initialized in Context!')
+
+        confirm_pending(BASE_DIR)
         
         # 4. 启动索引升级重建（daemon 线程，不阻塞启动）
         # 必须排在扫描器与索引作业 worker 之前：先置位 ctx.index_upgrade_active，
@@ -202,6 +250,16 @@ def init_services():
             logger.error(f"Plugin app.ready dispatch failed: {e}")
         
     except Exception as e:
+        try:
+            rolled_back = rollback_pending(BASE_DIR, e)
+        except Exception as rollback_error:
+            ctx.set_status(status='error', message='恢复启动失败且自动回滚未完成，请完全退出后重新启动以重试回滚。')
+            logger.error('Restore rollback incomplete: %s (startup error: %s)', rollback_error, e)
+            return
+        if rolled_back:
+            ctx.set_status(status='error', message='恢复启动验证失败，已自动回滚。请完全退出并重新启动。')
+            logger.error('Restore startup failed and rolled back: %s', e)
+            return
         logger.error(f"Service initialization failed: {e}")
         traceback.print_exc() 
         ctx.set_status(status="error", message=f"启动失败: {e}")

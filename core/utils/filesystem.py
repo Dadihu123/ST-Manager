@@ -5,6 +5,8 @@ import time
 import uuid
 import logging
 import re
+import stat
+import tempfile
 from PIL import Image
 from core.consts import SIDECAR_EXTENSIONS
 from core.utils.data import deterministic_sort, normalize_card_v3
@@ -54,30 +56,39 @@ def sanitize_filename(filename: str, replacement: str = '_') -> str:
 
 def save_json_atomic(path, data):
     """原子化保存 JSON，确保格式统一"""
-    temp_path = path + ".tmp"
+    temp_path = None
     try:
+        path = os.path.abspath(path)
         # 1. 标准化排序
         sorted_data = deterministic_sort(data)
         
-        # 2. 写入临时文件
-        with open(temp_path, 'w', encoding='utf-8') as f:
+        # 独立短名称避免给已达 NAME_MAX 的文件名追加后缀；同目录保证原子替换。
+        with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', dir=os.path.dirname(path),
+                                         prefix='.stm-json-', suffix='.tmp', delete=False) as f:
+            temp_path = f.name
             # ensure_ascii=False 显示中文, indent=4 美化, separators 去除行尾多余空格
             json.dump(sorted_data, f, ensure_ascii=False, indent=4, separators=(',', ': '))
-            
+            f.flush()
+            os.fsync(f.fileno())
+
         # 3. 替换原文件 (原子操作)
-        if os.path.exists(path):
-            os.replace(temp_path, path)
-        else:
-            os.rename(temp_path, path)
+        # Windows 的只读属性会令失败后的临时文件也无法删除；只在 POSIX 复制权限位。
+        if os.name != 'nt' and os.path.exists(path):
+            os.chmod(temp_path, stat.S_IMODE(os.stat(path).st_mode))
+        os.replace(temp_path, path)
+        temp_path = None
         return True
     except Exception as e:
         logger.error(f"Save JSON error: {e}")
-        if os.path.exists(temp_path):
+        return False
+    finally:
+        if temp_path:
             try:
                 os.remove(temp_path)
-            except Exception:
+            except FileNotFoundError:
                 pass
-        return False
+            except OSError as exc:
+                logger.warning('清理 JSON 临时文件失败: %s', exc)
 
 # 判断是否是卡片文件
 def is_card_file(filename):

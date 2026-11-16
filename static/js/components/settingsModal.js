@@ -1,3 +1,4 @@
+import dataMigration from './dataMigration.js';
 /**
  * static/js/components/settingsModal.js
  * 系统设置组件
@@ -144,6 +145,7 @@ export default function settingsModal() {
   };
 
   return {
+    ...dataMigration(),
     // === 本地状态 ===
     activeSettingTab: "general",
     /** 插件贡献的 `settings.nav` 落点（菜单节点树，含 children）。 */

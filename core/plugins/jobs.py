@@ -1,3 +1,4 @@
+from core.services.maintenance_gate import coordinated
 """插件通用作业系统（设计文档第 6 部分）。
 
 - Worker：单 daemon 线程 + 30s 兜底唤醒，认领 `plugin_jobs` 中 `queued` 的作业。
@@ -649,6 +650,7 @@ def _resolve_plugin_api(plugin_id: str):
         return None
 
 
+@coordinated
 def _process_pending_jobs() -> int:
     conn = job_store.connect(ensure_schema=True)
     try:

@@ -1,3 +1,4 @@
+from core.services.maintenance_gate import coordinated
 import os
 import time
 import threading
@@ -465,6 +466,7 @@ def _process_card_delete_task(full_path):
     return True
 
 
+@coordinated
 def _process_scan_task(task):
     task_type = FULL_SCAN_TASK
     if isinstance(task, dict):
@@ -726,6 +728,7 @@ def _set_scan_progress(active, *, message='', progress=None, error=None):
         ctx.index_state.update(updates)
 
 
+@coordinated
 def _perform_scan_logic(reason=''):
     """执行具体的数据库同步逻辑"""
     db_path = DEFAULT_DB_PATH
@@ -998,7 +1001,7 @@ def _perform_scan_logic_inner(db_path, cards_root):
                             db_info.get('card_uid')
                         )
 
-        # 三个资源根都必须完整枚举，历史与元数据共用事务，失败时一起回滚。
+        # 全部资源根（含外部白名单）须完整枚举，历史与元数据共用事务，失败时一起回滚。
         cfg = load_config()
         purge_orphaned_entry_history(
             cards_root=cards_root,
@@ -1007,6 +1010,8 @@ def _perform_scan_logic_inner(db_path, cards_root):
             db_path=db_path,
             conn=conn,
             retained_card_ids=renamed_card_ids,
+            external_resource_roots=[_resolve_runtime_dir(root, '')
+                                     for root in cfg.get('allowed_abs_resource_roots', [])],
         )
         _cleanup_misdetected_worldbook_rows(conn, cards_root)
 

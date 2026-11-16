@@ -239,13 +239,40 @@
         </div>
 
          <div id="settings-panel-maintenance" x-show="activeSettingTab === 'maintenance'" role="tabpanel" aria-labelledby="settings-tab-maintenance" class="settings-panel">
+          <section class="settings-section-block" id="settings-data-migration" x-init="resumeMigration()">
+            <div class="settings-section-heading"><div class="settings-section-heading-icon" aria-hidden="true">{{ icon('database-backup', 'ui-icon--sm') }}</div><div><h4>数据备份与迁移</h4><p>ZIP 完整恢复用于换机或替换当前库；普通资源导入仍在各资源页面进行。</p></div></div>
+            <p>包含配置目录内的角色卡、世界书、聊天、预设、Regex、ST Helper、快捷回复、美化、附件、备注图片、壁纸、收藏、标签、备注、资源绑定、剪贴板、监控池、历史、快照和自动化规则。</p>
+            <p>默认排除密码、Cookie、API Key、插件配置及私有数据、回收站、缓存与临时文件。插件程序包含，恢复后禁用；目标设备凭据保留。用户写入业务文件中的密钥需自行检查。</p>
+            <div class="settings-inline-actions">
+              <button type="button" class="settings-secondary-button" :disabled="migrationBusy" @click="startMigrationExport()">生成完整 ZIP</button>
+              <button type="button" class="settings-secondary-button" :disabled="migrationBusy" @click="selectMigrationZip()">选择 ZIP 并预览恢复</button>
+            </div>
+            <input x-ref="migrationFile" type="file" accept=".zip,application/zip" class="sr-only" aria-label="选择完整备份 ZIP" @change="uploadMigrationZip($event)">
+            <div role="status" aria-live="polite" x-show="migration" style="overflow-wrap:anywhere;margin-top:1rem">
+              <p x-text="migration?.phase"></p>
+              <progress x-show="migrationBusy" :value="migration?.total ? migration.done : null" :max="migration?.total || 1" style="width:100%"></progress>
+              <p x-show="migration?.error" x-text="migration?.error" class="settings-field-message--warning"></p>
+              <button type="button" class="settings-secondary-button" x-show="['ready','save_failed','saved'].includes(migration?.state)" @click="saveMigrationZip()">选择保存位置 / 再次下载 ZIP</button>
+              <div x-show="migration?.state === 'preview'">
+                <p><strong>恢复预览</strong> · <span x-text="migration?.preview?.created_at"></span> · 应用版本 <span x-text="migration?.preview?.app_version"></span></p>
+                <p><span x-text="migration?.preview?.files"></span> 个文件，<span x-text="((migration?.preview?.bytes || 0) / 1048576).toFixed(1)"></span> MiB</p>
+                <p x-text="migration?.preview?.overwrite"></p><template x-for="warning in (migration?.preview?.warnings || [])" :key="warning"><p x-text="warning"></p></template>
+                <details><summary>目标位置与排除项目</summary><template x-for="(path, kind) in (migration?.preview?.targets || {})" :key="kind"><p><strong x-text="kind"></strong>: <span x-text="path"></span></p></template><template x-for="item in (migration?.preview?.excluded || [])" :key="item"><p x-text="item"></p></template></details>
+                <label><input type="checkbox" x-model="migrationConfirmed"> 我确认替换以上范围，恢复后完全退出并重启应用</label>
+                <button type="button" class="settings-secondary-button" :disabled="!migrationConfirmed || migrationBusy" @click="confirmMigrationRestore()">确认恢复并自动保护现有数据</button>
+              </div>
+              <p x-show="migration?.state === 'restart_required'">恢复已准备好，业务写入已暂停。请完全退出并重新启动；启动前会再次校验待启用数据，校验或启动失败将保留原库。原数据保护位置：<span x-text="migration?.protection"></span></p>
+            </div>
+            <details><summary>导入旧 JSON（只恢复附加信息或用户状态）</summary><p>旧格式不会恢复资源原文件，不属于完整恢复。</p><button type="button" class="settings-secondary-button" @click="triggerUserDbImport()">导入用户 DB JSON</button><button type="button" class="settings-secondary-button" @click="$refs.legacyUiFile.click()">导入备注与标签 ui_data.json</button><input type="file" x-ref="legacyUiFile" accept=".json" class="sr-only" aria-label="选择旧备注数据" @change="importLegacyUi($event)"></details>
+          </section>
+
           <section id="settings-maintenance-actions" class="settings-section-block">
             <div class="settings-section-heading settings-section-label-with-icon"><div class="settings-section-heading-icon" aria-hidden="true">{{ icon('settings-maintenance', 'ui-icon--sm') }}</div><div><h4>维护操作</h4><p>这些操作会立即执行，不需要点击“保存并应用”。</p></div></div>
             <div class="settings-operation-grid">
               <article class="settings-operation-card"><span class="settings-operation-icon" aria-hidden="true">{{ icon('scan', 'ui-icon--md') }}</span><div><h5>全量扫描</h5><p>重新扫描磁盘并修复数据库索引，适合手动改动文件后使用。</p></div><button type="button" class="settings-secondary-button" @click="scanNow()">{{ icon('refresh', 'ui-icon--sm') }}<span>立即扫描</span></button></article>
-              <article class="settings-operation-card"><span class="settings-operation-icon" aria-hidden="true">{{ icon('database-backup', 'ui-icon--md') }}</span><div><h5>配置备份</h5><p>导出 ui_data.json，保存资源备注、标签等附加信息。</p></div><button type="button" class="settings-secondary-button" @click="systemAction('backup_data')">{{ icon('snapshot', 'ui-icon--sm') }}<span>导出备份</span></button></article>
+              <article x-show="!migrationAndroid" class="settings-operation-card"><span class="settings-operation-icon" aria-hidden="true">{{ icon('database-backup', 'ui-icon--md') }}</span><div><h5>备注与标签 JSON</h5><p>导出 ui_data.json，保存资源备注、标签等附加信息。</p></div><button type="button" class="settings-secondary-button" @click="systemAction('backup_data')">{{ icon('snapshot', 'ui-icon--sm') }}<span>导出备份</span></button></article>
               <article class="settings-operation-card" x-cloak x-show="$store.global.canOpenSystemFileManager"><span class="settings-operation-icon" aria-hidden="true">{{ icon('folder-resources', 'ui-icon--md') }}</span><div><h5>资源目录</h5><p>打开存放图片和 Markdown 附件的目录。</p></div><button type="button" class="settings-secondary-button" @click="systemAction('open_notes')">{{ icon('folder-resources', 'ui-icon--sm') }}<span>打开目录</span></button></article>
-              <article class="settings-operation-card"><span class="settings-operation-icon" aria-hidden="true">{{ icon('database-user', 'ui-icon--md') }}</span><div><h5>用户 DB 数据</h5><p>备份或恢复收藏、剪贴板、历史与监控池，不影响资源文件。</p></div><div class="settings-inline-actions"><button type="button" class="settings-secondary-button settings-secondary-button--compact" @click="exportUserDbData()">{{ icon('file-check', 'ui-icon--sm') }}<span>导出备份</span></button><button type="button" class="settings-secondary-button settings-secondary-button--compact" @click="triggerUserDbImport()">{{ icon('file-import', 'ui-icon--sm') }}<span>导入恢复</span></button></div><input aria-label="类脑 CookieCookie 仅保存在本机，用于卡片详情中的帖子预览。" x-ref="userDbImportInput" type="file" class="sr-only" accept=".json,application/json" @change="handleUserDbImport($event)"></article>
+              <article x-show="!migrationAndroid" class="settings-operation-card"><span class="settings-operation-icon" aria-hidden="true">{{ icon('database-user', 'ui-icon--md') }}</span><div><h5>用户状态 JSON</h5><p>备份或恢复收藏、剪贴板、历史与监控池，不影响资源文件。</p></div><div class="settings-inline-actions"><button type="button" class="settings-secondary-button settings-secondary-button--compact" @click="exportUserDbData()">{{ icon('file-check', 'ui-icon--sm') }}<span>导出备份</span></button><button type="button" class="settings-secondary-button settings-secondary-button--compact" @click="triggerUserDbImport()">{{ icon('file-import', 'ui-icon--sm') }}<span>导入恢复</span></button></div><input aria-label="类脑 CookieCookie 仅保存在本机，用于卡片详情中的帖子预览。" x-ref="userDbImportInput" type="file" class="sr-only" accept=".json,application/json" @change="handleUserDbImport($event)"></article>
               <article id="settings-maintenance-thumbnails" class="settings-operation-card"><span class="settings-operation-icon" aria-hidden="true">{{ icon('broom', 'ui-icon--md') }}</span><div><h5>清理无效缩略图</h5><p>只清理无法对应到当前角色卡图片的 WebP/JPEG 缓存，不会删除角色卡文件。</p></div><button type="button" class="settings-secondary-button" @click="cleanupThumbnails()">{{ icon('broom', 'ui-icon--sm') }}<span>开始清理</span></button></article>
               <article class="settings-operation-card"><span class="settings-operation-icon settings-operation-icon--danger" aria-hidden="true">{{ icon('trash', 'ui-icon--md') }}</span><div><h5>文件回收站</h5><p>已删除的文件暂存于此；清空后无法撤销。</p></div><div class="settings-inline-actions"><button type="button" class="settings-secondary-button settings-secondary-button--compact" x-cloak x-show="$store.global.canOpenSystemFileManager" @click="openTrashFolder()">{{ icon('folder-resources', 'ui-icon--sm settings-trash-open-icon') }}<span>打开</span></button><button type="button" class="settings-secondary-button settings-secondary-button--compact settings-danger-action" @click="emptyTrash()">{{ close_icon_sm }}<span>清空</span></button></div></article>
             </div>
@@ -415,7 +442,7 @@ window.webpackChunkdiscord_app.pop();</pre>
           <article class="settings-help-card" x-show="activeSettingTab === 'maintenance'">
             <h4 class="font-bold color-text-accent mb-2"><span aria-hidden="true">{{ icon('settings-maintenance', 'ui-icon--sm') }}</span><span>维护操作与数据备份</span></h4>
             <ul class="settings-help-list">
-              <li><strong>立即扫描、配置备份、回收站和用户 DB 导入导出：</strong>点击后立即执行，不需要先保存设置。</li>
+              <li><strong>立即扫描、备注与标签导出、回收站和用户状态 导入导出：</strong>点击后立即执行，不需要先保存设置。</li>
               <li><strong>用户 DB 备份：</strong>包含收藏、剪贴板、历史和监控池，不会覆盖角色卡、世界书等资源文件。</li>
               <li><strong>清空回收站：</strong>属于不可撤销操作，执行前会要求确认。</li>
             </ul>

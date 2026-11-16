@@ -30,6 +30,7 @@ import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
 import java.io.File
 import java.net.URL
+import java.net.HttpURLConnection
 import java.util.ArrayDeque
 
 /**
@@ -93,6 +94,109 @@ class MainActivity : AppCompatActivity() {
             }.apply { isDaemon = true }.start()
         }
     }
+    private var pendingBackup: Pair<String, String>? = null
+    private val backupDocumentLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult(),
+    ) { result ->
+        val (job, kind) = pendingBackup ?: return@registerForActivityResult
+        pendingBackup = null
+        val uri = result.data?.data
+        if (result.resultCode != Activity.RESULT_OK || uri == null) {
+            reportBackup(job, false, "已取消选择文件或保存位置")
+        } else {
+            Thread {
+                try {
+                    val action = if (kind == "export") "download" else "upload"
+                    val connection = URL(BackupTransfer.endpoint(if (loadedPort > 0) loadedPort else 17863, job, action))
+                        .openConnection() as HttpURLConnection
+                    try {
+                        connection.instanceFollowRedirects = false
+                        connection.connectTimeout = 30_000
+                        connection.readTimeout = 120_000
+                        if (kind == "export") {
+                            check(connection.responseCode == 200) { "无法读取备份" }
+                            val expected = connection.contentLengthLong
+                            connection.inputStream.use { input ->
+                                val output = contentResolver.openOutputStream(uri, "wt")
+                                    ?: error("无法打开保存位置")
+                                output.use { BackupTransfer.copy(input, it, expected) }
+                            }
+                            reportBackup(job, true, "已保存到：$uri")
+                        } else {
+                            connection.requestMethod = "PUT"
+                            connection.doOutput = true
+                            connection.setRequestProperty("Content-Type", "application/zip")
+                            connection.setChunkedStreamingMode(64 * 1024)
+                            val input = contentResolver.openInputStream(uri) ?: error("无法读取文档")
+                            input.use { source ->
+                                connection.outputStream.use { BackupTransfer.copy(source, it) }
+                            }
+                            check(connection.responseCode == 200) { "上传失败，请检查空间后重新选择" }
+                        }
+                    } finally { connection.disconnect() }
+                } catch (e: Exception) {
+                    Log.w(TAG, "备份文件传输失败", e)
+                    if (kind == "export") {
+                        try { android.provider.DocumentsContract.deleteDocument(contentResolver, uri) }
+                        catch (_: Exception) { /* 提供者可能不支持删除；页面仍报告失败。 */ }
+                    }
+                    reportBackup(job, false, e.message ?: "文件传输失败")
+                }
+            }.apply { isDaemon = true }.start()
+        }
+    }
+
+    private fun reportBackup(job: String, success: Boolean, message: String) {
+        Thread {
+            try {
+                val connection = URL(BackupTransfer.endpoint(if (loadedPort > 0) loadedPort else 17863, job, "transfer"))
+                    .openConnection() as HttpURLConnection
+                try {
+                    connection.instanceFollowRedirects = false
+                    connection.connectTimeout = 15_000
+                    connection.readTimeout = 15_000
+                    connection.requestMethod = "POST"
+                    connection.doOutput = true
+                    connection.setRequestProperty("Content-Type", "application/json")
+                    connection.outputStream.use {
+                        it.write(JSONObject().put("success", success).put("message", message).toString().toByteArray())
+                    }
+                    check(connection.responseCode == 200)
+                } finally { connection.disconnect() }
+            } catch (e: Exception) {
+                Log.w(TAG, "无法确认备份传输结果", e)
+                runOnUiThread { Toast.makeText(this, "传输结果未确认，请检查文件后重试", Toast.LENGTH_LONG).show() }
+            }
+        }.apply { isDaemon = true }.start()
+    }
+
+    private fun chooseBackupDocument(job: String, kind: String) {
+        BackupTransfer.endpoint(if (loadedPort > 0) loadedPort else 17863, job, if (kind == "export") "download" else "upload")
+        require(kind == "export" || kind == "import")
+        if (pendingBackup != null) { reportBackup(job, false, "文件选择器正在使用中"); return }
+        pendingBackup = job to kind
+        try {
+            backupDocumentLauncher.launch(Intent(
+                if (kind == "export") Intent.ACTION_CREATE_DOCUMENT else Intent.ACTION_OPEN_DOCUMENT,
+            ).apply {
+                addCategory(Intent.CATEGORY_OPENABLE)
+                type = "application/zip"
+                if (kind == "export") putExtra(Intent.EXTRA_TITLE, "ST-Manager-${System.currentTimeMillis()}.zip")
+            })
+        } catch (e: Exception) {
+            pendingBackup = null
+            reportBackup(job, false, e.message ?: "无法打开系统文件选择器")
+        }
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        pendingBackup?.let { (job, kind) ->
+            outState.putString("backupJob", job)
+            outState.putString("backupKind", kind)
+        }
+        super.onSaveInstanceState(outState)
+    }
+
     private var pendingStorage: Pair<String, List<String>>? = null
     private val storagePermissionLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult(),
@@ -103,6 +207,9 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        savedInstanceState?.getString("backupJob")?.let { job ->
+            pendingBackup = job to (savedInstanceState.getString("backupKind") ?: "import")
+        }
 
         fileChooserLauncher =
             registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -568,6 +675,7 @@ class MainActivity : AppCompatActivity() {
         try {
             val message = JSONObject(raw)
             when (message.getString("action")) {
+                "backup-document" -> chooseBackupDocument(message.getString("job"), message.getString("kind"))
                 "storage" -> requestStorageAccess(message.getString("id"), message.getString("pathsJson"))
                 "download" -> saveBase64FileAsync(message.getString("id"), message.getString("base64"),
                     message.getString("fileName"), message.getString("mimeType"))

@@ -28,6 +28,15 @@ logger = logging.getLogger(__name__)
 PACKAGE_DIRECTORY_DELETE_DELAYS = (0, 0.05, 0.15)
 
 
+def beautify_project_root(library_root):
+    """美化持久路径使用的相对根；迁移和读取须使用同一规则。"""
+    normalized = str(library_root).replace('\\', '/').rstrip('/')
+    suffix = '/data/library/beautify'
+    if normalized.endswith(suffix):
+        return normalized[: -len(suffix)]
+    return os.path.dirname(os.path.dirname(os.path.dirname(library_root)))
+
+
 class BeautifyService:
     def __init__(
         self,
@@ -43,11 +52,7 @@ class BeautifyService:
         os.makedirs(self.library_root, exist_ok=True)
 
     def _project_root_for_library(self):
-        normalized = self.library_root.replace('\\', '/').rstrip('/')
-        suffix = '/data/library/beautify'
-        if normalized.endswith(suffix):
-            return normalized[: -len(suffix)]
-        return os.path.dirname(os.path.dirname(os.path.dirname(self.library_root)))
+        return beautify_project_root(self.library_root)
 
     def _load_ui_data(self):
         data = self._ui_data_loader() or {}

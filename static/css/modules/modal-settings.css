@@ -2735,3 +2735,20 @@ html.light-mode .settings-modal-overlay {
 .settings-plugin-slot:empty {
   display: none;
 }
+
+
+/* 完整备份与恢复复用设置容器；长路径和按钮在小屏自然换行。 */
+#settings-data-migration > p,
+#settings-data-migration [role="status"] p,
+#settings-data-migration details p {
+  color: var(--settings-text-muted);
+  font-size: 0.85rem;
+  font-weight: 400;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+#settings-data-migration [role="status"] p { margin: 8px 0; }
+#settings-data-migration [role="status"] label { display: block; margin: 12px 0; }
+#settings-data-migration .settings-inline-actions { flex-wrap: wrap; }
+#settings-data-migration details { margin-top: 12px; }
+#settings-data-migration summary { cursor: pointer; font-size: 0.85rem; }

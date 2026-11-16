@@ -82,6 +82,22 @@ def resolve_internal_dir(base_dir: str) -> str:
 BASE_DIR = resolve_base_dir()
 INTERNAL_DIR = resolve_internal_dir(BASE_DIR)
 
+# 必须早于数据库、插件和后台线程初始化。
+from core.utils.backup_recovery import activate_pending
+_pending_restore = os.path.join(BASE_DIR, 'data', 'migration', 'pending.json')
+_debug_parent = ('--debug' in sys.argv or os.environ.get('FLASK_DEBUG') == '1') and os.environ.get('WERKZEUG_RUN_MAIN') != 'true'
+if os.path.exists(_pending_restore) and not _debug_parent:
+    from core.data.data_dir_lock import acquire_data_directory_lock, DataDirectoryLockError
+    if not acquire_data_directory_lock(os.path.join(BASE_DIR, 'data')):
+        raise DataDirectoryLockError('待恢复的数据目录正被其他实例使用，请先关闭其他实例')
+    try:
+        activate_pending(BASE_DIR)
+    except Exception:
+        # 已成功回滚的失败仍可启动旧资源库；回滚未完成则保持日志并停止启动。
+        if os.path.exists(_pending_restore):
+            raise
+        logger.error('数据恢复失败，已自动回滚到原资源库，请在备份区域查看结果')
+
 CONFIG_FILE = os.path.join(BASE_DIR, 'config.json')
 
 # === v2.0 目录结构定义 ===
@@ -242,6 +258,8 @@ DEFAULT_CONFIG = {
     # False: 仅将 | 视为自动化标签分隔符（保留 / 作为标签字符）
     # True: 将 / 也视为分隔符（更便于批量输入）
     "automation_slash_is_tag_separator": False,
+    # 全局自动化选择：None 表示关闭；规则集 ID 随配置及规则文件一起迁移。
+    "active_automation_ruleset": None,
 
     # 插件系统：官方插件目录（catalog）的远端拉取设置
     # 清单放在本仓库 static/plugins/catalog.json，用户打开「官方目录」页时才拉取；

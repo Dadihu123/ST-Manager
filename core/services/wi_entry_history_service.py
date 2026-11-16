@@ -494,13 +494,16 @@ def purge_orphaned_entry_history(
     db_path=None,
     conn=None,
     retained_card_ids=(),
+    external_resource_roots=(),
 ) -> int:
     """Remove history scopes that no longer map to an existing source file."""
     cards_root = os.path.abspath(os.fspath(cards_root or CARDS_FOLDER))
     world_info_root = os.path.abspath(os.fspath(world_info_root or '')) if world_info_root else ''
     resources_root = os.path.abspath(os.fspath(resources_root or '')) if resources_root else ''
 
-    roots = [cards_root, world_info_root, resources_root]
+    external_resource_roots = sorted({os.path.abspath(os.path.join(BASE_DIR, os.fspath(root)))
+                                      for root in external_resource_roots})
+    roots = [cards_root, world_info_root, resources_root, *external_resource_roots]
     if any(not root for root in roots):
         return 0
     for root in roots:
@@ -534,7 +537,14 @@ def purge_orphaned_entry_history(
     for root, _dirs, files in walk_directory_strict(world_info_root):
         for name in files:
             if name.lower().endswith('.json'):
-                add_worldbook_scopes(os.path.join(root, name), 'global')
+                path = os.path.join(root, name)
+                add_worldbook_scopes(path, 'global')
+                try:
+                    shared = os.path.commonpath([os.path.abspath(path), resources_root]) == resources_root
+                except ValueError:
+                    shared = False
+                if shared:
+                    add_worldbook_scopes(path, 'resource')
 
     for root, _dirs, files in walk_directory_strict(resources_root):
         for name in files:
@@ -545,6 +555,12 @@ def purge_orphaned_entry_history(
             if '/lorebooks/' not in f'/{rel_path}/':
                 continue
             add_worldbook_scopes(path, 'resource')
+
+    for external in external_resource_roots:
+        for root, _dirs, files in walk_directory_strict(external):
+            for name in files:
+                if name.lower().endswith('.json'):
+                    add_worldbook_scopes(os.path.join(root, name), 'resource')
 
     for root, _dirs, files in walk_directory_strict(cards_root):
         for name in files:

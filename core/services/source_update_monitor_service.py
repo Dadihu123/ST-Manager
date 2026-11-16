@@ -1,3 +1,4 @@
+from core.services.maintenance_gate import coordinated
 """角色卡来源更新监控池、运行记录和应用内调度器。"""
 
 import json
@@ -1189,6 +1190,7 @@ def check_monitor_pool_sync(card_ids=None, *, pool_id=DEFAULT_MONITOR_POOL_ID):
     return {**summary, 'details': details, 'success': True}
 
 
+@coordinated
 def _run_monitor_run(run_id, pool_id, card_ids):
     summary = _empty_summary(len(card_ids))
     try:
@@ -1237,6 +1239,7 @@ def _set_next_run_at(pool_id, daily_time, timezone_name):
     _with_connection(operation)
 
 
+@coordinated
 def _run_due_scheduled_pools():
     now = time.time()
 

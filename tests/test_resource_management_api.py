@@ -2,6 +2,7 @@ import json
 import sys
 from pathlib import Path
 
+import pytest
 from flask import Flask
 
 
@@ -157,3 +158,47 @@ def test_save_script_file_rejects_invalid_typed_resource_payload(monkeypatch, tm
     assert valid_res.status_code == 200
     assert valid_res.get_json()['success'] is True
     assert json.loads(target_file.read_text(encoding='utf-8')) == {'findRegex': '/hero/'}
+
+
+@pytest.mark.parametrize('failure', ['replace', 'fsync'])
+def test_save_script_file_write_failure_preserves_original(monkeypatch, tmp_path, failure):
+    from core.utils import filesystem
+
+    resources_root = _configure_resource_api(monkeypatch, tmp_path)
+    target = resources_root / 'hero/extensions/regex/cleanup.json'
+    _write_file(target, '{"findRegex":"/original/"}')
+    original = target.read_bytes()
+
+    def denied(*args, **kwargs):
+        raise OSError('synthetic write failure')
+
+    monkeypatch.setattr(filesystem.os, failure, denied)
+    result = _make_test_app().test_client().post('/api/scripts/save', json={
+        'file_path': str(target), 'content': {'findRegex': '/edited/'}})
+    assert result.status_code == 200
+    assert result.get_json() == {'success': False, 'msg': '写入文件失败'}
+    assert target.read_bytes() == original
+    assert list(target.parent.iterdir()) == [target]
+
+
+@pytest.mark.parametrize('area', ['restore', 'protection', 'library', 'snapshot'])
+def test_resource_delete_and_upload_cannot_change_migration_workspace(monkeypatch, tmp_path, area):
+    import io
+    _configure_resource_api(monkeypatch, tmp_path)
+    folder = tmp_path / 'data/migration' / ('a' * 32) / area / 'resources_dir'
+    target = folder / 'note.txt'
+    _write_file(target, 'original')
+    monkeypatch.setattr(resources_api, 'load_ui_data', lambda: {
+        'cards/hero.png': {'resource_folder': str(folder)}})
+    monkeypatch.setattr(resources_api, '_ensure_card_resource_folder', lambda _: (str(folder), False, None))
+    client = _make_test_app().test_client()
+    deleted = client.post('/api/delete_resource_file', json={
+        'card_id': 'cards/hero.png', 'filename': 'note.txt'})
+    assert deleted.get_json()['success'] is False
+    assert '迁移' in deleted.get_json()['msg']
+    uploaded = client.post('/api/upload_card_resource', data={
+        'card_id': 'cards/hero.png', 'file': (io.BytesIO(b'injected'), 'new.txt')})
+    assert uploaded.get_json()['success'] is False
+    assert '迁移' in uploaded.get_json()['msg']
+    assert target.read_text() == 'original'
+    assert not (folder / 'new.txt').exists()

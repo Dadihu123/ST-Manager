@@ -293,3 +293,22 @@ export async function openPath(payload) {
   });
   return res.json();
 }
+
+
+export async function migrationRequest(path, options = {}) {
+  const response = await fetch('/api/migration' + path, {
+    ...options, headers: {'Content-Type': 'application/json', ...options.headers},
+  });
+  const result = await response.json();
+  if (!response.ok || !result.success) throw new Error(result.msg || '备份操作失败');
+  return result;
+}
+
+export async function uploadMigrationFile(id, file) {
+  const response = await fetch(`/api/migration/jobs/${id}/upload`, {
+    method: 'PUT', headers: {'Content-Type': 'application/zip'}, body: file,
+  });
+  const result = await response.json();
+  if (!response.ok || !result.success) throw new Error(result.msg || '上传失败');
+  return result;
+}

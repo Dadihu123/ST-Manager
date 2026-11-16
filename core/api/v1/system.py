@@ -58,7 +58,7 @@ from core.utils.filesystem import (
 )
 from core.utils.image import extract_card_info, write_card_metadata, find_sidecar_image
 from core.utils.format_validation import is_valid_world_info_data
-from core.utils.paths import is_under_base
+from core.utils.paths import is_under_base, require_business_write_path
 
 from core.utils.hash import _calculate_data_hash
 
@@ -1217,6 +1217,8 @@ def api_restore_backup():
             target_path = os.path.join(CARDS_FOLDER, target_id.replace('/', os.sep))
             
         if not target_path: return jsonify({"success": False, "msg": "目标路径解析失败"})
+
+        require_business_write_path(target_path, BASE_DIR, load_config() or {})
 
         # 1. 物理覆盖 (恢复图片像素 或 JSON 内容)
         # 兼容修复前生成的“仅世界书对象”嵌入式快照，避免把 book 当成整张卡片。

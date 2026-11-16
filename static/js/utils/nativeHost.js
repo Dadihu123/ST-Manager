@@ -8,6 +8,7 @@ export function installNativeHost() {
   const send = (action, payload = {}) => window.stmNative.postMessage(JSON.stringify({action, ...payload}));
   window.stmHost = Object.freeze({
     platform: () => 'android',
+    backupDocument: (job, kind) => send('backup-document', {job, kind}),
     requestStorageAccess: (id, pathsJson) => send('storage', {id, pathsJson}),
     saveBase64FileAsync: (id, base64, fileName, mimeType) =>
       send('download', {id, base64, fileName, mimeType}),

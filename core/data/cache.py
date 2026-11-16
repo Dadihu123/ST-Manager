@@ -28,7 +28,7 @@ from core.services.card_binding_service import (
     reconcile_stale_card_bindings,
 )
 from core.utils.card_identity import normalize_card_uid
-from core.utils.filesystem import is_card_file
+from core.utils.filesystem import is_card_file, walk_directory_strict
 
 logger = logging.getLogger(__name__)
 
@@ -482,7 +482,7 @@ class GlobalMetadataCache:
             logger.warning(f"Inspecting bundle folder failed for {dir_path}: {exc}")
             return None
 
-    def reload_from_db(self):
+    def reload_from_db(self, *, strict=False):
         """
         [全量加载] 从数据库和 UI Store 读取所有数据并重建内存缓存。
         此操作通常在后台线程执行。
@@ -490,34 +490,37 @@ class GlobalMetadataCache:
         def _do_fetch_all():
             # 使用独立连接，确保线程安全
             conn = sqlite3.connect(DEFAULT_DB_PATH, timeout=30)
-            conn.row_factory = sqlite3.Row
-            cursor = conn.cursor()
             try:
-                cursor.execute("""
-                    SELECT id, char_name, tags, category, creator,
-                           char_version, last_modified, file_hash, token_count, is_favorite, card_uid
-                    FROM card_metadata
-                """)
-                rows_include_uid = True
-            except sqlite3.OperationalError as exc:
-                if 'no such column' not in str(exc).lower():
-                    raise
-                cursor.execute("""
-                    SELECT id, char_name, tags, category, creator,
-                           char_version, last_modified, file_hash, token_count, is_favorite
-                    FROM card_metadata
-                """)
-                rows_include_uid = False
-            rows = cursor.fetchall()
-            conn.close()
-            return rows, rows_include_uid
+                conn.row_factory = sqlite3.Row
+                cursor = conn.cursor()
+                try:
+                    cursor.execute("""
+                        SELECT id, char_name, tags, category, creator,
+                               char_version, last_modified, file_hash, token_count, is_favorite, card_uid
+                        FROM card_metadata
+                    """)
+                    rows_include_uid = True
+                except sqlite3.OperationalError as exc:
+                    if 'no such column' not in str(exc).lower():
+                        raise
+                    cursor.execute("""
+                        SELECT id, char_name, tags, category, creator,
+                               char_version, last_modified, file_hash, token_count, is_favorite
+                        FROM card_metadata
+                    """)
+                    rows_include_uid = False
+                rows = cursor.fetchall()
+                return rows, rows_include_uid
+            finally:
+                conn.close()
 
         with self.lock:
             try:
                 physical_folders = set()
                 physical_bundle_dirs = set()
                 try:
-                    for root, dirs, files in os.walk(CARDS_FOLDER):
+                    walker = walk_directory_strict if strict else os.walk
+                    for root, dirs, files in walker(CARDS_FOLDER):
                         # 排除以 . 开头的隐藏目录 (如 .trash, .git)
                         dirs[:] = [d for d in dirs if not d.startswith('.')]
                         
@@ -536,6 +539,8 @@ class GlobalMetadataCache:
                             for d in dirs:
                                 physical_folders.add(f"{current_rel}/{d}")
                 except Exception as fs_e:
+                    if strict:
+                        raise
                     logger.error(f"Scanning physical folders failed: {fs_e}")
 
                 # 1. 加载数据
@@ -545,6 +550,8 @@ class GlobalMetadataCache:
                 try:
                     ui_data = load_ui_data()
                 except UiDataLoadError as ui_exc:
+                    if strict:
+                        raise
                     logger.error('缓存重载: ui_data.json 读取失败，本次跳过 UI 数据写回: %s', ui_exc)
                     ui_data = {}
                     ui_data_readable = False
@@ -752,6 +759,8 @@ class GlobalMetadataCache:
                 
             except Exception as e:
                 logger.error(f"Cache reload error: {e}")
+                if strict:
+                    raise
                 # 保持旧数据，防止应用崩溃
 
     def toggle_favorite_update(self, card_id, new_status):

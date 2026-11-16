@@ -18,6 +18,7 @@ from core.utils.image import (
     extract_card_info, find_sidecar_image, get_default_card_image_path
 )
 from core.utils.filesystem import safe_move_to_trash, sanitize_filename, save_json_atomic
+from core.utils.paths import require_business_write_path
 from core.utils.format_validation import (
     is_valid_preset_data,
     is_valid_quick_reply_data,
@@ -92,7 +93,13 @@ def _safe_join_resource_file(base_dir: str, relative_path: str):
     if not _is_within_base(target_path, base_dir):
         return None, None
 
+    _require_writable_business_path(target_path)
     return target_path, normalized
+
+
+def _require_writable_business_path(path):
+    require_business_write_path(path, BASE_DIR, load_config() or {})
+
 
 def _resource_api_path(full_path: str) -> str:
     full_abs = os.path.abspath(full_path)
@@ -488,6 +495,7 @@ def api_upload_card_resource():
         else:
             target_base_dir = os.path.join(res_root, res_folder_name)
             
+        _require_writable_business_path(target_base_dir)
         os.makedirs(target_base_dir, exist_ok=True)
 
         # 2. 分析文件类型并确定子目录
@@ -528,6 +536,7 @@ def api_upload_card_resource():
 
         # 3. 构建最终路径
         final_dir = os.path.join(target_base_dir, sub_dir.replace('/', os.sep))
+        _require_writable_business_path(final_dir)
         os.makedirs(final_dir, exist_ok=True)
             
         save_path = os.path.join(final_dir, filename)
@@ -582,6 +591,8 @@ def api_save_script_file():
         # 检查目标路径是否在 BASE_DIR 范围内
         if not _is_within_base(abs_path, base_abs):
             return jsonify({"success": False, "msg": "非法路径：禁止访问程序目录之外的文件"})
+
+        _require_writable_business_path(abs_path)
 
         # 2. 检查文件扩展名
         if not abs_path.lower().endswith('.json'):

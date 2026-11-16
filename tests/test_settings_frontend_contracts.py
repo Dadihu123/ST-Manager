@@ -1,3 +1,4 @@
+import re
 import json
 import subprocess
 import textwrap
@@ -137,6 +138,9 @@ def run_settings_modal_runtime_check(script_body):
             };
         """
     )
+    migration_source = read_project_file('static/js/components/dataMigration.js')
+    migration_source = re.sub(r'^import[^\n]*\n', '', migration_source, flags=re.MULTILINE)
+    stub_source += migration_source.replace('export default function', 'function')
     stub_source += read_project_file('static/js/utils/androidStorage.js').replace('export async function', 'async function')
     module_suffix = '\nexport default settingsModal;'
     node_script = textwrap.dedent(
@@ -299,7 +303,7 @@ def test_settings_template_exposes_shared_wallpaper_picker_ui():
 def test_settings_template_exposes_user_db_backup_controls():
     source = read_project_file('templates/modals/settings.html')
 
-    assert '用户 DB 数据' in source
+    assert '用户状态 JSON' in source
     assert '@click="exportUserDbData()"' in source
     assert '@click="triggerUserDbImport()"' in source
     assert 'x-ref="userDbImportInput"' in source

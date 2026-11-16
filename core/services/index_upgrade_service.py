@@ -1,9 +1,11 @@
+from core.services.maintenance_gate import coordinated
 import logging
 import os
 import random
 import sqlite3
 import threading
 import time
+from contextlib import closing
 
 from core.config import CARDS_FOLDER, DEFAULT_DB_PATH
 from core.context import ctx
@@ -145,7 +147,7 @@ def backfill_embedded_worldinfo_metadata(conn=None, progress_cb=None):
 
 
 def recover_scope_build(scope: str):
-    with connect_index_db(DEFAULT_DB_PATH) as conn:
+    with closing(connect_index_db(DEFAULT_DB_PATH)) as conn, conn:
         row = conn.execute(
             'SELECT building_generation FROM index_build_state WHERE scope = ?',
             (scope,),
@@ -206,6 +208,7 @@ def _resource_access_error(exc):
     return f'资源不可访问，已保留原索引；恢复访问后请重试：{exc.filename or str(exc)}'
 
 
+@coordinated
 def rebuild_scope_generation(scope: str, reason: str = 'bootstrap'):
     with connect_index_db(DEFAULT_DB_PATH) as conn:
         generation = allocate_build_generation(conn, scope)
@@ -296,7 +299,7 @@ def plan_startup_upgrade(index_auto_bootstrap: bool = True) -> list[dict]:
     """
     ensure_owner_token()
 
-    with connect_index_db(DEFAULT_DB_PATH) as conn:
+    with closing(connect_index_db(DEFAULT_DB_PATH)) as conn, conn:
         ensure_index_runtime_schema(conn)
         rows = conn.execute(
             'SELECT scope, state, owner_token, active_generation FROM index_build_state ORDER BY scope'
@@ -310,7 +313,7 @@ def plan_startup_upgrade(index_auto_bootstrap: bool = True) -> list[dict]:
     if not index_auto_bootstrap:
         return []
 
-    with connect_index_db(DEFAULT_DB_PATH) as conn:
+    with closing(connect_index_db(DEFAULT_DB_PATH)) as conn, conn:
         rows = conn.execute(
             'SELECT scope, state, active_generation FROM index_build_state ORDER BY scope'
         ).fetchall()
@@ -375,6 +378,7 @@ def _settle_index_state():
         logger.debug('收尾索引状态失败', exc_info=True)
 
 
+@coordinated
 def _background_upgrade_worker(plan: list[dict]):
     scope = None
     try:

@@ -1,3 +1,4 @@
+from core.services.maintenance_gate import coordinated
 """Hook 总线（设计文档第 5 部分）。
 
 替换原 `core/event_bus.py`（15 行空壳、全仓零引用）。核心代码在关键流程末尾
@@ -148,6 +149,7 @@ def unregister_plugin(plugin_id: str) -> int:
     return removed
 
 
+@coordinated
 def emit(event: str, payload: dict | None = None) -> None:
     """同步派发事件；任何 handler 异常都被吞掉并记录。
 
