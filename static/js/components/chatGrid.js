@@ -5604,6 +5604,10 @@ export default function chatGrid() {
     fetchChats() {
       if (this.$store.global.serverStatus.status !== "ready") return;
 
+      const sequence = this._chatQuerySequence = (this._chatQuerySequence || 0) + 1;
+      this._chatQueryAbort?.abort();
+      const controller = new AbortController();
+      this._chatQueryAbort = controller;
       this.$store.global.isLoading = true;
       const params = {
         page: this.chatCurrentPage,
@@ -5617,9 +5621,9 @@ export default function chatGrid() {
         params.card_id = this.linkedCardIdFilter;
       }
 
-      listChats(params)
+      return listChats(params, { signal: controller.signal })
         .then((res) => {
-          this.$store.global.isLoading = false;
+          if (sequence !== this._chatQuerySequence) return;
           if (!res.success) return;
 
           this.chatList = res.items || [];
@@ -5640,8 +5644,12 @@ export default function chatGrid() {
             );
           }
         })
-        .catch(() => {
-          this.$store.global.isLoading = false;
+        .catch(() => {})
+        .finally(() => {
+          if (sequence === this._chatQuerySequence) {
+            this.$store.global.isLoading = false;
+            this._chatQueryAbort = null;
+          }
         });
     },
 

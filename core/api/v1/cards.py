@@ -23,6 +23,8 @@ from core.data.ui_store import (
     load_ui_data,
     save_ui_data,
     update_ui_data,
+    get_ui_data_revision,
+    UiDataLoadError,
     get_version_remark,
     set_version_remark,
     get_import_time,
@@ -64,6 +66,8 @@ from core.services.index_build_service import apply_card_increment, connect_inde
 from core.services.card_index_query_service import query_indexed_cards
 from core.services.card_service import (
     update_card_content,
+    update_card_ui_fields,
+    reconcile_card_ui_fields,
     rename_folder_in_db,
     rename_folder_in_ui,
     resolve_ui_key,
@@ -1491,6 +1495,167 @@ def api_toggle_favorite():
     except Exception as e:
         return jsonify({"success": False, "msg": str(e)})
 
+def _read_canonical_card_fields(full_path):
+    """Read the editor's file fields only after a synchronous save action changed the file."""
+    info = extract_card_info(full_path)
+    body = info.get('data', info) if isinstance(info, dict) else None
+    if not isinstance(body, dict):
+        raise OSError('同步操作已改写卡片，但无法读取最新正文；请重新载入详情后再保存')
+    fields = {key: body.get(key, '') for key in (
+        'description', 'first_mes', 'mes_example', 'creator_notes', 'personality', 'scenario',
+        'system_prompt', 'post_history_instructions', 'creator', 'character_version',
+    )}
+    fields.update(char_name=body.get('name', ''), filename=os.path.basename(full_path),
+                  tags=_normalize_tag_list(body.get('tags', [])),
+                  alternate_greetings=body.get('alternate_greetings', []),
+                  character_book=body.get('character_book'), extensions=body.get('extensions', {}))
+    return fields
+
+
+def _complete_card_update(*, data, return_new_id, return_new_filename, current_full_path,
+                          final_return_obj, current_version_id, should_touch_file, link_changed,
+                          source_link_val, tag_merge_info=None, canonical_ui=None,
+                          index_sync_pending=False):
+    """Shared synchronous source actions and published plugin hook for all saves."""
+    before_actions_revision = build_file_source_revision(current_full_path)
+    try:
+        before_ui_revision = get_ui_data_revision()
+    except OSError:
+        # A transient stat failure still requires a verified read after the actions.
+        before_ui_revision = None
+    # 如果链接发生变化，执行来源链接专用自动化动作。
+    forum_tags_result = None
+    source_title_sync_result = None
+    canonical_fields = {}
+    canonical_fields_id = return_new_id
+    if link_changed:
+        # 保存链接本身不检查网络，只清空旧来源的标题和时间基线。
+        source_title_sync_result = prepare_source_link_for_card(
+            return_new_id,
+            source_link=source_link_val,
+        )
+        try:
+            forum_tags_result = auto_run_forum_tags_on_link_update(return_new_id)
+            if forum_tags_result and forum_tags_result.get('run'):
+                result_payload = forum_tags_result.get('result', {}) or {}
+                tag_merge_info = result_payload.get('tag_merge')
+                source_title_sync_result = (
+                    result_payload.get('source_baseline_refreshed')
+                    or source_title_sync_result
+                )
+
+                if final_return_obj and 'tags' in final_return_obj:
+                    final_tags = result_payload.get('final_tags')
+                    if isinstance(final_tags, list):
+                        final_return_obj['tags'] = _normalize_tag_list(final_tags)
+                        canonical_fields['tags'] = final_return_obj['tags']
+                    elif result_payload.get('tags_added'):
+                        existing_tags = set(final_return_obj['tags'] or [])
+                        existing_tags.update(result_payload.get('tags_added') or [])
+                        final_return_obj['tags'] = list(existing_tags)
+                        canonical_fields['tags'] = final_return_obj['tags']
+
+                creator_sync_info = result_payload.get('creator_sync') or {}
+                if (
+                    isinstance(final_return_obj, dict)
+                    and creator_sync_info.get('success')
+                    and creator_sync_info.get('changed')
+                ):
+                    final_return_obj['creator'] = creator_sync_info.get('creator', '')
+                    canonical_fields['creator'] = final_return_obj['creator']
+        except Exception as e:
+            logger.warning(f"链接更新后自动抓取论坛标签失败: {e}")
+        if (
+            isinstance(final_return_obj, dict)
+            and isinstance(source_title_sync_result, dict)
+            and source_title_sync_result.get('source_update')
+        ):
+            final_return_obj['source_update'] = source_title_sync_result['source_update']
+            final_return_obj['source_title'] = source_title_sync_result['source_update'].get('source_title', '')
+
+    # 来源动作只由“更新来源链接后”或手动执行入口触发。
+    # 卡片内容更新、封面替换和导入完成后不再直接访问来源，避免绕过触发场景配置。
+
+    # 通知插件：卡片已更新（放在 return 之前，仅成功路径派发）
+    try:
+        from core.plugins import hooks
+
+        if not index_sync_pending:
+            hooks.emit('card.updated', {
+                'card_id': return_new_id,
+                'changed_fields': sorted(data.keys()) if isinstance(data, dict) else [],
+            })
+    except Exception:
+        logger.debug('card.updated hook 派发失败', exc_info=True)
+
+    refreshed_source_revision = build_file_source_revision(current_full_path)
+    synchronous_file_change = refreshed_source_revision != before_actions_revision
+    if synchronous_file_change:
+        # The new revision must travel with its body baseline. Normal UI saves stay
+        # on the stat-only path; source actions and synchronous plugins may write any field.
+        try:
+            canonical_fields = _read_canonical_card_fields(current_full_path)
+            if build_file_source_revision(current_full_path) != refreshed_source_revision:
+                raise OSError('读取同步操作结果时卡片再次变化，请重新载入详情后再保存')
+        except OSError as exc:
+            return jsonify({'success': False, 'file_modified': True, 'ui_data_saved': True,
+                            'detail_reload_required': True, 'msg': str(exc)})
+        canonical_fields_id = (canonical_ui or {}).get('id') or current_version_id or return_new_id
+        if final_return_obj is not None and canonical_fields_id == return_new_id:
+            final_return_obj = {**final_return_obj, **{
+                key: value for key, value in canonical_fields.items() if key in final_return_obj
+            }, 'char_version': canonical_fields['character_version']}
+    try:
+        if before_ui_revision is None or get_ui_data_revision() != before_ui_revision:
+            target_id = (canonical_ui or {}).get('id') or current_version_id or return_new_id
+            bundle_dir = ((final_return_obj or {}).get('bundle_dir')
+                          or (data.get('bundle_dir') if data.get('save_ui_to_bundle') else ''))
+            target_ui, leader_ui = reconcile_card_ui_fields(
+                target_id, return_new_id, bundle_dir=bundle_dir, loader=load_ui_data,
+            )
+            canonical_ui = {**(canonical_ui or {}), **target_ui, 'id': target_id}
+            if final_return_obj is not None:
+                final_return_obj = {**final_return_obj, **leader_ui}
+    except (OSError, UiDataLoadError):
+        logger.warning('无法读取同步保存动作后的 UI 数据: %s', return_new_id, exc_info=True)
+        return jsonify({'success': False, 'ui_data_saved': True,
+                        'file_modified': should_touch_file or synchronous_file_change,
+                        'detail_reload_required': True,
+                        'msg': '数据已保存，但无法确认同步操作后的最新备注，请重新载入详情后再保存'})
+    if final_return_obj is not None and (not canonical_ui or not current_version_id):
+        final_return_obj['source_revision'] = refreshed_source_revision
+    if canonical_ui is not None:
+        canonical_ui['source_revision'] = refreshed_source_revision
+
+    return jsonify({
+        "canonical_ui": canonical_ui,
+        "canonical_fields": canonical_fields,
+        "canonical_fields_id": canonical_fields_id,
+        "canonical_body": synchronous_file_change,
+        "success": not index_sync_pending,
+        **({'ui_data_saved': True, 'index_sync_pending': True, 'retryable': True,
+            'msg': '备注已保存，但搜索索引同步失败；请重试保存以完成同步，草稿将保留'}
+           if index_sync_pending else {}),
+        "file_modified": should_touch_file or synchronous_file_change,
+        "new_id": return_new_id,
+        "new_filename": return_new_filename,
+        "new_image_url": final_return_obj.get('image_url') if final_return_obj else None,
+        "updated_card": final_return_obj,
+        "current_version_id": current_version_id,
+        "forum_tags_fetched": forum_tags_result.get('result') if forum_tags_result else None,
+        "source_title_tags": (
+            (forum_tags_result.get('result') or {}).get('source_title_tags')
+            if forum_tags_result else None
+        ),
+        "creator_sync": (
+            (forum_tags_result.get('result') or {}).get('creator_sync')
+            if forum_tags_result else None
+        ),
+        "source_title_sync": source_title_sync_result,
+        "tag_merge": tag_merge_info
+    })
+
+
 @bp.route('/api/update_card', methods=['POST'])
 @request_card_locks
 def api_update_card():
@@ -1530,6 +1695,20 @@ def api_update_card():
         is_renamed = False
         if os.path.abspath(old_full_path).lower() != os.path.abspath(new_full_path).lower():
             is_renamed = True
+
+        if ui_only and not force_set_cover and not is_renamed:
+            target_id = (data.get('version_id') or raw_id) if data.get('save_ui_to_bundle') else raw_id
+            if not _is_safe_rel_path(target_id):
+                return jsonify({'success': False, 'msg': '非法版本路径'}), 400
+            result = update_card_ui_fields(
+                target_id, data, cards_folder=CARDS_FOLDER, db_path=DEFAULT_DB_PATH,
+                loader=load_ui_data, saver=save_ui_data,
+            )
+            if not result['success']:
+                return jsonify(result), 500
+            return _complete_card_update(data=data, current_full_path=os.path.join(
+                                             CARDS_FOLDER, target_id.replace('/', os.sep)),
+                                         should_touch_file=False, **result['completion'])
 
         def _cached_import_time_for(card_id):
             cache_entry = ctx.cache.id_map.get(card_id) if card_id else None
@@ -1963,101 +2142,101 @@ def api_update_card():
                 bundle_dir = os.path.relpath(dir_path, CARDS_FOLDER).replace('\\', '/')
 
         if bundle_dir:
-            with ctx.cache.lock:
-                db_path = DEFAULT_DB_PATH
-                version_list = []
+            db_path = DEFAULT_DB_PATH
+            version_list = []
                 
-                with sqlite3.connect(db_path, timeout=10) as conn:
-                    conn.row_factory = sqlite3.Row
-                    escaped_bundle_dir = bundle_dir.replace('_', r'\_').replace('%', r'\%')
+            with sqlite3.connect(db_path, timeout=10) as conn:
+                conn.row_factory = sqlite3.Row
+                escaped_bundle_dir = bundle_dir.replace('_', r'\_').replace('%', r'\%')
 
+                cursor = conn.execute(
+                    "SELECT id, char_name, last_modified, char_version FROM card_metadata WHERE category = ?",
+                    (bundle_dir,)
+                )
+                rows = cursor.fetchall()
+
+                if not rows:
                     cursor = conn.execute(
-                        "SELECT id, char_name, last_modified, char_version FROM card_metadata WHERE category = ?",
-                        (bundle_dir,)
+                        "SELECT id, char_name, last_modified, char_version FROM card_metadata WHERE id LIKE ? || '/%' ESCAPE '\\'",
+                        (escaped_bundle_dir,)
                     )
                     rows = cursor.fetchall()
 
-                    if not rows:
-                        cursor = conn.execute(
-                            "SELECT id, char_name, last_modified, char_version FROM card_metadata WHERE id LIKE ? || '/%' ESCAPE '\\'",
-                            (escaped_bundle_dir,)
-                        )
-                        rows = cursor.fetchall()
+                for row in rows:
+                    v_obj = {
+                        "id": row['id'],
+                        "filename": os.path.basename(row['id']),
+                        "last_modified": row['last_modified'],
+                        "char_version": row['char_version'],
+                        "char_name": row['char_name'],
+                        "category": bundle_dir,
+                        "bundle_dir": bundle_dir
+                    }
 
-                    for row in rows:
-                        v_obj = {
-                            "id": row['id'],
-                            "filename": os.path.basename(row['id']),
-                            "last_modified": row['last_modified'],
-                            "char_version": row['char_version'],
-                            "char_name": row['char_name'],
-                            "category": bundle_dir,
-                            "bundle_dir": bundle_dir
-                        }
+                    if v_obj['id'] == final_rel_path_id:
+                        v_obj['last_modified'] = current_mtime
 
-                        if v_obj['id'] == final_rel_path_id:
-                            v_obj['last_modified'] = current_mtime
+                    version_list.append(v_obj)
 
-                        version_list.append(v_obj)
+            if version_list:
+                # 重新排序
+                version_list.sort(key=lambda x: x['last_modified'], reverse=True)
 
-                if version_list:
-                    # 重新排序
-                    version_list.sort(key=lambda x: x['last_modified'], reverse=True)
+                new_leader_stub = version_list[0]
+                bundle_card = new_leader_stub.copy()
 
-                    new_leader_stub = version_list[0]
-                    bundle_card = new_leader_stub.copy()
+                # 补全 Leader 信息
+                if bundle_card['id'] == target_version_id:
+                    bundle_card.update(update_payload)
+                else:
+                    if new_leader_stub['id'] in ctx.cache.id_map:
+                        cached = ctx.cache.id_map[new_leader_stub['id']]
+                        bundle_card.update(cached)
 
-                    # 补全 Leader 信息
-                    if bundle_card['id'] == target_version_id:
-                        bundle_card.update(update_payload)
-                    else:
-                        if new_leader_stub['id'] in ctx.cache.id_map:
-                            cached = ctx.cache.id_map[new_leader_stub['id']]
-                            bundle_card.update(cached)
+                bundle_card['is_bundle'] = True
+                bundle_card['bundle_dir'] = bundle_dir
 
-                    bundle_card['is_bundle'] = True
-                    bundle_card['bundle_dir'] = bundle_dir
+                bundle_card['versions'] = []
+                cover_id = version_list[0]['id']  # 提前定义封面ID供循环使用
+                for v in version_list:
+                    ver_info = {
+                        "id": v['id'],
+                        "filename": v['filename'],
+                        "last_modified": v['last_modified'],
+                        "import_time": get_import_time(ui_data, v['id'], v['last_modified']),
+                        "char_version": v.get('char_version', '')
+                    }
+                    ver_remark = get_version_remark(ui_data, bundle_dir, v['id'], cover_id)
+                    if ver_remark:
+                        ver_info['ui_summary'] = ver_remark.get('summary', '')
+                        ver_info['source_link'] = ver_remark.get('link', '')
+                        ver_info['resource_folder'] = ver_remark.get('resource_folder', '')
+                    bundle_card['versions'].append(ver_info)
 
-                    bundle_card['versions'] = []
-                    cover_id = version_list[0]['id']  # 提前定义封面ID供循环使用
-                    for v in version_list:
-                        ver_info = {
-                            "id": v['id'],
-                            "filename": v['filename'],
-                            "last_modified": v['last_modified'],
-                            "import_time": get_import_time(ui_data, v['id'], v['last_modified']),
-                            "char_version": v.get('char_version', '')
-                        }
-                        ver_remark = get_version_remark(ui_data, bundle_dir, v['id'], cover_id)
-                        if ver_remark:
-                            ver_info['ui_summary'] = ver_remark.get('summary', '')
-                            ver_info['source_link'] = ver_remark.get('link', '')
-                            ver_info['resource_folder'] = ver_remark.get('resource_folder', '')
-                        bundle_card['versions'].append(ver_info)
+                ui_info = ui_data.get(bundle_dir, {})
 
-                    ui_info = ui_data.get(bundle_dir, {})
+                # 总是重新获取 cover 的备注，不使用可能包含非主版本备注的 ui_summary_val
+                cover_remark = get_version_remark(ui_data, bundle_dir, cover_id, cover_id)
+                if cover_remark:
+                    bundle_card['ui_summary'] = cover_remark.get('summary', '')
+                    bundle_card['source_link'] = cover_remark.get('link', '')
+                    bundle_card['resource_folder'] = cover_remark.get('resource_folder', '')
+                else:
+                    bundle_card['ui_summary'] = ui_info.get('summary', '')
+                    bundle_card['source_link'] = ui_info.get('link', '')
+                    bundle_card['resource_folder'] = ui_info.get('resource_folder', '')
 
-                    # 总是重新获取 cover 的备注，不使用可能包含非主版本备注的 ui_summary_val
-                    cover_remark = get_version_remark(ui_data, bundle_dir, cover_id, cover_id)
-                    if cover_remark:
-                        bundle_card['ui_summary'] = cover_remark.get('summary', '')
-                        bundle_card['source_link'] = cover_remark.get('link', '')
-                        bundle_card['resource_folder'] = cover_remark.get('resource_folder', '')
-                    else:
-                        bundle_card['ui_summary'] = ui_info.get('summary', '')
-                        bundle_card['source_link'] = ui_info.get('link', '')
-                        bundle_card['resource_folder'] = ui_info.get('resource_folder', '')
+                bundle_card['source_update'] = get_source_update_state(ui_data, bundle_dir)
+                bundle_card['source_title'] = bundle_card['source_update'].get('source_title', '')
 
-                    bundle_card['source_update'] = get_source_update_state(ui_data, bundle_dir)
-                    bundle_card['source_title'] = bundle_card['source_update'].get('source_title', '')
+                # URL
+                encoded_id = quote(bundle_card['id'])
+                ts = int(time.time())
+                bundle_card['image_url'] = f"/cards_file/{encoded_id}?t={ts}"
+                bundle_card['thumb_url'] = f"/api/thumbnail/{encoded_id}?t={ts}"
+                bundle_card['import_time'] = get_import_time(ui_data, bundle_dir, bundle_card.get('last_modified', current_mtime))
 
-                    # URL
-                    encoded_id = quote(bundle_card['id'])
-                    ts = int(time.time())
-                    bundle_card['image_url'] = f"/cards_file/{encoded_id}?t={ts}"
-                    bundle_card['thumb_url'] = f"/api/thumbnail/{encoded_id}?t={ts}"
-                    bundle_card['import_time'] = get_import_time(ui_data, bundle_dir, bundle_card.get('last_modified', current_mtime))
-
+                with ctx.cache.lock:
                     # 全局缓存映射
                     ctx.cache.bundle_map[bundle_dir] = bundle_card['id']
                     ctx.cache.id_map[bundle_card['id']] = bundle_card
@@ -2073,19 +2252,9 @@ def api_update_card():
                     if not found_in_list:
                         ctx.cache.cards.insert(0, bundle_card)
 
-                    # 如果保存的是非主版本，返回该版本的备注信息而不是主版本的
-                    # 这样前端在刷新详情时会显示正确的版本备注
-                    if target_version_id and target_version_id != bundle_card['id']:
-                        # 获取当前保存版本的备注
-                        target_ver_remark = get_version_remark(ui_data, bundle_dir, target_version_id, cover_id)
-                        if target_ver_remark:
-                            bundle_card['ui_summary'] = target_ver_remark.get('summary', '')
-                            bundle_card['source_link'] = target_ver_remark.get('link', '')
-                            bundle_card['resource_folder'] = target_ver_remark.get('resource_folder', '')
-                        # 记录当前正在查看的版本ID，供前端使用
-                        bundle_card['current_view_version_id'] = target_version_id
 
-                    final_return_obj = bundle_card
+                final_return_obj = bundle_card
+
 
         # 确定返回给前端的 new_id
         # Bundle模式下：始终返回主版本ID，避免前端activeCard被切换
@@ -2160,90 +2329,15 @@ def api_update_card():
                 # 记录当前保存的版本ID，供前端刷新详情使用
                 current_version_id = target_version_id if target_version_id != final_return_obj['id'] else None
         
-        # 如果链接发生变化，执行来源链接专用自动化动作。
-        forum_tags_result = None
-        source_title_sync_result = None
-        if link_changed:
-            # 保存链接本身不检查网络，只清空旧来源的标题和时间基线。
-            source_title_sync_result = prepare_source_link_for_card(
-                return_new_id,
-                source_link=source_link_val,
-                ui_data=ui_data,
-            )
-            try:
-                forum_tags_result = auto_run_forum_tags_on_link_update(return_new_id)
-                if forum_tags_result and forum_tags_result.get('run'):
-                    result_payload = forum_tags_result.get('result', {}) or {}
-                    tag_merge_info = result_payload.get('tag_merge')
-                    source_title_sync_result = (
-                        result_payload.get('source_baseline_refreshed')
-                        or source_title_sync_result
-                    )
-
-                    if final_return_obj and 'tags' in final_return_obj:
-                        final_tags = result_payload.get('final_tags')
-                        if isinstance(final_tags, list):
-                            final_return_obj['tags'] = _normalize_tag_list(final_tags)
-                        elif result_payload.get('tags_added'):
-                            existing_tags = set(final_return_obj['tags'] or [])
-                            existing_tags.update(result_payload.get('tags_added') or [])
-                            final_return_obj['tags'] = list(existing_tags)
-
-                    creator_sync_info = result_payload.get('creator_sync') or {}
-                    if (
-                        isinstance(final_return_obj, dict)
-                        and creator_sync_info.get('success')
-                        and creator_sync_info.get('changed')
-                    ):
-                        final_return_obj['creator'] = creator_sync_info.get('creator', '')
-            except Exception as e:
-                logger.warning(f"链接更新后自动抓取论坛标签失败: {e}")
-            if (
-                isinstance(final_return_obj, dict)
-                and isinstance(source_title_sync_result, dict)
-                and source_title_sync_result.get('source_update')
-            ):
-                final_return_obj['source_update'] = source_title_sync_result['source_update']
-                final_return_obj['source_title'] = source_title_sync_result['source_update'].get('source_title', '')
-
-        # 来源动作只由“更新来源链接后”或手动执行入口触发。
-        # 卡片内容更新、封面替换和导入完成后不再直接访问来源，避免绕过触发场景配置。
-
-        # 通知插件：卡片已更新（放在 return 之前，仅成功路径派发）
-        try:
-            from core.plugins import hooks
-
-            hooks.emit('card.updated', {
-                'card_id': return_new_id or raw_id,
-                'changed_fields': sorted(data.keys()) if isinstance(data, dict) else [],
-            })
-        except Exception:
-            logger.debug('card.updated hook 派发失败', exc_info=True)
-
-        refreshed_source_revision = build_file_source_revision(current_full_path)
-        if final_return_obj is not None:
-            final_return_obj['source_revision'] = refreshed_source_revision
-
-        return jsonify({
-            "success": True,
-            "file_modified": should_touch_file,
-            "new_id": return_new_id,
-            "new_filename": return_new_filename,
-            "new_image_url": final_return_obj['image_url'] if final_return_obj else None,
-            "updated_card": final_return_obj,
-            "current_version_id": current_version_id,
-            "forum_tags_fetched": forum_tags_result.get('result') if forum_tags_result else None,
-            "source_title_tags": (
-                (forum_tags_result.get('result') or {}).get('source_title_tags')
-                if forum_tags_result else None
-            ),
-            "creator_sync": (
-                (forum_tags_result.get('result') or {}).get('creator_sync')
-                if forum_tags_result else None
-            ),
-            "source_title_sync": source_title_sync_result,
-            "tag_merge": tag_merge_info
-        })
+        return _complete_card_update(
+            data=data, return_new_id=return_new_id, return_new_filename=return_new_filename,
+            current_full_path=current_full_path, final_return_obj=final_return_obj,
+            current_version_id=current_version_id, should_touch_file=should_touch_file,
+            link_changed=link_changed, source_link_val=source_link_val,
+            tag_merge_info=tag_merge_info,
+            canonical_ui={'id': target_version_id, 'ui_summary': ui_summary_val,
+                          'source_link': source_link_val, 'resource_folder': res_folder_val},
+        )
 
     except Exception as e:
         logger.error(f"Update error: {e}")

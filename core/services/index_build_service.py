@@ -5,6 +5,7 @@ import sqlite3
 import stat
 from functools import wraps
 
+from core.context import ctx
 from core.config import BASE_DIR, CARDS_FOLDER, DEFAULT_DB_PATH, load_config
 from core.data.index_runtime_store import get_active_generation
 from core.data.sqlite_capabilities import supports_fts5
@@ -719,6 +720,23 @@ def refresh_worldinfo_category_stats(conn, cfg: dict | None = None) -> bool:
     return True
 
 
+def _card_ui_projection(ui_data, card_id):
+    from core.data.ui_store import get_version_remark, VERSION_REMARKS_KEY
+    from core.services.card_service import resolve_ui_key
+
+    ui_key = resolve_ui_key(card_id)
+    parent = os.path.dirname(card_id).replace('\\', '/')
+    parent_entry = ui_data.get(parent)
+    if ui_key == card_id and isinstance(parent_entry, dict) and VERSION_REMARKS_KEY in parent_entry:
+        ui_key = parent
+    if ui_key != card_id:
+        cover_id = (getattr(ctx.cache, 'bundle_map', {}) or {}).get(ui_key)
+        summary = get_version_remark(ui_data, ui_key, card_id, cover_id).get('summary', '')
+    else:
+        summary = (ui_data.get(card_id) or {}).get('summary', '')
+    return ui_key, str(summary)
+
+
 def apply_card_increment(conn, card_id: str, source_path: str = '', *, remove_entity_ids: list[str] | None = None) -> bool:
     generation = get_active_generation(conn, 'cards')
     if generation <= 0:
@@ -744,11 +762,11 @@ def apply_card_increment(conn, card_id: str, source_path: str = '', *, remove_en
 
     ui_data = load_ui_data()
     tags = json.loads(row['tags'] or '[]') if row['tags'] else []
-    summary = str((ui_data.get(card_id) or {}).get('summary', ''))
+    ui_key, summary = _card_ui_projection(ui_data, card_id)
     resolved_source_path = str(source_path or os.path.join(CARDS_FOLDER, card_id.replace('/', os.sep)))
     filename = str(card_id).split('/')[-1]
     last_modified = float(row['last_modified'] or 0)
-    import_time = get_import_time(ui_data, card_id, last_modified)
+    import_time = get_import_time(ui_data, ui_key, last_modified)
     conn.execute(
         '''
         INSERT OR REPLACE INTO index_entities_v2(
@@ -812,10 +830,10 @@ def build_cards_generation(conn, generation: int, progress_cb=None):
     for index, row in enumerate(rows, start=1):
         entity_id = f"card::{row['id']}"
         tags = json.loads(row['tags'] or '[]') if row['tags'] else []
-        summary = str((ui_data.get(row['id']) or {}).get('summary', ''))
+        ui_key, summary = _card_ui_projection(ui_data, row['id'])
         source_path = os.path.join(CARDS_FOLDER, row['id'].replace('/', os.sep))
         last_modified = float(row['last_modified'] or 0)
-        import_time = get_import_time(ui_data, row['id'], last_modified)
+        import_time = get_import_time(ui_data, ui_key, last_modified)
         conn.execute(
             '''
             INSERT OR REPLACE INTO index_entities_v2(

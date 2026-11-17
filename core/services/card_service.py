@@ -16,6 +16,11 @@ from core.data.db_session import get_db
 from core.data.ui_store import (
     load_ui_data,
     save_ui_data,
+    update_ui_data,
+    is_ui_data_degraded,
+    UiDataLoadError,
+    get_version_remark,
+    set_version_remark,
     VERSION_REMARKS_KEY,
     ensure_import_time,
     get_import_time,
@@ -57,6 +62,174 @@ from core.utils.card_identity import normalize_card_uid
 from core.automation.replace_text import apply_replace_text
 
 logger = logging.getLogger(__name__)
+
+
+def reconcile_card_ui_fields(card_id, leader_id, *, bundle_dir='', loader=None):
+    """Read final synchronous UI results and patch only the corresponding cache projections."""
+    ui_data = (loader or load_ui_data)()
+    if is_ui_data_degraded():
+        raise UiDataLoadError('无法确认同步操作后的最新 UI 数据，请重新载入详情后再保存')
+    ui_key = bundle_dir or resolve_ui_key(card_id)
+    is_bundle = ui_key != card_id
+
+    def fields(version_id):
+        remark = (get_version_remark(ui_data, ui_key, version_id, leader_id)
+                  if is_bundle else ui_data.get(ui_key, {}))
+        return {'ui_summary': remark.get('summary', ''), 'source_link': remark.get('link', ''),
+                'resource_folder': remark.get('resource_folder', '')}
+
+    target_fields, leader_fields = fields(card_id), fields(leader_id)
+    # File reads and plugin handlers have finished before taking the cache lock.
+    with ctx.cache.lock:
+        leader = ctx.cache.id_map.get(leader_id)
+        if leader is not None:
+            ctx.cache._mutation_version += 1
+            leader.update(leader_fields)
+            if is_bundle:
+                for version in leader.get('versions', []):
+                    version.update(fields(version['id']))
+    return target_fields, leader_fields
+
+
+def update_card_ui_fields(card_id, data, *, cards_folder=None, db_path=None,
+                          loader=None, saver=None):
+    """Persist only submitted UI fields. Caller holds the card operation lock."""
+    full_path = os.path.join(cards_folder or CARDS_FOLDER, card_id.replace('/', os.sep))
+    stat = os.stat(full_path)  # Access failures must abort, not become a deletion.
+    ui_key = resolve_ui_key(card_id)
+    bundle_dir = ui_key if ui_key != card_id else ''
+    requested_bundle = str(data.get('bundle_dir') or '').strip('/')
+    if data.get('save_ui_to_bundle') and requested_bundle:
+        bundle_dir = ui_key = requested_bundle
+    leader_id = ctx.cache.bundle_map.get(bundle_dir, card_id) if bundle_dir else card_id
+    if bundle_dir and bundle_dir not in ctx.cache.bundle_map:
+        with sqlite3.connect(db_path or DEFAULT_DB_PATH, timeout=30) as conn:
+            escaped = bundle_dir.replace('\\', '\\\\').replace('%', r'\%').replace('_', r'\_')
+            rows = conn.execute(
+                "SELECT id FROM card_metadata WHERE id LIKE ? ESCAPE '\\' ORDER BY last_modified DESC, id LIMIT 1",
+                (escaped + '/%',),
+            ).fetchall()
+        if rows:
+            leader_id = rows[0][0]
+    cover_id = leader_id if bundle_dir else None
+    canonical = {}
+    changed = {}
+    leader_remark = {}
+
+    def mutate(ui_data):
+        entry = ui_data.setdefault(ui_key, {})
+        old = (get_version_remark(ui_data, ui_key, card_id, cover_id) if bundle_dir else entry)
+        values = {field: old.get(field, '') for field in ('summary', 'link', 'resource_folder')}
+        explicit_clear = set(data.get('ui_only_fields') or []) | set(data.get('clear_ui_fields') or [])
+        for request_field, stored_field in (
+            ('ui_summary', 'summary'), ('source_link', 'link'), ('resource_folder', 'resource_folder'),
+        ):
+            if request_field not in data:
+                continue
+            value = str(data[request_field] or '')
+            if stored_field != 'summary':
+                value = value.strip()
+            if stored_field in ('link', 'resource_folder') and not value and request_field not in explicit_clear:
+                continue
+            changed[stored_field] = value != values[stored_field]
+            values[stored_field] = value
+        ensure_import_time(ui_data, ui_key, stat.st_mtime)
+        if bundle_dir:
+            set_version_remark(ui_data, ui_key, card_id, values, cover_id)
+        else:
+            entry.update(values)
+        canonical.update(ui_summary=values['summary'], source_link=values['link'],
+                         resource_folder=values['resource_folder'], id=card_id,
+                         source_revision=build_file_source_revision(full_path))
+        leader_remark.update(get_version_remark(ui_data, ui_key, leader_id, cover_id)
+                             if bundle_dir else values)
+
+    if not update_ui_data(mutate, allow_shrink=False, loader=loader, saver=saver):
+        return {'success': False, 'ui_data_save_failed': True,
+                'msg': '本地 UI 数据（备注/链接/资源目录）保存失败，请重试'}
+
+    index_sync_pending = False
+    summary_submitted = 'ui_summary' in data and (
+        changed.get('summary') or 'ui_only_fields' not in data
+        or 'ui_summary' in (data.get('ui_only_fields') or [])
+    )
+    if summary_submitted:
+        # A prior attempt may have committed UI data but failed its synchronous index
+        # update. Reconcile every explicit summary submission, including equal-value retries.
+        # Legacy requests can echo the old summary while explicitly targeting another UI field.
+        # The existing durable queue remains the recovery path if the caller goes away.
+        try:
+            sync_card_index_jobs(card_id=card_id, source_path=full_path, summary_changed=True)
+            conn = connect_index_db(db_path or DEFAULT_DB_PATH)
+            try:
+                try:
+                    apply_card_increment(conn, card_id, full_path)
+                except RuntimeError as exc:
+                    if 'cards active generation missing' not in str(exc):
+                        raise
+            finally:
+                conn.close()
+        except Exception:
+            logger.error('UI 数据已保存，但卡片备注索引同步失败: %s', card_id, exc_info=True)
+            index_sync_pending = True
+    if changed.get('resource_folder'):
+        owner_ids = {leader_id, card_id}
+        if bundle_dir:
+            with sqlite3.connect(db_path or DEFAULT_DB_PATH, timeout=30) as conn:
+                escaped = bundle_dir.replace('\\', '\\\\').replace('%', r'\%').replace('_', r'\_')
+                rows = conn.execute("SELECT id FROM card_metadata WHERE id LIKE ? ESCAPE '\\'",
+                                    (escaped + '/%',)).fetchall()
+            owner_ids.update(row[0] for row in rows if row[0].rsplit('/', 1)[0] == bundle_dir)
+        # A bundle binding is shared, but embedded books belong to individual files.
+        # Reconcile each affected owner using its own PNG/JSON, including cold-cache versions.
+        for owner_id in sorted(owner_ids):
+            owner_path = os.path.join(cards_folder or CARDS_FOLDER, owner_id.replace('/', os.sep))
+            sync_card_index_jobs(card_id=owner_id, source_path=owner_path, resource_folder_changed=True)
+
+    cache_item = ctx.cache.id_map.get(leader_id)
+    if cache_item is None:
+        with sqlite3.connect(db_path or DEFAULT_DB_PATH, timeout=30) as conn:
+            conn.row_factory = sqlite3.Row
+            rows = conn.execute('SELECT * FROM card_metadata WHERE id = ?', (leader_id,)).fetchall()
+        cache_item = dict(rows[0]) if rows else {'id': leader_id}
+        if isinstance(cache_item.get('tags'), str):
+            cache_item['tags'] = json.loads(cache_item['tags'])
+    cache_payload = {}
+    if card_id == leader_id:
+        cache_payload['ui_summary'] = canonical['ui_summary']
+    for stored, field in (('link', 'source_link'), ('resource_folder', 'resource_folder')):
+        if changed.get(stored):
+            cache_payload[field] = canonical[field]
+    if leader_id in ctx.cache.id_map:
+        ctx.cache.update_card_data(leader_id, cache_payload)
+        if bundle_dir:
+            # Patch the current version objects in place; a save on a sibling version
+            # must not replay an older snapshot of the leader or its shared binding.
+            with ctx.cache.lock:
+                if hasattr(ctx.cache, '_mutation_version'):
+                    ctx.cache._mutation_version += 1
+                for version in (ctx.cache.id_map.get(leader_id) or {}).get('versions', []):
+                    if version.get('id') == card_id and changed.get('summary'):
+                        version['ui_summary'] = canonical['ui_summary']
+                    for stored, field in (('link', 'source_link'), ('resource_folder', 'resource_folder')):
+                        if changed.get(stored):
+                            version[field] = canonical[field]
+        cache_item = ctx.cache.id_map.get(leader_id) or cache_item
+    else:
+        cache_payload.update(ui_summary=leader_remark.get('summary', ''),
+                             source_link=canonical['source_link'], resource_folder=canonical['resource_folder'])
+    result_card = {**cache_item, **cache_payload}
+    result_card['source_revision'] = build_file_source_revision(os.path.join(
+        cards_folder or CARDS_FOLDER, leader_id.replace('/', os.sep)))
+    result_card.setdefault('filename', os.path.basename(leader_id))
+    result_card.setdefault('image_url', f'/cards_file/{quote(leader_id)}?t={stat.st_mtime}')
+    result_card.setdefault('thumb_url', f'/api/thumbnail/{quote(leader_id)}?t={stat.st_mtime}')
+    return {'success': True, 'completion': {
+        'return_new_id': leader_id, 'return_new_filename': result_card['filename'],
+        'final_return_obj': result_card, 'current_version_id': card_id if card_id != leader_id else None,
+        'link_changed': bool(changed.get('link')), 'source_link_val': canonical['source_link'],
+        'canonical_ui': canonical, 'index_sync_pending': index_sync_pending,
+    }}
 
 
 class ResourceFolderBindingError(RuntimeError):
@@ -959,13 +1132,13 @@ def resolve_ui_key(card_id):
     如果是 Bundle，返回文件夹路径；否则返回 card_id。
     """
     # 1. 缓存命中 (主版本)
-    cache_item = ctx.cache.id_map.get(card_id)
+    cache_item = (getattr(ctx.cache, 'id_map', {}) or {}).get(card_id)
     if cache_item and cache_item.get('is_bundle'):
         return cache_item['bundle_dir']
     
     # 2. 检查父目录是否为 Bundle
     parent_dir = os.path.dirname(card_id).replace('\\', '/')
-    if parent_dir in ctx.cache.bundle_map:
+    if parent_dir in (getattr(ctx.cache, 'bundle_map', {}) or {}):
         return parent_dir
         
     return card_id

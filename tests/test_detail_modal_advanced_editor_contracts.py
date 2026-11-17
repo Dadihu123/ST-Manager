@@ -13,12 +13,16 @@ def run_detail_modal_runtime_check(script_body):
         f"""
         import {{ readFileSync }} from 'node:fs';
 
+        const draftSource = readFileSync({json.dumps(str(PROJECT_ROOT / 'static/js/utils/fieldDraft.js'))}, 'utf8');
+        const {{ createFieldDraft, CARD_UI_FIELDS, CARD_FILE_FIELDS }} = await import(
+          'data:text/javascript,' + encodeURIComponent(draftSource));
         const sourcePath = {json.dumps(str(source_path))};
         let source = readFileSync(sourcePath, 'utf8');
         source = source.replace(/^import[\\s\\S]*?;\\r?\\n/gm, '');
         source = source.replace('export default function detailModal()', 'function detailModal()');
 
         const stubs = `
+        const {{ createFieldDraft, CARD_UI_FIELDS, CARD_FILE_FIELDS }} = globalThis.__fieldDraft;
         const getCardDetail = async (...args) => globalThis.__getCardDetail
           ? globalThis.__getCardDetail(...args)
           : ({{ success: true, card: {{}} }});
@@ -37,7 +41,7 @@ def run_detail_modal_runtime_check(script_body):
         const apiSetAsBundleCover = async () => ({{ success: true }});
         const apiConvertToBundle = async () => ({{ success: true }});
         const apiToggleBundleMode = async () => ({{ success: true }});
-        const listChats = async () => ({{ success: true, items: [] }});
+        const listChats = (...args) => globalThis.__listChats ? globalThis.__listChats(...args) : Promise.resolve({{ success: true, items: [] }});
         const renameFolder = async () => ({{ success: true }});
         const performSystemAction = async () => ({{ success: true }});
         const readFileContent = async () => ({{ success: true }});
@@ -53,7 +57,8 @@ def run_detail_modal_runtime_check(script_body):
         const apiSetResourceFolder = async () => ({{ success: true }});
         const apiOpenResourceFolder = async () => ({{ success: true }});
         const apiCreateResourceFolder = async () => ({{ success: true }});
-        const getCleanedV3Data = (data) => JSON.parse(JSON.stringify(data || {{}}));
+        const getCleanedV3Data = (data) => {{ globalThis.__cleanCalls = (globalThis.__cleanCalls || 0) + 1;
+          return globalThis.__getCleanedV3Data ? globalThis.__getCleanedV3Data(data) : JSON.parse(JSON.stringify(data || {{}})); }};
         const updateWiKeys = () => {{}};
         const toStV3Worldbook = (value) => value;
         const formatDate = (value) => value;
@@ -72,7 +77,8 @@ def run_detail_modal_runtime_check(script_body):
         }};
         const renderUnifiedPreviewHost = () => '';
         const updateMixedPreviewContent = () => '';
-        const createAutoSaver = () => ({{ stop() {{}}, initBaseline() {{}}, start() {{}} }});
+        const createAutoSaver = () => ({{ stop() {{}}, initBaseline() {{}},
+          rebaseBaseline(...args) {{ globalThis.__rebaseBaseline?.(...args); }}, start() {{}} }});
         const wiHelpers = {{}};
         const clearActiveRuntimeContext = () => {{}};
         const setActiveRuntimeContext = () => {{}};
@@ -94,6 +100,7 @@ def run_detail_modal_runtime_check(script_body):
         }};
         `;
 
+        globalThis.__fieldDraft = {{ createFieldDraft, CARD_UI_FIELDS, CARD_FILE_FIELDS }};
         const module = await import(
           'data:text/javascript,' + encodeURIComponent(stubs + source + '\\nexport default detailModal;'),
         );
@@ -227,10 +234,11 @@ def test_detail_modal_runtime_save_sends_clear_ui_fields_only_when_unbound():
         modal.originalDataJson = JSON.stringify(modal.editingData);
         modal._syncPersistedBaseline = () => {};
 
+        modal.editingData.ui_summary = 'changed';
         await modal.saveChanges();
         const boundPayload = sentPayloads[sentPayloads.length - 1];
-        if (boundPayload.resource_folder !== 'hero-assets') {
-          throw new Error(`bound payload should keep the folder, got ${boundPayload.resource_folder}`);
+        if ('resource_folder' in boundPayload) {
+          throw new Error('Unchanged binding must be omitted from a note patch');
         }
         if (Array.isArray(boundPayload.clear_ui_fields) && boundPayload.clear_ui_fields.length > 0) {
           throw new Error(`bound payload must not clear ui fields, got ${JSON.stringify(boundPayload.clear_ui_fields)}`);
@@ -238,7 +246,7 @@ def test_detail_modal_runtime_save_sends_clear_ui_fields_only_when_unbound():
 
         // 原本就没有绑定时才显式声明清除，语义与旧行为保持一致
         modal.editingData.resource_folder = '';
-        modal.originalDataJson = JSON.stringify(modal.editingData);
+        modal.$store = { global: { showToast() {} } };
         await modal.saveChanges();
         const unboundPayload = sentPayloads[sentPayloads.length - 1];
         if (!Array.isArray(unboundPayload.clear_ui_fields) || unboundPayload.clear_ui_fields.length === 0) {
@@ -286,6 +294,7 @@ def test_detail_modal_runtime_conflict_offers_reload_or_retry_with_latest_revisi
         };
         modal.editingRevision = '100:1';
         modal.originalDataJson = JSON.stringify(modal.editingData);
+        modal.editingData.ui_summary = 'changed';
         modal._syncPersistedBaseline = () => {};
 
         // 选「取消」= 用最新修订号覆盖保存
@@ -310,6 +319,7 @@ def test_detail_modal_runtime_conflict_offers_reload_or_retry_with_latest_revisi
         modal._saveConflictRetried = false;
         modal.editingRevision = '300:3';
         modal.editingData.source_revision = '50:1';
+        modal.editingData.ui_summary = 'second draft';
         await modal.saveChanges();
         if (!refreshed.length) {
           throw new Error('reload branch should refresh the detail from disk');
@@ -331,6 +341,7 @@ def test_detail_modal_runtime_conflict_offers_reload_or_retry_with_latest_revisi
         modal._saveConflictRetried = false;
         modal.editingRevision = '100:1';
         modal.editingData.source_revision = '100:1';
+        modal.editingData.ui_summary = 'keep conflicting draft';
         const repeated = await modal.saveChanges();
         if (repeated !== false) {
           throw new Error('repeated conflict must not keep retrying forever');
@@ -338,8 +349,8 @@ def test_detail_modal_runtime_conflict_offers_reload_or_retry_with_latest_revisi
         if (sentPayloads.filter((p) => p.source_revision === '400:4').length > 1) {
           throw new Error('should retry at most once with the latest revision');
         }
-        if (!refreshed.length) {
-          throw new Error('second conflict should fall back to reloading from disk');
+        if (refreshed.length || modal.editingData.ui_summary !== 'keep conflicting draft' || !modal.hasUnsavedChanges) {
+          throw new Error('repeated conflict must preserve the unsaved draft until explicit reload');
         }
       """
     )

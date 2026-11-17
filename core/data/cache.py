@@ -59,6 +59,7 @@ class GlobalMetadataCache:
         self.category_counts = {}       # 分类计数 (路径 -> 数量)
         self.visible_folders = []       # 可见的文件夹列表 (用于前端目录树)
         self.lock = threading.Lock()    # 读写锁
+        self._mutation_version = 0
         self.initialized = False        # 是否已加载完成
 
     def _normalize_tags(self, tags):
@@ -109,7 +110,11 @@ class GlobalMetadataCache:
         [增量更新] 原地更新单个卡片对象的字段，无需重载数据库。
         用于编辑卡片信息后的快速响应。
         """
+        ui_data = _safe_load_ui_data() if not (
+            (self.id_map.get(card_id) or {}).get('source_update') or {}
+        ).get('last_status') else None
         with self.lock:
+            self._mutation_version += 1
             if card_id in self.id_map:
                 card = self.id_map[card_id]
                 
@@ -120,6 +125,8 @@ class GlobalMetadataCache:
                 if old_category != new_category:
                     self._update_category_count(old_category, -1)
                     self._update_category_count(new_category, 1)
+
+                old_tags = set(self._normalize_tags(card.get('tags')))
 
                 # 2. 批量更新字段
                 for k, v in new_data.items():
@@ -136,7 +143,7 @@ class GlobalMetadataCache:
                 card['thumb_url'] = f"/api/thumbnail/{encoded_id}?t={mtime}"
                 
                 # 4. 更新全局标签池
-                if 'tags' in new_data:
+                if 'tags' in new_data and old_tags != set(card['tags']):
                     self._rebuild_global_tags_locked()
 
                 source_update = card.get('source_update')
@@ -144,7 +151,7 @@ class GlobalMetadataCache:
                     not isinstance(source_update, dict)
                     or not source_update.get('last_status')
                 ):
-                    self._sync_source_update_fields(card, _safe_load_ui_data())
+                    self._sync_source_update_fields(card, ui_data or {})
 
                 return card
             return None
@@ -154,6 +161,7 @@ class GlobalMetadataCache:
         [增量更新] 文件夹移动/重命名时的批量更新。
         """
         with self.lock:
+            self._mutation_version += 1
             new_bundle_map = {}
             for bundle_dir, bundle_card_id in self.bundle_map.items():
                 if bundle_dir == old_path_prefix:
@@ -249,14 +257,23 @@ class GlobalMetadataCache:
     def update_tags_update(self, card_id, new_tags):
         """[增量更新] 更新标签"""
         with self.lock:
+            self._mutation_version += 1
             if card_id in self.id_map:
                 card = self.id_map[card_id]
-                card['tags'] = self._normalize_tags(new_tags)
-                self._rebuild_global_tags_locked()
+                normalized = self._normalize_tags(new_tags)
+                changed = set(self._normalize_tags(card.get('tags'))) != set(normalized)
+                card['tags'] = normalized
+                if changed:
+                    self._rebuild_global_tags_locked()
 
     def move_card_update(self, old_id, new_id, old_category, new_category, new_filename, full_path):
         """[增量更新] 单卡移动/重命名"""
+        try:
+            modified = os.path.getmtime(full_path)
+        except OSError:
+            modified = None
         with self.lock:
+            self._mutation_version += 1
             if old_id in self.id_map:
                 card = self.id_map.pop(old_id)
                 
@@ -264,10 +281,8 @@ class GlobalMetadataCache:
                 card['filename'] = new_filename
                 card['category'] = new_category
                 
-                try: 
-                    card['last_modified'] = os.path.getmtime(full_path)
-                except: 
-                    pass
+                if modified is not None:
+                    card['last_modified'] = modified
                 
                 encoded_id = quote(new_id)
                 mtime = card.get('last_modified', 0)
@@ -324,6 +339,7 @@ class GlobalMetadataCache:
     def move_bundle_update(self, old_bundle_path, new_bundle_path, old_category, new_category):
         """[增量更新] Bundle 文件夹移动"""
         with self.lock:
+            self._mutation_version += 1
             entries_to_move = []
             count_change = 0
             
@@ -362,8 +378,10 @@ class GlobalMetadataCache:
     def delete_card_update(self, card_id):
         """[增量更新] 删除卡片"""
         with self.lock:
+            self._mutation_version += 1
             if card_id in self.id_map:
                 card = self.id_map.pop(card_id)
+                self._rebuild_global_tags_locked()
                 if card in self.cards:
                     self.cards.remove(card)
                     self._update_category_count(card['category'], -1)
@@ -371,6 +389,7 @@ class GlobalMetadataCache:
     def delete_bundle_update(self, bundle_dir):
         """[增量更新] 删除 Bundle"""
         with self.lock:
+            self._mutation_version += 1
             ids_to_remove = []
             category = ""
             found_main = False
@@ -387,14 +406,17 @@ class GlobalMetadataCache:
                 if card in self.cards:
                     self.cards.remove(card)
             
+            if ids_to_remove:
+                self._rebuild_global_tags_locked()
             if found_main:
                 self._update_category_count(category, -1)
 
     def add_card_update(self, new_card_data):
         """[增量更新] 新增卡片"""
+        ui_data = _safe_load_ui_data()
         with self.lock:
+            self._mutation_version += 1
             new_card_data['tags'] = self._normalize_tags(new_card_data.get('tags'))
-            ui_data = _safe_load_ui_data()
             ui_key = (
                 new_card_data.get('bundle_dir')
                 if new_card_data.get('is_bundle')
@@ -483,6 +505,14 @@ class GlobalMetadataCache:
             return None
 
     def reload_from_db(self, *, strict=False):
+        # Build outside the cache lock. Retry if an incremental write overtook this snapshot.
+        for _ in range(3):
+            if self._reload_from_db_once(strict=strict) is not False:
+                return
+        if strict:
+            raise RuntimeError('缓存重载期间发生并发修改，请重试')
+
+    def _reload_from_db_once(self, *, strict=False):
         """
         [全量加载] 从数据库和 UI Store 读取所有数据并重建内存缓存。
         此操作通常在后台线程执行。
@@ -515,227 +545,232 @@ class GlobalMetadataCache:
                 conn.close()
 
         with self.lock:
+            expected_version = self._mutation_version
+        try:
+            physical_folders = set()
+            physical_bundle_dirs = set()
             try:
-                physical_folders = set()
-                physical_bundle_dirs = set()
-                try:
-                    walker = walk_directory_strict if strict else os.walk
-                    for root, dirs, files in walker(CARDS_FOLDER):
-                        # 排除以 . 开头的隐藏目录 (如 .trash, .git)
-                        dirs[:] = [d for d in dirs if not d.startswith('.')]
-                        
-                        # 计算相对路径
-                        rel_path = os.path.relpath(root, CARDS_FOLDER)
-                        if rel_path == ".":
-                            # 根目录下的子文件夹
-                            for d in dirs:
-                                physical_folders.add(d)
-                        else:
-                            # 子目录下的子文件夹
-                            current_rel = rel_path.replace('\\', '/')
-                            physical_folders.add(current_rel)
-                            if '.bundle' in files:
-                                physical_bundle_dirs.add(current_rel)
-                            for d in dirs:
-                                physical_folders.add(f"{current_rel}/{d}")
-                except Exception as fs_e:
-                    if strict:
-                        raise
-                    logger.error(f"Scanning physical folders failed: {fs_e}")
+                walker = walk_directory_strict if strict else os.walk
+                for root, dirs, files in walker(CARDS_FOLDER):
+                    # 排除以 . 开头的隐藏目录 (如 .trash, .git)
+                    dirs[:] = [d for d in dirs if not d.startswith('.')]
 
-                # 1. 加载数据
-                # ui_data 读取失败时不清空缓存：卡片仍从 DB 正常加载，只是本次
-                # 不写回 ui_data（避免把空数据覆盖到磁盘），待下次读取成功后恢复。
-                ui_data_readable = True
-                try:
-                    ui_data = load_ui_data()
-                except UiDataLoadError as ui_exc:
-                    if strict:
-                        raise
-                    logger.error('缓存重载: ui_data.json 读取失败，本次跳过 UI 数据写回: %s', ui_exc)
-                    ui_data = {}
-                    ui_data_readable = False
-                ui_data_stale_cleaned = False
-                rows, rows_include_uid = execute_with_retry(_do_fetch_all, max_retries=5)
-                
-                raw_cards = []
-                for row in rows:
-                    try: 
-                        tags = json.loads(row['tags']) if row['tags'] else []
-                    except: 
-                        tags = []
-                    tags = self._normalize_tags(tags)
-                    
-                    card_id = row['id'].replace('\\', '/')
-                    dir_path = card_id.rsplit('/', 1)[0] if '/' in card_id else ""
-
-                    card_data = {
-                        "id": card_id,
-                        "filename": os.path.basename(card_id),
-                        "char_name": row['char_name'],
-                        "tags": tags,
-                        "category": row['category'].replace('\\', '/'),
-                        "creator": row['creator'],
-                        "char_version": row['char_version'],
-                        "last_modified": row['last_modified'],
-                        "file_hash": row['file_hash'],
-                        "token_count": row['token_count'] if 'token_count' in row.keys() else 0,
-                        "dir_path": dir_path,
-                        "is_bundle": False, 
-                        "versions": [],
-                        "is_favorite": bool(row['is_favorite']),
-                        "card_uid": normalize_card_uid(row['card_uid']) if rows_include_uid else '',
-                    }
-                    raw_cards.append(card_data)
-
-                legacy_binding_map = {
-                    card['id']: card.get('card_uid')
-                    for card in raw_cards
-                    if card.get('card_uid')
-                }
-                if migrate_legacy_card_bindings(ui_data, legacy_binding_map):
-                    ui_data_stale_cleaned = True
-
-                # 2. 处理 Bundle 聚合逻辑
-                bundle_dirs = set(physical_bundle_dirs)
-                unique_dirs = set(c['dir_path'] for c in raw_cards)
-                
-                # 扫描文件系统确认 .bundle 标记 (这步可能略慢，但通常文件夹不多)
-                for d in unique_dirs:
-                    if not d: continue
-                    sys_path_d = d.replace('/', os.sep)
-                    full_dir_path = os.path.join(CARDS_FOLDER, sys_path_d)
-                    if os.path.exists(os.path.join(full_dir_path, '.bundle')):
-                        bundle_dirs.add(d)
-
-                final_cards = []
-                bundles = {}
-                new_bundle_map = {}
-
-                old_bundle_map = dict(self.bundle_map)
-                unbundled_dirs = set(old_bundle_map.keys()) - bundle_dirs
-
-                if unbundled_dirs:
-                    for unbundled_dir in unbundled_dirs:
-                        migrated = migrate_bundle_remarks_to_versions(ui_data, unbundled_dir)
-                        if migrated > 0:
-                            ui_data_stale_cleaned = True
-
-                for card in raw_cards:
-                    d = card['dir_path']
-                    if d in bundle_dirs:
-                        if d not in bundles: bundles[d] = []
-                        bundles[d].append(card)
+                    # 计算相对路径
+                    rel_path = os.path.relpath(root, CARDS_FOLDER)
+                    if rel_path == ".":
+                        # 根目录下的子文件夹
+                        for d in dirs:
+                            physical_folders.add(d)
                     else:
-                        if self._enrich_card_ui(card, ui_data, is_bundle=False):
-                            ui_data_stale_cleaned = True
-                        final_cards.append(card)
+                        # 子目录下的子文件夹
+                        current_rel = rel_path.replace('\\', '/')
+                        physical_folders.add(current_rel)
+                        if '.bundle' in files:
+                            physical_bundle_dirs.add(current_rel)
+                        for d in dirs:
+                            physical_folders.add(f"{current_rel}/{d}")
+            except Exception as fs_e:
+                if strict:
+                    raise
+                logger.error(f"Scanning physical folders failed: {fs_e}")
 
-                # 聚合 Bundle 版本
-                for dir_path, version_list in bundles.items():
-                    if not version_list: continue
-                    # 按时间倒序，最新的为主版本
-                    version_list.sort(key=lambda x: x['last_modified'], reverse=True)
-                    latest_card = version_list[0]
+            # 1. 加载数据
+            # ui_data 读取失败时不清空缓存：卡片仍从 DB 正常加载，只是本次
+            # 不写回 ui_data（避免把空数据覆盖到磁盘），待下次读取成功后恢复。
+            ui_data_readable = True
+            try:
+                ui_data = load_ui_data()
+            except UiDataLoadError as ui_exc:
+                if strict:
+                    raise
+                logger.error('缓存重载: ui_data.json 读取失败，本次跳过 UI 数据写回: %s', ui_exc)
+                ui_data = {}
+                ui_data_readable = False
+            ui_data_stale_cleaned = False
+            rows, rows_include_uid = execute_with_retry(_do_fetch_all, max_retries=5)
 
-                    bundle_card = latest_card.copy()
-                    bundle_card['is_bundle'] = True
-                    bundle_card['bundle_dir'] = dir_path
+            raw_cards = []
+            for row in rows:
+                try:
+                    tags = json.loads(row['tags']) if row['tags'] else []
+                except:
+                    tags = []
+                tags = self._normalize_tags(tags)
 
-                    bundle_entry = ui_data.get(dir_path)
-                    if not isinstance(bundle_entry, dict):
-                        bundle_entry = {}
-                        ui_data[dir_path] = bundle_entry
+                card_id = row['id'].replace('\\', '/')
+                dir_path = card_id.rsplit('/', 1)[0] if '/' in card_id else ""
+
+                card_data = {
+                    "id": card_id,
+                    "filename": os.path.basename(card_id),
+                    "char_name": row['char_name'],
+                    "tags": tags,
+                    "category": row['category'].replace('\\', '/'),
+                    "creator": row['creator'],
+                    "char_version": row['char_version'],
+                    "last_modified": row['last_modified'],
+                    "file_hash": row['file_hash'],
+                    "token_count": row['token_count'] if 'token_count' in row.keys() else 0,
+                    "dir_path": dir_path,
+                    "is_bundle": False,
+                    "versions": [],
+                    "is_favorite": bool(row['is_favorite']),
+                    "card_uid": normalize_card_uid(row['card_uid']) if rows_include_uid else '',
+                }
+                raw_cards.append(card_data)
+                
+            legacy_binding_map = {
+                card['id']: card.get('card_uid')
+                for card in raw_cards
+                if card.get('card_uid')
+            }
+            if migrate_legacy_card_bindings(ui_data, legacy_binding_map):
+                ui_data_stale_cleaned = True
+                    
+            # 2. 处理 Bundle 聚合逻辑
+            bundle_dirs = set(physical_bundle_dirs)
+            unique_dirs = set(c['dir_path'] for c in raw_cards)
+
+            # 扫描文件系统确认 .bundle 标记 (这步可能略慢，但通常文件夹不多)
+            for d in unique_dirs:
+                if not d: continue
+                sys_path_d = d.replace('/', os.sep)
+                full_dir_path = os.path.join(CARDS_FOLDER, sys_path_d)
+                if os.path.exists(os.path.join(full_dir_path, '.bundle')):
+                    bundle_dirs.add(d)
+
+            final_cards = []
+            bundles = {}
+            new_bundle_map = {}
+
+            old_bundle_map = dict(self.bundle_map)
+            unbundled_dirs = set(old_bundle_map.keys()) - bundle_dirs
+                
+            if unbundled_dirs:
+                for unbundled_dir in unbundled_dirs:
+                    migrated = migrate_bundle_remarks_to_versions(ui_data, unbundled_dir)
+                    if migrated > 0:
                         ui_data_stale_cleaned = True
-                    previous_bundle_uid = bundle_entry.get('card_uid')
-                    bundle_uid = ensure_card_ui_uid(
-                        bundle_entry,
-                        latest_card.get('card_uid'),
-                    )
-                    if previous_bundle_uid != bundle_uid:
+
+            for card in raw_cards:
+                d = card['dir_path']
+                if d in bundle_dirs:
+                    if d not in bundles: bundles[d] = []
+                    bundles[d].append(card)
+                else:
+                    if self._enrich_card_ui(card, ui_data, is_bundle=False):
                         ui_data_stale_cleaned = True
-                    bundle_card['card_uid'] = bundle_uid
+                    final_cards.append(card)
 
-                    bundle_card['versions'] = []
-                    cover_id = latest_card['id']
-                    for v in version_list:
-                        ver_info = {
-                            "id": v['id'],
-                            "filename": v['filename'],
-                            "last_modified": v['last_modified'],
-                            "import_time": get_import_time(ui_data, v['id'], v['last_modified']),
-                            "char_version": v.get('char_version', '')
-                        }
-                        ver_remark = get_version_remark(ui_data, dir_path, v['id'], cover_id)
-                        if ver_remark:
-                            ver_info['ui_summary'] = ver_remark.get('summary', '')
-                            ver_info['source_link'] = ver_remark.get('link', '')
-                            ver_info['resource_folder'] = ver_remark.get('resource_folder', '')
-                        bundle_card['versions'].append(ver_info)
+            # 聚合 Bundle 版本
+            for dir_path, version_list in bundles.items():
+                if not version_list: continue
+                # 按时间倒序，最新的为主版本
+                version_list.sort(key=lambda x: x['last_modified'], reverse=True)
+                latest_card = version_list[0]
 
-                    # 分类为 Bundle 所在文件夹的父级
-                    bundle_card['category'] = dir_path.rsplit('/', 1)[0] if '/' in dir_path else ""
+                bundle_card = latest_card.copy()
+                bundle_card['is_bundle'] = True
+                bundle_card['bundle_dir'] = dir_path
 
-                    if self._enrich_card_ui(bundle_card, ui_data, is_bundle=True):
-                        ui_data_stale_cleaned = True
-                    final_cards.append(bundle_card)
-                    new_bundle_map[dir_path] = bundle_card['id']
+                bundle_entry = ui_data.get(dir_path)
+                if not isinstance(bundle_entry, dict):
+                    bundle_entry = {}
+                    ui_data[dir_path] = bundle_entry
+                    ui_data_stale_cleaned = True
+                previous_bundle_uid = bundle_entry.get('card_uid')
+                bundle_uid = ensure_card_ui_uid(
+                    bundle_entry,
+                    latest_card.get('card_uid'),
+                )
+                if previous_bundle_uid != bundle_uid:
+                    ui_data_stale_cleaned = True
+                bundle_card['card_uid'] = bundle_uid
 
-                    valid_version_ids = {v['id'] for v in bundle_card['versions']}
-                    # ui_data.json is the durable UI store; only remove stale version notes
-                    # after checking the physical bundle folder, not DB rows alone.
-                    fs_version_ids = self._collect_bundle_version_ids_from_fs(dir_path)
-                    if fs_version_ids is not None:
-                        valid_version_ids = fs_version_ids
-                    if (
-                        fs_version_ids is not None
-                        and cleanup_stale_version_remarks(ui_data, dir_path, valid_version_ids)
-                    ):
-                        ui_data_stale_cleaned = True
+                bundle_card['versions'] = []
+                cover_id = latest_card['id']
+                for v in version_list:
+                    ver_info = {
+                        "id": v['id'],
+                        "filename": v['filename'],
+                        "last_modified": v['last_modified'],
+                        "import_time": get_import_time(ui_data, v['id'], v['last_modified']),
+                        "char_version": v.get('char_version', '')
+                    }
+                    ver_remark = get_version_remark(ui_data, dir_path, v['id'], cover_id)
+                    if ver_remark:
+                        ver_info['ui_summary'] = ver_remark.get('summary', '')
+                        ver_info['source_link'] = ver_remark.get('link', '')
+                        ver_info['resource_folder'] = ver_remark.get('resource_folder', '')
+                    bundle_card['versions'].append(ver_info)
 
-                card_ui_uids = {}
-                for card in final_cards:
-                    ui_key = card.get('bundle_dir') if card.get('is_bundle') else card.get('id')
-                    if ui_key and card.get('card_uid'):
-                        card_ui_uids[ui_key] = card.get('card_uid')
-                if reconcile_stale_card_bindings(
-                    ui_data,
-                    card_ui_uids.keys(),
-                    card_uid_by_ui_key=card_ui_uids,
+                # 分类为 Bundle 所在文件夹的父级
+                bundle_card['category'] = dir_path.rsplit('/', 1)[0] if '/' in dir_path else ""
+
+                if self._enrich_card_ui(bundle_card, ui_data, is_bundle=True):
+                    ui_data_stale_cleaned = True
+                final_cards.append(bundle_card)
+                new_bundle_map[dir_path] = bundle_card['id']
+
+                valid_version_ids = {v['id'] for v in bundle_card['versions']}
+                # ui_data.json is the durable UI store; only remove stale version notes
+                # after checking the physical bundle folder, not DB rows alone.
+                fs_version_ids = self._collect_bundle_version_ids_from_fs(dir_path)
+                if fs_version_ids is not None:
+                    valid_version_ids = fs_version_ids
+                if (
+                    fs_version_ids is not None
+                    and cleanup_stale_version_remarks(ui_data, dir_path, valid_version_ids)
                 ):
                     ui_data_stale_cleaned = True
 
-                if ui_data_stale_cleaned and ui_data_readable:
-                    # 重载过程会清理失效条目，体积可能下降，属预期结果。
-                    save_ui_data(ui_data, allow_shrink=True)
+            card_ui_uids = {}
+            for card in final_cards:
+                ui_key = card.get('bundle_dir') if card.get('is_bundle') else card.get('id')
+                if ui_key and card.get('card_uid'):
+                    card_ui_uids[ui_key] = card.get('card_uid')
+            if reconcile_stale_card_bindings(
+                ui_data,
+                card_ui_uids.keys(),
+                card_uid_by_ui_key=card_ui_uids,
+            ):
+                ui_data_stale_cleaned = True
 
-                # 3. 统计计数和标签
-                new_global_tags = set()
-                new_cat_counts = {}
-                bundle_paths = set(bundle_dirs)
-                # 用于推导文件夹列表
-                derived_folders = set()
+            if ui_data_stale_cleaned and ui_data_readable:
+                # 重载过程会清理失效条目，体积可能下降，属预期结果。
+                save_ui_data(ui_data, allow_shrink=True)
 
-                for c in final_cards:
-                    for t in self._normalize_tags(c.get('tags')):
-                        new_global_tags.add(t)
+            # 3. 统计计数和标签
+            new_global_tags = set()
+            new_cat_counts = {}
+            bundle_paths = set(bundle_dirs)
+            # 用于推导文件夹列表
+            derived_folders = set()
                     
-                    cat = c['category']
-                    if cat: derived_folders.add(cat)
-                    if cat not in new_cat_counts: new_cat_counts[cat] = 0
-                    new_cat_counts[cat] += 1
+            for c in final_cards:
+                for t in self._normalize_tags(c.get('tags')):
+                    new_global_tags.add(t)
                     
-                    # 递归统计父分类
-                    if cat != "":
-                        parts = cat.split('/')
-                        current = ""
-                        for part in parts:
-                            current = f"{current}/{part}" if current else part
-                            derived_folders.add(current) # 记录父级分类
-                            if current != cat:
-                                if current not in new_cat_counts: new_cat_counts[current] = 0
-                                new_cat_counts[current] += 1
+                cat = c['category']
+                if cat: derived_folders.add(cat)
+                if cat not in new_cat_counts: new_cat_counts[cat] = 0
+                new_cat_counts[cat] += 1
 
+                # 递归统计父分类
+                if cat != "":
+                    parts = cat.split('/')
+                    current = ""
+                    for part in parts:
+                        current = f"{current}/{part}" if current else part
+                        derived_folders.add(current) # 记录父级分类
+                        if current != cat:
+                            if current not in new_cat_counts: new_cat_counts[current] = 0
+                            new_cat_counts[current] += 1
+
+            with self.lock:
+                if self._mutation_version != expected_version:
+                    return False
+                self._mutation_version += 1
                 # 4. 更新实例状态
                 self.cards = final_cards
                 self.id_map = {c['id']: c for c in final_cards}
@@ -755,17 +790,18 @@ class GlobalMetadataCache:
                         new_cat_counts[f] = 0
                 
                 self.initialized = True
-                logger.info(f"Cache reloaded: {len(self.cards)} items (including bundles).")
+            logger.info(f"Cache reloaded: {len(self.cards)} items (including bundles).")
                 
-            except Exception as e:
-                logger.error(f"Cache reload error: {e}")
-                if strict:
-                    raise
-                # 保持旧数据，防止应用崩溃
+        except Exception as e:
+            logger.error(f"Cache reload error: {e}")
+            if strict:
+                raise
+            # 保持旧数据，防止应用崩溃
 
     def toggle_favorite_update(self, card_id, new_status):
         """[增量更新] 更新卡片收藏状态"""
         with self.lock:
+            self._mutation_version += 1
             if card_id in self.id_map:
                 self.id_map[card_id]['is_favorite'] = new_status
                 return True

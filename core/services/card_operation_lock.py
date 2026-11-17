@@ -123,6 +123,8 @@ def request_card_locks(func):
             single_id = payload.get('card_id') or payload.get('id')
             if single_id:
                 raw_ids = [*raw_ids, single_id]
+            if payload.get('version_id'):
+                raw_ids.append(payload['version_id'])
 
             for scope_key in ('folder_path', 'source_path', 'old_path'):
                 scope_id = payload.get(scope_key)

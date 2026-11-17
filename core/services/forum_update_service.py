@@ -22,6 +22,7 @@ from core.data.ui_store import (
     save_source_title_state,
     save_ui_data,
     set_source_update_state,
+    update_ui_data,
 )
 from core.services.card_service import resolve_ui_key
 from core.services.card_operation_lock import (
@@ -428,28 +429,37 @@ def _reset_state_if_source_changed(data, ui_key, source_url, status, error=''):
 @_source_operation_locked
 def prepare_source_link_for_card(card_id, source_link=None, *, ui_data=None):
     """记录链接变更并清空旧来源基线，不发起 Discord 请求。"""
-    card, ui_key, link, data = _resolve_card_and_source(card_id, source_link, ui_data)
-    if not ui_key:
+    result = {}
+    card = None
+
+    def mutate(data):
+        nonlocal card
+        # The supplied snapshot may predate another card/plugin's commit. Only resolve
+        # and reset this source against the latest data while holding the UI store lock.
+        card, ui_key, link, _ = _resolve_card_and_source(card_id, source_link, data)
+        if not ui_key:
+            return
+        status = ('no_source' if not link else
+                  'never_checked' if _parse_discord_parts(link) else 'unsupported')
+        state = _state_for_card(data, ui_key)
+        if state.get('source_url') != link:
+            _, state = reset_source_update_state(data, ui_key, source_url=link, status=status)
+        result.update(state=state, link=link, status=status)
+
+    saved = update_ui_data(mutate, loader=load_ui_data, saver=save_ui_data)
+    if not saved or not result:
         return {
             'success': False,
             'status': 'error',
-            'error': '无法定位卡片 UI 数据',
+            'error': '来源状态保存失败' if not saved else '无法定位卡片 UI 数据',
             'card_id': card_id,
         }
-
-    if not link:
-        status = 'no_source'
-    elif not _parse_discord_parts(link):
-        status = 'unsupported'
-    else:
-        status = 'never_checked'
-
-    state = _reset_state_if_source_changed(data, ui_key, link, status)
+    state, link = result['state'], result['link']
     _sync_card_source_update(card, state)
     return {
         'success': True,
         'supported': bool(link and _parse_discord_parts(link)),
-        'status': state.get('last_status', status),
+        'status': state.get('last_status', result['status']),
         'card_id': card_id,
         'source_update': state,
     }

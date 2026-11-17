@@ -89,6 +89,14 @@ Pytest tests exist in `tests/`; do not assume the repo is untested.
 pytest tests/
 ```
 
+- Isolated daily-operation performance baseline (synthetic data and temporary storage):
+
+```bash
+python tools/benchmark_daily_operations.py
+```
+
+Use `--sizes 100000 --chats 10 100` to check growth; these timings do not represent UI latency.
+
 - Android Kotlin behavior tests and debug build (from `android/`; Windows uses `gradlew.bat`):
 
 ```bash

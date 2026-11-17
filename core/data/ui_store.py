@@ -1,4 +1,7 @@
 import os
+import pickle
+import weakref
+from copy import deepcopy
 import json
 import logging
 import re
@@ -1593,6 +1596,67 @@ def _is_retriable_read_error(exc):
     return False
 
 
+# Only private snapshots are cached; every public read receives detached data.
+_ui_snapshot = None
+_snapshot_origins = {}
+
+
+def _file_version(path):
+    try:
+        stat = os.stat(path)
+    except FileNotFoundError:
+        return (os.path.abspath(path), None)
+    return (os.path.abspath(path), stat.st_dev, stat.st_ino, stat.st_mtime_ns,
+            stat.st_ctime_ns, stat.st_size)
+
+
+def get_ui_data_revision():
+    """Return a stat-only revision for detecting synchronous UI writes/replacements."""
+    with _UI_DATA_LOCK:
+        return _file_version(UI_DATA_FILE)
+
+
+class _UiSnapshot(dict):
+    def __init__(self, frozen, version, *, original=None):
+        # The cached representation is immutable, and never exposed on the returned dict.
+        super().__init__(pickle.loads(frozen))
+        _snapshot_origins[id(self)] = (version, frozen if original is None else original)
+        weakref.finalize(self, _snapshot_origins.pop, id(self), None)
+
+    def __deepcopy__(self, memo):
+        version, original = _snapshot_origins[id(self)]
+        result = _UiSnapshot(pickle.dumps(dict(self), protocol=pickle.HIGHEST_PROTOCOL), version)
+        _snapshot_origins[id(result)] = (version, original)
+        memo[id(self)] = result
+        return result
+
+
+def _remember_ui_snapshot(data, version=None):
+    global _ui_snapshot
+    version = version or _file_version(UI_DATA_FILE)
+    # Pickle is used only for an in-process clone of validated JSON, never external bytes.
+    _ui_snapshot = (version, pickle.dumps(dict(data), protocol=pickle.HIGHEST_PROTOCOL))
+    if len(_file_stats_cache) > 8:
+        _file_stats_cache.clear()
+    _file_stats_cache[version] = _payload_entry_stats(data)
+
+
+def _merge_ui_changes(current, original, edited):
+    # Replay only this caller's edits onto the latest file under _UI_DATA_LOCK.
+    for key in original.keys() - edited.keys():
+        current.pop(key, None)
+    for key, value in edited.items():
+        if key in original and value == original[key]:
+            continue
+        if isinstance(value, dict) and isinstance(original.get(key), dict):
+            if not isinstance(current.get(key), dict):
+                current[key] = {}
+            _merge_ui_changes(current[key], original[key], value)
+        else:
+            current[key] = deepcopy(value)
+    return current
+
+
 def _read_json_file_with_retry(path, attempts=READ_RETRY_ATTEMPTS):
     """带重试地读取 JSON。
 
@@ -1664,7 +1728,11 @@ def _preserve_current_primary_as_backup():
     if not os.path.exists(UI_DATA_FILE):
         return False
 
-    if _read_valid_ui_data_object(UI_DATA_FILE) is None:
+    try:
+        validated = _ui_snapshot is not None and _ui_snapshot[0] == _file_version(UI_DATA_FILE)
+    except OSError:
+        validated = False
+    if not validated and _read_valid_ui_data_object(UI_DATA_FILE) is None:
         logger.warning("当前 ui_data.json 无法解析为对象，跳过备份并保留既有备份世代。")
         return False
 
@@ -1753,12 +1821,19 @@ def _recover_corrupted_ui_data(error, *, permission_error=False):
         _mark_ui_data_degraded(f'主文件不可用且无可用备份: {error}')
         return {}
 
+    if permission_error:
+        # Access failure does not establish corruption. A backup may serve reads, but must
+        # not replace a newer primary whose contents could not be inspected.
+        _mark_ui_data_degraded(f'主文件访问失败，备份仅用于读取: {error}')
+        return backup_data
+
     if save_ui_data(backup_data, allow_shrink=True):
         logger.warning(f"已从备份恢复 ui_data.json: {backup_path}")
+        _clear_ui_data_degraded()
     else:
         logger.error(f"从备份 {backup_path} 恢复 ui_data.json 失败，已返回备份数据。")
+        _mark_ui_data_degraded('备份可读取但主文件恢复失败，禁止基于备份覆盖主文件')
 
-    _clear_ui_data_degraded()
     return backup_data
 
 
@@ -1780,12 +1855,16 @@ def load_ui_data():
     Raises:
         UiDataLoadError: 磁盘上存在文件但本次无法读取，且没有可用备份。
     """
+    global _ui_snapshot
     with _UI_DATA_LOCK:
-        if not os.path.exists(UI_DATA_FILE):
-            _clear_ui_data_degraded()
-            return {}
-
         try:
+            version = _file_version(UI_DATA_FILE)
+            if len(version) == 2:  # A confirmed missing file, never an access failure.
+                _clear_ui_data_degraded()
+                return _UiSnapshot(pickle.dumps({}), version)
+            if (_ui_snapshot is not None and _ui_snapshot[0] == version
+                    and not is_ui_data_degraded()):
+                return _UiSnapshot(_ui_snapshot[1], version)
             data = _read_json_file_with_retry(UI_DATA_FILE)
         except json.JSONDecodeError as e:
             return _recover_corrupted_ui_data(e)
@@ -1814,6 +1893,14 @@ def load_ui_data():
         # === 脏数据清理逻辑 ===
         # 检查 resource_folder 是否使用了系统保留名称 (如 'cards', 'thumbnails' 等)
         dirty = False
+        original = None
+
+        def mark_dirty():
+            nonlocal dirty, original
+            if not dirty:
+                original = pickle.dumps(data, protocol=pickle.HIGHEST_PROTOCOL)
+            dirty = True
+
         for key, info in data.items():
             if not isinstance(info, dict):
                 continue
@@ -1824,36 +1911,49 @@ def load_ui_data():
                 first_part = rf.replace('\\', '/').split('/')[0].lower()
                 if first_part in RESERVED_RESOURCE_NAMES:
                     logger.warning(f"检测到非法资源目录配置 '{rf}' (属于保留目录)，已自动移除关联。")
+                    mark_dirty()
                     info['resource_folder'] = ""
-                    dirty = True
 
             # 规范化 import_time，兼容历史字符串/非法值
             if IMPORT_TIME_KEY in info:
                 normalized_ts = _normalize_timestamp(info.get(IMPORT_TIME_KEY))
                 if normalized_ts is None:
+                    mark_dirty()
                     del info[IMPORT_TIME_KEY]
-                    dirty = True
                 elif info.get(IMPORT_TIME_KEY) != normalized_ts:
+                    mark_dirty()
                     info[IMPORT_TIME_KEY] = normalized_ts
-                    dirty = True
 
             for sent_key in (LAST_SENT_TO_ST_KEY, LAST_SENT_TO_TT_KEY):
                 if sent_key in info:
                     normalized_sent_ts = _normalize_timestamp(info.get(sent_key))
                     if normalized_sent_ts is None:
+                        mark_dirty()
                         del info[sent_key]
-                        dirty = True
                     elif info.get(sent_key) != normalized_sent_ts:
+                        mark_dirty()
                         info[sent_key] = normalized_sent_ts
-                        dirty = True
 
         if dirty:
             # 如果有清理操作，立即回写文件以修正。
             # 这是对同一份刚读取成功的数据做的小幅规范化，可能触发体积下降
             # （例如删除非法字段），因此显式放行退化护栏。
-            save_ui_data(data, allow_shrink=True)
+            normalized = _UiSnapshot(pickle.dumps(data, protocol=pickle.HIGHEST_PROTOCOL),
+                                     version, original=original)
+            if not save_ui_data(normalized, allow_shrink=True):
+                # Return a detached, normalized view with the actual disk origin. Do not
+                # register uncommitted values as this file's snapshot/statistics; next
+                # load must retry normalization, and later edits still merge safely.
+                _ui_snapshot = None
+                _file_stats_cache.pop(version, None)
+                return normalized
+            return load_ui_data()
 
-        return data
+        final_version = _file_version(UI_DATA_FILE)
+        if not dirty and final_version != version:
+            return load_ui_data()  # An external replacement raced the read; validate it afresh.
+        _remember_ui_snapshot(data, final_version)
+        return _UiSnapshot(_ui_snapshot[1], final_version)
 
 
 def _count_card_entries(data):
@@ -1892,7 +1992,7 @@ def _read_existing_entry_stats(path):
     except OSError:
         return None
 
-    cache_key = (path, stat.st_mtime_ns, stat.st_size)
+    cache_key = _file_version(path)
     cached = _file_stats_cache.get(cache_key)
     if cached is not None:
         return cached
@@ -1994,12 +2094,26 @@ def save_ui_data(data, *, allow_shrink=False):
                     )
                     return False
 
+            if isinstance(data, _UiSnapshot):
+                try:
+                    stale = _snapshot_origins[id(data)][0] != _file_version(UI_DATA_FILE)
+                except FileNotFoundError:
+                    stale = True
+                if stale:
+                    edited = data
+                    original = pickle.loads(_snapshot_origins[id(data)][1])
+                    return update_ui_data(
+                        lambda current: _merge_ui_changes(current, original, edited),
+                        allow_shrink=allow_shrink,
+                    )
+
             parent_dir = os.path.dirname(UI_DATA_FILE)
             if parent_dir:
                 os.makedirs(parent_dir, exist_ok=True)
 
             _preserve_current_primary_as_backup()
             _write_ui_data_file_atomic(data)
+            _remember_ui_snapshot(data)
             return True
         except Exception as e:
             logger.error(f"保存 ui_data.json 失败: {e}")
@@ -2151,7 +2265,7 @@ def set_version_remark(ui_data, ui_key, version_id, remark_data, cover_id=None):
     new_summary = remark_data.get('summary', '')
 
     if old_remark.get('summary', '') != new_summary:
-        entry[VERSION_REMARKS_KEY][version_id] = {'summary': new_summary}
+        entry[VERSION_REMARKS_KEY][version_id] = {**old_remark, 'summary': new_summary}
         changed = True
 
     # 2. 处理 bundle 全局的 link 和 resource_folder

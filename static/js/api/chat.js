@@ -3,9 +3,9 @@
  * SillyTavern 聊天记录相关 API
  */
 
-export async function listChats(params = {}) {
+export async function listChats(params = {}, options = {}) {
     const searchParams = new URLSearchParams(params);
-    const res = await fetch('/api/chats/list?' + searchParams.toString());
+    const res = await fetch('/api/chats/list?' + searchParams.toString(), { signal: options.signal });
     return res.json();
 }
 

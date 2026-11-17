@@ -31,7 +31,7 @@ from core.utils.chat_parser import (
     read_chat_jsonl_range,
     write_chat_jsonl,
 )
-from core.utils.filesystem import safe_move_to_trash, sanitize_filename
+from core.utils.filesystem import safe_move_to_trash, sanitize_filename, walk_directory_strict
 from core.utils.format_validation import is_valid_chat_jsonl_bytes
 from core.utils.image import extract_card_info
 from core.utils.paths import is_under_base
@@ -207,6 +207,28 @@ def _resolve_card_entry(card_id: str):
             return resolved
 
     return None
+
+
+class _ChatBindings(dict):
+    """Request-local reverse projection; never stored in UI JSON."""
+
+
+def _build_binding_table(ui_data):
+    table = _ChatBindings()
+    for key, value in ui_data.items():
+        if _chat_special_ui_key(key) or not isinstance(value, dict):
+            continue
+        bound_ids = _ensure_ui_chat_list(value)
+        if not bound_ids:
+            continue
+        resolved = _resolve_card_entry(key)
+        if not resolved:
+            continue
+        for chat_id in bound_ids:
+            table.setdefault(chat_id, []).append(resolved)
+    for bindings in table.values():
+        bindings.sort(key=lambda item: (item.get('card_name') or '').lower())
+    return table
 
 
 def _build_binding_info(ui_data: dict, chat_id: str):
@@ -525,7 +547,8 @@ def _chat_title(entry: dict, chat_id: str) -> str:
 
 
 def _build_chat_item(chat_id: str, entry: dict, ui_data: dict, full_path: str = None):
-    bound_cards = _build_binding_info(ui_data, chat_id)
+    bound_cards = (ui_data.get(_normalize_chat_id(chat_id), []) if isinstance(ui_data, _ChatBindings)
+                   else _build_binding_info(ui_data, chat_id))
     source = entry if isinstance(entry, dict) else {}
     message_count = int(source.get('message_count') or 0)
     display_name = _chat_title(source, chat_id)
@@ -615,11 +638,13 @@ def _search_match(query: str, chat_item: dict) -> bool:
 
 def _iter_chat_files():
     root = _get_chats_root()
-    if not os.path.exists(root):
+    try:
+        os.stat(root)
+    except FileNotFoundError:
         return []
 
     items = []
-    for dirpath, dirnames, filenames in os.walk(root):
+    for dirpath, dirnames, filenames in walk_directory_strict(root):
         dirnames[:] = [name for name in dirnames if not str(name).startswith('.')]
         for filename in filenames:
             if not str(filename).lower().endswith('.jsonl'):
@@ -632,7 +657,7 @@ def _iter_chat_files():
                     if not is_valid_chat_jsonl_bytes(handle.read()):
                         continue
             except OSError:
-                continue
+                raise
             items.append(full_path)
     return items
 
@@ -659,21 +684,36 @@ def api_list_chats():
 
         chat_data = load_chat_data()
         ui_data = load_ui_data()
+        target_ui_key = resolve_ui_key(card_id) if card_id else ''
         card_identities = _current_card_ui_identities()
         valid_card_ui_keys = None if card_identities is None else set(card_identities)
         ui_changed = False
         if valid_card_ui_keys is not None:
             ui_changed = reconcile_stale_card_bindings(
-                ui_data,
-                valid_card_ui_keys,
-                card_uid_by_ui_key=card_identities,
+                ui_data, valid_card_ui_keys, card_uid_by_ui_key=card_identities,
             )
 
         found_chat_ids = []
         items = []
         chat_changed = False
 
-        for full_path in _iter_chat_files():
+        if card_id:
+            entry = ui_data.get(target_ui_key) or {}
+            paths = []
+            for chat_id in _ensure_ui_chat_list(entry):
+                if not _is_safe_chat_rel(chat_id):
+                    continue
+                full_path = _chat_abs_path(chat_id)
+                try:
+                    os.stat(full_path)
+                except FileNotFoundError:
+                    continue  # Keep stale bindings until a complete library reconciliation.
+                paths.append(full_path)
+        else:
+            paths = _iter_chat_files()  # Strict enumeration completes before any cleanup.
+
+        bindings = _build_binding_table(ui_data) if paths else _ChatBindings()
+        for full_path in paths:
             chat_id = _relative_chat_id(full_path)
             found_chat_ids.append(chat_id)
 
@@ -681,7 +721,7 @@ def api_list_chats():
             if changed:
                 chat_changed = True
 
-            item = _build_chat_item(chat_id, entry, ui_data, full_path=full_path)
+            item = _build_chat_item(chat_id, entry, bindings, full_path=full_path)
 
             if card_id:
                 target_ui_key = resolve_ui_key(card_id)
@@ -704,11 +744,11 @@ def api_list_chats():
 
             items.append(item)
 
-        missing_chat_changed, missing_ui_changed = _cleanup_missing_chats(
-            chat_data,
-            ui_data,
-            found_chat_ids,
-        )
+        missing_chat_changed, missing_ui_changed = (False, False)
+        if not card_id:
+            missing_chat_changed, missing_ui_changed = _cleanup_missing_chats(
+                chat_data, ui_data, found_chat_ids,
+            )
         chat_changed = chat_changed or missing_chat_changed
         ui_changed = ui_changed or missing_ui_changed
 

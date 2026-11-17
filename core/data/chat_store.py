@@ -61,6 +61,7 @@ def _normalize_bookmark(item):
     created_at = _normalize_timestamp(item.get('created_at'), time.time())
 
     return {
+        **item,
         'id': bookmark_id,
         'floor': floor_value,
         'label': label,
@@ -97,6 +98,7 @@ def default_chat_entry():
 def normalize_chat_entry(raw):
     entry = default_chat_entry()
     source = raw if isinstance(raw, dict) else {}
+    entry.update(source)  # Preserve unknown extension fields across metadata refreshes.
 
     entry['display_name'] = _normalize_text(source.get('display_name'))
     entry['chat_name'] = _normalize_text(source.get('chat_name'))
