@@ -28,6 +28,11 @@ from core.services.card_binding_service import (
     reconcile_stale_card_bindings,
 )
 from core.utils.card_identity import normalize_card_uid
+from core.utils.image import (
+    THUMBNAIL_ALGORITHM_VERSION,
+    card_image_file_version,
+    card_image_revision,
+)
 from core.utils.filesystem import is_card_file, walk_directory_strict
 
 logger = logging.getLogger(__name__)
@@ -58,6 +63,7 @@ class GlobalMetadataCache:
         self.global_tags = set()        # 全局标签池
         self.category_counts = {}       # 分类计数 (路径 -> 数量)
         self.visible_folders = []       # 可见的文件夹列表 (用于前端目录树)
+        self._image_file_versions = {}  # id -> lightweight source image version
         self.lock = threading.Lock()    # 读写锁
         self._mutation_version = 0
         self.initialized = False        # 是否已加载完成
@@ -110,9 +116,16 @@ class GlobalMetadataCache:
         [增量更新] 原地更新单个卡片对象的字段，无需重载数据库。
         用于编辑卡片信息后的快速响应。
         """
+        if 'last_modified' in new_data or 'file_hash' in new_data:
+            from core.utils.image import card_image_urls
+            new_data = {**new_data, **card_image_urls(card_id, os.path.join(CARDS_FOLDER, card_id.replace('/', os.sep)))}
         ui_data = _safe_load_ui_data() if not (
             (self.id_map.get(card_id) or {}).get('source_update') or {}
         ).get('last_status') else None
+        if ui_data is not None:
+            current = self.id_map.get(card_id) or {}
+            ui_key = current.get('bundle_dir') if current.get('is_bundle') else card_id
+            ui_data = {ui_key: ui_data.get(ui_key, {})}
         with self.lock:
             self._mutation_version += 1
             if card_id in self.id_map:
@@ -136,11 +149,11 @@ class GlobalMetadataCache:
                 if 'tags' in new_data:
                     card['tags'] = self._normalize_tags(new_data.get('tags'))
                 
-                # 3. 刷新 URL 时间戳 (强制前端重载图片)
-                mtime = card.get('last_modified', time.time())
+                # 3. 图片内容 revision 在纯元数据保存时保持稳定。
+                mtime = card.get('image_revision', card.get('last_modified', 0))
                 encoded_id = quote(card['id'])
-                card['image_url'] = f"/cards_file/{encoded_id}?t={mtime}"
-                card['thumb_url'] = f"/api/thumbnail/{encoded_id}?t={mtime}"
+                card['image_url'] = f"/cards_file/{encoded_id}?v={mtime}"
+                card['thumb_url'] = f"/api/thumbnail/{encoded_id}?v={THUMBNAIL_ALGORITHM_VERSION}-{mtime}"
                 
                 # 4. 更新全局标签池
                 if 'tags' in new_data and old_tags != set(card['tags']):
@@ -226,9 +239,9 @@ class GlobalMetadataCache:
 
                 # 更新 URL
                 encoded_id = quote(new_id)
-                mtime = card.get('last_modified', 0)
-                card['image_url'] = f"/cards_file/{encoded_id}?t={mtime}"
-                card['thumb_url'] = f"/api/thumbnail/{encoded_id}?t={mtime}"
+                mtime = card.get('image_revision', card.get('last_modified', 0))
+                card['image_url'] = f"/cards_file/{encoded_id}?v={mtime}"
+                card['thumb_url'] = f"/api/thumbnail/{encoded_id}?v={THUMBNAIL_ALGORITHM_VERSION}-{mtime}"
 
                 self.id_map[new_id] = card
 
@@ -285,9 +298,9 @@ class GlobalMetadataCache:
                     card['last_modified'] = modified
                 
                 encoded_id = quote(new_id)
-                mtime = card.get('last_modified', 0)
-                card['image_url'] = f"/cards_file/{encoded_id}?t={mtime}"
-                card['thumb_url'] = f"/api/thumbnail/{encoded_id}?t={mtime}"
+                mtime = card.get('image_revision', card.get('last_modified', 0))
+                card['image_url'] = f"/cards_file/{encoded_id}?v={mtime}"
+                card['thumb_url'] = f"/api/thumbnail/{encoded_id}?v={THUMBNAIL_ALGORITHM_VERSION}-{mtime}"
                 
                 self.id_map[new_id] = card
 
@@ -365,9 +378,9 @@ class GlobalMetadataCache:
                         count_change = 1 # 只有主显示卡片影响计数
 
                 encoded_id = quote(new_id)
-                mtime = card.get('last_modified', 0)
-                card['image_url'] = f"/cards_file/{encoded_id}?t={mtime}"
-                card['thumb_url'] = f"/api/thumbnail/{encoded_id}?t={mtime}"
+                mtime = card.get('image_revision', card.get('last_modified', 0))
+                card['image_url'] = f"/cards_file/{encoded_id}?v={mtime}"
+                card['thumb_url'] = f"/api/thumbnail/{encoded_id}?v={THUMBNAIL_ALGORITHM_VERSION}-{mtime}"
                 
                 self.id_map[new_id] = card
             
@@ -414,6 +427,8 @@ class GlobalMetadataCache:
     def add_card_update(self, new_card_data):
         """[增量更新] 新增卡片"""
         ui_data = _safe_load_ui_data()
+        ui_key = new_card_data.get('bundle_dir') if new_card_data.get('is_bundle') else new_card_data.get('id')
+        ui_data = {ui_key: ui_data.get(ui_key, {})}
         with self.lock:
             self._mutation_version += 1
             new_card_data['tags'] = self._normalize_tags(new_card_data.get('tags'))
@@ -588,8 +603,20 @@ class GlobalMetadataCache:
                 ui_data_readable = False
             ui_data_stale_cleaned = False
             rows, rows_include_uid = execute_with_retry(_do_fetch_all, max_retries=5)
+            from core.data.local_state_repository import StateSnapshot
+            if isinstance(ui_data, StateSnapshot):
+                keys = {row['id'].replace('\\', '/') for row in rows}
+                keys.update(key.rpartition('/')[0] for key in list(keys) if '/' in key)
+                keys.update(self.bundle_map)
+                ui_data.prefetch(keys)
+            with self.lock:
+                previous_images = {
+                    key: card.get('image_revision') for key, card in self.id_map.items()
+                }
+                previous_image_versions = dict(self._image_file_versions)
 
             raw_cards = []
+            image_file_versions = {}
             for row in rows:
                 try:
                     tags = json.loads(row['tags']) if row['tags'] else []
@@ -617,6 +644,21 @@ class GlobalMetadataCache:
                     "is_favorite": bool(row['is_favorite']),
                     "card_uid": normalize_card_uid(row['card_uid']) if rows_include_uid else '',
                 }
+                image_path = os.path.join(CARDS_FOLDER, card_id.replace('/', os.sep))
+                previous_revision = previous_images.get(card_id)
+                file_version = None
+                if previous_revision:
+                    file_version = card_image_file_version(
+                        image_path,
+                        include_change_time=True,
+                    )
+                    image_file_versions[card_id] = file_version
+                previous_file_version = previous_image_versions.get(card_id)
+                if previous_revision and file_version is not None:
+                    if previous_file_version == file_version:
+                        card_data['image_revision'] = previous_revision
+                    else:
+                        card_data['image_revision'] = card_image_revision(image_path)
                 raw_cards.append(card_data)
                 
             legacy_binding_map = {
@@ -713,7 +755,7 @@ class GlobalMetadataCache:
                 new_bundle_map[dir_path] = bundle_card['id']
 
                 valid_version_ids = {v['id'] for v in bundle_card['versions']}
-                # ui_data.json is the durable UI store; only remove stale version notes
+                # Repository is authoritative; only remove stale version notes
                 # after checking the physical bundle folder, not DB rows alone.
                 fs_version_ids = self._collect_bundle_version_ids_from_fs(dir_path)
                 if fs_version_ids is not None:
@@ -775,6 +817,7 @@ class GlobalMetadataCache:
                 self.cards = final_cards
                 self.id_map = {c['id']: c for c in final_cards}
                 self.bundle_map = new_bundle_map
+                self._image_file_versions = image_file_versions
                 self.global_tags = sorted(list(new_global_tags))
                 self.category_counts = new_cat_counts
                 all_visible = derived_folders.union(physical_folders)
@@ -842,10 +885,10 @@ class GlobalMetadataCache:
         card['source_title'] = card['source_update'].get('source_title', '')
 
         # 预计算 URL
-        mtime = int(card.get('last_modified', 0))
+        mtime = card.get('image_revision', card.get('last_modified', 0))
         encoded_id = quote(card['id'])
-        card['image_url'] = f"/cards_file/{encoded_id}?t={mtime}"
-        card['thumb_url'] = f"/api/thumbnail/{encoded_id}?t={mtime}"
+        card['image_url'] = f"/cards_file/{encoded_id}?v={mtime}"
+        card['thumb_url'] = f"/api/thumbnail/{encoded_id}?v={THUMBNAIL_ALGORITHM_VERSION}-{mtime}"
 
         return import_time_changed
 

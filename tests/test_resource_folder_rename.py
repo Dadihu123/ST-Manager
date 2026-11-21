@@ -14,6 +14,7 @@ if str(ROOT) not in sys.path:
 
 from core.api.v1 import system as system_api
 from core.data.ui_store import (
+    build_worldinfo_note_key,
     rename_resource_item_category_path_prefix,
     rename_resource_worldinfo_note_path_prefix,
 )
@@ -45,13 +46,14 @@ def _setup_rename_test(monkeypatch, tmp_path, *, ui_state, bundle_map=None, cach
     cards_root.mkdir(parents=True, exist_ok=True)
 
     ui_data = json.loads(json.dumps(ui_state))
-    saved = {'count': 0}
+    saved = {'count': 0, 'index_jobs': []}
     history_moves = []
-    sync_calls = []
     fake_cache = cache if cache is not None else _FakeCache(bundle_map=bundle_map)
 
-    def _save(payload, **_kwargs):
+    def _save(payload, *, resource_note_move, worldinfo_jobs):
         saved['count'] += 1
+        saved['index_jobs'].extend(worldinfo_jobs)
+        rename_resource_worldinfo_note_path_prefix(payload, *resource_note_move)
         # payload 通常就是 ui_data 本身，必须先快照再清空。
         snapshot = json.loads(json.dumps(payload))
         ui_data.clear()
@@ -71,11 +73,6 @@ def _setup_rename_test(monkeypatch, tmp_path, *, ui_state, bundle_map=None, cach
         'move_entry_history_scope',
         lambda **kwargs: history_moves.append(kwargs) or 0,
     )
-    monkeypatch.setattr(
-        card_service,
-        'sync_card_index_jobs',
-        lambda **kwargs: sync_calls.append(kwargs) or {},
-    )
     monkeypatch.setattr(card_service.ctx, 'cache', fake_cache)
 
     return {
@@ -83,20 +80,18 @@ def _setup_rename_test(monkeypatch, tmp_path, *, ui_state, bundle_map=None, cach
         'ui_data': ui_data,
         'saved': saved,
         'history_moves': history_moves,
-        'sync_calls': sync_calls,
         'cache': fake_cache,
     }
 
 
 def test_rename_card_resource_folder_moves_directory_and_remaps_ui_data(monkeypatch, tmp_path):
-    # ui_data 里的备注/分类键都经过 normcase 归一化：小写 + 正斜杠。
-    old_book_path = str(
-        tmp_path / 'resources' / 'hero-assets' / 'lorebooks' / 'companion.json'
-    ).replace('\\', '/').lower()
+    old_book = tmp_path / 'resources' / 'hero-assets' / 'lorebooks' / 'companion.json'
+    old_key = build_worldinfo_note_key('resource', old_book)
+    old_book_path = old_key.split('::', 1)[1]
     ui_state = {
         'hero.png': {'resource_folder': 'hero-assets'},
         '_worldinfo_notes_v1': {
-            f'resource::{old_book_path}': {'summary': 'resource note', 'updated_at': 1}
+            old_key: {'summary': 'resource note', 'updated_at': 1}
         },
         '_resource_item_categories_v1': {
             'worldinfo': {
@@ -127,8 +122,9 @@ def test_rename_card_resource_folder_moves_directory_and_remaps_ui_data(monkeypa
     assert env['saved']['count'] == 1
 
     # 世界书备注与资源条目分类都按新的绝对路径重挂。
-    new_book_path = str(new_dir / 'lorebooks' / 'companion.json').replace('\\', '/').lower()
-    assert list(env['ui_data']['_worldinfo_notes_v1'].keys()) == [f'resource::{new_book_path}']
+    new_key = build_worldinfo_note_key('resource', new_dir / 'lorebooks' / 'companion.json')
+    new_book_path = new_key.split('::', 1)[1]
+    assert list(env['ui_data']['_worldinfo_notes_v1'].keys()) == [new_key]
     assert list(env['ui_data']['_resource_item_categories_v1']['worldinfo'].keys()) == [new_book_path]
     assert (
         env['ui_data']['_resource_item_categories_v1']['worldinfo'][new_book_path]['category']
@@ -137,9 +133,9 @@ def test_rename_card_resource_folder_moves_directory_and_remaps_ui_data(monkeypa
 
     # 缓存与索引同步都带上新目录。
     assert env['cache'].updates == [('hero.png', {'resource_folder': 'hero-renamed'})]
-    assert len(env['sync_calls']) == 1
-    assert env['sync_calls'][0]['resource_folder_changed'] is True
-    assert env['sync_calls'][0]['card_id'] == 'hero.png'
+    assert len(env['saved']['index_jobs']) == 1
+    assert env['saved']['index_jobs'][0]['job_type'] == 'upsert_world_owner'
+    assert env['saved']['index_jobs'][0]['entity_id'] == 'hero.png'
 
     # 资源世界书的条目历史按绝对路径迁移。
     assert len(env['history_moves']) == 1
@@ -174,7 +170,7 @@ def test_rename_card_resource_folder_rejects_reserved_and_conflicting_names(monk
 
     assert (env['resources_root'] / 'hero-assets').is_dir()
     assert env['saved']['count'] == 0
-    assert env['sync_calls'] == []
+    assert env['saved']['index_jobs'] == []
 
 
 def test_rename_card_resource_folder_requires_existing_binding(monkeypatch, tmp_path):
@@ -224,7 +220,7 @@ def test_rename_card_resource_folder_noop_when_name_unchanged(monkeypatch, tmp_p
     assert result['success'] is True
     assert result['renamed'] is False
     assert env['saved']['count'] == 0
-    assert env['sync_calls'] == []
+    assert env['saved']['index_jobs'] == []
 
 
 def test_rename_card_resource_folder_updates_bundle_main_card_cache(monkeypatch, tmp_path):
@@ -243,7 +239,53 @@ def test_rename_card_resource_folder_updates_bundle_main_card_cache(monkeypatch,
 
     assert result['success'] is True
     assert env['cache'].updates == [('pack/main.png', {'resource_folder': 'pack-renamed'})]
-    assert env['sync_calls'][0]['card_id'] == 'pack/main.png'
+    assert env['saved']['index_jobs'][0]['entity_id'] == 'pack/main.png'
+
+
+def test_failed_rename_keeps_recovery_path_when_original_name_is_occupied(monkeypatch, tmp_path):
+    env = _setup_rename_test(monkeypatch, tmp_path, ui_state={'hero.png': {'resource_folder': 'original'}})
+    original = env['resources_root'] / 'original'
+    original.mkdir()
+    (original / 'cover.png').write_bytes(b'original files')
+    moved = original.with_name('renamed')
+
+    def reject_save(*_args, **_kwargs):
+        original.mkdir()
+        (original / 'new-file').write_bytes(b'concurrent files')
+        return False
+
+    monkeypatch.setattr(card_service, 'save_ui_data', reject_save)
+    result = card_service.rename_card_resource_folder('hero.png', 'renamed')
+
+    assert not result['success']
+    assert result['resource_path'] == str(moved)
+    assert (moved / 'cover.png').read_bytes() == b'original files'
+    assert (original / 'new-file').read_bytes() == b'concurrent files'
+    assert env['history_moves'] == env['cache'].updates == []
+
+
+def test_failed_rename_does_not_restore_a_replacement_directory(monkeypatch, tmp_path):
+    env = _setup_rename_test(monkeypatch, tmp_path, ui_state={'hero.png': {'resource_folder': 'original'}})
+    original = env['resources_root'] / 'original'
+    original.mkdir()
+    (original / 'cover.png').write_bytes(b'original files')
+    moved, relocated = original.with_name('renamed'), original.with_name('relocated')
+
+    def reject_save(*_args, **_kwargs):
+        moved.rename(relocated)
+        moved.mkdir()
+        (moved / 'new-file').write_bytes(b'concurrent files')
+        return False
+
+    monkeypatch.setattr(card_service, 'save_ui_data', reject_save)
+    result = card_service.rename_card_resource_folder('hero.png', 'renamed')
+
+    assert not result['success']
+    assert '无法确认原目录位置' in result['msg']
+    assert not original.exists()
+    assert (relocated / 'cover.png').read_bytes() == b'original files'
+    assert (moved / 'new-file').read_bytes() == b'concurrent files'
+    assert env['history_moves'] == env['cache'].updates == []
 
 
 def test_rename_resource_folder_endpoint_returns_structured_result(monkeypatch, tmp_path):

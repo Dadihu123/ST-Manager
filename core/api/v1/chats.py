@@ -47,6 +47,11 @@ CHAT_NAV_BATCH_SIZE = 200
 CHAT_DETAIL_FULL_INDEX_THRESHOLD = 600
 
 
+def _save_chat_data_or_raise(data):
+    if save_chat_data(data) is False:
+        raise RuntimeError('聊天本地状态未保存，请重新载入后重试')
+
+
 def _get_chats_root() -> str:
     return os.path.abspath(os.fspath(CHATS_FOLDER))
 
@@ -215,6 +220,17 @@ class _ChatBindings(dict):
 
 def _build_binding_table(ui_data):
     table = _ChatBindings()
+    from core.data.local_state_repository import StateSnapshot, binding_keys
+    if isinstance(ui_data, StateSnapshot):
+        for key, chat_id in binding_keys():
+            if _chat_special_ui_key(key):
+                continue
+            resolved = _resolve_card_entry(key)
+            if resolved:
+                table.setdefault(chat_id, []).append(resolved)
+        for bindings in table.values():
+            bindings.sort(key=lambda item: (item.get('card_name') or '').lower())
+        return table
     for key, value in ui_data.items():
         if _chat_special_ui_key(key) or not isinstance(value, dict):
             continue
@@ -232,26 +248,12 @@ def _build_binding_table(ui_data):
 
 
 def _build_binding_info(ui_data: dict, chat_id: str):
-    results = []
-    target = _normalize_chat_id(chat_id)
-    if not target or not isinstance(ui_data, dict):
-        return results
-
-    for key, value in ui_data.items():
-        if _chat_special_ui_key(key) or not isinstance(value, dict):
-            continue
-
-        bound_ids = _ensure_ui_chat_list(value)
-        if target not in bound_ids:
-            continue
-
-        resolved = _resolve_card_entry(key)
-        if not resolved:
-            continue
-        results.append(resolved)
-
-    results.sort(key=lambda item: (item.get('card_name') or '').lower())
-    return results
+    from core.data.local_state_repository import StateSnapshot, binding_keys
+    if isinstance(ui_data, StateSnapshot):
+        results = [_resolve_card_entry(key) for key, _ in binding_keys([_normalize_chat_id(chat_id)])
+                   if not _chat_special_ui_key(key)]
+        return sorted((item for item in results if item), key=lambda item: (item.get('card_name') or '').lower())
+    return _build_binding_table(ui_data).get(_normalize_chat_id(chat_id), [])
 
 
 def _remove_chat_from_bindings(ui_data: dict, chat_id: str, card_id: str = None):
@@ -753,7 +755,7 @@ def api_list_chats():
         ui_changed = ui_changed or missing_ui_changed
 
         if chat_changed:
-            save_chat_data(chat_data)
+            _save_chat_data_or_raise(chat_data)
         if ui_changed:
             save_ui_data(ui_data)
 
@@ -808,7 +810,7 @@ def api_chat_detail():
             need_messages=include_messages,
         )
         if changed:
-            save_chat_data(chat_data)
+            _save_chat_data_or_raise(chat_data)
 
         index_data = get_chat_jsonl_index(full_path)
         item = _build_chat_item(chat_id, entry, ui_data, full_path=full_path)
@@ -859,7 +861,7 @@ def api_chat_range():
         chat_data = load_chat_data()
         entry, changed, _, _, _ = _refresh_chat_entry(chat_id, full_path, chat_data, need_messages=False)
         if changed:
-            save_chat_data(chat_data)
+            _save_chat_data_or_raise(chat_data)
 
         index_data = get_chat_jsonl_index(full_path)
         message_index = index_data.get('message_index') if isinstance(index_data.get('message_index'), list) else []
@@ -958,8 +960,9 @@ def api_update_chat_meta():
 
         entry['updated_at'] = time.time()
         chat_data[chat_id] = entry
-        if save_chat_data(chat_data):
-            changed = False
+        _save_chat_data_or_raise(chat_data)
+        # 合并可能保留另一个请求的字段，响应必须读取实际提交结果。
+        chat_data = load_chat_data()
 
         item = _build_chat_item(chat_id, chat_data.get(chat_id), ui_data, full_path=full_path)
         item['bookmarks'] = list((chat_data.get(chat_id) or {}).get('bookmarks') or [])
@@ -985,14 +988,12 @@ def api_bind_chat():
         ui_data = load_ui_data()
         ui_changed = False
         chat_changed = False
-        bindings = []
         effective_chat_id = chat_id
         effective_full_path = _chat_abs_path(chat_id)
         moved = False
 
         if unbind or not card_id:
             ui_changed = _remove_chat_from_bindings(ui_data, effective_chat_id)
-            bindings = _build_binding_info(ui_data, effective_chat_id)
         else:
             effective_chat_id, effective_full_path, moved, move_chat_changed, move_ui_changed = _move_chat_to_bound_folder(
                 chat_id,
@@ -1003,7 +1004,7 @@ def api_bind_chat():
             chat_changed = chat_changed or move_chat_changed
             ui_changed = ui_changed or move_ui_changed
 
-            bind_changed, bindings = _bind_chat_to_card(ui_data, effective_chat_id, card_id)
+            bind_changed, _ = _bind_chat_to_card(ui_data, effective_chat_id, card_id)
             ui_changed = ui_changed or bind_changed
 
         entry, refreshed, _, _, _ = _refresh_chat_entry(
@@ -1020,11 +1021,13 @@ def api_bind_chat():
                 entry = chat_data.get(effective_chat_id)
 
         if chat_changed:
-            save_chat_data(chat_data)
+            _save_chat_data_or_raise(chat_data)
         if ui_changed:
-            save_ui_data(ui_data)
+            if save_ui_data(ui_data) is False:
+                raise RuntimeError('聊天绑定未保存，请重试')
 
         item = _build_chat_item(effective_chat_id, entry, ui_data, full_path=effective_full_path)
+        bindings = item['bound_cards']
 
         return jsonify({
             'success': True,
@@ -1114,7 +1117,7 @@ def api_import_chats():
                         pass
 
         if chat_changed:
-            save_chat_data(chat_data)
+            _save_chat_data_or_raise(chat_data)
         if ui_changed:
             save_ui_data(ui_data)
 
@@ -1163,7 +1166,7 @@ def api_save_chat():
             need_messages=False,
         )
         if changed:
-            save_chat_data(chat_data)
+            _save_chat_data_or_raise(chat_data)
 
         index_data = get_chat_jsonl_index(full_path)
         item = _build_chat_item(chat_id, entry, ui_data, full_path=full_path)
@@ -1200,7 +1203,7 @@ def api_delete_chat():
         chat_changed = delete_chat_entry(chat_data, chat_id)
         ui_changed = _remove_chat_from_bindings(ui_data, chat_id)
         if chat_changed:
-            save_chat_data(chat_data)
+            _save_chat_data_or_raise(chat_data)
         if ui_changed:
             save_ui_data(ui_data)
 

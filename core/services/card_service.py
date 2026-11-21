@@ -26,7 +26,6 @@ from core.data.ui_store import (
     get_import_time,
     rename_embedded_worldinfo_note_card_prefix,
     rename_resource_item_category_path_prefix,
-    rename_resource_worldinfo_note_path_prefix,
 )
 from core.consts import RESERVED_RESOURCE_NAMES
 from core.services.card_operation_lock import card_operation_locked
@@ -42,6 +41,7 @@ from core.services.cache_service import update_card_cache
 from core.services.card_index_sync_service import sync_card_index_jobs
 from core.services.index_build_service import apply_card_increment, connect_index_db
 from core.services.index_job_worker import enqueue_index_job
+from core.services.path_operation import PATH_BUSY, path_operation
 from core.services.scan_service import suppress_fs_events
 from core.services.wi_entry_history_service import (
     move_entry_history_scope,
@@ -58,6 +58,7 @@ from core.utils.filesystem import save_json_atomic, sanitize_filename
 from core.utils.text import calculate_token_count
 from core.utils.hash import get_file_hash_and_size
 from core.utils.source_revision import build_file_source_revision
+from core.utils.image import card_image_urls
 from core.utils.card_identity import normalize_card_uid
 from core.automation.replace_text import apply_replace_text
 
@@ -92,7 +93,7 @@ def reconcile_card_ui_fields(card_id, leader_id, *, bundle_dir='', loader=None):
 
 
 def update_card_ui_fields(card_id, data, *, cards_folder=None, db_path=None,
-                          loader=None, saver=None):
+                          loader=None, saver=None, on_ui_committed=None):
     """Persist only submitted UI fields. Caller holds the card operation lock."""
     full_path = os.path.join(cards_folder or CARDS_FOLDER, card_id.replace('/', os.sep))
     stat = os.stat(full_path)  # Access failures must abort, not become a deletion.
@@ -115,6 +116,7 @@ def update_card_ui_fields(card_id, data, *, cards_folder=None, db_path=None,
     canonical = {}
     changed = {}
     leader_remark = {}
+    version_summaries = {}
 
     def mutate(ui_data):
         entry = ui_data.setdefault(ui_key, {})
@@ -143,11 +145,17 @@ def update_card_ui_fields(card_id, data, *, cards_folder=None, db_path=None,
                          source_revision=build_file_source_revision(full_path))
         leader_remark.update(get_version_remark(ui_data, ui_key, leader_id, cover_id)
                              if bundle_dir else values)
+        if bundle_dir:
+            for version in (ctx.cache.id_map.get(leader_id) or {}).get('versions', []):
+                version_summaries[version['id']] = get_version_remark(
+                    ui_data, ui_key, version['id'], cover_id).get('summary', '')
 
     if not update_ui_data(mutate, allow_shrink=False, loader=loader, saver=saver):
         return {'success': False, 'ui_data_save_failed': True,
                 'msg': '本地 UI 数据（备注/链接/资源目录）保存失败，请重试'}
 
+    if on_ui_committed is not None:
+        on_ui_committed()
     index_sync_pending = False
     summary_submitted = 'ui_summary' in data and (
         changed.get('summary') or 'ui_only_fields' not in data
@@ -159,17 +167,18 @@ def update_card_ui_fields(card_id, data, *, cards_folder=None, db_path=None,
         # Legacy requests can echo the old summary while explicitly targeting another UI field.
         # The existing durable queue remains the recovery path if the caller goes away.
         try:
-            sync_card_index_jobs(card_id=card_id, source_path=full_path, summary_changed=True)
             conn = connect_index_db(db_path or DEFAULT_DB_PATH)
             try:
                 try:
-                    apply_card_increment(conn, card_id, full_path)
+                    from core.services.index_job_worker import apply_card_increment_and_ack
+                    apply_card_increment_and_ack(conn, card_id, full_path, ui_key=ui_key)
                 except RuntimeError as exc:
                     if 'cards active generation missing' not in str(exc):
                         raise
             finally:
                 conn.close()
         except Exception:
+            sync_card_index_jobs(card_id=card_id, source_path=full_path, summary_changed=True)
             logger.error('UI 数据已保存，但卡片备注索引同步失败: %s', card_id, exc_info=True)
             index_sync_pending = True
     if changed.get('resource_folder'):
@@ -209,6 +218,7 @@ def update_card_ui_fields(card_id, data, *, cards_folder=None, db_path=None,
                 if hasattr(ctx.cache, '_mutation_version'):
                     ctx.cache._mutation_version += 1
                 for version in (ctx.cache.id_map.get(leader_id) or {}).get('versions', []):
+                    version.setdefault('ui_summary', version_summaries.get(version.get('id'), ''))
                     if version.get('id') == card_id and changed.get('summary'):
                         version['ui_summary'] = canonical['ui_summary']
                     for stored, field in (('link', 'source_link'), ('resource_folder', 'resource_folder')):
@@ -222,13 +232,15 @@ def update_card_ui_fields(card_id, data, *, cards_folder=None, db_path=None,
     result_card['source_revision'] = build_file_source_revision(os.path.join(
         cards_folder or CARDS_FOLDER, leader_id.replace('/', os.sep)))
     result_card.setdefault('filename', os.path.basename(leader_id))
-    result_card.setdefault('image_url', f'/cards_file/{quote(leader_id)}?t={stat.st_mtime}')
-    result_card.setdefault('thumb_url', f'/api/thumbnail/{quote(leader_id)}?t={stat.st_mtime}')
+    from core.utils.image import THUMBNAIL_ALGORITHM_VERSION
+    image_revision = result_card.get('image_revision') or 'unverified-' + result_card['source_revision']
+    result_card.setdefault('image_url', f'/cards_file/{quote(leader_id)}?v={image_revision}')
+    result_card.setdefault('thumb_url', f'/api/thumbnail/{quote(leader_id)}?v={THUMBNAIL_ALGORITHM_VERSION}-{image_revision}')
     return {'success': True, 'completion': {
         'return_new_id': leader_id, 'return_new_filename': result_card['filename'],
         'final_return_obj': result_card, 'current_version_id': card_id if card_id != leader_id else None,
         'link_changed': bool(changed.get('link')), 'source_link_val': canonical['source_link'],
-        'canonical_ui': canonical, 'index_sync_pending': index_sync_pending,
+        'canonical_ui': canonical, 'index_sync_pending': index_sync_pending, 'revision_ui_key': ui_key,
     }}
 
 
@@ -277,9 +289,10 @@ def cleanup_embedded_worldbook_history(
 
 
 def _apply_card_index_increment_now(card_id, source_path, remove_entity_ids=None):
+    from core.services.index_job_worker import apply_card_increment_and_ack
     try:
         with connect_index_db(DEFAULT_DB_PATH) as conn:
-            apply_card_increment(conn, card_id, source_path, remove_entity_ids=remove_entity_ids)
+            apply_card_increment_and_ack(conn, card_id, source_path, remove_entity_ids=remove_entity_ids)
     except RuntimeError as exc:
         if 'cards active generation missing' not in str(exc):
             raise
@@ -564,18 +577,11 @@ def update_card_content(
             return None
     
     def save_card_atomic(save_path, image_obj, meta_data):
-        """原子保存图片及元数据"""
-        temp_save = save_path + ".tmp"
-        try:
-            image_obj.save(temp_save, "PNG")
-            if not write_card_metadata(temp_save, meta_data):
-                raise Exception("Failed to write metadata")
-            os.replace(temp_save, save_path)
-            return True
-        except Exception as e:
-            if os.path.exists(temp_save): os.remove(temp_save)
-            raise e
-        
+        from core.utils.image import save_card_image_atomic
+        return save_card_image_atomic(save_path, image_obj, meta_data,
+                                      old_path=original_full_path if is_format_conversion else None,
+                                      metadata_writer=write_card_metadata)
+
     # ==============================================================================
     # 文件写入操作
     # ==============================================================================
@@ -677,13 +683,13 @@ def update_card_content(
             save_card_atomic(target_save_path, img, final_info)
             
             # 如果是格式转换 (JSON -> PNG)，完成后删除旧 JSON 和伴生图
-            if is_format_conversion:
-                clean_sidecar_images(original_full_path)
-                if os.path.exists(original_full_path):
-                    os.remove(original_full_path)
+            if is_format_conversion and os.path.exists(original_full_path):
+                os.remove(original_full_path)
 
         # 情况 B: 目标是 JSON (仅当没升级格式且上传的也是 JSON 时)
         else:
+            from core.services.index_job_worker import prepare_card_file_intent
+            prepare_card_file_intent(target_save_path)
             save_json_atomic(target_save_path, final_info)
                     
     # ==============================================================================
@@ -844,8 +850,7 @@ def update_card_content(
                 "dir_path": os.path.dirname(final_rel_id) if '/' in final_rel_id else "",
                 "creator": calc_data.get('creator', ''),
                 "char_version": calc_data.get('character_version', ''),
-                "image_url": f"/cards_file/{quote(final_rel_id)}?t={new_mtime}",
-                "thumb_url": f"/api/thumbnail/{quote(final_rel_id)}?t={new_mtime}"
+                **card_image_urls(final_rel_id, os.path.join(CARDS_FOLDER, final_rel_id.replace('/', os.sep)))
             })
             ctx.cache.add_card_update(update_payload)
             updated_card_obj = ctx.cache.id_map.get(final_rel_id)
@@ -880,8 +885,6 @@ def update_card_content(
     new_image_url = ""
     if updated_card_obj:
         new_image_url = updated_card_obj['image_url']
-        if '?t=' not in new_image_url:
-            new_image_url += f"?t={int(new_mtime)}"
 
     revision_path = os.path.join(CARDS_FOLDER, final_rel_id.replace('/', os.sep))
     refreshed_source_revision = build_file_source_revision(revision_path)
@@ -967,15 +970,6 @@ def swap_skin_to_cover(card_id, skin_filename, save_old_to_resource=False):
         # 判断卡片类型
         is_json_card = card_full_path.lower().endswith('.json')
         
-        # 构造 PngInfo（两种格式都需要）
-        import json as json_lib
-        from core.utils.data import normalize_card_v3, deterministic_sort
-        from core.utils.png_metadata import build_card_pnginfo
-        norm_data = normalize_card_v3(current_info)
-        sorted_data = deterministic_sort(norm_data)
-        # 同时写入 chara 与 ccv3，与 SillyTavern 的写入行为保持一致
-        meta = build_card_pnginfo(json_lib.dumps(sorted_data))
-        
         if is_json_card:
             # JSON 格式角色卡：转换为 PNG 格式
             # 5.1 准备新的 PNG 文件路径
@@ -995,18 +989,10 @@ def swap_skin_to_cover(card_id, skin_filename, save_old_to_resource=False):
                     archive_name = f"prev_cover_{timestamp}{old_ext}"
                     shutil.copy2(old_sidecar, os.path.join(res_dir_path, archive_name))
             
-            # 5.3 删除原 JSON 文件和所有伴生图片（先清理，再保存新文件）
-            # 注意：clean_sidecar_images 会删除 base_name.* 的所有图片
-            # 所以必须在保存新 PNG 之前执行，否则会把新文件也删掉
-            clean_sidecar_images(card_full_path)  # 删除所有伴生图片
-            if os.path.exists(card_full_path):
-                os.remove(card_full_path)  # 删除原 JSON 文件
-            
-            # 5.4 保存新的 PNG 文件（包含元数据）
-            temp_target = new_full_path + ".tmp.png"
-            img.save(temp_target, "PNG", pnginfo=meta)
-            os.replace(temp_target, new_full_path)
-            
+            from core.utils.image import save_card_image_atomic
+            save_card_image_atomic(new_full_path, img, current_info, old_path=card_full_path,
+                                   metadata_writer=write_card_metadata)
+
             # 5.5 更新数据库中的卡片 ID（从 .json 改为 .png）
             old_category = ""
             if ctx.cache and card_id in ctx.cache.id_map:
@@ -1054,13 +1040,9 @@ def swap_skin_to_cover(card_id, skin_filename, save_old_to_resource=False):
             # PNG 格式角色卡：传统方式，替换原文件并嵌入元数据
             # 先保存皮肤像素到目标，再写入 Meta
             # 为了原子性写入临时文件
-            temp_target = card_full_path + ".tmp.png"
-            
-            img.save(temp_target, "PNG", pnginfo=meta)
-            
-            # 替换
-            os.replace(temp_target, card_full_path)
-            
+            from core.utils.image import save_card_image_atomic
+            save_card_image_atomic(card_full_path, img, current_info, metadata_writer=write_card_metadata)
+
             # 更新数据库缓存 (Hash变了，但Meta没变，更新Hash和Size)
             f_hash, f_size = get_file_hash_and_size(card_full_path)
             update_card_cache(card_id, card_full_path, file_hash=f_hash, file_size=f_size)
@@ -1091,10 +1073,8 @@ def _build_skin_cover_result(*, card_id, full_path, file_hash, converted_to_png)
         mtime = time.time()
 
     source_revision = build_file_source_revision(full_path)
-    ts = int(mtime)
-    encoded_id = quote(card_id)
-    image_url = f"/cards_file/{encoded_id}?t={ts}"
-    thumb_url = f"/api/thumbnail/{encoded_id}?t={ts}"
+    urls = card_image_urls(card_id, full_path)
+    image_url, thumb_url = urls['image_url'], urls['thumb_url']
 
     updated_card = None
     if ctx.cache:
@@ -1248,6 +1228,24 @@ def _merge_bundle_version_remarks_after_card_move(ui_data, old_card_id, new_card
 
     return True
 
+def migrate_card_to_bundle_ui(ui_data, old_card_id, new_card_id, *, import_time):
+    """转包请求和文件恢复共用同一套 UI key、版本备注及世界书备注迁移。"""
+    bundle_dir = new_card_id.rpartition('/')[0]
+    changed = rename_card_ui_references(ui_data, old_card_id, bundle_dir)
+    if changed:
+        entry = ui_data[bundle_dir]
+        if entry.get('summary'):
+            set_version_remark(ui_data, bundle_dir, new_card_id, {
+                'summary': entry['summary'],
+                'link': entry.get('link', ''),
+                'resource_folder': entry.get('resource_folder', ''),
+            }, new_card_id)
+    if rename_embedded_worldinfo_note_card_prefix(ui_data, old_card_id, new_card_id):
+        changed = True
+    changed_import, _ = ensure_import_time(ui_data, bundle_dir, import_time)
+    return changed or changed_import
+
+
 def rename_folder_in_db(old_path, new_path):
     """
     在数据库中批量重命名 ID 和 Category 前缀。
@@ -1309,12 +1307,18 @@ def sync_exact_card_after_fs_move(
 
     if save_ui_before_commit:
         if ui_changed:
-            save_ui_data(ui_data)
+            if save_ui_data(ui_data, conn=conn) is False:
+                conn.rollback()
+                raise RuntimeError('文件已移动，UI 状态未提交，需要恢复')
         conn.commit()
+        from core.data.local_state_repository import StateSnapshot
+        if ui_changed and isinstance(ui_data, StateSnapshot):
+            ui_data.confirm_saved()
     else:
         conn.commit()
         if ui_changed:
-            save_ui_data(ui_data)
+            if save_ui_data(ui_data) is False:
+                raise RuntimeError('文件已移动，UI 状态未提交，需要恢复')
 
     move_entry_history_scope(
         source_type='embedded',
@@ -1335,6 +1339,7 @@ def sync_exact_card_after_fs_move(
         )
 
     remove_ids = [old_card_id] if new_card_id != old_card_id else None
+    source_revision = build_file_source_revision(dst_full_path)
     cache_result = update_card_cache(
         new_card_id,
         dst_full_path,
@@ -1351,6 +1356,10 @@ def sync_exact_card_after_fs_move(
         remove_entity_ids=remove_ids,
         remove_owner_ids=remove_ids,
     )
+    if cache_result.get('cache_updated'):
+        from core.services.index_job_worker import complete_card_file_move
+        complete_card_file_move(conn, new_card_id, dst_full_path, old_id=old_card_id,
+                                source_revision=source_revision)
 
 
 def sync_folder_prefix_after_fs_move(*, conn, ui_data, old_path, new_path):
@@ -1372,7 +1381,8 @@ def sync_folder_prefix_after_fs_move(*, conn, ui_data, old_path, new_path):
         ctx.cache.move_folder_update(old_path, new_path)
 
     if ui_changed:
-        save_ui_data(ui_data)
+        if save_ui_data(ui_data) is False:
+            raise RuntimeError('文件夹已移动，UI 状态未提交，需要恢复')
 
     for old_sub_id, new_sub_id in moved_ids:
         move_entry_history_scope(
@@ -1383,6 +1393,7 @@ def sync_folder_prefix_after_fs_move(*, conn, ui_data, old_path, new_path):
             db_path=DEFAULT_DB_PATH,
         )
         new_sub_full_path = os.path.join(CARDS_FOLDER, new_sub_id.replace('/', os.sep))
+        source_revision = build_file_source_revision(new_sub_full_path)
         remove_ids = [old_sub_id] if new_sub_id != old_sub_id else None
         cache_result = update_card_cache(
             new_sub_id,
@@ -1400,6 +1411,10 @@ def sync_folder_prefix_after_fs_move(*, conn, ui_data, old_path, new_path):
             remove_entity_ids=remove_ids,
             remove_owner_ids=remove_ids,
         )
+        if cache_result.get('cache_updated'):
+            from core.services.index_job_worker import complete_card_file_move
+            complete_card_file_move(conn, new_sub_id, new_sub_full_path, old_id=old_sub_id,
+                                    source_revision=source_revision)
 
     return moved_ids
 
@@ -1426,6 +1441,7 @@ def cleanup_deleted_cards_after_fs_delete(
             remove_owner_ids=[card_id],
         )
 
+@card_operation_locked
 def sync_card_names_internal(
     card_id,
     set_char_name_from_filename=False,
@@ -1626,6 +1642,8 @@ def sync_card_names_internal(
 
             # Windows 大小写不敏感，纯大小写变化一般不需要处理
             if final_filename.lower() != old_filename.lower():
+                from core.services.index_job_worker import prepare_card_file_intent
+                prepare_card_file_intent(final_main_path, old_path=old_full_path, operation_kind='rename')
                 os.rename(old_full_path, final_main_path)
 
                 if sidecar_src and final_sidecar_path and os.path.exists(sidecar_src):
@@ -1655,6 +1673,7 @@ def sync_card_names_internal(
         except Exception:
             current_mtime = time.time()
 
+        prepared_source_revision = build_file_source_revision(new_full_path)
         cache_result = update_card_cache(
             new_id,
             new_full_path,
@@ -1662,6 +1681,8 @@ def sync_card_names_internal(
             mtime=current_mtime,
             remove_entity_ids=[old_id] if new_id != old_id else None,
         )
+        if not cache_result.get('cache_updated'):
+            raise RuntimeError('文件已保存，元数据待恢复，请重试')
         sync_card_index_jobs(
             card_id=new_id,
             source_path=new_full_path,
@@ -1697,6 +1718,8 @@ def sync_card_names_internal(
 
             if rename_card_ui_references(ui_data, old_id, new_id):
                 ui_changed = True
+            if rename_embedded_worldinfo_note_card_prefix(ui_data, old_id, new_id):
+                ui_changed = True
 
             for key, entry in ui_data.items():
                 if not isinstance(entry, dict):
@@ -1708,7 +1731,8 @@ def sync_card_names_internal(
                     ui_changed = True
 
             if ui_changed:
-                save_ui_data(ui_data)
+                if save_ui_data(ui_data) is False:
+                    raise RuntimeError('文件已移动，UI 状态未提交，需要恢复')
 
             old_category = old_id.rsplit('/', 1)[0] if '/' in old_id else ''
             old_cache_item = ctx.cache.id_map.get(old_id) if ctx.cache else None
@@ -1744,6 +1768,10 @@ def sync_card_names_internal(
             if ctx.cache:
                 ctx.cache.update_card_data(new_id, cache_payload)
 
+        if new_id != old_id:
+            from core.services.index_job_worker import complete_card_file_move
+            complete_card_file_move(get_db(), new_id, new_full_path, old_id=old_id,
+                                    source_revision=prepared_source_revision)
         return True, new_id, "Success", details
     except Exception as e:
         logger.error(f"Sync card names error: {e}")
@@ -1844,6 +1872,8 @@ def move_card_internal(card_id, target_category):
             old_category = card_id.rsplit('/', 1)[0]
 
         # 4. 执行物理移动
+        from core.services.index_job_worker import prepare_card_path_intents
+        prepare_card_path_intents(old_full_path, dst_full_path)
         shutil.move(old_full_path, dst_full_path)
         
         # 如果是单文件且为 JSON，尝试移动伴生图
@@ -2167,70 +2197,95 @@ def rename_card_resource_folder(card_id, new_name):
             'renamed': False,
         }
 
-    if not os.path.isdir(current_path):
-        return {'success': False, 'msg': f'资源目录不存在: {current_path}'}
-    if os.path.exists(new_path):
-        return {'success': False, 'msg': f'目标目录已存在: {requested_name}'}
+    with path_operation(current_path, new_path) as acquired:
+        if not acquired:
+            return {'success': False, 'msg': PATH_BUSY, 'retryable': True}
+        if not os.path.isdir(current_path):
+            return {'success': False, 'msg': f'资源目录不存在: {current_path}'}
+        if os.path.lexists(new_path):
+            return {'success': False, 'msg': f'目标目录已存在: {requested_name}'}
 
-    suppress_fs_events(3.0)
+        suppress_fs_events(3.0)
 
-    # 资源世界书的条目历史按绝对路径归档，目录改名后需要一并迁移。
-    history_scopes = [
-        {
-            'source_type': 'resource',
-            'file_path': os.path.join(new_path, os.path.relpath(path, current_path)),
-            'old_file_path': path,
+        # 资源世界书的条目历史按绝对路径归档，目录改名后需要一并迁移。
+        history_scopes = [
+            {
+                'source_type': 'resource',
+                'file_path': os.path.join(new_path, os.path.relpath(path, current_path)),
+                'old_file_path': path,
+            }
+            for path in _iter_resource_worldbook_paths(current_path)
+        ]
+
+        try:
+            directory_identity = os.stat(current_path, follow_symlinks=False)
+            os.rename(current_path, new_path)
+        except OSError as exc:
+            logger.error('Rename resource folder failed (%s -> %s): %s', current_path, new_path, exc)
+            return {'success': False, 'msg': f'重命名资源目录失败: {exc}'}
+
+        try:
+            entry['resource_folder'] = new_value
+            rename_resource_item_category_path_prefix(ui_data, current_path, new_path)
+            card_full_path = os.path.join(CARDS_FOLDER, normalized_card_id.replace('/', os.sep))
+            if not save_ui_data(
+                ui_data,
+                resource_note_move=(current_path, new_path),
+                worldinfo_jobs=({
+                    'job_type': 'upsert_world_owner',
+                    'entity_id': normalized_card_id,
+                    'source_path': card_full_path,
+                    'payload': {'ui_key': ui_key},
+                    'if_card_not_projected': True,
+                },),
+            ):
+                raise UiDataLoadError('保存资源目录绑定与备注失败')
+        except (UiDataLoadError, ValueError, OSError) as exc:
+            logger.warning('Resource folder state not saved (%s -> %s): %s', current_path, new_path, exc)
+            recovery_path = ''
+            try:
+                current_identity = os.stat(new_path, follow_symlinks=False)
+                if not directory_identity.st_ino or not os.path.samestat(directory_identity, current_identity):
+                    raise OSError(f'新路径的目录已变化，无法确认原目录位置: {new_path}')
+                recovery_path = new_path
+                if os.path.lexists(current_path):
+                    raise FileExistsError(f'原路径已被占用: {current_path}')
+                os.rename(new_path, current_path)
+            except OSError as rollback_error:
+                logger.error('Failed to restore resource folder %s: %s', new_path, rollback_error)
+                result = {'success': False, 'msg': f'{exc}，无法恢复原目录：{rollback_error}'}
+                if recovery_path:
+                    result['resource_path'] = recovery_path
+                return result
+            return {'success': False, 'msg': f'{exc}，目录已恢复，请重试'}
+
+        ctx.index_wakeup.set()
+
+        for scope in history_scopes:
+            move_entry_history_scope(
+                source_type='resource',
+                file_path=scope['old_file_path'],
+                target_source_type='resource',
+                target_file_path=scope['file_path'],
+                fallback_contexts=[
+                    {
+                        'source_type': 'lorebook',
+                        'file_path': scope['old_file_path'],
+                    },
+                ],
+                db_path=DEFAULT_DB_PATH,
+            )
+
+        target_id = normalized_card_id
+        if ctx.cache:
+            bundle_main_id = ctx.cache.bundle_map.get(ui_key)
+            if bundle_main_id:
+                target_id = bundle_main_id
+            ctx.cache.update_card_data(target_id, {'resource_folder': new_value})
+
+        return {
+            'success': True,
+            'resource_folder': new_value,
+            'resource_path': new_path,
+            'renamed': True,
         }
-        for path in _iter_resource_worldbook_paths(current_path)
-    ]
-
-    try:
-        os.rename(current_path, new_path)
-    except OSError as exc:
-        logger.error('Rename resource folder failed (%s -> %s): %s', current_path, new_path, exc)
-        return {'success': False, 'msg': f'重命名资源目录失败: {exc}'}
-
-    entry['resource_folder'] = new_value
-    ui_changed = True
-    if rename_resource_worldinfo_note_path_prefix(ui_data, current_path, new_path):
-        ui_changed = True
-    if rename_resource_item_category_path_prefix(ui_data, current_path, new_path):
-        ui_changed = True
-    if ui_changed:
-        save_ui_data(ui_data)
-
-    for scope in history_scopes:
-        move_entry_history_scope(
-            source_type='resource',
-            file_path=scope['old_file_path'],
-            target_source_type='resource',
-            target_file_path=scope['file_path'],
-            fallback_contexts=[
-                {
-                    'source_type': 'lorebook',
-                    'file_path': scope['old_file_path'],
-                },
-            ],
-            db_path=DEFAULT_DB_PATH,
-        )
-
-    target_id = normalized_card_id
-    if ctx.cache:
-        bundle_main_id = ctx.cache.bundle_map.get(ui_key)
-        if bundle_main_id:
-            target_id = bundle_main_id
-        ctx.cache.update_card_data(target_id, {'resource_folder': new_value})
-
-    card_full_path = os.path.join(CARDS_FOLDER, normalized_card_id.replace('/', os.sep))
-    sync_card_index_jobs(
-        card_id=normalized_card_id,
-        source_path=card_full_path,
-        resource_folder_changed=True,
-    )
-
-    return {
-        'success': True,
-        'resource_folder': new_value,
-        'resource_path': new_path,
-        'renamed': True,
-    }

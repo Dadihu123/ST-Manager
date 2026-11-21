@@ -167,7 +167,7 @@ def test_create_resource_folder_restores_binding_for_existing_orphan_folder(
     # 不能多建一个 Hero_1 空目录
     assert sorted(p.name for p in resources_env['resources_root'].iterdir()) == ['Hero']
 
-    saved = json.loads(resources_env['ui_path'].read_text(encoding='utf-8'))
+    saved = __import__('core.data.local_state_repository', fromlist=['Repository']).Repository().export_snapshot()
     assert saved['hero.png']['resource_folder'] == 'Hero'
 
 
@@ -223,7 +223,7 @@ def test_bind_card_resource_folder_is_atomic_and_idempotent(monkeypatch, tmp_pat
     assert third['ok'] is True
     assert third['resource_folder'] == 'hero-assets'
 
-    saved = json.loads(ui_path.read_text(encoding='utf-8'))
+    saved = __import__('core.data.local_state_repository', fromlist=['Repository']).Repository().export_snapshot()
     assert saved['hero.png']['resource_folder'] == 'hero-assets'
 
 
@@ -232,6 +232,9 @@ def _configure_update_card_env(monkeypatch, tmp_path, *, ui_state):
     cards_dir.mkdir(parents=True, exist_ok=True)
     ui_path = tmp_path / 'ui_data.json'
     ui_path.write_text(json.dumps(ui_state, ensure_ascii=False), encoding='utf-8')
+    # 激活后的权威库不会重新导入旧 JSON；夹具不应依赖第一次惰性读取的时机。
+    from core.data.local_state_repository import Repository
+    Repository().replace_snapshot(ui_state)
     card_rel = 'cards/lucy.png'
     card_path = cards_dir / card_rel
     card_path.parent.mkdir(parents=True, exist_ok=True)
@@ -266,7 +269,11 @@ def _configure_update_card_env(monkeypatch, tmp_path, *, ui_state):
     return card_rel
 
 
-def test_update_card_keeps_resource_folder_when_payload_sends_empty(monkeypatch, tmp_path):
+@pytest.mark.parametrize('authority_initialized', [False, True])
+def test_update_card_keeps_resource_folder_when_payload_sends_empty(monkeypatch, tmp_path, authority_initialized):
+    if authority_initialized:
+        from core.data.local_state_repository import initialize
+        initialize()
     card_rel = _configure_update_card_env(
         monkeypatch,
         tmp_path,
@@ -286,7 +293,7 @@ def test_update_card_keeps_resource_folder_when_payload_sends_empty(monkeypatch,
     })
 
     assert res.status_code == 200
-    saved = json.loads((tmp_path / 'ui_data.json').read_text(encoding='utf-8'))
+    saved = __import__('core.data.local_state_repository', fromlist=['Repository']).Repository().export_snapshot()
     assert saved['cards/lucy.png']['resource_folder'] == 'keep-folder'
 
 
@@ -311,7 +318,7 @@ def test_update_card_allows_explicit_resource_folder_clear(monkeypatch, tmp_path
     })
 
     assert res.status_code == 200
-    saved = json.loads((tmp_path / 'ui_data.json').read_text(encoding='utf-8'))
+    saved = __import__('core.data.local_state_repository', fromlist=['Repository']).Repository().export_snapshot()
     assert saved['cards/lucy.png']['resource_folder'] == ''
 
 
@@ -325,8 +332,9 @@ def test_swap_skin_cover_returns_revision_and_card_id(monkeypatch, tmp_path):
     skin_dir = resources_root / 'hero-assets'
     skin_dir.mkdir(parents=True)
     card_path = cards_dir / 'hero.png'
-    card_path.write_bytes(b'old')
-    (skin_dir / 'skin.png').write_bytes(b'new')
+    from PIL import Image
+    Image.new('RGB', (2, 2), 'blue').save(card_path)
+    Image.new('RGB', (2, 2), 'red').save(skin_dir / 'skin.png')
 
     monkeypatch.setattr(card_service, 'CARDS_FOLDER', str(cards_dir))
     monkeypatch.setattr(card_service, 'BASE_DIR', str(tmp_path))
@@ -342,10 +350,6 @@ def test_swap_skin_cover_returns_revision_and_card_id(monkeypatch, tmp_path):
     monkeypatch.setattr(card_service, 'update_card_cache', lambda *_args, **_kwargs: {})
     monkeypatch.setattr(card_service, 'get_file_hash_and_size', lambda _path: ('hash', 3))
 
-    class _FakeImage:
-        def save(self, path, _fmt, **_kwargs):
-            Path(path).write_bytes(b'new-png')
-
     class _FakeCache:
         def __init__(self):
             self.id_map = {'hero.png': {'id': 'hero.png', 'image_url': '/x'}}
@@ -356,7 +360,6 @@ def test_swap_skin_cover_returns_revision_and_card_id(monkeypatch, tmp_path):
 
     fake_cache = _FakeCache()
     monkeypatch.setattr(card_service.ctx, 'cache', fake_cache, raising=False)
-    monkeypatch.setattr(card_service.Image, 'open', lambda _path: _FakeImage())
 
     result = card_service.swap_skin_to_cover('hero.png', 'skin.png')
 

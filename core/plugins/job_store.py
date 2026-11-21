@@ -127,7 +127,7 @@ def connect(*, ensure_schema: bool = False) -> sqlite3.Connection:
     conn = sqlite3.connect(DEFAULT_DB_PATH, timeout=60)
     conn.row_factory = sqlite3.Row
     conn.execute('PRAGMA journal_mode=WAL;')
-    conn.execute('PRAGMA synchronous=NORMAL;')
+    conn.execute('PRAGMA synchronous=FULL;')
     if ensure_schema:
         ensure_plugin_jobs_schema(conn)
     return conn

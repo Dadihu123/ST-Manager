@@ -95,3 +95,40 @@ app.previewReady = false;
 await app.commit();
 assert.equal(calls.length, count, "Diff loading failure cannot enable replacement");
 console.log("Worldbook update runtime checks passed: URL/file, source identity, raw integer preservation, stale recompare, cancellation and busy guards.");
+
+// A rejected note save must retain each real editor's draft and avoid its saved notification.
+const failedNoteReply = { success: false, retryable: true, ui_data_saved: false, msg: "请重新载入后重试" };
+const alerts = [];
+globalThis.alert = message => alerts.push(message);
+for (const [file, method, nextMethod] of [
+  ["wiDetailPopup.js", "saveActiveWorldInfoNote", "async clearActiveWorldInfoNote"],
+  ["wiEditor.js", "saveEditingWorldInfoNote", "openEditingWorldInfoNotePreview"],
+]) {
+  const source = readFileSync(new URL(`../static/js/components/${file}`, import.meta.url), "utf8");
+  const block = source.slice(source.indexOf(`    async ${method}()`), source.indexOf(`    ${nextMethod}(`));
+  const component = Function("saveWorldInfoNote", "updateCard", `return ({${block}})`)(
+    async () => failedNoteReply, async () => { throw new Error("unexpected embedded save"); },
+  );
+  const notifications = [];
+  Object.assign(component, {
+    activeWiDetail: { type: "global" }, activeWiNoteDraft: "keep popup draft", isSavingWorldInfoNote: false,
+    editingWiFile: { type: "resource" }, editingData: { ui_summary: "keep editor draft" },
+    buildActiveWorldInfoNotePayload: summary => ({ summary }),
+    buildEditingWorldInfoNotePayload: summary => ({ summary }),
+    emitWorldInfoNoteUpdated: value => notifications.push(value),
+    emitEditingWorldInfoNoteUpdated: value => notifications.push(value),
+    _markEditorSaveStarted() { this.status = "saving"; },
+    _markEditorSaveError() { this.status = "error"; },
+    _markEditorSaveSuccess() { this.status = "saved"; },
+    $store: { global: { showToast: message => notifications.push(message) } },
+  });
+  await component[method]();
+  assert.equal(component.activeWiNoteDraft, "keep popup draft");
+  assert.equal(component.editingData.ui_summary, "keep editor draft");
+  assert.equal(component.isSavingWorldInfoNote, false);
+  assert.notEqual(component.status, "saved");
+  assert.deepEqual(notifications, [], "Rejected drafts cannot emit saved events or toasts");
+}
+assert.equal(alerts.length, 2);
+assert.ok(alerts.every(message => message.includes("请重新载入")));
+console.log("Worldbook note conflicts preserve popup/editor drafts and report save failure.");

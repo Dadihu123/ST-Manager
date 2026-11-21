@@ -54,11 +54,11 @@ def _insert_card_meta(db_path: Path, *, card_id: str, category: str):
 def _read_ui_data(ui_path: Path):
     if not ui_path.exists():
         return {}
-    return json.loads(ui_path.read_text(encoding='utf-8'))
+    return __import__('core.data.local_state_repository', fromlist=['Repository']).Repository().export_snapshot()
 
 
 @pytest.fixture()
-def folder_fixture(tmp_path):
+def folder_fixture(tmp_path, monkeypatch):
     cards_dir = tmp_path / 'cards'
     trash_dir = tmp_path / 'trash'
     db_path = tmp_path / 'db.sqlite'
@@ -68,6 +68,8 @@ def folder_fixture(tmp_path):
     trash_dir.mkdir(parents=True, exist_ok=True)
 
     _init_db(db_path)
+    from core.data import local_state_repository as state
+    monkeypatch.setattr(state, 'DEFAULT_DB_PATH', str(db_path))
 
     # 文件结构：
     # cards/testA/a.png

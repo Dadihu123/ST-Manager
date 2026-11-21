@@ -1,6 +1,8 @@
 import sqlite3
 import sys
+import threading
 import types
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import pytest
@@ -216,9 +218,12 @@ def test_worker_claims_pending_jobs_before_processing(monkeypatch, tmp_path):
             raise _StopLoop()
         return True
 
-    def fake_rebuild_scope_generation(_scope='cards', reason='bootstrap'):
+    def fake_rebuild_scope_generation(_scope='cards', reason='bootstrap', *, rebuild_job):
         with sqlite3.connect(db_path) as conn:
-            observed['status'] = conn.execute('SELECT status FROM index_jobs WHERE id = 1').fetchone()[0]
+            job_id, claim_token = rebuild_job
+            observed['status'] = conn.execute(
+                'SELECT status FROM index_jobs WHERE id=? AND error_msg=?', (job_id, claim_token),
+            ).fetchone()[0]
 
     monkeypatch.setattr(ctx.index_wakeup, 'wait', fake_wait)
     monkeypatch.setattr(index_job_worker, 'rebuild_scope_generation', fake_rebuild_scope_generation)
@@ -230,8 +235,14 @@ def test_worker_claims_pending_jobs_before_processing(monkeypatch, tmp_path):
     assert observed['status'] == 'running'
 
 
-def test_start_index_job_worker_starts_only_one_thread(monkeypatch):
+def test_start_index_job_worker_starts_only_one_thread(monkeypatch, tmp_path):
     started = []
+    monkeypatch.setattr(index_job_worker, 'DEFAULT_DB_PATH', str(tmp_path / 'jobs.db'))
+    monkeypatch.setattr(ctx, 'index_worker_started', False)
+    monkeypatch.setattr(ctx, 'index_wakeup', threading.Event())
+    with index_job_worker._connect(ensure_schema=True) as conn:
+        conn.executemany("INSERT INTO index_jobs(job_type,status,finished_at) VALUES ('rebuild_scope',?,?)",
+                         [('running', 0), ('failed', 100), ('running', 200)])
 
     class _FakeThread:
         def __init__(self, *, target=None, daemon=None):
@@ -239,60 +250,56 @@ def test_start_index_job_worker_starts_only_one_thread(monkeypatch):
             self.daemon = daemon
 
         def start(self):
+            assert ctx.index_wakeup.is_set()
             started.append(self.target)
 
     monkeypatch.setattr(index_job_worker.threading, 'Thread', _FakeThread)
-    ctx.index_worker_started = False
-
     index_job_worker.start_index_job_worker()
     index_job_worker.start_index_job_worker()
 
-    assert started == [index_job_worker.worker_loop]
+    assert len(started) == 1
+    class StopWorker(Exception):
+        pass
+
+    def stop_after_recovery(_timeout):
+        raise StopWorker()
+
+    monkeypatch.setattr(ctx.index_wakeup, 'wait', stop_after_recovery)
+    with pytest.raises(StopWorker):
+        started[0]()
+    assert not ctx.index_worker_started
+    with index_job_worker._connect() as conn:
+        assert [tuple(row) for row in conn.execute('SELECT status,finished_at FROM index_jobs ORDER BY id')] == [
+            ('pending', 0), ('failed', 100), ('failed', 200)]
 
 
 def test_claim_pending_jobs_returns_only_rows_claimed_by_current_invocation(monkeypatch, tmp_path):
-    class _FakeResult:
-        def __init__(self, *, rows=None, scalar=None):
-            self._rows = rows or []
-            self._scalar = scalar
+    monkeypatch.setattr(index_job_worker, 'DEFAULT_DB_PATH', str(tmp_path / 'jobs.db'))
+    with index_job_worker._connect(ensure_schema=True) as conn:
+        # 高 ID 的失败意图等待最久；未到期的意图保留状态和错误信息。
+        conn.executemany("INSERT INTO index_jobs(job_type,status,finished_at) VALUES ('retry','failed',?)",
+                         [(100 - i,) for i in range(60)])
+        conn.executemany("INSERT INTO index_jobs(job_type) VALUES (?)", [('fresh',)] * 60)
+        conn.execute("INSERT INTO index_jobs(job_type,status,finished_at,error_msg) "
+                     "VALUES ('later','failed',strftime('%s','now'),'backoff')")
+    barrier = threading.Barrier(2)
 
-        def fetchall(self):
-            return self._rows
+    def claim():
+        barrier.wait(timeout=10)
+        return index_job_worker._claim_pending_jobs(50)
 
-        def fetchone(self):
-            return [self._scalar]
-
-    class _FakeConn:
-        def __enter__(self):
-            return self
-
-        def __exit__(self, exc_type, exc, tb):
-            return False
-
-        def execute(self, sql, params=()):
-            normalized = ' '.join(str(sql).split()).lower()
-            if normalized.startswith('select id from index_jobs where status = '):
-                return _FakeResult(rows=[{'id': 1}])
-            if normalized.startswith('update index_jobs set status = ?'):
-                self._claim_token = params[1]
-                return _FakeResult()
-            if 'select id, job_type, entity_id, source_path, payload_json from index_jobs' in normalized:
-                if len(params) >= 2 and params[1] == getattr(self, '_claim_token', None):
-                    return _FakeResult(rows=[])
-                return _FakeResult(rows=[{'id': 1, 'job_type': 'rebuild_scope', 'entity_id': '', 'source_path': '', 'payload_json': '{}'}])
-            if normalized.startswith('select count(*) from index_jobs where status = '):
-                return _FakeResult(scalar=0)
-            raise AssertionError(f'unexpected sql: {sql}')
-
-        def commit(self):
-            return None
-
-    monkeypatch.setattr(index_job_worker, '_connect', lambda: _FakeConn())
-
-    claimed_rows, pending = index_job_worker._claim_pending_jobs(50)
-
-    assert claimed_rows == []
-    assert pending == 0
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        futures = [pool.submit(claim) for _ in range(2)]
+        batches = [future.result() for future in futures]
+    assert sorted(count for _, count in batches) == [20, 70]
+    for rows, _ in batches:
+        assert len(rows) == 50 and sum(row['job_type'] == 'fresh' for row in rows) == 25
+    claimed = [row['id'] for rows, _ in batches for row in rows]
+    assert len(set(claimed)) == len(claimed)
+    assert set(claimed) == set(range(11, 111))
+    with index_job_worker._connect() as conn:
+        assert tuple(conn.execute("SELECT status,error_msg FROM index_jobs WHERE job_type='later'").fetchone()) == (
+            'failed', 'backoff')
 
 
 def test_worker_routes_legacy_resource_worldinfo_path_job_via_shared_classifier(monkeypatch):
@@ -320,6 +327,9 @@ def test_worker_routes_legacy_resource_worldinfo_path_job_via_shared_classifier(
             return [0]
 
     class _FakeConn:
+        def close(self):
+            pass
+
         def __enter__(self):
             return self
 
@@ -344,23 +354,27 @@ def test_worker_routes_legacy_resource_worldinfo_path_job_via_shared_classifier(
     monkeypatch.setattr(index_job_worker, '_claim_pending_jobs', fake_claim_pending_jobs)
     monkeypatch.setattr(index_job_worker, '_set_jobs_state', lambda **_kwargs: None)
     monkeypatch.setattr(index_job_worker, '_mark_job_status', lambda job_id, status, error_msg='': calls.append(('mark', job_id, status, error_msg)))
-    monkeypatch.setattr(index_job_worker, '_connect', lambda: _FakeConn())
+    monkeypatch.setattr(index_job_worker, '_connect', lambda **_kwargs: _FakeConn())
+    from contextlib import nullcontext
+    monkeypatch.setattr(index_job_worker, 'worldinfo_increment_batch', lambda _conn: nullcontext())
     monkeypatch.setattr(
         index_job_worker,
         'classify_worldinfo_path',
         lambda source_path: {'kind': 'resource', 'source_path': source_path},
     )
     monkeypatch.setattr(index_job_worker, 'apply_worldinfo_path_increment', lambda _conn, _source_path: calls.append(('global', _source_path)) or True)
-    monkeypatch.setattr(index_job_worker, 'apply_worldinfo_owner_increment', lambda _conn, entity_id, source_path='', *, commit=True: calls.append(('owner', entity_id, source_path, commit)) or True)
-    monkeypatch.setattr(index_job_worker, 'resolve_resource_worldinfo_owner_card_ids', lambda source_path: ['cards/alpha.png', 'cards/zeta.png'] if 'hero-assets' in source_path else [], raising=False)
+    monkeypatch.setattr(index_job_worker, 'apply_worldinfo_resource_path_increment',
+                        lambda _conn, path, owners, old, *, commit:
+                        calls.append(('resource', path, owners, old, commit)) or True)
+    monkeypatch.setattr(index_job_worker, '_indexed_resource_rows', lambda *_args: [])
+    monkeypatch.setattr(index_job_worker, 'resolve_resource_worldinfo_owner_card_ids', lambda source_path, **_: ['cards/alpha.png', 'cards/zeta.png'] if 'hero-assets' in source_path else [], raising=False)
 
     with pytest.raises(_StopLoop):
         index_job_worker.worker_loop()
 
     assert calls == [
-        ('owner', 'cards/alpha.png', 'D:/data/resources/hero-assets/lorebooks/book.json', False),
-        ('owner', 'cards/zeta.png', 'D:/data/resources/hero-assets/lorebooks/book.json', False),
-        ('commit',),
+        ('resource', 'D:/data/resources/hero-assets/lorebooks/book.json',
+         ['cards/alpha.png', 'cards/zeta.png'], [], False),
         ('mark', 1, 'done', ''),
     ]
 
@@ -395,6 +409,9 @@ def test_worker_routes_relative_resource_worldinfo_path_via_real_classifier(monk
             return [0]
 
     class _FakeConn:
+        def close(self):
+            pass
+
         def __enter__(self):
             return self
 
@@ -415,10 +432,15 @@ def test_worker_routes_relative_resource_worldinfo_path_via_real_classifier(monk
     monkeypatch.setattr(index_job_worker, '_claim_pending_jobs', lambda _limit: (rows.pop(0), 0))
     monkeypatch.setattr(index_job_worker, '_set_jobs_state', lambda **_kwargs: None)
     monkeypatch.setattr(index_job_worker, '_mark_job_status', lambda job_id, status, error_msg='': calls.append(('mark', job_id, status, error_msg)))
-    monkeypatch.setattr(index_job_worker, '_connect', lambda: _FakeConn())
+    monkeypatch.setattr(index_job_worker, '_connect', lambda **_kwargs: _FakeConn())
+    from contextlib import nullcontext
+    monkeypatch.setattr(index_job_worker, 'worldinfo_increment_batch', lambda _conn: nullcontext())
     monkeypatch.setattr(index_job_worker, 'apply_worldinfo_path_increment', lambda _conn, _source_path: calls.append(('global', _source_path)) or True)
-    monkeypatch.setattr(index_job_worker, 'apply_worldinfo_owner_increment', lambda _conn, entity_id, source_path='', *, commit=True: calls.append(('owner', entity_id, source_path, commit)) or True)
-    monkeypatch.setattr(index_job_worker, 'resolve_resource_worldinfo_owner_card_ids', lambda source_path: ['cards/alpha.png'] if str(resource_file) == source_path else [], raising=False)
+    monkeypatch.setattr(index_job_worker, 'apply_worldinfo_resource_path_increment',
+                        lambda _conn, path, owners, old, *, commit:
+                        calls.append(('resource', path, owners, old, commit)) or True)
+    monkeypatch.setattr(index_job_worker, '_indexed_resource_rows', lambda *_args: [])
+    monkeypatch.setattr(index_job_worker, 'resolve_resource_worldinfo_owner_card_ids', lambda source_path, **_: ['cards/alpha.png'] if str(resource_file) == source_path else [], raising=False)
     monkeypatch.setattr(index_job_worker, 'load_config', lambda: {
         'world_info_dir': 'data/library/lorebooks',
         'resources_dir': 'data/assets/card_assets',
@@ -434,8 +456,7 @@ def test_worker_routes_relative_resource_worldinfo_path_via_real_classifier(monk
         index_job_worker.worker_loop()
 
     assert calls == [
-        ('owner', 'cards/alpha.png', str(resource_file), False),
-        ('commit',),
+        ('resource', str(resource_file), ['cards/alpha.png'], [], False),
         ('mark', 1, 'done', ''),
     ]
 
@@ -465,6 +486,9 @@ def test_worker_keeps_global_worldinfo_path_on_global_increment_branch(monkeypat
             return [0]
 
     class _FakeConn:
+        def close(self):
+            pass
+
         def __enter__(self):
             return self
 
@@ -483,7 +507,9 @@ def test_worker_keeps_global_worldinfo_path_on_global_increment_branch(monkeypat
     monkeypatch.setattr(index_job_worker, '_claim_pending_jobs', fake_claim_pending_jobs)
     monkeypatch.setattr(index_job_worker, '_set_jobs_state', lambda **_kwargs: None)
     monkeypatch.setattr(index_job_worker, '_mark_job_status', lambda job_id, status, error_msg='': calls.append(('mark', job_id, status, error_msg)))
-    monkeypatch.setattr(index_job_worker, '_connect', lambda: _FakeConn())
+    monkeypatch.setattr(index_job_worker, '_connect', lambda **_kwargs: _FakeConn())
+    from contextlib import nullcontext
+    monkeypatch.setattr(index_job_worker, 'worldinfo_increment_batch', lambda _conn: nullcontext())
     monkeypatch.setattr(
         index_job_worker,
         'classify_worldinfo_path',
@@ -526,6 +552,9 @@ def test_worker_does_not_fall_back_to_global_increment_for_resource_path_without
             return [0]
 
     class _FakeConn:
+        def close(self):
+            pass
+
         def __enter__(self):
             return self
 
@@ -544,7 +573,9 @@ def test_worker_does_not_fall_back_to_global_increment_for_resource_path_without
     monkeypatch.setattr(index_job_worker, '_claim_pending_jobs', fake_claim_pending_jobs)
     monkeypatch.setattr(index_job_worker, '_set_jobs_state', lambda **_kwargs: None)
     monkeypatch.setattr(index_job_worker, '_mark_job_status', lambda job_id, status, error_msg='': calls.append(('mark', job_id, status, error_msg)))
-    monkeypatch.setattr(index_job_worker, '_connect', lambda: _FakeConn())
+    monkeypatch.setattr(index_job_worker, '_connect', lambda **_kwargs: _FakeConn())
+    from contextlib import nullcontext
+    monkeypatch.setattr(index_job_worker, 'worldinfo_increment_batch', lambda _conn: nullcontext())
     monkeypatch.setattr(
         index_job_worker,
         'classify_worldinfo_path',
@@ -552,11 +583,12 @@ def test_worker_does_not_fall_back_to_global_increment_for_resource_path_without
     )
     monkeypatch.setattr(index_job_worker, 'apply_worldinfo_path_increment', lambda _conn, source_path: calls.append(('global', source_path)) or True)
     monkeypatch.setattr(index_job_worker, 'apply_worldinfo_owner_increment', lambda _conn, entity_id, source_path='': calls.append(('owner', entity_id, source_path)) or True)
-    monkeypatch.setattr(index_job_worker, 'resolve_resource_worldinfo_owner_card_ids', lambda _source_path: [], raising=False)
+    monkeypatch.setattr(index_job_worker, '_indexed_resource_rows', lambda *_args: [])
+    monkeypatch.setattr(index_job_worker, 'resolve_resource_worldinfo_owner_card_ids', lambda _source_path, **_: [], raising=False)
 
     with pytest.raises(_StopLoop):
         index_job_worker.worker_loop()
 
     assert calls == [
-        ('mark', 1, 'failed', 'resource worldinfo path has no owner cards'),
+        ('mark', 1, 'done', ''),
     ]

@@ -238,6 +238,54 @@ docker compose up --build
 
 标签以 `v*` 发布时，Docker workflow 会构建并推送 GHCR 镜像；桌面构建 workflow 还支持手动触发。
 
+## 本地状态存储与降级导出
+
+UI 与聊天本地状态的权威数据保存在 `cards_metadata.db`，通过
+`core/data/local_state_repository.py` 访问（ADR-0017）。旧 `ui_data.json` /
+`chat_data.json` 在首次迁移后只是保留快照，直接编辑它们不会影响运行数据。
+请使用 repository 的定向更新或带基线的 load/save 门面；清缓存、重建索引不能删除权威表。
+
+传入外层 `conn` 或在 Flask 外层事务中保存时，快照不会在 savepoint release 时确认基线。
+如果提交后还要复用同一快照，事务拥有者必须在真正 `commit()` 成功后调用
+`snapshot.confirm_saved()`；回滚后保留原快照差异，可直接重试。命名空间整体替换或删除
+遇到根 revision 冲突时应重新读取，不能用无基线字典强行覆盖。
+
+迁移失败时插件与后台服务暂停启动，配置和恢复入口保留。先恢复路径权限或显式还原备份，
+再重启；不要删除 `.local-state-authority` 标记来强行重新导入旧 JSON。迁移保留
+`*.before-local-state`、原备份世代和包含 WAL 的 `*.before-local-state.sqlite3`。
+
+降级前先在新版中导出到**独立目录**（以下示例须先创建 `downgrade-export`）：
+
+```bash
+python -c "from core.data.ui_store import export_legacy_ui_data; from core.data.local_state_repository import Repository; from core.utils.filesystem import save_json_atomic; assert export_legacy_ui_data('downgrade-export/ui_data.json'); assert save_json_atomic('downgrade-export/chat_data.json', Repository('chat').export_snapshot())"
+```
+
+退出新版、保留完整备份，在独立的旧版数据目录中使用这些 JSON；不要让旧版进程打开新版权威
+数据库。正常备份迁移使用完整归档；旧用户 DB 备份仍保持选择性恢复语义，不覆盖全部备注。
+
+目标权威库损坏或丢失时，已验证的完整归档仍可生成恢复计划。无法从旧库提取的本机插件
+配置/凭据会显示在恢复状态中；旧库原件由 protection 流程保留，恢复后的插件保持禁用，
+需要重新配置后启用。不要将遗留 JSON 中的旧凭据当作当前权威状态自动导回。
+
+文件恢复任务与 UI 投影任务分别确认。备注保存只确认对应版本的投影，不能确认需要读取
+文件、刷新元数据或迁移 ID 的任务。完整正文保存保留本次实际写入的文件版本，将元数据、
+投影和本次操作的替换意图确认放在同一事务中；其他操作或后续 hook 的文件任务仍待恢复。
+换图从发布意图前到收尾始终持卡片锁，JSON 转换同时按固定顺序锁定旧、新 ID；底层原子写入
+也遵守相同的锁。ID 迁移先从旧元数据继承收藏和稳定 UID，再在同一事务中清理旧记录，
+以保留 UID 关联的历史。JSON 转 PNG 的意图保存暂存输出的文件身份和 SHA-256，
+目标与原伴生图相同时取消未提交转换；只有确认目标是本次提交的完整角色卡并提交元数据、
+UI 和索引后才清理源 JSON。无法确认提交、文件后来变化或旧意图缺少身份凭据时保留来源；
+清理失败的任务仍可重试，不能把它当作已完成历史删除。
+
+启动全量扫描在同一读取快照中取得元数据和未完成文件意图，跳过这些意图涉及的新、旧 ID，
+同时保留其路径与 UID 关联历史；恢复提交前不重建或删除其身份。扫描期间发生并发提交时，
+WAL 快照不能升级为写事务就整轮回滚，不能用旧扫描结果覆盖恢复结果。
+完整保存所需的 embedded/owner 世界书任务与元数据、卡片投影、文件任务确认共用事务；
+任务入队失败必须回滚，不能先确认文件任务再补耐久意图。
+世界书批次失败后按任务隔离重试，无关更新可以推进；单个共享资源任务仍覆盖全部 owner 并
+整体提交或回滚。缺少 metadata 不等于文件已删除：只有严格枚举确认文件不存在，旧 owner
+任务才能清理派生索引；文件仍在或目录不可访问时保留原索引和失败任务。
+
 ## 代码风格与提交边界
 
 - Python 使用 4 空格、绝对导入和小范围改动；导入顺序为标准库、第三方、本地模块。

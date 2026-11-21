@@ -409,6 +409,15 @@ mypy core
 
 ## Database And State
 
+- UI and chat local state are authoritative in `core/data/local_state_repository.py`
+  (ADR-0017), not `ui_data_cache` or the retained JSON migration snapshots. Use targeted
+  repository writes or baseline-aware load/save snapshots; never overwrite the whole store
+  from an unversioned dictionary except explicit validated import/reset.
+- Keep authoritative writes at `synchronous=FULL`. Compose UI, search projection and durable
+  job intents on the same connection; nested helpers must respect the outer transaction.
+  Failed recovery intents must not be pruned as display history. Never re-import retained
+  JSON after activation or remove the authority marker to bypass recovery checks.
+
 - SQLite is used directly via `sqlite3`
 - Use parameterized queries, never string-built SQL
 - Reuse `execute_with_retry()` for lock-prone writes

@@ -125,7 +125,7 @@ class MigrationPaths:
                             target = self.path(path, relative=True) if self.exporting else self.path(path)
                             if not self.exporting:
                                 from core.data.ui_store import _normalize_resource_item_category_path
-                                target = _normalize_resource_item_category_path(target)
+                                target = _normalize_resource_item_category_path(target, worldinfo=(mode == 'worldinfo'))
                             converted[target] = category
                         result[key][mode] = converted
             elif key not in PRESERVED_UI_NAMESPACES:

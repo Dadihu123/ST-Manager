@@ -96,7 +96,7 @@ def force_reload(reason: str = ""):
             ctx.reload_timer = None
     _do_reload_now()
 
-def update_card_cache(card_id, full_path, *, parsed_info=None, file_hash=None, file_size=None, mtime=None, remove_entity_ids=None, card_uid=None):
+def update_card_cache(card_id, full_path, *, parsed_info=None, file_hash=None, file_size=None, mtime=None, remove_entity_ids=None, card_uid=None, token_count=None, commit=True):
     """
     [数据库写操作] 更新单个卡片的数据库记录。
     通常由 API 路由或扫描器调用。
@@ -113,6 +113,13 @@ def update_card_cache(card_id, full_path, *, parsed_info=None, file_hash=None, f
 
         # 获取收藏状态和历史 embedded worldinfo 状态，供调用方决定后续索引同步
         row = _load_card_identity(cursor, card_id)
+        # Old identity is authoritative for an ID migration, even if a stale
+        # destination row exists. Read it before the caller removes the old ID.
+        for old_id in remove_entity_ids or []:
+            old_row = _load_card_identity(cursor, old_id)
+            if old_row is not None:
+                row = old_row
+                break
         current_fav = _row_value(row, 'is_favorite', 0) or 0
         previous_has_wi = bool(_row_value(row, 'has_character_book', 0))
         stable_uid = normalize_card_uid(card_uid) or normalize_card_uid(_row_value(row, 'card_uid'))
@@ -153,7 +160,8 @@ def update_card_cache(card_id, full_path, *, parsed_info=None, file_hash=None, f
             # Token 计算
             calc_data = data_block.copy()
             if 'name' not in calc_data: calc_data['name'] = char_name
-            token_count = calculate_token_count(calc_data)
+            if token_count is None:
+                token_count = calculate_token_count(calc_data)
             has_wi, wi_name = get_wi_meta(data_block)
 
             values = (
@@ -190,9 +198,11 @@ def update_card_cache(card_id, full_path, *, parsed_info=None, file_hash=None, f
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', values[:-1])
             
-            conn.commit()
+            if commit:
+                conn.commit()
             result['cache_updated'] = True
             result['has_embedded_wi'] = bool(has_wi)
+            result['token_count'] = token_count
             return result
         return result
     except Exception as e:

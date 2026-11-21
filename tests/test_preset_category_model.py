@@ -73,7 +73,7 @@ def _setup_preset_env(monkeypatch, tmp_path, *, cards=None, ui_payload=None):
         lambda: {'presets_dir': str(presets_dir), 'resources_dir': str(resources_dir)},
     )
     monkeypatch.setattr(ui_store_module, 'UI_DATA_FILE', str(ui_path))
-    monkeypatch.setattr(presets_api, 'load_ui_data', lambda: ui_payload or {}, raising=False)
+    monkeypatch.setattr(presets_api, 'load_ui_data', ui_store_module.load_ui_data, raising=False)
     monkeypatch.setattr(presets_api, 'get_resource_item_categories', ui_store_module.get_resource_item_categories, raising=False)
     monkeypatch.setattr(
         presets_api,

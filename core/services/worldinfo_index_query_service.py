@@ -4,6 +4,7 @@ import sqlite3
 from core.config import DEFAULT_DB_PATH
 from core.data.index_runtime_store import get_active_generation
 from core.data.sqlite_capabilities import supports_fts5
+from core.utils.filesystem import filesystem_path_bucket, filesystem_paths_match
 from core.utils.search_text import build_fts_match_query, escape_like
 
 
@@ -306,17 +307,21 @@ def _build_search_clause(search, search_mode, search_field, generation, extras, 
     return '(' + ' OR '.join(terms) + ')', params, degraded
 
 
+def _source_path_extra(filters):
+    buckets = sorted({filesystem_path_bucket(str(path)) for path in (filters.get('source_paths') or []) if path})
+    if not buckets:
+        return None
+    placeholders = ', '.join('?' for _ in buckets)
+    return (f'(e.path_key IN ({placeholders}) OR e.path_key IS NULL) AND worldinfo_path_match(e.source_path)', buckets)
+
+
 def _build_search_extras(filters):
     """搜索 OR 组里的附加来源条件：世界书备注路径与所属角色卡。"""
     extras = []
 
-    extra_source_paths = [str(path) for path in (filters.get('source_paths') or []) if str(path).strip()]
-    if extra_source_paths:
-        placeholders = ', '.join('?' for _ in extra_source_paths)
-        extras.append((
-            f"LOWER(REPLACE(e.source_path, '\\', '/')) IN ({placeholders})",
-            [str(path).replace('\\', '/').lower() for path in extra_source_paths],
-        ))
+    paths = _source_path_extra(filters)
+    if paths:
+        extras.append(paths)
 
     extra_owner_entity_ids = [str(value) for value in (filters.get('owner_entity_ids') or []) if str(value).strip()]
     if extra_owner_entity_ids:
@@ -366,11 +371,10 @@ def _build_query_parts(filters, generation: int, *, literal_only=False):
             # 输入无法表达为有效查询时不放宽到「全部结果」，直接返回空集。
             where.append('0 = 1')
 
-        extra_source_paths = [str(path) for path in (filters.get('source_paths') or []) if str(path).strip()]
-        if extra_source_paths:
-            placeholders = ', '.join('?' for _ in extra_source_paths)
-            where.append(f"LOWER(REPLACE(e.source_path, '\\', '/')) IN ({placeholders})")
-            params.extend(str(path).replace('\\', '/').lower() for path in extra_source_paths)
+        paths = _source_path_extra(filters)
+        if paths:
+            where.append(paths[0])
+            params.extend(paths[1])
 
         extra_owner_entity_ids = [str(value) for value in (filters.get('owner_entity_ids') or []) if str(value).strip()]
         if extra_owner_entity_ids:
@@ -409,6 +413,18 @@ def _build_query_parts(filters, generation: int, *, literal_only=False):
 
 
 def _run_query(conn, filters, generation: int, *, literal_only=False):
+    if filters.get('source_paths'):
+        paths_by_bucket = {}
+        for path in filters['source_paths']:
+            if path:
+                paths_by_bucket.setdefault(filesystem_path_bucket(str(path)), set()).add(str(path))
+        directory_cases = {}
+
+        def match_path(source):
+            return any(filesystem_paths_match(source, path, directory_cases=directory_cases)
+                       for path in paths_by_bucket.get(filesystem_path_bucket(source), ()))
+
+        conn.create_function('worldinfo_path_match', 1, match_path)
     (
         requested_entity_type,
         search,

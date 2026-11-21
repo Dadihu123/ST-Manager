@@ -21,7 +21,7 @@ from core.utils.host_capabilities import CAN_WATCH_FILESYSTEM
 # === 业务逻辑引用 ===
 from core.services.card_binding_service import rename_card_ui_references
 from core.services.cache_service import schedule_reload
-from core.services.index_build_service import classify_worldinfo_path, resolve_resource_worldinfo_owner_card_ids
+from core.services.index_build_service import classify_worldinfo_path
 from core.services.index_job_worker import enqueue_index_job
 from core.services.wi_entry_history_service import (
     get_entry_uids,
@@ -599,24 +599,14 @@ def start_fs_watcher():
             handled_worldinfo = False
             for candidate_path in (getattr(event, 'src_path', ''), getattr(event, 'dest_path', '')):
                 worldinfo_path = classify_worldinfo_path(candidate_path)
-                if worldinfo_path.get('kind') == 'global':
+                kind = worldinfo_path.get('kind')
+                if kind in ('global', 'resource'):
                     if event_type in ('created', 'modified') or (
                         event_type == 'moved' and candidate_path == destination_path
                     ):
-                        _reconcile_worldinfo_history_file(candidate_path, 'global')
+                        _reconcile_worldinfo_history_file(candidate_path, kind)
                     enqueue_index_job('upsert_worldinfo_path', source_path=candidate_path)
                     handled_worldinfo = True
-                    continue
-                if worldinfo_path.get('kind') == 'resource':
-                    if event_type in ('created', 'modified') or (
-                        event_type == 'moved' and candidate_path == destination_path
-                    ):
-                        _reconcile_worldinfo_history_file(candidate_path, 'resource')
-                    owner_card_ids = resolve_resource_worldinfo_owner_card_ids(candidate_path)
-                    if owner_card_ids:
-                        for owner_card_id in owner_card_ids:
-                            enqueue_index_job('upsert_world_owner', entity_id=owner_card_id, source_path=candidate_path)
-                        handled_worldinfo = True
 
             if handled_worldinfo:
                 return
@@ -785,6 +775,13 @@ def _perform_scan_logic_inner(db_path, cards_root):
             ensure_index_runtime_schema(conn)
         except Exception as exc:
             logger.warning('世界书误识别记录清理失败: %s', exc)
+
+        # Freeze task and identity reads together. A concurrent recovery commit
+        # makes a later WAL snapshot upgrade fail and roll back, never overwrite it.
+        conn.commit()
+        conn.execute('BEGIN')
+        from core.services.index_job_worker import pending_card_file_ids
+        protected_ids = pending_card_file_ids(conn)
         
         # 1. 获取数据库当前状态 (用于比对)
         try:
@@ -821,7 +818,8 @@ def _perform_scan_logic_inner(db_path, cards_root):
         renamed_card_ids = set()
         replaced_card_uids = {}
         deleted_card_ids = set()
-        fs_found_files = set()
+        fs_found_files = set(protected_ids)
+        rename_candidates = {key: value for key, value in db_files_map.items() if key not in protected_ids}
         # ui_data 读取失败时不中止整轮扫描，只是本次不写回 UI 数据，
         # 避免把空数据覆盖到磁盘上的真实内容。
         try:
@@ -867,6 +865,9 @@ def _perform_scan_logic_inner(db_path, cards_root):
                     file_id = file
                 else:
                     file_id = f"{category}/{file}"
+
+                if file_id in protected_ids:
+                    continue  # Recovery owns both source and destination until its transaction commits.
                 
                 # 获取文件属性 (一次 stat 调用)
                 try:
@@ -882,7 +883,7 @@ def _perform_scan_logic_inner(db_path, cards_root):
                 renamed_from_id = ''
                 if not db_info:
                     candidate = _find_full_scan_rename_candidate(
-                        db_files_map,
+                        rename_candidates,
                         fs_found_files,
                         full_path,
                         current_size,
@@ -906,7 +907,7 @@ def _perform_scan_logic_inner(db_path, cards_root):
                         need_update = True
                         file_changed = True
                     # 文件未变，但 token_count 缺失 -> 仅补全 token
-                    elif (db_info['tokens'] is None or db_info['tokens'] == 0) and current_size > 100:
+                    elif db_info['tokens'] is None and current_size > 100:
                         need_update = True
 
                 if renamed_from_id:
@@ -1009,11 +1010,11 @@ def _perform_scan_logic_inner(db_path, cards_root):
             resources_root=_resolve_runtime_dir(cfg.get('resources_dir'), ''),
             db_path=db_path,
             conn=conn,
-            retained_card_ids=renamed_card_ids,
+            retained_card_ids=renamed_card_ids | protected_ids,
             external_resource_roots=[_resolve_runtime_dir(root, '')
                                      for root in cfg.get('allowed_abs_resource_roots', [])],
         )
-        _cleanup_misdetected_worldbook_rows(conn, cards_root)
+        _cleanup_misdetected_worldbook_rows(conn, cards_root, retained_card_ids=protected_ids)
 
         # 3. 清理已删除文件
         for db_id in list(db_files_map.keys()):
@@ -1085,7 +1086,7 @@ def _perform_scan_logic_inner(db_path, cards_root):
         )
 
 
-def _cleanup_misdetected_worldbook_rows(conn, cards_root):
+def _cleanup_misdetected_worldbook_rows(conn, cards_root, *, retained_card_ids=()):
     """一次性清理被误当成角色卡索引的世界书记录。
 
     历史版本仅按后缀识别卡片，导致放进角色卡目录的世界书 JSON 也被写入
@@ -1121,7 +1122,7 @@ def _cleanup_misdetected_worldbook_rows(conn, cards_root):
     removed = set()
     for row in rows:
         card_id = str(row[0] or '')
-        if not card_id:
+        if not card_id or card_id in retained_card_ids:
             continue
         full_path = os.path.join(cards_root, card_id.replace('/', os.sep))
         if not os.path.isfile(full_path):

@@ -180,6 +180,7 @@ def test_update_card_cache_returns_persistence_facts_without_enqueueing_jobs(mon
     result = cache_service.update_card_cache('cards/hero.png', 'D:/cards/hero.png', mtime=123.0)
 
     assert result == {
+        'token_count': 111,
         'cache_updated': True,
         'has_embedded_wi': False,
         'previous_has_embedded_wi': True,
@@ -235,8 +236,8 @@ def test_sync_card_index_jobs_enqueues_embedded_and_owner_refresh_for_file_chang
     assert result == {
         'upsert_card': True,
         'upsert_world_embedded': True,
-        'upsert_world_owner': True,
-        'jobs_enqueued': ['upsert_card', 'upsert_world_embedded', 'upsert_world_owner'],
+        'upsert_world_owner': False,
+        'jobs_enqueued': ['upsert_card', 'upsert_world_embedded'],
     }
     assert calls == [
         (
@@ -245,10 +246,6 @@ def test_sync_card_index_jobs_enqueues_embedded_and_owner_refresh_for_file_chang
         ),
         (
             ('upsert_world_embedded',),
-            {'entity_id': 'hero.png', 'source_path': 'D:/cards/hero.png'},
-        ),
-        (
-            ('upsert_world_owner',),
             {'entity_id': 'hero.png', 'source_path': 'D:/cards/hero.png'},
         ),
     ]
@@ -762,7 +759,7 @@ def test_worker_loop_marks_bad_job_failed_and_continues(monkeypatch, tmp_path):
 
     calls = []
 
-    def fake_rebuild_scope_generation(scope='cards', reason='bootstrap'):
+    def fake_rebuild_scope_generation(scope='cards', reason='bootstrap', *, rebuild_job):
         calls.append((scope, reason))
 
     wait_calls = {'count': 0}
@@ -936,7 +933,7 @@ def test_worker_loop_upserts_card_into_active_generation_without_cards_rebuild(m
             'INSERT INTO index_search_fast_v2(generation, entity_id, content) VALUES (?, ?, ?)',
             (2, 'card::hero.png', 'stale search'),
         )
-        conn.execute(
+        _seed_full_search(conn,
             'INSERT INTO index_search_full_v2(generation, entity_id, content) VALUES (?, ?, ?)',
             (2, 'card::hero.png', 'stale search'),
         )
@@ -962,6 +959,8 @@ def test_worker_loop_upserts_card_into_active_generation_without_cards_rebuild(m
     monkeypatch.setattr(index_job_worker, 'rebuild_scope_generation', fake_rebuild_scope_generation)
     monkeypatch.setattr(index_build_service, 'CARDS_FOLDER', str(cards_dir))
     monkeypatch.setattr(index_build_service, 'load_ui_data', lambda: {'hero.png': {'summary': 'fresh summary'}}, raising=False)
+    from core.data.local_state_repository import Repository
+    Repository().update_fields('hero.png', {'summary': 'fresh summary'})
     monkeypatch.setattr(ctx.index_wakeup, 'wait', fake_wait)
     ctx.index_state.update({'state': 'empty', 'scope': 'cards', 'progress': 0, 'message': '', 'pending_jobs': 0})
     ctx.index_wakeup.set()
@@ -1064,7 +1063,7 @@ def test_worker_loop_upsert_card_removes_stale_old_id_rows_from_active_generatio
             'INSERT INTO index_search_fast_v2(generation, entity_id, content) VALUES (?, ?, ?)',
             (3, 'card::old-name.json', 'old search'),
         )
-        conn.execute(
+        _seed_full_search(conn,
             'INSERT INTO index_search_full_v2(generation, entity_id, content) VALUES (?, ?, ?)',
             (3, 'card::old-name.json', 'old search'),
         )
@@ -1090,6 +1089,8 @@ def test_worker_loop_upsert_card_removes_stale_old_id_rows_from_active_generatio
     monkeypatch.setattr(index_job_worker, 'rebuild_scope_generation', fake_rebuild_scope_generation)
     monkeypatch.setattr(index_build_service, 'CARDS_FOLDER', str(cards_dir))
     monkeypatch.setattr(index_build_service, 'load_ui_data', lambda: {'new-name.png': {'summary': 'renamed summary'}}, raising=False)
+    from core.data.local_state_repository import Repository
+    Repository().update_fields('new-name.png', {'summary': 'renamed summary'})
     monkeypatch.setattr(ctx.index_wakeup, 'wait', fake_wait)
     ctx.index_state.update({'state': 'empty', 'scope': 'cards', 'progress': 0, 'message': '', 'pending_jobs': 0})
     ctx.index_wakeup.set()
@@ -1143,7 +1144,7 @@ def test_apply_card_increment_removes_deleted_card_rows_from_active_generation(m
             'INSERT INTO index_search_fast_v2(generation, entity_id, content) VALUES (?, ?, ?)',
             (4, 'card::deleted.png', 'old search'),
         )
-        conn.execute(
+        _seed_full_search(conn,
             'INSERT INTO index_search_full_v2(generation, entity_id, content) VALUES (?, ?, ?)',
             (4, 'card::deleted.png', 'old search'),
         )
@@ -1153,6 +1154,8 @@ def test_apply_card_increment_removes_deleted_card_rows_from_active_generation(m
 
     with sqlite3.connect(db_path) as conn:
         conn.row_factory = sqlite3.Row
+        from core.data.index_runtime_store import repair_full_search_mapping
+        repair_full_search_mapping(conn)
         assert index_build_service.apply_card_increment(conn, 'deleted.png') is True
 
     with sqlite3.connect(db_path) as conn:
@@ -1300,7 +1303,7 @@ def test_worker_loop_updates_embedded_worldinfo_in_active_generation_without_ful
 
     with sqlite3.connect(db_path) as conn:
         conn.execute(
-            'CREATE TABLE card_metadata (id TEXT PRIMARY KEY, char_name TEXT, category TEXT, last_modified REAL, has_character_book INTEGER, character_book_name TEXT)'
+            'CREATE TABLE card_metadata (id TEXT PRIMARY KEY, char_name TEXT, category TEXT, last_modified REAL, has_character_book INTEGER, character_book_name TEXT, file_hash TEXT)'
         )
         conn.execute(
             'INSERT INTO card_metadata (id, char_name, category, last_modified, has_character_book, character_book_name) VALUES (?, ?, ?, ?, ?, ?)',
@@ -1376,7 +1379,7 @@ def test_worker_loop_updates_owner_worldinfo_in_active_generation_without_full_r
 
     with sqlite3.connect(db_path) as conn:
         conn.execute(
-            'CREATE TABLE card_metadata (id TEXT PRIMARY KEY, char_name TEXT, category TEXT, last_modified REAL, has_character_book INTEGER, character_book_name TEXT)'
+            'CREATE TABLE card_metadata (id TEXT PRIMARY KEY, char_name TEXT, category TEXT, last_modified REAL, has_character_book INTEGER, character_book_name TEXT, file_hash TEXT)'
         )
         conn.execute(
             'INSERT INTO card_metadata (id, char_name, category, last_modified, has_character_book, character_book_name) VALUES (?, ?, ?, ?, ?, ?)',
@@ -1475,7 +1478,7 @@ def test_worker_loop_upsert_world_owner_removes_stale_old_owner_rows(monkeypatch
 
     with sqlite3.connect(db_path) as conn:
         conn.execute(
-            'CREATE TABLE card_metadata (id TEXT PRIMARY KEY, char_name TEXT, category TEXT, last_modified REAL, has_character_book INTEGER, character_book_name TEXT)'
+            'CREATE TABLE card_metadata (id TEXT PRIMARY KEY, char_name TEXT, category TEXT, last_modified REAL, has_character_book INTEGER, character_book_name TEXT, file_hash TEXT)'
         )
         conn.execute(
             'INSERT INTO card_metadata (id, char_name, category, last_modified, has_character_book, character_book_name) VALUES (?, ?, ?, ?, ?, ?)',
@@ -1546,7 +1549,7 @@ def test_worker_loop_upsert_world_owner_allows_cleanup_only_for_deleted_card(mon
 
     with sqlite3.connect(db_path) as conn:
         conn.execute(
-            'CREATE TABLE card_metadata (id TEXT PRIMARY KEY, char_name TEXT, category TEXT, last_modified REAL, has_character_book INTEGER, character_book_name TEXT)'
+            'CREATE TABLE card_metadata (id TEXT PRIMARY KEY, char_name TEXT, category TEXT, last_modified REAL, has_character_book INTEGER, character_book_name TEXT, file_hash TEXT)'
         )
         conn.execute("UPDATE index_build_state SET active_generation = 1, state = 'ready', phase = 'ready' WHERE scope = 'worldinfo'")
         conn.execute(
@@ -1642,13 +1645,13 @@ def test_update_card_route_real_save_updates_runtime_projections_without_cards_r
         'INSERT INTO index_search_fast_v2(generation, entity_id, content) VALUES (?, ?, ?)',
         (1, f'card::{card_rel}', 'Old Lucy lucy.png fantasy old old note'),
     )
-    conn.execute(
+    _seed_full_search(conn,
         'INSERT INTO index_search_full_v2(generation, entity_id, content) VALUES (?, ?, ?)',
         (1, f'card::{card_rel}', 'Old Lucy lucy.png fantasy old old note'),
     )
     conn.execute(
         "INSERT OR REPLACE INTO index_entities_v2(generation, entity_id, entity_type, source_path, owner_entity_id, name, filename, display_category, physical_category, category_mode, favorite, summary_preview, updated_at, import_time, token_count, sort_name, sort_mtime, thumb_url, source_revision) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        (1, f'world::embedded::{card_rel}', 'world_embedded', str(card_path), f'card::{card_rel}', 'Old Embedded', 'lucy.png', 'fantasy', '', 'inherited', 0, '', 10.0, 0.0, 0, 'old embedded', 10.0, '', '10:1'),
+        (1, f'world::embedded::{card_rel}', 'world_embedded', str(card_path), f'card::{card_rel}', 'Old Embedded', 'lucy.png', 'fantasy', '', 'inherited', 0, 'old note', 10.0, 0.0, 0, 'old embedded', 10.0, '', '10:1'),
     )
     conn.execute(
         "INSERT OR REPLACE INTO index_entities_v2(generation, entity_id, entity_type, source_path, owner_entity_id, name, filename, display_category, physical_category, category_mode, favorite, summary_preview, updated_at, import_time, token_count, sort_name, sort_mtime, thumb_url, source_revision) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -1691,6 +1694,9 @@ def test_update_card_route_real_save_updates_runtime_projections_without_cards_r
             self.id_map[card_id] = card
             return card
 
+    from core.data import local_state_repository as state
+    monkeypatch.setattr(state, 'DEFAULT_DB_PATH', str(db_path))
+    monkeypatch.setattr(cards_api, 'DEFAULT_DB_PATH', str(db_path))
     monkeypatch.setattr(cards_api, 'CARDS_FOLDER', str(cards_dir))
     monkeypatch.setattr(index_build_service, 'CARDS_FOLDER', str(cards_dir))
     monkeypatch.setattr(ui_store_module, 'UI_DATA_FILE', str(ui_path))
@@ -1707,9 +1713,12 @@ def test_update_card_route_real_save_updates_runtime_projections_without_cards_r
     monkeypatch.setattr(cards_api, '_is_safe_rel_path', lambda _path: True)
     monkeypatch.setattr(cards_api, '_is_safe_filename', lambda _name: True)
     monkeypatch.setattr(cache_service, 'get_db', lambda: conn)
+    monkeypatch.setattr(cards_api, 'get_db', lambda: conn)
     monkeypatch.setattr(cache_service, 'get_file_hash_and_size', lambda _path: ('new-hash', 12))
     monkeypatch.setattr(cache_service, 'calculate_token_count', lambda _payload: 42)
     monkeypatch.setattr(cache_service, 'get_wi_meta', lambda _payload: (True, 'Fresh Embedded'))
+    from core.data import local_state_repository as state
+    monkeypatch.setattr(state, 'DEFAULT_DB_PATH', str(db_path))
     monkeypatch.setattr(index_job_worker, 'DEFAULT_DB_PATH', str(db_path))
     (tmp_path / 'global-lorebooks').mkdir(exist_ok=True)
     monkeypatch.setattr(index_build_service, 'load_config', lambda: {'world_info_dir': str(tmp_path / 'global-lorebooks'), 'resources_dir': str(resources_dir)})
@@ -1781,7 +1790,7 @@ def test_update_card_route_real_save_updates_runtime_projections_without_cards_r
     assert tags == [('fresh',)]
     assert world_rows == [
         (f'world::embedded::{card_rel}', 'world_embedded', 'Fresh Embedded'),
-        (f'world::resource::{card_rel}::companion.json', 'world_resource', 'Fresh Resource'),
+        (f'world::resource::{card_rel}::companion.json', 'world_resource', 'Stale Resource'),
     ]
     assert calls == []
     conn.close()
@@ -1805,7 +1814,7 @@ def _seed_card_index_projection(conn, *, card_id, source_path, name='Hero', summ
     search_content = ' '.join(search_parts)
 
     conn.execute('INSERT INTO index_search_fast_v2(generation, entity_id, content) VALUES (?, ?, ?)', (1, f'card::{card_id}', search_content))
-    conn.execute('INSERT INTO index_search_full_v2(generation, entity_id, content) VALUES (?, ?, ?)', (1, f'card::{card_id}', search_content))
+    _seed_full_search(conn, 'INSERT INTO index_search_full_v2(generation, entity_id, content) VALUES (?, ?, ?)', (1, f'card::{card_id}', search_content))
     for tag in tags:
         conn.execute('INSERT OR REPLACE INTO index_entity_tags_v2(generation, entity_id, tag) VALUES (?, ?, ?)', (1, f'card::{card_id}', tag))
 
@@ -1879,6 +1888,8 @@ def test_update_card_ui_summary_only_refreshes_cards_index(monkeypatch, tmp_path
         def reload_from_db(self):
             raise AssertionError('reload_from_db should not run in ui_summary-only update test')
 
+    from core.data import local_state_repository as state
+    monkeypatch.setattr(state, 'DEFAULT_DB_PATH', str(db_path))
     monkeypatch.setattr(cards_api, 'DEFAULT_DB_PATH', str(db_path))
     monkeypatch.setattr(ui_store_module, 'UI_DATA_FILE', str(ui_path))
     monkeypatch.setattr(cards_api, 'CARDS_FOLDER', str(cards_dir))
@@ -1928,6 +1939,8 @@ def test_toggle_favorite_refreshes_cards_index(monkeypatch, tmp_path):
         def toggle_favorite_update(self, card_id, value):
             self.id_map.setdefault(card_id, {'id': card_id})['is_favorite'] = value
 
+    from core.data import local_state_repository as state
+    monkeypatch.setattr(state, 'DEFAULT_DB_PATH', str(db_path))
     monkeypatch.setattr(cards_api, 'DEFAULT_DB_PATH', str(db_path))
     monkeypatch.setattr(cards_api, 'get_db', lambda: _open_row_db(db_path))
     monkeypatch.setattr(cards_api.ctx, 'cache', _FakeCache())
@@ -2031,13 +2044,13 @@ def test_change_image_route_rename_cleans_old_card_and_worldinfo_projections(mon
         'INSERT INTO index_search_fast_v2(generation, entity_id, content) VALUES (?, ?, ?)',
         (1, f'card::{old_id}', 'Old Hero hero.json old old note'),
     )
-    conn.execute(
+    _seed_full_search(conn,
         'INSERT INTO index_search_full_v2(generation, entity_id, content) VALUES (?, ?, ?)',
         (1, f'card::{old_id}', 'Old Hero hero.json old old note'),
     )
     conn.execute(
         "INSERT OR REPLACE INTO index_entities_v2(generation, entity_id, entity_type, source_path, owner_entity_id, name, filename, display_category, physical_category, category_mode, favorite, summary_preview, updated_at, import_time, token_count, sort_name, sort_mtime, thumb_url, source_revision) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        (1, f'world::embedded::{old_id}', 'world_embedded', str(old_card_path), f'card::{old_id}', 'Old Embedded', 'hero.json', '', '', 'inherited', 0, '', 10.0, 0.0, 0, 'old embedded', 10.0, '', '10:1'),
+        (1, f'world::embedded::{old_id}', 'world_embedded', str(old_card_path), f'card::{old_id}', 'Old Embedded', 'hero.json', '', '', 'inherited', 0, 'old note', 10.0, 0.0, 0, 'old embedded', 10.0, '', '10:1'),
     )
     conn.execute(
         "INSERT OR REPLACE INTO index_entities_v2(generation, entity_id, entity_type, source_path, owner_entity_id, name, filename, display_category, physical_category, category_mode, favorite, summary_preview, updated_at, import_time, token_count, sort_name, sort_mtime, thumb_url, source_revision) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -2069,6 +2082,8 @@ def test_change_image_route_rename_cleans_old_card_and_worldinfo_projections(mon
 
     monkeypatch.setattr(cards_api, 'CARDS_FOLDER', str(cards_dir))
     monkeypatch.setattr(index_build_service, 'CARDS_FOLDER', str(cards_dir))
+    from core.data import local_state_repository as state
+    monkeypatch.setattr(state, 'DEFAULT_DB_PATH', str(db_path))
     monkeypatch.setattr(cards_api, 'DEFAULT_DB_PATH', str(db_path))
     monkeypatch.setattr(ui_store_module, 'UI_DATA_FILE', str(ui_path))
     monkeypatch.setattr(cards_api, 'suppress_fs_events', lambda *_args, **_kwargs: None)
@@ -2080,6 +2095,7 @@ def test_change_image_route_rename_cleans_old_card_and_worldinfo_projections(mon
     monkeypatch.setattr(cards_api, 'clean_sidecar_images', lambda *_args, **_kwargs: None)
     monkeypatch.setattr(cards_api, 'clean_thumbnail_cache', lambda *_args, **_kwargs: None)
     monkeypatch.setattr(cache_service, 'get_db', lambda: conn)
+    monkeypatch.setattr(cards_api, 'get_db', lambda: conn)
     monkeypatch.setattr(cache_service, 'get_file_hash_and_size', lambda _path: ('new-hash', 12))
     monkeypatch.setattr(cache_service, 'calculate_token_count', lambda _payload: 42)
     monkeypatch.setattr(cache_service, 'get_wi_meta', lambda _payload: (True, 'Fresh Embedded'))
@@ -2271,3 +2287,10 @@ def test_worker_loop_marks_unknown_job_failed(monkeypatch, tmp_path):
 
     assert row[0] == 'failed'
     assert 'unsupported index job type' in row[1]
+
+
+def _seed_full_search(conn, sql, params):
+    cursor = conn.execute(sql, params)
+    conn.execute('INSERT OR REPLACE INTO index_full_rowids SELECT generation,entity_id,rowid '
+                 'FROM index_search_full_v2 WHERE rowid=?', (cursor.lastrowid,))
+    return cursor

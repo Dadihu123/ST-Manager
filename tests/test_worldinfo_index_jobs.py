@@ -92,6 +92,7 @@ def test_update_card_cache_returns_embedded_worldinfo_facts(monkeypatch):
     result = cache_service.update_card_cache('cards/hero.png', 'D:/cards/hero.png', mtime=123.0)
 
     assert result == {
+        'token_count': 111,
         'cache_updated': True,
         'has_embedded_wi': True,
         'previous_has_embedded_wi': False,
@@ -126,6 +127,7 @@ def test_update_card_cache_ignores_cleanup_payload_and_returns_persistence_facts
     )
 
     assert result == {
+        'token_count': 111,
         'cache_updated': True,
         'has_embedded_wi': False,
         'previous_has_embedded_wi': False,
@@ -158,6 +160,7 @@ def test_update_card_cache_returns_previous_embedded_worldinfo_fact_when_removed
     result = cache_service.update_card_cache('cards/hero.png', 'D:/cards/hero.png', mtime=123.0)
 
     assert result == {
+        'token_count': 111,
         'cache_updated': True,
         'has_embedded_wi': False,
         'previous_has_embedded_wi': True,
@@ -228,7 +231,7 @@ def test_worldinfo_watcher_move_into_lorebook_path_enqueues_dest_path(monkeypatc
     assert calls == [(('upsert_worldinfo_path',), {'source_path': 'D:/data/lorebooks/main/book.json'})]
 
 
-def test_worldinfo_watcher_routes_resource_lorebook_to_owner_refresh(monkeypatch):
+def test_worldinfo_watcher_routes_shared_resource_lorebook_to_one_path_refresh(monkeypatch):
     calls = []
     scheduled = {}
 
@@ -263,12 +266,6 @@ def test_worldinfo_watcher_routes_resource_lorebook_to_owner_refresh(monkeypatch
 
     monkeypatch.setattr(scan_service, 'load_config', lambda: {'world_info_dir': 'D:/data/lorebooks', 'resources_dir': 'D:/data/resources'})
     monkeypatch.setattr(index_build_service, 'load_config', lambda: {'world_info_dir': 'D:/data/lorebooks', 'resources_dir': 'D:/data/resources'})
-    monkeypatch.setattr(
-        scan_service,
-        'resolve_resource_worldinfo_owner_card_ids',
-        lambda source_path: ['cards/alpha.png', 'cards/zeta.png'] if 'hero-assets' in source_path else [],
-        raising=False,
-    )
 
     scan_service.start_fs_watcher()
 
@@ -281,8 +278,7 @@ def test_worldinfo_watcher_routes_resource_lorebook_to_owner_refresh(monkeypatch
     scheduled['handler'].on_any_event(event)
 
     assert calls == [
-        (('upsert_world_owner',), {'entity_id': 'cards/alpha.png', 'source_path': 'D:/data/resources/hero-assets/lorebooks/book.json'}),
-        (('upsert_world_owner',), {'entity_id': 'cards/zeta.png', 'source_path': 'D:/data/resources/hero-assets/lorebooks/book.json'}),
+        (('upsert_worldinfo_path',), {'source_path': 'D:/data/resources/hero-assets/lorebooks/book.json'}),
     ]
 
 
@@ -338,7 +334,7 @@ def test_worldinfo_watcher_move_between_global_categories_refreshes_old_and_new_
     ]
 
 
-def test_worldinfo_watcher_move_between_resource_owners_refreshes_old_and_new_owners(monkeypatch):
+def test_worldinfo_watcher_move_between_resource_owners_refreshes_both_paths(monkeypatch):
     calls = []
     scheduled = {}
 
@@ -373,12 +369,6 @@ def test_worldinfo_watcher_move_between_resource_owners_refreshes_old_and_new_ow
 
     monkeypatch.setattr(scan_service, 'load_config', lambda: {'world_info_dir': 'D:/data/lorebooks', 'resources_dir': 'D:/data/resources'})
     monkeypatch.setattr(index_build_service, 'load_config', lambda: {'world_info_dir': 'D:/data/lorebooks', 'resources_dir': 'D:/data/resources'})
-    monkeypatch.setattr(
-        scan_service,
-        'resolve_resource_worldinfo_owner_card_ids',
-        lambda source_path: ['cards/old-owner.png'] if 'old-pack' in source_path else ['cards/new-owner.png'],
-        raising=False,
-    )
 
     scan_service.start_fs_watcher()
 
@@ -391,8 +381,8 @@ def test_worldinfo_watcher_move_between_resource_owners_refreshes_old_and_new_ow
     scheduled['handler'].on_any_event(event)
 
     assert calls == [
-        (('upsert_world_owner',), {'entity_id': 'cards/old-owner.png', 'source_path': 'D:/data/resources/old-pack/lorebooks/book.json'}),
-        (('upsert_world_owner',), {'entity_id': 'cards/new-owner.png', 'source_path': 'D:/data/resources/new-pack/lorebooks/book.json'}),
+        (('upsert_worldinfo_path',), {'source_path': 'D:/data/resources/old-pack/lorebooks/book.json'}),
+        (('upsert_worldinfo_path',), {'source_path': 'D:/data/resources/new-pack/lorebooks/book.json'}),
     ]
 
 
@@ -663,7 +653,7 @@ def test_update_card_cache_returns_false_when_cache_write_fails(monkeypatch):
     assert bool(result) is False
 
 
-def test_change_image_skips_file_driven_card_job_when_cache_write_fails(monkeypatch, tmp_path):
+def test_change_image_reports_pending_recovery_when_cache_write_fails(monkeypatch, tmp_path):
     from core.api.v1 import cards as cards_api
 
     cards_dir = tmp_path / 'cards'
@@ -746,26 +736,13 @@ def test_change_image_skips_file_driven_card_job_when_cache_write_fails(monkeypa
 
     assert res.status_code == 200
     payload = res.get_json()
-    assert payload['success'] is True
+    assert payload['success'] is False
     assert payload['new_id'] == 'hero.png'
-    assert enqueue_calls == [
-        (
-            ('upsert_card',),
-            {
-                'entity_id': 'hero.png',
-                'source_path': str(cards_dir / 'hero.png'),
-                'payload': {'remove_entity_ids': ['hero.json']},
-            },
-        ),
-        (
-            ('upsert_world_owner',),
-            {
-                'entity_id': 'hero.png',
-                'source_path': str(cards_dir / 'hero.png'),
-                'payload': {'remove_owner_ids': ['hero.json']},
-            },
-        ),
-    ]
+    assert payload['file_modified'] and payload['index_sync_pending']
+    assert payload['retryable'] and payload['detail_reload_required']
+    assert enqueue_calls == []  # The durable file intent owns recovery; no success projection.
+    with sqlite3.connect(db_path) as conn:
+        assert conn.execute('SELECT id FROM card_metadata').fetchall() == [('hero.json',)]
 
 
 def test_background_scanner_enqueues_targeted_card_reconcile_when_changes_detected(monkeypatch, tmp_path):
@@ -1102,6 +1079,7 @@ def test_update_card_cache_returns_persistence_facts_after_successful_commit(mon
     result = cache_service.update_card_cache('cards/hero.png', 'D:/cards/hero.png', mtime=123.0)
 
     assert result == {
+        'token_count': 111,
         'cache_updated': True,
         'has_embedded_wi': True,
         'previous_has_embedded_wi': False,
@@ -1317,6 +1295,9 @@ def test_apply_worldinfo_owner_increment_uses_resolved_relative_runtime_dirs(mon
     global_file.write_text(json.dumps({'name': 'Global Book', 'entries': {}}), encoding='utf-8')
     resource_file.write_text(json.dumps({'name': 'Resource Book', 'entries': {}}), encoding='utf-8')
 
+    card_path = base_dir / 'cards' / 'cards' / 'hero.png'
+    card_path.parent.mkdir(parents=True, exist_ok=True)
+    card_path.write_bytes(b'synthetic parser fixture')
     conn = sqlite3.connect(':memory:')
     conn.row_factory = sqlite3.Row
     ensure_index_runtime_schema(conn)
@@ -1329,6 +1310,7 @@ def test_apply_worldinfo_owner_increment_uses_resolved_relative_runtime_dirs(mon
             category TEXT,
             character_book_name TEXT DEFAULT '',
             last_modified REAL,
+            file_hash TEXT DEFAULT '',
             has_character_book INTEGER DEFAULT 0
         )
         '''
@@ -1402,6 +1384,9 @@ def test_apply_worldinfo_embedded_increment_uses_resolved_relative_global_dir(mo
     global_file.parent.mkdir(parents=True)
     global_file.write_text(json.dumps({'name': 'Global Book', 'entries': {}}), encoding='utf-8')
 
+    card_path = base_dir / 'cards' / 'cards' / 'hero.png'
+    card_path.parent.mkdir(parents=True, exist_ok=True)
+    card_path.write_bytes(b'synthetic parser fixture')
     conn = sqlite3.connect(':memory:')
     conn.row_factory = sqlite3.Row
     ensure_index_runtime_schema(conn)
@@ -1414,6 +1399,7 @@ def test_apply_worldinfo_embedded_increment_uses_resolved_relative_global_dir(mo
             category TEXT,
             character_book_name TEXT DEFAULT '',
             last_modified REAL,
+            file_hash TEXT DEFAULT '',
             has_character_book INTEGER DEFAULT 0
         )
         '''

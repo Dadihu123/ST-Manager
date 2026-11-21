@@ -1,16 +1,10 @@
 import os
-import pickle
-import weakref
-from copy import deepcopy
-import json
 import logging
 import re
-import shutil
-import tempfile
 import threading
 import time
 from core.config import DB_FOLDER
-from core.consts import RESERVED_RESOURCE_NAMES
+from core.utils.filesystem import cache_directory_case_checks, filesystem_path_key
 
 # 定义存储文件路径
 UI_DATA_FILE = os.path.join(DB_FOLDER, 'ui_data.json')
@@ -19,16 +13,9 @@ logger = logging.getLogger(__name__)
 
 _UI_DATA_LOCK = threading.RLock()
 
-# 轮转备份代数：.bak 为最近一次可用内容，.bak.1/.bak.2 为更早的世代。
-BACKUP_GENERATIONS = 3
-
 # 读取瞬时失败（Windows 上 os.replace 瞬间、杀毒/索引器短暂独占）的重试参数。
 READ_RETRY_ATTEMPTS = 4
 READ_RETRY_DELAY_SECONDS = 0.05
-
-# 退化写入护栏：当磁盘上的既有文件足够大、而新内容体积骤降时拒绝覆盖。
-SHRINK_GUARD_MIN_BYTES = 32 * 1024
-SHRINK_GUARD_MIN_RATIO = 0.5
 
 
 class UiDataLoadError(RuntimeError):
@@ -304,17 +291,20 @@ def _normalize_isolated_categories(raw):
     }
 
 
-def _normalize_resource_item_category_path(value):
+def _normalize_resource_item_category_path(value, *, worldinfo=False, preserve_unknown=True):
     if value is None:
         return ''
 
-    path = os.path.normcase(os.path.normpath(str(value).strip()))
+    value = str(value).strip()
+    path = (filesystem_path_key(value, preserve_unknown=preserve_unknown) if worldinfo
+            else os.path.normcase(os.path.normpath(value)))
     if not path or path == '.':
         return ''
     return path.replace('\\', '/')
 
 
-def _normalize_resource_item_categories(raw):
+@cache_directory_case_checks
+def _normalize_resource_item_categories(raw, *, existing_worldinfo_keys=None):
     source = raw if isinstance(raw, dict) else {}
     result = {
         'worldinfo': {},
@@ -329,7 +319,10 @@ def _normalize_resource_item_categories(raw):
 
         normalized_items = {}
         for raw_path, raw_cfg in raw_items.items():
-            path_key = _normalize_resource_item_category_path(raw_path)
+            preserve = existing_worldinfo_keys is None or raw_path in existing_worldinfo_keys
+            path_key = _normalize_resource_item_category_path(
+                raw_path, worldinfo=(mode == 'worldinfo'), preserve_unknown=preserve,
+            )
             if not path_key:
                 continue
 
@@ -359,11 +352,11 @@ def _normalize_resource_item_categories(raw):
     return result
 
 
-def _normalize_worldinfo_note_path(value):
+def _normalize_worldinfo_note_path(value, *, directory_cases=None):
     if value is None:
         return ''
 
-    path = os.path.normcase(os.path.normpath(str(value).strip()))
+    path = filesystem_path_key(str(value).strip(), directory_cases=directory_cases)
     if not path or path == '.':
         return ''
     return path.replace('\\', '/')
@@ -379,10 +372,10 @@ def _normalize_worldinfo_note_card_id(value):
     return card_id
 
 
-def build_worldinfo_note_key(source_type, file_path='', card_id=''):
+def build_worldinfo_note_key(source_type, file_path='', card_id='', *, directory_cases=None):
     normalized_source = str(source_type or '').strip().lower()
     if normalized_source in ('global', 'resource'):
-        path_key = _normalize_worldinfo_note_path(file_path)
+        path_key = _normalize_worldinfo_note_path(file_path, directory_cases=directory_cases)
         if not path_key:
             return ''
         return f'{normalized_source}::{path_key}'
@@ -396,26 +389,56 @@ def build_worldinfo_note_key(source_type, file_path='', card_id=''):
     return ''
 
 
+def _canonical_worldinfo_note_key(raw_key, *, directory_cases=None):
+    if not isinstance(raw_key, str):
+        return ''
+    source, _, target = raw_key.partition('::')
+    if source in ('global', 'resource'):
+        return build_worldinfo_note_key(source, file_path=target, directory_cases=directory_cases)
+    if source == 'embedded':
+        return build_worldinfo_note_key(source, card_id=target)
+    return ''
+
+
+def worldinfo_note_rekeys(keys, read_member):
+    """生成无覆盖的重键步骤；仅冲突时才需要读取成员值。"""
+    occupied = set(keys)
+    aliases = {}
+    directory_cases = {}
+    for key in occupied:
+        canonical = _canonical_worldinfo_note_key(key, directory_cases=directory_cases)
+        if canonical and canonical != key:
+            aliases.setdefault(canonical, []).append(key)
+    for canonical, variants in aliases.items():
+        candidates = ([canonical] if canonical in occupied else []) + sorted(variants)
+        winner = candidates[0]
+        if len(candidates) > 1:
+            # 可读备注优先；同为有效时，优先规范键，再按原键字典序。
+            winner = next((key for key in candidates if _normalize_worldinfo_notes({key: read_member(key)})), winner)
+        for key in candidates:
+            if key != winner:
+                archived = 'legacy-conflict::' + key
+                while archived in occupied:
+                    archived = 'legacy-conflict::' + archived
+                occupied.add(archived)
+                yield key, archived
+        if winner != canonical:
+            yield winner, canonical
+
+
+@cache_directory_case_checks
 def _normalize_worldinfo_notes(raw):
     source = raw if isinstance(raw, dict) else {}
     normalized = {}
 
-    for raw_key, raw_value in source.items():
+    ordered_items = sorted(source.items(), key=lambda item: (
+        _canonical_worldinfo_note_key(item[0]) != item[0], item[0]
+    ) if isinstance(item[0], str) else (True, str(item[0])))
+    for raw_key, raw_value in ordered_items:
         if not isinstance(raw_key, str):
             continue
 
-        try:
-            raw_source, raw_target = raw_key.split('::', 1)
-        except ValueError:
-            continue
-
-        if raw_source in ('global', 'resource'):
-            key = build_worldinfo_note_key(raw_source, file_path=raw_target)
-        elif raw_source == 'embedded':
-            key = build_worldinfo_note_key(raw_source, card_id=raw_target)
-        else:
-            key = ''
-
+        key = _canonical_worldinfo_note_key(raw_key)
         if not key:
             continue
 
@@ -1004,7 +1027,17 @@ def get_worldinfo_note(ui_data, source_type, file_path='', card_id=''):
     note_key = build_worldinfo_note_key(source_type, file_path=file_path, card_id=card_id)
     if not note_key:
         return {}
-    return get_worldinfo_notes(ui_data).get(note_key, {})
+    raw = _worldinfo_note_members(ui_data, note_key)
+    if not isinstance(raw, dict):
+        return {}
+    return _normalize_worldinfo_notes({note_key: raw.get(note_key)}).get(note_key, {})
+
+
+def _worldinfo_note_members(ui_data, note_key):
+    from core.data.local_state_repository import StateSnapshot
+    if isinstance(ui_data, StateSnapshot):
+        return ui_data.namespace_members(WORLDINFO_NOTES_KEY, [note_key])
+    return ui_data.get(WORLDINFO_NOTES_KEY) if isinstance(ui_data, dict) else None
 
 
 def set_worldinfo_note(ui_data, source_type, summary, file_path='', card_id=''):
@@ -1015,24 +1048,30 @@ def set_worldinfo_note(ui_data, source_type, summary, file_path='', card_id=''):
     if not note_key:
         return False
 
-    normalized = get_worldinfo_notes(ui_data)
+    normalized = _worldinfo_note_members(ui_data, note_key)
+    if not isinstance(normalized, dict):
+        normalized = {}
+    if note_key in normalized and not isinstance(normalized[note_key], dict):
+        raise ValueError('现有世界书备注数据格式无效，未覆盖原数据')
     summary_text = summary if isinstance(summary, str) else str(summary or '')
 
     if not summary_text.strip():
         if note_key not in normalized:
             return False
         del normalized[note_key]
-        if normalized:
+        from core.data.local_state_repository import StateSnapshot
+        if isinstance(normalized, StateSnapshot) or normalized:
             ui_data[WORLDINFO_NOTES_KEY] = normalized
         else:
             ui_data.pop(WORLDINFO_NOTES_KEY, None)
         return True
 
-    current_summary = normalized.get(note_key, {}).get('summary', '')
-    if current_summary == summary_text:
+    current = normalized.get(note_key)
+    current = current if isinstance(current, dict) else {}
+    if current.get('summary', '') == summary_text:
         return False
 
-    normalized[note_key] = {
+    normalized[note_key] = {**current,
         'summary': summary_text,
         'updated_at': int(time.time()),
     }
@@ -1052,7 +1091,9 @@ def delete_worldinfo_notes_for_card_prefix(ui_data, card_prefix):
     if not normalized_prefix:
         return False
 
-    notes = get_worldinfo_notes(ui_data)
+    notes = ui_data.get(WORLDINFO_NOTES_KEY)
+    if not isinstance(notes, dict):
+        return False
     changed = False
     exact_key = build_worldinfo_note_key('embedded', card_id=normalized_prefix)
     nested_prefix = f'embedded::{normalized_prefix}/'
@@ -1114,7 +1155,7 @@ def rename_global_worldinfo_note_path_prefix(ui_data, old_path_prefix, new_path_
         ui_data,
         old_path_prefix,
         new_path_prefix,
-        source_types=('global',),
+        source_type='global',
     )
 
 
@@ -1124,11 +1165,11 @@ def rename_resource_worldinfo_note_path_prefix(ui_data, old_path_prefix, new_pat
         ui_data,
         old_path_prefix,
         new_path_prefix,
-        source_types=('resource',),
+        source_type='resource',
     )
 
 
-def _rename_worldinfo_note_path_prefix(ui_data, old_path_prefix, new_path_prefix, *, source_types):
+def _rename_worldinfo_note_path_prefix(ui_data, old_path_prefix, new_path_prefix, *, source_type):
     if not isinstance(ui_data, dict):
         return False
 
@@ -1141,29 +1182,20 @@ def _rename_worldinfo_note_path_prefix(ui_data, old_path_prefix, new_path_prefix
     if not isinstance(raw_notes, dict):
         return False
 
-    changed = False
+    old_key = f'{source_type}::{normalized_old}'
+    new_key = f'{source_type}::{normalized_new}'
     remapped = {}
-    for note_key, note_value in raw_notes.items():
-        remapped_key = note_key
-        for source_type in source_types:
-            exact_old_key = build_worldinfo_note_key(source_type, file_path=normalized_old)
-            nested_old_prefix = f'{source_type}::{normalized_old}/'
-            if note_key == exact_old_key:
-                remapped_key = build_worldinfo_note_key(source_type, file_path=normalized_new)
-                changed = True
-                break
-            if note_key.startswith(nested_old_prefix):
-                suffix = note_key[len(exact_old_key):]
-                remapped_key = f'{source_type}::{normalized_new}{suffix}'
-                changed = True
-                break
-        remapped[remapped_key] = note_value
-
-    if not changed:
-        return False
-
-    ui_data[WORLDINFO_NOTES_KEY] = remapped
-    return True
+    changed = False
+    for key, value in raw_notes.items():
+        if isinstance(key, str) and (key == old_key or key.startswith(old_key + '/')):
+            key = new_key + key[len(old_key):]
+            if key in raw_notes:
+                raise ValueError('新路径已有世界书备注，请先处理冲突后重试')
+            changed = True
+        remapped[key] = value
+    if changed:
+        ui_data[WORLDINFO_NOTES_KEY] = remapped
+    return changed
 
 
 def set_resource_item_categories(ui_data, payload):
@@ -1172,7 +1204,7 @@ def set_resource_item_categories(ui_data, payload):
 
     previous_raw = ui_data.get(RESOURCE_ITEM_CATEGORIES_KEY)
     previous_norm = _normalize_resource_item_categories(previous_raw)
-    next_norm = _normalize_resource_item_categories(payload)
+    next_norm = _normalize_resource_item_categories(payload, existing_worldinfo_keys=previous_norm['worldinfo'])
 
     if _is_resource_item_categories_equal(previous_norm, next_norm) and isinstance(previous_raw, dict):
         return False
@@ -1182,38 +1214,57 @@ def set_resource_item_categories(ui_data, payload):
     return True
 
 
+@cache_directory_case_checks
 def rename_resource_item_category_path_prefix(ui_data, old_path_prefix, new_path_prefix):
     """资源目录改名后，重挂按绝对路径记录的资源条目分类覆盖。"""
     if not isinstance(ui_data, dict):
         return False
 
-    normalized_old = _normalize_resource_item_category_path(old_path_prefix)
-    normalized_new = _normalize_resource_item_category_path(new_path_prefix)
-    if not normalized_old or not normalized_new or normalized_old == normalized_new:
+    raw = ui_data.get(RESOURCE_ITEM_CATEGORIES_KEY)
+    if not isinstance(raw, dict):
         return False
-
-    current = get_resource_item_categories(ui_data)
-    changed = False
+    updates = {}
 
     for mode in ('worldinfo', 'presets'):
-        items = current.get(mode) or {}
-        remapped = {}
-        for path_key, config in items.items():
-            new_key = path_key
-            if path_key == normalized_old:
-                new_key = normalized_new
-            elif path_key.startswith(normalized_old + '/'):
-                new_key = normalized_new + path_key[len(normalized_old):]
-            if new_key != path_key:
-                changed = True
-            remapped[new_key] = config
-        current[mode] = dict(sorted(remapped.items(), key=lambda item: item[0]))
+        def normalize(path):
+            return _normalize_resource_item_category_path(path, worldinfo=(mode == 'worldinfo'))
 
-    if not changed:
+        normalized_old = normalize(old_path_prefix)
+        normalized_new = normalize(new_path_prefix)
+        if not normalized_old or not normalized_new or normalized_old == normalized_new:
+            continue
+        items = raw.get(mode)
+        if not isinstance(items, dict):
+            continue
+
+        def suffix_under(path, prefix):
+            # 只查旧前缀的父目录。旧目录已经移动，后缀的大小写规则应在新目录下读取。
+            depth = prefix.count('/') + 1
+            parts = path.split('/')
+            candidate = '/'.join(parts[:depth])
+            if candidate != prefix and normalize(candidate) != prefix:
+                return None
+            return '/' + '/'.join(parts[depth:]) if len(parts) > depth else ''
+
+        paths = {key: os.path.normpath(str(key).strip()).replace('\\', '/') for key in items}
+        occupied = {normalize(path) for path in paths.values() if suffix_under(path, normalized_new) is not None}
+        remapped = {}
+        moved = False
+        for key, config in items.items():
+            suffix = suffix_under(paths[key], normalized_old)
+            if suffix is not None:
+                key = normalize(normalized_new + suffix)
+                if key in occupied or key in remapped:
+                    raise ValueError('新路径已有资源分类，请先处理冲突后重试')
+                moved = True
+            remapped[key] = config
+        if moved:
+            updates[mode] = dict(sorted(remapped.items(), key=lambda item: str(item[0])))
+
+    if not updates:
         return False
 
-    current['updated_at'] = int(time.time())
-    ui_data[RESOURCE_ITEM_CATEGORIES_KEY] = current
+    raw.update(updates, updated_at=int(time.time()))
     return True
 
 
@@ -1570,555 +1621,6 @@ def set_last_sent_to_tt(ui_data, ui_key, timestamp=None):
     return _set_last_sent_ts(ui_data, ui_key, LAST_SENT_TO_TT_KEY, timestamp)
 
 
-def _backup_ui_data_file_path():
-    return f'{UI_DATA_FILE}.bak'
-
-
-def _corrupted_ui_data_file_path():
-    timestamp = time.strftime('%Y%m%d%H%M%S')
-    return f'{UI_DATA_FILE}.corrupted.{timestamp}.{os.getpid()}'
-
-
-def _read_json_file(path):
-    with open(path, 'r', encoding='utf-8') as f:
-        return json.load(f)
-
-
-def _is_retriable_read_error(exc):
-    """判断读取失败是否属于「可能只是暂时被占用」的瞬时错误。"""
-    if isinstance(exc, json.JSONDecodeError):
-        return False
-    if isinstance(exc, UnicodeDecodeError):
-        # 文件正在被替换时可能读到半截内容；重试一次有机会读到完整内容。
-        return True
-    if isinstance(exc, OSError):
-        return True
-    return False
-
-
-# Only private snapshots are cached; every public read receives detached data.
-_ui_snapshot = None
-_snapshot_origins = {}
-
-
-def _file_version(path):
-    try:
-        stat = os.stat(path)
-    except FileNotFoundError:
-        return (os.path.abspath(path), None)
-    return (os.path.abspath(path), stat.st_dev, stat.st_ino, stat.st_mtime_ns,
-            stat.st_ctime_ns, stat.st_size)
-
-
-def get_ui_data_revision():
-    """Return a stat-only revision for detecting synchronous UI writes/replacements."""
-    with _UI_DATA_LOCK:
-        return _file_version(UI_DATA_FILE)
-
-
-class _UiSnapshot(dict):
-    def __init__(self, frozen, version, *, original=None):
-        # The cached representation is immutable, and never exposed on the returned dict.
-        super().__init__(pickle.loads(frozen))
-        _snapshot_origins[id(self)] = (version, frozen if original is None else original)
-        weakref.finalize(self, _snapshot_origins.pop, id(self), None)
-
-    def __deepcopy__(self, memo):
-        version, original = _snapshot_origins[id(self)]
-        result = _UiSnapshot(pickle.dumps(dict(self), protocol=pickle.HIGHEST_PROTOCOL), version)
-        _snapshot_origins[id(result)] = (version, original)
-        memo[id(self)] = result
-        return result
-
-
-def _remember_ui_snapshot(data, version=None):
-    global _ui_snapshot
-    version = version or _file_version(UI_DATA_FILE)
-    # Pickle is used only for an in-process clone of validated JSON, never external bytes.
-    _ui_snapshot = (version, pickle.dumps(dict(data), protocol=pickle.HIGHEST_PROTOCOL))
-    if len(_file_stats_cache) > 8:
-        _file_stats_cache.clear()
-    _file_stats_cache[version] = _payload_entry_stats(data)
-
-
-def _merge_ui_changes(current, original, edited):
-    # Replay only this caller's edits onto the latest file under _UI_DATA_LOCK.
-    for key in original.keys() - edited.keys():
-        current.pop(key, None)
-    for key, value in edited.items():
-        if key in original and value == original[key]:
-            continue
-        if isinstance(value, dict) and isinstance(original.get(key), dict):
-            if not isinstance(current.get(key), dict):
-                current[key] = {}
-            _merge_ui_changes(current[key], original[key], value)
-        else:
-            current[key] = deepcopy(value)
-    return current
-
-
-def _read_json_file_with_retry(path, attempts=READ_RETRY_ATTEMPTS):
-    """带重试地读取 JSON。
-
-    Windows 上主文件被 os.replace 替换的瞬间，或杀毒/索引器/同步盘短暂独占
-    文件时，读取会抛出 PermissionError / OSError。这类失败不代表数据损坏，
-    因此先重试，仍失败才向上报告，交由调用方决定（绝不静默当成空数据）。
-    """
-    last_error = None
-    total = max(1, int(attempts))
-    for attempt in range(total):
-        try:
-            return _read_json_file(path)
-        except Exception as exc:  # noqa: BLE001 - 需要区分瞬时/永久以决定重试
-            last_error = exc
-            if not _is_retriable_read_error(exc) or attempt == total - 1:
-                raise
-            time.sleep(READ_RETRY_DELAY_SECONDS * (attempt + 1))
-
-    raise last_error if last_error is not None else OSError(f'无法读取 {path}')
-
-
-def _ui_data_backup_paths():
-    """按新旧顺序返回轮转备份路径：.bak, .bak.1, .bak.2 ..."""
-    base = _backup_ui_data_file_path()
-    return [base] + [f'{base}.{index}' for index in range(1, BACKUP_GENERATIONS)]
-
-
-def _read_valid_ui_data_object(path):
-    """读取并校验一个 ui_data 文件，返回 dict；不可用则返回 None。"""
-    try:
-        data = _read_json_file_with_retry(path)
-    except Exception as exc:  # noqa: BLE001 - 备份不可用不应影响主流程
-        logger.warning(f"备份文件不可用 {path}: {exc}")
-        return None
-
-    if not isinstance(data, dict):
-        logger.warning(f"备份文件内容不是对象，忽略: {path}")
-        return None
-    return data
-
-
-def _rotate_backups():
-    """写入前轮转备份，使 .bak 始终保留最近一次「已确认可用」的内容。
-
-    与旧实现的区别：旧代码在写入后又把主文件复制到 .bak，导致损坏内容
-    立刻覆盖掉唯一的好备份；这里只做世代轮转，不镜像新写入。
-    """
-    paths = _ui_data_backup_paths()
-
-    # 删除最老的一代，然后依次后移
-    oldest = paths[-1]
-    if os.path.exists(oldest):
-        try:
-            os.remove(oldest)
-        except OSError as exc:
-            logger.warning(f"清理旧备份失败 {oldest}: {exc}")
-
-    for source, target in zip(reversed(paths[:-1]), reversed(paths[1:])):
-        if not os.path.exists(source):
-            continue
-        try:
-            os.replace(source, target)
-        except OSError as exc:
-            logger.warning(f"轮转备份失败 {source} -> {target}: {exc}")
-
-
-def _preserve_current_primary_as_backup():
-    """把当前主文件保存为最新备份；仅当其内容可解析为对象时进行。"""
-    if not os.path.exists(UI_DATA_FILE):
-        return False
-
-    try:
-        validated = _ui_snapshot is not None and _ui_snapshot[0] == _file_version(UI_DATA_FILE)
-    except OSError:
-        validated = False
-    if not validated and _read_valid_ui_data_object(UI_DATA_FILE) is None:
-        logger.warning("当前 ui_data.json 无法解析为对象，跳过备份并保留既有备份世代。")
-        return False
-
-    try:
-        _rotate_backups()
-        shutil.copy2(UI_DATA_FILE, _backup_ui_data_file_path())
-        return True
-    except OSError as exc:
-        logger.warning(f"备份当前 ui_data.json 失败: {exc}")
-        return False
-
-
-def _snapshot_corrupted_ui_data():
-    if not os.path.exists(UI_DATA_FILE):
-        return ''
-
-    corrupted_path = _corrupted_ui_data_file_path()
-    shutil.copy2(UI_DATA_FILE, corrupted_path)
-    return corrupted_path
-
-
-def _write_ui_data_file_atomic(data):
-    parent_dir = os.path.dirname(UI_DATA_FILE)
-    if parent_dir:
-        os.makedirs(parent_dir, exist_ok=True)
-
-    fd = None
-    temp_path = ''
-    try:
-        fd, temp_path = tempfile.mkstemp(
-            prefix=f'.{os.path.basename(UI_DATA_FILE)}.',
-            suffix='.tmp',
-            dir=parent_dir or None,
-        )
-        with os.fdopen(fd, 'w', encoding='utf-8') as f:
-            fd = None
-            json.dump(data, f, ensure_ascii=False, indent=2)
-            f.flush()
-            os.fsync(f.fileno())
-
-        os.replace(temp_path, UI_DATA_FILE)
-        temp_path = ''
-    finally:
-        if fd is not None:
-            try:
-                os.close(fd)
-            except OSError:
-                pass
-        if temp_path and os.path.exists(temp_path):
-            try:
-                os.remove(temp_path)
-            except OSError:
-                logger.warning(f"清理 ui_data.json 临时文件失败: {temp_path}", exc_info=True)
-
-
-def _load_backup_ui_data():
-    """按世代从新到旧查找第一个可用的备份，返回 (data, path)。"""
-    for backup_path in _ui_data_backup_paths():
-        if not os.path.exists(backup_path):
-            continue
-        data = _read_valid_ui_data_object(backup_path)
-        if data is None:
-            logger.error(f"加载 ui_data.json 备份失败，尝试更早世代: {backup_path}")
-            continue
-        return data, backup_path
-    return None, ''
-
-
-def _recover_corrupted_ui_data(error, *, permission_error=False):
-    """主文件不可用时，尝试用轮转备份恢复。
-
-    注意：恢复动作本身也会写主文件，因此内部使用 allow_shrink=True —— 备份
-    可能是较早、较小但完整的真实数据，不应被退化写入护栏拒绝。
-    """
-    logger.error(f"ui_data.json 损坏: {error}")
-
-    try:
-        corrupted_path = _snapshot_corrupted_ui_data()
-        if corrupted_path:
-            logger.error(f"已备份损坏的 ui_data.json: {corrupted_path}")
-    except Exception as snapshot_error:
-        logger.error(f"备份损坏的 ui_data.json 失败: {snapshot_error}")
-
-    backup_data, backup_path = _load_backup_ui_data()
-    if backup_data is None:
-        _mark_ui_data_degraded(f'主文件不可用且无可用备份: {error}')
-        return {}
-
-    if permission_error:
-        # Access failure does not establish corruption. A backup may serve reads, but must
-        # not replace a newer primary whose contents could not be inspected.
-        _mark_ui_data_degraded(f'主文件访问失败，备份仅用于读取: {error}')
-        return backup_data
-
-    if save_ui_data(backup_data, allow_shrink=True):
-        logger.warning(f"已从备份恢复 ui_data.json: {backup_path}")
-        _clear_ui_data_degraded()
-    else:
-        logger.error(f"从备份 {backup_path} 恢复 ui_data.json 失败，已返回备份数据。")
-        _mark_ui_data_degraded('备份可读取但主文件恢复失败，禁止基于备份覆盖主文件')
-
-    return backup_data
-
-
-def load_ui_data():
-    """
-    加载 UI 辅助数据 (JSON 格式)。
-    包含用户的卡片备注、来源链接、资源文件夹映射等信息。
-
-    关于失败语义：
-        - 文件不存在：返回 {}（首次运行的正常情况）。
-        - 内容损坏（JSONDecodeError / 非对象）：先快照，再尝试用备份恢复。
-        - 读取失败（占用/权限/编码等瞬时错误）：**绝不**返回 {}，而是抛出
-          UiDataLoadError，避免调用方把「读失败」当成「没有数据」后覆盖写回。
-          若存在可用备份，会先尝试恢复。
-
-    Returns:
-        dict: UI 数据字典。
-
-    Raises:
-        UiDataLoadError: 磁盘上存在文件但本次无法读取，且没有可用备份。
-    """
-    global _ui_snapshot
-    with _UI_DATA_LOCK:
-        try:
-            version = _file_version(UI_DATA_FILE)
-            if len(version) == 2:  # A confirmed missing file, never an access failure.
-                _clear_ui_data_degraded()
-                return _UiSnapshot(pickle.dumps({}), version)
-            if (_ui_snapshot is not None and _ui_snapshot[0] == version
-                    and not is_ui_data_degraded()):
-                return _UiSnapshot(_ui_snapshot[1], version)
-            data = _read_json_file_with_retry(UI_DATA_FILE)
-        except json.JSONDecodeError as e:
-            return _recover_corrupted_ui_data(e)
-        except Exception as e:
-            # 读取失败 ≠ 数据为空。先尝试用备份恢复；没有备份就明确报错，
-            # 让调用方中止本次写回，保护磁盘上的既有内容。
-            logger.error(f"加载 ui_data.json 失败(将尝试备份恢复): {e}")
-            recovered = _recover_corrupted_ui_data(e, permission_error=True)
-            if recovered:
-                return recovered
-
-            _mark_ui_data_degraded(f'{type(e).__name__}: {e}')
-            raise UiDataLoadError(
-                f'无法读取 ui_data.json ({type(e).__name__}: {e})；'
-                '为避免覆盖磁盘上的既有数据，本次未返回空数据。'
-            ) from e
-
-        if not isinstance(data, dict):
-            logger.error("加载 ui_data.json 失败: 根数据不是对象")
-            return _recover_corrupted_ui_data(
-                ValueError('根数据不是对象'),
-            )
-
-        _clear_ui_data_degraded()
-
-        # === 脏数据清理逻辑 ===
-        # 检查 resource_folder 是否使用了系统保留名称 (如 'cards', 'thumbnails' 等)
-        dirty = False
-        original = None
-
-        def mark_dirty():
-            nonlocal dirty, original
-            if not dirty:
-                original = pickle.dumps(data, protocol=pickle.HIGHEST_PROTOCOL)
-            dirty = True
-
-        for key, info in data.items():
-            if not isinstance(info, dict):
-                continue
-
-            rf = info.get('resource_folder', '')
-            if rf:
-                # 兼容 Windows/Linux 分隔符，取第一层目录名检查
-                first_part = rf.replace('\\', '/').split('/')[0].lower()
-                if first_part in RESERVED_RESOURCE_NAMES:
-                    logger.warning(f"检测到非法资源目录配置 '{rf}' (属于保留目录)，已自动移除关联。")
-                    mark_dirty()
-                    info['resource_folder'] = ""
-
-            # 规范化 import_time，兼容历史字符串/非法值
-            if IMPORT_TIME_KEY in info:
-                normalized_ts = _normalize_timestamp(info.get(IMPORT_TIME_KEY))
-                if normalized_ts is None:
-                    mark_dirty()
-                    del info[IMPORT_TIME_KEY]
-                elif info.get(IMPORT_TIME_KEY) != normalized_ts:
-                    mark_dirty()
-                    info[IMPORT_TIME_KEY] = normalized_ts
-
-            for sent_key in (LAST_SENT_TO_ST_KEY, LAST_SENT_TO_TT_KEY):
-                if sent_key in info:
-                    normalized_sent_ts = _normalize_timestamp(info.get(sent_key))
-                    if normalized_sent_ts is None:
-                        mark_dirty()
-                        del info[sent_key]
-                    elif info.get(sent_key) != normalized_sent_ts:
-                        mark_dirty()
-                        info[sent_key] = normalized_sent_ts
-
-        if dirty:
-            # 如果有清理操作，立即回写文件以修正。
-            # 这是对同一份刚读取成功的数据做的小幅规范化，可能触发体积下降
-            # （例如删除非法字段），因此显式放行退化护栏。
-            normalized = _UiSnapshot(pickle.dumps(data, protocol=pickle.HIGHEST_PROTOCOL),
-                                     version, original=original)
-            if not save_ui_data(normalized, allow_shrink=True):
-                # Return a detached, normalized view with the actual disk origin. Do not
-                # register uncommitted values as this file's snapshot/statistics; next
-                # load must retry normalization, and later edits still merge safely.
-                _ui_snapshot = None
-                _file_stats_cache.pop(version, None)
-                return normalized
-            return load_ui_data()
-
-        final_version = _file_version(UI_DATA_FILE)
-        if not dirty and final_version != version:
-            return load_ui_data()  # An external replacement raced the read; validate it afresh.
-        _remember_ui_snapshot(data, final_version)
-        return _UiSnapshot(_ui_snapshot[1], final_version)
-
-
-def _count_card_entries(data):
-    """统计 ui_data 中代表卡片的顶层条目数（排除 _ 开头的内部记录）。"""
-    if not isinstance(data, dict):
-        return 0
-    return sum(
-        1
-        for key in data
-        if isinstance(key, str) and key and not key.startswith('_')
-    )
-
-
-def _payload_entry_stats(data):
-    """统计 payload 的条目数，用于判断是否发生灾难性缩水。
-
-    刻意只数键、不序列化：真实文件约 1.75MB，每次保存都做一次完整
-    json.dumps 会带来明显的 CPU 开销，而键数量对这种「退化成空/残缺
-    数据」的故障有足够强的区分度（实测 540 条 -> 1 条）。
-    """
-    if not isinstance(data, dict):
-        return 0, 0
-    total = len(data)
-    return total, _count_card_entries(data)
-
-
-# 缓存「当前磁盘文件」的条目统计，避免每次保存都重新解析大文件。
-# key: (path, mtime_ns, size) -> (total_entries, card_entries)
-_file_stats_cache = {}
-
-
-def _read_existing_entry_stats(path):
-    """读取既有文件的条目统计；带 mtime/size 缓存。"""
-    try:
-        stat = os.stat(path)
-    except OSError:
-        return None
-
-    cache_key = _file_version(path)
-    cached = _file_stats_cache.get(cache_key)
-    if cached is not None:
-        return cached
-
-    try:
-        existing = _read_json_file_with_retry(path)
-    except Exception:  # noqa: BLE001 - 读不到既有内容时不做条目判断
-        return None
-
-    stats = _payload_entry_stats(existing)
-    # 只保留最近若干条，避免无界增长
-    if len(_file_stats_cache) > 8:
-        _file_stats_cache.clear()
-    _file_stats_cache[cache_key] = stats
-    return stats
-
-
-def _check_shrink_guard(data):
-    """判断本次写入是否属于「把既有数据大幅缩小」的可疑退化写入。
-
-    先用便宜的文件体积做初筛，只有体积确实可疑时才解析既有文件补充
-    条目数信息；正常增长路径不会多读文件。
-
-    Returns:
-        tuple[bool, str]: (是否可疑, 说明)
-    """
-    if not os.path.exists(UI_DATA_FILE):
-        return False, ''
-
-    try:
-        existing_size = os.path.getsize(UI_DATA_FILE)
-    except OSError:
-        return False, ''
-
-    if existing_size < SHRINK_GUARD_MIN_BYTES:
-        return False, ''
-
-    new_total, new_cards = _payload_entry_stats(data)
-
-    # 新内容完全没有条目：几乎必然是读取失败后的退化写入。
-    if new_total == 0:
-        return True, f'新内容为空对象 (既有文件 {existing_size} 字节)'
-
-    existing_stats = _read_existing_entry_stats(UI_DATA_FILE)
-    if existing_stats is None:
-        return False, ''
-
-    existing_total, existing_cards = existing_stats
-    if existing_cards <= 0:
-        return False, ''
-
-    if new_cards >= existing_cards * SHRINK_GUARD_MIN_RATIO:
-        return False, ''
-
-    return True, (
-        f'卡片条目从 {existing_cards} 骤降到 {new_cards} '
-        f'(既有文件 {existing_size} 字节)'
-    )
-
-
-def save_ui_data(data, *, allow_shrink=False):
-    """
-    保存 UI 辅助数据到 JSON 文件。
-
-    写入前会把当前主文件轮转为备份（.bak, .bak.1, ...），因此 .bak 始终是
-    最近一次「已确认可解析」的内容，而不是刚写入内容的镜像。
-
-    Args:
-        data (dict): 要保存的数据字典。
-        allow_shrink (bool): 显式确认允许大幅缩小文件（删除卡片/文件夹、
-            清空备注等合法批量删除场景需要传 True）。
-
-    Returns:
-        bool: 是否保存成功。
-    """
-    with _UI_DATA_LOCK:
-        try:
-            if not isinstance(data, dict):
-                logger.error("保存 ui_data.json 失败: 数据不是字典")
-                return False
-
-            # 读失败后的降级状态：在成功读取之前拒绝保存，
-            # 否则可能把「读失败」产生的空/残缺字典覆盖到磁盘上。
-            if is_ui_data_degraded():
-                logger.error(
-                    '拒绝保存 ui_data.json: 当前处于读取失败降级状态 (%s)。'
-                    '请先成功读取一次以确认磁盘数据。',
-                    get_ui_data_degraded_reason(),
-                )
-                return False
-
-            if not allow_shrink:
-                suspicious, reason = _check_shrink_guard(data)
-                if suspicious:
-                    logger.error(
-                        '拒绝保存 ui_data.json: 检测到可疑的退化写入 (%s)。'
-                        '若确为批量删除，请传 allow_shrink=True。',
-                        reason,
-                    )
-                    return False
-
-            if isinstance(data, _UiSnapshot):
-                try:
-                    stale = _snapshot_origins[id(data)][0] != _file_version(UI_DATA_FILE)
-                except FileNotFoundError:
-                    stale = True
-                if stale:
-                    edited = data
-                    original = pickle.loads(_snapshot_origins[id(data)][1])
-                    return update_ui_data(
-                        lambda current: _merge_ui_changes(current, original, edited),
-                        allow_shrink=allow_shrink,
-                    )
-
-            parent_dir = os.path.dirname(UI_DATA_FILE)
-            if parent_dir:
-                os.makedirs(parent_dir, exist_ok=True)
-
-            _preserve_current_primary_as_backup()
-            _write_ui_data_file_atomic(data)
-            _remember_ui_snapshot(data)
-            return True
-        except Exception as e:
-            logger.error(f"保存 ui_data.json 失败: {e}")
-            return False
-
 
 def load_ui_data_or_empty():
     """读取 ui_data；读取失败时返回空字典（不抛异常）。
@@ -2168,7 +1670,11 @@ def update_ui_data(mutator, *, allow_shrink=True, retries=READ_RETRY_ATTEMPTS,
         if not isinstance(data, dict):
             return False
 
-        result = mutator(data)
+        try:
+            result = mutator(data)
+        except UiDataLoadError as exc:
+            logger.error('update_ui_data 读取记录失败，修改未提交: %s', exc)
+            return False
         payload = result if isinstance(result, dict) else data
 
         attempts = max(1, int(retries))
@@ -2460,3 +1966,49 @@ def migrate_bundle_remarks_to_versions(ui_data, bundle_dir, version_ids=None):
             migrated_count += 1
 
     return migrated_count
+
+
+# 已发布 JSON 协议的兼容门面。权威数据始终在 SQLite，旧文件仅用于首次迁移。
+def load_ui_data():
+    from core.data.local_state_repository import snapshot, LocalStateError
+    try:
+        result = snapshot('ui')
+        _clear_ui_data_degraded()
+        return result
+    except LocalStateError as exc:
+        _mark_ui_data_degraded(exc)
+        raise UiDataLoadError(str(exc)) from exc
+
+
+def save_ui_data(data, *, allow_shrink=False, conn=None, worldinfo_jobs=(), resource_note_move=None,
+                 global_note_move=None):
+    from core.data.local_state_repository import Repository
+    try:
+        note_move = None
+        require_unchanged = ()
+        if resource_note_move is not None or global_note_move is not None:
+            source = 'resource' if resource_note_move is not None else 'global'
+            old, new = (build_worldinfo_note_key(source, path) for path in (resource_note_move or global_note_move))
+            if old and new and old != new:
+                note_move = old, new
+        if resource_note_move is not None:
+            # 分类迁移以一次路径快照计算；并发修改时恢复目录并要求重试。
+            require_unchanged = (RESOURCE_ITEM_CATEGORIES_KEY,)
+        return Repository('ui').save(
+            data, conn=conn, worldinfo_jobs=worldinfo_jobs, worldinfo_note_move=note_move,
+            require_unchanged=require_unchanged,
+        )
+    except Exception as exc:
+        logger.error('保存权威 UI 状态失败: %s', exc)
+        return False
+
+
+def get_ui_data_revision(ui_key=None):
+    from core.data.local_state_repository import Repository
+    return Repository('ui').revision(ui_key)
+
+
+def export_legacy_ui_data(path):
+    from core.data.local_state_repository import Repository
+    from core.utils.filesystem import save_json_atomic
+    return save_json_atomic(path, Repository('ui').export_snapshot())

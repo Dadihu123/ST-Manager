@@ -128,7 +128,7 @@ def _ui_worldinfo_key(source_type: str, file_path: Path, *, lorebooks_dir: Path,
 
 
 def _read_ui_data(ui_path: Path):
-    return json.loads(ui_path.read_text(encoding='utf-8'))
+    return __import__('core.data.local_state_repository', fromlist=['Repository']).Repository().export_snapshot()
 
 
 def _assert_ui_data_unchanged(ui_path: Path, before_ui):

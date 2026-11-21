@@ -326,7 +326,9 @@ class PluginAPI:
     # ---- 配置 ----
 
     def _plugin_entry(self, ui_data: dict, *, create: bool = False) -> dict:
-        namespace = ui_data.get(PLUGIN_UI_NAMESPACE)
+        from core.data.local_state_repository import StateSnapshot
+        namespace = (ui_data.namespace_members(PLUGIN_UI_NAMESPACE, [self.plugin_id])
+                     if isinstance(ui_data, StateSnapshot) else ui_data.get(PLUGIN_UI_NAMESPACE))
         if not isinstance(namespace, dict):
             if not create:
                 return {}

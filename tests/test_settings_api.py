@@ -1,3 +1,4 @@
+import json
 import io
 import sys
 from pathlib import Path
@@ -680,18 +681,20 @@ def test_configuration_backup_download_does_not_require_browsing_backend(monkeyp
     content = '{"notes":"测试"}'.encode('utf-8')
     ui_file.write_bytes(content)
     monkeypatch.setattr(system_api, 'UI_DATA_FILE', str(ui_file))
+    from core.data import ui_store
+    monkeypatch.setattr(ui_store, 'UI_DATA_FILE', str(ui_file))
     monkeypatch.setattr(system_api, 'BASE_DIR', str(tmp_path))
     monkeypatch.setattr(system_api, 'CAN_OPEN_SYSTEM_FILE_MANAGER', False)
     client = _make_test_app().test_client()
     with client.post('/api/system_action', json={'action': 'backup_data', 'download': True}) as response:
         assert response.status_code == 200
-        assert response.data == content
+        assert json.loads(response.data) == json.loads(content)
         assert 'attachment;' in response.headers['Content-Disposition']
         assert 'ui_data_backup_' in response.headers['Content-Disposition']
     assert list(tmp_path.glob('ui_data_backup_*.json')) == []
     response = client.post('/api/system_action', json={'action': 'backup_data'})
     assert response.get_json()['success'] is True
-    assert next(tmp_path.glob('ui_data_backup_*.json')).read_bytes() == content
+    assert json.loads(next(tmp_path.glob('ui_data_backup_*.json')).read_bytes()) == json.loads(content)
 
 
 def test_resources_shortcut_opens_configured_root_instead_of_notes(monkeypatch, tmp_path):

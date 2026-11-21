@@ -14,12 +14,16 @@ from flask import Blueprint, request, jsonify, send_file
 from core.config import BASE_DIR, DATA_DIR, load_config, DEFAULT_DB_PATH, CARDS_FOLDER, TRASH_FOLDER
 from core.context import ctx
 from core.data.db_session import get_db
+from core.data.local_state_repository import StateSnapshot
 from core.data.ui_store import (
+    UiDataLoadError,
     get_last_sent_to_st,
     get_last_sent_to_tt,
     load_ui_data,
     save_ui_data,
     UI_DATA_FILE,
+    WORLDINFO_NOTES_KEY,
+    build_worldinfo_note_key,
     get_resource_item_categories,
     set_last_sent_to_st,
     set_last_sent_to_tt,
@@ -27,7 +31,6 @@ from core.data.ui_store import (
     get_worldinfo_note,
     set_worldinfo_note,
     delete_worldinfo_note,
-    rename_global_worldinfo_note_path_prefix,
 )
 from core.services.worldbook_content_update import (
     MAX_SOURCE_BYTES, WorldbookUpdateError, atomic_write_bytes, commit_update,
@@ -39,9 +42,9 @@ from core.services.cache_service import invalidate_wi_list_cache
 from core.services.index_build_service import (
     connect_index_db,
     refresh_worldinfo_category_stats,
-    resolve_resource_worldinfo_owner_card_ids,
 )
 from core.services.index_job_worker import enqueue_index_job
+from core.services.path_operation import PATH_BUSY, PathOperationBusy, path_operation
 from core.services.scan_service import suppress_fs_events
 from core.services.st_auth import STAuthError, build_st_http_client
 from core.services.tauri_tavern_client import (
@@ -65,7 +68,13 @@ from core.services.wi_entry_history_service import (
     get_history_limit,
     resolve_card_uid,
 )
-from core.utils.filesystem import safe_move_to_trash
+from core.utils.filesystem import (
+    cache_directory_case_checks,
+    filesystem_path_key,
+    filesystem_paths_match,
+    safe_move_to_trash,
+    walk_directory_strict,
+)
 from core.utils.filesystem import sanitize_filename
 from core.utils.format_validation import (
     is_valid_legacy_world_info_data,
@@ -107,6 +116,20 @@ def _resolve_resources_dir(cfg: dict) -> str:
     raw_res_dir = cfg.get('resources_dir', 'resources')
     return raw_res_dir if os.path.isabs(raw_res_dir) else os.path.join(BASE_DIR, raw_res_dir)
 
+def _is_in_worldinfo_root(path, root):
+    path, root = os.path.abspath(path), os.path.abspath(root)
+    try:
+        return filesystem_paths_match(os.path.commonpath([path, root]), root)
+    except ValueError:
+        return False
+
+
+def _worldinfo_file_source(path, cfg):
+    if _is_in_worldinfo_root(path, _resolve_wi_dir(cfg)):
+        return 'global'
+    return 'resource' if _is_resource_worldinfo_path(path, cfg) else ''
+
+
 def _is_valid_wi_file(path: str, cfg: dict) -> bool:
     if not path:
         return False
@@ -117,7 +140,7 @@ def _is_valid_wi_file(path: str, cfg: dict) -> bool:
         return True
 
     if is_under_base(path, resources_dir):
-        rel_path = os.path.relpath(path, resources_dir).replace('\\', '/')
+        rel_path = os.path.normcase(os.path.relpath(path, resources_dir)).replace('\\', '/')
         return '/lorebooks/' in f"/{rel_path}/"
 
     return False
@@ -370,7 +393,7 @@ def _normalize_resource_item_key(path: str) -> str:
     if not path:
         return ''
     try:
-        return os.path.normcase(os.path.normpath(str(path))).replace('\\', '/')
+        return filesystem_path_key(str(path), preserve_unknown=True).replace('\\', '/')
     except Exception:
         return ''
 
@@ -565,6 +588,23 @@ def _infer_worldinfo_name_source(name: str, file_name: str, source_type: str = '
         return 'meta'
 
 
+def _prefetch_worldinfo_list_ui(ui_data, items, cfg):
+    """枚举完列表再批读；备注根和所有目标成员在一个短读事务内冻结。"""
+    if not isinstance(ui_data, StateSnapshot) or not items:
+        return
+    ui_keys, note_keys = set(), set()
+    for item in items:
+        source = item['type']
+        path = item.get('path') or ''
+        card_id = item.get('card_id') or _worldinfo_owner_card_id(item)
+        key = resolve_ui_key(card_id) if source == 'embedded' else _get_worldinfo_ui_key(source, path, cfg)
+        if key:
+            ui_keys.add(key)
+        note_keys.add(build_worldinfo_note_key(source, file_path=path, card_id=card_id))
+    ui_data.prefetch(ui_keys)
+    ui_data.namespace_members(WORLDINFO_NOTES_KEY, note_keys)
+
+
 def _enrich_indexed_worldinfo_item(item: dict, card_map: dict, ui_data: dict, cfg: dict) -> dict:
     enriched = dict(item)
     enriched['id'] = _legacy_worldinfo_id(enriched)
@@ -745,104 +785,81 @@ def _safe_join_category_path(base_dir: str, category: str, leaf_name: str = '') 
     return candidate
 
 
-def _save_resource_category_override(mode: str, file_path: str, category: str) -> bool:
+@cache_directory_case_checks
+def _save_resource_category_override(file_path: str, category: str) -> bool:
     ui_data = load_ui_data()
     payload = get_resource_item_categories(ui_data)
-    mode_items = dict(payload.get(mode) or {})
+    items = dict(payload.get('worldinfo') or {})
     path_key = _normalize_resource_item_key(file_path)
     normalized_category = _normalize_category_path(category)
 
     if normalized_category:
-        mode_items[path_key] = {
+        items[path_key] = {
             'category': normalized_category,
             'updated_at': int(time.time()),
         }
     else:
-        mode_items.pop(path_key, None)
+        items.pop(path_key, None)
 
-    next_payload = {
-        'worldinfo': dict(payload.get('worldinfo') or {}),
-        'presets': dict(payload.get('presets') or {}),
-    }
-    next_payload[mode] = mode_items
-    set_resource_item_categories(ui_data, next_payload)
-    return save_ui_data(ui_data)
+    payload['worldinfo'] = items
+    set_resource_item_categories(ui_data, payload)
+    return save_ui_data(ui_data, worldinfo_jobs=[dict(job_type='upsert_worldinfo_path', source_path=file_path)])
 
 
 def _is_resource_worldinfo_path(file_path: str, cfg: dict) -> bool:
     if not file_path or not _is_valid_wi_file(file_path, cfg):
         return False
     resources_dir = _resolve_resources_dir(cfg)
-    if not is_under_base(file_path, resources_dir):
+    if not _is_in_worldinfo_root(file_path, resources_dir):
         return False
-    rel_path = os.path.relpath(file_path, resources_dir).replace('\\', '/')
+    rel_path = os.path.normcase(os.path.relpath(file_path, resources_dir)).replace('\\', '/')
     return '/lorebooks/' in f'/{rel_path}/'
 
 
-def _enqueue_worldinfo_note_refresh(source_type: str, file_path: str = '', card_id: str = ''):
-    normalized_source = str(source_type or '').strip().lower()
-    if normalized_source == 'global' and file_path:
-        enqueue_index_job('upsert_worldinfo_path', source_path=file_path)
-        return
+def _update_resource_category(file_path, category, cfg, message):
+    with path_operation(file_path) as acquired:
+        if not acquired:
+            return _worldinfo_path_busy()
+        if not _is_resource_worldinfo_path(file_path, cfg):
+            return jsonify({'success': False, 'msg': '非法路径'})
+        if not os.path.isfile(file_path):
+            return jsonify({'success': False, 'msg': '资源世界书文件不存在，请刷新后重试'})
+        if not _save_resource_category_override(file_path, category):
+            return jsonify({'success': False, 'msg': '保存分类覆盖失败'})
+    invalidate_wi_list_cache()
+    return jsonify({'success': True, 'msg': message})
 
-    if normalized_source == 'resource' and file_path:
-        for owner_card_id in resolve_resource_worldinfo_owner_card_ids(file_path):
-            enqueue_index_job('upsert_world_owner', entity_id=owner_card_id, source_path=file_path)
-        return
 
-    if normalized_source == 'embedded' and card_id:
-        enqueue_index_job('upsert_world_embedded', entity_id=card_id, source_path='')
+def _worldinfo_note_refresh_jobs(source_type, file_path, card_id):
+    if source_type == 'embedded':
+        return [dict(job_type='upsert_world_embedded', entity_id=card_id)]
+    return [dict(job_type='upsert_worldinfo_path', source_path=file_path)]
 
 
 def _enqueue_worldinfo_file_refresh(file_path: str, cfg: dict):
     if not file_path or not _is_valid_wi_file(file_path, cfg):
         return
 
-    if _is_resource_worldinfo_path(file_path, cfg):
-        _enqueue_resource_worldinfo_owner_refresh(file_path)
-        return
-
     enqueue_index_job('upsert_worldinfo_path', source_path=file_path)
 
 
-def _enqueue_resource_worldinfo_owner_refresh(file_path: str):
-    for owner_card_id in resolve_resource_worldinfo_owner_card_ids(file_path):
-        enqueue_index_job('upsert_world_owner', entity_id=owner_card_id, source_path=file_path)
+def _worldinfo_path_busy(**fields):
+    return jsonify({'success': False, 'msg': PATH_BUSY, 'retryable': True, **fields}), 409
 
 
-def _move_global_worldinfo_file(file_path: str, target_category: str, cfg: dict) -> str:
-    global_dir = _resolve_wi_dir(cfg)
-    if not is_under_base(file_path, global_dir):
-        raise ValueError('非法路径')
-
-    filename = os.path.basename(file_path)
-    target_dir = _safe_join_category_path(global_dir, target_category)
-    if not target_dir:
-        raise ValueError('目标分类不合法')
-
-    os.makedirs(target_dir, exist_ok=True)
-    target_path = os.path.join(target_dir, filename)
-    if os.path.normcase(os.path.normpath(target_path)) == os.path.normcase(os.path.normpath(file_path)):
-        return file_path
-
-    if os.path.exists(target_path):
-        raise ValueError('目标位置已存在同名文件')
-
-    shutil.move(file_path, target_path)
-    return target_path
+def _commit_global_worldinfo_move(old_path, new_path, moved_files):
+    paths = dict.fromkeys(path for pair in moved_files for path in pair)
+    jobs = [dict(job_type='upsert_worldinfo_path', source_path=path) for path in paths]
+    if not save_ui_data(load_ui_data(), global_note_move=(old_path, new_path), worldinfo_jobs=jobs):
+        raise ValueError('保存世界书备注及索引刷新失败，请刷新后重试')
 
 
-def _remap_global_worldinfo_note_path(old_path: str, new_path: str):
-    if not old_path or not new_path:
-        return False
-
-    ui_data = load_ui_data()
-    changed = rename_global_worldinfo_note_path_prefix(ui_data, old_path, new_path)
-    if not changed:
-        return False
-    if not save_ui_data(ui_data):
-        raise ValueError('保存世界书备注失败')
-    return True
+def _move_global_worldinfo_history(moved_files):
+    for old_path, new_path in moved_files:
+        move_entry_history_scope(
+            source_type='global', file_path=old_path, target_source_type='global', target_file_path=new_path,
+            fallback_contexts=[{'source_type': 'lorebook', 'file_path': old_path}],
+        )
 
 
 def _folder_response(base_dir: str, success_msg: str, warning: str = ''):
@@ -884,6 +901,13 @@ def _refresh_worldinfo_folder_stats(cfg: dict | None = None) -> str:
         with connect_index_db(DEFAULT_DB_PATH) as conn:
             refresh_worldinfo_category_stats(conn, cfg)
         return ''
+    except PathOperationBusy:
+        try:
+            enqueue_index_job('refresh_worldinfo_categories', source_path=_resolve_wi_dir(cfg))
+            return ''
+        except Exception as exc:
+            logger.warning('Enqueue worldinfo folder stats refresh failed: %s', exc)
+            return f'索引分类统计刷新失败: {exc}'
     except Exception as exc:
         logger.warning('Refresh worldinfo folder stats failed: %s', exc)
         return f'索引分类统计刷新失败: {exc}'
@@ -1098,6 +1122,7 @@ def _apply_worldinfo_list_filters(items, category, search):
 
 
 @bp.route('/api/world_info/list', methods=['GET'])
+@cache_directory_case_checks
 def api_list_world_infos():
     try:
         search = request.args.get('search', '').strip()
@@ -1129,7 +1154,8 @@ def api_list_world_infos():
             extra_owner_entity_ids = []
             if search:
                 search_lc = search.lower()
-                notes = (ui_data.get('_worldinfo_notes_v1') or {}) if isinstance(ui_data, dict) else {}
+                notes = ui_data.get(WORLDINFO_NOTES_KEY) if isinstance(ui_data, dict) else None
+                notes = notes if isinstance(notes, dict) else {}
                 for note_key, note_value in notes.items():
                     summary = str((note_value or {}).get('summary') or '').lower() if isinstance(note_value, dict) else ''
                     if search_lc not in summary:
@@ -1164,6 +1190,7 @@ def api_list_world_infos():
 
             indexed_source = query_worldinfo_index(query_filters)
             if indexed_source.get('index_ready', True):
+                _prefetch_worldinfo_list_ui(ui_data, indexed_source['items'], cfg)
                 items = [
                     _enrich_indexed_worldinfo_item(item, card_map, ui_data, cfg)
                     for item in indexed_source['items']
@@ -1201,7 +1228,8 @@ def api_list_world_infos():
         # 当前 wi_type 实际需要的目录来计算，避免无谓扫描。
         global_dir_sig = _build_dir_tree_sig(current_wi_folder) if wi_type in ('global', 'all') else ''
         resource_dir_sig = _build_dir_tree_sig(default_res_dir) if wi_type in ('resource', 'all') else ''
-        ui_data_sig      = _safe_mtime(UI_DATA_FILE)
+        from core.data.ui_store import get_ui_data_revision
+        ui_data_sig = get_ui_data_revision()
         db_sig           = _safe_mtime(db_path)
 
         cached_items = None
@@ -1283,6 +1311,9 @@ def api_list_world_infos():
             res_root_dir = os.path.normpath(default_res_dir)
             if not ctx.cache.initialized:
                 ctx.cache.reload_from_db()
+            if isinstance(ui_data, StateSnapshot):
+                ui_data.prefetch({key for card in ctx.cache.cards for key in
+                                  (card.get('id'), card.get('bundle_dir')) if key})
             for card in ctx.cache.cards:
                 key = card.get('bundle_dir') if card.get('is_bundle') else card.get('id')
                 ui_info = ui_data.get(key, {}) or {}
@@ -1366,8 +1397,8 @@ def api_list_world_infos():
                                     if name_key in embedded_name_set or base_key in embedded_name_set or file_base_key in embedded_name_set:
                                         continue
                                 if embedded_sig_set:
-                                    sig = _compute_wi_signature(data)
-                                    if sig and sig in embedded_sig_set:
+                                    book_sig = _compute_wi_signature(data)
+                                    if book_sig and book_sig in embedded_sig_set:
                                         continue
                                     
                                 rel_path = os.path.relpath(full_path, current_wi_folder).replace('\\', '/')
@@ -1388,9 +1419,6 @@ def api_list_world_infos():
                                     "owner_card_id": "",
                                     "owner_card_name": "",
                                     "owner_card_category": "",
-                                    "ui_summary": _get_worldinfo_ui_summary(ui_data, 'global', file_path=full_path),
-                                    "last_sent_to_st": _get_worldinfo_last_sent_to_st(ui_data, 'global', full_path, cfg),
-                                    "last_sent_to_tt": _get_worldinfo_last_sent_to_tt(ui_data, 'global', full_path, cfg),
                                 })
                         except Exception as e: 
                             print(f"Error reading WI {f}: {e}")
@@ -1456,9 +1484,6 @@ def api_list_world_infos():
                                         "owner_card_id": card.get('id', ''),
                                         "owner_card_name": card.get('char_name', ''),
                                         "owner_card_category": owner_category,
-                                        "ui_summary": _get_worldinfo_ui_summary(ui_data, 'resource', file_path=full_path),
-                                        "last_sent_to_st": _get_worldinfo_last_sent_to_st(ui_data, 'resource', full_path, cfg),
-                                        "last_sent_to_tt": _get_worldinfo_last_sent_to_tt(ui_data, 'resource', full_path, cfg),
                                     })
                             except: continue
         # 3. 角色卡内嵌 (Embedded) - 查询数据库
@@ -1491,18 +1516,16 @@ def api_list_world_infos():
                     "owner_card_id": card_id,
                     "owner_card_name": row['char_name'],
                     "owner_card_category": owner_category,
-                    "ui_summary": _get_embedded_worldinfo_ui_summary(ui_data, card_id=row['id']),
-                    "last_sent_to_st": 0.0,
-                    "last_sent_to_tt": 0.0,
                 })
 
-        source_items = list(items)
-
-        # 过滤与排序
-        items = _apply_worldinfo_list_filters(items, category, search)
-
+        _prefetch_worldinfo_list_ui(ui_data, items, cfg)
+        for item in items:
+            source, path = item['type'], item.get('path') or ''
+            item['ui_summary'] = (_get_embedded_worldinfo_ui_summary(ui_data, item['card_id'])
+                                  if source == 'embedded' else _get_worldinfo_ui_summary(ui_data, source, file_path=path))
+            _apply_worldinfo_last_sent_fields(item, ui_data, source, path, cfg)
         items.sort(key=lambda x: x.get('mtime', 0), reverse=True)
-        folder_meta = _add_physical_folder_nodes(_build_folder_metadata(source_items), current_wi_folder)
+        folder_meta = _add_physical_folder_nodes(_build_folder_metadata(items), current_wi_folder)
 
         # ===== [CACHE WRITE] 只在未命中缓存时写入 =====
         if cached_items is None:
@@ -1518,6 +1541,7 @@ def api_list_world_infos():
                 }
 
         # 分页切片
+        items = _apply_worldinfo_list_filters(items, category, search)
         total_count = len(items)
         start = (page - 1) * page_size
         end = start + page_size
@@ -1600,6 +1624,7 @@ def api_create_world_info():
 
 @bp.route('/api/world_info/category/move', methods=['POST'])
 @_serialize_worldbook_write
+@cache_directory_case_checks
 def api_move_world_info_category():
     try:
         req = request.get_json(silent=True) or {}
@@ -1614,42 +1639,40 @@ def api_move_world_info_category():
             return jsonify({'success': False, 'msg': '内嵌世界书跟随角色卡分类，如需调整请移动所属角色卡'})
 
         if source_type == 'resource':
-            if not _is_resource_worldinfo_path(file_path, cfg):
-                return jsonify({'success': False, 'msg': '非法路径'})
-            if not _save_resource_category_override('worldinfo', file_path, target_category):
-                return jsonify({'success': False, 'msg': '保存分类覆盖失败'})
-            invalidate_wi_list_cache()
-            _enqueue_resource_worldinfo_owner_refresh(file_path)
-            return jsonify({'success': True, 'msg': '已更新管理器分类，未移动实际文件'})
+            return _update_resource_category(file_path, target_category, cfg, '已更新管理器分类，未移动实际文件')
 
         if source_type != 'global' or not file_path:
             return jsonify({'success': False, 'msg': '缺少必要参数'})
 
-        suppress_fs_events(3.0)
-        old_path = file_path
-        new_path = _move_global_worldinfo_file(file_path, target_category, cfg)
-        try:
-            _remap_global_worldinfo_note_path(old_path, new_path)
-            move_entry_history_scope(
-                source_type='global',
-                file_path=old_path,
-                target_source_type='global',
-                target_file_path=new_path,
-                fallback_contexts=[
-                    {
-                        'source_type': 'lorebook',
-                        'file_path': old_path,
-                    },
-                ],
-            )
-        except ValueError:
-            if os.path.exists(new_path) and not os.path.exists(old_path):
-                shutil.move(new_path, old_path)
-            raise
-        invalidate_wi_list_cache()
-        cfg = load_config()
-        _enqueue_worldinfo_file_refresh(old_path, cfg)
-        _enqueue_worldinfo_file_refresh(new_path, cfg)
+        old_path = os.path.normpath(os.path.join(BASE_DIR, file_path))
+        target_dir = _safe_join_category_path(_resolve_wi_dir(cfg), target_category)
+        if not target_dir:
+            raise ValueError('目标分类不合法')
+        new_path = os.path.join(target_dir, os.path.basename(old_path))
+        with path_operation(old_path, new_path) as acquired:
+            if not acquired:
+                return _worldinfo_path_busy()
+            if _worldinfo_file_source(old_path, cfg) != 'global':
+                raise ValueError('非法路径')
+            if not os.path.isfile(old_path):
+                return jsonify({'success': False, 'msg': '世界书文件不存在，请刷新后重试', 'retryable': True})
+            if filesystem_paths_match(old_path, new_path):
+                return jsonify({'success': True, 'msg': '世界书已移动', 'path': old_path})
+            if os.path.lexists(new_path):
+                raise ValueError('目标位置已存在同名文件')
+
+            suppress_fs_events(3.0)
+            os.makedirs(target_dir, exist_ok=True)
+            shutil.move(old_path, new_path)
+            try:
+                moved_files = [(old_path, new_path)]
+                _commit_global_worldinfo_move(old_path, new_path, moved_files)
+            except (ValueError, OSError, UiDataLoadError):
+                if not os.path.lexists(old_path):
+                    shutil.move(new_path, old_path)
+                raise
+            _move_global_worldinfo_history(moved_files)
+            invalidate_wi_list_cache()
         return jsonify({'success': True, 'msg': '世界书已移动', 'path': new_path})
     except ValueError as e:
         return jsonify({'success': False, 'msg': str(e)})
@@ -1667,13 +1690,7 @@ def api_reset_world_info_category():
             return jsonify({'success': False, 'msg': '该操作仅支持资源世界书'})
         file_path = str(req.get('file_path') or '').strip()
         cfg = load_config()
-        if not _is_resource_worldinfo_path(file_path, cfg):
-            return jsonify({'success': False, 'msg': '非法路径'})
-        if not _save_resource_category_override('worldinfo', file_path, ''):
-            return jsonify({'success': False, 'msg': '保存分类覆盖失败'})
-        invalidate_wi_list_cache()
-        _enqueue_resource_worldinfo_owner_refresh(file_path)
-        return jsonify({'success': True, 'msg': '已恢复跟随角色卡分类'})
+        return _update_resource_category(file_path, '', cfg, '已恢复跟随角色卡分类')
     except Exception as e:
         logger.error(f'Reset WI category error: {e}')
         return jsonify({'success': False, 'msg': str(e)})
@@ -1692,9 +1709,12 @@ def api_create_world_info_folder():
         target_dir = _safe_join_category_path(global_dir, parent_category, folder_name)
         if not target_dir:
             return jsonify({'success': False, 'msg': '目标分类不合法'})
-        suppress_fs_events(1.5)
-        os.makedirs(target_dir, exist_ok=True)
-        invalidate_wi_list_cache()
+        with path_operation(target_dir) as acquired:
+            if not acquired:
+                return _worldinfo_path_busy()
+            suppress_fs_events(1.5)
+            os.makedirs(target_dir, exist_ok=True)
+            invalidate_wi_list_cache()
         warning = _refresh_worldinfo_folder_stats(cfg)
         return _folder_response(global_dir, '目录已创建', warning=warning)
     except Exception as e:
@@ -1703,6 +1723,7 @@ def api_create_world_info_folder():
 
 
 @bp.route('/api/world_info/folders/rename', methods=['POST'])
+@cache_directory_case_checks
 def api_rename_world_info_folder():
     try:
         req = request.get_json(silent=True) or {}
@@ -1715,43 +1736,33 @@ def api_rename_world_info_folder():
         source_dir = _safe_join_category_path(global_dir, category)
         parent_category = _get_parent_category(category)
         target_dir = _safe_join_category_path(global_dir, parent_category, new_name)
-        if not source_dir or not target_dir or not os.path.isdir(source_dir):
+        if not source_dir or not target_dir:
             return jsonify({'success': False, 'msg': '目录不存在'})
-        suppress_fs_events(3.0)
-        moved_global_files = []
-        for root, _dirs, files in os.walk(source_dir):
-            for name in files:
-                if not name.lower().endswith('.json'):
-                    continue
-                old_file_path = os.path.join(root, name)
-                rel_file_path = os.path.relpath(old_file_path, source_dir)
-                moved_global_files.append((old_file_path, os.path.join(target_dir, rel_file_path)))
-        old_prefix = os.path.normcase(os.path.normpath(source_dir)).replace('\\', '/')
-        os.rename(source_dir, target_dir)
-        new_prefix = os.path.normcase(os.path.normpath(target_dir)).replace('\\', '/')
-        try:
-            _remap_global_worldinfo_note_path(old_prefix, new_prefix)
-            for old_file_path, new_file_path in moved_global_files:
-                move_entry_history_scope(
-                    source_type='global',
-                    file_path=old_file_path,
-                    target_source_type='global',
-                    target_file_path=new_file_path,
-                    fallback_contexts=[
-                        {
-                            'source_type': 'lorebook',
-                            'file_path': old_file_path,
-                        },
-                    ],
-                )
-        except ValueError:
-            if os.path.exists(target_dir) and not os.path.exists(source_dir):
-                os.rename(target_dir, source_dir)
-            raise
-        invalidate_wi_list_cache()
-        for old_file_path, new_file_path in moved_global_files:
-            _enqueue_worldinfo_file_refresh(old_file_path, cfg)
-            _enqueue_worldinfo_file_refresh(new_file_path, cfg)
+        with path_operation(source_dir, target_dir) as acquired:
+            if not acquired:
+                return _worldinfo_path_busy()
+            if not os.path.isdir(source_dir):
+                return jsonify({'success': False, 'msg': '目录不存在'})
+            if os.path.lexists(target_dir) and not filesystem_paths_match(source_dir, target_dir):
+                return jsonify({'success': False, 'msg': '目标目录已存在'})
+
+            moved_files = []
+            for root, _dirs, files in walk_directory_strict(source_dir):
+                for name in files:
+                    if name.lower().endswith('.json'):
+                        old_path = os.path.join(root, name)
+                        new_path = os.path.join(target_dir, os.path.relpath(old_path, source_dir))
+                        moved_files.append((old_path, new_path))
+            suppress_fs_events(3.0)
+            os.rename(source_dir, target_dir)
+            try:
+                _commit_global_worldinfo_move(source_dir, target_dir, moved_files)
+            except (ValueError, OSError, UiDataLoadError):
+                if filesystem_paths_match(source_dir, target_dir) or not os.path.lexists(source_dir):
+                    os.rename(target_dir, source_dir)
+                raise
+            _move_global_worldinfo_history(moved_files)
+            invalidate_wi_list_cache()
         warning = _refresh_worldinfo_folder_stats(cfg)
         return _folder_response(global_dir, '目录已重命名', warning=warning)
     except Exception as e:
@@ -1767,13 +1778,18 @@ def api_delete_world_info_folder():
         global_dir = _resolve_wi_dir(cfg)
         category = _normalize_category_path(req.get('category'))
         target_dir = _safe_join_category_path(global_dir, category)
-        if not target_dir or not os.path.isdir(target_dir):
+        if not target_dir:
             return jsonify({'success': False, 'msg': '目录不存在'})
-        if os.listdir(target_dir):
-            return jsonify({'success': False, 'msg': '只能删除空目录'})
-        suppress_fs_events(1.5)
-        os.rmdir(target_dir)
-        invalidate_wi_list_cache()
+        with path_operation(target_dir) as acquired:
+            if not acquired:
+                return _worldinfo_path_busy()
+            if not os.path.isdir(target_dir):
+                return jsonify({'success': False, 'msg': '目录不存在'})
+            if os.listdir(target_dir):
+                return jsonify({'success': False, 'msg': '只能删除空目录'})
+            suppress_fs_events(1.5)
+            os.rmdir(target_dir)
+            invalidate_wi_list_cache()
         warning = _refresh_worldinfo_folder_stats(cfg)
         return _folder_response(global_dir, '目录已删除', warning=warning)
     except Exception as e:
@@ -2182,6 +2198,7 @@ def api_world_info_detail_search():
 
 
 @bp.route('/api/world_info/note/save', methods=['POST'])
+@cache_directory_case_checks
 def api_save_world_info_note():
     try:
         req = request.get_json(silent=True) or {}
@@ -2200,8 +2217,7 @@ def api_save_world_info_note():
             else:
                 file_path = os.path.normpath(file_path)
 
-            if not _is_valid_wi_file(file_path, cfg):
-                return jsonify({'success': False, 'msg': '非法路径'})
+            return _save_file_world_info_note(source_type, file_path, summary, card_id, cfg)
         elif source_type == 'embedded':
             if not card_id:
                 try:
@@ -2213,28 +2229,47 @@ def api_save_world_info_note():
         else:
             return jsonify({'success': False, 'msg': '非法来源'})
 
-        ui_data = load_ui_data()
-        changed = set_worldinfo_note(
-            ui_data,
-            source_type,
-            summary,
-            **_build_worldinfo_note_kwargs(source_type, file_path=file_path, card_id=card_id)
-        )
-        if changed:
-            save_ui_data(ui_data)
-            invalidate_wi_list_cache()
-            _enqueue_worldinfo_note_refresh(source_type, file_path=file_path, card_id=card_id)
-
-        return jsonify({
-            'success': True,
-            'ui_summary': _get_worldinfo_ui_summary(ui_data, source_type, file_path=file_path, card_id=card_id),
-            'source_type': source_type,
-            'file_path': file_path,
-            'card_id': card_id,
-        })
+        return _save_world_info_note(source_type, summary, file_path, card_id)
     except Exception as e:
         logger.error(f'Save worldinfo note error: {e}')
         return jsonify({'success': False, 'msg': str(e)})
+
+
+def _save_file_world_info_note(source_type, file_path, summary, card_id, cfg):
+    with path_operation(file_path, exclusive=False) as acquired:
+        if not acquired:
+            return _worldinfo_path_busy(ui_data_saved=False)
+        if _worldinfo_file_source(file_path, cfg) != source_type:
+            return jsonify({'success': False, 'msg': '非法路径', 'ui_data_saved': False})
+        if not os.path.isfile(file_path):
+            return jsonify({'success': False, 'msg': '世界书文件不存在，请刷新后重试',
+                            'retryable': True, 'ui_data_saved': False})
+        return _save_world_info_note(source_type, summary, file_path, card_id)
+
+
+def _save_world_info_note(source_type, summary, file_path, card_id=''):
+    ui_data = load_ui_data()
+    changed = set_worldinfo_note(
+        ui_data,
+        source_type,
+        summary,
+        **_build_worldinfo_note_kwargs(source_type, file_path=file_path, card_id=card_id)
+    )
+    if changed:
+        jobs = _worldinfo_note_refresh_jobs(source_type, file_path, card_id)
+        if save_ui_data(ui_data, worldinfo_jobs=jobs) is False:
+            return jsonify({'success': False, 'msg': '世界书备注未保存，请重新载入后重试',
+                            'retryable': True, 'ui_data_saved': False})
+        invalidate_wi_list_cache()
+
+    ui_data = load_ui_data()
+    return jsonify({
+        'success': True,
+        'ui_summary': _get_worldinfo_ui_summary(ui_data, source_type, file_path=file_path, card_id=card_id),
+        'source_type': source_type,
+        'file_path': file_path,
+        'card_id': card_id,
+    })
 
 
 def _update_error(exc):
@@ -2742,6 +2777,7 @@ def api_wi_clipboard_reorder():
 # 删除世界书
 @bp.route('/api/world_info/delete', methods=['POST'])
 @_serialize_worldbook_write
+@cache_directory_case_checks
 def api_delete_world_info():
     try:
         source_type = str((request.json or {}).get('source_type') or '').strip().lower()
@@ -2757,42 +2793,41 @@ def api_delete_world_info():
         file_path = os.path.normpath(file_path)
 
         cfg = load_config()
-        if not _is_valid_wi_file(file_path, cfg):
-            return jsonify({"success": False, "msg": "非法路径"})
-
-        if not os.path.exists(file_path):
-            return jsonify({"success": False, "msg": "文件不存在或路径为空"})
-            
-        # 简单的安全检查，防止删除系统关键文件
-        if 'card_metadata' in file_path or 'config.json' in file_path:
-             return jsonify({"success": False, "msg": "非法操作：禁止删除系统文件"})
-
-        # 执行移动到回收站
-        suppress_fs_events(2.5)
-        if safe_move_to_trash(file_path, TRASH_FOLDER):
-            history_source_type = 'resource' if _is_resource_worldinfo_path(file_path, cfg) else 'global'
-            purge_entry_history_scope(
-                source_type=history_source_type,
-                source_id='',
-                file_path=file_path,
-                fallback_contexts=[
-                    {
-                        'source_type': 'lorebook',
-                        'file_path': file_path,
-                    },
-                ],
-            )
-            ui_data = load_ui_data()
-            if source_type in ('global', 'resource'):
-                if delete_worldinfo_note(ui_data, source_type, file_path=file_path):
-                    save_ui_data(ui_data)
-            # 刷新列表缓存
-            invalidate_wi_list_cache()
-            _enqueue_worldinfo_file_refresh(file_path, cfg)
-            return jsonify({"success": True})
-        else:
-            return jsonify({"success": False, "msg": "移动到回收站失败"})
-            
+        with path_operation(file_path) as acquired:
+            if not acquired:
+                return _worldinfo_path_busy()
+            actual_source = _worldinfo_file_source(file_path, cfg)
+            if not actual_source or (source_type and source_type != actual_source):
+                return jsonify({'success': False, 'msg': '非法路径'})
+            return _delete_world_info_file(file_path, actual_source)
     except Exception as e:
         logger.error(f"Delete WI error: {e}")
         return jsonify({"success": False, "msg": str(e)})
+
+
+def _delete_world_info_file(file_path, source_type):
+    if not os.path.isfile(file_path):
+        return jsonify({'success': False, 'msg': '文件不存在或路径为空'})
+    if 'card_metadata' in file_path or 'config.json' in file_path:
+        return jsonify({'success': False, 'msg': '非法操作：禁止删除系统文件'})
+
+    suppress_fs_events(2.5)
+    ui_data = load_ui_data()
+    delete_worldinfo_note(ui_data, source_type, file_path=file_path)
+    jobs = _worldinfo_note_refresh_jobs(source_type, file_path, '')
+
+    def commit_delete():
+        if not save_ui_data(ui_data, worldinfo_jobs=jobs):
+            raise ValueError('保存世界书备注及索引刷新失败，请刷新后重试')
+
+    if not safe_move_to_trash(file_path, TRASH_FOLDER, on_moved=commit_delete):
+        return jsonify({'success': False, 'msg': '移动到回收站失败'})
+
+    purge_entry_history_scope(
+        source_type=source_type,
+        source_id='',
+        file_path=file_path,
+        fallback_contexts=[{'source_type': 'lorebook', 'file_path': file_path}],
+    )
+    invalidate_wi_list_cache()
+    return jsonify({'success': True})

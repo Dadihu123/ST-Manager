@@ -2,6 +2,7 @@ import hashlib
 import io
 import json
 import os
+from pathlib import Path
 import shutil
 import sqlite3
 import stat
@@ -1951,9 +1952,11 @@ def test_windows_worldbook_note_uses_actual_case_on_posix(tmp_path, monkeypatch)
     key = next(iter(portable['_worldinfo_notes_v1']))
     assert key.endswith('/UpperDir/MixedCase.JSON')
     # 执行真实规范化函数，只替换其 os.path 为 POSIX 规则；不声称是 Android 真机。
-    namespace = {'os': types.SimpleNamespace(path=posixpath)}
-    exec(inspect.getsource(ui_store._normalize_worldinfo_note_path), namespace)
-    monkeypatch.setattr(ui_store, '_normalize_worldinfo_note_path', namespace['_normalize_worldinfo_note_path'])
+    from core.utils import filesystem
+    namespace = {'os': types.SimpleNamespace(name='posix', path=posixpath)}
+    for normalize in (filesystem.filesystem_path_bucket, filesystem.filesystem_path_key):
+        exec(inspect.getsource(normalize), namespace)
+    monkeypatch.setattr(ui_store, 'filesystem_path_key', namespace['filesystem_path_key'])
     root = '/data/user/0/com.stmanager.pro/files/data/worldbooks'
     android = MigrationPaths('/data/user/0/com.stmanager.pro/files', {**roots, 'world_info_dir': root}).ui(portable)
     note = ui_store.get_worldinfo_note(android, 'global', file_path=root + '/UpperDir/MixedCase.JSON')
@@ -2347,3 +2350,72 @@ def test_http_restore_refuses_modified_preview_and_requires_new_import(tmp_path,
     # 损坏任务不可重复确认，重新选择原 ZIP 可重新校验并预览。
     replacement = import_zip(service, zip_data)
     assert service.status(replacement)['state'] == 'preview'
+
+
+@pytest.mark.parametrize('missing_legacy', [False, True])
+def test_active_authority_archive_roundtrip_ignores_stale_json(tmp_path, missing_legacy):
+    from core.data.local_state_repository import activate_snapshots_at, read_snapshot_at
+    base = tmp_path / 'source'
+    base.mkdir()
+    seed(base).close()
+    db = base / 'data/system/db/cards_metadata.db'
+    ui = json.loads((db.parent / 'ui_data.json').read_text(encoding='utf-8'))
+    ui['a.png']['summary'] = 'SQLite authority'
+    ui['a.png']['chat_ids'] = ['one.jsonl', 'two.jsonl']
+    ui['_future'] = [None, 'unknown', {'opaque': 1}]
+    chat = {'one.jsonl': {'summary': 'local note', 'bookmarks': [3, 8], 'reader_state': {'message_index': 9}}}
+    activate_snapshots_at(str(db), ui, chat)
+    if missing_legacy:
+        (db.parent / 'ui_data.json').unlink()
+    source = DataMigrationService(str(base))
+    job = source.new_job('export')
+    source.export(job)
+    with zipfile.ZipFile(source.path(job, 'backup.zip')) as archive:
+        exported_ui = json.loads(archive.read('db/ui_data.json'))
+        assert exported_ui['a.png']['summary'] == 'SQLite authority'
+        assert exported_ui['_future'] == ui['_future']
+        assert '_plugins_v1' not in exported_ui
+    target = tmp_path / 'target'
+    restore_export(source, job, target)
+    confirm_pending(str(target))
+    restored_db = target / 'data/system/db/cards_metadata.db'
+    restored = read_snapshot_at(str(restored_db), 'ui', str(restored_db.parent / 'ui_data.json'))
+    assert restored['a.png']['summary'] == 'SQLite authority'
+    assert restored['_future'] == ui['_future']
+    assert restored['a.png']['chat_ids'] == ['one.jsonl', 'two.jsonl']
+    assert str(base) not in restored['a.png']['resource_folder']
+    with sqlite3.connect(restored_db) as conn:
+        assert conn.execute('SELECT chat_id FROM chat_card_bindings ORDER BY chat_id').fetchall() == [('one.jsonl',), ('two.jsonl',)]
+        assert conn.execute('SELECT state FROM local_state_migrations').fetchone()[0] == 'activated'
+    assert read_snapshot_at(str(restored_db), 'chat', '')['one.jsonl']['summary'] == 'local note'
+
+
+@pytest.mark.parametrize('damage', ['missing_table', 'missing_database', 'corrupt_database'])
+def test_valid_archive_recovers_damaged_target_authority(tmp_path, damage):
+    from core.data.local_state_repository import activate_snapshots_at
+    source, export_job, source_conn = exported(tmp_path)
+    source_conn.close()
+    archive = Path(source.path(export_job, 'backup.zip')).read_bytes()
+    target = tmp_path / 'target'
+    target.mkdir()
+    seed(target).close()
+    db = target / 'data/system/db/cards_metadata.db'
+    from core.data.local_state_repository import initialize
+    initialize(str(db), str(db.parent / 'ui_data.json'), str(db.parent / 'chat_data.json'))
+    activate_snapshots_at(str(db), {'_plugins_v1': {'local': {'config': {'secret': 'keep'}}}}, {})
+    if damage == 'missing_table':
+        with sqlite3.connect(db) as conn:
+            conn.execute('DROP TABLE ui_records')
+    elif damage == 'missing_database':
+        db.unlink()
+    else:
+        db.write_bytes(b'damaged authority')
+    service = DataMigrationService(str(target))
+    job = import_zip(service, archive)
+    service.update(job, state='restoring')
+    service.prepare_restore(job)
+    assert (target / 'data/migration/pending.json').is_file()
+    assert any('插件' in warning for warning in service.status(job).get('warnings', []))
+    restored = json.loads(Path(service.path(job, 'restore/db/ui_data.json')).read_text(encoding='utf-8'))
+    assert restored['a.png']['summary'] == '备注'
+    assert restored['_plugins_v1']['pet']['enabled'] is False

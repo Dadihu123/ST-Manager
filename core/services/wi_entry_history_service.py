@@ -529,6 +529,10 @@ def purge_orphaned_entry_history(
     except sqlite3.Error:
         card_uid_map = {}
 
+    for card_id in retained_card_ids:
+        if card_uid_map.get(card_id):
+            valid_scope_keys.add(build_scope_key('embedded', source_id=card_uid_map[card_id]))
+
     def add_worldbook_scopes(path, source_type):
         valid_scope_keys.update(_build_scope_keys(source_type, file_path=path))
         # History written before source_type was corrected used lorebook for all files.

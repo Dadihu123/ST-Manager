@@ -36,7 +36,7 @@ def get_db():
         # 开启 WAL (Write-Ahead Logging) 模式，提高并发读写性能
         try:
             g.db.execute("PRAGMA journal_mode=WAL;")
-            g.db.execute("PRAGMA synchronous=NORMAL;")
+            g.db.execute("PRAGMA synchronous=FULL;")
         except Exception as e:
             logger.warning(f"Failed to enable WAL mode: {e}")
             

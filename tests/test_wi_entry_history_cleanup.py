@@ -294,7 +294,7 @@ def test_card_update_removing_embedded_worldbook_clears_history(monkeypatch, tmp
     monkeypatch.setattr(history_service, 'DEFAULT_DB_PATH', str(db_path))
     monkeypatch.setattr(cards_api, 'suppress_fs_events', lambda *_args, **_kwargs: None)
     monkeypatch.setattr(cards_api, 'extract_card_info', lambda _path: json.loads(json.dumps(old_info)))
-    monkeypatch.setattr(cards_api, 'write_card_metadata', lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(cards_api, 'write_card_metadata', lambda *_args, **_kwargs: True)
     monkeypatch.setattr(cards_api, 'load_ui_data', lambda: {'hero.json': {}})
     monkeypatch.setattr(cards_api, 'save_ui_data', lambda _payload, **_kwargs: None)
     monkeypatch.setattr(cards_api, 'ensure_import_time', lambda *_args, **_kwargs: (False, 0))

@@ -122,7 +122,7 @@ def test_api_post_isolated_categories_normalizes_paths_and_returns_object_shape(
     assert payload['isolated_categories']['paths'] == ['base/iso']
     assert payload['isolated_categories']['updated_at'] > 0
 
-    stored = json.loads(ui_path.read_text(encoding='utf-8'))
+    stored = __import__('core.data.local_state_repository', fromlist=['Repository']).Repository().export_snapshot()
     assert stored['_isolated_categories_v1']['paths'] == ['base/iso']
 
 

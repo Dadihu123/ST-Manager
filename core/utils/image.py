@@ -183,7 +183,13 @@ def extract_card_info_strict(filepath):
     return info
 
 
-def write_card_metadata(filepath, json_data):
+def write_card_metadata(filepath, json_data, *, prepare_intent=True):
+    from core.services.card_operation_lock import card_file_locks
+    with card_file_locks(filepath):
+        return _write_card_metadata(filepath, json_data, prepare_intent=prepare_intent)
+
+
+def _write_card_metadata(filepath, json_data, *, prepare_intent=True):
     try:
         # === 应用 V3 标准化 ===
         # 只有当看起来像角色卡（有name或data）时才处理，避免误伤其他JSON
@@ -207,6 +213,10 @@ def write_card_metadata(filepath, json_data):
         # === 数据排序 (Deterministic) ===
         normalized_data = deterministic_sort(json_data)
 
+        if prepare_intent:
+            from core.services.index_job_worker import prepare_card_file_intent
+            prepare_card_file_intent(filepath)
+
         # 支持 JSON 文件直接写入
         if filepath.lower().endswith('.json'):
             return save_json_atomic(filepath, normalized_data)
@@ -224,6 +234,48 @@ def write_card_metadata(filepath, json_data):
     except Exception as e:
         logger.error(f"Metadata write error: {e}")
         return False
+
+class CardImageCleanupError(OSError):
+    """目标已原子替换，但转换源文件的清理仍需恢复。"""
+
+    target_replaced = True
+    source_cleanup_completed = False
+
+
+def save_card_image_atomic(path, image, info, *, old_path=None, metadata_writer=None):
+    """先完成像素和正文暂存，再为最终路径记录耐久意图，最后替换正式文件。"""
+    from core.services.card_operation_lock import card_file_locks
+    with card_file_locks(path, old_path):
+        return _save_card_image_atomic(path, image, info, old_path=old_path,
+                                       metadata_writer=metadata_writer)
+
+
+def _save_card_image_atomic(path, image, info, *, old_path=None, metadata_writer=None):
+    import tempfile
+    from core.services.index_job_worker import prepare_card_file_intent
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile(dir=os.path.dirname(os.path.abspath(path)),
+                                         suffix='.png.tmp', delete=False) as output:
+            temporary = output.name
+        image.save(temporary, 'PNG')
+        writer = metadata_writer or write_card_metadata
+        if not writer(temporary, info, prepare_intent=False):
+            raise OSError('无法准备角色卡图片及元数据')
+        prepare_card_file_intent(path, old_path=old_path, operation_kind='convert' if old_path else 'replace',
+                                 prepared_path=temporary if old_path else None)
+        os.replace(temporary, path)
+        temporary = None
+        if old_path and os.path.normcase(os.path.abspath(old_path)) != os.path.normcase(os.path.abspath(path)):
+            try:
+                os.remove(old_path)
+            except OSError as exc:
+                raise CardImageCleanupError(f'目标图片已替换，旧文件清理失败，需要恢复: {exc}') from exc
+        return True
+    finally:
+        if temporary is not None and os.path.exists(temporary):
+            os.remove(temporary)
+
 
 def resize_image_if_needed(img):
     """如果图片大于2k，等比缩小"""

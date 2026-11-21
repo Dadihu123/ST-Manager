@@ -12,11 +12,10 @@ from core.data.index_runtime_store import ensure_index_runtime_schema
 from core.services import index_job_worker
 
 
-def test_mark_job_status_prunes_old_terminal_jobs_but_keeps_active_ones(monkeypatch, tmp_path):
+def test_mark_job_status_prunes_done_history_but_keeps_recoverable_intents(monkeypatch, tmp_path):
     db_path = tmp_path / 'cards_metadata.db'
     monkeypatch.setattr(index_job_worker, 'DEFAULT_DB_PATH', str(db_path))
     monkeypatch.setattr(index_job_worker, 'INDEX_JOB_DONE_RETENTION', 3, raising=False)
-    monkeypatch.setattr(index_job_worker, 'INDEX_JOB_FAILED_RETENTION', 2, raising=False)
 
     with sqlite3.connect(db_path) as conn:
         ensure_index_runtime_schema(conn)
@@ -57,6 +56,8 @@ def test_mark_job_status_prunes_old_terminal_jobs_but_keeps_active_ones(monkeypa
     assert rows == [
         (4, 'rebuild_scope', 'done', ''),
         (5, 'rebuild_scope', 'done', ''),
+        (6, 'upsert_card', 'failed', 'failed-0'),
+        (7, 'upsert_card', 'failed', 'failed-1'),
         (8, 'upsert_card', 'failed', 'failed-2'),
         (9, 'upsert_card', 'failed', 'failed-3'),
         (10, 'upsert_worldinfo_path', 'pending', ''),
@@ -65,11 +66,10 @@ def test_mark_job_status_prunes_old_terminal_jobs_but_keeps_active_ones(monkeypa
     ]
 
 
-def test_mark_job_status_keeps_most_recent_failures_by_finished_time(monkeypatch, tmp_path):
+def test_mark_job_status_keeps_all_unrecovered_failures(monkeypatch, tmp_path):
     db_path = tmp_path / 'cards_metadata.db'
     monkeypatch.setattr(index_job_worker, 'DEFAULT_DB_PATH', str(db_path))
     monkeypatch.setattr(index_job_worker, 'INDEX_JOB_DONE_RETENTION', 10, raising=False)
-    monkeypatch.setattr(index_job_worker, 'INDEX_JOB_FAILED_RETENTION', 2, raising=False)
 
     with sqlite3.connect(db_path) as conn:
         ensure_index_runtime_schema(conn)
@@ -100,6 +100,8 @@ def test_mark_job_status_keeps_most_recent_failures_by_finished_time(monkeypatch
         ).fetchall()
 
     assert rows == [
+        (2, 'failed', 'older-failure'),
+        (3, 'failed', 'middle-failure'),
         (1, 'failed', 'older-id-newest-failure'),
         (4, 'failed', 'latest-failure'),
     ]

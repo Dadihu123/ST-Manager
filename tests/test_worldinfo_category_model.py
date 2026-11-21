@@ -842,7 +842,7 @@ def test_worldinfo_note_save_updates_ui_store_for_all_source_types(monkeypatch, 
         assert body['success'] is True
         assert body['ui_summary'] == payload['summary']
 
-    saved = json.loads(ui_path.read_text(encoding='utf-8'))
+    saved = __import__('core.data.local_state_repository', fromlist=['Repository']).Repository().export_snapshot()
     notes = saved['_worldinfo_notes_v1']
     assert notes[f"global::{str(global_file).replace('\\', '/').lower()}"]['summary'] == 'global note'
     assert notes[f"resource::{str(resource_file).replace('\\', '/').lower()}"]['summary'] == 'resource note'
@@ -868,14 +868,10 @@ def test_worldinfo_note_save_enqueues_incremental_index_jobs_for_all_source_type
         encoding='utf-8',
     )
 
-    job_calls = []
-
     monkeypatch.setattr(world_info_api, 'BASE_DIR', str(tmp_path))
     monkeypatch.setattr(world_info_api, 'CARDS_FOLDER', str(tmp_path / 'cards'))
     monkeypatch.setattr(ui_store_module, 'UI_DATA_FILE', str(ui_path))
     monkeypatch.setattr(world_info_api, 'load_config', lambda: {'world_info_dir': str(lorebooks_dir), 'resources_dir': str(resources_dir)})
-    monkeypatch.setattr(world_info_api, 'resolve_resource_worldinfo_owner_card_ids', lambda _path: ['cards/lucy.png', 'cards/zeta.png'], raising=False)
-    monkeypatch.setattr(world_info_api, 'enqueue_index_job', lambda job_type, **kwargs: job_calls.append((job_type, kwargs)), raising=False)
 
     client = _make_test_app().test_client()
 
@@ -900,12 +896,14 @@ def test_worldinfo_note_save_enqueues_incremental_index_jobs_for_all_source_type
     })
     assert res.status_code == 200
 
-    assert job_calls == [
-        ('upsert_worldinfo_path', {'source_path': str(global_file)}),
-        ('upsert_world_owner', {'entity_id': 'cards/lucy.png', 'source_path': str(resource_file)}),
-        ('upsert_world_owner', {'entity_id': 'cards/zeta.png', 'source_path': str(resource_file)}),
-        ('upsert_world_embedded', {'entity_id': 'cards/lucy.png', 'source_path': ''}),
-    ]
+    from core.data.local_state_repository import connect
+    with connect() as conn:
+        jobs = conn.execute("SELECT job_type,entity_id,source_path FROM index_jobs WHERE status='pending' ORDER BY id")
+        assert [tuple(row) for row in jobs] == [
+            ('upsert_worldinfo_path', '', str(global_file)),
+            ('upsert_worldinfo_path', '', str(resource_file)),
+            ('upsert_world_embedded', 'cards/lucy.png', ''),
+        ]
 
 
 def test_update_card_ui_only_flag_uses_string_aware_bool_parsing():
@@ -1013,7 +1011,7 @@ def test_update_card_ui_only_updates_summary_without_touching_card_payload(monke
     assert body['updated_card']['ui_summary'] == 'new ui note'
     assert 'write_called' not in captured
 
-    saved = json.loads(ui_path.read_text(encoding='utf-8'))
+    saved = __import__('core.data.local_state_repository', fromlist=['Repository']).Repository().export_snapshot()
     assert saved[card_rel]['summary'] == 'new ui note'
     assert saved[card_rel]['link'] == 'keep-link'
     assert saved[card_rel]['resource_folder'] == 'keep-folder'
@@ -1116,7 +1114,7 @@ def test_update_card_ui_only_can_clear_selected_ui_fields_when_opted_in(monkeypa
     assert body['updated_card']['resource_folder'] == ''
     assert 'write_called' not in captured
 
-    saved = json.loads(ui_path.read_text(encoding='utf-8'))
+    saved = __import__('core.data.local_state_repository', fromlist=['Repository']).Repository().export_snapshot()
     assert saved[card_rel]['summary'] == 'new ui note'
     assert saved[card_rel]['link'] == ''
     assert saved[card_rel]['resource_folder'] == ''
@@ -1218,9 +1216,7 @@ def test_update_card_ui_only_does_not_refresh_card_cache_or_enqueue_world_owner(
     body = res.get_json()
     assert body['success'] is True
     assert cache_calls == []
-    assert job_calls == [
-        ('upsert_card', {'entity_id': card_rel, 'source_path': str(card_path)}),
-    ]
+    assert job_calls == []  # No active generation: startup rebuild consumes authoritative state.
 
 
 def test_update_card_resource_folder_change_enqueues_world_owner_without_refreshing_card_cache(monkeypatch, tmp_path):
@@ -1416,7 +1412,7 @@ def test_update_card_bundle_ui_only_resource_folder_change_enqueues_world_owner_
     monkeypatch.setattr(cards_api, '_is_safe_filename', lambda _name: True)
     monkeypatch.setattr(cards_api, 'auto_run_forum_tags_on_link_update', lambda _card_id: None)
     monkeypatch.setattr(cards_api, 'append_entry_history_records', lambda **_kwargs: None)
-    monkeypatch.setattr(cards_api.sqlite3, 'connect', lambda *_args, **_kwargs: _FakeBundleConn())
+    # 使用真实隔离 SQLite；不全局替换 sqlite3.connect，以覆盖 repository。
     monkeypatch.setattr(cards_api.ctx, 'cache', type('Cache', (), {
         'update_card_data': staticmethod(_fake_update_card_data),
         'id_map': {},
@@ -1522,7 +1518,10 @@ def test_update_card_file_content_change_enqueues_embedded_worldinfo_refresh(mon
             'previous_has_embedded_wi': False,
         }
     )[1])
-    monkeypatch.setattr('core.services.card_index_sync_service.enqueue_index_job', lambda job_type, **kwargs: job_calls.append((job_type, kwargs)))
+    def enqueue_in_save_transaction(job_type, **kwargs):
+        assert kwargs.pop('conn') is cards_api.get_db()
+        job_calls.append((job_type, kwargs))
+    monkeypatch.setattr('core.services.card_index_sync_service.enqueue_index_job', enqueue_in_save_transaction)
     monkeypatch.setattr(cards_api, 'calculate_token_count', lambda _data: 0)
     monkeypatch.setattr(cards_api, 'get_import_time', lambda _ui_data, _ui_key, fallback: fallback)
     monkeypatch.setattr(cards_api, 'ensure_import_time', lambda _ui_data, _ui_key, fallback: (False, fallback))
@@ -1567,9 +1566,7 @@ def test_update_card_file_content_change_enqueues_embedded_worldinfo_refresh(mon
     assert written == {'called': True}
     assert len(cache_calls) == 1
     assert job_calls == [
-        ('upsert_card', {'entity_id': card_rel, 'source_path': str(card_path)}),
         ('upsert_world_embedded', {'entity_id': card_rel, 'source_path': str(card_path)}),
-        ('upsert_world_owner', {'entity_id': card_rel, 'source_path': str(card_path)}),
     ]
 
 
@@ -1648,7 +1645,10 @@ def test_update_card_file_content_change_with_existing_resource_folder_enqueues_
             'previous_has_embedded_wi': False,
         }
     )[1])
-    monkeypatch.setattr('core.services.card_index_sync_service.enqueue_index_job', lambda job_type, **kwargs: job_calls.append((job_type, kwargs)))
+    def enqueue_in_save_transaction(job_type, **kwargs):
+        assert kwargs.pop('conn') is cards_api.get_db()
+        job_calls.append((job_type, kwargs))
+    monkeypatch.setattr('core.services.card_index_sync_service.enqueue_index_job', enqueue_in_save_transaction)
     monkeypatch.setattr(cards_api, 'calculate_token_count', lambda _data: 0)
     monkeypatch.setattr(cards_api, 'get_import_time', lambda _ui_data, _ui_key, fallback: fallback)
     monkeypatch.setattr(cards_api, 'ensure_import_time', lambda _ui_data, _ui_key, fallback: (False, fallback))
@@ -1693,9 +1693,7 @@ def test_update_card_file_content_change_with_existing_resource_folder_enqueues_
     assert written == {'called': True}
     assert len(cache_calls) == 1
     assert job_calls == [
-        ('upsert_card', {'entity_id': card_rel, 'source_path': str(card_path)}),
         ('upsert_world_embedded', {'entity_id': card_rel, 'source_path': str(card_path)}),
-        ('upsert_world_owner', {'entity_id': card_rel, 'source_path': str(card_path)}),
     ]
 
 
@@ -1722,7 +1720,7 @@ def test_worldinfo_delete_removes_note_and_rejects_embedded_delete(monkeypatch, 
     monkeypatch.setattr(world_info_api, 'BASE_DIR', str(tmp_path))
     monkeypatch.setattr(ui_store_module, 'UI_DATA_FILE', str(ui_path))
     monkeypatch.setattr(world_info_api, 'load_config', lambda: {'world_info_dir': str(lorebooks_dir), 'resources_dir': str(resources_dir)})
-    monkeypatch.setattr(world_info_api, 'safe_move_to_trash', lambda path, _trash: Path(path).unlink() or True)
+    monkeypatch.setattr(world_info_api, 'TRASH_FOLDER', str(tmp_path / 'trash'))
 
     client = _make_test_app().test_client()
 
@@ -1730,7 +1728,7 @@ def test_worldinfo_delete_removes_note_and_rejects_embedded_delete(monkeypatch, 
     assert delete_res.status_code == 200
     delete_payload = delete_res.get_json()
     assert delete_payload['success'] is True
-    saved = json.loads(ui_path.read_text(encoding='utf-8'))
+    saved = __import__('core.data.local_state_repository', fromlist=['Repository']).Repository().export_snapshot()
     assert f"global::{str(global_file).replace('\\', '/').lower()}" not in saved.get('_worldinfo_notes_v1', {})
 
     embedded_res = client.post('/api/world_info/delete', json={'source_type': 'embedded', 'card_id': 'cards/lucy.png'})
@@ -1944,7 +1942,6 @@ def test_worldinfo_save_overwrite_enqueues_incremental_index_repair_for_global_a
     monkeypatch.setattr(world_info_api, 'load_config', lambda: {'world_info_dir': str(lorebooks_dir), 'resources_dir': str(resources_dir)})
     monkeypatch.setattr(world_info_api, 'suppress_fs_events', lambda *_args, **_kwargs: None)
     monkeypatch.setattr(world_info_api, 'invalidate_wi_list_cache', lambda: None)
-    monkeypatch.setattr(world_info_api, 'resolve_resource_worldinfo_owner_card_ids', lambda _path: ['cards/lucy.png', 'cards/zeta.png'], raising=False)
     monkeypatch.setattr(world_info_api, 'enqueue_index_job', lambda job_type, **kwargs: job_calls.append((job_type, kwargs)), raising=False)
 
     client = _make_test_app().test_client()
@@ -1977,8 +1974,7 @@ def test_worldinfo_save_overwrite_enqueues_incremental_index_repair_for_global_a
 
     assert job_calls == [
         ('upsert_worldinfo_path', {'source_path': str(global_file)}),
-        ('upsert_world_owner', {'entity_id': 'cards/lucy.png', 'source_path': str(resource_file)}),
-        ('upsert_world_owner', {'entity_id': 'cards/zeta.png', 'source_path': str(resource_file)}),
+        ('upsert_worldinfo_path', {'source_path': str(resource_file)}),
     ]
 
 
@@ -2144,15 +2140,12 @@ def test_move_worldinfo_global_item_remaps_note_and_refreshes_old_and_new_paths(
         ),
         encoding='utf-8',
     )
-    refresh_calls = []
-
     monkeypatch.setattr(world_info_api.ctx, 'cache', _FakeCache([]))
     monkeypatch.setattr(ui_store_module, 'UI_DATA_FILE', str(ui_path))
     monkeypatch.setattr(world_info_api, 'BASE_DIR', str(tmp_path))
     monkeypatch.setattr(world_info_api, 'CARDS_FOLDER', str(tmp_path / 'cards'))
     monkeypatch.setattr(world_info_api, 'load_config', lambda: {'world_info_dir': str(lorebooks_dir), 'resources_dir': str(resources_dir)})
     monkeypatch.setattr(world_info_api, 'suppress_fs_events', lambda *_args, **_kwargs: None)
-    monkeypatch.setattr(world_info_api, '_enqueue_worldinfo_file_refresh', lambda path, cfg: refresh_calls.append((path, cfg)))
 
     client = _make_test_app().test_client()
     res = client.post(
@@ -2170,10 +2163,10 @@ def test_move_worldinfo_global_item_remaps_note_and_refreshes_old_and_new_paths(
     notes = ui_store_module.get_worldinfo_notes(ui_store_module.load_ui_data())
     assert f"global::{str(source_file).replace('\\', '/').lower()}" not in notes
     assert notes[f"global::{str(target_file).replace('\\', '/').lower()}"]['summary'] == 'global note'
-    assert refresh_calls == [
-        (str(source_file), {'world_info_dir': str(lorebooks_dir), 'resources_dir': str(resources_dir)}),
-        (str(target_file), {'world_info_dir': str(lorebooks_dir), 'resources_dir': str(resources_dir)}),
-    ]
+    from core.data.local_state_repository import connect
+    with connect() as conn:
+        jobs = conn.execute("SELECT source_path FROM index_jobs WHERE job_type='upsert_worldinfo_path' ORDER BY id")
+        assert [Path(row[0]) for row in jobs] == [source_file, target_file]
 
 
 def test_move_worldinfo_global_item_returns_error_when_note_remap_persistence_fails(monkeypatch, tmp_path):
@@ -2284,16 +2277,12 @@ def test_worldinfo_delete_enqueues_incremental_index_repair_for_global_and_resou
         encoding='utf-8',
     )
 
-    job_calls = []
-
     monkeypatch.setattr(world_info_api, 'BASE_DIR', str(tmp_path))
     monkeypatch.setattr(ui_store_module, 'UI_DATA_FILE', str(ui_path))
     monkeypatch.setattr(world_info_api, 'load_config', lambda: {'world_info_dir': str(lorebooks_dir), 'resources_dir': str(resources_dir)})
     monkeypatch.setattr(world_info_api, 'suppress_fs_events', lambda *_args, **_kwargs: None)
     monkeypatch.setattr(world_info_api, 'invalidate_wi_list_cache', lambda: None)
-    monkeypatch.setattr(world_info_api, 'resolve_resource_worldinfo_owner_card_ids', lambda _path: ['cards/lucy.png', 'cards/zeta.png'], raising=False)
-    monkeypatch.setattr(world_info_api, 'enqueue_index_job', lambda job_type, **kwargs: job_calls.append((job_type, kwargs)), raising=False)
-    monkeypatch.setattr(world_info_api, 'safe_move_to_trash', lambda path, _trash: Path(path).unlink() or True)
+    monkeypatch.setattr(world_info_api, 'TRASH_FOLDER', str(tmp_path / 'trash'))
 
     client = _make_test_app().test_client()
 
@@ -2309,11 +2298,10 @@ def test_worldinfo_delete_enqueues_incremental_index_repair_for_global_and_resou
     assert embedded_res.status_code == 200
     assert embedded_res.get_json()['success'] is False
 
-    assert job_calls == [
-        ('upsert_worldinfo_path', {'source_path': str(global_file)}),
-        ('upsert_world_owner', {'entity_id': 'cards/lucy.png', 'source_path': str(resource_file)}),
-        ('upsert_world_owner', {'entity_id': 'cards/zeta.png', 'source_path': str(resource_file)}),
-    ]
+    from core.data.local_state_repository import connect
+    with connect() as conn:
+        jobs = conn.execute("SELECT source_path FROM index_jobs WHERE job_type='upsert_worldinfo_path' ORDER BY id")
+        assert [Path(row[0]) for row in jobs] == [global_file, resource_file]
 
 
 def test_move_worldinfo_resource_item_sets_override_without_moving_file(monkeypatch, tmp_path):
@@ -2323,15 +2311,11 @@ def test_move_worldinfo_resource_item_sets_override_without_moving_file(monkeypa
     _write_json(resource_file, {'name': 'Companion Lore', 'entries': {}})
     ui_path.write_text(json.dumps({'cards/lucy.png': {'resource_folder': 'lucy'}}, ensure_ascii=False), encoding='utf-8')
 
-    job_calls = []
-
     monkeypatch.setattr(world_info_api.ctx, 'cache', _FakeCache([_make_card('cards/lucy.png', '原始分类')]))
     monkeypatch.setattr(ui_store_module, 'UI_DATA_FILE', str(ui_path))
     monkeypatch.setattr(world_info_api, 'BASE_DIR', str(tmp_path))
     monkeypatch.setattr(world_info_api, 'CARDS_FOLDER', str(tmp_path / 'cards'))
     monkeypatch.setattr(world_info_api, 'load_config', lambda: {'world_info_dir': str(tmp_path / 'lorebooks'), 'resources_dir': str(resources_dir)})
-    monkeypatch.setattr(world_info_api, 'resolve_resource_worldinfo_owner_card_ids', lambda _path: ['cards/lucy.png'], raising=False)
-    monkeypatch.setattr(world_info_api, 'enqueue_index_job', lambda job_type, **kwargs: job_calls.append((job_type, kwargs)), raising=False)
 
     client = _make_test_app().test_client()
     res = client.post(
@@ -2351,9 +2335,11 @@ def test_move_worldinfo_resource_item_sets_override_without_moving_file(monkeypa
     saved_payload = ui_store_module.get_resource_item_categories(ui_store_module.load_ui_data())
     path_key = ui_store_module._normalize_resource_item_category_path(str(resource_file))
     assert saved_payload['worldinfo'][path_key]['category'] == '自定义分类'
-    assert job_calls == [
-        ('upsert_world_owner', {'entity_id': 'cards/lucy.png', 'source_path': str(resource_file)}),
-    ]
+    from core.data.local_state_repository import connect
+    with connect() as conn:
+        assert [tuple(row) for row in conn.execute(
+            "SELECT job_type,source_path FROM index_jobs WHERE status='pending'",
+        )] == [('upsert_worldinfo_path', str(resource_file))]
 
 
 def test_move_embedded_worldinfo_category_is_rejected(monkeypatch, tmp_path):
@@ -2398,15 +2384,11 @@ def test_reset_worldinfo_resource_category_override_restores_inherited_category(
         encoding='utf-8',
     )
 
-    job_calls = []
-
     monkeypatch.setattr(world_info_api.ctx, 'cache', _FakeCache([_make_card('cards/lucy.png', '继承分类')]))
     monkeypatch.setattr(ui_store_module, 'UI_DATA_FILE', str(ui_path))
     monkeypatch.setattr(world_info_api, 'BASE_DIR', str(tmp_path))
     monkeypatch.setattr(world_info_api, 'CARDS_FOLDER', str(tmp_path / 'cards'))
     monkeypatch.setattr(world_info_api, 'load_config', lambda: {'world_info_dir': str(tmp_path / 'lorebooks'), 'resources_dir': str(resources_dir)})
-    monkeypatch.setattr(world_info_api, 'resolve_resource_worldinfo_owner_card_ids', lambda _path: ['cards/lucy.png'], raising=False)
-    monkeypatch.setattr(world_info_api, 'enqueue_index_job', lambda job_type, **kwargs: job_calls.append((job_type, kwargs)), raising=False)
 
     client = _make_test_app().test_client()
     res = client.post(
@@ -2423,9 +2405,11 @@ def test_reset_worldinfo_resource_category_override_restores_inherited_category(
     assert payload['success'] is True
     saved_payload = ui_store_module.get_resource_item_categories(ui_store_module.load_ui_data())
     assert path_key not in saved_payload['worldinfo']
-    assert job_calls == [
-        ('upsert_world_owner', {'entity_id': 'cards/lucy.png', 'source_path': str(resource_file)}),
-    ]
+    from core.data.local_state_repository import connect
+    with connect() as conn:
+        assert [tuple(row) for row in conn.execute(
+            "SELECT job_type,source_path FROM index_jobs WHERE status='pending'",
+        )] == [('upsert_worldinfo_path', str(resource_file))]
 
 
 def test_create_worldinfo_folder_creates_real_subdirectory(monkeypatch, tmp_path):
@@ -2487,14 +2471,11 @@ def test_rename_worldinfo_folder_reindexes_contained_files_and_remaps_notes(monk
         ),
         encoding='utf-8',
     )
-    refresh_calls = []
-
     monkeypatch.setattr(world_info_api.ctx, 'cache', _FakeCache([]))
     monkeypatch.setattr(ui_store_module, 'UI_DATA_FILE', str(ui_path))
     monkeypatch.setattr(world_info_api, 'BASE_DIR', str(tmp_path))
     monkeypatch.setattr(world_info_api, 'load_config', lambda: {'world_info_dir': str(lorebooks_dir), 'resources_dir': str(resources_dir)})
     monkeypatch.setattr(world_info_api, 'suppress_fs_events', lambda *_args, **_kwargs: None)
-    monkeypatch.setattr(world_info_api, '_enqueue_worldinfo_file_refresh', lambda path, cfg: refresh_calls.append((path, cfg)))
 
     client = _make_test_app().test_client()
     res = client.post('/api/world_info/folders/rename', json={'category': '科幻/旧分类', 'new_name': '新分类'})
@@ -2502,10 +2483,10 @@ def test_rename_worldinfo_folder_reindexes_contained_files_and_remaps_notes(monk
     assert res.status_code == 200
     payload = res.get_json()
     assert payload['success'] is True
-    assert refresh_calls == [
-        (str(source_file), {'world_info_dir': str(lorebooks_dir), 'resources_dir': str(resources_dir)}),
-        (str(target_file), {'world_info_dir': str(lorebooks_dir), 'resources_dir': str(resources_dir)}),
-    ]
+    from core.data.local_state_repository import connect
+    with connect() as conn:
+        jobs = conn.execute("SELECT source_path FROM index_jobs WHERE job_type='upsert_worldinfo_path' ORDER BY id")
+        assert [Path(row[0]) for row in jobs] == [source_file, target_file]
     notes = ui_store_module.get_worldinfo_notes(ui_store_module.load_ui_data())
     assert f"global::{str(source_file).replace('\\', '/').lower()}" not in notes
     assert notes[f"global::{str(target_file).replace('\\', '/').lower()}"]['summary'] == 'folder note'
@@ -2773,13 +2754,10 @@ def test_move_global_worldinfo_category_enqueues_incremental_refresh(monkeypatch
     source_file = lorebooks_dir / '科幻' / 'dragon.json'
     target_file = lorebooks_dir / '奇幻' / 'dragon.json'
     _write_json(source_file, {'name': 'Dragon Lore', 'entries': {}})
-    refresh_calls = []
-
     monkeypatch.setattr(world_info_api.ctx, 'cache', _FakeCache([]))
     monkeypatch.setattr(world_info_api, 'BASE_DIR', str(tmp_path))
     monkeypatch.setattr(world_info_api, 'load_config', lambda: {'world_info_dir': str(lorebooks_dir), 'resources_dir': str(resources_dir)})
     monkeypatch.setattr(world_info_api, 'suppress_fs_events', lambda *_args, **_kwargs: None)
-    monkeypatch.setattr(world_info_api, '_enqueue_worldinfo_file_refresh', lambda path, cfg: refresh_calls.append((path, cfg)))
 
     client = _make_test_app().test_client()
     res = client.post(
@@ -2795,16 +2773,10 @@ def test_move_global_worldinfo_category_enqueues_incremental_refresh(monkeypatch
     payload = res.get_json()
     assert payload['success'] is True
     assert Path(payload['path']) == target_file
-    assert refresh_calls == [
-        (
-            str(source_file),
-            {'world_info_dir': str(lorebooks_dir), 'resources_dir': str(resources_dir)},
-        ),
-        (
-            str(target_file),
-            {'world_info_dir': str(lorebooks_dir), 'resources_dir': str(resources_dir)},
-        )
-    ]
+    from core.data.local_state_repository import connect
+    with connect() as conn:
+        jobs = conn.execute("SELECT source_path FROM index_jobs WHERE job_type='upsert_worldinfo_path' ORDER BY id")
+        assert [Path(row[0]) for row in jobs] == [source_file, target_file]
 
 
 def test_upload_worldinfo_uses_target_category_subfolder(monkeypatch, tmp_path):

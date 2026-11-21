@@ -126,7 +126,7 @@ def test_owner_increment_rolls_back_embedded_resources_and_stats_together(
         failure.setattr(builtins, 'open', open_file)
         failure.setattr(os, 'scandir', scandir)
         with build.connect_index_db(db) as conn:
-            with pytest.raises(PermissionError):
+            with pytest.raises(build.WorldinfoCategoryScanError if denied == 'category_child' else PermissionError):
                 build.apply_worldinfo_owner_increment(
                     conn, 'hero.json', str(card), remove_owner_ids=['hero.json'],
                 )
@@ -273,21 +273,17 @@ def test_shared_resource_job_rolls_back_all_owners_on_later_failure(indexed_libr
     before = full_snapshot(db)
     assert query(db)['total'] == 6
     update_sources(card, global_book, resource_book)
-    original_open = builtins.open
-
-    def open_file(path, *args, **kwargs):
-        if os.path.abspath(path) == str(other):
-            raise PermissionError(errno.EACCES, 'later owner denied', os.fspath(path))
-        return original_open(path, *args, **kwargs)
-
-    with monkeypatch.context() as failure:
-        failure.setattr(builtins, 'open', open_file)
-        with build.connect_index_db(db) as conn:
-            with pytest.raises(PermissionError):
-                worker._retry_resource_worldinfo_job(conn, str(resource_book))
-            conn.commit()
-        assert full_snapshot(db) == before
-        assert query(db)['total'] == 6
+    job = {'job_type': 'upsert_worldinfo_path', 'source_path': str(resource_book), 'payload_json': '{}'}
     with build.connect_index_db(db) as conn:
-        assert worker._retry_resource_worldinfo_job(conn, str(resource_book))
+        conn.execute("CREATE TRIGGER fail_second_owner BEFORE INSERT ON index_entities_v2 "
+                     "WHEN NEW.owner_entity_id='card::other.json' "
+                     "BEGIN SELECT RAISE(ABORT, 'later owner denied'); END")
+        conn.commit()
+        with pytest.raises(sqlite3.IntegrityError, match='later owner denied'), build.worldinfo_increment_batch(conn):
+            worker.process_worldinfo_job(conn, job)
+        conn.commit()
+        assert full_snapshot(db) == before
+        conn.execute('DROP TRIGGER fail_second_owner')
+    with build.connect_index_db(db) as conn, build.worldinfo_increment_batch(conn):
+        assert worker.process_worldinfo_job(conn, job)
     assert query(db)['total'] == 6

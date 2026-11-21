@@ -1,8 +1,11 @@
+import json
 import logging
 import sqlite3
 import time
+from contextlib import nullcontext
 
 from core.data.sqlite_capabilities import supports_fts5
+from core.utils.filesystem import filesystem_path_bucket
 
 
 logger = logging.getLogger(__name__)
@@ -10,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 DB_SCHEMA_VERSION = 1
 #: 2 = ``index_search_fast_v2`` 由 FTS5 虚拟表改为普通表（见 ``_migrate_fast_search_table``）。
-INDEX_RUNTIME_SCHEMA_VERSION = 2
+INDEX_RUNTIME_SCHEMA_VERSION = 4
 
 
 # 构建进度列：老库用 ALTER TABLE 补齐（CREATE TABLE IF NOT EXISTS 不会加列）。
@@ -126,6 +129,12 @@ RUNTIME_SCHEMA_STATEMENTS = [
     )
     ''',
     'CREATE INDEX IF NOT EXISTS idx_index_jobs_status_id ON index_jobs(status, id)',
+    'CREATE INDEX IF NOT EXISTS idx_index_jobs_status_finished ON index_jobs(status, finished_at, id)',
+    # 构建期间已写入旧活动代的变化。每张卡只保留最后一次；worker 不能提前领取。
+    '''CREATE TABLE IF NOT EXISTS index_card_build_changes (
+        generation INTEGER NOT NULL, card_id TEXT NOT NULL, source_path TEXT NOT NULL,
+        payload_json TEXT NOT NULL, PRIMARY KEY (generation, card_id)
+    )''',
     'CREATE INDEX IF NOT EXISTS idx_index_jobs_type_status_id ON index_jobs(job_type, status, id)',
     'CREATE INDEX IF NOT EXISTS idx_index_entities_v2_gen_type_sort ON index_entities_v2(generation, entity_type, sort_mtime DESC, sort_name ASC)',
     'CREATE INDEX IF NOT EXISTS idx_index_entities_v2_gen_category ON index_entities_v2(generation, display_category)',
@@ -270,18 +279,102 @@ def _migrate_fast_search_table(conn: sqlite3.Connection) -> bool:
     return True
 
 
+def repair_full_search_mapping(conn):
+    """校验并原子修复历史 FTS 定位映射；WAL 读者继续使用旧代。"""
+    conn.execute("CREATE TABLE IF NOT EXISTS index_full_rowids (generation INTEGER NOT NULL, "
+                 "entity_id TEXT NOT NULL, fts_rowid INTEGER NOT NULL UNIQUE, "
+                 "PRIMARY KEY(generation, entity_id))")
+    if not supports_fts5():
+        return
+    conn.execute('SAVEPOINT repair_full_mapping')
+    try:
+        # 历史重复项保留最后一次写入；不改变搜索文本格式或 active generation。
+        conn.execute("DELETE FROM index_search_full_v2 WHERE rowid NOT IN "
+                     "(SELECT MAX(rowid) FROM index_search_full_v2 GROUP BY generation, entity_id)")
+        conn.execute("DELETE FROM index_full_rowids WHERE NOT EXISTS "
+                     "(SELECT 1 FROM index_search_full_v2 f WHERE f.rowid = fts_rowid "
+                     "AND f.generation = index_full_rowids.generation "
+                     "AND f.entity_id = index_full_rowids.entity_id)")
+        conn.execute("INSERT OR REPLACE INTO index_full_rowids "
+                     "SELECT generation, entity_id, rowid FROM index_search_full_v2")
+        conn.execute('RELEASE repair_full_mapping')
+    except Exception:
+        conn.execute('ROLLBACK TO repair_full_mapping')
+        conn.execute('RELEASE repair_full_mapping')
+        raise
+
+
+def delete_full_search_rows(conn, generation, entity_id):
+    if not supports_fts5():
+        return
+    conn.execute('DELETE FROM index_search_full_v2 WHERE rowid IN '
+                 '(SELECT fts_rowid FROM index_full_rowids WHERE generation = ? AND entity_id = ?)',
+                 (generation, entity_id))
+    conn.execute('DELETE FROM index_full_rowids WHERE generation = ? AND entity_id = ?',
+                 (generation, entity_id))
+
+
+def ensure_index_job_columns(conn):
+    """保留旧任务的路径和状态，补充去重及路径冲突重试字段。"""
+    columns = {row[1] for row in conn.execute('PRAGMA table_info(index_jobs)')}
+    if 'path_key' not in columns:
+        conn.execute('ALTER TABLE index_jobs ADD COLUMN path_key TEXT')
+        jobs = conn.execute("SELECT id,source_path FROM index_jobs "
+                            "WHERE job_type='upsert_worldinfo_path' AND status IN ('pending','running','failed')")
+        conn.executemany('UPDATE index_jobs SET path_key=? WHERE id=?',
+                         ((filesystem_path_bucket(path), job_id) for job_id, path in jobs))
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_worldinfo_jobs_pending_path ON index_jobs(path_key) "
+                 "WHERE job_type='upsert_worldinfo_path' AND status='pending'")
+    if 'retry_after' not in columns:
+        conn.execute('ALTER TABLE index_jobs ADD COLUMN retry_after REAL NOT NULL DEFAULT 0')
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_index_jobs_deferred ON index_jobs(retry_after) "
+                 "WHERE retry_after>0 AND status IN ('pending','failed')")
+
+
+def _ensure_worldinfo_path_keys(conn):
+    conn.execute('SAVEPOINT worldinfo_path_keys')
+    try:
+        ensure_index_job_columns(conn)
+        if not any(row[1] == 'path_key' for row in conn.execute('PRAGMA table_info(index_entities_v2)')):
+            conn.execute('ALTER TABLE index_entities_v2 ADD COLUMN path_key TEXT')
+            rows = conn.execute("SELECT rowid,source_path FROM index_entities_v2 WHERE entity_type='world_resource'")
+            conn.executemany('UPDATE index_entities_v2 SET path_key=? WHERE rowid=?',
+                             ((filesystem_path_bucket(path), row_id) for row_id, path in rows))
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_world_resource_path_key "
+                     "ON index_entities_v2(generation,path_key) WHERE entity_type='world_resource'")
+        # 旧库可能已有资源书路径键，但还没有全局书路径键。
+        if not conn.execute("SELECT 1 FROM sqlite_master WHERE type='index' "
+                            "AND name='idx_world_global_path_key'").fetchone():
+            rows = conn.execute("SELECT rowid,source_path FROM index_entities_v2 WHERE entity_type='world_global'")
+            conn.executemany('UPDATE index_entities_v2 SET path_key=? WHERE rowid=?',
+                             ((filesystem_path_bucket(path), row_id) for row_id, path in rows))
+            conn.execute("CREATE INDEX idx_world_global_path_key "
+                         "ON index_entities_v2(generation,path_key) WHERE entity_type='world_global'")
+        conn.execute('DROP INDEX IF EXISTS idx_world_resource_path_owner')
+    except BaseException:
+        conn.execute('ROLLBACK TO worldinfo_path_keys')
+        raise
+    finally:
+        conn.execute('RELEASE worldinfo_path_keys')
+
+
 def ensure_index_runtime_schema(conn: sqlite3.Connection):
     # 先迁移历史 fts5 fast 表，后面的 CREATE TABLE IF NOT EXISTS 才能建出普通表。
     _migrate_fast_search_table(conn)
 
     for statement in RUNTIME_SCHEMA_STATEMENTS:
         conn.execute(statement)
+    _ensure_worldinfo_path_keys(conn)
 
     # full 表是唯一真正依赖 FTS5 的表：无 FTS5 的平台上不建，搜索降级为 fast。
     if supports_fts5():
         for statement in FTS5_SCHEMA_STATEMENTS:
             conn.execute(statement)
 
+    mapping_exists = conn.execute("SELECT 1 FROM sqlite_master WHERE name='index_full_rowids'").fetchone()
+    version = conn.execute("SELECT applied_version FROM index_schema_state WHERE component='index_runtime'").fetchone()
+    if not mapping_exists or not version or version[0] < INDEX_RUNTIME_SCHEMA_VERSION:
+        repair_full_search_mapping(conn)
     _ensure_build_state_progress_columns(conn)
 
     # 扫描器簿记状态（最近一次全量校验时间等），与索引构建状态分开存放。
@@ -470,8 +563,33 @@ def update_build_state(conn: sqlite3.Connection, scope: str, **updates):
     conn.commit()
 
 
-def activate_generation(conn: sqlite3.Connection, scope: str, generation: int, *, items_written: int):
+def activate_generation(conn: sqlite3.Connection, scope: str, generation: int, *, items_written: int,
+                        rebuild_job: tuple[int, str] | None = None, activation_guard=nullcontext):
     obsolete_generations = _find_obsolete_generations(conn, scope, generation)
+    cleanup_jobs = []
+    with conn:
+        if not conn.in_transaction:
+            conn.execute('BEGIN IMMEDIATE')
+        with activation_guard():
+            if not _activate_generation_on_connection(conn, scope, generation, items_written, rebuild_job,
+                                                      obsolete_generations, cleanup_jobs):
+                conn.rollback()
+                return False
+            conn.commit()
+    # 清理与激活分开提交。即使进程退出或清理遇锁，worker 也只重试清理。
+    for job_id, obsolete in cleanup_jobs:
+        try:
+            cleanup_obsolete_generation(conn, scope, obsolete, pending_job_id=job_id)
+        except sqlite3.Error:
+            from core.context import ctx
+            ctx.index_wakeup.set()
+            logger.warning('索引已激活，旧代清理等待重试 (%s, %s)', scope, obsolete, exc_info=True)
+            break
+    return True
+
+
+def _activate_generation_on_connection(conn, scope, generation, items_written, rebuild_job,
+                                       obsolete_generations, cleanup_jobs):
     cursor = conn.execute(
         '''
         UPDATE index_build_state
@@ -488,20 +606,54 @@ def activate_generation(conn: sqlite3.Connection, scope: str, generation: int, *
         (generation, time.time(), int(items_written), scope, generation),
     )
     if cursor.rowcount == 0:
-        conn.rollback()
         return False
 
-    # 与激活同一个事务写入搜索内容格式版本：若中途崩溃，两者一起回滚，
-    # 下次启动会重新构建，而不会出现「已激活但版本未记录」导致的反复重建。
-    set_search_content_format_version(conn, scope, SEARCH_CONTENT_FORMAT_VERSION, commit=False)
+    if scope == 'cards':
+        # 换代与补偿任务一起提交；中断时两者一起回滚，旧代仍可查询。
+        conn.execute("INSERT INTO index_jobs(job_type,entity_id,source_path,payload_json) "
+                     "SELECT 'upsert_card',card_id,source_path,payload_json FROM index_card_build_changes "
+                     "WHERE generation=?", (generation,))
+        conn.execute('DELETE FROM index_card_build_changes WHERE generation=?', (generation,))
 
-    conn.commit()
-    for obsolete_generation in obsolete_generations:
-        clear_generation_data(conn, scope, obsolete_generation)
+    set_search_content_format_version(conn, scope, SEARCH_CONTENT_FORMAT_VERSION, commit=False)
+    if rebuild_job is not None:
+        # 重启只恢复仍在执行的重建。完成凭据与活动代一起提交。
+        finished = conn.execute(
+            "UPDATE index_jobs SET status='done', finished_at=strftime('%s','now'), error_msg='' "
+            "WHERE id=? AND job_type='rebuild_scope' AND status='running' AND error_msg=?",
+            rebuild_job,
+        )
+        if finished.rowcount != 1:
+            return False
+    for obsolete in obsolete_generations:
+        job = conn.execute(
+            "INSERT INTO index_jobs(job_type,payload_json) VALUES ('cleanup_generation',?)",
+            (json.dumps({'scope': scope, 'generation': obsolete}),),
+        )
+        cleanup_jobs.append((job.lastrowid, obsolete))
     return True
 
 
-def clear_generation_data(conn: sqlite3.Connection, scope: str, generation: int):
+def cleanup_obsolete_generation(conn: sqlite3.Connection, scope: str, generation: int, *, pending_job_id=None):
+    """清理重试必须在写事务中复核，防止删除活动或正在构建的代。"""
+    if scope not in ('cards', 'worldinfo') or type(generation) is not int or generation <= 0:
+        raise ValueError('invalid index cleanup target')
+    with conn:
+        conn.execute('BEGIN IMMEDIATE')
+        if pending_job_id is not None and not conn.execute(
+                "SELECT 1 FROM index_jobs WHERE id=? AND status='pending'", (pending_job_id,)).fetchone():
+            return
+        state = conn.execute('SELECT active_generation,building_generation FROM index_build_state WHERE scope=?',
+                             (scope,)).fetchone()
+        if state is not None and generation not in state:
+            clear_generation_data(conn, scope, generation, commit=False)
+        if pending_job_id is not None:
+            conn.execute('DELETE FROM index_jobs WHERE id=?', (pending_job_id,))
+
+
+def clear_generation_data(conn: sqlite3.Connection, scope: str, generation: int, *, commit=True):
+    if scope == 'cards':
+        conn.execute('DELETE FROM index_card_build_changes WHERE generation=?', (generation,))
     entity_prefix, entity_id_pattern, stats_scope = _scope_generation_filters(scope)
     entity_ids = [
         row[0]
@@ -526,9 +678,12 @@ def clear_generation_data(conn: sqlite3.Connection, scope: str, generation: int)
     )
     if supports_fts5():
         conn.execute(
-            'DELETE FROM index_search_full_v2 WHERE generation = ? AND entity_id LIKE ?',
+            'DELETE FROM index_search_full_v2 WHERE rowid IN (SELECT fts_rowid FROM index_full_rowids WHERE generation = ? AND entity_id LIKE ?)',
             (generation, entity_id_pattern),
         )
+
+    conn.execute('DELETE FROM index_full_rowids WHERE generation = ? AND entity_id LIKE ?',
+                 (generation, entity_id_pattern))
 
     for entity_id in entity_ids:
         conn.execute(
@@ -539,15 +694,12 @@ def clear_generation_data(conn: sqlite3.Connection, scope: str, generation: int)
             'DELETE FROM index_search_fast_v2 WHERE generation = ? AND entity_id = ?',
             (generation, entity_id),
         )
-        if supports_fts5():
-            conn.execute(
-                'DELETE FROM index_search_full_v2 WHERE generation = ? AND entity_id = ?',
-                (generation, entity_id),
-            )
+        delete_full_search_rows(conn, generation, entity_id)
 
     conn.execute('DELETE FROM index_category_stats_v2 WHERE generation = ? AND scope = ?', (generation, stats_scope))
     conn.execute('DELETE FROM index_facet_stats_v2 WHERE generation = ? AND scope = ?', (generation, stats_scope))
-    conn.commit()
+    if commit:
+        conn.commit()
 
 
 SCAN_STATE_LAST_FULL_SCAN_AT = 'last_full_scan_at'
@@ -581,7 +733,10 @@ def set_search_content_format_version(
     *,
     commit: bool = True,
 ) -> None:
-    set_scan_state(conn, search_content_format_state_key(scope), str(int(version)), commit=commit)
+    # 激活凭据不是可丢弃的扫描时间戳；SQLite 回滚时必须让激活方得知失败。
+    _write_scan_state(conn, search_content_format_state_key(scope), str(int(version)))
+    if commit:
+        conn.commit()
 
 
 def get_scan_state(conn: sqlite3.Connection, key: str, default: str = '') -> str:
@@ -598,16 +753,20 @@ def get_scan_state(conn: sqlite3.Connection, key: str, default: str = '') -> str
     return str(row[0] if not isinstance(row, sqlite3.Row) else row['value'] or default)
 
 
+def _write_scan_state(conn, key, value):
+    conn.execute(
+        '''
+        INSERT INTO scan_runtime_state(key, value, updated_at) VALUES (?, ?, ?)
+        ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
+        ''',
+        (str(key), str(value), time.time()),
+    )
+
+
 def set_scan_state(conn: sqlite3.Connection, key: str, value, *, commit: bool = True) -> None:
     """写入扫描器簿记状态。"""
     try:
-        conn.execute(
-            '''
-            INSERT INTO scan_runtime_state(key, value, updated_at) VALUES (?, ?, ?)
-            ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
-            ''',
-            (str(key), str(value), time.time()),
-        )
+        _write_scan_state(conn, key, value)
         if commit:
             conn.commit()
     except sqlite3.Error:

@@ -46,6 +46,7 @@ from core.services.preset_storage import (
     require_matching_revision,
     write_preset_json,
 )
+from core.services.path_operation import PATH_BUSY, path_operation
 from core.services.scan_service import suppress_fs_events
 from core.services.st_auth import STAuthError, build_st_http_client
 from core.services.tauri_tavern_client import (
@@ -299,6 +300,17 @@ def _is_resource_preset_path(file_path: str) -> bool:
 
     rel_path = os.path.relpath(file_path, resources_root).replace('\\', '/')
     return '/presets/' in f'/{rel_path}/'
+
+
+def _update_resource_category(file_path, category, message):
+    with path_operation(file_path) as acquired:
+        if not acquired:
+            return jsonify({'success': False, 'msg': PATH_BUSY, 'retryable': True}), 409
+        if not _is_resource_preset_path(file_path):
+            return jsonify({'success': False, 'msg': '预设文件不存在，请刷新后重试'})
+        if not _save_resource_category_override(file_path, category):
+            return jsonify({'success': False, 'msg': '保存分类覆盖失败'})
+    return jsonify({'success': True, 'msg': message})
 
 
 def _build_global_folder_metadata(base_dir: str):
@@ -1752,11 +1764,7 @@ def move_preset_category():
 
         if source_type == 'resource':
             file_path = str(data.get('file_path') or '').strip()
-            if not _is_resource_preset_path(file_path):
-                return jsonify({"success": False, "msg": "预设文件不存在"})
-            if not _save_resource_category_override(file_path, target_category):
-                return jsonify({"success": False, "msg": "保存分类覆盖失败"})
-            return jsonify({"success": True, "msg": "已更新管理器分类，未移动实际文件"})
+            return _update_resource_category(file_path, target_category, '已更新管理器分类，未移动实际文件')
 
         file_path, _preset_type, _source_folder = _resolve_preset_file_path(preset_id, presets_root)
         if not file_path or not os.path.exists(file_path):
@@ -1785,11 +1793,7 @@ def reset_preset_category():
         if source_type != 'resource':
             return jsonify({"success": False, "msg": "该操作仅支持资源预设"})
         file_path = str(data.get('file_path') or '').strip()
-        if not _is_resource_preset_path(file_path):
-            return jsonify({"success": False, "msg": "预设文件不存在"})
-        if not _save_resource_category_override(file_path, ''):
-            return jsonify({"success": False, "msg": "保存分类覆盖失败"})
-        return jsonify({"success": True, "msg": "已恢复跟随角色卡分类"})
+        return _update_resource_category(file_path, '', '已恢复跟随角色卡分类')
     except Exception as e:
         logger.error(f"Error resetting preset category: {e}")
         return jsonify({"success": False, "msg": str(e)}), 500

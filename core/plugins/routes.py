@@ -285,9 +285,10 @@ def _sanitize_entry_layout(patch: dict) -> dict:
 
 def _read_entry_layout() -> dict:
     from core.data.ui_store import load_ui_data_or_empty
+    from core.data.local_state_repository import plain
 
     layout = load_ui_data_or_empty().get(ENTRY_LAYOUT_KEY)
-    return layout if isinstance(layout, dict) else {}
+    return plain(layout) if isinstance(layout, dict) else {}
 
 
 @bp.route('/api/plugins/entries/layout', methods=['GET'])

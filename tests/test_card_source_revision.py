@@ -19,6 +19,8 @@ from core.services import wi_entry_history_service as history_service
 def _make_app():
     app = Flask(__name__)
     app.register_blueprint(cards_api.bp)
+    from core.data.db_session import close_connection
+    app.teardown_appcontext(close_connection)
     return app
 
 
@@ -63,7 +65,7 @@ def test_update_card_rejects_stale_source_revision(monkeypatch, tmp_path):
     monkeypatch.setattr(cards_api, 'CARDS_FOLDER', str(cards_dir))
     monkeypatch.setattr(cards_api, 'suppress_fs_events', lambda *_args, **_kwargs: None)
     monkeypatch.setattr(cards_api, 'extract_card_info', lambda _path: {'data': {'name': 'Hero', 'tags': []}})
-    monkeypatch.setattr(cards_api, 'write_card_metadata', lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(cards_api, 'write_card_metadata', lambda *_args, **_kwargs: True)
     monkeypatch.setattr(cards_api, 'update_card_cache', lambda *_args, **_kwargs: None)
     monkeypatch.setattr(cards_api, 'load_ui_data', lambda: {})
     monkeypatch.setattr(cards_api, 'save_ui_data', lambda _payload, **_kwargs: None)
@@ -95,7 +97,7 @@ def test_update_card_success_returns_refreshed_source_revision(monkeypatch, tmp_
     monkeypatch.setattr(cards_api, 'CARDS_FOLDER', str(cards_dir))
     monkeypatch.setattr(cards_api, 'suppress_fs_events', lambda *_args, **_kwargs: None)
     monkeypatch.setattr(cards_api, 'extract_card_info', lambda _path: {'data': {'name': 'Hero', 'tags': []}})
-    monkeypatch.setattr(cards_api, 'write_card_metadata', lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(cards_api, 'write_card_metadata', lambda *_args, **_kwargs: True)
     monkeypatch.setattr(cards_api, 'load_ui_data', lambda: {'hero.json': {}})
     monkeypatch.setattr(cards_api, 'save_ui_data', lambda _payload, **_kwargs: None)
     monkeypatch.setattr(cards_api, 'ensure_import_time', lambda *_args, **_kwargs: (False, 0))
@@ -201,7 +203,7 @@ def test_update_embedded_worldbook_writes_history_for_current_entry_uid(monkeypa
         'extract_card_info',
         lambda _path: json.loads(json.dumps(old_info, ensure_ascii=False)),
     )
-    monkeypatch.setattr(cards_api, 'write_card_metadata', lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(cards_api, 'write_card_metadata', lambda *_args, **_kwargs: True)
     monkeypatch.setattr(cards_api, 'load_ui_data', lambda: {'hero.json': {}})
     monkeypatch.setattr(cards_api, 'save_ui_data', lambda _payload, **_kwargs: None)
     monkeypatch.setattr(cards_api, 'ensure_import_time', lambda *_args, **_kwargs: (False, 0))
@@ -317,13 +319,15 @@ def test_change_image_json_to_png_enqueues_stale_cleanup_with_raw_id(monkeypatch
     assert cache_calls == [
         (
             ('hero.png', str(cards_dir / 'hero.png')),
-            {'remove_entity_ids': ['hero.json']},
+            {'remove_entity_ids': ['hero.json'], 'commit': False},
         )
     ]
     assert sync_calls == [
         {
             'card_id': 'hero.png',
             'source_path': str(cards_dir / 'hero.png'),
+            'card_already_queued': True,
+            'worldinfo_already_queued': True,
             'file_content_changed': True,
             'rename_changed': True,
             'cache_updated': True,

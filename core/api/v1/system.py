@@ -619,19 +619,17 @@ def api_system_action():
                 return _file_manager_unsupported_response(notes_dir)
             return jsonify({"success": True})
         elif action == 'backup_data':
-            # 简单备份 ui_data.json
-            if os.path.exists(UI_DATA_FILE):
-                bk_name = f"ui_data_backup_{int(time.time())}.json"
-                if request.json.get('download') is True:
-                    return send_file(
-                        UI_DATA_FILE,
-                        as_attachment=True,
-                        download_name=bk_name,
-                        mimetype='application/json',
-                    )
-                shutil.copy(UI_DATA_FILE, os.path.join(BASE_DIR, bk_name))
-                return jsonify({"success": True, "msg": f"已备份为 {bk_name}"})
-            return jsonify({"success": False, "msg": "暂无数据文件"})
+            from core.data.local_state_repository import Repository
+            import io
+            bk_name = f"ui_data_backup_{int(time.time())}.json"
+            payload = Repository('ui').export_snapshot()
+            if request.json.get('download') is True:
+                return send_file(io.BytesIO(json.dumps(payload, ensure_ascii=False).encode('utf-8')),
+                                 as_attachment=True, download_name=bk_name, mimetype='application/json')
+            from core.utils.filesystem import save_json_atomic
+            if not save_json_atomic(os.path.join(BASE_DIR, bk_name), payload):
+                raise OSError('UI 状态备份写入失败')
+            return jsonify({'success': True, 'msg': f'已备份为 {bk_name}'})
         elif action == 'cleanup_thumbnails':
             result = clean_orphaned_thumbnail_cache(CARDS_FOLDER, THUMB_FOLDER)
             message = f"已扫描 {result['scanned']} 个缩略图，清理 {result['removed']} 个无效缓存"

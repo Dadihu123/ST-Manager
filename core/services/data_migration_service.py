@@ -34,6 +34,7 @@ MAX_BYTES = 100 * 1024 ** 3
 MAX_FILES = 200000
 MAX_MANIFEST_BYTES = 32 * CHUNK
 MAX_SETTINGS_BYTES = 16 * CHUNK
+MAX_LEGACY_STATE_BYTES = 512 * CHUNK
 MAX_COMPONENT_BYTES = 255
 MAX_ARCHIVE_PATH_BYTES = 3072
 MAX_ABSOLUTE_PATH_BYTES = 4095
@@ -280,9 +281,9 @@ class DataMigrationService:
         roots.update({k: os.path.join(self.base, v) for k, v in FIXED.items()})
         # 绝对绑定可以在 resources_dir 白名单之外；按实际关联补入逻辑目录。
         ui = os.path.join(roots['db'], 'ui_data.json')
-        if os.path.exists(ui):
-            with open(ui, encoding='utf-8') as handle:
-                data = json.load(handle)
+        if os.path.exists(ui) or os.path.exists(os.path.join(roots['db'], 'cards_metadata.db')):
+            from core.data.local_state_repository import read_snapshot_at
+            data = read_snapshot_at(os.path.join(roots['db'], 'cards_metadata.db'), 'ui', ui)
             def collect(obj):
                 if isinstance(obj, dict):
                     for key, value in obj.items():
@@ -496,6 +497,21 @@ class DataMigrationService:
                 if table.startswith(('index_', 'plugin_')):
                     conn.execute('DROP TABLE ' + _quote(table))
             tables = [r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")]
+            if 'ui_namespace_records' in tables:
+                from core.data.local_state_repository import _export_at, _replace_namespace
+                authoritative = _export_at(conn, 'ui')
+                if paths.exporting:
+                    authoritative.pop('_plugins_v1', None)
+                    conn.execute("DELETE FROM ui_records WHERE key='_plugins_v1'")
+                    conn.execute("DELETE FROM ui_namespace_roots WHERE namespace='_plugins_v1'")
+                    conn.execute("DELETE FROM ui_namespace_records WHERE namespace='_plugins_v1'")
+                converted = paths.ui(authoritative)
+                for key, value in converted.items():
+                    if key.startswith('_') and isinstance(value, dict):
+                        _replace_namespace(conn, key, value)
+                    else:
+                        conn.execute('UPDATE ui_records SET payload_json=? WHERE key=?',
+                                     (json.dumps(value, ensure_ascii=False), key))
             for table in tables:
                 if table.startswith('sqlite_'):
                     continue
@@ -503,6 +519,24 @@ class DataMigrationService:
                     conn.execute('DELETE FROM ' + _quote(table))
                     continue
                 columns = [r[1] for r in conn.execute('PRAGMA table_info(' + _quote(table) + ')')]
+                if table == 'ui_records':
+                    if 'ui_namespace_records' in tables:
+                        continue
+                    payload = {r[0]: json.loads(r[1]) for r in conn.execute('SELECT key,payload_json FROM ui_records')}
+                    if paths.exporting:
+                        payload.pop('_plugins_v1', None)
+                        conn.execute("DELETE FROM ui_records WHERE key='_plugins_v1'")
+                    converted = paths.ui(payload)
+                    for key, value in converted.items():
+                        conn.execute('UPDATE ui_records SET payload_json=? WHERE key=?',
+                                     (json.dumps(value, ensure_ascii=False), key))
+                    continue
+                if table in ('ui_namespace_roots', 'ui_namespace_records'):
+                    continue
+                if table in ('chat_card_bindings', 'card_resource_bindings', 'local_state_staging', 'card_ui_projections'):
+                    if table in ('local_state_staging', 'card_ui_projections'):
+                        conn.execute('DELETE FROM ' + _quote(table))
+                    continue
                 # rowid 保留所有表主键和业务关联；仅修改 TEXT 内容。
                 rows = conn.execute('SELECT rowid, * FROM ' + _quote(table))
                 for row in rows:
@@ -578,6 +612,10 @@ class DataMigrationService:
                         'files': [], 'directories': directories}
             settings = {k: v for k, v in cfg.items() if k in config.DEFAULT_CONFIG and
                         k not in roots and k not in LOCAL_KEYS and not SENSITIVE.search(k)}
+            from core.data.local_state_repository import read_snapshot_at
+            local_snapshots = {name: read_snapshot_at(os.path.join(roots['db'], 'cards_metadata.db'),
+                               component, os.path.join(roots['db'], name))
+                               for name, component in (('ui_data.json', 'ui'), ('chat_data.json', 'chat'))}
             stage = self.path(job, 'snapshot')
             os.makedirs(stage, exist_ok=True)
             done = 0
@@ -603,8 +641,7 @@ class DataMigrationService:
                                     history = self._history_map(rows, roots, paths=paths, previous_roots=old_roots)
                         self._rewrite_db(target, paths, history)
                     elif name in ('db/ui_data.json', 'db/chat_data.json'):
-                        with open(source, encoding='utf-8') as handle:
-                            value = json.load(handle)
+                        value = __import__('copy').deepcopy(local_snapshots[rel])
                         if name == 'db/ui_data.json':
                             # 未知插件数据不能安全脱敏；保留目标设备的配置/私有数据。
                             value.pop('_plugins_v1', None)
@@ -625,11 +662,16 @@ class DataMigrationService:
                     done += size
                 if (rows, sqlite_sources, journals) != self.snapshot_inventory(roots) or directories != self.directories(roots):
                     raise ValueError('备份期间目录发生变更，请重试')
-                if not any(e['path'] == 'db/ui_data.json' for e in manifest['files']):
-                    raw = b'{}'
-                    archive.writestr('db/ui_data.json', raw)
-                    manifest['files'].append({'path': 'db/ui_data.json', 'type': 'db', 'size': 2,
-                                              'sha256': hashlib.sha256(raw).hexdigest()})
+                for name in ('ui_data.json', 'chat_data.json'):
+                    if not any(e['path'] == 'db/' + name for e in manifest['files']):
+                        value = local_snapshots[name]
+                        if name == 'ui_data.json':
+                            value.pop('_plugins_v1', None)
+                            value = paths.ui(value)
+                        raw = json.dumps(value, ensure_ascii=False).encode('utf-8')
+                        archive.writestr('db/' + name, raw)
+                        manifest['files'].append({'path': 'db/' + name, 'type': 'db', 'size': len(raw),
+                                                  'sha256': hashlib.sha256(raw).hexdigest()})
                 write_archive_json(archive, 'settings.json', paths.settings(settings), MAX_SETTINGS_BYTES)
                 # settings 也必须纳入校验清单。
                 raw = archive.read('settings.json')
@@ -865,15 +907,15 @@ class DataMigrationService:
         """旧附加信息 JSON 做合并，不导入插件执行开关或覆盖原文件。"""
         from core.data.ui_store import update_ui_data, UI_DATA_FILE
         from core.services.cache_service import schedule_reload
-        if not isinstance(data, dict) or len(json.dumps(data, ensure_ascii=False)) > 16 * CHUNK:
-            raise ValueError('请提供有效的 ui_data.json（不超过 16 MiB）')
-        if 'format' in data or 'version' in data or any(
-                not k.startswith('_') and not isinstance(v, dict) for k, v in data.items()):
+        if not isinstance(data, dict) or len(json.dumps(data, ensure_ascii=False).encode('utf-8')) > MAX_LEGACY_STATE_BYTES:
+            raise ValueError('请提供有效的 ui_data.json（不超过 512 MiB）')
+        if 'format' in data or 'version' in data:
             raise ValueError('此文件不是旧备注与标签数据，请使用对应的导入入口')
         clean = {k: v for k, v in data.items() if k != '_plugins_v1'}
         with gate.activity():
-            if os.path.exists(UI_DATA_FILE):
-                shutil.copyfile(UI_DATA_FILE, UI_DATA_FILE + '.before-legacy-import')
+            from core.data.ui_store import export_legacy_ui_data
+            if not export_legacy_ui_data(UI_DATA_FILE + '.before-legacy-import'):
+                raise ValueError('无法保护现有权威状态，导入已中止')
             def merge(current):
                 for key, value in clean.items():
                     if isinstance(value, dict) and isinstance(current.get(key), dict):
@@ -923,9 +965,21 @@ class DataMigrationService:
                     # 保留本机插件凭据，但禁用全部插件，显式由用户重新启用。
                     value.pop('_plugins_v1', None)
                     current = os.path.join(self.base, FIXED['db'], name)
-                    if os.path.exists(current):
-                        with open(current, encoding='utf-8') as handle:
-                            plugins = json.load(handle).get('_plugins_v1', {})
+                    if (os.path.exists(current) or os.path.exists(os.path.join(self.base, FIXED['db'], 'cards_metadata.db'))
+                            or os.path.exists(os.path.join(self.base, FIXED['db'], 'cards_metadata.db.local-state-authority'))):
+                        from core.data.local_state_repository import read_snapshot_at
+                        from core.data.local_state_repository import LocalStateError
+                        try:
+                            plugins = read_snapshot_at(os.path.join(self.base, FIXED['db'], 'cards_metadata.db'),
+                                                       'ui', current).get('_plugins_v1', {})
+                        except (LocalStateError, sqlite3.Error, OSError, ValueError):
+                            # 整个旧目录仍按 protection 流程保存；旧库损坏不能阻断有效归档恢复。
+                            plugins = {}
+                            warning = '目标权威库不可读，未提取本机插件配置/凭据；旧库原件保留在保护目录，恢复后插件禁用'
+                            logger.warning(warning, exc_info=True)
+                            self.update(job, warnings=[warning])
+                        if not isinstance(plugins, dict):
+                            plugins = {}
                         value['_plugins_v1'] = plugins
                         for directory in os.listdir(os.path.join(stage, 'plugins')):
                             plugins.setdefault(directory, {})
@@ -944,6 +998,17 @@ class DataMigrationService:
                 validate_migration_database(conn)
             self._rewrite_db(os.path.join(stage, 'db', 'cards_metadata.db'), paths,
                              self._history_map(rows, targets, to_portable=False))
+            from core.data.local_state_repository import activate_snapshots_at
+            imported_states = {}
+            for name in ('ui_data.json', 'chat_data.json'):
+                state_path = os.path.join(stage, 'db', name)
+                if os.path.isfile(state_path):
+                    with open(state_path, encoding='utf-8') as handle:
+                        imported_states[name] = json.load(handle)
+                else:
+                    imported_states[name] = {}
+            activate_snapshots_at(os.path.join(stage, 'db', 'cards_metadata.db'),
+                                  imported_states['ui_data.json'], imported_states['chat_data.json'])
             durable_json(os.path.join(stage, 'config.json'), cfg)
             moves = []
             for slot, target in targets.items():

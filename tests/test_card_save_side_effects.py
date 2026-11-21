@@ -22,6 +22,8 @@ from tests.plugins_test_support import write_plugin
 from test_daily_performance import library
 from test_detail_modal_advanced_editor_contracts import run_detail_modal_runtime_check
 
+REAL_ENQUEUE_INDEX_JOB = index_job_worker.enqueue_index_job
+
 
 @pytest.fixture
 def isolated_library(library, monkeypatch, tmp_path):
@@ -409,17 +411,14 @@ def test_hook_ui_read_failure_never_establishes_a_stale_save_baseline(
         elif failure == 'read':
             monkeypatch.setattr(cards, 'load_ui_data', fail)
         else:
-            # A fallback backup contains the user note, not the newer hook result.
-            # Even a successful fallback read must not be accepted as canonical.
-            monkeypatch.setattr(ui_store, '_ui_snapshot', None)
-            reader = ui_store._read_json_file_with_retry
-
-            def deny_primary(path, *args, **kwargs):
-                if path == ui_store.UI_DATA_FILE:
-                    raise PermissionError('injected primary read failure')
-                return reader(path, *args, **kwargs)
-
-            monkeypatch.setattr(ui_store, '_read_json_file_with_retry', deny_primary)
+            # 新权威库不可读时不能退回迁移快照。
+            from core.data import local_state_repository as state
+            reader = state.Repository.get_many
+            def deny_primary(self, keys=None, **kwargs):
+                if self.component == 'ui':
+                    raise state.LocalStateError('injected authoritative read failure')
+                return reader(self, keys, **kwargs)
+            monkeypatch.setattr(state.Repository, 'get_many', deny_primary)
 
     api.on('card.updated', write_then_block_read)
     try:
@@ -431,7 +430,9 @@ def test_hook_ui_read_failure_never_establishes_a_stale_save_baseline(
         assert not response['file_modified']
         assert 'canonical_ui' not in response and 'updated_card' not in response
         assert cache.id_map['hero.png']['ui_summary'] == 'user-note'
-        assert json.loads(Path(ui_store.UI_DATA_FILE).read_text())['hero.png']['summary'] == 'committed-hook-note'
+        from core.data import local_state_repository as state
+        with sqlite3.connect(state.DEFAULT_DB_PATH) as saved:
+            assert json.loads(saved.execute("SELECT payload_json FROM ui_records WHERE key='hero.png'").fetchone()[0])['summary'] == 'committed-hook-note'
     finally:
         hooks.unregister('card.updated', write_then_block_read)
         ui_store._clear_ui_data_degraded()
@@ -444,11 +445,11 @@ def test_transient_pre_hook_stat_failure_revalidates_final_ui(isolated_library, 
     revision = cards.get_ui_data_revision
     calls = []
 
-    def stat_once_unavailable():
+    def stat_once_unavailable(*args):
         calls.append(True)
         if len(calls) == 1:
             raise PermissionError('transient stat failure')
-        return revision()
+        return revision(*args)
 
     monkeypatch.setattr(cards, 'get_ui_data_revision', stat_once_unavailable)
 
@@ -464,3 +465,195 @@ def test_transient_pre_hook_stat_failure_revalidates_final_ui(isolated_library, 
         assert response['canonical_ui']['ui_summary'] == response['updated_card']['ui_summary'] == ''
     finally:
         hooks.unregister('card.updated', hook)
+
+
+@pytest.mark.parametrize('failure', ['ui', 'metadata', 'index'])
+def test_body_save_failure_reports_committed_parts_and_preserves_actual_file(isolated_library, monkeypatch, failure):
+    client, root, db, cache, jobs, cfg = isolated_library
+    path = root / 'hero.png'
+    write_png(path)
+    if failure == 'ui':
+        monkeypatch.setattr(cards, 'save_ui_data', lambda *_args, **_kwargs: False)
+    elif failure == 'metadata':
+        monkeypatch.setattr(cards, 'update_card_cache', lambda *_args, **_kwargs: {'cache_updated': False})
+    else:
+        def fail_index(*_args, **_kwargs):
+            raise OSError('injected index commit failure')
+        monkeypatch.setattr(cards, '_apply_card_index_increment_now', fail_index)
+    result = client.post('/api/update_card', json={'id': 'hero.png', 'char_name': 'Hero',
+        'description': 'actually committed body', 'ui_summary': 'submitted note',
+        'source_revision': build_file_source_revision(str(path))}).get_json()
+    assert not result['success'], result
+    assert result['file_modified'] and result['index_sync_pending'] and result['retryable']
+    assert result['ui_data_saved'] == (failure != 'ui')
+    assert extract_card_info(str(path))['data']['description'] == 'actually committed body'
+    if failure == 'ui':
+        assert ui_store.load_ui_data()['hero.png']['summary'] == 'original'
+
+
+
+def test_writer_failure_after_replacement_reports_actual_file_commit(isolated_library, monkeypatch):
+    client, root, db, cache, jobs, cfg = isolated_library
+    path = root / 'hero.png'
+    write_png(path)
+    def replaced_then_failed(target, info):
+        assert write_card_metadata(target, info)
+        return False  # e.g. post-replacement directory fsync failure
+    monkeypatch.setattr(cards, 'write_card_metadata', replaced_then_failed)
+    result = client.post('/api/update_card', json={'id': 'hero.png', 'char_name': 'Hero',
+        'description': 'already replaced', 'source_revision': build_file_source_revision(str(path))}).get_json()
+    assert not result['success'] and result['file_modified'] and result['index_sync_pending']
+    assert not result['ui_data_saved']
+    assert extract_card_info(str(path))['data']['description'] == 'already replaced'
+
+
+@pytest.mark.parametrize('fault', ['repository', 'sqlite'])
+def test_ui_commit_then_revision_read_failure_reports_saved(isolated_library, monkeypatch, fault):
+    from core.data import local_state_repository as state
+    client, root, db, cache, jobs, cfg = isolated_library
+    def fail(*args, **kwargs):
+        raise (state.LocalStateError('authority read failed') if fault == 'repository'
+               else sqlite3.OperationalError('read failed'))
+    monkeypatch.setattr(cards, 'get_ui_data_revision', fail)
+    monkeypatch.setattr(cards, 'reconcile_card_ui_fields', fail)
+    result = client.post('/api/update_card', json={'id': 'hero.png', 'ui_only': True,
+        'ui_only_fields': ['ui_summary'], 'ui_summary': 'COMMITTED NOTE'}).get_json()
+    assert state.Repository().get('hero.png')['summary'] == 'COMMITTED NOTE'
+    assert result['success'] is False
+    assert result['ui_data_saved'] is True
+    assert result['retryable'] and result['detail_reload_required']
+
+
+def test_cold_bundle_hook_uses_actual_ui_record_revision(isolated_library):
+    client, root, db, cache, jobs, cfg = isolated_library
+    for card_id in ['bundle/main.png', 'bundle/old.png']:
+        write_png(root / card_id)
+    cache.id_map.clear()
+    cache.bundle_map.clear()
+    def hook(_):
+        data = ui_store.load_ui_data()
+        ui_store.set_version_remark(data, 'bundle', 'bundle/old.png',
+            {'summary': 'HOOK NOTE', 'link': 'keep', 'resource_folder': 'shared'}, 'bundle/main.png')
+        assert ui_store.save_ui_data(data)
+    hooks.register('card.updated', hook)
+    try:
+        result = client.post('/api/update_card', json={'id': 'bundle/old.png', 'ui_only': True,
+            'ui_only_fields': ['ui_summary'], 'ui_summary': 'REQUEST NOTE', 'save_ui_to_bundle': True,
+            'bundle_dir': 'bundle', 'version_id': 'bundle/old.png'}).get_json()
+        assert result['success'], result
+        assert result['canonical_ui']['ui_summary'] == 'HOOK NOTE'
+    finally:
+        hooks.unregister('card.updated', hook)
+
+
+
+def test_ui_commit_then_cache_failure_keeps_committed_fact(isolated_library, monkeypatch):
+    from core.data import local_state_repository as state
+    client, root, db, cache, jobs, cfg = isolated_library
+    def fail(*args, **kwargs):
+        raise sqlite3.OperationalError('post-commit cache failure')
+    monkeypatch.setattr(cache, 'update_card_data', fail)
+    result = client.post('/api/update_card', json={'id': 'hero.png', 'ui_only': True,
+        'ui_only_fields': ['ui_summary'], 'ui_summary': 'COMMITTED BEFORE CACHE'}).get_json()
+    assert state.Repository().get('hero.png')['summary'] == 'COMMITTED BEFORE CACHE'
+    assert result['success'] is False and result['ui_data_saved'] is True
+    assert result['retryable'] and result['detail_reload_required']
+
+
+@pytest.mark.parametrize('include_note', [False, True])
+def test_repeated_body_saves_commit_and_ack_only_owned_file_intents(isolated_library, monkeypatch, include_note):
+    client, root, db, cache, jobs, cfg = isolated_library
+    from core import config
+    monkeypatch.setattr(config, 'CARDS_FOLDER', str(root))
+    monkeypatch.setattr(index_job_worker, 'enqueue_index_job', REAL_ENQUEUE_INDEX_JOB)
+    write_png(root/'hero.png')
+    # A file intent from a separate operation must survive even a successful save.
+    with closing(sqlite3.connect(db)) as conn:
+        conn.execute('DELETE FROM index_jobs')
+        prior_job = conn.execute(
+            "INSERT INTO index_jobs(job_type,entity_id,source_path,payload_json) VALUES ('upsert_card',?,?,?)",
+            ('hero.png', str(root/'hero.png'), json.dumps({'refresh_file': True, 'operation': 'prior', 'operation_kind': 'replace'})),
+        ).lastrowid
+        conn.commit()
+    for index in range(3):
+        payload = {'id': 'hero.png', 'char_name': f'Hero {index}', 'description': f'committed body {index}'}
+        if include_note:
+            payload['ui_summary'] = f'note {index}'
+        result = client.post('/api/update_card', json=payload).get_json()
+        assert result['success'] and not result.get('index_sync_pending'), result
+        with closing(sqlite3.connect(db)) as conn:
+            assert conn.execute("SELECT char_name,description FROM card_metadata WHERE id='hero.png'").fetchone() == (
+                f'Hero {index}', f'committed body {index}')
+            assert conn.execute("SELECT name FROM index_entities_v2 WHERE entity_id='card::hero.png'").fetchone()[0] == f'Hero {index}'
+            assert conn.execute("SELECT id FROM index_jobs WHERE job_type='upsert_card' AND status!='done'").fetchall() == [(prior_job,)]
+
+
+def test_later_hook_file_intent_is_not_acknowledged_by_earlier_save(isolated_library, monkeypatch):
+    client, root, db, _cache, _jobs, _cfg = isolated_library
+    from core import config
+    monkeypatch.setattr(config, 'CARDS_FOLDER', str(root))
+    monkeypatch.setattr(index_job_worker, 'enqueue_index_job', REAL_ENQUEUE_INDEX_JOB)
+    write_png(root/'hero.png')
+    with closing(sqlite3.connect(db)) as conn:
+        conn.execute('DELETE FROM index_jobs')
+        conn.commit()
+    later_jobs = []
+    def hook(_):
+        later_jobs.append(index_job_worker.prepare_card_file_intent(str(root/'hero.png')))
+    hooks.register('card.updated', hook)
+    try:
+        result = client.post('/api/update_card', json={
+            'id': 'hero.png', 'char_name': 'saved before hook', 'description': 'new body',
+        }).get_json()
+        assert result['success'], result
+        with closing(sqlite3.connect(db)) as conn:
+            assert later_jobs
+            assert conn.execute("SELECT id FROM index_jobs WHERE job_type='upsert_card' AND status!='done'").fetchall() == [(later_jobs[0],)]
+    finally:
+        hooks.unregister('card.updated', hook)
+
+
+def test_worldbook_enqueue_failure_rolls_back_metadata_and_retains_file_recovery(isolated_library, monkeypatch):
+    from core import config
+    from core.services import cache_service, card_index_sync_service
+    client, root, db, _cache, _jobs, _cfg = isolated_library
+    monkeypatch.setattr(config, 'CARDS_FOLDER', str(root))
+    monkeypatch.setattr(index_job_worker, 'enqueue_index_job', REAL_ENQUEUE_INDEX_JOB)
+    monkeypatch.setattr(card_index_sync_service, 'enqueue_index_job', REAL_ENQUEUE_INDEX_JOB)
+    write_png(root/'hero.png', 'OldBook')
+    with client.application.app_context():
+        assert cache_service.update_card_cache('hero.png', str(root/'hero.png'))
+    with closing(sqlite3.connect(db)) as conn:
+        conn.row_factory = sqlite3.Row
+        conn.execute("UPDATE index_build_state SET active_generation=1 WHERE scope='worldinfo'")
+        conn.commit()
+        index_build_service.apply_worldinfo_embedded_increment(conn, 'hero.png', str(root/'hero.png'))
+        conn.execute('DELETE FROM index_jobs')
+        conn.commit()
+    enqueue = index_job_worker._enqueue_index_job_on_connection
+    def fail_world(conn, job_type, *args):
+        if job_type == 'upsert_world_embedded':
+            raise sqlite3.OperationalError('derived intent insert failed')
+        return enqueue(conn, job_type, *args)
+    monkeypatch.setattr(index_job_worker, '_enqueue_index_job_on_connection', fail_world)
+    result = client.post('/api/update_card', json={'id': 'hero.png', 'char_name': 'Hero',
+        'character_book': {'name': 'NewBook', 'entries': [{'keys': ['new'], 'content': 'new content'}]},
+    }).get_json()
+    assert result['success'] is False and result['file_modified'] and result['index_sync_pending'], result
+    assert extract_card_info(str(root/'hero.png'))['data']['character_book']['name'] == 'NewBook'
+    with closing(sqlite3.connect(db)) as conn:
+        conn.row_factory = sqlite3.Row
+        assert conn.execute("SELECT character_book_name FROM card_metadata WHERE id='hero.png'").fetchone()[0] == 'OldBook'
+        assert conn.execute("SELECT name FROM index_entities_v2 WHERE entity_id='world::embedded::hero.png'").fetchone()[0] == 'OldBook'
+        rows = conn.execute("SELECT * FROM index_jobs WHERE job_type='upsert_card' AND status!='done'").fetchall()
+        assert any(json.loads(row['payload_json']).get('refresh_file') for row in rows)
+    monkeypatch.setattr(index_job_worker, '_enqueue_index_job_on_connection', enqueue)
+    for row in rows:
+        index_job_worker.process_card_job(row, json.loads(row['payload_json']))
+    with closing(sqlite3.connect(db)) as conn:
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute("SELECT * FROM index_jobs WHERE job_type='upsert_world_embedded' AND status!='done'").fetchall()
+        assert rows
+        for row in rows:
+            index_job_worker.process_worldinfo_job(conn, row)
+        assert conn.execute("SELECT name FROM index_entities_v2 WHERE entity_id='world::embedded::hero.png'").fetchone()[0] == 'NewBook'

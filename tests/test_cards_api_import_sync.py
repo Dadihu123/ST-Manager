@@ -116,7 +116,7 @@ def test_cache_reload_preserves_bundle_version_remarks_when_db_row_is_missing(mo
     cache = GlobalMetadataCache()
     cache.reload_from_db()
 
-    ui_payload = json.loads(ui_path.read_text(encoding='utf-8'))
+    ui_payload = __import__('core.data.local_state_repository', fromlist=['Repository']).Repository().export_snapshot()
     assert ui_payload['pack'][ui_store_module.VERSION_REMARKS_KEY] == {
         'pack/cover.png': {'summary': 'cover note'},
         'pack/alt.png': {'summary': 'alt note'},
@@ -2540,6 +2540,7 @@ def test_move_card_internal_bundle_directory_migrates_version_remarks_and_bundle
 
 
 def test_convert_to_bundle_updates_category_and_enqueues_incremental_sync(monkeypatch, tmp_path):
+    from core.services import card_service
     cards_dir = tmp_path / 'cards'
     source_dir = cards_dir / 'group'
     source_dir.mkdir(parents=True, exist_ok=True)
@@ -2577,7 +2578,7 @@ def test_convert_to_bundle_updates_category_and_enqueues_incremental_sync(monkey
         'save_ui_data',
         lambda payload, **_kwargs: saved_ui_payloads.append(json.loads(json.dumps(payload, ensure_ascii=False))),
     )
-    monkeypatch.setattr(cards_api, 'ensure_import_time', lambda *_args, **_kwargs: (False, 123.0))
+    monkeypatch.setattr(card_service, 'ensure_import_time', lambda *_args, **_kwargs: (False, 123.0))
     monkeypatch.setattr(
         cards_api,
         'update_card_cache',
@@ -2750,7 +2751,7 @@ def test_convert_to_bundle_rebuilds_new_owner_projection_after_old_cleanup(monke
     assert world_rows == [
         (f'world::resource::{new_id}::companion.json', f'card::{new_id}', 'Fresh Resource'),
     ]
-    assert queued == [
+    assert _cleanup_job_facts(queued) == [
         ('upsert_card', new_id, json.dumps({'remove_entity_ids': [old_id]}, ensure_ascii=False), 'done'),
         ('upsert_world_owner', new_id, json.dumps({'remove_owner_ids': [old_id]}, ensure_ascii=False), 'done'),
     ]
@@ -2776,6 +2777,7 @@ def test_update_card_rename_moves_embedded_worldinfo_note_key(monkeypatch, tmp_p
     }
     saved_ui_payloads = []
     sync_calls = []
+    persisted_calls = []
 
     class _FakeConn:
         def execute(self, _sql, _params=()):
@@ -2823,6 +2825,8 @@ def test_update_card_rename_moves_embedded_worldinfo_note_key(monkeypatch, tmp_p
         'previous_has_embedded_wi': False,
     })
     monkeypatch.setattr(cards_api, 'sync_card_index_jobs', lambda **kwargs: sync_calls.append(kwargs) or {})
+    monkeypatch.setattr(cards_api, 'persist_card_index_jobs',
+                        lambda conn, **kwargs: persisted_calls.append(kwargs))
     monkeypatch.setattr(cards_api, '_apply_card_index_increment_now', lambda *_args, **_kwargs: None)
     monkeypatch.setattr(cards_api, 'get_db', lambda: _FakeConn())
     monkeypatch.setattr(cards_api.ctx, 'cache', _FakeCache(), raising=False)
@@ -2864,7 +2868,10 @@ def test_update_card_rename_moves_embedded_worldinfo_note_key(monkeypatch, tmp_p
         {
             'card_id': new_id,
             'source_path': str(cards_dir / 'group' / 'hero-renamed.json'),
+            'card_already_queued': True,
+            'worldinfo_already_queued': True,
             'file_content_changed': True,
+            'embedded_book_changed': False,
             'rename_changed': True,
             'force_set_cover': False,
             'resource_folder_changed': False,
@@ -2875,6 +2882,8 @@ def test_update_card_rename_moves_embedded_worldinfo_note_key(monkeypatch, tmp_p
             'remove_owner_ids': [old_id],
         }
     ]
+    assert persisted_calls == [{key: value for key, value in sync_calls[0].items()
+                               if key != 'worldinfo_already_queued'}]
 
 
 def test_update_card_import_time_fallback_uses_pre_write_mtime_when_cache_misses(monkeypatch, tmp_path):
@@ -3499,7 +3508,7 @@ def test_api_move_folder_merge_bundle_preserves_version_remarks_and_rebuilds_pro
     assert dst_renamed_cover_path.exists() is True
     assert dst_alt_path.exists() is True
 
-    ui_payload = json.loads(ui_path.read_text(encoding='utf-8'))
+    ui_payload = __import__('core.data.local_state_repository', fromlist=['Repository']).Repository().export_snapshot()
     assert 'src/pack' not in ui_payload
     assert ui_payload['dst/pack'][ui_store_module.VERSION_REMARKS_KEY] == {
         'dst/pack/cover.png': {'summary': 'dst cover note'},
@@ -3512,7 +3521,7 @@ def test_api_move_folder_merge_bundle_preserves_version_remarks_and_rebuilds_pro
             'SELECT job_type, entity_id, payload_json, status FROM index_jobs ORDER BY entity_id, job_type'
         ).fetchall()
 
-    assert queued_before_worker == [
+    assert _cleanup_job_facts(queued_before_worker) == [
         ('upsert_card', 'dst/pack/alt.png', json.dumps({'remove_entity_ids': ['src/pack/alt.png']}, ensure_ascii=False), 'pending'),
         ('upsert_world_owner', 'dst/pack/alt.png', json.dumps({'remove_owner_ids': ['src/pack/alt.png']}, ensure_ascii=False), 'pending'),
         ('upsert_card', 'dst/pack/cover_1.png', json.dumps({'remove_entity_ids': ['src/pack/cover.png']}, ensure_ascii=False), 'pending'),
@@ -3544,7 +3553,7 @@ def test_api_move_folder_merge_bundle_preserves_version_remarks_and_rebuilds_pro
         ('card::dst/pack/cover.png', str(dst_cover_path)),
         ('card::dst/pack/cover_1.png', str(dst_renamed_cover_path)),
     ]
-    assert queued_after_worker == [
+    assert _cleanup_job_facts(queued_after_worker) == [
         ('upsert_card', 'dst/pack/alt.png', json.dumps({'remove_entity_ids': ['src/pack/alt.png']}, ensure_ascii=False), 'done'),
         ('upsert_world_owner', 'dst/pack/alt.png', json.dumps({'remove_owner_ids': ['src/pack/alt.png']}, ensure_ascii=False), 'done'),
         ('upsert_card', 'dst/pack/cover_1.png', json.dumps({'remove_entity_ids': ['src/pack/cover.png']}, ensure_ascii=False), 'done'),
@@ -3568,3 +3577,14 @@ def test_api_move_folder_merge_bundle_preserves_version_remarks_and_rebuilds_pro
     }
 
     real_cache_conn.close()
+
+
+def _cleanup_job_facts(rows):
+    """只比较携带旧身份清理意图的任务，版本信息及 UI 投影任务另由集成测试验证。"""
+    result = []
+    for kind, entity, raw, status in rows:
+        payload = json.loads(raw)
+        cleanup = {key: payload[key] for key in ('remove_entity_ids', 'remove_owner_ids') if key in payload}
+        if cleanup:
+            result.append((kind, entity, json.dumps(cleanup, ensure_ascii=False), status))
+    return result

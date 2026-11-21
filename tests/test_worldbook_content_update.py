@@ -328,7 +328,7 @@ def test_existing_root_name_is_preserved_in_preview_and_revalidated_at_commit(fi
 
 def test_single_book_move_waits_for_update_lock(fixture, monkeypatch):
     app, path, _, _ = fixture
-    monkeypatch.setattr(api, '_remap_global_worldinfo_note_path', lambda *_: None)
+    monkeypatch.setattr(api, '_commit_global_worldinfo_move', lambda *_: None)
     started = threading.Event()
     def move():
         started.set()

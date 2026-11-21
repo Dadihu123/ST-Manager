@@ -55,6 +55,11 @@ def test_change_image_runtime_contract_enqueues_cleanup_jobs_from_sync_service(m
     monkeypatch.setattr(cards_api, 'save_ui_data', lambda _payload, **_kwargs: None)
     monkeypatch.setattr(cards_api, 'ensure_import_time', lambda *_args, **_kwargs: (False, 0))
     monkeypatch.setattr(cards_api, 'calculate_token_count', lambda _data: 0)
+    increment_calls = []
+    def apply_increment(*args, **kwargs):
+        increment_calls.append((args, kwargs))
+        kwargs['conn'].commit()
+    monkeypatch.setattr(cards_api, '_apply_card_index_increment_now', apply_increment)
 
     enqueue_calls = []
     monkeypatch.setattr(
@@ -100,21 +105,19 @@ def test_change_image_runtime_contract_enqueues_cleanup_jobs_from_sync_service(m
     payload = res.get_json()
     assert payload['success'] is True
     assert payload['new_id'] == 'hero.png'
+    assert len(increment_calls) == 1
+    assert increment_calls[0][0] == ('hero.png', str(cards_dir / 'hero.png'))
+    assert increment_calls[0][1]['remove_entity_ids'] == ['hero.json']
+    assert increment_calls[0][1]['file_metadata_applied'] is True
+    assert increment_calls[0][1]['source_revision'] == payload['source_revision']
     assert enqueue_calls == [
-        (
-            ('upsert_card',),
-            {
-                'entity_id': 'hero.png',
-                'source_path': str(cards_dir / 'hero.png'),
-                'payload': {'remove_entity_ids': ['hero.json']},
-            },
-        ),
         (
             ('upsert_world_owner',),
             {
                 'entity_id': 'hero.png',
                 'source_path': str(cards_dir / 'hero.png'),
                 'payload': {'remove_owner_ids': ['hero.json']},
+                'conn': increment_calls[0][1]['conn'],
             },
         ),
     ]

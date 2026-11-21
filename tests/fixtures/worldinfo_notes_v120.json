@@ -1,0 +1,20 @@
+{
+  "builder": "v1.2.0:core/services/index_build_service.py:build_worldinfo_generation",
+  "books": {
+    "CanonicalOnly.json": {
+      "summary_preview": "",
+      "fast": "Book CanonicalOnly.json",
+      "full": "Book CanonicalOnly.json bodymarker"
+    },
+    "Conflict.json": {
+      "summary_preview": "cedarmarker",
+      "fast": "Book Conflict.json cedarmarker",
+      "full": "Book Conflict.json cedarmarker bodymarker"
+    },
+    "Matching.json": {
+      "summary_preview": "irismarker",
+      "fast": "Book Matching.json irismarker",
+      "full": "Book Matching.json irismarker bodymarker"
+    }
+  }
+}

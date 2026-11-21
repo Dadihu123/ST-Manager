@@ -520,7 +520,7 @@ def test_beautify_send_route_writes_standard_theme_in_tauri_mode(monkeypatch, tm
     # TauriTavern sends stamp their own key so both histories stay distinguishable.
     assert payload['last_sent_to_tt'] > 0
     assert 'last_sent_to_st' not in payload
-    saved_ui = json.loads(ui_path.read_text(encoding='utf-8'))
+    saved_ui = __import__('core.data.local_state_repository', fromlist=['Repository']).Repository().export_snapshot()
     assert saved_ui['beautify::pkg::variant']['last_sent_to_tt'] == payload['last_sent_to_tt']
     assert 'last_sent_to_st' not in saved_ui['beautify::pkg::variant']
 
@@ -569,7 +569,7 @@ def test_character_send_route_writes_to_tauri_without_http(monkeypatch, tmp_path
     assert fake_client.character_source == str(cards_root / 'card.png')
     assert payload['last_sent_to_tt'] > 0
     assert 'last_sent_to_st' not in payload
-    saved_ui = json.loads(ui_path.read_text(encoding='utf-8'))
+    saved_ui = __import__('core.data.local_state_repository', fromlist=['Repository']).Repository().export_snapshot()
     assert saved_ui['card.png']['last_sent_to_tt'] == payload['last_sent_to_tt']
     assert 'last_sent_to_st' not in saved_ui['card.png']
 
@@ -616,7 +616,7 @@ def test_world_info_send_route_writes_normalized_payload_to_tauri(monkeypatch, t
     assert response.get_json()['target'] == 'tauritavern'
     assert fake_client.world_payload[1]['entries']['0']['content'] == 'fire'
     assert response.get_json()['last_sent_to_tt'] > 0
-    saved_ui = json.loads(ui_path.read_text(encoding='utf-8'))
+    saved_ui = __import__('core.data.local_state_repository', fromlist=['Repository']).Repository().export_snapshot()
     assert all('last_sent_to_st' not in entry for entry in saved_ui.values())
     assert any(entry.get('last_sent_to_tt') for entry in saved_ui.values())
 
@@ -667,6 +667,6 @@ def test_openai_preset_send_route_writes_to_tauri_without_http(monkeypatch, tmp_
     assert response.get_json()['target'] == 'tauritavern'
     assert fake_client.preset_payload[1]['openai_model'] == 'gpt-4.1'
     assert response.get_json()['last_sent_to_tt'] > 0
-    saved_ui = json.loads(ui_path.read_text(encoding='utf-8'))
+    saved_ui = __import__('core.data.local_state_repository', fromlist=['Repository']).Repository().export_snapshot()
     assert all('last_sent_to_st' not in entry for entry in saved_ui.values())
     assert any(entry.get('last_sent_to_tt') for entry in saved_ui.values())

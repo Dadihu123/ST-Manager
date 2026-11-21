@@ -125,7 +125,15 @@ def create_app():
     app.register_blueprint(plugin_routes.bp)
 
     # 3. 加载插件（逐插件 try/except，任何坏插件都不得阻止应用启动）
-    plugin_registry.load_all(app)
+    from core.data.local_state_repository import initialize, LocalStateError
+    try:
+        initialize()
+    except LocalStateError as exc:
+        # 配置与恢复 API 仍可进入；业务读写由 repository 拒绝。
+        logger.error('本地状态迁移失败，插件和后台服务未启动: %s', exc)
+        ctx.set_status(status='error', message=str(exc))
+    else:
+        plugin_registry.load_all(app)
 
     # 4. 初始化外网访问认证
     init_auth(app)
@@ -184,6 +192,8 @@ def init_services():
                     raise ValueError('恢复目录不可访问: ' + key)
             with closing(sqlite3.connect(DEFAULT_DB_PATH)) as connection:
                 validate_migration_database(connection)
+        from core.data.local_state_repository import initialize
+        initialize()
         # 1. 数据库初始化 (建表、迁移)
         init_database()
 

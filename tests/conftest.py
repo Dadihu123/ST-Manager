@@ -74,11 +74,51 @@ def _redirect(module, attribute, target_path):
 
 def _install_isolation():
     """把 ui_data / chat_data 的落盘位置改到临时目录。"""
+    from core import config
+    # 在任何业务模块绑定默认路径之前重定向，包含新增的权威 SQLite 状态。
+    for name, relative in {
+        'DEFAULT_DB_PATH': 'system/db/cards_metadata.db',
+        'DB_FOLDER': 'system/db', 'CONFIG_FILE': 'config.json',
+        'CARDS_FOLDER': 'library/characters', 'CHATS_FOLDER': 'library/chats',
+        'THUMB_FOLDER': 'system/thumbnails', 'TRASH_FOLDER': 'system/trash',
+        'TEMP_DIR': 'temp',
+    }.items():
+        target = _ISOLATION_DIR / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        _redirect(config, name, target)
     from core.data import chat_store as chat_store_module
     from core.data import ui_store as ui_store_module
 
     _redirect(ui_store_module, 'UI_DATA_FILE', _DB_DIR / 'ui_data.json')
     _redirect(chat_store_module, 'CHAT_DATA_FILE', _DB_DIR / 'chat_data.json')
+    # core.__init__ 预导入的模块也已经绑定了默认常量。
+    original_db = str(ROOT / 'data/system/db/cards_metadata.db')
+    for module in list(sys.modules.values()):
+        if getattr(module, '__name__', '').startswith('core'):
+            for name, relative in (('DEFAULT_DB_PATH', 'system/db/cards_metadata.db'),
+                                   ('UI_DATA_FILE', 'system/db/ui_data.json'),
+                                   ('CHAT_DATA_FILE', 'system/db/chat_data.json')):
+                if hasattr(module, name):
+                    _redirect(module, name, _ISOLATION_DIR / relative)
+    import sqlite3
+    original_connect = sqlite3.connect
+
+    def isolated_connect(database, *args, **kwargs):
+        import os
+        raw = os.fspath(database)
+        if raw not in (':memory:', ''):
+            raw_path = raw[5:].split('?', 1)[0] if raw.startswith('file:') else raw
+            resolved = os.path.realpath(raw_path)
+            if os.path.normcase(resolved).startswith(os.path.normcase(str(ROOT)) + os.sep):
+                raise AssertionError('测试禁止访问仓库内 SQLite: ' + raw)
+        return original_connect(database, *args, **kwargs)
+
+    sqlite3.connect = isolated_connect
+    from core.data.db_session import _initialize_database
+    with sqlite3.connect(_DB_DIR / 'cards_metadata.db') as connection:
+        _initialize_database(connection, is_existing_db=True, schema_only=True)
+
+
 
 
 _install_isolation()
@@ -130,3 +170,21 @@ def pytest_collection_modifyitems(config, items):
     for item in items:
         if 'slow' in item.keywords:
             item.add_marker(skip_slow)
+
+
+@pytest.fixture(autouse=True)
+def _isolate_authoritative_state(tmp_path, monkeypatch):
+    from core.data import local_state_repository as state
+    monkeypatch.setattr(state, 'DEFAULT_DB_PATH', str(tmp_path / 'cards_metadata.db'))
+    state._ready.clear()
+    yield
+    state._ready.clear()
+
+
+@pytest.fixture(autouse=True)
+def _verify_unredirected_runtime_constants(request, monkeypatch):
+    if request.node.name == 'test_source_mode_derived_paths':
+        from core import config
+        for (module_name, name), original in _ORIGINAL_PATHS.items():
+            if module_name == config.__name__:
+                monkeypatch.setattr(config, name, original)

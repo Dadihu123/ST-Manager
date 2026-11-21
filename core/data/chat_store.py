@@ -1,4 +1,3 @@
-import json
 import logging
 import os
 import time
@@ -138,59 +137,16 @@ def normalize_chat_entry(raw):
 
 
 def load_chat_data():
-    if not os.path.exists(CHAT_DATA_FILE):
-        return {}
-
-    try:
-        with open(CHAT_DATA_FILE, 'r', encoding='utf-8') as f:
-            raw = json.load(f)
-    except Exception as e:
-        logger.error(f'加载 chat_data.json 失败: {e}')
-        return {}
-
-    if not isinstance(raw, dict):
-        return {}
-
-    cleaned = {}
-    dirty = False
-    for chat_id, value in raw.items():
-        key = _normalize_text(chat_id)
-        if not key:
-            dirty = True
-            continue
-
-        normalized = normalize_chat_entry(value)
-        cleaned[key] = normalized
-        if value != normalized:
-            dirty = True
-
-    if dirty:
-        save_chat_data(cleaned)
-
-    return cleaned
+    from core.data.local_state_repository import snapshot
+    return snapshot('chat')
 
 
 def save_chat_data(data):
-    payload = data if isinstance(data, dict) else {}
-    temp_path = CHAT_DATA_FILE + '.tmp'
-
+    from core.data.local_state_repository import Repository
     try:
-        parent = os.path.dirname(CHAT_DATA_FILE)
-        if parent and not os.path.exists(parent):
-            os.makedirs(parent, exist_ok=True)
-
-        with open(temp_path, 'w', encoding='utf-8') as f:
-            json.dump(payload, f, ensure_ascii=False, indent=2)
-
-        os.replace(temp_path, CHAT_DATA_FILE)
-        return True
-    except Exception as e:
-        logger.error(f'保存 chat_data.json 失败: {e}')
-        try:
-            if os.path.exists(temp_path):
-                os.remove(temp_path)
-        except Exception:
-            pass
+        return Repository('chat').save(data)
+    except Exception as exc:
+        logger.error('保存聊天本地状态失败: %s', exc)
         return False
 
 

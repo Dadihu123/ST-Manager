@@ -179,13 +179,13 @@ def test_activate_generation_cleans_obsolete_scope_generations(tmp_path):
         conn.execute(
             "INSERT INTO index_search_fast_v2(generation, entity_id, content) VALUES (1, 'world::global::book.json', 'world fast')"
         )
-        conn.execute(
+        _seed_full_search(conn,
             "INSERT INTO index_search_full_v2(generation, entity_id, content) VALUES (1, 'card::old.png', 'old full')"
         )
-        conn.execute(
+        _seed_full_search(conn,
             "INSERT INTO index_search_full_v2(generation, entity_id, content) VALUES (2, 'card::new.png', 'new full')"
         )
-        conn.execute(
+        _seed_full_search(conn,
             "INSERT INTO index_search_full_v2(generation, entity_id, content) VALUES (1, 'world::global::book.json', 'world full')"
         )
         conn.execute(
@@ -287,13 +287,13 @@ def test_activate_generation_cleans_obsolete_worldinfo_generations(tmp_path):
         conn.execute(
             "INSERT INTO index_search_fast_v2(generation, entity_id, content) VALUES (4, 'card::hero.png', 'card fast')"
         )
-        conn.execute(
+        _seed_full_search(conn,
             "INSERT INTO index_search_full_v2(generation, entity_id, content) VALUES (4, 'world::global::old.json', 'old world full')"
         )
-        conn.execute(
+        _seed_full_search(conn,
             "INSERT INTO index_search_full_v2(generation, entity_id, content) VALUES (5, 'world::global::new.json', 'new world full')"
         )
-        conn.execute(
+        _seed_full_search(conn,
             "INSERT INTO index_search_full_v2(generation, entity_id, content) VALUES (4, 'card::hero.png', 'card full')"
         )
         conn.execute(
@@ -401,10 +401,10 @@ def test_clear_generation_data_preserves_other_scope_rows_for_same_generation(tm
         conn.execute(
             "INSERT INTO index_search_fast_v2(generation, entity_id, content) VALUES (2, 'world::same-gen', 'world search')"
         )
-        conn.execute(
+        _seed_full_search(conn,
             "INSERT INTO index_search_full_v2(generation, entity_id, content) VALUES (2, 'card::same-gen', 'card search full')"
         )
-        conn.execute(
+        _seed_full_search(conn,
             "INSERT INTO index_search_full_v2(generation, entity_id, content) VALUES (2, 'world::same-gen', 'world search full')"
         )
         conn.commit()
@@ -447,10 +447,10 @@ def test_clear_generation_data_removes_scope_owned_orphan_aux_rows_only(tmp_path
         conn.execute(
             "INSERT INTO index_search_fast_v2(generation, entity_id, content) VALUES (2, 'world::orphan', 'world orphan search')"
         )
-        conn.execute(
+        _seed_full_search(conn,
             "INSERT INTO index_search_full_v2(generation, entity_id, content) VALUES (2, 'card::orphan', 'card orphan search full')"
         )
-        conn.execute(
+        _seed_full_search(conn,
             "INSERT INTO index_search_full_v2(generation, entity_id, content) VALUES (2, 'world::orphan', 'world orphan search full')"
         )
         conn.commit()
@@ -579,3 +579,10 @@ def test_app_context_index_state_update_preserves_legacy_flat_keys():
     assert snapshot['worldinfo']['state'] == 'building'
 
     AppContext._instance = None
+
+
+def _seed_full_search(conn, sql, params=()):
+    cursor = conn.execute(sql, params)
+    conn.execute('INSERT OR REPLACE INTO index_full_rowids SELECT generation,entity_id,rowid '
+                 'FROM index_search_full_v2 WHERE rowid=?', (cursor.lastrowid,))
+    return cursor

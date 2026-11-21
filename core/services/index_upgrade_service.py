@@ -1,11 +1,10 @@
-from core.services.maintenance_gate import coordinated
 import logging
 import os
 import random
 import sqlite3
 import threading
 import time
-from contextlib import closing
+from contextlib import closing, contextmanager, nullcontext
 
 from core.config import CARDS_FOLDER, DEFAULT_DB_PATH
 from core.context import ctx
@@ -15,6 +14,7 @@ from core.data.index_runtime_store import (
     allocate_build_generation,
     clear_generation_data,
     ensure_index_runtime_schema,
+    get_active_generation,
     get_search_content_format_version,
     update_build_state,
     update_build_progress,
@@ -24,6 +24,8 @@ from core.services.index_build_service import (
     build_worldinfo_generation,
     connect_index_db,
 )
+from core.services.maintenance_gate import coordinated
+from core.services.path_operation import PATH_BUSY, PathOperationBusy, observe_path_changes
 from core.utils.data import get_wi_meta
 from core.utils.image import extract_card_info_strict as extract_card_info
 
@@ -209,15 +211,27 @@ def _resource_access_error(exc):
 
 
 @coordinated
-def rebuild_scope_generation(scope: str, reason: str = 'bootstrap'):
-    with connect_index_db(DEFAULT_DB_PATH) as conn:
+def rebuild_scope_generation(scope: str, reason: str = 'bootstrap', *, rebuild_job: tuple[int, str] | None = None):
+    # 资源目录允许绝对路径绑定，完整构建覆盖所有受管理的世界书目录。
+    snapshot = observe_path_changes(all_paths=True) if scope == 'worldinfo' else nullcontext()
+    with snapshot as observed, closing(connect_index_db(DEFAULT_DB_PATH)) as conn, conn:
+        if observed is not None and observed.changed:
+            raise PathOperationBusy(PATH_BUSY)
         generation = allocate_build_generation(conn, scope)
         try:
-            _build_and_activate_generation(conn, scope, generation, reason)
-        except OSError as exc:
+            _build_and_activate_generation(conn, scope, generation, reason, rebuild_job=rebuild_job, observed=observed)
+        except (OSError, PathOperationBusy) as exc:
             conn.rollback()
             # 分批提交的半成品也必须删除；旧活动 generation 与格式版本保持不变。
             clear_generation_data(conn, scope, generation)
+            if observed is not None and observed.changed:
+                active = get_active_generation(conn, scope)
+                conn.execute("UPDATE index_build_state SET state=?, phase='', building_generation=0, last_error='' "
+                             "WHERE scope=? AND building_generation=?", ('ready' if active else 'empty', scope, generation))
+                conn.commit()
+                with ctx.index_lock:
+                    ctx.index_state.update(state='ready' if active else 'idle', scope=scope, message='')
+                raise PathOperationBusy(PATH_BUSY) from exc
             message = _resource_access_error(exc)
             update_build_state(conn, scope, state='failed', phase='resource_access',
                                building_generation=0, last_error=message[:500])
@@ -227,7 +241,15 @@ def rebuild_scope_generation(scope: str, reason: str = 'bootstrap'):
             raise
 
 
-def _build_and_activate_generation(conn, scope, generation, reason):
+@contextmanager
+def _pin_rebuild_observation(observed):
+    with observed.pin() if observed is not None else nullcontext(True) as stable:
+        if not stable:
+            raise PathOperationBusy(PATH_BUSY)
+        yield
+
+
+def _build_and_activate_generation(conn, scope, generation, reason, *, rebuild_job=None, observed=None):
     update_build_state(
         conn,
         scope,
@@ -278,8 +300,12 @@ def _build_and_activate_generation(conn, scope, generation, reason):
     )
     conn.commit()
     _publish_build_progress(scope, phase=PHASE_ACTIVATE)
-    # activate_generation 会在同一事务里记录搜索内容格式版本。
-    activate_generation(conn, scope, generation, items_written=items_written)
+    # 读取阶段允许路径操作。只在短提交阶段核验并固定观察，过期时保留旧代。
+    if not activate_generation(conn, scope, generation, items_written=items_written, rebuild_job=rebuild_job,
+                               activation_guard=lambda: _pin_rebuild_observation(observed)):
+        raise RuntimeError(f'{scope} 索引构建代 {generation} 或重建任务已被替换，本次重建未激活')
+    if scope == 'cards':
+        ctx.index_wakeup.set()  # 新代的补偿任务已提交，手动重建也应及时唤醒 worker。
     _print_and_log(f'{scope} 索引构建完成，已激活 generation={generation}')
 
 
@@ -389,7 +415,13 @@ def _background_upgrade_worker(plan: list[dict]):
             scope = item['scope']
             reason = item['reason']
             _print_and_log(f'开始后台重建 {scope} 索引（原因: {reason}）')
-            rebuild_scope_generation(scope, reason=reason)
+            try:
+                rebuild_scope_generation(scope, reason=reason)
+            except PathOperationBusy:
+                # 转交持久队列，释放启动门，允许扫描和其它作用域继续。
+                from core.services.index_job_worker import enqueue_index_job
+                with closing(connect_index_db(DEFAULT_DB_PATH)) as conn, conn:
+                    enqueue_index_job('rebuild_scope', payload={'scope': scope, 'reason': reason}, conn=conn)
         _refresh_after_upgrade()
         _settle_index_state()
         _print_and_log('后台索引升级完成')
