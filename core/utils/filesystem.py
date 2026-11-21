@@ -7,10 +7,131 @@ import logging
 import re
 import stat
 import tempfile
+from contextvars import ContextVar
+from functools import cache, partial, wraps
 from core.consts import SIDECAR_EXTENSIONS
 from core.utils.data import deterministic_sort, normalize_card_v3
 
 logger = logging.getLogger(__name__)
+_directory_case_cache = ContextVar('directory_case_cache', default=None)
+
+
+def filesystem_path_bucket(path: str) -> str:
+    """只用于定位候选项，允许数据库在目录离线时建表和回填。"""
+    return os.path.normcase(os.path.normpath(path)) if path else ''
+
+
+@cache
+def _windows_directory_queries():
+    import ctypes
+    from ctypes import wintypes
+
+    kernel = ctypes.WinDLL('kernel32', use_last_error=True)
+    kernel.CreateFileW.argtypes = [wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD, wintypes.LPVOID,
+                                  wintypes.DWORD, wintypes.DWORD, wintypes.HANDLE]
+    kernel.CreateFileW.restype = wintypes.HANDLE
+    kernel.GetFileInformationByHandleEx.argtypes = [wintypes.HANDLE, ctypes.c_int, wintypes.LPVOID, wintypes.DWORD]
+    kernel.GetFileInformationByHandleEx.restype = wintypes.BOOL
+    kernel.CloseHandle.argtypes = [wintypes.HANDLE]
+    kernel.CloseHandle.restype = wintypes.BOOL
+    return kernel
+
+
+def _windows_case_sensitive(parent, directory_cases):
+    if parent not in directory_cases:
+        import ctypes
+        from ctypes import wintypes
+
+        kernel = _windows_directory_queries()
+        # FILE_READ_ATTRIBUTES, share read/write/delete, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS.
+        handle = kernel.CreateFileW(parent, 0x80, 7, None, 3, 0x02000000, None)
+        sensitive = None
+        if handle != wintypes.HANDLE(-1).value:
+            try:
+                flags = wintypes.DWORD()
+                # FileCaseSensitiveInfo, FILE_CS_FLAG_CASE_SENSITIVE_DIR.
+                if kernel.GetFileInformationByHandleEx(handle, 23, ctypes.byref(flags), ctypes.sizeof(flags)):
+                    sensitive = bool(flags.value & 1)
+                elif ctypes.get_last_error() in (1, 50, 87):
+                    sensitive = False  # Windows or a volume that does not support the flag.
+            finally:
+                kernel.CloseHandle(handle)
+        directory_cases[parent] = sensitive
+    return directory_cases[parent]
+
+
+def filesystem_paths_match(left: str, right: str, *, directory_cases=None, probe=True) -> bool:
+    """仅在对应名称所在的目录明确不区分大小写时合并别名。"""
+    left, right = os.path.normpath(left), os.path.normpath(right)
+    if left == right:
+        return True
+    if os.name != 'nt' or os.path.normcase(left) != os.path.normcase(right):
+        return False
+    if directory_cases is None:
+        directory_cases = {}
+    drive, left_path = os.path.splitdrive(os.path.abspath(left))
+    _, right_path = os.path.splitdrive(os.path.abspath(right))
+    parent = drive + os.sep
+    for left_part, right_part in zip(left_path.strip(os.sep).split(os.sep), right_path.strip(os.sep).split(os.sep)):
+        if left_part != right_part:
+            sensitive = _windows_case_sensitive(parent, directory_cases) if probe else directory_cases.get(parent)
+            if sensitive is not False:
+                return False
+        parent = os.path.join(parent, left_part)
+    return True
+
+
+def prepare_filesystem_path_match(path: str, *, probe=True):
+    """采集请求路径各级名称的大小写规则，返回无目录探测的比较函数。"""
+    cases = {}
+    if os.name == 'nt' and path:
+        drive, rest = os.path.splitdrive(os.path.abspath(path))
+        literal_parent = drive + os.sep
+        normalized_parent = os.path.normcase(literal_parent)
+        cached = _directory_case_cache.get()
+        if cached is None:
+            cached = {}
+        for part in rest.strip(os.sep).split(os.sep):
+            sensitive = (_windows_case_sensitive(normalized_parent, cached) if probe
+                         else cached.get(normalized_parent))
+            cases[literal_parent] = sensitive
+            literal_parent = os.path.join(literal_parent, part)
+            normalized_parent = os.path.join(normalized_parent, os.path.normcase(part) if sensitive is False else part)
+    return partial(filesystem_paths_match, path, directory_cases=cases, probe=False)
+
+
+def filesystem_path_key(path: str, *, directory_cases=None, preserve_unknown=False) -> str:
+    """世界书备注与分类的规范路径，保留区分大小写的各级名称。"""
+    if not path or os.name != 'nt' or not os.path.isabs(path):
+        return filesystem_path_bucket(path)
+    if directory_cases is None:
+        directory_cases = _directory_case_cache.get()
+        if directory_cases is None:
+            directory_cases = {}
+    drive, rest = os.path.splitdrive(os.path.normpath(path))
+    parent = drive + os.sep
+    key = os.path.normcase(parent)
+    for part in rest.strip(os.sep).split(os.sep):
+        sensitive = _windows_case_sensitive(parent, directory_cases)
+        # 兼容旧备注键；已保存的分类在目录暂时不可用时保留原有大小写。
+        keep_case = sensitive is True or (sensitive is None and preserve_unknown)
+        key = os.path.join(key, part if keep_case else os.path.normcase(part))
+        parent = key if sensitive is not None else os.path.join(parent, part)
+    return key
+
+
+def cache_directory_case_checks(operation):
+    """复用同一请求或构建中的目录属性查询。"""
+    @wraps(operation)
+    def wrapped(*args, **kwargs):
+        if os.name != 'nt' or _directory_case_cache.get() is not None:
+            return operation(*args, **kwargs)
+        token = _directory_case_cache.set({})
+        try:
+            return operation(*args, **kwargs)
+        finally:
+            _directory_case_cache.reset(token)
+    return wrapped
 
 
 def walk_directory_strict(root):
@@ -92,21 +213,22 @@ def save_json_atomic(path, data):
 def is_card_file(filename):
     return filename.lower().endswith(('.png', '.json'))
 
-def safe_move_to_trash(src_path, trash_folder_path):
+def safe_move_to_trash(src_path, trash_folder_path, *, on_moved=None):
     """
     将文件或文件夹安全移动到回收站。
     策略：
     1. 保持原文件名主体。
     2. 追加 _时间戳_随机码 防止冲突。
     3. 如果是 JSON 卡片，尝试同时移动同名图片，并保持后缀一致以便恢复。
+    on_moved 在移动后提交关联状态。回调失败时尝试恢复原文件并传播错误。
     """
     if not os.path.exists(src_path):
         return False
 
+    moved = []
     try:
         # 确保回收站目录存在
-        if not os.path.exists(trash_folder_path):
-            os.makedirs(trash_folder_path)
+        os.makedirs(trash_folder_path, exist_ok=True)
 
         basename = os.path.basename(src_path)
         name_part, ext_part = os.path.splitext(basename)
@@ -120,6 +242,7 @@ def safe_move_to_trash(src_path, trash_folder_path):
         
         # 执行移动
         shutil.move(src_path, target_path)
+        moved.append((src_path, target_path))
         print(f"Moved to trash: {src_path} -> {target_path}")
 
         # === 特殊处理：如果是 JSON 卡片，尝试移动所有伴生图片 ===
@@ -133,14 +256,28 @@ def safe_move_to_trash(src_path, trash_folder_path):
                     sidecar_target_path = os.path.join(trash_folder_path, sidecar_target_name)
                     try:
                         shutil.move(sidecar_src, sidecar_target_path)
+                        moved.append((sidecar_src, sidecar_target_path))
                         print(f"Moved sidecar to trash: {sidecar_src} -> {sidecar_target_path}")
                     except Exception as e:
                         print(f"Error moving sidecar {sidecar_src}: {e}")
 
-        return True
     except Exception as e:
         logger.error(f"Failed to move {src_path} to trash: {e}")
         return False
+
+    if on_moved is not None:
+        try:
+            on_moved()
+        except Exception:
+            for original, trashed in reversed(moved):
+                try:
+                    if os.path.lexists(original):
+                        raise FileExistsError(original)
+                    shutil.move(trashed, original)
+                except OSError as exc:
+                    logger.error('Restore from trash failed (%s -> %s): %s', trashed, original, exc)
+            raise
+    return True
 
 def safe_delete_card_file(file_path):
     """安全删除文件 (如果需要回收站功能，需引入 send2trash，这里使用 os.remove)"""
