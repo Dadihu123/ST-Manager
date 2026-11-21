@@ -73,9 +73,21 @@ def clean_orphaned_thumbnail_cache(cards_folder, thumb_folder):
             continue
         try:
             os.unlink(entry.path)
+            try:
+                os.unlink(entry.path + '.revision')
+            except FileNotFoundError:
+                pass
             removed += 1
         except OSError as exc:
             errors.append(f'{entry.name}: {exc}')
+
+    for entry in os.scandir(thumbnail_root):
+        if entry.name.endswith(('.webp.revision', '.jpg.revision')) and entry.is_file(follow_symlinks=False):
+            if not os.path.isfile(entry.path[:-len('.revision')]):
+                try:
+                    os.unlink(entry.path)
+                except OSError as exc:
+                    errors.append(f'{entry.name}: {exc}')
 
     return {
         'scanned': scanned,

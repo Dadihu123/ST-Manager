@@ -320,24 +320,32 @@ def serve_thumbnail(filename):
 
         # 使用原始路径的 hash 作为缓存文件名
         normalized_name = filename.replace('\\', '/')
+        from core.utils.image import image_content_revision, THUMBNAIL_ALGORITHM_VERSION
+        image_revision = image_content_revision(original_path)
+        revision_path = None
         use_webp = features.check('webp')
         thumb_extension = '.webp' if use_webp else '.jpg'
         thumb_mimetype = 'image/webp' if use_webp else 'image/jpeg'
         thumb_hash_name = hashlib.md5(normalized_name.encode('utf-8')).hexdigest() + thumb_extension
         thumb_path = os.path.join(THUMB_FOLDER, thumb_hash_name)
+        revision_path = thumb_path + '.revision'
+        cache_revision = THUMBNAIL_ALGORITHM_VERSION + ':' + image_revision
 
-        # 2. 检查缓存是否有效（文件存在且比原图新）
-        if os.path.exists(thumb_path):
-            original_mtime = os.path.getmtime(original_path)
-            thumb_mtime = os.path.getmtime(thumb_path)
-            if thumb_mtime >= original_mtime:
-                return send_from_directory(THUMB_FOLDER, thumb_hash_name, mimetype=thumb_mimetype)
+        def valid_thumbnail():
+            try:
+                with open(revision_path, encoding='ascii') as marker:
+                    return os.path.isfile(thumb_path) and marker.read() == cache_revision
+            except FileNotFoundError:
+                return False
+
+        if valid_thumbnail():
+            return send_from_directory(THUMB_FOLDER, thumb_hash_name, mimetype=thumb_mimetype)
 
         # 3. 生成缩略图 (限制并发)
         # 如果获取不到信号量（当前满载），阻塞等待
         with ctx.thumb_semaphore:
             # 再次检查（防止排队期间被别的线程生成了）
-            if os.path.exists(thumb_path) and os.path.getmtime(thumb_path) >= os.path.getmtime(original_path):
+            if valid_thumbnail():
                 return send_from_directory(THUMB_FOLDER, thumb_hash_name, mimetype=thumb_mimetype)
 
             with Image.open(original_path) as img:
@@ -362,6 +370,8 @@ def serve_thumbnail(filename):
                     img.save(thumb_path, 'WEBP', quality=75, method=3)
                 else:
                     img.save(thumb_path, 'JPEG', quality=75)
+            with open(revision_path, 'w', encoding='ascii') as marker:
+                marker.write(cache_revision)
 
         return send_from_directory(THUMB_FOLDER, thumb_hash_name, mimetype=thumb_mimetype)
 

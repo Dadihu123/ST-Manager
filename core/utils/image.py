@@ -2,8 +2,8 @@ import os
 import json
 import base64
 import hashlib
-import shutil
 import logging
+import threading
 from PIL import Image
 from core.consts import SIDECAR_EXTENSIONS
 from core.config import INTERNAL_DIR, load_config
@@ -11,8 +11,8 @@ from core.utils.data import normalize_card_v3, deterministic_sort, sanitize_for_
 from core.utils.format_validation import is_valid_character_card_data
 from core.utils.filesystem import save_json_atomic
 from core.utils.png_metadata import (
-    build_card_pnginfo,
     iter_card_payloads,
+    read_png_text, rewrite_png_text,
 )
 
 logger = logging.getLogger(__name__)
@@ -141,16 +141,8 @@ def extract_card_info_with_status(filepath, *, raise_access_errors=False):
             with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
                 data = json.load(f)
         else:
-            # 2. 处理 PNG 文件
-            with Image.open(filepath) as img:
-                # === 强制加载图片数据，确保读取到完整元数据 ===
-                img.load()
-
-                metadata = img.info or {}
-
-                # 与 SillyTavern 的 character-card-parser.js read() 保持一致：
-                # ccv3 优先于 chara，并且只在真正能解析出合法卡片时才采用。
-                data, dirty_flags = _pick_card_payload(metadata)
+            metadata = read_png_text(filepath)
+            data, dirty_flags = _pick_card_payload(metadata)
 
         if data:
             if not isinstance(data, dict):
@@ -227,27 +219,8 @@ def write_card_metadata(filepath, json_data):
             json_str = json.dumps(png_payload, ensure_ascii=False, separators=(',', ':'))
         else:
             json_str = json.dumps(png_payload)
-        # 2. 打开图片 (此时图片像素已经是新的了)
-        img = Image.open(filepath)
+        return rewrite_png_text(filepath, json_str)
 
-        # 尝试获取原图的 ICC 颜色配置文件，防止颜色偏差
-        icc_profile = img.info.get('icc_profile')
-
-        # 3. 准备 Metadata
-        # 保留原图非角色数据的其他元数据，并同时写入 chara 与 ccv3
-        # （与 SillyTavern 的 character-card-parser.js write() 行为一致，
-        # 只写 chara 会让 ST 读到的版本与 ST-Manager 自己写的不一致）
-        meta = build_card_pnginfo(json_str, metadata=img.info)
-
-        # 保存参数设置
-        save_kwargs = {"pnginfo": meta}
-        save_kwargs["optimize"] = True
-        if icc_profile:
-            save_kwargs["icc_profile"] = icc_profile
-
-        # 5. 保存
-        img.save(filepath, "PNG", **save_kwargs)
-        return True
     except Exception as e:
         logger.error(f"Metadata write error: {e}")
         return False
@@ -315,7 +288,129 @@ def clean_thumbnail_cache(rel_path, thumb_folder):
             thumb_hash = hashlib.md5(name.encode('utf-8')).hexdigest()
             for extension in ('.webp', '.jpg'):
                 thumb_path = os.path.join(thumb_folder, thumb_hash + extension)
-                if os.path.exists(thumb_path):
-                    os.remove(thumb_path)
+                for target in (thumb_path, thumb_path + '.revision'):
+                    if os.path.exists(target):
+                        os.remove(target)
     except Exception as e:
         print(f"清理缩略图失败: {e}")
+
+
+_IMAGE_REVISIONS = {}
+_IMAGE_REVISION_LOCK = threading.RLock()
+_WINDOWS_FILE_INFO_API = None
+_WINDOWS_FILE_INFO_API_LOCK = threading.Lock()
+THUMBNAIL_ALGORITHM_VERSION = '2'
+
+
+def _get_windows_file_info_api():
+    global _WINDOWS_FILE_INFO_API
+    if _WINDOWS_FILE_INFO_API is None:
+        with _WINDOWS_FILE_INFO_API_LOCK:
+            if _WINDOWS_FILE_INFO_API is None:
+                import ctypes
+                from ctypes import wintypes
+
+                class FileBasicInfo(ctypes.Structure):
+                    _fields_ = [(name, ctypes.c_longlong) for name in (
+                        'creation', 'access', 'write', 'change'
+                    )] + [('attributes', wintypes.DWORD)]
+
+                kernel = ctypes.WinDLL('kernel32', use_last_error=True)
+                kernel.CreateFileW.argtypes = [
+                    wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD,
+                    wintypes.LPVOID, wintypes.DWORD, wintypes.DWORD, wintypes.HANDLE,
+                ]
+                kernel.CreateFileW.restype = wintypes.HANDLE
+                kernel.GetFileInformationByHandleEx.argtypes = [
+                    wintypes.HANDLE, ctypes.c_int, wintypes.LPVOID, wintypes.DWORD,
+                ]
+                kernel.GetFileInformationByHandleEx.restype = wintypes.BOOL
+                kernel.CloseHandle.argtypes = [wintypes.HANDLE]
+                kernel.CloseHandle.restype = wintypes.BOOL
+                _WINDOWS_FILE_INFO_API = (ctypes, wintypes, FileBasicInfo, kernel)
+    return _WINDOWS_FILE_INFO_API
+
+
+def _image_file_version(path):
+    stat = os.stat(path)
+    change_time = stat.st_ctime_ns
+    if os.name == 'nt':
+        # Windows 的 st_ctime 是创建时间；外部原地改图并还原 mtime 仍须失效。
+        ctypes, wintypes, FileBasicInfo, kernel = _get_windows_file_info_api()
+        handle = kernel.CreateFileW(path, 0x80, 7, None, 3, 0, None)
+        if handle == wintypes.HANDLE(-1).value:
+            raise ctypes.WinError(ctypes.get_last_error())
+        try:
+            info = FileBasicInfo()
+            if not kernel.GetFileInformationByHandleEx(handle, 0, ctypes.byref(info), ctypes.sizeof(info)):
+                raise ctypes.WinError(ctypes.get_last_error())
+            change_time = info.change
+        finally:
+            kernel.CloseHandle(handle)
+    return (stat.st_dev, stat.st_ino, stat.st_mtime_ns, change_time, stat.st_size)
+
+
+def card_image_file_version(path, *, include_change_time=False):
+    """Return a filesystem version for a card image, resolving JSON sidecars."""
+    path = os.fspath(path) if path else path
+    if str(path).lower().endswith('.json'):
+        path = find_sidecar_image(path)
+    if not path:
+        return None
+    try:
+        if include_change_time or os.name != 'nt':
+            return _image_file_version(path)
+        stat = os.stat(path)
+        return ('stat', stat.st_dev, stat.st_ino, stat.st_mtime_ns,
+                stat.st_ctime_ns, stat.st_size)
+    except OSError:
+        return None
+
+
+def image_content_revision(path):
+    """图片内容版本与文件冲突版本独立；外部替换后重新验证全部渲染 chunk。"""
+    from core.utils.png_metadata import png_image_revision
+    absolute = os.path.abspath(path)
+    version = _image_file_version(absolute)
+    with _IMAGE_REVISION_LOCK:
+        cached = _IMAGE_REVISIONS.get(absolute)
+        if cached and cached[0] == version:
+            return cached[1]
+    if absolute.lower().endswith('.png'):
+        revision = png_image_revision(absolute)
+    else:
+        digest = hashlib.sha256()
+        with open(absolute, 'rb') as source:
+            for block in iter(lambda: source.read(1024 * 1024), b''):
+                digest.update(block)
+        revision = digest.hexdigest()
+    if _image_file_version(absolute) != version:
+        raise OSError('图片在读取时发生变化，请重试')
+    with _IMAGE_REVISION_LOCK:
+        if len(_IMAGE_REVISIONS) >= 512:
+            _IMAGE_REVISIONS.pop(next(iter(_IMAGE_REVISIONS)))
+        _IMAGE_REVISIONS[absolute] = (version, revision)
+    return revision
+
+
+def card_image_revision(path):
+    """供图片 URL 使用；JSON 的伴生图与缩略图共享同一内容版本。"""
+    from core.utils.source_revision import build_file_source_revision
+    original = path
+    if str(path).lower().endswith('.json'):
+        path = find_sidecar_image(path)
+        if not path:
+            return 'no-image'
+    try:
+        return image_content_revision(path)
+    except (OSError, ValueError):
+        # 无法验证的图片不复用已验证版本；缩略图入口仍明确报告读取错误。
+        return 'unverified-' + build_file_source_revision(path or original)
+
+
+def card_image_urls(card_id, path):
+    from urllib.parse import quote
+    revision = card_image_revision(path)
+    encoded_id = quote(card_id)
+    return {'image_revision': revision, 'image_url': f'/cards_file/{encoded_id}?v={revision}',
+            'thumb_url': f'/api/thumbnail/{encoded_id}?v={THUMBNAIL_ALGORITHM_VERSION}-{revision}'}

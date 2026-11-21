@@ -41,7 +41,7 @@ def test_thumbnail_uses_supported_encoder_and_reuses_cache(thumbnail_client, mon
     with Image.open(io.BytesIO(response.data)) as thumbnail:
         assert thumbnail.size == (300, 450)
         assert thumbnail.getpixel((0, 0))[0] > 200
-    cache_file, = thumbs.iterdir()
+    cache_file, = (p for p in thumbs.iterdir() if p.suffix != '.revision')
     mtime = cache_file.stat().st_mtime_ns
     monkeypatch.setattr(resources.Image, 'open', lambda *_: pytest.fail('Cache was not reused'))
     assert client.get('/api/thumbnail/角色.png').data == response.data
@@ -73,7 +73,7 @@ def test_cache_invalidation_and_maintenance_cover_jpeg(thumbnail_client):
     result = clean_orphaned_thumbnail_cache(cards, thumbs)
     assert result['kept'] == result['removed'] == 2
     clean_thumbnail_cache('nested/card.png', str(thumbs))
-    assert list(thumbs.iterdir()) == []
+    assert list((p for p in thumbs.iterdir() if p.suffix != '.revision')) == []
 
 
 def test_thumbnail_rejects_parent_directory(thumbnail_client):
@@ -95,3 +95,25 @@ def test_inaccessible_directory_aborts_thumbnail_cleanup(thumbnail_client, monke
     with pytest.raises(PermissionError):
         clean_orphaned_thumbnail_cache(cards, thumbs)
     assert cached.exists()
+
+
+def test_metadata_preserves_thumbnail_and_external_pixels_invalidate(thumbnail_client, monkeypatch):
+    from core.utils.image import write_card_metadata, card_image_urls
+    client, cards, thumbs = thumbnail_client
+    path = cards / 'card.png'
+    Image.new('RGB', (600, 900), 'red').save(path)
+    assert write_card_metadata(str(path), {'data': {'name': 'before'}})
+    before_urls = card_image_urls('card.png', str(path))
+    first = client.get('/api/thumbnail/card.png')
+    cached = next(p for p in thumbs.iterdir() if p.suffix in ('.jpg', '.webp'))
+    stamp = cached.stat().st_mtime_ns
+    assert write_card_metadata(str(path), {'data': {'name': 'after'}})
+    assert card_image_urls('card.png', str(path)) == before_urls
+    with monkeypatch.context() as patch:
+        patch.setattr(resources.Image, 'open', lambda *_: pytest.fail('metadata save regenerated thumbnail'))
+        assert client.get('/api/thumbnail/card.png').data == first.data
+    assert cached.stat().st_mtime_ns == stamp
+    # A real external replacement at the same path must change URL and cached pixels.
+    Image.new('RGB', (600, 900), 'blue').save(path)
+    assert card_image_urls('card.png', str(path)) != before_urls
+    assert client.get('/api/thumbnail/card.png').data != first.data

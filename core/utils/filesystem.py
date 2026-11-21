@@ -7,10 +7,8 @@ import logging
 import re
 import stat
 import tempfile
-from PIL import Image
 from core.consts import SIDECAR_EXTENSIONS
 from core.utils.data import deterministic_sort, normalize_card_v3
-from core.utils.png_metadata import build_card_pnginfo
 
 logger = logging.getLogger(__name__)
 
@@ -218,25 +216,10 @@ def write_snapshot_file(src_path, dst_path, data, is_png, compact=False):
         normalized_data = deterministic_sort(data)
 
         if is_png:
-            # 1. 打开源图片
-            with Image.open(src_path) as img:
-                # 2. 注入新的 Chara 数据 (Base64编码)
-                # 确保是 JSON 字符串
-                if compact:
-                    json_str = json.dumps(normalized_data, ensure_ascii=False, separators=(',', ':'))
-                else:
-                    json_str = json.dumps(normalized_data, ensure_ascii=False)
-
-                # 3. 准备 Metadata：保留非角色卡的其他元数据 (如软件信息等)，
-                # 并同时写入 chara 与 ccv3（与 SillyTavern 的写入行为一致）
-                meta = build_card_pnginfo(json_str, metadata=img.info)
-
-                # 4. 保存到【备份路径】 (不修改原图)
-                save_kwargs = {"pnginfo": meta, "optimize": True}
-                if img.info.get('icc_profile'):
-                    save_kwargs["icc_profile"] = img.info.get('icc_profile')
-                
-                img.save(dst_path, "PNG", **save_kwargs)
+            from core.utils.png_metadata import rewrite_png_text
+            json_str = json.dumps(normalized_data, ensure_ascii=False,
+                                  separators=(',', ':') if compact else None)
+            rewrite_png_text(src_path, json_str, destination=dst_path)
         else:
             # JSON 格式直接写入备份路径
             with open(dst_path, 'w', encoding='utf-8') as f:
