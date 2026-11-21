@@ -1424,6 +1424,9 @@ export function initState() {
       return saveSettings(this.settingsForm, options).then((res) => {
         if (res.success) {
           this.updateItemsPerPage();
+          if (res.chat_root_changed) {
+            window.dispatchEvent(new CustomEvent("chat-root-changed"));
+          }
           // 触发事件让组件刷新
           if (closeModal) {
             window.dispatchEvent(

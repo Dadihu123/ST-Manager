@@ -1105,7 +1105,7 @@ def test_chat_derived_timestamp_merge_does_not_weaken_nested_conflicts(store):
     assert repo.get('chat')['metadata']['updated_at'] == 'second'
 
 
-@pytest.mark.parametrize('operation', ['list', 'detail', 'range', 'update_meta', 'bind', 'import', 'save', 'delete'])
+@pytest.mark.parametrize('operation', ['detail', 'update_meta', 'bind', 'import', 'save', 'delete'])
 def test_chat_routes_reject_actual_local_state_write_failure(store, tmp_path, monkeypatch, operation):
     import io
     from flask import Flask
@@ -1118,7 +1118,6 @@ def test_chat_routes_reject_actual_local_state_write_failure(store, tmp_path, mo
     path.write_text(content, encoding='utf-8')
     monkeypatch.setattr(chats, 'CHATS_FOLDER', str(root))
     monkeypatch.setattr(chats, 'TRASH_FOLDER', str(tmp_path/'trash'))
-    monkeypatch.setattr(chats, '_current_card_ui_identities', lambda: None)
     repo = state.Repository('chat')
     repo.replace_snapshot({'Hero/test.jsonl': {'notes': 'keep'}} if operation == 'delete' else {})
     with state.connect(store[0]) as conn:
@@ -1126,23 +1125,25 @@ def test_chat_routes_reject_actual_local_state_write_failure(store, tmp_path, mo
             conn.execute(f"CREATE TRIGGER reject_chat_{event.lower()} BEFORE {event} ON chat_local_state "
                          "BEGIN SELECT RAISE(ABORT, 'local state unavailable'); END")
     calls = []
-    def save(data):
-        result = chat_store.save_chat_data(data)
+    def save(data, **kwargs):
+        result = chat_store.save_chat_data(data, **kwargs)
         calls.append(result)
         return result
     monkeypatch.setattr(chats, 'save_chat_data', save)
     app = Flask(__name__)
     app.register_blueprint(chats.bp)
     client = app.test_client()
-    if operation == 'list':
-        reply = client.get('/api/chats/list').get_json()
-    elif operation == 'import':
+    if operation == 'import':
         reply = client.post('/api/chats/import', data={'files': (io.BytesIO(content.encode()), 'import.jsonl')}).get_json()
     else:
         reply = client.post('/api/chats/' + operation, json={'id': 'Hero/test.jsonl', 'notes': 'draft',
             'unbind': True, 'raw_messages': [{'name': 'Hero', 'is_user': False, 'mes': 'changed'}]}).get_json()
-    assert calls == [False]
-    assert reply['success'] is False and '未保存' in reply['msg'], reply
+    if operation == 'detail':
+        assert reply['success'] and reply['chat']['message_count'] == 1, reply
+        assert calls == []
+    else:
+        assert calls == [False]
+        assert reply['success'] is False and '未保存' in reply['msg'], reply
     assert repo.get('Hero/test.jsonl', {}).get('notes') == ('keep' if operation == 'delete' else None)
 
 

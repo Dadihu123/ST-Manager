@@ -204,6 +204,30 @@ def test_build_and_query_on_sqlite_without_fts(request, monkeypatch):
     assert client.get('/api/list_cards?search=北方&search_mode=fulltext').get_json()['total_count'] == 2
 
 
+def test_bundle_cover_and_owner_use_same_committed_projection(library):
+    from core.services import chat_catalog_service as catalog
+
+    client, db, root = library
+    folder = 'foo%_/bundle'
+    old_cover, new_cover = f'{folder}/v2.json', f'{folder}/v1.json'
+    bundle_uid = '25e8fa3e-4d8d-4911-a9fb-9755ae175c13'
+    state.Repository('ui').update_fields(folder, {'card_uid': bundle_uid})
+    index_upgrade_service.rebuild_scope_generation('cards')
+    with closing(state.connect(db)) as conn, conn:
+        assert catalog.card_lookup(conn, root, lambda _: None)(new_cover)['card_id'] == old_cover
+        conn.execute('UPDATE card_metadata SET last_modified=100 WHERE id=?', (new_cover,))
+        dirty_owner = catalog.card_lookup(conn, root, lambda _: None)(old_cover)
+        assert (dirty_owner['card_id'], dirty_owner['card_uid']) == (new_cover, bundle_uid)
+    stale = client.get('/api/list_cards?search=v1%20only').get_json()
+    assert stale['index_stale'] and stale['total_count'] == 0
+    card_list_projection.drain_active_batch(db, root)
+    result = client.get('/api/list_cards?search=v1%20only').get_json()
+    assert result['total_count'] == 1
+    bundle = result['cards'][0]
+    assert bundle['id'] == new_cover
+    assert [v['ui_summary'] for v in bundle['versions']] == ['v1 only', 'v2 only']
+
+
 def test_created_empty_folder_is_visible_in_the_next_page(library, monkeypatch):
     client, _, _ = library
     monkeypatch.setattr(cards, 'schedule_reload', lambda **_: None)

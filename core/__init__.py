@@ -126,8 +126,12 @@ def create_app():
 
     # 3. 加载插件（逐插件 try/except，任何坏插件都不得阻止应用启动）
     from core.data.local_state_repository import initialize, LocalStateError
+    from core.config import get_chats_folder
+    from core.services.chat_catalog_service import claim_legacy_root
     try:
         initialize()
+        # Attribute any legacy relative chat keys before a settings request can switch roots.
+        claim_legacy_root(get_chats_folder())
     except LocalStateError as exc:
         # 配置与恢复 API 仍可进入；业务读写由 repository 拒绝。
         logger.error('本地状态迁移失败，插件和后台服务未启动: %s', exc)
@@ -234,6 +238,8 @@ def init_services():
         # 5. 启动文件系统扫描器
         # 负责监听文件变动并同步到数据库
         start_background_scanner()
+        from core.services.chat_catalog_service import start_worker as start_chat_catalog
+        start_chat_catalog()
 
         # 6. 启动索引工作线程
         start_index_job_worker()

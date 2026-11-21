@@ -324,7 +324,11 @@ def test_ui_first_writers_and_stat_access_failure_preserve_data(monkeypatch, tmp
         assert not ui_store.update_ui_data(lambda data: data.__setitem__('c', {}))
     assert set(ui_store.load_ui_data()) == {'a', 'b'}
 
-def test_chat_list_builds_binding_projection_once_and_card_filter_reads_only_related(monkeypatch, tmp_path):
+def test_chat_list_card_filter_work_is_independent_of_unrelated_files(monkeypatch, tmp_path):
+    from contextlib import closing
+    from core.data import local_state_repository as state
+    from core.services import chat_catalog_service as catalog
+
     root = tmp_path / 'chats'
     root.mkdir()
     cache = GlobalMetadataCache()
@@ -336,42 +340,41 @@ def test_chat_list_builds_binding_projection_once_and_card_filter_reads_only_rel
     monkeypatch.setattr(ui_store, 'UI_DATA_FILE', str(tmp_path / 'ui.json'))
     ui_store.save_ui_data({'hero.png': {'chat_ids': ['one.jsonl']},
                            'other.png': {'chat_ids': ['one.jsonl', 'two.jsonl']}})
-    monkeypatch.setattr(chats, 'load_chat_data', lambda: {})
-    monkeypatch.setattr(chats, 'save_chat_data', lambda data: True)
-    (root / 'one.jsonl').write_text('{}\n')
-    (root / 'two.jsonl').write_text('{}\n')
-    refresh = Mock(return_value=({}, False, None, [], []))
+    for filename in ('one.jsonl', 'two.jsonl'):
+        (root / filename).write_text('{"chat_metadata": {}}\n', encoding='utf-8')
+    with closing(state.connect()) as conn, conn:
+        catalog.ensure_schema(conn)
+    catalog.reconcile(root)
+    refresh = Mock(side_effect=AssertionError('unrelated file read'))
     monkeypatch.setattr(chats, '_refresh_chat_entry', refresh)
-    table = Mock(wraps=chats._build_binding_table)
-    monkeypatch.setattr(chats, '_build_binding_table', table)
+    monkeypatch.setattr(chats, '_build_binding_table', Mock(side_effect=AssertionError('full bindings scan')))
     monkeypatch.setattr(chats, '_build_binding_info', Mock(side_effect=AssertionError('per-chat scan')))
     app = Flask(__name__)
     app.register_blueprint(chats.bp)
     client = app.test_client()
-    monkeypatch.setattr(chats, '_iter_chat_files', lambda: [str(root / name) for name in ('one.jsonl', 'two.jsonl')])
+    monkeypatch.setattr(chats, '_iter_chat_files', Mock(side_effect=AssertionError('directory walk')))
     response = client.get('/api/chats/list').get_json()
     assert response['success'] and response['total'] == 2
-    assert table.call_count == 1
-    table.reset_mock()
-    refresh.reset_mock()
-    monkeypatch.setattr(chats, '_iter_chat_files', Mock(side_effect=AssertionError('unrelated directory')))
     response = client.get('/api/chats/list?card_id=hero.png').get_json()
     assert response['success'] and [item['id'] for item in response['items']] == ['one.jsonl']
     assert response['items'][0]['bound_card_count'] == 2
-    assert [call.args[0] for call in refresh.call_args_list] == ['one.jsonl']
-    assert table.call_count == 1
+    with closing(state.connect()) as conn, conn:
+        conn.execute("""INSERT INTO chat_files SELECT root,'unrelated-'||value,revision,
+            parse_version,mtime,size,name,character,preview,facts FROM chat_files,
+            (WITH RECURSIVE numbers(value) AS (VALUES(1) UNION ALL SELECT value+1 FROM numbers WHERE value<1000)
+            SELECT value FROM numbers) WHERE chat_id='two.jsonl'""")
+    work = []
+    connect = state.connect
 
+    def monitored(*args, **kwargs):
+        conn = connect(*args, **kwargs)
+        conn.set_progress_handler(lambda: work.append(1) or 0, 100)
+        return conn
 
-def test_chat_inaccessible_directory_does_not_cleanup(monkeypatch):
-    monkeypatch.setattr(chats, 'load_chat_data', lambda: {'keep.jsonl': {'notes': 'keep'}})
-    monkeypatch.setattr(chats, 'load_ui_data', lambda: {})
-    monkeypatch.setattr(chats, '_iter_chat_files', Mock(side_effect=PermissionError('unavailable')))
-    save = Mock()
-    monkeypatch.setattr(chats, 'save_chat_data', save)
-    app = Flask(__name__)
-    app.register_blueprint(chats.bp)
-    assert app.test_client().get('/api/chats/list').get_json()['success'] is False
-    save.assert_not_called()
+    monkeypatch.setattr(state, 'connect', monitored)
+    assert client.get('/api/chats/list?card_id=hero.png').get_json() == response
+    assert len(work) < 20
+    refresh.assert_not_called()
 
 
 def test_reader_detail_range_keep_bindings_and_local_state(monkeypatch, tmp_path):

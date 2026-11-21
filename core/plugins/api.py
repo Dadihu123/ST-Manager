@@ -1658,12 +1658,20 @@ class PluginAPI:
     # ---- 会话 / 预设 / 扩展资源（P2 读取）----
 
     def _list_chats(self, *, search: str = '', favorite=None, limit: int = 0) -> list:
+        from core.config import CHATS_FOLDER
         from core.data.chat_store import load_chat_data
+        from core.services.chat_catalog_service import iter_discovered_chat_facts, local_chat_id, merge_chat_facts, root_prefix
 
         needle = str(search or '').strip().lower()
         items = []
-        for chat_id, entry in (load_chat_data() or {}).items():
-            payload = dict(entry) if isinstance(entry, dict) else {}
+        root = os.fspath(CHATS_FOLDER)
+        prefix = root_prefix(root)
+        facts = dict(iter_discovered_chat_facts(root))
+        entries = load_chat_data() or {}
+        local = {chat_id for stored_id in entries.keys() if (chat_id := local_chat_id(prefix, stored_id)) is not None}
+        for chat_id in facts.keys() | local:
+            entry = entries.get(prefix + chat_id) if prefix is not None else None
+            payload = dict(merge_chat_facts(entry, facts.get(chat_id)))
             payload['id'] = str(chat_id)
             if needle and needle not in str(chat_id).lower():
                 continue
@@ -1681,12 +1689,19 @@ class PluginAPI:
         if not key:
             return None
 
+        from core.config import CHATS_FOLDER
         from core.data.chat_store import load_chat_data
+        from core.services.chat_catalog_service import iter_discovered_chat_facts, local_chat_id, merge_chat_facts, root_prefix
 
-        entry = (load_chat_data() or {}).get(key)
-        if not isinstance(entry, dict):
+        root = os.fspath(CHATS_FOLDER)
+        prefix = root_prefix(root)
+        if local_chat_id('', key) is None:
             return None
-        payload = dict(entry)
+        entry = (load_chat_data() or {}).get(prefix + key) if prefix is not None else None
+        facts = next((entry for _, entry in iter_discovered_chat_facts(root, key)), None)
+        if entry is None and facts is None:
+            return None
+        payload = dict(merge_chat_facts(entry, facts))
         payload['id'] = key
         return payload
 

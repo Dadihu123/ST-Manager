@@ -539,6 +539,7 @@ def test_init_services_plans_upgrade_before_cache_and_defers_rebuild(monkeypatch
     )
     monkeypatch.setattr(ctx, 'cache', type('CacheStub', (), {'reload_from_db': lambda self: calls.append('cache_reload')})())
     monkeypatch.setattr('core.start_background_scanner', lambda: calls.append('start_background_scanner'))
+    monkeypatch.setattr('core.services.chat_catalog_service.start_worker', lambda: calls.append('chat_catalog'))
     monkeypatch.setattr('core.start_index_job_worker', lambda: calls.append('start_index_job_worker'))
     monkeypatch.setattr(
         'core.start_background_index_upgrade',
@@ -555,6 +556,7 @@ def test_init_services_plans_upgrade_before_cache_and_defers_rebuild(monkeypatch
         'cache_reload',
         ('start_background_index_upgrade', [{'scope': 'worldinfo', 'reason': 'search_content_format_upgrade'}]),
         'start_background_scanner',
+        'chat_catalog',
         'start_index_job_worker',
     ]
 
@@ -568,6 +570,7 @@ def test_init_services_marks_ready_without_waiting_for_index_rebuild(monkeypatch
     monkeypatch.setattr('core.plan_startup_upgrade', lambda index_auto_bootstrap=True: [{'scope': 'cards', 'reason': 'bootstrap'}])
     monkeypatch.setattr(ctx, 'cache', type('CacheStub', (), {'reload_from_db': lambda self: None})())
     monkeypatch.setattr('core.start_background_scanner', lambda: None)
+    monkeypatch.setattr('core.services.chat_catalog_service.start_worker', lambda: None)
     monkeypatch.setattr('core.start_index_job_worker', lambda: None)
     monkeypatch.setattr(ctx, 'set_status', lambda **kwargs: statuses.append(kwargs.get('status')))
     # 后台线程用桩替换，避免测试真的去读磁盘建索引。

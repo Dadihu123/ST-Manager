@@ -294,9 +294,13 @@ curl -X POST http://127.0.0.1:5000/api/toggle_favorite \
 
 聊天记录以 SillyTavern JSONL 文件为主。读取详情时可以只请求范围，避免一次性加载大型会话。
 
+列表支持 `page`、`page_size`、`search`、`card_id`、`filter=all|bound|unbound|favorites` 和 `fav_filter=none|included|excluded`。
+结果按收藏置顶、文件修改时间降序、标题和聊天 ID 排列；`stats` 基于筛选后的全部结果。
+首次建立目录索引时，列表可返回 HTTP 503 和 `error: "chat_catalog_not_ready"`。暂时无法对账时，如果已有当前根目录的可用索引，仍返回该结果并标记 `index_stale: true`。
+
 | 方法 | 路径 | 作用 | 请求要点 |
 | --- | --- | --- | --- |
-| `GET` | `/api/chats/list` | 列出聊天记录和统计 | query `search`、分页/排序参数 |
+| `GET` | `/api/chats/list` | 列出聊天记录和统计 | 见上方 query 参数 |
 | `POST` | `/api/chats/detail` | 读取完整聊天详情 | JSON `path` |
 | `POST` | `/api/chats/range` | 按楼层范围读取消息 | JSON `path`、`start_floor`、`end_floor` |
 | `POST` | `/api/chats/update_meta` | 更新聊天标题、备注等元数据 | JSON `path` 和元数据 |

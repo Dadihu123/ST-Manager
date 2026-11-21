@@ -486,7 +486,7 @@ def get_world_info_folder() -> str:
 
 def get_chats_folder() -> str:
     cfg = load_config()
-    return _ensure_dir(_resolve_dir(cfg, 'chats_dir', RUNTIME_DIR_DEFAULTS['chats_dir']))
+    return _resolve_dir(cfg, 'chats_dir', RUNTIME_DIR_DEFAULTS['chats_dir'])
 
 
 def get_beautify_folder() -> str:

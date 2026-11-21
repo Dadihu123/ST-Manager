@@ -141,10 +141,15 @@ def load_chat_data():
     return snapshot('chat')
 
 
-def save_chat_data(data):
+def save_chat_data(data, *, guard=None, conn=None):
     from core.data.local_state_repository import Repository
     try:
-        return Repository('chat').save(data)
+        repository = Repository('chat')
+        if guard is None:
+            return repository.save(data, conn=conn)
+        with repository.transaction() as conn:
+            guard(conn)
+            return repository.save(data, conn=conn)
     except Exception as exc:
         logger.error('保存聊天本地状态失败: %s', exc)
         return False

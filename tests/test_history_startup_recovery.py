@@ -68,6 +68,7 @@ def test_upgrade_starts_services_during_permission_loss_then_retries_without_res
     monkeypatch.setattr(core.ctx, 'set_status', lambda **kw: statuses.append(kw.get('status')))
     for name in ['start_background_scanner', 'start_index_job_worker', 'start_monitor_scheduler']:
         monkeypatch.setattr(core, name, lambda name=name: started.append(name))
+    monkeypatch.setattr('core.services.chat_catalog_service.start_worker', lambda: started.append('chat_catalog'))
     monkeypatch.setattr(core.plugin_jobs, 'start_plugin_job_worker', lambda: started.append('plugins'))
     monkeypatch.setattr('core.plugins.hooks.emit', lambda *a, **kw: None)
     original_scandir = os.scandir
@@ -81,7 +82,7 @@ def test_upgrade_starts_services_during_permission_loss_then_retries_without_res
         failure.setattr(os, 'scandir', scandir)
         core.init_services()  # 真正执行数据库升级和历史转换，仅隔离常驻服务的线程启动。
         assert statuses[-1] == 'ready' and 'error' not in statuses
-        assert started == ['start_background_scanner', 'start_index_job_worker',
+        assert started == ['start_background_scanner', 'chat_catalog', 'start_index_job_worker',
                            'start_monitor_scheduler', 'plugins']
         assert rows(db) == before, '部分转换必须回滚，也不能把根记录标记为转换完成'
         with pytest.raises(PermissionError):

@@ -1443,6 +1443,7 @@ export default function detailModal() {
             }
             if (this.hasUnsavedChanges && !confirm('当前角色卡还有未保存修改，确定关闭吗？')) return false;
             this.endBasicSplitResize();
+            chatRequest?.controller.abort();
             this.showDetail = false;
             return true;
         },
@@ -1636,6 +1637,16 @@ export default function detailModal() {
                     loadedChatKey = null;
                     chatGeneration += 1;
                     if (this.tab === 'chats') this.fetchCardChats(this.activeCard.id);
+                }
+            });
+
+            window.addEventListener('chat-root-changed', () => {
+                loadedChatKey = null;
+                chatGeneration += 1;
+                chatRequest?.controller.abort();
+                this.cardChats = [];
+                if (this.showDetail && this.activeCard?.id && this.tab === 'chats') {
+                    this.fetchCardChats(this.activeCard.id);
                 }
             });
 
@@ -2182,11 +2193,18 @@ export default function detailModal() {
             const key = `${cardId}:${chatGeneration}`;
             if (loadedChatKey === key) return Promise.resolve();
             if (chatRequest?.key === key) return chatRequest.promise;
+            chatRequest?.controller.abort();
             this.cardChatsLoading = true;
-            const request = { key };
-            request.promise = listChats({ page: 1, page_size: 200, card_id: cardId, filter: 'all' })
+            const request = { key, controller: new AbortController() };
+            request.promise = listChats({ page: 1, page_size: 200, card_id: cardId, filter: 'all' },
+                                        { signal: request.controller.signal })
                 .then(res => {
                     if (chatRequest !== request || key !== `${this.activeCard.id}:${chatGeneration}`) return;
+                    if (res.error === 'chat_catalog_not_ready') {
+                        this.cardChats = [];
+                        this.$store.global.showToast(res.msg, 2500);
+                        return;
+                    }
                     if (res.success) {
                         this.cardChats = Array.isArray(res.items) ? res.items : [];
                         loadedChatKey = key;
@@ -2445,6 +2463,7 @@ export default function detailModal() {
             // 加载资源
             if (c.resource_folder) this.fetchSkins(c.resource_folder);
             this.cardChats = [];
+            chatRequest?.controller.abort();
             loadedChatKey = null;
             chatGeneration += 1;
 

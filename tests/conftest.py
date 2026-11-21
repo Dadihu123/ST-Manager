@@ -13,7 +13,9 @@
 """
 
 import atexit
+import os
 import shutil
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -24,6 +26,23 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
+
+
+@pytest.fixture
+def directory_alias():
+    def create(alias, target):
+        if os.name == 'nt':
+            subprocess.run(['powershell.exe', '-NoProfile', '-NonInteractive', '-Command',
+                            'New-Item -ItemType Junction -Path $env:STM_TEST_ALIAS '
+                            '-Target $env:STM_TEST_TARGET -ErrorAction Stop | Out-Null'],
+                           env={**os.environ, 'STM_TEST_ALIAS': str(alias), 'STM_TEST_TARGET': str(target)},
+                           check=True, capture_output=True)
+        else:
+            alias.symlink_to(target, target_is_directory=True)
+        assert os.path.samefile(alias, target)
+        return alias
+
+    return create
 
 
 def _force_utf8_text_io():

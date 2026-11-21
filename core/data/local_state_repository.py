@@ -83,7 +83,9 @@ def ensure_schema(conn):
     conn.execute('CREATE INDEX IF NOT EXISTS idx_resource_binding_folder_key '
                  'ON card_resource_bindings(folder_key,card_ui_key)')
     from core.data.card_list_projection import ensure_schema as ensure_card_list_schema
+    from core.services.chat_catalog_service import ensure_schema as ensure_chat_catalog_schema
     ensure_card_list_schema(conn)
+    ensure_chat_catalog_schema(conn)
     if 'generation' not in {row[1] for row in conn.execute('PRAGMA table_info(card_ui_projections)')}:
         conn.execute('ALTER TABLE card_ui_projections ADD COLUMN generation INTEGER NOT NULL DEFAULT 0')
         _queue_stale_legacy_card_notes(conn)

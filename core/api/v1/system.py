@@ -15,7 +15,7 @@ from flask import Blueprint, request, jsonify, send_file
 # === 基础设施 ===
 from core.config import (
     CARDS_FOLDER, DATA_DIR, BASE_DIR, THUMB_FOLDER, TRASH_FOLDER,
-    load_config, save_config, get_cards_folder
+    load_config, save_config, get_cards_folder, get_chats_folder
 )
 from core.context import ctx
 from core.utils.host_capabilities import CAN_OPEN_SYSTEM_FILE_MANAGER
@@ -310,6 +310,8 @@ def api_scan_now():
     """手动触发一次全量扫描（用于 watchdog 不可用或用户想立刻同步）"""
     try:
         request_scan(reason="manual")
+        from core.services.chat_catalog_service import request_reconcile
+        request_reconcile()
         return jsonify({"success": True})
     except Exception as e:
         return jsonify({"success": False, "msg": str(e)})
@@ -328,6 +330,7 @@ def api_settings_path_safety():
 def api_save_settings():
     try:
         previous_cards_root = get_cards_folder()
+        previous_chats_root = get_chats_folder()
         new_config, confirm_risky_paths = _extract_settings_save_payload(request.get_json(silent=True) or {})
         from core.services.android_path_service import validate_changed_directories
         validate_changed_directories(new_config)
@@ -379,18 +382,27 @@ def api_save_settings():
                 # 只是警告，不阻止保存其他设置
                 logger.warning(f"无法创建资源目录 {resources_path}: {str(e)}")
 
-        chats_dir = new_config.get('chats_dir', 'data/library/chats')
-        chats_path = chats_dir if os.path.isabs(chats_dir) else os.path.join(BASE_DIR, chats_dir)
+        chats_path = get_chats_folder()
         if not os.path.exists(chats_path):
             try:
                 os.makedirs(chats_path)
             except Exception as e:
                 logger.warning(f"无法创建聊天目录 {chats_path}: {str(e)}")
-
+        from core.data.local_state_repository import LocalStateError
+        from core.services.chat_catalog_service import register_root, request_reconcile, root_key
+        chat_root_changed = root_key(previous_chats_root) != root_key(chats_path)
+        if chat_root_changed:
+            try:
+                register_root(chats_path)
+            except (OSError, LocalStateError) as exc:
+                logger.warning('暂时无法识别新聊天目录 %s: %s', chats_path, exc)
+        request_reconcile()
         if previous_cards_root != new_full_path:
             request_scan(reason='card_root_changed')
 
         response = {'success': True}
+        if chat_root_changed:
+            response['chat_root_changed'] = True
         if evaluation['conflicts']:
             response.update({'saved_with_warnings': True, **evaluation})
         return jsonify(response)

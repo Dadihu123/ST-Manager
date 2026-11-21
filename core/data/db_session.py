@@ -236,6 +236,8 @@ def _initialize_database(conn, *, is_existing_db, schema_only=False):
     ensure_index_runtime_schema(conn)
     from core.data.card_list_projection import ensure_schema as ensure_card_list_schema
     ensure_card_list_schema(conn)
+    from core.services.chat_catalog_service import ensure_schema as ensure_chat_catalog_schema
+    ensure_chat_catalog_schema(conn)
     ensure_source_update_monitor_schema(conn)
     ensure_plugin_jobs_schema(conn)
     from core.services.wi_entry_history_service import (

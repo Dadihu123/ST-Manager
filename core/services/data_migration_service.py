@@ -392,13 +392,13 @@ class DataMigrationService:
             if not stat.S_ISDIR(info.st_mode) or getattr(os.path, 'isjunction', lambda _: False)(root):
                 raise ValueError('目录不存在: ' + root)
             if slot not in FIXED:
-                recursive = _within(self.root, root)
-                private = any(_within(root, reserved) for reserved in (
-                    os.path.join(self.base, 'data', 'system'),
-                    os.path.join(self.base, 'data', 'plugins'),
-                ))
-                if _within(root, self.root):
-                    relative = os.path.relpath(root, self.root).replace('\\', '/')
+                resolve = os.path.realpath if slot == 'chats_dir' else os.path.abspath
+                workspace = resolve(self.root)
+                recursive = _within(workspace, root)
+                private = any(_within(root, resolve(os.path.join(self.base, 'data', name)))
+                              for name in ('system', 'plugins'))
+                if _within(root, workspace):
+                    relative = os.path.relpath(root, workspace).replace('\\', '/')
                     private = private or not re.match(r'^[0-9a-f]{32}/library/[^/]+(?:/|$)', relative)
                 if recursive or private:
                     raise ValueError('业务目录覆盖应用系统/备份目录，请先配置独立的资源目录: ' + root)
@@ -486,7 +486,7 @@ class DataMigrationService:
         files = [row for row in rows if os.path.normcase(os.path.abspath(row[2])) not in runtime]
         return files, databases, journals
 
-    def _rewrite_db(self, path, paths, history=None):
+    def _rewrite_db(self, path, paths, history=None, *, staged_chat_root=None, packed_chats=None):
         with closing(sqlite3.connect(path)) as conn:
             if conn.execute('PRAGMA integrity_check').fetchone()[0] != 'ok':
                 raise ValueError('数据库校验失败')
@@ -501,7 +501,8 @@ class DataMigrationService:
                                           "AND name GLOB 'card_list_*'").fetchall():
                 conn.execute('DROP TRIGGER ' + _quote(trigger))
             for (table,) in conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND "
-                                        "name GLOB 'card_list_*'"
+                                        "(name GLOB 'card_list_*' OR name IN "
+                                        "('chat_files','chat_catalog_state','chat_root_aliases'))"
                                         ).fetchall():
                 conn.execute('DROP TABLE ' + _quote(table))
             tables = [r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")]
@@ -540,6 +541,55 @@ class DataMigrationService:
                                      (json.dumps(value, ensure_ascii=False), key))
                     continue
                 if table in ('ui_namespace_roots', 'ui_namespace_records'):
+                    continue
+                if table in ('chat_file_moves', 'chat_missing_files', 'chat_retired_state', 'chat_state_roots',
+                             'chat_legacy_root_claim', 'chat_root_merge_conflicts', 'chat_legacy_claim_edits',
+                             'chat_legacy_claim_replacements', 'chat_legacy_claim_moves'):
+                    from core.services.chat_catalog_service import (
+                        archive_legacy_claim_move_revision, physical_root,
+                        restore_legacy_claim_move_revision, root_key,
+                    )
+                    roots = conn.execute('SELECT DISTINCT root FROM ' + _quote(table)).fetchall()
+                    for (root,) in roots:
+                        translated = paths.path(root)
+                        if paths.exporting:
+                            chat_root = root_key(paths.roots['chats_dir'])
+                            if table == 'chat_legacy_root_claim':
+                                # The backup does not contain a second library or a usable junction.
+                                # Keep the original locator unless it currently resolves to this archive's library.
+                                translated = root
+                                try:
+                                    if root_key(physical_root(root)) == chat_root:
+                                        translated = 'stm://chats_dir'
+                                except OSError:
+                                    pass
+                            elif root_key(root) == chat_root:
+                                translated = 'stm://chats_dir'
+                        if not paths.exporting and root.startswith('stm://'):
+                            # Destination subdirectories may not exist until startup switches them in.
+                            relative = os.path.relpath(translated, self.base)
+                            translated = root_key(os.path.join(os.path.realpath(self.base), relative))
+                        if table == 'chat_legacy_claim_moves':
+                            portable = translated == 'stm://chats_dir' if paths.exporting else root == 'stm://chats_dir'
+                            if portable:
+                                revisions = conn.execute(
+                                    'SELECT origin,target,revision FROM chat_legacy_claim_moves WHERE root=?',
+                                    (root,)).fetchall()
+                                for origin, chat_id, revision in revisions:
+                                    if paths.exporting:
+                                        revised = archive_legacy_claim_move_revision(revision, packed_chats.get(chat_id))
+                                    else:
+                                        revised = restore_legacy_claim_move_revision(staged_chat_root, chat_id, revision)
+                                    conn.execute('UPDATE chat_legacy_claim_moves SET revision=? WHERE root=? AND origin=?',
+                                                 (revised, root, origin))
+                        conn.execute('UPDATE ' + _quote(table) + ' SET root=? WHERE root=?', (translated, root))
+                    # A ZIP contains file copies. Preserve the original evidence but do not
+                    # let restored files accidentally satisfy a local inode comparison.
+                    if table == 'chat_file_moves' and not paths.exporting and 'source_identity' in columns:
+                        conn.execute("""UPDATE chat_file_moves
+                            SET source_identity='portable:' || source_identity,
+                                target_identity='portable:' || target_identity
+                            WHERE source_identity NOT LIKE 'portable:%'""")
                     continue
                 if table in ('chat_card_bindings', 'card_resource_bindings', 'local_state_staging', 'card_ui_projections'):
                     if table in ('local_state_staging', 'card_ui_projections'):
@@ -602,6 +652,11 @@ class DataMigrationService:
         with gate.exclusive():
             cfg = self._config()
             roots = self.roots(cfg)
+            from core.services.chat_catalog_service import file_revision, physical_root, root_key
+            configured_chat_root = roots['chats_dir']
+            roots['chats_dir'] = physical_root(configured_chat_root)
+            if root_key(roots['chats_dir']) != root_key(configured_chat_root):
+                self.root_links({slot: os.path.realpath(root) for slot, root in roots.items()}, ())
             self.root_links(roots, ())  # 在资源读取和快照之前拒绝不能原子切换的重叠组合。
             rows, sqlite_sources, journals = self.snapshot_inventory(roots)
             directories = self.directories(roots)
@@ -628,12 +683,16 @@ class DataMigrationService:
             os.makedirs(stage, exist_ok=True)
             done = 0
             packed_size = 0
+            packed_chats = {}
             with zipfile.ZipFile(self.path(job, 'backup.zip.part'), 'w', zipfile.ZIP_DEFLATED,
                                  allowZip64=True) as archive:
-                for slot, rel, source, size, mtime in rows:
+                # Seal the database's move evidence against the chat copies actually put in the ZIP.
+                for slot, rel, source, size, mtime in sorted(rows, key=lambda row: row[:2] == ('db', 'cards_metadata.db')):
                     name = f'{slot}/{rel}'
                     target = os.path.join(stage, 'file')
                     self.update(job, phase='收集与校验原文件', done=done, total=total)
+                    chat_revision = (file_revision(os.stat(source, follow_symlinks=False))
+                                     if slot == 'chats_dir' and rel.lower().endswith('.jsonl') else None)
                     is_sqlite = os.path.normcase(os.path.abspath(source)) in sqlite_sources
                     if name == 'db/cards_metadata.db' or is_sqlite:
                         # 只读源连接也避免「最后一个可写连接关闭」触发 WAL checkpoint，
@@ -647,7 +706,7 @@ class DataMigrationService:
                                 if previous:
                                     old_roots = json.loads(previous[0])
                                     history = self._history_map(rows, roots, paths=paths, previous_roots=old_roots)
-                        self._rewrite_db(target, paths, history)
+                        self._rewrite_db(target, paths, history, packed_chats=packed_chats)
                     elif name in ('db/ui_data.json', 'db/chat_data.json'):
                         value = __import__('copy').deepcopy(local_snapshots[rel])
                         if name == 'db/ui_data.json':
@@ -656,12 +715,16 @@ class DataMigrationService:
                         durable_json(target, paths.ui(value) if name == 'db/ui_data.json' else value)
                     elif not is_sqlite:
                         shutil.copyfile(source, target)
-                    if os.stat(source).st_size != size or os.stat(source).st_mtime_ns != mtime:
+                    current = os.stat(source, follow_symlinks=False)
+                    if (current.st_size != size or current.st_mtime_ns != mtime
+                            or chat_revision is not None and file_revision(current) != chat_revision):
                         raise ValueError('备份期间文件发生变更，请停止外部编辑后重试: ' + source)
                     packed_size += os.path.getsize(target)
                     if packed_size > MAX_BYTES:
                         raise ValueError('快照解压总大小超过 100 GiB 限制')
                     entry = {'path': name, 'type': slot, 'size': os.path.getsize(target), 'sha256': digest(target)}
+                    if chat_revision is not None:
+                        packed_chats[rel] = (chat_revision, entry['sha256'])
                     if is_sqlite:
                         entry['storage'] = 'sqlite_snapshot'
                     manifest['files'].append(entry)
@@ -1005,7 +1068,8 @@ class DataMigrationService:
                 from core.data.db_session import validate_migration_database
                 validate_migration_database(conn)
             self._rewrite_db(os.path.join(stage, 'db', 'cards_metadata.db'), paths,
-                             self._history_map(rows, targets, to_portable=False))
+                             self._history_map(rows, targets, to_portable=False),
+                             staged_chat_root=os.path.join(stage, 'chats_dir'))
             from core.data.local_state_repository import activate_snapshots_at
             imported_states = {}
             for name in ('ui_data.json', 'chat_data.json'):

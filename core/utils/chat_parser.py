@@ -340,7 +340,7 @@ def invalidate_chat_jsonl_index(file_path):
         _CHAT_JSONL_INDEX_CACHE.pop(abs_path, None)
 
 
-def get_chat_jsonl_index(file_path):
+def get_chat_jsonl_index(file_path, *, catalog=False):
     abs_path = os.path.abspath(file_path)
     stat = os.stat(abs_path)
     file_mtime = float(stat.st_mtime)
@@ -349,7 +349,7 @@ def get_chat_jsonl_index(file_path):
     with _CHAT_JSONL_INDEX_LOCK:
         cached = _CHAT_JSONL_INDEX_CACHE.get(abs_path)
         if (
-            isinstance(cached, dict)
+            not catalog and isinstance(cached, dict)
             and float(cached.get('file_mtime') or 0) == file_mtime
             and int(cached.get('file_size') or 0) == file_size
         ):
@@ -368,7 +368,20 @@ def get_chat_jsonl_index(file_path):
                 break
 
             line_number += 1
-            text = line.decode('utf-8', errors='ignore').strip()
+            if catalog:
+                try:
+                    text = line.decode('utf-8-sig' if line_number == 1 else 'utf-8').strip()
+                except UnicodeDecodeError:
+                    return None
+                if line_number == 1:
+                    from core.utils.format_validation import is_valid_chat_header
+                    try:
+                        if not is_valid_chat_header(json.loads(text)):
+                            return None
+                    except ValueError:
+                        return None
+            else:
+                text = line.decode('utf-8', errors='ignore').strip()
             if not text:
                 continue
 
@@ -389,6 +402,8 @@ def get_chat_jsonl_index(file_path):
             message_index.append(build_chat_message_index_item(payload, floor))
             offsets.append(int(offset))
 
+    if catalog and not line_number:
+        return None
     message_index = _trim_trailing_message_index(message_index)
     offsets = offsets[:len(message_index)]
 
@@ -400,6 +415,8 @@ def get_chat_jsonl_index(file_path):
         'offsets': offsets,
     }
 
+    if catalog:
+        return result if line_number else None
     with _CHAT_JSONL_INDEX_LOCK:
         _CHAT_JSONL_INDEX_CACHE[abs_path] = result
 

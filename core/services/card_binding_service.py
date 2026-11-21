@@ -88,7 +88,7 @@ def migrate_legacy_card_bindings(ui_data, card_uid_by_ui_key):
             continue
         if not normalize_chat_ids(entry.get(CHAT_BINDING_FIELD)):
             continue
-        if normalize_card_uid(entry.get(CARD_UID_FIELD)) != normalized_uid:
+        if not normalize_card_uid(entry.get(CARD_UID_FIELD)):
             entry[CARD_UID_FIELD] = normalized_uid
             changed = True
     return changed

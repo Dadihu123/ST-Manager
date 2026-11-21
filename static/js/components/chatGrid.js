@@ -5524,6 +5524,23 @@ export default function chatGrid() {
         }
       });
 
+      window.addEventListener("chat-root-changed", () => {
+        this._chatQuerySequence = (this._chatQuerySequence || 0) + 1;
+        this._chatQueryAbort?.abort();
+        this._chatQueryAbort = null;
+        clearTimeout(this._chatCatalogRetry);
+        this.chatList = [];
+        this.chatTotalItems = 0;
+        this.chatTotalPages = 1;
+        this.chatCurrentPage = 1;
+        this.pendingOpenChatId = "";
+        if (this.detailOpen) this.closeChatDetail();
+        this.closeBindPicker();
+        this.readerDeleteConfirmOpen = false;
+        this.readerDeleteTarget = null;
+        if (this.$store.global.currentMode === "chats") this.fetchChats();
+      });
+
       window.addEventListener("beforeunload", () => {
         this.clearReaderViewportSync();
         if (this.chatAppStage) {
@@ -5604,6 +5621,7 @@ export default function chatGrid() {
     fetchChats() {
       if (this.$store.global.serverStatus.status !== "ready") return;
 
+      clearTimeout(this._chatCatalogRetry);
       const sequence = this._chatQuerySequence = (this._chatQuerySequence || 0) + 1;
       this._chatQueryAbort?.abort();
       const controller = new AbortController();
@@ -5624,6 +5642,22 @@ export default function chatGrid() {
       return listChats(params, { signal: controller.signal })
         .then((res) => {
           if (sequence !== this._chatQuerySequence) return;
+          if (res.error === "chat_catalog_not_ready") {
+            this.chatList = [];
+            this.chatTotalItems = 0;
+            this.chatTotalPages = 1;
+            if (!this._chatCatalogWaiting) this.$store.global.showToast(res.msg, 2500);
+            this._chatCatalogWaiting = true;
+            this._chatCatalogRetry = setTimeout(() => {
+              if (sequence === this._chatQuerySequence && this.$store.global.currentMode === "chats") {
+                this.fetchChats();
+              } else {
+                this._chatCatalogWaiting = false;
+              }
+            }, 2000);
+            return;
+          }
+          this._chatCatalogWaiting = false;
           if (!res.success) return;
 
           this.chatList = res.items || [];

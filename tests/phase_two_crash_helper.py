@@ -1081,7 +1081,7 @@ def chat_concurrent_save(root, operation):
                                                       'last_view_floor': 0}).get_json()['success']
     save = chats.save_chat_data
     interleaved = []
-    def save_with_concurrent_request(snapshot):
+    def save_with_concurrent_request(snapshot, **kwargs):
         if not interleaved:
             interleaved.append(True)
             results = []
@@ -1093,7 +1093,7 @@ def chat_concurrent_save(root, operation):
             thread.start()
             thread.join(10)
             assert not thread.is_alive() and results[0]['success'], results
-        return save(snapshot)
+        return save(snapshot, **kwargs)
     chats.save_chat_data = save_with_concurrent_request
     reply = client.post('/api/chats/update_meta', json={'id': chat_id, 'notes': 'requested'}).get_json()
     stored = s.Repository('chat').get(chat_id)

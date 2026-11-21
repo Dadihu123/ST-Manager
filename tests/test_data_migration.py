@@ -1676,8 +1676,8 @@ assert len(history.list_entry_history_records('global','',book,'shared-fixed'))=
     isolated_startup(target, assertions)
 
 
-@pytest.mark.parametrize('layout', ['fixed-inside-business', 'fixed-inside-fixed'])
-def test_unsupported_fixed_root_overlap_fails_before_export(tmp_path, layout):
+@pytest.mark.parametrize('layout', ['fixed-inside-business', 'fixed-inside-fixed', 'chat-alias-to-fixed'])
+def test_unsupported_fixed_root_overlap_fails_before_export(tmp_path, layout, directory_alias):
     base = tmp_path / 'source'
     base.mkdir()
     seed(base).close()
@@ -1686,8 +1686,10 @@ def test_unsupported_fixed_root_overlap_fails_before_export(tmp_path, layout):
         outer = tmp_path / 'outer'
         cfg['world_info_dir'] = str(outer)
         cfg['beautify_dir'] = str(outer / 'beautify')
-    else:
+    elif layout == 'fixed-inside-fixed':
         cfg['beautify_dir'] = str(base / 'data/assets/beautify')
+    else:
+        cfg['chats_dir'] = str(directory_alias(base / 'chats-alias', base / 'data/system/db'))
     os.makedirs(os.path.join(base, cfg['beautify_dir']), exist_ok=True)
     durable_json(str(base / 'config.json'), cfg)
     before = (base / 'data/system/db/cards_metadata.db').read_bytes()
@@ -2388,6 +2390,236 @@ def test_active_authority_archive_roundtrip_ignores_stale_json(tmp_path, missing
         assert conn.execute('SELECT chat_id FROM chat_card_bindings ORDER BY chat_id').fetchall() == [('one.jsonl',), ('two.jsonl',)]
         assert conn.execute('SELECT state FROM local_state_migrations').fetchone()[0] == 'activated'
     assert read_snapshot_at(str(restored_db), 'chat', '')['one.jsonl']['summary'] == 'local note'
+
+
+@pytest.mark.parametrize('via_alias', [False, True])
+def test_archive_carries_unresolved_chat_move_and_both_states(tmp_path, directory_alias, via_alias):
+    from core.data.local_state_repository import activate_snapshots_at, read_snapshot_at
+    from core.services import chat_catalog_service as catalog
+
+    base = tmp_path / 'source'
+    base.mkdir()
+    seed(base).close()
+    db = base / 'data/system/db/cards_metadata.db'
+    root = base / 'data/library/chats'
+    root.mkdir(parents=True, exist_ok=True)
+    (root / 'target.jsonl').write_text('{"chat_metadata":{}}\n{"mes":"moved","is_user":true}', encoding='utf-8')
+    previous_root = tmp_path / 'older-chats'
+    previous_root.mkdir()
+    older_physical, _ = catalog.register_root(previous_root, db_path=str(db))
+    original_configured = root
+    if via_alias:
+        original_configured = directory_alias(base / 'chats-alias', root)
+        cfg = json.loads((base / 'config.json').read_text(encoding='utf-8'))
+        cfg['chats_dir'] = str(original_configured)
+        durable_json(str(base / 'config.json'), cfg)
+    active_physical, active_prefix = catalog.register_root(original_configured, db_path=str(db))
+    records = {'source.jsonl': {'notes': 'source note', 'favorite': True, 'last_view_floor': 7},
+               'target.jsonl': {'notes': 'separate target note'}}
+    activate_snapshots_at(str(db), {'a.png': {'chat_ids': [active_prefix + 'source.jsonl']}},
+                          {active_prefix + key: value for key, value in records.items()})
+    with sqlite3.connect(db) as conn:
+        catalog.ensure_schema(conn)
+        conn.execute('INSERT INTO chat_file_moves VALUES (?,?,?,?,?,?,?)',
+                     (catalog.root_key(active_physical), 'source.jsonl', 'target.jsonl', 'digest', 'old-id', 'file-id', ''))
+    source = DataMigrationService(str(base))
+    job = source.new_job('export')
+    source.export(job)
+    target = tmp_path / 'target'
+    restore_export(source, job, target)
+    confirm_pending(str(target))
+    restored_db = target / 'data/system/db/cards_metadata.db'
+    restored_root = Path(json.loads((target / 'config.json').read_text(encoding='utf-8'))['chats_dir'])
+    restored_key = catalog.root_key(catalog.physical_root(restored_root))
+    with sqlite3.connect(restored_db) as conn:
+        assert dict(conn.execute('SELECT root,prefix FROM chat_state_roots')) == {
+            catalog.root_key(older_physical): '', restored_key: active_prefix}
+        assert conn.execute('SELECT root,source,target,digest,source_identity,target_identity '
+                            'FROM chat_file_moves').fetchone() == (
+            restored_key, 'source.jsonl', 'target.jsonl', 'digest',
+            'portable:old-id', 'portable:file-id')
+        assert conn.execute('SELECT chat_id FROM chat_card_bindings').fetchone()[0] == active_prefix + 'source.jsonl'
+    restored = read_snapshot_at(str(restored_db), 'chat', '')
+    assert restored[active_prefix + 'source.jsonl']['notes'] == 'source note'
+    assert restored[active_prefix + 'target.jsonl']['notes'] == 'separate target note'
+    assert (restored_root / 'target.jsonl').is_file()
+    assert catalog.register_root(restored_root, db_path=str(restored_db))[1] == active_prefix
+    with sqlite3.connect(restored_db) as conn:
+        assert conn.execute('SELECT * FROM chat_root_aliases').fetchall() == []
+
+
+@pytest.mark.parametrize('claim_target', ['configured-alias', 'configured-direct', 'different', 'missing'])
+def test_archive_remaps_legacy_chat_claim_only_when_proven_same_root(tmp_path, directory_alias, claim_target):
+    from core.data.local_state_repository import Repository, activate_snapshots_at, read_snapshot_at
+    from core.services import chat_catalog_service as catalog
+
+    base = tmp_path / 'source'
+    base.mkdir()
+    seed(base).close()
+    db = base / 'data/system/db/cards_metadata.db'
+    root, alias = base / 'data/library/chats', base / 'old-location'
+    initial_content = '{"chat_metadata":{}}\n{"mes":"chat","is_user":true}'
+    for filename in ('fav.jsonl', 'cleared.jsonl', 'replaced.jsonl'):
+        (root / filename).write_text(initial_content, encoding='utf-8')
+    catalog.claim_legacy_root(alias, db_path=str(db))
+    _, prefix = catalog.register_root(root, db_path=str(db))
+    assert prefix
+    active, legacy = prefix + 'fav.jsonl', 'fav.jsonl'
+    extra_legacy = ['cleared.jsonl', 'replaced.jsonl']
+    activate_snapshots_at(str(db), {'a.png': {'chat_ids': [legacy, active, *extra_legacy]}}, {
+        legacy: {'notes': 'old note', 'favorite': True}, active: {'notes': 'interim note'},
+        'cleared.jsonl': {'notes': 'was cleared'}, prefix + 'cleared.jsonl': {'notes': ''},
+        'replaced.jsonl': {'notes': 'was replaced'},
+    })
+    with Repository('chat', str(db)).transaction() as conn:
+        catalog.record_legacy_claim_edit(conn, root, 'cleared.jsonl', ['notes'])
+    assert catalog.reconcile(root, db_path=str(db))
+    replacement = root / 'replaced.jsonl'
+    original = replacement.rename(tmp_path / 'removed.jsonl')
+    assert catalog.reconcile(root, db_path=str(db))
+    replacement.write_text(initial_content.replace('"chat"', '"replacement"'), encoding='utf-8')
+    assert not os.path.samefile(original, replacement)
+    assert catalog.reconcile(root, db_path=str(db))
+    same = claim_target.startswith('configured-')
+    if same:
+        directory_alias(alias, root)
+    elif claim_target == 'different':
+        alias.mkdir()
+    if claim_target == 'configured-alias':
+        cfg = json.loads((base / 'config.json').read_text(encoding='utf-8'))
+        cfg['chats_dir'] = str(alias)
+        durable_json(str(base / 'config.json'), cfg)
+
+    source = DataMigrationService(str(base))
+    job = source.new_job('export')
+    source.export(job)
+    with sqlite3.connect(db) as conn:
+        assert conn.execute('SELECT root FROM chat_legacy_root_claim').fetchone()[0] == catalog.root_key(alias)
+    target = tmp_path / 'target'
+    restore_export(source, job, target)
+    confirm_pending(str(target))
+    restored_db = target / 'data/system/db/cards_metadata.db'
+    restored_root = Path(json.loads((target / 'config.json').read_text(encoding='utf-8'))['chats_dir'])
+    expected_claim = catalog.physical_root(restored_root) if same else alias
+    with sqlite3.connect(restored_db) as conn:
+        assert conn.execute('SELECT root FROM chat_legacy_root_claim').fetchone()[0] == catalog.root_key(expected_claim)
+        restored_key = catalog.root_key(catalog.physical_root(restored_root))
+        assert conn.execute('SELECT * FROM chat_legacy_claim_edits').fetchall() == [
+            (restored_key, 'cleared.jsonl', 'notes')]
+        assert conn.execute('SELECT root,chat_id FROM chat_legacy_claim_replacements').fetchall() == [
+            (restored_key, 'replaced.jsonl')]
+
+    assert catalog.register_root(restored_root, db_path=str(restored_db))[1] == prefix
+    entries = read_snapshot_at(str(restored_db), 'chat', '')
+    ui = read_snapshot_at(str(restored_db), 'ui', '')
+    assert entries[active]['notes'] == 'interim note'
+    assert entries[active]['favorite'] is same
+    if same:
+        assert legacy not in entries
+        assert ui['a.png']['chat_ids'] == [active, prefix + 'cleared.jsonl']
+        assert entries[prefix + 'cleared.jsonl']['notes'] == ''
+        assert 'replaced.jsonl' not in entries and prefix + 'replaced.jsonl' not in entries
+        with sqlite3.connect(restored_db) as conn:
+            assert not conn.execute('SELECT 1 FROM chat_legacy_root_claim').fetchone()
+            assert not conn.execute('SELECT 1 FROM chat_legacy_claim_edits').fetchone()
+            assert not conn.execute('SELECT 1 FROM chat_legacy_claim_replacements').fetchone()
+            old, recent = conn.execute('SELECT legacy_payload,active_payload FROM chat_root_merge_conflicts '
+                                       'WHERE chat_id=?', (legacy,)).fetchone()
+            assert json.loads(old)['notes'] == 'old note'
+            assert json.loads(recent)['notes'] == 'interim note'
+            payload = conn.execute('SELECT payload FROM chat_retired_state WHERE chat_id=?', ('replaced.jsonl',)).fetchone()[0]
+            assert json.loads(payload)['notes'] == 'was replaced'
+    else:
+        assert entries[legacy]['notes'] == 'old note'
+        assert ui['a.png']['chat_ids'] == [legacy, active, *extra_legacy]
+
+
+@pytest.mark.parametrize('replacement_timing', [None, 'before backup', 'during copy', 'missing'])
+def test_archive_restores_verified_chat_claim_move_without_reusing_source(tmp_path, directory_alias, monkeypatch,
+                                                                         replacement_timing):
+    from flask import Flask
+    from types import SimpleNamespace
+    from core.api.v1 import chats
+    from core.data import local_state_repository as state
+    from core.services import chat_catalog_service as catalog
+
+    base = tmp_path / 'source'
+    base.mkdir()
+    seed(base).close()
+    db = base / 'data/system/db/cards_metadata.db'
+    source_id = 'fav.jsonl'
+    root, alias = base / 'data/library/chats', base / 'old-location'
+    (root / source_id).write_text('{"chat_metadata":{}}\n{"mes":"original chat","is_user":true}', encoding='utf-8')
+    state.activate_snapshots_at(str(db), {'a.png': {'chat_ids': [source_id]}, 'z.png': {'chat_ids': [source_id]}},
+                                {source_id: {'notes': 'old note', 'favorite': True, 'last_view_floor': 4}})
+    monkeypatch.setattr(state, 'DEFAULT_DB_PATH', str(db))
+    monkeypatch.setattr(chats, 'CHATS_FOLDER', str(root))
+    monkeypatch.setattr(chats.ctx, 'cache', SimpleNamespace(id_map={'a.png': {'char_name': 'Alpha'}}, bundle_map={}))
+    catalog.claim_legacy_root(alias)
+    assert catalog.reconcile(root)
+    prefix = catalog.root_prefix(root)
+    app = Flask(__name__)
+    app.register_blueprint(chats.bp)
+    result = app.test_client().post('/api/chats/bind', json={'id': source_id, 'card_id': 'a.png'}).get_json()
+    assert result['success'] and result['moved'], result
+    final_id = result['id']
+    (root / source_id).write_text('{"chat_metadata":{}}\n{"mes":"reused source","is_user":true}', encoding='utf-8')
+    target_path = root / final_id
+    replaced = replacement_timing == 'before backup'
+    if replaced:
+        replacement = target_path.with_suffix('.tmp')
+        replacement.write_text('{"chat_metadata":{}}\n{"mes":"replaced target","is_user":true}', encoding='utf-8')
+        replacement.replace(target_path)
+    if replacement_timing == 'missing':
+        target_path.rename(tmp_path / 'parked.jsonl')
+    directory_alias(alias, root)
+
+    source = DataMigrationService(str(base))
+    job = source.new_job('export')
+    if replacement_timing == 'during copy':
+        copyfile = shutil.copyfile
+
+        def replace_before_copy(src, dst, *args, **kwargs):
+            if Path(src) == target_path:
+                replacement = target_path.with_suffix('.tmp')
+                info = target_path.stat()
+                replacement.write_bytes(target_path.read_bytes())
+                os.utime(replacement, ns=(info.st_atime_ns, info.st_mtime_ns))
+                replacement.replace(target_path)
+            return copyfile(src, dst, *args, **kwargs)
+
+        monkeypatch.setattr(shutil, 'copyfile', replace_before_copy)
+        with pytest.raises(ValueError, match='备份期间文件发生变更'):
+            source.export(job)
+        assert not Path(source.path(job, 'backup.zip')).exists()
+        return
+    source.export(job)
+    target = tmp_path / 'target'
+    restore_export(source, job, target)
+    confirm_pending(str(target))
+    restored_db = str(target / 'data/system/db/cards_metadata.db')
+    restored_root = Path(json.loads((target / 'config.json').read_text(encoding='utf-8'))['chats_dir'])
+    assert catalog.reconcile(restored_root, db_path=restored_db)
+    records = state.read_snapshot_at(restored_db, 'chat', '')
+    bindings = state.read_snapshot_at(restored_db, 'ui', '')
+    assert source_id not in records and prefix + source_id not in records
+    retired_at_restore = replaced or replacement_timing == 'missing'
+    assert bindings['a.png']['chat_ids'] == ([] if retired_at_restore else [prefix + final_id])
+    assert bindings['z.png']['chat_ids'] == []
+    if retired_at_restore:
+        assert prefix + final_id not in records
+        with sqlite3.connect(restored_db) as conn:
+            retired = conn.execute("SELECT payload FROM chat_retired_state WHERE revision LIKE 'legacy:%'").fetchone()
+        assert json.loads(retired[0])['notes'] == 'old note'
+        if replacement_timing == 'missing':
+            assert not (restored_root / final_id).exists()
+            (restored_root / final_id).write_bytes((tmp_path / 'parked.jsonl').read_bytes())
+            assert catalog.reconcile(restored_root, db_path=restored_db)
+            assert prefix + final_id not in state.read_snapshot_at(restored_db, 'chat', '')
+            assert state.read_snapshot_at(restored_db, 'ui', '')['a.png']['chat_ids'] == []
+    else:
+        assert records[prefix + final_id]['notes'] == 'old note'
+        assert records[prefix + final_id]['last_view_floor'] == 4
 
 
 @pytest.mark.parametrize('damage', ['missing_table', 'missing_database', 'corrupt_database'])
